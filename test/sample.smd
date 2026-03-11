@@ -1,6 +1,6 @@
 ---
 title: "Sample Styled Document"
-author: "Markdown Studio"
+author: "SDocs"
 styles:
   fontFamily: Inter
   baseFontSize: 16
@@ -19,13 +19,13 @@ styles:
 ---
 # Sample Styled Document
 
-This document demonstrates the **Styled Markdown** format used by Markdown Studio.
+This document demonstrates the **Styled Markdown** format used by SDocs.
 
 ## Format
 
 Styles are stored as YAML front matter using the `styles` key — the same standard used by Jekyll, Hugo, Obsidian, and Gatsby.
 
-> Drop this file back onto Markdown Studio to restore both content and styles automatically.
+> Drop this file back onto SDocs to restore both content and styles automatically.
 
 ## Code example
 

@@ -1,4 +1,4 @@
-# Markdown Studio
+# SDocs
 
 Lightweight stateless markdown editor with live styling. Single Node.js file serves a single HTML file. No build step, no framework, one dependency (`marked` for MD parsing).
 

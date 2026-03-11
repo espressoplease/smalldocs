@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * mdstudio CLI
+ * sdocs-dev CLI
  * Usage:
- *   mdstudio report.md          # open file in browser
- *   cat file.md | mdstudio      # pipe markdown to browser
- *   mdstudio                    # open studio with empty editor
+ *   sdocs-dev report.md          # open file in browser
+ *   cat file.md | sdocs-dev      # pipe markdown to browser
+ *   sdocs-dev                    # open studio with empty editor
  */
 
 const fs   = require('fs');
@@ -17,20 +17,20 @@ const BASE_URL = `http://localhost:${PORT}`;
 
 // ── Help ───────────────────────────────────────────────────
 const HELP = `
-Markdown Studio — CLI
-=====================
-Opens a markdown file in the browser-based Markdown Studio editor,
+SDocs — CLI
+===========
+Opens a markdown file in the browser-based SDocs editor,
 with live styling controls and export to PDF / Word / raw .md.
 
 USAGE
-  mdstudio [file]              Open a .md file
-  mdstudio [file] --mode read   Open directly in read mode (hides editor + controls)
-  mdstudio [file] --mode style  Open with styling panel visible
-  mdstudio [file] --mode raw    Open showing raw markdown source
-  cat file.md | mdstudio       Pipe markdown from stdin
-  mdstudio                     Open with empty editor
-  mdstudio --help              Show this help
-  mdstudio --schema            Print the full styles schema (for LLMs)
+  sdocs-dev [file]              Open a .md file
+  sdocs-dev [file] --mode read   Open directly in read mode (hides editor + controls)
+  sdocs-dev [file] --mode style  Open with styling panel visible
+  sdocs-dev [file] --mode raw    Open showing raw markdown source
+  cat file.md | sdocs-dev       Pipe markdown from stdin
+  sdocs-dev                     Open with empty editor
+  sdocs-dev --help              Show this help
+  sdocs-dev --schema            Print the full styles schema (for LLMs)
 
 MODES
   read   (default when file given) Clean reading view — hides toolbar and styling panel
@@ -38,7 +38,7 @@ MODES
   raw    Shows raw markdown source
 
 STYLED MARKDOWN FORMAT
-  Markdown Studio extends standard .md files with an optional YAML
+  SDocs extends standard .md files with an optional YAML
   front matter block (the same standard used by Jekyll, Hugo, Obsidian).
   The \`styles\` key controls every visual aspect of the rendered document.
 
@@ -54,14 +54,14 @@ STYLED MARKDOWN FORMAT
   # My Document
   Content here...
 
-  Drop the file back onto Markdown Studio to restore content + styles.
+  Drop the file back onto SDocs to restore content + styles.
 
-Run \`mdstudio --schema\` for the complete list of style properties.
+Run \`sdocs-dev --schema\` for the complete list of style properties.
 `;
 
 const SCHEMA = `
-Markdown Studio — Styles Schema
-================================
+SDocs — Styles Schema
+=====================
 All style values live under the \`styles:\` key in YAML front matter.
 Every property is optional — omit anything you want left at its default.
 
@@ -163,7 +163,7 @@ function parseArgs() {
     if (args[i] === '--mode' || args[i] === '-m') {
       mode = args[++i];
       if (!['read', 'style', 'raw'].includes(mode)) {
-        console.error(`mdstudio: unknown mode "${mode}" — use read, style, or raw`);
+        console.error(`sdocs-dev: unknown mode "${mode}" — use read, style, or raw`);
         process.exit(1);
       }
     } else if (!file) {
@@ -179,7 +179,7 @@ async function readContent(file) {
   if (file) {
     const resolved = path.resolve(file);
     if (!fs.existsSync(resolved)) {
-      console.error(`mdstudio: file not found: ${file}`);
+      console.error(`sdocs-dev: file not found: ${file}`);
       process.exit(1);
     }
     return fs.readFileSync(resolved, 'utf-8');
@@ -261,14 +261,14 @@ function openBrowser(url) {
 
   const running = await isServerRunning();
   if (!running) {
-    process.stdout.write('Starting Markdown Studio server... ');
+    process.stdout.write('Starting SDocs server... ');
     await startServer();
     console.log('ready.');
   }
 
   openBrowser(url);
-  console.log(`Markdown Studio → ${url.length > 80 ? url.slice(0, 77) + '...' : url}`);
+  console.log(`SDocs → ${url.length > 80 ? url.slice(0, 77) + '...' : url}`);
 })().catch(e => {
-  console.error('mdstudio:', e.message);
+  console.error('sdocs-dev:', e.message);
   process.exit(1);
 });

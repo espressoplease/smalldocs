@@ -1,5 +1,5 @@
 /**
- * Red/Green test runner for markdown-studio
+ * Red/Green test runner for sdocs-dev
  * Usage: node test/run.js
  */
 const assert = require('assert');
@@ -271,9 +271,9 @@ async function runHttpTests() {
     assert.ok(r.headers['content-type'].includes('text/html'));
   });
 
-  await testAsync('GET / body contains markdown-studio markup', async () => {
+  await testAsync('GET / body contains SDocs markup', async () => {
     const r = await get(BASE + '/');
-    assert.ok(r.body.includes('Markdown Studio'));
+    assert.ok(r.body.includes('SDocs'));
   });
 
   await testAsync('GET /nonexistent returns 404', async () => {

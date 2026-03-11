@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Markdown Studio</title>
+<title>SDocs</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -712,7 +712,7 @@ body.read-mode #right {
       <rect x="1" y="1" width="16" height="16" rx="4" stroke="#D4CFC9" stroke-width="1"/>
       <path d="M5 6h8M5 9h6M5 12h4" stroke="#C5BFB8" stroke-width="1" stroke-linecap="round"/>
     </svg>
-    <h1>Markdown Studio</h1>
+    <h1>SDocs</h1>
   </div>
   <button class="btn ghost" id="btn-export-raw" title="Export as plain .md (no styles)">
     <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 10h9M6.5 2v6M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1766,7 +1766,7 @@ document.getElementById('btn-export-word').addEventListener('click', exportWord)
 // ═══════════════════════════════════════════════════════
 //  DEFAULT CONTENT
 // ═══════════════════════════════════════════════════════
-const DEFAULT_MD = `# Welcome to Markdown Studio
+const DEFAULT_MD = `# Welcome to SDocs
 
 Drag a \`.md\` file onto the left panel to load your content, or switch to **Raw** to edit directly.
 
@@ -1827,7 +1827,7 @@ setColorValue('ctrl-color', COLOR_DEFAULT, false);
       const text = atob(decodeURIComponent(mdParam));
       loadText(text, 'document.md');
     } catch (e) {
-      console.warn('mdstudio: could not decode #md hash', e);
+      console.warn('sdocs-dev: could not decode #md hash', e);
     }
   }
   if (modeParam && ['read', 'style', 'raw'].includes(modeParam)) {

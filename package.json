@@ -1,10 +1,10 @@
 {
-  "name": "markdown-studio",
+  "name": "sdocs-dev",
   "version": "1.0.0",
   "description": "Lightweight stateless markdown editor with styling",
   "main": "server.js",
   "bin": {
-    "mdstudio": "./bin/mdstudio.js"
+    "sdocs-dev": "./bin/sdocs-dev.js"
   },
   "scripts": {
     "start": "node server.js",
