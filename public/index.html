@@ -105,7 +105,7 @@ body.read-mode #topbar {
   cursor: pointer;
 }
 #topbar-brand h1 {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text);
   letter-spacing: -0.01em;
@@ -303,6 +303,7 @@ body.read-mode #topbar {
   --md-pre-bg:         #F4F1ED;
   --md-pre-padding:    1.1em 1.25em;
   --md-bq-border:      3px solid #2563EB;
+  --md-bq-size:        1em;
   --md-bq-color:       #6B6560;
   --md-bq-padding:     0.5em 1em;
   --md-bq-margin:      1.2em 0;
@@ -385,6 +386,7 @@ body.read-mode #topbar {
 }
 #rendered blockquote {
   border-left: var(--md-bq-border);
+  font-size: var(--md-bq-size);
   color: var(--md-bq-color);
   padding: var(--md-bq-padding);
   margin: var(--md-bq-margin);
@@ -1075,6 +1077,12 @@ body.read-mode #right {
           <span class="unit">px</span>
         </div>
         <div class="control-row">
+          <label>Font size</label>
+          <input type="range" id="ctrl-bq-size-range" min="0.7" max="1.5" step="0.05" value="1.0">
+          <input type="number" id="ctrl-bq-size-num" min="0.7" max="1.5" step="0.05" value="1.0">
+          <span class="unit">em</span>
+        </div>
+        <div class="control-row">
           <label>Text color</label>
           <input type="color" id="ctrl-bq-color" value="#6b6560">
         </div>
@@ -1321,6 +1329,8 @@ function applyCtrl(id) {
       const w   = document.getElementById('ctrl-bq-bw-num').value;
       renderedEl.style.setProperty('--md-bq-border', `${w}px solid ${col}`); break;
     }
+    case 'ctrl-bq-size-num':
+      renderedEl.style.setProperty('--md-bq-size', v + 'em'); break;
     case 'ctrl-bq-color':
       renderedEl.style.setProperty('--md-bq-color', v); break;
     case 'ctrl-list-spacing-num':
@@ -1349,6 +1359,7 @@ function linkRangeNum(rangeId, numId) {
   ['ctrl-p-lh-range',       'ctrl-p-lh-num'],
   ['ctrl-p-mb-range',       'ctrl-p-mb-num'],
   ['ctrl-bq-bw-range',          'ctrl-bq-bw-num'],
+  ['ctrl-bq-size-range',        'ctrl-bq-size-num'],
   ['ctrl-list-spacing-range',   'ctrl-list-spacing-num'],
   ['ctrl-list-indent-range',    'ctrl-list-indent-num'],
 ].forEach(([r,n]) => linkRangeNum(r,n));
@@ -1491,6 +1502,7 @@ function applyStylesFromMeta(s) {
   const bq = s.blockquote || {};
   if (bq.borderColor) setCtrl('ctrl-bq-border-color', bq.borderColor);
   if (bq.borderWidth) setCtrl('ctrl-bq-bw-num', bq.borderWidth);
+  if (bq.fontSize)    setCtrl('ctrl-bq-size-num', bq.fontSize);
   if (bq.color)       setCtrl('ctrl-bq-color', bq.color);
 }
 
@@ -1529,6 +1541,7 @@ function collectStyles() {
     blockquote: {
       borderColor: gv('ctrl-bq-border-color'),
       borderWidth: gn('ctrl-bq-bw-num'),
+      fontSize:    gn('ctrl-bq-size-num'),
       color:       gv('ctrl-bq-color'),
     },
   };
@@ -1582,6 +1595,12 @@ function setMode(mode) {
     const { meta, body } = parseFrontMatter(rawEl.value);
     currentMeta = meta; currentBody = body;
     render();
+    if (meta.styles) applyStylesFromMeta(meta.styles);
+  }
+  // Sync style→raw: rebuild full file with current styles
+  if (mode === 'raw') {
+    const meta = { ...currentMeta, styles: collectStyles() };
+    rawEl.value = serializeFrontMatter(meta) + '\n' + currentBody;
   }
 
   renderedEl.style.display = mode === 'raw' ? 'none' : '';
@@ -1617,10 +1636,10 @@ document.getElementById('topbar-brand').addEventListener('click', e => {
    'ctrl-p-lh-num','ctrl-p-mb-num',
    'ctrl-link-color','ctrl-link-decoration',
    'ctrl-code-font','ctrl-code-bg','ctrl-code-color',
-   'ctrl-bq-border-color','ctrl-bq-bw-num','ctrl-bq-color',
+   'ctrl-bq-border-color','ctrl-bq-bw-num','ctrl-bq-size-num','ctrl-bq-color',
    'ctrl-list-spacing-num','ctrl-list-indent-num',
   ].forEach(id => applyCtrl(id));
-  loadText(DEFAULT_MD);
+  loadText(serializeFrontMatter({ styles: collectStyles() }) + '\n' + DEFAULT_MD);
   setMode('style');
   history.replaceState(null, '', window.location.pathname);
 });
@@ -1870,50 +1889,109 @@ document.getElementById('btn-copy-default').addEventListener('click', async () =
 // ═══════════════════════════════════════════════════════
 //  DEFAULT CONTENT
 // ═══════════════════════════════════════════════════════
-const DEFAULT_MD = `# Welcome to SDocs
+const DEFAULT_MD = `# Word is dead. Markdown won.
 
-Drag a \`.md\` file onto the left panel to load your content, or switch to **Raw** to edit directly.
+Agents speak markdown. They can't open a .docx. But markdown on its own looks like a text file, so here we are.
 
-## Typography
+## What this is
 
-Use the panel on the right to style every element. All changes apply live.
+SDocs adds typography styles to markdown files. You write your content in regular markdown and the styles live in a metadata block at the top of the file.
 
-### Headings
+That metadata block is called [YAML front matter](https://jekyllrb.com/docs/front-matter/). It's a convention that started with [Jekyll](https://jekyllrb.com/) (the static site generator) back in 2008 and has since been adopted by [Hugo](https://gohugo.io/), [Gatsby](https://www.gatsbyjs.com/), [Obsidian](https://obsidian.md/), and most of the markdown ecosystem. It looks like this — a block of key-value pairs between two \`---\` lines at the top of your file:
 
-Scale all headings at once with *General Headers → Size scale*, or fine-tune each level individually.
-
-#### H4 example
-
-A fourth-level heading with its own size, color, and weight controls.
-
+\`\`\`yaml
 ---
-
-## Paragraphs
-
-Adjust **line height**, **color**, and **bottom margin** in the *Paragraph* section.
-
-> Blockquotes get a left border that you can color and resize. This text uses the *Blockquote* color setting.
-
-## Code
-
-Inline \`code\` and fenced code blocks:
-
-\`\`\`js
-const { meta, body } = parseFrontMatter(text);
-console.log(meta.styles.fontFamily); // "Inter"
+title: My Document
+author: Someone
+---
 \`\`\`
 
-## Links and lists
+These tools each use front matter for their own purposes. Jekyll uses it for page layout and permalink configuration. Hugo uses it for content taxonomy and templating. Obsidian uses it for note metadata, tags, and a \`cssclass\` field that points to an external stylesheet.
 
-Visit [Markdown Guide](https://www.markdownguide.org) for syntax reference.
+What SDocs does is add a \`styles:\` key where the values are CSS typography properties written in YAML. So instead of needing a separate CSS file or a build step, the styles travel with the document:
 
-- **Export Raw .md** — clean markdown, no front matter
-- **Export Styled .md** — YAML front matter embeds your style choices
-- Drop the exported file back in to restore everything
+\`\`\`yaml
+---
+styles:
+  fontFamily: Lora
+  baseFontSize: 17
+  color: "#1a1a2e"
+  h1: { fontSize: 2.3, color: "#c0392b", fontWeight: 700 }
+  p: { lineHeight: 1.9, marginBottom: 1.2 }
+---
+\`\`\`
 
-1. Pick a font from 24 Google Fonts
-2. Adjust sizes, colors, spacing
-3. Export and share
+The property names map directly to CSS — \`fontFamily\` is \`font-family\`, \`baseFontSize\` sets the root \`font-size\` in pixels, \`lineHeight\` is \`line-height\`, and so on. Nested keys like \`h1\`, \`h2\`, \`p\`, \`blockquote\` target those specific elements. You can see every available property by running \`sdocs-dev --schema\`.
+
+The panel on the right side of this screen lets you adjust all of these visually. When you export, the styles get written into the front matter automatically.
+
+You can also just click **Raw** above to see and edit the front matter directly — the styles for this document are right there at the top of the file.
+
+## The CLI
+
+There's a CLI called \`sdocs-dev\`. You install it with npm and point it at any \`.md\` file:
+
+\`\`\`bash
+sdocs-dev README.md              # opens in read mode
+sdocs-dev report.md --mode style # opens with the styling panel
+cat notes.md | sdocs-dev         # pipe from stdin
+\`\`\`
+
+If the file has a \`styles:\` block in its front matter, those styles get applied. If it doesn't, you just get sensible defaults.
+
+The main idea is that your AI agent can write a markdown file with a styles block and then open it for you:
+
+\`\`\`bash
+sdocs-dev report.md
+\`\`\`
+
+The agent writes markdown anyway — now it can also make it look good.
+
+## Sharing
+
+The entire document — content and styles — gets base64-encoded into the URL hash (the \`#\` part of the URL). That means the server never stores anything. The URL *is* the document.
+
+When you're running locally, the URL looks something like \`localhost:3000/#md=SGVsbG8...&mode=read\`. You can copy that and send it to someone else running the server locally, and it works.
+
+But more usefully, SDocs is hosted at [sdocs.dev](https://sdocs.dev). So you can share a link like \`sdocs.dev/#md=SGVsbG8...&mode=read\` and anyone with a browser can open it. They don't need to install anything or run a server. They just click the link and see the styled document.
+
+The CLI opens documents on localhost by default, but the hash is the same either way — you can swap \`localhost:3000\` for \`sdocs.dev\` in any URL and it works.
+
+## Privacy
+
+Your document never hits the server. This isn't a promise — it's how HTTP works. The hash fragment (everything after the \`#\` in a URL) is never sent to the server by the browser. It stays entirely client-side.
+
+Here's what happens when you open an SDocs URL:
+
+1. The browser requests \`sdocs.dev/\` — just the bare HTML page, no document data
+2. The server returns \`index.html\` — a static file, same for every request
+3. JavaScript in the browser reads \`window.location.hash\`, decodes the base64, and renders it locally
+
+The relevant code in \`index.html\`:
+
+\`\`\`js
+const hash = window.location.hash.slice(1);
+const params = new URLSearchParams(hash);
+const text = atob(decodeURIComponent(params.get('md')));
+\`\`\`
+
+The server itself is about 60 lines of Node.js that serves static files. There's no database, no logging, no analytics, no request body parsing. You can read the whole thing in \`server.js\`.
+
+If you want to be sure, run it locally. The CLI does that by default.
+
+## Default styles
+
+If you keep using the same fonts and colors across documents, you can save them as defaults in \`~/.sdocs/styles.yaml\`. Here's how that works:
+
+When you run \`sdocs-dev report.md\`, the CLI reads your file, then checks if \`~/.sdocs/styles.yaml\` exists. If it does, it merges those default styles *under* the file's own styles before encoding everything into the URL hash. So by the time the browser opens, the merged styles are already baked into the front matter.
+
+This means your defaults show up in the rendered document and in the raw view, but the original file on disk isn't modified. The file's own styles always take priority over defaults — if your default says \`fontFamily: Lora\` but the file says \`fontFamily: Inter\`, Inter wins. For nested properties like \`h1\`, the merge happens at the property level, so your default can provide \`h1.fontSize\` while the file provides \`h1.color\` and both apply.
+
+There's a "Save as default styles" section at the bottom of the right panel that generates the terminal command to create this file.
+
+## About the project
+
+The whole thing is a single HTML file, one Node server, and one dependency (\`marked\` for markdown parsing). It's open source and designed to stay simple.
 `;
 
 // Prime all color CSS vars and pickers from the cascade default
@@ -1940,8 +2018,8 @@ setColorValue('ctrl-color', COLOR_DEFAULT, false);
   if (mdParam) {
     return;
   }
-  // No md content — load default text, then apply styles if provided via hash
-  loadText(DEFAULT_MD);
+  // No md content — load default text with styles front matter visible
+  loadText(serializeFrontMatter({ styles: collectStyles() }) + '\n' + DEFAULT_MD);
   if (stylesParam) {
     try {
       const styles = JSON.parse(atob(decodeURIComponent(stylesParam)));
