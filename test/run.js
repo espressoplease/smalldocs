@@ -234,6 +234,75 @@ test('index.html has at least 20 Google Fonts', () => {
 });
 
 // ══════════════════════════════════════════════════════
+//  STYLE MERGING TESTS (from CLI module)
+// ══════════════════════════════════════════════════════
+console.log('\n── Style Merging Tests ────────────────────────\n');
+
+const cli = require(path.join(__dirname, '..', 'bin', 'sdocs-dev.js'));
+
+test('mergeStyles: defaults applied when no file styles', () => {
+  const defaults = { fontFamily: 'Lora', baseFontSize: 17 };
+  const result = cli.mergeStyles(defaults, null);
+  assert.strictEqual(result.fontFamily, 'Lora');
+  assert.strictEqual(result.baseFontSize, 17);
+});
+
+test('mergeStyles: file styles override defaults', () => {
+  const defaults = { fontFamily: 'Lora', baseFontSize: 17, color: '#000' };
+  const fileStyles = { fontFamily: 'Inter', baseFontSize: 16 };
+  const result = cli.mergeStyles(defaults, fileStyles);
+  assert.strictEqual(result.fontFamily, 'Inter');
+  assert.strictEqual(result.baseFontSize, 16);
+  assert.strictEqual(result.color, '#000'); // default preserved
+});
+
+test('mergeStyles: nested objects merge at property level', () => {
+  const defaults = { h1: { fontSize: 2.3, color: '#c0392b', fontWeight: 700 } };
+  const fileStyles = { h1: { color: '#111' } };
+  const result = cli.mergeStyles(defaults, fileStyles);
+  assert.strictEqual(result.h1.fontSize, 2.3);   // from default
+  assert.strictEqual(result.h1.color, '#111');     // from file
+  assert.strictEqual(result.h1.fontWeight, 700);   // from default
+});
+
+test('mergeStyles: no defaults returns file styles', () => {
+  const fileStyles = { fontFamily: 'Inter' };
+  const result = cli.mergeStyles(null, fileStyles);
+  assert.strictEqual(result.fontFamily, 'Inter');
+});
+
+test('mergeStyles: both null returns empty object', () => {
+  const result = cli.mergeStyles(null, null);
+  assert.deepStrictEqual(result, {});
+});
+
+test('applyDefaultStyles: injects styles into content with no front matter', () => {
+  // This test only works if ~/.sdocs/styles.yaml exists, so we test the
+  // underlying parseFrontMatter + mergeStyles + serializeFrontMatter pipeline
+  const defaults = { fontFamily: 'Lora', baseFontSize: 17 };
+  const content = '# Hello\nWorld';
+  const { meta, body } = cli.parseFrontMatter(content);
+  const merged = cli.mergeStyles(defaults, meta.styles);
+  const newMeta = { ...meta, styles: merged };
+  const output = cli.serializeFrontMatter(newMeta) + '\n' + body;
+  const reparsed = cli.parseFrontMatter(output);
+  assert.strictEqual(reparsed.meta.styles.fontFamily, 'Lora');
+  assert.strictEqual(reparsed.meta.styles.baseFontSize, 17);
+  assert.ok(reparsed.body.includes('# Hello'));
+});
+
+test('applyDefaultStyles: file styles win over defaults in roundtrip', () => {
+  const defaults = { fontFamily: 'Lora', baseFontSize: 17, h1: { fontSize: 2.5 } };
+  const content = '---\nstyles:\n  fontFamily: Inter\n  h1: { color: "#fff" }\n---\n# Doc';
+  const { meta, body } = cli.parseFrontMatter(content);
+  const merged = cli.mergeStyles(defaults, meta.styles);
+  assert.strictEqual(merged.fontFamily, 'Inter');      // file wins
+  assert.strictEqual(merged.baseFontSize, 17);          // default fills in
+  assert.strictEqual(merged.h1.fontSize, 2.5);          // default fills in nested
+  assert.strictEqual(merged.h1.color, '#fff');           // file wins nested
+});
+
+// ══════════════════════════════════════════════════════
 //  HTTP TESTS (requires server running)
 // ══════════════════════════════════════════════════════
 async function runHttpTests() {

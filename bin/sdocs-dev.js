@@ -174,6 +174,111 @@ function parseArgs() {
   return { file, mode };
 }
 
+// ── YAML parsing (same hand-rolled parser as index.html) ──
+function parseScalar(v) {
+  v = v.trim().replace(/^["']|["']$/g, '');
+  const n = Number(v);
+  return (!isNaN(n) && v !== '') ? n : v;
+}
+
+function parseInlineObject(str) {
+  const inner = str.replace(/^\{/, '').replace(/\}$/, '').trim();
+  const obj = {};
+  inner.split(',').forEach(pair => {
+    const m = pair.trim().match(/^(\w[\w-]*):\s*(.*)/);
+    if (m) obj[m[1]] = parseScalar(m[2].trim());
+  });
+  return obj;
+}
+
+function parseSimpleYaml(str) {
+  const result = {};
+  const lines = str.split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const km = line.match(/^(\w[\w-]*):\s*(.*)/);
+    if (!km) { i++; continue; }
+    const key = km[1], rest = km[2].trim();
+    if (rest.startsWith('{')) {
+      result[key] = parseInlineObject(rest); i++;
+    } else if (rest === '') {
+      const nested = {}; i++;
+      while (i < lines.length && /^  /.test(lines[i])) {
+        const nl = lines[i].trim();
+        const nm = nl.match(/^(\w[\w-]*):\s*(.*)/);
+        if (nm) nested[nm[1]] = nm[2].trim().startsWith('{')
+          ? parseInlineObject(nm[2].trim()) : parseScalar(nm[2].trim());
+        i++;
+      }
+      result[key] = nested;
+    } else { result[key] = parseScalar(rest); i++; }
+  }
+  return result;
+}
+
+function parseFrontMatter(text) {
+  const FM_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+  const m = text.match(FM_RE);
+  if (!m) return { meta: {}, body: text };
+  return { meta: parseSimpleYaml(m[1]), body: text.slice(m[0].length) };
+}
+
+function serializeFrontMatter(meta) {
+  const lines = ['---'];
+  for (const [k, v] of Object.entries(meta)) {
+    if (typeof v === 'object' && v !== null) {
+      lines.push(`${k}:`);
+      for (const [sk, sv] of Object.entries(v)) {
+        if (typeof sv === 'object' && sv !== null) {
+          const inner = Object.entries(sv).map(([a, b]) => `${a}: ${JSON.stringify(b)}`).join(', ');
+          lines.push(`  ${sk}: { ${inner} }`);
+        } else { lines.push(`  ${sk}: ${JSON.stringify(sv)}`); }
+      }
+    } else { lines.push(`${k}: ${JSON.stringify(v)}`); }
+  }
+  lines.push('---');
+  return lines.join('\n');
+}
+
+// ── ~/.sdocs/styles.yaml default styles ────────────────────
+function loadDefaultStyles() {
+  const configPath = path.join(require('os').homedir(), '.sdocs', 'styles.yaml');
+  if (!fs.existsSync(configPath)) return null;
+  try {
+    const yaml = fs.readFileSync(configPath, 'utf-8');
+    return parseSimpleYaml(yaml);
+  } catch {
+    return null;
+  }
+}
+
+// Deep merge: defaults under file styles (file wins on conflict)
+function mergeStyles(defaults, fileStyles) {
+  if (!defaults) return fileStyles || {};
+  if (!fileStyles) return { ...defaults };
+  const merged = { ...defaults };
+  for (const [k, v] of Object.entries(fileStyles)) {
+    if (typeof v === 'object' && v !== null && typeof merged[k] === 'object' && merged[k] !== null) {
+      merged[k] = { ...merged[k], ...v };
+    } else {
+      merged[k] = v;
+    }
+  }
+  return merged;
+}
+
+// Apply default styles to content, returning modified content
+function applyDefaultStyles(content) {
+  const defaults = loadDefaultStyles();
+  if (!defaults) return content;
+
+  const { meta, body } = parseFrontMatter(content);
+  const mergedStyles = mergeStyles(defaults, meta.styles);
+  const newMeta = { ...meta, styles: mergedStyles };
+  return serializeFrontMatter(newMeta) + '\n' + body;
+}
+
 // ── Read content ───────────────────────────────────────────
 async function readContent(file) {
   if (file) {
@@ -250,11 +355,23 @@ function openBrowser(url) {
 // ── Main ───────────────────────────────────────────────────
 (async () => {
   const { file, mode } = parseArgs();
-  const content = await readContent(file);
+  let content = await readContent(file);
+
+  // Apply ~/.sdocs/styles.yaml defaults
+  const defaults = loadDefaultStyles();
+  if (content && defaults) {
+    content = applyDefaultStyles(content);
+  }
 
   let url = BASE_URL;
   const params = new URLSearchParams();
-  if (content) params.set('md', encodeURIComponent(Buffer.from(content, 'utf-8').toString('base64')));
+  if (content) {
+    params.set('md', encodeURIComponent(Buffer.from(content, 'utf-8').toString('base64')));
+  } else if (defaults) {
+    // No file — pass default styles separately so the browser still shows DEFAULT_MD
+    const stylesYaml = JSON.stringify(defaults);
+    params.set('styles', encodeURIComponent(Buffer.from(stylesYaml, 'utf-8').toString('base64')));
+  }
   const effectiveMode = mode || (content ? 'read' : 'style');
   if (effectiveMode) params.set('mode', effectiveMode);
   if (params.toString()) url = `${BASE_URL}/#${params.toString()}`;
@@ -272,3 +389,6 @@ function openBrowser(url) {
   console.error('sdocs-dev:', e.message);
   process.exit(1);
 });
+
+// Export for tests
+module.exports = { mergeStyles, applyDefaultStyles, parseFrontMatter, serializeFrontMatter, parseSimpleYaml };

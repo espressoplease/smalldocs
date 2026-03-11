@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%23EDE8E2'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%23D4CFC9' stroke-width='1'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%23C5BFB8' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
 /* ═══════════════════════════════════════════════════
    DESIGN TOKENS  (Cursor-inspired warm neutral palette)
@@ -96,12 +96,17 @@ body.read-mode #topbar {
 }
 
 #topbar-brand svg {
+  color: var(--accent);
   flex-shrink: 0;
 }
 
+#topbar-brand {
+  text-decoration: none;
+  cursor: pointer;
+}
 #topbar-brand h1 {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
   color: var(--text);
   letter-spacing: -0.01em;
 }
@@ -374,7 +379,8 @@ body.read-mode #topbar {
 #rendered pre code {
   background: none;
   padding: 0;
-  color: #3C3733;
+  color: var(--md-code-color);
+  font-family: var(--md-code-font);
   font-size: 0.88em;
 }
 #rendered blockquote {
@@ -706,14 +712,14 @@ body.read-mode #right {
 
 <!-- ── Top bar ── -->
 <div id="topbar">
-  <div id="topbar-brand">
+  <a id="topbar-brand" href="#">
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <rect x="1" y="1" width="16" height="16" rx="4" fill="#EDE8E2"/>
-      <rect x="1" y="1" width="16" height="16" rx="4" stroke="#D4CFC9" stroke-width="1"/>
-      <path d="M5 6h8M5 9h6M5 12h4" stroke="#C5BFB8" stroke-width="1" stroke-linecap="round"/>
+      <rect x="1" y="1" width="16" height="16" rx="4" fill="currentColor" opacity=".15"/>
+      <rect x="1" y="1" width="16" height="16" rx="4" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M5 6h8M5 9h6M5 12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
-    <h1>SDocs</h1>
-  </div>
+    <h1>SmallDocs</h1>
+  </a>
   <button class="btn ghost" id="btn-export-raw" title="Export as plain .md (no styles)">
     <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 10h9M6.5 2v6M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     .md
@@ -1072,6 +1078,35 @@ body.read-mode #right {
           <label>Text color</label>
           <input type="color" id="ctrl-bq-color" value="#6b6560">
         </div>
+      </div>
+    </div>
+
+    <!-- SAVE AS DEFAULT -->
+    <div class="panel-section">
+      <div class="panel-header" data-target="body-save-default" style="color: var(--accent-text);">
+        <span class="arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Save as default styles
+      </div>
+      <div class="panel-body" id="body-save-default">
+        <ul style="font-size:11.5px; color:var(--text-2); margin:0 0 10px; padding-left:1.2em; line-height:1.6; list-style:disc;">
+          <li>Requires <strong>sdocs-dev</strong> CLI
+            <ul style="padding-left:1.2em; margin:2px 0 0; list-style:circle;">
+              <li style="color:var(--text-3);">Install: <code style="font-size:10px; background:var(--bg-surface); border:1px solid var(--border); border-radius:3px; padding:1px 4px;">npm link</code> from project root</li>
+            </ul>
+          </li>
+          <li>Saves to <code style="font-size:10px; background:var(--bg-surface); border:1px solid var(--border); border-radius:3px; padding:1px 4px;">~/.sdocs/styles.yaml</code></li>
+          <li>Paste the command below in your terminal</li>
+        </ul>
+        <div style="display:flex; gap:6px; margin-bottom:8px;">
+          <button class="btn" id="btn-copy-default" style="flex:1; justify-content:center;">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="3.5" y="3.5" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 3.5V2a1 1 0 00-1-1H2a1 1 0 00-1 1v5.5a1 1 0 001 1h1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+            Copy
+          </button>
+        </div>
+        <pre id="save-default-display" style="font-size:10.5px; line-height:1.55; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); padding:10px; overflow-x:auto; white-space:pre-wrap; word-break:break-all; color:var(--text-2); margin:0;"></pre>
+        <div id="save-default-msg" style="display:none; margin-top:6px; font-size:11px; color:var(--accent-text); text-align:center;"></div>
       </div>
     </div>
 
@@ -1563,6 +1598,33 @@ document.getElementById('btn-read').addEventListener('click',  () => setMode('re
 document.getElementById('btn-style').addEventListener('click', () => setMode('style'));
 document.getElementById('btn-raw').addEventListener('click',   () => setMode('raw'));
 
+// ── Logo → reset to default state ──────────────────
+document.getElementById('topbar-brand').addEventListener('click', e => {
+  e.preventDefault();
+  overriddenColors.clear();
+  setColorValue('ctrl-color', COLOR_DEFAULT, false);
+  // Reset all controls to HTML defaults
+  document.querySelectorAll('#right input, #right select').forEach(el => {
+    if (el.type === 'range' || el.type === 'number') el.value = el.defaultValue;
+    else if (el.tagName === 'SELECT') el.selectedIndex = [...el.options].findIndex(o => o.defaultSelected);
+    else if (el.type === 'color') el.value = el.defaultValue;
+  });
+  // Re-apply all controls so CSS vars reset
+  ['ctrl-font-family','ctrl-base-size-num','ctrl-line-height-num',
+   'ctrl-h-font-family','ctrl-h-scale-num','ctrl-h-mb-num',
+   'ctrl-h1-size-num','ctrl-h1-weight','ctrl-h2-size-num','ctrl-h2-weight',
+   'ctrl-h3-size-num','ctrl-h3-weight','ctrl-h4-size-num','ctrl-h4-weight',
+   'ctrl-p-lh-num','ctrl-p-mb-num',
+   'ctrl-link-color','ctrl-link-decoration',
+   'ctrl-code-font','ctrl-code-bg','ctrl-code-color',
+   'ctrl-bq-border-color','ctrl-bq-bw-num','ctrl-bq-color',
+   'ctrl-list-spacing-num','ctrl-list-indent-num',
+  ].forEach(id => applyCtrl(id));
+  loadText(DEFAULT_MD);
+  setMode('style');
+  history.replaceState(null, '', window.location.pathname);
+});
+
 // ═══════════════════════════════════════════════════════
 //  COLLAPSIBLES
 // ═══════════════════════════════════════════════════════
@@ -1763,6 +1825,48 @@ document.getElementById('btn-export-styled').addEventListener('click', () => {
 document.getElementById('btn-export-pdf').addEventListener('click', exportPDF);
 document.getElementById('btn-export-word').addEventListener('click', exportWord);
 
+// ── Save as default ────────────────────────────────
+function buildStylesYaml() {
+  const styles = collectStyles();
+  const lines = [];
+  for (const [k, v] of Object.entries(styles)) {
+    if (typeof v === 'object' && v !== null) {
+      const inner = Object.entries(v).map(([a, b]) => `${a}: ${JSON.stringify(b)}`).join(', ');
+      lines.push(`${k}: { ${inner} }`);
+    } else {
+      lines.push(`${k}: ${JSON.stringify(v)}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+let saveDefaultCmd = '';
+
+function refreshSaveDefaultPreview() {
+  const yaml = buildStylesYaml();
+  saveDefaultCmd = `mkdir -p ~/.sdocs && cat > ~/.sdocs/styles.yaml << 'SDOCS'\n${yaml}\nSDOCS`;
+  document.getElementById('save-default-display').textContent = saveDefaultCmd;
+}
+
+// Refresh preview whenever the section is opened
+document.querySelector('[data-target="body-save-default"]').addEventListener('click', () => {
+  // Small delay so the panel-body open class is toggled first
+  setTimeout(refreshSaveDefaultPreview, 0);
+});
+
+document.getElementById('btn-copy-default').addEventListener('click', async () => {
+  refreshSaveDefaultPreview();
+  try {
+    await navigator.clipboard.writeText(saveDefaultCmd);
+    const msg = document.getElementById('save-default-msg');
+    msg.textContent = 'Copied! Paste in your terminal to save defaults.';
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 4000);
+  } catch (e) {
+    setStatus('Could not copy to clipboard');
+  }
+});
+
 // ═══════════════════════════════════════════════════════
 //  DEFAULT CONTENT
 // ═══════════════════════════════════════════════════════
@@ -1818,10 +1922,10 @@ setColorValue('ctrl-color', COLOR_DEFAULT, false);
 // ── URL hash content loading (#md=<base64>[&mode=read|rendered|raw]) ────
 (function () {
   const hash = window.location.hash.slice(1); // strip leading #
-  if (!hash) return;
-  const params = new URLSearchParams(hash);
+  const params = hash ? new URLSearchParams(hash) : new URLSearchParams();
   const mdParam = params.get('md');
   const modeParam = params.get('mode');
+  const stylesParam = params.get('styles');
   if (mdParam) {
     try {
       const text = atob(decodeURIComponent(mdParam));
@@ -1833,11 +1937,19 @@ setColorValue('ctrl-color', COLOR_DEFAULT, false);
   if (modeParam && ['read', 'style', 'raw'].includes(modeParam)) {
     setMode(modeParam);
   }
-  if (mdParam || modeParam) {
-    history.replaceState(null, '', window.location.pathname);
+  if (mdParam) {
     return;
   }
+  // No md content — load default text, then apply styles if provided via hash
   loadText(DEFAULT_MD);
+  if (stylesParam) {
+    try {
+      const styles = JSON.parse(atob(decodeURIComponent(stylesParam)));
+      applyStylesFromMeta(styles);
+    } catch (e) {
+      console.warn('sdocs-dev: could not decode #styles hash', e);
+    }
+  }
 }());
 </script>
 </body>
