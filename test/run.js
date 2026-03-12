@@ -303,6 +303,100 @@ test('applyDefaultStyles: file styles win over defaults in roundtrip', () => {
 });
 
 // ══════════════════════════════════════════════════════
+//  COLOR CASCADE ROUNDTRIP TESTS
+// ══════════════════════════════════════════════════════
+console.log('\n── Color Cascade Tests ────────────────────────\n');
+
+// Simulate the cascade-aware collectStyles logic (pure function, no DOM)
+// overridden is a Set of color control IDs; colorValues maps control IDs to their values
+function collectCascadeColors(overridden, colorValues) {
+  const styles = {};
+  if (overridden.has('ctrl-color'))      styles.color = colorValues['ctrl-color'];
+  if (overridden.has('ctrl-h-color'))    styles.headersColor = colorValues['ctrl-h-color'];
+  if (overridden.has('ctrl-h1-color'))   styles.h1Color = colorValues['ctrl-h1-color'];
+  if (overridden.has('ctrl-h2-color'))   styles.h2Color = colorValues['ctrl-h2-color'];
+  if (overridden.has('ctrl-h3-color'))   styles.h3Color = colorValues['ctrl-h3-color'];
+  if (overridden.has('ctrl-h4-color'))   styles.h4Color = colorValues['ctrl-h4-color'];
+  if (overridden.has('ctrl-p-color'))    styles.pColor = colorValues['ctrl-p-color'];
+  if (overridden.has('ctrl-list-color')) styles.listColor = colorValues['ctrl-list-color'];
+  return styles;
+}
+
+// Simulate applyStylesFromMeta's color handling: returns which controls would be overridden
+function applyCascadeFromStyles(styles) {
+  const overridden = new Set();
+  if (styles.color)        overridden.add('ctrl-color');
+  if (styles.headersColor) overridden.add('ctrl-h-color');
+  if (styles.h1Color)      overridden.add('ctrl-h1-color');
+  if (styles.h2Color)      overridden.add('ctrl-h2-color');
+  if (styles.h3Color)      overridden.add('ctrl-h3-color');
+  if (styles.h4Color)      overridden.add('ctrl-h4-color');
+  if (styles.pColor)       overridden.add('ctrl-p-color');
+  if (styles.listColor)    overridden.add('ctrl-list-color');
+  return overridden;
+}
+
+test('cascade: no overridden colors → no colors emitted', () => {
+  const overridden = new Set();
+  const colorValues = {
+    'ctrl-color': '#1c1917', 'ctrl-h-color': '#1c1917',
+    'ctrl-h1-color': '#1c1917', 'ctrl-h2-color': '#1c1917',
+    'ctrl-h3-color': '#1c1917', 'ctrl-h4-color': '#1c1917',
+    'ctrl-p-color': '#1c1917', 'ctrl-list-color': '#1c1917',
+  };
+  const styles = collectCascadeColors(overridden, colorValues);
+  assert.deepStrictEqual(styles, {});
+});
+
+test('cascade: only root color overridden → only root emitted', () => {
+  const overridden = new Set(['ctrl-color']);
+  const colorValues = {
+    'ctrl-color': '#ff0000', 'ctrl-h-color': '#ff0000',
+    'ctrl-h1-color': '#ff0000', 'ctrl-p-color': '#ff0000',
+  };
+  const styles = collectCascadeColors(overridden, colorValues);
+  assert.strictEqual(styles.color, '#ff0000');
+  assert.strictEqual(styles.headersColor, undefined);
+  assert.strictEqual(styles.h1Color, undefined);
+  assert.strictEqual(styles.pColor, undefined);
+});
+
+test('cascade: roundtrip preserves override set', () => {
+  const original = new Set(['ctrl-color']);
+  const colorValues = { 'ctrl-color': '#ff0000' };
+  const collected = collectCascadeColors(original, colorValues);
+  const restored = applyCascadeFromStyles(collected);
+  assert.ok(restored.has('ctrl-color'));
+  assert.ok(!restored.has('ctrl-h-color'));
+  assert.ok(!restored.has('ctrl-h1-color'));
+  assert.ok(!restored.has('ctrl-p-color'));
+  assert.strictEqual(restored.size, 1);
+});
+
+test('cascade: root + child override survives roundtrip', () => {
+  const original = new Set(['ctrl-color', 'ctrl-h1-color']);
+  const colorValues = { 'ctrl-color': '#ff0000', 'ctrl-h1-color': '#0000ff' };
+  const collected = collectCascadeColors(original, colorValues);
+  const restored = applyCascadeFromStyles(collected);
+  assert.ok(restored.has('ctrl-color'));
+  assert.ok(restored.has('ctrl-h1-color'));
+  assert.ok(!restored.has('ctrl-h2-color'));
+  assert.ok(!restored.has('ctrl-h-color'));
+  assert.strictEqual(restored.size, 2);
+});
+
+test('cascade: full YAML roundtrip with front matter', () => {
+  // Only root color overridden → serialize → parse → only root should come back
+  const styles = { fontFamily: 'Inter', baseFontSize: 16, color: '#ff0000',
+    h1: { fontSize: 2.1, fontWeight: 700 } };
+  const fm = cli.serializeFrontMatter({ styles });
+  const { meta } = cli.parseFrontMatter(fm + '\n# Doc');
+  assert.strictEqual(meta.styles.color, '#ff0000');
+  // h1 should have no color key since we didn't include one
+  assert.strictEqual(meta.styles.h1.color, undefined);
+});
+
+// ══════════════════════════════════════════════════════
 //  HTTP TESTS (requires server running)
 // ══════════════════════════════════════════════════════
 async function runHttpTests() {

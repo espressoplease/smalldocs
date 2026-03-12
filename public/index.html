@@ -1338,6 +1338,7 @@ function applyCtrl(id) {
     case 'ctrl-list-indent-num':
       renderedEl.style.setProperty('--md-list-indent', v + 'em'); break;
   }
+  syncAll('controls');
 }
 
 function linkRangeNum(rangeId, numId) {
@@ -1425,19 +1426,19 @@ function resetColorValue(ctrlId) {
 Object.keys(COLOR_VAR).forEach(ctrlId => {
   const el = document.getElementById(ctrlId);
   if (!el) return;
-  el.addEventListener('input',  () => setColorValue(ctrlId, el.value, true));
-  el.addEventListener('change', () => setColorValue(ctrlId, el.value, true));
+  el.addEventListener('input',  () => { setColorValue(ctrlId, el.value, true); syncAll('controls'); });
+  el.addEventListener('change', () => { setColorValue(ctrlId, el.value, true); syncAll('controls'); });
 });
 
 // Wire reset buttons
-document.getElementById('reset-color').addEventListener('click',      () => { overriddenColors.delete('ctrl-color'); setColorValue('ctrl-color', COLOR_DEFAULT, false); });
-document.getElementById('reset-h-color').addEventListener('click',    () => resetColorValue('ctrl-h-color'));
-document.getElementById('reset-h1-color').addEventListener('click',   () => resetColorValue('ctrl-h1-color'));
-document.getElementById('reset-h2-color').addEventListener('click',   () => resetColorValue('ctrl-h2-color'));
-document.getElementById('reset-h3-color').addEventListener('click',   () => resetColorValue('ctrl-h3-color'));
-document.getElementById('reset-h4-color').addEventListener('click',   () => resetColorValue('ctrl-h4-color'));
-document.getElementById('reset-p-color').addEventListener('click',    () => resetColorValue('ctrl-p-color'));
-document.getElementById('reset-list-color').addEventListener('click', () => resetColorValue('ctrl-list-color'));
+document.getElementById('reset-color').addEventListener('click',      () => { overriddenColors.delete('ctrl-color'); setColorValue('ctrl-color', COLOR_DEFAULT, false); syncAll('controls'); });
+document.getElementById('reset-h-color').addEventListener('click',    () => { resetColorValue('ctrl-h-color'); syncAll('controls'); });
+document.getElementById('reset-h1-color').addEventListener('click',   () => { resetColorValue('ctrl-h1-color'); syncAll('controls'); });
+document.getElementById('reset-h2-color').addEventListener('click',   () => { resetColorValue('ctrl-h2-color'); syncAll('controls'); });
+document.getElementById('reset-h3-color').addEventListener('click',   () => { resetColorValue('ctrl-h3-color'); syncAll('controls'); });
+document.getElementById('reset-h4-color').addEventListener('click',   () => { resetColorValue('ctrl-h4-color'); syncAll('controls'); });
+document.getElementById('reset-p-color').addEventListener('click',    () => { resetColorValue('ctrl-p-color'); syncAll('controls'); });
+document.getElementById('reset-list-color').addEventListener('click', () => { resetColorValue('ctrl-list-color'); syncAll('controls'); });
 
 // ═══════════════════════════════════════════════════════
 //  APPLY STYLES FROM META → CONTROLS
@@ -1455,6 +1456,9 @@ function setCtrl(id, val) {
 
 function applyStylesFromMeta(s) {
   if (!s) return;
+  // Suppress syncAll during batch control updates to avoid capturing partial state
+  const wasSyncing = _syncing;
+  _syncing = true;
   if (s.fontFamily) {
     const sel = document.getElementById('ctrl-font-family');
     const match = [...sel.options].find(o =>
@@ -1504,6 +1508,11 @@ function applyStylesFromMeta(s) {
   if (bq.borderWidth) setCtrl('ctrl-bq-bw-num', bq.borderWidth);
   if (bq.fontSize)    setCtrl('ctrl-bq-size-num', bq.fontSize);
   if (bq.color)       setCtrl('ctrl-bq-color', bq.color);
+
+  const ll = s.list || {};
+  if (ll.color) setColorValue('ctrl-list-color', ll.color, true);
+
+  _syncing = wasSyncing;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1513,22 +1522,19 @@ const gv = id => document.getElementById(id)?.value ?? '';
 const gn = id => parseFloat(document.getElementById(id)?.value ?? 0);
 
 function collectStyles() {
-  return {
+  const styles = {
     fontFamily:   gv('ctrl-font-family').replace(/['"]/g,'').split(',')[0].trim(),
     baseFontSize: gn('ctrl-base-size-num'),
     lineHeight:   gn('ctrl-line-height-num'),
-    color:        gv('ctrl-color'),
     headers: {
       scale:        gn('ctrl-h-scale-num'),
       marginBottom: gn('ctrl-h-mb-num'),
-      color:        gv('ctrl-h-color'),
     },
-    h1: { fontSize: gn('ctrl-h1-size-num'), color: gv('ctrl-h1-color'), fontWeight: parseInt(gv('ctrl-h1-weight')) },
-    h2: { fontSize: gn('ctrl-h2-size-num'), color: gv('ctrl-h2-color'), fontWeight: parseInt(gv('ctrl-h2-weight')) },
-    h3: { fontSize: gn('ctrl-h3-size-num'), color: gv('ctrl-h3-color'), fontWeight: parseInt(gv('ctrl-h3-weight')) },
-    h4: { fontSize: gn('ctrl-h4-size-num'), color: gv('ctrl-h4-color'), fontWeight: parseInt(gv('ctrl-h4-weight')) },
+    h1: { fontSize: gn('ctrl-h1-size-num'), fontWeight: parseInt(gv('ctrl-h1-weight')) },
+    h2: { fontSize: gn('ctrl-h2-size-num'), fontWeight: parseInt(gv('ctrl-h2-weight')) },
+    h3: { fontSize: gn('ctrl-h3-size-num'), fontWeight: parseInt(gv('ctrl-h3-weight')) },
+    h4: { fontSize: gn('ctrl-h4-size-num'), fontWeight: parseInt(gv('ctrl-h4-weight')) },
     p: {
-      color:        gv('ctrl-p-color'),
       lineHeight:   gn('ctrl-p-lh-num'),
       marginBottom: gn('ctrl-p-mb-num'),
     },
@@ -1545,6 +1551,19 @@ function collectStyles() {
       color:       gv('ctrl-bq-color'),
     },
   };
+  // Only emit cascade colors that were explicitly overridden by the user.
+  // Non-overridden colors are inherited via the cascade tree and should not
+  // be serialized — otherwise a YAML roundtrip would mark everything as
+  // overridden and break the cascade.
+  if (overriddenColors.has('ctrl-color'))      styles.color = gv('ctrl-color');
+  if (overriddenColors.has('ctrl-h-color'))    styles.headers.color = gv('ctrl-h-color');
+  if (overriddenColors.has('ctrl-h1-color'))   styles.h1.color = gv('ctrl-h1-color');
+  if (overriddenColors.has('ctrl-h2-color'))   styles.h2.color = gv('ctrl-h2-color');
+  if (overriddenColors.has('ctrl-h3-color'))   styles.h3.color = gv('ctrl-h3-color');
+  if (overriddenColors.has('ctrl-h4-color'))   styles.h4.color = gv('ctrl-h4-color');
+  if (overriddenColors.has('ctrl-p-color'))    styles.p.color = gv('ctrl-p-color');
+  if (overriddenColors.has('ctrl-list-color')) styles.list = { color: gv('ctrl-list-color') };
+  return styles;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1562,6 +1581,55 @@ function loadText(text, filename) {
   render();
   if (meta.styles) applyStylesFromMeta(meta.styles);
   setStatus(filename ? `Loaded: ${filename}` : 'Ready');
+  syncAll('load');
+}
+
+// ═══════════════════════════════════════════════════════
+//  AUTO-SAVE TO URL HASH
+// ═══════════════════════════════════════════════════════
+let _hashTimer = null;
+
+function updateHash() {
+  clearTimeout(_hashTimer);
+  _hashTimer = setTimeout(() => {
+    const meta = { ...currentMeta, styles: collectStyles() };
+    const full = serializeFrontMatter(meta) + '\n' + currentBody;
+    const params = new URLSearchParams();
+    params.set('md', encodeURIComponent(btoa(unescape(encodeURIComponent(full)))));
+    history.replaceState(null, '', '#' + params.toString());
+  }, 400);
+}
+
+// ═══════════════════════════════════════════════════════
+//  UNIFIED STATE SYNC
+// ═══════════════════════════════════════════════════════
+let _syncing = false;
+let _rawSyncTimer = null;
+
+function syncAll(source) {
+  if (_syncing) return;
+  _syncing = true;
+  try {
+    if (source === 'controls') {
+      // Controls changed → update currentMeta, rebuild raw, update hash
+      currentMeta = { ...currentMeta, styles: collectStyles() };
+      rawEl.value = serializeFrontMatter(currentMeta) + '\n' + currentBody;
+      updateHash();
+    } else if (source === 'raw') {
+      // Raw textarea changed → parse, render, apply styles, update hash
+      const { meta, body } = parseFrontMatter(rawEl.value);
+      currentMeta = meta;
+      currentBody = body;
+      render();
+      if (meta.styles) applyStylesFromMeta(meta.styles);
+      updateHash();
+    } else if (source === 'load') {
+      // Content loaded (drop, URL hash) → just update hash (loadText did the rest)
+      updateHash();
+    }
+  } finally {
+    _syncing = false;
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1586,23 +1654,17 @@ contentArea.addEventListener('drop', e => {
   reader.readAsText(file);
 });
 
+// Raw textarea edits → debounced sync to all representations
+rawEl.addEventListener('input', () => {
+  clearTimeout(_rawSyncTimer);
+  _rawSyncTimer = setTimeout(() => syncAll('raw'), 300);
+});
+
 // ═══════════════════════════════════════════════════════
 //  TOGGLE RENDERED / RAW
 // ═══════════════════════════════════════════════════════
 function setMode(mode) {
-  // Sync raw→style if leaving raw
-  if (mode !== 'raw') {
-    const { meta, body } = parseFrontMatter(rawEl.value);
-    currentMeta = meta; currentBody = body;
-    render();
-    if (meta.styles) applyStylesFromMeta(meta.styles);
-  }
-  // Sync style→raw: rebuild full file with current styles
-  if (mode === 'raw') {
-    const meta = { ...currentMeta, styles: collectStyles() };
-    rawEl.value = serializeFrontMatter(meta) + '\n' + currentBody;
-  }
-
+  // State is always in sync via syncAll(), so just toggle visibility
   renderedEl.style.display = mode === 'raw' ? 'none' : '';
   rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
@@ -1641,7 +1703,6 @@ document.getElementById('topbar-brand').addEventListener('click', e => {
   ].forEach(id => applyCtrl(id));
   loadText(serializeFrontMatter({ styles: collectStyles() }) + '\n' + DEFAULT_MD);
   setMode('style');
-  history.replaceState(null, '', window.location.pathname);
 });
 
 // ═══════════════════════════════════════════════════════
