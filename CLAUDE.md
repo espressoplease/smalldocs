@@ -14,6 +14,19 @@ The entire app is stateless. The server just serves static files. All state (cur
 
 Styles are driven entirely by CSS custom properties on `#rendered`. Every control in the right panel maps to a `--md-*` variable. No style objects are stored separately — `collectStyles()` reads the DOM when exporting.
 
+## Shared modules (UMD pattern)
+
+There is no build step, so we **cannot use ES modules** (`import`/`export`). Code that needs to run in both the browser and Node tests uses a UMD IIFE pattern:
+
+```js
+(function (exports) {
+  // ... all code ...
+  exports.foo = foo;
+})(typeof module !== 'undefined' && module.exports ? module.exports : (window.MyLib = {}));
+```
+
+In the browser the IIFE writes to `window.MyLib`; in Node tests it writes to `module.exports`. `public/sdocs-styles.js` is the main example — it holds pure style data tables and logic shared by `index.html` and `test/run.js`.
+
 ## File format
 
 Styled exports are plain `.md` files with **YAML front matter** (the `---` block standard used by Jekyll, Hugo, Obsidian, Gatsby). The `styles:` key is our addition. Raw exports strip front matter entirely.

@@ -1131,6 +1131,7 @@ body.read-mode #right {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked@11/marked.min.js"></script>
+<script src="/public/sdocs-styles.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 //  GOOGLE FONTS — top 24 by popularity
@@ -1273,72 +1274,34 @@ function applyCtrl(id) {
   if (!el) return;
   const v = el.value;
 
-  // Load Google Font on demand
+  // Load Google Font on demand (DOM side effect)
   if (id === 'ctrl-font-family' || id === 'ctrl-h-font-family') {
     const name = v.replace(/['"]/g,'').split(',')[0].trim();
     if (GOOGLE_FONTS.includes(name)) loadGoogleFont(name);
   }
 
-  switch(id) {
-    case 'ctrl-font-family':
-      renderedEl.style.setProperty('--md-font-family', v); break;
-    case 'ctrl-base-size-num':
-      renderedEl.style.setProperty('--md-base-size', v + 'px'); break;
-    case 'ctrl-line-height-num':
-      renderedEl.style.setProperty('--md-line-height', v); break;
-    case 'ctrl-h-font-family':
-      renderedEl.style.setProperty('--md-h-font-family', v); break;
-    case 'ctrl-h-scale-num':
-      renderedEl.style.setProperty('--md-h-scale', v); break;
-    case 'ctrl-h-mb-num':
-      renderedEl.style.setProperty('--md-h-margin-bottom', v + 'em'); break;
-    case 'ctrl-h1-size-num':
-      renderedEl.style.setProperty('--md-h1-size', v + 'em'); break;
-    case 'ctrl-h1-weight':
-      renderedEl.style.setProperty('--md-h1-weight', v); break;
-    case 'ctrl-h2-size-num':
-      renderedEl.style.setProperty('--md-h2-size', v + 'em'); break;
-    case 'ctrl-h2-weight':
-      renderedEl.style.setProperty('--md-h2-weight', v); break;
-    case 'ctrl-h3-size-num':
-      renderedEl.style.setProperty('--md-h3-size', v + 'em'); break;
-    case 'ctrl-h3-weight':
-      renderedEl.style.setProperty('--md-h3-weight', v); break;
-    case 'ctrl-h4-size-num':
-      renderedEl.style.setProperty('--md-h4-size', v + 'em'); break;
-    case 'ctrl-h4-weight':
-      renderedEl.style.setProperty('--md-h4-weight', v); break;
-    case 'ctrl-p-lh-num':
-      renderedEl.style.setProperty('--md-p-line-height', v); break;
-    case 'ctrl-p-mb-num':
-      renderedEl.style.setProperty('--md-p-margin', `0 0 ${v}em`); break;
-    case 'ctrl-link-color':
-      renderedEl.style.setProperty('--md-link-color', v); break;
-    case 'ctrl-link-decoration':
-      renderedEl.style.setProperty('--md-link-decoration', v); break;
-    case 'ctrl-code-font':
-      renderedEl.style.setProperty('--md-code-font', v); break;
-    case 'ctrl-code-bg':
-      renderedEl.style.setProperty('--md-code-bg', v);
-      renderedEl.style.setProperty('--md-pre-bg', v); break;
-    case 'ctrl-code-color':
-      renderedEl.style.setProperty('--md-code-color', v); break;
-    case 'ctrl-bq-border-color':
-    case 'ctrl-bq-bw-num': {
-      const col = document.getElementById('ctrl-bq-border-color').value;
-      const w   = document.getElementById('ctrl-bq-bw-num').value;
-      renderedEl.style.setProperty('--md-bq-border', `${w}px solid ${col}`); break;
-    }
-    case 'ctrl-bq-size-num':
-      renderedEl.style.setProperty('--md-bq-size', v + 'em'); break;
-    case 'ctrl-bq-color':
-      renderedEl.style.setProperty('--md-bq-color', v); break;
-    case 'ctrl-list-spacing-num':
-      renderedEl.style.setProperty('--md-list-spacing', v + 'em'); break;
-    case 'ctrl-list-indent-num':
-      renderedEl.style.setProperty('--md-list-indent', v + 'em'); break;
-  }
+  // Pure: get CSS var assignments from shared module
+  const allVals = readAllControlValues();
+  SDocStyles.controlToCssVars(id, v, allVals)
+    .forEach(({cssVar, value}) => renderedEl.style.setProperty(cssVar, value));
   syncAll('controls');
+}
+
+// Read all control values into a plain object (for pure functions)
+function readAllControlValues() {
+  const vals = {};
+  // Non-color controls
+  Object.keys(SDocStyles.CTRL_CSS_MAP).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) vals[id] = el.value;
+  });
+  // Color controls
+  Object.keys(SDocStyles.COLOR_VAR_MAP).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) vals[id] = el.value;
+  });
+  // Weight selects (already in CTRL_CSS_MAP)
+  return vals;
 }
 
 function linkRangeNum(rangeId, numId) {
@@ -1348,22 +1311,7 @@ function linkRangeNum(rangeId, numId) {
   n.addEventListener('input', () => { r.value = n.value; applyCtrl(numId); });
 }
 
-[
-  ['ctrl-base-size-range',  'ctrl-base-size-num'],
-  ['ctrl-line-height-range','ctrl-line-height-num'],
-  ['ctrl-h-scale-range',    'ctrl-h-scale-num'],
-  ['ctrl-h-mb-range',       'ctrl-h-mb-num'],
-  ['ctrl-h1-size-range',    'ctrl-h1-size-num'],
-  ['ctrl-h2-size-range',    'ctrl-h2-size-num'],
-  ['ctrl-h3-size-range',    'ctrl-h3-size-num'],
-  ['ctrl-h4-size-range',    'ctrl-h4-size-num'],
-  ['ctrl-p-lh-range',       'ctrl-p-lh-num'],
-  ['ctrl-p-mb-range',       'ctrl-p-mb-num'],
-  ['ctrl-bq-bw-range',          'ctrl-bq-bw-num'],
-  ['ctrl-bq-size-range',        'ctrl-bq-size-num'],
-  ['ctrl-list-spacing-range',   'ctrl-list-spacing-num'],
-  ['ctrl-list-indent-range',    'ctrl-list-indent-num'],
-].forEach(([r,n]) => linkRangeNum(r,n));
+SDocStyles.RANGE_NUM_PAIRS.forEach(([r,n]) => linkRangeNum(r,n));
 
 [
   'ctrl-font-family','ctrl-h-font-family',
@@ -1379,25 +1327,9 @@ function linkRangeNum(rangeId, numId) {
 // ═══════════════════════════════════════════════════════
 //  COLOR CASCADE
 // ═══════════════════════════════════════════════════════
-const COLOR_DEFAULT = '#1c1917';
-
-const COLOR_VAR = {
-  'ctrl-color':      '--md-color',
-  'ctrl-h-color':    '--md-h-color',
-  'ctrl-h1-color':   '--md-h1-color',
-  'ctrl-h2-color':   '--md-h2-color',
-  'ctrl-h3-color':   '--md-h3-color',
-  'ctrl-h4-color':   '--md-h4-color',
-  'ctrl-p-color':    '--md-p-color',
-  'ctrl-list-color': '--md-list-color',
-};
-
-// Direct children in the cascade tree
-const COLOR_CHILDREN = {
-  'ctrl-color':   ['ctrl-h-color', 'ctrl-p-color'],
-  'ctrl-h-color': ['ctrl-h1-color', 'ctrl-h2-color', 'ctrl-h3-color', 'ctrl-h4-color'],
-  'ctrl-p-color': ['ctrl-list-color'],
-};
+const COLOR_DEFAULT = SDocStyles.COLOR_DEFAULT;
+const COLOR_VAR = SDocStyles.COLOR_VAR_MAP;
+const COLOR_CHILDREN = SDocStyles.COLOR_CASCADE;
 
 // Tracks controls the user has explicitly set (breaking from cascade)
 const overriddenColors = new Set();
@@ -1459,6 +1391,11 @@ function applyStylesFromMeta(s) {
   // Suppress syncAll during batch control updates to avoid capturing partial state
   const wasSyncing = _syncing;
   _syncing = true;
+
+  // Pure: compute control values and overridden set from styles
+  const { controls, overriddenColors: newOverridden } = SDocStyles.stylesToControls(s);
+
+  // Font family needs special DOM handling (match against <option> values)
   if (s.fontFamily) {
     const sel = document.getElementById('ctrl-font-family');
     const match = [...sel.options].find(o =>
@@ -1467,50 +1404,22 @@ function applyStylesFromMeta(s) {
     );
     if (match) { sel.value = match.value; applyCtrl('ctrl-font-family'); }
   }
-  if (s.baseFontSize) setCtrl('ctrl-base-size-num', s.baseFontSize);
-  if (s.lineHeight)   setCtrl('ctrl-line-height-num', s.lineHeight);
-  // Apply colors through cascade system so pickers stay in sync.
-  // Reset all first so non-specified colors re-cascade from body.
+
+  // Apply non-color, non-font-family controls
+  for (const [id, val] of Object.entries(controls)) {
+    if (id === 'ctrl-font-family') continue; // handled above
+    if (SDocStyles.COLOR_VAR_MAP[id]) continue; // handled below via cascade
+    setCtrl(id, val);
+  }
+
+  // Reset cascade, then apply color overrides through cascade system
   overriddenColors.clear();
   setColorValue('ctrl-color', COLOR_DEFAULT, false);
 
-  if (s.color) setColorValue('ctrl-color', s.color, true);
-
-  const h = s.headers || {};
-  if (h.scale)        setCtrl('ctrl-h-scale-num', h.scale);
-  if (h.marginBottom) setCtrl('ctrl-h-mb-num', h.marginBottom);
-  if (h.color)        setColorValue('ctrl-h-color', h.color, true);
-
-  ['h1','h2','h3','h4'].forEach(t => {
-    const hs = s[t] || {};
-    if (hs.fontSize)    setCtrl(`ctrl-${t}-size-num`, hs.fontSize);
-    if (hs.color)       setColorValue(`ctrl-${t}-color`, hs.color, true);
-    if (hs.fontWeight) {
-      const el = document.getElementById(`ctrl-${t}-weight`);
-      if (el) { el.value = String(hs.fontWeight); applyCtrl(`ctrl-${t}-weight`); }
-    }
-  });
-
-  const p = s.p || {};
-  if (p.color) setColorValue('ctrl-p-color', p.color, true);
-  if (p.lineHeight)   setCtrl('ctrl-p-lh-num', p.lineHeight);
-  if (p.marginBottom) setCtrl('ctrl-p-mb-num', p.marginBottom);
-
-  const lk = s.link || {};
-  if (lk.color)      setCtrl('ctrl-link-color', lk.color);
-  if (lk.decoration) {
-    const el = document.getElementById('ctrl-link-decoration');
-    if (el) { el.value = lk.decoration; applyCtrl('ctrl-link-decoration'); }
+  for (const id of newOverridden) {
+    overriddenColors.add(id);
+    setColorValue(id, controls[id], true);
   }
-
-  const bq = s.blockquote || {};
-  if (bq.borderColor) setCtrl('ctrl-bq-border-color', bq.borderColor);
-  if (bq.borderWidth) setCtrl('ctrl-bq-bw-num', bq.borderWidth);
-  if (bq.fontSize)    setCtrl('ctrl-bq-size-num', bq.fontSize);
-  if (bq.color)       setCtrl('ctrl-bq-color', bq.color);
-
-  const ll = s.list || {};
-  if (ll.color) setColorValue('ctrl-list-color', ll.color, true);
 
   _syncing = wasSyncing;
 }
@@ -1518,52 +1427,8 @@ function applyStylesFromMeta(s) {
 // ═══════════════════════════════════════════════════════
 //  COLLECT STYLES FROM CONTROLS
 // ═══════════════════════════════════════════════════════
-const gv = id => document.getElementById(id)?.value ?? '';
-const gn = id => parseFloat(document.getElementById(id)?.value ?? 0);
-
 function collectStyles() {
-  const styles = {
-    fontFamily:   gv('ctrl-font-family').replace(/['"]/g,'').split(',')[0].trim(),
-    baseFontSize: gn('ctrl-base-size-num'),
-    lineHeight:   gn('ctrl-line-height-num'),
-    headers: {
-      scale:        gn('ctrl-h-scale-num'),
-      marginBottom: gn('ctrl-h-mb-num'),
-    },
-    h1: { fontSize: gn('ctrl-h1-size-num'), fontWeight: parseInt(gv('ctrl-h1-weight')) },
-    h2: { fontSize: gn('ctrl-h2-size-num'), fontWeight: parseInt(gv('ctrl-h2-weight')) },
-    h3: { fontSize: gn('ctrl-h3-size-num'), fontWeight: parseInt(gv('ctrl-h3-weight')) },
-    h4: { fontSize: gn('ctrl-h4-size-num'), fontWeight: parseInt(gv('ctrl-h4-weight')) },
-    p: {
-      lineHeight:   gn('ctrl-p-lh-num'),
-      marginBottom: gn('ctrl-p-mb-num'),
-    },
-    link: { color: gv('ctrl-link-color'), decoration: gv('ctrl-link-decoration') },
-    code: {
-      font:       gv('ctrl-code-font').replace(/['"]/g,'').split(',')[0].trim(),
-      background: gv('ctrl-code-bg'),
-      color:      gv('ctrl-code-color'),
-    },
-    blockquote: {
-      borderColor: gv('ctrl-bq-border-color'),
-      borderWidth: gn('ctrl-bq-bw-num'),
-      fontSize:    gn('ctrl-bq-size-num'),
-      color:       gv('ctrl-bq-color'),
-    },
-  };
-  // Only emit cascade colors that were explicitly overridden by the user.
-  // Non-overridden colors are inherited via the cascade tree and should not
-  // be serialized — otherwise a YAML roundtrip would mark everything as
-  // overridden and break the cascade.
-  if (overriddenColors.has('ctrl-color'))      styles.color = gv('ctrl-color');
-  if (overriddenColors.has('ctrl-h-color'))    styles.headers.color = gv('ctrl-h-color');
-  if (overriddenColors.has('ctrl-h1-color'))   styles.h1.color = gv('ctrl-h1-color');
-  if (overriddenColors.has('ctrl-h2-color'))   styles.h2.color = gv('ctrl-h2-color');
-  if (overriddenColors.has('ctrl-h3-color'))   styles.h3.color = gv('ctrl-h3-color');
-  if (overriddenColors.has('ctrl-h4-color'))   styles.h4.color = gv('ctrl-h4-color');
-  if (overriddenColors.has('ctrl-p-color'))    styles.p.color = gv('ctrl-p-color');
-  if (overriddenColors.has('ctrl-list-color')) styles.list = { color: gv('ctrl-list-color') };
-  return styles;
+  return SDocStyles.collectStyles(readAllControlValues(), overriddenColors);
 }
 
 // ═══════════════════════════════════════════════════════

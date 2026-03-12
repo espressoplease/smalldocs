@@ -303,96 +303,142 @@ test('applyDefaultStyles: file styles win over defaults in roundtrip', () => {
 });
 
 // ══════════════════════════════════════════════════════
-//  COLOR CASCADE ROUNDTRIP TESTS
+//  SDOCS-STYLES PURE MODULE TESTS (real production code)
 // ══════════════════════════════════════════════════════
-console.log('\n── Color Cascade Tests ────────────────────────\n');
+console.log('\n── SDocStyles Pure Module Tests ───────────────\n');
 
-// Simulate the cascade-aware collectStyles logic (pure function, no DOM)
-// overridden is a Set of color control IDs; colorValues maps control IDs to their values
-function collectCascadeColors(overridden, colorValues) {
-  const styles = {};
-  if (overridden.has('ctrl-color'))      styles.color = colorValues['ctrl-color'];
-  if (overridden.has('ctrl-h-color'))    styles.headersColor = colorValues['ctrl-h-color'];
-  if (overridden.has('ctrl-h1-color'))   styles.h1Color = colorValues['ctrl-h1-color'];
-  if (overridden.has('ctrl-h2-color'))   styles.h2Color = colorValues['ctrl-h2-color'];
-  if (overridden.has('ctrl-h3-color'))   styles.h3Color = colorValues['ctrl-h3-color'];
-  if (overridden.has('ctrl-h4-color'))   styles.h4Color = colorValues['ctrl-h4-color'];
-  if (overridden.has('ctrl-p-color'))    styles.pColor = colorValues['ctrl-p-color'];
-  if (overridden.has('ctrl-list-color')) styles.listColor = colorValues['ctrl-list-color'];
-  return styles;
-}
+const S = require(path.join(__dirname, '..', 'public', 'sdocs-styles.js'));
 
-// Simulate applyStylesFromMeta's color handling: returns which controls would be overridden
-function applyCascadeFromStyles(styles) {
-  const overridden = new Set();
-  if (styles.color)        overridden.add('ctrl-color');
-  if (styles.headersColor) overridden.add('ctrl-h-color');
-  if (styles.h1Color)      overridden.add('ctrl-h1-color');
-  if (styles.h2Color)      overridden.add('ctrl-h2-color');
-  if (styles.h3Color)      overridden.add('ctrl-h3-color');
-  if (styles.h4Color)      overridden.add('ctrl-h4-color');
-  if (styles.pColor)       overridden.add('ctrl-p-color');
-  if (styles.listColor)    overridden.add('ctrl-list-color');
-  return overridden;
-}
-
-test('cascade: no overridden colors → no colors emitted', () => {
-  const overridden = new Set();
-  const colorValues = {
+test('collectStyles: non-overridden colors omitted', () => {
+  const values = {
+    'ctrl-font-family': "'Inter', sans-serif", 'ctrl-base-size-num': '16',
+    'ctrl-line-height-num': '1.75', 'ctrl-h-scale-num': '1', 'ctrl-h-mb-num': '0.4',
+    'ctrl-h1-size-num': '2.1', 'ctrl-h1-weight': '700',
+    'ctrl-h2-size-num': '1.55', 'ctrl-h2-weight': '600',
+    'ctrl-h3-size-num': '1.2', 'ctrl-h3-weight': '600',
+    'ctrl-h4-size-num': '1.0', 'ctrl-h4-weight': '600',
+    'ctrl-p-lh-num': '1.75', 'ctrl-p-mb-num': '1.1',
+    'ctrl-link-color': '#2563EB', 'ctrl-link-decoration': 'underline',
+    'ctrl-code-font': "'JetBrains Mono', monospace", 'ctrl-code-bg': '#F4F1ED',
+    'ctrl-code-color': '#6B21A8',
+    'ctrl-bq-border-color': '#2563EB', 'ctrl-bq-bw-num': '3',
+    'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6B6560',
     'ctrl-color': '#1c1917', 'ctrl-h-color': '#1c1917',
     'ctrl-h1-color': '#1c1917', 'ctrl-h2-color': '#1c1917',
     'ctrl-h3-color': '#1c1917', 'ctrl-h4-color': '#1c1917',
     'ctrl-p-color': '#1c1917', 'ctrl-list-color': '#1c1917',
   };
-  const styles = collectCascadeColors(overridden, colorValues);
-  assert.deepStrictEqual(styles, {});
+  const styles = S.collectStyles(values, new Set());
+  assert.strictEqual(styles.color, undefined);
+  assert.strictEqual(styles.headers.color, undefined);
+  assert.strictEqual(styles.h1.color, undefined);
+  assert.strictEqual(styles.p.color, undefined);
 });
 
-test('cascade: only root color overridden → only root emitted', () => {
-  const overridden = new Set(['ctrl-color']);
-  const colorValues = {
-    'ctrl-color': '#ff0000', 'ctrl-h-color': '#ff0000',
-    'ctrl-h1-color': '#ff0000', 'ctrl-p-color': '#ff0000',
+test('collectStyles: overridden colors emitted', () => {
+  const values = {
+    'ctrl-font-family': "'Inter', sans-serif", 'ctrl-base-size-num': '16',
+    'ctrl-line-height-num': '1.75', 'ctrl-h-scale-num': '1', 'ctrl-h-mb-num': '0.4',
+    'ctrl-h1-size-num': '2.1', 'ctrl-h1-weight': '700',
+    'ctrl-h2-size-num': '1.55', 'ctrl-h2-weight': '600',
+    'ctrl-h3-size-num': '1.2', 'ctrl-h3-weight': '600',
+    'ctrl-h4-size-num': '1.0', 'ctrl-h4-weight': '600',
+    'ctrl-p-lh-num': '1.75', 'ctrl-p-mb-num': '1.1',
+    'ctrl-link-color': '#2563EB', 'ctrl-link-decoration': 'underline',
+    'ctrl-code-font': "'JetBrains Mono', monospace", 'ctrl-code-bg': '#F4F1ED',
+    'ctrl-code-color': '#6B21A8',
+    'ctrl-bq-border-color': '#2563EB', 'ctrl-bq-bw-num': '3',
+    'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6B6560',
+    'ctrl-color': '#ff0000', 'ctrl-h1-color': '#0000ff',
   };
-  const styles = collectCascadeColors(overridden, colorValues);
+  const overridden = new Set(['ctrl-color', 'ctrl-h1-color']);
+  const styles = S.collectStyles(values, overridden);
   assert.strictEqual(styles.color, '#ff0000');
-  assert.strictEqual(styles.headersColor, undefined);
-  assert.strictEqual(styles.h1Color, undefined);
-  assert.strictEqual(styles.pColor, undefined);
+  assert.strictEqual(styles.h1.color, '#0000ff');
+  assert.strictEqual(styles.h2.color, undefined);
 });
 
-test('cascade: roundtrip preserves override set', () => {
-  const original = new Set(['ctrl-color']);
-  const colorValues = { 'ctrl-color': '#ff0000' };
-  const collected = collectCascadeColors(original, colorValues);
-  const restored = applyCascadeFromStyles(collected);
-  assert.ok(restored.has('ctrl-color'));
-  assert.ok(!restored.has('ctrl-h-color'));
-  assert.ok(!restored.has('ctrl-h1-color'));
-  assert.ok(!restored.has('ctrl-p-color'));
-  assert.strictEqual(restored.size, 1);
+test('collectStyles → stylesToControls roundtrip', () => {
+  const values = {
+    'ctrl-font-family': "'Inter', sans-serif", 'ctrl-base-size-num': '16',
+    'ctrl-line-height-num': '1.75', 'ctrl-h-scale-num': '1', 'ctrl-h-mb-num': '0.4',
+    'ctrl-h1-size-num': '2.1', 'ctrl-h1-weight': '700',
+    'ctrl-h2-size-num': '1.55', 'ctrl-h2-weight': '600',
+    'ctrl-h3-size-num': '1.2', 'ctrl-h3-weight': '600',
+    'ctrl-h4-size-num': '1.0', 'ctrl-h4-weight': '600',
+    'ctrl-p-lh-num': '1.75', 'ctrl-p-mb-num': '1.1',
+    'ctrl-link-color': '#2563EB', 'ctrl-link-decoration': 'underline',
+    'ctrl-code-font': "'JetBrains Mono', monospace", 'ctrl-code-bg': '#F4F1ED',
+    'ctrl-code-color': '#6B21A8',
+    'ctrl-bq-border-color': '#2563EB', 'ctrl-bq-bw-num': '3',
+    'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6B6560',
+    'ctrl-color': '#ff0000',
+  };
+  const overridden = new Set(['ctrl-color']);
+  const styles = S.collectStyles(values, overridden);
+  const { controls, overriddenColors } = S.stylesToControls(styles);
+  assert.strictEqual(controls['ctrl-base-size-num'], 16);
+  assert.ok(overriddenColors.has('ctrl-color'));
+  assert.ok(!overriddenColors.has('ctrl-h1-color'));
 });
 
-test('cascade: root + child override survives roundtrip', () => {
-  const original = new Set(['ctrl-color', 'ctrl-h1-color']);
-  const colorValues = { 'ctrl-color': '#ff0000', 'ctrl-h1-color': '#0000ff' };
-  const collected = collectCascadeColors(original, colorValues);
-  const restored = applyCascadeFromStyles(collected);
-  assert.ok(restored.has('ctrl-color'));
-  assert.ok(restored.has('ctrl-h1-color'));
-  assert.ok(!restored.has('ctrl-h2-color'));
-  assert.ok(!restored.has('ctrl-h-color'));
-  assert.strictEqual(restored.size, 2);
+test('controlToCssVars: base-size adds px suffix', () => {
+  const result = S.controlToCssVars('ctrl-base-size-num', '18', {});
+  assert.deepStrictEqual(result, [{ cssVar: '--md-base-size', value: '18px' }]);
+});
+
+test('controlToCssVars: bq-border combines color + width', () => {
+  const allVals = { 'ctrl-bq-border-color': '#ff0000', 'ctrl-bq-bw-num': '4' };
+  const result = S.controlToCssVars('ctrl-bq-border-color', '#ff0000', allVals);
+  assert.deepStrictEqual(result, [{ cssVar: '--md-bq-border', value: '4px solid #ff0000' }]);
+});
+
+test('controlToCssVars: code-bg sets both code-bg and pre-bg', () => {
+  const result = S.controlToCssVars('ctrl-code-bg', '#f0f0f0', {});
+  assert.strictEqual(result.length, 2);
+  assert.strictEqual(result[0].cssVar, '--md-code-bg');
+  assert.strictEqual(result[1].cssVar, '--md-pre-bg');
+});
+
+test('controlToCssVars: p-margin uses template', () => {
+  const result = S.controlToCssVars('ctrl-p-mb-num', '1.5', {});
+  assert.deepStrictEqual(result, [{ cssVar: '--md-p-margin', value: '0 0 1.5em' }]);
+});
+
+test('cascadeColor: propagates to non-overridden children', () => {
+  const overridden = new Set();
+  const updates = S.cascadeColor('ctrl-color', '#ff0000', overridden);
+  assert.strictEqual(updates['ctrl-color'], '#ff0000');
+  assert.strictEqual(updates['ctrl-h-color'], '#ff0000');
+  assert.strictEqual(updates['ctrl-h1-color'], '#ff0000');
+  assert.strictEqual(updates['ctrl-p-color'], '#ff0000');
+  assert.strictEqual(updates['ctrl-list-color'], '#ff0000');
+});
+
+test('cascadeColor: stops at overridden children', () => {
+  const overridden = new Set(['ctrl-h1-color']);
+  const updates = S.cascadeColor('ctrl-color', '#ff0000', overridden);
+  assert.strictEqual(updates['ctrl-h2-color'], '#ff0000'); // not overridden
+  assert.strictEqual(updates['ctrl-h1-color'], undefined); // overridden, skipped
+});
+
+test('stylesToControls: maps all style keys to control IDs', () => {
+  const styles = { fontFamily: 'Lora', baseFontSize: 17, color: '#ff0000',
+    h1: { fontSize: 2.3, color: '#0000ff', fontWeight: 700 } };
+  const { controls, overriddenColors } = S.stylesToControls(styles);
+  assert.strictEqual(controls['ctrl-font-family'], 'Lora');
+  assert.strictEqual(controls['ctrl-base-size-num'], 17);
+  assert.ok(overriddenColors.has('ctrl-color'));
+  assert.ok(overriddenColors.has('ctrl-h1-color'));
+  assert.ok(!overriddenColors.has('ctrl-h2-color'));
 });
 
 test('cascade: full YAML roundtrip with front matter', () => {
-  // Only root color overridden → serialize → parse → only root should come back
   const styles = { fontFamily: 'Inter', baseFontSize: 16, color: '#ff0000',
     h1: { fontSize: 2.1, fontWeight: 700 } };
   const fm = cli.serializeFrontMatter({ styles });
   const { meta } = cli.parseFrontMatter(fm + '\n# Doc');
   assert.strictEqual(meta.styles.color, '#ff0000');
-  // h1 should have no color key since we didn't include one
   assert.strictEqual(meta.styles.h1.color, undefined);
 });
 
