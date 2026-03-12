@@ -1454,9 +1454,17 @@ function loadText(text, filename) {
 // ═══════════════════════════════════════════════════════
 let _hashTimer = null;
 
+// True when showing the default welcome doc with default styles.
+// Clean URL (no hash) is shown in this state. Any user edit clears it.
+let _isDefaultState = true;
+
 function updateHash() {
   clearTimeout(_hashTimer);
   _hashTimer = setTimeout(() => {
+    if (_isDefaultState) {
+      history.replaceState(null, '', window.location.pathname);
+      return;
+    }
     const meta = { ...currentMeta, styles: collectStyles() };
     const full = serializeFrontMatter(meta) + '\n' + currentBody;
     const params = new URLSearchParams();
@@ -1477,11 +1485,13 @@ function syncAll(source) {
   try {
     if (source === 'controls') {
       // Controls changed → update currentMeta, rebuild raw, update hash
+      _isDefaultState = false;
       currentMeta = { ...currentMeta, styles: collectStyles() };
       rawEl.value = serializeFrontMatter(currentMeta) + '\n' + currentBody;
       updateHash();
     } else if (source === 'raw') {
       // Raw textarea changed → parse, render, apply styles, update hash
+      _isDefaultState = false;
       const { meta, body } = parseFrontMatter(rawEl.value);
       currentMeta = meta;
       currentBody = body;
@@ -1515,7 +1525,7 @@ contentArea.addEventListener('drop', e => {
   const file = e.dataTransfer.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => loadText(ev.target.result, file.name);
+  reader.onload = ev => { _isDefaultState = false; loadText(ev.target.result, file.name); };
   reader.readAsText(file);
 });
 
@@ -1567,6 +1577,10 @@ document.getElementById('topbar-brand').addEventListener('click', e => {
    'ctrl-list-spacing-num','ctrl-list-indent-num',
   ].forEach(id => applyCtrl(id));
   loadText(serializeFrontMatter({ styles: collectStyles() }) + '\n' + DEFAULT_MD);
+  // Reset to default state → clean URL, cancel any pending hash write
+  _isDefaultState = true;
+  clearTimeout(_hashTimer);
+  history.replaceState(null, '', window.location.pathname);
   setMode('style');
 });
 
@@ -1932,6 +1946,7 @@ setColorValue('ctrl-color', COLOR_DEFAULT, false);
   const stylesParam = params.get('styles');
   if (mdParam) {
     try {
+      _isDefaultState = false;
       const text = atob(decodeURIComponent(mdParam));
       loadText(text, 'document.md');
     } catch (e) {
