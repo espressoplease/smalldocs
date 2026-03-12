@@ -9,17 +9,15 @@
 
 const fs   = require('fs');
 const path = require('path');
-const http = require('http');
 const { execSync } = require('child_process');
 
-const PORT = process.env.PORT || 3000;
-const BASE_URL = `http://localhost:${PORT}`;
+const DEFAULT_URL = 'https://sdocs.dev';
 
 // ── Help ───────────────────────────────────────────────────
 const HELP = `
 SDocs — CLI
 ===========
-Opens a markdown file in the browser-based SDocs editor,
+Opens a markdown file in the browser via sdocs.dev,
 with live styling controls and export to PDF / Word / raw .md.
 
 USAGE
@@ -27,6 +25,7 @@ USAGE
   sdocs-dev [file] --mode read   Open directly in read mode (hides editor + controls)
   sdocs-dev [file] --mode style  Open with styling panel visible
   sdocs-dev [file] --mode raw    Open showing raw markdown source
+  sdocs-dev [file] --url <url>   Use a custom base URL (default: https://sdocs.dev)
   cat file.md | sdocs-dev       Pipe markdown from stdin
   sdocs-dev                     Open with empty editor
   sdocs-dev --help              Show this help
@@ -36,6 +35,9 @@ MODES
   read   (default when file given) Clean reading view — hides toolbar and styling panel
   style  Styled preview with editor + styling panel visible
   raw    Shows raw markdown source
+
+ENVIRONMENT
+  SDOCS_URL   Fallback base URL if --url is not passed.
 
 STYLED MARKDOWN FORMAT
   SDocs extends standard .md files with an optional YAML
@@ -152,10 +154,11 @@ EXAMPLE — editorial article with colored heading tiers
 `;
 
 // ── Parse args ────────────────────────────────────────────
-function parseArgs() {
-  const args = process.argv.slice(2);
+function parseArgs(argv) {
+  const args = argv || process.argv.slice(2);
   let file = null;
   let mode = null;
+  let url = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--help' || args[i] === '-h') { console.log(HELP);   process.exit(0); }
@@ -166,12 +169,33 @@ function parseArgs() {
         console.error(`sdocs-dev: unknown mode "${mode}" — use read, style, or raw`);
         process.exit(1);
       }
+    } else if (args[i] === '--url') {
+      url = args[++i];
     } else if (!file) {
       file = args[i];
     }
   }
 
-  return { file, mode };
+  return { file, mode, url };
+}
+
+// ── Build URL ─────────────────────────────────────────────
+function buildUrl(content, opts) {
+  const baseUrl = opts.url || process.env.SDOCS_URL || DEFAULT_URL;
+  const params = new URLSearchParams();
+
+  if (content) {
+    params.set('md', encodeURIComponent(Buffer.from(content, 'utf-8').toString('base64')));
+  } else if (opts.defaultStyles) {
+    const stylesJson = JSON.stringify(opts.defaultStyles);
+    params.set('styles', encodeURIComponent(Buffer.from(stylesJson, 'utf-8').toString('base64')));
+  }
+
+  const mode = opts.mode || (content ? 'read' : 'style');
+  if (mode) params.set('mode', mode);
+
+  const qs = params.toString();
+  return qs ? `${baseUrl}/#${qs}` : baseUrl;
 }
 
 // ── YAML parsing (same hand-rolled parser as index.html) ──
@@ -304,42 +328,6 @@ async function readContent(file) {
   return null; // no content — just open studio
 }
 
-// ── Check if server is already running ────────────────────
-function isServerRunning() {
-  return new Promise(resolve => {
-    http.get(`${BASE_URL}/`, res => {
-      res.resume();
-      resolve(res.statusCode === 200);
-    }).on('error', () => resolve(false));
-  });
-}
-
-// ── Start server in background ─────────────────────────────
-function startServer() {
-  const serverPath = path.join(__dirname, '..', 'server.js');
-  const { spawn } = require('child_process');
-  const child = spawn('node', [serverPath], {
-    env: { ...process.env, PORT: String(PORT) },
-    detached: true,
-    stdio: 'ignore',
-  });
-  child.unref();
-
-  // Wait until server responds
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    function poll() {
-      if (Date.now() - start > 5000) return reject(new Error('Server did not start in time'));
-      http.get(`${BASE_URL}/`, res => {
-        res.resume();
-        if (res.statusCode === 200) return resolve();
-        setTimeout(poll, 200);
-      }).on('error', () => setTimeout(poll, 200));
-    }
-    setTimeout(poll, 300);
-  });
-}
-
 // ── Open browser ───────────────────────────────────────────
 function openBrowser(url) {
   const platform = process.platform;
@@ -354,7 +342,7 @@ function openBrowser(url) {
 
 // ── Main ───────────────────────────────────────────────────
 (async () => {
-  const { file, mode } = parseArgs();
+  const { file, mode, url: urlFlag } = parseArgs();
   let content = await readContent(file);
 
   // Apply ~/.sdocs/styles.yaml defaults
@@ -363,25 +351,7 @@ function openBrowser(url) {
     content = applyDefaultStyles(content);
   }
 
-  let url = BASE_URL;
-  const params = new URLSearchParams();
-  if (content) {
-    params.set('md', encodeURIComponent(Buffer.from(content, 'utf-8').toString('base64')));
-  } else if (defaults) {
-    // No file — pass default styles separately so the browser still shows DEFAULT_MD
-    const stylesYaml = JSON.stringify(defaults);
-    params.set('styles', encodeURIComponent(Buffer.from(stylesYaml, 'utf-8').toString('base64')));
-  }
-  const effectiveMode = mode || (content ? 'read' : 'style');
-  if (effectiveMode) params.set('mode', effectiveMode);
-  if (params.toString()) url = `${BASE_URL}/#${params.toString()}`;
-
-  const running = await isServerRunning();
-  if (!running) {
-    process.stdout.write('Starting SDocs server... ');
-    await startServer();
-    console.log('ready.');
-  }
+  const url = buildUrl(content, { url: urlFlag, mode, defaultStyles: !content ? defaults : null });
 
   openBrowser(url);
   console.log(`SDocs → ${url.length > 80 ? url.slice(0, 77) + '...' : url}`);
@@ -391,4 +361,4 @@ function openBrowser(url) {
 });
 
 // Export for tests
-module.exports = { mergeStyles, applyDefaultStyles, parseFrontMatter, serializeFrontMatter, parseSimpleYaml };
+module.exports = { mergeStyles, applyDefaultStyles, parseFrontMatter, serializeFrontMatter, parseSimpleYaml, parseArgs, buildUrl };

@@ -443,6 +443,71 @@ test('cascade: full YAML roundtrip with front matter', () => {
 });
 
 // ══════════════════════════════════════════════════════
+//  CLI TESTS (parseArgs + buildUrl)
+// ══════════════════════════════════════════════════════
+console.log('\n── CLI Tests ──────────────────────────────────\n');
+
+test('parseArgs: file and mode', () => {
+  const result = cli.parseArgs(['report.md', '--mode', 'read']);
+  assert.strictEqual(result.file, 'report.md');
+  assert.strictEqual(result.mode, 'read');
+  assert.strictEqual(result.url, null);
+});
+
+test('parseArgs: --url flag', () => {
+  const result = cli.parseArgs(['doc.md', '--url', 'http://localhost:3000']);
+  assert.strictEqual(result.file, 'doc.md');
+  assert.strictEqual(result.url, 'http://localhost:3000');
+});
+
+test('parseArgs: all flags combined', () => {
+  const result = cli.parseArgs(['doc.md', '--mode', 'style', '--url', 'http://localhost:8080']);
+  assert.strictEqual(result.file, 'doc.md');
+  assert.strictEqual(result.mode, 'style');
+  assert.strictEqual(result.url, 'http://localhost:8080');
+});
+
+test('parseArgs: no args', () => {
+  const result = cli.parseArgs([]);
+  assert.strictEqual(result.file, null);
+  assert.strictEqual(result.mode, null);
+  assert.strictEqual(result.url, null);
+});
+
+test('buildUrl: defaults to sdocs.dev with style mode when no content', () => {
+  const url = cli.buildUrl(null, {});
+  assert.ok(url.startsWith('https://sdocs.dev/'));
+  assert.ok(url.includes('mode=style'));
+  assert.ok(!url.includes('md='));
+});
+
+test('buildUrl: --url flag overrides base', () => {
+  const url = cli.buildUrl(null, { url: 'http://localhost:3000' });
+  assert.ok(url.startsWith('http://localhost:3000/'));
+});
+
+test('buildUrl: content produces md= param with read mode', () => {
+  const url = cli.buildUrl('# Hello', {});
+  assert.ok(url.includes('md='));
+  assert.ok(url.includes('mode=read'));
+});
+
+test('buildUrl: explicit mode overrides default', () => {
+  const url = cli.buildUrl('# Hello', { mode: 'style' });
+  assert.ok(url.includes('mode=style'));
+});
+
+test('buildUrl: content roundtrips through base64', () => {
+  const content = '---\nstyles:\n  fontFamily: Lora\n---\n# Test';
+  const url = cli.buildUrl(content, {});
+  // Extract the md param and decode it
+  const hash = url.split('#')[1];
+  const params = new URLSearchParams(hash);
+  const decoded = Buffer.from(decodeURIComponent(params.get('md')), 'base64').toString('utf-8');
+  assert.strictEqual(decoded, content);
+});
+
+// ══════════════════════════════════════════════════════
 //  HTTP TESTS (requires server running)
 // ══════════════════════════════════════════════════════
 async function runHttpTests() {

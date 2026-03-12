@@ -34,17 +34,14 @@ sdocs-dev --schema               # full styles reference (designed for LLMs)
 
 1. Reads the file (or stdin)
 2. Base64-encodes the content
-3. Checks if the server is running on `localhost:3000` — starts it in the background if not
-4. Opens the browser at:
+3. Opens the browser at:
    ```
-   http://localhost:3000/#md=<base64>&mode=read
+   https://sdocs.dev/#md=<base64>&mode=read
    ```
 
 The hash fragment is **never sent to the server** — it's parsed entirely in the browser by `URLSearchParams`. This means:
 - No server-side file size limit (browser limit ~2MB, LLM docs are typically 5–50KB)
 - The URL is self-contained and shareable — anyone with the URL sees the same content, no server session needed
-
-After loading, the hash is cleared from the URL bar via `history.replaceState`.
 
 ## Styled Markdown format
 
@@ -62,7 +59,7 @@ Run `sdocs-dev --schema` for the complete styles reference, including all suppor
 ```bash
 # Typical LLM invocation
 sdocs-dev my-report.md
-# → opens http://localhost:3000/#md=<base64>&mode=read
+# → opens https://sdocs.dev/#md=<base64>&mode=read
 ```
 
 ## package.json bin entry
@@ -75,6 +72,30 @@ sdocs-dev my-report.md
 
 ## Environment
 
+| Flag / Variable | Default             | Description |
+|-----------------|---------------------|-------------|
+| `--url <url>`   | `https://sdocs.dev` | Base URL the CLI opens. |
+| `SDOCS_URL`     | (fallback)          | Used if `--url` is not passed. |
+
 ```bash
-PORT=8080 sdocs-dev report.md   # use a different port
+sdocs-dev report.md --url http://localhost:3000   # use local server
+```
+
+## Contributing
+
+To develop against a local server instead of sdocs.dev:
+
+```bash
+# Terminal 1 — start the dev server
+node server.js                # http://localhost:3000
+
+# Terminal 2 — point the CLI at localhost
+sdocs-dev report.md --url http://localhost:3000
+```
+
+Or set `SDOCS_URL` in your shell profile to avoid repeating the flag:
+
+```bash
+# In .zshrc / .bashrc
+export SDOCS_URL=http://localhost:3000
 ```
