@@ -751,6 +751,25 @@ body.read-mode #right {
   gap: 4px;
 }
 
+.factory-reset-btn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-3);
+  font-size: 11px;
+  cursor: pointer;
+  transition: color .12s, background .12s, border-color .12s;
+}
+.factory-reset-btn:hover {
+  color: var(--text-1);
+  background: var(--bg-hover);
+  border-color: var(--text-3);
+}
+
 /* Color row: swatch + label combo */
 .color-preview {
   width: 14px;
@@ -955,6 +974,7 @@ body.read-mode #right {
           <label>Text color</label>
           <div class="color-pair"><input type="color" id="ctrl-color" value="#1c1917"><button class="reset-btn" id="reset-color" title="Reset to default">↺</button></div>
         </div>
+        <button class="factory-reset-btn" id="factory-reset-styles" title="Reset all styles to defaults">Reset all styles</button>
       </div>
     </div>
 
@@ -1173,7 +1193,7 @@ body.read-mode #right {
       <div class="panel-body" id="body-links">
         <div class="control-row">
           <label>Color</label>
-          <input type="color" id="ctrl-link-color" value="#2563eb">
+          <div class="color-pair"><input type="color" id="ctrl-link-color" value="#2563eb"><button class="reset-btn" id="reset-link-color" title="Reset to default">↺</button></div>
         </div>
         <div class="control-row">
           <label>Decoration</label>
@@ -1208,11 +1228,11 @@ body.read-mode #right {
         </div>
         <div class="control-row">
           <label>Background</label>
-          <input type="color" id="ctrl-code-bg" value="#f4f1ed">
+          <div class="color-pair"><input type="color" id="ctrl-code-bg" value="#f4f1ed"><button class="reset-btn" id="reset-code-bg" title="Reset to default">↺</button></div>
         </div>
         <div class="control-row">
           <label>Text color</label>
-          <input type="color" id="ctrl-code-color" value="#6b21a8">
+          <div class="color-pair"><input type="color" id="ctrl-code-color" value="#6b21a8"><button class="reset-btn" id="reset-code-color" title="Reset to default">↺</button></div>
         </div>
       </div>
     </div>
@@ -1228,7 +1248,7 @@ body.read-mode #right {
       <div class="panel-body" id="body-blockquote">
         <div class="control-row">
           <label>Border color</label>
-          <input type="color" id="ctrl-bq-border-color" value="#2563eb">
+          <div class="color-pair"><input type="color" id="ctrl-bq-border-color" value="#2563eb"><button class="reset-btn" id="reset-bq-border-color" title="Reset to default">↺</button></div>
         </div>
         <div class="control-row">
           <label>Border width</label>
@@ -1244,7 +1264,7 @@ body.read-mode #right {
         </div>
         <div class="control-row">
           <label>Text color</label>
-          <input type="color" id="ctrl-bq-color" value="#6b6560">
+          <div class="color-pair"><input type="color" id="ctrl-bq-color" value="#6b6560"><button class="reset-btn" id="reset-bq-color" title="Reset to default">↺</button></div>
         </div>
       </div>
     </div>
@@ -1636,6 +1656,26 @@ document.getElementById('reset-h4-color').addEventListener('click',   () => { re
 document.getElementById('reset-p-color').addEventListener('click',    () => { resetColorValue('ctrl-p-color'); syncAll('controls'); });
 document.getElementById('reset-list-color').addEventListener('click', () => { resetColorValue('ctrl-list-color'); syncAll('controls'); });
 
+// Standalone color resets (not part of cascade tree)
+const STANDALONE_COLOR_DEFAULTS = {
+  'ctrl-link-color':      '#2563eb',
+  'ctrl-code-bg':         '#f4f1ed',
+  'ctrl-code-color':      '#6b21a8',
+  'ctrl-bq-border-color': '#2563eb',
+  'ctrl-bq-color':        '#6b6560',
+};
+Object.entries(STANDALONE_COLOR_DEFAULTS).forEach(([ctrlId, defaultVal]) => {
+  const btnId = 'reset-' + ctrlId.replace('ctrl-', '');
+  document.getElementById(btnId).addEventListener('click', () => {
+    const el = document.getElementById(ctrlId);
+    el.value = defaultVal;
+    // Apply via CTRL_CSS_MAP
+    const assignments = SDocStyles.controlToCssVars(ctrlId, defaultVal, readAllControlValues());
+    assignments.forEach(a => renderedEl.style.setProperty(a.cssVar, a.value));
+    syncAll('controls');
+  });
+});
+
 // ═══════════════════════════════════════════════════════
 //  APPLY STYLES FROM META → CONTROLS
 // ═══════════════════════════════════════════════════════
@@ -1830,9 +1870,8 @@ document.getElementById('right-header').addEventListener('click', () => {
   }
 });
 
-// ── Logo → reset to default state ──────────────────
-document.getElementById('topbar-brand').addEventListener('click', e => {
-  e.preventDefault();
+// ── Reset all styles to factory defaults ──────────────────
+function resetAllStyles() {
   overriddenColors.clear();
   setColorValue('ctrl-color', COLOR_DEFAULT, false);
   // Reset all controls to HTML defaults
@@ -1852,6 +1891,21 @@ document.getElementById('topbar-brand').addEventListener('click', e => {
    'ctrl-bq-border-color','ctrl-bq-bw-num','ctrl-bq-size-num','ctrl-bq-color',
    'ctrl-list-spacing-num','ctrl-list-indent-num',
   ].forEach(id => applyCtrl(id));
+}
+
+// Factory reset button — resets styles only, keeps content
+document.getElementById('factory-reset-styles').addEventListener('click', () => {
+  resetAllStyles();
+  currentMeta = { ...currentMeta, styles: collectStyles() };
+  rawEl.value = serializeFrontMatter(currentMeta) + '\n' + currentBody;
+  render();
+  syncAll('load');
+});
+
+// Logo → reset everything (styles + content + URL)
+document.getElementById('topbar-brand').addEventListener('click', e => {
+  e.preventDefault();
+  resetAllStyles();
   loadText(serializeFrontMatter({ styles: collectStyles() }) + '\n' + DEFAULT_MD);
   // Reset to default state → clean URL, cancel any pending hash write
   _isDefaultState = true;
