@@ -294,6 +294,28 @@ body.read-mode #topbar {
   gap: 4px;
 }
 
+#btn-theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 0;
+  transition: color .12s, background .12s;
+  flex-shrink: 0;
+}
+@media (hover: hover) {
+  #btn-theme:hover {
+    color: var(--text-2);
+    background: var(--bg-hover);
+  }
+}
+
 #content-area {
   flex: 1;
   overflow: auto;
@@ -884,10 +906,10 @@ body.read-mode #right {
   #topbar { height: 40px; padding: 0 10px; position: sticky; top: 0; z-index: 101; }
   #topbar .btn.ghost,
   #topbar .topbar-sep { display: none; }
-  #btn-theme { display: inline-flex !important; }
 
   /* ── Sticky left toolbar ── */
   #left-toolbar { position: sticky; top: 40px; z-index: 99; }
+  body.read-mode #left-toolbar { top: 0; }
 
   /* ── Stack layout instead of side-by-side ── */
   #divider { display: none; }
