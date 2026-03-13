@@ -908,7 +908,7 @@ body.read-mode #right {
   #topbar .topbar-sep { display: none; }
 
   /* ── Sticky left toolbar ── */
-  #left-toolbar { position: sticky; top: 40px; z-index: 99; }
+  #left-toolbar { position: sticky; top: 40px; z-index: 99; transition: top .3s cubic-bezier(.4,0,.2,1); }
   body.read-mode #left-toolbar { top: 0; }
 
   /* ── Stack layout instead of side-by-side ── */
