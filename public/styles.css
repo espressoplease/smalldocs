@@ -407,6 +407,7 @@ body.read-mode #topbar {
   border-radius: var(--md-code-radius);
   font-family: var(--md-code-font);
   font-size: 0.85em;
+  overflow-wrap: anywhere;
 }
 #rendered pre {
   position: relative;
@@ -794,19 +795,27 @@ body.read-mode #right {
    MOBILE
 ═══════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+  /* ── Make body the scroll container (iOS tap-to-top) ── */
+  body { overflow: visible; height: auto; }
+  #main { flex-direction: column; overflow: visible; }
+  #left { min-height: 0; overflow: visible; }
+  #content-area { overflow: visible; }
+  html { scroll-padding-top: 80px; }
+
   /* ── Top bar: keep brand, hide exports ── */
-  #topbar { height: 40px; padding: 0 10px; }
+  #topbar { height: 40px; padding: 0 10px; position: sticky; top: 0; z-index: 101; }
   #topbar .btn.ghost,
   #topbar .topbar-sep { display: none; }
 
+  /* ── Sticky left toolbar ── */
+  #left-toolbar { position: sticky; top: 40px; z-index: 99; }
+
   /* ── Stack layout instead of side-by-side ── */
-  #main { flex-direction: column; }
   #divider { display: none; }
-  #left { min-height: 0; }
 
   /* ── Content: tighter padding for small screens ── */
-  #rendered { padding: 24px 20px 40px; max-width: 100%; }
-  #raw { padding: 20px 16px; }
+  #rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
+  #raw { padding: 20px 16px; min-height: calc(100dvh - 40px - 36px); }
 
   /* ── Left toolbar: hide drop hint ── */
   #drop-hint { display: none; }
