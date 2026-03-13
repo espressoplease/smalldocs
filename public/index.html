@@ -361,6 +361,59 @@ body.read-mode #topbar {
   text-underline-offset: 2px;
 }
 #rendered a:hover { opacity: .8; }
+/* ── Table of Contents ── */
+#rendered .sdocs-toc {
+  background: var(--md-code-bg, #F4F1ED);
+  border: 1px solid #E7E2DB;
+  border-radius: 8px;
+  padding: 14px 20px;
+  margin-bottom: 1.5em;
+  font-size: 0.88em;
+  line-height: 1.7;
+}
+#rendered .sdocs-toc-title {
+  font-size: 0.78em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--md-h4-color, #1C1917);
+  margin-bottom: 6px;
+}
+#rendered .sdocs-toc ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+#rendered .sdocs-toc ul ul { padding-left: 1.2em; }
+#rendered .sdocs-toc li { margin-bottom: 1px; }
+#rendered .sdocs-toc a {
+  color: var(--md-link-color, #2563eb);
+  text-decoration: none;
+  transition: opacity 0.12s;
+}
+#rendered .sdocs-toc a:hover { opacity: 0.7; }
+
+/* ── Header anchor links ── */
+#rendered h1, #rendered h2, #rendered h3, #rendered h4 { position: relative; }
+#rendered .header-anchor {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  color: var(--md-link-color, #2563eb);
+  cursor: pointer;
+  vertical-align: middle;
+}
+#rendered h1:hover .header-anchor,
+#rendered h2:hover .header-anchor,
+#rendered h3:hover .header-anchor,
+#rendered h4:hover .header-anchor { opacity: 0.5; }
+#rendered .header-anchor:hover { opacity: 1 !important; }
+
+/* ── Scroll padding for anchor jumps ── */
+#content-area { scroll-padding-top: 24px; }
+
 #rendered code {
   background: var(--md-code-bg);
   color: var(--md-code-color);
@@ -476,7 +529,7 @@ body.read-mode #divider { width: 0; }
    RIGHT PANEL
 ═══════════════════════════════════════════════════ */
 #right {
-  width: 288px;
+  width: 335px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -500,7 +553,7 @@ body.read-mode #right {
 #right-header {
   display: flex;
   align-items: center;
-  height: 36px;
+  min-height: 36px;
   padding: 0 12px;
   font-size: 12px;
   font-weight: 600;
@@ -508,6 +561,7 @@ body.read-mode #right {
   color: var(--text-2);
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
+  flex-shrink: 0;
 }
 
 /* ── Panel sections ── */
@@ -613,6 +667,7 @@ body.read-mode #right {
 }
 .control-row input[type=number] {
   width: 48px;
+  flex-shrink: 0;
   padding: 3px 5px;
   background: var(--bg-input);
   border: 1px solid var(--border);
@@ -1367,8 +1422,96 @@ let currentMeta = {};
 const renderedEl = document.getElementById('rendered');
 const rawEl = document.getElementById('raw');
 
+const LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+const CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+function slugify(text) {
+  return text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
+
+function buildSectionUrl(slug) {
+  const base = window.location.origin + window.location.pathname;
+  const hash = window.location.hash.slice(1);
+  const params = hash ? new URLSearchParams(hash) : new URLSearchParams();
+  params.delete('sec');
+  params.set('sec', slug);
+  return base + '#' + params.toString();
+}
+
 function render() {
   renderedEl.innerHTML = marked.parse(currentBody);
+
+  // ── Assign heading IDs and build TOC data ──
+  const slugCounts = {};
+  const tocItems = [];
+  renderedEl.querySelectorAll('h1, h2, h3, h4').forEach(h => {
+    let slug = slugify(h.textContent);
+    if (!slug) slug = 'section';
+    if (slugCounts[slug] != null) {
+      slugCounts[slug]++;
+      slug = slug + '-' + slugCounts[slug];
+    } else {
+      slugCounts[slug] = 0;
+    }
+    h.id = slug;
+    tocItems.push({ slug, text: h.textContent, level: parseInt(h.tagName[1]) });
+
+    // Add anchor link icon
+    const anchor = document.createElement('a');
+    anchor.className = 'header-anchor';
+    anchor.innerHTML = LINK_SVG;
+    anchor.title = 'Copy link to section';
+    anchor.addEventListener('click', e => {
+      e.preventDefault();
+      navigator.clipboard.writeText(buildSectionUrl(slug)).then(() => {
+        anchor.innerHTML = CHECK_SVG;
+        setTimeout(() => { anchor.innerHTML = LINK_SVG; }, 1500);
+      });
+    });
+    h.appendChild(anchor);
+  });
+
+  // ── Generate TOC (only if 2+ headings) ──
+  if (tocItems.length >= 2) {
+    const nav = document.createElement('nav');
+    nav.className = 'sdocs-toc';
+    const title = document.createElement('div');
+    title.className = 'sdocs-toc-title';
+    title.textContent = 'Contents';
+    nav.appendChild(title);
+
+    const minLevel = Math.min(...tocItems.map(t => t.level));
+    const rootUl = document.createElement('ul');
+    tocItems.forEach(item => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = '#';
+      a.textContent = item.text;
+      a.dataset.sec = item.slug;
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.getElementById(item.slug);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      li.appendChild(a);
+      // Indent based on heading depth relative to the minimum level
+      const depth = item.level - minLevel;
+      let parent = rootUl;
+      for (let i = 0; i < depth; i++) {
+        let nested = parent.lastElementChild?.querySelector('ul');
+        if (!nested) {
+          nested = document.createElement('ul');
+          (parent.lastElementChild || parent).appendChild(nested);
+        }
+        parent = nested;
+      }
+      parent.appendChild(li);
+    });
+    nav.appendChild(rootUl);
+    renderedEl.insertBefore(nav, renderedEl.firstChild);
+  }
+
+  // ── Copy buttons on code blocks ──
   renderedEl.querySelectorAll('pre').forEach(pre => {
     const btn = document.createElement('button');
     btn.className = 'copy-btn';
@@ -1563,9 +1706,11 @@ function loadText(text, filename) {
   const { meta, body } = parseFrontMatter(text);
   currentMeta = meta;
   currentBody = body;
-  rawEl.value = text;
   render();
   if (meta.styles) applyStylesFromMeta(meta.styles);
+  // Rebuild raw with current styles so it always reflects applied styling
+  currentMeta = { ...currentMeta, styles: collectStyles() };
+  rawEl.value = serializeFrontMatter(currentMeta) + '\n' + currentBody;
   setStatus(filename ? `Loaded: ${filename}` : 'Ready');
   syncAll('load');
 }
@@ -1832,7 +1977,10 @@ ${fontLink}
 <style>${buildExportCSS()}</style>
 </head>
 <body>
-${renderedEl.innerHTML.replace(/<button class="copy-btn"[^]*?<\/button>/g, '')}
+${renderedEl.innerHTML
+  .replace(/<button class="copy-btn"[^]*?<\/button>/g, '')
+  .replace(/<a class="header-anchor"[^]*?<\/a>/g, '')
+  .replace(/<nav class="sdocs-toc"[^]*?<\/nav>/g, '')}
 </body>
 </html>`;
 }
@@ -2101,6 +2249,20 @@ setColorValue('ctrl-color', COLOR_DEFAULT, false);
     } catch (e) {
       console.warn('sdocs-dev: could not decode #styles hash', e);
     }
+  }
+
+  // Scroll to section anchor if sec= param is present
+  const secParam = params.get('sec');
+  if (secParam) {
+    setTimeout(() => {
+      const target = document.getElementById(secParam);
+      if (target) {
+        const container = document.getElementById('content-area');
+        if (container) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    }, 200);
   }
 }());
 </script>
