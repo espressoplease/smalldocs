@@ -376,10 +376,101 @@ test('collectStyles: overridden colors emitted', () => {
   assert.strictEqual(styles.h2.color, undefined);
 });
 
-test('collectStyles → stylesToControls roundtrip', () => {
+// Every non-color setting: controls → collectStyles → stylesToControls → verify
+test('every non-color setting roundtrips through collectStyles → stylesToControls', () => {
+  const values = {
+    'ctrl-font-family': "'Lora', serif",
+    'ctrl-base-size-num': '18',
+    'ctrl-line-height-num': '1.8',
+    'ctrl-h-font-family': "'Playfair Display', serif",
+    'ctrl-h-scale-num': '1.2',
+    'ctrl-h-mb-num': '0.6',
+    'ctrl-h1-size-num': '2.5', 'ctrl-h1-weight': '800',
+    'ctrl-h2-size-num': '1.8', 'ctrl-h2-weight': '700',
+    'ctrl-h3-size-num': '1.4', 'ctrl-h3-weight': '600',
+    'ctrl-h4-size-num': '1.1', 'ctrl-h4-weight': '500',
+    'ctrl-p-lh-num': '1.9',
+    'ctrl-p-mb-num': '1.3',
+    'ctrl-link-color': '#e11d48',
+    'ctrl-link-decoration': 'none',
+    'ctrl-code-font': "'Fira Code', monospace",
+    'ctrl-code-bg': '#282c34',
+    'ctrl-code-color': '#abb2bf',
+    'ctrl-bq-border-color': '#e11d48',
+    'ctrl-bq-bw-num': '5',
+    'ctrl-bq-size-num': '0.95',
+    'ctrl-bq-color': '#555555',
+    'ctrl-list-spacing-num': '0.5',
+    'ctrl-list-indent-num': '1.5',
+  };
+  const styles = S.collectStyles(values, new Set());
+
+  // Check every property in the styles object
+  assert.strictEqual(styles.fontFamily, 'Lora');
+  assert.strictEqual(styles.baseFontSize, 18);
+  assert.strictEqual(styles.lineHeight, 1.8);
+  assert.strictEqual(styles.headers.fontFamily, 'Playfair Display');
+  assert.strictEqual(styles.headers.scale, 1.2);
+  assert.strictEqual(styles.headers.marginBottom, 0.6);
+  assert.strictEqual(styles.h1.fontSize, 2.5);
+  assert.strictEqual(styles.h1.fontWeight, 800);
+  assert.strictEqual(styles.h2.fontSize, 1.8);
+  assert.strictEqual(styles.h2.fontWeight, 700);
+  assert.strictEqual(styles.h3.fontSize, 1.4);
+  assert.strictEqual(styles.h3.fontWeight, 600);
+  assert.strictEqual(styles.h4.fontSize, 1.1);
+  assert.strictEqual(styles.h4.fontWeight, 500);
+  assert.strictEqual(styles.p.lineHeight, 1.9);
+  assert.strictEqual(styles.p.marginBottom, 1.3);
+  assert.strictEqual(styles.link.color, '#e11d48');
+  assert.strictEqual(styles.link.decoration, 'none');
+  assert.strictEqual(styles.code.font, 'Fira Code');
+  assert.strictEqual(styles.code.background, '#282c34');
+  assert.strictEqual(styles.code.color, '#abb2bf');
+  assert.strictEqual(styles.blockquote.borderColor, '#e11d48');
+  assert.strictEqual(styles.blockquote.borderWidth, 5);
+  assert.strictEqual(styles.blockquote.fontSize, 0.95);
+  assert.strictEqual(styles.blockquote.color, '#555555');
+  assert.strictEqual(styles.list.spacing, 0.5);
+  assert.strictEqual(styles.list.indent, 1.5);
+
+  // Roundtrip back to controls and verify every value
+  const { controls } = S.stylesToControls(styles);
+  assert.strictEqual(controls['ctrl-font-family'], 'Lora');
+  assert.strictEqual(controls['ctrl-base-size-num'], 18);
+  assert.strictEqual(controls['ctrl-line-height-num'], 1.8);
+  assert.strictEqual(controls['ctrl-h-font-family'], 'Playfair Display');
+  assert.strictEqual(controls['ctrl-h-scale-num'], 1.2);
+  assert.strictEqual(controls['ctrl-h-mb-num'], 0.6);
+  assert.strictEqual(controls['ctrl-h1-size-num'], 2.5);
+  assert.strictEqual(controls['ctrl-h1-weight'], '800');
+  assert.strictEqual(controls['ctrl-h2-size-num'], 1.8);
+  assert.strictEqual(controls['ctrl-h2-weight'], '700');
+  assert.strictEqual(controls['ctrl-h3-size-num'], 1.4);
+  assert.strictEqual(controls['ctrl-h3-weight'], '600');
+  assert.strictEqual(controls['ctrl-h4-size-num'], 1.1);
+  assert.strictEqual(controls['ctrl-h4-weight'], '500');
+  assert.strictEqual(controls['ctrl-p-lh-num'], 1.9);
+  assert.strictEqual(controls['ctrl-p-mb-num'], 1.3);
+  assert.strictEqual(controls['ctrl-link-color'], '#e11d48');
+  assert.strictEqual(controls['ctrl-link-decoration'], 'none');
+  assert.strictEqual(controls['ctrl-code-font'], 'Fira Code');
+  assert.strictEqual(controls['ctrl-code-bg'], '#282c34');
+  assert.strictEqual(controls['ctrl-code-color'], '#abb2bf');
+  assert.strictEqual(controls['ctrl-bq-border-color'], '#e11d48');
+  assert.strictEqual(controls['ctrl-bq-bw-num'], 5);
+  assert.strictEqual(controls['ctrl-bq-size-num'], 0.95);
+  assert.strictEqual(controls['ctrl-bq-color'], '#555555');
+  assert.strictEqual(controls['ctrl-list-spacing-num'], 0.5);
+  assert.strictEqual(controls['ctrl-list-indent-num'], 1.5);
+});
+
+// Every cascade color: controls → collectStyles → stylesToControls → verify
+test('every cascade color roundtrips through collectStyles → stylesToControls', () => {
   const values = {
     'ctrl-font-family': "'Inter', sans-serif", 'ctrl-base-size-num': '16',
-    'ctrl-line-height-num': '1.75', 'ctrl-h-scale-num': '1', 'ctrl-h-mb-num': '0.4',
+    'ctrl-line-height-num': '1.75', 'ctrl-h-font-family': 'inherit',
+    'ctrl-h-scale-num': '1', 'ctrl-h-mb-num': '0.4',
     'ctrl-h1-size-num': '2.1', 'ctrl-h1-weight': '700',
     'ctrl-h2-size-num': '1.55', 'ctrl-h2-weight': '600',
     'ctrl-h3-size-num': '1.2', 'ctrl-h3-weight': '600',
@@ -390,14 +481,45 @@ test('collectStyles → stylesToControls roundtrip', () => {
     'ctrl-code-color': '#6B21A8',
     'ctrl-bq-border-color': '#2563EB', 'ctrl-bq-bw-num': '3',
     'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6B6560',
-    'ctrl-color': '#ff0000',
+    'ctrl-list-spacing-num': '0.3', 'ctrl-list-indent-num': '1.6',
+    'ctrl-color': '#111111',
+    'ctrl-h-color': '#222222',
+    'ctrl-h1-color': '#aa0000',
+    'ctrl-h2-color': '#bb0000',
+    'ctrl-h3-color': '#cc0000',
+    'ctrl-h4-color': '#dd0000',
+    'ctrl-p-color': '#333333',
+    'ctrl-list-color': '#444444',
   };
-  const overridden = new Set(['ctrl-color']);
-  const styles = S.collectStyles(values, overridden);
+  const allOverridden = new Set([
+    'ctrl-color', 'ctrl-h-color',
+    'ctrl-h1-color', 'ctrl-h2-color', 'ctrl-h3-color', 'ctrl-h4-color',
+    'ctrl-p-color', 'ctrl-list-color',
+  ]);
+  const styles = S.collectStyles(values, allOverridden);
+
+  assert.strictEqual(styles.color, '#111111');
+  assert.strictEqual(styles.headers.color, '#222222');
+  assert.strictEqual(styles.h1.color, '#aa0000');
+  assert.strictEqual(styles.h2.color, '#bb0000');
+  assert.strictEqual(styles.h3.color, '#cc0000');
+  assert.strictEqual(styles.h4.color, '#dd0000');
+  assert.strictEqual(styles.p.color, '#333333');
+  assert.strictEqual(styles.list.color, '#444444');
+
   const { controls, overriddenColors } = S.stylesToControls(styles);
-  assert.strictEqual(controls['ctrl-base-size-num'], 16);
-  assert.ok(overriddenColors.has('ctrl-color'));
-  assert.ok(!overriddenColors.has('ctrl-h1-color'));
+  assert.strictEqual(controls['ctrl-color'], '#111111');
+  assert.strictEqual(controls['ctrl-h-color'], '#222222');
+  assert.strictEqual(controls['ctrl-h1-color'], '#aa0000');
+  assert.strictEqual(controls['ctrl-h2-color'], '#bb0000');
+  assert.strictEqual(controls['ctrl-h3-color'], '#cc0000');
+  assert.strictEqual(controls['ctrl-h4-color'], '#dd0000');
+  assert.strictEqual(controls['ctrl-p-color'], '#333333');
+  assert.strictEqual(controls['ctrl-list-color'], '#444444');
+
+  for (const id of allOverridden) {
+    assert.ok(overriddenColors.has(id), `${id} should be in overriddenColors`);
+  }
 });
 
 test('controlToCssVars: base-size adds px suffix', () => {
@@ -451,13 +573,100 @@ test('stylesToControls: maps all style keys to control IDs', () => {
   assert.ok(!overriddenColors.has('ctrl-h2-color'));
 });
 
-test('cascade: full YAML roundtrip with front matter', () => {
-  const styles = { fontFamily: 'Inter', baseFontSize: 16, color: '#ff0000',
-    h1: { fontSize: 2.1, fontWeight: 700 } };
+test('every setting survives full YAML serialize → parse → stylesToControls roundtrip', () => {
+  const styles = {
+    fontFamily: 'Lora', baseFontSize: 18, lineHeight: 1.8, color: '#111111',
+    headers: { fontFamily: 'Playfair Display', scale: 1.2, marginBottom: 0.6, color: '#222222' },
+    h1: { fontSize: 2.5, fontWeight: 800, color: '#aa0000' },
+    h2: { fontSize: 1.8, fontWeight: 700, color: '#bb0000' },
+    h3: { fontSize: 1.4, fontWeight: 600, color: '#cc0000' },
+    h4: { fontSize: 1.1, fontWeight: 500, color: '#dd0000' },
+    p: { lineHeight: 1.9, marginBottom: 1.3, color: '#333333' },
+    link: { color: '#e11d48', decoration: 'none' },
+    code: { font: 'Fira Code', background: '#282c34', color: '#abb2bf' },
+    blockquote: { borderColor: '#e11d48', borderWidth: 5, fontSize: 0.95, color: '#555555' },
+    list: { spacing: 0.5, indent: 1.5, color: '#444444' },
+  };
   const fm = cli.serializeFrontMatter({ styles });
   const { meta } = cli.parseFrontMatter(fm + '\n# Doc');
-  assert.strictEqual(meta.styles.color, '#ff0000');
-  assert.strictEqual(meta.styles.h1.color, undefined);
+  const parsed = meta.styles;
+
+  // Verify every value survived YAML serialization
+  assert.strictEqual(parsed.fontFamily, 'Lora');
+  assert.strictEqual(parsed.baseFontSize, 18);
+  assert.strictEqual(parsed.lineHeight, 1.8);
+  assert.strictEqual(parsed.color, '#111111');
+  assert.strictEqual(parsed.headers.fontFamily, 'Playfair Display');
+  assert.strictEqual(parsed.headers.scale, 1.2);
+  assert.strictEqual(parsed.headers.marginBottom, 0.6);
+  assert.strictEqual(parsed.headers.color, '#222222');
+  assert.strictEqual(parsed.h1.fontSize, 2.5);
+  assert.strictEqual(parsed.h1.fontWeight, 800);
+  assert.strictEqual(parsed.h1.color, '#aa0000');
+  assert.strictEqual(parsed.h2.fontSize, 1.8);
+  assert.strictEqual(parsed.h2.fontWeight, 700);
+  assert.strictEqual(parsed.h2.color, '#bb0000');
+  assert.strictEqual(parsed.h3.fontSize, 1.4);
+  assert.strictEqual(parsed.h3.fontWeight, 600);
+  assert.strictEqual(parsed.h3.color, '#cc0000');
+  assert.strictEqual(parsed.h4.fontSize, 1.1);
+  assert.strictEqual(parsed.h4.fontWeight, 500);
+  assert.strictEqual(parsed.h4.color, '#dd0000');
+  assert.strictEqual(parsed.p.lineHeight, 1.9);
+  assert.strictEqual(parsed.p.marginBottom, 1.3);
+  assert.strictEqual(parsed.p.color, '#333333');
+  assert.strictEqual(parsed.link.color, '#e11d48');
+  assert.strictEqual(parsed.link.decoration, 'none');
+  assert.strictEqual(parsed.code.font, 'Fira Code');
+  assert.strictEqual(parsed.code.background, '#282c34');
+  assert.strictEqual(parsed.code.color, '#abb2bf');
+  assert.strictEqual(parsed.blockquote.borderColor, '#e11d48');
+  assert.strictEqual(parsed.blockquote.borderWidth, 5);
+  assert.strictEqual(parsed.blockquote.fontSize, 0.95);
+  assert.strictEqual(parsed.blockquote.color, '#555555');
+  assert.strictEqual(parsed.list.spacing, 0.5);
+  assert.strictEqual(parsed.list.indent, 1.5);
+  assert.strictEqual(parsed.list.color, '#444444');
+
+  // Verify stylesToControls maps everything back correctly
+  const { controls, overriddenColors } = S.stylesToControls(parsed);
+  assert.strictEqual(controls['ctrl-font-family'], 'Lora');
+  assert.strictEqual(controls['ctrl-base-size-num'], 18);
+  assert.strictEqual(controls['ctrl-line-height-num'], 1.8);
+  assert.strictEqual(controls['ctrl-h-font-family'], 'Playfair Display');
+  assert.strictEqual(controls['ctrl-h-scale-num'], 1.2);
+  assert.strictEqual(controls['ctrl-h-mb-num'], 0.6);
+  assert.strictEqual(controls['ctrl-h1-size-num'], 2.5);
+  assert.strictEqual(controls['ctrl-h1-weight'], '800');
+  assert.strictEqual(controls['ctrl-h2-size-num'], 1.8);
+  assert.strictEqual(controls['ctrl-h2-weight'], '700');
+  assert.strictEqual(controls['ctrl-h3-size-num'], 1.4);
+  assert.strictEqual(controls['ctrl-h3-weight'], '600');
+  assert.strictEqual(controls['ctrl-h4-size-num'], 1.1);
+  assert.strictEqual(controls['ctrl-h4-weight'], '500');
+  assert.strictEqual(controls['ctrl-p-lh-num'], 1.9);
+  assert.strictEqual(controls['ctrl-p-mb-num'], 1.3);
+  assert.strictEqual(controls['ctrl-link-color'], '#e11d48');
+  assert.strictEqual(controls['ctrl-link-decoration'], 'none');
+  assert.strictEqual(controls['ctrl-code-font'], 'Fira Code');
+  assert.strictEqual(controls['ctrl-code-bg'], '#282c34');
+  assert.strictEqual(controls['ctrl-code-color'], '#abb2bf');
+  assert.strictEqual(controls['ctrl-bq-border-color'], '#e11d48');
+  assert.strictEqual(controls['ctrl-bq-bw-num'], 5);
+  assert.strictEqual(controls['ctrl-bq-size-num'], 0.95);
+  assert.strictEqual(controls['ctrl-bq-color'], '#555555');
+  assert.strictEqual(controls['ctrl-list-spacing-num'], 0.5);
+  assert.strictEqual(controls['ctrl-list-indent-num'], 1.5);
+
+  // Verify all cascade colors are marked as overridden
+  assert.ok(overriddenColors.has('ctrl-color'));
+  assert.ok(overriddenColors.has('ctrl-h-color'));
+  assert.ok(overriddenColors.has('ctrl-h1-color'));
+  assert.ok(overriddenColors.has('ctrl-h2-color'));
+  assert.ok(overriddenColors.has('ctrl-h3-color'));
+  assert.ok(overriddenColors.has('ctrl-h4-color'));
+  assert.ok(overriddenColors.has('ctrl-p-color'));
+  assert.ok(overriddenColors.has('ctrl-list-color'));
 });
 
 // ══════════════════════════════════════════════════════

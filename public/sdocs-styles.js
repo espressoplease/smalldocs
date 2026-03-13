@@ -148,6 +148,7 @@ function collectStyles(values, overriddenColors) {
     baseFontSize: gn('ctrl-base-size-num'),
     lineHeight:   gn('ctrl-line-height-num'),
     headers: {
+      fontFamily:   gv('ctrl-h-font-family').replace(/['"]/g, '').split(',')[0].trim(),
       scale:        gn('ctrl-h-scale-num'),
       marginBottom: gn('ctrl-h-mb-num'),
     },
@@ -173,6 +174,11 @@ function collectStyles(values, overriddenColors) {
     },
   };
 
+  styles.list = {
+    spacing: gn('ctrl-list-spacing-num'),
+    indent:  gn('ctrl-list-indent-num'),
+  };
+
   // Only emit cascade colors that were explicitly overridden
   if (overriddenColors.has('ctrl-color'))      styles.color = gv('ctrl-color');
   if (overriddenColors.has('ctrl-h-color'))    styles.headers.color = gv('ctrl-h-color');
@@ -181,7 +187,7 @@ function collectStyles(values, overriddenColors) {
   if (overriddenColors.has('ctrl-h3-color'))   styles.h3.color = gv('ctrl-h3-color');
   if (overriddenColors.has('ctrl-h4-color'))   styles.h4.color = gv('ctrl-h4-color');
   if (overriddenColors.has('ctrl-p-color'))    styles.p.color = gv('ctrl-p-color');
-  if (overriddenColors.has('ctrl-list-color')) styles.list = { color: gv('ctrl-list-color') };
+  if (overriddenColors.has('ctrl-list-color')) styles.list.color = gv('ctrl-list-color');
 
   return styles;
 }
@@ -207,6 +213,7 @@ function stylesToControls(styles) {
   }
 
   const h = styles.headers || {};
+  if (h.fontFamily)   controls['ctrl-h-font-family'] = h.fontFamily;
   if (h.scale)        controls['ctrl-h-scale-num'] = h.scale;
   if (h.marginBottom) controls['ctrl-h-mb-num'] = h.marginBottom;
   if (h.color) {
@@ -248,6 +255,8 @@ function stylesToControls(styles) {
   if (bq.color)       controls['ctrl-bq-color'] = bq.color;
 
   const ll = styles.list || {};
+  if (ll.spacing) controls['ctrl-list-spacing-num'] = ll.spacing;
+  if (ll.indent)  controls['ctrl-list-indent-num'] = ll.indent;
   if (ll.color) {
     controls['ctrl-list-color'] = ll.color;
     overridden.add('ctrl-list-color');

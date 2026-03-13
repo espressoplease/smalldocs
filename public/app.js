@@ -355,18 +355,21 @@ function applyStylesFromMeta(s) {
 
   const { controls, overriddenColors: newOverridden } = SDocStyles.stylesToControls(s);
 
-  // Font family needs special handling to match against <option> values
-  if (s.fontFamily) {
-    const sel = document.getElementById('ctrl-font-family');
-    const match = [...sel.options].find(o =>
-      o.value.replace(/['"]/g,'').split(',')[0].trim() === s.fontFamily ||
-      o.textContent === s.fontFamily
-    );
-    if (match) { sel.value = match.value; applyCtrl('ctrl-font-family'); }
+  // Font family selects need special handling to match bare names against <option> values
+  for (const [styleKey, ctrlId] of [['fontFamily', 'ctrl-font-family'], ['headers.fontFamily', 'ctrl-h-font-family']]) {
+    const fontName = styleKey === 'fontFamily' ? s.fontFamily : (s.headers || {}).fontFamily;
+    if (fontName) {
+      const sel = document.getElementById(ctrlId);
+      const match = [...sel.options].find(o =>
+        o.value.replace(/['"]/g,'').split(',')[0].trim() === fontName ||
+        o.textContent === fontName
+      );
+      if (match) { sel.value = match.value; applyCtrl(ctrlId); }
+    }
   }
 
   for (const [id, val] of Object.entries(controls)) {
-    if (id === 'ctrl-font-family') continue;
+    if (id === 'ctrl-font-family' || id === 'ctrl-h-font-family') continue;
     if (SDocStyles.COLOR_VAR_MAP[id]) continue;
     setCtrl(id, val);
   }
