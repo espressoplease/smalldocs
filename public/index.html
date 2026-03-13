@@ -370,6 +370,7 @@ body.read-mode #topbar {
   font-size: 0.85em;
 }
 #rendered pre {
+  position: relative;
   background: var(--md-pre-bg);
   padding: var(--md-pre-padding);
   border-radius: var(--radius-md);
@@ -377,6 +378,26 @@ body.read-mode #topbar {
   margin: 1.2em 0;
   border: 1px solid #E7E2DB;
 }
+#rendered pre .copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 4px;
+  padding: 4px 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  color: var(--md-code-color, #6B21A8);
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#rendered pre:hover .copy-btn { opacity: 0.7; }
+#rendered pre .copy-btn:hover { opacity: 1; background: rgba(0,0,0,0.05); }
 #rendered pre code {
   background: none;
   padding: 0;
@@ -1348,6 +1369,22 @@ const rawEl = document.getElementById('raw');
 
 function render() {
   renderedEl.innerHTML = marked.parse(currentBody);
+  renderedEl.querySelectorAll('pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    btn.title = 'Copy code';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code');
+      navigator.clipboard.writeText(code ? code.textContent : pre.textContent).then(() => {
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        setTimeout(() => {
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+        }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1795,7 +1832,7 @@ ${fontLink}
 <style>${buildExportCSS()}</style>
 </head>
 <body>
-${renderedEl.innerHTML}
+${renderedEl.innerHTML.replace(/<button class="copy-btn"[^]*?<\/button>/g, '')}
 </body>
 </html>`;
 }
