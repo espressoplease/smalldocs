@@ -225,6 +225,23 @@ test('styles.css contains drag-over overlay', () => {
   assert.ok(css.includes('drag-over'), 'missing drag-over class');
 });
 
+test('styles.css contains dark theme overrides', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'styles.css'), 'utf-8');
+  assert.ok(css.includes('[data-theme="dark"]'), 'missing dark theme selector');
+});
+
+test('index.html contains theme toggle button', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
+  assert.ok(html.includes('id="btn-theme"'), 'missing theme toggle button');
+});
+
+test('app.js contains theme functions', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf-8');
+  assert.ok(js.includes('toggleTheme'), 'missing toggleTheme function');
+  assert.ok(js.includes('prefers-color-scheme'), 'missing system preference detection');
+  assert.ok(js.includes('sdocs-theme'), 'missing localStorage theme key');
+});
+
 test('public/styles.css exists', () => {
   const cssPath = path.join(__dirname, '..', 'public', 'styles.css');
   assert.ok(fs.existsSync(cssPath), 'public/styles.css not found');

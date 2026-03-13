@@ -6,6 +6,100 @@ const GOOGLE_FONTS = [
   'Josefin Sans', 'PT Serif', 'Libre Franklin', 'Crimson Text'
 ];
 
+// ── Dark mode ──────────────────────────────────
+
+const LIGHT_DEFAULTS = {
+  colorDefault:  '#1c1917',
+  codeBg:        '#f4f1ed',
+  codeColor:     '#6b21a8',
+  linkColor:     '#2563eb',
+  bqBorderColor: '#2563eb',
+  bqColor:       '#6b6560',
+};
+
+const DARK_DEFAULTS = {
+  colorDefault:  '#e7e5e2',
+  codeBg:        '#1a1816',
+  codeColor:     '#b8a99a',
+  linkColor:     '#60a5fa',
+  bqBorderColor: '#60a5fa',
+  bqColor:       '#a8a29e',
+};
+
+function getThemeDefaults() {
+  return document.documentElement.dataset.theme === 'dark' ? DARK_DEFAULTS : LIGHT_DEFAULTS;
+}
+
+function getColorDefault() {
+  return getThemeDefaults().colorDefault;
+}
+
+function getPreferredTheme() {
+  const stored = localStorage.getItem('sdocs-theme');
+  if (stored === 'dark' || stored === 'light') return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function updateThemeIcon(theme) {
+  const icon = document.getElementById('icon-theme');
+  if (!icon) return;
+  if (theme === 'dark') {
+    icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  } else {
+    icon.innerHTML = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+  }
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem('sdocs-theme', theme);
+  updateThemeIcon(theme);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.dataset.theme;
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+  updateDefaultColors();
+}
+
+function updateDefaultColors() {
+  const defaults = getThemeDefaults();
+  if (typeof overriddenColors !== 'undefined') {
+    if (!overriddenColors.has('ctrl-color')) {
+      setColorValue('ctrl-color', defaults.colorDefault, false);
+    }
+    // Update standalone color defaults for reset buttons
+    const standaloneMap = {
+      'ctrl-link-color':      defaults.linkColor,
+      'ctrl-code-bg':         defaults.codeBg,
+      'ctrl-code-color':      defaults.codeColor,
+      'ctrl-bq-border-color': defaults.bqBorderColor,
+      'ctrl-bq-color':        defaults.bqColor,
+    };
+    for (const [ctrlId, val] of Object.entries(standaloneMap)) {
+      if (!overriddenColors.has(ctrlId)) {
+        const el = document.getElementById(ctrlId);
+        if (el) {
+          el.value = val;
+          const allVals = readAllControlValues();
+          SDocStyles.controlToCssVars(ctrlId, val, allVals)
+            .forEach(a => renderedEl.style.setProperty(a.cssVar, a.value));
+        }
+      }
+    }
+    syncAll('controls');
+  }
+}
+
+applyTheme(getPreferredTheme());
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+  if (!localStorage.getItem('sdocs-theme')) {
+    applyTheme(e.matches ? 'dark' : 'light');
+    updateDefaultColors();
+  }
+});
+
 const loadedFonts = new Set(['Inter']);
 
 function loadGoogleFont(family) {
@@ -264,6 +358,10 @@ function linkRangeNum(rangeId, numId) {
 
 SDocStyles.RANGE_NUM_PAIRS.forEach(([r,n]) => linkRangeNum(r,n));
 
+const STANDALONE_COLOR_IDS = new Set([
+  'ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-color',
+]);
+
 [
   'ctrl-font-family','ctrl-h-font-family',
   'ctrl-h1-weight','ctrl-h2-weight','ctrl-h3-weight','ctrl-h4-weight',
@@ -271,13 +369,13 @@ SDocStyles.RANGE_NUM_PAIRS.forEach(([r,n]) => linkRangeNum(r,n));
   'ctrl-code-font','ctrl-code-bg','ctrl-code-color',
   'ctrl-bq-border-color','ctrl-bq-color',
 ].forEach(id => {
-  document.getElementById(id).addEventListener('input',  () => applyCtrl(id));
-  document.getElementById(id).addEventListener('change', () => applyCtrl(id));
+  const handler = () => { if (STANDALONE_COLOR_IDS.has(id)) overriddenColors.add(id); applyCtrl(id); };
+  document.getElementById(id).addEventListener('input',  handler);
+  document.getElementById(id).addEventListener('change', handler);
 });
 
 // Color cascade
 
-const COLOR_DEFAULT = SDocStyles.COLOR_DEFAULT;
 const COLOR_VAR = SDocStyles.COLOR_VAR_MAP;
 const COLOR_CHILDREN = SDocStyles.COLOR_CASCADE;
 
@@ -297,7 +395,7 @@ function setColorValue(ctrlId, value, userAction = false) {
 
 function resetColorValue(ctrlId) {
   overriddenColors.delete(ctrlId);
-  setColorValue(ctrlId, COLOR_DEFAULT, false);
+  setColorValue(ctrlId, getColorDefault(), false);
 }
 
 Object.keys(COLOR_VAR).forEach(ctrlId => {
@@ -307,7 +405,7 @@ Object.keys(COLOR_VAR).forEach(ctrlId => {
   el.addEventListener('change', () => { setColorValue(ctrlId, el.value, true); syncAll('controls'); });
 });
 
-document.getElementById('reset-color').addEventListener('click',      () => { overriddenColors.delete('ctrl-color'); setColorValue('ctrl-color', COLOR_DEFAULT, false); syncAll('controls'); });
+document.getElementById('reset-color').addEventListener('click',      () => { overriddenColors.delete('ctrl-color'); setColorValue('ctrl-color', getColorDefault(), false); syncAll('controls'); });
 document.getElementById('reset-h-color').addEventListener('click',    () => { resetColorValue('ctrl-h-color'); syncAll('controls'); });
 document.getElementById('reset-h1-color').addEventListener('click',   () => { resetColorValue('ctrl-h1-color'); syncAll('controls'); });
 document.getElementById('reset-h2-color').addEventListener('click',   () => { resetColorValue('ctrl-h2-color'); syncAll('controls'); });
@@ -316,17 +414,24 @@ document.getElementById('reset-h4-color').addEventListener('click',   () => { re
 document.getElementById('reset-p-color').addEventListener('click',    () => { resetColorValue('ctrl-p-color'); syncAll('controls'); });
 document.getElementById('reset-list-color').addEventListener('click', () => { resetColorValue('ctrl-list-color'); syncAll('controls'); });
 
-const STANDALONE_COLOR_DEFAULTS = {
-  'ctrl-link-color':      '#2563eb',
-  'ctrl-code-bg':         '#f4f1ed',
-  'ctrl-code-color':      '#6b21a8',
-  'ctrl-bq-border-color': '#2563eb',
-  'ctrl-bq-color':        '#6b6560',
-};
-Object.entries(STANDALONE_COLOR_DEFAULTS).forEach(([ctrlId, defaultVal]) => {
+function getStandaloneDefault(ctrlId) {
+  const d = getThemeDefaults();
+  const map = {
+    'ctrl-link-color':      d.linkColor,
+    'ctrl-code-bg':         d.codeBg,
+    'ctrl-code-color':      d.codeColor,
+    'ctrl-bq-border-color': d.bqBorderColor,
+    'ctrl-bq-color':        d.bqColor,
+  };
+  return map[ctrlId];
+}
+
+['ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-color'].forEach(ctrlId => {
   const btnId = 'reset-' + ctrlId.replace('ctrl-', '');
   document.getElementById(btnId).addEventListener('click', () => {
+    const defaultVal = getStandaloneDefault(ctrlId);
     const el = document.getElementById(ctrlId);
+    overriddenColors.delete(ctrlId);
     el.value = defaultVal;
     const assignments = SDocStyles.controlToCssVars(ctrlId, defaultVal, readAllControlValues());
     assignments.forEach(a => renderedEl.style.setProperty(a.cssVar, a.value));
@@ -375,7 +480,7 @@ function applyStylesFromMeta(s) {
   }
 
   overriddenColors.clear();
-  setColorValue('ctrl-color', COLOR_DEFAULT, false);
+  setColorValue('ctrl-color', getColorDefault(), false);
 
   for (const id of newOverridden) {
     overriddenColors.add(id);
@@ -500,6 +605,7 @@ function setMode(mode) {
   document.body.classList.remove('mobile-sheet-open');
 }
 
+document.getElementById('btn-theme').addEventListener('click', toggleTheme);
 document.getElementById('btn-read').addEventListener('click',  () => setMode('read'));
 document.getElementById('btn-style').addEventListener('click', () => setMode('style'));
 document.getElementById('btn-raw').addEventListener('click',   () => setMode('raw'));
@@ -512,8 +618,14 @@ document.getElementById('right-header').addEventListener('click', () => {
 
 function resetAllStyles() {
   overriddenColors.clear();
-  setColorValue('ctrl-color', COLOR_DEFAULT, false);
+  setColorValue('ctrl-color', getColorDefault(), false);
+  // Set standalone color controls to theme-appropriate defaults
+  STANDALONE_COLOR_IDS.forEach(ctrlId => {
+    const el = document.getElementById(ctrlId);
+    if (el) el.value = getStandaloneDefault(ctrlId);
+  });
   document.querySelectorAll('#right input, #right select').forEach(el => {
+    if (STANDALONE_COLOR_IDS.has(el.id)) return; // already set above
     if (el.type === 'range' || el.type === 'number') el.value = el.defaultValue;
     else if (el.tagName === 'SELECT') el.selectedIndex = [...el.options].findIndex(o => o.defaultSelected);
     else if (el.type === 'color') el.value = el.defaultValue;
@@ -892,7 +1004,15 @@ The whole thing is a single HTML file, one Node server, and one dependency (\`ma
 
 // Init
 
-setColorValue('ctrl-color', COLOR_DEFAULT, false);
+// Set standalone color controls to theme-appropriate defaults before collectStyles()
+if (document.documentElement.dataset.theme === 'dark') {
+  STANDALONE_COLOR_IDS.forEach(ctrlId => {
+    const el = document.getElementById(ctrlId);
+    if (el) el.value = getStandaloneDefault(ctrlId);
+  });
+}
+
+setColorValue('ctrl-color', getColorDefault(), false);
 
 (function () {
   const hash = window.location.hash.slice(1);
