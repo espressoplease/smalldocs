@@ -1,5 +1,5 @@
 // sdocs-styles.js — Pure data tables + logic for SDocs style system
-// Shared by index.html (browser) and test/run.js (Node)
+// Shared by app.js (browser) and test/run.js (Node)
 (function (exports) {
 'use strict';
 

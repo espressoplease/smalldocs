@@ -213,21 +213,39 @@ test('public/index.html exists', () => {
   assert.ok(fs.existsSync(htmlPath), 'public/index.html not found');
 });
 
-test('index.html contains required elements', () => {
+test('index.html contains required markup elements', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
   assert.ok(html.includes('id="rendered"'), 'missing #rendered');
   assert.ok(html.includes('id="raw"'), 'missing #raw');
   assert.ok(html.includes('id="right"'), 'missing #right panel');
-  assert.ok(html.includes('drag-over'), 'missing drag-over class');
-  assert.ok(html.includes('parseFrontMatter'), 'missing parseFrontMatter function');
-  assert.ok(html.includes('serializeFrontMatter'), 'missing serializeFrontMatter function');
-  assert.ok(html.includes('collectStyles'), 'missing collectStyles function');
-  assert.ok(html.includes('GOOGLE_FONTS'), 'missing GOOGLE_FONTS array');
 });
 
-test('index.html has at least 20 Google Fonts', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
-  const m = html.match(/const GOOGLE_FONTS = \[([\s\S]*?)\]/);
+test('styles.css contains drag-over overlay', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'styles.css'), 'utf-8');
+  assert.ok(css.includes('drag-over'), 'missing drag-over class');
+});
+
+test('public/styles.css exists', () => {
+  const cssPath = path.join(__dirname, '..', 'public', 'styles.css');
+  assert.ok(fs.existsSync(cssPath), 'public/styles.css not found');
+});
+
+test('public/app.js exists', () => {
+  const jsPath = path.join(__dirname, '..', 'public', 'app.js');
+  assert.ok(fs.existsSync(jsPath), 'public/app.js not found');
+});
+
+test('app.js contains required functions', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf-8');
+  assert.ok(js.includes('parseFrontMatter'), 'missing parseFrontMatter function');
+  assert.ok(js.includes('serializeFrontMatter'), 'missing serializeFrontMatter function');
+  assert.ok(js.includes('collectStyles'), 'missing collectStyles function');
+  assert.ok(js.includes('GOOGLE_FONTS'), 'missing GOOGLE_FONTS array');
+});
+
+test('app.js has at least 20 Google Fonts', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf-8');
+  const m = js.match(/const GOOGLE_FONTS = \[([\s\S]*?)\]/);
   assert.ok(m, 'GOOGLE_FONTS array not found');
   const fonts = m[1].split(',').filter(s => s.trim().length > 0);
   assert.ok(fonts.length >= 20, `only ${fonts.length} fonts (need >= 20)`);

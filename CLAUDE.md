@@ -5,7 +5,11 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
 ## Stack
 
 - **Server**: `server.js` — pure Node `http` module, ~60 lines
-- **Frontend**: `public/index.html` — single file, inline CSS + vanilla JS (~800 lines)
+- **Frontend**: split across `public/`:
+  - `index.html` — markup only (~420 lines)
+  - `styles.css` — all CSS (~880 lines)
+  - `app.js` — all application JS (~600 lines)
+  - `sdocs-styles.js` — pure style data tables + logic, shared with tests (UMD)
 - **Tests**: `node test/run.js` — red/green, no test framework, uses Node `assert` + `http`
 
 ## Architecture
@@ -25,7 +29,7 @@ There is no build step, so we **cannot use ES modules** (`import`/`export`). Cod
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.MyLib = {}));
 ```
 
-In the browser the IIFE writes to `window.MyLib`; in Node tests it writes to `module.exports`. `public/sdocs-styles.js` is the main example — it holds pure style data tables and logic shared by `index.html` and `test/run.js`.
+In the browser the IIFE writes to `window.MyLib`; in Node tests it writes to `module.exports`. `public/sdocs-styles.js` is the main example — it holds pure style data tables and logic shared by `app.js` and `test/run.js`.
 
 ## File format
 
@@ -38,10 +42,6 @@ The YAML parser is hand-rolled (no `js-yaml` dep) and handles the subset needed:
 ## Google Fonts
 
 24 fonts listed in order of global popularity. Fonts are loaded lazily — a `<link>` tag is injected only when a font is first selected from the dropdown. Inter is preloaded in `<head>` as it's the default.
-
-## Design tokens
-
-UI palette lives in `:root` CSS variables at the top of the `<style>` block — warm neutral grays inspired by Cursor's product page (`#F7F5F2` background, `#D4CFC9` borders, `#1C1917` text). Easy to retheme by editing those ~20 vars.
 
 ## Running
 
