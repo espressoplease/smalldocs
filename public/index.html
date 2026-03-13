@@ -2226,7 +2226,7 @@ setColorValue('ctrl-color', COLOR_DEFAULT, false);
   if (mdParam) {
     try {
       _isDefaultState = false;
-      const text = atob(decodeURIComponent(mdParam));
+      const text = decodeURIComponent(escape(atob(decodeURIComponent(mdParam))));
       loadText(text, 'document.md');
     } catch (e) {
       console.warn('sdocs-dev: could not decode #md hash', e);
@@ -2237,17 +2237,16 @@ setColorValue('ctrl-color', COLOR_DEFAULT, false);
   } else if (mdParam && window.innerWidth <= 768) {
     setMode('read');
   }
-  if (mdParam) {
-    return;
-  }
-  // No md content — load default text with styles front matter visible
-  loadText(serializeFrontMatter({ styles: collectStyles() }) + '\n' + DEFAULT_MD);
-  if (stylesParam) {
-    try {
-      const styles = JSON.parse(atob(decodeURIComponent(stylesParam)));
-      applyStylesFromMeta(styles);
-    } catch (e) {
-      console.warn('sdocs-dev: could not decode #styles hash', e);
+  if (!mdParam) {
+    // No md content — load default text with styles front matter visible
+    loadText(serializeFrontMatter({ styles: collectStyles() }) + '\n' + DEFAULT_MD);
+    if (stylesParam) {
+      try {
+        const styles = JSON.parse(atob(decodeURIComponent(stylesParam)));
+        applyStylesFromMeta(styles);
+      } catch (e) {
+        console.warn('sdocs-dev: could not decode #styles hash', e);
+      }
     }
   }
 
