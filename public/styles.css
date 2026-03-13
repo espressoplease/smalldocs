@@ -144,12 +144,17 @@ body {
   overflow: hidden;
   transition: height .3s cubic-bezier(.4,0,.2,1),
               opacity .22s ease,
-              box-shadow .3s ease;
+              box-shadow .3s ease,
+              border-color .3s ease,
+              padding .3s cubic-bezier(.4,0,.2,1);
 }
 body.read-mode #topbar {
   height: 0;
   opacity: 0;
   box-shadow: none;
+  border-bottom-color: transparent;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 #topbar-brand {
