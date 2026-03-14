@@ -232,7 +232,6 @@ function render() {
   renderedEl.innerHTML = marked.parse(currentBody);
 
   const slugCounts = {};
-  const tocItems = [];
   renderedEl.querySelectorAll('h1, h2, h3, h4').forEach(h => {
     let slug = slugify(h.textContent);
     if (!slug) slug = 'section';
@@ -243,7 +242,6 @@ function render() {
       slugCounts[slug] = 0;
     }
     h.id = slug;
-    tocItems.push({ slug, text: h.textContent, level: parseInt(h.tagName[1]) });
 
     const anchor = document.createElement('a');
     anchor.className = 'header-anchor';
@@ -258,45 +256,6 @@ function render() {
     });
     h.appendChild(anchor);
   });
-
-  // Generate TOC (only if 2+ headings)
-  if (tocItems.length >= 2) {
-    const nav = document.createElement('nav');
-    nav.className = 'sdocs-toc';
-    const title = document.createElement('div');
-    title.className = 'sdocs-toc-title';
-    title.textContent = 'Contents';
-    nav.appendChild(title);
-
-    const minLevel = Math.min(...tocItems.map(t => t.level));
-    const rootUl = document.createElement('ul');
-    tocItems.forEach(item => {
-      const li = document.createElement('li');
-      const a = document.createElement('a');
-      a.href = '#';
-      a.textContent = item.text;
-      a.dataset.sec = item.slug;
-      a.addEventListener('click', e => {
-        e.preventDefault();
-        const target = document.getElementById(item.slug);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-      li.appendChild(a);
-      const depth = item.level - minLevel;
-      let parent = rootUl;
-      for (let i = 0; i < depth; i++) {
-        let nested = parent.lastElementChild?.querySelector('ul');
-        if (!nested) {
-          nested = document.createElement('ul');
-          (parent.lastElementChild || parent).appendChild(nested);
-        }
-        parent = nested;
-      }
-      parent.appendChild(li);
-    });
-    nav.appendChild(rootUl);
-    renderedEl.insertBefore(nav, renderedEl.firstChild);
-  }
 
   renderedEl.querySelectorAll('pre').forEach(pre => {
     const wrapper = document.createElement('div');
@@ -317,6 +276,42 @@ function render() {
       });
     });
     wrapper.appendChild(btn);
+  });
+
+  // Collapsible heading sections (H2, H3, H4)
+  const SECTION_CHEVRON = '<span class="section-toggle"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+  const SECTION_LEVELS = { H2: 2, H3: 3, H4: 4 };
+  const children = [...renderedEl.children];
+  const bodyStack = [renderedEl];
+  children.forEach(child => {
+    const level = SECTION_LEVELS[child.tagName];
+    if (level) {
+      while (bodyStack.length > level - 1) bodyStack.pop();
+      const sectionDiv = document.createElement('div');
+      sectionDiv.className = 'md-section';
+      const sectionBody = document.createElement('div');
+      sectionBody.className = 'md-section-body';
+      child.insertAdjacentHTML('afterbegin', SECTION_CHEVRON);
+      bodyStack[bodyStack.length - 1].appendChild(sectionDiv);
+      sectionDiv.appendChild(child);
+      sectionDiv.appendChild(sectionBody);
+      bodyStack.push(sectionBody);
+    } else {
+      bodyStack[bodyStack.length - 1].appendChild(child);
+    }
+  });
+
+  renderedEl.querySelectorAll('.md-section > h2, .md-section > h3, .md-section > h4').forEach(heading => {
+    heading.addEventListener('click', e => {
+      if (e.target.closest('.header-anchor')) return;
+      const section = heading.closest('.md-section');
+      const body = section.querySelector('.md-section-body');
+      const toggle = section.querySelector('.section-toggle');
+      const isOpen = body.classList.toggle('open');
+      toggle.classList.toggle('open', isOpen);
+      body.querySelectorAll('.md-section-body').forEach(b => b.classList.toggle('open', isOpen));
+      body.querySelectorAll('.section-toggle').forEach(t => t.classList.toggle('open', isOpen));
+    });
   });
 }
 
@@ -612,6 +607,15 @@ document.getElementById('btn-read').addEventListener('click',  () => setMode('re
 document.getElementById('btn-style').addEventListener('click', () => setMode('style'));
 document.getElementById('btn-raw').addEventListener('click',   () => setMode('raw'));
 
+document.getElementById('btn-expand-all').addEventListener('click', () => {
+  renderedEl.querySelectorAll('.md-section-body').forEach(b => b.classList.add('open'));
+  renderedEl.querySelectorAll('.section-toggle').forEach(t => t.classList.add('open'));
+});
+document.getElementById('btn-collapse-all').addEventListener('click', () => {
+  renderedEl.querySelectorAll('.md-section-body').forEach(b => b.classList.remove('open'));
+  renderedEl.querySelectorAll('.section-toggle').forEach(t => t.classList.remove('open'));
+});
+
 document.getElementById('right-header').addEventListener('click', () => {
   if (window.innerWidth <= 768) {
     document.body.classList.toggle('mobile-sheet-open');
@@ -766,6 +770,16 @@ function buildExportHTML() {
     ? `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;500;600;700&display=swap">`
     : '';
   const title = (currentMeta.title || 'Document').replace(/</g,'&lt;');
+  const clone = renderedEl.cloneNode(true);
+  clone.querySelectorAll('.section-toggle').forEach(el => el.remove());
+  clone.querySelectorAll('.md-section-body').forEach(el => {
+    while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+    el.remove();
+  });
+  clone.querySelectorAll('.md-section').forEach(el => {
+    while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+    el.remove();
+  });
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -775,11 +789,10 @@ ${fontLink}
 <style>${buildExportCSS()}</style>
 </head>
 <body>
-${renderedEl.innerHTML
+${clone.innerHTML
   .replace(/<button class="copy-btn"[^]*?<\/button>/g, '')
   .replace(/<div class="pre-wrapper">([\s\S]*?)<\/div>/g, '$1')
-  .replace(/<a class="header-anchor"[^]*?<\/a>/g, '')
-  .replace(/<nav class="sdocs-toc"[^]*?<\/nav>/g, '')}
+  .replace(/<a class="header-anchor"[^]*?<\/a>/g, '')}
 </body>
 </html>`;
 }

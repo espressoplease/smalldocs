@@ -299,7 +299,8 @@ body.read-mode #topbar {
   gap: 4px;
 }
 
-#btn-theme {
+#btn-theme,
+.toolbar-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -315,7 +316,8 @@ body.read-mode #topbar {
   flex-shrink: 0;
 }
 @media (hover: hover) {
-  #btn-theme:hover {
+  #btn-theme:hover,
+  .toolbar-icon-btn:hover {
     color: var(--text-2);
     background: var(--bg-hover);
   }
@@ -452,37 +454,47 @@ body.read-mode #topbar {
   text-underline-offset: 2px;
 }
 #rendered a:hover { opacity: .8; }
-/* ── Table of Contents ── */
-#rendered .sdocs-toc {
-  background: var(--md-code-bg, #F4F1ED);
-  border: 1px solid var(--md-toc-border);
-  border-radius: 8px;
-  padding: 14px 20px;
-  margin-bottom: 1.5em;
-  font-size: 0.88em;
-  line-height: 1.7;
+
+/* ── Collapsible heading sections ── */
+#rendered .md-section > h2,
+#rendered .md-section > h3,
+#rendered .md-section > h4 {
+  cursor: pointer;
 }
-#rendered .sdocs-toc-title {
-  font-size: 0.78em;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--md-h4-color, #1C1917);
-  margin-bottom: 6px;
+#rendered .section-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--text-3);
+  cursor: pointer;
+  margin-right: 4px;
+  vertical-align: middle;
+  transition: transform .18s cubic-bezier(.4,0,.2,1), color .12s;
+  transform: rotate(0deg);
 }
-#rendered .sdocs-toc ul {
-  list-style: none;
-  padding-left: 0;
-  margin: 0;
+#rendered .section-toggle.open {
+  transform: rotate(90deg);
 }
-#rendered .sdocs-toc ul ul { padding-left: 1.2em; }
-#rendered .sdocs-toc li { margin-bottom: 1px; }
-#rendered .sdocs-toc a {
-  color: var(--md-link-color, #2563eb);
-  text-decoration: none;
-  transition: opacity 0.12s;
+#rendered .section-toggle:hover {
+  color: var(--text-2);
 }
-#rendered .sdocs-toc a:hover { opacity: 0.7; }
+#rendered .md-section-body:not(.open) > :not(.md-section) {
+  display: none;
+}
+#rendered .md-section-body:not(.open) > .md-section {
+  padding-left: 1.2em;
+}
+#rendered .md-section-body:not(.open) > .md-section > h2,
+#rendered .md-section-body:not(.open) > .md-section > h3,
+#rendered .md-section-body:not(.open) > .md-section > h4 {
+  margin-top: 0.15em;
+  margin-bottom: 0.1em;
+  padding-bottom: 0;
+  border-bottom: none;
+  opacity: 0.55;
+}
 
 /* ── Header anchor links ── */
 #rendered h1, #rendered h2, #rendered h3, #rendered h4 { position: relative; }
@@ -933,6 +945,7 @@ body.read-mode #right {
   /* ── Content: tighter padding for small screens ── */
   #rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
   #rendered .pre-wrapper .copy-btn { opacity: 0.7; }
+  #rendered .header-anchor { opacity: 0.5; }
   #raw { padding: 20px 16px; min-height: calc(100dvh - 40px - 36px); font-size: 16px; }
 
   /* ── Left toolbar: hide drop hint ── */
