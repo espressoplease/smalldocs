@@ -924,7 +924,7 @@ body.read-mode #right {
 
   /* ── Content: tighter padding for small screens ── */
   #rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
-  #rendered pre { padding-top: 1.95em; }
+  #rendered pre { padding-top: 1.95em; padding-right: 0; }
   #rendered pre .copy-btn { opacity: 0.7; }
   #raw { padding: 20px 16px; min-height: calc(100dvh - 40px - 36px); font-size: 16px; }
 
