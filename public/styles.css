@@ -521,6 +521,7 @@ body.read-mode #topbar {
 #rendered pre {
   background: var(--md-pre-bg);
   padding: var(--md-pre-padding);
+  padding-top: 26px;
   border-radius: var(--radius-md);
   overflow-x: auto;
   overscroll-behavior-x: contain;
