@@ -519,27 +519,28 @@ body.read-mode #topbar {
   background: var(--md-pre-bg);
   padding: var(--md-pre-padding);
   border-radius: var(--radius-md);
-  overflow-x: auto;
+  overflow: hidden;
   margin: 1.2em 0;
   border: 1px solid var(--md-pre-border);
 }
 #rendered pre .copy-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  background: transparent;
+  top: 6px;
+  right: 6px;
+  background: var(--md-pre-bg);
   border: 1px solid var(--md-copy-btn-border);
   border-radius: 4px;
-  padding: 4px 6px;
+  padding: 3px 5px;
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.15s;
   color: var(--md-code-color, #6B21A8);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  z-index: 1;
 }
 #rendered pre:hover .copy-btn { opacity: 0.7; }
 #rendered pre .copy-btn:hover { opacity: 1; background: var(--md-copy-btn-hover); }
@@ -549,6 +550,8 @@ body.read-mode #topbar {
   color: var(--md-code-color);
   font-family: var(--md-code-font);
   font-size: 0.88em;
+  display: block;
+  overflow-x: auto;
 }
 #rendered blockquote {
   border-left: var(--md-bq-border);
@@ -921,7 +924,7 @@ body.read-mode #right {
 
   /* ── Content: tighter padding for small screens ── */
   #rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
-  #raw { padding: 20px 16px; min-height: calc(100dvh - 40px - 36px); }
+  #raw { padding: 20px 16px; min-height: calc(100dvh - 40px - 36px); font-size: 16px; }
 
   /* ── Left toolbar: hide drop hint ── */
   #drop-hint { display: none; }
