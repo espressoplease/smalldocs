@@ -519,7 +519,10 @@ body.read-mode #topbar {
   background: var(--md-pre-bg);
   padding: var(--md-pre-padding);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  white-space: pre;
+  word-wrap: normal;
   margin: 1.2em 0;
   border: 1px solid var(--md-pre-border);
 }
@@ -550,8 +553,9 @@ body.read-mode #topbar {
   color: var(--md-code-color);
   font-family: var(--md-code-font);
   font-size: 0.88em;
-  display: block;
-  overflow-x: auto;
+  overflow: visible;
+  white-space: pre;
+  word-break: normal;
 }
 #rendered blockquote {
   border-left: var(--md-bq-border);
@@ -924,7 +928,7 @@ body.read-mode #right {
 
   /* ── Content: tighter padding for small screens ── */
   #rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
-  #rendered pre { padding-top: 1.95em; padding-right: 0; }
+  #rendered pre { padding-top: 1.95em; }
   #rendered pre .copy-btn { opacity: 0.7; }
   #raw { padding: 20px 16px; min-height: calc(100dvh - 40px - 36px); font-size: 16px; }
 
