@@ -299,6 +299,10 @@ function render() {
   }
 
   renderedEl.querySelectorAll('pre').forEach(pre => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pre-wrapper';
+    pre.parentNode.insertBefore(wrapper, pre);
+    wrapper.appendChild(pre);
     const btn = document.createElement('button');
     btn.className = 'copy-btn';
     btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
@@ -312,7 +316,7 @@ function render() {
         }, 1500);
       });
     });
-    pre.appendChild(btn);
+    wrapper.appendChild(btn);
   });
 }
 
@@ -773,6 +777,7 @@ ${fontLink}
 <body>
 ${renderedEl.innerHTML
   .replace(/<button class="copy-btn"[^]*?<\/button>/g, '')
+  .replace(/<div class="pre-wrapper">([\s\S]*?)<\/div>/g, '$1')
   .replace(/<a class="header-anchor"[^]*?<\/a>/g, '')
   .replace(/<nav class="sdocs-toc"[^]*?<\/nav>/g, '')}
 </body>
