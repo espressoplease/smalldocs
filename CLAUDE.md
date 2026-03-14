@@ -39,6 +39,10 @@ When a file is dropped or loaded, `parseFrontMatter()` splits it into `meta` (th
 
 The YAML parser is hand-rolled (no `js-yaml` dep) and handles the subset needed: scalars, nested blocks, and inline objects like `h1: { fontSize: 2.1, color: "#fff" }`.
 
+## Transitions & animations
+
+When hiding/showing UI elements (topbar, panels, toolbars), **always animate all affected properties** — not just the obvious ones. If an element collapses via `height`, also transition `opacity`, `padding`, `border-color`, and any other property that would cause a visual jump if it changed instantly. Neighboring elements that reposition (e.g. a sticky toolbar whose `top` changes when a bar above it hides) must use a matching transition curve and duration so everything moves in sync. The standard curve is `.3s cubic-bezier(.4,0,.2,1)`.
+
 ## Google Fonts
 
 24 fonts listed in order of global popularity. Fonts are loaded lazily — a `<link>` tag is injected only when a font is first selected from the dropdown. Inter is preloaded in `<head>` as it's the default.
