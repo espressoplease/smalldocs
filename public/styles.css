@@ -527,9 +527,10 @@ body.read-mode #topbar {
   border: 1px solid var(--md-pre-border);
 }
 #rendered pre .copy-btn {
-  position: absolute;
+  position: sticky;
+  float: right;
   top: 6px;
-  right: 6px;
+  right: 0;
   background: var(--md-pre-bg);
   border: 1px solid var(--md-copy-btn-border);
   border-radius: 4px;
