@@ -10,7 +10,8 @@
   html { scroll-padding-top: 80px; }
 
   /* ── Top bar: keep brand, hide exports ── */
-  #topbar { height: 40px; padding: 0 10px; position: sticky; top: 0; z-index: 101; }
+  body.style-mode #topbar,
+  body.raw-mode #topbar { height: 40px; padding: 0 10px; position: sticky; top: 0; z-index: 101; }
   #topbar .btn.ghost,
   #topbar .topbar-sep { display: none; }
 

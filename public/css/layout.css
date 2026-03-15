@@ -23,26 +23,29 @@ body {
   align-items: center;
   gap: 6px;
   padding: 0 14px;
-  height: 44px;
+  height: 0;
+  opacity: 0;
   background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid transparent;
   flex-shrink: 0;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   z-index: 10;
   overflow: hidden;
+  padding-top: 0;
+  padding-bottom: 0;
   transition: height .3s cubic-bezier(.4,0,.2,1),
               opacity .22s ease,
               box-shadow .3s ease,
               border-color .3s ease,
               padding .3s cubic-bezier(.4,0,.2,1);
 }
-body.read-mode #topbar {
-  height: 0;
-  opacity: 0;
-  box-shadow: none;
-  border-bottom-color: transparent;
-  padding-top: 0;
-  padding-bottom: 0;
+body.style-mode #topbar,
+body.raw-mode #topbar {
+  height: 44px;
+  opacity: 1;
+  box-shadow: var(--shadow-sm);
+  border-bottom-color: var(--border);
+  padding: 0 14px;
 }
 
 #topbar-brand {
