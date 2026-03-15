@@ -14,7 +14,8 @@
   transition: width .32s cubic-bezier(.4,0,.2,1),
               opacity .25s ease;
 }
-body.read-mode #right {
+body.read-mode #right,
+body.raw-mode #right {
   width: 0;
   opacity: 0;
   overflow: hidden;

@@ -263,4 +263,5 @@ body.read-mode #topbar {
   flex-shrink: 0;
   transition: width .32s cubic-bezier(.4,0,.2,1);
 }
-body.read-mode #divider { width: 0; }
+body.read-mode #divider,
+body.raw-mode #divider { width: 0; }
