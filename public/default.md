@@ -20,9 +20,7 @@ If you're working with agents, a document written in markdown is <ins>officially
 
 However, all is not well. While markdown is great for agents, it's a bit annoying for humans. Quickly and elegantly reading a `.md` file requires you to open your code editor and enter "preview" mode. Sharing a markdown file requires you to actually send the file to someone. They then have to download it and find the least annoying way to read it.
 
-SmallDocs is an [open source](https://github.com/JoshInLisbon/SDocs) attempt at something new.
-
-SmallDocs lets you (or your agent) easily, elegantly and privately read, share, format and export `.md` files.
+SmallDocs is an [open source](https://github.com/JoshInLisbon/SDocs) attempt at something different. It lets you (or your agent) easily, elegantly and privately read, share, format and export `.md` files.
 
 Reading a `.md` file in SmallDocs feels just like this (you're reading markdown right now). And creating a SmallDoc for a `.md` file (+ automatically opening your browser to read it) is as simple as:
 
@@ -33,7 +31,7 @@ sdoc README.md
 
 (*I am the official)
 
-## How SmallDocs Work
+## How SmallDocs work
 
 ### Formatting
 
@@ -116,18 +114,18 @@ SmallDocs can export your document in four formats:
 - **Word (.docx)** — a styled Word document generated from the rendered HTML.
 - **Styled .md** — your markdown with the `styles:` front matter block included. This is the format SmallDocs reads back in, so your formatting is preserved.
 
-### Small Opinionated Things
+### Small opinionated things
 
 SmallDocs has opinions. We do some things which might not work for everyone but hopefully make the general `.md` experience better for most.
 
 We welcome your opinions. Raise an issue on GitHub or make a pull request if you want something to change.
 
-#### Collapsed Headers
+#### Collapsed headers
 
 SmallDocs loads with all headers collapsed. This is done because it makes it easy to get an overview of the whole document.
 
 If you expand a parent, all of its children expand too.
 
-#### Copy & Paste
+#### Copy & paste
 
 Every header has its own copy and paste button. This copies its content and all of its children's content. At the moment this is the fastest way to get SmallDoc content into your agent's context, but we're looking for novel ideas to make this better.

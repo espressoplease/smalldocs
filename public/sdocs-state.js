@@ -15,6 +15,9 @@ window.SDocs = {
   renderedEl: document.getElementById('rendered'),
   rawEl: document.getElementById('raw'),
 
+  // Mode tracking
+  currentMode: 'read',
+
   // Sync flags
   _syncing: false,
   _isDefaultState: true,

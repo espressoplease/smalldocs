@@ -22,6 +22,9 @@ function buildSectionUrl(slug) {
   var params = hash ? new URLSearchParams(hash) : new URLSearchParams();
   params.delete('sec');
   params.set('sec', slug);
+  if (S.currentMode !== 'read' && S.currentMode !== 'raw') {
+    params.set('mode', S.currentMode);
+  }
   return base + '#' + params.toString();
 }
 
@@ -233,15 +236,20 @@ async function decompressText(b64url) {
 function updateHash() {
   clearTimeout(S._hashTimer);
   S._hashTimer = setTimeout(async function() {
-    if (S._isDefaultState) {
+    if (S._isDefaultState && S.currentMode === 'read') {
       history.replaceState(null, '', window.location.pathname);
       return;
     }
-    var meta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
-    var full = SDocYaml.serializeFrontMatter(meta) + '\n' + S.currentBody;
-    var compressed = await compressText(full);
     var params = new URLSearchParams();
-    params.set('md', compressed);
+    if (!S._isDefaultState) {
+      var meta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
+      var full = SDocYaml.serializeFrontMatter(meta) + '\n' + S.currentBody;
+      var compressed = await compressText(full);
+      params.set('md', compressed);
+    }
+    if (S.currentMode !== 'read') {
+      params.set('mode', S.currentMode);
+    }
     history.replaceState(null, '', '#' + params.toString());
   }, 400);
 }
@@ -301,7 +309,8 @@ S.rawEl.addEventListener('input', function() {
 
 // ── Mode toggle (read / style / raw) ──────────────────
 
-function setMode(mode) {
+function setMode(mode, skipHash) {
+  S.currentMode = mode;
   S.renderedEl.style.display = mode === 'raw' ? 'none' : '';
   S.rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
@@ -312,6 +321,7 @@ function setMode(mode) {
   document.body.classList.toggle('read-mode', mode === 'read');
   document.body.classList.toggle('raw-mode', mode === 'raw');
   document.body.classList.remove('mobile-sheet-open');
+  if (!skipHash) updateHash();
 }
 
 document.getElementById('btn-theme').addEventListener('click', function() { S.toggleTheme(); });
@@ -349,7 +359,7 @@ document.getElementById('topbar-brand').addEventListener('click', function(e) {
   S._isDefaultState = true;
   clearTimeout(S._hashTimer);
   history.replaceState(null, '', window.location.pathname);
-  setMode('style');
+  setMode('read');
 });
 
 // ── Collapsible panels ──────────────────────────────
@@ -401,9 +411,9 @@ S.loadText = loadText;
     }
   }
   if (modeParam && ['read', 'style', 'raw'].includes(modeParam)) {
-    setMode(modeParam);
-  } else if (mdParam && window.innerWidth <= 768) {
-    setMode('read');
+    setMode(modeParam, true);
+  } else {
+    setMode('read', true);
   }
   if (!mdParam) {
     loadText(DEFAULT_MD);

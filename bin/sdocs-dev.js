@@ -193,7 +193,7 @@ function buildUrl(content, opts) {
   }
 
   const mode = opts.mode || (content ? 'read' : 'style');
-  if (mode) params.set('mode', mode);
+  if (mode && mode !== 'read') params.set('mode', mode);
 
   const qs = params.toString();
   return qs ? `${baseUrl}/#${qs}` : baseUrl;

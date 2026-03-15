@@ -112,10 +112,10 @@ module.exports = function(harness) {
     assert.ok(url.startsWith('http://localhost:3000/'));
   });
 
-  test('buildUrl: content produces md= param with read mode', () => {
+  test('buildUrl: content produces md= param, omits mode=read (default)', () => {
     const url = cli.buildUrl('# Hello', {});
     assert.ok(url.includes('md='));
-    assert.ok(url.includes('mode=read'));
+    assert.ok(!url.includes('mode='), 'read mode should be omitted from URL (it is the default)');
   });
 
   test('buildUrl: explicit mode overrides default', () => {
