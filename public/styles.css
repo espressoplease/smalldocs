@@ -483,12 +483,12 @@ body.read-mode #topbar {
 #rendered .md-section-body:not(.open) > :not(.md-section) {
   display: none;
 }
-#rendered .md-section-body:not(.open) > .md-section {
+#rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) {
   padding-left: 1.2em;
 }
-#rendered .md-section-body:not(.open) > .md-section > h2,
-#rendered .md-section-body:not(.open) > .md-section > h3,
-#rendered .md-section-body:not(.open) > .md-section > h4 {
+#rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h2,
+#rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h3,
+#rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h4 {
   margin-top: 0.15em;
   margin-bottom: 0.1em;
   padding-bottom: 0;
@@ -551,7 +551,7 @@ body.read-mode #topbar {
   border-radius: 4px;
   padding: 3px 5px;
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.7;
   transition: opacity 0.15s;
   color: var(--md-code-color, #6B21A8);
   font-size: 12px;
@@ -561,7 +561,6 @@ body.read-mode #topbar {
   gap: 3px;
   z-index: 1;
 }
-#rendered .pre-wrapper:hover .copy-btn { opacity: 0.7; }
 #rendered .pre-wrapper .copy-btn:hover { opacity: 1; background: var(--md-copy-btn-hover); }
 #rendered pre code {
   background: none;
@@ -944,7 +943,6 @@ body.read-mode #right {
 
   /* ── Content: tighter padding for small screens ── */
   #rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
-  #rendered .pre-wrapper .copy-btn { opacity: 0.7; }
   #rendered .header-anchor { opacity: 0.5; }
   #raw { padding: 20px 16px; min-height: calc(100dvh - 40px - 36px); font-size: 16px; }
 
