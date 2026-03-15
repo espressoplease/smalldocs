@@ -53,6 +53,8 @@ function getSectionMarkdown(headingIndex) {
 // ── Render ──────────────────────────────────
 
 function render() {
+  var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
+  if (oldSpacer) oldSpacer.remove();
   S.renderedEl.innerHTML = marked.parse(S.currentBody);
 
   var slugCounts = {};
@@ -431,9 +433,39 @@ S.loadText = loadText;
   if (secParam) {
     setTimeout(function() {
       var target = document.getElementById(secParam);
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (!target) return;
+
+      // Expand the target's own section body (its content)
+      var ownSection = target.closest('.md-section');
+      if (ownSection) {
+        var ownBody = ownSection.querySelector(':scope > .md-section-body');
+        if (ownBody) { ownBody.classList.add('open'); }
+        var ownToggle = ownSection.querySelector(':scope > h1 > .section-toggle, :scope > h2 > .section-toggle, :scope > h3 > .section-toggle, :scope > h4 > .section-toggle');
+        if (ownToggle) { ownToggle.classList.add('open'); }
       }
+
+      // Expand all ancestor section bodies
+      var el = target.closest('.md-section-body');
+      while (el) {
+        el.classList.add('open');
+        var parentSection = el.closest('.md-section');
+        if (parentSection) {
+          var toggle = parentSection.querySelector(':scope > h2 > .section-toggle, :scope > h3 > .section-toggle, :scope > h4 > .section-toggle');
+          if (toggle) toggle.classList.add('open');
+        }
+        el = el.parentElement ? el.parentElement.closest('.md-section-body') : null;
+      }
+
+      // Add scroll spacer so the target can reach the top
+      var spacerNeeded = contentArea.clientHeight - (contentArea.scrollHeight - target.offsetTop);
+      if (spacerNeeded > 0) {
+        var spacer = document.createElement('div');
+        spacer.className = 'sec-scroll-spacer';
+        spacer.style.height = spacerNeeded + 'px';
+        S.renderedEl.appendChild(spacer);
+      }
+
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 200);
   }
 }());
