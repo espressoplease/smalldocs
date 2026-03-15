@@ -502,17 +502,13 @@ body.read-mode #topbar {
   display: inline-flex;
   align-items: center;
   margin-left: 6px;
-  opacity: 0;
+  opacity: 0.5;
   transition: opacity 0.15s;
   color: var(--md-link-color, #2563eb);
   cursor: pointer;
   vertical-align: middle;
 }
-#rendered h1:hover .header-anchor,
-#rendered h2:hover .header-anchor,
-#rendered h3:hover .header-anchor,
-#rendered h4:hover .header-anchor { opacity: 0.5; }
-#rendered .header-anchor:hover { opacity: 1 !important; }
+#rendered .header-anchor:hover { opacity: 1; }
 
 /* ── Scroll padding for anchor jumps ── */
 #content-area { scroll-padding-top: 24px; }
@@ -943,7 +939,6 @@ body.read-mode #right {
 
   /* ── Content: tighter padding for small screens ── */
   #rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
-  #rendered .header-anchor { opacity: 0.5; }
   #raw { padding: 20px 16px; min-height: calc(100dvh - 40px - 36px); font-size: 16px; }
 
   /* ── Left toolbar: hide drop hint ── */
