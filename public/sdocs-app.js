@@ -172,6 +172,20 @@ function loadText(text, filename) {
   S.currentBody = parsed.body;
   render();
   if (parsed.meta.styles) S.applyStylesFromMeta(parsed.meta.styles);
+  // Re-apply theme defaults for standalone colors (front matter may have
+  // theme-specific values that don't match the viewer's current theme)
+  S.STANDALONE_COLOR_IDS.forEach(function(ctrlId) {
+    if (!S.overriddenColors.has(ctrlId)) {
+      var val = S.getStandaloneDefault(ctrlId);
+      var el = document.getElementById(ctrlId);
+      if (el) {
+        el.value = val;
+        var allVals = S.readAllControlValues();
+        SDocStyles.controlToCssVars(ctrlId, val, allVals)
+          .forEach(function(a) { S.renderedEl.style.setProperty(a.cssVar, a.value); });
+      }
+    }
+  });
   S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
   S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
   setStatus(filename ? 'Loaded: ' + filename : 'Ready');
