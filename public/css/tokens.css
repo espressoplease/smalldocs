@@ -1,0 +1,111 @@
+:root {
+  --bg:            #F7F5F2;
+  --bg-surface:    #F1EDE8;
+  --bg-panel:      #EDE8E2;
+  --bg-panel-deep: #E7E2DB;
+  --bg-input:      #FFFFFF;
+  --bg-hover:      #E8E3DD;
+  --bg-active:     #E2DDD6;
+
+  --border:        #D4CFC9;
+  --border-subtle: #DDD9D3;
+  --border-strong: #C5BFB8;
+
+  --text:          #1C1917;
+  --text-2:        #57534E;
+  --text-3:        #A8A29E;
+  --text-inv:      #FAFAF9;
+
+  --accent:        #2563EB;
+  --accent-light:  #EEF2FF;
+  --accent-text:   #1D4ED8;
+
+  --radius-sm:     4px;
+  --radius:        6px;
+  --radius-md:     8px;
+  --radius-lg:     10px;
+
+  --shadow-sm:     0 1px 2px rgba(28,25,23,.06);
+  --shadow:        0 2px 6px rgba(28,25,23,.08), 0 1px 2px rgba(28,25,23,.04);
+  --shadow-md:     0 4px 12px rgba(28,25,23,.10), 0 2px 4px rgba(28,25,23,.06);
+
+  --font-ui:       'Inter', system-ui, -apple-system, sans-serif;
+
+  --md-h2-border:       #EDE8E2;
+  --md-toc-border:      #E7E2DB;
+  --md-pre-border:      #E7E2DB;
+  --md-bq-bg:           #F7F5F2;
+  --md-hr-border:       #EDE8E2;
+  --md-table-border:    #E2DDD6;
+  --md-table-header-bg: #F4F1ED;
+  --md-table-even-bg:   #FAFAF8;
+  --md-copy-btn-border: rgba(0,0,0,0.12);
+  --md-copy-btn-hover:  rgba(0,0,0,0.05);
+}
+
+/* ═══════════════════════════════════════════════════
+   DARK THEME
+═══════════════════════════════════════════════════ */
+html[data-theme="dark"] {
+  --bg:            #1C1A17;
+  --bg-surface:    #252320;
+  --bg-panel:      #211F1D;
+  --bg-panel-deep: #1A1816;
+  --bg-input:      #2C2926;
+  --bg-hover:      #32302C;
+  --bg-active:     #3A3733;
+
+  --border:        #3D3935;
+  --border-subtle: #332F2B;
+  --border-strong: #4A453F;
+
+  --text:          #E7E5E2;
+  --text-2:        #A8A29E;
+  --text-3:        #6B6560;
+  --text-inv:      #1C1917;
+
+  --accent:        #3B82F6;
+  --accent-light:  #1E293B;
+  --accent-text:   #60A5FA;
+
+  --shadow-sm:     0 1px 2px rgba(0,0,0,.20);
+  --shadow:        0 2px 6px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.15);
+  --shadow-md:     0 4px 12px rgba(0,0,0,.35), 0 2px 4px rgba(0,0,0,.20);
+
+  --md-h2-border:       #3D3935;
+  --md-toc-border:      #3D3935;
+  --md-pre-border:      #3D3935;
+  --md-bq-bg:           #252320;
+  --md-hr-border:       #3D3935;
+  --md-table-border:    #3D3935;
+  --md-table-header-bg: #2C2926;
+  --md-table-even-bg:   #242220;
+  --md-copy-btn-border: rgba(255,255,255,0.12);
+  --md-copy-btn-hover:  rgba(255,255,255,0.06);
+}
+html[data-theme="dark"] #rendered {
+  --md-color:       #e7e5e2;
+  --md-code-bg:     #1a1816;
+  --md-code-color:  #b8a99a;
+  --md-pre-bg:      #1a1816;
+  --md-link-color:  #60a5fa;
+  --md-bq-color:    #a8a29e;
+}
+html[data-theme="dark"] .control-row select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236B6560' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* Theme transitions */
+body,
+#topbar,
+#left,
+#right,
+#statusbar,
+#content-area,
+#left-toolbar,
+#right-header,
+.panel-header,
+.sub-header,
+#raw {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}

@@ -1,0 +1,92 @@
+/* ═══════════════════════════════════════════════════
+   MOBILE
+═══════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* ── Make body the scroll container (iOS tap-to-top) ── */
+  body { overflow: visible; height: auto; }
+  #main { flex-direction: column; overflow: visible; }
+  #left { min-height: 0; overflow: visible; }
+  #content-area { overflow: visible; }
+  html { scroll-padding-top: 80px; }
+
+  /* ── Top bar: keep brand, hide exports ── */
+  #topbar { height: 40px; padding: 0 10px; position: sticky; top: 0; z-index: 101; }
+  #topbar .btn.ghost,
+  #topbar .topbar-sep { display: none; }
+
+  /* ── Sticky left toolbar ── */
+  #left-toolbar { position: sticky; top: 40px; z-index: 99; transition: top .3s cubic-bezier(.4,0,.2,1); }
+  body.read-mode #left-toolbar { top: 0; }
+
+  /* ── Stack layout instead of side-by-side ── */
+  #divider { display: none; }
+
+  /* ── Content: tighter padding for small screens ── */
+  #rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
+  #raw { padding: 20px 16px; min-height: calc(100dvh - 40px - 36px); font-size: 16px; }
+
+  /* ── Left toolbar: hide drop hint ── */
+  #drop-hint { display: none; }
+
+  /* ── Status bar: hidden on mobile ── */
+  #statusbar { display: none; }
+
+  /* ── Right panel: bottom sheet overlay ── */
+  #right {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    max-height: 52px;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(28,25,23,.15), 0 -1px 4px rgba(28,25,23,.08);
+    z-index: 100;
+    transition: max-height .32s cubic-bezier(.4,0,.2,1),
+                transform .32s cubic-bezier(.4,0,.2,1),
+                opacity .25s ease;
+    overflow: hidden;
+  }
+  /* Expanded state */
+  body.mobile-sheet-open #right {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  /* Read mode: slide away entirely */
+  body.read-mode #right {
+    transform: translateY(100%);
+    opacity: 0;
+    pointer-events: none;
+    width: 100% !important;
+  }
+  /* Raw mode: hide entirely */
+  body.raw-mode #right {
+    transform: translateY(100%);
+    opacity: 0;
+    pointer-events: none;
+    width: 100% !important;
+  }
+
+  /* ── Drag handle indicator on the sheet ── */
+  #right::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--border-strong);
+    border-radius: 2px;
+    margin: 8px auto 4px;
+    flex-shrink: 0;
+  }
+
+  /* ── Make header tappable to expand ── */
+  #right-header {
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+    height: 36px;
+  }
+
+  /* ── Hide "Save as default styles" on mobile ── */
+  #right .panel-section:last-child { display: none; }
+}

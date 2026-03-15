@@ -1,0 +1,168 @@
+// sdocs-theme.js — Theme, fonts, and dark mode
+(function () {
+'use strict';
+
+var S = SDocs;
+
+// ── Google Fonts ──────────────────────────────────
+
+const GOOGLE_FONTS = [
+  'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Source Sans 3',
+  'Oswald', 'Raleway', 'Poppins', 'Merriweather', 'Ubuntu',
+  'Nunito', 'Playfair Display', 'Roboto Slab', 'PT Sans', 'Lora',
+  'Mulish', 'Noto Sans', 'Rubik', 'Dosis',
+  'Josefin Sans', 'PT Serif', 'Libre Franklin', 'Crimson Text'
+];
+
+const loadedFonts = new Set(['Inter']);
+
+function loadGoogleFont(family) {
+  if (loadedFonts.has(family)) return;
+  loadedFonts.add(family);
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@400;600;700&display=swap`;
+  document.head.appendChild(link);
+}
+
+function populateFontSelect(sel, includeInherit) {
+  if (includeInherit) {
+    const opt = document.createElement('option');
+    opt.value = 'inherit';
+    opt.textContent = '— Same as body —';
+    sel.appendChild(opt);
+  }
+  GOOGLE_FONTS.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = `'${f}', sans-serif`;
+    opt.textContent = f;
+    sel.appendChild(opt);
+  });
+  [['Georgia, serif','Georgia'],['Times New Roman, serif','Times New Roman'],
+   ['system-ui, sans-serif','System UI']].forEach(([v,l]) => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = l;
+    sel.appendChild(opt);
+  });
+}
+
+// ── Dark mode ──────────────────────────────────
+
+const LIGHT_DEFAULTS = {
+  colorDefault:  '#1c1917',
+  codeBg:        '#f4f1ed',
+  codeColor:     '#6b21a8',
+  linkColor:     '#2563eb',
+  bqBorderColor: '#2563eb',
+  bqColor:       '#6b6560',
+};
+
+const DARK_DEFAULTS = {
+  colorDefault:  '#e7e5e2',
+  codeBg:        '#1a1816',
+  codeColor:     '#b8a99a',
+  linkColor:     '#60a5fa',
+  bqBorderColor: '#60a5fa',
+  bqColor:       '#a8a29e',
+};
+
+function getThemeDefaults() {
+  return document.documentElement.dataset.theme === 'dark' ? DARK_DEFAULTS : LIGHT_DEFAULTS;
+}
+
+function getColorDefault() {
+  return getThemeDefaults().colorDefault;
+}
+
+function getPreferredTheme() {
+  const stored = localStorage.getItem('sdocs-theme');
+  if (stored === 'dark' || stored === 'light') return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+const SUN_ICON = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+const MOON_ICON = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+
+function updateThemeIcon(theme) {
+  const icon = document.getElementById('icon-theme');
+  if (icon) icon.innerHTML = theme === 'dark' ? SUN_ICON : MOON_ICON;
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem('sdocs-theme', theme);
+  updateThemeIcon(theme);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.dataset.theme;
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+  updateDefaultColors();
+}
+
+function updateDefaultColors() {
+  const defaults = getThemeDefaults();
+  if (!S.overriddenColors) return;
+  if (!S.overriddenColors.has('ctrl-color')) {
+    S.setColorValue('ctrl-color', defaults.colorDefault, false);
+  }
+  // Update standalone color defaults for reset buttons
+  const standaloneMap = {
+    'ctrl-link-color':      defaults.linkColor,
+    'ctrl-code-bg':         defaults.codeBg,
+    'ctrl-code-color':      defaults.codeColor,
+    'ctrl-bq-border-color': defaults.bqBorderColor,
+    'ctrl-bq-color':        defaults.bqColor,
+  };
+  for (const [ctrlId, val] of Object.entries(standaloneMap)) {
+    if (!S.overriddenColors.has(ctrlId)) {
+      const el = document.getElementById(ctrlId);
+      if (el) {
+        el.value = val;
+        const allVals = S.readAllControlValues();
+        SDocStyles.controlToCssVars(ctrlId, val, allVals)
+          .forEach(a => S.renderedEl.style.setProperty(a.cssVar, a.value));
+      }
+    }
+  }
+  S.syncAll('controls');
+}
+
+function getStandaloneDefault(ctrlId) {
+  const d = getThemeDefaults();
+  const map = {
+    'ctrl-link-color':      d.linkColor,
+    'ctrl-code-bg':         d.codeBg,
+    'ctrl-code-color':      d.codeColor,
+    'ctrl-bq-border-color': d.bqBorderColor,
+    'ctrl-bq-color':        d.bqColor,
+  };
+  return map[ctrlId];
+}
+
+// ── Init at load time ──────────────────────────────────
+
+applyTheme(getPreferredTheme());
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+  if (!localStorage.getItem('sdocs-theme')) {
+    applyTheme(e.matches ? 'dark' : 'light');
+    updateDefaultColors();
+  }
+});
+
+populateFontSelect(document.getElementById('ctrl-font-family'), false);
+document.getElementById('ctrl-font-family').value = "'Inter', sans-serif";
+populateFontSelect(document.getElementById('ctrl-h-font-family'), true);
+
+// ── Register on SDocs for cross-module access ──────────
+
+S.GOOGLE_FONTS = GOOGLE_FONTS;
+S.loadGoogleFont = loadGoogleFont;
+S.getThemeDefaults = getThemeDefaults;
+S.getColorDefault = getColorDefault;
+S.getStandaloneDefault = getStandaloneDefault;
+S.updateDefaultColors = updateDefaultColors;
+S.toggleTheme = toggleTheme;
+
+})();
