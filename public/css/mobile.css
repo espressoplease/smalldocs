@@ -75,7 +75,7 @@
     height: 4px;
     background: var(--border-strong);
     border-radius: 2px;
-    margin: 8px auto 4px;
+    margin: 6px auto 0px;
     flex-shrink: 0;
   }
 
@@ -84,7 +84,7 @@
     cursor: pointer;
     user-select: none;
     flex-shrink: 0;
-    height: 36px;
+    min-height: 42px;
   }
 
   /* ── Hide "Save as default styles" on mobile ── */
