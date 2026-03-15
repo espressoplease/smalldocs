@@ -2,23 +2,23 @@
    RIGHT PANEL
 ═══════════════════════════════════════════════════ */
 #right {
-  width: 335px;
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg-panel);
-  overflow-y: auto;
-  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
   transition: width .32s cubic-bezier(.4,0,.2,1),
               opacity .25s ease;
 }
-body.read-mode #right,
-body.raw-mode #right {
-  width: 0;
-  opacity: 0;
-  overflow: hidden;
+body.style-mode #right {
+  width: 335px;
+  opacity: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 #right::-webkit-scrollbar { width: 5px; }
 #right::-webkit-scrollbar-track { background: transparent; }

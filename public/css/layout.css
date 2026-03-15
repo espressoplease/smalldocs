@@ -258,10 +258,9 @@ body.read-mode #topbar {
    DIVIDER (resize handle aesthetic)
 ═══════════════════════════════════════════════════ */
 #divider {
-  width: 1px;
+  width: 0;
   background: var(--border);
   flex-shrink: 0;
   transition: width .32s cubic-bezier(.4,0,.2,1);
 }
-body.read-mode #divider,
-body.raw-mode #divider { width: 0; }
+body.style-mode #divider { width: 1px; }

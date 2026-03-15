@@ -38,7 +38,7 @@
     left: 0;
     right: 0;
     width: 100% !important;
-    max-height: 52px;
+    max-height: 0;
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 24px rgba(28,25,23,.15), 0 -1px 4px rgba(28,25,23,.08);
     z-index: 100;
@@ -47,24 +47,15 @@
                 opacity .25s ease;
     overflow: hidden;
   }
+  /* Style mode: show bottom sheet */
+  body.style-mode #right {
+    max-height: 52px;
+    opacity: 1;
+  }
   /* Expanded state */
   body.mobile-sheet-open #right {
     max-height: 70vh;
     overflow-y: auto;
-  }
-  /* Read mode: slide away entirely */
-  body.read-mode #right {
-    transform: translateY(100%);
-    opacity: 0;
-    pointer-events: none;
-    width: 100% !important;
-  }
-  /* Raw mode: hide entirely */
-  body.raw-mode #right {
-    transform: translateY(100%);
-    opacity: 0;
-    pointer-events: none;
-    width: 100% !important;
   }
 
   /* ── Drag handle indicator on the sheet ── */

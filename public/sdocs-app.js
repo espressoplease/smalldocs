@@ -320,6 +320,7 @@ function setMode(mode, skipHash) {
   document.getElementById('btn-style').classList.toggle('active', mode === 'style');
   document.getElementById('btn-raw').classList.toggle('active',   mode === 'raw');
 
+  document.body.classList.toggle('style-mode', mode === 'style');
   document.body.classList.toggle('read-mode', mode === 'read');
   document.body.classList.toggle('raw-mode', mode === 'raw');
   document.body.classList.remove('mobile-sheet-open');
