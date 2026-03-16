@@ -83,4 +83,74 @@
 
   /* ── Hide "Save as default styles" on mobile ── */
   #right .panel-section:last-child { display: none; }
+
+  /* ── Download button: show on mobile ── */
+  #btn-download { display: inline-flex; }
+
+  /* ── Export sheet: bottom sheet overlay ── */
+  #export-sheet {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 0;
+    opacity: 0;
+    background: var(--bg);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(28,25,23,.15), 0 -1px 4px rgba(28,25,23,.08);
+    z-index: 100;
+    transition: max-height .32s cubic-bezier(.4,0,.2,1),
+                opacity .25s ease;
+    overflow: hidden;
+  }
+  body.export-sheet-open #export-sheet {
+    max-height: 300px;
+    opacity: 1;
+  }
+
+  /* ── Drag handle ── */
+  #export-sheet::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--border-strong);
+    border-radius: 2px;
+    margin: 6px auto 0px;
+    flex-shrink: 0;
+  }
+
+  /* ── Header ── */
+  #export-sheet-header {
+    cursor: pointer;
+    user-select: none;
+    min-height: 42px;
+    display: flex;
+    align-items: baseline;
+    padding: 4px 12px 0px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* ── Export buttons ── */
+  .export-sheet-btn {
+    display: block;
+    width: 100%;
+    padding: 14px 16px;
+    background: none;
+    border: none;
+    border-top: 1px solid var(--border-subtle);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .export-sheet-btn:active {
+    background: var(--bg-hover);
+  }
 }

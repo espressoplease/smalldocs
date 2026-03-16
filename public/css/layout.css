@@ -267,3 +267,7 @@ body.raw-mode #topbar {
   transition: width .32s cubic-bezier(.4,0,.2,1);
 }
 body.style-mode #divider { width: 1px; }
+
+/* ── Mobile-only export (hidden on desktop) ── */
+#btn-download,
+#export-sheet { display: none; }

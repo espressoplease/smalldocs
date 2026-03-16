@@ -338,6 +338,7 @@ function setMode(mode, skipHash) {
   document.body.classList.toggle('read-mode', mode === 'read');
   document.body.classList.toggle('raw-mode', mode === 'raw');
   document.body.classList.remove('mobile-sheet-open');
+  document.body.classList.remove('export-sheet-open');
   if (!skipHash) updateHash();
 }
 

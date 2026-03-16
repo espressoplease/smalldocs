@@ -147,6 +147,40 @@ document.getElementById('btn-export-styled').addEventListener('click', function(
 document.getElementById('btn-export-pdf').addEventListener('click', exportPDF);
 document.getElementById('btn-export-word').addEventListener('click', exportWord);
 
+// ── Mobile export sheet ──────────────────────────────
+
+document.getElementById('btn-download').addEventListener('click', function() {
+  document.body.classList.toggle('export-sheet-open');
+});
+
+document.getElementById('export-sheet-header').addEventListener('click', function() {
+  document.body.classList.remove('export-sheet-open');
+});
+
+document.getElementById('mob-export-pdf').addEventListener('click', function() {
+  document.body.classList.remove('export-sheet-open');
+  exportPDF();
+});
+
+document.getElementById('mob-export-word').addEventListener('click', function() {
+  document.body.classList.remove('export-sheet-open');
+  exportWord();
+});
+
+document.getElementById('mob-export-raw').addEventListener('click', function() {
+  document.body.classList.remove('export-sheet-open');
+  download('document.md', S.currentBody);
+  S.setStatus('Exported raw .md');
+});
+
+document.getElementById('mob-export-styled').addEventListener('click', function() {
+  document.body.classList.remove('export-sheet-open');
+  var meta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
+  var fm = SDocYaml.serializeFrontMatter(meta);
+  download('document.md', fm + '\n' + S.currentBody);
+  S.setStatus('Exported styled .md with YAML front matter');
+});
+
 // ── Save as default styles ──────────────────────────────
 
 function buildStylesYaml() {

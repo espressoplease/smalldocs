@@ -16,11 +16,11 @@ styles:
 ---
 # Say hello to SmallDocs: A markdown-first replacement for Word & GDocs
 
-If you're working with agents, a document written in markdown is <ins>officially</ins>* 407 times more useful than a document locked inside a `.docx` or `.gdoc` file format. Because of this, I believe Word and GDocs' days are numbered.
+If you're working with agents, a document written in markdown is <ins>officially</ins>* 407 times more useful than a document locked inside a `.docx` or `.gdoc` file format. Because of this, I believe Word and GDocs' days are numbered. (*I am the official.)
 
 However, all is not well. While markdown is great for agents, it's a bit annoying for humans. Quickly and elegantly reading a `.md` file requires you to open your code editor and enter "preview" mode. Sharing a markdown file requires you to actually send the file to someone. They then have to download it and find the least annoying way to read it.
 
-SmallDocs is an [open source](https://github.com/JoshInLisbon/SDocs) attempt at something different. It lets you (or your agent) easily, elegantly and privately read, share, format and export `.md` files.
+SmallDocs is an [open source](https://github.com/JoshInLisbon/SDocs) attempt at something different. It lets you (or your agent) easily, elegantly and privately **read**, **share**, **format** and **export** `.md` files.
 
 Reading a `.md` file in SmallDocs feels just like this (you're reading markdown right now). And creating a SmallDoc for a `.md` file (+ automatically opening your browser to read it) is as simple as:
 
@@ -28,8 +28,6 @@ Reading a `.md` file in SmallDocs feels just like this (you're reading markdown 
 # npm i sdocs-dev
 sdoc README.md
 ```
-
-(*I am the official)
 
 ## How SmallDocs work
 
