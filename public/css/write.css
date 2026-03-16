@@ -38,6 +38,13 @@ body.write-mode #write-toolbar {
   opacity: 1;
   border-bottom-color: var(--border-subtle);
   padding: 0 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+body.write-mode #write-toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .write-tb-btn {
@@ -45,8 +52,10 @@ body.write-mode #write-toolbar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 28px;
   width: 28px;
   height: 26px;
+  flex-shrink: 0;
   border: none;
   background: none;
   color: var(--text-2);
