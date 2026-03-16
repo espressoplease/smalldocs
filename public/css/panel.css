@@ -255,6 +255,75 @@ body.style-mode #right {
 }
 
 /* ═══════════════════════════════════════════════════
+   EXPORT PANEL
+═══════════════════════════════════════════════════ */
+#export-panel {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  transition: width .32s cubic-bezier(.4,0,.2,1),
+              opacity .25s ease;
+}
+body.export-mode #export-panel {
+  width: 335px;
+  opacity: 1;
+  overflow-y: auto;
+}
+
+#export-panel-header {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+}
+
+.export-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-ui);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background .12s;
+}
+.export-option:hover { background: var(--bg-hover); }
+.export-option:active { background: var(--bg-active); }
+.export-option svg {
+  flex-shrink: 0;
+  color: var(--text-2);
+}
+.export-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.export-option-title {
+  font-size: 13px;
+  font-weight: 500;
+}
+.export-option-desc {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* ═══════════════════════════════════════════════════
    FOOTER / STATUS
 ═══════════════════════════════════════════════════ */
 #statusbar {

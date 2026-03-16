@@ -40,7 +40,8 @@ body {
               padding .3s cubic-bezier(.4,0,.2,1);
 }
 body.style-mode #topbar,
-body.raw-mode #topbar {
+body.raw-mode #topbar,
+body.export-mode #topbar {
   height: 44px;
   opacity: 1;
   box-shadow: var(--shadow-sm);
@@ -113,13 +114,6 @@ body.raw-mode #topbar {
   color: var(--text);
 }
 
-.topbar-sep {
-  width: 1px;
-  height: 18px;
-  background: var(--border);
-  flex-shrink: 0;
-  margin: 0 2px;
-}
 
 /* ═══════════════════════════════════════════════════
    MAIN LAYOUT
@@ -166,9 +160,11 @@ body.raw-mode #topbar {
   border-radius: calc(var(--radius) - 2px);
   box-shadow: none;
   background: transparent;
-  padding: 4px 10px;
-  font-size: 12px;
+  padding: 6px 8px;
   color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .toggle-group .btn.active {
   background: var(--bg-input);
@@ -266,8 +262,5 @@ body.raw-mode #topbar {
   flex-shrink: 0;
   transition: width .32s cubic-bezier(.4,0,.2,1);
 }
-body.style-mode #divider { width: 1px; }
-
-/* ── Mobile-only export (hidden on desktop) ── */
-#btn-download,
-#export-sheet { display: none; }
+body.style-mode #divider,
+body.export-mode #divider { width: 1px; }

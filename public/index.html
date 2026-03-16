@@ -33,23 +33,6 @@
     </svg>
     <h1>SmallDocs</h1>
   </a>
-  <button class="btn ghost" id="btn-export-raw" title="Export as plain .md (no styles)">
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 10h9M6.5 2v6M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    .md
-  </button>
-  <button class="btn ghost" id="btn-export-styled" title="Export as .md with YAML front matter styles">
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 10h9M6.5 2v6M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Styled .md
-  </button>
-  <div class="topbar-sep"></div>
-  <button class="btn ghost" id="btn-export-pdf" title="Export as PDF">
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="2" y="1" width="7" height="9" rx="1" stroke="currentColor" stroke-width="1.4"/><path d="M5 1v3h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 8h9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="1.5 1.5"/><path d="M4 10.5h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-    PDF
-  </button>
-  <button class="btn ghost" id="btn-export-word" title="Export as Word .docx">
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="2" y="1" width="7" height="9" rx="1" stroke="currentColor" stroke-width="1.4"/><path d="M5 1v3h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 6.5l1 3 1.5-2 1.5 2 1-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Word
-  </button>
 </div>
 
 <div id="main">
@@ -57,9 +40,18 @@
   <div id="left">
     <div id="left-toolbar">
       <div class="toggle-group">
-        <button class="btn" id="btn-read">Read</button>
-        <button class="btn active" id="btn-style">Style</button>
-        <button class="btn" id="btn-raw">Raw</button>
+        <button class="btn" id="btn-read" title="Read">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2Z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7Z"/></svg>
+        </button>
+        <button class="btn active" id="btn-style" title="Style">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.5 0 2.5-1 2.5-2.5 0-.6-.2-1-.5-1.4-.2-.3-.5-.7-.5-1.1 0-1.1.9-2 2-2h2c3.3 0 6-2.7 6-6C23.5 6.5 18.2 2 12 2Z"/><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="13" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="9" r="1.5" fill="currentColor" stroke="none"/><circle cx="7" cy="13" r="1.5" fill="currentColor" stroke="none"/></svg>
+        </button>
+        <button class="btn" id="btn-raw" title="Raw">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </button>
+        <button class="btn" id="btn-export" title="Export">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
       </div>
       <button id="btn-expand-all" class="toolbar-icon-btn" title="Expand all sections" aria-label="Expand all sections">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M15 6V11C15 13.21 13.21 15 11 15H6C5.26 15 4.62 14.6 4.27 14H11C12.65 14 14 12.65 14 11V4.27C14.6 4.62 15 5.26 15 6ZM11 13H4C2.897 13 2 12.103 2 11V4C2 2.897 2.897 2 4 2H11C12.103 2 13 2.897 13 4V11C13 12.103 12.103 13 11 13ZM4 12H11C11.551 12 12 11.552 12 11V4C12 3.449 11.551 3 11 3H4C3.449 3 3 3.449 3 4V11C3 11.552 3.449 12 4 12ZM9.5 7H8V5.5C8 5.224 7.776 5 7.5 5C7.224 5 7 5.224 7 5.5V7H5.5C5.224 7 5 7.224 5 7.5C5 7.776 5.224 8 5.5 8H7V9.5C7 9.776 7.224 10 7.5 10C7.776 10 8 9.776 8 9.5V8H9.5C9.776 8 10 7.776 10 7.5C10 7.224 9.776 7 9.5 7Z"/></svg>
@@ -70,11 +62,6 @@
       <button id="btn-theme" title="Toggle dark mode" aria-label="Toggle dark mode">
         <svg id="icon-theme" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-        </svg>
-      </button>
-      <button id="btn-download" class="toolbar-icon-btn" title="Export" aria-label="Export">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
         </svg>
       </button>
       <span id="drop-hint">
@@ -447,25 +434,49 @@
     </div>
 
   </div><!-- /#right -->
-</div><!-- /#main -->
 
-<!-- ── Export sheet (mobile) ── -->
-<div id="export-sheet">
-  <div id="export-sheet-header">Export</div>
-  <div id="export-sheet-body">
-    <button class="export-sheet-btn" id="mob-export-pdf">PDF</button>
-    <button class="export-sheet-btn" id="mob-export-word">Word</button>
-    <button class="export-sheet-btn" id="mob-export-raw">.md</button>
-    <button class="export-sheet-btn" id="mob-export-styled">Styled .md</button>
+  <!-- ── Export panel ── -->
+  <div id="export-panel">
+    <div id="export-panel-header">Export</div>
+    <div id="export-panel-body">
+      <button class="export-option" id="exp-pdf">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M4 14h16" stroke-dasharray="2 2"/><path d="M8 19h8"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">PDF</span>
+          <span class="export-option-desc">Opens print dialog for PDF save</span>
+        </div>
+      </button>
+      <button class="export-option" id="exp-word">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M8 12l1.5 4 2-3 2 3 1.5-4"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">Word (.docx)</span>
+          <span class="export-option-desc">Download as Word document</span>
+        </div>
+      </button>
+      <button class="export-option" id="exp-raw">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">.md</span>
+          <span class="export-option-desc">Plain markdown, no styles</span>
+        </div>
+      </button>
+      <button class="export-option" id="exp-styled">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">Styled .md</span>
+          <span class="export-option-desc">Markdown with YAML front matter styles</span>
+        </div>
+      </button>
+    </div>
   </div>
-</div>
+</div><!-- /#main -->
 
 <!-- Status bar -->
 <div id="statusbar">
   <span class="dot"></span>
   <span id="status-text">Ready</span>
   <span style="margin-left:auto; font-size:10.5px; color:var(--text-3)">
-    YAML front matter &middot; drag to load &middot; <kbd style="font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);border-radius:3px;padding:0 4px;font-size:10px">Export</kbd> to save
+    YAML front matter &middot; drag to load
   </span>
 </div>
 

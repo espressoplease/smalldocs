@@ -323,29 +323,32 @@ S.rawEl.addEventListener('input', function() {
   S._rawSyncTimer = setTimeout(function() { syncAll('raw'); }, 300);
 });
 
-// ── Mode toggle (read / style / raw) ──────────────────
+// ── Mode toggle (read / style / raw / export) ──────────────────
 
 function setMode(mode, skipHash) {
   S.currentMode = mode;
   S.renderedEl.style.display = mode === 'raw' ? 'none' : '';
   S.rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
-  document.getElementById('btn-read').classList.toggle('active',  mode === 'read');
-  document.getElementById('btn-style').classList.toggle('active', mode === 'style');
-  document.getElementById('btn-raw').classList.toggle('active',   mode === 'raw');
+  document.getElementById('btn-read').classList.toggle('active',   mode === 'read');
+  document.getElementById('btn-style').classList.toggle('active',  mode === 'style');
+  document.getElementById('btn-raw').classList.toggle('active',    mode === 'raw');
+  document.getElementById('btn-export').classList.toggle('active', mode === 'export');
 
-  document.body.classList.toggle('style-mode', mode === 'style');
-  document.body.classList.toggle('read-mode', mode === 'read');
-  document.body.classList.toggle('raw-mode', mode === 'raw');
+  document.body.classList.toggle('style-mode',  mode === 'style');
+  document.body.classList.toggle('read-mode',   mode === 'read');
+  document.body.classList.toggle('raw-mode',    mode === 'raw');
+  document.body.classList.toggle('export-mode', mode === 'export');
   document.body.classList.remove('mobile-sheet-open');
-  document.body.classList.remove('export-sheet-open');
+  document.body.classList.remove('mobile-export-open');
   if (!skipHash) updateHash();
 }
 
 document.getElementById('btn-theme').addEventListener('click', function() { S.toggleTheme(); });
-document.getElementById('btn-read').addEventListener('click',  function() { setMode('read'); });
-document.getElementById('btn-style').addEventListener('click', function() { setMode('style'); });
-document.getElementById('btn-raw').addEventListener('click',   function() { setMode('raw'); });
+document.getElementById('btn-read').addEventListener('click',   function() { setMode('read'); });
+document.getElementById('btn-style').addEventListener('click',  function() { setMode('style'); });
+document.getElementById('btn-raw').addEventListener('click',    function() { setMode('raw'); });
+document.getElementById('btn-export').addEventListener('click', function() { setMode('export'); });
 
 document.getElementById('btn-expand-all').addEventListener('click', function() {
   S.renderedEl.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.add('open'); });
@@ -359,6 +362,12 @@ document.getElementById('btn-collapse-all').addEventListener('click', function()
 document.getElementById('right-header').addEventListener('click', function() {
   if (window.innerWidth <= 768) {
     document.body.classList.toggle('mobile-sheet-open');
+  }
+});
+
+document.getElementById('export-panel-header').addEventListener('click', function() {
+  if (window.innerWidth <= 768) {
+    document.body.classList.toggle('mobile-export-open');
   }
 });
 
@@ -428,7 +437,7 @@ S.loadText = loadText;
       console.warn('sdocs-dev: could not decode hash', e);
     }
   }
-  if (modeParam && ['read', 'style', 'raw'].includes(modeParam)) {
+  if (modeParam && ['read', 'style', 'raw', 'export'].includes(modeParam)) {
     setMode(modeParam, true);
   } else {
     setMode('read', true);

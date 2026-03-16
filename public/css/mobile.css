@@ -9,11 +9,10 @@
   #content-area { overflow: visible; }
   html { scroll-padding-top: 80px; }
 
-  /* ── Top bar: keep brand, hide exports ── */
+  /* ── Top bar: brand only ── */
   body.style-mode #topbar,
-  body.raw-mode #topbar { height: 40px; padding: 0 10px; position: sticky; top: 0; z-index: 101; }
-  #topbar .btn.ghost,
-  #topbar .topbar-sep { display: none; }
+  body.raw-mode #topbar,
+  body.export-mode #topbar { height: 40px; padding: 0 10px; position: sticky; top: 0; z-index: 101; }
 
   /* ── Sticky left toolbar ── */
   #left-toolbar { position: sticky; top: 40px; z-index: 99; transition: top .3s cubic-bezier(.4,0,.2,1); }
@@ -84,20 +83,14 @@
   /* ── Hide "Save as default styles" on mobile ── */
   #right .panel-section:last-child { display: none; }
 
-  /* ── Download button: show on mobile ── */
-  #btn-download { display: inline-flex; }
-
-  /* ── Export sheet: bottom sheet overlay ── */
-  #export-sheet {
-    display: block;
+  /* ── Export panel: bottom sheet overlay ── */
+  #export-panel {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    width: 100%;
+    width: 100% !important;
     max-height: 0;
-    opacity: 0;
-    background: var(--bg);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 24px rgba(28,25,23,.15), 0 -1px 4px rgba(28,25,23,.08);
     z-index: 100;
@@ -105,13 +98,17 @@
                 opacity .25s ease;
     overflow: hidden;
   }
-  body.export-sheet-open #export-sheet {
-    max-height: 300px;
+  body.export-mode #export-panel {
+    max-height: 52px;
     opacity: 1;
   }
+  body.mobile-export-open #export-panel {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
 
-  /* ── Drag handle ── */
-  #export-sheet::before {
+  /* ── Export panel drag handle ── */
+  #export-panel::before {
     content: '';
     display: block;
     width: 36px;
@@ -122,35 +119,13 @@
     flex-shrink: 0;
   }
 
-  /* ── Header ── */
-  #export-sheet-header {
+  /* ── Export panel header: tappable ── */
+  #export-panel-header {
     cursor: pointer;
     user-select: none;
+    flex-shrink: 0;
     min-height: 42px;
-    display: flex;
     align-items: baseline;
     padding: 4px 12px 0px 12px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  /* ── Export buttons ── */
-  .export-sheet-btn {
-    display: block;
-    width: 100%;
-    padding: 14px 16px;
-    background: none;
-    border: none;
-    border-top: 1px solid var(--border-subtle);
-    font-family: var(--font-ui);
-    font-size: 14px;
-    color: var(--text);
-    text-align: left;
-    cursor: pointer;
-    transition: background .12s;
-  }
-  .export-sheet-btn:active {
-    background: var(--bg-hover);
   }
 }
