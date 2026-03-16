@@ -27,6 +27,7 @@ body {
   flex-shrink: 0;
   border-radius: var(--radius-sm);
   padding: 2px;
+  margin-right: auto;
   transition: opacity .12s;
 }
 #toolbar-brand:hover { opacity: .7; }
