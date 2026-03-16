@@ -34,6 +34,7 @@ body {
 .toolbar-brand-text { display: none; }
 .toolbar-brand-full { display: inline; font-size: 13px; font-weight: 600; }
 .toolbar-brand-short { display: none; }
+.toolbar-brand-tiny { display: none; }
 
 .btn {
   display: inline-flex;

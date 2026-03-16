@@ -132,3 +132,12 @@
     padding: 4px 12px 0px 12px;
   }
 }
+
+/* ═══════════════════════════════════════════════════
+   NARROW MOBILE (< 366px)
+═══════════════════════════════════════════════════ */
+@media (max-width: 366px) {
+  .toolbar-brand-short { display: none; }
+  .toolbar-brand-tiny { display: inline; font-size: 13px; font-weight: 600; }
+  #toolbar-brand svg { display: none; }
+}
