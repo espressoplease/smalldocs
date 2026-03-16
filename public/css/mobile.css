@@ -7,17 +7,14 @@
   #main { flex-direction: column; overflow: visible; }
   #left { min-height: 0; overflow: visible; }
   #content-area { overflow: visible; }
-  html { scroll-padding-top: 80px; }
+  html { scroll-padding-top: 44px; }
 
-  /* ── Top bar: brand only ── */
-  body.style-mode #topbar,
-  body.raw-mode #topbar,
-  body.write-mode #topbar,
-  body.export-mode #topbar { height: 40px; padding: 0 10px; position: sticky; top: 0; z-index: 101; }
+  /* ── Show short brand text on mobile ── */
+  .toolbar-brand-full { display: none; }
+  .toolbar-brand-short { display: inline; font-size: 13px; font-weight: 600; }
 
   /* ── Sticky left toolbar ── */
-  #left-toolbar { position: sticky; top: 40px; z-index: 99; transition: top .3s cubic-bezier(.4,0,.2,1); }
-  body.read-mode #left-toolbar { top: 0; }
+  #left-toolbar { position: sticky; top: 0; z-index: 99; }
 
   /* ── Stack layout instead of side-by-side ── */
   #divider { display: none; }
@@ -25,10 +22,10 @@
   /* ── Content: tighter padding for small screens ── */
   #rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
   #write { padding: 24px 20px 40px; max-width: 100%; }
-  #raw { padding: 20px 16px; min-height: calc(100dvh - 40px - 36px); font-size: 16px; }
+  #raw { padding: 20px 16px; min-height: calc(100dvh - 36px); font-size: 16px; }
 
   /* ── Write toolbar: sticky below left-toolbar ── */
-  body.write-mode #write-toolbar { position: sticky; top: 76px; z-index: 98; }
+  body.write-mode #write-toolbar { position: sticky; top: 36px; z-index: 98; }
 
   /* ── Left toolbar: hide drop hint ── */
   #drop-hint { display: none; }

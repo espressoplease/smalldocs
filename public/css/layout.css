@@ -16,62 +16,24 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════
-   TOP BAR
+   TOOLBAR BRAND
 ═══════════════════════════════════════════════════ */
-#topbar {
-  display: flex;
+#toolbar-brand {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 14px;
-  height: 0;
-  opacity: 0;
-  background: var(--bg);
-  border-bottom: 1px solid transparent;
-  flex-shrink: 0;
-  box-shadow: none;
-  z-index: 10;
-  overflow: hidden;
-  padding-top: 0;
-  padding-bottom: 0;
-  transition: height .3s cubic-bezier(.4,0,.2,1),
-              opacity .22s ease,
-              box-shadow .3s ease,
-              border-color .3s ease,
-              padding .3s cubic-bezier(.4,0,.2,1);
-}
-body.style-mode #topbar,
-body.raw-mode #topbar,
-body.write-mode #topbar,
-body.export-mode #topbar {
-  height: 44px;
-  opacity: 1;
-  box-shadow: var(--shadow-sm);
-  border-bottom-color: var(--border);
-  padding: 0 14px;
-}
-
-#topbar-brand {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-right: auto;
-}
-
-#topbar-brand svg {
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-#topbar-brand {
+  gap: 5px;
   text-decoration: none;
   cursor: pointer;
+  color: var(--accent);
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  transition: opacity .12s;
 }
-#topbar-brand h1 {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text);
-  letter-spacing: -0.01em;
-}
+#toolbar-brand:hover { opacity: .7; }
+.toolbar-brand-text { display: none; }
+.toolbar-brand-full { display: inline; font-size: 13px; font-weight: 600; }
+.toolbar-brand-short { display: none; }
 
 .btn {
   display: inline-flex;

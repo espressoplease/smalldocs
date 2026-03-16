@@ -400,7 +400,7 @@ document.getElementById('factory-reset-styles').addEventListener('click', functi
   syncAll('load');
 });
 
-document.getElementById('topbar-brand').addEventListener('click', function(e) {
+document.getElementById('toolbar-brand').addEventListener('click', function(e) {
   e.preventDefault();
   S.resetAllStyles();
   loadText(DEFAULT_MD);
