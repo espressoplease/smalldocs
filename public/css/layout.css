@@ -41,6 +41,7 @@ body {
 }
 body.style-mode #topbar,
 body.raw-mode #topbar,
+body.write-mode #topbar,
 body.export-mode #topbar {
   height: 44px;
   opacity: 1;

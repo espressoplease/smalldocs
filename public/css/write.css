@@ -1,0 +1,116 @@
+/* ═══════════════════════════════════════════════════
+   WRITE MODE
+═══════════════════════════════════════════════════ */
+
+/* ── Write div ── */
+#write {
+  display: none;
+  outline: none;
+  min-height: 100%;
+  cursor: text;
+}
+#write:empty::before {
+  content: 'Start typing\2026';
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+/* ── Write toolbar ── */
+#write-toolbar {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  height: 0;
+  opacity: 0;
+  padding: 0 12px;
+  background: var(--bg);
+  border-bottom: 1px solid transparent;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: height .3s cubic-bezier(.4,0,.2,1),
+              opacity .22s ease,
+              border-color .3s ease,
+              padding .3s cubic-bezier(.4,0,.2,1);
+}
+body.write-mode #write-toolbar {
+  display: flex;
+  height: 34px;
+  opacity: 1;
+  border-bottom-color: var(--border-subtle);
+  padding: 0 12px;
+}
+
+.write-tb-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  border: none;
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 0;
+  font-size: 12px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  transition: color .12s, background .12s;
+}
+.write-tb-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.write-tb-btn.active {
+  color: var(--accent);
+  background: var(--accent-light);
+}
+.write-tb-btn code {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+.write-tb-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ── Tooltips ── */
+.write-tb-btn[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.write-tb-btn[data-tip]:hover::after {
+  opacity: 1;
+}
+
+/* ── Visibility rules ── */
+body.write-mode #write {
+  display: block;
+}
+body.write-mode #rendered {
+  display: none;
+}
+body.write-mode #raw {
+  display: none;
+}

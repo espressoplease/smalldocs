@@ -18,7 +18,7 @@ function applyCtrl(id) {
 
   var allVals = readAllControlValues();
   SDocStyles.controlToCssVars(id, v, allVals)
-    .forEach(function(a) { S.renderedEl.style.setProperty(a.cssVar, a.value); });
+    .forEach(function(a) { S.setStyleVar(a.cssVar, a.value); });
   S.syncAll('controls');
 }
 
@@ -67,7 +67,7 @@ var COLOR_CHILDREN = SDocStyles.COLOR_CASCADE;
 
 function setColorValue(ctrlId, value, userAction) {
   if (userAction) S.overriddenColors.add(ctrlId);
-  S.renderedEl.style.setProperty(COLOR_VAR[ctrlId], value);
+  S.setStyleVar(COLOR_VAR[ctrlId], value);
   var ctrl = document.getElementById(ctrlId);
   if (ctrl) ctrl.value = value;
   var children = COLOR_CHILDREN[ctrlId] || [];
@@ -107,7 +107,7 @@ document.getElementById('reset-list-color').addEventListener('click', function()
     S.overriddenColors.delete(ctrlId);
     el.value = defaultVal;
     var assignments = SDocStyles.controlToCssVars(ctrlId, defaultVal, readAllControlValues());
-    assignments.forEach(function(a) { S.renderedEl.style.setProperty(a.cssVar, a.value); });
+    assignments.forEach(function(a) { S.setStyleVar(a.cssVar, a.value); });
     S.syncAll('controls');
   });
 });

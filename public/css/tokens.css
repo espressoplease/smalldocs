@@ -83,7 +83,7 @@ html[data-theme="dark"] {
   --md-copy-btn-border: rgba(255,255,255,0.12);
   --md-copy-btn-hover:  rgba(255,255,255,0.06);
 }
-html[data-theme="dark"] #rendered {
+html[data-theme="dark"] :is(#rendered, #write) {
   --md-color:       #e7e5e2;
   --md-code-bg:     #1a1816;
   --md-code-color:  #b8a99a;

@@ -121,7 +121,7 @@ function updateDefaultColors() {
         el.value = val;
         const allVals = S.readAllControlValues();
         SDocStyles.controlToCssVars(ctrlId, val, allVals)
-          .forEach(a => S.renderedEl.style.setProperty(a.cssVar, a.value));
+          .forEach(a => S.setStyleVar(a.cssVar, a.value));
       }
     }
   }

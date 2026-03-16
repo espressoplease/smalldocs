@@ -12,6 +12,7 @@
   /* ── Top bar: brand only ── */
   body.style-mode #topbar,
   body.raw-mode #topbar,
+  body.write-mode #topbar,
   body.export-mode #topbar { height: 40px; padding: 0 10px; position: sticky; top: 0; z-index: 101; }
 
   /* ── Sticky left toolbar ── */
@@ -23,7 +24,11 @@
 
   /* ── Content: tighter padding for small screens ── */
   #rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
+  #write { padding: 24px 20px 40px; max-width: 100%; }
   #raw { padding: 20px 16px; min-height: calc(100dvh - 40px - 36px); font-size: 16px; }
+
+  /* ── Write toolbar: sticky below left-toolbar ── */
+  body.write-mode #write-toolbar { position: sticky; top: 76px; z-index: 98; }
 
   /* ── Left toolbar: hide drop hint ── */
   #drop-hint { display: none; }

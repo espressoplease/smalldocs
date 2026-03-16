@@ -182,7 +182,7 @@ function loadText(text, filename) {
         el.value = val;
         var allVals = S.readAllControlValues();
         SDocStyles.controlToCssVars(ctrlId, val, allVals)
-          .forEach(function(a) { S.renderedEl.style.setProperty(a.cssVar, a.value); });
+          .forEach(function(a) { S.setStyleVar(a.cssVar, a.value); });
       }
     }
   });
@@ -289,6 +289,11 @@ function syncAll(source) {
       render();
       if (parsed.meta.styles) S.applyStylesFromMeta(parsed.meta.styles);
       updateHash();
+    } else if (source === 'write') {
+      S._isDefaultState = false;
+      S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
+      S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
+      updateHash();
     } else if (source === 'load') {
       updateHash();
     }
@@ -326,27 +331,43 @@ S.rawEl.addEventListener('input', function() {
 // ── Mode toggle (read / style / raw / export) ──────────────────
 
 function setMode(mode, skipHash) {
+  var prev = S.currentMode;
   S.currentMode = mode;
-  S.renderedEl.style.display = mode === 'raw' ? 'none' : '';
+
+  // Exit write mode — extract markdown back
+  if (prev === 'write' && mode !== 'write') {
+    S.exitWriteMode();
+  }
+
+  S.renderedEl.style.display = (mode === 'raw' || mode === 'write') ? 'none' : '';
   S.rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
   document.getElementById('btn-read').classList.toggle('active',   mode === 'read');
   document.getElementById('btn-style').classList.toggle('active',  mode === 'style');
+  document.getElementById('btn-write').classList.toggle('active',  mode === 'write');
   document.getElementById('btn-raw').classList.toggle('active',    mode === 'raw');
   document.getElementById('btn-export').classList.toggle('active', mode === 'export');
 
   document.body.classList.toggle('style-mode',  mode === 'style');
   document.body.classList.toggle('read-mode',   mode === 'read');
+  document.body.classList.toggle('write-mode',  mode === 'write');
   document.body.classList.toggle('raw-mode',    mode === 'raw');
   document.body.classList.toggle('export-mode', mode === 'export');
   document.body.classList.remove('mobile-sheet-open');
   document.body.classList.remove('mobile-export-open');
+
+  // Enter write mode — populate contentEditable
+  if (mode === 'write') {
+    S.enterWriteMode();
+  }
+
   if (!skipHash) updateHash();
 }
 
 document.getElementById('btn-theme').addEventListener('click', function() { S.toggleTheme(); });
 document.getElementById('btn-read').addEventListener('click',   function() { setMode('read'); });
 document.getElementById('btn-style').addEventListener('click',  function() { setMode('style'); });
+document.getElementById('btn-write').addEventListener('click',  function() { setMode('write'); });
 document.getElementById('btn-raw').addEventListener('click',    function() { setMode('raw'); });
 document.getElementById('btn-export').addEventListener('click', function() { setMode('export'); });
 
@@ -437,7 +458,7 @@ S.loadText = loadText;
       console.warn('sdocs-dev: could not decode hash', e);
     }
   }
-  if (modeParam && ['read', 'style', 'raw', 'export'].includes(modeParam)) {
+  if (modeParam && ['read', 'style', 'write', 'raw', 'export'].includes(modeParam)) {
     setMode(modeParam, true);
   } else {
     setMode('read', true);
