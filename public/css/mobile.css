@@ -13,8 +13,9 @@
   .toolbar-brand-full { display: none; }
   .toolbar-brand-short { display: inline; font-size: 13px; font-weight: 600; }
 
-  /* ── Sticky left toolbar ── */
-  #left-toolbar { position: sticky; top: 0; z-index: 99; }
+  /* ── Sticky left toolbar: horizontal scroll ── */
+  #left-toolbar { position: sticky; top: 0; z-index: 99; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #left-toolbar > * { flex-shrink: 0; }
 
   /* ── Stack layout instead of side-by-side ── */
   #divider { display: none; }
