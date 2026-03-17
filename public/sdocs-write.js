@@ -289,6 +289,45 @@ writeEl.addEventListener('input', function(e) {
     S.syncAll('write');
   }, 500);
 
+  // Code block exit: after Enter inserts a line break, check for 2+ consecutive
+  // empty lines at the end. Chromium represents newlines as <br> elements in
+  // contentEditable, with an extra trailing BR as a caret placeholder.
+  // Pattern: N enters = N+1 trailing BRs. So 2 empty Enters = 3+ trailing BRs.
+  if (S._checkCodeBlockExit) {
+    var pre = S._checkCodeBlockExit;
+    S._checkCodeBlockExit = null;
+    var codeEl = pre.querySelector('code') || pre;
+    var children = codeEl.childNodes;
+    var trailingBRs = 0;
+    for (var ci = children.length - 1; ci >= 0; ci--) {
+      var child = children[ci];
+      if (child.nodeType === 1 && child.tagName === 'BR') { trailingBRs++; continue; }
+      // Skip empty or whitespace-only text nodes (e.g. trailing \n from initialization)
+      if (child.nodeType === 3 && !child.textContent.trim()) { continue; }
+      break;
+    }
+    // 3+ trailing BRs = 2+ empty Enters at end → exit code block
+    if (trailingBRs >= 3) {
+      // Remove all trailing BRs
+      while (codeEl.lastChild && codeEl.lastChild.nodeType === 1 && codeEl.lastChild.tagName === 'BR') {
+        codeEl.removeChild(codeEl.lastChild);
+      }
+      // Clean trailing text newlines too
+      if (codeEl.lastChild && codeEl.lastChild.nodeType === 3) {
+        codeEl.lastChild.textContent = codeEl.lastChild.textContent.replace(/\n+$/, '');
+      }
+      // Ensure code block isn't completely empty
+      if (!codeEl.textContent && !codeEl.querySelector('br')) {
+        codeEl.textContent = '\n';
+      }
+      var exitP = document.createElement('p');
+      exitP.innerHTML = '<br>';
+      pre.after(exitP);
+      placeCursorAtEnd(exitP);
+      return;
+    }
+  }
+
   // Check block-level shortcuts
   if (e.inputType === 'insertText' || e.inputType === 'insertParagraph') {
     checkShortcuts();
@@ -313,15 +352,48 @@ writeEl.addEventListener('keydown', function(e) {
     return;
   }
 
-  // Enter in code block: insert newline, not paragraph
-  if (e.key === 'Enter') {
-    var node = window.getSelection().anchorNode;
+  // Enter key: special handling for code blocks and blockquotes
+  if (e.key === 'Enter' && !mod && !e.shiftKey) {
+    var sel = window.getSelection();
+    var node = sel.rangeCount ? sel.anchorNode : null;
     if (node) {
+      // Code block: insert line break, not paragraph
       var pre = node.nodeType === 1 ? node.closest('pre') : (node.parentElement && node.parentElement.closest('pre'));
       if (pre) {
         e.preventDefault();
-        document.execCommand('insertText', false, '\n');
+        // Flag MUST be set before execCommand because the input event
+        // fires synchronously during execCommand execution
+        S._checkCodeBlockExit = pre;
+        document.execCommand('insertLineBreak', false, null);
         return;
+      }
+
+      // Blockquote: Enter on empty line exits
+      var bqEl = node.nodeType === 1 ? node.closest('blockquote') : (node.parentElement && node.parentElement.closest('blockquote'));
+      if (bqEl) {
+        var block = getContainingBlock(node);
+        // If current block is empty (just whitespace or <br>), exit blockquote
+        if (block && block !== writeEl && block !== bqEl) {
+          var blockText = block.textContent.trim();
+          if (!blockText) {
+            e.preventDefault();
+            block.remove();
+            // If blockquote is now empty, remove it too
+            if (!bqEl.textContent.trim() && !bqEl.querySelector('img,hr,pre')) {
+              var afterP = document.createElement('p');
+              afterP.innerHTML = '<br>';
+              bqEl.replaceWith(afterP);
+              placeCursorAtEnd(afterP);
+            } else {
+              // Insert paragraph after blockquote
+              var afterP = document.createElement('p');
+              afterP.innerHTML = '<br>';
+              bqEl.after(afterP);
+              placeCursorAtEnd(afterP);
+            }
+            return;
+          }
+        }
       }
     }
   }
@@ -358,7 +430,41 @@ function execInlineCode() {
   var sel = window.getSelection();
   if (!sel.rangeCount) return;
   var range = sel.getRangeAt(0);
-  if (range.collapsed) return;
+
+  // Check if cursor/selection is already inside a <code> element
+  var node = sel.anchorNode;
+  var existingCode = null;
+  var el = node && (node.nodeType === 1 ? node : node.parentElement);
+  while (el && el !== writeEl) {
+    if (el.tagName === 'CODE' && !el.closest('pre')) { existingCode = el; break; }
+    el = el.parentElement;
+  }
+
+  if (existingCode) {
+    // Unwrap: replace <code> with its text content
+    var text = document.createTextNode(existingCode.textContent);
+    existingCode.replaceWith(text);
+    range = document.createRange();
+    range.selectNodeContents(text);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return;
+  }
+
+  if (range.collapsed) {
+    // No selection: insert an empty <code> span the user can type into
+    var code = document.createElement('code');
+    code.textContent = '\u200B'; // zero-width space as placeholder
+    range.insertNode(code);
+    range = document.createRange();
+    range.setStart(code.firstChild, 1);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return;
+  }
+
+  // Wrap selection in <code>
   var code = document.createElement('code');
   code.appendChild(range.extractContents());
   range.insertNode(code);
@@ -383,6 +489,19 @@ function insertLink() {
 }
 
 function wrapBlock(tagName) {
+  // Toggle: if already in this block type, revert to <p>
+  var sel = window.getSelection();
+  if (sel.rangeCount) {
+    var node = sel.anchorNode;
+    var el = node && (node.nodeType === 1 ? node : node.parentElement);
+    while (el && el !== writeEl) {
+      if (el.tagName === tagName.toUpperCase()) {
+        document.execCommand('formatBlock', false, '<p>');
+        return;
+      }
+      el = el.parentElement;
+    }
+  }
   document.execCommand('formatBlock', false, '<' + tagName + '>');
 }
 
@@ -392,16 +511,42 @@ function toggleBlockquote() {
   var node = sel.anchorNode;
   // Check if cursor is inside a blockquote
   var el = node.nodeType === 1 ? node : node.parentElement;
+  var bq = null;
   while (el && el !== writeEl) {
-    if (el.tagName === 'BLOCKQUOTE') {
-      // Unwrap: convert blockquote back to paragraph
-      document.execCommand('formatBlock', false, '<p>');
-      return;
-    }
+    if (el.tagName === 'BLOCKQUOTE') { bq = el; break; }
     el = el.parentElement;
   }
+  if (bq) {
+    // Unwrap: move all children out of blockquote, replace with paragraphs
+    var children = [].slice.call(bq.childNodes);
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < children.length; i++) {
+      var child = children[i];
+      if (child.nodeType === 1 && (child.tagName === 'P' || child.tagName === 'DIV')) {
+        frag.appendChild(child);
+      } else if (child.nodeType === 3 && child.textContent.trim()) {
+        var p = document.createElement('p');
+        p.textContent = child.textContent.trim();
+        frag.appendChild(p);
+      } else {
+        frag.appendChild(child);
+      }
+    }
+    bq.replaceWith(frag);
+    // Place cursor in first paragraph
+    var firstP = frag.firstChild || frag;
+    if (firstP.nodeType === 11) firstP = firstP.firstChild; // DocumentFragment
+    placeCursorAtEnd(firstP);
+    return;
+  }
   // Wrap current block in blockquote
-  document.execCommand('formatBlock', false, '<blockquote>');
+  var block = getContainingBlock(sel.anchorNode);
+  if (block && block !== writeEl) {
+    var bqNew = document.createElement('blockquote');
+    block.replaceWith(bqNew);
+    bqNew.appendChild(block);
+    placeCursorAtEnd(block);
+  }
 }
 
 function insertHR() {
@@ -439,18 +584,57 @@ function insertImage() {
 function insertCodeBlock() {
   var sel = window.getSelection();
   if (!sel.rangeCount) return;
-  var block = getContainingBlock(sel.anchorNode);
+  var node = sel.anchorNode;
+
+  // Check if cursor is already inside a code block — toggle off
+  var el = node && (node.nodeType === 1 ? node : node.parentElement);
+  var existingPre = null;
+  while (el && el !== writeEl) {
+    if (el.tagName === 'PRE') { existingPre = el; break; }
+    el = el.parentElement;
+  }
+  if (existingPre) {
+    // Unwrap: convert code block content to a paragraph
+    var codeEl = existingPre.querySelector('code') || existingPre;
+    var text = codeEl.textContent.replace(/\n+$/, '').replace(/^\n+/, '');
+    var p = document.createElement('p');
+    p.textContent = text || '\u00A0';
+    existingPre.replaceWith(p);
+    placeCursorAtEnd(p);
+    return;
+  }
+
+  // Insert new code block — use selected text as content if any
+  var range = sel.getRangeAt(0);
+  var selectedText = sel.toString();
+  var block = getContainingBlock(node);
   var pre = document.createElement('pre');
   var code = document.createElement('code');
-  code.textContent = '\n';
+
+  if (selectedText) {
+    code.textContent = selectedText + '\n';
+    // Remove the selected content from the DOM
+    range.deleteContents();
+    // If the containing block is now empty, replace it with the code block
+    if (block && block !== writeEl && !block.textContent.trim()) {
+      block.replaceWith(pre);
+    } else if (block && block !== writeEl) {
+      block.after(pre);
+    } else {
+      writeEl.appendChild(pre);
+    }
+  } else {
+    code.textContent = '\n';
+    if (block && block !== writeEl) {
+      block.after(pre);
+    } else {
+      writeEl.appendChild(pre);
+    }
+  }
+
   pre.appendChild(code);
   var after = document.createElement('p');
   after.innerHTML = '<br>';
-  if (block && block !== writeEl) {
-    block.after(pre);
-  } else {
-    writeEl.appendChild(pre);
-  }
   pre.after(after);
   placeCursorAtEnd(code);
 }
