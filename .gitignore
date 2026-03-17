@@ -1,2 +1,5 @@
 node_modules/
 CLAUDE.local.md
+.claude-personal/
+.playwright-mcp/
+test-results/
