@@ -27,7 +27,7 @@
   #raw { padding: 20px 16px; min-height: calc(100dvh - 36px); font-size: 16px; }
 
   /* ── Write toolbar: sticky below left-toolbar ── */
-  body.write-mode #write-toolbar { position: sticky; top: 36px; z-index: 98; }
+  body.write-mode #write-toolbar { position: sticky; top: 36px; z-index: 98; justify-content: flex-start; }
 
   /* ── Left toolbar: hide drop hint ── */
   #drop-hint { display: none; }

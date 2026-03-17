@@ -34,6 +34,7 @@
 }
 body.write-mode #write-toolbar {
   display: flex;
+  justify-content: center;
   height: 34px;
   opacity: 1;
   border-bottom-color: var(--border-subtle);
