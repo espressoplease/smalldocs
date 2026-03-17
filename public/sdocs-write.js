@@ -12,8 +12,6 @@ function enterWriteMode() {
   var html = marked.parse(S.currentBody);
   writeEl.innerHTML = html || '<p><br></p>';
   copyStyleVars();
-  writeEl.focus();
-  placeCursorAtEnd(writeEl);
   setTimeout(updateToolbarState, 0);
 }
 

@@ -33,6 +33,7 @@
               padding .3s cubic-bezier(.4,0,.2,1);
 }
 body.write-mode #write-toolbar {
+  position: relative;
   display: flex;
   justify-content: center;
   height: 34px;

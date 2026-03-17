@@ -139,9 +139,6 @@
    Right-edge gradient that fades out when scrolled
 ═══════════════════════════════════════════════════ */
 @media (max-width: 560px) {
-  body.write-mode #write-toolbar {
-    position: relative;
-  }
   body.write-mode #write-toolbar.has-overflow::after {
     content: '';
     position: absolute;
