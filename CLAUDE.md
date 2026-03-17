@@ -28,6 +28,9 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
   - `test/test-base64.js` — browser base64 UTF-8 roundtrip tests
   - `test/test-files.js` — file existence + content assertions
   - `test/test-http.js` — HTTP server tests (async)
+- **Playwright tests**: `npx playwright test test/write-mode.spec.js` — write mode editor tests
+  - `test/write-mode.spec.js` — 42 tests for toolbar actions, toggles, shortcuts, block exits
+  - `playwright.config.js` — Chromium only, auto-starts server on :3000
 
 ## Architecture
 
@@ -71,10 +74,31 @@ When hiding/showing UI elements (topbar, panels, toolbars), **always animate all
 
 24 fonts listed in order of global popularity. Fonts are loaded lazily — a `<link>` tag is injected only when a font is first selected from the dropdown. Inter is preloaded in `<head>` as it's the default.
 
+## Playwright testing (write mode)
+
+Write mode uses `contentEditable` which behaves differently under Playwright automation vs real browsers. Key things to know:
+
+- **`execCommand` doesn't work in Playwright keydown handlers.** When the real browser calls `e.preventDefault()` + `document.execCommand('insertLineBreak')` inside a keydown handler, it inserts `<br>` elements and fires `input` events. Under Playwright automation, `execCommand` silently does nothing after `preventDefault`. This means you **cannot test code block Enter behavior with real key presses** in Playwright.
+- **Simulate state instead.** For tests that depend on `execCommand` results (e.g. code block exit), set up the DOM to the expected post-`execCommand` state, set any flags the handler would set, and dispatch a synthetic `InputEvent`. See the code block exit tests in `write-mode.spec.js` for the pattern.
+- **`execCommand` fires `input` synchronously.** Any flags or state that an `input` handler needs to read must be set **before** calling `execCommand`, not after. The `input` event fires during `execCommand` execution, not after it returns.
+- **Chromium represents newlines as `<br>` in contentEditable `<pre>`.** Both `insertText('\n')` and `insertLineBreak` produce `<br>` elements. `textContent` does **not** include these — only `innerHTML` and `childNodes` reveal them. When counting trailing BRs, skip whitespace-only text nodes (e.g. trailing `\n` from initialization).
+- **N Enter presses = N+1 trailing `<br>` elements** (the extra one is the browser's caret placeholder).
+
+## Toolbar overflow & scroll hints
+
+Both `#left-toolbar` and `#write-toolbar` can overflow horizontally on narrow screens. The pattern:
+
+- **Hidden scrollbars**: `overflow-x: auto; overflow-y: hidden; scrollbar-width: none` + `::-webkit-scrollbar { display: none }`. Both toolbars use this so content is scrollable but scrollbars never appear.
+- **Fade gradient**: A `::after` pseudo-element with `linear-gradient(to right, transparent, var(--bg) 90%)` on the right edge signals hidden content. Add class `has-overflow` when `scrollWidth > clientWidth`, and class `scrolled-end` (which sets `opacity: 0` on the `::after`) when scrolled to the end.
+- **Bounce-peek**: On first display, auto-scroll 28px right then smoothly back to 0 to hint that horizontal scroll is available. Only fires once and only when content overflows.
+- **Breakpoints**: Write toolbar hints activate below 560px, left toolbar hints below 342px. These are in `css/mobile.css`.
+- **`position: relative`** on toolbars is required for the `::after` overlay. For `#write-toolbar`, this must be in the `body.write-mode` rule (not a bare media query) to avoid ghost borders when the toolbar is hidden.
+
 ## Running
 
 ```bash
-node server.js          # http://localhost:3000
+node server.js                              # http://localhost:3000
 PORT=8080 node server.js
-node test/run.js        # starts server on :3099, runs 66 tests, kills it
+node test/run.js                            # starts server on :3099, runs tests, kills it
+npx playwright test test/write-mode.spec.js # write mode browser tests (needs Chromium)
 ```
