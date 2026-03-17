@@ -26,6 +26,7 @@ module.exports = function(harness) {
     assert.ok(html.includes('id="right"'), 'missing #right panel');
     assert.ok(html.includes('id="export-panel"'), 'missing #export-panel');
     assert.ok(html.includes('id="btn-export"'), 'missing #btn-export');
+    assert.ok(html.includes('id="btn-new"'), 'missing #btn-new');
   });
 
   test('css/layout.css contains drag-over overlay', () => {

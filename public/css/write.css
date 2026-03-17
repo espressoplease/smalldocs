@@ -88,7 +88,7 @@ body.write-mode #write-toolbar::-webkit-scrollbar {
   width: 1px;
   height: 16px;
   background: var(--border);
-  margin: 0 4px;
+  margin: 6px 0;
   flex-shrink: 0;
 }
 

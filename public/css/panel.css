@@ -27,7 +27,7 @@ body.style-mode #right {
 #right-header {
   display: flex;
   align-items: center;
-  min-height: 36px;
+  min-height: 40px;
   padding: 0 12px;
   font-size: 12px;
   font-weight: 600;
@@ -277,7 +277,7 @@ body.export-mode #export-panel {
 #export-panel-header {
   display: flex;
   align-items: center;
-  min-height: 36px;
+  min-height: 40px;
   padding: 0 12px;
   font-size: 12px;
   font-weight: 600;

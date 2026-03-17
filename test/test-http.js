@@ -44,6 +44,13 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('SDocs'));
     });
 
+    await testAsync('GET /new returns 200 with HTML', async () => {
+      const r = await get(BASE + '/new');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'));
+      assert.ok(r.body.includes('SDocs'));
+    });
+
     await testAsync('GET /nonexistent returns 404', async () => {
       const r = await get(BASE + '/nonexistent-path-xyz');
       assert.strictEqual(r.status, 404);

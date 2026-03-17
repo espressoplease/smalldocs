@@ -36,7 +36,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/') {
+  if (pathname === '/' || pathname === '/new') {
     serveFile(res, path.join(__dirname, 'public', 'index.html'));
     return;
   }

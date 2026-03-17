@@ -253,7 +253,7 @@ function updateHash() {
   clearTimeout(S._hashTimer);
   S._hashTimer = setTimeout(async function() {
     if (S._isDefaultState && S.currentMode === 'read') {
-      history.replaceState(null, '', window.location.pathname);
+      history.replaceState(null, '', window.location.pathname === '/new' ? '/' : window.location.pathname);
       return;
     }
     var params = new URLSearchParams();
@@ -266,7 +266,8 @@ function updateHash() {
     if (S.currentMode !== 'read') {
       params.set('mode', S.currentMode);
     }
-    history.replaceState(null, '', '#' + params.toString());
+    var basePath = window.location.pathname === '/new' ? '/' : window.location.pathname;
+    history.replaceState(null, '', basePath + '#' + params.toString());
   }, 400);
 }
 
@@ -371,6 +372,11 @@ document.getElementById('btn-write').addEventListener('click',  function() { set
 document.getElementById('btn-raw').addEventListener('click',    function() { setMode('raw'); });
 document.getElementById('btn-export').addEventListener('click', function() { setMode('export'); });
 
+document.getElementById('btn-new').addEventListener('click', function() {
+  history.replaceState(null, '', '/new');
+  startNewDocument();
+});
+
 document.getElementById('btn-expand-all').addEventListener('click', function() {
   S.renderedEl.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.add('open'); });
   S.renderedEl.querySelectorAll('.section-toggle').forEach(function(t) { t.classList.add('open'); });
@@ -434,6 +440,25 @@ var _defaultReady = fetch('/public/default.md').then(function(r) { return r.text
 
 // ── Register on SDocs for cross-module access ──────────
 
+function startNewDocument() {
+  S.resetAllStyles();
+  S.currentBody = '';
+  S.currentMeta = {};
+  S._isDefaultState = false;
+  clearTimeout(S._hashTimer);
+  render();
+  setMode('write', true);
+  var w = S.writeEl;
+  w.innerHTML = '<h1><br></h1>';
+  w.focus();
+  var range = document.createRange();
+  range.selectNodeContents(w.querySelector('h1'));
+  range.collapse(false);
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
 S.syncAll = syncAll;
 S.setStatus = setStatus;
 S.setMode = setMode;
@@ -444,6 +469,10 @@ S.loadText = loadText;
 
 (async function () {
   await _defaultReady;
+  if (window.location.pathname === '/new') {
+    startNewDocument();
+    return;
+  }
   var hash = window.location.hash.slice(1);
   var params = hash ? new URLSearchParams(hash) : new URLSearchParams();
   var mdParam = params.get('md');
