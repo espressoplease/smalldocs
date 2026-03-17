@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 /**
- * sdocs-dev CLI
+ * sdoc CLI
  * Usage:
- *   sdocs-dev report.md          # open file in browser
- *   cat file.md | sdocs-dev      # pipe markdown to browser
- *   sdocs-dev                    # open studio with empty editor
+ *   sdoc report.md              # open file in browser
+ *   sdoc share report.md        # print shareable URL to stdout
+ *   sdoc new                    # blank document in write mode
+ *   cat file.md | sdoc          # pipe markdown to browser
+ *   sdoc                        # open studio with empty editor
  */
 
 const fs   = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const { execSync } = require('child_process');
 const SDocYaml = require('../public/sdocs-yaml.js');
 
@@ -16,26 +19,35 @@ const DEFAULT_URL = 'https://sdocs.dev';
 
 // ── Help ───────────────────────────────────────────────────
 const HELP = `
-SDocs — CLI
-===========
-Opens a markdown file in the browser via sdocs.dev,
-with live styling controls and export to PDF / Word / raw .md.
+SDocs CLI
+=========
+Open, share, and style markdown files from the terminal.
 
 USAGE
-  sdocs-dev [file]              Open a .md file
-  sdocs-dev [file] --mode read   Open directly in read mode (hides editor + controls)
-  sdocs-dev [file] --mode style  Open with styling panel visible
-  sdocs-dev [file] --mode raw    Open showing raw markdown source
-  sdocs-dev [file] --url <url>   Use a custom base URL (default: https://sdocs.dev)
-  cat file.md | sdocs-dev       Pipe markdown from stdin
-  sdocs-dev                     Open with empty editor
-  sdocs-dev --help              Show this help
-  sdocs-dev --schema            Print the full styles schema (for LLMs)
+  sdoc <file>                      Open file in browser (read mode)
+  sdoc <file> --write              Open in write mode
+  sdoc <file> --style              Open with style panel
+  sdoc <file> --raw                Open raw markdown source
+  sdoc new                         New blank document (write mode)
+  sdoc share <file>                Print shareable URL to stdout
+  sdoc share <file> --section "X"  URL with section anchor
+  sdoc schema                      Print the full styles schema
+  sdoc defaults                    Show ~/.sdocs/styles.yaml
+  sdoc defaults --reset            Remove default styles
+  sdoc help                        Show this help
+  cat file.md | sdoc               Pipe markdown from stdin
+  cat file.md | sdoc share         Pipe to shareable URL
 
-MODES
-  read   (default when file given) Clean reading view — hides toolbar and styling panel
-  style  Styled preview with editor + styling panel visible
-  raw    Shows raw markdown source
+MODE FLAGS
+  --read     Clean reading view (default when file given)
+  --write    Opens the contentEditable writer
+  --style    Styled preview with style panel visible
+  --raw      Shows raw markdown source
+
+OPTIONS
+  --section <heading>   Scroll to heading section on load
+  --url <base>          Custom base URL (default: https://sdocs.dev)
+  --mode <m>            Alias for --read / --write / --style / --raw
 
 ENVIRONMENT
   SDOCS_URL   Fallback base URL if --url is not passed.
@@ -57,9 +69,7 @@ STYLED MARKDOWN FORMAT
   # My Document
   Content here...
 
-  Drop the file back onto SDocs to restore content + styles.
-
-Run \`sdocs-dev --schema\` for the complete list of style properties.
+Run \`sdoc schema\` for the complete list of style properties.
 `;
 
 const SCHEMA = `
@@ -154,39 +164,94 @@ EXAMPLE — editorial article with colored heading tiers
   ---
 `;
 
+// ── Compression (deflate-raw + base64url) ─────────────────
+
+function compressToBase64Url(text) {
+  const deflated = zlib.deflateRawSync(Buffer.from(text, 'utf-8'));
+  return deflated.toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+function decompressFromBase64Url(b64url) {
+  let b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = (4 - b64.length % 4) % 4;
+  b64 += '='.repeat(pad);
+  return zlib.inflateRawSync(Buffer.from(b64, 'base64')).toString('utf-8');
+}
+
+// ── Slugify ───────────────────────────────────────────────
+
+function slugify(text) {
+  return text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
+
 // ── Parse args ────────────────────────────────────────────
+
+const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help']);
+
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
   let file = null;
   let mode = null;
   let url = null;
+  let subcommand = null;
+  let section = null;
+  let resetFlag = false;
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--help' || args[i] === '-h') { console.log(HELP);   process.exit(0); }
-    if (args[i] === '--schema')                    { console.log(SCHEMA); process.exit(0); }
-    if (args[i] === '--mode' || args[i] === '-m') {
+    const arg = args[i];
+
+    // Legacy / shortcut flags that map to subcommands
+    if (arg === '--help' || arg === '-h') { subcommand = 'help'; continue; }
+    if (arg === '--schema')               { subcommand = 'schema'; continue; }
+
+    // Mode shorthand flags
+    if (arg === '--write') { mode = 'write'; continue; }
+    if (arg === '--style') { mode = 'style'; continue; }
+    if (arg === '--raw')   { mode = 'raw';   continue; }
+    if (arg === '--read')  { mode = 'read';  continue; }
+
+    // Long-form --mode
+    if (arg === '--mode' || arg === '-m') {
       mode = args[++i];
-      if (!['read', 'style', 'raw'].includes(mode)) {
-        console.error(`sdocs-dev: unknown mode "${mode}" — use read, style, or raw`);
+      if (!['read', 'write', 'style', 'raw'].includes(mode)) {
+        console.error(`sdoc: unknown mode "${mode}" — use read, write, style, or raw`);
         process.exit(1);
       }
-    } else if (args[i] === '--url') {
-      url = args[++i];
-    } else if (!file) {
-      file = args[i];
+      continue;
     }
+
+    // --url flag
+    if (arg === '--url') { url = args[++i]; continue; }
+
+    // --section flag
+    if (arg === '--section' || arg === '-s') { section = args[++i]; continue; }
+
+    // --reset flag (for defaults subcommand)
+    if (arg === '--reset') { resetFlag = true; continue; }
+
+    // Positional: check for subcommand first, then file
+    if (!subcommand && SUBCOMMANDS.has(arg)) {
+      subcommand = arg;
+      continue;
+    }
+
+    if (!file) { file = arg; continue; }
   }
 
-  return { file, mode, url };
+  return { file, mode, url, subcommand, section, resetFlag };
 }
 
 // ── Build URL ─────────────────────────────────────────────
+
 function buildUrl(content, opts) {
   const baseUrl = opts.url || process.env.SDOCS_URL || DEFAULT_URL;
   const params = new URLSearchParams();
 
   if (content) {
-    params.set('md', encodeURIComponent(Buffer.from(content, 'utf-8').toString('base64')));
+    params.set('md', compressToBase64Url(content));
   } else if (opts.defaultStyles) {
     const stylesJson = JSON.stringify(opts.defaultStyles);
     params.set('styles', encodeURIComponent(Buffer.from(stylesJson, 'utf-8').toString('base64')));
@@ -194,6 +259,10 @@ function buildUrl(content, opts) {
 
   const mode = opts.mode || (content ? 'read' : 'style');
   if (mode && mode !== 'read') params.set('mode', mode);
+
+  if (opts.section) {
+    params.set('sec', slugify(opts.section));
+  }
 
   const qs = params.toString();
   return qs ? `${baseUrl}/#${qs}` : baseUrl;
@@ -203,8 +272,13 @@ function buildUrl(content, opts) {
 const { parseSimpleYaml, parseFrontMatter, serializeFrontMatter } = SDocYaml;
 
 // ── ~/.sdocs/styles.yaml default styles ────────────────────
+
+function getDefaultsPath() {
+  return path.join(require('os').homedir(), '.sdocs', 'styles.yaml');
+}
+
 function loadDefaultStyles() {
-  const configPath = path.join(require('os').homedir(), '.sdocs', 'styles.yaml');
+  const configPath = getDefaultsPath();
   if (!fs.existsSync(configPath)) return null;
   try {
     const yaml = fs.readFileSync(configPath, 'utf-8');
@@ -212,6 +286,27 @@ function loadDefaultStyles() {
   } catch {
     return null;
   }
+}
+
+function showDefaults() {
+  const configPath = getDefaultsPath();
+  if (!fs.existsSync(configPath)) {
+    console.log('No default styles set (~/.sdocs/styles.yaml not found).');
+    console.log('\nTo set defaults, style a document in SDocs and use');
+    console.log('the "Save as Default" panel to generate the command.');
+    return;
+  }
+  console.log(fs.readFileSync(configPath, 'utf-8'));
+}
+
+function resetDefaults() {
+  const configPath = getDefaultsPath();
+  if (!fs.existsSync(configPath)) {
+    console.log('No default styles to remove.');
+    return;
+  }
+  fs.unlinkSync(configPath);
+  console.log('Removed ' + configPath);
 }
 
 // Deep merge: defaults under file styles (file wins on conflict)
@@ -241,11 +336,12 @@ function applyDefaultStyles(content) {
 }
 
 // ── Read content ───────────────────────────────────────────
+
 async function readContent(file) {
   if (file) {
     const resolved = path.resolve(file);
     if (!fs.existsSync(resolved)) {
-      console.error(`sdocs-dev: file not found: ${file}`);
+      console.error(`sdoc: file not found: ${file}`);
       process.exit(1);
     }
     return fs.readFileSync(resolved, 'utf-8');
@@ -266,6 +362,7 @@ async function readContent(file) {
 }
 
 // ── Open browser ───────────────────────────────────────────
+
 function openBrowser(url) {
   const platform = process.platform;
   try {
@@ -278,24 +375,69 @@ function openBrowser(url) {
 }
 
 // ── Main ───────────────────────────────────────────────────
-(async () => {
-  const { file, mode, url: urlFlag } = parseArgs();
-  let content = await readContent(file);
 
-  // Apply ~/.sdocs/styles.yaml defaults
-  const defaults = loadDefaultStyles();
-  if (content && defaults) {
-    content = applyDefaultStyles(content);
-  }
+if (require.main === module) {
+  (async () => {
+    const opts = parseArgs();
 
-  const url = buildUrl(content, { url: urlFlag, mode, defaultStyles: !content ? defaults : null });
+    // Subcommand dispatch
+    if (opts.subcommand === 'help')   { console.log(HELP);   process.exit(0); }
+    if (opts.subcommand === 'schema') { console.log(SCHEMA); process.exit(0); }
+    if (opts.subcommand === 'defaults') {
+      if (opts.resetFlag) resetDefaults();
+      else showDefaults();
+      process.exit(0);
+    }
+    if (opts.subcommand === 'new') {
+      const baseUrl = opts.url || process.env.SDOCS_URL || DEFAULT_URL;
+      const url = baseUrl + '/new';
+      openBrowser(url);
+      console.log(`SDocs → ${url}`);
+      process.exit(0);
+    }
 
-  openBrowser(url);
-  console.log(`SDocs → ${url.length > 80 ? url.slice(0, 77) + '...' : url}`);
-})().catch(e => {
-  console.error('sdocs-dev:', e.message);
-  process.exit(1);
-});
+    // File / stdin handling
+    let content = await readContent(opts.file);
 
-// Export for tests
-module.exports = { mergeStyles, applyDefaultStyles, parseFrontMatter, serializeFrontMatter, parseSimpleYaml, parseArgs, buildUrl };
+    // Apply ~/.sdocs/styles.yaml defaults
+    const defaults = loadDefaultStyles();
+    if (content && defaults) {
+      content = applyDefaultStyles(content);
+    }
+
+    const url = buildUrl(content, {
+      url: opts.url,
+      mode: opts.mode,
+      defaultStyles: !content ? defaults : null,
+      section: opts.section,
+    });
+
+    // Share: print URL to stdout, don't open browser
+    if (opts.subcommand === 'share') {
+      process.stdout.write(url + '\n');
+      process.exit(0);
+    }
+
+    // Default: open browser
+    openBrowser(url);
+    console.log(`SDocs → ${url.length > 80 ? url.slice(0, 77) + '...' : url}`);
+  })().catch(e => {
+    console.error('sdoc:', e.message);
+    process.exit(1);
+  });
+}
+
+// ── Exports (for tests) ───────────────────────────────────
+
+module.exports = {
+  mergeStyles,
+  applyDefaultStyles,
+  parseFrontMatter,
+  serializeFrontMatter,
+  parseSimpleYaml,
+  parseArgs,
+  buildUrl,
+  slugify,
+  compressToBase64Url,
+  decompressFromBase64Url,
+};

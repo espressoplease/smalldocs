@@ -1,5 +1,5 @@
 /**
- * CLI parseArgs/buildUrl + style merging tests
+ * CLI parseArgs/buildUrl + style merging + compression tests
  */
 const path = require('path');
 const cli = require(path.join(__dirname, '..', 'bin', 'sdocs-dev.js'));
@@ -71,13 +71,58 @@ module.exports = function(harness) {
     assert.strictEqual(merged.h1.color, '#fff');
   });
 
-  console.log('\n── CLI Tests ──────────────────────────────────\n');
+  console.log('\n── Compression Tests ──────────────────────────\n');
 
-  test('parseArgs: file and mode', () => {
+  test('compressToBase64Url: roundtrips ASCII content', () => {
+    const content = '# Hello World\n\nSome plain ASCII text.';
+    const compressed = cli.compressToBase64Url(content);
+    const decompressed = cli.decompressFromBase64Url(compressed);
+    assert.strictEqual(decompressed, content);
+  });
+
+  test('compressToBase64Url: roundtrips Unicode (em-dash, curly quotes)', () => {
+    const content = '## Why the 500 happened \u2014 \u201cthe failure\u201d';
+    const compressed = cli.compressToBase64Url(content);
+    const decompressed = cli.decompressFromBase64Url(compressed);
+    assert.strictEqual(decompressed, content);
+  });
+
+  test('compressToBase64Url: output contains only base64url chars', () => {
+    const compressed = cli.compressToBase64Url('# Test\n\nHello world!');
+    assert.ok(/^[A-Za-z0-9_-]+$/.test(compressed), 'should only contain base64url characters');
+  });
+
+  test('compressToBase64Url: compresses repeated content smaller than raw base64', () => {
+    const content = '# Hello\n\n' + 'word '.repeat(500);
+    const compressed = cli.compressToBase64Url(content);
+    const rawB64 = Buffer.from(content).toString('base64');
+    assert.ok(compressed.length < rawB64.length, 'deflate should compress repeated content');
+  });
+
+  console.log('\n── Slugify Tests ─────────────────────────────\n');
+
+  test('slugify: basic heading text', () => {
+    assert.strictEqual(cli.slugify('Getting Started'), 'getting-started');
+  });
+
+  test('slugify: strips special characters', () => {
+    assert.strictEqual(cli.slugify("What's New?"), 'whats-new');
+  });
+
+  test('slugify: preserves numbers', () => {
+    assert.strictEqual(cli.slugify('Step 1: Install'), 'step-1-install');
+  });
+
+  console.log('\n── CLI parseArgs Tests ────────────────────────\n');
+
+  test('parseArgs: file and mode (legacy --mode flag)', () => {
     const result = cli.parseArgs(['report.md', '--mode', 'read']);
     assert.strictEqual(result.file, 'report.md');
     assert.strictEqual(result.mode, 'read');
     assert.strictEqual(result.url, null);
+    assert.strictEqual(result.subcommand, null);
+    assert.strictEqual(result.section, null);
+    assert.strictEqual(result.resetFlag, false);
   });
 
   test('parseArgs: --url flag', () => {
@@ -98,7 +143,105 @@ module.exports = function(harness) {
     assert.strictEqual(result.file, null);
     assert.strictEqual(result.mode, null);
     assert.strictEqual(result.url, null);
+    assert.strictEqual(result.subcommand, null);
+    assert.strictEqual(result.section, null);
+    assert.strictEqual(result.resetFlag, false);
   });
+
+  test('parseArgs: --write shorthand', () => {
+    const result = cli.parseArgs(['doc.md', '--write']);
+    assert.strictEqual(result.file, 'doc.md');
+    assert.strictEqual(result.mode, 'write');
+  });
+
+  test('parseArgs: --style shorthand', () => {
+    const result = cli.parseArgs(['doc.md', '--style']);
+    assert.strictEqual(result.file, 'doc.md');
+    assert.strictEqual(result.mode, 'style');
+  });
+
+  test('parseArgs: --raw shorthand', () => {
+    const result = cli.parseArgs(['doc.md', '--raw']);
+    assert.strictEqual(result.file, 'doc.md');
+    assert.strictEqual(result.mode, 'raw');
+  });
+
+  test('parseArgs: --read shorthand', () => {
+    const result = cli.parseArgs(['doc.md', '--read']);
+    assert.strictEqual(result.file, 'doc.md');
+    assert.strictEqual(result.mode, 'read');
+  });
+
+  test('parseArgs: share subcommand with file', () => {
+    const result = cli.parseArgs(['share', 'report.md']);
+    assert.strictEqual(result.subcommand, 'share');
+    assert.strictEqual(result.file, 'report.md');
+  });
+
+  test('parseArgs: share with --write mode', () => {
+    const result = cli.parseArgs(['share', 'doc.md', '--write']);
+    assert.strictEqual(result.subcommand, 'share');
+    assert.strictEqual(result.file, 'doc.md');
+    assert.strictEqual(result.mode, 'write');
+  });
+
+  test('parseArgs: share with --section', () => {
+    const result = cli.parseArgs(['share', 'doc.md', '--section', 'Usage']);
+    assert.strictEqual(result.subcommand, 'share');
+    assert.strictEqual(result.file, 'doc.md');
+    assert.strictEqual(result.section, 'Usage');
+  });
+
+  test('parseArgs: new subcommand', () => {
+    const result = cli.parseArgs(['new']);
+    assert.strictEqual(result.subcommand, 'new');
+    assert.strictEqual(result.file, null);
+  });
+
+  test('parseArgs: schema subcommand', () => {
+    const result = cli.parseArgs(['schema']);
+    assert.strictEqual(result.subcommand, 'schema');
+  });
+
+  test('parseArgs: --schema legacy flag maps to subcommand', () => {
+    const result = cli.parseArgs(['--schema']);
+    assert.strictEqual(result.subcommand, 'schema');
+  });
+
+  test('parseArgs: defaults subcommand', () => {
+    const result = cli.parseArgs(['defaults']);
+    assert.strictEqual(result.subcommand, 'defaults');
+    assert.strictEqual(result.resetFlag, false);
+  });
+
+  test('parseArgs: defaults --reset', () => {
+    const result = cli.parseArgs(['defaults', '--reset']);
+    assert.strictEqual(result.subcommand, 'defaults');
+    assert.strictEqual(result.resetFlag, true);
+  });
+
+  test('parseArgs: help subcommand', () => {
+    const result = cli.parseArgs(['help']);
+    assert.strictEqual(result.subcommand, 'help');
+  });
+
+  test('parseArgs: --help legacy flag maps to subcommand', () => {
+    const result = cli.parseArgs(['--help']);
+    assert.strictEqual(result.subcommand, 'help');
+  });
+
+  test('parseArgs: -h shorthand maps to help', () => {
+    const result = cli.parseArgs(['-h']);
+    assert.strictEqual(result.subcommand, 'help');
+  });
+
+  test('parseArgs: --section with -s shorthand', () => {
+    const result = cli.parseArgs(['doc.md', '-s', 'Getting Started']);
+    assert.strictEqual(result.file, 'doc.md');
+    assert.strictEqual(result.section, 'Getting Started');
+  });
+
+  console.log('\n── buildUrl Tests ─────────────────────────────\n');
 
   test('buildUrl: defaults to sdocs.dev with style mode when no content', () => {
     const url = cli.buildUrl(null, {});
@@ -123,13 +266,31 @@ module.exports = function(harness) {
     assert.ok(url.includes('mode=style'));
   });
 
-  test('buildUrl: content roundtrips through base64', () => {
+  test('buildUrl: content roundtrips through deflate + base64url', () => {
     const content = '---\nstyles:\n  fontFamily: Lora\n---\n# Test';
     const url = cli.buildUrl(content, {});
     const hash = url.split('#')[1];
     const params = new URLSearchParams(hash);
-    const decoded = Buffer.from(decodeURIComponent(params.get('md')), 'base64').toString('utf-8');
+    const decoded = cli.decompressFromBase64Url(params.get('md'));
     assert.strictEqual(decoded, content);
+  });
+
+  test('buildUrl: section adds sec= param with slugified text', () => {
+    const url = cli.buildUrl('# Hello', { section: 'Getting Started' });
+    assert.ok(url.includes('sec=getting-started'));
+  });
+
+  test('buildUrl: section with special chars', () => {
+    const url = cli.buildUrl('# Hello', { section: "What's New?" });
+    assert.ok(url.includes('sec=whats-new'));
+  });
+
+  test('buildUrl: md= param contains only URL-safe characters', () => {
+    const url = cli.buildUrl('# Hello World\n\nSome content with special chars: é à ü', {});
+    const hash = url.split('#')[1];
+    const params = new URLSearchParams(hash);
+    const md = params.get('md');
+    assert.ok(/^[A-Za-z0-9_-]+$/.test(md), 'md param should only contain base64url characters');
   });
 
   test('every setting survives full YAML serialize → parse → stylesToControls roundtrip', () => {

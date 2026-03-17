@@ -57,7 +57,7 @@ styles:
 ---
 ```
 
-(Click "**Raw**" — top left — to see the front matter for this file. See all available properties [here](https://sdocs.dev) or by running `npm i sdocs-dev; sdoc --schema`.)
+(Click "**Raw**" — top left — to see the front matter for this file. See all available properties [here](https://sdocs.dev) or by running `npm i sdocs-dev; sdoc schema`.)
 
 When a `Styled .md` file is rendered in the SmallDocs interface the specified styles are applied. If a plain `.md` file is rendered the default styles are applied.
 
@@ -111,6 +111,93 @@ SmallDocs can export your document in four formats:
 - **PDF** — a styled PDF generated from the rendered view via the browser's print engine.
 - **Word (.docx)** — a styled Word document generated from the rendered HTML.
 - **Styled .md** — your markdown with the `styles:` front matter block included. This is the format SmallDocs reads back in, so your formatting is preserved.
+
+## The CLI
+
+SmallDocs has a command-line tool that lets you open, share, and style markdown files from the terminal. Install it once:
+
+```
+npm i -g sdocs-dev
+```
+
+This gives you the `sdoc` command.
+
+### Open a file
+
+```
+sdoc README.md
+```
+
+Your browser opens with the document styled and readable. That's it — one command to go from `.md` file to formatted document.
+
+### Modes
+
+By default, files open in read mode. You can open in any mode:
+
+```
+sdoc README.md              # read mode (default)
+sdoc README.md --write      # write mode (contentEditable editor)
+sdoc README.md --style      # style mode (styling panel visible)
+sdoc README.md --raw        # raw mode (plain markdown source)
+```
+
+### Share a link
+
+```
+sdoc share README.md
+```
+
+This prints a shareable URL to stdout — no browser opens. The entire document is compressed into the URL hash, so there's nothing to host or upload. Pipe it wherever you need it:
+
+```
+sdoc share README.md | pbcopy           # copy to clipboard (macOS)
+sdoc share report.md --section "Results" # deep-link to a heading
+sdoc share notes.md --write             # link opens in write mode
+```
+
+### Pipe from stdin
+
+Any command that outputs markdown can be piped directly into SmallDocs:
+
+```
+cat notes.md | sdoc                     # open in browser
+cat notes.md | sdoc share               # get a shareable URL
+your-agent --output md | sdoc           # pipe agent output to browser
+```
+
+### Start a new document
+
+```
+sdoc new
+```
+
+Opens a blank document in write mode, ready to type.
+
+### Default styles
+
+If you find a style you like, use the "Save as Default" panel in the Style view to generate a command that saves your preferences to `~/.sdocs/styles.yaml`. The CLI automatically applies these defaults to every file you open — unless the file has its own styles, which always take priority.
+
+```
+sdoc defaults               # view your current defaults
+sdoc defaults --reset       # remove them
+```
+
+### Style schema
+
+```
+sdoc schema
+```
+
+Prints every available style property with its type, default value, and description. This is designed to be readable by both humans and LLMs — so your agent can write YAML front matter for you.
+
+### For agents
+
+The CLI is designed to work well in automated workflows. A few patterns:
+
+- **Generate a styled doc**: have your agent write a `.md` file with YAML front matter, then `sdoc share file.md` to get a URL
+- **Learn the format**: `sdoc schema` gives your agent everything it needs to know about available style properties
+- **Deep-link to context**: `sdoc share file.md --section "Heading"` creates a URL that scrolls straight to the relevant section
+- **No auth, no API keys**: everything is client-side — the URL *is* the document
 
 ### Small opinionated things
 

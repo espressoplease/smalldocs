@@ -1,15 +1,36 @@
 {
   "name": "sdocs-dev",
   "version": "1.0.0",
-  "description": "Lightweight stateless markdown editor with styling",
+  "description": "Open, share, and style markdown files from the terminal",
   "main": "server.js",
   "bin": {
+    "sdoc": "./bin/sdocs-dev.js",
     "sdocs-dev": "./bin/sdocs-dev.js"
   },
+  "files": [
+    "bin/",
+    "public/",
+    "server.js"
+  ],
   "scripts": {
     "start": "node server.js",
     "test": "node test/run.js"
   },
+  "keywords": [
+    "markdown",
+    "editor",
+    "styling",
+    "pdf",
+    "docx",
+    "cli"
+  ],
+  "author": "Josh Summers",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoshInLisbon/SDocs.git"
+  },
+  "homepage": "https://sdocs.dev",
   "dependencies": {
     "marked": "^11.0.0"
   },

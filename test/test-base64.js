@@ -1,5 +1,5 @@
 /**
- * Browser base64 UTF-8 roundtrip tests
+ * Browser base64 UTF-8 roundtrip tests + CLI deflate encoding tests
  */
 
 module.exports = function(harness) {
@@ -39,16 +39,39 @@ module.exports = function(harness) {
     assert.strictEqual(browserDecode(browserEncode(content)), content);
   });
 
-  test('browser base64: CLI encode → browser decode roundtrip', () => {
-    const content = '## Why the 500 happened \u2014 the failure sequence';
-    const cliEncoded = encodeURIComponent(Buffer.from(content, 'utf-8').toString('base64'));
-    assert.strictEqual(browserDecode(cliEncoded), content);
+  console.log('\n── CLI Deflate Encoding Tests ──────────────────\n');
+
+  test('CLI deflate: roundtrips ASCII via deflate-raw + base64url', () => {
+    const zlib = require('zlib');
+    const content = '# Hello World\n\nSome plain ASCII text.';
+
+    // CLI side: deflateRawSync + base64url
+    const deflated = zlib.deflateRawSync(Buffer.from(content, 'utf-8'));
+    const b64url = deflated.toString('base64')
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+    // Browser side (simulated): base64url → inflateRawSync
+    let b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = (4 - b64.length % 4) % 4;
+    b64 += '='.repeat(pad);
+    const inflated = zlib.inflateRawSync(Buffer.from(b64, 'base64')).toString('utf-8');
+
+    assert.strictEqual(inflated, content);
   });
 
-  test('browser base64: browser encode → CLI decode roundtrip', () => {
-    const content = '## Em-dash \u2014 and curly \u201cquotes\u201d';
-    const encoded = browserEncode(content);
-    const cliDecoded = Buffer.from(decodeURIComponent(encoded), 'base64').toString('utf-8');
-    assert.strictEqual(cliDecoded, content);
+  test('CLI deflate: roundtrips Unicode via deflate-raw + base64url', () => {
+    const zlib = require('zlib');
+    const content = '## Why the 500 happened \u2014 \u201cthe failure\u201d sequence';
+
+    const deflated = zlib.deflateRawSync(Buffer.from(content, 'utf-8'));
+    const b64url = deflated.toString('base64')
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+    let b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = (4 - b64.length % 4) % 4;
+    b64 += '='.repeat(pad);
+    const inflated = zlib.inflateRawSync(Buffer.from(b64, 'base64')).toString('utf-8');
+
+    assert.strictEqual(inflated, content);
   });
 };
