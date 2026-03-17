@@ -546,4 +546,50 @@ S.loadText = loadText;
   }
 }());
 
+// ── Toolbar scroll hints (fade + bounce-peek) ──────
+
+function initScrollHint(el) {
+  function update() {
+    var hasOverflow = el.scrollWidth > el.clientWidth + 1;
+    el.classList.toggle('has-overflow', hasOverflow);
+    if (hasOverflow) {
+      var atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+      el.classList.toggle('scrolled-end', atEnd);
+    }
+  }
+
+  el.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+
+  // Bounce-peek: briefly scroll right then back on first show
+  var peeked = false;
+  function peek() {
+    if (peeked) return;
+    if (el.scrollWidth <= el.clientWidth + 1) return;
+    peeked = true;
+    el.scrollTo({ left: 28, behavior: 'smooth' });
+    setTimeout(function() { el.scrollTo({ left: 0, behavior: 'smooth' }); }, 400);
+  }
+
+  // Run initial check; peek after a short delay
+  update();
+  return { update: update, peek: peek };
+}
+
+var leftHint = initScrollHint(document.getElementById('left-toolbar'));
+var writeHint = initScrollHint(document.getElementById('write-toolbar'));
+
+// Re-check and peek when entering write mode
+var _origSetMode = setMode;
+setMode = function(mode, skipHash) {
+  _origSetMode(mode, skipHash);
+  if (mode === 'write') {
+    setTimeout(function() { writeHint.update(); writeHint.peek(); }, 100);
+  }
+};
+S.setMode = setMode;
+
+// Check left toolbar on load
+setTimeout(function() { leftHint.update(); leftHint.peek(); }, 500);
+
 })();

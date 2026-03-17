@@ -135,11 +135,27 @@
 }
 
 /* ═══════════════════════════════════════════════════
-   TOOLBAR SCROLL SHADOW (< 560px)
+   TOOLBAR SCROLL FADE HINT (< 560px / < 342px)
+   Right-edge gradient that fades out when scrolled
 ═══════════════════════════════════════════════════ */
 @media (max-width: 560px) {
   body.write-mode #write-toolbar {
-    box-shadow: inset -6px 0 8px -4px rgba(204, 219, 232, 1);
+    position: relative;
+  }
+  body.write-mode #write-toolbar.has-overflow::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 32px;
+    height: 100%;
+    background: linear-gradient(to right, transparent, var(--bg) 90%);
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity .2s ease;
+  }
+  body.write-mode #write-toolbar.scrolled-end::after {
+    opacity: 0;
   }
 }
 
@@ -156,6 +172,21 @@
 ═══════════════════════════════════════════════════ */
 @media (max-width: 342px) {
   #left-toolbar {
-    box-shadow: inset -6px 0 8px -4px rgba(204, 219, 232, 1);
+    position: relative;
+  }
+  #left-toolbar.has-overflow::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 32px;
+    height: 100%;
+    background: linear-gradient(to right, transparent, var(--bg) 90%);
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity .2s ease;
+  }
+  #left-toolbar.scrolled-end::after {
+    opacity: 0;
   }
 }
