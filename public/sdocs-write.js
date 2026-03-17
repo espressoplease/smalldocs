@@ -14,6 +14,7 @@ function enterWriteMode() {
   copyStyleVars();
   writeEl.focus();
   placeCursorAtEnd(writeEl);
+  setTimeout(updateToolbarState, 0);
 }
 
 function exitWriteMode() {
@@ -498,6 +499,45 @@ document.getElementById('wb-clear').addEventListener('click', function() {
   document.execCommand('removeFormat', false, null);
 });
 
+// ── Active toolbar state tracking ──────────────────────
+
+var BLOCK_BTN_MAP = { H1: 'wb-h1', H2: 'wb-h2', H3: 'wb-h3', H4: 'wb-h4', H5: 'wb-h5', P: 'wb-p', DIV: 'wb-p' };
+var BLOCK_BTN_IDS = ['wb-h1', 'wb-h2', 'wb-h3', 'wb-h4', 'wb-h5', 'wb-p', 'wb-ul', 'wb-ol', 'wb-bq', 'wb-codeblock'];
+
+function updateToolbarState() {
+  var sel = window.getSelection();
+  var activeBlock = null;
+
+  if (sel.rangeCount) {
+    var node = sel.anchorNode;
+    var el = node && (node.nodeType === 1 ? node : node.parentElement);
+    while (el && el !== writeEl) {
+      var tag = el.tagName;
+      if (BLOCK_BTN_MAP[tag]) { activeBlock = BLOCK_BTN_MAP[tag]; break; }
+      if (tag === 'LI') {
+        var list = el.parentElement;
+        activeBlock = list && list.tagName === 'OL' ? 'wb-ol' : 'wb-ul';
+        break;
+      }
+      if (tag === 'BLOCKQUOTE') { activeBlock = 'wb-bq'; break; }
+      if (tag === 'PRE') { activeBlock = 'wb-codeblock'; break; }
+      el = el.parentElement;
+    }
+  }
+
+  for (var i = 0; i < BLOCK_BTN_IDS.length; i++) {
+    document.getElementById(BLOCK_BTN_IDS[i]).classList.toggle('active', BLOCK_BTN_IDS[i] === activeBlock);
+  }
+
+  document.getElementById('wb-bold').classList.toggle('active', document.queryCommandState('bold'));
+  document.getElementById('wb-italic').classList.toggle('active', document.queryCommandState('italic'));
+  document.getElementById('wb-strike').classList.toggle('active', document.queryCommandState('strikeThrough'));
+}
+
+document.addEventListener('selectionchange', function() {
+  if (S.currentMode === 'write') updateToolbarState();
+});
+
 // ── Convert title→data-tip for CSS tooltips ──────────
 
 var tipBtns = document.querySelectorAll('.write-tb-btn[title]');
@@ -510,5 +550,6 @@ for (var t = 0; t < tipBtns.length; t++) {
 
 S.enterWriteMode = enterWriteMode;
 S.exitWriteMode = exitWriteMode;
+S.updateToolbarState = updateToolbarState;
 
 })();

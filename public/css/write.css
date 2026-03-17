@@ -73,8 +73,9 @@ body.write-mode #write-toolbar::-webkit-scrollbar {
   background: var(--bg-hover);
 }
 .write-tb-btn.active {
-  color: var(--accent);
-  background: var(--accent-light);
+  color: var(--text);
+  background: var(--bg-input);
+  box-shadow: var(--shadow-sm);
 }
 .write-tb-btn code {
   font-size: 11px;

@@ -457,6 +457,7 @@ function startNewDocument() {
   var sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(range);
+  setTimeout(function() { S.updateToolbarState(); }, 0);
 }
 
 S.syncAll = syncAll;
