@@ -130,8 +130,11 @@
 #rendered .section-toggle:hover {
   color: var(--text-2);
 }
-#rendered .md-section-body:not(.open) > :not(.md-section) {
+#rendered .md-section-body:not(.open):not(:has(.md-section-body.open)) > :not(.md-section) {
   display: none;
+}
+#rendered .md-section-body:not(.open):has(.md-section-body.open) > :not(.md-section) {
+  opacity: 0.55;
 }
 #rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) {
   padding-left: 1.2em;
