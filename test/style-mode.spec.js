@@ -230,7 +230,8 @@ test.describe('CSS variable application — special', () => {
 
   test('code-bg dual var → sets both --md-code-bg and --md-pre-bg', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-code');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-code');
     await setColorValue(page, 'ctrl-code-bg', '#aabbcc');
     expect(await getCssVar(page, '--md-code-bg')).toBe('#aabbcc');
     expect(await getCssVar(page, '--md-pre-bg')).toBe('#aabbcc');
@@ -238,7 +239,8 @@ test.describe('CSS variable application — special', () => {
 
   test('bq-border compound → combines color + width', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-blockquote');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-bq');
     await setColorValue(page, 'ctrl-bq-border-color', '#ff0000');
     await setNumberValue(page, 'ctrl-bq-bw-num', '5');
     const val = await getCssVar(page, '--md-bq-border');
@@ -274,8 +276,8 @@ test.describe('Color cascade — propagation', () => {
 
   test('ctrl-h-color → flows to h1-h4', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-headers-general');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-headings');
     await setColorValue(page, 'ctrl-h-color', '#00ff00');
     expect(await getCssVar(page, '--md-h1-color')).toBe('#00ff00');
     expect(await getCssVar(page, '--md-h2-color')).toBe('#00ff00');
@@ -285,7 +287,7 @@ test.describe('Color cascade — propagation', () => {
 
   test('ctrl-p-color → flows to list-color', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-paragraph');
+    await openSection(page, 'body-colors');
     await setColorValue(page, 'ctrl-p-color', '#0000ff');
     expect(await getCssVar(page, '--md-list-color')).toBe('#0000ff');
   });
@@ -313,8 +315,8 @@ test.describe('Color cascade — propagation', () => {
 test.describe('Color cascade — override blocking', () => {
   test('overridden child blocks parent cascade', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-headers-general');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-headings');
     // Override h-color first
     await setColorValue(page, 'ctrl-h-color', '#00ff00');
     // Now change ctrl-color — h-color should stay overridden
@@ -326,10 +328,9 @@ test.describe('Color cascade — override blocking', () => {
 
   test('overridden h1 blocks h-color cascade', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-h1');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-headings');
     await setColorValue(page, 'ctrl-h1-color', '#aaaaaa');
-    await openSubSection(page, 'sub-headers-general');
     await setColorValue(page, 'ctrl-h-color', '#bbbbbb');
     expect(await getCssVar(page, '--md-h1-color')).toBe('#aaaaaa');
     expect(await getCssVar(page, '--md-h2-color')).toBe('#bbbbbb');
@@ -337,10 +338,9 @@ test.describe('Color cascade — override blocking', () => {
 
   test('siblings still receive cascade when one is overridden', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-h2');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-headings');
     await setColorValue(page, 'ctrl-h2-color', '#222222');
-    await openSubSection(page, 'sub-headers-general');
     await setColorValue(page, 'ctrl-h-color', '#999999');
     // h2 overridden, h1/h3/h4 should get cascade
     expect(await getCssVar(page, '--md-h2-color')).toBe('#222222');
@@ -351,9 +351,8 @@ test.describe('Color cascade — override blocking', () => {
 
   test('overridden list-color blocks p-color cascade', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-lists');
+    await openSection(page, 'body-colors');
     await setColorValue(page, 'ctrl-list-color', '#333333');
-    await openSection(page, 'body-paragraph');
     await setColorValue(page, 'ctrl-p-color', '#444444');
     expect(await getCssVar(page, '--md-list-color')).toBe('#333333');
   });
@@ -366,11 +365,11 @@ test.describe('Color cascade — override blocking', () => {
 test.describe('Reset buttons — cascade colors', () => {
   test('reset-h-color resumes cascade from ctrl-color', async ({ page }) => {
     await gotoStyleMode(page);
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-headings');
     // Set root color
     await setColorValue(page, 'ctrl-color', '#ff0000');
     // Override h-color
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-headers-general');
     await setColorValue(page, 'ctrl-h-color', '#00ff00');
     expect(await getCssVar(page, '--md-h-color')).toBe('#00ff00');
     // Reset h-color — should resume getting ctrl-color's cascade
@@ -382,10 +381,9 @@ test.describe('Reset buttons — cascade colors', () => {
 
   test('reset-h1-color resumes cascade from h-color', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-headers-general');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-headings');
     await setColorValue(page, 'ctrl-h-color', '#aabbcc');
-    await openSubSection(page, 'sub-h1');
     await setColorValue(page, 'ctrl-h1-color', '#112233');
     expect(await getCssVar(page, '--md-h1-color')).toBe('#112233');
     await clickReset(page, 'reset-h1-color');
@@ -396,6 +394,7 @@ test.describe('Reset buttons — cascade colors', () => {
 
   test('reset ctrl-color re-cascades to all children', async ({ page }) => {
     await gotoStyleMode(page);
+    await openSection(page, 'body-colors');
     await setColorValue(page, 'ctrl-color', '#ff0000');
     expect(await getCssVar(page, '--md-h1-color')).toBe('#ff0000');
     await clickReset(page, 'reset-color');
@@ -408,8 +407,8 @@ test.describe('Reset buttons — cascade colors', () => {
 
   test('reset-p-color resumes cascade from ctrl-color', async ({ page }) => {
     await gotoStyleMode(page);
+    await openSection(page, 'body-colors');
     await setColorValue(page, 'ctrl-color', '#aabb00');
-    await openSection(page, 'body-paragraph');
     await setColorValue(page, 'ctrl-p-color', '#ccdd00');
     expect(await getCssVar(page, '--md-p-color')).toBe('#ccdd00');
     await clickReset(page, 'reset-p-color');
@@ -425,7 +424,7 @@ test.describe('Reset buttons — cascade colors', () => {
 test.describe('Reset buttons — standalone colors', () => {
   test('reset-link-color resets to light theme default', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-links');
+    await openSection(page, 'body-colors');
     await setColorValue(page, 'ctrl-link-color', '#ff0000');
     await clickReset(page, 'reset-link-color');
     const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-link-color'));
@@ -434,7 +433,8 @@ test.describe('Reset buttons — standalone colors', () => {
 
   test('reset-code-bg resets to theme default', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-code');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-code');
     await setColorValue(page, 'ctrl-code-bg', '#000000');
     await clickReset(page, 'reset-code-bg');
     const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-code-bg'));
@@ -443,7 +443,8 @@ test.describe('Reset buttons — standalone colors', () => {
 
   test('reset-code-color resets to theme default', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-code');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-code');
     await setColorValue(page, 'ctrl-code-color', '#000000');
     await clickReset(page, 'reset-code-color');
     const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-code-color'));
@@ -452,7 +453,8 @@ test.describe('Reset buttons — standalone colors', () => {
 
   test('reset-bq-border-color resets to theme default', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-blockquote');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-bq');
     await setColorValue(page, 'ctrl-bq-border-color', '#000000');
     await clickReset(page, 'reset-bq-border-color');
     const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-bq-border-color'));
@@ -461,7 +463,8 @@ test.describe('Reset buttons — standalone colors', () => {
 
   test('reset-bq-color resets to theme default', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-blockquote');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-bq');
     await setColorValue(page, 'ctrl-bq-color', '#000000');
     await clickReset(page, 'reset-bq-color');
     const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-bq-color'));
@@ -487,9 +490,9 @@ test.describe('Factory reset', () => {
 
   test('clears color overrides', async ({ page }) => {
     await gotoStyleMode(page);
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-headings');
     await setColorValue(page, 'ctrl-color', '#ff0000');
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-headers-general');
     await setColorValue(page, 'ctrl-h-color', '#00ff00');
     await page.locator('#factory-reset-styles').click();
     const defaultColor = await page.evaluate(() => SDocs.getColorDefault());
@@ -502,7 +505,7 @@ test.describe('Factory reset', () => {
 
   test('resets standalone colors to theme defaults', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-links');
+    await openSection(page, 'body-colors');
     await setColorValue(page, 'ctrl-link-color', '#ff0000');
     await page.locator('#factory-reset-styles').click();
     const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-link-color'));
@@ -613,13 +616,14 @@ test.describe('collectStyles roundtrip', () => {
   test('only overridden cascade colors appear in collected styles', async ({ page }) => {
     await gotoStyleMode(page);
     // Override h-color but not h1-color
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-headers-general');
+    await openSection(page, 'body-colors');
+    await openSubSection(page, 'sub-colors-headings');
     await setColorValue(page, 'ctrl-h-color', '#abcdef');
     const styles = await page.evaluate(() => SDocs.collectStyles());
-    expect(styles.headers.color).toBe('#abcdef');
+    // Colors go into the light: theme block (since overriddenColors is non-empty)
+    expect(styles.light.headers.color).toBe('#abcdef');
     // h1 should NOT have a color since it wasn't explicitly overridden
-    expect(styles.h1.color).toBeUndefined();
+    expect(styles.light.h1).toBeUndefined();
   });
 });
 

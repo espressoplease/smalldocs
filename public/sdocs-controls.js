@@ -44,14 +44,12 @@ function linkRangeNum(rangeId, numId) {
 
 SDocStyles.RANGE_NUM_PAIRS.forEach(function(pair) { linkRangeNum(pair[0], pair[1]); });
 
-var STANDALONE_COLOR_IDS = new Set([
-  'ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-color',
-]);
+var STANDALONE_COLOR_IDS = new Set(SDocStyles.STANDALONE_COLOR_IDS);
 
 [
   'ctrl-font-family','ctrl-h-font-family',
   'ctrl-h1-weight','ctrl-h2-weight','ctrl-h3-weight','ctrl-h4-weight',
-  'ctrl-link-color','ctrl-link-decoration',
+  'ctrl-bg-color','ctrl-link-color','ctrl-link-decoration',
   'ctrl-code-font','ctrl-code-bg','ctrl-code-color',
   'ctrl-bq-border-color','ctrl-bq-color',
 ].forEach(function(id) {
@@ -99,7 +97,7 @@ document.getElementById('reset-h4-color').addEventListener('click',   function()
 document.getElementById('reset-p-color').addEventListener('click',    function() { resetColorValue('ctrl-p-color'); S.syncAll('controls'); });
 document.getElementById('reset-list-color').addEventListener('click', function() { resetColorValue('ctrl-list-color'); S.syncAll('controls'); });
 
-['ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-color'].forEach(function(ctrlId) {
+['ctrl-bg-color','ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-color'].forEach(function(ctrlId) {
   var btnId = 'reset-' + ctrlId.replace('ctrl-', '');
   document.getElementById(btnId).addEventListener('click', function() {
     var defaultVal = S.getStandaloneDefault(ctrlId);
@@ -133,7 +131,6 @@ function applyStylesFromMeta(s) {
 
   var result = SDocStyles.stylesToControls(s);
   var controls = result.controls;
-  var newOverridden = result.overriddenColors;
 
   // Font family selects need special handling to match bare names against <option> values
   [['fontFamily', 'ctrl-font-family'], ['headers.fontFamily', 'ctrl-h-font-family']].forEach(function(pair) {
@@ -155,6 +152,22 @@ function applyStylesFromMeta(s) {
     setCtrl(id, controls[id]);
   });
 
+  if (result.hasThemeColors) {
+    // Per-theme color mode: populate both theme states
+    S.themeColors.light = result.lightColors || {};
+    S.themeColors.dark = result.darkColors || {};
+    S.themeOverridden.light = result.lightOverridden || new Set();
+    S.themeOverridden.dark = result.darkOverridden || new Set();
+
+    // Load the active theme's colors into controls
+    S._syncing = wasSyncing;
+    S.loadThemeColors(S.activeTheme);
+    return;
+  }
+
+  // Legacy single-theme path: top-level colors go to light theme
+  var newOverridden = result.overriddenColors;
+
   S.overriddenColors.clear();
   setColorValue('ctrl-color', S.getColorDefault(), false);
 
@@ -163,17 +176,68 @@ function applyStylesFromMeta(s) {
     setColorValue(id, controls[id], true);
   });
 
+  // Also apply standalone colors from legacy format
+  if (s.background) {
+    S.overriddenColors.add('ctrl-bg-color');
+    var elBg = document.getElementById('ctrl-bg-color');
+    if (elBg) { elBg.value = s.background; applyCtrl('ctrl-bg-color'); }
+  }
+  if (s.link && s.link.color) {
+    S.overriddenColors.add('ctrl-link-color');
+    var el = document.getElementById('ctrl-link-color');
+    if (el) { el.value = s.link.color; applyCtrl('ctrl-link-color'); }
+  }
+  if (s.code) {
+    if (s.code.background) {
+      S.overriddenColors.add('ctrl-code-bg');
+      var el2 = document.getElementById('ctrl-code-bg');
+      if (el2) { el2.value = s.code.background; applyCtrl('ctrl-code-bg'); }
+    }
+    if (s.code.color) {
+      S.overriddenColors.add('ctrl-code-color');
+      var el3 = document.getElementById('ctrl-code-color');
+      if (el3) { el3.value = s.code.color; applyCtrl('ctrl-code-color'); }
+    }
+  }
+  if (s.blockquote) {
+    if (s.blockquote.borderColor) {
+      S.overriddenColors.add('ctrl-bq-border-color');
+      var el4 = document.getElementById('ctrl-bq-border-color');
+      if (el4) { el4.value = s.blockquote.borderColor; applyCtrl('ctrl-bq-border-color'); }
+    }
+    if (s.blockquote.color) {
+      S.overriddenColors.add('ctrl-bq-color');
+      var el5 = document.getElementById('ctrl-bq-color');
+      if (el5) { el5.value = s.blockquote.color; applyCtrl('ctrl-bq-color'); }
+    }
+  }
+
   S._syncing = wasSyncing;
 }
 
 function collectStyles() {
+  S.saveCurrentThemeColors();
+  var lightHas = S.themeOverridden.light.size > 0;
+  var darkHas = S.themeOverridden.dark.size > 0;
+  if (lightHas || darkHas) {
+    return SDocStyles.collectStylesDual(
+      readAllControlValues(),
+      S.themeOverridden.light, S.themeOverridden.dark,
+      S.themeColors.light, S.themeColors.dark
+    );
+  }
   return SDocStyles.collectStyles(readAllControlValues(), S.overriddenColors);
 }
 
 // ── Reset all styles ──────────────────────────────────
 
 function resetAllStyles() {
-  S.overriddenColors.clear();
+  // Clear both theme states
+  S.themeOverridden.light.clear();
+  S.themeOverridden.dark.clear();
+  S.themeColors.light = {};
+  S.themeColors.dark = {};
+
   setColorValue('ctrl-color', S.getColorDefault(), false);
   // Set standalone color controls to theme-appropriate defaults
   STANDALONE_COLOR_IDS.forEach(function(ctrlId) {
@@ -186,7 +250,7 @@ function resetAllStyles() {
     else if (el.tagName === 'SELECT') el.selectedIndex = [].slice.call(el.options).findIndex(function(o) { return o.defaultSelected; });
     else if (el.type === 'color') el.value = el.defaultValue;
   });
-  ['ctrl-font-family','ctrl-base-size-num','ctrl-line-height-num',
+  ['ctrl-bg-color','ctrl-font-family','ctrl-base-size-num','ctrl-line-height-num',
    'ctrl-h-font-family','ctrl-h-scale-num','ctrl-h-mb-num',
    'ctrl-h1-size-num','ctrl-h1-weight','ctrl-h2-size-num','ctrl-h2-weight',
    'ctrl-h3-size-num','ctrl-h3-weight','ctrl-h4-size-num','ctrl-h4-weight',

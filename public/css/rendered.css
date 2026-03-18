@@ -6,6 +6,7 @@
   max-width: 760px;
   margin: 0 auto;
 
+  --md-bg:             #FFFFFF;
   --md-font-family:    'Inter', system-ui, sans-serif;
   --md-base-size:      16px;
   --md-line-height:    1.75;
@@ -55,6 +56,7 @@
   font-size: var(--md-base-size);
   color: var(--md-color);
   line-height: var(--md-line-height);
+  background-color: var(--md-bg);
 }
 :is(#rendered, #write) h1 {
   font-family: var(--md-h-font-family);

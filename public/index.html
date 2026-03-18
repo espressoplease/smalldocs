@@ -145,11 +145,112 @@
           <input type="range" id="ctrl-line-height-range" min="1.0" max="2.5" step="0.05" value="1.75">
           <input type="number" id="ctrl-line-height-num" min="1.0" max="2.5" step="0.05" value="1.75">
         </div>
+        <button class="factory-reset-btn" id="factory-reset-styles" title="Reset all styles to defaults">Reset all styles</button>
+      </div>
+    </div>
+
+    <!-- COLORS -->
+    <div class="panel-section">
+      <div class="panel-header" data-target="body-colors">
+        <span class="arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Colors
+      </div>
+      <div class="panel-body" id="body-colors">
+        <div id="theme-tabs">
+          <div class="toggle-group">
+            <button class="btn active" id="theme-tab-light">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              Light
+            </button>
+            <button class="btn" id="theme-tab-dark">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+              Dark
+            </button>
+          </div>
+        </div>
         <div class="control-row">
-          <label>Text color</label>
+          <label>Background</label>
+          <div class="color-pair"><input type="color" id="ctrl-bg-color" value="#ffffff"><button class="reset-btn" id="reset-bg-color" title="Reset to default">↺</button></div>
+        </div>
+        <div class="control-row">
+          <label>Text</label>
           <div class="color-pair"><input type="color" id="ctrl-color" value="#1c1917"><button class="reset-btn" id="reset-color" title="Reset to default">↺</button></div>
         </div>
-        <button class="factory-reset-btn" id="factory-reset-styles" title="Reset all styles to defaults">Reset all styles</button>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="sub-colors-headings">
+            <span class="arrow">▶</span> Headings
+          </div>
+          <div class="sub-body" id="sub-colors-headings">
+            <div class="control-row">
+              <label>All</label>
+              <div class="color-pair"><input type="color" id="ctrl-h-color" value="#1c1917"><button class="reset-btn" id="reset-h-color" title="Follow body text color">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>H1</label>
+              <div class="color-pair"><input type="color" id="ctrl-h1-color" value="#1c1917"><button class="reset-btn" id="reset-h1-color" title="Follow header color">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>H2</label>
+              <div class="color-pair"><input type="color" id="ctrl-h2-color" value="#1c1917"><button class="reset-btn" id="reset-h2-color" title="Follow header color">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>H3</label>
+              <div class="color-pair"><input type="color" id="ctrl-h3-color" value="#1c1917"><button class="reset-btn" id="reset-h3-color" title="Follow header color">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>H4</label>
+              <div class="color-pair"><input type="color" id="ctrl-h4-color" value="#1c1917"><button class="reset-btn" id="reset-h4-color" title="Follow header color">↺</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <label>Paragraph</label>
+          <div class="color-pair"><input type="color" id="ctrl-p-color" value="#1c1917"><button class="reset-btn" id="reset-p-color" title="Follow body text color">↺</button></div>
+        </div>
+        <div class="control-row">
+          <label>Lists</label>
+          <div class="color-pair"><input type="color" id="ctrl-list-color" value="#1c1917"><button class="reset-btn" id="reset-list-color" title="Follow paragraph color">↺</button></div>
+        </div>
+        <div class="control-row">
+          <label>Link</label>
+          <div class="color-pair"><input type="color" id="ctrl-link-color" value="#2563eb"><button class="reset-btn" id="reset-link-color" title="Reset to default">↺</button></div>
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="sub-colors-code">
+            <span class="arrow">▶</span> Code
+          </div>
+          <div class="sub-body" id="sub-colors-code">
+            <div class="control-row">
+              <label>Background</label>
+              <div class="color-pair"><input type="color" id="ctrl-code-bg" value="#f4f1ed"><button class="reset-btn" id="reset-code-bg" title="Reset to default">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Text</label>
+              <div class="color-pair"><input type="color" id="ctrl-code-color" value="#6b21a8"><button class="reset-btn" id="reset-code-color" title="Reset to default">↺</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="sub-colors-bq">
+            <span class="arrow">▶</span> Blockquote
+          </div>
+          <div class="sub-body" id="sub-colors-bq">
+            <div class="control-row">
+              <label>Border</label>
+              <div class="color-pair"><input type="color" id="ctrl-bq-border-color" value="#2563eb"><button class="reset-btn" id="reset-bq-border-color" title="Reset to default">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Text</label>
+              <div class="color-pair"><input type="color" id="ctrl-bq-color" value="#6b6560"><button class="reset-btn" id="reset-bq-color" title="Reset to default">↺</button></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -183,10 +284,6 @@
               <input type="number" id="ctrl-h-mb-num" min="0" max="2" step="0.1" value="0.4">
               <span class="unit">em</span>
             </div>
-            <div class="control-row">
-              <label>Color</label>
-              <div class="color-pair"><input type="color" id="ctrl-h-color" value="#1c1917"><button class="reset-btn" id="reset-h-color" title="Follow body text color">↺</button></div>
-            </div>
           </div>
         </div>
 
@@ -200,10 +297,6 @@
               <input type="range" id="ctrl-h1-size-range" min="1" max="4" step="0.1" value="2.1">
               <input type="number" id="ctrl-h1-size-num" min="1" max="4" step="0.1" value="2.1">
               <span class="unit">em</span>
-            </div>
-            <div class="control-row">
-              <label>Color</label>
-              <div class="color-pair"><input type="color" id="ctrl-h1-color" value="#1c1917"><button class="reset-btn" id="reset-h1-color" title="Follow header color">↺</button></div>
             </div>
             <div class="control-row">
               <label>Weight</label>
@@ -230,10 +323,6 @@
               <span class="unit">em</span>
             </div>
             <div class="control-row">
-              <label>Color</label>
-              <div class="color-pair"><input type="color" id="ctrl-h2-color" value="#1c1917"><button class="reset-btn" id="reset-h2-color" title="Follow header color">↺</button></div>
-            </div>
-            <div class="control-row">
               <label>Weight</label>
               <select id="ctrl-h2-weight">
                 <option value="400">Regular</option>
@@ -257,10 +346,6 @@
               <span class="unit">em</span>
             </div>
             <div class="control-row">
-              <label>Color</label>
-              <div class="color-pair"><input type="color" id="ctrl-h3-color" value="#1c1917"><button class="reset-btn" id="reset-h3-color" title="Follow header color">↺</button></div>
-            </div>
-            <div class="control-row">
               <label>Weight</label>
               <select id="ctrl-h3-weight">
                 <option value="400">Regular</option>
@@ -282,10 +367,6 @@
               <input type="range" id="ctrl-h4-size-range" min="0.8" max="2" step="0.1" value="1.0">
               <input type="number" id="ctrl-h4-size-num" min="0.8" max="2" step="0.1" value="1.0">
               <span class="unit">em</span>
-            </div>
-            <div class="control-row">
-              <label>Color</label>
-              <div class="color-pair"><input type="color" id="ctrl-h4-color" value="#1c1917"><button class="reset-btn" id="reset-h4-color" title="Follow header color">↺</button></div>
             </div>
             <div class="control-row">
               <label>Weight</label>
@@ -312,10 +393,6 @@
       </div>
       <div class="panel-body" id="body-paragraph">
         <div class="control-row">
-          <label>Color</label>
-          <div class="color-pair"><input type="color" id="ctrl-p-color" value="#1c1917"><button class="reset-btn" id="reset-p-color" title="Follow body text color">↺</button></div>
-        </div>
-        <div class="control-row">
           <label>Line height</label>
           <input type="range" id="ctrl-p-lh-range" min="1.0" max="2.5" step="0.05" value="1.75">
           <input type="number" id="ctrl-p-lh-num" min="1.0" max="2.5" step="0.05" value="1.75">
@@ -338,10 +415,6 @@
         Lists
       </div>
       <div class="panel-body" id="body-lists">
-        <div class="control-row">
-          <label>Color</label>
-          <div class="color-pair"><input type="color" id="ctrl-list-color" value="#1c1917"><button class="reset-btn" id="reset-list-color" title="Follow paragraph color">↺</button></div>
-        </div>
         <div class="control-row">
           <label>Item spacing</label>
           <input type="range" id="ctrl-list-spacing-range" min="0" max="1.5" step="0.05" value="0.3">
@@ -366,10 +439,6 @@
         Links
       </div>
       <div class="panel-body" id="body-links">
-        <div class="control-row">
-          <label>Color</label>
-          <div class="color-pair"><input type="color" id="ctrl-link-color" value="#2563eb"><button class="reset-btn" id="reset-link-color" title="Reset to default">↺</button></div>
-        </div>
         <div class="control-row">
           <label>Decoration</label>
           <select id="ctrl-link-decoration">
@@ -401,14 +470,6 @@
             <option value="monospace">System mono</option>
           </select>
         </div>
-        <div class="control-row">
-          <label>Background</label>
-          <div class="color-pair"><input type="color" id="ctrl-code-bg" value="#f4f1ed"><button class="reset-btn" id="reset-code-bg" title="Reset to default">↺</button></div>
-        </div>
-        <div class="control-row">
-          <label>Text color</label>
-          <div class="color-pair"><input type="color" id="ctrl-code-color" value="#6b21a8"><button class="reset-btn" id="reset-code-color" title="Reset to default">↺</button></div>
-        </div>
       </div>
     </div>
 
@@ -422,10 +483,6 @@
       </div>
       <div class="panel-body" id="body-blockquote">
         <div class="control-row">
-          <label>Border color</label>
-          <div class="color-pair"><input type="color" id="ctrl-bq-border-color" value="#2563eb"><button class="reset-btn" id="reset-bq-border-color" title="Reset to default">↺</button></div>
-        </div>
-        <div class="control-row">
           <label>Border width</label>
           <input type="range" id="ctrl-bq-bw-range" min="1" max="8" step="1" value="3">
           <input type="number" id="ctrl-bq-bw-num" min="1" max="8" value="3">
@@ -436,10 +493,6 @@
           <input type="range" id="ctrl-bq-size-range" min="0.7" max="1.5" step="0.05" value="1.0">
           <input type="number" id="ctrl-bq-size-num" min="0.7" max="1.5" step="0.05" value="1.0">
           <span class="unit">em</span>
-        </div>
-        <div class="control-row">
-          <label>Text color</label>
-          <div class="color-pair"><input type="color" id="ctrl-bq-color" value="#6b6560"><button class="reset-btn" id="reset-bq-color" title="Reset to default">↺</button></div>
         </div>
       </div>
     </div>

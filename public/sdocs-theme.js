@@ -49,6 +49,7 @@ function populateFontSelect(sel, includeInherit) {
 // ── Dark mode ──────────────────────────────────
 
 const LIGHT_DEFAULTS = {
+  bgColor:       '#ffffff',
   colorDefault:  '#1c1917',
   codeBg:        '#f4f1ed',
   codeColor:     '#6b21a8',
@@ -58,6 +59,7 @@ const LIGHT_DEFAULTS = {
 };
 
 const DARK_DEFAULTS = {
+  bgColor:       '#1c1a17',
   colorDefault:  '#e7e5e2',
   codeBg:        '#1a1816',
   codeColor:     '#b8a99a',
@@ -68,6 +70,10 @@ const DARK_DEFAULTS = {
 
 function getThemeDefaults() {
   return document.documentElement.dataset.theme === 'dark' ? DARK_DEFAULTS : LIGHT_DEFAULTS;
+}
+
+function getThemeDefaultsFor(theme) {
+  return theme === 'dark' ? DARK_DEFAULTS : LIGHT_DEFAULTS;
 }
 
 function getColorDefault() {
@@ -90,14 +96,87 @@ function updateThemeIcon(theme) {
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
+  S.activeTheme = theme;
   localStorage.setItem('sdocs-theme', theme);
   updateThemeIcon(theme);
 }
 
+// ── Per-theme color save/load ──────────────────────
+
+function saveCurrentThemeColors() {
+  var theme = S.activeTheme;
+  var colors = S.themeColors[theme];
+  // Save all 13 color control values
+  SDocStyles.ALL_COLOR_IDS.forEach(function(ctrlId) {
+    var el = document.getElementById(ctrlId);
+    if (el) colors[ctrlId] = el.value;
+  });
+}
+
+function loadThemeColors(theme) {
+  var colors = S.themeColors[theme];
+  var overridden = S.themeOverridden[theme];
+  var defaults = getThemeDefaultsFor(theme);
+
+  // Cascade root first
+  if (overridden.has('ctrl-color')) {
+    S.setColorValue('ctrl-color', colors['ctrl-color'], true);
+  } else {
+    S.setColorValue('ctrl-color', defaults.colorDefault, false);
+  }
+
+  // Then cascade children that are overridden
+  var cascadeIds = Object.keys(SDocStyles.COLOR_VAR_MAP);
+  cascadeIds.forEach(function(ctrlId) {
+    if (ctrlId === 'ctrl-color') return; // already handled
+    if (overridden.has(ctrlId)) {
+      S.setColorValue(ctrlId, colors[ctrlId], true);
+    }
+    // Non-overridden cascade children are already set by cascade from parent
+  });
+
+  // Standalone colors
+  var standaloneMap = {
+    'ctrl-bg-color':        defaults.bgColor,
+    'ctrl-link-color':      defaults.linkColor,
+    'ctrl-code-bg':         defaults.codeBg,
+    'ctrl-code-color':      defaults.codeColor,
+    'ctrl-bq-border-color': defaults.bqBorderColor,
+    'ctrl-bq-color':        defaults.bqColor,
+  };
+  for (var ctrlId in standaloneMap) {
+    var el = document.getElementById(ctrlId);
+    if (!el) continue;
+    if (overridden.has(ctrlId)) {
+      el.value = colors[ctrlId];
+    } else {
+      el.value = standaloneMap[ctrlId];
+    }
+    var allVals = S.readAllControlValues();
+    SDocStyles.controlToCssVars(ctrlId, el.value, allVals)
+      .forEach(function(a) { S.setStyleVar(a.cssVar, a.value); });
+  }
+}
+
+function updateThemeTabs(theme) {
+  var lightTab = document.getElementById('theme-tab-light');
+  var darkTab = document.getElementById('theme-tab-dark');
+  if (lightTab) lightTab.classList.toggle('active', theme === 'light');
+  if (darkTab) darkTab.classList.toggle('active', theme === 'dark');
+}
+
+function switchThemeAndUpdate(theme) {
+  if (theme === S.activeTheme) return;
+  saveCurrentThemeColors();
+  applyTheme(theme);
+  loadThemeColors(theme);
+  updateThemeTabs(theme);
+  S.syncAll('controls');
+}
+
 function toggleTheme() {
-  const current = document.documentElement.dataset.theme;
-  applyTheme(current === 'dark' ? 'light' : 'dark');
-  updateDefaultColors();
+  var current = S.activeTheme;
+  switchThemeAndUpdate(current === 'dark' ? 'light' : 'dark');
 }
 
 function updateDefaultColors() {
@@ -108,6 +187,7 @@ function updateDefaultColors() {
   }
   // Update standalone color defaults for reset buttons
   const standaloneMap = {
+    'ctrl-bg-color':        defaults.bgColor,
     'ctrl-link-color':      defaults.linkColor,
     'ctrl-code-bg':         defaults.codeBg,
     'ctrl-code-color':      defaults.codeColor,
@@ -131,6 +211,7 @@ function updateDefaultColors() {
 function getStandaloneDefault(ctrlId) {
   const d = getThemeDefaults();
   const map = {
+    'ctrl-bg-color':        d.bgColor,
     'ctrl-link-color':      d.linkColor,
     'ctrl-code-bg':         d.codeBg,
     'ctrl-code-color':      d.codeColor,
@@ -142,12 +223,12 @@ function getStandaloneDefault(ctrlId) {
 
 // ── Init at load time ──────────────────────────────────
 
-applyTheme(getPreferredTheme());
+var initTheme = getPreferredTheme();
+applyTheme(initTheme);
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
   if (!localStorage.getItem('sdocs-theme')) {
-    applyTheme(e.matches ? 'dark' : 'light');
-    updateDefaultColors();
+    switchThemeAndUpdate(e.matches ? 'dark' : 'light');
   }
 });
 
@@ -160,9 +241,14 @@ populateFontSelect(document.getElementById('ctrl-h-font-family'), true);
 S.GOOGLE_FONTS = GOOGLE_FONTS;
 S.loadGoogleFont = loadGoogleFont;
 S.getThemeDefaults = getThemeDefaults;
+S.getThemeDefaultsFor = getThemeDefaultsFor;
 S.getColorDefault = getColorDefault;
 S.getStandaloneDefault = getStandaloneDefault;
 S.updateDefaultColors = updateDefaultColors;
 S.toggleTheme = toggleTheme;
+S.switchThemeAndUpdate = switchThemeAndUpdate;
+S.saveCurrentThemeColors = saveCurrentThemeColors;
+S.loadThemeColors = loadThemeColors;
+S.updateThemeTabs = updateThemeTabs;
 
 })();

@@ -83,6 +83,8 @@ GENERAL
                          Default: "Inter"
   baseFontSize  number   Base font size in px. All rem/em values scale from this.
                          Default: 16
+  background    string   Page background color (hex).
+                         Default: "#ffffff" (light) / "#1c1a17" (dark)
   color         string   Master body text color (hex). Cascades to headings,
                          paragraphs, and lists unless those are overridden.
                          Default: "#1c1917"
@@ -141,6 +143,30 @@ COLOR CASCADE
     color  →  p.color        →  list.color
   Set a child color only when you want it to differ from its parent.
 
+THEME COLORS
+  Colors can be set per-theme using \`light:\` and \`dark:\` sub-blocks under \`styles:\`.
+  Non-color properties (fonts, sizes, spacing, weights) remain at the top level
+  and are shared across both themes.
+
+  ---
+  styles:
+    fontFamily: Lora
+    baseFontSize: 17
+    light:
+      background: "#ffffff"
+      color: "#1a1a2e"
+      h1: { color: "#c0392b" }
+      link: { color: "#2563eb" }
+    dark:
+      background: "#1c1a17"
+      color: "#e7e5e2"
+      h1: { color: "#ef6f5e" }
+      link: { color: "#60a5fa" }
+  ---
+
+  Top-level colors (old format) are treated as light-theme colors for
+  backwards compatibility.
+
 FONTS (24 supported, loaded lazily from Google Fonts)
   Inter · Roboto · Open Sans · Lato · Montserrat · Source Sans 3
   Oswald · Raleway · Poppins · Merriweather · Ubuntu · Nunito
@@ -152,15 +178,28 @@ EXAMPLE — editorial article with colored heading tiers
   styles:
     fontFamily: Lora
     baseFontSize: 17
-    color: "#1a1a2e"
-    headers:
-      color: "#2c3e50"
-    h1: { fontSize: 2.3, color: "#c0392b", fontWeight: 700 }
-    h2: { fontSize: 1.55, color: "#8e44ad", fontWeight: 600 }
-    h3: { fontSize: 1.2, color: "#16a085", fontWeight: 600 }
+    h1: { fontSize: 2.3, fontWeight: 700 }
+    h2: { fontSize: 1.55, fontWeight: 600 }
+    h3: { fontSize: 1.2, fontWeight: 600 }
     p: { lineHeight: 1.9, marginBottom: 1.2 }
-    link: { color: "#e67e22", decoration: "underline" }
-    blockquote: { borderColor: "#c0392b", borderWidth: 4, color: "#7f8c8d" }
+    light:
+      background: "#fffaf5"
+      color: "#1a1a2e"
+      headers: { color: "#2c3e50" }
+      h1: { color: "#c0392b" }
+      h2: { color: "#8e44ad" }
+      h3: { color: "#16a085" }
+      link: { color: "#e67e22", decoration: "underline" }
+      blockquote: { borderColor: "#c0392b", borderWidth: 4, color: "#7f8c8d" }
+    dark:
+      background: "#1a1520"
+      color: "#e7e5e2"
+      headers: { color: "#b0aaa5" }
+      h1: { color: "#ef6f5e" }
+      h2: { color: "#c490e4" }
+      h3: { color: "#5ed4b8" }
+      link: { color: "#f0a860", decoration: "underline" }
+      blockquote: { borderColor: "#ef6f5e", borderWidth: 4, color: "#9e9590" }
   ---
 `;
 
@@ -310,13 +349,23 @@ function resetDefaults() {
 }
 
 // Deep merge: defaults under file styles (file wins on conflict)
+// Recursive for light:/dark: sub-objects that contain nested objects
 function mergeStyles(defaults, fileStyles) {
   if (!defaults) return fileStyles || {};
   if (!fileStyles) return { ...defaults };
   const merged = { ...defaults };
   for (const [k, v] of Object.entries(fileStyles)) {
     if (typeof v === 'object' && v !== null && typeof merged[k] === 'object' && merged[k] !== null) {
-      merged[k] = { ...merged[k], ...v };
+      // Recurse one level deeper for light/dark blocks that contain nested objects (e.g. h1: { color: ... })
+      const inner = { ...merged[k] };
+      for (const [ik, iv] of Object.entries(v)) {
+        if (typeof iv === 'object' && iv !== null && typeof inner[ik] === 'object' && inner[ik] !== null) {
+          inner[ik] = { ...inner[ik], ...iv };
+        } else {
+          inner[ik] = iv;
+        }
+      }
+      merged[k] = inner;
     } else {
       merged[k] = v;
     }

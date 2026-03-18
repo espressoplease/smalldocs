@@ -147,6 +147,7 @@ function render() {
   S.renderedEl.querySelectorAll('.md-section > h2, .md-section > h3, .md-section > h4').forEach(function(heading) {
     heading.addEventListener('click', function(e) {
       if (e.target.closest('.header-anchor') || e.target.closest('.header-copy-btn')) return;
+      var yBefore = heading.getBoundingClientRect().top;
       var section = heading.closest('.md-section');
       var body = section.querySelector('.md-section-body');
       var toggle = section.querySelector('.section-toggle');
@@ -154,6 +155,10 @@ function render() {
       toggle.classList.toggle('open', isOpen);
       body.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.toggle('open', isOpen); });
       body.querySelectorAll('.section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
+      var yAfter = heading.getBoundingClientRect().top;
+      if (yAfter !== yBefore) {
+        contentArea.scrollTop += yAfter - yBefore;
+      }
     });
   });
 }
@@ -366,6 +371,8 @@ function setMode(mode, skipHash) {
 }
 
 document.getElementById('btn-theme').addEventListener('click', function() { S.toggleTheme(); });
+document.getElementById('theme-tab-light').addEventListener('click', function() { S.switchThemeAndUpdate('light'); });
+document.getElementById('theme-tab-dark').addEventListener('click', function() { S.switchThemeAndUpdate('dark'); });
 document.getElementById('btn-read').addEventListener('click',   function() { setMode('read'); });
 document.getElementById('btn-style').addEventListener('click',  function() { setMode('style'); });
 document.getElementById('btn-write').addEventListener('click',  function() { setMode('write'); });
@@ -465,6 +472,9 @@ S.setStatus = setStatus;
 S.setMode = setMode;
 S.render = render;
 S.loadText = loadText;
+
+// Sync theme tabs to initial theme
+S.updateThemeTabs(S.activeTheme);
 
 // ── Init ──────────────────────────────────
 

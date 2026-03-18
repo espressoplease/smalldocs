@@ -51,11 +51,22 @@ SDocs uses a `styles:` key with CSS properties written beneath it in YAML:
 styles:
   fontFamily: Lora
   baseFontSize: 17
-  color: "#1a1a2e"
-  h1: { fontSize: 2.3, color: "#c0392b", fontWeight: 700 }
+  h1: { fontSize: 2.3, fontWeight: 700 }
   p: { lineHeight: 1.9, marginBottom: 1.2 }
+  light:
+    background: "#fffaf5"
+    color: "#1a1a2e"
+    h1: { color: "#c0392b" }
+  dark:
+    background: "#1a1520"
+    color: "#e7e5e2"
+    h1: { color: "#ef6f5e" }
 ---
 ```
+
+Non-color properties (fonts, sizes, spacing) are shared across themes and live at the top level. Colors live inside `light:` and `dark:` blocks so both themes render correctly.
+
+All color controls are in the **Colors** section of the style panel. The light/dark toggle at the top of that section lets you customize each theme independently. Colors cascade from general to specific — set `color` once and it flows to headings, paragraphs, and lists unless you override them individually.
 
 (Click "**Raw**" — top left — to see the front matter for this file. See all available properties [here](https://sdocs.dev) or by running `npm i sdocs-dev; sdoc schema`.)
 

@@ -185,6 +185,7 @@ body {
   flex: 1;
   overflow: auto;
   position: relative;
+  background-color: var(--bg);
 }
 
 /* drag overlay */
