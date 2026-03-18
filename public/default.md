@@ -1,19 +1,3 @@
----
-styles:
-  fontFamily: "Inter"
-  baseFontSize: 16
-  lineHeight: 1.75
-  headers: { fontFamily: "inherit", scale: 1, marginBottom: 0.4 }
-  h1: { fontSize: 2.1, fontWeight: 700 }
-  h2: { fontSize: 1.55, fontWeight: 600 }
-  h3: { fontSize: 1.2, fontWeight: 600 }
-  h4: { fontSize: 1, fontWeight: 600 }
-  p: { lineHeight: 1.75, marginBottom: 1.1 }
-  link: { color: "#2563eb", decoration: "underline" }
-  code: { font: "JetBrains Mono", background: "#f4f1ed", color: "#6b21a8" }
-  blockquote: { borderColor: "#2563eb", borderWidth: 3, fontSize: 1, color: "#6b6560" }
-  list: { spacing: 0.3, indent: 1.6 }
----
 # Say hello to SmallDocs: A markdown-first replacement for Word & GDocs
 
 If you're working with agents, a document written in markdown is <ins>officially</ins>* 407 times more useful than a document locked inside a `.docx` or `.gdoc` file format. Because of this, I believe Word and GDocs' days are numbered. (*I am the official.)
