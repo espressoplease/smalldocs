@@ -96,6 +96,19 @@ styles:
   baseFontSize: 17
   h1: { fontSize: 2.3, fontWeight: 700 }
   p: { lineHeight: 1.9, marginBottom: 1.2 }
+  ...
+---
+```
+
+(Click "**Raw**" — top left — to see the front matter for this file. See all available properties [here](https://sdocs.dev) or by running `npm i sdocs-dev; sdoc schema`.)
+
+When a `Styled .md` file is rendered in the SmallDocs interface the specified styles are applied. If a plain `.md` file is rendered the default styles are applied.
+
+#### Style light & dark modes
+
+You can nest styles in `light` and `dark` keys: 
+
+```
   light:
     background: "#fffaf5"
     color: "#1a1a2e"
@@ -104,16 +117,13 @@ styles:
     background: "#1a1520"
     color: "#e7e5e2"
     h1: { color: "#ef6f5e" }
----
 ```
 
-Non-color properties (fonts, sizes, spacing) are shared across themes and live at the top level. Colors live inside `light:` and `dark:` blocks so both themes render correctly.
+These will be used when you view the site in each mode.
+
+Non-color properties (fonts, sizes, spacing) are shared across themes and live at the top level.
 
 All color controls are in the **Colors** section of the style panel. The light/dark toggle at the top of that section lets you customize each theme independently. Colors cascade from general to specific — set `color` once and it flows to headings, paragraphs, and lists unless you override them individually.
-
-(Click "**Raw**" — top left — to see the front matter for this file. See all available properties [here](https://sdocs.dev) or by running `npm i sdocs-dev; sdoc schema`.)
-
-When a `Styled .md` file is rendered in the SmallDocs interface the specified styles are applied. If a plain `.md` file is rendered the default styles are applied.
 
 ### Drag & drop
 
