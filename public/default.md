@@ -101,7 +101,15 @@ The `sec` value is the heading text slugified (lowercased, spaces become hyphens
 
 ### Privacy
 
-Your document never hits the SDocs server. This layer of privacy is built into how HTTP works. The hash fragment (everything after the `#` in a URL) is never sent to the server by the browser. It always stays entirely client-side:
+Because the SmallDocs url format is:
+
+```
+https://sdocs.dev/#md={compressed & encoded .md}
+```
+
+Your document never hits the SDocs server. 
+
+This layer of privacy is built into how HTTP works. The hash fragment (everything after the `#` in a URL) is never sent to the server by the browser. It always stays entirely client-side:
 
 > "The fragment is not sent to the server when the URI is requested; it is processed by the client" - [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Fragment)
 
@@ -123,6 +131,22 @@ SmallDocs can export your document in four formats:
 - **PDF** — a styled PDF generated from the rendered view via the browser's print engine.
 - **Word (.docx)** — a styled Word document generated from the rendered HTML.
 - **Styled .md** — your markdown with the `styles:` front matter block included. This is the format SmallDocs reads back in, so your formatting is preserved.
+
+### Small opinionated things
+
+SmallDocs has opinions. We do some things which might not work for everyone but hopefully make the general `.md` experience better for most.
+
+We welcome your opinions. Raise an issue on GitHub or make a pull request if you want something to change.
+
+#### Collapsed headers
+
+SmallDocs loads with all headers collapsed. This is done because it makes it easy to get an overview of the whole document.
+
+If you expand a parent, all of its children expand too.
+
+#### Copy & paste
+
+Every header has its own copy and paste button. This copies its content and all of its children's content. At the moment this is the fastest way to get SmallDoc content into your agent's context, but we're looking for novel ideas to make this better.
 
 ## The CLI
 
@@ -210,18 +234,3 @@ The CLI is designed to work well in automated workflows. A few patterns:
 - **Deep-link to context**: `sdoc share file.md --section "Heading"` creates a URL that scrolls straight to the relevant section
 - **No auth, no API keys**: everything is client-side — the URL *is* the document
 
-### Small opinionated things
-
-SmallDocs has opinions. We do some things which might not work for everyone but hopefully make the general `.md` experience better for most.
-
-We welcome your opinions. Raise an issue on GitHub or make a pull request if you want something to change.
-
-#### Collapsed headers
-
-SmallDocs loads with all headers collapsed. This is done because it makes it easy to get an overview of the whole document.
-
-If you expand a parent, all of its children expand too.
-
-#### Copy & paste
-
-Every header has its own copy and paste button. This copies its content and all of its children's content. At the moment this is the fastest way to get SmallDoc content into your agent's context, but we're looking for novel ideas to make this better.
