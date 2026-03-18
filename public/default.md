@@ -74,14 +74,6 @@ This layer of privacy is built into how HTTP works. The hash fragment (everythin
 
 The [sdocs.dev](https://sdocs.dev) site is purely a rendering space. JavaScript reads `window.location.hash`, decompresses and decodes the content, and renders your `.md` locally. The server is about 60 lines of Node.js that serves static files — no database, no logging, no analytics.
 
-### Auto-save
-
-Because the URL includes your full document and dynamically updates via JavaScript, every change you make is instantly preserved in the URL. This works when you're offline.
-
-### Offline editing
-
-`https://sdocs.dev` uses extensive client side caching. If you've loaded the site once, you can visit it even when you're offline. If something has changed server side, we invalidate the cache and the next time you visit the site you'll get the latest version.
-
 ### Formatting
 
 SDocs adds basic styling to markdown files. You write your content in regular markdown and the styles live in a metadata block at the top of the file.
@@ -145,6 +137,14 @@ If you expand a parent, all of its children expand too.
 ### Copy & paste
 
 Every header has its own copy and paste button. This copies its content and all of its children's content. At the moment this is the fastest way to get SmallDoc content into your agent's context, but we're looking for novel ideas to make this better.
+
+### Works offline
+
+`https://sdocs.dev` uses extensive client side caching. If you've loaded the site once, you can visit it even when you're offline. If something has changed server side, we invalidate the cache and the next time you visit the site you'll get the latest version.
+
+### Auto-save
+
+Because the URL includes your full document and dynamically updates via JavaScript, every change you make is instantly preserved in the URL. This works when you're offline.
 
 ## The CLI
 
