@@ -15,7 +15,49 @@ const zlib = require('zlib');
 const { execSync } = require('child_process');
 const SDocYaml = require('../public/sdocs-yaml.js');
 
+const https = require('https');
+const os    = require('os');
+
 const DEFAULT_URL = 'https://sdocs.dev';
+const VERSION = require('../package.json').version;
+
+// ── Update check (cached, every 3 days) ──────────────────
+
+const UPDATE_CACHE = path.join(os.homedir(), '.config', 'sdocs-dev', 'update-check.json');
+const THREE_DAYS = 3 * 86400000;
+
+function checkForUpdate() {
+  if (!process.stdout.isTTY || process.env.NO_UPDATE_NOTIFIER || process.env.CI) return;
+
+  // Skip if checked recently
+  try {
+    if (Date.now() - fs.statSync(UPDATE_CACHE).mtimeMs < THREE_DAYS) return;
+  } catch (_) {}
+
+  console.log('Checking for updates...');
+  https.get('https://registry.npmjs.org/-/package/sdocs-dev/dist-tags', { timeout: 3000 }, res => {
+    let data = '';
+    res.on('data', chunk => { data += chunk; });
+    res.on('end', () => {
+      try {
+        const latest = JSON.parse(data).latest;
+        // Update cache timestamp
+        fs.mkdirSync(path.dirname(UPDATE_CACHE), { recursive: true });
+        fs.writeFileSync(UPDATE_CACHE, JSON.stringify({ latest }));
+
+        const a = latest.split('.').map(Number);
+        const b = VERSION.split('.').map(Number);
+        let newer = false;
+        for (let i = 0; i < 3; i++) { if (a[i] > b[i]) { newer = true; break; } if (a[i] < b[i]) break; }
+        if (newer) {
+          console.log(`Update available: ${VERSION} \u2192 ${latest} \u2014 run \`npm i -g sdocs-dev\` to update`);
+        } else {
+          console.log(`Up to date (v${VERSION})`);
+        }
+      } catch (_) {}
+    });
+  }).on('error', () => {}).on('timeout', function () { this.destroy(); });
+}
 
 // ── Help ───────────────────────────────────────────────────
 const HELP = `
@@ -473,12 +515,14 @@ if (require.main === module) {
       } catch (_) {
         process.stdout.write(url + '\n');
       }
-      process.exit(0);
+      checkForUpdate();
+      return;
     }
 
     // Default: open browser
     openBrowser(url);
     console.log(`SDocs → ${url.length > 80 ? url.slice(0, 77) + '...' : url}`);
+    checkForUpdate();
   })().catch(e => {
     console.error('sdoc:', e.message);
     process.exit(1);
