@@ -3,7 +3,7 @@
  * sdoc CLI
  * Usage:
  *   sdoc report.md              # open file in browser
- *   sdoc share report.md        # shareable URL (copied to clipboard)
+ *   sdoc share report.md        # copy shareable link to clipboard
  *   sdoc new                    # blank document in write mode
  *   cat file.md | sdoc          # pipe markdown to browser
  *   sdoc                        # open studio with empty editor
@@ -29,14 +29,14 @@ USAGE
   sdoc <file> --style              Open with style panel
   sdoc <file> --raw                Open raw markdown source
   sdoc new                         New blank document (write mode)
-  sdoc share <file>                Shareable URL (copied to clipboard)
-  sdoc share <file> --section "X"  URL with section anchor
+  sdoc share <file>                Copy shareable link to clipboard
+  sdoc share <file> --section "X"  Link with section anchor
   sdoc schema                      Print the full styles schema
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
   sdoc help                        Show this help
   cat file.md | sdoc               Pipe markdown from stdin
-  cat file.md | sdoc share         Pipe to shareable URL (clipboard)
+  cat file.md | sdoc share         Pipe to clipboard link
 
 MODE FLAGS
   --read     Clean reading view (default when file given)
@@ -461,16 +461,18 @@ if (require.main === module) {
       section: opts.section,
     });
 
-    // Share: print URL and copy to clipboard
+    // Share: copy to clipboard
     if (opts.subcommand === 'share') {
-      process.stdout.write(url + '\n');
       try {
         const clip = process.platform === 'darwin' ? 'pbcopy'
           : execSync('which xclip 2>/dev/null', { encoding: 'utf-8' }).trim() ? 'xclip -selection clipboard'
           : 'xsel --clipboard --input';
         execSync(clip, { input: url, stdio: ['pipe', 'ignore', 'ignore'] });
-        console.error('Copied to clipboard.');
-      } catch (_) {}
+        const name = opts.file ? path.basename(opts.file) : 'stdin';
+        console.log(`\u2713 Link for ${name} copied to clipboard`);
+      } catch (_) {
+        process.stdout.write(url + '\n');
+      }
       process.exit(0);
     }
 

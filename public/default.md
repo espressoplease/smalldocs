@@ -158,7 +158,7 @@ sdoc README.md --raw        # raw mode (plain markdown source)
 sdoc share README.md
 ```
 
-This prints a shareable URL and copies it to your clipboard — no browser opens. The entire document is compressed into the URL hash, so there's nothing to host or upload. Pipe it wherever you need it:
+This copies a shareable link to your clipboard — no browser opens, no URL printed. The entire document is compressed into the URL hash, so there's nothing to host or upload. You can also combine it with options:
 
 ```
 sdoc share report.md --section "Results" # deep-link to a heading
@@ -171,7 +171,7 @@ Any command that outputs markdown can be piped directly into SmallDocs:
 
 ```
 cat notes.md | sdoc                     # open in browser
-cat notes.md | sdoc share               # get a shareable URL
+cat notes.md | sdoc share               # pipe to clipboard link
 your-agent --output md | sdoc           # pipe agent output to browser
 ```
 
@@ -204,7 +204,7 @@ Prints every available style property with its type, default value, and descript
 
 The CLI is designed to work well in automated workflows. A few patterns:
 
-- **Generate a styled doc**: have your agent write a `.md` file with YAML front matter, then `sdoc share file.md` to get a URL
+- **Generate a styled doc**: have your agent write a `.md` file with YAML front matter, then `sdoc share file.md` to copy a shareable link
 - **Learn the format**: `sdoc schema` gives your agent everything it needs to know about available style properties
 - **Deep-link to context**: `sdoc share file.md --section "Heading"` creates a URL that scrolls straight to the relevant section
 - **No auth, no API keys**: everything is client-side — the URL *is* the document
