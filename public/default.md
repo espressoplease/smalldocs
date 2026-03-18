@@ -1,17 +1,18 @@
 ---
 styles:
-  fontFamily: Lora
-  baseFontSize: 17
-  h1: { fontSize: 2.3, fontWeight: 700 }
-  p: { lineHeight: 1.9, marginBottom: 1.2 }
+  fontFamily: Inter
+  baseFontSize: 16
+  lineHeight: 1.75
+  h1: { fontSize: 2.1, fontWeight: 700 }
+  h2: { fontSize: 1.55, fontWeight: 600 }
+  h3: { fontSize: 1.2, fontWeight: 600 }
+  p: { lineHeight: 1.75, marginBottom: 1 }
   light:
-    background: "#fffaf5"
-    color: "#1a1a2e"
-    h1: { color: "#c0392b" }
+    background: "#ffffff"
+    color: "#1c1917"
   dark:
-    background: "#1a1520"
+    background: "#2c2a26"
     color: "#e7e5e2"
-    h1: { color: "#ef6f5e" }
 ---
 
 # Say hello to SmallDocs: A markdown-first replacement for Word & GDocs
