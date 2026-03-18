@@ -169,7 +169,7 @@
 ═══════════════════════════════════════════════════ */
 @media (max-width: 342px) {
   #left-toolbar {
-    position: relative;
+    position: sticky;
   }
   #left-toolbar.has-overflow::after {
     content: '';
