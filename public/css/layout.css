@@ -185,7 +185,10 @@ body {
   flex: 1;
   overflow: auto;
   position: relative;
-  background-color: var(--bg);
+  background-color: #FFFFFF;
+}
+html[data-theme="dark"] #content-area {
+  background-color: #1c1a17;
 }
 
 /* drag overlay */
