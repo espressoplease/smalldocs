@@ -87,23 +87,17 @@ self.addEventListener('fetch', function (e) {
   }
 });
 
-// Version check: if server version differs, purge cache and reload all clients
+// Version check: if server version differs, purge and re-cache.
+// No reload — stale-while-revalidate ensures next navigation gets fresh content.
 self.addEventListener('message', function (e) {
   if (e.data && e.data.type === 'check-update' && e.data.version) {
     fetch('/version-check').then(function (res) {
       return res.json();
     }).then(function (data) {
       if (data.version !== e.data.version) {
-        // Server version changed — purge cache and reload
         caches.delete(CACHE_NAME).then(function () {
-          // Re-cache fresh app shell
           return caches.open(CACHE_NAME).then(function (cache) {
             return cache.addAll(APP_SHELL);
-          });
-        }).then(function () {
-          // Reload all open tabs
-          self.clients.matchAll().then(function (clients) {
-            clients.forEach(function (client) { client.postMessage('reload'); });
           });
         });
       }
