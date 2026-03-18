@@ -172,7 +172,9 @@ Your browser opens with the document styled and readable. That's it — one comm
 sdoc share README.md
 ```
 
-This copies a shareable link to your clipboard — no browser opens, no URL printed. The entire document is compressed into the URL hash, so there's nothing to host or upload. You can also combine it with options:
+This copies a shareable link to your clipboard.
+
+You can also combine it with options:
 
 ```
 sdoc share report.md --section "Results" # deep-link to a heading
@@ -185,7 +187,15 @@ sdoc share notes.md --write             # link opens in write mode
 sdoc new
 ```
 
-Opens a blank document in write mode, ready to type.
+Opens a blank document in write mode, ready to type a `h1`.
+
+### Style schema
+
+```
+sdoc schema
+```
+
+Prints every available style property with its type, default value, and description. This is designed to be readable by both humans and LLMs — so your agent can write YAML front matter for you.
 
 ### Modes
 
@@ -216,14 +226,6 @@ If you find a style you like, use the "Save as Default" panel in the Style view 
 sdoc defaults               # view your current defaults
 sdoc defaults --reset       # remove them
 ```
-
-### Style schema
-
-```
-sdoc schema
-```
-
-Prints every available style property with its type, default value, and description. This is designed to be readable by both humans and LLMs — so your agent can write YAML front matter for you.
 
 ### For agents
 
