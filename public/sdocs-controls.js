@@ -165,54 +165,40 @@ function applyStylesFromMeta(s) {
     return;
   }
 
-  // Legacy single-theme path: top-level colors go to light theme
+  // Legacy single-theme path: top-level colors go to light theme only,
+  // then loadThemeColors applies the correct theme's colors.
+  var lightOverridden = S.themeOverridden.light;
+  var lightColors = S.themeColors.light;
   var newOverridden = result.overriddenColors;
 
-  S.overriddenColors.clear();
-  setColorValue('ctrl-color', S.getColorDefault(), false);
+  lightOverridden.clear();
+  S.themeOverridden.dark.clear();
 
   newOverridden.forEach(function(id) {
-    S.overriddenColors.add(id);
-    setColorValue(id, controls[id], true);
+    lightOverridden.add(id);
+    lightColors[id] = controls[id];
   });
 
-  // Also apply standalone colors from legacy format
-  if (s.background) {
-    S.overriddenColors.add('ctrl-bg-color');
-    var elBg = document.getElementById('ctrl-bg-color');
-    if (elBg) { elBg.value = s.background; applyCtrl('ctrl-bg-color'); }
-  }
-  if (s.link && s.link.color) {
-    S.overriddenColors.add('ctrl-link-color');
-    var el = document.getElementById('ctrl-link-color');
-    if (el) { el.value = s.link.color; applyCtrl('ctrl-link-color'); }
-  }
+  // Also store standalone colors from legacy format into light theme
+  var legacyStandalone = [];
+  if (s.background) legacyStandalone.push(['ctrl-bg-color', s.background]);
+  if (s.link && s.link.color) legacyStandalone.push(['ctrl-link-color', s.link.color]);
   if (s.code) {
-    if (s.code.background) {
-      S.overriddenColors.add('ctrl-code-bg');
-      var el2 = document.getElementById('ctrl-code-bg');
-      if (el2) { el2.value = s.code.background; applyCtrl('ctrl-code-bg'); }
-    }
-    if (s.code.color) {
-      S.overriddenColors.add('ctrl-code-color');
-      var el3 = document.getElementById('ctrl-code-color');
-      if (el3) { el3.value = s.code.color; applyCtrl('ctrl-code-color'); }
-    }
+    if (s.code.background) legacyStandalone.push(['ctrl-code-bg', s.code.background]);
+    if (s.code.color) legacyStandalone.push(['ctrl-code-color', s.code.color]);
   }
   if (s.blockquote) {
-    if (s.blockquote.borderColor) {
-      S.overriddenColors.add('ctrl-bq-border-color');
-      var el4 = document.getElementById('ctrl-bq-border-color');
-      if (el4) { el4.value = s.blockquote.borderColor; applyCtrl('ctrl-bq-border-color'); }
-    }
-    if (s.blockquote.color) {
-      S.overriddenColors.add('ctrl-bq-color');
-      var el5 = document.getElementById('ctrl-bq-color');
-      if (el5) { el5.value = s.blockquote.color; applyCtrl('ctrl-bq-color'); }
-    }
+    if (s.blockquote.borderColor) legacyStandalone.push(['ctrl-bq-border-color', s.blockquote.borderColor]);
+    if (s.blockquote.color) legacyStandalone.push(['ctrl-bq-color', s.blockquote.color]);
   }
+  legacyStandalone.forEach(function(pair) {
+    lightOverridden.add(pair[0]);
+    lightColors[pair[0]] = pair[1];
+  });
 
+  // Now apply the active theme's colors (light overrides or dark defaults)
   S._syncing = wasSyncing;
+  S.loadThemeColors(S.activeTheme);
 }
 
 function collectStyles() {

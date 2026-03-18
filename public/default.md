@@ -1,3 +1,19 @@
+---
+styles:
+  fontFamily: Lora
+  baseFontSize: 17
+  h1: { fontSize: 2.3, fontWeight: 700 }
+  p: { lineHeight: 1.9, marginBottom: 1.2 }
+  light:
+    background: "#fffaf5"
+    color: "#1a1a2e"
+    h1: { color: "#c0392b" }
+  dark:
+    background: "#1a1520"
+    color: "#e7e5e2"
+    h1: { color: "#ef6f5e" }
+---
+
 # Say hello to SmallDocs: A markdown-first replacement for Word & GDocs
 
 If you're working with agents, a document written in markdown is <ins>officially</ins>* 407 times more useful than a document locked inside a `.docx` or `.gdoc` file format. Because of this, I believe Word and GDocs' days are numbered. (*I am the official.)

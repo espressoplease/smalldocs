@@ -1,5 +1,5 @@
 // Service worker — cache-first offline support for SDocs
-var CACHE_VERSION = 'sdocs-v1';
+var CACHE_VERSION = 'sdocs-v2';
 
 var APP_SHELL = [
   '/',
