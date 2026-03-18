@@ -104,7 +104,7 @@ styles:
 
 When a `Styled .md` file is rendered in the SmallDocs interface the specified styles are applied. If a plain `.md` file is rendered the default styles are applied.
 
-#### Style light & dark modes
+#### Light & dark modes
 
 You can nest styles in `light` and `dark` keys: 
 
