@@ -18,7 +18,7 @@ styles:
 
 If you're working with agents, a document written in markdown is <ins>officially</ins>* 407 times more useful than a document locked inside a `.docx` or `.gdoc` file format. Because of this, I believe Word and GDocs' days are numbered. (*I am the official.)
 
-However, all is not well. While markdown is great for agents, it's a bit annoying for humans. Quickly and elegantly reading a `.md` file requires you to open your code editor and enter "preview" mode. Sharing a markdown file requires you to actually send the file to someone. They then have to download it and find the least annoying way to read it.
+But while markdown is great for agents, it's a bit annoying for humans. Quickly and elegantly reading a `.md` file requires you to open your code editor and enter "preview" mode. Sharing a markdown file requires you to actually send the file to someone. They then have to download it and find the least annoying way to read it.
 
 SmallDocs is an [open source](https://github.com/JoshInLisbon/SDocs) attempt at something different. It lets you (or your agent) easily, elegantly and privately **read**, **share**, **format** and **export** `.md` files.
 
@@ -158,10 +158,9 @@ sdoc README.md --raw        # raw mode (plain markdown source)
 sdoc share README.md
 ```
 
-This prints a shareable URL to stdout — no browser opens. The entire document is compressed into the URL hash, so there's nothing to host or upload. Pipe it wherever you need it:
+This prints a shareable URL and copies it to your clipboard — no browser opens. The entire document is compressed into the URL hash, so there's nothing to host or upload. Pipe it wherever you need it:
 
 ```
-sdoc share README.md | pbcopy           # copy to clipboard (macOS)
 sdoc share report.md --section "Results" # deep-link to a heading
 sdoc share notes.md --write             # link opens in write mode
 ```

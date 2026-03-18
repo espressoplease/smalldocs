@@ -137,6 +137,7 @@
 }
 #rendered .md-section-body:not(.open):has(.md-section-body.open) > :not(.md-section) {
   opacity: 0.55;
+  padding-left: 1.2em;
 }
 #rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) {
   padding-left: 1.2em;
