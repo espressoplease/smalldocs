@@ -126,7 +126,7 @@ GENERAL
   baseFontSize  number   Base font size in px. All rem/em values scale from this.
                          Default: 16
   background    string   Page background color (hex).
-                         Default: "#ffffff" (light) / "#1c1a17" (dark)
+                         Default: "#ffffff" (light) / "#2c2a26" (dark)
   color         string   Master body text color (hex). Cascades to headings,
                          paragraphs, and lists unless those are overridden.
                          Default: "#1c1917"
@@ -200,7 +200,7 @@ THEME COLORS
       h1: { color: "#c0392b" }
       link: { color: "#2563eb" }
     dark:
-      background: "#1c1a17"
+      background: "#2c2a26"
       color: "#e7e5e2"
       h1: { color: "#ef6f5e" }
       link: { color: "#60a5fa" }

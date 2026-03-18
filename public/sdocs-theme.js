@@ -59,7 +59,7 @@ const LIGHT_DEFAULTS = {
 };
 
 const DARK_DEFAULTS = {
-  bgColor:       '#1c1a17',
+  bgColor:       '#2c2a26',
   colorDefault:  '#e7e5e2',
   codeBg:        '#1a1816',
   codeColor:     '#b8a99a',

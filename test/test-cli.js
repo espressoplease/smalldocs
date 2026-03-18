@@ -322,7 +322,7 @@ module.exports = function(harness) {
       fontFamily: 'Lora',
       baseFontSize: 17,
       light: { background: '#ffffff', color: '#1a1a2e', h1: { color: '#c0392b' }, link: { color: '#2563eb' } },
-      dark: { background: '#1c1a17', color: '#e7e5e2', h1: { color: '#ef6f5e' }, link: { color: '#60a5fa' } },
+      dark: { background: '#2c2a26', color: '#e7e5e2', h1: { color: '#ef6f5e' }, link: { color: '#60a5fa' } },
     };
     const fm = SDocYaml.serializeFrontMatter({ styles });
     const { meta } = SDocYaml.parseFrontMatter(fm + '\n# Doc');
@@ -333,7 +333,7 @@ module.exports = function(harness) {
     assert.strictEqual(parsed.light.color, '#1a1a2e');
     assert.strictEqual(parsed.light.h1.color, '#c0392b');
     assert.strictEqual(parsed.light.link.color, '#2563eb');
-    assert.strictEqual(parsed.dark.background, '#1c1a17');
+    assert.strictEqual(parsed.dark.background, '#2c2a26');
     assert.strictEqual(parsed.dark.color, '#e7e5e2');
     assert.strictEqual(parsed.dark.h1.color, '#ef6f5e');
     assert.strictEqual(parsed.dark.link.color, '#60a5fa');
