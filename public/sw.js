@@ -1,5 +1,5 @@
-// Service worker — cache-first offline support for SDocs
-var CACHE_VERSION = 'sdocs-v2';
+// Service worker — stale-while-revalidate + version-gated cache bust
+var CACHE_NAME = 'sdocs-cache';
 
 var APP_SHELL = [
   '/',
@@ -27,7 +27,7 @@ var APP_SHELL = [
 // Pre-cache app shell on install
 self.addEventListener('install', function (e) {
   e.waitUntil(
-    caches.open(CACHE_VERSION).then(function (cache) {
+    caches.open(CACHE_NAME).then(function (cache) {
       return cache.addAll(APP_SHELL);
     }).then(function () {
       return self.skipWaiting();
@@ -35,38 +35,28 @@ self.addEventListener('install', function (e) {
   );
 });
 
-// Delete old caches on activate
+// Claim clients on activate
 self.addEventListener('activate', function (e) {
-  e.waitUntil(
-    caches.keys().then(function (names) {
-      return Promise.all(
-        names.filter(function (n) { return n !== CACHE_VERSION; })
-             .map(function (n) { return caches.delete(n); })
-      );
-    }).then(function () {
-      return self.clients.claim();
-    })
-  );
+  e.waitUntil(self.clients.claim());
 });
 
-// Cache-first fetch handler
+// Stale-while-revalidate for same-origin, cache-first for fonts
 self.addEventListener('fetch', function (e) {
   var url = new URL(e.request.url);
 
-  // Skip non-GET requests
   if (e.request.method !== 'GET') return;
 
-  // Skip version-check — always goes to network
+  // Version-check always hits network
   if (url.pathname === '/version-check') return;
 
-  // Google Fonts: cache-first with network fallback
+  // Google Fonts: cache-first (they're immutable)
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
     e.respondWith(
       caches.match(e.request).then(function (cached) {
         if (cached) return cached;
         return fetch(e.request).then(function (response) {
           var clone = response.clone();
-          caches.open(CACHE_VERSION).then(function (cache) { cache.put(e.request, clone); });
+          caches.open(CACHE_NAME).then(function (cache) { cache.put(e.request, clone); });
           return response;
         });
       })
@@ -74,17 +64,22 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
-  // Same-origin: cache-first, fallback to network (and cache the response)
+  // Same-origin: stale-while-revalidate
+  // Return cached immediately, fetch in background to update cache
   if (url.origin === self.location.origin) {
     e.respondWith(
-      caches.match(e.request).then(function (cached) {
-        if (cached) return cached;
-        return fetch(e.request).then(function (response) {
-          if (response.ok) {
-            var clone = response.clone();
-            caches.open(CACHE_VERSION).then(function (cache) { cache.put(e.request, clone); });
-          }
-          return response;
+      caches.open(CACHE_NAME).then(function (cache) {
+        return cache.match(e.request).then(function (cached) {
+          var networkFetch = fetch(e.request).then(function (response) {
+            if (response.ok) {
+              cache.put(e.request, response.clone());
+            }
+            return response;
+          }).catch(function () {
+            return cached; // offline fallback
+          });
+
+          return cached || networkFetch;
         });
       })
     );
@@ -92,14 +87,25 @@ self.addEventListener('fetch', function (e) {
   }
 });
 
-// Check for updates after page load
+// Version check: if server version differs, purge cache and reload all clients
 self.addEventListener('message', function (e) {
-  if (e.data === 'check-update') {
-    fetch('/version-check?v=' + CACHE_VERSION).then(function (res) {
+  if (e.data && e.data.type === 'check-update' && e.data.version) {
+    fetch('/version-check').then(function (res) {
       return res.json();
     }).then(function (data) {
-      if (data.version && data.version !== CACHE_VERSION) {
-        self.registration.update();
+      if (data.version !== e.data.version) {
+        // Server version changed — purge cache and reload
+        caches.delete(CACHE_NAME).then(function () {
+          // Re-cache fresh app shell
+          return caches.open(CACHE_NAME).then(function (cache) {
+            return cache.addAll(APP_SHELL);
+          });
+        }).then(function () {
+          // Reload all open tabs
+          self.clients.matchAll().then(function (clients) {
+            clients.forEach(function (client) { client.postMessage('reload'); });
+          });
+        });
       }
     }).catch(function () { /* offline — ignore */ });
   }

@@ -1,9 +1,26 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
-const APP_VERSION = 'sdocs-v1';
+
+// Auto-version: hash all non-font files in public/ at startup.
+// Any file change = new hash = clients purge their SW cache.
+const appHash = crypto.createHash('md5');
+(function walkDir(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      if (entry.name === 'fonts') continue;
+      walkDir(path.join(dir, entry.name));
+    } else {
+      appHash.update(entry.name);
+      appHash.update(fs.readFileSync(path.join(dir, entry.name)));
+    }
+  }
+})(path.join(__dirname, 'public'));
+const APP_VERSION = appHash.digest('hex').slice(0, 10);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -70,7 +87,13 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname === '/' || pathname === '/new') {
-    serveFile(res, path.join(__dirname, 'public', 'index.html'));
+    const htmlPath = path.join(__dirname, 'public', 'index.html');
+    fs.readFile(htmlPath, 'utf8', (err, html) => {
+      if (err) { res.writeHead(500); res.end('Error'); return; }
+      html = html.replace('__APP_VERSION__', APP_VERSION);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
+      res.end(html);
+    });
     return;
   }
 

@@ -580,12 +580,17 @@
 <script src="/public/sdocs-write.js"></script>
 <script src="/public/sdocs-app.js"></script>
 <script>
+var APP_VERSION = '__APP_VERSION__';
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(function (reg) {
-    if (reg.active) reg.active.postMessage('check-update');
+    var msg = { type: 'check-update', version: APP_VERSION };
+    if (reg.active) reg.active.postMessage(msg);
     navigator.serviceWorker.addEventListener('controllerchange', function () {
-      if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage('check-update');
+      if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage(msg);
     });
+  });
+  navigator.serviceWorker.addEventListener('message', function (e) {
+    if (e.data === 'reload') window.location.reload();
   });
 }
 </script>
