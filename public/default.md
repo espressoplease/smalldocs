@@ -21,7 +21,7 @@ If you're working with agents, a document written in markdown is <ins>officially
 
 But while markdown is great for agents, it's a bit annoying for humans. Quickly and elegantly reading a `.md` file requires you to open your code editor and enter "preview" mode. Sharing a markdown file requires you to actually send the file to someone. They then have to download it and find the least annoying way to read it.
 
-SmallDocs is an [open source](https://github.com/JoshInLisbon/SDocs) attempt at something different. It lets you (or your agent) easily, elegantly and privately **read**, **share**, **format** and **export** `.md` files.
+SmallDocs is an [open source](https://github.com/JoshInLisbon/SDocs) attempt at something different. It lets you (or your agent) easily, elegantly and <ins>100% privately</ins> **read**, **share**, **format** and **export** `.md` files.
 
 Reading a `.md` file in SmallDocs feels just like this (you're reading markdown right now). And creating a SmallDoc for a `.md` file (+ automatically opening your browser to read it) is as simple as:
 
@@ -31,47 +31,6 @@ sdoc README.md
 ```
 
 ## How SmallDocs work
-
-### Formatting
-
-SDocs adds basic styling to markdown files. You write your content in regular markdown and the styles live in a metadata block at the top of the file.
-
-That metadata block is called [YAML front matter](https://jekyllrb.com/docs/front-matter/). It's a convention that started with [Jekyll](https://jekyllrb.com/) (the static site generator) back in 2008 and has since been adopted by [Hugo](https://gohugo.io/), [Gatsby](https://www.gatsbyjs.com/), [Obsidian](https://obsidian.md/), and most of the markdown ecosystem. It looks like a block of key-value pairs between two `---` lines at the top of your file:
-
-```yaml
----
-title: My Document
-author: Someone
----
-```
-
-SDocs uses a `styles:` key with CSS properties written beneath it in YAML:
-
-```yaml
----
-styles:
-  fontFamily: Lora
-  baseFontSize: 17
-  h1: { fontSize: 2.3, fontWeight: 700 }
-  p: { lineHeight: 1.9, marginBottom: 1.2 }
-  light:
-    background: "#fffaf5"
-    color: "#1a1a2e"
-    h1: { color: "#c0392b" }
-  dark:
-    background: "#1a1520"
-    color: "#e7e5e2"
-    h1: { color: "#ef6f5e" }
----
-```
-
-Non-color properties (fonts, sizes, spacing) are shared across themes and live at the top level. Colors live inside `light:` and `dark:` blocks so both themes render correctly.
-
-All color controls are in the **Colors** section of the style panel. The light/dark toggle at the top of that section lets you customize each theme independently. Colors cascade from general to specific — set `color` once and it flows to headings, paragraphs, and lists unless you override them individually.
-
-(Click "**Raw**" — top left — to see the front matter for this file. See all available properties [here](https://sdocs.dev) or by running `npm i sdocs-dev; sdoc schema`.)
-
-When a `Styled .md` file is rendered in the SmallDocs interface the specified styles are applied. If a plain `.md` file is rendered the default styles are applied.
 
 ### URLs
 
@@ -119,6 +78,51 @@ The [sdocs.dev](https://sdocs.dev) site is purely a rendering space. JavaScript 
 
 Because the URL includes your full document and dynamically updates via JavaScript, every change you make is instantly preserved in the URL. This works when you're offline.
 
+### Offline editing
+
+`https://sdocs.dev` uses extensive client side caching. If you've loaded the site once, you can visit it even when you're offline. If something has changed server side, we invalidate the cache and the next time you visit the site you'll get the latest version.
+
+### Formatting
+
+SDocs adds basic styling to markdown files. You write your content in regular markdown and the styles live in a metadata block at the top of the file.
+
+That metadata block is called [YAML front matter](https://jekyllrb.com/docs/front-matter/). It's a convention that started with [Jekyll](https://jekyllrb.com/) (the static site generator) back in 2008 and has since been adopted by [Hugo](https://gohugo.io/), [Gatsby](https://www.gatsbyjs.com/), [Obsidian](https://obsidian.md/), and most of the markdown ecosystem. It looks like a block of key-value pairs between two `---` lines at the top of your file:
+
+```yaml
+---
+title: My Document
+author: Someone
+---
+```
+
+SDocs uses a `styles:` key with CSS properties written beneath it in YAML:
+
+```yaml
+---
+styles:
+  fontFamily: Lora
+  baseFontSize: 17
+  h1: { fontSize: 2.3, fontWeight: 700 }
+  p: { lineHeight: 1.9, marginBottom: 1.2 }
+  light:
+    background: "#fffaf5"
+    color: "#1a1a2e"
+    h1: { color: "#c0392b" }
+  dark:
+    background: "#1a1520"
+    color: "#e7e5e2"
+    h1: { color: "#ef6f5e" }
+---
+```
+
+Non-color properties (fonts, sizes, spacing) are shared across themes and live at the top level. Colors live inside `light:` and `dark:` blocks so both themes render correctly.
+
+All color controls are in the **Colors** section of the style panel. The light/dark toggle at the top of that section lets you customize each theme independently. Colors cascade from general to specific — set `color` once and it flows to headings, paragraphs, and lists unless you override them individually.
+
+(Click "**Raw**" — top left — to see the front matter for this file. See all available properties [here](https://sdocs.dev) or by running `npm i sdocs-dev; sdoc schema`.)
+
+When a `Styled .md` file is rendered in the SmallDocs interface the specified styles are applied. If a plain `.md` file is rendered the default styles are applied.
+
 ### Drag & drop
 
 Drag any `.md` file onto the editor to SmallDoc it instantly.
@@ -132,23 +136,19 @@ SmallDocs can export your document in four formats:
 - **Word (.docx)** — a styled Word document generated from the rendered HTML.
 - **Styled .md** — your markdown with the `styles:` front matter block included. This is the format SmallDocs reads back in, so your formatting is preserved.
 
-### Small opinionated things
-
-SmallDocs has opinions. We do some things which might not work for everyone but hopefully make the general `.md` experience better for most.
-
-We welcome your opinions. Raise an issue on GitHub or make a pull request if you want something to change.
-
-#### Collapsed headers
+### Collapsed headers
 
 SmallDocs loads with all headers collapsed. This is done because it makes it easy to get an overview of the whole document.
 
 If you expand a parent, all of its children expand too.
 
-#### Copy & paste
+### Copy & paste
 
 Every header has its own copy and paste button. This copies its content and all of its children's content. At the moment this is the fastest way to get SmallDoc content into your agent's context, but we're looking for novel ideas to make this better.
 
 ## The CLI
+
+### Installation
 
 SmallDocs has a command-line tool that lets you open, share, and style markdown files from the terminal. Install it once:
 
@@ -166,17 +166,6 @@ sdoc README.md
 
 Your browser opens with the document styled and readable. That's it — one command to go from `.md` file to formatted document.
 
-### Modes
-
-By default, files open in read mode. You can open in any mode:
-
-```
-sdoc README.md              # read mode (default)
-sdoc README.md --write      # write mode (contentEditable editor)
-sdoc README.md --style      # style mode (styling panel visible)
-sdoc README.md --raw        # raw mode (plain markdown source)
-```
-
 ### Share a link
 
 ```
@@ -190,6 +179,25 @@ sdoc share report.md --section "Results" # deep-link to a heading
 sdoc share notes.md --write             # link opens in write mode
 ```
 
+### Start a new document
+
+```
+sdoc new
+```
+
+Opens a blank document in write mode, ready to type.
+
+### Modes
+
+By default, files open in read mode. You can open in any mode:
+
+```
+sdoc README.md              # read mode (default)
+sdoc README.md --write      # write mode (contentEditable editor)
+sdoc README.md --style      # style mode (styling panel visible)
+sdoc README.md --raw        # raw mode (plain markdown source)
+```
+
 ### Pipe from stdin
 
 Any command that outputs markdown can be piped directly into SmallDocs:
@@ -199,14 +207,6 @@ cat notes.md | sdoc                     # open in browser
 cat notes.md | sdoc share               # pipe to clipboard link
 your-agent --output md | sdoc           # pipe agent output to browser
 ```
-
-### Start a new document
-
-```
-sdoc new
-```
-
-Opens a blank document in write mode, ready to type.
 
 ### Default styles
 
