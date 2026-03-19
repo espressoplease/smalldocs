@@ -30,7 +30,7 @@ Reading a `.md` file in SmallDocs feels just like this (you're reading markdown 
 Use SmallDoc's CLI for speed. Creating a SmallDoc for a `.md` file (+ automatically opening your browser to read it) is as simple as:
 
 ```
-#npm i -g sdocs-dev
+# npm i -g sdocs-dev
 sdoc README.md
 ```
 
