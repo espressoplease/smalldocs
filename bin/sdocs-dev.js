@@ -233,7 +233,7 @@ EXAMPLE — editorial article with colored heading tiers
       h2: { color: "#8e44ad" }
       h3: { color: "#16a085" }
       link: { color: "#e67e22", decoration: "underline" }
-      blockquote: { borderColor: "#c0392b", borderWidth: 4, color: "#7f8c8d" }
+      blockquote: { borderColor: "#c0392b", background: "#faf0eb", color: "#7f8c8d" }
     dark:
       background: "#1a1520"
       color: "#e7e5e2"
@@ -242,7 +242,7 @@ EXAMPLE — editorial article with colored heading tiers
       h2: { color: "#c490e4" }
       h3: { color: "#5ed4b8" }
       link: { color: "#f0a860", decoration: "underline" }
-      blockquote: { borderColor: "#ef6f5e", borderWidth: 4, color: "#9e9590" }
+      blockquote: { borderColor: "#ef6f5e", background: "#221a28", color: "#9e9590" }
   ---
 `;
 
