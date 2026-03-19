@@ -88,6 +88,8 @@ MODE FLAGS
 
 OPTIONS
   --section <heading>   Scroll to heading section on load
+  --light               Open in light theme
+  --dark                Open in dark theme
   --url <base>          Custom base URL (default: https://sdocs.dev)
   --mode <m>            Alias for --read / --write / --style / --raw
 
@@ -280,6 +282,7 @@ function parseArgs(argv) {
   let url = null;
   let subcommand = null;
   let section = null;
+  let theme = null;
   let resetFlag = false;
 
   for (let i = 0; i < args.length; i++) {
@@ -294,6 +297,8 @@ function parseArgs(argv) {
     if (arg === '--style') { mode = 'style'; continue; }
     if (arg === '--raw')   { mode = 'raw';   continue; }
     if (arg === '--read')  { mode = 'read';  continue; }
+    if (arg === '--light') { theme = 'light'; continue; }
+    if (arg === '--dark')  { theme = 'dark';  continue; }
 
     // Long-form --mode
     if (arg === '--mode' || arg === '-m') {
@@ -323,7 +328,7 @@ function parseArgs(argv) {
     if (!file) { file = arg; continue; }
   }
 
-  return { file, mode, url, subcommand, section, resetFlag };
+  return { file, mode, url, subcommand, section, theme, resetFlag };
 }
 
 // ── Build URL ─────────────────────────────────────────────
@@ -341,6 +346,8 @@ function buildUrl(content, opts) {
 
   const mode = opts.mode || (content ? 'read' : 'style');
   if (mode && mode !== 'read') params.set('mode', mode);
+
+  if (opts.theme) params.set('theme', opts.theme);
 
   if (opts.section) {
     params.set('sec', slugify(opts.section));
@@ -500,6 +507,7 @@ if (require.main === module) {
     const url = buildUrl(content, {
       url: opts.url,
       mode: opts.mode,
+      theme: opts.theme,
       defaultStyles: !content ? defaults : null,
       section: opts.section,
     });

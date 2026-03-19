@@ -172,6 +172,18 @@ module.exports = function(harness) {
     assert.strictEqual(result.mode, 'read');
   });
 
+  test('parseArgs: --dark theme flag', () => {
+    const result = cli.parseArgs(['doc.md', '--dark']);
+    assert.strictEqual(result.file, 'doc.md');
+    assert.strictEqual(result.theme, 'dark');
+  });
+
+  test('parseArgs: --light theme flag', () => {
+    const result = cli.parseArgs(['doc.md', '--light']);
+    assert.strictEqual(result.file, 'doc.md');
+    assert.strictEqual(result.theme, 'light');
+  });
+
   test('parseArgs: share subcommand with file', () => {
     const result = cli.parseArgs(['share', 'report.md']);
     assert.strictEqual(result.subcommand, 'share');
@@ -283,6 +295,11 @@ module.exports = function(harness) {
   test('buildUrl: section with special chars', () => {
     const url = cli.buildUrl('# Hello', { section: "What's New?" });
     assert.ok(url.includes('sec=whats-new'));
+  });
+
+  test('buildUrl: theme adds theme= param', () => {
+    const url = cli.buildUrl('# Hello', { theme: 'dark' });
+    assert.ok(url.includes('theme=dark'));
   });
 
   test('buildUrl: md= param contains only URL-safe characters', () => {

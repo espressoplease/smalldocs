@@ -58,6 +58,8 @@ https://sdocs.dev/#md=...&sec=url-formatting
 
 The `sec` value is the heading text slugified (lowercased, spaces become hyphens, special characters stripped). The page will scroll to that section on load.
 
+The `theme` parameter forces a specific theme: `theme=light` or `theme=dark`. This overrides the reader's system preference, which is useful when sharing a link where the document looks best in a particular theme.
+
 ### Privacy
 
 Because the SmallDocs url format is:
@@ -189,6 +191,7 @@ You can also combine it with options:
 ```
 sdoc share report.md --section "Results" # deep-link to a heading
 sdoc share notes.md --write             # link opens in write mode
+sdoc share notes.md --dark              # link opens in dark theme
 ```
 
 ### Start a new document

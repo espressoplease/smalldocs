@@ -502,6 +502,10 @@ S.updateThemeTabs(S.activeTheme);
       console.warn('sdocs-dev: could not decode hash', e);
     }
   }
+  var themeParam = params.get('theme');
+  if (themeParam === 'light' || themeParam === 'dark') {
+    S.switchThemeAndUpdate(themeParam);
+  }
   if (modeParam && ['read', 'style', 'write', 'raw', 'export'].includes(modeParam)) {
     setMode(modeParam, true);
   } else {
