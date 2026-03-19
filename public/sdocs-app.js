@@ -480,19 +480,26 @@ S.loadText = loadText;
 // Sync theme tabs to initial theme
 S.updateThemeTabs(S.activeTheme);
 
-// ── Init ──────────────────────────────────
+// ── Load document from URL hash ──────────────────────────────────
 
-(async function () {
-  await _defaultReady;
-  if (window.location.pathname === '/new') {
-    startNewDocument();
-    return;
-  }
+var _lastLoadedHash = null;
+
+async function loadFromHash() {
   var hash = window.location.hash.slice(1);
+  if (hash === _lastLoadedHash) return;
+  _lastLoadedHash = hash;
+
+  clearTimeout(S._hashTimer);
+
   var params = hash ? new URLSearchParams(hash) : new URLSearchParams();
   var mdParam = params.get('md');
   var modeParam = params.get('mode');
   var stylesParam = params.get('styles');
+  var themeParam = params.get('theme');
+  var secParam = params.get('sec');
+
+  S.resetAllStyles();
+
   if (mdParam) {
     try {
       S._isDefaultState = false;
@@ -502,16 +509,19 @@ S.updateThemeTabs(S.activeTheme);
       console.warn('sdocs-dev: could not decode hash', e);
     }
   }
-  var themeParam = params.get('theme');
+
   if (themeParam === 'light' || themeParam === 'dark') {
     S.switchThemeAndUpdate(themeParam);
   }
+
   if (modeParam && ['read', 'style', 'write', 'raw', 'export'].includes(modeParam)) {
     setMode(modeParam, true);
   } else {
     setMode('read', true);
   }
+
   if (!mdParam) {
+    S._isDefaultState = true;
     loadText(DEFAULT_MD);
     if (stylesParam) {
       try {
@@ -523,13 +533,11 @@ S.updateThemeTabs(S.activeTheme);
     }
   }
 
-  var secParam = params.get('sec');
   if (secParam) {
     setTimeout(function() {
       var target = document.getElementById(secParam);
       if (!target) return;
 
-      // Expand the target's own section body (its content)
       var ownSection = target.closest('.md-section');
       if (ownSection) {
         var ownBody = ownSection.querySelector(':scope > .md-section-body');
@@ -538,7 +546,6 @@ S.updateThemeTabs(S.activeTheme);
         if (ownToggle) { ownToggle.classList.add('open'); }
       }
 
-      // Expand all ancestor section bodies
       var el = target.closest('.md-section-body');
       while (el) {
         el.classList.add('open');
@@ -550,7 +557,6 @@ S.updateThemeTabs(S.activeTheme);
         el = el.parentElement ? el.parentElement.closest('.md-section-body') : null;
       }
 
-      // Add scroll spacer so the target can reach the top
       var spacerNeeded = contentArea.clientHeight - (contentArea.scrollHeight - target.offsetTop);
       if (spacerNeeded > 0) {
         var spacer = document.createElement('div');
@@ -562,7 +568,30 @@ S.updateThemeTabs(S.activeTheme);
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 200);
   }
+
+  if (!secParam) {
+    contentArea.scrollTop = 0;
+  }
+}
+
+// ── Init ──────────────────────────────────
+
+(async function () {
+  await _defaultReady;
+  if (window.location.pathname === '/new') {
+    startNewDocument();
+    return;
+  }
+  await loadFromHash();
 }());
+
+window.addEventListener('hashchange', function () {
+  loadFromHash();
+});
+
+window.addEventListener('popstate', function () {
+  loadFromHash();
+});
 
 // ── Toolbar scroll hints (fade + bounce-peek) ──────
 
