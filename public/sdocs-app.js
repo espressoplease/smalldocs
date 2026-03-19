@@ -415,6 +415,10 @@ document.getElementById('factory-reset-styles').addEventListener('click', functi
 
 document.getElementById('toolbar-brand').addEventListener('click', function(e) {
   e.preventDefault();
+  if (window.location.hash && window.location.hash.indexOf('md=') !== -1) {
+    window.open(window.location.origin + window.location.pathname, '_blank');
+    return;
+  }
   S.resetAllStyles();
   loadText(DEFAULT_MD);
   S._isDefaultState = true;
