@@ -511,7 +511,17 @@ async function loadFromHash() {
   }
 
   if (themeParam === 'light' || themeParam === 'dark') {
+    var savedPref = localStorage.getItem('sdocs-theme');
     S.switchThemeAndUpdate(themeParam);
+    // Restore localStorage — URL theme is view-only, not persistent
+    if (savedPref) localStorage.setItem('sdocs-theme', savedPref);
+    else localStorage.removeItem('sdocs-theme');
+  } else {
+    // Restore user's actual preferred theme (previous hash may have overridden it)
+    var preferred = S.getPreferredTheme();
+    if (preferred !== S.activeTheme) {
+      S.switchThemeAndUpdate(preferred);
+    }
   }
 
   if (modeParam && ['read', 'style', 'write', 'raw', 'export'].includes(modeParam)) {

@@ -252,6 +252,7 @@ S.getStandaloneDefault = getStandaloneDefault;
 S.updateDefaultColors = updateDefaultColors;
 S.toggleTheme = toggleTheme;
 S.switchThemeAndUpdate = switchThemeAndUpdate;
+S.getPreferredTheme = getPreferredTheme;
 S.saveCurrentThemeColors = saveCurrentThemeColors;
 S.loadThemeColors = loadThemeColors;
 S.updateThemeTabs = updateThemeTabs;
