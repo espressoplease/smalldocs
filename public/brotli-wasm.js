@@ -500,7 +500,6 @@ async function init(input) {
     return wasm;
 }
 
-default init;
 
 
 
