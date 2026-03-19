@@ -30,6 +30,7 @@ const MIME = {
   '.md':   'text/plain',
   '.smd':  'text/plain',
   '.woff2': 'font/woff2',
+  '.wasm':  'application/wasm',
 };
 
 function cacheHeader(ext) {

@@ -249,21 +249,37 @@ EXAMPLE — editorial article with colored heading tiers
   ---
 `;
 
-// ── Compression (deflate-raw + base64url) ─────────────────
+// ── Compression (brotli + base64url) ─────────────────
 
-function compressToBase64Url(text) {
-  const deflated = zlib.deflateRawSync(Buffer.from(text, 'utf-8'));
-  return deflated.toString('base64')
+function toBase64Url(buf) {
+  return Buffer.from(buf).toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
 }
 
-function decompressFromBase64Url(b64url) {
+function fromBase64Url(b64url) {
   let b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
   const pad = (4 - b64.length % 4) % 4;
   b64 += '='.repeat(pad);
-  return zlib.inflateRawSync(Buffer.from(b64, 'base64')).toString('utf-8');
+  return Buffer.from(b64, 'base64');
+}
+
+function compressToBase64Url(text) {
+  const compressed = zlib.brotliCompressSync(Buffer.from(text, 'utf-8'), {
+    params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 }
+  });
+  return toBase64Url(compressed);
+}
+
+function decompressFromBase64Url(b64url) {
+  const buf = fromBase64Url(b64url);
+  // Try brotli first, fall back to deflate for old URLs
+  try {
+    return zlib.brotliDecompressSync(buf).toString('utf-8');
+  } catch (_) {
+    return zlib.inflateRawSync(buf).toString('utf-8');
+  }
 }
 
 // ── Slugify ───────────────────────────────────────────────

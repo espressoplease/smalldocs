@@ -9,6 +9,8 @@ var APP_SHELL = [
   '/public/css/panel.css',
   '/public/css/write.css',
   '/public/css/mobile.css',
+  '/public/brotli-wasm.js',
+  '/public/brotli_wasm_bg.wasm',
   '/public/sdocs-yaml.js',
   '/public/sdocs-styles.js',
   '/public/sdocs-state.js',

@@ -197,7 +197,7 @@ function loadText(text, filename) {
   syncAll('load');
 }
 
-// ── Compression helpers (deflate-raw + base64url) ──
+// ── Compression helpers (brotli + base64url) ──
 
 function toBase64Url(bytes) {
   var bin = Array.from(new Uint8Array(bytes), function(b) { return String.fromCharCode(b); }).join('');
@@ -213,27 +213,13 @@ function fromBase64Url(str) {
 }
 
 async function compressText(text) {
+  await BrotliWasm.ready;
   var encoded = new TextEncoder().encode(text);
-  var cs = new CompressionStream('deflate-raw');
-  var writer = cs.writable.getWriter();
-  writer.write(encoded);
-  writer.close();
-  var chunks = [];
-  var reader = cs.readable.getReader();
-  while (true) {
-    var result = await reader.read();
-    if (result.done) break;
-    chunks.push(result.value);
-  }
-  var total = chunks.reduce(function(n, c) { return n + c.length; }, 0);
-  var buf = new Uint8Array(total);
-  var offset = 0;
-  for (var i = 0; i < chunks.length; i++) { buf.set(chunks[i], offset); offset += chunks[i].length; }
-  return toBase64Url(buf);
+  var compressed = BrotliWasm.compress(encoded, { quality: 11 });
+  return toBase64Url(compressed);
 }
 
-async function decompressText(b64url) {
-  var bytes = fromBase64Url(b64url);
+async function decompressDeflate(bytes) {
   var ds = new DecompressionStream('deflate-raw');
   var writer = ds.writable.getWriter();
   writer.write(bytes);
@@ -250,6 +236,18 @@ async function decompressText(b64url) {
   var offset = 0;
   for (var i = 0; i < chunks.length; i++) { buf.set(chunks[i], offset); offset += chunks[i].length; }
   return new TextDecoder().decode(buf);
+}
+
+async function decompressText(b64url) {
+  await BrotliWasm.ready;
+  var bytes = fromBase64Url(b64url);
+  // Try brotli first, fall back to deflate for old URLs
+  try {
+    var decompressed = BrotliWasm.decompress(bytes);
+    return new TextDecoder().decode(decompressed);
+  } catch (_) {
+    return decompressDeflate(bytes);
+  }
 }
 
 // ── Auto-save to URL hash ──────────────────────────
