@@ -55,6 +55,7 @@ const LIGHT_DEFAULTS = {
   codeColor:     '#6b21a8',
   linkColor:     '#2563eb',
   bqBorderColor: '#2563eb',
+  bqBg:          '#f7f5f2',
   bqColor:       '#6b6560',
 };
 
@@ -65,6 +66,7 @@ const DARK_DEFAULTS = {
   codeColor:     '#b8a99a',
   linkColor:     '#60a5fa',
   bqBorderColor: '#60a5fa',
+  bqBg:          '#252320',
   bqColor:       '#a8a29e',
 };
 
@@ -142,6 +144,7 @@ function loadThemeColors(theme) {
     'ctrl-code-bg':         defaults.codeBg,
     'ctrl-code-color':      defaults.codeColor,
     'ctrl-bq-border-color': defaults.bqBorderColor,
+    'ctrl-bq-bg':           defaults.bqBg,
     'ctrl-bq-color':        defaults.bqColor,
   };
   for (var ctrlId in standaloneMap) {
@@ -192,6 +195,7 @@ function updateDefaultColors() {
     'ctrl-code-bg':         defaults.codeBg,
     'ctrl-code-color':      defaults.codeColor,
     'ctrl-bq-border-color': defaults.bqBorderColor,
+    'ctrl-bq-bg':           defaults.bqBg,
     'ctrl-bq-color':        defaults.bqColor,
   };
   for (const [ctrlId, val] of Object.entries(standaloneMap)) {
@@ -216,6 +220,7 @@ function getStandaloneDefault(ctrlId) {
     'ctrl-code-bg':         d.codeBg,
     'ctrl-code-color':      d.codeColor,
     'ctrl-bq-border-color': d.bqBorderColor,
+    'ctrl-bq-bg':           d.bqBg,
     'ctrl-bq-color':        d.bqColor,
   };
   return map[ctrlId];

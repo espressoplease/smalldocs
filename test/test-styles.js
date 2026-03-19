@@ -22,7 +22,7 @@ module.exports = function(harness) {
       'ctrl-code-font': "'JetBrains Mono', monospace", 'ctrl-code-bg': '#F4F1ED',
       'ctrl-code-color': '#6B21A8',
       'ctrl-bq-border-color': '#2563EB', 'ctrl-bq-bw-num': '3',
-      'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6B6560',
+      'ctrl-bq-bg': '#F7F5F2', 'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6B6560',
       'ctrl-color': '#1c1917', 'ctrl-h-color': '#1c1917',
       'ctrl-h1-color': '#1c1917', 'ctrl-h2-color': '#1c1917',
       'ctrl-h3-color': '#1c1917', 'ctrl-h4-color': '#1c1917',
@@ -48,7 +48,7 @@ module.exports = function(harness) {
       'ctrl-code-font': "'JetBrains Mono', monospace", 'ctrl-code-bg': '#F4F1ED',
       'ctrl-code-color': '#6B21A8',
       'ctrl-bq-border-color': '#2563EB', 'ctrl-bq-bw-num': '3',
-      'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6B6560',
+      'ctrl-bq-bg': '#F7F5F2', 'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6B6560',
       'ctrl-color': '#ff0000', 'ctrl-h1-color': '#0000ff',
     };
     const overridden = new Set(['ctrl-color', 'ctrl-h1-color']);
@@ -79,6 +79,7 @@ module.exports = function(harness) {
       'ctrl-code-color': '#abb2bf',
       'ctrl-bq-border-color': '#e11d48',
       'ctrl-bq-bw-num': '5',
+      'ctrl-bq-bg': '#eee8e0',
       'ctrl-bq-size-num': '0.95',
       'ctrl-bq-color': '#555555',
       'ctrl-list-spacing-num': '0.5',
@@ -109,6 +110,7 @@ module.exports = function(harness) {
     assert.strictEqual(styles.code.color, '#abb2bf');
     assert.strictEqual(styles.blockquote.borderColor, '#e11d48');
     assert.strictEqual(styles.blockquote.borderWidth, 5);
+    assert.strictEqual(styles.blockquote.background, '#eee8e0');
     assert.strictEqual(styles.blockquote.fontSize, 0.95);
     assert.strictEqual(styles.blockquote.color, '#555555');
     assert.strictEqual(styles.list.spacing, 0.5);
@@ -138,6 +140,7 @@ module.exports = function(harness) {
     assert.strictEqual(controls['ctrl-code-color'], '#abb2bf');
     assert.strictEqual(controls['ctrl-bq-border-color'], '#e11d48');
     assert.strictEqual(controls['ctrl-bq-bw-num'], 5);
+    assert.strictEqual(controls['ctrl-bq-bg'], '#eee8e0');
     assert.strictEqual(controls['ctrl-bq-size-num'], 0.95);
     assert.strictEqual(controls['ctrl-bq-color'], '#555555');
     assert.strictEqual(controls['ctrl-list-spacing-num'], 0.5);
@@ -158,7 +161,7 @@ module.exports = function(harness) {
       'ctrl-code-font': "'JetBrains Mono', monospace", 'ctrl-code-bg': '#F4F1ED',
       'ctrl-code-color': '#6B21A8',
       'ctrl-bq-border-color': '#2563EB', 'ctrl-bq-bw-num': '3',
-      'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6B6560',
+      'ctrl-bq-bg': '#F7F5F2', 'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6B6560',
       'ctrl-list-spacing-num': '0.3', 'ctrl-list-indent-num': '1.6',
       'ctrl-color': '#111111',
       'ctrl-h-color': '#222222',
@@ -306,9 +309,9 @@ module.exports = function(harness) {
 
   test('STANDALONE_COLOR_IDS and ALL_COLOR_IDS are exported', () => {
     assert.ok(Array.isArray(S.STANDALONE_COLOR_IDS));
-    assert.strictEqual(S.STANDALONE_COLOR_IDS.length, 6);
+    assert.strictEqual(S.STANDALONE_COLOR_IDS.length, 7);
     assert.ok(Array.isArray(S.ALL_COLOR_IDS));
-    assert.strictEqual(S.ALL_COLOR_IDS.length, 14);
+    assert.strictEqual(S.ALL_COLOR_IDS.length, 15);
   });
 
   test('parseThemeColorBlock: extracts colors from theme block', () => {
@@ -318,7 +321,7 @@ module.exports = function(harness) {
       h1: { color: '#c0392b' },
       link: { color: '#2563eb' },
       code: { background: '#f0f0f0', color: '#333' },
-      blockquote: { borderColor: '#aaa', color: '#666' },
+      blockquote: { borderColor: '#aaa', background: '#eee', color: '#666' },
     };
     const result = S.parseThemeColorBlock(block);
     assert.strictEqual(result.colors['ctrl-bg-color'], '#ffffff');
@@ -328,12 +331,14 @@ module.exports = function(harness) {
     assert.strictEqual(result.colors['ctrl-code-bg'], '#f0f0f0');
     assert.strictEqual(result.colors['ctrl-code-color'], '#333');
     assert.strictEqual(result.colors['ctrl-bq-border-color'], '#aaa');
+    assert.strictEqual(result.colors['ctrl-bq-bg'], '#eee');
     assert.strictEqual(result.colors['ctrl-bq-color'], '#666');
     assert.ok(result.overridden.has('ctrl-bg-color'));
     assert.ok(result.overridden.has('ctrl-color'));
     assert.ok(result.overridden.has('ctrl-h1-color'));
     assert.ok(result.overridden.has('ctrl-link-color'));
-    assert.strictEqual(result.overridden.size, 8);
+    assert.ok(result.overridden.has('ctrl-bq-bg'));
+    assert.strictEqual(result.overridden.size, 9);
   });
 
   test('parseThemeColorBlock: null/undefined returns empty', () => {
@@ -465,7 +470,7 @@ module.exports = function(harness) {
       p: { color: '#333' },
       link: { color: '#2563eb' },
       code: { background: '#f0f0f0', color: '#6b21a8' },
-      blockquote: { borderColor: '#2563eb', color: '#666' },
+      blockquote: { borderColor: '#2563eb', background: '#f0ebe4', color: '#666' },
     };
     const parsed = S.parseThemeColorBlock(block);
     const rebuilt = S.collectThemeColors(parsed.colors, parsed.overridden);
@@ -478,6 +483,7 @@ module.exports = function(harness) {
     assert.strictEqual(rebuilt.code.background, block.code.background);
     assert.strictEqual(rebuilt.code.color, block.code.color);
     assert.strictEqual(rebuilt.blockquote.borderColor, block.blockquote.borderColor);
+    assert.strictEqual(rebuilt.blockquote.background, block.blockquote.background);
     assert.strictEqual(rebuilt.blockquote.color, block.blockquote.color);
   });
 };

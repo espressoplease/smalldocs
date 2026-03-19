@@ -51,7 +51,7 @@ var STANDALONE_COLOR_IDS = new Set(SDocStyles.STANDALONE_COLOR_IDS);
   'ctrl-h1-weight','ctrl-h2-weight','ctrl-h3-weight','ctrl-h4-weight',
   'ctrl-bg-color','ctrl-link-color','ctrl-link-decoration',
   'ctrl-code-font','ctrl-code-bg','ctrl-code-color',
-  'ctrl-bq-border-color','ctrl-bq-color',
+  'ctrl-bq-border-color','ctrl-bq-bg','ctrl-bq-color',
 ].forEach(function(id) {
   var handler = function() { if (STANDALONE_COLOR_IDS.has(id)) S.overriddenColors.add(id); applyCtrl(id); };
   document.getElementById(id).addEventListener('input',  handler);
@@ -97,7 +97,7 @@ document.getElementById('reset-h4-color').addEventListener('click',   function()
 document.getElementById('reset-p-color').addEventListener('click',    function() { resetColorValue('ctrl-p-color'); S.syncAll('controls'); });
 document.getElementById('reset-list-color').addEventListener('click', function() { resetColorValue('ctrl-list-color'); S.syncAll('controls'); });
 
-['ctrl-bg-color','ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-color'].forEach(function(ctrlId) {
+['ctrl-bg-color','ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-bg','ctrl-bq-color'].forEach(function(ctrlId) {
   var btnId = 'reset-' + ctrlId.replace('ctrl-', '');
   document.getElementById(btnId).addEventListener('click', function() {
     var defaultVal = S.getStandaloneDefault(ctrlId);
@@ -189,6 +189,7 @@ function applyStylesFromMeta(s) {
   }
   if (s.blockquote) {
     if (s.blockquote.borderColor) legacyStandalone.push(['ctrl-bq-border-color', s.blockquote.borderColor]);
+    if (s.blockquote.background) legacyStandalone.push(['ctrl-bq-bg', s.blockquote.background]);
     if (s.blockquote.color) legacyStandalone.push(['ctrl-bq-color', s.blockquote.color]);
   }
   legacyStandalone.forEach(function(pair) {
@@ -243,7 +244,7 @@ function resetAllStyles() {
    'ctrl-p-lh-num','ctrl-p-mb-num',
    'ctrl-link-color','ctrl-link-decoration',
    'ctrl-code-font','ctrl-code-bg','ctrl-code-color',
-   'ctrl-bq-border-color','ctrl-bq-bw-num','ctrl-bq-size-num','ctrl-bq-color',
+   'ctrl-bq-border-color','ctrl-bq-bg','ctrl-bq-bw-num','ctrl-bq-size-num','ctrl-bq-color',
    'ctrl-list-spacing-num','ctrl-list-indent-num',
   ].forEach(function(id) { applyCtrl(id); });
 }

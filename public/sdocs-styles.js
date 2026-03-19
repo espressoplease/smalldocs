@@ -55,6 +55,7 @@ const CTRL_CSS_MAP = {
   'ctrl-code-color':       { cssVar: '--md-code-color' },
   'ctrl-bq-border-color':  { cssVar: '--md-bq-border', compound: 'bq-border' },
   'ctrl-bq-bw-num':        { cssVar: '--md-bq-border', compound: 'bq-border' },
+  'ctrl-bq-bg':            { cssVar: '--md-bq-bg' },
   'ctrl-bq-size-num':      { cssVar: '--md-bq-size', suffix: 'em' },
   'ctrl-bq-color':         { cssVar: '--md-bq-color' },
   'ctrl-list-spacing-num': { cssVar: '--md-list-spacing', suffix: 'em' },
@@ -170,6 +171,7 @@ function collectStyles(values, overriddenColors) {
     blockquote: {
       borderColor: gv('ctrl-bq-border-color'),
       borderWidth: gn('ctrl-bq-bw-num'),
+      background:  gv('ctrl-bq-bg'),
       fontSize:    gn('ctrl-bq-size-num'),
       color:       gv('ctrl-bq-color'),
     },
@@ -257,6 +259,7 @@ function stylesToControls(styles) {
   const bq = styles.blockquote || {};
   if (bq.borderColor) controls['ctrl-bq-border-color'] = bq.borderColor;
   if (bq.borderWidth) controls['ctrl-bq-bw-num'] = bq.borderWidth;
+  if (bq.background)  controls['ctrl-bq-bg'] = bq.background;
   if (bq.fontSize)    controls['ctrl-bq-size-num'] = bq.fontSize;
   if (bq.color)       controls['ctrl-bq-color'] = bq.color;
 
@@ -276,7 +279,7 @@ function stylesToControls(styles) {
 // ═══════════════════════════════════════════════════════
 
 var STANDALONE_COLOR_IDS = [
-  'ctrl-bg-color','ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-color',
+  'ctrl-bg-color','ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-bg','ctrl-bq-color',
 ];
 
 var CASCADE_COLOR_IDS = Object.keys(COLOR_VAR_MAP);
@@ -341,6 +344,7 @@ function parseThemeColorBlock(block) {
   }
   if (block.blockquote) {
     if (block.blockquote.borderColor) { colors['ctrl-bq-border-color'] = block.blockquote.borderColor; overridden.add('ctrl-bq-border-color'); }
+    if (block.blockquote.background)  { colors['ctrl-bq-bg'] = block.blockquote.background; overridden.add('ctrl-bq-bg'); }
     if (block.blockquote.color)       { colors['ctrl-bq-color'] = block.blockquote.color; overridden.add('ctrl-bq-color'); }
   }
 
@@ -397,6 +401,10 @@ function collectThemeColors(colorValues, overriddenSet) {
     if (!block.blockquote) block.blockquote = {};
     block.blockquote.borderColor = colorValues['ctrl-bq-border-color'];
   }
+  if (overriddenSet.has('ctrl-bq-bg')) {
+    if (!block.blockquote) block.blockquote = {};
+    block.blockquote.background = colorValues['ctrl-bq-bg'];
+  }
   if (overriddenSet.has('ctrl-bq-color')) {
     if (!block.blockquote) block.blockquote = {};
     block.blockquote.color = colorValues['ctrl-bq-color'];
@@ -438,6 +446,7 @@ function collectStylesDual(values, lightOverridden, darkOverridden, lightColors,
       borderWidth: gn('ctrl-bq-bw-num'),
       fontSize:    gn('ctrl-bq-size-num'),
     },
+
   };
 
   styles.list = {

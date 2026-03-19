@@ -177,6 +177,7 @@ BLOCKQUOTE
   blockquote:
     borderColor  string  Left border accent color. Default: "#2563eb"
     borderWidth  number  Left border thickness (px). Default: 3
+    background   string  Quote background color. Default: "#f7f5f2"
     color        string  Quote text color. Default: "#6b6560"
 
 COLOR CASCADE

@@ -362,7 +362,7 @@ module.exports = function(harness) {
       p: { lineHeight: 1.9, marginBottom: 1.3, color: '#333333' },
       link: { color: '#e11d48', decoration: 'none' },
       code: { font: 'Fira Code', background: '#282c34', color: '#abb2bf' },
-      blockquote: { borderColor: '#e11d48', borderWidth: 5, fontSize: 0.95, color: '#555555' },
+      blockquote: { borderColor: '#e11d48', borderWidth: 5, background: '#eee8e0', fontSize: 0.95, color: '#555555' },
       list: { spacing: 0.5, indent: 1.5, color: '#444444' },
     };
     const fm = SDocYaml.serializeFrontMatter({ styles });
@@ -399,6 +399,7 @@ module.exports = function(harness) {
     assert.strictEqual(parsed.code.color, '#abb2bf');
     assert.strictEqual(parsed.blockquote.borderColor, '#e11d48');
     assert.strictEqual(parsed.blockquote.borderWidth, 5);
+    assert.strictEqual(parsed.blockquote.background, '#eee8e0');
     assert.strictEqual(parsed.blockquote.fontSize, 0.95);
     assert.strictEqual(parsed.blockquote.color, '#555555');
     assert.strictEqual(parsed.list.spacing, 0.5);
@@ -429,6 +430,7 @@ module.exports = function(harness) {
     assert.strictEqual(controls['ctrl-code-color'], '#abb2bf');
     assert.strictEqual(controls['ctrl-bq-border-color'], '#e11d48');
     assert.strictEqual(controls['ctrl-bq-bw-num'], 5);
+    assert.strictEqual(controls['ctrl-bq-bg'], '#eee8e0');
     assert.strictEqual(controls['ctrl-bq-size-num'], 0.95);
     assert.strictEqual(controls['ctrl-bq-color'], '#555555');
     assert.strictEqual(controls['ctrl-list-spacing-num'], 0.5);
