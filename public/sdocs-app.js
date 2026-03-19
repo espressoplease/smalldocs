@@ -212,11 +212,36 @@ function fromBase64Url(str) {
   return bytes;
 }
 
-async function compressText(text) {
-  await BrotliWasm.ready;
+async function compressDeflate(text) {
   var encoded = new TextEncoder().encode(text);
-  var compressed = BrotliWasm.compress(encoded, { quality: 11 });
-  return toBase64Url(compressed);
+  var cs = new CompressionStream('deflate-raw');
+  var writer = cs.writable.getWriter();
+  writer.write(encoded);
+  writer.close();
+  var chunks = [];
+  var reader = cs.readable.getReader();
+  while (true) {
+    var result = await reader.read();
+    if (result.done) break;
+    chunks.push(result.value);
+  }
+  var total = chunks.reduce(function(n, c) { return n + c.length; }, 0);
+  var buf = new Uint8Array(total);
+  var offset = 0;
+  for (var i = 0; i < chunks.length; i++) { buf.set(chunks[i], offset); offset += chunks[i].length; }
+  return toBase64Url(buf);
+}
+
+async function compressText(text) {
+  if (typeof BrotliWasm === 'undefined') return compressDeflate(text);
+  try {
+    await BrotliWasm.ready;
+    var encoded = new TextEncoder().encode(text);
+    var compressed = BrotliWasm.compress(encoded, { quality: 11 });
+    return toBase64Url(compressed);
+  } catch (_) {
+    return compressDeflate(text);
+  }
 }
 
 async function decompressDeflate(bytes) {
@@ -239,15 +264,16 @@ async function decompressDeflate(bytes) {
 }
 
 async function decompressText(b64url) {
-  await BrotliWasm.ready;
   var bytes = fromBase64Url(b64url);
-  // Try brotli first, fall back to deflate for old URLs
-  try {
-    var decompressed = BrotliWasm.decompress(bytes);
-    return new TextDecoder().decode(decompressed);
-  } catch (_) {
-    return decompressDeflate(bytes);
+  // Try brotli first, fall back to deflate for old URLs or missing WASM
+  if (typeof BrotliWasm !== 'undefined') {
+    try {
+      await BrotliWasm.ready;
+      var decompressed = BrotliWasm.decompress(bytes);
+      return new TextDecoder().decode(decompressed);
+    } catch (_) {}
   }
+  return decompressDeflate(bytes);
 }
 
 // ── Auto-save to URL hash ──────────────────────────
