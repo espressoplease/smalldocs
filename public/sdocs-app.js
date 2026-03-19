@@ -263,7 +263,10 @@ function updateHash() {
     }
     var params = new URLSearchParams();
     if (!S._isDefaultState) {
-      var meta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
+      var styles = SDocStyles.stripStyleDefaults(S.collectStyles());
+      var meta = Object.assign({}, S.currentMeta);
+      if (Object.keys(styles).length > 0) meta.styles = styles;
+      else delete meta.styles;
       var full = SDocYaml.serializeFrontMatter(meta) + '\n' + S.currentBody;
       var compressed = await compressText(full);
       params.set('md', compressed);

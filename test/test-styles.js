@@ -486,4 +486,210 @@ module.exports = function(harness) {
     assert.strictEqual(rebuilt.blockquote.background, block.blockquote.background);
     assert.strictEqual(rebuilt.blockquote.color, block.blockquote.color);
   });
+
+  console.log('\n── stripStyleDefaults Tests ────────────────────\n');
+
+  test('stripStyleDefaults: removes all-default styles completely', () => {
+    const allDefaults = {
+      fontFamily: 'Inter',
+      baseFontSize: 16,
+      lineHeight: 1.75,
+      headers: { fontFamily: 'inherit', scale: 1.0, marginBottom: 0.4 },
+      h1: { fontSize: 2.1, fontWeight: 700 },
+      h2: { fontSize: 1.55, fontWeight: 600 },
+      h3: { fontSize: 1.2, fontWeight: 600 },
+      h4: { fontSize: 1.0, fontWeight: 600 },
+      p: { lineHeight: 1.75, marginBottom: 1.1 },
+      link: { decoration: 'underline' },
+      code: { font: 'JetBrains Mono' },
+      blockquote: { borderWidth: 3, fontSize: 1.0 },
+      list: { spacing: 0.3, indent: 1.6 },
+    };
+    const result = S.stripStyleDefaults(allDefaults);
+    assert.deepStrictEqual(result, {});
+  });
+
+  test('stripStyleDefaults: preserves non-default values', () => {
+    const styles = {
+      fontFamily: 'Lora',           // non-default
+      baseFontSize: 18,             // non-default
+      lineHeight: 1.75,             // default — should be stripped
+      h1: { fontSize: 2.5, fontWeight: 700 }, // fontSize non-default, fontWeight default
+      h2: { fontSize: 1.55, fontWeight: 600 }, // both default — whole object removed
+      p: { lineHeight: 1.75, marginBottom: 1.1 }, // both default
+    };
+    const result = S.stripStyleDefaults(styles);
+    assert.strictEqual(result.fontFamily, 'Lora');
+    assert.strictEqual(result.baseFontSize, 18);
+    assert.strictEqual(result.lineHeight, undefined);
+    assert.strictEqual(result.h1.fontSize, 2.5);
+    assert.strictEqual(result.h1.fontWeight, undefined);
+    assert.strictEqual(result.h2, undefined);
+    assert.strictEqual(result.p, undefined);
+  });
+
+  test('stripStyleDefaults: preserves light/dark blocks untouched', () => {
+    const styles = {
+      fontFamily: 'Inter',  // default — stripped
+      baseFontSize: 16,     // default — stripped
+      light: { background: '#ffffff', color: '#1c1917' },
+      dark: { background: '#2c2a26', color: '#e7e5e2' },
+    };
+    const result = S.stripStyleDefaults(styles);
+    assert.deepStrictEqual(result.light, styles.light);
+    assert.deepStrictEqual(result.dark, styles.dark);
+    assert.strictEqual(result.fontFamily, undefined);
+    assert.strictEqual(result.baseFontSize, undefined);
+  });
+
+  test('stripStyleDefaults: handles numeric string/number comparison', () => {
+    // collectStyles may produce numbers, but parsed YAML may return strings
+    const styles = { baseFontSize: '16', lineHeight: '1.75', h1: { fontSize: '2.1' } };
+    const result = S.stripStyleDefaults(styles);
+    assert.strictEqual(result.baseFontSize, undefined);
+    assert.strictEqual(result.lineHeight, undefined);
+    assert.strictEqual(result.h1, undefined);
+  });
+
+  test('stripStyleDefaults: null/undefined input passthrough', () => {
+    assert.strictEqual(S.stripStyleDefaults(null), null);
+    assert.strictEqual(S.stripStyleDefaults(undefined), undefined);
+  });
+
+  test('stripStyleDefaults: empty object returns empty', () => {
+    assert.deepStrictEqual(S.stripStyleDefaults({}), {});
+  });
+
+  test('stripStyleDefaults: unknown keys are preserved', () => {
+    const styles = { customThing: 'foo', fontFamily: 'Inter' };
+    const result = S.stripStyleDefaults(styles);
+    assert.strictEqual(result.customThing, 'foo');
+    assert.strictEqual(result.fontFamily, undefined); // default, stripped
+  });
+
+  test('stripStyleDefaults: partial sub-object keeps non-default keys', () => {
+    const styles = {
+      blockquote: { borderWidth: 3, fontSize: 0.9, color: '#555' },
+    };
+    const result = S.stripStyleDefaults(styles);
+    // borderWidth 3 is default — stripped. fontSize 0.9 and color are not.
+    assert.strictEqual(result.blockquote.borderWidth, undefined);
+    assert.strictEqual(result.blockquote.fontSize, 0.9);
+    assert.strictEqual(result.blockquote.color, '#555');
+  });
+
+  test('stripStyleDefaults: STYLE_DEFAULTS matches index.html control defaults', () => {
+    // Verify the defaults table has the expected keys — if someone adds a control
+    // to index.html, they should also add it to STYLE_DEFAULTS
+    const d = S.STYLE_DEFAULTS;
+    assert.strictEqual(d.fontFamily, 'Inter');
+    assert.strictEqual(d.baseFontSize, 16);
+    assert.strictEqual(d.lineHeight, 1.75);
+    assert.strictEqual(d.headers.fontFamily, 'inherit');
+    assert.strictEqual(d.headers.scale, 1.0);
+    assert.strictEqual(d.headers.marginBottom, 0.4);
+    assert.strictEqual(d.h1.fontSize, 2.1);
+    assert.strictEqual(d.h1.fontWeight, 700);
+    assert.strictEqual(d.h2.fontSize, 1.55);
+    assert.strictEqual(d.h2.fontWeight, 600);
+    assert.strictEqual(d.h3.fontSize, 1.2);
+    assert.strictEqual(d.h3.fontWeight, 600);
+    assert.strictEqual(d.h4.fontSize, 1.0);
+    assert.strictEqual(d.h4.fontWeight, 600);
+    assert.strictEqual(d.p.lineHeight, 1.75);
+    assert.strictEqual(d.p.marginBottom, 1.1);
+    assert.strictEqual(d.link.decoration, 'underline');
+    assert.strictEqual(d.code.font, 'JetBrains Mono');
+    assert.strictEqual(d.blockquote.borderWidth, 3);
+    assert.strictEqual(d.blockquote.fontSize, 1.0);
+    assert.strictEqual(d.list.spacing, 0.3);
+    assert.strictEqual(d.list.indent, 1.6);
+  });
+
+  test('stripStyleDefaults → stylesToControls roundtrip preserves non-defaults', () => {
+    // Simulate: collectStyles → stripStyleDefaults → serialize → parse → stylesToControls
+    // Non-default values must survive the full round trip
+    const values = {
+      'ctrl-font-family': "'Lora', serif",
+      'ctrl-base-size-num': '18',
+      'ctrl-line-height-num': '1.8',
+      'ctrl-h-font-family': "'Playfair Display', serif",
+      'ctrl-h-scale-num': '1.2',
+      'ctrl-h-mb-num': '0.6',
+      'ctrl-h1-size-num': '2.5', 'ctrl-h1-weight': '800',
+      'ctrl-h2-size-num': '1.55', 'ctrl-h2-weight': '600', // h2 all default
+      'ctrl-h3-size-num': '1.2', 'ctrl-h3-weight': '600',  // h3 all default
+      'ctrl-h4-size-num': '1.0', 'ctrl-h4-weight': '600',  // h4 all default
+      'ctrl-p-lh-num': '1.75', 'ctrl-p-mb-num': '1.1',     // p all default
+      'ctrl-link-color': '#e11d48', 'ctrl-link-decoration': 'none',
+      'ctrl-code-font': "'JetBrains Mono', monospace",      // default
+      'ctrl-code-bg': '#282c34', 'ctrl-code-color': '#abb2bf',
+      'ctrl-bq-border-color': '#e11d48', 'ctrl-bq-bw-num': '3', // bw default
+      'ctrl-bq-bg': '#eee8e0', 'ctrl-bq-size-num': '1',    // size default
+      'ctrl-bq-color': '#555555',
+      'ctrl-list-spacing-num': '0.3', 'ctrl-list-indent-num': '1.6', // default
+    };
+    const original = S.collectStyles(values, new Set());
+    const stripped = S.stripStyleDefaults(original);
+    const { controls } = S.stylesToControls(stripped);
+
+    // Non-default values must be present
+    assert.strictEqual(controls['ctrl-font-family'], 'Lora');
+    assert.strictEqual(controls['ctrl-base-size-num'], 18);
+    assert.strictEqual(controls['ctrl-line-height-num'], 1.8);
+    assert.strictEqual(controls['ctrl-h-font-family'], 'Playfair Display');
+    assert.strictEqual(controls['ctrl-h-scale-num'], 1.2);
+    assert.strictEqual(controls['ctrl-h-mb-num'], 0.6);
+    assert.strictEqual(controls['ctrl-h1-size-num'], 2.5);
+    assert.strictEqual(controls['ctrl-h1-weight'], '800');
+    assert.strictEqual(controls['ctrl-link-decoration'], 'none');
+
+    // Default values must NOT be in controls (browser fills them from HTML defaults)
+    assert.strictEqual(controls['ctrl-h2-size-num'], undefined);
+    assert.strictEqual(controls['ctrl-h2-weight'], undefined);
+    assert.strictEqual(controls['ctrl-p-lh-num'], undefined);
+    assert.strictEqual(controls['ctrl-list-spacing-num'], undefined);
+  });
+
+  test('stripStyleDefaults + light/dark: full collect → strip → parse roundtrip', () => {
+    const values = {
+      'ctrl-font-family': "'Inter', sans-serif", 'ctrl-base-size-num': '16',
+      'ctrl-line-height-num': '1.75', 'ctrl-h-font-family': 'inherit',
+      'ctrl-h-scale-num': '1', 'ctrl-h-mb-num': '0.4',
+      'ctrl-h1-size-num': '2.1', 'ctrl-h1-weight': '700',
+      'ctrl-h2-size-num': '1.55', 'ctrl-h2-weight': '600',
+      'ctrl-h3-size-num': '1.2', 'ctrl-h3-weight': '600',
+      'ctrl-h4-size-num': '1.0', 'ctrl-h4-weight': '600',
+      'ctrl-p-lh-num': '1.75', 'ctrl-p-mb-num': '1.1',
+      'ctrl-link-decoration': 'underline',
+      'ctrl-code-font': "'JetBrains Mono', monospace",
+      'ctrl-bq-bw-num': '3', 'ctrl-bq-size-num': '1',
+      'ctrl-list-spacing-num': '0.3', 'ctrl-list-indent-num': '1.6',
+    };
+    const lightOverridden = new Set(['ctrl-color', 'ctrl-bg-color']);
+    const darkOverridden = new Set(['ctrl-color', 'ctrl-bg-color']);
+    const lightColors = { 'ctrl-color': '#1c1917', 'ctrl-bg-color': '#ffffff' };
+    const darkColors = { 'ctrl-color': '#e7e5e2', 'ctrl-bg-color': '#2c2a26' };
+
+    const styles = S.collectStylesDual(values, lightOverridden, darkOverridden, lightColors, darkColors);
+    const stripped = S.stripStyleDefaults(styles);
+
+    // All non-color top-level styles were default — should be stripped
+    assert.strictEqual(stripped.fontFamily, undefined);
+    assert.strictEqual(stripped.baseFontSize, undefined);
+    assert.strictEqual(stripped.h1, undefined);
+
+    // light/dark blocks must survive
+    assert.ok(stripped.light);
+    assert.strictEqual(stripped.light.color, '#1c1917');
+    assert.strictEqual(stripped.light.background, '#ffffff');
+    assert.ok(stripped.dark);
+    assert.strictEqual(stripped.dark.color, '#e7e5e2');
+
+    // Parse back — theme blocks should be detected
+    const result = S.stylesToControls(stripped);
+    assert.strictEqual(result.hasThemeColors, true);
+    assert.strictEqual(result.lightColors['ctrl-color'], '#1c1917');
+    assert.strictEqual(result.darkColors['ctrl-color'], '#e7e5e2');
+  });
 };

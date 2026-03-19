@@ -284,7 +284,11 @@ module.exports = function(harness) {
     const hash = url.split('#')[1];
     const params = new URLSearchParams(hash);
     const decoded = cli.decompressFromBase64Url(params.get('md'));
-    assert.strictEqual(decoded, content);
+    // buildUrl strips default styles and re-serializes YAML, so compare semantically
+    const orig = cli.parseFrontMatter(content);
+    const rt = cli.parseFrontMatter(decoded);
+    assert.strictEqual(rt.body, orig.body);
+    assert.strictEqual(rt.meta.styles.fontFamily, 'Lora');
   });
 
   test('buildUrl: section adds sec= param with slugified text', () => {

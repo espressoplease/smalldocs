@@ -535,6 +535,79 @@ stylesToControls = function(styles) {
 };
 
 // ═══════════════════════════════════════════════════════
+//  STRIP STYLE DEFAULTS (for shorter URLs)
+// ═══════════════════════════════════════════════════════
+
+// Default values matching HTML control defaults in index.html.
+// When a style value equals its default, it can be omitted from serialization
+// because stylesToControls / the browser already falls back to these defaults.
+var STYLE_DEFAULTS = {
+  fontFamily: 'Inter',
+  baseFontSize: 16,
+  lineHeight: 1.75,
+  headers: {
+    fontFamily: 'inherit',
+    scale: 1.0,
+    marginBottom: 0.4,
+  },
+  h1: { fontSize: 2.1, fontWeight: 700 },
+  h2: { fontSize: 1.55, fontWeight: 600 },
+  h3: { fontSize: 1.2, fontWeight: 600 },
+  h4: { fontSize: 1.0, fontWeight: 600 },
+  p: { lineHeight: 1.75, marginBottom: 1.1 },
+  link: { decoration: 'underline' },
+  code: { font: 'JetBrains Mono' },
+  blockquote: { borderWidth: 3, fontSize: 1.0 },
+  list: { spacing: 0.3, indent: 1.6 },
+};
+
+function numEq(a, b) {
+  var na = typeof a === 'number' ? a : parseFloat(a);
+  var nb = typeof b === 'number' ? b : parseFloat(b);
+  if (isNaN(na) || isNaN(nb)) return false;
+  return Math.abs(na - nb) < 0.001;
+}
+
+/**
+ * stripStyleDefaults(styles)
+ * Returns a new styles object with default-valued properties removed.
+ * light/dark color blocks are preserved as-is (they have no static defaults).
+ * Empty sub-objects are removed entirely.
+ */
+function stripStyleDefaults(styles) {
+  if (!styles || typeof styles !== 'object') return styles;
+  var result = {};
+  for (var key in styles) {
+    if (!styles.hasOwnProperty(key)) continue;
+    var val = styles[key];
+    var def = STYLE_DEFAULTS[key];
+
+    // light/dark theme color blocks — always keep
+    if (key === 'light' || key === 'dark') {
+      result[key] = val;
+      continue;
+    }
+
+    if (typeof val === 'object' && val !== null) {
+      var sub = {};
+      var defObj = (typeof def === 'object' && def !== null) ? def : {};
+      for (var sk in val) {
+        if (!val.hasOwnProperty(sk)) continue;
+        var sv = val[sk];
+        var sd = defObj[sk];
+        if (sd !== undefined && (sv === sd || String(sv) === String(sd) || numEq(sv, sd))) continue;
+        sub[sk] = sv;
+      }
+      if (Object.keys(sub).length > 0) result[key] = sub;
+    } else {
+      if (def !== undefined && (val === def || String(val) === String(def) || numEq(val, def))) continue;
+      result[key] = val;
+    }
+  }
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════
 //  EXPORTS
 // ═══════════════════════════════════════════════════════
 exports.COLOR_DEFAULT   = COLOR_DEFAULT;
@@ -553,6 +626,8 @@ exports.collectStylesDual     = collectStylesDual;
 exports.collectThemeColors    = collectThemeColors;
 exports.parseThemeColorBlock  = parseThemeColorBlock;
 exports.stylesToControls      = stylesToControls;
+exports.STYLE_DEFAULTS        = STYLE_DEFAULTS;
+exports.stripStyleDefaults    = stripStyleDefaults;
 
 // UMD tail: in Node (tests) this writes to module.exports; in the browser
 // it creates window.SDocStyles.  We use this pattern instead of ES modules

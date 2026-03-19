@@ -14,6 +14,7 @@ const path = require('path');
 const zlib = require('zlib');
 const { execSync } = require('child_process');
 const SDocYaml = require('../public/sdocs-yaml.js');
+const SDocStyles = require('../public/sdocs-styles.js');
 
 const https = require('https');
 const os    = require('os');
@@ -338,6 +339,17 @@ function buildUrl(content, opts) {
   const params = new URLSearchParams();
 
   if (content) {
+    // Strip default style values to produce shorter URLs
+    const parsed = SDocYaml.parseFrontMatter(content);
+    if (parsed.meta && parsed.meta.styles) {
+      const stripped = SDocStyles.stripStyleDefaults(parsed.meta.styles);
+      if (Object.keys(stripped).length > 0) {
+        parsed.meta.styles = stripped;
+      } else {
+        delete parsed.meta.styles;
+      }
+      content = SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
+    }
     params.set('md', compressToBase64Url(content));
   } else if (opts.defaultStyles) {
     const stylesJson = JSON.stringify(opts.defaultStyles);
