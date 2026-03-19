@@ -195,11 +195,11 @@ function isLikeNone(x) {
 * `ResultFailure` is removed
 * because we will convert the failure to an actual negative error code (if available) and pass it elsewhere.
 */
-export const BrotliStreamResultCode = Object.freeze({ ResultSuccess:1,"1":"ResultSuccess",NeedsMoreInput:2,"2":"NeedsMoreInput",NeedsMoreOutput:3,"3":"NeedsMoreOutput", });
+const BrotliStreamResultCode = Object.freeze({ ResultSuccess:1,"1":"ResultSuccess",NeedsMoreInput:2,"2":"NeedsMoreInput",NeedsMoreOutput:3,"3":"NeedsMoreOutput", });
 /**
 * Returned by every successful (de)compression.
 */
-export class BrotliStreamResult {
+class BrotliStreamResult {
 
     static __wrap(ptr) {
         const obj = Object.create(BrotliStreamResult.prototype);
@@ -283,7 +283,7 @@ export class BrotliStreamResult {
 }
 /**
 */
-export class CompressStream {
+class CompressStream {
 
     static __wrap(ptr) {
         const obj = Object.create(CompressStream.prototype);
@@ -342,7 +342,7 @@ export class CompressStream {
 }
 /**
 */
-export class DecompressStream {
+class DecompressStream {
 
     static __wrap(ptr) {
         const obj = Object.create(DecompressStream.prototype);
@@ -432,7 +432,7 @@ async function load(module, imports) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('brotli_wasm_bg.wasm', import.meta.url);
+        input = '/public/brotli_wasm_bg.wasm';
     }
     const imports = {};
     imports.wbg = {};
@@ -500,7 +500,7 @@ async function init(input) {
     return wasm;
 }
 
-
+default init;
 
 
 
