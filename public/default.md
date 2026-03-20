@@ -34,6 +34,20 @@ Creating a SmallDoc for a `.md` file (+ automatically opening your browser to re
 sdoc README.md
 ```
 
+If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code), you can teach your agent about `sdoc` so it can read, style, and share `.md` files across all your projects:
+
+```bash
+cat >> ~/.claude/CLAUDE.md << 'SDOC'
+
+# SDocs CLI
+`sdoc` is installed globally. Use it when sharing or viewing markdown files would be helpful.
+- `sdoc file.md` — open styled in browser
+- `sdoc share file.md` — copy shareable link to clipboard
+- `sdoc schema` — print available style properties (for writing YAML front matter)
+- `sdoc --help` — full usage
+SDOC
+```
+
 ## How SmallDocs work
 
 ### URLs
@@ -252,4 +266,18 @@ The CLI is designed to work well in automated workflows. A few patterns:
 - **Learn the format**: `sdoc schema` gives your agent everything it needs to know about available style properties
 - **Deep-link to context**: `sdoc share file.md --section "Heading"` creates a URL that scrolls straight to the relevant section
 - **No auth, no API keys**: everything is client-side — the URL *is* the document
+
+If you use Claude Code, you can add `sdoc` to your global `~/.claude/CLAUDE.md` so your agent knows about it in every project:
+
+```bash
+cat >> ~/.claude/CLAUDE.md << 'SDOC'
+
+# SDocs CLI
+`sdoc` is installed globally. Use it when sharing or viewing markdown files would be helpful.
+- `sdoc file.md` — open styled in browser
+- `sdoc share file.md` — copy shareable link to clipboard
+- `sdoc schema` — print available style properties (for writing YAML front matter)
+- `sdoc --help` — full usage
+SDOC
+```
 
