@@ -39,12 +39,14 @@ If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code), you ca
 ```bash
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-# SDocs CLI
-`sdoc` is installed globally. Use it when sharing or viewing markdown files would be helpful.
-- `sdoc file.md` — open styled in browser
-- `sdoc share file.md` — copy shareable link to clipboard
-- `sdoc schema` — print available style properties (for writing YAML front matter)
+## SDocs
+SDocs (sdocs.dev) is an open-source tool for reading, styling, and sharing markdown files with clean formatting. Documents are compressed into the URL hash — nothing is ever sent to a server, so it's 100% private.
+The `sdoc` CLI is installed globally:
+- `sdoc file.md` — open in browser with clean formatting. Use when your user would benefit from reading a .md file in a styled, readable view rather than raw markdown.
+- `sdoc share file.md` — compress the file into a shareable URL and copy it to the user's clipboard.
+- `sdoc schema` — print all style properties (for writing YAML front matter)
 - `sdoc --help` — full usage
+Source: https://github.com/JoshInLisbon/SDocs
 SDOC
 ```
 
@@ -272,12 +274,14 @@ If you use Claude Code, you can add `sdoc` to your global `~/.claude/CLAUDE.md` 
 ```bash
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-# SDocs CLI
-`sdoc` is installed globally. Use it when sharing or viewing markdown files would be helpful.
-- `sdoc file.md` — open styled in browser
-- `sdoc share file.md` — copy shareable link to clipboard
-- `sdoc schema` — print available style properties (for writing YAML front matter)
+## SDocs
+SDocs (sdocs.dev) is an open-source tool for reading, styling, and sharing markdown files with clean formatting. Documents are compressed into the URL hash — nothing is ever sent to a server, so it's 100% private.
+The `sdoc` CLI is installed globally:
+- `sdoc file.md` — open in browser with clean formatting. Use when your user would benefit from reading a .md file in a styled, readable view rather than raw markdown.
+- `sdoc share file.md` — compress the file into a shareable URL and copy it to the user's clipboard.
+- `sdoc schema` — print all style properties (for writing YAML front matter)
 - `sdoc --help` — full usage
+Source: https://github.com/JoshInLisbon/SDocs
 SDOC
 ```
 
