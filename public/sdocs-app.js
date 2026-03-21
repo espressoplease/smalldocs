@@ -121,6 +121,20 @@ function render() {
     wrapper.appendChild(btn);
   });
 
+  // H1 expand/collapse toggle (controls all sections below)
+  var H1_CHEVRON = '<span class="section-toggle"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+  S.renderedEl.querySelectorAll('h1').forEach(function(h1) {
+    h1.insertAdjacentHTML('afterbegin', H1_CHEVRON);
+    h1.style.cursor = 'pointer';
+    h1.addEventListener('click', function(e) {
+      if (e.target.closest('.header-anchor') || e.target.closest('.header-copy-btn')) return;
+      var toggle = h1.querySelector('.section-toggle');
+      var isOpen = toggle.classList.toggle('open');
+      S.renderedEl.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.toggle('open', isOpen); });
+      S.renderedEl.querySelectorAll('.md-section > h2 > .section-toggle, .md-section > h3 > .section-toggle, .md-section > h4 > .section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
+    });
+  });
+
   // Collapsible heading sections (H2, H3, H4)
   var SECTION_CHEVRON = '<span class="section-toggle"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
   var SECTION_LEVELS = { H2: 2, H3: 3, H4: 4 };
