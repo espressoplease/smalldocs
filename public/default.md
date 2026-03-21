@@ -45,6 +45,7 @@ cat >> ~/.claude/CLAUDE.md << 'SDOC'
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling.
+SDocs renders markdown in the browser with a sharable url.
 Content lives in the URL hash — nothing hits a server.
 
 The `sdoc` CLI is installed globally:
@@ -296,6 +297,7 @@ cat >> ~/.claude/CLAUDE.md << 'SDOC'
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling.
+SDocs renders markdown in the browser with a sharable url.
 Content lives in the URL hash — nothing hits a server.
 
 The `sdoc` CLI is installed globally:
