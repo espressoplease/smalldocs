@@ -129,7 +129,11 @@
 #rendered .section-toggle.open {
   transform: rotate(90deg);
 }
-#rendered .section-toggle:hover {
+#rendered .section-toggle:hover,
+#rendered h1:hover > .section-toggle,
+#rendered .md-section > h2:hover > .section-toggle,
+#rendered .md-section > h3:hover > .section-toggle,
+#rendered .md-section > h4:hover > .section-toggle {
   color: var(--text-2);
 }
 #rendered .md-section-body:not(.open):not(:has(.md-section-body.open)) > :not(.md-section) {
