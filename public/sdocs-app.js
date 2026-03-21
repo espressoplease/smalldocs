@@ -537,7 +537,7 @@ async function loadFromHash() {
     try {
       S._isDefaultState = false;
       var text = await decompressText(mdParam);
-      loadText(text, 'document.md');
+      loadText(text);
     } catch (e) {
       console.warn('sdocs-dev: could not decode hash', e);
     }
