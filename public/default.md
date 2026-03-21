@@ -160,12 +160,21 @@ Drag any `.md` file onto the editor to SmallDoc it instantly.
 
 ### Exports
 
-SmallDocs can export your document in four formats:
+#### Raw .md
 
-- **Raw .md** — your markdown content with all front matter stripped. Plain markdown, compatible with anything.
-- **PDF** — a styled PDF generated from the rendered view via the browser's print engine.
-- **Word (.docx)** — a styled Word document generated from the rendered HTML.
-- **Styled .md** — your markdown with the `styles:` front matter block included. This is the format SmallDocs reads back in, so your formatting is preserved.
+Your markdown content with all front matter stripped. Plain markdown, compatible with anything.
+
+#### PDF
+
+A styled PDF generated from the rendered view via the browser's print engine.
+
+#### Word (.docx)
+
+A styled Word document generated from the rendered HTML.
+
+#### Styled .md
+
+Your markdown with the `styles:` front matter block included. This is the format SmallDocs reads back in, so your formatting is preserved.
 
 ### Collapsed headers
 
