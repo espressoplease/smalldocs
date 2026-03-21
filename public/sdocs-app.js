@@ -193,7 +193,7 @@ function loadText(text, filename) {
   });
   S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
   S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
-  setStatus(filename ? 'Loaded: ' + filename : 'Ready');
+  setStatus(filename ? 'Loaded: ' + filename : '');
   syncAll('load');
 }
 
