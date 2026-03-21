@@ -425,14 +425,6 @@ document.getElementById('btn-new').addEventListener('click', function() {
   startNewDocument();
 });
 
-document.getElementById('btn-expand-all').addEventListener('click', function() {
-  S.renderedEl.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.add('open'); });
-  S.renderedEl.querySelectorAll('.section-toggle').forEach(function(t) { t.classList.add('open'); });
-});
-document.getElementById('btn-collapse-all').addEventListener('click', function() {
-  S.renderedEl.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.remove('open'); });
-  S.renderedEl.querySelectorAll('.section-toggle').forEach(function(t) { t.classList.remove('open'); });
-});
 
 document.getElementById('right-header').addEventListener('click', function() {
   if (window.innerWidth <= 768) {
