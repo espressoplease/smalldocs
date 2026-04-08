@@ -192,6 +192,7 @@ function loadText(text, filename) {
   var parsed = SDocYaml.parseFrontMatter(text);
   S.currentMeta = parsed.meta;
   S.currentBody = parsed.body;
+  S.chartStyles = (parsed.meta.styles && parsed.meta.styles.chart) || null;
   render();
   if (parsed.meta.styles) S.applyStylesFromMeta(parsed.meta.styles);
   // Re-apply theme defaults for standalone colors (front matter may have

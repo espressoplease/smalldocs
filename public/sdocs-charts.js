@@ -148,6 +148,12 @@
     var accent = data.accent || null;
     var mode = data.palette || null;
 
+    // Fall back to front matter chart styles (persisted on S.chartStyles)
+    if (!accent && S.chartStyles) {
+      accent = S.chartStyles.accent || null;
+      if (!mode) mode = S.chartStyles.palette || null;
+    }
+
     // Fall back to CSS vars from style panel
     if (!accent) {
       var rendered = document.getElementById('rendered');
@@ -198,9 +204,16 @@
     return document.documentElement.dataset.theme === 'dark';
   }
 
+  function getDocFont() {
+    var rendered = document.getElementById('rendered');
+    if (!rendered) return '';
+    return getComputedStyle(rendered).getPropertyValue('--md-font-family').trim() || '';
+  }
+
   function theme() {
     var dark = isDark();
     return {
+      font: getDocFont(),
       text: dark ? '#A8A29E' : '#78716c',
       grid: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
       title: dark ? '#E7E5E2' : '#1C1917',
@@ -531,6 +544,7 @@
         responsive: true,
         maintainAspectRatio: true,
         animation: false,
+        font: th.font ? { family: th.font } : undefined,
         aspectRatio: data.aspectRatio || undefined,
         indexAxis: isHorizontal ? 'y' : undefined,
         plugins: {
@@ -538,7 +552,7 @@
             display: !!data.title,
             text: data.title || '',
             color: th.title,
-            font: { size: 15, weight: '600' },
+            font: { size: 15, weight: '600', family: th.font || undefined },
             padding: { bottom: data.subtitle ? 2 : 12 }
           },
           subtitle: {
