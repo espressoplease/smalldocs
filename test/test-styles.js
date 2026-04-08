@@ -309,9 +309,9 @@ module.exports = function(harness) {
 
   test('STANDALONE_COLOR_IDS and ALL_COLOR_IDS are exported', () => {
     assert.ok(Array.isArray(S.STANDALONE_COLOR_IDS));
-    assert.strictEqual(S.STANDALONE_COLOR_IDS.length, 7);
+    assert.strictEqual(S.STANDALONE_COLOR_IDS.length, 8);
     assert.ok(Array.isArray(S.ALL_COLOR_IDS));
-    assert.strictEqual(S.ALL_COLOR_IDS.length, 15);
+    assert.strictEqual(S.ALL_COLOR_IDS.length, 16);
   });
 
   test('parseThemeColorBlock: extracts colors from theme block', () => {

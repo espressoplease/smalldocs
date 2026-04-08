@@ -75,6 +75,7 @@ USAGE
   sdoc share <file>                Copy shareable link to clipboard
   sdoc share <file> --section "X"  Link with section anchor
   sdoc schema                      Print the full styles schema
+  sdoc charts                      Chart types, options, and styling guide
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
   sdoc help                        Show this help
@@ -249,6 +250,158 @@ EXAMPLE — editorial article with colored heading tiers
   ---
 `;
 
+const CHARTS_HELP = `
+SDocs — Charts
+==============
+Render beautiful charts in markdown using \`\`\`chart code blocks.
+Charts are powered by Chart.js, loaded lazily from CDN only when needed.
+
+BASIC SYNTAX
+  Wrap a JSON object in a \`\`\`chart fenced code block:
+
+  \`\`\`chart
+  {
+    "type": "bar",
+    "title": "Monthly Revenue",
+    "labels": ["Jan", "Feb", "Mar"],
+    "values": [100, 150, 130]
+  }
+  \`\`\`
+
+CHART TYPES
+  pie              Circular segments (use "color" for monochrome shading)
+  doughnut         Hollow-center pie (alias: donut)
+  bar              Vertical bars
+  horizontal_bar   Horizontal bars (alias: hbar)
+  stacked_bar      Stacked vertical bars
+  line             Line graph with data points
+  area             Line with filled area beneath
+  stacked_area     Multiple filled areas stacked (alias: stacked_line)
+  radar            Spider/web chart for multi-axis comparison
+  polarArea        Like pie but equal angles, varying radius
+  scatter          X/Y point plots
+  bubble           Like scatter with size dimension
+  mixed            Combo chart — bar + line on same plot (alias: combo)
+
+DATA FORMATS
+  Simple (single dataset):
+    "labels": ["A", "B", "C"],
+    "values": [10, 20, 15]
+
+  Multi-dataset:
+    "labels": ["Q1", "Q2"],
+    "datasets": [
+      { "label": "2024", "values": [10, 20] },
+      { "label": "2025", "values": [12, 25] }
+    ]
+
+  Scatter/Bubble:
+    "datasets": [
+      { "label": "Group", "data": [{"x": 1, "y": 2}, {"x": 3, "y": 5}] }
+    ]
+
+CHART OPTIONS
+  title           string     Chart heading
+  subtitle        string     Smaller text below title
+  labels          string[]   Category labels
+  values          number[]   Data for a single dataset
+  datasets        array      Multiple datasets (see above)
+  color           string     Single accent color (hex)
+  colors          string[]   Per-segment/bar custom colors
+
+AXIS OPTIONS
+  xAxis / xLabel  string     X-axis label
+  yAxis / yLabel  string     Y-axis label
+  y2Axis          string     Right y-axis label (enables dual axis)
+  min             number     Minimum value on value axis
+  max             number     Maximum value on value axis
+  stepSize        number     Tick interval
+  beginAtZero     boolean    Default true. Set false for auto-range.
+
+NUMBER FORMATTING
+  format          string     "currency" ($), "euro" (€), "pound" (£),
+                             "percent" (%), "comma" (1,000)
+  prefix          string     Custom value prefix (e.g. "£")
+  suffix          string     Custom value suffix (e.g. " kg", "°C")
+  y2Format        string     Format for right y-axis
+  y2Prefix        string     Prefix for right y-axis
+  y2Suffix        string     Suffix for right y-axis
+
+DISPLAY OPTIONS
+  legend          boolean    Show/hide legend (auto by default)
+  legendPosition  string     "top", "bottom" (default), "left", "right"
+  dataLabels      boolean    Show values on chart (default true). Set false for clean look.
+  aspectRatio     number     Width/height ratio (e.g. 2 for wide, 0.8 for tall)
+  stacked         boolean    Force stacking on bar/line charts
+
+DATASET OPTIONS (inside each dataset object)
+  label           string     Name shown in legend
+  values          number[]   Data points
+  data            object[]   For scatter: [{x, y}], for bubble: [{x, y, r}]
+  color           string     Dataset color (hex)
+  colors          string[]   Per-bar colors within dataset
+  type            string     Override type in mixed charts ("bar" or "line")
+  yAxisID         string     "y" (left) or "y2" (right) for dual-axis charts
+  fill            boolean    Fill area under line
+  tension         number     Line smoothing (0 = straight, 0.4 = smooth)
+  order           number     Draw order (lower = rendered on top)
+
+ANNOTATIONS (reference lines)
+  "annotations": [
+    { "y": 60, "label": "Target", "color": "#ef4444" },
+    { "x": "Mar", "label": "Launch", "dashed": true }
+  ]
+
+  y / x           number/string   Position of the reference line
+  label           string          Text label on the line
+  color           string          Line color
+  width           number          Line thickness (default 2)
+  dashed          boolean         Dashed style (default true)
+  position        string          Label position: "start", "center", "end"
+
+CHART STYLING (via front matter or style panel)
+  Charts inherit their color palette from the document's style settings.
+  Set an accent color and palette mode in YAML front matter:
+
+  ---
+  styles:
+    chart:
+      accent: "#3b82f6"
+      palette: complementary
+  ---
+
+  PALETTE MODES
+    complementary   Hues spread evenly around the color wheel (default)
+    monochrome      Same hue, varying lightness — great for single-topic charts
+    analogous       Neighboring hues for a harmonious feel
+    triadic         Three base hues 120° apart
+    pastel          Soft, light colors
+    warm            Reds, oranges, yellows
+    cool            Blues, teals, purples
+    earth           Browns, olives, muted greens
+
+  Per-chart override: set "accent" and/or "palette" directly in the chart JSON.
+  Per-chart colors: set "colors": ["#hex", ...] to override the palette entirely.
+  Single-color pie: set "color": "#hex" on a pie/doughnut for monochrome shading.
+
+MIXED CHART EXAMPLE (dual y-axis)
+  \`\`\`chart
+  {
+    "type": "mixed",
+    "title": "Revenue vs Growth",
+    "labels": ["Q1", "Q2", "Q3", "Q4"],
+    "datasets": [
+      { "label": "Revenue", "type": "bar", "values": [50, 65, 80, 95], "yAxisID": "y" },
+      { "label": "Growth", "type": "line", "values": [12, 30, 23, 19], "yAxisID": "y2" }
+    ],
+    "yAxis": "Revenue ($M)",
+    "y2Axis": "Growth %",
+    "format": "currency",
+    "y2Format": "percent"
+  }
+  \`\`\`
+`;
+
 // ── Compression (brotli + base64url) ─────────────────
 
 function toBase64Url(buf) {
@@ -290,7 +443,7 @@ function slugify(text) {
 
 // ── Parse args ────────────────────────────────────────────
 
-const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help']);
+const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts']);
 
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
@@ -510,6 +663,7 @@ if (require.main === module) {
     // Subcommand dispatch
     if (opts.subcommand === 'help')   { console.log(HELP);   process.exit(0); }
     if (opts.subcommand === 'schema') { console.log(SCHEMA); process.exit(0); }
+    if (opts.subcommand === 'charts') { console.log(CHARTS_HELP); process.exit(0); }
     if (opts.subcommand === 'defaults') {
       if (opts.resetFlag) resetDefaults();
       else showDefaults();

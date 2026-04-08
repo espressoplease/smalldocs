@@ -222,6 +222,7 @@ function getStandaloneDefault(ctrlId) {
     'ctrl-bq-border-color': d.bqBorderColor,
     'ctrl-bq-bg':           d.bqBg,
     'ctrl-bq-color':        d.bqColor,
+    'ctrl-chart-accent':    '#3b82f6',
   };
   return map[ctrlId];
 }

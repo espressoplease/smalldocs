@@ -60,6 +60,8 @@ const CTRL_CSS_MAP = {
   'ctrl-bq-color':         { cssVar: '--md-bq-color' },
   'ctrl-list-spacing-num': { cssVar: '--md-list-spacing', suffix: 'em' },
   'ctrl-list-indent-num':  { cssVar: '--md-list-indent', suffix: 'em' },
+  'ctrl-chart-accent':     { cssVar: '--md-chart-accent' },
+  'ctrl-chart-palette':    { cssVar: '--md-chart-palette' },
 };
 
 // Range ↔ Number input pairs
@@ -193,6 +195,13 @@ function collectStyles(values, overriddenColors) {
   if (overriddenColors.has('ctrl-p-color'))    styles.p.color = gv('ctrl-p-color');
   if (overriddenColors.has('ctrl-list-color')) styles.list.color = gv('ctrl-list-color');
 
+  // Chart styles — only emit if accent was explicitly set
+  if (overriddenColors.has('ctrl-chart-accent')) {
+    styles.chart = { accent: gv('ctrl-chart-accent'), palette: gv('ctrl-chart-palette') };
+  } else if (gv('ctrl-chart-palette') && gv('ctrl-chart-palette') !== 'complementary') {
+    styles.chart = { palette: gv('ctrl-chart-palette') };
+  }
+
   return styles;
 }
 
@@ -271,6 +280,13 @@ function stylesToControls(styles) {
     overridden.add('ctrl-list-color');
   }
 
+  const ch = styles.chart || {};
+  if (ch.accent) {
+    controls['ctrl-chart-accent'] = ch.accent;
+    overridden.add('ctrl-chart-accent');
+  }
+  if (ch.palette) controls['ctrl-chart-palette'] = ch.palette;
+
   return { controls, overriddenColors: overridden };
 }
 
@@ -280,6 +296,7 @@ function stylesToControls(styles) {
 
 var STANDALONE_COLOR_IDS = [
   'ctrl-bg-color','ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-bg','ctrl-bq-color',
+  'ctrl-chart-accent',
 ];
 
 var CASCADE_COLOR_IDS = Object.keys(COLOR_VAR_MAP);

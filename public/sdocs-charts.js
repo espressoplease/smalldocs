@@ -22,15 +22,152 @@
   var CDN_LABELS = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js';
   var activeCharts = [];
 
-  // ── Default color palette (20 colors for large datasets) ──
-  var PALETTE = [
+  // ── Fallback palette (used when no accent is set) ──
+  var DEFAULT_PALETTE = [
     '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6',
     '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
     '#06b6d4', '#d946ef', '#0ea5e9', '#a3e635', '#fb923c',
     '#e11d48', '#2dd4bf', '#a78bfa', '#fbbf24', '#34d399'
   ];
 
-  function paletteColor(i) { return PALETTE[i % PALETTE.length]; }
+  // ── HSL helpers ──
+  function hexToHsl(hex) {
+    var r = parseInt(hex.slice(1, 3), 16) / 255;
+    var g = parseInt(hex.slice(3, 5), 16) / 255;
+    var b = parseInt(hex.slice(5, 7), 16) / 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h, s, l = (max + min) / 2;
+    if (max === min) { h = s = 0; }
+    else {
+      var d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+      else if (max === g) h = ((b - r) / d + 2) / 6;
+      else h = ((r - g) / d + 4) / 6;
+    }
+    return [h * 360, s * 100, l * 100];
+  }
+
+  function hslToHex(h, s, l) {
+    h = ((h % 360) + 360) % 360;
+    s = Math.max(0, Math.min(100, s)) / 100;
+    l = Math.max(0, Math.min(100, l)) / 100;
+    var c = (1 - Math.abs(2 * l - 1)) * s;
+    var x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    var m = l - c / 2;
+    var r, g, b;
+    if (h < 60)       { r = c; g = x; b = 0; }
+    else if (h < 120) { r = x; g = c; b = 0; }
+    else if (h < 180) { r = 0; g = c; b = x; }
+    else if (h < 240) { r = 0; g = x; b = c; }
+    else if (h < 300) { r = x; g = 0; b = c; }
+    else              { r = c; g = 0; b = x; }
+    var toHex = function (v) { var h = Math.round((v + m) * 255).toString(16); return h.length < 2 ? '0' + h : h; };
+    return '#' + toHex(r) + toHex(g) + toHex(b);
+  }
+
+  // ── Palette generation ──
+  // Modes: complementary, monochrome, analogous, triadic, warm, cool, pastel, earth
+  function generatePalette(accent, mode, count) {
+    var hsl = hexToHsl(accent);
+    var h = hsl[0], s = hsl[1], l = hsl[2];
+    var colors = [];
+    var i;
+
+    switch (mode) {
+      case 'monochrome':
+      case 'mono':
+        // Same hue, spread lightness from dark to light
+        for (i = 0; i < count; i++) {
+          var li = 25 + (50 * i / Math.max(count - 1, 1)); // 25% to 75%
+          colors.push(hslToHex(h, s, li));
+        }
+        break;
+
+      case 'analogous':
+        // ±40° spread around the accent hue
+        var spread = 40;
+        for (i = 0; i < count; i++) {
+          var offset = -spread + (2 * spread * i / Math.max(count - 1, 1));
+          colors.push(hslToHex(h + offset, s, l));
+        }
+        break;
+
+      case 'triadic':
+        // Three base hues 120° apart, then vary lightness
+        for (i = 0; i < count; i++) {
+          var baseH = h + (i % 3) * 120;
+          var li2 = l + (Math.floor(i / 3) * 10 - 10);
+          colors.push(hslToHex(baseH, s, li2));
+        }
+        break;
+
+      case 'warm':
+        for (i = 0; i < count; i++) {
+          colors.push(hslToHex(i * (60 / count), 70 + (i % 3) * 10, 50 + (i % 2) * 10));
+        }
+        break;
+
+      case 'cool':
+        for (i = 0; i < count; i++) {
+          colors.push(hslToHex(180 + i * (80 / count), 60 + (i % 3) * 10, 45 + (i % 2) * 10));
+        }
+        break;
+
+      case 'pastel':
+        for (i = 0; i < count; i++) {
+          colors.push(hslToHex(h + i * (360 / count), 55, 75));
+        }
+        break;
+
+      case 'earth':
+        var earthHues = [30, 45, 20, 60, 15, 35, 50, 10, 40, 25];
+        for (i = 0; i < count; i++) {
+          colors.push(hslToHex(earthHues[i % earthHues.length], 45 + (i % 3) * 10, 40 + (i % 4) * 8));
+        }
+        break;
+
+      case 'complementary':
+      default:
+        // Spread hues evenly around the wheel, starting from accent
+        for (i = 0; i < count; i++) {
+          colors.push(hslToHex(h + i * (360 / count), s, l));
+        }
+        break;
+    }
+
+    return colors;
+  }
+
+  // ── Get active palette (reads CSS vars or per-chart overrides) ──
+  function getActivePalette(data, count) {
+    // Per-chart colors override everything
+    if (data.colors) return data.colors;
+
+    // Per-chart accent + mode
+    var accent = data.accent || null;
+    var mode = data.palette || null;
+
+    // Fall back to CSS vars from style panel
+    if (!accent) {
+      var rendered = document.getElementById('rendered');
+      if (rendered) {
+        var cs = getComputedStyle(rendered);
+        accent = cs.getPropertyValue('--md-chart-accent').trim() || null;
+        if (!mode) mode = cs.getPropertyValue('--md-chart-palette').trim() || null;
+      }
+    }
+
+    // No accent set — use the default static palette
+    if (!accent) return DEFAULT_PALETTE.slice(0, Math.max(count, 1));
+
+    return generatePalette(accent, mode || 'complementary', count);
+  }
+
+  function paletteColor(data, i, count) {
+    var pal = getActivePalette(data, count || 10);
+    return pal[i % pal.length];
+  }
 
   function loadScript(url, cb) {
     var s = document.createElement('script');
@@ -133,21 +270,31 @@
 
     if (isRadial) {
       var values = data.values || (data.datasets && data.datasets[0] && data.datasets[0].values) || [];
+      // Single-color pie: auto-generate monochrome shades
+      var radialColors;
+      if (data.color && !data.colors) {
+        radialColors = generatePalette(data.color, 'monochrome', values.length);
+      } else {
+        radialColors = getActivePalette(data, values.length);
+      }
       return [{
         data: values,
-        backgroundColor: data.colors || PALETTE.slice(0, Math.max(values.length, 1)),
+        backgroundColor: radialColors,
         borderWidth: isDark() ? 1 : 2,
         borderColor: isDark() ? 'rgba(0,0,0,0.3)' : '#fff'
       }];
     }
 
+    var dsCount = data.datasets ? data.datasets.length : 1;
+
     if (data.values && !data.datasets) {
       // Simple single-dataset
+      var c0 = data.color || paletteColor(data, 0, dsCount);
       var ds = {
         label: data.label || '',
         data: data.values,
-        backgroundColor: isLine ? undefined : (data.colors || paletteColor(0)),
-        borderColor: isLine || isScatter ? (data.color || paletteColor(0)) : undefined,
+        backgroundColor: isLine ? undefined : (data.colors || c0),
+        borderColor: isLine || isScatter ? c0 : undefined,
         borderWidth: isLine ? 2.5 : 0,
         tension: data.tension != null ? data.tension : 0.35,
         fill: isFill,
@@ -155,15 +302,15 @@
         pointHoverRadius: isLine ? 5 : undefined
       };
       if (isFill) {
-        ds.backgroundColor = hexToRgba(data.color || paletteColor(0), 0.15);
-        ds.borderColor = data.color || paletteColor(0);
+        ds.backgroundColor = hexToRgba(c0, 0.15);
+        ds.borderColor = c0;
       }
       return [ds];
     }
 
     if (data.datasets) {
       return data.datasets.map(function (ds, i) {
-        var color = ds.color || paletteColor(i);
+        var color = ds.color || paletteColor(data, i, dsCount);
         var dsType = isMixed ? (ds.type || 'bar') : undefined;
         var isLineLike = isLine || dsType === 'line' || chartType === 'radar';
         var result = {
@@ -446,6 +593,7 @@
   function destroyAll() {
     activeCharts.forEach(function (c) { c.destroy(); });
     activeCharts = [];
+    chartDataStore = [];
   }
 
   // ── Process rendered HTML: find chart code blocks, replace with canvases ──
@@ -481,6 +629,59 @@
       });
     });
   }
+
+  // ── Re-render charts when palette controls change ──
+  // Store chart data alongside instances so we can rebuild with new colors
+  var chartDataStore = [];
+
+  var _origProcess = processCharts;
+  processCharts = function (container) {
+    chartDataStore = [];
+    var chartBlocks = container.querySelectorAll('code.language-chart');
+    if (!chartBlocks.length) return;
+
+    ensureChartJs(function () {
+      chartBlocks.forEach(function (codeEl) {
+        var pre = codeEl.closest('pre');
+        if (!pre) return;
+        var data = parseChartData(codeEl.textContent);
+        if (!data) { pre.classList.add('sdoc-chart-error'); return; }
+        var config = buildConfig(data);
+        if (!config) return;
+
+        var wrapper = document.createElement('div');
+        wrapper.className = 'sdoc-chart';
+        var canvas = document.createElement('canvas');
+        wrapper.appendChild(canvas);
+
+        var preWrapper = pre.closest('.pre-wrapper');
+        var target = preWrapper || pre;
+        target.parentNode.replaceChild(wrapper, target);
+
+        var chart = new Chart(canvas, config);
+        activeCharts.push(chart);
+        chartDataStore.push({ chart: chart, data: data, canvas: canvas });
+      });
+    });
+  };
+
+  function refreshChartColors() {
+    chartDataStore.forEach(function (entry) {
+      entry.chart.destroy();
+      var config = buildConfig(entry.data);
+      entry.chart = new Chart(entry.canvas, config);
+    });
+    // Update activeCharts
+    activeCharts = chartDataStore.map(function (e) { return e.chart; });
+  }
+
+  ['ctrl-chart-accent', 'ctrl-chart-palette'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', refreshChartColors);
+      el.addEventListener('change', refreshChartColors);
+    }
+  });
 
   // ── Public API ──
   S.destroyCharts = destroyAll;
