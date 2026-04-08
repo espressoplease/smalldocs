@@ -198,7 +198,7 @@ function collectStyles(values, overriddenColors) {
   // Chart styles — only emit if accent was explicitly set
   if (overriddenColors.has('ctrl-chart-accent')) {
     styles.chart = { accent: gv('ctrl-chart-accent'), palette: gv('ctrl-chart-palette') };
-  } else if (gv('ctrl-chart-palette') && gv('ctrl-chart-palette') !== 'complementary') {
+  } else if (gv('ctrl-chart-palette') && gv('ctrl-chart-palette') !== 'monochrome') {
     styles.chart = { palette: gv('ctrl-chart-palette') };
   }
 

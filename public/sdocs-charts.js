@@ -167,7 +167,7 @@
     // No accent set — use the default static palette
     if (!accent) return DEFAULT_PALETTE.slice(0, Math.max(count, 1));
 
-    return generatePalette(accent, mode || 'complementary', count);
+    return generatePalette(accent, mode || 'monochrome', count);
   }
 
   function paletteColor(data, i, count) {
