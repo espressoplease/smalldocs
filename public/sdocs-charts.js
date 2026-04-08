@@ -501,6 +501,7 @@
       anchor: 'end',
       align: 'end',
       offset: 2,
+      clip: false,
       formatter: function (value) {
         if (tickCb) return tickCb(value);
         return value;
@@ -554,14 +555,14 @@
             text: data.title || '',
             color: th.title,
             font: { size: 15, weight: '600', family: th.font || undefined },
-            padding: { bottom: data.subtitle ? 4 : 18 }
+            padding: { bottom: data.subtitle ? 4 : 23 }
           },
           subtitle: {
             display: !!data.subtitle,
             text: data.subtitle || '',
             color: th.text,
             font: { size: 12, weight: '400' },
-            padding: { bottom: 12 }
+            padding: { bottom: 18 }
           },
           legend: {
             display: showLegend,
