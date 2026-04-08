@@ -501,6 +501,8 @@
       anchor: 'end',
       align: 'end',
       offset: 2,
+      clamp: true,
+      clip: false,
       formatter: function (value) {
         if (tickCb) return tickCb(value);
         return value;
@@ -544,6 +546,7 @@
         responsive: true,
         maintainAspectRatio: true,
         animation: false,
+        layout: { padding: { top: 20 } },
         font: th.font ? { family: th.font } : undefined,
         aspectRatio: data.aspectRatio || undefined,
         indexAxis: isHorizontal ? 'y' : undefined,
@@ -553,7 +556,7 @@
             text: data.title || '',
             color: th.title,
             font: { size: 15, weight: '600', family: th.font || undefined },
-            padding: { bottom: data.subtitle ? 2 : 12 }
+            padding: { bottom: data.subtitle ? 4 : 18 }
           },
           subtitle: {
             display: !!data.subtitle,
