@@ -501,8 +501,6 @@
       anchor: 'end',
       align: 'end',
       offset: 2,
-      clamp: true,
-      clip: false,
       formatter: function (value) {
         if (tickCb) return tickCb(value);
         return value;
