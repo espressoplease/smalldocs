@@ -371,8 +371,8 @@ CHART STYLING (via front matter or style panel)
   ---
 
   PALETTE MODES
-    complementary   Hues spread evenly around the color wheel (default)
-    monochrome      Same hue, varying lightness — great for single-topic charts
+    complementary   Hues spread evenly around the color wheel
+    monochrome      Same hue, varying lightness (default)
     analogous       Neighboring hues for a harmonious feel
     triadic         Three base hues 120° apart
     pastel          Soft, light colors
