@@ -244,6 +244,31 @@
             </div>
           </div>
         </div>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="sub-colors-charts">
+            <span class="arrow">▶</span> Charts
+          </div>
+          <div class="sub-body" id="sub-colors-charts">
+            <div class="control-row">
+              <label>Accent</label>
+              <div class="color-pair"><input type="color" id="ctrl-chart-accent" value="#3b82f6"><button class="reset-btn" id="reset-chart-accent" title="Reset to default palette">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Palette</label>
+              <select id="ctrl-chart-palette">
+                <option value="monochrome" selected>Monochrome</option>
+                <option value="complementary">Complementary</option>
+                <option value="analogous">Analogous</option>
+                <option value="triadic">Triadic</option>
+                <option value="pastel">Pastel</option>
+                <option value="warm">Warm</option>
+                <option value="cool">Cool</option>
+                <option value="earth">Earth</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -486,35 +511,6 @@
           <input type="range" id="ctrl-bq-size-range" min="0.7" max="1.5" step="0.05" value="1.0">
           <input type="number" id="ctrl-bq-size-num" min="0.7" max="1.5" step="0.05" value="1.0">
           <span class="unit">em</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- CHARTS -->
-    <div class="panel-section">
-      <div class="panel-header" data-target="body-charts">
-        <span class="arrow">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </span>
-        Charts
-      </div>
-      <div class="panel-body" id="body-charts">
-        <div class="control-row">
-          <label>Accent color</label>
-          <div class="color-pair"><input type="color" id="ctrl-chart-accent" value="#3b82f6"><button class="reset-btn" id="reset-chart-accent" title="Reset to default palette">↺</button></div>
-        </div>
-        <div class="control-row">
-          <label>Palette</label>
-          <select id="ctrl-chart-palette">
-            <option value="monochrome">Monochrome</option>
-            <option value="complementary">Complementary</option>
-            <option value="analogous">Analogous</option>
-            <option value="triadic">Triadic</option>
-            <option value="pastel">Pastel</option>
-            <option value="warm">Warm</option>
-            <option value="cool">Cool</option>
-            <option value="earth">Earth</option>
-          </select>
         </div>
       </div>
     </div>
