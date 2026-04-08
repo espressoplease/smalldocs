@@ -186,6 +186,7 @@ body {
   overflow: auto;
   position: relative;
   background-color: #FFFFFF;
+  outline: none;
 }
 html[data-theme="dark"] #content-area {
   background-color: #2c2a26;

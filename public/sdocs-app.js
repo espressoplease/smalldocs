@@ -408,6 +408,10 @@ function setMode(mode, skipHash) {
     S.enterWriteMode();
   }
 
+  if (mode === 'read') {
+    document.getElementById('content-area').focus();
+  }
+
   if (!skipHash) updateHash();
 }
 
