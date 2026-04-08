@@ -119,8 +119,8 @@ body {
 
 .toggle-group {
   display: flex;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background: none;
+  border: none;
   border-radius: var(--radius);
   overflow: hidden;
   padding: 2px;
@@ -157,7 +157,6 @@ body {
   gap: 4px;
 }
 
-#btn-theme,
 .toolbar-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -174,7 +173,6 @@ body {
   flex-shrink: 0;
 }
 @media (hover: hover) {
-  #btn-theme:hover,
   .toolbar-icon-btn:hover {
     color: var(--text-2);
     background: var(--bg-hover);
