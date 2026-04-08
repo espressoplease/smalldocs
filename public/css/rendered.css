@@ -262,6 +262,17 @@
   white-space: pre;
   word-break: normal;
 }
+/* ── Charts ── */
+.sdoc-chart {
+  margin: 1.2em 0;
+  padding: 16px;
+  border-radius: var(--radius, 8px);
+  background: var(--md-code-bg, #F5F2EE);
+  max-width: 100%;
+}
+.sdoc-chart canvas { max-height: 400px; }
+.sdoc-chart-error { outline: 2px dashed #ef4444; }
+
 :is(#rendered, #write) blockquote {
   border-left: var(--md-bq-border);
   font-size: var(--md-bq-size);

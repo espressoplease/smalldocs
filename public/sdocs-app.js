@@ -53,6 +53,7 @@ function getSectionMarkdown(headingIndex) {
 // ── Render ──────────────────────────────────
 
 function render() {
+  S.destroyCharts();
   var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
   if (oldSpacer) oldSpacer.remove();
   S.renderedEl.innerHTML = marked.parse(S.currentBody);
@@ -175,6 +176,8 @@ function render() {
       }
     });
   });
+
+  S.processCharts(S.renderedEl);
 }
 
 // ── Status ──────────────────────────────────
