@@ -113,4 +113,25 @@ module.exports = function(harness) {
     assert.ok(!fs.existsSync(path.join(pub, 'styles.css')), 'old styles.css should be deleted');
     assert.ok(!fs.existsSync(path.join(pub, 'app.js')), 'old app.js should be deleted');
   });
+
+  test('sdocs-charts.js exists', () => {
+    assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'sdocs-charts.js')), 'missing sdocs-charts.js');
+  });
+
+  test('chart palette dropdown defaults to monochrome', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
+    assert.ok(html.includes('id="ctrl-chart-palette"'), 'missing chart palette dropdown');
+    assert.ok(html.includes('<option value="monochrome" selected>'), 'monochrome should be selected by default');
+  });
+
+  test('chart controls are inside the Colors section', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
+    const colorsStart = html.indexOf('data-target="body-colors"');
+    const colorsEnd = html.indexOf('<!-- HEADERS -->');
+    const chartAccent = html.indexOf('id="ctrl-chart-accent"');
+    const chartPalette = html.indexOf('id="ctrl-chart-palette"');
+    assert.ok(colorsStart > 0 && colorsEnd > 0, 'Colors section markers not found');
+    assert.ok(chartAccent > colorsStart && chartAccent < colorsEnd, 'chart accent should be inside Colors section');
+    assert.ok(chartPalette > colorsStart && chartPalette < colorsEnd, 'chart palette should be inside Colors section');
+  });
 };

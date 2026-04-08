@@ -692,4 +692,81 @@ module.exports = function(harness) {
     assert.strictEqual(result.lightColors['ctrl-color'], '#1c1917');
     assert.strictEqual(result.darkColors['ctrl-color'], '#e7e5e2');
   });
+
+  console.log('\n── Chart Style Tests ────────────────────────────\n');
+
+  test('controlToCssVars: chart-accent maps to --md-chart-accent', () => {
+    const result = S.controlToCssVars('ctrl-chart-accent', '#e11d48', {});
+    assert.deepStrictEqual(result, [{ cssVar: '--md-chart-accent', value: '#e11d48' }]);
+  });
+
+  test('controlToCssVars: chart-palette maps to --md-chart-palette', () => {
+    const result = S.controlToCssVars('ctrl-chart-palette', 'analogous', {});
+    assert.deepStrictEqual(result, [{ cssVar: '--md-chart-palette', value: 'analogous' }]);
+  });
+
+  test('collectStyles: chart accent emitted when overridden', () => {
+    const values = {
+      'ctrl-font-family': "'Inter', sans-serif", 'ctrl-base-size-num': '16',
+      'ctrl-line-height-num': '1.75', 'ctrl-h-font-family': 'inherit',
+      'ctrl-h-scale-num': '1', 'ctrl-h-mb-num': '0.4',
+      'ctrl-h1-size-num': '2.1', 'ctrl-h1-weight': '700',
+      'ctrl-h2-size-num': '1.55', 'ctrl-h2-weight': '600',
+      'ctrl-h3-size-num': '1.2', 'ctrl-h3-weight': '600',
+      'ctrl-h4-size-num': '1', 'ctrl-h4-weight': '600',
+      'ctrl-p-lh-num': '1.75', 'ctrl-p-mb-num': '1.1',
+      'ctrl-link-color': '#2563eb', 'ctrl-link-decoration': 'underline',
+      'ctrl-code-font': "'JetBrains Mono', 'Fira Mono', monospace",
+      'ctrl-code-bg': '#f4f1ed', 'ctrl-code-color': '#6b21a8',
+      'ctrl-bq-border-color': '#2563eb', 'ctrl-bq-bw-num': '3',
+      'ctrl-bq-bg': '#f7f5f2', 'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6b6560',
+      'ctrl-list-spacing-num': '0.3', 'ctrl-list-indent-num': '1.6',
+      'ctrl-chart-accent': '#e11d48', 'ctrl-chart-palette': 'monochrome',
+    };
+    const overridden = new Set(['ctrl-chart-accent']);
+    const styles = S.collectStyles(values, overridden);
+    assert.ok(styles.chart, 'chart key should exist');
+    assert.strictEqual(styles.chart.accent, '#e11d48');
+    assert.strictEqual(styles.chart.palette, 'monochrome');
+  });
+
+  test('collectStyles: chart omitted when accent not overridden and palette is default', () => {
+    const values = {
+      'ctrl-font-family': "'Inter', sans-serif", 'ctrl-base-size-num': '16',
+      'ctrl-line-height-num': '1.75', 'ctrl-h-font-family': 'inherit',
+      'ctrl-h-scale-num': '1', 'ctrl-h-mb-num': '0.4',
+      'ctrl-h1-size-num': '2.1', 'ctrl-h1-weight': '700',
+      'ctrl-h2-size-num': '1.55', 'ctrl-h2-weight': '600',
+      'ctrl-h3-size-num': '1.2', 'ctrl-h3-weight': '600',
+      'ctrl-h4-size-num': '1', 'ctrl-h4-weight': '600',
+      'ctrl-p-lh-num': '1.75', 'ctrl-p-mb-num': '1.1',
+      'ctrl-link-color': '#2563eb', 'ctrl-link-decoration': 'underline',
+      'ctrl-code-font': "'JetBrains Mono', 'Fira Mono', monospace",
+      'ctrl-code-bg': '#f4f1ed', 'ctrl-code-color': '#6b21a8',
+      'ctrl-bq-border-color': '#2563eb', 'ctrl-bq-bw-num': '3',
+      'ctrl-bq-bg': '#f7f5f2', 'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#6b6560',
+      'ctrl-list-spacing-num': '0.3', 'ctrl-list-indent-num': '1.6',
+      'ctrl-chart-accent': '#3b82f6', 'ctrl-chart-palette': 'monochrome',
+    };
+    const styles = S.collectStyles(values, new Set());
+    assert.strictEqual(styles.chart, undefined);
+  });
+
+  test('stylesToControls: chart styles roundtrip', () => {
+    const styles = { chart: { accent: '#7c3aed', palette: 'analogous' } };
+    const result = S.stylesToControls(styles);
+    assert.strictEqual(result.controls['ctrl-chart-accent'], '#7c3aed');
+    assert.strictEqual(result.controls['ctrl-chart-palette'], 'analogous');
+    assert.ok(result.overriddenColors.has('ctrl-chart-accent'));
+  });
+
+  test('stylesToControls: missing chart section is safe', () => {
+    const result = S.stylesToControls({ fontFamily: 'Lora' });
+    assert.strictEqual(result.controls['ctrl-chart-accent'], undefined);
+    assert.strictEqual(result.controls['ctrl-chart-palette'], undefined);
+  });
+
+  test('ctrl-chart-accent is in STANDALONE_COLOR_IDS', () => {
+    assert.ok(S.STANDALONE_COLOR_IDS.includes('ctrl-chart-accent'));
+  });
 };
