@@ -141,23 +141,38 @@ To override specific dark-mode colors, add a `dark:` block:
 
 Colors cascade from general to specific — set `color` once and it flows to headings, paragraphs, and lists. Set `blocks.background` once and it flows to code blocks, blockquotes, and charts.
 
-#### Charts
+### Charts
 
-Render charts in markdown using ` ```chart ` code blocks with JSON data:
+Render charts in markdown using ` ```chart ` code blocks with JSON data. Charts are powered by Chart.js, loaded lazily from CDN only when a chart block is present.
+
+```chart
+{"type":"bar","title":"Quarterly Revenue ($M)","labels":["Q1","Q2","Q3","Q4"],"datasets":[{"label":"2024","values":[12,18,15,22]},{"label":"2025","values":[15,24,20,28]}],"format":"currency"}
+```
+
+```chart
+{"type":"pie","title":"Market Share","labels":["Chrome","Safari","Firefox","Edge","Other"],"values":[65,19,4,4,8]}
+```
+
+The JSON for the bar chart above:
 
 ````
 ```chart
 {
   "type": "bar",
-  "title": "Monthly Revenue",
-  "labels": ["Jan", "Feb", "Mar"],
-  "values": [100, 150, 130],
+  "title": "Quarterly Revenue ($M)",
+  "labels": ["Q1", "Q2", "Q3", "Q4"],
+  "datasets": [
+    { "label": "2024", "values": [12, 18, 15, 22] },
+    { "label": "2025", "values": [15, 24, 20, 28] }
+  ],
   "format": "currency"
 }
 ```
 ````
 
-Supports: pie, doughnut, bar, horizontal bar, stacked bar, line, area, radar, polar area, scatter, bubble, and mixed (combo) charts. Style chart colors via `chart.accent` and `chart.palette` in front matter. Run `sdoc charts` for the full reference.
+Supports 13 chart types: pie, doughnut, bar, horizontal bar, stacked bar, line, area, stacked area, radar, polar area, scatter, bubble, and mixed (combo). See the [full chart gallery](https://sdocs.dev/#md=GxsWAKwOeDNWcr38pAycy2sUV4NButDktv9OSbvxXKOI_YQO3rAxPej1p8IebIOMwIBtEAWWvg0i0rVXtUkiOh0-4Dhx4iuchqfXCqciWP-_tdeUd_b_JLshKaqIXIWscbnvvcmnDZOMKiqceRPGAqARPb5Cmj7E6aSdaSULEoFCtv923b0kDvftFsp0aRQXRHHUjbzP5dmkiLRtTv6zCnwwAiU_RPq_RArNbwZ0i5ZGod0LLyvFCO6BQ1hEvfAVa5iIN3gyArrI--5_2BbSjXBbD8s7RLjHIjnewhoMBzKe6oJPCATzkXtH2uJs9TTpp0dwWrHMXCi0qLIxSO8sooR-cBkQV4ZJBpCtGr1hhOL6-HtpGV3TT4iO8LNhpjuhefjbYhQr8UGtuit388hpgfQ422LQSBteI1EOWtE6eeetG8euW-9Vrp8Nogv-QerD_i4NPjdCR9aLtQNTT5fwALYv8vFuxjMpUsJKCePmLcfgo2yWYQ6HQNeaj_Fh4pSBs22Uz0HnPN0lfroYdFLOEsbFzfdtjdyxA9RR65jgYT95zcWPkzqtHMMZhylx6doQRnm85KI308Q2kwx-S9qKaCIDSw9ssMzTOyHqKnyyEMCCX-QDnK_-H5wjJat2NDCM6urRtuRQZm6-__lsvXlG-dYjpEz_HPWjjCoTy4WZ61tBpXCqchjaXfBSK5msVpr5NU0xLSIgy9awD40vty4XYiviopE1srMdrIdnKRsS58N7mbyMo2eeSZ8uMBdVD2Xs6VVOsevJ2HWppCj414mth0sdwkNXUjil6jA8VTy5E1Qh21mVHParU3y2h0acLtM6oczUkD60uL5a7IDmfKhXX9a3-mmqg2tY93byTU1Xn6Yua1Ttul4ANjXXlA5lVzLskHvKRHVEXNPykdTVw6kfKJnROXQVa0W-BJCRnfKysuSboQ9yh9T95PCa4UKwInYrTlhQ2h5VjtEAuMAL4zbxSZbbMONxA5HKMe7FbGJEFFbcRkxoZBb_dMyK-NhkGhFH8XTLMAOTGfcCnmk85Z_lZswlNoFGFiwoKj2kT8cGXCcO2Yl3oeQGu295e8cSqUvKO9QrD0vbnlj7iwtnTLL2WXRYBPXlaVZsRBny2c9j5sReY2qarVxBZINBF1m33o4lBGI_R2J63EzTqVhjheSw4qD1zOVA2OjVfDHFPz6FAZCZWmag9STM4MU4f9tWDi-DdyOqdaqbjEhqUI2tS1o1vuSwcTwyfrvyXiPgMDDPvkbxvlE6VY2NVNJjHEEPqsansGZO6-rcqNkEa39CytdVnLhaA8w-Y5PQd7nm6z8ksljuV0qnWmJ2g96GnFBQ87HuFQH5pIe4icd61-CK5awsbWKQdQvBgVw_cLA-GyFRwBUDsDVYgLTQIsKKtoPzerv4mZuFRYRuA3W3tOGaJTGB7fjdeh-3KHs042Fy8u-JwE_YGXk9ll7ogaLCF09xZIkZR9g6iISPPZkEyOSBchIlYvFck-kXk3wkATaXwOz0eztmq27mutWQgSJ8fea8fHShBSOkjOyIRaaL-TwfgGsRsoSa9Dyc7Yb_XwweiHFy6A4cUiurT0F3Ap8iJEMPRez-QOpcSKAk-0tr4LMvN8mCJMfzTN9IYTUJZtfdzZZjjwOvXVnl28PQwCmURiTfB8SmiGa6W_WphkRNZl2opnV0EXcgAESRQQlVNKGLh7lR11-Tr0qVbble619WtSeF1HQkrh7Fa__4eSmBJAhTICh1RSOGJl9I_SzauoEmUS9kADdTMfcSXEA88jMWTTirgAKJkRwJA3fulustc1hHEPAfW6yRGNVac3cibWwaJ_Dt9qBQJ6VIa6_X8B3OQmS25a8r3Y47X4nzRcuCY3Lbm6XcWJzrSIkEluA2vedCGNSThhnUCJnq9bgZ_PnvUCkcqohxdJgeu0gdYf6mLcOBC6kx0U_oyBs8CME8dHb-kjYLy0eAZyuPJhsuMpcqV7xQV7W6m3kF-DGz67Hr6lrzVdKLOI2ffOJh88deLpsg0oo0T2dxE9fSKU0IhMsuUEeAYBxmUKVOo0iZ3DkTbrW2F-wD) for live examples of every type.
+
+Style chart colors via `chart.accent` and `chart.palette` in front matter. Run `sdoc charts` for the full reference of types, options, and styling.
 
 ### Drag & drop
 
@@ -287,8 +302,17 @@ The CLI is designed to work well in automated workflows. A few patterns:
 
 - **Generate a styled doc**: have your agent write a `.md` file with YAML front matter, then `sdoc share file.md` to copy a shareable link
 - **Learn the format**: `sdoc schema` gives your agent everything it needs to know about available style properties
+- **Learn charts**: `sdoc charts` gives the full reference of chart types, options, data formats, and styling
 - **Deep-link to context**: `sdoc share file.md --section "Heading"` creates a URL that scrolls straight to the relevant section
 - **No auth, no API keys**: everything is client-side — the URL *is* the document
+
+Agents can get detailed help on any topic via the CLI:
+
+```
+sdoc help              # general usage
+sdoc schema            # all style properties, color cascade, theme format
+sdoc charts            # chart types, JSON format, styling, annotations
+```
 
 ### Claude Code + SDocs
 
