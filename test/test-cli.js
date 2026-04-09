@@ -314,62 +314,46 @@ module.exports = function(harness) {
     assert.ok(/^[A-Za-z0-9_-]+$/.test(md), 'md param should only contain base64url characters');
   });
 
-  console.log('\n── Theme Block Tests ──────────────────────────\n');
+  console.log('\n── Dark Override Tests ─────────────────────────\n');
 
-  test('mergeStyles: recursive merge for light/dark sub-objects', () => {
+  test('mergeStyles: recursive merge for dark sub-object', () => {
     const defaults = {
       fontFamily: 'Lora',
-      light: { color: '#111', h1: { color: '#a00' } },
+      color: '#111',
       dark: { color: '#eee', h1: { color: '#f00' } },
     };
     const fileStyles = {
-      light: { h1: { color: '#b00' }, link: { color: '#00f' } },
+      dark: { h1: { color: '#b00' } },
     };
     const result = cli.mergeStyles(defaults, fileStyles);
     assert.strictEqual(result.fontFamily, 'Lora');
-    // light.color from defaults preserved
-    assert.strictEqual(result.light.color, '#111');
-    // light.h1.color overridden by file
-    assert.strictEqual(result.light.h1.color, '#b00');
-    // light.link added from file
-    assert.strictEqual(result.light.link.color, '#00f');
-    // dark unchanged from defaults
+    assert.strictEqual(result.color, '#111');
     assert.strictEqual(result.dark.color, '#eee');
-    assert.strictEqual(result.dark.h1.color, '#f00');
+    assert.strictEqual(result.dark.h1.color, '#b00');
   });
 
-  test('theme-block YAML roundtrip: light/dark survive serialize → parse', () => {
+  test('dark block YAML roundtrip: dark: survives serialize → parse', () => {
     const styles = {
       fontFamily: 'Lora',
       baseFontSize: 17,
-      light: { background: '#ffffff', color: '#1a1a2e', h1: { color: '#c0392b' }, link: { color: '#2563eb' } },
-      dark: { background: '#2c2a26', color: '#e7e5e2', h1: { color: '#ef6f5e' }, link: { color: '#60a5fa' } },
+      color: '#1a1a2e',
+      dark: { background: '#2c2a26', color: '#e7e5e2', h1: { color: '#ef6f5e' } },
     };
     const fm = SDocYaml.serializeFrontMatter({ styles });
     const { meta } = SDocYaml.parseFrontMatter(fm + '\n# Doc');
     const parsed = meta.styles;
     assert.strictEqual(parsed.fontFamily, 'Lora');
-    assert.strictEqual(parsed.baseFontSize, 17);
-    assert.strictEqual(parsed.light.background, '#ffffff');
-    assert.strictEqual(parsed.light.color, '#1a1a2e');
-    assert.strictEqual(parsed.light.h1.color, '#c0392b');
-    assert.strictEqual(parsed.light.link.color, '#2563eb');
+    assert.strictEqual(parsed.color, '#1a1a2e');
     assert.strictEqual(parsed.dark.background, '#2c2a26');
     assert.strictEqual(parsed.dark.color, '#e7e5e2');
     assert.strictEqual(parsed.dark.h1.color, '#ef6f5e');
-    assert.strictEqual(parsed.dark.link.color, '#60a5fa');
   });
 
-  test('stylesToControls with theme blocks returns hasThemeColors', () => {
-    const styles = {
-      fontFamily: 'Lora',
-      light: { color: '#1a1a2e' },
-      dark: { color: '#e7e5e2' },
-    };
-    const result = S.stylesToControls(styles);
-    assert.strictEqual(result.hasThemeColors, true);
-    assert.strictEqual(result.lightColors['ctrl-color'], '#1a1a2e');
-    assert.strictEqual(result.darkColors['ctrl-color'], '#e7e5e2');
+  test('parseDarkBlock extracts dark override colors', () => {
+    const dark = { color: '#e7e5e2', blocks: { background: '#1a1520' } };
+    const result = S.parseDarkBlock(dark);
+    assert.strictEqual(result['ctrl-color'], '#e7e5e2');
+    assert.strictEqual(result['ctrl-block-bg'], '#1a1520');
   });
 
   test('every setting survives full YAML serialize → parse → stylesToControls roundtrip', () => {

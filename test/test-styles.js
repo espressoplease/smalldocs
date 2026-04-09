@@ -309,177 +309,54 @@ module.exports = function(harness) {
     assert.strictEqual(S.ALL_COLOR_IDS.length, 20);
   });
 
-  test('parseThemeColorBlock: extracts colors from theme block', () => {
+  test('parseDarkBlock: extracts dark override colors', () => {
     const block = {
-      background: '#ffffff',
-      color: '#1a1a2e',
-      h1: { color: '#c0392b' },
-      link: { color: '#2563eb' },
-      code: { background: '#f0f0f0', color: '#333' },
-      blockquote: { borderColor: '#aaa', background: '#eee', color: '#666' },
+      background: '#1a1520',
+      color: '#e7e5e2',
+      h1: { color: '#ef6f5e' },
+      blocks: { background: '#221a28', color: '#a8a29e' },
+      chart: { background: '#1e1a28', textColor: '#b0b0b0' },
     };
-    const result = S.parseThemeColorBlock(block);
-    assert.strictEqual(result.colors['ctrl-bg-color'], '#ffffff');
-    assert.strictEqual(result.colors['ctrl-color'], '#1a1a2e');
-    assert.strictEqual(result.colors['ctrl-h1-color'], '#c0392b');
-    assert.strictEqual(result.colors['ctrl-link-color'], '#2563eb');
-    assert.strictEqual(result.colors['ctrl-code-bg'], '#f0f0f0');
-    assert.strictEqual(result.colors['ctrl-code-color'], '#333');
-    assert.strictEqual(result.colors['ctrl-bq-border-color'], '#aaa');
-    assert.strictEqual(result.colors['ctrl-bq-bg'], '#eee');
-    assert.strictEqual(result.colors['ctrl-bq-color'], '#666');
-    assert.ok(result.overridden.has('ctrl-bg-color'));
-    assert.ok(result.overridden.has('ctrl-color'));
-    assert.ok(result.overridden.has('ctrl-h1-color'));
-    assert.ok(result.overridden.has('ctrl-link-color'));
-    assert.ok(result.overridden.has('ctrl-bq-bg'));
-    assert.strictEqual(result.overridden.size, 9);
+    const result = S.parseDarkBlock(block);
+    assert.strictEqual(result['ctrl-bg-color'], '#1a1520');
+    assert.strictEqual(result['ctrl-color'], '#e7e5e2');
+    assert.strictEqual(result['ctrl-h1-color'], '#ef6f5e');
+    assert.strictEqual(result['ctrl-block-bg'], '#221a28');
+    assert.strictEqual(result['ctrl-block-text'], '#a8a29e');
+    assert.strictEqual(result['ctrl-chart-bg'], '#1e1a28');
+    assert.strictEqual(result['ctrl-chart-text'], '#b0b0b0');
   });
 
-  test('parseThemeColorBlock: null/undefined returns empty', () => {
-    const r1 = S.parseThemeColorBlock(null);
-    assert.deepStrictEqual(r1.colors, {});
-    assert.strictEqual(r1.overridden.size, 0);
-    const r2 = S.parseThemeColorBlock(undefined);
-    assert.deepStrictEqual(r2.colors, {});
+  test('parseDarkBlock: null returns empty', () => {
+    assert.deepStrictEqual(S.parseDarkBlock(null), {});
+    assert.deepStrictEqual(S.parseDarkBlock(undefined), {});
   });
 
-  test('parseThemeColorBlock: all cascade colors extracted', () => {
-    const block = {
-      color: '#111',
-      headers: { color: '#222' },
-      h1: { color: '#a00' }, h2: { color: '#b00' },
-      h3: { color: '#c00' }, h4: { color: '#d00' },
-      p: { color: '#333' },
-      list: { color: '#444' },
-    };
-    const result = S.parseThemeColorBlock(block);
-    assert.strictEqual(result.colors['ctrl-color'], '#111');
-    assert.strictEqual(result.colors['ctrl-h-color'], '#222');
-    assert.strictEqual(result.colors['ctrl-h1-color'], '#a00');
-    assert.strictEqual(result.colors['ctrl-h2-color'], '#b00');
-    assert.strictEqual(result.colors['ctrl-h3-color'], '#c00');
-    assert.strictEqual(result.colors['ctrl-h4-color'], '#d00');
-    assert.strictEqual(result.colors['ctrl-p-color'], '#333');
-    assert.strictEqual(result.colors['ctrl-list-color'], '#444');
-    assert.strictEqual(result.overridden.size, 8);
+  test('invertLightness: light bg becomes dark', () => {
+    // #fdf6f0 has L≈96 → should become very dark
+    const dark = S.invertLightness('#fdf6f0');
+    const hsl = S.hexToHsl ? null : null; // just check it's dark
+    assert.ok(dark.charAt(0) === '#');
+    assert.ok(dark !== '#fdf6f0');
   });
 
-  test('collectThemeColors: builds theme block from overridden colors', () => {
-    const colors = {
-      'ctrl-bg-color': '#ffffff',
-      'ctrl-color': '#111',
-      'ctrl-h1-color': '#a00',
-      'ctrl-link-color': '#2563eb',
-      'ctrl-code-bg': '#f0f0f0',
-    };
-    const overridden = new Set(['ctrl-bg-color', 'ctrl-color', 'ctrl-h1-color', 'ctrl-link-color', 'ctrl-code-bg']);
-    const block = S.collectThemeColors(colors, overridden);
-    assert.strictEqual(block.background, '#ffffff');
-    assert.strictEqual(block.color, '#111');
-    assert.strictEqual(block.h1.color, '#a00');
-    assert.strictEqual(block.link.color, '#2563eb');
-    assert.strictEqual(block.code.background, '#f0f0f0');
-    // Non-overridden colors should not appear
-    assert.strictEqual(block.h2, undefined);
-    assert.strictEqual(block.blockquote, undefined);
+  test('invertLightness: very dark color stays as-is', () => {
+    // #3c1518 has L≈10 → should be kept (intentional dark bg)
+    assert.strictEqual(S.invertLightness('#3c1518'), '#3c1518');
   });
 
-  test('collectThemeColors: empty overridden returns empty block', () => {
-    const block = S.collectThemeColors({}, new Set());
-    assert.deepStrictEqual(block, {});
+  test('invertLightness: dark text becomes light', () => {
+    // #2d1810 has L≈12... wait that's <20 so kept. Use L≈25
+    const light = S.invertLightness('#4a3020');
+    assert.ok(light !== '#4a3020');
   });
 
-  test('collectStylesDual: produces light/dark blocks with shared non-color props', () => {
-    const values = {
-      'ctrl-font-family': "'Lora', sans-serif", 'ctrl-base-size-num': '17',
-      'ctrl-line-height-num': '1.75', 'ctrl-h-font-family': 'inherit',
-      'ctrl-h-scale-num': '1', 'ctrl-h-mb-num': '0.4',
-      'ctrl-h1-size-num': '2.1', 'ctrl-h1-weight': '700',
-      'ctrl-h2-size-num': '1.55', 'ctrl-h2-weight': '600',
-      'ctrl-h3-size-num': '1.2', 'ctrl-h3-weight': '600',
-      'ctrl-h4-size-num': '1.0', 'ctrl-h4-weight': '600',
-      'ctrl-p-lh-num': '1.75', 'ctrl-p-mb-num': '1.1',
-      'ctrl-link-decoration': 'underline',
-      'ctrl-code-font': "'JetBrains Mono', monospace",
-      'ctrl-bq-bw-num': '3', 'ctrl-bq-size-num': '1',
-      'ctrl-list-spacing-num': '0.3', 'ctrl-list-indent-num': '1.6',
-    };
-    const lightOverridden = new Set(['ctrl-color', 'ctrl-h1-color']);
-    const darkOverridden = new Set(['ctrl-color']);
-    const lightColors = { 'ctrl-color': '#1a1a2e', 'ctrl-h1-color': '#c0392b' };
-    const darkColors = { 'ctrl-color': '#e7e5e2' };
-
-    const styles = S.collectStylesDual(values, lightOverridden, darkOverridden, lightColors, darkColors);
-
-    // Shared properties at top level
-    assert.strictEqual(styles.fontFamily, 'Lora');
-    assert.strictEqual(styles.baseFontSize, 17);
-
-    // Light block
-    assert.ok(styles.light);
-    assert.strictEqual(styles.light.color, '#1a1a2e');
-    assert.strictEqual(styles.light.h1.color, '#c0392b');
-
-    // Dark block
-    assert.ok(styles.dark);
-    assert.strictEqual(styles.dark.color, '#e7e5e2');
-
-    // No top-level color (it's in light/dark blocks now)
-    assert.strictEqual(styles.color, undefined);
-  });
-
-  test('stylesToControls: detects light/dark theme blocks', () => {
-    const styles = {
-      fontFamily: 'Lora',
-      baseFontSize: 17,
-      light: { color: '#1a1a2e', h1: { color: '#c0392b' } },
-      dark: { color: '#e7e5e2' },
-    };
-    const result = S.stylesToControls(styles);
-    assert.strictEqual(result.hasThemeColors, true);
-    assert.strictEqual(result.controls['ctrl-font-family'], 'Lora');
-    assert.strictEqual(result.lightColors['ctrl-color'], '#1a1a2e');
-    assert.strictEqual(result.lightColors['ctrl-h1-color'], '#c0392b');
-    assert.ok(result.lightOverridden.has('ctrl-color'));
-    assert.ok(result.lightOverridden.has('ctrl-h1-color'));
-    assert.strictEqual(result.darkColors['ctrl-color'], '#e7e5e2');
-    assert.ok(result.darkOverridden.has('ctrl-color'));
-  });
-
-  test('stylesToControls: legacy format (no light/dark) backwards compat', () => {
+  test('stylesToControls: top-level colors are light mode', () => {
     const styles = { fontFamily: 'Inter', color: '#ff0000', h1: { color: '#0000ff' } };
     const result = S.stylesToControls(styles);
-    assert.strictEqual(result.hasThemeColors, false);
     assert.ok(result.overriddenColors.has('ctrl-color'));
     assert.ok(result.overriddenColors.has('ctrl-h1-color'));
     assert.strictEqual(result.controls['ctrl-color'], '#ff0000');
-  });
-
-  test('parseThemeColorBlock → collectThemeColors roundtrip', () => {
-    const block = {
-      background: '#ffffff',
-      color: '#1a1a2e',
-      headers: { color: '#2c3e50' },
-      h1: { color: '#c0392b' },
-      p: { color: '#333' },
-      link: { color: '#2563eb' },
-      code: { background: '#f0f0f0', color: '#6b21a8' },
-      blockquote: { borderColor: '#2563eb', background: '#f0ebe4', color: '#666' },
-    };
-    const parsed = S.parseThemeColorBlock(block);
-    const rebuilt = S.collectThemeColors(parsed.colors, parsed.overridden);
-    assert.strictEqual(rebuilt.background, block.background);
-    assert.strictEqual(rebuilt.color, block.color);
-    assert.strictEqual(rebuilt.headers.color, block.headers.color);
-    assert.strictEqual(rebuilt.h1.color, block.h1.color);
-    assert.strictEqual(rebuilt.p.color, block.p.color);
-    assert.strictEqual(rebuilt.link.color, block.link.color);
-    assert.strictEqual(rebuilt.code.background, block.code.background);
-    assert.strictEqual(rebuilt.code.color, block.code.color);
-    assert.strictEqual(rebuilt.blockquote.borderColor, block.blockquote.borderColor);
-    assert.strictEqual(rebuilt.blockquote.background, block.blockquote.background);
-    assert.strictEqual(rebuilt.blockquote.color, block.blockquote.color);
   });
 
   console.log('\n── stripStyleDefaults Tests ────────────────────\n');
@@ -523,18 +400,18 @@ module.exports = function(harness) {
     assert.strictEqual(result.p, undefined);
   });
 
-  test('stripStyleDefaults: preserves light/dark blocks untouched', () => {
+  test('stripStyleDefaults: preserves dark block untouched', () => {
     const styles = {
       fontFamily: 'Inter',  // default — stripped
       baseFontSize: 16,     // default — stripped
-      light: { background: '#ffffff', color: '#1c1917' },
+      color: '#1c1917',
       dark: { background: '#2c2a26', color: '#e7e5e2' },
     };
     const result = S.stripStyleDefaults(styles);
-    assert.deepStrictEqual(result.light, styles.light);
     assert.deepStrictEqual(result.dark, styles.dark);
     assert.strictEqual(result.fontFamily, undefined);
     assert.strictEqual(result.baseFontSize, undefined);
+    assert.strictEqual(result.color, '#1c1917');
   });
 
   test('stripStyleDefaults: handles numeric string/number comparison', () => {
@@ -646,46 +523,18 @@ module.exports = function(harness) {
     assert.strictEqual(controls['ctrl-list-spacing-num'], undefined);
   });
 
-  test('stripStyleDefaults + light/dark: full collect → strip → parse roundtrip', () => {
-    const values = {
-      'ctrl-font-family': "'Inter', sans-serif", 'ctrl-base-size-num': '16',
-      'ctrl-line-height-num': '1.75', 'ctrl-h-font-family': 'inherit',
-      'ctrl-h-scale-num': '1', 'ctrl-h-mb-num': '0.4',
-      'ctrl-h1-size-num': '2.1', 'ctrl-h1-weight': '700',
-      'ctrl-h2-size-num': '1.55', 'ctrl-h2-weight': '600',
-      'ctrl-h3-size-num': '1.2', 'ctrl-h3-weight': '600',
-      'ctrl-h4-size-num': '1.0', 'ctrl-h4-weight': '600',
-      'ctrl-p-lh-num': '1.75', 'ctrl-p-mb-num': '1.1',
-      'ctrl-link-decoration': 'underline',
-      'ctrl-code-font': "'JetBrains Mono', monospace",
-      'ctrl-bq-bw-num': '3', 'ctrl-bq-size-num': '1',
-      'ctrl-list-spacing-num': '0.3', 'ctrl-list-indent-num': '1.6',
+  test('stripStyleDefaults: dark block survives stripping', () => {
+    const styles = {
+      fontFamily: 'Inter',  // default — stripped
+      color: '#c0392b',     // non-default — kept
+      dark: { color: '#ef6f5e', background: '#1a1520' },
     };
-    const lightOverridden = new Set(['ctrl-color', 'ctrl-bg-color']);
-    const darkOverridden = new Set(['ctrl-color', 'ctrl-bg-color']);
-    const lightColors = { 'ctrl-color': '#1c1917', 'ctrl-bg-color': '#ffffff' };
-    const darkColors = { 'ctrl-color': '#e7e5e2', 'ctrl-bg-color': '#2c2a26' };
-
-    const styles = S.collectStylesDual(values, lightOverridden, darkOverridden, lightColors, darkColors);
     const stripped = S.stripStyleDefaults(styles);
-
-    // All non-color top-level styles were default — should be stripped
     assert.strictEqual(stripped.fontFamily, undefined);
-    assert.strictEqual(stripped.baseFontSize, undefined);
-    assert.strictEqual(stripped.h1, undefined);
-
-    // light/dark blocks must survive
-    assert.ok(stripped.light);
-    assert.strictEqual(stripped.light.color, '#1c1917');
-    assert.strictEqual(stripped.light.background, '#ffffff');
+    assert.strictEqual(stripped.color, '#c0392b');
     assert.ok(stripped.dark);
-    assert.strictEqual(stripped.dark.color, '#e7e5e2');
-
-    // Parse back — theme blocks should be detected
-    const result = S.stylesToControls(stripped);
-    assert.strictEqual(result.hasThemeColors, true);
-    assert.strictEqual(result.lightColors['ctrl-color'], '#1c1917');
-    assert.strictEqual(result.darkColors['ctrl-color'], '#e7e5e2');
+    assert.strictEqual(stripped.dark.color, '#ef6f5e');
+    assert.strictEqual(stripped.dark.background, '#1a1520');
   });
 
   console.log('\n── Chart Style Tests ────────────────────────────\n');

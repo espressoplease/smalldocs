@@ -186,32 +186,7 @@ function applyStylesFromMeta(s) {
     setCtrl(id, controls[id]);
   });
 
-  if (result.hasThemeColors) {
-    // Per-theme color mode: populate both theme states
-    S.themeColors.light = result.lightColors || {};
-    S.themeColors.dark = result.darkColors || {};
-    S.themeOverridden.light = result.lightOverridden || new Set();
-    S.themeOverridden.dark = result.darkOverridden || new Set();
-
-    // Auto-fill missing dark colors from light via inversion
-    var lc = S.themeColors.light;
-    var dc = S.themeColors.dark;
-    var dOvr = S.themeOverridden.dark;
-    S.themeOverridden.light.forEach(function(id) {
-      if (!dOvr.has(id) && lc[id]) {
-        dOvr.add(id);
-        dc[id] = SDocStyles.invertLightness(lc[id]);
-      }
-    });
-
-    // Load the active theme's colors into controls
-    S._syncing = wasSyncing;
-    S.loadThemeColors(S.activeTheme);
-    return;
-  }
-
-  // Legacy single-theme path: top-level colors go to light theme only,
-  // then loadThemeColors applies the correct theme's colors.
+  // Top-level colors = light theme. dark: block = explicit dark overrides.
   var lightOverridden = S.themeOverridden.light;
   var lightColors = S.themeColors.light;
   var newOverridden = result.overriddenColors;
@@ -254,16 +229,9 @@ function applyStylesFromMeta(s) {
   var darkOverridden = S.themeOverridden.dark;
   var darkColors = S.themeColors.dark;
 
-  // If there's a dark: block in the YAML, parse its explicit overrides first
-  var explicitDark = {};
-  if (s.dark) {
-    var darkResult = SDocStyles.parseThemeColorBlock(s.dark);
-    if (darkResult) {
-      Object.keys(darkResult).forEach(function(id) {
-        explicitDark[id] = darkResult[id];
-      });
-    }
-  }
+  // Parse explicit dark: overrides from YAML and persist for serialization
+  var explicitDark = s.dark ? SDocStyles.parseDarkBlock(s.dark) : {};
+  S._explicitDarkOverrides = s.dark || null;
 
   // For every light color, auto-generate dark unless explicitly overridden
   lightOverridden.forEach(function(id) {
@@ -291,16 +259,18 @@ function applyStylesFromMeta(s) {
 
 function collectStyles() {
   S.saveCurrentThemeColors();
-  var lightHas = S.themeOverridden.light.size > 0;
-  var darkHas = S.themeOverridden.dark.size > 0;
-  if (lightHas || darkHas) {
-    return SDocStyles.collectStylesDual(
-      readAllControlValues(),
-      S.themeOverridden.light, S.themeOverridden.dark,
-      S.themeColors.light, S.themeColors.dark
-    );
+  // Always emit top-level colors (light) via the simple collector
+  var styles = SDocStyles.collectStyles(readAllControlValues(), S.overriddenColors);
+
+  // Emit dark: block for any explicitly set dark overrides
+  // (don't emit auto-inverted values — those are generated on load)
+  if (S._explicitDarkOverrides && Object.keys(S._explicitDarkOverrides).length > 0) {
+    var darkBlock = SDocStyles.parseDarkBlock(S._explicitDarkOverrides);
+    // parseDarkBlock expects the YAML format, but _explicitDarkOverrides IS the YAML dark: object
+    styles.dark = S._explicitDarkOverrides;
   }
-  return SDocStyles.collectStyles(readAllControlValues(), S.overriddenColors);
+
+  return styles;
 }
 
 // ── Reset all styles ──────────────────────────────────

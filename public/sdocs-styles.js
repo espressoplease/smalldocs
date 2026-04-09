@@ -419,248 +419,45 @@ var ALL_COLOR_IDS = CASCADE_COLOR_IDS.concat(STANDALONE_COLOR_IDS);
 // ═══════════════════════════════════════════════════════
 
 /**
- * parseThemeColorBlock(block)
- * Extracts { colors: {ctrlId: val}, overridden: Set } from a light:/dark: sub-object.
- * The block is an object like { color: "#1a1a2e", h1: { color: "#c0392b" }, link: { color: "#2563eb" } }
+ * parseDarkBlock(block)
+ * Extracts { ctrlId: colorValue } from a dark: sub-object in YAML front matter.
  */
-function parseThemeColorBlock(block) {
-  if (!block) return { colors: {}, overridden: new Set() };
+function parseDarkBlock(block) {
+  if (!block) return {};
   var colors = {};
-  var overridden = new Set();
 
-  // Background color
-  if (block.background) {
-    colors['ctrl-bg-color'] = block.background;
-    overridden.add('ctrl-bg-color');
-  }
+  if (block.background) colors['ctrl-bg-color'] = block.background;
+  if (block.color) colors['ctrl-color'] = block.color;
 
-  // Top-level color (cascade root)
-  if (block.color) {
-    colors['ctrl-color'] = block.color;
-    overridden.add('ctrl-color');
-  }
-
-  // Cascade colors nested in sub-objects
-  if (block.headers && block.headers.color) {
-    colors['ctrl-h-color'] = block.headers.color;
-    overridden.add('ctrl-h-color');
-  }
+  if (block.headers && block.headers.color) colors['ctrl-h-color'] = block.headers.color;
   ['h1','h2','h3','h4'].forEach(function(t) {
     var obj = block[t];
-    if (obj && obj.color) {
-      colors['ctrl-' + t + '-color'] = obj.color;
-      overridden.add('ctrl-' + t + '-color');
-    }
+    if (obj && obj.color) colors['ctrl-' + t + '-color'] = obj.color;
   });
-  if (block.p && block.p.color) {
-    colors['ctrl-p-color'] = block.p.color;
-    overridden.add('ctrl-p-color');
-  }
-  if (block.list && block.list.color) {
-    colors['ctrl-list-color'] = block.list.color;
-    overridden.add('ctrl-list-color');
-  }
+  if (block.p && block.p.color) colors['ctrl-p-color'] = block.p.color;
+  if (block.list && block.list.color) colors['ctrl-list-color'] = block.list.color;
+  if (block.link && block.link.color) colors['ctrl-link-color'] = block.link.color;
 
-  // Standalone colors
-  if (block.link && block.link.color) {
-    colors['ctrl-link-color'] = block.link.color;
-    overridden.add('ctrl-link-color');
+  if (block.blocks) {
+    if (block.blocks.background) colors['ctrl-block-bg'] = block.blocks.background;
+    if (block.blocks.color) colors['ctrl-block-text'] = block.blocks.color;
   }
   if (block.code) {
-    if (block.code.background) { colors['ctrl-code-bg'] = block.code.background; overridden.add('ctrl-code-bg'); }
-    if (block.code.color)      { colors['ctrl-code-color'] = block.code.color; overridden.add('ctrl-code-color'); }
+    if (block.code.background) colors['ctrl-code-bg'] = block.code.background;
+    if (block.code.color) colors['ctrl-code-color'] = block.code.color;
   }
   if (block.blockquote) {
-    if (block.blockquote.borderColor) { colors['ctrl-bq-border-color'] = block.blockquote.borderColor; overridden.add('ctrl-bq-border-color'); }
-    if (block.blockquote.background)  { colors['ctrl-bq-bg'] = block.blockquote.background; overridden.add('ctrl-bq-bg'); }
-    if (block.blockquote.color)       { colors['ctrl-bq-color'] = block.blockquote.color; overridden.add('ctrl-bq-color'); }
+    if (block.blockquote.borderColor) colors['ctrl-bq-border-color'] = block.blockquote.borderColor;
+    if (block.blockquote.background) colors['ctrl-bq-bg'] = block.blockquote.background;
+    if (block.blockquote.color) colors['ctrl-bq-color'] = block.blockquote.color;
+  }
+  if (block.chart) {
+    if (block.chart.background) colors['ctrl-chart-bg'] = block.chart.background;
+    if (block.chart.textColor) colors['ctrl-chart-text'] = block.chart.textColor;
   }
 
-  return { colors: colors, overridden: overridden };
+  return colors;
 }
-
-/**
- * collectThemeColors(colorValues, overriddenSet)
- * Builds the YAML sub-object for one theme (only emits overridden colors).
- */
-function collectThemeColors(colorValues, overriddenSet) {
-  var block = {};
-  if (overriddenSet.has('ctrl-bg-color'))   block.background = colorValues['ctrl-bg-color'];
-  if (overriddenSet.has('ctrl-color'))      block.color = colorValues['ctrl-color'];
-
-  // Heading colors
-  var hasHColor = overriddenSet.has('ctrl-h-color');
-  if (hasHColor) {
-    if (!block.headers) block.headers = {};
-    block.headers.color = colorValues['ctrl-h-color'];
-  }
-  ['h1','h2','h3','h4'].forEach(function(t) {
-    var id = 'ctrl-' + t + '-color';
-    if (overriddenSet.has(id)) {
-      if (!block[t]) block[t] = {};
-      block[t].color = colorValues[id];
-    }
-  });
-
-  // Paragraph and list
-  if (overriddenSet.has('ctrl-p-color')) {
-    if (!block.p) block.p = {};
-    block.p.color = colorValues['ctrl-p-color'];
-  }
-  if (overriddenSet.has('ctrl-list-color')) {
-    if (!block.list) block.list = {};
-    block.list.color = colorValues['ctrl-list-color'];
-  }
-
-  // Standalone colors
-  if (overriddenSet.has('ctrl-link-color')) {
-    if (!block.link) block.link = {};
-    block.link.color = colorValues['ctrl-link-color'];
-  }
-  if (overriddenSet.has('ctrl-code-bg')) {
-    if (!block.code) block.code = {};
-    block.code.background = colorValues['ctrl-code-bg'];
-  }
-  if (overriddenSet.has('ctrl-code-color')) {
-    if (!block.code) block.code = {};
-    block.code.color = colorValues['ctrl-code-color'];
-  }
-  if (overriddenSet.has('ctrl-bq-border-color')) {
-    if (!block.blockquote) block.blockquote = {};
-    block.blockquote.borderColor = colorValues['ctrl-bq-border-color'];
-  }
-  if (overriddenSet.has('ctrl-bq-bg')) {
-    if (!block.blockquote) block.blockquote = {};
-    block.blockquote.background = colorValues['ctrl-bq-bg'];
-  }
-  if (overriddenSet.has('ctrl-bq-color')) {
-    if (!block.blockquote) block.blockquote = {};
-    block.blockquote.color = colorValues['ctrl-bq-color'];
-  }
-
-  return block;
-}
-
-/**
- * collectStylesDual(values, lightOverridden, darkOverridden, lightColors, darkColors)
- * Builds full styles object with light:/dark: keys for colors, shared non-color props at top level.
- */
-function collectStylesDual(values, lightOverridden, darkOverridden, lightColors, darkColors) {
-  var gv = function(id) { return values[id] || ''; };
-  var gn = function(id) { return parseFloat(values[id]) || 0; };
-
-  var styles = {
-    fontFamily:   gv('ctrl-font-family').replace(/['"]/g, '').split(',')[0].trim(),
-    baseFontSize: gn('ctrl-base-size-num'),
-    lineHeight:   gn('ctrl-line-height-num'),
-    headers: {
-      fontFamily:   gv('ctrl-h-font-family').replace(/['"]/g, '').split(',')[0].trim(),
-      scale:        gn('ctrl-h-scale-num'),
-      marginBottom: gn('ctrl-h-mb-num'),
-    },
-    h1: { fontSize: gn('ctrl-h1-size-num'), fontWeight: parseInt(gv('ctrl-h1-weight')) || 0 },
-    h2: { fontSize: gn('ctrl-h2-size-num'), fontWeight: parseInt(gv('ctrl-h2-weight')) || 0 },
-    h3: { fontSize: gn('ctrl-h3-size-num'), fontWeight: parseInt(gv('ctrl-h3-weight')) || 0 },
-    h4: { fontSize: gn('ctrl-h4-size-num'), fontWeight: parseInt(gv('ctrl-h4-weight')) || 0 },
-    p: {
-      lineHeight:   gn('ctrl-p-lh-num'),
-      marginBottom: gn('ctrl-p-mb-num'),
-    },
-    link: { decoration: gv('ctrl-link-decoration') },
-    code: {
-      font: gv('ctrl-code-font').replace(/['"]/g, '').split(',')[0].trim(),
-    },
-    blockquote: {
-      borderWidth: gn('ctrl-bq-bw-num'),
-      fontSize:    gn('ctrl-bq-size-num'),
-    },
-
-  };
-
-  styles.list = {
-    spacing: gn('ctrl-list-spacing-num'),
-    indent:  gn('ctrl-list-indent-num'),
-  };
-
-  // Build theme color blocks
-  var lightBlock = collectThemeColors(lightColors, lightOverridden);
-  var darkBlock  = collectThemeColors(darkColors, darkOverridden);
-
-  // Only emit light/dark blocks if they have content
-  if (Object.keys(lightBlock).length > 0) styles.light = lightBlock;
-  if (Object.keys(darkBlock).length > 0)  styles.dark = darkBlock;
-
-  return styles;
-}
-
-/**
- * stylesToControls(styles) — extended version
- * Detects styles.light/styles.dark and returns per-theme data when present.
- */
-var _origStylesToControls = stylesToControls;
-
-stylesToControls = function(styles) {
-  if (!styles) return { controls: {}, overriddenColors: new Set(), hasThemeColors: false };
-
-  var hasThemeColors = !!(styles.light || styles.dark);
-
-  if (!hasThemeColors) {
-    var result = _origStylesToControls(styles);
-    result.hasThemeColors = false;
-    return result;
-  }
-
-  // Parse non-color controls from top level (same as original, but skip colors)
-  var controls = {};
-  var overridden = new Set();
-
-  if (styles.fontFamily)   controls['ctrl-font-family'] = styles.fontFamily;
-  if (styles.baseFontSize) controls['ctrl-base-size-num'] = styles.baseFontSize;
-  if (styles.lineHeight)   controls['ctrl-line-height-num'] = styles.lineHeight;
-
-  var h = styles.headers || {};
-  if (h.fontFamily)   controls['ctrl-h-font-family'] = h.fontFamily;
-  if (h.scale)        controls['ctrl-h-scale-num'] = h.scale;
-  if (h.marginBottom) controls['ctrl-h-mb-num'] = h.marginBottom;
-
-  ['h1', 'h2', 'h3', 'h4'].forEach(function(t) {
-    var hs = styles[t] || {};
-    if (hs.fontSize)   controls['ctrl-' + t + '-size-num'] = hs.fontSize;
-    if (hs.fontWeight) controls['ctrl-' + t + '-weight'] = String(hs.fontWeight);
-  });
-
-  var p = styles.p || {};
-  if (p.lineHeight)   controls['ctrl-p-lh-num'] = p.lineHeight;
-  if (p.marginBottom) controls['ctrl-p-mb-num'] = p.marginBottom;
-
-  var lk = styles.link || {};
-  if (lk.decoration) controls['ctrl-link-decoration'] = lk.decoration;
-
-  var cd = styles.code || {};
-  if (cd.font) controls['ctrl-code-font'] = cd.font;
-
-  var bq = styles.blockquote || {};
-  if (bq.borderWidth) controls['ctrl-bq-bw-num'] = bq.borderWidth;
-  if (bq.fontSize)    controls['ctrl-bq-size-num'] = bq.fontSize;
-
-  var ll = styles.list || {};
-  if (ll.spacing) controls['ctrl-list-spacing-num'] = ll.spacing;
-  if (ll.indent)  controls['ctrl-list-indent-num'] = ll.indent;
-
-  // Parse per-theme color blocks
-  var lightParsed = parseThemeColorBlock(styles.light);
-  var darkParsed  = parseThemeColorBlock(styles.dark);
-
-  return {
-    controls: controls,
-    overriddenColors: overridden,
-    hasThemeColors: true,
-    lightColors: lightParsed.colors,
-    lightOverridden: lightParsed.overridden,
-    darkColors: darkParsed.colors,
-    darkOverridden: darkParsed.overridden,
-  };
-};
 
 // ═══════════════════════════════════════════════════════
 //  STRIP STYLE DEFAULTS (for shorter URLs)
@@ -751,9 +548,7 @@ exports.controlToCssVars      = controlToCssVars;
 exports.cascadeColor          = cascadeColor;
 exports.invertLightness       = invertLightness;
 exports.collectStyles         = collectStyles;
-exports.collectStylesDual     = collectStylesDual;
-exports.collectThemeColors    = collectThemeColors;
-exports.parseThemeColorBlock  = parseThemeColorBlock;
+exports.parseDarkBlock        = parseDarkBlock;
 exports.stylesToControls      = stylesToControls;
 exports.STYLE_DEFAULTS        = STYLE_DEFAULTS;
 exports.stripStyleDefaults    = stripStyleDefaults;

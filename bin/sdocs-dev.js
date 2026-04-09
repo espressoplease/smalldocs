@@ -249,20 +249,6 @@ THEME COLORS
   Non-color properties (fonts, sizes, spacing, weights) remain at the
   top level and are shared across both themes.
 
-  For full manual control over both themes, use \`light:\` and \`dark:\`:
-
-  ---
-  styles:
-    fontFamily: Lora
-    baseFontSize: 17
-    light:
-      background: "#fffaf5"
-      color: "#1a1a2e"
-    dark:
-      background: "#1a1520"
-      color: "#e7e5e2"
-  ---
-
 FONTS (24 supported, loaded lazily from Google Fonts)
   Inter · Roboto · Open Sans · Lato · Montserrat · Source Sans 3
   Oswald · Raleway · Poppins · Merriweather · Ubuntu · Nunito
@@ -274,28 +260,21 @@ EXAMPLE — editorial article with colored heading tiers
   styles:
     fontFamily: Lora
     baseFontSize: 17
-    h1: { fontSize: 2.3, fontWeight: 700 }
-    h2: { fontSize: 1.55, fontWeight: 600 }
-    h3: { fontSize: 1.2, fontWeight: 600 }
+    background: "#fffaf5"
+    color: "#1a1a2e"
+    h1: { fontSize: 2.3, fontWeight: 700, color: "#c0392b" }
+    h2: { fontSize: 1.55, fontWeight: 600, color: "#8e44ad" }
+    h3: { fontSize: 1.2, fontWeight: 600, color: "#16a085" }
     p: { lineHeight: 1.9, marginBottom: 1.2 }
-    light:
-      background: "#fffaf5"
-      color: "#1a1a2e"
-      headers: { color: "#2c3e50" }
-      h1: { color: "#c0392b" }
-      h2: { color: "#8e44ad" }
-      h3: { color: "#16a085" }
-      link: { color: "#e67e22", decoration: "underline" }
-      blockquote: { borderColor: "#c0392b", background: "#faf0eb", color: "#7f8c8d" }
+    link: { color: "#e67e22" }
+    blocks:
+      background: "#faf0eb"
+    blockquote: { borderColor: "#c0392b", color: "#7f8c8d" }
     dark:
       background: "#1a1520"
-      color: "#e7e5e2"
-      headers: { color: "#b0aaa5" }
       h1: { color: "#ef6f5e" }
       h2: { color: "#c490e4" }
-      h3: { color: "#5ed4b8" }
-      link: { color: "#f0a860", decoration: "underline" }
-      blockquote: { borderColor: "#ef6f5e", background: "#221a28", color: "#9e9590" }
+      blockquote: { borderColor: "#ef6f5e" }
   ---
 `;
 
