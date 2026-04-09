@@ -276,15 +276,19 @@
 
 /* Chart menu */
 .chart-menu-btn {
-  position: absolute; top: 8px; right: 8px;
-  width: 24px; height: 24px; border: none; background: none;
-  color: var(--text-3, #999); font-size: 16px; cursor: pointer;
-  border-radius: var(--radius-sm, 4px); opacity: 0;
-  transition: opacity .15s, background .12s; z-index: 2;
+  position: absolute; top: 6px; right: 6px;
+  background: var(--md-chart-bg, var(--md-block-bg, #F5F2EE));
+  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.1));
+  border-radius: 4px;
+  padding: 3px 5px;
+  cursor: pointer; opacity: 0.7;
+  transition: opacity .15s;
+  color: var(--md-chart-text, var(--text-3, #999));
+  font-size: 12px; line-height: 1;
   display: flex; align-items: center; justify-content: center;
+  z-index: 2;
 }
-.sdoc-chart:hover .chart-menu-btn { opacity: 0.6; }
-.chart-menu-btn:hover { opacity: 1 !important; background: var(--bg-hover, rgba(0,0,0,0.06)); color: var(--text, #333); }
+.chart-menu-btn:hover { opacity: 1; background: var(--md-copy-btn-hover, rgba(0,0,0,0.05)); }
 
 .chart-menu {
   display: none; position: absolute; top: 36px; right: 8px;
