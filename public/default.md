@@ -3,16 +3,12 @@ styles:
   fontFamily: Inter
   baseFontSize: 16
   lineHeight: 1.75
+  background: "#ffffff"
+  color: "#1c1917"
   h1: { fontSize: 2.1, fontWeight: 700 }
   h2: { fontSize: 1.55, fontWeight: 600 }
   h3: { fontSize: 1.2, fontWeight: 600 }
   p: { lineHeight: 1.75, marginBottom: 1 }
-  light:
-    background: "#ffffff"
-    color: "#1c1917"
-  dark:
-    background: "#2c2a26"
-    color: "#e7e5e2"
 ---
 
 # Say hello to SmallDocs: A markdown-first replacement for Word & GDocs
@@ -138,24 +134,43 @@ When a `Styled .md` file is rendered in the SmallDocs interface the specified st
 
 #### Light & dark modes
 
-You can nest styles in `light` and `dark` keys:
+Colors set at the top level are light-mode colors. Dark mode is **auto-generated** by inverting lightness — light backgrounds become dark, dark text becomes light, same hue and warmth. You only need to set colors once:
 
 ```
-  light:
-    background: "#fffaf5"
-    color: "#1a1a2e"
-    h1: { color: "#c0392b" }
+  background: "#fffaf5"
+  color: "#1a1a2e"
+  h1: { color: "#c0392b" }
+  blocks:
+    background: "#faf0eb"
+```
+
+To override specific dark-mode colors, add a `dark:` block:
+
+```
   dark:
     background: "#1a1520"
-    color: "#e7e5e2"
     h1: { color: "#ef6f5e" }
 ```
 
-These will be used when you view the site in each mode.
+Colors cascade from general to specific — set `color` once and it flows to headings, paragraphs, and lists. Set `blocks.background` once and it flows to code blocks, blockquotes, and charts.
 
-Non-color properties (fonts, sizes, spacing) are shared across themes and live at the top level.
+#### Charts
 
-All color controls are in the **Colors** section of the style panel. The light/dark toggle at the top of that section lets you customize each theme independently. Colors cascade from general to specific — set `color` once and it flows to headings, paragraphs, and lists unless you override them individually.
+Render charts in markdown using ` ```chart ` code blocks with JSON data:
+
+````
+```chart
+{
+  "type": "bar",
+  "title": "Monthly Revenue",
+  "labels": ["Jan", "Feb", "Mar"],
+  "values": [100, 150, 130],
+  "format": "currency"
+}
+```
+````
+
+Supports: pie, doughnut, bar, horizontal bar, stacked bar, line, area, radar, polar area, scatter, bubble, and mixed (combo) charts. Style chart colors via `chart.accent` and `chart.palette` in front matter. Run `sdoc charts` for the full reference.
 
 ### Drag & drop
 
