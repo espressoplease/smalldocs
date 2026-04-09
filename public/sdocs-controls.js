@@ -54,7 +54,7 @@ var STANDALONE_COLOR_IDS = new Set(SDocStyles.STANDALONE_COLOR_IDS);
   'ctrl-bq-border-color',
   'ctrl-chart-accent','ctrl-chart-palette',
 ].forEach(function(id) {
-  var handler = function() { if (STANDALONE_COLOR_IDS.has(id)) S.overriddenColors.add(id); applyCtrl(id); };
+  var handler = function() { if (STANDALONE_COLOR_IDS.has(id)) S.overriddenColors.add(id); applyCtrl(id); S.syncAll('controls'); };
   document.getElementById(id).addEventListener('input',  handler);
   document.getElementById(id).addEventListener('change', handler);
 });

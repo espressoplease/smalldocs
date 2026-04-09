@@ -1,14 +1,4 @@
 ---
-styles:
-  fontFamily: Inter
-  baseFontSize: 16
-  lineHeight: 1.75
-  background: "#ffffff"
-  color: "#1c1917"
-  h1: { fontSize: 2.1, fontWeight: 700 }
-  h2: { fontSize: 1.55, fontWeight: 600 }
-  h3: { fontSize: 1.2, fontWeight: 600 }
-  p: { lineHeight: 1.75, marginBottom: 1 }
 ---
 
 # Say hello to SmallDocs: A markdown-first replacement for Word & GDocs
