@@ -120,32 +120,35 @@ function loadThemeColors(theme) {
   var overridden = S.themeOverridden[theme];
   var defaults = getThemeDefaultsFor(theme);
 
-  // Cascade root first
-  if (overridden.has('ctrl-color')) {
-    S.setColorValue('ctrl-color', colors['ctrl-color'], true);
-  } else {
-    S.setColorValue('ctrl-color', defaults.colorDefault, false);
-  }
+  // Cascade roots: text color and block bg/text
+  var cascadeRoots = [
+    ['ctrl-color', defaults.colorDefault],
+    ['ctrl-block-bg', defaults.codeBg],
+    ['ctrl-block-text', defaults.bqColor],
+  ];
+  cascadeRoots.forEach(function(pair) {
+    var id = pair[0], def = pair[1];
+    if (overridden.has(id)) {
+      S.setColorValue(id, colors[id], true);
+    } else {
+      S.setColorValue(id, def, false);
+    }
+  });
 
-  // Then cascade children that are overridden
+  // Then cascade children that are overridden (overrides the parent cascade)
   var cascadeIds = Object.keys(SDocStyles.COLOR_VAR_MAP);
   cascadeIds.forEach(function(ctrlId) {
-    if (ctrlId === 'ctrl-color') return; // already handled
+    if (ctrlId === 'ctrl-color' || ctrlId === 'ctrl-block-bg' || ctrlId === 'ctrl-block-text') return;
     if (overridden.has(ctrlId)) {
       S.setColorValue(ctrlId, colors[ctrlId], true);
     }
-    // Non-overridden cascade children are already set by cascade from parent
   });
 
-  // Standalone colors
+  // Standalone colors (not in cascade)
   var standaloneMap = {
     'ctrl-bg-color':        defaults.bgColor,
     'ctrl-link-color':      defaults.linkColor,
-    'ctrl-code-bg':         defaults.codeBg,
-    'ctrl-code-color':      defaults.codeColor,
     'ctrl-bq-border-color': defaults.bqBorderColor,
-    'ctrl-bq-bg':           defaults.bqBg,
-    'ctrl-bq-color':        defaults.bqColor,
   };
   for (var ctrlId in standaloneMap) {
     var el = document.getElementById(ctrlId);

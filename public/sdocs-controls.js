@@ -221,10 +221,18 @@ function applyStylesFromMeta(s) {
     if (s.code.background) legacyStandalone.push(['ctrl-code-bg', s.code.background]);
     if (s.code.color) legacyStandalone.push(['ctrl-code-color', s.code.color]);
   }
+  if (s.blocks) {
+    if (s.blocks.background) legacyStandalone.push(['ctrl-block-bg', s.blocks.background]);
+    if (s.blocks.color) legacyStandalone.push(['ctrl-block-text', s.blocks.color]);
+  }
   if (s.blockquote) {
     if (s.blockquote.borderColor) legacyStandalone.push(['ctrl-bq-border-color', s.blockquote.borderColor]);
     if (s.blockquote.background) legacyStandalone.push(['ctrl-bq-bg', s.blockquote.background]);
     if (s.blockquote.color) legacyStandalone.push(['ctrl-bq-color', s.blockquote.color]);
+  }
+  if (s.chart) {
+    if (s.chart.background) legacyStandalone.push(['ctrl-chart-bg', s.chart.background]);
+    if (s.chart.textColor) legacyStandalone.push(['ctrl-chart-text', s.chart.textColor]);
   }
   legacyStandalone.forEach(function(pair) {
     lightOverridden.add(pair[0]);
