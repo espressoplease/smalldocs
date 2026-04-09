@@ -117,7 +117,7 @@ styles:
 
 (Click "**Raw**" — top left — to see the front matter for this file. See all available properties [here](https://sdocs.dev) or by running `npm i sdocs-dev; sdoc schema`.)
 
-When a `Styled .md` file is rendered in the SmallDocs interface the specified styles are applied. If a plain `.md` file is rendered the default styles are applied.
+When a `Styled .md` file is rendered in the SmallDocs interface the specified styles are applied. If a plain `.md` file is rendered the default styles are applied. The fastest way to preview a styled `.md` file is with the CLI: `sdoc file.md`.
 
 #### Light & dark modes
 
@@ -176,7 +176,7 @@ Style chart colors via `chart.accent` and `chart.palette` in front matter. Run `
 
 ### Drag & drop
 
-Drag any `.md` file onto the editor to SmallDoc it instantly.
+Drag any `.md` file onto the editor to SmallDoc it instantly. Or from the terminal: `sdoc file.md`.
 
 ### Exports
 
@@ -265,6 +265,14 @@ sdoc schema
 ```
 
 Prints every available style property with its type, default value, and description. This is designed to be readable by both humans and LLMs — so your agent can write YAML front matter for you.
+
+### Chart options
+
+```
+sdoc charts
+```
+
+Prints the full chart reference: all 13 chart types, JSON data formats, axis options, number formatting, annotations, dual y-axis, palette modes, and styling via front matter. Everything an agent needs to generate charts.
 
 ### Modes
 
