@@ -222,14 +222,21 @@
     var chartBg = cssVar('--md-chart-bg');
     var textColor = chartText || (dark ? '#A8A29E' : '#78716c');
     var titleColor = chartText || (dark ? '#E7E5E2' : '#1C1917');
+    // Grid: semi-transparent version of the text color
+    var gridColor;
+    if (chartText) {
+      gridColor = hexToRgba(chartText, 0.15);
+    } else {
+      gridColor = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+    }
     return {
       font: getDocFont(),
       text: textColor,
-      grid: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+      grid: gridColor,
       title: titleColor,
       tooltipBg: chartBg || (dark ? '#292524' : '#fff'),
-      tooltipBorder: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-      annotationColor: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)',
+      tooltipBorder: chartText ? hexToRgba(chartText, 0.2) : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+      annotationColor: chartText ? hexToRgba(chartText, 0.4) : (dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'),
       annotationLabel: titleColor
     };
   }
