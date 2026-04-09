@@ -1,6 +1,3 @@
----
----
-
 # Say hello to SmallDocs: A markdown-first replacement for Word & GDocs
 
 If you're working with agents, a document written in markdown is <ins>officially</ins>* 407 times more useful than a document locked inside a `.docx` or `.gdoc` file format. Because of this, I believe Word and GDocs' days are numbered. (*I am the official.)
