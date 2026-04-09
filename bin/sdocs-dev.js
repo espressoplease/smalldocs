@@ -184,10 +184,28 @@ BLOCKQUOTE
     background   string  Quote background color. Default: "#f7f5f2"
     color        string  Quote text color. Default: "#6b6560"
 
+BLOCKS (shared styling for code, blockquote, and chart blocks)
+  blocks:
+    background  string  Background for all block types. Cascades to code,
+                        blockquote, and chart backgrounds unless overridden.
+    color       string  Text color for all block types. Cascades to code,
+                        blockquote, and chart text unless overridden.
+
+CHARTS (see also: \`sdoc charts\` for the full chart reference)
+  chart:
+    accent      string  Palette base color (hex). Default: "#3b82f6"
+    palette     string  Palette mode. Default: "monochrome"
+                        Options: monochrome, complementary, analogous, triadic,
+                        pastel, warm, cool, earth
+    background  string  Chart background. Default: inherits blocks.background
+    textColor   string  Chart labels/axes. Default: inherits blocks.color
+
 COLOR CASCADE
   Colors cascade from general → specific:
     color  →  headers.color  →  h1.color, h2.color, h3.color, h4.color
     color  →  p.color        →  list.color
+    blocks.background  →  code.background, blockquote.background, chart.background
+    blocks.color       →  code.color, blockquote.color, chart.textColor
   Set a child color only when you want it to differ from its parent.
 
 THEME COLORS
@@ -360,19 +378,28 @@ ANNOTATIONS (reference lines)
   position        string          Label position: "start", "center", "end"
 
 CHART STYLING (via front matter or style panel)
-  Charts inherit their color palette from the document's style settings.
-  Set an accent color and palette mode in YAML front matter:
+  Charts inherit background and text colors from the block cascade:
 
   ---
   styles:
+    blocks:
+      background: "#1a1a2e"     # all blocks: code, blockquote, charts
+      color: "#c8c3bc"          # text in all blocks
     chart:
-      accent: "#3b82f6"
-      palette: complementary
+      accent: "#6366f1"         # palette base color
+      palette: monochrome       # palette generation mode
+      background: "#0e4a1a"     # override blocks.background for charts only
+      textColor: "#c8f0d8"      # override blocks.color for charts only
   ---
 
+  COLOR CASCADE FOR BLOCKS
+    blocks.background  →  code.background, blockquote.background, chart.background
+    blocks.color       →  code.color, blockquote.color, chart.textColor
+    Set a child value only when you want it to differ from the parent.
+
   PALETTE MODES
-    complementary   Hues spread evenly around the color wheel
     monochrome      Same hue, varying lightness (default)
+    complementary   Hues spread evenly around the color wheel
     analogous       Neighboring hues for a harmonious feel
     triadic         Three base hues 120° apart
     pastel          Soft, light colors
