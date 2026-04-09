@@ -11,21 +11,32 @@ const COLOR_DEFAULT = '#1c1917';
 
 // Control ID → CSS variable name (color controls only)
 const COLOR_VAR_MAP = {
-  'ctrl-color':      '--md-color',
-  'ctrl-h-color':    '--md-h-color',
-  'ctrl-h1-color':   '--md-h1-color',
-  'ctrl-h2-color':   '--md-h2-color',
-  'ctrl-h3-color':   '--md-h3-color',
-  'ctrl-h4-color':   '--md-h4-color',
-  'ctrl-p-color':    '--md-p-color',
-  'ctrl-list-color': '--md-list-color',
+  'ctrl-color':       '--md-color',
+  'ctrl-h-color':     '--md-h-color',
+  'ctrl-h1-color':    '--md-h1-color',
+  'ctrl-h2-color':    '--md-h2-color',
+  'ctrl-h3-color':    '--md-h3-color',
+  'ctrl-h4-color':    '--md-h4-color',
+  'ctrl-p-color':     '--md-p-color',
+  'ctrl-list-color':  '--md-list-color',
+  // Block cascade
+  'ctrl-block-bg':    '--md-block-bg',
+  'ctrl-block-text':  '--md-block-text',
+  'ctrl-code-bg':     ['--md-code-bg', '--md-pre-bg'],
+  'ctrl-code-color':  '--md-code-color',
+  'ctrl-bq-bg':       '--md-bq-bg',
+  'ctrl-bq-color':    '--md-bq-color',
+  'ctrl-chart-bg':    '--md-chart-bg',
+  'ctrl-chart-text':  '--md-chart-text',
 };
 
 // Cascade tree: parent → direct children
 const COLOR_CASCADE = {
-  'ctrl-color':   ['ctrl-h-color', 'ctrl-p-color'],
-  'ctrl-h-color': ['ctrl-h1-color', 'ctrl-h2-color', 'ctrl-h3-color', 'ctrl-h4-color'],
-  'ctrl-p-color': ['ctrl-list-color'],
+  'ctrl-color':      ['ctrl-h-color', 'ctrl-p-color'],
+  'ctrl-h-color':    ['ctrl-h1-color', 'ctrl-h2-color', 'ctrl-h3-color', 'ctrl-h4-color'],
+  'ctrl-p-color':    ['ctrl-list-color'],
+  'ctrl-block-bg':   ['ctrl-code-bg', 'ctrl-bq-bg', 'ctrl-chart-bg'],
+  'ctrl-block-text': ['ctrl-code-color', 'ctrl-bq-color', 'ctrl-chart-text'],
 };
 
 // Control ID → { cssVar, suffix?, compound? }
@@ -51,13 +62,9 @@ const CTRL_CSS_MAP = {
   'ctrl-link-color':       { cssVar: '--md-link-color' },
   'ctrl-link-decoration':  { cssVar: '--md-link-decoration' },
   'ctrl-code-font':        { cssVar: '--md-code-font' },
-  'ctrl-code-bg':          { cssVar: ['--md-code-bg', '--md-pre-bg'] },
-  'ctrl-code-color':       { cssVar: '--md-code-color' },
   'ctrl-bq-border-color':  { cssVar: '--md-bq-border', compound: 'bq-border' },
   'ctrl-bq-bw-num':        { cssVar: '--md-bq-border', compound: 'bq-border' },
-  'ctrl-bq-bg':            { cssVar: '--md-bq-bg' },
   'ctrl-bq-size-num':      { cssVar: '--md-bq-size', suffix: 'em' },
-  'ctrl-bq-color':         { cssVar: '--md-bq-color' },
   'ctrl-list-spacing-num': { cssVar: '--md-list-spacing', suffix: 'em' },
   'ctrl-list-indent-num':  { cssVar: '--md-list-indent', suffix: 'em' },
   'ctrl-chart-accent':     { cssVar: '--md-chart-accent' },
@@ -93,7 +100,11 @@ const RANGE_NUM_PAIRS = [
 function controlToCssVars(ctrlId, value, allValues) {
   // Color controls go through the cascade system, not CTRL_CSS_MAP
   if (COLOR_VAR_MAP[ctrlId]) {
-    return [{ cssVar: COLOR_VAR_MAP[ctrlId], value: value }];
+    var varName = COLOR_VAR_MAP[ctrlId];
+    if (Array.isArray(varName)) {
+      return varName.map(function(cv) { return { cssVar: cv, value: value }; });
+    }
+    return [{ cssVar: varName, value: value }];
   }
 
   const entry = CTRL_CSS_MAP[ctrlId];
@@ -167,15 +178,11 @@ function collectStyles(values, overriddenColors) {
     link: { color: gv('ctrl-link-color'), decoration: gv('ctrl-link-decoration') },
     code: {
       font:       gv('ctrl-code-font').replace(/['"]/g, '').split(',')[0].trim(),
-      background: gv('ctrl-code-bg'),
-      color:      gv('ctrl-code-color'),
     },
     blockquote: {
       borderColor: gv('ctrl-bq-border-color'),
       borderWidth: gn('ctrl-bq-bw-num'),
-      background:  gv('ctrl-bq-bg'),
       fontSize:    gn('ctrl-bq-size-num'),
-      color:       gv('ctrl-bq-color'),
     },
   };
 
@@ -195,12 +202,24 @@ function collectStyles(values, overriddenColors) {
   if (overriddenColors.has('ctrl-p-color'))    styles.p.color = gv('ctrl-p-color');
   if (overriddenColors.has('ctrl-list-color')) styles.list.color = gv('ctrl-list-color');
 
-  // Chart styles — only emit if accent was explicitly set
-  if (overriddenColors.has('ctrl-chart-accent')) {
-    styles.chart = { accent: gv('ctrl-chart-accent'), palette: gv('ctrl-chart-palette') };
-  } else if (gv('ctrl-chart-palette') && gv('ctrl-chart-palette') !== 'monochrome') {
-    styles.chart = { palette: gv('ctrl-chart-palette') };
+  // Block cascade colors
+  if (overriddenColors.has('ctrl-block-bg') || overriddenColors.has('ctrl-block-text')) {
+    styles.blocks = {};
+    if (overriddenColors.has('ctrl-block-bg'))   styles.blocks.background = gv('ctrl-block-bg');
+    if (overriddenColors.has('ctrl-block-text')) styles.blocks.color = gv('ctrl-block-text');
   }
+  if (overriddenColors.has('ctrl-code-bg'))    styles.code.background = gv('ctrl-code-bg');
+  if (overriddenColors.has('ctrl-code-color')) styles.code.color = gv('ctrl-code-color');
+  if (overriddenColors.has('ctrl-bq-bg'))      styles.blockquote.background = gv('ctrl-bq-bg');
+  if (overriddenColors.has('ctrl-bq-color'))   styles.blockquote.color = gv('ctrl-bq-color');
+
+  // Chart styles
+  var chartObj = {};
+  if (overriddenColors.has('ctrl-chart-accent')) chartObj.accent = gv('ctrl-chart-accent');
+  if (gv('ctrl-chart-palette') && gv('ctrl-chart-palette') !== 'monochrome') chartObj.palette = gv('ctrl-chart-palette');
+  if (overriddenColors.has('ctrl-chart-bg'))    chartObj.background = gv('ctrl-chart-bg');
+  if (overriddenColors.has('ctrl-chart-text'))  chartObj.textColor = gv('ctrl-chart-text');
+  if (Object.keys(chartObj).length) styles.chart = chartObj;
 
   return styles;
 }
@@ -260,17 +279,22 @@ function stylesToControls(styles) {
   if (lk.color)      controls['ctrl-link-color'] = lk.color;
   if (lk.decoration) controls['ctrl-link-decoration'] = lk.decoration;
 
+  // Blocks cascade parent
+  const bl = styles.blocks || {};
+  if (bl.background) { controls['ctrl-block-bg'] = bl.background; overridden.add('ctrl-block-bg'); }
+  if (bl.color)      { controls['ctrl-block-text'] = bl.color; overridden.add('ctrl-block-text'); }
+
   const cd = styles.code || {};
   if (cd.font)       controls['ctrl-code-font'] = cd.font;
-  if (cd.background) controls['ctrl-code-bg'] = cd.background;
-  if (cd.color)      controls['ctrl-code-color'] = cd.color;
+  if (cd.background) { controls['ctrl-code-bg'] = cd.background; overridden.add('ctrl-code-bg'); }
+  if (cd.color)      { controls['ctrl-code-color'] = cd.color; overridden.add('ctrl-code-color'); }
 
   const bq = styles.blockquote || {};
   if (bq.borderColor) controls['ctrl-bq-border-color'] = bq.borderColor;
   if (bq.borderWidth) controls['ctrl-bq-bw-num'] = bq.borderWidth;
-  if (bq.background)  controls['ctrl-bq-bg'] = bq.background;
+  if (bq.background)  { controls['ctrl-bq-bg'] = bq.background; overridden.add('ctrl-bq-bg'); }
   if (bq.fontSize)    controls['ctrl-bq-size-num'] = bq.fontSize;
-  if (bq.color)       controls['ctrl-bq-color'] = bq.color;
+  if (bq.color)       { controls['ctrl-bq-color'] = bq.color; overridden.add('ctrl-bq-color'); }
 
   const ll = styles.list || {};
   if (ll.spacing) controls['ctrl-list-spacing-num'] = ll.spacing;
@@ -281,11 +305,10 @@ function stylesToControls(styles) {
   }
 
   const ch = styles.chart || {};
-  if (ch.accent) {
-    controls['ctrl-chart-accent'] = ch.accent;
-    overridden.add('ctrl-chart-accent');
-  }
-  if (ch.palette) controls['ctrl-chart-palette'] = ch.palette;
+  if (ch.accent)     { controls['ctrl-chart-accent'] = ch.accent; overridden.add('ctrl-chart-accent'); }
+  if (ch.palette)    controls['ctrl-chart-palette'] = ch.palette;
+  if (ch.background) { controls['ctrl-chart-bg'] = ch.background; overridden.add('ctrl-chart-bg'); }
+  if (ch.textColor)  { controls['ctrl-chart-text'] = ch.textColor; overridden.add('ctrl-chart-text'); }
 
   return { controls, overriddenColors: overridden };
 }
@@ -295,7 +318,8 @@ function stylesToControls(styles) {
 // ═══════════════════════════════════════════════════════
 
 var STANDALONE_COLOR_IDS = [
-  'ctrl-bg-color','ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-bg','ctrl-bq-color',
+  'ctrl-bg-color','ctrl-link-color',
+  'ctrl-bq-border-color',
   'ctrl-chart-accent',
 ];
 

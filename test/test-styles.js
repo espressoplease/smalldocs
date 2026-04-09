@@ -106,13 +106,11 @@ module.exports = function(harness) {
     assert.strictEqual(styles.link.color, '#e11d48');
     assert.strictEqual(styles.link.decoration, 'none');
     assert.strictEqual(styles.code.font, 'Fira Code');
-    assert.strictEqual(styles.code.background, '#282c34');
-    assert.strictEqual(styles.code.color, '#abb2bf');
+    // code.background and code.color are now cascade-gated (only emit when overridden)
     assert.strictEqual(styles.blockquote.borderColor, '#e11d48');
     assert.strictEqual(styles.blockquote.borderWidth, 5);
-    assert.strictEqual(styles.blockquote.background, '#eee8e0');
+    // blockquote.background and blockquote.color are now cascade-gated
     assert.strictEqual(styles.blockquote.fontSize, 0.95);
-    assert.strictEqual(styles.blockquote.color, '#555555');
     assert.strictEqual(styles.list.spacing, 0.5);
     assert.strictEqual(styles.list.indent, 1.5);
 
@@ -136,13 +134,10 @@ module.exports = function(harness) {
     assert.strictEqual(controls['ctrl-link-color'], '#e11d48');
     assert.strictEqual(controls['ctrl-link-decoration'], 'none');
     assert.strictEqual(controls['ctrl-code-font'], 'Fira Code');
-    assert.strictEqual(controls['ctrl-code-bg'], '#282c34');
-    assert.strictEqual(controls['ctrl-code-color'], '#abb2bf');
+    // code-bg, code-color, bq-bg, bq-color are cascade colors — not emitted without override
     assert.strictEqual(controls['ctrl-bq-border-color'], '#e11d48');
     assert.strictEqual(controls['ctrl-bq-bw-num'], 5);
-    assert.strictEqual(controls['ctrl-bq-bg'], '#eee8e0');
     assert.strictEqual(controls['ctrl-bq-size-num'], 0.95);
-    assert.strictEqual(controls['ctrl-bq-color'], '#555555');
     assert.strictEqual(controls['ctrl-list-spacing-num'], 0.5);
     assert.strictEqual(controls['ctrl-list-indent-num'], 1.5);
   });
@@ -309,9 +304,9 @@ module.exports = function(harness) {
 
   test('STANDALONE_COLOR_IDS and ALL_COLOR_IDS are exported', () => {
     assert.ok(Array.isArray(S.STANDALONE_COLOR_IDS));
-    assert.strictEqual(S.STANDALONE_COLOR_IDS.length, 8);
+    assert.strictEqual(S.STANDALONE_COLOR_IDS.length, 4);
     assert.ok(Array.isArray(S.ALL_COLOR_IDS));
-    assert.strictEqual(S.ALL_COLOR_IDS.length, 16);
+    assert.strictEqual(S.ALL_COLOR_IDS.length, 20);
   });
 
   test('parseThemeColorBlock: extracts colors from theme block', () => {
@@ -727,7 +722,7 @@ module.exports = function(harness) {
     const styles = S.collectStyles(values, overridden);
     assert.ok(styles.chart, 'chart key should exist');
     assert.strictEqual(styles.chart.accent, '#e11d48');
-    assert.strictEqual(styles.chart.palette, 'monochrome');
+    // monochrome is the default — not emitted unless changed
   });
 
   test('collectStyles: chart omitted when accent not overridden and palette is default', () => {
@@ -768,5 +763,110 @@ module.exports = function(harness) {
 
   test('ctrl-chart-accent is in STANDALONE_COLOR_IDS', () => {
     assert.ok(S.STANDALONE_COLOR_IDS.includes('ctrl-chart-accent'));
+  });
+
+  console.log('\n── Block Cascade Tests ──────────────────────────\n');
+
+  test('cascadeColor: block-bg propagates to code-bg, bq-bg, chart-bg', () => {
+    const updates = S.cascadeColor('ctrl-block-bg', '#aabbcc', new Set());
+    assert.strictEqual(updates['ctrl-code-bg'], '#aabbcc');
+    assert.strictEqual(updates['ctrl-bq-bg'], '#aabbcc');
+    assert.strictEqual(updates['ctrl-chart-bg'], '#aabbcc');
+  });
+
+  test('cascadeColor: block-text propagates to code-color, bq-color, chart-text', () => {
+    const updates = S.cascadeColor('ctrl-block-text', '#112233', new Set());
+    assert.strictEqual(updates['ctrl-code-color'], '#112233');
+    assert.strictEqual(updates['ctrl-bq-color'], '#112233');
+    assert.strictEqual(updates['ctrl-chart-text'], '#112233');
+  });
+
+  test('cascadeColor: block-bg stops at overridden children', () => {
+    const updates = S.cascadeColor('ctrl-block-bg', '#aabbcc', new Set(['ctrl-code-bg']));
+    assert.strictEqual(updates['ctrl-code-bg'], undefined);
+    assert.strictEqual(updates['ctrl-bq-bg'], '#aabbcc');
+    assert.strictEqual(updates['ctrl-chart-bg'], '#aabbcc');
+  });
+
+  test('cascadeColor: block-text does not propagate to block-bg children', () => {
+    const updates = S.cascadeColor('ctrl-block-text', '#112233', new Set());
+    assert.strictEqual(updates['ctrl-code-bg'], undefined);
+    assert.strictEqual(updates['ctrl-bq-bg'], undefined);
+    assert.strictEqual(updates['ctrl-chart-bg'], undefined);
+  });
+
+  test('block colors are in COLOR_VAR_MAP not STANDALONE', () => {
+    assert.ok(S.COLOR_VAR_MAP['ctrl-block-bg'], 'block-bg should be in COLOR_VAR_MAP');
+    assert.ok(S.COLOR_VAR_MAP['ctrl-block-text'], 'block-text should be in COLOR_VAR_MAP');
+    assert.ok(S.COLOR_VAR_MAP['ctrl-code-bg'], 'code-bg should be in COLOR_VAR_MAP');
+    assert.ok(S.COLOR_VAR_MAP['ctrl-bq-bg'], 'bq-bg should be in COLOR_VAR_MAP');
+    assert.ok(S.COLOR_VAR_MAP['ctrl-chart-bg'], 'chart-bg should be in COLOR_VAR_MAP');
+    assert.ok(S.COLOR_VAR_MAP['ctrl-chart-text'], 'chart-text should be in COLOR_VAR_MAP');
+    assert.ok(!S.STANDALONE_COLOR_IDS.includes('ctrl-code-bg'), 'code-bg should not be standalone');
+    assert.ok(!S.STANDALONE_COLOR_IDS.includes('ctrl-bq-bg'), 'bq-bg should not be standalone');
+    assert.ok(!S.STANDALONE_COLOR_IDS.includes('ctrl-bq-color'), 'bq-color should not be standalone');
+  });
+
+  test('controlToCssVars: code-bg maps to both --md-code-bg and --md-pre-bg', () => {
+    const result = S.controlToCssVars('ctrl-code-bg', '#282c34', {});
+    assert.ok(result.length === 2, 'should return 2 assignments');
+    assert.ok(result.some(r => r.cssVar === '--md-code-bg'), 'should include --md-code-bg');
+    assert.ok(result.some(r => r.cssVar === '--md-pre-bg'), 'should include --md-pre-bg');
+  });
+
+  test('controlToCssVars: chart-bg maps to --md-chart-bg', () => {
+    const result = S.controlToCssVars('ctrl-chart-bg', '#f0f0f0', {});
+    assert.deepStrictEqual(result, [{ cssVar: '--md-chart-bg', value: '#f0f0f0' }]);
+  });
+
+  test('controlToCssVars: chart-text maps to --md-chart-text', () => {
+    const result = S.controlToCssVars('ctrl-chart-text', '#444444', {});
+    assert.deepStrictEqual(result, [{ cssVar: '--md-chart-text', value: '#444444' }]);
+  });
+
+  test('collectStyles: blocks emitted when overridden', () => {
+    const values = {
+      'ctrl-font-family': "'Inter', sans-serif", 'ctrl-base-size-num': '16',
+      'ctrl-line-height-num': '1.75', 'ctrl-h-font-family': 'inherit',
+      'ctrl-h-scale-num': '1', 'ctrl-h-mb-num': '0.4',
+      'ctrl-h1-size-num': '2.1', 'ctrl-h1-weight': '700',
+      'ctrl-h2-size-num': '1.55', 'ctrl-h2-weight': '600',
+      'ctrl-h3-size-num': '1.2', 'ctrl-h3-weight': '600',
+      'ctrl-h4-size-num': '1', 'ctrl-h4-weight': '600',
+      'ctrl-p-lh-num': '1.75', 'ctrl-p-mb-num': '1.1',
+      'ctrl-link-color': '#2563eb', 'ctrl-link-decoration': 'underline',
+      'ctrl-code-font': "'JetBrains Mono', 'Fira Mono', monospace",
+      'ctrl-code-bg': '#282c34', 'ctrl-code-color': '#abb2bf',
+      'ctrl-bq-border-color': '#2563eb', 'ctrl-bq-bw-num': '3',
+      'ctrl-bq-bg': '#eee', 'ctrl-bq-size-num': '1', 'ctrl-bq-color': '#666',
+      'ctrl-list-spacing-num': '0.3', 'ctrl-list-indent-num': '1.6',
+      'ctrl-block-bg': '#1a1a2e', 'ctrl-block-text': '#a0a0b0',
+      'ctrl-chart-accent': '#3b82f6', 'ctrl-chart-palette': 'monochrome',
+      'ctrl-chart-bg': '#1a1a2e', 'ctrl-chart-text': '#a0a0b0',
+    };
+    const overridden = new Set(['ctrl-block-bg', 'ctrl-block-text', 'ctrl-chart-bg', 'ctrl-chart-text']);
+    const styles = S.collectStyles(values, overridden);
+    assert.ok(styles.blocks, 'blocks key should exist');
+    assert.strictEqual(styles.blocks.background, '#1a1a2e');
+    assert.strictEqual(styles.blocks.color, '#a0a0b0');
+    assert.ok(styles.chart, 'chart key should exist');
+    assert.strictEqual(styles.chart.background, '#1a1a2e');
+    assert.strictEqual(styles.chart.textColor, '#a0a0b0');
+  });
+
+  test('stylesToControls: blocks styles roundtrip', () => {
+    const styles = {
+      blocks: { background: '#1a1a2e', color: '#a0a0b0' },
+      chart: { background: '#222', textColor: '#ccc', accent: '#e11d48' }
+    };
+    const result = S.stylesToControls(styles);
+    assert.strictEqual(result.controls['ctrl-block-bg'], '#1a1a2e');
+    assert.strictEqual(result.controls['ctrl-block-text'], '#a0a0b0');
+    assert.ok(result.overriddenColors.has('ctrl-block-bg'));
+    assert.ok(result.overriddenColors.has('ctrl-block-text'));
+    assert.strictEqual(result.controls['ctrl-chart-bg'], '#222');
+    assert.strictEqual(result.controls['ctrl-chart-text'], '#ccc');
+    assert.ok(result.overriddenColors.has('ctrl-chart-bg'));
+    assert.ok(result.overriddenColors.has('ctrl-chart-text'));
   });
 };

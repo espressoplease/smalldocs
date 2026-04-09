@@ -217,11 +217,9 @@ function getStandaloneDefault(ctrlId) {
   const map = {
     'ctrl-bg-color':        d.bgColor,
     'ctrl-link-color':      d.linkColor,
-    'ctrl-code-bg':         d.codeBg,
-    'ctrl-code-color':      d.codeColor,
     'ctrl-bq-border-color': d.bqBorderColor,
-    'ctrl-bq-bg':           d.bqBg,
-    'ctrl-bq-color':        d.bqColor,
+    'ctrl-block-bg':        d.codeBg,
+    'ctrl-block-text':      d.bqColor,
     'ctrl-chart-accent':    '#3b82f6',
   };
   return map[ctrlId];

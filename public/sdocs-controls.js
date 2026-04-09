@@ -50,8 +50,8 @@ var STANDALONE_COLOR_IDS = new Set(SDocStyles.STANDALONE_COLOR_IDS);
   'ctrl-font-family','ctrl-h-font-family',
   'ctrl-h1-weight','ctrl-h2-weight','ctrl-h3-weight','ctrl-h4-weight',
   'ctrl-bg-color','ctrl-link-color','ctrl-link-decoration',
-  'ctrl-code-font','ctrl-code-bg','ctrl-code-color',
-  'ctrl-bq-border-color','ctrl-bq-bg','ctrl-bq-color',
+  'ctrl-code-font',
+  'ctrl-bq-border-color',
   'ctrl-chart-accent','ctrl-chart-palette',
 ].forEach(function(id) {
   var handler = function() { if (STANDALONE_COLOR_IDS.has(id)) S.overriddenColors.add(id); applyCtrl(id); };
@@ -66,7 +66,12 @@ var COLOR_CHILDREN = SDocStyles.COLOR_CASCADE;
 
 function setColorValue(ctrlId, value, userAction) {
   if (userAction) S.overriddenColors.add(ctrlId);
-  S.setStyleVar(COLOR_VAR[ctrlId], value);
+  var varName = COLOR_VAR[ctrlId];
+  if (Array.isArray(varName)) {
+    varName.forEach(function(v) { S.setStyleVar(v, value); });
+  } else {
+    S.setStyleVar(varName, value);
+  }
   var ctrl = document.getElementById(ctrlId);
   if (ctrl) ctrl.value = value;
   var children = COLOR_CHILDREN[ctrlId] || [];
@@ -75,11 +80,32 @@ function setColorValue(ctrlId, value, userAction) {
       setColorValue(children[i], value, false);
     }
   }
+  // Refresh charts when block/chart colors change
+  if (S.refreshChartColors && (ctrlId === 'ctrl-chart-bg' || ctrlId === 'ctrl-chart-text' ||
+      ctrlId === 'ctrl-block-bg' || ctrlId === 'ctrl-block-text')) {
+    S.refreshChartColors();
+  }
+}
+
+function findParent(ctrlId) {
+  for (var pid in COLOR_CHILDREN) {
+    if (COLOR_CHILDREN[pid].indexOf(ctrlId) !== -1) return pid;
+  }
+  return null;
 }
 
 function resetColorValue(ctrlId) {
   S.overriddenColors.delete(ctrlId);
-  setColorValue(ctrlId, S.getColorDefault(), false);
+  var parent = findParent(ctrlId);
+  var value;
+  if (!parent) {
+    // Cascade root: use theme default
+    value = ctrlId === 'ctrl-color' ? S.getColorDefault() : S.getStandaloneDefault(ctrlId);
+  } else {
+    var parentEl = document.getElementById(parent);
+    value = parentEl ? parentEl.value : S.getColorDefault();
+  }
+  setColorValue(ctrlId, value, false);
 }
 
 Object.keys(COLOR_VAR).forEach(function(ctrlId) {
@@ -98,7 +124,14 @@ document.getElementById('reset-h4-color').addEventListener('click',   function()
 document.getElementById('reset-p-color').addEventListener('click',    function() { resetColorValue('ctrl-p-color'); S.syncAll('controls'); });
 document.getElementById('reset-list-color').addEventListener('click', function() { resetColorValue('ctrl-list-color'); S.syncAll('controls'); });
 
-['ctrl-bg-color','ctrl-link-color','ctrl-code-bg','ctrl-code-color','ctrl-bq-border-color','ctrl-bq-bg','ctrl-bq-color','ctrl-chart-accent'].forEach(function(ctrlId) {
+// Block cascade resets
+['ctrl-block-bg','ctrl-block-text','ctrl-code-bg','ctrl-code-color','ctrl-bq-bg','ctrl-bq-color','ctrl-chart-bg','ctrl-chart-text'].forEach(function(ctrlId) {
+  var btnId = 'reset-' + ctrlId.replace('ctrl-', '');
+  var btn = document.getElementById(btnId);
+  if (btn) btn.addEventListener('click', function() { resetColorValue(ctrlId); S.syncAll('controls'); });
+});
+
+['ctrl-bg-color','ctrl-link-color','ctrl-bq-border-color','ctrl-chart-accent'].forEach(function(ctrlId) {
   var btnId = 'reset-' + ctrlId.replace('ctrl-', '');
   document.getElementById(btnId).addEventListener('click', function() {
     var defaultVal = S.getStandaloneDefault(ctrlId);
@@ -227,6 +260,9 @@ function resetAllStyles() {
   S.themeColors.dark = {};
 
   setColorValue('ctrl-color', S.getColorDefault(), false);
+  // Reset block cascade roots to theme defaults
+  setColorValue('ctrl-block-bg', S.getStandaloneDefault('ctrl-block-bg') || '#f4f1ed', false);
+  setColorValue('ctrl-block-text', S.getStandaloneDefault('ctrl-block-text') || '#6b6560', false);
   // Set standalone color controls to theme-appropriate defaults
   STANDALONE_COLOR_IDS.forEach(function(ctrlId) {
     var el = document.getElementById(ctrlId);
@@ -244,8 +280,8 @@ function resetAllStyles() {
    'ctrl-h3-size-num','ctrl-h3-weight','ctrl-h4-size-num','ctrl-h4-weight',
    'ctrl-p-lh-num','ctrl-p-mb-num',
    'ctrl-link-color','ctrl-link-decoration',
-   'ctrl-code-font','ctrl-code-bg','ctrl-code-color',
-   'ctrl-bq-border-color','ctrl-bq-bg','ctrl-bq-bw-num','ctrl-bq-size-num','ctrl-bq-color',
+   'ctrl-code-font',
+   'ctrl-bq-border-color','ctrl-bq-bw-num','ctrl-bq-size-num',
    'ctrl-list-spacing-num','ctrl-list-indent-num',
    'ctrl-chart-accent','ctrl-chart-palette',
   ].forEach(function(id) { applyCtrl(id); });

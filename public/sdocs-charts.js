@@ -210,17 +210,27 @@
     return getComputedStyle(rendered).getPropertyValue('--md-font-family').trim() || '';
   }
 
+  function cssVar(name) {
+    var rendered = document.getElementById('rendered');
+    if (!rendered) return '';
+    return getComputedStyle(rendered).getPropertyValue(name).trim();
+  }
+
   function theme() {
     var dark = isDark();
+    var chartText = cssVar('--md-chart-text');
+    var chartBg = cssVar('--md-chart-bg');
+    var textColor = chartText || (dark ? '#A8A29E' : '#78716c');
+    var titleColor = chartText || (dark ? '#E7E5E2' : '#1C1917');
     return {
       font: getDocFont(),
-      text: dark ? '#A8A29E' : '#78716c',
+      text: textColor,
       grid: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-      title: dark ? '#E7E5E2' : '#1C1917',
-      tooltipBg: dark ? '#292524' : '#fff',
+      title: titleColor,
+      tooltipBg: chartBg || (dark ? '#292524' : '#fff'),
       tooltipBorder: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
       annotationColor: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)',
-      annotationLabel: dark ? '#E7E5E2' : '#1C1917'
+      annotationLabel: titleColor
     };
   }
 
@@ -702,4 +712,5 @@
   // ── Public API ──
   S.destroyCharts = destroyAll;
   S.processCharts = processCharts;
+  S.refreshChartColors = refreshChartColors;
 })();

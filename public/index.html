@@ -210,62 +210,86 @@
         </div>
 
         <div class="sub-section">
-          <div class="sub-header" data-target="sub-colors-code">
-            <span class="arrow">▶</span> Code
+          <div class="sub-header" data-target="sub-colors-blocks">
+            <span class="arrow">▶</span> Blocks
           </div>
-          <div class="sub-body" id="sub-colors-code">
+          <div class="sub-body" id="sub-colors-blocks">
             <div class="control-row">
               <label>Background</label>
-              <div class="color-pair"><input type="color" id="ctrl-code-bg" value="#f4f1ed"><button class="reset-btn" id="reset-code-bg" title="Reset to default">↺</button></div>
+              <div class="color-pair"><input type="color" id="ctrl-block-bg" value="#f4f1ed"><button class="reset-btn" id="reset-block-bg" title="Reset to default">↺</button></div>
             </div>
             <div class="control-row">
               <label>Text</label>
-              <div class="color-pair"><input type="color" id="ctrl-code-color" value="#6b21a8"><button class="reset-btn" id="reset-code-color" title="Reset to default">↺</button></div>
+              <div class="color-pair"><input type="color" id="ctrl-block-text" value="#6b6560"><button class="reset-btn" id="reset-block-text" title="Reset to default">↺</button></div>
             </div>
-          </div>
-        </div>
 
-        <div class="sub-section">
-          <div class="sub-header" data-target="sub-colors-bq">
-            <span class="arrow">▶</span> Blockquote
-          </div>
-          <div class="sub-body" id="sub-colors-bq">
-            <div class="control-row">
-              <label>Border</label>
-              <div class="color-pair"><input type="color" id="ctrl-bq-border-color" value="#2563eb"><button class="reset-btn" id="reset-bq-border-color" title="Reset to default">↺</button></div>
+            <div class="sub-section">
+              <div class="sub-header" data-target="sub-colors-code">
+                <span class="arrow">▶</span> Code
+              </div>
+              <div class="sub-body" id="sub-colors-code">
+                <div class="control-row">
+                  <label>Background</label>
+                  <div class="color-pair"><input type="color" id="ctrl-code-bg" value="#f4f1ed"><button class="reset-btn" id="reset-code-bg" title="Follow block background">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Text</label>
+                  <div class="color-pair"><input type="color" id="ctrl-code-color" value="#6b21a8"><button class="reset-btn" id="reset-code-color" title="Follow block text">↺</button></div>
+                </div>
+              </div>
             </div>
-            <div class="control-row">
-              <label>Background</label>
-              <div class="color-pair"><input type="color" id="ctrl-bq-bg" value="#f7f5f2"><button class="reset-btn" id="reset-bq-bg" title="Reset to default">↺</button></div>
-            </div>
-            <div class="control-row">
-              <label>Text</label>
-              <div class="color-pair"><input type="color" id="ctrl-bq-color" value="#6b6560"><button class="reset-btn" id="reset-bq-color" title="Reset to default">↺</button></div>
-            </div>
-          </div>
-        </div>
 
-        <div class="sub-section">
-          <div class="sub-header" data-target="sub-colors-charts">
-            <span class="arrow">▶</span> Charts
-          </div>
-          <div class="sub-body" id="sub-colors-charts">
-            <div class="control-row">
-              <label>Accent</label>
-              <div class="color-pair"><input type="color" id="ctrl-chart-accent" value="#3b82f6"><button class="reset-btn" id="reset-chart-accent" title="Reset to default palette">↺</button></div>
+            <div class="sub-section">
+              <div class="sub-header" data-target="sub-colors-bq">
+                <span class="arrow">▶</span> Blockquote
+              </div>
+              <div class="sub-body" id="sub-colors-bq">
+                <div class="control-row">
+                  <label>Border</label>
+                  <div class="color-pair"><input type="color" id="ctrl-bq-border-color" value="#2563eb"><button class="reset-btn" id="reset-bq-border-color" title="Reset to default">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Background</label>
+                  <div class="color-pair"><input type="color" id="ctrl-bq-bg" value="#f7f5f2"><button class="reset-btn" id="reset-bq-bg" title="Follow block background">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Text</label>
+                  <div class="color-pair"><input type="color" id="ctrl-bq-color" value="#6b6560"><button class="reset-btn" id="reset-bq-color" title="Follow block text">↺</button></div>
+                </div>
+              </div>
             </div>
-            <div class="control-row">
-              <label>Palette</label>
-              <select id="ctrl-chart-palette">
-                <option value="monochrome" selected>Monochrome</option>
-                <option value="complementary">Complementary</option>
-                <option value="analogous">Analogous</option>
-                <option value="triadic">Triadic</option>
-                <option value="pastel">Pastel</option>
-                <option value="warm">Warm</option>
-                <option value="cool">Cool</option>
-                <option value="earth">Earth</option>
-              </select>
+
+            <div class="sub-section">
+              <div class="sub-header" data-target="sub-colors-charts">
+                <span class="arrow">▶</span> Charts
+              </div>
+              <div class="sub-body" id="sub-colors-charts">
+                <div class="control-row">
+                  <label>Background</label>
+                  <div class="color-pair"><input type="color" id="ctrl-chart-bg" value="#f4f1ed"><button class="reset-btn" id="reset-chart-bg" title="Follow block background">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Text</label>
+                  <div class="color-pair"><input type="color" id="ctrl-chart-text" value="#78716c"><button class="reset-btn" id="reset-chart-text" title="Follow block text">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Accent</label>
+                  <div class="color-pair"><input type="color" id="ctrl-chart-accent" value="#3b82f6"><button class="reset-btn" id="reset-chart-accent" title="Reset to default palette">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Palette</label>
+                  <select id="ctrl-chart-palette">
+                    <option value="monochrome" selected>Monochrome</option>
+                    <option value="complementary">Complementary</option>
+                    <option value="analogous">Analogous</option>
+                    <option value="triadic">Triadic</option>
+                    <option value="pastel">Pastel</option>
+                    <option value="warm">Warm</option>
+                    <option value="cool">Cool</option>
+                    <option value="earth">Earth</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -267,7 +267,7 @@
   margin: 1.2em 0;
   padding: 16px;
   border-radius: var(--radius, 8px);
-  background: var(--md-code-bg, #F5F2EE);
+  background: var(--md-chart-bg, var(--md-block-bg, #F5F2EE));
   max-width: 100%;
 }
 .sdoc-chart canvas { max-height: 400px; }

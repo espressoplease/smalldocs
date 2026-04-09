@@ -124,14 +124,18 @@ module.exports = function(harness) {
     assert.ok(html.includes('<option value="monochrome" selected>'), 'monochrome should be selected by default');
   });
 
-  test('chart controls are inside the Colors section', () => {
+  test('chart controls are inside the Colors > Blocks section', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
-    const colorsStart = html.indexOf('data-target="body-colors"');
+    const blocksStart = html.indexOf('data-target="sub-colors-blocks"');
     const colorsEnd = html.indexOf('<!-- HEADERS -->');
     const chartAccent = html.indexOf('id="ctrl-chart-accent"');
     const chartPalette = html.indexOf('id="ctrl-chart-palette"');
-    assert.ok(colorsStart > 0 && colorsEnd > 0, 'Colors section markers not found');
-    assert.ok(chartAccent > colorsStart && chartAccent < colorsEnd, 'chart accent should be inside Colors section');
-    assert.ok(chartPalette > colorsStart && chartPalette < colorsEnd, 'chart palette should be inside Colors section');
+    const blockBg = html.indexOf('id="ctrl-block-bg"');
+    const blockText = html.indexOf('id="ctrl-block-text"');
+    assert.ok(blocksStart > 0 && colorsEnd > 0, 'Blocks sub-section markers not found');
+    assert.ok(blockBg > blocksStart && blockBg < colorsEnd, 'block-bg should be inside Blocks sub-section');
+    assert.ok(blockText > blocksStart && blockText < colorsEnd, 'block-text should be inside Blocks sub-section');
+    assert.ok(chartAccent > blocksStart && chartAccent < colorsEnd, 'chart accent should be inside Blocks sub-section');
+    assert.ok(chartPalette > blocksStart && chartPalette < colorsEnd, 'chart palette should be inside Blocks sub-section');
   });
 };
