@@ -193,6 +193,17 @@ function applyStylesFromMeta(s) {
     S.themeOverridden.light = result.lightOverridden || new Set();
     S.themeOverridden.dark = result.darkOverridden || new Set();
 
+    // Auto-fill missing dark colors from light via inversion
+    var lc = S.themeColors.light;
+    var dc = S.themeColors.dark;
+    var dOvr = S.themeOverridden.dark;
+    S.themeOverridden.light.forEach(function(id) {
+      if (!dOvr.has(id) && lc[id]) {
+        dOvr.add(id);
+        dc[id] = SDocStyles.invertLightness(lc[id]);
+      }
+    });
+
     // Load the active theme's colors into controls
     S._syncing = wasSyncing;
     S.loadThemeColors(S.activeTheme);
@@ -239,7 +250,41 @@ function applyStylesFromMeta(s) {
     lightColors[pair[0]] = pair[1];
   });
 
-  // Now apply the active theme's colors (light overrides or dark defaults)
+  // Auto-generate dark theme from light colors via lightness inversion
+  var darkOverridden = S.themeOverridden.dark;
+  var darkColors = S.themeColors.dark;
+
+  // If there's a dark: block in the YAML, parse its explicit overrides first
+  var explicitDark = {};
+  if (s.dark) {
+    var darkResult = SDocStyles.parseThemeColorBlock(s.dark);
+    if (darkResult) {
+      Object.keys(darkResult).forEach(function(id) {
+        explicitDark[id] = darkResult[id];
+      });
+    }
+  }
+
+  // For every light color, auto-generate dark unless explicitly overridden
+  lightOverridden.forEach(function(id) {
+    if (explicitDark[id]) {
+      darkOverridden.add(id);
+      darkColors[id] = explicitDark[id];
+    } else {
+      darkOverridden.add(id);
+      darkColors[id] = SDocStyles.invertLightness(lightColors[id]);
+    }
+  });
+
+  // Also apply any dark: colors that weren't in light (e.g. dark-only overrides)
+  Object.keys(explicitDark).forEach(function(id) {
+    if (!darkOverridden.has(id)) {
+      darkOverridden.add(id);
+      darkColors[id] = explicitDark[id];
+    }
+  });
+
+  // Now apply the active theme's colors
   S._syncing = wasSyncing;
   S.loadThemeColors(S.activeTheme);
 }
