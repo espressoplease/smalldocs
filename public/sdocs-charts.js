@@ -682,10 +682,13 @@
         var config = buildConfig(data);
         if (!config) return;
 
+        var chartIndex = chartDataStore.length;
         var wrapper = document.createElement('div');
         wrapper.className = 'sdoc-chart';
+        wrapper.setAttribute('data-chart-index', chartIndex);
         var canvas = document.createElement('canvas');
         wrapper.appendChild(canvas);
+        wrapper.appendChild(buildChartMenu(data, chartIndex));
 
         var preWrapper = pre.closest('.pre-wrapper');
         var target = preWrapper || pre;
@@ -693,10 +696,200 @@
 
         var chart = new Chart(canvas, config);
         activeCharts.push(chart);
-        chartDataStore.push({ chart: chart, data: data, canvas: canvas });
+        chartDataStore.push({ chart: chart, data: data, canvas: canvas, wrapper: wrapper });
       });
     });
   };
+
+  // ── Type families for type switching ──
+  var TYPE_FAMILIES = {
+    bar: [['bar', 'Bar'], ['horizontal_bar', 'Horizontal'], ['stacked_bar', 'Stacked']],
+    horizontalBar: [['bar', 'Bar'], ['horizontal_bar', 'Horizontal'], ['stacked_bar', 'Stacked']],
+    stackedBar: [['bar', 'Bar'], ['horizontal_bar', 'Horizontal'], ['stacked_bar', 'Stacked']],
+    line: [['line', 'Line'], ['area', 'Area'], ['stacked_area', 'Stacked']],
+    area: [['line', 'Line'], ['area', 'Area'], ['stacked_area', 'Stacked']],
+    stackedArea: [['line', 'Line'], ['area', 'Area'], ['stacked_area', 'Stacked']],
+    pie: [['pie', 'Pie'], ['doughnut', 'Doughnut'], ['polarArea', 'Polar']],
+    doughnut: [['pie', 'Pie'], ['doughnut', 'Doughnut'], ['polarArea', 'Polar']],
+    polarArea: [['pie', 'Pie'], ['doughnut', 'Doughnut'], ['polarArea', 'Polar']],
+  };
+
+  function _el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text) e.textContent = text;
+    return e;
+  }
+
+  function buildChartMenu(data, chartIndex) {
+    var frag = document.createDocumentFragment();
+    var btn = _el('button', 'chart-menu-btn');
+    btn.innerHTML = '&#8942;';
+    btn.title = 'Chart options';
+    btn.setAttribute('data-chart-index', chartIndex);
+    frag.appendChild(btn);
+
+    var menu = _el('div', 'chart-menu');
+    menu.setAttribute('data-chart-index', chartIndex);
+
+    var copyBtn = _el('button', 'chart-menu-item', 'Copy as image');
+    copyBtn.setAttribute('data-action', 'copy-png');
+    menu.appendChild(copyBtn);
+    var dlBtn = _el('button', 'chart-menu-item', 'Download as PNG');
+    dlBtn.setAttribute('data-action', 'download-png');
+    menu.appendChild(dlBtn);
+    menu.appendChild(_el('div', 'chart-menu-sep'));
+
+    var rawType = normalizeType(data.type);
+    var isRadial = rawType === 'pie' || rawType === 'doughnut' || rawType === 'polarArea';
+
+    if (!isRadial) {
+      var lbl = document.createElement('label');
+      lbl.className = 'chart-menu-toggle';
+      var cb1 = document.createElement('input');
+      cb1.type = 'checkbox'; cb1.setAttribute('data-field', 'dataLabels'); cb1.checked = data.dataLabels !== false;
+      lbl.appendChild(cb1); lbl.appendChild(document.createTextNode(' Data labels'));
+      menu.appendChild(lbl);
+    }
+    var lbl2 = document.createElement('label');
+    lbl2.className = 'chart-menu-toggle';
+    var cb2 = document.createElement('input');
+    cb2.type = 'checkbox'; cb2.setAttribute('data-field', 'legend'); cb2.checked = data.legend !== false;
+    lbl2.appendChild(cb2); lbl2.appendChild(document.createTextNode(' Legend'));
+    menu.appendChild(lbl2);
+    menu.appendChild(_el('div', 'chart-menu-sep'));
+
+    var family = TYPE_FAMILIES[rawType];
+    if (family) {
+      var tg = _el('div', 'chart-menu-types');
+      family.forEach(function (pair) {
+        var tb = _el('button', 'chart-type-btn', pair[1]);
+        tb.setAttribute('data-type', pair[0]);
+        if (normalizeType(pair[0]) === rawType) tb.classList.add('active');
+        tg.appendChild(tb);
+      });
+      menu.appendChild(tg);
+      menu.appendChild(_el('div', 'chart-menu-sep'));
+    }
+
+    var ti = document.createElement('input');
+    ti.className = 'chart-menu-input'; ti.setAttribute('data-field', 'title');
+    ti.placeholder = 'Title'; ti.value = data.title || '';
+    menu.appendChild(ti);
+    var si = document.createElement('input');
+    si.className = 'chart-menu-input'; si.setAttribute('data-field', 'subtitle');
+    si.placeholder = 'Subtitle'; si.value = data.subtitle || '';
+    menu.appendChild(si);
+
+    frag.appendChild(menu);
+    return frag;
+  }
+
+  // ── Replace the Nth ```chart block in markdown ──
+  function replaceChartBlock(body, index, newJson) {
+    var count = -1;
+    return body.replace(/```chart\n([\s\S]*?)```/g, function (match) {
+      count++;
+      if (count === index) return '```chart\n' + newJson + '\n```';
+      return match;
+    });
+  }
+
+  function rebuildChart(index) {
+    var entry = chartDataStore[index];
+    if (!entry) return;
+    entry.chart.destroy();
+    var config = buildConfig(entry.data);
+    entry.chart = new Chart(entry.canvas, config);
+    activeCharts = chartDataStore.map(function (e) { return e.chart; });
+  }
+
+  function persistChartChange(index) {
+    var entry = chartDataStore[index];
+    if (!entry) return;
+    var json = JSON.stringify(entry.data, null, 2);
+    S.currentBody = replaceChartBlock(S.currentBody, index, json);
+    S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
+    S.rawEl.value = window.SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
+    S._isDefaultState = false;
+    S.syncAll('load');
+  }
+
+  // ── Chart menu event delegation ──
+  document.addEventListener('click', function (e) {
+    var menuBtn = e.target.closest('.chart-menu-btn');
+    if (menuBtn) {
+      e.stopPropagation();
+      var menu = menuBtn.parentElement.querySelector('.chart-menu');
+      var isOpen = menu.classList.contains('open');
+      document.querySelectorAll('.chart-menu.open').forEach(function (m) { m.classList.remove('open'); });
+      if (!isOpen) menu.classList.add('open');
+      return;
+    }
+    var item = e.target.closest('.chart-menu-item');
+    if (item) {
+      e.stopPropagation();
+      var action = item.getAttribute('data-action');
+      var idx = parseInt(item.closest('.chart-menu').getAttribute('data-chart-index'));
+      var entry = chartDataStore[idx];
+      if (!entry) return;
+      if (action === 'copy-png') {
+        entry.canvas.toBlob(function (blob) {
+          navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
+            item.textContent = 'Copied!';
+            setTimeout(function () { item.textContent = 'Copy as image'; }, 1500);
+          });
+        });
+      } else if (action === 'download-png') {
+        var link = document.createElement('a');
+        link.download = (entry.data.title || 'chart').replace(/[^a-zA-Z0-9]/g, '_') + '.png';
+        link.href = entry.canvas.toDataURL('image/png');
+        link.click();
+      }
+      return;
+    }
+    var typeBtn = e.target.closest('.chart-type-btn');
+    if (typeBtn) {
+      e.stopPropagation();
+      var idx = parseInt(typeBtn.closest('.chart-menu').getAttribute('data-chart-index'));
+      var entry = chartDataStore[idx];
+      if (!entry) return;
+      entry.data.type = typeBtn.getAttribute('data-type');
+      rebuildChart(idx);
+      persistChartChange(idx);
+      typeBtn.closest('.chart-menu-types').querySelectorAll('.chart-type-btn').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-type') === entry.data.type);
+      });
+      return;
+    }
+    if (!e.target.closest('.chart-menu')) {
+      document.querySelectorAll('.chart-menu.open').forEach(function (m) { m.classList.remove('open'); });
+    }
+  });
+
+  document.addEventListener('change', function (e) {
+    if (e.target.type === 'checkbox' && e.target.closest('.chart-menu-toggle')) {
+      var field = e.target.getAttribute('data-field');
+      var idx = parseInt(e.target.closest('.chart-menu').getAttribute('data-chart-index'));
+      var entry = chartDataStore[idx];
+      if (!entry) return;
+      if (e.target.checked) delete entry.data[field];
+      else entry.data[field] = false;
+      rebuildChart(idx);
+      persistChartChange(idx);
+      return;
+    }
+    if (e.target.classList && e.target.classList.contains('chart-menu-input')) {
+      var field = e.target.getAttribute('data-field');
+      var idx = parseInt(e.target.closest('.chart-menu').getAttribute('data-chart-index'));
+      var entry = chartDataStore[idx];
+      if (!entry) return;
+      if (e.target.value.trim()) entry.data[field] = e.target.value.trim();
+      else delete entry.data[field];
+      rebuildChart(idx);
+      persistChartChange(idx);
+    }
+  });
 
   function refreshChartColors() {
     chartDataStore.forEach(function (entry) {
