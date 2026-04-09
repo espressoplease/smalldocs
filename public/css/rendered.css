@@ -292,7 +292,7 @@
 
 .chart-menu {
   display: none; position: absolute; top: 36px; right: 8px;
-  min-width: 180px; background: var(--bg-surface, #fff);
+  min-width: 160px; width: max-content; background: var(--bg-surface, #fff);
   border: 1px solid var(--border, #e0dcd7);
   border-radius: var(--radius, 8px);
   box-shadow: 0 4px 16px rgba(0,0,0,0.12);
@@ -316,11 +316,12 @@
 .chart-menu-toggle:hover { background: var(--bg-hover, #f5f3f0); }
 .chart-menu-toggle input { margin: 0; }
 
-.chart-menu-types { display: flex; gap: 4px; padding: 4px 10px; }
+.chart-menu-types { display: flex; gap: 3px; padding: 4px 10px; flex-wrap: wrap; }
 .chart-type-btn {
-  flex: 1; padding: 4px 0; border: 1px solid var(--border, #e0dcd7);
+  padding: 3px 10px; border: 1px solid var(--border, #e0dcd7);
   background: none; border-radius: var(--radius-sm, 4px);
   font-size: 11px; cursor: pointer; color: var(--text-2, #666);
+  white-space: nowrap;
 }
 .chart-type-btn:hover { background: var(--bg-hover, #f5f3f0); }
 .chart-type-btn.active {
