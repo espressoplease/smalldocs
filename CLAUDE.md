@@ -101,4 +101,43 @@ node server.js                              # http://localhost:3000
 PORT=8080 node server.js
 node test/run.js                            # starts server on :3099, runs tests, kills it
 npx playwright test test/write-mode.spec.js # write mode browser tests (needs Chromium)
+node test/preview.js file.md --screenshot out.png  # visual preview (needs server on :3000)
 ```
+
+## Visual preview testing
+
+The dev server caches JS files for 24 hours (`Cache-Control: public, max-age=86400`). This means browser and Playwright sessions serve stale JS after code changes. The `test/preview.js` helper bypasses this by injecting fresh (cache-busted) JS modules on every run:
+
+```bash
+node server.js &                                     # start server first
+node test/preview.js file.md --screenshot /tmp/out.png --wait 5000
+node test/preview.js file.md                          # opens browser, stays open for inspection
+```
+
+Use this instead of `sdoc file.md` when you need to verify that code changes are reflected visually. The `--wait` flag controls how long to wait for Chart.js CDN load (default 4000ms).
+
+## Charts
+
+Render charts in markdown via ` ```chart ` fenced code blocks with JSON data. Charts are powered by Chart.js v4 (lazy-loaded from CDN on first use).
+
+Run `sdoc charts` for the complete reference of chart types, options, and styling.
+
+### Chart styling
+
+Charts inherit colors from the block cascade system:
+
+```yaml
+styles:
+  blocks:
+    background: "#1a1a2e"    # sets bg for code, blockquote, AND charts
+    color: "#c8c3bc"         # sets text for code, blockquote, AND charts
+  code:
+    background: "#282c34"    # overrides blocks.background for code only
+  chart:
+    accent: "#6366f1"        # palette base color
+    palette: monochrome      # or: complementary, analogous, triadic, pastel, warm, cool, earth
+    background: "#0e4a1a"    # overrides blocks.background for charts only
+    textColor: "#c8f0d8"     # overrides blocks.color for charts only
+```
+
+The accent color + palette mode generates chart colors (bar colors, pie segments, line colors). Per-chart `"colors": [...]` in the JSON overrides the palette.
