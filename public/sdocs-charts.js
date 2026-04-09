@@ -913,4 +913,5 @@
   S.destroyCharts = destroyAll;
   S.processCharts = processCharts;
   S.refreshChartColors = refreshChartColors;
+  S.replaceChartBlock = replaceChartBlock;
 })();
