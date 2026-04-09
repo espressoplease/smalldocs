@@ -610,16 +610,32 @@
 <!-- Status bar -->
 <div id="statusbar">
   <span id="status-text"></span>
-  <span style="margin-left:auto; font-size:10.5px; color:var(--text-3); display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
+  <span style="margin-left:auto; font-size:10.5px; color:var(--text-2); display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
     <span>100% private — your content never leaves your browser.
-    <a href="https://sdocs.dev/#sec=privacy" target="_blank" rel="noopener" style="color:var(--text-3); text-decoration:underline">Learn why</a></span>
+    <a href="https://sdocs.dev/#sec=privacy" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">Learn why</a></span>
     <span>&middot;</span>
-    <span>CLI: <code id="cli-install-cmd" style="background:var(--bg-surface); border:1px solid var(--border); border-radius:3px; padding:1px 5px; font-size:10px; cursor:pointer; user-select:all" title="Click to copy">npm i -g sdocs-dev</code>
-    <button id="cli-copy-btn" title="Copy install command" onclick="navigator.clipboard.writeText('npm i -g sdocs-dev').then(function(){var b=document.getElementById('cli-copy-btn');b.style.opacity='1';setTimeout(function(){b.style.opacity=''},1500)})" style="background:none; border:none; cursor:pointer; color:var(--text-3); padding:0; vertical-align:middle; opacity:0.6; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
+    <span id="cli-install-wrap" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer" title="Click to copy install command"><code id="cli-install-cmd" style="background:var(--bg-surface); border:1px solid var(--border); border-radius:3px; padding:1px 5px; font-size:10px">npm i -g sdocs-dev</code><button id="cli-copy-btn" style="background:none; border:none; cursor:pointer; color:var(--text-2); padding:0; vertical-align:middle; opacity:0.7; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
     <span>&middot;</span>
-    <a href="https://github.com/JoshInLisbon/SDocs" target="_blank" rel="noopener" style="color:var(--text-3); text-decoration:underline">GitHub</a>
+    <a href="https://github.com/JoshInLisbon/SDocs" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">GitHub</a>
   </span>
 </div>
+<style>
+  #cli-install-wrap:hover #cli-copy-btn { opacity: 1 !important; }
+</style>
+<script>
+(function () {
+  var COPY_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var CHECK_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  var wrap = document.getElementById('cli-install-wrap');
+  var btn = document.getElementById('cli-copy-btn');
+  if (wrap && btn) wrap.addEventListener('click', function () {
+    navigator.clipboard.writeText('npm i -g sdocs-dev').then(function () {
+      btn.innerHTML = CHECK_ICON;
+      setTimeout(function () { btn.innerHTML = COPY_ICON; }, 1500);
+    });
+  });
+})();
+</script>
 
 <script src="/public/brotli-wasm-v1.js"></script>
 <script src="/public/vendor/marked.min.js"></script>

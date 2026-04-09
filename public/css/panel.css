@@ -383,7 +383,7 @@ body.export-mode #export-panel {
 }
 #statusbar span {
   font-size: 11px;
-  color: var(--text-3);
+  color: var(--text-2);
 }
 #statusbar .dot {
   width: 6px; height: 6px;
