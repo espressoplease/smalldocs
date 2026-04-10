@@ -95,13 +95,15 @@ The [sdocs.dev](https://sdocs.dev) site is purely a rendering space. JavaScript 
 
 ### Analytics
 
-Every visit to any web server shares the same basic information: your IP address, browser type, and the time of the request. This is how HTTP works — it's not something we add. We don't collect anything beyond that, with one small addition: **the week you first visited**, stored in your browser's localStorage. No cookies. No user ID. No fingerprinting.
+We don't use any third-party analytics provider. We do track basic usage to measure retention — whether people come back — as this is the strongest signal for whether the tool is useful.
 
-We use this to publicly track **retention by weekly cohort** — it tells us whether people who discover SDocs come back, which helps us know if we're building something useful. The raw data is the same as any server access log. The only extra signal is "this visitor first came in week X", which lets us group return visits into cohorts.
+Every HTTP request to any web server includes your IP address, browser user-agent, referring URL, and the timestamp. This is standard — every website receives this. We log it.
 
-You can see exactly what we track at [sdocs.dev/analytics](https://sdocs.dev/analytics) — the dashboard is public.
+In addition, we store the **week you first visited** in your browser's localStorage. For example, if you first visit SDocs on 2026-04-10, we store `2026-W15` as `sdocs_cohort` in localStorage. This is sent with subsequent visits. It is not a unique identifier — it groups you with every other person who first visited that same week.
 
-If you'd prefer not to participate in retention tracking, you can turn it off in your browser's localStorage by removing the `sdocs_cohort` key — or simply use a private/incognito window. The site works exactly the same either way.
+This lets us build a retention table: of everyone who first visited in week 15, how many came back in week 16, 17, etc. The results are public at [sdocs.dev/analytics](https://sdocs.dev/analytics).
+
+To opt out, remove `sdocs_cohort` from localStorage in your browser's developer tools, or use a private browsing window. There is also an opt-out toggle in the top menu bar.
 
 ### Formatting
 
