@@ -185,7 +185,11 @@ function renderTable(data) {
 
   // Use absolute week columns
   var html = '<table><thead><tr><th class="row-header">Cohort</th><th>Size</th>';
-  weeks.forEach(function (w) { html += '<th>' + w.replace('2026-', '') + '</th>'; });
+  weeks.forEach(function (w) {
+    // "2026-W08" → "W08'26"
+    var parts = w.split('-');
+    html += '<th>' + parts[1] + "'" + parts[0].slice(2) + '</th>';
+  });
   html += '</tr></thead><tbody>';
 
   cohorts.forEach(function (c) {
@@ -253,7 +257,7 @@ function renderCharts(data) {
       new Chart(document.getElementById('chart-volume'), {
         type: 'line',
         data: {
-          labels: data.volume.map(function (v) { return v.visit_week.replace('2026-',''); }),
+          labels: data.volume.map(function (v) { var p = v.visit_week.split('-'); return p[1] + "'" + p[0].slice(2); }),
           datasets: [
             { label: 'Total', data: data.volume.map(function (v) { return v.total; }), borderColor: COLORS[0], borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 },
             { label: 'Unique', data: data.volume.map(function (v) { return v.unique_visitors; }), borderColor: COLORS[2], borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 }
