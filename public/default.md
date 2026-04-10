@@ -31,14 +31,14 @@ cat >> ~/.claude/CLAUDE.md << 'SDOC'
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling.
-SDocs renders markdown in the browser with a sharable url.
 Content lives in the URL hash — nothing hits a server.
 
 The `sdoc` CLI is installed globally:
-- `sdoc relative/path/to/file.md` — open styled in browser.
-  - Use when your user would benefit from a styled view over raw markdown.
-- `sdoc share file.md` — compress into a shareable URL, copied to clipboard.
-- `sdoc --help` — full usage (custom styles, light/dark mode, etc.)
+- `sdoc file.md` — open styled in browser.
+- `sdoc share file.md` — copy shareable URL to clipboard.
+- `sdoc schema` — all style properties (fonts, colors, spacing).
+- `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
+- `sdoc --help` — full usage.
 
 Source: https://github.com/JoshInLisbon/SDocs
 SDOC
@@ -334,14 +334,14 @@ cat >> ~/.claude/CLAUDE.md << 'SDOC'
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling.
-SDocs renders markdown in the browser with a sharable url.
 Content lives in the URL hash — nothing hits a server.
 
 The `sdoc` CLI is installed globally:
-- `sdoc relative/path/to/file.md` — open styled in browser.
-  - Use when your user would benefit from a styled view over raw markdown.
-- `sdoc share file.md` — compress into a shareable URL, copied to clipboard.
-- `sdoc --help` — full usage (custom styles, light/dark mode, etc.)
+- `sdoc file.md` — open styled in browser.
+- `sdoc share file.md` — copy shareable URL to clipboard.
+- `sdoc schema` — all style properties (fonts, colors, spacing).
+- `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
+- `sdoc --help` — full usage.
 
 Source: https://github.com/JoshInLisbon/SDocs
 SDOC
