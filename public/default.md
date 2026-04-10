@@ -1,5 +1,8 @@
 # Meet `sdoc`: A markdown-first cli-native replacement for Word & GDocs
 
+
+(**TLDR:** `sdoc path/to/README.md` opens your file at https://sdoc.dev with pleasant default styles which can be altered. Share the url to share your file. The content of your file never hits the SDocs server. CLI: `npm i -g sdocs-dev`. SDocs is [open-source](https://github.com/JoshInLisbon/SDocs).)
+
 If you're working with agents, a document written in markdown is <ins>officially</ins>* 407 times more useful than a document locked inside a `.docx` or `.gdoc` file format. Because of this, I believe Word and GDocs' days are numbered. (*I am the official.)
 
 But while markdown is great for agents, it's a bit annoying for humans. Quickly and elegantly reading a `.md` file requires you to open your code editor and enter "preview" mode. Sharing a markdown file requires you to actually send the file to someone. They then have to download it and find the least annoying way to read it.
@@ -88,7 +91,17 @@ This layer of privacy is built into how HTTP works. The hash fragment (everythin
 
 > "The fragment is not sent to the server when the URI is requested; it is processed by the client" - [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Fragment)
 
-The [sdocs.dev](https://sdocs.dev) site is purely a rendering space. JavaScript reads `window.location.hash`, decompresses and decodes the content, and renders your `.md` locally. The server is about 60 lines of Node.js that serves static files — no database, no logging, no analytics.
+The [sdocs.dev](https://sdocs.dev) site is purely a rendering space. JavaScript reads `window.location.hash`, decompresses and decodes the content, and renders your `.md` locally.
+
+### Analytics
+
+Every visit to any web server shares the same basic information: your IP address, browser type, and the time of the request. This is how HTTP works — it's not something we add. We don't collect anything beyond that, with one small addition: **the week you first visited**, stored in your browser's localStorage. No cookies. No user ID. No fingerprinting.
+
+We use this to publicly track **retention by weekly cohort** — it tells us whether people who discover SDocs come back, which helps us know if we're building something useful. The raw data is the same as any server access log. The only extra signal is "this visitor first came in week X", which lets us group return visits into cohorts.
+
+You can see exactly what we track at [sdocs.dev/analytics](https://sdocs.dev/analytics) — the dashboard is public.
+
+If you'd prefer not to participate in retention tracking, you can turn it off in your browser's localStorage by removing the `sdocs_cohort` key — or simply use a private/incognito window. The site works exactly the same either way.
 
 ### Formatting
 
