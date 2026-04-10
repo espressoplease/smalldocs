@@ -88,14 +88,39 @@
   .chart-card h2 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #57534E; }
   .chart-card canvas { max-height: 220px; }
 
-  /* ── Footer ── */
-  .footer {
-    padding: 24px;
-    text-align: center;
+  /* ── Footer / statusbar ── */
+  .statusbar {
+    height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 14px;
+    border-top: 1px solid #DDD9D3;
     font-size: 11px;
-    color: #A8A29E;
+    color: #57534E;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #F7F5F2;
   }
-  .footer a { color: #A8A29E; }
+  .statusbar a { color: #57534E; text-decoration: underline; }
+  .statusbar code {
+    background: #F1EDE8;
+    border: 1px solid #2563EB;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 10px;
+    color: #2563EB;
+  }
+  .cli-wrap { display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+  .cli-wrap .copy-btn {
+    background: none; border: none; cursor: pointer;
+    color: #2563EB; padding: 0; opacity: 0.5; transition: opacity .15s;
+  }
+  .cli-wrap:hover .copy-btn { opacity: 1; }
+  @media (max-width: 600px) { .statusbar { display: none; } }
+  .content { padding-bottom: 40px; }
 
   /* ── Dark theme ── */
   @media (prefers-color-scheme: dark) {
@@ -113,8 +138,10 @@
     td.empty { background: #1C1A17; border-color: #332F2B; }
     .chart-card { background: #252320; border-color: #3D3935; }
     .chart-card h2 { color: #A8A29E; }
-    .footer { color: #6B6560; }
-    .footer a { color: #6B6560; }
+    .statusbar { background: #1C1A17; border-color: #332F2B; color: #A8A29E; }
+    .statusbar a { color: #A8A29E; }
+    .statusbar code { background: #252320; border-color: #3B82F6; color: #3B82F6; }
+    .cli-wrap .copy-btn { color: #3B82F6; }
   }
 </style>
 </head>
@@ -155,9 +182,27 @@
   </div>
 </div>
 
-<div class="footer">
-  <a href="/">sdocs.dev</a> · <a href="https://github.com/JoshInLisbon/SDocs">GitHub</a>
+<div class="statusbar">
+  <span style="margin-left:auto; display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
+    <span>100% private (<a href="https://sdocs.dev/#sec=privacy">learn why</a>)</span>
+    · CLI for you &amp; your agents: <span class="cli-wrap" id="cli-wrap" title="Click to copy install command"><code>npm i -g sdocs-dev</code><button class="copy-btn" id="cli-copy-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
+    · <a href="https://github.com/JoshInLisbon/SDocs">GitHub</a>
+  </span>
 </div>
+<script>
+(function () {
+  var COPY_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var CHECK_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  var wrap = document.getElementById('cli-wrap');
+  var btn = document.getElementById('cli-copy-btn');
+  if (wrap && btn) wrap.addEventListener('click', function () {
+    navigator.clipboard.writeText('npm i -g sdocs-dev').then(function () {
+      btn.innerHTML = CHECK_ICON;
+      setTimeout(function () { btn.innerHTML = COPY_ICON; }, 1500);
+    });
+  });
+})();
+</script>
 
 <script>
 fetch('/analytics/data')
