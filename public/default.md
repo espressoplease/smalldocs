@@ -1,4 +1,4 @@
-# Say hello to SmallDocs: A markdown-first replacement for Word & GDocs
+# Meet `sdoc`: A markdown-first cli-native replacement for Word & GDocs
 
 If you're working with agents, a document written in markdown is <ins>officially</ins>* 407 times more useful than a document locked inside a `.docx` or `.gdoc` file format. Because of this, I believe Word and GDocs' days are numbered. (*I am the official.)
 
@@ -16,7 +16,8 @@ Creating a SmallDoc for a `.md` file (+ automatically opening your browser to re
 
 ```
 # npm i -g sdocs-dev
-sdoc README.md
+sdoc README.md                # open styled in browser
+sdoc share README.md          # copy shareable link to clipboard
 ```
 
 #### Claude Code + SDocs
