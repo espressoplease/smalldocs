@@ -202,9 +202,13 @@ Your markdown with the `styles:` front matter block included. This is the format
 
 ### Collapsed headers
 
-SmallDocs loads with all headers collapsed. This is done because it makes it easy to get an overview of the whole document.
+All sections (H2, H3, H4) load collapsed. This gives you an overview of the document structure before reading.
 
-If you expand a parent, all of its children expand too.
+Clicking a heading expands its section and all of its children. Clicking again collapses everything back.
+
+When a section has both direct content (paragraphs, code blocks) and child sub-sections, the collapsed state shows `...` to indicate there is content above the first child heading. For example, the Formatting section in this document shows `...` when collapsed because it has introductory paragraphs before the Light & dark modes sub-section.
+
+If you expand a child section while its parent is still collapsed, the parent's direct content becomes visible but is shown indented and subdued (reduced opacity) — so you can see the context without it competing visually with the section you opened.
 
 ### Copy & paste
 
