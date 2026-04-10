@@ -1,12 +1,14 @@
 /**
  * Analytics database — SQLite storage for cohort retention tracking.
+ * Visits are buffered in memory and flushed to SQLite every 15 minutes.
  *
  * Usage:
  *   const analytics = require('./analytics/db');
- *   analytics.logVisit(ip, cohortWeek);
+ *   analytics.logVisit(ip, cohortWeek, userAgent, referer);
  *
  * For tests:
  *   analytics.init(':memory:');
+ *   analytics.flush(); // force write
  */
 const path = require('path');
 const crypto = require('crypto');
@@ -14,9 +16,16 @@ const { getISOWeek } = require('./week');
 
 let db = null;
 let insertStmt = null;
+let buffer = [];
+let flushTimer = null;
+
+const FLUSH_INTERVAL = 15 * 60 * 1000; // 15 minutes
 
 function init(dbPath) {
   if (db) db.close();
+  if (flushTimer) clearInterval(flushTimer);
+  buffer = [];
+
   const Database = require('better-sqlite3');
   dbPath = dbPath || path.join(__dirname, '..', 'analytics.db');
   db = new Database(dbPath);
@@ -43,6 +52,11 @@ function init(dbPath) {
   try { db.exec("ALTER TABLE visits ADD COLUMN referer TEXT NOT NULL DEFAULT ''"); } catch (e) {}
 
   insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, ip_hash, device, browser, referer) VALUES (?, ?, ?, ?, ?, ?)');
+
+  // Start flush timer
+  flushTimer = setInterval(flush, FLUSH_INTERVAL);
+  if (flushTimer.unref) flushTimer.unref(); // don't keep process alive
+
   return db;
 }
 
@@ -78,13 +92,32 @@ function parseReferer(ref) {
   } catch (e) { return 'direct'; }
 }
 
+/**
+ * Buffer a visit in memory. Flushed to SQLite every 15 minutes.
+ */
 function logVisit(ip, cohortWeek, userAgent, referer) {
   if (!db) init();
   var visitWeek = getISOWeek(new Date());
   var ipHash = hashIP(ip || '', cohortWeek || '');
   var ua = parseUA(userAgent);
   var ref = parseReferer(referer);
-  insertStmt.run(cohortWeek || '', visitWeek, ipHash, ua.device, ua.browser, ref);
+  buffer.push([cohortWeek || '', visitWeek, ipHash, ua.device, ua.browser, ref]);
+}
+
+/**
+ * Write all buffered visits to SQLite in a single transaction.
+ */
+function flush() {
+  if (!buffer.length) return;
+  if (!db) init();
+  var batch = buffer;
+  buffer = [];
+  var txn = db.transaction(function () {
+    for (var i = 0; i < batch.length; i++) {
+      insertStmt.run.apply(insertStmt, batch[i]);
+    }
+  });
+  txn();
 }
 
 function getDB() {
@@ -92,8 +125,14 @@ function getDB() {
   return db;
 }
 
+function bufferSize() {
+  return buffer.length;
+}
+
 function close() {
+  if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
+  flush(); // write remaining buffer
   if (db) { db.close(); db = null; insertStmt = null; }
 }
 
-module.exports = { init, logVisit, getDB, close, hashIP };
+module.exports = { init, logVisit, flush, getDB, close, hashIP, bufferSize };

@@ -37,11 +37,14 @@ module.exports = function (harness) {
   // Use in-memory DB for tests
   analyticsDb.init(':memory:');
 
-  test('logVisit inserts a row', () => {
+  test('logVisit buffers, flush writes to DB', () => {
     analyticsDb.logVisit('192.168.1.1', '2026-W15');
+    assert.strictEqual(analyticsDb.bufferSize(), 1);
     const db = analyticsDb.getDB();
-    const count = db.prepare('SELECT COUNT(*) as c FROM visits').get();
-    assert.strictEqual(count.c, 1);
+    assert.strictEqual(db.prepare('SELECT COUNT(*) as c FROM visits').get().c, 0);
+    analyticsDb.flush();
+    assert.strictEqual(db.prepare('SELECT COUNT(*) as c FROM visits').get().c, 1);
+    assert.strictEqual(analyticsDb.bufferSize(), 0);
   });
 
   test('logVisit hashes IP deterministically', () => {
@@ -56,20 +59,33 @@ module.exports = function (harness) {
     assert.notStrictEqual(hash1, hash2);
   });
 
-  test('logVisit with empty cohort still inserts', () => {
+  test('logVisit with empty cohort still inserts after flush', () => {
     const db = analyticsDb.getDB();
     const before = db.prepare('SELECT COUNT(*) as c FROM visits').get().c;
     analyticsDb.logVisit('10.0.0.1', '');
+    analyticsDb.flush();
     const after = db.prepare('SELECT COUNT(*) as c FROM visits').get().c;
     assert.strictEqual(after, before + 1);
   });
 
-  test('logVisit stores correct cohort_week', () => {
-    const db = analyticsDb.getDB();
-    // Insert with known cohort
+  test('logVisit stores correct cohort_week after flush', () => {
     analyticsDb.logVisit('10.0.0.2', '2026-W10');
+    analyticsDb.flush();
+    const db = analyticsDb.getDB();
     const row = db.prepare("SELECT cohort_week FROM visits WHERE cohort_week = '2026-W10' LIMIT 1").get();
     assert.strictEqual(row.cohort_week, '2026-W10');
+  });
+
+  test('flush writes multiple visits in one transaction', () => {
+    const db = analyticsDb.getDB();
+    const before = db.prepare('SELECT COUNT(*) as c FROM visits').get().c;
+    analyticsDb.logVisit('10.0.0.3', '2026-W11');
+    analyticsDb.logVisit('10.0.0.4', '2026-W11');
+    analyticsDb.logVisit('10.0.0.5', '2026-W11');
+    assert.strictEqual(analyticsDb.bufferSize(), 3);
+    analyticsDb.flush();
+    const after = db.prepare('SELECT COUNT(*) as c FROM visits').get().c;
+    assert.strictEqual(after, before + 3);
   });
 
   console.log('\n── Analytics: Query Tests ───────────────────────\n');
