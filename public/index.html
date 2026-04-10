@@ -647,9 +647,23 @@
 <script src="/public/sdocs-app.js"></script>
 <script>
 var APP_VERSION = '__APP_VERSION__';
+// Cohort: store the ISO week of first visit for retention tracking.
+// Not a unique ID — groups all visitors who first came the same week.
+if (!localStorage.getItem('sdocs_cohort')) {
+  try {
+    var _d = new Date(), _u = new Date(Date.UTC(_d.getFullYear(), _d.getMonth(), _d.getDate()));
+    var _dn = _u.getUTCDay() || 7;
+    _u.setUTCDate(_u.getUTCDate() + 4 - _dn);
+    var _ys = new Date(Date.UTC(_u.getUTCFullYear(), 0, 1));
+    var _wn = Math.ceil((((_u - _ys) / 86400000) + 1) / 7);
+    localStorage.setItem('sdocs_cohort', _u.getUTCFullYear() + '-W' + String(_wn).padStart(2, '0'));
+  } catch (e) { /* private browsing or storage disabled */ }
+}
 if ('serviceWorker' in navigator) {
+  var _cohort = '';
+  try { _cohort = localStorage.getItem('sdocs_cohort') || ''; } catch (e) {}
   navigator.serviceWorker.register('/sw.js').then(function (reg) {
-    var msg = { type: 'check-update', version: APP_VERSION };
+    var msg = { type: 'check-update', version: APP_VERSION, cohort: _cohort };
     if (reg.active) reg.active.postMessage(msg);
     navigator.serviceWorker.addEventListener('controllerchange', function () {
       if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage(msg);

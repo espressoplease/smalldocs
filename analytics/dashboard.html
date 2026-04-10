@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDocs Analytics</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #1a1a1a; color: #e0e0e0; padding: 32px; }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+  .subtitle a { color: #888; }
+  table { border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 6px 10px; text-align: center; border: 1px solid #333; white-space: nowrap; }
+  th { background: #222; color: #aaa; font-weight: 500; }
+  th.row-header { text-align: left; }
+  td.row-header { text-align: left; font-weight: 500; color: #ccc; background: #222; }
+  td.size { color: #888; background: #1e1e1e; }
+  td.empty { background: #1a1a1a; border-color: #222; }
+  .loading { color: #666; font-size: 14px; }
+  .error { color: #ef4444; font-size: 14px; }
+</style>
+</head>
+<body>
+<h1>SDocs Retention</h1>
+<p class="subtitle">Weekly cohort retention. <a href="https://sdocs.dev/#sec=analytics">How this works</a></p>
+<div id="container"><p class="loading">Loading...</p></div>
+<script>
+fetch('/analytics/data')
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    if (data.error) { document.getElementById('container').innerHTML = '<p class="error">' + data.error + '</p>'; return; }
+    if (!data.cohorts || !data.cohorts.length) { document.getElementById('container').innerHTML = '<p class="loading">No data yet.</p>'; return; }
+    renderTable(data);
+  })
+  .catch(function (e) { document.getElementById('container').innerHTML = '<p class="error">Failed to load: ' + e.message + '</p>'; });
+
+function renderTable(data) {
+  var weeks = data.weeks;
+  var cohorts = data.cohorts;
+
+  var html = '<table><thead><tr><th class="row-header">Cohort</th><th>Size</th>';
+  // Column headers: offset from cohort (Week 0, Week 1, ...)
+  var maxOffset = 0;
+  cohorts.forEach(function (c) {
+    Object.keys(c.retention).forEach(function (w) {
+      var off = weeks.indexOf(w) - weeks.indexOf(c.cohort_week);
+      if (off > maxOffset) maxOffset = off;
+    });
+  });
+  for (var i = 0; i <= maxOffset; i++) {
+    html += '<th>W+' + i + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  cohorts.forEach(function (c) {
+    var cohortIdx = weeks.indexOf(c.cohort_week);
+    html += '<tr><td class="row-header">' + c.cohort_week + '</td><td class="size">' + c.cohort_size + '</td>';
+    for (var i = 0; i <= maxOffset; i++) {
+      var visitWeek = weeks[cohortIdx + i];
+      if (!visitWeek || !c.retention[visitWeek]) {
+        html += '<td class="empty"></td>';
+      } else {
+        var count = c.retention[visitWeek];
+        var pct = Math.round(count / c.cohort_size * 100);
+        var lightness = 85 - (pct * 0.55); // 85% at 0% retention → 30% at 100%
+        var bg = 'hsl(142, 60%, ' + lightness + '%)';
+        var fg = pct > 50 ? '#fff' : '#ccc';
+        html += '<td style="background:' + bg + ';color:' + fg + '">' + pct + '%</td>';
+      }
+    }
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('container').innerHTML = html;
+}
+</script>
+</body>
+</html>

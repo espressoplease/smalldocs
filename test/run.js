@@ -15,6 +15,7 @@ require('./test-slugify')(harness);
 require('./test-base64')(harness);
 require('./test-files')(harness);
 require('./test-chart-replace')(harness);
+require('./test-analytics')(harness);
 
 // ── HTTP tests (async, starts server) ──────────────
 const runHttp = require('./test-http')(harness);

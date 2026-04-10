@@ -94,7 +94,8 @@ self.addEventListener('fetch', function (e) {
 // No reload — stale-while-revalidate ensures next navigation gets fresh content.
 self.addEventListener('message', function (e) {
   if (e.data && e.data.type === 'check-update' && e.data.version) {
-    fetch('/version-check').then(function (res) {
+    var qs = '?cohort=' + encodeURIComponent(e.data.cohort || '');
+    fetch('/version-check' + qs).then(function (res) {
       return res.json();
     }).then(function (data) {
       if (data.version !== e.data.version) {

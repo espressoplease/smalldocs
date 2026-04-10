@@ -97,6 +97,28 @@ module.exports = function(harness) {
       assert.ok(appIdx > stateIdx, 'sdocs-app.js should come after sdocs-state.js');
     });
 
+    await testAsync('GET /analytics returns 200 with HTML', async () => {
+      const r = await get(BASE + '/analytics');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'));
+    });
+
+    await testAsync('GET /analytics/data returns 200 with JSON', async () => {
+      const r = await get(BASE + '/analytics/data');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('application/json'));
+      const data = JSON.parse(r.body);
+      assert.ok(Array.isArray(data.weeks), 'should have weeks array');
+      assert.ok(Array.isArray(data.cohorts), 'should have cohorts array');
+    });
+
+    await testAsync('GET /version-check?cohort=2026-W15 returns 200', async () => {
+      const r = await get(BASE + '/version-check?cohort=2026-W15');
+      assert.strictEqual(r.status, 200);
+      const data = JSON.parse(r.body);
+      assert.ok(data.version, 'should have version');
+    });
+
     server.kill();
   };
 };

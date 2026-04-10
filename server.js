@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+const analytics = require('./analytics/db');
+
 const PORT = process.env.PORT || 3000;
 
 // Auto-version: hash all non-font files in public/ at startup.
@@ -68,22 +70,46 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Version check — used by service worker to detect updates
+  // Version check — used by service worker to detect updates + analytics
   if (pathname === '/version-check') {
     const v = url.searchParams.get('v') || '';
+    const cohort = url.searchParams.get('cohort') || '';
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     console.log([
       new Date().toISOString(),
-      req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+      ip,
       req.headers['user-agent'] || '',
       req.headers['referer'] || '',
       req.headers['accept-language'] || '',
       v ? 'cached:' + v : 'no-cache',
+      cohort || '-',
     ].join(' | '));
+    try { analytics.logVisit(ip, cohort); } catch (e) { /* analytics failure should not break version-check */ }
     res.writeHead(200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache',
     });
     res.end(JSON.stringify({ version: APP_VERSION }));
+    return;
+  }
+
+  // Analytics dashboard (public)
+  if (pathname === '/analytics') {
+    serveFile(res, path.join(__dirname, 'analytics', 'dashboard.html'), { 'Cache-Control': 'no-cache' });
+    return;
+  }
+
+  // Analytics JSON API (public)
+  if (pathname === '/analytics/data') {
+    try {
+      const { getRetentionData } = require('./analytics/query');
+      const data = getRetentionData();
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+      res.end(JSON.stringify(data));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
     return;
   }
 
