@@ -5,26 +5,123 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SDocs Analytics</title>
 <style>
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/public/fonts/inter-400.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('/public/fonts/inter-500.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('/public/fonts/inter-600.woff2') format('woff2'); }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, -apple-system, sans-serif; background: #1a1a1a; color: #e0e0e0; padding: 32px; }
-  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
-  .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
-  .subtitle a { color: #888; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #F7F5F2;
+    color: #1C1917;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid #D4CFC9;
+    background: #F7F5F2;
+    gap: 12px;
+  }
+  .brand {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1C1917;
+    text-decoration: none;
+    transition: opacity .15s;
+  }
+  .brand:hover { opacity: 0.7; }
+  .brand-full { display: inline; }
+  .brand-short { display: none; }
+  .brand-tiny { display: none; }
+  .nav-sep { color: #A8A29E; font-size: 12px; }
+  .nav-label { font-size: 12px; color: #57534E; font-weight: 500; }
+
+  @media (max-width: 600px) {
+    .brand-full { display: none; }
+    .brand-short { display: inline; }
+  }
+  @media (max-width: 366px) {
+    .brand-short { display: none; }
+    .brand-tiny { display: inline; }
+  }
+
+  /* ── Content ── */
+  .content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #57534E; margin-bottom: 24px; }
+  .subtitle a { color: #57534E; }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; }
   table { border-collapse: collapse; font-size: 12px; }
-  th, td { padding: 6px 10px; text-align: center; border: 1px solid #333; white-space: nowrap; }
-  th { background: #222; color: #aaa; font-weight: 500; }
+  th, td { padding: 6px 10px; text-align: center; border: 1px solid #D4CFC9; white-space: nowrap; }
+  th { background: #EDE8E2; color: #57534E; font-weight: 500; }
   th.row-header { text-align: left; }
-  td.row-header { text-align: left; font-weight: 500; color: #ccc; background: #222; }
-  td.size { color: #888; background: #1e1e1e; }
-  td.empty { background: #1a1a1a; border-color: #222; }
-  .loading { color: #666; font-size: 14px; }
-  .error { color: #ef4444; font-size: 14px; }
+  td.row-header { text-align: left; font-weight: 500; color: #1C1917; background: #F1EDE8; }
+  td.size { color: #57534E; background: #F4F1ED; }
+  td.empty { background: #FAFAF8; border-color: #E7E2DB; }
+  .loading { color: #A8A29E; font-size: 13px; }
+  .error { color: #ef4444; font-size: 13px; }
+
+  /* ── Footer ── */
+  .footer {
+    padding: 24px;
+    text-align: center;
+    font-size: 11px;
+    color: #A8A29E;
+  }
+  .footer a { color: #A8A29E; }
+
+  /* ── Dark theme ── */
+  @media (prefers-color-scheme: dark) {
+    body { background: #1C1A17; color: #E7E5E2; }
+    .header { background: #1C1A17; border-color: #3D3935; }
+    .brand { color: #E7E5E2; }
+    .nav-label { color: #A8A29E; }
+    h1 { color: #E7E5E2; }
+    .subtitle { color: #A8A29E; }
+    .subtitle a { color: #A8A29E; }
+    th { background: #252320; color: #A8A29E; border-color: #3D3935; }
+    td { border-color: #3D3935; }
+    td.row-header { color: #E7E5E2; background: #211F1D; }
+    td.size { color: #A8A29E; background: #252320; }
+    td.empty { background: #1C1A17; border-color: #332F2B; }
+    .footer { color: #6B6560; }
+    .footer a { color: #6B6560; }
+  }
 </style>
 </head>
 <body>
-<h1>SDocs Retention</h1>
-<p class="subtitle">Weekly cohort retention. <a href="https://sdocs.dev/#sec=analytics">How this works</a></p>
-<div id="container"><p class="loading">Loading...</p></div>
+
+<div class="header">
+  <a class="brand" href="/">
+    <span class="brand-full">SmallDocs</span>
+    <span class="brand-short">SDocs</span>
+    <span class="brand-tiny">SD</span>
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-label">Analytics</span>
+</div>
+
+<div class="content">
+  <h1>Retention by weekly cohort</h1>
+  <p class="subtitle">Each row is a group of visitors who first came the same week. Columns show how many returned. <a href="https://sdocs.dev/#sec=analytics">How this works</a></p>
+  <div id="container" class="table-wrap"><p class="loading">Loading...</p></div>
+</div>
+
+<div class="footer">
+  <a href="/">sdocs.dev</a> · <a href="https://github.com/JoshInLisbon/SDocs">GitHub</a>
+</div>
+
 <script>
 fetch('/analytics/data')
   .then(function (r) { return r.json(); })
@@ -39,8 +136,7 @@ function renderTable(data) {
   var weeks = data.weeks;
   var cohorts = data.cohorts;
 
-  var html = '<table><thead><tr><th class="row-header">Cohort</th><th>Size</th>';
-  // Column headers: offset from cohort (Week 0, Week 1, ...)
+  // Find max offset
   var maxOffset = 0;
   cohorts.forEach(function (c) {
     Object.keys(c.retention).forEach(function (w) {
@@ -48,8 +144,10 @@ function renderTable(data) {
       if (off > maxOffset) maxOffset = off;
     });
   });
+
+  var html = '<table><thead><tr><th class="row-header">Cohort</th><th>Size</th>';
   for (var i = 0; i <= maxOffset; i++) {
-    html += '<th>W+' + i + '</th>';
+    html += '<th>' + (i === 0 ? 'Week 0' : '+' + i) + '</th>';
   }
   html += '</tr></thead><tbody>';
 
@@ -63,9 +161,9 @@ function renderTable(data) {
       } else {
         var count = c.retention[visitWeek];
         var pct = Math.round(count / c.cohort_size * 100);
-        var lightness = 85 - (pct * 0.55); // 85% at 0% retention → 30% at 100%
-        var bg = 'hsl(142, 60%, ' + lightness + '%)';
-        var fg = pct > 50 ? '#fff' : '#ccc';
+        var lightness = 82 - (pct * 0.50);
+        var bg = 'hsl(142, 55%, ' + lightness + '%)';
+        var fg = pct > 50 ? '#fff' : '#1C1917';
         html += '<td style="background:' + bg + ';color:' + fg + '">' + pct + '%</td>';
       }
     }
