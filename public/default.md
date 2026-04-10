@@ -93,18 +93,6 @@ This layer of privacy is built into how HTTP works. The hash fragment (everythin
 
 The [sdocs.dev](https://sdocs.dev) site is purely a rendering space. JavaScript reads `window.location.hash`, decompresses and decodes the content, and renders your `.md` locally.
 
-### Analytics
-
-We don't use any third-party analytics provider. We do track basic usage to measure retention — whether people come back — as this is the strongest signal for whether the tool is useful.
-
-Every HTTP request to any web server includes your IP address, browser user-agent, referring URL, and the timestamp. This is standard — every website receives this. When the SDocs service worker checks for app updates (a single request to `/version-check` on each visit), the server logs these standard HTTP fields to stdout. There is no database — it's a `console.log` line per visit, visible in the server's systemd journal.
-
-In addition, we store the **week you first visited** in your browser's localStorage. For example, if you first visit SDocs on 2026-04-10, we store `2026-W15` as `sdocs_cohort` in localStorage. This is sent with subsequent visits. It is not a unique identifier — it groups you with every other person who first visited that same week.
-
-This lets us build a retention table: of everyone who first visited in week 15, how many came back in week 16, 17, etc. The results are public at [sdocs.dev/analytics](https://sdocs.dev/analytics).
-
-To opt out, remove `sdocs_cohort` from localStorage in your browser's developer tools, or use a private browsing window. There is also an opt-out toggle in the top menu bar.
-
 ### Formatting
 
 SDocs adds basic styling to markdown files. You write your content in regular markdown and the styles live in a metadata block at the top of the file.
@@ -224,7 +212,23 @@ Every header has its own copy and paste button. This copies its content and all 
 
 ### Works offline
 
-`https://sdocs.dev` uses extensive client side caching. If you've loaded the site once, you can visit it even when you're offline. If something has changed server side, we invalidate the cache and the next time you visit the site you'll get the latest version.
+SDocs uses a [service worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) to cache all assets (HTML, CSS, JS, fonts) in the browser. After your first visit, the site loads entirely from this cache — no network required. You can open SDocs URLs and edit documents while offline.
+
+On each visit, the service worker sends a single request to `/version-check` in the background. This compares the cached app version against the server's current version. If they differ, the cache is purged and fresh assets are fetched — the update takes effect on your next page load. If the request fails (e.g. you're offline), nothing happens and the cached version continues to work.
+
+### Analytics
+
+We don't use any third-party analytics provider.
+
+The `/version-check` request described above is the only request SDocs makes to the server. Like any HTTP request, it includes your IP address, browser user-agent, referring URL, and the timestamp — this is standard to how the web works and is not something we add. The server logs these fields to stdout (a `console.log` line per visit, stored in the server's systemd journal).
+
+In addition to these standard fields, the version-check request includes your **cohort week** — the week you first visited SDocs. This is stored in your browser's localStorage under the key `sdocs_cohort`. For example, if you first visit on 2026-04-10, the value `2026-W15` is stored and sent with each subsequent version-check.
+
+This is not a unique identifier. It groups you with every other person who first visited that same week. A scheduled job aggregates the journal logs into weekly cohort counts in a local database — "of everyone who first visited in week 15, how many came back in week 16, 17, etc." The results are public at [sdocs.dev/analytics](https://sdocs.dev/analytics).
+
+We track retention because it is the strongest signal for whether a tool is useful.
+
+To opt out, there is a toggle in the top menu bar. You can also remove `sdocs_cohort` from localStorage in your browser's developer tools, or use a private browsing window.
 
 ### Auto-save
 
