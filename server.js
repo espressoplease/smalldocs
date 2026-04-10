@@ -84,7 +84,7 @@ const server = http.createServer((req, res) => {
       v ? 'cached:' + v : 'no-cache',
       cohort || '-',
     ].join(' | '));
-    try { analytics.logVisit(ip, cohort); } catch (e) { /* analytics failure should not break version-check */ }
+    try { analytics.logVisit(ip, cohort, req.headers['user-agent'] || '', req.headers['referer'] || ''); } catch (e) { /* analytics failure should not break version-check */ }
     res.writeHead(200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache',

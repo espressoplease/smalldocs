@@ -28,13 +28,21 @@ function init(dbPath) {
       timestamp TEXT NOT NULL DEFAULT (datetime('now')),
       cohort_week TEXT NOT NULL DEFAULT '',
       visit_week TEXT NOT NULL,
-      ip_hash TEXT NOT NULL
+      ip_hash TEXT NOT NULL,
+      device TEXT NOT NULL DEFAULT '',
+      browser TEXT NOT NULL DEFAULT '',
+      referer TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_visits_cohort ON visits(cohort_week, visit_week);
     CREATE INDEX IF NOT EXISTS idx_visits_week ON visits(visit_week);
   `);
 
-  insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, ip_hash) VALUES (?, ?, ?)');
+  // Add columns if upgrading from older schema
+  try { db.exec("ALTER TABLE visits ADD COLUMN device TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE visits ADD COLUMN browser TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE visits ADD COLUMN referer TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+
+  insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, ip_hash, device, browser, referer) VALUES (?, ?, ?, ?, ?, ?)');
   return db;
 }
 
@@ -42,11 +50,41 @@ function hashIP(ip, salt) {
   return crypto.createHash('sha256').update(ip + salt).digest('hex');
 }
 
-function logVisit(ip, cohortWeek) {
+function parseUA(ua) {
+  if (!ua) return { device: 'unknown', browser: 'unknown' };
+  var device = 'desktop';
+  if (/Mobile|Android.*Mobile|iPhone|iPod/.test(ua)) device = 'mobile';
+  else if (/iPad|Android(?!.*Mobile)|Tablet/.test(ua)) device = 'tablet';
+
+  var browser = 'other';
+  if (/Edg\//.test(ua)) browser = 'Edge';
+  else if (/OPR\/|Opera/.test(ua)) browser = 'Opera';
+  else if (/Chrome\//.test(ua)) browser = 'Chrome';
+  else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+  else if (/Firefox\//.test(ua)) browser = 'Firefox';
+
+  return { device: device, browser: browser };
+}
+
+function parseReferer(ref) {
+  if (!ref) return 'direct';
+  try {
+    var host = new URL(ref).hostname.replace('www.', '');
+    if (host === 'sdocs.dev' || host === 'localhost') return 'direct';
+    if (host.includes('google') || host.includes('bing') || host.includes('duckduckgo')) return 'search';
+    if (host.includes('github')) return 'github';
+    if (host.includes('npmjs')) return 'npm';
+    return host;
+  } catch (e) { return 'direct'; }
+}
+
+function logVisit(ip, cohortWeek, userAgent, referer) {
   if (!db) init();
   var visitWeek = getISOWeek(new Date());
   var ipHash = hashIP(ip || '', cohortWeek || '');
-  insertStmt.run(cohortWeek || '', visitWeek, ipHash);
+  var ua = parseUA(userAgent);
+  var ref = parseReferer(referer);
+  insertStmt.run(cohortWeek || '', visitWeek, ipHash, ua.device, ua.browser, ref);
 }
 
 function getDB() {

@@ -42,11 +42,35 @@ function getRetentionData() {
   var unattributed = {};
   unattribRows.forEach(function (r) { unattributed[r.visit_week] = r.unique_visitors; });
 
+  // Device breakdown
+  var deviceRows = db.prepare(
+    "SELECT device, COUNT(*) as count FROM visits WHERE device != '' GROUP BY device ORDER BY count DESC"
+  ).all();
+
+  // Browser breakdown
+  var browserRows = db.prepare(
+    "SELECT browser, COUNT(*) as count FROM visits WHERE browser != '' GROUP BY browser ORDER BY count DESC"
+  ).all();
+
+  // Traffic sources
+  var sourceRows = db.prepare(
+    "SELECT referer, COUNT(*) as count FROM visits WHERE referer != '' GROUP BY referer ORDER BY count DESC LIMIT 10"
+  ).all();
+
+  // Weekly visit volume
+  var volumeRows = db.prepare(
+    "SELECT visit_week, COUNT(*) as total, COUNT(DISTINCT ip_hash) as unique_visitors FROM visits GROUP BY visit_week ORDER BY visit_week"
+  ).all();
+
   return {
     generated: new Date().toISOString(),
     weeks: weeks,
     cohorts: cohorts,
-    unattributed: unattributed
+    unattributed: unattributed,
+    devices: deviceRows,
+    browsers: browserRows,
+    sources: sourceRows,
+    volume: volumeRows
   };
 }
 
