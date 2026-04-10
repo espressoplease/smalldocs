@@ -6,9 +6,9 @@ const { getDB } = require('./db');
 function getRetentionData() {
   var db = getDB();
 
-  // All visit weeks in the dataset
+  // All visit weeks in the dataset (including unattributed)
   var weekRows = db.prepare(
-    "SELECT DISTINCT visit_week FROM visits WHERE cohort_week != '' ORDER BY visit_week"
+    "SELECT DISTINCT visit_week FROM visits ORDER BY visit_week"
   ).all();
   var weeks = weekRows.map(function (r) { return r.visit_week; });
 
@@ -35,10 +35,18 @@ function getRetentionData() {
 
   var cohorts = Object.keys(cohortMap).sort().map(function (k) { return cohortMap[k]; });
 
+  // Unattributed visits per week (empty cohort)
+  var unattribRows = db.prepare(
+    "SELECT visit_week, COUNT(DISTINCT ip_hash) as unique_visitors FROM visits WHERE cohort_week = '' GROUP BY visit_week ORDER BY visit_week"
+  ).all();
+  var unattributed = {};
+  unattribRows.forEach(function (r) { unattributed[r.visit_week] = r.unique_visitors; });
+
   return {
     generated: new Date().toISOString(),
     weeks: weeks,
-    cohorts: cohorts
+    cohorts: cohorts,
+    unattributed: unattributed
   };
 }
 

@@ -143,30 +143,45 @@ function renderTable(data) {
     });
   });
 
+  // Use absolute week columns
   var html = '<table><thead><tr><th class="row-header">Cohort</th><th>Size</th>';
-  for (var i = 0; i <= maxOffset; i++) {
-    html += '<th>' + (i === 0 ? 'Week 0' : '+' + i) + '</th>';
-  }
+  weeks.forEach(function (w) { html += '<th>' + w.replace('2026-', '') + '</th>'; });
   html += '</tr></thead><tbody>';
 
   cohorts.forEach(function (c) {
-    var cohortIdx = weeks.indexOf(c.cohort_week);
     html += '<tr><td class="row-header">' + c.cohort_week + '</td><td class="size">' + c.cohort_size + '</td>';
-    for (var i = 0; i <= maxOffset; i++) {
-      var visitWeek = weeks[cohortIdx + i];
-      if (!visitWeek || !c.retention[visitWeek]) {
+    weeks.forEach(function (w) {
+      if (w < c.cohort_week) {
+        html += '<td class="empty"></td>';
+      } else if (!c.retention[w]) {
         html += '<td class="empty"></td>';
       } else {
-        var count = c.retention[visitWeek];
+        var count = c.retention[w];
         var pct = Math.round(count / c.cohort_size * 100);
         var lightness = 82 - (pct * 0.50);
         var bg = 'hsl(142, 55%, ' + lightness + '%)';
         var fg = pct > 50 ? '#fff' : '#1C1917';
         html += '<td style="background:' + bg + ';color:' + fg + '">' + pct + '%</td>';
       }
-    }
+    });
     html += '</tr>';
   });
+
+  // Unattributed row
+  var unattr = data.unattributed || {};
+  var hasUnattr = Object.keys(unattr).length > 0;
+  if (hasUnattr) {
+    html += '<tr style="border-top:2px solid #D4CFC9"><td class="row-header" style="color:#A8A29E">Unattributed</td><td class="size"></td>';
+    weeks.forEach(function (w) {
+      var count = unattr[w];
+      if (count) {
+        html += '<td style="color:#A8A29E">' + count + '</td>';
+      } else {
+        html += '<td class="empty"></td>';
+      }
+    });
+    html += '</tr>';
+  }
 
   html += '</tbody></table>';
   document.getElementById('container').innerHTML = html;
