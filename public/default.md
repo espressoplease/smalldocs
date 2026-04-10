@@ -97,7 +97,7 @@ The [sdocs.dev](https://sdocs.dev) site is purely a rendering space. JavaScript 
 
 We don't use any third-party analytics provider. We do track basic usage to measure retention — whether people come back — as this is the strongest signal for whether the tool is useful.
 
-Every HTTP request to any web server includes your IP address, browser user-agent, referring URL, and the timestamp. This is standard — every website receives this. We log it.
+Every HTTP request to any web server includes your IP address, browser user-agent, referring URL, and the timestamp. This is standard — every website receives this. When the SDocs service worker checks for app updates (a single request to `/version-check` on each visit), the server logs these standard HTTP fields to stdout. There is no database — it's a `console.log` line per visit, visible in the server's systemd journal.
 
 In addition, we store the **week you first visited** in your browser's localStorage. For example, if you first visit SDocs on 2026-04-10, we store `2026-W15` as `sdocs_cohort` in localStorage. This is sent with subsequent visits. It is not a unique identifier — it groups you with every other person who first visited that same week.
 
