@@ -914,4 +914,9 @@
   S.processCharts = processCharts;
   S.refreshChartColors = refreshChartColors;
   S.replaceChartBlock = replaceChartBlock;
+  S.getChartImages = function () {
+    return chartDataStore.map(function (entry) {
+      return { wrapper: entry.wrapper, dataUrl: entry.chart.toBase64Image() };
+    });
+  };
 })();

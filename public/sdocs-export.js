@@ -52,7 +52,63 @@ function buildExportCSS() {
   var bqPad     = cv('--md-bq-padding')  || '0.5em 1em';
   var bqMargin  = cv('--md-bq-margin')   || '1.2em 0';
 
-  return '\nbody {\n  font-family: ' + fontFamily + ';\n  font-size: ' + baseSize + ';\n  color: ' + color + ';\n  line-height: ' + lineHeight + ';\n  background-color: ' + bgColor + ';\n  max-width: 720px;\n  margin: 0 auto;\n  padding: 40px 48px 60px;\n  -webkit-font-smoothing: antialiased;\n}\nh1 { font-family: ' + hFontFamily + '; font-size: ' + h1Size + '; color: ' + h1Color + '; font-weight: ' + h1Weight + '; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 ' + hMB + '; }\nh2 { font-family: ' + hFontFamily + '; font-size: ' + h2Size + '; color: ' + h2Color + '; font-weight: ' + h2Weight + '; letter-spacing: -0.015em; line-height: 1.3; margin: 1.4em 0 ' + hMB + '; padding-bottom: 0.3em; border-bottom: 1px solid #ede8e2; }\nh3 { font-family: ' + hFontFamily + '; font-size: ' + h3Size + '; color: ' + h3Color + '; font-weight: ' + h3Weight + '; letter-spacing: -0.01em; line-height: 1.4; margin: 1.2em 0 ' + hMB + '; }\nh4 { font-family: ' + hFontFamily + '; font-size: ' + h4Size + '; color: ' + h4Color + '; font-weight: ' + h4Weight + '; line-height: 1.5; margin: 1em 0 ' + hMB + '; }\np  { color: ' + pColor + '; line-height: ' + pLH + '; margin: ' + pMargin + '; }\na  { color: ' + linkColor + '; text-decoration: ' + linkDec + '; text-underline-offset: 2px; }\ncode { background: ' + codeBG + '; color: ' + codeColor + '; padding: 0.15em 0.45em; border-radius: 4px; font-family: ' + codeFont + '; font-size: 0.85em; }\npre  { background: ' + preBG + '; padding: 1.1em 1.25em; border-radius: 8px; overflow-x: auto; margin: 1.2em 0; border: 1px solid #e7e2db; }\npre code { background: none; padding: 0; color: #3c3733; font-size: 0.88em; }\nblockquote { border-left: ' + bqBorder + '; color: ' + bqColor + '; padding: ' + bqPad + '; margin: ' + bqMargin + '; background: ' + bqBg + '; border-radius: 0 6px 6px 0; }\nblockquote p { margin: 0; color: inherit; }\nul, ol { padding-left: 1.6em; margin: 0.5em 0 1.1em; }\nli { margin-bottom: 0.3em; }\nhr { border: none; border-top: 1px solid #ede8e2; margin: 2em 0; }\ntable { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: 0.92em; }\nth, td { border: 1px solid #e2ddd6; padding: 7px 12px; text-align: left; }\nth { background: #f4f1ed; font-weight: 600; }\ntr:nth-child(even) td { background: #fafaf8; }\nimg { max-width: 100%; border-radius: 8px; }\n';
+  var listColor = cv('--md-list-color')  || pColor;
+
+  return '\n*, *::before, *::after { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }\nbody {\n  font-family: ' + fontFamily + ';\n  font-size: ' + baseSize + ';\n  color: ' + color + ';\n  line-height: ' + lineHeight + ';\n  background-color: ' + bgColor + ';\n  max-width: 720px;\n  margin: 0 auto;\n  padding: 40px 48px 60px;\n  -webkit-font-smoothing: antialiased;\n}\nh1 { font-family: ' + hFontFamily + '; font-size: ' + h1Size + '; color: ' + h1Color + '; font-weight: ' + h1Weight + '; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 ' + hMB + '; }\nh2 { font-family: ' + hFontFamily + '; font-size: ' + h2Size + '; color: ' + h2Color + '; font-weight: ' + h2Weight + '; letter-spacing: -0.015em; line-height: 1.3; margin: 1.4em 0 ' + hMB + '; padding-bottom: 0.3em; border-bottom: 1px solid #ede8e2; }\nh3 { font-family: ' + hFontFamily + '; font-size: ' + h3Size + '; color: ' + h3Color + '; font-weight: ' + h3Weight + '; letter-spacing: -0.01em; line-height: 1.4; margin: 1.2em 0 ' + hMB + '; }\nh4 { font-family: ' + hFontFamily + '; font-size: ' + h4Size + '; color: ' + h4Color + '; font-weight: ' + h4Weight + '; line-height: 1.5; margin: 1em 0 ' + hMB + '; }\np  { color: ' + pColor + '; line-height: ' + pLH + '; margin: ' + pMargin + '; }\na  { color: ' + linkColor + '; text-decoration: ' + linkDec + '; text-underline-offset: 2px; }\ncode { background: ' + codeBG + '; color: ' + codeColor + '; padding: 0.15em 0.45em; border-radius: 4px; font-family: ' + codeFont + '; font-size: 0.85em; }\npre  { background: ' + preBG + '; padding: 1.1em 1.25em; border-radius: 8px; overflow-x: auto; margin: 1.2em 0; border: 1px solid #e7e2db; }\npre code { background: none; padding: 0; color: ' + codeColor + '; font-size: 0.88em; }\nblockquote { border-left: ' + bqBorder + '; color: ' + bqColor + '; padding: ' + bqPad + '; margin: ' + bqMargin + '; background: ' + bqBg + '; border-radius: 0 6px 6px 0; }\nblockquote p { margin: 0; color: inherit; }\nul, ol { padding-left: 1.6em; margin: 0.5em 0 1.1em; color: ' + listColor + '; }\nli { margin-bottom: 0.3em; }\nli::marker { color: ' + listColor + '; }\nhr { border: none; border-top: 1px solid #ede8e2; margin: 2em 0; }\ntable { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: 0.92em; }\nth, td { border: 1px solid #e2ddd6; padding: 7px 12px; text-align: left; }\nth { background: #f4f1ed; font-weight: 600; }\ntr:nth-child(even) td { background: #fafaf8; }\nimg { max-width: 100%; border-radius: 8px; }\n';
+}
+
+function inlineImages(clone) {
+  var imgs = clone.querySelectorAll('img');
+  for (var i = 0; i < imgs.length; i++) {
+    var img = imgs[i];
+    if (/^data:/.test(img.src)) continue;
+    // Find the corresponding loaded image in the live DOM by matching src
+    var liveImg = S.renderedEl.querySelector('img[src="' + img.getAttribute('src') + '"]');
+    if (!liveImg || !liveImg.naturalWidth) continue;
+    try {
+      var c = document.createElement('canvas');
+      c.width = liveImg.naturalWidth;
+      c.height = liveImg.naturalHeight;
+      c.getContext('2d').drawImage(liveImg, 0, 0);
+      img.src = c.toDataURL('image/png');
+    } catch (e) {
+      // CORS — leave original src in place
+    }
+  }
+}
+
+function inlineCharts(clone) {
+  // Remove chart menu UI
+  clone.querySelectorAll('.chart-menu-btn, .chart-menu').forEach(function(el) { el.remove(); });
+  // Build a map from wrapper element → data URL using Chart.js instances
+  var chartImages = S.getChartImages ? S.getChartImages() : [];
+  var wrapperMap = new Map();
+  chartImages.forEach(function(entry) {
+    wrapperMap.set(entry.wrapper, entry.dataUrl);
+  });
+  // Match live wrappers to clone wrappers by index
+  var origWrappers = S.renderedEl.querySelectorAll('.sdoc-chart');
+  var cloneWrappers = clone.querySelectorAll('.sdoc-chart');
+  for (var i = 0; i < cloneWrappers.length; i++) {
+    var dataUrl = origWrappers[i] ? wrapperMap.get(origWrappers[i]) : null;
+    if (!dataUrl || dataUrl === 'data:,') {
+      // Fallback: try canvas.toDataURL directly
+      var origCanvas = origWrappers[i] && origWrappers[i].querySelector('canvas');
+      if (origCanvas && origCanvas.width > 0) {
+        try { dataUrl = origCanvas.toDataURL('image/png'); } catch (e) { /* skip */ }
+      }
+    }
+    var canvas = cloneWrappers[i].querySelector('canvas');
+    if (canvas && dataUrl && dataUrl !== 'data:,') {
+      var img = document.createElement('img');
+      img.src = dataUrl;
+      img.style.width = '100%';
+      canvas.parentNode.replaceChild(img, canvas);
+    } else if (canvas) {
+      // No valid image — remove the empty canvas entirely
+      canvas.remove();
+    }
+  }
 }
 
 function buildExportHTML() {
@@ -62,6 +118,8 @@ function buildExportHTML() {
     : '';
   var title = (S.currentMeta.title || 'Document').replace(/</g,'&lt;');
   var clone = S.renderedEl.cloneNode(true);
+  inlineCharts(clone);
+  inlineImages(clone);
   clone.querySelectorAll('.section-toggle').forEach(function(el) { el.remove(); });
   clone.querySelectorAll('.md-section-body').forEach(function(el) {
     while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
@@ -71,7 +129,7 @@ function buildExportHTML() {
     while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
     el.remove();
   });
-  return '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>' + title + '</title>\n' + fontLink + '\n<style>' + buildExportCSS() + '</style>\n</head>\n<body>\n' +
+  return '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>' + title + '</title>\n' + fontLink + '\n<style>' + buildExportCSS() + '\n.sdoc-chart { text-align: center; margin: 1.2em 0; }\n.sdoc-chart img { max-width: 100%; }</style>\n</head>\n<body>\n' +
     clone.innerHTML
       .replace(/<button class="copy-btn"[^]*?<\/button>/g, '')
       .replace(/<button class="header-copy-btn"[^]*?<\/button>/g, '')
@@ -80,15 +138,37 @@ function buildExportHTML() {
     '\n</body>\n</html>';
 }
 
+function expandAllSections() {
+  var closed = [];
+  S.renderedEl.querySelectorAll('.md-section-body:not(.open)').forEach(function(b) {
+    b.classList.add('open');
+    closed.push(b);
+  });
+  return closed;
+}
+
+function restoreSections(closed) {
+  closed.forEach(function(b) { b.classList.remove('open'); });
+}
+
 function exportPDF() {
   S.setStatus('Opening print dialog\u2026');
-  var html = buildExportHTML();
-  var win = window.open('', '_blank', 'width=900,height=700');
-  win.document.open();
-  win.document.write(html + '<script>\n    document.fonts.ready.then(() => {\n      window.focus();\n      window.print();\n    });\n  <\/script>');
-  win.document.close();
-  S.setStatus('PDF print dialog opened');
+  var closed = expandAllSections();
+  // Wait for Chart.js ResizeObserver to re-render expanded charts
+  requestAnimationFrame(function() { setTimeout(function() {
+    var html = buildExportHTML();
+    restoreSections(closed);
+    var win = window.open('', '_blank', 'width=900,height=700');
+    win.document.open();
+    win.document.write(html + '<script>\n    Promise.all(\n      Array.from(document.images).filter(function(i){return !i.complete;}).map(function(i){\n        return new Promise(function(r){i.onload=i.onerror=r;});\n      })\n    ).then(function(){ return document.fonts.ready; }).then(function(){\n      window.focus();\n      window.print();\n    });\n  <\/script>');
+    win.document.close();
+    S.setStatus('PDF print dialog opened');
+  }, 150); });
 }
+
+S.buildExportHTML = buildExportHTML;
+S.expandAllSections = expandAllSections;
+S.restoreSections = restoreSections;
 
 var htmlDocxLoaded = false;
 
