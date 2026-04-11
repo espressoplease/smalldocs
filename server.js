@@ -117,8 +117,26 @@ const server = http.createServer((req, res) => {
     const htmlPath = path.join(__dirname, 'public', 'index.html');
     fs.readFile(htmlPath, 'utf8', (err, html) => {
       if (err) { res.writeHead(500); res.end('Error'); return; }
+      const nonce = crypto.randomBytes(16).toString('base64');
       html = html.replace('__APP_VERSION__', APP_VERSION);
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
+      html = html.replace(/__CSP_NONCE__/g, nonce);
+      const csp = [
+        "default-src 'self'",
+        "script-src 'self' 'nonce-" + nonce + "' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "img-src 'self' data: https:",
+        "connect-src 'self'",
+        "frame-src 'none'",
+        "object-src 'none'",
+      ].join('; ');
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'Content-Security-Policy': csp,
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+      });
       res.end(html);
     });
     return;
