@@ -7,10 +7,7 @@ module.exports = function(harness) {
 
   console.log('\n── Slugify + TOC Tests ────────────────────────\n');
 
-  // Mirror the slugify function from the app
-  function slugify(text) {
-    return text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
-  }
+  const { slugify } = require('../public/sdocs-slugify');
 
   test('slugify: basic text', () => {
     assert.strictEqual(slugify('Getting Started'), 'getting-started');

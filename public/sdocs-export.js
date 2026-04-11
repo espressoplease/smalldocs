@@ -4,55 +4,55 @@
 
 var S = SDocs;
 
-function cv(name) {
+function getCssVar(name) {
   return (S.renderedEl.style.getPropertyValue(name) ||
           getComputedStyle(S.renderedEl).getPropertyValue(name)).trim();
 }
 
 function buildExportCSS() {
-  var bgColor       = cv('--md-bg')             || '#ffffff';
-  var fontFamily    = cv('--md-font-family')    || "'Inter', sans-serif";
-  var baseSize      = cv('--md-base-size')      || '16px';
-  var lineHeight    = cv('--md-line-height')    || '1.75';
-  var color         = cv('--md-color')          || '#1c1917';
+  var bgColor       = getCssVar('--md-bg')             || '#ffffff';
+  var fontFamily    = getCssVar('--md-font-family')    || "'Inter', sans-serif";
+  var baseSize      = getCssVar('--md-base-size')      || '16px';
+  var lineHeight    = getCssVar('--md-line-height')    || '1.75';
+  var color         = getCssVar('--md-color')          || '#1c1917';
 
-  var hFontFamily   = cv('--md-h-font-family')  || 'inherit';
-  var hScale        = parseFloat(cv('--md-h-scale') || '1');
-  var hMB           = cv('--md-h-margin-bottom')|| '0.4em';
-  var hColor        = cv('--md-h-color')        || '#0f0d0c';
+  var hFontFamily   = getCssVar('--md-h-font-family')  || 'inherit';
+  var hScale        = parseFloat(getCssVar('--md-h-scale') || '1');
+  var hMB           = getCssVar('--md-h-margin-bottom')|| '0.4em';
+  var hColor        = getCssVar('--md-h-color')        || '#0f0d0c';
 
-  var h1Size    = 'calc(' + (cv('--md-h1-size')    || '2.1em') + ' * ' + hScale + ')';
-  var h1Color   = cv('--md-h1-color')   || hColor;
-  var h1Weight  = cv('--md-h1-weight')  || '700';
-  var h2Size    = 'calc(' + (cv('--md-h2-size')    || '1.55em') + ' * ' + hScale + ')';
-  var h2Color   = cv('--md-h2-color')   || hColor;
-  var h2Weight  = cv('--md-h2-weight')  || '600';
-  var h3Size    = 'calc(' + (cv('--md-h3-size')    || '1.2em') + ' * ' + hScale + ')';
-  var h3Color   = cv('--md-h3-color')   || hColor;
-  var h3Weight  = cv('--md-h3-weight')  || '600';
-  var h4Size    = 'calc(' + (cv('--md-h4-size')    || '1.0em') + ' * ' + hScale + ')';
-  var h4Color   = cv('--md-h4-color')   || hColor;
-  var h4Weight  = cv('--md-h4-weight')  || '600';
+  var h1Size    = 'calc(' + (getCssVar('--md-h1-size')    || '2.1em') + ' * ' + hScale + ')';
+  var h1Color   = getCssVar('--md-h1-color')   || hColor;
+  var h1Weight  = getCssVar('--md-h1-weight')  || '700';
+  var h2Size    = 'calc(' + (getCssVar('--md-h2-size')    || '1.55em') + ' * ' + hScale + ')';
+  var h2Color   = getCssVar('--md-h2-color')   || hColor;
+  var h2Weight  = getCssVar('--md-h2-weight')  || '600';
+  var h3Size    = 'calc(' + (getCssVar('--md-h3-size')    || '1.2em') + ' * ' + hScale + ')';
+  var h3Color   = getCssVar('--md-h3-color')   || hColor;
+  var h3Weight  = getCssVar('--md-h3-weight')  || '600';
+  var h4Size    = 'calc(' + (getCssVar('--md-h4-size')    || '1.0em') + ' * ' + hScale + ')';
+  var h4Color   = getCssVar('--md-h4-color')   || hColor;
+  var h4Weight  = getCssVar('--md-h4-weight')  || '600';
 
-  var pColor    = cv('--md-p-color')     || '#3c3733';
-  var pLH       = cv('--md-p-line-height')|| lineHeight;
-  var pMargin   = cv('--md-p-margin')    || '0 0 1.1em';
+  var pColor    = getCssVar('--md-p-color')     || '#3c3733';
+  var pLH       = getCssVar('--md-p-line-height')|| lineHeight;
+  var pMargin   = getCssVar('--md-p-margin')    || '0 0 1.1em';
 
-  var linkColor = cv('--md-link-color')  || '#2563eb';
-  var linkDec   = cv('--md-link-decoration') || 'underline';
+  var linkColor = getCssVar('--md-link-color')  || '#2563eb';
+  var linkDec   = getCssVar('--md-link-decoration') || 'underline';
 
-  var codeBG    = cv('--md-code-bg')     || '#f4f1ed';
-  var codeColor = cv('--md-code-color')  || '#6b21a8';
-  var codeFont  = cv('--md-code-font')   || "'JetBrains Mono', monospace";
-  var preBG     = cv('--md-pre-bg')      || codeBG;
+  var codeBG    = getCssVar('--md-code-bg')     || '#f4f1ed';
+  var codeColor = getCssVar('--md-code-color')  || '#6b21a8';
+  var codeFont  = getCssVar('--md-code-font')   || "'JetBrains Mono', monospace";
+  var preBG     = getCssVar('--md-pre-bg')      || codeBG;
 
-  var bqBorder  = cv('--md-bq-border')   || '3px solid #2563eb';
-  var bqBg      = cv('--md-bq-bg')      || '#f7f5f2';
-  var bqColor   = cv('--md-bq-color')    || '#6b6560';
-  var bqPad     = cv('--md-bq-padding')  || '0.5em 1em';
-  var bqMargin  = cv('--md-bq-margin')   || '1.2em 0';
+  var bqBorder  = getCssVar('--md-bq-border')   || '3px solid #2563eb';
+  var bqBg      = getCssVar('--md-bq-bg')      || '#f7f5f2';
+  var bqColor   = getCssVar('--md-bq-color')    || '#6b6560';
+  var bqPad     = getCssVar('--md-bq-padding')  || '0.5em 1em';
+  var bqMargin  = getCssVar('--md-bq-margin')   || '1.2em 0';
 
-  var listColor = cv('--md-list-color')  || pColor;
+  var listColor = getCssVar('--md-list-color')  || pColor;
 
   return '\n*, *::before, *::after { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }\nbody {\n  font-family: ' + fontFamily + ';\n  font-size: ' + baseSize + ';\n  color: ' + color + ';\n  line-height: ' + lineHeight + ';\n  background-color: ' + bgColor + ';\n  max-width: 720px;\n  margin: 0 auto;\n  padding: 40px 48px 60px;\n  -webkit-font-smoothing: antialiased;\n}\nh1 { font-family: ' + hFontFamily + '; font-size: ' + h1Size + '; color: ' + h1Color + '; font-weight: ' + h1Weight + '; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 ' + hMB + '; }\nh2 { font-family: ' + hFontFamily + '; font-size: ' + h2Size + '; color: ' + h2Color + '; font-weight: ' + h2Weight + '; letter-spacing: -0.015em; line-height: 1.3; margin: 1.4em 0 ' + hMB + '; padding-bottom: 0.3em; border-bottom: 1px solid #ede8e2; }\nh3 { font-family: ' + hFontFamily + '; font-size: ' + h3Size + '; color: ' + h3Color + '; font-weight: ' + h3Weight + '; letter-spacing: -0.01em; line-height: 1.4; margin: 1.2em 0 ' + hMB + '; }\nh4 { font-family: ' + hFontFamily + '; font-size: ' + h4Size + '; color: ' + h4Color + '; font-weight: ' + h4Weight + '; line-height: 1.5; margin: 1em 0 ' + hMB + '; }\np  { color: ' + pColor + '; line-height: ' + pLH + '; margin: ' + pMargin + '; }\na  { color: ' + linkColor + '; text-decoration: ' + linkDec + '; text-underline-offset: 2px; }\ncode { background: ' + codeBG + '; color: ' + codeColor + '; padding: 0.15em 0.45em; border-radius: 4px; font-family: ' + codeFont + '; font-size: 0.85em; }\npre  { background: ' + preBG + '; padding: 1.1em 1.25em; border-radius: 8px; overflow-x: auto; margin: 1.2em 0; border: 1px solid #e7e2db; }\npre code { background: none; padding: 0; color: ' + codeColor + '; font-size: 0.88em; }\nblockquote { border-left: ' + bqBorder + '; color: ' + bqColor + '; padding: ' + bqPad + '; margin: ' + bqMargin + '; background: ' + bqBg + '; border-radius: 0 6px 6px 0; }\nblockquote p { margin: 0; color: inherit; }\nul, ol { padding-left: 1.6em; margin: 0.5em 0 1.1em; color: ' + listColor + '; }\nli { margin-bottom: 0.3em; }\nli::marker { color: ' + listColor + '; }\nhr { border: none; border-top: 1px solid #ede8e2; margin: 2em 0; }\ntable { border-collapse: collapse; width: 100%; margin: 1.2em 0; font-size: 0.92em; }\nth, td { border: 1px solid #e2ddd6; padding: 7px 12px; text-align: left; }\nth { background: #f4f1ed; font-weight: 600; }\ntr:nth-child(even) td { background: #fafaf8; }\nimg { max-width: 100%; border-radius: 8px; }\n';
 }

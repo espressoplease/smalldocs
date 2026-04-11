@@ -13,6 +13,7 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
   - `css/panel.css` — right panel, controls, statusbar (~250 lines)
   - `css/mobile.css` — mobile `@media` breakpoint (~95 lines)
   - `sdocs-yaml.js` — YAML front matter parse/serialize, UMD shared with Node (~80 lines)
+  - `sdocs-slugify.js` — slugify heading text to URL-safe IDs, UMD shared with Node (~12 lines)
   - `sdocs-styles.js` — pure style data tables + logic, UMD shared with tests (~285 lines)
   - `sdocs-state.js` — shared `window.SDocs` mutable state namespace (~40 lines)
   - `sdocs-theme.js` — Google Fonts, font loading, dark mode, theme toggle (~140 lines)
@@ -43,7 +44,7 @@ Styles are driven entirely by CSS custom properties on `#rendered`. Every contro
 All browser JS modules communicate through `window.SDocs` (created by `sdocs-state.js`). Modules register functions on `SDocs` for cross-module access (e.g. `SDocs.syncAll`, `SDocs.setColorValue`). Event handlers use late binding — they reference `SDocs.fn()` rather than capturing `fn` at parse time, so modules can load in sequence without forward-declaration issues.
 
 **Script load order** (in `index.html`):
-`marked` → `sdocs-yaml.js` → `sdocs-styles.js` → `sdocs-state.js` → `sdocs-theme.js` → `sdocs-controls.js` → `sdocs-export.js` → `sdocs-app.js`
+`marked` → `sdocs-yaml.js` → `sdocs-styles.js` → `sdocs-state.js` → `sdocs-slugify.js` → `sdocs-theme.js` → `sdocs-controls.js` → `sdocs-export.js` → `sdocs-app.js`
 
 ## Shared modules (UMD pattern)
 
@@ -56,7 +57,7 @@ There is no build step, so we **cannot use ES modules** (`import`/`export`). Cod
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.MyLib = {}));
 ```
 
-In the browser the IIFE writes to `window.MyLib`; in Node tests it writes to `module.exports`. Two modules use this pattern: `sdocs-yaml.js` (`window.SDocYaml`) and `sdocs-styles.js` (`window.SDocStyles`).
+In the browser the IIFE writes to `window.MyLib`; in Node tests it writes to `module.exports`. Three modules use this pattern: `sdocs-yaml.js` (`window.SDocYaml`), `sdocs-slugify.js` (`window.SDocSlugify`), and `sdocs-styles.js` (`window.SDocStyles`).
 
 ## File format
 

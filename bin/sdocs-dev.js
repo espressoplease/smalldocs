@@ -479,11 +479,9 @@ function decompressFromBase64Url(b64url) {
   }
 }
 
-// ── Slugify ───────────────────────────────────────────────
+// ── Slugify (shared module) ───────────────────────────────
 
-function slugify(text) {
-  return text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
-}
+var slugify = require('../public/sdocs-slugify').slugify;
 
 // ── Parse args ────────────────────────────────────────────
 

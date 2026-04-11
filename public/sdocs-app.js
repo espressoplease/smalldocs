@@ -9,12 +9,12 @@ var S = SDocs;
 var LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+var CHEVRON_SVG = '<span class="section-toggle"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+var COPY_FEEDBACK_MS = 1500;
 
 // ── Slugify + section helpers ──────────────────────
 
-function slugify(text) {
-  return text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
-}
+var slugify = SDocSlugify.slugify;
 
 function buildSectionUrl(slug) {
   var base = window.location.origin + window.location.pathname;
@@ -50,16 +50,11 @@ function getSectionMarkdown(headingIndex) {
   return lines.slice(target.line, endLine).join('\n').trimEnd();
 }
 
-// ── Render ──────────────────────────────────
+// ── Render sub-functions ──────────────────────────────────
 
-function render() {
-  S.destroyCharts();
-  var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
-  if (oldSpacer) oldSpacer.remove();
-  S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody));
-
+function attachHeadingAnchors(container) {
   var slugCounts = {};
-  var allHeadings = [].slice.call(S.renderedEl.querySelectorAll('h1, h2, h3, h4'));
+  var allHeadings = [].slice.call(container.querySelectorAll('h1, h2, h3, h4'));
   allHeadings.forEach(function(h, idx) {
     var slug = slugify(h.textContent);
     if (!slug) slug = 'section';
@@ -79,7 +74,7 @@ function render() {
       e.preventDefault();
       navigator.clipboard.writeText(buildSectionUrl(slug)).then(function() {
         anchor.innerHTML = CHECK_SVG;
-        setTimeout(function() { anchor.innerHTML = LINK_SVG; }, 1500);
+        setTimeout(function() { anchor.innerHTML = LINK_SVG; }, COPY_FEEDBACK_MS);
       });
     });
     h.appendChild(anchor);
@@ -95,52 +90,53 @@ function render() {
       var md = getSectionMarkdown(hIdx);
       navigator.clipboard.writeText(md).then(function() {
         copyBtn.innerHTML = CHECK_SVG;
-        setTimeout(function() { copyBtn.innerHTML = COPY_SVG; }, 1500);
+        setTimeout(function() { copyBtn.innerHTML = COPY_SVG; }, COPY_FEEDBACK_MS);
       });
     });
     h.appendChild(copyBtn);
   });
+}
 
-  S.renderedEl.querySelectorAll('pre').forEach(function(pre) {
+function attachCodeCopyButtons(container) {
+  container.querySelectorAll('pre').forEach(function(pre) {
     var wrapper = document.createElement('div');
     wrapper.className = 'pre-wrapper';
     pre.parentNode.insertBefore(wrapper, pre);
     wrapper.appendChild(pre);
     var btn = document.createElement('button');
     btn.className = 'copy-btn';
-    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    btn.innerHTML = COPY_SVG;
     btn.title = 'Copy code';
     btn.addEventListener('click', function() {
       var code = pre.querySelector('code');
       navigator.clipboard.writeText(code ? code.textContent : pre.textContent).then(function() {
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-        setTimeout(function() {
-          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-        }, 1500);
+        btn.innerHTML = CHECK_SVG;
+        setTimeout(function() { btn.innerHTML = COPY_SVG; }, COPY_FEEDBACK_MS);
       });
     });
     wrapper.appendChild(btn);
   });
+}
 
+var SECTION_LEVELS = { H2: 2, H3: 3, H4: 4 };
+
+function buildCollapsibleSections(container) {
   // H1 expand/collapse toggle (controls all sections below)
-  var H1_CHEVRON = '<span class="section-toggle"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
-  S.renderedEl.querySelectorAll('h1').forEach(function(h1) {
-    h1.insertAdjacentHTML('afterbegin', H1_CHEVRON);
+  container.querySelectorAll('h1').forEach(function(h1) {
+    h1.insertAdjacentHTML('afterbegin', CHEVRON_SVG);
     h1.style.cursor = 'pointer';
     h1.addEventListener('click', function(e) {
       if (e.target.closest('.header-anchor') || e.target.closest('.header-copy-btn')) return;
       var toggle = h1.querySelector('.section-toggle');
       var isOpen = toggle.classList.toggle('open');
-      S.renderedEl.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.toggle('open', isOpen); });
-      S.renderedEl.querySelectorAll('.md-section > h2 > .section-toggle, .md-section > h3 > .section-toggle, .md-section > h4 > .section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
+      container.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.toggle('open', isOpen); });
+      container.querySelectorAll('.md-section > h2 > .section-toggle, .md-section > h3 > .section-toggle, .md-section > h4 > .section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
     });
   });
 
-  // Collapsible heading sections (H2, H3, H4)
-  var SECTION_CHEVRON = '<span class="section-toggle"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
-  var SECTION_LEVELS = { H2: 2, H3: 3, H4: 4 };
-  var children = [].slice.call(S.renderedEl.children);
-  var bodyStack = [S.renderedEl];
+  // Nest H2/H3/H4 into collapsible section wrappers
+  var children = [].slice.call(container.children);
+  var bodyStack = [container];
   children.forEach(function(child) {
     var level = SECTION_LEVELS[child.tagName];
     if (level) {
@@ -149,7 +145,7 @@ function render() {
       sectionDiv.className = 'md-section';
       var sectionBody = document.createElement('div');
       sectionBody.className = 'md-section-body';
-      child.insertAdjacentHTML('afterbegin', SECTION_CHEVRON);
+      child.insertAdjacentHTML('afterbegin', CHEVRON_SVG);
       bodyStack[bodyStack.length - 1].appendChild(sectionDiv);
       sectionDiv.appendChild(child);
       sectionDiv.appendChild(sectionBody);
@@ -159,7 +155,8 @@ function render() {
     }
   });
 
-  S.renderedEl.querySelectorAll('.md-section > h2, .md-section > h3, .md-section > h4').forEach(function(heading) {
+  // Attach click handlers for section heading toggles
+  container.querySelectorAll('.md-section > h2, .md-section > h3, .md-section > h4').forEach(function(heading) {
     heading.addEventListener('click', function(e) {
       if (e.target.closest('.header-anchor') || e.target.closest('.header-copy-btn')) return;
       var yBefore = heading.getBoundingClientRect().top;
@@ -176,7 +173,19 @@ function render() {
       }
     });
   });
+}
 
+// ── Render (orchestrator) ──────────────────────────────────
+
+function render() {
+  S.destroyCharts();
+  var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
+  if (oldSpacer) oldSpacer.remove();
+  S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody));
+
+  attachHeadingAnchors(S.renderedEl);
+  attachCodeCopyButtons(S.renderedEl);
+  buildCollapsibleSections(S.renderedEl);
   S.processCharts(S.renderedEl);
 }
 
@@ -217,6 +226,25 @@ function loadText(text, filename) {
 
 // ── Compression helpers (brotli + base64url) ──
 
+function concatChunks(chunks) {
+  var total = chunks.reduce(function(n, c) { return n + c.length; }, 0);
+  var buf = new Uint8Array(total);
+  var offset = 0;
+  for (var i = 0; i < chunks.length; i++) { buf.set(chunks[i], offset); offset += chunks[i].length; }
+  return buf;
+}
+
+async function readAllChunks(readable) {
+  var chunks = [];
+  var reader = readable.getReader();
+  while (true) {
+    var result = await reader.read();
+    if (result.done) break;
+    chunks.push(result.value);
+  }
+  return concatChunks(chunks);
+}
+
 function toBase64Url(bytes) {
   var bin = Array.from(new Uint8Array(bytes), function(b) { return String.fromCharCode(b); }).join('');
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -236,18 +264,7 @@ async function compressDeflate(text) {
   var writer = cs.writable.getWriter();
   writer.write(encoded);
   writer.close();
-  var chunks = [];
-  var reader = cs.readable.getReader();
-  while (true) {
-    var result = await reader.read();
-    if (result.done) break;
-    chunks.push(result.value);
-  }
-  var total = chunks.reduce(function(n, c) { return n + c.length; }, 0);
-  var buf = new Uint8Array(total);
-  var offset = 0;
-  for (var i = 0; i < chunks.length; i++) { buf.set(chunks[i], offset); offset += chunks[i].length; }
-  return toBase64Url(buf);
+  return toBase64Url(await readAllChunks(cs.readable));
 }
 
 async function compressText(text) {
@@ -267,18 +284,7 @@ async function decompressDeflate(bytes) {
   var writer = ds.writable.getWriter();
   writer.write(bytes);
   writer.close();
-  var chunks = [];
-  var reader = ds.readable.getReader();
-  while (true) {
-    var result = await reader.read();
-    if (result.done) break;
-    chunks.push(result.value);
-  }
-  var total = chunks.reduce(function(n, c) { return n + c.length; }, 0);
-  var buf = new Uint8Array(total);
-  var offset = 0;
-  for (var i = 0; i < chunks.length; i++) { buf.set(chunks[i], offset); offset += chunks[i].length; }
-  return new TextDecoder().decode(buf);
+  return new TextDecoder().decode(await readAllChunks(ds.readable));
 }
 
 async function decompressText(b64url) {

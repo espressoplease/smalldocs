@@ -544,6 +544,8 @@ exports.RANGE_NUM_PAIRS = RANGE_NUM_PAIRS;
 exports.STANDALONE_COLOR_IDS = STANDALONE_COLOR_IDS;
 exports.ALL_COLOR_IDS        = ALL_COLOR_IDS;
 
+exports.hexToHsl              = hexToHsl;
+exports.hslToHex              = hslToHex;
 exports.controlToCssVars      = controlToCssVars;
 exports.cascadeColor          = cascadeColor;
 exports.invertLightness       = invertLightness;

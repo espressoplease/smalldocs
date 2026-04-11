@@ -86,7 +86,7 @@ module.exports = function(harness) {
 
   test('all JS modules exist under public/', () => {
     const dir = path.join(__dirname, '..', 'public');
-    ['sdocs-yaml.js', 'sdocs-state.js', 'sdocs-theme.js', 'sdocs-controls.js', 'sdocs-export.js', 'sdocs-app.js'].forEach(f => {
+    ['sdocs-yaml.js', 'sdocs-slugify.js', 'sdocs-state.js', 'sdocs-theme.js', 'sdocs-controls.js', 'sdocs-export.js', 'sdocs-app.js'].forEach(f => {
       assert.ok(fs.existsSync(path.join(dir, f)), `missing ${f}`);
     });
   });

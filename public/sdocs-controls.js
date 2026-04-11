@@ -6,7 +6,7 @@ var S = SDocs;
 
 // ── CSS var updates ──────────────────────────────────
 
-function applyCtrl(id) {
+function applyControlToCss(id) {
   var el = document.getElementById(id);
   if (!el) return;
   var v = el.value;
@@ -35,14 +35,14 @@ function readAllControlValues() {
   return vals;
 }
 
-function linkRangeNum(rangeId, numId) {
+function syncRangeAndNumber(rangeId, numId) {
   var r = document.getElementById(rangeId);
   var n = document.getElementById(numId);
-  r.addEventListener('input', function() { n.value = r.value; applyCtrl(numId); });
-  n.addEventListener('input', function() { r.value = n.value; applyCtrl(numId); });
+  r.addEventListener('input', function() { n.value = r.value; applyControlToCss(numId); });
+  n.addEventListener('input', function() { r.value = n.value; applyControlToCss(numId); });
 }
 
-SDocStyles.RANGE_NUM_PAIRS.forEach(function(pair) { linkRangeNum(pair[0], pair[1]); });
+SDocStyles.RANGE_NUM_PAIRS.forEach(function(pair) { syncRangeAndNumber(pair[0], pair[1]); });
 
 var STANDALONE_COLOR_IDS = new Set(SDocStyles.STANDALONE_COLOR_IDS);
 
@@ -54,7 +54,7 @@ var STANDALONE_COLOR_IDS = new Set(SDocStyles.STANDALONE_COLOR_IDS);
   'ctrl-bq-border-color',
   'ctrl-chart-accent','ctrl-chart-palette',
 ].forEach(function(id) {
-  var handler = function() { if (STANDALONE_COLOR_IDS.has(id)) S.overriddenColors.add(id); applyCtrl(id); S.syncAll('controls'); };
+  var handler = function() { if (STANDALONE_COLOR_IDS.has(id)) S.overriddenColors.add(id); applyControlToCss(id); S.syncAll('controls'); };
   document.getElementById(id).addEventListener('input',  handler);
   document.getElementById(id).addEventListener('change', handler);
 });
@@ -111,18 +111,17 @@ function resetColorValue(ctrlId) {
 Object.keys(COLOR_VAR).forEach(function(ctrlId) {
   var el = document.getElementById(ctrlId);
   if (!el) return;
-  el.addEventListener('input',  function() { setColorValue(ctrlId, el.value, true); S.syncAll('controls'); });
-  el.addEventListener('change', function() { setColorValue(ctrlId, el.value, true); S.syncAll('controls'); });
+  var handler = function() { setColorValue(ctrlId, el.value, true); S.syncAll('controls'); };
+  el.addEventListener('input',  handler);
+  el.addEventListener('change', handler);
 });
 
-document.getElementById('reset-color').addEventListener('click',      function() { S.overriddenColors.delete('ctrl-color'); setColorValue('ctrl-color', S.getColorDefault(), false); S.syncAll('controls'); });
-document.getElementById('reset-h-color').addEventListener('click',    function() { resetColorValue('ctrl-h-color'); S.syncAll('controls'); });
-document.getElementById('reset-h1-color').addEventListener('click',   function() { resetColorValue('ctrl-h1-color'); S.syncAll('controls'); });
-document.getElementById('reset-h2-color').addEventListener('click',   function() { resetColorValue('ctrl-h2-color'); S.syncAll('controls'); });
-document.getElementById('reset-h3-color').addEventListener('click',   function() { resetColorValue('ctrl-h3-color'); S.syncAll('controls'); });
-document.getElementById('reset-h4-color').addEventListener('click',   function() { resetColorValue('ctrl-h4-color'); S.syncAll('controls'); });
-document.getElementById('reset-p-color').addEventListener('click',    function() { resetColorValue('ctrl-p-color'); S.syncAll('controls'); });
-document.getElementById('reset-list-color').addEventListener('click', function() { resetColorValue('ctrl-list-color'); S.syncAll('controls'); });
+// Cascade color reset buttons
+document.getElementById('reset-color').addEventListener('click', function() { S.overriddenColors.delete('ctrl-color'); setColorValue('ctrl-color', S.getColorDefault(), false); S.syncAll('controls'); });
+['ctrl-h-color','ctrl-h1-color','ctrl-h2-color','ctrl-h3-color','ctrl-h4-color','ctrl-p-color','ctrl-list-color'].forEach(function(ctrlId) {
+  var btn = document.getElementById('reset-' + ctrlId.replace('ctrl-', ''));
+  if (btn) btn.addEventListener('click', function() { resetColorValue(ctrlId); S.syncAll('controls'); });
+});
 
 // Block cascade resets
 ['ctrl-block-bg','ctrl-block-text','ctrl-code-bg','ctrl-code-color','ctrl-bq-bg','ctrl-bq-color','ctrl-chart-bg','ctrl-chart-text'].forEach(function(ctrlId) {
@@ -146,7 +145,7 @@ document.getElementById('reset-list-color').addEventListener('click', function()
 
 // ── Apply styles from meta → controls ──────────────────
 
-function setCtrl(id, val) {
+function setControlValue(id, val) {
   if (val === undefined || val === null) return;
   var el = document.getElementById(id);
   if (!el) return;
@@ -154,7 +153,7 @@ function setCtrl(id, val) {
   var rangeId = id.replace(/-num$/, '-range');
   var rng = document.getElementById(rangeId);
   if (rng) rng.value = val;
-  applyCtrl(id);
+  applyControlToCss(id);
 }
 
 function applyStylesFromMeta(s) {
@@ -176,14 +175,14 @@ function applyStylesFromMeta(s) {
         return o.value.replace(/['"]/g,'').split(',')[0].trim() === fontName ||
                o.textContent === fontName;
       });
-      if (match) { sel.value = match.value; applyCtrl(ctrlId); }
+      if (match) { sel.value = match.value; applyControlToCss(ctrlId); }
     }
   });
 
   Object.keys(controls).forEach(function(id) {
     if (id === 'ctrl-font-family' || id === 'ctrl-h-font-family') return;
     if (SDocStyles.COLOR_VAR_MAP[id]) return;
-    setCtrl(id, controls[id]);
+    setControlValue(id, controls[id]);
   });
 
   // Top-level colors = light theme. dark: block = explicit dark overrides.
@@ -307,7 +306,7 @@ function resetAllStyles() {
    'ctrl-bq-border-color','ctrl-bq-bw-num','ctrl-bq-size-num',
    'ctrl-list-spacing-num','ctrl-list-indent-num',
    'ctrl-chart-accent','ctrl-chart-palette',
-  ].forEach(function(id) { applyCtrl(id); });
+  ].forEach(function(id) { applyControlToCss(id); });
 }
 
 // ── Init: set colors to theme-appropriate defaults ──────
