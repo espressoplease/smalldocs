@@ -56,7 +56,7 @@ function render() {
   S.destroyCharts();
   var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
   if (oldSpacer) oldSpacer.remove();
-  S.renderedEl.innerHTML = marked.parse(S.currentBody);
+  S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody));
 
   var slugCounts = {};
   var allHeadings = [].slice.call(S.renderedEl.querySelectorAll('h1, h2, h3, h4'));
