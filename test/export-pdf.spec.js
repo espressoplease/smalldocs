@@ -262,3 +262,58 @@ test.describe('PDF export — color preservation', () => {
     expect(aMatch[1].trim()).toBe('#00ffaa');
   });
 });
+
+// ═══════════════════════════════════════════════════
+//  WORD EXPORT
+// ═══════════════════════════════════════════════════
+
+test.describe('Word export', () => {
+  test('produces a valid OOXML docx file', async ({ page }) => {
+    await loadDoc(page, CHART_DOC);
+    const bytes = await page.evaluate(async () => {
+      window.global = window;
+      await new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@turbodocx/html-to-docx@1/dist/html-to-docx.browser.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      var closed = window.SDocs.expandAllSections();
+      await new Promise(function(r) { requestAnimationFrame(function() { setTimeout(r, 150); }); });
+      var html = window.SDocs.buildExportHTML();
+      window.SDocs.restoreSections(closed);
+      var blob = await window.HTMLToDOCX(html, null, { orientation: 'portrait' });
+      var ab = await blob.arrayBuffer();
+      return Array.from(new Uint8Array(ab).slice(0, 4));
+    });
+    // Valid ZIP (OOXML) starts with PK\x03\x04
+    expect(bytes).toEqual([0x50, 0x4B, 0x03, 0x04]);
+  });
+
+  test('docx contains document.xml (not altChunk)', async ({ page }) => {
+    const md = '# Simple Test\n\nA paragraph.\n';
+    await loadDoc(page, md);
+    const content = await page.evaluate(async () => {
+      window.global = window;
+      await new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@turbodocx/html-to-docx@1/dist/html-to-docx.browser.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      var html = window.SDocs.buildExportHTML();
+      var blob = await window.HTMLToDOCX(html, null, { orientation: 'portrait' });
+      var ab = await blob.arrayBuffer();
+      // Convert to string to check for altChunk vs real content
+      var text = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(ab));
+      return {
+        hasDocumentXml: text.includes('word/document.xml'),
+        hasAltChunk: text.includes('altChunk'),
+        hasStyles: text.includes('word/styles.xml'),
+      };
+    });
+    expect(content.hasDocumentXml).toBe(true);
+    expect(content.hasAltChunk).toBe(false);
+    expect(content.hasStyles).toBe(true);
+  });
+});

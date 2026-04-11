@@ -158,11 +158,29 @@ function exportPDF() {
   requestAnimationFrame(function() { setTimeout(function() {
     var html = buildExportHTML();
     restoreSections(closed);
-    var win = window.open('', '_blank', 'width=900,height=700');
-    win.document.open();
-    win.document.write(html + '<script>\n    Promise.all(\n      Array.from(document.images).filter(function(i){return !i.complete;}).map(function(i){\n        return new Promise(function(r){i.onload=i.onerror=r;});\n      })\n    ).then(function(){ return document.fonts.ready; }).then(function(){\n      window.focus();\n      window.print();\n    });\n  <\/script>');
-    win.document.close();
-    S.setStatus('PDF print dialog opened');
+    // Use a hidden iframe to avoid popup blockers
+    var iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;left:-9999px;width:900px;height:700px;';
+    document.body.appendChild(iframe);
+    var doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    // Wait for images and fonts, then trigger print
+    var iframeWin = iframe.contentWindow;
+    Promise.all(
+      Array.from(doc.images).filter(function(i) { return !i.complete; }).map(function(i) {
+        return new Promise(function(r) { i.onload = i.onerror = r; });
+      })
+    ).then(function() {
+      return doc.fonts ? doc.fonts.ready : Promise.resolve();
+    }).then(function() {
+      iframeWin.focus();
+      iframeWin.print();
+      S.setStatus('PDF print dialog opened');
+      // Clean up iframe after print dialog closes
+      setTimeout(function() { document.body.removeChild(iframe); }, 1000);
+    });
   }, 150); });
 }
 
@@ -170,15 +188,16 @@ S.buildExportHTML = buildExportHTML;
 S.expandAllSections = expandAllSections;
 S.restoreSections = restoreSections;
 
-var htmlDocxLoaded = false;
+var htmlToDocxLoaded = false;
 
-function loadHtmlDocx() {
+function loadHtmlToDocx() {
   return new Promise(function(resolve, reject) {
-    if (htmlDocxLoaded) { resolve(); return; }
+    if (htmlToDocxLoaded) { resolve(); return; }
+    window.global = window; // polyfill for browser
     var s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js';
-    s.onload = function() { htmlDocxLoaded = true; resolve(); };
-    s.onerror = function() { reject(new Error('Could not load html-docx-js')); };
+    s.src = 'https://cdn.jsdelivr.net/npm/@turbodocx/html-to-docx@1/dist/html-to-docx.browser.js';
+    s.onload = function() { htmlToDocxLoaded = true; resolve(); };
+    s.onerror = function() { reject(new Error('Could not load html-to-docx')); };
     document.head.appendChild(s);
   });
 }
@@ -186,9 +205,12 @@ function loadHtmlDocx() {
 async function exportWord() {
   S.setStatus('Generating Word document\u2026');
   try {
-    await loadHtmlDocx();
+    await loadHtmlToDocx();
+    var closed = expandAllSections();
+    await new Promise(function(r) { requestAnimationFrame(function() { setTimeout(r, 150); }); });
     var html = buildExportHTML();
-    var blob = window.htmlDocx.asBlob(html, {
+    restoreSections(closed);
+    var blob = await window.HTMLToDOCX(html, null, {
       orientation: 'portrait',
       margins: { top: 720, right: 900, bottom: 720, left: 900 },
     });
