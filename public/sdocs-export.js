@@ -255,6 +255,50 @@ function imgToDataUrl(img) {
   } catch (e) { return null; }
 }
 
+// ── CSS → PDF helpers ──
+
+// px → pt (CSS uses 1px = 1/96in; PDF uses 1pt = 1/72in → pt = px * 0.75)
+function pxToPt(px) { return parseFloat(px) * 0.75; }
+
+// Parse "rgb(r, g, b)" or "rgba(r, g, b, a)" → hex
+function rgbStrToHex(s) {
+  if (!s || s === 'transparent' || s === 'rgba(0, 0, 0, 0)') return null;
+  var m = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!m) return s.charAt(0) === '#' ? s : null;
+  var r = parseInt(m[1]), g = parseInt(m[2]), b = parseInt(m[3]);
+  return '#' + [r, g, b].map(function(v) { return (v < 16 ? '0' : '') + v.toString(16); }).join('');
+}
+
+// Read computed CSS into a structured object
+function readComputedBlock(el) {
+  var cs = getComputedStyle(el);
+  return {
+    color: rgbStrToHex(cs.color),
+    background: rgbStrToHex(cs.backgroundColor),
+    fontSize: pxToPt(parseFloat(cs.fontSize)),
+    fontWeight: parseInt(cs.fontWeight) || 400,
+    fontStyle: cs.fontStyle,
+    lineHeight: cs.lineHeight === 'normal' ? null : parseFloat(cs.lineHeight),
+    padL: pxToPt(parseFloat(cs.paddingLeft) || 0),
+    padR: pxToPt(parseFloat(cs.paddingRight) || 0),
+    padT: pxToPt(parseFloat(cs.paddingTop) || 0),
+    padB: pxToPt(parseFloat(cs.paddingBottom) || 0),
+    marL: pxToPt(parseFloat(cs.marginLeft) || 0),
+    marR: pxToPt(parseFloat(cs.marginRight) || 0),
+    marT: pxToPt(parseFloat(cs.marginTop) || 0),
+    marB: pxToPt(parseFloat(cs.marginBottom) || 0),
+    rTL: pxToPt(parseFloat(cs.borderTopLeftRadius) || 0),
+    rTR: pxToPt(parseFloat(cs.borderTopRightRadius) || 0),
+    rBR: pxToPt(parseFloat(cs.borderBottomRightRadius) || 0),
+    rBL: pxToPt(parseFloat(cs.borderBottomLeftRadius) || 0),
+    borderLeftColor: rgbStrToHex(cs.borderLeftColor),
+    borderLeftWidth: pxToPt(parseFloat(cs.borderLeftWidth) || 0),
+    borderColor: rgbStrToHex(cs.borderColor || cs.borderTopColor),
+    borderWidth: pxToPt(parseFloat(cs.borderTopWidth) || 0),
+    textDecoration: cs.textDecorationLine || cs.textDecoration,
+  };
+}
+
 // ── pdf-lib rendering engine ──
 
 async function renderPdf(rendered, st, chartImages) {
@@ -315,6 +359,42 @@ async function renderPdf(rendered, st, chartImages) {
     }
   }
 
+  // ── Rounded rectangle (SVG path; pdf-lib's drawRectangle doesn't support borderRadius) ──
+  // opts.x/y = top-left corner in PDF coords (y = distance from page bottom)
+  // opts.radius = number, or {tl, tr, br, bl} for per-corner radii
+  function drawRoundedRect(opts) {
+    var x = opts.x, yTop = opts.y, w = opts.width, h = opts.height;
+    var r = opts.radius;
+    var rTL, rTR, rBR, rBL;
+    if (typeof r === 'object') {
+      rTL = r.tl || 0; rTR = r.tr || 0; rBR = r.br || 0; rBL = r.bl || 0;
+    } else {
+      rTL = rTR = rBR = rBL = r || 0;
+    }
+    var maxR = Math.min(w, h) / 2;
+    rTL = Math.min(rTL, maxR); rTR = Math.min(rTR, maxR);
+    rBR = Math.min(rBR, maxR); rBL = Math.min(rBL, maxR);
+
+    // Build SVG path in local coords: origin at top-left, y grows DOWN, extends to (w, h)
+    var path = 'M' + rTL + ' 0';
+    path += ' L' + (w - rTR) + ' 0';
+    if (rTR) path += ' Q' + w + ' 0 ' + w + ' ' + rTR;
+    path += ' L' + w + ' ' + (h - rBR);
+    if (rBR) path += ' Q' + w + ' ' + h + ' ' + (w - rBR) + ' ' + h;
+    path += ' L' + rBL + ' ' + h;
+    if (rBL) path += ' Q0 ' + h + ' 0 ' + (h - rBL);
+    path += ' L0 ' + rTL;
+    if (rTL) path += ' Q0 0 ' + rTL + ' 0';
+    path += ' Z';
+
+    // Pass origin via x/y options — pdf-lib flips SVG y-down into PDF y-up
+    var drawOpts = { x: x, y: yTop };
+    if (opts.color) drawOpts.color = hexToRgb(opts.color);
+    if (opts.borderColor) drawOpts.borderColor = hexToRgb(opts.borderColor);
+    if (opts.borderWidth) drawOpts.borderWidth = opts.borderWidth;
+    page.drawSvgPath(path, drawOpts);
+  }
+
   // ── Text wrapping engine ──
 
   function measureRun(run) {
@@ -373,21 +453,32 @@ async function renderPdf(rendered, st, chartImages) {
     return lines;
   }
 
-  // Draw a single line of runs at x, y
+  // Draw a single line of runs. `ly` is the baseline Y (PDF coords).
   function drawLine(lineRuns, x, ly) {
     var cx = x;
     lineRuns.forEach(function(r) {
       if (!r.text) return;
       var w = r.font.widthOfTextAtSize(r.text, r.size);
-      // Draw inline code background
-      if (r.code) {
-        var h = r.size + 4;
-        page.drawRectangle({ x: cx - 2, y: ly - 3, width: w + 4, height: h, borderRadius: 3, color: hexToRgb(st.codeBg) });
+      // Draw inline code background pill (skip pure whitespace runs)
+      if (r.code && r.text.trim()) {
+        var pillPadX = 3;
+        var pillPadY = 2;
+        var ascent = r.size * 0.82;
+        var descent = r.size * 0.2;
+        var pillH = ascent + descent + pillPadY * 2;
+        // Top-left of pill in PDF coords: x = cx - padX, y = ly + ascent + padY
+        drawRoundedRect({
+          x: cx - pillPadX,
+          y: ly + ascent + pillPadY,
+          width: w + pillPadX * 2,
+          height: pillH,
+          radius: 3,
+          color: st.codeBg,
+        });
       }
       page.drawText(r.text, { x: cx, y: ly, size: r.size, font: r.font, color: hexToRgb(r.color || st.pColor) });
-      // Underline for links
       if (r.underline) {
-        page.drawLine({ start: { x: cx, y: ly - 2 }, end: { x: cx + w, y: ly - 2 }, thickness: 0.5, color: hexToRgb(r.color) });
+        page.drawLine({ start: { x: cx, y: ly - 1.5 }, end: { x: cx + w, y: ly - 1.5 }, thickness: 0.5, color: hexToRgb(r.color) });
       }
       cx += w;
     });
@@ -406,11 +497,11 @@ async function renderPdf(rendered, st, chartImages) {
     });
   }
 
-  // ── DOM walker ──
+  // ── Async walker ──
 
   var chartIdx = 0;
 
-  function walk(parent) {
+  async function walk(parent) {
     var children = parent.children;
     for (var i = 0; i < children.length; i++) {
       var el = children[i];
@@ -418,7 +509,7 @@ async function renderPdf(rendered, st, chartImages) {
 
       if (el.classList.contains('section-toggle') || el.classList.contains('copy-btn') ||
           el.classList.contains('header-copy-btn') || el.classList.contains('header-anchor')) continue;
-      if (el.classList.contains('md-section') || el.classList.contains('md-section-body')) { walk(el); continue; }
+      if (el.classList.contains('md-section') || el.classList.contains('md-section-body')) { await walk(el); continue; }
       if (el.classList.contains('pre-wrapper')) {
         var ip = el.querySelector('pre');
         if (ip) drawCodeBlock(ip);
@@ -426,167 +517,245 @@ async function renderPdf(rendered, st, chartImages) {
       }
 
       if (/^h[1-4]$/.test(tag)) drawHeading(el, tag);
-      else if (tag === 'p') drawParagraphEl(el);
+      else if (tag === 'p') await drawParagraphEl(el);
       else if (tag === 'pre') drawCodeBlock(el);
       else if (tag === 'blockquote') drawBlockquote(el);
       else if (tag === 'ul') drawList(el, false);
       else if (tag === 'ol') drawList(el, true);
-      else if (el.classList.contains('sdoc-chart')) drawChart();
-      else if (tag === 'hr') drawHR();
-      else if (tag === 'img') drawImage(el);
+      else if (el.classList.contains('sdoc-chart')) await drawChart();
+      else if (tag === 'hr') drawHR(el);
+      else if (tag === 'img') await drawImage(el);
       else if (tag === 'table') drawTable(el);
     }
   }
 
-  // ── Element renderers ──
+  // ── Element renderers (CSS-driven) ──
 
   function drawHeading(el, tag) {
     var level = parseInt(tag[1]);
-    var sizes = [st.h1Size, st.h2Size, st.h3Size, st.h4Size];
-    var colors = [st.h1Color, st.h2Color, st.h3Color, st.h4Color];
-    var sz = sizes[level - 1];
-    var topGap = level === 1 ? 0 : sz * 0.8;
-    y -= topGap;
-    ensureSpace(sz + 8);
-    page.drawText(el.textContent.trim(), { x: ML, y: y, size: sz, font: level <= 2 ? headBold : headFont, color: hexToRgb(colors[level - 1]) });
-    y -= sz * 0.4 + 8;
-    // H2 underline
-    if (level === 2) {
-      page.drawLine({ start: { x: ML, y: y + 2 }, end: { x: ML + CW, y: y + 2 }, thickness: 0.5, color: hexToRgb('#ede8e2') });
-      y -= 4;
-    }
+    var s = readComputedBlock(el);
+    // Use computed font size and weight
+    var sz = s.fontSize;
+    var f = s.fontWeight >= 700 ? headBold : (s.fontWeight >= 500 ? headFont : headFont);
+    var color = s.color || st.hColor;
+    // Margin top (use CSS value)
+    y -= s.marT;
+    // Wrap heading text across multiple lines if needed
+    var runs = [{ text: el.textContent.trim(), bold: s.fontWeight >= 600, color: color, size: sz, font: f }];
+    var lines = wrapHeadingRuns(runs, CW, f, sz);
+    var lh = (s.lineHeight && s.lineHeight > 0) ? s.lineHeight * 0.75 : sz * 1.25;
+    lines.forEach(function(line) {
+      ensureSpace(lh);
+      var cx = ML;
+      line.forEach(function(word) {
+        page.drawText(word.text, { x: cx, y: y - sz * 0.85, size: sz, font: f, color: hexToRgb(color) });
+        cx += f.widthOfTextAtSize(word.text, sz);
+      });
+      y -= lh;
+    });
+    y -= s.marB * 0.3; // CSS margin-bottom, scaled down a bit for PDF fit
   }
 
-  function drawParagraphEl(el) {
-    var hasImg = el.querySelector('img');
-    if (hasImg) {
-      el.childNodes.forEach(function(child) {
-        if (child.nodeType === 1 && child.tagName === 'IMG') {
-          drawImage(child);
-        } else if (child.nodeType === 3 && child.textContent.trim()) {
-          drawParagraph([{ text: child.textContent, color: st.pColor }]);
-        } else if (child.nodeType === 1) {
-          drawParagraph(extractRuns(child));
+  // Special wrap for heading (single font/size, just for line breaking)
+  function wrapHeadingRuns(runs, maxW, f, sz) {
+    var lines = [[]];
+    var lineW = 0;
+    runs.forEach(function(run) {
+      var words = run.text.split(/(\s+)/);
+      words.forEach(function(word) {
+        if (!word) return;
+        var ww = f.widthOfTextAtSize(word, sz);
+        if (lineW + ww > maxW && lineW > 0 && word.trim()) {
+          lines.push([]); lineW = 0;
         }
+        lines[lines.length - 1].push({ text: word });
+        lineW += ww;
       });
+    });
+    return lines;
+  }
+
+  async function drawParagraphEl(el) {
+    var s = readComputedBlock(el);
+    y -= s.marT * 0.2; // tighter vertical rhythm in PDF
+    // Detect images inside the paragraph
+    var imgChildren = el.querySelectorAll(':scope > img');
+    if (imgChildren.length) {
+      // Process each child in order
+      for (var i = 0; i < el.childNodes.length; i++) {
+        var child = el.childNodes[i];
+        if (child.nodeType === 1 && child.tagName === 'IMG') {
+          await drawImage(child);
+        } else if (child.nodeType === 3 && child.textContent.trim()) {
+          drawParagraphRuns([{ text: child.textContent, color: s.color || st.pColor }]);
+        } else if (child.nodeType === 1) {
+          drawParagraphRuns(extractRuns(child));
+        }
+      }
     } else {
-      drawParagraph(extractRuns(el));
-      y -= fontSize * 0.3; // paragraph gap
+      drawParagraphRuns(extractRuns(el), s);
     }
+    y -= s.marB * 0.4;
+  }
+
+  function drawParagraphRuns(runs, s) {
+    if (!runs.length) return;
+    var lines = wrapRuns(runs, CW);
+    var lh = s && s.lineHeight ? s.lineHeight * 0.75 : fontSize * st.lineH;
+    lines.forEach(function(lineRuns) {
+      ensureSpace(lh);
+      drawLine(lineRuns, ML, y - fontSize * 0.85);
+      y -= lh;
+    });
   }
 
   function drawCodeBlock(el) {
+    var s = readComputedBlock(el);
     var code = el.querySelector('code');
     var text = (code || el).textContent;
     var lines = text.split('\n');
     if (lines[lines.length - 1] === '') lines.pop();
-    var codeSize = fontSize * 0.85;
+
+    var codeSize = s.fontSize * 0.85;
+    if (code) {
+      codeSize = pxToPt(parseFloat(getComputedStyle(code).fontSize));
+    }
     var lineH = codeSize * 1.5;
-    var pad = 12;
-    var blockH = lines.length * lineH + pad * 2;
+    var padT = s.padT, padB = s.padB, padL = s.padL, padR = s.padR;
+    var blockH = lines.length * lineH + padT + padB;
+    var radius = { tl: s.rTL, tr: s.rTR, br: s.rBR, bl: s.rBL };
+
+    y -= s.marT * 0.4;
     ensureSpace(blockH + 8);
-    // Background rounded rect
-    page.drawRectangle({ x: ML, y: y - blockH + codeSize + 2, width: CW, height: blockH,
-      borderRadius: 6, color: hexToRgb(st.preBg), borderColor: hexToRgb(st.preBorder), borderWidth: 0.5 });
-    // Draw lines
-    var cy = y - pad + 2;
+
+    // Draw rounded background (top-left at current y)
+    drawRoundedRect({
+      x: ML, y: y, width: CW, height: blockH,
+      radius: radius,
+      color: s.background || st.preBg,
+      borderColor: s.borderColor || st.preBorder,
+      borderWidth: s.borderWidth > 0 ? s.borderWidth : 0.5,
+    });
+
+    // Draw code lines (baseline positioned inside padding)
+    var cy = y - padT - codeSize * 0.82;
+    var codeColor = code ? rgbStrToHex(getComputedStyle(code).color) : st.codeColor;
     lines.forEach(function(line) {
-      if (line) page.drawText(line, { x: ML + pad, y: cy, size: codeSize, font: mono, color: hexToRgb(st.codeColor) });
+      if (line) page.drawText(line, { x: ML + padL, y: cy, size: codeSize, font: mono, color: hexToRgb(codeColor) });
       cy -= lineH;
     });
-    y -= blockH + fontSize * 0.6;
+    y -= blockH + s.marB * 0.4;
   }
 
   function drawBlockquote(el) {
+    var s = readComputedBlock(el);
     var runs = [];
     el.querySelectorAll('p').forEach(function(p) { runs = runs.concat(extractRuns(p)); });
-    if (!runs.length) runs = [{ text: el.textContent.trim(), color: st.bqColor }];
-    runs.forEach(function(r) { r.color = st.bqColor; });
-    var lines = wrapRuns(runs, CW - 30);
-    var lh = fontSize * st.lineH;
-    var pad = 10;
-    var blockH = lines.length * lh + pad * 2;
+    if (!runs.length) runs = [{ text: el.textContent.trim(), color: s.color || st.bqColor }];
+    runs.forEach(function(r) { r.color = s.color || st.bqColor; });
+
+    var lh = s.lineHeight ? s.lineHeight * 0.75 : fontSize * st.lineH;
+    var padL = s.padL, padR = s.padR, padT = s.padT, padB = s.padB;
+    var borderW = s.borderLeftWidth;
+    var textX = ML + padL + borderW;
+    var lines = wrapRuns(runs, CW - padL - padR - borderW);
+    var blockH = lines.length * lh + padT + padB;
+    var radius = { tl: s.rTL, tr: s.rTR, br: s.rBR, bl: s.rBL };
+
+    y -= s.marT * 0.4;
     ensureSpace(blockH + 4);
-    // Background
-    page.drawRectangle({ x: ML, y: y - blockH + fontSize + 2, width: CW, height: blockH,
-      borderRadius: 4, color: hexToRgb(st.bqBg) });
-    // Left border
-    page.drawRectangle({ x: ML, y: y - blockH + fontSize + 2, width: 3, height: blockH,
-      color: hexToRgb(st.bqBorderColor) });
-    // Text
-    var bqY = y - pad + 2;
+
+    // Background — full width, with CSS radii (typically left corners = 0, right corners = 6)
+    drawRoundedRect({
+      x: ML, y: y, width: CW, height: blockH,
+      radius: radius,
+      color: s.background || st.bqBg,
+    });
+    // Left border — flat rectangle (no rounding)
+    if (borderW > 0) {
+      var borderColor = s.borderLeftColor || st.bqBorderColor;
+      drawRoundedRect({
+        x: ML, y: y, width: borderW, height: blockH,
+        radius: 0,
+        color: borderColor,
+      });
+    }
+
+    var bqY = y - padT - fontSize * 0.82;
     lines.forEach(function(lineRuns) {
-      drawLine(lineRuns, ML + 16, bqY);
+      drawLine(lineRuns, textX + 4, bqY);
       bqY -= lh;
     });
-    y -= blockH + fontSize * 0.5;
+    y -= blockH + s.marB * 0.4;
   }
 
   function drawList(el, ordered) {
+    var s = readComputedBlock(el);
     var items = el.querySelectorAll(':scope > li');
-    var lh = fontSize * st.lineH;
+    y -= s.marT * 0.2;
     items.forEach(function(li, idx) {
+      var itemS = readComputedBlock(li);
+      var lh = itemS.lineHeight ? itemS.lineHeight * 0.75 : fontSize * st.lineH;
       var bullet = ordered ? (idx + 1) + '.' : '\u2022';
-      ensureSpace(lh);
-      page.drawText(bullet, { x: ML + 12, y: y, size: fontSize, font: font, color: hexToRgb(st.listColor) });
+      var indent = 14;
       var runs = extractRuns(li);
-      var lines = wrapRuns(runs, CW - 30);
+      var lines = wrapRuns(runs, CW - indent - 8);
       lines.forEach(function(lineRuns, lineIdx) {
         ensureSpace(lh);
-        drawLine(lineRuns, ML + 28, y);
+        if (lineIdx === 0) {
+          page.drawText(bullet, { x: ML + 4, y: y - fontSize * 0.85, size: fontSize, font: font, color: hexToRgb(st.listColor) });
+        }
+        drawLine(lineRuns, ML + indent + 4, y - fontSize * 0.85);
         y -= lh;
       });
     });
-    y -= fontSize * 0.3;
+    y -= s.marB * 0.3;
   }
 
-  function drawChart() {
+  async function drawChart() {
     var chartImg = chartImages[chartIdx];
     chartIdx++;
     if (!chartImg || !chartImg.dataUrl || chartImg.dataUrl === 'data:,') return;
     try {
       var imgBytes = Uint8Array.from(atob(chartImg.dataUrl.split(',')[1]), function(c) { return c.charCodeAt(0); });
-      var embedded = doc.embedPng(imgBytes);
-      // embedPng is async in some versions — handle both
-      Promise.resolve(embedded).then(function(img) {
-        var scale = Math.min(CW / img.width, 1);
-        var drawW = img.width * scale;
-        var drawH = img.height * scale;
-        ensureSpace(drawH + 16);
-        var cx = ML + (CW - drawW) / 2;
-        page.drawImage(img, { x: cx, y: y - drawH, width: drawW, height: drawH });
-        y -= drawH + 12;
-      });
-    } catch (e) { /* skip failed chart */ }
+      var img = await doc.embedPng(imgBytes);
+      var scale = Math.min(CW / img.width, 1);
+      var drawW = img.width * scale;
+      var drawH = img.height * scale;
+      ensureSpace(drawH + 16);
+      var cx = ML + (CW - drawW) / 2;
+      page.drawImage(img, { x: cx, y: y - drawH, width: drawW, height: drawH });
+      y -= drawH + 12;
+    } catch (e) { console.warn('Chart embed failed:', e); }
   }
 
-  function drawHR() {
-    ensureSpace(20);
-    y -= 8;
+  function drawHR(el) {
+    var s = el ? readComputedBlock(el) : { marT: 20, marB: 20 };
+    y -= s.marT * 0.5;
+    ensureSpace(10);
     page.drawLine({ start: { x: ML, y: y }, end: { x: ML + CW, y: y }, thickness: 0.5, color: hexToRgb('#e2ddd6') });
-    y -= 12;
+    y -= s.marB * 0.5;
   }
 
-  function drawImage(imgEl) {
+  async function drawImage(imgEl) {
     var dataUrl = imgToDataUrl(imgEl);
     if (!dataUrl) return;
     try {
       var imgBytes = Uint8Array.from(atob(dataUrl.split(',')[1]), function(c) { return c.charCodeAt(0); });
-      var embedded = dataUrl.indexOf('image/png') > -1 ? doc.embedPng(imgBytes) : doc.embedJpg(imgBytes);
-      Promise.resolve(embedded).then(function(img) {
-        var scale = Math.min(CW / img.width, 1);
-        var drawW = img.width * scale;
-        var drawH = img.height * scale;
-        ensureSpace(drawH + 8);
-        page.drawImage(img, { x: ML, y: y - drawH, width: drawW, height: drawH });
-        y -= drawH + 8;
-      });
-    } catch (e) { /* skip */ }
+      var img = dataUrl.indexOf('image/png') > -1 ? await doc.embedPng(imgBytes) : await doc.embedJpg(imgBytes);
+      var scale = Math.min(CW / img.width, 1);
+      var drawW = img.width * scale;
+      var drawH = img.height * scale;
+      ensureSpace(drawH + 8);
+      var cx = ML + (CW - drawW) / 2;
+      page.drawImage(img, { x: cx, y: y - drawH, width: drawW, height: drawH });
+      y -= drawH + 8;
+    } catch (e) { console.warn('Image embed failed:', e); }
   }
 
   function drawTable(el) {
-    var headerCells = [], rows = [];
-    el.querySelectorAll('tr').forEach(function(tr, ri) {
+    var rows = [];
+    el.querySelectorAll('tr').forEach(function(tr) {
       var cells = [];
       tr.querySelectorAll('th, td').forEach(function(td) {
         cells.push({ text: td.textContent, isHeader: td.tagName === 'TH' });
@@ -597,39 +766,34 @@ async function renderPdf(rendered, st, chartImages) {
     var cols = rows[0].length;
     var colW = CW / cols;
     var rowH = fontSize * 1.8;
-    var tableH = rows.length * rowH;
-    ensureSpace(Math.min(tableH, rowH * 3)); // at least first 3 rows
     rows.forEach(function(cells, ri) {
       ensureSpace(rowH);
       var fillColor = ri === 0 ? st.tableHeaderBg : (ri % 2 === 0 ? st.tableEvenBg : null);
       if (fillColor) {
-        page.drawRectangle({ x: ML, y: y - rowH + fontSize + 2, width: CW, height: rowH, color: hexToRgb(fillColor) });
+        page.drawRectangle({ x: ML, y: y - rowH, width: CW, height: rowH, color: hexToRgb(fillColor) });
       }
-      // Cell borders
-      page.drawLine({ start: { x: ML, y: y + fontSize + 2 }, end: { x: ML + CW, y: y + fontSize + 2 }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
+      // Top border
+      page.drawLine({ start: { x: ML, y: y }, end: { x: ML + CW, y: y }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
       cells.forEach(function(cell, ci) {
         var cx = ML + ci * colW + 8;
         var f = cell.isHeader ? bold : font;
-        var txt = cell.text.substring(0, Math.floor(colW / (fontSize * 0.5))); // truncate
-        page.drawText(txt, { x: cx, y: y, size: fontSize * 0.88, font: f, color: hexToRgb(st.pColor) });
-        // Vertical divider
+        var txt = cell.text.substring(0, Math.floor(colW / (fontSize * 0.5)));
+        page.drawText(txt, { x: cx, y: y - fontSize * 1.1, size: fontSize * 0.88, font: f, color: hexToRgb(st.pColor) });
         if (ci > 0) {
-          page.drawLine({ start: { x: ML + ci * colW, y: y + fontSize + 2 }, end: { x: ML + ci * colW, y: y - rowH + fontSize + 2 }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
+          page.drawLine({ start: { x: ML + ci * colW, y: y }, end: { x: ML + ci * colW, y: y - rowH }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
         }
       });
       y -= rowH;
     });
-    // Bottom border
-    page.drawLine({ start: { x: ML, y: y + fontSize + 2 }, end: { x: ML + CW, y: y + fontSize + 2 }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
-    // Side borders
-    page.drawLine({ start: { x: ML, y: y + fontSize + 2 + rows.length * rowH }, end: { x: ML, y: y + fontSize + 2 }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
-    page.drawLine({ start: { x: ML + CW, y: y + fontSize + 2 + rows.length * rowH }, end: { x: ML + CW, y: y + fontSize + 2 }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
-    y -= fontSize * 0.5;
+    page.drawLine({ start: { x: ML, y: y }, end: { x: ML + CW, y: y }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
+    page.drawLine({ start: { x: ML, y: y + rows.length * rowH }, end: { x: ML, y: y }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
+    page.drawLine({ start: { x: ML + CW, y: y + rows.length * rowH }, end: { x: ML + CW, y: y }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
+    y -= 8;
   }
 
   // ── Render ──
 
-  walk(rendered);
+  await walk(rendered);
 
   // Handle async image/chart embeds — wait for all pending promises
   // pdf-lib embedPng/embedJpg return promises; we called them in sync context
