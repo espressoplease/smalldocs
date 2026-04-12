@@ -319,8 +319,14 @@ async function renderPdf(rendered, st, chartImages) {
   try {
     var b400 = await fetchFontBuf(bodySlug, 400);
     var b700 = await fetchFontBuf(bodySlug, 700);
-    font = await doc.embedFont(b400);
-    bold = await doc.embedFont(b700);
+    // { subset: true } is critical: the default CustomFontEmbedder builds its
+    // ToUnicode CMap from the font's cmap table only, so any glyph produced
+    // by OpenType substitution (e.g. Inter's "case" feature swapping "(" for
+    // an uppercase-aware variant next to capitals) has no Unicode mapping
+    // and becomes unextractable. SubsetEmbedder CMaps every glyph that
+    // encodeText actually uses, so substitutions round-trip correctly.
+    font = await doc.embedFont(b400, { subset: true });
+    bold = await doc.embedFont(b700, { subset: true });
   } catch (e) {
     font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
     bold = await doc.embedFont(PDFLib.StandardFonts.HelveticaBold);
@@ -329,13 +335,13 @@ async function renderPdf(rendered, st, chartImages) {
     try {
       var h600 = await fetchFontBuf(headSlug, 600).catch(function() { return fetchFontBuf(headSlug, 700); });
       var h700 = await fetchFontBuf(headSlug, 700).catch(function() { return h600; });
-      headFont = await doc.embedFont(h600);
-      headBold = await doc.embedFont(h700);
+      headFont = await doc.embedFont(h600, { subset: true });
+      headBold = await doc.embedFont(h700, { subset: true });
     } catch (e) { headFont = font; headBold = bold; }
   } else {
     try {
       var semi = await fetchFontBuf(bodySlug, 600);
-      headFont = await doc.embedFont(semi);
+      headFont = await doc.embedFont(semi, { subset: true });
     } catch (e) { headFont = bold; }
     headBold = bold;
   }
