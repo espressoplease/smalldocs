@@ -436,41 +436,135 @@ async function renderPdf(rendered, st, chartImages) {
     var lineW = 0;
     runs.forEach(function(run) {
       if (run.text === '\n') { lines.push([]); lineW = 0; return; }
+
+      // Inline code: treat the whole run as one unit (don't word-split)
+      // so spaces inside "npm i -g sdocs-dev" stay in one pill.
+      if (run.code) {
+        var f = mono;
+        var s = fontSize * 0.85;
+        var ww = f.widthOfTextAtSize(run.text, s);
+        if (lineW + ww > maxW && lineW > 0) {
+          lines.push([]); lineW = 0;
+        }
+        lines[lines.length - 1].push({
+          text: run.text, font: f, size: s,
+          color: run.color, code: true,
+        });
+        lineW += ww;
+        return;
+      }
+
       var words = run.text.split(/(\s+)/);
       words.forEach(function(word) {
         if (!word) return;
-        var f = run.bold ? bold : (run.code ? mono : font);
-        var s = run.code ? fontSize * 0.85 : (run.size || fontSize);
+        var f = run.bold ? bold : (run.italic ? font : font);
+        var s = run.size || fontSize;
         var ww = f.widthOfTextAtSize(word, s);
         if (lineW + ww > maxW && lineW > 0 && word.trim()) {
           lines.push([]);
           lineW = 0;
+          // Skip leading whitespace on wrapped lines
+          if (!word.trim()) return;
         }
-        lines[lines.length - 1].push({ text: word, font: f, size: s, color: run.color, bold: run.bold, italic: run.italic, code: run.code, link: run.link, underline: run.underline });
+        lines[lines.length - 1].push({
+          text: word, font: f, size: s,
+          color: run.color, bold: run.bold, italic: run.italic,
+          link: run.link, underline: run.underline,
+        });
         lineW += ww;
       });
     });
     return lines;
   }
 
-  // Draw a single line of runs. `ly` is the baseline Y (PDF coords).
-  function drawLine(lineRuns, x, ly) {
-    var cx = x;
+  // Wrap a single code-block line to fit within maxW chars (word-break, keep leading indent)
+  function wrapCodeLine(line, maxW, codeSize) {
+    if (mono.widthOfTextAtSize(line, codeSize) <= maxW) return [line];
+    // Extract leading whitespace for continuation indent
+    var indentMatch = line.match(/^\s*/);
+    var indent = indentMatch ? indentMatch[0] : '';
+    var contIndent = indent + '  ';
+    var words = line.split(/( +)/); // split but keep spaces
+    var out = [''];
+    var curW = 0;
+    words.forEach(function(w) {
+      if (!w) return;
+      var ww = mono.widthOfTextAtSize(w, codeSize);
+      if (curW + ww > maxW && out[out.length - 1].trim()) {
+        out.push(contIndent);
+        curW = mono.widthOfTextAtSize(contIndent, codeSize);
+      }
+      out[out.length - 1] += w;
+      curW += ww;
+    });
+    return out;
+  }
+
+  // Add a clickable link annotation to the current page
+  function addLinkAnnotation(url, x1, y1, x2, y2) {
+    var PDFName = PDFLib.PDFName;
+    var PDFString = PDFLib.PDFString;
+    var ctx = doc.context;
+    var linkDict = ctx.obj({
+      Type: 'Annot',
+      Subtype: 'Link',
+      Rect: [x1, y1, x2, y2],
+      Border: [0, 0, 0],
+      C: [0, 0, 1],
+      A: { Type: 'Action', S: 'URI', URI: PDFString.of(url) },
+    });
+    var linkRef = ctx.register(linkDict);
+    var annots = page.node.get(PDFName.of('Annots'));
+    if (!annots) {
+      page.node.set(PDFName.of('Annots'), ctx.obj([linkRef]));
+    } else {
+      annots.push(linkRef);
+    }
+  }
+
+  // Merge adjacent runs with identical formatting so whitespace gets drawn
+  // as part of a single text string (preserves proper inter-word spacing).
+  function mergeRuns(lineRuns) {
+    var out = [];
     lineRuns.forEach(function(r) {
       if (!r.text) return;
+      var last = out[out.length - 1];
+      var key = (r.font === last ? 'x' : '') + '|' + r.size + '|' + (r.color || '') +
+                '|' + (r.code ? '1' : '0') + '|' + (r.underline ? '1' : '0') +
+                '|' + (r.bold ? '1' : '0') + '|' + (r.italic ? '1' : '0') +
+                '|' + (r.link || '');
+      if (last && last._font === r.font && last._key === key) {
+        last.text += r.text;
+      } else {
+        out.push({
+          _font: r.font, _key: key,
+          text: r.text, font: r.font, size: r.size, color: r.color,
+          code: r.code, underline: r.underline, link: r.link,
+          bold: r.bold, italic: r.italic,
+        });
+      }
+    });
+    return out;
+  }
+
+  // Draw a single line of runs. `ly` is the baseline Y (PDF coords).
+  function drawLine(lineRuns, x, ly) {
+    var merged = mergeRuns(lineRuns);
+    var cx = x;
+    merged.forEach(function(r) {
+      if (!r.text) return;
       var w = r.font.widthOfTextAtSize(r.text, r.size);
-      // Draw inline code background pill (skip pure whitespace runs)
+      // Inline code background pill (skip if whitespace-only)
       if (r.code && r.text.trim()) {
-        var pillPadX = 3;
-        var pillPadY = 2;
-        var ascent = r.size * 0.82;
-        var descent = r.size * 0.2;
-        var pillH = ascent + descent + pillPadY * 2;
-        // Top-left of pill in PDF coords: x = cx - padX, y = ly + ascent + padY
+        var padX = 3;
+        var padY = 1.5;
+        var ascent = r.size * 0.78;
+        var descent = r.size * 0.22;
+        var pillH = ascent + descent + padY * 2;
         drawRoundedRect({
-          x: cx - pillPadX,
-          y: ly + ascent + pillPadY,
-          width: w + pillPadX * 2,
+          x: cx - padX,
+          y: ly + ascent + padY,
+          width: w + padX * 2,
           height: pillH,
           radius: 3,
           color: st.codeBg,
@@ -478,7 +572,16 @@ async function renderPdf(rendered, st, chartImages) {
       }
       page.drawText(r.text, { x: cx, y: ly, size: r.size, font: r.font, color: hexToRgb(r.color || st.pColor) });
       if (r.underline) {
-        page.drawLine({ start: { x: cx, y: ly - 1.5 }, end: { x: cx + w, y: ly - 1.5 }, thickness: 0.5, color: hexToRgb(r.color) });
+        page.drawLine({
+          start: { x: cx, y: ly - 1.2 },
+          end: { x: cx + w, y: ly - 1.2 },
+          thickness: 0.6,
+          color: hexToRgb(r.color),
+        });
+      }
+      if (r.link) {
+        try { addLinkAnnotation(r.link, cx, ly - 2, cx + w, ly + r.size * 0.85); }
+        catch (e) { /* ignore annotation errors */ }
       }
       cx += w;
     });
@@ -534,26 +637,24 @@ async function renderPdf(rendered, st, chartImages) {
   function drawHeading(el, tag) {
     var level = parseInt(tag[1]);
     var s = readComputedBlock(el);
-    // Use computed font size and weight
     var sz = s.fontSize;
-    var f = s.fontWeight >= 700 ? headBold : (s.fontWeight >= 500 ? headFont : headFont);
+    var f = s.fontWeight >= 700 ? headBold : headFont;
     var color = s.color || st.hColor;
-    // Margin top (use CSS value)
-    y -= s.marT;
-    // Wrap heading text across multiple lines if needed
-    var runs = [{ text: el.textContent.trim(), bold: s.fontWeight >= 600, color: color, size: sz, font: f }];
+    y -= s.marT * 0.8;
+    var runs = [{ text: el.textContent.trim() }];
     var lines = wrapHeadingRuns(runs, CW, f, sz);
-    var lh = (s.lineHeight && s.lineHeight > 0) ? s.lineHeight * 0.75 : sz * 1.25;
+    var lh = sz * 1.2;
     lines.forEach(function(line) {
       ensureSpace(lh);
       var cx = ML;
       line.forEach(function(word) {
-        page.drawText(word.text, { x: cx, y: y - sz * 0.85, size: sz, font: f, color: hexToRgb(color) });
+        page.drawText(word.text, { x: cx, y: y - sz * 0.82, size: sz, font: f, color: hexToRgb(color) });
         cx += f.widthOfTextAtSize(word.text, sz);
       });
       y -= lh;
     });
-    y -= s.marB * 0.3; // CSS margin-bottom, scaled down a bit for PDF fit
+    // Heading bottom margin — use full CSS value so paragraphs below aren't cramped
+    y -= Math.max(s.marB, sz * 0.35);
   }
 
   // Special wrap for heading (single font/size, just for line breaking)
@@ -612,9 +713,9 @@ async function renderPdf(rendered, st, chartImages) {
   function drawCodeBlock(el) {
     var s = readComputedBlock(el);
     var code = el.querySelector('code');
-    var text = (code || el).textContent;
-    var lines = text.split('\n');
-    if (lines[lines.length - 1] === '') lines.pop();
+    var rawText = (code || el).textContent;
+    var rawLines = rawText.split('\n');
+    if (rawLines[rawLines.length - 1] === '') rawLines.pop();
 
     var codeSize = s.fontSize * 0.85;
     if (code) {
@@ -622,13 +723,20 @@ async function renderPdf(rendered, st, chartImages) {
     }
     var lineH = codeSize * 1.5;
     var padT = s.padT, padB = s.padB, padL = s.padL, padR = s.padR;
-    var blockH = lines.length * lineH + padT + padB;
+    var innerW = CW - padL - padR;
     var radius = { tl: s.rTL, tr: s.rTR, br: s.rBR, bl: s.rBL };
 
-    y -= s.marT * 0.4;
+    // Wrap each raw line to fit
+    var wrappedLines = [];
+    rawLines.forEach(function(line) {
+      wrappedLines = wrappedLines.concat(wrapCodeLine(line, innerW, codeSize));
+    });
+
+    var blockH = wrappedLines.length * lineH + padT + padB;
+
+    y -= s.marT * 0.5;
     ensureSpace(blockH + 8);
 
-    // Draw rounded background (top-left at current y)
     drawRoundedRect({
       x: ML, y: y, width: CW, height: blockH,
       radius: radius,
@@ -637,14 +745,14 @@ async function renderPdf(rendered, st, chartImages) {
       borderWidth: s.borderWidth > 0 ? s.borderWidth : 0.5,
     });
 
-    // Draw code lines (baseline positioned inside padding)
     var cy = y - padT - codeSize * 0.82;
     var codeColor = code ? rgbStrToHex(getComputedStyle(code).color) : st.codeColor;
-    lines.forEach(function(line) {
+    wrappedLines.forEach(function(line) {
       if (line) page.drawText(line, { x: ML + padL, y: cy, size: codeSize, font: mono, color: hexToRgb(codeColor) });
       cy -= lineH;
     });
-    y -= blockH + s.marB * 0.4;
+    // More breathing room after code blocks
+    y -= blockH + Math.max(s.marB, fontSize * 0.8);
   }
 
   function drawBlockquote(el) {
@@ -681,7 +789,9 @@ async function renderPdf(rendered, st, chartImages) {
       });
     }
 
-    var bqY = y - padT - fontSize * 0.82;
+    // Vertically center: distribute half-leading above first line
+    var halfLeading = Math.max((lh - fontSize) / 2, 0);
+    var bqY = y - padT - halfLeading - fontSize * 0.82;
     lines.forEach(function(lineRuns) {
       drawLine(lineRuns, textX + 4, bqY);
       bqY -= lh;
@@ -746,11 +856,54 @@ async function renderPdf(rendered, st, chartImages) {
       var scale = Math.min(CW / img.width, 1);
       var drawW = img.width * scale;
       var drawH = img.height * scale;
+      // Read border-radius from computed style
+      var imgRadius = 0;
+      if (imgEl) {
+        var cs = getComputedStyle(imgEl);
+        imgRadius = pxToPt(parseFloat(cs.borderTopLeftRadius) || 0);
+      }
       ensureSpace(drawH + 8);
       var cx = ML + (CW - drawW) / 2;
-      page.drawImage(img, { x: cx, y: y - drawH, width: drawW, height: drawH });
+      // Use SVG clipping path for rounded corners
+      if (imgRadius > 0) {
+        clipRoundedRect(cx, y, drawW, drawH, imgRadius, function() {
+          page.drawImage(img, { x: cx, y: y - drawH, width: drawW, height: drawH });
+        });
+      } else {
+        page.drawImage(img, { x: cx, y: y - drawH, width: drawW, height: drawH });
+      }
       y -= drawH + 8;
     } catch (e) { console.warn('Image embed failed:', e); }
+  }
+
+  // Clip subsequent drawing to a rounded rect (top-left at PDF x, yTop).
+  // Runs the callback, then pops the clipping state.
+  function clipRoundedRect(x, yTop, w, h, r, callback) {
+    try {
+      var cs = page.getContentStream();
+      var pushOp = PDFLib.pushGraphicsState ? PDFLib.pushGraphicsState() : null;
+      // pdf-lib provides helper functions for PDF operators
+      cs.push(PDFLib.pushGraphicsState());
+      var k = 0.5522847498 * r;
+      var x0 = x, x1 = x + w;
+      var y0 = yTop - h, y1 = yTop;
+      cs.push(PDFLib.moveTo(x0 + r, y0));
+      cs.push(PDFLib.lineTo(x1 - r, y0));
+      cs.push(PDFLib.appendBezierCurve(x1 - r + k, y0, x1, y0 + r - k, x1, y0 + r));
+      cs.push(PDFLib.lineTo(x1, y1 - r));
+      cs.push(PDFLib.appendBezierCurve(x1, y1 - r + k, x1 - r + k, y1, x1 - r, y1));
+      cs.push(PDFLib.lineTo(x0 + r, y1));
+      cs.push(PDFLib.appendBezierCurve(x0 + r - k, y1, x0, y1 - r + k, x0, y1 - r));
+      cs.push(PDFLib.lineTo(x0, y0 + r));
+      cs.push(PDFLib.appendBezierCurve(x0, y0 + r - k, x0 + r - k, y0, x0 + r, y0));
+      cs.push(PDFLib.clip());
+      cs.push(PDFLib.endPath());
+      callback();
+      cs.push(PDFLib.popGraphicsState());
+    } catch (e) {
+      // Fall back to no clipping
+      callback();
+    }
   }
 
   function drawTable(el) {

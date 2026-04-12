@@ -884,7 +884,22 @@
   S.replaceChartBlock = replaceChartBlock;
   S.getChartImages = function () {
     return chartDataStore.map(function (entry) {
-      return { wrapper: entry.wrapper, dataUrl: entry.chart.toBase64Image() };
+      var chart = entry.chart;
+      var prevDpr = chart.options.devicePixelRatio;
+      var dataUrl;
+      try {
+        // Temporarily boost devicePixelRatio for crisper PDF export
+        chart.options.devicePixelRatio = (window.devicePixelRatio || 1) * 2.5;
+        chart.resize();
+        dataUrl = chart.toBase64Image('image/png', 1);
+      } catch (e) {
+        dataUrl = chart.toBase64Image();
+      } finally {
+        // Restore
+        chart.options.devicePixelRatio = prevDpr;
+        chart.resize();
+      }
+      return { wrapper: entry.wrapper, dataUrl: dataUrl };
     });
   };
 })();
