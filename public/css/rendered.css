@@ -104,6 +104,7 @@
   color: var(--md-link-color);
   text-decoration: var(--md-link-decoration);
   text-underline-offset: 2px;
+  cursor: pointer;
 }
 :is(#rendered, #write) a:hover { opacity: .8; }
 
