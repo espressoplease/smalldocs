@@ -442,7 +442,8 @@ async function renderPdf(rendered, st, chartImages) {
       if (run.code) {
         var f = mono;
         var s = fontSize * 0.85;
-        var ww = f.widthOfTextAtSize(run.text, s);
+        // Account for pill padding in wrap calculation
+        var ww = f.widthOfTextAtSize(run.text, s) + 5; // CODE_PAD_X * 2 = 5
         if (lineW + ww > maxW && lineW > 0) {
           lines.push([]); lineW = 0;
         }
@@ -547,6 +548,10 @@ async function renderPdf(rendered, st, chartImages) {
     return out;
   }
 
+  // Inline code pill spacing
+  var CODE_PAD_X = 2.5;
+  var CODE_PAD_Y = 1;
+
   // Draw a single line of runs. `ly` is the baseline Y (PDF coords).
   function drawLine(lineRuns, x, ly) {
     var merged = mergeRuns(lineRuns);
@@ -554,21 +559,22 @@ async function renderPdf(rendered, st, chartImages) {
     merged.forEach(function(r) {
       if (!r.text) return;
       var w = r.font.widthOfTextAtSize(r.text, r.size);
-      // Inline code background pill (skip if whitespace-only)
+      // Inline code pill — pill width = w + 2*padX, text centered with padX inset
       if (r.code && r.text.trim()) {
-        var padX = 3;
-        var padY = 1.5;
         var ascent = r.size * 0.78;
         var descent = r.size * 0.22;
-        var pillH = ascent + descent + padY * 2;
+        var pillH = ascent + descent + CODE_PAD_Y * 2;
         drawRoundedRect({
-          x: cx - padX,
-          y: ly + ascent + padY,
-          width: w + padX * 2,
+          x: cx,
+          y: ly + ascent + CODE_PAD_Y,
+          width: w + CODE_PAD_X * 2,
           height: pillH,
           radius: 3,
           color: st.codeBg,
         });
+        page.drawText(r.text, { x: cx + CODE_PAD_X, y: ly, size: r.size, font: r.font, color: hexToRgb(r.color || st.codeColor) });
+        cx += w + CODE_PAD_X * 2;
+        return;
       }
       page.drawText(r.text, { x: cx, y: ly, size: r.size, font: r.font, color: hexToRgb(r.color || st.pColor) });
       if (r.underline) {
@@ -864,46 +870,9 @@ async function renderPdf(rendered, st, chartImages) {
       }
       ensureSpace(drawH + 8);
       var cx = ML + (CW - drawW) / 2;
-      // Use SVG clipping path for rounded corners
-      if (imgRadius > 0) {
-        clipRoundedRect(cx, y, drawW, drawH, imgRadius, function() {
-          page.drawImage(img, { x: cx, y: y - drawH, width: drawW, height: drawH });
-        });
-      } else {
-        page.drawImage(img, { x: cx, y: y - drawH, width: drawW, height: drawH });
-      }
+      page.drawImage(img, { x: cx, y: y - drawH, width: drawW, height: drawH });
       y -= drawH + 8;
     } catch (e) { console.warn('Image embed failed:', e); }
-  }
-
-  // Clip subsequent drawing to a rounded rect (top-left at PDF x, yTop).
-  // Runs the callback, then pops the clipping state.
-  function clipRoundedRect(x, yTop, w, h, r, callback) {
-    try {
-      var cs = page.getContentStream();
-      var pushOp = PDFLib.pushGraphicsState ? PDFLib.pushGraphicsState() : null;
-      // pdf-lib provides helper functions for PDF operators
-      cs.push(PDFLib.pushGraphicsState());
-      var k = 0.5522847498 * r;
-      var x0 = x, x1 = x + w;
-      var y0 = yTop - h, y1 = yTop;
-      cs.push(PDFLib.moveTo(x0 + r, y0));
-      cs.push(PDFLib.lineTo(x1 - r, y0));
-      cs.push(PDFLib.appendBezierCurve(x1 - r + k, y0, x1, y0 + r - k, x1, y0 + r));
-      cs.push(PDFLib.lineTo(x1, y1 - r));
-      cs.push(PDFLib.appendBezierCurve(x1, y1 - r + k, x1 - r + k, y1, x1 - r, y1));
-      cs.push(PDFLib.lineTo(x0 + r, y1));
-      cs.push(PDFLib.appendBezierCurve(x0 + r - k, y1, x0, y1 - r + k, x0, y1 - r));
-      cs.push(PDFLib.lineTo(x0, y0 + r));
-      cs.push(PDFLib.appendBezierCurve(x0, y0 + r - k, x0 + r - k, y0, x0 + r, y0));
-      cs.push(PDFLib.clip());
-      cs.push(PDFLib.endPath());
-      callback();
-      cs.push(PDFLib.popGraphicsState());
-    } catch (e) {
-      // Fall back to no clipping
-      callback();
-    }
   }
 
   function drawTable(el) {
