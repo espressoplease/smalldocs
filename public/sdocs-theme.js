@@ -175,9 +175,17 @@ function switchThemeAndUpdate(theme) {
   if (theme === S.activeTheme) return;
   saveCurrentThemeColors();
   applyTheme(theme);
+  // Suppress the per-control sync flood from loadThemeColors so we don't
+  // flip _isDefaultState via nested syncAll('controls') — theme is a viewer
+  // preference, not a document change.
+  var wasSyncing = S._syncing;
+  S._syncing = true;
   loadThemeColors(theme);
   updateThemeTabs(theme);
-  S.syncAll('controls');
+  S._syncing = wasSyncing;
+  // Single sync with 'theme' source: refreshes currentMeta/raw/hash
+  // without flipping _isDefaultState.
+  S.syncAll('theme');
 }
 
 function toggleTheme() {

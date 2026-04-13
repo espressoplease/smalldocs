@@ -434,6 +434,12 @@ function syncAll(source) {
       updateHash();
     } else if (source === 'load') {
       updateHash();
+    } else if (source === 'theme') {
+      // Theme swap: re-serialize + refresh hash but don't flip
+      // _isDefaultState (theme is a viewer preference, not a doc change).
+      S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
+      S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
+      updateHash();
     }
   } finally {
     S._syncing = false;
