@@ -134,24 +134,26 @@ function buildCollapsibleSections(container) {
     });
   });
 
-  // Nest H2/H3/H4 into collapsible section wrappers
+  // Nest H2/H3/H4 into collapsible section wrappers.
+  // Each stack frame tracks its heading level so siblings are siblings
+  // even when intermediate levels are skipped (e.g. h1 → h4 directly).
   var children = [].slice.call(container.children);
-  var bodyStack = [container];
+  var stack = [{ body: container, level: 0 }];
   children.forEach(function(child) {
     var level = SECTION_LEVELS[child.tagName];
     if (level) {
-      while (bodyStack.length > level - 1) bodyStack.pop();
+      while (stack[stack.length - 1].level >= level) stack.pop();
       var sectionDiv = document.createElement('div');
       sectionDiv.className = 'md-section';
       var sectionBody = document.createElement('div');
       sectionBody.className = 'md-section-body';
       child.insertAdjacentHTML('afterbegin', CHEVRON_SVG);
-      bodyStack[bodyStack.length - 1].appendChild(sectionDiv);
+      stack[stack.length - 1].body.appendChild(sectionDiv);
       sectionDiv.appendChild(child);
       sectionDiv.appendChild(sectionBody);
-      bodyStack.push(sectionBody);
+      stack.push({ body: sectionBody, level: level });
     } else {
-      bodyStack[bodyStack.length - 1].appendChild(child);
+      stack[stack.length - 1].body.appendChild(child);
     }
   });
 
