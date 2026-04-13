@@ -195,16 +195,16 @@ function render() {
 // ── File-info card ─────────────────────────────────────────
 
 function renderFileInfoCard() {
-  var card = document.getElementById('file-info-card');
+  var card = document.getElementById('sdocs-file-info');
   if (!card) return;
   var meta = S.currentMeta || {};
   var local = S.localMeta || {};
   var rowsEl = card.querySelector('.fic-rows');
 
   var rows = [];
-  if (meta.file)      rows.push({ key: 'file',     label: 'File', value: meta.file,      local: false });
-  if (local.path)     rows.push({ key: 'path',     label: 'Path', value: local.path,     local: true  });
-  if (local.fullPath) rows.push({ key: 'fullPath', label: 'Full', value: local.fullPath, local: true  });
+  if (meta.file)      rows.push({ key: 'file',     label: 'Filename',  value: meta.file,      local: false });
+  if (local.path)     rows.push({ key: 'path',     label: 'Rel. Path', value: local.path,     local: true  });
+  if (local.fullPath) rows.push({ key: 'fullPath', label: 'Abs. Path', value: local.fullPath, local: true  });
 
   if (rows.length === 0) {
     card.hidden = true;
@@ -216,7 +216,7 @@ function renderFileInfoCard() {
   var note = card.querySelector('.fic-privacy-note');
   if (note) note.hidden = !rows.some(function(r) { return r.local; });
   rowsEl.innerHTML = rows.map(function(r) {
-    var pill = r.local ? '<span class="fic-local-pill" title="Only visible on this device — not included in shared sdocs">local only</span>' : '';
+    var pill = r.local ? '<span class="fic-local-tag" title="Only visible on this device — not included in shared sdocs">Local only</span>' : '';
     return '<div class="fic-row" data-key="' + r.key + '">'
       + '<span class="fic-label">' + r.label + '</span>'
       + '<span class="fic-value">' + escapeHtml(r.value) + '</span>'
@@ -225,10 +225,10 @@ function renderFileInfoCard() {
       + '</div>';
   }).join('');
 
-  rowsEl.querySelectorAll('.fic-copy').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var row = btn.closest('.fic-row');
+  rowsEl.querySelectorAll('.fic-row').forEach(function(row) {
+    row.addEventListener('click', function() {
       var val = row.querySelector('.fic-value').textContent;
+      var btn = row.querySelector('.fic-copy');
       copyWithIconFeedback(val, btn);
     });
   });
@@ -257,12 +257,14 @@ function copyWithIconFeedback(text, btn) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  var copyAll = document.getElementById('fic-copy-all');
-  if (copyAll) {
-    copyAll.addEventListener('click', function() {
+  var copyFile = document.getElementById('btn-copy-file');
+  if (copyFile) {
+    copyFile.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
       var meta = Object.assign({}, S.currentMeta || {}, { styles: S.collectStyles() });
       var full = SDocYaml.serializeFrontMatter(meta) + '\n' + (S.currentBody || '');
-      copyWithIconFeedback(full, copyAll);
+      copyWithIconFeedback(full, copyFile);
     });
   }
 });

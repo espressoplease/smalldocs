@@ -60,9 +60,10 @@ SDocs.setStyleVar = function(cssVar, value) {
   SDocs.renderedEl.style.setProperty(cssVar, value);
   if (SDocs.writeEl) SDocs.writeEl.style.setProperty(cssVar, value);
   // File-info card is a sibling of #rendered, so it doesn't inherit vars set
-  // on #rendered. Mirror the relevant block-cascade vars to it directly.
-  var ficEl = document.getElementById('file-info-card');
-  if (ficEl && /^--md-(fic-|block-)/.test(cssVar)) {
+  // on #rendered. Mirror the block-cascade vars and the doc text color onto
+  // it so the card visually matches the document.
+  var ficEl = document.getElementById('sdocs-file-info');
+  if (ficEl && (/^--md-(fic-|block-)/.test(cssVar) || cssVar === '--md-color' || cssVar === '--md-p-color')) {
     ficEl.style.setProperty(cssVar, value);
   }
   if (cssVar === '--md-bg') {

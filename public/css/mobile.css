@@ -26,11 +26,11 @@
   #write { padding: 24px 20px 40px; max-width: 100%; }
   #raw { padding: 20px 16px; min-height: calc(100dvh - 36px); font-size: 16px; }
 
-  /* ── File-info card: inset 20px from viewport edges ── */
-  #file-info-card {
-    max-width: none;
-    margin: 16px 20px 0;
-    padding: 8px 12px;
+  /* ── File-info card: match rendered padding so values align with body ── */
+  #sdocs-file-info {
+    max-width: 100%;
+    margin: 0;
+    padding: 20px 20px 0;
   }
 
   /* ── Write toolbar: sticky below left-toolbar ── */

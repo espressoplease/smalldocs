@@ -379,100 +379,86 @@
 :is(#rendered, #write) img { max-width: 100%; border-radius: var(--radius-md); }
 
 /* ── File-info card (shown when front matter has `file:`) ─────────── */
-/* Inherits the block cascade: --md-fic-bg / --md-fic-text fall back to
-   --md-block-bg / --md-block-text so the card blends in with code blocks,
-   blockquotes, and charts. Override per-doc via `styles.fileinfo` in YAML. */
-#file-info-card[hidden] { display: none; }
-#file-info-card {
-  --fic-bg:    var(--md-fic-bg,   var(--md-block-bg,   var(--bg)));
-  --fic-text:  var(--md-fic-text, var(--md-block-text, var(--text)));
-  --fic-muted:  color-mix(in srgb, var(--fic-text) 60%, transparent);
-  --fic-border: color-mix(in srgb, var(--fic-text) 15%, transparent);
-  --fic-hover:  color-mix(in srgb, var(--fic-text) 8%, transparent);
+/* Matches the dimensions and inner padding of #rendered so values line up
+   exactly with the document text. No background, border, or shadow — reads
+   as plain header text above the document. */
+#sdocs-file-info[hidden] { display: none; }
+#sdocs-file-info {
+  /* Mirror the light-mode document defaults so card text matches body text
+     even when no controls have fired. setStyleVar also mirrors any user
+     overrides onto this element (see sdocs-state.js). */
+  --md-color: #1C1917;
+  --md-p-color: var(--md-color);
+  --fic-muted: color-mix(in srgb, var(--md-p-color) 40%, transparent);
+  --fic-hover: color-mix(in srgb, var(--md-p-color) 10%, transparent);
 
-  max-width: 680px;
-  margin: 24px auto 0;
-  padding: 10px 16px;
-  background: var(--fic-bg);
-  border: 1px solid var(--fic-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 48px 0;
   font-family: var(--font-ui);
-  font-size: 13px;
-  color: var(--fic-text);
+  font-size: 12.5px;
+  color: var(--fic-muted);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
-#file-info-card .fic-rows { display: flex; flex-direction: column; gap: 4px; }
-#file-info-card .fic-row {
+#sdocs-file-info .fic-rows {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 0;
-  border-radius: var(--radius-sm);
+  flex-direction: column;
+  border-bottom: 1px solid var(--md-hr-border);
 }
-#file-info-card .fic-label {
+#sdocs-file-info .fic-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 5px 0;
+  line-height: 1.5;
+  border-top: 1px solid color-mix(in srgb, var(--fic-text) 10%, transparent);
+  cursor: pointer;
+}
+#sdocs-file-info .fic-row:hover .fic-copy { color: var(--md-p-color); }
+#sdocs-file-info .fic-row:first-child { border-top: none; }
+#sdocs-file-info .fic-label {
   color: var(--fic-muted);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  min-width: 52px;
+  flex-shrink: 0;
+  min-width: 58px;
+  font-weight: 500;
 }
-#file-info-card .fic-value {
+#sdocs-file-info .fic-value {
   flex: 1;
   min-width: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12.5px;
-  color: var(--fic-text);
+  color: var(--md-p-color);
   overflow-wrap: anywhere;
   word-break: break-word;
 }
-#file-info-card .fic-local-pill {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--fic-muted);
-  background: var(--fic-hover);
-  border: 1px solid var(--fic-border);
-  border-radius: 999px;
-  padding: 2px 7px;
-}
-#file-info-card .fic-copy,
-#file-info-card .fic-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: 1px solid var(--fic-border);
-  color: var(--fic-text);
-  border-radius: var(--radius-sm);
-  padding: 4px 8px;
-  font-family: var(--font-ui);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background .1s, border-color .1s, color .1s;
-}
-#file-info-card .fic-copy { padding: 3px 6px; }
-#file-info-card .fic-copy:hover,
-#file-info-card .fic-action:hover {
-  background: var(--fic-hover);
-  color: var(--fic-text);
-}
-#file-info-card .fic-footer {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 2px;
-}
-#file-info-card .fic-privacy-note {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+#sdocs-file-info .fic-local-tag {
   font-size: 11px;
   color: var(--fic-muted);
+  flex-shrink: 0;
 }
-#file-info-card .fic-privacy-note[hidden] { display: none; }
+#sdocs-file-info .fic-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  color: var(--fic-muted);
+  border-radius: var(--radius-sm);
+  padding: 0;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+#sdocs-file-info .fic-copy:hover {
+  color: var(--md-p-color);
+}
+#sdocs-file-info .fic-privacy-note {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--fic-muted);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+#sdocs-file-info .fic-privacy-note[hidden] { display: none; }

@@ -222,6 +222,7 @@ function applyStylesFromMeta(s) {
 
   // File-info card overrides (no UI controls — driven entirely by YAML).
   S.fileinfoStyles = {};
+  var ficEl = document.getElementById('sdocs-file-info');
   if (s.fileinfo) {
     if (s.fileinfo.background) {
       S.fileinfoStyles.background = s.fileinfo.background;
@@ -230,6 +231,9 @@ function applyStylesFromMeta(s) {
     if (s.fileinfo.color) {
       S.fileinfoStyles.color = s.fileinfo.color;
       S.setStyleVar('--md-fic-text', s.fileinfo.color);
+      // Also override --md-p-color locally on the card (not on #rendered)
+      // so .fic-value picks it up without affecting body p text.
+      if (ficEl) ficEl.style.setProperty('--md-p-color', s.fileinfo.color);
     }
   }
   legacyStandalone.forEach(function(pair) {
@@ -298,10 +302,12 @@ function resetAllStyles() {
   S.themeOverridden.dark.clear();
   S.themeColors.light = {};
   S.themeColors.dark = {};
-  // Clear file-info-card overrides and the CSS vars they set
+  // Clear sdocs-file-info overrides and the CSS vars they set
   S.fileinfoStyles = {};
   S.setStyleVar('--md-fic-bg', '');
   S.setStyleVar('--md-fic-text', '');
+  var ficResetEl = document.getElementById('sdocs-file-info');
+  if (ficResetEl) ficResetEl.style.removeProperty('--md-p-color');
 
   setColorValue('ctrl-color', S.getColorDefault(), false);
   // Reset block cascade roots to theme defaults
