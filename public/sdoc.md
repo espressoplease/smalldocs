@@ -28,6 +28,7 @@ Creating a SmallDoc for a `.md` file (+ automatically opening your browser to re
 sdoc README.md                # open styled in browser
 sdoc share README.md          # copy shareable link to clipboard
 ```
+Or telling your agent to *"sdoc it"*.
 
 #### Claude Code + SDocs
 
