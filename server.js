@@ -152,6 +152,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Migration alias: existing service workers cached /public/default.md
+  // before it was renamed to sdoc.md. Serve the new file under the old path
+  // so cached clients keep rendering until their SW updates.
+  if (pathname === '/public/default.md') {
+    serveFile(res, path.join(__dirname, 'public', 'sdoc.md'));
+    return;
+  }
+
   if (pathname.startsWith('/public/')) {
     const filePath = path.join(__dirname, pathname);
     // Prevent path traversal
