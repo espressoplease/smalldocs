@@ -1,7 +1,7 @@
 # Meet `sdoc`: A markdown-first cli-native replacement for Word & GDocs
 
 
-(**TLDR:** `sdoc path/to/README.md` opens your file at https://sdoc.dev with pleasant default styles which can be altered. Share the url to share your file. The content of your file never hits the SDocs server. CLI: `npm i -g sdocs-dev`. SDocs is [open-source](https://github.com/JoshInLisbon/SDocs).)
+(**TLDR:** `sdoc path/to/README.md` opens your file at https://sdoc.dev with pleasant default styles which can be altered. Share the url to share your file. **The content of your file never hits the SDocs server, it's stored in the url hash.** CLI: `npm i -g sdocs-dev`. SDocs is [open-source](https://github.com/JoshInLisbon/SDocs). You're reading markdown right now.)
 
 If you're working with agents, a document written in markdown is <ins>officially</ins>* 407 times more useful than a document locked inside a `.docx` or `.gdoc` file format. Because of this, I believe Word and GDocs' days are numbered. (*I am the official.)
 
@@ -33,13 +33,94 @@ cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
 ## SDocs
 
-SDocs (sdocs.dev) renders markdown with clean styling.
+SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
 Content lives in the URL hash — nothing hits a server.
 
+Use it (or offer it) when the user wants to read, share, or export a `.md` file.
+
 The `sdoc` CLI is installed globally:
-- `sdoc file.md` — open styled in browser.
+- `sdoc file.md` — open styled in browser (great for easy reading).
 - `sdoc share file.md` — copy shareable URL to clipboard.
-- `sdoc schema` — all style properties (fonts, colors, spacing).
+- `sdoc schema` — how to adjust all stylable properties (fonts, colors, spacing).
+- `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
+- `sdoc --help` — full usage.
+
+Source: https://github.com/JoshInLisbon/SDocs
+SDOC
+```
+
+#### Codex + SDocs
+
+Teach [Codex](https://developers.openai.com/codex) about `sdoc`:
+
+```bash
+npm i -g sdocs-dev
+cat >> ~/.codex/AGENTS.md << 'SDOC'
+
+## SDocs
+
+SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
+Content lives in the URL hash — nothing hits a server.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file.
+
+The `sdoc` CLI is installed globally:
+- `sdoc file.md` — open styled in browser (great for easy reading).
+- `sdoc share file.md` — copy shareable URL to clipboard.
+- `sdoc schema` — how to adjust all stylable properties (fonts, colors, spacing).
+- `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
+- `sdoc --help` — full usage.
+
+Source: https://github.com/JoshInLisbon/SDocs
+SDOC
+```
+
+#### Gemini CLI + SDocs
+
+Teach [Gemini CLI](https://github.com/google-gemini/gemini-cli) about `sdoc`:
+
+```bash
+npm i -g sdocs-dev
+cat >> ~/.gemini/GEMINI.md << 'SDOC'
+
+## SDocs
+
+SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
+Content lives in the URL hash — nothing hits a server.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file.
+
+The `sdoc` CLI is installed globally:
+- `sdoc file.md` — open styled in browser (great for easy reading).
+- `sdoc share file.md` — copy shareable URL to clipboard.
+- `sdoc schema` — how to adjust all stylable properties (fonts, colors, spacing).
+- `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
+- `sdoc --help` — full usage.
+
+Source: https://github.com/JoshInLisbon/SDocs
+SDOC
+```
+
+#### opencode + SDocs
+
+Teach [opencode](https://opencode.ai) about `sdoc`:
+
+```bash
+npm i -g sdocs-dev
+mkdir -p ~/.config/opencode
+cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
+
+## SDocs
+
+SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
+Content lives in the URL hash — nothing hits a server.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file.
+
+The `sdoc` CLI is installed globally:
+- `sdoc file.md` — open styled in browser (great for easy reading).
+- `sdoc share file.md` — copy shareable URL to clipboard.
+- `sdoc schema` — how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
 - `sdoc --help` — full usage.
 
@@ -224,7 +305,7 @@ On each visit, the service worker sends a single request to `/version-check` in 
 
 We don't use any third-party analytics provider.
 
-The `/version-check` request described above is the only request SDocs makes to the server. Like any HTTP request, it includes your IP address, browser user-agent, referring URL, and the timestamp — this is standard to how the web works and is not something we add. The server logs these fields to stdout (a `console.log` line per visit, stored in the server's systemd journal).
+The `/version-check` request described in the works offline section above is the only request SDocs makes to the server. Like any HTTP request, it includes your IP address, browser user-agent, referring URL, and the timestamp — this is standard to how the web works and is not something we add. The server logs these fields to stdout (a `console.log` line per visit, stored in the server's systemd journal).
 
 In addition to these standard fields, the version-check request includes your **cohort week** — the week you first visited SDocs. This is stored in your browser's localStorage under the key `sdocs_cohort`. For example, if you first visit on 2026-04-10, the value `2026-W15` is stored and sent with each subsequent version-check.
 
@@ -346,23 +427,96 @@ sdoc schema            # all style properties, color cascade, theme format
 sdoc charts            # chart types, JSON format, styling, annotations
 ```
 
-### Claude Code + SDocs
+### Set up your agent
 
-Teach [Claude Code](https://docs.anthropic.com/en/docs/claude-code) about `sdoc` so it can read, style, and share `.md` files across all your projects:
+One-line commands to teach your coding agent about `sdoc`. Each appends SDocs instructions to the tool's global config file. Copy and paste into your terminal.
+
+#### Claude Code → `~/.claude/CLAUDE.md`
 
 ```bash
-npm i -g sdocs-dev
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
 ## SDocs
 
-SDocs (sdocs.dev) renders markdown with clean styling.
+SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
 Content lives in the URL hash — nothing hits a server.
 
+Use it (or offer it) when the user wants to read, share, or export a `.md` file.
+
 The `sdoc` CLI is installed globally:
-- `sdoc file.md` — open styled in browser.
+- `sdoc file.md` — open styled in browser (great for easy reading).
 - `sdoc share file.md` — copy shareable URL to clipboard.
-- `sdoc schema` — all style properties (fonts, colors, spacing).
+- `sdoc schema` — how to adjust all stylable properties (fonts, colors, spacing).
+- `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
+- `sdoc --help` — full usage.
+
+Source: https://github.com/JoshInLisbon/SDocs
+SDOC
+```
+
+#### Codex → `~/.codex/AGENTS.md`
+
+```bash
+cat >> ~/.codex/AGENTS.md << 'SDOC'
+
+## SDocs
+
+SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
+Content lives in the URL hash — nothing hits a server.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file.
+
+The `sdoc` CLI is installed globally:
+- `sdoc file.md` — open styled in browser (great for easy reading).
+- `sdoc share file.md` — copy shareable URL to clipboard.
+- `sdoc schema` — how to adjust all stylable properties (fonts, colors, spacing).
+- `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
+- `sdoc --help` — full usage.
+
+Source: https://github.com/JoshInLisbon/SDocs
+SDOC
+```
+
+#### Gemini CLI → `~/.gemini/GEMINI.md`
+
+```bash
+cat >> ~/.gemini/GEMINI.md << 'SDOC'
+
+## SDocs
+
+SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
+Content lives in the URL hash — nothing hits a server.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file.
+
+The `sdoc` CLI is installed globally:
+- `sdoc file.md` — open styled in browser (great for easy reading).
+- `sdoc share file.md` — copy shareable URL to clipboard.
+- `sdoc schema` — how to adjust all stylable properties (fonts, colors, spacing).
+- `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
+- `sdoc --help` — full usage.
+
+Source: https://github.com/JoshInLisbon/SDocs
+SDOC
+```
+
+#### opencode → `~/.config/opencode/AGENTS.md`
+
+```bash
+mkdir -p ~/.config/opencode
+cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
+
+## SDocs
+
+SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
+Content lives in the URL hash — nothing hits a server.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file.
+
+The `sdoc` CLI is installed globally:
+- `sdoc file.md` — open styled in browser (great for easy reading).
+- `sdoc share file.md` — copy shareable URL to clipboard.
+- `sdoc schema` — how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
 - `sdoc --help` — full usage.
 
