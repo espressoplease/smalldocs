@@ -219,6 +219,19 @@ function applyStylesFromMeta(s) {
     if (s.chart.background) legacyStandalone.push(['ctrl-chart-bg', s.chart.background]);
     if (s.chart.textColor) legacyStandalone.push(['ctrl-chart-text', s.chart.textColor]);
   }
+
+  // File-info card overrides (no UI controls — driven entirely by YAML).
+  S.fileinfoStyles = {};
+  if (s.fileinfo) {
+    if (s.fileinfo.background) {
+      S.fileinfoStyles.background = s.fileinfo.background;
+      S.setStyleVar('--md-fic-bg', s.fileinfo.background);
+    }
+    if (s.fileinfo.color) {
+      S.fileinfoStyles.color = s.fileinfo.color;
+      S.setStyleVar('--md-fic-text', s.fileinfo.color);
+    }
+  }
   legacyStandalone.forEach(function(pair) {
     lightOverridden.add(pair[0]);
     lightColors[pair[0]] = pair[1];
@@ -269,6 +282,11 @@ function collectStyles() {
     styles.dark = S._explicitDarkOverrides;
   }
 
+  // File-info card overrides (no UI controls; round-trip from YAML)
+  if (S.fileinfoStyles && Object.keys(S.fileinfoStyles).length > 0) {
+    styles.fileinfo = Object.assign({}, S.fileinfoStyles);
+  }
+
   return styles;
 }
 
@@ -280,6 +298,10 @@ function resetAllStyles() {
   S.themeOverridden.dark.clear();
   S.themeColors.light = {};
   S.themeColors.dark = {};
+  // Clear file-info-card overrides and the CSS vars they set
+  S.fileinfoStyles = {};
+  S.setStyleVar('--md-fic-bg', '');
+  S.setStyleVar('--md-fic-text', '');
 
   setColorValue('ctrl-color', S.getColorDefault(), false);
   // Reset block cascade roots to theme defaults

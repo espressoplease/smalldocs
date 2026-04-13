@@ -379,18 +379,27 @@
 :is(#rendered, #write) img { max-width: 100%; border-radius: var(--radius-md); }
 
 /* ── File-info card (shown when front matter has `file:`) ─────────── */
+/* Inherits the block cascade: --md-fic-bg / --md-fic-text fall back to
+   --md-block-bg / --md-block-text so the card blends in with code blocks,
+   blockquotes, and charts. Override per-doc via `styles.fileinfo` in YAML. */
 #file-info-card[hidden] { display: none; }
 #file-info-card {
+  --fic-bg:    var(--md-fic-bg,   var(--md-block-bg,   var(--bg)));
+  --fic-text:  var(--md-fic-text, var(--md-block-text, var(--text)));
+  --fic-muted:  color-mix(in srgb, var(--fic-text) 60%, transparent);
+  --fic-border: color-mix(in srgb, var(--fic-text) 15%, transparent);
+  --fic-hover:  color-mix(in srgb, var(--fic-text) 8%, transparent);
+
   max-width: 680px;
   margin: 24px auto 0;
   padding: 10px 16px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: var(--fic-bg);
+  border: 1px solid var(--fic-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   font-family: var(--font-ui);
   font-size: 13px;
-  color: var(--text);
+  color: var(--fic-text);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -404,7 +413,7 @@
   border-radius: var(--radius-sm);
 }
 #file-info-card .fic-label {
-  color: var(--text-3);
+  color: var(--fic-muted);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -416,7 +425,7 @@
   min-width: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12.5px;
-  color: var(--text);
+  color: var(--fic-text);
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -425,9 +434,9 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-3);
-  background: var(--bg-panel-deep);
-  border: 1px solid var(--border-subtle);
+  color: var(--fic-muted);
+  background: var(--fic-hover);
+  border: 1px solid var(--fic-border);
   border-radius: 999px;
   padding: 2px 7px;
 }
@@ -437,8 +446,8 @@
   align-items: center;
   gap: 6px;
   background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-2);
+  border: 1px solid var(--fic-border);
+  color: var(--fic-text);
   border-radius: var(--radius-sm);
   padding: 4px 8px;
   font-family: var(--font-ui);
@@ -449,14 +458,8 @@
 #file-info-card .fic-copy { padding: 3px 6px; }
 #file-info-card .fic-copy:hover,
 #file-info-card .fic-action:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-#file-info-card .fic-copy.copied,
-#file-info-card .fic-action.copied {
-  color: var(--accent-text);
-  border-color: var(--accent-text);
+  background: var(--fic-hover);
+  color: var(--fic-text);
 }
 #file-info-card .fic-footer {
   display: flex;
@@ -470,6 +473,6 @@
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: var(--text-3);
+  color: var(--fic-muted);
 }
 #file-info-card .fic-privacy-note[hidden] { display: none; }

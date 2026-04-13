@@ -12,6 +12,10 @@ window.SDocs = {
   // Stripped from the URL on load so it isn't in anything the user copies/shares.
   localMeta: {},
 
+  // Per-doc overrides for the file-info card. Set from `styles.fileinfo` in
+  // YAML front matter; emitted back via collectStyles so they round-trip.
+  fileinfoStyles: {},
+
   // Per-theme color state
   activeTheme: 'light',
   themeColors: { light: {}, dark: {} },
@@ -55,6 +59,12 @@ SDocs.contentAreaEl = document.getElementById('content-area');
 SDocs.setStyleVar = function(cssVar, value) {
   SDocs.renderedEl.style.setProperty(cssVar, value);
   if (SDocs.writeEl) SDocs.writeEl.style.setProperty(cssVar, value);
+  // File-info card is a sibling of #rendered, so it doesn't inherit vars set
+  // on #rendered. Mirror the relevant block-cascade vars to it directly.
+  var ficEl = document.getElementById('file-info-card');
+  if (ficEl && /^--md-(fic-|block-)/.test(cssVar)) {
+    ficEl.style.setProperty(cssVar, value);
+  }
   if (cssVar === '--md-bg') {
     SDocs.contentAreaEl.style.setProperty('background-color', value);
   }
