@@ -17,7 +17,7 @@ async function loadDoc(page, md) {
 }
 
 async function getRawText(page) {
-  return page.evaluate(() => document.getElementById('raw').value);
+  return page.evaluate(() => document.getElementById('_sd_raw').value);
 }
 
 // ═══════════════════════════════════════════════════

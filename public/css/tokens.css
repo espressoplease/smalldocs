@@ -87,10 +87,10 @@ html[data-theme="dark"] {
   --md-copy-btn-border: rgba(255,255,255,0.12);
   --md-copy-btn-hover:  rgba(255,255,255,0.06);
 }
-html[data-theme="dark"] #sdocs-file-info {
+html[data-theme="dark"] #_sd_sdocs-file-info {
   --md-color: #e7e5e2;
 }
-html[data-theme="dark"] :is(#rendered, #write) {
+html[data-theme="dark"] :is(#_sd_rendered, #_sd_write) {
   --md-bg:          #2c2a26;
   --md-color:       #e7e5e2;
   --md-code-bg:     #1a1816;
@@ -105,15 +105,15 @@ html[data-theme="dark"] .control-row select {
 
 /* Theme transitions */
 body,
-#left,
-#right,
-#export-panel,
-#statusbar,
-#left-toolbar,
-#right-header,
-#export-panel-header,
+#_sd_left,
+#_sd_right,
+#_sd_export-panel,
+#_sd_statusbar,
+#_sd_left-toolbar,
+#_sd_right-header,
+#_sd_export-panel-header,
 .panel-header,
 .sub-header,
-#raw {
+#_sd_raw {
   transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }

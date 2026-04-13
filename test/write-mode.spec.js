@@ -6,14 +6,14 @@ const BASE = 'http://localhost:3000';
 /** Navigate to write mode and wait for the editor to be ready */
 async function gotoWriteMode(page) {
   await page.goto(BASE + '/#mode=write');
-  await page.waitForSelector('#write[contenteditable="true"]');
-  await page.evaluate(() => document.getElementById('write').focus());
+  await page.waitForSelector('#_sd_write[contenteditable="true"]');
+  await page.evaluate(() => document.getElementById('_sd_write').focus());
 }
 
 /** Set the write area innerHTML and focus it */
 async function setWriteHTML(page, html) {
   await page.evaluate((h) => {
-    const w = document.getElementById('write');
+    const w = document.getElementById('_sd_write');
     w.innerHTML = h;
     w.focus();
   }, html);
@@ -21,7 +21,7 @@ async function setWriteHTML(page, html) {
 
 /** Get the write area innerHTML */
 async function getWriteHTML(page) {
-  return page.evaluate(() => document.getElementById('write').innerHTML);
+  return page.evaluate(() => document.getElementById('_sd_write').innerHTML);
 }
 
 /** Place a collapsed cursor at a text offset inside a selector */
@@ -84,7 +84,7 @@ async function cursorIsInside(page, tagName) {
     if (!sel.rangeCount) return false;
     let el = sel.anchorNode;
     if (el && el.nodeType !== 1) el = el.parentElement;
-    const w = document.getElementById('write');
+    const w = document.getElementById('_sd_write');
     while (el && el !== w) {
       if (el.tagName === tag) return true;
       el = el.parentElement;
@@ -96,7 +96,7 @@ async function cursorIsInside(page, tagName) {
 /** Dispatch a keydown event on the write element */
 async function dispatchEnter(page) {
   await page.evaluate(() => {
-    const w = document.getElementById('write');
+    const w = document.getElementById('_sd_write');
     const e = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
     w.dispatchEvent(e);
   });
@@ -110,8 +110,8 @@ test.describe('Inline code', () => {
   test('wraps selected text in <code>', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Hello world test</p>');
-    await selectTextRange(page, '#write p', 6, 11);
-    await page.click('#wb-code');
+    await selectTextRange(page, '#_sd_write p', 6, 11);
+    await page.click('#_sd_wb-code');
     const html = await getWriteHTML(page);
     expect(html).toContain('<code>world</code>');
   });
@@ -119,8 +119,8 @@ test.describe('Inline code', () => {
   test('toggle off: unwraps <code> instead of nesting', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Hello <code>world</code> test</p>');
-    await selectAll(page, '#write p code');
-    await page.click('#wb-code');
+    await selectAll(page, '#_sd_write p code');
+    await page.click('#_sd_wb-code');
     const html = await getWriteHTML(page);
     expect(html).not.toContain('<code>');
     expect(html).toContain('world');
@@ -129,16 +129,16 @@ test.describe('Inline code', () => {
   test('no selection: inserts empty <code> span to type into', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Hello world</p>');
-    await placeCursor(page, '#write p', 5);
-    await page.click('#wb-code');
-    const hasCode = await page.evaluate(() => !!document.querySelector('#write p code'));
+    await placeCursor(page, '#_sd_write p', 5);
+    await page.click('#_sd_wb-code');
+    const hasCode = await page.evaluate(() => !!document.querySelector('#_sd_write p code'));
     expect(hasCode).toBe(true);
   });
 
   test('Ctrl+E shortcut wraps selected text', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Hello world test</p>');
-    await selectTextRange(page, '#write p', 6, 11);
+    await selectTextRange(page, '#_sd_write p', 6, 11);
     await page.keyboard.press('Meta+e');
     const html = await getWriteHTML(page);
     expect(html).toContain('<code>world</code>');
@@ -147,7 +147,7 @@ test.describe('Inline code', () => {
   test('Ctrl+E toggle off unwraps', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Hello <code>world</code> test</p>');
-    await selectAll(page, '#write p code');
+    await selectAll(page, '#_sd_write p code');
     await page.keyboard.press('Meta+e');
     const html = await getWriteHTML(page);
     expect(html).not.toContain('<code>');
@@ -163,8 +163,8 @@ test.describe('Heading toggle', () => {
     test(`H${level} button toggles off when already H${level}`, async ({ page }) => {
       await gotoWriteMode(page);
       await setWriteHTML(page, `<h${level}>My Heading</h${level}>`);
-      await placeCursorAtEnd(page, `#write h${level}`);
-      await page.click(`#wb-h${level}`);
+      await placeCursorAtEnd(page, `#_sd_write h${level}`);
+      await page.click(`#_sd_wb-h${level}`);
       const html = await getWriteHTML(page);
       expect(html).not.toContain(`<h${level}>`);
       expect(html).toContain('My Heading');
@@ -174,8 +174,8 @@ test.describe('Heading toggle', () => {
   test('H2 button converts P to H2', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Some text</p>');
-    await placeCursorAtEnd(page, '#write p');
-    await page.click('#wb-h2');
+    await placeCursorAtEnd(page, '#_sd_write p');
+    await page.click('#_sd_wb-h2');
     const html = await getWriteHTML(page);
     expect(html).toContain('<h2>');
   });
@@ -183,8 +183,8 @@ test.describe('Heading toggle', () => {
   test('H1 button converts H3 to H1', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<h3>Some text</h3>');
-    await placeCursorAtEnd(page, '#write h3');
-    await page.click('#wb-h1');
+    await placeCursorAtEnd(page, '#_sd_write h3');
+    await page.click('#_sd_wb-h1');
     const html = await getWriteHTML(page);
     expect(html).toContain('<h1>');
     expect(html).not.toContain('<h3>');
@@ -193,8 +193,8 @@ test.describe('Heading toggle', () => {
   test('Paragraph button converts heading to P', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<h2>Heading</h2>');
-    await placeCursorAtEnd(page, '#write h2');
-    await page.click('#wb-p');
+    await placeCursorAtEnd(page, '#_sd_write h2');
+    await page.click('#_sd_wb-p');
     const html = await getWriteHTML(page);
     expect(html).not.toContain('<h2>');
   });
@@ -208,8 +208,8 @@ test.describe('Blockquote', () => {
   test('toolbar button wraps paragraph in blockquote', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Some text</p>');
-    await placeCursorAtEnd(page, '#write p');
-    await page.click('#wb-bq');
+    await placeCursorAtEnd(page, '#_sd_write p');
+    await page.click('#_sd_wb-bq');
     const html = await getWriteHTML(page);
     expect(html).toContain('<blockquote>');
   });
@@ -217,8 +217,8 @@ test.describe('Blockquote', () => {
   test('toolbar button unwraps blockquote', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<blockquote><p>Quote text</p></blockquote>');
-    await placeCursorAtEnd(page, '#write blockquote p');
-    await page.click('#wb-bq');
+    await placeCursorAtEnd(page, '#_sd_write blockquote p');
+    await page.click('#_sd_wb-bq');
     const html = await getWriteHTML(page);
     expect(html).not.toContain('<blockquote>');
     expect(html).toContain('Quote text');
@@ -229,7 +229,7 @@ test.describe('Blockquote', () => {
     await setWriteHTML(page, '<blockquote><p>Quote text</p><p><br></p></blockquote>');
     // Place cursor in the empty paragraph
     await page.evaluate(() => {
-      const emptyP = document.querySelectorAll('#write blockquote p')[1];
+      const emptyP = document.querySelectorAll('#_sd_write blockquote p')[1];
       const range = document.createRange();
       range.selectNodeContents(emptyP);
       range.collapse(true);
@@ -246,7 +246,7 @@ test.describe('Blockquote', () => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<blockquote><p><br></p></blockquote>');
     await page.evaluate(() => {
-      const p = document.querySelector('#write blockquote p');
+      const p = document.querySelector('#_sd_write blockquote p');
       const range = document.createRange();
       range.selectNodeContents(p);
       range.collapse(true);
@@ -263,7 +263,7 @@ test.describe('Blockquote', () => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<blockquote><p>Keep this</p><p><br></p></blockquote>');
     await page.evaluate(() => {
-      const emptyP = document.querySelectorAll('#write blockquote p')[1];
+      const emptyP = document.querySelectorAll('#_sd_write blockquote p')[1];
       const range = document.createRange();
       range.selectNodeContents(emptyP);
       range.collapse(true);
@@ -286,7 +286,7 @@ test.describe('Code block', () => {
   test('Enter inside code block stays in code block', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<pre><code>line1</code></pre>');
-    await placeCursorAtEnd(page, '#write pre code');
+    await placeCursorAtEnd(page, '#_sd_write pre code');
     await dispatchEnter(page);
     const inPre = await cursorIsInside(page, 'PRE');
     expect(inPre).toBe(true);
@@ -298,7 +298,7 @@ test.describe('Code block', () => {
     // The input handler fires during execCommand and checks trailing BRs >= 3.
     await gotoWriteMode(page);
     const result = await page.evaluate(() => {
-      const w = document.getElementById('write');
+      const w = document.getElementById('_sd_write');
       w.innerHTML = '<pre><code>some code</code></pre>';
       w.focus();
       const pre = w.querySelector('pre');
@@ -319,7 +319,7 @@ test.describe('Code block', () => {
   test('code block content preserved after exit', async ({ page }) => {
     await gotoWriteMode(page);
     const result = await page.evaluate(() => {
-      const w = document.getElementById('write');
+      const w = document.getElementById('_sd_write');
       w.innerHTML = '<pre><code>keep this</code></pre>';
       w.focus();
       const pre = w.querySelector('pre');
@@ -336,7 +336,7 @@ test.describe('Code block', () => {
   test('single Enter does NOT trigger exit (only 2 trailing BRs)', async ({ page }) => {
     await gotoWriteMode(page);
     const result = await page.evaluate(() => {
-      const w = document.getElementById('write');
+      const w = document.getElementById('_sd_write');
       w.innerHTML = '<pre><code>some code</code></pre>';
       w.focus();
       const pre = w.querySelector('pre');
@@ -353,8 +353,8 @@ test.describe('Code block', () => {
   test('toolbar code block button inserts pre/code', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Some text</p>');
-    await placeCursorAtEnd(page, '#write p');
-    await page.click('#wb-codeblock');
+    await placeCursorAtEnd(page, '#_sd_write p');
+    await page.click('#_sd_wb-codeblock');
     const html = await getWriteHTML(page);
     expect(html).toContain('<pre><code>');
   });
@@ -362,8 +362,8 @@ test.describe('Code block', () => {
   test('toolbar code block button toggles off when in code block', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<pre><code>some code</code></pre>');
-    await placeCursorAtEnd(page, '#write pre code');
-    await page.click('#wb-codeblock');
+    await placeCursorAtEnd(page, '#_sd_write pre code');
+    await page.click('#_sd_wb-codeblock');
     const html = await getWriteHTML(page);
     expect(html).not.toContain('<pre>');
     expect(html).toContain('some code');
@@ -378,8 +378,8 @@ test.describe('Lists', () => {
   test('UL button creates unordered list', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Item text</p>');
-    await placeCursorAtEnd(page, '#write p');
-    await page.click('#wb-ul');
+    await placeCursorAtEnd(page, '#_sd_write p');
+    await page.click('#_sd_wb-ul');
     const html = await getWriteHTML(page);
     expect(html).toContain('<ul>');
     expect(html).toContain('<li>');
@@ -388,8 +388,8 @@ test.describe('Lists', () => {
   test('OL button creates ordered list', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Item text</p>');
-    await placeCursorAtEnd(page, '#write p');
-    await page.click('#wb-ol');
+    await placeCursorAtEnd(page, '#_sd_write p');
+    await page.click('#_sd_wb-ol');
     const html = await getWriteHTML(page);
     expect(html).toContain('<ol>');
   });
@@ -397,27 +397,27 @@ test.describe('Lists', () => {
   test('Tab indents list item', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<ul><li>Item 1</li><li>Item 2</li></ul>');
-    await placeCursorAtEnd(page, '#write ul li:nth-child(2)');
+    await placeCursorAtEnd(page, '#_sd_write ul li:nth-child(2)');
     // Dispatch Tab keydown
     await page.evaluate(() => {
-      const w = document.getElementById('write');
+      const w = document.getElementById('_sd_write');
       w.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
     });
     const html = await getWriteHTML(page);
     // Item 2 should now be in a nested list
-    const hasNestedUl = await page.evaluate(() => !!document.querySelector('#write ul ul'));
+    const hasNestedUl = await page.evaluate(() => !!document.querySelector('#_sd_write ul ul'));
     expect(hasNestedUl).toBe(true);
   });
 
   test('Shift+Tab outdents nested list item', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<ul><li>Item 1<ul><li>Nested</li></ul></li></ul>');
-    await placeCursorAtEnd(page, '#write ul ul li');
+    await placeCursorAtEnd(page, '#_sd_write ul ul li');
     await page.evaluate(() => {
-      const w = document.getElementById('write');
+      const w = document.getElementById('_sd_write');
       w.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
     });
-    const hasNestedUl = await page.evaluate(() => !!document.querySelector('#write ul ul'));
+    const hasNestedUl = await page.evaluate(() => !!document.querySelector('#_sd_write ul ul'));
     expect(hasNestedUl).toBe(false);
   });
 });
@@ -430,8 +430,8 @@ test.describe('Inline formatting', () => {
   test('Bold button applies bold', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Hello world</p>');
-    await selectTextRange(page, '#write p', 6, 11);
-    await page.click('#wb-bold');
+    await selectTextRange(page, '#_sd_write p', 6, 11);
+    await page.click('#_sd_wb-bold');
     const html = await getWriteHTML(page);
     expect(html).toMatch(/<(b|strong)>world<\/(b|strong)>/);
   });
@@ -439,8 +439,8 @@ test.describe('Inline formatting', () => {
   test('Italic button applies italic', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Hello world</p>');
-    await selectTextRange(page, '#write p', 6, 11);
-    await page.click('#wb-italic');
+    await selectTextRange(page, '#_sd_write p', 6, 11);
+    await page.click('#_sd_wb-italic');
     const html = await getWriteHTML(page);
     expect(html).toMatch(/<(i|em)>world<\/(i|em)>/);
   });
@@ -448,8 +448,8 @@ test.describe('Inline formatting', () => {
   test('Strikethrough button applies strikethrough', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Hello world</p>');
-    await selectTextRange(page, '#write p', 6, 11);
-    await page.click('#wb-strike');
+    await selectTextRange(page, '#_sd_write p', 6, 11);
+    await page.click('#_sd_wb-strike');
     const html = await getWriteHTML(page);
     expect(html).toMatch(/<(s|strike)>world<\/(s|strike)>/);
   });
@@ -457,8 +457,8 @@ test.describe('Inline formatting', () => {
   test('Clear formatting removes inline styles', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Hello <b>world</b> test</p>');
-    await selectAll(page, '#write p b');
-    await page.click('#wb-clear');
+    await selectAll(page, '#_sd_write p b');
+    await page.click('#_sd_wb-clear');
     const html = await getWriteHTML(page);
     expect(html).not.toContain('<b>');
   });
@@ -472,11 +472,11 @@ test.describe('Toolbar active state', () => {
   test('H2 button shows active when cursor is in H2', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<h2>Heading</h2>');
-    await placeCursorAtEnd(page, '#write h2');
+    await placeCursorAtEnd(page, '#_sd_write h2');
     // selectionchange fires async
     await page.waitForTimeout(50);
     const isActive = await page.evaluate(() =>
-      document.getElementById('wb-h2').classList.contains('active')
+      document.getElementById('_sd_wb-h2').classList.contains('active')
     );
     expect(isActive).toBe(true);
   });
@@ -484,10 +484,10 @@ test.describe('Toolbar active state', () => {
   test('P button shows active when cursor is in P', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Paragraph</p>');
-    await placeCursorAtEnd(page, '#write p');
+    await placeCursorAtEnd(page, '#_sd_write p');
     await page.waitForTimeout(50);
     const isActive = await page.evaluate(() =>
-      document.getElementById('wb-p').classList.contains('active')
+      document.getElementById('_sd_wb-p').classList.contains('active')
     );
     expect(isActive).toBe(true);
   });
@@ -496,10 +496,10 @@ test.describe('Toolbar active state', () => {
     await gotoWriteMode(page);
     // Place cursor directly in blockquote (not inside a nested <p>)
     await setWriteHTML(page, '<blockquote>Direct quote text</blockquote>');
-    await placeCursorAtEnd(page, '#write blockquote');
+    await placeCursorAtEnd(page, '#_sd_write blockquote');
     await page.waitForTimeout(50);
     const isActive = await page.evaluate(() =>
-      document.getElementById('wb-bq').classList.contains('active')
+      document.getElementById('_sd_wb-bq').classList.contains('active')
     );
     expect(isActive).toBe(true);
   });
@@ -513,7 +513,7 @@ test.describe('Markdown shortcuts', () => {
   test('typing "# " converts to H1', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p><br></p>');
-    await placeCursorAtEnd(page, '#write p');
+    await placeCursorAtEnd(page, '#_sd_write p');
     // Type "# Hello" slowly to trigger input events
     await page.keyboard.type('# Hello', { delay: 30 });
     await page.waitForTimeout(100);
@@ -524,7 +524,7 @@ test.describe('Markdown shortcuts', () => {
   test('typing "## " converts to H2', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p><br></p>');
-    await placeCursorAtEnd(page, '#write p');
+    await placeCursorAtEnd(page, '#_sd_write p');
     await page.keyboard.type('## Hello', { delay: 30 });
     await page.waitForTimeout(100);
     const html = await getWriteHTML(page);
@@ -534,7 +534,7 @@ test.describe('Markdown shortcuts', () => {
   test('typing "- " converts to bullet list', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p><br></p>');
-    await placeCursorAtEnd(page, '#write p');
+    await placeCursorAtEnd(page, '#_sd_write p');
     await page.keyboard.type('- Item', { delay: 30 });
     await page.waitForTimeout(100);
     const html = await getWriteHTML(page);
@@ -545,7 +545,7 @@ test.describe('Markdown shortcuts', () => {
   test('typing "> " converts to blockquote', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p><br></p>');
-    await placeCursorAtEnd(page, '#write p');
+    await placeCursorAtEnd(page, '#_sd_write p');
     await page.keyboard.type('> Quote', { delay: 30 });
     await page.waitForTimeout(100);
     const html = await getWriteHTML(page);
@@ -555,7 +555,7 @@ test.describe('Markdown shortcuts', () => {
   test('typing "---" converts to horizontal rule', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p><br></p>');
-    await placeCursorAtEnd(page, '#write p');
+    await placeCursorAtEnd(page, '#_sd_write p');
     await page.keyboard.type('---', { delay: 30 });
     await page.waitForTimeout(100);
     const html = await getWriteHTML(page);
@@ -571,8 +571,8 @@ test.describe('Insert elements', () => {
   test('HR button inserts horizontal rule', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Before</p>');
-    await placeCursorAtEnd(page, '#write p');
-    await page.click('#wb-hr');
+    await placeCursorAtEnd(page, '#_sd_write p');
+    await page.click('#_sd_wb-hr');
     const html = await getWriteHTML(page);
     expect(html).toContain('<hr>');
   });
@@ -586,10 +586,10 @@ test.describe('Paste', () => {
   test('paste strips HTML and inserts plain text', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Before </p>');
-    await placeCursorAtEnd(page, '#write p');
+    await placeCursorAtEnd(page, '#_sd_write p');
     // Simulate paste with HTML content
     await page.evaluate(() => {
-      const w = document.getElementById('write');
+      const w = document.getElementById('_sd_write');
       const dt = new DataTransfer();
       dt.setData('text/plain', 'pasted text');
       dt.setData('text/html', '<b>pasted text</b>');

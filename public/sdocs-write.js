@@ -3,7 +3,7 @@
 'use strict';
 
 var S = SDocs;
-var writeEl = document.getElementById('write');
+var writeEl = document.getElementById('_sd_write');
 S.writeEl = writeEl;
 
 // ── Enter / exit write mode ──────────────────────────
@@ -641,53 +641,53 @@ function insertCodeBlock() {
 }
 
 // Toolbar button wiring
-document.getElementById('wb-bold').addEventListener('click', function() {
+document.getElementById('_sd_wb-bold').addEventListener('click', function() {
   writeEl.focus();
   document.execCommand('bold', false, null);
 });
-document.getElementById('wb-italic').addEventListener('click', function() {
+document.getElementById('_sd_wb-italic').addEventListener('click', function() {
   writeEl.focus();
   document.execCommand('italic', false, null);
 });
-document.getElementById('wb-strike').addEventListener('click', function() {
+document.getElementById('_sd_wb-strike').addEventListener('click', function() {
   writeEl.focus();
   document.execCommand('strikeThrough', false, null);
 });
-document.getElementById('wb-code').addEventListener('click', function() {
+document.getElementById('_sd_wb-code').addEventListener('click', function() {
   writeEl.focus();
   execInlineCode();
 });
-document.getElementById('wb-h1').addEventListener('click', function() { writeEl.focus(); wrapBlock('h1'); });
-document.getElementById('wb-h2').addEventListener('click', function() { writeEl.focus(); wrapBlock('h2'); });
-document.getElementById('wb-h3').addEventListener('click', function() { writeEl.focus(); wrapBlock('h3'); });
-document.getElementById('wb-h4').addEventListener('click', function() { writeEl.focus(); wrapBlock('h4'); });
-document.getElementById('wb-h5').addEventListener('click', function() { writeEl.focus(); wrapBlock('h5'); });
-document.getElementById('wb-p').addEventListener('click', function() { writeEl.focus(); wrapBlock('p'); });
-document.getElementById('wb-ul').addEventListener('click', function() {
+document.getElementById('_sd_wb-h1').addEventListener('click', function() { writeEl.focus(); wrapBlock('h1'); });
+document.getElementById('_sd_wb-h2').addEventListener('click', function() { writeEl.focus(); wrapBlock('h2'); });
+document.getElementById('_sd_wb-h3').addEventListener('click', function() { writeEl.focus(); wrapBlock('h3'); });
+document.getElementById('_sd_wb-h4').addEventListener('click', function() { writeEl.focus(); wrapBlock('h4'); });
+document.getElementById('_sd_wb-h5').addEventListener('click', function() { writeEl.focus(); wrapBlock('h5'); });
+document.getElementById('_sd_wb-p').addEventListener('click', function() { writeEl.focus(); wrapBlock('p'); });
+document.getElementById('_sd_wb-ul').addEventListener('click', function() {
   writeEl.focus();
   document.execCommand('insertUnorderedList', false, null);
 });
-document.getElementById('wb-ol').addEventListener('click', function() {
+document.getElementById('_sd_wb-ol').addEventListener('click', function() {
   writeEl.focus();
   document.execCommand('insertOrderedList', false, null);
 });
-document.getElementById('wb-bq').addEventListener('click', function() {
+document.getElementById('_sd_wb-bq').addEventListener('click', function() {
   writeEl.focus();
   toggleBlockquote();
 });
-document.getElementById('wb-codeblock').addEventListener('click', function() { writeEl.focus(); insertCodeBlock(); });
-document.getElementById('wb-link').addEventListener('click', function() { writeEl.focus(); insertLink(); });
-document.getElementById('wb-image').addEventListener('click', function() { writeEl.focus(); insertImage(); });
-document.getElementById('wb-hr').addEventListener('click', function() { writeEl.focus(); insertHR(); });
-document.getElementById('wb-clear').addEventListener('click', function() {
+document.getElementById('_sd_wb-codeblock').addEventListener('click', function() { writeEl.focus(); insertCodeBlock(); });
+document.getElementById('_sd_wb-link').addEventListener('click', function() { writeEl.focus(); insertLink(); });
+document.getElementById('_sd_wb-image').addEventListener('click', function() { writeEl.focus(); insertImage(); });
+document.getElementById('_sd_wb-hr').addEventListener('click', function() { writeEl.focus(); insertHR(); });
+document.getElementById('_sd_wb-clear').addEventListener('click', function() {
   writeEl.focus();
   document.execCommand('removeFormat', false, null);
 });
 
 // ── Active toolbar state tracking ──────────────────────
 
-var BLOCK_BTN_MAP = { H1: 'wb-h1', H2: 'wb-h2', H3: 'wb-h3', H4: 'wb-h4', H5: 'wb-h5', P: 'wb-p', DIV: 'wb-p' };
-var BLOCK_BTN_IDS = ['wb-h1', 'wb-h2', 'wb-h3', 'wb-h4', 'wb-h5', 'wb-p', 'wb-ul', 'wb-ol', 'wb-bq', 'wb-codeblock'];
+var BLOCK_BTN_MAP = { H1: '_sd_wb-h1', H2: '_sd_wb-h2', H3: '_sd_wb-h3', H4: '_sd_wb-h4', H5: '_sd_wb-h5', P: '_sd_wb-p', DIV: '_sd_wb-p' };
+var BLOCK_BTN_IDS = ['_sd_wb-h1', '_sd_wb-h2', '_sd_wb-h3', '_sd_wb-h4', '_sd_wb-h5', '_sd_wb-p', '_sd_wb-ul', '_sd_wb-ol', '_sd_wb-bq', '_sd_wb-codeblock'];
 
 function updateToolbarState() {
   var sel = window.getSelection();
@@ -701,11 +701,11 @@ function updateToolbarState() {
       if (BLOCK_BTN_MAP[tag]) { activeBlock = BLOCK_BTN_MAP[tag]; break; }
       if (tag === 'LI') {
         var list = el.parentElement;
-        activeBlock = list && list.tagName === 'OL' ? 'wb-ol' : 'wb-ul';
+        activeBlock = list && list.tagName === 'OL' ? '_sd_wb-ol' : '_sd_wb-ul';
         break;
       }
-      if (tag === 'BLOCKQUOTE') { activeBlock = 'wb-bq'; break; }
-      if (tag === 'PRE') { activeBlock = 'wb-codeblock'; break; }
+      if (tag === 'BLOCKQUOTE') { activeBlock = '_sd_wb-bq'; break; }
+      if (tag === 'PRE') { activeBlock = '_sd_wb-codeblock'; break; }
       el = el.parentElement;
     }
   }
@@ -714,9 +714,9 @@ function updateToolbarState() {
     document.getElementById(BLOCK_BTN_IDS[i]).classList.toggle('active', BLOCK_BTN_IDS[i] === activeBlock);
   }
 
-  document.getElementById('wb-bold').classList.toggle('active', document.queryCommandState('bold'));
-  document.getElementById('wb-italic').classList.toggle('active', document.queryCommandState('italic'));
-  document.getElementById('wb-strike').classList.toggle('active', document.queryCommandState('strikeThrough'));
+  document.getElementById('_sd_wb-bold').classList.toggle('active', document.queryCommandState('bold'));
+  document.getElementById('_sd_wb-italic').classList.toggle('active', document.queryCommandState('italic'));
+  document.getElementById('_sd_wb-strike').classList.toggle('active', document.queryCommandState('strikeThrough'));
 }
 
 document.addEventListener('selectionchange', function() {

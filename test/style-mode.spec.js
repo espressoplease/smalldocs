@@ -8,7 +8,7 @@ const BASE = 'http://localhost:3000';
 /** Navigate to style mode and wait for the right panel to be visible */
 async function gotoStyleMode(page) {
   await page.goto(BASE + '/#mode=style');
-  await page.waitForSelector('#right', { state: 'visible' });
+  await page.waitForSelector('#_sd_right', { state: 'visible' });
 }
 
 /** Open a panel section by clicking its header if not already open */
@@ -29,10 +29,10 @@ async function openSubSection(page, subId) {
   }
 }
 
-/** Read an inline CSS custom property from #rendered */
+/** Read an inline CSS custom property from #_sd_rendered */
 async function getCssVar(page, varName) {
   return page.evaluate(v => {
-    return document.getElementById('rendered').style.getPropertyValue(v).trim();
+    return document.getElementById('_sd_rendered').style.getPropertyValue(v).trim();
   }, varName);
 }
 
@@ -95,17 +95,17 @@ test.describe('Style mode entry', () => {
 
   test('right panel is visible', async ({ page }) => {
     await gotoStyleMode(page);
-    await expect(page.locator('#right')).toBeVisible();
+    await expect(page.locator('#_sd_right')).toBeVisible();
   });
 
   test('rendered panel is visible', async ({ page }) => {
     await gotoStyleMode(page);
-    await expect(page.locator('#rendered')).toBeVisible();
+    await expect(page.locator('#_sd_rendered')).toBeVisible();
   });
 
   test('General section is open by default', async ({ page }) => {
     await gotoStyleMode(page);
-    await expect(page.locator('#body-general')).toHaveClass(/open/);
+    await expect(page.locator('#_sd_body-general')).toHaveClass(/open/);
   });
 });
 
@@ -114,20 +114,20 @@ test.describe('Style mode entry', () => {
 // ═════════════════════════════════════════════════════
 
 const RANGE_NUM_PAIRS = [
-  ['ctrl-base-size-range',    'ctrl-base-size-num',    '20',  'body-general', null],
-  ['ctrl-line-height-range',  'ctrl-line-height-num',  '2.0', 'body-general', null],
-  ['ctrl-h-scale-range',      'ctrl-h-scale-num',      '1.5', 'body-headers', 'sub-headers-general'],
-  ['ctrl-h-mb-range',         'ctrl-h-mb-num',         '1.0', 'body-headers', 'sub-headers-general'],
-  ['ctrl-h1-size-range',      'ctrl-h1-size-num',      '2.5', 'body-headers', 'sub-h1'],
-  ['ctrl-h2-size-range',      'ctrl-h2-size-num',      '2.0', 'body-headers', 'sub-h2'],
-  ['ctrl-h3-size-range',      'ctrl-h3-size-num',      '1.5', 'body-headers', 'sub-h3'],
-  ['ctrl-h4-size-range',      'ctrl-h4-size-num',      '1.5', 'body-headers', 'sub-h4'],
-  ['ctrl-p-lh-range',         'ctrl-p-lh-num',         '2.0', 'body-paragraph', null],
-  ['ctrl-p-mb-range',         'ctrl-p-mb-num',         '1.5', 'body-paragraph', null],
-  ['ctrl-bq-bw-range',        'ctrl-bq-bw-num',        '5',   'body-blockquote', null],
-  ['ctrl-bq-size-range',      'ctrl-bq-size-num',      '1.2', 'body-blockquote', null],
-  ['ctrl-list-spacing-range', 'ctrl-list-spacing-num', '0.8', 'body-lists', null],
-  ['ctrl-list-indent-range',  'ctrl-list-indent-num',  '2.5', 'body-lists', null],
+  ['_sd_ctrl-base-size-range',    '_sd_ctrl-base-size-num',    '20',  '_sd_body-general', null],
+  ['_sd_ctrl-line-height-range',  '_sd_ctrl-line-height-num',  '2.0', '_sd_body-general', null],
+  ['_sd_ctrl-h-scale-range',      '_sd_ctrl-h-scale-num',      '1.5', '_sd_body-headers', '_sd_sub-headers-general'],
+  ['_sd_ctrl-h-mb-range',         '_sd_ctrl-h-mb-num',         '1.0', '_sd_body-headers', '_sd_sub-headers-general'],
+  ['_sd_ctrl-h1-size-range',      '_sd_ctrl-h1-size-num',      '2.5', '_sd_body-headers', '_sd_sub-h1'],
+  ['_sd_ctrl-h2-size-range',      '_sd_ctrl-h2-size-num',      '2.0', '_sd_body-headers', '_sd_sub-h2'],
+  ['_sd_ctrl-h3-size-range',      '_sd_ctrl-h3-size-num',      '1.5', '_sd_body-headers', '_sd_sub-h3'],
+  ['_sd_ctrl-h4-size-range',      '_sd_ctrl-h4-size-num',      '1.5', '_sd_body-headers', '_sd_sub-h4'],
+  ['_sd_ctrl-p-lh-range',         '_sd_ctrl-p-lh-num',         '2.0', '_sd_body-paragraph', null],
+  ['_sd_ctrl-p-mb-range',         '_sd_ctrl-p-mb-num',         '1.5', '_sd_body-paragraph', null],
+  ['_sd_ctrl-bq-bw-range',        '_sd_ctrl-bq-bw-num',        '5',   '_sd_body-blockquote', null],
+  ['_sd_ctrl-bq-size-range',      '_sd_ctrl-bq-size-num',      '1.2', '_sd_body-blockquote', null],
+  ['_sd_ctrl-list-spacing-range', '_sd_ctrl-list-spacing-num', '0.8', '_sd_body-lists', null],
+  ['_sd_ctrl-list-indent-range',  '_sd_ctrl-list-indent-num',  '2.5', '_sd_body-lists', null],
 ];
 
 test.describe('Range → Number sync', () => {
@@ -161,57 +161,57 @@ test.describe('Number → Range sync', () => {
 test.describe('CSS variable application — simple', () => {
   test('base-size → --md-base-size (px suffix)', async ({ page }) => {
     await gotoStyleMode(page);
-    await setNumberValue(page, 'ctrl-base-size-num', '20');
+    await setNumberValue(page, '_sd_ctrl-base-size-num', '20');
     expect(await getCssVar(page, '--md-base-size')).toBe('20px');
   });
 
   test('line-height → --md-line-height (no suffix)', async ({ page }) => {
     await gotoStyleMode(page);
-    await setNumberValue(page, 'ctrl-line-height-num', '2.0');
+    await setNumberValue(page, '_sd_ctrl-line-height-num', '2.0');
     expect(await getCssVar(page, '--md-line-height')).toBe('2.0');
   });
 
   test('h1-size → --md-h1-size (em suffix)', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-h1');
-    await setNumberValue(page, 'ctrl-h1-size-num', '3.0');
+    await openSection(page, '_sd_body-headers');
+    await openSubSection(page, '_sd_sub-h1');
+    await setNumberValue(page, '_sd_ctrl-h1-size-num', '3.0');
     expect(await getCssVar(page, '--md-h1-size')).toBe('3.0em');
   });
 
   test('h-mb → --md-h-margin-bottom (em suffix)', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-headers-general');
-    await setNumberValue(page, 'ctrl-h-mb-num', '1.0');
+    await openSection(page, '_sd_body-headers');
+    await openSubSection(page, '_sd_sub-headers-general');
+    await setNumberValue(page, '_sd_ctrl-h-mb-num', '1.0');
     expect(await getCssVar(page, '--md-h-margin-bottom')).toBe('1.0em');
   });
 
   test('p-lh → --md-p-line-height (no suffix)', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-paragraph');
-    await setNumberValue(page, 'ctrl-p-lh-num', '2.0');
+    await openSection(page, '_sd_body-paragraph');
+    await setNumberValue(page, '_sd_ctrl-p-lh-num', '2.0');
     expect(await getCssVar(page, '--md-p-line-height')).toBe('2.0');
   });
 
   test('list-spacing → --md-list-spacing (em suffix)', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-lists');
-    await setNumberValue(page, 'ctrl-list-spacing-num', '0.8');
+    await openSection(page, '_sd_body-lists');
+    await setNumberValue(page, '_sd_ctrl-list-spacing-num', '0.8');
     expect(await getCssVar(page, '--md-list-spacing')).toBe('0.8em');
   });
 
   test('list-indent → --md-list-indent (em suffix)', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-lists');
-    await setNumberValue(page, 'ctrl-list-indent-num', '2.5');
+    await openSection(page, '_sd_body-lists');
+    await setNumberValue(page, '_sd_ctrl-list-indent-num', '2.5');
     expect(await getCssVar(page, '--md-list-indent')).toBe('2.5em');
   });
 
   test('bq-size → --md-bq-size (em suffix)', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-blockquote');
-    await setNumberValue(page, 'ctrl-bq-size-num', '1.2');
+    await openSection(page, '_sd_body-blockquote');
+    await setNumberValue(page, '_sd_ctrl-bq-size-num', '1.2');
     expect(await getCssVar(page, '--md-bq-size')).toBe('1.2em');
   });
 });
@@ -223,41 +223,41 @@ test.describe('CSS variable application — simple', () => {
 test.describe('CSS variable application — special', () => {
   test('p-mb template → "0 0 {v}em"', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-paragraph');
-    await setNumberValue(page, 'ctrl-p-mb-num', '1.5');
+    await openSection(page, '_sd_body-paragraph');
+    await setNumberValue(page, '_sd_ctrl-p-mb-num', '1.5');
     expect(await getCssVar(page, '--md-p-margin')).toBe('0 0 1.5em');
   });
 
   test('code-bg dual var → sets both --md-code-bg and --md-pre-bg', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-code');
-    await setColorValue(page, 'ctrl-code-bg', '#aabbcc');
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-code');
+    await setColorValue(page, '_sd_ctrl-code-bg', '#aabbcc');
     expect(await getCssVar(page, '--md-code-bg')).toBe('#aabbcc');
     expect(await getCssVar(page, '--md-pre-bg')).toBe('#aabbcc');
   });
 
   test('bq-border compound → combines color + width', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-bq');
-    await setColorValue(page, 'ctrl-bq-border-color', '#ff0000');
-    await setNumberValue(page, 'ctrl-bq-bw-num', '5');
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-bq');
+    await setColorValue(page, '_sd_ctrl-bq-border-color', '#ff0000');
+    await setNumberValue(page, '_sd_ctrl-bq-bw-num', '5');
     const val = await getCssVar(page, '--md-bq-border');
     expect(val).toBe('5px solid #ff0000');
   });
 
   test('font-family select → --md-font-family', async ({ page }) => {
     await gotoStyleMode(page);
-    await setSelectValue(page, 'ctrl-font-family', "'Roboto', sans-serif");
+    await setSelectValue(page, '_sd_ctrl-font-family', "'Roboto', sans-serif");
     const val = await getCssVar(page, '--md-font-family');
     expect(val).toBe("'Roboto', sans-serif");
   });
 
   test('link-decoration select → --md-link-decoration', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-links');
-    await setSelectValue(page, 'ctrl-link-decoration', 'none');
+    await openSection(page, '_sd_body-links');
+    await setSelectValue(page, '_sd_ctrl-link-decoration', 'none');
     expect(await getCssVar(page, '--md-link-decoration')).toBe('none');
   });
 });
@@ -269,16 +269,16 @@ test.describe('CSS variable application — special', () => {
 test.describe('Color cascade — propagation', () => {
   test('ctrl-color → flows to h-color and p-color', async ({ page }) => {
     await gotoStyleMode(page);
-    await setColorValue(page, 'ctrl-color', '#ff0000');
+    await setColorValue(page, '_sd_ctrl-color', '#ff0000');
     expect(await getCssVar(page, '--md-h-color')).toBe('#ff0000');
     expect(await getCssVar(page, '--md-p-color')).toBe('#ff0000');
   });
 
   test('ctrl-h-color → flows to h1-h4', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-headings');
-    await setColorValue(page, 'ctrl-h-color', '#00ff00');
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-headings');
+    await setColorValue(page, '_sd_ctrl-h-color', '#00ff00');
     expect(await getCssVar(page, '--md-h1-color')).toBe('#00ff00');
     expect(await getCssVar(page, '--md-h2-color')).toBe('#00ff00');
     expect(await getCssVar(page, '--md-h3-color')).toBe('#00ff00');
@@ -287,24 +287,24 @@ test.describe('Color cascade — propagation', () => {
 
   test('ctrl-p-color → flows to list-color', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await setColorValue(page, 'ctrl-p-color', '#0000ff');
+    await openSection(page, '_sd_body-colors');
+    await setColorValue(page, '_sd_ctrl-p-color', '#0000ff');
     expect(await getCssVar(page, '--md-list-color')).toBe('#0000ff');
   });
 
   test('full chain: ctrl-color → h-color → h1-color', async ({ page }) => {
     await gotoStyleMode(page);
-    await setColorValue(page, 'ctrl-color', '#abcdef');
+    await setColorValue(page, '_sd_ctrl-color', '#abcdef');
     expect(await getCssVar(page, '--md-h1-color')).toBe('#abcdef');
     expect(await getCssVar(page, '--md-list-color')).toBe('#abcdef');
   });
 
   test('ctrl-color cascades to control input values', async ({ page }) => {
     await gotoStyleMode(page);
-    await setColorValue(page, 'ctrl-color', '#112233');
-    expect(await getCtrlValue(page, 'ctrl-h-color')).toBe('#112233');
-    expect(await getCtrlValue(page, 'ctrl-p-color')).toBe('#112233');
-    expect(await getCtrlValue(page, 'ctrl-h1-color')).toBe('#112233');
+    await setColorValue(page, '_sd_ctrl-color', '#112233');
+    expect(await getCtrlValue(page, '_sd_ctrl-h-color')).toBe('#112233');
+    expect(await getCtrlValue(page, '_sd_ctrl-p-color')).toBe('#112233');
+    expect(await getCtrlValue(page, '_sd_ctrl-h1-color')).toBe('#112233');
   });
 });
 
@@ -315,12 +315,12 @@ test.describe('Color cascade — propagation', () => {
 test.describe('Color cascade — override blocking', () => {
   test('overridden child blocks parent cascade', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-headings');
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-headings');
     // Override h-color first
-    await setColorValue(page, 'ctrl-h-color', '#00ff00');
+    await setColorValue(page, '_sd_ctrl-h-color', '#00ff00');
     // Now change ctrl-color — h-color should stay overridden
-    await setColorValue(page, 'ctrl-color', '#ff0000');
+    await setColorValue(page, '_sd_ctrl-color', '#ff0000');
     expect(await getCssVar(page, '--md-h-color')).toBe('#00ff00');
     // But p-color (not overridden) should get the new value
     expect(await getCssVar(page, '--md-p-color')).toBe('#ff0000');
@@ -328,20 +328,20 @@ test.describe('Color cascade — override blocking', () => {
 
   test('overridden h1 blocks h-color cascade', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-headings');
-    await setColorValue(page, 'ctrl-h1-color', '#aaaaaa');
-    await setColorValue(page, 'ctrl-h-color', '#bbbbbb');
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-headings');
+    await setColorValue(page, '_sd_ctrl-h1-color', '#aaaaaa');
+    await setColorValue(page, '_sd_ctrl-h-color', '#bbbbbb');
     expect(await getCssVar(page, '--md-h1-color')).toBe('#aaaaaa');
     expect(await getCssVar(page, '--md-h2-color')).toBe('#bbbbbb');
   });
 
   test('siblings still receive cascade when one is overridden', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-headings');
-    await setColorValue(page, 'ctrl-h2-color', '#222222');
-    await setColorValue(page, 'ctrl-h-color', '#999999');
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-headings');
+    await setColorValue(page, '_sd_ctrl-h2-color', '#222222');
+    await setColorValue(page, '_sd_ctrl-h-color', '#999999');
     // h2 overridden, h1/h3/h4 should get cascade
     expect(await getCssVar(page, '--md-h2-color')).toBe('#222222');
     expect(await getCssVar(page, '--md-h1-color')).toBe('#999999');
@@ -351,9 +351,9 @@ test.describe('Color cascade — override blocking', () => {
 
   test('overridden list-color blocks p-color cascade', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await setColorValue(page, 'ctrl-list-color', '#333333');
-    await setColorValue(page, 'ctrl-p-color', '#444444');
+    await openSection(page, '_sd_body-colors');
+    await setColorValue(page, '_sd_ctrl-list-color', '#333333');
+    await setColorValue(page, '_sd_ctrl-p-color', '#444444');
     expect(await getCssVar(page, '--md-list-color')).toBe('#333333');
   });
 });
@@ -365,15 +365,15 @@ test.describe('Color cascade — override blocking', () => {
 test.describe('Reset buttons — cascade colors', () => {
   test('reset-h-color resumes cascade from ctrl-color', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-headings');
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-headings');
     // Set root color
-    await setColorValue(page, 'ctrl-color', '#ff0000');
+    await setColorValue(page, '_sd_ctrl-color', '#ff0000');
     // Override h-color
-    await setColorValue(page, 'ctrl-h-color', '#00ff00');
+    await setColorValue(page, '_sd_ctrl-h-color', '#00ff00');
     expect(await getCssVar(page, '--md-h-color')).toBe('#00ff00');
     // Reset h-color — should resume getting ctrl-color's cascade
-    await clickReset(page, 'reset-h-color');
+    await clickReset(page, '_sd_reset-h-color');
     // After reset, the default color is applied (light theme default #1c1917)
     const defaultColor = await page.evaluate(() => SDocs.getColorDefault());
     expect(await getCssVar(page, '--md-h-color')).toBe(defaultColor);
@@ -381,12 +381,12 @@ test.describe('Reset buttons — cascade colors', () => {
 
   test('reset-h1-color resumes cascade from h-color', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-headings');
-    await setColorValue(page, 'ctrl-h-color', '#aabbcc');
-    await setColorValue(page, 'ctrl-h1-color', '#112233');
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-headings');
+    await setColorValue(page, '_sd_ctrl-h-color', '#aabbcc');
+    await setColorValue(page, '_sd_ctrl-h1-color', '#112233');
     expect(await getCssVar(page, '--md-h1-color')).toBe('#112233');
-    await clickReset(page, 'reset-h1-color');
+    await clickReset(page, '_sd_reset-h1-color');
     // After reset, since h-color was overridden, the default color applies
     const defaultColor = await page.evaluate(() => SDocs.getColorDefault());
     expect(await getCssVar(page, '--md-h1-color')).toBe(defaultColor);
@@ -394,10 +394,10 @@ test.describe('Reset buttons — cascade colors', () => {
 
   test('reset ctrl-color re-cascades to all children', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await setColorValue(page, 'ctrl-color', '#ff0000');
+    await openSection(page, '_sd_body-colors');
+    await setColorValue(page, '_sd_ctrl-color', '#ff0000');
     expect(await getCssVar(page, '--md-h1-color')).toBe('#ff0000');
-    await clickReset(page, 'reset-color');
+    await clickReset(page, '_sd_reset-color');
     const defaultColor = await page.evaluate(() => SDocs.getColorDefault());
     expect(await getCssVar(page, '--md-color')).toBe(defaultColor);
     expect(await getCssVar(page, '--md-h-color')).toBe(defaultColor);
@@ -407,11 +407,11 @@ test.describe('Reset buttons — cascade colors', () => {
 
   test('reset-p-color resumes cascade from ctrl-color', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await setColorValue(page, 'ctrl-color', '#aabb00');
-    await setColorValue(page, 'ctrl-p-color', '#ccdd00');
+    await openSection(page, '_sd_body-colors');
+    await setColorValue(page, '_sd_ctrl-color', '#aabb00');
+    await setColorValue(page, '_sd_ctrl-p-color', '#ccdd00');
     expect(await getCssVar(page, '--md-p-color')).toBe('#ccdd00');
-    await clickReset(page, 'reset-p-color');
+    await clickReset(page, '_sd_reset-p-color');
     const defaultColor = await page.evaluate(() => SDocs.getColorDefault());
     expect(await getCssVar(page, '--md-p-color')).toBe(defaultColor);
   });
@@ -424,51 +424,51 @@ test.describe('Reset buttons — cascade colors', () => {
 test.describe('Reset buttons — standalone colors', () => {
   test('reset-link-color resets to light theme default', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await setColorValue(page, 'ctrl-link-color', '#ff0000');
-    await clickReset(page, 'reset-link-color');
-    const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-link-color'));
-    expect(await getCtrlValue(page, 'ctrl-link-color')).toBe(def);
+    await openSection(page, '_sd_body-colors');
+    await setColorValue(page, '_sd_ctrl-link-color', '#ff0000');
+    await clickReset(page, '_sd_reset-link-color');
+    const def = await page.evaluate(() => SDocs.getStandaloneDefault('_sd_ctrl-link-color'));
+    expect(await getCtrlValue(page, '_sd_ctrl-link-color')).toBe(def);
   });
 
   test('reset-code-bg resets to theme default', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-code');
-    await setColorValue(page, 'ctrl-code-bg', '#000000');
-    await clickReset(page, 'reset-code-bg');
-    const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-code-bg'));
-    expect(await getCtrlValue(page, 'ctrl-code-bg')).toBe(def);
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-code');
+    await setColorValue(page, '_sd_ctrl-code-bg', '#000000');
+    await clickReset(page, '_sd_reset-code-bg');
+    const def = await page.evaluate(() => SDocs.getStandaloneDefault('_sd_ctrl-code-bg'));
+    expect(await getCtrlValue(page, '_sd_ctrl-code-bg')).toBe(def);
   });
 
   test('reset-code-color resets to theme default', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-code');
-    await setColorValue(page, 'ctrl-code-color', '#000000');
-    await clickReset(page, 'reset-code-color');
-    const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-code-color'));
-    expect(await getCtrlValue(page, 'ctrl-code-color')).toBe(def);
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-code');
+    await setColorValue(page, '_sd_ctrl-code-color', '#000000');
+    await clickReset(page, '_sd_reset-code-color');
+    const def = await page.evaluate(() => SDocs.getStandaloneDefault('_sd_ctrl-code-color'));
+    expect(await getCtrlValue(page, '_sd_ctrl-code-color')).toBe(def);
   });
 
   test('reset-bq-border-color resets to theme default', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-bq');
-    await setColorValue(page, 'ctrl-bq-border-color', '#000000');
-    await clickReset(page, 'reset-bq-border-color');
-    const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-bq-border-color'));
-    expect(await getCtrlValue(page, 'ctrl-bq-border-color')).toBe(def);
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-bq');
+    await setColorValue(page, '_sd_ctrl-bq-border-color', '#000000');
+    await clickReset(page, '_sd_reset-bq-border-color');
+    const def = await page.evaluate(() => SDocs.getStandaloneDefault('_sd_ctrl-bq-border-color'));
+    expect(await getCtrlValue(page, '_sd_ctrl-bq-border-color')).toBe(def);
   });
 
   test('reset-bq-color resets to theme default', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-bq');
-    await setColorValue(page, 'ctrl-bq-color', '#000000');
-    await clickReset(page, 'reset-bq-color');
-    const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-bq-color'));
-    expect(await getCtrlValue(page, 'ctrl-bq-color')).toBe(def);
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-bq');
+    await setColorValue(page, '_sd_ctrl-bq-color', '#000000');
+    await clickReset(page, '_sd_reset-bq-color');
+    const def = await page.evaluate(() => SDocs.getStandaloneDefault('_sd_ctrl-bq-color'));
+    expect(await getCtrlValue(page, '_sd_ctrl-bq-color')).toBe(def);
   });
 });
 
@@ -479,22 +479,22 @@ test.describe('Reset buttons — standalone colors', () => {
 test.describe('Factory reset', () => {
   test('resets range/number controls to defaults', async ({ page }) => {
     await gotoStyleMode(page);
-    await setNumberValue(page, 'ctrl-base-size-num', '24');
-    await setNumberValue(page, 'ctrl-line-height-num', '2.5');
-    await page.locator('#factory-reset-styles').click();
+    await setNumberValue(page, '_sd_ctrl-base-size-num', '24');
+    await setNumberValue(page, '_sd_ctrl-line-height-num', '2.5');
+    await page.locator('#_sd_factory-reset-styles').click();
     // defaultValue for base-size is 16, line-height is 1.75
-    expect(await getCtrlValue(page, 'ctrl-base-size-num')).toBe('16');
-    expect(await getCtrlValue(page, 'ctrl-line-height-num')).toBe('1.75');
+    expect(await getCtrlValue(page, '_sd_ctrl-base-size-num')).toBe('16');
+    expect(await getCtrlValue(page, '_sd_ctrl-line-height-num')).toBe('1.75');
     expect(await getCssVar(page, '--md-base-size')).toBe('16px');
   });
 
   test('clears color overrides', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-headings');
-    await setColorValue(page, 'ctrl-color', '#ff0000');
-    await setColorValue(page, 'ctrl-h-color', '#00ff00');
-    await page.locator('#factory-reset-styles').click();
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-headings');
+    await setColorValue(page, '_sd_ctrl-color', '#ff0000');
+    await setColorValue(page, '_sd_ctrl-h-color', '#00ff00');
+    await page.locator('#_sd_factory-reset-styles').click();
     const defaultColor = await page.evaluate(() => SDocs.getColorDefault());
     expect(await getCssVar(page, '--md-color')).toBe(defaultColor);
     expect(await getCssVar(page, '--md-h-color')).toBe(defaultColor);
@@ -505,11 +505,11 @@ test.describe('Factory reset', () => {
 
   test('resets standalone colors to theme defaults', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-colors');
-    await setColorValue(page, 'ctrl-link-color', '#ff0000');
-    await page.locator('#factory-reset-styles').click();
-    const def = await page.evaluate(() => SDocs.getStandaloneDefault('ctrl-link-color'));
-    expect(await getCtrlValue(page, 'ctrl-link-color')).toBe(def);
+    await openSection(page, '_sd_body-colors');
+    await setColorValue(page, '_sd_ctrl-link-color', '#ff0000');
+    await page.locator('#_sd_factory-reset-styles').click();
+    const def = await page.evaluate(() => SDocs.getStandaloneDefault('_sd_ctrl-link-color'));
+    expect(await getCtrlValue(page, '_sd_ctrl-link-color')).toBe(def);
   });
 });
 
@@ -520,21 +520,21 @@ test.describe('Factory reset', () => {
 test.describe('Style persistence', () => {
   test('survives style → read → style roundtrip', async ({ page }) => {
     await gotoStyleMode(page);
-    await setNumberValue(page, 'ctrl-base-size-num', '22');
+    await setNumberValue(page, '_sd_ctrl-base-size-num', '22');
     // Switch to read mode and back
     await page.evaluate(() => SDocs.setMode('read'));
     await page.evaluate(() => SDocs.setMode('style'));
-    await page.waitForSelector('#right', { state: 'visible' });
-    expect(await getCtrlValue(page, 'ctrl-base-size-num')).toBe('22');
+    await page.waitForSelector('#_sd_right', { state: 'visible' });
+    expect(await getCtrlValue(page, '_sd_ctrl-base-size-num')).toBe('22');
     expect(await getCssVar(page, '--md-base-size')).toBe('22px');
   });
 
   test('changed style appears in raw YAML', async ({ page }) => {
     await gotoStyleMode(page);
-    await setNumberValue(page, 'ctrl-base-size-num', '22');
+    await setNumberValue(page, '_sd_ctrl-base-size-num', '22');
     // Wait for syncAll debounce
     await page.waitForTimeout(500);
-    const raw = await page.evaluate(() => document.getElementById('raw').value);
+    const raw = await page.evaluate(() => document.getElementById('_sd_raw').value);
     expect(raw).toContain('baseFontSize: 22');
   });
 });
@@ -547,26 +547,26 @@ test.describe('Panel collapsing', () => {
   test('clicking panel-header toggles open class', async ({ page }) => {
     await gotoStyleMode(page);
     // body-general starts open, click to close
-    const header = page.locator('.panel-header[data-target="body-general"]');
+    const header = page.locator('.panel-header[data-target="_sd_body-general"]');
     await header.click();
-    await expect(page.locator('#body-general')).not.toHaveClass(/open/);
+    await expect(page.locator('#_sd_body-general')).not.toHaveClass(/open/);
     await expect(header).not.toHaveClass(/open/);
     // Click again to open
     await header.click();
-    await expect(page.locator('#body-general')).toHaveClass(/open/);
+    await expect(page.locator('#_sd_body-general')).toHaveClass(/open/);
     await expect(header).toHaveClass(/open/);
   });
 
   test('clicking sub-header toggles sub-section', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-headers');
-    const subHeader = page.locator('.sub-header[data-target="sub-headers-general"]');
+    await openSection(page, '_sd_body-headers');
+    const subHeader = page.locator('.sub-header[data-target="_sd_sub-headers-general"]');
     // Open
     await subHeader.click();
-    await expect(page.locator('#sub-headers-general')).toHaveClass(/open/);
+    await expect(page.locator('#_sd_sub-headers-general')).toHaveClass(/open/);
     // Close
     await subHeader.click();
-    await expect(page.locator('#sub-headers-general')).not.toHaveClass(/open/);
+    await expect(page.locator('#_sd_sub-headers-general')).not.toHaveClass(/open/);
   });
 });
 
@@ -577,7 +577,7 @@ test.describe('Panel collapsing', () => {
 test.describe('Font loading', () => {
   test('selecting a Google Font injects a <link> tag', async ({ page }) => {
     await gotoStyleMode(page);
-    await setSelectValue(page, 'ctrl-font-family', "'Roboto', sans-serif");
+    await setSelectValue(page, '_sd_ctrl-font-family', "'Roboto', sans-serif");
     const linkExists = await page.evaluate(() => {
       return !!document.querySelector('link[href*="Roboto"]');
     });
@@ -593,20 +593,20 @@ test.describe('collectStyles roundtrip', () => {
   test('collect → apply produces same CSS vars', async ({ page }) => {
     await gotoStyleMode(page);
     // Change a few controls
-    await setNumberValue(page, 'ctrl-base-size-num', '20');
-    await openSection(page, 'body-paragraph');
-    await setNumberValue(page, 'ctrl-p-mb-num', '1.5');
+    await setNumberValue(page, '_sd_ctrl-base-size-num', '20');
+    await openSection(page, '_sd_body-paragraph');
+    await setNumberValue(page, '_sd_ctrl-p-mb-num', '1.5');
     // Collect, then apply
     const sameState = await page.evaluate(() => {
       const styles = SDocs.collectStyles();
       const before = {
-        baseSize: document.getElementById('rendered').style.getPropertyValue('--md-base-size'),
-        pMargin: document.getElementById('rendered').style.getPropertyValue('--md-p-margin'),
+        baseSize: document.getElementById('_sd_rendered').style.getPropertyValue('--md-base-size'),
+        pMargin: document.getElementById('_sd_rendered').style.getPropertyValue('--md-p-margin'),
       };
       SDocs.applyStylesFromMeta(styles);
       const after = {
-        baseSize: document.getElementById('rendered').style.getPropertyValue('--md-base-size'),
-        pMargin: document.getElementById('rendered').style.getPropertyValue('--md-p-margin'),
+        baseSize: document.getElementById('_sd_rendered').style.getPropertyValue('--md-base-size'),
+        pMargin: document.getElementById('_sd_rendered').style.getPropertyValue('--md-p-margin'),
       };
       return before.baseSize === after.baseSize && before.pMargin === after.pMargin;
     });
@@ -616,9 +616,9 @@ test.describe('collectStyles roundtrip', () => {
   test('only overridden cascade colors appear in collected styles', async ({ page }) => {
     await gotoStyleMode(page);
     // Override h-color but not h1-color
-    await openSection(page, 'body-colors');
-    await openSubSection(page, 'sub-colors-headings');
-    await setColorValue(page, 'ctrl-h-color', '#abcdef');
+    await openSection(page, '_sd_body-colors');
+    await openSubSection(page, '_sd_sub-colors-headings');
+    await setColorValue(page, '_sd_ctrl-h-color', '#abcdef');
     const styles = await page.evaluate(() => SDocs.collectStyles());
     // Colors go into the light: theme block (since overriddenColors is non-empty)
     expect(styles.light.headers.color).toBe('#abcdef');
@@ -634,17 +634,17 @@ test.describe('collectStyles roundtrip', () => {
 test.describe('Header font weight', () => {
   test('h1-weight select → --md-h1-weight', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-h1');
-    await setSelectValue(page, 'ctrl-h1-weight', '400');
+    await openSection(page, '_sd_body-headers');
+    await openSubSection(page, '_sd_sub-h1');
+    await setSelectValue(page, '_sd_ctrl-h1-weight', '400');
     expect(await getCssVar(page, '--md-h1-weight')).toBe('400');
   });
 
   test('h2-weight select → --md-h2-weight', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-h2');
-    await setSelectValue(page, 'ctrl-h2-weight', '400');
+    await openSection(page, '_sd_body-headers');
+    await openSubSection(page, '_sd_sub-h2');
+    await setSelectValue(page, '_sd_ctrl-h2-weight', '400');
     expect(await getCssVar(page, '--md-h2-weight')).toBe('400');
   });
 });
@@ -656,9 +656,9 @@ test.describe('Header font weight', () => {
 test.describe('Header scale', () => {
   test('h-scale → --md-h-scale (no suffix)', async ({ page }) => {
     await gotoStyleMode(page);
-    await openSection(page, 'body-headers');
-    await openSubSection(page, 'sub-headers-general');
-    await setNumberValue(page, 'ctrl-h-scale-num', '1.5');
+    await openSection(page, '_sd_body-headers');
+    await openSubSection(page, '_sd_sub-headers-general');
+    await setNumberValue(page, '_sd_ctrl-h-scale-num', '1.5');
     expect(await getCssVar(page, '--md-h-scale')).toBe('1.5');
   });
 });

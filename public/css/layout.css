@@ -18,7 +18,7 @@ body {
 /* ═══════════════════════════════════════════════════
    TOOLBAR BRAND
 ═══════════════════════════════════════════════════ */
-#toolbar-brand {
+#_sd_toolbar-brand {
   display: inline-flex;
   align-items: center;
   text-decoration: none;
@@ -30,7 +30,7 @@ body {
   margin-right: auto;
   transition: opacity .12s;
 }
-#toolbar-brand:hover { opacity: .7; }
+#_sd_toolbar-brand:hover { opacity: .7; }
 .toolbar-brand-text { display: none; }
 .toolbar-brand-full { display: inline; font-size: 13px; font-weight: 600; }
 .toolbar-brand-short { display: none; }
@@ -82,7 +82,7 @@ body {
 /* ═══════════════════════════════════════════════════
    MAIN LAYOUT
 ═══════════════════════════════════════════════════ */
-#main {
+#_sd_main {
   display: flex;
   flex: 1;
   overflow: hidden;
@@ -91,7 +91,7 @@ body {
 /* ═══════════════════════════════════════════════════
    LEFT PANEL
 ═══════════════════════════════════════════════════ */
-#left {
+#_sd_left {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -99,7 +99,7 @@ body {
   background: var(--bg-input);
 }
 
-#left-toolbar {
+#_sd_left-toolbar {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -113,7 +113,7 @@ body {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
-#left-toolbar::-webkit-scrollbar {
+#_sd_left-toolbar::-webkit-scrollbar {
   display: none;
 }
 
@@ -148,7 +148,7 @@ body {
   color: var(--text);
 }
 
-#drop-hint {
+#_sd_drop-hint {
   font-size: 11.5px;
   color: var(--text-3);
   margin-left: auto;
@@ -179,19 +179,19 @@ body {
   }
 }
 
-#content-area {
+#_sd_content-area {
   flex: 1;
   overflow: auto;
   position: relative;
   background-color: #FFFFFF;
   outline: none;
 }
-html[data-theme="dark"] #content-area {
+html[data-theme="dark"] #_sd_content-area {
   background-color: #2c2a26;
 }
 
 /* drag overlay */
-#content-area.drag-over::after {
+#_sd_content-area.drag-over::after {
   content: 'Drop file to load';
   position: absolute;
   inset: 0;
@@ -212,7 +212,7 @@ html[data-theme="dark"] #content-area {
 /* ═══════════════════════════════════════════════════
    RAW TEXTAREA
 ═══════════════════════════════════════════════════ */
-#raw {
+#_sd_raw {
   display: none;
   width: 100%;
   height: 100%;
@@ -230,11 +230,11 @@ html[data-theme="dark"] #content-area {
 /* ═══════════════════════════════════════════════════
    DIVIDER (resize handle aesthetic)
 ═══════════════════════════════════════════════════ */
-#divider {
+#_sd_divider {
   width: 0;
   background: var(--border);
   flex-shrink: 0;
   transition: width .32s cubic-bezier(.4,0,.2,1);
 }
-body.style-mode #divider,
-body.export-mode #divider { width: 1px; }
+body.style-mode #_sd_divider,
+body.export-mode #_sd_divider { width: 1px; }

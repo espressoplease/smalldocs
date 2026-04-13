@@ -21,12 +21,12 @@ module.exports = function(harness) {
 
   test('index.html contains required markup elements', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
-    assert.ok(html.includes('id="rendered"'), 'missing #rendered');
-    assert.ok(html.includes('id="raw"'), 'missing #raw');
-    assert.ok(html.includes('id="right"'), 'missing #right panel');
-    assert.ok(html.includes('id="export-panel"'), 'missing #export-panel');
-    assert.ok(html.includes('id="btn-export"'), 'missing #btn-export');
-    assert.ok(html.includes('id="btn-new"'), 'missing #btn-new');
+    assert.ok(html.includes('id="_sd_rendered"'), 'missing #_sd_rendered');
+    assert.ok(html.includes('id="_sd_raw"'), 'missing #_sd_raw');
+    assert.ok(html.includes('id="_sd_right"'), 'missing #_sd_right panel');
+    assert.ok(html.includes('id="_sd_export-panel"'), 'missing #_sd_export-panel');
+    assert.ok(html.includes('id="_sd_btn-export"'), 'missing #_sd_btn-export');
+    assert.ok(html.includes('id="_sd_btn-new"'), 'missing #_sd_btn-new');
   });
 
   test('css/layout.css contains drag-over overlay', () => {
@@ -41,7 +41,7 @@ module.exports = function(harness) {
 
   test('index.html contains theme toggle button', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
-    assert.ok(html.includes('id="btn-theme"'), 'missing theme toggle button');
+    assert.ok(html.includes('id="_sd_btn-theme"'), 'missing theme toggle button');
   });
 
   test('sdocs-theme.js contains theme functions', () => {
@@ -120,18 +120,18 @@ module.exports = function(harness) {
 
   test('chart palette dropdown defaults to monochrome', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
-    assert.ok(html.includes('id="ctrl-chart-palette"'), 'missing chart palette dropdown');
+    assert.ok(html.includes('id="_sd_ctrl-chart-palette"'), 'missing chart palette dropdown');
     assert.ok(html.includes('<option value="monochrome" selected>'), 'monochrome should be selected by default');
   });
 
   test('chart controls are inside the Colors > Blocks section', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
-    const blocksStart = html.indexOf('data-target="sub-colors-blocks"');
+    const blocksStart = html.indexOf('data-target="_sd_sub-colors-blocks"');
     const colorsEnd = html.indexOf('<!-- HEADERS -->');
-    const chartAccent = html.indexOf('id="ctrl-chart-accent"');
-    const chartPalette = html.indexOf('id="ctrl-chart-palette"');
-    const blockBg = html.indexOf('id="ctrl-block-bg"');
-    const blockText = html.indexOf('id="ctrl-block-text"');
+    const chartAccent = html.indexOf('id="_sd_ctrl-chart-accent"');
+    const chartPalette = html.indexOf('id="_sd_ctrl-chart-palette"');
+    const blockBg = html.indexOf('id="_sd_ctrl-block-bg"');
+    const blockText = html.indexOf('id="_sd_ctrl-block-text"');
     assert.ok(blocksStart > 0 && colorsEnd > 0, 'Blocks sub-section markers not found');
     assert.ok(blockBg > blocksStart && blockBg < colorsEnd, 'block-bg should be inside Blocks sub-section');
     assert.ok(blockText > blocksStart && blockText < colorsEnd, 'block-text should be inside Blocks sub-section');

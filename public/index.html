@@ -21,146 +21,146 @@
 </head>
 <body>
 
-<div id="main">
+<div id="_sd_main">
   <!-- ── Left panel ── -->
-  <div id="left">
-    <div id="left-toolbar">
-      <a id="toolbar-brand" href="#" title="SDocs — reset to defaults">
+  <div id="_sd_left">
+    <div id="_sd_left-toolbar">
+      <a id="_sd_toolbar-brand" href="#" title="SDocs — reset to defaults">
         <span class="toolbar-brand-text toolbar-brand-full">SmallDocs</span>
         <span class="toolbar-brand-text toolbar-brand-short">SDocs</span>
         <span class="toolbar-brand-text toolbar-brand-tiny">SD</span>
       </a>
       <div class="toggle-group">
-        <button class="btn active" id="btn-read" title="Read">
+        <button class="btn active" id="_sd_btn-read" title="Read">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>
         </button>
-        <button class="btn" id="btn-copy-file" title="Copy whole file (body + front matter)">
+        <button class="btn" id="_sd_btn-copy-file" title="Copy whole file (body + front matter)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
-        <button class="btn" id="btn-style" title="Style">
+        <button class="btn" id="_sd_btn-style" title="Style">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.622 17.897-10.68-2.913"/><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"/><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/></svg>
         </button>
-        <button class="btn" id="btn-write" title="Write">
+        <button class="btn" id="_sd_btn-write" title="Write">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
         </button>
-        <button class="btn" id="btn-raw" title="Raw">
+        <button class="btn" id="_sd_btn-raw" title="Raw">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         </button>
-        <button class="btn" id="btn-export" title="Export">
+        <button class="btn" id="_sd_btn-export" title="Export">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
-        <button class="btn" id="btn-new" title="New document">
+        <button class="btn" id="_sd_btn-new" title="New document">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.35 22H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v5.35"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M14 19h6"/><path d="M17 16v6"/></svg>
         </button>
         <span class="write-tb-sep"></span>
-        <button class="btn" id="btn-theme" title="Toggle dark mode" aria-label="Toggle dark mode">
-          <svg id="icon-theme" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke-width="2"/></svg>
+        <button class="btn" id="_sd_btn-theme" title="Toggle dark mode" aria-label="Toggle dark mode">
+          <svg id="_sd_icon-theme" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke-width="2"/></svg>
         </button>
       </div>
-      <span id="drop-hint">
+      <span id="_sd_drop-hint">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3.5 5.5L6 8l2.5-2.5M2 10h8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Drop .md to load
       </span>
     </div>
-    <div id="write-toolbar">
-      <button class="write-tb-btn" id="wb-bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
-      <button class="write-tb-btn" id="wb-italic" title="Italic (Ctrl+I)"><em>I</em></button>
-      <button class="write-tb-btn" id="wb-strike" title="Strikethrough (Ctrl+Shift+X)"><s>S</s></button>
-      <button class="write-tb-btn" id="wb-code" title="Inline code (Ctrl+E)"><code>&lt;/&gt;</code></button>
+    <div id="_sd_write-toolbar">
+      <button class="write-tb-btn" id="_sd_wb-bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+      <button class="write-tb-btn" id="_sd_wb-italic" title="Italic (Ctrl+I)"><em>I</em></button>
+      <button class="write-tb-btn" id="_sd_wb-strike" title="Strikethrough (Ctrl+Shift+X)"><s>S</s></button>
+      <button class="write-tb-btn" id="_sd_wb-code" title="Inline code (Ctrl+E)"><code>&lt;/&gt;</code></button>
       <span class="write-tb-sep"></span>
-      <button class="write-tb-btn" id="wb-h1" title="Heading 1">H1</button>
-      <button class="write-tb-btn" id="wb-h2" title="Heading 2">H2</button>
-      <button class="write-tb-btn" id="wb-h3" title="Heading 3">H3</button>
-      <button class="write-tb-btn" id="wb-h4" title="Heading 4">H4</button>
-      <button class="write-tb-btn" id="wb-h5" title="Heading 5">H5</button>
-      <button class="write-tb-btn" id="wb-p" title="Normal paragraph">&#182;</button>
+      <button class="write-tb-btn" id="_sd_wb-h1" title="Heading 1">H1</button>
+      <button class="write-tb-btn" id="_sd_wb-h2" title="Heading 2">H2</button>
+      <button class="write-tb-btn" id="_sd_wb-h3" title="Heading 3">H3</button>
+      <button class="write-tb-btn" id="_sd_wb-h4" title="Heading 4">H4</button>
+      <button class="write-tb-btn" id="_sd_wb-h5" title="Heading 5">H5</button>
+      <button class="write-tb-btn" id="_sd_wb-p" title="Normal paragraph">&#182;</button>
       <span class="write-tb-sep"></span>
-      <button class="write-tb-btn" id="wb-ul" title="Bullet list">
+      <button class="write-tb-btn" id="_sd_wb-ul" title="Bullet list">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
       </button>
-      <button class="write-tb-btn" id="wb-ol" title="Numbered list">
+      <button class="write-tb-btn" id="_sd_wb-ol" title="Numbered list">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><text x="2" y="8" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif">1</text><text x="2" y="14" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif">2</text><text x="2" y="20" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif">3</text></svg>
       </button>
-      <button class="write-tb-btn" id="wb-bq" title="Blockquote">
+      <button class="write-tb-btn" id="_sd_wb-bq" title="Blockquote">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="4" x2="3" y2="20"/><line x1="9" y1="8" x2="20" y2="8"/><line x1="9" y1="12" x2="18" y2="12"/><line x1="9" y1="16" x2="16" y2="16"/></svg>
       </button>
-      <button class="write-tb-btn" id="wb-codeblock" title="Code block">
+      <button class="write-tb-btn" id="_sd_wb-codeblock" title="Code block">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
       </button>
       <span class="write-tb-sep"></span>
-      <button class="write-tb-btn" id="wb-link" title="Insert link (Ctrl+K)">
+      <button class="write-tb-btn" id="_sd_wb-link" title="Insert link (Ctrl+K)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
       </button>
-      <button class="write-tb-btn" id="wb-image" title="Insert image">
+      <button class="write-tb-btn" id="_sd_wb-image" title="Insert image">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
       </button>
-      <button class="write-tb-btn" id="wb-hr" title="Horizontal rule">&#8212;</button>
+      <button class="write-tb-btn" id="_sd_wb-hr" title="Horizontal rule">&#8212;</button>
       <span class="write-tb-sep"></span>
-      <button class="write-tb-btn" id="wb-clear" title="Clear formatting">
+      <button class="write-tb-btn" id="_sd_wb-clear" title="Clear formatting">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><line x1="4" y1="20" x2="20" y2="4" stroke-width="1.5" opacity="0.5"/></svg>
       </button>
     </div>
-    <div id="content-area" tabindex="0">
-      <div id="sdocs-file-info" hidden>
+    <div id="_sd_content-area" tabindex="0">
+      <div id="_sd_sdocs-file-info" hidden>
         <div class="fic-rows"></div>
         <span class="fic-privacy-note" hidden>Local only rows aren't included in shared sdocs</span>
       </div>
-      <div id="rendered"></div>
-      <div id="write" contenteditable="true" spellcheck="true"></div>
-      <textarea id="raw" spellcheck="false"></textarea>
+      <div id="_sd_rendered"></div>
+      <div id="_sd_write" contenteditable="true" spellcheck="true"></div>
+      <textarea id="_sd_raw" spellcheck="false"></textarea>
     </div>
   </div>
 
-  <div id="divider"></div>
+  <div id="_sd_divider"></div>
 
   <!-- ── Right panel ── -->
-  <div id="right">
-    <div id="right-header">Styles</div>
+  <div id="_sd_right">
+    <div id="_sd_right-header">Styles</div>
 
     <!-- GENERAL -->
     <div class="panel-section">
-      <div class="panel-header open" data-target="body-general">
+      <div class="panel-header open" data-target="_sd_body-general">
         <span class="arrow">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         General
       </div>
-      <div class="panel-body open" id="body-general">
+      <div class="panel-body open" id="_sd_body-general">
         <div class="control-row">
           <label>Font family</label>
-          <select id="ctrl-font-family"></select>
+          <select id="_sd_ctrl-font-family"></select>
         </div>
         <div class="control-row">
           <label>Base size</label>
-          <input type="range" id="ctrl-base-size-range" min="10" max="28" step="1" value="16">
-          <input type="number" id="ctrl-base-size-num" min="10" max="28" value="16">
+          <input type="range" id="_sd_ctrl-base-size-range" min="10" max="28" step="1" value="16">
+          <input type="number" id="_sd_ctrl-base-size-num" min="10" max="28" value="16">
           <span class="unit">px</span>
         </div>
         <div class="control-row">
           <label>Line height</label>
-          <input type="range" id="ctrl-line-height-range" min="1.0" max="2.5" step="0.05" value="1.75">
-          <input type="number" id="ctrl-line-height-num" min="1.0" max="2.5" step="0.05" value="1.75">
+          <input type="range" id="_sd_ctrl-line-height-range" min="1.0" max="2.5" step="0.05" value="1.75">
+          <input type="number" id="_sd_ctrl-line-height-num" min="1.0" max="2.5" step="0.05" value="1.75">
         </div>
-        <button class="factory-reset-btn" id="factory-reset-styles" title="Reset all styles to defaults">Reset all styles</button>
+        <button class="factory-reset-btn" id="_sd_factory-reset-styles" title="Reset all styles to defaults">Reset all styles</button>
       </div>
     </div>
 
     <!-- COLORS -->
     <div class="panel-section">
-      <div class="panel-header" data-target="body-colors">
+      <div class="panel-header" data-target="_sd_body-colors">
         <span class="arrow">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         Colors
       </div>
-      <div class="panel-body" id="body-colors">
-        <div id="theme-tabs">
+      <div class="panel-body" id="_sd_body-colors">
+        <div id="_sd_theme-tabs">
           <div class="toggle-group">
-            <button class="btn active" id="theme-tab-light">
+            <button class="btn active" id="_sd_theme-tab-light">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
               Light
             </button>
-            <button class="btn" id="theme-tab-dark">
+            <button class="btn" id="_sd_theme-tab-dark">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
               Dark
             </button>
@@ -168,125 +168,125 @@
         </div>
         <div class="control-row">
           <label>Background</label>
-          <div class="color-pair"><input type="color" id="ctrl-bg-color" value="#ffffff"><button class="reset-btn" id="reset-bg-color" title="Reset to default">↺</button></div>
+          <div class="color-pair"><input type="color" id="_sd_ctrl-bg-color" value="#ffffff"><button class="reset-btn" id="_sd_reset-bg-color" title="Reset to default">↺</button></div>
         </div>
         <div class="control-row">
           <label>Text</label>
-          <div class="color-pair"><input type="color" id="ctrl-color" value="#1c1917"><button class="reset-btn" id="reset-color" title="Reset to default">↺</button></div>
+          <div class="color-pair"><input type="color" id="_sd_ctrl-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-color" title="Reset to default">↺</button></div>
         </div>
 
         <div class="sub-section">
-          <div class="sub-header" data-target="sub-colors-headings">
+          <div class="sub-header" data-target="_sd_sub-colors-headings">
             <span class="arrow">▶</span> Headings
           </div>
-          <div class="sub-body" id="sub-colors-headings">
+          <div class="sub-body" id="_sd_sub-colors-headings">
             <div class="control-row">
               <label>All</label>
-              <div class="color-pair"><input type="color" id="ctrl-h-color" value="#1c1917"><button class="reset-btn" id="reset-h-color" title="Follow body text color">↺</button></div>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-h-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-h-color" title="Follow body text color">↺</button></div>
             </div>
             <div class="control-row">
               <label>H1</label>
-              <div class="color-pair"><input type="color" id="ctrl-h1-color" value="#1c1917"><button class="reset-btn" id="reset-h1-color" title="Follow header color">↺</button></div>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-h1-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-h1-color" title="Follow header color">↺</button></div>
             </div>
             <div class="control-row">
               <label>H2</label>
-              <div class="color-pair"><input type="color" id="ctrl-h2-color" value="#1c1917"><button class="reset-btn" id="reset-h2-color" title="Follow header color">↺</button></div>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-h2-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-h2-color" title="Follow header color">↺</button></div>
             </div>
             <div class="control-row">
               <label>H3</label>
-              <div class="color-pair"><input type="color" id="ctrl-h3-color" value="#1c1917"><button class="reset-btn" id="reset-h3-color" title="Follow header color">↺</button></div>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-h3-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-h3-color" title="Follow header color">↺</button></div>
             </div>
             <div class="control-row">
               <label>H4</label>
-              <div class="color-pair"><input type="color" id="ctrl-h4-color" value="#1c1917"><button class="reset-btn" id="reset-h4-color" title="Follow header color">↺</button></div>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-h4-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-h4-color" title="Follow header color">↺</button></div>
             </div>
           </div>
         </div>
 
         <div class="control-row">
           <label>Paragraph</label>
-          <div class="color-pair"><input type="color" id="ctrl-p-color" value="#1c1917"><button class="reset-btn" id="reset-p-color" title="Follow body text color">↺</button></div>
+          <div class="color-pair"><input type="color" id="_sd_ctrl-p-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-p-color" title="Follow body text color">↺</button></div>
         </div>
         <div class="control-row">
           <label>Lists</label>
-          <div class="color-pair"><input type="color" id="ctrl-list-color" value="#1c1917"><button class="reset-btn" id="reset-list-color" title="Follow paragraph color">↺</button></div>
+          <div class="color-pair"><input type="color" id="_sd_ctrl-list-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-list-color" title="Follow paragraph color">↺</button></div>
         </div>
         <div class="control-row">
           <label>Link</label>
-          <div class="color-pair"><input type="color" id="ctrl-link-color" value="#2563eb"><button class="reset-btn" id="reset-link-color" title="Reset to default">↺</button></div>
+          <div class="color-pair"><input type="color" id="_sd_ctrl-link-color" value="#2563eb"><button class="reset-btn" id="_sd_reset-link-color" title="Reset to default">↺</button></div>
         </div>
 
         <div class="sub-section">
-          <div class="sub-header" data-target="sub-colors-blocks">
+          <div class="sub-header" data-target="_sd_sub-colors-blocks">
             <span class="arrow">▶</span> Blocks
           </div>
-          <div class="sub-body" id="sub-colors-blocks">
+          <div class="sub-body" id="_sd_sub-colors-blocks">
             <p style="font-size:11px; color:var(--text-3); margin:0 0 8px; line-height:1.5;">Default for code blocks, blockquotes, and charts. Override individually below.</p>
             <div class="control-row">
               <label>Background</label>
-              <div class="color-pair"><input type="color" id="ctrl-block-bg" value="#f4f1ed"><button class="reset-btn" id="reset-block-bg" title="Reset to default">↺</button></div>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-block-bg" value="#f4f1ed"><button class="reset-btn" id="_sd_reset-block-bg" title="Reset to default">↺</button></div>
             </div>
             <div class="control-row">
               <label>Text</label>
-              <div class="color-pair"><input type="color" id="ctrl-block-text" value="#6b6560"><button class="reset-btn" id="reset-block-text" title="Reset to default">↺</button></div>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-block-text" value="#6b6560"><button class="reset-btn" id="_sd_reset-block-text" title="Reset to default">↺</button></div>
             </div>
 
             <div class="sub-section">
-              <div class="sub-header" data-target="sub-colors-code">
+              <div class="sub-header" data-target="_sd_sub-colors-code">
                 <span class="arrow">▶</span> Code
               </div>
-              <div class="sub-body" id="sub-colors-code">
+              <div class="sub-body" id="_sd_sub-colors-code">
                 <div class="control-row">
                   <label>Background</label>
-                  <div class="color-pair"><input type="color" id="ctrl-code-bg" value="#f4f1ed"><button class="reset-btn" id="reset-code-bg" title="Follow block background">↺</button></div>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-code-bg" value="#f4f1ed"><button class="reset-btn" id="_sd_reset-code-bg" title="Follow block background">↺</button></div>
                 </div>
                 <div class="control-row">
                   <label>Text</label>
-                  <div class="color-pair"><input type="color" id="ctrl-code-color" value="#6b21a8"><button class="reset-btn" id="reset-code-color" title="Follow block text">↺</button></div>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-code-color" value="#6b21a8"><button class="reset-btn" id="_sd_reset-code-color" title="Follow block text">↺</button></div>
                 </div>
               </div>
             </div>
 
             <div class="sub-section">
-              <div class="sub-header" data-target="sub-colors-bq">
+              <div class="sub-header" data-target="_sd_sub-colors-bq">
                 <span class="arrow">▶</span> Blockquote
               </div>
-              <div class="sub-body" id="sub-colors-bq">
+              <div class="sub-body" id="_sd_sub-colors-bq">
                 <div class="control-row">
                   <label>Border</label>
-                  <div class="color-pair"><input type="color" id="ctrl-bq-border-color" value="#2563eb"><button class="reset-btn" id="reset-bq-border-color" title="Reset to default">↺</button></div>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-bq-border-color" value="#2563eb"><button class="reset-btn" id="_sd_reset-bq-border-color" title="Reset to default">↺</button></div>
                 </div>
                 <div class="control-row">
                   <label>Background</label>
-                  <div class="color-pair"><input type="color" id="ctrl-bq-bg" value="#f7f5f2"><button class="reset-btn" id="reset-bq-bg" title="Follow block background">↺</button></div>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-bq-bg" value="#f7f5f2"><button class="reset-btn" id="_sd_reset-bq-bg" title="Follow block background">↺</button></div>
                 </div>
                 <div class="control-row">
                   <label>Text</label>
-                  <div class="color-pair"><input type="color" id="ctrl-bq-color" value="#6b6560"><button class="reset-btn" id="reset-bq-color" title="Follow block text">↺</button></div>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-bq-color" value="#6b6560"><button class="reset-btn" id="_sd_reset-bq-color" title="Follow block text">↺</button></div>
                 </div>
               </div>
             </div>
 
             <div class="sub-section">
-              <div class="sub-header" data-target="sub-colors-charts">
+              <div class="sub-header" data-target="_sd_sub-colors-charts">
                 <span class="arrow">▶</span> Charts
               </div>
-              <div class="sub-body" id="sub-colors-charts">
+              <div class="sub-body" id="_sd_sub-colors-charts">
                 <div class="control-row">
                   <label>Background</label>
-                  <div class="color-pair"><input type="color" id="ctrl-chart-bg" value="#f4f1ed"><button class="reset-btn" id="reset-chart-bg" title="Follow block background">↺</button></div>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-chart-bg" value="#f4f1ed"><button class="reset-btn" id="_sd_reset-chart-bg" title="Follow block background">↺</button></div>
                 </div>
                 <div class="control-row">
                   <label>Text</label>
-                  <div class="color-pair"><input type="color" id="ctrl-chart-text" value="#78716c"><button class="reset-btn" id="reset-chart-text" title="Follow block text">↺</button></div>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-chart-text" value="#78716c"><button class="reset-btn" id="_sd_reset-chart-text" title="Follow block text">↺</button></div>
                 </div>
                 <div class="control-row">
                   <label>Accent</label>
-                  <div class="color-pair"><input type="color" id="ctrl-chart-accent" value="#3b82f6"><button class="reset-btn" id="reset-chart-accent" title="Reset to default palette">↺</button></div>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-chart-accent" value="#3b82f6"><button class="reset-btn" id="_sd_reset-chart-accent" title="Reset to default palette">↺</button></div>
                 </div>
                 <div class="control-row">
                   <label>Palette</label>
-                  <select id="ctrl-chart-palette">
+                  <select id="_sd_ctrl-chart-palette">
                     <option value="monochrome" selected>Monochrome</option>
                     <option value="complementary">Complementary</option>
                     <option value="analogous">Analogous</option>
@@ -306,51 +306,51 @@
 
     <!-- HEADERS -->
     <div class="panel-section">
-      <div class="panel-header" data-target="body-headers">
+      <div class="panel-header" data-target="_sd_body-headers">
         <span class="arrow">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         Headers
       </div>
-      <div class="panel-body" id="body-headers">
+      <div class="panel-body" id="_sd_body-headers">
 
         <div class="sub-section">
-          <div class="sub-header" data-target="sub-headers-general">
+          <div class="sub-header" data-target="_sd_sub-headers-general">
             <span class="arrow">▶</span> General <span class="tag">h1–h4</span>
           </div>
-          <div class="sub-body" id="sub-headers-general">
+          <div class="sub-body" id="_sd_sub-headers-general">
             <div class="control-row">
               <label>Font family</label>
-              <select id="ctrl-h-font-family"><option value="inherit">Same as body</option></select>
+              <select id="_sd_ctrl-h-font-family"><option value="inherit">Same as body</option></select>
             </div>
             <div class="control-row">
               <label>Size scale</label>
-              <input type="range" id="ctrl-h-scale-range" min="0.5" max="2.0" step="0.05" value="1.0">
-              <input type="number" id="ctrl-h-scale-num" min="0.5" max="2.0" step="0.05" value="1.0">
+              <input type="range" id="_sd_ctrl-h-scale-range" min="0.5" max="2.0" step="0.05" value="1.0">
+              <input type="number" id="_sd_ctrl-h-scale-num" min="0.5" max="2.0" step="0.05" value="1.0">
             </div>
             <div class="control-row">
               <label>Margin bottom</label>
-              <input type="range" id="ctrl-h-mb-range" min="0" max="2" step="0.1" value="0.4">
-              <input type="number" id="ctrl-h-mb-num" min="0" max="2" step="0.1" value="0.4">
+              <input type="range" id="_sd_ctrl-h-mb-range" min="0" max="2" step="0.1" value="0.4">
+              <input type="number" id="_sd_ctrl-h-mb-num" min="0" max="2" step="0.1" value="0.4">
               <span class="unit">em</span>
             </div>
           </div>
         </div>
 
         <div class="sub-section">
-          <div class="sub-header" data-target="sub-h1">
+          <div class="sub-header" data-target="_sd_sub-h1">
             <span class="arrow">▶</span> H1 <span class="tag">h1</span>
           </div>
-          <div class="sub-body" id="sub-h1">
+          <div class="sub-body" id="_sd_sub-h1">
             <div class="control-row">
               <label>Size</label>
-              <input type="range" id="ctrl-h1-size-range" min="1" max="4" step="0.1" value="2.1">
-              <input type="number" id="ctrl-h1-size-num" min="1" max="4" step="0.1" value="2.1">
+              <input type="range" id="_sd_ctrl-h1-size-range" min="1" max="4" step="0.1" value="2.1">
+              <input type="number" id="_sd_ctrl-h1-size-num" min="1" max="4" step="0.1" value="2.1">
               <span class="unit">em</span>
             </div>
             <div class="control-row">
               <label>Weight</label>
-              <select id="ctrl-h1-weight">
+              <select id="_sd_ctrl-h1-weight">
                 <option value="400">Regular</option>
                 <option value="500">Medium</option>
                 <option value="600">SemiBold</option>
@@ -362,19 +362,19 @@
         </div>
 
         <div class="sub-section">
-          <div class="sub-header" data-target="sub-h2">
+          <div class="sub-header" data-target="_sd_sub-h2">
             <span class="arrow">▶</span> H2 <span class="tag">h2</span>
           </div>
-          <div class="sub-body" id="sub-h2">
+          <div class="sub-body" id="_sd_sub-h2">
             <div class="control-row">
               <label>Size</label>
-              <input type="range" id="ctrl-h2-size-range" min="1" max="3" step="0.1" value="1.55">
-              <input type="number" id="ctrl-h2-size-num" min="1" max="3" step="0.1" value="1.55">
+              <input type="range" id="_sd_ctrl-h2-size-range" min="1" max="3" step="0.1" value="1.55">
+              <input type="number" id="_sd_ctrl-h2-size-num" min="1" max="3" step="0.1" value="1.55">
               <span class="unit">em</span>
             </div>
             <div class="control-row">
               <label>Weight</label>
-              <select id="ctrl-h2-weight">
+              <select id="_sd_ctrl-h2-weight">
                 <option value="400">Regular</option>
                 <option value="500">Medium</option>
                 <option value="600" selected>SemiBold</option>
@@ -385,19 +385,19 @@
         </div>
 
         <div class="sub-section">
-          <div class="sub-header" data-target="sub-h3">
+          <div class="sub-header" data-target="_sd_sub-h3">
             <span class="arrow">▶</span> H3 <span class="tag">h3</span>
           </div>
-          <div class="sub-body" id="sub-h3">
+          <div class="sub-body" id="_sd_sub-h3">
             <div class="control-row">
               <label>Size</label>
-              <input type="range" id="ctrl-h3-size-range" min="0.8" max="2.5" step="0.1" value="1.2">
-              <input type="number" id="ctrl-h3-size-num" min="0.8" max="2.5" step="0.1" value="1.2">
+              <input type="range" id="_sd_ctrl-h3-size-range" min="0.8" max="2.5" step="0.1" value="1.2">
+              <input type="number" id="_sd_ctrl-h3-size-num" min="0.8" max="2.5" step="0.1" value="1.2">
               <span class="unit">em</span>
             </div>
             <div class="control-row">
               <label>Weight</label>
-              <select id="ctrl-h3-weight">
+              <select id="_sd_ctrl-h3-weight">
                 <option value="400">Regular</option>
                 <option value="500">Medium</option>
                 <option value="600" selected>SemiBold</option>
@@ -408,19 +408,19 @@
         </div>
 
         <div class="sub-section">
-          <div class="sub-header" data-target="sub-h4">
+          <div class="sub-header" data-target="_sd_sub-h4">
             <span class="arrow">▶</span> H4 <span class="tag">h4</span>
           </div>
-          <div class="sub-body" id="sub-h4">
+          <div class="sub-body" id="_sd_sub-h4">
             <div class="control-row">
               <label>Size</label>
-              <input type="range" id="ctrl-h4-size-range" min="0.8" max="2" step="0.1" value="1.0">
-              <input type="number" id="ctrl-h4-size-num" min="0.8" max="2" step="0.1" value="1.0">
+              <input type="range" id="_sd_ctrl-h4-size-range" min="0.8" max="2" step="0.1" value="1.0">
+              <input type="number" id="_sd_ctrl-h4-size-num" min="0.8" max="2" step="0.1" value="1.0">
               <span class="unit">em</span>
             </div>
             <div class="control-row">
               <label>Weight</label>
-              <select id="ctrl-h4-weight">
+              <select id="_sd_ctrl-h4-weight">
                 <option value="400">Regular</option>
                 <option value="500">Medium</option>
                 <option value="600" selected>SemiBold</option>
@@ -435,22 +435,22 @@
 
     <!-- PARAGRAPH -->
     <div class="panel-section">
-      <div class="panel-header" data-target="body-paragraph">
+      <div class="panel-header" data-target="_sd_body-paragraph">
         <span class="arrow">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         Paragraph
       </div>
-      <div class="panel-body" id="body-paragraph">
+      <div class="panel-body" id="_sd_body-paragraph">
         <div class="control-row">
           <label>Line height</label>
-          <input type="range" id="ctrl-p-lh-range" min="1.0" max="2.5" step="0.05" value="1.75">
-          <input type="number" id="ctrl-p-lh-num" min="1.0" max="2.5" step="0.05" value="1.75">
+          <input type="range" id="_sd_ctrl-p-lh-range" min="1.0" max="2.5" step="0.05" value="1.75">
+          <input type="number" id="_sd_ctrl-p-lh-num" min="1.0" max="2.5" step="0.05" value="1.75">
         </div>
         <div class="control-row">
           <label>Margin bottom</label>
-          <input type="range" id="ctrl-p-mb-range" min="0" max="3" step="0.1" value="1.1">
-          <input type="number" id="ctrl-p-mb-num" min="0" max="3" step="0.1" value="1.1">
+          <input type="range" id="_sd_ctrl-p-mb-range" min="0" max="3" step="0.1" value="1.1">
+          <input type="number" id="_sd_ctrl-p-mb-num" min="0" max="3" step="0.1" value="1.1">
           <span class="unit">em</span>
         </div>
       </div>
@@ -458,23 +458,23 @@
 
     <!-- LISTS -->
     <div class="panel-section">
-      <div class="panel-header" data-target="body-lists">
+      <div class="panel-header" data-target="_sd_body-lists">
         <span class="arrow">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         Lists
       </div>
-      <div class="panel-body" id="body-lists">
+      <div class="panel-body" id="_sd_body-lists">
         <div class="control-row">
           <label>Item spacing</label>
-          <input type="range" id="ctrl-list-spacing-range" min="0" max="1.5" step="0.05" value="0.3">
-          <input type="number" id="ctrl-list-spacing-num" min="0" max="1.5" step="0.05" value="0.3">
+          <input type="range" id="_sd_ctrl-list-spacing-range" min="0" max="1.5" step="0.05" value="0.3">
+          <input type="number" id="_sd_ctrl-list-spacing-num" min="0" max="1.5" step="0.05" value="0.3">
           <span class="unit">em</span>
         </div>
         <div class="control-row">
           <label>Indent</label>
-          <input type="range" id="ctrl-list-indent-range" min="0.5" max="3" step="0.1" value="1.6">
-          <input type="number" id="ctrl-list-indent-num" min="0.5" max="3" step="0.1" value="1.6">
+          <input type="range" id="_sd_ctrl-list-indent-range" min="0.5" max="3" step="0.1" value="1.6">
+          <input type="number" id="_sd_ctrl-list-indent-num" min="0.5" max="3" step="0.1" value="1.6">
           <span class="unit">em</span>
         </div>
       </div>
@@ -482,16 +482,16 @@
 
     <!-- LINKS -->
     <div class="panel-section">
-      <div class="panel-header" data-target="body-links">
+      <div class="panel-header" data-target="_sd_body-links">
         <span class="arrow">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         Links
       </div>
-      <div class="panel-body" id="body-links">
+      <div class="panel-body" id="_sd_body-links">
         <div class="control-row">
           <label>Decoration</label>
-          <select id="ctrl-link-decoration">
+          <select id="_sd_ctrl-link-decoration">
             <option value="underline" selected>Underline</option>
             <option value="none">None</option>
             <option value="dotted underline">Dotted</option>
@@ -503,16 +503,16 @@
 
     <!-- CODE -->
     <div class="panel-section">
-      <div class="panel-header" data-target="body-code">
+      <div class="panel-header" data-target="_sd_body-code">
         <span class="arrow">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         Code
       </div>
-      <div class="panel-body" id="body-code">
+      <div class="panel-body" id="_sd_body-code">
         <div class="control-row">
           <label>Font family</label>
-          <select id="ctrl-code-font">
+          <select id="_sd_ctrl-code-font">
             <option value="'JetBrains Mono', 'Fira Mono', monospace" selected>JetBrains Mono</option>
             <option value="'Fira Mono', monospace">Fira Mono</option>
             <option value="'Source Code Pro', monospace">Source Code Pro</option>
@@ -525,23 +525,23 @@
 
     <!-- BLOCKQUOTE -->
     <div class="panel-section">
-      <div class="panel-header" data-target="body-blockquote">
+      <div class="panel-header" data-target="_sd_body-blockquote">
         <span class="arrow">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         Blockquote
       </div>
-      <div class="panel-body" id="body-blockquote">
+      <div class="panel-body" id="_sd_body-blockquote">
         <div class="control-row">
           <label>Border width</label>
-          <input type="range" id="ctrl-bq-bw-range" min="1" max="8" step="1" value="3">
-          <input type="number" id="ctrl-bq-bw-num" min="1" max="8" value="3">
+          <input type="range" id="_sd_ctrl-bq-bw-range" min="1" max="8" step="1" value="3">
+          <input type="number" id="_sd_ctrl-bq-bw-num" min="1" max="8" value="3">
           <span class="unit">px</span>
         </div>
         <div class="control-row">
           <label>Font size</label>
-          <input type="range" id="ctrl-bq-size-range" min="0.7" max="1.5" step="0.05" value="1.0">
-          <input type="number" id="ctrl-bq-size-num" min="0.7" max="1.5" step="0.05" value="1.0">
+          <input type="range" id="_sd_ctrl-bq-size-range" min="0.7" max="1.5" step="0.05" value="1.0">
+          <input type="number" id="_sd_ctrl-bq-size-num" min="0.7" max="1.5" step="0.05" value="1.0">
           <span class="unit">em</span>
         </div>
       </div>
@@ -549,13 +549,13 @@
 
     <!-- SAVE AS DEFAULT -->
     <div class="panel-section">
-      <div class="panel-header" data-target="body-save-default" style="color: var(--accent-text);">
+      <div class="panel-header" data-target="_sd_body-save-default" style="color: var(--accent-text);">
         <span class="arrow">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         Save as default styles
       </div>
-      <div class="panel-body" id="body-save-default">
+      <div class="panel-body" id="_sd_body-save-default">
         <ul style="font-size:11.5px; color:var(--text-2); margin:0 0 10px; padding-left:1.2em; line-height:1.6; list-style:disc;">
           <li>Requires <strong>sdocs-dev</strong> CLI
             <ul style="padding-left:1.2em; margin:2px 0 0; list-style:circle;">
@@ -566,44 +566,44 @@
           <li>Paste the command below in your terminal</li>
         </ul>
         <div style="display:flex; gap:6px; margin-bottom:8px;">
-          <button class="btn" id="btn-copy-default" style="flex:1; justify-content:center;">
+          <button class="btn" id="_sd_btn-copy-default" style="flex:1; justify-content:center;">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="3.5" y="3.5" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 3.5V2a1 1 0 00-1-1H2a1 1 0 00-1 1v5.5a1 1 0 001 1h1.5" stroke="currentColor" stroke-width="1.3"/></svg>
             Copy
           </button>
         </div>
-        <pre id="save-default-display" style="font-size:10.5px; line-height:1.55; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); padding:10px; overflow-x:auto; white-space:pre-wrap; word-break:break-all; color:var(--text-2); margin:0;"></pre>
-        <div id="save-default-msg" style="display:none; margin-top:6px; font-size:11px; color:var(--accent-text); text-align:center;"></div>
+        <pre id="_sd_save-default-display" style="font-size:10.5px; line-height:1.55; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); padding:10px; overflow-x:auto; white-space:pre-wrap; word-break:break-all; color:var(--text-2); margin:0;"></pre>
+        <div id="_sd_save-default-msg" style="display:none; margin-top:6px; font-size:11px; color:var(--accent-text); text-align:center;"></div>
       </div>
     </div>
 
-  </div><!-- /#right -->
+  </div><!-- /#_sd_right -->
 
   <!-- ── Export panel ── -->
-  <div id="export-panel">
-    <div id="export-panel-header">Export</div>
-    <div id="export-panel-body">
-      <button class="export-option" id="exp-pdf">
+  <div id="_sd_export-panel">
+    <div id="_sd_export-panel-header">Export</div>
+    <div id="_sd_export-panel-body">
+      <button class="export-option" id="_sd_exp-pdf">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M4 14h16" stroke-dasharray="2 2"/><path d="M8 19h8"/></svg>
         <div class="export-option-text">
           <span class="export-option-title">PDF</span>
           <span class="export-option-desc">Opens print dialog for PDF save</span>
         </div>
       </button>
-      <button class="export-option" id="exp-word">
+      <button class="export-option" id="_sd_exp-word">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M8 12l1.5 4 2-3 2 3 1.5-4"/></svg>
         <div class="export-option-text">
           <span class="export-option-title">Word (.docx)</span>
           <span class="export-option-desc">Download as Word document</span>
         </div>
       </button>
-      <button class="export-option" id="exp-raw">
+      <button class="export-option" id="_sd_exp-raw">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/></svg>
         <div class="export-option-text">
           <span class="export-option-title">.md</span>
           <span class="export-option-desc">Plain markdown, no styles</span>
         </div>
       </button>
-      <button class="export-option" id="exp-styled">
+      <button class="export-option" id="_sd_exp-styled">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>
         <div class="export-option-text">
           <span class="export-option-title">Styled .md</span>
@@ -612,26 +612,26 @@
       </button>
     </div>
   </div>
-</div><!-- /#main -->
+</div><!-- /#_sd_main -->
 
 <!-- Status bar -->
-<div id="statusbar">
-  <span id="status-text"></span>
+<div id="_sd_statusbar">
+  <span id="_sd_status-text"></span>
   <span style="margin-left:auto; font-size:10.5px; color:var(--text-2); display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
     <span>100% private (<a href="https://sdocs.dev/#sec=privacy" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">learn why</a>)</span>
-    · CLI for you &amp; your agents: <span id="cli-install-wrap" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer" title="Click to copy install command"><code id="cli-install-cmd" style="background:var(--bg-surface); border:1px solid var(--md-link-color, #2563eb); border-radius:3px; padding:1px 5px; font-size:10px; color:var(--md-link-color, #2563eb)">npm i -g sdocs-dev</code><button id="cli-copy-btn" style="background:none; border:none; cursor:pointer; color:var(--md-link-color, #2563eb); padding:0; vertical-align:middle; opacity:0.5; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
+    · CLI for you &amp; your agents: <span id="_sd_cli-install-wrap" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer" title="Click to copy install command"><code id="_sd_cli-install-cmd" style="background:var(--bg-surface); border:1px solid var(--md-link-color, #2563eb); border-radius:3px; padding:1px 5px; font-size:10px; color:var(--md-link-color, #2563eb)">npm i -g sdocs-dev</code><button id="_sd_cli-copy-btn" style="background:none; border:none; cursor:pointer; color:var(--md-link-color, #2563eb); padding:0; vertical-align:middle; opacity:0.5; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
     · <a href="https://github.com/JoshInLisbon/SDocs" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">GitHub</a>
   </span>
 </div>
 <style>
-  #cli-install-wrap:hover #cli-copy-btn { opacity: 1 !important; }
+  #_sd_cli-install-wrap:hover #_sd_cli-copy-btn { opacity: 1 !important; }
 </style>
 <script nonce="__CSP_NONCE__">
 (function () {
   var COPY_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   var CHECK_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  var wrap = document.getElementById('cli-install-wrap');
-  var btn = document.getElementById('cli-copy-btn');
+  var wrap = document.getElementById('_sd_cli-install-wrap');
+  var btn = document.getElementById('_sd_cli-copy-btn');
   if (wrap && btn) wrap.addEventListener('click', function () {
     navigator.clipboard.writeText('npm i -g sdocs-dev').then(function () {
       btn.innerHTML = CHECK_ICON;

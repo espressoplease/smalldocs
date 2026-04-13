@@ -11,82 +11,82 @@ const COLOR_DEFAULT = '#1c1917';
 
 // Control ID → CSS variable name (color controls only)
 const COLOR_VAR_MAP = {
-  'ctrl-color':       '--md-color',
-  'ctrl-h-color':     '--md-h-color',
-  'ctrl-h1-color':    '--md-h1-color',
-  'ctrl-h2-color':    '--md-h2-color',
-  'ctrl-h3-color':    '--md-h3-color',
-  'ctrl-h4-color':    '--md-h4-color',
-  'ctrl-p-color':     '--md-p-color',
-  'ctrl-list-color':  '--md-list-color',
+  '_sd_ctrl-color':       '--md-color',
+  '_sd_ctrl-h-color':     '--md-h-color',
+  '_sd_ctrl-h1-color':    '--md-h1-color',
+  '_sd_ctrl-h2-color':    '--md-h2-color',
+  '_sd_ctrl-h3-color':    '--md-h3-color',
+  '_sd_ctrl-h4-color':    '--md-h4-color',
+  '_sd_ctrl-p-color':     '--md-p-color',
+  '_sd_ctrl-list-color':  '--md-list-color',
   // Block cascade
-  'ctrl-block-bg':    '--md-block-bg',
-  'ctrl-block-text':  '--md-block-text',
-  'ctrl-code-bg':     ['--md-code-bg', '--md-pre-bg'],
-  'ctrl-code-color':  '--md-code-color',
-  'ctrl-bq-bg':       '--md-bq-bg',
-  'ctrl-bq-color':    '--md-bq-color',
-  'ctrl-chart-bg':    '--md-chart-bg',
-  'ctrl-chart-text':  '--md-chart-text',
+  '_sd_ctrl-block-bg':    '--md-block-bg',
+  '_sd_ctrl-block-text':  '--md-block-text',
+  '_sd_ctrl-code-bg':     ['--md-code-bg', '--md-pre-bg'],
+  '_sd_ctrl-code-color':  '--md-code-color',
+  '_sd_ctrl-bq-bg':       '--md-bq-bg',
+  '_sd_ctrl-bq-color':    '--md-bq-color',
+  '_sd_ctrl-chart-bg':    '--md-chart-bg',
+  '_sd_ctrl-chart-text':  '--md-chart-text',
 };
 
 // Cascade tree: parent → direct children
 const COLOR_CASCADE = {
-  'ctrl-color':      ['ctrl-h-color', 'ctrl-p-color'],
-  'ctrl-h-color':    ['ctrl-h1-color', 'ctrl-h2-color', 'ctrl-h3-color', 'ctrl-h4-color'],
-  'ctrl-p-color':    ['ctrl-list-color'],
-  'ctrl-block-bg':   ['ctrl-code-bg', 'ctrl-bq-bg', 'ctrl-chart-bg'],
-  'ctrl-block-text': ['ctrl-code-color', 'ctrl-bq-color', 'ctrl-chart-text'],
+  '_sd_ctrl-color':      ['_sd_ctrl-h-color', '_sd_ctrl-p-color'],
+  '_sd_ctrl-h-color':    ['_sd_ctrl-h1-color', '_sd_ctrl-h2-color', '_sd_ctrl-h3-color', '_sd_ctrl-h4-color'],
+  '_sd_ctrl-p-color':    ['_sd_ctrl-list-color'],
+  '_sd_ctrl-block-bg':   ['_sd_ctrl-code-bg', '_sd_ctrl-bq-bg', '_sd_ctrl-chart-bg'],
+  '_sd_ctrl-block-text': ['_sd_ctrl-code-color', '_sd_ctrl-bq-color', '_sd_ctrl-chart-text'],
 };
 
 // Control ID → { cssVar, suffix?, compound? }
 // Maps every non-color control to its CSS variable and optional unit suffix
 const CTRL_CSS_MAP = {
-  'ctrl-bg-color':         { cssVar: '--md-bg' },
-  'ctrl-font-family':      { cssVar: '--md-font-family' },
-  'ctrl-base-size-num':    { cssVar: '--md-base-size', suffix: 'px' },
-  'ctrl-line-height-num':  { cssVar: '--md-line-height' },
-  'ctrl-h-font-family':    { cssVar: '--md-h-font-family' },
-  'ctrl-h-scale-num':      { cssVar: '--md-h-scale' },
-  'ctrl-h-mb-num':         { cssVar: '--md-h-margin-bottom', suffix: 'em' },
-  'ctrl-h1-size-num':      { cssVar: '--md-h1-size', suffix: 'em' },
-  'ctrl-h1-weight':        { cssVar: '--md-h1-weight' },
-  'ctrl-h2-size-num':      { cssVar: '--md-h2-size', suffix: 'em' },
-  'ctrl-h2-weight':        { cssVar: '--md-h2-weight' },
-  'ctrl-h3-size-num':      { cssVar: '--md-h3-size', suffix: 'em' },
-  'ctrl-h3-weight':        { cssVar: '--md-h3-weight' },
-  'ctrl-h4-size-num':      { cssVar: '--md-h4-size', suffix: 'em' },
-  'ctrl-h4-weight':        { cssVar: '--md-h4-weight' },
-  'ctrl-p-lh-num':         { cssVar: '--md-p-line-height' },
-  'ctrl-p-mb-num':         { cssVar: '--md-p-margin', template: '0 0 {v}em' },
-  'ctrl-link-color':       { cssVar: '--md-link-color' },
-  'ctrl-link-decoration':  { cssVar: '--md-link-decoration' },
-  'ctrl-code-font':        { cssVar: '--md-code-font' },
-  'ctrl-bq-border-color':  { cssVar: '--md-bq-border', compound: 'bq-border' },
-  'ctrl-bq-bw-num':        { cssVar: '--md-bq-border', compound: 'bq-border' },
-  'ctrl-bq-size-num':      { cssVar: '--md-bq-size', suffix: 'em' },
-  'ctrl-list-spacing-num': { cssVar: '--md-list-spacing', suffix: 'em' },
-  'ctrl-list-indent-num':  { cssVar: '--md-list-indent', suffix: 'em' },
-  'ctrl-chart-accent':     { cssVar: '--md-chart-accent' },
-  'ctrl-chart-palette':    { cssVar: '--md-chart-palette' },
+  '_sd_ctrl-bg-color':         { cssVar: '--md-bg' },
+  '_sd_ctrl-font-family':      { cssVar: '--md-font-family' },
+  '_sd_ctrl-base-size-num':    { cssVar: '--md-base-size', suffix: 'px' },
+  '_sd_ctrl-line-height-num':  { cssVar: '--md-line-height' },
+  '_sd_ctrl-h-font-family':    { cssVar: '--md-h-font-family' },
+  '_sd_ctrl-h-scale-num':      { cssVar: '--md-h-scale' },
+  '_sd_ctrl-h-mb-num':         { cssVar: '--md-h-margin-bottom', suffix: 'em' },
+  '_sd_ctrl-h1-size-num':      { cssVar: '--md-h1-size', suffix: 'em' },
+  '_sd_ctrl-h1-weight':        { cssVar: '--md-h1-weight' },
+  '_sd_ctrl-h2-size-num':      { cssVar: '--md-h2-size', suffix: 'em' },
+  '_sd_ctrl-h2-weight':        { cssVar: '--md-h2-weight' },
+  '_sd_ctrl-h3-size-num':      { cssVar: '--md-h3-size', suffix: 'em' },
+  '_sd_ctrl-h3-weight':        { cssVar: '--md-h3-weight' },
+  '_sd_ctrl-h4-size-num':      { cssVar: '--md-h4-size', suffix: 'em' },
+  '_sd_ctrl-h4-weight':        { cssVar: '--md-h4-weight' },
+  '_sd_ctrl-p-lh-num':         { cssVar: '--md-p-line-height' },
+  '_sd_ctrl-p-mb-num':         { cssVar: '--md-p-margin', template: '0 0 {v}em' },
+  '_sd_ctrl-link-color':       { cssVar: '--md-link-color' },
+  '_sd_ctrl-link-decoration':  { cssVar: '--md-link-decoration' },
+  '_sd_ctrl-code-font':        { cssVar: '--md-code-font' },
+  '_sd_ctrl-bq-border-color':  { cssVar: '--md-bq-border', compound: 'bq-border' },
+  '_sd_ctrl-bq-bw-num':        { cssVar: '--md-bq-border', compound: 'bq-border' },
+  '_sd_ctrl-bq-size-num':      { cssVar: '--md-bq-size', suffix: 'em' },
+  '_sd_ctrl-list-spacing-num': { cssVar: '--md-list-spacing', suffix: 'em' },
+  '_sd_ctrl-list-indent-num':  { cssVar: '--md-list-indent', suffix: 'em' },
+  '_sd_ctrl-chart-accent':     { cssVar: '--md-chart-accent' },
+  '_sd_ctrl-chart-palette':    { cssVar: '--md-chart-palette' },
 };
 
 // Range ↔ Number input pairs
 const RANGE_NUM_PAIRS = [
-  ['ctrl-base-size-range',    'ctrl-base-size-num'],
-  ['ctrl-line-height-range',  'ctrl-line-height-num'],
-  ['ctrl-h-scale-range',      'ctrl-h-scale-num'],
-  ['ctrl-h-mb-range',         'ctrl-h-mb-num'],
-  ['ctrl-h1-size-range',      'ctrl-h1-size-num'],
-  ['ctrl-h2-size-range',      'ctrl-h2-size-num'],
-  ['ctrl-h3-size-range',      'ctrl-h3-size-num'],
-  ['ctrl-h4-size-range',      'ctrl-h4-size-num'],
-  ['ctrl-p-lh-range',         'ctrl-p-lh-num'],
-  ['ctrl-p-mb-range',         'ctrl-p-mb-num'],
-  ['ctrl-bq-bw-range',        'ctrl-bq-bw-num'],
-  ['ctrl-bq-size-range',      'ctrl-bq-size-num'],
-  ['ctrl-list-spacing-range', 'ctrl-list-spacing-num'],
-  ['ctrl-list-indent-range',  'ctrl-list-indent-num'],
+  ['_sd_ctrl-base-size-range',    '_sd_ctrl-base-size-num'],
+  ['_sd_ctrl-line-height-range',  '_sd_ctrl-line-height-num'],
+  ['_sd_ctrl-h-scale-range',      '_sd_ctrl-h-scale-num'],
+  ['_sd_ctrl-h-mb-range',         '_sd_ctrl-h-mb-num'],
+  ['_sd_ctrl-h1-size-range',      '_sd_ctrl-h1-size-num'],
+  ['_sd_ctrl-h2-size-range',      '_sd_ctrl-h2-size-num'],
+  ['_sd_ctrl-h3-size-range',      '_sd_ctrl-h3-size-num'],
+  ['_sd_ctrl-h4-size-range',      '_sd_ctrl-h4-size-num'],
+  ['_sd_ctrl-p-lh-range',         '_sd_ctrl-p-lh-num'],
+  ['_sd_ctrl-p-mb-range',         '_sd_ctrl-p-mb-num'],
+  ['_sd_ctrl-bq-bw-range',        '_sd_ctrl-bq-bw-num'],
+  ['_sd_ctrl-bq-size-range',      '_sd_ctrl-bq-size-num'],
+  ['_sd_ctrl-list-spacing-range', '_sd_ctrl-list-spacing-num'],
+  ['_sd_ctrl-list-indent-range',  '_sd_ctrl-list-indent-num'],
 ];
 
 // ═══════════════════════════════════════════════════════
@@ -199,8 +199,8 @@ function controlToCssVars(ctrlId, value, allValues) {
 
   // Compound: bq-border combines color + width
   if (entry.compound === 'bq-border') {
-    const col = allValues['ctrl-bq-border-color'] || '#2563EB';
-    const w = allValues['ctrl-bq-bw-num'] || '3';
+    const col = allValues['_sd_ctrl-bq-border-color'] || '#2563EB';
+    const w = allValues['_sd_ctrl-bq-bw-num'] || '3';
     return [{ cssVar: '--md-bq-border', value: `${w}px solid ${col}` }];
   }
 
@@ -246,66 +246,66 @@ function collectStyles(values, overriddenColors) {
   const gn = id => parseFloat(values[id]) || 0;
 
   const styles = {
-    fontFamily:   gv('ctrl-font-family').replace(/['"]/g, '').split(',')[0].trim(),
-    baseFontSize: gn('ctrl-base-size-num'),
-    lineHeight:   gn('ctrl-line-height-num'),
+    fontFamily:   gv('_sd_ctrl-font-family').replace(/['"]/g, '').split(',')[0].trim(),
+    baseFontSize: gn('_sd_ctrl-base-size-num'),
+    lineHeight:   gn('_sd_ctrl-line-height-num'),
     headers: {
-      fontFamily:   gv('ctrl-h-font-family').replace(/['"]/g, '').split(',')[0].trim(),
-      scale:        gn('ctrl-h-scale-num'),
-      marginBottom: gn('ctrl-h-mb-num'),
+      fontFamily:   gv('_sd_ctrl-h-font-family').replace(/['"]/g, '').split(',')[0].trim(),
+      scale:        gn('_sd_ctrl-h-scale-num'),
+      marginBottom: gn('_sd_ctrl-h-mb-num'),
     },
-    h1: { fontSize: gn('ctrl-h1-size-num'), fontWeight: parseInt(gv('ctrl-h1-weight')) || 0 },
-    h2: { fontSize: gn('ctrl-h2-size-num'), fontWeight: parseInt(gv('ctrl-h2-weight')) || 0 },
-    h3: { fontSize: gn('ctrl-h3-size-num'), fontWeight: parseInt(gv('ctrl-h3-weight')) || 0 },
-    h4: { fontSize: gn('ctrl-h4-size-num'), fontWeight: parseInt(gv('ctrl-h4-weight')) || 0 },
+    h1: { fontSize: gn('_sd_ctrl-h1-size-num'), fontWeight: parseInt(gv('_sd_ctrl-h1-weight')) || 0 },
+    h2: { fontSize: gn('_sd_ctrl-h2-size-num'), fontWeight: parseInt(gv('_sd_ctrl-h2-weight')) || 0 },
+    h3: { fontSize: gn('_sd_ctrl-h3-size-num'), fontWeight: parseInt(gv('_sd_ctrl-h3-weight')) || 0 },
+    h4: { fontSize: gn('_sd_ctrl-h4-size-num'), fontWeight: parseInt(gv('_sd_ctrl-h4-weight')) || 0 },
     p: {
-      lineHeight:   gn('ctrl-p-lh-num'),
-      marginBottom: gn('ctrl-p-mb-num'),
+      lineHeight:   gn('_sd_ctrl-p-lh-num'),
+      marginBottom: gn('_sd_ctrl-p-mb-num'),
     },
-    link: { color: gv('ctrl-link-color'), decoration: gv('ctrl-link-decoration') },
+    link: { color: gv('_sd_ctrl-link-color'), decoration: gv('_sd_ctrl-link-decoration') },
     code: {
-      font:       gv('ctrl-code-font').replace(/['"]/g, '').split(',')[0].trim(),
+      font:       gv('_sd_ctrl-code-font').replace(/['"]/g, '').split(',')[0].trim(),
     },
     blockquote: {
-      borderColor: gv('ctrl-bq-border-color'),
-      borderWidth: gn('ctrl-bq-bw-num'),
-      fontSize:    gn('ctrl-bq-size-num'),
+      borderColor: gv('_sd_ctrl-bq-border-color'),
+      borderWidth: gn('_sd_ctrl-bq-bw-num'),
+      fontSize:    gn('_sd_ctrl-bq-size-num'),
     },
   };
 
   styles.list = {
-    spacing: gn('ctrl-list-spacing-num'),
-    indent:  gn('ctrl-list-indent-num'),
+    spacing: gn('_sd_ctrl-list-spacing-num'),
+    indent:  gn('_sd_ctrl-list-indent-num'),
   };
 
   // Only emit colors that were explicitly overridden
-  if (overriddenColors.has('ctrl-bg-color'))   styles.background = gv('ctrl-bg-color');
-  if (overriddenColors.has('ctrl-color'))      styles.color = gv('ctrl-color');
-  if (overriddenColors.has('ctrl-h-color'))    styles.headers.color = gv('ctrl-h-color');
-  if (overriddenColors.has('ctrl-h1-color'))   styles.h1.color = gv('ctrl-h1-color');
-  if (overriddenColors.has('ctrl-h2-color'))   styles.h2.color = gv('ctrl-h2-color');
-  if (overriddenColors.has('ctrl-h3-color'))   styles.h3.color = gv('ctrl-h3-color');
-  if (overriddenColors.has('ctrl-h4-color'))   styles.h4.color = gv('ctrl-h4-color');
-  if (overriddenColors.has('ctrl-p-color'))    styles.p.color = gv('ctrl-p-color');
-  if (overriddenColors.has('ctrl-list-color')) styles.list.color = gv('ctrl-list-color');
+  if (overriddenColors.has('_sd_ctrl-bg-color'))   styles.background = gv('_sd_ctrl-bg-color');
+  if (overriddenColors.has('_sd_ctrl-color'))      styles.color = gv('_sd_ctrl-color');
+  if (overriddenColors.has('_sd_ctrl-h-color'))    styles.headers.color = gv('_sd_ctrl-h-color');
+  if (overriddenColors.has('_sd_ctrl-h1-color'))   styles.h1.color = gv('_sd_ctrl-h1-color');
+  if (overriddenColors.has('_sd_ctrl-h2-color'))   styles.h2.color = gv('_sd_ctrl-h2-color');
+  if (overriddenColors.has('_sd_ctrl-h3-color'))   styles.h3.color = gv('_sd_ctrl-h3-color');
+  if (overriddenColors.has('_sd_ctrl-h4-color'))   styles.h4.color = gv('_sd_ctrl-h4-color');
+  if (overriddenColors.has('_sd_ctrl-p-color'))    styles.p.color = gv('_sd_ctrl-p-color');
+  if (overriddenColors.has('_sd_ctrl-list-color')) styles.list.color = gv('_sd_ctrl-list-color');
 
   // Block cascade colors
-  if (overriddenColors.has('ctrl-block-bg') || overriddenColors.has('ctrl-block-text')) {
+  if (overriddenColors.has('_sd_ctrl-block-bg') || overriddenColors.has('_sd_ctrl-block-text')) {
     styles.blocks = {};
-    if (overriddenColors.has('ctrl-block-bg'))   styles.blocks.background = gv('ctrl-block-bg');
-    if (overriddenColors.has('ctrl-block-text')) styles.blocks.color = gv('ctrl-block-text');
+    if (overriddenColors.has('_sd_ctrl-block-bg'))   styles.blocks.background = gv('_sd_ctrl-block-bg');
+    if (overriddenColors.has('_sd_ctrl-block-text')) styles.blocks.color = gv('_sd_ctrl-block-text');
   }
-  if (overriddenColors.has('ctrl-code-bg'))    styles.code.background = gv('ctrl-code-bg');
-  if (overriddenColors.has('ctrl-code-color')) styles.code.color = gv('ctrl-code-color');
-  if (overriddenColors.has('ctrl-bq-bg'))      styles.blockquote.background = gv('ctrl-bq-bg');
-  if (overriddenColors.has('ctrl-bq-color'))   styles.blockquote.color = gv('ctrl-bq-color');
+  if (overriddenColors.has('_sd_ctrl-code-bg'))    styles.code.background = gv('_sd_ctrl-code-bg');
+  if (overriddenColors.has('_sd_ctrl-code-color')) styles.code.color = gv('_sd_ctrl-code-color');
+  if (overriddenColors.has('_sd_ctrl-bq-bg'))      styles.blockquote.background = gv('_sd_ctrl-bq-bg');
+  if (overriddenColors.has('_sd_ctrl-bq-color'))   styles.blockquote.color = gv('_sd_ctrl-bq-color');
 
   // Chart styles
   var chartObj = {};
-  if (overriddenColors.has('ctrl-chart-accent')) chartObj.accent = gv('ctrl-chart-accent');
-  if (gv('ctrl-chart-palette') && gv('ctrl-chart-palette') !== 'monochrome') chartObj.palette = gv('ctrl-chart-palette');
-  if (overriddenColors.has('ctrl-chart-bg'))    chartObj.background = gv('ctrl-chart-bg');
-  if (overriddenColors.has('ctrl-chart-text'))  chartObj.textColor = gv('ctrl-chart-text');
+  if (overriddenColors.has('_sd_ctrl-chart-accent')) chartObj.accent = gv('_sd_ctrl-chart-accent');
+  if (gv('_sd_ctrl-chart-palette') && gv('_sd_ctrl-chart-palette') !== 'monochrome') chartObj.palette = gv('_sd_ctrl-chart-palette');
+  if (overriddenColors.has('_sd_ctrl-chart-bg'))    chartObj.background = gv('_sd_ctrl-chart-bg');
+  if (overriddenColors.has('_sd_ctrl-chart-text'))  chartObj.textColor = gv('_sd_ctrl-chart-text');
   if (Object.keys(chartObj).length) styles.chart = chartObj;
 
   return styles;
@@ -322,80 +322,80 @@ function stylesToControls(styles) {
   const controls = {};
   const overridden = new Set();
 
-  if (styles.fontFamily)   controls['ctrl-font-family'] = styles.fontFamily;
-  if (styles.baseFontSize) controls['ctrl-base-size-num'] = styles.baseFontSize;
-  if (styles.lineHeight)   controls['ctrl-line-height-num'] = styles.lineHeight;
+  if (styles.fontFamily)   controls['_sd_ctrl-font-family'] = styles.fontFamily;
+  if (styles.baseFontSize) controls['_sd_ctrl-base-size-num'] = styles.baseFontSize;
+  if (styles.lineHeight)   controls['_sd_ctrl-line-height-num'] = styles.lineHeight;
 
   if (styles.background) {
-    controls['ctrl-bg-color'] = styles.background;
-    overridden.add('ctrl-bg-color');
+    controls['_sd_ctrl-bg-color'] = styles.background;
+    overridden.add('_sd_ctrl-bg-color');
   }
   if (styles.color) {
-    controls['ctrl-color'] = styles.color;
-    overridden.add('ctrl-color');
+    controls['_sd_ctrl-color'] = styles.color;
+    overridden.add('_sd_ctrl-color');
   }
 
   const h = styles.headers || {};
-  if (h.fontFamily)   controls['ctrl-h-font-family'] = h.fontFamily;
-  if (h.scale)        controls['ctrl-h-scale-num'] = h.scale;
-  if (h.marginBottom) controls['ctrl-h-mb-num'] = h.marginBottom;
+  if (h.fontFamily)   controls['_sd_ctrl-h-font-family'] = h.fontFamily;
+  if (h.scale)        controls['_sd_ctrl-h-scale-num'] = h.scale;
+  if (h.marginBottom) controls['_sd_ctrl-h-mb-num'] = h.marginBottom;
   if (h.color) {
-    controls['ctrl-h-color'] = h.color;
-    overridden.add('ctrl-h-color');
+    controls['_sd_ctrl-h-color'] = h.color;
+    overridden.add('_sd_ctrl-h-color');
   }
 
   ['h1', 'h2', 'h3', 'h4'].forEach(t => {
     const hs = styles[t] || {};
-    if (hs.fontSize)   controls[`ctrl-${t}-size-num`] = hs.fontSize;
-    if (hs.fontWeight) controls[`ctrl-${t}-weight`] = String(hs.fontWeight);
+    if (hs.fontSize)   controls[`_sd_ctrl-${t}-size-num`] = hs.fontSize;
+    if (hs.fontWeight) controls[`_sd_ctrl-${t}-weight`] = String(hs.fontWeight);
     if (hs.color) {
-      controls[`ctrl-${t}-color`] = hs.color;
-      overridden.add(`ctrl-${t}-color`);
+      controls[`_sd_ctrl-${t}-color`] = hs.color;
+      overridden.add(`_sd_ctrl-${t}-color`);
     }
   });
 
   const p = styles.p || {};
-  if (p.lineHeight)   controls['ctrl-p-lh-num'] = p.lineHeight;
-  if (p.marginBottom) controls['ctrl-p-mb-num'] = p.marginBottom;
+  if (p.lineHeight)   controls['_sd_ctrl-p-lh-num'] = p.lineHeight;
+  if (p.marginBottom) controls['_sd_ctrl-p-mb-num'] = p.marginBottom;
   if (p.color) {
-    controls['ctrl-p-color'] = p.color;
-    overridden.add('ctrl-p-color');
+    controls['_sd_ctrl-p-color'] = p.color;
+    overridden.add('_sd_ctrl-p-color');
   }
 
   const lk = styles.link || {};
-  if (lk.color)      controls['ctrl-link-color'] = lk.color;
-  if (lk.decoration) controls['ctrl-link-decoration'] = lk.decoration;
+  if (lk.color)      controls['_sd_ctrl-link-color'] = lk.color;
+  if (lk.decoration) controls['_sd_ctrl-link-decoration'] = lk.decoration;
 
   // Blocks cascade parent
   const bl = styles.blocks || {};
-  if (bl.background) { controls['ctrl-block-bg'] = bl.background; overridden.add('ctrl-block-bg'); }
-  if (bl.color)      { controls['ctrl-block-text'] = bl.color; overridden.add('ctrl-block-text'); }
+  if (bl.background) { controls['_sd_ctrl-block-bg'] = bl.background; overridden.add('_sd_ctrl-block-bg'); }
+  if (bl.color)      { controls['_sd_ctrl-block-text'] = bl.color; overridden.add('_sd_ctrl-block-text'); }
 
   const cd = styles.code || {};
-  if (cd.font)       controls['ctrl-code-font'] = cd.font;
-  if (cd.background) { controls['ctrl-code-bg'] = cd.background; overridden.add('ctrl-code-bg'); }
-  if (cd.color)      { controls['ctrl-code-color'] = cd.color; overridden.add('ctrl-code-color'); }
+  if (cd.font)       controls['_sd_ctrl-code-font'] = cd.font;
+  if (cd.background) { controls['_sd_ctrl-code-bg'] = cd.background; overridden.add('_sd_ctrl-code-bg'); }
+  if (cd.color)      { controls['_sd_ctrl-code-color'] = cd.color; overridden.add('_sd_ctrl-code-color'); }
 
   const bq = styles.blockquote || {};
-  if (bq.borderColor) controls['ctrl-bq-border-color'] = bq.borderColor;
-  if (bq.borderWidth) controls['ctrl-bq-bw-num'] = bq.borderWidth;
-  if (bq.background)  { controls['ctrl-bq-bg'] = bq.background; overridden.add('ctrl-bq-bg'); }
-  if (bq.fontSize)    controls['ctrl-bq-size-num'] = bq.fontSize;
-  if (bq.color)       { controls['ctrl-bq-color'] = bq.color; overridden.add('ctrl-bq-color'); }
+  if (bq.borderColor) controls['_sd_ctrl-bq-border-color'] = bq.borderColor;
+  if (bq.borderWidth) controls['_sd_ctrl-bq-bw-num'] = bq.borderWidth;
+  if (bq.background)  { controls['_sd_ctrl-bq-bg'] = bq.background; overridden.add('_sd_ctrl-bq-bg'); }
+  if (bq.fontSize)    controls['_sd_ctrl-bq-size-num'] = bq.fontSize;
+  if (bq.color)       { controls['_sd_ctrl-bq-color'] = bq.color; overridden.add('_sd_ctrl-bq-color'); }
 
   const ll = styles.list || {};
-  if (ll.spacing) controls['ctrl-list-spacing-num'] = ll.spacing;
-  if (ll.indent)  controls['ctrl-list-indent-num'] = ll.indent;
+  if (ll.spacing) controls['_sd_ctrl-list-spacing-num'] = ll.spacing;
+  if (ll.indent)  controls['_sd_ctrl-list-indent-num'] = ll.indent;
   if (ll.color) {
-    controls['ctrl-list-color'] = ll.color;
-    overridden.add('ctrl-list-color');
+    controls['_sd_ctrl-list-color'] = ll.color;
+    overridden.add('_sd_ctrl-list-color');
   }
 
   const ch = styles.chart || {};
-  if (ch.accent)     { controls['ctrl-chart-accent'] = ch.accent; overridden.add('ctrl-chart-accent'); }
-  if (ch.palette)    controls['ctrl-chart-palette'] = ch.palette;
-  if (ch.background) { controls['ctrl-chart-bg'] = ch.background; overridden.add('ctrl-chart-bg'); }
-  if (ch.textColor)  { controls['ctrl-chart-text'] = ch.textColor; overridden.add('ctrl-chart-text'); }
+  if (ch.accent)     { controls['_sd_ctrl-chart-accent'] = ch.accent; overridden.add('_sd_ctrl-chart-accent'); }
+  if (ch.palette)    controls['_sd_ctrl-chart-palette'] = ch.palette;
+  if (ch.background) { controls['_sd_ctrl-chart-bg'] = ch.background; overridden.add('_sd_ctrl-chart-bg'); }
+  if (ch.textColor)  { controls['_sd_ctrl-chart-text'] = ch.textColor; overridden.add('_sd_ctrl-chart-text'); }
 
   return { controls, overriddenColors: overridden };
 }
@@ -405,9 +405,9 @@ function stylesToControls(styles) {
 // ═══════════════════════════════════════════════════════
 
 var STANDALONE_COLOR_IDS = [
-  'ctrl-bg-color','ctrl-link-color',
-  'ctrl-bq-border-color',
-  'ctrl-chart-accent',
+  '_sd_ctrl-bg-color','_sd_ctrl-link-color',
+  '_sd_ctrl-bq-border-color',
+  '_sd_ctrl-chart-accent',
 ];
 
 var CASCADE_COLOR_IDS = Object.keys(COLOR_VAR_MAP);
@@ -426,34 +426,34 @@ function parseDarkBlock(block) {
   if (!block) return {};
   var colors = {};
 
-  if (block.background) colors['ctrl-bg-color'] = block.background;
-  if (block.color) colors['ctrl-color'] = block.color;
+  if (block.background) colors['_sd_ctrl-bg-color'] = block.background;
+  if (block.color) colors['_sd_ctrl-color'] = block.color;
 
-  if (block.headers && block.headers.color) colors['ctrl-h-color'] = block.headers.color;
+  if (block.headers && block.headers.color) colors['_sd_ctrl-h-color'] = block.headers.color;
   ['h1','h2','h3','h4'].forEach(function(t) {
     var obj = block[t];
-    if (obj && obj.color) colors['ctrl-' + t + '-color'] = obj.color;
+    if (obj && obj.color) colors['_sd_ctrl-' + t + '-color'] = obj.color;
   });
-  if (block.p && block.p.color) colors['ctrl-p-color'] = block.p.color;
-  if (block.list && block.list.color) colors['ctrl-list-color'] = block.list.color;
-  if (block.link && block.link.color) colors['ctrl-link-color'] = block.link.color;
+  if (block.p && block.p.color) colors['_sd_ctrl-p-color'] = block.p.color;
+  if (block.list && block.list.color) colors['_sd_ctrl-list-color'] = block.list.color;
+  if (block.link && block.link.color) colors['_sd_ctrl-link-color'] = block.link.color;
 
   if (block.blocks) {
-    if (block.blocks.background) colors['ctrl-block-bg'] = block.blocks.background;
-    if (block.blocks.color) colors['ctrl-block-text'] = block.blocks.color;
+    if (block.blocks.background) colors['_sd_ctrl-block-bg'] = block.blocks.background;
+    if (block.blocks.color) colors['_sd_ctrl-block-text'] = block.blocks.color;
   }
   if (block.code) {
-    if (block.code.background) colors['ctrl-code-bg'] = block.code.background;
-    if (block.code.color) colors['ctrl-code-color'] = block.code.color;
+    if (block.code.background) colors['_sd_ctrl-code-bg'] = block.code.background;
+    if (block.code.color) colors['_sd_ctrl-code-color'] = block.code.color;
   }
   if (block.blockquote) {
-    if (block.blockquote.borderColor) colors['ctrl-bq-border-color'] = block.blockquote.borderColor;
-    if (block.blockquote.background) colors['ctrl-bq-bg'] = block.blockquote.background;
-    if (block.blockquote.color) colors['ctrl-bq-color'] = block.blockquote.color;
+    if (block.blockquote.borderColor) colors['_sd_ctrl-bq-border-color'] = block.blockquote.borderColor;
+    if (block.blockquote.background) colors['_sd_ctrl-bq-bg'] = block.blockquote.background;
+    if (block.blockquote.color) colors['_sd_ctrl-bq-color'] = block.blockquote.color;
   }
   if (block.chart) {
-    if (block.chart.background) colors['ctrl-chart-bg'] = block.chart.background;
-    if (block.chart.textColor) colors['ctrl-chart-text'] = block.chart.textColor;
+    if (block.chart.background) colors['_sd_ctrl-chart-bg'] = block.chart.background;
+    if (block.chart.textColor) colors['_sd_ctrl-chart-text'] = block.chart.textColor;
   }
 
   return colors;

@@ -112,7 +112,7 @@ function inlineCharts(clone) {
 }
 
 function buildExportHTML() {
-  var fontName = document.getElementById('ctrl-font-family').value.replace(/['"]/g,'').split(',')[0].trim();
+  var fontName = document.getElementById('_sd_ctrl-font-family').value.replace(/['"]/g,'').split(',')[0].trim();
   var fontLink = S.GOOGLE_FONTS.includes(fontName)
     ? '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=' + encodeURIComponent(fontName) + ':wght@400;500;600;700&display=swap">'
     : '';
@@ -1012,15 +1012,15 @@ function download(filename, content) {
 
 // ── Export panel handlers ──────────────────────────────
 
-document.getElementById('exp-pdf').addEventListener('click', exportPDF);
-document.getElementById('exp-word').addEventListener('click', exportWord);
+document.getElementById('_sd_exp-pdf').addEventListener('click', exportPDF);
+document.getElementById('_sd_exp-word').addEventListener('click', exportWord);
 
-document.getElementById('exp-raw').addEventListener('click', function() {
+document.getElementById('_sd_exp-raw').addEventListener('click', function() {
   download('document.md', S.currentBody);
   S.setStatus('Exported raw .md');
 });
 
-document.getElementById('exp-styled').addEventListener('click', function() {
+document.getElementById('_sd_exp-styled').addEventListener('click', function() {
   var meta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
   var fm = SDocYaml.serializeFrontMatter(meta);
   download('document.md', fm + '\n' + S.currentBody);
@@ -1066,19 +1066,19 @@ var saveDefaultCmd = '';
 function refreshSaveDefaultPreview() {
   var yaml = buildStylesYaml();
   saveDefaultCmd = "mkdir -p ~/.sdocs && cat > ~/.sdocs/styles.yaml << 'SDOCS'\n" + yaml + '\nSDOCS';
-  document.getElementById('save-default-display').textContent = saveDefaultCmd;
+  document.getElementById('_sd_save-default-display').textContent = saveDefaultCmd;
 }
 
-document.querySelector('[data-target="body-save-default"]').addEventListener('click', function() {
+document.querySelector('[data-target="_sd_body-save-default"]').addEventListener('click', function() {
   // Delay so the panel-body open class is toggled first
   setTimeout(refreshSaveDefaultPreview, 0);
 });
 
-document.getElementById('btn-copy-default').addEventListener('click', async function() {
+document.getElementById('_sd_btn-copy-default').addEventListener('click', async function() {
   refreshSaveDefaultPreview();
   try {
     await navigator.clipboard.writeText(saveDefaultCmd);
-    var msg = document.getElementById('save-default-msg');
+    var msg = document.getElementById('_sd_save-default-msg');
     msg.textContent = 'Copied! Paste in your terminal to save defaults.';
     msg.style.display = 'block';
     setTimeout(function() { msg.style.display = 'none'; }, 4000);

@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════
    RENDERED MARKDOWN
 ═══════════════════════════════════════════════════ */
-:is(#rendered, #write) {
+:is(#_sd_rendered, #_sd_write) {
   padding: 40px 48px 60px;
   max-width: 760px;
   margin: 0 auto;
@@ -58,7 +58,7 @@
   line-height: var(--md-line-height);
   background-color: var(--md-bg);
 }
-:is(#rendered, #write) h1 {
+:is(#_sd_rendered, #_sd_write) h1 {
   font-family: var(--md-h-font-family);
   font-size: calc(var(--md-h1-size) * var(--md-h-scale));
   color: var(--md-h1-color);
@@ -67,7 +67,7 @@
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
-:is(#rendered, #write) h2 {
+:is(#_sd_rendered, #_sd_write) h2 {
   font-family: var(--md-h-font-family);
   font-size: calc(var(--md-h2-size) * var(--md-h-scale));
   color: var(--md-h2-color);
@@ -78,7 +78,7 @@
   padding-bottom: 0.3em;
   border-bottom: 1px solid var(--md-h2-border);
 }
-:is(#rendered, #write) h3 {
+:is(#_sd_rendered, #_sd_write) h3 {
   font-family: var(--md-h-font-family);
   font-size: calc(var(--md-h3-size) * var(--md-h-scale));
   color: var(--md-h3-color);
@@ -87,7 +87,7 @@
   letter-spacing: -0.01em;
   line-height: 1.4;
 }
-:is(#rendered, #write) h4 {
+:is(#_sd_rendered, #_sd_write) h4 {
   font-family: var(--md-h-font-family);
   font-size: calc(var(--md-h4-size) * var(--md-h-scale));
   color: var(--md-h4-color);
@@ -95,26 +95,26 @@
   font-weight: var(--md-h4-weight);
   line-height: 1.5;
 }
-:is(#rendered, #write) p {
+:is(#_sd_rendered, #_sd_write) p {
   color: var(--md-p-color);
   line-height: var(--md-p-line-height);
   margin: var(--md-p-margin);
 }
-:is(#rendered, #write) a {
+:is(#_sd_rendered, #_sd_write) a {
   color: var(--md-link-color);
   text-decoration: var(--md-link-decoration);
   text-underline-offset: 2px;
   cursor: pointer;
 }
-:is(#rendered, #write) a:hover { opacity: .8; }
+:is(#_sd_rendered, #_sd_write) a:hover { opacity: .8; }
 
 /* ── Collapsible heading sections ── */
-#rendered .md-section > h2,
-#rendered .md-section > h3,
-#rendered .md-section > h4 {
+#_sd_rendered .md-section > h2,
+#_sd_rendered .md-section > h3,
+#_sd_rendered .md-section > h4 {
   cursor: pointer;
 }
-#rendered .section-toggle {
+#_sd_rendered .section-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -127,24 +127,24 @@
   transition: transform .18s cubic-bezier(.4,0,.2,1), color .12s;
   transform: rotate(0deg);
 }
-#rendered .section-toggle.open {
+#_sd_rendered .section-toggle.open {
   transform: rotate(90deg);
 }
-#rendered .section-toggle:hover,
-#rendered h1:hover > .section-toggle,
-#rendered .md-section > h2:hover > .section-toggle,
-#rendered .md-section > h3:hover > .section-toggle,
-#rendered .md-section > h4:hover > .section-toggle,
-#rendered > h1:hover ~ .md-section .section-toggle,
-#rendered .md-section > h2:hover ~ .md-section-body .section-toggle,
-#rendered .md-section > h3:hover ~ .md-section-body .section-toggle,
-#rendered .md-section > h4:hover ~ .md-section-body .section-toggle {
+#_sd_rendered .section-toggle:hover,
+#_sd_rendered h1:hover > .section-toggle,
+#_sd_rendered .md-section > h2:hover > .section-toggle,
+#_sd_rendered .md-section > h3:hover > .section-toggle,
+#_sd_rendered .md-section > h4:hover > .section-toggle,
+#_sd_rendered > h1:hover ~ .md-section .section-toggle,
+#_sd_rendered .md-section > h2:hover ~ .md-section-body .section-toggle,
+#_sd_rendered .md-section > h3:hover ~ .md-section-body .section-toggle,
+#_sd_rendered .md-section > h4:hover ~ .md-section-body .section-toggle {
   color: var(--text-2);
 }
-#rendered .md-section-body:not(.open):not(:has(.md-section-body.open)) > :not(.md-section) {
+#_sd_rendered .md-section-body:not(.open):not(:has(.md-section-body.open)) > :not(.md-section) {
   display: none;
 }
-#rendered .md-section-body:not(.open):not(:has(.md-section-body.open)):has(> :not(.md-section)):has(> .md-section)::before {
+#_sd_rendered .md-section-body:not(.open):not(:has(.md-section-body.open)):has(> :not(.md-section)):has(> .md-section)::before {
   content: "\2026";
   display: block;
   opacity: 1;
@@ -155,16 +155,16 @@
   padding-bottom: 10px;
   line-height: 0.1;
 }
-#rendered .md-section-body:not(.open):has(.md-section-body.open) > :not(.md-section) {
+#_sd_rendered .md-section-body:not(.open):has(.md-section-body.open) > :not(.md-section) {
   opacity: 0.55;
   padding-left: calc(1.2em + 20px);
 }
-#rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) {
+#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) {
   padding-left: 1.2em;
 }
-#rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h2,
-#rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h3,
-#rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h4 {
+#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h2,
+#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h3,
+#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h4 {
   margin-top: 0.15em;
   margin-bottom: 0.1em;
   padding-bottom: 0;
@@ -173,8 +173,8 @@
 }
 
 /* ── Header anchor links ── */
-#rendered h1, #rendered h2, #rendered h3, #rendered h4 { position: relative; }
-#rendered .header-anchor {
+#_sd_rendered h1, #_sd_rendered h2, #_sd_rendered h3, #_sd_rendered h4 { position: relative; }
+#_sd_rendered .header-anchor {
   display: inline-flex;
   align-items: center;
   margin-left: 6px;
@@ -184,8 +184,8 @@
   cursor: pointer;
   vertical-align: middle;
 }
-#rendered .header-anchor:hover { opacity: 1; }
-#rendered .header-copy-btn {
+#_sd_rendered .header-anchor:hover { opacity: 1; }
+#_sd_rendered .header-copy-btn {
   display: inline-flex;
   align-items: center;
   margin-left: 4px;
@@ -200,12 +200,12 @@
   font: inherit;
   line-height: 1;
 }
-#rendered .header-copy-btn:hover { opacity: 1; }
+#_sd_rendered .header-copy-btn:hover { opacity: 1; }
 
 /* ── Scroll padding for anchor jumps ── */
-#content-area { scroll-padding-top: 24px; }
+#_sd_content-area { scroll-padding-top: 24px; }
 
-:is(#rendered, #write) code {
+:is(#_sd_rendered, #_sd_write) code {
   background: var(--md-code-bg);
   color: var(--md-code-color);
   padding: var(--md-code-padding);
@@ -214,11 +214,11 @@
   font-size: 0.85em;
   overflow-wrap: anywhere;
 }
-#rendered .pre-wrapper {
+#_sd_rendered .pre-wrapper {
   position: relative;
   margin: 1.2em 0;
 }
-:is(#rendered, #write) pre {
+:is(#_sd_rendered, #_sd_write) pre {
   background: var(--md-pre-bg);
   padding: var(--md-pre-padding);
   border-radius: var(--radius-md);
@@ -229,11 +229,11 @@
   margin: 1.2em 0;
   border: 1px solid var(--md-pre-border);
 }
-#rendered pre {
+#_sd_rendered pre {
   padding-top: 26px;
   margin: 0;
 }
-#rendered .pre-wrapper .copy-btn {
+#_sd_rendered .pre-wrapper .copy-btn {
   position: absolute;
   top: 6px;
   right: 6px;
@@ -252,8 +252,8 @@
   gap: 3px;
   z-index: 1;
 }
-#rendered .pre-wrapper .copy-btn:hover { opacity: 1; background: var(--md-copy-btn-hover); }
-:is(#rendered, #write) pre code {
+#_sd_rendered .pre-wrapper .copy-btn:hover { opacity: 1; background: var(--md-copy-btn-hover); }
+:is(#_sd_rendered, #_sd_write) pre code {
   background: none;
   padding: 0;
   color: var(--md-code-color);
@@ -338,7 +338,7 @@
 }
 .chart-menu-input:focus { outline: none; border-color: var(--accent, #3b82f6); }
 
-:is(#rendered, #write) blockquote {
+:is(#_sd_rendered, #_sd_write) blockquote {
   border-left: var(--md-bq-border);
   font-size: var(--md-bq-size);
   color: var(--md-bq-color);
@@ -347,43 +347,43 @@
   background: var(--md-bq-bg);
   border-radius: 0 var(--radius) var(--radius) 0;
 }
-:is(#rendered, #write) blockquote p { margin: 0; color: inherit; }
-:is(#rendered, #write) ul, :is(#rendered, #write) ol {
+:is(#_sd_rendered, #_sd_write) blockquote p { margin: 0; color: inherit; }
+:is(#_sd_rendered, #_sd_write) ul, :is(#_sd_rendered, #_sd_write) ol {
   padding-left: var(--md-list-indent);
   margin: 0.5em 0 1.1em;
 }
-:is(#rendered, #write) li { margin-bottom: var(--md-list-spacing); color: var(--md-list-color); }
-:is(#rendered, #write) li::marker { color: var(--md-list-color); }
-:is(#rendered, #write) hr {
+:is(#_sd_rendered, #_sd_write) li { margin-bottom: var(--md-list-spacing); color: var(--md-list-color); }
+:is(#_sd_rendered, #_sd_write) li::marker { color: var(--md-list-color); }
+:is(#_sd_rendered, #_sd_write) hr {
   border: none;
   border-top: 1px solid var(--md-hr-border);
   margin: 2em 0;
 }
-:is(#rendered, #write) table {
+:is(#_sd_rendered, #_sd_write) table {
   border-collapse: collapse;
   width: 100%;
   margin: 1.2em 0;
   font-size: 0.92em;
 }
-:is(#rendered, #write) th, :is(#rendered, #write) td {
+:is(#_sd_rendered, #_sd_write) th, :is(#_sd_rendered, #_sd_write) td {
   border: 1px solid var(--md-table-border);
   padding: 7px 12px;
   text-align: left;
 }
-:is(#rendered, #write) th {
+:is(#_sd_rendered, #_sd_write) th {
   background: var(--md-table-header-bg);
   font-weight: 600;
   color: var(--text);
 }
-:is(#rendered, #write) tr:nth-child(even) td { background: var(--md-table-even-bg); }
-:is(#rendered, #write) img { max-width: 100%; border-radius: var(--radius-md); }
+:is(#_sd_rendered, #_sd_write) tr:nth-child(even) td { background: var(--md-table-even-bg); }
+:is(#_sd_rendered, #_sd_write) img { max-width: 100%; border-radius: var(--radius-md); }
 
 /* ── File-info card (shown when front matter has `file:`) ─────────── */
-/* Matches the dimensions and inner padding of #rendered so values line up
+/* Matches the dimensions and inner padding of #_sd_rendered so values line up
    exactly with the document text. No background, border, or shadow — reads
    as plain header text above the document. */
-#sdocs-file-info[hidden] { display: none; }
-#sdocs-file-info {
+#_sd_sdocs-file-info[hidden] { display: none; }
+#_sd_sdocs-file-info {
   /* Mirror the light-mode document defaults so card text matches body text
      even when no controls have fired. setStyleVar also mirrors any user
      overrides onto this element (see sdocs-state.js). */
@@ -402,12 +402,12 @@
   flex-direction: column;
   gap: 2px;
 }
-#sdocs-file-info .fic-rows {
+#_sd_sdocs-file-info .fic-rows {
   display: flex;
   flex-direction: column;
   border-bottom: 1px solid var(--md-hr-border);
 }
-#sdocs-file-info .fic-row {
+#_sd_sdocs-file-info .fic-row {
   display: flex;
   align-items: baseline;
   gap: 12px;
@@ -416,27 +416,27 @@
   border-top: 1px solid color-mix(in srgb, var(--fic-text) 10%, transparent);
   cursor: pointer;
 }
-#sdocs-file-info .fic-row:hover .fic-copy { color: var(--md-p-color); }
-#sdocs-file-info .fic-row:first-child { border-top: none; }
-#sdocs-file-info .fic-label {
+#_sd_sdocs-file-info .fic-row:hover .fic-copy { color: var(--md-p-color); }
+#_sd_sdocs-file-info .fic-row:first-child { border-top: none; }
+#_sd_sdocs-file-info .fic-label {
   color: var(--fic-muted);
   flex-shrink: 0;
   min-width: 58px;
   font-weight: 500;
 }
-#sdocs-file-info .fic-value {
+#_sd_sdocs-file-info .fic-value {
   flex: 1;
   min-width: 0;
   color: var(--md-p-color);
   overflow-wrap: anywhere;
   word-break: break-word;
 }
-#sdocs-file-info .fic-local-tag {
+#_sd_sdocs-file-info .fic-local-tag {
   font-size: 11px;
   color: var(--fic-muted);
   flex-shrink: 0;
 }
-#sdocs-file-info .fic-copy {
+#_sd_sdocs-file-info .fic-copy {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -450,10 +450,10 @@
   cursor: pointer;
   transition: background .12s, color .12s;
 }
-#sdocs-file-info .fic-copy:hover {
+#_sd_sdocs-file-info .fic-copy:hover {
   color: var(--md-p-color);
 }
-#sdocs-file-info .fic-privacy-note {
+#_sd_sdocs-file-info .fic-privacy-note {
   margin-top: 4px;
   font-size: 11px;
   color: var(--fic-muted);
@@ -461,4 +461,4 @@
   align-items: baseline;
   gap: 4px;
 }
-#sdocs-file-info .fic-privacy-note[hidden] { display: none; }
+#_sd_sdocs-file-info .fic-privacy-note[hidden] { display: none; }

@@ -3,20 +3,20 @@
 ═══════════════════════════════════════════════════ */
 
 /* ── Write div ── */
-#write {
+#_sd_write {
   display: none;
   outline: none;
   min-height: 100%;
   cursor: text;
 }
-#write:empty::before {
+#_sd_write:empty::before {
   content: 'Start typing\2026';
   color: var(--text-3);
   pointer-events: none;
 }
 
 /* ── Write toolbar ── */
-#write-toolbar {
+#_sd_write-toolbar {
   display: none;
   align-items: center;
   gap: 2px;
@@ -32,7 +32,7 @@
               border-color .3s ease,
               padding .3s cubic-bezier(.4,0,.2,1);
 }
-body.write-mode #write-toolbar {
+body.write-mode #_sd_write-toolbar {
   position: relative;
   display: flex;
   justify-content: center;
@@ -45,7 +45,7 @@ body.write-mode #write-toolbar {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
-body.write-mode #write-toolbar::-webkit-scrollbar {
+body.write-mode #_sd_write-toolbar::-webkit-scrollbar {
   display: none;
 }
 
@@ -117,12 +117,12 @@ body.write-mode #write-toolbar::-webkit-scrollbar {
 }
 
 /* ── Visibility rules ── */
-body.write-mode #write {
+body.write-mode #_sd_write {
   display: block;
 }
-body.write-mode #rendered {
+body.write-mode #_sd_rendered {
   display: none;
 }
-body.write-mode #raw {
+body.write-mode #_sd_raw {
   display: none;
 }

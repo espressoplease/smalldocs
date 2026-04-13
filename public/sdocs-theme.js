@@ -92,7 +92,7 @@ const SUN_ICON = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2
 const MOON_ICON = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke-width="1.5"/>';
 
 function updateThemeIcon(theme) {
-  const icon = document.getElementById('icon-theme');
+  const icon = document.getElementById('_sd_icon-theme');
   if (icon) icon.innerHTML = theme === 'dark' ? SUN_ICON : MOON_ICON;
 }
 
@@ -122,9 +122,9 @@ function loadThemeColors(theme) {
 
   // Cascade roots: text color and block bg/text
   var cascadeRoots = [
-    ['ctrl-color', defaults.colorDefault],
-    ['ctrl-block-bg', defaults.codeBg],
-    ['ctrl-block-text', defaults.bqColor],
+    ['_sd_ctrl-color', defaults.colorDefault],
+    ['_sd_ctrl-block-bg', defaults.codeBg],
+    ['_sd_ctrl-block-text', defaults.bqColor],
   ];
   cascadeRoots.forEach(function(pair) {
     var id = pair[0], def = pair[1];
@@ -138,7 +138,7 @@ function loadThemeColors(theme) {
   // Then cascade children that are overridden (overrides the parent cascade)
   var cascadeIds = Object.keys(SDocStyles.COLOR_VAR_MAP);
   cascadeIds.forEach(function(ctrlId) {
-    if (ctrlId === 'ctrl-color' || ctrlId === 'ctrl-block-bg' || ctrlId === 'ctrl-block-text') return;
+    if (ctrlId === '_sd_ctrl-color' || ctrlId === '_sd_ctrl-block-bg' || ctrlId === '_sd_ctrl-block-text') return;
     if (overridden.has(ctrlId)) {
       S.setColorValue(ctrlId, colors[ctrlId], true);
     }
@@ -146,9 +146,9 @@ function loadThemeColors(theme) {
 
   // Standalone colors (not in cascade)
   var standaloneMap = {
-    'ctrl-bg-color':        defaults.bgColor,
-    'ctrl-link-color':      defaults.linkColor,
-    'ctrl-bq-border-color': defaults.bqBorderColor,
+    '_sd_ctrl-bg-color':        defaults.bgColor,
+    '_sd_ctrl-link-color':      defaults.linkColor,
+    '_sd_ctrl-bq-border-color': defaults.bqBorderColor,
   };
   for (var ctrlId in standaloneMap) {
     var el = document.getElementById(ctrlId);
@@ -165,8 +165,8 @@ function loadThemeColors(theme) {
 }
 
 function updateThemeTabs(theme) {
-  var lightTab = document.getElementById('theme-tab-light');
-  var darkTab = document.getElementById('theme-tab-dark');
+  var lightTab = document.getElementById('_sd_theme-tab-light');
+  var darkTab = document.getElementById('_sd_theme-tab-dark');
   if (lightTab) lightTab.classList.toggle('active', theme === 'light');
   if (darkTab) darkTab.classList.toggle('active', theme === 'dark');
 }
@@ -188,18 +188,18 @@ function toggleTheme() {
 function updateDefaultColors() {
   const defaults = getThemeDefaults();
   if (!S.overriddenColors) return;
-  if (!S.overriddenColors.has('ctrl-color')) {
-    S.setColorValue('ctrl-color', defaults.colorDefault, false);
+  if (!S.overriddenColors.has('_sd_ctrl-color')) {
+    S.setColorValue('_sd_ctrl-color', defaults.colorDefault, false);
   }
   // Update standalone color defaults for reset buttons
   const standaloneMap = {
-    'ctrl-bg-color':        defaults.bgColor,
-    'ctrl-link-color':      defaults.linkColor,
-    'ctrl-code-bg':         defaults.codeBg,
-    'ctrl-code-color':      defaults.codeColor,
-    'ctrl-bq-border-color': defaults.bqBorderColor,
-    'ctrl-bq-bg':           defaults.bqBg,
-    'ctrl-bq-color':        defaults.bqColor,
+    '_sd_ctrl-bg-color':        defaults.bgColor,
+    '_sd_ctrl-link-color':      defaults.linkColor,
+    '_sd_ctrl-code-bg':         defaults.codeBg,
+    '_sd_ctrl-code-color':      defaults.codeColor,
+    '_sd_ctrl-bq-border-color': defaults.bqBorderColor,
+    '_sd_ctrl-bq-bg':           defaults.bqBg,
+    '_sd_ctrl-bq-color':        defaults.bqColor,
   };
   for (const [ctrlId, val] of Object.entries(standaloneMap)) {
     if (!S.overriddenColors.has(ctrlId)) {
@@ -218,12 +218,12 @@ function updateDefaultColors() {
 function getStandaloneDefault(ctrlId) {
   const d = getThemeDefaults();
   const map = {
-    'ctrl-bg-color':        d.bgColor,
-    'ctrl-link-color':      d.linkColor,
-    'ctrl-bq-border-color': d.bqBorderColor,
-    'ctrl-block-bg':        d.codeBg,
-    'ctrl-block-text':      d.bqColor,
-    'ctrl-chart-accent':    '#3b82f6',
+    '_sd_ctrl-bg-color':        d.bgColor,
+    '_sd_ctrl-link-color':      d.linkColor,
+    '_sd_ctrl-bq-border-color': d.bqBorderColor,
+    '_sd_ctrl-block-bg':        d.codeBg,
+    '_sd_ctrl-block-text':      d.bqColor,
+    '_sd_ctrl-chart-accent':    '#3b82f6',
   };
   return map[ctrlId];
 }
@@ -239,9 +239,9 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e =
   }
 });
 
-populateFontSelect(document.getElementById('ctrl-font-family'), false);
-document.getElementById('ctrl-font-family').value = "'Inter', sans-serif";
-populateFontSelect(document.getElementById('ctrl-h-font-family'), true);
+populateFontSelect(document.getElementById('_sd_ctrl-font-family'), false);
+document.getElementById('_sd_ctrl-font-family').value = "'Inter', sans-serif";
+populateFontSelect(document.getElementById('_sd_ctrl-h-font-family'), true);
 
 // ── Register on SDocs for cross-module access ──────────
 

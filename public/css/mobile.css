@@ -4,9 +4,9 @@
 @media (max-width: 768px) {
   /* ── Make body the scroll container (iOS tap-to-top) ── */
   body { overflow: visible; height: auto; }
-  #main { flex-direction: column; overflow: visible; }
-  #left { min-height: 0; overflow: visible; }
-  #content-area { overflow: visible; }
+  #_sd_main { flex-direction: column; overflow: visible; }
+  #_sd_left { min-height: 0; overflow: visible; }
+  #_sd_content-area { overflow: visible; }
   html { scroll-padding-top: 44px; }
 
   /* ── Show short brand text on mobile ── */
@@ -14,36 +14,36 @@
   .toolbar-brand-short { display: inline; font-size: 13px; font-weight: 600; }
 
   /* ── Sticky left toolbar: horizontal scroll, left-aligned ── */
-  #left-toolbar { position: sticky; top: 0; z-index: 99; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  #left-toolbar > * { flex-shrink: 0; }
-  #toolbar-brand { margin-right: 0; }
+  #_sd_left-toolbar { position: sticky; top: 0; z-index: 99; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #_sd_left-toolbar > * { flex-shrink: 0; }
+  #_sd_toolbar-brand { margin-right: 0; }
 
   /* ── Stack layout instead of side-by-side ── */
-  #divider { display: none; }
+  #_sd_divider { display: none; }
 
   /* ── Content: tighter padding for small screens ── */
-  #rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
-  #write { padding: 24px 20px 40px; max-width: 100%; }
-  #raw { padding: 20px 16px; min-height: calc(100dvh - 36px); font-size: 16px; }
+  #_sd_rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
+  #_sd_write { padding: 24px 20px 40px; max-width: 100%; }
+  #_sd_raw { padding: 20px 16px; min-height: calc(100dvh - 36px); font-size: 16px; }
 
   /* ── File-info card: match rendered padding so values align with body ── */
-  #sdocs-file-info {
+  #_sd_sdocs-file-info {
     max-width: 100%;
     margin: 0;
     padding: 20px 20px 0;
   }
 
   /* ── Write toolbar: sticky below left-toolbar ── */
-  body.write-mode #write-toolbar { position: sticky; top: 36px; z-index: 98; justify-content: flex-start; }
+  body.write-mode #_sd_write-toolbar { position: sticky; top: 36px; z-index: 98; justify-content: flex-start; }
 
   /* ── Left toolbar: hide drop hint ── */
-  #drop-hint { display: none; }
+  #_sd_drop-hint { display: none; }
 
   /* ── Status bar: hidden on mobile ── */
-  #statusbar { display: none; }
+  #_sd_statusbar { display: none; }
 
   /* ── Right panel: bottom sheet overlay ── */
-  #right {
+  #_sd_right {
     position: fixed;
     bottom: 0;
     left: 0;
@@ -59,18 +59,18 @@
     overflow: hidden;
   }
   /* Style mode: show bottom sheet */
-  body.style-mode #right {
+  body.style-mode #_sd_right {
     max-height: 52px;
     opacity: 1;
   }
   /* Expanded state */
-  body.mobile-sheet-open #right {
+  body.mobile-sheet-open #_sd_right {
     max-height: 70vh;
     overflow-y: auto;
   }
 
   /* ── Drag handle indicator on the sheet ── */
-  #right::before {
+  #_sd_right::before {
     content: '';
     display: block;
     width: 36px;
@@ -82,7 +82,7 @@
   }
 
   /* ── Make header tappable to expand ── */
-  #right-header {
+  #_sd_right-header {
     cursor: pointer;
     user-select: none;
     flex-shrink: 0;
@@ -92,10 +92,10 @@
   }
 
   /* ── Hide "Save as default styles" on mobile ── */
-  #right .panel-section:last-child { display: none; }
+  #_sd_right .panel-section:last-child { display: none; }
 
   /* ── Export panel: bottom sheet overlay ── */
-  #export-panel {
+  #_sd_export-panel {
     position: fixed;
     bottom: 0;
     left: 0;
@@ -109,17 +109,17 @@
                 opacity .25s ease;
     overflow: hidden;
   }
-  body.export-mode #export-panel {
+  body.export-mode #_sd_export-panel {
     max-height: 52px;
     opacity: 1;
   }
-  body.mobile-export-open #export-panel {
+  body.mobile-export-open #_sd_export-panel {
     max-height: 70vh;
     overflow-y: auto;
   }
 
   /* ── Export panel drag handle ── */
-  #export-panel::before {
+  #_sd_export-panel::before {
     content: '';
     display: block;
     width: 36px;
@@ -131,7 +131,7 @@
   }
 
   /* ── Export panel header: tappable ── */
-  #export-panel-header {
+  #_sd_export-panel-header {
     cursor: pointer;
     user-select: none;
     flex-shrink: 0;
@@ -146,7 +146,7 @@
    Right-edge gradient that fades out when scrolled
 ═══════════════════════════════════════════════════ */
 @media (max-width: 560px) {
-  body.write-mode #write-toolbar.has-overflow::after {
+  body.write-mode #_sd_write-toolbar.has-overflow::after {
     content: '';
     position: absolute;
     top: 0;
@@ -158,7 +158,7 @@
     opacity: 1;
     transition: opacity .2s ease;
   }
-  body.write-mode #write-toolbar.scrolled-end::after {
+  body.write-mode #_sd_write-toolbar.scrolled-end::after {
     opacity: 0;
   }
 }
@@ -175,10 +175,10 @@
    VERY NARROW (< 342px)
 ═══════════════════════════════════════════════════ */
 @media (max-width: 342px) {
-  #left-toolbar {
+  #_sd_left-toolbar {
     position: sticky;
   }
-  #left-toolbar.has-overflow::after {
+  #_sd_left-toolbar.has-overflow::after {
     content: '';
     position: absolute;
     top: 0;
@@ -190,7 +190,7 @@
     opacity: 1;
     transition: opacity .2s ease;
   }
-  #left-toolbar.scrolled-end::after {
+  #_sd_left-toolbar.scrolled-end::after {
     opacity: 0;
   }
 }

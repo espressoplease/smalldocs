@@ -22,8 +22,8 @@ window.SDocs = {
   themeOverridden: { light: new Set(), dark: new Set() },
 
   // DOM references
-  renderedEl: document.getElementById('rendered'),
-  rawEl: document.getElementById('raw'),
+  renderedEl: document.getElementById('_sd_rendered'),
+  rawEl: document.getElementById('_sd_raw'),
   writeEl: null,
 
   // Mode tracking
@@ -54,15 +54,15 @@ Object.defineProperty(SDocs, 'overriddenColors', {
   configurable: true,
 });
 
-SDocs.contentAreaEl = document.getElementById('content-area');
+SDocs.contentAreaEl = document.getElementById('_sd_content-area');
 
 SDocs.setStyleVar = function(cssVar, value) {
   SDocs.renderedEl.style.setProperty(cssVar, value);
   if (SDocs.writeEl) SDocs.writeEl.style.setProperty(cssVar, value);
-  // File-info card is a sibling of #rendered, so it doesn't inherit vars set
-  // on #rendered. Mirror the block-cascade vars and the doc text color onto
+  // File-info card is a sibling of #_sd_rendered, so it doesn't inherit vars set
+  // on #_sd_rendered. Mirror the block-cascade vars and the doc text color onto
   // it so the card visually matches the document.
-  var ficEl = document.getElementById('sdocs-file-info');
+  var ficEl = document.getElementById('_sd_sdocs-file-info');
   if (ficEl && (/^--md-(fic-|block-)/.test(cssVar) || cssVar === '--md-color' || cssVar === '--md-p-color')) {
     ficEl.style.setProperty(cssVar, value);
   }

@@ -195,7 +195,7 @@ function render() {
 // ── File-info card ─────────────────────────────────────────
 
 function renderFileInfoCard() {
-  var card = document.getElementById('sdocs-file-info');
+  var card = document.getElementById('_sd_sdocs-file-info');
   if (!card) return;
   var meta = S.currentMeta || {};
   var local = S.localMeta || {};
@@ -257,7 +257,7 @@ function copyWithIconFeedback(text, btn) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  var copyFile = document.getElementById('btn-copy-file');
+  var copyFile = document.getElementById('_sd_btn-copy-file');
   if (copyFile) {
     copyFile.addEventListener('click', function(e) {
       e.preventDefault();
@@ -272,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ── Status ──────────────────────────────────
 
 function setStatus(msg) {
-  document.getElementById('status-text').textContent = msg;
+  document.getElementById('_sd_status-text').textContent = msg;
 }
 
 // ── Load content ──────────────────────────────────
@@ -442,7 +442,7 @@ function syncAll(source) {
 
 // ── Drag & drop ──────────────────────────────────
 
-var contentArea = document.getElementById('content-area');
+var contentArea = document.getElementById('_sd_content-area');
 
 contentArea.addEventListener('dragover', function(e) {
   e.preventDefault();
@@ -483,11 +483,11 @@ function setMode(mode, skipHash) {
   S.renderedEl.style.display = (mode === 'raw' || mode === 'write') ? 'none' : '';
   S.rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
-  document.getElementById('btn-read').classList.toggle('active',   mode === 'read');
-  document.getElementById('btn-style').classList.toggle('active',  mode === 'style');
-  document.getElementById('btn-write').classList.toggle('active',  mode === 'write');
-  document.getElementById('btn-raw').classList.toggle('active',    mode === 'raw');
-  document.getElementById('btn-export').classList.toggle('active', mode === 'export');
+  document.getElementById('_sd_btn-read').classList.toggle('active',   mode === 'read');
+  document.getElementById('_sd_btn-style').classList.toggle('active',  mode === 'style');
+  document.getElementById('_sd_btn-write').classList.toggle('active',  mode === 'write');
+  document.getElementById('_sd_btn-raw').classList.toggle('active',    mode === 'raw');
+  document.getElementById('_sd_btn-export').classList.toggle('active', mode === 'export');
 
   document.body.classList.toggle('style-mode',  mode === 'style');
   document.body.classList.toggle('read-mode',   mode === 'read');
@@ -503,40 +503,40 @@ function setMode(mode, skipHash) {
   }
 
   if (mode === 'read') {
-    document.getElementById('content-area').focus();
+    document.getElementById('_sd_content-area').focus();
   }
 
   if (!skipHash) updateHash();
 }
 
-document.getElementById('btn-theme').addEventListener('click', function() { S.toggleTheme(); });
-document.getElementById('theme-tab-light').addEventListener('click', function() { S.switchThemeAndUpdate('light'); });
-document.getElementById('theme-tab-dark').addEventListener('click', function() { S.switchThemeAndUpdate('dark'); });
-document.getElementById('btn-read').addEventListener('click',   function() { setMode('read'); });
-document.getElementById('btn-style').addEventListener('click',  function() { setMode('style'); });
-document.getElementById('btn-write').addEventListener('click',  function() { setMode('write'); });
-document.getElementById('btn-raw').addEventListener('click',    function() { setMode('raw'); });
-document.getElementById('btn-export').addEventListener('click', function() { setMode('export'); });
+document.getElementById('_sd_btn-theme').addEventListener('click', function() { S.toggleTheme(); });
+document.getElementById('_sd_theme-tab-light').addEventListener('click', function() { S.switchThemeAndUpdate('light'); });
+document.getElementById('_sd_theme-tab-dark').addEventListener('click', function() { S.switchThemeAndUpdate('dark'); });
+document.getElementById('_sd_btn-read').addEventListener('click',   function() { setMode('read'); });
+document.getElementById('_sd_btn-style').addEventListener('click',  function() { setMode('style'); });
+document.getElementById('_sd_btn-write').addEventListener('click',  function() { setMode('write'); });
+document.getElementById('_sd_btn-raw').addEventListener('click',    function() { setMode('raw'); });
+document.getElementById('_sd_btn-export').addEventListener('click', function() { setMode('export'); });
 
-document.getElementById('btn-new').addEventListener('click', function() {
+document.getElementById('_sd_btn-new').addEventListener('click', function() {
   history.replaceState(null, '', '/new');
   startNewDocument();
 });
 
 
-document.getElementById('right-header').addEventListener('click', function() {
+document.getElementById('_sd_right-header').addEventListener('click', function() {
   if (window.innerWidth <= 768) {
     document.body.classList.toggle('mobile-sheet-open');
   }
 });
 
-document.getElementById('export-panel-header').addEventListener('click', function() {
+document.getElementById('_sd_export-panel-header').addEventListener('click', function() {
   if (window.innerWidth <= 768) {
     document.body.classList.toggle('mobile-export-open');
   }
 });
 
-document.getElementById('factory-reset-styles').addEventListener('click', function() {
+document.getElementById('_sd_factory-reset-styles').addEventListener('click', function() {
   S.resetAllStyles();
   S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
   S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
@@ -544,7 +544,7 @@ document.getElementById('factory-reset-styles').addEventListener('click', functi
   syncAll('load');
 });
 
-document.getElementById('toolbar-brand').addEventListener('click', function(e) {
+document.getElementById('_sd_toolbar-brand').addEventListener('click', function(e) {
   e.preventDefault();
   if (window.location.hash && window.location.hash.indexOf('md=') !== -1) {
     window.open(window.location.origin + window.location.pathname, '_blank');
@@ -795,8 +795,8 @@ function initScrollHint(el) {
   return { update: update, peek: peek };
 }
 
-var leftHint = initScrollHint(document.getElementById('left-toolbar'));
-var writeHint = initScrollHint(document.getElementById('write-toolbar'));
+var leftHint = initScrollHint(document.getElementById('_sd_left-toolbar'));
+var writeHint = initScrollHint(document.getElementById('_sd_write-toolbar'));
 
 // Re-check and peek when entering write mode
 var _origSetMode = setMode;

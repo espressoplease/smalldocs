@@ -11,7 +11,7 @@ function applyControlToCss(id) {
   if (!el) return;
   var v = el.value;
 
-  if (id === 'ctrl-font-family' || id === 'ctrl-h-font-family') {
+  if (id === '_sd_ctrl-font-family' || id === '_sd_ctrl-h-font-family') {
     var name = v.replace(/['"]/g,'').split(',')[0].trim();
     if (S.GOOGLE_FONTS.includes(name)) S.loadGoogleFont(name);
   }
@@ -47,12 +47,12 @@ SDocStyles.RANGE_NUM_PAIRS.forEach(function(pair) { syncRangeAndNumber(pair[0], 
 var STANDALONE_COLOR_IDS = new Set(SDocStyles.STANDALONE_COLOR_IDS);
 
 [
-  'ctrl-font-family','ctrl-h-font-family',
-  'ctrl-h1-weight','ctrl-h2-weight','ctrl-h3-weight','ctrl-h4-weight',
-  'ctrl-bg-color','ctrl-link-color','ctrl-link-decoration',
-  'ctrl-code-font',
-  'ctrl-bq-border-color',
-  'ctrl-chart-accent','ctrl-chart-palette',
+  '_sd_ctrl-font-family','_sd_ctrl-h-font-family',
+  '_sd_ctrl-h1-weight','_sd_ctrl-h2-weight','_sd_ctrl-h3-weight','_sd_ctrl-h4-weight',
+  '_sd_ctrl-bg-color','_sd_ctrl-link-color','_sd_ctrl-link-decoration',
+  '_sd_ctrl-code-font',
+  '_sd_ctrl-bq-border-color',
+  '_sd_ctrl-chart-accent','_sd_ctrl-chart-palette',
 ].forEach(function(id) {
   var handler = function() { if (STANDALONE_COLOR_IDS.has(id)) S.overriddenColors.add(id); applyControlToCss(id); S.syncAll('controls'); };
   document.getElementById(id).addEventListener('input',  handler);
@@ -81,8 +81,8 @@ function setColorValue(ctrlId, value, userAction) {
     }
   }
   // Refresh charts when block/chart colors change
-  if (S.refreshChartColors && (ctrlId === 'ctrl-chart-bg' || ctrlId === 'ctrl-chart-text' ||
-      ctrlId === 'ctrl-block-bg' || ctrlId === 'ctrl-block-text')) {
+  if (S.refreshChartColors && (ctrlId === '_sd_ctrl-chart-bg' || ctrlId === '_sd_ctrl-chart-text' ||
+      ctrlId === '_sd_ctrl-block-bg' || ctrlId === '_sd_ctrl-block-text')) {
     S.refreshChartColors();
   }
 }
@@ -100,7 +100,7 @@ function resetColorValue(ctrlId) {
   var value;
   if (!parent) {
     // Cascade root: use theme default
-    value = ctrlId === 'ctrl-color' ? S.getColorDefault() : S.getStandaloneDefault(ctrlId);
+    value = ctrlId === '_sd_ctrl-color' ? S.getColorDefault() : S.getStandaloneDefault(ctrlId);
   } else {
     var parentEl = document.getElementById(parent);
     value = parentEl ? parentEl.value : S.getColorDefault();
@@ -117,21 +117,21 @@ Object.keys(COLOR_VAR).forEach(function(ctrlId) {
 });
 
 // Cascade color reset buttons
-document.getElementById('reset-color').addEventListener('click', function() { S.overriddenColors.delete('ctrl-color'); setColorValue('ctrl-color', S.getColorDefault(), false); S.syncAll('controls'); });
-['ctrl-h-color','ctrl-h1-color','ctrl-h2-color','ctrl-h3-color','ctrl-h4-color','ctrl-p-color','ctrl-list-color'].forEach(function(ctrlId) {
-  var btn = document.getElementById('reset-' + ctrlId.replace('ctrl-', ''));
+document.getElementById('_sd_reset-color').addEventListener('click', function() { S.overriddenColors.delete('_sd_ctrl-color'); setColorValue('_sd_ctrl-color', S.getColorDefault(), false); S.syncAll('controls'); });
+['_sd_ctrl-h-color','_sd_ctrl-h1-color','_sd_ctrl-h2-color','_sd_ctrl-h3-color','_sd_ctrl-h4-color','_sd_ctrl-p-color','_sd_ctrl-list-color'].forEach(function(ctrlId) {
+  var btn = document.getElementById(ctrlId.replace('_sd_ctrl-', '_sd_reset-'));
   if (btn) btn.addEventListener('click', function() { resetColorValue(ctrlId); S.syncAll('controls'); });
 });
 
 // Block cascade resets
-['ctrl-block-bg','ctrl-block-text','ctrl-code-bg','ctrl-code-color','ctrl-bq-bg','ctrl-bq-color','ctrl-chart-bg','ctrl-chart-text'].forEach(function(ctrlId) {
-  var btnId = 'reset-' + ctrlId.replace('ctrl-', '');
+['_sd_ctrl-block-bg','_sd_ctrl-block-text','_sd_ctrl-code-bg','_sd_ctrl-code-color','_sd_ctrl-bq-bg','_sd_ctrl-bq-color','_sd_ctrl-chart-bg','_sd_ctrl-chart-text'].forEach(function(ctrlId) {
+  var btnId = ctrlId.replace('_sd_ctrl-', '_sd_reset-');
   var btn = document.getElementById(btnId);
   if (btn) btn.addEventListener('click', function() { resetColorValue(ctrlId); S.syncAll('controls'); });
 });
 
-['ctrl-bg-color','ctrl-link-color','ctrl-bq-border-color','ctrl-chart-accent'].forEach(function(ctrlId) {
-  var btnId = 'reset-' + ctrlId.replace('ctrl-', '');
+['_sd_ctrl-bg-color','_sd_ctrl-link-color','_sd_ctrl-bq-border-color','_sd_ctrl-chart-accent'].forEach(function(ctrlId) {
+  var btnId = ctrlId.replace('_sd_ctrl-', '_sd_reset-');
   document.getElementById(btnId).addEventListener('click', function() {
     var defaultVal = S.getStandaloneDefault(ctrlId);
     var el = document.getElementById(ctrlId);
@@ -166,7 +166,7 @@ function applyStylesFromMeta(s) {
   var controls = result.controls;
 
   // Font family selects need special handling to match bare names against <option> values
-  [['fontFamily', 'ctrl-font-family'], ['headers.fontFamily', 'ctrl-h-font-family']].forEach(function(pair) {
+  [['fontFamily', '_sd_ctrl-font-family'], ['headers.fontFamily', '_sd_ctrl-h-font-family']].forEach(function(pair) {
     var styleKey = pair[0], ctrlId = pair[1];
     var fontName = styleKey === 'fontFamily' ? s.fontFamily : (s.headers || {}).fontFamily;
     if (fontName) {
@@ -180,7 +180,7 @@ function applyStylesFromMeta(s) {
   });
 
   Object.keys(controls).forEach(function(id) {
-    if (id === 'ctrl-font-family' || id === 'ctrl-h-font-family') return;
+    if (id === '_sd_ctrl-font-family' || id === '_sd_ctrl-h-font-family') return;
     if (SDocStyles.COLOR_VAR_MAP[id]) return;
     setControlValue(id, controls[id]);
   });
@@ -200,29 +200,29 @@ function applyStylesFromMeta(s) {
 
   // Also store standalone colors from legacy format into light theme
   var legacyStandalone = [];
-  if (s.background) legacyStandalone.push(['ctrl-bg-color', s.background]);
-  if (s.link && s.link.color) legacyStandalone.push(['ctrl-link-color', s.link.color]);
+  if (s.background) legacyStandalone.push(['_sd_ctrl-bg-color', s.background]);
+  if (s.link && s.link.color) legacyStandalone.push(['_sd_ctrl-link-color', s.link.color]);
   if (s.code) {
-    if (s.code.background) legacyStandalone.push(['ctrl-code-bg', s.code.background]);
-    if (s.code.color) legacyStandalone.push(['ctrl-code-color', s.code.color]);
+    if (s.code.background) legacyStandalone.push(['_sd_ctrl-code-bg', s.code.background]);
+    if (s.code.color) legacyStandalone.push(['_sd_ctrl-code-color', s.code.color]);
   }
   if (s.blocks) {
-    if (s.blocks.background) legacyStandalone.push(['ctrl-block-bg', s.blocks.background]);
-    if (s.blocks.color) legacyStandalone.push(['ctrl-block-text', s.blocks.color]);
+    if (s.blocks.background) legacyStandalone.push(['_sd_ctrl-block-bg', s.blocks.background]);
+    if (s.blocks.color) legacyStandalone.push(['_sd_ctrl-block-text', s.blocks.color]);
   }
   if (s.blockquote) {
-    if (s.blockquote.borderColor) legacyStandalone.push(['ctrl-bq-border-color', s.blockquote.borderColor]);
-    if (s.blockquote.background) legacyStandalone.push(['ctrl-bq-bg', s.blockquote.background]);
-    if (s.blockquote.color) legacyStandalone.push(['ctrl-bq-color', s.blockquote.color]);
+    if (s.blockquote.borderColor) legacyStandalone.push(['_sd_ctrl-bq-border-color', s.blockquote.borderColor]);
+    if (s.blockquote.background) legacyStandalone.push(['_sd_ctrl-bq-bg', s.blockquote.background]);
+    if (s.blockquote.color) legacyStandalone.push(['_sd_ctrl-bq-color', s.blockquote.color]);
   }
   if (s.chart) {
-    if (s.chart.background) legacyStandalone.push(['ctrl-chart-bg', s.chart.background]);
-    if (s.chart.textColor) legacyStandalone.push(['ctrl-chart-text', s.chart.textColor]);
+    if (s.chart.background) legacyStandalone.push(['_sd_ctrl-chart-bg', s.chart.background]);
+    if (s.chart.textColor) legacyStandalone.push(['_sd_ctrl-chart-text', s.chart.textColor]);
   }
 
   // File-info card overrides (no UI controls — driven entirely by YAML).
   S.fileinfoStyles = {};
-  var ficEl = document.getElementById('sdocs-file-info');
+  var ficEl = document.getElementById('_sd_sdocs-file-info');
   if (s.fileinfo) {
     if (s.fileinfo.background) {
       S.fileinfoStyles.background = s.fileinfo.background;
@@ -231,7 +231,7 @@ function applyStylesFromMeta(s) {
     if (s.fileinfo.color) {
       S.fileinfoStyles.color = s.fileinfo.color;
       S.setStyleVar('--md-fic-text', s.fileinfo.color);
-      // Also override --md-p-color locally on the card (not on #rendered)
+      // Also override --md-p-color locally on the card (not on #_sd_rendered)
       // so .fic-value picks it up without affecting body p text.
       if (ficEl) ficEl.style.setProperty('--md-p-color', s.fileinfo.color);
     }
@@ -306,34 +306,34 @@ function resetAllStyles() {
   S.fileinfoStyles = {};
   S.setStyleVar('--md-fic-bg', '');
   S.setStyleVar('--md-fic-text', '');
-  var ficResetEl = document.getElementById('sdocs-file-info');
+  var ficResetEl = document.getElementById('_sd_sdocs-file-info');
   if (ficResetEl) ficResetEl.style.removeProperty('--md-p-color');
 
-  setColorValue('ctrl-color', S.getColorDefault(), false);
+  setColorValue('_sd_ctrl-color', S.getColorDefault(), false);
   // Reset block cascade roots to theme defaults
-  setColorValue('ctrl-block-bg', S.getStandaloneDefault('ctrl-block-bg') || '#f4f1ed', false);
-  setColorValue('ctrl-block-text', S.getStandaloneDefault('ctrl-block-text') || '#6b6560', false);
+  setColorValue('_sd_ctrl-block-bg', S.getStandaloneDefault('_sd_ctrl-block-bg') || '#f4f1ed', false);
+  setColorValue('_sd_ctrl-block-text', S.getStandaloneDefault('_sd_ctrl-block-text') || '#6b6560', false);
   // Set standalone color controls to theme-appropriate defaults
   STANDALONE_COLOR_IDS.forEach(function(ctrlId) {
     var el = document.getElementById(ctrlId);
     if (el) el.value = S.getStandaloneDefault(ctrlId);
   });
-  document.querySelectorAll('#right input, #right select').forEach(function(el) {
+  document.querySelectorAll('#_sd_right input, #_sd_right select').forEach(function(el) {
     if (STANDALONE_COLOR_IDS.has(el.id)) return; // already set above
     if (el.type === 'range' || el.type === 'number') el.value = el.defaultValue;
     else if (el.tagName === 'SELECT') el.selectedIndex = [].slice.call(el.options).findIndex(function(o) { return o.defaultSelected; });
     else if (el.type === 'color') el.value = el.defaultValue;
   });
-  ['ctrl-bg-color','ctrl-font-family','ctrl-base-size-num','ctrl-line-height-num',
-   'ctrl-h-font-family','ctrl-h-scale-num','ctrl-h-mb-num',
-   'ctrl-h1-size-num','ctrl-h1-weight','ctrl-h2-size-num','ctrl-h2-weight',
-   'ctrl-h3-size-num','ctrl-h3-weight','ctrl-h4-size-num','ctrl-h4-weight',
-   'ctrl-p-lh-num','ctrl-p-mb-num',
-   'ctrl-link-color','ctrl-link-decoration',
-   'ctrl-code-font',
-   'ctrl-bq-border-color','ctrl-bq-bw-num','ctrl-bq-size-num',
-   'ctrl-list-spacing-num','ctrl-list-indent-num',
-   'ctrl-chart-accent','ctrl-chart-palette',
+  ['_sd_ctrl-bg-color','_sd_ctrl-font-family','_sd_ctrl-base-size-num','_sd_ctrl-line-height-num',
+   '_sd_ctrl-h-font-family','_sd_ctrl-h-scale-num','_sd_ctrl-h-mb-num',
+   '_sd_ctrl-h1-size-num','_sd_ctrl-h1-weight','_sd_ctrl-h2-size-num','_sd_ctrl-h2-weight',
+   '_sd_ctrl-h3-size-num','_sd_ctrl-h3-weight','_sd_ctrl-h4-size-num','_sd_ctrl-h4-weight',
+   '_sd_ctrl-p-lh-num','_sd_ctrl-p-mb-num',
+   '_sd_ctrl-link-color','_sd_ctrl-link-decoration',
+   '_sd_ctrl-code-font',
+   '_sd_ctrl-bq-border-color','_sd_ctrl-bq-bw-num','_sd_ctrl-bq-size-num',
+   '_sd_ctrl-list-spacing-num','_sd_ctrl-list-indent-num',
+   '_sd_ctrl-chart-accent','_sd_ctrl-chart-palette',
   ].forEach(function(id) { applyControlToCss(id); });
 }
 
@@ -346,7 +346,7 @@ if (document.documentElement.dataset.theme === 'dark') {
   });
 }
 
-setColorValue('ctrl-color', S.getColorDefault(), false);
+setColorValue('_sd_ctrl-color', S.getColorDefault(), false);
 
 // ── Register on SDocs for cross-module access ──────────
 

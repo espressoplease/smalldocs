@@ -5,13 +5,13 @@ const BASE = 'http://localhost:3000';
 
 /**
  * Load markdown into the app via SDocs.loadText() and return the
- * sanitized HTML that ends up in #rendered.
+ * sanitized HTML that ends up in #_sd_rendered.
  */
 async function loadAndGetHTML(page, markdown) {
   await page.goto(BASE);
-  await page.waitForSelector('#rendered');
+  await page.waitForSelector('#_sd_rendered');
   await page.evaluate((md) => window.SDocs.loadText(md), markdown);
-  return page.locator('#rendered').innerHTML();
+  return page.locator('#_sd_rendered').innerHTML();
 }
 
 // ── Script injection ──────────────────────────────────────
@@ -89,7 +89,7 @@ test('strips object/embed tags', async ({ page }) => {
 test('no script actually executes during render', async ({ page }) => {
   // Set a sentinel — if any XSS fires, it sets window.__xss
   await page.goto(BASE);
-  await page.waitForSelector('#rendered');
+  await page.waitForSelector('#_sd_rendered');
   await page.evaluate(() => { window.__xss = false; });
 
   const payloads = [
@@ -137,7 +137,7 @@ test('preserves images with safe src', async ({ page }) => {
 
 test('write mode also sanitizes content', async ({ page }) => {
   await page.goto(BASE + '/#mode=write');
-  await page.waitForSelector('#write[contenteditable="true"]');
+  await page.waitForSelector('#_sd_write[contenteditable="true"]');
 
   await page.evaluate((md) => {
     window.SDocs.currentBody = md;
@@ -145,11 +145,11 @@ test('write mode also sanitizes content', async ({ page }) => {
 
   // Re-enter write mode to trigger the sanitized render
   await page.evaluate(() => {
-    document.getElementById('write').innerHTML =
+    document.getElementById('_sd_write').innerHTML =
       DOMPurify.sanitize(marked.parse(window.SDocs.currentBody));
   });
 
-  const html = await page.locator('#write').innerHTML();
+  const html = await page.locator('#_sd_write').innerHTML();
   expect(html).not.toContain('<script');
   expect(html).not.toContain('onerror');
 });

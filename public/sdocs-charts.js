@@ -124,7 +124,7 @@
 
     // Fall back to CSS vars from style panel
     if (!accent) {
-      var rendered = document.getElementById('rendered');
+      var rendered = document.getElementById('_sd_rendered');
       if (rendered) {
         var cs = getComputedStyle(rendered);
         accent = cs.getPropertyValue('--md-chart-accent').trim() || null;
@@ -173,13 +173,13 @@
   }
 
   function getDocFont() {
-    var rendered = document.getElementById('rendered');
+    var rendered = document.getElementById('_sd_rendered');
     if (!rendered) return '';
     return getComputedStyle(rendered).getPropertyValue('--md-font-family').trim() || '';
   }
 
   function cssVar(name) {
-    var rendered = document.getElementById('rendered');
+    var rendered = document.getElementById('_sd_rendered');
     if (!rendered) return '';
     return getComputedStyle(rendered).getPropertyValue(name).trim();
   }
@@ -869,7 +869,7 @@
     activeCharts = chartDataStore.map(function (e) { return e.chart; });
   }
 
-  ['ctrl-chart-accent', 'ctrl-chart-palette'].forEach(function (id) {
+  ['_sd_ctrl-chart-accent', '_sd_ctrl-chart-palette'].forEach(function (id) {
     var el = document.getElementById(id);
     if (el) {
       el.addEventListener('input', refreshChartColors);

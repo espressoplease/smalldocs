@@ -69,7 +69,7 @@ test.describe('PDF export — images', () => {
     await loadDoc(page, IMAGE_DOC);
     // Wait for image to load in the rendered view
     await page.waitForFunction(() => {
-      var img = document.querySelector('#rendered img');
+      var img = document.querySelector('#_sd_rendered img');
       return img && img.naturalWidth > 0;
     }, { timeout: 8000 });
     const html = await getExportHTML(page);
@@ -87,7 +87,7 @@ test.describe('PDF export — combined', () => {
   test('export includes both inlined image and chart', async ({ page }) => {
     await loadDoc(page, CHART_AND_IMAGE);
     await page.waitForFunction(() => {
-      var img = document.querySelector('#rendered img');
+      var img = document.querySelector('#_sd_rendered img');
       return img && img.naturalWidth > 0;
     }, { timeout: 8000 });
     const html = await getExportHTML(page);

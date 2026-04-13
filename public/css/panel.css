@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════
    RIGHT PANEL
 ═══════════════════════════════════════════════════ */
-#right {
+#_sd_right {
   width: 0;
   opacity: 0;
   overflow: hidden;
@@ -14,17 +14,17 @@
   transition: width .32s cubic-bezier(.4,0,.2,1),
               opacity .25s ease;
 }
-body.style-mode #right {
+body.style-mode #_sd_right {
   width: 335px;
   opacity: 1;
   overflow-y: auto;
   overflow-x: hidden;
 }
-#right::-webkit-scrollbar { width: 5px; }
-#right::-webkit-scrollbar-track { background: transparent; }
-#right::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+#_sd_right::-webkit-scrollbar { width: 5px; }
+#_sd_right::-webkit-scrollbar-track { background: transparent; }
+#_sd_right::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 
-#right-header {
+#_sd_right-header {
   display: flex;
   align-items: center;
   min-height: 40px;
@@ -39,10 +39,10 @@ body.style-mode #right {
 }
 
 /* ── Theme tabs ── */
-#theme-tabs {
+#_sd_theme-tabs {
   margin-bottom: 10px;
 }
-#theme-tabs .toggle-group {
+#_sd_theme-tabs .toggle-group {
   display: flex;
   width: 100%;
   gap: 0;
@@ -51,7 +51,7 @@ body.style-mode #right {
   border-radius: var(--radius);
   overflow: hidden;
 }
-#theme-tabs .btn {
+#_sd_theme-tabs .btn {
   flex: 1;
   display: flex;
   align-items: center;
@@ -67,17 +67,17 @@ body.style-mode #right {
   cursor: pointer;
   transition: background .12s, color .12s;
 }
-#theme-tabs .btn:hover {
+#_sd_theme-tabs .btn:hover {
   background: var(--bg-hover);
   color: var(--text-2);
 }
-#theme-tabs .btn.active {
+#_sd_theme-tabs .btn.active {
   background: var(--bg-panel);
   color: var(--text);
   font-weight: 600;
   box-shadow: var(--shadow-sm);
 }
-#theme-tabs .btn svg {
+#_sd_theme-tabs .btn svg {
   width: 13px;
   height: 13px;
   flex-shrink: 0;
@@ -302,7 +302,7 @@ body.style-mode #right {
 /* ═══════════════════════════════════════════════════
    EXPORT PANEL
 ═══════════════════════════════════════════════════ */
-#export-panel {
+#_sd_export-panel {
   width: 0;
   opacity: 0;
   overflow: hidden;
@@ -313,13 +313,13 @@ body.style-mode #right {
   transition: width .32s cubic-bezier(.4,0,.2,1),
               opacity .25s ease;
 }
-body.export-mode #export-panel {
+body.export-mode #_sd_export-panel {
   width: 335px;
   opacity: 1;
   overflow-y: auto;
 }
 
-#export-panel-header {
+#_sd_export-panel-header {
   display: flex;
   align-items: center;
   min-height: 40px;
@@ -371,7 +371,7 @@ body.export-mode #export-panel {
 /* ═══════════════════════════════════════════════════
    FOOTER / STATUS
 ═══════════════════════════════════════════════════ */
-#statusbar {
+#_sd_statusbar {
   height: 24px;
   display: flex;
   align-items: center;
@@ -381,11 +381,11 @@ body.export-mode #export-panel {
   border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
-#statusbar span {
+#_sd_statusbar span {
   font-size: 11px;
   color: var(--text-2);
 }
-#statusbar .dot {
+#_sd_statusbar .dot {
   width: 6px; height: 6px;
   border-radius: 50%;
   background: #22C55E;
