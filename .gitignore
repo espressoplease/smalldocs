@@ -4,3 +4,4 @@ CLAUDE.local.md
 .claude-personal/
 .playwright-mcp/
 test-results/
+analytics.db*
