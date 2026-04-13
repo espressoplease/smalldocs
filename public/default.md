@@ -1,7 +1,7 @@
 # Meet `sdoc`: A markdown-first cli-native replacement for Word & GDocs
 
 
-(**TLDR:** `sdoc path/to/README.md` opens your file at https://sdoc.dev with pleasant default styles which can be altered. Share the url to share your file. **The content of your file never hits the SDocs server, it's stored in the url hash.** CLI: `npm i -g sdocs-dev`. SDocs is [open-source](https://github.com/JoshInLisbon/SDocs). You're reading markdown right now.)
+(**TLDR:** `sdoc path/to/README.md` opens your file at https://sdoc.dev with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `npm i -g sdocs-dev`. SDocs is [open-source](https://github.com/JoshInLisbon/SDocs). You're reading markdown right now.)
 
 If you're working with agents, a document written in markdown is <ins>officially</ins>* 407 times more useful than a document locked inside a `.docx` or `.gdoc` file format. Because of this, I believe Word and GDocs' days are numbered. (*I am the official.)
 
@@ -271,7 +271,7 @@ Your markdown content with all front matter stripped. Plain markdown, compatible
 
 #### PDF
 
-A styled PDF generated from the rendered view via the browser's print engine.
+A styled PDF with selectable text, generated client-side.
 
 #### Word (.docx)
 
