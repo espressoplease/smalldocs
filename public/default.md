@@ -3,6 +3,8 @@
 
 (**TLDR:** `sdoc path/to/README.md` opens your file at https://sdoc.dev with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `npm i -g sdocs-dev`. SDocs is [open-source](https://github.com/JoshInLisbon/SDocs). You're reading markdown right now.)
 
+---
+
 If you're working with agents, a document written in markdown is <ins>officially</ins>* 407 times more useful than a document locked inside a `.docx` or `.gdoc` file format. Because of this, I believe Word and GDocs' days are numbered. (*I am the official.)
 
 But while markdown is great for agents, it's a bit annoying for humans. Quickly and elegantly reading a `.md` file requires you to open your code editor and enter "preview" mode. Sharing a markdown file requires you to actually send the file to someone. They then have to download it and find the least annoying way to read it.
