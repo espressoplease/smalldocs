@@ -24,7 +24,7 @@ var APP_SHELL = [
   '/public/fonts/inter-400.woff2',
   '/public/fonts/inter-500.woff2',
   '/public/fonts/inter-600.woff2',
-  '/public/default.md',
+  '/public/sdoc.md',
 ];
 
 // Pre-cache app shell on install

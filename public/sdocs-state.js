@@ -8,6 +8,10 @@ window.SDocs = {
   currentBody: '',
   currentMeta: {},
 
+  // Runtime-only metadata (path, fullPath) passed via &local= URL param.
+  // Stripped from the URL on load so it isn't in anything the user copies/shares.
+  localMeta: {},
+
   // Per-theme color state
   activeTheme: 'light',
   themeColors: { light: {}, dark: {} },

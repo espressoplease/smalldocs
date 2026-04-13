@@ -189,7 +189,83 @@ function render() {
   attachCodeCopyButtons(S.renderedEl);
   buildCollapsibleSections(S.renderedEl);
   S.processCharts(S.renderedEl);
+  renderFileInfoCard();
 }
+
+// ── File-info card ─────────────────────────────────────────
+
+function renderFileInfoCard() {
+  var card = document.getElementById('file-info-card');
+  if (!card) return;
+  var meta = S.currentMeta || {};
+  var local = S.localMeta || {};
+  var rowsEl = card.querySelector('.fic-rows');
+
+  var rows = [];
+  if (meta.file)      rows.push({ key: 'file',     label: 'File', value: meta.file,      local: false });
+  if (local.path)     rows.push({ key: 'path',     label: 'Path', value: local.path,     local: true  });
+  if (local.fullPath) rows.push({ key: 'fullPath', label: 'Full', value: local.fullPath, local: true  });
+
+  if (rows.length === 0) {
+    card.hidden = true;
+    rowsEl.innerHTML = '';
+    return;
+  }
+
+  card.hidden = false;
+  var note = card.querySelector('.fic-privacy-note');
+  if (note) note.hidden = !rows.some(function(r) { return r.local; });
+  rowsEl.innerHTML = rows.map(function(r) {
+    var pill = r.local ? '<span class="fic-local-pill" title="Only visible on this device — not included in shared sdocs">local only</span>' : '';
+    return '<div class="fic-row" data-key="' + r.key + '">'
+      + '<span class="fic-label">' + r.label + '</span>'
+      + '<span class="fic-value">' + escapeHtml(r.value) + '</span>'
+      + pill
+      + '<button class="fic-copy" title="Copy ' + r.label.toLowerCase() + '">' + COPY_SVG + '</button>'
+      + '</div>';
+  }).join('');
+
+  rowsEl.querySelectorAll('.fic-copy').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var row = btn.closest('.fic-row');
+      var val = row.querySelector('.fic-value').textContent;
+      copyWithIconFeedback(val, btn);
+    });
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c];
+  });
+}
+
+// Swap the button's <svg> to a check, restore after COPY_FEEDBACK_MS.
+// Works for both icon-only and icon+label buttons.
+function copyWithIconFeedback(text, btn) {
+  navigator.clipboard.writeText(text).then(function() {
+    if (!btn) return;
+    var svg = btn.querySelector('svg');
+    if (svg) {
+      svg.outerHTML = CHECK_SVG;
+      setTimeout(function() {
+        var current = btn.querySelector('svg');
+        if (current) current.outerHTML = COPY_SVG;
+      }, COPY_FEEDBACK_MS);
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var copyAll = document.getElementById('fic-copy-all');
+  if (copyAll) {
+    copyAll.addEventListener('click', function() {
+      var meta = Object.assign({}, S.currentMeta || {}, { styles: S.collectStyles() });
+      var full = SDocYaml.serializeFrontMatter(meta) + '\n' + (S.currentBody || '');
+      copyWithIconFeedback(full, copyAll);
+    });
+  }
+});
 
 // ── Status ──────────────────────────────────
 
@@ -337,6 +413,7 @@ function syncAll(source) {
   try {
     if (source === 'controls') {
       S._isDefaultState = false;
+      S.invalidateLocalMeta();
       S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
       S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
       updateHash();
@@ -383,6 +460,9 @@ contentArea.addEventListener('drop', function(e) {
 });
 
 S.rawEl.addEventListener('input', function() {
+  // Content has diverged from the on-disk file — drop local paths.
+  S.invalidateLocalMeta();
+
   clearTimeout(S._rawSyncTimer);
   S._rawSyncTimer = setTimeout(function() { syncAll('raw'); }, 300);
 });
@@ -496,7 +576,7 @@ document.querySelectorAll('.sub-header').forEach(function(h) {
 // ── Default content ──────────────────────────────────
 
 var DEFAULT_MD = '';
-var _defaultReady = fetch('/public/default.md').then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
+var _defaultReady = fetch('/public/sdoc.md').then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
 
 // ── Register on SDocs for cross-module access ──────────
 
@@ -525,6 +605,18 @@ S.setStatus = setStatus;
 S.setMode = setMode;
 S.render = render;
 S.loadText = loadText;
+S.renderFileInfoCard = renderFileInfoCard;
+
+// Clear runtime-only local metadata (paths) once the user has edited the
+// document, since the content no longer corresponds to the file on disk.
+// Suppressed while a document is loading — style changes during load come from
+// applying saved styles, not from user edits.
+S.invalidateLocalMeta = function() {
+  if (S._loadingDocument) return;
+  if (!S.localMeta || Object.keys(S.localMeta).length === 0) return;
+  S.localMeta = {};
+  renderFileInfoCard();
+};
 
 // Sync theme tabs to initial theme
 S.updateThemeTabs(S.activeTheme);
@@ -546,7 +638,26 @@ async function loadFromHash() {
   var stylesParam = params.get('styles');
   var themeParam = params.get('theme');
   var secParam = params.get('sec');
+  var localParam = params.get('local');
 
+  // Read &local=<base64url-json> into memory, then strip it from the URL bar
+  // so anything the user copies/shares no longer contains it.
+  if (localParam) {
+    try {
+      var b64 = localParam.replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      S.localMeta = JSON.parse(atob(b64)) || {};
+    } catch (e) {
+      S.localMeta = {};
+    }
+    params.delete('local');
+    var newHash = params.toString();
+    var newUrl = window.location.pathname + (newHash ? '#' + newHash : '');
+    window.history.replaceState(null, '', newUrl);
+    _lastLoadedHash = newHash; // prevent re-trigger
+  }
+
+  S._loadingDocument = true;
   S.resetAllStyles();
 
   if (mdParam) {

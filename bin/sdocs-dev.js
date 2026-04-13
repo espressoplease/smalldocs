@@ -98,6 +98,20 @@ OPTIONS
 ENVIRONMENT
   SDOCS_URL   Fallback base URL if --url is not passed.
 
+FILE INFO CARD
+  When you \`sdoc <file>\`, the browser shows a small info card
+  above the document with:
+    file       The filename — included in the share URL.
+    path       Relative path from the cwd — local only.
+    fullPath   Absolute path on your machine — local only.
+
+  Local fields (path, fullPath) are passed to the browser via a
+  separate URL parameter that JS reads into memory and then strips
+  from the address bar on load. They never appear in any URL the
+  user can copy, and \`sdoc share <file>\` never includes them in
+  the generated link. If someone opens your shared URL, only
+  \`file\` is visible.
+
 STYLED MARKDOWN FORMAT
   SDocs extends standard .md files with an optional YAML
   front matter block (the same standard used by Jekyll, Hugo, Obsidian).
@@ -549,6 +563,15 @@ function buildUrl(content, opts) {
   const baseUrl = opts.url || process.env.SDOCS_URL || DEFAULT_URL;
   const params = new URLSearchParams();
 
+  // Runtime-only metadata (paths). Stripped from the URL by the browser on load,
+  // so anything the user copies from the address bar won't contain them.
+  if (opts.local && Object.keys(opts.local).length > 0) {
+    const json = JSON.stringify(opts.local);
+    const b64 = Buffer.from(json, 'utf-8').toString('base64')
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    params.set('local', b64);
+  }
+
   if (content) {
     // Strip default style values to produce shorter URLs
     const parsed = SDocYaml.parseFrontMatter(content);
@@ -728,12 +751,37 @@ if (require.main === module) {
       content = applyDefaultStyles(content);
     }
 
+    // Inject `file:` into front matter (basename only — safe to share).
+    // Respects user-set file: if already present.
+    if (content && opts.file) {
+      const parsed = parseFrontMatter(content);
+      if (!parsed.meta.file) {
+        parsed.meta.file = path.basename(opts.file);
+        content = serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
+      }
+    }
+
+    // Runtime-only local metadata for the opener's view.
+    // `share` omits it so shared URLs never carry paths.
+    let local = null;
+    if (opts.file && opts.subcommand !== 'share') {
+      const abs = path.resolve(opts.file);
+      const rel = path.relative(process.cwd(), abs);
+      local = { fullPath: abs };
+      // Only include a relative path if the file is inside cwd, otherwise
+      // `path` would just duplicate `fullPath`.
+      if (!rel.startsWith('..') && !path.isAbsolute(rel)) {
+        local.path = './' + rel;
+      }
+    }
+
     const url = buildUrl(content, {
       url: opts.url,
       mode: opts.mode,
       theme: opts.theme,
       defaultStyles: !content ? defaults : null,
       section: opts.section,
+      local: local,
     });
 
     // Share: copy to clipboard

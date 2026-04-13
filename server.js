@@ -35,7 +35,10 @@ const MIME = {
   '.wasm':  'application/wasm',
 };
 
+const DEV_MODE = process.env.SDOCS_DEV === '1' || process.env.NODE_ENV === 'development';
+
 function cacheHeader(ext) {
+  if (DEV_MODE) return 'no-store';
   if (ext === '.html') return 'no-cache';
   if (ext === '.woff2') return 'public, max-age=31536000, immutable';
   if (ext === '.css' || ext === '.js') return 'public, max-age=86400';
@@ -119,6 +122,7 @@ const server = http.createServer((req, res) => {
       if (err) { res.writeHead(500); res.end('Error'); return; }
       const nonce = crypto.randomBytes(16).toString('base64');
       html = html.replace('__APP_VERSION__', APP_VERSION);
+      html = html.replace('__SDOCS_DEV__', DEV_MODE ? '1' : '0');
       html = html.replace(/__CSP_NONCE__/g, nonce);
       const csp = [
         "default-src 'self'",

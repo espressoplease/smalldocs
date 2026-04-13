@@ -98,6 +98,16 @@
       </button>
     </div>
     <div id="content-area" tabindex="0">
+      <div id="file-info-card" hidden>
+        <div class="fic-rows"></div>
+        <div class="fic-footer">
+          <button class="fic-action" id="fic-copy-all" title="Copy the full markdown (body + front matter)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Copy whole file</span>
+          </button>
+          <span class="fic-privacy-note" hidden><span class="fic-local-pill">local only</span> rows aren't included in shared sdocs</span>
+        </div>
+      </div>
       <div id="rendered"></div>
       <div id="write" contenteditable="true" spellcheck="true"></div>
       <textarea id="raw" spellcheck="false"></textarea>
@@ -649,6 +659,7 @@
 <script src="/public/sdocs-app.js"></script>
 <script nonce="__CSP_NONCE__">
 var APP_VERSION = '__APP_VERSION__';
+var SDOCS_DEV = '__SDOCS_DEV__' === '1';
 // Cohort: store the ISO week of first visit for retention tracking.
 // Not a unique ID — groups all visitors who first came the same week.
 if (!localStorage.getItem('sdocs_cohort')) {
@@ -661,7 +672,13 @@ if (!localStorage.getItem('sdocs_cohort')) {
     localStorage.setItem('sdocs_cohort', _u.getUTCFullYear() + '-W' + String(_wn).padStart(2, '0'));
   } catch (e) { /* private browsing or storage disabled */ }
 }
-if ('serviceWorker' in navigator) {
+if (SDOCS_DEV && 'serviceWorker' in navigator) {
+  // Dev mode: unregister any existing SW and clear caches so edits are picked up instantly.
+  navigator.serviceWorker.getRegistrations().then(function (regs) {
+    regs.forEach(function (r) { r.unregister(); });
+  });
+  if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+} else if ('serviceWorker' in navigator) {
   var _cohort = '';
   try { _cohort = localStorage.getItem('sdocs_cohort') || ''; } catch (e) {}
   navigator.serviceWorker.register('/sw.js').then(function (reg) {

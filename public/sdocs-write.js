@@ -280,6 +280,9 @@ function checkShortcuts() {
 // ── Input handler + debounced sync ──────────────────
 
 writeEl.addEventListener('input', function(e) {
+  // Content has diverged from the on-disk file — drop local paths.
+  if (S.invalidateLocalMeta) S.invalidateLocalMeta();
+
   // Debounce sync
   clearTimeout(S._writeSyncTimer);
   S._writeSyncTimer = setTimeout(function() {

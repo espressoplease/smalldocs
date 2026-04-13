@@ -100,10 +100,13 @@ Both `#left-toolbar` and `#write-toolbar` can overflow horizontally on narrow sc
 ```bash
 node server.js                              # http://localhost:3000
 PORT=8080 node server.js
+SDOCS_DEV=1 node server.js                  # dev mode: no-cache, SW disabled
 node test/run.js                            # starts server on :3099, runs tests, kills it
 npx playwright test test/write-mode.spec.js # write mode browser tests (needs Chromium)
 node test/preview.js file.md --screenshot out.png  # visual preview (needs server on :3000)
 ```
+
+**Dev mode (`SDOCS_DEV=1` or `NODE_ENV=development`)**: serves CSS/JS with `Cache-Control: no-store`, injects a flag into the HTML that unregisters the service worker and clears its caches on load. Use this when iterating on frontend code so changes appear without hard-refreshing. The service worker normally caches the app shell and serves stale files even through hard reloads — dev mode sidesteps both layers.
 
 ## Visual preview testing
 

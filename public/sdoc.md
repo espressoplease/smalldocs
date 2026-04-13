@@ -1,3 +1,7 @@
+---
+file: sdoc.md
+---
+
 # Meet `sdoc`: A markdown-first cli-native replacement for Word & GDocs
 
 
@@ -320,6 +324,16 @@ To opt out, there is a toggle in the top menu bar. You can also remove `sdocs_co
 ### Auto-save
 
 Because the URL includes your full document and dynamically updates via JavaScript, every change you make is instantly preserved in the URL. This works when you're offline.
+
+### File info card
+
+When you run `sdoc <file>` the browser shows a small info card at the top of the rendered document. It can carry three fields:
+
+- **file** — the filename. Lives in the YAML front matter and travels in the share URL.
+- **path** — the relative path from the directory you ran `sdoc` in. *Local only.*
+- **fullPath** — the absolute path on your machine. *Local only.*
+
+The two "local" fields are passed to the browser via a separate URL parameter (`&local=...`) that JavaScript reads into memory on load and immediately strips from the address bar using `history.replaceState`. So by the time you could copy the URL, the local data is no longer in it. `sdoc share <file>` never generates that parameter to begin with — so links produced by `share` are inherently path-free. If a recipient opens your shared URL, only `file` is visible.
 
 ## The CLI
 

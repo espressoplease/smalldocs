@@ -67,7 +67,10 @@ npm install
 ```bash
 node server.js                    # http://localhost:3000
 PORT=8080 node server.js          # custom port
+SDOCS_DEV=1 node server.js        # dev mode: no-cache headers, service worker disabled
 ```
+
+`SDOCS_DEV=1` (or `NODE_ENV=development`) disables browser caching for CSS/JS and tells the app to unregister the service worker and clear its caches on load, so edits to frontend code are picked up instantly without hard-refreshing. Leave it unset in production.
 
 ### Run tests
 
@@ -111,7 +114,7 @@ public/
   brotli_wasm_bg.wasm       # Brotli WebAssembly binary
   vendor/marked.min.js      # Markdown parser
   sw.js                     # Service worker (stale-while-revalidate + version check)
-  default.md                # Landing page content
+  sdoc.md                   # Landing page content
 test/
   run.js                    # Test runner entry point
   runner.js                 # Shared test harness
