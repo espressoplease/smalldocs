@@ -1,16 +1,17 @@
 {
   "name": "sdocs-dev",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Open, share, and style markdown files from the terminal",
-  "main": "server.js",
+  "main": "bin/sdocs-dev.js",
   "bin": {
-    "sdoc": "./bin/sdocs-dev.js",
-    "sdocs-dev": "./bin/sdocs-dev.js"
+    "sdoc": "bin/sdocs-dev.js",
+    "sdocs-dev": "bin/sdocs-dev.js"
   },
   "files": [
     "bin/",
-    "public/",
-    "server.js"
+    "public/sdocs-yaml.js",
+    "public/sdocs-styles.js",
+    "public/sdocs-slugify.js"
   ],
   "scripts": {
     "start": "node server.js",
@@ -33,14 +34,12 @@
     "url": "git+https://github.com/JoshInLisbon/SDocs.git"
   },
   "homepage": "https://sdocs.dev",
-  "dependencies": {
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "better-sqlite3": "^12.8.0",
     "brotli": "^1.3.3",
     "brotli-dec-wasm": "^2.3.2",
     "brotli-wasm": "^3.0.1",
     "marked": "^11.0.0"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.59.1"
   }
 }
