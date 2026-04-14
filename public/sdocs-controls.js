@@ -271,6 +271,8 @@ function applyStylesFromMeta(s) {
   // Now apply the active theme's colors
   S._syncing = wasSyncing;
   S.loadThemeColors(S.activeTheme);
+
+  if (S.applyChromeTint) S.applyChromeTint();
 }
 
 function collectStyles() {

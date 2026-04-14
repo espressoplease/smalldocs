@@ -150,7 +150,7 @@ body {
 
 #_sd_drop-hint {
   font-size: 11.5px;
-  color: var(--text-3);
+  color: var(--text-2);
   margin-left: auto;
   display: flex;
   align-items: center;

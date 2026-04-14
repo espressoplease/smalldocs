@@ -101,6 +101,7 @@ function applyTheme(theme) {
   S.activeTheme = theme;
   localStorage.setItem('sdocs-theme', theme);
   updateThemeIcon(theme);
+  if (S.applyChromeTint) S.applyChromeTint();
 }
 
 // ── Per-theme color save/load ──────────────────────
