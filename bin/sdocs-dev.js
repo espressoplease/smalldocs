@@ -209,7 +209,7 @@ BLOCKS (shared styling for code, blockquote, and chart blocks)
     color       string  Text color for all block types. Cascades to code,
                         blockquote, and chart text unless overridden.
 
-CHARTS (see also: \`sdoc charts\` for the full chart reference)
+CHARTS
   chart:
     accent      string  Palette base color (hex). Default: "#3b82f6"
     palette     string  Palette mode. Default: "monochrome"
@@ -217,6 +217,9 @@ CHARTS (see also: \`sdoc charts\` for the full chart reference)
                         pastel, warm, cool, earth
     background  string  Chart background. Default: inherits blocks.background
     textColor   string  Chart labels/axes. Default: inherits blocks.color
+
+  Run \`sdoc charts\` for the full chart reference — chart types, JSON
+  format, axis/legend/annotation options, and per-chart styling overrides.
 
 COLOR CASCADE
   Colors cascade from general → specific:
