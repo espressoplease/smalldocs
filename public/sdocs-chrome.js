@@ -49,7 +49,10 @@
       borderStrong:  '#C5BFB8',
       text:          '#1C1917',
       text2:         '#57534E',
-      text3:         '#A8A29E'
+      text3:         '#A8A29E',
+      accent:        '#2563EB',
+      accentLight:   '#EEF2FF',
+      accentText:    '#1D4ED8'
     },
     dark: {
       bg:            '#1C1A17',
@@ -64,12 +67,16 @@
       borderStrong:  '#4A453F',
       text:          '#E7E5E2',
       text2:         '#A8A29E',
-      text3:         '#6B6560'
+      text3:         '#6B6560',
+      accent:        '#3B82F6',
+      accentLight:   '#1E293B',
+      accentText:    '#60A5FA'
     }
   };
 
-  // How strongly the doc bg bleeds into each chrome surface.
-  // Tuned subtle — chrome should feel related to the doc, not become it.
+  // How strongly the doc's source color bleeds into each chrome surface.
+  // Accents are tinted heavily so the logo/sliders/save-button feel like
+  // part of the doc's palette rather than a blue outlier.
   var MIX = {
     bg:           32,
     bgSurface:    38,
@@ -83,7 +90,10 @@
     borderStrong: 50,
     text:         22,
     text2:        35,
-    text3:        55
+    text3:        55,
+    accent:       100,
+    accentText:   100,
+    accentLight:  100
   };
 
   var VAR_NAMES = {
@@ -99,8 +109,14 @@
     borderStrong: '--border-strong',
     text:         '--text',
     text2:        '--text-2',
-    text3:        '--text-3'
+    text3:        '--text-3',
+    accent:       '--accent',
+    accentLight:  '--accent-light',
+    accentText:   '--accent-text'
   };
+
+  var TEXT_KEYS = { text: 1, text2: 1, text3: 1 };
+  var ACCENT_KEYS = { accent: 1, accentText: 1, accentLight: 1 };
 
   function currentTheme() {
     return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -137,6 +153,26 @@
     return resolved;
   }
 
+  // Favicon: swap to a tinted variant when chrome is tinted, restore the
+  // original when it's not. The default favicon is served from index.html
+  // at load time; we capture its original href once.
+  var _originalFaviconHref = null;
+  function buildFaviconSvg(color) {
+    // Hex-encode `#` as %23 for inline data URLs
+    var c = color.replace('#', '%23');
+    return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E" +
+      "%3Crect x='2' y='2' width='28' height='28' rx='7' fill='" + c + "' fill-opacity='.15'/%3E" +
+      "%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='" + c + "' stroke-width='2'/%3E" +
+      "%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='" + c + "' stroke-width='2' stroke-linecap='round'/%3E" +
+      "%3C/svg%3E";
+  }
+  function setFavicon(color) {
+    var link = document.querySelector('link[rel="icon"]');
+    if (!link) return;
+    if (_originalFaviconHref == null) _originalFaviconHref = link.href;
+    link.href = color ? buildFaviconSvg(color) : _originalFaviconHref;
+  }
+
   function apply() {
     var root = document.documentElement.style;
     var activeTheme = currentTheme();
@@ -144,6 +180,7 @@
     if (!hasCustomDocBg(activeTheme)) {
       // Clear any previous overrides so tokens.css defaults show through
       Object.keys(VAR_NAMES).forEach(function (k) { root.removeProperty(VAR_NAMES[k]); });
+      setFavicon(null);
       return;
     }
 
@@ -156,18 +193,26 @@
     var rgb = H.parseRgb(docBg);
     var chromeKey = (rgb && H.luminance(rgb) < 0.5) ? 'dark' : 'light';
     var base = BASES[chromeKey];
-    // Chrome text + toolbar icons tint from the doc's heading color, not
-    // the body text color — headings carry the doc's accent, body text
-    // is usually just "near-black" and loses the palette feel.
+    // Chrome text (toolbar icons, drop-hint) tints from the doc's heading
+    // color — headings usually carry the doc's accent. Chrome accents
+    // (logo, sliders, save-button, footer pill) use the doc's body text
+    // color verbatim, which tends to be more distinct than the heading.
     var docHeading = readDocVar('--md-h-color') || docBg;
+    var renderedEl = document.getElementById('_sd_rendered');
+    var docText = renderedEl ? getComputedStyle(renderedEl).color : docHeading;
 
     Object.keys(VAR_NAMES).forEach(function (key) {
-      var isTextKey = key === 'text' || key === 'text2' || key === 'text3';
-      var tintSource = isTextKey ? docHeading : docBg;
+      var tintSource;
+      if (ACCENT_KEYS[key]) tintSource = docText;
+      else if (TEXT_KEYS[key]) tintSource = docHeading;
+      else tintSource = docBg;
       var pct = MIX[key];
       var val = 'color-mix(in oklch, ' + tintSource + ' ' + pct + '%, ' + base[key] + ' ' + (100 - pct) + '%)';
       root.setProperty(VAR_NAMES[key], val);
     });
+
+    // Favicon takes the doc's text color at full strength.
+    setFavicon(docText);
   }
 
   // Debounce — several paths can trigger this in quick succession
