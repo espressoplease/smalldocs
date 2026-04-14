@@ -178,28 +178,36 @@ async function runSetup({ force = false } = {}) {
     const opencodeAlreadyDone = fileHasBlock(path.join(os.homedir(), '.config', 'opencode', 'AGENTS.md'));
     if (opencodeAlreadyDone) {
       writeSetupState({ setupCompleted: new Date().toISOString(), writtenTo: [], declined: false });
+      console.log('\nSDocs is already set up in all detected agent configs. Nothing to do.');
       return;
     }
-    console.log('\nSDocs setup: no coding-agent configs detected.');
+    console.log('\n\u2728\u2500\u2500\u2500\u2500\u2500\u2500\u2500 SDocs setup \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2728');
+    console.log('First run only \u2014 wire SDocs into your coding agents.\n');
+    console.log('No coding-agent configs detected.');
     const a = await ask('Do you use opencode? [y/N] ');
     const writtenTo = [];
     if (a === 'y' || a === 'yes') {
       const target = path.join(os.homedir(), '.config', 'opencode', 'AGENTS.md');
       try { appendBlockTo(target); writtenTo.push(target); console.log(`\u2713 Wrote SDocs section to ${target}`); }
       catch (e) { console.error(`Failed to write ${target}: ${e.message}`); }
+      console.log('Done. Run `sdoc setup` any time to revisit.');
+    } else {
+      console.log('Skipped. Run `sdoc setup` any time to revisit.');
     }
     writeSetupState({ setupCompleted: new Date().toISOString(), writtenTo, declined: writtenTo.length === 0 });
-    console.log('Run `sdoc setup` any time to revisit.');
     return;
   }
 
-  console.log('\nSDocs can teach your coding agents to use it.');
+  console.log('\n\u2728\u2500\u2500\u2500\u2500\u2500\u2500\u2500 SDocs setup \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2728');
+  console.log('First run only \u2014 wire SDocs into your coding agents.\n');
   console.log('Detected: ' + detected.map(t => t.name).join(', '));
   console.log('\nWill append a short SDocs section to:');
   for (const t of detected) console.log('  ' + t.filePath);
-  console.log('\n--- block to add ---');
-  console.log(AGENT_BLOCK.trim());
-  console.log('--- end block ---\n');
+  const RULE = '\u2550'.repeat(36);
+  const previewBody = AGENT_BLOCK.replace(AGENT_BLOCK_MARKER + '\n', '').trim();
+  console.log(`\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 Block to add \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550`);
+  console.log(previewBody);
+  console.log(RULE + '\n');
 
   const a = await ask('Add to all? [Y/n/skip] ');
   const skipped = a === 'skip' || (a && a !== 'y' && a !== 'yes');
