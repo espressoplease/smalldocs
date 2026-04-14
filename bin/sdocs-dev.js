@@ -16,48 +16,206 @@ const { execSync } = require('child_process');
 const SDocYaml = require('../public/sdocs-yaml.js');
 const SDocStyles = require('../public/sdocs-styles.js');
 
-const https = require('https');
-const os    = require('os');
+const https    = require('https');
+const os       = require('os');
+const readline = require('readline');
 
 const DEFAULT_URL = 'https://sdocs.dev';
 const VERSION = require('../package.json').version;
 
-// ── Update check (cached, every 3 days) ──────────────────
+// ── Update check ─────────────────────────────────────────
+// Daily background refresh of the latest version from npm (silent).
+// On next invocation, if the cached `latest` is newer, prompt the user
+// to install. Y/y runs `npm i -g sdocs-dev` and re-execs their command.
 
-const UPDATE_CACHE = path.join(os.homedir(), '.config', 'sdocs-dev', 'update-check.json');
-const THREE_DAYS = 3 * 86400000;
+const UPDATE_CACHE = path.join(os.homedir(), '.sdocs', 'update-check.json');
+const SETUP_CACHE  = path.join(os.homedir(), '.sdocs', 'setup.json');
+const ONE_DAY = 86400000;
 
-function checkForUpdate() {
-  if (!process.stdout.isTTY || process.env.NO_UPDATE_NOTIFIER || process.env.CI) return;
+// ── Agent integration block ──────────────────────────────
+// IMPORTANT: keep this in sync with the per-agent setup snippets in
+// public/sdoc.md (the "Set up your agent" section). If you reword one,
+// reword the other. The marker comment on line 1 is used to detect
+// whether the block has already been written to a file (idempotent re-runs).
+const AGENT_BLOCK = `<!-- sdocs-agent-block -->
+## SDocs
 
-  // Skip if checked recently
+SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
+Content lives in the URL hash — nothing hits a server.
+
+Use it (or offer it) when the user wants to read, share, or export a \`.md\` file.
+
+The \`sdoc\` CLI is installed globally:
+- \`sdoc file.md\` — open styled in browser (great for easy reading).
+- \`sdoc share file.md\` — copy shareable URL to clipboard.
+- \`sdoc schema\` — how to adjust all stylable properties (fonts, colors, spacing).
+- \`sdoc charts\` — chart types, JSON format, and styling. Charts render via Chart.js from \`\`\`chart code blocks.
+- \`sdoc --help\` — full usage.
+
+Source: https://github.com/JoshInLisbon/SDocs
+`;
+const AGENT_BLOCK_MARKER = '<!-- sdocs-agent-block -->';
+
+const AGENT_TARGETS = [
+  { name: 'Claude Code', dir: '.claude',                file: 'CLAUDE.md'  },
+  { name: 'Codex',       dir: '.codex',                 file: 'AGENTS.md'  },
+  { name: 'Gemini CLI',  dir: '.gemini',                file: 'GEMINI.md'  },
+  { name: 'opencode',    dir: path.join('.config', 'opencode'), file: 'AGENTS.md' },
+];
+
+function isNewer(latest, current) {
+  const a = latest.split('.').map(Number);
+  const b = current.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (a[i] > b[i]) return true;
+    if (a[i] < b[i]) return false;
+  }
+  return false;
+}
+
+function readCachedLatest() {
+  try { return JSON.parse(fs.readFileSync(UPDATE_CACHE, 'utf-8')).latest; }
+  catch (_) { return null; }
+}
+
+async function promptUpdateIfAvailable() {
+  if (!process.stdout.isTTY || !process.stdin.isTTY) return;
+  if (process.env.NO_UPDATE_NOTIFIER || process.env.CI) return;
+
+  const latest = readCachedLatest();
+  if (!latest || !isNewer(latest, VERSION)) return;
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await new Promise(resolve => {
+    rl.question(`\nUpdate available: ${VERSION} \u2192 ${latest}. Install now? [Y/n] `, a => {
+      rl.close(); resolve(a.trim().toLowerCase());
+    });
+  });
+  if (answer && answer !== 'y' && answer !== 'yes') return;
+
+  console.log('Installing sdocs-dev@latest...');
   try {
-    if (Date.now() - fs.statSync(UPDATE_CACHE).mtimeMs < THREE_DAYS) return;
+    execSync('npm i -g sdocs-dev@latest', { stdio: 'inherit' });
+    console.log(`\u2713 Updated to v${latest}`);
+  } catch (_) {
+    console.error('Update failed. You may need: sudo npm i -g sdocs-dev');
+  }
+}
+
+function refreshUpdateCache() {
+  if (!process.stdout.isTTY || process.env.NO_UPDATE_NOTIFIER || process.env.CI) return;
+  try {
+    if (Date.now() - fs.statSync(UPDATE_CACHE).mtimeMs < ONE_DAY) return;
   } catch (_) {}
 
-  console.log('Checking for updates...');
   https.get('https://registry.npmjs.org/-/package/sdocs-dev/dist-tags', { timeout: 3000 }, res => {
     let data = '';
     res.on('data', chunk => { data += chunk; });
     res.on('end', () => {
       try {
         const latest = JSON.parse(data).latest;
-        // Update cache timestamp
         fs.mkdirSync(path.dirname(UPDATE_CACHE), { recursive: true });
         fs.writeFileSync(UPDATE_CACHE, JSON.stringify({ latest }));
-
-        const a = latest.split('.').map(Number);
-        const b = VERSION.split('.').map(Number);
-        let newer = false;
-        for (let i = 0; i < 3; i++) { if (a[i] > b[i]) { newer = true; break; } if (a[i] < b[i]) break; }
-        if (newer) {
-          console.log(`Update available: ${VERSION} \u2192 ${latest} \u2014 run \`npm i -g sdocs-dev\` to update`);
-        } else {
-          console.log(`Up to date (v${VERSION})`);
-        }
       } catch (_) {}
     });
   }).on('error', () => {}).on('timeout', function () { this.destroy(); });
+}
+
+// ── Agent setup ──────────────────────────────────────────
+// On first interactive run, detect which coding-agent config dirs exist
+// and offer to append AGENT_BLOCK to each. Tracked in ~/.sdocs/setup.json
+// so we never prompt twice. Manually re-runnable via `sdoc setup`.
+
+function readSetupState() {
+  try { return JSON.parse(fs.readFileSync(SETUP_CACHE, 'utf-8')); }
+  catch (_) { return null; }
+}
+
+function writeSetupState(state) {
+  try {
+    fs.mkdirSync(path.dirname(SETUP_CACHE), { recursive: true });
+    fs.writeFileSync(SETUP_CACHE, JSON.stringify(state, null, 2));
+  } catch (_) {}
+}
+
+function detectAgents() {
+  const home = os.homedir();
+  return AGENT_TARGETS
+    .map(t => ({ ...t, dirPath: path.join(home, t.dir), filePath: path.join(home, t.dir, t.file) }))
+    .filter(t => fs.existsSync(t.dirPath));
+}
+
+function fileHasBlock(filePath) {
+  try { return fs.readFileSync(filePath, 'utf-8').includes(AGENT_BLOCK_MARKER); }
+  catch (_) { return false; }
+}
+
+function appendBlockTo(filePath) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const exists = fs.existsSync(filePath);
+  const prefix = exists && fs.readFileSync(filePath, 'utf-8').endsWith('\n') ? '\n' : (exists ? '\n\n' : '');
+  fs.appendFileSync(filePath, prefix + AGENT_BLOCK);
+}
+
+function ask(question) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve => {
+    rl.question(question, a => { rl.close(); resolve(a.trim().toLowerCase()); });
+  });
+}
+
+async function runSetup({ force = false } = {}) {
+  if (!force) {
+    if (!process.stdout.isTTY || !process.stdin.isTTY) return;
+    if (process.env.CI || process.env.SDOCS_NO_SETUP) return;
+    if (readSetupState()) return;
+  }
+
+  const detected = detectAgents().filter(t => !fileHasBlock(t.filePath));
+
+  if (detected.length === 0) {
+    // Fallback: ask about opencode if nothing detected and not already set up
+    const opencodeAlreadyDone = fileHasBlock(path.join(os.homedir(), '.config', 'opencode', 'AGENTS.md'));
+    if (opencodeAlreadyDone) {
+      writeSetupState({ setupCompleted: new Date().toISOString(), writtenTo: [], declined: false });
+      return;
+    }
+    console.log('\nSDocs setup: no coding-agent configs detected.');
+    const a = await ask('Do you use opencode? [y/N] ');
+    const writtenTo = [];
+    if (a === 'y' || a === 'yes') {
+      const target = path.join(os.homedir(), '.config', 'opencode', 'AGENTS.md');
+      try { appendBlockTo(target); writtenTo.push(target); console.log(`\u2713 Wrote SDocs section to ${target}`); }
+      catch (e) { console.error(`Failed to write ${target}: ${e.message}`); }
+    }
+    writeSetupState({ setupCompleted: new Date().toISOString(), writtenTo, declined: writtenTo.length === 0 });
+    console.log('Run `sdoc setup` any time to revisit.');
+    return;
+  }
+
+  console.log('\nSDocs can teach your coding agents to use it.');
+  console.log('Detected: ' + detected.map(t => t.name).join(', '));
+  console.log('\nWill append a short SDocs section to:');
+  for (const t of detected) console.log('  ' + t.filePath);
+  console.log('\n--- block to add ---');
+  console.log(AGENT_BLOCK.trim());
+  console.log('--- end block ---\n');
+
+  const a = await ask('Add to all? [Y/n/skip] ');
+  const skipped = a === 'skip' || (a && a !== 'y' && a !== 'yes');
+  if (skipped) {
+    writeSetupState({ setupCompleted: new Date().toISOString(), writtenTo: [], declined: true });
+    console.log('Skipped. Run `sdoc setup` any time to revisit.');
+    return;
+  }
+
+  const writtenTo = [];
+  for (const t of detected) {
+    try { appendBlockTo(t.filePath); writtenTo.push(t.filePath); console.log(`\u2713 ${t.name}: ${t.filePath}`); }
+    catch (e) { console.error(`\u2717 ${t.name}: ${e.message}`); }
+  }
+  writeSetupState({ setupCompleted: new Date().toISOString(), writtenTo, declined: false });
+  console.log('Done. Run `sdoc setup` any time to revisit.');
 }
 
 // ── Help ───────────────────────────────────────────────────
@@ -78,6 +236,7 @@ USAGE
   sdoc charts                      Chart types, options, and styling guide
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
+  sdoc setup                       Wire SDocs into your coding agents
   sdoc help                        Show this help
   cat file.md | sdoc               Pipe markdown from stdin
   cat file.md | sdoc share         Pipe to clipboard link
@@ -502,7 +661,7 @@ var slugify = require('../public/sdocs-slugify').slugify;
 
 // ── Parse args ────────────────────────────────────────────
 
-const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts']);
+const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts', 'setup']);
 
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
@@ -732,6 +891,7 @@ if (require.main === module) {
     if (opts.subcommand === 'help')   { console.log(HELP);   process.exit(0); }
     if (opts.subcommand === 'schema') { console.log(SCHEMA); process.exit(0); }
     if (opts.subcommand === 'charts') { console.log(CHARTS_HELP); process.exit(0); }
+    if (opts.subcommand === 'setup')  { await runSetup({ force: true }); process.exit(0); }
     if (opts.subcommand === 'defaults') {
       if (opts.resetFlag) resetDefaults();
       else showDefaults();
@@ -799,14 +959,18 @@ if (require.main === module) {
       } catch (_) {
         process.stdout.write(url + '\n');
       }
-      checkForUpdate();
+      refreshUpdateCache();
+      await promptUpdateIfAvailable();
+      await runSetup();
       return;
     }
 
     // Default: open browser
     openBrowser(url);
     console.log(`SDocs → ${url.length > 80 ? url.slice(0, 77) + '...' : url}`);
-    checkForUpdate();
+    refreshUpdateCache();
+    await promptUpdateIfAvailable();
+    await runSetup();
   })().catch(e => {
     console.error('sdoc:', e.message);
     process.exit(1);

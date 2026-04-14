@@ -33,6 +33,17 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
   - `test/write-mode.spec.js` — 42 tests for toolbar actions, toggles, shortcuts, block exits
   - `playwright.config.js` — Chromium only, auto-starts server on :3000
 
+## Agent integration block
+
+The `sdoc setup` command appends a SDocs explainer to coding-agent config files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, etc.). The block lives as `AGENT_BLOCK` in `bin/sdocs-dev.js` and is duplicated as per-agent snippets in `public/sdoc.md` (the "Set up your agent" section). **If you reword one, reword the other.** The marker comment `<!-- sdocs-agent-block -->` on the first line is used for idempotent re-runs (skip files that already contain it).
+
+## CLI state
+
+All CLI-side state lives under `~/.sdocs/`:
+- `styles.yaml` — user-editable default styles
+- `update-check.json` — daily npm version cache
+- `setup.json` — agent setup tracking (so `sdoc setup` only auto-prompts once)
+
 ## Architecture
 
 The entire app is stateless. The server just serves static files. All state (current markdown content, parsed front matter, style values) lives in the `window.SDocs` namespace in the browser, primarily `SDocs.currentBody` and `SDocs.currentMeta`.

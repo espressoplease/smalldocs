@@ -5,3 +5,4 @@ CLAUDE.local.md
 .playwright-mcp/
 test-results/
 analytics.db*
+*.tgz
