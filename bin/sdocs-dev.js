@@ -44,6 +44,7 @@ SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
 Content lives in the URL hash — nothing hits a server.
 
 Use it (or offer it) when the user wants to read, share, or export a \`.md\` file.
+Also handy for copying specific code - SDocs code blocks have copy buttons.
 
 The \`sdoc\` CLI is installed globally:
 - \`sdoc file.md\` — open styled in browser (great for easy reading).
@@ -182,7 +183,7 @@ async function runSetup({ force = false } = {}) {
       return;
     }
     console.log('\n\u2728\u2500\u2500\u2500\u2500\u2500\u2500\u2500 SDocs setup \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2728');
-    console.log('First run only \u2014 wire SDocs into your coding agents.\n');
+    console.log('First run only - wire SDocs into your coding agents.\n');
     console.log('No coding-agent configs detected.');
     const a = await ask('Do you use opencode? [y/N] ');
     const writtenTo = [];
@@ -199,7 +200,7 @@ async function runSetup({ force = false } = {}) {
   }
 
   console.log('\n\u2728\u2500\u2500\u2500\u2500\u2500\u2500\u2500 SDocs setup \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2728');
-  console.log('First run only \u2014 wire SDocs into your coding agents.\n');
+  console.log('First run only - wire SDocs into your coding agents.\n');
   console.log('Detected: ' + detected.map(t => t.name).join(', '));
   console.log('\nWill append a short SDocs section to:');
   for (const t of detected) console.log('  ' + t.filePath);
