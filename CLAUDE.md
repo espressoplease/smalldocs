@@ -4,22 +4,22 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
 
 ## Stack
 
-- **Server**: `server.js` — pure Node `http` module, ~60 lines
+- **Server**: `server.js` — pure Node `http` module, small
 - **Frontend**: split across `public/`:
-  - `index.html` — markup only (~460 lines)
-  - `css/tokens.css` — CSS custom properties, dark theme, theme transitions (~110 lines)
-  - `css/layout.css` — reset, body, topbar, main layout, left panel, divider (~200 lines)
-  - `css/rendered.css` — `#rendered` markdown styles, collapsible sections, copy buttons (~245 lines)
-  - `css/panel.css` — right panel, controls, statusbar (~250 lines)
-  - `css/mobile.css` — mobile `@media` breakpoint (~95 lines)
-  - `sdocs-yaml.js` — YAML front matter parse/serialize, UMD shared with Node (~80 lines)
-  - `sdocs-slugify.js` — slugify heading text to URL-safe IDs, UMD shared with Node (~12 lines)
-  - `sdocs-styles.js` — pure style data tables + logic, UMD shared with tests (~285 lines)
-  - `sdocs-state.js` — shared `window.SDocs` mutable state namespace (~40 lines)
-  - `sdocs-theme.js` — Google Fonts, font loading, dark mode, theme toggle (~140 lines)
-  - `sdocs-controls.js` — CSS variable management, color cascade, control wiring (~260 lines)
-  - `sdocs-export.js` — PDF/Word/MD export, save-default styles (~200 lines)
-  - `sdocs-app.js` — render, syncAll, loadText, setMode, drag/drop, init (~220 lines)
+  - `index.html` — markup only
+  - `css/tokens.css` — CSS custom properties, dark theme, theme transitions
+  - `css/layout.css` — reset, body, topbar, main layout, left panel, divider
+  - `css/rendered.css` — `#rendered` markdown styles, collapsible sections, copy buttons
+  - `css/panel.css` — right panel, controls, statusbar
+  - `css/mobile.css` — mobile `@media` breakpoint
+  - `sdocs-yaml.js` — YAML front matter parse/serialize, UMD shared with Node
+  - `sdocs-slugify.js` — slugify heading text to URL-safe IDs, UMD shared with Node
+  - `sdocs-styles.js` — pure style data tables + logic, UMD shared with tests
+  - `sdocs-state.js` — shared `window.SDocs` mutable state namespace
+  - `sdocs-theme.js` — Google Fonts, font loading, dark mode, theme toggle
+  - `sdocs-controls.js` — CSS variable management, color cascade, control wiring
+  - `sdocs-export.js` — PDF/Word/MD export, save-default styles
+  - `sdocs-app.js` — render orchestration, hash encode/decode, Brotli compression, syncAll, mode switching, drag/drop, file info card, scroll hints, init
 - **Tests**: `node test/run.js` — red/green, no test framework, uses Node `assert` + `http`
   - `test/runner.js` — shared harness: `test()`, `testAsync()`, `get()`, `report()`
   - `test/test-yaml.js` — YAML front matter parse/serialize tests

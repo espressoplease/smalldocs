@@ -15,7 +15,7 @@ SDocs is a lightweight, stateless markdown editor with live styling. Your entire
 - **Share** — compress a document into a URL and share it with anyone (no server, no account)
 - **Export** — PDF, Word (.docx), raw `.md`, or styled `.md` with front matter
 
-Everything runs client-side. The server is ~60 lines of Node.js that serves static files. No database, no logging, no analytics.
+Everything runs client-side. The server is a small Node.js script that serves static files. The hosted instance at sdocs.dev counts anonymous visits (no IPs, no tracking IDs) which you can see at [sdocs.dev/analytics](https://sdocs.dev/analytics); self-hosted and CLI use never phone home.
 
 ## CLI
 
@@ -97,7 +97,7 @@ sdoc share README.md
 ### Project structure
 
 ```
-server.js                   # Node.js static file server (~60 lines)
+server.js                   # Node.js static file server
 bin/sdocs-dev.js            # CLI entry point
 public/
   index.html                # Single HTML file (markup only)

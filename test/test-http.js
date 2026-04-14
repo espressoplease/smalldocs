@@ -18,6 +18,7 @@ module.exports = function(harness) {
       env: {
         ...process.env,
         PORT: '3099',
+        ANALYTICS_ENABLED: '1',
         ANALYTICS_DB: testDbPath,
         ANALYTICS_FLUSH_IMMEDIATE: '1',
       },

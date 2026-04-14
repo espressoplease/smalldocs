@@ -3,9 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const analytics = require('./analytics/db');
-
 const PORT = process.env.PORT || 3000;
+const ANALYTICS_ENABLED = process.env.ANALYTICS_ENABLED === '1';
+const analytics = ANALYTICS_ENABLED ? require('./analytics/db') : null;
 
 // Auto-version: hash all non-font files in public/ at startup.
 // Any file change = new hash = clients purge their SW cache.
@@ -73,19 +73,21 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Version check — used by service worker to detect updates + analytics
+  // Version check — used by service worker to detect updates
   if (pathname === '/version-check') {
     const v = url.searchParams.get('v') || '';
     const cohort = url.searchParams.get('cohort') || '';
-    console.log([
-      new Date().toISOString(),
-      req.headers['user-agent'] || '',
-      req.headers['referer'] || '',
-      req.headers['accept-language'] || '',
-      v ? 'cached:' + v : 'no-cache',
-      cohort || '-',
-    ].join(' | '));
-    try { analytics.logVisit(cohort, req.headers['user-agent'] || '', req.headers['referer'] || ''); } catch (e) { /* analytics failure should not break version-check */ }
+    if (ANALYTICS_ENABLED) {
+      console.log([
+        new Date().toISOString(),
+        req.headers['user-agent'] || '',
+        req.headers['referer'] || '',
+        req.headers['accept-language'] || '',
+        v ? 'cached:' + v : 'no-cache',
+        cohort || '-',
+      ].join(' | '));
+      try { analytics.logVisit(cohort, req.headers['user-agent'] || '', req.headers['referer'] || ''); } catch (e) { /* analytics failure should not break version-check */ }
+    }
     res.writeHead(200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache',
@@ -94,14 +96,13 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Analytics dashboard (public)
-  if (pathname === '/analytics') {
+  // Analytics dashboard + JSON API — only mounted when ANALYTICS_ENABLED=1
+  if (ANALYTICS_ENABLED && pathname === '/analytics') {
     serveFile(res, path.join(__dirname, 'analytics', 'dashboard.html'), { 'Cache-Control': 'no-cache' });
     return;
   }
 
-  // Analytics JSON API (public)
-  if (pathname === '/analytics/data') {
+  if (ANALYTICS_ENABLED && pathname === '/analytics/data') {
     try {
       const { getRetentionData } = require('./analytics/query');
       const data = getRetentionData();

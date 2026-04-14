@@ -12,7 +12,7 @@
 const fs   = require('fs');
 const path = require('path');
 const zlib = require('zlib');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const SDocYaml = require('../public/sdocs-yaml.js');
 const SDocStyles = require('../public/sdocs-styles.js');
 
@@ -880,11 +880,10 @@ async function readContent(file) {
 // ── Open browser ───────────────────────────────────────────
 
 function openBrowser(url) {
-  const platform = process.platform;
   try {
-    if (platform === 'darwin')      execSync(`open "${url}"`);
-    else if (platform === 'win32')  execSync(`start "" "${url}"`);
-    else                            execSync(`xdg-open "${url}"`);
+    if (process.platform === 'darwin')      execFileSync('open', [url]);
+    else if (process.platform === 'win32')  execFileSync('cmd', ['/c', 'start', '', url]);
+    else                                    execFileSync('xdg-open', [url]);
   } catch {
     console.log(`Open in browser: ${url}`);
   }
