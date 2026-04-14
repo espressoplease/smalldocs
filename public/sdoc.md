@@ -30,8 +30,6 @@ sdoc share README.md          # copy shareable link to clipboard
 ```
 Or telling your agent to *"sdoc it"*.
 
-> Shortcut: after `npm i -g sdocs-dev`, run `sdoc setup` to wire SDocs into every coding agent you have installed in one go. The snippets below are the manual equivalent.
-
 #### Claude Code + SDocs
 
 Teach [Claude Code](https://docs.anthropic.com/en/docs/claude-code) about `sdoc` so it can read, style, and share `.md` files across all your projects:
@@ -58,6 +56,8 @@ The `sdoc` CLI is installed globally:
 Source: https://github.com/JoshInLisbon/SDocs
 SDOC
 ```
+
+Or run `sdoc setup` once installed to do this automatically.
 
 #### Codex + SDocs
 
@@ -86,6 +86,8 @@ Source: https://github.com/JoshInLisbon/SDocs
 SDOC
 ```
 
+Or run `sdoc setup` once installed to do this automatically.
+
 #### Gemini CLI + SDocs
 
 Teach [Gemini CLI](https://github.com/google-gemini/gemini-cli) about `sdoc`:
@@ -112,6 +114,8 @@ The `sdoc` CLI is installed globally:
 Source: https://github.com/JoshInLisbon/SDocs
 SDOC
 ```
+
+Or run `sdoc setup` once installed to do this automatically.
 
 #### opencode + SDocs
 
@@ -140,6 +144,8 @@ The `sdoc` CLI is installed globally:
 Source: https://github.com/JoshInLisbon/SDocs
 SDOC
 ```
+
+Or run `sdoc setup` once installed to do this automatically.
 
 ## How SmallDocs work
 
