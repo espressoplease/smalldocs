@@ -678,6 +678,12 @@ if (SDOCS_DEV && 'serviceWorker' in navigator) {
 } else if ('serviceWorker' in navigator) {
   var _cohort = '';
   try { _cohort = localStorage.getItem('sdocs_cohort') || ''; } catch (e) {}
+  // After the SW detects a version mismatch and refreshes the cache, it
+  // posts { type: 'sdocs-reload' } — reload so the page runs fresh code.
+  // Safe to reload unconditionally: all document state lives in the URL hash.
+  navigator.serviceWorker.addEventListener('message', function (e) {
+    if (e.data && e.data.type === 'sdocs-reload') location.reload();
+  });
   navigator.serviceWorker.register('/sw.js').then(function (reg) {
     var msg = { type: 'check-update', version: APP_VERSION, cohort: _cohort };
     if (reg.active) reg.active.postMessage(msg);

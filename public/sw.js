@@ -27,11 +27,22 @@ var APP_SHELL = [
   '/public/sdoc.md',
 ];
 
+// Fetch that bypasses the browser's HTTP cache. Needed because
+// static assets are served with Cache-Control: max-age=86400 — without
+// this, the SW's "fresh" fetches can still be served from the browser
+// cache and match whatever stale copy it already had.
+function freshFetch(req) {
+  var request = req instanceof Request ? req : new Request(req);
+  return fetch(request, { cache: 'reload' });
+}
+
 // Pre-cache app shell on install
 self.addEventListener('install', function (e) {
   e.waitUntil(
     caches.open(CACHE_NAME).then(function (cache) {
-      return cache.addAll(APP_SHELL);
+      return Promise.all(APP_SHELL.map(function (u) {
+        return freshFetch(u).then(function (res) { if (res.ok) return cache.put(u, res); });
+      }));
     }).then(function () {
       return self.skipWaiting();
     })
@@ -68,12 +79,13 @@ self.addEventListener('fetch', function (e) {
   }
 
   // Same-origin: stale-while-revalidate
-  // Return cached immediately, fetch in background to update cache
+  // Return cached immediately, fetch fresh (bypassing HTTP cache) in the
+  // background so the next page load has up-to-date assets.
   if (url.origin === self.location.origin) {
     e.respondWith(
       caches.open(CACHE_NAME).then(function (cache) {
         return cache.match(e.request).then(function (cached) {
-          var networkFetch = fetch(e.request).then(function (response) {
+          var networkFetch = freshFetch(e.request).then(function (response) {
             if (response.ok) {
               cache.put(e.request, response.clone());
             }
@@ -90,8 +102,9 @@ self.addEventListener('fetch', function (e) {
   }
 });
 
-// Version check: if server version differs, purge and re-cache.
-// No reload — stale-while-revalidate ensures next navigation gets fresh content.
+// Version check: if server version differs, purge and re-cache with
+// fresh fetches (bypassing HTTP cache), then tell all open clients to
+// reload so they start running the new code immediately.
 self.addEventListener('message', function (e) {
   if (e.data && e.data.type === 'check-update' && e.data.version) {
     var qs = '?cohort=' + encodeURIComponent(e.data.cohort || '');
@@ -100,9 +113,15 @@ self.addEventListener('message', function (e) {
     }).then(function (data) {
       if (data.version !== e.data.version) {
         caches.delete(CACHE_NAME).then(function () {
-          return caches.open(CACHE_NAME).then(function (cache) {
-            return cache.addAll(APP_SHELL);
-          });
+          return caches.open(CACHE_NAME);
+        }).then(function (cache) {
+          return Promise.all(APP_SHELL.map(function (u) {
+            return freshFetch(u).then(function (res) { if (res.ok) return cache.put(u, res); });
+          }));
+        }).then(function () {
+          return self.clients.matchAll({ includeUncontrolled: true });
+        }).then(function (clients) {
+          clients.forEach(function (c) { c.postMessage({ type: 'sdocs-reload' }); });
         });
       }
     }).catch(function () { /* offline — ignore */ });
