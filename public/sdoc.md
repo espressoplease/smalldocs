@@ -30,6 +30,8 @@ sdoc share README.md          # copy shareable link to clipboard
 ```
 Or telling your agent to *"sdoc it"*.
 
+> Shortcut: after `npm i -g sdocs-dev`, run `sdoc setup` to wire SDocs into every coding agent you have installed in one go. The snippets below are the manual equivalent.
+
 #### Claude Code + SDocs
 
 Teach [Claude Code](https://docs.anthropic.com/en/docs/claude-code) about `sdoc` so it can read, style, and share `.md` files across all your projects:
@@ -348,7 +350,17 @@ SmallDocs has a command-line tool that lets you open, share, and style markdown 
 npm i -g sdocs-dev
 ```
 
-This gives you the `sdoc` command.
+This gives you the `sdoc` command. The first time you run it, you'll see a one-time prompt offering to wire SDocs into any coding agents you have installed (see Setup below). You can accept, skip, or opt out - and re-run it any time with `sdoc setup`.
+
+### Setup
+
+```
+sdoc setup
+```
+
+Detects which coding agents you have installed (Claude Code, Codex, Gemini CLI, opencode) and offers to append a short SDocs section to each of their global config files. This is what lets your agents know `sdoc` exists and what it does, so they can read, style, and share `.md` files on your behalf.
+
+`sdoc setup` also auto-prompts once the first time you use the CLI. If you decline or skip it then, you can always come back and run it manually. It's safe to run any time - it detects existing sections and skips files that already have them.
 
 ### Open a file
 
@@ -448,7 +460,9 @@ sdoc charts            # chart types, JSON format, styling, annotations
 
 ### Set up your agent
 
-One-line commands to teach your coding agent about `sdoc`. Each appends SDocs instructions to the tool's global config file. Copy and paste into your terminal.
+The easy way: run `sdoc setup`. It detects which coding agents you have installed and appends the snippets below for you. You're prompted automatically the first time you run any `sdoc` command, and you can re-run `sdoc setup` any time.
+
+The manual way: copy and paste the one-line commands below into your terminal. Each appends SDocs instructions to the tool's global config file.
 
 #### Claude Code → `~/.claude/CLAUDE.md`
 

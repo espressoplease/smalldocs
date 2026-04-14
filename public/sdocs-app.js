@@ -282,9 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
     copyFile.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
-      var meta = Object.assign({}, S.currentMeta || {}, { styles: S.collectStyles() });
-      var full = SDocYaml.serializeFrontMatter(meta) + '\n' + (S.currentBody || '');
-      copyWithIconFeedback(full, copyFile);
+      copyWithIconFeedback(S.currentBody || '', copyFile);
     });
   }
 });
