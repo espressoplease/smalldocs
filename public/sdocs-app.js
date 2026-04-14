@@ -1,4 +1,24 @@
-// sdocs-app.js — Core app: render, sync, modes, drag/drop, init
+// sdocs-app.js — Core app module.
+//
+// Sections (top to bottom):
+//   SVG icons                       small inline icons used by render helpers
+//   Slugify + section helpers       build per-section URLs, extract section markdown
+//   Render sub-functions            heading anchors, code-copy buttons, collapsible sections
+//   Render (orchestrator)           run marked + DOMPurify, then the sub-functions above
+//   File-info card                  the card shown at the top of read mode
+//   Status                          transient status-bar messages
+//   Load content                    loadText(): accept a string + filename, populate state
+//   Compression helpers             brotli + base64url for the URL-hash encoding
+//   Auto-save to URL hash           updateHash(): serialize state to location.hash
+//   State sync                      syncAll(): reconcile editor / raw / rendered / write panes
+//   Drag & drop                     accept dropped .md files
+//   Mode toggle                     read / style / raw / export
+//   Collapsible panels              left + right panels
+//   Default content                 first-run default document
+//   Register on SDocs               cross-module functions registered on window.SDocs
+//   Load from URL hash              decompress + hydrate state on initial load
+//   Init                            DOMContentLoaded wiring
+//   Toolbar scroll hints            fade + bounce-peek on overflow
 (function () {
 'use strict';
 
@@ -183,7 +203,7 @@ function render() {
   S.destroyCharts();
   var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
   if (oldSpacer) oldSpacer.remove();
-  S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody));
+  S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody), { FORBID_ATTR: ['style'] });
 
   attachHeadingAnchors(S.renderedEl);
   attachCodeCopyButtons(S.renderedEl);

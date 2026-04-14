@@ -9,7 +9,7 @@ S.writeEl = writeEl;
 // ── Enter / exit write mode ──────────────────────────
 
 function enterWriteMode() {
-  var html = DOMPurify.sanitize(marked.parse(S.currentBody));
+  var html = DOMPurify.sanitize(marked.parse(S.currentBody), { FORBID_ATTR: ['style'] });
   writeEl.innerHTML = html || '<p><br></p>';
   copyStyleVars();
   setTimeout(updateToolbarState, 0);

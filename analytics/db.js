@@ -78,7 +78,7 @@ function parseUA(ua) {
 }
 
 function parseReferer(ref) {
-  if (!ref) return 'direct';
+  if (!ref || ref.length > 2048) return 'direct';
   try {
     var host = new URL(ref).hostname.replace('www.', '');
     if (host === 'sdocs.dev' || host === 'localhost') return 'direct';
