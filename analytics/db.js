@@ -27,7 +27,7 @@ function init(dbPath) {
   buffer = [];
 
   const Database = require('better-sqlite3');
-  dbPath = dbPath || path.join(__dirname, '..', 'analytics.db');
+  dbPath = dbPath || process.env.ANALYTICS_DB || path.join(__dirname, '..', 'analytics.db');
   db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
 
@@ -95,6 +95,7 @@ function logVisit(cohortWeek, userAgent, referer) {
   var ua = parseUA(userAgent);
   var ref = parseReferer(referer);
   buffer.push([cohortWeek || '', visitWeek, ua.device, ua.browser, ref]);
+  if (process.env.ANALYTICS_FLUSH_IMMEDIATE === '1') flush();
 }
 
 function flush() {

@@ -91,18 +91,37 @@ module.exports = function (harness) {
     assert.ok(data.generated, 'should have generated timestamp');
   });
 
-  test('getRetentionData excludes empty cohort from retention', () => {
-    const data = analyticsQuery.getRetentionData();
-    const emptyCohort = data.cohorts.find(function (c) { return c.cohort_week === ''; });
-    assert.strictEqual(emptyCohort, undefined, 'empty cohort should not appear in retention');
-  });
+  // Fresh DB for the scenario test so earlier tests don't pollute it.
+  analyticsDb.close();
+  analyticsDb.init(':memory:');
 
-  test('getRetentionData includes non-empty cohorts', () => {
+  test('getRetentionData aggregates cohort/visit counts and unattributed correctly', () => {
+    const db = analyticsDb.getDB();
+    const insert = db.prepare('INSERT INTO visits (cohort_week, visit_week, device, browser, referer) VALUES (?, ?, ?, ?, ?)');
+    const seed = (cohort, visit, n) => { for (let i = 0; i < n; i++) insert.run(cohort, visit, 'desktop', 'Chrome', 'direct'); };
+
+    // Scenario:
+    //   W15 cohort: 3 visits in W15, 5 in W16
+    //   W16 cohort: 2 visits in W16
+    //   W17:        1 visit with no cohort (unattributed)
+    seed('2026-W15', '2026-W15', 3);
+    seed('2026-W15', '2026-W16', 5);
+    seed('2026-W16', '2026-W16', 2);
+    seed('',         '2026-W17', 1);
+
     const data = analyticsQuery.getRetentionData();
-    assert.ok(data.cohorts.length > 0, 'should have at least one cohort');
-    const w15 = data.cohorts.find(function (c) { return c.cohort_week === '2026-W15'; });
-    assert.ok(w15, '2026-W15 cohort should exist');
-    assert.ok(w15.visits, 'cohort should have a visits map');
+
+    const w15 = data.cohorts.find(c => c.cohort_week === '2026-W15');
+    const w16 = data.cohorts.find(c => c.cohort_week === '2026-W16');
+    assert.ok(w15 && w16, 'both cohorts should appear');
+    assert.strictEqual(w15.cohort_size, 3, 'W15 cohort_size = birth-week visits');
+    assert.deepStrictEqual(w15.visits, { '2026-W15': 3, '2026-W16': 5 });
+    assert.strictEqual(w16.cohort_size, 2);
+    assert.deepStrictEqual(w16.visits, { '2026-W16': 2 });
+
+    assert.strictEqual(data.unattributed['2026-W17'], 1, 'unattributed bucket holds the no-cohort row');
+    assert.ok(!data.cohorts.some(c => c.cohort_week === ''), 'empty cohort must not appear in cohorts');
+    assert.deepStrictEqual(data.weeks, ['2026-W15', '2026-W16', '2026-W17']);
   });
 
   // Clean up

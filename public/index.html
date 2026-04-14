@@ -660,16 +660,19 @@ var APP_VERSION = '__APP_VERSION__';
 var SDOCS_DEV = '__SDOCS_DEV__' === '1';
 // Cohort: store the ISO week of first visit for retention tracking.
 // Not a unique ID — groups all visitors who first came the same week.
-if (!localStorage.getItem('sdocs_cohort')) {
-  try {
+// Sentinel value "opt-out" means the user deliberately declined attribution
+// on /analytics; we leave it in place and send an empty cohort to the server.
+try {
+  var _cur = localStorage.getItem('sdocs_cohort');
+  if (!_cur) {
     var _d = new Date(), _u = new Date(Date.UTC(_d.getUTCFullYear(), _d.getUTCMonth(), _d.getUTCDate()));
     var _dn = _u.getUTCDay() || 7;
     _u.setUTCDate(_u.getUTCDate() + 4 - _dn);
     var _ys = new Date(Date.UTC(_u.getUTCFullYear(), 0, 1));
     var _wn = Math.ceil((((_u - _ys) / 86400000) + 1) / 7);
     localStorage.setItem('sdocs_cohort', _u.getUTCFullYear() + '-W' + String(_wn).padStart(2, '0'));
-  } catch (e) { /* private browsing or storage disabled */ }
-}
+  }
+} catch (e) { /* private browsing or storage disabled */ }
 if (SDOCS_DEV && 'serviceWorker' in navigator) {
   // Dev mode: unregister any existing SW and clear caches so edits are picked up instantly.
   navigator.serviceWorker.getRegistrations().then(function (regs) {
@@ -678,7 +681,10 @@ if (SDOCS_DEV && 'serviceWorker' in navigator) {
   if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
 } else if ('serviceWorker' in navigator) {
   var _cohort = '';
-  try { _cohort = localStorage.getItem('sdocs_cohort') || ''; } catch (e) {}
+  try {
+    var _c = localStorage.getItem('sdocs_cohort') || '';
+    _cohort = _c === 'opt-out' ? '' : _c;
+  } catch (e) {}
   // After the SW detects a version mismatch and refreshes the cache, it
   // posts { type: 'sdocs-reload' } — reload so the page runs fresh code.
   // Safe to reload unconditionally: all document state lives in the URL hash.

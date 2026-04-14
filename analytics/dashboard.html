@@ -88,6 +88,33 @@
   .chart-card h2 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #57534E; }
   .chart-card canvas { max-height: 220px; }
 
+  /* ── Opt-out panel ── */
+  .cohort-panel {
+    margin: 24px 0;
+    padding: 12px 14px;
+    background: #F1EDE8;
+    border: 1px solid #D4CFC9;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #57534E;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .cohort-panel strong { color: #1C1917; }
+  .cohort-panel button {
+    background: #fff;
+    border: 1px solid #D4CFC9;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #1C1917;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .cohort-panel button:hover { border-color: #A8A29E; }
+
   /* ── Footer / statusbar ── */
   .statusbar {
     height: 24px;
@@ -136,6 +163,10 @@
     td.row-header { color: #E7E5E2; background: #211F1D; }
     td.size { color: #A8A29E; background: #252320; }
     td.empty { background: #1C1A17; border-color: #332F2B; }
+    .cohort-panel { background: #252320; border-color: #3D3935; color: #A8A29E; }
+    .cohort-panel strong { color: #E7E5E2; }
+    .cohort-panel button { background: #1C1A17; border-color: #3D3935; color: #E7E5E2; }
+    .cohort-panel button:hover { border-color: #57534E; }
     .chart-card { background: #252320; border-color: #3D3935; }
     .chart-card h2 { color: #A8A29E; }
     .statusbar { background: #1C1A17; border-color: #332F2B; color: #A8A29E; }
@@ -160,6 +191,7 @@
 <div class="content">
   <h1>Visits by weekly cohort</h1>
   <p class="subtitle">Each row is a cohort — visitors who first came the same week. Cells are the number of <strong>page-load visits</strong> that cohort generated each week. We don't track unique users; one person revisiting many times counts as many visits. <a href="https://sdocs.dev/#sec=analytics">How this works</a></p>
+  <div id="cohort-panel" class="cohort-panel" style="display:none"></div>
   <div id="container" class="table-wrap"><p class="loading">Loading...</p></div>
 
   <div class="charts-grid" id="charts-grid" style="display:none">
@@ -201,6 +233,57 @@
       setTimeout(function () { btn.innerHTML = COPY_ICON; }, 1500);
     });
   });
+})();
+</script>
+
+<script>
+// ── Cohort panel: show current cohort + opt-out/opt-in toggle ──────────
+(function () {
+  var panel = document.getElementById('cohort-panel');
+  if (!panel) return;
+
+  function currentWeek() {
+    var d = new Date(), u = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    var dn = u.getUTCDay() || 7;
+    u.setUTCDate(u.getUTCDate() + 4 - dn);
+    var ys = new Date(Date.UTC(u.getUTCFullYear(), 0, 1));
+    var wn = Math.ceil((((u - ys) / 86400000) + 1) / 7);
+    return u.getUTCFullYear() + '-W' + String(wn).padStart(2, '0');
+  }
+
+  function fmtWeek(w) { var p = w.split('-'); return p[1] + "'" + p[0].slice(2); }
+
+  function render() {
+    var v;
+    try { v = localStorage.getItem('sdocs_cohort'); } catch (e) { v = null; }
+    panel.innerHTML = '';
+
+    if (v === 'opt-out') {
+      panel.innerHTML = '<span>You are <strong>opted out</strong> of cohort attribution. Your visits count as Unattributed.</span><button id="cohort-btn">Opt back in</button>';
+    } else if (v && /^\d{4}-W\d{2}$/.test(v)) {
+      panel.innerHTML = '<span>Your cohort: <strong>' + fmtWeek(v) + '</strong>. Your visits are counted in this row.</span><button id="cohort-btn">Opt out</button>';
+    } else {
+      panel.innerHTML = '<span>No cohort set (private browsing or cleared). Your visits count as Unattributed.</span><button id="cohort-btn">Opt in (start with ' + fmtWeek(currentWeek()) + ')</button>';
+    }
+    panel.style.display = '';
+
+    var btn = document.getElementById('cohort-btn');
+    if (btn) btn.addEventListener('click', function () {
+      try {
+        var cur = localStorage.getItem('sdocs_cohort');
+        if (cur === 'opt-out' || !cur || !/^\d{4}-W\d{2}$/.test(cur)) {
+          localStorage.setItem('sdocs_cohort', currentWeek());
+        } else {
+          localStorage.setItem('sdocs_cohort', 'opt-out');
+        }
+        render();
+      } catch (e) {
+        alert('Could not update cohort: storage unavailable (private browsing?).');
+      }
+    });
+  }
+
+  render();
 })();
 </script>
 

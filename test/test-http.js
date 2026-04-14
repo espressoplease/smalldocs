@@ -10,8 +10,17 @@ module.exports = function(harness) {
     console.log('\n── HTTP Tests (starting server) ─────────────────\n');
 
     const { spawn } = require('child_process');
+    const fs = require('fs');
+    const os = require('os');
+    const testDbPath = path.join(os.tmpdir(), 'sdocs-test-analytics-' + process.pid + '.db');
+    try { fs.unlinkSync(testDbPath); } catch (_) {}
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
-      env: { ...process.env, PORT: '3099' },
+      env: {
+        ...process.env,
+        PORT: '3099',
+        ANALYTICS_DB: testDbPath,
+        ANALYTICS_FLUSH_IMMEDIATE: '1',
+      },
       stdio: 'pipe',
     });
 
@@ -119,6 +128,24 @@ module.exports = function(harness) {
       assert.ok(data.version, 'should have version');
     });
 
+    await testAsync('version-check writes a row with the reported cohort and no ip_hash', async () => {
+      await get(BASE + '/version-check?cohort=2026-W99');
+      const Database = require('better-sqlite3');
+      const db = new Database(testDbPath, { readonly: true });
+      try {
+        const row = db.prepare("SELECT * FROM visits WHERE cohort_week = '2026-W99' ORDER BY id DESC LIMIT 1").get();
+        assert.ok(row, 'expected a visits row for cohort 2026-W99');
+        assert.strictEqual(row.cohort_week, '2026-W99');
+        assert.ok(row.visit_week, 'visit_week should be set');
+        assert.ok(!('ip_hash' in row), 'visits row must not carry an ip_hash column');
+      } finally {
+        db.close();
+      }
+    });
+
     server.kill();
+    try { fs.unlinkSync(testDbPath); } catch (_) {}
+    try { fs.unlinkSync(testDbPath + '-wal'); } catch (_) {}
+    try { fs.unlinkSync(testDbPath + '-shm'); } catch (_) {}
   };
 };
