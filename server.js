@@ -77,17 +77,15 @@ const server = http.createServer((req, res) => {
   if (pathname === '/version-check') {
     const v = url.searchParams.get('v') || '';
     const cohort = url.searchParams.get('cohort') || '';
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     console.log([
       new Date().toISOString(),
-      ip,
       req.headers['user-agent'] || '',
       req.headers['referer'] || '',
       req.headers['accept-language'] || '',
       v ? 'cached:' + v : 'no-cache',
       cohort || '-',
     ].join(' | '));
-    try { analytics.logVisit(ip, cohort, req.headers['user-agent'] || '', req.headers['referer'] || ''); } catch (e) { /* analytics failure should not break version-check */ }
+    try { analytics.logVisit(cohort, req.headers['user-agent'] || '', req.headers['referer'] || ''); } catch (e) { /* analytics failure should not break version-check */ }
     res.writeHead(200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache',

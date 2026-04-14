@@ -662,7 +662,7 @@ var SDOCS_DEV = '__SDOCS_DEV__' === '1';
 // Not a unique ID — groups all visitors who first came the same week.
 if (!localStorage.getItem('sdocs_cohort')) {
   try {
-    var _d = new Date(), _u = new Date(Date.UTC(_d.getFullYear(), _d.getMonth(), _d.getDate()));
+    var _d = new Date(), _u = new Date(Date.UTC(_d.getUTCFullYear(), _d.getUTCMonth(), _d.getUTCDate()));
     var _dn = _u.getUTCDay() || 7;
     _u.setUTCDate(_u.getUTCDate() + 4 - _dn);
     var _ys = new Date(Date.UTC(_u.getUTCFullYear(), 0, 1));

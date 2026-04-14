@@ -1,17 +1,17 @@
 /**
- * Analytics database — SQLite storage for cohort retention tracking.
+ * Analytics database — SQLite storage for cohort visit counts.
  * Visits are buffered in memory and flushed to SQLite every 15 minutes.
+ *
+ * Counts page-load visits, not unique users. There is no per-user identifier;
+ * a power user revisiting 50 times shows up as 50 visits. The only signal
+ * tying visits together is the cohort_week the browser reports from its
+ * own localStorage.
  *
  * Usage:
  *   const analytics = require('./analytics/db');
- *   analytics.logVisit(ip, cohortWeek, userAgent, referer);
- *
- * For tests:
- *   analytics.init(':memory:');
- *   analytics.flush(); // force write
+ *   analytics.logVisit(cohortWeek, userAgent, referer);
  */
 const path = require('path');
-const crypto = require('crypto');
 const { getISOWeek } = require('./week');
 
 let db = null;
@@ -37,7 +37,6 @@ function init(dbPath) {
       timestamp TEXT NOT NULL DEFAULT (datetime('now')),
       cohort_week TEXT NOT NULL DEFAULT '',
       visit_week TEXT NOT NULL,
-      ip_hash TEXT NOT NULL,
       device TEXT NOT NULL DEFAULT '',
       browser TEXT NOT NULL DEFAULT '',
       referer TEXT NOT NULL DEFAULT ''
@@ -50,18 +49,16 @@ function init(dbPath) {
   try { db.exec("ALTER TABLE visits ADD COLUMN device TEXT NOT NULL DEFAULT ''"); } catch (e) {}
   try { db.exec("ALTER TABLE visits ADD COLUMN browser TEXT NOT NULL DEFAULT ''"); } catch (e) {}
   try { db.exec("ALTER TABLE visits ADD COLUMN referer TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+  // Drop legacy ip_hash column. We deliberately stopped storing any per-user
+  // identifier — all metrics are now raw page-load counts.
+  try { db.exec("ALTER TABLE visits DROP COLUMN ip_hash"); } catch (e) {}
 
-  insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, ip_hash, device, browser, referer) VALUES (?, ?, ?, ?, ?, ?)');
+  insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, device, browser, referer) VALUES (?, ?, ?, ?, ?)');
 
-  // Start flush timer
   flushTimer = setInterval(flush, FLUSH_INTERVAL);
-  if (flushTimer.unref) flushTimer.unref(); // don't keep process alive
+  if (flushTimer.unref) flushTimer.unref();
 
   return db;
-}
-
-function hashIP(ip, salt) {
-  return crypto.createHash('sha256').update(ip + salt).digest('hex');
 }
 
 function parseUA(ua) {
@@ -92,21 +89,14 @@ function parseReferer(ref) {
   } catch (e) { return 'direct'; }
 }
 
-/**
- * Buffer a visit in memory. Flushed to SQLite every 15 minutes.
- */
-function logVisit(ip, cohortWeek, userAgent, referer) {
+function logVisit(cohortWeek, userAgent, referer) {
   if (!db) init();
   var visitWeek = getISOWeek(new Date());
-  var ipHash = hashIP(ip || '', cohortWeek || '');
   var ua = parseUA(userAgent);
   var ref = parseReferer(referer);
-  buffer.push([cohortWeek || '', visitWeek, ipHash, ua.device, ua.browser, ref]);
+  buffer.push([cohortWeek || '', visitWeek, ua.device, ua.browser, ref]);
 }
 
-/**
- * Write all buffered visits to SQLite in a single transaction.
- */
 function flush() {
   if (!buffer.length) return;
   if (!db) init();
@@ -131,8 +121,8 @@ function bufferSize() {
 
 function close() {
   if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
-  flush(); // write remaining buffer
+  flush();
   if (db) { db.close(); db = null; insertStmt = null; }
 }
 
-module.exports = { init, logVisit, flush, getDB, close, hashIP, bufferSize };
+module.exports = { init, logVisit, flush, getDB, close, bufferSize };

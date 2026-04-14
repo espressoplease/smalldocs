@@ -310,17 +310,22 @@ On each visit, the service worker sends a single request to `/version-check` in 
 
 ### Analytics
 
-We don't use any third-party analytics provider.
+We don't use any third-party analytics provider, and we don't store any per-user identifier — no IP address, no cookie, no fingerprint.
 
-The `/version-check` request described in the works offline section above is the only request SDocs makes to the server. Like any HTTP request, it includes your IP address, browser user-agent, referring URL, and the timestamp — this is standard to how the web works and is not something we add. The server logs these fields to stdout (a `console.log` line per visit, stored in the server's systemd journal).
+The `/version-check` request described in the works offline section above is the only request SDocs makes to the server. Like any HTTP request, it carries your IP address and user-agent in transit, but the server does **not** record your IP anywhere. What the server *does* store, per visit:
 
-In addition to these standard fields, the version-check request includes your **cohort week** — the week you first visited SDocs. This is stored in your browser's localStorage under the key `sdocs_cohort`. For example, if you first visit on 2026-04-10, the value `2026-W15` is stored and sent with each subsequent version-check.
+- The **cohort week** your browser reports — the week you first visited, stored in your browser's localStorage under the key `sdocs_cohort` (e.g. `2026-W15`).
+- The current week (when the visit happened).
+- A coarse device label (desktop / mobile / tablet) and browser family (Chrome, Safari, etc.) parsed from the user-agent.
+- A coarse referrer category (search, github, npm, direct, or the referring host).
 
-This is not a unique identifier. It groups you with every other person who first visited that same week. A scheduled job aggregates the journal logs into weekly cohort counts in a local database — "of everyone who first visited in week 15, how many came back in week 16, 17, etc." The results are public at [sdocs.dev/analytics](https://sdocs.dev/analytics).
+That's it. No identifier ties two visits from the same person together — every page load is just a row in a table, counted as a visit. A power user reloading 50 times shows up as 50 visits, not 1 user.
 
-We track retention because it is the strongest signal for whether a tool is useful.
+This means the public dashboard at [sdocs.dev/analytics](https://sdocs.dev/analytics) shows **visit counts per cohort per week**, not "X% of users came back." The number in each cell answers: *how much activity did the cohort that arrived in week N generate during week M?* Diagonal cells (the cohort's birth week) show the cohort's first-week activity; cells to the right show how that activity decays or grows.
 
-To opt out, there is a toggle in the top menu bar. You can also remove `sdocs_cohort` from localStorage in your browser's developer tools, or use a private browsing window.
+We track this because rough cohort activity is the strongest signal we have for whether SDocs is useful, and it's the most we can measure without identifying anyone.
+
+To opt out, there is a toggle in the top menu bar. You can also remove `sdocs_cohort` from localStorage in your browser's developer tools, or use a private browsing window — your visits will then show up under "Unattributed" with no cohort.
 
 ### Auto-save
 

@@ -158,8 +158,8 @@
 </div>
 
 <div class="content">
-  <h1>Retention by weekly cohort</h1>
-  <p class="subtitle">Each row is a group of visitors who first came the same week. Columns show how many returned. <a href="https://sdocs.dev/#sec=analytics">How this works</a></p>
+  <h1>Visits by weekly cohort</h1>
+  <p class="subtitle">Each row is a cohort — visitors who first came the same week. Cells are the number of <strong>page-load visits</strong> that cohort generated each week. We don't track unique users; one person revisiting many times counts as many visits. <a href="https://sdocs.dev/#sec=analytics">How this works</a></p>
   <div id="container" class="table-wrap"><p class="loading">Loading...</p></div>
 
   <div class="charts-grid" id="charts-grid" style="display:none">
@@ -215,59 +215,53 @@ fetch('/analytics/data')
   })
   .catch(function (e) { document.getElementById('container').innerHTML = '<p class="error">Failed to load: ' + e.message + '</p>'; });
 
+// "2026-W08" → "W08'26"
+function fmtWeek(w) {
+  var parts = w.split('-');
+  return parts[1] + "'" + parts[0].slice(2);
+}
+
 function renderTable(data) {
   var weeks = data.weeks;
   var cohorts = data.cohorts;
 
-  // Find max offset
-  var maxOffset = 0;
+  // Color scale relative to the largest single-cell visit count
+  var maxVisits = 1;
   cohorts.forEach(function (c) {
-    Object.keys(c.retention).forEach(function (w) {
-      var off = weeks.indexOf(w) - weeks.indexOf(c.cohort_week);
-      if (off > maxOffset) maxOffset = off;
+    Object.keys(c.visits).forEach(function (w) {
+      if (c.visits[w] > maxVisits) maxVisits = c.visits[w];
     });
   });
 
-  // Use absolute week columns
-  var html = '<table><thead><tr><th class="row-header">Cohort</th><th>Size</th>';
-  weeks.forEach(function (w) {
-    // "2026-W08" → "W08'26"
-    var parts = w.split('-');
-    html += '<th>' + parts[1] + "'" + parts[0].slice(2) + '</th>';
-  });
+  var html = '<table><thead><tr><th class="row-header">Cohort</th>';
+  weeks.forEach(function (w) { html += '<th>' + fmtWeek(w) + '</th>'; });
   html += '</tr></thead><tbody>';
 
   cohorts.forEach(function (c) {
-    html += '<tr><td class="row-header">' + c.cohort_week + '</td><td class="size">' + c.cohort_size + '</td>';
+    html += '<tr><td class="row-header">' + fmtWeek(c.cohort_week) + '</td>';
     weeks.forEach(function (w) {
-      if (w < c.cohort_week) {
-        html += '<td class="empty"></td>';
-      } else if (!c.retention[w]) {
+      if (w < c.cohort_week || !c.visits[w]) {
         html += '<td class="empty"></td>';
       } else {
-        var count = c.retention[w];
-        var pct = Math.round(count / c.cohort_size * 100);
-        var lightness = 82 - (pct * 0.50);
+        var count = c.visits[w];
+        var intensity = count / maxVisits;
+        var lightness = 82 - (intensity * 50);
         var bg = 'hsl(142, 55%, ' + lightness + '%)';
-        var fg = pct > 50 ? '#fff' : '#1C1917';
-        html += '<td style="background:' + bg + ';color:' + fg + '">' + pct + '%</td>';
+        var fg = intensity > 0.5 ? '#fff' : '#1C1917';
+        html += '<td style="background:' + bg + ';color:' + fg + '">' + count + '</td>';
       }
     });
     html += '</tr>';
   });
 
-  // Unattributed row
+  // Unattributed row (visits with no cohort reported)
   var unattr = data.unattributed || {};
-  var hasUnattr = Object.keys(unattr).length > 0;
-  if (hasUnattr) {
-    html += '<tr style="border-top:2px solid #D4CFC9"><td class="row-header" style="color:#A8A29E">Unattributed</td><td class="size"></td>';
+  if (Object.keys(unattr).length) {
+    html += '<tr style="border-top:2px solid #D4CFC9"><td class="row-header" style="color:#A8A29E">Unattributed</td>';
     weeks.forEach(function (w) {
       var count = unattr[w];
-      if (count) {
-        html += '<td style="color:#A8A29E">' + count + '</td>';
-      } else {
-        html += '<td class="empty"></td>';
-      }
+      if (count) html += '<td style="color:#A8A29E">' + count + '</td>';
+      else html += '<td class="empty"></td>';
     });
     html += '</tr>';
   }
@@ -302,13 +296,12 @@ function renderCharts(data) {
       new Chart(document.getElementById('chart-volume'), {
         type: 'line',
         data: {
-          labels: data.volume.map(function (v) { var p = v.visit_week.split('-'); return p[1] + "'" + p[0].slice(2); }),
+          labels: data.volume.map(function (v) { return fmtWeek(v.visit_week); }),
           datasets: [
-            { label: 'Total', data: data.volume.map(function (v) { return v.total; }), borderColor: COLORS[0], borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 },
-            { label: 'Unique', data: data.volume.map(function (v) { return v.unique_visitors; }), borderColor: COLORS[2], borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 }
+            { label: 'Visits', data: data.volume.map(function (v) { return v.visits; }), borderColor: COLORS[0], borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 }
           ]
         },
-        options: chartOpts({ scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true } } })
+        options: chartOpts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true } } })
       });
     }
 

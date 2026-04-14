@@ -38,7 +38,7 @@ module.exports = function (harness) {
   analyticsDb.init(':memory:');
 
   test('logVisit buffers, flush writes to DB', () => {
-    analyticsDb.logVisit('192.168.1.1', '2026-W15');
+    analyticsDb.logVisit('2026-W15');
     assert.strictEqual(analyticsDb.bufferSize(), 1);
     const db = analyticsDb.getDB();
     assert.strictEqual(db.prepare('SELECT COUNT(*) as c FROM visits').get().c, 0);
@@ -47,41 +47,35 @@ module.exports = function (harness) {
     assert.strictEqual(analyticsDb.bufferSize(), 0);
   });
 
-  test('logVisit hashes IP deterministically', () => {
-    const hash1 = analyticsDb.hashIP('192.168.1.1', '2026-W15');
-    const hash2 = analyticsDb.hashIP('192.168.1.1', '2026-W15');
-    assert.strictEqual(hash1, hash2);
-  });
-
-  test('logVisit hashes differently with different cohort salt', () => {
-    const hash1 = analyticsDb.hashIP('192.168.1.1', '2026-W15');
-    const hash2 = analyticsDb.hashIP('192.168.1.1', '2026-W16');
-    assert.notStrictEqual(hash1, hash2);
-  });
-
   test('logVisit with empty cohort still inserts after flush', () => {
     const db = analyticsDb.getDB();
     const before = db.prepare('SELECT COUNT(*) as c FROM visits').get().c;
-    analyticsDb.logVisit('10.0.0.1', '');
+    analyticsDb.logVisit('');
     analyticsDb.flush();
     const after = db.prepare('SELECT COUNT(*) as c FROM visits').get().c;
     assert.strictEqual(after, before + 1);
   });
 
   test('logVisit stores correct cohort_week after flush', () => {
-    analyticsDb.logVisit('10.0.0.2', '2026-W10');
+    analyticsDb.logVisit('2026-W10');
     analyticsDb.flush();
     const db = analyticsDb.getDB();
     const row = db.prepare("SELECT cohort_week FROM visits WHERE cohort_week = '2026-W10' LIMIT 1").get();
     assert.strictEqual(row.cohort_week, '2026-W10');
   });
 
+  test('schema has no ip_hash column', () => {
+    const db = analyticsDb.getDB();
+    const cols = db.prepare("PRAGMA table_info(visits)").all().map(function (c) { return c.name; });
+    assert.ok(!cols.includes('ip_hash'), 'ip_hash should not exist on the visits table');
+  });
+
   test('flush writes multiple visits in one transaction', () => {
     const db = analyticsDb.getDB();
     const before = db.prepare('SELECT COUNT(*) as c FROM visits').get().c;
-    analyticsDb.logVisit('10.0.0.3', '2026-W11');
-    analyticsDb.logVisit('10.0.0.4', '2026-W11');
-    analyticsDb.logVisit('10.0.0.5', '2026-W11');
+    analyticsDb.logVisit('2026-W11');
+    analyticsDb.logVisit('2026-W11');
+    analyticsDb.logVisit('2026-W11');
     assert.strictEqual(analyticsDb.bufferSize(), 3);
     analyticsDb.flush();
     const after = db.prepare('SELECT COUNT(*) as c FROM visits').get().c;
@@ -108,7 +102,7 @@ module.exports = function (harness) {
     assert.ok(data.cohorts.length > 0, 'should have at least one cohort');
     const w15 = data.cohorts.find(function (c) { return c.cohort_week === '2026-W15'; });
     assert.ok(w15, '2026-W15 cohort should exist');
-    assert.ok(w15.cohort_size > 0, 'cohort size should be > 0');
+    assert.ok(w15.visits, 'cohort should have a visits map');
   });
 
   // Clean up
