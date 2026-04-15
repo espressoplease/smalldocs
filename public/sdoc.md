@@ -577,5 +577,3 @@ You can get in touch at:
 ```
 hi@sdocs.dev
 ```
-
-Please note: SDocs is raising a pre-seed round to rebuild the office suite for an agent-primitive world, prioritizing speed and privacy. If that’s up your alley, get in touch to discuss joining the round.
