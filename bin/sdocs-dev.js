@@ -53,7 +53,7 @@ The \`sdoc\` CLI is installed globally:
 - \`sdoc charts\` — chart types, JSON format, and styling. Charts render via Chart.js from \`\`\`chart code blocks.
 - \`sdoc --help\` — full usage.
 
-Source: https://github.com/JoshInLisbon/SDocs
+Source: https://github.com/espressoplease/SDocs
 `;
 const AGENT_BLOCK_MARKER = '<!-- sdocs-agent-block -->';
 

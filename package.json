@@ -31,7 +31,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/JoshInLisbon/SDocs.git"
+    "url": "git+https://github.com/espressoplease/SDocs.git"
   },
   "homepage": "https://sdocs.dev",
   "dependencies": {

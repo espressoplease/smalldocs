@@ -57,7 +57,7 @@ Styles are stored as [YAML front matter](https://jekyllrb.com/docs/front-matter/
 ### Setup
 
 ```bash
-git clone https://github.com/JoshInLisbon/SDocs.git
+git clone https://github.com/espressoplease/SDocs.git
 cd SDocs
 npm install
 ```

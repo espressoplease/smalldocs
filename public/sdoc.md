@@ -5,7 +5,7 @@ file: sdoc.md
 # Meet `sdoc`: A markdown-first cli-native replacement for Word & GDocs
 
 
-(**TLDR:** `sdoc path/to/README.md` opens your file at https://sdoc.dev with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `npm i -g sdocs-dev`. SDocs is [open-source](https://github.com/JoshInLisbon/SDocs). You're reading markdown right now.)
+(**TLDR:** `sdoc path/to/README.md` opens your file at https://sdoc.dev with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `npm i -g sdocs-dev`. SDocs is [open-source](https://github.com/espressoplease/SDocs). You're reading markdown right now.)
 
 ---
 
@@ -13,7 +13,7 @@ If you're working with agents, a document written in markdown is <ins>officially
 
 But while markdown is great for agents, it's a bit annoying for humans. Quickly and elegantly reading a `.md` file requires you to open your code editor and enter "preview" mode. Sharing a markdown file requires you to actually send the file to someone. They then have to download it and find the least annoying way to read it.
 
-SmallDocs is an [open-source](https://github.com/JoshInLisbon/SDocs) attempt at something different. It lets you (or your agent) easily, elegantly and <ins>100% privately</ins> **read**, **format**, **share** and **export** `.md` files.
+SmallDocs is an [open-source](https://github.com/espressoplease/SDocs) attempt at something different. It lets you (or your agent) easily, elegantly and <ins>100% privately</ins> **read**, **format**, **share** and **export** `.md` files.
 
 Reading a `.md` file in SmallDocs feels just like this (you're reading markdown right now). And by playing with the styles, you can create things like:
 
@@ -55,7 +55,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
 - `sdoc --help` — full usage.
 
-Source: https://github.com/JoshInLisbon/SDocs
+Source: https://github.com/espressoplease/SDocs
 SDOC
 ```
 
@@ -84,7 +84,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
 - `sdoc --help` — full usage.
 
-Source: https://github.com/JoshInLisbon/SDocs
+Source: https://github.com/espressoplease/SDocs
 SDOC
 ```
 
@@ -113,7 +113,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
 - `sdoc --help` — full usage.
 
-Source: https://github.com/JoshInLisbon/SDocs
+Source: https://github.com/espressoplease/SDocs
 SDOC
 ```
 
@@ -143,7 +143,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
 - `sdoc --help` — full usage.
 
-Source: https://github.com/JoshInLisbon/SDocs
+Source: https://github.com/espressoplease/SDocs
 SDOC
 ```
 
@@ -492,7 +492,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
 - `sdoc --help` — full usage.
 
-Source: https://github.com/JoshInLisbon/SDocs
+Source: https://github.com/espressoplease/SDocs
 SDOC
 ```
 
@@ -516,7 +516,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
 - `sdoc --help` — full usage.
 
-Source: https://github.com/JoshInLisbon/SDocs
+Source: https://github.com/espressoplease/SDocs
 SDOC
 ```
 
@@ -540,7 +540,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
 - `sdoc --help` — full usage.
 
-Source: https://github.com/JoshInLisbon/SDocs
+Source: https://github.com/espressoplease/SDocs
 SDOC
 ```
 
@@ -565,7 +565,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc charts` — chart types, JSON format, and styling. Charts render via Chart.js from ```chart code blocks.
 - `sdoc --help` — full usage.
 
-Source: https://github.com/JoshInLisbon/SDocs
+Source: https://github.com/espressoplease/SDocs
 SDOC
 ```
 

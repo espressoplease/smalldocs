@@ -81,7 +81,7 @@ You have the right to lodge a complaint with the UK Information Commissioner's O
 
 ## 8. Open source
 
-SDocs is open source. Its source code is published at [github.com/JoshInLisbon/SDocs](https://github.com/JoshInLisbon/SDocs). You are welcome and encouraged to audit the code to verify the claims in this policy.
+SDocs is open source. Its source code is published at [github.com/espressoplease/SDocs](https://github.com/espressoplease/SDocs). You are welcome and encouraged to audit the code to verify the claims in this policy.
 
 ## 9. Changes
 
