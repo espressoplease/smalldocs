@@ -11,7 +11,7 @@ file: sdoc.md
 
 Markdown is great for agents, but a bit annoying for humans. Quickly and elegantly reading a `.md` file requires you to open your code editor and enter "preview" mode. Sharing a markdown file requires you to actually send the file to someone. They then have to download it and find the least annoying way to read it.
 
-SmallDocs is an [open-source](https://github.com/espressoplease/SDocs) attempt at something different. It lets you (or your agent) easily, elegantly and <ins>100% privately</ins> **read**, **format**, **share** and **export** `.md` files.
+SmallDocs is an [open-source](https://github.com/espressoplease/SDocs) attempt to resolve these frustrations. It lets you (or your agent) easily, elegantly and <ins>100% privately</ins> **read**, **format**, **share** and **export** `.md` files.
 
 Reading a `.md` file in SmallDocs feels just like this (you're reading markdown right now). And by playing with the styles, you can create things like:
 
@@ -28,7 +28,7 @@ sdoc share README.md          # copy shareable link to clipboard
 ```
 Or telling your agent to *"sdoc it"*.
 
-From personal experience, SDocs is great for sharing agent debugging reports across teams and presenting agent output in a copyable format (e.g. bash command sequences).
+From personal experience, SDocs is great for sharing agent debugging reports across teams and presenting agent output in a copyable format (e.g. a series of bash commands that need to be ran).
 
 #### Claude Code + SDocs
 
