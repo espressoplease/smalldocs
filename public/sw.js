@@ -25,6 +25,8 @@ var APP_SHELL = [
   '/public/fonts/inter-500.woff2',
   '/public/fonts/inter-600.woff2',
   '/public/sdoc.md',
+  '/public/legal.md',
+  '/public/sdocs-chrome.js',
 ];
 
 // Fetch that bypasses the browser's HTTP cache. Needed because

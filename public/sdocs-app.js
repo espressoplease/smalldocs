@@ -603,7 +603,12 @@ document.querySelectorAll('.sub-header').forEach(function(h) {
 // ── Default content ──────────────────────────────────
 
 var DEFAULT_MD = '';
-var _defaultReady = fetch('/public/sdoc.md').then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
+var _defaultMetaEl = document.querySelector('meta[name="sdocs-default-md"]');
+var _defaultMdPath = _defaultMetaEl && _defaultMetaEl.content;
+// Guard against the server-side template placeholder leaking through
+// (e.g. a stale service-worker cache serving an older index.html).
+if (!_defaultMdPath || _defaultMdPath.charAt(0) !== '/') _defaultMdPath = '/public/sdoc.md';
+var _defaultReady = fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
 
 // ── Register on SDocs for cross-module access ──────────
 

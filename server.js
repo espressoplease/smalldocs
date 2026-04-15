@@ -115,13 +115,15 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/' || pathname === '/new') {
+  if (pathname === '/' || pathname === '/new' || pathname === '/legal') {
     const htmlPath = path.join(__dirname, 'public', 'index.html');
     fs.readFile(htmlPath, 'utf8', (err, html) => {
       if (err) { res.writeHead(500); res.end('Error'); return; }
       const nonce = crypto.randomBytes(16).toString('base64');
+      const defaultMdPath = pathname === '/legal' ? '/public/legal.md' : '/public/sdoc.md';
       html = html.replace('__APP_VERSION__', APP_VERSION);
       html = html.replace('__SDOCS_DEV__', DEV_MODE ? '1' : '0');
+      html = html.replace('__DEFAULT_MD_PATH__', defaultMdPath);
       html = html.replace(/__CSP_NONCE__/g, nonce);
       const csp = [
         "default-src 'self'",
