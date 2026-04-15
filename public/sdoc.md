@@ -2,7 +2,7 @@
 file: sdoc.md
 ---
 
-# Meet `sdoc`: A markdown-first cli-native replacement for Word & GDocs
+# Meet `sdoc`: A cli + webapp for private markdown reading, sharing & styling
 
 
 (**TLDR:** `sdoc path/to/README.md` opens your file at https://sdoc.dev with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `npm i -g sdocs-dev`. SDocs is [open-source](https://github.com/espressoplease/SDocs). You're reading markdown right now.)
