@@ -67,6 +67,10 @@
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
+/* Subsequent H1s mark a new major section — give them real breathing room */
+:is(#_sd_rendered, #_sd_write) h1:not(:first-of-type) {
+  margin-top: 2em;
+}
 :is(#_sd_rendered, #_sd_write) h2 {
   font-family: var(--md-h-font-family);
   font-size: calc(var(--md-h2-size) * var(--md-h-scale));

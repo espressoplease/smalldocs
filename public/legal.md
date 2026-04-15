@@ -24,8 +24,8 @@ Contact: [hi@sdocs.dev](mailto:hi@sdocs.dev).
 
 - Your document content never reaches our servers. It lives in your browser and in URL hash fragments that browsers never transmit.
 - We do not use any third-party analytics provider.
-- We do not store any per-user identifier — no IP address, no cookie, no fingerprint.
-- We store only a small amount of aggregate visit data (counts per week) to understand whether the product is useful.
+- We do not store anything that identifies you individually — no IP address, no cookie, no login, no device fingerprint.
+- We do store a small amount of coarse, aggregate data per visit — the week you first arrived, the current week, and bucketed values for device (desktop / mobile / tablet), browser family, and referrer category. None of these single you out; millions of visitors share the same values.
 
 ## 1. What we do not collect
 

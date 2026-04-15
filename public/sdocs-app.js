@@ -160,6 +160,14 @@ function buildCollapsibleSections(container) {
   var children = [].slice.call(container.children);
   var stack = [{ body: container, level: 0 }];
   children.forEach(function(child) {
+    // H1 resets the nesting stack — each H1 starts a fresh top-level scope,
+    // so an H1 that appears after an H2/H3/H4 isn't buried in the previous
+    // section's collapsible body.
+    if (child.tagName === 'H1') {
+      stack = [{ body: container, level: 0 }];
+      stack[0].body.appendChild(child);
+      return;
+    }
     var level = SECTION_LEVELS[child.tagName];
     if (level) {
       while (stack[stack.length - 1].level >= level) stack.pop();
