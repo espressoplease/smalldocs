@@ -28,7 +28,7 @@ sdoc share README.md          # copy shareable link to clipboard
 ```
 Or telling your agent to *"sdoc it"*.
 
-From personal experience, SDocs is great for sharing agent debugging reports across teams and presenting agent output in a copyable format (e.g. a series of bash commands that need to be ran).
+From personal experience, SDocs is great for sharing agent debugging reports across teams, doing in-depth reading on a topic and presenting agent output in a copyable format (e.g. a series of bash commands that need to be ran).
 
 #### Claude Code + SDocs
 
