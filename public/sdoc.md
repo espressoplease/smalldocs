@@ -193,6 +193,90 @@ This layer of privacy is built into how HTTP works. The hash fragment (everythin
 
 The [sdocs.dev](https://sdocs.dev) site is purely a rendering space. JavaScript reads `window.location.hash`, decompresses and decodes the content, and renders your `.md` locally.
 
+### Short links
+
+Short links are an optional feature that produces a much shorter URL for sharing. They're the exception to the stateless model described above: instead of carrying the whole document in the URL, a short link references a copy stored on the SDocs server.
+
+The document is encrypted in your browser before upload. The server receives ciphertext, not the original text, and the decryption key stays in the URL fragment on the client side. Clicking **Generate** creates a short link of the form:
+
+```
+  https://sdocs.dev/s/{short id}#k={encryption key}
+                      └────┬───┘   └───────┬──────┘
+                           │                │
+                      sent to           never leaves
+                       server           your browser
+```
+
+The server holds an encrypted copy of the document, indexed by the `{short id}`. Without the `{encryption key}`, that stored copy can't be turned back into readable text.
+
+The `{encryption key}` lives in the URL's **hash fragment** (everything after the `#`) and, as the [Privacy](#privacy) section explains, *browsers never send hash fragments to any server*. So even though the URL is shareable, **the encryption key only ever exists in the URL itself**, on the screens and clipboards of whoever holds the link. Our server only ever sees the `{short id}` part.
+
+The rest of this section walks through exactly what the server receives and what it doesn't.
+
+Before you click Generate, here's what each side has:
+
+```
+  Your browser                       SDocs server
+  ────────────                       ────────────
+  • the document                     (nothing)
+```
+
+**Step 1: your browser generates a random 256-bit encryption key** just for this document. That's 32 random bytes, encoded as [base64url](https://en.wikipedia.org/wiki/Base64#URL_applications) so it's safe to drop into a URL:
+
+```
+// pseudocode
+key = randomBytes(32)
+// → "k8Xq-7mYp_NrT4vBjH2sRwDcE9LaQoV5Zi6MxF3ueKt"
+```
+
+Updated picture:
+
+```
+  Your browser                       SDocs server
+  ────────────                       ────────────
+  • the document                     (nothing)
+  • the encryption key
+```
+
+**Step 2: your browser encrypts the document** with that key using [AES-GCM](https://en.wikipedia.org/wiki/Galois/Counter_Mode), the same algorithm HTTPS uses to protect your traffic to sites like your bank:
+
+```
+// pseudocode
+ciphertext = AES_GCM.encrypt("The cat sat on the mat", key)
+// → "nQ7xK_2pVmZ8rL4cBjH1sRwDcE5LaQoV9Zi3MxF7ueKt..."
+```
+
+The ciphertext is a blob of random-looking bytes that cannot be read without the key. Anyone who doesn't have the key sees only noise.
+
+Updated picture:
+
+```
+  Your browser                       SDocs server
+  ────────────                       ────────────
+  • the document                     (nothing)
+  • the encryption key
+  • the encrypted blob
+```
+
+**Step 3: your browser uploads only the encrypted blob** to the SDocs server. **The key stays in your browser.** The server stores the blob under a short random ID and sends the ID back:
+
+```
+  Your browser                       SDocs server
+  ────────────                       ────────────
+  • the document                     • the encrypted blob
+  • the encryption key               • the short id
+  • the encrypted blob
+  • the short id
+```
+
+**Step 4: your browser assembles the short link** by joining the short ID (from the server) with the encryption key (which never left your browser). The finished link has the same two-part shape shown at the top of this section: the short ID goes in the URL path, and the encryption key goes in the URL hash.
+
+When someone opens the link, their browser sends the short ID to the server, receives the encrypted blob back, reads the key from the URL hash, and decrypts the blob locally. The server never sees the plain document or the key, only ciphertext. This pattern is called [end-to-end encryption](https://en.wikipedia.org/wiki/End-to-end_encryption): the two "ends" are your browser and the recipient's browser, and everything in between (our server included) handles ciphertext only.
+
+To confirm this, open your browser's developer tools, switch to the Network tab, click **Generate**, and inspect the request body. You will see a base64-encoded blob of random bytes, not your document. The source is at [SDocs on GitHub](https://github.com/espressoplease/SDocs) if you want to read the exact code that runs before the upload.
+
+Short links are opt-in. The default `#md=...` URL format still works exactly as before and never reaches a server.
+
 ### Formatting
 
 SDocs adds basic styling to markdown files. You write your content in regular markdown and the styles live in a metadata block at the top of the file.

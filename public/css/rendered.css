@@ -454,6 +454,10 @@
   cursor: pointer;
   transition: background .12s, color .12s;
 }
+/* Icon shouldn't swallow pointer events; the button does. Keeps e.target
+   as the button itself so delegated row click handlers behave consistently. */
+#_sd_sdocs-file-info .fic-copy svg,
+#_sd_sdocs-file-info .fic-copy svg * { pointer-events: none; }
 #_sd_sdocs-file-info .fic-copy:hover {
   color: var(--md-p-color);
 }
@@ -466,3 +470,72 @@
   gap: 4px;
 }
 #_sd_sdocs-file-info .fic-privacy-note[hidden] { display: none; }
+
+/* Short URL row: fades + slides in after the Shorten button is clicked */
+#_sd_sdocs-file-info .fic-row-short {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity .3s cubic-bezier(.4,0,.2,1), transform .3s cubic-bezier(.4,0,.2,1);
+}
+#_sd_sdocs-file-info .fic-row-short.fic-row-short-enter {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+#_sd_sdocs-file-info .fic-row-short .fic-value {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 12px;
+}
+
+/* Shorten action row: button + inline error */
+#_sd_sdocs-file-info .fic-row-shorten {
+  cursor: default;
+}
+#_sd_sdocs-file-info .fic-row-shorten:hover .fic-copy { color: var(--fic-muted); }
+#_sd_sdocs-file-info .fic-shorten-button {
+  background: transparent;
+  border: none;
+  color: var(--md-p-color);
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--md-p-color) 45%, transparent);
+  transition: text-decoration-color .12s, text-decoration-style .12s;
+}
+#_sd_sdocs-file-info .fic-shorten-button:hover:not(:disabled) {
+  text-decoration-style: solid;
+  text-decoration-color: var(--md-p-color);
+}
+#_sd_sdocs-file-info .fic-shorten-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+#_sd_sdocs-file-info .fic-shorten-button.fic-shorten-loading {
+  opacity: 0.7;
+}
+#_sd_sdocs-file-info .fic-shorten-error {
+  font-size: 11px;
+  color: #b42318;
+}
+#_sd_sdocs-file-info .fic-shorten-error[hidden] { display: none; }
+
+/* Intro row: shown before the short URL is generated */
+#_sd_sdocs-file-info .fic-row-short-intro {
+  cursor: default;
+}
+#_sd_sdocs-file-info .fic-short-intro-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--fic-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+#_sd_sdocs-file-info .fic-short-intro-learn {
+  color: var(--fic-muted);
+  text-decoration: underline;
+  transition: color .12s;
+}
+#_sd_sdocs-file-info .fic-short-intro-learn:hover {
+  color: var(--md-p-color);
+}

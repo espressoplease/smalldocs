@@ -33,6 +33,20 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
   - `test/write-mode.spec.js` — 42 tests for toolbar actions, toggles, shortcuts, block exits
   - `playwright.config.js` — Chromium only, auto-starts server on :3000
 
+## Writing style (docs, copy, UI strings, commit messages)
+
+Calm, explicit, honest. Not salesy, not defensive, not cute.
+
+- **State what something does, not how great it is.** "The server stores ciphertext," not "Our server never sees your data, your privacy is protected!"
+- **Name trade-offs out loud.** If something costs you privacy, latency, or uptime compared to the alternative, say so plainly. Don't front-load reassurance to bury a caveat.
+- **Skip rhetorical questions and self-defense.** "Doesn't this break privacy? It doesn't, and here's why..." is PR framing. Just describe what happens step by step; the reader forms their own view.
+- **No hype words.** Avoid "simply", "just", "blazing", "seamless", "best-in-class", "trust us", "rest assured", "don't worry". Remove exclamation points from technical copy.
+- **Imperative over aspirational.** "To verify, open devtools and watch the Network tab" beats "You don't have to take our word for it, feel free to verify it yourself!" Same information, half the words, no persuasion.
+- **Show the mechanism, let the reader judge.** Diagrams, code, and HTTP traces are more convincing than adjectives. The Privacy section's MDN quote does this; follow that shape.
+- **Boring is fine.** If a paragraph reads like documentation instead of marketing, that's the goal.
+
+When you catch yourself writing a sentence that tries to *make the reader feel good about a choice*, delete it and write the one that explains what actually happens.
+
 ## Dashes
 
 Never use em dashes (`—`) or en dashes (`–`) anywhere: source files, comments, commit messages, docs. Use a plain hyphen (`-`) instead. This also means no `\u2014` / `\u2013` Unicode escapes.

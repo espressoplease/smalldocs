@@ -65,6 +65,10 @@ self.addEventListener('fetch', function (e) {
   // Version-check always hits network
   if (url.pathname === '/version-check') return;
 
+  // Short-link API: always hits network (content is per-document and
+  // the server responds with no-store headers anyway, don't shadow it).
+  if (url.pathname === '/api/short' || url.pathname.indexOf('/api/short/') === 0) return;
+
   // Google Fonts: cache-first (they're immutable)
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
     e.respondWith(

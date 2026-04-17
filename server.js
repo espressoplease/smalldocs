@@ -7,6 +7,18 @@ const PORT = process.env.PORT || 3000;
 const ANALYTICS_ENABLED = process.env.ANALYTICS_ENABLED === '1';
 const analytics = ANALYTICS_ENABLED ? require('./analytics/db') : null;
 
+const shortLinks = require('./short-links/db');
+const shortLinksRateLimit = require('./short-links/rate-limit');
+const SHORT_LINKS_MAX_BYTES = 256 * 1024;       // 256 KB ciphertext cap
+const SHORT_LINKS_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+shortLinksRateLimit.startCleanup();
+// Kick off one cleanup on boot, then once per day
+setImmediate(() => { try { shortLinks.cleanupExpired(); } catch (_) {} });
+const _shortLinksCleanupTimer = setInterval(() => {
+  try { shortLinks.cleanupExpired(); } catch (_) {}
+}, SHORT_LINKS_CLEANUP_INTERVAL_MS);
+if (_shortLinksCleanupTimer.unref) _shortLinksCleanupTimer.unref();
+
 // Auto-version: hash all non-font files in public/ at startup.
 // Any file change = new hash = clients purge their SW cache.
 const appHash = crypto.createHash('md5');
@@ -63,13 +75,114 @@ function serveFile(res, filePath, extraHeaders) {
   });
 }
 
+function getClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) return String(xff).split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || '';
+}
+
+function sendJson(res, status, obj, extraHeaders) {
+  const headers = Object.assign(
+    { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    extraHeaders || {}
+  );
+  res.writeHead(status, headers);
+  res.end(JSON.stringify(obj));
+}
+
+function handleShortLinkPost(req, res) {
+  const ip = getClientIp(req);
+  if (!shortLinksRateLimit.check(ip)) {
+    sendJson(res, 429, { error: 'rate_limited' });
+    return;
+  }
+  let bytes = 0;
+  const chunks = [];
+  let aborted = false;
+  req.on('data', (chunk) => {
+    if (aborted) return;
+    bytes += chunk.length;
+    if (bytes > SHORT_LINKS_MAX_BYTES + 1024) {  // small JSON overhead tolerance
+      aborted = true;
+      sendJson(res, 413, { error: 'payload_too_large' });
+      // Let the client finish sending; just ignore the rest. Destroying the
+      // request socket mid-write causes EPIPE on the client and, more
+      // importantly, can poison HTTP keep-alive pools.
+      return;
+    }
+    chunks.push(chunk);
+  });
+  req.on('end', () => {
+    if (aborted) return;
+    let body;
+    try {
+      body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    } catch (_) {
+      sendJson(res, 400, { error: 'invalid_json' });
+      return;
+    }
+    const ct = body && body.ciphertext;
+    if (typeof ct !== 'string' || !ct.length) {
+      sendJson(res, 400, { error: 'missing_ciphertext' });
+      return;
+    }
+    if (ct.length > SHORT_LINKS_MAX_BYTES) {
+      sendJson(res, 413, { error: 'payload_too_large' });
+      return;
+    }
+    if (!/^[A-Za-z0-9_-]+$/.test(ct)) {
+      sendJson(res, 400, { error: 'invalid_ciphertext' });
+      return;
+    }
+    try {
+      const id = shortLinks.insert(ct);
+      sendJson(res, 201, { id: id });
+    } catch (e) {
+      sendJson(res, 500, { error: 'db_error' });
+    }
+  });
+  req.on('error', () => {
+    if (!aborted) sendJson(res, 400, { error: 'request_error' });
+  });
+}
+
+function handleShortLinkGet(res, id) {
+  if (!/^[A-Za-z0-9_-]{1,32}$/.test(id)) {
+    sendJson(res, 400, { error: 'invalid_id' });
+    return;
+  }
+  try {
+    const ct = shortLinks.fetch(id);
+    if (!ct) {
+      sendJson(res, 404, { error: 'not_found' });
+      return;
+    }
+    sendJson(res, 200, { ciphertext: ct });
+  } catch (e) {
+    sendJson(res, 500, { error: 'db_error' });
+  }
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = url.pathname;
 
+  // POST /api/short: create a short link for encrypted ciphertext
+  if (req.method === 'POST' && pathname === '/api/short') {
+    handleShortLinkPost(req, res);
+    return;
+  }
+
   if (req.method !== 'GET') {
     res.writeHead(405, { 'Content-Type': 'text/plain' });
     res.end('Method Not Allowed');
+    return;
+  }
+
+  // GET /api/short/:id: fetch ciphertext for a short link
+  if (pathname.startsWith('/api/short/')) {
+    const id = pathname.slice('/api/short/'.length);
+    handleShortLinkGet(res, id);
     return;
   }
 
@@ -115,7 +228,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/' || pathname === '/new' || pathname === '/legal') {
+  if (pathname === '/' || pathname === '/new' || pathname === '/legal' || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     const htmlPath = path.join(__dirname, 'public', 'index.html');
     fs.readFile(htmlPath, 'utf8', (err, html) => {
       if (err) { res.writeHead(500); res.end('Error'); return; }

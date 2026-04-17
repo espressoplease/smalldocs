@@ -222,6 +222,57 @@ function render() {
 
 // ── File-info card ─────────────────────────────────────────
 
+var SHORT_LINKS_LEARN_URL = 'https://sdocs.dev/#sec=short-links';
+
+function shortenErrorMessage(code) {
+  return code === 'rate_limited' ? 'Too many requests, try again later.'
+    : code === 'payload_too_large' ? 'Document is too large to shorten.'
+    : 'Could not create short link.';
+}
+
+async function runShortenFlow(btn, errEl) {
+  btn.disabled = true;
+  btn.classList.add('fic-shorten-loading');
+  var originalLabel = btn.textContent;
+  btn.textContent = 'Shortening…';
+  if (errEl) errEl.hidden = true;
+  try {
+    var result = await shortenCurrentDocument();
+    S.shortUrl = result.url;
+    S.shortLinkId = result.id;
+    renderFileInfoCard();
+    // Fade in the new short URL row.
+    var newRow = document.querySelector('.fic-row-short');
+    if (newRow) {
+      newRow.classList.add('fic-row-short-enter');
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() { newRow.classList.remove('fic-row-short-enter'); });
+      });
+    }
+    return true;
+  } catch (err) {
+    btn.disabled = false;
+    btn.classList.remove('fic-shorten-loading');
+    btn.textContent = originalLabel;
+    if (errEl) {
+      errEl.textContent = shortenErrorMessage(err && err.message);
+      errEl.hidden = false;
+    }
+    return false;
+  }
+}
+
+function dataRowHtml(key, label, value, isLocal, isShort) {
+  var pill = isLocal ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '';
+  var cls = 'fic-row' + (isShort ? ' fic-row-short' : '');
+  return '<div class="' + cls + '" data-key="' + key + '">'
+    + '<span class="fic-label">' + label + '</span>'
+    + '<span class="fic-value">' + escapeHtml(value) + '</span>'
+    + pill
+    + '<button class="fic-copy" title="Copy ' + label.toLowerCase() + '">' + COPY_SVG + '</button>'
+    + '</div>';
+}
+
 function renderFileInfoCard() {
   var card = document.getElementById('_sd_sdocs-file-info');
   if (!card) return;
@@ -229,12 +280,10 @@ function renderFileInfoCard() {
   var local = S.localMeta || {};
   var rowsEl = card.querySelector('.fic-rows');
 
-  var rows = [];
-  if (meta.file)      rows.push({ key: 'file',     label: 'Filename',  value: meta.file,      local: false });
-  if (local.path)     rows.push({ key: 'path',     label: 'Rel. Path', value: local.path,     local: true  });
-  if (local.fullPath) rows.push({ key: 'fullPath', label: 'Abs. Path', value: local.fullPath, local: true  });
+  var hasDoc = !!(meta.file || S.currentBody || (S.currentMeta && Object.keys(S.currentMeta).length));
+  var hasLocalRow = !!(local.path || local.fullPath);
 
-  if (rows.length === 0) {
+  if (!hasDoc && !meta.file && !hasLocalRow) {
     card.hidden = true;
     rowsEl.innerHTML = '';
     return;
@@ -242,24 +291,66 @@ function renderFileInfoCard() {
 
   card.hidden = false;
   var note = card.querySelector('.fic-privacy-note');
-  if (note) note.hidden = !rows.some(function(r) { return r.local; });
-  rowsEl.innerHTML = rows.map(function(r) {
-    var pill = r.local ? '<span class="fic-local-tag" title="Only visible on this device — not included in shared sdocs">Local only</span>' : '';
-    return '<div class="fic-row" data-key="' + r.key + '">'
-      + '<span class="fic-label">' + r.label + '</span>'
-      + '<span class="fic-value">' + escapeHtml(r.value) + '</span>'
-      + pill
-      + '<button class="fic-copy" title="Copy ' + r.label.toLowerCase() + '">' + COPY_SVG + '</button>'
-      + '</div>';
-  }).join('');
+  if (note) note.hidden = !hasLocalRow;
 
-  rowsEl.querySelectorAll('.fic-row').forEach(function(row) {
-    row.addEventListener('click', function() {
+  // Build the row slots in display order. The short-URL slot always sits
+  // right after Filename, so the row doesn't jump around as the user moves
+  // between the intro / shorten / shortened states.
+  var slots = [];
+  if (meta.file) slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', meta.file, false, false) });
+
+  if (hasDoc) {
+    slots.push(S.shortUrl
+      ? { type: 'data', html: dataRowHtml('shortUrl', 'Short URL', S.shortUrl, false, true) }
+      : { type: 'intro' });
+  }
+
+  if (local.path)     slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, true, false) });
+  if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, true, false) });
+
+  // Render in order. Data rows go in as HTML; action rows are DOM nodes so we
+  // can attach handlers to specific elements.
+  rowsEl.innerHTML = '';
+  slots.forEach(function(slot) {
+    if (slot.type === 'data') {
+      rowsEl.insertAdjacentHTML('beforeend', slot.html);
+    } else if (slot.type === 'intro') {
+      var introRow = document.createElement('div');
+      introRow.className = 'fic-row fic-row-short-intro';
+      introRow.innerHTML = ''
+        + '<span class="fic-label">Short URL</span>'
+        + '<button class="fic-shorten-button" title="Generate a short link for this document">Generate</button>'
+        + '<span class="fic-short-intro-text">'
+        +   'Document encrypted on our server, but decryption key stays with you '
+        +   '(<a class="fic-short-intro-learn" href="' + SHORT_LINKS_LEARN_URL + '" target="_blank" rel="noopener">learn more</a>)'
+        + '</span>'
+        + '<span class="fic-shorten-error" hidden></span>'
+        + '<button class="fic-copy fic-generate-icon" title="Generate a short link">' + LINK_SVG + '</button>';
+      rowsEl.appendChild(introRow);
+      var genBtn = introRow.querySelector('.fic-shorten-button');
+      var genIcon = introRow.querySelector('.fic-generate-icon');
+      var genErr = introRow.querySelector('.fic-shorten-error');
+      function triggerGenerate(e) {
+        e.stopPropagation();
+        runShortenFlow(genBtn, genErr);
+      }
+      genBtn.addEventListener('click', triggerGenerate);
+      genIcon.addEventListener('click', triggerGenerate);
+    }
+  });
+
+  // Click-to-copy for plain data rows only. Walk up to the containing button
+  // so clicks on the <svg> or <path> inside a .fic-copy still register.
+  rowsEl.querySelectorAll('.fic-row[data-key]').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      var btnEl = e.target.closest('button');
+      if (btnEl && !btnEl.classList.contains('fic-copy')) return;
       var val = row.querySelector('.fic-value').textContent;
       var btn = row.querySelector('.fic-copy');
       copyWithIconFeedback(val, btn);
     });
   });
+
 }
 
 function escapeHtml(s) {
@@ -406,13 +497,106 @@ async function decompressText(b64url) {
   return decompressDeflate(bytes);
 }
 
+// ── AES-GCM helpers for short-link ciphertext ─────────
+
+async function generateShortLinkKey() {
+  var bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return bytes;
+}
+
+async function importAesKey(keyBytes, usage) {
+  return crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, [usage]);
+}
+
+// Accepts raw bytes (e.g. compressed markdown output) and encrypts them with
+// AES-GCM. Returns a base64url string containing nonce(12) + ciphertext + tag.
+async function encryptBytes(plainBytes, keyBytes) {
+  var key = await importAesKey(keyBytes, 'encrypt');
+  var nonce = new Uint8Array(12);
+  crypto.getRandomValues(nonce);
+  var ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, key, plainBytes);
+  var ctBytes = new Uint8Array(ct);
+  var out = new Uint8Array(nonce.length + ctBytes.length);
+  out.set(nonce, 0);
+  out.set(ctBytes, nonce.length);
+  return toBase64Url(out);
+}
+
+// Reverse of encryptBytes: takes the base64url blob + key, returns raw bytes.
+async function decryptBytes(b64url, keyBytes) {
+  var blob = fromBase64Url(b64url);
+  if (blob.length < 12 + 16) throw new Error('ciphertext too short');
+  var nonce = blob.subarray(0, 12);
+  var body = blob.subarray(12);
+  var key = await importAesKey(keyBytes, 'decrypt');
+  var plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, body);
+  return new Uint8Array(plain);
+}
+
+// Compress current document, encrypt with a fresh key, upload ciphertext.
+// Returns { url, id } on success; throws on failure.
+async function shortenCurrentDocument() {
+  var styles = SDocStyles.stripStyleDefaults(S.collectStyles());
+  var meta = Object.assign({}, S.currentMeta);
+  if (Object.keys(styles).length > 0) meta.styles = styles;
+  else delete meta.styles;
+  var full = SDocYaml.serializeFrontMatter(meta) + '\n' + S.currentBody;
+
+  // Compress first (brotli+base64url), then encrypt the compressed bytes.
+  var compressedB64 = await compressText(full);
+  var compressedBytes = fromBase64Url(compressedB64);
+
+  var keyBytes = await generateShortLinkKey();
+  var cipherB64 = await encryptBytes(compressedBytes, keyBytes);
+
+  var resp = await fetch('/api/short', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ciphertext: cipherB64 }),
+  });
+  if (!resp.ok) {
+    var msg = 'short_link_failed';
+    try { var j = await resp.json(); if (j && j.error) msg = j.error; } catch (_) {}
+    throw new Error(msg);
+  }
+  var data = await resp.json();
+  if (!data || !data.id) throw new Error('bad_response');
+
+  var keyB64 = toBase64Url(keyBytes);
+  var url = window.location.origin + '/s/' + data.id + '#k=' + keyB64;
+  return { url: url, id: data.id };
+}
+
+// Given a /s/:id pathname, fetch + decrypt + decompress the stored document.
+async function loadShortLink(id, keyB64) {
+  if (!keyB64) throw new Error('missing_key');
+  var resp = await fetch('/api/short/' + encodeURIComponent(id));
+  if (resp.status === 404) throw new Error('not_found');
+  if (!resp.ok) throw new Error('fetch_failed');
+  var data = await resp.json();
+  if (!data || !data.ciphertext) throw new Error('bad_response');
+  var keyBytes = fromBase64Url(keyB64);
+  var compressedBytes = await decryptBytes(data.ciphertext, keyBytes);
+  var compressedB64 = toBase64Url(compressedBytes);
+  return await decompressText(compressedB64);
+}
+
 // ── Auto-save to URL hash ──────────────────────────
+
+var SHORT_LINK_PATH_RE = /^\/s\/([A-Za-z0-9_-]{1,32})$/;
+
+function normalizedBasePath() {
+  var p = window.location.pathname;
+  if (p === '/new' || SHORT_LINK_PATH_RE.test(p)) return '/';
+  return p;
+}
 
 function updateHash() {
   clearTimeout(S._hashTimer);
   S._hashTimer = setTimeout(async function() {
     if (S._isDefaultState && S.currentMode === 'read') {
-      history.replaceState(null, '', window.location.pathname === '/new' ? '/' : window.location.pathname);
+      history.replaceState(null, '', normalizedBasePath());
       return;
     }
     var params = new URLSearchParams();
@@ -428,8 +612,7 @@ function updateHash() {
     if (S.currentMode !== 'read') {
       params.set('mode', S.currentMode);
     }
-    var basePath = window.location.pathname === '/new' ? '/' : window.location.pathname;
-    history.replaceState(null, '', basePath + '#' + params.toString());
+    history.replaceState(null, '', normalizedBasePath() + '#' + params.toString());
   }, 400);
 }
 
@@ -793,8 +976,52 @@ async function loadFromHash() {
 
 // ── Init ──────────────────────────────────
 
+async function initShortLink(id) {
+  var hash = window.location.hash.slice(1);
+  var params = hash ? new URLSearchParams(hash) : new URLSearchParams();
+  var keyB64 = params.get('k');
+  if (!keyB64) {
+    setStatus('Short link is missing its decryption key.', 'error');
+    return;
+  }
+  try {
+    var text = await loadShortLink(id, keyB64);
+    S._isDefaultState = false;
+    S._loadingDocument = true;
+    S.resetAllStyles();
+    loadText(text);
+    // loadText -> syncAll('load') -> updateHash queues a URL rewrite. Cancel
+    // it so the short link stays visible in the address bar. On the first
+    // real edit, updateHash runs again and normalizes the URL to / + #md=.
+    clearTimeout(S._hashTimer);
+    var modeParam = params.get('mode');
+    if (modeParam && ['read', 'style', 'write', 'raw', 'export'].indexOf(modeParam) >= 0) {
+      setMode(modeParam, true);
+    } else {
+      setMode('read', true);
+    }
+    S.shortUrl = window.location.origin + window.location.pathname + '#k=' + keyB64;
+    S.shortLinkId = id;
+    if (typeof renderFileInfoCard === 'function') renderFileInfoCard();
+  } catch (e) {
+    var msg = e && e.message === 'not_found'
+      ? 'Short link not found. It may have expired.'
+      : e && e.message === 'missing_key'
+      ? 'Short link is missing its decryption key.'
+      : 'Could not load this short link.';
+    setStatus(msg, 'error');
+  } finally {
+    S._loadingDocument = false;
+  }
+}
+
 (async function () {
   await _defaultReady;
+  var shortMatch = SHORT_LINK_PATH_RE.exec(window.location.pathname);
+  if (shortMatch) {
+    await initShortLink(shortMatch[1]);
+    return;
+  }
   if (window.location.pathname === '/new') {
     startNewDocument();
     return;

@@ -17,6 +17,8 @@ const SDocYaml = require('../public/sdocs-yaml.js');
 const SDocStyles = require('../public/sdocs-styles.js');
 
 const https    = require('https');
+const http     = require('http');
+const crypto   = require('crypto');
 const os       = require('os');
 const readline = require('readline');
 
@@ -664,6 +666,90 @@ function decompressFromBase64Url(b64url) {
   }
 }
 
+// ── Short-link encrypt + upload (AES-GCM, client-held key) ─
+
+// Compress with brotli, then encrypt with AES-256-GCM. Returns
+// { keyBytes, cipherB64url } where keyBytes never leaves this process.
+// The blob format (nonce(12) + ciphertext + tag(16)) matches the browser.
+function compressAndEncrypt(content) {
+  const compressed = zlib.brotliCompressSync(Buffer.from(content, 'utf-8'), {
+    params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 }
+  });
+  const keyBytes = crypto.randomBytes(32);
+  const nonce = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', keyBytes, nonce);
+  const ct = Buffer.concat([cipher.update(compressed), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  const blob = Buffer.concat([nonce, ct, tag]);
+  return { keyBytes, cipherB64url: toBase64Url(blob) };
+}
+
+function uploadShortLink(ciphertextB64, baseUrl) {
+  return new Promise((resolve, reject) => {
+    const u = new URL('/api/short', baseUrl);
+    const isHttps = u.protocol === 'https:';
+    const mod = isHttps ? https : http;
+    const payload = JSON.stringify({ ciphertext: ciphertextB64 });
+    const req = mod.request({
+      method: 'POST',
+      protocol: u.protocol,
+      hostname: u.hostname,
+      port: u.port || (isHttps ? 443 : 80),
+      path: u.pathname,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+      },
+      timeout: 10000,
+    }, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        let json;
+        try { json = JSON.parse(body); } catch (_) { json = null; }
+        if (res.statusCode >= 200 && res.statusCode < 300 && json && json.id) {
+          resolve(json.id);
+        } else {
+          const err = (json && json.error) || ('http_' + res.statusCode);
+          reject(new Error(err));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(new Error('timeout')); });
+    req.write(payload);
+    req.end();
+  });
+}
+
+async function buildShortUrl(content, opts) {
+  if (!content) throw new Error('short link requires file content');
+
+  // Mirror the hash-build's default-stripping so the encrypted payload is
+  // identical to what the browser would encode.
+  const parsed = SDocYaml.parseFrontMatter(content);
+  if (parsed.meta && parsed.meta.styles) {
+    const stripped = SDocStyles.stripStyleDefaults(parsed.meta.styles);
+    if (Object.keys(stripped).length > 0) parsed.meta.styles = stripped;
+    else delete parsed.meta.styles;
+    content = SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
+  }
+
+  const baseUrl = opts.url || process.env.SDOCS_URL || DEFAULT_URL;
+  const { keyBytes, cipherB64url } = compressAndEncrypt(content);
+  const id = await uploadShortLink(cipherB64url, baseUrl);
+  const keyB64 = toBase64Url(keyBytes);
+
+  const params = new URLSearchParams();
+  params.set('k', keyB64);
+  const mode = opts.mode;
+  if (mode && mode !== 'read') params.set('mode', mode);
+  if (opts.theme) params.set('theme', opts.theme);
+  if (opts.section) params.set('sec', slugify(opts.section));
+
+  return `${baseUrl}/s/${id}#${params.toString()}`;
+}
+
 // ── Slugify (shared module) ───────────────────────────────
 
 var slugify = require('../public/sdocs-slugify').slugify;
@@ -681,6 +767,7 @@ function parseArgs(argv) {
   let section = null;
   let theme = null;
   let resetFlag = false;
+  let shortFlag = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -716,6 +803,9 @@ function parseArgs(argv) {
     // --reset flag (for defaults subcommand)
     if (arg === '--reset') { resetFlag = true; continue; }
 
+    // --short flag (share subcommand only): encrypt + upload, return /s/... URL
+    if (arg === '--short') { shortFlag = true; continue; }
+
     // Positional: check for subcommand first, then file
     if (!subcommand && SUBCOMMANDS.has(arg)) {
       subcommand = arg;
@@ -725,7 +815,7 @@ function parseArgs(argv) {
     if (!file) { file = arg; continue; }
   }
 
-  return { file, mode, url, subcommand, section, theme, resetFlag };
+  return { file, mode, url, subcommand, section, theme, resetFlag, shortFlag };
 }
 
 // ── Build URL ─────────────────────────────────────────────
@@ -946,14 +1036,37 @@ if (require.main === module) {
       }
     }
 
-    const url = buildUrl(content, {
-      url: opts.url,
-      mode: opts.mode,
-      theme: opts.theme,
-      defaultStyles: !content ? defaults : null,
-      section: opts.section,
-      local: local,
-    });
+    let url;
+    if (opts.shortFlag) {
+      if (opts.subcommand !== 'share') {
+        console.error('sdoc: --short is only valid with the `share` subcommand');
+        process.exit(1);
+      }
+      if (!content) {
+        console.error('sdoc: --short needs content (a file path or piped stdin)');
+        process.exit(1);
+      }
+      try {
+        url = await buildShortUrl(content, {
+          url: opts.url,
+          mode: opts.mode,
+          theme: opts.theme,
+          section: opts.section,
+        });
+      } catch (e) {
+        console.error('sdoc: could not create short link -', e.message);
+        process.exit(1);
+      }
+    } else {
+      url = buildUrl(content, {
+        url: opts.url,
+        mode: opts.mode,
+        theme: opts.theme,
+        defaultStyles: !content ? defaults : null,
+        section: opts.section,
+        local: local,
+      });
+    }
 
     // Share: copy to clipboard
     if (opts.subcommand === 'share') {
@@ -963,7 +1076,9 @@ if (require.main === module) {
           : 'xsel --clipboard --input';
         execSync(clip, { input: url, stdio: ['pipe', 'ignore', 'ignore'] });
         const name = opts.file ? path.basename(opts.file) : 'stdin';
-        console.log(`\u2713 Link for ${name} copied to clipboard`);
+        const label = opts.shortFlag ? 'Short link' : 'Link';
+        console.log(`\u2713 ${label} for ${name} copied to clipboard`);
+        if (opts.shortFlag) console.log(`  ${url}`);
       } catch (_) {
         process.stdout.write(url + '\n');
       }
@@ -998,4 +1113,7 @@ module.exports = {
   slugify,
   compressToBase64Url,
   decompressFromBase64Url,
+  compressAndEncrypt,
+  uploadShortLink,
+  buildShortUrl,
 };
