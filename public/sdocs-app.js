@@ -299,7 +299,11 @@ function renderFileInfoCard() {
   var slots = [];
   if (meta.file) slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', meta.file, false, false) });
 
-  if (hasDoc) {
+  // Don't offer a short URL for the built-in default document (bare / or
+  // /legal landing pages). Shortening marketing copy isn't useful and
+  // clutters the info card. The flag flips false as soon as the user drops
+  // a file, opens a shared link, or edits anything.
+  if (hasDoc && !S._isDefaultState) {
     slots.push(S.shortUrl
       ? { type: 'data', html: dataRowHtml('shortUrl', 'Short URL', S.shortUrl, false, true) }
       : { type: 'intro' });
