@@ -195,21 +195,23 @@ The [sdocs.dev](https://sdocs.dev) site is purely a rendering space. JavaScript 
 
 ### Short links
 
-Short links are an optional feature that produces a much shorter URL for sharing. They're the exception to the stateless model described above: instead of carrying the whole document in the URL, a short link references a copy stored on the SDocs server.
+Short links are an optional feature that produces a much shorter URL for sharing. When implementing them we've tried to balance our focus on privacy with the need to store some aspect of your document on our server (which is what enables the URL to be short). We feel we found a clever solution, but you can be the judge.
 
-The document is encrypted in your browser before upload. The server receives ciphertext, not the original text, and the decryption key stays in the URL fragment on the client side. Clicking **Generate** creates a short link of the form:
+To maximize privacy the document is encrypted in your browser before upload. The SDocs server only receives (and stores) ciphertext, not the original (human readable) text. The decryption key required to convert the ciphertext into readable text stays with you.
+
+Clicking **Generate** creates a short link of the form:
 
 ```
   https://sdocs.dev/s/{short id}#k={encryption key}
                       └────┬───┘   └───────┬──────┘
-                           │                │
+                           │               │
                       sent to           never leaves
                        server           your browser
 ```
 
-The server holds an encrypted copy of the document, indexed by the `{short id}`. Without the `{encryption key}`, that stored copy can't be turned back into readable text.
+The `{short id}` is what allows the server to find the relevant encrypted copy of the document. The `{encryption key}` is what's required to turn the encrypted copy back into readable text.
 
-The `{encryption key}` lives in the URL's **hash fragment** (everything after the `#`) and, as the [Privacy](#privacy) section explains, *browsers never send hash fragments to any server*. So even though the URL is shareable, **the encryption key only ever exists in the URL itself**, on the screens and clipboards of whoever holds the link. Our server only ever sees the `{short id}` part.
+The `{encryption key}` lives in the URL's **hash fragment** (everything after the `#`) and, as the [Privacy](#privacy) section explains, browsers never send hash fragments to a server the request is being made to. So even though the URL is shareable, **the encryption key only ever exists in the URL itself**, on the screens and clipboards of whoever holds the link. Our server only ever sees the `{short id}` part.
 
 The rest of this section walks through exactly what the server receives and what it doesn't.
 
