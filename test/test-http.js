@@ -4,7 +4,7 @@
 const path = require('path');
 
 module.exports = function(harness) {
-  const { assert, testAsync, get } = harness;
+  const { assert, testAsync, get, post } = harness;
 
   return async function() {
     console.log('\n── HTTP Tests (starting server) ─────────────────\n');
@@ -13,7 +13,9 @@ module.exports = function(harness) {
     const fs = require('fs');
     const os = require('os');
     const testDbPath = path.join(os.tmpdir(), 'sdocs-test-analytics-' + process.pid + '.db');
+    const testShortLinksDbPath = path.join(os.tmpdir(), 'sdocs-test-short-links-' + process.pid + '.db');
     try { fs.unlinkSync(testDbPath); } catch (_) {}
+    try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
       env: {
         ...process.env,
@@ -21,6 +23,7 @@ module.exports = function(harness) {
         ANALYTICS_ENABLED: '1',
         ANALYTICS_DB: testDbPath,
         ANALYTICS_FLUSH_IMMEDIATE: '1',
+        SHORT_LINKS_DB: testShortLinksDbPath,
       },
       stdio: 'pipe',
     });
@@ -144,9 +147,75 @@ module.exports = function(harness) {
       }
     });
 
+    // ── Short-link endpoints ──────────────────────────
+
+    let createdId;
+    const sampleCipher = 'AAAA-_abcdef0123456789';  // valid base64url, opaque to server
+
+    await testAsync('POST /api/short with valid ciphertext returns 201 + id', async () => {
+      const r = await post(BASE + '/api/short', { ciphertext: sampleCipher });
+      assert.strictEqual(r.status, 201);
+      const data = JSON.parse(r.body);
+      assert.ok(data.id, 'response should include id');
+      assert.ok(/^[A-Za-z0-9_-]+$/.test(data.id), 'id should be base64url chars');
+      createdId = data.id;
+    });
+
+    await testAsync('POST /api/short missing ciphertext returns 400', async () => {
+      const r = await post(BASE + '/api/short', { notRight: 'x' });
+      assert.strictEqual(r.status, 400);
+    });
+
+    await testAsync('POST /api/short with invalid ciphertext chars returns 400', async () => {
+      const r = await post(BASE + '/api/short', { ciphertext: 'has spaces!' });
+      assert.strictEqual(r.status, 400);
+    });
+
+    await testAsync('POST /api/short with oversized body returns 413', async () => {
+      // Produce a ~300KB base64url string
+      const big = 'A'.repeat(300 * 1024);
+      const r = await post(BASE + '/api/short', { ciphertext: big });
+      assert.strictEqual(r.status, 413);
+    });
+
+    await testAsync('POST /api/short with invalid JSON returns 400', async () => {
+      const r = await post(BASE + '/api/short', '{not json', { 'Content-Type': 'application/json' });
+      assert.strictEqual(r.status, 400);
+    });
+
+    await testAsync('GET /api/short/:id returns stored ciphertext', async () => {
+      const r = await get(BASE + '/api/short/' + createdId);
+      assert.strictEqual(r.status, 200);
+      const data = JSON.parse(r.body);
+      assert.strictEqual(data.ciphertext, sampleCipher);
+    });
+
+    await testAsync('GET /api/short/:id sends no-store cache header', async () => {
+      const r = await get(BASE + '/api/short/' + createdId);
+      assert.ok(
+        r.headers['cache-control'] && r.headers['cache-control'].includes('no-store'),
+        'cache-control should include no-store'
+      );
+    });
+
+    await testAsync('GET /api/short/:id for unknown id returns 404', async () => {
+      const r = await get(BASE + '/api/short/definitely-not-real');
+      assert.strictEqual(r.status, 404);
+    });
+
+    await testAsync('GET /s/:id serves index.html (client-side render)', async () => {
+      const r = await get(BASE + '/s/' + createdId);
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'));
+      assert.ok(r.body.includes('sdocs-app.js'), 'should serve the SDocs index');
+    });
+
     server.kill();
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testDbPath + '-shm'); } catch (_) {}
+    try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
+    try { fs.unlinkSync(testShortLinksDbPath + '-wal'); } catch (_) {}
+    try { fs.unlinkSync(testShortLinksDbPath + '-shm'); } catch (_) {}
   };
 };

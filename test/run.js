@@ -16,6 +16,7 @@ require('./test-base64')(harness);
 require('./test-files')(harness);
 require('./test-chart-replace')(harness);
 require('./test-analytics')(harness);
+require('./test-short-links')(harness);
 require('./test-chrome')(harness);
 
 // ── HTTP tests (async, starts server) ──────────────
