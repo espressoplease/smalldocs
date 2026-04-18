@@ -7,6 +7,7 @@
  * 50 times = 50 visits.
  */
 const { getDB } = require('./db');
+const shortLinks = require('../short-links/db');
 
 function getRetentionData() {
   var db = getDB();
@@ -67,6 +68,9 @@ function getRetentionData() {
     "SELECT visit_week, COUNT(*) as visits FROM visits GROUP BY visit_week ORDER BY visit_week"
   ).all();
 
+  var shortLinkWeekly = [];
+  try { shortLinkWeekly = shortLinks.getWeeklyCreationCounts(); } catch (e) { /* short_links DB missing */ }
+
   return {
     generated: new Date().toISOString(),
     weeks: weeks,
@@ -75,7 +79,8 @@ function getRetentionData() {
     devices: deviceRows,
     browsers: browserRows,
     sources: sourceRows,
-    volume: volumeRows
+    volume: volumeRows,
+    shortLinks: shortLinkWeekly
   };
 }
 

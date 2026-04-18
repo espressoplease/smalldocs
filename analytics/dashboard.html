@@ -211,6 +211,10 @@
       <h2>Traffic sources</h2>
       <canvas id="chart-sources"></canvas>
     </div>
+    <div class="chart-card">
+      <h2>Short links created</h2>
+      <canvas id="chart-shortlinks"></canvas>
+    </div>
   </div>
 </div>
 
@@ -409,6 +413,20 @@ function renderCharts(data) {
           datasets: [{ data: data.browsers.map(function (d) { return d.count; }), backgroundColor: COLORS.slice(0, data.browsers.length), borderWidth: 0 }]
         },
         options: chartOpts({})
+      });
+    }
+
+    // Short links created — line chart (weekly creation counts)
+    if (data.shortLinks && data.shortLinks.length) {
+      new Chart(document.getElementById('chart-shortlinks'), {
+        type: 'line',
+        data: {
+          labels: data.shortLinks.map(function (v) { return fmtWeek(v.week); }),
+          datasets: [
+            { label: 'Short links', data: data.shortLinks.map(function (v) { return v.count; }), borderColor: COLORS[2], borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 }
+          ]
+        },
+        options: chartOpts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true } } })
       });
     }
 

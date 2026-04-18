@@ -61,6 +61,25 @@ module.exports = function (harness) {
     assert.strictEqual(shortLinks.fetch(id), 'fresh-row');
   });
 
+  test('getWeeklyCreationCounts buckets rows by ISO week', () => {
+    // Fresh in-memory DB so prior inserts do not pollute counts.
+    shortLinks.close();
+    shortLinks.init(':memory:');
+    const db = shortLinks.getDB();
+    const seed = db.prepare('INSERT INTO short_links (id, ciphertext, created_at, last_accessed_at) VALUES (?, ?, ?, ?)');
+    // 2026-04-10 is ISO W15, 2026-04-13 (Mon) is W16, 2026-04-17 (Fri) is W16.
+    seed.run('id1aaaa1', 'ct', '2026-04-10 12:00:00', '2026-04-10 12:00:00');
+    seed.run('id1aaaa2', 'ct', '2026-04-10 23:59:59', '2026-04-10 23:59:59');
+    seed.run('id1aaaa3', 'ct', '2026-04-13 00:00:01', '2026-04-13 00:00:01');
+    seed.run('id1aaaa4', 'ct', '2026-04-17 09:00:00', '2026-04-17 09:00:00');
+
+    const rows = shortLinks.getWeeklyCreationCounts();
+    assert.deepStrictEqual(rows, [
+      { week: '2026-W15', count: 2 },
+      { week: '2026-W16', count: 2 },
+    ]);
+  });
+
   shortLinks.close();
 
   console.log('\n── Short-links: Rate-limit Tests ──────────────\n');

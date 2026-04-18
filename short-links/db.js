@@ -96,6 +96,23 @@ function cleanupExpired(ttlDays) {
   return result.changes;
 }
 
+function getWeeklyCreationCounts() {
+  if (!db) init();
+  const { getISOWeek } = require('../analytics/week');
+  const rows = db.prepare('SELECT created_at FROM short_links').all();
+  const counts = {};
+  for (const r of rows) {
+    // created_at is stored by SQLite as "YYYY-MM-DD HH:MM:SS" in UTC. We only
+    // need the date part. Constructing a local Date from Y/M/D makes the
+    // local components we pass match the UTC components of the string, so
+    // getISOWeek (which reads local components) returns the UTC-correct week.
+    const [y, m, d] = r.created_at.slice(0, 10).split('-').map(Number);
+    const week = getISOWeek(new Date(y, m - 1, d));
+    counts[week] = (counts[week] || 0) + 1;
+  }
+  return Object.keys(counts).sort().map((w) => ({ week: w, count: counts[w] }));
+}
+
 function getDB() {
   if (!db) init();
   return db;
@@ -105,4 +122,4 @@ function close() {
   if (db) { db.close(); db = null; insertStmt = null; fetchStmt = null; touchStmt = null; cleanupStmt = null; }
 }
 
-module.exports = { init, insert, fetch, cleanupExpired, getDB, close };
+module.exports = { init, insert, fetch, cleanupExpired, getWeeklyCreationCounts, getDB, close };
