@@ -325,7 +325,7 @@ function renderFileInfoCard() {
         + '<span class="fic-label">Short URL</span>'
         + '<button class="fic-shorten-button" title="Generate a short link for this document">Generate</button>'
         + '<span class="fic-short-intro-text">'
-        +   'Document encrypted on our server, but decryption key stays with you '
+        +   'Encrypted document on our server, but decryption key stays with you '
         +   '(<a class="fic-short-intro-learn" href="' + SHORT_LINKS_LEARN_URL + '" target="_blank" rel="noopener">learn more</a>)'
         + '</span>'
         + '<span class="fic-shorten-error" hidden></span>'
