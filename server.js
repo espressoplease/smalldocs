@@ -21,20 +21,42 @@ if (_shortLinksCleanupTimer.unref) _shortLinksCleanupTimer.unref();
 
 // Auto-version: hash all non-font files in public/ at startup.
 // Any file change = new hash = clients purge their SW cache.
+// The per-file SHA-256 list (served at /trust/manifest) is built by the same
+// walk so the two can't drift. Walk logic lives in scripts/build-manifest.js
+// and is shared with the GitHub Action that publishes the authoritative list.
+const { walkPublic } = require('./scripts/build-manifest');
+const PUBLIC_ROOT = path.join(__dirname, 'public');
+const { files: trustFiles, buffers: publicBuffers } = walkPublic(PUBLIC_ROOT, { keepBuffers: true });
 const appHash = crypto.createHash('md5');
-(function walkDir(dir) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
-  for (const entry of entries) {
-    if (entry.isDirectory()) {
-      if (entry.name === 'fonts') continue;
-      walkDir(path.join(dir, entry.name));
-    } else {
-      appHash.update(entry.name);
-      appHash.update(fs.readFileSync(path.join(dir, entry.name)));
-    }
-  }
-})(path.join(__dirname, 'public'));
+for (const file of trustFiles) {
+  appHash.update(path.basename(file.path));
+  appHash.update(publicBuffers.get(file.path));
+}
 const APP_VERSION = appHash.digest('hex').slice(0, 10);
+
+// Capture the git commit running on this server. Read once at startup from
+// .git/HEAD so we don't shell out on every request and still work in
+// sandboxed deploys where `git` may not be on PATH.
+function readRunningCommit() {
+  try {
+    const head = fs.readFileSync(path.join(__dirname, '.git', 'HEAD'), 'utf8').trim();
+    if (head.startsWith('ref: ')) {
+      const refPath = head.slice(5).trim();
+      return fs.readFileSync(path.join(__dirname, '.git', refPath), 'utf8').trim();
+    }
+    return head;
+  } catch (_) {
+    return process.env.SDOCS_COMMIT || 'unknown';
+  }
+}
+const RUNNING_COMMIT = readRunningCommit();
+const BUILT_AT = new Date().toISOString();
+const TRUST_MANIFEST = {
+  commit: RUNNING_COMMIT,
+  builtAt: BUILT_AT,
+  repo: 'https://github.com/espressoplease/SDocs',
+  files: trustFiles,
+};
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -209,6 +231,26 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Trust page — always available. Proves the frontend served matches the
+  // commit the server claims to be running. See public/trust.html for copy.
+  if (pathname === '/trust') {
+    serveFile(res, path.join(__dirname, 'public', 'trust.html'), {
+      'Cache-Control': 'no-cache',
+      'X-Sdocs-Commit': RUNNING_COMMIT,
+    });
+    return;
+  }
+
+  if (pathname === '/trust/manifest') {
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      'X-Sdocs-Commit': RUNNING_COMMIT,
+    });
+    res.end(JSON.stringify(TRUST_MANIFEST));
+    return;
+  }
+
   // Analytics dashboard + JSON API — only mounted when ANALYTICS_ENABLED=1
   if (ANALYTICS_ENABLED && pathname === '/analytics') {
     serveFile(res, path.join(__dirname, 'analytics', 'dashboard.html'), { 'Cache-Control': 'no-cache' });
@@ -244,7 +286,7 @@ const server = http.createServer((req, res) => {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
         "img-src 'self' data: https:",
-        "connect-src 'self' https://cdn.jsdelivr.net",
+        "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com",
         "frame-src 'none'",
         "object-src 'none'",
       ].join('; ');
@@ -283,7 +325,7 @@ const server = http.createServer((req, res) => {
       res.end('Forbidden');
       return;
     }
-    serveFile(res, filePath);
+    serveFile(res, filePath, { 'X-Sdocs-Commit': RUNNING_COMMIT });
     return;
   }
 

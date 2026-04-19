@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDocs Trust</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/public/fonts/inter-400.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('/public/fonts/inter-500.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('/public/fonts/inter-600.woff2') format('woff2'); }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #F7F5F2;
+    color: #1C1917;
+    min-height: 100vh;
+  }
+
+  /* Header (same shape as /analytics) */
+  .header {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid #D4CFC9;
+    background: #F7F5F2;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .brand { font-size: 13px; font-weight: 600; color: #2563EB; text-decoration: none; transition: opacity .15s; }
+  .brand:hover { opacity: 0.7; }
+  .brand-full { display: inline; }
+  .brand-short, .brand-tiny { display: none; }
+  .nav-sep { color: #A8A29E; font-size: 12px; }
+  .nav-label { font-size: 12px; color: #57534E; font-weight: 500; }
+  @media (max-width: 600px) { .brand-full { display: none; } .brand-short { display: inline; } }
+  @media (max-width: 366px) { .brand-short { display: none; } .brand-tiny { display: inline; } }
+
+  /* Content column (reading width, like a long markdown doc) */
+  .content { max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 6px; }
+  .subtitle { font-size: 14px; color: #57534E; margin-bottom: 36px; line-height: 1.55; }
+  h2 { font-size: 19px; font-weight: 600; margin: 40px 0 14px; letter-spacing: -0.005em; }
+  h3 { font-size: 15px; font-weight: 600; margin: 28px 0 10px; color: #1C1917; }
+  p { font-size: 15px; line-height: 1.75; color: #1C1917; margin-bottom: 14px; }
+  p + p { margin-top: 0; }
+  a { color: #2563EB; }
+  a:hover { text-decoration: none; }
+  strong { font-weight: 600; }
+  ul { padding-left: 1.5em; margin: 10px 0 18px; }
+  li { font-size: 15px; line-height: 1.7; margin-bottom: 4px; }
+
+  /* Small honest-note paragraph (status callouts, caveats) */
+  .note {
+    font-size: 13px;
+    color: #57534E;
+    font-style: italic;
+    line-height: 1.65;
+    margin: 12px 0 18px;
+    border-left: 2px solid #D4CFC9;
+    padding: 2px 0 2px 12px;
+  }
+
+  /* Pull-quote used for MDN-style external quotes */
+  blockquote {
+    border-left: 3px solid #2563EB;
+    background: #F1EDE8;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 14px;
+    color: #57534E;
+    line-height: 1.7;
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* Code blocks: diagrams + commands */
+  pre, .diagram {
+    font-family: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+    background: #F1EDE8;
+    border: 1px solid #E7E2DB;
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: #1C1917;
+    margin: 12px 0 18px;
+    white-space: pre;
+  }
+  code {
+    font-family: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+    background: #F1EDE8;
+    border: 1px solid #E7E2DB;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 12.5px;
+    color: #1C1917;
+  }
+  pre code { background: none; border: none; padding: 0; font-size: inherit; }
+
+  /* Verification widget */
+  .verify-card {
+    background: #FFFFFF;
+    border: 1px solid #D4CFC9;
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 20px 0 8px;
+  }
+  .verify-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .verify-commit { font-size: 13px; color: #57534E; }
+  .verify-commit strong { color: #1C1917; font-family: ui-monospace, Menlo, monospace; }
+  .verify-commit a { color: #2563EB; font-family: ui-monospace, Menlo, monospace; }
+  .run-btn {
+    background: #2563EB;
+    color: #fff;
+    border: 0;
+    border-radius: 5px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .15s;
+  }
+  .run-btn:hover { background: #1D4ED8; }
+  .run-btn:disabled { opacity: 0.6; cursor: default; }
+  .verify-summary { font-size: 13px; color: #57534E; margin-bottom: 10px; min-height: 18px; }
+  .verify-summary.ok { color: #15803D; }
+  .verify-summary.fail { color: #B91C1C; }
+  .verify-list {
+    font-family: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+    font-size: 12px;
+    background: #FAFAF8;
+    border: 1px solid #E7E2DB;
+    border-radius: 4px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 8px 12px;
+    line-height: 1.7;
+    color: #57534E;
+  }
+  .verify-list .ok { color: #15803D; }
+  .verify-list .fail { color: #B91C1C; font-weight: 600; }
+  .verify-list .pending { color: #A8A29E; }
+
+  /* Deploy log table (dummy data for now) */
+  .table-wrap { overflow-x: auto; margin: 12px 0 8px; }
+  table { border-collapse: collapse; font-size: 12.5px; width: 100%; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #E7E2DB; white-space: nowrap; }
+  th { background: #F1EDE8; color: #57534E; font-weight: 500; border-bottom-color: #D4CFC9; }
+  td { color: #1C1917; }
+  td.mono { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #57534E; }
+  td.mono a { color: #2563EB; }
+  td.status-ok { color: #15803D; }
+  .table-note { font-size: 12px; color: #A8A29E; margin-top: 8px; }
+
+  /* Statusbar (same as /analytics) */
+  .statusbar {
+    height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 14px;
+    border-top: 1px solid #DDD9D3;
+    font-size: 11px;
+    color: #57534E;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #F7F5F2;
+  }
+  .statusbar a { color: #57534E; text-decoration: underline; }
+  .statusbar code { background: #F1EDE8; border: 1px solid #2563EB; border-radius: 3px; padding: 1px 5px; font-size: 10px; color: #2563EB; }
+  .cli-wrap { display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+  .cli-wrap .copy-btn { background: none; border: none; cursor: pointer; color: #2563EB; padding: 0; opacity: 0.5; transition: opacity .15s; }
+  .cli-wrap:hover .copy-btn { opacity: 1; }
+  @media (max-width: 600px) { .statusbar { display: none; } }
+
+  /* Dark theme */
+  @media (prefers-color-scheme: dark) {
+    body { background: #1C1A17; color: #E7E5E2; }
+    .header { background: #1C1A17; border-color: #3D3935; }
+    .brand { color: #3B82F6; }
+    .nav-label { color: #A8A29E; }
+    h1, h2, h3 { color: #E7E5E2; }
+    p, li { color: #E7E5E2; }
+    .subtitle { color: #A8A29E; }
+    blockquote { background: #252320; border-left-color: #3B82F6; color: #A8A29E; }
+    pre, .diagram { background: #252320; border-color: #3D3935; color: #E7E5E2; }
+    code { background: #252320; border-color: #3D3935; color: #E7E5E2; }
+    .verify-card { background: #211F1D; border-color: #3D3935; }
+    .verify-commit { color: #A8A29E; }
+    .verify-commit strong { color: #E7E5E2; }
+    .verify-commit a { color: #3B82F6; }
+    .run-btn { background: #3B82F6; }
+    .run-btn:hover { background: #2563EB; }
+    .verify-summary { color: #A8A29E; }
+    .verify-summary.ok { color: #4ADE80; }
+    .verify-summary.fail { color: #FCA5A5; }
+    .verify-list { background: #1C1A17; border-color: #3D3935; color: #A8A29E; }
+    .verify-list .ok { color: #4ADE80; }
+    .verify-list .fail { color: #FCA5A5; }
+    .verify-list .pending { color: #57534E; }
+    th { background: #252320; color: #A8A29E; border-bottom-color: #3D3935; }
+    td { color: #E7E5E2; border-bottom-color: #3D3935; }
+    td.mono { color: #A8A29E; }
+    td.mono a { color: #3B82F6; }
+    td.status-ok { color: #4ADE80; }
+    .table-note { color: #57534E; }
+    .note { color: #A8A29E; border-left-color: #3D3935; }
+    .statusbar { background: #1C1A17; border-color: #332F2B; color: #A8A29E; }
+    .statusbar a { color: #A8A29E; }
+    .statusbar code { background: #252320; border-color: #3B82F6; color: #3B82F6; }
+    .cli-wrap .copy-btn { color: #3B82F6; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="brand" href="/">
+    <span class="brand-full">SmallDocs</span>
+    <span class="brand-short">SDocs</span>
+    <span class="brand-tiny">SD</span>
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-label">Trust</span>
+</div>
+
+<div class="content">
+
+  <h1>Proving sdocs.dev is running the public code</h1>
+  <p>
+    SDocs renders Markdown files, and the Markdown files we or our agents produce contain some of the most sensitive information we have (about codebases, unresolved bugs, production logs, etc.). For this reason client-side focused privacy (privacy that leave our server as blind as can be) is an essential component of SDocs.</p>
+    <p>In <code>public/sdocs-app.js</code> (which your browser - not our server - compiles and runs) we handle the use of the url fragment for our <a href="https://sdocs.dev/#sec=privacy" target="_blank">100% our client-side default links</a> and the encryption and client-side decryption key isolation for our <a href="https://sdocs.dev/#sec=short-links">short-links</a>. You can use SDocs confidently because all the computation touching the content of your Markdown files is done in your browser and not on our server (i.e. we cannot see the content of your files).</p>
+  <p>
+    SDocs is <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener">open-source</a>, which means anyone can inspect our code to prove it does what we say (another layer of trust). However that leaves one broken link in the chain: Just because our open-source code does what we say, it doesn't mean that the sdocs.dev website is actually serving that same code.</p>
+
+    <p>This page explains how we do our best to prove that it is.
+    </p>
+
+  <h2>How we demonstrate trust</h2>
+
+  <p>
+    Because our client-side (browser run) files are the only ones that touch your sensitive data, the main thing to prove, and only thing we (and you) can prove, is that the files your browser is receiving to serve our website match the publicly available ones in our GitHub repo.</p>
+      <p>Our proof works like this:</p>
+  <ul>
+    <li>Our GitHub repo has a publicly available list of commits for our <code>main</code> branch: <a href="https://github.com/espressoplease/SDocs/commits/main" target="_blank">https://github.com/espressoplease/SDocs/commits/main</a></li>
+    <li>At each commit, the files that make up our code are in a particular state.</li>
+    <li>
+    Any file (or string) can be run through a function called a hash function, which produces a fixed-length string of
+    characters. That string is the file's fingerprint. If the file changes in any way, even a single byte, the fingerprint
+    changes completely. The same file will always produce the same hash.
+
+  <pre>"hello world"   -&gt;  b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
+"hello world!"  -&gt;  7509e5bda0c762d2bac7f90d758b5b2263fa01ccbc542ab5e3df163be08e6ca9
+"hello world"   -&gt;  b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
+</pre>
+    </li>
+    <li>We have a custom GitHub Action (a script which runs on GitHub after a specified action) every time a commit is merged to our main branch. It goes through all of our <code>public</code> files (the files your browser receives when it renders sdocs.dev) and calculates their hashes using the SHA-256 hashing algorithm.</li>
+    <li>This data is saved on an isolated branch in the public SDocs codebase: <a href="https://github.com/espressoplease/SDocs/tree/trust-manifests" target="_blank">https://github.com/espressoplease/SDocs/tree/trust-manifests</a></li>
+    <li>For example, for commit <code>043623163f2bcd6b25eb2ff71f378e716b9552d3</code>, the list of hashes looks like:
+    <pre>{
+  "commit": "043623163f2bcd6b25eb2ff71f378e716b9552d3",
+  "builtAt": "2026-04-19T07:15:35Z",
+  "repo": "https://github.com/espressoplease/SDocs",
+  "files": [
+    {
+      "path": "/brotli_wasm_bg.wasm",
+      "sha256": "9ef0a025046bf7d87b7cdb8eac3f73a5c8fea2f1adb848cc9768345573fcd8a9",
+      "bytes": 1056860
+    },
+    {
+      "path": "/brotli-wasm-v1.js",
+      "sha256": "08b8126c78feff5b7a2a3349bd34fe6359b1829e2c1a59af59c1611e885882ae",
+      "bytes": 14890
+    },
+    ...
+    {
+      "path": "/sdocs-app.js",
+      "sha256": "1a4adf7845f201a51563ca76f127d3b647335d15b39ea4a14583bb7f7e1f4b2a",
+      "bytes": 42229
+    },
+    ...</pre>
+    See the <a href="https://github.com/espressoplease/SDocs/blob/trust-manifests/043623163f2bcd6b25eb2ff71f378e716b9552d3.json" target="_blank">exact list</a>.
+    </li>
+    <li>When you render a page at SDocs we send a custom <code>X-Sdocs-Commit</code> header which says which commit the sdocs.dev server is pointing too. For example, if the sdocs.dev server was pointing to <code>043623163f2bcd6b25eb2ff71f378e716b9552d3</code>, in the request headers section of the inspector you'd see:
+    <pre>
+X-Sdocs-Commit           043623163f2bcd6b25eb2ff71f378e716b9552d3</pre>
+    </li>
+    <li>Every time we deploy to production, and every 10 minutes via <a href="https://github.com/espressoplease/SDocs/actions/workflows/check-sdocs.yml">a different GitHub action</a>, we fetch the current code from sdocs.dev and compare the SHA-256 hashes from the code sdocs.dev returns, with the hashes from the corresponding commit in the public isolated branch discussed above.
+    </br>
+    The final step of this second GitHub action is to update a publicly available JSON file hosted on GitHub with the latest trust status. You can read the latest status here: <a href="https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json" target="_blank">https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json</a>
+    </li>
+    <li>
+      On success, this endpoint returns:
+      <pre>
+{
+  "checkedAt": "2026-04-19T07:03:45.361Z",
+  "base": "https://sdocs.dev",
+  "commit": "043623163f2bcd6b25eb2ff71f378e716b9552d3",
+  "commitShort": "e158bea",
+  "result": "ok",
+  "totalFiles": 28,
+  "matched": 28,
+  "mismatches": [],
+  "manifestUrl": "http://localhost:4099/fake/043623163f2bcd6b25eb2ff71f378e716b9552d3.json"
+}
+      </pre>
+And on failure it returns:
+<pre>
+{
+  "checkedAt": "2026-04-19T08:14:34.140Z",
+  "base": "https://sdocs.dev",
+  "result": "error",
+  "error": "Could not read /trust/manifest from server: HTTP 404 for https://sdocs.dev/trust/manifest"
+}
+</pre>
+    </li>
+    <li>
+      The status returned by this JSON file powers the result and timestamp in the footer. E.g. <code>✓ verified 5m ago</code> would correspond to a successful run five minutes ago.
+    </li>
+  </ul>
+
+  <p>
+    You can also run the check here yourself (this will not update the timestamp):
+  </p>
+  <div class="verify-card">
+    <div class="verify-head">
+      <div class="verify-commit">
+        Running commit: <strong id="commit-sha">loading...</strong>
+        <a id="commit-link" href="#" target="_blank" rel="noopener" style="display:none; margin-left:6px">(view on GitHub &#8599;)</a>
+      </div>
+      <button class="run-btn" id="run-btn">Run verification</button>
+    </div>
+    <div class="verify-summary" id="summary">Ready. Click Run verification to fetch and hash every frontend file in your browser.</div>
+    <div class="verify-list" id="list" style="display:none"></div>
+  </div>
+
+  <p>
+    Or paste this code into the console on a sdoc.dev page rendering one of your Markdown files:
+  </p>
+
+  <pre>(async () =&gt; {
+  const srv = await fetch('/trust/manifest').then(r =&gt; r.json());
+  const url = 'https://raw.githubusercontent.com/espressoplease/SDocs'
+            + '/trust-manifests/' + srv.commit + '.json';
+  const gh  = await fetch(url).then(r =&gt; r.json());
+  const hex = b =&gt; [...new Uint8Array(b)].map(x =&gt; x.toString(16).padStart(2, '0')).join('');
+  let ok = 0, fail = 0;
+  for (const f of gh.files) {
+    const buf  = await fetch('/public' + f.path).then(r =&gt; r.arrayBuffer());
+    const got  = hex(await crypto.subtle.digest('SHA-256', buf));
+    const pass = got === f.sha256;
+    console.log((pass ? '\u2713' : '\u2717') + ' ' + f.path);
+    pass ? ok++ : fail++;
+  }
+  console.log(ok + '/' + (ok + fail) + ' match, commit ' + srv.commit.slice(0, 7));
+})();</pre>
+
+  <p>
+    You will see a tick or a cross logged per frontend file and a final line with the pass count
+    and the short commit hash the server reported. The fetches happen from whichever origin you're
+    currently on, so the script verifies <em>this</em> page's bytes, not the /trust page's.
+  </p>
+
+  <!-- <h2>Verify from your terminal</h2>
+
+  <p>
+    The <code>sdoc</code> CLI ships a subcommand that runs the same check described above, from your machine, without
+    a browser. Useful for scripting or for coding agents that want to confirm the server is in a known state before
+    doing something on your behalf:
+  </p>
+
+  <pre>npm i -g sdocs-dev
+sdoc safe                   # verify files against the published fingerprints
+sdoc safe --json            # machine-readable output (for agents)
+sdoc safe --audit           # also prints links to the server-side source files
+                            # that a human or agent would need to read to audit
+                            # the parts this check cannot prove.</pre>
+
+  <p>
+    The CLI prints the running commit, the pass/fail count, the list of files checked, and direct GitHub URLs for
+    the server-side files (<code>server.js</code>, <code>short-links/db.js</code>,
+    <code>short-links/rate-limit.js</code>) so an auditing agent can read the exact code that handles the parts the
+    browser cannot verify.
+  </p>
+
+  <h2>Check history</h2>
+
+  <p>
+    Every fingerprint list and every check result is kept on the <code>trust-manifests</code> branch of the public
+    repo. That is the closest thing to a tamper-evident log we have: each commit on that branch is either a new
+    fingerprint list (written by publish-manifest.yml) or an updated check result (written by check-sdocs.yml).
+  </p>
+
+  <ul>
+    <li>
+      <a href="https://github.com/espressoplease/SDocs/tree/trust-manifests" target="_blank" rel="noopener">All fingerprint lists and check results</a>
+      (the <code>trust-manifests</code> branch)
+    </li>
+    <li>
+      <a href="https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json" target="_blank" rel="noopener">Latest check result</a>
+      (read by the footer on every sdocs.dev page)
+    </li>
+    <li>
+      <a href="https://github.com/espressoplease/SDocs/commits/trust-manifests" target="_blank" rel="noopener">Commit history</a>
+      of that branch (one commit per publish + one per check update)
+    </li>
+  </ul> -->
+
+</div>
+
+<div class="statusbar">
+  <span style="margin-left:auto; display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
+    <span>100% private (<a href="https://sdocs.dev/#sec=privacy">learn why</a>)</span>
+    &middot; CLI for you &amp; your agents: <span class="cli-wrap" id="cli-wrap" title="Click to copy install command"><code>npm i -g sdocs-dev</code><button class="copy-btn" id="cli-copy-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
+    &middot; <a href="https://github.com/espressoplease/SDocs">GitHub</a>
+  </span>
+</div>
+
+<script>
+(function () {
+  var COPY_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var CHECK_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  var wrap = document.getElementById('cli-wrap');
+  var btn = document.getElementById('cli-copy-btn');
+  if (wrap && btn) wrap.addEventListener('click', function () {
+    navigator.clipboard.writeText('npm i -g sdocs-dev').then(function () {
+      btn.innerHTML = CHECK_ICON;
+      setTimeout(function () { btn.innerHTML = COPY_ICON; }, 1500);
+    });
+  });
+})();
+</script>
+
+<script>
+// ── Verification widget ──────────────────────────────────────
+// Sequence:
+//   1. Ask the server what commit it's running (/trust/manifest, .commit field).
+//      We do NOT trust the file list the server returns; the server authors
+//      both the files and that list.
+//   2. Fetch the authoritative fingerprint list for that commit from GitHub
+//      (raw.githubusercontent.com/.../trust-manifests/<sha>.json). Published
+//      by the publish-manifest.yml Action on every push to main.
+//   3. For each file, fetch it from sdocs.dev, hash it locally with
+//      crypto.subtle.digest('SHA-256', ...), and compare to GitHub's list.
+// Bytes come from sdocs.dev. Fingerprints come from GitHub.
+(function () {
+  var commitEl = document.getElementById('commit-sha');
+  var commitLink = document.getElementById('commit-link');
+  var runBtn = document.getElementById('run-btn');
+  var summary = document.getElementById('summary');
+  var list = document.getElementById('list');
+  var manifest = null;
+
+  var REPO = 'https://github.com/espressoplease/SDocs';
+  var RAW_BASE = 'https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests';
+
+  function shortSha(s) { return s && s.length >= 7 ? s.slice(0, 7) : s; }
+
+  function bufToHex(buf) {
+    var bytes = new Uint8Array(buf);
+    var out = '';
+    for (var i = 0; i < bytes.length; i++) out += bytes[i].toString(16).padStart(2, '0');
+    return out;
+  }
+
+  function setSummary(text, cls) {
+    summary.textContent = text;
+    summary.className = 'verify-summary' + (cls ? ' ' + cls : '');
+  }
+
+  async function loadManifest() {
+    // Step 1: server tells us its commit.
+    var serverMani;
+    try {
+      var r = await fetch('/trust/manifest', { cache: 'no-store' });
+      serverMani = await r.json();
+    } catch (e) {
+      setSummary('Could not read running commit from server: ' + e.message, 'fail');
+      commitEl.textContent = 'unavailable';
+      return;
+    }
+    var commit = serverMani.commit;
+    commitEl.textContent = shortSha(commit);
+    commitEl.title = commit;
+    if (commit && commit !== 'unknown') {
+      commitLink.href = REPO + '/tree/' + commit;
+      commitLink.style.display = 'inline';
+    }
+
+    // Step 2: fetch the authoritative fingerprint list from GitHub.
+    var manifestUrl = RAW_BASE + '/' + commit + '.json';
+    try {
+      var g = await fetch(manifestUrl, { cache: 'no-store' });
+      if (g.status === 404) {
+        setSummary(
+          'No fingerprint list is published on GitHub for commit ' + shortSha(commit) +
+          ' yet. This usually means the publish-manifest Action has not finished running. Try again in a moment.',
+          'fail'
+        );
+        return;
+      }
+      if (!g.ok) throw new Error('HTTP ' + g.status);
+      manifest = await g.json();
+    } catch (e) {
+      setSummary('Could not fetch GitHub fingerprint list: ' + e.message, 'fail');
+      return;
+    }
+    setSummary(
+      'Ready. ' + manifest.files.length +
+      ' file' + (manifest.files.length === 1 ? '' : 's') +
+      ' will be hashed and compared to the list at ' + manifestUrl.replace(RAW_BASE + '/', 'GitHub\u00A0/\u00A0')
+    );
+  }
+
+  function renderRow(file, state) {
+    // state: "pending" | "ok" | "fail" | { class, note }
+    var glyph = state === 'ok' ? '\u2713' : state === 'fail' ? '\u2717' : '\u2026';
+    var cls = state === 'ok' ? 'ok' : state === 'fail' ? 'fail' : 'pending';
+    var note = typeof state === 'object' && state.note ? '  ' + state.note : '';
+    return '<div class="' + cls + '">' + glyph + ' ' + file.path + note + '</div>';
+  }
+
+  async function verifyOne(file) {
+    // Files are listed with paths relative to public/, e.g. /sdocs-app.js.
+    // Over HTTP they're served under /public/..., so prefix here.
+    var url = '/public' + file.path;
+    var res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var buf = await res.arrayBuffer();
+    var digest = await crypto.subtle.digest('SHA-256', buf);
+    var hex = bufToHex(digest);
+    return hex === file.sha256;
+  }
+
+  async function runVerification() {
+    if (!manifest) { setSummary('Fingerprint list not loaded yet.', 'fail'); return; }
+    runBtn.disabled = true;
+    setSummary('Verifying ' + manifest.files.length + ' files...');
+    list.style.display = 'block';
+    list.innerHTML = manifest.files.map(function (f) { return renderRow(f, 'pending'); }).join('');
+
+    var rows = [];
+    var ok = 0, fail = 0;
+    for (var i = 0; i < manifest.files.length; i++) {
+      var file = manifest.files[i];
+      try {
+        var match = await verifyOne(file);
+        rows[i] = renderRow(file, match ? 'ok' : 'fail');
+        if (match) ok++; else fail++;
+      } catch (e) {
+        rows[i] = renderRow(file, { note: '  (' + e.message + ')' }).replace('pending', 'fail').replace('\u2026', '\u2717');
+        fail++;
+      }
+      list.innerHTML = rows.concat(manifest.files.slice(i + 1).map(function (f) { return renderRow(f, 'pending'); })).join('');
+    }
+
+    runBtn.disabled = false;
+    if (fail === 0) {
+      setSummary(
+        'All ' + ok + ' files match the list GitHub published for this commit. ' +
+        'Bytes came from sdocs.dev; fingerprints came from GitHub. The server cannot produce a match it did not already publish to GitHub.',
+        'ok'
+      );
+    } else {
+      setSummary(fail + ' file(s) did not match the list GitHub published for this commit. See the list below.', 'fail');
+    }
+  }
+
+  runBtn.addEventListener('click', runVerification);
+  loadManifest();
+})();
+</script>
+
+</body>
+</html>

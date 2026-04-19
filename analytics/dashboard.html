@@ -54,39 +54,68 @@
   /* ── Content ── */
   .content {
     padding: 32px 24px;
+    max-width: 100%;
+  }
+  @media (max-width: 480px) {
+    .content { padding: 20px 14px; }
   }
   h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
   .subtitle { font-size: 13px; color: #57534E; margin-bottom: 24px; }
   .subtitle a { color: #57534E; }
 
   /* ── Table ── */
-  .table-wrap { overflow-x: auto; }
-  table { border-collapse: collapse; font-size: 12px; }
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid #D4CFC9;
+    border-radius: 8px;
+    background: #FAFAF8;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 24px;
+    pointer-events: none;
+    background: linear-gradient(to right, rgba(250,250,248,0), #FAFAF8);
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .table-wrap.has-overflow::after { opacity: 1; }
+  .table-wrap.scrolled-end::after { opacity: 0; }
+  table { border-collapse: collapse; font-size: 12px; width: 100%; }
   th, td { padding: 6px 10px; text-align: center; border: 1px solid #D4CFC9; white-space: nowrap; }
   th { background: #EDE8E2; color: #57534E; font-weight: 500; }
   th.row-header { text-align: left; }
   td.row-header { text-align: left; font-weight: 500; color: #1C1917; background: #F1EDE8; }
   td.size { color: #57534E; background: #F4F1ED; }
   td.empty { background: #FAFAF8; border-color: #E7E2DB; }
-  .loading { color: #A8A29E; font-size: 13px; }
-  .error { color: #ef4444; font-size: 13px; }
+  .loading { color: #A8A29E; font-size: 13px; padding: 16px; }
+  .error { color: #ef4444; font-size: 13px; padding: 16px; }
 
   /* ── Charts ── */
   .charts-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 20px;
     margin-top: 32px;
   }
-  @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) { .charts-grid { grid-template-columns: minmax(0, 1fr); } }
   .chart-card {
     background: #F1EDE8;
     border: 1px solid #D4CFC9;
     border-radius: 8px;
     padding: 16px;
+    min-width: 0;
   }
   .chart-card h2 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #57534E; }
-  .chart-card canvas { max-height: 220px; }
+  .chart-holder {
+    position: relative;
+    width: 100%;
+    height: 220px;
+  }
+  .chart-card canvas { max-width: 100%; }
 
   /* ── Opt-out panel ── */
   .cohort-panel {
@@ -163,6 +192,8 @@
     td.row-header { color: #E7E5E2; background: #211F1D; }
     td.size { color: #A8A29E; background: #252320; }
     td.empty { background: #1C1A17; border-color: #332F2B; }
+    .table-wrap { border-color: #3D3935; background: #1C1A17; }
+    .table-wrap::after { background: linear-gradient(to right, rgba(28,26,23,0), #1C1A17); }
     .cohort-panel { background: #252320; border-color: #3D3935; color: #A8A29E; }
     .cohort-panel strong { color: #E7E5E2; }
     .cohort-panel button { background: #1C1A17; border-color: #3D3935; color: #E7E5E2; }
@@ -197,19 +228,19 @@
   <div class="charts-grid" id="charts-grid" style="display:none">
     <div class="chart-card">
       <h2>Weekly visits</h2>
-      <canvas id="chart-volume"></canvas>
+      <div class="chart-holder"><canvas id="chart-volume"></canvas></div>
     </div>
     <div class="chart-card">
       <h2>Devices</h2>
-      <canvas id="chart-devices"></canvas>
+      <div class="chart-holder"><canvas id="chart-devices"></canvas></div>
     </div>
     <div class="chart-card">
       <h2>Browsers</h2>
-      <canvas id="chart-browsers"></canvas>
+      <div class="chart-holder"><canvas id="chart-browsers"></canvas></div>
     </div>
     <div class="chart-card">
       <h2>Traffic sources</h2>
-      <canvas id="chart-sources"></canvas>
+      <div class="chart-holder"><canvas id="chart-sources"></canvas></div>
     </div>
     <div class="chart-card">
       <h2>Short links created</h2>
@@ -221,6 +252,7 @@
 <div class="statusbar">
   <span style="margin-left:auto; display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
     <span>100% private (<a href="https://sdocs.dev/#sec=privacy">learn why</a>)</span>
+    · <span data-trust-status><a href="/trust" target="_blank" rel="noopener">Open source &middot; verify server</a></span>
     · CLI for you &amp; your agents: <span class="cli-wrap" id="cli-wrap" title="Click to copy install command"><code>npm i -g sdocs-dev</code><button class="copy-btn" id="cli-copy-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
     · <a href="https://github.com/espressoplease/SDocs">GitHub</a>
   </span>
@@ -354,7 +386,18 @@ function renderTable(data) {
   }
 
   html += '</tbody></table>';
-  document.getElementById('container').innerHTML = html;
+  var wrap = document.getElementById('container');
+  wrap.innerHTML = html;
+  updateOverflow(wrap);
+  wrap.addEventListener('scroll', function () { updateOverflow(wrap); });
+  window.addEventListener('resize', function () { updateOverflow(wrap); });
+}
+
+function updateOverflow(el) {
+  var hasOverflow = el.scrollWidth > el.clientWidth + 1;
+  el.classList.toggle('has-overflow', hasOverflow);
+  var atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+  el.classList.toggle('scrolled-end', atEnd);
 }
 
 var COLORS = ['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16'];
@@ -364,7 +407,7 @@ var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
 
 function chartOpts(opts) {
   return Object.assign({
-    responsive: true, maintainAspectRatio: true, animation: false,
+    responsive: true, maintainAspectRatio: false, animation: false,
     plugins: {
       legend: { display: opts.legend !== false, position: 'bottom', labels: { color: textColor, usePointStyle: true, padding: 10, font: { size: 11 } } },
       datalabels: { display: false }
@@ -445,5 +488,6 @@ function renderCharts(data) {
   document.head.appendChild(s);
 }
 </script>
+<script src="/public/sdocs-trust-footer.js" defer></script>
 </body>
 </html>

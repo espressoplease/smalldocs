@@ -248,6 +248,9 @@ USAGE
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
   sdoc setup                       Wire SDocs into your coding agents
+  sdoc safe                        Verify the SDocs server is running the published code
+  sdoc safe --json                 Same, machine-readable (for agents)
+  sdoc safe --audit                Same, plus GitHub links to server-side source files
   sdoc help                        Show this help
   cat file.md | sdoc               Pipe markdown from stdin
   cat file.md | sdoc share         Pipe to clipboard link
@@ -281,6 +284,20 @@ FILE INFO CARD
   user can copy, and \`sdoc share <file>\` never includes them in
   the generated link. If someone opens your shared URL, only
   \`file\` is visible.
+
+VERIFYING THE SERVER (sdoc safe)
+  \`sdoc safe\` asks https://sdocs.dev what commit it is running, pulls the
+  authoritative fingerprint list for that commit from GitHub (published by the
+  publish-manifest workflow on every push to main), downloads every frontend
+  file from the host, hashes each one with SHA-256, and compares. Bytes come
+  from the host; fingerprints come from GitHub. The host cannot produce a
+  match it did not already publish to GitHub.
+
+  It does not prove anything about server-side code (that runs on a machine
+  we control). \`sdoc safe --audit\` prints GitHub links to the server files
+  an agent or human would need to read to audit the rest.
+
+  \`sdoc safe --json\` returns structured output for scripting.
 
 STYLED MARKDOWN FORMAT
   SDocs extends standard .md files with an optional YAML
@@ -754,9 +771,201 @@ async function buildShortUrl(content, opts) {
 
 var slugify = require('../public/sdocs-slugify').slugify;
 
+// ── sdoc safe: verify frontend hashes + point agents at the server source ──
+//
+// 1. Asks the SDocs host what commit it is running (/trust/manifest, .commit).
+// 2. Fetches the authoritative fingerprint list for that commit from GitHub
+//    (raw.githubusercontent.com/.../trust-manifests/<sha>.json), published on
+//    every push to main by .github/workflows/publish-manifest.yml.
+// 3. Downloads each file from the host, hashes it with SHA-256, compares to
+//    GitHub's list.
+// Bytes come from the host. Fingerprints come from GitHub. The host cannot
+// produce a match it did not already publish to GitHub.
+//
+// Server-side code (request handling, storage) still cannot be verified by
+// hashing. With --audit, the command prints direct GitHub links to the files
+// an agent should read to review that part.
+
+// Server-side files that a curious human or agent needs to read to audit
+// what `sdoc safe` cannot prove by hashing. Kept small on purpose: these
+// are the only files that touch server-side request handling.
+const AUDIT_SOURCE_FILES = [
+  'server.js',
+  'short-links/db.js',
+  'short-links/rate-limit.js',
+  'analytics/db.js',
+  'analytics/query.js',
+];
+
+const TRUST_RAW_BASE = 'https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests';
+
+function fetchJson(url) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const mod = u.protocol === 'https:' ? https : http;
+    mod.get(u, { timeout: 8000 }, (res) => {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        reject(new Error('HTTP ' + res.statusCode + ' for ' + url));
+        res.resume();
+        return;
+      }
+      let body = '';
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); } catch (e) { reject(new Error('invalid JSON from ' + url)); }
+      });
+    }).on('error', reject).on('timeout', function () { this.destroy(new Error('timeout')); });
+  });
+}
+
+function fetchBuffer(url) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const mod = u.protocol === 'https:' ? https : http;
+    mod.get(u, { timeout: 15000 }, (res) => {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        reject(new Error('HTTP ' + res.statusCode));
+        res.resume();
+        return;
+      }
+      const chunks = [];
+      res.on('data', (c) => { chunks.push(c); });
+      res.on('end', () => { resolve(Buffer.concat(chunks)); });
+    }).on('error', reject).on('timeout', function () { this.destroy(new Error('timeout')); });
+  });
+}
+
+async function runSafe(opts) {
+  const base = (opts.url || process.env.SDOCS_URL || DEFAULT_URL).replace(/\/$/, '');
+  const jsonOut = !!opts.jsonFlag;
+  const audit = !!opts.auditFlag;
+  const rawBase = (opts.rawBase || process.env.SDOCS_TRUST_RAW || TRUST_RAW_BASE).replace(/\/$/, '');
+
+  // Step 1: learn the commit the host reports.
+  let serverReport;
+  try {
+    serverReport = await fetchJson(base + '/trust/manifest');
+  } catch (e) {
+    if (jsonOut) { console.log(JSON.stringify({ ok: false, error: 'server_fetch_failed', message: e.message })); }
+    else { console.error('sdoc safe: could not fetch ' + base + '/trust/manifest - ' + e.message); }
+    process.exit(2);
+  }
+  const commit = serverReport.commit;
+  if (!commit || commit === 'unknown') {
+    if (jsonOut) { console.log(JSON.stringify({ ok: false, error: 'no_commit_reported' })); }
+    else { console.error('sdoc safe: host did not report a commit.'); }
+    process.exit(2);
+  }
+
+  // Step 2: pull the authoritative fingerprint list from GitHub for that commit.
+  const manifestUrl = rawBase + '/' + commit + '.json';
+  let manifest;
+  try {
+    manifest = await fetchJson(manifestUrl);
+  } catch (e) {
+    const pending = /HTTP 404/.test(e.message);
+    if (jsonOut) {
+      console.log(JSON.stringify({
+        ok: false,
+        error: pending ? 'manifest_not_yet_published' : 'manifest_fetch_failed',
+        host: base, commit, manifestUrl, message: e.message,
+      }));
+    } else if (pending) {
+      console.error('sdoc safe: no fingerprint list published on GitHub for commit ' + commit.slice(0, 7) + ' yet.');
+      console.error('           (publish-manifest.yml runs on push to main; give it a minute.)');
+      console.error('           looked for: ' + manifestUrl);
+    } else {
+      console.error('sdoc safe: could not fetch ' + manifestUrl + ' - ' + e.message);
+    }
+    process.exit(pending ? 2 : 3);
+  }
+
+  if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
+    if (jsonOut) { console.log(JSON.stringify({ ok: false, error: 'manifest_has_no_files', manifestUrl })); }
+    else { console.error('sdoc safe: GitHub manifest at ' + manifestUrl + ' has no files array.'); }
+    process.exit(3);
+  }
+
+  // Step 3: hash files from the host, compare to GitHub's list.
+  const results = [];
+  let ok = 0, fail = 0;
+  for (const file of manifest.files) {
+    const fileUrl = base + '/public' + file.path;
+    try {
+      const buf = await fetchBuffer(fileUrl);
+      const got = crypto.createHash('sha256').update(buf).digest('hex');
+      const match = got === file.sha256;
+      results.push({ path: file.path, bytes: file.bytes, expected: file.sha256, got, match });
+      if (match) ok++; else fail++;
+    } catch (e) {
+      results.push({ path: file.path, bytes: file.bytes, expected: file.sha256, error: e.message, match: false });
+      fail++;
+    }
+  }
+
+  const repo = manifest.repo || 'https://github.com/espressoplease/SDocs';
+  const auditLinks = audit ? AUDIT_SOURCE_FILES.map(f => ({
+    file: f,
+    url: repo + '/blob/' + commit + '/' + f,
+  })) : null;
+
+  if (jsonOut) {
+    console.log(JSON.stringify({
+      ok: fail === 0,
+      host: base,
+      commit,
+      builtAt: manifest.builtAt,
+      manifestUrl,
+      totals: { ok, fail, total: results.length },
+      files: results,
+      audit: auditLinks,
+      unverified: {
+        note: 'Server-side code (request handling, storage) cannot be verified by hashing. Read the source files listed under audit to review what a malicious operator could theoretically modify.',
+        files: AUDIT_SOURCE_FILES,
+      },
+    }, null, 2));
+  } else {
+    console.log('');
+    console.log('  sdoc safe - verifying ' + base);
+    console.log('  commit    ' + commit);
+    console.log('  built at  ' + (manifest.builtAt || '?'));
+    console.log('  tree      ' + repo + '/tree/' + commit);
+    console.log('  list      ' + manifestUrl);
+    console.log('');
+    for (const r of results) {
+      const glyph = r.match ? '\u2713' : '\u2717';
+      const line = '  ' + glyph + ' ' + r.path.padEnd(32) + ' ' + (r.match ? 'match' : (r.error || 'MISMATCH'));
+      console.log(line);
+    }
+    console.log('');
+    if (fail === 0) {
+      console.log('  \u2713 ' + ok + ' / ' + results.length + ' files match the list GitHub published for this commit.');
+      console.log('    Bytes came from this host; fingerprints came from GitHub.');
+    } else {
+      console.log('  \u2717 ' + fail + ' / ' + results.length + ' files FAILED to match GitHub\'s list for this commit.');
+      console.log('    The host is serving different bytes than GitHub published for ' + commit.slice(0, 7) + '.');
+    }
+    console.log('');
+    console.log('  What this does not prove:');
+    console.log('    Server-side request handling cannot be verified by hashing alone.');
+    console.log('    The only way to audit it is to read the source. Start here:');
+    console.log('');
+    for (const f of AUDIT_SOURCE_FILES) {
+      console.log('    ' + repo + '/blob/' + commit + '/' + f);
+    }
+    console.log('');
+    if (!audit) {
+      console.log('  Re-run with --audit for machine-readable audit pointers, or --json for full output.');
+      console.log('');
+    }
+  }
+
+  process.exit(fail === 0 ? 0 : 1);
+}
+
 // ── Parse args ────────────────────────────────────────────
 
-const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts', 'setup']);
+const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts', 'setup', 'safe']);
 
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
@@ -768,6 +977,8 @@ function parseArgs(argv) {
   let theme = null;
   let resetFlag = false;
   let shortFlag = false;
+  let jsonFlag = false;
+  let auditFlag = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -806,6 +1017,12 @@ function parseArgs(argv) {
     // --short flag (share subcommand only): encrypt + upload, return /s/... URL
     if (arg === '--short') { shortFlag = true; continue; }
 
+    // --json flag (safe subcommand): machine-readable output
+    if (arg === '--json') { jsonFlag = true; continue; }
+
+    // --audit flag (safe subcommand): also print server-side source audit links
+    if (arg === '--audit') { auditFlag = true; continue; }
+
     // Positional: check for subcommand first, then file
     if (!subcommand && SUBCOMMANDS.has(arg)) {
       subcommand = arg;
@@ -815,7 +1032,7 @@ function parseArgs(argv) {
     if (!file) { file = arg; continue; }
   }
 
-  return { file, mode, url, subcommand, section, theme, resetFlag, shortFlag };
+  return { file, mode, url, subcommand, section, theme, resetFlag, shortFlag, jsonFlag, auditFlag };
 }
 
 // ── Build URL ─────────────────────────────────────────────
@@ -990,6 +1207,7 @@ if (require.main === module) {
     if (opts.subcommand === 'schema') { console.log(SCHEMA); process.exit(0); }
     if (opts.subcommand === 'charts') { console.log(CHARTS_HELP); process.exit(0); }
     if (opts.subcommand === 'setup')  { await runSetup({ force: true }); process.exit(0); }
+    if (opts.subcommand === 'safe')   { await runSafe(opts); return; }
     if (opts.subcommand === 'defaults') {
       if (opts.resetFlag) resetDefaults();
       else showDefaults();
