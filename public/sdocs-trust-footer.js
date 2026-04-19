@@ -2,14 +2,15 @@
 // GitHub and shows how fresh it is. Fetched from raw.githubusercontent.com
 // (not sdocs.dev), so a compromised server cannot forge a green state.
 //
-// Looks for a `[data-trust-status]` element and replaces its inner HTML with
-// one of:
-//   Open source · ✓ verified 12m ago
-//   Open source · ⚠ check 3h ago
-//   Open source · ⚠ pending
-//   Open source · ✗ mismatch
-// Whole thing is wrapped in a link to /trust. Falls back silently on any
-// fetch / CORS / parse error, leaving whatever static HTML was there.
+// Looks for a `[data-trust-status]` element and replaces its contents with
+// the literal prefix "Open source: " followed by a link to /trust whose text
+// is one of:
+//   ✓ verified 12m ago
+//   ⚠ check 3h ago
+//   ⚠ pending
+//   ✗ mismatch
+// Falls back silently on any fetch / CORS / parse error, leaving whatever
+// static HTML was there.
 (function () {
   var URL_CHECK = 'https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json';
   var CACHE_KEY = 'sdocs.trust.lastCheck.v1';
@@ -49,17 +50,19 @@
       glyph = '\u26A0'; label = 'check failed';
     }
 
-    // Re-render as a single link preserving the existing inline styles.
+    // Reuse existing <a> (so inline styles on the static fallback survive)
+    // and ensure the span reads: "Open source: " <a>status</a>
     var a = el.querySelector('a') || document.createElement('a');
     a.href = '/trust';
     a.target = '_blank';
     a.rel = 'noopener';
-    a.textContent = 'Open source \u00B7 ' + glyph + ' ' + label;
+    a.textContent = glyph + ' ' + label;
     a.title = 'commit ' + (result.commit ? result.commit.slice(0, 7) : '?') +
               (Number.isFinite(checkedAt) ? ' - checked ' + new Date(checkedAt).toISOString() : '') +
               '\nSource: ' + URL_CHECK;
-    if (!a.parentNode) el.appendChild(a);
-    else if (el.firstChild !== a) el.innerHTML = '', el.appendChild(a);
+    while (el.firstChild) el.removeChild(el.firstChild);
+    el.appendChild(document.createTextNode('Open source: '));
+    el.appendChild(a);
   }
 
   function readCache() {
