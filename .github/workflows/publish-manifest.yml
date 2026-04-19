@@ -1,0 +1,88 @@
+# Publishes a per-commit SHA-256 fingerprint list for everything under public/.
+#
+# The list lives on an orphan branch `trust-manifests` so it never mixes with
+# code history. After this runs, the authoritative fingerprints for commit
+# <sha> are at:
+#
+#   https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/<sha>.json
+#
+# Why on GitHub, not on sdocs.dev: the server authors both the files and the
+# hashes, so a malicious server could trivially forge a matching pair. Hosting
+# the hashes on GitHub means a client comparing them to bytes received from the
+# server can detect tampering.
+
+name: Publish trust manifest
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-manifest
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source at triggering commit
+        uses: actions/checkout@v4
+        with:
+          path: src
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build manifest
+        working-directory: src
+        run: |
+          node scripts/build-manifest.js \
+            --commit "$GITHUB_SHA" \
+            --repo "https://github.com/${GITHUB_REPOSITORY}" \
+            --builtAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            > "$RUNNER_TEMP/manifest.json"
+          echo "Built manifest:"
+          head -c 400 "$RUNNER_TEMP/manifest.json"
+          echo
+
+      - name: Check out trust-manifests branch (create orphan if missing)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+        run: |
+          set -euo pipefail
+          if git clone --branch trust-manifests --single-branch --depth 1 "$REPO_URL" manifests 2>/dev/null; then
+            echo "trust-manifests branch exists; using existing."
+          else
+            echo "trust-manifests branch does not exist; initializing orphan."
+            mkdir manifests
+            cd manifests
+            git init -q -b trust-manifests
+            git remote add origin "$REPO_URL"
+          fi
+
+      - name: Write manifest files
+        run: |
+          set -euo pipefail
+          cp "$RUNNER_TEMP/manifest.json" "manifests/${GITHUB_SHA}.json"
+          cp "$RUNNER_TEMP/manifest.json" "manifests/latest.json"
+
+      - name: Commit and push
+        working-directory: manifests
+        run: |
+          set -euo pipefail
+          git config user.name  "sdocs-trust-bot"
+          git config user.email "sdocs-trust-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No manifest change for ${GITHUB_SHA}; nothing to commit."
+            exit 0
+          fi
+          git commit -m "Manifest for ${GITHUB_SHA:0:7}"
+          git push origin HEAD:trust-manifests
