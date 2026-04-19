@@ -54,7 +54,8 @@
   /* ── Content ── */
   .content {
     padding: 32px 24px;
-    max-width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
   }
   @media (max-width: 480px) {
     .content { padding: 20px 14px; }
@@ -84,8 +85,9 @@
   }
   .table-wrap.has-overflow::after { opacity: 1; }
   .table-wrap.scrolled-end::after { opacity: 0; }
-  table { border-collapse: collapse; font-size: 12px; width: 100%; }
-  th, td { padding: 6px 10px; text-align: center; border: 1px solid #D4CFC9; white-space: nowrap; }
+  table { border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 6px 10px; text-align: center; border: 1px solid #D4CFC9; white-space: nowrap; max-width: 140px; }
+  th.row-header, td.row-header { max-width: 200px; }
   th { background: #EDE8E2; color: #57534E; font-weight: 500; }
   th.row-header { text-align: left; }
   td.row-header { text-align: left; font-weight: 500; color: #1C1917; background: #F1EDE8; }
@@ -244,7 +246,7 @@
     </div>
     <div class="chart-card">
       <h2>Short links created</h2>
-      <canvas id="chart-shortlinks"></canvas>
+      <div class="chart-holder"><canvas id="chart-shortlinks"></canvas></div>
     </div>
   </div>
 </div>
