@@ -1,0 +1,79 @@
+# Runs from a GitHub-hosted runner (not our server): fetches sdocs.dev, hashes
+# what it receives, compares to the manifest published by publish-manifest.yml,
+# and writes the result back to the orphan `trust-manifests` branch so the
+# footer on sdocs.dev can read it.
+#
+# The "last check" timestamp shown on sdocs.dev therefore comes from GitHub,
+# not from our server. A compromised server cannot forge it.
+
+name: Check sdocs.dev matches published manifest
+
+on:
+  schedule:
+    # Every 10 minutes. GH Actions cron runs at best-effort, actual cadence may
+    # drift to every 10-15 min under load.
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish trust manifest"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: check-sdocs
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          path: src
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run check
+        working-directory: src
+        run: |
+          set +e
+          node scripts/check-sdocs.js \
+            --base https://sdocs.dev \
+            --out "$RUNNER_TEMP/latest.json"
+          echo "exit=$?"
+          cat "$RUNNER_TEMP/latest.json"
+
+      - name: Check out trust-manifests branch
+        env:
+          REPO_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+        run: |
+          set -euo pipefail
+          if git clone --branch trust-manifests --single-branch --depth 1 "$REPO_URL" manifests 2>/dev/null; then
+            echo "trust-manifests branch exists."
+          else
+            echo "trust-manifests branch missing; publish-manifest.yml has not run yet."
+            exit 0
+          fi
+
+      - name: Write and push result
+        working-directory: manifests
+        run: |
+          set -euo pipefail
+          mkdir -p checks
+          cp "$RUNNER_TEMP/latest.json" checks/latest.json
+          git config user.name  "sdocs-trust-bot"
+          git config user.email "sdocs-trust-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No change in check result."
+            exit 0
+          fi
+          TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          git commit -m "Check sdocs.dev at ${TS}"
+          git push origin HEAD:trust-manifests
