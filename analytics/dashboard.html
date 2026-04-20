@@ -223,30 +223,34 @@
 
 <div class="content">
   <h1>Visits by weekly cohort</h1>
-  <p class="subtitle">Each row is a cohort — visitors who first came the same week. Cells are the number of <strong>page-load visits</strong> that cohort generated each week. We don't track unique users; one person revisiting many times counts as many visits. <a href="https://sdocs.dev/#sec=analytics">How this works</a></p>
+  <p class="subtitle">Each row is a cohort — visitors who first came the same week. Cells are the number of <strong>page-load visits</strong> that cohort generated each week. We don't track unique users; one person revisiting many times counts as many visits. Weeks begin Monday (UTC, ISO 8601), applied to both the cohort table and the charts below. <a href="https://sdocs.dev/#sec=analytics">How this works</a></p>
   <div id="cohort-panel" class="cohort-panel" style="display:none"></div>
   <div id="container" class="table-wrap"><p class="loading">Loading...</p></div>
 
   <div class="charts-grid" id="charts-grid" style="display:none">
-    <div class="chart-card">
+    <div class="chart-card" id="card-volume" style="display:none">
       <h2>Weekly visits</h2>
       <div class="chart-holder"><canvas id="chart-volume"></canvas></div>
     </div>
-    <div class="chart-card">
+    <div class="chart-card" id="card-devices" style="display:none">
       <h2>Devices</h2>
       <div class="chart-holder"><canvas id="chart-devices"></canvas></div>
     </div>
-    <div class="chart-card">
+    <div class="chart-card" id="card-browsers" style="display:none">
       <h2>Browsers</h2>
       <div class="chart-holder"><canvas id="chart-browsers"></canvas></div>
     </div>
-    <div class="chart-card">
+    <div class="chart-card" id="card-sources" style="display:none">
       <h2>Traffic sources</h2>
       <div class="chart-holder"><canvas id="chart-sources"></canvas></div>
     </div>
-    <div class="chart-card">
+    <div class="chart-card" id="card-shortlinks" style="display:none">
       <h2>Short links created</h2>
       <div class="chart-holder"><canvas id="chart-shortlinks"></canvas></div>
+    </div>
+    <div class="chart-card" id="card-stars" style="display:none">
+      <h2>GitHub stars (<a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener" style="color:inherit">repo</a>)</h2>
+      <div class="chart-holder"><canvas id="chart-stars"></canvas></div>
     </div>
   </div>
 </div>
@@ -330,8 +334,11 @@ fetch('/analytics/data')
   .then(function (r) { return r.json(); })
   .then(function (data) {
     if (data.error) { document.getElementById('container').innerHTML = '<p class="error">' + data.error + '</p>'; return; }
-    if (!data.cohorts || !data.cohorts.length) { document.getElementById('container').innerHTML = '<p class="loading">No data yet.</p>'; return; }
-    renderTable(data);
+    if (!data.cohorts || !data.cohorts.length) {
+      document.getElementById('container').innerHTML = '<p class="loading">No cohort data yet.</p>';
+    } else {
+      renderTable(data);
+    }
     renderCharts(data);
   })
   .catch(function (e) { document.getElementById('container').innerHTML = '<p class="error">Failed to load: ' + e.message + '</p>'; });
@@ -425,6 +432,7 @@ function renderCharts(data) {
 
     // Weekly volume — line chart
     if (data.volume && data.volume.length) {
+      document.getElementById('card-volume').style.display = '';
       new Chart(document.getElementById('chart-volume'), {
         type: 'line',
         data: {
@@ -439,6 +447,7 @@ function renderCharts(data) {
 
     // Devices — doughnut
     if (data.devices && data.devices.length) {
+      document.getElementById('card-devices').style.display = '';
       new Chart(document.getElementById('chart-devices'), {
         type: 'doughnut',
         data: {
@@ -451,6 +460,7 @@ function renderCharts(data) {
 
     // Browsers — doughnut
     if (data.browsers && data.browsers.length) {
+      document.getElementById('card-browsers').style.display = '';
       new Chart(document.getElementById('chart-browsers'), {
         type: 'doughnut',
         data: {
@@ -461,8 +471,24 @@ function renderCharts(data) {
       });
     }
 
+    // GitHub stars — cumulative line chart
+    if (data.stars && data.stars.length) {
+      document.getElementById('card-stars').style.display = '';
+      new Chart(document.getElementById('chart-stars'), {
+        type: 'line',
+        data: {
+          labels: data.stars.map(function (v) { return fmtWeek(v.week); }),
+          datasets: [
+            { label: 'Stars', data: data.stars.map(function (v) { return v.stars; }), borderColor: COLORS[3], borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 }
+          ]
+        },
+        options: chartOpts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true } } })
+      });
+    }
+
     // Short links created — line chart (weekly creation counts)
     if (data.shortLinks && data.shortLinks.length) {
+      document.getElementById('card-shortlinks').style.display = '';
       new Chart(document.getElementById('chart-shortlinks'), {
         type: 'line',
         data: {
@@ -477,6 +503,7 @@ function renderCharts(data) {
 
     // Sources — horizontal bar
     if (data.sources && data.sources.length) {
+      document.getElementById('card-sources').style.display = '';
       new Chart(document.getElementById('chart-sources'), {
         type: 'bar',
         data: {

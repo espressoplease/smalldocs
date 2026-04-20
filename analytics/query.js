@@ -8,6 +8,7 @@
  */
 const { getDB } = require('./db');
 const shortLinks = require('../short-links/db');
+const githubStars = require('./github-stars');
 
 function getRetentionData() {
   var db = getDB();
@@ -71,6 +72,9 @@ function getRetentionData() {
   var shortLinkWeekly = [];
   try { shortLinkWeekly = shortLinks.getWeeklyCreationCounts(); } catch (e) { /* short_links DB missing */ }
 
+  var stars = [];
+  try { stars = githubStars.getWeeklyStars(); } catch (e) { /* network unavailable */ }
+
   return {
     generated: new Date().toISOString(),
     weeks: weeks,
@@ -80,7 +84,8 @@ function getRetentionData() {
     browsers: browserRows,
     sources: sourceRows,
     volume: volumeRows,
-    shortLinks: shortLinkWeekly
+    shortLinks: shortLinkWeekly,
+    stars: stars
   };
 }
 
