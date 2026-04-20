@@ -133,18 +133,16 @@
 
 <header>
   <h1>shape playground</h1>
-  <label for="aspect">aspect</label>
-  <select id="aspect">
-    <option value="16:9">16:9</option>
-    <option value="4:3">4:3</option>
-    <option value="1:1">1:1</option>
-  </select>
+  <span id="grid-info" style="color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace;"></span>
   <div class="spacer"></div>
   <span id="shape-count" style="color: var(--muted); font-size: 12px;"></span>
 </header>
 
 <section id="left">
   <textarea id="dsl" spellcheck="false" autocomplete="off" autocorrect="off">// Shape playground — live preview on the right.
+// First line declares the coordinate grid: `grid W H`.
+// Aspect ratio = W/H. All shape coords live in this grid.
+//
 // Primitives:
 //   r x y w h                rectangle
 //   c <pt> r                 circle (pt = cx cy  or  @id[.anchor])
@@ -157,18 +155,20 @@
 // Attributes: fill=#fff stroke=#000 strokeWidth=0.2 radius=1 color=#000
 // #id attaches an identifier; | separates geometry from content.
 
-r 4 4 92 14 #title fill=#0f172a color=#fff | # Title bar
-r 6 24 40 28 #left  | Column one
-r 54 24 40 28 #right | Column two
+grid 160 90
 
-// Arrow between the two columns, pointing edge-to-edge
-a @left.right @right.left stroke=#475569 strokeWidth=0.25
+r 6 6 148 14 #title fill=#0f172a color=#fff | # Title bar
+r 10 28 66 48 #left  | Column one
+r 84 28 66 48 #right | Column two
+
+// Arrow between the two columns, edge-to-edge
+a @left.right @right.left stroke=#475569 strokeWidth=0.3
 
 // Circle anchored at the title bar's right edge
-c @title.right 2.5 fill=#f59e0b
+c @title.right 3 fill=#f59e0b
 
 // Polygon using a ref for one vertex
-p 10,78 90,78 ~ @title.bottom fill=#fde68a stroke=#b45309 strokeWidth=0.2
+p 20,82 140,82 ~ @title.bottom fill=#fde68a stroke=#b45309 strokeWidth=0.3
 </textarea>
   <div id="errors"></div>
 </section>
@@ -187,17 +187,11 @@ p 10,78 90,78 ~ @title.bottom fill=#fde68a stroke=#b45309 strokeWidth=0.2
   var stage = document.getElementById('stage');
   var dsl = document.getElementById('dsl');
   var errorsEl = document.getElementById('errors');
-  var aspectSel = document.getElementById('aspect');
+  var gridInfo = document.getElementById('grid-info');
   var countEl = document.getElementById('shape-count');
 
-  var ASPECTS = { '16:9': { w: 100, h: 56.25 }, '4:3': { w: 100, h: 75 }, '1:1': { w: 100, h: 100 } };
-  var canvas = ASPECTS['16:9'];
-
-  function setAspect(value) {
-    canvas = ASPECTS[value] || ASPECTS['16:9'];
-    stage.style.aspectRatio = canvas.w + ' / ' + canvas.h;
-    render();
-  }
+  // Current grid read from the DSL (or default). Updated every render.
+  var canvas = { w: 100, h: 56.25 };
 
   function pct(v, axis) { return (v / canvas[axis] * 100) + '%'; }
 
@@ -340,6 +334,11 @@ p 10,78 90,78 ~ @title.bottom fill=#fde68a stroke=#b45309 strokeWidth=0.2
     var resolved = window.SDocShapes.resolve(parsed.shapes);
     var result = { shapes: resolved.shapes, errors: parsed.errors.concat(resolved.errors) };
 
+    // Sync canvas with grid declared in the DSL (or default).
+    canvas = parsed.grid;
+    stage.style.aspectRatio = canvas.w + ' / ' + canvas.h;
+    gridInfo.textContent = 'grid ' + canvas.w + ' × ' + canvas.h;
+
     // Clear stage
     stage.innerHTML = '';
     var svg = document.createElementNS(SVG_NS, 'svg');
@@ -385,10 +384,8 @@ p 10,78 90,78 ~ @title.bottom fill=#fde68a stroke=#b45309 strokeWidth=0.2
     countEl.textContent = result.shapes.length + ' shape' + (result.shapes.length === 1 ? '' : 's');
   }
 
-  aspectSel.addEventListener('change', function () { setAspect(aspectSel.value); });
   dsl.addEventListener('input', render);
-
-  setAspect('16:9');
+  render();
 })();
 </script>
 </body>

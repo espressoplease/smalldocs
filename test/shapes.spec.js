@@ -33,8 +33,9 @@ test.describe('shape playground', () => {
     await expect(page.locator('#stage .shape-svg')).toBeAttached();
   });
 
-  test('default aspect is 16:9', async ({ page }) => {
+  test('default aspect is 16:9 (empty DSL → default grid)', async ({ page }) => {
     await gotoPlayground(page);
+    await setDSL(page, '');
     const box = await stageBox(page);
     const ratio = box.width / box.height;
     // 16:9 = 1.777...
@@ -42,14 +43,38 @@ test.describe('shape playground', () => {
     expect(ratio).toBeLessThan(1.78);
   });
 
-  test('aspect selector switches to 4:3', async ({ page }) => {
+  test('grid line in DSL drives stage aspect', async ({ page }) => {
     await gotoPlayground(page);
-    await page.selectOption('#aspect', '4:3');
+    await setDSL(page, 'grid 100 75\nr 0 0 50 50');
     const box = await stageBox(page);
     const ratio = box.width / box.height;
     // 4:3 = 1.333...
     expect(ratio).toBeGreaterThan(1.32);
     expect(ratio).toBeLessThan(1.34);
+  });
+
+  test('grid info shown in header reflects DSL', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 160 90\nr 0 0 10 10');
+    await expect(page.locator('#grid-info')).toHaveText('grid 160 × 90');
+  });
+
+  test('big grid (400 × 225) still maps coords correctly', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 400 225\nr 0 0 400 225');
+    const stage = await stageBox(page);
+    const rect = await page.locator('#stage .shape-rect').first().boundingBox();
+    // Full-width rect should match stage size
+    expect(rect.width).toBeCloseTo(stage.width, 0);
+    expect(rect.height).toBeCloseTo(stage.height, 0);
+  });
+
+  test('invalid grid surfaces error and falls back to default', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 100\nr 0 0 10 10');
+    await expect(page.locator('#errors')).toContainText('expected "grid W H"');
+    // Still renders shape on default grid
+    await expect(page.locator('#stage .shape-rect')).toHaveCount(1);
   });
 
   test('rectangle filling full canvas matches stage dimensions', async ({ page }) => {
