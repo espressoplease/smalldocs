@@ -7,7 +7,7 @@ const SDocShapes = require(path.join(__dirname, '..', 'public', 'sdocs-shapes.js
 
 module.exports = function(harness) {
   const { assert, test } = harness;
-  const { parse, resolve, parseAndResolve, anchorPoint, bboxOf, serialize } = SDocShapes;
+  const { parse, resolve, parseAndResolve, anchorPoint, bboxOf, contentBox, serialize } = SDocShapes;
 
   console.log('\n── Shape DSL Tests ────────────────────────────\n');
 
@@ -647,5 +647,43 @@ module.exports = function(harness) {
     const { shapes, grid } = parse('r 0 0 10 10');
     const s = serialize(shapes, grid);
     assert.ok(!s.includes('grid'), 'default grid should not appear in output');
+  });
+
+  // ── contentBox: text area for each shape kind ────────
+
+  test('contentBox: rectangle returns full rect', () => {
+    const b = contentBox({ kind: 'r', x: 10, y: 20, w: 30, h: 40 });
+    assert.deepStrictEqual(b, { x: 10, y: 20, w: 30, h: 40 });
+  });
+
+  test('contentBox: circle returns inscribed square (side = r * √2)', () => {
+    const b = contentBox({ kind: 'c', cx: 50, cy: 50, r: 10 });
+    const side = 10 * Math.SQRT2;
+    assert.ok(Math.abs(b.w - side) < 1e-9);
+    assert.ok(Math.abs(b.h - side) < 1e-9);
+    assert.ok(Math.abs(b.x - (50 - side / 2)) < 1e-9);
+    assert.ok(Math.abs(b.y - (50 - side / 2)) < 1e-9);
+  });
+
+  test('contentBox: ellipse returns inscribed rectangle', () => {
+    const b = contentBox({ kind: 'e', cx: 50, cy: 25, rx: 20, ry: 10 });
+    const w = 20 * Math.SQRT2, h = 10 * Math.SQRT2;
+    assert.ok(Math.abs(b.w - w) < 1e-9);
+    assert.ok(Math.abs(b.h - h) < 1e-9);
+  });
+
+  test('contentBox: polygon returns its bounding box', () => {
+    const b = contentBox({ kind: 'p', points: [
+      { x: 10, y: 10 }, { x: 90, y: 20 }, { x: 50, y: 80 },
+    ]});
+    assert.deepStrictEqual(b, { x: 10, y: 10, w: 80, h: 70 });
+  });
+
+  test('contentBox: line returns null (decorative)', () => {
+    assert.strictEqual(contentBox({ kind: 'l', x1: 0, y1: 0, x2: 10, y2: 10 }), null);
+  });
+
+  test('contentBox: arrow returns null (decorative)', () => {
+    assert.strictEqual(contentBox({ kind: 'a', x1: 0, y1: 0, x2: 10, y2: 10 }), null);
   });
 };
