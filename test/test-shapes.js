@@ -560,4 +560,92 @@ module.exports = function(harness) {
     assert.ok(s1.includes('@a '), 's1 should keep bare @a: ' + s1);
     assert.ok(!s1.includes('@a.center'), 's1 should drop .center: ' + s1);
   });
+
+  // ── grid statement ───────────────────────────────────
+
+  test('grid: default when absent is 100 × 56.25', () => {
+    const { grid } = parse('r 0 0 10 10');
+    assert.deepStrictEqual(grid, { w: 100, h: 56.25 });
+  });
+
+  test('grid: empty input also returns default grid', () => {
+    const { grid } = parse('');
+    assert.deepStrictEqual(grid, { w: 100, h: 56.25 });
+  });
+
+  test('grid: parsed as first line', () => {
+    const { grid, errors } = parse('grid 160 90\nr 0 0 10 10');
+    assert.strictEqual(errors.length, 0);
+    assert.deepStrictEqual(grid, { w: 160, h: 90 });
+  });
+
+  test('grid: allowed after blank lines and comments', () => {
+    const { grid, errors } = parse('\n// header\n\ngrid 200 100\nr 0 0 10 10');
+    assert.strictEqual(errors.length, 0);
+    assert.deepStrictEqual(grid, { w: 200, h: 100 });
+  });
+
+  test('grid: floating-point dims', () => {
+    const { grid } = parse('grid 100 56.25');
+    assert.deepStrictEqual(grid, { w: 100, h: 56.25 });
+  });
+
+  test('grid: error when declared after a shape', () => {
+    const { grid, errors } = parse('r 0 0 10 10\ngrid 160 90');
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0].message, /before any shapes/);
+    assert.deepStrictEqual(grid, { w: 100, h: 56.25 });
+  });
+
+  test('grid: error when declared twice', () => {
+    const { grid, errors } = parse('grid 160 90\ngrid 200 100');
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0].message, /more than once/);
+    // First grid wins
+    assert.deepStrictEqual(grid, { w: 160, h: 90 });
+  });
+
+  test('grid: error on missing H', () => {
+    const { errors } = parse('grid 160');
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0].message, /expected "grid W H"/);
+  });
+
+  test('grid: error on extra tokens', () => {
+    const { errors } = parse('grid 160 90 extra');
+    assert.match(errors[0].message, /expected "grid W H"/);
+  });
+
+  test('grid: error on non-numeric', () => {
+    const { errors } = parse('grid abc 90');
+    assert.match(errors[0].message, /Expected number/);
+  });
+
+  test('grid: error on non-positive dims', () => {
+    const { errors } = parse('grid 100 0');
+    assert.match(errors[0].message, /positive/);
+  });
+
+  test('grid: shape coords in big grid work unchanged', () => {
+    const { shapes, grid } = parse('grid 400 225\nr 100 50 200 125');
+    assert.deepStrictEqual(grid, { w: 400, h: 225 });
+    assert.strictEqual(shapes[0].x, 100);
+    assert.strictEqual(shapes[0].w, 200);
+  });
+
+  test('grid: roundtrip via serialize preserves non-default grid', () => {
+    const src = 'grid 160 90\nr 10 10 30 30';
+    const p1 = parse(src);
+    const s1 = serialize(p1.shapes, p1.grid);
+    assert.ok(s1.startsWith('grid 160 90'));
+    const p2 = parse(s1);
+    assert.deepStrictEqual(p2.grid, p1.grid);
+    assert.deepStrictEqual(p2.shapes, p1.shapes);
+  });
+
+  test('grid: default grid omitted from serialized output', () => {
+    const { shapes, grid } = parse('r 0 0 10 10');
+    const s = serialize(shapes, grid);
+    assert.ok(!s.includes('grid'), 'default grid should not appear in output');
+  });
 };
