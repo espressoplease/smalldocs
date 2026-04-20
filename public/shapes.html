@@ -117,11 +117,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Small fixed padding keeps text off the edges without dominating height.
-       Proper auto-fit (padding as % of shape bounds) is a Phase 3 concern. */
-    padding: 0.25em 0.5em;
+    text-align: center;
     overflow: hidden;
     font-size: 14px;
+    line-height: 1.2;
+  }
+  .shape-text {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    pointer-events: none;
+    color: var(--shape-text);
     line-height: 1.2;
   }
   .shape-rect > * { margin: 0; }
@@ -153,16 +162,20 @@
 
 grid 100 56.25
 
-// Three rectangles stacked vertically.
-// Each is 8 tall, with a 2-unit gap between them.
-//   box1: y 6  → 14
-//   gap:  y 14 → 16   (2 units)
-//   box2: y 16 → 24
-//   gap:  y 24 → 26   (2 units)
-//   box3: y 26 → 34
-r 30 6  40 8 fill=#2563eb color=#fff | Box 1
-r 30 16 40 8 fill=#7c3aed color=#fff | Box 2
-r 30 26 40 8 fill=#059669 color=#fff | Box 3
+// A title bar
+r 4 4 92 8 #title fill=#0f172a color=#fff | Shapes with text + auto-fit
+
+// Rectangles of different sizes — auto-fit makes all labels fit
+r 6 18 18 12 fill=#2563eb color=#fff | Small box
+r 28 18 28 12 fill=#7c3aed color=#fff | Medium box with a longer label
+r 60 18 34 12 fill=#059669 color=#fff | Large box with even more text
+
+// A circle and an ellipse, each with text inside
+c 20 44 6 fill=#f59e0b color=#0f172a | Hi
+e 50 44 10 6 fill=#ef4444 color=#fff | Ellipse
+
+// A polygon with text in its bounding box
+p 72,38 92,38 92,50 82,54 72,50 fill=#fde68a stroke=#b45309 strokeWidth=0.2 color=#0f172a | Polygon
 </textarea>
   <div id="errors"></div>
 </section>
@@ -304,6 +317,51 @@ r 30 26 40 8 fill=#059669 color=#fff | Box 3
     return el;
   }
 
+  // Overlay a text div at the shape's content box. Used for c/e/p (non-rect
+  // shapes with content). Rectangles render their own text inline.
+  function renderTextOverlay(s) {
+    var box = window.SDocShapes.contentBox(s);
+    if (!box) return null;
+    var el = document.createElement('div');
+    el.className = 'shape-text';
+    el.style.left = pct(box.x, 'w');
+    el.style.top = pct(box.y, 'h');
+    el.style.width = pct(box.w, 'w');
+    el.style.height = pct(box.h, 'h');
+    if (s.attrs.color) el.style.color = s.attrs.color;
+    el.textContent = s.content;
+    if (s.id) el.dataset.id = s.id + '-text';
+    return el;
+  }
+
+  // Binary-search the largest font-size that keeps text inside the element.
+  function autoFitText(el, minPx, maxPx) {
+    var text = (el.textContent || '').trim();
+    if (!text) return;
+    if (el.dataset.autofit === 'off') return;
+    var cap = Math.max(minPx, Math.floor(maxPx));
+    var lo = minPx, hi = cap, best = minPx;
+    while (lo <= hi) {
+      var mid = Math.floor((lo + hi) / 2);
+      el.style.fontSize = mid + 'px';
+      var fits = el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight;
+      if (fits) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
+    }
+    el.style.fontSize = best + 'px';
+  }
+
+  function applyAutoFit() {
+    var els = stage.querySelectorAll('.shape-rect, .shape-text');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      // Allow explicit font=Npx via attrs (opt out of autofit)
+      if (el.dataset.autofit === 'off') continue;
+      var h = el.clientHeight;
+      if (h <= 0) continue;
+      autoFitText(el, 8, h);
+    }
+  }
+
   function buildArrowheadDefs(color) {
     var defs = document.createElementNS(SVG_NS, 'defs');
     var marker = document.createElementNS(SVG_NS, 'marker');
@@ -347,12 +405,24 @@ r 30 26 40 8 fill=#059669 color=#fff | Box 3
     for (var i = 0; i < result.shapes.length; i++) {
       var s = result.shapes[i];
       try {
-        if (s.kind === 'r') stage.appendChild(renderRect(s));
-        else if (s.kind === 'c') svg.appendChild(renderCircle(s));
-        else if (s.kind === 'e') svg.appendChild(renderEllipse(s));
-        else if (s.kind === 'l') svg.appendChild(renderLine(s));
-        else if (s.kind === 'a') svg.appendChild(renderArrow(s, defsNeeded));
-        else if (s.kind === 'p') svg.appendChild(renderPolygon(s));
+        if (s.kind === 'r') {
+          stage.appendChild(renderRect(s));
+        } else if (s.kind === 'c') {
+          svg.appendChild(renderCircle(s));
+          if (s.content) stage.appendChild(renderTextOverlay(s));
+        } else if (s.kind === 'e') {
+          svg.appendChild(renderEllipse(s));
+          if (s.content) stage.appendChild(renderTextOverlay(s));
+        } else if (s.kind === 'l') {
+          svg.appendChild(renderLine(s));
+          // lines are decorative — any content is ignored
+        } else if (s.kind === 'a') {
+          svg.appendChild(renderArrow(s, defsNeeded));
+          // arrows are decorative — any content is ignored
+        } else if (s.kind === 'p') {
+          svg.appendChild(renderPolygon(s));
+          if (s.content) stage.appendChild(renderTextOverlay(s));
+        }
       } catch (e) {
         result.errors.push({ line: s.lineNumber, message: 'render: ' + e.message, source: '' });
       }
@@ -361,6 +431,10 @@ r 30 26 40 8 fill=#059669 color=#fff | Box 3
     if (defsNeeded.arrowhead) {
       svg.insertBefore(buildArrowheadDefs(defsNeeded.arrowheadColor), svg.firstChild);
     }
+
+    // Auto-fit text for every text-bearing element. Defer one frame so the
+    // browser has laid the DOM out and scrollWidth/clientHeight are reliable.
+    requestAnimationFrame(applyAutoFit);
 
     // Errors
     errorsEl.innerHTML = '';

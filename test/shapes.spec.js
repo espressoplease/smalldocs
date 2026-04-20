@@ -318,6 +318,84 @@ test.describe('shape playground', () => {
     expect(d).toMatch(/^M 10 10/);
   });
 
+  // ── Phase 3: text in non-rect shapes + auto-fit ─────
+
+  test('circle with content renders a text overlay', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'c 50 28 10 | Hello');
+    await expect(page.locator('#stage .shape-text')).toHaveCount(1);
+    await expect(page.locator('#stage .shape-text')).toContainText('Hello');
+  });
+
+  test('ellipse with content renders a text overlay', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'e 50 28 20 10 | Ellipse');
+    await expect(page.locator('#stage .shape-text')).toContainText('Ellipse');
+  });
+
+  test('polygon with content renders a text overlay', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'p 10,10 90,10 90,40 10,40 | Polygon');
+    await expect(page.locator('#stage .shape-text')).toContainText('Polygon');
+  });
+
+  test('line with content does NOT render text (decorative)', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'l 10 10 90 10 | Should not appear');
+    await expect(page.locator('#stage .shape-text')).toHaveCount(0);
+  });
+
+  test('arrow with content does NOT render text (decorative)', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'a 10 10 90 10 | Should not appear');
+    await expect(page.locator('#stage .shape-text')).toHaveCount(0);
+  });
+
+  test('auto-fit produces smaller font for same text in smaller shape', async ({ page }) => {
+    await gotoPlayground(page);
+    // Two shapes, same text, different sizes. Smaller shape must get smaller font.
+    await setDSL(page, [
+      'grid 100 56.25',
+      'r 0 0 50 25 #big   | The quick brown fox jumps over the lazy dog',
+      'r 60 0 20 10 #small | The quick brown fox jumps over the lazy dog',
+    ].join('\n'));
+    await page.waitForTimeout(50);
+    const sizes = await page.evaluate(() => {
+      const get = id => parseFloat(getComputedStyle(document.querySelector(`[data-id="${id}"]`)).fontSize);
+      return { big: get('big'), small: get('small') };
+    });
+    expect(sizes.small).toBeLessThan(sizes.big);
+    expect(sizes.small).toBeGreaterThanOrEqual(8);
+  });
+
+  test('auto-fit grows font for short text in large shape', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'grid 100 56.25',
+      'r 0 0 100 56.25 | Hi',
+    ].join('\n'));
+    await page.waitForTimeout(50);
+    const size = await page.locator('#stage .shape-rect').evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+    // On our default Playwright viewport the stage is ~796px wide; a single
+    // "Hi" glyph should comfortably auto-fit well above the 14px baseline.
+    expect(size).toBeGreaterThan(30);
+  });
+
+  test('auto-fit text does not overflow its element', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'grid 100 56.25',
+      'r 10 10 40 20 | Quite a bit of text in a medium-sized rectangle',
+    ].join('\n'));
+    await page.waitForTimeout(50);
+    const overflow = await page.locator('#stage .shape-rect').evaluate(el => ({
+      scrollW: el.scrollWidth, clientW: el.clientWidth,
+      scrollH: el.scrollHeight, clientH: el.clientHeight,
+    }));
+    expect(overflow.scrollW).toBeLessThanOrEqual(overflow.clientW + 1);
+    expect(overflow.scrollH).toBeLessThanOrEqual(overflow.clientH + 1);
+  });
+
   test('chain resolution: arrow from shape anchored to another', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, [
