@@ -117,10 +117,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8%;
+    /* Small fixed padding keeps text off the edges without dominating height.
+       Proper auto-fit (padding as % of shape bounds) is a Phase 3 concern. */
+    padding: 0.25em 0.5em;
     overflow: hidden;
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.2;
   }
   .shape-rect > * { margin: 0; }
   .shape-svg {
@@ -143,57 +145,31 @@
 </header>
 
 <section id="left">
-  <textarea id="dsl" spellcheck="false" autocomplete="off" autocorrect="off">// Shape playground — live preview on the right.
-// First line sets the coordinate grid. Aspect ratio = W/H.
+  <textarea id="dsl" spellcheck="false" autocomplete="off" autocorrect="off">// Shape playground. First line sets the grid (W × H). Aspect = W / H.
 //   r x y w h           rectangle       c <pt> r        circle
 //   e <pt> rx ry        ellipse         l <pt> <pt>     line
 //   a <pt> <pt>         arrow           p <pt> ...      polygon (~ = curved)
-// Refs: @id[.anchor] where anchor ∈ center|top|bottom|left|right|topleft|...
+// Refs: @id[.anchor]   anchor ∈ center | top | bottom | left | right | topleft | ...
 
-grid 400 225
+grid 100 56.25
 
-// ── Header bar ───────────────────────────────────────
-r 0 0 400 24 #bar fill=#0f172a color=#fff | # System architecture
+// A title bar across the top
+r 4 4 92 10 #title fill=#0f172a color=#fff | Title
 
-// ── Left column: three service tiles ─────────────────
-r 18 40 84 34 #web    fill=#2563eb color=#fff | Web
-r 18 84 84 34 #api    fill=#7c3aed color=#fff | API
-r 18 128 84 34 #worker fill=#059669 color=#fff | Worker
+// Two boxes with an arrow between them
+r 10 24 30 20 #a fill=#2563eb color=#fff | Box A
+r 60 24 30 20 #b fill=#059669 color=#fff | Box B
+a @a.right @b.left stroke=#475569 strokeWidth=0.25
 
-// Green/orange status dots clinging to each tile's corner
-c @web.topright    2.5 fill=#22c55e
-c @api.topright    2.5 fill=#22c55e
-c @worker.topright 2.5 fill=#f97316
+// A circle and an ellipse
+c 50 40 4 fill=#f59e0b
+e 20 50 6 3 fill=#ef4444 stroke=none
 
-// ── Middle: queue and cache ──────────────────────────
-r 150 54 96 52 #queue fill=#f59e0b color=#0f172a | Queue
-r 150 126 96 52 #cache fill=#dc2626 color=#fff | Cache
+// A line at the bottom
+l 10 54 90 54 stroke=#94a3b8 strokeWidth=0.2
 
-// ── Right: database (ellipse) + label ────────────────
-e 336 84 48 24 #db fill=#1e293b stroke=#94a3b8 strokeWidth=0.5
-r 308 118 56 16 #dblabel fill=#f1f5f9 color=#1e293b | Primary DB
-
-// ── Flow arrows: services → queue/cache → db ─────────
-a @web.right    @queue.left stroke=#64748b strokeWidth=0.4
-a @api.right    @queue.left stroke=#64748b strokeWidth=0.4
-a @worker.right @cache.left stroke=#64748b strokeWidth=0.4
-a @queue.right  @db.left    stroke=#64748b strokeWidth=0.4
-a @cache.right  @db.left    stroke=#64748b strokeWidth=0.4
-
-// ── Bottom-left: "Users" cloud (curved polygon) ──────
-p 24,184 90,184 ~ 104,195 ~ 98,208 ~ 30,208 ~ 18,196 ~ 24,184 fill=#e0e7ff stroke=#6366f1 strokeWidth=0.4
-r 30 188 64 18 #userlbl fill=transparent color=#3730a3 shadow=none radius=0 | Users
-
-// Arrow from the users cloud up to the web tile
-a @userlbl.right @web.bottomleft stroke=#6366f1 strokeWidth=0.5
-
-// ── Decorative divider along the bottom ──────────────
-l 20 220 380 220 stroke=#cbd5e1 strokeWidth=0.3
-
-// ── A couple of extra ellipses to show scale ─────────
-e 260 196 22 10 fill=#fef3c7 stroke=#d97706 strokeWidth=0.3
-e 305 196 22 10 fill=#dcfce7 stroke=#16a34a strokeWidth=0.3
-e 350 196 22 10 fill=#fee2e2 stroke=#b91c1c strokeWidth=0.3
+// A polygon with one curved segment
+p 72,48 92,48 ~ 82,54 fill=#fde68a stroke=#b45309 strokeWidth=0.2
 </textarea>
   <div id="errors"></div>
 </section>
