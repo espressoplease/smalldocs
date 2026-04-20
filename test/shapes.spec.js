@@ -228,7 +228,7 @@ test.describe('shape playground', () => {
   test('content after | renders as text inside rectangle', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, 'r 10 10 80 30 | Hello world');
-    await expect(page.locator('#stage .shape-rect')).toContainText('Hello world');
+    await expect(page.locator('#stage .shape-rect .shape-md .inner').first()).toContainText('Hello world');
   });
 
   test('fill attribute applies to rectangle', async ({ page }) => {
@@ -324,7 +324,7 @@ test.describe('shape playground', () => {
     await gotoPlayground(page);
     await setDSL(page, 'c 50 28 10 | Hello');
     await expect(page.locator('#stage .shape-text')).toHaveCount(1);
-    await expect(page.locator('#stage .shape-text')).toContainText('Hello');
+    await expect(page.locator('#stage .shape-text .shape-md .inner').first()).toContainText('Hello');
   });
 
   test('ellipse with content renders a text overlay', async ({ page }) => {
