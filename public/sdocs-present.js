@@ -55,18 +55,19 @@ var CSS = [
   '  background: #ffffff; border-radius: 6px;',
   '  box-shadow: 0 30px 80px rgba(0, 0, 0, .6);',
   '}',
+  '.sdoc-present-controls {',
+  '  position: absolute; bottom: 14px; right: 20px;',
+  '  display: flex; align-items: center; gap: 12px;',
+  '  font-family: ui-monospace, Menlo, monospace; font-size: 12px;',
+  '}',
+  '.sdoc-present-counter { color: #8a8580; }',
   '.sdoc-present-close {',
-  '  position: absolute; top: 16px; right: 20px;',
-  '  all: unset; cursor: pointer; padding: 6px 10px;',
-  '  color: #d6d3d1; font-size: 14px; border-radius: 4px;',
+  '  all: unset; cursor: pointer; padding: 4px 10px;',
+  '  color: #d6d3d1; font-size: 12px; border-radius: 4px;',
   '  background: rgba(255, 255, 255, .06);',
+  '  font-family: ui-monospace, Menlo, monospace;',
   '}',
   '.sdoc-present-close:hover { background: rgba(255, 255, 255, .12); }',
-  '.sdoc-present-counter {',
-  '  position: absolute; bottom: 16px; right: 20px;',
-  '  font-family: ui-monospace, Menlo, monospace;',
-  '  font-size: 12px; color: #8a8580;',
-  '}',
   '@media (max-width: 720px) {',
   '  .sdoc-present { grid-template-columns: 1fr; }',
   '  .sdoc-present-rail { display: none; }',
@@ -228,20 +229,25 @@ function open(startIndex) {
   var wrap = document.createElement('div');
   wrap.className = 'sdoc-present-stage-wrap';
 
+  var stage = document.createElement('div');
+  wrap.appendChild(stage);
+
+  var controls = document.createElement('div');
+  controls.className = 'sdoc-present-controls';
+
+  var counter = document.createElement('div');
+  counter.className = 'sdoc-present-counter';
+  controls.appendChild(counter);
+
   var close = document.createElement('button');
   close.className = 'sdoc-present-close';
   close.type = 'button';
   close.setAttribute('aria-label', 'Exit presentation (Esc)');
   close.textContent = 'Close ×';
   close.addEventListener('click', function () { closePresent(); });
-  wrap.appendChild(close);
+  controls.appendChild(close);
 
-  var stage = document.createElement('div');
-  wrap.appendChild(stage);
-
-  var counter = document.createElement('div');
-  counter.className = 'sdoc-present-counter';
-  wrap.appendChild(counter);
+  wrap.appendChild(controls);
 
   modal.appendChild(wrap);
   document.body.appendChild(modal);
