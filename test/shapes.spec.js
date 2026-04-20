@@ -381,6 +381,38 @@ test.describe('shape playground', () => {
     expect(size).toBeGreaterThan(30);
   });
 
+  test('auto-fit text stays bounded after viewport resize (cqh-based font)', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'grid 100 56.25',
+      'r 10 10 40 20 | Medium amount of text in a rectangle',
+    ].join('\n'));
+    await page.waitForTimeout(50);
+    // Grab the initial font-size unit and fitted pixel size.
+    const initial = await page.locator('#stage .shape-rect').evaluate(el => ({
+      inlineFs: el.style.fontSize,
+      computedFs: parseFloat(getComputedStyle(el).fontSize),
+      scrollW: el.scrollWidth, clientW: el.clientWidth,
+      scrollH: el.scrollHeight, clientH: el.clientHeight,
+    }));
+    // Font should be written in cqh so it tracks stage size.
+    expect(initial.inlineFs).toMatch(/cqh$/);
+    expect(initial.scrollW).toBeLessThanOrEqual(initial.clientW + 1);
+    expect(initial.scrollH).toBeLessThanOrEqual(initial.clientH + 1);
+
+    // Shrink the viewport and verify the text is still bounded.
+    await page.setViewportSize({ width: 700, height: 420 });
+    await page.waitForTimeout(50);
+    const after = await page.locator('#stage .shape-rect').evaluate(el => ({
+      computedFs: parseFloat(getComputedStyle(el).fontSize),
+      scrollW: el.scrollWidth, clientW: el.clientWidth,
+      scrollH: el.scrollHeight, clientH: el.clientHeight,
+    }));
+    expect(after.computedFs).toBeLessThan(initial.computedFs);  // font shrank with stage
+    expect(after.scrollW).toBeLessThanOrEqual(after.clientW + 1);
+    expect(after.scrollH).toBeLessThanOrEqual(after.clientH + 1);
+  });
+
   test('auto-fit text does not overflow its element', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, [
