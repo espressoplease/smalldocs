@@ -59,6 +59,33 @@ test.describe('shape playground', () => {
     await expect(page.locator('#grid-info')).toHaveText('grid 160 × 90');
   });
 
+  test('stage preserves aspect ratio under a short viewport', async ({ page }) => {
+    // Viewport short enough that max-height would have clamped the old CSS.
+    await page.setViewportSize({ width: 800, height: 400 });
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 400 225\nr 0 0 400 225');
+    const box = await stageBox(page);
+    const ratio = box.width / box.height;
+    // 400/225 = 1.777...
+    expect(ratio).toBeGreaterThan(1.77);
+    expect(ratio).toBeLessThan(1.78);
+    // Full-width rect should still span the full stage
+    const rect = await page.locator('#stage .shape-rect').first().boundingBox();
+    expect(rect.width).toBeCloseTo(box.width, 0);
+    expect(rect.height).toBeCloseTo(box.height, 0);
+  });
+
+  test('stage preserves aspect ratio under a tall narrow viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 1400 });
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 100 75\nr 0 0 100 75');
+    const box = await stageBox(page);
+    const ratio = box.width / box.height;
+    // 100/75 = 1.333...
+    expect(ratio).toBeGreaterThan(1.32);
+    expect(ratio).toBeLessThan(1.34);
+  });
+
   test('big grid (400 × 225) still maps coords correctly', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, 'grid 400 225\nr 0 0 400 225');
