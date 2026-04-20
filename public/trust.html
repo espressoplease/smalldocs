@@ -427,9 +427,11 @@ sdoc safe --audit           # also prints links to the server-side source files
 
 <div class="statusbar">
   <span style="margin-left:auto; display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
-    <span>100% private (<a href="https://sdocs.dev/#sec=privacy">learn why</a>)</span>
+    <span>100% private (<a href="https://sdocs.dev/#sec=privacy" target="_blank" rel="noopener">learn why</a>)</span>
+    &middot; <span data-trust-status>Open source: <a href="/trust" target="_blank" rel="noopener">verify server</a></span>
     &middot; CLI for you &amp; your agents: <span class="cli-wrap" id="cli-wrap" title="Click to copy install command"><code>npm i -g sdocs-dev</code><button class="copy-btn" id="cli-copy-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
-    &middot; <a href="https://github.com/espressoplease/SDocs">GitHub</a>
+    &middot; <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener">GitHub</a>
+    &middot; <span>You agree to our <a href="/legal" target="_blank" rel="noopener">Terms</a></span>
   </span>
 </div>
 
@@ -587,6 +589,8 @@ sdoc safe --audit           # also prints links to the server-side source files
   loadManifest();
 })();
 </script>
+
+<script src="/public/sdocs-trust-footer.js" defer></script>
 
 </body>
 </html>
