@@ -15,12 +15,12 @@ var SVG_NS = 'http://www.w3.org/2000/svg';
 
 // One-shot CSS injection so shape containers render correctly in any host page.
 var CSS_ID = 'sdocs-shape-render-css';
-// Rules that override whatever host-page CSS might try to restyle markdown
-// elements inside a shape. The !important is deliberate: when SDocs renders a
-// slide thumbnail inside #_sd_rendered, rules like `#_sd_rendered p { color:
-// var(--md-p-color) }` have higher specificity than any class-level selector
-// we ship, so shape content would otherwise inherit doc text color and doc
-// paragraph margins — which visibly differs from the fullscreen render.
+// Host-page CSS lives in the light DOM and has higher specificity than
+// anything we could reasonably ship (`#_sd_rendered p` etc.). Rather than
+// fight that with !important chains and hope we enumerate every property,
+// shape-md is a shadow DOM host — no selector on the host page can reach
+// into it. The CSS that styles markdown inside a shape lives inside the
+// shadow (SHAPE_MD_SHADOW_CSS below), with no scope prefix and no !important.
 var CSS = [
   '.sd-shape-stage { position: relative; overflow: hidden; container-type: size; }',
   '.sd-shape-stage .shape-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }',
@@ -34,35 +34,32 @@ var CSS = [
   '  display: flex; align-items: center; justify-content: center; text-align: center;',
   '  overflow: hidden; pointer-events: none; line-height: 1.25;',
   '}',
-  /* Color + margin reset — always inherit from the shape wrapper, never from
-     host-page markdown rules. */
-  '.sd-shape-stage .shape-md,',
-  '.sd-shape-stage .shape-md p,',
-  '.sd-shape-stage .shape-md h1, .sd-shape-stage .shape-md h2, .sd-shape-stage .shape-md h3,',
-  '.sd-shape-stage .shape-md h4, .sd-shape-stage .shape-md h5, .sd-shape-stage .shape-md h6,',
-  '.sd-shape-stage .shape-md ul, .sd-shape-stage .shape-md ol, .sd-shape-stage .shape-md li,',
-  '.sd-shape-stage .shape-md blockquote, .sd-shape-stage .shape-md code,',
-  '.sd-shape-stage .shape-md pre, .sd-shape-stage .shape-md strong, .sd-shape-stage .shape-md em,',
-  '.sd-shape-stage .shape-md a {',
-  '  color: inherit !important;',
-  '}',
-  '.sd-shape-stage .shape-md { max-width: 100% !important; padding: 0 !important; margin: 0 !important; background: transparent !important; }',
-  '.sd-shape-stage .shape-md > :first-child { margin-top: 0 !important; }',
-  '.sd-shape-stage .shape-md > :last-child { margin-bottom: 0 !important; }',
-  '.sd-shape-stage .shape-md p { margin: 0.2em 0 !important; padding: 0 !important; line-height: inherit !important; }',
-  '.sd-shape-stage .shape-md h1 { font-size: 1.4em !important; font-weight: 700 !important; margin: 0.2em 0 !important; padding: 0 !important; border: none !important; line-height: 1.15 !important; }',
-  '.sd-shape-stage .shape-md h2 { font-size: 1.2em !important; font-weight: 700 !important; margin: 0.2em 0 !important; padding: 0 !important; border: none !important; line-height: 1.2 !important; }',
-  '.sd-shape-stage .shape-md h3 { font-size: 1.05em !important; font-weight: 600 !important; margin: 0.15em 0 !important; padding: 0 !important; border: none !important; line-height: 1.2 !important; }',
-  '.sd-shape-stage .shape-md h4, .sd-shape-stage .shape-md h5, .sd-shape-stage .shape-md h6 { font-size: 1em !important; font-weight: 600 !important; margin: 0.15em 0 !important; padding: 0 !important; border: none !important; }',
-  '.sd-shape-stage .shape-md ul, .sd-shape-stage .shape-md ol { margin: 0.2em 0 !important; padding: 0 0 0 1.2em !important; text-align: left; }',
-  '.sd-shape-stage .shape-md li { margin: 0.1em 0 !important; padding: 0 !important; }',
-  '.sd-shape-stage .shape-md code { background: rgba(0,0,0,.08) !important; padding: 0 0.25em !important; border-radius: 3px !important; font-size: 0.9em !important; font-family: ui-monospace, Menlo, monospace !important; }',
-  '.sd-shape-stage .shape-md pre { margin: 0.3em 0 !important; padding: 0.4em 0.6em !important; background: rgba(0,0,0,.08) !important; border-radius: 4px !important; text-align: left; font-size: 0.85em !important; overflow-x: auto; line-height: 1.3 !important; }',
-  '.sd-shape-stage .shape-md pre code { background: none !important; padding: 0 !important; font-size: inherit !important; }',
-  '.sd-shape-stage .shape-md strong { font-weight: 700 !important; }',
-  '.sd-shape-stage .shape-md em { font-style: italic !important; }',
-  '.sd-shape-stage .shape-md a { text-decoration: underline !important; }',
-  '.sd-shape-stage .shape-md blockquote { margin: 0.3em 0 !important; padding: 0 0 0 0.7em !important; border-left: 2px solid currentColor !important; opacity: 0.85; text-align: left; font-style: italic; }',
+  '.sd-shape-stage .shape-md { display: block; max-width: 100%; color: inherit; }',
+].join('\n');
+
+// This is the only place markdown styling lives. Because the shadow root
+// isolates the subtree completely, we can write clean rules without prefixes
+// or !important — the host page literally cannot select in.
+var SHAPE_MD_SHADOW_CSS = [
+  ':host { display: block; color: inherit; font: inherit; line-height: inherit; }',
+  '.inner { text-align: inherit; }',
+  '.inner > :first-child { margin-top: 0; }',
+  '.inner > :last-child { margin-bottom: 0; }',
+  'p { margin: 0.2em 0; color: inherit; }',
+  'h1 { font-size: 1.4em; font-weight: 700; margin: 0.2em 0; line-height: 1.15; color: inherit; }',
+  'h2 { font-size: 1.2em; font-weight: 700; margin: 0.2em 0; line-height: 1.2; color: inherit; }',
+  'h3 { font-size: 1.05em; font-weight: 600; margin: 0.15em 0; line-height: 1.2; color: inherit; }',
+  'h4, h5, h6 { font-size: 1em; font-weight: 600; margin: 0.15em 0; color: inherit; }',
+  'ul, ol { margin: 0.2em 0; padding: 0 0 0 1.2em; text-align: left; color: inherit; }',
+  'li { margin: 0.1em 0; color: inherit; }',
+  'li::marker { color: currentColor; }',
+  'code { background: rgba(0,0,0,.08); padding: 0 0.25em; border-radius: 3px; font-size: 0.9em; font-family: ui-monospace, Menlo, monospace; color: inherit; }',
+  'pre { margin: 0.3em 0; padding: 0.4em 0.6em; background: rgba(0,0,0,.08); border-radius: 4px; text-align: left; font-size: 0.85em; overflow-x: auto; line-height: 1.3; color: inherit; }',
+  'pre code { background: none; padding: 0; font-size: inherit; }',
+  'strong { font-weight: 700; }',
+  'em { font-style: italic; }',
+  'a { color: inherit; text-decoration: underline; }',
+  'blockquote { margin: 0.3em 0; padding: 0 0 0 0.7em; border-left: 2px solid currentColor; opacity: 0.85; text-align: left; font-style: italic; color: inherit; }',
 ].join('\n');
 
 function injectCSS() {
@@ -78,26 +75,30 @@ if (typeof document !== 'undefined') injectCSS();
 
 function pct(v, axisValue) { return (v / axisValue * 100) + '%'; }
 
-// Render a content string as a .shape-md DOM subtree. Uses marked + DOMPurify
-// when available; falls back to textContent otherwise (e.g. tests without
-// those libraries loaded).
+// Render content as a .shape-md host with a shadow root holding the markdown
+// HTML. Shadow DOM isolates shape content from any host-page CSS that might
+// try to restyle paragraphs, list markers, or headings inside a slide.
 function contentToMarkdownNode(content) {
-  var wrap = document.createElement('div');
-  wrap.className = 'shape-md';
-  if (content == null || content === '') return wrap;
+  var host = document.createElement('div');
+  host.className = 'shape-md';
+  if (content == null || content === '') return host;
+
   var marked = typeof window !== 'undefined' ? window.marked : null;
   var purify = typeof window !== 'undefined' ? window.DOMPurify : null;
   var markedFn = marked && (typeof marked.parse === 'function' ? marked.parse : (typeof marked === 'function' ? marked : null));
-  if (!markedFn) {
-    wrap.textContent = content;
-    return wrap;
+
+  // Fallback: no markdown pipeline loaded (unit test runners, etc.).
+  if (!markedFn || typeof host.attachShadow !== 'function') {
+    host.textContent = content;
+    return host;
   }
+
   var html = markedFn(content);
-  if (purify && typeof purify.sanitize === 'function') {
-    html = purify.sanitize(html);
-  }
-  wrap.innerHTML = html;
-  return wrap;
+  if (purify && typeof purify.sanitize === 'function') html = purify.sanitize(html);
+
+  var shadow = host.attachShadow({ mode: 'open' });
+  shadow.innerHTML = '<style>' + SHAPE_MD_SHADOW_CSS + '</style><div class="inner">' + html + '</div>';
+  return host;
 }
 
 function shapePaddingGridUnits(s) {
@@ -271,16 +272,36 @@ function buildArrowheadDefs(color) {
 
 // ─── Auto-fit ────────────────────────────────────────
 
+// Content inside a shape-md lives in an open shadow root, so the rect's own
+// scrollWidth/Height and textContent don't reflect it. Return the element
+// that actually represents the rendered content for measurement purposes.
+function measurementTarget(el) {
+  var shapeMd = el.querySelector && el.querySelector('.shape-md');
+  if (shapeMd && shapeMd.shadowRoot) {
+    var inner = shapeMd.shadowRoot.querySelector('.inner');
+    if (inner) return inner;
+  }
+  return el;
+}
+
+function hasRenderableText(el) {
+  var target = measurementTarget(el);
+  var t = (target.textContent || '').trim();
+  return t.length > 0;
+}
+
 function autoFitText(el, stageH, minPx, maxPx) {
-  var text = (el.textContent || '').trim();
-  if (!text) return;
   if (el.dataset.autofit === 'off') return;
+  if (!hasRenderableText(el)) return;
+  var target = measurementTarget(el);
   var cap = Math.max(minPx, Math.floor(maxPx));
   var lo = minPx, hi = cap, best = minPx;
   while (lo <= hi) {
     var mid = Math.floor((lo + hi) / 2);
     el.style.fontSize = mid + 'px';
-    var fits = el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight;
+    // Measure scrollWidth/Height on the inner shadow node (which reflects the
+    // laid-out content) and compare against the outer visible container.
+    var fits = target.scrollWidth <= el.clientWidth && target.scrollHeight <= el.clientHeight;
     if (fits) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
   }
   if (stageH > 0) {
