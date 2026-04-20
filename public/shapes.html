@@ -214,6 +214,30 @@ p 72,38 92,38 92,50 82,54 72,50 fill=#fde68a stroke=#b45309 strokeWidth=0.2 colo
     if (attrs.shadow === 'none') el.style.boxShadow = 'none';
   }
 
+  // Padding in grid units. `padding=N` attribute wins; otherwise default to
+  // 5% of the smaller content-box dimension so padding scales with shape size.
+  function shapePaddingGridUnits(s) {
+    var v = s.attrs && s.attrs.padding;
+    if (v != null && v !== '') {
+      var n = Number(v);
+      return isNaN(n) ? 0 : Math.max(0, n);
+    }
+    var box = window.SDocShapes.contentBox(s);
+    if (!box) return 0;
+    return Math.min(box.w, box.h) * 0.05;
+  }
+
+  // Apply padding via cqw/cqh so it scales with stage size. Vertical padding
+  // uses cqh, horizontal uses cqw; with aspect preserved, equal grid-unit
+  // padding renders at equal pixel amounts on all sides.
+  function applyPadding(el, s) {
+    var p = shapePaddingGridUnits(s);
+    if (p <= 0) { el.style.padding = '0'; return; }
+    var padV = (p / canvas.h) * 100;
+    var padH = (p / canvas.w) * 100;
+    el.style.padding = padV.toFixed(3) + 'cqh ' + padH.toFixed(3) + 'cqw';
+  }
+
   function renderRect(s) {
     var el = document.createElement('div');
     el.className = 'shape-rect';
@@ -222,6 +246,7 @@ p 72,38 92,38 92,50 82,54 72,50 fill=#fde68a stroke=#b45309 strokeWidth=0.2 colo
     el.style.width = pct(s.w, 'w');
     el.style.height = pct(s.h, 'h');
     applyShapeStyle(el, s.attrs);
+    applyPadding(el, s);
     if (s.content) el.textContent = s.content;
     if (s.id) el.dataset.id = s.id;
     return el;
@@ -329,6 +354,7 @@ p 72,38 92,38 92,50 82,54 72,50 fill=#fde68a stroke=#b45309 strokeWidth=0.2 colo
     el.style.width = pct(box.w, 'w');
     el.style.height = pct(box.h, 'h');
     if (s.attrs.color) el.style.color = s.attrs.color;
+    applyPadding(el, s);
     el.textContent = s.content;
     if (s.id) el.dataset.id = s.id + '-text';
     return el;

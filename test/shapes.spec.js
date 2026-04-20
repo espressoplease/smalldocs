@@ -413,6 +413,66 @@ test.describe('shape playground', () => {
     expect(after.scrollH).toBeLessThanOrEqual(after.clientH + 1);
   });
 
+  test('default padding keeps text off the rect edges', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 100 56.25\nr 10 10 40 20 | Hello');
+    await page.waitForTimeout(50);
+    const padding = await page.locator('#stage .shape-rect').evaluate(el => {
+      const cs = getComputedStyle(el);
+      return { top: parseFloat(cs.paddingTop), left: parseFloat(cs.paddingLeft) };
+    });
+    // Default is 5% of min(40,20)=20 grid units = 1 grid unit. In stage
+    // px (grid 100 wide), 1 unit is ~stageWidth/100 ≈ 7.96px.
+    expect(padding.top).toBeGreaterThan(3);
+    expect(padding.left).toBeGreaterThan(3);
+  });
+
+  test('padding=0 overrides to no padding', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 100 56.25\nr 10 10 40 20 padding=0 | Hello');
+    await page.waitForTimeout(50);
+    const padding = await page.locator('#stage .shape-rect').evaluate(el => {
+      const cs = getComputedStyle(el);
+      return { top: parseFloat(cs.paddingTop), left: parseFloat(cs.paddingLeft) };
+    });
+    expect(padding.top).toBe(0);
+    expect(padding.left).toBe(0);
+  });
+
+  test('padding=N sets N grid units of padding on all sides', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 100 56.25\nr 10 10 40 20 padding=4 | Hello');
+    await page.waitForTimeout(50);
+    const info = await page.evaluate(() => {
+      const stage = document.getElementById('stage');
+      const el = document.querySelector('#stage .shape-rect');
+      const cs = getComputedStyle(el);
+      return {
+        stageWidth: stage.getBoundingClientRect().width,
+        stageHeight: stage.getBoundingClientRect().height,
+        padTop: parseFloat(cs.paddingTop),
+        padBottom: parseFloat(cs.paddingBottom),
+        padLeft: parseFloat(cs.paddingLeft),
+        padRight: parseFloat(cs.paddingRight),
+      };
+    });
+    // 4 grid units × stage / grid-size
+    const expectH = 4 / 100 * info.stageWidth;
+    const expectV = 4 / 56.25 * info.stageHeight;
+    // Aspect is preserved so horizontal and vertical pixel padding should be equal.
+    expect(info.padTop).toBeCloseTo(expectV, 0);
+    expect(info.padLeft).toBeCloseTo(expectH, 0);
+    expect(info.padTop).toBeCloseTo(info.padLeft, 0);  // visually square
+  });
+
+  test('padding applies to circle text overlays too', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 100 56.25\nc 50 28 10 padding=1 | Hi');
+    await page.waitForTimeout(50);
+    const pad = await page.locator('#stage .shape-text').evaluate(el => parseFloat(getComputedStyle(el).paddingTop));
+    expect(pad).toBeGreaterThan(3);
+  });
+
   test('auto-fit text does not overflow its element', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, [
