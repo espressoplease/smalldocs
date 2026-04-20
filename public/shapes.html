@@ -334,7 +334,9 @@ p 72,38 92,38 92,50 82,54 72,50 fill=#fde68a stroke=#b45309 strokeWidth=0.2 colo
     return el;
   }
 
-  // Binary-search the largest font-size that keeps text inside the element.
+  // Binary-search the largest font-size that keeps text inside the element,
+  // then store the result as cqh (% of stage height) so the font scales with
+  // the stage on viewport resize instead of sticking at a fixed pixel value.
   function autoFitText(el, minPx, maxPx) {
     var text = (el.textContent || '').trim();
     if (!text) return;
@@ -347,7 +349,12 @@ p 72,38 92,38 92,50 82,54 72,50 fill=#fde68a stroke=#b45309 strokeWidth=0.2 colo
       var fits = el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight;
       if (fits) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
     }
-    el.style.fontSize = best + 'px';
+    var stageH = stage.clientHeight;
+    if (stageH > 0) {
+      el.style.fontSize = ((best / stageH) * 100).toFixed(3) + 'cqh';
+    } else {
+      el.style.fontSize = best + 'px';
+    }
   }
 
   function applyAutoFit() {
