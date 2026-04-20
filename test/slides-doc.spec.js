@@ -42,4 +42,47 @@ test.describe('slide blocks in documents', () => {
     expect(ratio).toBeGreaterThan(0.98);
     expect(ratio).toBeLessThan(1.02);
   });
+
+  test('inline shape with color=#fff renders white text (host CSS must not bleed)', async ({ page }) => {
+    // This is the regression test for the thumbnail/fullscreen discrepancy —
+    // when the main SDocs doc renders a slide, its document-level paragraph
+    // color must not override the shape\'s declared text colour.
+    await loadDocWithSlide(page, 'grid 100 56.25\nr 10 10 80 40 fill=#0f172a color=#fff | Q4 review');
+    const color = await page.locator('.sdoc-slide .shape-rect').evaluate((el) => {
+      // Grab the color of the deepest text-bearing child (the <p> marked creates).
+      var p = el.querySelector('.shape-md p') || el.querySelector('.shape-md') || el;
+      return getComputedStyle(p).color;
+    });
+    expect(color).toBe('rgb(255, 255, 255)');
+  });
+
+  test('inline thumbnail and fullscreen font-size are proportional (no host margin bleed)', async ({ page }) => {
+    // When SDocs paragraph margins leak into a slide, auto-fit picks a smaller
+    // font because there's less vertical room. After reset, the relative
+    // font-size-to-stage-height ratio should match between thumbnail and
+    // fullscreen within a small tolerance.
+    await loadDocWithSlide(page, 'grid 100 56.25\nr 4 4 92 10 fill=#0f172a color=#fff | Q4 review');
+    const thumbRatio = await page.evaluate(() => {
+      const stage = document.querySelector('.sdoc-slide .sd-shape-stage');
+      const rect = stage.querySelector('.shape-rect');
+      const p = rect.querySelector('.shape-md p, .shape-md');
+      const fs = parseFloat(getComputedStyle(p).fontSize);
+      const sh = stage.getBoundingClientRect().height;
+      return fs / sh;
+    });
+    // Click to open fullscreen
+    await page.locator('.sdoc-slide').click();
+    await page.waitForTimeout(80);
+    const fullRatio = await page.evaluate(() => {
+      const stage = document.querySelector('.sdoc-present-stage');
+      const rect = stage.querySelector('.shape-rect');
+      const p = rect.querySelector('.shape-md p, .shape-md');
+      const fs = parseFloat(getComputedStyle(p).fontSize);
+      const sh = stage.getBoundingClientRect().height;
+      return fs / sh;
+    });
+    const diff = Math.abs(thumbRatio - fullRatio);
+    // Tolerance: 10% relative.
+    expect(diff / Math.max(thumbRatio, fullRatio)).toBeLessThan(0.1);
+  });
 });

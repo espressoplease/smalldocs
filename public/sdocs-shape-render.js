@@ -15,6 +15,12 @@ var SVG_NS = 'http://www.w3.org/2000/svg';
 
 // One-shot CSS injection so shape containers render correctly in any host page.
 var CSS_ID = 'sdocs-shape-render-css';
+// Rules that override whatever host-page CSS might try to restyle markdown
+// elements inside a shape. The !important is deliberate: when SDocs renders a
+// slide thumbnail inside #_sd_rendered, rules like `#_sd_rendered p { color:
+// var(--md-p-color) }` have higher specificity than any class-level selector
+// we ship, so shape content would otherwise inherit doc text color and doc
+// paragraph margins — which visibly differs from the fullscreen render.
 var CSS = [
   '.sd-shape-stage { position: relative; overflow: hidden; container-type: size; }',
   '.sd-shape-stage .shape-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }',
@@ -28,26 +34,35 @@ var CSS = [
   '  display: flex; align-items: center; justify-content: center; text-align: center;',
   '  overflow: hidden; pointer-events: none; line-height: 1.25;',
   '}',
-  /* Markdown inside shape content: everything scales in ems so it tracks the
-     outer element\'s auto-fitted font-size. Margins are minimal to keep
-     compact shapes readable. */
-  '.sd-shape-stage .shape-md { max-width: 100%; }',
-  '.sd-shape-stage .shape-md > :first-child { margin-top: 0; }',
-  '.sd-shape-stage .shape-md > :last-child { margin-bottom: 0; }',
-  '.sd-shape-stage .shape-md h1 { font-size: 1.4em; font-weight: 700; margin: 0.2em 0; }',
-  '.sd-shape-stage .shape-md h2 { font-size: 1.2em; font-weight: 700; margin: 0.2em 0; }',
-  '.sd-shape-stage .shape-md h3 { font-size: 1.05em; font-weight: 600; margin: 0.15em 0; }',
-  '.sd-shape-stage .shape-md h4, .sd-shape-stage .shape-md h5, .sd-shape-stage .shape-md h6 { font-size: 1em; font-weight: 600; margin: 0.15em 0; }',
-  '.sd-shape-stage .shape-md p { margin: 0.2em 0; }',
-  '.sd-shape-stage .shape-md ul, .sd-shape-stage .shape-md ol { margin: 0.2em 0; padding-left: 1.2em; text-align: left; }',
-  '.sd-shape-stage .shape-md li { margin: 0.1em 0; }',
-  '.sd-shape-stage .shape-md code { background: rgba(0,0,0,.08); padding: 0 0.25em; border-radius: 3px; font-size: 0.9em; font-family: ui-monospace, Menlo, monospace; }',
-  '.sd-shape-stage .shape-md pre { margin: 0.3em 0; padding: 0.4em 0.6em; background: rgba(0,0,0,.08); border-radius: 4px; text-align: left; font-size: 0.85em; overflow-x: auto; }',
-  '.sd-shape-stage .shape-md pre code { background: none; padding: 0; font-size: inherit; }',
-  '.sd-shape-stage .shape-md strong { font-weight: 700; }',
-  '.sd-shape-stage .shape-md em { font-style: italic; }',
-  '.sd-shape-stage .shape-md a { color: #2563eb; text-decoration: underline; }',
-  '.sd-shape-stage .shape-md blockquote { margin: 0.3em 0; padding-left: 0.7em; border-left: 2px solid rgba(0,0,0,.2); text-align: left; }',
+  /* Color + margin reset — always inherit from the shape wrapper, never from
+     host-page markdown rules. */
+  '.sd-shape-stage .shape-md,',
+  '.sd-shape-stage .shape-md p,',
+  '.sd-shape-stage .shape-md h1, .sd-shape-stage .shape-md h2, .sd-shape-stage .shape-md h3,',
+  '.sd-shape-stage .shape-md h4, .sd-shape-stage .shape-md h5, .sd-shape-stage .shape-md h6,',
+  '.sd-shape-stage .shape-md ul, .sd-shape-stage .shape-md ol, .sd-shape-stage .shape-md li,',
+  '.sd-shape-stage .shape-md blockquote, .sd-shape-stage .shape-md code,',
+  '.sd-shape-stage .shape-md pre, .sd-shape-stage .shape-md strong, .sd-shape-stage .shape-md em,',
+  '.sd-shape-stage .shape-md a {',
+  '  color: inherit !important;',
+  '}',
+  '.sd-shape-stage .shape-md { max-width: 100% !important; padding: 0 !important; margin: 0 !important; background: transparent !important; }',
+  '.sd-shape-stage .shape-md > :first-child { margin-top: 0 !important; }',
+  '.sd-shape-stage .shape-md > :last-child { margin-bottom: 0 !important; }',
+  '.sd-shape-stage .shape-md p { margin: 0.2em 0 !important; padding: 0 !important; line-height: inherit !important; }',
+  '.sd-shape-stage .shape-md h1 { font-size: 1.4em !important; font-weight: 700 !important; margin: 0.2em 0 !important; padding: 0 !important; border: none !important; line-height: 1.15 !important; }',
+  '.sd-shape-stage .shape-md h2 { font-size: 1.2em !important; font-weight: 700 !important; margin: 0.2em 0 !important; padding: 0 !important; border: none !important; line-height: 1.2 !important; }',
+  '.sd-shape-stage .shape-md h3 { font-size: 1.05em !important; font-weight: 600 !important; margin: 0.15em 0 !important; padding: 0 !important; border: none !important; line-height: 1.2 !important; }',
+  '.sd-shape-stage .shape-md h4, .sd-shape-stage .shape-md h5, .sd-shape-stage .shape-md h6 { font-size: 1em !important; font-weight: 600 !important; margin: 0.15em 0 !important; padding: 0 !important; border: none !important; }',
+  '.sd-shape-stage .shape-md ul, .sd-shape-stage .shape-md ol { margin: 0.2em 0 !important; padding: 0 0 0 1.2em !important; text-align: left; }',
+  '.sd-shape-stage .shape-md li { margin: 0.1em 0 !important; padding: 0 !important; }',
+  '.sd-shape-stage .shape-md code { background: rgba(0,0,0,.08) !important; padding: 0 0.25em !important; border-radius: 3px !important; font-size: 0.9em !important; font-family: ui-monospace, Menlo, monospace !important; }',
+  '.sd-shape-stage .shape-md pre { margin: 0.3em 0 !important; padding: 0.4em 0.6em !important; background: rgba(0,0,0,.08) !important; border-radius: 4px !important; text-align: left; font-size: 0.85em !important; overflow-x: auto; line-height: 1.3 !important; }',
+  '.sd-shape-stage .shape-md pre code { background: none !important; padding: 0 !important; font-size: inherit !important; }',
+  '.sd-shape-stage .shape-md strong { font-weight: 700 !important; }',
+  '.sd-shape-stage .shape-md em { font-style: italic !important; }',
+  '.sd-shape-stage .shape-md a { text-decoration: underline !important; }',
+  '.sd-shape-stage .shape-md blockquote { margin: 0.3em 0 !important; padding: 0 0 0 0.7em !important; border-left: 2px solid currentColor !important; opacity: 0.85; text-align: left; font-style: italic; }',
 ].join('\n');
 
 function injectCSS() {
