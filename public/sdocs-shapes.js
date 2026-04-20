@@ -260,6 +260,31 @@ function bboxOf(shape) {
   throw new Error('bboxOf: unknown kind ' + shape.kind);
 }
 
+// Content box for a shape — where text should render. Returns { x, y, w, h }
+// in grid units, or null for decorative shapes (lines, arrows).
+//   Rectangle: full rect bounds.
+//   Circle:    inscribed square (side = r * √2).
+//   Ellipse:   inscribed rectangle (w = rx * √2, h = ry * √2).
+//   Polygon:   bounding box.
+function contentBox(shape) {
+  if (shape.kind === 'r') {
+    return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
+  }
+  if (shape.kind === 'c') {
+    var side = shape.r * Math.SQRT2;
+    return { x: shape.cx - side / 2, y: shape.cy - side / 2, w: side, h: side };
+  }
+  if (shape.kind === 'e') {
+    var w = shape.rx * Math.SQRT2;
+    var h = shape.ry * Math.SQRT2;
+    return { x: shape.cx - w / 2, y: shape.cy - h / 2, w: w, h: h };
+  }
+  if (shape.kind === 'p') {
+    return bboxOf(shape);
+  }
+  return null;
+}
+
 function anchorPoint(shape, anchor) {
   var t = ANCHOR_TABLE[anchor];
   if (!t) throw new Error('unknown anchor ".' + anchor + '"');
@@ -435,6 +460,7 @@ exports.resolve = resolve;
 exports.parseAndResolve = parseAndResolve;
 exports.anchorPoint = anchorPoint;
 exports.bboxOf = bboxOf;
+exports.contentBox = contentBox;
 exports.serialize = serialize;
 exports.serializeShape = serializeShape;
 exports.ANCHOR_TABLE = ANCHOR_TABLE;
