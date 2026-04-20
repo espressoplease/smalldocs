@@ -195,26 +195,63 @@ function parseGridLine(trimmed) {
   return { w: w, h: h };
 }
 
+// Indented (2+ space) lines immediately after a shape line become
+// continuation content for that shape — YAML block scalar style. Content only
+// collects when the shape line had a `|` separator; otherwise the indented
+// lines are errors, since they'd silently disappear.
+function collectIndentedContent(lines, startIdx) {
+  var out = [];
+  var i = startIdx;
+  while (i < lines.length) {
+    var l = lines[i];
+    if (l.length === 0) {
+      // Blank line: include only if another indented line follows.
+      var j = i + 1;
+      while (j < lines.length && lines[j].length === 0) j++;
+      if (j < lines.length && /^ {2}/.test(lines[j])) {
+        out.push('');
+        i++;
+        continue;
+      }
+      break;
+    }
+    if (!/^ {2}/.test(l)) break;
+    out.push(l.replace(/^ {2}/, ''));
+    i++;
+  }
+  return { lines: out, nextIdx: i };
+}
+
 function parse(src) {
   var lines = (src == null ? '' : String(src)).split('\n');
   var shapes = [];
   var errors = [];
   var grid = null;
   var seenShape = false;
-  for (var i = 0; i < lines.length; i++) {
+  var i = 0;
+  while (i < lines.length) {
     var line = lines[i];
     var trimmed = line.trim();
-    if (!trimmed) continue;
-    if (trimmed.slice(0, 2) === '//') continue;
+    if (!trimmed) { i++; continue; }
+    if (trimmed.slice(0, 2) === '//') { i++; continue; }
+
+    // Detect stray indented lines at top level (continuation with no parent).
+    if (/^ {2}/.test(line)) {
+      errors.push({ line: i + 1, message: 'unexpected indented line (no preceding shape with |)', source: line });
+      i++;
+      continue;
+    }
 
     // Grid statement: must appear before any shape, at most once.
     if (/^grid(\s|$)/.test(trimmed)) {
       if (seenShape) {
         errors.push({ line: i + 1, message: 'grid must be declared before any shapes', source: line });
+        i++;
         continue;
       }
       if (grid) {
         errors.push({ line: i + 1, message: 'grid declared more than once', source: line });
+        i++;
         continue;
       }
       try {
@@ -222,14 +259,35 @@ function parse(src) {
       } catch (e) {
         errors.push({ line: i + 1, message: e.message, source: line });
       }
+      i++;
       continue;
     }
 
     try {
       var s = parseLine(line, i + 1);
-      if (s) { shapes.push(s); seenShape = true; }
+      if (s) {
+        seenShape = true;
+        // If shape declared a `|` separator, collect any following indented
+        // lines and append them to the content.
+        if (s.content != null) {
+          var cont = collectIndentedContent(lines, i + 1);
+          if (cont.lines.length > 0) {
+            var joined = cont.lines.join('\n');
+            s.content = s.content.length > 0
+              ? s.content + '\n' + joined
+              : joined;
+          }
+          i = cont.nextIdx;
+        } else {
+          i++;
+        }
+        shapes.push(s);
+      } else {
+        i++;
+      }
     } catch (e) {
       errors.push({ line: i + 1, message: e.message, source: line });
+      i++;
     }
   }
   return { shapes: shapes, errors: errors, grid: grid || { w: DEFAULT_GRID.w, h: DEFAULT_GRID.h } };

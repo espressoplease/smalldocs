@@ -21,13 +21,33 @@ var CSS = [
   '.sd-shape-stage .shape-rect {',
   '  position: absolute; box-sizing: border-box;',
   '  display: flex; align-items: center; justify-content: center; text-align: center;',
-  '  overflow: hidden; line-height: 1.2;',
+  '  overflow: hidden; line-height: 1.25;',
   '}',
   '.sd-shape-stage .shape-text {',
   '  position: absolute; box-sizing: border-box;',
   '  display: flex; align-items: center; justify-content: center; text-align: center;',
-  '  overflow: hidden; pointer-events: none; line-height: 1.2;',
+  '  overflow: hidden; pointer-events: none; line-height: 1.25;',
   '}',
+  /* Markdown inside shape content: everything scales in ems so it tracks the
+     outer element\'s auto-fitted font-size. Margins are minimal to keep
+     compact shapes readable. */
+  '.sd-shape-stage .shape-md { max-width: 100%; }',
+  '.sd-shape-stage .shape-md > :first-child { margin-top: 0; }',
+  '.sd-shape-stage .shape-md > :last-child { margin-bottom: 0; }',
+  '.sd-shape-stage .shape-md h1 { font-size: 1.4em; font-weight: 700; margin: 0.2em 0; }',
+  '.sd-shape-stage .shape-md h2 { font-size: 1.2em; font-weight: 700; margin: 0.2em 0; }',
+  '.sd-shape-stage .shape-md h3 { font-size: 1.05em; font-weight: 600; margin: 0.15em 0; }',
+  '.sd-shape-stage .shape-md h4, .sd-shape-stage .shape-md h5, .sd-shape-stage .shape-md h6 { font-size: 1em; font-weight: 600; margin: 0.15em 0; }',
+  '.sd-shape-stage .shape-md p { margin: 0.2em 0; }',
+  '.sd-shape-stage .shape-md ul, .sd-shape-stage .shape-md ol { margin: 0.2em 0; padding-left: 1.2em; text-align: left; }',
+  '.sd-shape-stage .shape-md li { margin: 0.1em 0; }',
+  '.sd-shape-stage .shape-md code { background: rgba(0,0,0,.08); padding: 0 0.25em; border-radius: 3px; font-size: 0.9em; font-family: ui-monospace, Menlo, monospace; }',
+  '.sd-shape-stage .shape-md pre { margin: 0.3em 0; padding: 0.4em 0.6em; background: rgba(0,0,0,.08); border-radius: 4px; text-align: left; font-size: 0.85em; overflow-x: auto; }',
+  '.sd-shape-stage .shape-md pre code { background: none; padding: 0; font-size: inherit; }',
+  '.sd-shape-stage .shape-md strong { font-weight: 700; }',
+  '.sd-shape-stage .shape-md em { font-style: italic; }',
+  '.sd-shape-stage .shape-md a { color: #2563eb; text-decoration: underline; }',
+  '.sd-shape-stage .shape-md blockquote { margin: 0.3em 0; padding-left: 0.7em; border-left: 2px solid rgba(0,0,0,.2); text-align: left; }',
 ].join('\n');
 
 function injectCSS() {
@@ -42,6 +62,28 @@ if (typeof document !== 'undefined') injectCSS();
 // ─── Helpers ─────────────────────────────────────────
 
 function pct(v, axisValue) { return (v / axisValue * 100) + '%'; }
+
+// Render a content string as a .shape-md DOM subtree. Uses marked + DOMPurify
+// when available; falls back to textContent otherwise (e.g. tests without
+// those libraries loaded).
+function contentToMarkdownNode(content) {
+  var wrap = document.createElement('div');
+  wrap.className = 'shape-md';
+  if (content == null || content === '') return wrap;
+  var marked = typeof window !== 'undefined' ? window.marked : null;
+  var purify = typeof window !== 'undefined' ? window.DOMPurify : null;
+  var markedFn = marked && (typeof marked.parse === 'function' ? marked.parse : (typeof marked === 'function' ? marked : null));
+  if (!markedFn) {
+    wrap.textContent = content;
+    return wrap;
+  }
+  var html = markedFn(content);
+  if (purify && typeof purify.sanitize === 'function') {
+    html = purify.sanitize(html);
+  }
+  wrap.innerHTML = html;
+  return wrap;
+}
 
 function shapePaddingGridUnits(s) {
   var v = s.attrs && s.attrs.padding;
@@ -95,7 +137,7 @@ function renderRect(s, grid) {
   el.style.height = pct(s.h, grid.h);
   applyShapeStyle(el, s.attrs);
   applyPadding(el, s, grid);
-  if (s.content) el.textContent = s.content;
+  if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content));
   if (s.id) el.dataset.id = s.id;
   return el;
 }
@@ -189,7 +231,7 @@ function renderTextOverlay(s, grid) {
   el.style.height = pct(box.h, grid.h);
   if (s.attrs.color) el.style.color = s.attrs.color;
   applyPadding(el, s, grid);
-  el.textContent = s.content;
+  if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content));
   if (s.id) el.dataset.id = s.id + '-text';
   return el;
 }

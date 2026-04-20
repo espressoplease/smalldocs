@@ -686,4 +686,72 @@ module.exports = function(harness) {
   test('contentBox: arrow returns null (decorative)', () => {
     assert.strictEqual(contentBox({ kind: 'a', x1: 0, y1: 0, x2: 10, y2: 10 }), null);
   });
+
+  // ── multi-line content (indented continuation) ───────
+
+  test('multi-line: indented lines after | become content', () => {
+    const src = [
+      'r 0 0 80 60 |',
+      '  Line one',
+      '  Line two',
+    ].join('\n');
+    const { shapes, errors } = parse(src);
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].content, 'Line one\nLine two');
+  });
+
+  test('multi-line: same-line text + indented continuation combine', () => {
+    const src = [
+      'r 0 0 80 60 | Title',
+      '  Subtitle',
+      '  Third line',
+    ].join('\n');
+    const { shapes } = parse(src);
+    assert.strictEqual(shapes[0].content, 'Title\nSubtitle\nThird line');
+  });
+
+  test('multi-line: strips leading 2-space indent only', () => {
+    const src = [
+      'r 0 0 80 60 |',
+      '  - Bullet',
+      '    - Nested',
+    ].join('\n');
+    const { shapes } = parse(src);
+    assert.strictEqual(shapes[0].content, '- Bullet\n  - Nested');
+  });
+
+  test('multi-line: blank lines inside a block are preserved', () => {
+    const src = [
+      'r 0 0 80 60 |',
+      '  paragraph one',
+      '',
+      '  paragraph two',
+    ].join('\n');
+    const { shapes } = parse(src);
+    assert.strictEqual(shapes[0].content, 'paragraph one\n\nparagraph two');
+  });
+
+  test('multi-line: block ends at first dedented line', () => {
+    const src = [
+      'r 0 0 80 60 |',
+      '  content A',
+      'r 10 10 20 20',
+    ].join('\n');
+    const { shapes } = parse(src);
+    assert.strictEqual(shapes.length, 2);
+    assert.strictEqual(shapes[0].content, 'content A');
+    assert.strictEqual(shapes[1].kind, 'r');
+  });
+
+  test('multi-line: no content collected when shape had no | separator', () => {
+    const src = [
+      'r 0 0 80 60',
+      '  orphan line',
+    ].join('\n');
+    const { shapes, errors } = parse(src);
+    // First shape has no content (no |).
+    assert.strictEqual(shapes[0].content, null);
+    // The orphan indented line should surface as an error.
+    assert.ok(errors.some(e => /unexpected indented/.test(e.message)));
+  });
 };
