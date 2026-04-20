@@ -120,7 +120,10 @@ function buildRailThumb(idx, dsl) {
   btn.appendChild(num);
   var stage = document.createElement('div');
   btn.appendChild(stage);
-  window.SDocShapeRender.renderShapes(dsl, stage);
+  // Rail thumbnails are ~140px wide, so the usual 8px font-size floor leaves
+  // longer text spilling out of small shapes. Drop it to 2px — unreadable
+  // but contained, which is what a navigation thumbnail wants.
+  window.SDocShapeRender.renderShapes(dsl, stage, { minFontPx: 2 });
   btn.addEventListener('click', function () { go(idx); });
   return btn;
 }
