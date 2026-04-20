@@ -128,20 +128,28 @@
 
 grid 100 56.25
 
-// A title bar
-r 4 4 92 8 #title fill=#0f172a color=#fff | Shapes with text + auto-fit
+// A title bar using an h1 inside the shape
+r 4 4 92 10 #title fill=#0f172a color=#fff |
+  # Shapes with markdown content
 
-// Rectangles of different sizes — auto-fit makes all labels fit
-r 6 18 18 12 fill=#2563eb color=#fff | Small box
-r 28 18 28 12 fill=#7c3aed color=#fff | Medium box with a longer label
-r 60 18 34 12 fill=#059669 color=#fff | Large box with even more text
+// A rect with multiple markdown elements
+r 6 18 44 34 fill=#ffffff color=#0f172a stroke=#cbd5e1 strokeWidth=0.2 |
+  ## Wins
+  - Shipped **X** on time
+  - Launched *Y* ahead of schedule
+  - Closed deal with `big-client`
 
-// A circle and an ellipse, each with text inside
-c 20 44 6 fill=#f59e0b color=#0f172a | Hi
-e 50 44 10 6 fill=#ef4444 color=#fff | Ellipse
+// A rect with a blockquote + inline code
+r 54 18 40 20 fill=#f1f5f9 color=#0f172a stroke=#cbd5e1 strokeWidth=0.2 |
+  > *"Simplicity is the ultimate sophistication."*
 
-// A polygon with text in its bounding box
-p 72,38 92,38 92,50 82,54 72,50 fill=#fde68a stroke=#b45309 strokeWidth=0.2 color=#0f172a | Polygon
+  Code runs via `marked` + DOMPurify.
+
+// A circle with bold emphasis
+c 70 44 7 fill=#f59e0b color=#0f172a | **Hi!**
+
+// An ellipse using em-emphasis
+e 86 44 8 5 fill=#ef4444 color=#fff | *urgent*
 </textarea>
   <div id="errors"></div>
 </section>
@@ -150,6 +158,8 @@ p 72,38 92,38 92,50 82,54 72,50 fill=#fde68a stroke=#b45309 strokeWidth=0.2 colo
   <div id="stage"><svg class="shape-svg"></svg></div>
 </main>
 
+<script src="/public/vendor/marked.min.js"></script>
+<script src="/public/vendor/purify.min.js"></script>
 <script src="/public/sdocs-shapes.js"></script>
 <script src="/public/sdocs-shape-render.js"></script>
 <script>
