@@ -24,7 +24,7 @@ test.describe('presentation mode', () => {
     await expect(page.locator('.sdoc-present')).toHaveCount(0);
     await page.locator('.sdoc-slide').first().click();
     await expect(page.locator('.sdoc-present')).toHaveCount(1);
-    await expect(page.locator('.sdoc-present-stage .shape-rect')).toContainText('Slide one');
+    await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Slide one');
   });
 
   test('ArrowRight advances to next slide, ArrowLeft goes back', async ({ page }) => {
@@ -34,13 +34,13 @@ test.describe('presentation mode', () => {
       'grid 100 56.25\nr 10 10 80 40 | Slide C',
     ]);
     await page.locator('.sdoc-slide').first().click();
-    await expect(page.locator('.sdoc-present-stage .shape-rect')).toContainText('Slide A');
+    await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Slide A');
     await page.keyboard.press('ArrowRight');
-    await expect(page.locator('.sdoc-present-stage .shape-rect')).toContainText('Slide B');
+    await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Slide B');
     await page.keyboard.press('ArrowRight');
-    await expect(page.locator('.sdoc-present-stage .shape-rect')).toContainText('Slide C');
+    await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Slide C');
     await page.keyboard.press('ArrowLeft');
-    await expect(page.locator('.sdoc-present-stage .shape-rect')).toContainText('Slide B');
+    await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Slide B');
   });
 
   test('advancing past last slide clamps (does not wrap)', async ({ page }) => {
@@ -51,7 +51,7 @@ test.describe('presentation mode', () => {
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
     // Still showing the only slide
-    await expect(page.locator('.sdoc-present-stage .shape-rect')).toContainText('Only slide');
+    await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Only slide');
   });
 
   test('Escape closes the present modal and restores scroll', async ({ page }) => {
@@ -96,7 +96,7 @@ test.describe('presentation mode', () => {
     ]);
     await page.locator('.sdoc-slide').first().click();
     await page.locator('.sdoc-present-rail .sdoc-present-thumb').nth(2).click();
-    await expect(page.locator('.sdoc-present-stage .shape-rect')).toContainText('Third');
+    await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Third');
   });
 
   test('URL hash gets present=<idx> while open', async ({ page }) => {

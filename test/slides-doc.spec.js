@@ -24,7 +24,7 @@ test.describe('slide blocks in documents', () => {
     await expect(page.locator('.sdoc-slide')).toHaveCount(1);
     // Containing a shape stage with at least one rect
     await expect(page.locator('.sdoc-slide .sd-shape-stage .shape-rect')).toHaveCount(1);
-    await expect(page.locator('.sdoc-slide .sd-shape-stage .shape-rect')).toContainText('Hello');
+    await expect(page.locator('.sdoc-slide .sd-shape-stage .shape-rect .shape-md .inner').first()).toContainText('Hello');
   });
 
   test('slide thumbnail preserves aspect ratio from grid', async ({ page }) => {
@@ -54,6 +54,52 @@ test.describe('slide blocks in documents', () => {
       return getComputedStyle(p).color;
     });
     expect(color).toBe('rgb(255, 255, 255)');
+  });
+
+  test('every shape\'s font-to-stage ratio matches between inline and fullscreen', async ({ page }) => {
+    // Strict parity test. Fullscreen copies inline's cqh values directly
+    // rather than re-running autofit, so the ratio must be identical for
+    // every shape (not just close). Guards against future changes where
+    // fullscreen re-renders and autofit drift returns.
+    const md = [
+      '```slide',
+      'grid 100 56.25',
+      'r 0 0 100 22 #bar fill=#0f172a color=#fff |',
+      '  # Welcome to slides',
+      'r 10 30 80 18 #body color=#1e293b |',
+      '  Grid-based slides in plain markdown.',
+      '',
+      '  Rendered identically in the thumbnail and at fullscreen.',
+      '```',
+    ].join('\n');
+    await page.goto(BASE + '/');
+    await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
+    await page.evaluate((body) => { window.SDocs.currentBody = body; window.SDocs.render(); }, md);
+    await page.waitForTimeout(400);
+    const inlineRatios = await page.evaluate(() => {
+      const stage = document.querySelector('.sdoc-slide .sd-shape-stage');
+      const sh = stage.getBoundingClientRect().height;
+      return Array.from(stage.querySelectorAll('.shape-rect')).map(r => ({
+        id: r.dataset.id,
+        ratio: parseFloat(getComputedStyle(r).fontSize) / sh,
+      }));
+    });
+    await page.locator('.sdoc-slide').first().click();
+    await page.waitForTimeout(500);
+    const fullRatios = await page.evaluate(() => {
+      const stage = document.querySelector('.sdoc-present-stage');
+      const sh = stage.getBoundingClientRect().height;
+      return Array.from(stage.querySelectorAll('.shape-rect')).map(r => ({
+        id: r.dataset.id,
+        ratio: parseFloat(getComputedStyle(r).fontSize) / sh,
+      }));
+    });
+    for (const i of inlineRatios) {
+      const f = fullRatios.find(x => x.id === i.id);
+      expect(f).toBeTruthy();
+      const diff = Math.abs(i.ratio - f.ratio) / Math.max(i.ratio, f.ratio);
+      expect(diff).toBeLessThan(0.005);
+    }
   });
 
   test('inline thumbnail and fullscreen font-size are proportional (no host margin bleed)', async ({ page }) => {
