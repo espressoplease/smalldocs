@@ -95,9 +95,13 @@
       radial-gradient(circle at 20% 30%, #1a1816, var(--bg) 60%);
   }
   #stage {
+    /* --gw / --gh are set from the DSL's `grid W H` line. */
+    --gw: 400;
+    --gh: 225;
+    aspect-ratio: var(--gw) / var(--gh);
     width: 100%;
-    max-width: 960px;
-    max-height: calc(100vh - 120px);
+    /* Cap width by viewport height so aspect-ratio is never broken by max-height. */
+    max-width: min(960px, calc((100vh - 120px) * var(--gw) / var(--gh)));
     background: var(--canvas-bg);
     position: relative;
     border-radius: 4px;
@@ -140,35 +144,56 @@
 
 <section id="left">
   <textarea id="dsl" spellcheck="false" autocomplete="off" autocorrect="off">// Shape playground — live preview on the right.
-// First line declares the coordinate grid: `grid W H`.
-// Aspect ratio = W/H. All shape coords live in this grid.
-//
-// Primitives:
-//   r x y w h                rectangle
-//   c <pt> r                 circle (pt = cx cy  or  @id[.anchor])
-//   e <pt> rx ry             ellipse
-//   l <pt> <pt>              line
-//   a <pt> <pt>              arrow
-//   p <pt> <pt> ...          polygon (~ before a point = curved segment)
-//
-// Refs: @id  or  @id.center|top|bottom|left|right|topleft|topright|bottomleft|bottomright
-// Attributes: fill=#fff stroke=#000 strokeWidth=0.2 radius=1 color=#000
-// #id attaches an identifier; | separates geometry from content.
+// First line sets the coordinate grid. Aspect ratio = W/H.
+//   r x y w h           rectangle       c <pt> r        circle
+//   e <pt> rx ry        ellipse         l <pt> <pt>     line
+//   a <pt> <pt>         arrow           p <pt> ...      polygon (~ = curved)
+// Refs: @id[.anchor] where anchor ∈ center|top|bottom|left|right|topleft|...
 
-grid 160 90
+grid 400 225
 
-r 6 6 148 14 #title fill=#0f172a color=#fff | # Title bar
-r 10 28 66 48 #left  | Column one
-r 84 28 66 48 #right | Column two
+// ── Header bar ───────────────────────────────────────
+r 0 0 400 24 #bar fill=#0f172a color=#fff | # System architecture
 
-// Arrow between the two columns, edge-to-edge
-a @left.right @right.left stroke=#475569 strokeWidth=0.3
+// ── Left column: three service tiles ─────────────────
+r 18 40 84 34 #web    fill=#2563eb color=#fff | Web
+r 18 84 84 34 #api    fill=#7c3aed color=#fff | API
+r 18 128 84 34 #worker fill=#059669 color=#fff | Worker
 
-// Circle anchored at the title bar's right edge
-c @title.right 3 fill=#f59e0b
+// Green/orange status dots clinging to each tile's corner
+c @web.topright    2.5 fill=#22c55e
+c @api.topright    2.5 fill=#22c55e
+c @worker.topright 2.5 fill=#f97316
 
-// Polygon using a ref for one vertex
-p 20,82 140,82 ~ @title.bottom fill=#fde68a stroke=#b45309 strokeWidth=0.3
+// ── Middle: queue and cache ──────────────────────────
+r 150 54 96 52 #queue fill=#f59e0b color=#0f172a | Queue
+r 150 126 96 52 #cache fill=#dc2626 color=#fff | Cache
+
+// ── Right: database (ellipse) + label ────────────────
+e 336 84 48 24 #db fill=#1e293b stroke=#94a3b8 strokeWidth=0.5
+r 308 118 56 16 #dblabel fill=#f1f5f9 color=#1e293b | Primary DB
+
+// ── Flow arrows: services → queue/cache → db ─────────
+a @web.right    @queue.left stroke=#64748b strokeWidth=0.4
+a @api.right    @queue.left stroke=#64748b strokeWidth=0.4
+a @worker.right @cache.left stroke=#64748b strokeWidth=0.4
+a @queue.right  @db.left    stroke=#64748b strokeWidth=0.4
+a @cache.right  @db.left    stroke=#64748b strokeWidth=0.4
+
+// ── Bottom-left: "Users" cloud (curved polygon) ──────
+p 24,184 90,184 ~ 104,195 ~ 98,208 ~ 30,208 ~ 18,196 ~ 24,184 fill=#e0e7ff stroke=#6366f1 strokeWidth=0.4
+r 30 188 64 18 #userlbl fill=transparent color=#3730a3 shadow=none radius=0 | Users
+
+// Arrow from the users cloud up to the web tile
+a @userlbl.right @web.bottomleft stroke=#6366f1 strokeWidth=0.5
+
+// ── Decorative divider along the bottom ──────────────
+l 20 220 380 220 stroke=#cbd5e1 strokeWidth=0.3
+
+// ── A couple of extra ellipses to show scale ─────────
+e 260 196 22 10 fill=#fef3c7 stroke=#d97706 strokeWidth=0.3
+e 305 196 22 10 fill=#dcfce7 stroke=#16a34a strokeWidth=0.3
+e 350 196 22 10 fill=#fee2e2 stroke=#b91c1c strokeWidth=0.3
 </textarea>
   <div id="errors"></div>
 </section>
@@ -336,7 +361,8 @@ p 20,82 140,82 ~ @title.bottom fill=#fde68a stroke=#b45309 strokeWidth=0.3
 
     // Sync canvas with grid declared in the DSL (or default).
     canvas = parsed.grid;
-    stage.style.aspectRatio = canvas.w + ' / ' + canvas.h;
+    stage.style.setProperty('--gw', canvas.w);
+    stage.style.setProperty('--gh', canvas.h);
     gridInfo.textContent = 'grid ' + canvas.w + ' × ' + canvas.h;
 
     // Clear stage
