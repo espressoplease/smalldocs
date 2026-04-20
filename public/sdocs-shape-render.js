@@ -290,22 +290,24 @@ function autoFitText(el, stageH, minPx, maxPx) {
   }
 }
 
-function applyAutoFit(container) {
+function applyAutoFit(container, minPx) {
   var stageH = container.clientHeight;
   if (stageH <= 0) return;
+  var floor = typeof minPx === 'number' ? minPx : 8;
   var els = container.querySelectorAll('.shape-rect, .shape-text');
   for (var i = 0; i < els.length; i++) {
     var el = els[i];
     if (el.dataset.autofit === 'off') continue;
     var h = el.clientHeight;
     if (h <= 0) continue;
-    autoFitText(el, stageH, 8, h);
+    autoFitText(el, stageH, floor, h);
   }
 }
 
 // ─── Main entry ──────────────────────────────────────
 
-function renderShapes(dslText, container) {
+function renderShapes(dslText, container, options) {
+  options = options || {};
   var SDocShapes = window.SDocShapes;
   var parsed = SDocShapes.parse(dslText);
   var resolved = SDocShapes.resolve(parsed.shapes);
@@ -357,7 +359,8 @@ function renderShapes(dslText, container) {
     svg.insertBefore(buildArrowheadDefs(defsNeeded.arrowheadColor), svg.firstChild);
   }
 
-  requestAnimationFrame(function () { applyAutoFit(container); });
+  var minFontPx = typeof options.minFontPx === 'number' ? options.minFontPx : 8;
+  requestAnimationFrame(function () { applyAutoFit(container, minFontPx); });
 
   return result;
 }
