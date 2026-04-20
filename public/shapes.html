@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDocs — shape playground</title>
+<style>
+  :root {
+    --bg: #0f0d0c;
+    --panel: #1a1816;
+    --text: #e7e5e2;
+    --muted: #8a8580;
+    --border: #2a2724;
+    --accent: #f59e0b;
+    --error: #ef4444;
+    --canvas-bg: #f7f5f2;
+    --shape-fill: #ffffff;
+    --shape-stroke: #94a3b8;
+    --shape-shadow: 0 1px 2px rgba(15, 23, 42, .08), 0 1px 3px rgba(15, 23, 42, .05);
+    --shape-text: #0f172a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    grid-template-rows: 44px 1fr;
+    overflow: hidden;
+  }
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  header h1 { font-size: 13px; font-weight: 600; margin: 0; letter-spacing: .02em; }
+  header .spacer { flex: 1; }
+  header label { color: var(--muted); }
+  header select {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  #left {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+    overflow: hidden;
+  }
+  #dsl {
+    flex: 1;
+    width: 100%;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    border: none;
+    outline: none;
+    font-family: ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: none;
+    tab-size: 2;
+  }
+  #errors {
+    max-height: 200px;
+    overflow-y: auto;
+    background: #1f1513;
+    border-top: 1px solid var(--border);
+    font-family: ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+    font-size: 12px;
+    color: var(--error);
+  }
+  #errors:empty { display: none; }
+  .err { padding: 6px 16px; border-bottom: 1px solid #2d1d1a; }
+  .err .where { color: var(--muted); margin-right: 8px; }
+  #right {
+    padding: 32px;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at 20% 30%, #1a1816, var(--bg) 60%);
+  }
+  #stage {
+    width: 100%;
+    max-width: 960px;
+    max-height: calc(100vh - 120px);
+    background: var(--canvas-bg);
+    position: relative;
+    border-radius: 4px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
+    overflow: hidden;
+    container-type: size;
+  }
+  .shape-rect {
+    position: absolute;
+    background: var(--shape-fill);
+    box-shadow: var(--shape-shadow);
+    color: var(--shape-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8%;
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .shape-rect > * { margin: 0; }
+  .shape-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>shape playground</h1>
+  <label for="aspect">aspect</label>
+  <select id="aspect">
+    <option value="16:9">16:9</option>
+    <option value="4:3">4:3</option>
+    <option value="1:1">1:1</option>
+  </select>
+  <div class="spacer"></div>
+  <span id="shape-count" style="color: var(--muted); font-size: 12px;"></span>
+</header>
+
+<section id="left">
+  <textarea id="dsl" spellcheck="false" autocomplete="off" autocorrect="off">// Shape playground — live preview on the right.
+// Supported primitives:
+//   r x y w h                rectangle
+//   c cx cy r                circle
+//   e cx cy rx ry            ellipse
+//   l x1 y1 x2 y2            line
+//   a x1 y1 x2 y2            arrow
+//   p x,y x,y [~] x,y ...    polygon (~ before a point = curved segment)
+//
+// Attributes: fill=#fff stroke=#000 strokeWidth=0.2 radius=1 color=#000
+// ID: #name   Content: | text after pipe
+
+r 4 4 92 14 #title fill=#0f172a color=#fff | # Title bar
+r 4 22 44 30 | Column one
+r 52 22 44 30 | Column two
+
+c 20 68 5 fill=#f59e0b
+e 50 68 10 5 fill=#3b82f6
+l 4 78 96 78 stroke=#475569 strokeWidth=0.2
+a 4 86 96 86 stroke=#475569 strokeWidth=0.2
+
+p 66,60 90,60 ~ 90,80 ~ 70,84 66,72 fill=#fde68a stroke=#b45309 strokeWidth=0.2
+</textarea>
+  <div id="errors"></div>
+</section>
+
+<main id="right">
+  <div id="stage"><svg class="shape-svg"></svg></div>
+</main>
+
+<script src="/public/sdocs-shapes.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+
+  var stage = document.getElementById('stage');
+  var dsl = document.getElementById('dsl');
+  var errorsEl = document.getElementById('errors');
+  var aspectSel = document.getElementById('aspect');
+  var countEl = document.getElementById('shape-count');
+
+  var ASPECTS = { '16:9': { w: 100, h: 56.25 }, '4:3': { w: 100, h: 75 }, '1:1': { w: 100, h: 100 } };
+  var canvas = ASPECTS['16:9'];
+
+  function setAspect(value) {
+    canvas = ASPECTS[value] || ASPECTS['16:9'];
+    stage.style.aspectRatio = canvas.w + ' / ' + canvas.h;
+    render();
+  }
+
+  function pct(v, axis) { return (v / canvas[axis] * 100) + '%'; }
+
+  function applyShapeStyle(el, attrs) {
+    if (attrs.fill) el.style.background = attrs.fill;
+    if (attrs.color) el.style.color = attrs.color;
+    if (attrs.radius != null) el.style.borderRadius = attrs.radius + '%';
+    else el.style.borderRadius = '0.8%';
+    if (attrs.stroke && attrs.stroke !== 'none') {
+      var sw = attrs.strokeWidth != null ? attrs.strokeWidth : 0.15;
+      el.style.border = sw + 'cqw solid ' + attrs.stroke;
+    }
+    if (attrs.shadow === 'none') el.style.boxShadow = 'none';
+  }
+
+  function renderRect(s) {
+    var el = document.createElement('div');
+    el.className = 'shape-rect';
+    el.style.left = pct(s.x, 'w');
+    el.style.top = pct(s.y, 'h');
+    el.style.width = pct(s.w, 'w');
+    el.style.height = pct(s.h, 'h');
+    applyShapeStyle(el, s.attrs);
+    if (s.content) el.textContent = s.content;
+    if (s.id) el.dataset.id = s.id;
+    return el;
+  }
+
+  function applySvgStroke(el, attrs, defaultStroke) {
+    var stroke = attrs.stroke || defaultStroke || '#94a3b8';
+    var sw = attrs.strokeWidth != null ? attrs.strokeWidth : 0.15;
+    el.setAttribute('stroke', stroke);
+    el.setAttribute('stroke-width', sw);
+    el.setAttribute('stroke-linecap', 'round');
+    el.setAttribute('stroke-linejoin', 'round');
+    el.setAttribute('fill', attrs.fill || 'none');
+  }
+
+  function renderCircle(s) {
+    var el = document.createElementNS(SVG_NS, 'circle');
+    el.setAttribute('cx', s.cx);
+    el.setAttribute('cy', s.cy);
+    el.setAttribute('r', s.r);
+    applySvgStroke(el, s.attrs, 'none');
+    if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
+    if (s.id) el.dataset.id = s.id;
+    return el;
+  }
+
+  function renderEllipse(s) {
+    var el = document.createElementNS(SVG_NS, 'ellipse');
+    el.setAttribute('cx', s.cx);
+    el.setAttribute('cy', s.cy);
+    el.setAttribute('rx', s.rx);
+    el.setAttribute('ry', s.ry);
+    applySvgStroke(el, s.attrs, 'none');
+    if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
+    if (s.id) el.dataset.id = s.id;
+    return el;
+  }
+
+  function renderLine(s) {
+    var el = document.createElementNS(SVG_NS, 'line');
+    el.setAttribute('x1', s.x1);
+    el.setAttribute('y1', s.y1);
+    el.setAttribute('x2', s.x2);
+    el.setAttribute('y2', s.y2);
+    applySvgStroke(el, s.attrs);
+    if (s.id) el.dataset.id = s.id;
+    return el;
+  }
+
+  function renderArrow(s, defsNeeded) {
+    var g = document.createElementNS(SVG_NS, 'g');
+    var line = document.createElementNS(SVG_NS, 'line');
+    line.setAttribute('x1', s.x1);
+    line.setAttribute('y1', s.y1);
+    line.setAttribute('x2', s.x2);
+    line.setAttribute('y2', s.y2);
+    applySvgStroke(line, s.attrs);
+    line.setAttribute('marker-end', 'url(#_sd_arrowhead)');
+    g.appendChild(line);
+    defsNeeded.arrowhead = true;
+    if (s.attrs.stroke) defsNeeded.arrowheadColor = s.attrs.stroke;
+    if (s.id) g.dataset.id = s.id;
+    return g;
+  }
+
+  function polyPath(points) {
+    if (points.length === 0) return '';
+    var d = 'M ' + points[0].x + ' ' + points[0].y;
+    for (var i = 1; i < points.length; i++) {
+      var p = points[i];
+      if (p.curve) {
+        var prev = points[i - 1];
+        // Simple smoothed curve: quadratic through midpoint with current point as control.
+        var mx = (prev.x + p.x) / 2;
+        var my = (prev.y + p.y) / 2;
+        d += ' Q ' + p.x + ' ' + p.y + ' ' + mx + ' ' + my;
+        // Draw the second half straight to the point so the vertex lands correctly.
+        d += ' L ' + p.x + ' ' + p.y;
+      } else {
+        d += ' L ' + p.x + ' ' + p.y;
+      }
+    }
+    d += ' Z';
+    return d;
+  }
+
+  function renderPolygon(s) {
+    var el = document.createElementNS(SVG_NS, 'path');
+    el.setAttribute('d', polyPath(s.points));
+    applySvgStroke(el, s.attrs);
+    if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
+    if (s.id) el.dataset.id = s.id;
+    return el;
+  }
+
+  function buildArrowheadDefs(color) {
+    var defs = document.createElementNS(SVG_NS, 'defs');
+    var marker = document.createElementNS(SVG_NS, 'marker');
+    marker.setAttribute('id', '_sd_arrowhead');
+    marker.setAttribute('viewBox', '0 0 10 10');
+    marker.setAttribute('refX', '9');
+    marker.setAttribute('refY', '5');
+    marker.setAttribute('markerWidth', '6');
+    marker.setAttribute('markerHeight', '6');
+    marker.setAttribute('orient', 'auto-start-reverse');
+    var path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', 'M 0 0 L 10 5 L 0 10 Z');
+    path.setAttribute('fill', color || '#475569');
+    marker.appendChild(path);
+    defs.appendChild(marker);
+    return defs;
+  }
+
+  function render() {
+    var src = dsl.value;
+    var result = window.SDocShapes.parse(src);
+
+    // Clear stage
+    stage.innerHTML = '';
+    var svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'shape-svg');
+    svg.setAttribute('viewBox', '0 0 ' + canvas.w + ' ' + canvas.h);
+    svg.setAttribute('preserveAspectRatio', 'none');
+    stage.appendChild(svg);
+
+    var defsNeeded = { arrowhead: false, arrowheadColor: null };
+
+    for (var i = 0; i < result.shapes.length; i++) {
+      var s = result.shapes[i];
+      try {
+        if (s.kind === 'r') stage.appendChild(renderRect(s));
+        else if (s.kind === 'c') svg.appendChild(renderCircle(s));
+        else if (s.kind === 'e') svg.appendChild(renderEllipse(s));
+        else if (s.kind === 'l') svg.appendChild(renderLine(s));
+        else if (s.kind === 'a') svg.appendChild(renderArrow(s, defsNeeded));
+        else if (s.kind === 'p') svg.appendChild(renderPolygon(s));
+      } catch (e) {
+        result.errors.push({ line: s.lineNumber, message: 'render: ' + e.message, source: '' });
+      }
+    }
+
+    if (defsNeeded.arrowhead) {
+      svg.insertBefore(buildArrowheadDefs(defsNeeded.arrowheadColor), svg.firstChild);
+    }
+
+    // Errors
+    errorsEl.innerHTML = '';
+    for (var j = 0; j < result.errors.length; j++) {
+      var err = result.errors[j];
+      var row = document.createElement('div');
+      row.className = 'err';
+      var where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = 'line ' + err.line;
+      row.appendChild(where);
+      row.appendChild(document.createTextNode(err.message));
+      errorsEl.appendChild(row);
+    }
+
+    countEl.textContent = result.shapes.length + ' shape' + (result.shapes.length === 1 ? '' : 's');
+  }
+
+  aspectSel.addEventListener('change', function () { setAspect(aspectSel.value); });
+  dsl.addEventListener('input', render);
+
+  setAspect('16:9');
+})();
+</script>
+</body>
+</html>
