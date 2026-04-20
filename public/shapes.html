@@ -145,27 +145,30 @@
 
 <section id="left">
   <textarea id="dsl" spellcheck="false" autocomplete="off" autocorrect="off">// Shape playground — live preview on the right.
-// Supported primitives:
+// Primitives:
 //   r x y w h                rectangle
-//   c cx cy r                circle
-//   e cx cy rx ry            ellipse
-//   l x1 y1 x2 y2            line
-//   a x1 y1 x2 y2            arrow
-//   p x,y x,y [~] x,y ...    polygon (~ before a point = curved segment)
+//   c <pt> r                 circle (pt = cx cy  or  @id[.anchor])
+//   e <pt> rx ry             ellipse
+//   l <pt> <pt>              line
+//   a <pt> <pt>              arrow
+//   p <pt> <pt> ...          polygon (~ before a point = curved segment)
 //
+// Refs: @id  or  @id.center|top|bottom|left|right|topleft|topright|bottomleft|bottomright
 // Attributes: fill=#fff stroke=#000 strokeWidth=0.2 radius=1 color=#000
-// ID: #name   Content: | text after pipe
+// #id attaches an identifier; | separates geometry from content.
 
 r 4 4 92 14 #title fill=#0f172a color=#fff | # Title bar
-r 4 22 44 30 | Column one
-r 52 22 44 30 | Column two
+r 6 24 40 28 #left  | Column one
+r 54 24 40 28 #right | Column two
 
-c 20 68 5 fill=#f59e0b
-e 50 68 10 5 fill=#3b82f6
-l 4 78 96 78 stroke=#475569 strokeWidth=0.2
-a 4 86 96 86 stroke=#475569 strokeWidth=0.2
+// Arrow between the two columns, pointing edge-to-edge
+a @left.right @right.left stroke=#475569 strokeWidth=0.25
 
-p 66,60 90,60 ~ 90,80 ~ 70,84 66,72 fill=#fde68a stroke=#b45309 strokeWidth=0.2
+// Circle anchored at the title bar's right edge
+c @title.right 2.5 fill=#f59e0b
+
+// Polygon using a ref for one vertex
+p 10,78 90,78 ~ @title.bottom fill=#fde68a stroke=#b45309 strokeWidth=0.2
 </textarea>
   <div id="errors"></div>
 </section>
@@ -333,7 +336,9 @@ p 66,60 90,60 ~ 90,80 ~ 70,84 66,72 fill=#fde68a stroke=#b45309 strokeWidth=0.2
 
   function render() {
     var src = dsl.value;
-    var result = window.SDocShapes.parse(src);
+    var parsed = window.SDocShapes.parse(src);
+    var resolved = window.SDocShapes.resolve(parsed.shapes);
+    var result = { shapes: resolved.shapes, errors: parsed.errors.concat(resolved.errors) };
 
     // Clear stage
     stage.innerHTML = '';

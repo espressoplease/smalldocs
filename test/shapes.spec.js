@@ -194,4 +194,90 @@ test.describe('shape playground', () => {
     const el = page.locator('#stage svg circle');
     await expect(el).toHaveAttribute('fill', '#00ff00');
   });
+
+  // ── Phase 2: reference resolution ────────────────────
+
+  test('arrow @a @b endpoints land at shape centers', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'r 0 0 20 20 #a',
+      'r 80 40 20 20 #b',
+      'a @a @b',
+    ].join('\n'));
+    const line = page.locator('#stage svg g line').first();
+    // Center of a = (10, 10); center of b = (90, 50)
+    await expect(line).toHaveAttribute('x1', '10');
+    await expect(line).toHaveAttribute('y1', '10');
+    await expect(line).toHaveAttribute('x2', '90');
+    await expect(line).toHaveAttribute('y2', '50');
+  });
+
+  test('@a.right anchors arrow start at right edge', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'r 10 20 20 20 #a',
+      'a @a.right 90 30',
+    ].join('\n'));
+    const line = page.locator('#stage svg g line').first();
+    // right edge: x = 10+20 = 30; y = 20 + 20/2 = 30
+    await expect(line).toHaveAttribute('x1', '30');
+    await expect(line).toHaveAttribute('y1', '30');
+  });
+
+  test('circle placed at ref center', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'r 40 20 20 20 #box',
+      'c @box 3',
+    ].join('\n'));
+    const circle = page.locator('#stage svg circle');
+    // box center = (50, 30)
+    await expect(circle).toHaveAttribute('cx', '50');
+    await expect(circle).toHaveAttribute('cy', '30');
+  });
+
+  test('unknown ref id surfaces error, other shapes still render', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'r 0 0 20 20 #a',
+      'a @ghost @a',
+    ].join('\n'));
+    await expect(page.locator('#stage .shape-rect')).toHaveCount(1);
+    await expect(page.locator('#errors')).toContainText('unknown id');
+  });
+
+  test('cycle between two refs surfaces error', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'c @b 5 #a',
+      'c @a 5 #b',
+    ].join('\n'));
+    await expect(page.locator('#errors')).toContainText('cycle');
+  });
+
+  test('polygon point can be a ref', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'r 0 0 20 20 #a',
+      'p @a 50,50 90,10',
+    ].join('\n'));
+    // path d should start at a's center (10, 10)
+    const d = await page.locator('#stage svg path').getAttribute('d');
+    expect(d).toMatch(/^M 10 10/);
+  });
+
+  test('chain resolution: arrow from shape anchored to another', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'r 10 10 20 20 #a',
+      'c @a 10 #b',
+      'a @b @a.topright',
+    ].join('\n'));
+    const line = page.locator('#stage svg g line').first();
+    // b center = a center = (20, 20); a topright = (30, 10)
+    await expect(line).toHaveAttribute('x1', '20');
+    await expect(line).toHaveAttribute('y1', '20');
+    await expect(line).toHaveAttribute('x2', '30');
+    await expect(line).toHaveAttribute('y2', '10');
+  });
 });

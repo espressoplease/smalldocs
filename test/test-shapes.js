@@ -7,7 +7,7 @@ const SDocShapes = require(path.join(__dirname, '..', 'public', 'sdocs-shapes.js
 
 module.exports = function(harness) {
   const { assert, test } = harness;
-  const { parse, serialize } = SDocShapes;
+  const { parse, resolve, parseAndResolve, anchorPoint, bboxOf, serialize } = SDocShapes;
 
   console.log('\n── Shape DSL Tests ────────────────────────────\n');
 
@@ -296,5 +296,268 @@ module.exports = function(harness) {
   test('content separator only appears once; extra | stays in content', () => {
     const { shapes } = parse('r 0 0 10 10 | first | second');
     assert.strictEqual(shapes[0].content, 'first | second');
+  });
+
+  // ── Phase 2: references ──────────────────────────────
+
+  test('ref parse: arrow endpoints as @id', () => {
+    const { shapes, errors } = parse('r 10 10 30 20 #a\nr 60 10 30 20 #b\na @a @b');
+    assert.strictEqual(errors.length, 0);
+    const arrow = shapes[2];
+    assert.strictEqual(arrow.kind, 'a');
+    assert.strictEqual(arrow.x1, null);
+    assert.strictEqual(arrow.y1, null);
+    assert.strictEqual(arrow.x2, null);
+    assert.strictEqual(arrow.y2, null);
+    assert.deepStrictEqual(arrow.refs.from, { id: 'a', anchor: 'center' });
+    assert.deepStrictEqual(arrow.refs.to,   { id: 'b', anchor: 'center' });
+  });
+
+  test('ref parse: mix ref and numeric endpoints', () => {
+    const { shapes, errors } = parse('r 0 0 20 20 #a\nl @a.right 90 50');
+    assert.strictEqual(errors.length, 0);
+    const line = shapes[1];
+    assert.strictEqual(line.refs.from.anchor, 'right');
+    assert.strictEqual(line.x2, 90);
+    assert.strictEqual(line.y2, 50);
+    assert.strictEqual(line.refs.to, undefined);
+  });
+
+  test('ref parse: anchor variants', () => {
+    const anchors = ['center', 'top', 'bottom', 'left', 'right',
+                     'topleft', 'topright', 'bottomleft', 'bottomright'];
+    for (const anc of anchors) {
+      const { shapes, errors } = parse('r 0 0 10 10 #t\na @t.' + anc + ' 90 90');
+      assert.strictEqual(errors.length, 0, 'anchor "' + anc + '" failed to parse');
+      assert.strictEqual(shapes[1].refs.from.anchor, anc);
+    }
+  });
+
+  test('ref parse: circle center as ref', () => {
+    const { shapes, errors } = parse('r 20 20 40 40 #box\nc @box.center 5');
+    assert.strictEqual(errors.length, 0);
+    assert.deepStrictEqual(shapes[1].refs.center, { id: 'box', anchor: 'center' });
+    assert.strictEqual(shapes[1].r, 5);
+  });
+
+  test('ref parse: ellipse center as ref', () => {
+    const { shapes, errors } = parse('r 0 0 100 50 #stage\ne @stage 10 5');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[1].refs.center.id, 'stage');
+    assert.strictEqual(shapes[1].rx, 10);
+    assert.strictEqual(shapes[1].ry, 5);
+  });
+
+  test('ref parse: polygon points accept @ref', () => {
+    const { shapes, errors } = parse('r 0 0 20 20 #a\nr 60 60 20 20 #b\np @a @b 50,50');
+    assert.strictEqual(errors.length, 0);
+    const poly = shapes[2];
+    assert.strictEqual(poly.points.length, 3);
+    assert.deepStrictEqual(poly.points[0].ref, { id: 'a', anchor: 'center' });
+    assert.deepStrictEqual(poly.points[1].ref, { id: 'b', anchor: 'center' });
+    assert.strictEqual(poly.points[2].x, 50);
+    assert.strictEqual(poly.points[2].y, 50);
+  });
+
+  test('ref parse: polygon @ref after ~', () => {
+    const { shapes, errors } = parse('r 0 0 20 20 #a\np 10,10 ~ @a 90,90');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[1].points[1].curve, true);
+    assert.ok(shapes[1].points[1].ref);
+  });
+
+  // ── Phase 2: bbox + anchor math ──────────────────────
+
+  test('bboxOf: rectangle', () => {
+    const b = bboxOf({ kind: 'r', x: 10, y: 20, w: 30, h: 40 });
+    assert.deepStrictEqual(b, { x: 10, y: 20, w: 30, h: 40 });
+  });
+
+  test('bboxOf: circle', () => {
+    const b = bboxOf({ kind: 'c', cx: 50, cy: 50, r: 10 });
+    assert.deepStrictEqual(b, { x: 40, y: 40, w: 20, h: 20 });
+  });
+
+  test('bboxOf: ellipse', () => {
+    const b = bboxOf({ kind: 'e', cx: 50, cy: 25, rx: 20, ry: 10 });
+    assert.deepStrictEqual(b, { x: 30, y: 15, w: 40, h: 20 });
+  });
+
+  test('bboxOf: line', () => {
+    const b = bboxOf({ kind: 'l', x1: 10, y1: 50, x2: 90, y2: 10 });
+    assert.deepStrictEqual(b, { x: 10, y: 10, w: 80, h: 40 });
+  });
+
+  test('bboxOf: polygon', () => {
+    const b = bboxOf({ kind: 'p', points: [
+      { x: 10, y: 20 }, { x: 90, y: 30 }, { x: 50, y: 80 },
+    ]});
+    assert.deepStrictEqual(b, { x: 10, y: 20, w: 80, h: 60 });
+  });
+
+  test('anchorPoint: all anchors on a centred rect', () => {
+    const r = { kind: 'r', x: 0, y: 0, w: 100, h: 50 };
+    assert.deepStrictEqual(anchorPoint(r, 'center'),      { x: 50, y: 25 });
+    assert.deepStrictEqual(anchorPoint(r, 'top'),         { x: 50, y: 0  });
+    assert.deepStrictEqual(anchorPoint(r, 'bottom'),      { x: 50, y: 50 });
+    assert.deepStrictEqual(anchorPoint(r, 'left'),        { x: 0,  y: 25 });
+    assert.deepStrictEqual(anchorPoint(r, 'right'),       { x: 100, y: 25 });
+    assert.deepStrictEqual(anchorPoint(r, 'topleft'),     { x: 0,  y: 0  });
+    assert.deepStrictEqual(anchorPoint(r, 'topright'),    { x: 100, y: 0 });
+    assert.deepStrictEqual(anchorPoint(r, 'bottomleft'),  { x: 0,  y: 50 });
+    assert.deepStrictEqual(anchorPoint(r, 'bottomright'), { x: 100, y: 50 });
+  });
+
+  test('anchorPoint: unknown anchor throws', () => {
+    assert.throws(() => anchorPoint({ kind: 'r', x: 0, y: 0, w: 10, h: 10 }, 'diagonal'));
+  });
+
+  // ── Phase 2: resolve() ───────────────────────────────
+
+  test('resolve: arrow between two rects uses centers', () => {
+    const { shapes } = parse([
+      'r 0 0 20 20 #a',
+      'r 80 60 20 20 #b',
+      'a @a @b',
+    ].join('\n'));
+    const res = resolve(shapes);
+    assert.strictEqual(res.errors.length, 0);
+    const arrow = shapes[2];
+    assert.strictEqual(arrow.x1, 10);
+    assert.strictEqual(arrow.y1, 10);
+    assert.strictEqual(arrow.x2, 90);
+    assert.strictEqual(arrow.y2, 70);
+  });
+
+  test('resolve: specific anchors (right edge → left edge)', () => {
+    const { shapes } = parse([
+      'r 10 20 20 20 #a',
+      'r 60 20 20 20 #b',
+      'a @a.right @b.left',
+    ].join('\n'));
+    resolve(shapes);
+    const arrow = shapes[2];
+    assert.strictEqual(arrow.x1, 30); // right of a = x+w = 30
+    assert.strictEqual(arrow.y1, 30); // y+h/2 = 30
+    assert.strictEqual(arrow.x2, 60); // left of b = x = 60
+    assert.strictEqual(arrow.y2, 30);
+  });
+
+  test('resolve: circle at ref center', () => {
+    const { shapes } = parse([
+      'r 40 20 20 20 #box',
+      'c @box 3',
+    ].join('\n'));
+    resolve(shapes);
+    assert.strictEqual(shapes[1].cx, 50);
+    assert.strictEqual(shapes[1].cy, 30);
+  });
+
+  test('resolve: polygon point resolves to ref', () => {
+    const { shapes } = parse([
+      'r 0 0 10 10 #a',
+      'p @a 50,50 90,50',
+    ].join('\n'));
+    resolve(shapes);
+    const p = shapes[1];
+    assert.strictEqual(p.points[0].x, 5);
+    assert.strictEqual(p.points[0].y, 5);
+    assert.strictEqual(p.points[1].x, 50);
+  });
+
+  test('resolve: chain — shape B refs A, shape C refs B', () => {
+    const { shapes } = parse([
+      'r 10 10 20 20 #a',
+      'c @a 10 #b',
+      'a @b @a.topright',
+    ].join('\n'));
+    const res = resolve(shapes);
+    assert.strictEqual(res.errors.length, 0);
+    // b center = a center = (20, 20); b bbox = (10,10,20,20) so b center = 20,20
+    assert.strictEqual(shapes[1].cx, 20);
+    assert.strictEqual(shapes[1].cy, 20);
+    // arrow from b center to a topright (30, 10)
+    assert.strictEqual(shapes[2].x1, 20);
+    assert.strictEqual(shapes[2].y1, 20);
+    assert.strictEqual(shapes[2].x2, 30);
+    assert.strictEqual(shapes[2].y2, 10);
+  });
+
+  test('resolve: unknown id reports error', () => {
+    const { shapes } = parse('a @ghost 50 50');
+    const res = resolve(shapes);
+    assert.strictEqual(res.errors.length, 1);
+    assert.match(res.errors[0].message, /unknown id/);
+  });
+
+  test('resolve: cycle between two shapes reports error', () => {
+    const { shapes } = parse([
+      'c @b 5 #a',
+      'c @a 5 #b',
+    ].join('\n'));
+    const res = resolve(shapes);
+    assert.ok(res.errors.length >= 1);
+    assert.ok(res.errors.some(e => /cycle/.test(e.message)));
+  });
+
+  test('resolve: duplicate id reports error', () => {
+    const { shapes } = parse([
+      'r 0 0 10 10 #a',
+      'r 20 20 10 10 #a',
+    ].join('\n'));
+    const res = resolve(shapes);
+    assert.ok(res.errors.some(e => /duplicate id/.test(e.message)));
+  });
+
+  test('resolve: unknown anchor reports error', () => {
+    const { shapes } = parse([
+      'r 0 0 10 10 #a',
+      'a @a.diagonal 50 50',
+    ].join('\n'));
+    const res = resolve(shapes);
+    assert.ok(res.errors.some(e => /unknown anchor/.test(e.message)));
+  });
+
+  test('resolve: shapes without refs are untouched', () => {
+    const { shapes } = parse('r 10 20 30 40\nc 50 50 5');
+    const before = JSON.stringify(shapes);
+    resolve(shapes);
+    assert.strictEqual(JSON.stringify(shapes), before);
+  });
+
+  test('resolve: parseAndResolve convenience', () => {
+    const res = parseAndResolve([
+      'r 0 0 20 20 #a',
+      'a @a 80 80',
+    ].join('\n'));
+    assert.strictEqual(res.errors.length, 0);
+    assert.strictEqual(res.shapes[1].x1, 10);
+    assert.strictEqual(res.shapes[1].y1, 10);
+  });
+
+  // ── Phase 2: serialization preserves refs ────────────
+
+  test('roundtrip: arrow with refs is stable', () => {
+    const src = 'r 0 0 20 20 #a\nr 80 0 20 20 #b\na @a.right @b.left';
+    const p1 = parse(src);
+    const s1 = serialize(p1.shapes);
+    const p2 = parse(s1);
+    assert.deepStrictEqual(p2.shapes, p1.shapes);
+  });
+
+  test('roundtrip: circle with ref center and ref polygon point', () => {
+    const src = 'r 0 0 20 20 #a\nc @a 5\np @a 50,50 90,10';
+    const p1 = parse(src);
+    const s1 = serialize(p1.shapes);
+    const p2 = parse(s1);
+    assert.deepStrictEqual(p2.shapes, p1.shapes);
+  });
+
+  test('roundtrip: default .center anchor drops suffix', () => {
+    const src = 'r 0 0 20 20 #a\na @a 90 90';
+    const p1 = parse(src);
+    const s1 = serialize(p1.shapes);
+    assert.ok(s1.includes('@a '), 's1 should keep bare @a: ' + s1);
+    assert.ok(!s1.includes('@a.center'), 's1 should drop .center: ' + s1);
   });
 };
