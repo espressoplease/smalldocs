@@ -388,27 +388,29 @@ test.describe('shape playground', () => {
       'r 10 10 40 20 | Medium amount of text in a rectangle',
     ].join('\n'));
     await page.waitForTimeout(50);
-    // Grab the initial font-size unit and fitted pixel size.
-    const initial = await page.locator('#stage .shape-rect').evaluate(el => ({
-      inlineFs: el.style.fontSize,
-      computedFs: parseFloat(getComputedStyle(el).fontSize),
-      scrollW: el.scrollWidth, clientW: el.clientWidth,
-      scrollH: el.scrollHeight, clientH: el.clientHeight,
-    }));
-    // Font should be written in cqh so it tracks stage size.
+    // Read both the rect's inline style (cqh) and the inner-content bounds
+    // — shadow DOM means `el.scrollWidth/Height` doesn't reflect content.
+    const measure = (page) => page.locator('#stage .shape-rect').evaluate(el => {
+      const host = el.querySelector('.shape-md');
+      const inner = host && host.shadowRoot && host.shadowRoot.querySelector('.inner');
+      return {
+        inlineFs: el.style.fontSize,
+        computedFs: parseFloat(getComputedStyle(el).fontSize),
+        scrollW: inner ? inner.scrollWidth : el.scrollWidth,
+        scrollH: inner ? inner.scrollHeight : el.scrollHeight,
+        clientW: el.clientWidth,
+        clientH: el.clientHeight,
+      };
+    });
+    const initial = await measure(page);
     expect(initial.inlineFs).toMatch(/cqh$/);
     expect(initial.scrollW).toBeLessThanOrEqual(initial.clientW + 1);
     expect(initial.scrollH).toBeLessThanOrEqual(initial.clientH + 1);
 
-    // Shrink the viewport and verify the text is still bounded.
     await page.setViewportSize({ width: 700, height: 420 });
     await page.waitForTimeout(50);
-    const after = await page.locator('#stage .shape-rect').evaluate(el => ({
-      computedFs: parseFloat(getComputedStyle(el).fontSize),
-      scrollW: el.scrollWidth, clientW: el.clientWidth,
-      scrollH: el.scrollHeight, clientH: el.clientHeight,
-    }));
-    expect(after.computedFs).toBeLessThan(initial.computedFs);  // font shrank with stage
+    const after = await measure(page);
+    expect(after.computedFs).toBeLessThan(initial.computedFs);
     expect(after.scrollW).toBeLessThanOrEqual(after.clientW + 1);
     expect(after.scrollH).toBeLessThanOrEqual(after.clientH + 1);
   });
@@ -480,10 +482,18 @@ test.describe('shape playground', () => {
       'r 10 10 40 20 | Quite a bit of text in a medium-sized rectangle',
     ].join('\n'));
     await page.waitForTimeout(50);
-    const overflow = await page.locator('#stage .shape-rect').evaluate(el => ({
-      scrollW: el.scrollWidth, clientW: el.clientWidth,
-      scrollH: el.scrollHeight, clientH: el.clientHeight,
-    }));
+    // Content lives in a shadow root; measure the inner wrapper which is what
+    // autofit actually targets, against the outer rect's client box.
+    const overflow = await page.locator('#stage .shape-rect').evaluate(el => {
+      const host = el.querySelector('.shape-md');
+      const inner = host && host.shadowRoot && host.shadowRoot.querySelector('.inner');
+      return {
+        scrollW: inner ? inner.scrollWidth : el.scrollWidth,
+        scrollH: inner ? inner.scrollHeight : el.scrollHeight,
+        clientW: el.clientWidth,
+        clientH: el.clientHeight,
+      };
+    });
     expect(overflow.scrollW).toBeLessThanOrEqual(overflow.clientW + 1);
     expect(overflow.scrollH).toBeLessThanOrEqual(overflow.clientH + 1);
   });
@@ -543,10 +553,16 @@ test.describe('shape playground', () => {
       '  - Launched **Y**',
     ].join('\n'));
     await page.waitForTimeout(80);
-    const overflow = await page.locator('#stage .shape-rect').evaluate((el) => ({
-      scrollW: el.scrollWidth, clientW: el.clientWidth,
-      scrollH: el.scrollHeight, clientH: el.clientHeight,
-    }));
+    const overflow = await page.locator('#stage .shape-rect').evaluate((el) => {
+      const host = el.querySelector('.shape-md');
+      const inner = host && host.shadowRoot && host.shadowRoot.querySelector('.inner');
+      return {
+        scrollW: inner ? inner.scrollWidth : el.scrollWidth,
+        scrollH: inner ? inner.scrollHeight : el.scrollHeight,
+        clientW: el.clientWidth,
+        clientH: el.clientHeight,
+      };
+    });
     expect(overflow.scrollW).toBeLessThanOrEqual(overflow.clientW + 1);
     expect(overflow.scrollH).toBeLessThanOrEqual(overflow.clientH + 1);
   });
