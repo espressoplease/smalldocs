@@ -488,6 +488,69 @@ test.describe('shape playground', () => {
     expect(overflow.scrollH).toBeLessThanOrEqual(overflow.clientH + 1);
   });
 
+  // ── Markdown rendering inside shapes ────────────────
+
+  test('markdown: # heading in rect renders as <h1>', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 100 56.25\nr 10 10 80 40 | # Big title');
+    await expect(page.locator('#stage .shape-rect .shape-md h1')).toContainText('Big title');
+  });
+
+  test('markdown: bullets render as <ul>/<li>', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'grid 100 56.25',
+      'r 10 10 80 40 |',
+      '  - One',
+      '  - Two',
+      '  - Three',
+    ].join('\n'));
+    await expect(page.locator('#stage .shape-rect .shape-md ul li')).toHaveCount(3);
+  });
+
+  test('markdown: **bold** and *italic* render as <strong>/<em>', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 100 56.25\nr 10 10 80 30 | **Bold** and *italic*');
+    await expect(page.locator('#stage .shape-rect strong')).toContainText('Bold');
+    await expect(page.locator('#stage .shape-rect em')).toContainText('italic');
+  });
+
+  test('markdown: renders inside circle overlay', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, 'grid 100 56.25\nc 50 28 15 | # Title\n  normal text');
+    await expect(page.locator('#stage .shape-text .shape-md h1')).toContainText('Title');
+  });
+
+  test('markdown: multi-line content joins with newlines', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'grid 100 56.25',
+      'r 10 10 80 40 |',
+      '  ## Heading',
+      '  paragraph after',
+    ].join('\n'));
+    await expect(page.locator('#stage .shape-rect h2')).toContainText('Heading');
+    await expect(page.locator('#stage .shape-rect p')).toContainText('paragraph after');
+  });
+
+  test('markdown: auto-fit still keeps content bounded', async ({ page }) => {
+    await gotoPlayground(page);
+    await setDSL(page, [
+      'grid 100 56.25',
+      'r 10 10 40 25 |',
+      '  ## Wins',
+      '  - Shipped **X**',
+      '  - Launched **Y**',
+    ].join('\n'));
+    await page.waitForTimeout(80);
+    const overflow = await page.locator('#stage .shape-rect').evaluate((el) => ({
+      scrollW: el.scrollWidth, clientW: el.clientWidth,
+      scrollH: el.scrollHeight, clientH: el.clientHeight,
+    }));
+    expect(overflow.scrollW).toBeLessThanOrEqual(overflow.clientW + 1);
+    expect(overflow.scrollH).toBeLessThanOrEqual(overflow.clientH + 1);
+  });
+
   test('chain resolution: arrow from shape anchored to another', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, [
