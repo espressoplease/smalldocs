@@ -300,9 +300,11 @@
     <pre>
 X-Sdocs-Commit           043623163f2bcd6b25eb2ff71f378e716b9552d3</pre>
     </li>
-    <li>Every time we deploy to production, and every 10 minutes via <a href="https://github.com/espressoplease/SDocs/actions/workflows/check-sdocs.yml">a different GitHub action</a>, we fetch the current code from sdocs.dev and compare the SHA-256 hashes from the code sdocs.dev returns, with the hashes from the corresponding commit in the public isolated branch discussed above.
+    <li>Every time we deploy to production, and on a schedule set for every 10 minutes via <a href="https://github.com/espressoplease/SDocs/actions/workflows/check-sdocs.yml" target="_blank" rel="noopener">a different GitHub Action</a>, we fetch the current code from sdocs.dev and compare the SHA-256 hashes from the code sdocs.dev returns, with the hashes from the corresponding commit in the public isolated branch discussed above.
     </br>
-    The final step of this second GitHub action is to update a publicly available JSON file hosted on GitHub with the latest trust status. You can read the latest status here: <a href="https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json" target="_blank">https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json</a>
+      Please note: Even though our job is scheduled for every 10 minutes, GitHub Actions cron jobs share infrastructure with every other repo on GitHub, so runs get delayed or skipped under load. Actual gaps we've observed on this repo range from around 30 minutes to a few hours (recent samples: 32m, 39m, 42m, 1h 23m, 2h 3m, 3h 18m). To trigger a fresh check on demand, open <a href="https://github.com/espressoplease/SDocs/actions/workflows/check-sdocs.yml" target="_blank" rel="noopener">the Action page</a> and click "Run workflow".
+    </br>
+    The final step of this GitHub action is to update a publicly available JSON file hosted on GitHub with the latest trust status. You can read the latest status here: <a href="https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json" target="_blank">https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json</a>
     </li>
     <li>
       On success, this endpoint returns:
