@@ -153,23 +153,16 @@
 
 grid 100 56.25
 
-// A title bar across the top
-r 4 4 92 10 #title fill=#0f172a color=#fff | Title
-
-// Two boxes with an arrow between them
-r 10 24 30 20 #a fill=#2563eb color=#fff | Box A
-r 60 24 30 20 #b fill=#059669 color=#fff | Box B
-a @a.right @b.left stroke=#475569 strokeWidth=0.25
-
-// A circle and an ellipse
-c 50 40 4 fill=#f59e0b
-e 20 50 6 3 fill=#ef4444 stroke=none
-
-// A line at the bottom
-l 10 54 90 54 stroke=#94a3b8 strokeWidth=0.2
-
-// A polygon with one curved segment
-p 72,48 92,48 ~ 82,54 fill=#fde68a stroke=#b45309 strokeWidth=0.2
+// Three rectangles stacked vertically.
+// Each is 8 tall, with a 2-unit gap between them.
+//   box1: y 6  → 14
+//   gap:  y 14 → 16   (2 units)
+//   box2: y 16 → 24
+//   gap:  y 24 → 26   (2 units)
+//   box3: y 26 → 34
+r 30 6  40 8 fill=#2563eb color=#fff | Box 1
+r 30 16 40 8 fill=#7c3aed color=#fff | Box 2
+r 30 26 40 8 fill=#059669 color=#fff | Box 3
 </textarea>
   <div id="errors"></div>
 </section>
