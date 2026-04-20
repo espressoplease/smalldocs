@@ -1,6 +1,10 @@
 // sdocs-shapes.js — shape DSL parser + reference resolver (UMD)
 // Shared by browser playground and Node tests.
 //
+// Grid (optional, must be first non-comment line):
+//   grid W H                    sets coordinate system to W × H cells
+//                               (aspect ratio = W/H; defaults to 100 × 56.25)
+//
 // DSL primitives:
 //   r x y w h                   rectangle
 //   c <point> r                 circle (point = `cx cy` or `@ref`)
@@ -178,23 +182,57 @@ function parseLine(raw, lineNumber) {
   return shape;
 }
 
+var DEFAULT_GRID = { w: 100, h: 56.25 };
+
+function parseGridLine(trimmed) {
+  var tokens = trimmed.split(/\s+/);
+  if (tokens.length !== 3) {
+    throw new Error('grid: expected "grid W H", got ' + tokens.length + ' tokens');
+  }
+  var w = parseNumber(tokens[1], 'grid W');
+  var h = parseNumber(tokens[2], 'grid H');
+  if (w <= 0 || h <= 0) throw new Error('grid: W and H must be positive');
+  return { w: w, h: h };
+}
+
 function parse(src) {
   var lines = (src == null ? '' : String(src)).split('\n');
   var shapes = [];
   var errors = [];
+  var grid = null;
+  var seenShape = false;
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
     var trimmed = line.trim();
     if (!trimmed) continue;
     if (trimmed.slice(0, 2) === '//') continue;
+
+    // Grid statement: must appear before any shape, at most once.
+    if (/^grid(\s|$)/.test(trimmed)) {
+      if (seenShape) {
+        errors.push({ line: i + 1, message: 'grid must be declared before any shapes', source: line });
+        continue;
+      }
+      if (grid) {
+        errors.push({ line: i + 1, message: 'grid declared more than once', source: line });
+        continue;
+      }
+      try {
+        grid = parseGridLine(trimmed);
+      } catch (e) {
+        errors.push({ line: i + 1, message: e.message, source: line });
+      }
+      continue;
+    }
+
     try {
       var s = parseLine(line, i + 1);
-      if (s) shapes.push(s);
+      if (s) { shapes.push(s); seenShape = true; }
     } catch (e) {
       errors.push({ line: i + 1, message: e.message, source: line });
     }
   }
-  return { shapes: shapes, errors: errors };
+  return { shapes: shapes, errors: errors, grid: grid || { w: DEFAULT_GRID.w, h: DEFAULT_GRID.h } };
 }
 
 // ─── Reference resolution ──────────────────────────────
@@ -340,7 +378,7 @@ function resolve(shapes) {
 function parseAndResolve(src) {
   var pr = parse(src);
   var rr = resolve(pr.shapes);
-  return { shapes: rr.shapes, errors: pr.errors.concat(rr.errors) };
+  return { shapes: rr.shapes, errors: pr.errors.concat(rr.errors), grid: pr.grid };
 }
 
 // ─── Serialization (preserves refs for roundtrip) ──────
@@ -382,8 +420,13 @@ function serializeShape(s) {
   return line;
 }
 
-function serialize(shapes) {
-  return shapes.map(serializeShape).join('\n');
+function serialize(shapes, grid) {
+  var lines = [];
+  if (grid && (grid.w !== DEFAULT_GRID.w || grid.h !== DEFAULT_GRID.h)) {
+    lines.push('grid ' + grid.w + ' ' + grid.h);
+  }
+  for (var i = 0; i < shapes.length; i++) lines.push(serializeShape(shapes[i]));
+  return lines.join('\n');
 }
 
 exports.parse = parse;
@@ -395,5 +438,6 @@ exports.bboxOf = bboxOf;
 exports.serialize = serialize;
 exports.serializeShape = serializeShape;
 exports.ANCHOR_TABLE = ANCHOR_TABLE;
+exports.DEFAULT_GRID = DEFAULT_GRID;
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocShapes = {}));
