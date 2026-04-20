@@ -95,53 +95,19 @@
       radial-gradient(circle at 20% 30%, #1a1816, var(--bg) 60%);
   }
   #stage {
-    /* --gw / --gh are set from the DSL's `grid W H` line. */
+    /* --gw / --gh are set by the renderer from the DSL's grid line. */
     --gw: 400;
     --gh: 225;
-    aspect-ratio: var(--gw) / var(--gh);
     width: 100%;
     /* Cap width by viewport height so aspect-ratio is never broken by max-height. */
     max-width: min(960px, calc((100vh - 120px) * var(--gw) / var(--gh)));
     background: var(--canvas-bg);
-    position: relative;
     border-radius: 4px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
-    overflow: hidden;
-    container-type: size;
   }
-  .shape-rect {
-    position: absolute;
-    background: var(--shape-fill);
-    box-shadow: var(--shape-shadow);
-    color: var(--shape-text);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    overflow: hidden;
-    font-size: 14px;
-    line-height: 1.2;
-  }
-  .shape-text {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    overflow: hidden;
-    pointer-events: none;
-    color: var(--shape-text);
-    line-height: 1.2;
-  }
-  .shape-rect > * { margin: 0; }
-  .shape-svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    overflow: visible;
-  }
+  /* Playground-specific overrides on the shared shape CSS */
+  #stage .shape-rect { background: var(--shape-fill); box-shadow: var(--shape-shadow); color: var(--shape-text); font-size: 14px; }
+  #stage .shape-text { color: var(--shape-text); }
 </style>
 </head>
 <body>
@@ -185,11 +151,10 @@ p 72,38 92,38 92,50 82,54 72,50 fill=#fde68a stroke=#b45309 strokeWidth=0.2 colo
 </main>
 
 <script src="/public/sdocs-shapes.js"></script>
+<script src="/public/sdocs-shape-render.js"></script>
 <script>
 (function () {
   'use strict';
-
-  var SVG_NS = 'http://www.w3.org/2000/svg';
 
   var stage = document.getElementById('stage');
   var dsl = document.getElementById('dsl');
@@ -197,279 +162,11 @@ p 72,38 92,38 92,50 82,54 72,50 fill=#fde68a stroke=#b45309 strokeWidth=0.2 colo
   var gridInfo = document.getElementById('grid-info');
   var countEl = document.getElementById('shape-count');
 
-  // Current grid read from the DSL (or default). Updated every render.
-  var canvas = { w: 100, h: 56.25 };
-
-  function pct(v, axis) { return (v / canvas[axis] * 100) + '%'; }
-
-  function applyShapeStyle(el, attrs) {
-    if (attrs.fill) el.style.background = attrs.fill;
-    if (attrs.color) el.style.color = attrs.color;
-    if (attrs.radius != null) el.style.borderRadius = attrs.radius + '%';
-    else el.style.borderRadius = '0.8%';
-    if (attrs.stroke && attrs.stroke !== 'none') {
-      var sw = attrs.strokeWidth != null ? attrs.strokeWidth : 0.15;
-      el.style.border = sw + 'cqw solid ' + attrs.stroke;
-    }
-    if (attrs.shadow === 'none') el.style.boxShadow = 'none';
-  }
-
-  // Padding in grid units. `padding=N` attribute wins; otherwise default to
-  // 5% of the smaller content-box dimension so padding scales with shape size.
-  function shapePaddingGridUnits(s) {
-    var v = s.attrs && s.attrs.padding;
-    if (v != null && v !== '') {
-      var n = Number(v);
-      return isNaN(n) ? 0 : Math.max(0, n);
-    }
-    var box = window.SDocShapes.contentBox(s);
-    if (!box) return 0;
-    return Math.min(box.w, box.h) * 0.05;
-  }
-
-  // Apply padding via cqw/cqh so it scales with stage size. Vertical padding
-  // uses cqh, horizontal uses cqw; with aspect preserved, equal grid-unit
-  // padding renders at equal pixel amounts on all sides.
-  function applyPadding(el, s) {
-    var p = shapePaddingGridUnits(s);
-    if (p <= 0) { el.style.padding = '0'; return; }
-    var padV = (p / canvas.h) * 100;
-    var padH = (p / canvas.w) * 100;
-    el.style.padding = padV.toFixed(3) + 'cqh ' + padH.toFixed(3) + 'cqw';
-  }
-
-  function renderRect(s) {
-    var el = document.createElement('div');
-    el.className = 'shape-rect';
-    el.style.left = pct(s.x, 'w');
-    el.style.top = pct(s.y, 'h');
-    el.style.width = pct(s.w, 'w');
-    el.style.height = pct(s.h, 'h');
-    applyShapeStyle(el, s.attrs);
-    applyPadding(el, s);
-    if (s.content) el.textContent = s.content;
-    if (s.id) el.dataset.id = s.id;
-    return el;
-  }
-
-  function applySvgStroke(el, attrs, defaultStroke) {
-    var stroke = attrs.stroke || defaultStroke || '#94a3b8';
-    var sw = attrs.strokeWidth != null ? attrs.strokeWidth : 0.15;
-    el.setAttribute('stroke', stroke);
-    el.setAttribute('stroke-width', sw);
-    el.setAttribute('stroke-linecap', 'round');
-    el.setAttribute('stroke-linejoin', 'round');
-    el.setAttribute('fill', attrs.fill || 'none');
-  }
-
-  function renderCircle(s) {
-    var el = document.createElementNS(SVG_NS, 'circle');
-    el.setAttribute('cx', s.cx);
-    el.setAttribute('cy', s.cy);
-    el.setAttribute('r', s.r);
-    applySvgStroke(el, s.attrs, 'none');
-    if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
-    if (s.id) el.dataset.id = s.id;
-    return el;
-  }
-
-  function renderEllipse(s) {
-    var el = document.createElementNS(SVG_NS, 'ellipse');
-    el.setAttribute('cx', s.cx);
-    el.setAttribute('cy', s.cy);
-    el.setAttribute('rx', s.rx);
-    el.setAttribute('ry', s.ry);
-    applySvgStroke(el, s.attrs, 'none');
-    if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
-    if (s.id) el.dataset.id = s.id;
-    return el;
-  }
-
-  function renderLine(s) {
-    var el = document.createElementNS(SVG_NS, 'line');
-    el.setAttribute('x1', s.x1);
-    el.setAttribute('y1', s.y1);
-    el.setAttribute('x2', s.x2);
-    el.setAttribute('y2', s.y2);
-    applySvgStroke(el, s.attrs);
-    if (s.id) el.dataset.id = s.id;
-    return el;
-  }
-
-  function renderArrow(s, defsNeeded) {
-    var g = document.createElementNS(SVG_NS, 'g');
-    var line = document.createElementNS(SVG_NS, 'line');
-    line.setAttribute('x1', s.x1);
-    line.setAttribute('y1', s.y1);
-    line.setAttribute('x2', s.x2);
-    line.setAttribute('y2', s.y2);
-    applySvgStroke(line, s.attrs);
-    line.setAttribute('marker-end', 'url(#_sd_arrowhead)');
-    g.appendChild(line);
-    defsNeeded.arrowhead = true;
-    if (s.attrs.stroke) defsNeeded.arrowheadColor = s.attrs.stroke;
-    if (s.id) g.dataset.id = s.id;
-    return g;
-  }
-
-  function polyPath(points) {
-    if (points.length === 0) return '';
-    var d = 'M ' + points[0].x + ' ' + points[0].y;
-    for (var i = 1; i < points.length; i++) {
-      var p = points[i];
-      if (p.curve) {
-        var prev = points[i - 1];
-        // Simple smoothed curve: quadratic through midpoint with current point as control.
-        var mx = (prev.x + p.x) / 2;
-        var my = (prev.y + p.y) / 2;
-        d += ' Q ' + p.x + ' ' + p.y + ' ' + mx + ' ' + my;
-        // Draw the second half straight to the point so the vertex lands correctly.
-        d += ' L ' + p.x + ' ' + p.y;
-      } else {
-        d += ' L ' + p.x + ' ' + p.y;
-      }
-    }
-    d += ' Z';
-    return d;
-  }
-
-  function renderPolygon(s) {
-    var el = document.createElementNS(SVG_NS, 'path');
-    el.setAttribute('d', polyPath(s.points));
-    applySvgStroke(el, s.attrs);
-    if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
-    if (s.id) el.dataset.id = s.id;
-    return el;
-  }
-
-  // Overlay a text div at the shape's content box. Used for c/e/p (non-rect
-  // shapes with content). Rectangles render their own text inline.
-  function renderTextOverlay(s) {
-    var box = window.SDocShapes.contentBox(s);
-    if (!box) return null;
-    var el = document.createElement('div');
-    el.className = 'shape-text';
-    el.style.left = pct(box.x, 'w');
-    el.style.top = pct(box.y, 'h');
-    el.style.width = pct(box.w, 'w');
-    el.style.height = pct(box.h, 'h');
-    if (s.attrs.color) el.style.color = s.attrs.color;
-    applyPadding(el, s);
-    el.textContent = s.content;
-    if (s.id) el.dataset.id = s.id + '-text';
-    return el;
-  }
-
-  // Binary-search the largest font-size that keeps text inside the element,
-  // then store the result as cqh (% of stage height) so the font scales with
-  // the stage on viewport resize instead of sticking at a fixed pixel value.
-  function autoFitText(el, minPx, maxPx) {
-    var text = (el.textContent || '').trim();
-    if (!text) return;
-    if (el.dataset.autofit === 'off') return;
-    var cap = Math.max(minPx, Math.floor(maxPx));
-    var lo = minPx, hi = cap, best = minPx;
-    while (lo <= hi) {
-      var mid = Math.floor((lo + hi) / 2);
-      el.style.fontSize = mid + 'px';
-      var fits = el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight;
-      if (fits) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
-    }
-    var stageH = stage.clientHeight;
-    if (stageH > 0) {
-      el.style.fontSize = ((best / stageH) * 100).toFixed(3) + 'cqh';
-    } else {
-      el.style.fontSize = best + 'px';
-    }
-  }
-
-  function applyAutoFit() {
-    var els = stage.querySelectorAll('.shape-rect, .shape-text');
-    for (var i = 0; i < els.length; i++) {
-      var el = els[i];
-      // Allow explicit font=Npx via attrs (opt out of autofit)
-      if (el.dataset.autofit === 'off') continue;
-      var h = el.clientHeight;
-      if (h <= 0) continue;
-      autoFitText(el, 8, h);
-    }
-  }
-
-  function buildArrowheadDefs(color) {
-    var defs = document.createElementNS(SVG_NS, 'defs');
-    var marker = document.createElementNS(SVG_NS, 'marker');
-    marker.setAttribute('id', '_sd_arrowhead');
-    marker.setAttribute('viewBox', '0 0 10 10');
-    marker.setAttribute('refX', '9');
-    marker.setAttribute('refY', '5');
-    marker.setAttribute('markerWidth', '6');
-    marker.setAttribute('markerHeight', '6');
-    marker.setAttribute('orient', 'auto-start-reverse');
-    var path = document.createElementNS(SVG_NS, 'path');
-    path.setAttribute('d', 'M 0 0 L 10 5 L 0 10 Z');
-    path.setAttribute('fill', color || '#475569');
-    marker.appendChild(path);
-    defs.appendChild(marker);
-    return defs;
-  }
-
   function render() {
-    var src = dsl.value;
-    var parsed = window.SDocShapes.parse(src);
-    var resolved = window.SDocShapes.resolve(parsed.shapes);
-    var result = { shapes: resolved.shapes, errors: parsed.errors.concat(resolved.errors) };
+    var result = window.SDocShapeRender.renderShapes(dsl.value, stage);
 
-    // Sync canvas with grid declared in the DSL (or default).
-    canvas = parsed.grid;
-    stage.style.setProperty('--gw', canvas.w);
-    stage.style.setProperty('--gh', canvas.h);
-    gridInfo.textContent = 'grid ' + canvas.w + ' × ' + canvas.h;
+    gridInfo.textContent = 'grid ' + result.grid.w + ' × ' + result.grid.h;
 
-    // Clear stage
-    stage.innerHTML = '';
-    var svg = document.createElementNS(SVG_NS, 'svg');
-    svg.setAttribute('class', 'shape-svg');
-    svg.setAttribute('viewBox', '0 0 ' + canvas.w + ' ' + canvas.h);
-    svg.setAttribute('preserveAspectRatio', 'none');
-    stage.appendChild(svg);
-
-    var defsNeeded = { arrowhead: false, arrowheadColor: null };
-
-    for (var i = 0; i < result.shapes.length; i++) {
-      var s = result.shapes[i];
-      try {
-        if (s.kind === 'r') {
-          stage.appendChild(renderRect(s));
-        } else if (s.kind === 'c') {
-          svg.appendChild(renderCircle(s));
-          if (s.content) stage.appendChild(renderTextOverlay(s));
-        } else if (s.kind === 'e') {
-          svg.appendChild(renderEllipse(s));
-          if (s.content) stage.appendChild(renderTextOverlay(s));
-        } else if (s.kind === 'l') {
-          svg.appendChild(renderLine(s));
-          // lines are decorative — any content is ignored
-        } else if (s.kind === 'a') {
-          svg.appendChild(renderArrow(s, defsNeeded));
-          // arrows are decorative — any content is ignored
-        } else if (s.kind === 'p') {
-          svg.appendChild(renderPolygon(s));
-          if (s.content) stage.appendChild(renderTextOverlay(s));
-        }
-      } catch (e) {
-        result.errors.push({ line: s.lineNumber, message: 'render: ' + e.message, source: '' });
-      }
-    }
-
-    if (defsNeeded.arrowhead) {
-      svg.insertBefore(buildArrowheadDefs(defsNeeded.arrowheadColor), svg.firstChild);
-    }
-
-    // Auto-fit text for every text-bearing element. Defer one frame so the
-    // browser has laid the DOM out and scrollWidth/clientHeight are reliable.
-    requestAnimationFrame(applyAutoFit);
-
-    // Errors
     errorsEl.innerHTML = '';
     for (var j = 0; j < result.errors.length; j++) {
       var err = result.errors[j];
