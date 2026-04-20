@@ -60,6 +60,10 @@ var SHAPE_MD_SHADOW_CSS = [
   'em { font-style: italic; }',
   'a { color: inherit; text-decoration: underline; }',
   'blockquote { margin: 0.3em 0; padding: 0 0 0 0.7em; border-left: 2px solid currentColor; opacity: 0.85; text-align: left; font-style: italic; color: inherit; }',
+  /* When the shape\'s entire content is a code block, the shape itself *is*
+     the code container — let pre fill the shape edge-to-edge without the
+     extra dark overlay that normally distinguishes code from prose. */
+  ':host(.shape-md-code-only) pre { background: transparent; border-radius: 0; margin: 0; padding: 0.3em 0.6em; font-size: 1em; }',
 ].join('\n');
 
 function injectCSS() {
@@ -82,6 +86,7 @@ function contentToMarkdownNode(content) {
   var host = document.createElement('div');
   host.className = 'shape-md';
   if (content == null || content === '') return host;
+  if (contentIsOnlyCodeBlock(content)) host.classList.add('shape-md-code-only');
 
   var marked = typeof window !== 'undefined' ? window.marked : null;
   var purify = typeof window !== 'undefined' ? window.DOMPurify : null;
@@ -101,12 +106,25 @@ function contentToMarkdownNode(content) {
   return host;
 }
 
+// True when `content` is effectively a single fenced code block and nothing
+// else (allowing surrounding whitespace). Used to zero out the shape's
+// default padding so the code fills the shape edge-to-edge — otherwise the
+// shape fill shows as a visible frame around the code block's own bg tint.
+function contentIsOnlyCodeBlock(content) {
+  if (content == null) return false;
+  var t = content.trim();
+  var m = t.match(/^(```|~~~)[^\n]*\n[\s\S]*?\n(```|~~~)$/);
+  if (!m) return false;
+  return m[1] === m[2];
+}
+
 function shapePaddingGridUnits(s) {
   var v = s.attrs && s.attrs.padding;
   if (v != null && v !== '') {
     var n = Number(v);
     return isNaN(n) ? 0 : Math.max(0, n);
   }
+  if (contentIsOnlyCodeBlock(s.content)) return 0;
   var box = window.SDocShapes.contentBox(s);
   if (!box) return 0;
   return Math.min(box.w, box.h) * 0.05;
