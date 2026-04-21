@@ -56,6 +56,19 @@ test('inline code with dollars stays a code span', async ({ page }) => {
   expect(mathCount).toBe(0);
 });
 
+test('$$ inside a code span in prose does not open a display block', async ({ page }) => {
+  // Regression: a paragraph containing `$$...$$` in backticks, followed
+  // later by a real $$...$$ block, used to greedily eat the prose in
+  // between. Block opener must only fire at the start of a line.
+  const md = '# t\n\nWrite math between `$...$` or `$$...$$` delimiters.\n\n$$\ny = x^2\n$$\n\nDone.\n';
+  await loadMd(page, md);
+  // Exactly one display block (the real one), and the code span survived.
+  const displays = await page.locator('#_sd_rendered .sdocs-math-display').count();
+  expect(displays).toBe(1);
+  const html = await page.locator('#_sd_rendered').innerHTML();
+  expect(html).toContain('<code>$$...$$</code>');
+});
+
 test('invalid LaTeX renders with error style, does not crash', async ({ page }) => {
   await loadMd(page, '# t\n\n$$\\frac{1}{$$\n');
   // Rendered with throwOnError: false, so KaTeX emits a .katex-error span
@@ -73,6 +86,22 @@ test('write-mode round-trip preserves $$ and $ delimiters', async ({ page }) => 
   const body = await page.evaluate(() => window.SDocs.currentBody);
   expect(body).toContain('$E = mc^2$');
   expect(body).toContain('$$\na^2 + b^2 = c^2\n$$');
+});
+
+test('math renders even when doc has a heading with id="exports"', async ({ page }) => {
+  // Regression: HTML's named-access-on-Window rule populates window.exports
+  // with any element that has id="exports". KaTeX's UMD wrapper sees
+  // typeof exports === 'object' and assigns exports.katex instead of
+  // window.katex, so lazy load never completes. loadKatex() must shadow
+  // the global during script load.
+  const md = '# t\n\n## Exports\n\nSome content.\n\n$$\nx = y^2\n$$\n';
+  await loadMd(page, md);
+  // The exports heading element must exist (otherwise this test is moot)
+  const exportsEl = await page.locator('#exports').count();
+  expect(exportsEl).toBe(1);
+  // And the math must have rendered.
+  const katex = await page.locator('#_sd_rendered .sdocs-math-display .katex-display').count();
+  expect(katex).toBe(1);
 });
 
 test('CSP allows jsdelivr for style and font', async ({ page }) => {

@@ -299,6 +299,12 @@ VERIFYING THE SERVER (sdoc safe)
 
   \`sdoc safe --json\` returns structured output for scripting.
 
+MATH
+  Inline $...$ and display $$...$$ are rendered as LaTeX via KaTeX.
+    Inline:   The energy is $E = mc^2$.
+    Display:  $$\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}$$
+  Supported commands: https://katex.org/docs/supported.html
+
 STYLED MARKDOWN FORMAT
   SDocs extends standard .md files with an optional YAML
   front matter block (the same standard used by Jekyll, Hugo, Obsidian).

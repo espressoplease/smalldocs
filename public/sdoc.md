@@ -364,6 +364,20 @@ Supports 13 chart types: pie, doughnut, bar, horizontal bar, stacked bar, line, 
 
 Style chart colors via `chart.accent` and `chart.palette` in front matter. Run `sdoc charts` for the full reference of types, options, and styling.
 
+### Math
+
+Write LaTeX between `$...$` (inline) or `$$...$$` (display). Rendered by KaTeX, loaded lazily from CDN only when a math delimiter is present.
+
+Inline example: the mass-energy equivalence is $E = mc^2$, and a subscripted term like $U_{env}$ stays readable mid-sentence.
+
+Display:
+
+$$
+U(\mathbf{x}; \lambda_1, \lambda_2) = U_{env}(\mathbf{x}_{env}) + \lambda_1 U_1(\mathbf{x}_1, \mathbf{x}_{env}) + \lambda_2 U_2(\mathbf{x}_2, \mathbf{x}_{env})
+$$
+
+A closing `$` immediately followed by a digit isn't treated as a delimiter, so `$5` and `$10` stay as currency. For the full list of supported commands, see [katex.org/docs/supported](https://katex.org/docs/supported.html).
+
 ### Drag & drop
 
 Drag any `.md` file onto the editor to SmallDoc it instantly. Or from the terminal: `sdoc file.md`.

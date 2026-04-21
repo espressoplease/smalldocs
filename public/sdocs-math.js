@@ -29,20 +29,45 @@
     katexReady = new Promise(function (resolve, reject) {
       var cssDone = false;
       var jsDone = false;
-      function maybeDone() { if (cssDone && jsDone) resolve(window.katex); }
+
+      // KaTeX's UMD wrapper picks a target in this order:
+      //   1. module.exports (Node)
+      //   2. define.amd (AMD)
+      //   3. exports.katex (CommonJS-ish)
+      //   4. window.katex (browser global)
+      // HTML's "named access on Window" auto-populates window.exports with
+      // any DOM element that has id="exports" (same for "module"). If the
+      // rendered doc contains such an element — e.g. a heading "Exports" —
+      // step 3 fires and KaTeX assigns exports.katex = katex, leaving
+      // window.katex undefined. Shadow both names with local undefined
+      // properties for the duration of the script load so step 4 wins.
+      var prevExports = window.exports;
+      var prevModule = window.module;
+      window.exports = undefined;
+      window.module = undefined;
+      function restoreGlobals() {
+        if (prevExports === undefined) delete window.exports; else window.exports = prevExports;
+        if (prevModule === undefined) delete window.module; else window.module = prevModule;
+      }
+
+      function maybeDone() {
+        if (!(cssDone && jsDone)) return;
+        restoreGlobals();
+        resolve(window.katex);
+      }
 
       var link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = KATEX_CSS;
       link.onload = function () { cssDone = true; maybeDone(); };
-      link.onerror = function () { reject(new Error('katex css load failed')); };
+      link.onerror = function () { restoreGlobals(); reject(new Error('katex css load failed')); };
       document.head.appendChild(link);
 
       var script = document.createElement('script');
       script.src = KATEX_JS;
       script.async = true;
       script.onload = function () { jsDone = true; maybeDone(); };
-      script.onerror = function () { reject(new Error('katex js load failed')); };
+      script.onerror = function () { restoreGlobals(); reject(new Error('katex js load failed')); };
       document.head.appendChild(script);
     });
     return katexReady;
@@ -69,6 +94,13 @@
   // followed by newline or end-of-string so we don't swallow inline uses.
   var BLOCK_RE = /^\$\$([\s\S]+?)\$\$(?:\n|$)/;
 
+  // Only treat $$ as a block opener when it sits at the start of a line.
+  // Without this check, `start` would return the index of $$ inside an
+  // inline code span like `$$...$$`, causing marked to split the paragraph
+  // there and gobble everything up to the next $$ as display math.
+  // Lookbehind is zero-width, so the match index is the $$ position.
+  var BLOCK_START_RE = /(?<=^|\n)\$\$/;
+
   function registerMarkedExtension() {
     if (typeof marked === 'undefined' || !marked.use) return;
     if (registerMarkedExtension._done) return;
@@ -80,8 +112,8 @@
           name: 'sdocsMathBlock',
           level: 'block',
           start: function (src) {
-            var i = src.indexOf('$$');
-            return i < 0 ? undefined : i;
+            var m = BLOCK_START_RE.exec(src);
+            return m ? m.index : undefined;
           },
           tokenizer: function (src) {
             var m = BLOCK_RE.exec(src);
