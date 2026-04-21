@@ -33,14 +33,15 @@ var CSS = [
   '  background: #131210; border-bottom: 1px solid #2a2724;',
   '  flex-shrink: 0;',
   '}',
+  /* Brand mirrors the main SDocs wordmark: logo blue, 13px, weight 600. */
+  /* Modal is always dark, so use the dark-mode accent directly instead of */
+  /* var(--accent) which would track the document theme. */
   '.sdoc-present-brand {',
   '  display: inline-flex; align-items: center; gap: 6px;',
-  '  color: #e7e5e2; font-size: 13px; font-weight: 600;',
+  '  color: #3B82F6; font-size: 13px; font-weight: 600;',
   '  flex-shrink: 0; margin-right: auto;',
   '}',
-  /* Modal is always dark, so use the dark-mode brand blue directly instead */
-  /* of var(--accent) which would track the document theme. */
-  '.sdoc-present-brand-icon { color: #3B82F6; display: inline-flex; }',
+  '.sdoc-present-brand-icon { display: inline-flex; }',
   '.sdoc-present-brand-text { display: inline; }',
   '.sdoc-present-actions {',
   '  display: flex; background: none; border: none;',
