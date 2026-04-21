@@ -57,6 +57,38 @@ var CSS = [
   '.sdoc-present-actions .sdoc-present-btn:hover {',
   '  background: rgba(255, 255, 255, .08); color: #fff;',
   '}',
+  '.sdoc-present-actions .sdoc-present-btn.active {',
+  '  background: rgba(255, 255, 255, .12); color: #fff;',
+  '}',
+  /* Export panel slides in from the right; 260px wide, dark theme. */
+  '.sdoc-present-exp-panel {',
+  '  position: fixed; top: 40px; right: 0; bottom: 0; width: 260px;',
+  '  background: #131210; border-left: 1px solid #2a2724;',
+  '  padding: 14px; z-index: 10001;',
+  '  color: #e7e5e2; font-family: ui-sans-serif, system-ui, sans-serif;',
+  '  transform: translateX(100%); transition: transform .2s ease-out;',
+  '  display: flex; flex-direction: column; gap: 8px;',
+  '}',
+  '.sdoc-present-exp-panel.open { transform: translateX(0); }',
+  '.sdoc-present-exp-panel h3 {',
+  '  margin: 0 0 4px; font-size: 12px; font-weight: 600;',
+  '  color: #8a8580; text-transform: uppercase; letter-spacing: .5px;',
+  '}',
+  '.sdoc-present-exp-btn {',
+  '  all: unset; cursor: pointer; display: flex; gap: 12px; align-items: flex-start;',
+  '  padding: 10px 12px; border-radius: 6px;',
+  '  background: #1a1816; border: 1px solid #2a2724;',
+  '  transition: background .12s, border-color .12s;',
+  '}',
+  '.sdoc-present-exp-btn:hover { background: #211f1c; border-color: #3f3c38; }',
+  '.sdoc-present-exp-btn svg { color: #3B82F6; flex-shrink: 0; margin-top: 1px; }',
+  '.sdoc-present-exp-btn-text { display: flex; flex-direction: column; gap: 2px; }',
+  '.sdoc-present-exp-btn-title {',
+  '  font-size: 13px; font-weight: 600; color: #e7e5e2;',
+  '}',
+  '.sdoc-present-exp-btn-desc {',
+  '  font-size: 11px; color: #8a8580; line-height: 1.4;',
+  '}',
   '.sdoc-present-counter {',
   '  color: #8a8580; font-size: 12px;',
   '  font-family: ui-monospace, Menlo, monospace;',
@@ -125,10 +157,87 @@ var state = {
   modal: null,
   stage: null,
   counter: null,
+  expPanel: null,        // slide-in export panel
+  expBtn: null,          // topbar export button
   savedScrollY: 0,
   savedActive: null,
   sizer: null,           // bound resize handler
+  outsideClose: null,    // bound handler to close exp panel on outside click
 };
+
+// ── Export panel ─────────────────────────────────────
+//
+// Small slide-in panel anchored to the right of the topbar. One option
+// today: "PDF" — delegates to SDocs.printSlides() which adds a body
+// class and calls window.print() against @media print rules in
+// css/print-slides.css. Text in the resulting PDF stays selectable.
+function buildExportPanel() {
+  var p = document.createElement('div');
+  p.className = 'sdoc-present-exp-panel';
+  var h = document.createElement('h3');
+  h.textContent = 'Export';
+  p.appendChild(h);
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sdoc-present-exp-btn';
+  btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>'
+    + '<span class="sdoc-present-exp-btn-text">'
+    +   '<span class="sdoc-present-exp-btn-title">PDF</span>'
+    +   '<span class="sdoc-present-exp-btn-desc">One slide per landscape page. Opens print dialog; text stays selectable.</span>'
+    + '</span>';
+  btn.addEventListener('click', function () {
+    closeExportPanel();
+    // Close the present modal first — @media print rules target the doc
+    // rendering, not the present modal. Hiding it avoids race conditions
+    // in browsers that start painting before the class settles.
+    var idxWas = state.index;
+    close();
+    setTimeout(function () {
+      if (window.SDocs && window.SDocs.printSlides) window.SDocs.printSlides();
+      // After the print dialog closes, re-open present mode where it was.
+      var reopen = function () {
+        window.removeEventListener('afterprint', reopen);
+        open(idxWas);
+      };
+      window.addEventListener('afterprint', reopen);
+    }, 60);
+  });
+  p.appendChild(btn);
+  return p;
+}
+
+function toggleExportPanel() {
+  if (!state.expPanel) return;
+  var isOpen = state.expPanel.classList.contains('open');
+  if (isOpen) closeExportPanel();
+  else openExportPanel();
+}
+
+function openExportPanel() {
+  if (!state.expPanel) return;
+  state.expPanel.classList.add('open');
+  if (state.expBtn) state.expBtn.classList.add('active');
+  state.outsideClose = function (e) {
+    if (state.expPanel && state.expPanel.contains(e.target)) return;
+    if (state.expBtn && state.expBtn.contains(e.target)) return;
+    closeExportPanel();
+  };
+  // Next tick so the triggering click doesn't immediately close it.
+  setTimeout(function () {
+    document.addEventListener('click', state.outsideClose);
+  }, 0);
+}
+
+function closeExportPanel() {
+  if (!state.expPanel) return;
+  state.expPanel.classList.remove('open');
+  if (state.expBtn) state.expBtn.classList.remove('active');
+  if (state.outsideClose) {
+    document.removeEventListener('click', state.outsideClose);
+    state.outsideClose = null;
+  }
+}
 
 function collectSlides() {
   var els = document.querySelectorAll('.sdoc-slide[data-dsl]');
@@ -233,7 +342,12 @@ function renderActive() {
 
 function onKey(e) {
   if (!state.open) return;
-  if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (state.expPanel && state.expPanel.classList.contains('open')) closeExportPanel();
+    else close();
+    return;
+  }
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
     e.preventDefault();
     go(state.index + 1);
@@ -301,6 +415,16 @@ function open(startIndex) {
   var actions = document.createElement('div');
   actions.className = 'sdoc-present-actions';
 
+  var exportBtn = document.createElement('button');
+  exportBtn.className = 'sdoc-present-btn sdoc-present-export-btn';
+  exportBtn.type = 'button';
+  exportBtn.setAttribute('aria-label', 'Export');
+  exportBtn.title = 'Export';
+  exportBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+  exportBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleExportPanel(); });
+  actions.appendChild(exportBtn);
+
   var close = document.createElement('button');
   close.className = 'sdoc-present-btn sdoc-present-close';
   close.type = 'button';
@@ -336,9 +460,14 @@ function open(startIndex) {
   document.body.appendChild(modal);
   document.body.classList.add('sdoc-present-open');
 
+  var expPanel = buildExportPanel();
+  document.body.appendChild(expPanel);
+
   state.modal = modal;
   state.stage = stage;
   state.counter = counter;
+  state.expPanel = expPanel;
+  state.expBtn = exportBtn;
   state.open = true;
 
   state.sizer = function () { sizeStage(); };
@@ -360,6 +489,10 @@ function close() {
   window.removeEventListener('keydown', onKey);
   if (state.sizer) window.removeEventListener('resize', state.sizer);
   state.sizer = null;
+  closeExportPanel();
+  if (state.expPanel && state.expPanel.parentNode) state.expPanel.parentNode.removeChild(state.expPanel);
+  state.expPanel = null;
+  state.expBtn = null;
   if (state.modal && state.modal.parentNode) state.modal.parentNode.removeChild(state.modal);
   state.modal = null;
   state.stage = null;

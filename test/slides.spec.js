@@ -146,6 +146,71 @@ test.describe('Slide rendering pipeline', () => {
     expect(post).toMatch(/cqh$/);
   });
 
+  test('printSlides builds one print page per slide under #_sd_print-stage', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | One\n```\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Two\n```\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Three\n```\n';
+    await page.goto('/');
+    await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
+    await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
+    await page.waitForTimeout(500);
+    // Stub window.print so the dialog doesn't block the test.
+    await page.evaluate(() => { window.print = () => {}; window.SDocs.printSlides(); });
+    await page.waitForTimeout(300);
+    const pageCount = await page.$$eval('#_sd_print-stage .sdoc-print-page', (els) => els.length);
+    expect(pageCount).toBe(3);
+    const bodyHasClass = await page.evaluate(() => document.body.classList.contains('sdoc-printing-slides'));
+    expect(bodyHasClass).toBe(true);
+    // afterprint cleanup — simulate the event so we can assert teardown.
+    await page.evaluate(() => { window.dispatchEvent(new Event('afterprint')); });
+    await page.waitForTimeout(100);
+    const afterStage = await page.$('#_sd_print-stage');
+    expect(afterStage).toBeNull();
+    const afterClass = await page.evaluate(() => document.body.classList.contains('sdoc-printing-slides'));
+    expect(afterClass).toBe(false);
+  });
+
+  test('present-mode export button toggles the side panel', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Only slide\n```\n';
+    await page.goto('/');
+    await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
+    await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
+    await page.waitForTimeout(500);
+    await page.evaluate(() => { window.SDocPresent && window.SDocPresent.open(0); });
+    await page.waitForTimeout(500);
+    const panelBefore = await page.$('.sdoc-present-exp-panel.open');
+    expect(panelBefore).toBeNull();
+    await page.click('.sdoc-present-export-btn');
+    await page.waitForTimeout(300);
+    const panelAfter = await page.$('.sdoc-present-exp-panel.open');
+    expect(panelAfter).not.toBeNull();
+    // Click the export button again — should toggle it closed.
+    await page.click('.sdoc-present-export-btn');
+    await page.waitForTimeout(300);
+    const panelClosed = await page.$('.sdoc-present-exp-panel.open');
+    expect(panelClosed).toBeNull();
+  });
+
+  test('Slides PDF menu option hidden when doc has no slides', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
+    await page.evaluate(() => { window.SDocs.currentBody = '# Plain doc\n\nNo slides here.\n'; window.SDocs.render(); });
+    await page.waitForTimeout(300);
+    await page.click('#_sd_btn-export');
+    await page.waitForTimeout(200);
+    const display = await page.$eval('#_sd_exp-slides-pdf', (el) => el.style.display);
+    expect(display).toBe('none');
+  });
+
+  test('Slides PDF menu option visible when doc has slides', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
+    await page.evaluate(() => { window.SDocs.currentBody = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Hi\n```\n'; window.SDocs.render(); });
+    await page.waitForTimeout(500);
+    await page.click('#_sd_btn-export');
+    await page.waitForTimeout(200);
+    const display = await page.$eval('#_sd_exp-slides-pdf', (el) => el.style.display);
+    expect(display).not.toBe('none');
+  });
+
   test('error badge Copy click does not bubble to open present mode', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     const body = '# Deck\n\n```slide\ngrid 100 56.25\nb 10 10 80 10 | bad\n```\n';

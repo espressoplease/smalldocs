@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="/public/css/write.css">
 <link rel="stylesheet" href="/public/css/comments.css">
 <link rel="stylesheet" href="/public/css/mobile.css">
+<link rel="stylesheet" href="/public/css/print-slides.css">
 <script nonce="__CSP_NONCE__">
   (function(){
     var t = localStorage.getItem('sdocs-theme');
@@ -633,6 +634,13 @@
         <div class="export-option-text">
           <span class="export-option-title">PDF</span>
           <span class="export-option-desc">Download as PDF document</span>
+        </div>
+      </button>
+      <button class="export-option" id="_sd_exp-slides-pdf" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="m8 22 4-4 4 4"/><path d="M12 18v-4"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">Slides PDF</span>
+          <span class="export-option-desc">One slide per landscape page, text selectable. Opens print dialog.</span>
         </div>
       </button>
       <button class="export-option" id="_sd_exp-word">
