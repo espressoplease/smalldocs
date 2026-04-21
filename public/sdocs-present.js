@@ -19,12 +19,49 @@ var CSS = [
   '.sdoc-present {',
   '  position: fixed; inset: 0; z-index: 10000;',
   '  background: #0b0a09; color: #e7e5e2;',
-  '  display: grid; grid-template-columns: 160px 1fr;',
+  '  display: grid;',
+  '  grid-template-rows: 40px 1fr;',
+  '  grid-template-columns: 160px 1fr;',
   '  font-family: ui-sans-serif, system-ui, sans-serif;',
   '  animation: sdoc-present-fade .15s ease-out;',
   '}',
   '@keyframes sdoc-present-fade { from { opacity: 0 } to { opacity: 1 } }',
+  '.sdoc-present-topbar {',
+  '  grid-column: 1 / -1;',
+  '  display: flex; align-items: center; gap: 6px;',
+  '  height: 40px; padding: 0 12px;',
+  '  background: #131210; border-bottom: 1px solid #2a2724;',
+  '  flex-shrink: 0;',
+  '}',
+  '.sdoc-present-brand {',
+  '  display: inline-flex; align-items: center; gap: 6px;',
+  '  color: #e7e5e2; font-size: 13px; font-weight: 600;',
+  '  flex-shrink: 0; margin-right: auto;',
+  '}',
+  '.sdoc-present-brand-icon { color: #f59e0b; display: inline-flex; }',
+  '.sdoc-present-brand-text { display: inline; }',
+  '.sdoc-present-brand-short { display: none; }',
+  '.sdoc-present-actions {',
+  '  display: flex; background: none; border: none;',
+  '  border-radius: 6px; overflow: hidden; padding: 2px; gap: 2px;',
+  '}',
+  '.sdoc-present-actions .sdoc-present-btn {',
+  '  all: unset; cursor: pointer;',
+  '  display: inline-flex; align-items: center; justify-content: center;',
+  '  padding: 6px 8px; border-radius: 4px;',
+  '  color: #d6d3d1; font-size: 12px; font-family: inherit;',
+  '  transition: background .12s, color .12s;',
+  '}',
+  '.sdoc-present-actions .sdoc-present-btn:hover {',
+  '  background: rgba(255, 255, 255, .08); color: #fff;',
+  '}',
+  '.sdoc-present-counter {',
+  '  color: #8a8580; font-size: 12px;',
+  '  font-family: ui-monospace, Menlo, monospace;',
+  '  margin-left: auto; flex-shrink: 0;',
+  '}',
   '.sdoc-present-rail {',
+  '  grid-row: 2;',
   '  background: #131210; border-right: 1px solid #2a2724;',
   '  padding: 12px 10px; overflow-y: auto;',
   '  display: flex; flex-direction: column; gap: 10px;',
@@ -44,6 +81,7 @@ var CSS = [
   '  width: 100%; background: #ffffff; border-radius: 2px;',
   '}',
   '.sdoc-present-stage-wrap {',
+  '  grid-row: 2;',
   '  display: flex; align-items: center; justify-content: center;',
   '  padding: 32px; overflow: hidden; position: relative;',
   '}',
@@ -55,22 +93,15 @@ var CSS = [
   '  background: #ffffff; border-radius: 6px;',
   '  box-shadow: 0 30px 80px rgba(0, 0, 0, .6);',
   '}',
-  '.sdoc-present-controls {',
-  '  position: absolute; bottom: 14px; right: 20px;',
-  '  display: flex; align-items: center; gap: 12px;',
-  '  font-family: ui-monospace, Menlo, monospace; font-size: 12px;',
-  '}',
-  '.sdoc-present-counter { color: #8a8580; }',
-  '.sdoc-present-close {',
-  '  all: unset; cursor: pointer; padding: 4px 10px;',
-  '  color: #d6d3d1; font-size: 12px; border-radius: 4px;',
-  '  background: rgba(255, 255, 255, .06);',
-  '  font-family: ui-monospace, Menlo, monospace;',
-  '}',
-  '.sdoc-present-close:hover { background: rgba(255, 255, 255, .12); }',
   '@media (max-width: 720px) {',
   '  .sdoc-present { grid-template-columns: 1fr; }',
   '  .sdoc-present-rail { display: none; }',
+  '  .sdoc-present-stage-wrap { padding: 16px; }',
+  '  .sdoc-present-brand-text { display: none; }',
+  '  .sdoc-present-brand-short { display: inline; }',
+  '}',
+  '@media (max-width: 360px) {',
+  '  .sdoc-present-brand-text, .sdoc-present-brand-short { display: none; }',
   '}',
   'body.sdoc-present-open { overflow: hidden; }',
 ].join('\n');
@@ -137,8 +168,11 @@ function sizeStage() {
   if (!wrap) return;
   var gw = parseFloat(getComputedStyle(state.stage).getPropertyValue('--gw')) || 16;
   var gh = parseFloat(getComputedStyle(state.stage).getPropertyValue('--gh')) || 9;
-  var availW = wrap.clientWidth - 64;   // padding 32 × 2
-  var availH = wrap.clientHeight - 64;
+  var wrapCs = getComputedStyle(wrap);
+  var padX = parseFloat(wrapCs.paddingLeft) + parseFloat(wrapCs.paddingRight);
+  var padY = parseFloat(wrapCs.paddingTop) + parseFloat(wrapCs.paddingBottom);
+  var availW = wrap.clientWidth - padX;
+  var availH = wrap.clientHeight - padY;
   if (availW <= 0 || availH <= 0) return;
   var byWidth = { w: availW, h: availW * gh / gw };
   var byHeight = { w: availH * gw / gh, h: availH };
@@ -249,6 +283,40 @@ function open(startIndex) {
   modal.setAttribute('aria-modal', 'true');
   modal.setAttribute('aria-label', 'Slide presentation');
 
+  var topbar = document.createElement('div');
+  topbar.className = 'sdoc-present-topbar';
+
+  var brand = document.createElement('div');
+  brand.className = 'sdoc-present-brand';
+  brand.innerHTML = '<span class="sdoc-present-brand-icon" aria-hidden="true">'
+    + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    + '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>'
+    + '</svg></span>'
+    + '<span class="sdoc-present-brand-text">Presentation Mode</span>'
+    + '<span class="sdoc-present-brand-short">Presenting</span>';
+  topbar.appendChild(brand);
+
+  var actions = document.createElement('div');
+  actions.className = 'sdoc-present-actions';
+
+  var close = document.createElement('button');
+  close.className = 'sdoc-present-btn sdoc-present-close';
+  close.type = 'button';
+  close.setAttribute('aria-label', 'Exit presentation (Esc)');
+  close.title = 'Exit presentation (Esc)';
+  close.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+  close.addEventListener('click', function () { closePresent(); });
+  actions.appendChild(close);
+
+  topbar.appendChild(actions);
+
+  var counter = document.createElement('div');
+  counter.className = 'sdoc-present-counter';
+  topbar.appendChild(counter);
+
+  modal.appendChild(topbar);
+
   var rail = document.createElement('aside');
   rail.className = 'sdoc-present-rail';
   for (var i = 0; i < state.slides.length; i++) {
@@ -261,23 +329,6 @@ function open(startIndex) {
 
   var stage = document.createElement('div');
   wrap.appendChild(stage);
-
-  var controls = document.createElement('div');
-  controls.className = 'sdoc-present-controls';
-
-  var counter = document.createElement('div');
-  counter.className = 'sdoc-present-counter';
-  controls.appendChild(counter);
-
-  var close = document.createElement('button');
-  close.className = 'sdoc-present-close';
-  close.type = 'button';
-  close.setAttribute('aria-label', 'Exit presentation (Esc)');
-  close.textContent = 'Close ×';
-  close.addEventListener('click', function () { closePresent(); });
-  controls.appendChild(close);
-
-  wrap.appendChild(controls);
 
   modal.appendChild(wrap);
   document.body.appendChild(modal);

@@ -99,6 +99,47 @@ test.describe('presentation mode', () => {
     await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Third');
   });
 
+  test('topbar is visible with brand, close button, and counter', async ({ page }) => {
+    await loadDocWithSlides(page, [
+      'grid 100 56.25\nr 10 10 80 40 | A',
+      'grid 100 56.25\nr 10 10 80 40 | B',
+    ]);
+    await page.locator('.sdoc-slide').first().click();
+    const topbar = page.locator('.sdoc-present-topbar');
+    await expect(topbar).toHaveCount(1);
+    await expect(topbar.locator('.sdoc-present-brand')).toContainText('Presentation Mode');
+    await expect(topbar.locator('.sdoc-present-close')).toBeVisible();
+    await expect(topbar.locator('.sdoc-present-counter')).toContainText('1 / 2');
+    await page.keyboard.press('ArrowRight');
+    await expect(topbar.locator('.sdoc-present-counter')).toContainText('2 / 2');
+  });
+
+  test('topbar matches main SDocs topbar height (40px)', async ({ page }) => {
+    await loadDocWithSlides(page, [
+      'grid 100 56.25\nr 10 10 80 40 | A',
+    ]);
+    const mainTopbarH = await page.locator('#_sd_left-toolbar').evaluate(el => el.getBoundingClientRect().height);
+    await page.locator('.sdoc-slide').first().click();
+    const presentTopbarH = await page.locator('.sdoc-present-topbar').evaluate(el => el.getBoundingClientRect().height);
+    expect(presentTopbarH).toBe(mainTopbarH);
+  });
+
+  test('mobile layout: rail hidden, brand shortens, stage still fits', async ({ page }) => {
+    await page.setViewportSize({ width: 400, height: 700 });
+    await loadDocWithSlides(page, [
+      'grid 100 56.25\nr 10 10 80 40 | A',
+      'grid 100 56.25\nr 10 10 80 40 | B',
+    ]);
+    await page.locator('.sdoc-slide').first().click();
+    await expect(page.locator('.sdoc-present-rail')).toBeHidden();
+    await expect(page.locator('.sdoc-present-topbar')).toBeVisible();
+    await expect(page.locator('.sdoc-present-close')).toBeVisible();
+    await expect(page.locator('.sdoc-present-counter')).toContainText('1 / 2');
+    const stage = await page.locator('.sdoc-present-stage').boundingBox();
+    expect(stage.width).toBeGreaterThan(0);
+    expect(stage.height).toBeGreaterThan(0);
+  });
+
   test('URL hash gets present=<idx> while open', async ({ page }) => {
     await loadDocWithSlides(page, [
       'grid 100 56.25\nr 10 10 80 40 | A',
