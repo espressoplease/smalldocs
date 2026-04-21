@@ -41,6 +41,27 @@ var CSS = [
   '  white-space: pre-wrap;',
   '  cursor: default;',
   '}',
+  '.sdoc-slide-errbadge {',
+  '  padding: 8px 10px;',
+  '  font: 12px/1.45 ui-monospace, Menlo, monospace;',
+  '  color: #991b1b;',
+  '  background: #fef2f2;',
+  '  border-top: 1px solid #fecaca;',
+  '  display: flex; gap: 10px; align-items: flex-start; justify-content: space-between;',
+  '}',
+  '.sdoc-slide-errbadge-msg { flex: 1; }',
+  '.sdoc-slide-errbadge-title { font-weight: 700; display: block; margin-bottom: 2px; }',
+  '.sdoc-slide-errbadge-list { margin: 0; padding: 0 0 0 16px; }',
+  '.sdoc-slide-errbadge-list li { margin: 2px 0; }',
+  '.sdoc-slide-errbadge-copy {',
+  '  all: unset; cursor: pointer; flex-shrink: 0;',
+  '  padding: 4px 10px; border-radius: 4px;',
+  '  background: #fff; border: 1px solid #fecaca; color: #991b1b;',
+  '  font: 11px/1 ui-monospace, Menlo, monospace;',
+  '  transition: background .12s, border-color .12s;',
+  '}',
+  '.sdoc-slide-errbadge-copy:hover { background: #fff5f5; border-color: #f87171; }',
+  '.sdoc-slide-errbadge-copy.copied { background: #dcfce7; border-color: #86efac; color: #166534; }',
 ].join('\n');
 
 function injectCSS() {
@@ -55,6 +76,83 @@ if (typeof document !== 'undefined') injectCSS();
 function renderError(wrapper, message) {
   wrapper.classList.add('sdoc-slide-error');
   wrapper.textContent = message;
+}
+
+// Error badge carries everything an agent needs to fix the slide without
+// context-hunting: formatted error list + a "Copy" button that puts the
+// full diagnostic (slide index, errors, the actual DSL text) on the
+// clipboard in one shot. The click on the button doesn't bubble to the
+// slide wrapper so it doesn't also open present mode.
+function buildErrorBadge(errors, dslText, slideIdx) {
+  var badge = document.createElement('div');
+  badge.className = 'sdoc-slide-errbadge';
+
+  var msg = document.createElement('div');
+  msg.className = 'sdoc-slide-errbadge-msg';
+  var title = document.createElement('span');
+  title.className = 'sdoc-slide-errbadge-title';
+  title.textContent = errors.length + ' error' + (errors.length === 1 ? '' : 's')
+    + ' in slide ' + (slideIdx + 1);
+  msg.appendChild(title);
+  var list = document.createElement('ul');
+  list.className = 'sdoc-slide-errbadge-list';
+  for (var i = 0; i < errors.length; i++) {
+    var li = document.createElement('li');
+    li.textContent = 'line ' + errors[i].line + ': ' + errors[i].message;
+    list.appendChild(li);
+  }
+  msg.appendChild(list);
+  badge.appendChild(msg);
+
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sdoc-slide-errbadge-copy';
+  btn.textContent = 'Copy';
+  btn.setAttribute('title', 'Copy a diagnostic your agent can use to fix this slide');
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var report = buildErrorReport(errors, dslText, slideIdx);
+    var done = function () {
+      btn.classList.add('copied');
+      btn.textContent = 'Copied';
+      setTimeout(function () { btn.classList.remove('copied'); btn.textContent = 'Copy'; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(report).then(done).catch(function () {
+        legacyCopy(report); done();
+      });
+    } else {
+      legacyCopy(report); done();
+    }
+  });
+  badge.appendChild(btn);
+
+  return badge;
+}
+
+function buildErrorReport(errors, dslText, slideIdx) {
+  var lines = [];
+  lines.push('SDocs slide ' + (slideIdx + 1) + ' — ' + errors.length + ' error' + (errors.length === 1 ? '' : 's'));
+  for (var i = 0; i < errors.length; i++) {
+    lines.push('  line ' + errors[i].line + ': ' + errors[i].message);
+  }
+  lines.push('');
+  lines.push('Slide source (fenced block):');
+  lines.push('~~~slide');
+  lines.push(dslText.replace(/\s+$/, ''));
+  lines.push('~~~');
+  return lines.join('\n');
+}
+
+function legacyCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (_) {}
+  document.body.removeChild(ta);
 }
 
 function processSlides(container) {
@@ -85,12 +183,7 @@ function processSlides(container) {
       wrapper.appendChild(stage);
       var result = window.SDocShapeRender.renderShapes(dslText, stage);
       if (result.errors && result.errors.length) {
-        var errBadge = document.createElement('div');
-        errBadge.style.cssText = 'padding:6px 10px;font:11px/1.3 ui-monospace,monospace;color:#b91c1c;background:#fef2f2;border-top:1px solid #fecaca;';
-        errBadge.textContent = result.errors.length + ' error'
-          + (result.errors.length === 1 ? '' : 's')
-          + ': ' + result.errors.map(function (e) { return 'line ' + e.line + ' — ' + e.message; }).join('; ');
-        wrapper.appendChild(errBadge);
+        wrapper.appendChild(buildErrorBadge(result.errors, dslText, slideIdx));
       }
     } catch (e) {
       renderError(wrapper, 'slide render failed: ' + e.message);

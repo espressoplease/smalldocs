@@ -48,6 +48,15 @@ async function main() {
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function', null, { timeout: 5000 });
   await page.evaluate((body) => { window.SDocs.currentBody = body; window.SDocs.render(); }, md);
   await page.waitForTimeout(waitMs);
+  // Expand any collapsed SDocs sections so slides below the first heading
+  // are visible in the screenshot.
+  await page.evaluate(() => {
+    document.querySelectorAll('#_sd_rendered .collapsed > summary, #_sd_rendered h1, #_sd_rendered h2, #_sd_rendered h3').forEach((el) => {
+      const details = el.closest('details');
+      if (details && !details.open) details.open = true;
+    });
+  });
+  await page.waitForTimeout(200);
   if (presentIdx != null) {
     await page.locator('.sdoc-slide').nth(presentIdx).click();
     await page.waitForTimeout(500);
