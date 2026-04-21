@@ -527,7 +527,24 @@ function renderShapes(dslText, container, options) {
 
   var minFontPx = typeof options.minFontPx === 'number' ? options.minFontPx : 8;
   var maxStageHPct = typeof options.maxStageHPct === 'number' ? options.maxStageHPct : DEFAULT_MAX_FONT_STAGE_PCT;
-  requestAnimationFrame(function () { applyAutoFit(container, minFontPx, maxStageHPct); });
+  var runFit = function () { applyAutoFit(container, minFontPx, maxStageHPct); };
+  requestAnimationFrame(function () {
+    runFit();
+    // Slides nested inside collapsed <details> (SDocs auto-collapses
+    // sections) have clientHeight === 0 on initial render, so autofit
+    // silently skips. Watch for the stage becoming visible and re-run
+    // once — then disconnect. cqh values are resolution-independent, so
+    // later resizes don't need a refit.
+    if (container.clientHeight <= 0 && typeof ResizeObserver !== 'undefined') {
+      var ro = new ResizeObserver(function () {
+        if (container.clientHeight > 0) {
+          ro.disconnect();
+          runFit();
+        }
+      });
+      ro.observe(container);
+    }
+  });
 
   return result;
 }
