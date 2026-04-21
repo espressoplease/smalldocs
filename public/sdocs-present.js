@@ -38,7 +38,7 @@ var CSS = [
   '  color: #e7e5e2; font-size: 13px; font-weight: 600;',
   '  flex-shrink: 0; margin-right: auto;',
   '}',
-  '.sdoc-present-brand-icon { color: #f59e0b; display: inline-flex; }',
+  '.sdoc-present-brand-icon { color: var(--accent); display: inline-flex; }',
   '.sdoc-present-brand-text { display: inline; }',
   '.sdoc-present-brand-short { display: none; }',
   '.sdoc-present-actions {',
@@ -72,7 +72,7 @@ var CSS = [
   '  padding: 4px; transition: border-color .12s;',
   '}',
   '.sdoc-present-thumb:hover { border-color: #3f3c38; }',
-  '.sdoc-present-thumb.active { border-color: #f59e0b; }',
+  '.sdoc-present-thumb.active { border-color: var(--accent); }',
   '.sdoc-present-thumb-num {',
   '  font-size: 10px; color: #8a8580; margin: 2px 0 4px;',
   '  font-family: ui-monospace, Menlo, monospace;',
@@ -97,11 +97,12 @@ var CSS = [
   '  .sdoc-present { grid-template-columns: 1fr; }',
   '  .sdoc-present-rail { display: none; }',
   '  .sdoc-present-stage-wrap { padding: 16px; }',
-  '  .sdoc-present-brand-text { display: none; }',
-  '  .sdoc-present-brand-short { display: inline; }',
-  '}',
-  '@media (max-width: 360px) {',
+  '  .sdoc-present-topbar { gap: 10px; }',
+  /* Mobile: brand icon only, left-aligned stack of icon + counter + actions. */
+  '  .sdoc-present-brand { margin-right: 0; order: 1; }',
   '  .sdoc-present-brand-text, .sdoc-present-brand-short { display: none; }',
+  '  .sdoc-present-counter { margin-left: 0; order: 2; }',
+  '  .sdoc-present-actions { order: 3; }',
   '}',
   'body.sdoc-present-open { overflow: hidden; }',
 ].join('\n');
@@ -290,7 +291,7 @@ function open(startIndex) {
   brand.className = 'sdoc-present-brand';
   brand.innerHTML = '<span class="sdoc-present-brand-icon" aria-hidden="true">'
     + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-    + '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>'
+    + '<path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/>'
     + '</svg></span>'
     + '<span class="sdoc-present-brand-text">Presentation Mode</span>'
     + '<span class="sdoc-present-brand-short">Presenting</span>';

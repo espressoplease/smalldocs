@@ -24,41 +24,77 @@ var CSS_ID = 'sdocs-shape-render-css';
 var CSS = [
   '.sd-shape-stage { position: relative; overflow: hidden; container-type: size; }',
   '.sd-shape-stage .shape-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }',
+  /* Default: text vertically centered, horizontally left-aligned. Reads */
+  /* naturally for body copy and lists; agents opt into center/right via */
+  /* align=, or top/bottom via valign=. */
   '.sd-shape-stage .shape-rect {',
   '  position: absolute; box-sizing: border-box;',
-  '  display: flex; align-items: center; justify-content: center; text-align: center;',
+  '  display: flex; align-items: center; justify-content: flex-start; text-align: left;',
   '  overflow: hidden; line-height: 1.25;',
   '}',
   '.sd-shape-stage .shape-text {',
   '  position: absolute; box-sizing: border-box;',
-  '  display: flex; align-items: center; justify-content: center; text-align: center;',
+  '  display: flex; align-items: center; justify-content: flex-start; text-align: left;',
   '  overflow: hidden; pointer-events: none; line-height: 1.25;',
   '}',
+  '.sd-shape-stage .shape-rect[data-align="center"],',
+  '.sd-shape-stage .shape-text[data-align="center"] { justify-content: center; text-align: center; }',
+  '.sd-shape-stage .shape-rect[data-align="right"],',
+  '.sd-shape-stage .shape-text[data-align="right"] { justify-content: flex-end; text-align: right; }',
+  '.sd-shape-stage .shape-rect[data-valign="top"],',
+  '.sd-shape-stage .shape-text[data-valign="top"] { align-items: flex-start; }',
+  '.sd-shape-stage .shape-rect[data-valign="bottom"],',
+  '.sd-shape-stage .shape-text[data-valign="bottom"] { align-items: flex-end; }',
   '.sd-shape-stage .shape-md { display: block; max-width: 100%; color: inherit; }',
 ].join('\n');
 
 // This is the only place markdown styling lives. Because the shadow root
 // isolates the subtree completely, we can write clean rules without prefixes
 // or !important — the host page literally cannot select in.
+// CSS custom properties (unlike regular rules) cross shadow-DOM boundaries.
+// When a slide is embedded in an SDocs document, --md-* vars declared on
+// #_sd_rendered cascade down into the shadow root, so we can pick up the
+// doc's chosen fonts and heading colors "for free" — no JS forwarding.
+// Fallbacks make the rules still work in the /shapes playground or anywhere
+// else the shape renderer runs outside an SDocs document.
 var SHAPE_MD_SHADOW_CSS = [
   ':host { display: block; color: inherit; font: inherit; line-height: inherit; }',
-  '.inner { text-align: inherit; }',
+  '.inner {',
+  '  text-align: inherit;',
+  '  font-family: var(--md-font-family, inherit);',
+  '}',
   '.inner > :first-child { margin-top: 0; }',
   '.inner > :last-child { margin-bottom: 0; }',
   'p { margin: 0.2em 0; color: inherit; }',
-  'h1 { font-size: 1.4em; font-weight: 700; margin: 0.2em 0; line-height: 1.15; color: inherit; }',
-  'h2 { font-size: 1.2em; font-weight: 700; margin: 0.2em 0; line-height: 1.2; color: inherit; }',
-  'h3 { font-size: 1.05em; font-weight: 600; margin: 0.15em 0; line-height: 1.2; color: inherit; }',
-  'h4, h5, h6 { font-size: 1em; font-weight: 600; margin: 0.15em 0; color: inherit; }',
+  /* Forward doc-level heading font-family, but NOT heading color — shapes */
+  /* frequently declare their own color= and that must win. */
+  'h1, h2, h3, h4, h5, h6 {',
+  '  font-family: var(--md-h-font-family, inherit);',
+  '  color: inherit;',
+  '}',
+  'h1 { font-size: 1.4em; font-weight: 700; margin: 0.2em 0; line-height: 1.15; }',
+  'h2 { font-size: 1.2em; font-weight: 700; margin: 0.2em 0; line-height: 1.2; }',
+  'h3 { font-size: 1.05em; font-weight: 600; margin: 0.15em 0; line-height: 1.2; }',
+  'h4, h5, h6 { font-size: 1em; font-weight: 600; margin: 0.15em 0; }',
   'ul, ol { margin: 0.2em 0; padding: 0 0 0 1.2em; text-align: left; color: inherit; }',
   'li { margin: 0.1em 0; color: inherit; }',
   'li::marker { color: currentColor; }',
-  'code { background: rgba(0,0,0,.08); padding: 0 0.25em; border-radius: 3px; font-size: 0.9em; font-family: ui-monospace, Menlo, monospace; color: inherit; }',
-  'pre { margin: 0.3em 0; padding: 0.4em 0.6em; background: rgba(0,0,0,.08); border-radius: 4px; text-align: left; font-size: 0.85em; overflow-x: auto; line-height: 1.3; color: inherit; }',
-  'pre code { background: none; padding: 0; font-size: inherit; }',
+  'code {',
+  '  background: var(--md-code-bg, rgba(0,0,0,.08));',
+  '  color: var(--md-code-color, inherit);',
+  '  font-family: var(--md-code-font, ui-monospace, Menlo, monospace);',
+  '  padding: 0 0.25em; border-radius: 3px; font-size: 0.9em;',
+  '}',
+  'pre {',
+  '  margin: 0.3em 0; padding: 0.4em 0.6em;',
+  '  background: var(--md-pre-bg, rgba(0,0,0,.08));',
+  '  border-radius: 4px; text-align: left; font-size: 0.85em;',
+  '  overflow-x: auto; line-height: 1.3; color: inherit;',
+  '}',
+  'pre code { background: none; padding: 0; font-size: inherit; color: inherit; }',
   'strong { font-weight: 700; }',
   'em { font-style: italic; }',
-  'a { color: inherit; text-decoration: underline; }',
+  'a { color: var(--md-link-color, inherit); text-decoration: underline; }',
   'blockquote { margin: 0.3em 0; padding: 0 0 0 0.7em; border-left: 2px solid currentColor; opacity: 0.85; text-align: left; font-style: italic; color: inherit; }',
   /* When the shape\'s entire content is a code block, the shape itself *is*
      the code container — let pre fill the shape edge-to-edge without the
@@ -172,6 +208,8 @@ function renderRect(s, grid) {
   applyShapeStyle(el, s.attrs);
   applyPadding(el, s, grid);
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
+  if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
+  if (s.attrs && s.attrs.valign) el.dataset.valign = s.attrs.valign;
   if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content));
   if (s.id) el.dataset.id = s.id;
   return el;
@@ -267,6 +305,8 @@ function renderTextOverlay(s, grid) {
   if (s.attrs.color) el.style.color = s.attrs.color;
   applyPadding(el, s, grid);
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
+  if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
+  if (s.attrs && s.attrs.valign) el.dataset.valign = s.attrs.valign;
   if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content));
   if (s.id) el.dataset.id = s.id + '-text';
   return el;
@@ -363,9 +403,10 @@ function renderShapes(dslText, container, options) {
   var SDocShapes = window.SDocShapes;
   var parsed = SDocShapes.parse(dslText);
   var resolved = SDocShapes.resolve(parsed.shapes);
+  var bounds = SDocShapes.checkGridBounds ? SDocShapes.checkGridBounds(resolved.shapes, parsed.grid) : [];
   var result = {
     shapes: resolved.shapes,
-    errors: parsed.errors.concat(resolved.errors),
+    errors: parsed.errors.concat(resolved.errors, bounds),
     grid: parsed.grid,
   };
 
