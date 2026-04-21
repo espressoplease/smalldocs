@@ -53,6 +53,8 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc slides` - slide DSL reference (grids, shapes, content). Slides render from ```slide or ~~~slide blocks.
+- `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -87,6 +89,8 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc slides` - slide DSL reference (grids, shapes, content). Slides render from ```slide or ~~~slide blocks.
+- `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -121,6 +125,8 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc slides` - slide DSL reference (grids, shapes, content). Slides render from ```slide or ~~~slide blocks.
+- `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -156,6 +162,8 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc slides` - slide DSL reference (grids, shapes, content). Slides render from ```slide or ~~~slide blocks.
+- `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -659,6 +667,8 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc slides` - slide DSL reference (grids, shapes, content). Slides render from ```slide or ~~~slide blocks.
+- `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -688,6 +698,8 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc slides` - slide DSL reference (grids, shapes, content). Slides render from ```slide or ~~~slide blocks.
+- `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -717,6 +729,8 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc slides` - slide DSL reference (grids, shapes, content). Slides render from ```slide or ~~~slide blocks.
+- `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -747,6 +761,8 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc slides` - slide DSL reference (grids, shapes, content). Slides render from ```slide or ~~~slide blocks.
+- `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.

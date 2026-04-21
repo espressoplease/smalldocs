@@ -535,6 +535,33 @@ module.exports = function(harness) {
     assert.strictEqual(res.shapes[1].y1, 10);
   });
 
+  test('bounds: shape extending past grid.h is flagged', () => {
+    const res = parseAndResolve([
+      'grid 100 56.25',
+      'r 10 10 80 70 | overflows',
+    ].join('\n'));
+    assert.strictEqual(res.errors.length, 1);
+    assert.match(res.errors[0].message, /outside grid/);
+    assert.strictEqual(res.errors[0].line, 2);
+  });
+
+  test('bounds: shape entirely inside grid has no error', () => {
+    const res = parseAndResolve([
+      'grid 100 56.25',
+      'r 0 0 100 56.25',
+    ].join('\n'));
+    assert.strictEqual(res.errors.length, 0);
+  });
+
+  test('bounds: lines and arrows are exempt (decorative)', () => {
+    const res = parseAndResolve([
+      'grid 100 56.25',
+      'l 0 0 120 80',
+      'a 0 0 200 200',
+    ].join('\n'));
+    assert.strictEqual(res.errors.length, 0);
+  });
+
   // ── Phase 2: serialization preserves refs ────────────
 
   test('roundtrip: arrow with refs is stable', () => {

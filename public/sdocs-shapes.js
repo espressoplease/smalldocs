@@ -457,11 +457,42 @@ function resolve(shapes) {
   return { shapes: shapes, errors: errors };
 }
 
+// Flags shapes whose bounding box extends outside the declared grid. A common
+// agent mistake is writing `h 70` on a 56.25-tall grid and not realising the
+// shape falls off the bottom. Surfaces as a parse-time error so the thumbnail
+// badge catches it before the overflow is rendered.
+function checkGridBounds(shapes, grid) {
+  var errs = [];
+  var EPS = 0.001;
+  for (var i = 0; i < shapes.length; i++) {
+    var s = shapes[i];
+    // Lines and arrows are decorative, SVG clips them cleanly, and they
+    // commonly reference shape anchors that happen to sit at grid edges.
+    // Skip them to avoid false positives.
+    if (s.kind === 'l' || s.kind === 'a') continue;
+    try {
+      var bb = bboxOf(s);
+      var right = bb.x + bb.w;
+      var bottom = bb.y + bb.h;
+      if (bb.x < -EPS || bb.y < -EPS || right > grid.w + EPS || bottom > grid.h + EPS) {
+        errs.push({
+          line: s.lineNumber,
+          message: 'shape extends outside grid ' + grid.w + 'x' + grid.h
+            + ' (bbox ' + bb.x.toFixed(1) + ',' + bb.y.toFixed(1)
+            + ' to ' + right.toFixed(1) + ',' + bottom.toFixed(1) + ')',
+        });
+      }
+    } catch (e) { /* unresolvable shape — skip */ }
+  }
+  return errs;
+}
+
 // Convenience: parse + resolve in one call.
 function parseAndResolve(src) {
   var pr = parse(src);
   var rr = resolve(pr.shapes);
-  return { shapes: rr.shapes, errors: pr.errors.concat(rr.errors), grid: pr.grid };
+  var bounds = checkGridBounds(rr.shapes, pr.grid);
+  return { shapes: rr.shapes, errors: pr.errors.concat(rr.errors, bounds), grid: pr.grid };
 }
 
 // ─── Serialization (preserves refs for roundtrip) ──────
@@ -518,6 +549,7 @@ exports.resolve = resolve;
 exports.parseAndResolve = parseAndResolve;
 exports.anchorPoint = anchorPoint;
 exports.bboxOf = bboxOf;
+exports.checkGridBounds = checkGridBounds;
 exports.contentBox = contentBox;
 exports.serialize = serialize;
 exports.serializeShape = serializeShape;
