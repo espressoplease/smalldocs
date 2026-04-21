@@ -210,7 +210,11 @@ function applyFontAttr(el, attrs) {
   if (!attrs || !attrs.font) return;
   var v = String(attrs.font).trim();
   if (v === 'fixed' || v === 'none' || v === 'off') {
+    // Flag for applyAutoFit to sample the cascaded font-size after render
+    // and convert it to cqh (same 720 reference). Without this, cascade
+    // gives a literal ~16px that doesn't shrink in rail thumbnails.
     el.dataset.autofit = 'off';
+    el.dataset.fontMode = 'fixed';
     return;
   }
   var unitMatch = v.match(/^(\d*\.?\d+)(px|pt|em|rem)?$/);
@@ -422,7 +426,18 @@ function applyAutoFit(container, minPx, maxStageHPct) {
   var els = container.querySelectorAll('.shape-rect, .shape-text');
   for (var i = 0; i < els.length; i++) {
     var el = els[i];
-    if (el.dataset.autofit === 'off') continue;
+    if (el.dataset.autofit === 'off') {
+      if (el.dataset.fontMode === 'fixed') {
+        // font=fixed: sample the cascaded px size and convert to the same
+        // 720-relative cqh, so doc-style text scales with the stage just
+        // like font=Npx does.
+        var cs = parseFloat(getComputedStyle(el).fontSize);
+        if (isFinite(cs) && cs > 0) {
+          el.style.fontSize = ((cs / FONT_PX_REFERENCE_STAGE_H) * 100).toFixed(4) + 'cqh';
+        }
+      }
+      continue;
+    }
     var h = el.clientHeight;
     if (h <= 0) continue;
     var perShape = parseFloat(el.dataset.maxfont);
