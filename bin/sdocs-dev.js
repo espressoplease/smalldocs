@@ -1499,6 +1499,20 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
                         instead of slide-fit typography). Aliases:
                         \`font=none\`, \`font=off\`.
 
+  Per-element scale (applied inside the shape's shadow root):
+    h1Scale=N           h1 is N× the shape's resolved font size.
+                        Default ratios: h1=1.4, h2=1.2, h3=1.05.
+    h2Scale=N, h3Scale=N, h4Scale=N, h5Scale=N, h6Scale=N
+    pScale=N            Scale paragraph text relative to the shape's
+                        resolved size (default 1).
+
+    Use these when one shape contains a mix of heading + body and
+    you want to tune the visual hierarchy without splitting into
+    two shapes. Example: a hero with a giant number and tiny caption:
+      r 10 15 80 30 h1Scale=3 pScale=0.4 |
+        # 87%
+        of teams ship faster
+
   Identification:
     #id                 Reference target for @refs
 

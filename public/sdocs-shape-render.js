@@ -115,10 +115,27 @@ if (typeof document !== 'undefined') injectCSS();
 
 function pct(v, axisValue) { return (v / axisValue * 100) + '%'; }
 
+// Build a CSS block that overrides the default shadow font-size ratios for
+// specific elements. Keys: h1Scale, h2Scale ... h6Scale, pScale. Values are
+// plain numbers interpreted as em (relative to the shape's resolved font
+// size — which is the autofit output or the font=Npx/font=fixed value).
+function scaleOverrides(attrs) {
+  if (!attrs) return '';
+  var map = { h1Scale: 'h1', h2Scale: 'h2', h3Scale: 'h3', h4Scale: 'h4', h5Scale: 'h5', h6Scale: 'h6', pScale: 'p' };
+  var rules = [];
+  for (var key in map) {
+    if (!Object.prototype.hasOwnProperty.call(attrs, key)) continue;
+    var n = parseFloat(attrs[key]);
+    if (!isFinite(n) || n <= 0) continue;
+    rules.push(map[key] + ' { font-size: ' + n + 'em; }');
+  }
+  return rules.join('\n');
+}
+
 // Render content as a .shape-md host with a shadow root holding the markdown
 // HTML. Shadow DOM isolates shape content from any host-page CSS that might
 // try to restyle paragraphs, list markers, or headings inside a slide.
-function contentToMarkdownNode(content) {
+function contentToMarkdownNode(content, attrs) {
   var host = document.createElement('div');
   host.className = 'shape-md';
   if (content == null || content === '') return host;
@@ -137,8 +154,9 @@ function contentToMarkdownNode(content) {
   var html = markedFn(content);
   if (purify && typeof purify.sanitize === 'function') html = purify.sanitize(html);
 
+  var overrides = scaleOverrides(attrs);
   var shadow = host.attachShadow({ mode: 'open' });
-  shadow.innerHTML = '<style>' + SHAPE_MD_SHADOW_CSS + '</style><div class="inner">' + html + '</div>';
+  shadow.innerHTML = '<style>' + SHAPE_MD_SHADOW_CSS + (overrides ? '\n' + overrides : '') + '</style><div class="inner">' + html + '</div>';
   return host;
 }
 
@@ -242,7 +260,7 @@ function renderRect(s, grid) {
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
   if (s.attrs && s.attrs.valign) el.dataset.valign = s.attrs.valign;
   applyFontAttr(el, s.attrs);
-  if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content));
+  if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content, s.attrs));
   if (s.id) el.dataset.id = s.id;
   return el;
 }
@@ -340,7 +358,7 @@ function renderTextOverlay(s, grid) {
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
   if (s.attrs && s.attrs.valign) el.dataset.valign = s.attrs.valign;
   applyFontAttr(el, s.attrs);
-  if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content));
+  if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content, s.attrs));
   if (s.id) el.dataset.id = s.id + '-text';
   return el;
 }
