@@ -1500,18 +1500,28 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
                         \`font=none\`, \`font=off\`.
 
   Per-element scale (applied inside the shape's shadow root):
-    h1Scale=N           h1 is N× the shape's resolved font size.
-                        Default ratios: h1=1.4, h2=1.2, h3=1.05.
-    h2Scale=N, h3Scale=N, h4Scale=N, h5Scale=N, h6Scale=N
-    pScale=N            Scale paragraph text relative to the shape's
-                        resolved size (default 1).
+    h1Scale=N           h1 is N\u00d7 the shape's resolved font size.
+    h2Scale=N           h2 is N\u00d7 the shape's resolved font size.
+    h3Scale=N, h4Scale=N, h5Scale=N, h6Scale=N
+    pScale=N            Scale paragraph text (default 1).
 
-    Use these when one shape contains a mix of heading + body and
-    you want to tune the visual hierarchy without splitting into
-    two shapes. Example: a hero with a giant number and tiny caption:
-      r 10 15 80 30 h1Scale=3 pScale=0.4 |
-        # 87%
-        of teams ship faster
+    Defaults without overrides: h1 1.4, h2 1.2, h3 1.05, p 1.
+
+    When to use: one shape holds mixed content (heading + body) and
+    you want the heading BIGGER or the body SMALLER than the 1.4 / 1.0
+    default. Two common patterns:
+
+      Hero number (giant + tiny caption, one shape):
+        r 10 15 80 30 h1Scale=3 pScale=0.4 |
+          # 87%
+          of teams ship faster with one-page decks
+
+      Quote card (prominent body, small attribution):
+        r 10 15 80 30 h2Scale=0.5 |
+          Quote text in body size here.
+          ## - Attribution
+
+    Invalid or \u2264 0 values are ignored (fallback to defaults).
 
   Identification:
     #id                 Reference target for @refs
@@ -1572,12 +1582,11 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
     - \`invalid attribute key\`            key must start with a letter
 
 \u2500\u2500 LIMITATIONS TODAY \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  - Per-element size overrides inside one shape (h1 vs p) are not
-    yet exposed; ratios are fixed (h1 1.4em, h2 1.2em, h3 1.05em).
   - Named layouts / templates are not yet implemented.
   - Front-matter token interpolation (e.g. color=$styles.h1.color)
     is not yet implemented.
   - Arrows draw as straight lines; no routing around other shapes.
+  - No drag/resize edit mode yet; shapes are authored by typing DSL.
 `;
 
 // ── Compression (brotli + base64url) ─────────────────
