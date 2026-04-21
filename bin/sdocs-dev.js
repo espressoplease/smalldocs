@@ -1476,7 +1476,7 @@ ATTRIBUTES (between geometry and content)
   strokeWidth=N      Outline width (grid units)
   radius=N           Corner radius (rectangles)
   color=<color>      Text color inside the shape
-  align=<a>          Horizontal: left (default), center, right
+  align=<a>          Horizontal: center (default), left, right
   valign=<v>         Vertical: center (default), top, bottom
   padding=N          Inner padding in grid units (0 disables)
   maxfont=Npx        Cap autofit at N pixels (overrides 12%-stage default)
@@ -1485,6 +1485,29 @@ CONTENT
   Everything after \`|\` is standard markdown: headings, bold/italic,
   lists, code, blockquotes, links. Multi-line content uses
   indentation under the shape line.
+
+ALIGNMENT GUIDELINES
+  The default is \`align=center valign=center\`, which reads well for:
+    - Title shapes (a single heading or phrase).
+    - Subheaders and section labels.
+    - Any standalone text that visually belongs as a caption.
+
+  Switch to \`align=left\` when the shape holds body copy — a paragraph,
+  bullet list, numbered list, blockquote, or several stacked sentences.
+  Left-aligned prose is easier to scan than centered prose once you have
+  more than one line.
+
+  Rule of thumb: if the shape has ONE short phrase, leave it centered.
+  If it has MULTIPLE lines or bullets, add \`align=left\`. Use
+  \`valign=top\` alongside \`align=left\` when the copy should start from
+  the top of the shape rather than float in the middle.
+
+  Example:
+    r 5 5 90 15 fill=#1e40af color=#fff | # Q4 Review            # centered title
+    r 5 22 42 26 align=left valign=top |                         # left-aligned body
+      ## Wins
+      - Shipped slides
+      - Tilde fences
 
 AUTO-FIT
   Font size auto-fits each shape's content. By default, capped at

@@ -24,21 +24,21 @@ var CSS_ID = 'sdocs-shape-render-css';
 var CSS = [
   '.sd-shape-stage { position: relative; overflow: hidden; container-type: size; }',
   '.sd-shape-stage .shape-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }',
-  /* Default: text vertically centered, horizontally left-aligned. Reads */
-  /* naturally for body copy and lists; agents opt into center/right via */
-  /* align=, or top/bottom via valign=. */
+  /* Default: centered both axes. Works naturally for titles and standalone */
+  /* text. Agents override via align=left/right and valign=top/bottom — see */
+  /* `sdoc slides` for when to switch (body/list copy usually wants left). */
   '.sd-shape-stage .shape-rect {',
   '  position: absolute; box-sizing: border-box;',
-  '  display: flex; align-items: center; justify-content: flex-start; text-align: left;',
+  '  display: flex; align-items: center; justify-content: center; text-align: center;',
   '  overflow: hidden; line-height: 1.25;',
   '}',
   '.sd-shape-stage .shape-text {',
   '  position: absolute; box-sizing: border-box;',
-  '  display: flex; align-items: center; justify-content: flex-start; text-align: left;',
+  '  display: flex; align-items: center; justify-content: center; text-align: center;',
   '  overflow: hidden; pointer-events: none; line-height: 1.25;',
   '}',
-  '.sd-shape-stage .shape-rect[data-align="center"],',
-  '.sd-shape-stage .shape-text[data-align="center"] { justify-content: center; text-align: center; }',
+  '.sd-shape-stage .shape-rect[data-align="left"],',
+  '.sd-shape-stage .shape-text[data-align="left"] { justify-content: flex-start; text-align: left; }',
   '.sd-shape-stage .shape-rect[data-align="right"],',
   '.sd-shape-stage .shape-text[data-align="right"] { justify-content: flex-end; text-align: right; }',
   '.sd-shape-stage .shape-rect[data-valign="top"],',
