@@ -1426,98 +1426,144 @@ Embed presentation slides in any markdown document using fenced
 slide blocks. Slides render as thumbnails inline; click one to enter
 fullscreen presentation mode. Esc to exit, arrows to navigate.
 
-OPEN DIRECTLY IN PRESENTATION MODE
-  sdoc present <file>              Open file in fullscreen slide view
+\u2500\u2500 COMMANDS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  sdoc present <file>              Open file directly in fullscreen slide view
   sdoc <file>                      Open normally (click a slide to present)
+  sdoc slides                      This help
 
-BASIC SYNTAX
-  Wrap shape DSL in a \`\`\`slide or ~~~slide fenced block:
+\u2500\u2500 FENCE SYNTAX \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Wrap shape DSL in a ~~~slide or \`\`\`slide fenced block:
 
   ~~~slide
   grid 100 56.25
   r 5 5 90 15 fill=#1e40af color=#fff | # Q4 Review
-  r 5 22 42 26 color=#1e293b |
+  r 5 22 42 26 align=left valign=top |
     ## Wins
     - Shipped slides
     - Tilde fences
-  r 53 22 42 26 color=#1e293b |
-    ## Next
-    - Topbar parity
-    - Font cap
   ~~~
 
-  Prefer ~~~slide over \`\`\`slide — it lets you nest \`\`\` code
-  blocks inside shapes without closing the outer fence early.
+  Prefer ~~~slide — it lets you nest \`\`\` code blocks inside shapes
+  without closing the outer fence early.
 
-GRID
-  First line: \`grid W H\` in arbitrary units. Default 100 56.25 (16:9).
-  All shape coordinates are in grid units; a shape with \`y+h > H\`
-  will be flagged at render time with an "outside grid" error.
+\u2500\u2500 GRID \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  First line: \`grid W H [key=val ...]\`. Default 100 56.25 (16:9).
+  All shape coordinates are in grid units.
+    grid 100 56.25
+    grid 100 75              (4:3)
+    grid 100 100             (square)
+    grid 100 56.25 bg=#0f172a   (set slide background color)
 
-SHAPES
-  r x y w h        rectangle  (holds markdown content)
-  c cx cy r        circle
-  e cx cy rx ry    ellipse
-  l x1 y1 x2 y2    line       (decorative)
-  a x1 y1 x2 y2    arrow      (decorative, head at endpoint)
-  p x1,y1 x2,y2..  polygon    (use ~ between points for a curved segment)
+\u2500\u2500 SHAPES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  r x y w h            rectangle (holds markdown content)
+  c cx cy r            circle
+  e cx cy rx ry        ellipse
+  l x1 y1 x2 y2        line (decorative)
+  a x1 y1 x2 y2        arrow (decorative, head at endpoint)
+  p x1,y1 x2,y2 ...    polygon (use ~ between points for curved segments)
 
-IDS AND REFERENCES
-  Declare an id with \`#name\` after the shape attributes:
-    r 10 10 30 20 #title | # Main Point
+\u2500\u2500 IDS AND REFERENCES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Declare with \`#name\`; reference with \`@name\` or \`@name.anchor\`:
+    r 10 10 30 20 #title  | # Main Point
     r 60 10 30 20 #detail | Supporting detail
     a @title @detail
-  \`@id\` resolves to the shape's center. Edge anchors: \`.top\`,
-  \`.right\`, \`.topleft\`, \`.bottomright\`, etc. — 9 anchors in total.
 
-ATTRIBUTES (between geometry and content)
-  fill=<color>       Shape fill
-  stroke=<color>     Outline color
-  strokeWidth=N      Outline width (grid units)
-  radius=N           Corner radius (rectangles)
-  color=<color>      Text color inside the shape
-  align=<a>          Horizontal: center (default), left, right
-  valign=<v>         Vertical: center (default), top, bottom
-  padding=N          Inner padding in grid units (0 disables)
-  maxfont=Npx        Cap autofit at N pixels (overrides 12%-stage default)
+  9 anchors: center (default), top, bottom, left, right, topleft,
+  topright, bottomleft, bottomright.
 
-CONTENT
-  Everything after \`|\` is standard markdown: headings, bold/italic,
-  lists, code, blockquotes, links. Multi-line content uses
-  indentation under the shape line.
+\u2500\u2500 SHAPE ATTRIBUTES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Between geometry and \`|\`:
 
-ALIGNMENT GUIDELINES
-  The default is \`align=center valign=center\`, which reads well for:
-    - Title shapes (a single heading or phrase).
-    - Subheaders and section labels.
-    - Any standalone text that visually belongs as a caption.
+  Visual:
+    fill=<color>        Shape fill
+    stroke=<color>      Outline color
+    strokeWidth=N       Outline width (grid units)
+    radius=N            Corner radius (rectangles)
+    color=<color>       Text color inside the shape
+    padding=N           Inner padding in grid units (0 disables)
 
-  Switch to \`align=left\` when the shape holds body copy — a paragraph,
-  bullet list, numbered list, blockquote, or several stacked sentences.
-  Left-aligned prose is easier to scan than centered prose once you have
-  more than one line.
+  Alignment:
+    align=<a>           Horizontal: center (default), left, right
+    valign=<v>          Vertical: center (default), top, bottom
 
-  Rule of thumb: if the shape has ONE short phrase, leave it centered.
-  If it has MULTIPLE lines or bullets, add \`align=left\`. Use
-  \`valign=top\` alongside \`align=left\` when the copy should start from
-  the top of the shape rather than float in the middle.
+  Font sizing (pick ONE of three modes):
+    default             Auto-fit — binary search for the largest font
+                        that fits, capped at 12% of stage height.
+    maxfont=Npx         Raise or lower the auto-fit cap while keeping
+                        auto-fit on. e.g. maxfont=200px for a hero
+                        number, maxfont=14px for fine print.
+    font=Npx            Pin an exact size; auto-fit OFF. Units:
+                        px | pt | em | rem. Bare number = px.
+    font=fixed          Auto-fit OFF; font-size inherits from the
+                        cascade (useful when you want doc typography
+                        instead of slide-fit typography). Aliases:
+                        \`font=none\`, \`font=off\`.
 
-  Example:
-    r 5 5 90 15 fill=#1e40af color=#fff | # Q4 Review            # centered title
-    r 5 22 42 26 align=left valign=top |                         # left-aligned body
-      ## Wins
-      - Shipped slides
-      - Tilde fences
+  Identification:
+    #id                 Reference target for @refs
 
-AUTO-FIT
-  Font size auto-fits each shape's content. By default, capped at
-  12% of stage height so single-word shapes don't balloon. Use
-  \`maxfont=Npx\` for hero-size text.
+\u2500\u2500 CONTENT \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Everything after \`|\` is standard markdown. Multi-line uses
+  indentation under the shape line:
 
-STYLE INHERITANCE
-  Slides embedded in an SDocs document pick up the document's
-  font-family and heading font. A shape's own \`color=\` wins over
-  any inherited heading color.
+    r 5 20 90 60 align=left valign=top |
+      ## Heading
+      Some body paragraph.
+
+      - list item one
+      - list item two
+
+      \`\`\`python
+      def hi():
+          print("hello")
+      \`\`\`
+
+\u2500\u2500 ALIGNMENT GUIDELINES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Default: \`align=center valign=center\`. Good for:
+    - Title shapes (one heading or phrase)
+    - Subheaders, section labels
+    - Standalone caption text
+
+  Switch to \`align=left\` when the shape holds body copy — paragraphs,
+  bullet lists, numbered lists, blockquotes. Left-aligned reads better
+  once you have multiple lines. Pair with \`valign=top\` so the block
+  starts from the top of the shape.
+
+  Rule of thumb:
+    ONE short phrase  \u2192  leave centered
+    MULTIPLE lines    \u2192  align=left valign=top
+
+\u2500\u2500 STYLE INHERITANCE FROM HOST DOC \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Inherits from the SDocs document the slide lives in:
+    - Body font-family
+    - Heading font-family
+    - Code block background/color
+    - Fenced-block background
+    - Link color
+
+  A shape's own \`color=\` always wins over any inherited color. Heading
+  color is intentionally NOT forwarded so shape-declared colors apply
+  to h1/h2/h3 without being overridden.
+
+\u2500\u2500 ERRORS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  A slide with parse/render errors shows a red badge at the bottom
+  of the thumbnail listing every problem by line number. The badge
+  has a "Copy" button that puts a diagnostic on the clipboard —
+  errors + the full slide source — for pasting back to an agent.
+
+  Common errors:
+    - "shape extends outside grid WxH"   y+h > H (or x+w > W)
+    - \`unknown id "@name"\`               @-ref before the shape is declared
+    - \`duplicate id "#name"\`             two shapes share an id
+    - \`invalid attribute key\`            key must start with a letter
+
+\u2500\u2500 LIMITATIONS TODAY \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  - Per-element size overrides inside one shape (h1 vs p) are not
+    yet exposed; ratios are fixed (h1 1.4em, h2 1.2em, h3 1.05em).
+  - Named layouts / templates are not yet implemented.
+  - Front-matter token interpolation (e.g. color=$styles.h1.color)
+    is not yet implemented.
+  - Arrows draw as straight lines; no routing around other shapes.
 `;
 
 // ── Compression (brotli + base64url) ─────────────────

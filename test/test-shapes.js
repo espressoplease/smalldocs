@@ -592,36 +592,36 @@ module.exports = function(harness) {
 
   test('grid: default when absent is 100 × 56.25', () => {
     const { grid } = parse('r 0 0 10 10');
-    assert.deepStrictEqual(grid, { w: 100, h: 56.25 });
+    assert.deepStrictEqual(grid, { w: 100, h: 56.25, attrs: {} });
   });
 
   test('grid: empty input also returns default grid', () => {
     const { grid } = parse('');
-    assert.deepStrictEqual(grid, { w: 100, h: 56.25 });
+    assert.deepStrictEqual(grid, { w: 100, h: 56.25, attrs: {} });
   });
 
   test('grid: parsed as first line', () => {
     const { grid, errors } = parse('grid 160 90\nr 0 0 10 10');
     assert.strictEqual(errors.length, 0);
-    assert.deepStrictEqual(grid, { w: 160, h: 90 });
+    assert.deepStrictEqual(grid, { w: 160, h: 90, attrs: {} });
   });
 
   test('grid: allowed after blank lines and comments', () => {
     const { grid, errors } = parse('\n// header\n\ngrid 200 100\nr 0 0 10 10');
     assert.strictEqual(errors.length, 0);
-    assert.deepStrictEqual(grid, { w: 200, h: 100 });
+    assert.deepStrictEqual(grid, { w: 200, h: 100, attrs: {} });
   });
 
   test('grid: floating-point dims', () => {
     const { grid } = parse('grid 100 56.25');
-    assert.deepStrictEqual(grid, { w: 100, h: 56.25 });
+    assert.deepStrictEqual(grid, { w: 100, h: 56.25, attrs: {} });
   });
 
   test('grid: error when declared after a shape', () => {
     const { grid, errors } = parse('r 0 0 10 10\ngrid 160 90');
     assert.strictEqual(errors.length, 1);
     assert.match(errors[0].message, /before any shapes/);
-    assert.deepStrictEqual(grid, { w: 100, h: 56.25 });
+    assert.deepStrictEqual(grid, { w: 100, h: 56.25, attrs: {} });
   });
 
   test('grid: error when declared twice', () => {
@@ -629,18 +629,24 @@ module.exports = function(harness) {
     assert.strictEqual(errors.length, 1);
     assert.match(errors[0].message, /more than once/);
     // First grid wins
-    assert.deepStrictEqual(grid, { w: 160, h: 90 });
+    assert.deepStrictEqual(grid, { w: 160, h: 90, attrs: {} });
   });
 
   test('grid: error on missing H', () => {
     const { errors } = parse('grid 160');
     assert.strictEqual(errors.length, 1);
-    assert.match(errors[0].message, /expected "grid W H"/);
+    assert.match(errors[0].message, /expected "grid W H/);
   });
 
-  test('grid: error on extra tokens', () => {
+  test('grid: bare extra token without = is an error', () => {
     const { errors } = parse('grid 160 90 extra');
-    assert.match(errors[0].message, /expected "grid W H"/);
+    assert.match(errors[0].message, /use key=value/);
+  });
+
+  test('grid: trailing attributes parse into grid.attrs', () => {
+    const { grid, errors } = parse('grid 100 56.25 bg=#0f172a');
+    assert.strictEqual(errors.length, 0);
+    assert.deepStrictEqual(grid, { w: 100, h: 56.25, attrs: { bg: '#0f172a' } });
   });
 
   test('grid: error on non-numeric', () => {
@@ -655,7 +661,7 @@ module.exports = function(harness) {
 
   test('grid: shape coords in big grid work unchanged', () => {
     const { shapes, grid } = parse('grid 400 225\nr 100 50 200 125');
-    assert.deepStrictEqual(grid, { w: 400, h: 225 });
+    assert.deepStrictEqual(grid, { w: 400, h: 225, attrs: {} });
     assert.strictEqual(shapes[0].x, 100);
     assert.strictEqual(shapes[0].w, 200);
   });

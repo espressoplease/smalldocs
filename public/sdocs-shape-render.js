@@ -198,6 +198,26 @@ function applySvgStroke(el, attrs, defaultStroke) {
 
 // ─── Per-shape renderers ─────────────────────────────
 
+// `font=Npx` pins an exact size and disables autofit. `font=fixed` / `font=none`
+// disable autofit but leave the CSS cascade to size text (useful when the
+// agent wants doc-style rather than slide-style sizing).
+function applyFontAttr(el, attrs) {
+  if (!attrs || !attrs.font) return;
+  var v = String(attrs.font).trim();
+  if (v === 'fixed' || v === 'none' || v === 'off') {
+    el.dataset.autofit = 'off';
+    return;
+  }
+  // Accept "24px", "24pt", "1.5em", or a bare number treated as px.
+  var unitMatch = v.match(/^(\d*\.?\d+)(px|pt|em|rem)?$/);
+  if (unitMatch) {
+    var n = unitMatch[1];
+    var unit = unitMatch[2] || 'px';
+    el.style.fontSize = n + unit;
+    el.dataset.autofit = 'off';
+  }
+}
+
 function renderRect(s, grid) {
   var el = document.createElement('div');
   el.className = 'shape-rect';
@@ -210,6 +230,7 @@ function renderRect(s, grid) {
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
   if (s.attrs && s.attrs.valign) el.dataset.valign = s.attrs.valign;
+  applyFontAttr(el, s.attrs);
   if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content));
   if (s.id) el.dataset.id = s.id;
   return el;
@@ -307,6 +328,7 @@ function renderTextOverlay(s, grid) {
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
   if (s.attrs && s.attrs.valign) el.dataset.valign = s.attrs.valign;
+  applyFontAttr(el, s.attrs);
   if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content));
   if (s.id) el.dataset.id = s.id + '-text';
   return el;
@@ -413,6 +435,11 @@ function renderShapes(dslText, container, options) {
   container.classList.add('sd-shape-stage');
   container.style.setProperty('--gw', result.grid.w);
   container.style.setProperty('--gh', result.grid.h);
+  if (result.grid.attrs && result.grid.attrs.bg) {
+    container.style.backgroundColor = result.grid.attrs.bg;
+  } else {
+    container.style.removeProperty('background-color');
+  }
   container.style.aspectRatio = result.grid.w + ' / ' + result.grid.h;
   container.innerHTML = '';
 
