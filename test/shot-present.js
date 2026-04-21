@@ -19,7 +19,9 @@ const path = require('path');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function', null, { timeout: 5000 });
   await page.evaluate((body) => { window.SDocs.currentBody = body; window.SDocs.render(); }, md);
   await page.waitForTimeout(1500);
-  await page.evaluate(() => { window.SDocPresent && window.SDocPresent.open(4); });  // open slide 5 (CTA)
+  const slideArg = process.argv.find((a) => /^--slide=/.test(a));
+  const slideIdx = slideArg ? parseInt(slideArg.split('=')[1], 10) : 4;
+  await page.evaluate((idx) => { window.SDocPresent && window.SDocPresent.open(idx); }, slideIdx);
   await page.waitForTimeout(1200);
   if (process.argv.includes('--full')) {
     await page.screenshot({ path: outPath, fullPage: false });
