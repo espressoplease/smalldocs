@@ -123,6 +123,29 @@ test.describe('Slide rendering pipeline', () => {
     expect(styleText).not.toMatch(/font-size:\s*-\d/);
   });
 
+  test('autofit re-runs when a collapsed section opens', async ({ page }) => {
+    // A slide nested under ## so it lands in a .md-section-body that's
+    // closed by default. Without the ResizeObserver retry, the initial
+    // autofit sees stageH=0 and leaves fontSize empty — so the rect ends
+    // up at cascade size, which is much smaller than the cqh autofit would
+    // have chosen.
+    const body = '# Deck\n\n## Section\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Hello\n```\n';
+    await page.goto('/');
+    await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
+    await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
+    await page.waitForTimeout(500);
+    // At this point the section is collapsed; stage height should be 0.
+    const pre = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
+    expect(pre).toBe('');
+    // Open the section — ResizeObserver should detect the transition and rerun autofit.
+    await page.evaluate(() => {
+      document.querySelectorAll('.md-section-body').forEach((b) => b.classList.add('open'));
+    });
+    await page.waitForTimeout(400);
+    const post = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
+    expect(post).toMatch(/cqh$/);
+  });
+
   test('error badge Copy click does not bubble to open present mode', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     const body = '# Deck\n\n```slide\ngrid 100 56.25\nb 10 10 80 10 | bad\n```\n';

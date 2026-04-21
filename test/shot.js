@@ -49,14 +49,12 @@ async function main() {
   await page.evaluate((body) => { window.SDocs.currentBody = body; window.SDocs.render(); }, md);
   await page.waitForTimeout(waitMs);
   // Expand any collapsed SDocs sections so slides below the first heading
-  // are visible in the screenshot.
+  // are visible in the screenshot. SDocs uses .md-section-body (not <details>).
   await page.evaluate(() => {
-    document.querySelectorAll('#_sd_rendered .collapsed > summary, #_sd_rendered h1, #_sd_rendered h2, #_sd_rendered h3').forEach((el) => {
-      const details = el.closest('details');
-      if (details && !details.open) details.open = true;
-    });
+    document.querySelectorAll('.md-section-body').forEach((b) => b.classList.add('open'));
+    document.querySelectorAll('.section-toggle').forEach((t) => t.classList.add('open'));
   });
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(800);
   if (presentIdx != null) {
     await page.locator('.sdoc-slide').nth(presentIdx).click();
     await page.waitForTimeout(500);
