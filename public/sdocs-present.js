@@ -174,9 +174,9 @@ var state = {
 // ── Export panel ─────────────────────────────────────
 //
 // Small slide-in panel anchored to the right of the topbar. One option
-// today: "PDF" — delegates to SDocs.printSlides() which adds a body
-// class and calls window.print() against @media print rules in
-// css/print-slides.css. Text in the resulting PDF stays selectable.
+// today: "PDF" — delegates to SDocs.exportSlidesPdf() which builds the
+// PDF client-side via pdf-lib and triggers a direct download. No print
+// dialog; text stays selectable.
 function buildExportPanel() {
   var p = document.createElement('div');
   p.className = 'sdoc-present-exp-panel';
@@ -190,24 +190,11 @@ function buildExportPanel() {
     + '<rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>'
     + '<span class="sdoc-present-exp-btn-text">'
     +   '<span class="sdoc-present-exp-btn-title">PDF</span>'
-    +   '<span class="sdoc-present-exp-btn-desc">One slide per landscape page. Opens print dialog; text stays selectable.</span>'
+    +   '<span class="sdoc-present-exp-btn-desc">One slide per landscape page with selectable text</span>'
     + '</span>';
   btn.addEventListener('click', function () {
     closeExportPanel();
-    // Close the present modal first — @media print rules target the doc
-    // rendering, not the present modal. Hiding it avoids race conditions
-    // in browsers that start painting before the class settles.
-    var idxWas = state.index;
-    close();
-    setTimeout(function () {
-      if (window.SDocs && window.SDocs.printSlides) window.SDocs.printSlides();
-      // After the print dialog closes, re-open present mode where it was.
-      var reopen = function () {
-        window.removeEventListener('afterprint', reopen);
-        open(idxWas);
-      };
-      window.addEventListener('afterprint', reopen);
-    }, 60);
+    if (window.SDocs && window.SDocs.exportSlidesPdf) window.SDocs.exportSlidesPdf();
   });
   p.appendChild(btn);
   return p;
