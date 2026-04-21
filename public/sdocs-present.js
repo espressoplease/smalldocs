@@ -38,9 +38,10 @@ var CSS = [
   '  color: #e7e5e2; font-size: 13px; font-weight: 600;',
   '  flex-shrink: 0; margin-right: auto;',
   '}',
-  '.sdoc-present-brand-icon { color: var(--accent); display: inline-flex; }',
+  /* Modal is always dark, so use the dark-mode brand blue directly instead */
+  /* of var(--accent) which would track the document theme. */
+  '.sdoc-present-brand-icon { color: #3B82F6; display: inline-flex; }',
   '.sdoc-present-brand-text { display: inline; }',
-  '.sdoc-present-brand-short { display: none; }',
   '.sdoc-present-actions {',
   '  display: flex; background: none; border: none;',
   '  border-radius: 6px; overflow: hidden; padding: 2px; gap: 2px;',
@@ -72,7 +73,7 @@ var CSS = [
   '  padding: 4px; transition: border-color .12s;',
   '}',
   '.sdoc-present-thumb:hover { border-color: #3f3c38; }',
-  '.sdoc-present-thumb.active { border-color: var(--accent); }',
+  '.sdoc-present-thumb.active { border-color: #3B82F6; }',
   '.sdoc-present-thumb-num {',
   '  font-size: 10px; color: #8a8580; margin: 2px 0 4px;',
   '  font-family: ui-monospace, Menlo, monospace;',
@@ -100,7 +101,7 @@ var CSS = [
   '  .sdoc-present-topbar { gap: 10px; }',
   /* Mobile: brand icon only, left-aligned stack of icon + counter + actions. */
   '  .sdoc-present-brand { margin-right: 0; order: 1; }',
-  '  .sdoc-present-brand-text, .sdoc-present-brand-short { display: none; }',
+  '  .sdoc-present-brand-text { display: none; }',
   '  .sdoc-present-counter { margin-left: 0; order: 2; }',
   '  .sdoc-present-actions { order: 3; }',
   '}',
@@ -290,11 +291,10 @@ function open(startIndex) {
   var brand = document.createElement('div');
   brand.className = 'sdoc-present-brand';
   brand.innerHTML = '<span class="sdoc-present-brand-icon" aria-hidden="true">'
-    + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">'
     + '<path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/>'
     + '</svg></span>'
-    + '<span class="sdoc-present-brand-text">Presentation Mode</span>'
-    + '<span class="sdoc-present-brand-short">Presenting</span>';
+    + '<span class="sdoc-present-brand-text">Presenting</span>';
   topbar.appendChild(brand);
 
   var actions = document.createElement('div');
