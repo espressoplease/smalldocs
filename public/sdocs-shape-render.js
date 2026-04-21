@@ -171,6 +171,7 @@ function renderRect(s, grid) {
   el.style.height = pct(s.h, grid.h);
   applyShapeStyle(el, s.attrs);
   applyPadding(el, s, grid);
+  if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content));
   if (s.id) el.dataset.id = s.id;
   return el;
@@ -265,6 +266,7 @@ function renderTextOverlay(s, grid) {
   el.style.height = pct(box.h, grid.h);
   if (s.attrs.color) el.style.color = s.attrs.color;
   applyPadding(el, s, grid);
+  if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content));
   if (s.id) el.dataset.id = s.id + '-text';
   return el;
@@ -329,17 +331,28 @@ function autoFitText(el, stageH, minPx, maxPx) {
   }
 }
 
-function applyAutoFit(container, minPx) {
+// Default cap: text font-size never exceeds this fraction of stage height.
+// Without a cap, a tall shape with one word balloons up to its own height,
+// which makes slides look childish compared to surrounding document text.
+// At 0.12, a single word on a 40%-tall shape renders at ~12% stage height —
+// roughly the size of an h1 on a pro deck. Override per-shape with maxfont=Npx.
+var DEFAULT_MAX_FONT_STAGE_PCT = 0.12;
+
+function applyAutoFit(container, minPx, maxStageHPct) {
   var stageH = container.clientHeight;
   if (stageH <= 0) return;
   var floor = typeof minPx === 'number' ? minPx : 8;
+  var pct = typeof maxStageHPct === 'number' ? maxStageHPct : DEFAULT_MAX_FONT_STAGE_PCT;
+  var stageCap = stageH * pct;
   var els = container.querySelectorAll('.shape-rect, .shape-text');
   for (var i = 0; i < els.length; i++) {
     var el = els[i];
     if (el.dataset.autofit === 'off') continue;
     var h = el.clientHeight;
     if (h <= 0) continue;
-    autoFitText(el, stageH, floor, h);
+    var perShape = parseFloat(el.dataset.maxfont);
+    var cap = isFinite(perShape) && perShape > 0 ? perShape : stageCap;
+    autoFitText(el, stageH, floor, Math.min(h, cap));
   }
 }
 
@@ -399,7 +412,8 @@ function renderShapes(dslText, container, options) {
   }
 
   var minFontPx = typeof options.minFontPx === 'number' ? options.minFontPx : 8;
-  requestAnimationFrame(function () { applyAutoFit(container, minFontPx); });
+  var maxStageHPct = typeof options.maxStageHPct === 'number' ? options.maxStageHPct : DEFAULT_MAX_FONT_STAGE_PCT;
+  requestAnimationFrame(function () { applyAutoFit(container, minFontPx, maxStageHPct); });
 
   return result;
 }
