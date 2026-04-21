@@ -201,6 +201,11 @@ function applySvgStroke(el, attrs, defaultStroke) {
 // `font=Npx` pins an exact size and disables autofit. `font=fixed` / `font=none`
 // disable autofit but leave the CSS cascade to size text (useful when the
 // agent wants doc-style rather than slide-style sizing).
+//
+// For px values, we emit cqh relative to FONT_PX_REFERENCE_STAGE_H so the
+// size scales with the stage — `font=18px` on a 720px fullscreen stage
+// renders at 18px, and the same value renders at ~2px in a 80px-tall rail
+// thumbnail, matching how autofit text naturally scales via cqh.
 function applyFontAttr(el, attrs) {
   if (!attrs || !attrs.font) return;
   var v = String(attrs.font).trim();
@@ -208,14 +213,16 @@ function applyFontAttr(el, attrs) {
     el.dataset.autofit = 'off';
     return;
   }
-  // Accept "24px", "24pt", "1.5em", or a bare number treated as px.
   var unitMatch = v.match(/^(\d*\.?\d+)(px|pt|em|rem)?$/);
-  if (unitMatch) {
-    var n = unitMatch[1];
-    var unit = unitMatch[2] || 'px';
+  if (!unitMatch) return;
+  var n = parseFloat(unitMatch[1]);
+  var unit = unitMatch[2] || 'px';
+  if (unit === 'px') {
+    el.style.fontSize = ((n / FONT_PX_REFERENCE_STAGE_H) * 100).toFixed(4) + 'cqh';
+  } else {
     el.style.fontSize = n + unit;
-    el.dataset.autofit = 'off';
   }
+  el.dataset.autofit = 'off';
 }
 
 function renderRect(s, grid) {
@@ -399,6 +406,12 @@ function autoFitText(el, stageH, minPx, maxPx) {
 // At 0.12, a single word on a 40%-tall shape renders at ~12% stage height —
 // roughly the size of an h1 on a pro deck. Override per-shape with maxfont=Npx.
 var DEFAULT_MAX_FONT_STAGE_PCT = 0.12;
+
+// Reference stage height for `font=Npx`. The agent's mental model when
+// typing `font=18px` is roughly "what this looks like on a fullscreen slide
+// at 720p" — so we use that as the anchor and emit cqh, letting the value
+// scale proportionally in rail thumbnails and bigger fullscreens alike.
+var FONT_PX_REFERENCE_STAGE_H = 720;
 
 function applyAutoFit(container, minPx, maxStageHPct) {
   var stageH = container.clientHeight;
