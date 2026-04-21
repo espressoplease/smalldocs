@@ -146,26 +146,52 @@ test.describe('Slide rendering pipeline', () => {
     expect(post).toMatch(/cqh$/);
   });
 
-  test('printSlides builds one print page per slide under #_sd_print-stage', async ({ page }) => {
+  test('exportSlidesPdf builds a downloadable PDF without calling window.print', async ({ page }) => {
     const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | One\n```\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Two\n```\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Three\n```\n';
     await page.goto('/');
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
     await page.waitForTimeout(500);
-    // Stub window.print so the dialog doesn't block the test.
-    await page.evaluate(() => { window.print = () => {}; window.SDocs.printSlides(); });
-    await page.waitForTimeout(300);
-    const pageCount = await page.$$eval('#_sd_print-stage .sdoc-print-page', (els) => els.length);
-    expect(pageCount).toBe(3);
-    const bodyHasClass = await page.evaluate(() => document.body.classList.contains('sdoc-printing-slides'));
-    expect(bodyHasClass).toBe(true);
-    // afterprint cleanup — simulate the event so we can assert teardown.
-    await page.evaluate(() => { window.dispatchEvent(new Event('afterprint')); });
-    await page.waitForTimeout(100);
-    const afterStage = await page.$('#_sd_print-stage');
-    expect(afterStage).toBeNull();
-    const afterClass = await page.evaluate(() => document.body.classList.contains('sdoc-printing-slides'));
-    expect(afterClass).toBe(false);
+    // Grab the Blob object directly — a.href is revoked right after .click()
+    // returns, so intercepting the href alone is racy.
+    await page.evaluate(() => {
+      window.__printCalls = 0;
+      window.print = () => { window.__printCalls++; };
+      window.__capturedBlob = null;
+      window.__downloadedName = null;
+      const origCreateObjectURL = URL.createObjectURL.bind(URL);
+      URL.createObjectURL = function (obj) {
+        if (obj instanceof Blob && obj.type === 'application/pdf') {
+          window.__capturedBlob = obj;
+        }
+        return origCreateObjectURL(obj);
+      };
+      const origCreateEl = document.createElement.bind(document);
+      document.createElement = function (tag) {
+        const el = origCreateEl(tag);
+        if (tag === 'a') {
+          el.click = function () { window.__downloadedName = el.download; };
+        }
+        return el;
+      };
+    });
+    await page.evaluate(() => window.SDocs.exportSlidesPdf());
+    await page.waitForFunction(() => !!window.__capturedBlob, { timeout: 30000 });
+    const name = await page.evaluate(() => window.__downloadedName);
+    expect(name).toMatch(/-slides\.pdf$/);
+    const isPdf = await page.evaluate(async () => {
+      const buf = await window.__capturedBlob.arrayBuffer();
+      const header = new Uint8Array(buf.slice(0, 4));
+      return header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46;
+    });
+    expect(isPdf).toBe(true);
+    const printCalls = await page.evaluate(() => window.__printCalls);
+    expect(printCalls).toBe(0);
+    // No lingering print-stage or printing-slides class from the old path.
+    const leftoverStage = await page.$('#_sd_print-stage');
+    expect(leftoverStage).toBeNull();
+    const leftoverClass = await page.evaluate(() => document.body.classList.contains('sdoc-printing-slides'));
+    expect(leftoverClass).toBe(false);
   });
 
   test('present-mode export button toggles the side panel', async ({ page }) => {

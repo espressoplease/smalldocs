@@ -488,16 +488,16 @@ function readComputedBlock(el) {
   };
 }
 
-// ── pdf-lib rendering engine ──
-
-async function renderPdf(rendered, st, chartImages, mermaidImages) {
-  mermaidImages = mermaidImages || [];
-  var PDFDocument = PDFLib.PDFDocument;
-  var rgb = PDFLib.rgb;
-  var doc = await PDFDocument.create();
-  doc.registerFontkit(fontkit);
-
-  // Load fonts
+// ── Shared font loading ──
+//
+// Both renderPdf and renderSlidesPdf need the same embedded fonts, loaded
+// from Fontsource. { subset: true } is critical: the default
+// CustomFontEmbedder builds its ToUnicode CMap from the font's cmap table
+// only, so any glyph produced by OpenType substitution (e.g. Inter's "case"
+// feature swapping "(" for an uppercase-aware variant next to capitals) has
+// no Unicode mapping and becomes unextractable. SubsetEmbedder CMaps every
+// glyph that encodeText actually uses, so substitutions round-trip correctly.
+async function loadPdfFonts(doc) {
   var bodyFontRaw = getCssVar('--md-font-family') || "'Inter', sans-serif";
   var headFontRaw = getCssVar('--md-h-font-family') || 'inherit';
   var bodyName = bodyFontRaw.replace(/['"]/g, '').split(',')[0].trim();
@@ -509,12 +509,6 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
   try {
     var b400 = await fetchFontBuf(bodySlug, 400);
     var b700 = await fetchFontBuf(bodySlug, 700);
-    // { subset: true } is critical: the default CustomFontEmbedder builds its
-    // ToUnicode CMap from the font's cmap table only, so any glyph produced
-    // by OpenType substitution (e.g. Inter's "case" feature swapping "(" for
-    // an uppercase-aware variant next to capitals) has no Unicode mapping
-    // and becomes unextractable. SubsetEmbedder CMaps every glyph that
-    // encodeText actually uses, so substitutions round-trip correctly.
     font = await doc.embedFont(b400, { subset: true });
     bold = await doc.embedFont(b700, { subset: true });
   } catch (e) {
@@ -576,6 +570,31 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
   // Drop counter shared across all pages. Read by exportPDF after render to
   // surface "N characters omitted" in the status bar.
   var dropCounter = { count: 0 };
+
+  return {
+    body: font, bodyBold: bold,
+    heading: headFont, headingBold: headBold,
+    mono: mono,
+    bodyName: bodyName.toLowerCase(),
+    headingName: headName.toLowerCase(),
+  };
+}
+
+// ── pdf-lib rendering engine ──
+
+async function renderPdf(rendered, st, chartImages, mermaidImages) {
+  mermaidImages = mermaidImages || [];
+  var PDFDocument = PDFLib.PDFDocument;
+  var rgb = PDFLib.rgb;
+  var doc = await PDFDocument.create();
+  doc.registerFontkit(fontkit);
+
+  var fontPack = await loadPdfFonts(doc);
+  var font = fontPack.body;
+  var bold = fontPack.bodyBold;
+  var headFont = fontPack.heading;
+  var headBold = fontPack.headingBold;
+  var mono = fontPack.mono;
 
   // Page layout
   var W = 595.28; // A4 width
@@ -876,10 +895,34 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
       else if (tag === 'ol') drawList(el, true);
       else if (el.classList.contains('sdoc-chart')) await drawChart();
       else if (el.classList.contains('sdoc-mermaid')) await drawMermaid();
+      else if (el.classList.contains('sdoc-slide')) await drawInlineSlide(el);
       else if (tag === 'hr') drawHR(el);
       else if (tag === 'img') await drawImage(el);
       else if (tag === 'table') drawTable(el);
     }
+  }
+
+  // Inline slide: draws the slide shape+text onto the current page at a
+  // 16:9 rectangle the width of the content area. Shares fonts with the
+  // body so headings render with the same embedded font.
+  async function drawInlineSlide(el) {
+    var dsl = el.getAttribute('data-dsl');
+    if (!dsl || !window.SDocSlidePdf) return;
+    var parsed = window.SDocShapes.parse(dsl);
+    var aspect = parsed.grid.w / parsed.grid.h;
+    var slideW = CW;
+    var slideH = slideW / aspect;
+    y -= 8;
+    ensureSpace(slideH + 8);
+    try {
+      await window.SDocSlidePdf.drawSlide({
+        dsl: dsl, page: page, pdfDoc: doc, fonts: fontPack,
+        bounds: { x: ML, y: y - slideH, w: slideW, h: slideH },
+      });
+    } catch (e) {
+      if (window.console) console.warn('Inline slide render failed:', e);
+    }
+    y -= slideH + 12;
   }
 
   // ── Element renderers (CSS-driven) ──
@@ -1280,72 +1323,64 @@ function download(filename, content) {
   URL.revokeObjectURL(a.href);
 }
 
-// ── Slide-only print ──────────────────────────────────
+// ── Slide-only PDF export ─────────────────────────────
 //
-// Build a dedicated #_sd_print-stage at body level with one rendered
-// slide per page, then open the browser print dialog. @media print rules
-// in css/print-slides.css hide the rest of the page and pin each slide
-// to a full 1280x720 landscape PDF page. Text stays selectable because
-// it's still real DOM text, not rasterized.
+// Builds a landscape PDF with one 1280x720 pt page per slide in the
+// document. Slides render as real PDF primitives (shapes + text) via
+// SDocSlidePdf — no rasterization, no print dialog, text remains
+// selectable and extractable.
 //
 // Called by both the main export panel's "Slides PDF" option and the
 // export button in the presentation-mode topbar.
-function printSlides() {
+async function exportSlidesPdf() {
   var sources = document.querySelectorAll('.sdoc-slide[data-dsl]');
   if (!sources.length) {
     S.setStatus('No slides in this document');
     return;
   }
-  // Remove any stage left over from a prior run (e.g. if afterprint didn't fire).
-  var existing = document.getElementById('_sd_print-stage');
-  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-
-  var stage = document.createElement('div');
-  stage.id = '_sd_print-stage';
-  document.body.appendChild(stage);
-
-  for (var i = 0; i < sources.length; i++) {
-    var dsl = sources[i].getAttribute('data-dsl');
-    var page = document.createElement('div');
-    page.className = 'sdoc-print-page';
-    var inner = document.createElement('div');
-    page.appendChild(inner);
-    stage.appendChild(page);
-    // Render the shape DSL fresh into the print page. cqh values resolve
-    // against the page's 720px height automatically.
-    try {
-      window.SDocShapeRender.renderShapes(dsl, inner);
-    } catch (e) {
-      inner.textContent = 'Render failed: ' + (e && e.message);
-    }
+  if (!window.SDocSlidePdf) {
+    S.setStatus('Slide PDF renderer not loaded');
+    return;
   }
+  S.setStatus('Generating slide PDF\u2026');
+  try {
+    await loadPdfLib();
+    var PDFDocument = PDFLib.PDFDocument;
+    var doc = await PDFDocument.create();
+    doc.registerFontkit(fontkit);
+    var fonts = await loadPdfFonts(doc);
 
-  document.body.classList.add('sdoc-printing-slides');
+    for (var i = 0; i < sources.length; i++) {
+      if (sources.length > 1) S.setStatus('Rendering slide ' + (i + 1) + '/' + sources.length + '\u2026');
+      var dsl = sources[i].getAttribute('data-dsl');
+      var page = doc.addPage([1280, 720]);
+      await window.SDocSlidePdf.drawSlide({
+        dsl: dsl, page: page, pdfDoc: doc, fonts: fonts,
+        bounds: { x: 0, y: 0, w: 1280, h: 720 },
+      });
+    }
 
-  var cleanup = function () {
-    document.body.classList.remove('sdoc-printing-slides');
-    var s = document.getElementById('_sd_print-stage');
-    if (s && s.parentNode) s.parentNode.removeChild(s);
-    window.removeEventListener('afterprint', cleanup);
-  };
-  window.addEventListener('afterprint', cleanup);
-
-  // Autofit runs on rAF inside renderShapes; give it one rAF to settle,
-  // then open the dialog on the next frame.
-  requestAnimationFrame(function () {
-    requestAnimationFrame(function () {
-      setTimeout(function () { window.print(); }, 0);
-    });
-  });
+    var bytes = await doc.save();
+    var blob = new Blob([bytes], { type: 'application/pdf' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = ((S.currentMeta && S.currentMeta.title) || 'slides').replace(/[^a-z0-9_-]/gi, '_') + '-slides.pdf';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    S.setStatus('Slides PDF downloaded');
+  } catch (e) {
+    S.setStatus('Slide PDF export failed: ' + e.message);
+    console.error(e);
+  }
 }
 
-S.printSlides = printSlides;
+S.exportSlidesPdf = exportSlidesPdf;
 
 // ── Export panel handlers ──────────────────────────────
 
 document.getElementById('_sd_exp-pdf').addEventListener('click', exportPDF);
 document.getElementById('_sd_exp-word').addEventListener('click', exportWord);
-document.getElementById('_sd_exp-slides-pdf').addEventListener('click', printSlides);
+document.getElementById('_sd_exp-slides-pdf').addEventListener('click', exportSlidesPdf);
 
 document.getElementById('_sd_exp-raw').addEventListener('click', function() {
   download('document.md', S.currentBody);
