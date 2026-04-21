@@ -99,6 +99,30 @@ test.describe('Slide rendering pipeline', () => {
     expect(text).toContain('~~~slide');
   });
 
+  test('h1Scale and pScale inject em-based overrides into the shadow root', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 h1Scale=3 pScale=0.4 |\n  # Big\n  small caption\n```\n';
+    await renderBody(page, body);
+    // Read the shadow root's <style> to confirm the override rules exist.
+    const styleText = await page.$eval('.sdoc-slide .shape-md', (host) => {
+      if (!host.shadowRoot) return '';
+      const s = host.shadowRoot.querySelector('style');
+      return s ? s.textContent : '';
+    });
+    expect(styleText).toContain('h1 { font-size: 3em; }');
+    expect(styleText).toContain('p { font-size: 0.4em; }');
+  });
+
+  test('invalid or missing scales are ignored', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 h1Scale=bogus h2Scale=-1 |\n  # Heading\n```\n';
+    await renderBody(page, body);
+    const styleText = await page.$eval('.sdoc-slide .shape-md', (host) => {
+      return host.shadowRoot ? host.shadowRoot.querySelector('style').textContent : '';
+    });
+    // Defaults (1.4em for h1, 1.2em for h2) remain; no NaNem / negative-em rules.
+    expect(styleText).not.toMatch(/font-size:\s*NaNem/);
+    expect(styleText).not.toMatch(/font-size:\s*-\d/);
+  });
+
   test('error badge Copy click does not bubble to open present mode', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     const body = '# Deck\n\n```slide\ngrid 100 56.25\nb 10 10 80 10 | bad\n```\n';
