@@ -1280,10 +1280,72 @@ function download(filename, content) {
   URL.revokeObjectURL(a.href);
 }
 
+// ── Slide-only print ──────────────────────────────────
+//
+// Build a dedicated #_sd_print-stage at body level with one rendered
+// slide per page, then open the browser print dialog. @media print rules
+// in css/print-slides.css hide the rest of the page and pin each slide
+// to a full 1280x720 landscape PDF page. Text stays selectable because
+// it's still real DOM text, not rasterized.
+//
+// Called by both the main export panel's "Slides PDF" option and the
+// export button in the presentation-mode topbar.
+function printSlides() {
+  var sources = document.querySelectorAll('.sdoc-slide[data-dsl]');
+  if (!sources.length) {
+    S.setStatus('No slides in this document');
+    return;
+  }
+  // Remove any stage left over from a prior run (e.g. if afterprint didn't fire).
+  var existing = document.getElementById('_sd_print-stage');
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+  var stage = document.createElement('div');
+  stage.id = '_sd_print-stage';
+  document.body.appendChild(stage);
+
+  for (var i = 0; i < sources.length; i++) {
+    var dsl = sources[i].getAttribute('data-dsl');
+    var page = document.createElement('div');
+    page.className = 'sdoc-print-page';
+    var inner = document.createElement('div');
+    page.appendChild(inner);
+    stage.appendChild(page);
+    // Render the shape DSL fresh into the print page. cqh values resolve
+    // against the page's 720px height automatically.
+    try {
+      window.SDocShapeRender.renderShapes(dsl, inner);
+    } catch (e) {
+      inner.textContent = 'Render failed: ' + (e && e.message);
+    }
+  }
+
+  document.body.classList.add('sdoc-printing-slides');
+
+  var cleanup = function () {
+    document.body.classList.remove('sdoc-printing-slides');
+    var s = document.getElementById('_sd_print-stage');
+    if (s && s.parentNode) s.parentNode.removeChild(s);
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+
+  // Autofit runs on rAF inside renderShapes; give it one rAF to settle,
+  // then open the dialog on the next frame.
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      setTimeout(function () { window.print(); }, 0);
+    });
+  });
+}
+
+S.printSlides = printSlides;
+
 // ── Export panel handlers ──────────────────────────────
 
 document.getElementById('_sd_exp-pdf').addEventListener('click', exportPDF);
 document.getElementById('_sd_exp-word').addEventListener('click', exportWord);
+document.getElementById('_sd_exp-slides-pdf').addEventListener('click', printSlides);
 
 document.getElementById('_sd_exp-raw').addEventListener('click', function() {
   download('document.md', S.currentBody);
