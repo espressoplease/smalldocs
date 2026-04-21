@@ -60,6 +60,12 @@ var CSS = [
   '.sdoc-present-actions .sdoc-present-btn.active {',
   '  background: rgba(255, 255, 255, .12); color: #fff;',
   '}',
+  /* Vertical rule between action buttons, mirroring the main topbar's */
+  /* write-tb-sep between tool groups and theme toggle. */
+  '.sdoc-present-actions .sdoc-present-sep {',
+  '  width: 1px; height: 16px; background: #3f3c38;',
+  '  margin: 0 4px; flex-shrink: 0; align-self: center;',
+  '}',
   /* Export panel slides in from the right; 260px wide, dark theme. */
   '.sdoc-present-exp-panel {',
   '  position: fixed; top: 40px; right: 0; bottom: 0; width: 260px;',
@@ -424,6 +430,10 @@ function open(startIndex) {
     + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
   exportBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleExportPanel(); });
   actions.appendChild(exportBtn);
+
+  var sep = document.createElement('span');
+  sep.className = 'sdoc-present-sep';
+  actions.appendChild(sep);
 
   var close = document.createElement('button');
   close.className = 'sdoc-present-btn sdoc-present-close';
