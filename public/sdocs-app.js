@@ -808,6 +808,16 @@ function setMode(mode, skipHash) {
   if (prev === 'comment' && mode !== 'comment' && S.commentsUi) S.commentsUi.exit();
   if (mode === 'comment' && S.commentsUi) S.commentsUi.enter();
 
+  // The Slides PDF option only makes sense when the rendered doc contains
+  // at least one ```slide block. Gate visibility each time the panel opens.
+  if (mode === 'export') {
+    var slidesOpt = document.getElementById('_sd_exp-slides-pdf');
+    if (slidesOpt) {
+      var hasSlides = !!document.querySelector('.sdoc-slide');
+      slidesOpt.style.display = hasSlides ? '' : 'none';
+    }
+  }
+
   // Enter write mode — populate contentEditable
   if (mode === 'write') {
     S.enterWriteMode();
