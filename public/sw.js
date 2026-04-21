@@ -19,6 +19,7 @@ var APP_SHELL = [
   '/public/sdocs-export.js',
   '/public/sdocs-write.js',
   '/public/sdocs-charts.js',
+  '/public/sdocs-math.js',
   '/public/sdocs-app.js',
   '/public/vendor/marked.min.js',
   '/public/fonts/inter-400.woff2',

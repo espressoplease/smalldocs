@@ -12,6 +12,7 @@ function enterWriteMode() {
   var html = DOMPurify.sanitize(marked.parse(S.currentBody), { FORBID_ATTR: ['style'] });
   writeEl.innerHTML = html || '<p><br></p>';
   copyStyleVars();
+  if (S.processMath) S.processMath(writeEl);
   setTimeout(updateToolbarState, 0);
 }
 
@@ -95,6 +96,13 @@ function walkBlock(nodes, lines, indent) {
       lines.push('');
       lines.push('---');
       lines.push('');
+    } else if (tag === 'DIV' && node.classList && node.classList.contains('sdocs-math-display')) {
+      var blockTex = node.getAttribute('data-tex') || '';
+      lines.push('');
+      lines.push('$$');
+      lines.push(blockTex);
+      lines.push('$$');
+      lines.push('');
     } else if (tag === 'BR') {
       lines.push('');
     } else if (tag === 'DIV') {
@@ -155,6 +163,8 @@ function inlineToMd(node) {
         result += '~~' + inlineToMd(child) + '~~';
       } else if (tag === 'CODE') {
         result += '`' + child.textContent + '`';
+      } else if (tag === 'SPAN' && child.classList && child.classList.contains('sdocs-math-inline')) {
+        result += '$' + (child.getAttribute('data-tex') || '') + '$';
       } else if (tag === 'A') {
         var href = child.getAttribute('href') || '';
         result += '[' + inlineToMd(child) + '](' + href + ')';

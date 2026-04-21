@@ -283,8 +283,8 @@ const server = http.createServer((req, res) => {
       const csp = [
         "default-src 'self'",
         "script-src 'self' 'nonce-" + nonce + "' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        "font-src 'self' https://fonts.gstatic.com",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+        "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
         "img-src 'self' data: https:",
         "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com",
         "frame-src 'none'",

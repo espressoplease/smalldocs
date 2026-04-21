@@ -938,6 +938,10 @@ async function exportPDF() {
   S.setStatus('Generating PDF\u2026');
   try {
     await loadPdfLib();
+    // Ensure any KaTeX-rendered math has settled before capturing the DOM.
+    // Otherwise fast-clicking Export right after load snapshots empty math
+    // placeholders.
+    if (S.processMath) { try { await S.processMath(S.renderedEl); } catch (_) {} }
 
     var closed = expandAllSections();
     await new Promise(function(r) { requestAnimationFrame(function() { setTimeout(r, 150); }); });

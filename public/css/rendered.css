@@ -539,3 +539,31 @@
 #_sd_sdocs-file-info .fic-short-intro-learn:hover {
   color: var(--md-p-color);
 }
+
+/* Math (KaTeX) — placeholders fill with KaTeX output after sanitize.
+   Display math can overflow on narrow viewports; allow horizontal scroll
+   rather than clipping. Inline math shouldn't break mid-equation. */
+#_sd_rendered .sdocs-math-display,
+#_sd_write .sdocs-math-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 1em 0;
+  padding: 0.25em 0;
+}
+#_sd_rendered .sdocs-math-display .katex-display {
+  margin: 0;
+}
+#_sd_rendered .sdocs-math-inline,
+#_sd_write .sdocs-math-inline {
+  white-space: nowrap;
+}
+/* Placeholders shown before KaTeX loads (or if CDN fails): show the raw
+   LaTeX in a muted monospace so the reader isn't staring at a blank box. */
+#_sd_rendered .sdocs-math-display:empty::before,
+#_sd_rendered .sdocs-math-inline:empty::before {
+  content: attr(data-tex);
+  font-family: var(--md-code-font, monospace);
+  color: var(--text-2, #888);
+  font-size: 0.95em;
+}
+
