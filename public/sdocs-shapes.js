@@ -186,13 +186,23 @@ var DEFAULT_GRID = { w: 100, h: 56.25 };
 
 function parseGridLine(trimmed) {
   var tokens = trimmed.split(/\s+/);
-  if (tokens.length !== 3) {
-    throw new Error('grid: expected "grid W H", got ' + tokens.length + ' tokens');
+  if (tokens.length < 3) {
+    throw new Error('grid: expected "grid W H [key=val ...]", got ' + tokens.length + ' tokens');
   }
   var w = parseNumber(tokens[1], 'grid W');
   var h = parseNumber(tokens[2], 'grid H');
   if (w <= 0 || h <= 0) throw new Error('grid: W and H must be positive');
-  return { w: w, h: h };
+  var attrs = {};
+  for (var i = 3; i < tokens.length; i++) {
+    var tok = tokens[i];
+    var eq = tok.indexOf('=');
+    if (eq < 0) throw new Error('grid: unexpected token "' + tok + '" — use key=value');
+    var key = tok.slice(0, eq);
+    var val = tok.slice(eq + 1);
+    if (!/^[A-Za-z][\w-]*$/.test(key)) throw new Error('grid: invalid attribute key "' + key + '"');
+    attrs[key] = val;
+  }
+  return { w: w, h: h, attrs: attrs };
 }
 
 // Indented (2+ space) lines immediately after a shape line become
@@ -290,7 +300,7 @@ function parse(src) {
       i++;
     }
   }
-  return { shapes: shapes, errors: errors, grid: grid || { w: DEFAULT_GRID.w, h: DEFAULT_GRID.h } };
+  return { shapes: shapes, errors: errors, grid: grid || { w: DEFAULT_GRID.w, h: DEFAULT_GRID.h, attrs: {} } };
 }
 
 // ─── Reference resolution ──────────────────────────────
@@ -536,10 +546,17 @@ function serializeShape(s) {
 
 function serialize(shapes, grid) {
   var lines = [];
-  if (grid && (grid.w !== DEFAULT_GRID.w || grid.h !== DEFAULT_GRID.h)) {
-    lines.push('grid ' + grid.w + ' ' + grid.h);
+  var hasAttrs = grid && grid.attrs && Object.keys(grid.attrs).length > 0;
+  var nonDefaultSize = grid && (grid.w !== DEFAULT_GRID.w || grid.h !== DEFAULT_GRID.h);
+  if (nonDefaultSize || hasAttrs) {
+    var gl = 'grid ' + grid.w + ' ' + grid.h;
+    if (hasAttrs) {
+      var keys = Object.keys(grid.attrs);
+      for (var i = 0; i < keys.length; i++) gl += ' ' + keys[i] + '=' + grid.attrs[keys[i]];
+    }
+    lines.push(gl);
   }
-  for (var i = 0; i < shapes.length; i++) lines.push(serializeShape(shapes[i]));
+  for (var j = 0; j < shapes.length; j++) lines.push(serializeShape(shapes[j]));
   return lines.join('\n');
 }
 
