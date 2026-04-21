@@ -33,16 +33,21 @@ var CSS = [
   '  background: #131210; border-bottom: 1px solid #2a2724;',
   '  flex-shrink: 0;',
   '}',
-  /* Brand mirrors the main SDocs wordmark: logo blue, 13px, weight 600. */
-  /* Modal is always dark, so use the dark-mode accent directly instead of */
-  /* var(--accent) which would track the document theme. */
+  /* Brand mirrors the main SDocs wordmark: logo blue, 13px, weight 600, with */
+  /* "Slides" appended in white/normal weight so the section identity reads */
+  /* as "SmallDocs · Slides". Three responsive tiers mirror the main */
+  /* topbar's full/short/tiny pattern so the brand still fits next to the */
+  /* counter and actions as the viewport narrows. Modal is always dark, so */
+  /* the accent is hard-coded rather than tracking var(--accent). */
   '.sdoc-present-brand {',
-  '  display: inline-flex; align-items: center; gap: 6px;',
+  '  display: inline-flex; align-items: center;',
   '  color: #3B82F6; font-size: 13px; font-weight: 600;',
   '  flex-shrink: 0; margin-right: auto;',
   '}',
-  '.sdoc-present-brand-icon { display: inline-flex; }',
-  '.sdoc-present-brand-text { display: inline; }',
+  '.sdoc-present-brand-slides { color: #fff; font-weight: 400; margin-left: 4px; }',
+  '.sdoc-present-brand-full { display: inline; }',
+  '.sdoc-present-brand-short { display: none; }',
+  '.sdoc-present-brand-tiny { display: none; }',
   '.sdoc-present-actions {',
   '  display: flex; background: none; border: none;',
   '  border-radius: 6px; overflow: hidden; padding: 2px; gap: 2px;',
@@ -138,11 +143,17 @@ var CSS = [
   '  .sdoc-present-rail { display: none; }',
   '  .sdoc-present-stage-wrap { padding: 16px; }',
   '  .sdoc-present-topbar { gap: 10px; }',
-  /* Mobile: brand icon only, left-aligned stack of icon + counter + actions. */
+  /* Tighter: swap "SmallDocs Slides" for "SDoc Slides". */
   '  .sdoc-present-brand { margin-right: 0; order: 1; }',
-  '  .sdoc-present-brand-text { display: none; }',
+  '  .sdoc-present-brand-full { display: none; }',
+  '  .sdoc-present-brand-short { display: inline; }',
   '  .sdoc-present-counter { margin-left: 0; order: 2; }',
   '  .sdoc-present-actions { order: 3; }',
+  '}',
+  /* Very narrow: "SD Slides" only. */
+  '@media (max-width: 420px) {',
+  '  .sdoc-present-brand-short { display: none; }',
+  '  .sdoc-present-brand-tiny { display: inline; }',
   '}',
   'body.sdoc-present-open { overflow: hidden; }',
 ].join('\n');
@@ -398,11 +409,10 @@ function open(startIndex) {
 
   var brand = document.createElement('div');
   brand.className = 'sdoc-present-brand';
-  brand.innerHTML = '<span class="sdoc-present-brand-icon" aria-hidden="true">'
-    + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">'
-    + '<path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/>'
-    + '</svg></span>'
-    + '<span class="sdoc-present-brand-text">Presenting</span>';
+  brand.innerHTML =
+    '<span class="sdoc-present-brand-full">SmallDocs<span class="sdoc-present-brand-slides">Slides</span></span>'
+    + '<span class="sdoc-present-brand-short">SDoc<span class="sdoc-present-brand-slides">Slides</span></span>'
+    + '<span class="sdoc-present-brand-tiny">SD<span class="sdoc-present-brand-slides">Slides</span></span>';
   topbar.appendChild(brand);
 
   var actions = document.createElement('div');
