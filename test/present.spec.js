@@ -107,7 +107,7 @@ test.describe('presentation mode', () => {
     await page.locator('.sdoc-slide').first().click();
     const topbar = page.locator('.sdoc-present-topbar');
     await expect(topbar).toHaveCount(1);
-    await expect(topbar.locator('.sdoc-present-brand')).toContainText('Presentation Mode');
+    await expect(topbar.locator('.sdoc-present-brand')).toContainText('Presenting');
     await expect(topbar.locator('.sdoc-present-close')).toBeVisible();
     await expect(topbar.locator('.sdoc-present-counter')).toContainText('1 / 2');
     await page.keyboard.press('ArrowRight');
