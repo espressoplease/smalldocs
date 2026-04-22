@@ -146,6 +146,9 @@ var SHAPE_MD_SHADOW_CSS = [
   'tbody tr:nth-child(even) td {',
   '  background: var(--md-table-even-bg, transparent);',
   '}',
+  'tbody tr:nth-child(odd) td {',
+  '  background: var(--md-table-odd-bg, transparent);',
+  '}',
   /* When a shape\'s entire content is a code block AND the shape has a */
   /* fill, the shape itself acts as the code container — strip the pre\'s */
   /* own chrome so the fill shows edge-to-edge. Without a fill, keep the */
@@ -280,6 +283,7 @@ function applyShapeStyle(el, attrs, grid) {
   if (attrs.tableBorder)    el.style.setProperty('--md-table-border', attrs.tableBorder);
   if (attrs.tableHeaderBg)  el.style.setProperty('--md-table-header-bg', attrs.tableHeaderBg);
   if (attrs.tableEvenBg)    el.style.setProperty('--md-table-even-bg', attrs.tableEvenBg);
+  if (attrs.tableOddBg)     el.style.setProperty('--md-table-odd-bg', attrs.tableOddBg);
 }
 
 function applySvgStroke(el, attrs, defaultStroke) {

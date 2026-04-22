@@ -304,9 +304,9 @@ module.exports = function(harness) {
 
   test('STANDALONE_COLOR_IDS and ALL_COLOR_IDS are exported', () => {
     assert.ok(Array.isArray(S.STANDALONE_COLOR_IDS));
-    assert.strictEqual(S.STANDALONE_COLOR_IDS.length, 7);
+    assert.strictEqual(S.STANDALONE_COLOR_IDS.length, 8);
     assert.ok(Array.isArray(S.ALL_COLOR_IDS));
-    assert.strictEqual(S.ALL_COLOR_IDS.length, 23);
+    assert.strictEqual(S.ALL_COLOR_IDS.length, 24);
   });
 
   test('parseDarkBlock: extracts dark override colors', () => {

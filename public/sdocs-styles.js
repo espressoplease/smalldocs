@@ -72,6 +72,7 @@ const CTRL_CSS_MAP = {
   '_sd_ctrl-table-border':     { cssVar: '--md-table-border' },
   '_sd_ctrl-table-header-bg':  { cssVar: '--md-table-header-bg' },
   '_sd_ctrl-table-even-bg':    { cssVar: '--md-table-even-bg' },
+  '_sd_ctrl-table-odd-bg':     { cssVar: '--md-table-odd-bg' },
 };
 
 // Range ↔ Number input pairs
@@ -316,6 +317,7 @@ function collectStyles(values, overriddenColors) {
   if (overriddenColors.has('_sd_ctrl-table-border'))    tableObj.border = gv('_sd_ctrl-table-border');
   if (overriddenColors.has('_sd_ctrl-table-header-bg')) tableObj.headerBackground = gv('_sd_ctrl-table-header-bg');
   if (overriddenColors.has('_sd_ctrl-table-even-bg'))   tableObj.evenBackground = gv('_sd_ctrl-table-even-bg');
+  if (overriddenColors.has('_sd_ctrl-table-odd-bg'))    tableObj.oddBackground = gv('_sd_ctrl-table-odd-bg');
   if (Object.keys(tableObj).length) styles.table = tableObj;
 
   return styles;
@@ -411,6 +413,7 @@ function stylesToControls(styles) {
   if (tb.border)           { controls['_sd_ctrl-table-border'] = tb.border; overridden.add('_sd_ctrl-table-border'); }
   if (tb.headerBackground) { controls['_sd_ctrl-table-header-bg'] = tb.headerBackground; overridden.add('_sd_ctrl-table-header-bg'); }
   if (tb.evenBackground)   { controls['_sd_ctrl-table-even-bg'] = tb.evenBackground; overridden.add('_sd_ctrl-table-even-bg'); }
+  if (tb.oddBackground)    { controls['_sd_ctrl-table-odd-bg'] = tb.oddBackground; overridden.add('_sd_ctrl-table-odd-bg'); }
 
   return { controls, overriddenColors: overridden };
 }
@@ -423,7 +426,7 @@ var STANDALONE_COLOR_IDS = [
   '_sd_ctrl-bg-color','_sd_ctrl-link-color',
   '_sd_ctrl-bq-border-color',
   '_sd_ctrl-chart-accent',
-  '_sd_ctrl-table-border','_sd_ctrl-table-header-bg','_sd_ctrl-table-even-bg',
+  '_sd_ctrl-table-border','_sd_ctrl-table-header-bg','_sd_ctrl-table-even-bg','_sd_ctrl-table-odd-bg',
 ];
 
 var CASCADE_COLOR_IDS = Object.keys(COLOR_VAR_MAP);
@@ -475,6 +478,7 @@ function parseDarkBlock(block) {
     if (block.table.border)           colors['_sd_ctrl-table-border'] = block.table.border;
     if (block.table.headerBackground) colors['_sd_ctrl-table-header-bg'] = block.table.headerBackground;
     if (block.table.evenBackground)   colors['_sd_ctrl-table-even-bg'] = block.table.evenBackground;
+    if (block.table.oddBackground)    colors['_sd_ctrl-table-odd-bg'] = block.table.oddBackground;
   }
 
   return colors;
@@ -610,6 +614,7 @@ var STYLE_PATH_TO_VAR = {
   'table.border':           '--md-table-border',
   'table.headerBackground': '--md-table-header-bg',
   'table.evenBackground':   '--md-table-even-bg',
+  'table.oddBackground':    '--md-table-odd-bg',
 };
 
 // Given a raw token (typically a shape attribute value), return the

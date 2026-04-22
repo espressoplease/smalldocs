@@ -53,7 +53,7 @@ var STANDALONE_COLOR_IDS = new Set(SDocStyles.STANDALONE_COLOR_IDS);
   '_sd_ctrl-code-font',
   '_sd_ctrl-bq-border-color',
   '_sd_ctrl-chart-accent','_sd_ctrl-chart-palette',
-  '_sd_ctrl-table-border','_sd_ctrl-table-header-bg','_sd_ctrl-table-even-bg',
+  '_sd_ctrl-table-border','_sd_ctrl-table-header-bg','_sd_ctrl-table-even-bg','_sd_ctrl-table-odd-bg',
 ].forEach(function(id) {
   var handler = function() { if (STANDALONE_COLOR_IDS.has(id)) S.overriddenColors.add(id); applyControlToCss(id); S.syncAll('controls'); };
   document.getElementById(id).addEventListener('input',  handler);
@@ -132,7 +132,7 @@ document.getElementById('_sd_reset-color').addEventListener('click', function() 
 });
 
 ['_sd_ctrl-bg-color','_sd_ctrl-link-color','_sd_ctrl-bq-border-color','_sd_ctrl-chart-accent',
- '_sd_ctrl-table-border','_sd_ctrl-table-header-bg','_sd_ctrl-table-even-bg'].forEach(function(ctrlId) {
+ '_sd_ctrl-table-border','_sd_ctrl-table-header-bg','_sd_ctrl-table-even-bg','_sd_ctrl-table-odd-bg'].forEach(function(ctrlId) {
   var btnId = ctrlId.replace('_sd_ctrl-', '_sd_reset-');
   document.getElementById(btnId).addEventListener('click', function() {
     var defaultVal = S.getStandaloneDefault(ctrlId);
@@ -338,7 +338,7 @@ function resetAllStyles() {
    '_sd_ctrl-bq-border-color','_sd_ctrl-bq-bw-num','_sd_ctrl-bq-size-num',
    '_sd_ctrl-list-spacing-num','_sd_ctrl-list-indent-num',
    '_sd_ctrl-chart-accent','_sd_ctrl-chart-palette',
-   '_sd_ctrl-table-border','_sd_ctrl-table-header-bg','_sd_ctrl-table-even-bg',
+   '_sd_ctrl-table-border','_sd_ctrl-table-header-bg','_sd_ctrl-table-even-bg','_sd_ctrl-table-odd-bg',
   ].forEach(function(id) { applyControlToCss(id); });
 }
 

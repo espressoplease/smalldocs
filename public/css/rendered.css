@@ -514,6 +514,7 @@ foreignObject span { line-height: normal; }
   color: var(--text);
 }
 :is(#_sd_rendered, #_sd_write) tr:nth-child(even) td { background: var(--md-table-even-bg); }
+:is(#_sd_rendered, #_sd_write) tr:nth-child(odd) td { background: var(--md-table-odd-bg); }
 :is(#_sd_rendered, #_sd_write) img { max-width: 100%; border-radius: var(--radius-md); }
 
 /* ── File-info card (shown when front matter has `file:`) ─────────── */
