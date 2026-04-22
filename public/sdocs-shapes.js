@@ -540,7 +540,15 @@ function serializeShape(s) {
   var keys = Object.keys(s.attrs || {});
   for (var k = 0; k < keys.length; k++) parts.push(keys[k] + '=' + s.attrs[keys[k]]);
   var line = parts.join(' ');
-  if (s.content != null) line += ' | ' + s.content;
+  if (s.content != null) {
+    if (s.content.indexOf('\n') >= 0) {
+      // Multi-line content: emit block form (| alone, then 2-space-indented
+      // continuations) so serialize → parse round-trips correctly.
+      var indented = s.content.split('\n').map(function (l) { return '  ' + l; }).join('\n');
+      return line + ' |\n' + indented;
+    }
+    line += ' | ' + s.content;
+  }
   return line;
 }
 

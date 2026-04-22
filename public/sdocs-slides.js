@@ -163,13 +163,36 @@ function processSlides(container) {
   var blocks = container.querySelectorAll('code.language-slide');
   if (!blocks.length) return;
 
+  // Resolve templates in a single batch. The resolver is pure: it takes
+  // the raw DSL text of every slide block (in document order) and returns
+  // the DSL to actually render, plus a skip flag for @template slides.
+  // We do it before any DOM mutation so templates never produce a flash
+  // of placeholder content, and consumers always see the expanded DSL.
+  var rawDsls = [];
+  for (var b = 0; b < blocks.length; b++) rawDsls.push(blocks[b].textContent);
+  var resolved = window.SDocSlideResolve
+    ? window.SDocSlideResolve.resolveSlides(rawDsls, window.SDocShapes)
+    : rawDsls.map(function (d) { return { dsl: d, skip: false, errors: [] }; });
+
   var slideIdx = 0;
   for (var i = 0; i < blocks.length; i++) {
     var codeEl = blocks[i];
     var pre = codeEl.closest('pre');
     if (!pre) continue;
 
-    var dslText = codeEl.textContent;
+    var entry = resolved[i];
+    var preWrapper = pre.closest('.pre-wrapper');
+    var target = preWrapper || pre;
+
+    // Template slides register but never render — strip the element so the
+    // author sees nothing in its place and it's not counted in slideIdx.
+    if (entry.skip) {
+      target.parentNode.removeChild(target);
+      continue;
+    }
+
+    var dslText = entry.dsl;
+    var rawText = codeEl.textContent;
 
     var wrapper = document.createElement('div');
     wrapper.className = 'sdoc-slide';
@@ -186,8 +209,11 @@ function processSlides(container) {
       var slideWrap = document.createElement('div');
       wrapper.appendChild(slideWrap);
       var result = window.SDocShapeRender.renderShapes(dslText, slideWrap);
-      if (result.errors && result.errors.length) {
-        wrapper.appendChild(buildErrorBadge(result.errors, dslText, slideIdx));
+      var allErrors = (entry.errors || []).concat(result.errors || []);
+      if (allErrors.length) {
+        // Error badge shows the author's original source (with directives),
+        // not the post-merge DSL — that's what they edit to fix the problem.
+        wrapper.appendChild(buildErrorBadge(allErrors, rawText, slideIdx));
       }
     } catch (e) {
       renderError(wrapper, 'slide render failed: ' + e.message);
@@ -208,8 +234,6 @@ function processSlides(container) {
       })(slideIdx);
     }
 
-    var preWrapper = pre.closest('.pre-wrapper');
-    var target = preWrapper || pre;
     target.parentNode.replaceChild(wrapper, target);
     slideIdx++;
   }
