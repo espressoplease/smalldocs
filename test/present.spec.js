@@ -22,7 +22,7 @@ test.describe('presentation mode', () => {
       'grid 100 56.25\nr 10 10 80 40 fill=#059669 color=#fff | Slide two',
     ]);
     await expect(page.locator('.sdoc-present')).toHaveCount(0);
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     await expect(page.locator('.sdoc-present')).toHaveCount(1);
     await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Slide one');
   });
@@ -33,7 +33,7 @@ test.describe('presentation mode', () => {
       'grid 100 56.25\nr 10 10 80 40 | Slide B',
       'grid 100 56.25\nr 10 10 80 40 | Slide C',
     ]);
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Slide A');
     await page.keyboard.press('ArrowRight');
     await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Slide B');
@@ -47,7 +47,7 @@ test.describe('presentation mode', () => {
     await loadDocWithSlides(page, [
       'grid 100 56.25\nr 10 10 80 40 | Only slide',
     ]);
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
     // Still showing the only slide
@@ -58,7 +58,7 @@ test.describe('presentation mode', () => {
     await loadDocWithSlides(page, [
       'grid 100 56.25\nr 10 10 80 40 | Slide',
     ]);
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     await expect(page.locator('.sdoc-present')).toHaveCount(1);
     await page.keyboard.press('Escape');
     await expect(page.locator('.sdoc-present')).toHaveCount(0);
@@ -68,7 +68,7 @@ test.describe('presentation mode', () => {
     await loadDocWithSlides(page, [
       'grid 100 56.25\nr 10 10 80 40 | Slide',
     ]);
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     await page.locator('.sdoc-present-close').click();
     await expect(page.locator('.sdoc-present')).toHaveCount(0);
   });
@@ -79,7 +79,7 @@ test.describe('presentation mode', () => {
       'grid 100 56.25\nr 10 10 80 40 | B',
       'grid 100 56.25\nr 10 10 80 40 | C',
     ]);
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     await expect(page.locator('.sdoc-present-rail .sdoc-present-thumb')).toHaveCount(3);
     await expect(page.locator('.sdoc-present-rail .sdoc-present-thumb.active')).toHaveCount(1);
     await expect(page.locator('.sdoc-present-rail .sdoc-present-thumb').first()).toHaveClass(/active/);
@@ -94,7 +94,7 @@ test.describe('presentation mode', () => {
       'grid 100 56.25\nr 10 10 80 40 | Second',
       'grid 100 56.25\nr 10 10 80 40 | Third',
     ]);
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     await page.locator('.sdoc-present-rail .sdoc-present-thumb').nth(2).click();
     await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Third');
   });
@@ -104,7 +104,7 @@ test.describe('presentation mode', () => {
       'grid 100 56.25\nr 10 10 80 40 | A',
       'grid 100 56.25\nr 10 10 80 40 | B',
     ]);
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     const topbar = page.locator('.sdoc-present-topbar');
     await expect(topbar).toHaveCount(1);
     await expect(topbar.locator('.sdoc-present-brand')).toContainText('Slides');
@@ -119,7 +119,7 @@ test.describe('presentation mode', () => {
       'grid 100 56.25\nr 10 10 80 40 | A',
     ]);
     const mainTopbarH = await page.locator('#_sd_left-toolbar').evaluate(el => el.getBoundingClientRect().height);
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     const presentTopbarH = await page.locator('.sdoc-present-topbar').evaluate(el => el.getBoundingClientRect().height);
     expect(presentTopbarH).toBe(mainTopbarH);
   });
@@ -130,7 +130,7 @@ test.describe('presentation mode', () => {
       'grid 100 56.25\nr 10 10 80 40 | A',
       'grid 100 56.25\nr 10 10 80 40 | B',
     ]);
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     await expect(page.locator('.sdoc-present-rail')).toBeHidden();
     await expect(page.locator('.sdoc-present-topbar')).toBeVisible();
     await expect(page.locator('.sdoc-present-close')).toBeVisible();
@@ -145,7 +145,7 @@ test.describe('presentation mode', () => {
       'grid 100 56.25\nr 10 10 80 40 | A',
       'grid 100 56.25\nr 10 10 80 40 | B',
     ]);
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     await page.waitForTimeout(50);
     let hash = await page.evaluate(() => window.location.hash);
     expect(hash).toContain('present=0');

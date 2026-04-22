@@ -22,12 +22,29 @@ var CSS = [
   '  border-radius: 6px;',
   '  overflow: hidden;',
   '  box-shadow: 0 1px 3px rgba(0,0,0,.05);',
-  '  cursor: zoom-in;',
   '  position: relative;',
   '  transition: box-shadow .15s, transform .15s;',
   '}',
   '.sdoc-slide:hover { box-shadow: 0 3px 12px rgba(0,0,0,.1); }',
-  '.sdoc-slide:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }',
+  /* Present button: small top-right overlay, mirrors the copy button */
+  /* pattern on code blocks. Button is always visible (not hover-only) */
+  /* so users don\'t have to probe to discover it. Slide content still */
+  /* renders edge-to-edge behind it — the button sits in the top-right */
+  /* corner over whatever shape happens to be there. */
+  '.sdoc-slide-present {',
+  '  position: absolute; top: 8px; right: 8px; z-index: 5;',
+  '  display: inline-flex; align-items: center; justify-content: center;',
+  '  width: 28px; height: 28px;',
+  '  background: rgba(255, 255, 255, 0.9);',
+  '  border: 1px solid rgba(0, 0, 0, 0.08);',
+  '  border-radius: 4px; padding: 0;',
+  '  color: #475569; cursor: pointer;',
+  '  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);',
+  '  transition: background .12s, border-color .12s, color .12s;',
+  '}',
+  '.sdoc-slide-present:hover { background: #fff; border-color: #cbd5e1; color: #0f172a; }',
+  '.sdoc-slide-present:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }',
+  '.sdoc-slide-present svg { display: block; }',
   '.sdoc-slide .sd-shape-stage {',
   '  width: 100%;',
   /* Inherit the doc\'s page background so slides feel visually connected to */
@@ -74,6 +91,29 @@ function injectCSS() {
   document.head.appendChild(style);
 }
 if (typeof document !== 'undefined') injectCSS();
+
+// Lucide "presentation" icon — a monitor with a small chart glyph.
+// Matches lucide.dev/icons/presentation. Inline SVG avoids shipping an
+// icon set; the geometry stays stable and can be recolored via currentColor.
+var PRESENT_ICON_SVG =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+  + 'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  + '<path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/>'
+  + '<path d="m7 21 5-5 5 5"/></svg>';
+
+function buildPresentButton(slideIdx) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sdoc-slide-present';
+  btn.setAttribute('aria-label', 'Open slide ' + (slideIdx + 1) + ' in presentation mode');
+  btn.title = 'Present (Enter)';
+  btn.innerHTML = PRESENT_ICON_SVG;
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (window.SDocPresent) window.SDocPresent.open(slideIdx);
+  });
+  return btn;
+}
 
 function renderError(wrapper, message) {
   wrapper.classList.add('sdoc-slide-error');
@@ -198,9 +238,6 @@ function processSlides(container) {
     wrapper.className = 'sdoc-slide';
     wrapper.setAttribute('data-dsl', dslText);
     wrapper.setAttribute('data-slide-index', String(slideIdx));
-    wrapper.setAttribute('role', 'button');
-    wrapper.setAttribute('tabindex', '0');
-    wrapper.setAttribute('aria-label', 'Slide ' + (slideIdx + 1) + ' (click to present)');
 
     var hasError = false;
     try {
@@ -220,18 +257,12 @@ function processSlides(container) {
       hasError = true;
     }
 
+    // Per-slide presentation button. Sits top-right as a small icon,
+    // mirroring the code-block copy button. The slide itself is no
+    // longer clickable — that frees text inside shapes to be selected,
+    // copied, and (for agents) scraped out of the DOM.
     if (!hasError) {
-      (function (idx) {
-        wrapper.addEventListener('click', function () {
-          if (window.SDocPresent) window.SDocPresent.open(idx);
-        });
-        wrapper.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            if (window.SDocPresent) window.SDocPresent.open(idx);
-          }
-        });
-      })(slideIdx);
+      wrapper.appendChild(buildPresentButton(slideIdx));
     }
 
     target.parentNode.replaceChild(wrapper, target);

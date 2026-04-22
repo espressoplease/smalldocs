@@ -82,7 +82,7 @@ test.describe('slide blocks in documents', () => {
         fontSize: parseFloat(getComputedStyle(r).fontSize),
       }));
     });
-    await page.locator('.sdoc-slide').first().click();
+    await page.locator('.sdoc-slide-present').first().click();
     await page.waitForTimeout(500);
     const fullSizes = await page.evaluate(() => {
       const stage = document.querySelector('.sdoc-present-stage .sd-shape-stage');
@@ -108,7 +108,7 @@ test.describe('slide blocks in documents', () => {
       const p = rect.querySelector('.shape-md p, .shape-md');
       return parseFloat(getComputedStyle(p).fontSize);
     });
-    await page.locator('.sdoc-slide').click();
+    await page.locator('.sdoc-slide-present').click();
     await page.waitForTimeout(200);
     const fullFs = await page.evaluate(() => {
       const stage = document.querySelector('.sdoc-present-stage .sd-shape-stage');

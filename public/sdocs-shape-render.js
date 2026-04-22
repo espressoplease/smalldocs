@@ -32,15 +32,20 @@ var CSS = [
   /* the wrapping element, which typically owns the click handler (open */
   /* presentation mode, navigate to a slide). Text selection inside a slide */
   /* is a rare ask; if we need it later, scope this to inline contexts only. */
-  '.sd-shape-stage { position: absolute; top: 0; left: 0; transform-origin: top left; overflow: hidden; pointer-events: none; }',
-  /* Each slide has three stacked sublayers: bottom / auto / top. DOM order */
+  '.sd-shape-stage { position: absolute; top: 0; left: 0; transform-origin: top left; overflow: hidden; }',
+  /* Each slide has three stacked sublayers: bottom / mid / top. DOM order */
   /* (last-appended paints above) gives us the stacking; no z-index needed. */
   /* Within each sublayer, the SVG holds vector primitives and the sublayer */
   /* itself holds rectangles and text overlays, so c/e/l/a/p still paint */
   /* below r-shapes when they share the same sublayer (the existing rule). */
   /* `layer=top` / `layer=bottom` on a shape promotes/demotes it across */
   /* sublayers; arrows-above-rects and dots-on-rects become possible. */
+  /* pointer-events: none on the sublayer container (so the empty parts of */
+  /* an upper sublayer don't steal clicks from shapes below), auto on its */
+  /* shape children (so text selection still works inside rects). */
   '.sd-stage-sublayer { position: absolute; inset: 0; pointer-events: none; }',
+  '.sd-stage-sublayer > .shape-rect,',
+  '.sd-stage-sublayer > .shape-text { pointer-events: auto; }',
   '.sd-shape-stage .shape-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }',
   /* Default: centered both axes. Works naturally for titles and standalone */
   /* text. Agents override via align=left/right and valign=top/bottom — see */
@@ -53,7 +58,7 @@ var CSS = [
   '.sd-shape-stage .shape-text {',
   '  position: absolute; box-sizing: border-box;',
   '  display: flex; align-items: center; justify-content: center; text-align: center;',
-  '  overflow: hidden; pointer-events: none; line-height: 1.25;',
+  '  overflow: hidden; line-height: 1.25;',
   '}',
   '.sd-shape-stage .shape-rect[data-align="left"],',
   '.sd-shape-stage .shape-text[data-align="left"] { justify-content: flex-start; text-align: left; }',

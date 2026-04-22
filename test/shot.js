@@ -64,7 +64,7 @@ async function main() {
   });
   await page.waitForTimeout(800);
   if (presentIdx != null) {
-    await page.locator('.sdoc-slide').nth(presentIdx).click();
+    await page.locator('.sdoc-slide-present').nth(presentIdx).click();
     await page.waitForTimeout(500);
   }
   await page.screenshot({ path: outPath, fullPage: false });
