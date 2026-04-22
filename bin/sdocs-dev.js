@@ -1096,6 +1096,14 @@ CHARTS
   Run \`sdoc charts\` for the full chart reference — chart types, JSON
   format, axis/legend/annotation options, and per-chart styling overrides.
 
+SLIDES
+  Slides embedded via \`\`\`slide / ~~~slide fenced blocks inherit these
+  styles automatically (background, fonts, link color, code block colors,
+  heading colors on shape markdown). For explicit references, shape
+  attributes accept \$path.to.prop tokens - e.g. \`fill=\$h1.color\`,
+  \`bg=\$blocks.background\`. You should now run \`sdoc slides\` for the
+  full slide reference, so you don't guess at the DSL.
+
 COLOR CASCADE
   Colors cascade from general → specific:
     color  →  headers.color  →  h1.color, h2.color, h3.color, h4.color
@@ -1432,7 +1440,7 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
   sdoc slides                      This help
 
 \u2500\u2500 FENCE SYNTAX \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  Wrap shape DSL in a ~~~slide or \`\`\`slide fenced block:
+  Wrap shape DSL in a ~~~slide fenced block:
 
   ~~~slide
   grid 100 56.25
@@ -1443,8 +1451,10 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
     - Tilde fences
   ~~~
 
-  Prefer ~~~slide — it lets you nest \`\`\` code blocks inside shapes
-  without closing the outer fence early.
+  Tildes (not backticks) so shape content can include \`\`\` code blocks
+  without closing the fence early. Triple-backtick \`\`\`slide also works
+  (marked accepts either) - but prefer tildes so a nested \`\`\`python
+  inside a shape doesn't end the slide block prematurely.
 
 \u2500\u2500 GRID \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   First line: \`grid W H [key=val ...]\`. Default 100 56.25 (16:9).
@@ -1454,22 +1464,65 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
     grid 100 100             (square)
     grid 100 56.25 bg=#0f172a   (set slide background color)
 
+  W x H defines the aspect ratio and coordinate system, not a pixel size.
+  Slides fill whatever space they're rendered into - inline thumbnail in
+  a doc, small rail thumbnail in present mode, fullscreen stage, PDF page -
+  and text auto-fits via container queries. Pick numbers for the aspect
+  ratio you want; 100 on one axis is the convention, making the other
+  axis a simple percentage.
+
 \u2500\u2500 SHAPES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  r x y w h            rectangle (holds markdown content)
-  c cx cy r            circle
-  e cx cy rx ry        ellipse
-  l x1 y1 x2 y2        line (decorative)
-  a x1 y1 x2 y2        arrow (decorative, head at endpoint)
-  p x1,y1 x2,y2 ...    polygon (use ~ between points for curved segments)
+  r x y w h            rectangle  (x,y = top-left; w,h = size)
+  c cx cy radius       circle     (cx,cy = center)
+  e cx cy rx ry        ellipse    (cx,cy = center; rx,ry = half-sizes)
+  l x1 y1 x2 y2        line       (decorative, no content)
+  a x1 y1 x2 y2        arrow      (decorative, head at endpoint)
+  p x1,y1 x2,y2 ...    polygon    (use ~ between points for curved segments)
+
+  All shapes EXCEPT \`l\` and \`a\` can hold markdown after \`|\` - full
+  markdown (headings, lists, bold/italic, code, blockquote, tables).
+  Non-rectangle shapes use their bounding box as the text area.
+
+  No \`fill=\` on a shape → transparent (slide background shows through).
+  Color values accept any CSS color: hex (#1e40af), named (tomato),
+  rgb(...), rgba(...).
+
+  Polygon examples:
+    p 50,10 90,50 10,50 | Triangle
+    p 10,10 90,10 ~ 90,50 10,50 | Rounded right edge (the ~ before
+                                  a point curves that segment)
+    p 10,20 60,20 60,10 90,30 60,50 60,40 10,40 | Next steps
+                                  (right-pointing arrow shape - text
+                                  renders in the polygon's bounding box)
+
+  Stacking order: SVG-drawn outlines (c/e/l/a/p) paint BELOW all
+  rectangles. Within each layer, later declarations paint over earlier
+  ones. To layer a title on a filled band, declare the band first,
+  then the title rect.
 
 \u2500\u2500 IDS AND REFERENCES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  Declare with \`#name\`; reference with \`@name\` or \`@name.anchor\`:
+  Declare an id with \`#name\`; reference with \`@name\` or \`@name.anchor\`.
+  Omit the anchor to default to center.
+
     r 10 10 30 20 #title  | # Main Point
     r 60 10 30 20 #detail | Supporting detail
-    a @title @detail
+
+    a @title @detail               (default: centers of both shapes)
+    a @title.right @detail.left    (explicit: right edge to left edge)
+
+  Each endpoint picks its own anchor independently, so you can connect
+  the bottom of one box to the top of another:
+    l @box-a.bottom @box-b.top
 
   9 anchors: center (default), top, bottom, left, right, topleft,
   topright, bottomleft, bottomright.
+
+  Anchors resolve against each shape's BOUNDING BOX. For circles and
+  ellipses that means the circumscribing rectangle, not the perimeter -
+  so @circle.right lands at the box edge, not the curve.
+
+  \`l\` and \`a\` endpoints can mix \`@ref\` with raw \`x y\` coords freely,
+  e.g. \`l @title.bottom 50 30\`.
 
 \u2500\u2500 SHAPE ATTRIBUTES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Between geometry and \`|\`:
@@ -1481,6 +1534,10 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
     radius=N            Corner radius (rectangles)
     color=<color>       Text color inside the shape
     padding=N           Inner padding in grid units (0 disables)
+
+  Numeric attributes (strokeWidth, radius, padding) are in grid units -
+  pick values relative to your grid size, no prescribed defaults. On
+  the default 100-wide grid, \`radius=2\` is ~2% of slide width.
 
   Alignment:
     align=<a>           Horizontal: center (default), left, right
@@ -1497,7 +1554,14 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
     font=fixed          Auto-fit OFF; font-size inherits from the
                         cascade (useful when you want doc typography
                         instead of slide-fit typography). Aliases:
-                        \`font=none\`, \`font=off\`.
+                        \`font=none\`, \`font=off\`. Rarely the right
+                        choice for slide text - for a BIG hero value
+                        use \`h1Scale=\` or \`maxfont=\`, not \`font=fixed\`.
+
+    Px values size as if the stage were 720px tall and scale
+    proportionally in smaller views (rail thumbnails, inline thumbs),
+    so \`font=18px\` reads as "18px on a fullscreen slide". \`maxfont=6px\`
+    would be illegibly small; keep fine-print around 12-16px.
 
   Per-element scale (applied inside the shape's shadow root):
     h1Scale=N           h1 is N\u00d7 the shape's resolved font size.
@@ -1505,7 +1569,15 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
     h3Scale=N, h4Scale=N, h5Scale=N, h6Scale=N
     pScale=N            Scale paragraph text (default 1).
 
-    Defaults without overrides: h1 1.4, h2 1.2, h3 1.05, p 1.
+    Each scale affects ONLY that element type. \`h1Scale=3\` enlarges
+    h1 headings, leaves paragraphs alone. The shape's resolved font
+    size (autofit output, or maxfont cap, or explicit font=Npx) is
+    the base against which scale multiplies.
+
+    Defaults without overrides: h1 1.4, h2 1.2, h3 1.05, h4-h6 1.0,
+    p 1.0. Note that h4/h5/h6 render at the SAME size by default, so
+    they don't give you three-step hierarchy out of the box - use
+    explicit h4Scale/h5Scale/h6Scale if you need a h4>h5>h6 spread.
 
     When to use: one shape holds mixed content (heading + body) and
     you want the heading BIGGER or the body SMALLER than the 1.4 / 1.0
@@ -1528,7 +1600,9 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
 
 \u2500\u2500 CONTENT \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Everything after \`|\` is standard markdown. Multi-line uses
-  indentation under the shape line:
+  indentation under the shape line - continuation lines MUST be
+  indented at least 2 spaces, or the parser treats them as fresh
+  top-level shape lines (and fails).
 
     r 5 20 90 60 align=left valign=top |
       ## Heading
@@ -1541,6 +1615,10 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
       def hi():
           print("hello")
       \`\`\`
+
+  Prefer putting the \`|\` on its own line (empty) with all content
+  indented below. Mixing "first line after |" with unindented lines
+  is a common parser error.
 
 \u2500\u2500 ALIGNMENT GUIDELINES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Default: \`align=center valign=center\`. Good for:
@@ -1557,17 +1635,51 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
     ONE short phrase  \u2192  leave centered
     MULTIPLE lines    \u2192  align=left valign=top
 
-\u2500\u2500 STYLE INHERITANCE FROM HOST DOC \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  Inherits from the SDocs document the slide lives in:
-    - Body font-family
-    - Heading font-family
-    - Code block background/color
-    - Fenced-block background
-    - Link color
+\u2500\u2500 PULLING FROM DOC STYLES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Slides pick up the host document's styles so a deck feels visually
+  part of its doc. Two mechanisms, both resolved at render time against
+  the active theme (so dark mode just works).
 
-  A shape's own \`color=\` always wins over any inherited color. Heading
-  color is intentionally NOT forwarded so shape-declared colors apply
-  to h1/h2/h3 without being overridden.
+  AUTOMATIC INHERITANCE (no DSL needed)
+    - Slide background   = styles.background (unless grid has bg=)
+    - Body font          = styles.fontFamily
+    - Heading fonts      = styles.headers.fontFamily
+    - Code / pre / link  = their respective styles.* values
+    - Heading text inside a shape's markdown content adopts the doc's
+      h1/h2/h3/h4 color. Example: \`# Title\` in a shape uses styles.h1.color.
+      A shape's own \`color=\` always overrides this.
+
+  EXPLICIT REFERENCES ($path.to.prop)
+    Any shape or grid attribute value can be a \`\$path.to.prop\` token,
+    which resolves to the doc's live value for that style. Common cases:
+    \`fill=\$h1.color\`, \`color=\$chart.accent\`, grid \`bg=\$background\`.
+    Vocabulary = the YAML schema (run \`sdoc schema\`).
+
+      r 5 5 90 15 fill=\$h1.color color=#fff | # Title
+      r 5 25 90 25 color=\$chart.accent      | ## 40% growth
+      grid 100 56.25 bg=\$blocks.background  (subtle block-tinted slide)
+
+    Supported paths:
+      \$background     \$color           \$fontFamily
+      \$h.color        \$h1.color  \$h2.color  \$h3.color  \$h4.color
+      \$headers.color  \$headers.fontFamily
+      \$p.color        \$list.color      \$link.color
+      \$blocks.background    \$blocks.color
+      \$code.background      \$code.color   \$code.font
+      \$blockquote.background  \$blockquote.color  \$blockquote.borderColor
+      \$chart.accent   \$chart.background   \$chart.textColor
+
+    Unknown paths surface in the error badge with the rest of the
+    diagnostics. Literal hex (#1e40af) still works when you want a
+    one-off color that isn't in the doc's styles.
+
+    Blockquote-style card (tinted bg + left accent border): use a
+    markdown \`>\` inside any shape. The quote picks up the doc's
+    blockquote styling automatically - no \`stroke=\` workaround needed.
+      r 50 15 42 30 padding=3 |
+        > Our customers are the product
+        >
+        > - Jordan, CEO
 
 \u2500\u2500 ERRORS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   A slide with parse/render errors shows a red badge at the bottom
@@ -1583,8 +1695,6 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
 
 \u2500\u2500 LIMITATIONS TODAY \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   - Named layouts / templates are not yet implemented.
-  - Front-matter token interpolation (e.g. color=$styles.h1.color)
-    is not yet implemented.
   - Arrows draw as straight lines; no routing around other shapes.
   - No drag/resize edit mode yet; shapes are authored by typing DSL.
 `;

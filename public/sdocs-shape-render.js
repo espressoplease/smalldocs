@@ -66,12 +66,15 @@ var SHAPE_MD_SHADOW_CSS = [
   '.inner > :first-child { margin-top: 0; }',
   '.inner > :last-child { margin-bottom: 0; }',
   'p { margin: 0.2em 0; color: inherit; }',
-  /* Forward doc-level heading font-family, but NOT heading color — shapes */
-  /* frequently declare their own color= and that must win. */
-  'h1, h2, h3, h4, h5, h6 {',
-  '  font-family: var(--md-h-font-family, inherit);',
-  '  color: inherit;',
-  '}',
+  /* Heading colors: prefer --shape-color (set when the shape declares color=), */
+  /* otherwise pick up the doc-level per-level heading color so `# Title` inside */
+  /* a shape automatically adopts the doc's h1 color without any DSL attribute. */
+  'h1, h2, h3, h4, h5, h6 { font-family: var(--md-h-font-family, inherit); }',
+  'h1 { color: var(--shape-color, var(--md-h1-color, inherit)); }',
+  'h2 { color: var(--shape-color, var(--md-h2-color, inherit)); }',
+  'h3 { color: var(--shape-color, var(--md-h3-color, inherit)); }',
+  'h4 { color: var(--shape-color, var(--md-h4-color, inherit)); }',
+  'h5, h6 { color: var(--shape-color, var(--md-h-color, inherit)); }',
   'h1 { font-size: 1.4em; font-weight: 700; margin: 0.2em 0; line-height: 1.15; }',
   'h2 { font-size: 1.2em; font-weight: 700; margin: 0.2em 0; line-height: 1.2; }',
   'h3 { font-size: 1.05em; font-weight: 600; margin: 0.15em 0; line-height: 1.2; }',
@@ -95,7 +98,16 @@ var SHAPE_MD_SHADOW_CSS = [
   'strong { font-weight: 700; }',
   'em { font-style: italic; }',
   'a { color: var(--md-link-color, inherit); text-decoration: underline; }',
-  'blockquote { margin: 0.3em 0; padding: 0 0 0 0.7em; border-left: 2px solid currentColor; opacity: 0.85; text-align: left; font-style: italic; color: inherit; }',
+  /* Forward the doc's blockquote styling (--md-bq-*) so a `> quote` */
+  /* inside a shape picks up the same left-border + tinted bg as a */
+  /* blockquote in the doc body. Fallbacks keep it readable in /shapes. */
+  'blockquote {',
+  '  margin: 0.3em 0; padding: 0 0 0 0.7em;',
+  '  border-left: var(--md-bq-border, 2px solid currentColor);',
+  '  background: var(--md-bq-bg, transparent);',
+  '  color: var(--md-bq-color, inherit);',
+  '  opacity: 0.9; text-align: left; font-style: italic;',
+  '}',
   /* When the shape\'s entire content is a code block, the shape itself *is*
      the code container — let pre fill the shape edge-to-edge without the
      extra dark overlay that normally distinguishes code from prose. */
@@ -194,7 +206,13 @@ function applyPadding(el, s, grid) {
 
 function applyShapeStyle(el, attrs) {
   if (attrs.fill) el.style.background = attrs.fill;
-  if (attrs.color) el.style.color = attrs.color;
+  if (attrs.color) {
+    el.style.color = attrs.color;
+    // Mirror onto --shape-color so heading rules in the shadow root can
+    // prefer an explicit shape color over doc-level heading colors.
+    // CSS custom properties cross shadow-DOM boundaries, so this cascades in.
+    el.style.setProperty('--shape-color', attrs.color);
+  }
   if (attrs.radius != null) el.style.borderRadius = attrs.radius + '%';
   else el.style.borderRadius = '0.8%';
   if (attrs.stroke && attrs.stroke !== 'none') {
@@ -464,6 +482,39 @@ function applyAutoFit(container, minPx, maxStageHPct) {
   }
 }
 
+// ─── $path.to.prop resolution ────────────────────────
+
+// Walk every shape attr (and grid attrs) and substitute $refs with the
+// corresponding var(--md-*) expression. Collects unresolved refs as
+// errors so the thumbnail badge can surface them to the agent.
+// Mutates attrs in place.
+function resolveAttrRefs(attrs, lineNumber, errors) {
+  if (!attrs) return;
+  var SDocStyles = typeof window !== 'undefined' ? window.SDocStyles : null;
+  if (!SDocStyles || !SDocStyles.resolveStyleRef) return;
+  for (var k in attrs) {
+    if (!Object.prototype.hasOwnProperty.call(attrs, k)) continue;
+    var v = attrs[k];
+    if (typeof v !== 'string' || v.charAt(0) !== '$') continue;
+    var r = SDocStyles.resolveStyleRef(v);
+    if (!r) continue;
+    if (r.error) {
+      errors.push({ line: lineNumber, message: r.error });
+      continue;
+    }
+    attrs[k] = r.value;
+  }
+}
+
+function resolveStyleRefs(grid, shapes) {
+  var errors = [];
+  if (grid && grid.attrs) resolveAttrRefs(grid.attrs, 1, errors);
+  for (var i = 0; i < shapes.length; i++) {
+    resolveAttrRefs(shapes[i].attrs, shapes[i].lineNumber, errors);
+  }
+  return errors;
+}
+
 // ─── Main entry ──────────────────────────────────────
 
 function renderShapes(dslText, container, options) {
@@ -472,9 +523,10 @@ function renderShapes(dslText, container, options) {
   var parsed = SDocShapes.parse(dslText);
   var resolved = SDocShapes.resolve(parsed.shapes);
   var bounds = SDocShapes.checkGridBounds ? SDocShapes.checkGridBounds(resolved.shapes, parsed.grid) : [];
+  var refErrors = resolveStyleRefs(parsed.grid, resolved.shapes);
   var result = {
     shapes: resolved.shapes,
-    errors: parsed.errors.concat(resolved.errors, bounds),
+    errors: parsed.errors.concat(resolved.errors, bounds, refErrors),
     grid: parsed.grid,
   };
 
