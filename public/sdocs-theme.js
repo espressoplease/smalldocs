@@ -61,6 +61,7 @@ const LIGHT_DEFAULTS = {
   tableHeaderBg:    '#f4f1ed',
   tableEvenBg:      '#fafaf8',
   tableOddBg:       '#ffffff',
+  tableText:        '#1c1917',
 };
 
 const DARK_DEFAULTS = {
@@ -76,6 +77,7 @@ const DARK_DEFAULTS = {
   tableHeaderBg:    '#2c2926',
   tableEvenBg:      '#242220',
   tableOddBg:       '#2c2a26',
+  tableText:        '#e7e5e2',
 };
 
 function getThemeDefaults() {
@@ -245,6 +247,7 @@ function getStandaloneDefault(ctrlId) {
     '_sd_ctrl-table-header-bg': d.tableHeaderBg,
     '_sd_ctrl-table-even-bg':   d.tableEvenBg,
     '_sd_ctrl-table-odd-bg':    d.tableOddBg,
+    '_sd_ctrl-table-text':      d.tableText,
   };
   return map[ctrlId];
 }

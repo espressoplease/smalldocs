@@ -266,6 +266,86 @@ test.describe('Block color settings → front matter', () => {
 });
 
 // ═══════════════════════════════════════════════════
+//  TABLE COLOR SETTINGS
+// ═══════════════════════════════════════════════════
+
+const TABLE_DOC = '# Tables\n\n| Name | Score |\n|------|-------|\n| Ana  | 10    |\n| Bo   | 20    |\n';
+
+async function loadTableDoc(page) {
+  await page.evaluate((md) => { window.SDocs.loadText(md, 'tables.md'); }, TABLE_DOC);
+  await page.waitForTimeout(300);
+}
+
+function rgbFromHex(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+}
+
+test.describe('Table color settings → front matter + rendered DOM', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoStyleMode(page);
+    await loadTableDoc(page);
+  });
+
+  test('table text color updates front matter', async ({ page }) => {
+    await setControl(page, '_sd_ctrl-table-text', '#ff00aa');
+    const s = await getStyles(page);
+    expect(s.table).toBeTruthy();
+    expect(s.table.color).toBe('#ff00aa');
+  });
+
+  test('table text color applies to td and th in rendered DOM', async ({ page }) => {
+    await setControl(page, '_sd_ctrl-table-text', '#ff00aa');
+    const colors = await page.evaluate(() => {
+      const td = document.querySelector('#_sd_rendered tbody td');
+      const th = document.querySelector('#_sd_rendered thead th');
+      return { td: td && getComputedStyle(td).color, th: th && getComputedStyle(th).color };
+    });
+    expect(colors.td).toBe(rgbFromHex('#ff00aa'));
+    expect(colors.th).toBe(rgbFromHex('#ff00aa'));
+  });
+
+  test('table header bg updates front matter and applies in DOM', async ({ page }) => {
+    await setControl(page, '_sd_ctrl-table-header-bg', '#123456');
+    const s = await getStyles(page);
+    expect(s.table.headerBackground).toBe('#123456');
+    const bg = await page.evaluate(() => {
+      const th = document.querySelector('#_sd_rendered thead th');
+      return th && getComputedStyle(th).backgroundColor;
+    });
+    expect(bg).toBe(rgbFromHex('#123456'));
+  });
+
+  test('table odd row bg updates front matter and applies in DOM', async ({ page }) => {
+    await setControl(page, '_sd_ctrl-table-odd-bg', '#abcdef');
+    const s = await getStyles(page);
+    expect(s.table.oddBackground).toBe('#abcdef');
+    const bg = await page.evaluate(() => {
+      const td = document.querySelector('#_sd_rendered tbody tr:nth-child(1) td');
+      return td && getComputedStyle(td).backgroundColor;
+    });
+    expect(bg).toBe(rgbFromHex('#abcdef'));
+  });
+
+  test('table even row bg updates front matter and applies in DOM', async ({ page }) => {
+    await setControl(page, '_sd_ctrl-table-even-bg', '#fedcba');
+    const s = await getStyles(page);
+    expect(s.table.evenBackground).toBe('#fedcba');
+    const bg = await page.evaluate(() => {
+      const td = document.querySelector('#_sd_rendered tbody tr:nth-child(2) td');
+      return td && getComputedStyle(td).backgroundColor;
+    });
+    expect(bg).toBe(rgbFromHex('#fedcba'));
+  });
+
+  test('table border color updates front matter', async ({ page }) => {
+    await setControl(page, '_sd_ctrl-table-border', '#ff9900');
+    const s = await getStyles(page);
+    expect(s.table.border).toBe('#ff9900');
+  });
+});
+
+// ═══════════════════════════════════════════════════
 //  HEADER SETTINGS
 // ═══════════════════════════════════════════════════
 
