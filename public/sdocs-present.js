@@ -122,8 +122,8 @@ var CSS = [
   '  font-size: 10px; color: #8a8580; margin: 2px 0 4px;',
   '  font-family: ui-monospace, Menlo, monospace;',
   '}',
-  '.sdoc-present-thumb .sd-shape-stage {',
-  '  width: 100%; background: #ffffff; border-radius: 2px;',
+  '.sdoc-present-thumb .sd-slide-wrap {',
+  '  background: #ffffff; border-radius: 2px;',
   '}',
   '.sdoc-present-stage-wrap {',
   '  grid-row: 2;',
@@ -294,12 +294,9 @@ function buildRailThumb(idx, dsl) {
   num.className = 'sdoc-present-thumb-num';
   num.textContent = String(idx + 1);
   btn.appendChild(num);
-  var stage = document.createElement('div');
-  btn.appendChild(stage);
-  // Rail thumbnails are ~140px wide, so the usual 8px font-size floor leaves
-  // longer text spilling out of small shapes. Drop it to 2px — unreadable
-  // but contained, which is what a navigation thumbnail wants.
-  window.SDocShapeRender.renderShapes(dsl, stage, { minFontPx: 2 });
+  var wrap = document.createElement('div');
+  btn.appendChild(wrap);
+  window.SDocShapeRender.renderShapes(dsl, wrap);
   btn.addEventListener('click', function () { go(idx); });
   return btn;
 }

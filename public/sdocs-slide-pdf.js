@@ -69,19 +69,12 @@ function createStage(gridW, gridH) {
   return { wrap: wrap, stage: stage, w: stageW, h: stageH };
 }
 
+// Autofit is synchronous in the current renderer — no need to wait, but
+// force one layout pass so getBoundingClientRect sees the final geometry.
 function waitForAutofit(stage) {
-  // Force a synchronous layout so the stage has real dimensions before
-  // renderShapes' rAF callback runs. Without this some engines defer layout
-  // for an opacity:0 element on the fixed-position layer.
   // eslint-disable-next-line no-unused-expressions
   stage.offsetHeight;
-  return new Promise(function (resolve) {
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        setTimeout(resolve, 20);
-      });
-    });
-  });
+  return Promise.resolve();
 }
 
 // ─── Coordinate helpers ────────────────────────────────

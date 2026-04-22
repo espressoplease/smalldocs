@@ -40,24 +40,23 @@ test.describe('Slide rendering pipeline', () => {
     expect(inline).toBe('');
   });
 
-  test('font=18px emits cqh relative to 720px reference', async ({ page }) => {
+  test('font=18px emits 18px at the reference size', async ({ page }) => {
     await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 font=18px | caption'));
     const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
-    // 18 / 720 * 100 = 2.5cqh (allow toFixed(4) formatting variance)
-    expect(fs).toMatch(/^2\.5\d*cqh$/);
+    expect(fs).toBe('18px');
   });
 
-  test('font=24px emits a larger cqh than font=12px', async ({ page }) => {
+  test('font=24px emits a larger size than font=12px', async ({ page }) => {
     const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 0 0 50 20 font=24px | big\nr 50 0 50 20 font=12px | small\n```\n';
     await renderBody(page, body);
     const sizes = await page.$$eval('.sdoc-slide .shape-rect', (els) => els.map((el) => parseFloat(el.style.fontSize)));
     expect(sizes.length).toBe(2);
     expect(sizes[0]).toBeGreaterThan(sizes[1]);
-    expect(sizes[0]).toBeCloseTo(24 / 720 * 100, 3);
-    expect(sizes[1]).toBeCloseTo(12 / 720 * 100, 3);
+    expect(sizes[0]).toBeCloseTo(24, 3);
+    expect(sizes[1]).toBeCloseTo(12, 3);
   });
 
-  test('font=fixed tags the element and converts cascade size to cqh after render', async ({ page }) => {
+  test('font=fixed tags the element and pins cascade size as px after render', async ({ page }) => {
     await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 font=fixed | fine print'));
     const info = await page.$eval('.sdoc-slide .shape-rect', (el) => ({
       autofit: el.dataset.autofit,
@@ -66,18 +65,17 @@ test.describe('Slide rendering pipeline', () => {
     }));
     expect(info.autofit).toBe('off');
     expect(info.mode).toBe('fixed');
-    // Post-render pass converts cascade to cqh; value should be present and end in cqh.
-    expect(info.fontSize).toMatch(/cqh$/);
+    expect(info.fontSize).toMatch(/px$/);
   });
 
-  test('autofit text (no font= attr) still uses cqh via binary search', async ({ page }) => {
+  test('autofit text (no font= attr) emits px via binary search', async ({ page }) => {
     await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 30 | autofit title'));
     const info = await page.$eval('.sdoc-slide .shape-rect', (el) => ({
       autofit: el.dataset.autofit || 'on',
       fontSize: el.style.fontSize,
     }));
     expect(info.autofit).toBe('on');
-    expect(info.fontSize).toMatch(/cqh$/);
+    expect(info.fontSize).toMatch(/px$/);
   });
 
   test('error badge lists line-numbered errors and has a Copy button', async ({ page }) => {
@@ -132,27 +130,19 @@ test.describe('Slide rendering pipeline', () => {
     expect(styleText).not.toMatch(/font-size:\s*-\d/);
   });
 
-  test('autofit re-runs when a collapsed section opens', async ({ page }) => {
-    // A slide nested under ## so it lands in a .md-section-body that's
-    // closed by default. Without the ResizeObserver retry, the initial
-    // autofit sees stageH=0 and leaves fontSize empty — so the rect ends
-    // up at cascade size, which is much smaller than the cqh autofit would
-    // have chosen.
+  test('autofit runs even when slide is inside a collapsed section', async ({ page }) => {
+    // Slides render at a reference size in an offscreen stage, so autofit
+    // no longer depends on the live container being laid out. Even inside
+    // a closed .md-section-body, the rect should have its px font-size
+    // populated on first render — not empty.
     const body = '# Deck\n\n## Section\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Hello\n```\n';
     await page.goto('/');
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
     await page.waitForTimeout(500);
-    // At this point the section is collapsed; stage height should be 0.
-    const pre = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
-    expect(pre).toBe('');
-    // Open the section — ResizeObserver should detect the transition and rerun autofit.
-    await page.evaluate(() => {
-      document.querySelectorAll('.md-section-body').forEach((b) => b.classList.add('open'));
-    });
-    await page.waitForTimeout(400);
-    const post = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
-    expect(post).toMatch(/cqh$/);
+    const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
+    expect(fs).toMatch(/px$/);
+    expect(parseFloat(fs)).toBeGreaterThan(0);
   });
 
   test('exportSlidesPdf builds a downloadable PDF without calling window.print', async ({ page }) => {
