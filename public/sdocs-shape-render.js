@@ -107,9 +107,14 @@ var SHAPE_MD_SHADOW_CSS = [
   '  margin: 0.3em 0; padding: 0.4em 0.6em;',
   '  background: var(--md-pre-bg, rgba(0,0,0,.08));',
   '  border-radius: 4px; text-align: left; font-size: 0.85em;',
-  '  overflow-x: auto; line-height: 1.3; color: inherit;',
+  '  overflow-x: auto; line-height: 1.3;',
+  '  color: var(--md-code-color, inherit);',
   '}',
-  'pre code { background: none; padding: 0; font-size: inherit; color: inherit; }',
+  'pre code {',
+  '  background: none; padding: 0; font-size: inherit;',
+  '  color: var(--md-code-color, inherit);',
+  '  font-family: var(--md-code-font, inherit);',
+  '}',
   'strong { font-weight: 700; }',
   'em { font-style: italic; }',
   'a { color: var(--md-link-color, inherit); text-decoration: underline; }',
@@ -123,10 +128,30 @@ var SHAPE_MD_SHADOW_CSS = [
   '  color: var(--md-bq-color, inherit);',
   '  opacity: 0.9; text-align: left; font-style: italic;',
   '}',
-  /* When the shape\'s entire content is a code block, the shape itself *is*
-     the code container — let pre fill the shape edge-to-edge without the
-     extra dark overlay that normally distinguishes code from prose. */
-  ':host(.shape-md-code-only) pre { background: transparent; border-radius: 0; margin: 0; padding: 0.3em 0.6em; font-size: 1em; }',
+  /* Tables pick up the doc\'s table tokens when available. Em-based */
+  /* padding/font-size so autofit scales cells proportionally with the */
+  /* shape\'s text. */
+  'table {',
+  '  border-collapse: collapse; width: 100%;',
+  '  margin: 0.3em 0; font-size: 0.95em; text-align: left;',
+  '}',
+  'th, td {',
+  '  border: 1px solid var(--md-table-border, rgba(0,0,0,.12));',
+  '  padding: 0.35em 0.65em; vertical-align: top;',
+  '}',
+  'th {',
+  '  background: var(--md-table-header-bg, rgba(0,0,0,.05));',
+  '  font-weight: 600;',
+  '}',
+  'tbody tr:nth-child(even) td {',
+  '  background: var(--md-table-even-bg, transparent);',
+  '}',
+  /* When a shape\'s entire content is a code block AND the shape has a */
+  /* fill, the shape itself acts as the code container — strip the pre\'s */
+  /* own chrome so the fill shows edge-to-edge. Without a fill, keep the */
+  /* normal block bg/radius/margin so code stays visually distinct from */
+  /* the surrounding slide. */
+  ':host(.shape-md-code-only.shape-md-fill) pre { background: transparent; border-radius: 0; margin: 0; padding: 0.3em 0.6em; font-size: 1em; }',
 ].join('\n');
 
 function injectCSS() {
@@ -167,6 +192,12 @@ function contentToMarkdownNode(content, attrs) {
   host.className = 'shape-md';
   if (content == null || content === '') return host;
   if (contentIsOnlyCodeBlock(content)) host.classList.add('shape-md-code-only');
+  // Mark when the enclosing shape has an explicit fill so the shadow CSS
+  // can decide whether nested code blocks should fill the shape or keep
+  // their own block styling.
+  if (attrs && attrs.fill && attrs.fill !== 'none' && attrs.fill !== 'transparent') {
+    host.classList.add('shape-md-fill');
+  }
 
   var marked = typeof window !== 'undefined' ? window.marked : null;
   var purify = typeof window !== 'undefined' ? window.DOMPurify : null;
