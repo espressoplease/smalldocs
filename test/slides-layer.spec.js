@@ -38,22 +38,55 @@ async function shapeSublayerIndex(page, selector) {
 }
 
 test.describe('Slide layer= attribute', () => {
-  test('default: SVG primitives are below rectangles (existing behaviour)', async ({ page }) => {
+  test('default: rect lands in the mid sublayer (index 1)', async ({ page }) => {
     await renderBody(page, slideDoc([
       'grid 16 9',
       'r 2 2 12 5 fill=#dbeafe #card | Card',
-      'a 4 4 12 4 stroke=#dc2626',
     ].join('\n')));
-    // Both land in the 'auto' sublayer (index 1). The SVG's z-order
-    // within that sublayer: SVG element is the sublayer's first child,
-    // so the rect div paints above it — matches pre-refactor behaviour.
     const rectLayer = await shapeSublayerIndex(page, '.shape-rect');
-    const arrow = await page.$('.shape-svg line');
-    expect(rectLayer).toBe(1);
-    expect(arrow).not.toBeNull();
+    expect(rectLayer).toBe(1); // [bottom, mid, top] → mid
   });
 
-  test('arrow with layer=top renders in the top sublayer (above all rects)', async ({ page }) => {
+  test('arrows default to layer=top (heads stay above rects they connect)', async ({ page }) => {
+    await renderBody(page, slideDoc([
+      'grid 16 9',
+      'r 2 2 5 5 fill=#dbeafe | A',
+      'r 9 2 5 5 fill=#dbeafe | B',
+      'a 7 4.5 9 4.5 stroke=#dc2626',
+    ].join('\n')));
+    // No explicit layer= on the arrow. It should still land in the top
+    // sublayer because arrows-over-rects is almost always the intent.
+    const arrowLayer = await page.evaluate(() => {
+      const line = Array.from(document.querySelectorAll('.shape-svg line'))
+        .find((l) => l.getAttribute('stroke') === '#dc2626');
+      if (!line) return -1;
+      const sublayer = line.closest('.sd-stage-sublayer');
+      const parent = sublayer.parentElement;
+      return Array.from(parent.querySelectorAll(':scope > .sd-stage-sublayer')).indexOf(sublayer);
+    });
+    expect(arrowLayer).toBe(2); // top
+  });
+
+  test('arrow with explicit layer=mid opts out of the top default', async ({ page }) => {
+    await renderBody(page, slideDoc([
+      'grid 16 9',
+      'r 2 2 12 5 fill=#dbeafe',
+      'a 4 4 12 4 stroke=#dc2626 layer=mid',
+    ].join('\n')));
+    const arrowLayer = await page.evaluate(() => {
+      const line = Array.from(document.querySelectorAll('.shape-svg line'))
+        .find((l) => l.getAttribute('stroke') === '#dc2626');
+      if (!line) return -1;
+      const sublayer = line.closest('.sd-stage-sublayer');
+      const parent = sublayer.parentElement;
+      return Array.from(parent.querySelectorAll(':scope > .sd-stage-sublayer')).indexOf(sublayer);
+    });
+    expect(arrowLayer).toBe(1); // mid
+  });
+
+  test('arrow with explicit layer=top renders in the top sublayer', async ({ page }) => {
+    // Redundant with the default (since arrows default to top), but
+    // proves that explicit layer=top is still accepted and correct.
     await renderBody(page, slideDoc([
       'grid 16 9',
       'r 2 2 5 5 fill=#dbeafe | Left',
@@ -93,7 +126,7 @@ test.describe('Slide layer= attribute', () => {
     expect(circleLayer).toBeGreaterThan(rectLayer);
   });
 
-  test('rect with layer=bottom sits below other rects', async ({ page }) => {
+  test('rect with layer=bottom sits below mid-layer rects', async ({ page }) => {
     await renderBody(page, slideDoc([
       'grid 16 9',
       'r 1 1 8 4 fill=#fee #back layer=bottom',
@@ -125,7 +158,7 @@ test.describe('Slide layer= attribute', () => {
       return -1;
     });
     expect(backLayer).toBe(0);  // bottom
-    expect(frontLayer).toBe(1); // auto
+    expect(frontLayer).toBe(1); // mid
   });
 
   test('invalid layer value surfaces an error badge', async ({ page }) => {
@@ -139,10 +172,10 @@ test.describe('Slide layer= attribute', () => {
     expect(txt).toContain('invalid layer');
   });
 
-  test('layer=auto is equivalent to omitting the attribute', async ({ page }) => {
+  test('layer=mid is equivalent to omitting the attribute', async ({ page }) => {
     await renderBody(page, slideDoc([
       'grid 16 9',
-      'r 0 0 16 9 layer=auto | Auto',
+      'r 0 0 16 9 layer=mid | Mid',
     ].join('\n')));
     const idx = await shapeSublayerIndex(page, '.shape-rect');
     expect(idx).toBe(1);
