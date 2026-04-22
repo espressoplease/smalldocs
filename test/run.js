@@ -10,6 +10,7 @@ const harness = require('./runner');
 // ── Unit test groups (synchronous) ──────────────────
 require('./test-yaml')(harness);
 require('./test-shapes')(harness);
+require('./test-slide-resolve')(harness);
 require('./test-styles')(harness);
 require('./test-cli')(harness);
 require('./test-slugify')(harness);
