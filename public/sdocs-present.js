@@ -329,35 +329,10 @@ function sizeStage() {
 function renderActive() {
   if (!state.stage) return;
 
-  // Re-render from DSL (cloneNode(true) doesn't copy shadow roots, so we
-  // can't just clone the inline stage). After renderShapes has done its own
-  // autofit pass, copy the inline thumbnail's cqh font-sizes onto the
-  // present-mode rects. cqh is % of the .sd-shape-stage's height, so the
-  // values resolve proportionally at the larger fullscreen size — same
-  // visual ratios, no autofit-drift between contexts.
   var dsl = state.slides[state.index] || '';
   window.SDocShapeRender.renderShapes(dsl, state.stage);
   state.stage.classList.add('sdoc-present-stage');
   sizeStage();
-
-  var inlineSlides = document.querySelectorAll('.sdoc-slide[data-dsl]');
-  var inline = inlineSlides[state.index];
-  if (inline) {
-    var inlineRects = inline.querySelectorAll('.shape-rect, .shape-text');
-    // Wait two frames — renderShapes queues its own rAF for autofit, so our
-    // override runs strictly after it.
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        if (!state.stage) return;
-        var presentRects = state.stage.querySelectorAll('.shape-rect, .shape-text');
-        var n = Math.min(inlineRects.length, presentRects.length);
-        for (var i = 0; i < n; i++) {
-          var fs = inlineRects[i].style.fontSize;
-          if (fs) presentRects[i].style.fontSize = fs;
-        }
-      });
-    });
-  }
 
   // Rail selection
   if (state.modal) {
