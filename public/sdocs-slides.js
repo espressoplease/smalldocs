@@ -18,14 +18,21 @@ var CSS = [
   '  margin: 1.2em 0;',
   '  max-width: 100%;',
   '  background: var(--md-code-bg, #f6f5f2);',
-  '  border: 1px solid var(--md-block-border, rgba(0,0,0,.08));',
+  /* Border derives from the doc\'s text color so it contrasts whatever */
+  /* the page background is. 14% opacity stays subtle in both themes. */
+  '  border: 1px solid color-mix(in srgb, var(--md-color, #000) 14%, transparent);',
   '  border-radius: 6px;',
   '  overflow: hidden;',
   '  box-shadow: 0 1px 3px rgba(0,0,0,.05);',
   '  position: relative;',
-  '  transition: box-shadow .15s, transform .15s;',
+  '  transition: box-shadow .15s, border-color .15s, transform .15s;',
   '}',
-  '.sdoc-slide:hover { box-shadow: 0 3px 12px rgba(0,0,0,.1); }',
+  /* On hover, the border lifts to 28% so the indicator works on both */
+  /* themes (shadow intensification alone is invisible on dark bgs). */
+  '.sdoc-slide:hover {',
+  '  box-shadow: 0 3px 12px rgba(0,0,0,.1);',
+  '  border-color: color-mix(in srgb, var(--md-color, #000) 28%, transparent);',
+  '}',
   /* Present button: small top-right overlay, mirrors the copy button */
   /* pattern on code blocks. Always visible so users don\'t have to */
   /* hover-probe to discover it. Colors derive from the slide\'s own */
