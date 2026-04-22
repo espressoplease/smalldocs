@@ -134,7 +134,6 @@ var CSS = [
   /* vars don\'t reach it via normal cascade. We copy the relevant vars */
   /* onto .sdoc-present in JS on open (see open()), then read them here. */
   '.sdoc-present-stage {',
-  '  /* --gw, --gh set by renderer */',
   '  max-width: 100%;',
   '  max-height: 100%;',
   '  width: auto; height: auto;',

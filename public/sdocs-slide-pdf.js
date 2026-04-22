@@ -4,11 +4,11 @@
 //
 // Flow:
 //   1. Parse DSL → get shape geometry in grid units.
-//   2. Render the slide into an off-screen stage at a fixed 1280x720
-//      (always, regardless of the target PDF bounds — this keeps autofit's
-//      binary search deterministic so inline-in-doc and slide-only exports
-//      produce the same layout).
-//   3. Settle autofit: force layout, then wait 2 rAFs + a short timeout.
+//   2. Render the slide into an off-screen 1280x720 stage. The renderer
+//      already does an offscreen reference-size build, so measurement is
+//      deterministic and the stage here is only for placing the final DOM
+//      somewhere we can read positions from.
+//   3. Force one layout pass (renderShapes' autofit is synchronous).
 //   4. Draw shape primitives (r/c/e/l/a/p) by mapping grid coords → PDF pt.
 //   5. For each text-bearing shape, walk into the shadow root and draw:
 //        a. block decorations (pre bg, blockquote rail, inline code pills)
@@ -67,14 +67,6 @@ function createStage(gridW, gridH) {
   wrap.appendChild(stage);
   document.body.appendChild(wrap);
   return { wrap: wrap, stage: stage, w: stageW, h: stageH };
-}
-
-// Autofit is synchronous in the current renderer — no need to wait, but
-// force one layout pass so getBoundingClientRect sees the final geometry.
-function waitForAutofit(stage) {
-  // eslint-disable-next-line no-unused-expressions
-  stage.offsetHeight;
-  return Promise.resolve();
 }
 
 // ─── Coordinate helpers ────────────────────────────────
@@ -188,12 +180,13 @@ function drawRoundedRect(page, opts) {
 
 // ─── Shape primitives (from parsed DSL, not DOM) ──────
 
-function strokeWidthPt(attrs, bounds) {
-  // Shape stroke-width in the DSL is cqw. 1cqw = 1% of stage width. The stage
-  // width maps affinely to bounds.w, so cqw → pt = (sw/100) * bounds.w.
+function strokeWidthPt(attrs, grid, bounds) {
+  // DSL strokeWidth is in grid units (same scale as shape w/h). Convert to
+  // PDF points against the slide's bounds — matches how shape-render maps
+  // grid units to reference px for the on-screen stage.
   var sw = attrs && attrs.strokeWidth != null ? parseFloat(attrs.strokeWidth) : 0.15;
   if (!isFinite(sw) || sw < 0) sw = 0.15;
-  return (sw / 100) * bounds.w;
+  return (sw / grid.w) * bounds.w;
 }
 
 function drawShapeRect(page, s, grid, bounds) {
@@ -205,7 +198,7 @@ function drawShapeRect(page, s, grid, bounds) {
 
   var fill = s.attrs.fill ? toHex(s.attrs.fill) : null;
   var stroke = s.attrs.stroke && s.attrs.stroke !== 'none' ? toHex(s.attrs.stroke) : null;
-  var sw = stroke ? strokeWidthPt(s.attrs, bounds) : 0;
+  var sw = stroke ? strokeWidthPt(s.attrs, grid, bounds) : 0;
 
   var radiusPct = s.attrs.radius != null ? parseFloat(s.attrs.radius) : 0.8;
   if (!isFinite(radiusPct) || radiusPct < 0) radiusPct = 0;
@@ -231,7 +224,7 @@ function drawShapeCircle(page, s, grid, bounds) {
 
   var fill = s.attrs.fill ? toHex(s.attrs.fill) : (s.attrs.stroke ? null : '#ffffff');
   var stroke = s.attrs.stroke && s.attrs.stroke !== 'none' ? toHex(s.attrs.stroke) : null;
-  var sw = stroke ? strokeWidthPt(s.attrs, bounds) : 0;
+  var sw = stroke ? strokeWidthPt(s.attrs, grid, bounds) : 0;
 
   var opts = { x: cx, y: cy, size: r };
   if (fill) opts.color = hexToRgbPdf(fill);
@@ -251,7 +244,7 @@ function drawShapeEllipse(page, s, grid, bounds) {
 
   var fill = s.attrs.fill ? toHex(s.attrs.fill) : (s.attrs.stroke ? null : '#ffffff');
   var stroke = s.attrs.stroke && s.attrs.stroke !== 'none' ? toHex(s.attrs.stroke) : null;
-  var sw = stroke ? strokeWidthPt(s.attrs, bounds) : 0;
+  var sw = stroke ? strokeWidthPt(s.attrs, grid, bounds) : 0;
 
   var opts = { x: cx, y: cy, xScale: rx, yScale: ry };
   if (fill) opts.color = hexToRgbPdf(fill);
@@ -268,7 +261,7 @@ function drawShapeLine(page, s, grid, bounds) {
   var x2 = gridToPdfX(s.x2, grid, bounds);
   var y2 = gridPointToPdfY(s.y2, grid, bounds);
   var stroke = s.attrs.stroke ? toHex(s.attrs.stroke) : '#94a3b8';
-  var sw = strokeWidthPt(s.attrs, bounds);
+  var sw = strokeWidthPt(s.attrs, grid, bounds);
   page.drawLine({
     start: { x: x1, y: y1 },
     end: { x: x2, y: y2 },
@@ -284,7 +277,7 @@ function drawShapeArrow(page, s, grid, bounds) {
   var x2 = gridToPdfX(s.x2, grid, bounds);
   var y2 = gridPointToPdfY(s.y2, grid, bounds);
   var stroke = s.attrs.stroke ? toHex(s.attrs.stroke) : '#94a3b8';
-  var sw = strokeWidthPt(s.attrs, bounds);
+  var sw = strokeWidthPt(s.attrs, grid, bounds);
 
   var dx = x2 - x1, dy = y2 - y1;
   var len = Math.hypot(dx, dy);
@@ -348,7 +341,7 @@ function drawShapePolygon(page, s, grid, bounds) {
 
   var fill = s.attrs.fill ? toHex(s.attrs.fill) : '#ffffff';
   var stroke = s.attrs.stroke && s.attrs.stroke !== 'none' ? toHex(s.attrs.stroke) : null;
-  var sw = stroke ? strokeWidthPt(s.attrs, bounds) : 0;
+  var sw = stroke ? strokeWidthPt(s.attrs, grid, bounds) : 0;
   var opts = { x: bbX, y: bbYTop };
   if (fill) opts.color = hexToRgbPdf(fill);
   if (stroke) {
@@ -688,7 +681,9 @@ async function drawSlide(ctx) {
   var st = createStage(grid.w, grid.h);
   try {
     SDocShapeRender.renderShapes(dsl, st.stage);
-    await waitForAutofit(st.stage);
+    // Force layout so getBoundingClientRect reflects the final geometry.
+    // eslint-disable-next-line no-unused-expressions
+    st.stage.offsetHeight;
 
     // Grid background. If the DSL didn't set one, fill white so text has a
     // predictable backdrop (slides commonly rely on an implicit white bg).
