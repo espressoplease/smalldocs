@@ -189,19 +189,11 @@ function strokeWidthPt(attrs, grid, bounds) {
   return (sw / grid.w) * bounds.w;
 }
 
-// Image shapes. async because pdf-lib's embedPng/embedJpg are async and
-// external URLs need fetch(). Silently skips shapes whose bytes can't be
-// obtained (CORS failure on external URLs, unsupported mime types); a
-// warning is logged so failures don't disappear entirely.
-async function drawShapeImage(pdfDoc, page, s, grid, bounds) {
-  var src = s.attrs && s.attrs.src;
-  if (!src) return;
-  var x = gridToPdfX(s.x, grid, bounds);
-  var yTop = gridTopToPdfY(s.y, grid, bounds);
-  var w = gridToPdfW(s.w, grid, bounds);
-  var h = gridToPdfH(s.h, grid, bounds);
-  if (w <= 0 || h <= 0) return;
-
+// Image bytes fetch + pdf-lib embed. Shared by the image-fill pass below.
+// Silently skips shapes whose bytes can't be obtained (CORS failure on external
+// URLs, unsupported mime types); a warning is logged so failures don't
+// disappear entirely.
+async function embedImageForShape(pdfDoc, src) {
   var bytes, mime;
   try {
     var dataUrlMatch = /^data:image\/([^;,]+)([^,]*),(.*)$/.exec(src);
@@ -224,33 +216,71 @@ async function drawShapeImage(pdfDoc, page, s, grid, bounds) {
     }
   } catch (e) {
     if (window.console) console.warn('slide-pdf image fetch failed:', src, e && e.message);
-    return;
+    return null;
   }
-
-  var img;
   try {
-    if (mime === 'png') img = await pdfDoc.embedPng(bytes);
-    else if (mime === 'jpeg' || mime === 'jpg') img = await pdfDoc.embedJpg(bytes);
-    else {
-      // pdf-lib only natively embeds PNG + JPEG. svg / webp / gif skipped
-      // for v1; authors can pre-convert if they need PDF export.
-      if (window.console) console.info('slide-pdf: mime not embeddable in PDF:', mime, '— skipping');
-      return;
-    }
+    if (mime === 'png') return await pdfDoc.embedPng(bytes);
+    if (mime === 'jpeg' || mime === 'jpg') return await pdfDoc.embedJpg(bytes);
+    // pdf-lib natively embeds PNG + JPEG only. svg / webp / gif are skipped;
+    // authors can pre-convert if they need PDF parity.
+    if (window.console) console.info('slide-pdf: mime not embeddable in PDF:', mime, '(skipped)');
+    return null;
   } catch (e) {
     if (window.console) console.warn('slide-pdf image embed failed:', src, e && e.message);
-    return;
+    return null;
   }
+}
 
-  // object-fit: contain — preserve aspect, letterbox inside the shape.
+function imageFitForShape(attrs) {
+  var v = attrs && attrs.imageFit ? String(attrs.imageFit).toLowerCase() : 'cover';
+  return v === 'contain' ? 'contain' : 'cover';
+}
+
+// Draw an embedded image into a rectangular region, honouring fit + pos.
+// pos: center|top|bottom|left|right. Only these five (matches the CSS path).
+function drawImageInRect(page, img, x, yTop, w, h, fit, pos) {
   var iw = img.width, ih = img.height;
-  var scale = Math.min(w / iw, h / ih);
-  var drawW = iw * scale;
-  var drawH = ih * scale;
+  var drawW, drawH;
+  if (fit === 'contain') {
+    var scaleMeet = Math.min(w / iw, h / ih);
+    drawW = iw * scaleMeet;
+    drawH = ih * scaleMeet;
+  } else {
+    var scaleSlice = Math.max(w / iw, h / ih);
+    drawW = iw * scaleSlice;
+    drawH = ih * scaleSlice;
+  }
+  // Default: centered in both axes.
   var drawX = x + (w - drawW) / 2;
-  var drawY = yTop - h + (h - drawH) / 2;
+  var drawYBottom = yTop - h + (h - drawH) / 2;
+  if (pos === 'top')         drawYBottom = yTop - drawH;
+  else if (pos === 'bottom') drawYBottom = yTop - h;
+  else if (pos === 'left')   drawX = x;
+  else if (pos === 'right')  drawX = x + w - drawW;
+  page.drawImage(img, { x: drawX, y: drawYBottom, width: drawW, height: drawH });
+}
 
-  page.drawImage(img, { x: drawX, y: drawY, width: drawW, height: drawH });
+// Draw the image for any shape that has `image=` (or legacy `src=`). Caller
+// provides the rectangular region the image is clipped/sized to. For the
+// `r` shape the region is the shape bounds; for `c`/`p` we use the bbox.
+async function drawShapeImage(pdfDoc, page, s, grid, bounds) {
+  var src = s.attrs && (s.attrs.image || s.attrs.src);
+  if (!src) return;
+  var SDocShapes = window.SDocShapes;
+  var bb = SDocShapes.bboxOf(s);
+  if (!bb) return;
+  var x = gridToPdfX(bb.x, grid, bounds);
+  var yTop = gridTopToPdfY(bb.y, grid, bounds);
+  var w = gridToPdfW(bb.w, grid, bounds);
+  var h = gridToPdfH(bb.h, grid, bounds);
+  if (w <= 0 || h <= 0) return;
+
+  var img = await embedImageForShape(pdfDoc, src);
+  if (!img) return;
+
+  var fit = imageFitForShape(s.attrs);
+  var pos = (s.attrs && s.attrs.imagePos) ? String(s.attrs.imagePos) : 'center';
+  drawImageInRect(page, img, x, yTop, w, h, fit, pos);
 }
 
 function drawShapeRect(page, s, grid, bounds) {
@@ -775,13 +805,17 @@ async function drawSlide(ctx) {
       }
     }
 
-    // Second pass: async image embeds. Done after the sync draws so images
-    // paint above the vector fill/stroke of prior shapes (matching the
-    // mid-layer behaviour in the DOM renderer).
+    // Second pass: async image fills. Any shape can carry `image=`/`src=`;
+    // image paints above its shape's vector fill/stroke, matching the CSS
+    // stacking on screen (background-color → background-image → border).
     for (var ii = 0; ii < shapes.length; ii++) {
-      if (shapes[ii].kind !== 'i') continue;
+      var si = shapes[ii];
+      if (!si.attrs || !(si.attrs.image || si.attrs.src)) continue;
+      // Only shapes with a rectangular bounding region receive image fill
+      // in the PDF path. Lines/arrows don't have a fillable region.
+      if (si.kind !== 'r' && si.kind !== 'c' && si.kind !== 'p' && si.kind !== 'e') continue;
       try {
-        await drawShapeImage(ctx.pdfDoc, page, shapes[ii], grid, bounds);
+        await drawShapeImage(ctx.pdfDoc, page, si, grid, bounds);
       } catch (err) {
         if (window.console) console.warn('slide-pdf image draw failed:', err);
       }

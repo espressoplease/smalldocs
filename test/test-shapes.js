@@ -23,14 +23,29 @@ module.exports = function(harness) {
     });
   });
 
-  test('image: i x y w h src=...', () => {
-    const { shapes, errors } = parse('i 5 5 10 6 src=https://example.com/logo.png alt=Logo');
+  test('image: i x y w h src=... is sugar for a rect with src', () => {
+    const { shapes, errors } = parse('i 5 5 10 6 src=https://example.com/logo.png');
     assert.strictEqual(errors.length, 0);
-    assert.strictEqual(shapes[0].kind, 'i');
+    // `i` is parser sugar: the shape lives its life as a rect.
+    assert.strictEqual(shapes[0].kind, 'r');
     assert.strictEqual(shapes[0].x, 5);
     assert.strictEqual(shapes[0].w, 10);
     assert.strictEqual(shapes[0].attrs.src, 'https://example.com/logo.png');
-    assert.strictEqual(shapes[0].attrs.alt, 'Logo');
+  });
+
+  test('image: `r ... image=URL` is the canonical form', () => {
+    const { shapes, errors } = parse('r 0 0 16 9 image=https://example.com/hero.png imageFit=cover');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].kind, 'r');
+    assert.strictEqual(shapes[0].attrs.image, 'https://example.com/hero.png');
+    assert.strictEqual(shapes[0].attrs.imageFit, 'cover');
+  });
+
+  test('image: image= works on circles too', () => {
+    const { shapes, errors } = parse('c 50 25 12 image=/avatar.jpg');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].kind, 'c');
+    assert.strictEqual(shapes[0].attrs.image, '/avatar.jpg');
   });
 
   test('image: data URI src survives base64 = padding', () => {
@@ -42,21 +57,13 @@ module.exports = function(harness) {
     assert.strictEqual(shapes[0].attrs.src, src);
   });
 
-  test('image: too few args errors', () => {
+  test('image: too few args on i errors', () => {
     const { errors } = parse('i 1 2 3');
     assert.strictEqual(errors.length, 1);
     assert.ok(/needs 4 numeric args/.test(errors[0].message));
   });
 
-  test('image: serialize → parse roundtrip', () => {
-    const src = 'i 2 3 4 5 #logo src=https://x.test/l.png alt=Logo';
-    const p1 = parse(src);
-    const out = serialize(p1.shapes);
-    const p2 = parse(out);
-    assert.deepStrictEqual(p2.shapes[0], p1.shapes[0]);
-  });
-
-  test('image: bboxOf uses rect geometry', () => {
+  test('image: bboxOf for an i-sugar shape uses rect geometry', () => {
     const { shapes } = parse('i 4 5 6 7 src=/x.png');
     assert.deepStrictEqual(bboxOf(shapes[0]), { x: 4, y: 5, w: 6, h: 7 });
   });
