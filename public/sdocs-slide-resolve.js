@@ -51,27 +51,63 @@ function parseSlots(body) {
   var slots = {};
   var currentId = null;
   var buf = [];
+  var inline = false;  // inline-only slot (body on the directive line)
   for (var i = 0; i < lines.length; i++) {
     var ln = lines[i];
     var m = ln.match(SLOT_RE);
     if (m) {
-      if (currentId !== null) slots[currentId] = trimTrailingBlank(buf).join('\n');
+      if (currentId !== null) slots[currentId] = finalizeBuf(buf, inline);
       currentId = m[1];
-      buf = m[2] ? [m[2]] : [];
+      // A bare `|` after the colon is YAML-style block-scalar sugar: the
+      // user signalled "multi-line body follows", same as an empty inline.
+      // Dropping it prevents the literal `|` from leaking into the rendered
+      // markdown as a stray paragraph.
+      var inlineVal = m[2] === '|' ? '' : m[2];
+      inline = inlineVal.length > 0;
+      buf = inlineVal ? [inlineVal] : [];
     } else if (currentId !== null) {
       buf.push(ln);
+      inline = false;  // as soon as we collect body lines, treat as block
     }
     // Lines before the first #id: are ignored (allows authors to leave
     // notes or blank space between @extends and the first slot).
   }
-  if (currentId !== null) slots[currentId] = trimTrailingBlank(buf).join('\n');
+  if (currentId !== null) slots[currentId] = finalizeBuf(buf, inline);
   return slots;
+}
+
+// Inline slots (single-line `#id: value`) round-trip as-is. Block slots get
+// trailing blank lines trimmed and common leading indent stripped, so an
+// author who wrote:
+//
+//   #body:
+//     - one
+//     - two
+//
+// gets `- one\n- two` in their shape content (not `  - one\n  - two`, which
+// markdown may render with an extra indent level or misread as code).
+function finalizeBuf(lines, isInline) {
+  if (isInline) return lines.join('\n');
+  return dedent(trimTrailingBlank(lines)).join('\n');
 }
 
 function trimTrailingBlank(lines) {
   var end = lines.length;
   while (end > 0 && lines[end - 1].trim() === '') end--;
   return lines.slice(0, end);
+}
+
+function dedent(lines) {
+  var min = Infinity;
+  for (var i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === '') continue;
+    var lead = /^ */.exec(lines[i])[0].length;
+    if (lead < min) min = lead;
+  }
+  if (!isFinite(min) || min === 0) return lines;
+  return lines.map(function (l) {
+    return l.length >= min ? l.slice(min) : l;
+  });
 }
 
 // Merge the template's shapes with the consumer's slots by #id match.
