@@ -27,23 +27,30 @@ var CSS = [
   '}',
   '.sdoc-slide:hover { box-shadow: 0 3px 12px rgba(0,0,0,.1); }',
   /* Present button: small top-right overlay, mirrors the copy button */
-  /* pattern on code blocks. Button is always visible (not hover-only) */
-  /* so users don\'t have to probe to discover it. Slide content still */
-  /* renders edge-to-edge behind it — the button sits in the top-right */
-  /* corner over whatever shape happens to be there. */
+  /* pattern on code blocks. Always visible so users don\'t have to */
+  /* hover-probe to discover it. Colors derive from the slide\'s own */
+  /* --md-bg and --md-color via color-mix, so the button tints with */
+  /* the doc theme (cream on a cream doc, dark on a dark-mode doc) */
+  /* without any per-slide work. Fallbacks keep it legible if someone */
+  /* embeds the shape renderer outside an SDocs document. */
   '.sdoc-slide-present {',
   '  position: absolute; top: 8px; right: 8px; z-index: 5;',
   '  display: inline-flex; align-items: center; justify-content: center;',
   '  width: 28px; height: 28px;',
-  '  background: rgba(255, 255, 255, 0.9);',
-  '  border: 1px solid rgba(0, 0, 0, 0.08);',
+  '  background: color-mix(in srgb, var(--md-bg, #fff) 88%, transparent);',
+  '  border: 1px solid color-mix(in srgb, var(--md-color, #000) 14%, transparent);',
   '  border-radius: 4px; padding: 0;',
-  '  color: #475569; cursor: pointer;',
+  '  color: color-mix(in srgb, var(--md-color, #0f172a) 65%, transparent);',
+  '  cursor: pointer;',
   '  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);',
   '  transition: background .12s, border-color .12s, color .12s;',
   '}',
-  '.sdoc-slide-present:hover { background: #fff; border-color: #cbd5e1; color: #0f172a; }',
-  '.sdoc-slide-present:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }',
+  '.sdoc-slide-present:hover {',
+  '  background: var(--md-bg, #fff);',
+  '  border-color: color-mix(in srgb, var(--md-color, #000) 28%, transparent);',
+  '  color: var(--md-color, #0f172a);',
+  '}',
+  '.sdoc-slide-present:focus-visible { outline: 2px solid var(--accent, #2563eb); outline-offset: 1px; }',
   '.sdoc-slide-present svg { display: block; }',
   '.sdoc-slide .sd-shape-stage {',
   '  width: 100%;',
