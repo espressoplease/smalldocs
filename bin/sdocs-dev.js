@@ -1488,6 +1488,7 @@ navigate.
 
 \u2500\u2500 SHAPES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   r x y w h            rectangle  (x,y = top-left; w,h = size)
+  i x y w h            image      (same geometry as rect; see IMAGES)
   c cx cy radius       circle     (cx,cy = center)
   e cx cy rx ry        ellipse    (cx,cy = center; rx,ry = half-sizes)
   l x1 y1 x2 y2        line       (decorative, no content)
@@ -1698,6 +1699,45 @@ navigate.
         > Our customers are the product
         >
         > - Jordan, CEO
+
+\u2500\u2500 IMAGES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  \`i x y w h src=<url>\` renders an image filling the shape box.
+  The \`src=\` value accepts whatever the browser does for a markdown
+  \`![]()\`:
+
+    - \`data:\` URIs — inlined in the DSL, no network fetch
+    - \`https://\` URLs — fetched at render time
+
+  SDocs does not host image bytes. There is no upload flow. Data URIs
+  live in your document (and its share URL); external URLs are fetched
+  from whatever host you point at, same as standard markdown images.
+
+  Examples:
+
+    # Small corner logo
+    i 14 0.5 1.5 1 src=https://lucide.dev/logo.light.svg alt=Lucide
+
+    # Full-bleed hero with a title overlay rect on top
+    i 0 0 16 9 src=data:image/png;base64,iVBORw0K... layer=bottom
+    r 1 6 14 2 fill=rgba(0,0,0,0.6) color=#fff align=left padding=0.5 |
+      # Q4 review
+
+  The image is sized with \`object-fit: contain\` so aspect is preserved
+  and the shape box is never cropped silently. Resize the shape to
+  match the image aspect if you want edge-to-edge fill.
+
+  Alt text: all DSL attribute values are whitespace-split, so \`alt=\`
+  is a single token (e.g. \`alt=logo\`). For multi-word alt text, use
+  \`| content\`:
+
+    i 0 0 4 4 src=./diagram.png | Revenue over the last four quarters
+
+  Explicit \`alt=\` wins if both are set; otherwise the \`|\` content
+  becomes the alt attribute (visible to screen readers, never rendered).
+
+  PDF export embeds PNG and JPEG natively. SVG / WebP / GIF are
+  skipped silently (a console warning is logged). External URL fetches
+  need CORS headers on the host — same constraint as any browser fetch.
 
 \u2500\u2500 STACKING \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Every slide has three stacked sublayers, painted bottom to top:

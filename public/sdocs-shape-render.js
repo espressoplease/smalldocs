@@ -45,7 +45,8 @@ var CSS = [
   /* shape children (so text selection still works inside rects). */
   '.sd-stage-sublayer { position: absolute; inset: 0; pointer-events: none; }',
   '.sd-stage-sublayer > .shape-rect,',
-  '.sd-stage-sublayer > .shape-text { pointer-events: auto; }',
+  '.sd-stage-sublayer > .shape-text,',
+  '.sd-stage-sublayer > .shape-img { pointer-events: auto; }',
   '.sd-shape-stage .shape-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }',
   /* Default: centered both axes. Works naturally for titles and standalone */
   /* text. Agents override via align=left/right and valign=top/bottom — see */
@@ -69,6 +70,18 @@ var CSS = [
   '.sd-shape-stage .shape-rect[data-valign="bottom"],',
   '.sd-shape-stage .shape-text[data-valign="bottom"] { align-items: flex-end; }',
   '.sd-shape-stage .shape-md { display: block; max-width: 100%; color: inherit; }',
+  /* Image shape: <div> positioned like shape-rect, with an <img> filling */
+  /* the box. object-fit: contain preserves aspect and letterboxes rather */
+  /* than cropping silently — if the author wanted edge-to-edge they can */
+  /* resize the shape to match the image aspect. overflow:hidden keeps a */
+  /* broken/overly-large image from spilling past the shape bounds. */
+  '.sd-shape-stage .shape-img {',
+  '  position: absolute; box-sizing: border-box; overflow: hidden;',
+  '}',
+  '.sd-shape-stage .shape-img > img {',
+  '  display: block; width: 100%; height: 100%;',
+  '  object-fit: contain;',
+  '}',
 ].join('\n');
 
 // This is the only place markdown styling lives. Because the shadow root
@@ -335,6 +348,41 @@ function applyFontAttr(el, attrs) {
   var unit = unitMatch[2] || 'px';
   el.style.fontSize = n + unit;
   el.dataset.autofit = 'off';
+}
+
+// Image shape. Same positioning as a rectangle; the <img> fills the box
+// with object-fit: contain (the `.shape-img > img` CSS rule). `alt=`
+// takes precedence over `| content`; if neither is set, alt is empty
+// (a decorative image, per HTML spec).
+function renderImage(s, grid) {
+  var el = document.createElement('div');
+  el.className = 'shape-img';
+  el.style.left = pct(s.x, grid.w);
+  el.style.top = pct(s.y, grid.h);
+  el.style.width = pct(s.w, grid.w);
+  el.style.height = pct(s.h, grid.h);
+  var src = s.attrs && s.attrs.src;
+  if (src) {
+    var img = document.createElement('img');
+    img.src = src;
+    var alt = (s.attrs && s.attrs.alt) || s.content || '';
+    img.alt = alt;
+    // Non-blocking load; image appears when the browser finishes fetching.
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    // Prevent drag-ghost interference with selection inside neighbouring
+    // shapes — images aren't the primary interactive content here.
+    img.draggable = false;
+    el.appendChild(img);
+  }
+  if (s.attrs && s.attrs.radius != null) el.style.borderRadius = s.attrs.radius + '%';
+  if (s.attrs && s.attrs.stroke && s.attrs.stroke !== 'none') {
+    var sw = s.attrs.strokeWidth != null ? parseFloat(s.attrs.strokeWidth) : 0.15;
+    var swPx = (sw / grid.w) * (REF_H * grid.w / grid.h);
+    el.style.border = swPx.toFixed(3) + 'px solid ' + s.attrs.stroke;
+  }
+  if (s.id) el.dataset.id = s.id;
+  return el;
 }
 
 function renderRect(s, grid) {
@@ -714,6 +762,8 @@ function renderShapes(dslText, wrap, options) {
       var L = pickLayer(s);
       if (s.kind === 'r') {
         L.el.appendChild(renderRect(s, grid));
+      } else if (s.kind === 'i') {
+        L.el.appendChild(renderImage(s, grid));
       } else if (s.kind === 'c') {
         L.svg.appendChild(renderCircle(s));
         if (s.content) L.el.appendChild(renderTextOverlay(s, grid));
