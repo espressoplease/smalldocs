@@ -1444,12 +1444,14 @@ const SLIDES_HELP = `
 SDocs — Slides
 ==============
 Embed presentation slides in any markdown document using fenced
-slide blocks. Slides render as thumbnails inline; click one to enter
-fullscreen presentation mode. Esc to exit, arrows to navigate.
+slide blocks. Slides render as thumbnails inline; click the small
+present-mode icon in the slide's top-right corner to enter fullscreen.
+Text inside a slide thumbnail is selectable. Esc to exit, arrows to
+navigate.
 
 \u2500\u2500 COMMANDS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   sdoc present <file>              Open file directly in fullscreen slide view
-  sdoc <file>                      Open normally (click a slide to present)
+  sdoc <file>                      Open normally (click a slide's present icon)
   sdoc slides                      This help
 
 \u2500\u2500 FENCE SYNTAX \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
