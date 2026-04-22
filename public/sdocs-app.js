@@ -659,11 +659,32 @@ function normalizedBasePath() {
   return p;
 }
 
+// Params set by other modules (presentation mode, etc.) that we must preserve
+// when updateHash rewrites the hash. Without this list, opening present mode
+// sets ?present=N but the next debounced updateHash wipes it out, collapsing
+// present mode via the hashchange listener.
+var PRESERVED_HASH_PARAMS = ['present'];
+
 function updateHash() {
   clearTimeout(S._hashTimer);
   S._hashTimer = setTimeout(async function() {
+    var existing = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    var preserved = {};
+    for (var i = 0; i < PRESERVED_HASH_PARAMS.length; i++) {
+      var k = PRESERVED_HASH_PARAMS[i];
+      if (existing.has(k)) preserved[k] = existing.get(k);
+    }
+    var writePreserved = function (p) {
+      for (var k in preserved) p.set(k, preserved[k]);
+    };
     if (S._isDefaultState && S.currentMode === 'read') {
-      history.replaceState(null, '', normalizedBasePath());
+      if (Object.keys(preserved).length === 0) {
+        history.replaceState(null, '', normalizedBasePath());
+      } else {
+        var p0 = new URLSearchParams();
+        writePreserved(p0);
+        history.replaceState(null, '', normalizedBasePath() + '#' + p0.toString());
+      }
       return;
     }
     var params = new URLSearchParams();
@@ -679,6 +700,7 @@ function updateHash() {
     if (S.currentMode !== 'read') {
       params.set('mode', S.currentMode);
     }
+    writePreserved(params);
     history.replaceState(null, '', normalizedBasePath() + '#' + params.toString());
   }, 400);
 }

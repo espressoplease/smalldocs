@@ -22,7 +22,17 @@ var CSS_ID = 'sdocs-shape-render-css';
 // into it. The CSS that styles markdown inside a shape lives inside the
 // shadow (SHAPE_MD_SHADOW_CSS below), with no scope prefix and no !important.
 var CSS = [
-  '.sd-shape-stage { position: relative; overflow: hidden; container-type: size; }',
+  /* The wrap fills whatever space its parent gives it and locks the slide */
+  /* aspect ratio. The inner stage is a fixed-pixel canvas (refW x refH); */
+  /* a CSS transform scales it to fit the wrap. Everything inside the stage */
+  /* measures at the reference size, so text wrapping and autofit produce */
+  /* identical output in every context (inline, rail thumb, fullscreen, PDF). */
+  '.sd-slide-wrap { position: relative; overflow: hidden; width: 100%; }',
+  /* pointer-events: none lets clicks pass through the rendered stage to */
+  /* the wrapping element, which typically owns the click handler (open */
+  /* presentation mode, navigate to a slide). Text selection inside a slide */
+  /* is a rare ask; if we need it later, scope this to inline contexts only. */
+  '.sd-shape-stage { position: absolute; top: 0; left: 0; transform-origin: top left; overflow: hidden; pointer-events: none; }',
   '.sd-shape-stage .shape-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }',
   /* Default: centered both axes. Works naturally for titles and standalone */
   /* text. Agents override via align=left/right and valign=top/bottom — see */
@@ -204,12 +214,16 @@ function shapePaddingGridUnits(s) {
 function applyPadding(el, s, grid) {
   var p = shapePaddingGridUnits(s);
   if (p <= 0) { el.style.padding = '0'; return; }
-  var padV = (p / grid.h) * 100;
-  var padH = (p / grid.w) * 100;
-  el.style.padding = padV.toFixed(3) + 'cqh ' + padH.toFixed(3) + 'cqw';
+  // Padding in the DSL is in grid units. The stage has a fixed reference
+  // height (REF_H) with width derived from the grid aspect, so each grid
+  // unit is exactly REF_H / grid.h pixels vertically and REF_W / grid.w
+  // pixels horizontally. Those evaluate to the same px value (by ref-size
+  // construction), so a single px value works for all four sides.
+  var px = (p * REF_H) / grid.h;
+  el.style.padding = px.toFixed(3) + 'px';
 }
 
-function applyShapeStyle(el, attrs) {
+function applyShapeStyle(el, attrs, grid) {
   if (attrs.fill) el.style.background = attrs.fill;
   if (attrs.color) {
     el.style.color = attrs.color;
@@ -221,8 +235,11 @@ function applyShapeStyle(el, attrs) {
   if (attrs.radius != null) el.style.borderRadius = attrs.radius + '%';
   else el.style.borderRadius = '0.8%';
   if (attrs.stroke && attrs.stroke !== 'none') {
-    var sw = attrs.strokeWidth != null ? attrs.strokeWidth : 0.15;
-    el.style.border = sw + 'cqw solid ' + attrs.stroke;
+    var sw = attrs.strokeWidth != null ? parseFloat(attrs.strokeWidth) : 0.15;
+    // strokeWidth is in grid units (same scale as shape w/h). Convert to px
+    // against the reference stage width.
+    var swPx = (sw / grid.w) * (REF_H * grid.w / grid.h);
+    el.style.border = swPx.toFixed(3) + 'px solid ' + attrs.stroke;
   }
   if (attrs.shadow === 'none') el.style.boxShadow = 'none';
 }
@@ -243,17 +260,14 @@ function applySvgStroke(el, attrs, defaultStroke) {
 // disable autofit but leave the CSS cascade to size text (useful when the
 // agent wants doc-style rather than slide-style sizing).
 //
-// For px values, we emit cqh relative to FONT_PX_REFERENCE_STAGE_H so the
-// size scales with the stage — `font=18px` on a 720px fullscreen stage
-// renders at 18px, and the same value renders at ~2px in a 80px-tall rail
-// thumbnail, matching how autofit text naturally scales via cqh.
+// All shapes render on a fixed-size stage (REF_H tall), so `font=18px` means
+// literally 18px at the stage's native resolution. The stage is then CSS-
+// transformed to fit its context, so 18px reads as 18px on a fullscreen
+// 720-tall slide, ~9px on a rail thumb that's scaled to 50%, and so on.
 function applyFontAttr(el, attrs) {
   if (!attrs || !attrs.font) return;
   var v = String(attrs.font).trim();
   if (v === 'fixed' || v === 'none' || v === 'off') {
-    // Flag for applyAutoFit to sample the cascaded font-size after render
-    // and convert it to cqh (same 720 reference). Without this, cascade
-    // gives a literal ~16px that doesn't shrink in rail thumbnails.
     el.dataset.autofit = 'off';
     el.dataset.fontMode = 'fixed';
     return;
@@ -262,11 +276,7 @@ function applyFontAttr(el, attrs) {
   if (!unitMatch) return;
   var n = parseFloat(unitMatch[1]);
   var unit = unitMatch[2] || 'px';
-  if (unit === 'px') {
-    el.style.fontSize = ((n / FONT_PX_REFERENCE_STAGE_H) * 100).toFixed(4) + 'cqh';
-  } else {
-    el.style.fontSize = n + unit;
-  }
+  el.style.fontSize = n + unit;
   el.dataset.autofit = 'off';
 }
 
@@ -277,7 +287,7 @@ function renderRect(s, grid) {
   el.style.top = pct(s.y, grid.h);
   el.style.width = pct(s.w, grid.w);
   el.style.height = pct(s.h, grid.h);
-  applyShapeStyle(el, s.attrs);
+  applyShapeStyle(el, s.attrs, grid);
   applyPadding(el, s, grid);
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
@@ -424,38 +434,28 @@ function hasRenderableText(el) {
   return t.length > 0;
 }
 
-function autoFitText(el, stageH, minPx, maxPx) {
+function autoFitText(el, minPx, maxPx) {
   if (el.dataset.autofit === 'off') return;
   if (!hasRenderableText(el)) return;
   var target = measurementTarget(el);
   var cap = Math.max(minPx, Math.floor(maxPx));
   var lo = minPx, hi = cap, best = minPx;
-  // clientWidth/clientHeight INCLUDE padding, but the actual content area
-  // the shadow subtree can use is the padded inset. Without subtracting
-  // padding, autofit picks a size where content extends into the padding
-  // and overflows the shape's visible edge (clipped by overflow: hidden).
+  // clientWidth/Height include padding; available content area is the
+  // inset. scrollWidth/Height are integer CSS px, so give a 1px tolerance
+  // to avoid rounding rejecting every size. overflow: hidden is the
+  // backstop if we ever oversize by a pixel.
   var cs = getComputedStyle(el);
   var padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
   var padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
   var availW = Math.max(0, el.clientWidth - padX);
   var availH = Math.max(0, el.clientHeight - padY);
-  // scrollWidth/Height are integer CSS pixels; availW/availH are fractional
-  // because shape padding is authored in cqh/cqw. Without slack, a 742px
-  // scrollWidth vs 741.96px availW reads as "doesn't fit" at every size, so
-  // the binary search degenerates to minPx. A 1px tolerance lets autofit
-  // pick the real best size; overflow: hidden on the shape is the backstop
-  // if the tolerance ever sizes one pixel too generously.
   while (lo <= hi) {
     var mid = Math.floor((lo + hi) / 2);
     el.style.fontSize = mid + 'px';
     var fits = target.scrollWidth <= availW + 1 && target.scrollHeight <= availH + 1;
     if (fits) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
   }
-  if (stageH > 0) {
-    el.style.fontSize = ((best / stageH) * 100).toFixed(3) + 'cqh';
-  } else {
-    el.style.fontSize = best + 'px';
-  }
+  el.style.fontSize = best + 'px';
 }
 
 // Default cap: text font-size never exceeds this fraction of stage height.
@@ -465,30 +465,28 @@ function autoFitText(el, stageH, minPx, maxPx) {
 // roughly the size of an h1 on a pro deck. Override per-shape with maxfont=Npx.
 var DEFAULT_MAX_FONT_STAGE_PCT = 0.12;
 
-// Reference stage height for `font=Npx`. The agent's mental model when
-// typing `font=18px` is roughly "what this looks like on a fullscreen slide
-// at 720p" — so we use that as the anchor and emit cqh, letting the value
-// scale proportionally in rail thumbnails and bigger fullscreens alike.
-var FONT_PX_REFERENCE_STAGE_H = 720;
+// Reference stage height. Slides render at REF_H tall at their native
+// resolution; a CSS transform scales the whole canvas to whatever pixel
+// size the context gives it. Font sizing, padding, autofit — all measured
+// at this reference. Agents who type `font=18px` get literal 18px on a
+// 720-tall slide, which scales down/up with the transform.
+var REF_H = 720;
+function refW(grid) { return REF_H * grid.w / grid.h; }
 
 function applyAutoFit(container, minPx, maxStageHPct) {
-  var stageH = container.clientHeight;
-  if (stageH <= 0) return;
   var floor = typeof minPx === 'number' ? minPx : 8;
   var pct = typeof maxStageHPct === 'number' ? maxStageHPct : DEFAULT_MAX_FONT_STAGE_PCT;
-  var stageCap = stageH * pct;
+  var stageCap = REF_H * pct;
   var els = container.querySelectorAll('.shape-rect, .shape-text');
   for (var i = 0; i < els.length; i++) {
     var el = els[i];
     if (el.dataset.autofit === 'off') {
+      // font=fixed: sample cascade-resolved px and pin it. The transform
+      // scales this like everything else, so doc-style text still shrinks
+      // proportionally in rail thumbs and grows in fullscreen.
       if (el.dataset.fontMode === 'fixed') {
-        // font=fixed: sample the cascaded px size and convert to the same
-        // 720-relative cqh, so doc-style text scales with the stage just
-        // like font=Npx does.
         var cs = parseFloat(getComputedStyle(el).fontSize);
-        if (isFinite(cs) && cs > 0) {
-          el.style.fontSize = ((cs / FONT_PX_REFERENCE_STAGE_H) * 100).toFixed(4) + 'cqh';
-        }
+        if (isFinite(cs) && cs > 0) el.style.fontSize = cs.toFixed(3) + 'px';
       }
       continue;
     }
@@ -496,7 +494,7 @@ function applyAutoFit(container, minPx, maxStageHPct) {
     if (h <= 0) continue;
     var perShape = parseFloat(el.dataset.maxfont);
     var cap = isFinite(perShape) && perShape > 0 ? perShape : stageCap;
-    autoFitText(el, stageH, floor, Math.min(h, cap));
+    autoFitText(el, floor, Math.min(h, cap));
   }
 }
 
@@ -535,7 +533,51 @@ function resolveStyleRefs(grid, shapes) {
 
 // ─── Main entry ──────────────────────────────────────
 
-function renderShapes(dslText, container, options) {
+// Attach a ResizeObserver to the wrap that keeps the inner stage scaled to
+// fit. Scale is wrap.clientWidth / refW (wrap and stage share aspect ratio
+// by construction — wrap sets aspectRatio, stage is refW x refH).
+function attachScaler(wrap, stage, rW) {
+  var update = function () {
+    var w = wrap.clientWidth;
+    if (w <= 0) return;
+    stage.style.transform = 'scale(' + (w / rW) + ')';
+  };
+  update();
+  if (typeof ResizeObserver !== 'undefined') {
+    var ro = new ResizeObserver(update);
+    ro.observe(wrap);
+    // Hold a ref so GC doesn't reclaim while wrap is still in the DOM.
+    wrap.__sdScalerRO = ro;
+  }
+  // Re-run once on next frame: if the wrap was just inserted into a
+  // display:none / collapsed section, its clientWidth reads 0 initially and
+  // the ResizeObserver will catch the transition when the section opens,
+  // but some browsers skip the very first callback for zero-size elements.
+  if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(update);
+}
+
+// Build a freshly-parented offscreen container at reference size. Shapes
+// render, autofit runs synchronously (known dimensions, no rAF/observer
+// dance), then we move the stage into the caller's wrap. This is the single
+// fix for the whole class of "clientHeight === 0 in a collapsed section"
+// problems: the offscreen parent is always laid out.
+function buildOffscreenStage(rW) {
+  var off = document.createElement('div');
+  off.setAttribute('aria-hidden', 'true');
+  off.style.cssText = [
+    'position: fixed',
+    'left: -99999px',
+    'top: 0',
+    'width: ' + rW + 'px',
+    'height: ' + REF_H + 'px',
+    'opacity: 0',
+    'pointer-events: none',
+    'contain: layout paint',
+  ].join(';');
+  return off;
+}
+
+function renderShapes(dslText, wrap, options) {
   options = options || {};
   var SDocShapes = window.SDocShapes;
   var parsed = SDocShapes.parse(dslText);
@@ -548,22 +590,34 @@ function renderShapes(dslText, container, options) {
     grid: parsed.grid,
   };
 
-  container.classList.add('sd-shape-stage');
-  container.style.setProperty('--gw', result.grid.w);
-  container.style.setProperty('--gh', result.grid.h);
-  if (result.grid.attrs && result.grid.attrs.bg) {
-    container.style.backgroundColor = result.grid.attrs.bg;
-  } else {
-    container.style.removeProperty('background-color');
-  }
-  container.style.aspectRatio = result.grid.w + ' / ' + result.grid.h;
-  container.innerHTML = '';
+  var grid = result.grid;
+  var rW = refW(grid);
+
+  // Wrap: fills caller-provided space, locks aspect ratio, clips the
+  // possibly-larger transformed stage to its visible bounds.
+  wrap.classList.add('sd-slide-wrap');
+  wrap.style.aspectRatio = grid.w + ' / ' + grid.h;
+  wrap.style.setProperty('--gw', grid.w);
+  wrap.style.setProperty('--gh', grid.h);
+  wrap.innerHTML = '';
+
+  // Build stage offscreen so autofit can measure under all conditions
+  // (collapsed sections, display:none ancestors, etc.).
+  var off = buildOffscreenStage(rW);
+  document.body.appendChild(off);
+
+  var stage = document.createElement('div');
+  stage.className = 'sd-shape-stage';
+  stage.style.width = rW + 'px';
+  stage.style.height = REF_H + 'px';
+  if (grid.attrs && grid.attrs.bg) stage.style.backgroundColor = grid.attrs.bg;
+  off.appendChild(stage);
 
   var svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('class', 'shape-svg');
-  svg.setAttribute('viewBox', '0 0 ' + result.grid.w + ' ' + result.grid.h);
+  svg.setAttribute('viewBox', '0 0 ' + grid.w + ' ' + grid.h);
   svg.setAttribute('preserveAspectRatio', 'none');
-  container.appendChild(svg);
+  stage.appendChild(svg);
 
   var defsNeeded = { arrowhead: false, arrowheadColor: null };
 
@@ -571,20 +625,20 @@ function renderShapes(dslText, container, options) {
     var s = result.shapes[i];
     try {
       if (s.kind === 'r') {
-        container.appendChild(renderRect(s, result.grid));
+        stage.appendChild(renderRect(s, grid));
       } else if (s.kind === 'c') {
         svg.appendChild(renderCircle(s));
-        if (s.content) container.appendChild(renderTextOverlay(s, result.grid));
+        if (s.content) stage.appendChild(renderTextOverlay(s, grid));
       } else if (s.kind === 'e') {
         svg.appendChild(renderEllipse(s));
-        if (s.content) container.appendChild(renderTextOverlay(s, result.grid));
+        if (s.content) stage.appendChild(renderTextOverlay(s, grid));
       } else if (s.kind === 'l') {
         svg.appendChild(renderLine(s));
       } else if (s.kind === 'a') {
         svg.appendChild(renderArrow(s, defsNeeded));
       } else if (s.kind === 'p') {
         svg.appendChild(renderPolygon(s));
-        if (s.content) container.appendChild(renderTextOverlay(s, result.grid));
+        if (s.content) stage.appendChild(renderTextOverlay(s, grid));
       }
     } catch (e) {
       result.errors.push({ line: s.lineNumber, message: 'render: ' + e.message });
@@ -595,26 +649,20 @@ function renderShapes(dslText, container, options) {
     svg.insertBefore(buildArrowheadDefs(defsNeeded.arrowheadColor), svg.firstChild);
   }
 
+  // Force layout, then run autofit. Both are synchronous because the
+  // offscreen stage has known dimensions and is in the render tree.
   var minFontPx = typeof options.minFontPx === 'number' ? options.minFontPx : 8;
   var maxStageHPct = typeof options.maxStageHPct === 'number' ? options.maxStageHPct : DEFAULT_MAX_FONT_STAGE_PCT;
-  var runFit = function () { applyAutoFit(container, minFontPx, maxStageHPct); };
-  requestAnimationFrame(function () {
-    runFit();
-    // Slides nested inside collapsed <details> (SDocs auto-collapses
-    // sections) have clientHeight === 0 on initial render, so autofit
-    // silently skips. Watch for the stage becoming visible and re-run
-    // once — then disconnect. cqh values are resolution-independent, so
-    // later resizes don't need a refit.
-    if (container.clientHeight <= 0 && typeof ResizeObserver !== 'undefined') {
-      var ro = new ResizeObserver(function () {
-        if (container.clientHeight > 0) {
-          ro.disconnect();
-          runFit();
-        }
-      });
-      ro.observe(container);
-    }
-  });
+  // eslint-disable-next-line no-unused-expressions
+  stage.offsetHeight;
+  applyAutoFit(stage, minFontPx, maxStageHPct);
+
+  // Move stage into the real wrap. Shadow roots travel with their hosts,
+  // so content and styles are preserved — no re-parse, no DOM rebuild.
+  wrap.appendChild(stage);
+  if (off.parentNode) off.parentNode.removeChild(off);
+
+  attachScaler(wrap, stage, rW);
 
   return result;
 }

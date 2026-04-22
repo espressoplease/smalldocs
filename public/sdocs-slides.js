@@ -181,9 +181,11 @@ function processSlides(container) {
 
     var hasError = false;
     try {
-      var stage = document.createElement('div');
-      wrapper.appendChild(stage);
-      var result = window.SDocShapeRender.renderShapes(dslText, stage);
+      // Nested slide-wrap so the aspect-ratio-locked slide doesn't overlap
+      // the (optional) error badge below it in the sdoc-slide flow.
+      var slideWrap = document.createElement('div');
+      wrapper.appendChild(slideWrap);
+      var result = window.SDocShapeRender.renderShapes(dslText, slideWrap);
       if (result.errors && result.errors.length) {
         wrapper.appendChild(buildErrorBadge(result.errors, dslText, slideIdx));
       }
