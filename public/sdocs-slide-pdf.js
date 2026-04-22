@@ -189,6 +189,70 @@ function strokeWidthPt(attrs, grid, bounds) {
   return (sw / grid.w) * bounds.w;
 }
 
+// Image shapes. async because pdf-lib's embedPng/embedJpg are async and
+// external URLs need fetch(). Silently skips shapes whose bytes can't be
+// obtained (CORS failure on external URLs, unsupported mime types); a
+// warning is logged so failures don't disappear entirely.
+async function drawShapeImage(pdfDoc, page, s, grid, bounds) {
+  var src = s.attrs && s.attrs.src;
+  if (!src) return;
+  var x = gridToPdfX(s.x, grid, bounds);
+  var yTop = gridTopToPdfY(s.y, grid, bounds);
+  var w = gridToPdfW(s.w, grid, bounds);
+  var h = gridToPdfH(s.h, grid, bounds);
+  if (w <= 0 || h <= 0) return;
+
+  var bytes, mime;
+  try {
+    var dataUrlMatch = /^data:image\/([^;,]+)([^,]*),(.*)$/.exec(src);
+    if (dataUrlMatch) {
+      mime = dataUrlMatch[1].toLowerCase();
+      var header = dataUrlMatch[2];
+      var body = dataUrlMatch[3];
+      if (/;base64/.test(header)) {
+        var bin = atob(body);
+        bytes = new Uint8Array(bin.length);
+        for (var k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+      } else {
+        bytes = new TextEncoder().encode(decodeURIComponent(body));
+      }
+    } else {
+      var resp = await fetch(src);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      bytes = new Uint8Array(await resp.arrayBuffer());
+      mime = (resp.headers.get('content-type') || '').split(';')[0].split('/').pop().toLowerCase();
+    }
+  } catch (e) {
+    if (window.console) console.warn('slide-pdf image fetch failed:', src, e && e.message);
+    return;
+  }
+
+  var img;
+  try {
+    if (mime === 'png') img = await pdfDoc.embedPng(bytes);
+    else if (mime === 'jpeg' || mime === 'jpg') img = await pdfDoc.embedJpg(bytes);
+    else {
+      // pdf-lib only natively embeds PNG + JPEG. svg / webp / gif skipped
+      // for v1; authors can pre-convert if they need PDF export.
+      if (window.console) console.info('slide-pdf: mime not embeddable in PDF:', mime, '— skipping');
+      return;
+    }
+  } catch (e) {
+    if (window.console) console.warn('slide-pdf image embed failed:', src, e && e.message);
+    return;
+  }
+
+  // object-fit: contain — preserve aspect, letterbox inside the shape.
+  var iw = img.width, ih = img.height;
+  var scale = Math.min(w / iw, h / ih);
+  var drawW = iw * scale;
+  var drawH = ih * scale;
+  var drawX = x + (w - drawW) / 2;
+  var drawY = yTop - h + (h - drawH) / 2;
+
+  page.drawImage(img, { x: drawX, y: drawY, width: drawW, height: drawH });
+}
+
 function drawShapeRect(page, s, grid, bounds) {
   var x = gridToPdfX(s.x, grid, bounds);
   var yTop = gridTopToPdfY(s.y, grid, bounds);
@@ -708,6 +772,18 @@ async function drawSlide(ctx) {
         else if (s.kind === 'p') drawShapePolygon(page, s, grid, bounds);
       } catch (err) {
         if (window.console) console.warn('slide-pdf shape draw failed:', err);
+      }
+    }
+
+    // Second pass: async image embeds. Done after the sync draws so images
+    // paint above the vector fill/stroke of prior shapes (matching the
+    // mid-layer behaviour in the DOM renderer).
+    for (var ii = 0; ii < shapes.length; ii++) {
+      if (shapes[ii].kind !== 'i') continue;
+      try {
+        await drawShapeImage(ctx.pdfDoc, page, shapes[ii], grid, bounds);
+      } catch (err) {
+        if (window.console) console.warn('slide-pdf image draw failed:', err);
       }
     }
 
