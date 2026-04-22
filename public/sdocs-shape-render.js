@@ -138,6 +138,7 @@ var SHAPE_MD_SHADOW_CSS = [
   'th, td {',
   '  border: 1px solid var(--md-table-border, rgba(0,0,0,.12));',
   '  padding: 0.35em 0.65em; vertical-align: top;',
+  '  color: var(--md-table-text, inherit);',
   '}',
   'th {',
   '  background: var(--md-table-header-bg, rgba(0,0,0,.05));',
@@ -284,6 +285,7 @@ function applyShapeStyle(el, attrs, grid) {
   if (attrs.tableHeaderBg)  el.style.setProperty('--md-table-header-bg', attrs.tableHeaderBg);
   if (attrs.tableEvenBg)    el.style.setProperty('--md-table-even-bg', attrs.tableEvenBg);
   if (attrs.tableOddBg)     el.style.setProperty('--md-table-odd-bg', attrs.tableOddBg);
+  if (attrs.tableText)      el.style.setProperty('--md-table-text', attrs.tableText);
 }
 
 function applySvgStroke(el, attrs, defaultStroke) {

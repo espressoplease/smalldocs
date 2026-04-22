@@ -272,7 +272,7 @@ var FORWARDED_VARS = [
   '--md-block-bg', '--md-block-text',
   '--md-code-bg', '--md-code-color', '--md-code-font', '--md-pre-bg',
   '--md-bq-bg', '--md-bq-color', '--md-bq-border-color', '--md-bq-border',
-  '--md-table-border', '--md-table-header-bg', '--md-table-even-bg', '--md-table-odd-bg',
+  '--md-table-border', '--md-table-header-bg', '--md-table-even-bg', '--md-table-odd-bg', '--md-table-text',
   '--md-chart-accent', '--md-chart-bg', '--md-chart-text',
 ];
 function forwardDocStyleVars(target) {
