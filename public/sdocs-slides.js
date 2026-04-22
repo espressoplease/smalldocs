@@ -30,7 +30,9 @@ var CSS = [
   '.sdoc-slide:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }',
   '.sdoc-slide .sd-shape-stage {',
   '  width: 100%;',
-  '  background: #ffffff;',
+  /* Inherit the doc\'s page background so slides feel visually connected to */
+  /* the surrounding text. The DSL `grid ... bg=...` attribute wins when set. */
+  '  background: var(--md-bg, #ffffff);',
   '  display: block;',
   '}',
   '.sdoc-slide.sdoc-slide-error {',
