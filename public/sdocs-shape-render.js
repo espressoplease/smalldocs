@@ -45,8 +45,7 @@ var CSS = [
   /* shape children (so text selection still works inside rects). */
   '.sd-stage-sublayer { position: absolute; inset: 0; pointer-events: none; }',
   '.sd-stage-sublayer > .shape-rect,',
-  '.sd-stage-sublayer > .shape-text,',
-  '.sd-stage-sublayer > .shape-img { pointer-events: auto; }',
+  '.sd-stage-sublayer > .shape-text { pointer-events: auto; }',
   '.sd-shape-stage .shape-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }',
   /* Default: centered both axes. Works naturally for titles and standalone */
   /* text. Agents override via align=left/right and valign=top/bottom — see */
@@ -70,18 +69,6 @@ var CSS = [
   '.sd-shape-stage .shape-rect[data-valign="bottom"],',
   '.sd-shape-stage .shape-text[data-valign="bottom"] { align-items: flex-end; }',
   '.sd-shape-stage .shape-md { display: block; max-width: 100%; color: inherit; }',
-  /* Image shape: <div> positioned like shape-rect, with an <img> filling */
-  /* the box. object-fit: contain preserves aspect and letterboxes rather */
-  /* than cropping silently — if the author wanted edge-to-edge they can */
-  /* resize the shape to match the image aspect. overflow:hidden keeps a */
-  /* broken/overly-large image from spilling past the shape bounds. */
-  '.sd-shape-stage .shape-img {',
-  '  position: absolute; box-sizing: border-box; overflow: hidden;',
-  '}',
-  '.sd-shape-stage .shape-img > img {',
-  '  display: block; width: 100%; height: 100%;',
-  '  object-fit: contain;',
-  '}',
 ].join('\n');
 
 // This is the only place markdown styling lives. Because the shadow root
@@ -350,39 +337,91 @@ function applyFontAttr(el, attrs) {
   el.dataset.autofit = 'off';
 }
 
-// Image shape. Same positioning as a rectangle; the <img> fills the box
-// with object-fit: contain (the `.shape-img > img` CSS rule). `alt=`
-// takes precedence over `| content`; if neither is set, alt is empty
-// (a decorative image, per HTML spec).
-function renderImage(s, grid) {
-  var el = document.createElement('div');
-  el.className = 'shape-img';
-  el.style.left = pct(s.x, grid.w);
-  el.style.top = pct(s.y, grid.h);
-  el.style.width = pct(s.w, grid.w);
-  el.style.height = pct(s.h, grid.h);
-  var src = s.attrs && s.attrs.src;
-  if (src) {
-    var img = document.createElement('img');
-    img.src = src;
-    var alt = (s.attrs && s.attrs.alt) || s.content || '';
-    img.alt = alt;
-    // Non-blocking load; image appears when the browser finishes fetching.
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    // Prevent drag-ghost interference with selection inside neighbouring
-    // shapes — images aren't the primary interactive content here.
-    img.draggable = false;
-    el.appendChild(img);
+// Background image support. Every shape kind can hold an image the same way:
+// `image=URL` (or `src=URL` for the `i x y w h` sugar), `imageFit=cover|contain`
+// (default `cover`), `imagePos=center|top|bottom|left|right` (default `center`).
+//
+// Rect uses CSS `background-image`, which paints above `background-color`, so
+// `fill=<colour>` on the same shape shows through image alpha and remains
+// visible if the image fails to load.
+function imageSrcOf(attrs) {
+  if (!attrs) return null;
+  return attrs.image || attrs.src || null;
+}
+
+function imageFitOf(attrs) {
+  var v = attrs && attrs.imageFit ? String(attrs.imageFit).toLowerCase() : 'cover';
+  return v === 'contain' ? 'contain' : 'cover';
+}
+
+function imagePosOf(attrs) {
+  return (attrs && attrs.imagePos) ? String(attrs.imagePos) : 'center';
+}
+
+function applyImageFillCss(el, attrs) {
+  var src = imageSrcOf(attrs);
+  if (!src) return;
+  // Escape quotes and parens conservatively; src values are typically URLs
+  // or data: URIs so this is enough to prevent accidental CSS breakage.
+  var safe = src.replace(/"/g, '%22').replace(/\)/g, '%29');
+  el.style.backgroundImage = 'url("' + safe + '")';
+  el.style.backgroundSize = imageFitOf(attrs);
+  el.style.backgroundPosition = imagePosOf(attrs);
+  el.style.backgroundRepeat = 'no-repeat';
+}
+
+// SVG pattern-based image fill for circles and polygons. Returns the pattern
+// id so the caller can set `fill="url(#id)"` on the shape. When `fill` is
+// a colour, it paints as a backdrop rect inside the pattern so a semi-
+// transparent image lets the colour show through (parity with CSS stacking).
+var _imagePatternCounter = 0;
+function ensureDefs(svg) {
+  var defs = svg.querySelector('defs');
+  if (defs) return defs;
+  defs = document.createElementNS(SVG_NS, 'defs');
+  svg.insertBefore(defs, svg.firstChild);
+  return defs;
+}
+function buildImagePatternSvg(svg, attrs) {
+  var src = imageSrcOf(attrs);
+  if (!src) return null;
+  var id = 'sd-img-pat-' + (++_imagePatternCounter);
+  var pat = document.createElementNS(SVG_NS, 'pattern');
+  pat.setAttribute('id', id);
+  pat.setAttribute('patternUnits', 'objectBoundingBox');
+  pat.setAttribute('patternContentUnits', 'objectBoundingBox');
+  pat.setAttribute('width', '1');
+  pat.setAttribute('height', '1');
+  // Optional backdrop colour so fill=colour shows through image alpha, and
+  // remains visible if the image fails to load.
+  var backdrop = attrs && attrs.fill && attrs.fill !== 'none' ? attrs.fill : null;
+  if (backdrop) {
+    var r = document.createElementNS(SVG_NS, 'rect');
+    r.setAttribute('x', '0'); r.setAttribute('y', '0');
+    r.setAttribute('width', '1'); r.setAttribute('height', '1');
+    r.setAttribute('fill', backdrop);
+    pat.appendChild(r);
   }
-  if (s.attrs && s.attrs.radius != null) el.style.borderRadius = s.attrs.radius + '%';
-  if (s.attrs && s.attrs.stroke && s.attrs.stroke !== 'none') {
-    var sw = s.attrs.strokeWidth != null ? parseFloat(s.attrs.strokeWidth) : 0.15;
-    var swPx = (sw / grid.w) * (REF_H * grid.w / grid.h);
-    el.style.border = swPx.toFixed(3) + 'px solid ' + s.attrs.stroke;
-  }
-  if (s.id) el.dataset.id = s.id;
-  return el;
+  var img = document.createElementNS(SVG_NS, 'image');
+  img.setAttributeNS(null, 'href', src);
+  // SVG 1.1 fallback for older renderers (notably some PDF toolchains).
+  img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', src);
+  img.setAttribute('x', '0'); img.setAttribute('y', '0');
+  img.setAttribute('width', '1'); img.setAttribute('height', '1');
+  // `slice` = CSS cover; `meet` = CSS contain. imagePos maps to the xY*YmY*
+  // meetOrSlice align keyword (four common positions cover the deck case;
+  // full CSS parity is out of scope).
+  var fit = imageFitOf(attrs) === 'contain' ? 'meet' : 'slice';
+  var pos = imagePosOf(attrs);
+  var align = 'xMidYMid';
+  if (pos === 'top') align = 'xMidYMin';
+  else if (pos === 'bottom') align = 'xMidYMax';
+  else if (pos === 'left') align = 'xMinYMid';
+  else if (pos === 'right') align = 'xMaxYMid';
+  img.setAttribute('preserveAspectRatio', align + ' ' + fit);
+  pat.appendChild(img);
+  ensureDefs(svg).appendChild(pat);
+  return id;
 }
 
 function renderRect(s, grid) {
@@ -393,6 +432,7 @@ function renderRect(s, grid) {
   el.style.width = pct(s.w, grid.w);
   el.style.height = pct(s.h, grid.h);
   applyShapeStyle(el, s.attrs, grid);
+  applyImageFillCss(el, s.attrs);
   applyPadding(el, s, grid);
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
@@ -403,13 +443,17 @@ function renderRect(s, grid) {
   return el;
 }
 
-function renderCircle(s) {
+function renderCircle(s, svgHost) {
   var el = document.createElementNS(SVG_NS, 'circle');
   el.setAttribute('cx', s.cx);
   el.setAttribute('cy', s.cy);
   el.setAttribute('r', s.r);
   applySvgStroke(el, s.attrs, 'none');
   if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
+  if (imageSrcOf(s.attrs)) {
+    var patId = buildImagePatternSvg(svgHost, s.attrs);
+    if (patId) el.setAttribute('fill', 'url(#' + patId + ')');
+  }
   if (s.id) el.dataset.id = s.id;
   return el;
 }
@@ -472,11 +516,15 @@ function polyPath(points) {
   return d;
 }
 
-function renderPolygon(s) {
+function renderPolygon(s, svgHost) {
   var el = document.createElementNS(SVG_NS, 'path');
   el.setAttribute('d', polyPath(s.points));
   applySvgStroke(el, s.attrs);
   if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
+  if (imageSrcOf(s.attrs)) {
+    var patId = buildImagePatternSvg(svgHost, s.attrs);
+    if (patId) el.setAttribute('fill', 'url(#' + patId + ')');
+  }
   if (s.id) el.dataset.id = s.id;
   return el;
 }
@@ -762,10 +810,8 @@ function renderShapes(dslText, wrap, options) {
       var L = pickLayer(s);
       if (s.kind === 'r') {
         L.el.appendChild(renderRect(s, grid));
-      } else if (s.kind === 'i') {
-        L.el.appendChild(renderImage(s, grid));
       } else if (s.kind === 'c') {
-        L.svg.appendChild(renderCircle(s));
+        L.svg.appendChild(renderCircle(s, L.svg));
         if (s.content) L.el.appendChild(renderTextOverlay(s, grid));
       } else if (s.kind === 'e') {
         L.svg.appendChild(renderEllipse(s));
@@ -775,7 +821,7 @@ function renderShapes(dslText, wrap, options) {
       } else if (s.kind === 'a') {
         L.svg.appendChild(renderArrow(s, defsNeeded));
       } else if (s.kind === 'p') {
-        L.svg.appendChild(renderPolygon(s));
+        L.svg.appendChild(renderPolygon(s, L.svg));
         if (s.content) L.el.appendChild(renderTextOverlay(s, grid));
       }
     } catch (e) {

@@ -1488,7 +1488,7 @@ navigate.
 
 \u2500\u2500 SHAPES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   r x y w h            rectangle  (x,y = top-left; w,h = size)
-  i x y w h            image      (same geometry as rect; see IMAGES)
+  i x y w h            image rect (sugar for \`r\` with \`image=\`; see IMAGES)
   c cx cy radius       circle     (cx,cy = center)
   e cx cy rx ry        ellipse    (cx,cy = center; rx,ry = half-sizes)
   l x1 y1 x2 y2        line       (decorative, no content)
@@ -1701,43 +1701,54 @@ navigate.
         > - Jordan, CEO
 
 \u2500\u2500 IMAGES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  \`i x y w h src=<url>\` renders an image filling the shape box.
-  The \`src=\` value accepts whatever the browser does for a markdown
-  \`![]()\`:
+  Any shape (\`r\`, \`c\`, \`p\`) can hold a bitmap via \`image=<url>\`.
+  The URL accepts whatever the browser would load for a standard
+  markdown \`![]()\`:
 
-    - \`data:\` URIs — inlined in the DSL, no network fetch
-    - \`https://\` URLs — fetched at render time
+    - \`data:\` URIs       inlined in the DSL, no network fetch
+    - \`https://\` URLs    fetched at render time (CORS applies)
 
-  SDocs does not host image bytes. There is no upload flow. Data URIs
-  live in your document (and its share URL); external URLs are fetched
-  from whatever host you point at, same as standard markdown images.
+  SDocs does not host image bytes. Data URIs live in your document
+  (and share URL); external URLs fetch from whatever host you pick.
+
+  Attributes (apply to every shape kind):
+
+    image=<url>              the bitmap source
+    imageFit=cover|contain   cover (default) fills the shape box and
+                             crops overflow; contain preserves aspect
+                             and letterboxes inside the shape
+    imagePos=center|top|bottom|left|right
+                             which edge is pinned when cover crops or
+                             contain letterboxes; default center
+
+  Stacking inside a shape (bottom to top):
+    1. \`fill=\` colour backdrop
+    2. \`image=\` bitmap (shows fill through image alpha / on load fail)
+    3. \`stroke=\` border
+    4. \`| content\` markdown text
 
   Examples:
 
-    # Small corner logo
-    i 14 0.5 1.5 1 src=https://lucide.dev/logo.light.svg alt=Lucide
+    # Small corner logo on a rect
+    r 14 0.5 1.5 1 image=https://lucide.dev/logo.light.svg imageFit=contain
 
-    # Full-bleed hero with a title overlay rect on top
-    i 0 0 16 9 src=data:image/png;base64,iVBORw0K... layer=bottom
-    r 1 6 14 2 fill=rgba(0,0,0,0.6) color=#fff align=left padding=0.5 |
+    # Full-bleed hero with a title overlay (one shape, not two)
+    r 0 0 16 9 image=data:image/png;base64,iVBORw0K... align=left valign=bottom padding=0.5 |
       # Q4 review
 
-  The image is sized with \`object-fit: contain\` so aspect is preserved
-  and the shape box is never cropped silently. Resize the shape to
-  match the image aspect if you want edge-to-edge fill.
+    # Photo clipped inside a hand-drawn polygon
+    p 3,1 13,1 14,5 10,8 6,8 2,5 image=https://example.com/team.jpg
 
-  Alt text: all DSL attribute values are whitespace-split, so \`alt=\`
-  is a single token (e.g. \`alt=logo\`). For multi-word alt text, use
-  \`| content\`:
+    # Circle avatar with a gold ring (stroke paints above image)
+    c 8 4.5 2.2 image=/avatar.jpg stroke=#d4af37 strokeWidth=0.12
 
-    i 0 0 4 4 src=./diagram.png | Revenue over the last four quarters
-
-  Explicit \`alt=\` wins if both are set; otherwise the \`|\` content
-  becomes the alt attribute (visible to screen readers, never rendered).
+  Shorthand: \`i x y w h src=<url>\` is parser sugar for
+  \`r x y w h image=<url>\`, a friendly keystroke for the common case.
+  \`src=\` is treated as a valid alias for \`image=\` everywhere.
 
   PDF export embeds PNG and JPEG natively. SVG / WebP / GIF are
-  skipped silently (a console warning is logged). External URL fetches
-  need CORS headers on the host — same constraint as any browser fetch.
+  skipped silently (console warning is logged). External URL fetches
+  need CORS headers on the host, same constraint as any browser fetch.
 
 \u2500\u2500 STACKING \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Every slide has three stacked sublayers, painted bottom to top:
