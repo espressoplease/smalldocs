@@ -103,6 +103,17 @@ function parseLine(raw, lineNumber) {
     shape.w = parseNumber(rest[2], 'r w');
     shape.h = parseNumber(rest[3], 'r h');
     i = 4;
+  } else if (kind === 'i') {
+    // Image shape: same geometry as a rectangle. The `src=` attribute (any
+    // value the browser/CSP accepts — data:, https:) is picked up by the
+    // trailing-attrs loop below; the renderer turns it into an <img> that
+    // fills the shape box with object-fit: contain.
+    if (rest.length < 4) throw new Error('i: needs 4 numeric args (got ' + rest.length + ')');
+    shape.x = parseNumber(rest[0], 'i x');
+    shape.y = parseNumber(rest[1], 'i y');
+    shape.w = parseNumber(rest[2], 'i w');
+    shape.h = parseNumber(rest[3], 'i h');
+    i = 4;
   } else if (kind === 'c') {
     var cPt = consumePoint(rest, 0, 'c', 'center');
     i = cPt.next;
@@ -306,7 +317,7 @@ function parse(src) {
 // ─── Reference resolution ──────────────────────────────
 
 function bboxOf(shape) {
-  if (shape.kind === 'r') return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
+  if (shape.kind === 'r' || shape.kind === 'i') return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
   if (shape.kind === 'c') return { x: shape.cx - shape.r, y: shape.cy - shape.r, w: shape.r * 2, h: shape.r * 2 };
   if (shape.kind === 'e') return { x: shape.cx - shape.rx, y: shape.cy - shape.ry, w: shape.rx * 2, h: shape.ry * 2 };
   if (shape.kind === 'l' || shape.kind === 'a') {
@@ -335,7 +346,7 @@ function bboxOf(shape) {
 //   Ellipse:   inscribed rectangle (w = rx * √2, h = ry * √2).
 //   Polygon:   bounding box.
 function contentBox(shape) {
-  if (shape.kind === 'r') {
+  if (shape.kind === 'r' || shape.kind === 'i') {
     return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
   }
   if (shape.kind === 'c') {
@@ -513,7 +524,7 @@ function refTokenStr(r) {
 
 function serializeShape(s) {
   var parts = [s.kind];
-  if (s.kind === 'r') {
+  if (s.kind === 'r' || s.kind === 'i') {
     parts.push(s.x, s.y, s.w, s.h);
   } else if (s.kind === 'c') {
     if (s.refs && s.refs.center) parts.push(refTokenStr(s.refs.center));

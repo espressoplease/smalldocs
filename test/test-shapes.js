@@ -23,6 +23,44 @@ module.exports = function(harness) {
     });
   });
 
+  test('image: i x y w h src=...', () => {
+    const { shapes, errors } = parse('i 5 5 10 6 src=https://example.com/logo.png alt=Logo');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].kind, 'i');
+    assert.strictEqual(shapes[0].x, 5);
+    assert.strictEqual(shapes[0].w, 10);
+    assert.strictEqual(shapes[0].attrs.src, 'https://example.com/logo.png');
+    assert.strictEqual(shapes[0].attrs.alt, 'Logo');
+  });
+
+  test('image: data URI src survives base64 = padding', () => {
+    // Base64 often ends with `=` padding. parseLine splits on first `=` so
+    // the whole data URI should stay intact as the attr value.
+    const src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA=';
+    const { shapes, errors } = parse(`i 0 0 10 10 src=${src}`);
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].attrs.src, src);
+  });
+
+  test('image: too few args errors', () => {
+    const { errors } = parse('i 1 2 3');
+    assert.strictEqual(errors.length, 1);
+    assert.ok(/needs 4 numeric args/.test(errors[0].message));
+  });
+
+  test('image: serialize → parse roundtrip', () => {
+    const src = 'i 2 3 4 5 #logo src=https://x.test/l.png alt=Logo';
+    const p1 = parse(src);
+    const out = serialize(p1.shapes);
+    const p2 = parse(out);
+    assert.deepStrictEqual(p2.shapes[0], p1.shapes[0]);
+  });
+
+  test('image: bboxOf uses rect geometry', () => {
+    const { shapes } = parse('i 4 5 6 7 src=/x.png');
+    assert.deepStrictEqual(bboxOf(shapes[0]), { x: 4, y: 5, w: 6, h: 7 });
+  });
+
   test('circle: c cx cy r', () => {
     const { shapes } = parse('c 50 25 12');
     assert.strictEqual(shapes[0].kind, 'c');
