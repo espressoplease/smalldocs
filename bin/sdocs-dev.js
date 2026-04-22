@@ -1096,6 +1096,19 @@ CHARTS
   Run \`sdoc charts\` for the full chart reference — chart types, JSON
   format, axis/legend/annotation options, and per-chart styling overrides.
 
+TABLES
+  table:
+    color             string  Text color for header and body cells.
+                              Default: inherits \`color\`
+    headerBackground  string  Background for the header row.
+                              Default: "#f4f1ed" (light) / "#2c2926" (dark)
+    oddBackground     string  Background for odd body rows.
+                              Default: "#ffffff" (light) / "#2c2a26" (dark)
+    evenBackground    string  Background for even body rows.
+                              Default: "#fafaf8" (light) / "#242220" (dark)
+    border            string  Cell border color.
+                              Default: "#e2ddd6" (light) / "#3d3935" (dark)
+
 SLIDES
   Slides embedded via \`\`\`slide / ~~~slide fenced blocks inherit these
   styles automatically (background, fonts, link color, code block colors,

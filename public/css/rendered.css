@@ -507,11 +507,11 @@ foreignObject span { line-height: normal; }
   border: 1px solid var(--md-table-border);
   padding: 7px 12px;
   text-align: left;
+  color: var(--md-table-text, var(--md-color));
 }
 :is(#_sd_rendered, #_sd_write) th {
   background: var(--md-table-header-bg);
   font-weight: 600;
-  color: var(--text);
 }
 :is(#_sd_rendered, #_sd_write) tr:nth-child(even) td { background: var(--md-table-even-bg); }
 :is(#_sd_rendered, #_sd_write) tr:nth-child(odd) td { background: var(--md-table-odd-bg); }
