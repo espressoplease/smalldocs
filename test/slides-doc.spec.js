@@ -56,11 +56,10 @@ test.describe('slide blocks in documents', () => {
     expect(color).toBe('rgb(255, 255, 255)');
   });
 
-  test('every shape\'s font-to-stage ratio matches between inline and fullscreen', async ({ page }) => {
-    // Strict parity test. Fullscreen copies inline's cqh values directly
-    // rather than re-running autofit, so the ratio must be identical for
-    // every shape (not just close). Guards against future changes where
-    // fullscreen re-renders and autofit drift returns.
+  test('every shape\'s computed font-size matches between inline and fullscreen', async ({ page }) => {
+    // Both contexts render onto an identical reference-size stage (720 tall)
+    // and scale via CSS transform. Autofit picks the same px value in both,
+    // so computed font-size must be identical (not just close).
     const md = [
       '```slide',
       'grid 100 56.25',
@@ -76,59 +75,47 @@ test.describe('slide blocks in documents', () => {
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate((body) => { window.SDocs.currentBody = body; window.SDocs.render(); }, md);
     await page.waitForTimeout(400);
-    const inlineRatios = await page.evaluate(() => {
+    const inlineSizes = await page.evaluate(() => {
       const stage = document.querySelector('.sdoc-slide .sd-shape-stage');
-      const sh = stage.getBoundingClientRect().height;
       return Array.from(stage.querySelectorAll('.shape-rect')).map(r => ({
         id: r.dataset.id,
-        ratio: parseFloat(getComputedStyle(r).fontSize) / sh,
+        fontSize: parseFloat(getComputedStyle(r).fontSize),
       }));
     });
     await page.locator('.sdoc-slide').first().click();
     await page.waitForTimeout(500);
-    const fullRatios = await page.evaluate(() => {
-      const stage = document.querySelector('.sdoc-present-stage');
-      const sh = stage.getBoundingClientRect().height;
+    const fullSizes = await page.evaluate(() => {
+      const stage = document.querySelector('.sdoc-present-stage .sd-shape-stage');
       return Array.from(stage.querySelectorAll('.shape-rect')).map(r => ({
         id: r.dataset.id,
-        ratio: parseFloat(getComputedStyle(r).fontSize) / sh,
+        fontSize: parseFloat(getComputedStyle(r).fontSize),
       }));
     });
-    for (const i of inlineRatios) {
-      const f = fullRatios.find(x => x.id === i.id);
+    for (const i of inlineSizes) {
+      const f = fullSizes.find(x => x.id === i.id);
       expect(f).toBeTruthy();
-      const diff = Math.abs(i.ratio - f.ratio) / Math.max(i.ratio, f.ratio);
-      expect(diff).toBeLessThan(0.005);
+      expect(f.fontSize).toBeCloseTo(i.fontSize, 3);
     }
   });
 
-  test('inline thumbnail and fullscreen font-size are proportional (no host margin bleed)', async ({ page }) => {
-    // When SDocs paragraph margins leak into a slide, auto-fit picks a smaller
-    // font because there's less vertical room. After reset, the relative
-    // font-size-to-stage-height ratio should match between thumbnail and
-    // fullscreen within a small tolerance.
+  test('inline thumbnail and fullscreen render at the same reference font-size', async ({ page }) => {
+    // Autofit runs once at the reference stage, so the computed font size
+    // on a rect in inline should equal the computed font size in fullscreen.
     await loadDocWithSlide(page, 'grid 100 56.25\nr 4 4 92 10 fill=#0f172a color=#fff | Q4 review');
-    const thumbRatio = await page.evaluate(() => {
+    const thumbFs = await page.evaluate(() => {
       const stage = document.querySelector('.sdoc-slide .sd-shape-stage');
       const rect = stage.querySelector('.shape-rect');
       const p = rect.querySelector('.shape-md p, .shape-md');
-      const fs = parseFloat(getComputedStyle(p).fontSize);
-      const sh = stage.getBoundingClientRect().height;
-      return fs / sh;
+      return parseFloat(getComputedStyle(p).fontSize);
     });
-    // Click to open fullscreen
     await page.locator('.sdoc-slide').click();
-    await page.waitForTimeout(80);
-    const fullRatio = await page.evaluate(() => {
-      const stage = document.querySelector('.sdoc-present-stage');
+    await page.waitForTimeout(200);
+    const fullFs = await page.evaluate(() => {
+      const stage = document.querySelector('.sdoc-present-stage .sd-shape-stage');
       const rect = stage.querySelector('.shape-rect');
       const p = rect.querySelector('.shape-md p, .shape-md');
-      const fs = parseFloat(getComputedStyle(p).fontSize);
-      const sh = stage.getBoundingClientRect().height;
-      return fs / sh;
+      return parseFloat(getComputedStyle(p).fontSize);
     });
-    const diff = Math.abs(thumbRatio - fullRatio);
-    // Tolerance: 10% relative.
-    expect(diff / Math.max(thumbRatio, fullRatio)).toBeLessThan(0.1);
+    expect(fullFs).toBeCloseTo(thumbFs, 3);
   });
 });
