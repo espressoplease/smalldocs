@@ -1508,10 +1508,7 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
                                   (right-pointing arrow shape - text
                                   renders in the polygon's bounding box)
 
-  Stacking order: SVG-drawn outlines (c/e/l/a/p) paint BELOW all
-  rectangles. Within each layer, later declarations paint over earlier
-  ones. To layer a title on a filled band, declare the band first,
-  then the title rect.
+  Stacking: see the STACKING section below.
 
 \u2500\u2500 IDS AND REFERENCES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Declare an id with \`#name\`; reference with \`@name\` or \`@name.anchor\`.
@@ -1611,6 +1608,10 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
   Identification:
     #id                 Reference target for @refs
 
+  Stacking:
+    layer=<v>           top | bottom | auto (default). See STACKING
+                        section below for the full model and examples.
+
 \u2500\u2500 CONTENT \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Everything after \`|\` is standard markdown. Multi-line uses
   indentation under the shape line - continuation lines MUST be
@@ -1693,6 +1694,40 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
         > Our customers are the product
         >
         > - Jordan, CEO
+
+\u2500\u2500 STACKING \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Every slide has three stacked sublayers, painted bottom to top:
+
+    bottom  - behind everything
+    auto    - the default; what shapes land in without a \`layer=\` attr
+    top     - in front of everything
+
+  The \`auto\` sublayer preserves the historic rule: SVG primitives
+  (c/e/l/a/p) paint below rectangles within the same sublayer, because
+  the sublayer's <svg> is its first child. Source order decides paint
+  order WITHIN a sublayer - later declarations paint over earlier.
+
+  Opt out of \`auto\` by setting \`layer=top\` or \`layer=bottom\` on any
+  shape. Invalid values surface in the error badge.
+
+  Common patterns:
+
+    # Arrow drawn ON TOP of the rects it connects
+    r 2 2 5 5 fill=#dbeafe | Step 1
+    r 9 2 5 5 fill=#dbeafe | Step 2
+    a 7 4.5 9 4.5 stroke=#333 layer=top
+
+    # Small status dot on top of a content card
+    r 0 0 16 9 fill=#0f172a color=#fff | # Title
+    c 15 1 0.3 fill=#f59e0b layer=top
+
+    # Rect sitting behind another rect (drop-shadow effect)
+    r 1 1 8 4 fill=#fee layer=bottom
+    r 2 2 8 4 fill=#fff | Card
+
+  Rule of thumb: use source order for same-kind stacking. Reach for
+  \`layer=\` only when you need to cross the rect / SVG boundary, or
+  when explicit layering reads clearer than careful ordering.
 
 \u2500\u2500 TEMPLATES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Define a shape layout once, reuse across slides. Two directives,
