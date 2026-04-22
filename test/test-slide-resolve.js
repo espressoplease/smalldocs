@@ -64,6 +64,32 @@ module.exports = function(harness) {
     assert.deepStrictEqual(s, { body: 'line' });
   });
 
+  test('parseSlots: bare | after colon is YAML-style sugar (dropped)', () => {
+    const s = parseSlots('#body: |\nline one\nline two');
+    assert.deepStrictEqual(s, { body: 'line one\nline two' });
+  });
+
+  test('parseSlots: indented block body is dedented to common leading indent', () => {
+    const s = parseSlots('#body:\n  - one\n  - two\n  - three');
+    assert.deepStrictEqual(s, { body: '- one\n- two\n- three' });
+  });
+
+  test('parseSlots: dedent keeps relative indent between lines', () => {
+    const s = parseSlots('#body:\n  - top\n    - nested\n  - back');
+    // common leading indent = 2, so nested should still be indented by 2
+    assert.deepStrictEqual(s, { body: '- top\n  - nested\n- back' });
+  });
+
+  test('parseSlots: YAML-style | + indented body dedents correctly (table case)', () => {
+    const s = parseSlots('#body: |\n  | A | B |\n  |---|---|\n  | 1 | 2 |');
+    assert.deepStrictEqual(s, { body: '| A | B |\n|---|---|\n| 1 | 2 |' });
+  });
+
+  test('parseSlots: inline slot is left exactly as typed (no dedent on single line)', () => {
+    const s = parseSlots('#title:   leading spaces kept as value');
+    assert.deepStrictEqual(s, { title: '  leading spaces kept as value' });
+  });
+
   // ── End-to-end resolve ───────────────────────────────
 
   test('resolveSlides: plain slides pass through untouched', () => {
