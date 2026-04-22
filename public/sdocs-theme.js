@@ -60,6 +60,7 @@ const LIGHT_DEFAULTS = {
   tableBorder:      '#e2ddd6',
   tableHeaderBg:    '#f4f1ed',
   tableEvenBg:      '#fafaf8',
+  tableOddBg:       '#ffffff',
 };
 
 const DARK_DEFAULTS = {
@@ -74,6 +75,7 @@ const DARK_DEFAULTS = {
   tableBorder:      '#3d3935',
   tableHeaderBg:    '#2c2926',
   tableEvenBg:      '#242220',
+  tableOddBg:       '#2c2a26',
 };
 
 function getThemeDefaults() {
@@ -242,6 +244,7 @@ function getStandaloneDefault(ctrlId) {
     '_sd_ctrl-table-border':    d.tableBorder,
     '_sd_ctrl-table-header-bg': d.tableHeaderBg,
     '_sd_ctrl-table-even-bg':   d.tableEvenBg,
+    '_sd_ctrl-table-odd-bg':    d.tableOddBg,
   };
   return map[ctrlId];
 }
