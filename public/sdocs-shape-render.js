@@ -669,7 +669,6 @@ function renderShapes(dslText, wrap, options) {
 
 window.SDocShapeRender = {
   renderShapes: renderShapes,
-  applyAutoFit: applyAutoFit,
 };
 
 })();
