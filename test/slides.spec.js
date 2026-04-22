@@ -7,7 +7,16 @@ const { test, expect } = require('@playwright/test');
 async function renderBody(page, body) {
   await page.goto('/');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function', null, { timeout: 5000 });
-  await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
+  // Match the real loadMarkdown path: strip front matter, apply styles, then
+  // render the body. Writing to currentBody alone skips applyStylesFromMeta
+  // and leaves --md-* vars at their defaults.
+  await page.evaluate((b) => {
+    var parsed = window.SDocYaml.parseFrontMatter(b);
+    window.SDocs.currentMeta = parsed.meta;
+    window.SDocs.currentBody = parsed.body;
+    if (parsed.meta.styles) window.SDocs.applyStylesFromMeta(parsed.meta.styles);
+    window.SDocs.render();
+  }, body);
   // Wait two frames so the renderer's rAF-based autofit/font conversion has
   // settled before assertions read font-size values.
   await page.waitForTimeout(200);
@@ -245,5 +254,86 @@ test.describe('Slide rendering pipeline', () => {
     await page.waitForTimeout(200);
     const presentOpen = await page.evaluate(() => document.body.classList.contains('sdoc-present-open'));
     expect(presentOpen).toBe(false);
+  });
+
+  // ── Style inheritance from host doc ────────────────────────
+  // Doc styles propagate into slides two ways:
+  //   1. Automatic — --md-* CSS vars cascade into shape shadow roots, so
+  //      headings adopt doc heading colors and slide bg inherits --md-bg.
+  //   2. Explicit — shape attrs can say fill=$h1.color, which the renderer
+  //      rewrites to var(--md-h1-color) before paint.
+  // Both resolve at paint time so dark-mode inversion happens for free.
+
+  test('slide stage background inherits styles.background when grid has no bg=', async ({ page }) => {
+    const body = '---\nstyles:\n  background: "#0f172a"\n---\n# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 color=#fff | hello\n```\n';
+    await renderBody(page, body);
+    const bg = await page.$eval('.sdoc-slide .sd-shape-stage', (el) => getComputedStyle(el).backgroundColor);
+    expect(bg).toBe('rgb(15, 23, 42)');
+  });
+
+  test('grid bg= still overrides inherited styles.background', async ({ page }) => {
+    const body = '---\nstyles:\n  background: "#0f172a"\n---\n# Deck\n\n```slide\ngrid 100 56.25 bg=#fff5e6\nr 10 10 80 30 | hello\n```\n';
+    await renderBody(page, body);
+    const bg = await page.$eval('.sdoc-slide .sd-shape-stage', (el) => getComputedStyle(el).backgroundColor);
+    expect(bg).toBe('rgb(255, 245, 230)');
+  });
+
+  test('shape heading adopts styles.h1.color when shape has no color= attr', async ({ page }) => {
+    const body = '---\nstyles:\n  h1: { color: "#c0392b" }\n---\n# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 |\n  # Adopted\n```\n';
+    await renderBody(page, body);
+    const color = await page.$eval('.sdoc-slide .shape-md', (host) => {
+      const h1 = host.shadowRoot.querySelector('h1');
+      return getComputedStyle(h1).color;
+    });
+    // #c0392b → rgb(192, 57, 43)
+    expect(color).toBe('rgb(192, 57, 43)');
+  });
+
+  test('shape color= still wins over inherited doc heading color', async ({ page }) => {
+    const body = '---\nstyles:\n  h1: { color: "#c0392b" }\n---\n# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 color=#00ff00 |\n  # Overridden\n```\n';
+    await renderBody(page, body);
+    const color = await page.$eval('.sdoc-slide .shape-md', (host) => {
+      const h1 = host.shadowRoot.querySelector('h1');
+      return getComputedStyle(h1).color;
+    });
+    // #00ff00 → rgb(0, 255, 0)
+    expect(color).toBe('rgb(0, 255, 0)');
+  });
+
+  test('fill=$h1.color rewrites to var(--md-h1-color) and paints that color', async ({ page }) => {
+    const body = '---\nstyles:\n  h1: { color: "#1e40af" }\n---\n# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 fill=$h1.color color=#fff | Title\n```\n';
+    await renderBody(page, body);
+    const info = await page.$eval('.sdoc-slide .shape-rect', (el) => ({
+      inline: el.style.background,
+      computed: getComputedStyle(el).backgroundColor,
+    }));
+    expect(info.inline).toMatch(/var\(--md-h1-color\)/);
+    // #1e40af → rgb(30, 64, 175)
+    expect(info.computed).toBe('rgb(30, 64, 175)');
+  });
+
+  test('grid bg=$background inherits doc background', async ({ page }) => {
+    const body = '---\nstyles:\n  background: "#fdf6e3"\n---\n# Deck\n\n```slide\ngrid 100 56.25 bg=$background\nr 10 10 80 30 | Hi\n```\n';
+    await renderBody(page, body);
+    const bg = await page.$eval('.sdoc-slide .sd-shape-stage', (el) => getComputedStyle(el).backgroundColor);
+    // #fdf6e3 → rgb(253, 246, 227)
+    expect(bg).toBe('rgb(253, 246, 227)');
+  });
+
+  test('unknown $path.to.prop surfaces as an error-badge line', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 fill=$bogus.thing | hello\n```\n';
+    await renderBody(page, body);
+    const items = await page.$$eval('.sdoc-slide-errbadge-list li', (lis) => lis.map((li) => li.textContent));
+    expect(items.some((t) => /unknown style reference "\$bogus\.thing"/.test(t))).toBe(true);
+  });
+
+  test('present-mode stage background reflects doc styles.background', async ({ page }) => {
+    const body = '---\nstyles:\n  background: "#1a1a2e"\n---\n# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 color=#fff | Hi\n```\n';
+    await renderBody(page, body);
+    await page.evaluate(() => window.SDocPresent && window.SDocPresent.open(0));
+    await page.waitForTimeout(300);
+    const bg = await page.$eval('.sdoc-present-stage', (el) => getComputedStyle(el).backgroundColor);
+    // #1a1a2e → rgb(26, 26, 46)
+    expect(bg).toBe('rgb(26, 26, 46)');
   });
 });

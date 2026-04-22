@@ -130,12 +130,15 @@ var CSS = [
   '  display: flex; align-items: center; justify-content: center;',
   '  padding: 32px; overflow: hidden; position: relative;',
   '}',
+  /* Present-mode stage sits outside #_sd_rendered, so the doc\'s --md-* */
+  /* vars don\'t reach it via normal cascade. We copy the relevant vars */
+  /* onto .sdoc-present in JS on open (see open()), then read them here. */
   '.sdoc-present-stage {',
   '  /* --gw, --gh set by renderer */',
   '  max-width: 100%;',
   '  max-height: 100%;',
   '  width: auto; height: auto;',
-  '  background: #ffffff; border-radius: 6px;',
+  '  background: var(--md-bg, #ffffff); border-radius: 6px;',
   '  box-shadow: 0 30px 80px rgba(0, 0, 0, .6);',
   '}',
   '@media (max-width: 720px) {',
@@ -254,6 +257,32 @@ function clamp(n) {
   if (n < 0) return 0;
   if (n >= state.slides.length) return state.slides.length - 1;
   return n;
+}
+
+// Copy the doc's computed --md-* custom properties onto the present
+// modal root. #_sd_rendered is where the doc's style vars live, but the
+// present modal is a sibling of the document, so vars don't cascade
+// down automatically. Without this, slide backgrounds and heading
+// colors fall back to their --md-*-default values instead of the doc's
+// chosen palette.
+var FORWARDED_VARS = [
+  '--md-bg', '--md-color',
+  '--md-font-family', '--md-h-font-family',
+  '--md-h-color', '--md-h1-color', '--md-h2-color', '--md-h3-color', '--md-h4-color',
+  '--md-p-color', '--md-list-color', '--md-link-color',
+  '--md-block-bg', '--md-block-text',
+  '--md-code-bg', '--md-code-color', '--md-code-font', '--md-pre-bg',
+  '--md-bq-bg', '--md-bq-color', '--md-bq-border-color', '--md-bq-border',
+  '--md-chart-accent', '--md-chart-bg', '--md-chart-text',
+];
+function forwardDocStyleVars(target) {
+  var src = document.getElementById('_sd_rendered');
+  if (!src) return;
+  var cs = getComputedStyle(src);
+  for (var i = 0; i < FORWARDED_VARS.length; i++) {
+    var v = cs.getPropertyValue(FORWARDED_VARS[i]);
+    if (v && v.trim()) target.style.setProperty(FORWARDED_VARS[i], v.trim());
+  }
 }
 
 function buildRailThumb(idx, dsl) {
@@ -403,6 +432,7 @@ function open(startIndex) {
   modal.setAttribute('role', 'dialog');
   modal.setAttribute('aria-modal', 'true');
   modal.setAttribute('aria-label', 'Slide presentation');
+  forwardDocStyleVars(modal);
 
   var topbar = document.createElement('div');
   topbar.className = 'sdoc-present-topbar';

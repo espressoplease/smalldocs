@@ -533,6 +533,71 @@ function stripStyleDefaults(styles) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  STYLE REFERENCE RESOLVER ($path.to.prop → var(--md-*))
+// ═══════════════════════════════════════════════════════
+
+// Maps YAML-schema paths to the CSS custom property that carries their
+// live value. Used by the slide shape DSL so an agent can write
+// `fill=$h1.color` and have the slide pick up whatever the doc's h1
+// color currently is, including dark-mode inversion. The value is
+// resolved at CSS-paint time, not parse time — theme changes Just Work.
+//
+// Keep this list aligned with COLOR_VAR_MAP + CTRL_CSS_MAP above, plus
+// a few convenience aliases (e.g. `headers.color` as well as `h.color`).
+var STYLE_PATH_TO_VAR = {
+  // General
+  'background':            '--md-bg',
+  'color':                 '--md-color',
+  'fontFamily':            '--md-font-family',
+
+  // Headings
+  'h.color':               '--md-h-color',
+  'headers.color':         '--md-h-color',
+  'headers.fontFamily':    '--md-h-font-family',
+  'h1.color':              '--md-h1-color',
+  'h2.color':              '--md-h2-color',
+  'h3.color':              '--md-h3-color',
+  'h4.color':              '--md-h4-color',
+
+  // Paragraph / list
+  'p.color':               '--md-p-color',
+  'list.color':            '--md-list-color',
+
+  // Link
+  'link.color':            '--md-link-color',
+
+  // Blocks cascade (code / blockquote / chart parent)
+  'blocks.background':     '--md-block-bg',
+  'blocks.color':          '--md-block-text',
+
+  // Code
+  'code.background':       '--md-code-bg',
+  'code.color':            '--md-code-color',
+  'code.font':             '--md-code-font',
+
+  // Blockquote
+  'blockquote.background': '--md-bq-bg',
+  'blockquote.color':      '--md-bq-color',
+  'blockquote.borderColor':'--md-bq-border-color',
+
+  // Chart
+  'chart.accent':          '--md-chart-accent',
+  'chart.background':      '--md-chart-bg',
+  'chart.textColor':       '--md-chart-text',
+};
+
+// Given a raw token (typically a shape attribute value), return the
+// CSS var() expression to use in its place, or null if not a ref.
+// Returns { value, error } so callers can surface unknown refs.
+function resolveStyleRef(token) {
+  if (typeof token !== 'string' || token.charAt(0) !== '$') return null;
+  var key = token.slice(1);
+  var cssVar = STYLE_PATH_TO_VAR[key];
+  if (cssVar) return { value: 'var(' + cssVar + ')' };
+  return { error: 'unknown style reference "$' + key + '"' };
+}
+
+// ═══════════════════════════════════════════════════════
 //  EXPORTS
 // ═══════════════════════════════════════════════════════
 exports.COLOR_DEFAULT   = COLOR_DEFAULT;
@@ -554,6 +619,8 @@ exports.parseDarkBlock        = parseDarkBlock;
 exports.stylesToControls      = stylesToControls;
 exports.STYLE_DEFAULTS        = STYLE_DEFAULTS;
 exports.stripStyleDefaults    = stripStyleDefaults;
+exports.STYLE_PATH_TO_VAR     = STYLE_PATH_TO_VAR;
+exports.resolveStyleRef       = resolveStyleRef;
 
 // UMD tail: in Node (tests) this writes to module.exports; in the browser
 // it creates window.SDocStyles.  We use this pattern instead of ES modules
