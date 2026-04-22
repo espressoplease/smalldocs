@@ -273,6 +273,13 @@ function applyShapeStyle(el, attrs, grid) {
     el.style.border = swPx.toFixed(3) + 'px solid ' + attrs.stroke;
   }
   if (attrs.shadow === 'none') el.style.boxShadow = 'none';
+  // Per-shape overrides for table styling. CSS custom properties cross
+  // shadow-DOM boundaries, so setting them on the shape's host element
+  // makes them win over the doc-level --md-table-* values for anything
+  // rendered inside this shape only.
+  if (attrs.tableBorder)    el.style.setProperty('--md-table-border', attrs.tableBorder);
+  if (attrs.tableHeaderBg)  el.style.setProperty('--md-table-header-bg', attrs.tableHeaderBg);
+  if (attrs.tableEvenBg)    el.style.setProperty('--md-table-even-bg', attrs.tableEvenBg);
 }
 
 function applySvgStroke(el, attrs, defaultStroke) {
