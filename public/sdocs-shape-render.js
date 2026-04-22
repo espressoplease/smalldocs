@@ -59,9 +59,14 @@ var CSS = [
 // else the shape renderer runs outside an SDocs document.
 var SHAPE_MD_SHADOW_CSS = [
   ':host { display: block; color: inherit; font: inherit; line-height: inherit; }',
+  /* Paragraph/list text color: prefer --shape-color when the shape */
+  /* declared color=, else use the doc's --md-color. This matters in */
+  /* present mode, where .sdoc-present sets a cream `color` on the */
+  /* modal chrome that would otherwise cascade into shape text. */
   '.inner {',
   '  text-align: inherit;',
   '  font-family: var(--md-font-family, inherit);',
+  '  color: var(--shape-color, var(--md-color, inherit));',
   '}',
   '.inner > :first-child { margin-top: 0; }',
   '.inner > :last-child { margin-bottom: 0; }',
@@ -425,12 +430,25 @@ function autoFitText(el, stageH, minPx, maxPx) {
   var target = measurementTarget(el);
   var cap = Math.max(minPx, Math.floor(maxPx));
   var lo = minPx, hi = cap, best = minPx;
+  // clientWidth/clientHeight INCLUDE padding, but the actual content area
+  // the shadow subtree can use is the padded inset. Without subtracting
+  // padding, autofit picks a size where content extends into the padding
+  // and overflows the shape's visible edge (clipped by overflow: hidden).
+  var cs = getComputedStyle(el);
+  var padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  var padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  var availW = Math.max(0, el.clientWidth - padX);
+  var availH = Math.max(0, el.clientHeight - padY);
+  // scrollWidth/Height are integer CSS pixels; availW/availH are fractional
+  // because shape padding is authored in cqh/cqw. Without slack, a 742px
+  // scrollWidth vs 741.96px availW reads as "doesn't fit" at every size, so
+  // the binary search degenerates to minPx. A 1px tolerance lets autofit
+  // pick the real best size; overflow: hidden on the shape is the backstop
+  // if the tolerance ever sizes one pixel too generously.
   while (lo <= hi) {
     var mid = Math.floor((lo + hi) / 2);
     el.style.fontSize = mid + 'px';
-    // Measure scrollWidth/Height on the inner shadow node (which reflects the
-    // laid-out content) and compare against the outer visible container.
-    var fits = target.scrollWidth <= el.clientWidth && target.scrollHeight <= el.clientHeight;
+    var fits = target.scrollWidth <= availW + 1 && target.scrollHeight <= availH + 1;
     if (fits) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
   }
   if (stageH > 0) {
