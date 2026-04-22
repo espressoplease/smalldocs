@@ -1609,8 +1609,10 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
     #id                 Reference target for @refs
 
   Stacking:
-    layer=<v>           top | bottom | auto (default). See STACKING
-                        section below for the full model and examples.
+    layer=<v>           top | mid | bottom. Default is \`mid\` for most
+                        kinds; arrows (\`a\`) default to \`top\` so the
+                        heads always sit above the rects they connect.
+                        See STACKING section below for the full model.
 
 \u2500\u2500 CONTENT \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Everything after \`|\` is standard markdown. Multi-line uses
@@ -1699,25 +1701,26 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
   Every slide has three stacked sublayers, painted bottom to top:
 
     bottom  - behind everything
-    auto    - the default; what shapes land in without a \`layer=\` attr
-    top     - in front of everything
+    mid     - the default for r / c / e / l / p shapes
+    top     - in front of everything; the default for arrows (\`a\`)
 
-  The \`auto\` sublayer preserves the historic rule: SVG primitives
-  (c/e/l/a/p) paint below rectangles within the same sublayer, because
-  the sublayer's <svg> is its first child. Source order decides paint
-  order WITHIN a sublayer - later declarations paint over earlier.
+  Within a sublayer, SVG primitives (c/e/l/a/p) paint below rectangles
+  because the sublayer's <svg> is its first child. Source order decides
+  paint order WITHIN a sublayer - later declarations paint over earlier.
 
-  Opt out of \`auto\` by setting \`layer=top\` or \`layer=bottom\` on any
-  shape. Invalid values surface in the error badge.
+  Arrows default to \`layer=top\` because flow diagrams almost always
+  want arrow heads sitting above the rects they connect. Everything
+  else lives in \`mid\` unless the author opts in to \`top\` or \`bottom\`.
+  Invalid values surface in the error badge.
 
   Common patterns:
 
-    # Arrow drawn ON TOP of the rects it connects
+    # Flow diagram - arrows just work (top is their default)
     r 2 2 5 5 fill=#dbeafe | Step 1
     r 9 2 5 5 fill=#dbeafe | Step 2
-    a 7 4.5 9 4.5 stroke=#333 layer=top
+    a 7 4.5 9 4.5 stroke=#333
 
-    # Small status dot on top of a content card
+    # Status dot on top of a content card (circle needs explicit top)
     r 0 0 16 9 fill=#0f172a color=#fff | # Title
     c 15 1 0.3 fill=#f59e0b layer=top
 
@@ -1725,9 +1728,14 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
     r 1 1 8 4 fill=#fee layer=bottom
     r 2 2 8 4 fill=#fff | Card
 
-  Rule of thumb: use source order for same-kind stacking. Reach for
-  \`layer=\` only when you need to cross the rect / SVG boundary, or
-  when explicit layering reads clearer than careful ordering.
+    # Overlapping shapes above a backdrop (push the backdrop down)
+    r 0 0 16 9 fill=#f8fafc layer=bottom
+    c 6 5 1.8 fill=#2563eb
+    c 8 5 1.8 fill=#dc2626
+
+  Rule of thumb: reach for \`layer=\` only when you need to cross the
+  rect / SVG boundary, or when explicit layering reads clearer than
+  careful ordering.
 
 \u2500\u2500 TEMPLATES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Define a shape layout once, reuse across slides. Two directives,
