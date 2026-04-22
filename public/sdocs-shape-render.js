@@ -33,6 +33,14 @@ var CSS = [
   /* presentation mode, navigate to a slide). Text selection inside a slide */
   /* is a rare ask; if we need it later, scope this to inline contexts only. */
   '.sd-shape-stage { position: absolute; top: 0; left: 0; transform-origin: top left; overflow: hidden; pointer-events: none; }',
+  /* Each slide has three stacked sublayers: bottom / auto / top. DOM order */
+  /* (last-appended paints above) gives us the stacking; no z-index needed. */
+  /* Within each sublayer, the SVG holds vector primitives and the sublayer */
+  /* itself holds rectangles and text overlays, so c/e/l/a/p still paint */
+  /* below r-shapes when they share the same sublayer (the existing rule). */
+  /* `layer=top` / `layer=bottom` on a shape promotes/demotes it across */
+  /* sublayers; arrows-above-rects and dots-on-rects become possible. */
+  '.sd-stage-sublayer { position: absolute; inset: 0; pointer-events: none; }',
   '.sd-shape-stage .shape-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }',
   /* Default: centered both axes. Works naturally for titles and standalone */
   /* text. Agents override via align=left/right and valign=top/bottom — see */
@@ -657,40 +665,69 @@ function renderShapes(dslText, wrap, options) {
   if (grid.attrs && grid.attrs.bg) stage.style.backgroundColor = grid.attrs.bg;
   off.appendChild(stage);
 
-  var svg = document.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('class', 'shape-svg');
-  svg.setAttribute('viewBox', '0 0 ' + grid.w + ' ' + grid.h);
-  svg.setAttribute('preserveAspectRatio', 'none');
-  stage.appendChild(svg);
+  // Three stacked sublayers in DOM order: bottom (paints first, below
+  // everything), auto (matches the pre-layer default — SVG primitives
+  // render inside this sublayer's <svg>, rectangles inside the sublayer
+  // div), top (paints last, above everything). Authors opt into top/bottom
+  // via `layer=top` / `layer=bottom` on a shape; omit for auto.
+  function makeSublayer() {
+    var el = document.createElement('div');
+    el.className = 'sd-stage-sublayer';
+    var s = document.createElementNS(SVG_NS, 'svg');
+    s.setAttribute('class', 'shape-svg');
+    s.setAttribute('viewBox', '0 0 ' + grid.w + ' ' + grid.h);
+    s.setAttribute('preserveAspectRatio', 'none');
+    el.appendChild(s);
+    return { el: el, svg: s };
+  }
+  var layers = { bottom: makeSublayer(), auto: makeSublayer(), top: makeSublayer() };
+  stage.appendChild(layers.bottom.el);
+  stage.appendChild(layers.auto.el);
+  stage.appendChild(layers.top.el);
 
   var defsNeeded = { arrowhead: false, arrowheadColor: null };
+
+  function pickLayer(s) {
+    var v = s.attrs && s.attrs.layer;
+    if (v == null || v === '') return layers.auto;
+    if (v === 'top' || v === 'bottom' || v === 'auto') return layers[v];
+    result.errors.push({
+      line: s.lineNumber,
+      message: 'invalid layer "' + v + '" (expected top | bottom | auto)',
+    });
+    return layers.auto;
+  }
 
   for (var i = 0; i < result.shapes.length; i++) {
     var s = result.shapes[i];
     try {
+      var L = pickLayer(s);
       if (s.kind === 'r') {
-        stage.appendChild(renderRect(s, grid));
+        L.el.appendChild(renderRect(s, grid));
       } else if (s.kind === 'c') {
-        svg.appendChild(renderCircle(s));
-        if (s.content) stage.appendChild(renderTextOverlay(s, grid));
+        L.svg.appendChild(renderCircle(s));
+        if (s.content) L.el.appendChild(renderTextOverlay(s, grid));
       } else if (s.kind === 'e') {
-        svg.appendChild(renderEllipse(s));
-        if (s.content) stage.appendChild(renderTextOverlay(s, grid));
+        L.svg.appendChild(renderEllipse(s));
+        if (s.content) L.el.appendChild(renderTextOverlay(s, grid));
       } else if (s.kind === 'l') {
-        svg.appendChild(renderLine(s));
+        L.svg.appendChild(renderLine(s));
       } else if (s.kind === 'a') {
-        svg.appendChild(renderArrow(s, defsNeeded));
+        L.svg.appendChild(renderArrow(s, defsNeeded));
       } else if (s.kind === 'p') {
-        svg.appendChild(renderPolygon(s));
-        if (s.content) stage.appendChild(renderTextOverlay(s, grid));
+        L.svg.appendChild(renderPolygon(s));
+        if (s.content) L.el.appendChild(renderTextOverlay(s, grid));
       }
     } catch (e) {
       result.errors.push({ line: s.lineNumber, message: 'render: ' + e.message });
     }
   }
 
+  // Arrowhead defs live in one svg but are referenced document-wide via
+  // url(#_sd_arrowhead), so a single copy works for arrows in any sublayer.
   if (defsNeeded.arrowhead) {
-    svg.insertBefore(buildArrowheadDefs(defsNeeded.arrowheadColor), svg.firstChild);
+    var defsSvg = layers.auto.svg;
+    defsSvg.insertBefore(buildArrowheadDefs(defsNeeded.arrowheadColor), defsSvg.firstChild);
   }
 
   // Force layout, then run autofit. Both are synchronous because the
