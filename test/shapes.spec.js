@@ -381,36 +381,43 @@ test.describe('shape playground', () => {
     expect(size).toBeGreaterThan(30);
   });
 
-  test('auto-fit text stays bounded after viewport resize (cqh-based font)', async ({ page }) => {
+  test('auto-fit text stays bounded and scales with viewport (transform-based)', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, [
       'grid 100 56.25',
       'r 10 10 40 20 | Medium amount of text in a rectangle',
     ].join('\n'));
     await page.waitForTimeout(50);
-    // Read both the rect's inline style (cqh) and the inner-content bounds
-    // — shadow DOM means `el.scrollWidth/Height` doesn't reflect content.
-    const measure = (page) => page.locator('#stage .shape-rect').evaluate(el => {
-      const host = el.querySelector('.shape-md');
+    // Stage is a fixed reference canvas scaled by CSS transform to fit its
+    // wrap. Shape px values don't change on resize — only the outer wrap's
+    // visual size and the transform factor do.
+    const measure = (page) => page.evaluate(() => {
+      const stage = document.querySelector('#stage .sd-shape-stage');
+      const rect = document.querySelector('#stage .shape-rect');
+      const host = rect.querySelector('.shape-md');
       const inner = host && host.shadowRoot && host.shadowRoot.querySelector('.inner');
       return {
-        inlineFs: el.style.fontSize,
-        computedFs: parseFloat(getComputedStyle(el).fontSize),
-        scrollW: inner ? inner.scrollWidth : el.scrollWidth,
-        scrollH: inner ? inner.scrollHeight : el.scrollHeight,
-        clientW: el.clientWidth,
-        clientH: el.clientHeight,
+        inlineFs: rect.style.fontSize,
+        computedFs: parseFloat(getComputedStyle(rect).fontSize),
+        scrollW: inner ? inner.scrollWidth : rect.scrollWidth,
+        scrollH: inner ? inner.scrollHeight : rect.scrollHeight,
+        clientW: rect.clientWidth,
+        clientH: rect.clientHeight,
+        stageVisualW: stage.getBoundingClientRect().width,
       };
     });
     const initial = await measure(page);
-    expect(initial.inlineFs).toMatch(/cqh$/);
+    expect(initial.inlineFs).toMatch(/px$/);
     expect(initial.scrollW).toBeLessThanOrEqual(initial.clientW + 1);
     expect(initial.scrollH).toBeLessThanOrEqual(initial.clientH + 1);
 
     await page.setViewportSize({ width: 700, height: 420 });
-    await page.waitForTimeout(50);
+    await page.waitForTimeout(100);
     const after = await measure(page);
-    expect(after.computedFs).toBeLessThan(initial.computedFs);
+    // Font-size in computed px is unchanged (reference-size value); the
+    // visual stage is smaller and so the rendered text scales down with it.
+    expect(after.computedFs).toBeCloseTo(initial.computedFs, 3);
+    expect(after.stageVisualW).toBeLessThan(initial.stageVisualW);
     expect(after.scrollW).toBeLessThanOrEqual(after.clientW + 1);
     expect(after.scrollH).toBeLessThanOrEqual(after.clientH + 1);
   });
@@ -441,30 +448,38 @@ test.describe('shape playground', () => {
     expect(padding.left).toBe(0);
   });
 
-  test('padding=N sets N grid units of padding on all sides', async ({ page }) => {
+  test('padding=N sets N grid units of padding on all sides (visually square)', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, 'grid 100 56.25\nr 10 10 40 20 padding=4 | Hello');
     await page.waitForTimeout(50);
+    // Shape is absolutely-positioned inside a transform-scaled stage. Computed
+    // paddingTop/Left are at the reference scale; rendered visual padding is
+    // that × transform-scale. We check (a) paddings are equal on all sides
+    // (visually square) and (b) the visual padding tracks the expected grid-
+    // unit fraction of the stage's rendered size.
     const info = await page.evaluate(() => {
       const stage = document.getElementById('stage');
+      const inner = document.querySelector('#stage .sd-shape-stage');
       const el = document.querySelector('#stage .shape-rect');
       const cs = getComputedStyle(el);
+      const m = new DOMMatrix(getComputedStyle(inner).transform);
       return {
         stageWidth: stage.getBoundingClientRect().width,
         stageHeight: stage.getBoundingClientRect().height,
+        scale: m.a || 1,
         padTop: parseFloat(cs.paddingTop),
         padBottom: parseFloat(cs.paddingBottom),
         padLeft: parseFloat(cs.paddingLeft),
         padRight: parseFloat(cs.paddingRight),
       };
     });
-    // 4 grid units × stage / grid-size
-    const expectH = 4 / 100 * info.stageWidth;
-    const expectV = 4 / 56.25 * info.stageHeight;
-    // Aspect is preserved so horizontal and vertical pixel padding should be equal.
-    expect(info.padTop).toBeCloseTo(expectV, 0);
-    expect(info.padLeft).toBeCloseTo(expectH, 0);
-    expect(info.padTop).toBeCloseTo(info.padLeft, 0);  // visually square
+    // All four sides equal at the reference (uniform px).
+    expect(info.padTop).toBeCloseTo(info.padBottom, 0);
+    expect(info.padLeft).toBeCloseTo(info.padRight, 0);
+    expect(info.padTop).toBeCloseTo(info.padLeft, 0);
+    // Visual padding matches 4 grid units / 100 of stage width.
+    const visualPad = info.padLeft * info.scale;
+    expect(visualPad).toBeCloseTo(4 / 100 * info.stageWidth, 0);
   });
 
   test('padding applies to circle text overlays too', async ({ page }) => {
