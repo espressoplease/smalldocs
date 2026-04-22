@@ -1694,6 +1694,59 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
         >
         > - Jordan, CEO
 
+\u2500\u2500 TEMPLATES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Define a shape layout once, reuse across slides. Two directives,
+  each must be the first non-blank line inside a slide block:
+
+    @template NAME    Register this slide's DSL as a template.
+                      The slide DOES NOT RENDER - it's a definition.
+    @extends NAME     Inherit NAME's shapes; fill slot content below.
+
+  Shapes in the template carry an \`#id\` to mark slots. Consumers
+  override those slots with \`#id: value\` blocks (inline for a single
+  line, colon-only + following lines for multi-line content).
+
+  Author ordering doesn't matter - the consumer can appear before or
+  after the template in the document. Templates never render, so they
+  don't show up in the thumbnail flow or present mode.
+
+  Example:
+
+    ~~~slide
+    @template title-body
+    grid 16 9
+    r 0 0 16 3 #title fill=\$h1.color color=#fff | placeholder title
+    r 0 3 16 6 #body align=left valign=top |
+      placeholder body
+    ~~~
+
+    ~~~slide
+    @extends title-body
+    #title: What is SDocs?
+    #body:
+    - Markdown in, styled docs out
+    - No server, hash-only state
+    - Slides from fenced blocks
+    ~~~
+
+    ~~~slide
+    @extends title-body
+    #title: Why templates
+    #body: Define shape once, fill slots N times. Recolor once in front
+           matter and every slide that uses the template picks it up.
+    ~~~
+
+  Partial fills: if a consumer omits a slot (provides \`#title\` but not
+  \`#body\`), the template's placeholder content stays - so templates
+  are self-documenting when first authored.
+
+  Unknown template names, or slots that don't match any shape id in
+  the template, surface in the error badge alongside any DSL errors.
+
+  Deliberately simple in v1: no attribute overrides (can't change
+  \`fill=\` per consumer - fork the template if you need variants),
+  no nested templates (a consumer can't extend another consumer).
+
 \u2500\u2500 ERRORS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   A slide with parse/render errors shows a red badge at the bottom
   of the thumbnail listing every problem by line number. The badge
@@ -1707,7 +1760,7 @@ fullscreen presentation mode. Esc to exit, arrows to navigate.
     - \`invalid attribute key\`            key must start with a letter
 
 \u2500\u2500 LIMITATIONS TODAY \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  - Named layouts / templates are not yet implemented.
+  - Templates: no per-consumer attribute overrides; no nested templates.
   - Arrows draw as straight lines; no routing around other shapes.
   - No drag/resize edit mode yet; shapes are authored by typing DSL.
 `;
