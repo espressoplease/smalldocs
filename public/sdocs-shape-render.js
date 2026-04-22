@@ -666,10 +666,10 @@ function renderShapes(dslText, wrap, options) {
   off.appendChild(stage);
 
   // Three stacked sublayers in DOM order: bottom (paints first, below
-  // everything), auto (matches the pre-layer default — SVG primitives
-  // render inside this sublayer's <svg>, rectangles inside the sublayer
-  // div), top (paints last, above everything). Authors opt into top/bottom
-  // via `layer=top` / `layer=bottom` on a shape; omit for auto.
+  // everything), mid (the default — SVG primitives render inside this
+  // sublayer's <svg>, rectangles inside the sublayer div), top (paints
+  // last, above everything). Authors opt into top/bottom via
+  // `layer=top` / `layer=bottom` on a shape; omit for mid.
   function makeSublayer() {
     var el = document.createElement('div');
     el.className = 'sd-stage-sublayer';
@@ -680,22 +680,27 @@ function renderShapes(dslText, wrap, options) {
     el.appendChild(s);
     return { el: el, svg: s };
   }
-  var layers = { bottom: makeSublayer(), auto: makeSublayer(), top: makeSublayer() };
+  var layers = { bottom: makeSublayer(), mid: makeSublayer(), top: makeSublayer() };
   stage.appendChild(layers.bottom.el);
-  stage.appendChild(layers.auto.el);
+  stage.appendChild(layers.mid.el);
   stage.appendChild(layers.top.el);
 
   var defsNeeded = { arrowhead: false, arrowheadColor: null };
 
+  // Arrows default to `layer=top` — almost every flow-diagram use case
+  // wants the arrow head to land above the rects it points into. The
+  // escape hatch is explicit `layer=mid` or `layer=bottom` on the arrow.
   function pickLayer(s) {
     var v = s.attrs && s.attrs.layer;
-    if (v == null || v === '') return layers.auto;
-    if (v === 'top' || v === 'bottom' || v === 'auto') return layers[v];
+    if (v == null || v === '') {
+      return s.kind === 'a' ? layers.top : layers.mid;
+    }
+    if (v === 'top' || v === 'bottom' || v === 'mid') return layers[v];
     result.errors.push({
       line: s.lineNumber,
-      message: 'invalid layer "' + v + '" (expected top | bottom | auto)',
+      message: 'invalid layer "' + v + '" (expected top | mid | bottom)',
     });
-    return layers.auto;
+    return layers.mid;
   }
 
   for (var i = 0; i < result.shapes.length; i++) {
@@ -726,7 +731,11 @@ function renderShapes(dslText, wrap, options) {
   // Arrowhead defs live in one svg but are referenced document-wide via
   // url(#_sd_arrowhead), so a single copy works for arrows in any sublayer.
   if (defsNeeded.arrowhead) {
-    var defsSvg = layers.auto.svg;
+    // Arrows default to layer=top, so most arrowhead markers live in the
+    // top sublayer's svg. Putting defs in that same svg keeps them
+    // reachable; url(#_sd_arrowhead) is document-scoped so any other
+    // sublayer's svg can reference it too.
+    var defsSvg = layers.top.svg;
     defsSvg.insertBefore(buildArrowheadDefs(defsNeeded.arrowheadColor), defsSvg.firstChild);
   }
 
