@@ -46,7 +46,15 @@ async function main() {
   const page = await ctx.newPage();
   await page.goto('http://localhost:3000/');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function', null, { timeout: 5000 });
-  await page.evaluate((body) => { window.SDocs.currentBody = body; window.SDocs.render(); }, md);
+  // Match loadMarkdown: strip front matter and apply styles before rendering,
+  // otherwise styles: values in a test fixture are ignored.
+  await page.evaluate((body) => {
+    var parsed = window.SDocYaml.parseFrontMatter(body);
+    window.SDocs.currentMeta = parsed.meta;
+    window.SDocs.currentBody = parsed.body;
+    if (parsed.meta.styles) window.SDocs.applyStylesFromMeta(parsed.meta.styles);
+    window.SDocs.render();
+  }, md);
   await page.waitForTimeout(waitMs);
   // Expand any collapsed SDocs sections so slides below the first heading
   // are visible in the screenshot. SDocs uses .md-section-body (not <details>).
