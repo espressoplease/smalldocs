@@ -1,40 +1,22 @@
 /* ═══════════════════════════════════════════════════
    COMMENT MODE
-═══════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════
+   Two card shapes:
+     .sdoc-card-pill     - inline-block, sits next to anchored text
+     .sdoc-card-sidecar  - block, sits below the commented block
+   Each shape works in three modes (view / edit / compose) using the
+   same DOM and class set; `.sdoc-card-edit` swaps body text for an
+   <input>/<textarea> and a Save/Cancel pair. Icons throughout use
+   `.sdoc-icon-btn` — the same transparent-plus-hover pattern as the
+   write-mode toolbar (`.write-tb-btn`).
+*/
 
-/* Shared theme tint used across gutter buttons, selection popover,
-   composer, and the "copy with comments" affordances. Per-comment cards
-   override this on their own style attribute via --sdoc-card-color. */
 :root {
-  --sdoc-theme-color:      #ffd700;  /* fills: card bg, toolbar button bg, highlight */
-  --sdoc-theme-color-deep: #e0bd00;  /* text on white: heading companion, icon-on-white */
+  --sdoc-theme-color:      #ffd700;  /* default per-comment color */
+  --sdoc-theme-color-deep: #e0bd00;  /* used only for hover on light surfaces */
 }
 
-/* Pending-anchor: striped highlight shown over the selection while its
-   composer is open, so the user keeps sight of what they're commenting on
-   even after the native selection has been cleared. */
-.sdoc-pending-anchor {
-  background: repeating-linear-gradient(
-    45deg,
-    var(--sdoc-theme-color),
-    var(--sdoc-theme-color) 4px,
-    color-mix(in srgb, var(--sdoc-theme-color) 35%, transparent) 4px,
-    color-mix(in srgb, var(--sdoc-theme-color) 35%, transparent) 8px
-  );
-  border-radius: 2px;
-  padding: 0 1px;
-}
-
-/* Pending-block: dashed outline on a whole block while its composer is open. */
-.sdoc-pending-block {
-  outline: 2px dashed color-mix(in srgb, var(--sdoc-theme-color) 80%, #000);
-  outline-offset: 4px;
-  background: color-mix(in srgb, var(--sdoc-theme-color) 10%, transparent);
-  border-radius: 3px;
-  transition: background .12s;
-}
-
-/* Comment toolbar - mirrors the write-toolbar show/hide pattern */
+/* ── Comment-mode toolbar ──────────────────────────────────────── */
 #_sd_comment-toolbar {
   display: none;
   align-items: center;
@@ -73,64 +55,86 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   min-width: 70px;
   text-align: center;
 }
-
 .sdoc-comment-hint {
   font-size: 11.5px;
   color: var(--text-3);
   font-family: var(--font-ui);
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   white-space: nowrap;
 }
 @media (max-width: 640px) {
   .sdoc-comment-hint { display: none; }
 }
-
 .sdoc-comment-orphan {
   font-size: 11px;
-  color: #b45309;
-  background: #fff7ed;
-  border: 1px solid #fdba74;
-  border-radius: 3px;
+  color: var(--text-2);
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm, 4px);
   padding: 1px 7px;
   margin-left: 8px;
 }
-@media (prefers-color-scheme: dark) {
-  .sdoc-comment-orphan {
-    color: #fdba74;
-    background: #2a1b0f;
-    border-color: #7c2d12;
-  }
-}
 
-/* Highlight span over anchored text */
+/* ── Shared icon button ─────────────────────────────────────────
+   Same vocabulary as `.write-tb-btn` so chrome looks consistent
+   across the app: transparent at rest, hover gets a tinted square,
+   no border and no filled colors. */
+.sdoc-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background .12s, color .12s;
+  flex-shrink: 0;
+}
+.sdoc-icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.sdoc-icon-btn svg { display: block; }
+
+/* ── Anchor highlight ───────────────────────────────────────────
+   The yellow underline-on-text. The per-comment color is set by the
+   JS as inline style; this keeps shape + cursor only. */
 .sdoc-anchor {
   border-radius: 2px;
   padding: 0 1px;
   cursor: pointer;
 }
 
-/* Inline comment card that flows with the annotated text. Coloured via a
-   per-card CSS variable `--sdoc-card-color` set by the JS (matching the
-   highlight colour), so each author's comments sit visibly with their
-   highlighted span. */
+/* ── Pending visuals ────────────────────────────────────────────
+   Striped highlight while a selection composer is open. Pending
+   blocks no longer get a separate dashed outline — the compose
+   sidecar appearing below is signal enough. */
+.sdoc-pending-anchor {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--sdoc-card-color, var(--sdoc-theme-color)),
+    var(--sdoc-card-color, var(--sdoc-theme-color)) 4px,
+    color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 35%, transparent) 4px,
+    color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 35%, transparent) 8px
+  );
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* ── Card surface (shared by pill + sidecar, view + edit) ──────── */
 .sdoc-card {
-  display: inline-block;
-  margin: 0 2px 0 4px;
-  padding: 1px 7px 2px;
-  background: color-mix(in srgb, var(--sdoc-card-color, #ffd700) 30%, transparent);
-  border: 1px solid color-mix(in srgb, var(--sdoc-card-color, #ffd700) 65%, transparent);
-  border-radius: 4px;
   font-family: var(--font-ui);
   font-size: 0.82em;
   line-height: 1.4;
   color: var(--text);
-  vertical-align: baseline;
-  cursor: default;
-  max-width: 100%;
-  white-space: normal;
-  word-break: break-word;
+  background: color-mix(in srgb, var(--sdoc-card-color, #ffd700) 22%, var(--bg-input));
+  border: 1px solid color-mix(in srgb, var(--sdoc-card-color, #ffd700) 50%, transparent);
+  border-radius: var(--radius-sm, 4px);
 }
 .sdoc-card.sdoc-card-focus {
   outline: 2px solid var(--accent);
@@ -140,133 +144,175 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   border-style: dashed;
   opacity: 0.85;
 }
-
 .sdoc-card-author {
   font-weight: 600;
   color: var(--text);
 }
-
 .sdoc-card-body {
   color: var(--text);
   white-space: pre-wrap;
   word-wrap: break-word;
 }
 
-.sdoc-card-delete {
-  margin-left: 4px;
-  background: none;
-  border: none;
-  color: var(--text-3);
-  cursor: pointer;
-  padding: 0 2px;
-  font-size: 14px;
-  line-height: 1;
+/* ── Pill (inline) ───────────────────────────────────────────────
+   Sits right after the anchored text. Used for view/edit/compose
+   of selection-anchored comments. */
+.sdoc-card-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 2px 0 4px;
+  padding: 1px 4px 1px 7px;
   vertical-align: baseline;
-  opacity: 0.6;
-  transition: opacity .12s, color .12s;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  cursor: pointer;
 }
-.sdoc-card-delete:hover { opacity: 1; color: var(--text); }
+.sdoc-card-pill.sdoc-card-edit { cursor: default; }
+.sdoc-card-sidecar { cursor: pointer; }
+.sdoc-card-sidecar.sdoc-card-edit { cursor: default; }
+.sdoc-card-pill .sdoc-card-author { margin-right: 2px; }
+.sdoc-card-pill .sdoc-card-author::after { content: ":"; color: var(--text-3); margin-left: 1px; }
 
+/* Pill in edit/compose: input takes the visual place of the body. */
+.sdoc-card-pill.sdoc-card-edit { padding: 1px 4px 1px 7px; }
+.sdoc-card-pill .sdoc-card-input {
+  flex: 1 1 220px;
+  min-width: 160px;
+  width: auto;
+  padding: 1px 2px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 80%, transparent);
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text);
+  outline: none;
+}
+.sdoc-card-pill .sdoc-card-input:focus {
+  border-bottom-color: var(--sdoc-card-color, var(--sdoc-theme-color));
+}
+
+/* ── Sidecar (block) ────────────────────────────────────────────
+   Sits below the commented block. Used for view/edit/compose of
+   block-anchored comments. */
+.sdoc-card-sidecar {
+  display: block;
+  margin: 8px 0 14px;
+  padding: 8px 10px 8px 12px;
+  border-left: 3px solid var(--sdoc-card-color, var(--sdoc-theme-color));
+  position: relative;
+}
+.sdoc-card-sidecar .sdoc-card-author { margin-right: 6px; }
+.sdoc-card-sidecar .sdoc-card-time {
+  color: var(--text-3);
+  font-size: 0.95em;
+}
+.sdoc-card-sidecar .sdoc-card-time::before { content: "· "; color: var(--text-3); margin-right: 2px; }
+.sdoc-card-sidecar .sdoc-card-body {
+  display: block;
+  margin-top: 4px;
+}
+
+/* Sidecar action icons sit at the top-right corner. */
+.sdoc-card-sidecar .sdoc-icon-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+.sdoc-card-sidecar .sdoc-card-save  { right: 30px; }
+.sdoc-card-sidecar .sdoc-card-cancel { right: 4px; }
+.sdoc-card-sidecar .sdoc-card-delete { right: 4px; }
+
+/* Sidecar in edit/compose: textarea takes the place of the body. */
+.sdoc-card-sidecar .sdoc-card-input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  min-height: 56px;
+  font-family: var(--font-ui);
+  font-size: inherit;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 35%, var(--border));
+  border-radius: var(--radius-sm, 4px);
+  resize: vertical;
+  outline: none;
+}
+.sdoc-card-sidecar .sdoc-card-input:focus {
+  border-color: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 70%, transparent);
+}
+/* In compose mode there's no author header line; reserve room for the
+   action icons at the top so they don't overlap the textarea. */
+.sdoc-card-sidecar.sdoc-card-edit { padding-top: 28px; }
+
+/* ── Orphan badge ───────────────────────────────────────────────
+   Subtle outline-style badge that matches the "n orphaned" toolbar
+   pill (no heavy fill). */
 .sdoc-card-orphan-badge {
+  display: inline-block;
   margin-left: 6px;
-  font-size: 10px;
-  color: #b45309;
-  background: #fff7ed;
-  border: 1px solid #fdba74;
-  border-radius: 3px;
   padding: 0 5px;
+  font-size: 10px;
+  color: var(--text-2);
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm, 4px);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-@media (prefers-color-scheme: dark) {
-  .sdoc-card-orphan-badge {
-    color: #fdba74;
-    background: #2a1b0f;
-    border-color: #7c2d12;
-  }
-}
 
-/* Block-host: a wrapper around every commentable block that provides a
-   positioning context for the gutter button. Using a host (rather than
-   positioning the button inside the block) keeps it visible for blocks
-   with clipping overflow — <pre>, <table>, .sdoc-chart. */
-.sdoc-block-host {
-  position: relative;
-}
+/* ── Block-host + gutter add button ─────────────────────────────
+   The host is a positioning context; the button sits in the host's
+   left margin, transparent at rest, picks up `.sdoc-icon-btn` hover
+   on direct hover. The button itself is a full-height transparent
+   hit zone so the cursor never falls into a dead gap. */
+.sdoc-block-host { position: relative; }
 
-/* Gutter add-comment button — hover-reveal outlined tile. Positioned
-   absolutely in the host's left margin so it never steals layout from
-   the block and can sit outside a <pre>'s clipping region. */
-/* The button itself is a transparent hit zone that spans the full
-   block height (plus a few px of vertical tolerance for mouse wander)
-   and reaches right up to the block's left edge so the cursor never
-   falls into a dead gap between block and button. The visible yellow
-   badge is drawn via ::before flush against the block's left edge; the
-   SVG is centered in the same 28x28 area. */
 .sdoc-gutter-add {
   position: absolute;
   left: -36px;
-  top: -6px;
-  bottom: -6px;
+  top: -4px;
+  bottom: -4px;
   width: 36px;
   padding: 0;
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--sdoc-theme-color);
+  color: var(--text-2);
   opacity: 0;
   pointer-events: none;
   transition: opacity .12s;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
 }
 body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add,
 body.comment-mode .sdoc-gutter-add:focus-visible {
   opacity: 1;
   pointer-events: auto;
 }
-/* Visible badge — the actual little yellow square the user sees.
-   Flush right so it sits directly against the block's left edge,
-   eliminating the visual gap that makes the cursor feel like it's
-   "falling off" when moving from block to button. */
-.sdoc-gutter-add::before {
-  content: "";
-  position: absolute;
-  top: 10px;
-  right: 0;
-  width: 28px;
-  height: 28px;
-  background: var(--bg-input, #fff);
-  border-radius: 6px;
-  pointer-events: none;
-  transition: background .12s, transform .12s;
-}
 .sdoc-gutter-add svg {
-  position: absolute;
-  top: 14px;
-  right: 4px;
-  width: 20px;
-  height: 20px;
-  pointer-events: none;
-  display: block;
-  transition: color .12s, transform .12s;
+  width: 18px;
+  height: 18px;
+  margin: 6px 4px 0 0;
+  padding: 2px;
+  border-radius: var(--radius-sm, 4px);
+  box-sizing: content-box;
+  transition: background .12s, color .12s;
 }
-body.comment-mode .sdoc-gutter-add:hover::before {
-  background: color-mix(in srgb, var(--sdoc-theme-color) 18%, var(--bg-input, #fff));
-  transform: scale(1.06);
-  transform-origin: center;
-}
-body.comment-mode .sdoc-gutter-add:hover svg {
-  color: var(--sdoc-theme-color-deep);
-  transform: scale(1.06);
-  transform-origin: center;
+.sdoc-gutter-add:hover svg {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
-/* Block-comment indicator: a colored stripe on the left of any block
-   that has a block-level comment, matching the comment's card color.
-   Uses ::before with absolute positioning so it doesn't shift the
-   block's own layout. */
-.sdoc-block-commented {
-  position: relative;
-}
+/* ── Block-comment indicator stripe ─────────────────────────────
+   3px colored stripe on the left edge of any block that has a
+   block-level comment, matching the comment's color. */
+.sdoc-block-commented { position: relative; }
 .sdoc-block-commented::before {
   content: "";
   position: absolute;
@@ -274,200 +320,96 @@ body.comment-mode .sdoc-gutter-add:hover svg {
   top: 2px;
   bottom: 2px;
   width: 3px;
-  background: var(--sdoc-block-comment-color, var(--sdoc-theme-color, #ffd700));
+  background: var(--sdoc-block-comment-color, var(--sdoc-theme-color));
   border-radius: 2px;
   pointer-events: none;
 }
 
-/* Mobile: make room for gutter buttons by indenting the rendered body.
-   Applies only in comment mode so read mode keeps its existing padding. */
+/* Mobile: indent the rendered body so gutter buttons have room. */
 @media (max-width: 768px) {
   body.comment-mode #_sd_rendered { padding-left: 44px; }
+  .sdoc-block-commented::before { left: -8px; }
 }
 
-/* Selection popover — outlined style that matches the gutter + tile: white
-   fill, yellow icon, thick yellow border. Sits over live text without
-   competing with the yellow highlight underneath. */
+/* ── Selection popover ──────────────────────────────────────────
+   Floating "+" that appears above a selection. Small surface card
+   with a single `.sdoc-icon-btn` inside — no thick yellow border,
+   no scale-on-hover. */
 .sdoc-selection-add {
   position: fixed;
   z-index: 200;
-  padding: 4px 6px;
-  background: var(--bg-input, #fff);
-  border: 2px solid var(--sdoc-theme-color);
-  color: var(--sdoc-theme-color);
-  border-radius: 5px;
+  padding: 2px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-2);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.10);
-  transition: transform .12s, background .12s, color .12s;
+  box-shadow: var(--shadow-sm);
+  transition: background .12s, color .12s;
 }
 .sdoc-selection-add:hover {
-  transform: scale(1.06);
-  background: color-mix(in srgb, var(--sdoc-theme-color) 15%, var(--bg-input, #fff));
-  color: var(--sdoc-theme-color-deep);
-}
-.sdoc-selection-add svg { pointer-events: none; display: block; }
-
-/* Composer (the inline textarea + Save/Cancel). Tinted with the comment
-   theme colour (defaults to yellow but honours a per-session override set
-   via --sdoc-card-color on the element) so creating a comment visually
-   belongs to the same surface as the comment cards. */
-.sdoc-composer {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  margin: 10px 0 16px;
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 18%, var(--bg-surface));
-  border: 1px solid color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 55%, transparent);
-  border-radius: var(--radius);
-}
-.sdoc-composer textarea {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 60px;
-  padding: 8px 10px;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text);
-  background: var(--bg-input);
-  border: 1px solid color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 40%, var(--border));
-  border-radius: var(--radius);
-  resize: vertical;
-}
-.sdoc-composer textarea:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 80%, transparent);
-}
-.sdoc-composer-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-  align-items: center;
-}
-.sdoc-composer-save,
-.sdoc-composer-cancel {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: var(--radius-sm, 4px);
-  cursor: pointer;
-  border: 1px solid;
-  transition: background .12s, border-color .12s;
-}
-.sdoc-composer-save {
-  background: var(--sdoc-card-color, var(--sdoc-theme-color));
-  border-color: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 75%, #000);
-  color: #1a1a1a;
-}
-.sdoc-composer-save:hover {
-  background: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 85%, #000);
-}
-.sdoc-composer-cancel {
-  background: transparent;
-  border-color: var(--border);
-  color: var(--text-2);
-}
-.sdoc-composer-cancel:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
+.sdoc-selection-add svg { display: block; }
 
-/* Card edit-in-place: click a card to swap its body for an input + tick/×. */
-.sdoc-card-editing {
-  padding: 2px 6px;
-}
-.sdoc-card-edit-input {
-  display: inline-block;
-  width: auto;
-  min-width: 200px;
-  padding: 1px 6px;
-  background: transparent;
-  border: none;
-  border-bottom: 1px dashed color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 80%, #000);
-  font-family: var(--font-ui);
-  font-size: inherit;
-  color: var(--text);
-  outline: none;
-  vertical-align: baseline;
-}
-.sdoc-card-edit-input:focus {
-  border-bottom-color: var(--sdoc-card-color, var(--sdoc-theme-color));
-}
-.sdoc-card-edit-save,
-.sdoc-card-edit-cancel {
-  background: none;
-  border: none;
-  padding: 0 3px;
-  margin-left: 4px;
-  cursor: pointer;
-  color: var(--text-2);
-  vertical-align: middle;
-  opacity: 0.75;
-  transition: opacity .12s, color .12s;
-}
-.sdoc-card-edit-save:hover { opacity: 1; color: #047857; }
-.sdoc-card-edit-cancel:hover { opacity: 1; color: #b91c1c; }
-
-/* "Copy with comments" button — used in the comment toolbar. Pure yellow
-   at rest; darkens on hover to signal it's active. */
+/* ── Copy-with-comments buttons ─────────────────────────────────
+   Toolbar button = uses the `.btn.ghost` vocabulary (see
+   layout.css). Heading companion = invisible at rest like the
+   header-anchor / header-copy siblings, opacity-up on heading hover. */
 .sdoc-copy-with-c {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 4px 9px;
-  background: var(--sdoc-theme-color);
-  border: 1px solid color-mix(in srgb, var(--sdoc-theme-color) 75%, #000);
-  color: #1a1a1a;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
   cursor: pointer;
   border-radius: var(--radius-sm, 4px);
   font-family: var(--font-ui);
   font-size: 11.5px;
   font-weight: 500;
-  transition: background .12s, border-color .12s;
+  transition: background .12s, color .12s, border-color .12s;
 }
 .sdoc-copy-with-c:hover {
-  background: color-mix(in srgb, var(--sdoc-theme-color) 85%, #000);
-  border-color: color-mix(in srgb, var(--sdoc-theme-color) 60%, #000);
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border-strong);
 }
 .sdoc-copy-with-c svg { flex-shrink: 0; color: inherit; }
 .sdoc-copy-with-c-label { white-space: nowrap; color: inherit; }
 
-/* Heading companion — white/ghost chrome with deeper yellow text so it
-   reads clearly next to the existing header-anchor / header-copy icons
-   without being a heavy filled button. */
 .sdoc-head-copy-c.sdoc-copy-with-c {
-  margin-left: 1px;
-  padding: 4px;
-  background: var(--bg-input, #fff);
+  margin-left: 4px;
+  padding: 2px 6px;
+  background: transparent;
   border: none;
-  color: var(--sdoc-theme-color-deep);
-  opacity: 1;
-  font-size: 12.5px;
+  color: var(--md-link-color, var(--text-3));
+  opacity: 0.5;
+  font-size: 11.5px;
   font-weight: 500;
   vertical-align: middle;
-  border-radius: 3px;
+  border-radius: var(--radius-sm, 4px);
+  transition: opacity .15s, background .12s, color .12s;
 }
+#_sd_rendered h1:hover .sdoc-head-copy-c,
+#_sd_rendered h2:hover .sdoc-head-copy-c,
+#_sd_rendered h3:hover .sdoc-head-copy-c,
+#_sd_rendered h4:hover .sdoc-head-copy-c,
+#_sd_rendered h5:hover .sdoc-head-copy-c,
+#_sd_rendered h6:hover .sdoc-head-copy-c { opacity: 1; }
 .sdoc-head-copy-c.sdoc-copy-with-c:hover {
-  background: color-mix(in srgb, var(--sdoc-theme-color) 18%, var(--bg-input, #fff));
-  color: var(--sdoc-theme-color-deep);
-  border: none;
-}
-.sdoc-head-copy-c .sdoc-copy-with-c-label { color: inherit; }
-@media (prefers-color-scheme: dark) {
-  .sdoc-head-copy-c.sdoc-copy-with-c {
-    color: color-mix(in srgb, var(--sdoc-theme-color) 85%, #fff);
-  }
+  background: var(--bg-hover);
+  color: var(--text);
+  opacity: 1;
 }
 
-/* Info panel prefs: generic text input */
+/* ── Info-panel comment prefs ───────────────────────────────────
+   Generic small text input used by the comments prefs section. */
 .info-settings-text {
   padding: 4px 8px;
   font-family: var(--font-ui);
