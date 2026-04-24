@@ -271,110 +271,145 @@ function wrapRange(range, id, color) {
 }
 
 // ── Cards ───────────────────────────────────────────────────────────────
+//
+// One factory builds either shape (inline pill or block sidecar) in any of
+// three modes (view / edit / compose). View shows static author + body and
+// a delete icon. Edit/compose shows an input + tick/cancel. The DOM shape
+// (and CSS class) of edit and compose are identical, so save/cancel just
+// toggles the classes rather than swapping nodes.
 
 var TICK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 var X_SVG    = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+var TRASH_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
 
-function cardEl(c, orphaned) {
-  var card = document.createElement('span');
-  card.className = 'sdoc-card' + (orphaned ? ' sdoc-card-orphaned' : '');
-  card.setAttribute('data-c', c.id);
-  card.style.setProperty('--sdoc-card-color', c.color || '#ffd700');
+function iconBtn(svg, label, onClick) {
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'sdoc-icon-btn';
+  b.setAttribute('aria-label', label);
+  b.title = label;
+  b.innerHTML = svg;
+  b.addEventListener('click', onClick);
+  return b;
+}
 
-  var who = document.createElement('span');
-  who.className = 'sdoc-card-author';
-  who.textContent = c.author || 'user';
-  who.title = (c.author || 'user') + (c.at ? ' · ' + formatRelativeTime(c.at) : '');
-  card.appendChild(who);
+// Build a card element. `opts.shape` = 'pill' | 'sidecar'.
+// `opts.mode` = 'view' | 'edit' | 'compose'. For edit/compose, `opts.onSave`
+// receives the trimmed text and `opts.onCancel` is invoked to revert.
+function makeCardElement(c, opts) {
+  var shape = opts.shape;
+  var mode  = opts.mode;
+  var tag   = shape === 'pill' ? 'span' : 'div';
+  var card = document.createElement(tag);
+  card.className = 'sdoc-card sdoc-card-' + shape +
+    (mode === 'view' ? '' : ' sdoc-card-edit') +
+    (opts.orphaned ? ' sdoc-card-orphaned' : '');
+  if (c && c.id) card.setAttribute('data-c', c.id);
+  var color = (c && c.color) || readPrefs().color;
+  card.style.setProperty('--sdoc-card-color', color);
 
-  var body = document.createElement('span');
-  body.className = 'sdoc-card-body';
-  body.textContent = ': ' + (c.text || '');
-  card.appendChild(body);
+  if (mode === 'view') {
+    var who = document.createElement('span');
+    who.className = 'sdoc-card-author';
+    who.textContent = c.author || 'user';
+    who.title = (c.author || 'user') + (c.at ? ' · ' + formatRelativeTime(c.at) : '');
+    card.appendChild(who);
 
-  if (orphaned) {
-    var badge = document.createElement('span');
-    badge.className = 'sdoc-card-orphan-badge';
-    badge.textContent = 'anchor lost';
-    card.appendChild(badge);
+    if (shape === 'sidecar' && c.at) {
+      var time = document.createElement('span');
+      time.className = 'sdoc-card-time';
+      time.textContent = formatRelativeTime(c.at);
+      card.appendChild(time);
+    }
+
+    var body = document.createElement('span');
+    body.className = 'sdoc-card-body';
+    body.textContent = c.text || '';
+    card.appendChild(body);
+
+    if (opts.orphaned) {
+      var badge = document.createElement('span');
+      badge.className = 'sdoc-card-orphan-badge';
+      badge.textContent = 'anchor lost';
+      card.appendChild(badge);
+    }
+
+    var del = iconBtn(TRASH_SVG, 'Delete comment', function (e) {
+      e.stopPropagation();
+      deleteComment(c.id);
+    });
+    del.classList.add('sdoc-card-delete');
+    card.appendChild(del);
+
+    card.addEventListener('click', function (e) {
+      if (e.target.closest('.sdoc-icon-btn')) return;
+      focusComment(c.id);
+      replaceWithEdit(card, c, shape);
+    });
+  } else {
+    var inputEl;
+    if (shape === 'pill') {
+      inputEl = document.createElement('input');
+      inputEl.type = 'text';
+    } else {
+      inputEl = document.createElement('textarea');
+      inputEl.rows = 3;
+    }
+    inputEl.className = 'sdoc-card-input';
+    inputEl.placeholder = 'Add a comment...';
+    if (c && c.text) inputEl.value = c.text;
+    inputEl.addEventListener('click', function (e) { e.stopPropagation(); });
+
+    var save = iconBtn(TICK_SVG, 'Save', function (e) {
+      e.stopPropagation();
+      var text = inputEl.value.trim();
+      if (!text) { inputEl.focus(); return; }
+      opts.onSave(text);
+    });
+    save.classList.add('sdoc-card-save');
+
+    var cancel = iconBtn(X_SVG, 'Cancel', function (e) {
+      e.stopPropagation();
+      opts.onCancel();
+    });
+    cancel.classList.add('sdoc-card-cancel');
+
+    inputEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { e.preventDefault(); opts.onCancel(); }
+      if (e.key === 'Enter') {
+        // Pill = single-line input → Enter saves.
+        // Sidecar = textarea → Cmd/Ctrl+Enter saves; bare Enter inserts newline.
+        if (shape === 'pill' || e.metaKey || e.ctrlKey) {
+          e.preventDefault();
+          save.click();
+        }
+      }
+    });
+
+    card.appendChild(inputEl);
+    card.appendChild(save);
+    card.appendChild(cancel);
+    setTimeout(function () { inputEl.focus(); if (c && c.text) inputEl.select(); }, 0);
   }
-
-  var del = document.createElement('button');
-  del.className = 'sdoc-card-delete';
-  del.setAttribute('aria-label', 'Delete comment');
-  del.title = 'Delete';
-  del.textContent = '×';
-  del.addEventListener('click', function (e) {
-    e.stopPropagation();
-    deleteComment(c.id);
-  });
-  card.appendChild(del);
-
-  card.addEventListener('click', function (e) {
-    if (card.classList.contains('sdoc-card-editing')) return;
-    focusComment(c.id);
-    enterEditMode(card, c);
-  });
 
   return card;
 }
 
-function enterEditMode(card, c) {
-  card.classList.add('sdoc-card-editing');
-  var origHTML = card.innerHTML;
-  card.innerHTML = '';
-
-  var input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'sdoc-card-edit-input';
-  input.value = c.text || '';
-
-  var tick = document.createElement('button');
-  tick.className = 'sdoc-card-edit-save';
-  tick.setAttribute('aria-label', 'Save edit');
-  tick.title = 'Save';
-  tick.innerHTML = TICK_SVG;
-
-  var x = document.createElement('button');
-  x.className = 'sdoc-card-edit-cancel';
-  x.setAttribute('aria-label', 'Cancel edit');
-  x.title = 'Cancel';
-  x.innerHTML = X_SVG;
-
-  function restore() {
-    card.classList.remove('sdoc-card-editing');
-    card.innerHTML = origHTML;
-    rebindCard(card, c);
-  }
-
-  function save() {
-    var newText = input.value.trim();
-    if (!newText) { input.focus(); return; }
-    if (newText === (c.text || '')) { restore(); return; }
-    S.currentMeta = SDC.updateComment(S.currentMeta || {}, c.id, { text: newText });
+function replaceWithEdit(viewCard, c, shape) {
+  var editCard = makeCardElement(c, {
+    shape: shape,
+    mode: 'edit',
+    onSave: function (text) {
+      if (text === (c.text || '')) { revert(); return; }
+      S.currentMeta = SDC.updateComment(S.currentMeta || {}, c.id, { text: text });
+      if (S.syncAll) S.syncAll('comment');
+    },
+    onCancel: revert,
+  });
+  function revert() {
     if (S.syncAll) S.syncAll('comment');
   }
-
-  tick.addEventListener('click', function (e) { e.stopPropagation(); save(); });
-  x.addEventListener('click', function (e) { e.stopPropagation(); restore(); });
-  input.addEventListener('click', function (e) { e.stopPropagation(); });
-  input.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); save(); }
-    if (e.key === 'Escape') { e.preventDefault(); restore(); }
-  });
-
-  card.appendChild(input);
-  card.appendChild(tick);
-  card.appendChild(x);
-  setTimeout(function () { input.focus(); input.select(); }, 0);
-}
-
-function rebindCard(card, c) {
-  var del = card.querySelector('.sdoc-card-delete');
-  if (del) del.addEventListener('click', function (e) {
-    e.stopPropagation();
-    deleteComment(c.id);
-  });
+  if (viewCard.parentNode) viewCard.parentNode.replaceChild(editCard, viewCard);
 }
 
 // ── Render anchors + cards ──────────────────────────────────────────────
@@ -385,41 +420,38 @@ function renderComment(c) {
     if (resolved) {
       var span = wrapRange(resolved.range, c.id, c.color);
       if (span) {
-        var card = cardEl(c, false);
+        var pill = makeCardElement(c, { shape: 'pill', mode: 'view' });
         // Anchors inside a <table> can't take an inline card inside a
         // <td> — the card widens the cell and breaks the column grid.
-        // Place those cards as siblings of the <table> instead. For
-        // every other block (p, pre, blockquote, li, h*, ...), the
-        // card flows naturally inline-block right after the anchor.
+        // For tables, place the card as a sibling of the <table>.
         var table = span.closest('table');
         if (table && table.parentNode) {
-          table.parentNode.insertBefore(card, table.nextSibling);
+          table.parentNode.insertBefore(pill, table.nextSibling);
         } else {
-          span.parentNode.insertBefore(card, span.nextSibling);
+          span.parentNode.insertBefore(pill, span.nextSibling);
         }
         return false;
       }
     }
-    // Fallback: orphan
-    var orphanCard = cardEl(c, true);
-    S.renderedEl.appendChild(orphanCard);
+    var orphan = makeCardElement(c, { shape: 'sidecar', mode: 'view', orphaned: true });
+    S.renderedEl.appendChild(orphan);
     return true;
   }
   // kind === 'block'
   var block = findBlockById(c.block, S.renderedEl);
   if (block) {
-    var bCard = cardEl(c, false);
-    // Mark the block so a CSS left-stripe in the comment's color makes
-    // it visually clear WHICH block the card belongs to. Without this,
-    // a standalone pill just sits at the end of the paragraph with no
-    // tie to the text above.
     block.classList.add('sdoc-block-commented');
     block.style.setProperty('--sdoc-block-comment-color', c.color || '#ffd700');
-    block.appendChild(bCard);
+    var sidecar = makeCardElement(c, { shape: 'sidecar', mode: 'view' });
+    var host = block.parentNode && block.parentNode.classList &&
+               block.parentNode.classList.contains('sdoc-block-host')
+      ? block.parentNode
+      : block;
+    if (host.parentNode) host.parentNode.insertBefore(sidecar, host.nextSibling);
     return false;
   }
-  var o = cardEl(c, true);
-  S.renderedEl.appendChild(o);
+  var orphanBlock = makeCardElement(c, { shape: 'sidecar', mode: 'view', orphaned: true });
+  S.renderedEl.appendChild(orphanBlock);
   return true;
 }
 
@@ -522,6 +554,10 @@ function handleSelectionChange() {
 }
 
 // ── Composer ────────────────────────────────────────────────────────────
+//
+// Composing a new comment uses the SAME card shape as the saved comment:
+// pill for selection comments, sidecar for block comments. So the position
+// the user types in is exactly where the saved comment will live.
 
 function hideComposer() {
   if (composerEl && composerEl.parentNode) {
@@ -530,73 +566,54 @@ function hideComposer() {
   composerEl = null;
 }
 
-function makeComposer(onSave, onCancel, initialText) {
-  hideComposer();
-  var el = document.createElement('div');
-  el.className = 'sdoc-composer';
-  var prefs = readPrefs();
-  el.style.setProperty('--sdoc-card-color', prefs.color);
-  var ta = document.createElement('textarea');
-  ta.placeholder = 'Add a comment...';
-  ta.rows = 3;
-  if (initialText) ta.value = initialText;
-  el.appendChild(ta);
-  var actions = document.createElement('div');
-  actions.className = 'sdoc-composer-actions';
-  var save = document.createElement('button');
-  save.className = 'sdoc-composer-save';
-  save.setAttribute('aria-label', 'Save comment');
-  save.title = 'Save (Cmd/Ctrl + Enter)';
-  save.innerHTML = TICK_SVG;
-  var cancel = document.createElement('button');
-  cancel.className = 'sdoc-composer-cancel';
-  cancel.setAttribute('aria-label', 'Cancel');
-  cancel.title = 'Cancel (Esc)';
-  cancel.innerHTML = X_SVG;
-  function doCancel() {
-    hideComposer();
-    if (onCancel) onCancel();
-  }
-  save.addEventListener('click', function () {
-    var text = ta.value.trim();
-    if (!text) { ta.focus(); return; }
-    onSave(text);
-    hideComposer();
-  });
-  cancel.addEventListener('click', doCancel);
-  ta.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { doCancel(); }
-    if ((e.key === 'Enter' && (e.metaKey || e.ctrlKey))) { save.click(); }
-  });
-  actions.appendChild(save);
-  actions.appendChild(cancel);
-  el.appendChild(actions);
-  composerEl = el;
-  setTimeout(function () { ta.focus(); }, 0);
-  return el;
-}
-
 function openBlockComposer(block) {
+  hideComposer();
   var prefs = readPrefs();
   var blockId = computeBlockId(block, S.renderedEl);
   if (!blockId) return;
-  block.classList.add('sdoc-pending-block');
-  function clearPending() { block.classList.remove('sdoc-pending-block'); }
-  var composer = makeComposer(function (text) {
-    clearPending();
-    try {
-      var res = SDC.addBlockComment(S.currentMeta || {}, { block: blockId }, {
-        author: prefs.author, color: prefs.color,
-        at: new Date().toISOString(), text: text,
-      });
-      S.currentMeta = res.meta;
-      if (S.syncAll) S.syncAll('comment');
-      setTimeout(function () { focusComment(res.id); }, 30);
-    } catch (e) {
-      console.warn('addBlockComment failed:', e && e.message);
-    }
-  }, clearPending);
-  block.parentNode.insertBefore(composer, block.nextSibling);
+  block.classList.add('sdoc-block-commented');
+  block.style.setProperty('--sdoc-block-comment-color', prefs.color);
+
+  var draft = { color: prefs.color, author: prefs.author };
+  var composer = makeCardElement(draft, {
+    shape: 'sidecar',
+    mode: 'compose',
+    onSave: function (text) {
+      try {
+        var res = SDC.addBlockComment(S.currentMeta || {}, { block: blockId }, {
+          author: prefs.author, color: prefs.color,
+          at: new Date().toISOString(), text: text,
+        });
+        S.currentMeta = res.meta;
+        hideComposer();
+        if (S.syncAll) S.syncAll('comment');
+        setTimeout(function () { focusComment(res.id); }, 30);
+      } catch (e) {
+        console.warn('addBlockComment failed:', e && e.message);
+      }
+    },
+    onCancel: function () {
+      hideComposer();
+      if (!hasBlockComment(blockId)) {
+        block.classList.remove('sdoc-block-commented');
+        block.style.removeProperty('--sdoc-block-comment-color');
+      }
+    },
+  });
+  composerEl = composer;
+  var host = block.parentNode && block.parentNode.classList &&
+             block.parentNode.classList.contains('sdoc-block-host')
+    ? block.parentNode
+    : block;
+  if (host.parentNode) host.parentNode.insertBefore(composer, host.nextSibling);
+}
+
+function hasBlockComment(blockId) {
+  var list = SDC.getComments(S.currentMeta || {});
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].kind === 'block' && list[i].block === blockId) return true;
+  }
+  return false;
 }
 
 // Capture prefix/suffix context within the containing block's plain text.
@@ -616,6 +633,7 @@ function captureContext(range, block) {
 }
 
 function openSelectionComposerFromSelection(range) {
+  hideComposer();
   var prefs = readPrefs();
   var quote = range.toString();
   if (!quote) return;
@@ -627,6 +645,7 @@ function openSelectionComposerFromSelection(range) {
   // Visual preview of the pending anchor while the composer is open.
   var pendingSpan = document.createElement('span');
   pendingSpan.className = 'sdoc-pending-anchor';
+  pendingSpan.style.setProperty('--sdoc-card-color', prefs.color);
   try {
     range.surroundContents(pendingSpan);
   } catch (_) {
@@ -646,23 +665,41 @@ function openSelectionComposerFromSelection(range) {
     pendingSpan = null;
   }
 
-  var composer = makeComposer(function (text) {
-    clearPending();
-    try {
-      var res = SDC.addSelectionComment(S.currentMeta || {}, {
-        quote: quote, prefix: ctx.prefix, suffix: ctx.suffix, block: blockId,
-      }, {
-        author: prefs.author, color: prefs.color,
-        at: new Date().toISOString(), text: text,
-      });
-      S.currentMeta = res.meta;
-      if (S.syncAll) S.syncAll('comment');
-      setTimeout(function () { focusComment(res.id); }, 30);
-    } catch (e) {
-      console.warn('addSelectionComment failed:', e && e.message);
-    }
-  }, clearPending);
-  block.parentNode.insertBefore(composer, block.nextSibling);
+  var draft = { color: prefs.color, author: prefs.author };
+  var composer = makeCardElement(draft, {
+    shape: 'pill',
+    mode: 'compose',
+    onSave: function (text) {
+      clearPending();
+      hideComposer();
+      try {
+        var res = SDC.addSelectionComment(S.currentMeta || {}, {
+          quote: quote, prefix: ctx.prefix, suffix: ctx.suffix, block: blockId,
+        }, {
+          author: prefs.author, color: prefs.color,
+          at: new Date().toISOString(), text: text,
+        });
+        S.currentMeta = res.meta;
+        if (S.syncAll) S.syncAll('comment');
+        setTimeout(function () { focusComment(res.id); }, 30);
+      } catch (e) {
+        console.warn('addSelectionComment failed:', e && e.message);
+      }
+    },
+    onCancel: function () { clearPending(); hideComposer(); },
+  });
+  composerEl = composer;
+  // Place the inline composer pill right after the pending anchor — same
+  // physical spot the saved pill will land in. Tables get sibling-of-table.
+  var table = pendingSpan ? pendingSpan.closest('table') : null;
+  if (table && table.parentNode) {
+    table.parentNode.insertBefore(composer, table.nextSibling);
+  } else if (pendingSpan && pendingSpan.parentNode) {
+    pendingSpan.parentNode.insertBefore(composer, pendingSpan.nextSibling);
+  } else {
+    // Fallback: sibling-after-block (matches old behavior if anchor wrap failed)
+    block.parentNode.insertBefore(composer, block.nextSibling);
+  }
   var sel = window.getSelection();
   if (sel) sel.removeAllRanges();
 }
