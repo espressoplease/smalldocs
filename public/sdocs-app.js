@@ -209,6 +209,19 @@ function buildCollapsibleSections(container) {
 
 function render() {
   S.destroyCharts();
+  // Before stomping innerHTML, remember which collapsible sections the
+  // user had expanded so we can re-open them after rebuild. Keyed by the
+  // heading's slugified id, which is stable across renders of the same
+  // body. Use a descendant query for the heading because comment mode
+  // wraps headings in a `.sdoc-block-host` div (which our :scope-scoped
+  // query would otherwise miss).
+  var openIds = [];
+  S.renderedEl.querySelectorAll('.md-section').forEach(function (sec) {
+    var body = sec.querySelector(':scope > .md-section-body');
+    if (!body || !body.classList.contains('open')) return;
+    var heading = sec.querySelector('h2, h3, h4');
+    if (heading && heading.id) openIds.push(heading.id);
+  });
   var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
   if (oldSpacer) oldSpacer.remove();
   S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody), { FORBID_ATTR: ['style'] });
@@ -216,6 +229,17 @@ function render() {
   attachHeadingAnchors(S.renderedEl);
   attachCodeCopyButtons(S.renderedEl);
   buildCollapsibleSections(S.renderedEl);
+  // Re-expand sections that were open before this render.
+  openIds.forEach(function (id) {
+    var heading = S.renderedEl.querySelector('#' + CSS.escape(id));
+    if (!heading) return;
+    var section = heading.closest('.md-section');
+    if (!section) return;
+    var body = section.querySelector(':scope > .md-section-body');
+    var toggle = heading.querySelector('.section-toggle');
+    if (body) body.classList.add('open');
+    if (toggle) toggle.classList.add('open');
+  });
   S.processCharts(S.renderedEl);
   if (S.processMath) S.processMath(S.renderedEl);
   renderFileInfoCard();

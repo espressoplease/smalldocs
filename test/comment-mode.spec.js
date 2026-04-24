@@ -569,6 +569,43 @@ test.describe('edge-case content', () => {
   });
 });
 
+// ── Collapsible section state preservation ──────────────────────────────
+
+test.describe('collapsible sections', () => {
+  test('expanded H2 stays open after adding a comment inside it', async ({ page }) => {
+    await setBody(page, '# T\n\n## Expanded Section\n\nNested paragraph here.\n\n## Other Section\n\nOther text.\n');
+    // Expand Section A by clicking its H2
+    await page.evaluate(() => {
+      var h2 = Array.from(document.querySelectorAll('h2')).find(h => h.textContent.indexOf('Expanded') !== -1);
+      h2.click();
+    });
+    // Verify it's open
+    const beforeOpen = await page.evaluate(() => {
+      var h2 = Array.from(document.querySelectorAll('h2')).find(h => h.textContent.indexOf('Expanded') !== -1);
+      return h2.closest('.md-section').querySelector('.md-section-body').classList.contains('open');
+    });
+    expect(beforeOpen).toBe(true);
+    // Add a comment inside the nested paragraph
+    await saveInline(page, 'Nested paragraph', { prefix: '', suffix: ' here' });
+    // After the re-render, the section should still be open
+    const afterOpen = await page.evaluate(() => {
+      var h2 = Array.from(document.querySelectorAll('h2')).find(h => h.textContent.indexOf('Expanded') !== -1);
+      return h2.closest('.md-section').querySelector('.md-section-body').classList.contains('open');
+    });
+    expect(afterOpen).toBe(true);
+  });
+
+  test('collapsed sections stay collapsed (no involuntary expansion)', async ({ page }) => {
+    await setBody(page, '# T\n\n## S1\n\nOne.\n\n## S2\n\nTwo.\n');
+    // Leave everything collapsed (default). Add a doc-level comment on H1.
+    await saveInline(page, 'T', { prefix: '', suffix: '' });
+    const states = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.md-section-body')).map(b => b.classList.contains('open')));
+    // None of the H2 bodies should have opened on their own.
+    expect(states.every(x => x === false)).toBe(true);
+  });
+});
+
 // ── Hash round-trip ──────────────────────────────────────────────────────
 
 test.describe('hash persistence', () => {
