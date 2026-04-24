@@ -2,6 +2,11 @@
    COMMENT MODE
 ═══════════════════════════════════════════════════ */
 
+/* Shared theme tint used across gutter buttons, selection popover,
+   composer, and the "copy with comments" affordances. Per-comment cards
+   override this on their own style attribute via --sdoc-card-color. */
+:root { --sdoc-theme-color: #ffd700; }
+
 /* Comment toolbar - mirrors the write-toolbar show/hide pattern */
 #_sd_comment-toolbar {
   display: none;
@@ -154,31 +159,32 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   }
 }
 
-/* Gutter add-comment button — always visible in comment mode, matching the
-   header-anchor / header-copy icons' faded-link style so the rendered doc
-   stays calm. */
+/* Gutter add-comment button — always visible in comment mode, tinted with
+   the comment theme colour so the rail of `+` icons reads as part of the
+   commenting surface. */
 .sdoc-gutter-add {
   float: left;
-  margin-left: -28px;
-  margin-top: 4px;
-  width: 20px;
-  height: 20px;
+  margin-left: -34px;
+  margin-top: 2px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   background: none;
   border: none;
-  color: var(--md-link-color, #2563eb);
-  opacity: 0.5;
+  color: var(--sdoc-theme-color);
+  opacity: 0.7;
   cursor: pointer;
   display: none;
   align-items: center;
   justify-content: center;
-  transition: opacity .15s;
+  transition: opacity .15s, transform .12s;
 }
 body.comment-mode .sdoc-gutter-add {
   display: inline-flex;
 }
 body.comment-mode .sdoc-gutter-add:hover {
   opacity: 1;
+  transform: scale(1.08);
 }
 .sdoc-gutter-add svg { pointer-events: none; }
 
@@ -188,37 +194,45 @@ body.comment-mode .sdoc-gutter-add:hover {
   body.comment-mode #_sd_rendered { padding-left: 44px; }
 }
 
-/* Selection popover (floats above the selection) */
+/* Selection popover (floats next to the live text selection). Rounded
+   square in the comment theme colour so it reads as "add a comment here". */
 .sdoc-selection-add {
   position: fixed;
   z-index: 200;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  color: var(--accent);
-  border-radius: 50%;
+  padding: 4px 6px;
+  background: var(--sdoc-theme-color);
+  border: 1px solid color-mix(in srgb, var(--sdoc-theme-color) 70%, #000);
+  color: #1a1a1a;
+  border-radius: 5px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-  transition: transform .12s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  transition: transform .12s, box-shadow .12s;
 }
-.sdoc-selection-add:hover { transform: scale(1.08); }
-.sdoc-selection-add svg { pointer-events: none; }
+.sdoc-selection-add:hover {
+  transform: scale(1.06);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.22);
+}
+.sdoc-selection-add svg { pointer-events: none; display: block; }
 
-/* Composer (the inline textarea + Save/Cancel) */
+/* Composer (the inline textarea + Save/Cancel). Tinted with the comment
+   theme colour (defaults to yellow but honours a per-session override set
+   via --sdoc-card-color on the element) so creating a comment visually
+   belongs to the same surface as the comment cards. */
 .sdoc-composer {
-  margin: 8px 0 16px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 10px 0 16px;
   padding: 10px 12px;
-  background: var(--bg-surface);
-  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 18%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 55%, transparent);
   border-radius: var(--radius);
-  max-width: 520px;
 }
 .sdoc-composer textarea {
+  display: block;
   width: 100%;
   box-sizing: border-box;
   min-height: 60px;
@@ -228,13 +242,13 @@ body.comment-mode .sdoc-gutter-add:hover {
   line-height: 1.5;
   color: var(--text);
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 40%, var(--border));
   border-radius: var(--radius);
   resize: vertical;
 }
 .sdoc-composer textarea:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 80%, transparent);
 }
 .sdoc-composer-actions {
   display: flex;
@@ -246,61 +260,64 @@ body.comment-mode .sdoc-gutter-add:hover {
   font-size: 12px;
 }
 .sdoc-composer-save {
-  background: var(--accent) !important;
-  color: #fff !important;
-  border-color: var(--accent) !important;
+  background: var(--sdoc-card-color, var(--sdoc-theme-color)) !important;
+  color: #1a1a1a !important;
+  border-color: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 75%, #000) !important;
 }
-.sdoc-composer-save:hover {
-  opacity: 0.92;
-}
+.sdoc-composer-save:hover { filter: brightness(0.96); }
 
-/* "Copy with comments" button — used in the comment toolbar and as a
-   companion next to heading copy buttons. Icon + label sit together and
-   hover-highlight as a single unit. */
+/* "Copy with comments" button — used in the comment toolbar. Icon + label
+   sit together and hover-highlight as a single unit. Tinted yellow so the
+   button reads as "this is a comment thing, not a generic button". */
 .sdoc-copy-with-c {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 4px 9px;
-  background: none;
-  border: 1px solid transparent;
-  color: var(--text-2);
+  background: color-mix(in srgb, var(--sdoc-theme-color) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sdoc-theme-color) 45%, transparent);
+  color: var(--text);
   cursor: pointer;
   border-radius: var(--radius-sm, 4px);
   font-family: var(--font-ui);
   font-size: 11.5px;
   font-weight: 500;
-  transition: color .12s, background .12s, border-color .12s;
-}
-.sdoc-copy-with-c:hover,
-.sdoc-copy-with-c:hover .sdoc-copy-with-c-label,
-.sdoc-copy-with-c:hover svg {
-  color: var(--accent);
+  transition: background .12s, border-color .12s;
 }
 .sdoc-copy-with-c:hover {
-  background: var(--bg-hover);
-  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+  background: color-mix(in srgb, var(--sdoc-theme-color) 35%, transparent);
+  border-color: color-mix(in srgb, var(--sdoc-theme-color) 70%, transparent);
 }
-.sdoc-copy-with-c svg {
-  flex-shrink: 0;
-  color: inherit;
-}
-.sdoc-copy-with-c-label {
-  white-space: nowrap;
-  color: inherit;
-}
+.sdoc-copy-with-c svg { flex-shrink: 0; color: inherit; }
+.sdoc-copy-with-c-label { white-space: nowrap; color: inherit; }
 
-/* Heading companion variant: smaller, link-coloured like the existing
-   header-anchor / header-copy buttons. */
-.sdoc-head-copy-c {
+/* Heading companion variant — NOT a visible button. Matches the plain,
+   icon-sized feel of .header-anchor / .header-copy-btn sitting next to it,
+   just tinted in the comment theme colour. */
+.sdoc-head-copy-c.sdoc-copy-with-c {
   margin-left: 6px;
-  padding: 1px 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: color-mix(in srgb, var(--sdoc-theme-color) 70%, #8a5c00);
+  opacity: 0.7;
   font-size: 10.5px;
-  color: var(--md-link-color, #2563eb);
-  opacity: 0.5;
   vertical-align: middle;
+  border-radius: 0;
 }
-.sdoc-head-copy-c:hover { opacity: 1; }
+.sdoc-head-copy-c.sdoc-copy-with-c:hover {
+  opacity: 1;
+  background: none;
+  border: none;
+}
+.sdoc-head-copy-c .sdoc-copy-with-c-label {
+  color: inherit;
+}
+@media (prefers-color-scheme: dark) {
+  .sdoc-head-copy-c.sdoc-copy-with-c {
+    color: color-mix(in srgb, var(--sdoc-theme-color) 80%, #fff);
+  }
+}
 
 /* Info panel prefs: generic text input */
 .info-settings-text {
