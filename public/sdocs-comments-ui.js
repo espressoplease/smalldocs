@@ -312,15 +312,11 @@ function makeCardElement(c, opts) {
     var who = document.createElement('span');
     who.className = 'sdoc-card-author';
     who.textContent = c.author || 'user';
+    // Time stays as a hover tooltip on the author name only — it's
+    // useful for "how old is this comment" but doesn't earn its own
+    // line in the visible card.
     who.title = (c.author || 'user') + (c.at ? ' · ' + formatRelativeTime(c.at) : '');
     card.appendChild(who);
-
-    if (shape === 'sidecar' && c.at) {
-      var time = document.createElement('span');
-      time.className = 'sdoc-card-time';
-      time.textContent = formatRelativeTime(c.at);
-      card.appendChild(time);
-    }
 
     var body = document.createElement('span');
     body.className = 'sdoc-card-body';
@@ -440,14 +436,22 @@ function renderComment(c) {
   // kind === 'block'
   var block = findBlockById(c.block, S.renderedEl);
   if (block) {
-    block.classList.add('sdoc-block-commented');
-    block.style.setProperty('--sdoc-block-comment-color', c.color || '#ffd700');
-    var sidecar = makeCardElement(c, { shape: 'sidecar', mode: 'view' });
     var host = block.parentNode && block.parentNode.classList &&
                block.parentNode.classList.contains('sdoc-block-host')
       ? block.parentNode
-      : block;
-    if (host.parentNode) host.parentNode.insertBefore(sidecar, host.nextSibling);
+      : null;
+    if (host) {
+      host.classList.add('sdoc-host-commented');
+      host.style.setProperty('--sdoc-block-comment-color', c.color || '#ffd700');
+    } else {
+      // Block has no host (shouldn't happen in comment mode, but be safe).
+      block.classList.add('sdoc-block-commented');
+      block.style.setProperty('--sdoc-block-comment-color', c.color || '#ffd700');
+    }
+    var sidecar = makeCardElement(c, { shape: 'sidecar', mode: 'view' });
+    // Append the card INSIDE the host (after the block) so the host's
+    // left stripe spans block + card without a gap.
+    (host || block.parentNode).appendChild(sidecar);
     return false;
   }
   var orphanBlock = makeCardElement(c, { shape: 'sidecar', mode: 'view', orphaned: true });
@@ -571,8 +575,14 @@ function openBlockComposer(block) {
   var prefs = readPrefs();
   var blockId = computeBlockId(block, S.renderedEl);
   if (!blockId) return;
-  block.classList.add('sdoc-block-commented');
-  block.style.setProperty('--sdoc-block-comment-color', prefs.color);
+  var host = block.parentNode && block.parentNode.classList &&
+             block.parentNode.classList.contains('sdoc-block-host')
+    ? block.parentNode
+    : null;
+  if (host) {
+    host.classList.add('sdoc-host-commented');
+    host.style.setProperty('--sdoc-block-comment-color', prefs.color);
+  }
 
   var draft = { color: prefs.color, author: prefs.author };
   var composer = makeCardElement(draft, {
@@ -594,18 +604,15 @@ function openBlockComposer(block) {
     },
     onCancel: function () {
       hideComposer();
-      if (!hasBlockComment(blockId)) {
-        block.classList.remove('sdoc-block-commented');
-        block.style.removeProperty('--sdoc-block-comment-color');
+      if (!hasBlockComment(blockId) && host) {
+        host.classList.remove('sdoc-host-commented');
+        host.style.removeProperty('--sdoc-block-comment-color');
       }
     },
   });
   composerEl = composer;
-  var host = block.parentNode && block.parentNode.classList &&
-             block.parentNode.classList.contains('sdoc-block-host')
-    ? block.parentNode
-    : block;
-  if (host.parentNode) host.parentNode.insertBefore(composer, host.nextSibling);
+  // Place inside the host so the left stripe spans block + composer.
+  (host || block.parentNode).appendChild(composer);
 }
 
 function hasBlockComment(blockId) {
@@ -931,9 +938,11 @@ function render() {
   if (!S.renderedEl) return;
   if (!document.body.classList.contains('comment-mode')) return;
   strip();
+  // Inject hosts BEFORE rendering comments so block-level renders can
+  // attach the sidecar inside the host (and apply .sdoc-host-commented).
+  injectGutterButtons();
   var comments = SDC.getComments(S.currentMeta).map(SDC.normalizeComment);
   comments.forEach(function (c) { renderComment(c); });
-  injectGutterButtons();
   paintHeadingCopyWithComments(comments);
   paintToolbar();
 }

@@ -199,48 +199,45 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 }
 
 /* ── Sidecar (block) ────────────────────────────────────────────
-   Sits below the commented block. Used for view/edit/compose of
-   block-anchored comments. Same "writing-on-tint" vibe as the
-   inline pill: in edit/compose the textarea is transparent over
-   the card's yellow tint, with no internal white box. */
+   Sits below the commented block, INSIDE its .sdoc-block-host so
+   the host's left stripe spans block + card with no gap. Layout
+   mirrors the pill: single line of "user: comment text", wrapping
+   when long. No timestamp, no separate author header. */
 .sdoc-card-sidecar {
   display: block;
-  margin: 8px 0 14px;
-  padding: 5px 36px 6px 10px;
-  border-left: 3px solid var(--sdoc-card-color, var(--sdoc-theme-color));
+  margin: 6px 0 8px;
+  padding: 3px 30px 3px 8px;
   position: relative;
   max-width: 60ch;
 }
-.sdoc-card-sidecar .sdoc-card-author { margin-right: 6px; }
-.sdoc-card-sidecar .sdoc-card-time {
-  color: color-mix(in srgb, var(--text) 55%, transparent);
-  font-size: 0.95em;
+.sdoc-card-sidecar .sdoc-card-author { margin-right: 0; }
+.sdoc-card-sidecar .sdoc-card-author::after {
+  content: ":";
+  color: var(--text-3);
+  margin-right: 3px;
 }
-.sdoc-card-sidecar .sdoc-card-time::before { content: "· "; margin-right: 2px; }
 .sdoc-card-sidecar .sdoc-card-body {
-  display: block;
-  margin-top: 2px;
+  display: inline;
 }
 
 /* Sidecar action icons sit at the top-right corner. */
 .sdoc-card-sidecar .sdoc-icon-btn {
   position: absolute;
-  top: 3px;
+  top: 1px;
 }
-.sdoc-card-sidecar .sdoc-card-save   { right: 26px; }
-.sdoc-card-sidecar .sdoc-card-cancel { right: 4px; }
-.sdoc-card-sidecar .sdoc-card-delete { right: 4px; }
+.sdoc-card-sidecar .sdoc-card-save   { right: 24px; }
+.sdoc-card-sidecar .sdoc-card-cancel { right: 2px; }
+.sdoc-card-sidecar .sdoc-card-delete { right: 2px; }
 
-/* Sidecar in edit/compose: textarea is transparent, borderless, sits
-   directly on the card's yellow tint. The visual is identical to the
-   view-mode body except the cursor is active. */
+/* Sidecar in edit/compose: transparent textarea sits directly on
+   the card's tint, identical to the view-mode body. */
 .sdoc-card-sidecar .sdoc-card-input {
   display: block;
   width: 100%;
   padding: 0;
   box-sizing: border-box;
   min-height: 1.4em;
-  field-sizing: content; /* autosize where supported */
+  field-sizing: content;
   font-family: inherit;
   font-size: inherit;
   line-height: 1.5;
@@ -314,8 +311,24 @@ body.comment-mode .sdoc-gutter-add:focus-visible {
 }
 
 /* ── Block-comment indicator stripe ─────────────────────────────
-   3px colored stripe on the left edge of any block that has a
-   block-level comment, matching the comment's color. */
+   A single 3px colored stripe spanning both the commented block
+   AND its sidecar card(s). Lives on the .sdoc-block-host (which
+   wraps both) so the visual is one continuous line, not two
+   segments with a gap. */
+.sdoc-host-commented::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  background: var(--sdoc-block-comment-color, var(--sdoc-theme-color));
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* Fallback: same stripe on a block directly when there's no host
+   wrapper (defensive — every block should be hosted in comment mode). */
 .sdoc-block-commented { position: relative; }
 .sdoc-block-commented::before {
   content: "";
@@ -332,6 +345,7 @@ body.comment-mode .sdoc-gutter-add:focus-visible {
 /* Mobile: indent the rendered body so gutter buttons have room. */
 @media (max-width: 768px) {
   body.comment-mode #_sd_rendered { padding-left: 44px; }
+  .sdoc-host-commented::before,
   .sdoc-block-commented::before { left: -8px; }
 }
 
