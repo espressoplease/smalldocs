@@ -1,384 +1,244 @@
 /**
- * sdocs-comments.js - inline HTML comment storage + parser for comment mode.
+ * sdocs-comments.js - sidecar comment storage for comment mode.
  *
- * Comments are stored directly in the markdown body as HTML comments. `marked`
- * renders them as invisible, so in every non-comment mode the doc reads clean.
- * Only comment mode parses them out and renders UI overlays.
+ * Comments live in the document's YAML front matter under `comments:` — a
+ * list of objects. The markdown body is NEVER touched; this removes every
+ * class of "marked parses our marker wrong" bug the old inline-HTML-comment
+ * format suffered from (line-start paragraph loss, inline-code backtick
+ * unbalancing, cross-block wrapping, etc.).
  *
- * Two shapes in the body:
+ * Comment shape (all fields flat; easier to YAML-serialize):
  *
- *   Selection-anchored (the highlighted substring is wrapped):
- *     <!--sdoc-c:c1 before="context" after="context"-->opens your file at<!--/sdoc-c:c1-->
- *     <!--sdoc-comment id="c1" author="user" color="#ffd700" at="..." text="..."-->
+ *   Selection-anchored:
+ *     { id, kind: 'inline', quote, prefix, suffix, block, author, color, at, text }
  *
- *   Block-anchored (no wrappers; comment sits after the block):
- *     Your file never hits the server...
- *     <!--sdoc-comment id="c2" author="user" color="#ffd700" at="..." text="..."-->
+ *   Block-anchored:
+ *     { id, kind: 'block', block, author, color, at, text }
  *
- * Attribute values are escaped: `&` `"` newlines and `--` sequences are encoded
- * so they never form an HTML comment terminator.
+ * - `quote` is the exact rendered-text phrase to highlight.
+ * - `prefix` / `suffix` (0-60 chars) disambiguate when `quote` appears
+ *   multiple times in the target block.
+ * - `block` is a "tagname:index-among-siblings-of-that-tagname" hint, e.g.
+ *   "p:3" = 4th <p> in render order. Per-type indexing is more resilient to
+ *   block reordering than a single global ordinal.
  *
- * This module is UMD so Node tests can exercise it directly.
+ * Anchor resolution at render time uses a three-tier fallback:
+ *   1. Block-scoped:  find block → locate (prefix+quote+suffix) in its text.
+ *   2. Global:        search the whole rendered body for (prefix+quote+suffix).
+ *   3. Quote-only:    last-resort global search for just the quote.
+ *
+ * UMD module so Node tests can call it directly.
  */
 (function (exports) {
 'use strict';
 
-// ── Attribute encode / decode ───────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────
 
-function encodeAttr(s) {
-  if (s == null) return '';
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/\n/g, '&#10;')
-    // Break every `-` that's followed by another `-`. Prevents any `--`
-    // sequence, which in turn prevents `-->` closing the HTML comment.
-    .replace(/-(?=-)/g, '&#45;');
+function getComments(meta) {
+  if (!meta || typeof meta !== 'object') return [];
+  var list = meta.comments;
+  if (!Array.isArray(list)) return [];
+  return list.slice();
 }
 
-var DECODE_MAP = { 'quot': '"', 'amp': '&', '#10': '\n', '#45': '-' };
-function decodeAttr(s) {
-  if (s == null) return '';
-  return String(s).replace(/&(quot|amp|#10|#45);/g, function (_, e) {
-    return DECODE_MAP[e];
-  });
-}
-
-// Tokenize `name="value" name="value" ...` into a plain object. Values may
-// contain `>` or any char except `"` (since `"` is always encoded as &quot;).
-function parseAttrs(s) {
-  var out = {};
-  var re = /([a-zA-Z][\w-]*)="([^"]*)"/g;
-  var m;
-  while ((m = re.exec(s)) !== null) {
-    out[m[1]] = decodeAttr(m[2]);
-  }
+function setComments(meta, list) {
+  var out = Object.assign({}, meta || {});
+  if (!list || list.length === 0) delete out.comments;
+  else out.comments = list.slice();
   return out;
 }
 
-// ── Fenced-code masking ─────────────────────────────────────────────────
-// Replaces each fenced code block with an opaque placeholder so sdoc-looking
-// strings inside code don't get parsed as real comments.
-
-var FENCE_RE = /(^|\n)(```[\s\S]*?\n```|~~~[\s\S]*?\n~~~)/g;
-
-function maskFences(md) {
-  var fences = [];
-  var masked = md.replace(FENCE_RE, function (_, lead, block) {
-    fences.push(block);
-    return lead + '\x00F' + (fences.length - 1) + '\x00';
-  });
-  return {
-    masked: masked,
-    restore: function (s) {
-      return s.replace(/\x00F(\d+)\x00/g, function (_, i) {
-        return fences[parseInt(i, 10)];
-      });
-    },
-  };
-}
-
-// ── Parse ───────────────────────────────────────────────────────────────
-
-/**
- * parse(md) -> { comments }
- *
- * For each <!--sdoc-comment ...--> in the body, finds the matching wrapper
- * pair (if any) by id, and returns a list of comment objects:
- *   { id, author, color, at, text, anchor: { type, text?, before?, after? } }
- *
- * Comments without a matching wrapper are treated as block-anchored.
- * Wrappers without a matching metadata block are ignored (malformed).
- */
-function parse(md) {
-  var out = { comments: [] };
-  if (typeof md !== 'string' || !md) return out;
-
-  var masked = maskFences(md).masked;
-
-  // 1. Collect wrapper spans.
-  var wrappers = {};
-  var wrapRe = /<!--sdoc-c:(c\d+)((?:\s+[a-zA-Z][\w-]*="[^"]*")*)\s*-->([\s\S]*?)<!--\/sdoc-c:\1-->/g;
-  var w;
-  while ((w = wrapRe.exec(masked)) !== null) {
-    var wAttrs = parseAttrs(w[2] || '');
-    wrappers[w[1]] = {
-      text: w[3],
-      before: wAttrs.before || '',
-      after: wAttrs.after || '',
-    };
-  }
-
-  // 2. Collect metadata blocks. Non-greedy match to first `-->`. Since our
-  // encoder never emits `-->` inside attribute values, this is safe.
-  var metaRe = /<!--sdoc-comment\s+([\s\S]+?)-->/g;
-  var m;
-  while ((m = metaRe.exec(masked)) !== null) {
-    var a = parseAttrs(m[1]);
-    if (!a.id) continue;
-    var c = {
-      id: a.id,
-      author: a.author || 'user',
-      color: a.color || '#ffd700',
-      at: a.at || '',
-      text: a.text || '',
-      anchor: null,
-    };
-    if (wrappers[a.id]) {
-      c.anchor = {
-        type: 'selection',
-        text: wrappers[a.id].text,
-        before: wrappers[a.id].before,
-        after: wrappers[a.id].after,
-      };
-    } else {
-      c.anchor = { type: 'block' };
-    }
-    out.comments.push(c);
-  }
-
-  return out;
-}
-
-// ── Serialize helpers ───────────────────────────────────────────────────
-
-function serializeWrapper(id, anchorText, before, after) {
-  var attrs = [];
-  if (before) attrs.push('before="' + encodeAttr(before) + '"');
-  if (after)  attrs.push('after="'  + encodeAttr(after)  + '"');
-  var attrStr = attrs.length ? ' ' + attrs.join(' ') : '';
-  return '<!--sdoc-c:' + id + attrStr + '-->' + anchorText + '<!--/sdoc-c:' + id + '-->';
-}
-
-function serializeComment(c) {
-  var attrs = [
-    'id="'     + encodeAttr(c.id)     + '"',
-    'author="' + encodeAttr(c.author) + '"',
-    'color="'  + encodeAttr(c.color)  + '"',
-    'at="'     + encodeAttr(c.at)     + '"',
-    'text="'   + encodeAttr(c.text)   + '"',
-  ];
-  return '<!--sdoc-comment ' + attrs.join(' ') + '-->';
-}
-
-// ── ID allocation ───────────────────────────────────────────────────────
-
-function nextCommentId(md) {
-  if (typeof md !== 'string' || !md) return 'c1';
-  // Skip ids that live inside fenced code so sample sdoc syntax in a code
-  // block doesn't inflate the counter.
-  var masked = maskFences(md).masked;
+function nextId(meta) {
   var max = 0;
-  var re = /\bid="c(\d+)"/g;
-  var m;
-  while ((m = re.exec(masked)) !== null) {
-    var n = parseInt(m[1], 10);
-    if (!isNaN(n) && n > max) max = n;
+  var list = getComments(meta);
+  for (var i = 0; i < list.length; i++) {
+    var m = /^c(\d+)$/.exec(list[i].id || '');
+    if (m) {
+      var n = parseInt(m[1], 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
   }
   return 'c' + (max + 1);
+}
+
+function normalizeComment(c) {
+  var out = {
+    id: c.id,
+    kind: c.kind || (c.quote ? 'inline' : 'block'),
+  };
+  // Anchor fields
+  if (out.kind === 'inline') {
+    out.quote = c.quote || '';
+    if (c.prefix) out.prefix = c.prefix;
+    if (c.suffix) out.suffix = c.suffix;
+  }
+  if (c.block) out.block = c.block;
+  // Author metadata
+  out.author = c.author || 'user';
+  out.color = c.color || '#ffd700';
+  out.at = c.at || new Date().toISOString();
+  out.text = c.text || '';
+  return out;
 }
 
 // ── Mutations ───────────────────────────────────────────────────────────
 
 /**
- * addSelectionComment(md, {selectedText, before, after}, meta) -> { md, id }
+ * addSelectionComment(meta, anchor, noteMeta) -> { meta, id }
  *
- * Inserts a wrapper around the located selection and a metadata block after
- * the containing markdown block. Locates the selection by matching
- * `before + selectedText + after` in the (fence-masked) body; throws if not
- * found.
+ * `anchor` = { quote, prefix?, suffix?, block? }
+ * `noteMeta` = { author?, color?, at?, text? }
+ *
+ * Returns a new meta with the comment appended. Body is untouched —
+ * anchoring happens at render time via text-quote lookup.
  */
-function addSelectionComment(md, sel, meta) {
-  var fm = maskFences(md);
-  var masked = fm.masked;
-  var selText = sel.selectedText;
-  var before  = sel.before || '';
-  var after   = sel.after  || '';
-  // Try context-qualified match first (surest). If that misses (common when
-  // source has inline markdown the rendered DOM doesn't: backticks, links,
-  // emphasis), fall back to locating just the selected text. Still missed?
-  // The selection probably spans inline syntax — try prefix/suffix matching
-  // where source has extra chars between them (e.g., backticks around code).
-  var selStart, selEnd;
-  var needle = before + selText + after;
-  var idx = (before || after) ? masked.indexOf(needle) : -1;
-  if (idx !== -1) {
-    selStart = idx + before.length;
-    selEnd = selStart + selText.length;
-  } else {
-    var first = masked.indexOf(selText);
-    if (first !== -1) {
-      var second = masked.indexOf(selText, first + 1);
-      if (second !== -1) throw new Error('selection text appears multiple times; select a longer phrase');
-      selStart = first;
-      selEnd = first + selText.length;
-    } else {
-      // Prefix/suffix match: selection crosses inline markdown syntax, so
-      // rendered selText differs from the source slice (e.g., source has
-      // backticks that the DOM collapsed). Walk prefix/suffix lengths down
-      // until both land in the source, then expand past any markdown
-      // delimiters at the edges so the wrapper sits OUTSIDE inline spans.
-      var maxLen = Math.min(18, Math.floor(selText.length / 2));
-      if (maxLen < 2) throw new Error('selection too short to locate across markdown syntax');
-      var prefix = '', pStart = -1, prefixShift = 0;
-      for (var pLen = maxLen; pLen >= 2; pLen--) {
-        prefix = selText.slice(0, pLen);
-        pStart = before ? masked.indexOf(before + prefix) : -1;
-        prefixShift = (pStart !== -1) ? before.length : 0;
-        if (pStart === -1) pStart = masked.indexOf(prefix);
-        if (pStart !== -1) break;
-      }
-      if (pStart === -1) throw new Error('selection not found in body');
-      var pStartFinal = pStart + prefixShift;
-      var suffix = '', sEnd = -1;
-      for (var sLen = maxLen; sLen >= 2; sLen--) {
-        suffix = selText.slice(-sLen);
-        sEnd = masked.indexOf(suffix, pStartFinal + prefix.length);
-        if (sEnd !== -1) break;
-      }
-      if (sEnd === -1) throw new Error('selection suffix not found in body');
-      selStart = pStartFinal;
-      selEnd = sEnd + suffix.length;
-      // Expand past trailing/leading markdown delimiters so the wrapper
-      // encloses complete inline spans (otherwise we orphan a backtick /
-      // asterisk and break the surrounding markdown).
-      while (selEnd < masked.length && /[`*_~]/.test(masked.charAt(selEnd))) selEnd++;
-      while (selStart > 0 && /[`*_~]/.test(masked.charAt(selStart - 1))) selStart--;
-    }
+function addSelectionComment(meta, anchor, noteMeta) {
+  if (!anchor || typeof anchor.quote !== 'string' || !anchor.quote) {
+    throw new Error('addSelectionComment requires a non-empty quote');
   }
-  // Regardless of which branch set selStart/selEnd: if either boundary
-  // sits INSIDE an inline code span (odd backtick count before it in the
-  // paragraph), walk out to cover the span so the HTML-comment wrappers
-  // don't get absorbed as code-text by marked.
-  function backtickParity(s, pos) {
-    var c = 0;
-    for (var i = 0; i < pos; i++) if (s.charCodeAt(i) === 96) c++;
-    return c % 2;
-  }
-  if (backtickParity(masked, selStart) === 1) {
-    var opener = masked.lastIndexOf('`', selStart - 1);
-    if (opener !== -1) selStart = opener;
-  }
-  if (backtickParity(masked, selEnd) === 1) {
-    var closer = masked.indexOf('`', selEnd);
-    if (closer !== -1) selEnd = closer + 1;
-  }
-  // Emit the source slice (which may include markdown syntax between the
-  // user-visible prefix + suffix) as the anchor text.
-  var sourceSlice = masked.slice(selStart, selEnd);
-  var id = nextCommentId(md);
-  var wrapper = serializeWrapper(id, sourceSlice, before, after);
-  // If the wrapper lands at the very start of a line, marked parses the
-  // leading HTML comment as a BLOCK html fragment and drops the <p>
-  // around the paragraph (anchor ends up orphaned in the DOM). Prepend a
-  // zero-width space so the line starts with content, forcing marked
-  // back into inline paragraph mode. removeComment strips this ZWS too.
-  var lineStart = (selStart === 0) || (masked.charAt(selStart - 1) === '\n');
-  var prefixSafety = lineStart ? '​' : '';
-  var withWrap = masked.slice(0, selStart) + prefixSafety + wrapper + masked.slice(selEnd);
-  // Insert metadata block after the block containing the selection.
-  var blockEnd = withWrap.indexOf('\n\n', selStart + wrapper.length);
-  if (blockEnd === -1) blockEnd = withWrap.length;
-  var metaBlock = '\n\n' + serializeComment({
+  var id = nextId(meta);
+  var c = normalizeComment({
     id: id,
-    author: meta.author || 'user',
-    color: meta.color  || '#ffd700',
-    at:    meta.at     || new Date().toISOString(),
-    text:  meta.text   || '',
+    kind: 'inline',
+    quote: anchor.quote,
+    prefix: anchor.prefix || '',
+    suffix: anchor.suffix || '',
+    block: anchor.block || '',
+    author: (noteMeta || {}).author,
+    color: (noteMeta || {}).color,
+    at: (noteMeta || {}).at,
+    text: (noteMeta || {}).text,
   });
-  var finalMasked = withWrap.slice(0, blockEnd) + metaBlock + withWrap.slice(blockEnd);
-  return { md: fm.restore(finalMasked), id: id };
+  var list = getComments(meta);
+  list.push(c);
+  return { meta: setComments(meta, list), id: id };
 }
 
 /**
- * addBlockComment(md, {blockText}, meta) -> { md, id }
+ * addBlockComment(meta, { block }, noteMeta) -> { meta, id }
  *
- * Inserts a metadata block after the first occurrence of blockText's opening.
- * blockText is expected to be a substring that uniquely locates the target
- * block's first characters.
+ * Block comment targets the whole block (e.g. `"p:3"` or `"blockquote:0"`).
  */
-function addBlockComment(md, opts, meta) {
-  var fm = maskFences(md);
-  var masked = fm.masked;
-  var idx = masked.indexOf(opts.blockText);
-  if (idx === -1) throw new Error('block not found in body');
-  var id = nextCommentId(md);
-  var blockEnd = masked.indexOf('\n\n', idx + opts.blockText.length);
-  if (blockEnd === -1) blockEnd = masked.length;
-  var metaBlock = '\n\n' + serializeComment({
+function addBlockComment(meta, anchor, noteMeta) {
+  if (!anchor || typeof anchor.block !== 'string' || !anchor.block) {
+    throw new Error('addBlockComment requires a block id');
+  }
+  var id = nextId(meta);
+  var c = normalizeComment({
     id: id,
-    author: meta.author || 'user',
-    color: meta.color  || '#ffd700',
-    at:    meta.at     || new Date().toISOString(),
-    text:  meta.text   || '',
+    kind: 'block',
+    block: anchor.block,
+    author: (noteMeta || {}).author,
+    color: (noteMeta || {}).color,
+    at: (noteMeta || {}).at,
+    text: (noteMeta || {}).text,
   });
-  var finalMasked = masked.slice(0, blockEnd) + metaBlock + masked.slice(blockEnd);
-  return { md: fm.restore(finalMasked), id: id };
+  var list = getComments(meta);
+  list.push(c);
+  return { meta: setComments(meta, list), id: id };
 }
 
 /**
- * updateComment(md, id, newText) -> md
- *
- * Replaces the `text` attribute of an existing metadata block. Leaves the
- * wrappers and all other attributes untouched. Returns the input unchanged
- * if no matching comment exists.
+ * removeComment(meta, id) -> meta
  */
-function updateComment(md, id, newText) {
-  if (typeof md !== 'string' || !md) return md;
-  var safeId = id.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
-  var re = new RegExp(
-    '<!--sdoc-comment\\s+([\\s\\S]*?\\bid="' + safeId + '"[\\s\\S]*?)-->',
-    'g'
-  );
-  return md.replace(re, function (_, attrs) {
-    var encoded = encodeAttr(newText);
-    if (/\btext="[^"]*"/.test(attrs)) {
-      attrs = attrs.replace(/\btext="[^"]*"/, 'text="' + encoded + '"');
+function removeComment(meta, id) {
+  var list = getComments(meta).filter(function (c) { return c.id !== id; });
+  return setComments(meta, list);
+}
+
+/**
+ * updateComment(meta, id, patch) -> meta
+ *
+ * Merges `patch` into the comment with this id. Returns unchanged meta if
+ * no matching comment exists. Typical patches: `{ text: 'new note' }`.
+ */
+function updateComment(meta, id, patch) {
+  var changed = false;
+  var list = getComments(meta).map(function (c) {
+    if (c.id !== id) return c;
+    changed = true;
+    return normalizeComment(Object.assign({}, c, patch || {}));
+  });
+  return changed ? setComments(meta, list) : meta;
+}
+
+// ── Parse (legacy) ──────────────────────────────────────────────────────
+// Kept as a thin wrapper for callers that still pass raw markdown, so
+// Playwright / UI code can migrate incrementally.
+
+function parse(meta /*, body */) {
+  return { comments: getComments(meta).map(normalizeComment) };
+}
+
+// ── Copy serializers ────────────────────────────────────────────────────
+
+/**
+ * serializeFootnotes(meta, body) -> string
+ *
+ * Emits the body with each inline comment's quote transformed into a
+ * `[quote][^cN]` footnote reference, and the comment texts appended as
+ * `[^cN]: author - text` lines. Block comments become footnote refs
+ * attached at the end of the document.
+ *
+ * Matching strategy: try `prefix + quote + suffix` first (best case),
+ * then `quote` alone. Comments whose quote can't be found in the body
+ * still get a footnote at the end but no inline anchor.
+ */
+function serializeFootnotes(meta, body) {
+  if (typeof body !== 'string') return body;
+  var comments = getComments(meta);
+  if (!comments.length) return body;
+  var out = body;
+  var footnotes = [];
+  // Process in reverse so earlier replacements don't invalidate indices of later ones.
+  var inlineComments = comments.filter(function (c) { return c.kind === 'inline' && c.quote; });
+  var blockComments = comments.filter(function (c) { return c.kind !== 'inline'; });
+  inlineComments.slice().reverse().forEach(function (c) {
+    var needle = (c.prefix || '') + c.quote + (c.suffix || '');
+    var idx = out.indexOf(needle);
+    var quoteIdx = -1;
+    if (idx !== -1) {
+      quoteIdx = idx + (c.prefix || '').length;
     } else {
-      attrs = attrs.trim() + ' text="' + encoded + '"';
+      quoteIdx = out.indexOf(c.quote);
     }
-    return '<!--sdoc-comment ' + attrs + '-->';
+    if (quoteIdx !== -1) {
+      var end = quoteIdx + c.quote.length;
+      var replacement = '[' + c.quote + '][^' + c.id + ']';
+      out = out.slice(0, quoteIdx) + replacement + out.slice(end);
+    }
   });
+  // Emit footnotes in original (chronological) order.
+  comments.forEach(function (c) {
+    var label = (c.author || 'user') + ' - ' + (c.text || '');
+    if (c.kind === 'block' && c.block) label += ' (block ' + c.block + ')';
+    footnotes.push('[^' + c.id + ']: ' + label);
+  });
+  return out.replace(/\n*$/, '') + '\n\n' + footnotes.join('\n') + '\n';
 }
 
 /**
- * removeComment(md, id) -> md
+ * serializeClean(meta, body) -> string
  *
- * Strips the comment with the given id. If a wrapper pair exists, unwraps it
- * (the highlighted text stays). If a metadata block exists, removes it.
+ * Returns the body verbatim. Supplied as the "strip all comments" flow;
+ * since the sidecar model never injected anything into the body, this
+ * is literally the identity function — but we wrap it for symmetry with
+ * the other serializers.
  */
-function removeComment(md, id) {
-  if (typeof md !== 'string' || !md) return md;
-  var fm = maskFences(md);
-  var masked = fm.masked;
-  var safeId = id.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
-  var wrapRe = new RegExp(
-    '​?<!--sdoc-c:' + safeId + '(?:\\s+[a-zA-Z][\\w-]*="[^"]*")*\\s*-->' +
-    '([\\s\\S]*?)' +
-    '<!--/sdoc-c:' + safeId + '-->',
-    'g'
-  );
-  masked = masked.replace(wrapRe, '$1');
-  var metaRe = new RegExp(
-    '\\n?<!--sdoc-comment\\s+[\\s\\S]*?\\bid="' + safeId + '"[\\s\\S]*?-->',
-    'g'
-  );
-  masked = masked.replace(metaRe, '');
-  return fm.restore(masked);
-}
+function serializeClean(meta, body) { return body; }
 
 // ── Public API ──────────────────────────────────────────────────────────
 
-exports.parse               = parse;
-exports.encodeAttr          = encodeAttr;
-exports.decodeAttr          = decodeAttr;
-exports.parseAttrs          = parseAttrs;
-exports.serializeWrapper    = serializeWrapper;
-exports.serializeComment    = serializeComment;
-exports.nextCommentId       = nextCommentId;
+exports.getComments         = getComments;
+exports.setComments         = setComments;
+exports.nextId              = nextId;
+exports.normalizeComment    = normalizeComment;
 exports.addSelectionComment = addSelectionComment;
 exports.addBlockComment     = addBlockComment;
-exports.updateComment       = updateComment;
 exports.removeComment       = removeComment;
+exports.updateComment       = updateComment;
+exports.parse               = parse;
+exports.serializeFootnotes  = serializeFootnotes;
+exports.serializeClean      = serializeClean;
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocComments = {}));
