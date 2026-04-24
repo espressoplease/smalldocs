@@ -865,13 +865,25 @@ function sectionContainsComment(heading) {
 
 // ── Copy with comments ──────────────────────────────────────────────────
 
+// Read a heading's source text without the companion buttons that
+// SDocs appends inside it (.header-anchor, .header-copy-btn, the
+// "with comments" companion). Without this, headingEl.textContent
+// returns "H2 Titlewith comments" and never matches the markdown.
+function getHeadingPlainText(headingEl) {
+  var clone = headingEl.cloneNode(true);
+  clone.querySelectorAll(
+    '.header-anchor, .header-copy-btn, .sdoc-head-copy-c, .sdoc-copy-with-c'
+  ).forEach(function (el) { el.remove(); });
+  return (clone.textContent || '').replace(/\s+$/, '').trim();
+}
+
 // Slice the body to the substring that belongs to headingEl's section.
 // Returns { meta, body } where meta.comments is filtered to only those
 // anchored to blocks within that section. null if the heading can't be found.
 function extractSectionSource(headingEl) {
   if (!headingEl) return null;
   var level = parseInt(headingEl.tagName[1], 10);
-  var headingText = (headingEl.textContent || '').replace(/\s+$/, '').trim();
+  var headingText = getHeadingPlainText(headingEl);
   var md = S.currentBody || '';
   var headingRe = new RegExp('^(#{1,' + level + '})\\s+(.+)$', 'gm');
   var m, startIdx = -1;
@@ -887,15 +899,53 @@ function extractSectionSource(headingEl) {
   var a = afterRe.exec(md);
   var endIdx = a ? a.index : md.length;
   var sectionBody = md.slice(startIdx, endIdx).trim() + '\n';
-  // Filter comments: include only those whose anchor text appears in this slice.
+  // Filter comments to those anchored inside the slice.
+  // - Inline (selection-anchored): match by quote text appearing in slice.
+  // - Block (block-anchored): resolve the block in the rendered DOM, then
+  //   check whether that block sits inside the H2/H3/.../section's range
+  //   in the rendered tree (i.e. between this heading and the next
+  //   same-or-higher heading).
   var all = SDC.getComments(S.currentMeta);
+  var blocksInSection = listBlocksInSection(headingEl, level);
   var inSection = all.filter(function (c) {
     if (c.kind === 'inline' && c.quote) {
       return sectionBody.indexOf(c.quote) !== -1;
     }
+    if (c.kind === 'block' && c.block) {
+      var bEl = findBlockById(c.block, S.renderedEl);
+      return bEl && blocksInSection.indexOf(bEl) !== -1;
+    }
     return false;
   });
   return { meta: { comments: inSection }, body: sectionBody };
+}
+
+// Walk forward from headingEl in document order and collect every
+// top-level block until we hit a heading of equal-or-higher level.
+function listBlocksInSection(headingEl, level) {
+  var out = [];
+  if (!headingEl || !S.renderedEl) return out;
+  var all = Array.from(S.renderedEl.querySelectorAll('*'));
+  var startIdx = all.indexOf(headingEl);
+  if (startIdx === -1) return out;
+  for (var i = startIdx + 1; i < all.length; i++) {
+    var node = all[i];
+    if (/^H[1-6]$/.test(node.tagName)) {
+      var nodeLevel = parseInt(node.tagName[1], 10);
+      if (nodeLevel <= level) break;
+    }
+    if (node.matches && node.matches(TOP_BLOCK_SEL)) {
+      // Skip nested blocks (already counted via their parent).
+      var ancestor = node.parentElement;
+      var nested = false;
+      while (ancestor && ancestor !== S.renderedEl) {
+        if (ancestor.matches && ancestor.matches(TOP_BLOCK_SEL)) { nested = true; break; }
+        ancestor = ancestor.parentElement;
+      }
+      if (!nested) out.push(node);
+    }
+  }
+  return out;
 }
 
 // Three copy formats, selected by modifier:
