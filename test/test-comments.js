@@ -231,6 +231,26 @@ module.exports = function (harness) {
     assert.ok(idx > 5, 'wrapper should be on the second occurrence');
   });
 
+  test('addSelectionComment: selection across inline code wraps source span including backticks', () => {
+    const md = 'A paragraph with `inline code` and more text.\n';
+    const res = SDC.addSelectionComment(md, {
+      selectedText: 'with inline code', before: '', after: '',
+    }, { author: 'u', color: '#fff', at: '', text: 'x' });
+    const m = res.md.match(/<!--sdoc-c:c1-->([^<]*)<!--\/sdoc-c:c1-->/);
+    assert.ok(m, 'wrapper exists');
+    assert.strictEqual(m[1], 'with `inline code`');
+  });
+
+  test('addSelectionComment: selection across bold keeps asterisks balanced', () => {
+    const md = 'Some **bold** text here.\n';
+    const res = SDC.addSelectionComment(md, {
+      selectedText: 'Some bold text', before: '', after: '',
+    }, { author: 'u', color: '#fff', at: '', text: 'x' });
+    const m = res.md.match(/<!--sdoc-c:c1-->([^<]*)<!--\/sdoc-c:c1-->/);
+    assert.ok(m);
+    assert.strictEqual(m[1], 'Some **bold** text');
+  });
+
   test('duplicate wrapper ids: parse overwrites deterministically (last wins)', () => {
     const md = 'A <!--sdoc-c:c1-->one<!--/sdoc-c:c1--> B <!--sdoc-c:c1-->two<!--/sdoc-c:c1-->\n' +
                '<!--sdoc-comment id="c1" author="u" color="#f" at="" text="x"-->';

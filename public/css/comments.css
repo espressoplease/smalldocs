@@ -213,13 +213,14 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   justify-content: center;
   border-radius: 6px;
   opacity: 0;
-  pointer-events: none;
-  transition: opacity .12s, background .12s, color .12s, transform .12s;
+  pointer-events: auto;
+  transition: opacity .18s ease 1.5s, background .12s, color .12s, transform .12s;
 }
 body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add,
+body.comment-mode .sdoc-gutter-add:hover,
 body.comment-mode .sdoc-gutter-add:focus-visible {
   opacity: 1;
-  pointer-events: auto;
+  transition-delay: 0s;
 }
 body.comment-mode .sdoc-gutter-add:hover {
   background: color-mix(in srgb, var(--sdoc-theme-color) 18%, var(--bg-input, #fff));

@@ -527,17 +527,23 @@ function openSelectionComposerFromSelection(range) {
   var block = nearestTopBlock(range.startContainer);
   if (!block) return;
 
-  // Wrap the live selection in a pending-anchor span so the user can see
+  // Wrap the live selection in a pending-anchor span so the user sees
   // what they're commenting on while the composer is open. If the range
-  // crosses non-text boundaries (shouldn't with our popover guard, but
-  // defensive), fall back to leaving the selection highlight alone.
-  var pendingSpan = null;
+  // crosses an element boundary (common when the selection runs into an
+  // <code>, <em>, <strong>, <a>...), surroundContents throws — fall back
+  // to extractContents + insertNode which splits the boundary cleanly.
+  var pendingSpan = document.createElement('span');
+  pendingSpan.className = 'sdoc-pending-anchor';
   try {
-    pendingSpan = document.createElement('span');
-    pendingSpan.className = 'sdoc-pending-anchor';
     range.surroundContents(pendingSpan);
   } catch (_) {
-    pendingSpan = null;
+    try {
+      var frag = range.extractContents();
+      pendingSpan.appendChild(frag);
+      range.insertNode(pendingSpan);
+    } catch (__) {
+      pendingSpan = null;
+    }
   }
   function clearPending() {
     if (pendingSpan && pendingSpan.parentNode) {

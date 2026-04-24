@@ -191,28 +191,66 @@ function nextCommentId(md) {
 function addSelectionComment(md, sel, meta) {
   var fm = maskFences(md);
   var masked = fm.masked;
+  var selText = sel.selectedText;
+  var before  = sel.before || '';
+  var after   = sel.after  || '';
   // Try context-qualified match first (surest). If that misses (common when
   // source has inline markdown the rendered DOM doesn't: backticks, links,
-  // emphasis), fall back to locating just the selected text. In the fallback
-  // we refuse ambiguous matches rather than silently anchoring to the first
-  // occurrence - better to orphan a comment than attach it to the wrong place.
+  // emphasis), fall back to locating just the selected text. Still missed?
+  // The selection probably spans inline syntax — try prefix/suffix matching
+  // where source has extra chars between them (e.g., backticks around code).
   var selStart, selEnd;
-  var needle = (sel.before || '') + sel.selectedText + (sel.after || '');
-  var idx = (sel.before || sel.after) ? masked.indexOf(needle) : -1;
+  var needle = before + selText + after;
+  var idx = (before || after) ? masked.indexOf(needle) : -1;
   if (idx !== -1) {
-    selStart = idx + (sel.before || '').length;
-    selEnd = selStart + sel.selectedText.length;
+    selStart = idx + before.length;
+    selEnd = selStart + selText.length;
   } else {
-    // Plain-text fallback: locate the selection by literal string match.
-    var first = masked.indexOf(sel.selectedText);
-    if (first === -1) throw new Error('selection not found in body');
-    var second = masked.indexOf(sel.selectedText, first + 1);
-    if (second !== -1) throw new Error('selection text appears multiple times; select a longer phrase');
-    selStart = first;
-    selEnd = first + sel.selectedText.length;
+    var first = masked.indexOf(selText);
+    if (first !== -1) {
+      var second = masked.indexOf(selText, first + 1);
+      if (second !== -1) throw new Error('selection text appears multiple times; select a longer phrase');
+      selStart = first;
+      selEnd = first + selText.length;
+    } else {
+      // Prefix/suffix match: selection crosses inline markdown syntax, so
+      // rendered selText differs from the source slice (e.g., source has
+      // backticks that the DOM collapsed). Walk prefix/suffix lengths down
+      // until both land in the source, then expand past any markdown
+      // delimiters at the edges so the wrapper sits OUTSIDE inline spans.
+      var maxLen = Math.min(18, Math.floor(selText.length / 2));
+      if (maxLen < 2) throw new Error('selection too short to locate across markdown syntax');
+      var prefix = '', pStart = -1, prefixShift = 0;
+      for (var pLen = maxLen; pLen >= 2; pLen--) {
+        prefix = selText.slice(0, pLen);
+        pStart = before ? masked.indexOf(before + prefix) : -1;
+        prefixShift = (pStart !== -1) ? before.length : 0;
+        if (pStart === -1) pStart = masked.indexOf(prefix);
+        if (pStart !== -1) break;
+      }
+      if (pStart === -1) throw new Error('selection not found in body');
+      var pStartFinal = pStart + prefixShift;
+      var suffix = '', sEnd = -1;
+      for (var sLen = maxLen; sLen >= 2; sLen--) {
+        suffix = selText.slice(-sLen);
+        sEnd = masked.indexOf(suffix, pStartFinal + prefix.length);
+        if (sEnd !== -1) break;
+      }
+      if (sEnd === -1) throw new Error('selection suffix not found in body');
+      selStart = pStartFinal;
+      selEnd = sEnd + suffix.length;
+      // Expand past trailing/leading markdown delimiters so the wrapper
+      // encloses complete inline spans (otherwise we orphan a backtick /
+      // asterisk and break the surrounding markdown).
+      while (selEnd < masked.length && /[`*_~]/.test(masked.charAt(selEnd))) selEnd++;
+      while (selStart > 0 && /[`*_~]/.test(masked.charAt(selStart - 1))) selStart--;
+    }
   }
+  // Emit the source slice (which may include markdown syntax between the
+  // user-visible prefix + suffix) as the anchor text.
+  var sourceSlice = masked.slice(selStart, selEnd);
   var id = nextCommentId(md);
-  var wrapper = serializeWrapper(id, sel.selectedText, sel.before || '', sel.after || '');
+  var wrapper = serializeWrapper(id, sourceSlice, before, after);
   var withWrap = masked.slice(0, selStart) + wrapper + masked.slice(selEnd);
   // Insert metadata block after the block containing the selection.
   var blockEnd = withWrap.indexOf('\n\n', selStart + wrapper.length);
