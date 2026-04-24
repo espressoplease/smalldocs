@@ -369,6 +369,257 @@ body.export-mode #_sd_export-panel {
 }
 
 /* ═══════════════════════════════════════════════════
+   INFO PANEL
+═══════════════════════════════════════════════════ */
+#_sd_info-panel {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  transition: width .32s cubic-bezier(.4,0,.2,1),
+              opacity .25s ease;
+}
+body.info-mode #_sd_info-panel {
+  width: 335px;
+  opacity: 1;
+  overflow-y: auto;
+}
+
+#_sd_info-panel-header {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+}
+
+#_sd_info-panel-body {
+  padding: 14px 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Top-of-panel settings */
+.info-settings {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.info-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.info-settings-label {
+  font-size: 12.5px;
+  color: var(--text);
+}
+.info-settings-toggle {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+.info-settings-toggle .btn {
+  padding: 4px 12px;
+  font-size: 11px;
+}
+.info-settings-help {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.5;
+  margin: 6px 0 0;
+}
+
+.info-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+
+.info-feature-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.info-feature-item {
+  position: relative;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+}
+.info-feature-item.is-new {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border-subtle));
+}
+.info-feature-new {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  pointer-events: none;
+}
+.info-feature-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.info-feature-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.info-feature-date {
+  color: var(--text-3);
+}
+.info-feature-link {
+  color: var(--accent-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+.info-feature-link:hover { text-decoration: underline; }
+.info-feature-body {
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.info-feature-empty {
+  font-size: 12px;
+  color: var(--text-3);
+  font-style: italic;
+}
+
+textarea#_sd_info-feedback {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  resize: vertical;
+  min-height: 90px;
+}
+textarea#_sd_info-feedback:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.info-feedback-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.info-feedback-actions .btn {
+  padding: 6px 14px;
+}
+.info-feedback-status {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.info-feedback-ok { color: var(--accent-text); }
+.info-feedback-warn { color: #c2410c; }
+
+.info-feedback-note {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+.info-feedback-note a {
+  color: var(--text-2);
+  text-decoration: underline;
+}
+
+.info-feedback-warning {
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 6px 0 0;
+  padding: 6px 9px;
+  color: #9a3412;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: var(--radius);
+}
+@media (prefers-color-scheme: dark) {
+  .info-feedback-warning {
+    color: #fdba74;
+    background: #2a1b0f;
+    border-color: #7c2d12;
+  }
+}
+
+/* Links section at bottom of info panel */
+.info-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.info-links li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 0;
+}
+.info-links li + li {
+  border-top: 1px solid var(--border-subtle);
+}
+.info-links a {
+  font-size: 12.5px;
+  color: var(--accent-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+.info-links a:hover { text-decoration: underline; }
+.info-links-desc {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* Info button unseen-notification dot */
+.btn-with-dot { position: relative; }
+.btn-with-dot .info-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: none;
+  pointer-events: none;
+}
+.btn-with-dot.has-unseen .info-dot { display: block; }
+
+/* ═══════════════════════════════════════════════════
    FOOTER / STATUS
 ═══════════════════════════════════════════════════ */
 #_sd_statusbar {

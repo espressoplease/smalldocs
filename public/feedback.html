@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDocs Feedback</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/public/fonts/inter-400.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('/public/fonts/inter-500.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('/public/fonts/inter-600.woff2') format('woff2'); }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #F7F5F2;
+    color: #1C1917;
+    min-height: 100vh;
+  }
+
+  .header {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid #D4CFC9;
+    background: #F7F5F2;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .brand { font-size: 13px; font-weight: 600; color: #2563EB; text-decoration: none; transition: opacity .15s; }
+  .brand:hover { opacity: 0.7; }
+  .brand-full { display: inline; }
+  .brand-short, .brand-tiny { display: none; }
+  .nav-sep { color: #A8A29E; font-size: 12px; }
+  .nav-label { font-size: 12px; color: #57534E; font-weight: 500; }
+  @media (max-width: 600px) { .brand-full { display: none; } .brand-short { display: inline; } }
+  @media (max-width: 366px) { .brand-short { display: none; } .brand-tiny { display: inline; } }
+
+  .content { max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 6px; }
+  .subtitle { font-size: 14px; color: #57534E; margin-bottom: 32px; line-height: 1.55; }
+  .subtitle a { color: #2563EB; }
+  h2 { font-size: 19px; font-weight: 600; margin: 40px 0 14px; letter-spacing: -0.005em; }
+
+  .fb-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .fb-item {
+    background: #FFFFFF;
+    border: 1px solid #D4CFC9;
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .fb-meta {
+    font-size: 11.5px;
+    color: #A8A29E;
+    margin-bottom: 6px;
+    letter-spacing: 0.01em;
+  }
+  .fb-message {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #1C1917;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .fb-empty {
+    font-size: 14px;
+    color: #57534E;
+    font-style: italic;
+    padding: 20px 0;
+  }
+  .fb-loading {
+    font-size: 13px;
+    color: #A8A29E;
+    padding: 20px 0;
+  }
+
+  .statusbar {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 14px;
+    background: #F7F5F2;
+    border-top: 1px solid #DDD9D3;
+    font-size: 11px;
+    color: #57534E;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+  .statusbar a { color: #57534E; text-decoration: underline; }
+  .statusbar code { background: #F1EDE8; border: 1px solid #2563EB; border-radius: 3px; padding: 1px 5px; font-size: 10px; color: #2563EB; }
+  .cli-wrap { display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+  .cli-wrap .copy-btn { background: none; border: none; cursor: pointer; color: #2563EB; padding: 0; opacity: 0.5; transition: opacity .15s; }
+  .cli-wrap:hover .copy-btn { opacity: 1; }
+  @media (max-width: 600px) { .statusbar { display: none; } }
+
+  @media (prefers-color-scheme: dark) {
+    body { background: #1C1A17; color: #E7E5E2; }
+    .header { background: #1C1A17; border-color: #3D3935; }
+    .brand { color: #3B82F6; }
+    .nav-label { color: #A8A29E; }
+    h1, h2 { color: #E7E5E2; }
+    .subtitle { color: #A8A29E; }
+    .subtitle a { color: #3B82F6; }
+    .fb-item { background: #211F1D; border-color: #3D3935; }
+    .fb-meta { color: #6B6560; }
+    .fb-message { color: #E7E5E2; }
+    .fb-empty { color: #A8A29E; }
+    .fb-loading { color: #6B6560; }
+    .statusbar { background: #1C1A17; border-color: #332F2B; color: #A8A29E; }
+    .statusbar a { color: #A8A29E; }
+    .statusbar code { background: #252320; border-color: #3B82F6; color: #3B82F6; }
+    .cli-wrap .copy-btn { color: #3B82F6; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="brand" href="/">
+    <span class="brand-full">SmallDocs</span>
+    <span class="brand-short">SDocs</span>
+    <span class="brand-tiny">SD</span>
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-label">Feedback</span>
+</div>
+
+<div class="content">
+  <h1>Feedback</h1>
+  <p class="subtitle">
+    Messages submitted from the info panel inside the app. Everything here is public. The server stores the message and a timestamp. Submit from the info panel on <a href="/">sdocs.dev</a>.
+  </p>
+
+  <div id="fb-container" class="fb-list">
+    <p class="fb-loading">Loading...</p>
+  </div>
+</div>
+
+<div class="statusbar">
+  <span style="margin-left:auto; display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
+    <span>100% private (<a href="https://sdocs.dev/#sec=privacy" target="_blank" rel="noopener">learn why</a>)</span>
+    &middot; <span data-trust-status>Open source: <a href="/trust" target="_blank" rel="noopener">verify server</a></span>
+    &middot; CLI for you &amp; your agents: <span class="cli-wrap" id="cli-wrap" title="Click to copy install command"><code>npm i -g sdocs-dev</code><button class="copy-btn" id="cli-copy-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
+    &middot; <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener">GitHub</a>
+    &middot; <span>You agree to our <a href="/legal" target="_blank" rel="noopener">Terms</a></span>
+  </span>
+</div>
+
+<script src="/public/sdocs-trust-footer.js" defer></script>
+<script>
+(function () {
+  var COPY_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var CHECK_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  var wrap = document.getElementById('cli-wrap');
+  var btn = document.getElementById('cli-copy-btn');
+  if (wrap && btn) wrap.addEventListener('click', function () {
+    navigator.clipboard.writeText('npm i -g sdocs-dev').then(function () {
+      btn.innerHTML = CHECK_ICON;
+      setTimeout(function () { btn.innerHTML = COPY_ICON; }, 1500);
+    });
+  });
+})();
+</script>
+
+<script>
+(function () {
+  function relTime(iso) {
+    // Server stores "YYYY-MM-DD HH:MM:SS" in UTC
+    var parts = iso.replace('T', ' ').split(/[- :]/).map(Number);
+    var t = Date.UTC(parts[0], parts[1] - 1, parts[2], parts[3] || 0, parts[4] || 0, parts[5] || 0);
+    var diff = Math.max(0, Date.now() - t);
+    var m = Math.floor(diff / 60000);
+    if (m < 1)   return 'just now';
+    if (m < 60)  return m + ' minute' + (m === 1 ? '' : 's') + ' ago';
+    var h = Math.floor(m / 60);
+    if (h < 24)  return h + ' hour' + (h === 1 ? '' : 's') + ' ago';
+    var d = Math.floor(h / 24);
+    if (d < 30)  return d + ' day' + (d === 1 ? '' : 's') + ' ago';
+    var mo = Math.floor(d / 30);
+    if (mo < 12) return mo + ' month' + (mo === 1 ? '' : 's') + ' ago';
+    var y = Math.floor(d / 365);
+    return y + ' year' + (y === 1 ? '' : 's') + ' ago';
+  }
+
+  function render(items) {
+    var box = document.getElementById('fb-container');
+    box.innerHTML = '';
+    if (!items.length) {
+      var empty = document.createElement('p');
+      empty.className = 'fb-empty';
+      empty.textContent = 'No feedback yet. Be the first to send some from the info panel on sdocs.dev.';
+      box.appendChild(empty);
+      return;
+    }
+    items.forEach(function (it) {
+      var li = document.createElement('div');
+      li.className = 'fb-item';
+
+      var meta = document.createElement('div');
+      meta.className = 'fb-meta';
+      meta.title = it.created_at + ' UTC';
+      meta.textContent = relTime(it.created_at);
+      li.appendChild(meta);
+
+      var msg = document.createElement('div');
+      msg.className = 'fb-message';
+      msg.textContent = it.message;
+      li.appendChild(msg);
+
+      box.appendChild(li);
+    });
+  }
+
+  fetch('/api/feedback?limit=200', { cache: 'no-cache' })
+    .then(function (r) { return r.json(); })
+    .then(function (data) { render((data && data.items) || []); })
+    .catch(function () {
+      document.getElementById('fb-container').innerHTML =
+        '<p class="fb-empty">Could not load feedback. Try reloading.</p>';
+    });
+})();
+</script>
+
+</body>
+</html>

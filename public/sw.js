@@ -21,6 +21,8 @@ var APP_SHELL = [
   '/public/sdocs-charts.js',
   '/public/sdocs-math.js',
   '/public/sdocs-app.js',
+  '/public/sdocs-info.js',
+  '/public/notifications.json',
   '/public/vendor/marked.min.js',
   '/public/fonts/inter-400.woff2',
   '/public/fonts/inter-500.woff2',
@@ -69,6 +71,10 @@ self.addEventListener('fetch', function (e) {
   // Short-link API: always hits network (content is per-document and
   // the server responds with no-store headers anyway, don't shadow it).
   if (url.pathname === '/api/short' || url.pathname.indexOf('/api/short/') === 0) return;
+
+  // Feedback list: always hits network so a just-submitted row shows up
+  // on the next load without a second refresh.
+  if (url.pathname === '/api/feedback') return;
 
   // Google Fonts: cache-first (they're immutable)
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {

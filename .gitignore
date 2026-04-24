@@ -6,4 +6,5 @@ CLAUDE.local.md
 test-results/
 analytics.db*
 short_links.db*
+feedback.db*
 *.tgz

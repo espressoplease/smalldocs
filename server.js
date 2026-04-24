@@ -19,6 +19,12 @@ const _shortLinksCleanupTimer = setInterval(() => {
 }, SHORT_LINKS_CLEANUP_INTERVAL_MS);
 if (_shortLinksCleanupTimer.unref) _shortLinksCleanupTimer.unref();
 
+const feedback = require('./feedback/db');
+const feedbackRateLimit = require('./feedback/rate-limit');
+const FEEDBACK_MAX_BYTES = 4 * 1024;            // 4 KB message cap
+feedback.init();
+feedbackRateLimit.startCleanup();
+
 // Auto-version: hash all non-font files in public/ at startup.
 // Any file change = new hash = clients purge their SW cache.
 // The per-file SHA-256 list (served at /trust/manifest) is built by the same
@@ -168,6 +174,56 @@ function handleShortLinkPost(req, res) {
   });
 }
 
+function handleFeedbackPost(req, res) {
+  const ip = getClientIp(req);
+  if (!feedbackRateLimit.check(ip)) {
+    sendJson(res, 429, { error: 'rate_limited' });
+    return;
+  }
+  let bytes = 0;
+  const chunks = [];
+  let aborted = false;
+  req.on('data', (chunk) => {
+    if (aborted) return;
+    bytes += chunk.length;
+    if (bytes > FEEDBACK_MAX_BYTES + 1024) {
+      aborted = true;
+      sendJson(res, 413, { error: 'payload_too_large' });
+      return;
+    }
+    chunks.push(chunk);
+  });
+  req.on('end', () => {
+    if (aborted) return;
+    let body;
+    try {
+      body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    } catch (_) {
+      sendJson(res, 400, { error: 'invalid_json' });
+      return;
+    }
+    const msg = body && typeof body.message === 'string' ? body.message.trim() : '';
+    if (!msg.length) {
+      sendJson(res, 400, { error: 'missing_message' });
+      return;
+    }
+    if (msg.length > FEEDBACK_MAX_BYTES) {
+      sendJson(res, 413, { error: 'payload_too_large' });
+      return;
+    }
+    try {
+      feedback.insert(msg);
+    } catch (e) {
+      sendJson(res, 500, { error: 'db_error' });
+      return;
+    }
+    sendJson(res, 201, { ok: true });
+  });
+  req.on('error', () => {
+    if (!aborted) sendJson(res, 400, { error: 'request_error' });
+  });
+}
+
 function handleShortLinkGet(res, id) {
   if (!/^[A-Za-z0-9_-]{1,32}$/.test(id)) {
     sendJson(res, 400, { error: 'invalid_id' });
@@ -192,6 +248,12 @@ const server = http.createServer((req, res) => {
   // POST /api/short: create a short link for encrypted ciphertext
   if (req.method === 'POST' && pathname === '/api/short') {
     handleShortLinkPost(req, res);
+    return;
+  }
+
+  // POST /api/feedback: store + mail user-submitted feedback
+  if (req.method === 'POST' && pathname === '/api/feedback') {
+    handleFeedbackPost(req, res);
     return;
   }
 
@@ -228,6 +290,26 @@ const server = http.createServer((req, res) => {
       'Cache-Control': 'no-cache',
     });
     res.end(JSON.stringify({ version: APP_VERSION }));
+    return;
+  }
+
+  // Public feedback page: serves the shell; data fetched via /api/feedback.
+  if (pathname === '/feedback') {
+    serveFile(res, path.join(__dirname, 'public', 'feedback.html'), {
+      'Cache-Control': 'no-cache',
+    });
+    return;
+  }
+
+  // Public JSON list of submitted feedback. No IP, no identifiers stored.
+  if (pathname === '/api/feedback') {
+    try {
+      const limit = parseInt(url.searchParams.get('limit') || '100', 10);
+      const rows = feedback.list(isNaN(limit) ? 100 : limit);
+      sendJson(res, 200, { items: rows });
+    } catch (e) {
+      sendJson(res, 500, { error: 'db_error' });
+    }
     return;
   }
 

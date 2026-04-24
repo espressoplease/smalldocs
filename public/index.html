@@ -57,6 +57,10 @@
         <button class="btn" id="_sd_btn-theme" title="Toggle dark mode" aria-label="Toggle dark mode">
           <svg id="_sd_icon-theme" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke-width="2"/></svg>
         </button>
+        <button class="btn btn-with-dot" id="_sd_btn-info" title="Info" aria-label="Info">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span class="info-dot" aria-hidden="true"></span>
+        </button>
       </div>
       <span id="_sd_drop-hint">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3.5 5.5L6 8l2.5-2.5M2 10h8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -613,6 +617,50 @@
       </button>
     </div>
   </div>
+
+  <!-- Info panel -->
+  <div id="_sd_info-panel">
+    <div id="_sd_info-panel-header">Info</div>
+    <div id="_sd_info-panel-body">
+      <div class="info-settings">
+        <div class="info-settings-row">
+          <span class="info-settings-label">Notify me about new features</span>
+          <div class="toggle-group info-settings-toggle" role="radiogroup" aria-label="Notify me about new features">
+            <button class="btn" id="_sd_info-notify-on" role="radio" aria-checked="true">On</button>
+            <button class="btn" id="_sd_info-notify-off" role="radio" aria-checked="false">Off</button>
+          </div>
+        </div>
+        <p class="info-settings-help">When off, the info icon won't show a dot for unseen updates. Open this panel any time to check.</p>
+      </div>
+      <div class="info-section">
+        <div class="info-section-title">New features</div>
+        <ul id="_sd_info-features" class="info-feature-list"></ul>
+      </div>
+      <div class="info-section">
+        <div class="info-section-title">Feedback</div>
+        <textarea id="_sd_info-feedback" rows="6" placeholder="Tell us what's working, what's broken, what you'd like to see."></textarea>
+        <p id="_sd_info-feedback-warning" class="info-feedback-warning" hidden>
+          That looks like an email address. Feedback is displayed publicly, so remove it if you don't want it shared.
+        </p>
+        <div class="info-feedback-actions">
+          <button class="btn" id="_sd_info-feedback-send">Send</button>
+          <span id="_sd_info-feedback-status" class="info-feedback-status" aria-live="polite"></span>
+        </div>
+        <p class="info-feedback-note">
+          Displayed publicly at <a href="/feedback" target="_blank" rel="noopener">sdocs.dev/feedback</a>.
+          Stored in a small SQLite database on our server. We store the message and a timestamp, nothing else. Don't include personal info.
+        </p>
+      </div>
+      <div class="info-section">
+        <div class="info-section-title">Links</div>
+        <ul class="info-links">
+          <li><a href="/feedback" target="_blank" rel="noopener">Read feedback</a><span class="info-links-desc">What other users have sent in.</span></li>
+          <li><a href="/analytics" target="_blank" rel="noopener">Analytics</a><span class="info-links-desc">Visit counts, cohorts, devices.</span></li>
+          <li><a href="https://sdocs.dev/" target="_blank" rel="noopener">Learn about SDocs</a><span class="info-links-desc">How the app works and why.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
 </div><!-- /#_sd_main -->
 
 <!-- Status bar -->
@@ -660,6 +708,7 @@
 <script src="/public/sdocs-charts.js"></script>
 <script src="/public/sdocs-math.js"></script>
 <script src="/public/sdocs-app.js"></script>
+<script src="/public/sdocs-info.js"></script>
 <script src="/public/sdocs-trust-footer.js" defer></script>
 <script nonce="__CSP_NONCE__">
 var APP_VERSION = '__APP_VERSION__';

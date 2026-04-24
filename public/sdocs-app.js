@@ -709,14 +709,17 @@ function setMode(mode, skipHash) {
   document.getElementById('_sd_btn-write').classList.toggle('active',  mode === 'write');
   document.getElementById('_sd_btn-raw').classList.toggle('active',    mode === 'raw');
   document.getElementById('_sd_btn-export').classList.toggle('active', mode === 'export');
+  document.getElementById('_sd_btn-info').classList.toggle('active',   mode === 'info');
 
   document.body.classList.toggle('style-mode',  mode === 'style');
   document.body.classList.toggle('read-mode',   mode === 'read');
   document.body.classList.toggle('write-mode',  mode === 'write');
   document.body.classList.toggle('raw-mode',    mode === 'raw');
   document.body.classList.toggle('export-mode', mode === 'export');
+  document.body.classList.toggle('info-mode',   mode === 'info');
   document.body.classList.remove('mobile-sheet-open');
   document.body.classList.remove('mobile-export-open');
+  document.body.classList.remove('mobile-info-open');
 
   // Enter write mode — populate contentEditable
   if (mode === 'write') {
@@ -738,6 +741,10 @@ document.getElementById('_sd_btn-style').addEventListener('click',  function() {
 document.getElementById('_sd_btn-write').addEventListener('click',  function() { setMode('write'); });
 document.getElementById('_sd_btn-raw').addEventListener('click',    function() { setMode('raw'); });
 document.getElementById('_sd_btn-export').addEventListener('click', function() { setMode('export'); });
+document.getElementById('_sd_btn-info').addEventListener('click', function() {
+  setMode('info');
+  if (S.markInfoSeen) S.markInfoSeen();
+});
 
 document.getElementById('_sd_btn-new').addEventListener('click', function() {
   history.replaceState(null, '', '/new');
@@ -754,6 +761,12 @@ document.getElementById('_sd_right-header').addEventListener('click', function()
 document.getElementById('_sd_export-panel-header').addEventListener('click', function() {
   if (window.innerWidth <= 768) {
     document.body.classList.toggle('mobile-export-open');
+  }
+});
+
+document.getElementById('_sd_info-panel-header').addEventListener('click', function() {
+  if (window.innerWidth <= 768) {
+    document.body.classList.toggle('mobile-info-open');
   }
 });
 

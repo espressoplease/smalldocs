@@ -139,6 +139,51 @@
     align-items: baseline;
     padding: 4px 12px 0px 12px;
   }
+
+  /* ── Info panel: bottom sheet overlay ── */
+  #_sd_info-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    max-height: 0;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(28,25,23,.15), 0 -1px 4px rgba(28,25,23,.08);
+    z-index: 100;
+    transition: max-height .32s cubic-bezier(.4,0,.2,1),
+                opacity .25s ease;
+    overflow: hidden;
+  }
+  body.info-mode #_sd_info-panel {
+    max-height: 52px;
+    opacity: 1;
+  }
+  body.mobile-info-open #_sd_info-panel {
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  /* Drag handle */
+  #_sd_info-panel::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--border-strong);
+    border-radius: 2px;
+    margin: 6px auto 0px;
+    flex-shrink: 0;
+  }
+
+  #_sd_info-panel-header {
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+    min-height: 42px;
+    align-items: baseline;
+    padding: 4px 12px 0px 12px;
+  }
 }
 
 /* ═══════════════════════════════════════════════════
