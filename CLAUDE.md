@@ -149,6 +149,19 @@ node test/preview.js file.md                          # opens browser, stays ope
 
 Use this instead of `sdoc file.md` when you need to verify that code changes are reflected visually. The `--wait` flag controls how long to wait for Chart.js CDN load (default 4000ms).
 
+## Pre-deploy check: service-worker refresh
+
+The service worker caches the app shell and serves stale copies for one page load after a deploy. On that load the SW posts `check-update`; when the server's `APP_VERSION` differs it purges the cache, re-fetches, and posts `sdocs-reload` to force the client onto the new code.
+
+Returning users therefore see a brief (~0.5-2s) flash of the OLD HTML before the auto-reload. If the change reshapes the DOM (new toolbar buttons, renamed IDs, new panels, new script modules), that transient state can look broken and is easy to miss locally because fresh tabs never experience it.
+
+**Before shipping any frontend change that adds or reshapes DOM:**
+
+1. Start the server in prod mode (no `SDOCS_DEV=1`) on the current `main`. Load `http://localhost:3000/` and confirm in DevTools > Application > Service Workers that it registered.
+2. Apply the intended change and restart the server. `APP_VERSION` shifts automatically because `walkPublic` rehashes everything under `public/`.
+3. Reload the tab (not a hard reload). You should see: old shell renders briefly, console logs `sdocs-reload`, page auto-reloads into the new shell.
+4. If the intermediate state is visibly broken, either defer-guard the JS (early-return on missing elements, which most modules already do) or call it out in the PR description so reviewers know the flash is expected.
+
 ## Charts
 
 Render charts in markdown via ` ```chart ` fenced code blocks with JSON data. Charts are powered by Chart.js v4 (lazy-loaded from CDN on first use).
