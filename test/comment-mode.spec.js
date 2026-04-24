@@ -526,7 +526,9 @@ test.describe('edge-case content', () => {
     expect(state.insideTable).toBe(false);
   });
 
-  test('card for pre-block anchor renders OUTSIDE the pre (not inside the code)', async ({ page }) => {
+  test('card for pre-block anchor renders INLINE in the pre (like blockquote)', async ({ page }) => {
+    // Cards flow naturally inline-block inside a <pre>. Only <table>
+    // needs special-cased outside-placement (column grid).
     await setBody(page, '```js\nconst x = 42;\n```\n');
     await saveInline(page, 'const x = 42;', {});
     const state = await page.evaluate(() => {
@@ -537,7 +539,7 @@ test.describe('edge-case content', () => {
       };
     });
     expect(state.found).toBe(true);
-    expect(state.insidePre).toBe(false);
+    expect(state.insidePre).toBe(true);
   });
 
   test('comment on a heading is allowed and anchors correctly', async ({ page }) => {

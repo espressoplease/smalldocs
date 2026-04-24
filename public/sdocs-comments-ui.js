@@ -381,16 +381,14 @@ function renderComment(c) {
       var span = wrapRange(resolved.range, c.id, c.color);
       if (span) {
         var card = cardEl(c, false);
-        // For anchors inside a table or <pre>, rendering the card inline
-        // inside the cell breaks column layout (widens the cell) and
-        // truncates in the pre's horizontal-scroll container. Place the
-        // card AFTER the containing top-level block instead so the cell
-        // stays intact and cards stack below where the user expects.
-        var pre = span.closest('pre');
+        // Anchors inside a <table> can't take an inline card inside a
+        // <td> — the card widens the cell and breaks the column grid.
+        // Place those cards as siblings of the <table> instead. For
+        // every other block (p, pre, blockquote, li, h*, ...), the
+        // card flows naturally inline-block right after the anchor.
         var table = span.closest('table');
-        var outside = pre || table;
-        if (outside && outside.parentNode) {
-          outside.parentNode.insertBefore(card, outside.nextSibling);
+        if (table && table.parentNode) {
+          table.parentNode.insertBefore(card, table.nextSibling);
         } else {
           span.parentNode.insertBefore(card, span.nextSibling);
         }
