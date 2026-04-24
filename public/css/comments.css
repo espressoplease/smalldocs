@@ -197,36 +197,68 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 /* Gutter add-comment button — hover-reveal outlined tile. Positioned
    absolutely in the host's left margin so it never steals layout from
    the block and can sit outside a <pre>'s clipping region. */
+/* The button itself is a transparent hit zone that spans the full
+   block height (plus a few px of vertical tolerance for mouse wander)
+   and reaches right up to the block's left edge so the cursor never
+   falls into a dead gap between block and button. The visible yellow
+   badge is drawn via ::before flush against the block's left edge; the
+   SVG is centered in the same 28x28 area. */
 .sdoc-gutter-add {
   position: absolute;
   left: -36px;
-  top: 4px;
-  width: 28px;
-  height: 28px;
+  top: -6px;
+  bottom: -6px;
+  width: 36px;
   padding: 0;
-  background: var(--bg-input, #fff);
+  background: transparent;
   border: none;
-  color: var(--sdoc-theme-color);
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
+  color: var(--sdoc-theme-color);
   opacity: 0;
   pointer-events: none;
-  transition: opacity .12s, background .12s, color .12s, transform .12s;
+  transition: opacity .12s;
 }
 body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add,
 body.comment-mode .sdoc-gutter-add:focus-visible {
   opacity: 1;
   pointer-events: auto;
 }
-body.comment-mode .sdoc-gutter-add:hover {
+/* Visible badge — the actual little yellow square the user sees.
+   Flush right so it sits directly against the block's left edge,
+   eliminating the visual gap that makes the cursor feel like it's
+   "falling off" when moving from block to button. */
+.sdoc-gutter-add::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: 0;
+  width: 28px;
+  height: 28px;
+  background: var(--bg-input, #fff);
+  border-radius: 6px;
+  pointer-events: none;
+  transition: background .12s, transform .12s;
+}
+.sdoc-gutter-add svg {
+  position: absolute;
+  top: 14px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  display: block;
+  transition: color .12s, transform .12s;
+}
+body.comment-mode .sdoc-gutter-add:hover::before {
   background: color-mix(in srgb, var(--sdoc-theme-color) 18%, var(--bg-input, #fff));
+  transform: scale(1.06);
+  transform-origin: center;
+}
+body.comment-mode .sdoc-gutter-add:hover svg {
   color: var(--sdoc-theme-color-deep);
   transform: scale(1.06);
+  transform-origin: center;
 }
-.sdoc-gutter-add svg { pointer-events: none; display: block; }
 
 /* Block-comment indicator: a colored stripe on the left of any block
    that has a block-level comment, matching the comment's card color.
