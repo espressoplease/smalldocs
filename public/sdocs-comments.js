@@ -255,6 +255,31 @@ function addBlockComment(md, opts, meta) {
 }
 
 /**
+ * updateComment(md, id, newText) -> md
+ *
+ * Replaces the `text` attribute of an existing metadata block. Leaves the
+ * wrappers and all other attributes untouched. Returns the input unchanged
+ * if no matching comment exists.
+ */
+function updateComment(md, id, newText) {
+  if (typeof md !== 'string' || !md) return md;
+  var safeId = id.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+  var re = new RegExp(
+    '<!--sdoc-comment\\s+([\\s\\S]*?\\bid="' + safeId + '"[\\s\\S]*?)-->',
+    'g'
+  );
+  return md.replace(re, function (_, attrs) {
+    var encoded = encodeAttr(newText);
+    if (/\btext="[^"]*"/.test(attrs)) {
+      attrs = attrs.replace(/\btext="[^"]*"/, 'text="' + encoded + '"');
+    } else {
+      attrs = attrs.trim() + ' text="' + encoded + '"';
+    }
+    return '<!--sdoc-comment ' + attrs + '-->';
+  });
+}
+
+/**
  * removeComment(md, id) -> md
  *
  * Strips the comment with the given id. If a wrapper pair exists, unwraps it
@@ -291,6 +316,7 @@ exports.serializeComment    = serializeComment;
 exports.nextCommentId       = nextCommentId;
 exports.addSelectionComment = addSelectionComment;
 exports.addBlockComment     = addBlockComment;
+exports.updateComment       = updateComment;
 exports.removeComment       = removeComment;
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocComments = {}));

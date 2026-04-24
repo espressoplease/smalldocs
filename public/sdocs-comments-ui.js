@@ -187,11 +187,80 @@ function cardEl(c, orphaned) {
   });
   card.appendChild(del);
 
-  card.addEventListener('click', function () {
+  card.addEventListener('click', function (e) {
+    // Clicks inside a live editor bubble up; ignore those so we don't re-enter.
+    if (card.classList.contains('sdoc-card-editing')) return;
+    // Delete button already stops propagation via its own handler.
     focusComment(c.id);
+    enterEditMode(card, c);
   });
 
   return card;
+}
+
+// Swap a card's inner markup for an inline editor. Tick saves via
+// SDC.updateComment; × restores the original body text.
+function enterEditMode(card, c) {
+  card.classList.add('sdoc-card-editing');
+  var origHTML = card.innerHTML;
+
+  // Clear existing card contents
+  card.innerHTML = '';
+
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'sdoc-card-edit-input';
+  input.value = c.text || '';
+
+  var tick = document.createElement('button');
+  tick.className = 'sdoc-card-edit-save';
+  tick.setAttribute('aria-label', 'Save edit');
+  tick.title = 'Save';
+  tick.innerHTML = TICK_SVG;
+
+  var x = document.createElement('button');
+  x.className = 'sdoc-card-edit-cancel';
+  x.setAttribute('aria-label', 'Cancel edit');
+  x.title = 'Cancel';
+  x.innerHTML = X_SVG;
+
+  function restore() {
+    card.classList.remove('sdoc-card-editing');
+    card.innerHTML = origHTML;
+    // Re-bind delete + click (since innerHTML reassignment nuked listeners)
+    rebindCard(card, c);
+  }
+
+  function save() {
+    var newText = input.value.trim();
+    if (!newText) { input.focus(); return; }
+    if (newText === (c.text || '')) { restore(); return; }
+    S.currentBody = SDC.updateComment(S.currentBody, c.id, newText);
+    if (S.syncAll) S.syncAll('comment');
+    // render() re-parses and re-injects, so restore is not needed.
+  }
+
+  tick.addEventListener('click', function (e) { e.stopPropagation(); save(); });
+  x.addEventListener('click', function (e) { e.stopPropagation(); restore(); });
+  input.addEventListener('click', function (e) { e.stopPropagation(); });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); save(); }
+    if (e.key === 'Escape') { e.preventDefault(); restore(); }
+  });
+
+  card.appendChild(input);
+  card.appendChild(tick);
+  card.appendChild(x);
+  setTimeout(function () { input.focus(); input.select(); }, 0);
+}
+
+// Re-attach the delete-button handler after we've stomped innerHTML on cancel.
+function rebindCard(card, c) {
+  var del = card.querySelector('.sdoc-card-delete');
+  if (del) del.addEventListener('click', function (e) {
+    e.stopPropagation();
+    deleteComment(c.id);
+  });
 }
 
 function injectCard(c, commentNodes) {
@@ -332,7 +401,11 @@ function hideComposer() {
   composerEl = null;
 }
 
-function makeComposer(onSave) {
+// Inline SVG icons reused for the composer actions and card-level edit.
+var TICK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+var X_SVG    = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+
+function makeComposer(onSave, onCancel, initialText) {
   hideComposer();
   var el = document.createElement('div');
   el.className = 'sdoc-composer';
@@ -343,24 +416,33 @@ function makeComposer(onSave) {
   var ta = document.createElement('textarea');
   ta.placeholder = 'Add a comment...';
   ta.rows = 3;
+  if (initialText) ta.value = initialText;
   el.appendChild(ta);
   var actions = document.createElement('div');
   actions.className = 'sdoc-composer-actions';
   var save = document.createElement('button');
-  save.className = 'btn sdoc-composer-save';
-  save.textContent = 'Save';
+  save.className = 'sdoc-composer-save';
+  save.setAttribute('aria-label', 'Save comment');
+  save.title = 'Save (Cmd/Ctrl + Enter)';
+  save.innerHTML = TICK_SVG;
   var cancel = document.createElement('button');
-  cancel.className = 'btn sdoc-composer-cancel';
-  cancel.textContent = 'Cancel';
+  cancel.className = 'sdoc-composer-cancel';
+  cancel.setAttribute('aria-label', 'Cancel');
+  cancel.title = 'Cancel (Esc)';
+  cancel.innerHTML = X_SVG;
+  function doCancel() {
+    hideComposer();
+    if (onCancel) onCancel();
+  }
   save.addEventListener('click', function () {
     var text = ta.value.trim();
     if (!text) { ta.focus(); return; }
     onSave(text);
     hideComposer();
   });
-  cancel.addEventListener('click', hideComposer);
+  cancel.addEventListener('click', doCancel);
   ta.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { hideComposer(); }
+    if (e.key === 'Escape') { doCancel(); }
     if ((e.key === 'Enter' && (e.metaKey || e.ctrlKey))) { save.click(); }
   });
   actions.appendChild(save);
@@ -375,7 +457,12 @@ function openBlockComposer(block) {
   var prefs = readPrefs();
   var blockText = (block.textContent || '').trim().slice(0, 80);
   if (!blockText) return;
+  // Mark the target block so the user can see what they're commenting on
+  // while the composer is open.
+  block.classList.add('sdoc-pending-block');
+  function clearPending() { block.classList.remove('sdoc-pending-block'); }
   var composer = makeComposer(function (text) {
+    clearPending();
     var prev = S.currentBody;
     try {
       var res = SDC.addBlockComment(prev, { blockText: blockText }, {
@@ -388,7 +475,7 @@ function openBlockComposer(block) {
     } catch (e) {
       console.warn('addBlockComment failed:', e && e.message);
     }
-  });
+  }, clearPending);
   block.parentNode.insertBefore(composer, block.nextSibling);
 }
 
@@ -417,7 +504,31 @@ function openSelectionComposerFromSelection(range) {
   var ctx = captureContext(range);
   var block = nearestTopBlock(range.startContainer);
   if (!block) return;
+
+  // Wrap the live selection in a pending-anchor span so the user can see
+  // what they're commenting on while the composer is open. If the range
+  // crosses non-text boundaries (shouldn't with our popover guard, but
+  // defensive), fall back to leaving the selection highlight alone.
+  var pendingSpan = null;
+  try {
+    pendingSpan = document.createElement('span');
+    pendingSpan.className = 'sdoc-pending-anchor';
+    range.surroundContents(pendingSpan);
+  } catch (_) {
+    pendingSpan = null;
+  }
+  function clearPending() {
+    if (pendingSpan && pendingSpan.parentNode) {
+      var parent = pendingSpan.parentNode;
+      while (pendingSpan.firstChild) parent.insertBefore(pendingSpan.firstChild, pendingSpan);
+      parent.removeChild(pendingSpan);
+      parent.normalize();
+    }
+    pendingSpan = null;
+  }
+
   var composer = makeComposer(function (text) {
+    clearPending();
     try {
       var res = SDC.addSelectionComment(S.currentBody, {
         selectedText: selectedText,
@@ -433,9 +544,9 @@ function openSelectionComposerFromSelection(range) {
     } catch (e) {
       console.warn('addSelectionComment failed:', e && e.message);
     }
-  });
+  }, clearPending);
   block.parentNode.insertBefore(composer, block.nextSibling);
-  // Clear the selection so the popover goes away.
+  // Clear the native selection now that we've captured it visually.
   var sel = window.getSelection();
   if (sel) sel.removeAllRanges();
 }
