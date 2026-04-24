@@ -260,6 +260,31 @@ module.exports = function (harness) {
     assert.strictEqual(parsed.comments[0].text, 'second');
   });
 
+  test('updateComment: replaces text attribute, leaves everything else intact', () => {
+    const md = 'First.\n<!--sdoc-comment id="c1" author="u" color="#ffd700" at="2026-04-24" text="old"-->\nSecond.';
+    const out = SDC.updateComment(md, 'c1', 'new value');
+    assert.ok(out.indexOf('text="new value"') !== -1);
+    assert.ok(out.indexOf('text="old"') === -1);
+    assert.ok(out.indexOf('id="c1"') !== -1);
+    assert.ok(out.indexOf('author="u"') !== -1);
+    assert.ok(out.indexOf('color="#ffd700"') !== -1);
+    // parse the updated md and check body text
+    const parsed = SDC.parse(out);
+    assert.strictEqual(parsed.comments[0].text, 'new value');
+  });
+
+  test('updateComment: missing id is a no-op', () => {
+    const md = '<!--sdoc-comment id="c1" author="u" color="#f" at="" text="x"-->';
+    assert.strictEqual(SDC.updateComment(md, 'c99', 'y'), md);
+  });
+
+  test('updateComment: handles tricky characters in the new text', () => {
+    const md = '<!--sdoc-comment id="c1" author="u" color="#f" at="" text="x"-->';
+    const out = SDC.updateComment(md, 'c1', 'Has "quotes" and --> arrow\nwith newline.');
+    const parsed = SDC.parse(out);
+    assert.strictEqual(parsed.comments[0].text, 'Has "quotes" and --> arrow\nwith newline.');
+  });
+
   test('nextCommentId: comments inside fenced code do not bump the counter', () => {
     const md = '```\n<!--sdoc-comment id="c999" author="x" color="#f" at="" text="x"-->\n```\n';
     assert.strictEqual(SDC.nextCommentId(md), 'c1');
