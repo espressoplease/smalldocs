@@ -23,7 +23,6 @@ var CONTEXT_LEN = 30; // chars of before/after captured for selection anchors
 var focusedId = null;  // currently highlighted/navigated comment
 var selectionPopoverEl = null;
 var composerEl = null;
-var orphanCount = 0;
 
 // ── Prefs ───────────────────────────────────────────────────────────────
 
@@ -196,47 +195,41 @@ function cardEl(c, orphaned) {
 }
 
 function injectCard(c, commentNodes) {
-  // Find the metadata comment node for this id (for block-anchored placement).
-  var needle = 'sdoc-comment';
-  var cNode = null;
+  // Locate the metadata comment node for this id (needed for block anchors
+  // and as a fallback target when a selection wrapper is missing from the DOM).
+  var metaNode = null;
   for (var i = 0; i < commentNodes.length; i++) {
     var d = commentNodes[i].data;
-    if (d.indexOf(needle) === 0 && new RegExp('\\bid="' + c.id + '"').test(d)) {
-      cNode = commentNodes[i].node;
+    if (d.indexOf('sdoc-comment') === 0 && new RegExp('\\bid="' + c.id + '"').test(d)) {
+      metaNode = commentNodes[i].node;
       break;
     }
   }
-  var orphaned = false;
-  var card = cardEl(c, false);
 
+  // Figure out where the card should go + whether we're orphaned, BEFORE
+  // building the card - so we build it once with the correct orphan state.
+  var target = null;
+  var placement = null;  // 'after-span' | 'in-block' | 'at-end'
   if (c.anchor.type === 'selection') {
-    // Inline: place the card immediately after the highlight span so the
-    // comment flows with the sentence it annotates.
     var span = S.renderedEl.querySelector('span.sdoc-anchor[data-c="' + c.id + '"]');
-    if (span && span.parentNode) {
-      span.parentNode.insertBefore(card, span.nextSibling);
-      return false;
-    }
-    orphaned = true;
+    if (span && span.parentNode) { target = span; placement = 'after-span'; }
   } else {
-    // Block anchor: append inline at the end of the preceding block's content
-    // so it flows like a trailing note rather than a separate row.
-    var block = cNode ? (cNode.previousElementSibling || nearestTopBlock(cNode)) : null;
-    if (block) {
-      block.appendChild(card);
-      return false;
-    }
-    orphaned = true;
+    var block = metaNode ? (metaNode.previousElementSibling || nearestTopBlock(metaNode)) : null;
+    if (block) { target = block; placement = 'in-block'; }
   }
+  var orphaned = !target;
+  var card = cardEl(c, orphaned);
 
-  // Fully orphaned (wrapper or block couldn't be located in the current DOM).
-  card.classList.add('sdoc-card-orphaned');
-  card.appendChild(Object.assign(document.createElement('span'), {
-    className: 'sdoc-card-orphan-badge',
-    textContent: 'anchor lost',
-  }));
-  S.renderedEl.appendChild(card);
-  return true;
+  if (placement === 'after-span') {
+    target.parentNode.insertBefore(card, target.nextSibling);
+  } else if (placement === 'in-block') {
+    target.appendChild(card);
+  } else {
+    // Fully orphaned: couldn't locate the anchor. Still render the card at
+    // the end of the document so the comment isn't invisible.
+    S.renderedEl.appendChild(card);
+  }
+  return orphaned;
 }
 
 // ── Gutter add-comment buttons ──────────────────────────────────────────
@@ -481,7 +474,6 @@ function paintToolbar() {
 
   // Orphan count: cards that actually rendered as orphaned after this render
   var orphanBadgeCount = S.renderedEl ? S.renderedEl.querySelectorAll('.sdoc-card-orphaned').length : 0;
-  orphanCount = orphanBadgeCount;
   if (orphanEl) {
     if (orphanBadgeCount > 0) {
       orphanEl.hidden = false;

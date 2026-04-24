@@ -79,8 +79,8 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   cursor: pointer;
 }
 
-/* Inline comment pill that flows with the annotated text. Coloured using a
-   per-card CSS variable `--sdoc-card-color` set by the JS (matches the
+/* Inline comment card that flows with the annotated text. Coloured via a
+   per-card CSS variable `--sdoc-card-color` set by the JS (matching the
    highlight colour), so each author's comments sit visibly with their
    highlighted span. */
 .sdoc-card {

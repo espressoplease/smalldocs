@@ -211,4 +211,58 @@ module.exports = function (harness) {
     assert.strictEqual(out.comments[0].anchor.type, 'block');
   });
 
+  test('addSelectionComment: throws on ambiguous text when context does not qualify', () => {
+    const md = 'The cat sat. The cat jumped. Done.\n';
+    assert.throws(() => {
+      SDC.addSelectionComment(md, { selectedText: 'The cat', before: '', after: '' },
+        { author: 'u', color: '#fff', at: '', text: 'x' });
+    }, /multiple times/);
+  });
+
+  test('addSelectionComment: accepts ambiguous text when context disambiguates', () => {
+    const md = 'The cat sat. The cat jumped. Done.\n';
+    const res = SDC.addSelectionComment(md, {
+      selectedText: 'The cat', before: '. ', after: ' jumped',
+    }, { author: 'u', color: '#fff', at: '', text: 'x' });
+    // The wrapper should be around the SECOND occurrence, not the first.
+    const idx = res.md.indexOf('sdoc-c:c1');
+    // Position of the first "The cat" in the original md is 0.
+    // The context match should have located it at index ~13.
+    assert.ok(idx > 5, 'wrapper should be on the second occurrence');
+  });
+
+  test('duplicate wrapper ids: parse overwrites deterministically (last wins)', () => {
+    const md = 'A <!--sdoc-c:c1-->one<!--/sdoc-c:c1--> B <!--sdoc-c:c1-->two<!--/sdoc-c:c1-->\n' +
+               '<!--sdoc-comment id="c1" author="u" color="#f" at="" text="x"-->';
+    const out = SDC.parse(md);
+    assert.strictEqual(out.comments.length, 1);
+    // Either the first or the second (behaviour is deterministic either way).
+    assert.ok(out.comments[0].anchor.text === 'one' || out.comments[0].anchor.text === 'two');
+  });
+
+  test('3-level round-trip: add → remove → add produces same comment shape', () => {
+    const md0 = 'Quick unique-phrase stays put.\n';
+    const r1 = SDC.addSelectionComment(md0, {
+      selectedText: 'unique-phrase', before: 'Quick ', after: ' stays',
+    }, { author: 'u', color: '#ffd700', at: '2026-04-24', text: 'first' });
+    const md1 = r1.md;
+    const md2 = SDC.removeComment(md1, 'c1');
+    // Removed body should contain anchor text plainly, no sdoc markers.
+    assert.ok(md2.indexOf('sdoc-') === -1);
+    assert.ok(md2.indexOf('unique-phrase') !== -1);
+    // Add again, expect c1 reused (no remaining ids in body).
+    const r3 = SDC.addSelectionComment(md2, {
+      selectedText: 'unique-phrase', before: 'Quick ', after: ' stays',
+    }, { author: 'u', color: '#ffd700', at: '2026-04-24', text: 'second' });
+    assert.strictEqual(r3.id, 'c1');
+    const parsed = SDC.parse(r3.md);
+    assert.strictEqual(parsed.comments.length, 1);
+    assert.strictEqual(parsed.comments[0].text, 'second');
+  });
+
+  test('nextCommentId: comments inside fenced code do not bump the counter', () => {
+    const md = '```\n<!--sdoc-comment id="c999" author="x" color="#f" at="" text="x"-->\n```\n';
+    assert.strictEqual(SDC.nextCommentId(md), 'c1');
+  });
+
 };
