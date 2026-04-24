@@ -5,7 +5,10 @@
 /* Shared theme tint used across gutter buttons, selection popover,
    composer, and the "copy with comments" affordances. Per-comment cards
    override this on their own style attribute via --sdoc-card-color. */
-:root { --sdoc-theme-color: #ffd700; }
+:root {
+  --sdoc-theme-color:      #ffd700;  /* fills: card bg, toolbar button bg, highlight */
+  --sdoc-theme-color-deep: #e0bd00;  /* text on white: heading companion, icon-on-white */
+}
 
 /* Pending-anchor: striped highlight shown over the selection while its
    composer is open, so the user keeps sight of what they're commenting on
@@ -183,8 +186,9 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   }
 }
 
-/* Gutter add-comment button — always visible in comment mode, pure yellow
-   tile so the rail reads confidently as "commenting lives on this side". */
+/* Gutter add-comment button — outlined style: white tile + yellow icon so
+   it sits quietly on the rendered doc. Filled yellow would compete with
+   the highlighted selection. */
 .sdoc-gutter-add {
   float: left;
   margin-left: -36px;
@@ -192,20 +196,20 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   width: 28px;
   height: 28px;
   padding: 0;
-  background: var(--sdoc-theme-color);
-  border: 1px solid color-mix(in srgb, var(--sdoc-theme-color) 75%, #000);
-  color: #1a1a1a;
+  background: var(--bg-input, #fff);
+  border: none;
+  color: var(--sdoc-theme-color);
   cursor: pointer;
   display: none;
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.10);
-  transition: background .12s, transform .12s;
+  transition: background .12s, color .12s, transform .12s;
 }
 body.comment-mode .sdoc-gutter-add { display: inline-flex; }
 body.comment-mode .sdoc-gutter-add:hover {
-  background: color-mix(in srgb, var(--sdoc-theme-color) 85%, #000);
+  background: color-mix(in srgb, var(--sdoc-theme-color) 18%, var(--bg-input, #fff));
+  color: var(--sdoc-theme-color-deep);
   transform: scale(1.06);
 }
 .sdoc-gutter-add svg { pointer-events: none; display: block; }
@@ -216,26 +220,28 @@ body.comment-mode .sdoc-gutter-add:hover {
   body.comment-mode #_sd_rendered { padding-left: 44px; }
 }
 
-/* Selection popover (floats next to the live text selection). Rounded
-   square in the comment theme colour so it reads as "add a comment here". */
+/* Selection popover — outlined style that matches the gutter + tile: white
+   fill, yellow icon, thick yellow border. Sits over live text without
+   competing with the yellow highlight underneath. */
 .sdoc-selection-add {
   position: fixed;
   z-index: 200;
   padding: 4px 6px;
-  background: var(--sdoc-theme-color);
-  border: 1px solid color-mix(in srgb, var(--sdoc-theme-color) 70%, #000);
-  color: #1a1a1a;
+  background: var(--bg-input, #fff);
+  border: 2px solid var(--sdoc-theme-color);
+  color: var(--sdoc-theme-color);
   border-radius: 5px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-  transition: transform .12s, box-shadow .12s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+  transition: transform .12s, background .12s, color .12s;
 }
 .sdoc-selection-add:hover {
   transform: scale(1.06);
-  box-shadow: 0 3px 10px rgba(0,0,0,0.22);
+  background: color-mix(in srgb, var(--sdoc-theme-color) 15%, var(--bg-input, #fff));
+  color: var(--sdoc-theme-color-deep);
 }
 .sdoc-selection-add svg { pointer-events: none; display: block; }
 
@@ -369,31 +375,30 @@ body.comment-mode .sdoc-gutter-add:hover {
 .sdoc-copy-with-c svg { flex-shrink: 0; color: inherit; }
 .sdoc-copy-with-c-label { white-space: nowrap; color: inherit; }
 
-/* Heading companion variant — NOT a visible button. Matches the plain,
-   icon-sized feel of .header-anchor / .header-copy-btn sitting next to it,
-   just tinted in the comment theme colour. */
+/* Heading companion — white/ghost chrome with deeper yellow text so it
+   reads clearly next to the existing header-anchor / header-copy icons
+   without being a heavy filled button. */
 .sdoc-head-copy-c.sdoc-copy-with-c {
-  margin-left: 6px;
-  padding: 0;
-  background: none;
+  margin-left: 1px;
+  padding: 4px;
+  background: var(--bg-input, #fff);
   border: none;
-  color: color-mix(in srgb, var(--sdoc-theme-color) 70%, #8a5c00);
-  opacity: 0.7;
-  font-size: 10.5px;
+  color: var(--sdoc-theme-color-deep);
+  opacity: 1;
+  font-size: 12.5px;
+  font-weight: 500;
   vertical-align: middle;
-  border-radius: 0;
+  border-radius: 3px;
 }
 .sdoc-head-copy-c.sdoc-copy-with-c:hover {
-  opacity: 1;
-  background: none;
+  background: color-mix(in srgb, var(--sdoc-theme-color) 18%, var(--bg-input, #fff));
+  color: var(--sdoc-theme-color-deep);
   border: none;
 }
-.sdoc-head-copy-c .sdoc-copy-with-c-label {
-  color: inherit;
-}
+.sdoc-head-copy-c .sdoc-copy-with-c-label { color: inherit; }
 @media (prefers-color-scheme: dark) {
   .sdoc-head-copy-c.sdoc-copy-with-c {
-    color: color-mix(in srgb, var(--sdoc-theme-color) 80%, #fff);
+    color: color-mix(in srgb, var(--sdoc-theme-color) 85%, #fff);
   }
 }
 
