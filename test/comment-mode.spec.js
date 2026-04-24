@@ -302,6 +302,20 @@ test.describe('block comments', () => {
     expect(parent).toBe('P');
   });
 
+  test('block comment adds sdoc-block-commented class + color var on target block', async ({ page }) => {
+    await setBody(page, '# T\n\nTarget paragraph.\n');
+    await saveBlock(page, 'p:0', 'note');
+    const state = await page.evaluate(() => {
+      var p = document.querySelector('.sdoc-block-commented');
+      return {
+        tag: p && p.tagName,
+        hasColorVar: p && p.style.getPropertyValue('--sdoc-block-comment-color') !== '',
+      };
+    });
+    expect(state.tag).toBe('P');
+    expect(state.hasColorVar).toBe(true);
+  });
+
   test('block comment on a blockquote lands there', async ({ page }) => {
     await setBody(page, '> A quoted line.\n\nOther paragraph.\n');
     await saveBlock(page, 'blockquote:0', 'on the quote');

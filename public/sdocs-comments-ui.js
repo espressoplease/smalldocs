@@ -55,6 +55,11 @@ function strip() {
   // Remove injected cards + gutter buttons + heading-copy-with-comments buttons
   S.renderedEl.querySelectorAll('.sdoc-card, .sdoc-gutter-add, .sdoc-head-copy-c')
     .forEach(function (el) { el.remove(); });
+  // Clear block-comment indicator class + its CSS var.
+  S.renderedEl.querySelectorAll('.sdoc-block-commented').forEach(function (el) {
+    el.classList.remove('sdoc-block-commented');
+    el.style.removeProperty('--sdoc-block-comment-color');
+  });
   // Unwrap block-hosts (gutter button already removed above)
   S.renderedEl.querySelectorAll('.sdoc-block-host').forEach(function (host) {
     var parent = host.parentNode;
@@ -404,6 +409,12 @@ function renderComment(c) {
   var block = findBlockById(c.block, S.renderedEl);
   if (block) {
     var bCard = cardEl(c, false);
+    // Mark the block so a CSS left-stripe in the comment's color makes
+    // it visually clear WHICH block the card belongs to. Without this,
+    // a standalone pill just sits at the end of the paragraph with no
+    // tie to the text above.
+    block.classList.add('sdoc-block-commented');
+    block.style.setProperty('--sdoc-block-comment-color', c.color || '#ffd700');
     block.appendChild(bCard);
     return false;
   }

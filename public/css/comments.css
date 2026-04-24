@@ -228,6 +228,25 @@ body.comment-mode .sdoc-gutter-add:hover {
 }
 .sdoc-gutter-add svg { pointer-events: none; display: block; }
 
+/* Block-comment indicator: a colored stripe on the left of any block
+   that has a block-level comment, matching the comment's card color.
+   Uses ::before with absolute positioning so it doesn't shift the
+   block's own layout. */
+.sdoc-block-commented {
+  position: relative;
+}
+.sdoc-block-commented::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  background: var(--sdoc-block-comment-color, var(--sdoc-theme-color, #ffd700));
+  border-radius: 2px;
+  pointer-events: none;
+}
+
 /* Mobile: make room for gutter buttons by indenting the rendered body.
    Applies only in comment mode so read mode keeps its existing padding. */
 @media (max-width: 768px) {
