@@ -211,7 +211,7 @@ function render() {
   S.destroyCharts();
   var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
   if (oldSpacer) oldSpacer.remove();
-  S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody), { FORBID_ATTR: ['style'], ADD_TAGS: ['#comment'] });
+  S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody), { FORBID_ATTR: ['style'] });
 
   attachHeadingAnchors(S.renderedEl);
   attachCodeCopyButtons(S.renderedEl);
