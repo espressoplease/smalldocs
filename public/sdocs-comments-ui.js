@@ -239,7 +239,7 @@ function makeGutterBtn(targetBlock) {
   btn.className = 'sdoc-gutter-add';
   btn.setAttribute('aria-label', 'Add comment on this block');
   btn.title = 'Add comment';
-  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
+  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
   btn.addEventListener('click', function (e) {
     e.stopPropagation();
     openBlockComposer(targetBlock);
@@ -336,6 +336,10 @@ function makeComposer(onSave) {
   hideComposer();
   var el = document.createElement('div');
   el.className = 'sdoc-composer';
+  // Tint the composer with the user's current comment colour so the
+  // creation UI mirrors the cards that will result from it.
+  var prefs = readPrefs();
+  el.style.setProperty('--sdoc-card-color', prefs.color);
   var ta = document.createElement('textarea');
   ta.placeholder = 'Add a comment...';
   ta.rows = 3;
