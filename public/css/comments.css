@@ -102,12 +102,16 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 .sdoc-icon-btn svg { display: block; }
 
 /* ── Anchor highlight ───────────────────────────────────────────
-   The yellow underline-on-text. The per-comment color is set by the
-   JS as inline style; this keeps shape + cursor only. */
+   The per-comment color is set as a solid background by the JS via
+   inline style. Force a dark text color regardless of theme so the
+   highlighted text stays readable on the bright fill — in dark mode
+   the body text color would otherwise be light, giving white text
+   on yellow. */
 .sdoc-anchor {
   border-radius: 2px;
   padding: 0 1px;
   cursor: pointer;
+  color: #1a1a1a;
 }
 
 /* ── Pending visuals ────────────────────────────────────────────
