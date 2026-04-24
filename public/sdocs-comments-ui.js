@@ -755,12 +755,35 @@ function paintHeadingCopyWithComments(comments) {
 }
 
 function sectionContainsComment(heading) {
+  // For H2/H3/H4 (wrapped in .md-section by buildCollapsibleSections),
+  // the whole section's content is inside the ancestor .md-section div —
+  // a simple descendant query covers it, regardless of block-host wrapping.
+  var section = heading.closest('.md-section');
+  if (section) {
+    return !!section.querySelector('.sdoc-card, span.sdoc-anchor');
+  }
+  // For H1/H5/H6 (no .md-section wrapping), walk forward siblings until the
+  // next heading of same-or-higher level. Comment mode may have wrapped the
+  // heading in .sdoc-block-host — start from that wrapper's sibling instead.
   var level = parseInt(heading.tagName[1], 10);
-  var node = heading.nextElementSibling;
+  var start = (heading.parentElement && heading.parentElement.classList &&
+               heading.parentElement.classList.contains('sdoc-block-host'))
+    ? heading.parentElement
+    : heading;
+  var node = start.nextElementSibling;
   while (node) {
+    // Direct heading sibling
     if (/^H[1-6]$/.test(node.tagName)) {
       var nextLevel = parseInt(node.tagName[1], 10);
       if (nextLevel <= level) break;
+    }
+    // Heading wrapped in .sdoc-block-host
+    if (node.classList && node.classList.contains('sdoc-block-host')) {
+      var innerH = node.querySelector(':scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6');
+      if (innerH) {
+        var innerLevel = parseInt(innerH.tagName[1], 10);
+        if (innerLevel <= level) break;
+      }
     }
     if (node.classList && node.classList.contains('sdoc-card')) return true;
     if (node.querySelector && node.querySelector('.sdoc-card, span.sdoc-anchor')) return true;
