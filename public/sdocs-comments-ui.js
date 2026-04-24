@@ -57,6 +57,13 @@ function strip() {
   // Remove injected cards + gutter buttons + heading-copy-with-comments buttons
   S.renderedEl.querySelectorAll('.sdoc-card, .sdoc-gutter-add, .sdoc-head-copy-c')
     .forEach(function (el) { el.remove(); });
+  // Unwrap the gutter block-hosts — each host contains exactly one block
+  // and the gutter button was already removed above.
+  S.renderedEl.querySelectorAll('.sdoc-block-host').forEach(function (host) {
+    var parent = host.parentNode;
+    while (host.firstChild) parent.insertBefore(host.firstChild, host);
+    parent.removeChild(host);
+  });
 }
 
 // Walk DOM under root, collect Comment nodes. Returns [{node, data}].
@@ -320,10 +327,25 @@ function makeGutterBtn(targetBlock) {
 
 function injectGutterButtons() {
   S.renderedEl.querySelectorAll(TOP_BLOCK_SEL).forEach(function (block) {
-    // Skip blocks that are inside collapsible section headers or cards
+    // Skip blocks that are inside cards (our own UI) or already hosted.
     if (block.closest('.sdoc-card')) return;
-    var btn = makeGutterBtn(block);
-    block.insertBefore(btn, block.firstChild);
+    if (block.parentNode && block.parentNode.classList &&
+        block.parentNode.classList.contains('sdoc-block-host')) return;
+    // Skip nested blocks — only the outermost commentable block gets a
+    // button (a <p> inside a <blockquote> shares the blockquote's host).
+    var ancestor = block.parentElement;
+    while (ancestor && ancestor !== S.renderedEl) {
+      if (ancestor.matches && ancestor.matches(TOP_BLOCK_SEL)) return;
+      ancestor = ancestor.parentElement;
+    }
+    // Wrap the block in a `position: relative` host so we can place the
+    // gutter button in the margin without being clipped by the block's
+    // own overflow (critical for <pre>, <table>).
+    var host = document.createElement('div');
+    host.className = 'sdoc-block-host';
+    block.parentNode.insertBefore(host, block);
+    host.appendChild(block);
+    host.appendChild(makeGutterBtn(block));
   });
 }
 
