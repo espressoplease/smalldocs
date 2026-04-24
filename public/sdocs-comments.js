@@ -246,6 +246,23 @@ function addSelectionComment(md, sel, meta) {
       while (selStart > 0 && /[`*_~]/.test(masked.charAt(selStart - 1))) selStart--;
     }
   }
+  // Regardless of which branch set selStart/selEnd: if either boundary
+  // sits INSIDE an inline code span (odd backtick count before it in the
+  // paragraph), walk out to cover the span so the HTML-comment wrappers
+  // don't get absorbed as code-text by marked.
+  function backtickParity(s, pos) {
+    var c = 0;
+    for (var i = 0; i < pos; i++) if (s.charCodeAt(i) === 96) c++;
+    return c % 2;
+  }
+  if (backtickParity(masked, selStart) === 1) {
+    var opener = masked.lastIndexOf('`', selStart - 1);
+    if (opener !== -1) selStart = opener;
+  }
+  if (backtickParity(masked, selEnd) === 1) {
+    var closer = masked.indexOf('`', selEnd);
+    if (closer !== -1) selEnd = closer + 1;
+  }
   // Emit the source slice (which may include markdown syntax between the
   // user-visible prefix + suffix) as the anchor text.
   var sourceSlice = masked.slice(selStart, selEnd);
