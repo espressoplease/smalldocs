@@ -436,6 +436,41 @@ test.describe('selection guard', () => {
 
 // ── Copy serializers ─────────────────────────────────────────────────────
 
+test.describe('copy-with-comments buttons', () => {
+  test('toolbar copy-doc button is present and enabled when comments exist', async ({ page }) => {
+    await setBody(page, '# T\n\nA paragraph with target text.\n');
+    await saveInline(page, 'target text', { prefix: 'with ', suffix: '.' });
+    const state = await page.evaluate(() => {
+      var btn = document.getElementById('_sd_comment-copy-doc');
+      return { exists: !!btn, disabled: btn && btn.disabled };
+    });
+    expect(state).toEqual({ exists: true, disabled: false });
+  });
+
+  test('heading companion button appears on H2 whose section contains a comment', async ({ page }) => {
+    await setBody(page, '# Title\n\n## Section A\n\nPara A.\n\n## Section B\n\nPara B.\n');
+    // Expand Section A (so the card is visible — also required for the
+    // block-host wrapping to happen on nested paragraphs).
+    await page.evaluate(() => {
+      Array.from(document.querySelectorAll('h2')).find(h => h.textContent.indexOf('A') !== -1).click();
+    });
+    await saveInline(page, 'Para A', { prefix: '', suffix: '.' });
+    const state = await page.evaluate(() => {
+      var byHeading = {};
+      document.querySelectorAll('.sdoc-head-copy-c').forEach(btn => {
+        var h = btn.closest('h1, h2, h3, h4, h5, h6');
+        if (h) byHeading[h.textContent.replace(/with comments.*/, '').trim()] = h.tagName;
+      });
+      return byHeading;
+    });
+    // The comment on Section A's paragraph should surface a companion
+    // on both the enclosing H1 ("Title") and the H2 ("Section A"),
+    // but NOT on Section B.
+    expect(state['Section A']).toBe('H2');
+    expect(state['Section B']).toBeUndefined();
+  });
+});
+
 test.describe('copy variants', () => {
   test('footnote serializer emits [quote][^cN] + definition', async ({ page }) => {
     await setBody(page, 'Find the target here.\n');
