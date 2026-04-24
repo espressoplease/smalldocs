@@ -353,7 +353,7 @@ function makeCardElement(c, opts) {
       inputEl.type = 'text';
     } else {
       inputEl = document.createElement('textarea');
-      inputEl.rows = 3;
+      inputEl.rows = 1;
     }
     inputEl.className = 'sdoc-card-input';
     inputEl.placeholder = 'Add a comment...';

@@ -200,59 +200,59 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 
 /* ── Sidecar (block) ────────────────────────────────────────────
    Sits below the commented block. Used for view/edit/compose of
-   block-anchored comments. */
+   block-anchored comments. Same "writing-on-tint" vibe as the
+   inline pill: in edit/compose the textarea is transparent over
+   the card's yellow tint, with no internal white box. */
 .sdoc-card-sidecar {
   display: block;
   margin: 8px 0 14px;
-  padding: 8px 10px 8px 12px;
+  padding: 5px 36px 6px 10px;
   border-left: 3px solid var(--sdoc-card-color, var(--sdoc-theme-color));
   position: relative;
+  max-width: 60ch;
 }
 .sdoc-card-sidecar .sdoc-card-author { margin-right: 6px; }
 .sdoc-card-sidecar .sdoc-card-time {
-  color: var(--text-3);
+  color: color-mix(in srgb, var(--text) 55%, transparent);
   font-size: 0.95em;
 }
-.sdoc-card-sidecar .sdoc-card-time::before { content: "· "; color: var(--text-3); margin-right: 2px; }
+.sdoc-card-sidecar .sdoc-card-time::before { content: "· "; margin-right: 2px; }
 .sdoc-card-sidecar .sdoc-card-body {
   display: block;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 /* Sidecar action icons sit at the top-right corner. */
 .sdoc-card-sidecar .sdoc-icon-btn {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 3px;
 }
-.sdoc-card-sidecar .sdoc-card-save  { right: 30px; }
+.sdoc-card-sidecar .sdoc-card-save   { right: 26px; }
 .sdoc-card-sidecar .sdoc-card-cancel { right: 4px; }
 .sdoc-card-sidecar .sdoc-card-delete { right: 4px; }
 
-/* Sidecar in edit/compose: textarea takes the place of the body. */
+/* Sidecar in edit/compose: textarea is transparent, borderless, sits
+   directly on the card's yellow tint. The visual is identical to the
+   view-mode body except the cursor is active. */
 .sdoc-card-sidecar .sdoc-card-input {
   display: block;
   width: 100%;
-  margin-top: 4px;
-  padding: 6px 8px;
+  padding: 0;
   box-sizing: border-box;
-  min-height: 56px;
-  font-family: var(--font-ui);
+  min-height: 1.4em;
+  field-sizing: content; /* autosize where supported */
+  font-family: inherit;
   font-size: inherit;
   line-height: 1.5;
   color: var(--text);
-  background: var(--bg-input);
-  border: 1px solid color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 35%, var(--border));
-  border-radius: var(--radius-sm, 4px);
-  resize: vertical;
+  background: transparent;
+  border: none;
+  resize: none;
   outline: none;
 }
-.sdoc-card-sidecar .sdoc-card-input:focus {
-  border-color: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 70%, transparent);
+.sdoc-card-sidecar .sdoc-card-input::placeholder {
+  color: color-mix(in srgb, var(--text) 35%, transparent);
 }
-/* In compose mode there's no author header line; reserve room for the
-   action icons at the top so they don't overlap the textarea. */
-.sdoc-card-sidecar.sdoc-card-edit { padding-top: 28px; }
 
 /* ── Orphan badge ───────────────────────────────────────────────
    Subtle outline-style badge that matches the "n orphaned" toolbar
