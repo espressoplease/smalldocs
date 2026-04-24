@@ -165,10 +165,13 @@ function serializeComment(c) {
 
 function nextCommentId(md) {
   if (typeof md !== 'string' || !md) return 'c1';
+  // Skip ids that live inside fenced code so sample sdoc syntax in a code
+  // block doesn't inflate the counter.
+  var masked = maskFences(md).masked;
   var max = 0;
   var re = /\bid="c(\d+)"/g;
   var m;
-  while ((m = re.exec(md)) !== null) {
+  while ((m = re.exec(masked)) !== null) {
     var n = parseInt(m[1], 10);
     if (!isNaN(n) && n > max) max = n;
   }
@@ -190,7 +193,9 @@ function addSelectionComment(md, sel, meta) {
   var masked = fm.masked;
   // Try context-qualified match first (surest). If that misses (common when
   // source has inline markdown the rendered DOM doesn't: backticks, links,
-  // emphasis), fall back to locating just the selected text in the source.
+  // emphasis), fall back to locating just the selected text. In the fallback
+  // we refuse ambiguous matches rather than silently anchoring to the first
+  // occurrence - better to orphan a comment than attach it to the wrong place.
   var selStart, selEnd;
   var needle = (sel.before || '') + sel.selectedText + (sel.after || '');
   var idx = (sel.before || sel.after) ? masked.indexOf(needle) : -1;
@@ -198,10 +203,13 @@ function addSelectionComment(md, sel, meta) {
     selStart = idx + (sel.before || '').length;
     selEnd = selStart + sel.selectedText.length;
   } else {
-    idx = masked.indexOf(sel.selectedText);
-    if (idx === -1) throw new Error('selection not found in body');
-    selStart = idx;
-    selEnd = idx + sel.selectedText.length;
+    // Plain-text fallback: locate the selection by literal string match.
+    var first = masked.indexOf(sel.selectedText);
+    if (first === -1) throw new Error('selection not found in body');
+    var second = masked.indexOf(sel.selectedText, first + 1);
+    if (second !== -1) throw new Error('selection text appears multiple times; select a longer phrase');
+    selStart = first;
+    selEnd = first + sel.selectedText.length;
   }
   var id = nextCommentId(md);
   var wrapper = serializeWrapper(id, sel.selectedText, sel.before || '', sel.after || '');
