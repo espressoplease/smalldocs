@@ -362,16 +362,15 @@ test.describe('delete and update', () => {
 // ── Gutter hover (CSS) ───────────────────────────────────────────────────
 
 test.describe('gutter button CSS', () => {
-  test('pointer-events auto + positive fade-out delay', async ({ page }) => {
+  test('hidden + non-interactive when not hovered; revealed on block-host hover', async ({ page }) => {
     await setBody(page, '# T\n\nParagraph.\n');
-    const css = await page.evaluate(() => {
+    const idle = await page.evaluate(() => {
       var btn = document.querySelector('.sdoc-gutter-add');
       var s = getComputedStyle(btn);
-      return { pe: s.pointerEvents, delay: s.transitionDelay };
+      return { opacity: s.opacity, pe: s.pointerEvents };
     });
-    expect(css.pe).toBe('auto');
-    const firstDelay = parseFloat(css.delay.split(',')[0]);
-    expect(firstDelay).toBeGreaterThan(0);
+    expect(idle.opacity).toBe('0');
+    expect(idle.pe).toBe('none');
   });
 });
 
