@@ -267,10 +267,10 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 }
 
 /* ── Block-host + gutter add button ─────────────────────────────
-   The host is a positioning context; the button sits in the host's
-   left margin, transparent at rest, picks up `.sdoc-icon-btn` hover
-   on direct hover. The button itself is a full-height transparent
-   hit zone so the cursor never falls into a dead gap. */
+   Matches the heading-anchor / heading-copy button family:
+   `--md-link-color` icon, opacity-only hover, no background tile.
+   The button is a full-height transparent hit zone so the cursor
+   never falls into a dead gap between block and icon. */
 .sdoc-block-host { position: relative; }
 
 .sdoc-gutter-add {
@@ -283,32 +283,32 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--text-2);
+  color: var(--md-link-color, #2563eb);
   opacity: 0;
   pointer-events: none;
-  transition: opacity .12s;
+  transition: opacity .15s;
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-}
-body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add,
-body.comment-mode .sdoc-gutter-add:focus-visible {
-  opacity: 1;
-  pointer-events: auto;
 }
 .sdoc-gutter-add svg {
   width: 18px;
   height: 18px;
   margin: 6px 4px 0 0;
-  padding: 2px;
-  border-radius: var(--radius-sm, 4px);
-  box-sizing: content-box;
-  transition: background .12s, color .12s;
+  display: block;
 }
-.sdoc-gutter-add:hover svg {
-  background: var(--bg-hover);
-  color: var(--text);
+body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add,
+body.comment-mode .sdoc-gutter-add:focus-visible {
+  opacity: 0.5;
+  pointer-events: auto;
 }
+body.comment-mode .sdoc-gutter-add:hover { opacity: 1; }
+
+/* When the host already has a comment (and therefore a left stripe),
+   shift the icon to the LEFT side of the hit zone so it sits clearly
+   to the left of the stripe — not on top of it. */
+.sdoc-host-commented > .sdoc-gutter-add { justify-content: flex-start; }
+.sdoc-host-commented > .sdoc-gutter-add svg { margin: 6px 0 0 4px; }
 
 /* ── Block-comment indicator stripe ─────────────────────────────
    A single 3px colored stripe spanning both the commented block
@@ -351,27 +351,26 @@ body.comment-mode .sdoc-gutter-add:focus-visible {
 
 /* ── Selection popover ──────────────────────────────────────────
    Floating "+" that appears above a selection. Small surface card
-   with a single `.sdoc-icon-btn` inside — no thick yellow border,
-   no scale-on-hover. */
+   so the icon stays readable over arbitrary text, with the same
+   `--md-link-color` icon family as the gutter button and header
+   anchor/copy. Opacity-only hover to match. */
 .sdoc-selection-add {
   position: fixed;
   z-index: 200;
-  padding: 2px;
+  padding: 3px;
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm, 4px);
-  color: var(--text-2);
+  color: var(--md-link-color, #2563eb);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-sm);
-  transition: background .12s, color .12s;
+  opacity: 0.85;
+  transition: opacity .15s;
 }
-.sdoc-selection-add:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
+.sdoc-selection-add:hover { opacity: 1; }
 .sdoc-selection-add svg { display: block; }
 
 /* ── Copy-with-comments buttons ─────────────────────────────────
