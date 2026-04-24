@@ -381,7 +381,19 @@ function renderComment(c) {
       var span = wrapRange(resolved.range, c.id, c.color);
       if (span) {
         var card = cardEl(c, false);
-        span.parentNode.insertBefore(card, span.nextSibling);
+        // For anchors inside a table or <pre>, rendering the card inline
+        // inside the cell breaks column layout (widens the cell) and
+        // truncates in the pre's horizontal-scroll container. Place the
+        // card AFTER the containing top-level block instead so the cell
+        // stays intact and cards stack below where the user expects.
+        var pre = span.closest('pre');
+        var table = span.closest('table');
+        var outside = pre || table;
+        if (outside && outside.parentNode) {
+          outside.parentNode.insertBefore(card, outside.nextSibling);
+        } else {
+          span.parentNode.insertBefore(card, span.nextSibling);
+        }
         return false;
       }
     }
@@ -482,15 +494,12 @@ function handleSelectionChange() {
   if (!startBlock || startBlock !== endBlock) return hideSelectionPopover();
 
   // Reject selections inside .katex (rendered text differs from source).
-  // Inline <code> IS allowed now — the sidecar model anchors by the rendered
-  // text, which is identical to what the user sees.
+  // Inline <code> and <pre><code> ARE allowed — the sidecar model anchors
+  // by rendered text, which matches source for verbatim blocks.
   var anc = range.commonAncestorContainer;
   var el = anc.nodeType === 1 ? anc : anc.parentNode;
   while (el && el !== S.renderedEl) {
     if (el.classList && el.classList.contains('katex')) return hideSelectionPopover();
-    if (el.tagName === 'PRE' || (el.tagName === 'CODE' && el.parentNode && el.parentNode.tagName === 'PRE')) {
-      return hideSelectionPopover();
-    }
     el = el.parentNode;
   }
 

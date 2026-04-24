@@ -415,25 +415,22 @@ test.describe('selection guard', () => {
     expect(popVisible).toBe(false);
   });
 
-  test('selection inside a <pre> code block does NOT show the popover', async ({ page }) => {
-    await setBody(page, 'Text before.\n\n```\ncode line\n```\n\nAfter.\n');
-    await page.evaluate(() => {
-      var code = document.querySelector('pre code');
-      if (code && code.firstChild) {
-        var range = document.createRange();
-        range.setStart(code.firstChild, 0);
-        range.setEnd(code.firstChild, Math.min(4, code.firstChild.textContent.length));
-        var sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-        document.dispatchEvent(new Event('selectionchange'));
-      }
+  test('selection inside a <pre> code block IS allowed (dev-friendly)', async ({ page }) => {
+    // Developers often want to comment on specific lines of code. The sidecar
+    // anchoring model works fine for <pre> because rendered text == source.
+    await setBody(page, 'Text before.\n\n```js\nconst x = 42;\n```\n\nAfter.\n');
+    await saveInline(page, 'const x = 42;', { prefix: '', suffix: '' });
+    const state = await page.evaluate(() => {
+      var anchor = document.querySelector('span.sdoc-anchor[data-c="c1"]');
+      return {
+        found: !!anchor,
+        text: anchor && anchor.textContent,
+        insidePre: !!(anchor && anchor.closest('pre')),
+      };
     });
-    const popVisible = await page.evaluate(() => {
-      var pop = document.querySelector('.sdoc-selection-add');
-      return !!pop && pop.style.display !== 'none';
-    });
-    expect(popVisible).toBe(false);
+    expect(state.found).toBe(true);
+    expect(state.text).toBe('const x = 42;');
+    expect(state.insidePre).toBe(true);
   });
 });
 
@@ -508,6 +505,39 @@ test.describe('edge-case content', () => {
       return !!(a && a.closest('td'));
     });
     expect(inTd).toBe(true);
+  });
+
+  test('card for table-cell anchor renders OUTSIDE the table (not inside a td)', async ({ page }) => {
+    // Inline cards inside a td expand the cell and break table column
+    // layout. Card should land as a sibling of the <table> instead.
+    await setBody(page, '| Col A | Col B | Col C |\n|---|---|---|\n| JS | V8 | fast |\n| Ruby | MRI | slow |\n');
+    await saveInline(page, 'V8', {});
+    const state = await page.evaluate(() => {
+      var card = document.querySelector('.sdoc-card[data-c="c1"]');
+      return {
+        found: !!card,
+        insideTd: !!(card && card.closest('td')),
+        insideTable: !!(card && card.closest('table')),
+        parentTag: card && card.parentElement && card.parentElement.tagName,
+      };
+    });
+    expect(state.found).toBe(true);
+    expect(state.insideTd).toBe(false);
+    expect(state.insideTable).toBe(false);
+  });
+
+  test('card for pre-block anchor renders OUTSIDE the pre (not inside the code)', async ({ page }) => {
+    await setBody(page, '```js\nconst x = 42;\n```\n');
+    await saveInline(page, 'const x = 42;', {});
+    const state = await page.evaluate(() => {
+      var card = document.querySelector('.sdoc-card[data-c="c1"]');
+      return {
+        found: !!card,
+        insidePre: !!(card && card.closest('pre')),
+      };
+    });
+    expect(state.found).toBe(true);
+    expect(state.insidePre).toBe(false);
   });
 
   test('comment on a heading is allowed and anchors correctly', async ({ page }) => {
