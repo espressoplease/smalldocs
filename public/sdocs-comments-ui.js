@@ -716,6 +716,22 @@ function focusComment(id) {
   focusedId = id;
   var card = S.renderedEl.querySelector('.sdoc-card[data-c="' + id + '"]');
   if (card) {
+    // Expand any collapsed .md-section-body that contains this card.
+    // Without this, scrollIntoView tries to scroll to a hidden element
+    // when the user flicks to a comment inside a closed section.
+    // Deliberately does NOT re-collapse other sections — matches the
+    // user's mental model ("I arrived here; keep it open").
+    var ancestor = card.parentElement;
+    while (ancestor && ancestor !== S.renderedEl) {
+      if (ancestor.classList && ancestor.classList.contains('md-section-body') &&
+          !ancestor.classList.contains('open')) {
+        ancestor.classList.add('open');
+        var section = ancestor.closest('.md-section');
+        var toggle = section && section.querySelector('.section-toggle');
+        if (toggle) toggle.classList.add('open');
+      }
+      ancestor = ancestor.parentElement;
+    }
     S.renderedEl.querySelectorAll('.sdoc-card-focus').forEach(function (el) {
       el.classList.remove('sdoc-card-focus');
     });

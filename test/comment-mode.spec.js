@@ -662,6 +662,37 @@ test.describe('collapsible sections', () => {
     expect(afterOpen).toBe(true);
   });
 
+  test('navigating to a comment inside a collapsed section auto-expands that section', async ({ page }) => {
+    await setBody(page, '# T\n\n## A\n\nOne paragraph.\n\n## B\n\nAnother paragraph under B.\n');
+    // Expand A, add a comment there so it renders.
+    await page.evaluate(() => {
+      Array.from(document.querySelectorAll('h2')).find(h => h.textContent.indexOf('A') !== -1).click();
+    });
+    await saveInline(page, 'One paragraph', { prefix: '', suffix: '' });
+    // Expand B, add a comment, then collapse B again.
+    await page.evaluate(() => {
+      Array.from(document.querySelectorAll('h2')).find(h => h.textContent.indexOf('B') !== -1).click();
+    });
+    await saveInline(page, 'Another paragraph', { prefix: '', suffix: ' under B' });
+    await page.evaluate(() => {
+      // Collapse B
+      Array.from(document.querySelectorAll('h2')).find(h => h.textContent.indexOf('B') !== -1).click();
+    });
+    const before = await page.evaluate(() => {
+      var b = Array.from(document.querySelectorAll('h2')).find(h => h.textContent.indexOf('B') !== -1);
+      return b.closest('.md-section').querySelector('.md-section-body').classList.contains('open');
+    });
+    expect(before).toBe(false);
+    // Navigate to c2 (in Section B). We use focusComment directly since the
+    // navigate-next flow goes through the same function.
+    await page.evaluate(() => window.SDocs.commentsUi.focusComment('c2'));
+    const after = await page.evaluate(() => {
+      var b = Array.from(document.querySelectorAll('h2')).find(h => h.textContent.indexOf('B') !== -1);
+      return b.closest('.md-section').querySelector('.md-section-body').classList.contains('open');
+    });
+    expect(after).toBe(true);
+  });
+
   test('collapsed sections stay collapsed (no involuntary expansion)', async ({ page }) => {
     await setBody(page, '# T\n\n## S1\n\nOne.\n\n## S2\n\nTwo.\n');
     // Leave everything collapsed (default). Add a doc-level comment on H1.
