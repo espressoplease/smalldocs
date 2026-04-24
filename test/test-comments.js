@@ -241,6 +241,28 @@ module.exports = function (harness) {
     assert.strictEqual(m[1], 'with `inline code`');
   });
 
+  test('addSelectionComment: selection at paragraph start prefixes ZWS so marked keeps <p>', () => {
+    // When the wrapper lands at line start, marked treats it as block HTML
+    // and drops the paragraph. ZWS prefix forces inline mode.
+    const md = '# T\n\n## S\n\nFirst paragraph inside section.\n';
+    const res = SDC.addSelectionComment(md, {
+      selectedText: 'First paragraph', before: '', after: ' inside',
+    }, { author: 'u', color: '#fff', at: '', text: 'x' });
+    // Body should start the target line with ZWS before the wrapper
+    assert.ok(res.md.indexOf('\n\n​<!--sdoc-c:c1') !== -1, 'ZWS precedes wrapper at line start');
+    // removeComment should strip the ZWS too
+    const back = SDC.removeComment(res.md, 'c1');
+    assert.ok(back.indexOf('​') === -1, 'ZWS stripped on remove');
+  });
+
+  test('addSelectionComment: selection mid-line does not add ZWS', () => {
+    const md = 'A long line with target text here.\n';
+    const res = SDC.addSelectionComment(md, {
+      selectedText: 'target text', before: 'with ', after: ' here',
+    }, { author: 'u', color: '#fff', at: '', text: 'x' });
+    assert.ok(res.md.indexOf('​') === -1, 'no ZWS mid-line');
+  });
+
   test('addSelectionComment: selection crossing into inline code wraps whole span', () => {
     const md = 'Before CLI: `npm i -g sdocs-dev`. After.\n';
     const res = SDC.addSelectionComment(md, {
