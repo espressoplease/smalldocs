@@ -186,13 +186,21 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   }
 }
 
-/* Gutter add-comment button — outlined style: white tile + yellow icon so
-   it sits quietly on the rendered doc. Filled yellow would compete with
-   the highlighted selection. */
+/* Block-host: a wrapper around every commentable block that provides a
+   positioning context for the gutter button. Using a host (rather than
+   positioning the button inside the block) keeps it visible for blocks
+   with clipping overflow — <pre>, <table>, .sdoc-chart. */
+.sdoc-block-host {
+  position: relative;
+}
+
+/* Gutter add-comment button — hover-reveal outlined tile. Positioned
+   absolutely in the host's left margin so it never steals layout from
+   the block and can sit outside a <pre>'s clipping region. */
 .sdoc-gutter-add {
-  float: left;
-  margin-left: -36px;
-  margin-top: 2px;
+  position: absolute;
+  left: -36px;
+  top: 4px;
   width: 28px;
   height: 28px;
   padding: 0;
@@ -200,13 +208,19 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   border: none;
   color: var(--sdoc-theme-color);
   cursor: pointer;
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  transition: background .12s, color .12s, transform .12s;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s, background .12s, color .12s, transform .12s;
 }
-body.comment-mode .sdoc-gutter-add { display: inline-flex; }
+body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add,
+body.comment-mode .sdoc-gutter-add:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
 body.comment-mode .sdoc-gutter-add:hover {
   background: color-mix(in srgb, var(--sdoc-theme-color) 18%, var(--bg-input, #fff));
   color: var(--sdoc-theme-color-deep);
