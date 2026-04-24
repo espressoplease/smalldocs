@@ -268,7 +268,14 @@ function addSelectionComment(md, sel, meta) {
   var sourceSlice = masked.slice(selStart, selEnd);
   var id = nextCommentId(md);
   var wrapper = serializeWrapper(id, sourceSlice, before, after);
-  var withWrap = masked.slice(0, selStart) + wrapper + masked.slice(selEnd);
+  // If the wrapper lands at the very start of a line, marked parses the
+  // leading HTML comment as a BLOCK html fragment and drops the <p>
+  // around the paragraph (anchor ends up orphaned in the DOM). Prepend a
+  // zero-width space so the line starts with content, forcing marked
+  // back into inline paragraph mode. removeComment strips this ZWS too.
+  var lineStart = (selStart === 0) || (masked.charAt(selStart - 1) === '\n');
+  var prefixSafety = lineStart ? '​' : '';
+  var withWrap = masked.slice(0, selStart) + prefixSafety + wrapper + masked.slice(selEnd);
   // Insert metadata block after the block containing the selection.
   var blockEnd = withWrap.indexOf('\n\n', selStart + wrapper.length);
   if (blockEnd === -1) blockEnd = withWrap.length;
@@ -346,7 +353,7 @@ function removeComment(md, id) {
   var masked = fm.masked;
   var safeId = id.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
   var wrapRe = new RegExp(
-    '<!--sdoc-c:' + safeId + '(?:\\s+[a-zA-Z][\\w-]*="[^"]*")*\\s*-->' +
+    '​?<!--sdoc-c:' + safeId + '(?:\\s+[a-zA-Z][\\w-]*="[^"]*")*\\s*-->' +
     '([\\s\\S]*?)' +
     '<!--/sdoc-c:' + safeId + '-->',
     'g'
