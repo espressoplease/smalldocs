@@ -214,7 +214,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   border-radius: 6px;
   opacity: 0;
   pointer-events: auto;
-  transition: opacity .18s ease 1.5s, background .12s, color .12s, transform .12s;
+  transition: opacity .18s ease .75s, background .12s, color .12s, transform .12s;
 }
 body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add,
 body.comment-mode .sdoc-gutter-add:hover,
