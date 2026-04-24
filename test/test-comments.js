@@ -241,6 +241,26 @@ module.exports = function (harness) {
     assert.strictEqual(m[1], 'with `inline code`');
   });
 
+  test('addSelectionComment: selection crossing into inline code wraps whole span', () => {
+    const md = 'Before CLI: `npm i -g sdocs-dev`. After.\n';
+    const res = SDC.addSelectionComment(md, {
+      selectedText: 'CLI: npm i', before: '', after: '',
+    }, { author: 'u', color: '#fff', at: '', text: 'x' });
+    const m = res.md.match(/<!--sdoc-c:c1-->([^<]*)<!--\/sdoc-c:c1-->/);
+    assert.ok(m);
+    assert.strictEqual(m[1], 'CLI: `npm i -g sdocs-dev`');
+  });
+
+  test('addSelectionComment: selection entirely inside inline code pulls backticks in', () => {
+    const md = 'Before `npm i -g sdocs-dev`. After.\n';
+    const res = SDC.addSelectionComment(md, {
+      selectedText: 'npm i -g', before: '', after: '',
+    }, { author: 'u', color: '#fff', at: '', text: 'x' });
+    const m = res.md.match(/<!--sdoc-c:c1-->([^<]*)<!--\/sdoc-c:c1-->/);
+    assert.ok(m);
+    assert.strictEqual(m[1], '`npm i -g sdocs-dev`');
+  });
+
   test('addSelectionComment: selection across bold keeps asterisks balanced', () => {
     const md = 'Some **bold** text here.\n';
     const res = SDC.addSelectionComment(md, {
