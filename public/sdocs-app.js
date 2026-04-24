@@ -211,7 +211,7 @@ function render() {
   S.destroyCharts();
   var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
   if (oldSpacer) oldSpacer.remove();
-  S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody), { FORBID_ATTR: ['style'] });
+  S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody), { FORBID_ATTR: ['style'], ADD_TAGS: ['#comment'] });
 
   attachHeadingAnchors(S.renderedEl);
   attachCodeCopyButtons(S.renderedEl);
@@ -219,6 +219,7 @@ function render() {
   S.processCharts(S.renderedEl);
   if (S.processMath) S.processMath(S.renderedEl);
   renderFileInfoCard();
+  if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
 }
 
 // ── File-info card ─────────────────────────────────────────
@@ -654,6 +655,15 @@ function syncAll(source) {
       S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
       S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
       updateHash();
+    } else if (source === 'comment') {
+      // Comment mode: currentBody changed (comment added/removed). Re-render
+      // the markdown (which triggers comments.onHostRender to rebuild overlays)
+      // and refresh the hash so the new comment survives reload.
+      S._isDefaultState = false;
+      S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
+      S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
+      render();
+      updateHash();
     }
   } finally {
     S._syncing = false;
@@ -704,22 +714,27 @@ function setMode(mode, skipHash) {
   S.renderedEl.style.display = (mode === 'raw' || mode === 'write') ? 'none' : '';
   S.rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
-  document.getElementById('_sd_btn-read').classList.toggle('active',   mode === 'read');
-  document.getElementById('_sd_btn-style').classList.toggle('active',  mode === 'style');
-  document.getElementById('_sd_btn-write').classList.toggle('active',  mode === 'write');
-  document.getElementById('_sd_btn-raw').classList.toggle('active',    mode === 'raw');
-  document.getElementById('_sd_btn-export').classList.toggle('active', mode === 'export');
-  document.getElementById('_sd_btn-info').classList.toggle('active',   mode === 'info');
+  document.getElementById('_sd_btn-read').classList.toggle('active',    mode === 'read');
+  document.getElementById('_sd_btn-style').classList.toggle('active',   mode === 'style');
+  document.getElementById('_sd_btn-write').classList.toggle('active',   mode === 'write');
+  document.getElementById('_sd_btn-raw').classList.toggle('active',     mode === 'raw');
+  document.getElementById('_sd_btn-export').classList.toggle('active',  mode === 'export');
+  document.getElementById('_sd_btn-info').classList.toggle('active',    mode === 'info');
+  document.getElementById('_sd_btn-comment').classList.toggle('active', mode === 'comment');
 
-  document.body.classList.toggle('style-mode',  mode === 'style');
-  document.body.classList.toggle('read-mode',   mode === 'read');
-  document.body.classList.toggle('write-mode',  mode === 'write');
-  document.body.classList.toggle('raw-mode',    mode === 'raw');
-  document.body.classList.toggle('export-mode', mode === 'export');
-  document.body.classList.toggle('info-mode',   mode === 'info');
+  document.body.classList.toggle('style-mode',   mode === 'style');
+  document.body.classList.toggle('read-mode',    mode === 'read');
+  document.body.classList.toggle('write-mode',   mode === 'write');
+  document.body.classList.toggle('raw-mode',     mode === 'raw');
+  document.body.classList.toggle('export-mode',  mode === 'export');
+  document.body.classList.toggle('info-mode',    mode === 'info');
+  document.body.classList.toggle('comment-mode', mode === 'comment');
   document.body.classList.remove('mobile-sheet-open');
   document.body.classList.remove('mobile-export-open');
   document.body.classList.remove('mobile-info-open');
+
+  if (prev === 'comment' && mode !== 'comment' && S.commentsUi) S.commentsUi.exit();
+  if (mode === 'comment' && S.commentsUi) S.commentsUi.enter();
 
   // Enter write mode — populate contentEditable
   if (mode === 'write') {
@@ -745,6 +760,7 @@ document.getElementById('_sd_btn-info').addEventListener('click', function() {
   setMode('info');
   if (S.markInfoSeen) S.markInfoSeen();
 });
+document.getElementById('_sd_btn-comment').addEventListener('click', function() { setMode('comment'); });
 
 document.getElementById('_sd_btn-new').addEventListener('click', function() {
   history.replaceState(null, '', '/new');
@@ -932,7 +948,7 @@ async function loadFromHash() {
     }
   }
 
-  if (modeParam && ['read', 'style', 'write', 'raw', 'export'].includes(modeParam)) {
+  if (modeParam && ['read', 'style', 'write', 'raw', 'export', 'info', 'comment'].includes(modeParam)) {
     setMode(modeParam, true);
   } else {
     setMode('read', true);
@@ -1013,7 +1029,7 @@ async function initShortLink(id) {
     // real edit, updateHash runs again and normalizes the URL to / + #md=.
     clearTimeout(S._hashTimer);
     var modeParam = params.get('mode');
-    if (modeParam && ['read', 'style', 'write', 'raw', 'export'].indexOf(modeParam) >= 0) {
+    if (modeParam && ['read', 'style', 'write', 'raw', 'export', 'info', 'comment'].indexOf(modeParam) >= 0) {
       setMode(modeParam, true);
     } else {
       setMode('read', true);

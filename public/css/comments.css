@@ -1,0 +1,318 @@
+/* ═══════════════════════════════════════════════════
+   COMMENT MODE
+═══════════════════════════════════════════════════ */
+
+/* Comment toolbar - mirrors the write-toolbar show/hide pattern */
+#_sd_comment-toolbar {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  height: 0;
+  opacity: 0;
+  padding: 0 12px;
+  background: var(--bg);
+  border-bottom: 1px solid transparent;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: height .3s cubic-bezier(.4,0,.2,1),
+              opacity .22s ease,
+              border-color .3s ease,
+              padding .3s cubic-bezier(.4,0,.2,1);
+}
+body.comment-mode #_sd_comment-toolbar {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  height: 34px;
+  opacity: 1;
+  border-bottom-color: var(--border-subtle);
+  padding: 0 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
+
+.sdoc-comment-count {
+  font-size: 12px;
+  color: var(--text-2);
+  font-family: var(--font-ui);
+  min-width: 70px;
+  text-align: center;
+}
+
+.sdoc-comment-hint {
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .sdoc-comment-hint { display: none; }
+}
+
+.sdoc-comment-orphan {
+  font-size: 11px;
+  color: #b45309;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 3px;
+  padding: 1px 7px;
+  margin-left: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  .sdoc-comment-orphan {
+    color: #fdba74;
+    background: #2a1b0f;
+    border-color: #7c2d12;
+  }
+}
+
+/* Highlight span over anchored text */
+.sdoc-anchor {
+  border-radius: 2px;
+  padding: 0 1px;
+  cursor: pointer;
+}
+
+/* Inline comment pill that flows with the annotated text. Coloured using a
+   per-card CSS variable `--sdoc-card-color` set by the JS (matches the
+   highlight colour), so each author's comments sit visibly with their
+   highlighted span. */
+.sdoc-card {
+  display: inline-block;
+  margin: 0 2px 0 4px;
+  padding: 1px 7px 2px;
+  background: color-mix(in srgb, var(--sdoc-card-color, #ffd700) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sdoc-card-color, #ffd700) 65%, transparent);
+  border-radius: 4px;
+  font-family: var(--font-ui);
+  font-size: 0.82em;
+  line-height: 1.4;
+  color: var(--text);
+  vertical-align: baseline;
+  cursor: default;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+}
+.sdoc-card.sdoc-card-focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.sdoc-card-orphaned {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+.sdoc-card-author {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sdoc-card-body {
+  color: var(--text);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.sdoc-card-delete {
+  margin-left: 4px;
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1;
+  vertical-align: baseline;
+  opacity: 0.6;
+  transition: opacity .12s, color .12s;
+}
+.sdoc-card-delete:hover { opacity: 1; color: var(--text); }
+
+.sdoc-card-orphan-badge {
+  margin-left: 6px;
+  font-size: 10px;
+  color: #b45309;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 3px;
+  padding: 0 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+@media (prefers-color-scheme: dark) {
+  .sdoc-card-orphan-badge {
+    color: #fdba74;
+    background: #2a1b0f;
+    border-color: #7c2d12;
+  }
+}
+
+/* Gutter add-comment button — always visible in comment mode, matching the
+   header-anchor / header-copy icons' faded-link style so the rendered doc
+   stays calm. */
+.sdoc-gutter-add {
+  float: left;
+  margin-left: -28px;
+  margin-top: 4px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--md-link-color, #2563eb);
+  opacity: 0.5;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: opacity .15s;
+}
+body.comment-mode .sdoc-gutter-add {
+  display: inline-flex;
+}
+body.comment-mode .sdoc-gutter-add:hover {
+  opacity: 1;
+}
+.sdoc-gutter-add svg { pointer-events: none; }
+
+/* Mobile: make room for gutter buttons by indenting the rendered body.
+   Applies only in comment mode so read mode keeps its existing padding. */
+@media (max-width: 768px) {
+  body.comment-mode #_sd_rendered { padding-left: 44px; }
+}
+
+/* Selection popover (floats above the selection) */
+.sdoc-selection-add {
+  position: fixed;
+  z-index: 200;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  transition: transform .12s;
+}
+.sdoc-selection-add:hover { transform: scale(1.08); }
+.sdoc-selection-add svg { pointer-events: none; }
+
+/* Composer (the inline textarea + Save/Cancel) */
+.sdoc-composer {
+  margin: 8px 0 16px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  max-width: 520px;
+}
+.sdoc-composer textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 60px;
+  padding: 8px 10px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  resize: vertical;
+}
+.sdoc-composer textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.sdoc-composer-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.sdoc-composer .btn {
+  padding: 5px 14px;
+  font-size: 12px;
+}
+.sdoc-composer-save {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+}
+.sdoc-composer-save:hover {
+  opacity: 0.92;
+}
+
+/* "Copy with comments" button — used in the comment toolbar and as a
+   companion next to heading copy buttons. Icon + label sit together and
+   hover-highlight as a single unit. */
+.sdoc-copy-with-c {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: color .12s, background .12s, border-color .12s;
+}
+.sdoc-copy-with-c:hover,
+.sdoc-copy-with-c:hover .sdoc-copy-with-c-label,
+.sdoc-copy-with-c:hover svg {
+  color: var(--accent);
+}
+.sdoc-copy-with-c:hover {
+  background: var(--bg-hover);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.sdoc-copy-with-c svg {
+  flex-shrink: 0;
+  color: inherit;
+}
+.sdoc-copy-with-c-label {
+  white-space: nowrap;
+  color: inherit;
+}
+
+/* Heading companion variant: smaller, link-coloured like the existing
+   header-anchor / header-copy buttons. */
+.sdoc-head-copy-c {
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  color: var(--md-link-color, #2563eb);
+  opacity: 0.5;
+  vertical-align: middle;
+}
+.sdoc-head-copy-c:hover { opacity: 1; }
+
+/* Info panel prefs: generic text input */
+.info-settings-text {
+  padding: 4px 8px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.info-settings-text:focus {
+  outline: none;
+  border-color: var(--accent);
+}

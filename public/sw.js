@@ -8,6 +8,7 @@ var APP_SHELL = [
   '/public/css/rendered.css',
   '/public/css/panel.css',
   '/public/css/write.css',
+  '/public/css/comments.css',
   '/public/css/mobile.css',
   '/public/brotli-wasm-v1.js',
   '/public/brotli_wasm_bg.wasm',
@@ -21,6 +22,8 @@ var APP_SHELL = [
   '/public/sdocs-charts.js',
   '/public/sdocs-math.js',
   '/public/sdocs-app.js',
+  '/public/sdocs-comments.js',
+  '/public/sdocs-comments-ui.js',
   '/public/sdocs-info.js',
   '/public/notifications.json',
   '/public/vendor/marked.min.js',
@@ -93,11 +96,13 @@ self.addEventListener('fetch', function (e) {
 
   // Same-origin: stale-while-revalidate
   // Return cached immediately, fetch fresh (bypassing HTTP cache) in the
-  // background so the next page load has up-to-date assets.
+  // background so the next page load has up-to-date assets. ignoreSearch so
+  // `?v=<app-version>` cache-busting query strings on script/css URLs still
+  // match the precached path.
   if (url.origin === self.location.origin) {
     e.respondWith(
       caches.open(CACHE_NAME).then(function (cache) {
-        return cache.match(e.request).then(function (cached) {
+        return cache.match(e.request, { ignoreSearch: true }).then(function (cached) {
           var networkFetch = freshFetch(e.request).then(function (response) {
             if (response.ok) {
               cache.put(e.request, response.clone());

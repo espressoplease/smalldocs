@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/public/css/rendered.css">
 <link rel="stylesheet" href="/public/css/panel.css">
 <link rel="stylesheet" href="/public/css/write.css">
+<link rel="stylesheet" href="/public/css/comments.css">
 <link rel="stylesheet" href="/public/css/mobile.css">
 <script nonce="__CSP_NONCE__">
   (function(){
@@ -37,6 +38,9 @@
         </button>
         <button class="btn" id="_sd_btn-copy-file" title="Copy markdown body">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button class="btn" id="_sd_btn-comment" title="Comment" aria-label="Comment mode">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>
         </button>
         <button class="btn" id="_sd_btn-style" title="Style">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.622 17.897-10.68-2.913"/><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"/><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/></svg>
@@ -104,6 +108,23 @@
       <button class="write-tb-btn" id="_sd_wb-clear" title="Clear formatting">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><line x1="4" y1="20" x2="20" y2="4" stroke-width="1.5" opacity="0.5"/></svg>
       </button>
+    </div>
+    <div id="_sd_comment-toolbar">
+      <button class="write-tb-btn" id="_sd_comment-prev" title="Previous comment" aria-label="Previous comment">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span id="_sd_comment-count" class="sdoc-comment-count">0 comments</span>
+      <button class="write-tb-btn" id="_sd_comment-next" title="Next comment" aria-label="Next comment">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <span class="write-tb-sep"></span>
+      <span class="sdoc-comment-hint">Select text, or click the <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg> beside a block, to comment</span>
+      <span class="write-tb-sep"></span>
+      <button class="sdoc-copy-with-c" id="_sd_comment-copy-doc" title="Copy the whole document with its comments" aria-label="Copy document with comments">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span class="sdoc-copy-with-c-label">with comments</span>
+      </button>
+      <span id="_sd_comment-orphan" class="sdoc-comment-orphan" hidden></span>
     </div>
     <div id="_sd_content-area" tabindex="0">
       <div id="_sd_sdocs-file-info" hidden>
@@ -631,6 +652,15 @@
           </div>
         </div>
         <p class="info-settings-help">When off, the info icon won't show a dot for unseen updates. Open this panel any time to check.</p>
+        <div class="info-settings-row" style="margin-top:14px">
+          <span class="info-settings-label">Comment as</span>
+          <input type="text" id="_sd_comment-pref-author" class="info-settings-text" placeholder="user" value="user" style="width:110px">
+        </div>
+        <div class="info-settings-row" style="margin-top:8px">
+          <span class="info-settings-label">Comment colour</span>
+          <input type="color" id="_sd_comment-pref-color" value="#ffd700">
+        </div>
+        <p class="info-settings-help">Used when you add new comments in comment mode. Existing comments keep their own colour.</p>
       </div>
       <div class="info-section">
         <div class="info-section-title">New features</div>
@@ -693,23 +723,25 @@
 })();
 </script>
 
-<script src="/public/brotli-wasm-v1.js"></script>
-<script src="/public/vendor/marked.min.js"></script>
-<script src="/public/vendor/purify.min.js"></script>
-<script src="/public/sdocs-yaml.js"></script>
-<script src="/public/sdocs-styles.js"></script>
-<script src="/public/sdocs-state.js"></script>
-<script src="/public/sdocs-slugify.js"></script>
-<script src="/public/sdocs-theme.js"></script>
-<script src="/public/sdocs-controls.js"></script>
-<script src="/public/sdocs-chrome.js"></script>
-<script src="/public/sdocs-export.js"></script>
-<script src="/public/sdocs-write.js"></script>
-<script src="/public/sdocs-charts.js"></script>
-<script src="/public/sdocs-math.js"></script>
-<script src="/public/sdocs-app.js"></script>
-<script src="/public/sdocs-info.js"></script>
-<script src="/public/sdocs-trust-footer.js" defer></script>
+<script src="/public/brotli-wasm-v1.js?v=__APP_VERSION__"></script>
+<script src="/public/vendor/marked.min.js?v=__APP_VERSION__"></script>
+<script src="/public/vendor/purify.min.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-yaml.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-styles.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-state.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-slugify.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-theme.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-controls.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-chrome.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-export.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-write.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-charts.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-math.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-comments.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-app.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-info.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-comments-ui.js?v=__APP_VERSION__"></script>
+<script src="/public/sdocs-trust-footer.js?v=__APP_VERSION__" defer></script>
 <script nonce="__CSP_NONCE__">
 var APP_VERSION = '__APP_VERSION__';
 var SDOCS_DEV = '__SDOCS_DEV__' === '1';

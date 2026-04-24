@@ -18,6 +18,7 @@ require('./test-chart-replace')(harness);
 require('./test-analytics')(harness);
 require('./test-short-links')(harness);
 require('./test-chrome')(harness);
+require('./test-comments')(harness);
 
 // ── HTTP tests (async, starts server) ──────────────
 const runHttp = require('./test-http')(harness);

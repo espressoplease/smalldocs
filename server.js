@@ -358,7 +358,7 @@ const server = http.createServer((req, res) => {
       if (err) { res.writeHead(500); res.end('Error'); return; }
       const nonce = crypto.randomBytes(16).toString('base64');
       const defaultMdPath = pathname === '/legal' ? '/public/legal.md' : '/public/sdoc.md';
-      html = html.replace('__APP_VERSION__', APP_VERSION);
+      html = html.replace(/__APP_VERSION__/g, APP_VERSION);
       html = html.replace('__SDOCS_DEV__', DEV_MODE ? '1' : '0');
       html = html.replace('__DEFAULT_MD_PATH__', defaultMdPath);
       html = html.replace(/__CSP_NONCE__/g, nonce);
