@@ -141,6 +141,13 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   display: flex;
   align-items: center;
   gap: 6px;
+  /* Stretch to fill the 22px grid cell so the inner flex centring
+     produces the same baseline as the prefs (which derives its
+     baseline from a 22px-tall input). Without this, the state's
+     height is its intrinsic line-box (~17px) and the grid centring
+     leaves the text 2-3px lower than the prefs row. */
+  align-self: stretch;
+  line-height: 1;
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
