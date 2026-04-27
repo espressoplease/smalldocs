@@ -205,11 +205,15 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
    when long. No timestamp, no separate author header. */
 .sdoc-card-sidecar {
   display: block;
-  margin: 6px 0 8px;
+  /* --card-attach-gap above (so the card reads as attached to its block);
+     --md-block-gap below (so the next block resumes the document rhythm). */
+  margin: var(--card-attach-gap) 0 var(--md-block-gap);
   padding: 3px 30px 3px 8px;
   position: relative;
   max-width: 60ch;
 }
+/* When two cards stack on the same block, keep them tight. */
+.sdoc-card-sidecar + .sdoc-card-sidecar { margin-top: var(--card-attach-gap); }
 .sdoc-card-sidecar .sdoc-card-author { margin-right: 0; }
 .sdoc-card-sidecar .sdoc-card-author::after {
   content: ":";
@@ -272,6 +276,12 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
    The button is a full-height transparent hit zone so the cursor
    never falls into a dead gap between block and icon. */
 .sdoc-block-host { position: relative; }
+
+/* When a sidecar card sits under a block, drop the wrapped block's bottom
+   margin so --card-attach-gap is the only space above the card. Without
+   this, paragraphs/lists/headings would push the card down by their own
+   --md-block-gap on top of the attach gap. */
+#_sd_rendered .sdoc-block-host:has(> .sdoc-card-sidecar) > :first-child { margin-bottom: 0; }
 
 .sdoc-gutter-add {
   position: absolute;
