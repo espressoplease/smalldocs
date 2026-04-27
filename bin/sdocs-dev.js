@@ -244,6 +244,7 @@ USAGE
   sdoc new                         New blank document (write mode)
   sdoc share <file>                Copy shareable link to clipboard
   sdoc share <file> --section "X"  Link with section anchor
+  sdoc share <file> --short        Encrypted /s/<id> short link (see SHORT LINKS)
   sdoc schema                      Print the full styles schema
   sdoc charts                      Chart types, options, and styling guide
   sdoc comments                    Comment-format reference (for agents)
@@ -272,6 +273,11 @@ OPTIONS
   --dark                Open in dark theme
   --url <base>          Custom base URL (default: https://sdocs.dev)
   --mode <m>            Alias for --read / --write / --style / --raw / --comment
+  --short               Use the encrypted /s/<id> short-URL form (share
+                        subcommand only). See SHORT LINKS below.
+  --json                Machine-readable output (safe subcommand only).
+  --audit               Also print GitHub links to server-side source
+                        files (safe subcommand only).
 
 ENVIRONMENT
   SDOCS_URL   Fallback base URL if --url is not passed.
@@ -289,6 +295,44 @@ FILE INFO CARD
   user can copy, and \`sdoc share <file>\` never includes them in
   the generated link. If someone opens your shared URL, only
   \`file\` is visible.
+
+SHORT LINKS (sdoc share --short)
+  By default, \`sdoc share <file>\` encodes the document into the URL hash:
+  \`https://sdocs.dev/#md=<base64url>\`. The whole document lives in the
+  hash, which the browser does not send to any server.
+
+  \`--short\` produces a shorter, encrypted form: \`https://sdocs.dev/s/<id>#k=<key>\`.
+
+  How it works:
+    1. The CLI brotli-compresses the content, generates a 256-bit AES-GCM
+       key + 96-bit nonce locally, and encrypts the compressed bytes.
+    2. The CLI POSTs the ciphertext (nonce + ct + auth tag, base64url) to
+       /api/short. The server stores it under a random short id and
+       returns the id. The key NEVER leaves the CLI.
+    3. The CLI assembles \`https://sdocs.dev/s/<id>#k=<key>\` and copies
+       it to the clipboard. The key lives in the URL fragment, which the
+       browser does not send to the server on page load.
+    4. Whoever opens the link: the browser fetches the ciphertext from
+       /api/short/<id>, reads \`#k=\` from window.location.hash, decrypts
+       in JavaScript, and renders.
+
+  What the server can see:
+    - That a ciphertext blob was uploaded under id <id>.
+    - When it was fetched and from which IP (standard server logs).
+  What the server cannot see:
+    - The plaintext document. It does not have the key.
+    - The key. The key never leaves the URL fragment.
+
+  Trade-offs vs the default \`#md=\` hash form:
+    - + Shorter URL.
+    - + Survives URL-length limits (some chat apps truncate at ~2k chars).
+    - - Requires the server to remain reachable (the default form does not).
+    - - Stored ciphertext can be deleted by the operator at any time.
+    - - Server logs reveal access patterns even though contents are encrypted.
+
+  If you don't trust an SDocs operator with even those metadata, use the
+  default \`sdoc share <file>\` (no --short) which never contacts the
+  server at all.
 
 VERIFYING THE SERVER (sdoc safe)
   \`sdoc safe\` asks https://sdocs.dev what commit it is running, pulls the
