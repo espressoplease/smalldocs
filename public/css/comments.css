@@ -123,24 +123,24 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 
 /* Toolbar middle slot: cross-fades between the zero-comments hint
    and the active prev/count/next/copy controls when the count
-   transitions across the 0/non-zero boundary. Both states share the
-   same flex slot via absolute positioning inside a relative wrapper. */
+   transitions across the 0/non-zero boundary. Grid stacks both
+   states in the same cell so the wrapper sizes to whichever is
+   wider — letting the parent's justify-content: center group
+   everything (prefs + middle + orphan) as a centred cluster
+   rather than spreading edge-to-edge. */
 .sdoc-toolbar-middle {
-  position: relative;
-  flex: 1;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr;
   align-items: center;
-  justify-content: center;
-  min-width: 0;
+  justify-items: center;
   height: 22px;
 }
 .sdoc-toolbar-state {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   align-items: center;
   gap: 6px;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
