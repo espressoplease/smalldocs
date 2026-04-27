@@ -113,15 +113,32 @@ function computeBlockId(block, root) {
   return pos === -1 ? '' : t + ':' + pos;
 }
 
-function findBlockById(id, root) {
-  if (!id || !root) return null;
-  var parts = id.split(':');
-  var t = parts[0];
-  var n = parseInt(parts[1], 10);
-  if (isNaN(n)) return null;
+function findBlockById(id, root, blockText) {
+  if (!root) return null;
   var idx = listTopBlocks(root);
-  var list = idx.byType[t] || [];
-  return list[n] || null;
+  // 1. Try the exact index first.
+  if (id) {
+    var parts = id.split(':');
+    var t = parts[0];
+    var n = parseInt(parts[1], 10);
+    if (!isNaN(n)) {
+      var list = idx.byType[t] || [];
+      var hit = list[n] || null;
+      // If we have a survival hint and the indexed block doesn't match it,
+      // the index has likely drifted — fall through to text search.
+      if (hit && (!blockText || (hit.textContent || '').trim().indexOf(blockText) === 0)) {
+        return hit;
+      }
+    }
+  }
+  // 2. Fallback: scan all top blocks for one whose start matches blockText.
+  if (blockText) {
+    for (var i = 0; i < idx.blocks.length; i++) {
+      var b = idx.blocks[i].el;
+      if ((b.textContent || '').trim().indexOf(blockText) === 0) return b;
+    }
+  }
+  return null;
 }
 
 // Given a container and a cumulative character offset into container.textContent,
@@ -204,7 +221,7 @@ function resolveAnchor(c, root) {
   if (c.kind !== 'inline' || !c.quote) return null;
   // Tier 1: named block hint
   if (c.block) {
-    var hint = findBlockById(c.block, root);
+    var hint = findBlockById(c.block, root, c.block_text);
     if (hint) {
       var r = findAnchorRange(hint, c.prefix, c.quote, c.suffix);
       if (r) return { range: r, tier: 1 };
@@ -434,7 +451,7 @@ function renderComment(c) {
     return true;
   }
   // kind === 'block'
-  var block = findBlockById(c.block, S.renderedEl);
+  var block = findBlockById(c.block, S.renderedEl, c.block_text);
   if (block) {
     var host = block.parentNode && block.parentNode.classList &&
                block.parentNode.classList.contains('sdoc-block-host')
@@ -575,6 +592,9 @@ function openBlockComposer(block) {
   var prefs = readPrefs();
   var blockId = computeBlockId(block, S.renderedEl);
   if (!blockId) return;
+  // Capture a survival hint: the block's leading text, so the comment can
+  // re-anchor if the index drifts after a future edit.
+  var blockText = (block.textContent || '').slice(0, 60).trim();
   var host = block.parentNode && block.parentNode.classList &&
              block.parentNode.classList.contains('sdoc-block-host')
     ? block.parentNode
@@ -590,7 +610,10 @@ function openBlockComposer(block) {
     mode: 'compose',
     onSave: function (text) {
       try {
-        var res = SDC.addBlockComment(S.currentMeta || {}, { block: blockId }, {
+        var res = SDC.addBlockComment(S.currentMeta || {}, {
+          block: blockId,
+          block_text: blockText,
+        }, {
           author: prefs.author, color: prefs.color,
           at: new Date().toISOString(), text: text,
         });
@@ -912,7 +935,7 @@ function extractSectionSource(headingEl) {
       return sectionBody.indexOf(c.quote) !== -1;
     }
     if (c.kind === 'block' && c.block) {
-      var bEl = findBlockById(c.block, S.renderedEl);
+      var bEl = findBlockById(c.block, S.renderedEl, c.block_text);
       return bEl && blocksInSection.indexOf(bEl) !== -1;
     }
     return false;

@@ -111,6 +111,47 @@ module.exports = function (harness) {
     );
   });
 
+  test('addBlockComment: stores block_text survival hint when supplied', () => {
+    const { meta } = SDC.addBlockComment(
+      {},
+      { block: 'p:3', block_text: 'Reliability is the through-line for Q2' },
+      { author: 'u', text: 'too vague' }
+    );
+    const c = SDC.getComments(meta)[0];
+    assert.strictEqual(c.block_text, 'Reliability is the through-line for Q2');
+  });
+
+  test('addBlockComment: omits block_text when not supplied', () => {
+    const { meta } = SDC.addBlockComment(
+      {},
+      { block: 'p:3' },
+      { author: 'u', text: 'note' }
+    );
+    const c = SDC.getComments(meta)[0];
+    assert.strictEqual(c.block_text, undefined);
+  });
+
+  test('normalizeComment: preserves resolved as boolean', () => {
+    const c = SDC.normalizeComment({
+      id: 'c1', kind: 'block', block: 'p:0', text: 'x', resolved: true,
+    });
+    assert.strictEqual(c.resolved, true);
+  });
+
+  test('normalizeComment: coerces "true" string from YAML round-trip to boolean', () => {
+    const c = SDC.normalizeComment({
+      id: 'c1', kind: 'block', block: 'p:0', text: 'x', resolved: 'true',
+    });
+    assert.strictEqual(c.resolved, true);
+  });
+
+  test('normalizeComment: omits resolved when falsy', () => {
+    const c = SDC.normalizeComment({
+      id: 'c1', kind: 'block', block: 'p:0', text: 'x',
+    });
+    assert.strictEqual(c.resolved, undefined);
+  });
+
   test('removeComment: deletes by id, leaves others', () => {
     let meta = {};
     ({ meta } = SDC.addSelectionComment(meta, { quote: 'a' }, { text: 'A' }));
@@ -252,5 +293,82 @@ module.exports = function (harness) {
     const parsed = YAML.parseFrontMatter(serialized);
     const c = SDC.getComments(parsed.meta)[0];
     assert.strictEqual(c.text, 'emoji 🎉\nwith newline — and em-dash');
+  });
+
+  // ── parseFootnotes ────────────────────────────────────────────────────
+
+  test('parseFootnotes: returns body unchanged when no markers present', () => {
+    const r = SDC.parseFootnotes('just a plain body\n\nwith two paragraphs.\n');
+    assert.deepStrictEqual(r.comments, []);
+    assert.strictEqual(r.body, 'just a plain body\n\nwith two paragraphs.\n');
+  });
+
+  test('parseFootnotes: extracts an inline comment and unwraps the quote', () => {
+    const body = 'Q1 closed strong: every committed feature [shipped on time][^c1] and within budget.\n\n[^c1]: agent - auth migration slipped 2 weeks';
+    const r = SDC.parseFootnotes(body);
+    assert.strictEqual(r.comments.length, 1);
+    const c = r.comments[0];
+    assert.strictEqual(c.id, 'c1');
+    assert.strictEqual(c.kind, 'inline');
+    assert.strictEqual(c.quote, 'shipped on time');
+    assert.strictEqual(c.author, 'agent');
+    assert.strictEqual(c.text, 'auth migration slipped 2 weeks');
+    assert.ok(r.body.indexOf('[^c1]') === -1, 'marker stripped from body');
+    assert.ok(r.body.indexOf('shipped on time') >= 0, 'quote restored in body');
+  });
+
+  test('parseFootnotes: extracts a block comment using surrounding paragraph as block_text', () => {
+    const body = 'The plan to decommission the legacy queue moves to its terminal phase in week 4.[^c2]\n\n[^c2]: agent - finance pushed back on this number';
+    const r = SDC.parseFootnotes(body);
+    assert.strictEqual(r.comments.length, 1);
+    const c = r.comments[0];
+    assert.strictEqual(c.id, 'c2');
+    assert.strictEqual(c.kind, 'block');
+    assert.ok(c.block_text.startsWith('The plan to decommission the legacy queue'));
+    assert.strictEqual(c.text, 'finance pushed back on this number');
+  });
+
+  test('parseFootnotes: recovers `(block tag:n)` hint from definition text', () => {
+    const body = 'A paragraph here.[^c3]\n\n[^c3]: user - too long (block p:0)';
+    const r = SDC.parseFootnotes(body);
+    const c = r.comments[0];
+    assert.strictEqual(c.block, 'p:0');
+    assert.strictEqual(c.text, 'too long');
+  });
+
+  test('parseFootnotes: ignores non-cN footnote ids (academic citations stay intact)', () => {
+    const body = 'See the seminal paper[^citation1] for context.\n\n[^citation1]: Smith et al., 1998.';
+    const r = SDC.parseFootnotes(body);
+    assert.deepStrictEqual(r.comments, []);
+    assert.ok(r.body.indexOf('[^citation1]') >= 0, 'citation marker preserved');
+    assert.ok(r.body.indexOf('Smith et al., 1998') >= 0, 'citation def preserved');
+  });
+
+  test('parseFootnotes: definition with [resolved] flag sets resolved=true', () => {
+    const body = 'Some block.[^c1]\n\n[^c1]: priya [resolved] - already addressed';
+    const r = SDC.parseFootnotes(body);
+    const c = r.comments[0];
+    assert.strictEqual(c.resolved, true);
+    assert.strictEqual(c.text, 'already addressed');
+  });
+
+  test('parseFootnotes: round-trips with serializeFootnotes (no information lost)', () => {
+    const meta = {
+      comments: [
+        { id: 'c1', kind: 'inline', quote: 'on time', text: 'slipped 2 weeks', author: 'agent' },
+        { id: 'c2', kind: 'block', block: 'p:1', text: 'too long', author: 'priya' },
+      ],
+    };
+    const body = 'It shipped on time. Mostly.\n\nA second paragraph.\n';
+    const serialized = SDC.serializeFootnotes(meta, body);
+    const parsed = SDC.parseFootnotes(serialized);
+    assert.strictEqual(parsed.comments.length, 2);
+    const inline = parsed.comments.find(c => c.id === 'c1');
+    const block = parsed.comments.find(c => c.id === 'c2');
+    assert.strictEqual(inline.quote, 'on time');
+    assert.strictEqual(inline.text, 'slipped 2 weeks');
+    assert.strictEqual(block.kind, 'block');
+    assert.strictEqual(block.block, 'p:1');
+    assert.strictEqual(block.text, 'too long');
   });
 };
