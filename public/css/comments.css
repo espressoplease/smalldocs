@@ -156,22 +156,6 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   color: #1a1a1a;
 }
 
-/* ── Pending visuals ────────────────────────────────────────────
-   Striped highlight while a selection composer is open. Pending
-   blocks no longer get a separate dashed outline — the compose
-   sidecar appearing below is signal enough. */
-.sdoc-pending-anchor {
-  background: repeating-linear-gradient(
-    45deg,
-    var(--sdoc-card-color, var(--sdoc-theme-color)),
-    var(--sdoc-card-color, var(--sdoc-theme-color)) 4px,
-    color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 35%, transparent) 4px,
-    color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 35%, transparent) 8px
-  );
-  border-radius: 2px;
-  padding: 0 1px;
-}
-
 /* ── Card surface (shared by pill + sidecar, view + edit) ──────── */
 .sdoc-card {
   font-family: var(--font-ui);

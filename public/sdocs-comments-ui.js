@@ -672,10 +672,13 @@ function openSelectionComposerFromSelection(range) {
   var ctx = captureContext(range, block);
   var blockId = computeBlockId(block, S.renderedEl);
 
-  // Visual preview of the pending anchor while the composer is open.
+  // Visual preview while the composer is open. Same look as a saved
+  // inline anchor — solid colour with forced dark text — so the user
+  // sees the final result immediately. The composer pill below is
+  // signal enough that this is still pending.
   var pendingSpan = document.createElement('span');
-  pendingSpan.className = 'sdoc-pending-anchor';
-  pendingSpan.style.setProperty('--sdoc-card-color', prefs.color);
+  pendingSpan.className = 'sdoc-anchor';
+  pendingSpan.style.background = prefs.color;
   try {
     range.surroundContents(pendingSpan);
   } catch (_) {
