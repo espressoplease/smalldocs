@@ -120,6 +120,11 @@
       <span class="write-tb-sep"></span>
       <span class="sdoc-comment-hint">Select text, or click the <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg> beside a block, to comment</span>
       <span class="write-tb-sep"></span>
+      <span class="sdoc-comment-prefs" title="Author and colour applied to new comments. Existing comments keep their own values.">
+        <input type="text" id="_sd_comment-pref-author" class="sdoc-comment-pref-author" placeholder="user" value="user" aria-label="Comment author">
+        <input type="color" id="_sd_comment-pref-color" class="sdoc-comment-pref-color" value="#ffd700" aria-label="Comment colour">
+      </span>
+      <span class="write-tb-sep"></span>
       <button class="sdoc-copy-with-c" id="_sd_comment-copy-doc" title="Copy the whole document with its comments" aria-label="Copy document with comments">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         <span class="sdoc-copy-with-c-label">with comments</span>
@@ -652,15 +657,6 @@
           </div>
         </div>
         <p class="info-settings-help">When off, the info icon won't show a dot for unseen updates. Open this panel any time to check.</p>
-        <div class="info-settings-row" style="margin-top:14px">
-          <span class="info-settings-label">Comment as</span>
-          <input type="text" id="_sd_comment-pref-author" class="info-settings-text" placeholder="user" value="user" style="width:110px">
-        </div>
-        <div class="info-settings-row" style="margin-top:8px">
-          <span class="info-settings-label">Comment colour</span>
-          <input type="color" id="_sd_comment-pref-color" value="#ffd700">
-        </div>
-        <p class="info-settings-help">Used when you add new comments in comment mode. Existing comments keep their own colour.</p>
       </div>
       <div class="info-section">
         <div class="info-section-title">New features</div>

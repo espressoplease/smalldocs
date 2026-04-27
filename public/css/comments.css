@@ -76,6 +76,48 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   margin-left: 8px;
 }
 
+/* Author + colour preferences applied to NEW comments. Compact pair
+   so they sit naturally between the hint and the copy button. The
+   "as" label is kept implicit via placeholder + tooltip on the wrapper. */
+.sdoc-comment-prefs {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.sdoc-comment-pref-author {
+  font-size: 11.5px;
+  font-family: var(--font-ui);
+  color: var(--text);
+  background: var(--bg-input, transparent);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  padding: 2px 6px;
+  width: 80px;
+  height: 22px;
+  box-sizing: border-box;
+  outline: none;
+}
+.sdoc-comment-pref-author:focus {
+  border-color: var(--text-3);
+}
+.sdoc-comment-pref-color {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sdoc-comment-pref-color::-webkit-color-swatch-wrapper { padding: 2px; }
+.sdoc-comment-pref-color::-webkit-color-swatch { border: none; border-radius: 2px; }
+.sdoc-comment-pref-color::-moz-color-swatch    { border: none; border-radius: 2px; }
+@media (max-width: 640px) {
+  .sdoc-comment-pref-author { width: 60px; }
+}
+
 /* ── Shared icon button ─────────────────────────────────────────
    Same vocabulary as `.write-tb-btn` so chrome looks consistent
    across the app: transparent at rest, hover gets a tinted square,
