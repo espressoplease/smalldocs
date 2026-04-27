@@ -25,14 +25,10 @@ var CSS = [
   '  overflow: hidden;',
   '  box-shadow: 0 1px 3px rgba(0,0,0,.05);',
   '  position: relative;',
-  '  transition: box-shadow .15s, border-color .15s, transform .15s;',
   '}',
-  /* On hover, the border lifts to 28% so the indicator works on both */
-  /* themes (shadow intensification alone is invisible on dark bgs). */
-  '.sdoc-slide:hover {',
-  '  box-shadow: 0 3px 12px rgba(0,0,0,.1);',
-  '  border-color: color-mix(in srgb, var(--md-color, #000) 28%, transparent);',
-  '}',
+  /* No hover affordance on the slide body: the slide itself is no longer */
+  /* clickable. The present button (top-right) is the only activator and */
+  /* owns its own hover state. */
   /* Present button: small top-right overlay, mirrors the copy button */
   /* pattern on code blocks. Always visible so users don\'t have to */
   /* hover-probe to discover it. Colors derive from the slide\'s own */
@@ -52,6 +48,10 @@ var CSS = [
   '  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);',
   '  transition: background .12s, border-color .12s, color .12s;',
   '}',
+  /* Hovering anywhere on the slide lifts the present button into its */
+  /* hover state too, so readers get a visual hint that the button is */
+  /* the activator. Direct hover on the button itself also triggers it. */
+  '.sdoc-slide:hover .sdoc-slide-present,',
   '.sdoc-slide-present:hover {',
   '  background: var(--md-bg, #fff);',
   '  border-color: color-mix(in srgb, var(--md-color, #000) 28%, transparent);',
