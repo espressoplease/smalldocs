@@ -133,7 +133,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   grid-template-columns: 1fr;
   align-items: center;
   justify-items: center;
-  height: 22px;
+  height: 26px;
 }
 .sdoc-toolbar-state {
   grid-column: 1;
