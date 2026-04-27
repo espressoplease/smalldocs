@@ -73,11 +73,20 @@ function normalizeComment(c) {
     if (c.suffix) out.suffix = c.suffix;
   }
   if (c.block) out.block = c.block;
+  // block_text: first ~60 chars of the block at write time. Used as a
+  // text-based fallback when the block index has drifted (e.g. a paragraph
+  // was inserted upstream). Block-comment analogue of inline's quote.
+  if (c.block_text) out.block_text = c.block_text;
   // Author metadata
   out.author = c.author || 'user';
   out.color = c.color || '#ffd700';
   out.at = c.at || new Date().toISOString();
   out.text = c.text || '';
+  // resolved: optional. Preserved only when truthy so the on-disk YAML
+  // stays terse for the common (unresolved) case. Coerced to boolean
+  // because the YAML parser intentionally keeps "true"/"false" as
+  // strings (its general contract); we apply boolean semantics here.
+  if (c.resolved === true || c.resolved === 'true') out.resolved = true;
   return out;
 }
 
@@ -128,6 +137,7 @@ function addBlockComment(meta, anchor, noteMeta) {
     id: id,
     kind: 'block',
     block: anchor.block,
+    block_text: anchor.block_text || '',
     author: (noteMeta || {}).author,
     color: (noteMeta || {}).color,
     at: (noteMeta || {}).at,
@@ -210,8 +220,14 @@ function serializeFootnotes(meta, body) {
   });
   // Emit footnotes in original (chronological) order.
   comments.forEach(function (c) {
-    var label = (c.author || 'user') + ' - ' + (c.text || '');
-    if (c.kind === 'block' && c.block) label += ' (block ' + c.block + ')';
+    var label = (c.author || 'user');
+    if (c.resolved) label += ' [resolved]';
+    label += ' - ' + (c.text || '');
+    if (c.kind === 'block' && c.block) {
+      var blockTag = c.block;
+      if (c.block_text) blockTag += ' "' + c.block_text + '..."';
+      label += ' (block ' + blockTag + ')';
+    }
     footnotes.push('[^' + c.id + ']: ' + label);
   });
   return out.replace(/\n*$/, '') + '\n\n' + footnotes.join('\n') + '\n';
@@ -227,6 +243,143 @@ function serializeFootnotes(meta, body) {
  */
 function serializeClean(meta, body) { return body; }
 
+/**
+ * parseFootnotes(body) -> { comments, body }
+ *
+ * Inverse of serializeFootnotes. Recognises markdown footnotes whose ids
+ * follow our convention (cN where N is digits) and converts them into
+ * comment objects. Other footnote ids are left alone — academic citations
+ * and the like keep their footnote semantics.
+ *
+ * Recognised patterns:
+ *   Inline:  [quote][^cN]            anchor span = quote, kind = inline
+ *   Block:   ...end of paragraph.[^cN]   kind = block, anchor = containing
+ *                                         paragraph (block_text = first ~60
+ *                                         chars of the paragraph the marker
+ *                                         sits in)
+ *   Defn:    [^cN]: author - text [resolved]?   the comment text
+ *
+ * The returned `body` has the recognised refs/defs stripped, ready to feed
+ * to the markdown renderer. Unrecognised footnotes pass through unchanged.
+ *
+ * `block_text` is computed from the body string at parse time, before
+ * marked rendering. For block comments, this is the survival hint that
+ * lets the existing tier-2 resolver attach the comment to the right
+ * block in the rendered DOM (where tag:n indices are computed).
+ */
+function parseFootnotes(body) {
+  if (typeof body !== 'string' || body.indexOf('[^c') === -1) {
+    return { comments: [], body: body };
+  }
+  var ID_RE = /^c\d+$/;
+  // Pull out definitions first. Anchored at line start; tolerate trailing
+  // whitespace/newlines. Also tolerate `[^cN]:`-only lines (no text).
+  var defs = {};
+  var DEF_RE = /^\[\^(c\d+)\]:[ \t]*(.*)$/;
+  var lines = body.split('\n');
+  var keptLines = [];
+  for (var i = 0; i < lines.length; i++) {
+    var m = lines[i].match(DEF_RE);
+    if (m) {
+      defs[m[1]] = (m[2] || '').trim();
+    } else {
+      keptLines.push(lines[i]);
+    }
+  }
+  body = keptLines.join('\n');
+
+  // Pull author + text + resolved-marker out of a definition string.
+  // Format emitted by serializeFootnotes: "<author>[ [resolved]] - <text>".
+  function decodeDef(raw) {
+    var out = { text: raw || '', resolved: false, author: undefined };
+    if (!raw) return out;
+    if (/\[resolved\]/.test(raw)) out.resolved = true;
+    // Try to split on the first " - " that comes after a plausible author token.
+    var split = raw.match(/^(.+?)\s-\s(.+)$/);
+    if (split) {
+      var head = split[1].replace(/\s*\[resolved\]\s*$/, '').trim();
+      // Heuristic: treat head as an author handle if it's compact (no inner punctuation
+      // beyond `.`, `_`, `-`, brackets, spaces) and reasonably short.
+      if (head.length <= 40 && /^[\w][\w \[\].\-_]*$/.test(head)) {
+        out.author = head;
+        out.text = split[2];
+      }
+    }
+    // Trailing "(block tag:n)" hint, if present, gets stripped from text and
+    // surfaced separately.
+    var tag = (out.text || '').match(/\s*\(block\s+(\w+:\d+)\)\s*$/);
+    if (tag) {
+      out.block = tag[1];
+      out.text = out.text.replace(/\s*\(block\s+\w+:\d+\)\s*$/, '');
+    }
+    return out;
+  }
+
+  var comments = [];
+  var seen = {};
+
+  // Inline: [quote][^cN]
+  body = body.replace(/\[([^\]\n]+?)\]\[\^(c\d+)\]/g, function (_m, quote, id) {
+    if (!ID_RE.test(id)) return _m;
+    if (seen[id]) return _m;
+    seen[id] = true;
+    var d = decodeDef(defs[id]);
+    var c = { id: id, kind: 'inline', quote: quote, text: d.text };
+    if (d.author) c.author = d.author;
+    if (d.resolved) c.resolved = true;
+    comments.push(c);
+    return quote;
+  });
+
+  // Block markers: lone [^cN] not preceded by `]`. The surrounding paragraph
+  // becomes the block_text survival hint.
+  var REF_RE = /\[\^(c\d+)\]/g;
+  var match;
+  while ((match = REF_RE.exec(body)) !== null) {
+    var id = match[1];
+    if (!ID_RE.test(id) || seen[id]) continue;
+    var refStart = match.index;
+    if (body[refStart - 1] === ']') continue;
+    seen[id] = true;
+    var paraStart = body.lastIndexOf('\n\n', refStart);
+    paraStart = paraStart === -1 ? 0 : paraStart + 2;
+    var paraEnd = body.indexOf('\n\n', refStart);
+    if (paraEnd === -1) paraEnd = body.length;
+    var paragraph = body.slice(paraStart, paraEnd);
+    var clean = paragraph.replace(REF_RE, '').trim();
+    var d2 = decodeDef(defs[id]);
+    var c2 = { id: id, kind: 'block', block_text: clean.slice(0, 60), text: d2.text };
+    if (d2.block) c2.block = d2.block;
+    if (d2.author) c2.author = d2.author;
+    if (d2.resolved) c2.resolved = true;
+    comments.push(c2);
+  }
+  body = body.replace(REF_RE, function (_m, id) { return seen[id] ? '' : _m; });
+
+  // Orphan definitions (no body marker). Treat as block comments. This is the
+  // shape serializeFootnotes emits today for block-kind comments — the def
+  // carries a `(block tag:n)` hint and there is no body marker.
+  Object.keys(defs).forEach(function (id) {
+    if (!ID_RE.test(id) || seen[id]) return;
+    seen[id] = true;
+    var d3 = decodeDef(defs[id]);
+    var c3 = { id: id, kind: 'block', text: d3.text };
+    if (d3.block) c3.block = d3.block;
+    if (d3.author) c3.author = d3.author;
+    if (d3.resolved) c3.resolved = true;
+    comments.push(c3);
+  });
+
+  body = body.replace(/\n{3,}$/, '\n').replace(/[ \t]+$/gm, '');
+  // Return in chronological (id) order rather than parse-pass order.
+  comments.sort(function (a, b) {
+    var na = parseInt((a.id || '').slice(1), 10);
+    var nb = parseInt((b.id || '').slice(1), 10);
+    return na - nb;
+  });
+  return { comments: comments, body: body };
+}
+
 // ── Public API ──────────────────────────────────────────────────────────
 
 exports.getComments         = getComments;
@@ -239,6 +392,7 @@ exports.removeComment       = removeComment;
 exports.updateComment       = updateComment;
 exports.parse               = parse;
 exports.serializeFootnotes  = serializeFootnotes;
+exports.parseFootnotes      = parseFootnotes;
 exports.serializeClean      = serializeClean;
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocComments = {}));

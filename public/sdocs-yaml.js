@@ -148,6 +148,14 @@ function serializeFrontMatter(meta) {
   const lines = ['---'];
   for (const [k, v] of Object.entries(meta)) {
     if (Array.isArray(v)) {
+      // For the comments list, prepend a one-line schema doc so a reader
+      // (human or agent) opening this file cold can interpret block ids
+      // and the resolved flag without grepping the source.
+      if (k === 'comments' && v.length) {
+        lines.push('# Comments: block "tag:n" = nth (0-indexed) <tag> in render order.');
+        lines.push('# block kind may carry block_text (first ~60 chars) as a survival hint when the index drifts.');
+        lines.push('# inline kind anchors via quote (+ optional prefix/suffix). resolved: true marks addressed.');
+      }
       lines.push(`${k}:`);
       for (const line of serializeArrayItems(v, 2)) lines.push(line);
     } else if (typeof v === 'object' && v !== null) {
