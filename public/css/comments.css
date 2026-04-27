@@ -121,44 +121,33 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   .sdoc-comment-prefs-label { display: none; }
 }
 
-/* Toolbar middle slot: cross-fades between the zero-comments hint
-   and the active prev/count/next/copy controls when the count
-   transitions across the 0/non-zero boundary. Grid stacks both
-   states in the same cell so the wrapper sizes to whichever is
-   wider — letting the parent's justify-content: center group
-   everything (prefs + middle + orphan) as a centred cluster
-   rather than spreading edge-to-edge. */
+/* Toolbar middle slot: shows either the zero-comments hint OR the
+   active prev/count/next/copy cluster. Only ONE state is in the
+   layout at a time (display: none on the other) so the wrapper
+   sizes to the visible content and the parent's justify-content:
+   center keeps everything tight in the middle. The active state
+   fades in via a one-shot CSS animation when display flips from
+   none to flex; the outgoing state disappears instantly. */
 .sdoc-toolbar-middle {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
   align-items: center;
-  justify-items: center;
+  justify-content: center;
   height: 26px;
 }
 .sdoc-toolbar-state {
-  grid-column: 1;
-  grid-row: 1;
-  display: flex;
+  display: none;
   align-items: center;
   gap: 6px;
-  /* Stretch to fill the 22px grid cell so the inner flex centring
-     produces the same baseline as the prefs (which derives its
-     baseline from a 22px-tall input). Without this, the state's
-     height is its intrinsic line-box (~17px) and the grid centring
-     leaves the text 2-3px lower than the prefs row. */
-  align-self: stretch;
   line-height: 1;
   white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity .25s ease, visibility 0s linear .25s;
 }
 .sdoc-toolbar-state.is-active {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transition: opacity .25s ease, visibility 0s linear 0s;
+  display: flex;
+  animation: sdoc-tb-fade-in .25s ease;
+}
+@keyframes sdoc-tb-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ── Shared icon button ─────────────────────────────────────────
