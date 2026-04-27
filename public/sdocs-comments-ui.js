@@ -756,9 +756,23 @@ function paintToolbar() {
   var nextBtn = document.getElementById('_sd_comment-next');
   var copyBtn = document.getElementById('_sd_comment-copy-doc');
   var orphanEl = document.getElementById('_sd_comment-orphan');
+  var zeroEl   = tb.querySelector('.sdoc-toolbar-zero');
+  var activeEl = tb.querySelector('.sdoc-toolbar-active');
+
+  // Cross-fade between the zero-state hint and the active controls
+  // when crossing the 0/non-zero boundary. Both states share the same
+  // flex slot and animate via the .is-active class in CSS.
+  if (zeroEl && activeEl) {
+    if (total === 0) {
+      zeroEl.classList.add('is-active');
+      activeEl.classList.remove('is-active');
+    } else {
+      zeroEl.classList.remove('is-active');
+      activeEl.classList.add('is-active');
+    }
+  }
 
   if (total === 0) {
-    if (countEl) countEl.textContent = '0 comments';
     if (prevBtn) prevBtn.disabled = true;
     if (nextBtn) nextBtn.disabled = true;
     if (copyBtn) copyBtn.disabled = true;

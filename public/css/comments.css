@@ -55,17 +55,14 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   min-width: 70px;
   text-align: center;
 }
-.sdoc-comment-hint {
+/* Hint text in the zero-state of the toolbar middle. */
+.sdoc-toolbar-zero {
   font-size: 11.5px;
   color: var(--text-3);
   font-family: var(--font-ui);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
 }
 @media (max-width: 640px) {
-  .sdoc-comment-hint { display: none; }
+  .sdoc-toolbar-zero { font-size: 11px; }
 }
 .sdoc-comment-orphan {
   font-size: 11px;
@@ -76,14 +73,19 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   margin-left: 8px;
 }
 
-/* Author + colour preferences applied to NEW comments. Compact pair
-   so they sit naturally between the hint and the copy button. The
-   "as" label is kept implicit via placeholder + tooltip on the wrapper. */
+/* Author + colour preferences applied to NEW comments. Live at the
+   left of the toolbar so they're always present regardless of count. */
 .sdoc-comment-prefs {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   flex-shrink: 0;
+}
+.sdoc-comment-prefs-label {
+  font-size: 11.5px;
+  font-family: var(--font-ui);
+  color: var(--text-3);
+  white-space: nowrap;
 }
 .sdoc-comment-pref-author {
   font-size: 11.5px;
@@ -93,7 +95,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm, 4px);
   padding: 2px 6px;
-  width: 80px;
+  width: 64px;
   height: 22px;
   box-sizing: border-box;
   outline: none;
@@ -115,7 +117,41 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 .sdoc-comment-pref-color::-webkit-color-swatch { border: none; border-radius: 2px; }
 .sdoc-comment-pref-color::-moz-color-swatch    { border: none; border-radius: 2px; }
 @media (max-width: 640px) {
-  .sdoc-comment-pref-author { width: 60px; }
+  .sdoc-comment-pref-author { width: 56px; }
+  .sdoc-comment-prefs-label { display: none; }
+}
+
+/* Toolbar middle slot: cross-fades between the zero-comments hint
+   and the active prev/count/next/copy controls when the count
+   transitions across the 0/non-zero boundary. Both states share the
+   same flex slot via absolute positioning inside a relative wrapper. */
+.sdoc-toolbar-middle {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 22px;
+}
+.sdoc-toolbar-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .25s ease, visibility 0s linear .25s;
+}
+.sdoc-toolbar-state.is-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity .25s ease, visibility 0s linear 0s;
 }
 
 /* ── Shared icon button ─────────────────────────────────────────
