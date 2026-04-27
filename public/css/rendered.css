@@ -36,7 +36,13 @@
   --md-list-spacing:   0.3em;
   --md-list-indent:    1.6em;
   --md-p-line-height:  var(--md-line-height);
-  --md-p-margin:       0 0 1.1em;
+  /* --md-block-gap is the document's vertical rhythm. Paragraphs, code-block
+     wrappers, and comment cards all separate from neighbors by this amount. */
+  --md-block-gap:      1.1em;
+  --md-p-margin:       0 0 var(--md-block-gap);
+  /* --card-attach-gap is the small space between a commented block and its
+     card. Smaller than --md-block-gap so the card reads as attached above. */
+  --card-attach-gap:   0.35em;
   --md-link-color:     #2563EB;
   --md-link-decoration: underline;
   --md-code-bg:        #F4F1ED;
@@ -113,9 +119,14 @@
 :is(#_sd_rendered, #_sd_write) a:hover { opacity: .8; }
 
 /* ── Collapsible heading sections ── */
+/* The .sdoc-block-host variants match comment-mode, where every top-level */
+/* block (incl. headings) is wrapped to host the gutter "add comment" button. */
 #_sd_rendered .md-section > h2,
 #_sd_rendered .md-section > h3,
-#_sd_rendered .md-section > h4 {
+#_sd_rendered .md-section > h4,
+#_sd_rendered .md-section > .sdoc-block-host > h2,
+#_sd_rendered .md-section > .sdoc-block-host > h3,
+#_sd_rendered .md-section > .sdoc-block-host > h4 {
   cursor: pointer;
 }
 #_sd_rendered .section-toggle {
@@ -139,10 +150,17 @@
 #_sd_rendered .md-section > h2:hover > .section-toggle,
 #_sd_rendered .md-section > h3:hover > .section-toggle,
 #_sd_rendered .md-section > h4:hover > .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host > h2:hover > .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host > h3:hover > .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host > h4:hover > .section-toggle,
 #_sd_rendered > h1:hover ~ .md-section .section-toggle,
+#_sd_rendered > .sdoc-block-host:has(> h1:hover) ~ .md-section .section-toggle,
 #_sd_rendered .md-section > h2:hover ~ .md-section-body .section-toggle,
 #_sd_rendered .md-section > h3:hover ~ .md-section-body .section-toggle,
-#_sd_rendered .md-section > h4:hover ~ .md-section-body .section-toggle {
+#_sd_rendered .md-section > h4:hover ~ .md-section-body .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host:has(> h2:hover) ~ .md-section-body .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host:has(> h3:hover) ~ .md-section-body .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host:has(> h4:hover) ~ .md-section-body .section-toggle {
   color: var(--text-2);
 }
 #_sd_rendered .md-section-body:not(.open):not(:has(.md-section-body.open)) > :not(.md-section) {
@@ -168,7 +186,10 @@
 }
 #_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h2,
 #_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h3,
-#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h4 {
+#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h4,
+#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > .sdoc-block-host > h2,
+#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > .sdoc-block-host > h3,
+#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > .sdoc-block-host > h4 {
   margin-top: 0.15em;
   margin-bottom: 0.1em;
   padding-bottom: 0;
@@ -220,7 +241,7 @@
 }
 #_sd_rendered .pre-wrapper {
   position: relative;
-  margin: 1.2em 0;
+  margin: var(--md-block-gap) 0;
 }
 :is(#_sd_rendered, #_sd_write) pre {
   background: var(--md-pre-bg);
