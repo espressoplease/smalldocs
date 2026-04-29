@@ -410,19 +410,18 @@ body.comment-mode .sdoc-gutter-add:focus-visible {
   }
 }
 
-/* Block hover: tab takes a faint tint of the user's current comment
-   colour, previewing what their comment will look like. */
-body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add {
-  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 18%, var(--bg-surface));
-}
+/* Block hover: tab fades in but keeps its panel-tone background.
+   The comment colour stays reserved for blocks that actually have a
+   comment, so an empty page in comment mode reads as quiet chrome
+   rather than a preview of every potential comment. */
 body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add svg { opacity: 0.95; }
 
-/* Direct hover or keyboard focus: deeper tint, icon goes to full
-   strength in the link colour, soft right-edge shadow gives a
-   "lifted off the page" feel. */
+/* Direct hover or keyboard focus: subtle darken using the standard
+   panel hover tone, icon goes to the link colour, soft right-edge
+   shadow gives a "lifted off the page" feel. */
 body.comment-mode .sdoc-gutter-add:hover,
 body.comment-mode .sdoc-gutter-add:focus-visible {
-  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 32%, var(--bg-surface));
+  background: var(--bg-hover);
   color: var(--md-link-color, #2563eb);
   box-shadow: 1px 0 4px rgba(0,0,0,.06);
 }
@@ -430,10 +429,11 @@ body.comment-mode .sdoc-gutter-add:hover svg,
 body.comment-mode .sdoc-gutter-add:focus-visible svg { opacity: 1; }
 
 /* Custom focus ring on the tab silhouette so keyboard nav reads as
-   a designed state, not the browser's default outline. */
+   a designed state, not the browser's default outline. Uses the
+   link colour for consistency with the rest of the page chrome. */
 body.comment-mode .sdoc-gutter-add:focus { outline: none; }
 body.comment-mode .sdoc-gutter-add:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 60%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--md-link-color, #2563eb) 55%, transparent);
   outline-offset: 1px;
 }
 
