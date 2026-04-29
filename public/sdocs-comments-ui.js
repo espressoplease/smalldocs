@@ -274,7 +274,7 @@ function wrapRange(range, id, color) {
   var span = document.createElement('span');
   span.className = 'sdoc-anchor';
   span.setAttribute('data-c', id);
-  if (color) span.style.background = color;
+  if (color) span.style.setProperty('--sdoc-anchor-color', color);
   try {
     range.surroundContents(span);
   } catch (_) {
@@ -517,7 +517,7 @@ function ensureSelectionPopover() {
   selectionPopoverEl.className = 'sdoc-selection-add';
   selectionPopoverEl.setAttribute('aria-label', 'Comment on selection');
   selectionPopoverEl.title = 'Comment on selection';
-  selectionPopoverEl.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
+  selectionPopoverEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
   selectionPopoverEl.style.display = 'none';
   document.body.appendChild(selectionPopoverEl);
   selectionPopoverEl.addEventListener('mousedown', function (e) {
@@ -566,11 +566,12 @@ function handleSelectionChange() {
   }
 
   var pop = ensureSelectionPopover();
+  pop.style.setProperty('--sdoc-anchor-color', readPrefs().color);
   var rect = range.getBoundingClientRect();
   if (!rect || (rect.width === 0 && rect.height === 0)) return hideSelectionPopover();
   pop.style.display = 'block';
   pop.style.position = 'fixed';
-  pop.style.top  = (rect.top - 34) + 'px';
+  pop.style.top  = (rect.top - 38) + 'px';
   pop.style.left = (rect.right - 14) + 'px';
 }
 
@@ -678,7 +679,7 @@ function openSelectionComposerFromSelection(range) {
   // signal enough that this is still pending.
   var pendingSpan = document.createElement('span');
   pendingSpan.className = 'sdoc-anchor';
-  pendingSpan.style.background = prefs.color;
+  pendingSpan.style.setProperty('--sdoc-anchor-color', prefs.color);
   try {
     range.surroundContents(pendingSpan);
   } catch (_) {
