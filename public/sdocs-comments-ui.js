@@ -571,8 +571,8 @@ function handleSelectionChange() {
   if (!rect || (rect.width === 0 && rect.height === 0)) return hideSelectionPopover();
   pop.style.display = 'block';
   pop.style.position = 'fixed';
-  pop.style.top  = (rect.top - 38) + 'px';
-  pop.style.left = (rect.right - 14) + 'px';
+  pop.style.top  = (rect.top - 42) + 'px';
+  pop.style.left = (rect.right - 15) + 'px';
 }
 
 // ── Composer ────────────────────────────────────────────────────────────
