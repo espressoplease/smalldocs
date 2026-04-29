@@ -358,7 +358,8 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   color: var(--md-link-color, #2563eb);
   opacity: 0;
   pointer-events: none;
-  transition: opacity .2s cubic-bezier(.4,0,.2,1);
+  transition: opacity .2s cubic-bezier(.4,0,.2,1),
+              color .2s ease;
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -366,7 +367,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 .sdoc-gutter-add svg {
   width: 18px;
   height: 18px;
-  /* Padding turns the hover tint into a circle around the icon
+  /* Padding turns the bg tint into a circle around the icon
      without changing its visible 18px size. The 2px outer margin +
      4px padding keeps the icon at its original (top: 6px, right:
      4px) position relative to the host edges. */
@@ -374,38 +375,70 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   margin: 2px 0 0 0;
   display: block;
   border-radius: 999px;
+  border: 1px solid transparent;
   box-sizing: content-box;
-  transition: background .15s ease, transform .12s ease;
+  transition: background .2s ease,
+              border-color .2s ease,
+              transform .15s cubic-bezier(.4,0,.2,1),
+              box-shadow .15s ease;
 }
-/* In comment mode the "+" is always visible at low opacity so the
-   commenting affordance is discoverable without dominating the page.
-   Three tiers: resting (everywhere) -> block hovered -> direct
-   hover/focus. */
+/* In comment mode the "+" is always present. Three states share the
+   visual vocabulary of the selection popover: a dim ghost at rest,
+   a colour-tinted pill on block hover (matching the popover at
+   rest), and a lifted/deeper-tinted pill on direct hover (matching
+   the popover hover). The tint is the user's current comment colour
+   pushed onto `body` as --sdoc-anchor-color by the comments JS. */
 body.comment-mode .sdoc-gutter-add {
-  opacity: 0.3;
+  opacity: 1;
   pointer-events: auto;
+  /* Resting: faded link colour (currentColor flows into the SVG
+     stroke). Use color-mix-to-transparent rather than CSS opacity
+     so the bg circle and border can be fully opaque when shown. */
+  color: color-mix(in srgb, var(--md-link-color, #2563eb) 38%, transparent);
 }
-body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add { opacity: 0.65; }
-body.comment-mode .sdoc-block-host > .sdoc-gutter-add:hover,
-body.comment-mode .sdoc-gutter-add:focus-visible { opacity: 1; }
-body.comment-mode .sdoc-gutter-add:hover svg {
-  background: color-mix(in srgb, var(--md-link-color, #2563eb) 12%, transparent);
+
+/* Block hover: bg circle picks up the comment colour the same way
+   the selection popover does at rest. Icon goes to full strength. */
+body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add {
+  color: var(--md-link-color, #2563eb);
 }
-body.comment-mode .sdoc-gutter-add:active svg { transform: scale(0.94); }
+body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add svg {
+  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 50%, transparent);
+  border-color: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 65%, transparent);
+}
+
+/* Direct hover or keyboard focus: same look as the selection
+   popover's :hover state. Subtle lift + deeper tint + soft shadow. */
+body.comment-mode .sdoc-gutter-add:hover,
+body.comment-mode .sdoc-gutter-add:focus-visible {
+  color: var(--md-link-color, #2563eb);
+}
+body.comment-mode .sdoc-gutter-add:hover svg,
+body.comment-mode .sdoc-gutter-add:focus-visible svg {
+  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 70%, transparent);
+  border-color: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 80%, transparent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+body.comment-mode .sdoc-gutter-add:active svg {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
 /* Custom focus ring on the icon's circle so keyboard nav reads as a
    designed state, not a default browser outline on the button box. */
 body.comment-mode .sdoc-gutter-add:focus { outline: none; }
 body.comment-mode .sdoc-gutter-add:focus-visible svg {
-  background: color-mix(in srgb, var(--md-link-color, #2563eb) 14%, transparent);
-  outline: 2px solid color-mix(in srgb, var(--md-link-color, #2563eb) 70%, transparent);
-  outline-offset: 0;
+  outline: 2px solid color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 75%, transparent);
+  outline-offset: 1px;
 }
 
 /* Touch / coarse-pointer devices have no hover, so lift the resting
-   opacity higher: the icon needs to be genuinely tap-discoverable
+   colour higher: the icon needs to be genuinely tap-discoverable
    without depending on a hover that will never fire. */
 @media (hover: none) {
-  body.comment-mode .sdoc-gutter-add { opacity: 0.5; }
+  body.comment-mode .sdoc-gutter-add {
+    color: color-mix(in srgb, var(--md-link-color, #2563eb) 60%, transparent);
+  }
 }
 
 /* When the host already has a comment (and therefore a left stripe),
