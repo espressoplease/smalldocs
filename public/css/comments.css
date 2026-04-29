@@ -345,124 +345,145 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
    --md-block-gap on top of the attach gap. */
 #_sd_rendered .sdoc-block-host:has(> .sdoc-card-sidecar) > :first-child { margin-bottom: 0; }
 
+/* ── Gutter tab ─────────────────────────────────────────────────
+   A vertical tab attached to each block in comment mode. Full block
+   height, panel-tone fill so it reads as chrome rather than as a
+   floating button, asymmetric rounding (heavier on the outer edge,
+   slight on the inner edge) so it looks tucked in from the page
+   margin. The tab spans the host's full height, which means it also
+   covers any sidecar comment cards the host wraps (the sidecar
+   sits inside the host, not below it). On a commented block the
+   tab itself fills with the comment colour, replacing the standalone
+   stripe that used to sit beside the block. One element, two roles:
+   "click to add" + "this block has a comment". */
 .sdoc-gutter-add {
   position: absolute;
-  left: -36px;
-  top: -4px;
-  bottom: -4px;
-  width: 36px;
-  padding: 0;
-  background: transparent;
+  left: -32px;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  padding: 6px 0 0 0;
+  background: var(--bg-surface);
   border: none;
+  border-radius: 8px 3px 3px 8px;
   cursor: pointer;
-  color: var(--md-link-color, #2563eb);
+  color: var(--text-3);
   opacity: 0;
   pointer-events: none;
-  transition: opacity .2s cubic-bezier(.4,0,.2,1),
-              color .2s ease;
+  transition: background .2s ease,
+              color .2s ease,
+              opacity .2s cubic-bezier(.4,0,.2,1),
+              box-shadow .15s ease;
   display: flex;
   align-items: flex-start;
-  justify-content: flex-end;
+  justify-content: center;
 }
 .sdoc-gutter-add svg {
-  width: 18px;
-  height: 18px;
-  /* Padding turns the bg tint into a circle around the icon
-     without changing its visible 18px size. The 2px outer margin +
-     4px padding keeps the icon at its original (top: 6px, right:
-     4px) position relative to the host edges. */
-  padding: 4px;
-  margin: 2px 0 0 0;
+  width: 14px;
+  height: 14px;
   display: block;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  box-sizing: content-box;
-  transition: background .2s ease,
-              border-color .2s ease,
-              transform .15s cubic-bezier(.4,0,.2,1),
-              box-shadow .15s ease;
+  opacity: 0.7;
+  transition: opacity .15s;
 }
-/* In comment mode the "+" is always present. Three states share the
-   visual vocabulary of the selection popover: a dim ghost at rest,
-   a colour-tinted pill on block hover (matching the popover at
-   rest), and a lifted/deeper-tinted pill on direct hover (matching
-   the popover hover). The tint is the user's current comment colour
-   pushed onto `body` as --sdoc-anchor-color by the comments JS. */
+
+/* Visibility:
+   - No comment, desktop: invisible at rest, fades in on block hover
+     (or when the tab itself is hovered/focused).
+   - No comment, touch: always visible (no hover).
+   - Has block comment: always visible, filled with the comment colour.
+   `display: none` rules below override these to hide tabs in
+   collapsed sections regardless of hover. */
 body.comment-mode .sdoc-gutter-add {
-  opacity: 1;
-  pointer-events: auto;
-  /* Resting: faded link colour (currentColor flows into the SVG
-     stroke). Use color-mix-to-transparent rather than CSS opacity
-     so the bg circle and border can be fully opaque when shown. */
-  color: color-mix(in srgb, var(--md-link-color, #2563eb) 38%, transparent);
+  opacity: 0;
+  pointer-events: none;
 }
-
-/* Block hover: bg circle picks up the comment colour the same way
-   the selection popover does at rest. Icon goes to full strength. */
-body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add {
-  color: var(--md-link-color, #2563eb);
-}
-body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add svg {
-  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 50%, transparent);
-  border-color: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 65%, transparent);
-}
-
-/* Direct hover or keyboard focus: same look as the selection
-   popover's :hover state. Subtle lift + deeper tint + soft shadow. */
+body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add,
 body.comment-mode .sdoc-gutter-add:hover,
 body.comment-mode .sdoc-gutter-add:focus-visible {
-  color: var(--md-link-color, #2563eb);
+  opacity: 1;
+  pointer-events: auto;
 }
-body.comment-mode .sdoc-gutter-add:hover svg,
-body.comment-mode .sdoc-gutter-add:focus-visible svg {
-  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 70%, transparent);
-  border-color: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 80%, transparent);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow);
-}
-body.comment-mode .sdoc-gutter-add:active svg {
-  transform: translateY(0);
-  box-shadow: var(--shadow-sm);
-}
-/* Custom focus ring on the icon's circle so keyboard nav reads as a
-   designed state, not a default browser outline on the button box. */
-body.comment-mode .sdoc-gutter-add:focus { outline: none; }
-body.comment-mode .sdoc-gutter-add:focus-visible svg {
-  outline: 2px solid color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 75%, transparent);
-  outline-offset: 1px;
-}
-
-/* Touch / coarse-pointer devices have no hover, so lift the resting
-   colour higher: the icon needs to be genuinely tap-discoverable
-   without depending on a hover that will never fire. */
 @media (hover: none) {
   body.comment-mode .sdoc-gutter-add {
-    color: color-mix(in srgb, var(--md-link-color, #2563eb) 60%, transparent);
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 
-/* When the host already has a comment (and therefore a left stripe),
-   shift the icon to the LEFT side of the hit zone so it sits clearly
-   to the left of the stripe, not on top of it. */
-.sdoc-host-commented > .sdoc-gutter-add { justify-content: flex-start; }
-.sdoc-host-commented > .sdoc-gutter-add svg { margin: 2px 0 0 0; }
-
-/* ── Block-comment indicator stripe ─────────────────────────────
-   A single 3px colored stripe spanning both the commented block
-   AND its sidecar card(s). Lives on the .sdoc-block-host (which
-   wraps both) so the visual is one continuous line, not two
-   segments with a gap. */
-.sdoc-host-commented::before {
-  content: "";
-  position: absolute;
-  left: -10px;
-  top: 2px;
-  bottom: 2px;
-  width: 3px;
-  background: var(--sdoc-block-comment-color, var(--sdoc-theme-color));
-  border-radius: 2px;
-  pointer-events: none;
+/* Block hover: tab takes a faint tint of the user's current comment
+   colour, previewing what their comment will look like. */
+body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add {
+  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 18%, var(--bg-surface));
 }
+body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add svg { opacity: 0.95; }
+
+/* Direct hover or keyboard focus: deeper tint, icon goes to full
+   strength in the link colour, soft right-edge shadow gives a
+   "lifted off the page" feel. */
+body.comment-mode .sdoc-gutter-add:hover,
+body.comment-mode .sdoc-gutter-add:focus-visible {
+  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 32%, var(--bg-surface));
+  color: var(--md-link-color, #2563eb);
+  box-shadow: 1px 0 4px rgba(0,0,0,.06);
+}
+body.comment-mode .sdoc-gutter-add:hover svg,
+body.comment-mode .sdoc-gutter-add:focus-visible svg { opacity: 1; }
+
+/* Custom focus ring on the tab silhouette so keyboard nav reads as
+   a designed state, not the browser's default outline. */
+body.comment-mode .sdoc-gutter-add:focus { outline: none; }
+body.comment-mode .sdoc-gutter-add:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 60%, transparent);
+  outline-offset: 1px;
+}
+
+/* When the block already has a comment, the tab IS the indicator -
+   always visible, filled with the comment colour at low alpha so the
+   icon stays readable. Replaces the legacy 3px stripe (hidden below). */
+body.comment-mode .sdoc-host-commented > .sdoc-gutter-add {
+  opacity: 1;
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-theme-color)) 32%, var(--bg-surface));
+  color: var(--text-2);
+}
+body.comment-mode .sdoc-host-commented > .sdoc-gutter-add svg { opacity: 0.85; }
+body.comment-mode .sdoc-host-commented:hover > .sdoc-gutter-add {
+  background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-theme-color)) 42%, var(--bg-surface));
+}
+body.comment-mode .sdoc-host-commented > .sdoc-gutter-add:hover,
+body.comment-mode .sdoc-host-commented > .sdoc-gutter-add:focus-visible {
+  background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-theme-color)) 55%, var(--bg-surface));
+  color: var(--md-link-color, #2563eb);
+}
+
+/* ── Collapsed-section visibility ────────────────────────────────
+   Tabs only appear next to content the reader can currently see.
+   Three rules cover the cases:
+   1. A heading h2/h3/h4 whose own toggle is closed (its body is
+      hidden) gets no tab on the heading itself. h1 is intentionally
+      excluded - h1 stays commentable since its non-header children
+      remain visible regardless of toggle state.
+   2. A fully-closed body (no descendant body is open) hides every
+      tab inside it.
+   3. A partially-closed body (a descendant body IS open) hides
+      tabs only on its dimmed direct children, NOT on the open
+      sub-section's content. This preserves the case "h2 is closed,
+      h3 inside is open" - the open h3 and its children stay
+      commentable. */
+body.comment-mode .sdoc-block-host:not(.sdoc-host-commented):has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add {
+  display: none;
+}
+body.comment-mode .md-section-body:not(.open):not(:has(.md-section-body.open)) .sdoc-block-host:not(.sdoc-host-commented) > .sdoc-gutter-add {
+  display: none;
+}
+body.comment-mode .md-section-body:not(.open):has(.md-section-body.open) > :not(.md-section) .sdoc-block-host:not(.sdoc-host-commented) > .sdoc-gutter-add {
+  display: none;
+}
+
+/* Tab replaces the legacy stripe on hosted blocks. The standalone
+   stripe rule is kept below as a fallback for the rare case of a
+   block-comment without a host wrapper. */
+.sdoc-host-commented::before { display: none; }
 
 /* Fallback: same stripe on a block directly when there's no host
    wrapper (defensive — every block should be hosted in comment mode). */

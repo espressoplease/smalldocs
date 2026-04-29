@@ -150,7 +150,7 @@ function buildCollapsibleSections(container) {
       var toggle = h1.querySelector('.section-toggle');
       var isOpen = toggle.classList.toggle('open');
       container.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.toggle('open', isOpen); });
-      container.querySelectorAll('.md-section > h2 > .section-toggle, .md-section > h3 > .section-toggle, .md-section > h4 > .section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
+      container.querySelectorAll('.md-section > h2 > .section-toggle, .md-section > h3 > .section-toggle, .md-section > h4 > .section-toggle, .md-section > .sdoc-block-host > h2 > .section-toggle, .md-section > .sdoc-block-host > h3 > .section-toggle, .md-section > .sdoc-block-host > h4 > .section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
     });
   });
 
