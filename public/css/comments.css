@@ -176,26 +176,29 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 .sdoc-icon-btn svg { display: block; }
 
 /* ── Anchor highlight ───────────────────────────────────────────
-   The per-comment color is set as a solid background by the JS via
-   inline style. Force a dark text color regardless of theme so the
-   highlighted text stays readable on the bright fill — in dark mode
-   the body text color would otherwise be light, giving white text
-   on yellow. */
+   Translucent tint of the per-comment colour over whatever document
+   background is in scope, so a dark theme + yellow comment yields a
+   muted amber rather than a fluorescent block. Text colour inherits
+   from --md-color (the document text colour, theme-aware) so the
+   highlight stays readable in both directions of the cascade. */
 .sdoc-anchor {
   border-radius: 2px;
   padding: 0 1px;
   cursor: pointer;
-  color: #1a1a1a;
   background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 40%, transparent);
 }
 
-/* ── Card surface (shared by pill + sidecar, view + edit) ──────── */
+/* ── Card surface (shared by pill + sidecar, view + edit) ────────
+   Lives inside the document, so colours derive from --md-color /
+   --md-bg (the document tokens that style mode drives) rather than
+   the panel theme tokens. A custom document background or text
+   colour cascades into the card automatically. */
 .sdoc-card {
   font-family: var(--font-ui);
   font-size: 0.82em;
   line-height: 1.4;
-  color: var(--text);
-  background: color-mix(in srgb, var(--sdoc-card-color, #ffd700) 22%, var(--bg-input));
+  color: var(--md-color, var(--text));
+  background: color-mix(in srgb, var(--sdoc-card-color, #ffd700) 22%, var(--md-bg, var(--bg-input)));
   border: 1px solid color-mix(in srgb, var(--sdoc-card-color, #ffd700) 50%, transparent);
   border-radius: var(--radius-sm, 4px);
 }
@@ -355,7 +358,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   color: var(--md-link-color, #2563eb);
   opacity: 0;
   pointer-events: none;
-  transition: opacity .15s;
+  transition: opacity .2s cubic-bezier(.4,0,.2,1);
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -363,24 +366,53 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 .sdoc-gutter-add svg {
   width: 18px;
   height: 18px;
-  margin: 6px 4px 0 0;
+  /* Padding turns the hover tint into a circle around the icon
+     without changing its visible 18px size. The 2px outer margin +
+     4px padding keeps the icon at its original (top: 6px, right:
+     4px) position relative to the host edges. */
+  padding: 4px;
+  margin: 2px 0 0 0;
   display: block;
+  border-radius: 999px;
+  box-sizing: content-box;
+  transition: background .15s ease, transform .12s ease;
 }
-body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add,
-body.comment-mode .sdoc-gutter-add:focus-visible {
-  opacity: 0.5;
+/* In comment mode the "+" is always visible at low opacity so the
+   commenting affordance is discoverable without dominating the page.
+   Three tiers: resting (everywhere) -> block hovered -> direct
+   hover/focus. */
+body.comment-mode .sdoc-gutter-add {
+  opacity: 0.3;
   pointer-events: auto;
 }
-/* Direct hover wins over the host-hover rule above. Specificity must
-   match (0,4,1) — bumped by adding .sdoc-block-host — so source order
-   decides; this rule comes later, so it wins. */
-body.comment-mode .sdoc-block-host > .sdoc-gutter-add:hover { opacity: 1; }
+body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add { opacity: 0.65; }
+body.comment-mode .sdoc-block-host > .sdoc-gutter-add:hover,
+body.comment-mode .sdoc-gutter-add:focus-visible { opacity: 1; }
+body.comment-mode .sdoc-gutter-add:hover svg {
+  background: color-mix(in srgb, var(--md-link-color, #2563eb) 12%, transparent);
+}
+body.comment-mode .sdoc-gutter-add:active svg { transform: scale(0.94); }
+/* Custom focus ring on the icon's circle so keyboard nav reads as a
+   designed state, not a default browser outline on the button box. */
+body.comment-mode .sdoc-gutter-add:focus { outline: none; }
+body.comment-mode .sdoc-gutter-add:focus-visible svg {
+  background: color-mix(in srgb, var(--md-link-color, #2563eb) 14%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--md-link-color, #2563eb) 70%, transparent);
+  outline-offset: 0;
+}
+
+/* Touch / coarse-pointer devices have no hover, so lift the resting
+   opacity higher: the icon needs to be genuinely tap-discoverable
+   without depending on a hover that will never fire. */
+@media (hover: none) {
+  body.comment-mode .sdoc-gutter-add { opacity: 0.5; }
+}
 
 /* When the host already has a comment (and therefore a left stripe),
    shift the icon to the LEFT side of the hit zone so it sits clearly
-   to the left of the stripe — not on top of it. */
+   to the left of the stripe, not on top of it. */
 .sdoc-host-commented > .sdoc-gutter-add { justify-content: flex-start; }
-.sdoc-host-commented > .sdoc-gutter-add svg { margin: 6px 0 0 4px; }
+.sdoc-host-commented > .sdoc-gutter-add svg { margin: 2px 0 0 0; }
 
 /* ── Block-comment indicator stripe ─────────────────────────────
    A single 3px colored stripe spanning both the commented block
@@ -422,26 +454,43 @@ body.comment-mode .sdoc-block-host > .sdoc-gutter-add:hover { opacity: 1; }
 }
 
 /* ── Selection popover ──────────────────────────────────────────
-   Floating "+" that appears above a selection. Small surface card
-   so the icon stays readable over arbitrary text, with the same
-   `--md-link-color` icon family as the gutter button and header
-   anchor/copy. Opacity-only hover to match. */
+   Floating "+" that appears above a selection. Pill-shaped with a
+   soft shadow and a touch of backdrop-blur so it reads as a real,
+   tappable affordance over arbitrary text. The fill is a translucent
+   tint of the user's current comment colour, so the popover already
+   looks like the highlight it will create. Icon colour stays in the
+   `--md-link-color` family, matching the gutter button. */
 .sdoc-selection-add {
   position: fixed;
   z-index: 200;
-  padding: 5px;
-  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 40%, transparent);
-  border: none;
-  border-radius: var(--radius-sm, 4px);
+  padding: 6px;
+  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 50%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 65%, transparent);
+  border-radius: 999px;
   color: var(--md-link-color, #2563eb);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: transform .15s cubic-bezier(.4,0,.2,1),
+              box-shadow .15s ease,
+              background .15s ease;
+}
+.sdoc-selection-add:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 70%, transparent);
+}
+.sdoc-selection-add:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 .sdoc-selection-add svg {
   display: block;
-  opacity: 0.6;
+  opacity: 0.85;
   transition: opacity .15s;
 }
 .sdoc-selection-add:hover svg { opacity: 1; }
