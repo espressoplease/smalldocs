@@ -1038,7 +1038,16 @@ function render() {
   paintToolbar();
 }
 
+// Push the user's current pref colour onto <body> as --sdoc-anchor-color
+// so unattached UI (gutter buttons, the selection popover) inherits the
+// same tint without each piece needing its own copy. Existing .sdoc-anchor
+// spans set their own per-comment colour inline and aren't affected.
+function applyPrefColorToBody() {
+  document.body.style.setProperty('--sdoc-anchor-color', readPrefs().color);
+}
+
 function enter() {
+  applyPrefColorToBody();
   document.addEventListener('selectionchange', handleSelectionChange);
   render();
 }
@@ -1049,6 +1058,7 @@ function exit() {
   hideComposer();
   strip();
   focusedId = null;
+  document.body.style.removeProperty('--sdoc-anchor-color');
 }
 
 function wireToolbar() {
@@ -1075,6 +1085,7 @@ function wirePrefsInputs() {
   });
   colorInput.addEventListener('input', function () {
     writePrefs({ author: nameInput.value || 'user', color: colorInput.value });
+    if (document.body.classList.contains('comment-mode')) applyPrefColorToBody();
   });
 }
 
