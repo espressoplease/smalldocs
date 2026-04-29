@@ -186,6 +186,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   padding: 0 1px;
   cursor: pointer;
   color: #1a1a1a;
+  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 40%, transparent);
 }
 
 /* ── Card surface (shared by pill + sidecar, view + edit) ──────── */
@@ -370,7 +371,10 @@ body.comment-mode .sdoc-gutter-add:focus-visible {
   opacity: 0.5;
   pointer-events: auto;
 }
-body.comment-mode .sdoc-gutter-add:hover { opacity: 1; }
+/* Direct hover wins over the host-hover rule above. Specificity must
+   match (0,4,1) — bumped by adding .sdoc-block-host — so source order
+   decides; this rule comes later, so it wins. */
+body.comment-mode .sdoc-block-host > .sdoc-gutter-add:hover { opacity: 1; }
 
 /* When the host already has a comment (and therefore a left stripe),
    shift the icon to the LEFT side of the hit zone so it sits clearly
@@ -425,21 +429,22 @@ body.comment-mode .sdoc-gutter-add:hover { opacity: 1; }
 .sdoc-selection-add {
   position: fixed;
   z-index: 200;
-  padding: 3px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  padding: 5px;
+  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 40%, transparent);
+  border: none;
   border-radius: var(--radius-sm, 4px);
   color: var(--md-link-color, #2563eb);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-sm);
-  opacity: 0.85;
+}
+.sdoc-selection-add svg {
+  display: block;
+  opacity: 0.6;
   transition: opacity .15s;
 }
-.sdoc-selection-add:hover { opacity: 1; }
-.sdoc-selection-add svg { display: block; }
+.sdoc-selection-add:hover svg { opacity: 1; }
 
 /* ── Copy-with-comments buttons ─────────────────────────────────
    Toolbar button = uses the `.btn.ghost` vocabulary (see
@@ -479,19 +484,9 @@ body.comment-mode .sdoc-gutter-add:hover { opacity: 1; }
   font-weight: 500;
   vertical-align: middle;
   border-radius: var(--radius-sm, 4px);
-  transition: opacity .15s, background .12s, color .12s;
+  transition: opacity .15s;
 }
-#_sd_rendered h1:hover .sdoc-head-copy-c,
-#_sd_rendered h2:hover .sdoc-head-copy-c,
-#_sd_rendered h3:hover .sdoc-head-copy-c,
-#_sd_rendered h4:hover .sdoc-head-copy-c,
-#_sd_rendered h5:hover .sdoc-head-copy-c,
-#_sd_rendered h6:hover .sdoc-head-copy-c { opacity: 1; }
-.sdoc-head-copy-c.sdoc-copy-with-c:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-  opacity: 1;
-}
+.sdoc-head-copy-c.sdoc-copy-with-c:hover { opacity: 1; }
 
 /* ── Info-panel comment prefs ───────────────────────────────────
    Generic small text input used by the comments prefs section. */
