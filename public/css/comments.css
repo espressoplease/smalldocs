@@ -480,10 +480,26 @@ body.comment-mode .md-section-body:not(.open):has(.md-section-body.open) > :not(
   display: none;
 }
 
-/* Tab replaces the legacy stripe on hosted blocks. The standalone
-   stripe rule is kept below as a fallback for the rare case of a
-   block-comment without a host wrapper. */
-.sdoc-host-commented::before { display: none; }
+/* Invisible "hover bridge" pseudo on every block-host in comment
+   mode. Fills the 12px gap between the gutter tab and the block's
+   left edge so cursor traversal stays inside the host's :hover
+   area - without this, the cursor crossing the gap loses
+   .sdoc-block-host:hover (outside the content box) AND
+   .sdoc-gutter-add:hover (not yet on the button), and the tab
+   fades to 0 just as the user reaches for it. Bridge fires
+   host:hover (block-hover state) rather than gutter:hover, so the
+   tab keeps its lighter "in flight" look across the gap and only
+   deepens to direct-hover when the cursor actually lands on the
+   tab. */
+body.comment-mode .sdoc-block-host::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -12px;
+  width: 12px;
+  pointer-events: auto;
+}
 
 /* Fallback: same stripe on a block directly when there's no host
    wrapper (defensive — every block should be hosted in comment mode). */
@@ -503,7 +519,6 @@ body.comment-mode .md-section-body:not(.open):has(.md-section-body.open) > :not(
 /* Mobile: indent the rendered body so gutter buttons have room. */
 @media (max-width: 768px) {
   body.comment-mode #_sd_rendered { padding-left: 44px; }
-  .sdoc-host-commented::before,
   .sdoc-block-commented::before { left: -8px; }
 }
 
