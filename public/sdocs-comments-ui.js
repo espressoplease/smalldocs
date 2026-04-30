@@ -298,6 +298,22 @@ function wrapRange(range, id, color) {
 var TICK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 var X_SVG    = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 var TRASH_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+// Tick at 13px to match the copy-with-comments buttons (header companion +
+// toolbar). After-copy feedback restores whatever SVG was there originally.
+var TICK_13_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+var COPY_FEEDBACK_MS = 1500;
+
+function flashCopyTick(btn) {
+  if (!btn) return;
+  var svg = btn.querySelector('svg');
+  if (!svg) return;
+  var original = svg.outerHTML;
+  svg.outerHTML = TICK_13_SVG;
+  setTimeout(function () {
+    var current = btn.querySelector('svg');
+    if (current) current.outerHTML = original;
+  }, COPY_FEEDBACK_MS);
+}
 
 function iconBtn(svg, label, onClick) {
   var b = document.createElement('button');
@@ -852,7 +868,8 @@ function buildHeadCopyCommentsBtn(heading) {
     // On heading companion: default = section in footnote format.
     // Alt = section as SDocs round-trip.
     // Shift = WHOLE document (backward-compat with previous wiring).
-    copyWithComments(heading, e.shiftKey, { roundTrip: e.altKey });
+    copyWithComments(heading, e.shiftKey, { roundTrip: e.altKey })
+      .then(function (ok) { if (ok) flashCopyTick(btn); });
   });
   return btn;
 }
@@ -1016,10 +1033,12 @@ function copyWithComments(headingEl, docWide, mods) {
     payload = SDC.serializeFootnotes(source.meta, source.body);
     label = 'Copied (footnotes)';
   }
-  navigator.clipboard.writeText(payload).then(function () {
+  return navigator.clipboard.writeText(payload).then(function () {
     if (S.setStatus) S.setStatus(label);
+    return true;
   }).catch(function () {
     if (S.setStatus) S.setStatus('Copy failed');
+    return false;
   });
 }
 
@@ -1069,7 +1088,8 @@ function wireToolbar() {
   if (next) next.addEventListener('click', function () { navigateRelative(+1); });
   if (copy) copy.addEventListener('click', function (e) {
     // Toolbar copy: whole doc. Default = footnote, Shift = round-trip, Alt = clean.
-    copyWithComments(null, true, { roundTrip: e.shiftKey, clean: e.altKey });
+    copyWithComments(null, true, { roundTrip: e.shiftKey, clean: e.altKey })
+      .then(function (ok) { if (ok) flashCopyTick(copy); });
   });
 }
 
