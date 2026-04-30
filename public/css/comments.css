@@ -469,6 +469,30 @@ body.comment-mode .md-section-body:not(.open):has(.md-section-body.open) > :not(
   display: none;
 }
 
+/* Descendant-comment hint. When a heading's section is collapsed and
+   contains comments, override the hide-on-closed rule above and surface a
+   tinted gutter tab so the reader knows there's commentary to discover.
+   Click behaviour is unchanged (still opens the composer for the heading);
+   the chevron remains the way to expand the section. The tint follows the
+   same shape as .sdoc-host-commented but uses --sdoc-descendant-comment-color
+   set inline by paintDescendantCommentHints (most recent comment in the
+   section). The selector mirrors the hide rule on line ~462 for parity. */
+body.comment-mode .sdoc-block-host.sdoc-has-descendant-comments:has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add {
+  display: inline-flex;
+  opacity: 1;
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--sdoc-descendant-comment-color, var(--accent)) 32%, var(--bg-surface));
+  color: var(--text-2);
+}
+body.comment-mode .sdoc-block-host.sdoc-has-descendant-comments:has(> :is(h2, h3, h4) > .section-toggle:not(.open)):hover > .sdoc-gutter-add {
+  background: color-mix(in srgb, var(--sdoc-descendant-comment-color, var(--accent)) 42%, var(--bg-surface));
+}
+body.comment-mode .sdoc-block-host.sdoc-has-descendant-comments:has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add:hover,
+body.comment-mode .sdoc-block-host.sdoc-has-descendant-comments:has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add:focus-visible {
+  background: color-mix(in srgb, var(--sdoc-descendant-comment-color, var(--accent)) 55%, var(--bg-surface));
+  color: var(--text);
+}
+
 /* Invisible "hover catchment" pseudo on every block-host in comment
    mode. Spans from ~32px to the LEFT of the tab all the way to the
    block's left edge - so the gutter tab is sandwiched in the middle

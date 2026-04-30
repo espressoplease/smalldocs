@@ -883,6 +883,46 @@ function paintHeadingCopyWithComments(comments) {
   });
 }
 
+// Find the newest comment whose anchor (block card or inline span) lives
+// inside the heading's section. Used to colour the descendant-comment hint
+// on a collapsed heading. Comments are in insertion order, so we walk
+// newest-first and return the first match's colour.
+function mostRecentDescendantCommentColor(heading, comments) {
+  var section = heading.closest('.md-section');
+  if (!section) return null;
+  for (var i = comments.length - 1; i >= 0; i--) {
+    var c = comments[i];
+    if (!c || !c.id) continue;
+    var sel = '.sdoc-card[data-c="' + c.id + '"], span.sdoc-anchor[data-c="' + c.id + '"]';
+    if (section.querySelector(sel)) return c.color || null;
+  }
+  return null;
+}
+
+// Tag every h2/h3/h4 host whose section contains a comment so the CSS
+// in comments.css can show a tinted gutter tab when the section is
+// collapsed. The block-host already carrying its own comment
+// (.sdoc-host-commented) is skipped — its tab is already lit and would
+// otherwise double-paint. Cleared at the start so removals propagate.
+function paintDescendantCommentHints(comments) {
+  if (!S.renderedEl) return;
+  S.renderedEl.querySelectorAll('.sdoc-block-host.sdoc-has-descendant-comments')
+    .forEach(function (host) {
+      host.classList.remove('sdoc-has-descendant-comments');
+      host.style.removeProperty('--sdoc-descendant-comment-color');
+    });
+  if (!comments.length) return;
+  S.renderedEl.querySelectorAll('h2, h3, h4').forEach(function (h) {
+    var host = h.parentElement;
+    if (!host || !host.classList || !host.classList.contains('sdoc-block-host')) return;
+    if (host.classList.contains('sdoc-host-commented')) return;
+    if (!sectionContainsComment(h)) return;
+    host.classList.add('sdoc-has-descendant-comments');
+    var color = mostRecentDescendantCommentColor(h, comments);
+    if (color) host.style.setProperty('--sdoc-descendant-comment-color', color);
+  });
+}
+
 function sectionContainsComment(heading) {
   // For H2/H3/H4 (wrapped in .md-section by buildCollapsibleSections),
   // the whole section's content is inside the ancestor .md-section div —
@@ -1054,6 +1094,7 @@ function render() {
   var comments = SDC.getComments(S.currentMeta).map(SDC.normalizeComment);
   comments.forEach(function (c) { renderComment(c); });
   paintHeadingCopyWithComments(comments);
+  paintDescendantCommentHints(comments);
   paintToolbar();
 }
 
