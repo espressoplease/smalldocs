@@ -469,24 +469,33 @@ body.comment-mode .md-section-body:not(.open):has(.md-section-body.open) > :not(
   display: none;
 }
 
-/* Invisible "hover bridge" pseudo on every block-host in comment
-   mode. Fills the 12px gap between the gutter tab and the block's
-   left edge so cursor traversal stays inside the host's :hover
-   area - without this, the cursor crossing the gap loses
-   .sdoc-block-host:hover (outside the content box) AND
-   .sdoc-gutter-add:hover (not yet on the button), and the tab
-   fades to 0 just as the user reaches for it. Bridge fires
-   host:hover (block-hover state) rather than gutter:hover, so the
-   tab keeps its lighter "in flight" look across the gap and only
-   deepens to direct-hover when the cursor actually lands on the
-   tab. */
+/* Invisible "hover catchment" pseudo on every block-host in comment
+   mode. Spans from ~32px to the LEFT of the tab all the way to the
+   block's left edge - so the gutter tab is sandwiched in the middle
+   of one wide hover rectangle. Two roles in one shape:
+
+   1. Bridge across the 12px gap between tab and block, so cursor
+      traversal block <-> tab stays inside host:hover (without this,
+      the tab fades to 0 just as the user reaches for it).
+   2. Overshoot buffer to the LEFT of the tab. The tab is only 20px
+      wide, so it's easy to mouse past it; with the buffer, the
+      cursor has ~30px of slack past the visual edge before it
+      leaves the hover zone. Combined with the existing 200ms
+      fade-out, brief overshoots don't lose the tab.
+
+   The pseudo sits behind the real <button> in document order, so
+   clicks land on the button when cursor is on it, and on the pseudo
+   (which fires host:hover) elsewhere. The pseudo fires host:hover
+   not gutter:hover, so the tab keeps its lighter "in flight" look
+   across the buffer and only deepens to direct-hover when the cursor
+   actually lands on the tab itself. */
 body.comment-mode .sdoc-block-host::before {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -12px;
-  width: 12px;
+  left: -64px;
+  width: 64px;
   pointer-events: auto;
 }
 
