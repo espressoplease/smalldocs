@@ -707,6 +707,7 @@ function syncAll(source) {
   } finally {
     S._syncing = false;
     if (S.applyChromeTint) S.applyChromeTint();
+    if (S.refreshCommentDot) S.refreshCommentDot();
   }
 }
 

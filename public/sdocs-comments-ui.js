@@ -1093,6 +1093,18 @@ function onHostRender() {
   if (document.body.classList.contains('comment-mode')) render();
 }
 
+// Toolbar comment-button dot: lit whenever the doc carries any comments,
+// regardless of mode. Reuses the .btn-with-dot / .info-dot / .has-unseen
+// plumbing from sdocs-info.js.
+function refreshCommentDot() {
+  var btn = document.getElementById('_sd_btn-comment');
+  if (!btn) return;
+  var n = SDC.getComments(S.currentMeta || {}).length;
+  btn.classList.toggle('has-unseen', n > 0);
+}
+
+S.refreshCommentDot = refreshCommentDot;
+
 S.commentsUi = {
   enter: enter,
   exit: exit,
