@@ -459,36 +459,34 @@ body.comment-mode .sdoc-host-commented > .sdoc-gutter-add:focus-visible {
       sub-section's content. This preserves the case "h2 is closed,
       h3 inside is open" - the open h3 and its children stay
       commentable. */
-body.comment-mode .sdoc-block-host:not(.sdoc-host-commented):has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add {
+body.comment-mode .sdoc-block-host:not(.sdoc-host-commented):not(.sdoc-has-direct-section-comment):has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add {
   display: none;
 }
-body.comment-mode .md-section-body:not(.open):not(:has(.md-section-body.open)) .sdoc-block-host:not(.sdoc-host-commented) > .sdoc-gutter-add {
+body.comment-mode .md-section-body:not(.open):not(:has(.md-section-body.open)) .sdoc-block-host:not(.sdoc-host-commented):not(.sdoc-has-direct-section-comment) > .sdoc-gutter-add {
   display: none;
 }
-body.comment-mode .md-section-body:not(.open):has(.md-section-body.open) > :not(.md-section) .sdoc-block-host:not(.sdoc-host-commented) > .sdoc-gutter-add {
+body.comment-mode .md-section-body:not(.open):has(.md-section-body.open) > :not(.md-section) .sdoc-block-host:not(.sdoc-host-commented):not(.sdoc-has-direct-section-comment) > .sdoc-gutter-add {
   display: none;
 }
 
-/* Descendant-comment hint. When a heading's section is collapsed and
-   contains comments, override the hide-on-closed rule above and surface a
-   tinted gutter tab so the reader knows there's commentary to discover.
-   Click behaviour is unchanged (still opens the composer for the heading);
-   the chevron remains the way to expand the section. The tint follows the
-   same shape as .sdoc-host-commented but uses --sdoc-descendant-comment-color
-   set inline by paintDescendantCommentHints (most recent comment in the
-   section). The selector mirrors the hide rule on line ~462 for parity. */
-body.comment-mode .sdoc-block-host.sdoc-has-descendant-comments:has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add {
-  display: inline-flex;
+/* Heading whose section directly contains comments (the "owner" heading).
+   Always-visible tinted tab — mirrors .sdoc-host-commented above so the
+   chrome reads as one family, but uses a dedicated class so the JS pass
+   that owns this state stays distinct. The hint anchors to the deepest
+   heading whose body directly contains the comment, never bubbled up to
+   ancestors. Click behaviour is unchanged (opens the composer for the
+   heading); the chevron remains the way to expand the section. */
+body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment > .sdoc-gutter-add {
   opacity: 1;
   pointer-events: auto;
   background: color-mix(in srgb, var(--sdoc-descendant-comment-color, var(--accent)) 32%, var(--bg-surface));
   color: var(--text-2);
 }
-body.comment-mode .sdoc-block-host.sdoc-has-descendant-comments:has(> :is(h2, h3, h4) > .section-toggle:not(.open)):hover > .sdoc-gutter-add {
+body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment:hover > .sdoc-gutter-add {
   background: color-mix(in srgb, var(--sdoc-descendant-comment-color, var(--accent)) 42%, var(--bg-surface));
 }
-body.comment-mode .sdoc-block-host.sdoc-has-descendant-comments:has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add:hover,
-body.comment-mode .sdoc-block-host.sdoc-has-descendant-comments:has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add:focus-visible {
+body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment > .sdoc-gutter-add:hover,
+body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment > .sdoc-gutter-add:focus-visible {
   background: color-mix(in srgb, var(--sdoc-descendant-comment-color, var(--accent)) 55%, var(--bg-surface));
   color: var(--text);
 }
