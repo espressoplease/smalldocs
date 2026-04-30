@@ -831,19 +831,24 @@ function focusComment(id) {
   var card = S.renderedEl.querySelector('.sdoc-card[data-c="' + id + '"]');
   if (!card) { paintToolbar(); return; }
 
-  // Expand any collapsed .md-section-body that contains this card so the
-  // user can actually see what they navigated to. Walk up from the card,
-  // opening every closed ancestor body and rotating the corresponding
-  // chevron. Deliberately does NOT re-collapse other sections — matches
-  // the user's mental model ("I arrived here; keep it open").
+  // Open ONLY the deepest .md-section-body containing the card. The
+  // partial-closed CSS handles ancestors above: their sibling sub-sections
+  // compress, the path to the open leaf stays full-size, and the closed
+  // ancestor toggles keep their right-pointing chevron. Opening every
+  // ancestor instead would force them all to look fully expanded, which
+  // misrepresents the surrounding doc state - sibling h3s would lose their
+  // collapsed look and the h2 chevron would point down even though only
+  // one descendant is actually open.
   var ancestor = card.parentElement;
   while (ancestor && ancestor !== S.renderedEl) {
-    if (ancestor.classList && ancestor.classList.contains('md-section-body') &&
-        !ancestor.classList.contains('open')) {
-      ancestor.classList.add('open');
-      var section = ancestor.closest('.md-section');
-      var toggle = section && section.querySelector('.section-toggle');
-      if (toggle) toggle.classList.add('open');
+    if (ancestor.classList && ancestor.classList.contains('md-section-body')) {
+      if (!ancestor.classList.contains('open')) {
+        ancestor.classList.add('open');
+        var section = ancestor.closest('.md-section');
+        var toggle = section && section.querySelector('.section-toggle');
+        if (toggle) toggle.classList.add('open');
+      }
+      break;
     }
     ancestor = ancestor.parentElement;
   }
