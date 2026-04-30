@@ -33,42 +33,42 @@
         <span class="toolbar-brand-text toolbar-brand-tiny">SD</span>
       </a>
       <div class="toggle-group">
-        <button class="btn active" id="_sd_btn-read" title="Read">
+        <button class="btn active" id="_sd_btn-read" data-tip="Read" aria-label="Read">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>
         </button>
-        <button class="btn" id="_sd_btn-copy-file" title="Copy markdown body">
+        <button class="btn" id="_sd_btn-copy-file" data-tip="Copy markdown" aria-label="Copy markdown">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
-        <button class="btn btn-with-dot" id="_sd_btn-comment" title="Comment" aria-label="Comment mode">
+        <button class="btn btn-with-dot" id="_sd_btn-comment" data-tip="Comments" aria-label="Comment mode">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>
           <span class="info-dot" aria-hidden="true"></span>
         </button>
-        <button class="btn" id="_sd_btn-style" title="Style">
+        <button class="btn" id="_sd_btn-style" data-tip="Style" aria-label="Style">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.622 17.897-10.68-2.913"/><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"/><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/></svg>
         </button>
-        <button class="btn" id="_sd_btn-overflow" type="button" title="More" aria-label="More options" aria-expanded="false">
+        <button class="btn" id="_sd_btn-overflow" type="button" data-tip="More" aria-label="More options" aria-expanded="false">
           <svg class="icon-menu" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
           <svg class="icon-x" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
         <span class="toggle-group-collapsible" id="_sd_toggle-overflow">
-          <button class="btn" id="_sd_btn-write" title="Write">
+          <button class="btn" id="_sd_btn-write" data-tip="Write" aria-label="Write">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
           </button>
-          <button class="btn" id="_sd_btn-raw" title="Raw">
+          <button class="btn" id="_sd_btn-raw" data-tip="Raw markdown" aria-label="Raw markdown">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           </button>
-          <button class="btn" id="_sd_btn-export" title="Export">
+          <button class="btn" id="_sd_btn-export" data-tip="Export" aria-label="Export">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
-          <button class="btn" id="_sd_btn-new" title="New document">
+          <button class="btn" id="_sd_btn-new" data-tip="New document" aria-label="New document">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.35 22H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v5.35"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M14 19h6"/><path d="M17 16v6"/></svg>
           </button>
         </span>
         <span class="write-tb-sep"></span>
-        <button class="btn" id="_sd_btn-theme" title="Toggle dark mode" aria-label="Toggle dark mode">
+        <button class="btn" id="_sd_btn-theme" data-tip="Theme" aria-label="Toggle dark mode">
           <svg id="_sd_icon-theme" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke-width="2"/></svg>
         </button>
-        <button class="btn btn-with-dot" id="_sd_btn-info" title="Info" aria-label="Info">
+        <button class="btn btn-with-dot" id="_sd_btn-info" data-tip="What's new" aria-label="Info">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
           <span class="info-dot" aria-hidden="true"></span>
         </button>
@@ -699,6 +699,9 @@
     </div>
   </div>
 </div><!-- /#_sd_main -->
+
+<!-- Toolbar tooltip (shared element, JS-positioned per-target) -->
+<div id="_sd_tooltip" class="sdoc-tooltip" role="tooltip" aria-hidden="true"></div>
 
 <!-- Status bar -->
 <div id="_sd_statusbar">
