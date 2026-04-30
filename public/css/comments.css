@@ -482,24 +482,23 @@ body.comment-mode .md-section-body:not(.open):has(.md-section-body.open) > :not(
   display: none;
 }
 
-/* Heading whose section directly contains comments (the "owner" heading).
-   Always-visible tinted tab — mirrors .sdoc-host-commented above so the
-   chrome reads as one family, but uses a dedicated class so the JS pass
-   that owns this state stays distinct. The hint anchors to the deepest
-   heading whose body directly contains the comment, never bubbled up to
-   ancestors. Click behaviour is unchanged (opens the composer for the
-   heading); the chevron remains the way to expand the section. */
-body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment > .sdoc-gutter-add {
+/* Heading whose section directly contains comments (the "owner" heading)
+   AND whose section is currently closed. Once the user expands the section,
+   the comment is visible in place inline so the hint stops showing - the
+   tab falls back to the default hover-only behaviour, same as any other
+   uncommented heading host. The :has() probe matches the same
+   .section-toggle:not(.open) used by the hide-on-closed rules above. */
+body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment:has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add {
   opacity: 1;
   pointer-events: auto;
   background: color-mix(in srgb, var(--sdoc-descendant-comment-color, var(--accent)) 32%, var(--bg-surface));
   color: var(--text-2);
 }
-body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment:hover > .sdoc-gutter-add {
+body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment:has(> :is(h2, h3, h4) > .section-toggle:not(.open)):hover > .sdoc-gutter-add {
   background: color-mix(in srgb, var(--sdoc-descendant-comment-color, var(--accent)) 42%, var(--bg-surface));
 }
-body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment > .sdoc-gutter-add:hover,
-body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment > .sdoc-gutter-add:focus-visible {
+body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment:has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add:hover,
+body.comment-mode .sdoc-block-host.sdoc-has-direct-section-comment:has(> :is(h2, h3, h4) > .section-toggle:not(.open)) > .sdoc-gutter-add:focus-visible {
   background: color-mix(in srgb, var(--sdoc-descendant-comment-color, var(--accent)) 55%, var(--bg-surface));
   color: var(--text);
 }
