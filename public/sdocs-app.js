@@ -824,8 +824,81 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
   btn.addEventListener('click', function () {
     var open = group.classList.toggle('open');
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    btn.title = open ? 'Close menu' : 'More';
+    btn.dataset.tip = open ? 'Less' : 'More';
   });
+})();
+
+// Toolbar tooltip: one shared #_sd_tooltip in <body>, positioned below
+// the hovered button via fixed coords. Skipped on touch / no-hover devices.
+(function () {
+  var tip = document.getElementById('_sd_tooltip');
+  if (!tip) return;
+  // Hover-capable, fine pointer = real mouse. Touch + stylus get nothing.
+  if (!matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+  var DELAY = 300;
+  var timer = null;
+  var current = null;
+
+  function position(target) {
+    var r = target.getBoundingClientRect();
+    var ttRect = tip.getBoundingClientRect();
+    // Centred under the button, with an 8px gap for the caret.
+    var left = r.left + r.width / 2 - ttRect.width / 2;
+    var top = r.bottom + 8;
+    // Clamp to viewport so tooltips near the right edge stay visible.
+    var pad = 6;
+    if (left < pad) left = pad;
+    if (left + ttRect.width > window.innerWidth - pad) {
+      left = window.innerWidth - pad - ttRect.width;
+    }
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+
+  function show(target) {
+    var text = target.dataset.tip;
+    if (!text) return;
+    current = target;
+    tip.textContent = text;
+    tip.setAttribute('aria-hidden', 'false');
+    // Position once before the show class so transform-origin is right;
+    // a second pass after the layout settles (next frame) re-centres
+    // because the tooltip may have grown to fit longer text.
+    position(target);
+    requestAnimationFrame(function () {
+      if (current === target) {
+        position(target);
+        tip.classList.add('show');
+      }
+    });
+  }
+
+  function hide() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    current = null;
+    tip.classList.remove('show');
+    tip.setAttribute('aria-hidden', 'true');
+  }
+
+  function attach(btn) {
+    btn.addEventListener('mouseenter', function () {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () { show(btn); }, DELAY);
+    });
+    btn.addEventListener('mouseleave', hide);
+    // Dismiss instantly on click — the resulting state change is
+    // the user's feedback, the tooltip would just linger.
+    btn.addEventListener('click', hide);
+    // If the button scrolls offscreen / is hidden mid-hover, drop the tip.
+    btn.addEventListener('blur', hide);
+  }
+
+  document.querySelectorAll('#_sd_left-toolbar .toggle-group .btn[data-tip]').forEach(attach);
+
+  // Hide on scroll/resize because the cached position becomes stale.
+  window.addEventListener('scroll', hide, { passive: true });
+  window.addEventListener('resize', hide);
 })();
 
 
