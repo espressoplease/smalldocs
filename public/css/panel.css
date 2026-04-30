@@ -604,7 +604,10 @@ textarea#_sd_info-feedback:focus {
   color: var(--text-3);
 }
 
-/* Info button unseen-notification dot */
+/* Toolbar-button corner dot (info "new features", comment "doc has comments").
+   Per-button color comes from --btn-dot-color (set inline by JS); the default
+   --accent keeps the info-button's existing blue. Faint ring is insurance
+   against pale custom colors (e.g. user-picked white) on a light chrome. */
 .btn-with-dot { position: relative; }
 .btn-with-dot .info-dot {
   position: absolute;
@@ -613,7 +616,8 @@ textarea#_sd_info-feedback:focus {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--btn-dot-color, var(--accent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg-panel) 65%, transparent);
   display: none;
   pointer-events: none;
 }
