@@ -148,6 +148,37 @@ body {
   color: var(--text);
 }
 
+/* Hamburger collapses the last few toggle-group buttons.
+   Slides open with the same curve as the right-side panels
+   (panel.css: width .32s + opacity .25s on #_sd_export-panel). */
+.toggle-group-collapsible {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Negative margin absorbs the parent's gap so a closed group
+     leaves no dead space between the hamburger and the separator. */
+  margin-right: -2px;
+  transition: max-width .32s cubic-bezier(.4,0,.2,1),
+              opacity .25s ease,
+              margin-right .32s cubic-bezier(.4,0,.2,1);
+}
+.toggle-group-collapsible.open {
+  /* Generous enough for the 4 hidden buttons + their gaps,
+     with headroom if a future button is added inside. */
+  max-width: 240px;
+  opacity: 1;
+  pointer-events: auto;
+  margin-right: 0;
+}
+/* Icon swap: menu by default, X when expanded */
+#_sd_btn-overflow .icon-x { display: none; }
+#_sd_btn-overflow[aria-expanded="true"] .icon-menu { display: none; }
+#_sd_btn-overflow[aria-expanded="true"] .icon-x { display: inline-flex; }
+
 #_sd_drop-hint {
   font-size: 11.5px;
   color: var(--text-2);

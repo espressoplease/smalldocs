@@ -761,6 +761,15 @@ function setMode(mode, skipHash) {
   document.getElementById('_sd_btn-info').classList.toggle('active',    mode === 'info');
   document.getElementById('_sd_btn-comment').classList.toggle('active', mode === 'comment');
 
+  // Auto-expand the overflow group if the active mode lives inside it,
+  // otherwise the active indicator would be hidden behind the hamburger.
+  var overflowGroup = document.getElementById('_sd_toggle-overflow');
+  var overflowBtn = document.getElementById('_sd_btn-overflow');
+  if (overflowGroup && overflowBtn && (mode === 'write' || mode === 'raw' || mode === 'export')) {
+    overflowGroup.classList.add('open');
+    overflowBtn.setAttribute('aria-expanded', 'true');
+  }
+
   document.body.classList.toggle('style-mode',   mode === 'style');
   document.body.classList.toggle('read-mode',    mode === 'read');
   document.body.classList.toggle('write-mode',   mode === 'write');
@@ -805,6 +814,16 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
   history.replaceState(null, '', '/new');
   startNewDocument();
 });
+
+(function () {
+  var btn = document.getElementById('_sd_btn-overflow');
+  var group = document.getElementById('_sd_toggle-overflow');
+  if (!btn || !group) return;
+  btn.addEventListener('click', function () {
+    var open = group.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+})();
 
 
 document.getElementById('_sd_right-header').addEventListener('click', function() {
