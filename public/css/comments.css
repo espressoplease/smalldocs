@@ -207,6 +207,19 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+/* Brief halo pulse applied for one frame when a card gains focus via the
+   prev/next nav. Helps the user catch the "I jumped here" moment when the
+   target sits in a section that was just expanded — the static outline
+   alone is easy to miss after a scroll. The .sdoc-card-focus-flash class
+   is added in JS, removed after ~900ms. */
+@keyframes sdoc-card-focus-flash {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  60%  { box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.sdoc-card.sdoc-card-focus-flash {
+  animation: sdoc-card-focus-flash .8s cubic-bezier(.4, 0, .2, 1);
+}
 .sdoc-card-orphaned {
   border-style: dashed;
   opacity: 0.85;
