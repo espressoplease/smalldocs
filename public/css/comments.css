@@ -55,10 +55,11 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   min-width: 70px;
   text-align: center;
 }
-/* Hint text in the zero-state of the toolbar middle. */
+/* Hint text in the zero-state of the toolbar middle. Uses the same
+   token as the top-menu icons so it tracks panel theme/background. */
 .sdoc-toolbar-zero {
   font-size: 11.5px;
-  color: var(--text-3);
+  color: var(--text-2);
   font-family: var(--font-ui);
 }
 @media (max-width: 640px) {
@@ -84,7 +85,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 .sdoc-comment-prefs-label {
   font-size: 11.5px;
   font-family: var(--font-ui);
-  color: var(--text-3);
+  color: var(--text-2);
   white-space: nowrap;
 }
 .sdoc-comment-pref-author {
@@ -367,7 +368,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   border: none;
   border-radius: 8px 3px 3px 8px;
   cursor: pointer;
-  color: var(--text-3);
+  color: var(--text-2);
   opacity: 0;
   pointer-events: none;
   transition: background .2s ease,
@@ -382,8 +383,6 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   width: 14px;
   height: 14px;
   display: block;
-  opacity: 0.7;
-  transition: opacity .15s;
 }
 
 /* Visibility:
@@ -410,27 +409,18 @@ body.comment-mode .sdoc-gutter-add:focus-visible {
   }
 }
 
-/* Block hover: tab fades in but keeps its panel-tone background.
-   The comment colour stays reserved for blocks that actually have a
-   comment, so an empty page in comment mode reads as quiet chrome
-   rather than a preview of every potential comment. */
-body.comment-mode .sdoc-block-host:hover > .sdoc-gutter-add svg { opacity: 0.95; }
-
 /* Direct hover or keyboard focus: subtle darken using the standard
-   panel hover tone, icon goes to the link colour, soft right-edge
-   shadow gives a "lifted off the page" feel. */
+   panel hover tone, icon goes to the standard top-menu hover colour,
+   soft right-edge shadow gives a "lifted off the page" feel. */
 body.comment-mode .sdoc-gutter-add:hover,
 body.comment-mode .sdoc-gutter-add:focus-visible {
   background: var(--bg-hover);
-  color: var(--md-link-color, #2563eb);
+  color: var(--text);
   box-shadow: 1px 0 4px rgba(0,0,0,.06);
 }
-body.comment-mode .sdoc-gutter-add:hover svg,
-body.comment-mode .sdoc-gutter-add:focus-visible svg { opacity: 1; }
 
 /* Custom focus ring on the tab silhouette so keyboard nav reads as
-   a designed state, not the browser's default outline. Uses the
-   link colour for consistency with the rest of the page chrome. */
+   a designed state, not the browser's default outline. */
 body.comment-mode .sdoc-gutter-add:focus { outline: none; }
 body.comment-mode .sdoc-gutter-add:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--md-link-color, #2563eb) 55%, transparent);
@@ -446,14 +436,13 @@ body.comment-mode .sdoc-host-commented > .sdoc-gutter-add {
   background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-theme-color)) 32%, var(--bg-surface));
   color: var(--text-2);
 }
-body.comment-mode .sdoc-host-commented > .sdoc-gutter-add svg { opacity: 0.85; }
 body.comment-mode .sdoc-host-commented:hover > .sdoc-gutter-add {
   background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-theme-color)) 42%, var(--bg-surface));
 }
 body.comment-mode .sdoc-host-commented > .sdoc-gutter-add:hover,
 body.comment-mode .sdoc-host-commented > .sdoc-gutter-add:focus-visible {
   background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-theme-color)) 55%, var(--bg-surface));
-  color: var(--md-link-color, #2563eb);
+  color: var(--text);
 }
 
 /* ── Collapsed-section visibility ────────────────────────────────
