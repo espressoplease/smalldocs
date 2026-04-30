@@ -883,44 +883,67 @@ function paintHeadingCopyWithComments(comments) {
   });
 }
 
-// Find the newest comment whose anchor (block card or inline span) lives
-// inside the heading's section. Used to colour the descendant-comment hint
-// on a collapsed heading. Comments are in insertion order, so we walk
-// newest-first and return the first match's colour.
-function mostRecentDescendantCommentColor(heading, comments) {
-  var section = heading.closest('.md-section');
-  if (!section) return null;
-  for (var i = comments.length - 1; i >= 0; i--) {
-    var c = comments[i];
-    if (!c || !c.id) continue;
-    var sel = '.sdoc-card[data-c="' + c.id + '"], span.sdoc-anchor[data-c="' + c.id + '"]';
-    if (section.querySelector(sel)) return c.color || null;
-  }
-  return null;
-}
-
-// Tag every h2/h3/h4 host whose section contains a comment so the CSS
-// in comments.css can show a tinted gutter tab when the section is
-// collapsed. The block-host already carrying its own comment
-// (.sdoc-host-commented) is skipped — its tab is already lit and would
-// otherwise double-paint. Cleared at the start so removals propagate.
+// Hint placement: tag ONLY the immediate parent heading — the deepest h2/h3/h4
+// whose .md-section-body directly contains a comment block (not via a nested
+// sub-heading). This anchors the tinted gutter tab to the most specific
+// heading possible, instead of bubbling up to ancestors. When that heading
+// sits inside a collapsed parent, the hint isn't visible until the user
+// expands far enough to reach it; the toolbar's comment-button dot remains
+// the global "this doc has comments" signal.
+//
+// Headings that already carry .sdoc-host-commented (the heading itself has
+// a direct comment) are skipped — their tab is already lit by that path.
 function paintDescendantCommentHints(comments) {
   if (!S.renderedEl) return;
-  S.renderedEl.querySelectorAll('.sdoc-block-host.sdoc-has-descendant-comments')
+  S.renderedEl.querySelectorAll('.sdoc-block-host.sdoc-has-direct-section-comment')
     .forEach(function (host) {
-      host.classList.remove('sdoc-has-descendant-comments');
+      host.classList.remove('sdoc-has-direct-section-comment');
       host.style.removeProperty('--sdoc-descendant-comment-color');
     });
   if (!comments.length) return;
+
   S.renderedEl.querySelectorAll('h2, h3, h4').forEach(function (h) {
     var host = h.parentElement;
     if (!host || !host.classList || !host.classList.contains('sdoc-block-host')) return;
     if (host.classList.contains('sdoc-host-commented')) return;
-    if (!sectionContainsComment(h)) return;
-    host.classList.add('sdoc-has-descendant-comments');
-    var color = mostRecentDescendantCommentColor(h, comments);
+
+    var section = h.closest('.md-section');
+    if (!section) return;
+    var body = section.querySelector(':scope > .md-section-body');
+    if (!body) return;
+    if (!hasDirectCommentInBody(body)) return;
+
+    host.classList.add('sdoc-has-direct-section-comment');
+    var color = mostRecentDirectCommentColor(body, comments);
     if (color) host.style.setProperty('--sdoc-descendant-comment-color', color);
   });
+}
+
+// True iff the section body has a card or anchor that is a direct member
+// of the body (not inside a nested .md-section).
+function hasDirectCommentInBody(body) {
+  var ownSection = body.parentElement; // the .md-section wrapping body+heading
+  var nodes = body.querySelectorAll('.sdoc-card, span.sdoc-anchor');
+  for (var i = 0; i < nodes.length; i++) {
+    if (nodes[i].closest('.md-section') === ownSection) return true;
+  }
+  return false;
+}
+
+// Newest comment whose anchor lives directly in the body (not inside a
+// nested .md-section). Comments push to the array tail, so newest-first.
+function mostRecentDirectCommentColor(body, comments) {
+  var ownSection = body.parentElement;
+  for (var i = comments.length - 1; i >= 0; i--) {
+    var c = comments[i];
+    if (!c || !c.id) continue;
+    var sel = '.sdoc-card[data-c="' + c.id + '"], span.sdoc-anchor[data-c="' + c.id + '"]';
+    var node = body.querySelector(sel);
+    if (!node) continue;
+    if (node.closest('.md-section') !== ownSection) continue;
+    return c.color || null;
+  }
+  return null;
 }
 
 function sectionContainsComment(heading) {
