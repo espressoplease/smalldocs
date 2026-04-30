@@ -798,8 +798,10 @@ function paintToolbar() {
     var idx = Math.max(0, ids.indexOf(focusedId));
     if (focusedId == null) idx = 0;
     if (countEl) countEl.textContent = (idx + 1) + ' / ' + total;
-    if (prevBtn) prevBtn.disabled = total <= 1;
-    if (nextBtn) nextBtn.disabled = total <= 1;
+    // Stay enabled even at total === 1 so the arrow still jumps to the
+    // single comment (useful when it's hidden inside a long collapsed doc).
+    if (prevBtn) prevBtn.disabled = false;
+    if (nextBtn) nextBtn.disabled = false;
     if (copyBtn) copyBtn.disabled = false;
   }
 
