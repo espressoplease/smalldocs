@@ -414,6 +414,19 @@ If you expand a child section while its parent is still collapsed, the parent's 
 
 Every header has its own copy and paste button. This copies its content and all of its children's content. At the moment this is the fastest way to get SmallDoc content into your agent's context, but we're looking for novel ideas to make this better.
 
+### Feedback for agents
+
+When an agent generates a `.md` file, you often want to push back on parts of it: flag a paragraph, ask for clarification, mark a section to revise. Comment mode (the speech-bubble icon in the top toolbar) lets you mark up the rendered document directly, then copy any section together with your notes back into the agent's terminal.
+
+Two ways to leave a note:
+
+- **Inline.** Select any text in the rendered document. A small popover appears. Type your note and save.
+- **Block.** Hover any block (paragraph, list, code block, heading). A `+` tab appears at the left margin. Click it to comment on the whole block.
+
+Each comment carries an author name and a colour, both set in the comment toolbar (`Commenting as: [name] [color]`). New comments pick up those preferences; existing comments keep what they were saved with. The comment icon in the top toolbar shows a coloured dot whenever the document carries any comments, tinted with the most recent comment's colour.
+
+To round-trip, click the **with comments** button next to any heading (or the one in the comment toolbar to grab the whole document). It copies the section's markdown along with each comment as plain text, ready to paste into the agent's terminal. Comments live in the YAML front matter under a `comments:` key, so they travel with the document through `sdoc share` and survive a styled `.md` export.
+
 ### Works offline
 
 SDocs uses a [service worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) to cache all assets (HTML, CSS, JS, fonts) in the browser. After your first visit, the site loads entirely from this cache — no network required. You can open SDocs URLs and edit documents while offline.
