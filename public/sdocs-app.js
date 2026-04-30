@@ -768,6 +768,7 @@ function setMode(mode, skipHash) {
   if (overflowGroup && overflowBtn && (mode === 'write' || mode === 'raw' || mode === 'export')) {
     overflowGroup.classList.add('open');
     overflowBtn.setAttribute('aria-expanded', 'true');
+    overflowBtn.title = 'Close menu';
   }
 
   document.body.classList.toggle('style-mode',   mode === 'style');
@@ -822,6 +823,7 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
   btn.addEventListener('click', function () {
     var open = group.classList.toggle('open');
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.title = open ? 'Close menu' : 'More';
   });
 })();
 
