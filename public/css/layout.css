@@ -178,6 +178,17 @@ body {
 #_sd_btn-overflow .icon-x { display: none; }
 #_sd_btn-overflow[aria-expanded="true"] .icon-menu { display: none; }
 #_sd_btn-overflow[aria-expanded="true"] .icon-x { display: inline-flex; }
+/* Persistent subtle tint while open so the X reads as a control to click,
+   not just a passive icon. Real hover still escalates to the standard
+   toolbar-button hover treatment. */
+#_sd_btn-overflow[aria-expanded="true"] {
+  background: var(--bg-surface);
+  color: var(--text);
+}
+#_sd_btn-overflow[aria-expanded="true"]:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
 
 #_sd_drop-hint {
   font-size: 11.5px;
