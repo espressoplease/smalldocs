@@ -1095,12 +1095,22 @@ function onHostRender() {
 
 // Toolbar comment-button dot: lit whenever the doc carries any comments,
 // regardless of mode. Reuses the .btn-with-dot / .info-dot / .has-unseen
-// plumbing from sdocs-info.js.
+// plumbing from sdocs-info.js, and tints the dot with the most recent
+// comment's color so the toolbar reflects the active palette of the doc.
 function refreshCommentDot() {
   var btn = document.getElementById('_sd_btn-comment');
   if (!btn) return;
-  var n = SDC.getComments(S.currentMeta || {}).length;
-  btn.classList.toggle('has-unseen', n > 0);
+  var list = SDC.getComments(S.currentMeta || {});
+  btn.classList.toggle('has-unseen', list.length > 0);
+  if (list.length > 0) {
+    // list.push() is the only insertion path, so the tail is the most
+    // recent comment. Fall back to the chrome accent if the comment
+    // omitted a color (older docs, hand-edited YAML).
+    var last = list[list.length - 1];
+    btn.style.setProperty('--btn-dot-color', last.color || 'var(--accent)');
+  } else {
+    btn.style.removeProperty('--btn-dot-color');
+  }
 }
 
 S.refreshCommentDot = refreshCommentDot;
