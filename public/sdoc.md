@@ -425,7 +425,7 @@ Two ways to leave a note:
 
 Each comment carries an author name and a colour, both set in the comment toolbar (`Commenting as: [name] [color]`). New comments pick up those preferences; existing comments keep what they were saved with. The comment icon in the top toolbar shows a coloured dot whenever the document carries any comments, tinted with the most recent comment's colour.
 
-To round-trip, click the **with comments** button next to any heading (or the one in the comment toolbar to grab the whole document). It copies the section's markdown along with each comment as plain text, ready to paste into the agent's terminal. Comments live in the YAML front matter under a `comments:` key, so they travel with the document through `sdoc share` and survive a styled `.md` export.
+To round-trip, click the **copy with comments** button next to any heading (or the one in the comment toolbar to grab the whole document). It copies the section's markdown along with each comment as plain text, ready to paste into the agent's terminal. Comments live in the YAML front matter under a `comments:` key, so they travel with the document through `sdoc share` and survive a styled `.md` export.
 
 ### Works offline
 
