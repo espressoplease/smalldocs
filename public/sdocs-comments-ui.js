@@ -827,29 +827,42 @@ function navigateRelative(delta) {
 function focusComment(id) {
   focusedId = id;
   var card = S.renderedEl.querySelector('.sdoc-card[data-c="' + id + '"]');
-  if (card) {
-    // Expand any collapsed .md-section-body that contains this card.
-    // Without this, scrollIntoView tries to scroll to a hidden element
-    // when the user flicks to a comment inside a closed section.
-    // Deliberately does NOT re-collapse other sections — matches the
-    // user's mental model ("I arrived here; keep it open").
-    var ancestor = card.parentElement;
-    while (ancestor && ancestor !== S.renderedEl) {
-      if (ancestor.classList && ancestor.classList.contains('md-section-body') &&
-          !ancestor.classList.contains('open')) {
-        ancestor.classList.add('open');
-        var section = ancestor.closest('.md-section');
-        var toggle = section && section.querySelector('.section-toggle');
-        if (toggle) toggle.classList.add('open');
-      }
-      ancestor = ancestor.parentElement;
+  if (!card) { paintToolbar(); return; }
+
+  // Expand any collapsed .md-section-body that contains this card so the
+  // user can actually see what they navigated to. Walk up from the card,
+  // opening every closed ancestor body and rotating the corresponding
+  // chevron. Deliberately does NOT re-collapse other sections — matches
+  // the user's mental model ("I arrived here; keep it open").
+  var ancestor = card.parentElement;
+  while (ancestor && ancestor !== S.renderedEl) {
+    if (ancestor.classList && ancestor.classList.contains('md-section-body') &&
+        !ancestor.classList.contains('open')) {
+      ancestor.classList.add('open');
+      var section = ancestor.closest('.md-section');
+      var toggle = section && section.querySelector('.section-toggle');
+      if (toggle) toggle.classList.add('open');
     }
-    S.renderedEl.querySelectorAll('.sdoc-card-focus').forEach(function (el) {
-      el.classList.remove('sdoc-card-focus');
-    });
-    card.classList.add('sdoc-card-focus');
-    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    ancestor = ancestor.parentElement;
   }
+
+  S.renderedEl.querySelectorAll('.sdoc-card-focus, .sdoc-card-focus-flash')
+    .forEach(function (el) {
+      el.classList.remove('sdoc-card-focus');
+      el.classList.remove('sdoc-card-focus-flash');
+    });
+  card.classList.add('sdoc-card-focus');
+
+  // requestAnimationFrame: let the .open class changes settle into a real
+  // layout before scrollIntoView measures positions and the flash class is
+  // applied. Without this the scroll can target the pre-expand layout, and
+  // a freshly-revealed card wouldn't reliably trigger the CSS animation.
+  requestAnimationFrame(function () {
+    card.classList.add('sdoc-card-focus-flash');
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(function () { card.classList.remove('sdoc-card-focus-flash'); }, 900);
+  });
+
   paintToolbar();
 }
 
