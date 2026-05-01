@@ -808,6 +808,12 @@ function paintToolbar() {
       orphanEl.hidden = true;
     }
   }
+
+  // Zero-state hint and active count/nav controls are different widths,
+  // so the toolbar's overflow status can flip when comments cross 0/1+.
+  // Re-evaluate has-overflow / scrolled-end so the mobile fade gradient
+  // tracks the new content width.
+  if (S.commentHint) S.commentHint.update();
 }
 
 function navigateRelative(delta) {

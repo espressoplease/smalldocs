@@ -50,6 +50,40 @@ body.comment-mode #_sd_comment-toolbar {
 }
 body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 
+/* Mobile: same shape as the write toolbar - left-aligned, sticky below the
+   left toolbar, horizontally scrollable. The "commenting as:" prefs sit
+   first so the toolbar always reads as belonging to the current author,
+   even when scrolled away from the count/nav controls. */
+@media (max-width: 768px) {
+  body.comment-mode #_sd_comment-toolbar {
+    position: sticky;
+    top: 36px;
+    z-index: 98;
+    justify-content: flex-start;
+  }
+  body.comment-mode #_sd_comment-toolbar > * { flex-shrink: 0; }
+}
+
+/* Right-edge fade hint when the toolbar overflows. Matches the write
+   toolbar's hint at the same breakpoint. */
+@media (max-width: 560px) {
+  body.comment-mode #_sd_comment-toolbar.has-overflow::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 32px;
+    height: 100%;
+    background: linear-gradient(to right, transparent, var(--bg) 90%);
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity .2s ease;
+  }
+  body.comment-mode #_sd_comment-toolbar.scrolled-end::after {
+    opacity: 0;
+  }
+}
+
 .sdoc-comment-count {
   font-size: 12px;
   color: var(--text-2);
@@ -121,7 +155,6 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 .sdoc-comment-pref-color::-moz-color-swatch    { border: none; border-radius: 2px; }
 @media (max-width: 640px) {
   .sdoc-comment-pref-author { width: 56px; }
-  .sdoc-comment-prefs-label { display: none; }
 }
 
 /* Toolbar middle slot: shows either the zero-comments hint OR the
@@ -136,6 +169,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   align-items: center;
   justify-content: center;
   height: 26px;
+  flex-shrink: 0;
 }
 .sdoc-toolbar-state {
   display: none;
