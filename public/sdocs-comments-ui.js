@@ -588,7 +588,15 @@ function handleSelectionChange() {
   if (!rect || (rect.width === 0 && rect.height === 0)) return hideSelectionPopover();
   pop.style.display = 'block';
   pop.style.position = 'fixed';
-  pop.style.top  = (rect.top - 42) + 'px';
+  // On mobile the iOS native selection toolbar pops up above the
+  // selection, so anchor our button below-right instead to avoid
+  // overlap. Desktop keeps the original above-right placement.
+  var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+  if (isMobile) {
+    pop.style.top  = (rect.bottom + 8) + 'px';
+  } else {
+    pop.style.top  = (rect.top - 42) + 'px';
+  }
   pop.style.left = (rect.right - 15) + 'px';
 }
 
