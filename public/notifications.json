@@ -1,5 +1,11 @@
 [
   {
+    "id": 1,
+    "date": "2026-05-01",
+    "title": "Comment mode: leave feedback an agent can pick up",
+    "link": "https://sdocs.dev/#sec=feedback-for-agents"
+  },
+  {
     "id": 0,
     "date": "2026-04-19",
     "title": "Proving sdocs.dev is running the public code",
