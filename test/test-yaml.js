@@ -120,4 +120,45 @@ module.exports = function(harness) {
     assert.strictEqual(parseScalar('"hello"'), 'hello');
     assert.strictEqual(parseScalar("'world'"), 'world');
   });
+
+  // ── Prototype-pollution guard ───────────────────────────────────
+  // The parser used to assign keys directly onto plain objects, so a
+  // crafted YAML payload with `__proto__:` could ghost-inject values
+  // that callers reading `meta.x` would resolve via the prototype chain
+  // even when the document had no real `x`. We skip the three dangerous
+  // keys at every level (block, inline-object, array-item).
+
+  test('parseFrontMatter: __proto__ at block level is ignored', () => {
+    const text = '---\n__proto__:\n  polluted: yes\ntitle: "ok"\n---\n# Body';
+    const { meta } = parseFrontMatter(text);
+    assert.strictEqual(meta.title, 'ok');
+    assert.strictEqual({}.polluted, undefined, 'Object.prototype must not be polluted');
+    assert.strictEqual(meta.polluted, undefined, 'meta.polluted must not resolve via prototype chain');
+  });
+
+  test('parseFrontMatter: __proto__ in inline object is ignored', () => {
+    const text = '---\nstyles: { __proto__: bad, color: red }\n---\n# Body';
+    const { meta } = parseFrontMatter(text);
+    assert.strictEqual(meta.styles.color, 'red');
+    assert.strictEqual(meta.styles.polluted, undefined);
+  });
+
+  test('parseFrontMatter: __proto__ inside array item is ignored', () => {
+    const text = '---\ncomments:\n  - id: c1\n    __proto__: bad\n    text: ok\n---\n# Body';
+    const { meta } = parseFrontMatter(text);
+    assert.strictEqual(meta.comments[0].id, 'c1');
+    assert.strictEqual(meta.comments[0].text, 'ok');
+    // Reading any random key on the parsed item must not resolve via
+    // Object.prototype (would happen if __proto__ replaced the chain).
+    assert.strictEqual(meta.comments[0].toString.name, 'toString');
+  });
+
+  test('parseFrontMatter: constructor and prototype keys also skipped', () => {
+    const text = '---\nconstructor:\n  evil: 1\nprototype:\n  evil: 1\nok: yes\n---\n# Body';
+    const { meta } = parseFrontMatter(text);
+    assert.strictEqual(meta.ok, 'yes');
+    // constructor/prototype lookups must still resolve to the real
+    // Object.prototype values, proving they weren't replaced.
+    assert.strictEqual(meta.constructor, Object);
+  });
 };
