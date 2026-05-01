@@ -15,7 +15,7 @@
   /* Default per-comment colour. The body override in comment mode
      (applyPrefColorToBody) and per-element inline sets on cards,
      anchors, and gutter tabs all derive from this single var. */
-  --sdoc-anchor-color: #ffd700;
+  --sdoc-anchor-color: #ffbb00;
 }
 
 /* ── Comment-mode toolbar ──────────────────────────────────────── */

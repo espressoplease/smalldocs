@@ -34,7 +34,7 @@
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-var DEFAULT_COLOR = '#ffd700';
+var DEFAULT_COLOR = '#ffbb00';
 var HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 var ID_FORMAT = /^c\d+$/;
 

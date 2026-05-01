@@ -1098,7 +1098,11 @@ function copyWithComments(headingEl, docWide, mods) {
     payload = SDC.serializeClean(source.meta, source.body);
     label = 'Copied (clean)';
   } else {
-    payload = SDC.serializeFootnotes(source.meta, source.body);
+    // Prepend a one-line header so an agent receiving the pasted text
+    // knows what it is and (when known) which file it relates to.
+    var filename = source.meta && typeof source.meta.file === 'string' ? source.meta.file : '';
+    var header = filename ? 'Feedback on ' + filename + ':' : 'Feedback:';
+    payload = header + '\n\n' + SDC.serializeFootnotes(source.meta, source.body);
     label = 'Copied (footnotes)';
   }
   return navigator.clipboard.writeText(payload).then(function () {

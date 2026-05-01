@@ -46,7 +46,7 @@ module.exports = function (harness) {
     const { meta: out, id } = SDC.addSelectionComment(
       meta,
       { quote: 'hello world', prefix: 'say ', suffix: ' today', block: 'p:0' },
-      { author: 'josh', color: '#ffd700', at: '2026-04-24T15:00Z', text: 'nice' }
+      { author: 'josh', color: '#ffbb00', at: '2026-04-24T15:00Z', text: 'nice' }
     );
     assert.strictEqual(id, 'c1');
     const list = SDC.getComments(out);
@@ -195,7 +195,7 @@ module.exports = function (harness) {
     const c = SDC.normalizeComment({ id: 'c1', quote: 'x' });
     assert.strictEqual(c.kind, 'inline');
     assert.strictEqual(c.author, 'user');
-    assert.strictEqual(c.color, '#ffd700');
+    assert.strictEqual(c.color, '#ffbb00');
     assert.ok(c.at); // timestamp filled in
     assert.strictEqual(c.text, '');
   });
@@ -215,12 +215,12 @@ module.exports = function (harness) {
 
   test('normalizeComment: rejects non-hex color, falls back to default', () => {
     const c = SDC.normalizeComment({ id: 'c1', quote: 'x', color: 'url(https://evil/p.gif)' });
-    assert.strictEqual(c.color, '#ffd700');
+    assert.strictEqual(c.color, '#ffbb00');
   });
 
   test('normalizeComment: rejects color with trailing CSS tokens', () => {
     const c = SDC.normalizeComment({ id: 'c1', quote: 'x', color: '#ff0; background: url(x)' });
-    assert.strictEqual(c.color, '#ffd700');
+    assert.strictEqual(c.color, '#ffbb00');
   });
 
   test('normalizeComment: accepts #rgb / #rgba / #rrggbb / #rrggbbaa', () => {
@@ -254,10 +254,10 @@ module.exports = function (harness) {
   test('sanitizeColor: exposed helper for the UI prefs path', () => {
     assert.strictEqual(typeof SDC.sanitizeColor, 'function');
     assert.strictEqual(SDC.sanitizeColor('#22c55e'), '#22c55e');
-    assert.strictEqual(SDC.sanitizeColor('javascript:alert(1)'), '#ffd700');
-    assert.strictEqual(SDC.sanitizeColor(undefined), '#ffd700');
-    assert.strictEqual(SDC.sanitizeColor(''), '#ffd700');
-    assert.strictEqual(SDC.sanitizeColor(null), '#ffd700');
+    assert.strictEqual(SDC.sanitizeColor('javascript:alert(1)'), '#ffbb00');
+    assert.strictEqual(SDC.sanitizeColor(undefined), '#ffbb00');
+    assert.strictEqual(SDC.sanitizeColor(''), '#ffbb00');
+    assert.strictEqual(SDC.sanitizeColor(null), '#ffbb00');
   });
 
   test('round-trip via YAML: meta.comments serializes and parses back', () => {
