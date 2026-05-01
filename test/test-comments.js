@@ -1,5 +1,5 @@
 /**
- * sdocs-comments tests — sidecar model.
+ * sdocs-comments tests - sidecar model.
  *
  * Comments live in front-matter meta.comments. These tests exercise the
  * data-model mutations; anchor resolution (DOM-level text search) is
@@ -394,12 +394,12 @@ module.exports = function (harness) {
     ({ meta } = SDC.addSelectionComment(
       meta,
       { quote: 'x' },
-      { text: 'emoji 🎉\nwith newline — and em-dash' }
+      { text: 'emoji 🎉\nwith newline - and em-dash' }
     ));
     const serialized = YAML.serializeFrontMatter(meta) + '\n\nbody\n';
     const parsed = YAML.parseFrontMatter(serialized);
     const c = SDC.getComments(parsed.meta)[0];
-    assert.strictEqual(c.text, 'emoji 🎉\nwith newline — and em-dash');
+    assert.strictEqual(c.text, 'emoji 🎉\nwith newline - and em-dash');
   });
 
   // ── parseFootnotes ────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 /**
  * sdocs-comments.js - sidecar comment storage for comment mode.
  *
- * Comments live in the document's YAML front matter under `comments:` — a
+ * Comments live in the document's YAML front matter under `comments:` - a
  * list of objects. The markdown body is NEVER touched; this removes every
  * class of "marked parses our marker wrong" bug the old inline-HTML-comment
  * format suffered from (line-start paragraph loss, inline-code backtick
@@ -138,7 +138,7 @@ function normalizeComment(c) {
  * `anchor` = { quote, prefix?, suffix?, block? }
  * `noteMeta` = { author?, color?, at?, text? }
  *
- * Returns a new meta with the comment appended. Body is untouched —
+ * Returns a new meta with the comment appended. Body is untouched -
  * anchoring happens at render time via text-quote lookup.
  */
 function addSelectionComment(meta, anchor, noteMeta) {
@@ -212,16 +212,6 @@ function updateComment(meta, id, patch) {
   return changed ? setComments(meta, list) : meta;
 }
 
-// ── Parse (legacy) ──────────────────────────────────────────────────────
-// Kept as a thin wrapper for callers that still pass raw markdown, so
-// Playwright / UI code can migrate incrementally.
-
-function parse(meta /*, body */) {
-  return {
-    comments: getComments(meta).map(normalizeComment).filter(function (c) { return c !== null; }),
-  };
-}
-
 // ── Copy serializers ────────────────────────────────────────────────────
 
 /**
@@ -280,7 +270,7 @@ function serializeFootnotes(meta, body) {
  *
  * Returns the body verbatim. Supplied as the "strip all comments" flow;
  * since the sidecar model never injected anything into the body, this
- * is literally the identity function — but we wrap it for symmetry with
+ * is literally the identity function - but we wrap it for symmetry with
  * the other serializers.
  */
 function serializeClean(meta, body) { return body; }
@@ -290,7 +280,7 @@ function serializeClean(meta, body) { return body; }
  *
  * Inverse of serializeFootnotes. Recognises markdown footnotes whose ids
  * follow our convention (cN where N is digits) and converts them into
- * comment objects. Other footnote ids are left alone — academic citations
+ * comment objects. Other footnote ids are left alone - academic citations
  * and the like keep their footnote semantics.
  *
  * Recognised patterns:
@@ -399,7 +389,7 @@ function parseFootnotes(body) {
   body = body.replace(REF_RE, function (_m, id) { return seen[id] ? '' : _m; });
 
   // Orphan definitions (no body marker). Treat as block comments. This is the
-  // shape serializeFootnotes emits today for block-kind comments — the def
+  // shape serializeFootnotes emits today for block-kind comments - the def
   // carries a `(block tag:n)` hint and there is no body marker.
   Object.keys(defs).forEach(function (id) {
     if (!ID_RE.test(id) || seen[id]) return;
@@ -434,7 +424,6 @@ exports.addSelectionComment = addSelectionComment;
 exports.addBlockComment     = addBlockComment;
 exports.removeComment       = removeComment;
 exports.updateComment       = updateComment;
-exports.parse               = parse;
 exports.serializeFootnotes  = serializeFootnotes;
 exports.parseFootnotes      = parseFootnotes;
 exports.serializeClean      = serializeClean;
