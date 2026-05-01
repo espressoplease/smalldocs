@@ -206,6 +206,39 @@ module.exports = function (harness) {
     assert.strictEqual(c.quote, undefined);
   });
 
+  // ── Color sanitization ────────────────────────────────────────────
+  // Comment colors are written into CSS custom properties unsanitized
+  // by the UI module. Without a gate at normalize time, a crafted
+  // shared URL could ship a colour like `url(https://attacker/...)` and
+  // every viewer's browser would issue that request on render. We
+  // restrict to hex tokens (the only shape the colour <input> emits).
+
+  test('normalizeComment: rejects non-hex color, falls back to default', () => {
+    const c = SDC.normalizeComment({ id: 'c1', quote: 'x', color: 'url(https://evil/p.gif)' });
+    assert.strictEqual(c.color, '#ffd700');
+  });
+
+  test('normalizeComment: rejects color with trailing CSS tokens', () => {
+    const c = SDC.normalizeComment({ id: 'c1', quote: 'x', color: '#ff0; background: url(x)' });
+    assert.strictEqual(c.color, '#ffd700');
+  });
+
+  test('normalizeComment: accepts #rgb / #rgba / #rrggbb / #rrggbbaa', () => {
+    assert.strictEqual(SDC.normalizeComment({ id: 'c1', quote: 'x', color: '#fff' }).color, '#fff');
+    assert.strictEqual(SDC.normalizeComment({ id: 'c1', quote: 'x', color: '#ffff' }).color, '#ffff');
+    assert.strictEqual(SDC.normalizeComment({ id: 'c1', quote: 'x', color: '#22c55e' }).color, '#22c55e');
+    assert.strictEqual(SDC.normalizeComment({ id: 'c1', quote: 'x', color: '#22c55eaa' }).color, '#22c55eaa');
+  });
+
+  test('sanitizeColor: exposed helper for the UI prefs path', () => {
+    assert.strictEqual(typeof SDC.sanitizeColor, 'function');
+    assert.strictEqual(SDC.sanitizeColor('#22c55e'), '#22c55e');
+    assert.strictEqual(SDC.sanitizeColor('javascript:alert(1)'), '#ffd700');
+    assert.strictEqual(SDC.sanitizeColor(undefined), '#ffd700');
+    assert.strictEqual(SDC.sanitizeColor(''), '#ffd700');
+    assert.strictEqual(SDC.sanitizeColor(null), '#ffd700');
+  });
+
   test('round-trip via YAML: meta.comments serializes and parses back', () => {
     const YAML = require(path.join(__dirname, '..', 'public', 'sdocs-yaml.js'));
     let meta = {};

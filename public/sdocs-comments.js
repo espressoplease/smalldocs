@@ -34,6 +34,19 @@
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
+var DEFAULT_COLOR = '#ffd700';
+var HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+
+// Comment colours flow into `style.setProperty('--sdoc-...-color', c)`,
+// which is substituted directly into `background: var(--..., url())`-shaped
+// CSS. setProperty accepts arbitrary token sequences, so without a gate a
+// crafted shared URL could ship `url(https://attacker/p.gif)` as a colour
+// and every viewer would GET that on render. The colour <input> in the UI
+// emits #rrggbb only, so restrict to hex.
+function sanitizeColor(c) {
+  return (typeof c === 'string' && HEX_COLOR.test(c)) ? c : DEFAULT_COLOR;
+}
+
 function getComments(meta) {
   if (!meta || typeof meta !== 'object') return [];
   var list = meta.comments;
@@ -79,7 +92,7 @@ function normalizeComment(c) {
   if (c.block_text) out.block_text = c.block_text;
   // Author metadata
   out.author = c.author || 'user';
-  out.color = c.color || '#ffd700';
+  out.color = sanitizeColor(c.color);
   out.at = c.at || new Date().toISOString();
   out.text = c.text || '';
   // resolved: optional. Preserved only when truthy so the on-disk YAML
@@ -382,6 +395,7 @@ function parseFootnotes(body) {
 
 // ── Public API ──────────────────────────────────────────────────────────
 
+exports.sanitizeColor       = sanitizeColor;
 exports.getComments         = getComments;
 exports.setComments         = setComments;
 exports.nextId              = nextId;
