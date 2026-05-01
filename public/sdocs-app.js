@@ -428,20 +428,24 @@ function loadText(text, filename) {
   var parsed = SDocYaml.parseFrontMatter(text);
   S.currentMeta = parsed.meta;
   S.currentBody = parsed.body;
-  // Lift footnote-format comments out of the body and merge into meta.comments.
-  // This makes markdown-footnote authoring (the easier path for agents) a
-  // valid input format alongside the YAML form. Body markers win on id
-  // collision since they represent a more recent edit by the agent.
-  if (window.SDocComments && window.SDocComments.parseFootnotes) {
-    var fn = window.SDocComments.parseFootnotes(S.currentBody);
-    if (fn.comments.length) {
-      var existing = (S.currentMeta.comments || []).filter(function (c) {
-        return !fn.comments.some(function (n) { return n.id === c.id; });
-      });
-      var merged = existing.concat(fn.comments).map(window.SDocComments.normalizeComment);
+  // Normalize all comments on load. This sanitizes attacker-controlled
+  // fields (color, id) from a shared URL before the UI ever reads them.
+  // Lifts footnote-format comments out of the body and merges them into
+  // meta.comments — markdown-footnote authoring is a valid input format
+  // alongside the YAML form. Body markers win on id collision since they
+  // represent a more recent edit by the agent.
+  if (window.SDocComments) {
+    var fn = window.SDocComments.parseFootnotes
+      ? window.SDocComments.parseFootnotes(S.currentBody)
+      : { comments: [], body: S.currentBody };
+    var existing = (S.currentMeta.comments || []).filter(function (c) {
+      return !fn.comments.some(function (n) { return n.id === c.id; });
+    });
+    var merged = existing.concat(fn.comments).map(window.SDocComments.normalizeComment);
+    if (merged.length) {
       S.currentMeta = Object.assign({}, S.currentMeta, { comments: merged });
-      S.currentBody = fn.body;
     }
+    if (fn.comments.length) S.currentBody = fn.body;
   }
   S.chartStyles = (parsed.meta.styles && parsed.meta.styles.chart) || null;
   render();

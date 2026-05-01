@@ -33,8 +33,8 @@ function readPrefs() {
   try {
     var raw = localStorage.getItem(PREFS_KEY);
     var v = raw ? JSON.parse(raw) : {};
-    return { author: v.author || 'user', color: v.color || '#ffd700' };
-  } catch (_) { return { author: 'user', color: '#ffd700' }; }
+    return { author: v.author || 'user', color: SDC.sanitizeColor(v.color) };
+  } catch (_) { return { author: 'user', color: SDC.sanitizeColor() }; }
 }
 
 function writePrefs(p) {
