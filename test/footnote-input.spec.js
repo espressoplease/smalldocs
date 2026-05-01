@@ -4,7 +4,7 @@ const { test, expect } = require('@playwright/test');
 const BASE = 'http://localhost:3000';
 
 /**
- * Footnote-format comment input — end-to-end tests.
+ * Footnote-format comment input - end-to-end tests.
  *
  * Agents author comments by editing the body with standard markdown
  * footnote markers ([quote][^cN] inline, [^cN] block) plus [^cN]: defs
@@ -20,7 +20,7 @@ const BASE = 'http://localhost:3000';
  *   2. Block footnotes become sidecar cards under the containing block.
  *   3. The footnote markers are stripped from the rendered body (no
  *      stray superscripts, no leftover "[^cN]" text).
- *   4. Pre-existing meta.comments survives — body markers add to it.
+ *   4. Pre-existing meta.comments survives - body markers add to it.
  *   5. [resolved] flag in the def carries through to meta.
  *   6. Non-cN footnote ids are left alone (academic citations etc).
  */
@@ -145,7 +145,7 @@ test.describe('footnote-format input', () => {
     expect(renderedText).not.toMatch(/\[\^c\d+\]/);
     // Definition lines must also be gone from the rendered body.
     expect(renderedText).not.toMatch(/\[\^c\d+\]:/);
-    // The body string the app holds must also be clean — round-trip safety.
+    // The body string the app holds must also be clean - round-trip safety.
     const storedBody = await page.evaluate(() => window.SDocs.currentBody);
     expect(storedBody).not.toMatch(/\[\^c\d+\]/);
   });
