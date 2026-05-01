@@ -12,8 +12,10 @@
 */
 
 :root {
-  --sdoc-theme-color:      #ffd700;  /* default per-comment color */
-  --sdoc-theme-color-deep: #e0bd00;  /* used only for hover on light surfaces */
+  /* Default per-comment colour. The body override in comment mode
+     (applyPrefColorToBody) and per-element inline sets on cards,
+     anchors, and gutter tabs all derive from this single var. */
+  --sdoc-anchor-color: #ffd700;
 }
 
 /* ── Comment-mode toolbar ──────────────────────────────────────── */
@@ -178,7 +180,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
    their hover tile, so save / cancel / delete blend with the card
    tint instead of flashing the neutral panel-hover grey. */
 .sdoc-card .sdoc-icon-btn:hover {
-  background: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 42%, var(--md-bg, var(--bg-input)));
+  background: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-anchor-color)) 42%, var(--md-bg, var(--bg-input)));
   color: var(--text);
 }
 .sdoc-icon-btn svg { display: block; }
@@ -193,7 +195,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   border-radius: 2px;
   padding: 0 1px;
   cursor: pointer;
-  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 40%, transparent);
+  background: color-mix(in srgb, var(--sdoc-anchor-color) 40%, transparent);
 }
 
 /* ── Card surface (shared by pill + sidecar, view + edit) ────────
@@ -206,8 +208,8 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   font-size: 0.82em;
   line-height: 1.4;
   color: var(--md-color, var(--text));
-  background: color-mix(in srgb, var(--sdoc-card-color, #ffd700) 22%, var(--md-bg, var(--bg-input)));
-  border: 1px solid color-mix(in srgb, var(--sdoc-card-color, #ffd700) 50%, transparent);
+  background: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-anchor-color)) 22%, var(--md-bg, var(--bg-input)));
+  border: 1px solid color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-anchor-color)) 50%, transparent);
   border-radius: var(--radius-sm, 4px);
 }
 .sdoc-card.sdoc-card-focus {
@@ -271,14 +273,14 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   padding: 1px 2px;
   background: transparent;
   border: none;
-  border-bottom: 1px dashed color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-theme-color)) 80%, transparent);
+  border-bottom: 1px dashed color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-anchor-color)) 80%, transparent);
   font-family: inherit;
   font-size: inherit;
   color: var(--text);
   outline: none;
 }
 .sdoc-card-pill .sdoc-card-input:focus {
-  border-bottom-color: var(--sdoc-card-color, var(--sdoc-theme-color));
+  border-bottom-color: var(--sdoc-card-color, var(--sdoc-anchor-color));
 }
 
 /* ── Sidecar (block) ────────────────────────────────────────────
@@ -453,15 +455,15 @@ body.comment-mode .sdoc-gutter-add:focus-visible {
 body.comment-mode .sdoc-host-commented > .sdoc-gutter-add {
   opacity: 1;
   pointer-events: auto;
-  background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-theme-color)) 32%, var(--bg-surface));
+  background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-anchor-color)) 32%, var(--bg-surface));
   color: var(--text-2);
 }
 body.comment-mode .sdoc-host-commented:hover > .sdoc-gutter-add {
-  background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-theme-color)) 42%, var(--bg-surface));
+  background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-anchor-color)) 42%, var(--bg-surface));
 }
 body.comment-mode .sdoc-host-commented > .sdoc-gutter-add:hover,
 body.comment-mode .sdoc-host-commented > .sdoc-gutter-add:focus-visible {
-  background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-theme-color)) 55%, var(--bg-surface));
+  background: color-mix(in srgb, var(--sdoc-block-comment-color, var(--sdoc-anchor-color)) 55%, var(--bg-surface));
   color: var(--text);
 }
 
@@ -550,7 +552,7 @@ body.comment-mode .sdoc-block-host::before {
   top: 2px;
   bottom: 2px;
   width: 3px;
-  background: var(--sdoc-block-comment-color, var(--sdoc-theme-color));
+  background: var(--sdoc-block-comment-color, var(--sdoc-anchor-color));
   border-radius: 2px;
   pointer-events: none;
 }
@@ -572,8 +574,8 @@ body.comment-mode .sdoc-block-host::before {
   position: fixed;
   z-index: 200;
   padding: 6px;
-  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 50%, transparent);
-  border: 1px solid color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 65%, transparent);
+  background: color-mix(in srgb, var(--sdoc-anchor-color) 50%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sdoc-anchor-color) 65%, transparent);
   border-radius: 999px;
   color: var(--md-link-color, #2563eb);
   cursor: pointer;
@@ -590,7 +592,7 @@ body.comment-mode .sdoc-block-host::before {
 .sdoc-selection-add:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow);
-  background: color-mix(in srgb, var(--sdoc-anchor-color, var(--sdoc-theme-color)) 70%, transparent);
+  background: color-mix(in srgb, var(--sdoc-anchor-color) 70%, transparent);
 }
 .sdoc-selection-add:active {
   transform: translateY(0);
