@@ -1250,16 +1250,20 @@ function initScrollHint(el) {
 
 var leftHint = initScrollHint(document.getElementById('_sd_left-toolbar'));
 var writeHint = initScrollHint(document.getElementById('_sd_write-toolbar'));
+var commentHint = initScrollHint(document.getElementById('_sd_comment-toolbar'));
 
-// Re-check and peek when entering write mode
+// Re-check and peek when entering write/comment mode
 var _origSetMode = setMode;
 setMode = function(mode, skipHash) {
   _origSetMode(mode, skipHash);
   if (mode === 'write') {
     setTimeout(function() { writeHint.update(); writeHint.peek(); }, 100);
+  } else if (mode === 'comment') {
+    setTimeout(function() { commentHint.update(); commentHint.peek(); }, 100);
   }
 };
 S.setMode = setMode;
+S.commentHint = commentHint;
 
 // Check left toolbar on load
 setTimeout(function() { leftHint.update(); leftHint.peek(); }, 500);
