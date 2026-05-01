@@ -47,6 +47,23 @@ function sanitizeColor(c) {
   return (typeof c === 'string' && HEX_COLOR.test(c)) ? c : DEFAULT_COLOR;
 }
 
+// "Copy with comments" output gets pasted into agents, Slack, etc.
+// A crafted shared URL whose comment text contains an embedded newline
+// can forge additional [^cN]: footnote definitions in the copied bytes;
+// bidi format characters can make the rendered card look one way while
+// the copied bytes carry another. Strip both at serialization time so
+// the clipboard contents match what the user saw on screen.
+//   - C0 controls (0x00-0x1F): stripped except \t
+//   - C1 controls (0x80-0x9F): stripped
+//   - Bidi format chars: U+202A-U+202E, U+2066-U+2069
+//   - Embedded \n collapses to a single space (footnote labels are
+//     single-line; preserving the bytes would forge new footnotes)
+var BIDI_OR_CTRL = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/g;
+function sanitizeText(s) {
+  if (typeof s !== 'string') return '';
+  return s.replace(/\n+/g, ' ').replace(BIDI_OR_CTRL, '');
+}
+
 function getComments(meta) {
   if (!meta || typeof meta !== 'object') return [];
   var list = meta.comments;
@@ -233,12 +250,12 @@ function serializeFootnotes(meta, body) {
   });
   // Emit footnotes in original (chronological) order.
   comments.forEach(function (c) {
-    var label = (c.author || 'user');
+    var label = sanitizeText(c.author || 'user');
     if (c.resolved) label += ' [resolved]';
-    label += ' - ' + (c.text || '');
+    label += ' - ' + sanitizeText(c.text || '');
     if (c.kind === 'block' && c.block) {
       var blockTag = c.block;
-      if (c.block_text) blockTag += ' "' + c.block_text + '..."';
+      if (c.block_text) blockTag += ' "' + sanitizeText(c.block_text) + '..."';
       label += ' (block ' + blockTag + ')';
     }
     footnotes.push('[^' + c.id + ']: ' + label);
