@@ -4,34 +4,47 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
 
 ## Stack
 
-- **Server**: `server.js` — pure Node `http` module, small
+- **Server**: `server.js` - pure Node `http` module, small
 - **Frontend**: split across `public/`:
-  - `index.html` — markup only
-  - `css/tokens.css` — CSS custom properties, dark theme, theme transitions
-  - `css/layout.css` — reset, body, topbar, main layout, left panel, divider
-  - `css/rendered.css` — `#rendered` markdown styles, collapsible sections, copy buttons
-  - `css/panel.css` — right panel, controls, statusbar
-  - `css/mobile.css` — mobile `@media` breakpoint
-  - `sdocs-yaml.js` — YAML front matter parse/serialize, UMD shared with Node
-  - `sdocs-slugify.js` — slugify heading text to URL-safe IDs, UMD shared with Node
-  - `sdocs-styles.js` — pure style data tables + logic, UMD shared with tests
-  - `sdocs-state.js` — shared `window.SDocs` mutable state namespace
-  - `sdocs-theme.js` — Google Fonts, font loading, dark mode, theme toggle
-  - `sdocs-controls.js` — CSS variable management, color cascade, control wiring
-  - `sdocs-export.js` — PDF/Word/MD export, save-default styles
-  - `sdocs-app.js` — render orchestration, hash encode/decode, Brotli compression, syncAll, mode switching, drag/drop, file info card, scroll hints, init
-- **Tests**: `node test/run.js` — red/green, no test framework, uses Node `assert` + `http`
-  - `test/runner.js` — shared harness: `test()`, `testAsync()`, `get()`, `report()`
-  - `test/test-yaml.js` — YAML front matter parse/serialize tests
-  - `test/test-styles.js` — SDocStyles pure module tests
-  - `test/test-cli.js` — CLI parseArgs/buildUrl + style merging tests
-  - `test/test-slugify.js` — slugify + heading dedup tests
-  - `test/test-base64.js` — browser base64 UTF-8 roundtrip tests
-  - `test/test-files.js` — file existence + content assertions
-  - `test/test-http.js` — HTTP server tests (async)
-- **Playwright tests**: `npx playwright test test/write-mode.spec.js` — write mode editor tests
-  - `test/write-mode.spec.js` — 42 tests for toolbar actions, toggles, shortcuts, block exits
-  - `playwright.config.js` — Chromium only, auto-starts server on :3000
+  - `index.html` - markup only
+  - `css/tokens.css` - CSS custom properties, dark theme, theme transitions
+  - `css/layout.css` - reset, body, topbar, main layout, left panel, divider
+  - `css/rendered.css` - `#rendered` markdown styles, collapsible sections, copy buttons
+  - `css/panel.css` - right panel, controls, statusbar
+  - `css/mobile.css` - mobile `@media` breakpoint
+  - `css/write.css` - write-mode contentEditable surface and toolbar
+  - `css/comments.css` - comment-mode card / popover / gutter styling
+  - `sdocs-yaml.js` - YAML front matter parse/serialize, UMD shared with Node
+  - `sdocs-slugify.js` - slugify heading text to URL-safe IDs, UMD shared with Node
+  - `sdocs-styles.js` - pure style data tables + logic, UMD shared with tests
+  - `sdocs-state.js` - shared `window.SDocs` mutable state namespace
+  - `sdocs-theme.js` - Google Fonts, font loading, dark mode, theme toggle
+  - `sdocs-controls.js` - CSS variable management, color cascade, control wiring
+  - `sdocs-chrome.js` - topbar / overflow menu / mobile sheet wiring
+  - `sdocs-export.js` - PDF/Word/MD export, save-default styles
+  - `sdocs-write.js` - write mode editor (contentEditable, toolbar, key handling)
+  - `sdocs-charts.js` - Chart.js integration for ```chart fenced blocks
+  - `sdocs-math.js` - KaTeX integration for `$$...$$` blocks
+  - `sdocs-comments.js` - pure comment data model (anchor resolution helpers, YAML round-trip, footnote serializer), UMD shared with tests
+  - `sdocs-comments-ui.js` - browser-only comment UI: rendering, selection popover, composer, navigation
+  - `sdocs-app.js` - render orchestration, hash encode/decode, Brotli compression, syncAll, mode switching, drag/drop, file info card, scroll hints, init
+  - `sdocs-info.js` - info panel, feedback link, notification dot
+- **Tests**: `node test/run.js` - red/green, no test framework, uses Node `assert` + `http`
+  - `test/runner.js` - shared harness: `test()`, `testAsync()`, `get()`, `report()`
+  - `test/test-yaml.js` - YAML front matter parse/serialize tests
+  - `test/test-styles.js` - SDocStyles pure module tests
+  - `test/test-cli.js` - CLI parseArgs/buildUrl + style merging tests
+  - `test/test-slugify.js` - slugify + heading dedup tests
+  - `test/test-base64.js` - browser base64 UTF-8 roundtrip tests
+  - `test/test-files.js` - file existence + content assertions
+  - `test/test-http.js` - HTTP server tests (async)
+  - `test/test-comments.js` - comment data-model + YAML/footnote round-trip + sanitisation tests
+- **Playwright tests**: `npx playwright test test/write-mode.spec.js` - write mode editor tests
+  - `test/write-mode.spec.js` - 42 tests for toolbar actions, toggles, shortcuts, block exits
+  - `test/comment-mode.spec.js` - comment-mode integration: anchor resolution, composer, navigation
+  - `test/footnote-input.spec.js` - parsing markdown-footnote-format comment input
+  - `test/xss.spec.js` - script / event-handler / iframe injection through markdown
+  - `playwright.config.js` - Chromium only, auto-starts server on :3000
 
 ## Writing style (docs, copy, UI strings, commit messages)
 
@@ -49,7 +62,7 @@ When you catch yourself writing a sentence that tries to *make the reader feel g
 
 ## Dashes
 
-Never use em dashes (`—`) or en dashes (`–`) anywhere: source files, comments, commit messages, docs. Use a plain hyphen (`-`) instead. This also means no `\u2014` / `\u2013` Unicode escapes.
+Never use em dashes (`-`) or en dashes (`-`) anywhere: source files, comments, commit messages, docs. Use a plain hyphen (`-`) instead. This also means no `\u2014` / `\u2013` Unicode escapes.
 
 ## Agent integration block
 
@@ -58,22 +71,24 @@ The `sdoc setup` command appends a SDocs explainer to coding-agent config files 
 ## CLI state
 
 All CLI-side state lives under `~/.sdocs/`:
-- `styles.yaml` — user-editable default styles
-- `update-check.json` — daily npm version cache
-- `setup.json` — agent setup tracking (so `sdoc setup` only auto-prompts once)
+- `styles.yaml` - user-editable default styles
+- `update-check.json` - daily npm version cache
+- `setup.json` - agent setup tracking (so `sdoc setup` only auto-prompts once)
 
 ## Architecture
 
 The entire app is stateless. The server just serves static files. All state (current markdown content, parsed front matter, style values) lives in the `window.SDocs` namespace in the browser, primarily `SDocs.currentBody` and `SDocs.currentMeta`.
 
-Styles are driven entirely by CSS custom properties on `#rendered`. Every control in the right panel maps to a `--md-*` variable. No style objects are stored separately — `collectStyles()` reads the DOM when exporting.
+Styles are driven entirely by CSS custom properties on `#rendered`. Every control in the right panel maps to a `--md-*` variable. No style objects are stored separately - `collectStyles()` reads the DOM when exporting.
 
 ### JS module communication
 
-All browser JS modules communicate through `window.SDocs` (created by `sdocs-state.js`). Modules register functions on `SDocs` for cross-module access (e.g. `SDocs.syncAll`, `SDocs.setColorValue`). Event handlers use late binding — they reference `SDocs.fn()` rather than capturing `fn` at parse time, so modules can load in sequence without forward-declaration issues.
+All browser JS modules communicate through `window.SDocs` (created by `sdocs-state.js`). Modules register functions on `SDocs` for cross-module access (e.g. `SDocs.syncAll`, `SDocs.setColorValue`). Event handlers use late binding - they reference `SDocs.fn()` rather than capturing `fn` at parse time, so modules can load in sequence without forward-declaration issues.
 
 **Script load order** (in `index.html`):
-`marked` → `sdocs-yaml.js` → `sdocs-styles.js` → `sdocs-state.js` → `sdocs-slugify.js` → `sdocs-theme.js` → `sdocs-controls.js` → `sdocs-export.js` → `sdocs-app.js`
+`marked` -> `purify` -> `sdocs-yaml.js` -> `sdocs-styles.js` -> `sdocs-state.js` -> `sdocs-slugify.js` -> `sdocs-theme.js` -> `sdocs-controls.js` -> `sdocs-chrome.js` -> `sdocs-export.js` -> `sdocs-write.js` -> `sdocs-charts.js` -> `sdocs-math.js` -> `sdocs-comments.js` -> `sdocs-app.js` -> `sdocs-info.js` -> `sdocs-comments-ui.js`
+
+`sdocs-comments-ui.js` loads after `sdocs-app.js` because it hooks into `SDocs.commentsUi.{enter,exit}` from inside `setMode`; that wiring needs the orchestrator's `setMode` defined first.
 
 ## Shared modules (UMD pattern)
 
@@ -98,11 +113,11 @@ The YAML parser is hand-rolled (no `js-yaml` dep) and lives in `sdocs-yaml.js`, 
 
 ## Transitions & animations
 
-When hiding/showing UI elements (topbar, panels, toolbars), **always animate all affected properties** — not just the obvious ones. If an element collapses via `height`, also transition `opacity`, `padding`, `border-color`, and any other property that would cause a visual jump if it changed instantly. Neighboring elements that reposition (e.g. a sticky toolbar whose `top` changes when a bar above it hides) must use a matching transition curve and duration so everything moves in sync. The standard curve is `.3s cubic-bezier(.4,0,.2,1)`.
+When hiding/showing UI elements (topbar, panels, toolbars), **always animate all affected properties** - not just the obvious ones. If an element collapses via `height`, also transition `opacity`, `padding`, `border-color`, and any other property that would cause a visual jump if it changed instantly. Neighboring elements that reposition (e.g. a sticky toolbar whose `top` changes when a bar above it hides) must use a matching transition curve and duration so everything moves in sync. The standard curve is `.3s cubic-bezier(.4,0,.2,1)`.
 
 ## Google Fonts
 
-24 fonts listed in order of global popularity. Fonts are loaded lazily — a `<link>` tag is injected only when a font is first selected from the dropdown. Inter is preloaded in `<head>` as it's the default.
+24 fonts listed in order of global popularity. Fonts are loaded lazily - a `<link>` tag is injected only when a font is first selected from the dropdown. Inter is preloaded in `<head>` as it's the default.
 
 ## Playwright testing (write mode)
 
@@ -111,7 +126,7 @@ Write mode uses `contentEditable` which behaves differently under Playwright aut
 - **`execCommand` doesn't work in Playwright keydown handlers.** When the real browser calls `e.preventDefault()` + `document.execCommand('insertLineBreak')` inside a keydown handler, it inserts `<br>` elements and fires `input` events. Under Playwright automation, `execCommand` silently does nothing after `preventDefault`. This means you **cannot test code block Enter behavior with real key presses** in Playwright.
 - **Simulate state instead.** For tests that depend on `execCommand` results (e.g. code block exit), set up the DOM to the expected post-`execCommand` state, set any flags the handler would set, and dispatch a synthetic `InputEvent`. See the code block exit tests in `write-mode.spec.js` for the pattern.
 - **`execCommand` fires `input` synchronously.** Any flags or state that an `input` handler needs to read must be set **before** calling `execCommand`, not after. The `input` event fires during `execCommand` execution, not after it returns.
-- **Chromium represents newlines as `<br>` in contentEditable `<pre>`.** Both `insertText('\n')` and `insertLineBreak` produce `<br>` elements. `textContent` does **not** include these — only `innerHTML` and `childNodes` reveal them. When counting trailing BRs, skip whitespace-only text nodes (e.g. trailing `\n` from initialization).
+- **Chromium represents newlines as `<br>` in contentEditable `<pre>`.** Both `insertText('\n')` and `insertLineBreak` produce `<br>` elements. `textContent` does **not** include these - only `innerHTML` and `childNodes` reveal them. When counting trailing BRs, skip whitespace-only text nodes (e.g. trailing `\n` from initialization).
 - **N Enter presses = N+1 trailing `<br>` elements** (the extra one is the browser's caret placeholder).
 
 ## Toolbar overflow & scroll hints
@@ -135,7 +150,7 @@ npx playwright test test/write-mode.spec.js # write mode browser tests (needs Ch
 node test/preview.js file.md --screenshot out.png  # visual preview (needs server on :3000)
 ```
 
-**Dev mode (`SDOCS_DEV=1` or `NODE_ENV=development`)**: serves CSS/JS with `Cache-Control: no-store`, injects a flag into the HTML that unregisters the service worker and clears its caches on load. Use this when iterating on frontend code so changes appear without hard-refreshing. The service worker normally caches the app shell and serves stale files even through hard reloads — dev mode sidesteps both layers.
+**Dev mode (`SDOCS_DEV=1` or `NODE_ENV=development`)**: serves CSS/JS with `Cache-Control: no-store`, injects a flag into the HTML that unregisters the service worker and clears its caches on load. Use this when iterating on frontend code so changes appear without hard-refreshing. The service worker normally caches the app shell and serves stale files even through hard reloads - dev mode sidesteps both layers.
 
 ## Visual preview testing
 

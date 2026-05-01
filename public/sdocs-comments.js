@@ -132,15 +132,8 @@ function normalizeComment(c) {
 
 // ── Mutations ───────────────────────────────────────────────────────────
 
-/**
- * addSelectionComment(meta, anchor, noteMeta) -> { meta, id }
- *
- * `anchor` = { quote, prefix?, suffix?, block? }
- * `noteMeta` = { author?, color?, at?, text? }
- *
- * Returns a new meta with the comment appended. Body is untouched -
- * anchoring happens at render time via text-quote lookup.
- */
+// anchor: { quote, prefix?, suffix?, block? }
+// noteMeta: { author?, color?, at?, text? }
 function addSelectionComment(meta, anchor, noteMeta) {
   if (!anchor || typeof anchor.quote !== 'string' || !anchor.quote) {
     throw new Error('addSelectionComment requires a non-empty quote');
@@ -163,11 +156,7 @@ function addSelectionComment(meta, anchor, noteMeta) {
   return { meta: setComments(meta, list), id: id };
 }
 
-/**
- * addBlockComment(meta, { block }, noteMeta) -> { meta, id }
- *
- * Block comment targets the whole block (e.g. `"p:3"` or `"blockquote:0"`).
- */
+// anchor: { block, block_text? } where block is "tag:n" (e.g. "p:3").
 function addBlockComment(meta, anchor, noteMeta) {
   if (!anchor || typeof anchor.block !== 'string' || !anchor.block) {
     throw new Error('addBlockComment requires a block id');
@@ -188,20 +177,13 @@ function addBlockComment(meta, anchor, noteMeta) {
   return { meta: setComments(meta, list), id: id };
 }
 
-/**
- * removeComment(meta, id) -> meta
- */
 function removeComment(meta, id) {
   var list = getComments(meta).filter(function (c) { return c.id !== id; });
   return setComments(meta, list);
 }
 
-/**
- * updateComment(meta, id, patch) -> meta
- *
- * Merges `patch` into the comment with this id. Returns unchanged meta if
- * no matching comment exists. Typical patches: `{ text: 'new note' }`.
- */
+// Returns the input meta unchanged if no comment matches `id`, so
+// callers can compare reference-equality to detect a no-op.
 function updateComment(meta, id, patch) {
   var changed = false;
   var list = getComments(meta).map(function (c) {
