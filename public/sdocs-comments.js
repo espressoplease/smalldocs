@@ -36,6 +36,15 @@
 
 var DEFAULT_COLOR = '#ffd700';
 var HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+var ID_FORMAT = /^c\d+$/;
+
+// Comment ids are written into a CSS selector
+// (`.sdoc-card[data-c="..."]`). Crafted ids with quotes or brackets
+// would break querySelector, or worse, match unrelated nodes. The
+// writer always produces `cN`, so reject anything else.
+function isValidId(id) {
+  return typeof id === 'string' && ID_FORMAT.test(id);
+}
 
 // Comment colours flow into `style.setProperty('--sdoc-...-color', c)`,
 // which is substituted directly into `background: var(--..., url())`-shaped
@@ -92,6 +101,7 @@ function nextId(meta) {
 }
 
 function normalizeComment(c) {
+  if (!isValidId(c.id)) return null;
   var out = {
     id: c.id,
     kind: c.kind || (c.quote ? 'inline' : 'block'),
@@ -207,7 +217,9 @@ function updateComment(meta, id, patch) {
 // Playwright / UI code can migrate incrementally.
 
 function parse(meta /*, body */) {
-  return { comments: getComments(meta).map(normalizeComment) };
+  return {
+    comments: getComments(meta).map(normalizeComment).filter(function (c) { return c !== null; }),
+  };
 }
 
 // ── Copy serializers ────────────────────────────────────────────────────
@@ -413,6 +425,7 @@ function parseFootnotes(body) {
 // ── Public API ──────────────────────────────────────────────────────────
 
 exports.sanitizeColor       = sanitizeColor;
+exports.isValidId           = isValidId;
 exports.getComments         = getComments;
 exports.setComments         = setComments;
 exports.nextId              = nextId;

@@ -1139,7 +1139,9 @@ function render() {
   // Inject hosts BEFORE rendering comments so block-level renders can
   // attach the sidecar inside the host (and apply .sdoc-host-commented).
   injectGutterButtons();
-  var comments = SDC.getComments(S.currentMeta).map(SDC.normalizeComment);
+  var comments = SDC.getComments(S.currentMeta)
+    .map(SDC.normalizeComment)
+    .filter(function (c) { return c !== null; });
   comments.forEach(function (c) { renderComment(c); });
   paintHeadingCopyWithComments(comments);
   paintDescendantCommentHints(comments);
