@@ -120,9 +120,15 @@ self.addEventListener('fetch', function (e) {
   }
 });
 
-// Version check: if server version differs, purge and re-cache with
-// fresh fetches (bypassing HTTP cache), then tell all open clients to
-// reload so they start running the new code immediately.
+// Version check: if server version differs, purge the cache and tell all
+// open clients to reload. We deliberately do NOT pre-cache APP_SHELL here:
+// concurrent SW lifecycle (the new SW installing alongside the old, browser
+// terminating the old worker mid-Promise.all when the new one calls
+// skipWaiting) made the pre-cache unreliable - cache.put could complete for
+// some entries and not others, and the reload then served stale CSS while
+// the JS was already on the new version. Empty cache + reload means every
+// asset comes fresh from the network on the next load; stale-while-revalidate
+// repopulates the cache as the user uses the app.
 self.addEventListener('message', function (e) {
   if (e.data && e.data.type === 'check-update' && e.data.version) {
     var qs = '?cohort=' + encodeURIComponent(e.data.cohort || '');
@@ -131,17 +137,11 @@ self.addEventListener('message', function (e) {
     }).then(function (data) {
       if (data.version !== e.data.version) {
         caches.delete(CACHE_NAME).then(function () {
-          return caches.open(CACHE_NAME);
-        }).then(function (cache) {
-          return Promise.all(APP_SHELL.map(function (u) {
-            return freshFetch(u).then(function (res) { if (res.ok) return cache.put(u, res); });
-          }));
-        }).then(function () {
           return self.clients.matchAll({ includeUncontrolled: true });
         }).then(function (clients) {
           clients.forEach(function (c) { c.postMessage({ type: 'sdocs-reload' }); });
         });
       }
-    }).catch(function () { /* offline — ignore */ });
+    }).catch(function () { /* offline, ignore */ });
   }
 });
