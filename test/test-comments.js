@@ -230,6 +230,27 @@ module.exports = function (harness) {
     assert.strictEqual(SDC.normalizeComment({ id: 'c1', quote: 'x', color: '#22c55eaa' }).color, '#22c55eaa');
   });
 
+  // ── ID format gate ───────────────────────────────────────────────
+  // querySelector breaks on crafted `data-c="..."` if `id` contains
+  // unescaped quotes or brackets. The writer always produces `cN`
+  // (digits), so any other shape comes from a malicious URL. Reject
+  // at normalize time so the UI never sees a bad id.
+
+  test('normalizeComment: keeps cN ids', () => {
+    assert.strictEqual(SDC.normalizeComment({ id: 'c1', quote: 'x' }).id, 'c1');
+    assert.strictEqual(SDC.normalizeComment({ id: 'c42', quote: 'x' }).id, 'c42');
+  });
+
+  test('normalizeComment: returns null for malformed ids', () => {
+    // Crafted id with selector-breaking chars
+    assert.strictEqual(SDC.normalizeComment({ id: 'x"]', quote: 'x' }), null);
+    assert.strictEqual(SDC.normalizeComment({ id: '../etc/passwd', quote: 'x' }), null);
+    // Missing id (load-time path: caller must filter)
+    assert.strictEqual(SDC.normalizeComment({ quote: 'x' }), null);
+    // Numeric / non-string
+    assert.strictEqual(SDC.normalizeComment({ id: 1, quote: 'x' }), null);
+  });
+
   test('sanitizeColor: exposed helper for the UI prefs path', () => {
     assert.strictEqual(typeof SDC.sanitizeColor, 'function');
     assert.strictEqual(SDC.sanitizeColor('#22c55e'), '#22c55e');

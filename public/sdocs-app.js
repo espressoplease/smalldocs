@@ -441,9 +441,18 @@ function loadText(text, filename) {
     var existing = (S.currentMeta.comments || []).filter(function (c) {
       return !fn.comments.some(function (n) { return n.id === c.id; });
     });
-    var merged = existing.concat(fn.comments).map(window.SDocComments.normalizeComment);
+    var merged = existing.concat(fn.comments)
+      .map(window.SDocComments.normalizeComment)
+      .filter(function (c) { return c !== null; });
     if (merged.length) {
       S.currentMeta = Object.assign({}, S.currentMeta, { comments: merged });
+    } else {
+      // Existing meta.comments may have been all-malformed; clear it.
+      if (S.currentMeta && S.currentMeta.comments) {
+        var copy = Object.assign({}, S.currentMeta);
+        delete copy.comments;
+        S.currentMeta = copy;
+      }
     }
     if (fn.comments.length) S.currentBody = fn.body;
   }
