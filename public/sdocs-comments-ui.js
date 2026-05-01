@@ -81,7 +81,7 @@ function nearestTopBlock(node) {
 
 // Walk the rendered tree and assign each top-level content block a stable
 // (tagname, index-among-siblings-of-that-tagname) id. Nested blocks (a <p>
-// inside a <blockquote>) are skipped — the outer block is the anchor.
+// inside a <blockquote>) are skipped - the outer block is the anchor.
 function listTopBlocks(root) {
   if (!root) return { blocks: [], byType: {} };
   var blocks = [];
@@ -125,7 +125,7 @@ function findBlockById(id, root, blockText) {
       var list = idx.byType[t] || [];
       var hit = list[n] || null;
       // If we have a survival hint and the indexed block doesn't match it,
-      // the index has likely drifted — fall through to text search.
+      // the index has likely drifted - fall through to text search.
       if (hit && (!blockText || (hit.textContent || '').trim().indexOf(blockText) === 0)) {
         return hit;
       }
@@ -198,7 +198,7 @@ function listAnchorLeaves(root) {
   var out = [];
   root.querySelectorAll(ANCHOR_LEAF_SEL).forEach(function (el) {
     // Exclude an element whose children include another LEAF (e.g. a
-    // <blockquote> wrapping a <p> — the inner <p> is the leaf).
+    // <blockquote> wrapping a <p> - the inner <p> is the leaf).
     var innerIsLeaf = false;
     for (var i = 0; i < el.children.length; i++) {
       if (el.children[i].matches && el.children[i].matches(ANCHOR_LEAF_SEL)) {
@@ -345,7 +345,7 @@ function makeCardElement(c, opts) {
     var who = document.createElement('span');
     who.className = 'sdoc-card-author';
     who.textContent = c.author || 'user';
-    // Time stays as a hover tooltip on the author name only — it's
+    // Time stays as a hover tooltip on the author name only - it's
     // useful for "how old is this comment" but doesn't earn its own
     // line in the visible card.
     who.title = (c.author || 'user') + (c.at ? ' · ' + formatRelativeTime(c.at) : '');
@@ -451,7 +451,7 @@ function renderComment(c) {
       if (span) {
         var pill = makeCardElement(c, { shape: 'pill', mode: 'view' });
         // Anchors inside a <table> can't take an inline card inside a
-        // <td> — the card widens the cell and breaks the column grid.
+        // <td> - the card widens the cell and breaks the column grid.
         // For tables, place the card as a sibling of the <table>.
         var table = span.closest('table');
         if (table && table.parentNode) {
@@ -473,13 +473,14 @@ function renderComment(c) {
                block.parentNode.classList.contains('sdoc-block-host')
       ? block.parentNode
       : null;
+    // c.color is sanitized to a hex by normalizeComment at load/add
+    // time; no need to re-default here.
     if (host) {
       host.classList.add('sdoc-host-commented');
-      host.style.setProperty('--sdoc-block-comment-color', c.color || '#ffd700');
+      host.style.setProperty('--sdoc-block-comment-color', c.color);
     } else {
-      // Block has no host (shouldn't happen in comment mode, but be safe).
       block.classList.add('sdoc-block-commented');
-      block.style.setProperty('--sdoc-block-comment-color', c.color || '#ffd700');
+      block.style.setProperty('--sdoc-block-comment-color', c.color);
     }
     var sidecar = makeCardElement(c, { shape: 'sidecar', mode: 'view' });
     // Append the card INSIDE the host (after the block) so the host's
@@ -572,7 +573,7 @@ function handleSelectionChange() {
   if (!startBlock || startBlock !== endBlock) return hideSelectionPopover();
 
   // Reject selections inside .katex (rendered text differs from source).
-  // Inline <code> and <pre><code> ARE allowed — the sidecar model anchors
+  // Inline <code> and <pre><code> ARE allowed - the sidecar model anchors
   // by rendered text, which matches source for verbatim blocks.
   var anc = range.commonAncestorContainer;
   var el = anc.nodeType === 1 ? anc : anc.parentNode;
@@ -688,7 +689,7 @@ function openSelectionComposerFromSelection(range) {
   var blockId = computeBlockId(block, S.renderedEl);
 
   // Visual preview while the composer is open. Same look as a saved
-  // inline anchor — solid colour with forced dark text — so the user
+  // inline anchor - solid colour with forced dark text - so the user
   // sees the final result immediately. The composer pill below is
   // signal enough that this is still pending.
   var pendingSpan = document.createElement('span');
@@ -736,7 +737,7 @@ function openSelectionComposerFromSelection(range) {
     onCancel: function () { clearPending(); hideComposer(); },
   });
   composerEl = composer;
-  // Place the inline composer pill right after the pending anchor — same
+  // Place the inline composer pill right after the pending anchor - same
   // physical spot the saved pill will land in. Tables get sibling-of-table.
   var table = pendingSpan ? pendingSpan.closest('table') : null;
   if (table && table.parentNode) {
@@ -900,7 +901,7 @@ function paintHeadingCopyWithComments(comments) {
   });
 }
 
-// Hint placement: tag ONLY the immediate parent heading — the deepest h2/h3/h4
+// Hint placement: tag ONLY the immediate parent heading - the deepest h2/h3/h4
 // whose .md-section-body directly contains a comment block (not via a nested
 // sub-heading). This anchors the tinted gutter tab to the most specific
 // heading possible, instead of bubbling up to ancestors. When that heading
@@ -909,7 +910,7 @@ function paintHeadingCopyWithComments(comments) {
 // the global "this doc has comments" signal.
 //
 // Headings that already carry .sdoc-host-commented (the heading itself has
-// a direct comment) are skipped — their tab is already lit by that path.
+// a direct comment) are skipped - their tab is already lit by that path.
 function paintDescendantCommentHints(comments) {
   if (!S.renderedEl) return;
   S.renderedEl.querySelectorAll('.sdoc-block-host.sdoc-has-direct-section-comment')
@@ -965,7 +966,7 @@ function mostRecentDirectCommentColor(body, comments) {
 
 function sectionContainsComment(heading) {
   // For H2/H3/H4 (wrapped in .md-section by buildCollapsibleSections),
-  // the whole section's content is inside the ancestor .md-section div —
+  // the whole section's content is inside the ancestor .md-section div -
   // a simple descendant query covers it, regardless of block-host wrapping.
   var section = heading.closest('.md-section');
   if (section) {
@@ -973,7 +974,7 @@ function sectionContainsComment(heading) {
   }
   // For H1/H5/H6 (no .md-section wrapping), walk forward siblings until the
   // next heading of same-or-higher level. Comment mode may have wrapped the
-  // heading in .sdoc-block-host — start from that wrapper's sibling instead.
+  // heading in .sdoc-block-host - start from that wrapper's sibling instead.
   var level = parseInt(heading.tagName[1], 10);
   var start = (heading.parentElement && heading.parentElement.classList &&
                heading.parentElement.classList.contains('sdoc-block-host'))

@@ -4,7 +4,7 @@ const { test, expect } = require('@playwright/test');
 const BASE = 'http://localhost:3000';
 
 /**
- * Comment mode end-to-end tests — sidecar storage model.
+ * Comment mode end-to-end tests - sidecar storage model.
  *
  * Comments live in `currentMeta.comments` (YAML front matter at save time).
  * The body is never touched. On render, anchors are resolved via text-quote
@@ -391,7 +391,7 @@ test.describe('gutter button CSS', () => {
 // ── Mode switching ───────────────────────────────────────────────────────
 
 test.describe('mode switching preserves comments', () => {
-  test('leave and re-enter comment mode — comments still rendered', async ({ page }) => {
+  test('leave and re-enter comment mode - comments still rendered', async ({ page }) => {
     await setBody(page, '# T\n\nA paragraph with anchored text.\n');
     await saveInline(page, 'anchored text', { prefix: 'with ', suffix: '.' });
     await page.evaluate(() => document.getElementById('_sd_btn-read').click());
@@ -462,7 +462,7 @@ test.describe('copy-with-comments buttons', () => {
 
   test('heading companion button appears on H2 whose section contains a comment', async ({ page }) => {
     await setBody(page, '# Title\n\n## Section A\n\nPara A.\n\n## Section B\n\nPara B.\n');
-    // Expand Section A (so the card is visible — also required for the
+    // Expand Section A (so the card is visible - also required for the
     // block-host wrapping to happen on nested paragraphs).
     await page.evaluate(() => {
       Array.from(document.querySelectorAll('h2')).find(h => h.textContent.indexOf('A') !== -1).click();
@@ -629,7 +629,7 @@ test.describe('edge-case content', () => {
     expect(has).toBe(false);
   });
 
-  test('undo-like flow: save, delete, re-save — ids reused from 1', async ({ page }) => {
+  test('undo-like flow: save, delete, re-save - ids reused from 1', async ({ page }) => {
     await setBody(page, 'one two three.\n');
     const id1 = await saveInline(page, 'one', {});
     await page.evaluate(() => document.querySelector('.sdoc-card-delete').click());
