@@ -5,6 +5,14 @@
 (function (exports) {
 'use strict';
 
+// Skip keys that would replace the object's prototype chain or shadow
+// built-ins via the cascade. A shared YAML doc cannot smuggle ghost
+// properties into `meta.comments` etc. by setting `__proto__:` to a
+// nested map.
+function isUnsafeKey(k) {
+  return k === '__proto__' || k === 'prototype' || k === 'constructor';
+}
+
 function parseScalar(v) {
   v = v.trim();
   if (v === '') return v;
@@ -26,7 +34,7 @@ function parseInlineObject(str) {
   const obj = {};
   inner.split(',').forEach(pair => {
     const m = pair.trim().match(/^(\w[\w-]*):\s*(.*)/);
-    if (m) obj[m[1]] = parseScalar(m[2].trim());
+    if (m && !isUnsafeKey(m[1])) obj[m[1]] = parseScalar(m[2].trim());
   });
   return obj;
 }
@@ -47,18 +55,13 @@ function parseArray(lines, startIdx, indent) {
       // Object item. Collect this line's key + any keys indented further.
       var obj = {};
       var key = km[1], val = km[2].trim();
-      if (val === '' && i + 1 < lines.length) {
-        // Nested object value under the key — not expected in our schema.
-        obj[key] = parseScalar(val);
-      } else {
-        obj[key] = parseScalar(val);
-      }
+      if (!isUnsafeKey(key)) obj[key] = parseScalar(val);
       i++;
       var itemPrefix = ' '.repeat(indent + 2);
       while (i < lines.length && lines[i].startsWith(itemPrefix) && !lines[i].startsWith(dashPrefix)) {
         var line = lines[i].substring(indent + 2);
         var im = line.match(/^(\w[\w-]*):\s*(.*)/);
-        if (im) obj[im[1]] = parseScalar(im[2]);
+        if (im && !isUnsafeKey(im[1])) obj[im[1]] = parseScalar(im[2]);
         i++;
       }
       out.push(obj);
@@ -82,21 +85,22 @@ function parseBlock(lines, startIdx, indent) {
     const nm = nl.match(/^(\w[\w-]*):\s*(.*)/);
     if (!nm) { i++; continue; }
     const key = nm[1], rest = nm[2].trim();
+    const safe = !isUnsafeKey(key);
     if (rest.startsWith('{')) {
-      result[key] = parseInlineObject(rest); i++;
+      const v = parseInlineObject(rest); if (safe) result[key] = v; i++;
     } else if (rest === '' && i + 1 < lines.length && dashDeeper.test(lines[i + 1])) {
       // Array child: `key:` followed by `  - ...` lines.
       i++;
       var arr = parseArray(lines, i, indent + 2);
-      result[key] = arr.arr;
+      if (safe) result[key] = arr.arr;
       i = arr.nextIdx;
     } else if (rest === '' && i + 1 < lines.length && deeper.test(lines[i + 1]) && !dashSame.test(lines[i + 1])) {
       i++;
       var sub = parseBlock(lines, i, indent + 2);
-      result[key] = sub.obj;
+      if (safe) result[key] = sub.obj;
       i = sub.nextIdx;
     } else {
-      result[key] = parseScalar(rest); i++;
+      if (safe) result[key] = parseScalar(rest); i++;
     }
   }
   return { obj: result, nextIdx: i };
