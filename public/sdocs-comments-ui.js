@@ -534,6 +534,11 @@ function ensureSelectionPopover() {
   selectionPopoverEl.setAttribute('aria-label', 'Comment on selection');
   selectionPopoverEl.title = 'Comment on selection';
   selectionPopoverEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
+  // Seed the inline colour at creation so the very first render already
+  // matches the user's pref (the show-time set in handleSelectionChange
+  // also runs, but seeding here removes a frame of fallback yellow if
+  // anything ever races and shows the popover before that runs).
+  selectionPopoverEl.style.setProperty('--sdoc-anchor-color', readPrefs().color);
   selectionPopoverEl.style.display = 'none';
   document.body.appendChild(selectionPopoverEl);
   selectionPopoverEl.addEventListener('mousedown', function (e) {
@@ -1141,12 +1146,19 @@ function render() {
   paintToolbar();
 }
 
-// Push the user's current pref colour onto <body> as --sdoc-anchor-color
-// so unattached UI (gutter buttons, the selection popover) inherits the
-// same tint without each piece needing its own copy. Existing .sdoc-anchor
-// spans set their own per-comment colour inline and aren't affected.
+// Push the user's current pref colour onto <body> as both
+// --sdoc-anchor-color (the primary cascade for unattached UI like
+// gutter buttons and the selection popover) and --sdoc-theme-color
+// (the fallback used by `var(--sdoc-anchor-color, var(--sdoc-theme-color))`
+// chains throughout the comments stylesheet). Setting both means
+// every code path that reads the comment colour - even via fallback -
+// resolves to the user's pref while comment mode is active, instead
+// of the hard-coded yellow at :root. Existing .sdoc-anchor spans
+// set their own per-comment colour inline and aren't affected.
 function applyPrefColorToBody() {
-  document.body.style.setProperty('--sdoc-anchor-color', readPrefs().color);
+  var c = readPrefs().color;
+  document.body.style.setProperty('--sdoc-anchor-color', c);
+  document.body.style.setProperty('--sdoc-theme-color', c);
 }
 
 function enter() {
@@ -1162,6 +1174,7 @@ function exit() {
   strip();
   focusedId = null;
   document.body.style.removeProperty('--sdoc-anchor-color');
+  document.body.style.removeProperty('--sdoc-theme-color');
 }
 
 function wireToolbar() {
