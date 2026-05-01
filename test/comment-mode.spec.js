@@ -292,38 +292,59 @@ test.describe('multiple comments', () => {
 // ── Block comments ───────────────────────────────────────────────────────
 
 test.describe('block comments', () => {
-  test('block comment attaches card inside the target block', async ({ page }) => {
+  test('block comment attaches card inside the target block host', async ({ page }) => {
     await setBody(page, '# T\n\nOnly paragraph.\n');
     await saveBlock(page, 'p:0', 'block note');
-    const parent = await page.evaluate(() => {
+    // The block, the gutter tab, and the sidecar card all live inside one
+    // .sdoc-block-host wrapper so the host can paint a continuous left
+    // stripe across them. Order inside the host: <p>, gutter button, card.
+    const state = await page.evaluate(() => {
       var card = document.querySelector('.sdoc-card[data-c="c1"]');
-      return card && card.parentElement && card.parentElement.tagName;
+      var host = card && card.closest('.sdoc-block-host');
+      return {
+        hostTag: host && host.tagName,
+        hostHasP: !!(host && host.querySelector(':scope > p')),
+        cardIsLastChild: !!(host && host.lastElementChild === card),
+        pBeforeCard: !!(host &&
+          host.querySelector(':scope > p').compareDocumentPosition(card) &
+          Node.DOCUMENT_POSITION_FOLLOWING),
+      };
     });
-    expect(parent).toBe('P');
+    expect(state.hostTag).toBe('DIV');
+    expect(state.hostHasP).toBe(true);
+    expect(state.cardIsLastChild).toBe(true);
+    expect(state.pBeforeCard).toBe(true);
   });
 
-  test('block comment adds sdoc-block-commented class + color var on target block', async ({ page }) => {
+  test('block comment adds sdoc-host-commented class + color var on target host', async ({ page }) => {
     await setBody(page, '# T\n\nTarget paragraph.\n');
     await saveBlock(page, 'p:0', 'note');
     const state = await page.evaluate(() => {
-      var p = document.querySelector('.sdoc-block-commented');
+      // Normal path: class + var live on the .sdoc-block-host wrapper, not
+      // the <p> itself, so the painted left stripe spans block + sidecar.
+      var host = document.querySelector('.sdoc-host-commented');
       return {
-        tag: p && p.tagName,
-        hasColorVar: p && p.style.getPropertyValue('--sdoc-block-comment-color') !== '',
+        tag: host && host.tagName,
+        wrapsP: !!(host && host.querySelector(':scope > p')),
+        hasColorVar: host && host.style.getPropertyValue('--sdoc-block-comment-color') !== '',
       };
     });
-    expect(state.tag).toBe('P');
+    expect(state.tag).toBe('DIV');
+    expect(state.wrapsP).toBe(true);
     expect(state.hasColorVar).toBe(true);
   });
 
-  test('block comment on a blockquote lands there', async ({ page }) => {
+  test('block comment on a blockquote lands inside its host', async ({ page }) => {
     await setBody(page, '> A quoted line.\n\nOther paragraph.\n');
     await saveBlock(page, 'blockquote:0', 'on the quote');
-    const parent = await page.evaluate(() => {
+    const state = await page.evaluate(() => {
       var card = document.querySelector('.sdoc-card[data-c="c1"]');
-      return card && card.parentElement && card.parentElement.tagName;
+      var host = card && card.closest('.sdoc-block-host');
+      return {
+        hostHasBlockquote: !!(host && host.querySelector(':scope > blockquote')),
+      };
     });
-    expect(parent).toBe('BLOCKQUOTE');
+    expect(state.hostHasBlockquote).toBe(true);
   });
 
   test('clicking gutter button opens a composer for block comment', async ({ page }) => {
@@ -333,8 +354,10 @@ test.describe('block comments', () => {
       var pHost = Array.from(hosts).find(h => h.querySelector('p'));
       pHost.querySelector('.sdoc-gutter-add').click();
     });
+    // The composer is a card in compose mode: same DOM as a saved sidecar
+    // card plus .sdoc-card-edit. There's no separate .sdoc-composer class.
     const composerOpen = await page.evaluate(() =>
-      !!document.querySelector('.sdoc-composer'));
+      !!document.querySelector('.sdoc-card.sdoc-card-edit.sdoc-card-sidecar'));
     expect(composerOpen).toBe(true);
   });
 });
@@ -638,14 +661,24 @@ test.describe('edge-case content', () => {
     expect(id2).toBe('c1');  // c1 was freed by delete, reused
   });
 
-  test('color: custom hex per comment renders on the highlight span', async ({ page }) => {
+  test('color: custom hex per comment lands on the highlight span as a CSS var', async ({ page }) => {
     await setBody(page, 'Something notable happens here.\n');
     await saveInline(page, 'notable', { color: '#ff6ec7', text: 'pink' });
-    const bg = await page.evaluate(() => {
+    const state = await page.evaluate(() => {
       var a = document.querySelector('span.sdoc-anchor[data-c="c1"]');
-      return a && a.style.background;
+      if (!a) return null;
+      // The anchor sets --sdoc-anchor-color inline; the CSS does the
+      // colour-mix to 40% alpha. So check the var, not style.background.
+      var inlineVar = a.style.getPropertyValue('--sdoc-anchor-color').trim();
+      var bg = getComputedStyle(a).backgroundColor;
+      return { inlineVar: inlineVar, bg: bg };
     });
-    expect(bg).toMatch(/rgb\(255, 110, 199\)|#ff6ec7/);
+    expect(state).not.toBeNull();
+    expect(state.inlineVar.toLowerCase()).toBe('#ff6ec7');
+    // Computed bg is the colour-mix result, which Chrome reports as either
+    // `rgba(255, 110, 199, 0.4)` or `color(srgb 1 0.431373 0.780392 / 0.4)`
+    // depending on engine version. Both encode the same source hex.
+    expect(state.bg).toMatch(/(?:255.*110.*199|1\s+0\.4313.*0\.7803)/);
   });
 });
 
