@@ -308,6 +308,59 @@ module.exports = function (harness) {
     assert.strictEqual(out, 'plain body\n');
   });
 
+  // ── Clipboard-output sanitization ────────────────────────────────
+  // "Copy with comments" output is meant to be pasted into agents,
+  // Slack, and other downstream tools. A crafted shared URL whose
+  // comment text contains an embedded newline can forge additional
+  // footnote definitions; bidi format characters (U+202A-U+202E,
+  // U+2066-U+2069) can make the rendered card look one way while the
+  // copied bytes carry another. Strip both at serialization time.
+
+  test('serializeFootnotes: strips embedded newlines from text', () => {
+    const meta = { comments: [
+      { id: 'c1', kind: 'inline', quote: 'q', author: 'a', text: 'safe\n[^c2]: forged - injection' },
+    ] };
+    const out = SDC.serializeFootnotes(meta, 'q\n');
+    // Markdown only treats `[^id]:` as a footnote definition when it sits
+    // at the start of a line. The c1 line is the only legit definition;
+    // the smuggled `[^c2]:` ended up mid-line so no parser will pick it
+    // up. Both checks: exactly one line-leading definition, and the
+    // forged label is mid-line (not line-leading).
+    assert.strictEqual(out.match(/^\[\^c\d+\]:/gm).length, 1);
+    assert.strictEqual(out.match(/^\[\^c2\]:/m), null);
+  });
+
+  test('serializeFootnotes: strips bidi format chars from author and text', () => {
+    const RLO = '‮', PDF = '‬';
+    const meta = { comments: [
+      { id: 'c1', kind: 'inline', quote: 'q', author: 'a' + RLO + 'tt', text: 'hi' + PDF + 'there' },
+    ] };
+    const out = SDC.serializeFootnotes(meta, 'q\n');
+    assert.strictEqual(out.indexOf(RLO), -1);
+    assert.strictEqual(out.indexOf(PDF), -1);
+    assert.ok(out.indexOf('att') !== -1, 'visible chars preserved');
+  });
+
+  test('serializeFootnotes: strips C0 control chars except tab', () => {
+    const meta = { comments: [
+      { id: 'c1', kind: 'inline', quote: 'q', author: 'a\x07b', text: 'hi\x00there' },
+    ] };
+    const out = SDC.serializeFootnotes(meta, 'q\n');
+    assert.strictEqual(out.indexOf('\x07'), -1);
+    assert.strictEqual(out.indexOf('\x00'), -1);
+    assert.ok(out.indexOf('ab') !== -1);
+    assert.ok(out.indexOf('hithere') !== -1);
+  });
+
+  test('serializeFootnotes: strips bidi from block_text too', () => {
+    const RLO = '‮';
+    const meta = { comments: [
+      { id: 'c1', kind: 'block', block: 'p:0', block_text: 'hello' + RLO + 'world', author: 'a', text: 'note' },
+    ] };
+    const out = SDC.serializeFootnotes(meta, 'p\n');
+    assert.strictEqual(out.indexOf(RLO), -1);
+  });
+
   test('serializeClean: identity on body, comments ignored', () => {
     const meta = { comments: [{ id: 'c1', kind: 'inline', quote: 'x', text: 'y' }] };
     const body = 'clean body text\n';
