@@ -776,7 +776,13 @@ if (SDOCS_DEV && 'serviceWorker' in navigator) {
     regs.forEach(function (r) { r.unregister(); });
   });
   if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
-} else if ('serviceWorker' in navigator) {
+} else if ('serviceWorker' in navigator && APP_VERSION.indexOf('__') !== 0) {
+  // Guard: if APP_VERSION is still the literal "__APP_VERSION__" placeholder, a
+  // running server is rendering this file without the substitution step (e.g. a
+  // stale process that pre-dates the substitution code). Skipping the SW
+  // register avoids the loop where /version-check returns a real hash, the SW
+  // sees a mismatch, posts sdocs-reload, and the next render hits the same
+  // placeholder. Falls back to "no SW" until a clean server is up.
   var _cohort = '';
   try {
     var _c = localStorage.getItem('sdocs_cohort') || '';
