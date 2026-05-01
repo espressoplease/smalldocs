@@ -626,21 +626,19 @@ function openBlockComposer(block) {
     shape: 'sidecar',
     mode: 'compose',
     onSave: function (text) {
-      try {
-        var res = SDC.addBlockComment(S.currentMeta || {}, {
-          block: blockId,
-          block_text: blockText,
-        }, {
-          author: prefs.author, color: prefs.color,
-          at: new Date().toISOString(), text: text,
-        });
-        S.currentMeta = res.meta;
-        hideComposer();
-        if (S.syncAll) S.syncAll('comment');
-        setTimeout(function () { focusComment(res.id); }, 30);
-      } catch (e) {
-        console.warn('addBlockComment failed:', e && e.message);
-      }
+      // openBlockComposer guards `if (!blockId) return;` upstream, so
+      // SDC.addBlockComment cannot throw "requires a block id" here.
+      var res = SDC.addBlockComment(S.currentMeta || {}, {
+        block: blockId,
+        block_text: blockText,
+      }, {
+        author: prefs.author, color: prefs.color,
+        at: new Date().toISOString(), text: text,
+      });
+      S.currentMeta = res.meta;
+      hideComposer();
+      if (S.syncAll) S.syncAll('comment');
+      setTimeout(function () { focusComment(res.id); }, 30);
     },
     onCancel: function () {
       hideComposer();
@@ -722,19 +720,18 @@ function openSelectionComposerFromSelection(range) {
     onSave: function (text) {
       clearPending();
       hideComposer();
-      try {
-        var res = SDC.addSelectionComment(S.currentMeta || {}, {
-          quote: quote, prefix: ctx.prefix, suffix: ctx.suffix, block: blockId,
-        }, {
-          author: prefs.author, color: prefs.color,
-          at: new Date().toISOString(), text: text,
-        });
-        S.currentMeta = res.meta;
-        if (S.syncAll) S.syncAll('comment');
-        setTimeout(function () { focusComment(res.id); }, 30);
-      } catch (e) {
-        console.warn('addSelectionComment failed:', e && e.message);
-      }
+      // openSelectionComposerFromSelection guards `if (!quote) return;`
+      // upstream, so SDC.addSelectionComment cannot throw the empty-quote
+      // error here.
+      var res = SDC.addSelectionComment(S.currentMeta || {}, {
+        quote: quote, prefix: ctx.prefix, suffix: ctx.suffix, block: blockId,
+      }, {
+        author: prefs.author, color: prefs.color,
+        at: new Date().toISOString(), text: text,
+      });
+      S.currentMeta = res.meta;
+      if (S.syncAll) S.syncAll('comment');
+      setTimeout(function () { focusComment(res.id); }, 30);
     },
     onCancel: function () { clearPending(); hideComposer(); },
   });
