@@ -59,7 +59,7 @@ async function saveInline(page, selectedText, opts) {
     }, {
       text: o.text || 'note',
       author: o.author || 'u',
-      color: o.color || '#ffd700',
+      color: o.color || '#ffbb00',
       at: o.at || '2026-04-24T15:00Z',
     });
     window.SDocs.currentMeta = res.meta;
@@ -72,7 +72,7 @@ async function saveBlock(page, blockId, text) {
   return page.evaluate(([bid, t]) => {
     var SDC = window.SDocComments;
     var res = SDC.addBlockComment(window.SDocs.currentMeta || {}, { block: bid },
-      { text: t, author: 'u', color: '#ffd700', at: '2026-04-24T15:00Z' });
+      { text: t, author: 'u', color: '#ffbb00', at: '2026-04-24T15:00Z' });
     window.SDocs.currentMeta = res.meta;
     window.SDocs.syncAll('comment');
     return res.id;
@@ -217,7 +217,7 @@ test.describe('anchor resolution', () => {
     await page.evaluate(() => {
       window.SDocs.currentMeta = { comments: [
         { id: 'c99', kind: 'inline', quote: 'nonexistent phrase abc',
-          author: 'u', color: '#ffd700', at: '', text: 'lost' }
+          author: 'u', color: '#ffbb00', at: '', text: 'lost' }
       ]};
       window.SDocs.syncAll('comment');
     });
@@ -243,7 +243,7 @@ test.describe('anchor resolution', () => {
       window.SDocs.currentMeta = { comments: [
         { id: 'c1', kind: 'inline', quote: 'two',
           prefix: 'One ', suffix: ' three',
-          block: 'p:99', author: 'u', color: '#ffd700', at: '', text: 'x' }
+          block: 'p:99', author: 'u', color: '#ffbb00', at: '', text: 'x' }
       ]};
       window.SDocs.syncAll('comment');
     });

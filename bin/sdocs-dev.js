@@ -506,7 +506,7 @@ SCHEMA — A FULLY-POPULATED EXAMPLE
       block: "h2:0"
       block_text: "Context"
       author: priya
-      color: "#ffd700"
+      color: "#ffbb00"
       at: "2026-04-22T09:14:00Z"
       text: "rename this to 'Where Q1 left us' — sharper"
     - id: c2
@@ -516,7 +516,7 @@ SCHEMA — A FULLY-POPULATED EXAMPLE
       suffix: " and within budget"
       block: "p:0"
       author: priya
-      color: "#ffd700"
+      color: "#ffbb00"
       at: "2026-04-22T09:15:00Z"
       text: "auth migration slipped 2 weeks — please correct"
     - id: c3
@@ -524,7 +524,7 @@ SCHEMA — A FULLY-POPULATED EXAMPLE
       block: "p:5"
       block_text: "Cost discipline becomes more visible in Q2"
       author: priya
-      color: "#ffd700"
+      color: "#ffbb00"
       at: "2026-04-22T09:24:00Z"
       text: "align the $180k figure with finance before publishing"
       resolved: true
@@ -561,7 +561,7 @@ FIELDS
                   for audit; readers should skip resolved comments
                   when generating action lists.
     author        Display name on the rendered card. Default: "user".
-    color         Card tint, hex (#rrggbb). Default: "#ffd700" (yellow).
+    color         Card tint, hex (#rrggbb). Default: "#ffbb00" (yellow).
     at            ISO 8601 timestamp. Default: now (browser side).
 
 ID GENERATION
