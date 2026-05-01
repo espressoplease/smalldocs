@@ -688,10 +688,6 @@ function openSelectionComposerFromSelection(range) {
   var ctx = captureContext(range, block);
   var blockId = computeBlockId(block, S.renderedEl);
 
-  // Visual preview while the composer is open. Same look as a saved
-  // inline anchor - solid colour with forced dark text - so the user
-  // sees the final result immediately. The composer pill below is
-  // signal enough that this is still pending.
   var pendingSpan = document.createElement('span');
   pendingSpan.className = 'sdoc-anchor';
   pendingSpan.style.setProperty('--sdoc-anchor-color', prefs.color);
@@ -829,14 +825,10 @@ function focusComment(id) {
   var card = S.renderedEl.querySelector('.sdoc-card[data-c="' + id + '"]');
   if (!card) { paintToolbar(); return; }
 
-  // Open ONLY the deepest .md-section-body containing the card. The
-  // partial-closed CSS handles ancestors above: their sibling sub-sections
-  // compress, the path to the open leaf stays full-size, and the closed
-  // ancestor toggles keep their right-pointing chevron. Opening every
-  // ancestor instead would force them all to look fully expanded, which
-  // misrepresents the surrounding doc state - sibling h3s would lose their
-  // collapsed look and the h2 chevron would point down even though only
-  // one descendant is actually open.
+  // Only open the deepest .md-section-body containing the card. The
+  // partial-closed CSS rules style ancestors correctly: closed-but-
+  // contains-an-open-leaf gets compressed-cousin styling on its
+  // siblings while the open leaf keeps full size.
   var ancestor = card.parentElement;
   while (ancestor && ancestor !== S.renderedEl) {
     if (ancestor.classList && ancestor.classList.contains('md-section-body')) {
@@ -901,16 +893,11 @@ function paintHeadingCopyWithComments(comments) {
   });
 }
 
-// Hint placement: tag ONLY the immediate parent heading - the deepest h2/h3/h4
-// whose .md-section-body directly contains a comment block (not via a nested
-// sub-heading). This anchors the tinted gutter tab to the most specific
-// heading possible, instead of bubbling up to ancestors. When that heading
-// sits inside a collapsed parent, the hint isn't visible until the user
-// expands far enough to reach it; the toolbar's comment-button dot remains
-// the global "this doc has comments" signal.
-//
-// Headings that already carry .sdoc-host-commented (the heading itself has
-// a direct comment) are skipped - their tab is already lit by that path.
+// Tag only the immediate parent heading whose body directly contains a
+// commented block (not via a nested sub-heading). Bubbling the hint up to
+// ancestors would lose precision; the toolbar's comment dot is the global
+// "this doc has comments" signal. Headings that already carry
+// .sdoc-host-commented are skipped (their tab is lit by that path).
 function paintDescendantCommentHints(comments) {
   if (!S.renderedEl) return;
   S.renderedEl.querySelectorAll('.sdoc-block-host.sdoc-has-direct-section-comment')
