@@ -191,6 +191,172 @@ function fetchFontBuf(slug, weight) {
   });
 }
 
+// Fetch an unsubsetted TTF directly. Fontsource ships per-script subsets
+// (latin / latin-ext / cyrillic / etc.), none of which include box-drawing
+// glyphs (U+2500-257F). Code blocks routinely use those for directory trees
+// and ASCII diagrams, so for the mono font we go to the source font's full
+// TTF (1300+ glyphs vs ~230 in the latin subset). pdf-lib's { subset: true }
+// still trims it down to only the glyphs the document uses on output.
+function fetchFullTtf(url) {
+  if (fontBufCache[url]) return Promise.resolve(fontBufCache[url]);
+  return fetch(url).then(function(r) {
+    if (!r.ok) throw new Error(r.status);
+    return r.arrayBuffer();
+  }).then(function(buf) {
+    fontBufCache[url] = buf;
+    return buf;
+  });
+}
+
+// ── Composite fonts (per-character fallback) ──
+//
+// No single font has every Unicode code point. pdf-lib's drawText takes one
+// font per call, so to support emoji or other glyphs the user's primary font
+// lacks, we wrap each "font slot" (body / headings / mono) as an ordered
+// chain of real fonts. At draw time we split the text into runs by which
+// font owns each character and emit one drawText per run. Characters no font
+// in the chain has are dropped and tallied so the status bar can warn the
+// user instead of silently corrupting their document.
+
+// Default-ignorable / format / control chars that shouldn't reach any font.
+// Zero-width space, ZWNJ/ZWJ, bidi marks, word joiner, BOM, soft hyphen,
+// C0/C1 controls (except tab + newline, which we never pass anyway).
+var INVISIBLE_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\uFFF9-\uFFFB]/g;
+
+// Per-codepoint cache of "can this font actually render this character?".
+// Two paths:
+//   - StandardFont (WinAnsi): encodeText throws on unsupported chars.
+//   - CustomFont (embedded TTF/OTF): encodeText silently maps missing glyphs
+//     to .notdef, so we have to ask fontkit directly via the embedder's
+//     fontkit Font instance. hasGlyphForCodePoint returns the truth.
+function canEncodeChar(font, ch) {
+  if (!font) return false;
+  if (!font._sdEncCache) font._sdEncCache = new Map();
+  var cp = ch.codePointAt(0);
+  if (font._sdEncCache.has(cp)) return font._sdEncCache.get(cp);
+  var ok;
+  var fk = font.embedder && font.embedder.font;
+  if (fk && typeof fk.hasGlyphForCodePoint === 'function') {
+    ok = fk.hasGlyphForCodePoint(cp);
+  } else {
+    try { font.encodeText(ch); ok = true; } catch (_) { ok = false; }
+  }
+  font._sdEncCache.set(cp, ok);
+  return ok;
+}
+
+// pdf-lib's CustomFontEmbedder exposes a fontkit Font as `embedder.font`,
+// from which we read hasGlyphForCodePoint. If a future pdf-lib upgrade moves
+// that API, canEncodeChar's try/encodeText fallback would silently treat
+// every character as renderable for embedded TTFs (encodeText doesn't throw,
+// it maps to .notdef). We do not add a runtime probe because pdf-lib is
+// pinned to v1.17.1 in the CDN URL above; the version cannot drift without
+// a code change. The unicode test suite (test/export-pdf-unicode.spec.js)
+// asserts that the emoji fallback does fire, which is the real signal.
+
+function pickFontForChar(chain, ch) {
+  for (var i = 0; i < chain.length; i++) {
+    if (canEncodeChar(chain[i], ch)) return chain[i];
+  }
+  return null;
+}
+
+// Split text into [{font, text}] runs by which font in the chain owns each
+// character. Strips invisibles up front. If `dropCounter` is provided,
+// increments it for every char no font in the chain can render.
+var ASCII_PRINTABLE_RE = /^[\x20-\x7E\n\r\t]*$/;
+
+function splitTextByFont(text, chain, dropCounter) {
+  if (text == null || text === '') return [];
+  text = String(text).replace(INVISIBLE_RE, '');
+  // Fast path: pure ASCII printable always lives in the primary font for any
+  // reasonable choice. Skips the per-codepoint loop on the common case.
+  if (text && ASCII_PRINTABLE_RE.test(text) && canEncodeChar(chain[0], 'A')) {
+    return [{ font: chain[0], text: text }];
+  }
+  var segs = [];
+  var current = null;
+  var i = 0;
+  while (i < text.length) {
+    var cp = text.codePointAt(i);
+    var len = cp > 0xFFFF ? 2 : 1;
+    var ch = text.substr(i, len);
+    var f = pickFontForChar(chain, ch);
+    if (!f) {
+      if (dropCounter) dropCounter.count++;
+      i += len;
+      continue;
+    }
+    if (!current || current.font !== f) {
+      current = { font: f, text: ch };
+      segs.push(current);
+    } else {
+      current.text += ch;
+    }
+    i += len;
+  }
+  return segs;
+}
+
+// Build a composite font that exposes the subset of pdf-lib's font interface
+// the rest of this file relies on (widthOfTextAtSize, heightAtSize). drawText
+// is handled separately by wrapping each page's drawText to dispatch to the
+// real underlying fonts.
+function makeCompositeFont(chain) {
+  var primary = chain[0];
+  return {
+    _composite: true,
+    _chain: chain,
+    widthOfTextAtSize: function(text, size) {
+      // No drop counting here. Measurement runs many times during line wrap;
+      // counting would over-report. Drops are tallied at draw time only.
+      var segs = splitTextByFont(text, chain, null);
+      var total = 0;
+      for (var i = 0; i < segs.length; i++) {
+        total += segs[i].font.widthOfTextAtSize(segs[i].text, size);
+      }
+      return total;
+    },
+    heightAtSize: function(size, opts) {
+      return primary.heightAtSize ? primary.heightAtSize(size, opts) : size;
+    },
+  };
+}
+
+// Build a font slot by composing the primary with any non-null fallbacks.
+// Even with no fallbacks (length-1 chain), the composite earns its keep:
+// it's where invisible-char stripping and "no font has this glyph" drop
+// counting live. The plain-font path crashes on the first non-Latin1
+// character against a StandardFont (e.g. when the offline path forces
+// Helvetica). The ASCII fast path inside splitTextByFont keeps the
+// composite cost negligible on the common case.
+function withFallback(primary, fallbacks) {
+  var fbs = fallbacks.filter(function(f) { return f != null; });
+  return makeCompositeFont([primary].concat(fbs));
+}
+
+// Patch a page's drawText so a composite font is split into per-font runs and
+// each run is drawn at the correct x offset with its real underlying font.
+function wrapPageDrawText(page, dropCounter) {
+  var orig = page.drawText.bind(page);
+  page.drawText = function(text, opts) {
+    var f = opts && opts.font;
+    if (!f || !f._composite) {
+      // Plain font path. Still strip invisibles so a stray ZWSP can't crash
+      // a StandardFont fallback that's reachable via the offline path.
+      return orig(String(text == null ? '' : text).replace(INVISIBLE_RE, ''), opts);
+    }
+    var segs = splitTextByFont(text, f._chain, dropCounter);
+    var x = opts.x;
+    for (var i = 0; i < segs.length; i++) {
+      var seg = segs[i];
+      var segOpts = Object.assign({}, opts, { x: x, font: seg.font });
+      orig(seg.text, segOpts);
+      x += seg.font.widthOfTextAtSize(seg.text, opts.size);
+    }
+  };
+}
+
 // ── Color parsing ──
 
 function hexToRgb(hex) {
@@ -345,7 +511,47 @@ async function renderPdf(rendered, st, chartImages) {
     } catch (e) { headFont = bold; }
     headBold = bold;
   }
-  mono = await doc.embedFont(PDFLib.StandardFonts.Courier);
+  // Mono: pull JetBrains Mono's full unsubsetted TTF so box-drawing glyphs
+  // (used for directory trees, ASCII diagrams) actually render in code blocks.
+  // Pinned to a stable version tag so a master push can't break the export.
+  // Falls back to the fontsource latin subset, then to Courier.
+  try {
+    var monoBuf = await fetchFullTtf('https://cdn.jsdelivr.net/gh/JetBrains/JetBrainsMono@v2.304/fonts/ttf/JetBrainsMono-Regular.ttf');
+    mono = await doc.embedFont(monoBuf, { subset: true });
+  } catch (e) {
+    try {
+      var monoBuf2 = await fetchFontBuf('jetbrains-mono', 400);
+      mono = await doc.embedFont(monoBuf2, { subset: true });
+    } catch (e2) {
+      mono = await doc.embedFont(PDFLib.StandardFonts.Courier);
+    }
+  }
+
+  // Emoji fallback. Monochrome only: pdf-lib doesn't render the COLR/CPAL
+  // tables that color emoji fonts ship, so a color font would either embed
+  // empty glyphs or fail outright. Optional: if the fetch breaks, emoji
+  // simply join the dropped-character count instead of crashing.
+  var emoji = null;
+  try {
+    var emojiBuf = await fetchFullTtf('https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@v2.034/fonts/NotoEmoji-Regular.ttf');
+    emoji = await doc.embedFont(emojiBuf, { subset: true });
+  } catch (e) { /* emoji unavailable; chain falls through to drop */ }
+
+  // Wire the slots. Even chains of length 1 go through the composite: the
+  // composite is where INVISIBLE_RE stripping and "no font has this glyph"
+  // drop counting live. Without it, a StandardFont fallback (the offline
+  // path forces Helvetica/Courier) would crash on the first non-Latin1
+  // character. The ASCII fast path inside splitTextByFont keeps the cost
+  // negligible on the common case.
+  font     = withFallback(font,     [emoji]);
+  bold     = withFallback(bold,     [emoji]);
+  headFont = withFallback(headFont, [emoji]);
+  headBold = withFallback(headBold, [emoji]);
+  mono     = withFallback(mono,     [emoji]);
+
+  // Drop counter shared across all pages. Read by exportPDF after render to
+  // surface "N characters omitted" in the status bar.
+  var dropCounter = { count: 0 };
 
   // Page layout
   var W = 595.28; // A4 width
@@ -355,12 +561,18 @@ async function renderPdf(rendered, st, chartImages) {
   var fontSize = st.basePt;
   var lineSpacing = fontSize * st.lineH;
 
-  var page = doc.addPage([W, H]);
+  function newPage() {
+    var p = doc.addPage([W, H]);
+    wrapPageDrawText(p, dropCounter);
+    return p;
+  }
+
+  var page = newPage();
   var y = H - MT;
 
   function ensureSpace(need) {
     if (y - need < MB) {
-      page = doc.addPage([W, H]);
+      page = newPage();
       y = H - MT;
     }
   }
@@ -929,7 +1141,8 @@ async function renderPdf(rendered, st, chartImages) {
   // For now, images embedded synchronously via the Promise.resolve pattern above
   // will work because pdf-lib's embed methods are sync for already-loaded data
 
-  return doc.save();
+  var bytes = await doc.save();
+  return { bytes: bytes, dropped: dropCounter.count };
 }
 
 // ── Export orchestration ──
@@ -948,16 +1161,22 @@ async function exportPDF() {
 
     var st = readPdfStyles();
     var chartImages = S.getChartImages ? S.getChartImages() : [];
-    var pdfBytes = await renderPdf(S.renderedEl, st, chartImages);
+    var result = await renderPdf(S.renderedEl, st, chartImages);
     restoreSections(closed);
 
-    var blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    var blob = new Blob([result.bytes], { type: 'application/pdf' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = (S.currentMeta.title || 'document').replace(/[^a-z0-9_-]/gi, '_') + '.pdf';
     a.click();
     URL.revokeObjectURL(a.href);
-    S.setStatus('PDF downloaded');
+    if (result.dropped > 0) {
+      S.setStatus('PDF downloaded - ' + result.dropped + ' character' +
+                  (result.dropped === 1 ? '' : 's') +
+                  ' omitted (no available font supports them)');
+    } else {
+      S.setStatus('PDF downloaded');
+    }
   } catch (e) {
     S.setStatus('PDF export failed: ' + e.message);
     console.error(e);
