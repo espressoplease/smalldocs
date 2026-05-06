@@ -352,12 +352,20 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/' || pathname === '/new' || pathname === '/legal' || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  const blogMatch = /^\/blogs\/([A-Za-z0-9_-]+)$/.exec(pathname);
+  const blogSlug = blogMatch && fs.existsSync(path.join(__dirname, 'public', 'blogs', blogMatch[1] + '.md'))
+    ? blogMatch[1]
+    : null;
+  if (pathname === '/' || pathname === '/new' || pathname === '/legal' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     const htmlPath = path.join(__dirname, 'public', 'index.html');
     fs.readFile(htmlPath, 'utf8', (err, html) => {
       if (err) { res.writeHead(500); res.end('Error'); return; }
       const nonce = crypto.randomBytes(16).toString('base64');
-      const defaultMdPath = pathname === '/legal' ? '/public/legal.md' : '/public/sdoc.md';
+      const defaultMdPath = pathname === '/legal'
+        ? '/public/legal.md'
+        : blogSlug
+          ? '/public/blogs/' + blogSlug + '.md'
+          : '/public/sdoc.md';
       html = html.replace(/__APP_VERSION__/g, APP_VERSION);
       html = html.replace('__SDOCS_DEV__', DEV_MODE ? '1' : '0');
       html = html.replace('__DEFAULT_MD_PATH__', defaultMdPath);
