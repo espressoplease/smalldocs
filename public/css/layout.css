@@ -178,6 +178,10 @@ body {
 #_sd_btn-overflow .icon-x { display: none; }
 #_sd_btn-overflow[aria-expanded="true"] .icon-menu { display: none; }
 #_sd_btn-overflow[aria-expanded="true"] .icon-x { display: inline-flex; }
+/* Fold/unfold icon swap on the expand-all toggle */
+#_sd_btn-fold .icon-fold { display: none; }
+#_sd_btn-fold.is-open .icon-unfold { display: none; }
+#_sd_btn-fold.is-open .icon-fold { display: inline-flex; }
 /* Persistent subtle tint while open so the X reads as a control to click,
    not just a passive icon. Real hover still escalates to the standard
    toolbar-button hover treatment. */
