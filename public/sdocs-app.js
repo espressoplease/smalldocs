@@ -151,6 +151,7 @@ function buildCollapsibleSections(container) {
       var isOpen = toggle.classList.toggle('open');
       container.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.toggle('open', isOpen); });
       container.querySelectorAll('.md-section > h2 > .section-toggle, .md-section > h3 > .section-toggle, .md-section > h4 > .section-toggle, .md-section > .sdoc-block-host > h2 > .section-toggle, .md-section > .sdoc-block-host > h3 > .section-toggle, .md-section > .sdoc-block-host > h4 > .section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
+      if (S.syncFoldButton) S.syncFoldButton();
     });
   });
 
@@ -201,6 +202,7 @@ function buildCollapsibleSections(container) {
       if (yAfter !== yBefore) {
         contentArea.scrollTop += yAfter - yBefore;
       }
+      if (S.syncFoldButton) S.syncFoldButton();
     });
   });
 }
@@ -244,6 +246,7 @@ function render() {
   if (S.processMath) S.processMath(S.renderedEl);
   renderFileInfoCard();
   if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
+  if (S.syncFoldButton) S.syncFoldButton();
 }
 
 // ── File-info card ─────────────────────────────────────────
@@ -544,12 +547,16 @@ async function decompressDeflate(bytes) {
 
 async function decompressText(b64url) {
   var bytes = fromBase64Url(b64url);
-  // Try brotli first, fall back to deflate for old URLs or missing WASM
+  // Try brotli first, fall back to deflate for old URLs or missing WASM.
+  // BrotliWasm.decompress returns 0 bytes silently on non-brotli input
+  // instead of throwing, so treat empty output from non-trivial input as failure.
   if (typeof BrotliWasm !== 'undefined') {
     try {
       await BrotliWasm.ready;
       var decompressed = BrotliWasm.decompress(bytes);
-      return new TextDecoder().decode(decompressed);
+      if (decompressed.length > 0 || bytes.length <= 2) {
+        return new TextDecoder().decode(decompressed);
+      }
     } catch (_) {}
   }
   return decompressDeflate(bytes);
@@ -815,6 +822,29 @@ document.getElementById('_sd_btn-theme').addEventListener('click', function() { 
 document.getElementById('_sd_theme-tab-light').addEventListener('click', function() { S.switchThemeAndUpdate('light'); });
 document.getElementById('_sd_theme-tab-dark').addEventListener('click', function() { S.switchThemeAndUpdate('dark'); });
 document.getElementById('_sd_btn-read').addEventListener('click',   function() { setMode('read'); });
+document.getElementById('_sd_btn-fold').addEventListener('click', function() {
+  if (!S.renderedEl) return;
+  var bodies = S.renderedEl.querySelectorAll('.md-section-body');
+  var allOpen = bodies.length > 0 && Array.prototype.every.call(bodies, function(b) { return b.classList.contains('open'); });
+  var nextOpen = !allOpen;
+  S.renderedEl.querySelectorAll('h1 > .section-toggle').forEach(function(t) { t.classList.toggle('open', nextOpen); });
+  bodies.forEach(function(b) { b.classList.toggle('open', nextOpen); });
+  S.renderedEl.querySelectorAll('.md-section .section-toggle').forEach(function(t) { t.classList.toggle('open', nextOpen); });
+  syncFoldButton();
+});
+
+function syncFoldButton() {
+  var btn = document.getElementById('_sd_btn-fold');
+  if (!btn || !S.renderedEl) return;
+  var bodies = S.renderedEl.querySelectorAll('.md-section-body');
+  btn.style.display = bodies.length ? '' : 'none';
+  var allOpen = bodies.length > 0 && Array.prototype.every.call(bodies, function(b) { return b.classList.contains('open'); });
+  btn.classList.toggle('is-open', allOpen);
+  var label = allOpen ? 'Collapse all' : 'Expand all';
+  btn.setAttribute('aria-label', label);
+  btn.setAttribute('data-tip', label);
+}
+S.syncFoldButton = syncFoldButton;
 document.getElementById('_sd_btn-style').addEventListener('click',  function() { setMode('style'); });
 document.getElementById('_sd_btn-write').addEventListener('click',  function() { setMode('write'); });
 document.getElementById('_sd_btn-raw').addEventListener('click',    function() { setMode('raw'); });
