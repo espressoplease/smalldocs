@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SDocs nightly backup (daily at 03:12 UTC)
+
+[Timer]
+OnCalendar=*-*-* 03:12:00
+RandomizedDelaySec=5m
+Persistent=true
+Unit=sdocs-backup.service
+
+[Install]
+WantedBy=timers.target
