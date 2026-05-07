@@ -22,9 +22,11 @@ require('./test-comments')(harness);
 
 // ── HTTP tests (async, starts server) ──────────────
 const runHttp = require('./test-http')(harness);
+const runCacheBust = require('./test-cache-bust')(harness);
 
 (async () => {
   await runHttp();
+  await runCacheBust();
   harness.report();
 })().catch(e => {
   console.error('Test runner error:', e);
