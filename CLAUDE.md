@@ -37,7 +37,8 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
   - `test/test-slugify.js` - slugify + heading dedup tests
   - `test/test-base64.js` - browser base64 UTF-8 roundtrip tests
   - `test/test-files.js` - file existence + content assertions
-  - `test/test-http.js` - HTTP server tests (async)
+  - `test/test-http.js` - HTTP server tests (async); includes the per-route asset-versioning assertions
+  - `test/test-cache-bust.js` - two-server check that asset URLs change when public/ contents change
   - `test/test-comments.js` - comment data-model + YAML/footnote round-trip + sanitisation tests
 - **Playwright tests**: `npx playwright test test/write-mode.spec.js` - write mode editor tests
   - `test/write-mode.spec.js` - 42 tests for toolbar actions, toggles, shortcuts, block exits
@@ -163,6 +164,24 @@ node test/preview.js file.md                          # opens browser, stays ope
 ```
 
 Use this instead of `sdoc file.md` when you need to verify that code changes are reflected visually. The `--wait` flag controls how long to wait for Chart.js CDN load (default 4000ms).
+
+## Asset cache-busting
+
+Every `<link rel="stylesheet" href="/public/...">` and `<script src="/public/...">` URL in **any** HTML the server serves is automatically rewritten to carry `?v=<APP_VERSION>` at HTML serve time. `APP_VERSION` is a 10-char hash of the contents of `public/`, so any deploy that touches a public file changes the query string and the browser HTTP cache misses on every asset URL.
+
+**Don't write `?v=` by hand in HTML.** The rewriter lives in `rewriteAssets()` in `server.js`, and `serveHtmlWithRewrite()` is the single helper every HTML route goes through (`/`, `/new`, `/legal`, `/blogs/...`, `/s/...`, `/feedback`, `/trust`, `/analytics`). If you add a new HTML entry point, route it through `serveHtmlWithRewrite()` (or call `rewriteAssets()` directly) — otherwise its asset URLs ship un-versioned and returning users will see the new HTML against a stale browser HTTP cache.
+
+What the rewriter does and doesn't touch:
+- **Touches**: `<script src="/public/...">` and `<link rel="stylesheet" href="/public/...">` whose URL has no query string yet.
+- **Skips**: cross-origin URLs (CDN, Google Fonts), already-versioned URLs, `<link rel="icon">`, inline `<style>` and `<script>`, and `url(...)` references inside CSS (e.g. `@font-face`). Inline-CSS-referenced fonts are immutable (`max-age=31536000`) so this is safe in practice — if you add a stylesheet that references mutable assets via `url(...)`, version the filename instead of the query.
+
+Markup constraints the regex relies on (write tags this way or they ship un-versioned):
+- Keep `src=` / `href=` on the same line as the opening `<script` / `<link`. The rewriter is single-line.
+- Don't put a literal `>` inside a quoted attribute value. The greedy stop-at-`>` would terminate early.
+
+The static check in `test/test-files.js` ("every HTML route in server.js goes through serveHtmlWithRewrite") fails CI if a future route is wired to `serveFile()` with a `.html` argument, which would silently bypass the rewriter.
+
+The two-server cache-bust check in `test/test-cache-bust.js` is the tripwire: it starts a server, captures `APP_VERSION` and the rewritten HTML, mutates `public/` (writes a non-dotfile so `walkPublic` picks it up), restarts the server, and asserts every `/public/` URL on `/`, `/feedback`, and `/trust` carries the new version. If you change anything about the rewriter, this test must still pass.
 
 ## Pre-deploy check: service-worker refresh
 

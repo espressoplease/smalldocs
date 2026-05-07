@@ -210,6 +210,106 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('sdocs-app.js'), 'should serve the SDocs index');
     });
 
+    // ── Asset cache-busting ──────────────────────────
+    // Returning users with a stale browser HTTP cache will get the new HTML
+    // and refetch local assets only if their URLs differ. Every <link> /
+    // <script> referencing /public/ must therefore carry ?v=APP_VERSION on
+    // every HTML route the server serves. Regression of this rule is what
+    // produced the "two icons next to each other" bug in May 2026.
+    function extractPublicAssetUrls(body) {
+      const urls = [];
+      const scriptRe = /<script\b[^>]*?\s+src=["']([^"']+)["']/gi;
+      let m;
+      while ((m = scriptRe.exec(body)) !== null) {
+        if (m[1].startsWith('/public/')) urls.push({ kind: 'script', url: m[1] });
+      }
+      const linkRe = /<link\b([^>]*)>/gi;
+      while ((m = linkRe.exec(body)) !== null) {
+        const attrs = m[1];
+        if (!/\srel=["']stylesheet["']/i.test(attrs)) continue;
+        const hrefM = attrs.match(/\shref=["']([^"']+)["']/i);
+        if (hrefM && hrefM[1].startsWith('/public/')) urls.push({ kind: 'link', url: hrefM[1] });
+      }
+      return urls;
+    }
+
+    async function assertEveryAssetVersioned(path, expectedVersion) {
+      const r = await get(BASE + path);
+      assert.strictEqual(r.status, 200, path + ' should be 200');
+      const refs = extractPublicAssetUrls(r.body);
+      assert.ok(refs.length > 0, path + ' should reference at least one /public/ asset');
+      for (const ref of refs) {
+        const re = /\?v=([a-f0-9]{10})\b/;
+        const match = ref.url.match(re);
+        assert.ok(match, path + ': ' + ref.kind + ' ' + ref.url + ' missing ?v=<10-hex>');
+        assert.strictEqual(match[1], expectedVersion,
+          path + ': ' + ref.url + ' has ?v=' + match[1] + ', expected ' + expectedVersion);
+      }
+    }
+
+    await testAsync('asset-versioning: /version-check returns the running APP_VERSION', async () => {
+      const r = await get(BASE + '/version-check');
+      const v = JSON.parse(r.body).version;
+      assert.ok(/^[a-f0-9]{10}$/.test(v), 'version should be 10 hex chars: ' + v);
+    });
+
+    await testAsync('asset-versioning: every /public/ <script>/<link> on / is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/', v);
+    });
+
+    await testAsync('asset-versioning: /new is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/new', v);
+    });
+
+    await testAsync('asset-versioning: /legal is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/legal', v);
+    });
+
+    await testAsync('asset-versioning: /feedback is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/feedback', v);
+    });
+
+    await testAsync('asset-versioning: /trust is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/trust', v);
+    });
+
+    await testAsync('asset-versioning: /analytics is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/analytics', v);
+    });
+
+    await testAsync('asset-versioning: cross-origin scripts are not rewritten', async () => {
+      const r = await get(BASE + '/');
+      // Index loads no cross-origin scripts at top-level <script>; /trust does
+      // not either. But Chart.js and similar are loaded dynamically via DOM
+      // injection and never appear in static HTML, so this is a smoke check
+      // that we don't accidentally append ?v= to a cross-origin URL that
+      // does appear (e.g. font CDN <link>). No https:// URL in the body
+      // should carry ?v=<our-hash>.
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      const pat = new RegExp('https?://[^"\']+\\?v=' + v);
+      assert.ok(!pat.test(r.body), 'cross-origin URL was rewritten with our APP_VERSION');
+    });
+
+    await testAsync('asset-versioning: rewriter is idempotent on already-versioned URLs', async () => {
+      // Sanity: the rewriter runs once per request; fetching twice produces
+      // identical bodies (same APP_VERSION in this process). The assert lives
+      // here so a future change that double-stamps `?v=hash?v=hash` is caught.
+      const a = (await get(BASE + '/')).body;
+      const b = (await get(BASE + '/')).body;
+      // /__CSP_NONCE__/ is randomized per request, so strip nonces before compare.
+      const stripNonce = s => s.replace(/nonce="[^"]+"/g, 'nonce="X"');
+      assert.strictEqual(stripNonce(a).length, stripNonce(b).length);
+      // Detect actual double-stamping: ?v=<hash>?v=<hash> rather than the
+      // string literal "?v=?v=" which would never appear even on a regression.
+      assert.ok(!/\?v=[a-f0-9]+\?v=/.test(a), 'rewriter double-stamped a URL');
+    });
+
     server.kill();
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testDbPath + '-wal'); } catch (_) {}
