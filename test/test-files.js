@@ -124,6 +124,19 @@ module.exports = function(harness) {
     assert.ok(html.includes('<option value="monochrome" selected>'), 'monochrome should be selected by default');
   });
 
+  test('every HTML route in server.js goes through serveHtmlWithRewrite', () => {
+    // Static guard: a new HTML route added via `serveFile(res, '...html', ...)`
+    // would silently bypass the asset-versioning rewriter, reintroducing the
+    // stale-cache bug class. The per-route tests in test-http.js enumerate
+    // routes by hand, so they can't catch a route they don't know about.
+    // This regex on server.js source closes that gap.
+    const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf-8');
+    const matches = src.match(/serveFile\([^)]*\.html['"][^)]*\)/g);
+    assert.ok(!matches,
+      'HTML files must be served via serveHtmlWithRewrite, not serveFile. Found:\n' +
+      (matches || []).join('\n'));
+  });
+
   test('chart controls are inside the Colors > Blocks section', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
     const blocksStart = html.indexOf('data-target="_sd_sub-colors-blocks"');

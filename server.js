@@ -103,6 +103,68 @@ function serveFile(res, filePath, extraHeaders) {
   });
 }
 
+// Asset cache-busting: append ?v=APP_VERSION to every same-origin /public/
+// asset URL in <script src=...> and <link rel="stylesheet" href=...>. URLs
+// already carrying any query string are left alone (the path-capturing
+// character class stops at `?`, so the `\2` closing-quote anchor fails on
+// pre-versioned URLs and the whole match falls through). Cross-origin URLs
+// (CDN scripts, Google Fonts) don't start with `/public/` and are skipped.
+//
+// This exists so contributors don't have to remember to add `?v=` by hand
+// in HTML. Without it, returning users get the new HTML but the browser's
+// HTTP cache serves stale CSS/JS at unchanged URLs.
+//
+// Assumptions the regexes rely on - keep your HTML compliant:
+//   1. Each tag's `src=` / `href=` attribute lives on the same line as the
+//      opening `<script` / `<link`. Multi-line attribute splits would miss.
+//   2. Attribute values do not contain a literal `>` character. The greedy
+//      stop-at-`>` logic would terminate early and leave the URL unrewritten.
+// Both hold across every HTML we ship today.
+const SCRIPT_PUBLIC_RE = /(<script\b[^>]*?\s+src=)(["'])(\/public\/[^"'?#]+)\2/gi;
+const LINK_TAG_RE = /<link\b([^>]*)>/gi;
+const LINK_HAS_STYLESHEET_RE = /\s+rel=["']stylesheet["']/i;
+const LINK_HREF_PUBLIC_RE = /(\s+href=)(["'])(\/public\/[^"'?#]+)\2/i;
+
+function rewriteAssets(html) {
+  html = html.replace(SCRIPT_PUBLIC_RE, (_, prefix, q, src) =>
+    prefix + q + src + '?v=' + APP_VERSION + q
+  );
+  html = html.replace(LINK_TAG_RE, (match, attrs) => {
+    if (!LINK_HAS_STYLESHEET_RE.test(attrs)) return match;
+    const rewritten = attrs.replace(LINK_HREF_PUBLIC_RE, (_, prefix, q, href) =>
+      prefix + q + href + '?v=' + APP_VERSION + q
+    );
+    return '<link' + rewritten + '>';
+  });
+  return html;
+}
+
+// Read an HTML file, apply optional template substitutions, run the asset
+// rewriter, and send. Every HTML route in this server goes through here so
+// the asset-versioning pass cannot be forgotten on a new entry point.
+function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function serveHtmlWithRewrite(res, filePath, subs, extraHeaders) {
+  fs.readFile(filePath, 'utf8', (err, html) => {
+    if (err) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not Found');
+      return;
+    }
+    if (subs) {
+      for (const key of Object.keys(subs)) {
+        html = html.replace(new RegExp(escapeRegExp(key), 'g'), subs[key]);
+      }
+    }
+    html = rewriteAssets(html);
+    const headers = Object.assign({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache',
+    }, extraHeaders || {});
+    res.writeHead(200, headers);
+    res.end(html);
+  });
+}
+
 function getClientIp(req) {
   const xff = req.headers['x-forwarded-for'];
   if (xff) return String(xff).split(',')[0].trim();
@@ -295,7 +357,7 @@ const server = http.createServer((req, res) => {
 
   // Public feedback page: serves the shell; data fetched via /api/feedback.
   if (pathname === '/feedback') {
-    serveFile(res, path.join(__dirname, 'public', 'feedback.html'), {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'feedback.html'), null, {
       'Cache-Control': 'no-cache',
     });
     return;
@@ -316,7 +378,7 @@ const server = http.createServer((req, res) => {
   // Trust page — always available. Proves the frontend served matches the
   // commit the server claims to be running. See public/trust.html for copy.
   if (pathname === '/trust') {
-    serveFile(res, path.join(__dirname, 'public', 'trust.html'), {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'trust.html'), null, {
       'Cache-Control': 'no-cache',
       'X-Sdocs-Commit': RUNNING_COMMIT,
     });
@@ -335,7 +397,9 @@ const server = http.createServer((req, res) => {
 
   // Analytics dashboard + JSON API — only mounted when ANALYTICS_ENABLED=1
   if (ANALYTICS_ENABLED && pathname === '/analytics') {
-    serveFile(res, path.join(__dirname, 'analytics', 'dashboard.html'), { 'Cache-Control': 'no-cache' });
+    serveHtmlWithRewrite(res, path.join(__dirname, 'analytics', 'dashboard.html'), null, {
+      'Cache-Control': 'no-cache',
+    });
     return;
   }
 
@@ -357,37 +421,32 @@ const server = http.createServer((req, res) => {
     ? blogMatch[1]
     : null;
   if (pathname === '/' || pathname === '/new' || pathname === '/legal' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
-    const htmlPath = path.join(__dirname, 'public', 'index.html');
-    fs.readFile(htmlPath, 'utf8', (err, html) => {
-      if (err) { res.writeHead(500); res.end('Error'); return; }
-      const nonce = crypto.randomBytes(16).toString('base64');
-      const defaultMdPath = pathname === '/legal'
-        ? '/public/legal.md'
-        : blogSlug
-          ? '/public/blogs/' + blogSlug + '.md'
-          : '/public/sdoc.md';
-      html = html.replace(/__APP_VERSION__/g, APP_VERSION);
-      html = html.replace('__SDOCS_DEV__', DEV_MODE ? '1' : '0');
-      html = html.replace('__DEFAULT_MD_PATH__', defaultMdPath);
-      html = html.replace(/__CSP_NONCE__/g, nonce);
-      const csp = [
-        "default-src 'self'",
-        "script-src 'self' 'nonce-" + nonce + "' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-        "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
-        "img-src 'self' data: https:",
-        "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com",
-        "frame-src 'none'",
-        "object-src 'none'",
-      ].join('; ');
-      res.writeHead(200, {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-cache',
-        'Content-Security-Policy': csp,
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
-      });
-      res.end(html);
+    const nonce = crypto.randomBytes(16).toString('base64');
+    const defaultMdPath = pathname === '/legal'
+      ? '/public/legal.md'
+      : blogSlug
+        ? '/public/blogs/' + blogSlug + '.md'
+        : '/public/sdoc.md';
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'nonce-" + nonce + "' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+      "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+      "img-src 'self' data: https:",
+      "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com",
+      "frame-src 'none'",
+      "object-src 'none'",
+    ].join('; ');
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'index.html'), {
+      '__APP_VERSION__': APP_VERSION,
+      '__SDOCS_DEV__': DEV_MODE ? '1' : '0',
+      '__DEFAULT_MD_PATH__': defaultMdPath,
+      '__CSP_NONCE__': nonce,
+    }, {
+      'Cache-Control': 'no-cache',
+      'Content-Security-Policy': csp,
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
     });
     return;
   }
