@@ -3,7 +3,7 @@ file: journey-to-pdf-generation.md
 title: The surprisingly complex journey to client-side accurate & text-selectable PDF generation
 ---
 
-# The surprisingly complex journey to accurately-rendered text-selectable client-side generated PDFs
+# The surprisingly complex journey to text-selectable client-side generated PDFs
 
 If you're like me, you probably have never thought twice about PDFs. They are so prevalent that you'd think including the ability to generate them in your application would be trivial: include some widely used module and "Bob's your uncle" (as we say in the UK when something happens easily... Bob must have gotten around).
 
