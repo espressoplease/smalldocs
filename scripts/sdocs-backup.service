@@ -1,0 +1,15 @@
+[Unit]
+Description=SDocs nightly SQLite backup to Cloudflare R2
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+WorkingDirectory=/home/deploy/apps/sdocs
+ExecStart=/home/deploy/apps/sdocs/scripts/backup.sh
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
