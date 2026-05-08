@@ -1020,6 +1020,11 @@ function getHeadingPlainText(headingEl) {
 // Slice the body to the substring that belongs to headingEl's section.
 // Returns { meta, body } where meta.comments is filtered to only those
 // anchored to blocks within that section. null if the heading can't be found.
+//
+// Filtering is done against the RENDERED DOM, not by text-matching the
+// quote against the body slice. The text-match approach was prone to
+// pulling in comments anchored elsewhere whenever the same word also
+// happened to appear in the copied section.
 function extractSectionSource(headingEl) {
   if (!headingEl) return null;
   var level = parseInt(headingEl.tagName[1], 10);
@@ -1039,17 +1044,29 @@ function extractSectionSource(headingEl) {
   var a = afterRe.exec(md);
   var endIdx = a ? a.index : md.length;
   var sectionBody = md.slice(startIdx, endIdx).trim() + '\n';
-  // Filter comments to those anchored inside the slice.
-  // - Inline (selection-anchored): match by quote text appearing in slice.
-  // - Block (block-anchored): resolve the block in the rendered DOM, then
-  //   check whether that block sits inside the H2/H3/.../section's range
-  //   in the rendered tree (i.e. between this heading and the next
-  //   same-or-higher heading).
   var all = SDC.getComments(S.currentMeta);
   var blocksInSection = listBlocksInSection(headingEl, level);
+  function inBlocks(el) {
+    if (!el) return false;
+    for (var i = 0; i < blocksInSection.length; i++) {
+      if (blocksInSection[i] === el || blocksInSection[i].contains(el)) return true;
+    }
+    return false;
+  }
   var inSection = all.filter(function (c) {
     if (c.kind === 'inline' && c.quote) {
-      return sectionBody.indexOf(c.quote) !== -1;
+      // Prefer the rendered anchor span (already resolved by render()).
+      // If render hasn't placed it (e.g. orphan), fall back to a fresh
+      // resolve so a freshly-loaded doc with comments still scopes
+      // correctly without depending on render order.
+      var span = S.renderedEl && S.renderedEl.querySelector(
+        'span.sdoc-anchor[data-c="' + c.id + '"]');
+      if (span) return inBlocks(span);
+      var resolved = resolveAnchor(c, S.renderedEl);
+      if (resolved && resolved.range) {
+        return inBlocks(nearestTopBlock(resolved.range.startContainer));
+      }
+      return false;
     }
     if (c.kind === 'block' && c.block) {
       var bEl = findBlockById(c.block, S.renderedEl, c.block_text);
@@ -1057,7 +1074,10 @@ function extractSectionSource(headingEl) {
     }
     return false;
   });
-  return { meta: { comments: inSection }, body: sectionBody };
+  // Preserve other top-level meta (file, styles, etc.) so the copy
+  // header can still surface "Feedback on <filename>:".
+  var meta = Object.assign({}, S.currentMeta || {}, { comments: inSection });
+  return { meta: meta, body: sectionBody };
 }
 
 // Walk forward from headingEl in document order and collect every
@@ -1088,6 +1108,103 @@ function listBlocksInSection(headingEl, level) {
   return out;
 }
 
+// For each inline comment, compute the occurrence-index of its anchor
+// among text matches of `quote` within `scopeRoot`'s rendered text. The
+// returned list is a shallow copy of `comments` with `.occurrence`
+// attached on inline comments where we could resolve them.
+//
+// `scopeRoot` is the rendered subtree the copy is scoped to: the whole
+// document for toolbar copy, or the section's blocks for per-section
+// copy. The same N-th source-occurrence is what serializeFootnotes will
+// match against the body slice — counts match because plaintext
+// occurrences in markdown source equal occurrences in rendered text for
+// quotes that don't span markdown syntax (the only case where we have a
+// stable anchor anyway).
+function enrichInlineCommentsWithOccurrence(comments, scopeRoot) {
+  if (!scopeRoot) return comments;
+  return comments.map(function (c) {
+    if (c.kind !== 'inline' || !c.quote) return c;
+    var span = scopeRoot.querySelector('span.sdoc-anchor[data-c="' + c.id + '"]');
+    if (!span) return c;
+    // Build a Range covering everything from the scope's start up to the
+    // anchor span's start, then count occurrences of `quote` in its text.
+    var pre = document.createRange();
+    pre.setStart(scopeRoot, 0);
+    pre.setEndBefore(span);
+    var beforeText = pre.toString();
+    var occurrence = 0, from = 0, hit;
+    while ((hit = beforeText.indexOf(c.quote, from)) !== -1) {
+      occurrence++;
+      from = hit + c.quote.length;
+    }
+    return Object.assign({}, c, { occurrence: occurrence });
+  });
+}
+
+// Resolve the rendered subtree the per-section copy is scoped to. We
+// build a temporary container from the section's blocks so the
+// occurrence walker only sees text inside the slice, matching the body
+// passed to serializeFootnotes.
+function buildSectionScope(headingEl, level) {
+  var blocks = listBlocksInSection(headingEl, level);
+  if (!blocks.length) return null;
+  // Use a DocumentFragment-shaped wrapper. We can't move the live blocks
+  // out of the rendered tree (would un-render them) and Range can span
+  // arbitrary ancestors, so the cheapest approach is to give the caller a
+  // function that yields the relevant text and lets each anchor be tested
+  // for membership. Simpler: return an object that supports
+  // querySelector + a custom textBefore(span) for the walk.
+  var set = blocks;
+  return {
+    querySelector: function (sel) {
+      for (var i = 0; i < set.length; i++) {
+        if (set[i].matches && set[i].matches(sel)) return set[i];
+        var inner = set[i].querySelector(sel);
+        if (inner) return inner;
+      }
+      return null;
+    },
+    occurrenceBefore: function (span, quote) {
+      // Concatenate text from each section block in document order,
+      // stopping when we reach the block containing the span. Inside
+      // that block, take only the text up to the span's start.
+      var n = 0;
+      for (var i = 0; i < set.length; i++) {
+        var blk = set[i];
+        if (blk === span || blk.contains(span)) {
+          var pre = document.createRange();
+          pre.setStart(blk, 0);
+          pre.setEndBefore(span);
+          var inside = pre.toString();
+          var pos = -1, from = 0;
+          while ((pos = inside.indexOf(quote, from)) !== -1) {
+            n++;
+            from = pos + quote.length;
+          }
+          return n;
+        }
+        var text = blk.textContent || '';
+        var p = -1, f = 0;
+        while ((p = text.indexOf(quote, f)) !== -1) {
+          n++;
+          f = p + quote.length;
+        }
+      }
+      return n;
+    },
+  };
+}
+
+function enrichForSectionScope(comments, scope) {
+  if (!scope) return comments;
+  return comments.map(function (c) {
+    if (c.kind !== 'inline' || !c.quote) return c;
+    var span = scope.querySelector('span.sdoc-anchor[data-c="' + c.id + '"]');
+    if (!span) return c;
+    return Object.assign({}, c, { occurrence: scope.occurrenceBefore(span, c.quote) });
+  });
+}
+
 // Three copy formats, selected by modifier:
 //   click         → footnote format (human-readable in any md viewer)
 //   Shift+click   → SDocs round-trip (frontmatter + body) for pasting
@@ -1096,11 +1213,19 @@ function listBlocksInSection(headingEl, level) {
 function copyWithComments(headingEl, docWide, mods) {
   mods = mods || {};
   var source;
+  var scopeForOccurrence = null;
   if (docWide || !headingEl) {
     source = { meta: S.currentMeta || {}, body: S.currentBody || '' };
+    scopeForOccurrence = S.renderedEl;
   } else {
     source = extractSectionSource(headingEl);
-    if (!source) source = { meta: S.currentMeta || {}, body: S.currentBody || '' };
+    if (!source) {
+      source = { meta: S.currentMeta || {}, body: S.currentBody || '' };
+      scopeForOccurrence = S.renderedEl;
+    } else {
+      var lvl = parseInt(headingEl.tagName[1], 10);
+      scopeForOccurrence = buildSectionScope(headingEl, lvl);
+    }
   }
   var payload, label;
   if (mods.roundTrip) {
@@ -1116,7 +1241,16 @@ function copyWithComments(headingEl, docWide, mods) {
     // knows what it is and (when known) which file it relates to.
     var filename = source.meta && typeof source.meta.file === 'string' ? source.meta.file : '';
     var header = filename ? 'Feedback on ' + filename + ':' : 'Feedback:';
-    payload = header + '\n\n' + SDC.serializeFootnotes(source.meta, source.body);
+    var enriched;
+    if (scopeForOccurrence === S.renderedEl) {
+      enriched = enrichInlineCommentsWithOccurrence(
+        SDC.getComments(source.meta), scopeForOccurrence);
+    } else {
+      enriched = enrichForSectionScope(
+        SDC.getComments(source.meta), scopeForOccurrence);
+    }
+    var enrichedMeta = Object.assign({}, source.meta, { comments: enriched });
+    payload = header + '\n\n' + SDC.serializeFootnotes(enrichedMeta, source.body);
     label = 'Copied (footnotes)';
   }
   return navigator.clipboard.writeText(payload).then(function () {
