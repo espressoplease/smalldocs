@@ -5,7 +5,7 @@ title: The surprisingly complex journey to client-side accurate & text-selectabl
 
 # The surprisingly complex journey to text-selectable client-side generated PDFs
 
-![A SmallDocs PDF open in a viewer with body text highlighted, showing the text is selectable.](/public/images/example_sdoc_pdf.png)
+![A SmallDocs PDF open in a viewer with body text highlighted, showing the text is selectable.](/public/images/example_sdoc_pdf.webp)
 
 If you're like me, you probably have never thought twice about PDFs. They are so prevalent that you'd think including the ability to generate them in your application would be trivial: include some widely used module and "Bob's your uncle" (as we say in the UK when something happens easily... Bob must have gotten around).
 
@@ -211,7 +211,7 @@ While Claude understood this concept well, it was not great at rendering things 
 
 ## We did it!
 
-![A SmallDocs PDF open in a viewer with body text highlighted, showing the text is selectable.](/public/images/example_sdoc_pdf.png)
+![A SmallDocs PDF open in a viewer with body text highlighted, showing the text is selectable.](/public/images/example_sdoc_pdf.webp)
 
 SmallDocs can now generate highly accurate text selectable-copyable-searchable PDFs entirely client-side.
 
