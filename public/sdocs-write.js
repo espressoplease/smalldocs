@@ -13,6 +13,7 @@ function enterWriteMode() {
   writeEl.innerHTML = html || '<p><br></p>';
   copyStyleVars();
   if (S.processMath) S.processMath(writeEl);
+  if (S.processMermaid) S.processMermaid(writeEl);
   setTimeout(updateToolbarState, 0);
 }
 

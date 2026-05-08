@@ -45,8 +45,8 @@ const ONE_DAY = 86400000;
 //   3. Prepend a new section to public/agent-changes.md.
 //   4. Reword public/sdoc.md per-agent snippets to match.
 
-const AGENT_BLOCK_VERSION = 3;
-const AGENT_BLOCK_REASON  = 'GitHub URL renamed; tell agents to read `sdoc charts` before writing chart blocks; prefer `sdoc` over `sdoc share` when helping the user; normalize punctuation.';
+const AGENT_BLOCK_VERSION = 4;
+const AGENT_BLOCK_REASON  = 'Add `sdoc diagrams` reference for the new Mermaid render path; tell agents to read it before writing ```mermaid blocks; mention `.mmd` / `.mermaid` standalone files.';
 
 const AGENT_BLOCK_BODY = `## SDocs
 
@@ -61,6 +61,7 @@ The \`sdoc\` CLI is installed globally:
 - \`sdoc share file.md\` - copy shareable URL to clipboard.
 - \`sdoc schema\` - how to adjust all stylable properties (fonts, colors, spacing).
 - \`sdoc charts\` - read this before writing a \`\`\`chart block. The JSON shape is specific and easy to get wrong from memory.
+- \`sdoc diagrams\` - read this before writing a \`\`\`mermaid block. Covers supported diagram types and the security model. Standalone \`.mmd\` / \`.mermaid\` files also work: \`sdoc graph.mmd\`.
 - \`sdoc --help\` - full usage.
 
 When helping the user themselves, prefer \`sdoc file.md\` over \`sdoc share file.md\`. Share is for sending a link to someone else.
@@ -641,6 +642,7 @@ USAGE
   sdoc share <file> --short        Encrypted /s/<id> short link (see SHORT LINKS)
   sdoc schema                      Print the full styles schema
   sdoc charts                      Chart types, options, and styling guide
+  sdoc diagrams                    Mermaid diagrams reference (\`\`\`mermaid blocks)
   sdoc comments                    Comment-format reference (for agents)
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
@@ -1332,6 +1334,82 @@ MIXED CHART EXAMPLE (dual y-axis)
   \`\`\`
 `;
 
+const DIAGRAMS_HELP = `
+SDocs — Diagrams
+================
+Render Mermaid diagrams in markdown using \`\`\`mermaid code blocks.
+Mermaid is loaded lazily from CDN only when a diagram is present.
+
+BASIC SYNTAX
+  \`\`\`mermaid
+  graph TD
+    A[Start] --> B{Decision}
+    B -- yes --> C[Do this]
+    B -- no  --> D[Do that]
+  \`\`\`
+
+STANDALONE .mmd FILES
+  \`sdoc graph.mmd\` works like \`sdoc file.md\` — the CLI wraps the
+  contents in a \`\`\`mermaid fence before opening. Same for share:
+  \`sdoc share graph.mmd\`.
+
+SUPPORTED DIAGRAM TYPES
+  flowchart / graph         flowchart TD, LR, etc.
+  sequenceDiagram           interaction sequences
+  classDiagram              UML-style class relationships
+  stateDiagram-v2           state machines
+  erDiagram                 entity-relationship
+  gantt                     timelines
+  pie                       proportional breakdown
+  journey                   user-journey diagrams
+  gitGraph                  git history visualisation
+  mindmap                   mind maps
+  timeline                  chronological events
+  quadrantChart             2x2 matrix
+  sankey-beta               flow diagrams
+  See https://mermaid.js.org for the full syntax reference.
+
+THEMING
+  Diagrams inherit colors from the SDocs blocks cascade:
+
+    \`\`\`yaml
+    styles:
+      blocks:
+        background: "#f4f1ed"   # diagram wrapper bg
+        color: "#6b6560"        # node text / lines
+    \`\`\`
+
+  In dark mode the inverted block colors apply automatically.
+  For finer-grained control, set Mermaid theme variables in the
+  diagram source itself — but note that \`%%{init:...}%%\` directives
+  are stripped by SDocs as a security measure (they can otherwise
+  override sanitisation settings at parse time).
+
+LIMITS
+  - Per-diagram source cap: 64 KB.
+  - Per-document diagram cap: 50 (excess rendered as plain code).
+  - Per-render timeout: 5 seconds (large or pathological graphs error out).
+
+SECURITY
+  Mermaid runs with \`securityLevel: 'strict'\` and \`htmlLabels: false\`.
+  Output SVG is post-sanitised; \`<foreignObject>\`, \`<script>\`, \`<use>\`,
+  \`<iframe>\`, and animation tags are stripped. Treat diagram source as
+  untrusted — it travels in the URL hash with the rest of the document.
+
+EXAMPLE
+  \`\`\`mermaid
+  sequenceDiagram
+    participant U as User
+    participant S as SDocs
+    participant C as CDN
+    U->>S: open page with diagram
+    S->>C: load mermaid.min.js (lazy, first time only)
+    C-->>S: script
+    S->>S: render() → SVG
+    S->>U: paint diagram
+  \`\`\`
+`;
+
 // ── Compression (brotli + base64url) ─────────────────
 
 function toBase64Url(buf) {
@@ -1647,7 +1725,7 @@ async function runSafe(opts) {
 
 // ── Parse args ────────────────────────────────────────────
 
-const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts', 'comments', 'setup', 'safe', 'auto-update']);
+const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts', 'diagrams', 'comments', 'setup', 'safe', 'auto-update']);
 
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
@@ -1850,7 +1928,13 @@ async function readContent(file) {
       console.error(`sdoc: file not found: ${file}`);
       process.exit(1);
     }
-    return fs.readFileSync(resolved, 'utf-8');
+    var raw = fs.readFileSync(resolved, 'utf-8');
+    // .mmd / .mermaid files (standalone Mermaid sources) are wrapped in a
+    // fenced block so the renderer picks them up. No special CLI path needed.
+    if (/\.(mmd|mermaid)$/i.test(file)) {
+      raw = '```mermaid\n' + raw.replace(/\s+$/, '') + '\n```\n';
+    }
+    return raw;
   }
 
   // Check if stdin has data (piped input)
@@ -1889,6 +1973,7 @@ if (require.main === module) {
     if (opts.subcommand === 'help')   { console.log(HELP);   process.exit(0); }
     if (opts.subcommand === 'schema') { console.log(SCHEMA); process.exit(0); }
     if (opts.subcommand === 'charts') { console.log(CHARTS_HELP); process.exit(0); }
+    if (opts.subcommand === 'diagrams') { console.log(DIAGRAMS_HELP); process.exit(0); }
     if (opts.subcommand === 'comments') { console.log(COMMENTS_HELP); process.exit(0); }
     if (opts.subcommand === 'setup')  { await runSetup({ force: true }); process.exit(0); }
     if (opts.subcommand === 'auto-update') {

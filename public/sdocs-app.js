@@ -244,6 +244,7 @@ function render() {
   });
   S.processCharts(S.renderedEl);
   if (S.processMath) S.processMath(S.renderedEl);
+  if (S.processMermaid) S.processMermaid(S.renderedEl);
   renderFileInfoCard();
   if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
   if (S.syncFoldButton) S.syncFoldButton();
