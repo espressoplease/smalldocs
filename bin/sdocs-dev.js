@@ -37,27 +37,48 @@ const ONE_DAY = 86400000;
 // ── Agent integration block ──────────────────────────────
 // IMPORTANT: keep this in sync with the per-agent setup snippets in
 // public/sdoc.md (the "Set up your agent" section). If you reword one,
-// reword the other. The marker comment on line 1 is used to detect
-// whether the block has already been written to a file (idempotent re-runs).
-const AGENT_BLOCK = `<!-- sdocs-agent-block -->
-## SDocs
+// reword the other.
+//
+// Release checklist when AGENT_BLOCK_BODY changes:
+//   1. Bump AGENT_BLOCK_VERSION below.
+//   2. Set AGENT_BLOCK_REASON to a one-line summary of what changed.
+//   3. Prepend a new section to public/agent-changes.md.
+//   4. Reword public/sdoc.md per-agent snippets to match.
+
+const AGENT_BLOCK_VERSION = 3;
+const AGENT_BLOCK_REASON  = 'GitHub URL renamed; tell agents to read `sdoc charts` before writing chart blocks; prefer `sdoc` over `sdoc share` when helping the user; normalize punctuation.';
+
+const AGENT_BLOCK_BODY = `## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
-Content lives in the URL hash — nothing hits a server.
+Content lives in the URL hash - nothing hits a server.
 
 Use it (or offer it) when the user wants to read, share, or export a \`.md\` file.
 Also handy for copying specific code - SDocs code blocks have copy buttons.
 
 The \`sdoc\` CLI is installed globally:
-- \`sdoc file.md\` — open styled in browser (great for easy reading).
-- \`sdoc share file.md\` — copy shareable URL to clipboard.
-- \`sdoc schema\` — how to adjust all stylable properties (fonts, colors, spacing).
-- \`sdoc charts\` — chart types, JSON format, and styling. Charts render via Chart.js from \`\`\`chart code blocks.
-- \`sdoc --help\` — full usage.
+- \`sdoc file.md\` - open styled in browser (great for easy reading).
+- \`sdoc share file.md\` - copy shareable URL to clipboard.
+- \`sdoc schema\` - how to adjust all stylable properties (fonts, colors, spacing).
+- \`sdoc charts\` - read this before writing a \`\`\`chart block. The JSON shape is specific and easy to get wrong from memory.
+- \`sdoc --help\` - full usage.
+
+When helping the user themselves, prefer \`sdoc file.md\` over \`sdoc share file.md\`. Share is for sending a link to someone else.
 
 Source: https://github.com/espressoplease/SDocs
 `;
-const AGENT_BLOCK_MARKER = '<!-- sdocs-agent-block -->';
+
+const AGENT_BLOCK_START_PREFIX = '<!-- sdocs-agent-block:start v=';
+const AGENT_BLOCK_START_RE     = /<!-- sdocs-agent-block:start v=(\d+) -->/;
+const AGENT_BLOCK_END_MARKER   = '<!-- sdocs-agent-block:end -->';
+const AGENT_BLOCK_LEGACY_OPEN  = '<!-- sdocs-agent-block -->';
+
+const AGENT_CHANGES_URL = 'https://sdocs.dev/agent-changes';
+const GITHUB_REPO_URL   = 'https://github.com/espressoplease/SDocs';
+
+function formatAgentBlock(version, body) {
+  return `${AGENT_BLOCK_START_PREFIX}${version} -->\n${body}${AGENT_BLOCK_END_MARKER}\n`;
+}
 
 const AGENT_TARGETS = [
   { name: 'Claude Code', dir: '.claude',                file: 'CLAUDE.md'  },
@@ -65,6 +86,82 @@ const AGENT_TARGETS = [
   { name: 'Gemini CLI',  dir: '.gemini',                file: 'GEMINI.md'  },
   { name: 'opencode',    dir: path.join('.config', 'opencode'), file: 'AGENTS.md' },
 ];
+
+// Find a current bookended block. Returns { start, end, version, body } | null.
+// Bails on ambiguity (multiple start markers).
+function findBookendedBlock(content) {
+  const startMatch = AGENT_BLOCK_START_RE.exec(content);
+  if (!startMatch) return null;
+  const startIdx = startMatch.index;
+  const startLineEnd = content.indexOf('\n', startIdx);
+  if (startLineEnd < 0) return null;
+  const endIdx = content.indexOf(AGENT_BLOCK_END_MARKER, startLineEnd);
+  if (endIdx < 0) return null;
+  const endMarkerEnd = endIdx + AGENT_BLOCK_END_MARKER.length;
+  const trailingNewline = content[endMarkerEnd] === '\n' ? 1 : 0;
+  const second = content.indexOf(AGENT_BLOCK_START_PREFIX, endMarkerEnd);
+  if (second >= 0) return null;
+  return {
+    start: startIdx,
+    end: endMarkerEnd + trailingNewline,
+    version: parseInt(startMatch[1], 10),
+    body: content.slice(startLineEnd + 1, endIdx),
+  };
+}
+
+// Find a legacy open-only block (1.4.x format). Returns { start, end, version } | null.
+// Only matches bodies whose terminator is the JoshInLisbon URL line, which is the
+// known shape of v1 (1.4.0/1.4.1) and v2 (1.4.2). Hand-edited bodies return null.
+function findLegacyBlock(content) {
+  const idx = content.indexOf(AGENT_BLOCK_LEGACY_OPEN);
+  if (idx < 0) return null;
+  const second = content.indexOf(AGENT_BLOCK_LEGACY_OPEN, idx + AGENT_BLOCK_LEGACY_OPEN.length);
+  if (second >= 0) return null;
+  const terminator = 'Source: https://github.com/JoshInLisbon/SDocs\n';
+  const termIdx = content.indexOf(terminator, idx);
+  if (termIdx < 0) return null;
+  const blockEnd = termIdx + terminator.length;
+  const region = content.slice(idx, blockEnd);
+  // Heuristic to recover from-version: v2 added the copy-code line, v1 didn't.
+  const version = region.includes('Also handy for copying specific code') ? 2 : 1;
+  return { start: idx, end: blockEnd, version };
+}
+
+// Pure: takes content, returns refresh result.
+//   { changed: false, reason: 'absent'|'current'|'newer'|'hand_edited' }
+//   { changed: true, content, fromVersion, toVersion }
+function refreshContent(content) {
+  const bookended = findBookendedBlock(content);
+  if (bookended) {
+    if (bookended.version === AGENT_BLOCK_VERSION) {
+      return { changed: false, reason: 'current' };
+    }
+    if (bookended.version > AGENT_BLOCK_VERSION) {
+      return { changed: false, reason: 'newer' };
+    }
+    return {
+      changed: true,
+      content: content.slice(0, bookended.start)
+             + formatAgentBlock(AGENT_BLOCK_VERSION, AGENT_BLOCK_BODY)
+             + content.slice(bookended.end),
+      fromVersion: bookended.version,
+      toVersion: AGENT_BLOCK_VERSION,
+    };
+  }
+  const legacy = findLegacyBlock(content);
+  if (!legacy) {
+    // No block, or unrecognised legacy body. Either is "leave it alone."
+    return { changed: false, reason: content.includes(AGENT_BLOCK_LEGACY_OPEN) ? 'hand_edited' : 'absent' };
+  }
+  return {
+    changed: true,
+    content: content.slice(0, legacy.start)
+           + formatAgentBlock(AGENT_BLOCK_VERSION, AGENT_BLOCK_BODY)
+           + content.slice(legacy.end),
+    fromVersion: legacy.version,
+    toVersion: AGENT_BLOCK_VERSION,
+  };
+}
 
 function isNewer(latest, current) {
   const a = latest.split('.').map(Number);
@@ -81,12 +178,48 @@ function readCachedLatest() {
   catch (_) { return null; }
 }
 
-async function promptUpdateIfAvailable() {
-  if (!process.stdout.isTTY || !process.stdin.isTTY) return;
-  if (process.env.NO_UPDATE_NOTIFIER || process.env.CI) return;
+// Self-upgrade: runs npm i -g, then re-execs the same command into the new binary.
+// On any failure, falls through (so the user's actual command still runs).
+function autoInstallAndReexec(latest) {
+  console.log(`\nUpdating sdoc ${VERSION} \u2192 ${latest}...`);
+  try {
+    execSync('npm i -g sdocs-dev@latest', { stdio: 'pipe' });
+  } catch (e) {
+    console.error(`! sdoc auto-update to ${latest} failed: ${(e.stderr || e.message || '').toString().trim().split('\n')[0]}`);
+    console.error(`  Run \`npm i -g sdocs-dev@latest\` manually to upgrade.`);
+    return false;
+  }
+  console.log(`\u2713 sdoc updated ${VERSION} \u2192 ${latest}`);
+  console.log(`  Diff: ${GITHUB_REPO_URL}/compare/v${VERSION}...v${latest}`);
+  // Re-exec into the new binary so the user's command runs with the new code.
+  const { spawnSync } = require('child_process');
+  const r = spawnSync(process.argv0, process.argv.slice(1), { stdio: 'inherit' });
+  process.exit(r.status == null ? 0 : r.status);
+}
 
+// Single entry point for "there's a newer version on npm" handling.
+// Behaviour depends on context:
+//   - autoInstallUpdates=true: silent self-upgrade + re-exec.
+//   - interactive TTY: Y/n prompt as today.
+//   - non-TTY (agent shell): one-line hint to stdout.
+async function maybeUpdateBinary() {
+  if (process.env.NO_UPDATE_NOTIFIER || process.env.CI) return;
   const latest = readCachedLatest();
   if (!latest || !isNewer(latest, VERSION)) return;
+
+  const state = readSetupState();
+  const autoInstall = state && state.autoInstallUpdates === true;
+
+  if (autoInstall) {
+    autoInstallAndReexec(latest);
+    return;
+  }
+
+  const isInteractive = process.stdout.isTTY && process.stdin.isTTY;
+  if (!isInteractive) {
+    console.log(`Update available: ${VERSION} \u2192 ${latest}. Run \`npm i -g sdocs-dev@latest\` to upgrade.`);
+    return;
+  }
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const answer = await new Promise(resolve => {
@@ -105,8 +238,10 @@ async function promptUpdateIfAvailable() {
   }
 }
 
+// Daily refresh of the cached `latest` version from npm. Not gated on TTY:
+// agents populate the cache too, so the update hint reaches them on next run.
 function refreshUpdateCache() {
-  if (!process.stdout.isTTY || process.env.NO_UPDATE_NOTIFIER || process.env.CI) return;
+  if (process.env.NO_UPDATE_NOTIFIER || process.env.CI) return;
   try {
     if (Date.now() - fs.statSync(UPDATE_CACHE).mtimeMs < ONE_DAY) return;
   } catch (_) {}
@@ -126,19 +261,64 @@ function refreshUpdateCache() {
 
 // ── Agent setup ──────────────────────────────────────────
 // On first interactive run, detect which coding-agent config dirs exist
-// and offer to append AGENT_BLOCK to each. Tracked in ~/.sdocs/setup.json
-// so we never prompt twice. Manually re-runnable via `sdoc setup`.
+// and offer to write the SDocs section into each. Tracked in
+// ~/.sdocs/setup.json so we never prompt twice. Manually re-runnable
+// via `sdoc setup`. Auto-refresh on later upgrades is gated on the
+// user's consent during setup.
+
+const SETUP_SCHEMA_VERSION = 1;
+
+// Pre-1.5.0 setup.json had no `schemaVersion`. Existing users wrote the block
+// (so they want it kept current) but were never asked about auto-install.
+function migrateSetupState(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  if (raw.schemaVersion === SETUP_SCHEMA_VERSION) return raw;
+  if (raw.schemaVersion && raw.schemaVersion > SETUP_SCHEMA_VERSION) {
+    // From a future sdoc; treat as unknown and let the user re-consent.
+    return null;
+  }
+  if (!raw.setupCompleted) return null;
+  return {
+    schemaVersion: SETUP_SCHEMA_VERSION,
+    setupCompleted: raw.setupCompleted,
+    writtenTo: raw.writtenTo || [],
+    declined: !!raw.declined,
+    autoRefreshAgentFiles: !raw.declined,
+    autoInstallUpdates: false,
+    lastRunVersion: null,
+  };
+}
 
 function readSetupState() {
-  try { return JSON.parse(fs.readFileSync(SETUP_CACHE, 'utf-8')); }
+  let raw;
+  try { raw = JSON.parse(fs.readFileSync(SETUP_CACHE, 'utf-8')); }
   catch (_) { return null; }
+  if (raw && raw.schemaVersion === SETUP_SCHEMA_VERSION) return raw;
+  const migrated = migrateSetupState(raw);
+  if (migrated) {
+    writeSetupState(migrated);
+    return migrated;
+  }
+  return null;
 }
 
 function writeSetupState(state) {
   try {
     fs.mkdirSync(path.dirname(SETUP_CACHE), { recursive: true });
-    fs.writeFileSync(SETUP_CACHE, JSON.stringify(state, null, 2));
+    const payload = { schemaVersion: SETUP_SCHEMA_VERSION, ...state };
+    payload.schemaVersion = SETUP_SCHEMA_VERSION;
+    fs.writeFileSync(SETUP_CACHE, JSON.stringify(payload, null, 2));
   } catch (_) {}
+}
+
+function compareVersions(a, b) {
+  const A = String(a || '0.0.0').split('.').map(n => parseInt(n, 10) || 0);
+  const B = String(b || '0.0.0').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    if ((A[i] || 0) > (B[i] || 0)) return 1;
+    if ((A[i] || 0) < (B[i] || 0)) return -1;
+  }
+  return 0;
 }
 
 function detectAgents() {
@@ -149,15 +329,122 @@ function detectAgents() {
 }
 
 function fileHasBlock(filePath) {
-  try { return fs.readFileSync(filePath, 'utf-8').includes(AGENT_BLOCK_MARKER); }
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    return findBookendedBlock(content) !== null
+        || content.includes(AGENT_BLOCK_LEGACY_OPEN);
+  } catch (_) { return false; }
+}
+
+function isSymlink(filePath) {
+  try { return fs.lstatSync(filePath).isSymbolicLink(); }
   catch (_) { return false; }
 }
 
-function appendBlockTo(filePath) {
+// Atomic write: tmp file in the SAME directory (so rename can't hit EXDEV),
+// then rename. Cleans up the tmp on any error.
+function atomicWrite(filePath, content) {
+  const dir  = path.dirname(filePath);
+  const base = path.basename(filePath);
+  const tmp  = path.join(dir, `.${base}.sdocs.tmp.${process.pid}.${Date.now()}`);
+  fs.writeFileSync(tmp, content);
+  try { fs.renameSync(tmp, filePath); }
+  catch (e) {
+    try { fs.unlinkSync(tmp); } catch (_) {}
+    throw e;
+  }
+}
+
+function backupFile(filePath) {
+  try {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    fs.copyFileSync(filePath, `${filePath}.sdocs.bak.${stamp}`);
+  } catch (_) {}
+}
+
+// Best-effort exclusive lock. Returns a release function or null on contention.
+// Stale locks (>60s) are reaped.
+function acquireLock(filePath) {
+  const lockPath = `${filePath}.sdocs.lock`;
+  try {
+    const fd = fs.openSync(lockPath, 'wx');
+    try { fs.writeSync(fd, String(process.pid)); } catch (_) {}
+    fs.closeSync(fd);
+    return () => { try { fs.unlinkSync(lockPath); } catch (_) {} };
+  } catch (e) {
+    if (e.code !== 'EEXIST') return null;
+    try {
+      const age = Date.now() - fs.statSync(lockPath).mtimeMs;
+      if (age > 60000) {
+        fs.unlinkSync(lockPath);
+        return acquireLock(filePath);
+      }
+    } catch (_) {}
+    return null;
+  }
+}
+
+function writeBookendedBlock(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const exists = fs.existsSync(filePath);
-  const prefix = exists && fs.readFileSync(filePath, 'utf-8').endsWith('\n') ? '\n' : (exists ? '\n\n' : '');
-  fs.appendFileSync(filePath, prefix + AGENT_BLOCK);
+  const block = formatAgentBlock(AGENT_BLOCK_VERSION, AGENT_BLOCK_BODY);
+  if (!fs.existsSync(filePath)) {
+    atomicWrite(filePath, block);
+    return;
+  }
+  const existing = fs.readFileSync(filePath, 'utf-8');
+  const prefix = existing.endsWith('\n') ? '\n' : '\n\n';
+  atomicWrite(filePath, existing + prefix + block);
+}
+
+// Refresh a single agent file. Returns { path, name?, changed, fromVersion?, toVersion?, reason?, error? }.
+function refreshAgentFile(filePath, opts = {}) {
+  if (!fs.existsSync(filePath))                       return { path: filePath, changed: false, reason: 'absent' };
+  if (isSymlink(filePath) && !opts.followSymlinks)    return { path: filePath, changed: false, reason: 'symlink' };
+
+  const release = acquireLock(filePath);
+  if (!release)                                       return { path: filePath, changed: false, reason: 'locked' };
+
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const result  = refreshContent(content);
+    if (!result.changed) return { path: filePath, changed: false, reason: result.reason };
+    backupFile(filePath);
+    atomicWrite(filePath, result.content);
+    return {
+      path: filePath, changed: true,
+      fromVersion: result.fromVersion, toVersion: result.toVersion,
+    };
+  } catch (e) {
+    return { path: filePath, changed: false, error: e.message };
+  } finally {
+    release();
+  }
+}
+
+function refreshAllAgentFiles(opts = {}) {
+  const home = os.homedir();
+  return AGENT_TARGETS.map(t => {
+    const filePath = path.join(home, t.dir, t.file);
+    return { name: t.name, ...refreshAgentFile(filePath, opts) };
+  });
+}
+
+function printRefreshSummary(results) {
+  const changed = results.filter(r => r.changed);
+  if (changed.length > 0) {
+    const n = changed.length;
+    console.log(`✓ SDocs agent block updated to v${AGENT_BLOCK_VERSION} in ${n} ${n === 1 ? 'file' : 'files'}`);
+    console.log(`  Changes: ${AGENT_CHANGES_URL}#v${AGENT_BLOCK_VERSION}`);
+  }
+  for (const r of results.filter(r => r.error)) {
+    console.log(`! ${r.path}: ${r.error}`);
+  }
+  for (const r of results.filter(r => r.reason === 'symlink')) {
+    console.log(`! ${r.path}: symlink, skipped (run \`sdoc setup --follow-symlinks\` to follow)`);
+  }
+  for (const r of results.filter(r => r.reason === 'hand_edited')) {
+    console.log(`! ${r.path}: local edits detected, run \`sdoc setup\` to refresh manually`);
+  }
 }
 
 function ask(question) {
@@ -165,6 +452,33 @@ function ask(question) {
   return new Promise(resolve => {
     rl.question(question, a => { rl.close(); resolve(a.trim().toLowerCase()); });
   });
+}
+
+async function askAutoInstallConsent() {
+  console.log('\nAuto-install sdoc updates when available?');
+  console.log('');
+  console.log('This runs `npm i -g sdocs-dev@latest` on your behalf when a new');
+  console.log('version ships. The output includes a source-diff link so you');
+  console.log('(or your agent) can verify what was installed.');
+  console.log('');
+  console.log('Recommended if you mostly use sdoc through coding agents.');
+  console.log('');
+  console.log('Change any time with `sdoc auto-update on` / `sdoc auto-update off`.\n');
+  const a = await ask('Enable? [Y/n] ');
+  return !a || a === 'y' || a === 'yes';
+}
+
+async function askAutoRefreshConsent() {
+  console.log('\nKeep this block updated on future sdoc upgrades?');
+  console.log('');
+  console.log('When sdoc adds a feature we sometimes update this section so');
+  console.log('your agent learns about it. Each time the block changes we');
+  console.log(`print a notice with a link to ${AGENT_CHANGES_URL}`);
+  console.log('showing the exact delta - the new wording, and why it changed.');
+  console.log('');
+  console.log('Re-run `sdoc setup` any time to change this.\n');
+  const a = await ask('Enable? [Y/n] ');
+  return !a || a === 'y' || a === 'yes';
 }
 
 async function runSetup({ force = false } = {}) {
@@ -180,53 +494,133 @@ async function runSetup({ force = false } = {}) {
     // Fallback: ask about opencode if nothing detected and not already set up
     const opencodeAlreadyDone = fileHasBlock(path.join(os.homedir(), '.config', 'opencode', 'AGENTS.md'));
     if (opencodeAlreadyDone) {
-      writeSetupState({ setupCompleted: new Date().toISOString(), writtenTo: [], declined: false });
+      writeSetupState({
+        setupCompleted: new Date().toISOString(),
+        writtenTo: [], declined: false,
+        autoRefreshAgentFiles: true, autoInstallUpdates: false,
+        lastRunVersion: VERSION,
+      });
       console.log('\nSDocs is already set up in all detected agent configs. Nothing to do.');
       return;
     }
     console.log('\n\u2728\u2500\u2500\u2500\u2500\u2500\u2500\u2500 SDocs setup \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2728');
-    console.log('First run only - wire SDocs into your coding agents.\n');
+    console.log('First run only - wire SDocs into your CLI coding agents.\n');
     console.log('No coding-agent configs detected.');
     const a = await ask('Do you use opencode? [y/N] ');
     const writtenTo = [];
+    let autoRefresh = false;
+    let autoInstall = false;
     if (a === 'y' || a === 'yes') {
       const target = path.join(os.homedir(), '.config', 'opencode', 'AGENTS.md');
-      try { appendBlockTo(target); writtenTo.push(target); console.log(`\u2713 Wrote SDocs section to ${target}`); }
+      try { writeBookendedBlock(target); writtenTo.push(target); console.log(`\u2713 Wrote SDocs section to ${target}`); }
       catch (e) { console.error(`Failed to write ${target}: ${e.message}`); }
+      autoRefresh = await askAutoRefreshConsent();
+      autoInstall = await askAutoInstallConsent();
       console.log('Done. Run `sdoc setup` any time to revisit.');
     } else {
       console.log('Skipped. Run `sdoc setup` any time to revisit.');
     }
-    writeSetupState({ setupCompleted: new Date().toISOString(), writtenTo, declined: writtenTo.length === 0 });
+    writeSetupState({
+      setupCompleted: new Date().toISOString(),
+      writtenTo, declined: writtenTo.length === 0,
+      autoRefreshAgentFiles: autoRefresh,
+      autoInstallUpdates: autoInstall,
+      lastRunVersion: VERSION,
+    });
     return;
   }
 
   console.log('\n\u2728\u2500\u2500\u2500\u2500\u2500\u2500\u2500 SDocs setup \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2728');
-  console.log('First run only - wire SDocs into your coding agents.\n');
+  console.log('First run only - wire SDocs into your CLI coding agents.\n');
   console.log('Detected: ' + detected.map(t => t.name).join(', '));
   console.log('\nWill append a short SDocs section to:');
   for (const t of detected) console.log('  ' + t.filePath);
+  console.log('\nThese files are loaded into every conversation across all your');
+  console.log('projects, so SDocs becomes available no matter where you\'re working.');
+  console.log('');
+  console.log('You can ask your agent things like:');
+  console.log('  "write up the plan and sdoc it to me"');
+  console.log('  "explain async/await to me in a sdoc"');
+  console.log('  "draft the release notes as a sdoc I can share"');
+  console.log('');
+  console.log('This is the best way to work with SDocs');
   const RULE = '\u2550'.repeat(36);
-  const previewBody = AGENT_BLOCK.replace(AGENT_BLOCK_MARKER + '\n', '').trim();
   console.log(`\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 Block to add \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550`);
-  console.log(previewBody);
-  console.log(RULE + '\n');
+  console.log(AGENT_BLOCK_BODY.trim());
+  console.log(RULE);
 
-  const a = await ask('Add to all? [Y/n/skip] ');
+  const a = await ask('\nAdd to all? [Y/n/skip] ');
   const skipped = a === 'skip' || (a && a !== 'y' && a !== 'yes');
   if (skipped) {
-    writeSetupState({ setupCompleted: new Date().toISOString(), writtenTo: [], declined: true });
+    writeSetupState({
+      setupCompleted: new Date().toISOString(),
+      writtenTo: [], declined: true,
+      autoRefreshAgentFiles: false, autoInstallUpdates: false,
+      lastRunVersion: VERSION,
+    });
     console.log('Skipped. Run `sdoc setup` any time to revisit.');
     return;
   }
 
   const writtenTo = [];
   for (const t of detected) {
-    try { appendBlockTo(t.filePath); writtenTo.push(t.filePath); console.log(`\u2713 ${t.name}: ${t.filePath}`); }
+    try { writeBookendedBlock(t.filePath); writtenTo.push(t.filePath); console.log(`\u2713 ${t.name}: ${t.filePath}`); }
     catch (e) { console.error(`\u2717 ${t.name}: ${e.message}`); }
   }
-  writeSetupState({ setupCompleted: new Date().toISOString(), writtenTo, declined: false });
-  console.log('Done. Run `sdoc setup` any time to revisit.');
+
+  const autoRefresh = writtenTo.length > 0 ? await askAutoRefreshConsent() : false;
+  const autoInstall = writtenTo.length > 0 ? await askAutoInstallConsent() : false;
+
+  writeSetupState({
+    setupCompleted: new Date().toISOString(),
+    writtenTo, declined: false,
+    autoRefreshAgentFiles: autoRefresh,
+    autoInstallUpdates: autoInstall,
+    lastRunVersion: VERSION,
+  });
+  console.log('\nDone. Run `sdoc setup` any time to revisit.');
+}
+
+// Auto-refresh existing agent files when the binary version is newer than the
+// version that last ran. No prompt: the user already consented during setup.
+// Bails on downgrades (block version > shipped version), errors, or partial
+// failures (lastRunVersion only advances when every changed file succeeded).
+async function maybeAutoRefresh() {
+  if (process.env.SDOCS_NO_REFRESH) return;
+  const state = readSetupState();
+  if (!state) return;
+  if (!state.autoRefreshAgentFiles) return;
+  if (compareVersions(VERSION, state.lastRunVersion) <= 0) return;
+
+  const results = refreshAllAgentFiles();
+  const anyChanged = results.some(r => r.changed);
+  if (anyChanged) printRefreshSummary(results);
+
+  const anyError = results.some(r => r.error);
+  if (!anyError) {
+    writeSetupState({ ...state, lastRunVersion: VERSION });
+  }
+}
+
+// `sdoc auto-update on|off|status` — flips state.autoInstallUpdates.
+function runAutoUpdateSubcommand(arg) {
+  let state = readSetupState();
+  if (!state) {
+    console.log('Run `sdoc setup` first to configure auto-update.');
+    return;
+  }
+  if (arg === 'on') {
+    writeSetupState({ ...state, autoInstallUpdates: true });
+    console.log('✓ Auto-install of sdoc updates: on');
+    return;
+  }
+  if (arg === 'off') {
+    writeSetupState({ ...state, autoInstallUpdates: false });
+    console.log('✓ Auto-install of sdoc updates: off');
+    return;
+  }
+  console.log(`Auto-install of sdoc updates: ${state.autoInstallUpdates ? 'on' : 'off'}`);
+  console.log('Use `sdoc auto-update on` or `sdoc auto-update off` to change.');
 }
 
 // ── Help ───────────────────────────────────────────────────
@@ -251,6 +645,7 @@ USAGE
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
   sdoc setup                       Wire SDocs into your coding agents
+  sdoc auto-update [on|off]        Toggle auto-install of sdoc updates
   sdoc safe                        Verify the SDocs server is running the published code
   sdoc safe --json                 Same, machine-readable (for agents)
   sdoc safe --audit                Same, plus GitHub links to server-side source files
@@ -1252,7 +1647,7 @@ async function runSafe(opts) {
 
 // ── Parse args ────────────────────────────────────────────
 
-const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts', 'comments', 'setup', 'safe']);
+const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts', 'comments', 'setup', 'safe', 'auto-update']);
 
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
@@ -1496,6 +1891,11 @@ if (require.main === module) {
     if (opts.subcommand === 'charts') { console.log(CHARTS_HELP); process.exit(0); }
     if (opts.subcommand === 'comments') { console.log(COMMENTS_HELP); process.exit(0); }
     if (opts.subcommand === 'setup')  { await runSetup({ force: true }); process.exit(0); }
+    if (opts.subcommand === 'auto-update') {
+      // Sub-arg lives in opts.file (positional). Accept on/off/empty.
+      runAutoUpdateSubcommand((opts.file || '').toLowerCase());
+      process.exit(0);
+    }
     if (opts.subcommand === 'safe')   { await runSafe(opts); return; }
     if (opts.subcommand === 'defaults') {
       if (opts.resetFlag) resetDefaults();
@@ -1590,8 +1990,9 @@ if (require.main === module) {
         process.stdout.write(url + '\n');
       }
       refreshUpdateCache();
-      await promptUpdateIfAvailable();
+      await maybeUpdateBinary();
       await runSetup();
+      await maybeAutoRefresh();
       return;
     }
 
@@ -1599,8 +2000,9 @@ if (require.main === module) {
     openBrowser(url);
     console.log(`SDocs → ${url.length > 80 ? url.slice(0, 77) + '...' : url}`);
     refreshUpdateCache();
-    await promptUpdateIfAvailable();
+    await maybeUpdateBinary();
     await runSetup();
+    await maybeAutoRefresh();
   })().catch(e => {
     console.error('sdoc:', e.message);
     process.exit(1);
@@ -1623,4 +2025,13 @@ module.exports = {
   compressAndEncrypt,
   uploadShortLink,
   buildShortUrl,
+  // Agent block (pure functions for tests)
+  AGENT_BLOCK_VERSION,
+  AGENT_BLOCK_BODY,
+  formatAgentBlock,
+  findBookendedBlock,
+  findLegacyBlock,
+  refreshContent,
+  compareVersions,
+  migrateSetupState,
 };

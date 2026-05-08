@@ -19,6 +19,7 @@ require('./test-analytics')(harness);
 require('./test-short-links')(harness);
 require('./test-chrome')(harness);
 require('./test-comments')(harness);
+require('./test-agent-block')(harness);
 
 // ── HTTP tests (async, starts server) ──────────────
 const runHttp = require('./test-http')(harness);
