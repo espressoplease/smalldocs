@@ -430,13 +430,15 @@ const server = http.createServer((req, res) => {
   const blogSlug = blogMatch && fs.existsSync(path.join(__dirname, 'public', 'blogs', blogMatch[1] + '.md'))
     ? blogMatch[1]
     : null;
-  if (pathname === '/' || pathname === '/new' || pathname === '/legal' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  if (pathname === '/' || pathname === '/new' || pathname === '/legal' || pathname === '/agent-changes' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     const nonce = crypto.randomBytes(16).toString('base64');
     const defaultMdPath = pathname === '/legal'
       ? '/public/legal.md'
-      : blogSlug
-        ? '/public/blogs/' + blogSlug + '.md'
-        : '/public/sdoc.md';
+      : pathname === '/agent-changes'
+        ? '/public/agent-changes.md'
+        : blogSlug
+          ? '/public/blogs/' + blogSlug + '.md'
+          : '/public/sdoc.md';
     const csp = [
       "default-src 'self'",
       "script-src 'self' 'nonce-" + nonce + "' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
