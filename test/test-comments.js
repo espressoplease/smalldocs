@@ -329,6 +329,96 @@ module.exports = function (harness) {
     assert.strictEqual(out, 'plain body\n');
   });
 
+  // ── Occurrence-index disambiguation ──────────────────────────────────
+  // A repeated quote text needs the rendered-DOM anchor's occurrence index
+  // (computed at copy time by sdocs-comments-ui) to land the footnote ref
+  // on the right occurrence. Without this hint, when prefix/suffix don't
+  // match the source bytes (markdown formatting in the source, or the
+  // capture being narrower than the duplicates), we fall through to a
+  // first-occurrence default and silently anchor on the wrong copy.
+
+  test('serializeFootnotes: occurrence=1 lands the marker on the second occurrence', () => {
+    const meta = { comments: [
+      { id: 'c1', kind: 'inline', quote: 'foo', occurrence: 1, author: 'u', text: 'second' },
+    ] };
+    const body = 'first foo, then foo again.\n';
+    const out = SDC.serializeFootnotes(meta, body);
+    assert.ok(out.indexOf('first foo,') !== -1, 'first occurrence remains plain');
+    assert.ok(out.indexOf('then [foo][^c1] again') !== -1, 'second occurrence wrapped');
+  });
+
+  test('serializeFootnotes: occurrence=0 lands the marker on the first occurrence', () => {
+    const meta = { comments: [
+      { id: 'c1', kind: 'inline', quote: 'foo', occurrence: 0, author: 'u', text: 'first' },
+    ] };
+    const body = 'foo a, foo b, foo c.\n';
+    const out = SDC.serializeFootnotes(meta, body);
+    assert.ok(out.indexOf('[foo][^c1] a') !== -1);
+    assert.ok(out.indexOf('foo b') !== -1, 'b still plain');
+    assert.ok(out.indexOf('foo c') !== -1, 'c still plain');
+  });
+
+  test('serializeFootnotes: occurrence beyond what the body has falls back gracefully', () => {
+    // Source has only one "foo" (rendered text might have more, e.g. when
+    // we render a spliced view). Don't drop the comment — anchor on the
+    // first available occurrence so the user still sees it referenced.
+    const meta = { comments: [
+      { id: 'c1', kind: 'inline', quote: 'foo', occurrence: 5, author: 'u', text: 'x' },
+    ] };
+    const body = 'just one foo here.\n';
+    const out = SDC.serializeFootnotes(meta, body);
+    assert.ok(out.indexOf('[foo][^c1]') !== -1);
+  });
+
+  test('serializeFootnotes: two comments on different occurrences of the same quote both land', () => {
+    const meta = { comments: [
+      { id: 'c1', kind: 'inline', quote: 'foo', occurrence: 0, author: 'u', text: 'one' },
+      { id: 'c2', kind: 'inline', quote: 'foo', occurrence: 2, author: 'u', text: 'three' },
+    ] };
+    const body = 'foo one foo two foo three.\n';
+    const out = SDC.serializeFootnotes(meta, body);
+    assert.ok(out.indexOf('[foo][^c1] one') !== -1, 'c1 on first');
+    assert.ok(out.indexOf('foo two') !== -1, 'middle remains plain');
+    assert.ok(out.indexOf('[foo][^c2] three') !== -1, 'c2 on third');
+  });
+
+  test('serializeFootnotes: overlapping ranges - inner is dropped, outer keeps inline marker', () => {
+    // Two comments whose anchors nest (e.g. "the quick brown fox" wraps
+    // "quick brown"). We can't emit both inline markers without one
+    // smashing the other's brackets. Outer (first sorted right-to-left
+    // with the larger range) wins the inline anchor; inner is still
+    // appended as a footnote def at the doc end.
+    const meta = { comments: [
+      { id: 'c1', kind: 'inline', quote: 'the quick brown fox',
+        prefix: '', suffix: ' jumped', author: 'u', text: 'outer' },
+      { id: 'c2', kind: 'inline', quote: 'quick brown',
+        prefix: 'the ', suffix: ' fox', author: 'u', text: 'inner' },
+    ] };
+    const body = 'the quick brown fox jumped over.\n';
+    const out = SDC.serializeFootnotes(meta, body);
+    // Exactly one inline anchor; both footnote defs present.
+    const inlineMarkers = (out.match(/\]\[\^c\d+\]/g) || []).length;
+    assert.strictEqual(inlineMarkers, 1, 'one inline marker only');
+    assert.ok(out.indexOf('[^c1]: u - outer') !== -1);
+    assert.ok(out.indexOf('[^c2]: u - inner') !== -1);
+  });
+
+  test('serializeFootnotes: occurrence wins over prefix/suffix when both are present', () => {
+    // prefix/suffix would match the FIRST occurrence; occurrence says
+    // SECOND. Caller's occurrence (computed from the rendered DOM) is the
+    // source of truth.
+    const meta = { comments: [
+      { id: 'c1', kind: 'inline', quote: 'foo',
+        prefix: 'first ', suffix: ' here', occurrence: 1,
+        author: 'u', text: 'second' },
+    ] };
+    const body = 'first foo here. second foo here.\n';
+    const out = SDC.serializeFootnotes(meta, body);
+    // First foo unchanged; second wrapped.
+    assert.ok(out.indexOf('first foo here.') !== -1);
+    assert.ok(out.indexOf('second [foo][^c1] here') !== -1);
+  });
+
   // ── Clipboard-output sanitization ────────────────────────────────
   // "Copy with comments" output is meant to be pasted into agents,
   // Slack, and other downstream tools. A crafted shared URL whose
