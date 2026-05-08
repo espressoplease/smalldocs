@@ -6,9 +6,9 @@ const BASE = 'http://localhost:3000';
 const CHART_DOC = '# Export Test\n\nSome text.\n\n```chart\n{"type":"bar","title":"Revenue","labels":["Q1","Q2","Q3","Q4"],"values":[12,18,15,22]}\n```\n\nMore text after chart.';
 
 // Use a served image path (server serves /public/*)
-const IMAGE_DOC = '# Image Test\n\n![Alt text](/public/images/examples.png)\n';
+const IMAGE_DOC = '# Image Test\n\n![Alt text](/public/images/test.png)\n';
 
-const CHART_AND_IMAGE = '# Full Test\n\n![Logo](/public/images/examples.png)\n\n```chart\n{"type":"pie","title":"Split","labels":["A","B","C"],"values":[40,35,25]}\n```\n\nEnd.';
+const CHART_AND_IMAGE = '# Full Test\n\n![Logo](/public/images/test.png)\n\n```chart\n{"type":"pie","title":"Split","labels":["A","B","C"],"values":[40,35,25]}\n```\n\nEnd.';
 
 async function loadDoc(page, md) {
   await page.goto(BASE);
@@ -75,7 +75,7 @@ test.describe('PDF export — images', () => {
     const html = await getExportHTML(page);
     expect(html).toContain('data:image/png;base64,');
     // Original relative src should be replaced
-    expect(html).not.toContain('src="/public/images/examples.png"');
+    expect(html).not.toContain('src="/public/images/test.png"');
   });
 });
 

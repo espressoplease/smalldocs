@@ -101,7 +101,7 @@ module.exports = function(harness) {
     });
 
     await testAsync('GET /public/images/*.png returns 200 with image/png + cacheable', async () => {
-      const r = await get(BASE + '/public/images/examples.png');
+      const r = await get(BASE + '/public/images/test.png');
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].includes('image/png'),
         'expected image/png, got ' + r.headers['content-type']);
