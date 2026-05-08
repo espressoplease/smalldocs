@@ -1349,9 +1349,9 @@ BASIC SYNTAX
   \`\`\`
 
 STANDALONE .mmd FILES
-  \`sdoc graph.mmd\` works like \`sdoc file.md\` — the CLI wraps the
+  \`sdoc graph.mmd\` works like \`sdoc file.md\` - the CLI wraps the
   contents in a \`\`\`mermaid fence before opening. Same for share:
-  \`sdoc share graph.mmd\`.
+  \`sdoc share graph.mmd\`. \`.mermaid\` files work the same way.
 
 SUPPORTED DIAGRAM TYPES
   flowchart / graph         flowchart TD, LR, etc.
@@ -1381,7 +1381,7 @@ THEMING
 
   In dark mode the inverted block colors apply automatically.
   For finer-grained control, set Mermaid theme variables in the
-  diagram source itself — but note that \`%%{init:...}%%\` directives
+  diagram source itself, but note that \`%%{init:...}%%\` directives
   are stripped by SDocs as a security measure (they can otherwise
   override sanitisation settings at parse time).
 
@@ -1391,10 +1391,15 @@ LIMITS
   - Per-render timeout: 5 seconds (large or pathological graphs error out).
 
 SECURITY
-  Mermaid runs with \`securityLevel: 'strict'\` and \`htmlLabels: false\`.
-  Output SVG is post-sanitised; \`<foreignObject>\`, \`<script>\`, \`<use>\`,
-  \`<iframe>\`, and animation tags are stripped. Treat diagram source as
-  untrusted — it travels in the URL hash with the rest of the document.
+  Mermaid runs with \`securityLevel: 'strict'\` and \`htmlLabels: true\`.
+  htmlLabels lets long node labels wrap inside a \`<foreignObject>\`,
+  which is otherwise a script-injection vector; SDocs makes that safe
+  by post-sanitising the SVG before render. \`<script>\`, \`<iframe>\`,
+  \`<form>\`, \`<input>\`, \`<use>\`, animation tags, \`on*\` event handlers
+  and \`javascript:\` URLs are stripped (inside foreignObject and out).
+  Source caps and a render timeout cover the DoS surface. Treat diagram
+  source as untrusted - it travels in the URL hash with the rest of
+  the document.
 
 EXAMPLE
   \`\`\`mermaid
