@@ -1,11 +1,11 @@
 {
-  "checkedAt": "2026-05-08T08:31:11.839Z",
+  "checkedAt": "2026-05-08T08:50:35.545Z",
   "base": "https://sdocs.dev",
-  "commit": "4502bd89b700c9f8efb747f63a5382ad7e2cd419",
-  "commitShort": "4502bd8",
+  "commit": "f5f118d25124c42711a38323c40bf9ab0b5fdb09",
+  "commitShort": "f5f118d",
   "result": "ok",
-  "totalFiles": 37,
-  "matched": 37,
+  "totalFiles": 38,
+  "matched": 38,
   "mismatches": [],
-  "manifestUrl": "https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/4502bd89b700c9f8efb747f63a5382ad7e2cd419.json"
+  "manifestUrl": "https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/f5f118d25124c42711a38323c40bf9ab0b5fdb09.json"
 }
