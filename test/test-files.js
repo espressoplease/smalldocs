@@ -137,6 +137,32 @@ module.exports = function(harness) {
       (matches || []).join('\n'));
   });
 
+  test('bin/sdocs-postinstall.js exists and is silent when not a global install', () => {
+    const postinstall = path.join(__dirname, '..', 'bin', 'sdocs-postinstall.js');
+    assert.ok(fs.existsSync(postinstall), 'missing bin/sdocs-postinstall.js');
+    const src = fs.readFileSync(postinstall, 'utf-8');
+    assert.ok(src.includes("npm_config_global"), 'should gate on npm_config_global');
+    assert.ok(src.includes('process.env.CI'), 'should skip when CI is set');
+  });
+
+  test('public/agent-changes.md exists and lists v1, v2, v3 sections', () => {
+    const changes = fs.readFileSync(path.join(__dirname, '..', 'public', 'agent-changes.md'), 'utf-8');
+    assert.ok(changes.includes('## v3'), 'missing v3 section');
+    assert.ok(changes.includes('## v2'), 'missing v2 section');
+    assert.ok(changes.includes('## v1'), 'missing v1 section');
+  });
+
+  test('package.json has postinstall script and version 1.5.0+', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
+    assert.ok(pkg.scripts && pkg.scripts.postinstall, 'missing scripts.postinstall');
+    assert.ok(pkg.scripts.postinstall.includes('sdocs-postinstall.js'),
+              'postinstall should run sdocs-postinstall.js');
+    const major = parseInt(pkg.version.split('.')[0], 10);
+    const minor = parseInt(pkg.version.split('.')[1], 10);
+    assert.ok(major > 1 || (major === 1 && minor >= 5),
+              'version should be 1.5.0 or later (got ' + pkg.version + ')');
+  });
+
   test('chart controls are inside the Colors > Blocks section', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
     const blocksStart = html.indexOf('data-target="_sd_sub-colors-blocks"');

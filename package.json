@@ -1,6 +1,6 @@
 {
   "name": "sdocs-dev",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "Open, share, and style markdown files from the terminal",
   "main": "bin/sdocs-dev.js",
   "bin": {
@@ -15,7 +15,8 @@
   ],
   "scripts": {
     "start": "node server.js",
-    "test": "node test/run.js"
+    "test": "node test/run.js",
+    "postinstall": "node bin/sdocs-postinstall.js"
   },
   "keywords": [
     "markdown",

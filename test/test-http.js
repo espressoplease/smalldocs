@@ -296,6 +296,18 @@ module.exports = function(harness) {
       await assertEveryAssetVersioned('/trust', v);
     });
 
+    await testAsync('asset-versioning: /agent-changes is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/agent-changes', v);
+    });
+
+    await testAsync('/agent-changes serves the index shell with the changelog md path', async () => {
+      const r = await get(BASE + '/agent-changes');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.body.includes('/public/agent-changes.md'),
+                '/agent-changes should preload the agent-changes markdown');
+    });
+
     await testAsync('asset-versioning: /analytics is versioned', async () => {
       const v = JSON.parse((await get(BASE + '/version-check')).body).version;
       await assertEveryAssetVersioned('/analytics', v);
