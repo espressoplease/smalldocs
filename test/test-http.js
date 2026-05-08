@@ -91,6 +91,24 @@ module.exports = function(harness) {
       assert.ok(r.headers['content-type'].includes('javascript'));
     });
 
+    await testAsync('GET /public/images/*.webp returns 200 with image/webp + cacheable', async () => {
+      const r = await get(BASE + '/public/images/example_sdoc_pdf.webp');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('image/webp'),
+        'expected image/webp, got ' + r.headers['content-type']);
+      assert.ok(/max-age=\d+/.test(r.headers['cache-control'] || ''),
+        'expected cacheable Cache-Control, got ' + r.headers['cache-control']);
+    });
+
+    await testAsync('GET /public/images/*.png returns 200 with image/png + cacheable', async () => {
+      const r = await get(BASE + '/public/images/examples.png');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('image/png'),
+        'expected image/png, got ' + r.headers['content-type']);
+      assert.ok(/max-age=\d+/.test(r.headers['cache-control'] || ''),
+        'expected cacheable Cache-Control, got ' + r.headers['cache-control']);
+    });
+
     await testAsync('GET / HTML references all CSS modules', async () => {
       const r = await get(BASE + '/');
       assert.ok(r.body.includes('css/tokens.css'), 'missing tokens.css link');

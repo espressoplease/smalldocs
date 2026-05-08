@@ -73,7 +73,16 @@ const MIME = {
   '.smd':  'text/plain',
   '.woff2': 'font/woff2',
   '.wasm':  'application/wasm',
+  '.png':  'image/png',
+  '.jpg':  'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif':  'image/gif',
+  '.svg':  'image/svg+xml',
+  '.ico':  'image/x-icon',
 };
+
+const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico']);
 
 const DEV_MODE = process.env.SDOCS_DEV === '1' || process.env.NODE_ENV === 'development';
 
@@ -82,6 +91,7 @@ function cacheHeader(ext) {
   if (ext === '.html') return 'no-cache';
   if (ext === '.woff2') return 'public, max-age=31536000, immutable';
   if (ext === '.css' || ext === '.js') return 'public, max-age=86400';
+  if (IMAGE_EXTS.has(ext)) return 'public, max-age=86400';
   return 'no-cache';
 }
 
