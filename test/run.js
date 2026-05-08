@@ -15,6 +15,7 @@ require('./test-slugify')(harness);
 require('./test-base64')(harness);
 require('./test-files')(harness);
 require('./test-chart-replace')(harness);
+require('./test-mermaid')(harness);
 require('./test-analytics')(harness);
 require('./test-short-links')(harness);
 require('./test-chrome')(harness);

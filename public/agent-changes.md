@@ -13,6 +13,43 @@ The CLI links here whenever it updates an existing block. Each entry shows the
 exact text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v4 (1.6.0, 2026-05-08)
+
+**Reason:** Adds a `sdoc diagrams` reference for the new Mermaid render
+path. Same shape as the `sdoc charts` line: tells agents to read the
+reference before writing a ```mermaid block, and notes that standalone
+`.mmd` / `.mermaid` files can be passed directly to `sdoc`.
+
+Diff vs v3 is one new bullet inserted after the charts line:
+
+```
+- `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+```
+
+Block body:
+
+```markdown
+## SDocs
+
+SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
+Content lives in the URL hash - nothing hits a server.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file.
+Also handy for copying specific code - SDocs code blocks have copy buttons.
+
+The `sdoc` CLI is installed globally:
+- `sdoc file.md` - open styled in browser (great for easy reading).
+- `sdoc share file.md` - copy shareable URL to clipboard.
+- `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
+- `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
+- `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc --help` - full usage.
+
+When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
+
+Source: https://github.com/espressoplease/SDocs
+```
+
 ## v3 (1.5.0, 2026-05-08)
 
 **Reason:** First release with bookend markers and an upgrade-aware

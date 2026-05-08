@@ -25,6 +25,8 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
   - `sdocs-write.js` - write mode editor (contentEditable, toolbar, key handling)
   - `sdocs-charts.js` - Chart.js integration for ```chart fenced blocks
   - `sdocs-math.js` - KaTeX integration for `$$...$$` blocks
+  - `sdocs-mermaid.js` - Mermaid integration for ```mermaid fenced blocks (lazy CDN, post-sanitised SVG)
+  - `sdocs-mermaid-focus.js` - per-diagram fullscreen pan/zoom modal (drag, wheel, fit/100%/reset, ESC)
   - `sdocs-comments.js` - pure comment data model (anchor resolution helpers, YAML round-trip, footnote serializer), UMD shared with tests
   - `sdocs-comments-ui.js` - browser-only comment UI: rendering, selection popover, composer, navigation
   - `sdocs-app.js` - render orchestration, hash encode/decode, Brotli compression, syncAll, mode switching, drag/drop, file info card, scroll hints, init
@@ -40,11 +42,13 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
   - `test/test-http.js` - HTTP server tests (async); includes the per-route asset-versioning assertions
   - `test/test-cache-bust.js` - two-server check that asset URLs change when public/ contents change
   - `test/test-comments.js` - comment data-model + YAML/footnote round-trip + sanitisation tests
+  - `test/test-mermaid.js` - directive stripping + marked output shape + hardening assertions
 - **Playwright tests**: `npx playwright test test/write-mode.spec.js` - write mode editor tests
   - `test/write-mode.spec.js` - 42 tests for toolbar actions, toggles, shortcuts, block exits
   - `test/comment-mode.spec.js` - comment-mode integration: anchor resolution, composer, navigation
   - `test/footnote-input.spec.js` - parsing markdown-footnote-format comment input
   - `test/xss.spec.js` - script / event-handler / iframe injection through markdown
+  - `test/mermaid.spec.js` - real-browser Mermaid render + XSS payloads + DoS cap (CDN-dependent)
   - `playwright.config.js` - Chromium only, auto-starts server on :3000
 
 ## Writing style (docs, copy, UI strings, commit messages)
@@ -109,7 +113,7 @@ Styles are driven entirely by CSS custom properties on `#rendered`. Every contro
 All browser JS modules communicate through `window.SDocs` (created by `sdocs-state.js`). Modules register functions on `SDocs` for cross-module access (e.g. `SDocs.syncAll`, `SDocs.setColorValue`). Event handlers use late binding - they reference `SDocs.fn()` rather than capturing `fn` at parse time, so modules can load in sequence without forward-declaration issues.
 
 **Script load order** (in `index.html`):
-`marked` -> `purify` -> `sdocs-yaml.js` -> `sdocs-styles.js` -> `sdocs-state.js` -> `sdocs-slugify.js` -> `sdocs-theme.js` -> `sdocs-controls.js` -> `sdocs-chrome.js` -> `sdocs-export.js` -> `sdocs-write.js` -> `sdocs-charts.js` -> `sdocs-math.js` -> `sdocs-comments.js` -> `sdocs-app.js` -> `sdocs-info.js` -> `sdocs-comments-ui.js`
+`marked` -> `purify` -> `sdocs-yaml.js` -> `sdocs-styles.js` -> `sdocs-state.js` -> `sdocs-slugify.js` -> `sdocs-theme.js` -> `sdocs-controls.js` -> `sdocs-chrome.js` -> `sdocs-export.js` -> `sdocs-write.js` -> `sdocs-charts.js` -> `sdocs-math.js` -> `sdocs-mermaid.js` -> `sdocs-mermaid-focus.js` -> `sdocs-comments.js` -> `sdocs-app.js` -> `sdocs-info.js` -> `sdocs-comments-ui.js`
 
 `sdocs-comments-ui.js` loads after `sdocs-app.js` because it hooks into `SDocs.commentsUi.{enter,exit}` from inside `setMode`; that wiring needs the orchestrator's `setMode` defined first.
 

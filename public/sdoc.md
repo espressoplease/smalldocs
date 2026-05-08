@@ -38,7 +38,7 @@ Teach [Claude Code](https://docs.anthropic.com/en/docs/claude-code) about `sdoc`
 npm i -g sdocs-dev
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=3 -->
+<!-- sdocs-agent-block:start v=4 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -52,6 +52,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc share file.md` - copy shareable URL to clipboard.
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
+- `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -71,7 +72,7 @@ Teach [Codex](https://developers.openai.com/codex) about `sdoc`:
 npm i -g sdocs-dev
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=3 -->
+<!-- sdocs-agent-block:start v=4 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -85,6 +86,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc share file.md` - copy shareable URL to clipboard.
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
+- `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -104,7 +106,7 @@ Teach [Gemini CLI](https://github.com/google-gemini/gemini-cli) about `sdoc`:
 npm i -g sdocs-dev
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=3 -->
+<!-- sdocs-agent-block:start v=4 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -118,6 +120,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc share file.md` - copy shareable URL to clipboard.
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
+- `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -138,7 +141,7 @@ npm i -g sdocs-dev
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=3 -->
+<!-- sdocs-agent-block:start v=4 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -152,6 +155,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc share file.md` - copy shareable URL to clipboard.
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
+- `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -394,6 +398,38 @@ $$
 
 A closing `$` immediately followed by a digit isn't treated as a delimiter, so `$5` and `$10` stay as currency. For the full list of supported commands, see [katex.org/docs/supported](https://katex.org/docs/supported.html).
 
+### Diagrams
+
+Render Mermaid diagrams in markdown using ` ```mermaid ` code blocks. Mermaid is loaded lazily from CDN only when a diagram is present.
+
+```mermaid
+graph TD
+  A[Agent writes .md] --> B[sdoc share file.md]
+  B --> C[Recipient opens URL]
+  C --> D{Has diagrams?}
+  D -- yes --> E[Lazy-load Mermaid]
+  D -- no --> F[No extra fetch]
+```
+
+The source for the flowchart above:
+
+````
+```mermaid
+graph TD
+  A[Agent writes .md] --> B[sdoc share file.md]
+  B --> C[Recipient opens URL]
+  C --> D{Has diagrams?}
+  D -- yes --> E[Lazy-load Mermaid]
+  D -- no --> F[No extra fetch]
+```
+````
+
+Supports flowcharts, sequence diagrams, class diagrams, state diagrams, ER diagrams, gantt charts, pie, journey, gitGraph, mindmap, timeline, quadrantChart, and sankey. See [mermaid.js.org](https://mermaid.js.org) for the syntax of each.
+
+Standalone `.mmd` files work too — `sdoc graph.mmd` wraps the file in a ` ```mermaid ` fence and opens it. Run `sdoc diagrams` for the full reference.
+
+Mermaid runs with `securityLevel: 'strict'` and `htmlLabels: false`. The output SVG is post-sanitised before insertion (foreignObject / script / use / iframe / animation tags are stripped), and `%%{init:...}%%` directives in the source are removed since they can otherwise override security settings at parse time. Per-diagram source is capped at 64 KB and each render times out after 5 seconds.
+
 ### Drag & drop
 
 Drag any `.md` file onto the editor to SmallDoc it instantly. Or from the terminal: `sdoc file.md`.
@@ -608,7 +644,7 @@ The manual way: copy and paste the one-line commands below into your terminal. E
 ```bash
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=3 -->
+<!-- sdocs-agent-block:start v=4 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -622,6 +658,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc share file.md` - copy shareable URL to clipboard.
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
+- `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -636,7 +673,7 @@ SDOC
 ```bash
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=3 -->
+<!-- sdocs-agent-block:start v=4 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -650,6 +687,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc share file.md` - copy shareable URL to clipboard.
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
+- `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -664,7 +702,7 @@ SDOC
 ```bash
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=3 -->
+<!-- sdocs-agent-block:start v=4 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -678,6 +716,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc share file.md` - copy shareable URL to clipboard.
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
+- `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -693,7 +732,7 @@ SDOC
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=3 -->
+<!-- sdocs-agent-block:start v=4 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -707,6 +746,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc share file.md` - copy shareable URL to clipboard.
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
+- `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.

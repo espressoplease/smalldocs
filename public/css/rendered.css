@@ -300,6 +300,107 @@
 .sdoc-chart canvas { max-height: 400px; }
 .sdoc-chart-error { outline: 2px dashed #ef4444; }
 
+/* ── Mermaid ── */
+.sdoc-mermaid {
+  /* Sits inside the body column at its natural width. The SVG is told
+     in JS to override Mermaid's inline max-width cap so it stretches to
+     fill the wrapper. Generous vertical padding keeps the diagram from
+     feeling cramped against the surrounding prose. */
+  margin: 1.4em 0;
+  padding: 28px 20px;
+  border-radius: var(--radius, 8px);
+  background: var(--md-block-bg, #f4f1ed);
+  max-width: 100%;
+  overflow-x: auto;
+  text-align: center;
+  position: relative;
+}
+html[data-theme="dark"] .sdoc-mermaid {
+  background: var(--md-block-bg, #1f1d1a);
+}
+/* Full-width inner container so the SVG can stretch to the wrapper.
+   inline-block here would shrink to the SVG's natural width and defeat
+   the inline-style override applied in sdocs-mermaid.js. */
+.sdoc-mermaid-stage { display: block; width: 100%; }
+.sdoc-mermaid svg {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+}
+/* Mermaid's quadrant chart (and a few others) place titles/labels outside
+   the viewBox; SVG default overflow clipping cuts off the text. Letting
+   the SVG render outside its declared bounds restores the full label.
+   The wrapper's padding absorbs the extra extent. */
+svg.sdoc-mermaid-svg { overflow: visible; }
+/* Default-render polish for Mermaid SVG. Applies to both the inline
+   wrapper (.sdoc-mermaid) and the cloned SVG inside the fullscreen
+   focus modal (.sdoc-mermaid-focus). The .sdoc-mermaid-svg class is
+   stamped onto the SVG by sdocs-mermaid.js on render and copied with
+   the clone, so a single rule covers both contexts.
+
+   Rect-shaped nodes (flowchart boxes, sequence actors, sticky notes,
+   ER entities, gantt tasks) get rounded corners. Diamonds, circles
+   and hexes are left alone — their identity comes from the shape. */
+svg.sdoc-mermaid-svg .node > rect,
+svg.sdoc-mermaid-svg .node .label-container,
+svg.sdoc-mermaid-svg .actor,
+svg.sdoc-mermaid-svg .note > rect,
+svg.sdoc-mermaid-svg .er.entityBox,
+svg.sdoc-mermaid-svg .label-container[rx],
+svg.sdoc-mermaid-svg rect.task {
+  rx: 6px; ry: 6px;
+}
+/* Edge labels as chips. With htmlLabels:true Mermaid puts the bg on the
+   <span class="edgeLabel"> inside the foreignObject. <span> is inline,
+   so when text wraps across lines via <br>, the browser draws background
+   and border PER LINE - producing a broken pill with per-line borders
+   that don't form a single shape.
+   Fix: move the chip styling to the wrapping <div>, which Mermaid sets
+   to display:inline-block. Single bounding box, single pill, even with
+   multi-line content. Then clear the span's own background so it doesn't
+   double up.
+   Rule is GLOBAL (no .sdoc-mermaid-svg ancestor) so it reaches Mermaid's
+   off-screen measurement step - padding and border affect the foreignObject
+   width calculation; a scoped rule would let measurement come up short and
+   text would clip. min-width:0 overrides the foreignObject > div global
+   floor so short edge labels hug their text instead of inflating to 120px. */
+.edgeLabel foreignObject > div {
+  min-width: 0;
+  width: max-content !important;
+  max-width: 240px !important;
+  white-space: normal !important;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background-color: var(--md-block-bg, #f4f1ed);
+  border: 1px solid color-mix(in srgb, var(--md-block-text, #6b6560) 28%, transparent);
+}
+/* Clear the per-line background Mermaid puts on the span - the chip
+   bg is now owned by the wrapping div above. */
+svg.sdoc-mermaid-svg span.edgeLabel {
+  background: transparent !important;
+}
+/* Floor label width so short labels ("Job", "End") get a bit of
+   breathing room instead of hugging their text. min-width is the right
+   tool here: max-width interacts badly with Mermaid's off-screen
+   measurement (it snaps the foreignObject to the longest-word width
+   inside the cap, producing one-word-per-line layouts). min-width
+   only nudges narrow labels wider; long labels render at their natural
+   width. The global selector is intentional - Mermaid measures under
+   <body> before the SVG lands in our wrapper, so a scoped rule wouldn't
+   reach the measurement step. */
+foreignObject > div {
+  min-width: 120px;
+  text-align: center;
+}
+.sdoc-mermaid-error { outline: 2px dashed #ef4444; text-align: left; }
+.sdoc-mermaid-error-msg {
+  color: #ef4444;
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 12px;
+  font-family: var(--md-code-font);
+}
+
 /* Chart menu */
 .chart-menu-btn {
   position: absolute; top: 6px; right: 6px;
