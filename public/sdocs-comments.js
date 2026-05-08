@@ -204,35 +204,60 @@ function updateComment(meta, id, patch) {
  * `[^cN]: author - text` lines. Block comments become footnote refs
  * attached at the end of the document.
  *
- * Matching strategy: try `prefix + quote + suffix` first (best case),
- * then `quote` alone. Comments whose quote can't be found in the body
- * still get a footnote at the end but no inline anchor.
+ * Matching strategy, in priority order:
+ *   1. `c.occurrence` (number, 0-indexed) — the Nth occurrence of `quote`
+ *      in `body`. Caller computes this from the rendered DOM at copy time
+ *      so we always pick the same occurrence the user actually anchored
+ *      to, even when source markdown differs from rendered text (bold,
+ *      links, code formatting, etc.).
+ *   2. `prefix + quote + suffix` matches uniquely → land there.
+ *   3. `quote` alone → first occurrence (best-effort fallback).
+ *
+ * Replacement positions are computed against the original body in one
+ * pass, then applied in descending order. This means earlier comments'
+ * positions are never shifted by later replacements, AND occurrence
+ * counts always run against the unedited source text — so two comments
+ * targeting different occurrences of the same quote can both land
+ * correctly.
  */
 function serializeFootnotes(meta, body) {
   if (typeof body !== 'string') return body;
   var comments = getComments(meta);
   if (!comments.length) return body;
-  var out = body;
-  var footnotes = [];
-  // Process in reverse so earlier replacements don't invalidate indices of later ones.
   var inlineComments = comments.filter(function (c) { return c.kind === 'inline' && c.quote; });
-  var blockComments = comments.filter(function (c) { return c.kind !== 'inline'; });
-  inlineComments.slice().reverse().forEach(function (c) {
-    var needle = (c.prefix || '') + c.quote + (c.suffix || '');
-    var idx = out.indexOf(needle);
-    var quoteIdx = -1;
-    if (idx !== -1) {
-      quoteIdx = idx + (c.prefix || '').length;
-    } else {
-      quoteIdx = out.indexOf(c.quote);
+  var hits = [];
+  inlineComments.forEach(function (c) {
+    var pos = -1;
+    if (typeof c.occurrence === 'number' && c.occurrence >= 0) {
+      pos = nthIndexOf(body, c.quote, c.occurrence);
     }
-    if (quoteIdx !== -1) {
-      var end = quoteIdx + c.quote.length;
-      var replacement = '[' + c.quote + '][^' + c.id + ']';
-      out = out.slice(0, quoteIdx) + replacement + out.slice(end);
+    if (pos === -1) {
+      var needle = (c.prefix || '') + c.quote + (c.suffix || '');
+      var idx = body.indexOf(needle);
+      if (idx !== -1) pos = idx + (c.prefix || '').length;
+    }
+    if (pos === -1) pos = body.indexOf(c.quote);
+    if (pos !== -1) {
+      hits.push({ start: pos, end: pos + c.quote.length, id: c.id, quote: c.quote });
     }
   });
-  // Emit footnotes in original (chronological) order.
+  hits.sort(function (a, b) { return b.start - a.start; });
+  // Skip a hit whose range overlaps with one we've already replaced (we
+  // walk right-to-left, so "already replaced" means a hit further right).
+  // Without this guard, slice/replace math would corrupt the body when a
+  // later comment's range falls inside an earlier comment's range. The
+  // dropped hit still gets a footnote definition appended below — only
+  // its inline anchor is omitted.
+  var out = body;
+  var minRightEdge = body.length + 1;
+  for (var i = 0; i < hits.length; i++) {
+    var h = hits[i];
+    if (h.end > minRightEdge) continue;
+    var replacement = '[' + h.quote + '][^' + h.id + ']';
+    out = out.slice(0, h.start) + replacement + out.slice(h.end);
+    minRightEdge = h.start;
+  }
+  var footnotes = [];
   comments.forEach(function (c) {
     var label = sanitizeText(c.author || 'user');
     if (c.resolved) label += ' [resolved]';
@@ -245,6 +270,18 @@ function serializeFootnotes(meta, body) {
     footnotes.push('[^' + c.id + ']: ' + label);
   });
   return out.replace(/\n*$/, '') + '\n\n' + footnotes.join('\n') + '\n';
+}
+
+// Index of the n-th (0-indexed) occurrence of `needle` in `hay`, or -1.
+function nthIndexOf(hay, needle, n) {
+  if (!needle) return -1;
+  var pos = -1, from = 0;
+  for (var i = 0; i <= n; i++) {
+    pos = hay.indexOf(needle, from);
+    if (pos === -1) return -1;
+    from = pos + needle.length;
+  }
+  return pos;
 }
 
 /**
