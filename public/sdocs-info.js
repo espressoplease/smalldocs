@@ -18,6 +18,10 @@ function readSeen() {
   } catch (_) { return 0; }
 }
 
+function hasSeenKey() {
+  try { return localStorage.getItem(SEEN_KEY) !== null; } catch (_) { return true; }
+}
+
 function writeSeen(id) {
   try { localStorage.setItem(SEEN_KEY, String(id)); } catch (_) {}
 }
@@ -159,6 +163,10 @@ function loadFeed() {
         var id = parseInt(it && it.id, 10);
         return isNaN(id) ? m : Math.max(m, id);
       }, 0);
+      // First-time visitor: seed seen=maxId so they start caught up rather
+      // than seeing the dot for items that predate them. Only seed when the
+      // key is absent; never clobber an explicit value from a returning user.
+      if (!hasSeenKey() && maxId > 0) writeSeen(maxId);
       // Snapshot before markSeen() could run — per-item "new" markers
       // reflect the state as of page load, not post-click.
       var seenAtRender = readSeen();
