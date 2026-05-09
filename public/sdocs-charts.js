@@ -494,6 +494,19 @@
     };
   }
 
+  // ── Default aspect ratio ──
+  // Chart.js's 2:1 default leaves no plot area on narrow viewports once title /
+  // axis labels / legend / data labels are subtracted; pick a taller default on phones.
+  function getDefaultAspect(rawType) {
+    var isRadial = rawType === 'pie' || rawType === 'doughnut' ||
+                   rawType === 'polarArea' || rawType === 'radar';
+    if (isRadial) return 1;
+    var w = (typeof window !== 'undefined' && window.innerWidth) || 1024;
+    if (w < 600) return 1.15;
+    if (w < 900) return 1.6;
+    return 2;
+  }
+
   // ── Build Chart.js config ──
   function buildConfig(data) {
     var rawType = normalizeType(data.type);
@@ -532,7 +545,7 @@
         animation: false,
         layout: { padding: { top: 20 } },
         font: th.font ? { family: th.font } : undefined,
-        aspectRatio: data.aspectRatio || undefined,
+        aspectRatio: data.aspectRatio || getDefaultAspect(rawType),
         indexAxis: isHorizontal ? 'y' : undefined,
         plugins: {
           title: {
@@ -868,6 +881,27 @@
     // Update activeCharts
     activeCharts = chartDataStore.map(function (e) { return e.chart; });
   }
+
+  // ── Reflow charts on viewport breakpoint changes ──
+  // Aspect ratio is read at build time, so phones rotated to landscape (or
+  // desktop windows resized narrow) need an explicit rebuild to pick up the
+  // new default. Chart.js's own resize() uses cached dimensions and doesn't
+  // re-measure the parent, so we destroy and reconstruct.
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      chartDataStore.forEach(function (entry) {
+        if (entry.data.aspectRatio) return;
+        var rawType = normalizeType(entry.data.type);
+        var nextAspect = getDefaultAspect(rawType);
+        if (entry.chart.options.aspectRatio === nextAspect) return;
+        entry.chart.destroy();
+        entry.chart = new Chart(entry.canvas, buildConfig(entry.data));
+      });
+      activeCharts = chartDataStore.map(function (e) { return e.chart; });
+    }, 150);
+  });
 
   ['_sd_ctrl-chart-accent', '_sd_ctrl-chart-palette'].forEach(function (id) {
     var el = document.getElementById(id);
