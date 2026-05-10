@@ -111,7 +111,29 @@ function inlineCharts(clone) {
   }
 }
 
-function buildExportHTML() {
+function inlineMermaid(clone, mermaidImages) {
+  clone.querySelectorAll('.sdoc-mermaid-zoom-btn').forEach(function(el) { el.remove(); });
+  if (!mermaidImages || !mermaidImages.length) return;
+  var wrapperMap = new Map();
+  mermaidImages.forEach(function(entry) {
+    if (entry && entry.dataUrl) wrapperMap.set(entry.wrapper, entry.dataUrl);
+  });
+  var origWrappers = S.renderedEl.querySelectorAll('.sdoc-mermaid');
+  var cloneWrappers = clone.querySelectorAll('.sdoc-mermaid');
+  for (var i = 0; i < cloneWrappers.length; i++) {
+    var dataUrl = origWrappers[i] ? wrapperMap.get(origWrappers[i]) : null;
+    var stage = cloneWrappers[i].querySelector('.sdoc-mermaid-stage');
+    if (stage && dataUrl) {
+      var img = document.createElement('img');
+      img.src = dataUrl;
+      img.style.maxWidth = '100%';
+      stage.innerHTML = '';
+      stage.appendChild(img);
+    }
+  }
+}
+
+function buildExportHTML(mermaidImages) {
   var fontName = document.getElementById('_sd_ctrl-font-family').value.replace(/['"]/g,'').split(',')[0].trim();
   var fontLink = S.GOOGLE_FONTS.includes(fontName)
     ? '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=' + encodeURIComponent(fontName) + ':wght@400;500;600;700&display=swap">'
@@ -119,6 +141,7 @@ function buildExportHTML() {
   var title = (S.currentMeta.title || 'Document').replace(/</g,'&lt;');
   var clone = S.renderedEl.cloneNode(true);
   inlineCharts(clone);
+  inlineMermaid(clone, mermaidImages);
   inlineImages(clone);
   clone.querySelectorAll('.section-toggle').forEach(function(el) { el.remove(); });
   clone.querySelectorAll('.md-section-body').forEach(function(el) {
@@ -129,7 +152,7 @@ function buildExportHTML() {
     while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
     el.remove();
   });
-  return '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>' + title + '</title>\n' + fontLink + '\n<style>' + buildExportCSS() + '\n.sdoc-chart { text-align: center; margin: 1.2em 0; }\n.sdoc-chart img { max-width: 100%; }</style>\n</head>\n<body>\n' +
+  return '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>' + title + '</title>\n' + fontLink + '\n<style>' + buildExportCSS() + '\n.sdoc-chart { text-align: center; margin: 1.2em 0; }\n.sdoc-chart img { max-width: 100%; }\n.sdoc-mermaid { text-align: center; margin: 1.2em 0; }\n.sdoc-mermaid img { max-width: 100%; }</style>\n</head>\n<body>\n' +
     clone.innerHTML
       .replace(/<button class="copy-btn"[^]*?<\/button>/g, '')
       .replace(/<button class="header-copy-btn"[^]*?<\/button>/g, '')
@@ -467,7 +490,8 @@ function readComputedBlock(el) {
 
 // ── pdf-lib rendering engine ──
 
-async function renderPdf(rendered, st, chartImages) {
+async function renderPdf(rendered, st, chartImages, mermaidImages) {
+  mermaidImages = mermaidImages || [];
   var PDFDocument = PDFLib.PDFDocument;
   var rgb = PDFLib.rgb;
   var doc = await PDFDocument.create();
@@ -827,6 +851,7 @@ async function renderPdf(rendered, st, chartImages) {
   // ── Async walker ──
 
   var chartIdx = 0;
+  var mermaidIdx = 0;
 
   async function walk(parent) {
     var children = parent.children;
@@ -850,6 +875,7 @@ async function renderPdf(rendered, st, chartImages) {
       else if (tag === 'ul') drawList(el, false);
       else if (tag === 'ol') drawList(el, true);
       else if (el.classList.contains('sdoc-chart')) await drawChart();
+      else if (el.classList.contains('sdoc-mermaid')) await drawMermaid();
       else if (tag === 'hr') drawHR(el);
       else if (tag === 'img') await drawImage(el);
       else if (tag === 'table') drawTable(el);
@@ -1063,6 +1089,25 @@ async function renderPdf(rendered, st, chartImages) {
     } catch (e) { console.warn('Chart embed failed:', e); }
   }
 
+  async function drawMermaid() {
+    var entry = mermaidImages[mermaidIdx];
+    mermaidIdx++;
+    if (!entry || !entry.dataUrl || entry.dataUrl === 'data:,') return;
+    try {
+      var imgBytes = Uint8Array.from(atob(entry.dataUrl.split(',')[1]), function(c) { return c.charCodeAt(0); });
+      var img = await doc.embedPng(imgBytes);
+      // Rasterized at 2x DPR; divide back to natural CSS pixels then scale to fit page width.
+      var natW = img.width / 2, natH = img.height / 2;
+      var scale = Math.min(CW / natW, 1);
+      var drawW = natW * scale;
+      var drawH = natH * scale;
+      ensureSpace(drawH + 16);
+      var cx = ML + (CW - drawW) / 2;
+      page.drawImage(img, { x: cx, y: y - drawH, width: drawW, height: drawH });
+      y -= drawH + 12;
+    } catch (e) { console.warn('Mermaid embed failed:', e); }
+  }
+
   function drawHR(el) {
     var s = el ? readComputedBlock(el) : { marT: 20, marB: 20 };
     y -= s.marT * 0.5;
@@ -1161,7 +1206,8 @@ async function exportPDF() {
 
     var st = readPdfStyles();
     var chartImages = S.getChartImages ? S.getChartImages() : [];
-    var result = await renderPdf(S.renderedEl, st, chartImages);
+    var mermaidImages = S.getMermaidImages ? await S.getMermaidImages() : [];
+    var result = await renderPdf(S.renderedEl, st, chartImages, mermaidImages);
     restoreSections(closed);
 
     var blob = new Blob([result.bytes], { type: 'application/pdf' });
@@ -1207,7 +1253,8 @@ async function exportWord() {
     await loadHtmlToDocx();
     var closed = expandAllSections();
     await new Promise(function(r) { requestAnimationFrame(function() { setTimeout(r, 150); }); });
-    var html = buildExportHTML();
+    var mermaidImages = S.getMermaidImages ? await S.getMermaidImages() : [];
+    var html = buildExportHTML(mermaidImages);
     restoreSections(closed);
     var blob = await window.HTMLToDOCX(html, null, {
       orientation: 'portrait',

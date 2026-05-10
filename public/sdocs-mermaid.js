@@ -466,4 +466,81 @@
   }
 
   S.processMermaid = processMermaid;
+
+  // ── PDF / Word export rasterization ────────────────────
+  // Mirrors S.getChartImages() — returns one entry per .sdoc-mermaid wrapper
+  // with a PNG dataURL the exporter embeds. Async because SVG → PNG goes
+  // through Image() decode + canvas drawImage.
+  //
+  // Polish CSS from rendered.css doesn't cascade into a serialized standalone
+  // SVG, so the visible polish (rounded shape corners, edge-label chip styling)
+  // is re-emitted as inline <style> on the SVG before rasterization. Theme
+  // tokens are read from the wrapper's live computed style so themed docs
+  // export themed PNGs. The line-height: normal fix isn't needed here — a
+  // standalone SVG inherits the UA "normal" by default, so descenders don't
+  // clip even though they would in the inline #_sd_rendered context.
+  function buildExportPolishCss(wrapper) {
+    var cs = getComputedStyle(wrapper || document.documentElement);
+    var blockBg = (cs.getPropertyValue('--md-block-bg') || '').trim() || '#f4f1ed';
+    var blockText = (cs.getPropertyValue('--md-block-text') || '').trim() || '#6b6560';
+    return [
+      '.node > rect, .node .label-container, .actor, .note > rect,',
+      '.er.entityBox, .label-container[rx], rect.task { rx: 6px; ry: 6px; }',
+      '.edgeLabel foreignObject > div {',
+      '  width: max-content; max-width: 240px; white-space: normal;',
+      '  padding: 2px 8px; border-radius: 8px;',
+      '  background-color: ' + blockBg + ';',
+      '  border: 1px solid ' + blockText + ';',
+      '}',
+      'span.edgeLabel { background: transparent !important; }',
+      'foreignObject > div { text-align: center; }'
+    ].join('\n');
+  }
+
+  function rasterizeSvgToPng(wrapper, svg, scale) {
+    return new Promise(function (resolve, reject) {
+      var rect = svg.getBoundingClientRect();
+      if (!rect.width || !rect.height) return resolve(null);
+      var s = scale || 2;
+      var w = Math.max(1, Math.round(rect.width * s));
+      var h = Math.max(1, Math.round(rect.height * s));
+
+      var clone = svg.cloneNode(true);
+      if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      if (!clone.getAttribute('xmlns:xlink')) clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+      var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      styleEl.textContent = buildExportPolishCss(wrapper);
+      clone.insertBefore(styleEl, clone.firstChild);
+
+      var xml = new XMLSerializer().serializeToString(clone);
+      var b64;
+      try { b64 = btoa(unescape(encodeURIComponent(xml))); }
+      catch (e) { return reject(e); }
+      var url = 'data:image/svg+xml;base64,' + b64;
+
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/png'));
+        } catch (e) { reject(e); }
+      };
+      img.onerror = function () { reject(new Error('mermaid rasterize: image load failed')); };
+      img.src = url;
+    });
+  }
+
+  S.getMermaidImages = function () {
+    var wrappers = document.querySelectorAll('.sdoc-mermaid');
+    var jobs = Array.prototype.map.call(wrappers, function (wrapper) {
+      var svg = wrapper.querySelector('svg');
+      if (!svg) return Promise.resolve({ wrapper: wrapper, dataUrl: null });
+      return rasterizeSvgToPng(wrapper, svg, 2)
+        .then(function (dataUrl) { return { wrapper: wrapper, dataUrl: dataUrl }; })
+        .catch(function () { return { wrapper: wrapper, dataUrl: null }; });
+    });
+    return Promise.all(jobs);
+  };
 })();
