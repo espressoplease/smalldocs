@@ -22,18 +22,19 @@
     '  position: absolute; top: 6px; right: 6px;',
     '  width: 26px; height: 26px;',
     '  display: inline-flex; align-items: center; justify-content: center;',
-    '  background: color-mix(in oklab, var(--md-bg, #fff) 80%, var(--md-color, #000) 12%);',
+    /* Match the code-block copy-btn / chart-menu-btn pattern: background = */
+    /* surrounding block bg so the button blends, with a subtle border. */
+    '  background: var(--md-block-bg, #f4f1ed);',
     '  color: var(--md-color, #1c1917);',
-    '  border: 1px solid color-mix(in oklab, var(--md-color, #000) 12%, transparent);',
-    '  border-radius: 5px;',
-    '  cursor: pointer; opacity: 0; transition: opacity .15s, background .12s;',
+    '  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));',
+    '  border-radius: 4px;',
+    '  cursor: pointer; opacity: 0.7; transition: opacity .15s, background .12s;',
     '  z-index: 2;',
     '}',
-    '.sdoc-mermaid:hover .sdoc-mermaid-zoom-btn,',
     '.sdoc-mermaid-zoom-btn:focus,',
     '.sdoc-mermaid-zoom-btn:hover { opacity: 1; }',
     '.sdoc-mermaid-zoom-btn:hover {',
-    '  background: color-mix(in oklab, var(--md-bg, #fff) 60%, var(--md-color, #000) 22%);',
+    '  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));',
     '}',
     /* Focus modal inherits the block colour cascade from the page so it */
     /* feels like a magnified version of the diagram, not a separate */
