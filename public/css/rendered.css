@@ -392,6 +392,18 @@ foreignObject > div {
   min-width: 120px;
   text-align: center;
 }
+/* Pin line-height: normal on Mermaid's foreignObject and its descendants.
+   Without this, foreignObject inherits #_sd_rendered's 1.75 line-height,
+   which expands the implicit line-box around the inline-block label. The
+   label is then baseline-aligned within that taller line-box and shifts
+   ~4px down inside the shape, clipping descenders against the shape's
+   bottom edge. Mermaid's measurement DOM lives outside #_sd_rendered and
+   inherits UA "normal", so its baked shape height assumes "normal" too -
+   matching that here makes inline render line up with the geometry the
+   focus modal already gets right (it sits in <body>, not #_sd_rendered). */
+foreignObject,
+foreignObject > div,
+foreignObject span { line-height: normal; }
 .sdoc-mermaid-error { outline: 2px dashed #ef4444; text-align: left; }
 .sdoc-mermaid-error-msg {
   color: #ef4444;
