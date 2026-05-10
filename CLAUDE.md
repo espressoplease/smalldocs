@@ -222,6 +222,31 @@ Returning users therefore see a brief (~0.5-2s) flash of the OLD HTML before the
 3. Reload the tab (not a hard reload). You should see: old shell renders briefly, console logs `sdocs-reload`, page auto-reloads into the new shell.
 4. If the intermediate state is visibly broken, either defer-guard the JS (early-return on missing elements, which most modules already do) or call it out in the PR description so reviewers know the flash is expected.
 
+## Adding a new markdown feature
+
+Every fenced-block / inline-render feature (charts, math, mermaid, future ones) touches the same set of surfaces. Mermaid is the most recent worked example; mirror that shape unless there's a reason not to. Skipping any of these tends to ship in a half-broken state that only shows up after a deploy.
+
+1. **Render module** (`public/sdocs-X.js`). Lazy-load the renderer's CDN bundle on first use, never on `DOMContentLoaded`. Run on the rendered output, not the source markdown. **Post-sanitize the produced DOM** (strip `<script>`, `<iframe>`, `<use>`, animation tags, `javascript:` URLs); a renderer's own "safe mode" is not enough. Apply hard limits: per-block source size, per-document block count, per-render timeout.
+2. **Script load order** in `public/index.html`. Add the new script in the correct slot (renderers go after `sdocs-charts.js` / before `sdocs-app.js` unless they hook orchestrator state). `sdocs-app.js`'s render orchestration must call into the new module after marked + DOMPurify; charts/math/mermaid all do this through `SDocs.fn()` late binding.
+3. **Cache-bust on the HTML route.** Adding a new `<script src="/public/...">` only works because every HTML route runs through `serveHtmlWithRewrite()`. If the feature also adds a new HTML entry point, that route must use the same helper or its asset URLs ship un-versioned.
+4. **Service-worker flash**. Adding a new script reshapes the DOM. Run the prod-mode SW refresh check (see "Pre-deploy check: service-worker refresh") and verify modules early-return on missing elements so the brief stale-shell window doesn't render visibly broken.
+5. **Sanitization tests**. Add a Playwright XSS spec covering `<script>`, `on*=` handlers, `javascript:` URLs, `<iframe>` payloads, and `<use href>` smuggling. `test/mermaid.spec.js` is the template. Add a Node-side test (`test/test-X.js`) for any pure transform (directive stripping, parser shape, marked output).
+6. **DoS limits and tests.** Cover both per-block size and per-document count caps in tests. Renderers can hang on adversarial input; without a timeout one bad block freezes the page.
+7. **Export pipeline** (`public/sdocs-export.js`). Anything that renders to live DOM beyond plain HTML (canvas, SVG, foreignObject) needs a rasterization path:
+   - Add `S.getXImages()` to the render module that returns `[{wrapper, dataUrl}]`. SVG sources need an inline `<style>` child injected before `XMLSerializer` because CSS variables don't cascade into a serialized standalone SVG. Pull theme colors off `getComputedStyle(wrapper)` for `--md-block-bg` / `--md-block-text` so dark mode survives.
+   - Rasterize at 2x DPR via canvas, `toDataURL('image/png')`, then divide back to natural pixels in the PDF draw step so the page-fit math is correct.
+   - Wire it into both paths: `inlineX(clone, images)` swaps wrappers for `<img>` in the HTML/Word path, `drawX()` embeds via `doc.embedPng()` + `page.drawImage()` in the pdf-lib path. Walk dispatch in `renderPdf` needs an `else if (el.classList.contains('sdoc-X'))` branch.
+   - Thread the images list through `buildExportHTML(...)`, `renderPdf(...)`, and both `exportPDF` / `exportWord` entry points.
+   - **Word export currently breaks on data-URL `<img>` tags** (html-to-docx Buffer-polyfill bug) — affects charts and mermaid. Not a regression to fix per-feature; flag if a user reports it.
+8. **Section toggles.** Diagrams/charts inside collapsed `.md-section-body` measure 0×0. Anything that calls `getBoundingClientRect` (rasterizer, focus modal sizing) must run after `expandAllSections()` or be defensive when called on a hidden element.
+9. **CDN load resilience.** First-use CDN load can fail or be slow. Lazy-load helpers should resolve a single shared promise and surface an inline error in the wrapper rather than throwing into render orchestration.
+10. **CLI reference.** Add `sdoc <feature>` (e.g. `sdoc diagrams`) that prints the type list, syntax, and security model. Agents read this themselves before writing fenced blocks; the agent integration block points at it instead of duplicating syntax.
+11. **`sdoc <file>` integration**. If the feature owns a file extension (`.mmd`, `.mermaid`), wrap the file in the appropriate fence in `bin/sdocs-dev.js` so `sdoc graph.mmd` works out of the box.
+12. **Showcase + feature-intro docs**. Build a gallery page covering every supported sub-type with source blocks, plus a separate feature-introduction doc with intro paragraph, agent-prompt examples, CLI upgrade note, then the gallery. Keep them as two files: gallery is reference, intro is the announcement payload.
+13. **`public/sdoc.md`**. Add a feature section with a link to the gallery; mirror the way charts and diagrams are listed.
+14. **Agent integration block** (`bin/sdocs-dev.js`). Only update if agents need to know the feature exists to use it (Mermaid + Charts qualify; styling tweaks don't). Bump `AGENT_BLOCK_VERSION`, set `AGENT_BLOCK_REASON`, prepend a `## v<N>` section to `public/agent-changes.md`, reword the per-agent snippets in `public/sdoc.md`, and tag the release. (Full release checklist is in the "Agent integration block" section above.)
+15. **Notification entry** (`public/notifications.json`). Add an entry at the top with a fresh `id`, today's date, calm title, and a hash-encoded link to the feature-introduction doc. The user-facing notification dot lights up only for entries newer than the user's last-seen mark.
+
 ## Charts
 
 Render charts in markdown via ` ```chart ` fenced code blocks with JSON data. Charts are powered by Chart.js v4 (lazy-loaded from CDN on first use).
