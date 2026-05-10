@@ -1440,12 +1440,13 @@ function compressToBase64Url(text) {
 
 function decompressFromBase64Url(b64url) {
   const buf = fromBase64Url(b64url);
-  // Try brotli first, fall back to deflate for old URLs
+  // Try brotli first, fall back to deflate for old URLs.
+  // Treat empty output from non-trivial input as failure (matches browser).
   try {
-    return zlib.brotliDecompressSync(buf).toString('utf-8');
-  } catch (_) {
-    return zlib.inflateRawSync(buf).toString('utf-8');
-  }
+    const out = zlib.brotliDecompressSync(buf);
+    if (out.length > 0 || buf.length <= 2) return out.toString('utf-8');
+  } catch (_) {}
+  return zlib.inflateRawSync(buf).toString('utf-8');
 }
 
 // ── Short-link encrypt + upload (AES-GCM, client-held key) ─
