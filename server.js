@@ -465,7 +465,7 @@ const server = http.createServer((req, res) => {
 
   // Shape playground — Phase 1 dev tool for the slides framework.
   if (pathname === '/shapes') {
-    serveFile(res, path.join(__dirname, 'public', 'shapes.html'), { 'Cache-Control': 'no-cache' });
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'shapes.html'), null, { 'Cache-Control': 'no-cache' });
     return;
   }
 
