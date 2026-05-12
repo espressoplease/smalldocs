@@ -224,8 +224,9 @@ function processSlides(container) {
   // of placeholder content, and consumers always see the expanded DSL.
   var rawDsls = [];
   for (var b = 0; b < blocks.length; b++) rawDsls.push(blocks[b].textContent);
+  var stdlibTemplates = window.SDocSlideStdlib ? window.SDocSlideStdlib.templates : null;
   var resolved = window.SDocSlideResolve
-    ? window.SDocSlideResolve.resolveSlides(rawDsls, window.SDocShapes)
+    ? window.SDocSlideResolve.resolveSlides(rawDsls, window.SDocShapes, { stdlib: stdlibTemplates })
     : rawDsls.map(function (d) { return { dsl: d, skip: false, errors: [] }; });
 
   var slideIdx = 0;

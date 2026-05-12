@@ -1,7 +1,8 @@
 // @ts-check
-// Playwright tests for the slide-rendering pipeline: grid bg=, font=Npx,
-// font=fixed, and the error-badge Copy button. Runs against the dev server
-// via playwright.config.js.
+// Playwright tests for the slide-rendering pipeline: grid bg=, role-based
+// typography (text=title|subtitle|body|caption), size= override, size=fit
+// opt-in autofit, and the error-badge Copy button. Runs against the dev
+// server via playwright.config.js.
 const { test, expect } = require('@playwright/test');
 
 async function renderBody(page, body) {
@@ -40,14 +41,14 @@ test.describe('Slide rendering pipeline', () => {
     expect(inline).toBe('');
   });
 
-  test('font=18px emits 18px at the reference size', async ({ page }) => {
-    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 font=18px | caption'));
+  test('size=18px emits 18px at the reference size', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 size=18px | caption'));
     const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
     expect(fs).toBe('18px');
   });
 
-  test('font=24px emits a larger size than font=12px', async ({ page }) => {
-    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 0 0 50 20 font=24px | big\nr 50 0 50 20 font=12px | small\n```\n';
+  test('size=24px emits a larger size than size=12px', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 0 0 50 20 size=24px | big\nr 50 0 50 20 size=12px | small\n```\n';
     await renderBody(page, body);
     const sizes = await page.$$eval('.sdoc-slide .shape-rect', (els) => els.map((el) => parseFloat(el.style.fontSize)));
     expect(sizes.length).toBe(2);
@@ -56,26 +57,54 @@ test.describe('Slide rendering pipeline', () => {
     expect(sizes[1]).toBeCloseTo(12, 3);
   });
 
-  test('font=fixed tags the element and pins cascade size as px after render', async ({ page }) => {
-    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 font=fixed | fine print'));
+  test('default role is body (24px); no autofit, no font= attr needed', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 | hello'));
     const info = await page.$eval('.sdoc-slide .shape-rect', (el) => ({
       autofit: el.dataset.autofit,
-      mode: el.dataset.fontMode,
       fontSize: el.style.fontSize,
     }));
     expect(info.autofit).toBe('off');
-    expect(info.mode).toBe('fixed');
-    expect(info.fontSize).toMatch(/px$/);
+    expect(info.fontSize).toBe('24px');
   });
 
-  test('autofit text (no font= attr) emits px via binary search', async ({ page }) => {
-    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 30 | autofit title'));
+  test('text=title resolves to the title role px (64px)', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 0 0 100 20 text=title | Big title'));
+    const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
+    expect(fs).toBe('64px');
+  });
+
+  test('roles span a fixed 4-step scale (title > subtitle > body > caption)', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\n'
+      + 'r 0 0 100 14 text=title    | Title\n'
+      + 'r 0 14 100 14 text=subtitle | Subtitle\n'
+      + 'r 0 28 100 14 text=body     | Body\n'
+      + 'r 0 42 100 14 text=caption  | Caption\n'
+      + '```\n';
+    await renderBody(page, body);
+    const sizes = await page.$$eval('.sdoc-slide .shape-rect', (els) => els.map((el) => parseFloat(el.style.fontSize)));
+    expect(sizes).toEqual([64, 40, 24, 14]);
+  });
+
+  test('size= overrides the role even when text= is set', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 0 0 100 20 text=title size=18px | smaller than the role default'));
+    const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
+    expect(fs).toBe('18px');
+  });
+
+  test('size=fit opts in to autofit (binary search picks a px size)', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 30 size=fit | autofit title'));
     const info = await page.$eval('.sdoc-slide .shape-rect', (el) => ({
-      autofit: el.dataset.autofit || 'on',
+      autofit: el.dataset.autofit,
       fontSize: el.style.fontSize,
     }));
     expect(info.autofit).toBe('on');
     expect(info.fontSize).toMatch(/px$/);
+  });
+
+  test('unknown role names fall back to body (24px) without error', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 text=hedaing | typo'));
+    const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
+    expect(fs).toBe('24px');
   });
 
   test('error badge lists line-numbered errors and has a Copy button', async ({ page }) => {
@@ -130,12 +159,12 @@ test.describe('Slide rendering pipeline', () => {
     expect(styleText).not.toMatch(/font-size:\s*-\d/);
   });
 
-  test('autofit runs even when slide is inside a collapsed section', async ({ page }) => {
+  test('size=fit autofit runs even when slide is inside a collapsed section', async ({ page }) => {
     // Slides render at a reference size in an offscreen stage, so autofit
     // no longer depends on the live container being laid out. Even inside
     // a closed .md-section-body, the rect should have its px font-size
-    // populated on first render — not empty.
-    const body = '# Deck\n\n## Section\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Hello\n```\n';
+    // populated on first render - not empty.
+    const body = '# Deck\n\n## Section\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 size=fit | Hello\n```\n';
     await page.goto('/');
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);

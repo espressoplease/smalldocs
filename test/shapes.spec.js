@@ -351,13 +351,13 @@ test.describe('shape playground', () => {
     await expect(page.locator('#stage .shape-text')).toHaveCount(0);
   });
 
-  test('auto-fit produces smaller font for same text in smaller shape', async ({ page }) => {
+  test('size=fit auto-fit produces smaller font for same text in smaller shape', async ({ page }) => {
     await gotoPlayground(page);
     // Two shapes, same text, different sizes. Smaller shape must get smaller font.
     await setDSL(page, [
       'grid 100 56.25',
-      'r 0 0 50 25 #big   | The quick brown fox jumps over the lazy dog',
-      'r 60 0 20 10 #small | The quick brown fox jumps over the lazy dog',
+      'r 0 0 50 25 #big   size=fit | The quick brown fox jumps over the lazy dog',
+      'r 60 0 20 10 #small size=fit | The quick brown fox jumps over the lazy dog',
     ].join('\n'));
     await page.waitForTimeout(50);
     const sizes = await page.evaluate(() => {
@@ -368,11 +368,11 @@ test.describe('shape playground', () => {
     expect(sizes.small).toBeGreaterThanOrEqual(8);
   });
 
-  test('auto-fit grows font for short text in large shape', async ({ page }) => {
+  test('size=fit auto-fit grows font for short text in large shape', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, [
       'grid 100 56.25',
-      'r 0 0 100 56.25 | Hi',
+      'r 0 0 100 56.25 size=fit | Hi',
     ].join('\n'));
     await page.waitForTimeout(50);
     const size = await page.locator('#stage .shape-rect').evaluate(el => parseFloat(getComputedStyle(el).fontSize));
@@ -381,11 +381,11 @@ test.describe('shape playground', () => {
     expect(size).toBeGreaterThan(30);
   });
 
-  test('auto-fit text stays bounded and scales with viewport (transform-based)', async ({ page }) => {
+  test('size=fit auto-fit text stays bounded and scales with viewport (transform-based)', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, [
       'grid 100 56.25',
-      'r 10 10 40 20 | Medium amount of text in a rectangle',
+      'r 10 10 40 20 size=fit | Medium amount of text in a rectangle',
     ].join('\n'));
     await page.waitForTimeout(50);
     // Stage is a fixed reference canvas scaled by CSS transform to fit its
@@ -490,11 +490,11 @@ test.describe('shape playground', () => {
     expect(pad).toBeGreaterThan(3);
   });
 
-  test('auto-fit text does not overflow its element', async ({ page }) => {
+  test('size=fit auto-fit text does not overflow its element', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, [
       'grid 100 56.25',
-      'r 10 10 40 20 | Quite a bit of text in a medium-sized rectangle',
+      'r 10 10 40 20 size=fit | Quite a bit of text in a medium-sized rectangle',
     ].join('\n'));
     await page.waitForTimeout(50);
     // Content lives in a shadow root; measure the inner wrapper which is what
@@ -558,11 +558,11 @@ test.describe('shape playground', () => {
     await expect(page.locator('#stage .shape-rect p')).toContainText('paragraph after');
   });
 
-  test('markdown: auto-fit still keeps content bounded', async ({ page }) => {
+  test('markdown: size=fit auto-fit still keeps content bounded', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, [
       'grid 100 56.25',
-      'r 10 10 40 25 |',
+      'r 10 10 40 25 size=fit |',
       '  ## Wins',
       '  - Shipped **X**',
       '  - Launched **Y**',
