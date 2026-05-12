@@ -103,7 +103,7 @@ var CSS = [
   '.sdoc-present-counter {',
   '  color: #8a8580; font-size: 12px;',
   '  font-family: ui-monospace, Menlo, monospace;',
-  '  margin-left: auto; flex-shrink: 0;',
+  '  padding: 0 6px; flex-shrink: 0;',
   '}',
   '.sdoc-present-rail {',
   '  grid-row: 2;',
@@ -146,11 +146,9 @@ var CSS = [
   '  .sdoc-present-stage-wrap { padding: 16px; }',
   '  .sdoc-present-topbar { gap: 10px; }',
   /* Tighter: swap "SmallDocs Slides" for "SDoc Slides". */
-  '  .sdoc-present-brand { margin-right: 0; order: 1; }',
+  '  .sdoc-present-brand { margin-right: 0; }',
   '  .sdoc-present-brand-full { display: none; }',
   '  .sdoc-present-brand-short { display: inline; }',
-  '  .sdoc-present-counter { margin-left: 0; order: 2; }',
-  '  .sdoc-present-actions { order: 3; }',
   '}',
   /* Very narrow: "SD Slides" only. */
   '@media (max-width: 420px) {',
@@ -427,6 +425,38 @@ function open(startIndex) {
   var actions = document.createElement('div');
   actions.className = 'sdoc-present-actions';
 
+  // Order mirrors the mermaid focus topbar so users get the same
+  // muscle-memory across overlays: brand | <auto> | nav | counter |
+  // sep | export | sep | close.
+
+  var prevBtn = document.createElement('button');
+  prevBtn.className = 'sdoc-present-btn';
+  prevBtn.type = 'button';
+  prevBtn.setAttribute('aria-label', 'Previous slide');
+  prevBtn.title = 'Previous slide (↑)';
+  prevBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="m18 15-6-6-6 6"/></svg>';
+  prevBtn.addEventListener('click', function () { go(state.index - 1); });
+  actions.appendChild(prevBtn);
+
+  var nextBtn = document.createElement('button');
+  nextBtn.className = 'sdoc-present-btn';
+  nextBtn.type = 'button';
+  nextBtn.setAttribute('aria-label', 'Next slide');
+  nextBtn.title = 'Next slide (↓)';
+  nextBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="m6 9 6 6 6-6"/></svg>';
+  nextBtn.addEventListener('click', function () { go(state.index + 1); });
+  actions.appendChild(nextBtn);
+
+  var counter = document.createElement('div');
+  counter.className = 'sdoc-present-counter';
+  actions.appendChild(counter);
+
+  var sep1 = document.createElement('span');
+  sep1.className = 'sdoc-present-sep';
+  actions.appendChild(sep1);
+
   var exportBtn = document.createElement('button');
   exportBtn.className = 'sdoc-present-btn sdoc-present-export-btn';
   exportBtn.type = 'button';
@@ -437,9 +467,9 @@ function open(startIndex) {
   exportBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleExportPanel(); });
   actions.appendChild(exportBtn);
 
-  var sep = document.createElement('span');
-  sep.className = 'sdoc-present-sep';
-  actions.appendChild(sep);
+  var sep2 = document.createElement('span');
+  sep2.className = 'sdoc-present-sep';
+  actions.appendChild(sep2);
 
   var close = document.createElement('button');
   close.className = 'sdoc-present-btn sdoc-present-close';
@@ -452,10 +482,6 @@ function open(startIndex) {
   actions.appendChild(close);
 
   topbar.appendChild(actions);
-
-  var counter = document.createElement('div');
-  counter.className = 'sdoc-present-counter';
-  topbar.appendChild(counter);
 
   modal.appendChild(topbar);
 
