@@ -296,7 +296,14 @@ function buildRailThumb(idx, dsl) {
   btn.appendChild(num);
   var wrap = document.createElement('div');
   btn.appendChild(wrap);
-  window.SDocShapeRender.renderShapes(dsl, wrap);
+  // For charts, re-rendering Chart.js at thumbnail dimensions makes
+  // fonts dominate and bars collapse. Substitute the PNGs captured
+  // during inline rendering (stashed on the source .sd-slide-wrap)
+  // so the thumbnail shows the same pixels as the inline view.
+  var srcSlide = document.querySelectorAll('.sdoc-slide[data-dsl]')[idx];
+  var srcWrap = srcSlide && srcSlide.querySelector('.sd-slide-wrap');
+  var chartImages = srcWrap && srcWrap.__chartImages;
+  window.SDocShapeRender.renderShapes(dsl, wrap, { chartImages: chartImages });
   btn.addEventListener('click', function () { go(idx); });
   return btn;
 }
