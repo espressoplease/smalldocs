@@ -46,15 +46,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # Intentionally omit `registry-url` so setup-node doesn't write
-      # an .npmrc with `_authToken=${NODE_AUTH_TOKEN}`. With Trusted
-      # Publisher / OIDC, no token is needed; the placeholder authToken
-      # that setup-node would inject overrides OIDC on the publish PUT
-      # and gets rejected as 404.
       - name: Set up Node
         uses: actions/setup-node@v5
         with:
           node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Node 20 ships with npm 10.x, which does not detect OIDC and
+      # sends setup-node's placeholder _authToken on the publish PUT
+      # (registry rejects as 404). npm 11.5+ overrides _authToken
+      # with the OIDC token when running in a workflow with
+      # id-token: write. Upgrade explicitly so we don't depend on
+      # whichever npm the Node distribution happens to bundle.
+      - name: Upgrade npm for OIDC trusted publisher support
+        run: npm install -g npm@latest
 
       - name: Verify tag matches package.json version
         if: github.event_name == 'push'
