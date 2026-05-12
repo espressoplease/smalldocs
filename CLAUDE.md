@@ -102,6 +102,18 @@ All CLI-side state lives under `~/.sdocs/`:
 - `update-check.json` - daily npm version cache
 - `setup.json` - agent setup tracking. Schema v1 fields (added in 1.5.0): `schemaVersion`, `setupCompleted`, `writtenTo`, `declined`, `autoRefreshAgentFiles`, `autoInstallUpdates`, `lastRunVersion`. Pre-1.5.0 state files are migrated transparently on first read by `migrateSetupState()`.
 
+## Published npm tarball
+
+`sdocs-dev` on npm ships only what's in the `files` array of `package.json`: `bin/sdocs-dev.js`, `bin/sdocs-postinstall.js`, and three browser-shared modules under `public/` (`sdocs-yaml.js`, `sdocs-styles.js`, `sdocs-slugify.js`). Everything else - `server.js`, `short-links/`, `feedback/`, `analytics/`, the rest of `public/`, the tests - runs from a git checkout (local dev, production) and never reaches a user via `npm i -g`.
+
+**Distribution rule for `package.json` deps:**
+
+- `dependencies` ship with `npm i -g sdocs-dev`. Reserve this section for modules `bin/` actually loads. The CLI currently has zero runtime deps - `bin/sdocs-dev.js` is plain Node standard library - so a global install pulls no native modules and runs no third-party postinstall. Promoting a server-only module here forces every CLI user to download and (for native modules) build it for nothing.
+- `devDependencies` cover everything else: tests, the server, browser bundles loaded only by `index.html`. `better-sqlite3` lives here even though it is loaded at runtime by `short-links/db.js`, `feedback/db.js`, and `analytics/db.js` - those files are server-only and lazy-`require` it from inside `init()`, so test runs and the server pick it up via the dev-deps install, but CLI users never see it.
+- Before adding a new runtime dep to `bin/`, audit standard-library options first. The supply-chain story in `public/agent-evaluation.md` (and the byte-comparison fallback for pre-provenance versions) leans on the CLI being a single auditable file with no third-party runtime surface.
+
+When in doubt: if a file's path is not in the `files` array, it is server-side and its deps belong in `devDependencies`.
+
 ## Architecture
 
 The entire app is stateless. The server just serves static files. All state (current markdown content, parsed front matter, style values) lives in the `window.SDocs` namespace in the browser, primarily `SDocs.currentBody` and `SDocs.currentMeta`.
