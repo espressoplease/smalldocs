@@ -868,7 +868,233 @@ function renderShapes(dslText, wrap, options) {
 
   attachScaler(wrap, stage, rW);
 
+  // After shapes land in the live DOM, run chart / math / mermaid
+  // post-processors against each shape's shadow root. They use
+  // querySelectorAll which doesn't cross shadow boundaries, so each
+  // shadow needs its own pass.
+  // options.chartImages: array of PNG data URLs from a previous
+  // inline render. When passed (rail-thumb context), chart code
+  // blocks are replaced with <img> rather than re-rendered.
+  processShadowBlocks(stage, { chartImages: options.chartImages });
+
+  // Schedule a chart snapshot pass so present-mode rail thumbs
+  // can substitute pre-rendered PNGs instead of re-instantiating
+  // Chart.js at thumbnail dimensions (where fonts look enormous
+  // and bars get crushed). The snapshot is stored on the wrap so
+  // callers can fish it out. Skip when we already used PNGs (rail
+  // thumbnail path) - no need to re-snapshot pre-rendered PNGs.
+  if (!options.chartImages) snapshotChartsForReuse(stage, wrap);
+
   return result;
+}
+
+// Walk every .shape-md host in the stage and run the chart / math /
+// mermaid processors on its shadow root. Each processor uses
+// container.querySelectorAll, which doesn't cross shadow boundaries -
+// so a single processor call against the main doc misses anything
+// inside slide shapes.
+//
+// KaTeX and Mermaid both need stylesheets that don't cross the shadow
+// boundary either. Inject them on demand into shadow roots that contain
+// matching content; Chart.js draws to a canvas and needs no extra CSS.
+function processShadowBlocks(stage, opts) {
+  if (!stage || typeof stage.querySelectorAll !== 'function') return;
+  opts = opts || {};
+  var hosts = stage.querySelectorAll('.shape-md');
+  var chartImageIndex = 0;
+  for (var i = 0; i < hosts.length; i++) {
+    var host = hosts[i];
+    var root = host.shadowRoot;
+    if (!root) continue;
+
+    var hasChart   = !!root.querySelector('code.language-chart');
+    var hasMath    = !!root.querySelector('.sdocs-math-display, .sdocs-math-inline');
+    var hasMermaid = !!root.querySelector('code.language-mermaid');
+
+    if (hasChart) {
+      injectChartCss(root);
+      if (opts.chartImages && opts.chartImages.length) {
+        // Rail-thumb context: substitute pre-rendered PNGs for chart
+        // code blocks. Avoids re-running Chart.js at thumbnail size
+        // where the canvas measures tiny and fixed-px fonts blow up.
+        var chartCodes = root.querySelectorAll('code.language-chart');
+        for (var c = 0; c < chartCodes.length; c++) {
+          var url = opts.chartImages[chartImageIndex++];
+          var pre = chartCodes[c].closest('pre');
+          if (!pre || !url) continue;
+          var wrapperEl = document.createElement('div');
+          wrapperEl.className = 'sdoc-chart';
+          var img = document.createElement('img');
+          img.src = url;
+          img.alt = '';
+          img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;';
+          wrapperEl.appendChild(img);
+          pre.parentNode.replaceChild(wrapperEl, pre);
+        }
+      } else if (window.SDocs && typeof window.SDocs.processCharts === 'function') {
+        try { window.SDocs.processCharts(root, { slideContext: true }); } catch (_) {}
+      }
+    }
+    if (hasMath) {
+      injectKatexCss(root);
+      if (window.SDocs && typeof window.SDocs.processMath === 'function') {
+        try { window.SDocs.processMath(root); } catch (_) {}
+      }
+    }
+    if (hasMermaid) {
+      injectMermaidCss(root);
+      if (window.SDocs && typeof window.SDocs.processMermaid === 'function') {
+        try { window.SDocs.processMermaid(root); } catch (_) {}
+      }
+    }
+  }
+}
+
+// Minimal chart CSS for shadow-rooted shapes. We hide the chart-menu UI
+// entirely - the menu's click handler delegates from document, and DOM
+// events inside a shadow root don't bubble to document listeners, so the
+// menu would render visible-but-inert. Tighter padding than the main-doc
+// rule (.sdoc-chart in rendered.css uses 16px) because the shape's own
+// padding already adds breathing room.
+// Chart wrapper inside a shape needs explicit dimensions for Chart.js
+// (responsive + maintainAspectRatio) to size the canvas. The shape-md
+// host is a flex item inside the .shape-rect parent, sized by its
+// intrinsic content - but a chart has no intrinsic size, so the chain
+// collapses to 0x0. Filling 100% of the host gives the canvas a real
+// box to measure against.
+//
+// The chart-menu UI is hidden: its click handler delegates from
+// document, and clicks inside a shadow root don't bubble to document
+// listeners, so the menu would render visible-but-inert.
+var CHART_SHADOW_CSS = [
+  ':host { display: block; width: 100%; height: 100%; }',
+  '.inner { width: 100%; height: 100%; }',
+  '.sdoc-chart {',
+  '  margin: 0; padding: 0; background: transparent;',
+  '  width: 100%; height: 100%; max-width: 100%;',
+  '  position: relative;',
+  '}',
+  '.sdoc-chart canvas { width: 100% !important; height: 100% !important; }',
+  '.chart-menu-btn, .chart-menu { display: none !important; }',
+].join('\n');
+
+// Wait until every chart canvas inside `stage` has a Chart.js instance
+// attached and a non-zero drawing buffer, then snapshot each canvas to
+// a PNG data URL. The PNGs are stashed on the wrap element so present
+// mode (or other callers) can read them via wrap.__chartImages.
+//
+// Reason: rail thumbnails in present mode re-render the slide DSL at
+// thumbnail dimensions, where Chart.js's internal measurement collapses
+// and fixed-px fonts render at chart-dominating sizes. Substituting the
+// pre-rendered PNG sidesteps the whole re-render path.
+function snapshotChartsForReuse(stage, wrap) {
+  var canvases = [];
+  var hosts = stage.querySelectorAll('.shape-md');
+  for (var i = 0; i < hosts.length; i++) {
+    var root = hosts[i].shadowRoot;
+    if (!root) continue;
+    var cs = root.querySelectorAll('canvas');
+    for (var j = 0; j < cs.length; j++) canvases.push(cs[j]);
+  }
+  if (!canvases.length) return;
+
+  var attempts = 0;
+  function tick() {
+    attempts++;
+    var Chart = window.Chart;
+    var allReady = Chart && canvases.every(function (c) {
+      var chart = Chart.getChart ? Chart.getChart(c) : null;
+      return chart && c.width > 0 && c.height > 0;
+    });
+    if (allReady) {
+      wrap.__chartImages = canvases.map(function (c) {
+        try { return c.toDataURL('image/png'); } catch (_) { return null; }
+      });
+      return;
+    }
+    if (attempts < 40) setTimeout(tick, 100);
+  }
+  setTimeout(tick, 100);
+}
+
+function injectChartCss(shadow) {
+  if (shadow._chartCssInjected) return;
+  shadow._chartCssInjected = true;
+  var style = document.createElement('style');
+  style.textContent = CHART_SHADOW_CSS;
+  shadow.appendChild(style);
+  // The shape-md host CSS in SHAPE_MD_SHADOW_CSS uses `:host { display: block }`
+  // with intrinsic sizing. For a chart shape, give the host an explicit
+  // width/height so the chart wrapper has a parent box to fill. Other
+  // shape kinds (text-only) keep the original intrinsic sizing.
+  if (shadow.host) {
+    shadow.host.style.width = '100%';
+    shadow.host.style.height = '100%';
+  }
+}
+
+// KaTeX CSS lives at the same URL the math module loads. Injecting a
+// <link> inside the shadow root makes the rules apply to katex output
+// that lives there. The browser de-dupes the underlying fetch across
+// many shadow roots that reference the same href.
+var KATEX_CSS_URL = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+function injectKatexCss(shadow) {
+  if (shadow._katexCssInjected) return;
+  shadow._katexCssInjected = true;
+  var link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = KATEX_CSS_URL;
+  shadow.appendChild(link);
+}
+
+// Subset of the .sdoc-mermaid polish from css/rendered.css, tightened
+// for use inside a slide shape (no outer margin / padding / fill - the
+// shape itself owns those). Keep the SVG-side selectors (rx/ry rounding,
+// edge-label chip styling, foreignObject line-height) in sync with the
+// matching block in rendered.css. The chip's background-color inherits
+// --md-block-bg, which crosses the shadow boundary cleanly.
+var MERMAID_SHADOW_CSS = [
+  ':host { display: block; width: 100%; height: 100%; }',
+  '.inner { width: 100%; height: 100%; text-align: center; }',
+  '.sdoc-mermaid {',
+  '  margin: 0; padding: 0; background: transparent;',
+  '  overflow: hidden; text-align: center;',
+  '  width: 100%; height: 100%;',
+  '}',
+  '.sdoc-mermaid svg { max-width: 100%; max-height: 100%; height: auto; width: auto; display: inline-block; }',
+  'svg.sdoc-mermaid-svg { overflow: visible; }',
+  'svg.sdoc-mermaid-svg .node > rect,',
+  'svg.sdoc-mermaid-svg .node .label-container,',
+  'svg.sdoc-mermaid-svg .actor,',
+  'svg.sdoc-mermaid-svg .note > rect,',
+  'svg.sdoc-mermaid-svg .er.entityBox,',
+  'svg.sdoc-mermaid-svg .label-container[rx],',
+  'svg.sdoc-mermaid-svg rect.task { rx: 6px; ry: 6px; }',
+  '.edgeLabel foreignObject > div {',
+  '  min-width: 0;',
+  '  width: max-content !important;',
+  '  max-width: 240px !important;',
+  '  white-space: normal !important;',
+  '  padding: 2px 8px; border-radius: 8px;',
+  '  background-color: var(--md-block-bg, #f4f1ed);',
+  '}',
+  'svg.sdoc-mermaid-svg span.edgeLabel { background: transparent !important; }',
+  'foreignObject > div { min-width: 120px; text-align: center; }',
+  'foreignObject, foreignObject > div, foreignObject span { line-height: normal; }',
+].join('\n');
+
+function injectMermaidCss(shadow) {
+  if (shadow._mermaidCssInjected) return;
+  shadow._mermaidCssInjected = true;
+  var style = document.createElement('style');
+  style.textContent = MERMAID_SHADOW_CSS;
+  shadow.appendChild(style);
+  // Same reason as injectChartCss: mermaid has no intrinsic size before
+  // render, so the shape-md host collapses without an explicit fill.
+  if (shadow.host) {
+    shadow.host.style.width = '100%';
+    shadow.host.style.height = '100%';
+  }
 }
 
 window.SDocShapeRender = {
