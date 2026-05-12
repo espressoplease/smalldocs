@@ -42,8 +42,13 @@
     /* per-instance in JS to whichever block colours are currently in */
     /* effect, then read here. The topbar tints slightly darker than the */
     /* stage via color-mix to give a subtle separation. */
+    // z-index sits above .sdoc-present (10000) and its topbar (10001) so
+    // the focus modal is the dominant surface when opened from inside
+    // presentation mode. The present modal is also display:none'd in
+    // open()/close() so nothing peeks through if the focus modal ends up
+    // with a translucent background.
     '.sdoc-mermaid-focus {',
-    '  position: fixed; inset: 0; z-index: 10000;',
+    '  position: fixed; inset: 0; z-index: 10100;',
     '  background: var(--sdoc-focus-bg, #f4f1ed);',
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '  display: grid; grid-template-rows: 40px 1fr;',
@@ -230,6 +235,15 @@
     return btn;
   }
 
+  // Treat unset, "transparent", and "rgba(0, 0, 0, 0)" as no-fill so we
+  // can fall back to a sensible default. Browsers serialise transparent
+  // either way depending on cascade history.
+  function isTransparentColor(c) {
+    if (!c) return true;
+    c = String(c).replace(/\s+/g, '');
+    return c === 'transparent' || c === 'rgba(0,0,0,0)';
+  }
+
   // ── State ─────────────────────────────────────────────
   var modal = null;
   var stageEl = null;
@@ -326,6 +340,16 @@
     var probe = sourceWrapper || rendered;
     var cs = probe ? getComputedStyle(probe) : null;
     var blockBg = (cs && cs.backgroundColor) || '';
+    // Inside a slide shape the .sdoc-mermaid wrapper is intentionally
+    // transparent so the shape's own background shows through. If we
+    // copy that transparent value onto --sdoc-focus-bg, the focus modal
+    // itself becomes transparent and whatever's underneath (present
+    // mode, the doc body) bleeds through. Fall back to the rendered
+    // doc's background, then to the CSS default.
+    if (isTransparentColor(blockBg)) {
+      var rendBg = rendered ? getComputedStyle(rendered).backgroundColor : '';
+      blockBg = isTransparentColor(rendBg) ? '' : rendBg;
+    }
     var fg = '';
     if (rendered) {
       var rcs = getComputedStyle(rendered);
@@ -396,6 +420,12 @@
     document.body.appendChild(modal);
     document.body.classList.add('sdoc-mermaid-focus-open');
 
+    // When opened from within presentation mode, hide the present modal
+    // entirely. Otherwise its topbar (z-index 10001) and rail show
+    // through and there are visually two stacked menus competing for
+    // attention. close() restores the original display value.
+    hidePresentModal();
+
     topbarEl = topbar;
 
     topbar.addEventListener('click', onTopbarClick);
@@ -433,8 +463,30 @@
     modal = null; stageEl = null; svgWrap = null; topbarEl = null;
     document.body.classList.remove('sdoc-mermaid-focus-open');
     tx = 0; ty = 0; scale = 1; isDragging = false; dragStart = null;
+    restorePresentModal();
     if (prevFocus && prevFocus.focus) try { prevFocus.focus(); } catch (_) {}
     prevFocus = null;
+  }
+
+  // Track whether we hid the present modal on open, so close() only
+  // restores when we were the one to hide it.
+  var presentHiddenByUs = false;
+  function hidePresentModal() {
+    var p = document.querySelector('.sdoc-present');
+    if (p && p.style.display !== 'none') {
+      p._sdocFocusPrevDisplay = p.style.display;
+      p.style.display = 'none';
+      presentHiddenByUs = true;
+    }
+  }
+  function restorePresentModal() {
+    if (!presentHiddenByUs) return;
+    presentHiddenByUs = false;
+    var p = document.querySelector('.sdoc-present');
+    if (p && '_sdocFocusPrevDisplay' in p) {
+      p.style.display = p._sdocFocusPrevDisplay;
+      delete p._sdocFocusPrevDisplay;
+    }
   }
 
   // Toggle .has-overflow / .scrolled-end so CSS can show / hide the

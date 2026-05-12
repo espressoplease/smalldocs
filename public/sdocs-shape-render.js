@@ -1056,10 +1056,13 @@ function injectKatexCss(shadow) {
 var MERMAID_SHADOW_CSS = [
   ':host { display: block; width: 100%; height: 100%; }',
   '.inner { width: 100%; height: 100%; text-align: center; }',
+  // `position: relative` is required so the expand button (which is
+  // position: absolute at top:6px / right:6px) anchors to the diagram
+  // wrapper rather than floating up to the next positioned ancestor.
   '.sdoc-mermaid {',
   '  margin: 0; padding: 0; background: transparent;',
   '  overflow: hidden; text-align: center;',
-  '  width: 100%; height: 100%;',
+  '  width: 100%; height: 100%; position: relative;',
   '}',
   '.sdoc-mermaid svg { max-width: 100%; max-height: 100%; height: auto; width: auto; display: inline-block; }',
   'svg.sdoc-mermaid-svg { overflow: visible; }',
@@ -1081,6 +1084,27 @@ var MERMAID_SHADOW_CSS = [
   'svg.sdoc-mermaid-svg span.edgeLabel { background: transparent !important; }',
   'foreignObject > div { min-width: 120px; text-align: center; }',
   'foreignObject, foreignObject > div, foreignObject span { line-height: normal; }',
+  // The expand button is styled by global CSS in sdocs-mermaid-focus.js,
+  // which doesn't cross the shadow boundary. Mirror the rules here so
+  // the button anchors to the diagram wrapper instead of falling back
+  // to position:static and landing in the middle of the shape.
+  '.sdoc-mermaid-zoom-btn {',
+  '  position: absolute; top: 6px; right: 6px;',
+  '  width: 26px; height: 26px;',
+  '  display: inline-flex; align-items: center; justify-content: center;',
+  '  background: var(--md-block-bg, #f4f1ed);',
+  '  color: var(--md-color, #1c1917);',
+  '  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));',
+  '  border-radius: 4px;',
+  '  cursor: pointer; opacity: 0.7;',
+  '  transition: opacity .15s, background .12s;',
+  '  z-index: 2;',
+  '}',
+  '.sdoc-mermaid-zoom-btn:hover,',
+  '.sdoc-mermaid-zoom-btn:focus { opacity: 1; }',
+  '.sdoc-mermaid-zoom-btn:hover {',
+  '  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));',
+  '}',
 ].join('\n');
 
 function injectMermaidCss(shadow) {
