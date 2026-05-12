@@ -327,6 +327,18 @@
   // cluster's bounding rect, sort smallest-first (so nested subgraphs claim
   // their nodes before their parent), and assign each node to the smallest
   // cluster whose rect contains the node's centre.
+  //
+  // getBoundingClientRect is the right tool here because mermaid lays nodes
+  // out with subtle padding that getBBox + a CTM walk struggles with - some
+  // nodes end up just outside their containing cluster in SVG user space.
+  // BCR uses post-layout viewport pixels and gets this right.
+  //
+  // BCR returns 0x0 when the SVG sits inside a display:none ancestor (e.g.
+  // a slide rendered into a collapsed section at initial page render). To
+  // handle that case, doApplyClusterTints below probes BCR once; if any
+  // cluster measures zero, we register an IntersectionObserver and re-run
+  // when the SVG actually becomes visible. Idempotent: nodes that already
+  // got a tint keep it.
   var TINT_HUES = ['#3b82f6', '#16a34a', '#d97706', '#9333ea', '#ec4899', '#0d9488'];
   function applyClusterTints(svgEl, blockBg) {
     var clusters = svgEl.querySelectorAll('g.cluster');
@@ -334,39 +346,62 @@
     var nodes = svgEl.querySelectorAll('g.node');
     if (!nodes.length) return;
 
-    var clusterInfo = [];
-    for (var i = 0; i < clusters.length; i++) {
-      var bb = clusters[i].getBoundingClientRect();
-      if (!bb.width || !bb.height) continue;
-      clusterInfo.push({ rect: bb, idx: i });
-    }
-    clusterInfo.sort(function (a, b) {
-      return (a.rect.width * a.rect.height) - (b.rect.width * b.rect.height);
-    });
+    function doPass() {
+      var clusterInfo = [];
+      var anyZero = false;
+      for (var i = 0; i < clusters.length; i++) {
+        var bb = clusters[i].getBoundingClientRect();
+        if (!bb.width || !bb.height) { anyZero = true; continue; }
+        clusterInfo.push({ rect: bb, idx: i });
+      }
+      if (clusterInfo.length < 2) return false; // can't tint without comparators
+      clusterInfo.sort(function (a, b) {
+        return (a.rect.width * a.rect.height) - (b.rect.width * b.rect.height);
+      });
 
-    nodes.forEach(function (node) {
-      var nb = node.getBoundingClientRect();
-      var ncx = (nb.left + nb.right) / 2;
-      var ncy = (nb.top + nb.bottom) / 2;
-      for (var k = 0; k < clusterInfo.length; k++) {
-        var cr = clusterInfo[k].rect;
-        if (ncx >= cr.left && ncx <= cr.right && ncy >= cr.top && ncy <= cr.bottom) {
-          var hue = TINT_HUES[clusterInfo[k].idx % TINT_HUES.length];
-          var fillCol = mixHex(blockBg, hue, 0.10);
-          var strokeCol = mixHex(blockBg, hue, 0.65);
-          for (var c = 0; c < node.children.length; c++) {
-            var child = node.children[c];
-            var tn = child.tagName.toLowerCase();
-            if (tn === 'rect' || tn === 'polygon' || tn === 'circle' ||
-                tn === 'ellipse' || tn === 'path') {
-              child.style.fill = fillCol;
-              child.style.stroke = strokeCol;
+      nodes.forEach(function (node) {
+        var nb = node.getBoundingClientRect();
+        var ncx = (nb.left + nb.right) / 2;
+        var ncy = (nb.top + nb.bottom) / 2;
+        for (var k = 0; k < clusterInfo.length; k++) {
+          var cr = clusterInfo[k].rect;
+          if (ncx >= cr.left && ncx <= cr.right && ncy >= cr.top && ncy <= cr.bottom) {
+            var hue = TINT_HUES[clusterInfo[k].idx % TINT_HUES.length];
+            var fillCol = mixHex(blockBg, hue, 0.10);
+            var strokeCol = mixHex(blockBg, hue, 0.65);
+            for (var c = 0; c < node.children.length; c++) {
+              var child = node.children[c];
+              var tn = child.tagName.toLowerCase();
+              if (tn === 'rect' || tn === 'polygon' || tn === 'circle' ||
+                  tn === 'ellipse' || tn === 'path') {
+                child.style.fill = fillCol;
+                child.style.stroke = strokeCol;
+              }
             }
+            break;
           }
-          break;
+        }
+      });
+      return !anyZero;
+    }
+
+    // First pass: if the SVG is already laid out (e.g. it's the main present
+    // stage or an open section), tinting completes here and we're done.
+    if (doPass()) return;
+
+    // Otherwise the SVG was rendered into a collapsed / off-screen context.
+    // Defer until it actually paints, then re-run once.
+    if (typeof IntersectionObserver === 'undefined') return;
+    var io = new IntersectionObserver(function (entries) {
+      for (var e = 0; e < entries.length; e++) {
+        if (entries[e].isIntersecting) {
+          doPass();
+          io.disconnect();
+          return;
         }
       }
     });
+    io.observe(svgEl);
   }
 
   function withTimeout(p, ms) {
