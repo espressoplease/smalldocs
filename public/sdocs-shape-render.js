@@ -1137,7 +1137,7 @@ var MERMAID_SHADOW_CSS = [
   '  position: absolute; top: 6px; right: 6px;',
   '  width: 26px; height: 26px;',
   '  display: inline-flex; align-items: center; justify-content: center;',
-  '  background: var(--md-block-bg, #f4f1ed);',
+  '  background: transparent;',
   '  color: var(--md-color, #1c1917);',
   '  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));',
   '  border-radius: 4px;',
