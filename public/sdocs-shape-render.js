@@ -187,7 +187,8 @@ function pct(v, axisValue) { return (v / axisValue * 100) + '%'; }
 // Build a CSS block that overrides the default shadow font-size ratios for
 // specific elements. Keys: h1Scale, h2Scale ... h6Scale, pScale. Values are
 // plain numbers interpreted as em (relative to the shape's resolved font
-// size — which is the autofit output or the font=Npx/font=fixed value).
+// size - the role's px from ROLE_SIZES, the `size=Npx` override, or the
+// autofit output when `size=fit`).
 function scaleOverrides(attrs) {
   if (!attrs) return '';
   var map = { h1Scale: 'h1', h2Scale: 'h2', h3Scale: 'h3', h4Scale: 'h4', h5Scale: 'h5', h6Scale: 'h6', pScale: 'p' };
@@ -313,27 +314,47 @@ function applySvgStroke(el, attrs, defaultStroke) {
 
 // ─── Per-shape renderers ─────────────────────────────
 
-// `font=Npx` pins an exact size and disables autofit. `font=fixed` / `font=none`
-// disable autofit but leave the CSS cascade to size text (useful when the
-// agent wants doc-style rather than slide-style sizing).
+// Typography is role-based. Each shape picks a `text=` role from a fixed
+// table; autofit is opt-in via `size=fit`. The table is intentionally short
+// (title / subtitle / body / caption) because slide decks read well when
+// only 2-3 sizes appear across the whole deck. Per-shape autofit produced
+// a different font-size for every box and made decks feel chaotic; roles
+// pin the rhythm.
 //
-// All shapes render on a fixed-size stage (REF_H tall), so `font=18px` means
-// literally 18px at the stage's native resolution. The stage is then CSS-
-// transformed to fit its context, so 18px reads as 18px on a fullscreen
-// 720-tall slide, ~9px on a rail thumb that's scaled to 50%, and so on.
-function applyFontAttr(el, attrs) {
-  if (!attrs || !attrs.font) return;
-  var v = String(attrs.font).trim();
-  if (v === 'fixed' || v === 'none' || v === 'off') {
-    el.dataset.autofit = 'off';
-    el.dataset.fontMode = 'fixed';
+// Sizes are in px at the reference stage height (REF_H=720). The stage
+// transform scales them with everything else, so a 24px body renders at
+// 24px on a fullscreen slide and ~12px on a half-size rail thumbnail.
+// Sizes are grid-aspect-independent: a 100x56.25 deck and a 16x9 deck
+// render typography at the same px because the stage is always REF_H tall.
+var ROLE_SIZES = {
+  title:    64,
+  subtitle: 40,
+  body:     24,
+  caption:  14,
+};
+
+// `size=Npx` overrides the role's size. `size=fit` opts into the legacy
+// autofit binary search (capped by `maxfont=` or the stage-height cap).
+// Unknown role names fall back to `body` so a typo doesn't break a slide.
+function applySizing(el, attrs) {
+  attrs = attrs || {};
+  var size = attrs.size;
+  var role = attrs.text;
+
+  if (size === 'fit') {
+    el.dataset.autofit = 'on';
     return;
   }
-  var unitMatch = v.match(/^(\d*\.?\d+)(px|pt|em|rem)?$/);
-  if (!unitMatch) return;
-  var n = parseFloat(unitMatch[1]);
-  var unit = unitMatch[2] || 'px';
-  el.style.fontSize = n + unit;
+  if (size != null && size !== '') {
+    var m = String(size).match(/^(\d*\.?\d+)(px|pt|em|rem)?$/);
+    if (m) {
+      el.style.fontSize = m[1] + (m[2] || 'px');
+      el.dataset.autofit = 'off';
+      return;
+    }
+  }
+  var px = Object.prototype.hasOwnProperty.call(ROLE_SIZES, role) ? ROLE_SIZES[role] : ROLE_SIZES.body;
+  el.style.fontSize = px + 'px';
   el.dataset.autofit = 'off';
 }
 
@@ -437,7 +458,7 @@ function renderRect(s, grid) {
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
   if (s.attrs && s.attrs.valign) el.dataset.valign = s.attrs.valign;
-  applyFontAttr(el, s.attrs);
+  applySizing(el, s.attrs);
   if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content, s.attrs));
   if (s.id) el.dataset.id = s.id;
   return el;
@@ -543,7 +564,7 @@ function renderTextOverlay(s, grid) {
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
   if (s.attrs && s.attrs.valign) el.dataset.valign = s.attrs.valign;
-  applyFontAttr(el, s.attrs);
+  applySizing(el, s.attrs);
   if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content, s.attrs));
   if (s.id) el.dataset.id = s.id + '-text';
   return el;
@@ -611,21 +632,22 @@ function autoFitText(el, minPx, maxPx) {
   el.style.fontSize = best + 'px';
 }
 
-// Default cap: text font-size never exceeds this fraction of stage height.
-// Without a cap, a tall shape with one word balloons up to its own height,
-// which makes slides look childish compared to surrounding document text.
-// At 0.12, a single word on a 40%-tall shape renders at ~12% stage height —
-// roughly the size of an h1 on a pro deck. Override per-shape with maxfont=Npx.
+// Default cap for opt-in autofit (`size=fit`): font-size never exceeds this
+// fraction of stage height. Roughly the size of an h1 on a pro deck. The
+// per-shape `maxfont=Npx` overrides this cap when it's set.
 var DEFAULT_MAX_FONT_STAGE_PCT = 0.12;
 
 // Reference stage height. Slides render at REF_H tall at their native
 // resolution; a CSS transform scales the whole canvas to whatever pixel
 // size the context gives it. Font sizing, padding, autofit — all measured
-// at this reference. Agents who type `font=18px` get literal 18px on a
+// at this reference. Agents who type `size=18px` get literal 18px on a
 // 720-tall slide, which scales down/up with the transform.
 var REF_H = 720;
 function refW(grid) { return REF_H * grid.w / grid.h; }
 
+// Walks rendered shapes and runs the autofit binary search on each shape
+// whose `size=fit` opted in. Role-based shapes (the default) already have
+// their final px font-size set by applySizing; this loop leaves them alone.
 function applyAutoFit(container, minPx, maxStageHPct) {
   var floor = typeof minPx === 'number' ? minPx : 8;
   var pct = typeof maxStageHPct === 'number' ? maxStageHPct : DEFAULT_MAX_FONT_STAGE_PCT;
@@ -633,16 +655,7 @@ function applyAutoFit(container, minPx, maxStageHPct) {
   var els = container.querySelectorAll('.shape-rect, .shape-text');
   for (var i = 0; i < els.length; i++) {
     var el = els[i];
-    if (el.dataset.autofit === 'off') {
-      // font=fixed: sample cascade-resolved px and pin it. The transform
-      // scales this like everything else, so doc-style text still shrinks
-      // proportionally in rail thumbs and grows in fullscreen.
-      if (el.dataset.fontMode === 'fixed') {
-        var cs = parseFloat(getComputedStyle(el).fontSize);
-        if (isFinite(cs) && cs > 0) el.style.fontSize = cs.toFixed(3) + 'px';
-      }
-      continue;
-    }
+    if (el.dataset.autofit !== 'on') continue;
     var h = el.clientHeight;
     if (h <= 0) continue;
     var perShape = parseFloat(el.dataset.maxfont);

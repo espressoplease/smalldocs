@@ -168,7 +168,21 @@ function parseLine(raw, lineNumber) {
       i++;
     }
     if (nextCurve) throw new Error('polygon: trailing ~ with no following point');
-    if (shape.points.length < 2) throw new Error('polygon: needs at least 2 points');
+    if (shape.points.length < 2) {
+      // Hint when the author wrote space-separated coords (e.g. `p 7 1 9 1 8 3`)
+      // by analogy with `r x y w h`. Polygon's variable-length point list needs
+      // a delimiter, so each point is `x,y` (one token) or `@ref`.
+      var looksLikeRawNums = false;
+      for (var rk = i; rk < rest.length; rk++) {
+        var tk = rest[rk];
+        if (tk.indexOf('=') >= 0 || tk.charAt(0) === '#') break;
+        if (/^-?\d+(?:\.\d+)?$/.test(tk)) { looksLikeRawNums = true; break; }
+      }
+      if (looksLikeRawNums) {
+        throw new Error('polygon: points use "x,y" (one token per point), not space-separated coords. e.g. `p 10,10 50,10 30,40`');
+      }
+      throw new Error('polygon: needs at least 2 points');
+    }
   } else {
     throw new Error('Unknown shape "' + kind + '"');
   }
@@ -179,8 +193,18 @@ function parseLine(raw, lineNumber) {
     if (tok.charAt(0) === '#') {
       if (shape.id) throw new Error('multiple #id tokens on one line');
       var idName = tok.slice(1);
+      // Trailing `!` marks the slot as required when the template is
+      // consumed via @extends. The resolver checks for unfilled required
+      // slots and surfaces an error per slide; for plain shapes (not
+      // inside a template) the flag is just metadata that gets ignored.
+      var required = false;
+      if (idName.length > 0 && idName.charAt(idName.length - 1) === '!') {
+        required = true;
+        idName = idName.slice(0, -1);
+      }
       if (!/^[A-Za-z_][\w-]*$/.test(idName)) throw new Error('invalid id "' + tok + '"');
       shape.id = idName;
+      if (required) shape.required = true;
     } else {
       var eq = tok.indexOf('=');
       if (eq <= 0) throw new Error('unexpected token "' + tok + '"');
@@ -549,7 +573,7 @@ function serializeShape(s) {
       else parts.push(pt.x + ',' + pt.y);
     }
   }
-  if (s.id) parts.push('#' + s.id);
+  if (s.id) parts.push('#' + s.id + (s.required ? '!' : ''));
   var keys = Object.keys(s.attrs || {});
   for (var k = 0; k < keys.length; k++) parts.push(keys[k] + '=' + s.attrs[keys[k]]);
   var line = parts.join(' ');

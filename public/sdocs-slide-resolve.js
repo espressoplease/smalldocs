@@ -30,7 +30,10 @@
 'use strict';
 
 var DIRECTIVE_RE = /^\s*@(template|extends)\s+([A-Za-z][\w-]*)\s*$/;
-var SLOT_RE = /^#([A-Za-z][\w-]*)\s*:\s?(.*)$/;
+// Consumer slot lines optionally accept a trailing `!` after the id - the
+// required marker belongs in the template, but accepting it here means a
+// copy-paste from a template definition doesn't silently break.
+var SLOT_RE = /^#([A-Za-z][\w-]*)!?\s*:\s?(.*)$/;
 
 function splitDirective(raw) {
   var lines = String(raw == null ? '' : raw).split('\n');
@@ -129,39 +132,111 @@ function mergeTemplate(templateDsl, slots, SDocShapes) {
   return SDocShapes.serialize(shapes, parsed.grid);
 }
 
-function resolveSlides(rawDsls, SDocShapes) {
+function resolveSlides(rawDsls, SDocShapes, opts) {
   if (!SDocShapes) {
     throw new Error('resolveSlides: SDocShapes is required');
   }
+  opts = opts || {};
+  var stdlib = opts.stdlib || {};
+
   var templates = {};
+  var shadowSlideByName = {};
   var parsed = rawDsls.map(splitDirective);
 
-  // Pass 1: register every @template. Doing this ahead of pass 2 means
-  // author ordering in the document is unconstrained — a consumer can
-  // appear before its template.
+  // Pass 1: register every user @template. Doing this ahead of pass 2
+  // means author ordering in the document is unconstrained - a consumer
+  // can appear before its template. A user template shadowing a stdlib
+  // name is allowed but flagged on the template's own slide entry, so
+  // accidental shadowing is visible at render time.
   for (var i = 0; i < parsed.length; i++) {
     var p = parsed[i];
-    if (p.kind === 'template') templates[p.name] = p.body;
+    if (p.kind === 'template') {
+      templates[p.name] = p.body;
+      if (Object.prototype.hasOwnProperty.call(stdlib, p.name)) {
+        shadowSlideByName[p.name] = i;
+      }
+    }
   }
 
   // Pass 2: build a result per slide.
   return parsed.map(function (p, idx) {
     var raw = rawDsls[idx];
     if (p.kind === 'template') {
-      return { dsl: p.body, skip: true, errors: [] };
+      var tErrs = [];
+      if (shadowSlideByName[p.name] === idx) {
+        tErrs.push({
+          line: 1,
+          message: 'template "' + p.name + '" shadows the stdlib template of the same name',
+        });
+      }
+      return { dsl: p.body, skip: true, errors: tErrs };
     }
     if (p.kind === 'extends') {
-      if (!templates[p.name]) {
+      var tplBody = Object.prototype.hasOwnProperty.call(templates, p.name)
+        ? templates[p.name]
+        : (Object.prototype.hasOwnProperty.call(stdlib, p.name) ? stdlib[p.name] : null);
+      if (!tplBody) {
         return {
           dsl: raw,
           skip: false,
           errors: [{ line: 1, message: 'unknown template "' + p.name + '"' }],
         };
       }
+
       var slots = parseSlots(p.body);
+      var errors = [];
+
+      // Parse the template once so we can introspect shape ids + required
+      // markers. The same parse work happens inside mergeTemplate; we eat
+      // the duplication for clarity (resolver stays pure DSL-string-in,
+      // DSL-string-out at the boundary).
+      var parsedTpl;
+      try {
+        parsedTpl = SDocShapes.parse(tplBody);
+      } catch (e) {
+        return {
+          dsl: raw,
+          skip: false,
+          errors: [{ line: 1, message: 'template parse failed: ' + e.message }],
+        };
+      }
+
+      var templateIds = {};
+      for (var s = 0; s < parsedTpl.shapes.length; s++) {
+        var sid = parsedTpl.shapes[s].id;
+        if (sid) templateIds[sid] = parsedTpl.shapes[s];
+      }
+
+      // Unknown-slot check: consumer named a slot the template doesn't
+      // define. Silently no-op was the #1 cause of "template feels
+      // broken" confusion - surface it as an error per the DSL-design
+      // review.
+      for (var slotName in slots) {
+        if (!Object.prototype.hasOwnProperty.call(slots, slotName)) continue;
+        if (!Object.prototype.hasOwnProperty.call(templateIds, slotName)) {
+          errors.push({
+            line: 1,
+            message: 'unknown slot "#' + slotName + '" (template "' + p.name + '" has no shape with that id)',
+          });
+        }
+      }
+
+      // Required-slot check: template marked the shape with #id! but
+      // the consumer didn't pass that slot.
+      for (var tid in templateIds) {
+        if (!Object.prototype.hasOwnProperty.call(templateIds, tid)) continue;
+        var shp = templateIds[tid];
+        if (shp.required && !Object.prototype.hasOwnProperty.call(slots, tid)) {
+          errors.push({
+            line: 1,
+            message: 'missing required slot "#' + tid + '" for template "' + p.name + '"',
+          });
+        }
+      }
+
       var merged;
       try {
-        merged = mergeTemplate(templates[p.name], slots, SDocShapes);
+        merged = mergeTemplate(tplBody, slots, SDocShapes);
       } catch (e) {
         return {
           dsl: raw,
@@ -169,9 +244,9 @@ function resolveSlides(rawDsls, SDocShapes) {
           errors: [{ line: 1, message: 'template merge failed: ' + e.message }],
         };
       }
-      return { dsl: merged, skip: false, errors: [] };
+      return { dsl: merged, skip: false, errors: errors };
     }
-    // Plain slide — untouched.
+    // Plain slide - untouched.
     return { dsl: raw, skip: false, errors: [] };
   });
 }
