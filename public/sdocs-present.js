@@ -101,6 +101,7 @@ var CSS = [
   '  font-size: 11px; color: #8a8580; line-height: 1.4;',
   '}',
   '.sdoc-present-counter {',
+  '  display: inline-flex; align-items: center;',
   '  color: #8a8580; font-size: 12px;',
   '  font-family: ui-monospace, Menlo, monospace;',
   '  padding: 0 6px; flex-shrink: 0;',
