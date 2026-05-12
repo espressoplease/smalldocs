@@ -36,28 +36,28 @@ var CSS = [
   /* the doc theme (cream on a cream doc, dark on a dark-mode doc) */
   /* without any per-slide work. Fallbacks keep it legible if someone */
   /* embeds the shape renderer outside an SDocs document. */
+  /* Matches the code-block copy button and mermaid expand button: 26x26 */
+  /* square, transparent default, 1px border, opacity 0.7 -> 1 on hover. */
   '.sdoc-slide-present {',
-  '  position: absolute; top: 8px; right: 8px; z-index: 5;',
+  '  position: absolute; top: 6px; right: 6px; z-index: 5;',
   '  display: inline-flex; align-items: center; justify-content: center;',
-  '  width: 28px; height: 28px;',
-  '  background: color-mix(in srgb, var(--md-bg, #fff) 88%, transparent);',
-  '  border: 1px solid color-mix(in srgb, var(--md-color, #000) 14%, transparent);',
+  '  width: 26px; height: 26px;',
+  '  background: transparent;',
+  '  color: var(--md-color, #1c1917);',
+  '  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));',
   '  border-radius: 4px; padding: 0;',
-  '  color: color-mix(in srgb, var(--md-color, #0f172a) 65%, transparent);',
-  '  cursor: pointer;',
-  '  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);',
-  '  transition: background .12s, border-color .12s, color .12s;',
+  '  cursor: pointer; opacity: 0.7;',
+  '  transition: opacity .15s, background .12s;',
   '}',
-  /* Hovering anywhere on the slide lifts the present button into its */
-  /* hover state too, so readers get a visual hint that the button is */
-  /* the activator. Direct hover on the button itself also triggers it. */
+  /* Hovering anywhere on the slide lifts the present button to full */
+  /* opacity, mirroring how the code copy button reveals on pre:hover.   */
   '.sdoc-slide:hover .sdoc-slide-present,',
+  '.sdoc-slide-present:hover,',
+  '.sdoc-slide-present:focus { opacity: 1; }',
   '.sdoc-slide-present:hover {',
-  '  background: var(--md-bg, #fff);',
-  '  border-color: color-mix(in srgb, var(--md-color, #000) 28%, transparent);',
-  '  color: var(--md-color, #0f172a);',
+  '  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));',
   '}',
-  '.sdoc-slide-present:focus-visible { outline: 2px solid var(--accent, #2563eb); outline-offset: 1px; }',
+  '.sdoc-slide-present:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
   '.sdoc-slide-present svg { display: block; }',
   '.sdoc-slide .sd-shape-stage {',
   '  width: 100%;',
@@ -110,7 +110,7 @@ if (typeof document !== 'undefined') injectCSS();
 // Matches lucide.dev/icons/presentation. Inline SVG avoids shipping an
 // icon set; the geometry stays stable and can be recolored via currentColor.
 var PRESENT_ICON_SVG =
-  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
   + 'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
   + '<path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/>'
   + '<path d="m7 21 5-5 5 5"/></svg>';
