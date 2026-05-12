@@ -243,12 +243,23 @@ test.describe('Slide rendering pipeline', () => {
     expect(panelClosed).toBeNull();
   });
 
+  // Helper: open the export panel via the overflow ("...") menu when the
+  // Export button is collapsed behind it at the test viewport width.
+  async function openExportPanel(page) {
+    const overflow = page.locator('#_sd_btn-overflow');
+    if (await overflow.isVisible().catch(() => false)) {
+      await overflow.click();
+      await page.waitForTimeout(150);
+    }
+    await page.click('#_sd_btn-export');
+  }
+
   test('Slides PDF menu option hidden when doc has no slides', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate(() => { window.SDocs.currentBody = '# Plain doc\n\nNo slides here.\n'; window.SDocs.render(); });
     await page.waitForTimeout(300);
-    await page.click('#_sd_btn-export');
+    await openExportPanel(page);
     await page.waitForTimeout(200);
     const display = await page.$eval('#_sd_exp-slides-pdf', (el) => el.style.display);
     expect(display).toBe('none');
@@ -259,7 +270,7 @@ test.describe('Slide rendering pipeline', () => {
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate(() => { window.SDocs.currentBody = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Hi\n```\n'; window.SDocs.render(); });
     await page.waitForTimeout(500);
-    await page.click('#_sd_btn-export');
+    await openExportPanel(page);
     await page.waitForTimeout(200);
     const display = await page.$eval('#_sd_exp-slides-pdf', (el) => el.style.display);
     expect(display).not.toBe('none');
