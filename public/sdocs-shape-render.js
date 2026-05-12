@@ -997,7 +997,7 @@ function kickShadowMermaid(shadow) {
   function tick() {
     attempts++;
     var wrapper = shadow.querySelector('.sdoc-mermaid');
-    var svg = wrapper && wrapper.querySelector('svg');
+    var svg = wrapper && wrapper.querySelector('svg.sdoc-mermaid-svg');
     if (wrapper && svg && wrapper.clientWidth > 0 && wrapper.clientHeight > 0) {
       svg.style.setProperty('width',  wrapper.clientWidth  + 'px', 'important');
       svg.style.setProperty('height', wrapper.clientHeight + 'px', 'important');
@@ -1110,12 +1110,17 @@ var MERMAID_SHADOW_CSS = [
   // on the SVG. Without overriding it, the SVG can never grow past
   // its natural viewBox width, so width:100% gets clamped and height
   // (auto-computed from aspect) overflows the wrapper.
-  // visibility: hidden until kickShadowMermaid pins explicit pixel
-  // dimensions. Without this, the SVG paints once at its auto-height
-  // size (Chromium computes height from viewBox aspect, ignoring
-  // height:100%), then snaps to the correct size when the kick fires
-  // - visible as a flicker / resize when navigating between slides.
-  '.sdoc-mermaid svg { width: 100% !important; height: 100% !important; max-width: 100% !important; display: block; visibility: hidden; }',
+  // svg.sdoc-mermaid-svg (the diagram itself) starts hidden until
+  // kickShadowMermaid pins explicit pixel dimensions. Without this,
+  // the SVG paints once at its auto-height size (Chromium computes
+  // height from viewBox aspect, ignoring height:100%), then snaps to
+  // the correct size when the kick fires - visible as a flicker /
+  // resize when navigating between slides.
+  //
+  // Scoped to the .sdoc-mermaid-svg class so the inline icon SVG
+  // inside the expand button (sibling element inside .sdoc-mermaid)
+  // stays visible.
+  '.sdoc-mermaid svg.sdoc-mermaid-svg { width: 100% !important; height: 100% !important; max-width: 100% !important; display: block; visibility: hidden; }',
   'svg.sdoc-mermaid-svg { overflow: visible; }',
   'svg.sdoc-mermaid-svg .node > rect,',
   'svg.sdoc-mermaid-svg .node .label-container,',
