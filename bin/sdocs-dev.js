@@ -15,6 +15,7 @@ const zlib = require('zlib');
 const { execSync, execFileSync } = require('child_process');
 const SDocYaml = require('../public/sdocs-yaml.js');
 const SDocStyles = require('../public/sdocs-styles.js');
+const SDocSlideStdlib = require('../public/sdocs-slide-stdlib.js');
 
 const https    = require('https');
 const http     = require('http');
@@ -1440,6 +1441,28 @@ EXAMPLE
   \`\`\`
 `;
 
+// Prints the stdlib template registry: one line per built-in template
+// with its slot list. Required slots are marked with a trailing `!`.
+// Called by `sdoc slides list`.
+function printSlideStdlib() {
+  var names = SDocSlideStdlib.names || Object.keys(SDocSlideStdlib.templates || {});
+  var slots = SDocSlideStdlib.slots || {};
+  console.log('Built-in slide templates');
+  console.log('========================');
+  var pad = 22;
+  for (var i = 0; i < names.length; i++) {
+    var n = names[i];
+    var label = '@extends ' + n;
+    while (label.length < pad) label += ' ';
+    var slotList = (slots[n] || []).join(', ');
+    console.log(label + ' ' + slotList);
+  }
+  console.log('');
+  console.log('`!` marks a required slot (resolver errors when omitted).');
+  console.log('Use a built-in by adding `@extends <name>` to a slide block.');
+  console.log('Define a user @template with the same name to override (you\'ll get a warning).');
+}
+
 const SLIDES_HELP = `
 SDocs — Slides
 ==============
@@ -1453,14 +1476,64 @@ navigate.
   sdoc present <file>              Open file directly in fullscreen slide view
   sdoc <file>                      Open normally (click a slide's present icon)
   sdoc slides                      This help
+  sdoc slides list                 List built-in templates + slot names
+
+── DESIGN GUIDELINES ────────────────────────────────────
+  The built-in templates encode a few rules that separate professional
+  slides from amateur ones. When you compose slides by hand (no
+  template), keep these in mind - they're the difference between a
+  deck that lands and one that doesn't.
+
+  Margins. Keep all content inside a 1-unit safe area on every side
+  of a 16x9 grid (so x ∈ [1, 15], y ∈ [0.5, 8.5]). Nothing touches
+  the slide edge except a deliberate full-bleed background (\`section\`
+  uses this; nothing else should).
+
+  No fill colours behind body or title text. The slide background IS
+  your canvas. Saturated rectangles compete with content and read as
+  "PowerPoint 2003". The only exception: section dividers, which want
+  contrast against content slides - use \`grid bg=\` there, not a
+  shape \`fill=\`.
+
+  Two or three sizes per slide, max. Stick to the role table:
+    text=title    (64px)  for cover, quote, section, metric
+    text=subtitle (40px)  for in-deck content-slide titles
+    text=body     (24px)  default; bullets, paragraphs
+    text=caption  (14px)  ONLY for footers, eyebrows, attributions
+  Caption renders as ~3px in a 240px-wide thumbnail - never put
+  load-bearing content in caption role.
+
+  Default \`valign=center\`. \`valign=top\` reads right only when the
+  body shape is sized to its content. On an oversized body shape
+  top-anchoring leaves dead space underneath; centering balances it.
+
+  Content fills 55-65% of the safe area, no more. Empty space is a
+  feature: it's what makes a deck feel confident rather than crowded.
+  If a shape is mostly empty, shrink the shape - don't fill it.
+
+  Action titles versus topic titles. An action title states the
+  claim ("Method X reduced error 40%") and reads like prose. A topic
+  title labels what's below ("Methodology"). Both are fine; pick
+  one. Action titles tend to wrap to two lines, which is why
+  in-deck titles use subtitle role (40px) not title role (64px).
+
+  Body bullets should be parallel. If your bullets don't read like
+  a list - if the items have different shapes, weights, or
+  connective tissue (because, but, so) - write a sentence instead.
+  A bulleted paragraph is hiding the fact that you haven't decided
+  what you're claiming.
+
+  When in doubt, \`@extends\` a built-in template instead of
+  composing from raw shapes. Run \`sdoc slides list\` to see the
+  registry.
 
 \u2500\u2500 FENCE SYNTAX \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Wrap shape DSL in a ~~~slide fenced block:
 
   ~~~slide
   grid 100 56.25
-  r 5 5 90 15 fill=#1e40af color=#fff | # Q4 Review
-  r 5 22 42 26 align=left valign=top |
+  r 5 5 90 15 fill=#1e40af color=#fff text=title | Q4 Review
+  r 5 22 42 26 align=left |
     ## Wins
     - Shipped slides
     - Tilde fences
@@ -1494,6 +1567,11 @@ navigate.
   l x1 y1 x2 y2        line       (decorative, no content)
   a x1 y1 x2 y2        arrow      (decorative, head at endpoint)
   p x1,y1 x2,y2 ...    polygon    (use ~ between points for curved segments)
+
+  Polygon points are written \`x,y\` (one token per point), not space-
+  separated like \`r x y w h\`. The variable point count needs a delimiter,
+  so a comma is required inside each point. Examples below in the
+  "Polygon examples" subsection.
 
   All shapes EXCEPT \`l\` and \`a\` can hold markdown after \`|\` - full
   markdown (headings, lists, bold/italic, code, blockquote, tables).
@@ -1556,25 +1634,34 @@ navigate.
     align=<a>           Horizontal: center (default), left, right
     valign=<v>          Vertical: center (default), top, bottom
 
-  Font sizing (pick ONE of three modes):
-    default             Auto-fit — binary search for the largest font
-                        that fits, capped at 12% of stage height.
-    maxfont=Npx         Raise or lower the auto-fit cap while keeping
-                        auto-fit on. e.g. maxfont=200px for a hero
-                        number, maxfont=14px for fine print.
-    font=Npx            Pin an exact size; auto-fit OFF. Units:
-                        px | pt | em | rem. Bare number = px.
-    font=fixed          Auto-fit OFF; font-size inherits from the
-                        cascade (useful when you want doc typography
-                        instead of slide-fit typography). Aliases:
-                        \`font=none\`, \`font=off\`. Rarely the right
-                        choice for slide text - for a BIG hero value
-                        use \`h1Scale=\` or \`maxfont=\`, not \`font=fixed\`.
+  Text sizing (role first, escape hatches second):
+    text=<role>         Pick a role from a fixed table. Roles give a
+                        deck consistent typography. Default is \`body\`.
+                          text=title       64px  (slide titles)
+                          text=subtitle    40px  (section heads, sub-titles)
+                          text=body        24px  (default; paragraphs, bullets)
+                          text=caption     14px  (footnotes, fine print)
+                        Unknown roles fall back to \`body\` silently.
 
-    Px values size as if the stage were 720px tall and scale
-    proportionally in smaller views (rail thumbnails, inline thumbs),
-    so \`font=18px\` reads as "18px on a fullscreen slide". \`maxfont=6px\`
-    would be illegibly small; keep fine-print around 12-16px.
+    size=Npx            Literal size override; takes precedence over the
+                        role. Units: px | pt | em | rem (bare number = px).
+                        Use sparingly - the role table is what keeps the
+                        deck rhythm consistent.
+    size=fit            Opt into auto-fit: binary search for the largest
+                        font that fits the shape, capped at 12% of stage
+                        height (or the per-shape maxfont= value).
+
+    maxfont=Npx         Caps \`size=fit\` higher or lower than the default
+                        stage cap. Has no effect when size= isn't \`fit\`.
+
+    Px values size as if the stage were 720px tall and scale proportionally
+    in smaller views (rail thumbnails, inline thumbs), so \`size=18px\` reads
+    as "18px on a fullscreen slide".
+
+    A deck that uses only roles (no \`size=\`) lands at 2-3 distinct font
+    sizes across all slides, which is what makes presentations look
+    professional. Reach for \`size=Npx\` only for hero numbers or other
+    one-off treatments.
 
   Per-element scale (applied inside the shape's shadow root):
     h1Scale=N           h1 is N\u00d7 the shape's resolved font size.
@@ -1584,8 +1671,8 @@ navigate.
 
     Each scale affects ONLY that element type. \`h1Scale=3\` enlarges
     h1 headings, leaves paragraphs alone. The shape's resolved font
-    size (autofit output, or maxfont cap, or explicit font=Npx) is
-    the base against which scale multiplies.
+    size (the role's px from \`text=\`, the \`size=Npx\` override, or the
+    autofit output when \`size=fit\`) is the base for the multiplier.
 
     Defaults without overrides: h1 1.4, h2 1.2, h3 1.05, h4-h6 1.0,
     p 1.0. Note that h4/h5/h6 render at the SAME size by default, so
@@ -1623,7 +1710,7 @@ navigate.
   indented at least 2 spaces, or the parser treats them as fresh
   top-level shape lines (and fails).
 
-    r 5 20 90 60 align=left valign=top |
+    r 5 20 90 60 align=left |
       ## Heading
       Some body paragraph.
 
@@ -1645,14 +1732,16 @@ navigate.
     - Subheaders, section labels
     - Standalone caption text
 
-  Switch to \`align=left\` when the shape holds body copy — paragraphs,
+  Switch to \`align=left\` when the shape holds body copy - paragraphs,
   bullet lists, numbered lists, blockquotes. Left-aligned reads better
-  once you have multiple lines. Pair with \`valign=top\` so the block
-  starts from the top of the shape.
+  once you have multiple lines. Keep \`valign=center\` (the default) so
+  the block floats in the middle of the shape; switch to \`valign=top\`
+  only when the shape is sized exactly to the content and you want it
+  anchored to the top.
 
   Rule of thumb:
     ONE short phrase  \u2192  leave centered
-    MULTIPLE lines    \u2192  align=left valign=top
+    MULTIPLE lines    \u2192  align=left, keep valign=center
 
 \u2500\u2500 PULLING FROM DOC STYLES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Slides pick up the host document's styles so a deck feels visually
@@ -1674,7 +1763,7 @@ navigate.
     \`fill=\$h1.color\`, \`color=\$chart.accent\`, grid \`bg=\$background\`.
     Vocabulary = the YAML schema (run \`sdoc schema\`).
 
-      r 5 5 90 15 fill=\$h1.color color=#fff | # Title
+      r 5 5 90 15 fill=\$h1.color color=#fff text=title | Title
       r 5 25 90 25 color=\$chart.accent      | ## 40% growth
       grid 100 56.25 bg=\$blocks.background  (subtle block-tinted slide)
 
@@ -1811,8 +1900,8 @@ navigate.
     ~~~slide
     @template title-body
     grid 16 9
-    r 0 0 16 3 #title fill=\$h1.color color=#fff | placeholder title
-    r 0 3 16 6 #body align=left valign=top |
+    r 0 0 16 3 #title fill=\$h1.color color=#fff text=title | placeholder title
+    r 0 3 16 6 #body align=left |
       placeholder body
     ~~~
 
@@ -1832,16 +1921,110 @@ navigate.
            matter and every slide that uses the template picks it up.
     ~~~
 
-  Partial fills: if a consumer omits a slot (provides \`#title\` but not
-  \`#body\`), the template's placeholder content stays - so templates
-  are self-documenting when first authored.
+  Partial fills: if a consumer omits an optional slot (provides
+  \`#title\` but not \`#body\`), the template's placeholder content
+  stays - so templates are self-documenting when first authored.
 
-  Unknown template names, or slots that don't match any shape id in
-  the template, surface in the error badge alongside any DSL errors.
+  Required slots: mark a slot with a trailing \`!\` (e.g. \`#title!\`)
+  in the template. If a consumer omits a required slot, the resolver
+  surfaces an error in the slide's error badge. Optional slots have
+  no marker.
+
+  Unknown template names, slots that don't match any shape id in the
+  template, and missing required slots all surface in the error badge
+  alongside any DSL errors.
 
   Deliberately simple in v1: no attribute overrides (can't change
   \`fill=\` per consumer - fork the template if you need variants),
   no nested templates (a consumer can't extend another consumer).
+
+── BUILT-IN TEMPLATES ───────────────────────────────────
+  SDocs ships a small library of opinionated templates. \`@extends\`
+  any of them without declaring a user \`@template\` first. Run
+  \`sdoc slides list\` for the names + slot lists; the templates all
+  use a 1-unit safe margin and avoid full-bleed coloured bars (the
+  one exception is \`section\`, which uses \`grid bg=\` for contrast
+  between deck sections).
+
+    cover
+      Opening slide of a deck. Once per deck. Sets the tone before
+      anything else.
+
+    title-body
+      The workhorse for content slides - 60-70% of slides in any
+      real deck. Title at top in subtitle role (40px) so an action
+      title can wrap to two lines without crowding the body.
+      Optional footer slot for source, page number, or context.
+
+    two-column
+      Compare / contrast (before/after, A vs B, problem / solution).
+      A 1-unit gutter splits the columns; optional column headers
+      above each. Bodies anchor top so matched-length content reads
+      as parallel - keep both columns roughly the same length, or
+      switch to title-body and explain the asymmetry in prose.
+
+    three-column
+      Three-way compare. A/B/C variants, before/during/after, three
+      perspectives on the same question. Equal columns separated by
+      a small gutter; optional headers above each. Bias toward
+      keeping all three columns roughly the same length - if one is
+      half-empty, drop it and use two-column instead.
+
+    exhibit
+      Chart on the left, takeaway column on the right, optional
+      source caption underneath. The chart is the evidence; the
+      takeaway tells the audience what to see. Reserve for business
+      decks where the audience needs a verbal handle on the chart
+      under time pressure. If your audience can read the chart
+      themselves in 5 seconds, use figure-hero instead.
+
+    image-and-text
+      Image on the left, supporting body on the right. Use when
+      the image is half the argument; reach for figure-hero when
+      the image IS the argument. The image slot accepts markdown
+      image syntax: \`#image: ![alt](url)\`.
+
+    figure-hero
+      Image-dominant slide. The figure carries the whole slide
+      and a small caption sits below. The workhorse for research
+      talks and any deck where a chart, screenshot, or photograph
+      is the point.
+
+    quote
+      Single big idea, customer voice, or a manifesto sentence.
+      Centered both axes so short content sits balanced rather
+      than drifting top-left. Use for sentences, not numbers -
+      reach for \`metric\` when the slide IS a number.
+
+    metric
+      One hero number plus a line of context. \`size=fit\` lets the
+      number scale to its shape; \`maxfont=300px\` is baked in so it
+      can actually feel hero-sized. One short sentence in the
+      \`context\` slot is the rule, not three - more text fights
+      the number for attention and the slide stops feeling like a
+      headline. Use sparingly: one metric slide per deck is the
+      pattern, not three.
+
+    section
+      Section divider between deck parts. The one template that
+      uses a full-bleed background (via \`grid bg=\`) - the contrast
+      against content slides is what signals "we're switching
+      gears" to the audience. Shape fills are still avoided
+      (Consultant-2 rule); only the slide bg is coloured.
+
+    closing
+      Quiet bookend at the end of a deck. Center-aligned, minimal.
+      Don't write "Thanks for listening" or "Questions?" here -
+      both signal "I've run out of content" and the room tunes
+      out. Pick something the audience will remember instead
+      ("Start this week, not next", "Boring is the goal", the
+      one number that summarises the deck, etc.). The contact
+      slot is for one short line of channels, not a paragraph.
+
+  A user \`@template <name>\` with the same name as a built-in overrides
+  it for the rest of the document, with a warning surfaced on the
+  template's slide. So shipping a custom \`title-body\` is fine - the
+  resolver just lets you know the stdlib version got shadowed.
 
 \u2500\u2500 ERRORS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   A slide with parse/render errors shows a red badge at the bottom
@@ -2430,7 +2613,11 @@ if (require.main === module) {
     if (opts.subcommand === 'charts') { console.log(CHARTS_HELP); process.exit(0); }
     if (opts.subcommand === 'diagrams') { console.log(DIAGRAMS_HELP); process.exit(0); }
     if (opts.subcommand === 'comments') { console.log(COMMENTS_HELP); process.exit(0); }
-    if (opts.subcommand === 'slides') { console.log(SLIDES_HELP); process.exit(0); }
+    if (opts.subcommand === 'slides') {
+      if (opts.file === 'list') { printSlideStdlib(); process.exit(0); }
+      console.log(SLIDES_HELP);
+      process.exit(0);
+    }
     if (opts.subcommand === 'setup')  { await runSetup({ force: true }); process.exit(0); }
     if (opts.subcommand === 'auto-update') {
       // Sub-arg lives in opts.file (positional). Accept on/off/empty.
