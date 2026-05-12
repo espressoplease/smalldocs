@@ -567,10 +567,6 @@ async function loadPdfFonts(doc) {
   headBold = withFallback(headBold, [emoji]);
   mono     = withFallback(mono,     [emoji]);
 
-  // Drop counter shared across all pages. Read by exportPDF after render to
-  // surface "N characters omitted" in the status bar.
-  var dropCounter = { count: 0 };
-
   return {
     body: font, bodyBold: bold,
     heading: headFont, headingBold: headBold,
@@ -582,8 +578,9 @@ async function loadPdfFonts(doc) {
 
 // ── pdf-lib rendering engine ──
 
-async function renderPdf(rendered, st, chartImages, mermaidImages) {
+async function renderPdf(rendered, st, chartImages, mermaidImages, mathImages) {
   mermaidImages = mermaidImages || [];
+  mathImages = mathImages || [];
   var PDFDocument = PDFLib.PDFDocument;
   var rgb = PDFLib.rgb;
   var doc = await PDFDocument.create();
@@ -595,6 +592,28 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
   var headFont = fontPack.heading;
   var headBold = fontPack.headingBold;
   var mono = fontPack.mono;
+
+  // Pre-embed all math PNGs once so extractRuns + drawMathBlock can look
+  // up an already-embedded pdf-image reference synchronously by element.
+  // Stashed on the entry as .pdfImg; falls back to null on embed failure.
+  for (var __mi = 0; __mi < mathImages.length; __mi++) {
+    var __mEntry = mathImages[__mi];
+    if (!__mEntry || !__mEntry.dataUrl) continue;
+    try {
+      var __mBytes = Uint8Array.from(atob(__mEntry.dataUrl.split(',')[1]), function (c) { return c.charCodeAt(0); });
+      __mEntry.pdfImg = await doc.embedPng(__mBytes);
+    } catch (_) { __mEntry.pdfImg = null; }
+  }
+  function lookupMathEntry(el) {
+    for (var i = 0; i < mathImages.length; i++) {
+      if (mathImages[i].el === el) return mathImages[i];
+    }
+    return null;
+  }
+
+  // Drop counter shared across all pages. Read at the end of renderPdf
+  // to surface "N characters omitted" in the status bar.
+  var dropCounter = { count: 0 };
 
   // Page layout
   var W = 595.28; // A4 width
@@ -683,6 +702,15 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
           runs.push({ text: n.textContent, color: st.linkColor, link: n.href, underline: true });
         } else if (tag === 'br') {
           runs.push({ text: '\n', color: st.pColor });
+        } else if (tag === 'span' && n.classList.contains('sdocs-math-inline')) {
+          var mEntry = lookupMathEntry(n);
+          if (mEntry && mEntry.pdfImg) {
+            runs.push({ math: true, pdfImg: mEntry.pdfImg, mathW: mEntry.width, mathH: mEntry.height });
+          } else {
+            // Fallback: render the LaTeX source as inline code.
+            var tex = (mEntry && mEntry.tex) || n.getAttribute('data-tex') || '';
+            if (tex) runs.push({ text: tex, code: true, color: st.codeColor });
+          }
         } else if (tag !== 'img') {
           runs = runs.concat(extractRuns(n));
         }
@@ -697,6 +725,20 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
     var lineW = 0;
     runs.forEach(function(run) {
       if (run.text === '\n') { lines.push([]); lineW = 0; return; }
+
+      // Inline math: pre-embedded PNG. Scale height to the current
+      // body text size (with a small inflate so the equation isn't
+      // smaller than surrounding x-height) and preserve aspect.
+      if (run.math) {
+        var lineH = fontSize * 1.3;
+        var ratio = run.mathH > 0 ? (run.mathW / run.mathH) : 1;
+        var imgH = lineH;
+        var imgW = imgH * ratio;
+        if (lineW + imgW > maxW && lineW > 0) { lines.push([]); lineW = 0; }
+        lines[lines.length - 1].push({ math: true, pdfImg: run.pdfImg, width: imgW, height: imgH });
+        lineW += imgW;
+        return;
+      }
 
       // Inline code: treat the whole run as one unit (don't word-split)
       // so spaces inside "npm i -g sdocs-dev" stay in one pill.
@@ -789,6 +831,7 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
   function mergeRuns(lineRuns) {
     var out = [];
     lineRuns.forEach(function(r) {
+      if (r.math) { out.push(r); return; }
       if (!r.text) return;
       var last = out[out.length - 1];
       var key = (r.font === last ? 'x' : '') + '|' + r.size + '|' + (r.color || '') +
@@ -818,6 +861,16 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
     var merged = mergeRuns(lineRuns);
     var cx = x;
     merged.forEach(function(r) {
+      if (r.math && r.pdfImg) {
+        // Drop the image so its visual midline roughly aligns with the
+        // text x-height. KaTeX's HTML render is anchored at the equation's
+        // own baseline, so placing the image bottom slightly below the
+        // text baseline matches what the reader sees on screen.
+        var imgY = ly - r.height * 0.18;
+        page.drawImage(r.pdfImg, { x: cx, y: imgY, width: r.width, height: r.height });
+        cx += r.width;
+        return;
+      }
       if (!r.text) return;
       var w = r.font.widthOfTextAtSize(r.text, r.size);
       // Inline code pill — pill width = w + 2*padX, text centered with padX inset
@@ -895,6 +948,7 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
       else if (tag === 'ol') drawList(el, true);
       else if (el.classList.contains('sdoc-chart')) await drawChart();
       else if (el.classList.contains('sdoc-mermaid')) await drawMermaid();
+      else if (el.classList.contains('sdocs-math-display')) await drawMathBlock(el);
       else if (el.classList.contains('sdoc-slide')) await drawInlineSlide(el);
       else if (tag === 'hr') drawHR(el);
       else if (tag === 'img') await drawImage(el);
@@ -1151,6 +1205,35 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
     } catch (e) { console.warn('Mermaid embed failed:', e); }
   }
 
+  // Block math: KaTeX-rendered display equation captured to PNG by
+  // S.getMathImages(). Centered on the page like a figure; if the
+  // rasterizer failed (e.g. KaTeX CSS fetch blocked offline), fall back
+  // to monospace LaTeX source so the page isn't silently empty.
+  function drawMathBlock(el) {
+    var entry = lookupMathEntry(el);
+    if (!entry || !entry.pdfImg) {
+      var tex = (entry && entry.tex) || el.getAttribute('data-tex') || '';
+      if (!tex) return;
+      var size = fontSize * 0.95;
+      var w = mono.widthOfTextAtSize(tex, size);
+      var drawH = size * 1.6;
+      ensureSpace(drawH + 8);
+      var cx = ML + Math.max(0, (CW - w) / 2);
+      page.drawText(tex, { x: cx, y: y - size, size: size, font: mono, color: hexToRgb(st.codeColor) });
+      y -= drawH + 6;
+      return;
+    }
+    var natW = entry.width;
+    var natH = entry.height;
+    var scale = Math.min(CW / natW, 1);
+    var drawW = natW * scale;
+    var drawH = natH * scale;
+    ensureSpace(drawH + 16);
+    var cx = ML + (CW - drawW) / 2;
+    page.drawImage(entry.pdfImg, { x: cx, y: y - drawH, width: drawW, height: drawH });
+    y -= drawH + 12;
+  }
+
   function drawHR(el) {
     var s = el ? readComputedBlock(el) : { marT: 20, marB: 20 };
     y -= s.marT * 0.5;
@@ -1250,7 +1333,8 @@ async function exportPDF() {
     var st = readPdfStyles();
     var chartImages = S.getChartImages ? S.getChartImages() : [];
     var mermaidImages = S.getMermaidImages ? await S.getMermaidImages() : [];
-    var result = await renderPdf(S.renderedEl, st, chartImages, mermaidImages);
+    var mathImages = S.getMathImages ? await S.getMathImages() : [];
+    var result = await renderPdf(S.renderedEl, st, chartImages, mermaidImages, mathImages);
     restoreSections(closed);
 
     var blob = new Blob([result.bytes], { type: 'application/pdf' });
