@@ -648,8 +648,48 @@
   // Store chart data alongside instances so we can rebuild with new colors
   var chartDataStore = [];
 
+  // Tune a Chart.js config for use inside a slide shape. Slides own their
+  // sizing (the shape wrapper has explicit pixel dimensions and the stage
+  // CSS-transform scales the whole canvas visually); we hand Chart.js a
+  // fixed size so it doesn't try to re-measure under the transform and
+  // collapse. Fonts get scaled up because Chart.js fonts are absolute px:
+  // a 12px axis label that's fine in a 600px doc-flow chart looks tiny on
+  // a 1280px REF-stage chart - we bump all font.size values to roughly
+  // match the slide's body role (24px).
+  function tuneConfigForSlide(config) {
+    var opts = config.options = config.options || {};
+    opts.responsive = false;
+    opts.maintainAspectRatio = false;
+    opts.devicePixelRatio = Math.max(2, window.devicePixelRatio || 1);
+    // Slides are non-interactive in present mode; tooltips need a hover
+    // listener that doesn't work through the shadow boundary anyway, and
+    // they don't appear in PNG snapshots. Drop them.
+    opts.events = [];
+    opts.plugins = opts.plugins || {};
+    opts.plugins.tooltip = opts.plugins.tooltip || {};
+    opts.plugins.tooltip.enabled = false;
+    // Walk every font.size in options and bump by SCALE. Mirrors the
+    // chart's visual weight to the slide's body role (24px); without
+    // this, 12px axis labels look like ~half a body bullet's height.
+    var SCALE = 1.8;
+    function bumpFonts(obj) {
+      if (!obj || typeof obj !== 'object') return;
+      if (obj.font && typeof obj.font === 'object' && typeof obj.font.size === 'number') {
+        obj.font.size = Math.round(obj.font.size * SCALE);
+      }
+      for (var k in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, k) && typeof obj[k] === 'object') {
+          bumpFonts(obj[k]);
+        }
+      }
+    }
+    bumpFonts(opts);
+    return config;
+  }
+
   var _origProcess = processCharts;
-  processCharts = function (container) {
+  processCharts = function (container, options) {
+    options = options || {};
     chartDataStore = [];
     var chartBlocks = container.querySelectorAll('code.language-chart');
     if (!chartBlocks.length) return;
@@ -662,6 +702,7 @@
         if (!data) { pre.classList.add('sdoc-chart-error'); return; }
         var config = buildConfig(data);
         if (!config) return;
+        if (options.slideContext) tuneConfigForSlide(config);
 
         var chartIndex = chartDataStore.length;
         var wrapper = document.createElement('div');
@@ -674,6 +715,21 @@
         var preWrapper = pre.closest('.pre-wrapper');
         var target = preWrapper || pre;
         target.parentNode.replaceChild(wrapper, target);
+
+        // With responsive:false we MUST set explicit canvas dimensions
+        // before constructing the chart. Use clientWidth/Height which
+        // return layout dimensions (NOT affected by CSS transform). The
+        // stage above us may be CSS-scaled, but the underlying layout
+        // pixels are what we want Chart.js to render at - REF resolution
+        // for sharpness; the visual transform shrinks the result.
+        if (options.slideContext) {
+          var w = Math.max(1, wrapper.clientWidth || 800);
+          var h = Math.max(1, wrapper.clientHeight || 450);
+          canvas.width = w;
+          canvas.height = h;
+          canvas.style.width = w + 'px';
+          canvas.style.height = h + 'px';
+        }
 
         var chart = new Chart(canvas, config);
         activeCharts.push(chart);
