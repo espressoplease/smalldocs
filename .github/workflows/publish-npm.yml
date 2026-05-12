@@ -46,11 +46,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # Intentionally omit `registry-url` so setup-node doesn't write
+      # an .npmrc with `_authToken=${NODE_AUTH_TOKEN}`. With Trusted
+      # Publisher / OIDC, no token is needed; the placeholder authToken
+      # that setup-node would inject overrides OIDC on the publish PUT
+      # and gets rejected as 404.
       - name: Set up Node
         uses: actions/setup-node@v5
         with:
           node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Verify tag matches package.json version
         if: github.event_name == 'push'
@@ -63,16 +67,6 @@ jobs:
             exit 1
           fi
           echo "Tag and package.json agree on $TAG."
-
-      - name: Dump OIDC claims (debug)
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken('npm:registry.npmjs.org');
-            const payload = token.split('.')[1];
-            const claims = JSON.parse(Buffer.from(payload, 'base64url').toString());
-            // Print only the public claims, never the token itself.
-            core.info(JSON.stringify(claims, null, 2));
 
       - name: Install dependencies
         run: npm ci
