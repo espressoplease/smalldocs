@@ -185,4 +185,109 @@
 
   S.processMath = processMath;
   S.registerMathExtension = registerMarkedExtension;
+
+  // ── PDF / Word export rasterization ──────────────────
+  // Mirrors S.getChartImages() and S.getMermaidImages(): one entry per
+  // KaTeX-rendered math element with a PNG dataURL the exporter embeds.
+  //
+  // KaTeX renders to HTML+CSS, not SVG. To convert HTML to a bitmap without
+  // an external library, we wrap the math element inside an inline SVG's
+  // <foreignObject> and rasterize the SVG via Image -> canvas. The SVG
+  // needs the KaTeX stylesheet inlined (external <link> doesn't propagate
+  // into a serialized-then-reloaded SVG), with font URLs rewritten to
+  // absolute CDN paths so the browser can still fetch them while parsing
+  // the inlined CSS.
+
+  var katexCssPromise = null;
+  function fetchKatexCss() {
+    if (katexCssPromise) return katexCssPromise;
+    katexCssPromise = fetch(KATEX_CSS)
+      .then(function (r) { return r.text(); })
+      .then(function (css) {
+        // KaTeX CSS uses relative URLs like url(fonts/KaTeX_Main-Regular.woff2);
+        // when the CSS is inlined into an SVG data URL the relative base is
+        // gone, so the browser can't resolve them. Rewrite to absolute CDN
+        // URLs (jsdelivr serves with permissive CORS so foreignObject
+        // rasterization can pull them).
+        var base = KATEX_CSS.replace(/[^/]+$/, '');
+        return css.replace(/url\(("|')?(?!https?:|data:)([^)'"]+)\1?\)/g, function (_, q, p) {
+          return 'url(' + base + p + ')';
+        });
+      })
+      .catch(function () { return ''; });
+    return katexCssPromise;
+  }
+
+  function rasterizeMathEl(el, dpr) {
+    return new Promise(function (resolve) {
+      var rect = el.getBoundingClientRect();
+      if (!rect.width || !rect.height) return resolve(null);
+      // KaTeX uses tight negative margins internally; descenders on
+      // display math (subscripts on \sum bounds, low parens) can sit
+      // outside getBoundingClientRect's box. Pad the capture rect so
+      // the rasterized PNG includes that overflow.
+      var pad = 4;
+      var w = Math.ceil(rect.width) + pad * 2;
+      var h = Math.ceil(rect.height) + pad * 2;
+      var s = dpr || 2;
+      var cs = getComputedStyle(el);
+      var fontSize = cs.fontSize;
+      var color = cs.color;
+      fetchKatexCss().then(function (css) {
+        var html = new XMLSerializer().serializeToString(el);
+        // Wrap in a div that carries the cascade's font-size and color, so
+        // the math sits at the surrounding text's metrics rather than
+        // KaTeX's default 1em (which is 16px in vacuum). The inner padding
+        // mirrors the capture-rect pad above so the math is not flush
+        // against the SVG bounds.
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '">'
+          + '<defs><style>' + css + '</style></defs>'
+          + '<foreignObject width="100%" height="100%">'
+          + '<div xmlns="http://www.w3.org/1999/xhtml" '
+          +      'style="font-size:' + fontSize + ';color:' + color + ';line-height:1.2;padding:' + pad + 'px;box-sizing:border-box;">'
+          + html
+          + '</div></foreignObject></svg>';
+        var b64;
+        try { b64 = btoa(unescape(encodeURIComponent(svg))); }
+        catch (_) { return resolve(null); }
+        var url = 'data:image/svg+xml;base64,' + b64;
+        var img = new Image();
+        img.onload = function () {
+          try {
+            var canvas = document.createElement('canvas');
+            canvas.width = w * s; canvas.height = h * s;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w * s, h * s);
+            resolve({ dataUrl: canvas.toDataURL('image/png'), width: w, height: h, dpr: s });
+          } catch (_) { resolve(null); }
+        };
+        img.onerror = function () { resolve(null); };
+        img.src = url;
+      });
+    });
+  }
+
+  S.getMathImages = function () {
+    var rendered = document.getElementById('_sd_rendered');
+    if (!rendered) return Promise.resolve([]);
+    var nodes = rendered.querySelectorAll('.sdocs-math-display, .sdocs-math-inline');
+    var jobs = Array.prototype.map.call(nodes, function (el) {
+      var kind = el.classList.contains('sdocs-math-display') ? 'display' : 'inline';
+      return rasterizeMathEl(el, 2)
+        .then(function (res) {
+          return {
+            el: el,
+            kind: kind,
+            tex: el.getAttribute('data-tex') || '',
+            dataUrl: res ? res.dataUrl : null,
+            width: res ? res.width : 0,
+            height: res ? res.height : 0,
+          };
+        })
+        .catch(function () {
+          return { el: el, kind: kind, tex: el.getAttribute('data-tex') || '', dataUrl: null, width: 0, height: 0 };
+        });
+    });
+    return Promise.all(jobs);
+  };
 })();
