@@ -945,6 +945,11 @@ function processShadowBlocks(stage, opts) {
       injectMermaidCss(root);
       if (window.SDocs && typeof window.SDocs.processMermaid === 'function') {
         try { window.SDocs.processMermaid(root); } catch (_) {}
+        // Force the SVG to fill its container in both dimensions. CSS
+        // `height: 100%` on SVG is unreliable across browsers (Chromium
+        // computes height from intrinsic aspect when width is fixed),
+        // so set the inline style explicitly once the SVG exists.
+        kickShadowMermaid(root);
       }
     }
   }
@@ -977,6 +982,32 @@ var CHART_SHADOW_CSS = [
   '.sdoc-chart canvas { width: 100% !important; height: 100% !important; }',
   '.chart-menu-btn, .chart-menu { display: none !important; }',
 ].join('\n');
+
+// Poll until the mermaid SVG appears inside the shadow root, then pin
+// its inline width/height to the wrapper's clientWidth/clientHeight in
+// pixels. CSS percentages do NOT work reliably here: Chromium ignores
+// `height: 100%` on an SVG element with a viewBox and computes height
+// from the intrinsic aspect ratio instead (even with !important).
+// Setting explicit pixels forces the SVG element box to exactly the
+// wrapper size; preserveAspectRatio="xMidYMid meet" (mermaid's default)
+// then scales the viewBox content to fit, with letterboxing on the
+// long axis instead of vertical overflow.
+function kickShadowMermaid(shadow) {
+  var attempts = 0;
+  function tick() {
+    attempts++;
+    var wrapper = shadow.querySelector('.sdoc-mermaid');
+    var svg = wrapper && wrapper.querySelector('svg');
+    if (wrapper && svg && wrapper.clientWidth > 0 && wrapper.clientHeight > 0) {
+      svg.style.setProperty('width',  wrapper.clientWidth  + 'px', 'important');
+      svg.style.setProperty('height', wrapper.clientHeight + 'px', 'important');
+      svg.style.setProperty('max-width', '100%', 'important');
+      return;
+    }
+    if (attempts < 40) setTimeout(tick, 100);
+  }
+  setTimeout(tick, 80);
+}
 
 // Wait until every chart canvas inside `stage` has a Chart.js instance
 // attached and a non-zero drawing buffer, then snapshot each canvas to
@@ -1064,7 +1095,21 @@ var MERMAID_SHADOW_CSS = [
   '  overflow: hidden; text-align: center;',
   '  width: 100%; height: 100%; position: relative;',
   '}',
-  '.sdoc-mermaid svg { max-width: 100%; max-height: 100%; height: auto; width: auto; display: inline-block; }',
+  // SVG fills the container; mermaid's default preserveAspectRatio
+  // (xMidYMid meet) scales the viewBox content to fit inside the SVG
+  // element while preserving aspect ratio. With height: auto the SVG
+  // element grew to whatever the diagram's natural ratio dictated and
+  // a tall diagram (state machine, vertical sequence) overflowed the
+  // shape; making the SVG element box-size 100%x100% means the diagram
+  // shrinks to fit vertically when needed, with empty space on the
+  // long axis instead of clipping on the short one.
+  //
+  // !important is required because mermaid writes an inline
+  //   style="max-width: <natural-px>px"
+  // on the SVG. Without overriding it, the SVG can never grow past
+  // its natural viewBox width, so width:100% gets clamped and height
+  // (auto-computed from aspect) overflows the wrapper.
+  '.sdoc-mermaid svg { width: 100% !important; height: 100% !important; max-width: 100% !important; display: block; }',
   'svg.sdoc-mermaid-svg { overflow: visible; }',
   'svg.sdoc-mermaid-svg .node > rect,',
   'svg.sdoc-mermaid-svg .node .label-container,',
