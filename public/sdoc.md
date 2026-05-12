@@ -428,7 +428,7 @@ Supports 13 diagram types: flowcharts, sequence diagrams, class diagrams, state 
 
 Standalone `.mmd` files work too — `sdoc graph.mmd` wraps the file in a ` ```mermaid ` fence and opens it. Run `sdoc diagrams` for the full reference.
 
-Mermaid runs with `securityLevel: 'strict'` and `htmlLabels: false`. The output SVG is post-sanitised before insertion (foreignObject / script / use / iframe / animation tags are stripped), and `%%{init:...}%%` directives in the source are removed since they can otherwise override security settings at parse time. Per-diagram source is capped at 64 KB and each render times out after 5 seconds.
+Mermaid runs with `securityLevel: 'strict'` and `htmlLabels: true`. The htmlLabels flag lets long labels wrap inside a `<foreignObject>`, which is otherwise a script-injection vector; SDocs makes it safe by post-sanitising the SVG before insertion. `<script>`, `<iframe>`, `<form>`, `<input>`, `<use>`, animation tags, `on*` event handlers, and `javascript:` URLs are stripped, and `%%{init:...}%%` directives in the source are removed because they can flip security settings at parse time. Per-diagram source is capped at 64 KB and each render times out after 5 seconds.
 
 ### Drag & drop
 
