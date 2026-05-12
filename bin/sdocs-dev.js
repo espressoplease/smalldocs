@@ -1971,24 +1971,35 @@ navigate.
       half-empty, drop it and use two-column instead.
 
     exhibit
-      Chart on the left, takeaway column on the right, optional
-      source caption underneath. The chart is the evidence; the
+      Chart on the left (~64% of safe area), takeaway column on the
+      right (~32%), optional source caption underneath, required
+      action title at the top. The chart is the evidence; the
       takeaway tells the audience what to see. Reserve for business
       decks where the audience needs a verbal handle on the chart
-      under time pressure. If your audience can read the chart
-      themselves in 5 seconds, use figure-hero instead.
+      under time pressure. Sibling templates: \`image-and-text\`
+      when image and body should read as balanced peers (54/46,
+      title optional and small); \`figure-hero\` when the chart
+      should fill the slide with no right column at all.
 
     image-and-text
-      Image on the left, supporting body on the right. Use when
-      the image is half the argument; reach for figure-hero when
-      the image IS the argument. The image slot accepts markdown
-      image syntax: \`#image: ![alt](url)\`.
+      Image on the left (~54% of safe area), supporting body on
+      the right (~43%), balanced. Optional small caption-style
+      title at the top. Use when the image and the body are about
+      equal in weight - "here's a thing + here's what it is".
+      Sibling templates: \`exhibit\` when the chart should
+      dominate and the right column is a narrow set of takeaway
+      bullets; \`figure-hero\` when the image IS the argument
+      (no body column). The image slot accepts markdown image
+      syntax: \`#image: ![alt](url)\`.
 
     figure-hero
       Image-dominant slide. The figure carries the whole slide
-      and a small caption sits below. The workhorse for research
-      talks and any deck where a chart, screenshot, or photograph
-      is the point.
+      and a small caption sits below; no body or takeaway column.
+      The workhorse for research talks and any deck where a chart,
+      screenshot, or photograph is the point. Sibling templates:
+      \`image-and-text\` when you also want a body column;
+      \`exhibit\` when you want a chart plus a narrow takeaway
+      column for a business audience.
 
     quote
       Single big idea, customer voice, or a manifesto sentence.
