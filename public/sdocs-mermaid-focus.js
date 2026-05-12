@@ -96,9 +96,9 @@
     '.sdoc-mermaid-focus-btn:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
     /* Whole menu clusters on the right of the topbar -- brand has        */
     /* margin-right:auto, everything else flows in DOM order:             */
-    /*   brand | <auto> | close | sep | zoom group | sep | copy group     */
-    /* Mobile drops brand's auto-margin so the cluster moves to the left. */
-    '.sdoc-mermaid-focus-close-sep { display: inline-block; }',
+    /*   brand | <auto> | zoom group | sep | copy group | sep | close     */
+    /* Mobile drops brand's auto-margin so the cluster moves to the left  */
+    /* and scrolls horizontally; close stays at the far-right end.        */
     '.sdoc-mermaid-focus-stage {',
     '  position: relative; overflow: hidden;',
     '  display: flex; align-items: center; justify-content: center;',
@@ -135,10 +135,9 @@
     '.sdoc-mermaid-focus-action svg { flex-shrink: 0; }',
     '.sdoc-mermaid-focus-action-label { white-space: nowrap; }',
     /* Mobile: left-align everything, let the topbar scroll horizontally. */
-    /* Close jumps to immediately after the brand so it's reachable     */
-    /* without horizontal scrolling on small screens. The "Diagram"     */
-    /* suffix is dropped here too -- contextual and not worth the width. */
-    /* Mirrors the main toolbar pattern (mobile.css, _sd_left-toolbar).  */
+    /* Close stays at the far-right end of the scroll, matching desktop;  */
+    /* the "Diagram" suffix is dropped here -- contextual and not worth   */
+    /* the width. Mirrors the main toolbar pattern (mobile.css).          */
     '@media (max-width: 768px) {',
     '  .sdoc-mermaid-focus-brand { margin-right: 0; }',
     '  .sdoc-mermaid-focus-brand-full { display: none; }',
@@ -342,11 +341,10 @@
 
     var topbar = document.createElement('div');
     topbar.className = 'sdoc-mermaid-focus-topbar';
-    /* Layout: brand | [close] | actions | [close]                  */
-    /* Desktop puts close on the far right (auto margin); mobile     */
-    /* reorders so close sits immediately after the brand, reachable */
-    /* without horizontal scrolling. Single close button, repositioned */
-    /* via flex `order:` per breakpoint.                              */
+    /* Layout: brand | <auto> | actions | sep | close                */
+    /* Close sits at the far right on both desktop and mobile. On    */
+    /* mobile the topbar scrolls horizontally; close trails the end  */
+    /* of the scroll rather than crowding the brand.                 */
     topbar.innerHTML =
       '<span class="sdoc-mermaid-focus-brand">'
       +   '<span class="sdoc-mermaid-focus-brand-text sdoc-mermaid-focus-brand-full">SmallDocs</span>'
@@ -354,11 +352,6 @@
       +   '<span class="sdoc-mermaid-focus-brand-text sdoc-mermaid-focus-brand-tiny">SD</span>'
       +   '<span class="sdoc-mermaid-focus-brand-suf">Diagram</span>'
       + '</span>'
-      + '<button type="button" class="sdoc-mermaid-focus-btn sdoc-mermaid-focus-close" data-act="close" title="Close (Esc)" aria-label="Close">' + X_ICON_SVG + '</button>'
-      /* Mobile-only separator after the close button. Hidden on desktop  */
-      /* via .sdoc-mermaid-focus-close-sep below; the auto-margin layout  */
-      /* already provides visual separation between close and actions.    */
-      + '<span class="sdoc-mermaid-focus-sep sdoc-mermaid-focus-close-sep" aria-hidden="true"></span>'
       + '<div class="sdoc-mermaid-focus-actions">'
       +   '<button type="button" class="sdoc-mermaid-focus-btn" data-act="zoomin" title="Zoom in (+)" aria-label="Zoom in">' + ZOOM_IN_ICON_SVG + '</button>'
       +   '<button type="button" class="sdoc-mermaid-focus-btn" data-act="zoomout" title="Zoom out (−)" aria-label="Zoom out">' + ZOOM_OUT_ICON_SVG + '</button>'
@@ -370,7 +363,9 @@
       +   '<button type="button" class="sdoc-mermaid-focus-action" data-act="save-png" title="Save as PNG file" aria-label="Save as PNG file">'
       +     DOWNLOAD_ICON_SVG + '<span class="sdoc-mermaid-focus-action-label">PNG</span>'
       +   '</button>'
-      + '</div>';
+      + '</div>'
+      + '<span class="sdoc-mermaid-focus-sep" aria-hidden="true"></span>'
+      + '<button type="button" class="sdoc-mermaid-focus-btn sdoc-mermaid-focus-close" data-act="close" title="Close (Esc)" aria-label="Close">' + X_ICON_SVG + '</button>';
 
     stageEl = document.createElement('div');
     stageEl.className = 'sdoc-mermaid-focus-stage';
