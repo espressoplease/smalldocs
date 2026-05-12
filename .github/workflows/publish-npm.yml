@@ -1,0 +1,81 @@
+# Publishes the npm package with build provenance attestation.
+#
+# Triggered by pushing a `v*` tag. The tag's version must match
+# package.json's version, otherwise the workflow fails.
+#
+# npm provenance requires:
+#   - permissions: id-token: write   (OIDC mint for GitHub Actions)
+#   - npm 9.5+                       (provided by Node 20+)
+#   - --provenance --access public   (publish flags)
+#   - "Trusted publisher" set up on npm package settings to allow
+#     OIDC publishes from this repo + workflow file path.
+#
+# No NPM_TOKEN is needed: the package is configured to disallow
+# token-based publishes, so the trusted-publisher OIDC flow is the
+# only path that ships bytes.
+#
+# After a successful run the registry metadata gains
+# `dist.attestations` (verifiable via `npm audit signatures` or
+# `npm install <pkg>` warnings) cryptographically linking the
+# published tarball to this Actions build of this commit.
+
+name: Publish to npm
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (skip actual publish)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify tag matches package.json version
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag v$TAG does not match package.json version $PKG"
+            exit 1
+          fi
+          echo "Tag and package.json agree on $TAG."
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Publish to npm with provenance
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.dry-run }}" = "true" ]; then
+            echo "Dry run: showing what would be published."
+            npm publish --provenance --access public --dry-run
+          else
+            npm publish --provenance --access public
+          fi
