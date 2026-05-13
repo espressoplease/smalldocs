@@ -12,10 +12,12 @@
 //   l <point> <point>           line
 //   a <point> <point>           arrow (line with head at end)
 //   p <point> <point> ...       polygon; segment operators between points:
-//                                 ~          smooth (asymmetric quadratic to midpoint)
+//                                 ~          soft bow (sagitta = 10% of chord)
 //                                 ^h         arc / bow by sagitta h
-//                                 >P         quadratic Bezier with control P
-//                                 * P1 P2    cubic Bezier with controls P1, P2
+//                                 >P         quadratic Bezier through P
+//                                 * P1 P2    cubic Bezier through P1, P2
+//                               point modifiers:
+//                                 (r         round the corner at this point
 //                               (polygon point = `x,y` or `@ref`; control P can
 //                               be either; arrow `a` also accepts `^h` between
 //                               its endpoints)
@@ -176,7 +178,11 @@ function parseLine(raw, lineNumber) {
     // `pendingSeg` is the segment description (line / smooth / arc / quad /
     // cubic) that will be attached to the *next* point pushed. It carries the
     // metadata for the edge from the previous point to the next one.
+    // `pendingRound` is the corner-rounding radius for the next point; the
+    // point itself owns this (the rounding sits AT the vertex, not on an
+    // adjacent edge).
     var pendingSeg = null;
+    var pendingRound = null;
     while (i < rest.length) {
       var t = rest[i];
 
@@ -223,12 +229,30 @@ function parseLine(raw, lineNumber) {
         continue;
       }
 
+      // (r — round the corner at the next point with radius r. Unlike the
+      // segment operators above, this targets the vertex itself, so it is
+      // valid even before the first point. Rounding only takes effect when
+      // both adjacent segments are straight; the renderer silently no-ops
+      // otherwise (curved-edge corners have no clean rounding semantics).
+      if (t.charAt(0) === '(') {
+        var rToken;
+        if (t.length > 1) { rToken = t.slice(1); i++; }
+        else { rToken = rest[i + 1]; i += 2; }
+        if (rToken == null) throw new Error('polygon: ( needs a radius value');
+        var rVal = parseNumber(rToken, 'polygon: (r radius');
+        if (rVal <= 0) throw new Error('polygon: (r radius must be > 0');
+        pendingRound = rVal;
+        continue;
+      }
+
       if (isRefToken(t)) {
         var rpt = { ref: tryParseRef(t) };
         rpt.seg = pendingSeg || { type: 'line' };
         rpt.curve = rpt.seg.type === 'smooth';
+        if (pendingRound != null) rpt.round = pendingRound;
         shape.points.push(rpt);
         pendingSeg = null;
+        pendingRound = null;
         i++;
         continue;
       }
@@ -236,8 +260,10 @@ function parseLine(raw, lineNumber) {
       var pt = parsePointLiteral(t);
       pt.seg = pendingSeg || { type: 'line' };
       pt.curve = pt.seg.type === 'smooth';
+      if (pendingRound != null) pt.round = pendingRound;
       shape.points.push(pt);
       pendingSeg = null;
+      pendingRound = null;
       i++;
     }
     if (pendingSeg) {
@@ -248,6 +274,7 @@ function parseLine(raw, lineNumber) {
                  : pendingSeg.type;
       throw new Error('polygon: trailing ' + opName + ' with no following point');
     }
+    if (pendingRound != null) throw new Error('polygon: trailing ( with no following point');
     if (shape.points.length < 2) {
       // Hint when the author wrote space-separated coords (e.g. `p 7 1 9 1 8 3`)
       // by analogy with `r x y w h`. Polygon's variable-length point list needs
@@ -699,6 +726,7 @@ function serializeShape(s) {
       } else if ((seg && seg.type === 'smooth') || (!seg && pt.curve)) {
         parts.push('~');
       }
+      if (pt.round != null) parts.push('(' + pt.round);
       if (pt.ref) parts.push(refTokenStr(pt.ref));
       else parts.push(pt.x + ',' + pt.y);
     }

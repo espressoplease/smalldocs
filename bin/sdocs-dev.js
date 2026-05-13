@@ -2133,6 +2133,20 @@ rather than as designed.
                   the offset ~4x, so far-from-chord through-points
                   overshoot dramatically beyond the curve itself.
 
+  Polygon point modifiers (attach to the next point, not to an edge):
+
+    (r            round the corner at the next point with radius r.
+                  Walks each adjacent edge back by r / tan(half-angle),
+                  replaces the sharp vertex with a circular arc tangent
+                  to both edges. Only takes effect when both adjacent
+                  segments are straight; silently no-ops if either is
+                  curved (~, ^, >, *). If r would consume more than half
+                  of either neighbouring chord, it shrinks to fit so
+                  adjacent rounded corners cannot overlap.
+
+                  Example, all four corners of a card softened:
+                    p (0.4 0,0 (0.4 8,0 (0.4 8,5 (0.4 0,5 fill=#dbeafe
+
   The same \`^h\` operator works between an arrow's two endpoints to bow
   the arrow into a curve:
     a 2 5 ^0.8 12 5            (rightward arrow bowing upward by 0.8u)

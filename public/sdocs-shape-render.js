@@ -613,63 +613,135 @@ function renderArrow(s, defsNeeded) {
   return g;
 }
 
-// Convert the polygon's points + per-point segment metadata into an SVG path.
+// Emit one segment from `prev` to `p` per its seg metadata. Used by polyPath
+// after corner-rounding logic has decided whether `prev` / `p` are the actual
+// polygon vertices or tangent points on rounded corners.
+//
 // Segment kinds (set by the parser):
 //   line   — L to point
-//   smooth — soft bow: defaults to ^h with sagitta = 10% of chord length
-//            (positive direction = left of travel = up for a rightward chord).
-//            Pre-1.6 `~` was a structurally degenerate quadratic that always
-//            collapsed to a straight line; this restores it as a visible
-//            soft corner.
+//   smooth — soft bow at sagitta = 10% of chord length (positive = left of
+//            travel = up for a rightward chord). Pre-1.6 ~ was structurally
+//            degenerate; this restores it as a visible soft corner.
 //   arc    — Q with control offset from chord midpoint along the perpendicular
-//            by 2 * sagitta. Positive sagitta bows to the left of the
-//            direction of travel; for a rightward chord in SVG y-down coords
-//            that means upward. Sagitta is the actual visible bow depth at
-//            t=0.5, not the SVG control offset.
-//   quad   — Through-point quadratic: the curve passes through seg.c at
-//            t=0.5. We derive the SVG control with C = 2*P - (A+B)/2, then
-//            emit it as a standard Q. Agents place "the point I want the
-//            curve to hit"; SVG semantics are hidden.
-//   cubic  — Through-point cubic: the curve passes through seg.c1 at t=1/3
-//            and seg.c2 at t=2/3. Same derivation logic applied twice.
-function polyPath(points) {
-  if (points.length === 0) return '';
-  var d = 'M ' + points[0].x + ' ' + points[0].y;
-  for (var i = 1; i < points.length; i++) {
-    var p = points[i];
-    var prev = points[i - 1];
-    var seg = p.seg || (p.curve ? { type: 'smooth' } : { type: 'line' });
-    if (seg.type === 'smooth' || seg.type === 'arc') {
-      var dx = p.x - prev.x, dy = p.y - prev.y;
-      var L = Math.sqrt(dx * dx + dy * dy);
-      if (L === 0) { d += ' L ' + p.x + ' ' + p.y; continue; }
-      var sagitta = seg.type === 'arc' ? seg.sagitta : L * 0.1;
-      // Left-perpendicular of (dx,dy) in y-down coords.
-      var perpX = dy / L, perpY = -dx / L;
-      var cx = (prev.x + p.x) / 2 + perpX * (2 * sagitta);
-      var cy = (prev.y + p.y) / 2 + perpY * (2 * sagitta);
-      d += ' Q ' + cx + ' ' + cy + ' ' + p.x + ' ' + p.y;
-    } else if (seg.type === 'quad') {
-      // Through-point at t=0.5: C = 2*P - (A+B)/2.
-      var qcx = 2 * seg.c.x - (prev.x + p.x) / 2;
-      var qcy = 2 * seg.c.y - (prev.y + p.y) / 2;
-      d += ' Q ' + qcx + ' ' + qcy + ' ' + p.x + ' ' + p.y;
-    } else if (seg.type === 'cubic') {
-      // Through-points at t=1/3 and t=2/3. Closed-form derivation:
-      //   C1 = 3*P1 - 1.5*P2 - (5/6)*A + (1/3)*B
-      //   C2 = 3*P2 - 1.5*P1 - (5/6)*B + (1/3)*A
-      var P1 = seg.c1, P2 = seg.c2;
-      var c1x = 3 * P1.x - 1.5 * P2.x - (5 / 6) * prev.x + (1 / 3) * p.x;
-      var c1y = 3 * P1.y - 1.5 * P2.y - (5 / 6) * prev.y + (1 / 3) * p.y;
-      var c2x = 3 * P2.x - 1.5 * P1.x - (5 / 6) * p.x + (1 / 3) * prev.x;
-      var c2y = 3 * P2.y - 1.5 * P1.y - (5 / 6) * p.y + (1 / 3) * prev.y;
-      d += ' C ' + c1x + ' ' + c1y +
+//            by 2 * sagitta. Sagitta is the visible bow depth at t=0.5, not
+//            the hidden SVG control offset.
+//   quad   — Through-point quadratic: passes through seg.c at t=0.5. SVG
+//            control derived as C = 2*P - (A+B)/2.
+//   cubic  — Through-point cubic: passes through seg.c1 at t=1/3 and seg.c2
+//            at t=2/3. SVG controls derived via closed-form.
+function emitPolySeg(seg, prev, p) {
+  if (seg.type === 'smooth' || seg.type === 'arc') {
+    var dx = p.x - prev.x, dy = p.y - prev.y;
+    var L = Math.sqrt(dx * dx + dy * dy);
+    if (L === 0) return ' L ' + p.x + ' ' + p.y;
+    var sagitta = seg.type === 'arc' ? seg.sagitta : L * 0.1;
+    var perpX = dy / L, perpY = -dx / L;
+    var cx = (prev.x + p.x) / 2 + perpX * (2 * sagitta);
+    var cy = (prev.y + p.y) / 2 + perpY * (2 * sagitta);
+    return ' Q ' + cx + ' ' + cy + ' ' + p.x + ' ' + p.y;
+  } else if (seg.type === 'quad') {
+    var qcx = 2 * seg.c.x - (prev.x + p.x) / 2;
+    var qcy = 2 * seg.c.y - (prev.y + p.y) / 2;
+    return ' Q ' + qcx + ' ' + qcy + ' ' + p.x + ' ' + p.y;
+  } else if (seg.type === 'cubic') {
+    var P1 = seg.c1, P2 = seg.c2;
+    var c1x = 3 * P1.x - 1.5 * P2.x - (5 / 6) * prev.x + (1 / 3) * p.x;
+    var c1y = 3 * P1.y - 1.5 * P2.y - (5 / 6) * prev.y + (1 / 3) * p.y;
+    var c2x = 3 * P2.x - 1.5 * P1.x - (5 / 6) * p.x + (1 / 3) * prev.x;
+    var c2y = 3 * P2.y - 1.5 * P1.y - (5 / 6) * p.y + (1 / 3) * prev.y;
+    return ' C ' + c1x + ' ' + c1y +
            ' ' + c2x + ' ' + c2y +
            ' ' + p.x + ' ' + p.y;
+  }
+  return ' L ' + p.x + ' ' + p.y;
+}
+
+// For each point with a `(r` corner-rounding modifier, compute the two
+// tangent points on the adjacent edges and the SVG arc parameters. Skip
+// (return null) when either adjacent segment is curved (rounding has no
+// clean semantics there), when the corner is colinear or flipped, or when
+// the radius would consume more than half of either neighbouring chord.
+function computePolyRounding(points) {
+  var n = points.length;
+  var out = new Array(n);
+  for (var i = 0; i < n; i++) {
+    out[i] = null;
+    var pt = points[i];
+    if (pt.round == null || pt.round <= 0) continue;
+    var prev = points[(i - 1 + n) % n];
+    var next = points[(i + 1) % n];
+    var inSeg  = pt.seg   || (pt.curve   ? { type: 'smooth' } : { type: 'line' });
+    var outSeg = next.seg || (next.curve ? { type: 'smooth' } : { type: 'line' });
+    if (inSeg.type !== 'line' || outSeg.type !== 'line') continue;
+
+    var dxIn = prev.x - pt.x, dyIn = prev.y - pt.y;
+    var dxOut = next.x - pt.x, dyOut = next.y - pt.y;
+    var lenIn = Math.sqrt(dxIn * dxIn + dyIn * dyIn);
+    var lenOut = Math.sqrt(dxOut * dxOut + dyOut * dyOut);
+    if (lenIn === 0 || lenOut === 0) continue;
+
+    var uxIn = dxIn / lenIn, uyIn = dyIn / lenIn;
+    var uxOut = dxOut / lenOut, uyOut = dyOut / lenOut;
+    var cosFull = uxIn * uxOut + uyIn * uyOut;
+    // Colinear (no real corner) or 180-degree flip (degenerate). Either way,
+    // skip rounding instead of dividing by tan(0) or tan(pi/2).
+    if (cosFull >=  0.9999) continue;
+    if (cosFull <= -0.9999) continue;
+
+    var halfAngle = Math.acos(cosFull) / 2;
+    var tanHalf = Math.tan(halfAngle);
+    var d = pt.round / tanHalf;
+    // Clamp the tangent-point setback to half of either neighbouring chord
+    // so adjacent rounded corners cannot overlap. The actual rendered radius
+    // shrinks alongside d when clamping kicks in.
+    d = Math.min(d, lenIn / 2, lenOut / 2);
+    var actualR = d * tanHalf;
+
+    var tIn  = { x: pt.x + uxIn  * d, y: pt.y + uyIn  * d };
+    var tOut = { x: pt.x + uxOut * d, y: pt.y + uyOut * d };
+
+    // SVG sweep flag: pick the arc that bends toward the polygon interior
+    // (i.e. away from the corner vertex). The cross product of the incoming
+    // edge direction (-uIn) with the outgoing edge direction (uOut) tells us
+    // which way the path turns; in SVG y-down coords, positive cross =
+    // clockwise turn = sweep flag 1.
+    var cross = (-uxIn) * uyOut - (-uyIn) * uxOut;
+    var sweep = cross > 0 ? 1 : 0;
+
+    out[i] = { tIn: tIn, tOut: tOut, r: actualR, sweep: sweep };
+  }
+  return out;
+}
+
+function polyPath(points) {
+  if (points.length === 0) return '';
+  var n = points.length;
+  var rounding = computePolyRounding(points);
+
+  // If pt[0] is rounded, the path starts at its outgoing tangent point and
+  // ends with the arc from tIn[0] back to tOut[0] (which Z then collapses).
+  var startPt = rounding[0] ? rounding[0].tOut : points[0];
+  var d = 'M ' + startPt.x + ' ' + startPt.y;
+
+  for (var i = 1; i <= n; i++) {
+    var idx = i % n;
+    var pt = points[idx];
+    var prev = points[(i - 1) % n];
+    var prevEnd = rounding[(i - 1) % n] ? rounding[(i - 1) % n].tOut : prev;
+    var seg = pt.seg || (pt.curve ? { type: 'smooth' } : { type: 'line' });
+
+    if (rounding[idx]) {
+      // The segment into this corner must be straight (computePolyRounding
+      // would have returned null otherwise), so an L to tIn is always right.
+      d += ' L ' + rounding[idx].tIn.x + ' ' + rounding[idx].tIn.y;
+      var ri = rounding[idx];
+      d += ' A ' + ri.r + ' ' + ri.r + ' 0 0 ' + ri.sweep +
+           ' ' + ri.tOut.x + ' ' + ri.tOut.y;
     } else {
-      d += ' L ' + p.x + ' ' + p.y;
+      d += emitPolySeg(seg, prevEnd, pt);
     }
   }
+
   d += ' Z';
   return d;
 }
