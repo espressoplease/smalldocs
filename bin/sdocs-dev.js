@@ -2230,6 +2230,11 @@ rather than as designed.
     radius=N            Corner radius (rectangles)
     color=<color>       Text colour inside the shape
     image=<url>         Bitmap fill (see IMAGES section)
+    opacity=N           0..1; fades the whole shape (fill + stroke +
+                        text overlay) at once. Useful for translucent
+                        backdrops, ghosted "previous state" shapes,
+                        overlapping highlights. Out-of-range values
+                        clamp.
 
   Numeric attributes (strokeWidth, radius) are in grid units - pick
   values relative to your grid size, no prescribed defaults. On a
