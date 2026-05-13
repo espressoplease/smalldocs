@@ -419,6 +419,27 @@
     wrapper.appendChild(msg);
   }
 
+  // Mermaid v10 attaches temporary nodes to document.body during render:
+  //   - `<div id="d<our-id>">` enclosing container (always appended)
+  //   - `<iframe id="i<our-id>">` for font-size measurement (sometimes)
+  //   - `<svg id="<our-id>">` the rendered SVG (sometimes attached
+  //                          directly to body before being extracted)
+  // On success it removes them. On syntax error it populates the enclosing
+  // div with the native errorRenderer SVG (bomb icon + "Syntax error in
+  // text") and leaves the lot behind. Our wrapper already shows the
+  // textual parse error; the leftover bomb is noise.
+  // Call after every render attempt to sweep any of the three.
+  function cleanupRenderOrphan(id) {
+    if (!id) return;
+    var ids = [id, 'd' + id, 'i' + id];
+    for (var i = 0; i < ids.length; i++) {
+      var n = document.getElementById(ids[i]);
+      if (n && n.parentNode === document.body) {
+        try { document.body.removeChild(n); } catch (_) {}
+      }
+    }
+  }
+
   // Walk all code.language-mermaid blocks in container, render each, and
   // replace the <pre> with a <div class="sdoc-mermaid"> wrapping the SVG.
   // Returns a Promise that resolves once every diagram has rendered (or
@@ -464,7 +485,11 @@
 
         var p;
         try { p = mermaid.render(id, src); }
-        catch (e) { renderError(wrapper, e && e.message); return Promise.resolve(); }
+        catch (e) {
+          renderError(wrapper, e && e.message);
+          cleanupRenderOrphan(id);
+          return Promise.resolve();
+        }
 
         return withTimeout(p, RENDER_TIMEOUT_MS)
           .then(function (out) {
@@ -490,7 +515,8 @@
           })
           .catch(function (err) {
             renderError(wrapper, (err && err.message) || 'Mermaid render error');
-          });
+          })
+          .then(function () { cleanupRenderOrphan(id); });
       });
 
       return Promise.all(jobs);

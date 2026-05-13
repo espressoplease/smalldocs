@@ -50,15 +50,19 @@ var CSS = [
   /* Default: centered both axes. Works naturally for titles and standalone */
   /* text. Agents override via align=left/right and valign=top/bottom — see */
   /* `sdoc slides` for when to switch (body/list copy usually wants left). */
+  /* overflow: visible (not hidden) is deliberate. Role-based text shrinks */
+  /* to fit via autofit-cap mode (see applySizing / applyAutoFit); once the */
+  /* font hits the floor (~10px) any further overflow is shown rather than */
+  /* clipped, so an over-stuffed shape looks broken instead of looking fine. */
   '.sd-shape-stage .shape-rect {',
   '  position: absolute; box-sizing: border-box;',
   '  display: flex; align-items: center; justify-content: center; text-align: center;',
-  '  overflow: hidden; line-height: 1.25;',
+  '  overflow: visible; line-height: 1.25;',
   '}',
   '.sd-shape-stage .shape-text {',
   '  position: absolute; box-sizing: border-box;',
   '  display: flex; align-items: center; justify-content: center; text-align: center;',
-  '  overflow: hidden; line-height: 1.25;',
+  '  overflow: visible; line-height: 1.25;',
   '}',
   '.sd-shape-stage .shape-rect[data-align="left"],',
   '.sd-shape-stage .shape-text[data-align="left"] { justify-content: flex-start; text-align: left; }',
@@ -333,8 +337,13 @@ var ROLE_SIZES = {
   caption:  14,
 };
 
-// `size=Npx` overrides the role's size. `size=fit` opts into the legacy
-// autofit binary search (capped by `maxfont=` or the stage-height cap).
+// `size=Npx` overrides the role's size (literal, no shrink).
+// `size=fit` opts into the fill-the-shape binary search (capped by
+// `maxfont=` or the stage-height cap) - used by hero metrics.
+// Default (no `size=`): role-based px is treated as a CAP. The shape
+// renders at the role's px when content fits, and shrinks down toward
+// the floor (~10px) only when content would otherwise overflow. Past
+// the floor, content overflows visibly rather than clipping.
 // Unknown role names fall back to `body` so a typo doesn't break a slide.
 function applySizing(el, attrs) {
   attrs = attrs || {};
@@ -355,7 +364,8 @@ function applySizing(el, attrs) {
   }
   var px = Object.prototype.hasOwnProperty.call(ROLE_SIZES, role) ? ROLE_SIZES[role] : ROLE_SIZES.body;
   el.style.fontSize = px + 'px';
-  el.dataset.autofit = 'off';
+  el.dataset.autofit = 'cap';
+  el.dataset.capsize = String(px);
 }
 
 // Background image support. Every shape kind can hold an image the same way:
@@ -445,6 +455,16 @@ function buildImagePatternSvg(svg, attrs) {
   return id;
 }
 
+// REF-pixel dims of a grid-unit box. Stage is rW x REF_H; a w x h grid
+// region maps to (w * REF_H / grid.h) x (h * REF_H / grid.h) px. Stashed
+// on shape elements so downstream code (e.g. chart canvas sizing) can use
+// declared geometry instead of measuring the live DOM, which races layout
+// in some render paths.
+function refDimsFor(w, h, grid) {
+  var k = REF_H / grid.h;
+  return { w: w * k, h: h * k };
+}
+
 function renderRect(s, grid) {
   var el = document.createElement('div');
   el.className = 'shape-rect';
@@ -458,6 +478,9 @@ function renderRect(s, grid) {
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
   if (s.attrs && s.attrs.valign) el.dataset.valign = s.attrs.valign;
+  var dims = refDimsFor(s.w, s.h, grid);
+  el.dataset.refw = String(dims.w);
+  el.dataset.refh = String(dims.h);
   applySizing(el, s.attrs);
   if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content, s.attrs));
   if (s.id) el.dataset.id = s.id;
@@ -564,6 +587,9 @@ function renderTextOverlay(s, grid) {
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
   if (s.attrs && s.attrs.valign) el.dataset.valign = s.attrs.valign;
+  var dims = refDimsFor(box.w, box.h, grid);
+  el.dataset.refw = String(dims.w);
+  el.dataset.refh = String(dims.h);
   applySizing(el, s.attrs);
   if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content, s.attrs));
   if (s.id) el.dataset.id = s.id + '-text';
@@ -616,8 +642,10 @@ function autoFitText(el, minPx, maxPx) {
   var lo = minPx, hi = cap, best = minPx;
   // clientWidth/Height include padding; available content area is the
   // inset. scrollWidth/Height are integer CSS px, so give a 1px tolerance
-  // to avoid rounding rejecting every size. overflow: hidden is the
-  // backstop if we ever oversize by a pixel.
+  // to avoid rounding rejecting every size. If even minPx doesn't fit,
+  // best stays at minPx and content overflows the shape visibly (shape
+  // CSS uses overflow: visible) - the deliberate "looks broken when it
+  // is broken" signal.
   var cs = getComputedStyle(el);
   var padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
   var padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
@@ -645,21 +673,31 @@ var DEFAULT_MAX_FONT_STAGE_PCT = 0.12;
 var REF_H = 720;
 function refW(grid) { return REF_H * grid.w / grid.h; }
 
-// Walks rendered shapes and runs the autofit binary search on each shape
-// whose `size=fit` opted in. Role-based shapes (the default) already have
-// their final px font-size set by applySizing; this loop leaves them alone.
+// Walks rendered shapes and runs the autofit binary search.
+//   autofit='on'  - size=fit: fill-the-shape, capped at stage-height or
+//                   per-shape maxfont=.
+//   autofit='cap' - default role-based path: role's px is the cap; shrink
+//                   down toward floor only when content would overflow.
+//   autofit='off' - literal size=Npx: leave alone.
 function applyAutoFit(container, minPx, maxStageHPct) {
-  var floor = typeof minPx === 'number' ? minPx : 8;
+  var floor = typeof minPx === 'number' ? minPx : 10;
   var pct = typeof maxStageHPct === 'number' ? maxStageHPct : DEFAULT_MAX_FONT_STAGE_PCT;
   var stageCap = REF_H * pct;
   var els = container.querySelectorAll('.shape-rect, .shape-text');
   for (var i = 0; i < els.length; i++) {
     var el = els[i];
-    if (el.dataset.autofit !== 'on') continue;
+    var mode = el.dataset.autofit;
+    if (mode !== 'on' && mode !== 'cap') continue;
     var h = el.clientHeight;
     if (h <= 0) continue;
-    var perShape = parseFloat(el.dataset.maxfont);
-    var cap = isFinite(perShape) && perShape > 0 ? perShape : stageCap;
+    var cap;
+    if (mode === 'on') {
+      var perShape = parseFloat(el.dataset.maxfont);
+      cap = isFinite(perShape) && perShape > 0 ? perShape : stageCap;
+    } else {
+      var role = parseFloat(el.dataset.capsize);
+      cap = isFinite(role) && role > 0 ? role : ROLE_SIZES.body;
+    }
     autoFitText(el, floor, Math.min(h, cap));
   }
 }
@@ -855,7 +893,7 @@ function renderShapes(dslText, wrap, options) {
 
   // Force layout, then run autofit. Both are synchronous because the
   // offscreen stage has known dimensions and is in the render tree.
-  var minFontPx = typeof options.minFontPx === 'number' ? options.minFontPx : 8;
+  var minFontPx = typeof options.minFontPx === 'number' ? options.minFontPx : 10;
   var maxStageHPct = typeof options.maxStageHPct === 'number' ? options.maxStageHPct : DEFAULT_MAX_FONT_STAGE_PCT;
   // eslint-disable-next-line no-unused-expressions
   stage.offsetHeight;
@@ -932,7 +970,20 @@ function processShadowBlocks(stage, opts) {
           pre.parentNode.replaceChild(wrapperEl, pre);
         }
       } else if (window.SDocs && typeof window.SDocs.processCharts === 'function') {
-        try { window.SDocs.processCharts(root, { slideContext: true }); } catch (_) {}
+        // Pass the host shape's declared REF-pixel dims so processCharts
+        // can size the chart canvas from authoritative geometry instead of
+        // measuring the live DOM (which races layout in the inline path
+        // and produced wrong aspect ratios for non-square charts).
+        var parent = host.parentElement;
+        var refW = parent ? parseFloat(parent.dataset.refw) : NaN;
+        var refH = parent ? parseFloat(parent.dataset.refh) : NaN;
+        try {
+          window.SDocs.processCharts(root, {
+            slideContext: true,
+            shapeWidth: refW,
+            shapeHeight: refH,
+          });
+        } catch (_) {}
       }
     }
     if (hasMath) {
