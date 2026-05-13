@@ -2183,6 +2183,67 @@ rather than as designed.
                                   (right-pointing arrow shape - text
                                   renders in the polygon's bounding box)
 
+── COMMON PITFALLS ──────────────────────────────────
+  Ordered by severity. The first one is critical because it fails
+  SILENTLY - the shape parses, renders, and is then hidden. The rest
+  surface as parser errors or visibly-wrong curves.
+
+  1. CRITICAL: Full-slide background rects HIDE polygons and other
+     SVG shapes.
+
+     Within the same layer, HTML rectangles always paint above SVG
+     primitives regardless of declaration order. So this sequence:
+
+       r 0 0 16 9 fill=#f5f1ea     <- full-slide background rect
+       p 4,5 ^1.2 12,5 12,7.5 4,7.5 fill=#c89b6c   <- INVISIBLE
+
+     ...renders the polygon inside the SVG sublayer and the rect in
+     the HTML sublayer ON TOP of it. The polygon is there in the DOM
+     but covered.
+
+     Fix: set the slide background through YAML frontmatter:
+
+       ---
+       styles:
+         background: "#f5f1ea"
+       ---
+
+     The slide container already paints its background, so no rect
+     is needed. If you need a per-slide background swap, give the rect
+     \`layer=bottom\` to push it below the SVG sublayer:
+
+       r 0 0 16 9 fill=#f5f1ea layer=bottom
+
+     Same hazard applies to circles and ellipses, which are also SVG.
+
+  2. \`^h\` is perpendicular to the chord, NOT vertical.
+
+     The docs note that "for a rightward chord, positive bows upward"
+     - true, but for any other chord direction the bow follows the
+     PERPENDICULAR. To dome the top of a polygon across a slanted
+     span, use ONE \`^h\` across the whole top, not two arcs meeting
+     at an apex:
+
+       p 3,7 ^1.8 13,7 13,8 3,8        smooth dome
+       p 3,7 ^1.8 8,2.5 ^-1.8 13,7 13,8 3,8     NOT a dome
+
+     The second form has slanted chords (3,7)->(8,2.5) and
+     (8,2.5)->(13,7). Positive \`h\` bows perpendicular-left of each
+     chord direction, which points AWAY from the would-be apex - the
+     arcs flare outward and meet at a sharp peak, not a smooth dome.
+
+  3. Polygon points use \`x,y\` (one comma-separated token per point).
+
+     Rectangles, lines, and arrows use space-separated coords (\`r x y
+     w h\`, \`a x1 y1 x2 y2\`). Polygons need an in-token delimiter so
+     the parser knows where one point ends and the next begins:
+
+       p 2,7 8,3 13,7 fill=...     YES
+       p 2 7 8 3 13 7 fill=...     parse error
+
+     The parser flags this with a clear "polygon: points use 'x,y'"
+     error pointing to the offending line.
+
 ── SHAPE ATTRIBUTES ──────────────────────────────────
   Between geometry and \`|\`:
 
