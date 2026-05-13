@@ -288,7 +288,9 @@ function applyShapeStyle(el, attrs, grid) {
   if (attrs.radius != null) el.style.borderRadius = attrs.radius + '%';
   else el.style.borderRadius = '0.8%';
   if (attrs.stroke && attrs.stroke !== 'none') {
-    var sw = attrs.strokeWidth != null ? parseFloat(attrs.strokeWidth) : 0.15;
+    // Same default as applySvgStroke: 0.02 grid units = thin neutral
+    // stroke per the design principles in `sdoc slides custom-shapes`.
+    var sw = attrs.strokeWidth != null ? parseFloat(attrs.strokeWidth) : 0.02;
     // strokeWidth is in grid units (same scale as shape w/h). Convert to px
     // against the reference stage width.
     var swPx = (sw / grid.w) * (REF_H * grid.w / grid.h);
@@ -306,9 +308,15 @@ function applyShapeStyle(el, attrs, grid) {
   if (attrs.tableText)      el.style.setProperty('--md-table-text', attrs.tableText);
 }
 
+// Default strokeWidth is 0.02 grid units = ~1.5px on a 16x9 reference
+// stage. Matches the "thin neutral stroke" design principle in
+// `sdoc slides custom-shapes`. Authors who want a heavier line set
+// strokeWidth= explicitly; a missing strokeWidth used to default to
+// 0.15 (= ~12px), which is exactly the "thick coloured stroke" the
+// design principles tell agents to avoid.
 function applySvgStroke(el, attrs, defaultStroke) {
   var stroke = attrs.stroke || defaultStroke || '#94a3b8';
-  var sw = attrs.strokeWidth != null ? attrs.strokeWidth : 0.15;
+  var sw = attrs.strokeWidth != null ? attrs.strokeWidth : 0.02;
   el.setAttribute('stroke', stroke);
   el.setAttribute('stroke-width', sw);
   el.setAttribute('stroke-linecap', 'round');
@@ -528,11 +536,34 @@ function renderLine(s) {
 function renderArrow(s, defsNeeded) {
   var g = document.createElementNS(SVG_NS, 'g');
   var line = document.createElementNS(SVG_NS, 'line');
+  // The arrowhead uses markerUnits=strokeWidth + markerWidth=6, so the
+  // head occupies the last 6 * strokeWidth of the arrow. We back the line
+  // off by that amount and rely on refX=0 to put the tip back on (x2, y2).
+  //
+  // For arrows shorter than 12 * strokeWidth, the head would dominate (or
+  // exceed) the line. Rather than letting the tip drift past (x2, y2),
+  // scale the effective stroke width down so the head takes at most half
+  // the arrow length. The agent's declared endpoints stay honest; the
+  // arrow just renders thinner than the author asked for.
+  var sw = (s.attrs && s.attrs.strokeWidth != null) ? s.attrs.strokeWidth : 0.02;
+  var dx = s.x2 - s.x1;
+  var dy = s.y2 - s.y1;
+  var len = Math.sqrt(dx * dx + dy * dy);
+  var effectiveSw = sw;
+  var maxHead = len * 0.5;
+  if (6 * sw > maxHead && len > 0) effectiveSw = maxHead / 6;
+  var backoff = 6 * effectiveSw;
+  var ex = s.x2, ey = s.y2;
+  if (len > 0) {
+    ex = s.x2 - (dx / len) * backoff;
+    ey = s.y2 - (dy / len) * backoff;
+  }
   line.setAttribute('x1', s.x1);
   line.setAttribute('y1', s.y1);
-  line.setAttribute('x2', s.x2);
-  line.setAttribute('y2', s.y2);
+  line.setAttribute('x2', ex);
+  line.setAttribute('y2', ey);
   applySvgStroke(line, s.attrs);
+  if (effectiveSw !== sw) line.setAttribute('stroke-width', effectiveSw);
   line.setAttribute('marker-end', 'url(#_sd_arrowhead)');
   g.appendChild(line);
   defsNeeded.arrowhead = true;
@@ -563,7 +594,11 @@ function polyPath(points) {
 function renderPolygon(s, svgHost) {
   var el = document.createElementNS(SVG_NS, 'path');
   el.setAttribute('d', polyPath(s.points));
-  applySvgStroke(el, s.attrs);
+  // Match circle / ellipse: polygons default to NO stroke unless the
+  // author opts in. Previously they fell through applySvgStroke's
+  // `'#94a3b8'` fallback and rendered with a grey outline by default,
+  // contradicting the "default: NO stroke" design principle.
+  applySvgStroke(el, s.attrs, 'none');
   if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
   if (imageSrcOf(s.attrs)) {
     var patId = buildImagePatternSvg(svgHost, s.attrs);
@@ -610,7 +645,7 @@ function buildArrowheadDefs(color) {
   var marker = document.createElementNS(SVG_NS, 'marker');
   marker.setAttribute('id', '_sd_arrowhead');
   marker.setAttribute('viewBox', '0 0 10 10');
-  marker.setAttribute('refX', '9');
+  marker.setAttribute('refX', '0');
   marker.setAttribute('refY', '5');
   marker.setAttribute('markerWidth', '6');
   marker.setAttribute('markerHeight', '6');
