@@ -2110,15 +2110,23 @@ rather than as designed.
   the tip stays on (x2,y2); the arrow renders thinner than declared, but
   the endpoints stay honest.
 
-  Polygon segment operators (between adjacent point tokens):
+  Polygon segment operators (between adjacent point tokens).
+  All curve operators use through-point semantics: the value you write
+  is a point the curve actually passes through, not a hidden SVG control
+  point. "Place the dot where you want the curve to go" works.
+
     (none)        straight line from previous point
-    ~             smooth quadratic toward midpoint (asymmetric "soft corner")
+    ~             soft bow with default sagitta = 10% of chord length
+                  (shorthand for a gentle ^h; use ^h when you need a
+                  specific bow depth)
     ^h            arc / bow by sagitta h perpendicular to the chord;
-                  positive h bows to the LEFT of direction-of-travel
-                  (for a rightward chord, that is upward)
-    >P            quadratic Bezier with one explicit control P
+                  h is the actual peak height at t=0.5. Positive h bows
+                  to the LEFT of direction-of-travel (for a rightward
+                  chord, that is upward)
+    >P            quadratic Bezier whose midpoint passes through P
                   (P is \`x,y\` or \`@ref\`; attached: \`>5,3\` / \`>@card.top\`)
-    * P1 P2       cubic Bezier with two explicit controls (both \`x,y\` or @ref)
+    * P1 P2       cubic Bezier passing through P1 at t=1/3 and P2 at
+                  t=2/3 (P1, P2 each \`x,y\` or @ref)
 
   The same \`^h\` operator works between an arrow's two endpoints to bow
   the arrow into a curve:
@@ -2256,10 +2264,11 @@ rather than as designed.
   an adjacent \`r\` column.
 
   Curved segments. Five operators between adjacent points: no operator
-  is a straight segment; \`~\` softens the segment toward the midpoint;
-  \`^h\` arcs / bows the segment by sagitta h; \`>P\` is a quadratic Bezier
-  with one control; \`* P1 P2\` is a cubic Bezier with two. Controls can
-  be \`@refs\`, so the curve can anchor to another shape's edge:
+  is a straight segment; \`~\` gives a soft bow at 10% of chord length;
+  \`^h\` arcs / bows the segment by an explicit sagitta h; \`>P\` is a
+  quadratic that passes through P at its midpoint; \`* P1 P2\` is a cubic
+  that passes through P1 and P2 at the curve's third-points. Controls
+  can be \`@refs\`, so the curve docks exactly onto another shape's edge:
 
     r 1 2 4 3 #card
     r 11 2 4 3 #note

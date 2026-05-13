@@ -616,14 +616,22 @@ function renderArrow(s, defsNeeded) {
 // Convert the polygon's points + per-point segment metadata into an SVG path.
 // Segment kinds (set by the parser):
 //   line   — L to point
-//   smooth — Q to chord midpoint with control = next point, then L to point
-//            (preserved as-is from the original `~` behavior)
+//   smooth — soft bow: defaults to ^h with sagitta = 10% of chord length
+//            (positive direction = left of travel = up for a rightward chord).
+//            Pre-1.6 `~` was a structurally degenerate quadratic that always
+//            collapsed to a straight line; this restores it as a visible
+//            soft corner.
 //   arc    — Q with control offset from chord midpoint along the perpendicular
 //            by 2 * sagitta. Positive sagitta bows to the left of the
 //            direction of travel; for a rightward chord in SVG y-down coords
-//            that means upward.
-//   quad   — Q with explicit control point
-//   cubic  — C with two explicit control points
+//            that means upward. Sagitta is the actual visible bow depth at
+//            t=0.5, not the SVG control offset.
+//   quad   — Through-point quadratic: the curve passes through seg.c at
+//            t=0.5. We derive the SVG control with C = 2*P - (A+B)/2, then
+//            emit it as a standard Q. Agents place "the point I want the
+//            curve to hit"; SVG semantics are hidden.
+//   cubic  — Through-point cubic: the curve passes through seg.c1 at t=1/3
+//            and seg.c2 at t=2/3. Same derivation logic applied twice.
 function polyPath(points) {
   if (points.length === 0) return '';
   var d = 'M ' + points[0].x + ' ' + points[0].y;
@@ -631,25 +639,32 @@ function polyPath(points) {
     var p = points[i];
     var prev = points[i - 1];
     var seg = p.seg || (p.curve ? { type: 'smooth' } : { type: 'line' });
-    if (seg.type === 'smooth') {
-      var mx = (prev.x + p.x) / 2;
-      var my = (prev.y + p.y) / 2;
-      d += ' Q ' + p.x + ' ' + p.y + ' ' + mx + ' ' + my;
-      d += ' L ' + p.x + ' ' + p.y;
-    } else if (seg.type === 'arc') {
+    if (seg.type === 'smooth' || seg.type === 'arc') {
       var dx = p.x - prev.x, dy = p.y - prev.y;
       var L = Math.sqrt(dx * dx + dy * dy);
       if (L === 0) { d += ' L ' + p.x + ' ' + p.y; continue; }
+      var sagitta = seg.type === 'arc' ? seg.sagitta : L * 0.1;
       // Left-perpendicular of (dx,dy) in y-down coords.
       var perpX = dy / L, perpY = -dx / L;
-      var cx = (prev.x + p.x) / 2 + perpX * (2 * seg.sagitta);
-      var cy = (prev.y + p.y) / 2 + perpY * (2 * seg.sagitta);
+      var cx = (prev.x + p.x) / 2 + perpX * (2 * sagitta);
+      var cy = (prev.y + p.y) / 2 + perpY * (2 * sagitta);
       d += ' Q ' + cx + ' ' + cy + ' ' + p.x + ' ' + p.y;
     } else if (seg.type === 'quad') {
-      d += ' Q ' + seg.c.x + ' ' + seg.c.y + ' ' + p.x + ' ' + p.y;
+      // Through-point at t=0.5: C = 2*P - (A+B)/2.
+      var qcx = 2 * seg.c.x - (prev.x + p.x) / 2;
+      var qcy = 2 * seg.c.y - (prev.y + p.y) / 2;
+      d += ' Q ' + qcx + ' ' + qcy + ' ' + p.x + ' ' + p.y;
     } else if (seg.type === 'cubic') {
-      d += ' C ' + seg.c1.x + ' ' + seg.c1.y +
-           ' ' + seg.c2.x + ' ' + seg.c2.y +
+      // Through-points at t=1/3 and t=2/3. Closed-form derivation:
+      //   C1 = 3*P1 - 1.5*P2 - (5/6)*A + (1/3)*B
+      //   C2 = 3*P2 - 1.5*P1 - (5/6)*B + (1/3)*A
+      var P1 = seg.c1, P2 = seg.c2;
+      var c1x = 3 * P1.x - 1.5 * P2.x - (5 / 6) * prev.x + (1 / 3) * p.x;
+      var c1y = 3 * P1.y - 1.5 * P2.y - (5 / 6) * prev.y + (1 / 3) * p.y;
+      var c2x = 3 * P2.x - 1.5 * P1.x - (5 / 6) * p.x + (1 / 3) * prev.x;
+      var c2y = 3 * P2.y - 1.5 * P1.y - (5 / 6) * p.y + (1 / 3) * prev.y;
+      d += ' C ' + c1x + ' ' + c1y +
+           ' ' + c2x + ' ' + c2y +
            ' ' + p.x + ' ' + p.y;
     } else {
       d += ' L ' + p.x + ' ' + p.y;
