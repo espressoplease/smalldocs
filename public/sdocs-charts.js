@@ -716,15 +716,17 @@
         var target = preWrapper || pre;
         target.parentNode.replaceChild(wrapper, target);
 
-        // With responsive:false we MUST set explicit canvas dimensions
-        // before constructing the chart. Use clientWidth/Height which
-        // return layout dimensions (NOT affected by CSS transform). The
-        // stage above us may be CSS-scaled, but the underlying layout
-        // pixels are what we want Chart.js to render at - REF resolution
-        // for sharpness; the visual transform shrinks the result.
+        // With responsive:false we own canvas dimensions. The caller
+        // passes the shape's declared REF-pixel size; we use it directly
+        // so the bitmap aspect matches the display box and the doughnut
+        // / pie / square plot areas render at their natural aspect. No
+        // DOM measurement, no layout-timing race.
         if (options.slideContext) {
-          var w = Math.max(1, wrapper.clientWidth || 800);
-          var h = Math.max(1, wrapper.clientHeight || 450);
+          var w = options.shapeWidth;
+          var h = options.shapeHeight;
+          if (!(w > 0) || !(h > 0)) {
+            throw new Error('processCharts: slideContext requires positive shapeWidth/shapeHeight');
+          }
           canvas.width = w;
           canvas.height = h;
           canvas.style.width = w + 'px';
