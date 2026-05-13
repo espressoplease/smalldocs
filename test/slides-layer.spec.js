@@ -47,15 +47,17 @@ test.describe('Slide layer= attribute', () => {
     expect(rectLayer).toBe(1); // [bottom, mid, top] → mid
   });
 
-  test('arrows default to layer=top (heads stay above rects they connect)', async ({ page }) => {
+  test('arrow without explicit layer lands in mid (source order is the rule)', async ({ page }) => {
     await renderBody(page, slideDoc([
       'grid 16 9',
       'r 2 2 5 5 fill=#dbeafe | A',
       'r 9 2 5 5 fill=#dbeafe | B',
       'a 7 4.5 9 4.5 stroke=#dc2626',
     ].join('\n')));
-    // No explicit layer= on the arrow. It should still land in the top
-    // sublayer because arrows-over-rects is almost always the intent.
+    // Arrows no longer auto-promote to layer=top. With no `layer=` the
+    // arrow stays in mid (the same default as rects); declaration order
+    // alone decides whether it paints above or below other shapes in
+    // the same layer.
     const arrowLayer = await page.evaluate(() => {
       const line = Array.from(document.querySelectorAll('.shape-svg line'))
         .find((l) => l.getAttribute('stroke') === '#dc2626');
@@ -64,7 +66,32 @@ test.describe('Slide layer= attribute', () => {
       const parent = sublayer.parentElement;
       return Array.from(parent.querySelectorAll(':scope > .sd-stage-sublayer')).indexOf(sublayer);
     });
-    expect(arrowLayer).toBe(2); // top
+    expect(arrowLayer).toBe(1); // mid
+  });
+
+  test('within a layer, source order beats shape type (polygon over rect, rect over polygon)', async ({ page }) => {
+    // Rect declared first, polygon second — polygon paints above rect.
+    await renderBody(page, slideDoc([
+      'grid 16 9',
+      'r 2 2 10 5 fill=#1e40af #under',
+      'p 4,3 12,3 12,6 4,6 fill=#fde68a #over',
+    ].join('\n')));
+    const order = await page.evaluate(() => {
+      const sublayer = document.querySelector('.sd-stage-sublayer:nth-child(3)');
+      // sd-stage-sublayer index 2 == mid (after sharedDefs at stage[0],
+      // then bottom, mid, top). nth-child counts from 1; mid is the
+      // third sublayer child after the defs svg.
+      // Walk this layer's children and confirm the polygon's <svg> is
+      // declared AFTER the rect div.
+      var rect = document.querySelector('.shape-rect');
+      var poly = document.querySelector('.shape-svg path');
+      if (!rect || !poly) return null;
+      var polySvg = poly.closest('.shape-svg');
+      var children = Array.from(rect.parentElement.children);
+      return { rectIdx: children.indexOf(rect), polyIdx: children.indexOf(polySvg) };
+    });
+    expect(order).not.toBeNull();
+    expect(order.polyIdx).toBeGreaterThan(order.rectIdx);
   });
 
   test('arrow with explicit layer=mid opts out of the top default', async ({ page }) => {
