@@ -11,8 +11,14 @@
 //   e <point> rx ry             ellipse
 //   l <point> <point>           line
 //   a <point> <point>           arrow (line with head at end)
-//   p <point> <point> ...       polygon; `~` before a point = curved segment
-//                               (polygon point = `x,y` or `@ref`)
+//   p <point> <point> ...       polygon; segment operators between points:
+//                                 ~          smooth (asymmetric quadratic to midpoint)
+//                                 ^h         arc / bow by sagitta h
+//                                 >P         quadratic Bezier with control P
+//                                 * P1 P2    cubic Bezier with controls P1, P2
+//                               (polygon point = `x,y` or `@ref`; control P can
+//                               be either; arrow `a` also accepts `^h` between
+//                               its endpoints)
 //
 // References:
 //   @id                         center of the shape with that id
@@ -64,6 +70,16 @@ function parseNumber(s, ctx) {
 function parsePointLiteral(s) {
   var parts = s.split(',');
   return { x: parseNumber(parts[0], 'point x'), y: parseNumber(parts[1], 'point y') };
+}
+
+// Parse one token as a control-point coord: either `x,y` literal or `@ref`.
+// Returns { x, y } or { ref: { id, anchor } }. Throws if neither.
+function parseCtrlPoint(token, opName) {
+  if (token == null) throw new Error('polygon: ' + opName + ' control: missing token');
+  var ref = tryParseRef(token);
+  if (ref) return { ref: ref };
+  if (!isPointToken(token)) throw new Error('polygon: ' + opName + ' control: expected x,y or @ref, got "' + token + '"');
+  return parsePointLiteral(token);
 }
 
 // Consume one "point slot" from rest[idx]. A point is either:
@@ -135,7 +151,19 @@ function parseLine(raw, lineNumber) {
     i += 2;
   } else if (kind === 'l' || kind === 'a') {
     var p1 = consumePoint(rest, 0, kind, 'from');
-    var p2 = consumePoint(rest, p1.next, kind, 'to');
+    // Optional `^h` between endpoints: bow the line/arrow by sagitta h.
+    // Same convention as polygon ^h: positive bows to the left of the
+    // direction of travel (upward for a rightward chord in SVG y-down).
+    var aft1 = p1.next;
+    if (rest[aft1] && rest[aft1].charAt(0) === '^') {
+      var bt = rest[aft1];
+      var bsv;
+      if (bt.length > 1) { bsv = bt.slice(1); aft1++; }
+      else { bsv = rest[aft1 + 1]; aft1 += 2; }
+      if (bsv == null) throw new Error(kind + ': ^ needs a sagitta value');
+      shape.bow = parseNumber(bsv, kind + ': ^h sagitta');
+    }
+    var p2 = consumePoint(rest, aft1, kind, 'to');
     i = p2.next;
     var refs = {};
     if (p1.ref) { shape.x1 = null; shape.y1 = null; refs.from = p1.ref; }
@@ -145,29 +173,81 @@ function parseLine(raw, lineNumber) {
     if (Object.keys(refs).length > 0) shape.refs = refs;
   } else if (kind === 'p') {
     shape.points = [];
-    var nextCurve = false;
+    // `pendingSeg` is the segment description (line / smooth / arc / quad /
+    // cubic) that will be attached to the *next* point pushed. It carries the
+    // metadata for the edge from the previous point to the next one.
+    var pendingSeg = null;
     while (i < rest.length) {
       var t = rest[i];
+
+      // ~ — smooth quadratic to midpoint (existing behavior).
       if (t === '~') {
         if (shape.points.length === 0) throw new Error('polygon: ~ cannot precede the first point');
-        nextCurve = true;
+        pendingSeg = { type: 'smooth' };
         i++;
         continue;
       }
+
+      // ^h — arc / bow by sagitta h, perpendicular to the chord.
+      // Accepts `^0.8` (attached) or `^ 0.8` (separate token).
+      if (t.charAt(0) === '^') {
+        if (shape.points.length === 0) throw new Error('polygon: ^ cannot precede the first point');
+        var sagToken;
+        if (t.length > 1) { sagToken = t.slice(1); i++; }
+        else { sagToken = rest[i + 1]; i += 2; }
+        if (sagToken == null) throw new Error('polygon: ^ needs a sagitta value');
+        var sag = parseNumber(sagToken, 'polygon: ^h sagitta');
+        pendingSeg = { type: 'arc', sagitta: sag };
+        continue;
+      }
+
+      // >P — quadratic Bezier with one explicit control point.
+      // Accepts `>5.5,3.4` / `>@card.top` (attached) or `> 5.5,3.4` (separate).
+      if (t.charAt(0) === '>') {
+        if (shape.points.length === 0) throw new Error('polygon: > cannot precede the first point');
+        var ctrlToken;
+        if (t.length > 1) { ctrlToken = t.slice(1); i++; }
+        else { ctrlToken = rest[i + 1]; i += 2; }
+        var ctrl = parseCtrlPoint(ctrlToken, '>');
+        pendingSeg = { type: 'quad', c: ctrl };
+        continue;
+      }
+
+      // * — cubic Bezier with two control points (next two tokens).
+      if (t === '*') {
+        if (shape.points.length === 0) throw new Error('polygon: * cannot precede the first point');
+        var c1 = parseCtrlPoint(rest[i + 1], '*');
+        var c2 = parseCtrlPoint(rest[i + 2], '*');
+        pendingSeg = { type: 'cubic', c1: c1, c2: c2 };
+        i += 3;
+        continue;
+      }
+
       if (isRefToken(t)) {
-        shape.points.push({ ref: tryParseRef(t), curve: nextCurve });
-        nextCurve = false;
+        var rpt = { ref: tryParseRef(t) };
+        rpt.seg = pendingSeg || { type: 'line' };
+        rpt.curve = rpt.seg.type === 'smooth';
+        shape.points.push(rpt);
+        pendingSeg = null;
         i++;
         continue;
       }
       if (!isPointToken(t)) break;
       var pt = parsePointLiteral(t);
-      pt.curve = nextCurve;
+      pt.seg = pendingSeg || { type: 'line' };
+      pt.curve = pt.seg.type === 'smooth';
       shape.points.push(pt);
-      nextCurve = false;
+      pendingSeg = null;
       i++;
     }
-    if (nextCurve) throw new Error('polygon: trailing ~ with no following point');
+    if (pendingSeg) {
+      var opName = pendingSeg.type === 'smooth' ? '~'
+                 : pendingSeg.type === 'arc'    ? '^'
+                 : pendingSeg.type === 'quad'   ? '>'
+                 : pendingSeg.type === 'cubic'  ? '*'
+                 : pendingSeg.type;
+      throw new Error('polygon: trailing ' + opName + ' with no following point');
+    }
     if (shape.points.length < 2) {
       // Hint when the author wrote space-separated coords (e.g. `p 7 1 9 1 8 3`)
       // by analogy with `r x y w h`. Polygon's variable-length point list needs
@@ -397,6 +477,18 @@ function anchorPoint(shape, anchor) {
   return { x: b.x + b.w * t[0], y: b.y + b.h * t[1] };
 }
 
+function segCtrlRefs(seg) {
+  // Returns an array of ref objects ({id, anchor}) for any control points in
+  // this segment that were declared as @refs. Used by refsInShape /
+  // shapeHasRefs / resolveShape to walk the new operator metadata.
+  if (!seg) return [];
+  var out = [];
+  if (seg.c && seg.c.ref) out.push(seg.c.ref);
+  if (seg.c1 && seg.c1.ref) out.push(seg.c1.ref);
+  if (seg.c2 && seg.c2.ref) out.push(seg.c2.ref);
+  return out;
+}
+
 function refsInShape(shape) {
   var ids = [];
   if (shape.refs) {
@@ -405,7 +497,10 @@ function refsInShape(shape) {
   }
   if (shape.kind === 'p') {
     for (var j = 0; j < shape.points.length; j++) {
-      if (shape.points[j].ref) ids.push(shape.points[j].ref.id);
+      var pt = shape.points[j];
+      if (pt.ref) ids.push(pt.ref.id);
+      var crefs = segCtrlRefs(pt.seg);
+      for (var ci = 0; ci < crefs.length; ci++) ids.push(crefs[ci].id);
     }
   }
   return ids;
@@ -414,7 +509,10 @@ function refsInShape(shape) {
 function shapeHasRefs(shape) {
   if (shape.refs && Object.keys(shape.refs).length > 0) return true;
   if (shape.kind === 'p') {
-    for (var j = 0; j < shape.points.length; j++) if (shape.points[j].ref) return true;
+    for (var j = 0; j < shape.points.length; j++) {
+      if (shape.points[j].ref) return true;
+      if (segCtrlRefs(shape.points[j].seg).length > 0) return true;
+    }
   }
   return false;
 }
@@ -440,6 +538,19 @@ function resolveShape(shape, byId) {
         var ap2 = anchorPoint(tgt, pt.ref.anchor);
         pt.x = ap2.x;
         pt.y = ap2.y;
+      }
+      // Resolve any @ref control points on the segment ending at this vertex.
+      if (pt.seg) {
+        var ctrlKeys = ['c', 'c1', 'c2'];
+        for (var ck = 0; ck < ctrlKeys.length; ck++) {
+          var sp = pt.seg[ctrlKeys[ck]];
+          if (sp && sp.ref) {
+            var ct = byId[sp.ref.id];
+            var cap = anchorPoint(ct, sp.ref.anchor);
+            sp.x = cap.x;
+            sp.y = cap.y;
+          }
+        }
       }
     }
   }
@@ -548,6 +659,13 @@ function refTokenStr(r) {
   return '@' + r.id + (r.anchor && r.anchor !== 'center' ? '.' + r.anchor : '');
 }
 
+// Stringify a control point that's either an x,y literal or an @ref.
+// Used by polygon segment operators (>, *) to round-trip through serialize.
+function ctrlTokenStr(c) {
+  if (c.ref) return refTokenStr(c.ref);
+  return c.x + ',' + c.y;
+}
+
 function serializeShape(s) {
   var parts = [s.kind];
   if (s.kind === 'r') {
@@ -563,12 +681,24 @@ function serializeShape(s) {
   } else if (s.kind === 'l' || s.kind === 'a') {
     if (s.refs && s.refs.from) parts.push(refTokenStr(s.refs.from));
     else parts.push(s.x1, s.y1);
+    if (s.bow != null) parts.push('^' + s.bow);
     if (s.refs && s.refs.to) parts.push(refTokenStr(s.refs.to));
     else parts.push(s.x2, s.y2);
   } else if (s.kind === 'p') {
     for (var i = 0; i < s.points.length; i++) {
       var pt = s.points[i];
-      if (pt.curve) parts.push('~');
+      var seg = pt.seg;
+      if (seg && seg.type === 'arc') {
+        parts.push('^' + seg.sagitta);
+      } else if (seg && seg.type === 'quad') {
+        parts.push('>' + ctrlTokenStr(seg.c));
+      } else if (seg && seg.type === 'cubic') {
+        parts.push('*');
+        parts.push(ctrlTokenStr(seg.c1));
+        parts.push(ctrlTokenStr(seg.c2));
+      } else if ((seg && seg.type === 'smooth') || (!seg && pt.curve)) {
+        parts.push('~');
+      }
       if (pt.ref) parts.push(refTokenStr(pt.ref));
       else parts.push(pt.x + ',' + pt.y);
     }

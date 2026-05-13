@@ -523,6 +523,24 @@ function renderEllipse(s) {
 }
 
 function renderLine(s) {
+  // Bowed line: quadratic Bezier with control at chord midpoint offset
+  // perpendicular by 2 * sagitta. Mirrors the polygon ^h arc convention.
+  if (s.bow != null && s.bow !== 0) {
+    var dx = s.x2 - s.x1, dy = s.y2 - s.y1;
+    var L = Math.sqrt(dx * dx + dy * dy);
+    if (L > 0) {
+      var perpX = dy / L, perpY = -dx / L;
+      var cx = (s.x1 + s.x2) / 2 + perpX * (2 * s.bow);
+      var cy = (s.y1 + s.y2) / 2 + perpY * (2 * s.bow);
+      var path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('d', 'M ' + s.x1 + ' ' + s.y1 +
+                             ' Q ' + cx + ' ' + cy + ' ' + s.x2 + ' ' + s.y2);
+      path.setAttribute('fill', 'none');
+      applySvgStroke(path, s.attrs);
+      if (s.id) path.dataset.id = s.id;
+      return path;
+    }
+  }
   var el = document.createElementNS(SVG_NS, 'line');
   el.setAttribute('x1', s.x1);
   el.setAttribute('y1', s.y1);
@@ -535,7 +553,6 @@ function renderLine(s) {
 
 function renderArrow(s, defsNeeded) {
   var g = document.createElementNS(SVG_NS, 'g');
-  var line = document.createElementNS(SVG_NS, 'line');
   // The arrowhead uses markerUnits=strokeWidth + markerWidth=6, so the
   // head occupies the last 6 * strokeWidth of the arrow. We back the line
   // off by that amount and rely on refX=0 to put the tip back on (x2, y2).
@@ -553,36 +570,87 @@ function renderArrow(s, defsNeeded) {
   var maxHead = len * 0.5;
   if (6 * sw > maxHead && len > 0) effectiveSw = maxHead / 6;
   var backoff = 6 * effectiveSw;
-  var ex = s.x2, ey = s.y2;
-  if (len > 0) {
-    ex = s.x2 - (dx / len) * backoff;
-    ey = s.y2 - (dy / len) * backoff;
+
+  var el;
+  if (s.bow != null && s.bow !== 0 && len > 0) {
+    // Bowed arrow: render a quadratic Bezier with control at the chord
+    // midpoint offset perpendicularly by 2 * sagitta. To keep the head's
+    // tip on (x2, y2), back the endpoint off along the curve's tangent at
+    // t=1, which for Q(P0,C,P1) points along (P1 - C).
+    var perpX = dy / len, perpY = -dx / len;
+    var cx = (s.x1 + s.x2) / 2 + perpX * (2 * s.bow);
+    var cy = (s.y1 + s.y2) / 2 + perpY * (2 * s.bow);
+    var tx = s.x2 - cx, ty = s.y2 - cy;
+    var tLen = Math.sqrt(tx * tx + ty * ty);
+    var ex = s.x2, ey = s.y2;
+    if (tLen > 0) {
+      ex = s.x2 - (tx / tLen) * backoff;
+      ey = s.y2 - (ty / tLen) * backoff;
+    }
+    el = document.createElementNS(SVG_NS, 'path');
+    el.setAttribute('d', 'M ' + s.x1 + ' ' + s.y1 +
+                         ' Q ' + cx + ' ' + cy + ' ' + ex + ' ' + ey);
+    el.setAttribute('fill', 'none');
+  } else {
+    el = document.createElementNS(SVG_NS, 'line');
+    var ex2 = s.x2, ey2 = s.y2;
+    if (len > 0) {
+      ex2 = s.x2 - (dx / len) * backoff;
+      ey2 = s.y2 - (dy / len) * backoff;
+    }
+    el.setAttribute('x1', s.x1);
+    el.setAttribute('y1', s.y1);
+    el.setAttribute('x2', ex2);
+    el.setAttribute('y2', ey2);
   }
-  line.setAttribute('x1', s.x1);
-  line.setAttribute('y1', s.y1);
-  line.setAttribute('x2', ex);
-  line.setAttribute('y2', ey);
-  applySvgStroke(line, s.attrs);
-  if (effectiveSw !== sw) line.setAttribute('stroke-width', effectiveSw);
-  line.setAttribute('marker-end', 'url(#_sd_arrowhead)');
-  g.appendChild(line);
+  applySvgStroke(el, s.attrs);
+  if (effectiveSw !== sw) el.setAttribute('stroke-width', effectiveSw);
+  el.setAttribute('marker-end', 'url(#_sd_arrowhead)');
+  g.appendChild(el);
   defsNeeded.arrowhead = true;
   if (s.attrs.stroke) defsNeeded.arrowheadColor = s.attrs.stroke;
   if (s.id) g.dataset.id = s.id;
   return g;
 }
 
+// Convert the polygon's points + per-point segment metadata into an SVG path.
+// Segment kinds (set by the parser):
+//   line   — L to point
+//   smooth — Q to chord midpoint with control = next point, then L to point
+//            (preserved as-is from the original `~` behavior)
+//   arc    — Q with control offset from chord midpoint along the perpendicular
+//            by 2 * sagitta. Positive sagitta bows to the left of the
+//            direction of travel; for a rightward chord in SVG y-down coords
+//            that means upward.
+//   quad   — Q with explicit control point
+//   cubic  — C with two explicit control points
 function polyPath(points) {
   if (points.length === 0) return '';
   var d = 'M ' + points[0].x + ' ' + points[0].y;
   for (var i = 1; i < points.length; i++) {
     var p = points[i];
-    if (p.curve) {
-      var prev = points[i - 1];
+    var prev = points[i - 1];
+    var seg = p.seg || (p.curve ? { type: 'smooth' } : { type: 'line' });
+    if (seg.type === 'smooth') {
       var mx = (prev.x + p.x) / 2;
       var my = (prev.y + p.y) / 2;
       d += ' Q ' + p.x + ' ' + p.y + ' ' + mx + ' ' + my;
       d += ' L ' + p.x + ' ' + p.y;
+    } else if (seg.type === 'arc') {
+      var dx = p.x - prev.x, dy = p.y - prev.y;
+      var L = Math.sqrt(dx * dx + dy * dy);
+      if (L === 0) { d += ' L ' + p.x + ' ' + p.y; continue; }
+      // Left-perpendicular of (dx,dy) in y-down coords.
+      var perpX = dy / L, perpY = -dx / L;
+      var cx = (prev.x + p.x) / 2 + perpX * (2 * seg.sagitta);
+      var cy = (prev.y + p.y) / 2 + perpY * (2 * seg.sagitta);
+      d += ' Q ' + cx + ' ' + cy + ' ' + p.x + ' ' + p.y;
+    } else if (seg.type === 'quad') {
+      d += ' Q ' + seg.c.x + ' ' + seg.c.y + ' ' + p.x + ' ' + p.y;
+    } else if (seg.type === 'cubic') {
+      d += ' C ' + seg.c1.x + ' ' + seg.c1.y +
+           ' ' + seg.c2.x + ' ' + seg.c2.y +
+           ' ' + p.x + ' ' + p.y;
     } else {
       d += ' L ' + p.x + ' ' + p.y;
     }

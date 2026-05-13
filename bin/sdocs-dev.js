@@ -2096,8 +2096,10 @@ rather than as designed.
   c cx cy radius       circle     (cx,cy = center)
   e cx cy rx ry        ellipse    (cx,cy = center; rx,ry = half-sizes)
   l x1 y1 x2 y2        line       (decorative, no content)
-  a x1 y1 x2 y2        arrow      (decorative, tip lands on (x2,y2))
-  p x1,y1 x2,y2 ...    polygon    (use ~ between points for curved segments)
+  a x1 y1 x2 y2        arrow      (decorative, tip lands on (x2,y2);
+                                   accepts \`^h\` between endpoints to bow)
+  p x1,y1 x2,y2 ...    polygon    (segment operators between points:
+                                   ~  ^h  >P  * P1 P2; see below)
 
   Arrow geometry: the coordinates are the line's centerline. The head is
   symmetric around the line, extending up to 3 * strokeWidth perpendicular
@@ -2107,6 +2109,21 @@ rather than as designed.
   than 12 * strokeWidth the renderer scales the stroke (and head) down so
   the tip stays on (x2,y2); the arrow renders thinner than declared, but
   the endpoints stay honest.
+
+  Polygon segment operators (between adjacent point tokens):
+    (none)        straight line from previous point
+    ~             smooth quadratic toward midpoint (asymmetric "soft corner")
+    ^h            arc / bow by sagitta h perpendicular to the chord;
+                  positive h bows to the LEFT of direction-of-travel
+                  (for a rightward chord, that is upward)
+    >P            quadratic Bezier with one explicit control P
+                  (P is \`x,y\` or \`@ref\`; attached: \`>5,3\` / \`>@card.top\`)
+    * P1 P2       cubic Bezier with two explicit controls (both \`x,y\` or @ref)
+
+  The same \`^h\` operator works between an arrow's two endpoints to bow
+  the arrow into a curve:
+    a 2 5 ^0.8 12 5            (rightward arrow bowing upward by 0.8u)
+    a @plan.right ^-0.5 @ship.left   (gentle downward bow between two shapes)
 
   Polygon points are written \`x,y\` (one token per point), not space-
   separated like \`r x y w h\`. The variable point count needs a delimiter,
@@ -2124,7 +2141,17 @@ rather than as designed.
   Polygon examples:
     p 50,10 90,50 10,50 | Triangle
     p 10,10 90,10 ~ 90,50 10,50 | Rounded right edge (the ~ before
-                                  a point curves that segment)
+                                  a point softens that segment)
+    p 2,6 ^0.8 9,6 9,8 2,8 fill=#e9d4a6
+                                  (loaf-shaped card: arched top, three
+                                  straight sides. Sagitta 0.8 sets the
+                                  dome height in grid units)
+    p 1,5 >5,1 9,5 1,8 fill=#dbeafe
+                                  (one quadratic control point at (5,1)
+                                  pulls the top edge into a peak)
+    p 0,5 * 4,0 8,10 12,5 fill=#fee2e2
+                                  (cubic with two controls: classic S-curve
+                                  signature - rises early, falls late)
     p 10,20 60,20 60,10 90,30 60,50 60,40 10,40 | Next steps
                                   (right-pointing arrow shape - text
                                   renders in the polygon's bounding box)
@@ -2228,10 +2255,31 @@ rather than as designed.
   between each shape and its inner neighbour - or move labels out to
   an adjacent \`r\` column.
 
-  Curved segments. The \`~\` hint before a polygon point curves the
-  segment leading into that point. Useful for rounded card corners or
-  speech-bubble tails; bad for text-bearing shapes because the bounding
-  box still treats the curve as if it were a straight chord.
+  Curved segments. Five operators between adjacent points: no operator
+  is a straight segment; \`~\` softens the segment toward the midpoint;
+  \`^h\` arcs / bows the segment by sagitta h; \`>P\` is a quadratic Bezier
+  with one control; \`* P1 P2\` is a cubic Bezier with two. Controls can
+  be \`@refs\`, so the curve can anchor to another shape's edge:
+
+    r 1 2 4 3 #card
+    r 11 2 4 3 #note
+    a @card.right ^0.6 @note.left   (curved arrow between two cards)
+
+    p @card.bottomleft >@card.bottom @note.bottomleft @note.bottom \\
+      @note.bottomright @card.bottomright fill=#f1f5f9
+                                  (banded shape: top edge dips between
+                                  the two cards' bottom centers)
+
+  Bow direction. Positive sagitta bows to the LEFT of direction-of-
+  travel. For a horizontal chord moving right, positive bow = upward.
+  Negative bow flips the curve to the opposite side. The same
+  convention applies to polygon \`^h\` segments and bowed arrows.
+
+  Useful for: rounded card corners, dome / loaf tops, speech-bubble
+  tails, curved connectors, organic silhouettes (leaves, clouds, lenses),
+  S-curve callouts. Bad for text-bearing shapes because the bounding
+  box still treats the curve as if it were a straight chord, so labels
+  may overhang the visible silhouette.
 
   Concave polygons. The bounding box of a concave shape includes the
   concavity - text can sit in the notch and overlap a neighbouring
