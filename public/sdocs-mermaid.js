@@ -411,12 +411,49 @@
     ]);
   }
 
+  // Walk up the DOM (across shadow boundaries) looking for a slide
+  // wrapper ancestor. When found, the mermaid render is happening inside
+  // a slide shape and the slide's error badge handles surfacing the
+  // error - we suppress the in-shape error pre so the slide stays
+  // visually clean. Outside a slide (plain doc-flow mermaid block) the
+  // inline error pre is still the right UI.
+  function findSlideAncestor(el) {
+    var node = el;
+    while (node) {
+      if (node.classList && node.classList.contains('sdoc-slide')) return node;
+      if (node.parentElement) {
+        node = node.parentElement;
+      } else if (node.getRootNode) {
+        var root = node.getRootNode();
+        if (root && root.host && root !== node) node = root.host;
+        else return null;
+      } else {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function renderError(wrapper, message) {
+    var msg = String(message || 'Could not render diagram');
+    // Always show the inline pre in the wrapper. Inside a slide it makes
+    // the broken slide visually obvious; outside a slide it's the only
+    // surface error UI. The pre is small enough that it doesn't dominate.
     wrapper.classList.add('sdoc-mermaid-error');
-    var msg = document.createElement('pre');
-    msg.className = 'sdoc-mermaid-error-msg';
-    msg.textContent = String(message || 'Could not render diagram');
-    wrapper.appendChild(msg);
+    var pre = document.createElement('pre');
+    pre.className = 'sdoc-mermaid-error-msg';
+    pre.textContent = msg;
+    wrapper.appendChild(pre);
+    // Inside a slide, ALSO hand the error to the slide error badge so the
+    // author can copy a diagnostic for an LLM. Badge dedupes against the
+    // inline pre - duplicate info, two surfaces with different jobs:
+    // inline says "this slide is broken", badge gives the agent the fix.
+    var slide = findSlideAncestor(wrapper);
+    if (slide && window.SDocSlides && typeof window.SDocSlides.appendSlideError === 'function') {
+      try {
+        window.SDocSlides.appendSlideError(slide, { source: 'mermaid', message: msg });
+      } catch (_) {}
+    }
   }
 
   // Mermaid v10 attaches temporary nodes to document.body during render:

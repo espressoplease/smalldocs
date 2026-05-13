@@ -139,7 +139,27 @@ function renderError(wrapper, message) {
 // full diagnostic (slide index, errors, the actual DSL text) on the
 // clipboard in one shot. The click on the button doesn't bubble to the
 // slide wrapper so it doesn't also open present mode.
-function buildErrorBadge(errors, dslText, slideIdx) {
+//
+// Errors can arrive in two waves:
+//   1. Sync DSL errors from the resolver and shape renderer (parse,
+//      bounds, unresolved $refs, unknown template slots).
+//   2. Async content-block errors from inside slide shapes (mermaid
+//      syntax, chart JSON parse). Those bubble up via a composed
+//      'sdoc-slide-error' CustomEvent the wrapper listens for.
+// `formatErrorLine` accepts both shapes - sync errors carry a line
+// number relative to the slide DSL, async errors carry a `source`
+// (e.g. 'mermaid') and no line.
+function formatErrorLine(err) {
+  if (err.line) return 'line ' + err.line + ': ' + err.message;
+  if (err.source) return err.source + ': ' + err.message;
+  return err.message;
+}
+
+function buildErrorBadge(wrapper) {
+  var errors = wrapper.__sdocErrors || [];
+  var dslText = wrapper.__sdocRawText || '';
+  var slideIdx = wrapper.__sdocSlideIdx || 0;
+
   var badge = document.createElement('div');
   badge.className = 'sdoc-slide-errbadge';
 
@@ -154,7 +174,7 @@ function buildErrorBadge(errors, dslText, slideIdx) {
   list.className = 'sdoc-slide-errbadge-list';
   for (var i = 0; i < errors.length; i++) {
     var li = document.createElement('li');
-    li.textContent = 'line ' + errors[i].line + ': ' + errors[i].message;
+    li.textContent = formatErrorLine(errors[i]);
     list.appendChild(li);
   }
   msg.appendChild(list);
@@ -186,11 +206,33 @@ function buildErrorBadge(errors, dslText, slideIdx) {
   return badge;
 }
 
+// Render or rebuild the wrapper's badge from its stored error list.
+// Removes any existing badge first so callers don't accumulate duplicates
+// when a second wave of async errors lands.
+function syncErrorBadge(wrapper) {
+  var existing = wrapper.querySelector(':scope > .sdoc-slide-errbadge');
+  if (existing) existing.parentNode.removeChild(existing);
+  var errors = wrapper.__sdocErrors || [];
+  if (!errors.length) return;
+  wrapper.appendChild(buildErrorBadge(wrapper));
+}
+
+// Public: append a single error to a slide wrapper and re-render its
+// badge. Used by the composed 'sdoc-slide-error' event listener so async
+// content-block failures (mermaid, chart) surface in the same place as
+// sync DSL errors.
+function appendSlideError(wrapper, err) {
+  if (!wrapper || !err) return;
+  if (!wrapper.__sdocErrors) wrapper.__sdocErrors = [];
+  wrapper.__sdocErrors.push(err);
+  syncErrorBadge(wrapper);
+}
+
 function buildErrorReport(errors, dslText, slideIdx) {
   var lines = [];
   lines.push('SDocs slide ' + (slideIdx + 1) + ' — ' + errors.length + ' error' + (errors.length === 1 ? '' : 's'));
   for (var i = 0; i < errors.length; i++) {
-    lines.push('  line ' + errors[i].line + ': ' + errors[i].message);
+    lines.push('  ' + formatErrorLine(errors[i]));
   }
   lines.push('');
   lines.push('Slide source (fenced block):');
@@ -253,6 +295,19 @@ function processSlides(container) {
     wrapper.className = 'sdoc-slide';
     wrapper.setAttribute('data-dsl', dslText);
     wrapper.setAttribute('data-slide-index', String(slideIdx));
+    // Stash the bits the badge / event listener need so async errors can
+    // rebuild the badge without re-deriving them. Error badge shows the
+    // author's original source (with directives), not the post-merge DSL -
+    // that's what they edit to fix the problem.
+    wrapper.__sdocErrors = [];
+    wrapper.__sdocRawText = rawText;
+    wrapper.__sdocSlideIdx = slideIdx;
+    // Composed events from inside slide shape shadow roots (mermaid, chart)
+    // bubble up here. The handler appends to errors and rebuilds the badge.
+    wrapper.addEventListener('sdoc-slide-error', function (ev) {
+      if (!ev || !ev.detail) return;
+      appendSlideError(wrapper, ev.detail);
+    });
 
     var hasError = false;
     try {
@@ -263,9 +318,8 @@ function processSlides(container) {
       var result = window.SDocShapeRender.renderShapes(dslText, slideWrap);
       var allErrors = (entry.errors || []).concat(result.errors || []);
       if (allErrors.length) {
-        // Error badge shows the author's original source (with directives),
-        // not the post-merge DSL — that's what they edit to fix the problem.
-        wrapper.appendChild(buildErrorBadge(allErrors, rawText, slideIdx));
+        wrapper.__sdocErrors = allErrors.slice();
+        syncErrorBadge(wrapper);
       }
     } catch (e) {
       renderError(wrapper, 'slide render failed: ' + e.message);
@@ -288,6 +342,6 @@ function processSlides(container) {
   if (window.SDocPresent && window.SDocPresent.refresh) window.SDocPresent.refresh();
 }
 
-window.SDocSlides = { processSlides: processSlides };
+window.SDocSlides = { processSlides: processSlides, appendSlideError: appendSlideError };
 
 })();
