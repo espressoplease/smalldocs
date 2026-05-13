@@ -276,6 +276,17 @@ function applyPadding(el, s, grid) {
   el.style.padding = px.toFixed(3) + 'px';
 }
 
+// `opacity=N` (0..1) fades the whole shape — fill, stroke, AND any text
+// content together. CSS clamps out-of-range values, and we accept any
+// numeric string. Applies uniformly to HTML rects, per-shape SVGs, and
+// text overlays so a single attribute on the shape fades its visible
+// surface in one stroke.
+function applyOpacity(el, attrs) {
+  if (!attrs || attrs.opacity == null) return;
+  var n = parseFloat(attrs.opacity);
+  if (!isNaN(n)) el.style.opacity = String(n);
+}
+
 function applyShapeStyle(el, attrs, grid) {
   if (attrs.fill) el.style.background = attrs.fill;
   if (attrs.color) {
@@ -306,6 +317,7 @@ function applyShapeStyle(el, attrs, grid) {
   if (attrs.tableEvenBg)    el.style.setProperty('--md-table-even-bg', attrs.tableEvenBg);
   if (attrs.tableOddBg)     el.style.setProperty('--md-table-odd-bg', attrs.tableOddBg);
   if (attrs.tableText)      el.style.setProperty('--md-table-text', attrs.tableText);
+  applyOpacity(el, attrs);
 }
 
 // Default strokeWidth is 0.02 grid units = ~1.5px on a 16x9 reference
@@ -783,6 +795,7 @@ function renderTextOverlay(s, grid) {
     el.style.setProperty('--shape-color', s.attrs.color);
   }
   applyPadding(el, s, grid);
+  applyOpacity(el, s.attrs);
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
   if (s.attrs && s.attrs.valign) el.dataset.valign = s.attrs.valign;
@@ -1096,11 +1109,13 @@ function renderShapes(dslText, wrap, options) {
         } else if (s.kind === 'p') {
           svg.appendChild(renderPolygon(s, svg));
         }
+        applyOpacity(svg, s.attrs);
         L.el.appendChild(svg);
         // Text overlay (circle / ellipse / polygon with content) is an
         // HTML div that sits AFTER its parent SVG in source order, so it
         // paints on top of the shape it labels — matching the existing
-        // "text sits on the shape" expectation.
+        // "text sits on the shape" expectation. The overlay picks up the
+        // same `opacity` inside renderTextOverlay so both fade together.
         if ((s.kind === 'c' || s.kind === 'e' || s.kind === 'p') && s.content) {
           L.el.appendChild(renderTextOverlay(s, grid));
         }
