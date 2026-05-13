@@ -1980,11 +1980,115 @@ navigate.
 const SLIDES_CUSTOM_SHAPES_HELP = `
 SDocs — Slides (raw shapes)
 ===========================
-Reference + gotchas for slides built from raw shapes rather than the
-stdlib templates. Most decks won't need any of this - if you can
+Reference + design notes for slides built from raw shapes rather than
+the stdlib templates. Most decks won't need any of this - if you can
 express the slide via \`@extends\` on a built-in (cover, title-body,
-two-column, exhibit, etc.), do that. This page covers what you need
-when you can't.
+two-column, exhibit, etc.), do that.
+
+Read DESIGN PRINCIPLES first. The syntax reference below assumes you've
+made the visual choices the principles describe. Without them, raw
+shapes consistently produce decks that read as "default PowerPoint"
+rather than as designed.
+
+── DESIGN PRINCIPLES ─────────────────────────────────
+  Raw shapes give geometric freedom that templates don't. That
+  freedom is also rope. The notes below are what separate a deck
+  that reads as designed from one that reads as amateur.
+  Internalise them before reaching for the syntax.
+
+  Stroke.
+    Default: NO stroke. Reads modern and confident. The slide
+    background carries the silhouette via fill or whitespace; shapes
+    don't compete with their own outlines.
+
+    Thin neutral stroke (\`strokeWidth\` <= 0.03, \`stroke=#94a3b8\` or
+    a similar cool grey). Reads technical, detail-oriented. Reach
+    for this when several shapes' contours need to be visible AND
+    the fill contrast isn't doing the work on its own. Good for
+    matrices, small multiples, schematic diagrams.
+
+    Thick coloured stroke. AVOID. The strongest tell that a deck
+    wasn't designed. It almost never improves the slide. If a shape
+    needs a thick coloured border to read, the geometry or fill is
+    doing too little work. The only exception is a deliberately
+    drawn arrow or callout where the line itself IS the message;
+    even then, take the colour from the doc accent, not from a
+    third hue.
+
+  Fill.
+    Default: NO fill. Most shapes don't need one - the slide
+    background reads through and the silhouette is implicit.
+
+    Subtle tint (\`#eef2ff\`, \`#f8fafc\`, or similar near-background
+    values). For containers that hold body content - a card around
+    a paragraph, a column header strip. The tint should look like a
+    faint shadow, not a coloured panel.
+
+    Saturated fill. Reserved for the ONE focal element per slide -
+    the navy cell on a segmentation matrix, the SOM tier on a
+    market-sizing diagram, the focal band on a funnel. Saturated
+    fill is your single "look here" gesture. Spend it once.
+
+  Typography-only is not a custom shape.
+    A shape with neither stroke nor fill is invisible - it reads as
+    floating text. If you're not encoding geometry (a position, a
+    size, a relationship, a comparison), you're writing an
+    annotation, and an annotation belongs in a plain text shape or
+    in markdown content. The point of a custom shape is the shape;
+    if it isn't visible, drop it and use a template slot.
+
+  One deviation per slide.
+    Repetition + deviation = recognition. If five shapes share a
+    treatment and the sixth doesn't, the eye lands on the sixth
+    before reading a single label. The deviation IS the slide.
+    Wanting two deviations is usually wanting two slides.
+
+  Shape vocabulary.
+    Limit to two shape primitives per deck - typically a rectangle
+    for cards / containers, plus one polygon (or circle / ellipse)
+    as the variant. Using one primitive consistently across slides
+    builds a visual language the audience learns by slide three.
+    Six different shapes used once each flat-lines that recognition
+    and reads as ornament rather than system.
+
+  Geometry as data.
+    Where a shape's size, position, slope, or area corresponds to a
+    number in the content, make it accurate. SOM at 4.7% of TAM
+    should occupy 4.7% of TAM's area, not 30% because that's what
+    fits the layout. A funnel band's width should be proportional
+    to its population, not chosen for visual balance. Where shapes
+    carry data, geometry IS the argument; labels confirm it.
+
+    When the magnitudes span more than ~50x and a linear scale
+    collapses the tail to a hairline, two honest positions:
+      a) Linear scale. Let the tail be a hairline. The
+         disappearance IS the data (250k next to 28M looks like
+         what 250k actually is next to 28M).
+      b) Square-root or log scale. Readable across the range; state
+         which you used in a caption so the geometry isn't lying.
+    Either is fine. Pick deliberately. Don't fudge a linear scale
+    into "what looks good" - that is lying with shapes.
+
+  Labels outside the shape when the shape is too narrow.
+    A magnitude-proportional shape will sometimes be smaller than
+    its label. Pull the label outside (column-aligned, or with a
+    short leader line) - shrinking the label to fit a hairline
+    shape destroys the only data the shape was carrying. See the
+    TEXT INSIDE NON-RECT SHAPES section for the mechanics.
+
+  Visual rhymes across slides.
+    A shared element that recurs on every custom-shape slide - a
+    horizontal rule at a consistent y, a footer caption pinned to
+    the same line, an accent colour reserved for one role - is
+    what makes a custom-shape deck feel deliberate rather than
+    improvised. Pick one or two such rhymes and hold them across
+    every slide you author.
+
+  Restraint over ornament.
+    The decision to ADD any visual element should require a reason.
+    No fill, no stroke, no extra shape, no second colour is the
+    default. Spend visual weight only on the one or two things the
+    slide is about. Empty space is half the design.
 
 ── SHAPE KINDS ───────────────────────────────────────
   r x y w h            rectangle  (x,y = top-left; w,h = size)
@@ -2126,23 +2230,44 @@ when you can't.
   shape-only + r-overlay pattern.
 
 ── COMPOSITE PATTERNS ───────────────────────────────
-  Process flow with chevron + label.
-    p 1,3 4,3 5,4 4,5 1,5 fill=$h1.color
-    r 1,3 4,2 color=#fff align=center valign=center | **Plan**
+  Each pattern obeys the DESIGN PRINCIPLES above: at most one
+  saturated fill per slide (used as the focal element), thin neutral
+  strokes only when contour is doing real work, labels outside the
+  shape when the shape is too narrow to hold them.
 
-  Concentric rings (TAM/SAM/SOM). Three nested rects, labels in a
-  side column rather than inside the rings - the rings cover each
-  others' labels otherwise.
-    r 1.5,1.9 9,6   fill=#dbeafe
-    r 2.5,3.2 7,4.5 fill=#bfdbfe
-    r 3.6,4.5 4.7,3 fill=#1e40af
-    r 11,1.9 4,6 align=left valign=top |
+  Process flow with a focal step.
+    Two pale frames + one navy focal step. The navy IS the slide's
+    one deviation - it tells the audience which step matters.
+    r 1,3.5 3,1.5 stroke=#cbd5e1 strokeWidth=0.02 align=center valign=center | **Plan**
+    r 4.5,3.5 3,1.5 stroke=#cbd5e1 strokeWidth=0.02 align=center valign=center | **Build**
+    r 8,3.5 3,1.5 fill=#1e40af color=#ffffff align=center valign=center | **Ship**
+    a @plan.right @build.left
+    a @build.right @ship.left
+
+  TAM/SAM/SOM with magnitude-proportional rectangles.
+    All three rects share their top-left corner; sides scale by
+    \`sqrt(value / 32)\` so the AREAS read as the dollar values, not
+    just "three nested shapes". Labels live in the right column with
+    short leaders - the inner rects are too small to hold them and
+    putting labels inside would hide some behind others. Only the
+    focal SOM uses saturated fill.
+
+    # TAM 32 -> sqrt(32/32) = 1.0  (9.0 x 6.0 = 54 sq u)
+    # SAM  8 -> sqrt( 8/32) = 0.5  (4.5 x 3.0 = 13.5)
+    # SOM 1.5 -> sqrt(1.5/32) ~ 0.22  (2.0 x 1.3 ~ 2.6)
+    r 1,2 9 6   stroke=#94a3b8 strokeWidth=0.02
+    r 1,2 4.5 3 stroke=#94a3b8 strokeWidth=0.02
+    r 1,2 2.0 1.3 fill=#1e40af
+    r 11,2 4 6 align=left valign=top |
       **TAM** $32B - global developer tools
-      **SAM** $8B  - AI-coding subset
-      **SOM** $1.5B - CLI-agent slice
+      **SAM**  $8B - AI-coding subset
+      **SOM** $1.5B - CLI-agent slice (4.7% of TAM by area)
 
-  Callout / speech bubble. Polygon for the bubble outline, \`r\` for
-  the text content, positioned to avoid the tail.
+  Callout / speech bubble.
+    Polygon for the bubble outline (thin neutral stroke; no fill),
+    \`r\` for the text content positioned to avoid the bubble's tail.
+    Reserved for genuine annotation - if the callout could be a
+    body paragraph, make it one.
 
 ── LAYERING ────────────────────────────────────────
   Every slide has three stacked sublayers, painted bottom to top:
