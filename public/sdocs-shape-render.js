@@ -1017,35 +1017,56 @@ function renderShapes(dslText, wrap, options) {
   off.appendChild(stage);
 
   // Three stacked sublayers in DOM order: bottom (paints first, below
-  // everything), mid (the default — SVG primitives render inside this
-  // sublayer's <svg>, rectangles inside the sublayer div), top (paints
-  // last, above everything). Authors opt into top/bottom via
-  // `layer=top` / `layer=bottom` on a shape; omit for mid.
+  // everything), mid (the default), top (paints last, above everything).
+  // Within each sublayer, source order alone determines stacking — every
+  // SVG primitive lives in its own per-shape <svg> sibling to the HTML
+  // rects, so a polygon declared after a rect paints over that rect and
+  // vice versa. Authors opt into top/bottom via `layer=top` /
+  // `layer=bottom` on a shape; omit for mid.
   function makeSublayer() {
     var el = document.createElement('div');
     el.className = 'sd-stage-sublayer';
-    var s = document.createElementNS(SVG_NS, 'svg');
-    s.setAttribute('class', 'shape-svg');
-    s.setAttribute('viewBox', '0 0 ' + grid.w + ' ' + grid.h);
-    s.setAttribute('preserveAspectRatio', 'none');
-    el.appendChild(s);
-    return { el: el, svg: s };
+    return { el: el };
   }
   var layers = { bottom: makeSublayer(), mid: makeSublayer(), top: makeSublayer() };
   stage.appendChild(layers.bottom.el);
   stage.appendChild(layers.mid.el);
   stage.appendChild(layers.top.el);
 
+  // Shared defs SVG at the stage level. Holds the arrowhead marker so
+  // every per-shape SVG can resolve url(#_sd_arrowhead) — SVG IDs are
+  // document-scoped, so one copy works for arrows in any sublayer.
+  // Always-on (zero-sized, no content unless arrows are present) keeps
+  // the stage's DOM shape consistent across decks.
+  var sharedDefs = document.createElementNS(SVG_NS, 'svg');
+  sharedDefs.setAttribute('class', 'shape-defs');
+  sharedDefs.setAttribute('aria-hidden', 'true');
+  sharedDefs.setAttribute('width', '0');
+  sharedDefs.setAttribute('height', '0');
+  sharedDefs.style.position = 'absolute';
+  sharedDefs.style.width = '0';
+  sharedDefs.style.height = '0';
+  sharedDefs.style.overflow = 'hidden';
+  stage.insertBefore(sharedDefs, stage.firstChild);
+
+  // Build a fresh <svg> wrapper for a single SVG primitive. Each shape
+  // gets its own SVG so HTML rects and SVG primitives can interleave
+  // freely by source order within a sublayer (rather than the SVG
+  // sublayer always sitting under all the HTML rects, the pre-1.6
+  // behavior).
+  function makeShapeSvg() {
+    var s = document.createElementNS(SVG_NS, 'svg');
+    s.setAttribute('class', 'shape-svg');
+    s.setAttribute('viewBox', '0 0 ' + grid.w + ' ' + grid.h);
+    s.setAttribute('preserveAspectRatio', 'none');
+    return s;
+  }
+
   var defsNeeded = { arrowhead: false, arrowheadColor: null };
 
-  // Arrows default to `layer=top` — almost every flow-diagram use case
-  // wants the arrow head to land above the rects it points into. The
-  // escape hatch is explicit `layer=mid` or `layer=bottom` on the arrow.
   function pickLayer(s) {
     var v = s.attrs && s.attrs.layer;
-    if (v == null || v === '') {
-      return s.kind === 'a' ? layers.top : layers.mid;
-    }
+    if (v == null || v === '') return layers.mid;
     if (v === 'top' || v === 'bottom' || v === 'mid') return layers[v];
     result.errors.push({
       line: s.lineNumber,
@@ -1060,34 +1081,37 @@ function renderShapes(dslText, wrap, options) {
       var L = pickLayer(s);
       if (s.kind === 'r') {
         L.el.appendChild(renderRect(s, grid));
-      } else if (s.kind === 'c') {
-        L.svg.appendChild(renderCircle(s, L.svg));
-        if (s.content) L.el.appendChild(renderTextOverlay(s, grid));
-      } else if (s.kind === 'e') {
-        L.svg.appendChild(renderEllipse(s));
-        if (s.content) L.el.appendChild(renderTextOverlay(s, grid));
-      } else if (s.kind === 'l') {
-        L.svg.appendChild(renderLine(s));
-      } else if (s.kind === 'a') {
-        L.svg.appendChild(renderArrow(s, defsNeeded));
-      } else if (s.kind === 'p') {
-        L.svg.appendChild(renderPolygon(s, L.svg));
-        if (s.content) L.el.appendChild(renderTextOverlay(s, grid));
+      } else {
+        // Every SVG primitive gets its own <svg> wrapper so its DOM
+        // position among the sublayer's children is preserved.
+        var svg = makeShapeSvg();
+        if (s.kind === 'c') {
+          svg.appendChild(renderCircle(s, svg));
+        } else if (s.kind === 'e') {
+          svg.appendChild(renderEllipse(s));
+        } else if (s.kind === 'l') {
+          svg.appendChild(renderLine(s));
+        } else if (s.kind === 'a') {
+          svg.appendChild(renderArrow(s, defsNeeded));
+        } else if (s.kind === 'p') {
+          svg.appendChild(renderPolygon(s, svg));
+        }
+        L.el.appendChild(svg);
+        // Text overlay (circle / ellipse / polygon with content) is an
+        // HTML div that sits AFTER its parent SVG in source order, so it
+        // paints on top of the shape it labels — matching the existing
+        // "text sits on the shape" expectation.
+        if ((s.kind === 'c' || s.kind === 'e' || s.kind === 'p') && s.content) {
+          L.el.appendChild(renderTextOverlay(s, grid));
+        }
       }
     } catch (e) {
       result.errors.push({ line: s.lineNumber, message: 'render: ' + e.message });
     }
   }
 
-  // Arrowhead defs live in one svg but are referenced document-wide via
-  // url(#_sd_arrowhead), so a single copy works for arrows in any sublayer.
   if (defsNeeded.arrowhead) {
-    // Arrows default to layer=top, so most arrowhead markers live in the
-    // top sublayer's svg. Putting defs in that same svg keeps them
-    // reachable; url(#_sd_arrowhead) is document-scoped so any other
-    // sublayer's svg can reference it too.
-    var defsSvg = layers.top.svg;
-    defsSvg.insertBefore(buildArrowheadDefs(defsNeeded.arrowheadColor), defsSvg.firstChild);
+    sharedDefs.appendChild(buildArrowheadDefs(defsNeeded.arrowheadColor));
   }
 
   // Force layout, then run autofit. Both are synchronous because the

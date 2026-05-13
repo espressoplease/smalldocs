@@ -26,11 +26,14 @@ async function stageBox(page) {
 }
 
 test.describe('shape playground', () => {
-  test('page loads with textarea, stage, and svg overlay', async ({ page }) => {
+  test('page loads with textarea and stage', async ({ page }) => {
     await gotoPlayground(page);
     await expect(page.locator('#dsl')).toBeVisible();
     await expect(page.locator('#stage')).toBeVisible();
-    await expect(page.locator('#stage .shape-svg')).toBeAttached();
+    // Each SVG primitive now gets its own per-shape <svg>, so .shape-svg
+    // only exists once at least one SVG primitive is declared. The
+    // stage-level .shape-defs SVG is always present.
+    await expect(page.locator('#stage .shape-defs')).toBeAttached();
   });
 
   test('default aspect is 16:9 (empty DSL → default grid)', async ({ page }) => {
