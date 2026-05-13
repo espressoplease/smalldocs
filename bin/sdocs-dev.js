@@ -1477,6 +1477,9 @@ navigate.
   sdoc <file>                      Open normally (click a slide's present icon)
   sdoc slides                      This help
   sdoc slides list                 List built-in templates + slot names
+  sdoc slides custom-shapes        Long-tail notes for raw-shape custom slides
+                                   (polygon text, composite patterns, layering).
+                                   Most decks use \`@extends\` and never need this.
 
 ── DESIGN GUIDELINES ────────────────────────────────────
   The built-in templates encode a few rules that separate professional
@@ -2055,6 +2058,131 @@ navigate.
   - No drag/resize edit mode yet; shapes are authored by typing DSL.
 `;
 
+const SLIDES_CUSTOM_SHAPES_HELP = `
+SDocs — Slides (raw shapes, long-tail notes)
+============================================
+This is the follow-on doc for slides built from raw shapes (\`r\`, \`p\`,
+\`c\`, \`e\`, \`l\`, \`a\`) rather than from the stdlib templates. Most decks
+won't need any of this - if you can express the slide via \`@extends\`
+on a built-in (cover, title-body, two-column, exhibit, etc.), do that.
+This page covers the gotchas you hit when you can't.
+
+── TEXT INSIDE NON-RECT SHAPES ──────────────────────
+  Text inside a polygon, circle, or ellipse lays out in the shape's
+  AXIS-ALIGNED BOUNDING BOX, not the visible silhouette. For a trapezoid,
+  triangle, or arrow this means the text rectangle is larger than the
+  filled shape - long labels can overhang the slanted edges and end up
+  partly outside the visible polygon.
+
+  Example. A funnel band:
+    p 1,1.8 15,1.8 14.2,3 1.8,3 fill=#e0e7ff align=left | 28M devs
+  The bounding box is x ∈ [1, 15], y ∈ [1.8, 3]. \`align=left\` parks the
+  text at x ≈ 1, which is the leftmost point of the WIDEST corner.
+  At the bottom of the band the silhouette only reaches x ≈ 1.8, so a
+  two-line label would clip on the second line.
+
+  Two ways to handle this:
+
+  1. Short, centered labels.
+     Use \`align=center\` and keep the label short enough that it fits
+     within the silhouette's narrowest waist. Works for symmetric
+     trapezoids, hexagons, ellipses.
+
+       p 5.4,7.4 10.6,7.4 9.4,8.3 6.6,8.3 fill=#312e81 color=#fff align=center |
+         **250k**
+
+  2. Shape-only + separate text-r on top.
+     Draw the polygon WITHOUT content (no \`|\`), then place an \`r\` shape
+     on top, sized to fit safely inside the silhouette. Lets the text
+     box be a clean rectangle while the visible silhouette stays slanted.
+
+       p 1,1.8 15,1.8 14.2,3 1.8,3 fill=#e0e7ff
+       r 2,2 12,0.8 align=center valign=center |
+         **21M** use any AI tool at work
+
+     The \`r\` paints above the \`p\` (HTML rects always paint above SVG
+     primitives within the same sublayer), so no \`layer=\` needed.
+
+── POLYGON GEOMETRY ──────────────────────────────────
+  Slant strength. A trapezoid where each side indents 0.8u over a
+  1.2u height (a ~6% slant) reads as a rectangle. If you want the
+  viewer's eye to see "narrowing", make each side indent at least
+  ~15% of the band's height. For a stack of bands (funnel, pyramid),
+  pick a constant slant ratio across all bands so the silhouette
+  reads as one continuous taper rather than a hinge between
+  rectangles and triangles.
+
+  Order matters within a slide. Polygons declared later paint over
+  earlier ones (within the same layer). For nested concentric shapes
+  (TAM/SAM/SOM), declare the outermost first; inner shapes cover the
+  outers' label space. Plan your label positions in the VISIBLE RING
+  between each shape and its inner neighbour - or move labels out to
+  an adjacent \`r\` column.
+
+  Curved segments. The \`~\` hint before a polygon point curves the
+  segment leading into that point. Useful for rounded card corners or
+  speech-bubble tails; bad for text-bearing shapes because the bounding
+  box still treats the curve as if it were a straight chord.
+
+  Concave polygons. The bounding box of a concave shape includes the
+  concavity - text can sit in the notch and overlap a neighbouring
+  shape. For concave shapes (arrows, callouts, chevrons), use the
+  shape-only + r-overlay pattern.
+
+── COMPOSITE PATTERNS ───────────────────────────────
+  Process flow with chevron + label.
+    p 1,3 4,3 5,4 4,5 1,5 fill=$h1.color
+    r 1,3 4,2 color=#fff align=center valign=center | **Plan**
+
+  Concentric rings (TAM/SAM/SOM). Three nested rects, labels in a
+  side column rather than inside the rings - the rings cover each
+  others' labels otherwise.
+    r 1.5,1.9 9,6   fill=#dbeafe
+    r 2.5,3.2 7,4.5 fill=#bfdbfe
+    r 3.6,4.5 4.7,3 fill=#1e40af
+    r 11,1.9 4,6 align=left valign=top |
+      **TAM** $32B - global developer tools
+      **SAM** $8B  - AI-coding subset
+      **SOM** $1.5B - CLI-agent slice
+
+  Callout / speech bubble. Polygon for the bubble outline, \`r\` for
+  the text content, positioned to avoid the tail.
+
+── LAYERING REFRESHER ─────────────────────────────
+  Within a sublayer, paint order is:
+    1. SVG primitives (\`c\`, \`e\`, \`p\`, \`l\`, \`a\`) in DSL order
+    2. HTML elements (\`r\`, text overlays for non-rects) above the SVG
+
+  So a \`r\` shape with text always paints above a \`p\` shape declared
+  before it in the same slide, without needing \`layer=\`. Use
+  \`layer=bottom|mid|top\` only when you need to cross categories - e.g.
+  a full-bleed background \`r\` that should sit behind SVG primitives:
+
+    r 0,0 16,9 fill=#0f172a layer=bottom    (full-bleed backdrop)
+    c 8,4.5 2 fill=#dc2626                  (sits above the backdrop)
+
+  Arrows (\`a\`) default to \`layer=top\` so the head always sits above
+  the rects it connects.
+
+── WHEN TO STOP AND USE A TEMPLATE ─────────────────
+  If your custom slide ends up being "title at top + body below" or
+  "title + two columns" or "title + chart + takeaway", you're
+  re-implementing a stdlib template. Run \`sdoc slides list\` and pick
+  the closest match - the templates encode safe margins, role
+  typography, and slot semantics that you'd otherwise have to re-derive.
+
+  Raw shapes earn their keep for: market sizing diagrams, custom
+  funnels / pyramids / matrices, decision trees, process flows with
+  arrows between named blocks, anything where the GEOMETRY is the
+  message. For everything else, \`@extends\` first.
+
+See also:
+  sdoc slides            Main slide DSL reference
+  sdoc slides list       Built-in templates + slot lists
+  sdoc charts            Chart fenced blocks (\`\`\`chart)
+  sdoc diagrams          Mermaid fenced blocks (\`\`\`mermaid)
+`;
+
 // ── Compression (brotli + base64url) ─────────────────
 
 function toBase64Url(buf) {
@@ -2626,6 +2754,7 @@ if (require.main === module) {
     if (opts.subcommand === 'comments') { console.log(COMMENTS_HELP); process.exit(0); }
     if (opts.subcommand === 'slides') {
       if (opts.file === 'list') { printSlideStdlib(); process.exit(0); }
+      if (opts.file === 'custom-shapes') { console.log(SLIDES_CUSTOM_SHAPES_HELP); process.exit(0); }
       console.log(SLIDES_HELP);
       process.exit(0);
     }
