@@ -2096,8 +2096,17 @@ rather than as designed.
   c cx cy radius       circle     (cx,cy = center)
   e cx cy rx ry        ellipse    (cx,cy = center; rx,ry = half-sizes)
   l x1 y1 x2 y2        line       (decorative, no content)
-  a x1 y1 x2 y2        arrow      (decorative, head at endpoint)
+  a x1 y1 x2 y2        arrow      (decorative, tip lands on (x2,y2))
   p x1,y1 x2,y2 ...    polygon    (use ~ between points for curved segments)
+
+  Arrow geometry: the coordinates are the line's centerline. The head is
+  symmetric around the line, extending up to 3 * strokeWidth perpendicular
+  on each side. So a horizontal arrow at y=5.78 with strokeWidth=0.06
+  lines up cleanly with a horizontal line at y=5.78 (same centerline) -
+  no need to offset the arrow's y to "clear" the head. For arrows shorter
+  than 12 * strokeWidth the renderer scales the stroke (and head) down so
+  the tip stays on (x2,y2); the arrow renders thinner than declared, but
+  the endpoints stay honest.
 
   Polygon points are written \`x,y\` (one token per point), not space-
   separated like \`r x y w h\`. The variable point count needs a delimiter,
