@@ -582,7 +582,16 @@ function renderTextOverlay(s, grid) {
   el.style.top = pct(box.y, grid.h);
   el.style.width = pct(box.w, grid.w);
   el.style.height = pct(box.h, grid.h);
-  if (s.attrs.color) el.style.color = s.attrs.color;
+  if (s.attrs.color) {
+    el.style.color = s.attrs.color;
+    // Mirror onto --shape-color so the shadow root's `.inner` rule
+    // (color: var(--shape-color, var(--md-color, inherit))) prefers the
+    // shape's declared colour over the doc's --md-color. Without this,
+    // a polygon with `color=#ffffff` on a dark fill still rendered the
+    // text in the doc colour because --md-color won the var() chain.
+    // Matches applyShapeStyle's behaviour for rectangles.
+    el.style.setProperty('--shape-color', s.attrs.color);
+  }
   applyPadding(el, s, grid);
   if (s.attrs && s.attrs.maxfont) el.dataset.maxfont = s.attrs.maxfont;
   if (s.attrs && s.attrs.align) el.dataset.align = s.attrs.align;
