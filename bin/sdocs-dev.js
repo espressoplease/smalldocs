@@ -1653,10 +1653,12 @@ navigate.
     #id                 Reference target for @refs
 
   Stacking:
-    layer=<v>           top | mid | bottom. Default is \`mid\` for most
-                        kinds; arrows (\`a\`) default to \`top\` so the
-                        heads always sit above the rects they connect.
-                        See STACKING section below for the full model.
+    layer=<v>           top | mid | bottom. Default \`mid\` for every
+                        kind. Source order alone normally decides paint
+                        order; \`layer=\` is an escape hatch for shapes
+                        that must sit on top of (or below) everything
+                        regardless of where they were declared. See
+                        STACKING section below.
 
 \u2500\u2500 CONTENT \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Everything after \`|\` is standard markdown. Multi-line uses
@@ -1794,12 +1796,17 @@ navigate.
   need CORS headers on the host, same constraint as any browser fetch.
 
 \u2500\u2500 STACKING \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  Every slide has three sublayers (bottom / mid / top). Templates
-  use \`layer=top\` on arrows by default and \`mid\` everywhere else,
-  which covers nearly all needs. For raw-shape composition where you
-  need to control paint order across the rect / SVG boundary or place
-  a full-bleed backdrop behind everything, see the LAYERING section
-  of \`sdoc slides custom-shapes\`.
+  Source order = paint order. A shape declared later in the slide
+  paints above shapes declared earlier - regardless of whether it is
+  a rectangle, polygon, circle, line, or arrow. To put a connector
+  above its cards, declare the arrow after the cards. To put a
+  backdrop behind a card, declare the backdrop first.
+
+  Escape hatch: \`layer=top | mid | bottom\` (default \`mid\`) promotes
+  or demotes a shape across coarse sublayers, overriding source order.
+  Useful inside templates where a consumer slide adds more shapes
+  whose declaration order you cannot predict. See the LAYERING
+  section of \`sdoc slides custom-shapes\` for the full model.
 
 \u2500\u2500 TEMPLATES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Define a shape layout once, reuse across slides. Two directives,
@@ -2184,39 +2191,8 @@ rather than as designed.
                                   renders in the polygon's bounding box)
 
 ── COMMON PITFALLS ──────────────────────────────────
-  Ordered by severity. The first one is critical because it fails
-  SILENTLY - the shape parses, renders, and is then hidden. The rest
-  surface as parser errors or visibly-wrong curves.
 
-  1. CRITICAL: Full-slide background rects HIDE polygons and other
-     SVG shapes.
-
-     Within the same layer, HTML rectangles always paint above SVG
-     primitives regardless of declaration order. So this sequence:
-
-       r 0 0 16 9 fill=#f5f1ea     <- full-slide background rect
-       p 4,5 ^1.2 12,5 12,7.5 4,7.5 fill=#c89b6c   <- INVISIBLE
-
-     ...renders the polygon inside the SVG sublayer and the rect in
-     the HTML sublayer ON TOP of it. The polygon is there in the DOM
-     but covered.
-
-     Fix: set the slide background through YAML frontmatter:
-
-       ---
-       styles:
-         background: "#f5f1ea"
-       ---
-
-     The slide container already paints its background, so no rect
-     is needed. If you need a per-slide background swap, give the rect
-     \`layer=bottom\` to push it below the SVG sublayer:
-
-       r 0 0 16 9 fill=#f5f1ea layer=bottom
-
-     Same hazard applies to circles and ellipses, which are also SVG.
-
-  2. \`^h\` is perpendicular to the chord, NOT vertical.
+  1. \`^h\` is perpendicular to the chord, NOT vertical.
 
      The docs note that "for a rightward chord, positive bows upward"
      - true, but for any other chord direction the bow follows the
@@ -2232,7 +2208,7 @@ rather than as designed.
      chord direction, which points AWAY from the would-be apex - the
      arcs flare outward and meet at a sharp peak, not a smooth dome.
 
-  3. Polygon points use \`x,y\` (one comma-separated token per point).
+  2. Polygon points use \`x,y\` (one comma-separated token per point).
 
      Rectangles, lines, and arrows use space-separated coords (\`r x y
      w h\`, \`a x1 y1 x2 y2\`). Polygons need an in-token delimiter so
@@ -2324,8 +2300,9 @@ rather than as designed.
        r 2,2 12,0.8 align=center valign=center |
          **21M** use any AI tool at work
 
-     The \`r\` paints above the \`p\` (HTML rects always paint above SVG
-     primitives within the same sublayer), so no \`layer=\` needed.
+     The \`r\` paints above the \`p\` because it is declared after the \`p\`
+     in source order. Reverse the lines and the polygon would cover the
+     rect instead.
 
 ── POLYGON GEOMETRY ──────────────────────────────────
   Slant strength. A trapezoid where each side indents 0.8u over a
@@ -2336,12 +2313,12 @@ rather than as designed.
   reads as one continuous taper rather than a hinge between
   rectangles and triangles.
 
-  Order matters within a slide. Polygons declared later paint over
-  earlier ones (within the same layer). For nested concentric shapes
-  (TAM/SAM/SOM), declare the outermost first; inner shapes cover the
-  outers' label space. Plan your label positions in the VISIBLE RING
-  between each shape and its inner neighbour - or move labels out to
-  an adjacent \`r\` column.
+  Order matters within a slide. Shapes declared later paint over
+  shapes declared earlier (this applies across types — see LAYERING).
+  For nested concentric shapes (TAM/SAM/SOM), declare the outermost
+  first; inner shapes cover the outers' label space. Plan your label
+  positions in the VISIBLE RING between each shape and its inner
+  neighbour - or move labels out to an adjacent \`r\` column.
 
   Curved segments. Five operators between adjacent points: no operator
   is a straight segment; \`~\` gives a soft bow at 10% of chord length;
@@ -2416,49 +2393,34 @@ rather than as designed.
     body paragraph, make it one.
 
 ── LAYERING ────────────────────────────────────────
-  Every slide has three stacked sublayers, painted bottom to top:
+  Source order = paint order. The shape declared later in the slide
+  paints on top of shapes declared earlier. This holds across shape
+  types — a polygon declared after a rectangle paints above that
+  rectangle and vice versa.
 
-    bottom  - behind everything
-    mid     - the default for r / c / e / l / p shapes
-    top     - in front of everything; the default for arrows (\`a\`)
+    # Rect first, polygon second - polygon paints on top.
+    r 2 2 10 5 fill=#1e40af
+    p 4,3 12,3 12,6 4,6 fill=#fde68a
 
-  Within a sublayer, paint order is:
-    1. SVG primitives (\`c\`, \`e\`, \`p\`, \`l\`, \`a\`) in DSL order
-    2. HTML elements (\`r\`, text overlays for non-rects) above the SVG
+    # Reverse the lines, the rect is on top instead.
 
-  So a \`r\` shape with text always paints above a \`p\` shape declared
-  before it in the same slide, without needing \`layer=\`. Source order
-  decides paint order WITHIN a sublayer - later declarations paint
-  over earlier.
+  That's the whole rule for 95% of decks. If you want a connector
+  arrow above the cards it joins, declare the arrow last. If you want
+  a backdrop behind a card, declare the backdrop first.
 
-  Arrows default to \`layer=top\` because flow diagrams almost always
-  want arrow heads sitting above the rects they connect. Everything
-  else lives in \`mid\` unless the author opts in to \`top\` or \`bottom\`.
-  Invalid values surface in the error badge.
+  Escape hatch: \`layer=top | mid | bottom\` (default \`mid\`)
 
-  Common patterns:
+  When source order isn't enough — usually inside a template whose
+  consumer adds more shapes — set \`layer=\` to promote or demote a
+  shape across the three coarse sublayers:
 
-    # Flow diagram - arrows just work (top is their default)
-    r 2 2 5 5 fill=#dbeafe | Step 1
-    r 9 2 5 5 fill=#dbeafe | Step 2
-    a 7 4.5 9 4.5 stroke=#333
+    bottom  - paints before everything regardless of source position
+    mid     - the default
+    top     - paints after everything regardless of source position
 
-    # Status dot on top of a content card (circle needs explicit top)
-    r 0 0 16 9 fill=#0f172a color=#fff | # Title
-    c 15 1 0.3 fill=#f59e0b layer=top
-
-    # Rect sitting behind another rect (drop-shadow effect)
-    r 1 1 8 4 fill=#fee layer=bottom
-    r 2 2 8 4 fill=#fff | Card
-
-    # Overlapping shapes above a backdrop (push the backdrop down)
-    r 0 0 16 9 fill=#f8fafc layer=bottom
-    c 6 5 1.8 fill=#2563eb
-    c 8 5 1.8 fill=#dc2626
-
-  Rule of thumb: reach for \`layer=\` only when you need to cross the
-  rect / SVG boundary, or when explicit layering reads clearer than
-  careful ordering.
+  Invalid values surface in the error badge. For hand-authored slides
+  you should rarely need \`layer=\` at all; reaching for it is a hint
+  that the shape order itself wants reordering.
 
 ── IMAGES IN SHAPES ────────────────────────────────
   Any shape (\`r\`, \`c\`, \`p\`, etc.) can hold a bitmap via \`image=<url>\`
