@@ -1562,76 +1562,27 @@ navigate.
   ratio you want; 100 on one axis is the convention, making the other
   axis a simple percentage.
 
-\u2500\u2500 SHAPES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  r x y w h            rectangle  (x,y = top-left; w,h = size)
-  i x y w h            image rect (sugar for \`r\` with \`image=\`; see IMAGES)
-  c cx cy radius       circle     (cx,cy = center)
-  e cx cy rx ry        ellipse    (cx,cy = center; rx,ry = half-sizes)
-  l x1 y1 x2 y2        line       (decorative, no content)
-  a x1 y1 x2 y2        arrow      (decorative, head at endpoint)
-  p x1,y1 x2,y2 ...    polygon    (use ~ between points for curved segments)
+\u2500\u2500 RAW SHAPES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Templates encode their layouts in shape DSL (\`r\` / \`p\` / \`c\` /
+  \`e\` / \`l\` / \`a\`). As a consumer of a template, you don't see
+  these - you fill slots via \`#name: value\` (see TEMPLATES below).
+  If you're defining your own \`@template\`, or composing a custom
+  slide from raw shapes, run:
 
-  Polygon points are written \`x,y\` (one token per point), not space-
-  separated like \`r x y w h\`. The variable point count needs a delimiter,
-  so a comma is required inside each point. Examples below in the
-  "Polygon examples" subsection.
-
-  All shapes EXCEPT \`l\` and \`a\` can hold markdown after \`|\` - full
-  markdown (headings, lists, bold/italic, code, blockquote, tables).
-  Non-rectangle shapes use their bounding box as the text area.
-
-  No \`fill=\` on a shape → transparent (slide background shows through).
-  Color values accept any CSS color: hex (#1e40af), named (tomato),
-  rgb(...), rgba(...).
-
-  Polygon examples:
-    p 50,10 90,50 10,50 | Triangle
-    p 10,10 90,10 ~ 90,50 10,50 | Rounded right edge (the ~ before
-                                  a point curves that segment)
-    p 10,20 60,20 60,10 90,30 60,50 60,40 10,40 | Next steps
-                                  (right-pointing arrow shape - text
-                                  renders in the polygon's bounding box)
-
-  Stacking: see the STACKING section below.
-
-\u2500\u2500 IDS AND REFERENCES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  Declare an id with \`#name\`; reference with \`@name\` or \`@name.anchor\`.
-  Omit the anchor to default to center.
-
-    r 10 10 30 20 #title  | # Main Point
-    r 60 10 30 20 #detail | Supporting detail
-
-    a @title @detail               (default: centers of both shapes)
-    a @title.right @detail.left    (explicit: right edge to left edge)
-
-  Each endpoint picks its own anchor independently, so you can connect
-  the bottom of one box to the top of another:
-    l @box-a.bottom @box-b.top
-
-  9 anchors: center (default), top, bottom, left, right, topleft,
-  topright, bottomleft, bottomright.
-
-  Anchors resolve against each shape's BOUNDING BOX. For circles and
-  ellipses that means the circumscribing rectangle, not the perimeter -
-  so @circle.right lands at the box edge, not the curve.
-
-  \`l\` and \`a\` endpoints can mix \`@ref\` with raw \`x y\` coords freely,
-  e.g. \`l @title.bottom 50 30\`.
+    sdoc slides custom-shapes        Shape kinds, ids / @refs, layering,
+                                     polygon gotchas, composite patterns
 
 \u2500\u2500 SHAPE ATTRIBUTES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Between geometry and \`|\`:
 
-  Visual:
-    fill=<color>        Shape fill
-    stroke=<color>      Outline color
-    strokeWidth=N       Outline width (grid units)
-    radius=N            Corner radius (rectangles)
-    color=<color>       Text color inside the shape
-    padding=N           Inner padding in grid units (0 disables)
+  The text-related attributes below apply to BOTH the shapes a
+  template defines and the slot content you write as a consumer.
+  Visual attributes (fill, stroke, strokeWidth, radius, etc.) are
+  documented in \`sdoc slides custom-shapes\`.
 
-  Numeric attributes (strokeWidth, radius, padding) are in grid units -
-  pick values relative to your grid size, no prescribed defaults. On
-  the default 100-wide grid, \`radius=2\` is ~2% of slide width.
+  Padding:
+    padding=N           Inner padding in grid units (0 disables). On a
+                        100-wide grid, \`padding=2\` is ~2% of slide width.
 
   Alignment:
     align=<a>           Horizontal: center (default), left, right
@@ -1842,45 +1793,13 @@ navigate.
   skipped silently (console warning is logged). External URL fetches
   need CORS headers on the host, same constraint as any browser fetch.
 
-\u2500\u2500 STACKING \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  Every slide has three stacked sublayers, painted bottom to top:
-
-    bottom  - behind everything
-    mid     - the default for r / c / e / l / p shapes
-    top     - in front of everything; the default for arrows (\`a\`)
-
-  Within a sublayer, SVG primitives (c/e/l/a/p) paint below rectangles
-  because the sublayer's <svg> is its first child. Source order decides
-  paint order WITHIN a sublayer - later declarations paint over earlier.
-
-  Arrows default to \`layer=top\` because flow diagrams almost always
-  want arrow heads sitting above the rects they connect. Everything
-  else lives in \`mid\` unless the author opts in to \`top\` or \`bottom\`.
-  Invalid values surface in the error badge.
-
-  Common patterns:
-
-    # Flow diagram - arrows just work (top is their default)
-    r 2 2 5 5 fill=#dbeafe | Step 1
-    r 9 2 5 5 fill=#dbeafe | Step 2
-    a 7 4.5 9 4.5 stroke=#333
-
-    # Status dot on top of a content card (circle needs explicit top)
-    r 0 0 16 9 fill=#0f172a color=#fff | # Title
-    c 15 1 0.3 fill=#f59e0b layer=top
-
-    # Rect sitting behind another rect (drop-shadow effect)
-    r 1 1 8 4 fill=#fee layer=bottom
-    r 2 2 8 4 fill=#fff | Card
-
-    # Overlapping shapes above a backdrop (push the backdrop down)
-    r 0 0 16 9 fill=#f8fafc layer=bottom
-    c 6 5 1.8 fill=#2563eb
-    c 8 5 1.8 fill=#dc2626
-
-  Rule of thumb: reach for \`layer=\` only when you need to cross the
-  rect / SVG boundary, or when explicit layering reads clearer than
-  careful ordering.
+\u2500\u2500 STACKING \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Every slide has three sublayers (bottom / mid / top). Templates
+  use \`layer=top\` on arrows by default and \`mid\` everywhere else,
+  which covers nearly all needs. For raw-shape composition where you
+  need to control paint order across the rect / SVG boundary or place
+  a full-bleed backdrop behind everything, see the LAYERING section
+  of \`sdoc slides custom-shapes\`.
 
 \u2500\u2500 TEMPLATES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Define a shape layout once, reuse across slides. Two directives,
@@ -2059,13 +1978,90 @@ navigate.
 `;
 
 const SLIDES_CUSTOM_SHAPES_HELP = `
-SDocs — Slides (raw shapes, long-tail notes)
-============================================
-This is the follow-on doc for slides built from raw shapes (\`r\`, \`p\`,
-\`c\`, \`e\`, \`l\`, \`a\`) rather than from the stdlib templates. Most decks
-won't need any of this - if you can express the slide via \`@extends\`
-on a built-in (cover, title-body, two-column, exhibit, etc.), do that.
-This page covers the gotchas you hit when you can't.
+SDocs — Slides (raw shapes)
+===========================
+Reference + gotchas for slides built from raw shapes rather than the
+stdlib templates. Most decks won't need any of this - if you can
+express the slide via \`@extends\` on a built-in (cover, title-body,
+two-column, exhibit, etc.), do that. This page covers what you need
+when you can't.
+
+── SHAPE KINDS ───────────────────────────────────────
+  r x y w h            rectangle  (x,y = top-left; w,h = size)
+  i x y w h            image rect (sugar for \`r\` with \`image=\`; see IMAGES)
+  c cx cy radius       circle     (cx,cy = center)
+  e cx cy rx ry        ellipse    (cx,cy = center; rx,ry = half-sizes)
+  l x1 y1 x2 y2        line       (decorative, no content)
+  a x1 y1 x2 y2        arrow      (decorative, head at endpoint)
+  p x1,y1 x2,y2 ...    polygon    (use ~ between points for curved segments)
+
+  Polygon points are written \`x,y\` (one token per point), not space-
+  separated like \`r x y w h\`. The variable point count needs a delimiter,
+  so a comma is required inside each point.
+
+  All shapes EXCEPT \`l\` and \`a\` can hold markdown after \`|\` - full
+  markdown (headings, lists, bold/italic, code, blockquote, tables).
+  Non-rectangle shapes use their bounding box as the text area (see
+  the TEXT INSIDE NON-RECT SHAPES section).
+
+  No \`fill=\` on a shape -> transparent (slide background shows through).
+  Color values accept any CSS colour: hex (#1e40af), named (tomato),
+  rgb(...), rgba(...).
+
+  Polygon examples:
+    p 50,10 90,50 10,50 | Triangle
+    p 10,10 90,10 ~ 90,50 10,50 | Rounded right edge (the ~ before
+                                  a point curves that segment)
+    p 10,20 60,20 60,10 90,30 60,50 60,40 10,40 | Next steps
+                                  (right-pointing arrow shape - text
+                                  renders in the polygon's bounding box)
+
+── SHAPE ATTRIBUTES ──────────────────────────────────
+  Between geometry and \`|\`:
+
+  Visual:
+    fill=<color>        Shape fill
+    stroke=<color>      Outline colour
+    strokeWidth=N       Outline width (grid units)
+    radius=N            Corner radius (rectangles)
+    color=<color>       Text colour inside the shape
+    image=<url>         Bitmap fill (see IMAGES section)
+
+  Numeric attributes (strokeWidth, radius) are in grid units - pick
+  values relative to your grid size, no prescribed defaults. On a
+  100-wide grid, \`radius=2\` is ~2% of slide width.
+
+  For text sizing (text=role, size=, h*Scale=), padding, alignment,
+  and slot ids inside templates, see \`sdoc slides\` - those work the
+  same in raw shapes and template shapes.
+
+── IDS AND @REFERENCES ──────────────────────────────
+  Declare an id with \`#name\`; reference with \`@name\` or \`@name.anchor\`
+  from line / arrow endpoints. Omit the anchor to default to centre.
+
+    r 10 10 30 20 #title  | # Main Point
+    r 60 10 30 20 #detail | Supporting detail
+
+    a @title @detail               (default: centres of both shapes)
+    a @title.right @detail.left    (explicit: right edge to left edge)
+
+  Each endpoint picks its own anchor independently, so you can connect
+  the bottom of one box to the top of another:
+    l @box-a.bottom @box-b.top
+
+  9 anchors: center (default), top, bottom, left, right, topleft,
+  topright, bottomleft, bottomright.
+
+  Anchors resolve against each shape's BOUNDING BOX. For circles and
+  ellipses that means the circumscribing rectangle, not the perimeter -
+  so @circle.right lands at the box edge, not the curve.
+
+  \`l\` and \`a\` endpoints can mix \`@ref\` with raw \`x y\` coords freely,
+  e.g. \`l @title.bottom 50 30\`.
+
+  Note that \`#name\` is overloaded: in a \`@template\` declaration it
+  marks a slot for consumers to fill; in a raw slide it marks an id
+  for @refs. Same syntax, two purposes - context decides.
 
 ── TEXT INSIDE NON-RECT SHAPES ──────────────────────
   Text inside a polygon, circle, or ellipse lays out in the shape's
@@ -2148,21 +2144,56 @@ This page covers the gotchas you hit when you can't.
   Callout / speech bubble. Polygon for the bubble outline, \`r\` for
   the text content, positioned to avoid the tail.
 
-── LAYERING REFRESHER ─────────────────────────────
+── LAYERING ────────────────────────────────────────
+  Every slide has three stacked sublayers, painted bottom to top:
+
+    bottom  - behind everything
+    mid     - the default for r / c / e / l / p shapes
+    top     - in front of everything; the default for arrows (\`a\`)
+
   Within a sublayer, paint order is:
     1. SVG primitives (\`c\`, \`e\`, \`p\`, \`l\`, \`a\`) in DSL order
     2. HTML elements (\`r\`, text overlays for non-rects) above the SVG
 
   So a \`r\` shape with text always paints above a \`p\` shape declared
-  before it in the same slide, without needing \`layer=\`. Use
-  \`layer=bottom|mid|top\` only when you need to cross categories - e.g.
-  a full-bleed background \`r\` that should sit behind SVG primitives:
+  before it in the same slide, without needing \`layer=\`. Source order
+  decides paint order WITHIN a sublayer - later declarations paint
+  over earlier.
 
-    r 0,0 16,9 fill=#0f172a layer=bottom    (full-bleed backdrop)
-    c 8,4.5 2 fill=#dc2626                  (sits above the backdrop)
+  Arrows default to \`layer=top\` because flow diagrams almost always
+  want arrow heads sitting above the rects they connect. Everything
+  else lives in \`mid\` unless the author opts in to \`top\` or \`bottom\`.
+  Invalid values surface in the error badge.
 
-  Arrows (\`a\`) default to \`layer=top\` so the head always sits above
-  the rects it connects.
+  Common patterns:
+
+    # Flow diagram - arrows just work (top is their default)
+    r 2 2 5 5 fill=#dbeafe | Step 1
+    r 9 2 5 5 fill=#dbeafe | Step 2
+    a 7 4.5 9 4.5 stroke=#333
+
+    # Status dot on top of a content card (circle needs explicit top)
+    r 0 0 16 9 fill=#0f172a color=#fff | # Title
+    c 15 1 0.3 fill=#f59e0b layer=top
+
+    # Rect sitting behind another rect (drop-shadow effect)
+    r 1 1 8 4 fill=#fee layer=bottom
+    r 2 2 8 4 fill=#fff | Card
+
+    # Overlapping shapes above a backdrop (push the backdrop down)
+    r 0 0 16 9 fill=#f8fafc layer=bottom
+    c 6 5 1.8 fill=#2563eb
+    c 8 5 1.8 fill=#dc2626
+
+  Rule of thumb: reach for \`layer=\` only when you need to cross the
+  rect / SVG boundary, or when explicit layering reads clearer than
+  careful ordering.
+
+── IMAGES IN SHAPES ────────────────────────────────
+  Any shape (\`r\`, \`c\`, \`p\`, etc.) can hold a bitmap via \`image=<url>\`
+  or the \`i x y w h\` shape sugar (parser-equivalent to \`r\` + \`image=\`).
+  See the IMAGES section in \`sdoc slides\` for the full reference -
+  it works the same in raw shapes and template image slots.
 
 ── WHEN TO STOP AND USE A TEMPLATE ─────────────────
   If your custom slide ends up being "title at top + body below" or
