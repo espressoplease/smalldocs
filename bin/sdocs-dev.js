@@ -2126,7 +2126,12 @@ rather than as designed.
     >P            quadratic Bezier whose midpoint passes through P
                   (P is \`x,y\` or \`@ref\`; attached: \`>5,3\` / \`>@card.top\`)
     * P1 P2       cubic Bezier passing through P1 at t=1/3 and P2 at
-                  t=2/3 (P1, P2 each \`x,y\` or @ref)
+                  t=2/3 (P1, P2 each \`x,y\` or @ref). For predictable
+                  results, keep P1 / P2 within ~20% of chord length
+                  perpendicular to the chord; the closed-form cubic
+                  through both points uses SVG controls that amplify
+                  the offset ~4x, so far-from-chord through-points
+                  overshoot dramatically beyond the curve itself.
 
   The same \`^h\` operator works between an arrow's two endpoints to bow
   the arrow into a curve:
