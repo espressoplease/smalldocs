@@ -290,4 +290,21 @@
     });
     return Promise.all(jobs);
   };
+
+  // Single-element rasterizer for the slide-PDF path. getMathImages only
+  // scans #_sd_rendered; slide math lives inside shape shadow roots, so the
+  // slide exporter walks those roots itself. Resolves to
+  // { dataUrl, width, height } (width/height include the capture pad so the
+  // caller can place the PNG without squishing the formula), or null if the
+  // element isn't rendered yet.
+  S.rasterizeMathElement = function (el) {
+    if (!el) return Promise.resolve(null);
+    return rasterizeMathEl(el, 2)
+      .then(function (res) {
+        return res && res.dataUrl
+          ? { dataUrl: res.dataUrl, width: res.width, height: res.height }
+          : null;
+      })
+      .catch(function () { return null; });
+  };
 })();
