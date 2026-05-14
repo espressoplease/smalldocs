@@ -59,6 +59,22 @@ var CSS = [
   '}',
   '.sdoc-slide-present:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
   '.sdoc-slide-present svg { display: block; }',
+  /* The button inherits the doc\'s foreground color, but a slide can paint */
+  /* its own background (grid bg= or a full-bleed rect) that doesn\'t track */
+  /* the doc theme. sdocs-slides.js measures the top-right corner\'s */
+  /* luminance and tags the slide so the button flips to the contrasting */
+  /* palette - light icon on a dark slide, dark icon on a light one - */
+  /* instead of going invisible against its own background. */
+  '.sdoc-slide-dark-ui .sdoc-slide-present {',
+  '  color: #e7e5e2;',
+  '  border-color: rgba(255,255,255,0.22);',
+  '}',
+  '.sdoc-slide-dark-ui .sdoc-slide-present:hover { background: rgba(255,255,255,0.10); }',
+  '.sdoc-slide-light-ui .sdoc-slide-present {',
+  '  color: #1c1917;',
+  '  border-color: rgba(0,0,0,0.18);',
+  '}',
+  '.sdoc-slide-light-ui .sdoc-slide-present:hover { background: rgba(0,0,0,0.06); }',
   '.sdoc-slide .sd-shape-stage {',
   '  width: 100%;',
   /* Inherit the doc\'s page background so slides feel visually connected to */
@@ -316,6 +332,14 @@ function processSlides(container) {
       var slideWrap = document.createElement('div');
       wrapper.appendChild(slideWrap);
       var result = window.SDocShapeRender.renderShapes(dslText, slideWrap);
+      // The present button inherits the doc's foreground color, but a slide
+      // can paint its own background that doesn't track the doc theme. When
+      // that background is detectably dark or light, flip the button to the
+      // contrasting palette so it never goes invisible on its own slide.
+      var lum = result.cornerLuminance;
+      if (typeof lum === 'number') {
+        wrapper.classList.add(lum < 0.5 ? 'sdoc-slide-dark-ui' : 'sdoc-slide-light-ui');
+      }
       var allErrors = (entry.errors || []).concat(result.errors || []);
       if (allErrors.length) {
         wrapper.__sdocErrors = allErrors.slice();
