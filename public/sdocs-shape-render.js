@@ -993,6 +993,55 @@ function buildOffscreenStage(rW) {
   return off;
 }
 
+// Relative luminance (0 = black, 1 = white) for #rgb / #rrggbb / rgb()/rgba()
+// fills. Returns null for anything it can't parse (named colors, gradients).
+function colorLuminance(c) {
+  c = String(c).trim();
+  var r, g, b, m;
+  if ((m = c.match(/^#([0-9a-f]{3})$/i))) {
+    r = parseInt(m[1][0] + m[1][0], 16);
+    g = parseInt(m[1][1] + m[1][1], 16);
+    b = parseInt(m[1][2] + m[1][2], 16);
+  } else if ((m = c.match(/^#([0-9a-f]{6})$/i))) {
+    r = parseInt(m[1].slice(0, 2), 16);
+    g = parseInt(m[1].slice(2, 4), 16);
+    b = parseInt(m[1].slice(4, 6), 16);
+  } else if ((m = c.match(/^rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)/i))) {
+    r = parseFloat(m[1]); g = parseFloat(m[2]); b = parseFloat(m[3]);
+  } else {
+    return null;
+  }
+  return (0.2126 * r + 0.7152 * g + 0.0594 * b) / 255;
+}
+
+// Estimate the background luminance behind the top-right corner of the
+// stage, where the present button sits. The button otherwise inherits the
+// document's foreground color, but a slide can paint its own background
+// (grid `bg=` or a full-bleed rect) that doesn't track the doc theme - on a
+// dark slide in a light doc the button goes dark-on-dark. Walk the rects
+// that cover the corner point, pick the one that paints last (layer rank,
+// then source order), fall back to the grid bg. Returns 0..1, or null when
+// it can't be determined (no explicit fill, image fill, named color) - in
+// which case the caller leaves the button on the doc-theme default.
+function cornerBackgroundLuminance(shapes, grid) {
+  var px = grid.w * 0.98;
+  var py = grid.h * 0.02;
+  var rank = { bottom: 0, mid: 1, top: 2 };
+  var best = null, bestKey = -1;
+  for (var i = 0; i < shapes.length; i++) {
+    var s = shapes[i];
+    if (s.kind !== 'r') continue;
+    var a = s.attrs || {};
+    if (!a.fill || a.fill === 'none' || a.fill === 'transparent') continue;
+    if (a.image) continue;
+    if (s.x > px || s.y > py || s.x + s.w < px || s.y + s.h < py) continue;
+    var key = (rank[a.layer] != null ? rank[a.layer] : 1) * 1e6 + i;
+    if (key > bestKey) { bestKey = key; best = a.fill; }
+  }
+  var fill = best || (grid.attrs && grid.attrs.bg) || null;
+  return fill ? colorLuminance(fill) : null;
+}
+
 function renderShapes(dslText, wrap, options) {
   options = options || {};
   var SDocShapes = window.SDocShapes;
@@ -1008,6 +1057,10 @@ function renderShapes(dslText, wrap, options) {
 
   var grid = result.grid;
   var rW = refW(grid);
+
+  // Luminance behind the top-right corner, so the caller can flip the
+  // present button to a contrasting palette on dark / light slides.
+  result.cornerLuminance = cornerBackgroundLuminance(result.shapes, grid);
 
   // Wrap: fills caller-provided space, locks aspect ratio, clips the
   // possibly-larger transformed stage to its visible bounds.
