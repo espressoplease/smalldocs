@@ -1521,6 +1521,10 @@ function injectMermaidCss(shadow) {
 
 window.SDocShapeRender = {
   renderShapes: renderShapes,
+  // Exposed so the slide-PDF exporter can emit the exact same polygon
+  // geometry (segment operators + corner rounding) instead of carrying a
+  // stale copy of the path math.
+  polyPath: polyPath,
 };
 
 })();
