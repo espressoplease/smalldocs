@@ -1433,14 +1433,26 @@ async function exportSlidesPdf() {
     var doc = await PDFDocument.create();
     doc.registerFontkit(fontkit);
     var fonts = await loadPdfFonts(doc);
+    // Same composite-font dispatch the body-PDF pages get. Without this the
+    // page's native drawText receives the composite wrapper object and
+    // throws \u2014 silently dropping every glyph on every slide.
+    var dropCounter = { count: 0 };
 
     for (var i = 0; i < sources.length; i++) {
       if (sources.length > 1) S.setStatus('Rendering slide ' + (i + 1) + '/' + sources.length + '\u2026');
       var dsl = sources[i].getAttribute('data-dsl');
-      var page = doc.addPage([1280, 720]);
+      // Size each page to its own slide's grid aspect. A fixed 1280x720
+      // page distorts any deck that isn't 16:9 (e.g. grid 4 3).
+      var pageW = 1280, pageH = 720;
+      try {
+        var g = window.SDocShapes.parse(dsl).grid;
+        if (g && g.w > 0 && g.h > 0) pageH = pageW * g.h / g.w;
+      } catch (e) { /* fall back to 1280x720 */ }
+      var page = doc.addPage([pageW, pageH]);
+      wrapPageDrawText(page, dropCounter);
       await window.SDocSlidePdf.drawSlide({
         dsl: dsl, page: page, pdfDoc: doc, fonts: fonts,
-        bounds: { x: 0, y: 0, w: 1280, h: 720 },
+        bounds: { x: 0, y: 0, w: pageW, h: pageH },
       });
     }
 
