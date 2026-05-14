@@ -641,4 +641,15 @@
     });
     return Promise.all(jobs);
   };
+
+  // Single-wrapper rasterizer for the slide-PDF path. getMermaidImages only
+  // scans the light DOM; slide diagrams live inside shape shadow roots, so
+  // the slide exporter walks those roots itself and rasterizes one wrapper
+  // at a time. Resolves to a PNG data URL, or null if there's no SVG yet.
+  S.rasterizeMermaidWrapper = function (wrapper) {
+    if (!wrapper) return Promise.resolve(null);
+    var svg = wrapper.querySelector('svg');
+    if (!svg) return Promise.resolve(null);
+    return rasterizeSvgToPng(wrapper, svg, 2).catch(function () { return null; });
+  };
 })();

@@ -46,6 +46,13 @@ var BASELINE_RATIO = 0.78;
 // Offscreen stage used only for layout/measurement. opacity:0 + pointer-events:
 // none keeps it invisible and non-interactive; top:0, left:0 keeps it inside
 // the viewport so the engine doesn't skip layout.
+//
+// The wrap is parented to #_sd_rendered (not document.body) so the slide's
+// shadow-DOM content inherits the same --md-* custom properties the
+// on-screen render gets: text color, --md-code-bg, --md-bg, etc. Parented
+// to body those vars are undefined and getComputedStyle reads the wrong
+// colors (default-coloured text turns black, inline-code pills lose their
+// tint). position:fixed keeps it out of #_sd_rendered's layout flow.
 function createStage(gridW, gridH) {
   var stageW = STAGE_W;
   var stageH = STAGE_W * gridH / gridW;
@@ -65,7 +72,8 @@ function createStage(gridW, gridH) {
   var stage = document.createElement('div');
   stage.style.cssText = 'width: 100%; height: 100%;';
   wrap.appendChild(stage);
-  document.body.appendChild(wrap);
+  var host = document.getElementById('_sd_rendered') || document.body;
+  host.appendChild(wrap);
   return { wrap: wrap, stage: stage, w: stageW, h: stageH };
 }
 
@@ -141,6 +149,29 @@ function hexToRgbPdf(hex) {
   );
 }
 
+// ─── Opacity ───────────────────────────────────────────
+
+// Parse a shape's `opacity=` attr to a 0..1 number, or null when absent /
+// invalid. Mirrors applyOpacity() in the on-screen renderer.
+function shapeOpacity(attrs) {
+  if (!attrs || attrs.opacity == null) return null;
+  var n = parseFloat(attrs.opacity);
+  if (isNaN(n)) return null;
+  return Math.max(0, Math.min(1, n));
+}
+
+// Add pdf-lib `opacity` (fill) and `borderOpacity` (stroke) keys to a draw
+// options object when the shape declares opacity=. Per-draw alpha is not a
+// perfect match for CSS group opacity on overlapping fill+stroke, but it is
+// far closer than ignoring opacity entirely (the prior behaviour).
+function applyShapeOpacity(opts, attrs) {
+  var op = shapeOpacity(attrs);
+  if (op == null) return opts;
+  opts.opacity = op;
+  opts.borderOpacity = op;
+  return opts;
+}
+
 // ─── Rounded rect (SVG path) ──────────────────────────
 
 // Draws a rectangle with per-corner radii using pdf-lib's drawSvgPath.
@@ -175,18 +206,27 @@ function drawRoundedRect(page, opts) {
   if (opts.color) pdfOpts.color = hexToRgbPdf(opts.color);
   if (opts.borderColor) pdfOpts.borderColor = hexToRgbPdf(opts.borderColor);
   if (opts.borderWidth != null && opts.borderWidth > 0) pdfOpts.borderWidth = opts.borderWidth;
+  if (opts.opacity != null) pdfOpts.opacity = opts.opacity;
+  if (opts.borderOpacity != null) pdfOpts.borderOpacity = opts.borderOpacity;
   page.drawSvgPath(d, pdfOpts);
 }
 
 // ─── Shape primitives (from parsed DSL, not DOM) ──────
 
+// DSL strokeWidth in grid units. Default 0.02 - the same "thin neutral
+// stroke" default the renderer uses (applySvgStroke / renderArrow). The
+// previous 0.15 default rendered un-stroked arrows and lines ~7.5x too
+// thick versus the on-screen slide.
+function strokeWidthGrid(attrs) {
+  var sw = attrs && attrs.strokeWidth != null ? parseFloat(attrs.strokeWidth) : 0.02;
+  if (!isFinite(sw) || sw < 0) sw = 0.02;
+  return sw;
+}
+
 function strokeWidthPt(attrs, grid, bounds) {
-  // DSL strokeWidth is in grid units (same scale as shape w/h). Convert to
-  // PDF points against the slide's bounds — matches how shape-render maps
-  // grid units to reference px for the on-screen stage.
-  var sw = attrs && attrs.strokeWidth != null ? parseFloat(attrs.strokeWidth) : 0.15;
-  if (!isFinite(sw) || sw < 0) sw = 0.15;
-  return (sw / grid.w) * bounds.w;
+  // Convert to PDF points against the slide's bounds — matches how
+  // shape-render maps grid units to reference px for the on-screen stage.
+  return (strokeWidthGrid(attrs) / grid.w) * bounds.w;
 }
 
 // Image bytes fetch + pdf-lib embed. Shared by the image-fill pass below.
@@ -299,13 +339,13 @@ function drawShapeRect(page, s, grid, bounds) {
   var radiusPt = (radiusPct / 100) * Math.min(w, h);
 
   if (!fill && !stroke) return;
-  drawRoundedRect(page, {
+  drawRoundedRect(page, applyShapeOpacity({
     x: x, y: yTop, width: w, height: h,
     radius: radiusPt,
     color: fill,
     borderColor: stroke,
     borderWidth: sw,
-  });
+  }, s.attrs));
 }
 
 function drawShapeCircle(page, s, grid, bounds) {
@@ -326,6 +366,7 @@ function drawShapeCircle(page, s, grid, bounds) {
     opts.borderColor = hexToRgbPdf(stroke);
     opts.borderWidth = sw;
   }
+  applyShapeOpacity(opts, s.attrs);
   page.drawCircle(opts);
 }
 
@@ -346,102 +387,174 @@ function drawShapeEllipse(page, s, grid, bounds) {
     opts.borderColor = hexToRgbPdf(stroke);
     opts.borderWidth = sw;
   }
+  applyShapeOpacity(opts, s.attrs);
   page.drawEllipse(opts);
 }
 
-function drawShapeLine(page, s, grid, bounds) {
-  var x1 = gridToPdfX(s.x1, grid, bounds);
-  var y1 = gridPointToPdfY(s.y1, grid, bounds);
-  var x2 = gridToPdfX(s.x2, grid, bounds);
-  var y2 = gridPointToPdfY(s.y2, grid, bounds);
+// Quadratic control point (grid coords) for a bowed line/arrow. Mirrors
+// renderLine/renderArrow in the on-screen renderer: control = chord
+// midpoint offset along the perpendicular by 2 * sagitta. Returns null for
+// a degenerate (zero-length) chord.
+function bowControlGrid(x1, y1, x2, y2, bow) {
+  var dx = x2 - x1, dy = y2 - y1;
+  var L = Math.hypot(dx, dy);
+  if (L === 0) return null;
+  var perpX = dy / L, perpY = -dx / L;
+  return {
+    cx: (x1 + x2) / 2 + perpX * (2 * bow),
+    cy: (y1 + y2) / 2 + perpY * (2 * bow),
+  };
+}
+
+// Draw a line / arrow shaft (straight or bowed) in PDF coords.
+// endTrimGrid shortens the shaft at the (x2,y2) end by that many grid
+// units along the end tangent, leaving room for an arrowhead so the
+// shaft doesn't poke through it. strokePt overrides the thickness
+// (arrows reduce it for short arrows, mirroring renderArrow's effSw).
+function drawShaft(page, s, grid, bounds, endTrimGrid, strokePt) {
   var stroke = s.attrs.stroke ? toHex(s.attrs.stroke) : '#94a3b8';
-  var sw = strokeWidthPt(s.attrs, grid, bounds);
-  page.drawLine({
-    start: { x: x1, y: y1 },
-    end: { x: x2, y: y2 },
+  var sw = strokePt != null ? strokePt : strokeWidthPt(s.attrs, grid, bounds);
+  var op = shapeOpacity(s.attrs);
+  var scale = bounds.w / grid.w;
+
+  // Bowed shaft: emit the quadratic in grid coords and let drawSvgPath's
+  // scale + y-flip place it, the same way drawShapePolygon does.
+  if (s.bow != null && s.bow !== 0) {
+    var c = bowControlGrid(s.x1, s.y1, s.x2, s.y2, s.bow);
+    if (c) {
+      var ex = s.x2, ey = s.y2;
+      if (endTrimGrid > 0) {
+        var tx = s.x2 - c.cx, ty = s.y2 - c.cy;
+        var tl = Math.hypot(tx, ty);
+        if (tl > 0) {
+          ex = s.x2 - (tx / tl) * endTrimGrid;
+          ey = s.y2 - (ty / tl) * endTrimGrid;
+        }
+      }
+      var d = 'M ' + s.x1 + ' ' + s.y1 + ' Q ' + c.cx + ' ' + c.cy + ' ' + ex + ' ' + ey;
+      var o = {
+        x: bounds.x, y: bounds.y + bounds.h, scale: scale,
+        borderColor: hexToRgbPdf(stroke), borderWidth: sw / scale,
+      };
+      if (op != null) o.borderOpacity = op;
+      page.drawSvgPath(d, o);
+      return;
+    }
+  }
+
+  var dx = s.x2 - s.x1, dy = s.y2 - s.y1;
+  var L = Math.hypot(dx, dy);
+  var gx2 = s.x2, gy2 = s.y2;
+  if (L > 0 && endTrimGrid > 0) {
+    gx2 = s.x2 - (dx / L) * endTrimGrid;
+    gy2 = s.y2 - (dy / L) * endTrimGrid;
+  }
+  var lineOpts = {
+    start: { x: gridToPdfX(s.x1, grid, bounds), y: gridPointToPdfY(s.y1, grid, bounds) },
+    end: { x: gridToPdfX(gx2, grid, bounds), y: gridPointToPdfY(gy2, grid, bounds) },
     thickness: sw,
     color: hexToRgbPdf(stroke),
-  });
+  };
+  if (op != null) lineOpts.opacity = op;
+  page.drawLine(lineOpts);
+}
+
+function drawShapeLine(page, s, grid, bounds) {
+  drawShaft(page, s, grid, bounds, 0, strokeWidthPt(s.attrs, grid, bounds));
 }
 
 function drawShapeArrow(page, s, grid, bounds) {
-  drawShapeLine(page, s, grid, bounds);
-  var x1 = gridToPdfX(s.x1, grid, bounds);
-  var y1 = gridPointToPdfY(s.y1, grid, bounds);
+  // Mirror renderArrow: the shaft stops short by 6*effSw so the head's
+  // tip - not the shaft's end cap - lands on (x2,y2). Short arrows shrink
+  // the effective stroke so the head can't dominate or overshoot. Without
+  // the back-off the thick shaft poked through the head, which read as a
+  // blocky, oversized arrowhead in the PDF.
+  var swGrid = strokeWidthGrid(s.attrs);
+  var chordGrid = Math.hypot(s.x2 - s.x1, s.y2 - s.y1);
+  if (chordGrid <= 0) return;
+  var effSwGrid = swGrid;
+  if (6 * swGrid > chordGrid * 0.5) effSwGrid = (chordGrid * 0.5) / 6;
+  var backoffGrid = 6 * effSwGrid;
+  var gridToPt = bounds.w / grid.w;
+
+  drawShaft(page, s, grid, bounds, backoffGrid, effSwGrid * gridToPt);
+
+  // Head: filled triangle, tip at (x2,y2), oriented along the tip tangent.
+  // Geometry matches the on-screen SVG marker: 6*effSw long, 6*effSw wide
+  // (3*effSw each side of the line).
   var x2 = gridToPdfX(s.x2, grid, bounds);
   var y2 = gridPointToPdfY(s.y2, grid, bounds);
-  var stroke = s.attrs.stroke ? toHex(s.attrs.stroke) : '#94a3b8';
-  var sw = strokeWidthPt(s.attrs, grid, bounds);
-
-  var dx = x2 - x1, dy = y2 - y1;
-  var len = Math.hypot(dx, dy);
-  if (len < 0.5) return;
-  var ux = dx / len, uy = dy / len;
+  var tipDx, tipDy;
+  if (s.bow != null && s.bow !== 0) {
+    var bc = bowControlGrid(s.x1, s.y1, s.x2, s.y2, s.bow);
+    if (bc) {
+      tipDx = x2 - gridToPdfX(bc.cx, grid, bounds);
+      tipDy = y2 - gridPointToPdfY(bc.cy, grid, bounds);
+    }
+  }
+  if (tipDx == null) {
+    tipDx = x2 - gridToPdfX(s.x1, grid, bounds);
+    tipDy = y2 - gridPointToPdfY(s.y1, grid, bounds);
+  }
+  var tl = Math.hypot(tipDx, tipDy);
+  if (tl < 1e-6) return;
+  var ux = tipDx / tl, uy = tipDy / tl;
   var px = -uy, py = ux; // perpendicular unit vector
-  var headLen = Math.max(4, sw * 5);
-  var headHalfWidth = Math.max(2, sw * 2.2);
-  var baseX = x2 - ux * headLen;
-  var baseY = y2 - uy * headLen;
-  var leftX = baseX + px * headHalfWidth;
-  var leftY = baseY + py * headHalfWidth;
-  var rightX = baseX - px * headHalfWidth;
-  var rightY = baseY - py * headHalfWidth;
+  var headLen = 6 * effSwGrid * gridToPt;
+  var headHalf = 3 * effSwGrid * gridToPt;
+  var baseX = x2 - ux * headLen, baseY = y2 - uy * headLen;
+  var leftX = baseX + px * headHalf, leftY = baseY + py * headHalf;
+  var rightX = baseX - px * headHalf, rightY = baseY - py * headHalf;
 
   // Filled triangle via SVG path. Local coords: origin = (tipX, tipY).
-  // pdf-lib flips y, so we author the path in y-down as usual. Local x/y
-  // deltas are the same sign in y-down and y-up? No — pdf-lib passes the
-  // path through `moveTo`/etc. which treat positive y as "down in SVG".
-  // Since we're passing the origin as the PDF-coord position of the SVG's
-  // (0,0), and our deltas in PDF space have a flipped sign relative to SVG
-  // space, translate: localY_svg = -(pdf_y - tipY). Simpler: compute
-  // left/right in PDF coords and just use their deltas in PDF space,
-  // then negate the y deltas when building the d path (to match y-down).
+  // pdf-lib flips SVG y, so negate the y deltas to author in y-down.
   var lDx = leftX - x2, lDy = -(leftY - y2);
   var rDx = rightX - x2, rDy = -(rightY - y2);
   var d = 'M 0 0 L ' + lDx + ' ' + lDy + ' L ' + rDx + ' ' + rDy + ' Z';
-  page.drawSvgPath(d, {
+  var headOpts = {
     x: x2, y: y2,
-    color: hexToRgbPdf(stroke),
+    color: hexToRgbPdf(s.attrs.stroke ? toHex(s.attrs.stroke) : '#94a3b8'),
     borderWidth: 0,
-  });
+  };
+  var op = shapeOpacity(s.attrs);
+  if (op != null) headOpts.opacity = op;
+  page.drawSvgPath(d, headOpts);
 }
 
 function drawShapePolygon(page, s, grid, bounds) {
   if (!s.points || s.points.length < 2) return;
-  var SDocShapes = window.SDocShapes;
-  var bb = SDocShapes.bboxOf(s);
-  var bbX = gridToPdfX(bb.x, grid, bounds);
-  var bbYTop = gridTopToPdfY(bb.y, grid, bounds);
-  var bbW = gridToPdfW(bb.w, grid, bounds);
-  var bbH = gridToPdfH(bb.h, grid, bounds);
 
-  function lx(gx) { return bb.w > 0 ? (gx - bb.x) * bbW / bb.w : 0; }
-  function ly(gy) { return bb.h > 0 ? (gy - bb.y) * bbH / bb.h : 0; }
-
-  var pts = s.points;
-  var d = 'M ' + lx(pts[0].x) + ' ' + ly(pts[0].y);
-  for (var i = 1; i < pts.length; i++) {
-    var p = pts[i];
-    if (p.curve) {
-      var prev = pts[i - 1];
-      var mx = (prev.x + p.x) / 2, my = (prev.y + p.y) / 2;
-      d += ' Q ' + lx(p.x) + ' ' + ly(p.y) + ' ' + lx(mx) + ' ' + ly(my);
-      d += ' L ' + lx(p.x) + ' ' + ly(p.y);
-    } else {
-      d += ' L ' + lx(p.x) + ' ' + ly(p.y);
-    }
+  // Emit the exact same path the on-screen renderer draws — segment
+  // operators (~ ^h >P * P1 P2) and corner rounding ((r) included — by
+  // reusing SDocShapeRender.polyPath. The path comes back in grid
+  // coordinates (y-down); drawSvgPath's `scale` + automatic y-flip place
+  // it. The grid aspect equals the bounds aspect (the stage is sized from
+  // the grid and the page is sized from the grid), so a single uniform
+  // scale is correct. scale also multiplies borderWidth, so divide it out.
+  var polyPath = window.SDocShapeRender && window.SDocShapeRender.polyPath;
+  var d;
+  if (polyPath) {
+    d = polyPath(s.points);
+  } else {
+    // Defensive fallback: straight-edged polygon through the vertices.
+    var pts = s.points;
+    d = 'M ' + pts[0].x + ' ' + pts[0].y;
+    for (var i = 1; i < pts.length; i++) d += ' L ' + pts[i].x + ' ' + pts[i].y;
+    d += ' Z';
   }
-  d += ' Z';
+  if (!d) return;
 
+  var scale = bounds.w / grid.w;
   var fill = s.attrs.fill ? toHex(s.attrs.fill) : '#ffffff';
   var stroke = s.attrs.stroke && s.attrs.stroke !== 'none' ? toHex(s.attrs.stroke) : null;
   var sw = stroke ? strokeWidthPt(s.attrs, grid, bounds) : 0;
-  var opts = { x: bbX, y: bbYTop };
+  var opts = { x: bounds.x, y: bounds.y + bounds.h, scale: scale };
   if (fill) opts.color = hexToRgbPdf(fill);
   if (stroke) {
     opts.borderColor = hexToRgbPdf(stroke);
-    opts.borderWidth = sw;
+    opts.borderWidth = sw / scale;
   }
+  applyShapeOpacity(opts, s.attrs);
   page.drawSvgPath(d, opts);
 }
 
@@ -525,43 +638,47 @@ function linesForTextNode(node) {
 
 // ─── Block decorations ─────────────────────────────────
 
-function drawPreBackground(pre, stageRect, page, bounds) {
+function drawPreBackground(pre, stageRect, page, bounds, op) {
   var cs = getComputedStyle(pre);
   var bg = rgbStrToHex(cs.backgroundColor);
   if (!bg) return;
   var rect = pre.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return;
   var radiusPx = parseFloat(cs.borderTopLeftRadius) || 0;
-  drawRoundedRect(page, {
+  var o = {
     x: stageToPdfX(rect.left, stageRect, bounds),
     y: stageToPdfY(rect.top, stageRect, bounds),
     width: rect.width * stageScaleX(stageRect, bounds),
     height: rect.height * stageScaleY(stageRect, bounds),
     radius: radiusPx * stageScaleY(stageRect, bounds),
     color: bg,
-  });
+  };
+  if (op != null) o.opacity = op;
+  drawRoundedRect(page, o);
 }
 
-function drawBlockquoteBorder(bq, stageRect, page, bounds) {
+function drawBlockquoteBorder(bq, stageRect, page, bounds, op) {
   var cs = getComputedStyle(bq);
   var borderLeftColor = rgbStrToHex(cs.borderLeftColor);
   var borderLeftWidth = parseFloat(cs.borderLeftWidth) || 0;
   if (!borderLeftColor || borderLeftWidth < 0.1) return;
   var rect = bq.getBoundingClientRect();
   if (rect.height <= 0) return;
-  drawRoundedRect(page, {
+  var o = {
     x: stageToPdfX(rect.left, stageRect, bounds),
     y: stageToPdfY(rect.top, stageRect, bounds),
     width: borderLeftWidth * stageScaleX(stageRect, bounds),
     height: rect.height * stageScaleY(stageRect, bounds),
     radius: 0,
     color: borderLeftColor,
-  });
+  };
+  if (op != null) o.opacity = op;
+  drawRoundedRect(page, o);
 }
 
 // Inline <code> pills. element.getClientRects() returns per-line border-box
 // rects including padding, so one pill per fragment works correctly.
-function drawInlineCodePill(code, stageRect, page, bounds) {
+function drawInlineCodePill(code, stageRect, page, bounds, op) {
   if (code.parentElement && code.parentElement.tagName === 'PRE') return;
   var cs = getComputedStyle(code);
   var bg = rgbStrToHex(cs.backgroundColor);
@@ -571,20 +688,22 @@ function drawInlineCodePill(code, stageRect, page, bounds) {
   for (var i = 0; i < rects.length; i++) {
     var r = rects[i];
     if (r.width <= 0 || r.height <= 0) continue;
-    drawRoundedRect(page, {
+    var o = {
       x: stageToPdfX(r.left, stageRect, bounds),
       y: stageToPdfY(r.top, stageRect, bounds),
       width: r.width * stageScaleX(stageRect, bounds),
       height: r.height * stageScaleY(stageRect, bounds),
       radius: radiusPx * stageScaleY(stageRect, bounds),
       color: bg,
-    });
+    };
+    if (op != null) o.opacity = op;
+    drawRoundedRect(page, o);
   }
 }
 
 // ─── Link underlines ──────────────────────────────────
 
-function drawLinkUnderline(a, stageRect, page, bounds) {
+function drawLinkUnderline(a, stageRect, page, bounds, op) {
   var cs = getComputedStyle(a);
   var dec = (cs.textDecorationLine || cs.textDecoration || '');
   if (dec.indexOf('underline') < 0) return;
@@ -598,12 +717,14 @@ function drawLinkUnderline(a, stageRect, page, bounds) {
     if (r.width <= 0) continue;
     var underlineStageY = r.top + r.height * 0.85;
     var pdfY = stageToPdfY(underlineStageY, stageRect, bounds);
-    page.drawLine({
+    var lo = {
       start: { x: stageToPdfX(r.left, stageRect, bounds), y: pdfY },
       end: { x: stageToPdfX(r.right, stageRect, bounds), y: pdfY },
       thickness: Math.max(0.4, fontPx * 0.05 * scY),
       color: hexToRgbPdf(colorHex),
-    });
+    };
+    if (op != null) lo.opacity = op;
+    page.drawLine(lo);
   }
 }
 
@@ -611,7 +732,7 @@ function drawLinkUnderline(a, stageRect, page, bounds) {
 
 // Approximate marker position: li.left - 0.75em of the li's computed font
 // size. Vertically align to the first visual line of the li's content.
-function drawListMarker(li, stageRect, page, bounds, fonts) {
+function drawListMarker(li, stageRect, page, bounds, fonts, op) {
   var parent = li.parentElement;
   if (!parent) return;
   var ordered = parent.tagName === 'OL';
@@ -643,18 +764,20 @@ function drawListMarker(li, stageRect, page, bounds, fonts) {
   var markerLeftStage = liRect.left - fontPx * 0.75;
   var baselineStage = firstLine.top + firstLine.height * BASELINE_RATIO;
 
-  page.drawText(marker, {
+  var mo = {
     x: stageToPdfX(markerLeftStage, stageRect, bounds),
     y: stageToPdfY(baselineStage, stageRect, bounds),
     size: stagePxToPt(fontPx, stageRect, bounds),
     font: fonts.body,
     color: hexToRgbPdf(colorHex),
-  });
+  };
+  if (op != null) mo.opacity = op;
+  page.drawText(marker, mo);
 }
 
 // ─── Text drawing ─────────────────────────────────────
 
-function drawTextNode(node, stageRect, page, bounds, fonts) {
+function drawTextNode(node, stageRect, page, bounds, fonts, op) {
   var text = node.textContent;
   if (!text || !/\S/.test(text)) return;
   var parent = node.parentElement;
@@ -695,60 +818,254 @@ function drawTextNode(node, stageRect, page, bounds, fonts) {
     var pdfY = stageToPdfY(baselineStageY, stageRect, bounds);
 
 
+    var txtOpts = { x: pdfX, y: pdfY, size: fontPt, font: font, color: color };
+    if (op != null) txtOpts.opacity = op;
     try {
-      page.drawText(drawText, {
-        x: pdfX,
-        y: pdfY,
-        size: fontPt,
-        font: font,
-        color: color,
-      });
+      page.drawText(drawText, txtOpts);
     } catch (e) {
       // pdf-lib throws if a glyph is missing from the subset. Fall back to
       // body font (which should cover basic Latin).
       if (font !== fonts.body) {
         try {
-          page.drawText(drawText, {
-            x: pdfX, y: pdfY, size: fontPt, font: fonts.body, color: color,
-          });
+          var fbOpts = { x: pdfX, y: pdfY, size: fontPt, font: fonts.body, color: color };
+          if (op != null) fbOpts.opacity = op;
+          page.drawText(drawText, fbOpts);
         } catch (e2) { /* give up on this run */ }
       }
     }
   }
 }
 
+// ─── Rich blocks (chart / mermaid / math) ──────────────
+
+// The renderer turns ```chart / ```mermaid fences and $$...$$ math into
+// non-text DOM inside the shape's shadow root: a Chart.js <canvas>, a
+// Mermaid <svg>, KaTeX HTML. The text walker can't reproduce those, so
+// they're rasterized to PNG and embedded as images at their DOM box.
+var RICH_BLOCK_SELECTOR = '.sdoc-chart, .sdoc-mermaid, .sdocs-math-display, .sdocs-math-inline';
+
+function richBlockKind(el) {
+  if (el.classList.contains('sdoc-chart')) return 'chart';
+  if (el.classList.contains('sdoc-mermaid')) return 'mermaid';
+  if (el.classList.contains('sdocs-math-display') ||
+      el.classList.contains('sdocs-math-inline')) return 'math';
+  return null;
+}
+
+// Poll until every chart / mermaid / math block inside the stage's shadow
+// roots has finished its async (CDN-loaded) render, or the timeout fires.
+// drawSlide must wait for this before reading the DOM, otherwise it
+// snapshots half-rendered (or still-source) blocks.
+function waitForShadowBlocks(stage, timeoutMs) {
+  return new Promise(function (resolve) {
+    var deadline = Date.now() + (timeoutMs || 6000);
+    function ready() {
+      var hosts = stage.querySelectorAll('.shape-md');
+      for (var i = 0; i < hosts.length; i++) {
+        var root = hosts[i].shadowRoot;
+        if (!root) continue;
+        // Chart code blocks not yet swapped for a sized canvas. An errored
+        // chart keeps its <pre> but is marked, so it counts as "done".
+        var chartCodes = root.querySelectorAll('code.language-chart');
+        for (var a = 0; a < chartCodes.length; a++) {
+          var cp = chartCodes[a].closest('pre');
+          if (cp && !cp.classList.contains('sdoc-chart-error')) return false;
+        }
+        var canvases = root.querySelectorAll('.sdoc-chart canvas');
+        for (var b = 0; b < canvases.length; b++) {
+          if (!(canvases[b].width > 0 && canvases[b].height > 0)) return false;
+        }
+        // Mermaid code blocks not yet swapped for an <svg> (or an error msg).
+        if (root.querySelector('code.language-mermaid')) return false;
+        var merms = root.querySelectorAll('.sdoc-mermaid');
+        for (var m = 0; m < merms.length; m++) {
+          if (!merms[m].querySelector('svg') &&
+              !(merms[m].textContent && merms[m].textContent.trim())) return false;
+        }
+        // KaTeX not yet rendered into its placeholder.
+        var maths = root.querySelectorAll('.sdocs-math-display, .sdocs-math-inline');
+        for (var k = 0; k < maths.length; k++) {
+          if (!maths[k].querySelector('.katex') && !maths[k]._katexDone) return false;
+        }
+      }
+      return true;
+    }
+    (function tick() {
+      var done = false;
+      try { done = ready(); } catch (e) { done = true; }
+      if (done || Date.now() > deadline) return resolve();
+      setTimeout(tick, 50);
+    })();
+  });
+}
+
+// Rasterize one rich block and draw it as a PNG at its on-stage box.
+async function drawRichBlock(el, kind, stageRect, page, bounds, pdfDoc, op) {
+  var target = el;          // element whose box positions the image
+  var dataUrl = null;
+  var padX = 0, padY = 0;   // image overhang beyond `target`'s box
+
+  if (kind === 'chart') {
+    var canvas = el.querySelector('canvas');
+    if (!canvas) return;
+    target = canvas;
+    // tuneConfigForSlide already renders the canvas at >=2x DPR, so a plain
+    // snapshot is crisp enough for print without re-rendering.
+    try { dataUrl = canvas.toDataURL('image/png'); } catch (e) { return; }
+  } else if (kind === 'mermaid') {
+    var svg = el.querySelector('svg');
+    if (!svg || !window.SDocs || !window.SDocs.rasterizeMermaidWrapper) return;
+    target = svg;
+    dataUrl = await window.SDocs.rasterizeMermaidWrapper(el);
+  } else if (kind === 'math') {
+    if (!window.SDocs || !window.SDocs.rasterizeMathElement) return;
+    var res = await window.SDocs.rasterizeMathElement(el);
+    if (res) {
+      dataUrl = res.dataUrl;
+      var r0 = el.getBoundingClientRect();
+      // rasterizeMathEl pads the capture a few px each side; spread that
+      // overhang around `el`'s box so the formula isn't squished.
+      padX = Math.max(0, (res.width - r0.width) / 2);
+      padY = Math.max(0, (res.height - r0.height) / 2);
+    }
+  }
+  if (!dataUrl) return;
+
+  var rect = target.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
+  var img;
+  try { img = await pdfDoc.embedPng(dataUrl); } catch (e) { return; }
+
+  var scX = stageScaleX(stageRect, bounds), scY = stageScaleY(stageRect, bounds);
+  var w = (rect.width + padX * 2) * scX;
+  var h = (rect.height + padY * 2) * scY;
+  var x = stageToPdfX(rect.left - padX, stageRect, bounds);
+  var yTop = stageToPdfY(rect.top - padY, stageRect, bounds);
+  var drawOpts = { x: x, y: yTop - h, width: w, height: h };
+  if (op != null) drawOpts.opacity = op;
+  page.drawImage(img, drawOpts);
+}
+
+// Table cell backgrounds + borders. Markdown tables have no colspan /
+// rowspan, so every td/th is a clean grid cell; drawing each cell's box
+// reproduces the grid (shared edges draw twice, which is harmless).
+function drawTableCells(table, stageRect, page, bounds, op) {
+  var cells = table.querySelectorAll('td, th');
+  var scX = stageScaleX(stageRect, bounds), scY = stageScaleY(stageRect, bounds);
+  for (var i = 0; i < cells.length; i++) {
+    var cell = cells[i];
+    var r = cell.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue;
+    var cs = getComputedStyle(cell);
+    var bg = rgbStrToHex(cs.backgroundColor);
+    var bw = parseFloat(cs.borderTopWidth) || 0;
+    var bc = rgbStrToHex(cs.borderTopColor);
+    var o = {
+      x: stageToPdfX(r.left, stageRect, bounds),
+      y: stageToPdfY(r.top, stageRect, bounds),
+      width: r.width * scX,
+      height: r.height * scY,
+      radius: 0,
+    };
+    if (bg) o.color = bg;
+    if (bc && bw > 0.1) {
+      o.borderColor = bc;
+      o.borderWidth = Math.max(0.3, bw * scY);
+    }
+    if (op != null) { o.opacity = op; o.borderOpacity = op; }
+    if (o.color || o.borderColor) drawRoundedRect(page, o);
+  }
+}
+
 // ─── Shape content (decorations + text) ────────────────
 
-function drawShapeContent(container, stageRect, page, bounds, fonts) {
+async function drawShapeContent(container, stageRect, page, bounds, fonts, pdfDoc) {
   var shapeMd = container.querySelector('.shape-md');
   if (!shapeMd || !shapeMd.shadowRoot) return;
   var inner = shapeMd.shadowRoot.querySelector('.inner');
   if (!inner) return;
 
-  // Block decorations first (painted behind text).
+  // Shape opacity: the renderer fades the whole shape (fill, stroke, text)
+  // together via `opacity=`. Read the container's computed opacity so text
+  // and decorations fade to match. null = fully opaque (no opacity key
+  // added to draw calls).
+  var op = null;
+  try {
+    var cv = parseFloat(getComputedStyle(container).opacity);
+    if (!isNaN(cv) && cv < 1) op = cv;
+  } catch (e) {}
+
+  // Each decoration/text pass is isolated so one element that fails (a
+  // missing glyph, a zero-size rect) can't abort the rest of the shape's
+  // content the way an unguarded throw used to.
+  function safe(fn) { try { fn(); } catch (e) { if (window.console) console.warn('slide-pdf content:', e && e.message); } }
+  // True for any node inside a rich block (chart / mermaid / math). Those
+  // are drawn as rasterized images, so their inner text / decorations must
+  // not be drawn again on top.
+  function inRich(el) { return !!(el && el.closest && el.closest(RICH_BLOCK_SELECTOR)); }
+
+  // Rich blocks first: rasterized images sit behind any plain text.
+  var richBlocks = inner.querySelectorAll(RICH_BLOCK_SELECTOR);
+  for (var ri = 0; ri < richBlocks.length; ri++) {
+    var rel = richBlocks[ri];
+    var kind = richBlockKind(rel);
+    if (!kind) continue;
+    try {
+      await drawRichBlock(rel, kind, stageRect, page, bounds, pdfDoc, op);
+    } catch (e) {
+      if (window.console) console.warn('slide-pdf rich block:', e && e.message);
+    }
+  }
+
+  // Table cells (background + borders).
+  var tables = inner.querySelectorAll('table');
+  for (var t = 0; t < tables.length; t++) (function (el) {
+    if (inRich(el)) return;
+    safe(function () { drawTableCells(el, stageRect, page, bounds, op); });
+  })(tables[t]);
+
+  // Block decorations (painted behind text).
   var pres = inner.querySelectorAll('pre');
-  for (var i = 0; i < pres.length; i++) drawPreBackground(pres[i], stageRect, page, bounds);
+  for (var i = 0; i < pres.length; i++) (function (el) {
+    if (inRich(el)) return;
+    safe(function () { drawPreBackground(el, stageRect, page, bounds, op); });
+  })(pres[i]);
 
   var bqs = inner.querySelectorAll('blockquote');
-  for (var j = 0; j < bqs.length; j++) drawBlockquoteBorder(bqs[j], stageRect, page, bounds);
+  for (var j = 0; j < bqs.length; j++) (function (el) {
+    if (inRich(el)) return;
+    safe(function () { drawBlockquoteBorder(el, stageRect, page, bounds, op); });
+  })(bqs[j]);
 
   var codes = inner.querySelectorAll('code');
-  for (var k = 0; k < codes.length; k++) drawInlineCodePill(codes[k], stageRect, page, bounds);
+  for (var k = 0; k < codes.length; k++) (function (el) {
+    if (inRich(el)) return;
+    safe(function () { drawInlineCodePill(el, stageRect, page, bounds, op); });
+  })(codes[k]);
 
   // Link underlines (drawn below text, before text so text sits on top).
   var links = inner.querySelectorAll('a');
-  for (var l = 0; l < links.length; l++) drawLinkUnderline(links[l], stageRect, page, bounds);
+  for (var l = 0; l < links.length; l++) (function (el) {
+    if (inRich(el)) return;
+    safe(function () { drawLinkUnderline(el, stageRect, page, bounds, op); });
+  })(links[l]);
 
   // List markers — drawn as text, so they go in the text pass conceptually
   // but we can emit them now.
   var lis = inner.querySelectorAll('li');
-  for (var m = 0; m < lis.length; m++) drawListMarker(lis[m], stageRect, page, bounds, fonts);
+  for (var m = 0; m < lis.length; m++) (function (el) {
+    if (inRich(el)) return;
+    safe(function () { drawListMarker(el, stageRect, page, bounds, fonts, op); });
+  })(lis[m]);
 
-  // Text nodes.
+  // Text nodes (skip anything inside a rasterized rich block).
   var walker = document.createTreeWalker(inner, NodeFilter.SHOW_TEXT, null);
   var node;
   while ((node = walker.nextNode())) {
-    drawTextNode(node, stageRect, page, bounds, fonts);
+    (function (n) {
+      if (inRich(n.parentElement)) return;
+      safe(function () { drawTextNode(n, stageRect, page, bounds, fonts, op); });
+    })(node);
   }
 }
 
@@ -779,9 +1096,19 @@ async function drawSlide(ctx) {
     // eslint-disable-next-line no-unused-expressions
     st.stage.offsetHeight;
 
-    // Grid background. If the DSL didn't set one, fill white so text has a
-    // predictable backdrop (slides commonly rely on an implicit white bg).
-    var bg = grid.attrs && grid.attrs.bg ? toHex(grid.attrs.bg) : '#ffffff';
+    // Grid background. The DSL `grid ... bg=` wins; otherwise match the
+    // on-screen stage, which inherits the document's --md-bg (white in the
+    // light theme, dark in dark mode). Falls back to white if the var can't
+    // be read. Reading it off the stage works because createStage parents
+    // the wrap inside #_sd_rendered.
+    var bg;
+    if (grid.attrs && grid.attrs.bg) {
+      bg = toHex(grid.attrs.bg);
+    } else {
+      var mdBg = '';
+      try { mdBg = getComputedStyle(st.stage).getPropertyValue('--md-bg').trim(); } catch (e) {}
+      bg = toHex(mdBg) || '#ffffff';
+    }
     if (bg) {
       page.drawRectangle({
         x: bounds.x, y: bounds.y, width: bounds.w, height: bounds.h,
@@ -821,12 +1148,17 @@ async function drawSlide(ctx) {
       }
     }
 
-    // Draw text content from the rendered DOM.
+    // Charts / Mermaid / Math inside shapes render asynchronously (CDN
+    // loads + their own render passes). Wait for them to settle before
+    // snapshotting the DOM, or they'd be captured as source / half-drawn.
+    await waitForShadowBlocks(st.stage);
+
+    // Draw text + rich content from the rendered DOM.
     var stageRect = st.stage.getBoundingClientRect();
     var textContainers = st.stage.querySelectorAll('.shape-rect, .shape-text');
     for (var j = 0; j < textContainers.length; j++) {
       try {
-        drawShapeContent(textContainers[j], stageRect, page, bounds, fonts);
+        await drawShapeContent(textContainers[j], stageRect, page, bounds, fonts, ctx.pdfDoc);
       } catch (err) {
         if (window.console) console.warn('slide-pdf text draw failed:', err);
       }
