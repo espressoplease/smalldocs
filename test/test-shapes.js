@@ -832,4 +832,165 @@ module.exports = function(harness) {
     // The orphan indented line should surface as an error.
     assert.ok(errors.some(e => /unexpected indented/.test(e.message)));
   });
+
+  // ── Polygon segment operators (^h / >P / * / (r) ─────
+
+  test('polygon: ^h marks the segment as an arc with a sagitta', () => {
+    const { shapes, errors } = parse('p 0,0 ^1.5 10,0 10,10');
+    assert.strictEqual(errors.length, 0);
+    // The operator attaches to the point it precedes.
+    assert.deepStrictEqual(shapes[0].points[1].seg, { type: 'arc', sagitta: 1.5 });
+    assert.strictEqual(shapes[0].points[0].seg.type, 'line');
+    assert.strictEqual(shapes[0].points[2].seg.type, 'line');
+  });
+
+  test('polygon: ^h accepts a separate-token sagitta (^ 0.8)', () => {
+    const { shapes, errors } = parse('p 0,0 ^ 0.8 10,0 10,10');
+    assert.strictEqual(errors.length, 0);
+    assert.deepStrictEqual(shapes[0].points[1].seg, { type: 'arc', sagitta: 0.8 });
+  });
+
+  test('polygon: >P marks a quadratic segment with one control point', () => {
+    const { shapes, errors } = parse('p 0,0 >5,3 10,0');
+    assert.strictEqual(errors.length, 0);
+    assert.deepStrictEqual(shapes[0].points[1].seg, { type: 'quad', c: { x: 5, y: 3 } });
+  });
+
+  test('polygon: >P control point may be an @ref', () => {
+    const { shapes, errors } = parse('p 0,0 >@box.top 10,0');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].points[1].seg.type, 'quad');
+    assert.deepStrictEqual(shapes[0].points[1].seg.c.ref, { id: 'box', anchor: 'top' });
+  });
+
+  test('polygon: * marks a cubic segment with two control points', () => {
+    const { shapes, errors } = parse('p 0,0 * 3,3 7,3 10,0');
+    assert.strictEqual(errors.length, 0);
+    assert.deepStrictEqual(shapes[0].points[1].seg, {
+      type: 'cubic', c1: { x: 3, y: 3 }, c2: { x: 7, y: 3 },
+    });
+  });
+
+  test('polygon: (r sets the corner-rounding radius on the next vertex', () => {
+    const { shapes, errors } = parse('p 0,0 (0.5 10,0 10,10');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].points[0].round, undefined);
+    assert.strictEqual(shapes[0].points[1].round, 0.5);
+  });
+
+  test('polygon: leading (r rounds the first vertex', () => {
+    const { shapes, errors } = parse('p (0.5 0,0 (0.5 10,0 10,10');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].points[0].round, 0.5);
+    assert.strictEqual(shapes[0].points[1].round, 0.5);
+    assert.strictEqual(shapes[0].points[2].round, undefined);
+  });
+
+  test('polygon: operators can be mixed on one shape', () => {
+    const { shapes, errors } = parse('p 0,0 ^1 5,0 >7,2 10,0 (0.3 10,10 5,10');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].points[1].seg.type, 'arc');
+    assert.strictEqual(shapes[0].points[2].seg.type, 'quad');
+    assert.strictEqual(shapes[0].points[3].seg.type, 'line');
+    assert.strictEqual(shapes[0].points[3].round, 0.3);
+  });
+
+  test('error: polygon ^ cannot precede the first point', () => {
+    const { errors } = parse('p ^1 0,0 10,0');
+    assert.ok(errors.some(e => /\^ cannot precede the first point/.test(e.message)));
+  });
+
+  test('error: polygon > cannot precede the first point', () => {
+    const { errors } = parse('p >5,3 0,0 10,0');
+    assert.ok(errors.some(e => /> cannot precede the first point/.test(e.message)));
+  });
+
+  test('error: polygon * cannot precede the first point', () => {
+    const { errors } = parse('p * 1,1 2,2 0,0 10,0');
+    assert.ok(errors.some(e => /\* cannot precede the first point/.test(e.message)));
+  });
+
+  test('error: polygon (r radius must be > 0', () => {
+    const { errors } = parse('p (0 0,0 10,0 10,10');
+    assert.ok(errors.some(e => /\(r radius must be > 0/.test(e.message)));
+  });
+
+  test('resolve: polygon @ref segment control point resolves to coords', () => {
+    const { shapes } = parse('r 0 0 10 10 #box\np 20,20 >@box.center 40,20');
+    resolve(shapes);
+    // @box.center of a 10x10 rect at (0,0) is (5,5).
+    assert.strictEqual(shapes[1].points[1].seg.c.x, 5);
+    assert.strictEqual(shapes[1].points[1].seg.c.y, 5);
+  });
+
+  test('resolve: cubic @ref control points both resolve', () => {
+    const { shapes } = parse('r 0 0 10 10 #box\np 0,0 * @box.top @box.bottom 50,0');
+    resolve(shapes);
+    assert.deepStrictEqual(
+      { x: shapes[1].points[1].seg.c1.x, y: shapes[1].points[1].seg.c1.y },
+      { x: 5, y: 0 }
+    );
+    assert.deepStrictEqual(
+      { x: shapes[1].points[1].seg.c2.x, y: shapes[1].points[1].seg.c2.y },
+      { x: 5, y: 10 }
+    );
+  });
+
+  test('roundtrip: polygon with every segment operator is stable', () => {
+    const src = 'p 0,0 ^1.5 10,0 >2,2 5,5 * 1,1 2,2 8,8 (0.5 9,9';
+    const p1 = parse(src);
+    assert.strictEqual(p1.errors.length, 0);
+    const s1 = serialize(p1.shapes);
+    const p2 = parse(s1);
+    assert.strictEqual(p2.errors.length, 0);
+    assert.deepStrictEqual(p1.shapes, p2.shapes);
+  });
+
+  // ── Bowed lines / arrows (^h between endpoints) ──────
+
+  test('arrow: ^h between endpoints sets shape.bow', () => {
+    const { shapes, errors } = parse('a 0 0 ^2 10 10');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].kind, 'a');
+    assert.strictEqual(shapes[0].bow, 2);
+    assert.strictEqual(shapes[0].x1, 0);
+    assert.strictEqual(shapes[0].x2, 10);
+  });
+
+  test('line: ^h bow accepts a negative sagitta', () => {
+    const { shapes, errors } = parse('l 0 0 ^-1.5 10 0');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].kind, 'l');
+    assert.strictEqual(shapes[0].bow, -1.5);
+  });
+
+  test('line/arrow without ^h has no bow', () => {
+    const { shapes } = parse('a 0 0 10 10\nl 0 0 10 0');
+    assert.strictEqual(shapes[0].bow, undefined);
+    assert.strictEqual(shapes[1].bow, undefined);
+  });
+
+  test('roundtrip: arrow with a bow is stable', () => {
+    const p1 = parse('a 0 0 ^2 10 10');
+    const s1 = serialize(p1.shapes);
+    const p2 = parse(s1);
+    assert.strictEqual(p2.errors.length, 0);
+    assert.deepStrictEqual(p1.shapes, p2.shapes);
+  });
+
+  // ── opacity= attribute ───────────────────────────────
+
+  test('attribute: opacity= is parsed onto attrs', () => {
+    const { shapes, errors } = parse('r 0 0 10 10 opacity=0.5');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].attrs.opacity, '0.5');
+  });
+
+  test('attribute: opacity= works on any shape kind and round-trips', () => {
+    const p1 = parse('c 5 5 3 opacity=0.4 fill=#f00');
+    assert.strictEqual(p1.errors.length, 0);
+    assert.strictEqual(p1.shapes[0].attrs.opacity, '0.4');
+    const p2 = parse(serialize(p1.shapes));
+    assert.strictEqual(p2.shapes[0].attrs.opacity, '0.4');
+  });
 };
