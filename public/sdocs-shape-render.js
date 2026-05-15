@@ -120,18 +120,50 @@ var SHAPE_MD_SHADOW_CSS = [
   '  font-family: var(--md-code-font, ui-monospace, Menlo, monospace);',
   '  padding: 0 0.25em; border-radius: 3px; font-size: 0.9em;',
   '}',
+  /* Slide code blocks wrap; the inline-doc `overflow-x: auto` would clip */
+  /* under the stage's `overflow: hidden`, silently losing the right side */
+  /* of any line wider than the shape. `overflow-wrap: anywhere` lets the */
+  /* browser break unbreakable tokens (long URLs, base64) as a fallback. */
+  /* `padding-top: 1.8em` reserves a strip above the code for the copy   */
+  /* button, em-based so it scales with the rest of the slide rather     */
+  /* than locking to the inline-doc's 26px (which would shrink under the */
+  /* slide's CSS transform).                                              */
   'pre {',
-  '  margin: 0.3em 0; padding: 0.4em 0.6em;',
+  '  position: relative;',
+  '  margin: 0.3em 0; padding: 0.4em 0.6em; padding-top: 1.8em;',
   '  background: var(--md-pre-bg, rgba(0,0,0,.08));',
   '  border-radius: 4px; text-align: left; font-size: 0.85em;',
-  '  overflow-x: auto; line-height: 1.3;',
+  '  white-space: pre-wrap; overflow-wrap: anywhere;',
+  '  line-height: 1.3;',
   '  color: var(--md-code-color, inherit);',
   '}',
   'pre code {',
   '  background: none; padding: 0; font-size: inherit;',
   '  color: var(--md-code-color, inherit);',
   '  font-family: var(--md-code-font, inherit);',
+  '  white-space: pre-wrap; overflow-wrap: anywhere;',
   '}',
+  /* Copy button on slide code blocks, mirroring the inline-doc styling   */
+  /* in rendered.css (`.pre-wrapper .copy-btn`). All sizing is em-based   */
+  /* so the button scales with the slide's CSS transform; if it used     */
+  /* fixed px it would shrink to a tiny dot at thumbnail scale.           */
+  '.sd-code-copy-btn {',
+  '  position: absolute; top: 0.3em; right: 0.3em;',
+  '  display: flex; align-items: center; gap: 0.2em;',
+  '  margin: 0; padding: 0.25em 0.4em;',
+  '  background: var(--md-pre-bg, rgba(0,0,0,0.05));',
+  '  color: var(--md-code-color, currentColor);',
+  '  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));',
+  '  border-radius: 0.25em;',
+  '  cursor: pointer; opacity: 0.7;',
+  '  transition: opacity 0.15s, background 0.12s;',
+  '  font: inherit; font-size: 0.9em; line-height: 1;',
+  '  z-index: 1;',
+  '}',
+  '.sd-code-copy-btn svg { width: 1em; height: 1em; display: block; }',
+  'pre:hover .sd-code-copy-btn { opacity: 1; }',
+  '.sd-code-copy-btn:hover { background: var(--md-copy-btn-hover, rgba(0,0,0,0.05)); opacity: 1; }',
+  '.sd-code-copy-btn:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; opacity: 1; }',
   'strong { font-weight: 700; }',
   'em { font-style: italic; }',
   'a { color: var(--md-link-color, inherit); text-decoration: underline; }',
@@ -172,7 +204,7 @@ var SHAPE_MD_SHADOW_CSS = [
   /* own chrome so the fill shows edge-to-edge. Without a fill, keep the */
   /* normal block bg/radius/margin so code stays visually distinct from */
   /* the surrounding slide. */
-  ':host(.shape-md-code-only.shape-md-fill) pre { background: transparent; border-radius: 0; margin: 0; padding: 0.3em 0.6em; font-size: 1em; }',
+  ':host(.shape-md-code-only.shape-md-fill) pre { background: transparent; border-radius: 0; margin: 0; padding: 0.3em 0.6em; padding-top: 1.8em; font-size: 1em; }',
 ].join('\n');
 
 function injectCSS() {
@@ -237,7 +269,45 @@ function contentToMarkdownNode(content, attrs) {
   var overrides = scaleOverrides(attrs);
   var shadow = host.attachShadow({ mode: 'open' });
   shadow.innerHTML = '<style>' + SHAPE_MD_SHADOW_CSS + (overrides ? '\n' + overrides : '') + '</style><div class="inner">' + html + '</div>';
+  attachCodeCopyButtons(shadow);
   return host;
+}
+
+// Copy-button SVGs — duplicated from sdocs-app.js because the slide shadow
+// DOM has no access to the host page's COPY_SVG / CHECK_SVG constants.
+// If those change in sdocs-app.js, mirror the change here.
+var SHAPE_COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+var SHAPE_CHECK_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+// Walk every <pre> in the shape's shadow DOM and append a copy button.
+// The button lives inside the <pre> so it positions relative to the code
+// container itself, not to outer content. textContent is read from the
+// inner <code> element when present so the copied text excludes the
+// button's own SVG markup.
+function attachCodeCopyButtons(shadow) {
+  if (!shadow || !shadow.querySelectorAll) return;
+  var pres = shadow.querySelectorAll('pre');
+  for (var i = 0; i < pres.length; i++) {
+    (function(pre) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sd-code-copy-btn';
+      btn.innerHTML = SHAPE_COPY_SVG;
+      btn.title = 'Copy code';
+      btn.setAttribute('aria-label', 'Copy code');
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var code = pre.querySelector('code');
+        var text = code ? code.textContent : pre.textContent;
+        if (!navigator.clipboard || !navigator.clipboard.writeText) return;
+        navigator.clipboard.writeText(text).then(function() {
+          btn.innerHTML = SHAPE_CHECK_SVG;
+          setTimeout(function() { btn.innerHTML = SHAPE_COPY_SVG; }, 1500);
+        });
+      });
+      pre.appendChild(btn);
+    })(pres[i]);
+  }
 }
 
 // True when `content` is effectively a single fenced code block and nothing
