@@ -46,8 +46,8 @@ const ONE_DAY = 86400000;
 //   3. Prepend a new section to public/agent-changes.md.
 //   4. Reword public/sdoc.md per-agent snippets to match.
 
-const AGENT_BLOCK_VERSION = 4;
-const AGENT_BLOCK_REASON  = 'Add `sdoc diagrams` reference for the new Mermaid render path; tell agents to read it before writing ```mermaid blocks; mention `.mmd` / `.mermaid` standalone files.';
+const AGENT_BLOCK_VERSION = 5;
+const AGENT_BLOCK_REASON  = 'Add `sdoc slides` and `sdoc present` references for the slide DSL: tell agents slides render from ```slide / ~~~slide blocks and point them at the reference before writing one.';
 
 const AGENT_BLOCK_BODY = `## SDocs
 
@@ -2219,6 +2219,29 @@ rather than as designed.
 
      The parser flags this with a clear "polygon: points use 'x,y'"
      error pointing to the offending line.
+
+  3. Text descenders extend below a shape's bounding box.
+
+     A text shape's \`h\` defines the layout rectangle, not a hard
+     clip. Letters with descenders (g, p, q, y, j) draw about 20%
+     of the font size BELOW the baseline, which can hang outside
+     the bottom of the rect and collide with whatever shape sits
+     directly below:
+
+       r 6 9 88 5 text=subtitle | The team after the Q1 reorg
+       r 40 13 20 8 fill=#1e40af | CEO    <- the g in "reorg"
+                                            crosses into this box
+
+     Two fixes, both cheap:
+       a) Leave 1 grid unit of clearance between a text shape and
+          the next filled shape below it.
+       b) Pull the second shape down so the bbox gap is at least
+          \`0.2 * fontSize\` in grid units (\`text=subtitle\` is 40px
+          on REF_H=720, so ~0.6 grid units on a 56.25-tall grid).
+
+     The gotcha is loudest under \`text=title\` and \`text=subtitle\`
+     because the font is large; \`text=body\` and \`text=caption\` rarely
+     trip on it.
 
 ── SHAPE ATTRIBUTES ──────────────────────────────────
   Between geometry and \`|\`:
