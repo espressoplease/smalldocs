@@ -184,4 +184,64 @@ module.exports = function (harness) {
     assert.strictEqual(cli.migrateSetupState('not an object'), null);
     assert.strictEqual(cli.migrateSetupState({}), null);
   });
+
+  // ── implicitConsentState ──
+  // Covers the pre-1.5.0 migration path: users who have a block in CLAUDE.md
+  // but no setup.json. `maybeAutoRefresh` calls this to decide whether to
+  // lazily write a state file so future upgrades flow through the normal
+  // auto-refresh path.
+
+  const fixedNow = new Date('2026-05-12T12:00:00.000Z');
+
+  test('implicitConsentState: a changed file produces a write-eligible state', () => {
+    const results = [
+      { path: '/Users/x/.claude/CLAUDE.md', changed: true, fromVersion: 1, toVersion: 4 },
+      { path: '/Users/x/.codex/AGENTS.md', changed: false, reason: 'absent' },
+    ];
+    const s = cli.implicitConsentState(results, '1.6.0', fixedNow);
+    assert.ok(s, 'should return a state object');
+    assert.strictEqual(s.autoRefreshAgentFiles, true, 'auto-refresh on by default');
+    assert.strictEqual(s.autoInstallUpdates, false, 'never silently enable auto-install');
+    assert.strictEqual(s.declined, false);
+    assert.strictEqual(s.lastRunVersion, '1.6.0');
+    assert.deepStrictEqual(s.writtenTo, ['/Users/x/.claude/CLAUDE.md']);
+    assert.strictEqual(s.setupCompleted, fixedNow.toISOString());
+  });
+
+  test('implicitConsentState: no changed files returns null (no state written)', () => {
+    // User has no SDocs block anywhere - leave state untouched so they get the
+    // normal interactive setup flow next time they're on a TTY.
+    const results = [
+      { path: '/Users/x/.claude/CLAUDE.md', changed: false, reason: 'absent' },
+      { path: '/Users/x/.codex/AGENTS.md', changed: false, reason: 'absent' },
+    ];
+    assert.strictEqual(cli.implicitConsentState(results, '1.6.0', fixedNow), null);
+  });
+
+  test('implicitConsentState: hand-edited only returns null (do not silently overwrite)', () => {
+    const results = [
+      { path: '/Users/x/.claude/CLAUDE.md', changed: false, reason: 'hand_edited' },
+    ];
+    assert.strictEqual(cli.implicitConsentState(results, '1.6.0', fixedNow), null);
+  });
+
+  test('implicitConsentState: any error in the batch suppresses state write (retry next run)', () => {
+    const results = [
+      { path: '/Users/x/.claude/CLAUDE.md', changed: true, fromVersion: 1, toVersion: 4 },
+      { path: '/Users/x/.codex/AGENTS.md', changed: false, error: 'EACCES' },
+    ];
+    assert.strictEqual(cli.implicitConsentState(results, '1.6.0', fixedNow), null);
+  });
+
+  test('implicitConsentState: multiple changed files all recorded in writtenTo', () => {
+    const results = [
+      { path: '/Users/x/.claude/CLAUDE.md', changed: true },
+      { path: '/Users/x/.codex/AGENTS.md', changed: true },
+    ];
+    const s = cli.implicitConsentState(results, '1.6.0', fixedNow);
+    assert.deepStrictEqual(s.writtenTo, [
+      '/Users/x/.claude/CLAUDE.md',
+      '/Users/x/.codex/AGENTS.md',
+    ]);
+  });
 };
