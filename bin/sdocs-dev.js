@@ -2209,8 +2209,19 @@ rather than as designed.
                                    point in grid units, REQUIRED).
                                    Text centres in the body; the tail
                                    does not displace text.
-                                   Attrs: tail=tx,ty (required);
-                                   radius=N (corner radius, default 1).
+                                   Attrs:
+                                     tail=tx,ty (required)
+                                     radius=N (corner radius, default 1)
+                                     tailStyle=concave (default) | sharp | wide
+                                       concave: sides curve toward tail
+                                                axis (elegant horn /
+                                                teardrop, reads as
+                                                designed)
+                                       sharp:   straight narrow triangle
+                                                (schematic, "needle")
+                                       wide:    straight broader triangle
+                                                (friendly, generic
+                                                callout)
   cyl x y w h          cylinder (database / storage shape). Top and
                                    bottom ellipse caps each take \`lip\`
                                    height (default ~20% of h, capped
