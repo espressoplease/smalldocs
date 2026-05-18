@@ -941,6 +941,118 @@ function renderCloud(s) {
   return g;
 }
 
+// Icon bundle: 1960 Lucide icons live in /public/sdocs-icons-data.js
+// (~81 KB gzipped). Loaded lazily on first `icon` shape, cached on
+// window.SDocIcons after. Same pattern as mermaid / chart.js / KaTeX:
+// pay the network cost once per session, only when the feature is
+// actually used.
+var iconBundleStatus = 'idle'; // idle | loading | ready | failed
+var iconBundlePending = [];    // [{ shape, placeholder, parent }]
+
+function loadIconBundle() {
+  if (iconBundleStatus !== 'idle') return;
+  iconBundleStatus = 'loading';
+  window.SDocIconsReady = function () {
+    iconBundleStatus = 'ready';
+    // Re-render every placeholder that was emitted while the bundle was loading.
+    var queue = iconBundlePending; iconBundlePending = [];
+    for (var i = 0; i < queue.length; i++) {
+      var entry = queue[i];
+      if (entry.placeholder && entry.placeholder.parentNode) {
+        var fresh = renderIcon(entry.shape);
+        entry.placeholder.parentNode.replaceChild(fresh, entry.placeholder);
+      }
+    }
+  };
+  var script = document.createElement('script');
+  script.src = '/public/sdocs-icons-data.js';
+  script.onerror = function () {
+    iconBundleStatus = 'failed';
+    // Mark any pending placeholders so they don't keep waiting; the
+    // missing-icon style will render on next attempt.
+    iconBundlePending = [];
+  };
+  document.head.appendChild(script);
+}
+
+function iconPlaceholder(s) {
+  // Light dashed rect at the icon's position so the slide layout
+  // doesn't visibly reflow when the real icon swaps in. Same bbox
+  // as the icon itself.
+  var rect = document.createElementNS(SVG_NS, 'rect');
+  rect.setAttribute('x', s.x);
+  rect.setAttribute('y', s.y);
+  rect.setAttribute('width', s.w);
+  rect.setAttribute('height', s.h);
+  rect.setAttribute('rx', '0.5');
+  rect.setAttribute('fill', 'none');
+  rect.setAttribute('stroke', '#D9DFEA');
+  rect.setAttribute('stroke-width', '0.1');
+  rect.setAttribute('stroke-dasharray', '0.4 0.3');
+  return rect;
+}
+
+function renderIcon(s) {
+  var name = s.attrs && s.attrs.name;
+  var color = (s.attrs && s.attrs.color) || '#0F1E3A';
+  var sw = (s.attrs && s.attrs.strokeWidth != null) ? s.attrs.strokeWidth : 2;
+  var x = s.x, y = s.y, w = s.w, h = s.h;
+
+  // Nested <svg> with its own viewBox handles the 24x24 -> (w, h)
+  // scaling natively. Setting fill / stroke / linecap on the wrapper
+  // lets the bundled Lucide markup inherit cleanly without per-element
+  // edits.
+  var inner = document.createElementNS(SVG_NS, 'svg');
+  inner.setAttribute('x', x);
+  inner.setAttribute('y', y);
+  inner.setAttribute('width', w);
+  inner.setAttribute('height', h);
+  inner.setAttribute('viewBox', '0 0 24 24');
+  inner.setAttribute('fill', 'none');
+  inner.setAttribute('stroke', color);
+  inner.setAttribute('stroke-width', String(sw));
+  inner.setAttribute('stroke-linecap', 'round');
+  inner.setAttribute('stroke-linejoin', 'round');
+
+  var iconXml = (name && window.SDocIcons) ? window.SDocIcons[name] : null;
+  if (!iconXml && name && iconBundleStatus !== 'ready') {
+    // Bundle not loaded yet (or still loading). Trigger load, emit a
+    // dashed-rect placeholder, and queue this shape for re-render once
+    // the bundle arrives.
+    if (iconBundleStatus === 'idle') loadIconBundle();
+    var ph = iconPlaceholder(s);
+    iconBundlePending.push({ shape: s, placeholder: ph });
+    return ph;
+  }
+  if (!iconXml) {
+    // Bundle loaded but the name isn't in it (typo or removed icon).
+    // Struck-through rect so the gap is visible, not silent.
+    var rect = document.createElementNS(SVG_NS, 'rect');
+    rect.setAttribute('x', '2'); rect.setAttribute('y', '2');
+    rect.setAttribute('width', '20'); rect.setAttribute('height', '20');
+    rect.setAttribute('rx', '2');
+    rect.setAttribute('stroke', '#E54B7C');
+    inner.appendChild(rect);
+    var line = document.createElementNS(SVG_NS, 'line');
+    line.setAttribute('x1', '4'); line.setAttribute('y1', '4');
+    line.setAttribute('x2', '20'); line.setAttribute('y2', '20');
+    line.setAttribute('stroke', '#E54B7C');
+    inner.appendChild(line);
+  } else {
+    // Parse the icon's inner SVG content into properly-namespaced nodes
+    // and append to the nested <svg>. DOMParser handles SVG namespacing
+    // cleanly - innerHTML on an SVG element does NOT.
+    var doc = new DOMParser().parseFromString(
+      '<svg xmlns="http://www.w3.org/2000/svg">' + iconXml + '</svg>',
+      'image/svg+xml'
+    );
+    var src = doc.documentElement;
+    while (src.firstChild) inner.appendChild(src.firstChild);
+  }
+  if (s.id) inner.dataset.id = s.id;
+  return inner;
+}
+
 function renderEllipse(s) {
   var el = document.createElementNS(SVG_NS, 'ellipse');
   el.setAttribute('cx', s.cx);
@@ -1594,11 +1706,15 @@ function renderShapes(dslText, wrap, options) {
           svg.appendChild(renderDoc(s));
         } else if (s.kind === 'cloud') {
           svg.appendChild(renderCloud(s));
+        } else if (s.kind === 'icon') {
+          svg.appendChild(renderIcon(s));
         }
         applyOpacity(svg, s.attrs);
         L.el.appendChild(svg);
         // Text overlay sits AFTER its parent SVG in source order so it
-        // paints on top of the shape it labels.
+        // paints on top of the shape it labels. (icon shapes don't
+        // carry text content - the icon IS the content - so they're
+        // omitted from this list.)
         if ((s.kind === 'c' || s.kind === 'e' || s.kind === 'p' ||
              s.kind === 'chev' || s.kind === 'cyl' || s.kind === 'bub' ||
              s.kind === 'tab' || s.kind === 'doc' || s.kind === 'cloud') &&

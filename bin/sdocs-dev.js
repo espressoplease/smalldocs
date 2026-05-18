@@ -2252,6 +2252,32 @@ rather than as designed.
                                    sharp / modern) | material (puffy /
                                    friendly) | bootstrap (smooth /
                                    balanced).
+  icon x y w h         inline icon from the bundled Lucide library
+                                   (~1960 icons). Outline-only, no fill
+                                   by default; stroke colour from
+                                   \`color=\` attribute.
+                                   Attrs:
+                                     name=<icon>  (required) - any name
+                                                  from lucide.dev/icons/
+                                                  (e.g. user, database,
+                                                  server, lock, cloud,
+                                                  search, trending-up).
+                                                  Unknown names render
+                                                  a pink struck-through
+                                                  rect placeholder so
+                                                  typos are visible.
+                                     color=<hex>  stroke colour
+                                                  (default #0F1E3A).
+                                     strokeWidth=N  outline width
+                                                    (default 2; Lucide
+                                                    convention).
+                                   The full icon bundle (~81 KB gzipped)
+                                   is lazy-loaded on first use, then
+                                   cached for the session. Until the
+                                   bundle arrives, a dashed-rect
+                                   placeholder marks each icon position
+                                   so the layout doesn't reflow when
+                                   icons swap in.
 
   Arrow geometry: the coordinates are the line's centerline. The head is
   symmetric around the line, extending up to 3 * strokeWidth perpendicular

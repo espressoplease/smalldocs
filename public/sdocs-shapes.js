@@ -348,6 +348,17 @@ function parseLine(raw, lineNumber) {
     shape.w = parseNumber(rest[2], 'cloud w');
     shape.h = parseNumber(rest[3], 'cloud h');
     i = 4;
+  } else if (kind === 'icon') {
+    // Inline icon from a bundled icon library (Lucide). Requires
+    // `name=<icon-name>` to identify which icon. The icon scales to
+    // (w, h) and inherits stroke colour from `color=` (defaults
+    // to ink).
+    if (rest.length < 4) throw new Error('icon: needs 4 numeric args (got ' + rest.length + ')');
+    shape.x = parseNumber(rest[0], 'icon x');
+    shape.y = parseNumber(rest[1], 'icon y');
+    shape.w = parseNumber(rest[2], 'icon w');
+    shape.h = parseNumber(rest[3], 'icon h');
+    i = 4;
   } else {
     throw new Error('Unknown shape "' + kind + '"');
   }
@@ -563,7 +574,8 @@ function docFold(s) {
 function bboxOf(shape) {
   if (shape.kind === 'r') return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
   if (shape.kind === 'chev' || shape.kind === 'cyl' ||
-      shape.kind === 'tab' || shape.kind === 'doc' || shape.kind === 'cloud') {
+      shape.kind === 'tab' || shape.kind === 'doc' || shape.kind === 'cloud' ||
+      shape.kind === 'icon') {
     return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
   }
   if (shape.kind === 'bub') {
