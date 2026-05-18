@@ -573,7 +573,32 @@ function renderRect(s, grid) {
   el.dataset.refh = String(dims.h);
   applySizing(el, s.attrs);
   if (s.content != null && s.content !== '') {
-    attachRotatedContent(el, s, grid, s.w, s.h);
+    // textBox=x,y,w,h on a rectangle inset / shifts the area that holds
+    // the markdown content, leaving the rect's fill / stroke / dimensions
+    // unchanged. Same coordinate convention as on polygons: x,y,w,h in
+    // grid units, relative to the rect's top-left.
+    var tb = window.SDocShapes && window.SDocShapes.parseTextBox
+      ? window.SDocShapes.parseTextBox(s.attrs && s.attrs.textBox) : null;
+    if (tb) {
+      var inner = document.createElement('div');
+      inner.className = 'shape-rect-textbox';
+      inner.style.position = 'absolute';
+      inner.style.left = (tb.x / s.w * 100) + '%';
+      inner.style.top = (tb.y / s.h * 100) + '%';
+      inner.style.width = (tb.w / s.w * 100) + '%';
+      inner.style.height = (tb.h / s.h * 100) + '%';
+      inner.style.display = 'flex';
+      inner.style.alignItems = el.dataset.valign === 'top' ? 'flex-start'
+        : el.dataset.valign === 'bottom' ? 'flex-end' : 'center';
+      inner.style.justifyContent = el.dataset.align === 'left' ? 'flex-start'
+        : el.dataset.align === 'right' ? 'flex-end' : 'center';
+      inner.style.textAlign = el.dataset.align || 'center';
+      el.style.position = 'relative';
+      attachRotatedContent(inner, s, grid, tb.w, tb.h);
+      el.appendChild(inner);
+    } else {
+      attachRotatedContent(el, s, grid, s.w, s.h);
+    }
   }
   if (s.id) el.dataset.id = s.id;
   return el;

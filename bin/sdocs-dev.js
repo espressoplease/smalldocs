@@ -1613,6 +1613,31 @@ navigate.
     align=<a>           Horizontal: center (default), left, right
     valign=<v>          Vertical: center (default), top, bottom
 
+  Text body box:
+    textBox=x,y,w,h     Override the rectangle that holds the shape's
+                        text content. Values are grid units, relative
+                        to the shape's bounding-box top-left. The shape
+                        itself (fill, stroke, geometry) is unchanged -
+                        only the text inside shifts. Use when the
+                        shape is asymmetric and centering text in its
+                        bounding box drifts the text off the visual
+                        mass.
+
+                        The classic case: a right-pointing chevron
+                        polygon. Its bounding box includes the tip,
+                        so centred text sits to the right of the
+                        chevron body. Set textBox to the body region
+                        only:
+
+                          p 6,20 19,20 22,24 19,28 6,28 9,24
+                            fill=#4f8aff textBox=0,0,14,8
+                            color=#fff text=subtitle | Tokenize
+
+                        Bbox of the polygon is (6,20)-(22,28). The
+                        body (excluding the 3u tip) is 13 wide x 8
+                        tall starting at (6,20); textBox=0,0,14,8 puts
+                        text inside that region.
+
   Text rotation:
     textAngle=N         Rotate the text WITHIN the shape by N degrees.
                         The shape's geometry (x, y, w, h) is untouched -
@@ -2330,6 +2355,50 @@ rather than as designed.
      Sizing the label rect to the bubble's bbox - e.g. r 76 18 12 3
      next to c 84 18 2.4 - puts the text directly under the disc
      and the bubble fill covers the end of the label.
+
+  4. Code blocks inside shapes look randomly sized across siblings.
+
+     A \`\`\`fenced code block\`\`\` inside a slide shape sizes its OWN
+     font and padding based on its content, not on the surrounding
+     shape. Three sibling shapes with identical \`r ... 14 8\` end
+     up looking different because their code samples differ in
+     line count and line length. The cards then read as a sloppy
+     row instead of a parallel set.
+
+     The fix is discipline at author-time:
+
+       a) Give every code-bearing shape the SAME (w, h). Don't let
+          the longest sample dictate one card's size and the
+          shortest dictate another.
+       b) Set an explicit \`size=Npx\` on every code-bearing shape
+          so the font matches across the row. Auto-fit picks per
+          shape, which is exactly what you don't want for sibling
+          comparison.
+       c) Set an explicit \`padding=N\` on every code-bearing shape
+          to control the inset uniformly.
+       d) Truncate examples with \`...\` rather than letting one
+          card carry six lines and another two. The point of a
+          sibling row is comparison; the longest item sets the
+          shape height for everyone.
+
+     Example - three comparable code cards:
+
+       r 6  35 26 12 fill=#F4F6FA size=14px padding=1 |
+         \`\`\`json
+         ["The", " quick", "..."]
+         \`\`\`
+       r 36 35 26 12 fill=#F4F6FA size=14px padding=1 |
+         \`\`\`json
+         [464, 4391, ...]
+         \`\`\`
+       r 66 35 26 12 fill=#F4F6FA size=14px padding=1 |
+         \`\`\`json
+         [[0.12, ...], ...]
+         \`\`\`
+
+     Same w, same h, same size, same padding, truncated to fit.
+     The three cards then read as a parallel set rather than three
+     improvisations.
 
 ── SHAPE ATTRIBUTES ──────────────────────────────────
   Between geometry and \`|\`:

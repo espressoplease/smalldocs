@@ -479,6 +479,16 @@ function bboxOf(shape) {
 //   Ellipse:   inscribed rectangle (w = rx * √2, h = ry * √2).
 //   Polygon:   bounding box.
 function contentBox(shape) {
+  // `textBox=x,y,w,h` (or `x y w h`) overrides where text content
+  // renders. Values are in grid units, relative to the shape's bounding
+  // box top-left. Useful for asymmetric polygons (chevrons, callouts,
+  // ribbons) where centering text in the bbox drifts it off the visual
+  // mass; the author specifies a body rectangle and text centers there.
+  var tb = parseTextBox(shape.attrs && shape.attrs.textBox);
+  if (tb) {
+    var bbox = bboxOf(shape);
+    return { x: bbox.x + tb.x, y: bbox.y + tb.y, w: tb.w, h: tb.h };
+  }
   if (shape.kind === 'r') {
     return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
   }
@@ -495,6 +505,21 @@ function contentBox(shape) {
     return bboxOf(shape);
   }
   return null;
+}
+
+// Parse a "x,y,w,h" or "x y w h" attribute value into four numbers.
+// Returns null if missing or malformed. Negative w/h are rejected.
+function parseTextBox(raw) {
+  if (raw == null || raw === '') return null;
+  var parts = String(raw).split(/[\s,]+/).filter(function (s) { return s !== ''; });
+  if (parts.length !== 4) return null;
+  var x = parseFloat(parts[0]);
+  var y = parseFloat(parts[1]);
+  var w = parseFloat(parts[2]);
+  var h = parseFloat(parts[3]);
+  if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) return null;
+  if (w <= 0 || h <= 0) return null;
+  return { x: x, y: y, w: w, h: h };
 }
 
 function anchorPoint(shape, anchor) {
@@ -771,6 +796,7 @@ exports.anchorPoint = anchorPoint;
 exports.bboxOf = bboxOf;
 exports.checkGridBounds = checkGridBounds;
 exports.contentBox = contentBox;
+exports.parseTextBox = parseTextBox;
 exports.serialize = serialize;
 exports.serializeShape = serializeShape;
 exports.ANCHOR_TABLE = ANCHOR_TABLE;
