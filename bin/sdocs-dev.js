@@ -1242,6 +1242,20 @@ DATA FORMATS
       { "label": "Group", "data": [{"x": 1, "y": 2}, {"x": 3, "y": 5}] }
     ]
 
+  Scatter/Bubble with per-point labels (renders the label next to the
+  marker, useful for competitive maps / quadrant charts):
+    "datasets": [
+      { "label": "Vendors", "data": [
+          {"x": 9.5, "y": 4.0, "r": 18, "label": "GH Copilot"},
+          {"x": 5.0, "y": 8.5, "r": 9,  "label": "Claude Code"}
+      ]}
+    ]
+  Labels only render at points that carry a \`label\` field. The plugin
+  has no collision avoidance - if two adjacent points both have labels,
+  the labels will overlap. Space the points or accept the overlap.
+  Forcing labels on ALL bubbles (using the dataset label) is also
+  possible by setting \`"dataLabels": true\` at the chart level.
+
 CHART OPTIONS
   title           string     Chart heading
   subtitle        string     Smaller text below title
@@ -1492,6 +1506,17 @@ navigate.
   the slide edge except a deliberate full-bleed background (\`section\`
   uses this; nothing else should).
 
+  No auto-flow. Every shape claims its full (x, y, w, h) rect.
+  Source order is paint order, so a later filled rectangle that
+  overlaps an earlier text shape's bbox covers its content. Place
+  each shape at the previous shape's bottom edge (y + h) or later.
+  Common slip: putting content at y=12 right under
+  \`r 6 9 88 5 text=subtitle ...\` - the subtitle reserves y=9..14;
+  starting the body at y=12 puts the fill on top of the subtitle's
+  bottom half. For \`text=title\` and \`text=subtitle\` add another
+  ~0.5 grid unit on top to clear glyph descenders; see
+  \`slides custom-shapes\` for the fine print.
+
   No fill colours behind body or title text. The slide background IS
   your canvas. Saturated rectangles compete with content and read as
   "PowerPoint 2003". The only exception: section dividers, which want
@@ -1587,6 +1612,38 @@ navigate.
   Alignment:
     align=<a>           Horizontal: center (default), left, right
     valign=<v>          Vertical: center (default), top, bottom
+
+  Text rotation:
+    textAngle=N         Rotate the text WITHIN the shape by N degrees.
+                        The shape's geometry (x, y, w, h) is untouched -
+                        only the text inside rotates. Useful for vertical
+                        axis labels, diagonal stamps, and skewed callouts.
+                        Default 0 (no rotation).
+
+                        Cardinal angles (0, 90, -90, 180) "just work":
+                          - 90 / -90: text is laid out using the shape's
+                            SWAPPED dimensions, so "More autonomous" in a
+                            tall narrow shape wraps along the long axis
+                            and reads top-to-bottom (90) or
+                            bottom-to-top (-90).
+                          - 180: text is flipped in place.
+
+                        Non-cardinal angles (e.g. textAngle=37) render
+                        but get NO dimension swap and NO autofit help.
+                        The text is rotated around the shape's centre;
+                        its visible extent will usually exceed the
+                        shape's (w, h) box. Size the container so the
+                        rotated text lands where you want:
+                          rotatedW = |w * cos N| + |h * sin N|
+                          rotatedH = |w * sin N| + |h * cos N|
+                        The shape's own bbox doesn't change - only the
+                        rendered text sticks out. Place neighbouring
+                        shapes accordingly, or accept the overlap as
+                        intentional.
+
+                        Example (vertical y-axis label):
+                          r 8 16 4 32 textAngle=-90 text=caption
+                            align=center | More autonomous
 
   Text sizing (role first, escape hatches second):
     text=<role>         Pick a role from a fixed table. Roles give a
@@ -2220,28 +2277,59 @@ rather than as designed.
      The parser flags this with a clear "polygon: points use 'x,y'"
      error pointing to the offending line.
 
-  3. Text descenders extend below a shape's bounding box.
+  3. Shapes don't auto-flow - overlapping bboxes paint over each
+     other.
 
-     A text shape's \`h\` defines the layout rectangle, not a hard
-     clip. Letters with descenders (g, p, q, y, j) draw about 20%
-     of the font size BELOW the baseline, which can hang outside
-     the bottom of the rect and collide with whatever shape sits
-     directly below:
+     Every shape reserves its full (x, y, w, h). Source order is
+     paint order, so a later shape with a fill that overlaps an
+     earlier text shape's bbox covers that text:
+
+       r 6 9 88 5 text=subtitle | Three nested envelopes
+       r 10 12 60 40 fill=#f1f5f9     <- starts at y=12, inside the
+                                         subtitle bbox (y=9..14);
+                                         subtitle hidden from y=12 down
+
+     The fix: place the next shape at y + h or later (here, y >= 14).
+     The standard pattern from the gallery is subtitle at \`y=9 h=5\`,
+     so the first content shape goes at y >= 14 (15 is the round
+     number most templates use).
+
+     For \`text=title\` and \`text=subtitle\` add another ~0.6 grid
+     unit because the glyph itself extends below the baseline. A
+     text shape's \`h\` is the layout rect, not a hard clip - letters
+     with descenders (g, p, q, y, j) draw about 20% of the font
+     size below the baseline, which would hang into a perfectly
+     bbox-aligned neighbour:
 
        r 6 9 88 5 text=subtitle | The team after the Q1 reorg
-       r 40 13 20 8 fill=#1e40af | CEO    <- the g in "reorg"
-                                            crosses into this box
+       r 40 14 20 8 fill=#1e40af | CEO    <- the g in "reorg"
+                                            still crosses into the
+                                            top of this box
 
-     Two fixes, both cheap:
-       a) Leave 1 grid unit of clearance between a text shape and
-          the next filled shape below it.
-       b) Pull the second shape down so the bbox gap is at least
-          \`0.2 * fontSize\` in grid units (\`text=subtitle\` is 40px
-          on REF_H=720, so ~0.6 grid units on a 56.25-tall grid).
+     Two safe budgets:
+       a) 1 full grid unit of clearance below a text=subtitle row
+          (next shape at y >= 15), or
+       b) at least \`0.2 * fontSize\` in grid units (\`text=subtitle\`
+          is 40px on REF_H=720, so ~0.6 grid units on a 56.25-tall
+          grid).
 
      The gotcha is loudest under \`text=title\` and \`text=subtitle\`
      because the font is large; \`text=body\` and \`text=caption\` rarely
      trip on it.
+
+     Circles and ellipses paint only the inscribed disc, but their
+     bbox still claims the full (cx-r, cy-r, 2r, 2r). A label rect
+     that overlaps the bbox CORNERS (outside the disc) is fine; a
+     label rect that crosses the disc itself gets painted over,
+     even when the label's own bbox doesn't fully overlap the
+     bubble's bbox. The safe rule for bubble + label compositions:
+     place the label's nearest edge at distance >= r + 0.5 grid
+     units from the bubble centre. Common patterns that work:
+       a) label centred BELOW the bubble at y = cy + r + 0.5
+       b) label to the side at x = cx + r + 0.5 (left edge of label)
+     Sizing the label rect to the bubble's bbox - e.g. r 76 18 12 3
+     next to c 84 18 2.4 - puts the text directly under the disc
+     and the bubble fill covers the end of the label.
 
 ── SHAPE ATTRIBUTES ──────────────────────────────────
   Between geometry and \`|\`:

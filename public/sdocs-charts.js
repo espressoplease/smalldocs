@@ -447,8 +447,41 @@
     var isScatterLike = chartType === 'scatter' || chartType === 'bubble';
     var isRadar = chartType === 'radar';
 
-    // Hide labels on scatter/bubble — too cluttered
-    if (isScatterLike) return { display: false };
+    // Scatter/bubble: hidden by default (too cluttered for dense plots).
+    // Opt in by setting `dataLabels: true` on the chart, OR by giving each
+    // data point its own `label` field; in either case the plugin renders
+    // the point's label next to the marker.
+    if (isScatterLike) {
+      var hasPointLabels = false;
+      var allDatasets = data.datasets || (data.values ? [{ data: data.values }] : []);
+      for (var di = 0; di < allDatasets.length; di++) {
+        var pts = allDatasets[di].data || [];
+        for (var pi = 0; pi < pts.length; pi++) {
+          if (pts[pi] && typeof pts[pi] === 'object' && pts[pi].label) {
+            hasPointLabels = true;
+            break;
+          }
+        }
+        if (hasPointLabels) break;
+      }
+      if (data.dataLabels !== true && !hasPointLabels) return { display: false };
+      return {
+        display: true,
+        color: th.text,
+        font: { size: 11, weight: '500' },
+        anchor: 'end',
+        align: 'top',
+        offset: 4,
+        clip: false,
+        formatter: function (value, ctx) {
+          if (value && typeof value === 'object' && value.label) return value.label;
+          var ds = ctx.dataset || {};
+          // Fall back to the dataset label only when one point per dataset.
+          if ((ds.data || []).length === 1 && ds.label) return ds.label;
+          return '';
+        }
+      };
+    }
 
     if (isRadial) {
       return {
