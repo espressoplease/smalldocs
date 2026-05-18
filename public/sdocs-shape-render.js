@@ -572,9 +572,66 @@ function renderRect(s, grid) {
   el.dataset.refw = String(dims.w);
   el.dataset.refh = String(dims.h);
   applySizing(el, s.attrs);
-  if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content, s.attrs));
+  if (s.content != null && s.content !== '') {
+    attachRotatedContent(el, s, grid, s.w, s.h);
+  }
   if (s.id) el.dataset.id = s.id;
   return el;
+}
+
+// Attach (optionally rotated) markdown content to a shape element.
+//   - textAngle missing / 0 / NaN -> content attached directly (no wrap).
+//   - textAngle == 90 or -90       -> content sits in an absolutely-positioned
+//                                      wrapper whose layout dimensions are
+//                                      SWAPPED, so text wraps along the
+//                                      rotated long axis (axis-label case).
+//   - any other angle              -> simple CSS rotate on the content node;
+//                                      no dimension swap. The author is
+//                                      responsible for sizing the shape so
+//                                      the rotated text fits (see slides
+//                                      docs for the bbox formula).
+function attachRotatedContent(hostEl, s, grid, w, h) {
+  var node = contentToMarkdownNode(s.content, s.attrs);
+  var raw = s.attrs && s.attrs.textAngle;
+  var angle = (raw != null && raw !== '') ? parseFloat(raw) : 0;
+  if (!isFinite(angle)) angle = 0;
+  // Normalize to (-180, 180].
+  if (angle !== 0) angle = ((angle % 360) + 540) % 360 - 180;
+  if (angle === 0) { hostEl.appendChild(node); return; }
+  if (angle === 90 || angle === -90) {
+    // Use CSS writing-mode for vertical text flow. `vertical-rl` flows
+    // top-to-bottom from the right edge; `text-orientation: sideways`
+    // keeps Latin glyphs upright (rotated 90 CW from horizontal). For
+    // -90 (bottom-to-top, classic y-axis reading direction) we rotate
+    // the wrap an additional 180 deg. The wrap takes the shape's full
+    // bounding box; the inner text flows naturally inside it without
+    // any swap-dim percentage math.
+    var wrap = document.createElement('div');
+    wrap.className = 'shape-text-rotated';
+    wrap.style.position = 'absolute';
+    wrap.style.left = '0';
+    wrap.style.top = '0';
+    wrap.style.width = '100%';
+    wrap.style.height = '100%';
+    wrap.style.display = 'flex';
+    wrap.style.alignItems = 'center';
+    wrap.style.justifyContent = 'center';
+    wrap.style.writingMode = 'vertical-rl';
+    wrap.style.textOrientation = 'sideways';
+    if (angle === -90) {
+      wrap.style.transform = 'rotate(180deg)';
+    }
+    wrap.appendChild(node);
+    hostEl.style.position = 'relative';
+    hostEl.appendChild(wrap);
+    return;
+  }
+  // Arbitrary angle: simple rotation, no dim swap. Autofit is left alone
+  // (it measures the unrotated content against the shape bbox; the author
+  // sizes the shape with the bbox formula in mind).
+  node.style.transform = 'rotate(' + angle + 'deg)';
+  node.style.transformOrigin = 'center center';
+  hostEl.appendChild(node);
 }
 
 function renderCircle(s, svgHost) {
@@ -873,7 +930,9 @@ function renderTextOverlay(s, grid) {
   el.dataset.refw = String(dims.w);
   el.dataset.refh = String(dims.h);
   applySizing(el, s.attrs);
-  if (s.content != null && s.content !== '') el.appendChild(contentToMarkdownNode(s.content, s.attrs));
+  if (s.content != null && s.content !== '') {
+    attachRotatedContent(el, s, grid, box.w, box.h);
+  }
   if (s.id) el.dataset.id = s.id + '-text';
   return el;
 }
