@@ -743,62 +743,73 @@ function renderBub(s) {
   if (!isFinite(rad) || rad < 0) rad = 0;
   rad = Math.min(rad, w / 2, h / 2);
 
-  var g = document.createElementNS(SVG_NS, 'g');
-
-  // Rounded body rect
-  var body = document.createElementNS(SVG_NS, 'rect');
-  body.setAttribute('x', x);
-  body.setAttribute('y', y);
-  body.setAttribute('width', w);
-  body.setAttribute('height', h);
-  body.setAttribute('rx', rad);
-  body.setAttribute('ry', rad);
-  applySvgStroke(body, s.attrs, 'none');
-  if (!s.attrs.fill) body.setAttribute('fill', '#ffffff');
-  g.appendChild(body);
-
-  // Tail triangle: figure out the nearest edge to the tail target and
-  // emit a triangle from a 1.5-unit-wide base on that edge to the target.
+  // Trace the whole bubble (body + tail) as ONE closed path. A two-shape
+  // approach (rect + triangle) leaves a visible seam where their strokes
+  // meet at the tail base; a single path strokes the perimeter without
+  // an internal line.
+  var edge = null;
   if (tail) {
-    var fill = (s.attrs && s.attrs.fill) || '#ffffff';
     var cx = x + w / 2;
     var cy = y + h / 2;
     var dx = tail.x - cx;
     var dy = tail.y - cy;
     var horiz = Math.abs(dx) * h > Math.abs(dy) * w; // pick edge by aspect
-    var baseW = Math.min(w, h) * 0.18;
-    var p1x, p1y, p2x, p2y;
-    if (horiz) {
-      // Left or right edge
-      var ex = dx > 0 ? x + w : x;
-      var ey = Math.max(y + baseW, Math.min(y + h - baseW, tail.y));
-      p1x = ex; p1y = ey - baseW / 2;
-      p2x = ex; p2y = ey + baseW / 2;
-    } else {
-      // Top or bottom edge
-      var ey2 = dy > 0 ? y + h : y;
-      var ex2 = Math.max(x + baseW, Math.min(x + w - baseW, tail.x));
-      p1x = ex2 - baseW / 2; p1y = ey2;
-      p2x = ex2 + baseW / 2; p2y = ey2;
-    }
-    var tailPath = document.createElementNS(SVG_NS, 'path');
-    tailPath.setAttribute('d',
-      'M ' + p1x + ' ' + p1y +
-      ' L ' + tail.x + ' ' + tail.y +
-      ' L ' + p2x + ' ' + p2y + ' Z');
-    tailPath.setAttribute('fill', fill);
-    // Stroke matches the body if present so the tail reads as one shape.
-    if (s.attrs && s.attrs.stroke) {
-      tailPath.setAttribute('stroke', s.attrs.stroke);
-      tailPath.setAttribute('stroke-width',
-        String((s.attrs.strokeWidth != null) ? s.attrs.strokeWidth : 0.06));
-      tailPath.setAttribute('stroke-linejoin', 'round');
-    }
-    g.appendChild(tailPath);
+    edge = horiz ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'bottom' : 'top');
   }
+  var baseW = Math.min(w, h) * 0.18;
 
-  if (s.id) g.dataset.id = s.id;
-  return g;
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  var d = 'M ' + (x + rad) + ' ' + y;
+
+  // Top edge -> top-right corner
+  if (edge === 'top' && tail) {
+    var ax = clamp(tail.x, x + rad + baseW / 2, x + w - rad - baseW / 2);
+    d += ' L ' + (ax - baseW / 2) + ' ' + y;
+    d += ' L ' + tail.x + ' ' + tail.y;
+    d += ' L ' + (ax + baseW / 2) + ' ' + y;
+  }
+  d += ' L ' + (x + w - rad) + ' ' + y;
+  d += ' A ' + rad + ' ' + rad + ' 0 0 1 ' + (x + w) + ' ' + (y + rad);
+
+  // Right edge -> bottom-right corner
+  if (edge === 'right' && tail) {
+    var ay = clamp(tail.y, y + rad + baseW / 2, y + h - rad - baseW / 2);
+    d += ' L ' + (x + w) + ' ' + (ay - baseW / 2);
+    d += ' L ' + tail.x + ' ' + tail.y;
+    d += ' L ' + (x + w) + ' ' + (ay + baseW / 2);
+  }
+  d += ' L ' + (x + w) + ' ' + (y + h - rad);
+  d += ' A ' + rad + ' ' + rad + ' 0 0 1 ' + (x + w - rad) + ' ' + (y + h);
+
+  // Bottom edge -> bottom-left corner
+  if (edge === 'bottom' && tail) {
+    var ax2 = clamp(tail.x, x + rad + baseW / 2, x + w - rad - baseW / 2);
+    d += ' L ' + (ax2 + baseW / 2) + ' ' + (y + h);
+    d += ' L ' + tail.x + ' ' + tail.y;
+    d += ' L ' + (ax2 - baseW / 2) + ' ' + (y + h);
+  }
+  d += ' L ' + (x + rad) + ' ' + (y + h);
+  d += ' A ' + rad + ' ' + rad + ' 0 0 1 ' + x + ' ' + (y + h - rad);
+
+  // Left edge -> top-left corner
+  if (edge === 'left' && tail) {
+    var ay2 = clamp(tail.y, y + rad + baseW / 2, y + h - rad - baseW / 2);
+    d += ' L ' + x + ' ' + (ay2 + baseW / 2);
+    d += ' L ' + tail.x + ' ' + tail.y;
+    d += ' L ' + x + ' ' + (ay2 - baseW / 2);
+  }
+  d += ' L ' + x + ' ' + (y + rad);
+  d += ' A ' + rad + ' ' + rad + ' 0 0 1 ' + (x + rad) + ' ' + y;
+  d += ' Z';
+
+  var el = document.createElementNS(SVG_NS, 'path');
+  el.setAttribute('d', d);
+  el.setAttribute('stroke-linejoin', 'round');
+  applySvgStroke(el, s.attrs, 'none');
+  if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
+  if (s.id) el.dataset.id = s.id;
+  return el;
 }
 
 function renderEllipse(s) {
