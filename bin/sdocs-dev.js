@@ -582,14 +582,51 @@ async function runSetup({ force = false } = {}) {
   console.log('\nDone. Run `sdoc setup` any time to revisit.');
 }
 
+// Pure: given a batch of refresh results plus the current binary version,
+// decide whether a missing setup.json should be lazily populated. Returns the
+// state object to write, or null to leave state untouched. Used by
+// `maybeAutoRefresh` to migrate pre-1.5.0 installs that wrote a block before
+// the setup flow existed.
+function implicitConsentState(results, version, now = new Date()) {
+  const changed = results.filter(r => r.changed);
+  if (changed.length === 0) return null;
+  if (results.some(r => r.error)) return null;
+  return {
+    setupCompleted: now.toISOString(),
+    writtenTo: changed.map(r => r.path),
+    declined: false,
+    autoRefreshAgentFiles: true,
+    autoInstallUpdates: false,
+    lastRunVersion: version,
+  };
+}
+
 // Auto-refresh existing agent files when the binary version is newer than the
 // version that last ran. No prompt: the user already consented during setup.
 // Bails on downgrades (block version > shipped version), errors, or partial
 // failures (lastRunVersion only advances when every changed file succeeded).
 async function maybeAutoRefresh() {
   if (process.env.SDOCS_NO_REFRESH) return;
-  const state = readSetupState();
-  if (!state) return;
+  let state = readSetupState();
+
+  // Implicit-consent migration for users who have a recognised SDocs block in
+  // an agent file but no `~/.sdocs/setup.json`. This is the pre-1.5.0 install
+  // path: the 1.4.x CLI wrote the block automatically before the setup flow
+  // existed, then those users upgraded to 1.5.0+ but never ran `sdoc setup`,
+  // so the normal auto-refresh bails on `!state` and the block stays stuck on
+  // the old format. `refreshContent` only signals `changed` for a block whose
+  // exact shape we wrote (legacy JoshInLisbon terminator, or our bookend
+  // markers); anything else is left untouched, so a user who deleted the
+  // block or hand-edited it doesn't get state silently created.
+  if (!state) {
+    const results = refreshAllAgentFiles();
+    const next = implicitConsentState(results, VERSION);
+    if (!next) return;
+    printRefreshSummary(results);
+    writeSetupState(next);
+    return;
+  }
+
   if (!state.autoRefreshAgentFiles) return;
   if (compareVersions(VERSION, state.lastRunVersion) <= 0) return;
 
@@ -601,6 +638,48 @@ async function maybeAutoRefresh() {
   if (!anyError) {
     writeSetupState({ ...state, lastRunVersion: VERSION });
   }
+}
+
+// `sdoc refresh` — unconditional agent-block refresh. Useful for users whose
+// setup.json was never written (pre-1.5.0 installs) or has been deleted, and
+// for agents that want to trigger the migration explicitly without going
+// through the interactive setup flow. Always rewrites stale/legacy blocks
+// it recognises, and persists setup state on success so the normal
+// auto-refresh path takes over from the next run.
+async function runRefresh() {
+  const existing = readSetupState();
+  const results = refreshAllAgentFiles();
+  const changed = results.filter(r => r.changed);
+  const errors  = results.filter(r => r.error);
+  const current = results.filter(r => r.reason === 'current');
+  const blocksPresent = changed.length + current.length;
+
+  printRefreshSummary(results);
+
+  if (changed.length === 0 && errors.length === 0) {
+    if (blocksPresent === 0) {
+      console.log('No SDocs blocks found in any agent file. Run `sdoc setup` to add one.');
+      return;
+    }
+    console.log(`All SDocs agent blocks already at v${AGENT_BLOCK_VERSION}.`);
+  }
+
+  if (errors.length > 0) return;
+
+  // Persist state so future runs flow through the normal auto-refresh path.
+  // Skip if we found nothing to manage and have no prior state — that's the
+  // "user never ran setup, no block anywhere" case, which belongs to
+  // `sdoc setup`, not here.
+  if (blocksPresent === 0 && !existing) return;
+
+  writeSetupState({
+    setupCompleted: existing?.setupCompleted || new Date().toISOString(),
+    writtenTo: [...changed, ...current].map(r => r.path),
+    declined: false,
+    autoRefreshAgentFiles: existing ? existing.autoRefreshAgentFiles !== false : true,
+    autoInstallUpdates: existing?.autoInstallUpdates ?? false,
+    lastRunVersion: VERSION,
+  });
 }
 
 // `sdoc auto-update on|off|status` — flips state.autoInstallUpdates.
@@ -647,6 +726,7 @@ USAGE
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
   sdoc setup                       Wire SDocs into your coding agents
+  sdoc refresh                     Update the SDocs section in agent files to the current version
   sdoc auto-update [on|off]        Toggle auto-install of sdoc updates
   sdoc safe                        Verify the SDocs server is running the published code
   sdoc safe --json                 Same, machine-readable (for agents)
@@ -1730,7 +1810,7 @@ async function runSafe(opts) {
 
 // ── Parse args ────────────────────────────────────────────
 
-const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts', 'diagrams', 'comments', 'setup', 'safe', 'auto-update']);
+const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts', 'diagrams', 'comments', 'setup', 'safe', 'auto-update', 'refresh']);
 
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
@@ -1981,6 +2061,7 @@ if (require.main === module) {
     if (opts.subcommand === 'diagrams') { console.log(DIAGRAMS_HELP); process.exit(0); }
     if (opts.subcommand === 'comments') { console.log(COMMENTS_HELP); process.exit(0); }
     if (opts.subcommand === 'setup')  { await runSetup({ force: true }); process.exit(0); }
+    if (opts.subcommand === 'refresh') { await runRefresh(); process.exit(0); }
     if (opts.subcommand === 'auto-update') {
       // Sub-arg lives in opts.file (positional). Accept on/off/empty.
       runAutoUpdateSubcommand((opts.file || '').toLowerCase());
@@ -2124,4 +2205,5 @@ module.exports = {
   refreshContent,
   compareVersions,
   migrateSetupState,
+  implicitConsentState,
 };
