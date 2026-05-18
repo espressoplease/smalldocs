@@ -290,6 +290,34 @@ function parseLine(raw, lineNumber) {
       }
       throw new Error('polygon: needs at least 2 points');
     }
+  } else if (kind === 'chev') {
+    // Chevron / arrow-block. Same coords as rect, plus a pointed tip on
+    // the right. Optional `notch=N` carves the left edge into a matching
+    // V so a row of chevrons interlocks (`> text >` style).
+    if (rest.length < 4) throw new Error('chev: needs 4 numeric args (got ' + rest.length + ')');
+    shape.x = parseNumber(rest[0], 'chev x');
+    shape.y = parseNumber(rest[1], 'chev y');
+    shape.w = parseNumber(rest[2], 'chev w');
+    shape.h = parseNumber(rest[3], 'chev h');
+    i = 4;
+  } else if (kind === 'bub') {
+    // Speech-bubble / callout. Body is a rounded rect at (x, y, w, h); a
+    // triangular tail points from the body's nearest edge to `tail=tx,ty`.
+    if (rest.length < 4) throw new Error('bub: needs 4 numeric args (got ' + rest.length + ')');
+    shape.x = parseNumber(rest[0], 'bub x');
+    shape.y = parseNumber(rest[1], 'bub y');
+    shape.w = parseNumber(rest[2], 'bub w');
+    shape.h = parseNumber(rest[3], 'bub h');
+    i = 4;
+  } else if (kind === 'cyl') {
+    // Cylinder. Bounding box (x, y, w, h); the visible top/bottom ellipse
+    // caps each take `lip` height (default ~15% of h, capped by w).
+    if (rest.length < 4) throw new Error('cyl: needs 4 numeric args (got ' + rest.length + ')');
+    shape.x = parseNumber(rest[0], 'cyl x');
+    shape.y = parseNumber(rest[1], 'cyl y');
+    shape.w = parseNumber(rest[2], 'cyl w');
+    shape.h = parseNumber(rest[3], 'cyl h');
+    i = 4;
   } else {
     throw new Error('Unknown shape "' + kind + '"');
   }
@@ -449,8 +477,52 @@ function parse(src) {
 
 // ─── Reference resolution ──────────────────────────────
 
+// Tip / notch / lip / tail defaults for the high-level shapes. Kept here
+// (rather than in the renderer) so contentBox and any geometry consumer
+// computes the same numbers without duplicating defaults.
+function chevTip(s) {
+  if (s.attrs && s.attrs.tip != null && s.attrs.tip !== '') {
+    var v = parseFloat(s.attrs.tip);
+    if (isFinite(v) && v >= 0) return Math.min(v, s.w);
+  }
+  return Math.min(s.h / 2, s.w * 0.25);
+}
+function chevNotch(s) {
+  if (s.attrs && s.attrs.notch != null && s.attrs.notch !== '') {
+    var v = parseFloat(s.attrs.notch);
+    if (isFinite(v) && v >= 0) return Math.min(v, s.w / 2);
+  }
+  return 0;
+}
+function cylLip(s) {
+  if (s.attrs && s.attrs.lip != null && s.attrs.lip !== '') {
+    var v = parseFloat(s.attrs.lip);
+    if (isFinite(v) && v > 0) return Math.min(v, s.h / 2);
+  }
+  return Math.min(s.h * 0.2, s.w * 0.4);
+}
+function bubTail(s) {
+  if (s.attrs && s.attrs.tail) {
+    var parts = String(s.attrs.tail).split(/[\s,]+/).filter(function (p) { return p !== ''; });
+    if (parts.length === 2) {
+      var tx = parseFloat(parts[0]);
+      var ty = parseFloat(parts[1]);
+      if (isFinite(tx) && isFinite(ty)) return { x: tx, y: ty };
+    }
+  }
+  return null;
+}
+
 function bboxOf(shape) {
   if (shape.kind === 'r') return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
+  if (shape.kind === 'chev' || shape.kind === 'cyl') {
+    return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
+  }
+  if (shape.kind === 'bub') {
+    // Body bbox only - the tail can poke outside, but the bounding box
+    // we report is the rectangular body for layout / contentBox purposes.
+    return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
+  }
   if (shape.kind === 'c') return { x: shape.cx - shape.r, y: shape.cy - shape.r, w: shape.r * 2, h: shape.r * 2 };
   if (shape.kind === 'e') return { x: shape.cx - shape.rx, y: shape.cy - shape.ry, w: shape.rx * 2, h: shape.ry * 2 };
   if (shape.kind === 'l' || shape.kind === 'a') {
@@ -503,6 +575,25 @@ function contentBox(shape) {
   }
   if (shape.kind === 'p') {
     return bboxOf(shape);
+  }
+  if (shape.kind === 'chev') {
+    // Text centres in the rectangular body, excluding the tip (and the
+    // notch indent if set). This is the whole point of `chev` over a
+    // hand-drawn polygon - the visual mass is the body, not the bbox.
+    var tip = chevTip(shape);
+    var notch = chevNotch(shape);
+    return { x: shape.x + notch, y: shape.y,
+             w: Math.max(0, shape.w - tip - notch), h: shape.h };
+  }
+  if (shape.kind === 'cyl') {
+    // Text centres in the cylindrical body (between the two ellipse caps).
+    var lip = cylLip(shape);
+    return { x: shape.x, y: shape.y + lip,
+             w: shape.w, h: Math.max(0, shape.h - 2 * lip) };
+  }
+  if (shape.kind === 'bub') {
+    // Text centres in the bubble body. The tail does not displace text.
+    return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
   }
   return null;
 }
@@ -797,6 +888,10 @@ exports.bboxOf = bboxOf;
 exports.checkGridBounds = checkGridBounds;
 exports.contentBox = contentBox;
 exports.parseTextBox = parseTextBox;
+exports.chevTip = chevTip;
+exports.chevNotch = chevNotch;
+exports.cylLip = cylLip;
+exports.bubTail = bubTail;
 exports.serialize = serialize;
 exports.serializeShape = serializeShape;
 exports.ANCHOR_TABLE = ANCHOR_TABLE;

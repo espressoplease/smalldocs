@@ -1589,13 +1589,19 @@ navigate.
 
 \u2500\u2500 RAW SHAPES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Templates encode their layouts in shape DSL (\`r\` / \`p\` / \`c\` /
-  \`e\` / \`l\` / \`a\`). As a consumer of a template, you don't see
-  these - you fill slots via \`#name: value\` (see TEMPLATES below).
-  If you're defining your own \`@template\`, or composing a custom
-  slide from raw shapes, run:
+  \`e\` / \`l\` / \`a\` / \`chev\` / \`bub\` / \`cyl\`). As a consumer of a
+  template, you don't see these - you fill slots via \`#name: value\`
+  (see TEMPLATES below). If you're defining your own \`@template\`,
+  or composing a custom slide from raw shapes, run:
 
     sdoc slides custom-shapes        Shape kinds, ids / @refs, layering,
                                      polygon gotchas, composite patterns
+
+  Three high-level shapes (\`chev\`, \`bub\`, \`cyl\`) ship with their
+  text-centring rect already tuned to the visual body, not the
+  bounding box. Reach for them before composing the equivalent
+  polygon by hand - they save lines AND get the text positioning
+  right by default.
 
 \u2500\u2500 SHAPE ATTRIBUTES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Between geometry and \`|\`:
@@ -2189,6 +2195,28 @@ rather than as designed.
                                    accepts \`^h\` between endpoints to bow)
   p x1,y1 x2,y2 ...    polygon    (segment operators between points:
                                    ~  ^h  >P  * P1 P2; see below)
+  chev x y w h         chevron / arrow-block (x,y = top-left; w,h = bbox
+                                   including the pointed right tip).
+                                   Text centres on the BODY (excluding
+                                   tip), not the bbox.
+                                   Attrs: tip=N (tip width, default
+                                   min(h/2, w*0.25)); notch=N (V-shaped
+                                   left edge for interlocking chevrons,
+                                   default 0).
+  bub x y w h          speech bubble / callout. Rounded rect body at
+                                   (x,y,w,h); the tail points from the
+                                   nearest edge to \`tail=tx,ty\` (target
+                                   point in grid units, REQUIRED).
+                                   Text centres in the body; the tail
+                                   does not displace text.
+                                   Attrs: tail=tx,ty (required);
+                                   radius=N (corner radius, default 1).
+  cyl x y w h          cylinder (database / storage shape). Top and
+                                   bottom ellipse caps each take \`lip\`
+                                   height (default ~20% of h, capped
+                                   by w). Text centres in the body
+                                   between the caps.
+                                   Attrs: lip=N (cap height).
 
   Arrow geometry: the coordinates are the line's centerline. The head is
   symmetric around the line, extending up to 3 * strokeWidth perpendicular

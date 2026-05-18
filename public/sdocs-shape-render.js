@@ -674,6 +674,133 @@ function renderCircle(s, svgHost) {
   return el;
 }
 
+function renderChev(s) {
+  var tip = window.SDocShapes.chevTip(s);
+  var notch = window.SDocShapes.chevNotch(s);
+  var x = s.x, y = s.y, w = s.w, h = s.h;
+  var d;
+  if (notch > 0) {
+    d = 'M ' + x + ' ' + y +
+        ' L ' + (x + w - tip) + ' ' + y +
+        ' L ' + (x + w) + ' ' + (y + h / 2) +
+        ' L ' + (x + w - tip) + ' ' + (y + h) +
+        ' L ' + x + ' ' + (y + h) +
+        ' L ' + (x + notch) + ' ' + (y + h / 2) +
+        ' Z';
+  } else {
+    d = 'M ' + x + ' ' + y +
+        ' L ' + (x + w - tip) + ' ' + y +
+        ' L ' + (x + w) + ' ' + (y + h / 2) +
+        ' L ' + (x + w - tip) + ' ' + (y + h) +
+        ' L ' + x + ' ' + (y + h) +
+        ' Z';
+  }
+  var el = document.createElementNS(SVG_NS, 'path');
+  el.setAttribute('d', d);
+  applySvgStroke(el, s.attrs, 'none');
+  if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
+  if (s.id) el.dataset.id = s.id;
+  return el;
+}
+
+function renderCyl(s) {
+  var lip = window.SDocShapes.cylLip(s);
+  var x = s.x, y = s.y, w = s.w, h = s.h;
+  var rx = w / 2;
+  var ry = lip / 2;
+  // Single closed path: over the top, down the right, under the bottom,
+  // close back up the left. The visible cylinder outline as one shape.
+  var d = 'M ' + x + ' ' + (y + ry) +
+          ' A ' + rx + ' ' + ry + ' 0 0 0 ' + (x + w) + ' ' + (y + ry) +
+          ' L ' + (x + w) + ' ' + (y + h - ry) +
+          ' A ' + rx + ' ' + ry + ' 0 0 1 ' + x + ' ' + (y + h - ry) +
+          ' Z';
+  var g = document.createElementNS(SVG_NS, 'g');
+  var body = document.createElementNS(SVG_NS, 'path');
+  body.setAttribute('d', d);
+  applySvgStroke(body, s.attrs, 'none');
+  if (!s.attrs.fill) body.setAttribute('fill', '#ffffff');
+  g.appendChild(body);
+  // The visible front arc of the TOP ellipse - drawn on top as a stroke
+  // only, so the cap reads as a 3D lid even when the body is filled.
+  var capColor = (s.attrs && s.attrs.stroke) || '#94a3b8';
+  var capW = (s.attrs && s.attrs.strokeWidth != null) ? s.attrs.strokeWidth : 0.06;
+  var cap = document.createElementNS(SVG_NS, 'path');
+  cap.setAttribute('d', 'M ' + x + ' ' + (y + ry) +
+                       ' A ' + rx + ' ' + ry + ' 0 0 0 ' + (x + w) + ' ' + (y + ry));
+  cap.setAttribute('fill', 'none');
+  cap.setAttribute('stroke', capColor);
+  cap.setAttribute('stroke-width', String(capW));
+  g.appendChild(cap);
+  if (s.id) g.dataset.id = s.id;
+  return g;
+}
+
+function renderBub(s) {
+  var tail = window.SDocShapes.bubTail(s);
+  var x = s.x, y = s.y, w = s.w, h = s.h;
+  var rad = (s.attrs && s.attrs.radius != null) ? parseFloat(s.attrs.radius) : 1;
+  if (!isFinite(rad) || rad < 0) rad = 0;
+  rad = Math.min(rad, w / 2, h / 2);
+
+  var g = document.createElementNS(SVG_NS, 'g');
+
+  // Rounded body rect
+  var body = document.createElementNS(SVG_NS, 'rect');
+  body.setAttribute('x', x);
+  body.setAttribute('y', y);
+  body.setAttribute('width', w);
+  body.setAttribute('height', h);
+  body.setAttribute('rx', rad);
+  body.setAttribute('ry', rad);
+  applySvgStroke(body, s.attrs, 'none');
+  if (!s.attrs.fill) body.setAttribute('fill', '#ffffff');
+  g.appendChild(body);
+
+  // Tail triangle: figure out the nearest edge to the tail target and
+  // emit a triangle from a 1.5-unit-wide base on that edge to the target.
+  if (tail) {
+    var fill = (s.attrs && s.attrs.fill) || '#ffffff';
+    var cx = x + w / 2;
+    var cy = y + h / 2;
+    var dx = tail.x - cx;
+    var dy = tail.y - cy;
+    var horiz = Math.abs(dx) * h > Math.abs(dy) * w; // pick edge by aspect
+    var baseW = Math.min(w, h) * 0.18;
+    var p1x, p1y, p2x, p2y;
+    if (horiz) {
+      // Left or right edge
+      var ex = dx > 0 ? x + w : x;
+      var ey = Math.max(y + baseW, Math.min(y + h - baseW, tail.y));
+      p1x = ex; p1y = ey - baseW / 2;
+      p2x = ex; p2y = ey + baseW / 2;
+    } else {
+      // Top or bottom edge
+      var ey2 = dy > 0 ? y + h : y;
+      var ex2 = Math.max(x + baseW, Math.min(x + w - baseW, tail.x));
+      p1x = ex2 - baseW / 2; p1y = ey2;
+      p2x = ex2 + baseW / 2; p2y = ey2;
+    }
+    var tailPath = document.createElementNS(SVG_NS, 'path');
+    tailPath.setAttribute('d',
+      'M ' + p1x + ' ' + p1y +
+      ' L ' + tail.x + ' ' + tail.y +
+      ' L ' + p2x + ' ' + p2y + ' Z');
+    tailPath.setAttribute('fill', fill);
+    // Stroke matches the body if present so the tail reads as one shape.
+    if (s.attrs && s.attrs.stroke) {
+      tailPath.setAttribute('stroke', s.attrs.stroke);
+      tailPath.setAttribute('stroke-width',
+        String((s.attrs.strokeWidth != null) ? s.attrs.strokeWidth : 0.06));
+      tailPath.setAttribute('stroke-linejoin', 'round');
+    }
+    g.appendChild(tailPath);
+  }
+
+  if (s.id) g.dataset.id = s.id;
+  return g;
+}
+
 function renderEllipse(s) {
   var el = document.createElementNS(SVG_NS, 'ellipse');
   el.setAttribute('cx', s.cx);
@@ -1315,15 +1442,21 @@ function renderShapes(dslText, wrap, options) {
           svg.appendChild(renderArrow(s, defsNeeded));
         } else if (s.kind === 'p') {
           svg.appendChild(renderPolygon(s, svg));
+        } else if (s.kind === 'chev') {
+          svg.appendChild(renderChev(s));
+        } else if (s.kind === 'cyl') {
+          svg.appendChild(renderCyl(s));
+        } else if (s.kind === 'bub') {
+          svg.appendChild(renderBub(s));
         }
         applyOpacity(svg, s.attrs);
         L.el.appendChild(svg);
-        // Text overlay (circle / ellipse / polygon with content) is an
-        // HTML div that sits AFTER its parent SVG in source order, so it
-        // paints on top of the shape it labels — matching the existing
-        // "text sits on the shape" expectation. The overlay picks up the
-        // same `opacity` inside renderTextOverlay so both fade together.
-        if ((s.kind === 'c' || s.kind === 'e' || s.kind === 'p') && s.content) {
+        // Text overlay (circle / ellipse / polygon / chev / cyl / bub
+        // with content) is an HTML div that sits AFTER its parent SVG
+        // in source order, so it paints on top of the shape it labels.
+        if ((s.kind === 'c' || s.kind === 'e' || s.kind === 'p' ||
+             s.kind === 'chev' || s.kind === 'cyl' || s.kind === 'bub') &&
+            s.content) {
           L.el.appendChild(renderTextOverlay(s, grid));
         }
       }
