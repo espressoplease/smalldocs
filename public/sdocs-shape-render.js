@@ -743,10 +743,15 @@ function renderBub(s) {
   if (!isFinite(rad) || rad < 0) rad = 0;
   rad = Math.min(rad, w / 2, h / 2);
 
-  // Trace the whole bubble (body + tail) as ONE closed path. A two-shape
-  // approach (rect + triangle) leaves a visible seam where their strokes
-  // meet at the tail base; a single path strokes the perimeter without
-  // an internal line.
+  // tailStyle picks the tail silhouette.
+  //   concave (default): sides curve toward the tail axis - elegant horn /
+  //                      teardrop. Reads as "designed."
+  //   sharp:             straight narrow triangle. Schematic, "needle."
+  //   wide:              straight wider triangle. Friendly, generic-callout.
+  var style = (s.attrs && s.attrs.tailStyle) || 'concave';
+  var STYLE = { sharp: 0.18, wide: 0.32, concave: 0.26 };
+  var baseW = (STYLE[style] != null ? STYLE[style] : STYLE.concave) * Math.min(w, h);
+
   var edge = null;
   if (tail) {
     var cx = x + w / 2;
@@ -756,18 +761,38 @@ function renderBub(s) {
     var horiz = Math.abs(dx) * h > Math.abs(dy) * w; // pick edge by aspect
     edge = horiz ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'bottom' : 'top');
   }
-  var baseW = Math.min(w, h) * 0.18;
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  // Build the SVG commands for the tail between two base points p1 and p2
+  // (in path traversal order), routed via the tail tip.
+  function tailCmds(p1, p2, tip) {
+    if (style === 'sharp' || style === 'wide') {
+      return ' L ' + p1.x + ' ' + p1.y +
+             ' L ' + tip.x + ' ' + tip.y +
+             ' L ' + p2.x + ' ' + p2.y;
+    }
+    // concave: quadratic Beziers whose control points are pulled toward the
+    // tail's central axis, so the sides bow inward and the silhouette tapers
+    // smoothly from base to tip.
+    var baseCx = (p1.x + p2.x) / 2;
+    var baseCy = (p1.y + p2.y) / 2;
+    var k = 0.35; // inward pull strength
+    var c1x = (p1.x + tip.x) / 2 + (baseCx - p1.x) * k;
+    var c1y = (p1.y + tip.y) / 2 + (baseCy - p1.y) * k;
+    var c2x = (p2.x + tip.x) / 2 + (baseCx - p2.x) * k;
+    var c2y = (p2.y + tip.y) / 2 + (baseCy - p2.y) * k;
+    return ' L ' + p1.x + ' ' + p1.y +
+           ' Q ' + c1x + ' ' + c1y + ' ' + tip.x + ' ' + tip.y +
+           ' Q ' + c2x + ' ' + c2y + ' ' + p2.x + ' ' + p2.y;
+  }
 
   var d = 'M ' + (x + rad) + ' ' + y;
 
   // Top edge -> top-right corner
   if (edge === 'top' && tail) {
     var ax = clamp(tail.x, x + rad + baseW / 2, x + w - rad - baseW / 2);
-    d += ' L ' + (ax - baseW / 2) + ' ' + y;
-    d += ' L ' + tail.x + ' ' + tail.y;
-    d += ' L ' + (ax + baseW / 2) + ' ' + y;
+    d += tailCmds({ x: ax - baseW / 2, y: y }, { x: ax + baseW / 2, y: y }, tail);
   }
   d += ' L ' + (x + w - rad) + ' ' + y;
   d += ' A ' + rad + ' ' + rad + ' 0 0 1 ' + (x + w) + ' ' + (y + rad);
@@ -775,9 +800,7 @@ function renderBub(s) {
   // Right edge -> bottom-right corner
   if (edge === 'right' && tail) {
     var ay = clamp(tail.y, y + rad + baseW / 2, y + h - rad - baseW / 2);
-    d += ' L ' + (x + w) + ' ' + (ay - baseW / 2);
-    d += ' L ' + tail.x + ' ' + tail.y;
-    d += ' L ' + (x + w) + ' ' + (ay + baseW / 2);
+    d += tailCmds({ x: x + w, y: ay - baseW / 2 }, { x: x + w, y: ay + baseW / 2 }, tail);
   }
   d += ' L ' + (x + w) + ' ' + (y + h - rad);
   d += ' A ' + rad + ' ' + rad + ' 0 0 1 ' + (x + w - rad) + ' ' + (y + h);
@@ -785,9 +808,7 @@ function renderBub(s) {
   // Bottom edge -> bottom-left corner
   if (edge === 'bottom' && tail) {
     var ax2 = clamp(tail.x, x + rad + baseW / 2, x + w - rad - baseW / 2);
-    d += ' L ' + (ax2 + baseW / 2) + ' ' + (y + h);
-    d += ' L ' + tail.x + ' ' + tail.y;
-    d += ' L ' + (ax2 - baseW / 2) + ' ' + (y + h);
+    d += tailCmds({ x: ax2 + baseW / 2, y: y + h }, { x: ax2 - baseW / 2, y: y + h }, tail);
   }
   d += ' L ' + (x + rad) + ' ' + (y + h);
   d += ' A ' + rad + ' ' + rad + ' 0 0 1 ' + x + ' ' + (y + h - rad);
@@ -795,9 +816,7 @@ function renderBub(s) {
   // Left edge -> top-left corner
   if (edge === 'left' && tail) {
     var ay2 = clamp(tail.y, y + rad + baseW / 2, y + h - rad - baseW / 2);
-    d += ' L ' + x + ' ' + (ay2 + baseW / 2);
-    d += ' L ' + tail.x + ' ' + tail.y;
-    d += ' L ' + x + ' ' + (ay2 - baseW / 2);
+    d += tailCmds({ x: x, y: ay2 + baseW / 2 }, { x: x, y: ay2 - baseW / 2 }, tail);
   }
   d += ' L ' + x + ' ' + (y + rad);
   d += ' A ' + rad + ' ' + rad + ' 0 0 1 ' + (x + rad) + ' ' + y;
