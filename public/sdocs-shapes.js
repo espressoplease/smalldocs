@@ -318,6 +318,36 @@ function parseLine(raw, lineNumber) {
     shape.w = parseNumber(rest[2], 'cyl w');
     shape.h = parseNumber(rest[3], 'cyl h');
     i = 4;
+  } else if (kind === 'tab') {
+    // Folder tab. (x, y, w, h) is the full bbox; a smaller rectangular
+    // tab sits on top-left, joined to the body with a slope. Text
+    // centres in the body (below the tab).
+    if (rest.length < 4) throw new Error('tab: needs 4 numeric args (got ' + rest.length + ')');
+    shape.x = parseNumber(rest[0], 'tab x');
+    shape.y = parseNumber(rest[1], 'tab y');
+    shape.w = parseNumber(rest[2], 'tab w');
+    shape.h = parseNumber(rest[3], 'tab h');
+    i = 4;
+  } else if (kind === 'doc') {
+    // Document with folded top-right corner. The fold size defaults to
+    // ~15% of min(w, h); the fold itself is drawn as a small triangle in
+    // a lighter tint so the corner reads as a 3D fold.
+    if (rest.length < 4) throw new Error('doc: needs 4 numeric args (got ' + rest.length + ')');
+    shape.x = parseNumber(rest[0], 'doc x');
+    shape.y = parseNumber(rest[1], 'doc y');
+    shape.w = parseNumber(rest[2], 'doc w');
+    shape.h = parseNumber(rest[3], 'doc h');
+    i = 4;
+  } else if (kind === 'cloud') {
+    // Cloud shape. Single SVG path with five Bezier bumps around the
+    // perimeter, no internal seams (unlike the hand-drawn "overlapping
+    // circles" workaround).
+    if (rest.length < 4) throw new Error('cloud: needs 4 numeric args (got ' + rest.length + ')');
+    shape.x = parseNumber(rest[0], 'cloud x');
+    shape.y = parseNumber(rest[1], 'cloud y');
+    shape.w = parseNumber(rest[2], 'cloud w');
+    shape.h = parseNumber(rest[3], 'cloud h');
+    i = 4;
   } else {
     throw new Error('Unknown shape "' + kind + '"');
   }
@@ -513,9 +543,27 @@ function bubTail(s) {
   return null;
 }
 
+// Defaults for tab / doc / cloud parameters - kept here so contentBox
+// computes the same numbers without duplicating the renderer's defaults.
+function tabHeight(s) {
+  if (s.attrs && s.attrs.tabH != null && s.attrs.tabH !== '') {
+    var v = parseFloat(s.attrs.tabH);
+    if (isFinite(v) && v > 0) return Math.min(v, s.h * 0.5);
+  }
+  return Math.min(s.h * 0.22, s.w * 0.18);
+}
+function docFold(s) {
+  if (s.attrs && s.attrs.fold != null && s.attrs.fold !== '') {
+    var v = parseFloat(s.attrs.fold);
+    if (isFinite(v) && v > 0) return Math.min(v, s.w * 0.5, s.h * 0.5);
+  }
+  return Math.min(s.w, s.h) * 0.15;
+}
+
 function bboxOf(shape) {
   if (shape.kind === 'r') return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
-  if (shape.kind === 'chev' || shape.kind === 'cyl') {
+  if (shape.kind === 'chev' || shape.kind === 'cyl' ||
+      shape.kind === 'tab' || shape.kind === 'doc' || shape.kind === 'cloud') {
     return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
   }
   if (shape.kind === 'bub') {
@@ -594,6 +642,26 @@ function contentBox(shape) {
   if (shape.kind === 'bub') {
     // Text centres in the bubble body. The tail does not displace text.
     return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
+  }
+  if (shape.kind === 'tab') {
+    // Text centres in the body (below the tab on top-left).
+    var th = tabHeight(shape);
+    return { x: shape.x, y: shape.y + th, w: shape.w, h: Math.max(0, shape.h - th) };
+  }
+  if (shape.kind === 'doc') {
+    // Text centres in the full body. The fold trims the top-right corner;
+    // for long titles this can clip slightly, so the author may want to
+    // shrink the shape or use a manual textBox.
+    return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
+  }
+  if (shape.kind === 'cloud') {
+    // Cloud text area is the inscribed rectangle - roughly the middle
+    // 70% of the bbox, where the silhouette is dense enough to host
+    // text without it floating over the bumps' negative space.
+    var insetX = shape.w * 0.15;
+    var insetY = shape.h * 0.20;
+    return { x: shape.x + insetX, y: shape.y + insetY,
+             w: shape.w - 2 * insetX, h: shape.h - 2 * insetY };
   }
   return null;
 }
@@ -892,6 +960,8 @@ exports.chevTip = chevTip;
 exports.chevNotch = chevNotch;
 exports.cylLip = cylLip;
 exports.bubTail = bubTail;
+exports.tabHeight = tabHeight;
+exports.docFold = docFold;
 exports.serialize = serialize;
 exports.serializeShape = serializeShape;
 exports.ANCHOR_TABLE = ANCHOR_TABLE;
