@@ -2228,6 +2228,30 @@ rather than as designed.
                                    by w). Text centres in the body
                                    between the caps.
                                    Attrs: lip=N (cap height).
+  tab x y w h          folder / step-marker tab. Body rectangle with
+                                   a smaller rectangular tab on top-left
+                                   joined by a slope. Text centres in
+                                   the body (below the tab).
+                                   Attrs: tabW=N (tab width, default
+                                   ~38% of w); tabH=N (tab height,
+                                   default min(0.22*h, 0.18*w)).
+  doc x y w h          document / page with a folded top-right corner.
+                                   Text centres in the body; the fold
+                                   triangle is rendered as an 18% black
+                                   overlay so the corner reads as a 3D
+                                   fold over any fill colour.
+                                   Attrs: fold=N (fold size, default
+                                   15% of min(w, h)).
+  cloud x y w h        cloud shape (abstract source / sink for arch
+                                   diagrams). Single SVG path adapted
+                                   from a real icon library; no internal
+                                   seams. Text centres in an inset body
+                                   (~15% horizontal, 20% vertical) so
+                                   it doesn't float over the bumps.
+                                   Attrs: variant=heroicons (default,
+                                   sharp / modern) | material (puffy /
+                                   friendly) | bootstrap (smooth /
+                                   balanced).
 
   Arrow geometry: the coordinates are the line's centerline. The head is
   symmetric around the line, extending up to 3 * strokeWidth perpendicular
