@@ -195,6 +195,43 @@ function loadPdfLib() {
   });
 }
 
+// ── PptxGenJS loader ──────────────────────────────────
+//
+// PptxGenJS expects JSZip to be globally available (it's a peer dep, not
+// bundled). Load JSZip first, then the pptxgen UMD; resolve when both are
+// ready. Caching the promise makes subsequent exports cheap.
+var pptxGenLoaded = null;
+function loadPptxGen() {
+  if (pptxGenLoaded) return pptxGenLoaded;
+  pptxGenLoaded = new Promise(function (resolve, reject) {
+    function loadScript(src) {
+      return new Promise(function (res, rej) {
+        var s = document.createElement('script');
+        s.src = src;
+        s.onload = function () { res(); };
+        s.onerror = function () { rej(new Error('Could not load ' + src)); };
+        document.head.appendChild(s);
+      });
+    }
+    var zipReady = window.JSZip
+      ? Promise.resolve()
+      : loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+    zipReady
+      .then(function () {
+        if (window.PptxGenJS) return;
+        return loadScript('https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.min.js');
+      })
+      .then(function () {
+        if (typeof window.PptxGenJS !== 'function') {
+          throw new Error('PptxGenJS global not constructable after load');
+        }
+        resolve();
+      })
+      .catch(function (e) { pptxGenLoaded = null; reject(e); });
+  });
+  return pptxGenLoaded;
+}
+
 // ── Font loading ──
 
 var fontBufCache = {};
@@ -1472,11 +1509,78 @@ async function exportSlidesPdf() {
 
 S.exportSlidesPdf = exportSlidesPdf;
 
+// ── PowerPoint export (editable) ──────────────────────
+
+async function exportSlidesPptx() {
+  var sources = document.querySelectorAll('.sdoc-slide[data-dsl]');
+  if (!sources.length) {
+    S.setStatus('No slides in this document');
+    return;
+  }
+  if (!window.SDocSlidePptx) {
+    S.setStatus('Slide PPTX renderer not loaded');
+    return;
+  }
+  S.setStatus('Generating PowerPoint…');
+  try {
+    await loadPptxGen();
+    var pres = new window.PptxGenJS();
+
+    // PowerPoint files carry ONE deck-wide slide size (<p:sldSz>); per-slide
+    // layouts can be defined but Keynote / PowerPoint apply the deck size
+    // to every slide on render. We pick the aspect of the first slide's
+    // grid (with a sensible cap) and stick with it for the whole deck.
+    // Decks that mix aspect ratios should be exported separately.
+    var slideW = 13.333, slideH = 7.5;
+    try {
+      var g0 = window.SDocShapes.parse(sources[0].getAttribute('data-dsl')).grid;
+      if (g0 && g0.w > 0 && g0.h > 0) {
+        slideH = (slideW * g0.h) / g0.w;
+        if (slideH > 10) { slideH = 10; slideW = (slideH * g0.w) / g0.h; }
+      }
+    } catch (e) { /* keep widescreen default */ }
+    pres.defineLayout({ name: 'SDOCS_LAYOUT', width: slideW, height: slideH });
+    pres.layout = 'SDOCS_LAYOUT';
+
+    var totalWarnings = 0;
+    for (var i = 0; i < sources.length; i++) {
+      if (sources.length > 1) S.setStatus('Rendering slide ' + (i + 1) + '/' + sources.length + '…');
+      var dsl = sources[i].getAttribute('data-dsl');
+      var slide = pres.addSlide();
+      var res = await window.SDocSlidePptx.drawSlide({
+        dsl: dsl, slide: slide, pres: pres,
+        slideW: slideW, slideH: slideH,
+      });
+      if (res && res.warnings) totalWarnings += res.warnings;
+    }
+
+    var name = ((S.currentMeta && S.currentMeta.title) || 'slides').replace(/[^a-z0-9_-]/gi, '_') + '-slides.pptx';
+    var blob = await pres.write({ outputType: 'blob' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    if (totalWarnings > 0) {
+      S.setStatus('PowerPoint downloaded with ' + totalWarnings + ' warning' + (totalWarnings === 1 ? '' : 's') + ' (see console)');
+    } else {
+      S.setStatus('PowerPoint downloaded');
+    }
+  } catch (e) {
+    S.setStatus('PowerPoint export failed: ' + e.message);
+    console.error(e);
+  }
+}
+
+S.exportSlidesPptx = exportSlidesPptx;
+
 // ── Export panel handlers ──────────────────────────────
 
 document.getElementById('_sd_exp-pdf').addEventListener('click', exportPDF);
 document.getElementById('_sd_exp-word').addEventListener('click', exportWord);
 document.getElementById('_sd_exp-slides-pdf').addEventListener('click', exportSlidesPdf);
+var pptxBtn = document.getElementById('_sd_exp-slides-pptx');
+if (pptxBtn) pptxBtn.addEventListener('click', exportSlidesPptx);
 
 document.getElementById('_sd_exp-raw').addEventListener('click', function() {
   download('document.md', S.currentBody);
