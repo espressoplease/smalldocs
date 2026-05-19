@@ -180,6 +180,85 @@ test.describe('Slide PDF export', () => {
     expect(allText).toContain('payload');
   });
 
+  test('compound shape kinds (chev/cyl/bub/tab/doc) survive as native PDF paths', async ({ page }) => {
+    test.setTimeout(45000);
+    // Pre-fix, the PDF dispatch only knew about r/c/e/l/a/p; chev/cyl/bub/
+    // tab/doc fell through silently, the shape geometry vanished from the
+    // PDF, and only the text overlay survived. We assert label text is
+    // present (so the overlay still draws) AND that the page contains zero
+    // embedded images for these slides — the new shapes go through native
+    // page.drawSvgPath rather than rasterising.
+    const md = deck([
+      'grid 100 56.25\nchev 10 10 60 8 fill=#fde68a | step',
+      'grid 100 56.25\ncyl 30 10 30 30 fill=#dbeafe | users',
+      'grid 100 56.25\nbub 20 10 50 20 fill=#fef3c7 tail=40,38 | hello',
+      'grid 100 56.25\ntab 10 10 60 30 fill=#fde68a | folder',
+      'grid 100 56.25\ndoc 10 10 50 30 fill=#ffffff stroke=#475569 | report',
+    ]);
+    const res = await exportAndAnalyze(page, md, 'slides');
+    expect(res.status).toBe('Slides PDF downloaded');
+    expect(res.numPages).toBe(5);
+    const labels = ['step', 'users', 'hello', 'folder', 'report'];
+    for (let i = 0; i < labels.length; i++) {
+      expect(res.pages[i].text).toContain(labels[i]);
+      // Native path = zero image XObjects for these shapes (the only image
+      // paint paths come from cloud/icon/charts/mermaid/math/image= fills).
+      expect(res.pages[i].imageCount).toBe(0);
+    }
+  });
+
+  test('cloud shape rasterises into the PDF and keeps its label', async ({ page }) => {
+    test.setTimeout(45000);
+    // Cloud's viewBox-relative path is baked into a <g transform>, which
+    // pdf-lib's drawSvgPath cannot uniform-scale. The exporter rasterises
+    // the live SVG and embeds a PNG instead.
+    const md = deck([
+      'grid 100 56.25\ncloud 30 10 40 30 fill=#dbeafe stroke=#1d4ed8 | sky',
+    ]);
+    const res = await exportAndAnalyze(page, md, 'slides');
+    expect(res.status).toBe('Slides PDF downloaded');
+    expect(res.pages[0].imageCount).toBeGreaterThan(0);
+    expect(res.pages[0].text).toContain('sky');
+  });
+
+  test('icon shape rasterises into the PDF when the Lucide bundle is available', async ({ page }) => {
+    test.setTimeout(45000);
+    // The icon bundle (1960 Lucide icons) is lazy-loaded on first use.
+    // drawSlide waits for window.SDocIcons to populate before rasterising,
+    // otherwise icons would round-trip as dashed placeholders. We assert at
+    // least one image XObject lands on the page; a placeholder would still
+    // produce one (a rasterised dashed rect), but a totally missing dispatch
+    // would produce zero.
+    const md = deck([
+      'grid 100 56.25\nicon 30 18 20 20 name=database color=#1d4ed8\nicon 55 18 20 20 name=cloud-upload color=#166534',
+    ]);
+    const res = await exportAndAnalyze(page, md, 'slides');
+    expect(res.status).toBe('Slides PDF downloaded');
+    // Two icons -> at least 2 image paints.
+    expect(res.pages[0].imageCount).toBeGreaterThanOrEqual(2);
+  });
+
+  test('textAngle rotated text survives as readable text, not scrambled glyphs', async ({ page }) => {
+    test.setTimeout(45000);
+    // Pre-fix, rotated text was drawn glyph-by-glyph at post-rotation rects
+    // using the unrotated baseline, producing scrambled output. Each glyph
+    // was extractable but its position was wrong. We assert the full label
+    // round-trips as one contiguous string in the PDF's text content, which
+    // only happens when the rotated drawer emits a single drawText with
+    // pdf-lib's `rotate` option.
+    const md = deck([
+      'grid 100 56.25\nr 10 10 30 36 fill=#fde68a textAngle=90 | axis label\nr 50 10 30 36 fill=#bfdbfe textAngle=-90 | other axis\nr 50 10 30 36 fill=#fecaca textAngle=180 | upside down',
+    ]);
+    const res = await exportAndAnalyze(page, md, 'slides');
+    expect(res.status).toBe('Slides PDF downloaded');
+    const text = res.pages[0].text;
+    // Each rotated label appears as a single contiguous string. We don't
+    // assert position; we assert non-fragmentation.
+    expect(text).toContain('axis label');
+    expect(text).toContain('other axis');
+    expect(text).toContain('upside down');
+  });
+
   test('polyPath emits curve commands for every segment operator', async ({ page }) => {
     // Not a PDF test - guards the renderer geometry the PDF exporter reuses.
     // A regression here would turn curves back into straight lines.

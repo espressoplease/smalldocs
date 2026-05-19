@@ -543,19 +543,159 @@ function drawShapePolygon(page, s, grid, bounds) {
     d += ' Z';
   }
   if (!d) return;
+  drawGridSvgPath(page, d, s, grid, bounds);
+}
 
+// Shared helper for any shape whose geometry is expressed as an SVG path
+// in grid coordinates. drawSvgPath's `scale` + automatic y-flip place the
+// path; the grid aspect equals the bounds aspect (stage sized from grid,
+// page sized from grid), so uniform scale is correct. `scale` multiplies
+// borderWidth too, so divide it out.
+function drawGridSvgPath(page, d, s, grid, bounds, overrides) {
   var scale = bounds.w / grid.w;
-  var fill = s.attrs.fill ? toHex(s.attrs.fill) : '#ffffff';
-  var stroke = s.attrs.stroke && s.attrs.stroke !== 'none' ? toHex(s.attrs.stroke) : null;
-  var sw = stroke ? strokeWidthPt(s.attrs, grid, bounds) : 0;
+  var fill = (overrides && 'fill' in overrides)
+    ? overrides.fill
+    : (s.attrs && s.attrs.fill ? toHex(s.attrs.fill) : '#ffffff');
+  var stroke = (overrides && 'stroke' in overrides)
+    ? overrides.stroke
+    : (s.attrs && s.attrs.stroke && s.attrs.stroke !== 'none' ? toHex(s.attrs.stroke) : null);
+  var sw = (overrides && 'strokeWidthPt' in overrides)
+    ? overrides.strokeWidthPt
+    : (stroke ? strokeWidthPt(s.attrs, grid, bounds) : 0);
   var opts = { x: bounds.x, y: bounds.y + bounds.h, scale: scale };
   if (fill) opts.color = hexToRgbPdf(fill);
   if (stroke) {
     opts.borderColor = hexToRgbPdf(stroke);
     opts.borderWidth = sw / scale;
   }
-  applyShapeOpacity(opts, s.attrs);
+  if (overrides && overrides.opacity != null) {
+    opts.opacity = overrides.opacity;
+    opts.borderOpacity = overrides.opacity;
+  } else {
+    applyShapeOpacity(opts, s.attrs);
+  }
   page.drawSvgPath(d, opts);
+}
+
+function drawShapeChev(page, s, grid, bounds) {
+  var path = window.SDocShapeRender && window.SDocShapeRender.chevPath;
+  if (!path) return;
+  drawGridSvgPath(page, path(s), s, grid, bounds);
+}
+
+function drawShapeCyl(page, s, grid, bounds) {
+  var make = window.SDocShapeRender && window.SDocShapeRender.cylPaths;
+  if (!make) return;
+  var p = make(s);
+  // Body uses the shape's own fill/stroke. Cap is a stroke-only arc drawn
+  // on top so the lid reads as 3D even when the body is filled.
+  drawGridSvgPath(page, p.body, s, grid, bounds);
+  // Cap stroke width is in grid units; convert to pt and divide out the
+  // path scale (matching drawShapePolygon's borderWidth pattern).
+  var scale = bounds.w / grid.w;
+  var capSwPt = (p.capW / grid.w) * bounds.w;
+  drawGridSvgPath(page, p.cap, s, grid, bounds, {
+    fill: null,
+    stroke: toHex(p.capColor) || '#94a3b8',
+    strokeWidthPt: capSwPt,
+  });
+  // Workaround: drawGridSvgPath sets borderWidth = sw / scale, then the
+  // shared call also passes scale, so the cap stroke gets divided once.
+  // We computed capSwPt above so the divide-out matches the body's path.
+  // (No additional fix needed; the math collapses to capSwPt in PDF pt.)
+}
+
+function drawShapeBub(page, s, grid, bounds) {
+  var path = window.SDocShapeRender && window.SDocShapeRender.bubPath;
+  if (!path) return;
+  drawGridSvgPath(page, path(s), s, grid, bounds);
+}
+
+function drawShapeTab(page, s, grid, bounds) {
+  var path = window.SDocShapeRender && window.SDocShapeRender.tabPath;
+  if (!path) return;
+  drawGridSvgPath(page, path(s), s, grid, bounds);
+}
+
+function drawShapeDoc(page, s, grid, bounds) {
+  var make = window.SDocShapeRender && window.SDocShapeRender.docPaths;
+  if (!make) return;
+  var p = make(s);
+  drawGridSvgPath(page, p.body, s, grid, bounds);
+  // Fold overlay: semi-transparent black so the corner reads as a 3D
+  // fold over any body fill colour. ~0.18 alpha matches the renderer.
+  drawGridSvgPath(page, p.fold, s, grid, bounds, {
+    fill: '#000000',
+    stroke: null,
+    opacity: 0.18,
+  });
+}
+
+// Cloud and icon shapes have geometry that isn't expressed as a single
+// transform-friendly path in grid coords (cloud uses a viewBox-relative
+// path baked into a <g transform>; icon is a nested 24x24 SVG containing
+// arbitrary library content). Rather than re-implement an SVG path
+// transformer, find the rendered `.shape-svg` wrapper on the live stage,
+// serialize it standalone, rasterize via canvas at 2x DPR, and embed the
+// PNG into the page at the shape's grid bbox.
+async function drawShapeViaRaster(pdfDoc, page, s, idx, grid, bounds, stage) {
+  if (!stage) return;
+  var SDocShapes = window.SDocShapes;
+  var bb = SDocShapes.bboxOf(s);
+  if (!bb || bb.w <= 0 || bb.h <= 0) return;
+
+  var wrap = stage.querySelector('.shape-svg[data-shape-idx="' + idx + '"]');
+  if (!wrap) return;
+
+  // Build a standalone <svg> for serialization. Cloning the wrap drops the
+  // live document's CSS, but the cloud + icon shapes carry colour / stroke
+  // attributes inline so the rasterized output matches the on-screen one.
+  var clone = wrap.cloneNode(true);
+  // The live wrap uses preserveAspectRatio="none" + 100% sizing inside the
+  // stage. For standalone rasterization, set an explicit pixel size so the
+  // canvas image renders at a known resolution, and clip the viewBox to
+  // just the shape's bbox so the PNG isn't padded with empty grid space.
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clone.setAttribute('viewBox', bb.x + ' ' + bb.y + ' ' + bb.w + ' ' + bb.h);
+  clone.removeAttribute('preserveAspectRatio');
+  // Target ~2x DPR raster of the on-page size in pt. PDF points -> px ~1:1
+  // at 72dpi; 2x for crispness on retina renderings.
+  var pxW = Math.max(8, Math.ceil(gridToPdfW(bb.w, grid, bounds) * 2));
+  var pxH = Math.max(8, Math.ceil(gridToPdfH(bb.h, grid, bounds) * 2));
+  clone.setAttribute('width', String(pxW));
+  clone.setAttribute('height', String(pxH));
+
+  var svgStr = new XMLSerializer().serializeToString(clone);
+  // btoa wants Latin-1; encode via unescape(encodeURIComponent(...)) to
+  // round-trip any non-ASCII chars in the path data.
+  var dataUrl = 'data:image/svg+xml;base64,' +
+                btoa(unescape(encodeURIComponent(svgStr)));
+
+  var img = await new Promise(function (resolve, reject) {
+    var im = new Image();
+    im.onload = function () { resolve(im); };
+    im.onerror = function (e) { reject(e); };
+    im.src = dataUrl;
+  });
+
+  var canvas = document.createElement('canvas');
+  canvas.width = pxW;
+  canvas.height = pxH;
+  var cctx = canvas.getContext('2d');
+  cctx.drawImage(img, 0, 0, pxW, pxH);
+  var pngData = canvas.toDataURL('image/png');
+
+  var embedded = await pdfDoc.embedPng(pngData);
+  var drawW = gridToPdfW(bb.w, grid, bounds);
+  var drawH = gridToPdfH(bb.h, grid, bounds);
+  var drawX = gridToPdfX(bb.x, grid, bounds);
+  // gridTopToPdfY returns the TOP edge in PDF coords; drawImage anchors at
+  // bottom-left, so subtract the image height.
+  var drawY = gridTopToPdfY(bb.y, grid, bounds) - drawH;
+  var imgOpts = { x: drawX, y: drawY, width: drawW, height: drawH };
+  var op = shapeOpacity(s.attrs);
+  if (op != null) imgOpts.opacity = op;
+  page.drawImage(embedded, imgOpts);
 }
 
 // ─── Font picking ──────────────────────────────────────
@@ -979,6 +1119,121 @@ function drawTableCells(table, stageRect, page, bounds, op) {
 
 // ─── Shape content (decorations + text) ────────────────
 
+// Resolve the parsed shape carried by a text container. Set in renderShapes
+// (.shape-rect / .shape-text both get data-shape-idx). null when the
+// container isn't tied to a parsed shape (defensive — every overlay should
+// carry the index).
+function shapeForContainer(container, shapes) {
+  if (!container || !container.dataset) return null;
+  var idx = parseInt(container.dataset.shapeIdx, 10);
+  if (isNaN(idx) || idx < 0 || idx >= shapes.length) return null;
+  return shapes[idx];
+}
+
+function normalizeAngle(raw) {
+  if (raw == null || raw === '') return 0;
+  var n = parseFloat(raw);
+  if (!isFinite(n) || n === 0) return 0;
+  return ((n % 360) + 540) % 360 - 180;
+}
+
+// For containers whose parent shape declares textAngle, the on-screen
+// renderer rotates the content via CSS (writing-mode for ±90, transform
+// rotate(...) otherwise). The standard per-glyph PDF text drawer reads
+// post-rotation screen rects and groups characters by `top`, which
+// fragments rotated text into per-glyph "lines" drawn unrotated. Result:
+// scrambled glyphs (90°/45°), invisible text (-90°), or unrotated text
+// (180°).
+//
+// Approach: collapse the rendered content into a single un-rotated text
+// run and draw it once via pdf-lib's `rotate` option, anchored at the
+// shape's bbox centre. Loses fine multi-line layout and per-run styling
+// (one colour / one font / one size) but preserves the only thing
+// rotated text typically carries — an axis label, a vertical title, a
+// watermark. The slides docs already constrain non-cardinal angles to
+// single-line short strings.
+function drawRotatedShapeText(container, shape, angle, grid, bounds, page, fonts) {
+  var shapeMd = container.querySelector('.shape-md');
+  if (!shapeMd || !shapeMd.shadowRoot) return;
+  var inner = shapeMd.shadowRoot.querySelector('.inner');
+  if (!inner) return;
+
+  var text = (inner.textContent || '').replace(/\s+/g, ' ').trim();
+  if (!text) return;
+
+  // Sample font / colour / size off the first non-empty descendant so the
+  // PDF uses styling that matches what the user saw on screen.
+  var sample = null;
+  var els = inner.querySelectorAll('*');
+  for (var k = 0; k < els.length; k++) {
+    if (els[k].getBoundingClientRect().height > 0) { sample = els[k]; break; }
+  }
+  if (!sample) sample = inner;
+  var cs = getComputedStyle(sample);
+  var fontPx = parseFloat(cs.fontSize);
+  if (!(fontPx > 0)) return;
+  // The stage is 1280px wide; bounds.w is the page width in pt. Scale font
+  // size accordingly so PDF text matches on-screen size.
+  var fontPt = fontPx * (bounds.w / STAGE_W);
+  if (fontPt < 0.5) return;
+
+  var font = pickFont(sample, fonts) || fonts.body;
+  if (!font) return;
+  var color = hexToRgbPdf(rgbStrToHex(cs.color) || '#000000');
+
+  var SDocShapes = window.SDocShapes;
+  var bb = SDocShapes.bboxOf(shape);
+  if (!bb) return;
+  // Shape bbox centre in PDF pt.
+  var cxPdf = gridToPdfX(bb.x + bb.w / 2, grid, bounds);
+  var cyPdf = gridPointToPdfY(bb.y + bb.h / 2, grid, bounds);
+
+  // Measure the un-rotated text so we can centre it on the shape.
+  var textW;
+  try { textW = font.widthOfTextAtSize(text, fontPt); } catch (e) { textW = text.length * fontPt * 0.55; }
+  var ascent = fontPt * BASELINE_RATIO;
+  var descent = fontPt - ascent;
+  var textH = fontPt;
+
+  // pdf-lib's `rotate` rotates the entire text block around the
+  // (x, y) origin counterclockwise by `angle` degrees. CSS rotate(N)
+  // rotates the element CLOCKWISE by N (in screen coords). To match the
+  // on-screen rotation, negate: PDF angle = -textAngle.
+  //
+  // To centre the rotated text on (cxPdf, cyPdf):
+  //   - Un-rotated, the text's centre relative to its baseline origin
+  //     is at offset (textW/2, ascent/2 - descent/2). Approximate as
+  //     (textW/2, fontPt * 0.3) so the visual centre of the glyph row
+  //     lands on the pivot.
+  //   - That offset rotates around the origin by `pdfAngle`. We want the
+  //     post-rotation offset to land at (cxPdf, cyPdf), so set
+  //     origin = (cxPdf, cyPdf) - rotated_offset.
+  var pdfAngle = -angle;
+  var rad = pdfAngle * Math.PI / 180;
+  var c = Math.cos(rad), s = Math.sin(rad);
+  var ox = textW / 2;
+  var oy = fontPt * 0.30;
+  // Rotate (ox, oy) by pdfAngle.
+  var rx = c * ox - s * oy;
+  var ry = s * ox + c * oy;
+
+  var opts = {
+    x: cxPdf - rx,
+    y: cyPdf - ry,
+    size: fontPt,
+    font: font,
+    color: color,
+    rotate: window.PDFLib.degrees(pdfAngle),
+  };
+  try {
+    page.drawText(text, opts);
+  } catch (e) {
+    if (font !== fonts.body) {
+      try { opts.font = fonts.body; page.drawText(text, opts); } catch (e2) { /* give up */ }
+    }
+  }
+}
+
 async function drawShapeContent(container, stageRect, page, bounds, fonts, pdfDoc) {
   var shapeMd = container.querySelector('.shape-md');
   if (!shapeMd || !shapeMd.shadowRoot) return;
@@ -1117,7 +1372,12 @@ async function drawSlide(ctx) {
     }
 
     // Draw shape primitives from the parsed data (not DOM) — faster and
-    // avoids SVG-to-PDF coord conversion hell.
+    // avoids SVG-to-PDF coord conversion hell. chev/cyl/bub/tab/doc reuse
+    // the on-screen path math via SDocShapeRender helpers and emit a real
+    // PDF path; cloud + icon (transform-baked viewBox content and the
+    // 1960-icon Lucide bundle respectively) round-trip through a raster
+    // pass below since the path math doesn't translate to a single
+    // uniform-scale drawSvgPath call.
     for (var i = 0; i < shapes.length; i++) {
       var s = shapes[i];
       try {
@@ -1127,8 +1387,46 @@ async function drawSlide(ctx) {
         else if (s.kind === 'l') drawShapeLine(page, s, grid, bounds);
         else if (s.kind === 'a') drawShapeArrow(page, s, grid, bounds);
         else if (s.kind === 'p') drawShapePolygon(page, s, grid, bounds);
+        else if (s.kind === 'chev') drawShapeChev(page, s, grid, bounds);
+        else if (s.kind === 'cyl') drawShapeCyl(page, s, grid, bounds);
+        else if (s.kind === 'bub') drawShapeBub(page, s, grid, bounds);
+        else if (s.kind === 'tab') drawShapeTab(page, s, grid, bounds);
+        else if (s.kind === 'doc') drawShapeDoc(page, s, grid, bounds);
       } catch (err) {
         if (window.console) console.warn('slide-pdf shape draw failed:', err);
+      }
+    }
+
+    // If the slide carries any `icon` shapes, wait for the lazy-loaded
+    // Lucide bundle to populate before rasterising. Without this, icons
+    // rendered immediately after first render would still be dashed-rect
+    // placeholders at export time. Window.SDocIcons becoming a populated
+    // object signals the bundle script ran and the placeholder swap pass
+    // completed synchronously. Cap at ~5s so a CDN failure doesn't hang
+    // the export — degraded output is better than no PDF.
+    var hasIcons = false;
+    for (var hi = 0; hi < shapes.length; hi++) {
+      if (shapes[hi].kind === 'icon') { hasIcons = true; break; }
+    }
+    if (hasIcons) {
+      var deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        if (window.SDocIcons && Object.keys(window.SDocIcons).length > 0) break;
+        await new Promise(function (r) { setTimeout(r, 50); });
+      }
+    }
+
+    // Raster pass for shapes whose live DOM is the source of truth
+    // (cloud's viewBox transform; icon's nested 24x24 SVG of bundled
+    // library content). Runs after the native pass and before image fills
+    // so non-rasterised primitives that share a layer stay vector.
+    for (var ri = 0; ri < shapes.length; ri++) {
+      var rs = shapes[ri];
+      if (rs.kind !== 'cloud' && rs.kind !== 'icon') continue;
+      try {
+        await drawShapeViaRaster(ctx.pdfDoc, page, rs, ri, grid, bounds, st.stage);
+      } catch (err) {
+        if (window.console) console.warn('slide-pdf raster shape draw failed:', err);
       }
     }
 
@@ -1153,12 +1451,22 @@ async function drawSlide(ctx) {
     // snapshotting the DOM, or they'd be captured as source / half-drawn.
     await waitForShadowBlocks(st.stage);
 
-    // Draw text + rich content from the rendered DOM.
+    // Draw text + rich content from the rendered DOM. Containers whose
+    // parent shape declares textAngle bypass the per-glyph walk and emit
+    // a single rotated drawText call — see drawRotatedShapeText for the
+    // reasoning.
     var stageRect = st.stage.getBoundingClientRect();
     var textContainers = st.stage.querySelectorAll('.shape-rect, .shape-text');
     for (var j = 0; j < textContainers.length; j++) {
+      var tc = textContainers[j];
+      var tcShape = shapeForContainer(tc, shapes);
+      var tcAngle = tcShape ? normalizeAngle(tcShape.attrs && tcShape.attrs.textAngle) : 0;
       try {
-        await drawShapeContent(textContainers[j], stageRect, page, bounds, fonts, ctx.pdfDoc);
+        if (tcAngle !== 0 && tcShape) {
+          drawRotatedShapeText(tc, tcShape, tcAngle, grid, bounds, page, fonts);
+        } else {
+          await drawShapeContent(tc, stageRect, page, bounds, fonts, ctx.pdfDoc);
+        }
       } catch (err) {
         if (window.console) console.warn('slide-pdf text draw failed:', err);
       }
