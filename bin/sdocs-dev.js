@@ -1477,6 +1477,56 @@ function printSlideStdlib() {
   console.log('Define a user @template with the same name to override (you\'ll get a warning).');
 }
 
+function printIconList(query) {
+  var names;
+  try {
+    names = require('./sdocs-icon-names.js');
+  } catch (e) {
+    console.error('sdoc: icon names manifest missing (bin/sdocs-icon-names.js).');
+    console.error('Run `node scripts/build-icons.js` to generate it.');
+    process.exit(1);
+  }
+
+  var q = (query || '').toLowerCase().trim();
+  var matches = q ? names.filter(function (n) { return n.indexOf(q) !== -1; }) : names;
+
+  if (q && matches.length === 0) {
+    console.log('No Lucide icons match "' + query + '".');
+    console.log('Browse the full set at https://lucide.dev/icons/ or run `sdoc slides icons` to list everything.');
+    return;
+  }
+
+  if (q) {
+    console.log('Lucide icons matching "' + query + '" (' + matches.length + ' of ' + names.length + ')');
+  } else {
+    console.log('Lucide icons available to the `icon` shape kind (' + names.length + ' total)');
+  }
+  console.log('Source: https://lucide.dev/icons/  -  use `name=<icon>` in slides');
+  console.log('');
+
+  // Pack into 4 columns, longest name sets the column width.
+  var longest = matches.reduce(function (m, n) { return n.length > m ? n.length : m; }, 0);
+  var colWidth = longest + 2;
+  var cols = 4;
+  var rows = Math.ceil(matches.length / cols);
+  for (var r = 0; r < rows; r++) {
+    var line = '';
+    for (var c = 0; c < cols; c++) {
+      var idx = c * rows + r;
+      if (idx >= matches.length) break;
+      var name = matches[idx];
+      while (name.length < colWidth) name += ' ';
+      line += name;
+    }
+    console.log(line.replace(/\s+$/, ''));
+  }
+
+  if (!q) {
+    console.log('');
+    console.log('Tip: filter with `sdoc slides icons <substring>` (e.g. `sdoc slides icons cloud`).');
+  }
+}
+
 const SLIDES_HELP = `
 SDocs — Slides
 ==============
@@ -1491,6 +1541,8 @@ navigate.
   sdoc <file>                      Open normally (click a slide's present icon)
   sdoc slides                      This help
   sdoc slides list                 List built-in templates + slot names
+  sdoc slides icons [query]        List the Lucide icons available to the
+                                   \`icon\` shape kind. Optional substring filter.
   sdoc slides custom-shapes        Long-tail notes for raw-shape custom slides
                                    (polygon text, composite patterns, layering).
                                    Most decks use \`@extends\` and never need this.
@@ -1602,6 +1654,25 @@ navigate.
   bounding box. Reach for them before composing the equivalent
   polygon by hand - they save lines AND get the text positioning
   right by default.
+
+\u2500\u2500 ICONS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  The \`icon\` shape kind renders an inline outline icon from the
+  bundled Lucide library (https://lucide.dev/icons/, ~1960 icons).
+  Use it to mark concepts on a slide - a user, a database, a cloud,
+  a lock - without resorting to emoji or raster images.
+
+    icon 8 30 6 6 name=user color=#0F1E3A
+    icon 20 30 6 6 name=database
+    icon 32 30 6 6 name=cloud-upload strokeWidth=2
+
+  Unknown names render a pink struck-through placeholder, so typos
+  are visible rather than silent. To find an icon name, run:
+
+    sdoc slides icons              List every available name
+    sdoc slides icons cloud        Filter by substring
+
+  Full attribute reference (color, strokeWidth, lazy-load behaviour)
+  lives in \`sdoc slides custom-shapes\` under the \`icon\` shape entry.
 
 \u2500\u2500 SHAPE ATTRIBUTES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Between geometry and \`|\`:
@@ -2258,14 +2329,20 @@ rather than as designed.
                                    \`color=\` attribute.
                                    Attrs:
                                      name=<icon>  (required) - any name
-                                                  from lucide.dev/icons/
-                                                  (e.g. user, database,
-                                                  server, lock, cloud,
-                                                  search, trending-up).
-                                                  Unknown names render
-                                                  a pink struck-through
-                                                  rect placeholder so
-                                                  typos are visible.
+                                                  from the bundled Lucide
+                                                  set. Run
+                                                  \`sdoc slides icons\` to
+                                                  list everything, or
+                                                  \`sdoc slides icons cloud\`
+                                                  to filter by substring.
+                                                  Common ones: user,
+                                                  database, server, lock,
+                                                  cloud, search,
+                                                  trending-up. Unknown
+                                                  names render a pink
+                                                  struck-through rect
+                                                  placeholder so typos
+                                                  are visible.
                                      color=<hex>  stroke colour
                                                   (default #0F1E3A).
                                      strokeWidth=N  outline width
@@ -3041,6 +3118,7 @@ const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'char
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
   let file = null;
+  let extra = null;
   let mode = null;
   let url = null;
   let subcommand = null;
@@ -3102,9 +3180,10 @@ function parseArgs(argv) {
     }
 
     if (!file) { file = arg; continue; }
+    if (!extra) { extra = arg; continue; }
   }
 
-  return { file, mode, url, subcommand, section, theme, resetFlag, shortFlag, jsonFlag, auditFlag };
+  return { file, extra, mode, url, subcommand, section, theme, resetFlag, shortFlag, jsonFlag, auditFlag };
 }
 
 // ── Build URL ─────────────────────────────────────────────
@@ -3293,6 +3372,7 @@ if (require.main === module) {
     if (opts.subcommand === 'slides') {
       if (opts.file === 'list') { printSlideStdlib(); process.exit(0); }
       if (opts.file === 'custom-shapes') { console.log(SLIDES_CUSTOM_SHAPES_HELP); process.exit(0); }
+      if (opts.file === 'icons') { printIconList(opts.extra); process.exit(0); }
       console.log(SLIDES_HELP);
       process.exit(0);
     }
