@@ -674,69 +674,81 @@ function renderCircle(s, svgHost) {
   return el;
 }
 
-function renderChev(s) {
+// Pure path-builder helpers — return the SVG `d` string for each shape in
+// grid coordinates. The renderer wraps the result in an SVG <path> element;
+// the slide-PDF exporter reuses the same strings via `page.drawSvgPath`, so
+// vector output stays identical across both surfaces.
+function chevPath(s) {
   var tip = window.SDocShapes.chevTip(s);
   var notch = window.SDocShapes.chevNotch(s);
   var x = s.x, y = s.y, w = s.w, h = s.h;
-  var d;
   if (notch > 0) {
-    d = 'M ' + x + ' ' + y +
-        ' L ' + (x + w - tip) + ' ' + y +
-        ' L ' + (x + w) + ' ' + (y + h / 2) +
-        ' L ' + (x + w - tip) + ' ' + (y + h) +
-        ' L ' + x + ' ' + (y + h) +
-        ' L ' + (x + notch) + ' ' + (y + h / 2) +
-        ' Z';
-  } else {
-    d = 'M ' + x + ' ' + y +
-        ' L ' + (x + w - tip) + ' ' + y +
-        ' L ' + (x + w) + ' ' + (y + h / 2) +
-        ' L ' + (x + w - tip) + ' ' + (y + h) +
-        ' L ' + x + ' ' + (y + h) +
-        ' Z';
+    return 'M ' + x + ' ' + y +
+           ' L ' + (x + w - tip) + ' ' + y +
+           ' L ' + (x + w) + ' ' + (y + h / 2) +
+           ' L ' + (x + w - tip) + ' ' + (y + h) +
+           ' L ' + x + ' ' + (y + h) +
+           ' L ' + (x + notch) + ' ' + (y + h / 2) +
+           ' Z';
   }
+  return 'M ' + x + ' ' + y +
+         ' L ' + (x + w - tip) + ' ' + y +
+         ' L ' + (x + w) + ' ' + (y + h / 2) +
+         ' L ' + (x + w - tip) + ' ' + (y + h) +
+         ' L ' + x + ' ' + (y + h) +
+         ' Z';
+}
+
+function renderChev(s) {
   var el = document.createElementNS(SVG_NS, 'path');
-  el.setAttribute('d', d);
+  el.setAttribute('d', chevPath(s));
   applySvgStroke(el, s.attrs, 'none');
   if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
   if (s.id) el.dataset.id = s.id;
   return el;
 }
 
-function renderCyl(s) {
+// Cylinder is two paths: a filled body that traces over-the-top, down,
+// under-the-bottom, and back up the left edge; and a stroke-only cap that
+// re-draws the visible front arc of the top ellipse so the lid reads as
+// 3D even when the body is filled. Cap colour/width come from the shape
+// stroke attrs (defaulted) so the body's stroke styling stays separate.
+function cylPaths(s) {
   var lip = window.SDocShapes.cylLip(s);
   var x = s.x, y = s.y, w = s.w, h = s.h;
   var rx = w / 2;
   var ry = lip / 2;
-  // Single closed path: over the top, down the right, under the bottom,
-  // close back up the left. The visible cylinder outline as one shape.
-  var d = 'M ' + x + ' ' + (y + ry) +
-          ' A ' + rx + ' ' + ry + ' 0 0 0 ' + (x + w) + ' ' + (y + ry) +
-          ' L ' + (x + w) + ' ' + (y + h - ry) +
-          ' A ' + rx + ' ' + ry + ' 0 0 1 ' + x + ' ' + (y + h - ry) +
-          ' Z';
+  var body = 'M ' + x + ' ' + (y + ry) +
+             ' A ' + rx + ' ' + ry + ' 0 0 0 ' + (x + w) + ' ' + (y + ry) +
+             ' L ' + (x + w) + ' ' + (y + h - ry) +
+             ' A ' + rx + ' ' + ry + ' 0 0 1 ' + x + ' ' + (y + h - ry) +
+             ' Z';
+  var cap = 'M ' + x + ' ' + (y + ry) +
+            ' A ' + rx + ' ' + ry + ' 0 0 0 ' + (x + w) + ' ' + (y + ry);
+  var capColor = (s.attrs && s.attrs.stroke) || '#94a3b8';
+  var capW = (s.attrs && s.attrs.strokeWidth != null) ? s.attrs.strokeWidth : 0.06;
+  return { body: body, cap: cap, capColor: capColor, capW: capW };
+}
+
+function renderCyl(s) {
+  var p = cylPaths(s);
   var g = document.createElementNS(SVG_NS, 'g');
   var body = document.createElementNS(SVG_NS, 'path');
-  body.setAttribute('d', d);
+  body.setAttribute('d', p.body);
   applySvgStroke(body, s.attrs, 'none');
   if (!s.attrs.fill) body.setAttribute('fill', '#ffffff');
   g.appendChild(body);
-  // The visible front arc of the TOP ellipse - drawn on top as a stroke
-  // only, so the cap reads as a 3D lid even when the body is filled.
-  var capColor = (s.attrs && s.attrs.stroke) || '#94a3b8';
-  var capW = (s.attrs && s.attrs.strokeWidth != null) ? s.attrs.strokeWidth : 0.06;
   var cap = document.createElementNS(SVG_NS, 'path');
-  cap.setAttribute('d', 'M ' + x + ' ' + (y + ry) +
-                       ' A ' + rx + ' ' + ry + ' 0 0 0 ' + (x + w) + ' ' + (y + ry));
+  cap.setAttribute('d', p.cap);
   cap.setAttribute('fill', 'none');
-  cap.setAttribute('stroke', capColor);
-  cap.setAttribute('stroke-width', String(capW));
+  cap.setAttribute('stroke', p.capColor);
+  cap.setAttribute('stroke-width', String(p.capW));
   g.appendChild(cap);
   if (s.id) g.dataset.id = s.id;
   return g;
 }
 
-function renderBub(s) {
+function bubPath(s) {
   var tail = window.SDocShapes.bubTail(s);
   var x = s.x, y = s.y, w = s.w, h = s.h;
   var rad = (s.attrs && s.attrs.radius != null) ? parseFloat(s.attrs.radius) : 1;
@@ -821,9 +833,12 @@ function renderBub(s) {
   d += ' L ' + x + ' ' + (y + rad);
   d += ' A ' + rad + ' ' + rad + ' 0 0 1 ' + (x + rad) + ' ' + y;
   d += ' Z';
+  return d;
+}
 
+function renderBub(s) {
   var el = document.createElementNS(SVG_NS, 'path');
-  el.setAttribute('d', d);
+  el.setAttribute('d', bubPath(s));
   el.setAttribute('stroke-linejoin', 'round');
   applySvgStroke(el, s.attrs, 'none');
   if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
@@ -831,7 +846,7 @@ function renderBub(s) {
   return el;
 }
 
-function renderTab(s) {
+function tabPath(s) {
   var th = window.SDocShapes.tabHeight(s);
   var x = s.x, y = s.y, w = s.w, h = s.h;
   // Tab portion sits on top-left, ~38% of body width by default.
@@ -840,15 +855,18 @@ function renderTab(s) {
     : w * 0.38;
   // Sloped neck between tab and body, ~ tab height for a 45-ish degree slope.
   var slope = Math.min(th, w - tabW);
-  var d = 'M ' + x + ' ' + y +
-          ' L ' + (x + tabW) + ' ' + y +
-          ' L ' + (x + tabW + slope) + ' ' + (y + th) +
-          ' L ' + (x + w) + ' ' + (y + th) +
-          ' L ' + (x + w) + ' ' + (y + h) +
-          ' L ' + x + ' ' + (y + h) +
-          ' Z';
+  return 'M ' + x + ' ' + y +
+         ' L ' + (x + tabW) + ' ' + y +
+         ' L ' + (x + tabW + slope) + ' ' + (y + th) +
+         ' L ' + (x + w) + ' ' + (y + th) +
+         ' L ' + (x + w) + ' ' + (y + h) +
+         ' L ' + x + ' ' + (y + h) +
+         ' Z';
+}
+
+function renderTab(s) {
   var el = document.createElementNS(SVG_NS, 'path');
-  el.setAttribute('d', d);
+  el.setAttribute('d', tabPath(s));
   el.setAttribute('stroke-linejoin', 'round');
   applySvgStroke(el, s.attrs, 'none');
   if (!s.attrs.fill) el.setAttribute('fill', '#ffffff');
@@ -856,35 +874,37 @@ function renderTab(s) {
   return el;
 }
 
-function renderDoc(s) {
+// Doc shape: body outline with the top-right corner cut off, plus an
+// inset triangle in the cut corner drawn as a semi-transparent black
+// overlay so the corner reads as a 3D fold over any body fill colour.
+function docPaths(s) {
   var fold = window.SDocShapes.docFold(s);
   var x = s.x, y = s.y, w = s.w, h = s.h;
-  // Main outline: rectangle with top-right corner cut off.
-  var bodyD = 'M ' + x + ' ' + y +
-              ' L ' + (x + w - fold) + ' ' + y +
+  var body = 'M ' + x + ' ' + y +
+             ' L ' + (x + w - fold) + ' ' + y +
+             ' L ' + (x + w) + ' ' + (y + fold) +
+             ' L ' + (x + w) + ' ' + (y + h) +
+             ' L ' + x + ' ' + (y + h) +
+             ' Z';
+  var foldD = 'M ' + (x + w - fold) + ' ' + y +
               ' L ' + (x + w) + ' ' + (y + fold) +
-              ' L ' + (x + w) + ' ' + (y + h) +
-              ' L ' + x + ' ' + (y + h) +
+              ' L ' + (x + w - fold) + ' ' + (y + fold) +
               ' Z';
+  return { body: body, fold: foldD };
+}
+
+function renderDoc(s) {
+  var p = docPaths(s);
   var g = document.createElementNS(SVG_NS, 'g');
   var body = document.createElementNS(SVG_NS, 'path');
-  body.setAttribute('d', bodyD);
+  body.setAttribute('d', p.body);
   body.setAttribute('stroke-linejoin', 'round');
   applySvgStroke(body, s.attrs, 'none');
   if (!s.attrs.fill) body.setAttribute('fill', '#ffffff');
   g.appendChild(body);
 
-  // Fold detail: small triangle in the cut corner, slightly darker than
-  // the body fill so the corner reads as a 3D fold. Drawn as a separate
-  // shape (it's a visual annotation, not part of the silhouette).
-  var foldD = 'M ' + (x + w - fold) + ' ' + y +
-              ' L ' + (x + w) + ' ' + (y + fold) +
-              ' L ' + (x + w - fold) + ' ' + (y + fold) +
-              ' Z';
   var foldEl = document.createElementNS(SVG_NS, 'path');
-  foldEl.setAttribute('d', foldD);
-  // Darker fold: 12% black overlay (semi-transparent black) so it tints
-  // any fill colour consistently.
+  foldEl.setAttribute('d', p.fold);
   foldEl.setAttribute('fill', 'rgba(0,0,0,0.18)');
   foldEl.setAttribute('stroke', 'none');
   g.appendChild(foldEl);
@@ -1679,11 +1699,18 @@ function renderShapes(dslText, wrap, options) {
     try {
       var L = pickLayer(s);
       if (s.kind === 'r') {
-        L.el.appendChild(renderRect(s, grid));
+        var rectEl = renderRect(s, grid);
+        rectEl.dataset.shapeIdx = String(i);
+        L.el.appendChild(rectEl);
       } else {
         // Every SVG primitive gets its own <svg> wrapper so its DOM
         // position among the sublayer's children is preserved.
         var svg = makeShapeSvg();
+        // Tag the wrapper with its parsed-shape index so external
+        // consumers (the slide-PDF rasterizer) can locate a specific
+        // shape's rendered DOM by index instead of brittle DOM-order
+        // matching across layers.
+        svg.dataset.shapeIdx = String(i);
         if (s.kind === 'c') {
           svg.appendChild(renderCircle(s, svg));
         } else if (s.kind === 'e') {
@@ -1719,7 +1746,9 @@ function renderShapes(dslText, wrap, options) {
              s.kind === 'chev' || s.kind === 'cyl' || s.kind === 'bub' ||
              s.kind === 'tab' || s.kind === 'doc' || s.kind === 'cloud') &&
             s.content) {
-          L.el.appendChild(renderTextOverlay(s, grid));
+          var overlay = renderTextOverlay(s, grid);
+          overlay.dataset.shapeIdx = String(i);
+          L.el.appendChild(overlay);
         }
       }
     } catch (e) {
@@ -2070,10 +2099,16 @@ function injectMermaidCss(shadow) {
 
 window.SDocShapeRender = {
   renderShapes: renderShapes,
-  // Exposed so the slide-PDF exporter can emit the exact same polygon
-  // geometry (segment operators + corner rounding) instead of carrying a
-  // stale copy of the path math.
+  // Path-builder helpers exposed so the slide-PDF exporter can emit the
+  // exact same geometry through pdf-lib's drawSvgPath. Returning bare `d`
+  // strings (or { body, ... } objects for two-path shapes) keeps the PDF
+  // path independent of DOM construction.
   polyPath: polyPath,
+  chevPath: chevPath,
+  cylPaths: cylPaths,
+  bubPath: bubPath,
+  tabPath: tabPath,
+  docPaths: docPaths,
 };
 
 })();
