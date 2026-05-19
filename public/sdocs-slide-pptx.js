@@ -44,8 +44,40 @@ var DEFAULT_STROKE_HEX = '94A3B8';
 // dark enough to need inversion. Matches the on-screen renderer's
 // --md-color (Tailwind slate-900 / SDocs navy).
 var DEFAULT_TEXT_HEX = '0F1E3A';
-// Muted text colour for the `caption` role.
+// Muted text colour for the `caption` role on light fills.
 var CAPTION_TEXT_HEX = '6B7280';
+// Lighter caption tint for dark fills (washed white instead of full white
+// so it still reads as "caption, not title").
+var CAPTION_ON_DARK_HEX = 'BDC3CC';
+
+// Font fallback chains. PptxGenJS accepts a single comma-separated string;
+// each viewer walks the list and picks the first installed family. Order
+// matters:
+//   - Inter / Merriweather / Menlo first so users who installed the
+//     on-screen font locally get the exact match.
+//   - Aptos / Cambria / Consolas next — ship with Office 365 (Aptos since
+//     2024, the others for years).
+//   - Calibri / Helvetica Neue / Courier New cover older Office, Keynote,
+//     macOS / iOS, and any remaining Windows install.
+//   - Generic family terminator so Google Slides + browser previews still
+//     land on something readable.
+var SANS_CHAIN = 'Inter, Aptos, Calibri, Helvetica Neue, Arial, sans-serif';
+var SERIF_CHAIN = 'Merriweather, Cambria, Georgia, Times New Roman, serif';
+var MONO_CHAIN = 'Menlo, Consolas, Courier New, monospace';
+
+// Family-name sets used to classify the on-screen font into one of the
+// three chains. Anything not in serif/mono is treated as sans (the
+// SDocs picker's default category and the safer fallback).
+var SERIF_NAMES = {
+  'Merriweather': 1, 'Playfair Display': 1, 'Roboto Slab': 1, 'Lora': 1,
+  'PT Serif': 1, 'Crimson Text': 1, 'Georgia': 1, 'Times New Roman': 1,
+  'Times': 1, 'Cambria': 1,
+};
+var MONO_NAMES = {
+  'Menlo': 1, 'Consolas': 1, 'Courier New': 1, 'Courier': 1,
+  'JetBrains Mono': 1, 'Source Code Pro': 1, 'Fira Code': 1,
+  'ui-monospace': 1, 'monospace': 1,
+};
 // Per-rich-block render deadline before we give up and paint the slide
 // without it. Charts / mermaid / KaTeX can sit behind their own CDN
 // promises on first use; the user-facing flow waits longer than this.
@@ -185,27 +217,91 @@ function shapeTextRole(attrs) {
   return attrs.text || attrs.role || null;
 }
 
-// SDocs role px sizes (matching on-screen ROLE_SIZES in sdocs-shape-render).
-// px → pt at 96dpi is *0.75. Scale further by the actual slide width so a
-// narrower per-slide layout doesn't overflow at the reference size.
+// Per-role px sizes. Tuned so PowerPoint's typical projection sizes
+// (title ~44pt, body ~28pt) come out of px × 0.75 at the reference slide
+// width. Bumped from the on-screen ROLE_SIZES (body 24, caption 14) so
+// the body/caption gap is visible — PowerPoint conventions read at a
+// projector distance, on-screen Inter reads up close.
 function fontPtForRole(role, slideW) {
   var px = role === 'title' ? 64
          : role === 'subtitle' ? 40
-         : role === 'caption' ? 14
-         : 24; // body / default
+         : role === 'caption' ? 16
+         : 28; // body / default
   var scale = (slideW || REF_SLIDE_W_IN) / REF_SLIDE_W_IN;
   return Math.max(8, px * 0.75 * scale);
 }
 
+// Title only gets bolded. Subtitle stays regular-weight, distinguished
+// from body by size only — matches how SDocs flows headline roles on
+// screen, and keeps the title:subtitle weight gap clear.
+function isBoldRole(role) { return role === 'title'; }
+
 // Pick a default text colour. Author override (`color=`) wins; otherwise
 // invert to white on dark fills so titles like `r ... fill=#0f172a text=title`
-// remain legible without manual color= attributes on every slide.
+// remain legible without manual color= attributes on every slide. Caption
+// keeps its muted grey on light backgrounds and softens to a washed tint
+// on dark ones (so the role still reads "caption", not "title").
 function defaultTextColour(s) {
   if (s.attrs && s.attrs.color) return toHex6(s.attrs.color) || DEFAULT_TEXT_HEX;
-  if (shapeTextRole(s.attrs) === 'caption') return CAPTION_TEXT_HEX;
   var fillHex = toHex6(s.attrs && s.attrs.fill);
-  if (fillHex && isHexDark(fillHex)) return 'FFFFFF';
-  return DEFAULT_TEXT_HEX;
+  var darkFill = !!(fillHex && isHexDark(fillHex));
+  if (shapeTextRole(s.attrs) === 'caption') {
+    return darkFill ? CAPTION_ON_DARK_HEX : CAPTION_TEXT_HEX;
+  }
+  return darkFill ? 'FFFFFF' : DEFAULT_TEXT_HEX;
+}
+
+// Classify a CSS font-family list ("Inter, system-ui, sans-serif") into
+// one of sans / serif / mono by matching the FIRST quoted family against
+// the known-name sets. Empty / unknown families default to sans.
+function classifyFontFamily(familyStr) {
+  if (!familyStr) return 'sans';
+  // Strip surrounding whitespace + quotes off the first family token.
+  var m = String(familyStr).match(/^\s*['"]?([^'",]+?)['"]?(?:\s*,|$)/);
+  if (!m) return 'sans';
+  var first = m[1].trim();
+  if (SERIF_NAMES[first]) return 'serif';
+  if (MONO_NAMES[first]) return 'mono';
+  return 'sans';
+}
+
+// Walk the document's CSS vars to discover the active body + heading
+// families. Returns one resolved fallback chain per role bucket so the
+// per-shape buildTextOpts call doesn't have to re-classify.
+function detectExportFontChains() {
+  var host = document.getElementById('_sd_rendered') || document.body;
+  var cs;
+  try { cs = getComputedStyle(host); } catch (e) { return { body: SANS_CHAIN, heading: SANS_CHAIN }; }
+  var bodyFamily = (cs.getPropertyValue('--md-font-family') || '').trim() || cs.fontFamily || '';
+  var headingFamily = (cs.getPropertyValue('--md-h-font-family') || '').trim();
+  if (!headingFamily || headingFamily === 'inherit') headingFamily = bodyFamily;
+  return {
+    body: chainFor(classifyFontFamily(bodyFamily)),
+    heading: chainFor(classifyFontFamily(headingFamily)),
+  };
+}
+
+function chainFor(cls) {
+  if (cls === 'serif') return SERIF_CHAIN;
+  if (cls === 'mono') return MONO_CHAIN;
+  return SANS_CHAIN;
+}
+
+// Resolve the fontFace string for a shape. Author override (`font=` attr)
+// wins — accepts the three keywords or a custom family list. Otherwise
+// the role picks: title/subtitle → heading chain, everything else → body.
+// Custom families get the SANS_CHAIN appended as a fallback so an unknown
+// family name still resolves to something readable.
+function resolveFontFace(s, role, chains) {
+  var explicit = s.attrs && s.attrs.font;
+  if (explicit) {
+    var v = String(explicit).trim();
+    if (v === 'sans') return SANS_CHAIN;
+    if (v === 'serif') return SERIF_CHAIN;
+    if (v === 'mono') return MONO_CHAIN;
+    return v.indexOf(',') >= 0 ? v : (v + ', ' + SANS_CHAIN);
+  }
+  return (role === 'title' || role === 'subtitle') ? chains.heading : chains.body;
 }
 
 // Default alignment honours an explicit `align=`. Otherwise, title /
@@ -321,19 +417,21 @@ function buildShapeOpts(s, rect, grid, slideW) {
 }
 
 // Build the text-styling options merged into the addText call. Returns
-// null when the shape has no usable text content.
-function buildTextOpts(s, slideW) {
+// null when the shape has no usable text content. fontChains comes from
+// detectExportFontChains() and is resolved once per drawSlide call.
+function buildTextOpts(s, slideW, fontChains) {
   var text = plainTextFromContent(s.content);
   if (!text) return null;
   var role = shapeTextRole(s.attrs);
   var fontSize = fontPtForRole(role, slideW);
   var colorHex = defaultTextColour(s);
   var opts = {
+    fontFace: resolveFontFace(s, role, fontChains),
     fontSize: fontSize,
     color: colorHex,
     align: defaultAlign(s),
     valign: pptxValign(s),
-    bold: role === 'title' || role === 'subtitle',
+    bold: isBoldRole(role),
     italic: role === 'caption',
     wrap: true,
     fit: 'shrink',
@@ -350,7 +448,7 @@ function buildTextOpts(s, slideW) {
   return opts;
 }
 
-function drawNativeShape(slide, pres, s, grid, slideW, slideH) {
+function drawNativeShape(slide, pres, s, grid, slideW, slideH, fontChains) {
   var rect = shapeRectIn(s, grid, slideW, slideH);
   if (!rect) return;
   var presetKey = nativeShapePreset(s);
@@ -366,7 +464,7 @@ function drawNativeShape(slide, pres, s, grid, slideW, slideH) {
     }
   }
 
-  var textOpts = buildTextOpts(s, slideW);
+  var textOpts = buildTextOpts(s, slideW, fontChains);
   // When textAngle is set, the `rotate` option on a combined addShape+text
   // call rotates the whole shape (changing its bbox). The DSL semantics
   // are "rotate the text inside, keep the shape upright" — so we draw the
@@ -423,7 +521,7 @@ function drawLineOrArrow(slide, pres, s, grid, slideW, slideH) {
 // describing path commands. Mapping the DSL polygon's resolved points
 // preserves vertex edit-ability in PowerPoint instead of pinning them
 // to a raster. Closed polygon (auto-closes back to the first point).
-function drawCustGeomPolygon(slide, pres, s, grid, slideW, slideH) {
+function drawCustGeomPolygon(slide, pres, s, grid, slideW, slideH, fontChains) {
   var pts = s.points;
   if (!pts || pts.length < 2) return;
   var bb = window.SDocShapes.bboxOf(s);
@@ -453,7 +551,7 @@ function drawCustGeomPolygon(slide, pres, s, grid, slideW, slideH) {
   };
   applyOpacity(opts, s.attrs);
 
-  var textOpts = buildTextOpts(s, slideW);
+  var textOpts = buildTextOpts(s, slideW, fontChains);
   if (textOpts) {
     var t = textOpts.text;
     delete textOpts.text;
@@ -525,9 +623,9 @@ async function drawShapeViaRaster(slide, s, idx, grid, slideW, slideH, stage) {
 // can't embed text inside it, but we can still position a text frame on
 // top so the caption is editable. Lower fidelity than native shapes
 // (resizing the picture won't reflow the text) but visible + editable.
-function drawShapeTextOverlay(slide, s, grid, slideW, slideH) {
+function drawShapeTextOverlay(slide, s, grid, slideW, slideH, fontChains) {
   if (s.kind === 'icon') return; // icons don't carry text content
-  var textOpts = buildTextOpts(s, slideW);
+  var textOpts = buildTextOpts(s, slideW, fontChains);
   if (!textOpts) return;
   var rect = contentRectIn(s, grid, slideW, slideH);
   if (!rect) return;
@@ -710,6 +808,11 @@ async function drawSlide(ctx) {
     // eslint-disable-next-line no-unused-expressions
     st.stage.offsetHeight; // flush pending layout
 
+    // Resolve the active font chains once for this slide — the on-screen
+    // body/heading families drive the fontFace fallback we apply to every
+    // text frame. Cheap to call; reading getComputedStyle is hot-path-fast.
+    var fontChains = detectExportFontChains();
+
     // Wait for the icon bundle if any icons are present.
     for (var hi = 0; hi < shapes.length; hi++) {
       if (shapes[hi].kind === 'icon') { await waitForIconBundle(); break; }
@@ -726,9 +829,9 @@ async function drawSlide(ctx) {
         if (strat === 'line') {
           drawLineOrArrow(slide, pres, s, grid, slideW, slideH);
         } else if (strat === 'native') {
-          drawNativeShape(slide, pres, s, grid, slideW, slideH);
+          drawNativeShape(slide, pres, s, grid, slideW, slideH, fontChains);
         } else if (strat === 'custGeom') {
-          drawCustGeomPolygon(slide, pres, s, grid, slideW, slideH);
+          drawCustGeomPolygon(slide, pres, s, grid, slideW, slideH, fontChains);
         } else if (strat === 'raster') {
           await drawShapeViaRaster(slide, s, i, grid, slideW, slideH, st.stage);
         }
@@ -745,7 +848,7 @@ async function drawSlide(ctx) {
       var ts = shapes[t];
       if (shapeStrategy(ts) !== 'raster') continue;
       try {
-        drawShapeTextOverlay(slide, ts, grid, slideW, slideH);
+        drawShapeTextOverlay(slide, ts, grid, slideW, slideH, fontChains);
       } catch (err) {
         warnings++;
         if (window.console) console.warn('slide-pptx text overlay #' + t + ':', err);
