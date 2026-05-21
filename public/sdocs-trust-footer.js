@@ -5,8 +5,10 @@
 // Looks for a `[data-trust-status]` element and replaces its contents with
 // the literal prefix "Open source: " followed by a link to /trust whose text
 // is one of:
-//   ✓ verified 12m ago
-//   ⚠ check 3h ago
+//   ✓ verified 12m ago      (a passing check; the age can be several hours old
+//                            and still show the tick - GitHub cron drift is
+//                            normal and is not a problem)
+//   ⚠ last checked 14h ago  (passing, but old enough the checker looks stopped)
 //   ⚠ pending
 //   ✗ mismatch
 // Falls back silently on any fetch / CORS / parse error, leaving whatever
@@ -14,8 +16,12 @@
 (function () {
   var URL_CHECK = 'https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json';
   var CACHE_KEY = 'sdocs.trust.lastCheck.v1';
-  var CACHE_TTL_MS = 5 * 60 * 1000;        // 5 min: keep repeat loads off GitHub
-  var STALE_CHECK_MS = 2 * 60 * 60 * 1000; // 2 h: mark the check itself as stale
+  var CACHE_TTL_MS = 5 * 60 * 1000;          // 5 min: keep repeat loads off GitHub
+  // GitHub Actions cron is best-effort and shares infrastructure with every
+  // other repo; observed gaps on this repo run from ~30 min to a few hours.
+  // Only treat the check as stale once it is old enough that the checker
+  // itself looks stopped, not merely delayed by that normal drift.
+  var STALE_CHECK_MS = 12 * 60 * 60 * 1000;  // 12 h
 
   var el = document.querySelector('[data-trust-status]');
   if (!el) return;
@@ -39,9 +45,12 @@
 
     var glyph, label;
     if (result.result === 'ok' && !stale) {
+      // A passing check that is hours old is normal GitHub cron drift, not a
+      // problem; keep the tick and let the age caption carry the freshness.
       glyph = '\u2713'; label = 'verified ' + humanAge(age);
     } else if (result.result === 'ok' && stale) {
-      glyph = '\u26A0'; label = 'check ' + humanAge(age);
+      // Passed, but older than STALE_CHECK_MS: the checker itself looks stopped.
+      glyph = '\u26A0'; label = 'last checked ' + humanAge(age);
     } else if (result.result === 'pending') {
       glyph = '\u26A0'; label = 'pending';
     } else if (result.result === 'mismatch') {
