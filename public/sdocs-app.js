@@ -600,6 +600,24 @@ async function decryptBytes(b64url, keyBytes) {
   return new Uint8Array(plain);
 }
 
+// Seal a document for storage: compress it, then AES-GCM encrypt the
+// compressed bytes. Returns the base64url ciphertext blob. unsealDocument is
+// the exact reverse. These two are the reusable core of the short-link
+// mechanism, kept separate from the /api/short transport so chunk 7's
+// commercial "sealed mode" can build on S.shortLink (exposed below) with its
+// own server rather than duplicating this crypto.
+async function sealDocument(text, keyBytes) {
+  var compressedB64 = await compressText(text);
+  var compressedBytes = fromBase64Url(compressedB64);
+  return encryptBytes(compressedBytes, keyBytes);
+}
+
+async function unsealDocument(cipherB64, keyBytes) {
+  var compressedBytes = await decryptBytes(cipherB64, keyBytes);
+  var compressedB64 = toBase64Url(compressedBytes);
+  return decompressText(compressedB64);
+}
+
 // Compress current document, encrypt with a fresh key, upload ciphertext.
 // Returns { url, id } on success; throws on failure.
 async function shortenCurrentDocument() {
@@ -609,12 +627,8 @@ async function shortenCurrentDocument() {
   else delete meta.styles;
   var full = SDocYaml.serializeFrontMatter(meta) + '\n' + S.currentBody;
 
-  // Compress first (brotli+base64url), then encrypt the compressed bytes.
-  var compressedB64 = await compressText(full);
-  var compressedBytes = fromBase64Url(compressedB64);
-
   var keyBytes = await generateShortLinkKey();
-  var cipherB64 = await encryptBytes(compressedBytes, keyBytes);
+  var cipherB64 = await sealDocument(full, keyBytes);
 
   var resp = await fetch('/api/short', {
     method: 'POST',
@@ -643,13 +657,13 @@ async function loadShortLink(id, keyB64) {
   var data = await resp.json();
   if (!data || !data.ciphertext) throw new Error('bad_response');
   var keyBytes = fromBase64Url(keyB64);
-  var compressedBytes = await decryptBytes(data.ciphertext, keyBytes);
-  var compressedB64 = toBase64Url(compressedBytes);
-  return await decompressText(compressedB64);
+  return unsealDocument(data.ciphertext, keyBytes);
 }
 
 // ── Auto-save to URL hash ──────────────────────────
 
+// The id length range stays wide ({1,32}) so links minted before the
+// id-length bump (8 chars) and after it (22 chars) both resolve.
 var SHORT_LINK_PATH_RE = /^\/s\/([A-Za-z0-9_-]{1,32})$/;
 
 function normalizedBasePath() {
@@ -684,10 +698,27 @@ function updateHash() {
 
 // ── State sync ──────────────────────────────────
 
+// A loaded short link is an immutable snapshot of one exact document. Once the
+// live document diverges from that snapshot - an edit to text, styles, or
+// comments, or a fresh document loaded over it - the short URL no longer
+// points at what the user sees, so stop advertising it. Clearing both fields
+// and re-rendering the file info card drops the stale "Short URL" row.
+// (initShortLink re-sets these immediately after its own loadText, so clearing
+// on the 'load' source does no harm.)
+function dropShortLinkIfDiverged() {
+  if (!S.shortUrl && !S.shortLinkId) return;
+  S.shortUrl = null;
+  S.shortLinkId = null;
+  renderFileInfoCard();
+}
+
 function syncAll(source) {
   if (S._syncing) return;
   S._syncing = true;
   try {
+    // Theme is a viewer preference, not a document change, so it keeps any
+    // loaded short link. Every other source means the document diverged.
+    if (source !== 'theme') dropShortLinkIfDiverged();
     if (source === 'controls') {
       S._isDefaultState = false;
       S.invalidateLocalMeta();
@@ -1048,6 +1079,22 @@ S.setMode = setMode;
 S.render = render;
 S.loadText = loadText;
 S.renderFileInfoCard = renderFileInfoCard;
+
+// The short-link mechanism as one internal interface. Chunk 7's commercial
+// "sealed mode" reuses the crypto primitives (generateKey / seal / unseal /
+// encodeKey / decodeKey) with its own server transport; create / load are the
+// short-link transport (POST + GET /api/short) built on those primitives.
+// Sealed mode builds on this interface rather than reaching into the
+// module-private functions above.
+S.shortLink = {
+  generateKey: generateShortLinkKey,
+  seal: sealDocument,
+  unseal: unsealDocument,
+  encodeKey: toBase64Url,
+  decodeKey: fromBase64Url,
+  create: shortenCurrentDocument,
+  load: loadShortLink,
+};
 
 // Clear runtime-only local metadata (paths) once the user has edited the
 // document, since the content no longer corresponds to the file on disk.

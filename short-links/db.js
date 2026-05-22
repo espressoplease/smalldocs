@@ -10,13 +10,20 @@
  *
  * Usage:
  *   const shortLinks = require('./short-links/db');
- *   const id = shortLinks.insert(ciphertext);   // returns "kT9xQ2pN"
+ *   const id = shortLinks.insert(ciphertext);   // returns "kT9xQ2pN4mZ7vB1cR0sLdf"
  *   const ct = shortLinks.fetch(id);            // returns ciphertext or null
  */
 const path = require('path');
 const crypto = require('crypto');
 
-const ID_LENGTH = 8;                    // chars; each picks 6 bits from a 64-char alphabet = 48 bits of entropy
+// New ids are 22 chars. Each char picks 6 bits from the 64-char alphabet
+// below, so 22 * 6 = 132 bits of entropy - enough that the store cannot be
+// enumerated, which commercial sealed mode (chunk 7) reuses this mechanism
+// for. Short links created before this length bump used 8-char (48-bit) ids;
+// the resolver still accepts them - the id regexes in server.js match
+// {1,32} - so every existing /s/<id> link keeps working. Do not shorten this
+// or narrow those regexes.
+const ID_LENGTH = 22;
 const ID_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 const TTL_DAYS = 365;
 const MAX_INSERT_RETRIES = 5;           // on ID collision, try again

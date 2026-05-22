@@ -25,6 +25,24 @@ module.exports = function (harness) {
     assert.notStrictEqual(a, b);
   });
 
+  test('insert mints a long (22-char) id', () => {
+    // Long ids give the store enough entropy that it cannot be enumerated -
+    // commercial sealed mode (chunk 7) reuses this mechanism and depends on it.
+    const id = shortLinks.insert('long-id-payload');
+    assert.strictEqual(id.length, 22, 'expected a 22-char id, got: ' + id);
+    assert.ok(/^[A-Za-z0-9_-]{22}$/.test(id), 'id should be 22 base64url chars: ' + id);
+  });
+
+  test('fetch still resolves a legacy 8-char id', () => {
+    // Short links created before the id-length bump used 8-char ids. The
+    // resolver is keyed by the raw string, so an old id must keep resolving -
+    // no existing /s/<id> link may break.
+    const db = shortLinks.getDB();
+    db.prepare('INSERT INTO short_links (id, ciphertext) VALUES (?, ?)')
+      .run('Legacy01', 'OLD-CIPHERTEXT');
+    assert.strictEqual(shortLinks.fetch('Legacy01'), 'OLD-CIPHERTEXT');
+  });
+
   test('fetch returns null for unknown id', () => {
     assert.strictEqual(shortLinks.fetch('nosuchidnope'), null);
   });
