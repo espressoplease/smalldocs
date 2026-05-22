@@ -19,9 +19,25 @@ Everything runs client-side. The server is a small Node.js script that serves st
 
 ## CLI
 
+The `sdoc` command opens, shares, and styles markdown from the terminal.
+
 ```bash
+curl -fsSL https://sdocs.dev/install.sh | sh
+```
+
+This installs `sdoc` under `~/.sdocs`, a directory you own. It needs Node.js already on your machine, but never needs root and never writes to npm's global folder. Re-running the command upgrades in place, as does `sdoc upgrade`.
+
+Prefer npm? `npm i -g sdocs-dev` also works. If npm fails with `EACCES: permission denied`, its global directory (`/usr/local/lib/node_modules`) is owned by root. Either use the install script above, or point npm at a user-owned prefix:
+
+```bash
+mkdir -p ~/.npm-global
+npm config set prefix ~/.npm-global
+echo 'export PATH=$HOME/.npm-global/bin:$PATH' >> ~/.bashrc   # or ~/.zshrc
+source ~/.bashrc
 npm i -g sdocs-dev
 ```
+
+Avoid `sudo npm i -g` - it works once, then every later upgrade without sudo hits the same EACCES because the directory stays root-owned.
 
 ```bash
 sdoc README.md                          # open styled in browser

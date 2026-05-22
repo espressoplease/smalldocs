@@ -102,6 +102,14 @@ All CLI-side state lives under `~/.sdocs/`:
 - `update-check.json` - daily npm version cache
 - `setup.json` - agent setup tracking. Schema v1 fields (added in 1.5.0): `schemaVersion`, `setupCompleted`, `writtenTo`, `declined`, `autoRefreshAgentFiles`, `autoInstallUpdates`, `lastRunVersion`. Pre-1.5.0 state files are migrated transparently on first read by `migrateSetupState()`.
 
+When the CLI was installed via the install script (see below), `~/.sdocs/` also holds `cli/` (the unpacked package) and `bin/sdoc` (a symlink onto `cli/bin/sdocs-dev.js`).
+
+## Installer
+
+`install.sh` (repo root) is the URL-based installer: `curl -fsSL https://sdocs.dev/install.sh | sh`. The server serves it at the apex path `/install.sh`. It downloads the published npm tarball, unpacks it into `~/.sdocs/cli`, symlinks `sdoc` into `~/.sdocs/bin`, and adds that directory to PATH via the shell rc. It needs Node and curl/wget present; it never uses npm and never needs root, so it cannot hit the EACCES error a root-owned npm prefix causes. Re-running it upgrades in place.
+
+The CLI detects which way it was installed (`isUrlInstall()` in `bin/sdocs-dev.js`: true when the script lives under `~/.sdocs/cli`). Every upgrade path - `sdoc upgrade`, the daily auto-update prompt, the silent auto-install - branches through `upgradeCommand()`: url installs re-run `install.sh`, npm installs run `npm i -g sdocs-dev@latest`. If you change the installed layout, update `isUrlInstall()` to match.
+
 ## Architecture
 
 The entire app is stateless. The server just serves static files. All state (current markdown content, parsed front matter, style values) lives in the `window.SDocs` namespace in the browser, primarily `SDocs.currentBody` and `SDocs.currentMeta`.

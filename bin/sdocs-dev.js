@@ -179,15 +179,32 @@ function readCachedLatest() {
   catch (_) { return null; }
 }
 
-// Self-upgrade: runs npm i -g, then re-execs the same command into the new binary.
+// Install-method detection. The url installer (install.sh) drops the CLI into
+// ~/.sdocs/cli; a global npm install lives under npm's prefix. The two upgrade
+// differently, so every upgrade path branches on this.
+const INSTALL_SH_URL = 'https://sdocs.dev/install.sh';
+function isUrlInstall() {
+  try {
+    const cliRoot = path.join(os.homedir(), '.sdocs', 'cli') + path.sep;
+    return (path.resolve(__dirname) + path.sep).startsWith(cliRoot);
+  } catch (_) { return false; }
+}
+function upgradeCommand() {
+  return isUrlInstall()
+    ? `curl -fsSL ${INSTALL_SH_URL} | sh`
+    : 'npm i -g sdocs-dev@latest';
+}
+
+// Self-upgrade: runs the right upgrade command, then re-execs into the new binary.
 // On any failure, falls through (so the user's actual command still runs).
 function autoInstallAndReexec(latest) {
   console.log(`\nUpdating sdoc ${VERSION} \u2192 ${latest}...`);
+  const cmd = upgradeCommand();
   try {
-    execSync('npm i -g sdocs-dev@latest', { stdio: 'pipe' });
+    execSync(cmd, { stdio: 'pipe' });
   } catch (e) {
     console.error(`! sdoc auto-update to ${latest} failed: ${(e.stderr || e.message || '').toString().trim().split('\n')[0]}`);
-    console.error(`  Run \`npm i -g sdocs-dev@latest\` manually to upgrade.`);
+    console.error(`  Run \`${cmd}\` manually to upgrade.`);
     return false;
   }
   console.log(`\u2713 sdoc updated ${VERSION} \u2192 ${latest}`);
@@ -218,7 +235,7 @@ async function maybeUpdateBinary() {
 
   const isInteractive = process.stdout.isTTY && process.stdin.isTTY;
   if (!isInteractive) {
-    console.log(`Update available: ${VERSION} \u2192 ${latest}. Run \`npm i -g sdocs-dev@latest\` to upgrade.`);
+    console.log(`Update available: ${VERSION} \u2192 ${latest}. Run \`${upgradeCommand()}\` to upgrade.`);
     return;
   }
 
@@ -230,13 +247,27 @@ async function maybeUpdateBinary() {
   });
   if (answer && answer !== 'y' && answer !== 'yes') return;
 
-  console.log('Installing sdocs-dev@latest...');
+  console.log('Installing the latest sdoc...');
   try {
-    execSync('npm i -g sdocs-dev@latest', { stdio: 'inherit' });
+    execSync(upgradeCommand(), { stdio: 'inherit' });
     console.log(`\u2713 Updated to v${latest}`);
   } catch (_) {
-    console.error('Update failed. You may need: sudo npm i -g sdocs-dev');
+    console.error(`Update failed. Run \`${upgradeCommand()}\` to upgrade.`);
   }
+}
+
+// `sdoc upgrade` — force an upgrade to the latest version right now,
+// regardless of the daily update cache. Branches on install method.
+function runUpgrade() {
+  const cmd = upgradeCommand();
+  console.log(`Upgrading sdoc (currently ${VERSION})...`);
+  try {
+    execSync(cmd, { stdio: 'inherit' });
+  } catch (_) {
+    console.error(`\nUpgrade failed. Run \`${cmd}\` manually.`);
+    process.exit(1);
+  }
+  console.log('✓ sdoc is up to date.');
 }
 
 // Daily refresh of the cached `latest` version from npm. Not gated on TTY:
@@ -648,6 +679,7 @@ USAGE
   sdoc defaults --reset            Remove default styles
   sdoc setup                       Wire SDocs into your coding agents
   sdoc auto-update [on|off]        Toggle auto-install of sdoc updates
+  sdoc upgrade                     Upgrade sdoc to the latest version
   sdoc safe                        Verify the SDocs server is running the published code
   sdoc safe --json                 Same, machine-readable (for agents)
   sdoc safe --audit                Same, plus GitHub links to server-side source files
@@ -1730,7 +1762,7 @@ async function runSafe(opts) {
 
 // ── Parse args ────────────────────────────────────────────
 
-const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts', 'diagrams', 'comments', 'setup', 'safe', 'auto-update']);
+const SUBCOMMANDS = new Set(['new', 'share', 'schema', 'defaults', 'help', 'charts', 'diagrams', 'comments', 'setup', 'safe', 'auto-update', 'upgrade']);
 
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
@@ -1981,6 +2013,7 @@ if (require.main === module) {
     if (opts.subcommand === 'diagrams') { console.log(DIAGRAMS_HELP); process.exit(0); }
     if (opts.subcommand === 'comments') { console.log(COMMENTS_HELP); process.exit(0); }
     if (opts.subcommand === 'setup')  { await runSetup({ force: true }); process.exit(0); }
+    if (opts.subcommand === 'upgrade') { runUpgrade(); process.exit(0); }
     if (opts.subcommand === 'auto-update') {
       // Sub-arg lives in opts.file (positional). Accept on/off/empty.
       runAutoUpdateSubcommand((opts.file || '').toLowerCase());

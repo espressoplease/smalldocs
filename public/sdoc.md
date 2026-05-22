@@ -5,7 +5,7 @@ file: sdoc.md
 # Meet `sdoc`: Markdown without the frustrations
 
 
-(**TLDR:** `sdoc path/to/README.md` opens your file at https://sdoc.dev with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `npm i -g sdocs-dev`. SDocs is [open-source](https://github.com/espressoplease/SDocs). You're reading markdown right now.)
+(**TLDR:** `sdoc path/to/README.md` opens your file at https://sdoc.dev with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `curl -fsSL https://sdocs.dev/install.sh | sh`. SDocs is [open-source](https://github.com/espressoplease/SDocs). You're reading markdown right now.)
 
 ---
 
@@ -22,7 +22,7 @@ Reading a `.md` file in SmallDocs feels just like this (you're reading markdown 
 Creating a SmallDoc for a `.md` file (+ automatically opening your browser to read it) is as simple as:
 
 ```
-# npm i -g sdocs-dev
+# curl -fsSL https://sdocs.dev/install.sh | sh
 sdoc README.md                # open styled in browser
 sdoc share README.md          # copy shareable link to clipboard
 ```
@@ -35,7 +35,7 @@ From personal experience, SDocs is great for sharing agent debugging reports acr
 Teach [Claude Code](https://docs.anthropic.com/en/docs/claude-code) about `sdoc` so it can read, style, and share `.md` files across all your projects:
 
 ```bash
-npm i -g sdocs-dev
+curl -fsSL https://sdocs.dev/install.sh | sh
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
 <!-- sdocs-agent-block:start v=4 -->
@@ -69,7 +69,7 @@ Or run `sdoc setup` once installed to do this automatically.
 Teach [Codex](https://developers.openai.com/codex) about `sdoc`:
 
 ```bash
-npm i -g sdocs-dev
+curl -fsSL https://sdocs.dev/install.sh | sh
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
 <!-- sdocs-agent-block:start v=4 -->
@@ -103,7 +103,7 @@ Or run `sdoc setup` once installed to do this automatically.
 Teach [Gemini CLI](https://github.com/google-gemini/gemini-cli) about `sdoc`:
 
 ```bash
-npm i -g sdocs-dev
+curl -fsSL https://sdocs.dev/install.sh | sh
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
 <!-- sdocs-agent-block:start v=4 -->
@@ -137,7 +137,7 @@ Or run `sdoc setup` once installed to do this automatically.
 Teach [opencode](https://opencode.ai) about `sdoc`:
 
 ```bash
-npm i -g sdocs-dev
+curl -fsSL https://sdocs.dev/install.sh | sh
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
@@ -515,13 +515,33 @@ The two "local" fields are passed to the browser via a separate URL parameter (`
 
 ### Installation
 
-SmallDocs has a command-line tool that lets you open, share, and style markdown files from the terminal. Install it once:
+SmallDocs has a command-line tool that lets you open, share, and style markdown files from the terminal. Install it with one command:
 
 ```
+curl -fsSL https://sdocs.dev/install.sh | sh
+```
+
+This installs the `sdoc` command under `~/.sdocs`, a directory you own. It needs Node.js already on your machine, but never needs root and never writes to npm's global folder. Re-running the same command upgrades sdoc in place, as does `sdoc upgrade`.
+
+The first time you run `sdoc`, you'll see a one-time prompt offering to wire SDocs into any coding agents you have installed (see Setup below). You can accept, skip, or opt out - and re-run it any time with `sdoc setup`.
+
+#### Installing with npm instead
+
+`npm i -g sdocs-dev` also works if you'd rather use npm.
+
+One thing to know: on Linux and macOS, npm's default global install path (`/usr/local/lib/node_modules`) is owned by root. If a previous install ended up there (often via `sudo`), the next plain `npm i -g sdocs-dev` cannot rename the old directory and fails with `EACCES: permission denied`. The install script above sidesteps this, because it never touches that directory.
+
+If you want to stay on npm, point it at a directory in your home folder once:
+
+```
+mkdir -p ~/.npm-global
+npm config set prefix ~/.npm-global
+echo 'export PATH=$HOME/.npm-global/bin:$PATH' >> ~/.bashrc   # or ~/.zshrc
+source ~/.bashrc
 npm i -g sdocs-dev
 ```
 
-This gives you the `sdoc` command. The first time you run it, you'll see a one-time prompt offering to wire SDocs into any coding agents you have installed (see Setup below). You can accept, skip, or opt out - and re-run it any time with `sdoc setup`.
+After this, every global npm install lives under `~/.npm-global` and never needs root. Installing Node via a version manager like `fnm` or `nvm` gives you the same outcome out of the box.
 
 ### Setup
 
