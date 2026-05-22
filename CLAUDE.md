@@ -4,7 +4,18 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
 
 ## Stack
 
+The repo holds two programs:
+
+- **Server** (root `package.json`, `"private": true`, `name: sdocs-server`) - `server.js` plus everything outside `cli/`.
+- **CLI** (`cli/package.json`, `name: sdocs-dev`) - published to npm. Zero runtime dependencies.
+
+The two never share a `package.json` again. See "Published npm tarball" below for why this matters.
+
 - **Server**: `server.js` - pure Node `http` module, small
+- **CLI**: lives entirely under `cli/`:
+  - `cli/bin/sdocs-dev.js` - the `sdoc` command (UMD-shared modules under `cli/shared/`)
+  - `cli/bin/sdocs-postinstall.js` - global-install hint, no-op otherwise
+  - `cli/shared/sdocs-yaml.js`, `sdocs-styles.js`, `sdocs-slugify.js` - real files (symlinked back into `public/` for the browser)
 - **Frontend**: split across `public/`:
   - `index.html` - markup only
   - `css/tokens.css` - CSS custom properties, dark theme, theme transitions
@@ -14,9 +25,9 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
   - `css/mobile.css` - mobile `@media` breakpoint
   - `css/write.css` - write-mode contentEditable surface and toolbar
   - `css/comments.css` - comment-mode card / popover / gutter styling
-  - `sdocs-yaml.js` - YAML front matter parse/serialize, UMD shared with Node
-  - `sdocs-slugify.js` - slugify heading text to URL-safe IDs, UMD shared with Node
-  - `sdocs-styles.js` - pure style data tables + logic, UMD shared with tests
+  - `sdocs-yaml.js` - symlink to `../cli/shared/sdocs-yaml.js` (YAML front matter parse/serialize, UMD shared with Node)
+  - `sdocs-slugify.js` - symlink to `../cli/shared/sdocs-slugify.js` (slugify heading text to URL-safe IDs, UMD shared with Node)
+  - `sdocs-styles.js` - symlink to `../cli/shared/sdocs-styles.js` (pure style data tables + logic, UMD shared with tests)
   - `sdocs-state.js` - shared `window.SDocs` mutable state namespace
   - `sdocs-theme.js` - Google Fonts, font loading, dark mode, theme toggle
   - `sdocs-controls.js` - CSS variable management, color cascade, control wiring
@@ -72,7 +83,7 @@ Never use em dashes (`-`) or en dashes (`-`) anywhere: source files, comments, c
 
 ## Agent integration block
 
-The `sdoc setup` command writes a SDocs explainer into coding-agent config files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, etc.). The block lives as `AGENT_BLOCK_BODY` in `bin/sdocs-dev.js` and is duplicated as per-agent snippets in `public/sdoc.md` (the "Set up your agent" section). **If you reword one, reword the other.**
+The `sdoc setup` command writes a SDocs explainer into coding-agent config files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, etc.). The block lives as `AGENT_BLOCK_BODY` in `cli/bin/sdocs-dev.js` and is duplicated as per-agent snippets in `public/sdoc.md` (the "Set up your agent" section). **If you reword one, reword the other.**
 
 The block is wrapped in HTML-comment bookend markers:
 
@@ -86,7 +97,7 @@ Claude Code strips block-level HTML comments before context injection (zero toke
 
 ### Release checklist when AGENT_BLOCK_BODY changes
 
-1. Bump `AGENT_BLOCK_VERSION` in `bin/sdocs-dev.js`.
+1. Bump `AGENT_BLOCK_VERSION` in `cli/bin/sdocs-dev.js`.
 2. Set `AGENT_BLOCK_REASON` to a one-line summary of what changed.
 3. Prepend a new `## v<N>` section to `public/agent-changes.md` with the reason and full block body.
 4. Reword the per-agent snippets in `public/sdoc.md` (Set up your agent section) to match.
@@ -94,7 +105,7 @@ Claude Code strips block-level HTML comments before context injection (zero toke
 
 ### Legacy migration
 
-Pre-1.5.0 sdoc wrote the block with a single open-only marker `<!-- sdocs-agent-block -->`. `findLegacyBlock()` in `bin/sdocs-dev.js` matches v1 (1.4.0/1.4.1) and v2 (1.4.2) bodies by their `Source: https://github.com/JoshInLisbon/SDocs` terminator and rewrites them with bookend markers. After the install base has rotated through 1.5.0+, this code path can be removed.
+Pre-1.5.0 sdoc wrote the block with a single open-only marker `<!-- sdocs-agent-block -->`. `findLegacyBlock()` in `cli/bin/sdocs-dev.js` matches v1 (1.4.0/1.4.1) and v2 (1.4.2) bodies by their `Source: https://github.com/JoshInLisbon/SDocs` terminator and rewrites them with bookend markers. After the install base has rotated through 1.5.0+, this code path can be removed.
 
 ## CLI state
 
@@ -105,15 +116,21 @@ All CLI-side state lives under `~/.sdocs/`:
 
 ## Published npm tarball
 
-`sdocs-dev` on npm ships only what's in the `files` array of `package.json`: `bin/sdocs-dev.js`, `bin/sdocs-postinstall.js`, and three browser-shared modules under `public/` (`sdocs-yaml.js`, `sdocs-styles.js`, `sdocs-slugify.js`). Everything else - `server.js`, `short-links/`, `feedback/`, `analytics/`, the rest of `public/`, the tests - runs from a git checkout (local dev, production) and never reaches a user via `npm i -g`.
+`sdocs-dev` on npm is published from `cli/`. Its `files` array is `["bin/", "shared/"]`, so the tarball contains `cli/bin/sdocs-dev.js`, `cli/bin/sdocs-postinstall.js`, and the three browser-shared modules under `cli/shared/`. Everything else - `server.js`, `short-links/`, `feedback/`, `analytics/`, all of `public/` (including the symlinks to `cli/shared/`), and the tests - belongs to the server and never reaches a user via `npm i -g`.
 
-**Distribution rule for `package.json` deps:**
+The symlinks under `public/` resolve into `cli/`, but `npm pack` only follows files that already live under the package root, so the published tarball contains the three shared modules as real files and no symlinks.
 
-- `dependencies` ship with `npm i -g sdocs-dev`. Reserve this section for modules `bin/` actually loads. The CLI currently has zero runtime deps - `bin/sdocs-dev.js` is plain Node standard library - so a global install pulls no native modules and runs no third-party postinstall. Promoting a server-only module here forces every CLI user to download and (for native modules) build it for nothing.
-- `devDependencies` cover everything else: tests, the server, browser bundles loaded only by `index.html`. `better-sqlite3` lives here even though it is loaded at runtime by `short-links/db.js`, `feedback/db.js`, and `analytics/db.js` - those files are server-only and lazy-`require` it from inside `init()`, so test runs and the server pick it up via the dev-deps install, but CLI users never see it.
-- Before adding a new runtime dep to `bin/`, audit standard-library options first. The supply-chain story in `public/agent-evaluation.md` (and the byte-comparison fallback for pre-provenance versions) leans on the CLI being a single auditable file with no third-party runtime surface.
+**Why the split exists:**
 
-When in doubt: if a file's path is not in the `files` array, it is server-side and its deps belong in `devDependencies`.
+Before the split, both programs shared a single root `package.json`. `better-sqlite3` and friends had to live in `devDependencies` because shipping them with `npm i -g sdocs-dev` would have forced every CLI user to build a native module they never load. That meant `npm install --production` on the server skipped them and the server crashed at boot. The split gives each program its own dependency list and removes the footgun entirely.
+
+**Distribution rule for the two `package.json` files:**
+
+- **Root `package.json` (`sdocs-server`, `"private": true`)**: `dependencies` for everything `server.js` and the server-side libraries load at runtime (`better-sqlite3`, `marked`, `brotli`...). `devDependencies` for tests (`@playwright/test`). `npm install` at root is now safe under any flag.
+- **`cli/package.json` (`sdocs-dev`)**: no `dependencies`, no `devDependencies`. The CLI is plain Node standard library only, so `npm i -g sdocs-dev` pulls nothing and compiles nothing. Before adding any runtime dep here, audit standard-library options first. The supply-chain story in `public/agent-evaluation.md` (and the byte-comparison fallback for pre-provenance versions) leans on the CLI being auditable code with no third-party runtime surface.
+- The CLI's three shared modules are the only files that span the boundary. They live in `cli/shared/` (so `npm pack` ships them) and the browser sees them via symlinks under `public/` (so the trust manifest and cache-busting hash keep covering them automatically).
+
+When in doubt: if a runtime require lives in `cli/bin/`, its dep goes in `cli/package.json`. Everything else goes in the root.
 
 ## Architecture
 
@@ -143,13 +160,15 @@ There is no build step, so we **cannot use ES modules** (`import`/`export`). Cod
 
 In the browser the IIFE writes to `window.MyLib`; in Node tests it writes to `module.exports`. Three modules use this pattern: `sdocs-yaml.js` (`window.SDocYaml`), `sdocs-slugify.js` (`window.SDocSlugify`), and `sdocs-styles.js` (`window.SDocStyles`).
 
+**Where the real files live**: under `cli/shared/`. `public/` only holds symlinks to them. The browser, the trust manifest, and the cache-busting hash all walk `public/` and follow the symlinks transparently. The npm tarball ships them as real files because they sit inside `cli/`. If you edit one of the three, edit it under `cli/shared/` (the symlink target). Reading or requiring it via `public/` works either way.
+
 ## File format
 
 Styled exports are plain `.md` files with **YAML front matter** (the `---` block standard used by Jekyll, Hugo, Obsidian, Gatsby). The `styles:` key is our addition. Raw exports strip front matter entirely.
 
 When a file is dropped or loaded, `parseFrontMatter()` splits it into `meta` (the YAML object) and `body` (everything after `---`). If `meta.styles` exists, `applyStylesFromMeta()` walks the object and sets each control + CSS var.
 
-The YAML parser is hand-rolled (no `js-yaml` dep) and lives in `sdocs-yaml.js`, shared by the browser app, CLI (`bin/sdocs-dev.js`), and tests.
+The YAML parser is hand-rolled (no `js-yaml` dep) and lives in `cli/shared/sdocs-yaml.js`, shared by the browser app (via the `public/` symlink), CLI (`cli/bin/sdocs-dev.js`), and tests.
 
 ## Transitions & animations
 
@@ -254,10 +273,10 @@ Every fenced-block / inline-render feature (charts, math, mermaid, future ones) 
 8. **Section toggles.** Diagrams/charts inside collapsed `.md-section-body` measure 0×0. Anything that calls `getBoundingClientRect` (rasterizer, focus modal sizing) must run after `expandAllSections()` or be defensive when called on a hidden element.
 9. **CDN load resilience.** First-use CDN load can fail or be slow. Lazy-load helpers should resolve a single shared promise and surface an inline error in the wrapper rather than throwing into render orchestration.
 10. **CLI reference.** Add `sdoc <feature>` (e.g. `sdoc diagrams`) that prints the type list, syntax, and security model. Agents read this themselves before writing fenced blocks; the agent integration block points at it instead of duplicating syntax.
-11. **`sdoc <file>` integration**. If the feature owns a file extension (`.mmd`, `.mermaid`), wrap the file in the appropriate fence in `bin/sdocs-dev.js` so `sdoc graph.mmd` works out of the box.
+11. **`sdoc <file>` integration**. If the feature owns a file extension (`.mmd`, `.mermaid`), wrap the file in the appropriate fence in `cli/bin/sdocs-dev.js` so `sdoc graph.mmd` works out of the box.
 12. **Showcase + feature-intro docs**. Build a gallery page covering every supported sub-type with source blocks, plus a separate feature-introduction doc with intro paragraph, agent-prompt examples, CLI upgrade note, then the gallery. Keep them as two files: gallery is reference, intro is the announcement payload.
 13. **`public/sdoc.md`**. Add a feature section with a link to the gallery; mirror the way charts and diagrams are listed.
-14. **Agent integration block** (`bin/sdocs-dev.js`). Only update if agents need to know the feature exists to use it (Mermaid + Charts qualify; styling tweaks don't). Bump `AGENT_BLOCK_VERSION`, set `AGENT_BLOCK_REASON`, prepend a `## v<N>` section to `public/agent-changes.md`, reword the per-agent snippets in `public/sdoc.md`, and tag the release. (Full release checklist is in the "Agent integration block" section above.)
+14. **Agent integration block** (`cli/bin/sdocs-dev.js`). Only update if agents need to know the feature exists to use it (Mermaid + Charts qualify; styling tweaks don't). Bump `AGENT_BLOCK_VERSION`, set `AGENT_BLOCK_REASON`, prepend a `## v<N>` section to `public/agent-changes.md`, reword the per-agent snippets in `public/sdoc.md`, and tag the release. (Full release checklist is in the "Agent integration block" section above.)
 15. **Notification entry** (`public/notifications.json`). Add an entry at the top with a fresh `id`, today's date, calm title, and a hash-encoded link to the feature-introduction doc. The user-facing notification dot lights up only for entries newer than the user's last-seen mark.
 
 ## Charts

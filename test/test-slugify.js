@@ -7,7 +7,7 @@ module.exports = function(harness) {
 
   console.log('\n── Slugify + TOC Tests ────────────────────────\n');
 
-  const { slugify } = require('../public/sdocs-slugify');
+  const { slugify } = require('../cli/shared/sdocs-slugify');
 
   test('slugify: basic text', () => {
     assert.strictEqual(slugify('Getting Started'), 'getting-started');

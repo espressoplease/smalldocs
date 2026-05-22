@@ -5,7 +5,7 @@
 const zlib = require('zlib');
 const fs = require('fs');
 const path = require('path');
-const cli = require('../bin/sdocs-dev.js');
+const cli = require('../cli/bin/sdocs-dev.js');
 
 // ── Encoding helpers ─────────────────────────────────────
 

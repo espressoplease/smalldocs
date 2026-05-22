@@ -1,7 +1,8 @@
 # Publishes the npm package with build provenance attestation.
 #
 # Triggered by pushing a `v*` tag. The tag's version must match
-# package.json's version, otherwise the workflow fails.
+# cli/package.json's version, otherwise the workflow fails.
+# (Root package.json belongs to the private server, not the CLI.)
 #
 # npm provenance requires:
 #   - permissions: id-token: write   (OIDC mint for GitHub Actions)
@@ -61,17 +62,17 @@ jobs:
       - name: Upgrade npm for OIDC trusted publisher support
         run: npm install -g npm@latest
 
-      - name: Verify tag matches package.json version
+      - name: Verify tag matches cli/package.json version
         if: github.event_name == 'push'
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF#refs/tags/v}"
-          PKG=$(node -p "require('./package.json').version")
+          PKG=$(node -p "require('./cli/package.json').version")
           if [ "$TAG" != "$PKG" ]; then
-            echo "::error::Tag v$TAG does not match package.json version $PKG"
+            echo "::error::Tag v$TAG does not match cli/package.json version $PKG"
             exit 1
           fi
-          echo "Tag and package.json agree on $TAG."
+          echo "Tag and cli/package.json agree on $TAG."
 
       - name: Install dependencies
         run: npm ci
@@ -80,6 +81,7 @@ jobs:
         run: npm test
 
       - name: Publish to npm with provenance
+        working-directory: cli
         run: |
           set -euo pipefail
           if [ "${{ inputs.dry-run }}" = "true" ]; then

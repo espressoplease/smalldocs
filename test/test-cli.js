@@ -2,9 +2,9 @@
  * CLI parseArgs/buildUrl + style merging + compression tests
  */
 const path = require('path');
-const cli = require(path.join(__dirname, '..', 'bin', 'sdocs-dev.js'));
-const SDocYaml = require(path.join(__dirname, '..', 'public', 'sdocs-yaml.js'));
-const S = require(path.join(__dirname, '..', 'public', 'sdocs-styles.js'));
+const cli = require(path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js'));
+const SDocYaml = require(path.join(__dirname, '..', 'cli', 'shared', 'sdocs-yaml.js'));
+const S = require(path.join(__dirname, '..', 'cli', 'shared', 'sdocs-styles.js'));
 
 module.exports = function(harness) {
   const { assert, test } = harness;
