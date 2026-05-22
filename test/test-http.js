@@ -170,12 +170,13 @@ module.exports = function(harness) {
     let createdId;
     const sampleCipher = 'AAAA-_abcdef0123456789';  // valid base64url, opaque to server
 
-    await testAsync('POST /api/short with valid ciphertext returns 201 + id', async () => {
+    await testAsync('POST /api/short with valid ciphertext returns 201 + long id', async () => {
       const r = await post(BASE + '/api/short', { ciphertext: sampleCipher });
       assert.strictEqual(r.status, 201);
       const data = JSON.parse(r.body);
       assert.ok(data.id, 'response should include id');
       assert.ok(/^[A-Za-z0-9_-]+$/.test(data.id), 'id should be base64url chars');
+      assert.strictEqual(data.id.length, 22, 'new short links should mint a 22-char id, got: ' + data.id);
       createdId = data.id;
     });
 

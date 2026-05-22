@@ -605,8 +605,11 @@ foreignObject span { line-height: normal; }
 }
 #_sd_sdocs-file-info .fic-privacy-note[hidden] { display: none; }
 
-/* Short URL row: fades + slides in after the Shorten button is clicked */
+/* Short URL row: fades + slides in after the Shorten button is clicked.
+   Top-align label, value, and copy button so a URL that wraps to two lines
+   reads as a deliberate block, not a ragged baseline-aligned row. */
 #_sd_sdocs-file-info .fic-row-short {
+  align-items: flex-start;
   opacity: 1;
   transform: translateY(0);
   transition: opacity .3s cubic-bezier(.4,0,.2,1), transform .3s cubic-bezier(.4,0,.2,1);
@@ -615,9 +618,15 @@ foreignObject span { line-height: normal; }
   opacity: 0;
   transform: translateY(-4px);
 }
+/* The short URL is one long opaque string. break-all fills every line edge
+   to edge so a wrap looks like a deliberate text block, instead of the ragged
+   short first line that break-word leaves when it snaps at a hyphen. */
 #_sd_sdocs-file-info .fic-row-short .fic-value {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
   font-size: 12px;
+  word-break: break-all;
+  overflow-wrap: normal;
+  line-height: 1.6;
 }
 
 /* Shorten action row: button + inline error */
