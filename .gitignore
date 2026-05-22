@@ -9,3 +9,4 @@ analytics.db*
 short_links.db*
 feedback.db*
 *.tgz
+tmp/
