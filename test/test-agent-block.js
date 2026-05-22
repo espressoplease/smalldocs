@@ -1,14 +1,14 @@
 /**
  * Agent block bookend marker + migration tests.
  *
- * Covers the pure functions in bin/sdocs-dev.js that drive `sdoc setup`
+ * Covers the pure functions in cli/bin/sdocs-dev.js that drive `sdoc setup`
  * and the auto-refresh on version bumps. File I/O (atomicWrite, lock,
  * symlink refusal) is exercised end-to-end in test-cli-integration if
  * we ever want it; here we pin the logic that decides what to write.
  */
 
 const path = require('path');
-const cli  = require(path.join(__dirname, '..', 'bin', 'sdocs-dev.js'));
+const cli  = require(path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js'));
 
 module.exports = function (harness) {
   const { assert, test } = harness;
