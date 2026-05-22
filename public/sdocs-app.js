@@ -1274,18 +1274,55 @@ async function initShortLink(id) {
   }
 }
 
+// Register the document sources this build ships with. Order matters:
+// Sources.select() picks the FIRST match, so the most specific URL
+// shapes go first. Later chunks (Bridge, Library, WorkspaceLink) add a
+// new source by calling SDocs.Sources.register from their own module —
+// the dispatch below does not change.
+
+S.Sources.register({
+  name: 'short-link',
+  matches: function (loc) { return SHORT_LINK_PATH_RE.test(loc.pathname); },
+  create: function (loc) {
+    var id = SHORT_LINK_PATH_RE.exec(loc.pathname)[1];
+    return {
+      name: 'short-link',
+      capabilities: { canSave: false, canWatch: false, canSubmit: false },
+      load: function () { return initShortLink(id); },
+    };
+  },
+});
+
+S.Sources.register({
+  name: 'new-document',
+  matches: function (loc) { return loc.pathname === '/new'; },
+  create: function () {
+    return {
+      name: 'new-document',
+      capabilities: { canSave: true, canWatch: false, canSubmit: false },
+      load: function () { startNewDocument(); },
+    };
+  },
+});
+
+S.Sources.register({
+  name: 'fragment',
+  matches: function () { return true; }, // catch-all
+  create: function () {
+    return {
+      name: 'fragment',
+      capabilities: { canSave: true, canWatch: false, canSubmit: false },
+      load: function () { return loadFromHash(); },
+    };
+  },
+});
+
 (async function () {
   await _defaultReady;
-  var shortMatch = SHORT_LINK_PATH_RE.exec(window.location.pathname);
-  if (shortMatch) {
-    await initShortLink(shortMatch[1]);
-    return;
+  var source = S.Sources.select();
+  if (source) {
+    await source.load();
   }
-  if (window.location.pathname === '/new') {
-    startNewDocument();
-    return;
-  }
-  await loadFromHash();
 }());
 
 window.addEventListener('hashchange', function () {
