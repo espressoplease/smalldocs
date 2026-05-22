@@ -1,33 +1,12 @@
 {
-  "name": "sdocs-dev",
+  "name": "sdocs-server",
   "version": "1.6.2",
-  "description": "Open, share, and style markdown files from the terminal",
-  "main": "bin/sdocs-dev.js",
-  "bin": {
-    "sdoc": "bin/sdocs-dev.js",
-    "sdocs-dev": "bin/sdocs-dev.js"
-  },
-  "files": [
-    "bin/",
-    "public/sdocs-yaml.js",
-    "public/sdocs-styles.js",
-    "public/sdocs-slugify.js"
-  ],
+  "description": "SDocs server (sdocs.dev). Private; never published. The CLI lives in cli/.",
+  "private": true,
   "scripts": {
     "start": "node server.js",
-    "test": "node test/run.js",
-    "postinstall": "node bin/sdocs-postinstall.js"
+    "test": "node test/run.js"
   },
-  "keywords": [
-    "markdown",
-    "editor",
-    "styling",
-    "charts",
-    "pdf",
-    "docx",
-    "cli",
-    "agents"
-  ],
   "author": "Josh Summers",
   "license": "MIT",
   "repository": {
@@ -35,12 +14,14 @@
     "url": "git+https://github.com/espressoplease/SDocs.git"
   },
   "homepage": "https://sdocs.dev",
-  "devDependencies": {
-    "@playwright/test": "^1.59.1",
+  "dependencies": {
     "better-sqlite3": "^12.8.0",
     "brotli": "^1.3.3",
     "brotli-dec-wasm": "^2.3.2",
     "brotli-wasm": "^3.0.1",
     "marked": "^11.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
   }
 }

@@ -13,8 +13,8 @@ const fs   = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const { execSync, execFileSync } = require('child_process');
-const SDocYaml = require('../public/sdocs-yaml.js');
-const SDocStyles = require('../public/sdocs-styles.js');
+const SDocYaml = require('../shared/sdocs-yaml.js');
+const SDocStyles = require('../shared/sdocs-styles.js');
 
 const https    = require('https');
 const http     = require('http');
@@ -1614,7 +1614,7 @@ async function buildShortUrl(content, opts) {
 
 // ── Slugify (shared module) ───────────────────────────────
 
-var slugify = require('../public/sdocs-slugify').slugify;
+var slugify = require('../shared/sdocs-slugify').slugify;
 
 // ── sdoc safe: verify frontend hashes + point agents at the server source ──
 //
