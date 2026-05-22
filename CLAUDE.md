@@ -49,6 +49,7 @@ Lightweight stateless markdown editor with live styling. Single Node.js file ser
   - `test/footnote-input.spec.js` - parsing markdown-footnote-format comment input
   - `test/xss.spec.js` - script / event-handler / iframe injection through markdown
   - `test/mermaid.spec.js` - real-browser Mermaid render + XSS payloads + DoS cap (CDN-dependent)
+  - `test/short-link.spec.js` - short-link load + staleness fix (edit clears the stale short URL)
   - `playwright.config.js` - Chromium only, auto-starts server on :3000
 
 ## Writing style (docs, copy, UI strings, commit messages)
