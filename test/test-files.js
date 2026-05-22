@@ -137,9 +137,9 @@ module.exports = function(harness) {
       (matches || []).join('\n'));
   });
 
-  test('bin/sdocs-postinstall.js exists and is silent when not a global install', () => {
-    const postinstall = path.join(__dirname, '..', 'bin', 'sdocs-postinstall.js');
-    assert.ok(fs.existsSync(postinstall), 'missing bin/sdocs-postinstall.js');
+  test('cli/bin/sdocs-postinstall.js exists and is silent when not a global install', () => {
+    const postinstall = path.join(__dirname, '..', 'cli', 'bin', 'sdocs-postinstall.js');
+    assert.ok(fs.existsSync(postinstall), 'missing cli/bin/sdocs-postinstall.js');
     const src = fs.readFileSync(postinstall, 'utf-8');
     assert.ok(src.includes("npm_config_global"), 'should gate on npm_config_global');
     assert.ok(src.includes('process.env.CI'), 'should skip when CI is set');
@@ -152,8 +152,8 @@ module.exports = function(harness) {
     assert.ok(changes.includes('## v1'), 'missing v1 section');
   });
 
-  test('package.json has postinstall script and version 1.5.0+', () => {
-    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
+  test('cli/package.json has postinstall script and version 1.5.0+', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'cli', 'package.json'), 'utf-8'));
     assert.ok(pkg.scripts && pkg.scripts.postinstall, 'missing scripts.postinstall');
     assert.ok(pkg.scripts.postinstall.includes('sdocs-postinstall.js'),
               'postinstall should run sdocs-postinstall.js');

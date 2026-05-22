@@ -1,0 +1,34 @@
+{
+  "name": "sdocs-dev",
+  "version": "1.6.2",
+  "description": "Open, share, and style markdown files from the terminal",
+  "main": "bin/sdocs-dev.js",
+  "bin": {
+    "sdoc": "bin/sdocs-dev.js",
+    "sdocs-dev": "bin/sdocs-dev.js"
+  },
+  "files": [
+    "bin/",
+    "shared/"
+  ],
+  "scripts": {
+    "postinstall": "node bin/sdocs-postinstall.js"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "styling",
+    "charts",
+    "pdf",
+    "docx",
+    "cli",
+    "agents"
+  ],
+  "author": "Josh Summers",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/espressoplease/SDocs.git"
+  },
+  "homepage": "https://sdocs.dev"
+}
