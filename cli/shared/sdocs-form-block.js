@@ -22,10 +22,12 @@
 
 var MAX_BLOCK_BYTES   = 64 * 1024;          // hard cap per form block
 var NAME_RE           = /^[a-z0-9_-]{1,64}$/;
-var ALLOWED_TYPES     = { text: 1, textarea: 1, radio: 1 };
+var ALLOWED_TYPES     = { text: 1, textarea: 1, radio: 1,
+                          checkbox: 1, select: 1, number: 1, date: 1 };
 var FIELD_KEYS        = ['name','type','label','help','required',
-                         'default','placeholder','options','rows','maxlength'];
-var BUTTON_KEYS       = ['name','label','scope','final'];
+                         'default','placeholder','options','rows',
+                         'maxlength','min','max','step'];
+var BUTTON_KEYS       = ['name','label','scope','final','after'];
 
 // ─── Scalar parsing (string in, JS in) ────────────────────────
 
@@ -286,8 +288,17 @@ function validate(block) {
     if (seen[f.name]) return { error: 'duplicate field name: ' + f.name };
     seen[f.name] = true;
     if (!ALLOWED_TYPES[f.type]) return { error: 'field "' + f.name + '" has unknown type: ' + f.type };
-    if (f.type === 'radio' && (!Array.isArray(f.options) || f.options.length === 0)) {
-      return { error: 'radio field "' + f.name + '" requires options[]' };
+    if ((f.type === 'radio' || f.type === 'checkbox' || f.type === 'select') &&
+        (!Array.isArray(f.options) || f.options.length === 0)) {
+      return { error: f.type + ' field "' + f.name + '" requires options[]' };
+    }
+    if (f.type === 'checkbox' && f.default !== undefined && f.default !== null &&
+        !Array.isArray(f.default)) {
+      return { error: 'checkbox field "' + f.name + '" default must be an array of option strings' };
+    }
+    if (f.type === 'number' && f.default !== undefined && f.default !== null &&
+        typeof f.default !== 'number') {
+      return { error: 'number field "' + f.name + '" default must be a number' };
     }
   }
   // Buttons: at least one required, names unique.
@@ -306,6 +317,11 @@ function validate(block) {
     if (Array.isArray(b.scope)) {
       for (var k = 0; k < b.scope.length; k++) {
         if (!seen[b.scope[k]]) return { error: 'button "' + b.name + '" scope refers to unknown field: ' + b.scope[k] };
+      }
+    }
+    if (b.after !== undefined && b.after !== null) {
+      if (typeof b.after !== 'string' || !seen[b.after]) {
+        return { error: 'button "' + b.name + '" after refers to unknown field: ' + b.after };
       }
     }
   }
