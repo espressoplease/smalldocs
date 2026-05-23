@@ -31,6 +31,7 @@ const styles      = require('../lib/styles');
 const io          = require('../lib/io');
 const helpText    = require('../lib/help-text');
 const commands    = require('../lib/commands');
+const bridgeCommands = require('../lib/bridge-commands');
 
 // ── Router ────────────────────────────────────────────────
 // One place that knows the full set of verbs. New chunks register here.
@@ -63,7 +64,13 @@ function buildRouter() {
   // `sdoc new`: open blank /new editor.
   r.register('new',      { handler: (opts) => { commands.newCommand(opts); process.exit(0); } });
 
-  // `sdoc share <file>` and the default file-open flow.
+  // `sdoc feedback <file> --message "..."` — agent handoff. Bridge in
+  // feedback mode: Done returns 0, close-without-Done returns 2.
+  r.register('feedback', { handler: (opts) => bridgeCommands.feedbackCommand(opts) });
+
+  // `sdoc share <file>` (URL-only, non-blocking) and the default file-open
+  // flow. The default handler starts a Bridge when given a real file path,
+  // and falls back to URL-encoded snapshot for stdin / no-file.
   r.register('share',    { handler: (opts) => commands.shareCommand(opts) });
   r.register(null,       { handler: (opts) => commands.openCommand(opts) });
 

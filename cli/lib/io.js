@@ -8,6 +8,7 @@ const SUBCOMMANDS = new Set([
   'new', 'share', 'schema', 'defaults', 'help',
   'charts', 'diagrams', 'comments',
   'setup', 'safe', 'auto-update', 'refresh',
+  'feedback',
 ]);
 
 function parseArgs(argv) {
@@ -22,6 +23,11 @@ function parseArgs(argv) {
   let shortFlag = false;
   let jsonFlag = false;
   let auditFlag = false;
+  let waitFlag = false;
+  let messageText = null;
+  let connectTimeoutS = null;
+  let idleTimeoutS = null;
+  let reconnectGraceMs = null;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -52,6 +58,14 @@ function parseArgs(argv) {
     if (arg === '--short') { shortFlag = true; continue; }
     if (arg === '--json')  { jsonFlag  = true; continue; }
     if (arg === '--audit') { auditFlag = true; continue; }
+    if (arg === '--wait')  { waitFlag  = true; continue; }
+
+    // Note: `--mode` already owns `-m` for editor-mode selection, so the
+    // bridge message flag is `--message` with no short alias.
+    if (arg === '--message')                         { messageText      = args[++i]; continue; }
+    if (arg === '--connect-timeout')                 { connectTimeoutS  = Number(args[++i]); continue; }
+    if (arg === '--idle-timeout')                    { idleTimeoutS     = Number(args[++i]); continue; }
+    if (arg === '--reconnect-grace')                 { reconnectGraceMs = Number(args[++i]); continue; }
 
     if (!subcommand && SUBCOMMANDS.has(arg)) {
       subcommand = arg;
@@ -61,7 +75,11 @@ function parseArgs(argv) {
     if (!file) { file = arg; continue; }
   }
 
-  return { file, mode, url, subcommand, section, theme, resetFlag, shortFlag, jsonFlag, auditFlag };
+  return {
+    file, mode, url, subcommand, section, theme,
+    resetFlag, shortFlag, jsonFlag, auditFlag, waitFlag,
+    messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
+  };
 }
 
 async function readContent(file) {

@@ -449,7 +449,11 @@ const server = http.createServer((req, res) => {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
       "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
       "img-src 'self' data: https:",
-      "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com",
+      // ws://127.0.0.1:* and ws://localhost:* let the page reach a local
+      // Bridge process the `sdoc edit|watch|compose --wait` CLI spawns. The
+      // Bridge binds to loopback only and gates the upgrade on a per-session
+      // token, so the policy still excludes arbitrary internal IPs.
+      "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com ws://127.0.0.1:* ws://localhost:*",
       "frame-src 'none'",
       "object-src 'none'",
     ].join('; ');
