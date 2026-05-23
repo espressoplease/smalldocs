@@ -240,6 +240,34 @@ buttons:
   }
 });
 
+test('form: orphan copy button from code-block decorator is removed', async ({ page }) => {
+  const file = tmpFile('nocopy.md', FORM_BODY);
+  const bridge = await startBridge({
+    files: [file], mode: 'feedback',
+    noConnectTimeoutMs: 15000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+  });
+  try {
+    await page.goto(bridgeUrl(bridge));
+    await waitForFormReady(page);
+    // The .pre-wrapper that decorates code blocks must not survive next
+    // to the rendered form, and neither must its .copy-btn child.
+    await expect(page.locator('.sdoc-form-host .copy-btn')).toHaveCount(0);
+    await expect(page.locator('.pre-wrapper:has(.sdoc-form)')).toHaveCount(0);
+    // The pre-wrapper that would normally contain the form's <pre> is gone
+    // entirely; no orphan wrapper next to the form host.
+    const orphans = await page.evaluate(() => {
+      const host = document.querySelector('.sdoc-form-host');
+      if (!host) return -1;
+      const sib = host.previousElementSibling;
+      return sib && sib.classList && sib.classList.contains('pre-wrapper') ? 1 : 0;
+    });
+    expect(orphans).toBe(0);
+  } finally {
+    bridge.close();
+    await bridge.awaitTerminal();
+  }
+});
+
 test('form: XSS payloads in option labels are not executed', async ({ page }) => {
   const body = `\`\`\`form
 id: xss

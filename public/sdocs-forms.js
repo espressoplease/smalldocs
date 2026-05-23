@@ -53,17 +53,21 @@ function renderForms(root) {
 function mountForm(codeEl) {
   var pre = codeEl.parentNode;
   if (!pre || pre.tagName !== 'PRE') return;
+  // attachCodeCopyButtons() in sdocs-app.js wraps every <pre> in
+  // .pre-wrapper and adds a copy button next to it. Replace the wrapper,
+  // not just the <pre>, so the copy button doesn't orphan beside the form.
+  var target = pre.closest('.pre-wrapper') || pre;
   var src = codeEl.textContent || '';
   var parsed = FB.parseFormBlock(src);
   var host = document.createElement('div');
   host.className = 'sdoc-form-host';
   if (parsed.error) {
     renderError(host, parsed.error, src);
-    pre.replaceWith(host);
+    target.replaceWith(host);
     return;
   }
   renderForm(host, parsed.value);
-  pre.replaceWith(host);
+  target.replaceWith(host);
 }
 
 // ─── Error fallback ───────────────────────────────────────────
