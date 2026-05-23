@@ -292,6 +292,45 @@ async function runShortenFlow(btn, errEl) {
   }
 }
 
+function bridgeStateLabel(state) {
+  switch (state) {
+    case 'connecting':   return 'Connecting to local file...';
+    case 'connected':    return 'Syncing with local file';
+    case 'saving':       return 'Syncing with local file';
+    case 'saved':        return 'Syncing with local file';
+    case 'submitted':    return 'Submitted';
+    case 'disconnected': return 'Connection lost';
+    case 'error':        return 'Connection lost';
+    default:             return state || 'Connecting to local file...';
+  }
+}
+
+function bridgeStateIsLost(state) {
+  return state === 'disconnected' || state === 'error';
+}
+
+// Lucide icons (https://lucide.dev). Inlined so the bundle stays free of
+// icon-library deps. Stroke is currentColor — colour comes from CSS.
+var BRIDGE_SCREEN_SHARE_SVG = ''
+  + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+  +   ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  +   '<path d="M13 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3"/>'
+  +   '<path d="M8 21h8"/>'
+  +   '<path d="M12 17v4"/>'
+  +   '<path d="m17 8 5-5"/>'
+  +   '<path d="M17 3h5v5"/>'
+  + '</svg>';
+
+var BRIDGE_SCREEN_SHARE_OFF_SVG = ''
+  + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+  +   ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  +   '<path d="M13 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3"/>'
+  +   '<path d="M8 21h8"/>'
+  +   '<path d="M12 17v4"/>'
+  +   '<path d="m22 3-5 5"/>'
+  +   '<path d="m17 3 5 5"/>'
+  + '</svg>';
+
 function dataRowHtml(key, label, value, isLocal, isShort) {
   var pill = isLocal ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '';
   var cls = 'fic-row' + (isShort ? ' fic-row-short' : '');
@@ -310,10 +349,20 @@ function renderFileInfoCard() {
   var local = S.localMeta || {};
   var rowsEl = card.querySelector('.fic-rows');
 
-  var hasDoc = !!(meta.file || S.currentBody || (S.currentMeta && Object.keys(S.currentMeta).length));
-  var hasLocalRow = !!(local.path || local.fullPath);
+  // The "Edits" row only renders when a bridge session is *or has been*
+  // active. Opening a short URL or a regular shared URL has no bridge, and
+  // the row stays hidden. If the bridge connects then drops, the row sticks
+  // around in the "Connection lost" state so the user knows their typing
+  // isn't reaching disk any more.
+  var bridge = S.bridge || null;
+  var bridgeFile = bridge && bridge.cfg && bridge.cfg.file ? bridge.cfg.file : null;
 
-  if (!hasDoc && !meta.file && !hasLocalRow) {
+  var hasDoc = !!(meta.file || S.currentBody || (S.currentMeta && Object.keys(S.currentMeta).length));
+  // Edits is a local-only row: it tells you about *this* device's sync
+  // state with a local file. Count it toward the privacy note.
+  var hasLocalRow = !!(local.path || local.fullPath || bridge);
+
+  if (!hasDoc && !meta.file && !hasLocalRow && !bridge) {
     card.hidden = true;
     rowsEl.innerHTML = '';
     return;
@@ -327,7 +376,9 @@ function renderFileInfoCard() {
   // right after Filename, so the row doesn't jump around as the user moves
   // between the intro / shorten / shortened states.
   var slots = [];
-  if (meta.file) slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', meta.file, false, false) });
+  if (meta.file || bridgeFile) {
+    slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', meta.file || bridgeFile, false, false) });
+  }
 
   // Don't offer a short URL for the built-in default document (bare / or
   // /legal landing pages). Shortening marketing copy isn't useful and
@@ -342,12 +393,35 @@ function renderFileInfoCard() {
   if (local.path)     slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, true, false) });
   if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, true, false) });
 
+  // Edits sits at the end so every other row is settled first. Its label
+  // changes as the bridge state moves through connecting -> syncing ->
+  // lost; pinning it to a stable bottom slot stops the rows above from
+  // shifting when those transitions happen.
+  if (bridge) {
+    slots.push({ type: 'bridge', state: bridge.status || 'connecting', label: bridge.statusLabel || bridgeStateLabel(bridge.status) });
+  }
+
   // Render in order. Data rows go in as HTML; action rows are DOM nodes so we
   // can attach handlers to specific elements.
   rowsEl.innerHTML = '';
   slots.forEach(function(slot) {
     if (slot.type === 'data') {
       rowsEl.insertAdjacentHTML('beforeend', slot.html);
+    } else if (slot.type === 'bridge') {
+      // Edits row: mirrors the data-row layout (label · value · pill · RHS
+      // icon slot) so it aligns with the copy buttons above. The icon
+      // swaps to screen-share-off and turns dark red when the bridge has
+      // dropped — visual signal that typing isn't reaching disk any more.
+      var br = document.createElement('div');
+      br.className = 'fic-row fic-row-bridge';
+      br.setAttribute('data-state', slot.state);
+      var icon = bridgeStateIsLost(slot.state) ? BRIDGE_SCREEN_SHARE_OFF_SVG : BRIDGE_SCREEN_SHARE_SVG;
+      br.innerHTML = ''
+        + '<span class="fic-label">Edits</span>'
+        + '<span class="fic-value">' + escapeHtml(slot.label) + '</span>'
+        + '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>'
+        + '<span class="fic-bridge-icon" title="' + escapeHtml(slot.label) + '">' + icon + '</span>';
+      rowsEl.appendChild(br);
     } else if (slot.type === 'intro') {
       var introRow = document.createElement('div');
       introRow.className = 'fic-row fic-row-short-intro';
@@ -1099,9 +1173,12 @@ S.shortLink = {
 // Clear runtime-only local metadata (paths) once the user has edited the
 // document, since the content no longer corresponds to the file on disk.
 // Suppressed while a document is loading — style changes during load come from
-// applying saved styles, not from user edits.
+// applying saved styles, not from user edits. Also suppressed while a Bridge
+// session is connected: autosave keeps the on-screen document in lockstep
+// with the file on disk, so the paths still describe the live content.
 S.invalidateLocalMeta = function() {
   if (S._loadingDocument) return;
+  if (S.bridge && S.bridge._connected) return;
   if (!S.localMeta || Object.keys(S.localMeta).length === 0) return;
   S.localMeta = {};
   renderFileInfoCard();

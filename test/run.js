@@ -23,12 +23,14 @@ require('./test-comments')(harness);
 require('./test-agent-block')(harness);
 require('./test-router')(harness);
 require('./test-source')(harness);
+const runBridge = require('./test-bridge')(harness);
 
 // ── HTTP tests (async, starts server) ──────────────
 const runHttp = require('./test-http')(harness);
 const runCacheBust = require('./test-cache-bust')(harness);
 
 (async () => {
+  await runBridge();
   await runHttp();
   await runCacheBust();
   harness.report();

@@ -74,9 +74,17 @@ module.exports = function (harness) {
     const r = cli.buildRouter();
     const expected = ['help', 'schema', 'charts', 'diagrams', 'comments',
                       'setup', 'refresh', 'auto-update', 'safe',
-                      'defaults', 'new', 'share'];
+                      'defaults', 'new', 'share',
+                      // Bridge verb (chunk 2 — `sdoc <file>` itself runs the
+                      // bridge via the default handler, so only feedback
+                      // earns a dedicated verb slot).
+                      'feedback'];
     for (const v of expected) {
       assert.strictEqual(r.has(v), true, 'router missing verb: ' + v);
+    }
+    // Verbs we explicitly retired in this iteration shouldn't reappear.
+    for (const v of ['watch', 'edit', 'compose']) {
+      assert.strictEqual(r.has(v), false, 'router should not register retired verb: ' + v);
     }
   });
 
