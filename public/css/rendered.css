@@ -574,6 +574,22 @@ foreignObject span { line-height: normal; }
   color: var(--fic-muted);
   flex-shrink: 0;
 }
+/* Inline "live" chip rendered next to the filename in non-editing
+   modes, only when the bridge is actively syncing. Reuses the muted
+   tone of .fic-local-tag so it reads as ambient state, not an alert. */
+#_sd_sdocs-file-info .fic-live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--fic-muted) 35%, transparent);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--fic-muted);
+  cursor: default;
+  flex-shrink: 0;
+}
+#_sd_sdocs-file-info .fic-live-chip svg { color: var(--fic-muted); }
 #_sd_sdocs-file-info .fic-copy {
   display: inline-flex;
   align-items: center;

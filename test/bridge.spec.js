@@ -69,12 +69,17 @@ test('open mode: external change pushes through and the file-info row shows the 
     await page.waitForFunction(() => window.SDocs && window.SDocs.bridge && window.SDocs.bridge._helloed === true);
 
     // The Edits row only renders in editing modes — in read mode it stays
-    // hidden so the card isn't cluttered for someone just reading.
+    // hidden so the card isn't cluttered for someone just reading. The
+    // filename row instead gets a small "live" chip so the reader knows
+    // the file is connected.
     await expect(page.locator('.fic-row-bridge')).toHaveCount(0);
+    await expect(page.locator('.fic-row[data-key="file"] .fic-live-chip')).toContainText('live');
 
     await page.evaluate(() => window.SDocs.setMode('write'));
     await expect(page.locator('.fic-row-bridge .fic-bridge-icon svg')).toBeVisible();
     await expect(page.locator('.fic-row-bridge .fic-local-tag')).toContainText('Local only');
+    // Chip steps aside while the Edits row is doing the talking.
+    await expect(page.locator('.fic-row[data-key="file"] .fic-live-chip')).toHaveCount(0);
 
     await expect.poll(
       () => page.evaluate(() => window.SDocs.currentBody),
