@@ -1,0 +1,1 @@
+../cli/shared/sdocs-form-block.js

@@ -20,6 +20,7 @@ require('./test-analytics')(harness);
 require('./test-short-links')(harness);
 require('./test-chrome')(harness);
 require('./test-comments')(harness);
+require('./test-forms')(harness);
 require('./test-agent-block')(harness);
 require('./test-router')(harness);
 require('./test-source')(harness);
