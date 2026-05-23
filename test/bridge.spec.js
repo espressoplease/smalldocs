@@ -68,8 +68,11 @@ test('open mode: external change pushes through and the file-info row shows the 
     await page.goto(bridgeUrl(bridge));
     await page.waitForFunction(() => window.SDocs && window.SDocs.bridge && window.SDocs.bridge._helloed === true);
 
-    // The file-info card carries an Edits row with the screen-share icon
-    // on the RHS plus a "Local only" pill.
+    // The Edits row only renders in editing modes — in read mode it stays
+    // hidden so the card isn't cluttered for someone just reading.
+    await expect(page.locator('.fic-row-bridge')).toHaveCount(0);
+
+    await page.evaluate(() => window.SDocs.setMode('write'));
     await expect(page.locator('.fic-row-bridge .fic-bridge-icon svg')).toBeVisible();
     await expect(page.locator('.fic-row-bridge .fic-local-tag')).toContainText('Local only');
 
