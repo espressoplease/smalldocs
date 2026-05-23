@@ -25,11 +25,13 @@ const http   = require('http');
 const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
+const FormBlock = require('../shared/sdocs-form-block.js');
 
 // ── Constants ─────────────────────────────────────────────
 
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
-const RECONNECT_GRACE_MS    = 2000;     // wait this long for a reconnect after drop
+const RECONNECT_GRACE_MS    = 8000;     // wait this long for a reconnect after drop
+                                        // (covers refresh + service-worker dance)
 const STAT_POLL_MS          = 3000;     // stat-poll backstop (fs.watch coalesces)
 const WATCH_DEBOUNCE_MS     = 50;       // collapse rapid fs.watch bursts
 const NO_CONNECT_TIMEOUT_MS = 30000;    // exit if the browser never connects
@@ -302,6 +304,10 @@ function startBridge(opts) {
     throw new Error('startBridge: mode must be open | feedback');
   }
   const message = typeof opts.message === 'string' ? opts.message : null;
+  // keepOpen=true keeps the bridge alive across non-final submits, so
+  // an agent can write more state into the file and the user can keep
+  // answering without re-launching the CLI.
+  const keepOpen = !!opts.keepOpen;
 
   const token   = opts.token   || crypto.randomBytes(32).toString('base64url');
   const port    = opts.port    || 0;
@@ -410,6 +416,11 @@ function startBridge(opts) {
       return;
     }
 
+    if (msg.type === 'submitForm') {
+      handleFormSubmit(msg);
+      return;
+    }
+
     if (msg.type === 'close') {
       // Tab is closing intentionally. No reconnect grace — exit immediately
       // with the right code for our mode.
@@ -420,7 +431,137 @@ function startBridge(opts) {
       return;
     }
 
-    // Unknown types are ignored — chunk 3 may add more.
+    // Unknown types are ignored.
+  }
+
+  // Handle a `submitForm` message from the browser. The flow:
+  //   1. Re-read the file from disk (the file is the source of truth,
+  //      not anything we have in memory).
+  //   2. Find the named form block, recompute its revision token.
+  //   3. If the token doesn't match what the browser submitted, the
+  //      schema has changed under the user's hands. Reject with
+  //      `form-stale`; the next external-change push will refresh
+  //      their view to the new schema.
+  //   4. Apply the user's values (scoped) and append a submission
+  //      entry. Re-serialise the block and splice it back into the
+  //      document.
+  //   5. Verify boundary stability: the only bytes that may differ
+  //      between pre and post are inside the fenced region.
+  //   6. Atomic-write the file.
+  //   7. Ack to the browser. If the button was final or the CLI was
+  //      not started with keepOpen, terminate.
+  function handleFormSubmit(msg) {
+    const formId = typeof msg.form_id === 'string' ? msg.form_id : '';
+    const buttonName = typeof msg.button_name === 'string' ? msg.button_name : '';
+    const values = (msg.values && typeof msg.values === 'object') ? msg.values : {};
+    const scope = Array.isArray(msg.scope) ? msg.scope : [];
+    const submittedToken = typeof msg.token === 'string' ? msg.token : '';
+    const final = !!msg.final;
+
+    if (!formId || !buttonName) {
+      return wsSendJson(socket, { type: 'error', code: 'EBADFORM', message: 'missing form_id or button_name' });
+    }
+
+    // Fresh disk re-read.
+    let diskBuf;
+    try { diskBuf = fs.readFileSync(filepath); }
+    catch (e) {
+      return wsSendJson(socket, { type: 'error', code: 'EREAD', message: e.message });
+    }
+    const docText = diskBuf.toString('utf-8');
+
+    const blocks = FormBlock.findFormBlocks(docText);
+    const target = blocks.find(b => b.id === formId);
+    if (!target) {
+      return wsSendJson(socket, { type: 'error', code: 'EFORM_MISSING', message: 'no form with id ' + formId });
+    }
+    if (target.error || !target.parsed) {
+      return wsSendJson(socket, { type: 'error', code: 'EFORM_PARSE', message: target.error || 'unparseable form' });
+    }
+
+    const currentToken = FormBlock.formRevisionToken(target.parsed.fields, target.parsed.buttons);
+    if (currentToken !== submittedToken) {
+      return wsSendJson(socket, { type: 'form-stale', form_id: formId, expected: currentToken, got: submittedToken });
+    }
+
+    // Apply the submit: merge in-scope values, append submission entry.
+    const next = {
+      id: target.parsed.id,
+      fields: target.parsed.fields,
+      buttons: target.parsed.buttons,
+      answers: Object.assign({}, target.parsed.answers || {}),
+      submissions: (target.parsed.submissions || []).slice(),
+    };
+    Object.keys(values).forEach(k => {
+      // Defence in depth: only apply values for fields that exist in
+      // the schema. The browser-side renderer already enforces this
+      // but a misbehaving client shouldn't be able to smuggle keys.
+      if (next.fields.some(f => f.name === k)) {
+        next.answers[k] = values[k];
+      }
+    });
+    next.submissions.push({
+      by: buttonName,
+      at: new Date().toISOString(),
+      scope: scope.length ? scope : next.fields.map(f => f.name),
+      values: scopedValuesOnly(values, next.fields.map(f => f.name)),
+    });
+
+    const spliced = FormBlock.spliceFormBlock(docText, target, next);
+    if (spliced.error) {
+      return wsSendJson(socket, { type: 'error', code: 'EFORM_SPLICE', message: spliced.error });
+    }
+    const newDoc = spliced.doc;
+
+    // Boundary stability: same start byte; bytes outside [start, newEnd]
+    // identical to bytes outside [start, end] in the original.
+    const pre  = docText.slice(0, target.startByte);
+    const post = docText.slice(target.endByte);
+    const newPre  = newDoc.slice(0, spliced.startByte);
+    const newPost = newDoc.slice(spliced.endByte);
+    if (pre !== newPre || post !== newPost) {
+      return wsSendJson(socket, { type: 'error', code: 'EFORM_BOUNDARY', message: 'form write would shift surrounding bytes' });
+    }
+
+    // Belt + braces: re-parse and confirm the block still parses and
+    // its id is unchanged. A serializer that produced subtly invalid
+    // YAML would slip through the boundary check.
+    const reBlocks = FormBlock.findFormBlocks(newDoc);
+    const reTarget = reBlocks.find(b => b.id === formId);
+    if (!reTarget || reTarget.error) {
+      return wsSendJson(socket, { type: 'error', code: 'EFORM_REPARSE', message: 'spliced form failed to re-parse' });
+    }
+
+    // Atomic write. The watcher will see the change, hash will match
+    // what we just wrote, no echo.
+    const buf = Buffer.from(newDoc, 'utf-8');
+    try {
+      state.hash = hashContent(buf);
+      state.content = buf;
+      atomicWrite(filepath, buf);
+    } catch (e) {
+      return wsSendJson(socket, { type: 'error', code: e.code || 'EWRITE', message: e.message });
+    }
+
+    wsSendJson(socket, {
+      type: 'form-submitted',
+      form_id: formId,
+      button_name: buttonName,
+      final: final,
+    });
+
+    if (final || !keepOpen) {
+      wsSendJson(socket, { type: 'submitted' });
+      terminate({ kind: 'submit', code: 0 });
+    }
+  }
+
+  function scopedValuesOnly(values, allowed) {
+    const out = {};
+    Object.keys(values).forEach(k => {
+      if (allowed.indexOf(k) >= 0) out[k] = values[k];
+    });
+    return out;
   }
 
   function pushExternal(change) {

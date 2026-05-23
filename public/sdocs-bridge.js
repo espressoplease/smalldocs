@@ -50,6 +50,64 @@
     };
   }
 
+  // ── Session stash (refresh survival) ─────────────────────
+  //
+  // We strip bridge=/token= from the URL on hello to keep the token out of
+  // history, screenshots, and accidental copy/paste. That makes refresh a
+  // dead end — the new page load has no idea which bridge to talk to.
+  //
+  // SessionStorage is per-tab and dies when the tab closes, which is exactly
+  // the lifetime we want. We stash on hello and hydrate the hash from it on
+  // load if the URL itself doesn't already carry the params.
+
+  var STASH_KEY = 'sdocs.bridge.session';
+
+  function readStash() {
+    try {
+      var raw = window.sessionStorage.getItem(STASH_KEY);
+      if (!raw) return null;
+      var v = JSON.parse(raw);
+      if (!v || typeof v !== 'object') return null;
+      if (typeof v.bridge !== 'string' || typeof v.token !== 'string') return null;
+      // Loopback guard mirrors paramsFromHash so a tampered stash can't point
+      // the page at an off-machine host.
+      if (!/^127\.0\.0\.1:\d+$/.test(v.bridge) && !/^localhost:\d+$/i.test(v.bridge)) {
+        return null;
+      }
+      return v;
+    } catch (_) { return null; }
+  }
+
+  function writeStash(cfg) {
+    try {
+      var payload = { bridge: cfg.addr, token: cfg.token };
+      if (cfg.file) payload.file = cfg.file;
+      window.sessionStorage.setItem(STASH_KEY, JSON.stringify(payload));
+    } catch (_) { /* private mode, quota — never block on this */ }
+  }
+
+  function clearStash() {
+    try { window.sessionStorage.removeItem(STASH_KEY); } catch (_) {}
+  }
+
+  // If the hash already carries bridge params we leave them alone (that's a
+  // fresh `sdoc <file>` invocation). Otherwise, if the tab has a stash from
+  // a previous load, splice it back into the hash so the source registry
+  // picks the bridge up like it normally would.
+  (function hydrateFromStash() {
+    if (paramsFromHash(window.location.hash) != null) return;
+    var stash = readStash();
+    if (!stash) return;
+    var h = window.location.hash.charAt(0) === '#' ? window.location.hash.slice(1) : window.location.hash;
+    var p;
+    try { p = new URLSearchParams(h); } catch (_) { p = new URLSearchParams(); }
+    p.set('bridge', stash.bridge);
+    p.set('token', stash.token);
+    if (stash.file) p.set('file', stash.file);
+    var newUrl = window.location.pathname + '#' + p.toString();
+    window.history.replaceState(null, '', newUrl);
+  }());
+
   // ── Source registration ──────────────────────────────────
 
   S.Sources.register({
@@ -110,10 +168,33 @@
       return Promise.resolve();
     }
     this._installAutoSaveHook();
-    // The Done button and the message banner are installed *after* hello,
-    // because their visibility depends on capabilities the server declares.
+    this._installFormSubmitHook();
     this._connect();
     return this._loadPromise;
+  };
+
+  // Listen for sdocs-form-submit events bubbling up from rendered form
+  // blocks. Each event carries everything we need to forward to the
+  // bridge: form id, button name, in-scope values, revision token, and
+  // whether this submit is meant to end the session.
+  BridgeSource.prototype._installFormSubmitHook = function () {
+    if (S._bridgeFormSubmitHooked) return;
+    var self = this;
+    document.addEventListener('sdocs-form-submit', function (ev) {
+      if (!self._helloed || self._submitted) return;
+      var d = ev && ev.detail;
+      if (!d || !d.formId || !d.buttonName) return;
+      self._send({
+        type: 'submitForm',
+        form_id: d.formId,
+        button_name: d.buttonName,
+        values: d.values || {},
+        scope: d.scope || [],
+        token: d.token || '',
+        final: !!d.final,
+      });
+    });
+    S._bridgeFormSubmitHooked = true;
   };
 
   // Wrap S.syncAll once so every edit (write / raw / controls / comment)
@@ -132,65 +213,28 @@
     S._bridgeAutosaveHooked = true;
   };
 
-  // Banner above the document carrying the agent's prompt. Only used when
-  // the server's hello carried a non-empty `message`. Removed on submit.
-  BridgeSource.prototype._installMessageBanner = function () {
-    if (document.getElementById('_sd_bridge-banner')) return;
-    var host = document.getElementById('_sd_content-area') || document.body;
-    var banner = document.createElement('div');
-    banner.id = '_sd_bridge-banner';
-    banner.className = 'sd-bridge-banner';
-    banner.innerHTML = ''
-      + '<span class="sd-bridge-banner-icon" aria-hidden="true">'
-      +   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-      +     '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>'
-      +   '</svg>'
-      + '</span>'
-      + '<span class="sd-bridge-banner-text"></span>';
-    banner.querySelector('.sd-bridge-banner-text').textContent = this.message;
-    // Insert above the rendered/raw/write panes — the content area's first
-    // child. Falls back to prepend if the file-info card layout changes.
-    var rendered = document.getElementById('_sd_rendered');
-    if (rendered && rendered.parentNode) {
-      rendered.parentNode.insertBefore(banner, rendered);
-    } else {
-      host.insertBefore(banner, host.firstChild);
-    }
-  };
-
-  BridgeSource.prototype._dismissMessageBanner = function () {
-    var el = document.getElementById('_sd_bridge-banner');
-    if (el && el.parentNode) el.parentNode.removeChild(el);
-  };
-
-  BridgeSource.prototype._installSubmitButton = function () {
-    if (document.getElementById('_sd_bridge-submit')) return;
-    var btn = document.createElement('button');
-    btn.id = '_sd_bridge-submit';
-    btn.type = 'button';
-    btn.textContent = 'Done';
-    btn.setAttribute('aria-label', 'Submit and return control to the caller');
-    btn.style.cssText = [
-      'position:fixed', 'right:18px', 'bottom:18px', 'z-index:9000',
-      'padding:10px 18px', 'border:none', 'border-radius:6px',
-      'background:var(--accent, #4f46e5)', 'color:#fff',
-      'font:600 14px/1 system-ui, sans-serif', 'cursor:pointer',
-      'box-shadow:0 4px 12px rgba(0,0,0,.2)',
-    ].join(';');
-    var self = this;
-    btn.addEventListener('click', function () { self.submit(); });
-    document.body.appendChild(btn);
-  };
-
   // Current full document, the same shape we write to disk.
+  //
+  // We deliberately *don't* take S.rawEl.value verbatim: the live raw textarea
+  // always carries a fully expanded `styles:` block, including defaults. The
+  // user opened a plain markdown file — we shouldn't smuggle a wall of YAML
+  // back into it. Same shape as the styled-export path: strip defaults, drop
+  // the block if nothing remains.
   BridgeSource.prototype._currentDocument = function () {
-    if (S.rawEl && typeof S.rawEl.value === 'string') {
-      return S.rawEl.value;
+    var body = (S.currentBody != null) ? S.currentBody : '';
+    var meta = Object.assign({}, S.currentMeta || {});
+
+    if (typeof SDocStyles !== 'undefined' && typeof S.collectStyles === 'function') {
+      var styles = SDocStyles.stripStyleDefaults(S.collectStyles());
+      if (styles && Object.keys(styles).length > 0) {
+        meta.styles = styles;
+      } else {
+        delete meta.styles;
+      }
     }
-    var meta = (typeof SDocYaml !== 'undefined' && S.currentMeta)
-      ? SDocYaml.serializeFrontMatter(S.currentMeta) + '\n'
-      : '';
-    return meta + (S.currentBody || '');
+
+    if (Object.keys(meta).length === 0) return body;
+    return SDocYaml.serializeFrontMatter(meta) + '\n' + body;
   };
 
   BridgeSource.prototype._queueSave = function () {
@@ -278,6 +322,9 @@
     if (S.setStatus) S.setStatus(msg, 'error');
     this._setStatus('error', 'Connection failed');
     if (this._loadResolve) { this._loadResolve(); this._loadResolve = null; }
+    // Couldn't talk to the bridge — drop the stash so refreshing doesn't put
+    // the page back into the same failing reconnect loop.
+    clearStash();
   };
 
   // ── Message dispatch ────────────────────────────────────
@@ -288,8 +335,27 @@
     if (msg.type === 'external-change') return this._onExternal(msg);
     if (msg.type === 'ack')             return this._onAck(msg);
     if (msg.type === 'submitted')       return this._onSubmitted();
+    if (msg.type === 'form-submitted')  return this._onFormSubmitted(msg);
+    if (msg.type === 'form-stale')      return this._onFormStale(msg);
     if (msg.type === 'error')           return this._onError(msg);
-    // Unknown types ignored (chunk 3 may add more).
+    // Unknown types ignored.
+  };
+
+  BridgeSource.prototype._onFormSubmitted = function (msg) {
+    if (S.setStatus) {
+      S.setStatus(msg.final
+        ? 'Submitted. You can close this tab.'
+        : 'Sent to the agent.');
+    }
+    // When --keep-open is in play, server keeps the session alive; the
+    // next external-change will refresh the form on its own. For final
+    // submits, _onSubmitted runs in addition (the server sends both).
+  };
+
+  BridgeSource.prototype._onFormStale = function (msg) {
+    if (S.setStatus) S.setStatus('The form was updated by the agent. Please review again.', 'warn');
+    // The page will get a fresh external-change push imminently with the
+    // new form schema; nothing else to do here.
   };
 
   BridgeSource.prototype._onHello = function (msg) {
@@ -312,7 +378,9 @@
     // Strip the bridge params from the URL bar so the user doesn't share
     // their session token by accident. The hash listener already wires this
     // back through loadFromHash on user navigation, but the bridge is the
-    // authoritative source for as long as it's connected.
+    // authoritative source for as long as it's connected. We stash the same
+    // params in sessionStorage so a refresh can hydrate the hash and
+    // reconnect within the bridge's grace window.
     try {
       var h = window.location.hash.charAt(0) === '#' ? window.location.hash.slice(1) : window.location.hash;
       var p = new URLSearchParams(h);
@@ -321,6 +389,7 @@
       var newUrl = window.location.pathname + (newHash ? '#' + newHash : '');
       window.history.replaceState(null, '', newUrl);
     } catch (_) { /* private mode etc. — never block on this */ }
+    writeStash(this.cfg);
 
     // Populate runtime-only local metadata so the file-info card shows
     // Rel. Path / Abs. Path the same way the legacy &local= flow used to.
@@ -336,9 +405,10 @@
     // they can click into Write/Raw themselves. Switching uninvited surprised
     // people in QA.
     if (S.setStatus) S.setStatus('Connected to ' + name);
+    // _setStatus already triggers a re-render of the file-info card, which
+    // picks up `this.message` + `this.capabilities.canSubmit` and draws the
+    // request row in-card. No banner / floating button to install.
     this._setStatus('connected');
-    if (this.capabilities.canSubmit) this._installSubmitButton();
-    if (this.message) this._installMessageBanner();
     if (this._loadResolve) { this._loadResolve(); this._loadResolve = null; }
   };
 
@@ -350,10 +420,12 @@
 
   BridgeSource.prototype._onSubmitted = function () {
     if (S.setStatus) S.setStatus('Submitted. You can close this tab.');
+    // Triggers a re-render: the request row checks `_submitted` and removes
+    // itself, the bridge status row's existing 'submitted' label takes over.
     this._setStatus('submitted');
-    var btn = document.getElementById('_sd_bridge-submit');
-    if (btn) btn.disabled = true;
-    this._dismissMessageBanner();
+    // Session is over — clearing the stash means a refresh won't try to
+    // re-attach to a bridge that has already exited.
+    clearStash();
   };
 
   BridgeSource.prototype._onError = function (msg) {

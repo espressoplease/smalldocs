@@ -61,6 +61,13 @@ function timeoutOpts(opts) {
 
 async function runBridge(opts, mode, label) {
   if (!opts.file) {
+    // `sdoc feedback` (no args) prints the form DSL reference. Other
+    // bridge commands still require a file.
+    if (mode === 'feedback') {
+      const { FORM_DSL_REFERENCE } = require('./constants');
+      process.stdout.write(FORM_DSL_REFERENCE);
+      process.exit(0);
+    }
     console.error('sdoc: ' + (opts.subcommand || 'open') + ' needs a file path');
     process.exit(1);
   }
@@ -70,6 +77,7 @@ async function runBridge(opts, mode, label) {
     bridge = await startBridge(Object.assign(
       { files: [opts.file], mode },
       mode === 'feedback' && opts.messageText ? { message: opts.messageText } : {},
+      opts.keepOpenFlag ? { keepOpen: true } : {},
       timeoutOpts(opts),
     ));
   } catch (e) {

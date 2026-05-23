@@ -298,10 +298,11 @@ body.export-mode #_sd_divider { width: 1px; }
   font-size: 11.5px;
   font-weight: 500;
   letter-spacing: -0.005em;
+  line-height: 1.4;
   color: var(--bg-input);
   background: var(--text);
   border-radius: 5px;
-  white-space: nowrap;
+  max-width: 190px;
   pointer-events: none;
   opacity: 0;
   transform: translateY(-2px);
