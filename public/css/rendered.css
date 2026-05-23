@@ -595,6 +595,61 @@ foreignObject span { line-height: normal; }
 #_sd_sdocs-file-info .fic-copy:hover {
   color: var(--md-p-color);
 }
+/* Edits row: same layout as data rows (label, value, pill, RHS icon).
+   Default icon colour matches the existing copy-button colour so the
+   row reads as ambient state, not an alert. Only the lost state goes
+   warm red to flag that typing isn't reaching disk. */
+#_sd_sdocs-file-info .fic-row-bridge {
+  cursor: default;
+}
+#_sd_sdocs-file-info .fic-bridge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--fic-muted);
+  transition: color .2s ease;
+  flex-shrink: 0;
+}
+#_sd_sdocs-file-info .fic-row-bridge[data-state="disconnected"] .fic-bridge-icon,
+#_sd_sdocs-file-info .fic-row-bridge[data-state="error"]        .fic-bridge-icon { color: #b91c1c; /* dark/warm red */ }
+/* Soft pulse on transient states so the user sees activity. */
+#_sd_sdocs-file-info .fic-row-bridge[data-state="connecting"] .fic-bridge-icon,
+#_sd_sdocs-file-info .fic-row-bridge[data-state="saving"]     .fic-bridge-icon {
+  animation: fic-bridge-pulse 1.2s ease-in-out infinite;
+}
+@keyframes fic-bridge-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .45; }
+}
+
+/* Feedback banner: shown above the document when the agent passed
+   --message to `sdoc feedback`. Removed on submit. */
+.sd-bridge-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid color-mix(in srgb, var(--accent, #4f46e5) 35%, transparent);
+  background: color-mix(in srgb, var(--accent, #4f46e5) 8%, var(--bg, #fff));
+  color: var(--md-color, inherit);
+  font: 500 14px/1.5 var(--md-font, inherit);
+}
+.sd-bridge-banner-icon {
+  color: var(--accent, #4f46e5);
+  flex-shrink: 0;
+  display: inline-flex;
+  margin-top: 2px;
+}
+.sd-bridge-banner-text {
+  flex: 1;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 #_sd_sdocs-file-info .fic-privacy-note {
   margin-top: 4px;
   font-size: 11px;
