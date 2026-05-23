@@ -828,8 +828,10 @@ foreignObject span { line-height: normal; }
   outline-offset: 0;
   border-color: transparent;
 }
-.sdoc-form-radio-group { display: flex; flex-direction: column; gap: 4px; }
-.sdoc-form-radio-line {
+.sdoc-form-radio-group,
+.sdoc-form-checkbox-group { display: flex; flex-direction: column; gap: 4px; }
+.sdoc-form-radio-line,
+.sdoc-form-checkbox-line {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -837,12 +839,42 @@ foreignObject span { line-height: normal; }
   font-size: 0.95em;
   padding: 2px 0;
 }
-.sdoc-form-radio-line input[type="radio"] { margin: 0; }
+.sdoc-form-radio-line input[type="radio"],
+.sdoc-form-checkbox-line input[type="checkbox"] { margin: 0; }
+.sdoc-form-select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 9px;
+  border: 1px solid var(--md-block-border, #d6d6d6);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 0.95em;
+  background: var(--bg-input, #fff);
+  color: var(--md-color, inherit);
+}
+.sdoc-form-select:focus {
+  outline: 2px solid var(--accent, #4f46e5);
+  outline-offset: 0;
+  border-color: transparent;
+}
+.sdoc-form-input-number,
+.sdoc-form-input-date {
+  /* Numbers and dates sit narrower than free-text inputs by default
+     because their content is bounded; the browser still respects width
+     100% if a longer placeholder forces it. */
+  width: auto;
+  min-width: 140px;
+}
 .sdoc-form-buttons {
   display: flex;
   gap: 8px;
   margin-top: 16px;
   flex-wrap: wrap;
+}
+.sdoc-form-buttons-inline {
+  /* Inline submits sit tighter against the field they belong to. */
+  margin-top: 8px;
+  margin-bottom: 4px;
 }
 .sdoc-form-submit {
   appearance: none;
@@ -868,7 +900,8 @@ foreignObject span { line-height: normal; }
   font-size: 0.82em;
 }
 .sdoc-form-field-invalid .sdoc-form-input,
-.sdoc-form-field-invalid .sdoc-form-textarea { border-color: #c11; }
+.sdoc-form-field-invalid .sdoc-form-textarea,
+.sdoc-form-field-invalid .sdoc-form-select { border-color: #c11; }
 .sdoc-form-error {
   border: 1px solid #f0c0c0;
   background: #fff7f7;

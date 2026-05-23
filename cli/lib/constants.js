@@ -59,12 +59,38 @@ fields:
   - name: name_field
     type: text
     label: "Your name"
-    placeholder: "Jane"
+    default: "Jane"          # pre-fills the input; user can edit to "Jane!"
+
+  - name: tags
+    type: checkbox
+    label: "Which areas?"
+    options: [api, web, docs, infra]
+    default: [api, docs]
+
+  - name: tier
+    type: select
+    label: "Pricing tier"
+    options: [free, pro, team, enterprise]
+    default: pro
+
+  - name: head_count
+    type: number
+    label: "How many people?"
+    min: 1
+    max: 500
+    default: 5
+
+  - name: target_date
+    type: date
+    label: "Target ship date"
+    default: "2026-06-01"
 
 buttons:
   - name: send_decision
     label: "Send decision"
     scope: [ready]            # this button only submits the 'ready' field
+    after: ready              # render this button inline, right under the
+                              # 'ready' field, instead of in the footer row
 
   - name: send_all
     label: "Submit everything"
@@ -74,19 +100,28 @@ buttons:
 Field types
 -----------
 
-  text       single-line input. value, placeholder, required, maxlength
+  text       single-line input. default, placeholder, required, maxlength
   textarea   multi-line. default (block-scalar OK), rows, placeholder, required, maxlength
   radio      one of N choices. options[] required. default selects one.
+  checkbox   multi-select. options[] required. default is an array.
+  select     dropdown. options[] required. default selects one.
+  number     numeric input. min, max, step. default is a number.
+  date       date picker (YYYY-MM-DD). min, max. default is the ISO date string.
 
 Per-field keys
 --------------
 
-  name       required, [a-z0-9_-]{1,64}, unique per form
-  label      shown above the control
-  help       small grey description under the control
-  required   true/false
-  default    pre-fill value the user can edit
-  options    radio only; array of strings
+  name        required, [a-z0-9_-]{1,64}, unique per form
+  label       shown above the control
+  help        small grey description under the control
+  required    true/false
+  default     pre-fill value the user can edit (array for checkbox, number
+              for number, ISO date for date, string otherwise)
+  options     radio / checkbox / select; array of strings
+  placeholder text / textarea / number; greyed-out hint that vanishes on type
+  rows        textarea only
+  min/max     number, date
+  step        number only
 
 Buttons
 -------
@@ -96,6 +131,9 @@ Buttons
   scope      optional list of field names. Defaults to all fields.
   final      optional bool. true means this submit ends the session even
              when --keep-open was passed.
+  after      optional field name. Renders the button inline right under
+             that field instead of in the bottom row. Combine with scope
+             for a "submit just this section" pattern.
 
 Multi-round flow (with --keep-open)
 -----------------------------------
@@ -117,6 +155,9 @@ answers:
   ready: Yes
   notes: |
     Multi-line answer text the user kept or edited.
+  tags: [api, docs]
+  head_count: 5
+  target_date: "2026-06-01"
 submissions:
   - by: send_decision
     at: "2026-05-23T10:01:32Z"

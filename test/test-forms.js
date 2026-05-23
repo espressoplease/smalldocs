@@ -69,6 +69,97 @@ module.exports = function (harness) {
     }
   });
 
+  test('forms: parse new field types (checkbox, select, number, date)', () => {
+    const src = [
+      'id: ext',
+      'fields:',
+      '  - name: tags',    '    type: checkbox', '    label: "Tags"',    '    options: [a, b, c]', '    default: [a, b]',
+      '  - name: tier',    '    type: select',   '    label: "Tier"',    '    options: [free, pro]', '    default: pro',
+      '  - name: count',   '    type: number',   '    label: "How many"', '    min: 1', '    max: 100', '    default: 7',
+      '  - name: ship',    '    type: date',     '    label: "Date"',     '    default: "2026-06-01"',
+      'buttons:', '  - name: ok', '    label: "OK"',
+    ].join('\n');
+    const r = FB.parseFormBlock(src);
+    if (r.error) throw new Error(r.error);
+    const f = r.value.fields;
+    if (f[0].type !== 'checkbox' || !Array.isArray(f[0].default) ||
+        f[0].default.join(',') !== 'a,b') throw new Error('checkbox default');
+    if (f[1].type !== 'select'   || f[1].default !== 'pro') throw new Error('select default');
+    if (f[2].type !== 'number'   || f[2].default !== 7   ||
+        f[2].min   !== 1         || f[2].max     !== 100) throw new Error('number');
+    if (f[3].type !== 'date'     || f[3].default !== '2026-06-01') throw new Error('date');
+  });
+
+  test('forms: checkbox/select without options are rejected', () => {
+    const cb = FB.parseFormBlock([
+      'id: d', 'fields:', '  - name: x', '    type: checkbox', '    label: "x"',
+      'buttons:', '  - name: ok', '    label: "OK"',
+    ].join('\n'));
+    if (!cb.error || !/options/.test(cb.error)) throw new Error('checkbox missing options should error');
+    const se = FB.parseFormBlock([
+      'id: d', 'fields:', '  - name: x', '    type: select', '    label: "x"',
+      'buttons:', '  - name: ok', '    label: "OK"',
+    ].join('\n'));
+    if (!se.error || !/options/.test(se.error)) throw new Error('select missing options should error');
+  });
+
+  test('forms: checkbox default must be array; number default must be a number', () => {
+    const cb = FB.parseFormBlock([
+      'id: d', 'fields:', '  - name: x', '    type: checkbox', '    label: "x"',
+      '    options: [a, b]', '    default: a',
+      'buttons:', '  - name: ok', '    label: "OK"',
+    ].join('\n'));
+    if (!cb.error || !/array/.test(cb.error)) throw new Error('expected checkbox default-array error');
+    const num = FB.parseFormBlock([
+      'id: d', 'fields:', '  - name: n', '    type: number', '    label: "n"', '    default: "five"',
+      'buttons:', '  - name: ok', '    label: "OK"',
+    ].join('\n'));
+    if (!num.error || !/number/.test(num.error)) throw new Error('expected number default-number error');
+  });
+
+  test('forms: button.after refers to a known field', () => {
+    const bad = FB.parseFormBlock([
+      'id: d',
+      'fields:', '  - name: a', '    type: text', '    label: "A"',
+      'buttons:',
+      '  - name: ok', '    label: "OK"', '    after: missing',
+    ].join('\n'));
+    if (!bad.error || !/unknown field/.test(bad.error)) throw new Error('expected after-unknown-field error');
+    const good = FB.parseFormBlock([
+      'id: d',
+      'fields:', '  - name: a', '    type: text', '    label: "A"',
+      'buttons:',
+      '  - name: ok', '    label: "OK"', '    after: a',
+    ].join('\n'));
+    if (good.error) throw new Error('after-existing-field: ' + good.error);
+    if (good.value.buttons[0].after !== 'a') throw new Error('after not preserved');
+  });
+
+  test('forms: new field types round-trip through serialize → parse', () => {
+    const src = [
+      'id: rt2',
+      'fields:',
+      '  - name: tags',  '    type: checkbox', '    label: "Tags"', '    options: [a, b, c]', '    default: [a, c]',
+      '  - name: tier',  '    type: select',   '    label: "Tier"', '    options: [free, pro]', '    default: pro',
+      '  - name: count', '    type: number',   '    label: "n"',    '    default: 9',
+      '  - name: when',  '    type: date',     '    label: "d"',    '    default: "2026-07-04"',
+      'buttons:',
+      '  - name: a', '    label: "A"', '    scope: [tags]', '    after: tags',
+      '  - name: b', '    label: "B"', '    final: true',
+    ].join('\n');
+    const r1 = FB.parseFormBlock(src);
+    if (r1.error) throw new Error('first parse: ' + r1.error);
+    const ser = FB.serializeFormBlock(r1.value);
+    const r2 = FB.parseFormBlock(ser);
+    if (r2.error) throw new Error('reparse: ' + r2.error);
+    const t1 = FB.formRevisionToken(r1.value.fields, r1.value.buttons);
+    const t2 = FB.formRevisionToken(r2.value.fields, r2.value.buttons);
+    if (t1 !== t2) throw new Error('token drift after round-trip');
+    if (r2.value.buttons[0].after !== 'tags') throw new Error('after lost in round-trip');
+    if (r2.value.fields[2].default !== 9) throw new Error('number lost: ' + JSON.stringify(r2.value.fields[2].default));
+    if (r2.value.fields[3].default !== '2026-07-04') throw new Error('date lost: ' + JSON.stringify(r2.value.fields[3].default));
+  });
+
   // ── parse: rejection paths ────────────────────────────────
 
   test('forms: reject missing id', () => {
@@ -97,7 +188,7 @@ module.exports = function (harness) {
 
   test('forms: reject unknown field type', () => {
     const r = FB.parseFormBlock([
-      'id: d', 'fields:', '  - name: x', '    type: number', '    label: "n"',
+      'id: d', 'fields:', '  - name: x', '    type: slider', '    label: "s"',
       'buttons:', '  - name: ok', '    label: "OK"',
     ].join('\n'));
     if (!r.error || !/unknown type/.test(r.error)) throw new Error('expected type error');

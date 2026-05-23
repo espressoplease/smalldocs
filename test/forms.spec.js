@@ -268,6 +268,134 @@ test('form: orphan copy button from code-block decorator is removed', async ({ p
   }
 });
 
+test('form: new field types (checkbox, select, number, date) render and submit', async ({ page }) => {
+  const body = `\`\`\`form
+id: types
+fields:
+  - name: tags
+    type: checkbox
+    label: "Tags"
+    options: [api, web, docs]
+    default: [api, docs]
+  - name: tier
+    type: select
+    label: "Tier"
+    options: [free, pro, team]
+    default: pro
+  - name: head
+    type: number
+    label: "How many"
+    min: 1
+    max: 99
+    default: 5
+  - name: when
+    type: date
+    label: "Date"
+    default: "2026-06-01"
+buttons:
+  - name: send
+    label: "Send"
+    final: true
+\`\`\`
+`;
+  const file = tmpFile('types.md', body);
+  const bridge = await startBridge({
+    files: [file], mode: 'feedback',
+    noConnectTimeoutMs: 15000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+  });
+  const termPromise = bridge.awaitTerminal();
+  try {
+    await page.goto(bridgeUrl(bridge));
+    await waitForFormReady(page);
+
+    // Defaults arrive.
+    await expect(page.locator('input[type="checkbox"][data-field-name="tags"][value="api"]')).toBeChecked();
+    await expect(page.locator('input[type="checkbox"][data-field-name="tags"][value="docs"]')).toBeChecked();
+    await expect(page.locator('input[type="checkbox"][data-field-name="tags"][value="web"]')).not.toBeChecked();
+    expect(await page.locator('select[data-field-name="tier"]').inputValue()).toBe('pro');
+    expect(await page.locator('input[type="number"][data-field-name="head"]').inputValue()).toBe('5');
+    expect(await page.locator('input[type="date"][data-field-name="when"]').inputValue()).toBe('2026-06-01');
+
+    // Edit and submit.
+    await page.locator('input[type="checkbox"][data-field-name="tags"][value="web"]').check();
+    await page.locator('select[data-field-name="tier"]').selectOption('team');
+    await page.locator('input[type="number"][data-field-name="head"]').fill('12');
+    await page.locator('input[type="date"][data-field-name="when"]').fill('2026-09-15');
+    await page.locator('button[data-button-name="send"]').click();
+    const result = await termPromise;
+    expect(result.code).toBe(0);
+
+    const after = fs.readFileSync(file, 'utf-8');
+    // Checkbox array landed (DOM-iteration order, not authoring order).
+    const tagsLine = after.split('\n').find(l => l.trim().startsWith('tags:'));
+    expect(tagsLine).toBeTruthy();
+    expect(tagsLine).toContain('api');
+    expect(tagsLine).toContain('web');
+    expect(tagsLine).toContain('docs');
+    expect(after).toContain('tier: team');
+    expect(after).toContain('head: 12');
+    expect(after).toContain('when: "2026-09-15"');
+  } finally {
+    bridge.close();
+  }
+});
+
+test('form: button with after: renders inline under that field', async ({ page }) => {
+  const body = `\`\`\`form
+id: place
+fields:
+  - name: first
+    type: text
+    label: "First"
+    default: "alpha"
+  - name: second
+    type: text
+    label: "Second"
+buttons:
+  - name: inline_one
+    label: "Inline one"
+    scope: [first]
+    after: first
+  - name: bottom_one
+    label: "Bottom one"
+\`\`\`
+`;
+  const file = tmpFile('place.md', body);
+  const bridge = await startBridge({
+    files: [file], mode: 'feedback', keepOpen: true,
+    noConnectTimeoutMs: 15000, reconnectGraceMs: 10000, idleTimeoutMs: 0,
+  });
+  try {
+    await page.goto(bridgeUrl(bridge));
+    await waitForFormReady(page);
+
+    // The inline button is rendered after the 'first' field, BEFORE the
+    // 'second' field. Compare document positions.
+    const orderOk = await page.evaluate(() => {
+      const first  = document.querySelector('.sdoc-form [data-field="first"]');
+      const second = document.querySelector('.sdoc-form [data-field="second"]');
+      const inline = document.querySelector('.sdoc-form button[data-button-name="inline_one"]');
+      const bottom = document.querySelector('.sdoc-form button[data-button-name="bottom_one"]');
+      if (!first || !second || !inline || !bottom) return 'missing';
+      const pos = (a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
+      return (pos(first, inline) && pos(inline, second) && pos(second, bottom)) ? 'ok' : 'wrong';
+    });
+    expect(orderOk).toBe('ok');
+
+    // The inline scoped submit only writes 'first'.
+    await page.locator('button[data-button-name="inline_one"]').click();
+    await expect.poll(
+      () => fs.readFileSync(file, 'utf-8'),
+      { timeout: 5000 }
+    ).toContain('first: alpha');
+    const after = fs.readFileSync(file, 'utf-8');
+    expect(after).toContain('scope: [first]');
+  } finally {
+    bridge.close();
+    await bridge.awaitTerminal();
+  }
+});
+
 test('form: XSS payloads in option labels are not executed', async ({ page }) => {
   const body = `\`\`\`form
 id: xss
