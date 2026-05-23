@@ -612,8 +612,9 @@ foreignObject span { line-height: normal; }
   transition: color .2s ease;
   flex-shrink: 0;
 }
-#_sd_sdocs-file-info .fic-row-bridge[data-state="disconnected"] .fic-bridge-icon,
-#_sd_sdocs-file-info .fic-row-bridge[data-state="error"]        .fic-bridge-icon { color: #b91c1c; /* dark/warm red */ }
+/* The screen-share-off glyph already reads as "disconnected" through its
+   shape; layering a red on top is louder than the situation needs. Keep
+   every state the same muted colour, let the icon shape do the work. */
 /* Soft pulse on transient states so the user sees activity. */
 #_sd_sdocs-file-info .fic-row-bridge[data-state="connecting"] .fic-bridge-icon,
 #_sd_sdocs-file-info .fic-row-bridge[data-state="saving"]     .fic-bridge-icon {

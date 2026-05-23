@@ -299,14 +299,21 @@ function bridgeStateLabel(state) {
     case 'saving':       return 'Syncing with local file';
     case 'saved':        return 'Syncing with local file';
     case 'submitted':    return 'Submitted';
-    case 'disconnected': return 'Connection lost';
-    case 'error':        return 'Connection lost';
+    case 'disconnected': return 'Not syncing with local file, stored in browser only';
+    case 'error':        return 'Not syncing with local file, stored in browser only';
     default:             return state || 'Connecting to local file...';
   }
 }
 
 function bridgeStateIsLost(state) {
   return state === 'disconnected' || state === 'error';
+}
+
+// Modes where the user could be changing the file. Editing modes get the
+// Edits row; reading / styling / exporting / info hide it so the card stays
+// quiet when there's nothing to act on.
+function bridgeShouldRender(currentMode) {
+  return currentMode === 'write' || currentMode === 'raw' || currentMode === 'comment';
 }
 
 // Lucide icons (https://lucide.dev). Inlined so the bundle stays free of
@@ -358,9 +365,10 @@ function renderFileInfoCard() {
   var bridgeFile = bridge && bridge.cfg && bridge.cfg.file ? bridge.cfg.file : null;
 
   var hasDoc = !!(meta.file || S.currentBody || (S.currentMeta && Object.keys(S.currentMeta).length));
-  // Edits is a local-only row: it tells you about *this* device's sync
-  // state with a local file. Count it toward the privacy note.
-  var hasLocalRow = !!(local.path || local.fullPath || bridge);
+  // Edits is a local-only row, but it only renders in editing modes — so
+  // only count it toward the privacy-note flag when it'll actually appear.
+  var bridgeRowWillRender = !!bridge && bridgeShouldRender(S.currentMode);
+  var hasLocalRow = !!(local.path || local.fullPath || bridgeRowWillRender);
 
   if (!hasDoc && !meta.file && !hasLocalRow && !bridge) {
     card.hidden = true;
@@ -393,11 +401,10 @@ function renderFileInfoCard() {
   if (local.path)     slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, true, false) });
   if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, true, false) });
 
-  // Edits sits at the end so every other row is settled first. Its label
-  // changes as the bridge state moves through connecting -> syncing ->
-  // lost; pinning it to a stable bottom slot stops the rows above from
-  // shifting when those transitions happen.
-  if (bridge) {
+  // Edits sits at the end so every other row is settled first. Only shown
+  // in editing modes — in read / style / export / info the row would
+  // clutter the card without giving the user anything to act on.
+  if (bridge && bridgeShouldRender(S.currentMode)) {
     slots.push({ type: 'bridge', state: bridge.status || 'connecting', label: bridge.statusLabel || bridgeStateLabel(bridge.status) });
   }
 
@@ -920,6 +927,11 @@ function setMode(mode, skipHash) {
   if (mode === 'read') {
     document.getElementById('_sd_content-area').focus();
   }
+
+  // The Edits row in the file-info card only shows in editing modes, so a
+  // mode change needs to re-render the card. Bridge-less sessions skip the
+  // call — there's no row whose visibility depends on this.
+  if (S.bridge) renderFileInfoCard();
 
   if (!skipHash) updateHash();
 }
