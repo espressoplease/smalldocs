@@ -70,10 +70,10 @@ test('open mode: external change pushes through and the file-info row shows the 
 
     // The Edits row only renders in editing modes — in read mode it stays
     // hidden so the card isn't cluttered for someone just reading. The
-    // filename row instead gets a small "live" chip so the reader knows
-    // the file is connected.
+    // filename row instead gets a small "local sync" chip so the reader
+    // knows the file is connected.
     await expect(page.locator('.fic-row-bridge')).toHaveCount(0);
-    await expect(page.locator('.fic-row[data-key="file"] .fic-live-chip')).toContainText('live');
+    await expect(page.locator('.fic-row[data-key="file"] .fic-live-chip')).toContainText('local sync');
 
     await page.evaluate(() => window.SDocs.setMode('write'));
     await expect(page.locator('.fic-row-bridge .fic-bridge-icon svg')).toBeVisible();
@@ -101,6 +101,37 @@ test('open mode: external change pushes through and the file-info row shows the 
   }
 });
 
+test('open mode: refresh restores the bridge connection from sessionStorage', async ({ page }) => {
+  const file = tmpFile('r.md', '# refresh me\n');
+  // Generous reconnect grace so the page has time to come back up under
+  // the test runner. Production default is 2s, which is plenty for a real
+  // browser refresh but borderline under Playwright load.
+  const bridge = await startBridge({
+    files: [file], mode: 'open',
+    noConnectTimeoutMs: 15000, reconnectGraceMs: 10000, idleTimeoutMs: 0,
+  });
+
+  try {
+    await page.goto(bridgeUrl(bridge));
+    await page.waitForFunction(() => window.SDocs && window.SDocs.bridge && window.SDocs.bridge._helloed === true);
+
+    // After hello the URL bar should have been scrubbed of the token.
+    await expect.poll(() => page.url()).not.toContain('token=');
+
+    // Refresh. The hash no longer carries the bridge params, so the only
+    // way back is via sessionStorage. The bridge process is still alive.
+    await page.reload();
+    await page.waitForFunction(() => window.SDocs && window.SDocs.bridge && window.SDocs.bridge._helloed === true);
+
+    // Editor body should reflect the file content, same as before refresh.
+    const body = await page.evaluate(() => window.SDocs.currentBody);
+    expect(body).toContain('refresh me');
+  } finally {
+    bridge.close();
+    await bridge.awaitTerminal();
+  }
+});
+
 test('feedback mode: message banner shows + Done writes the file and submits', async ({ page }) => {
   const file = tmpFile('c.md', '# draft\n\nbody\n');
   const bridge = await startBridge({
@@ -116,17 +147,18 @@ test('feedback mode: message banner shows + Done writes the file and submits', a
     await page.goto(bridgeUrl(bridge));
     await page.waitForFunction(() => window.SDocs && window.SDocs.bridge && window.SDocs.bridge._helloed === true);
 
-    // The agent's prompt renders as a banner above the document.
-    await expect(page.locator('#_sd_bridge-banner')).toContainText('Satisfied with my change to Q3?');
+    // The agent's prompt renders as a request row inside the file-info
+    // card — no separate banner surface.
+    await expect(page.locator('.fic-row-request .fic-request-text')).toContainText('Satisfied with my change to Q3?');
 
     // Done sends submit and terminates the bridge cleanly.
-    await page.locator('#_sd_bridge-submit').click();
+    await page.locator('.fic-row-request .fic-request-done').click();
     await terminalPromise;
 
     expect(term.kind).toBe('submit');
     expect(term.code).toBe(0);
-    // Banner is removed once the submission is acknowledged.
-    await expect(page.locator('#_sd_bridge-banner')).toHaveCount(0);
+    // Row disappears once the submission is acknowledged.
+    await expect(page.locator('.fic-row-request')).toHaveCount(0);
   } finally {
     bridge.close();
   }

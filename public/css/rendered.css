@@ -641,31 +641,28 @@ foreignObject span { line-height: normal; }
   50%      { opacity: .45; }
 }
 
-/* Feedback banner: shown above the document when the agent passed
-   --message to `sdoc feedback`. Removed on submit. */
-.sd-bridge-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin: 0 0 14px;
-  padding: 12px 14px;
-  border-radius: var(--radius-md, 6px);
-  border: 1px solid color-mix(in srgb, var(--accent, #4f46e5) 35%, transparent);
-  background: color-mix(in srgb, var(--accent, #4f46e5) 8%, var(--bg, #fff));
-  color: var(--md-color, inherit);
-  font: 500 14px/1.5 var(--md-font, inherit);
+/* Agent request row: shares the standard data-row layout. Only the
+   label color shifts so the eye can find it. No background, no
+   border, no padding changes. */
+#_sd_sdocs-file-info .fic-row-request .fic-label {
+  color: color-mix(in srgb, var(--accent, #4f46e5) 80%, var(--fic-muted));
 }
-.sd-bridge-banner-icon {
-  color: var(--accent, #4f46e5);
-  flex-shrink: 0;
-  display: inline-flex;
-  margin-top: 2px;
-}
-.sd-bridge-banner-text {
-  flex: 1;
+#_sd_sdocs-file-info .fic-request-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+#_sd_sdocs-file-info .fic-request-done {
+  appearance: none;
+  border: 0;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--accent, #4f46e5);
+  color: #fff;
+  font: 500 12px/1 var(--font-ui);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+#_sd_sdocs-file-info .fic-request-done:hover { filter: brightness(1.08); }
 
 #_sd_sdocs-file-info .fic-privacy-note {
   margin-top: 4px;
@@ -782,3 +779,105 @@ foreignObject span { line-height: normal; }
   font-size: 0.95em;
 }
 
+
+/* ── Interactive form blocks (```form) ─────────────────────────
+   Rendered after marked+DOMPurify by sdocs-forms.js. We replace the
+   <pre><code class="language-form"> with a real <form> built via
+   createElement. Style is calm and document-shaped, not "web form" — 
+   the goal is to feel like the markdown is still in charge. */
+.sdoc-form-host { margin: 1em 0; }
+.sdoc-form {
+  display: block;
+  border: 1px solid var(--md-block-border, #e6e6e6);
+  background: var(--md-block-bg, transparent);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+.sdoc-form-field { margin: 0 0 14px; }
+.sdoc-form-field:last-of-type { margin-bottom: 0; }
+.sdoc-form-label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: var(--md-color, inherit);
+  font-size: 0.95em;
+}
+.sdoc-form-required { color: #c11; font-weight: 600; margin-left: 2px; }
+.sdoc-form-help {
+  margin-top: 3px;
+  font-size: 0.82em;
+  color: var(--text-2, #777);
+  line-height: 1.4;
+}
+.sdoc-form-input,
+.sdoc-form-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 9px;
+  border: 1px solid var(--md-block-border, #d6d6d6);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 0.95em;
+  background: var(--bg-input, #fff);
+  color: var(--md-color, inherit);
+}
+.sdoc-form-textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+.sdoc-form-input:focus,
+.sdoc-form-textarea:focus {
+  outline: 2px solid var(--accent, #4f46e5);
+  outline-offset: 0;
+  border-color: transparent;
+}
+.sdoc-form-radio-group { display: flex; flex-direction: column; gap: 4px; }
+.sdoc-form-radio-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.95em;
+  padding: 2px 0;
+}
+.sdoc-form-radio-line input[type="radio"] { margin: 0; }
+.sdoc-form-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.sdoc-form-submit {
+  appearance: none;
+  border: 1px solid var(--accent, #4f46e5);
+  background: var(--accent, #4f46e5);
+  color: #fff;
+  padding: 7px 14px;
+  border-radius: 5px;
+  font: 500 13px/1 var(--font-ui);
+  cursor: pointer;
+  transition: filter .15s ease;
+}
+.sdoc-form-submit:hover { filter: brightness(1.08); }
+.sdoc-form-submit:active { filter: brightness(.95); }
+.sdoc-form-submit[data-final="true"] {
+  /* Final submit gets a slightly bolder fill so the "this ends it"
+     intent is visible at a glance. */
+  font-weight: 600;
+}
+.sdoc-form-error-text {
+  margin-top: 4px;
+  color: #c11;
+  font-size: 0.82em;
+}
+.sdoc-form-field-invalid .sdoc-form-input,
+.sdoc-form-field-invalid .sdoc-form-textarea { border-color: #c11; }
+.sdoc-form-error {
+  border: 1px solid #f0c0c0;
+  background: #fff7f7;
+  padding: 8px 10px;
+  border-radius: 5px;
+  margin: 1em 0;
+}
+.sdoc-form-error-label {
+  font-size: 0.85em;
+  color: #b22;
+  margin-bottom: 4px;
+}
