@@ -245,6 +245,7 @@ function render() {
   S.processCharts(S.renderedEl);
   if (S.processMath) S.processMath(S.renderedEl);
   if (S.processMermaid) S.processMermaid(S.renderedEl);
+  if (S.renderForms) S.renderForms(S.renderedEl);
   renderFileInfoCard();
   if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
   if (S.syncFoldButton) S.syncFoldButton();
@@ -324,10 +325,10 @@ function bridgeIsLive(status) {
 }
 
 // Compact pill rendered next to the filename in non-editing modes. The
-// screen-share glyph + the word "live" tells the reader this file is
-// syncing with disk, without nagging them when it isn't.
+// screen-share glyph + the words "local sync" tells the reader this file
+// is paired with disk, without nagging them when it isn't.
 var BRIDGE_LIVE_CHIP_HTML = ''
-  + '<span class="fic-live-chip" title="Syncing with the file on your machine. Edits here save to disk; changes on disk show up here.">'
+  + '<span class="fic-live-chip" data-tip="Connected to the file on your machine. Edits flow both ways.">'
   +   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
   +     ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
   +     '<path d="M13 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3"/>'
@@ -336,7 +337,7 @@ var BRIDGE_LIVE_CHIP_HTML = ''
   +     '<path d="m17 8 5-5"/>'
   +     '<path d="M17 3h5v5"/>'
   +   '</svg>'
-  +   '<span>live</span>'
+  +   '<span>local sync</span>'
   + '</span>';
 
 // Lucide icons (https://lucide.dev). Inlined so the bundle stays free of
@@ -432,6 +433,14 @@ function renderFileInfoCard() {
   if (local.path)     slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, true, false) });
   if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, true, false) });
 
+  // Agent request: shown when the bridge greeted us with a message and the
+  // session can submit (feedback mode). Sits ABOVE Edits — it's the thing the
+  // user is here to respond to, so it should land first when scanning the
+  // card. Disappears once submitted.
+  if (bridge && bridge.message && bridge.capabilities && bridge.capabilities.canSubmit && !bridge._submitted) {
+    slots.push({ type: 'request', message: bridge.message });
+  }
+
   // Edits sits at the end so every other row is settled first. Only shown
   // in editing modes — in read / style / export / info the row would
   // clutter the card without giving the user anything to act on.
@@ -460,6 +469,21 @@ function renderFileInfoCard() {
         + '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>'
         + '<span class="fic-bridge-icon" title="' + escapeHtml(slot.label) + '">' + icon + '</span>';
       rowsEl.appendChild(br);
+    } else if (slot.type === 'request') {
+      // Agent request row: same shape as a data row (label · value · action
+      // button on the right), but with a subtle left accent so the eye lands
+      // here when there's an outstanding question. The Done button is the
+      // affordance — clicking it submits the file and ends the session.
+      var rqRow = document.createElement('div');
+      rqRow.className = 'fic-row fic-row-request';
+      rqRow.innerHTML = ''
+        + '<span class="fic-label">Agent</span>'
+        + '<span class="fic-value fic-request-text">' + escapeHtml(slot.message) + '</span>'
+        + '<button class="fic-request-done" type="button" aria-label="Submit and return control to the agent">Done</button>';
+      rqRow.querySelector('.fic-request-done').addEventListener('click', function () {
+        if (S.bridge && typeof S.bridge.submit === 'function') S.bridge.submit();
+      });
+      rowsEl.appendChild(rqRow);
     } else if (slot.type === 'intro') {
       var introRow = document.createElement('div');
       introRow.className = 'fic-row fic-row-short-intro';
@@ -497,6 +521,9 @@ function renderFileInfoCard() {
     });
   });
 
+  // Wire any [data-tip] elements in this freshly re-rendered card (the live
+  // chip, primarily) into the shared toolbar-tooltip styling.
+  if (typeof S.attachTooltips === 'function') S.attachTooltips(rowsEl);
 }
 
 function escapeHtml(s) {
@@ -1022,6 +1049,10 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
 
 // Toolbar tooltip: one shared #_sd_tooltip in <body>, positioned below
 // the hovered button via fixed coords. Skipped on touch / no-hover devices.
+//
+// Exposes SDocs.attachTooltips(root) so any module that injects new
+// [data-tip] elements (e.g. the file-info card re-rendering the live
+// chip) can wire them up after innerHTML writes wipe prior listeners.
 (function () {
   var tip = document.getElementById('_sd_tooltip');
   if (!tip) return;
@@ -1031,6 +1062,7 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
   var DELAY = 300;
   var timer = null;
   var current = null;
+  var attached = typeof WeakSet === 'function' ? new WeakSet() : null;
 
   function position(target) {
     var r = target.getBoundingClientRect();
@@ -1074,6 +1106,9 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
   }
 
   function attach(btn) {
+    if (!btn || !btn.dataset || !btn.dataset.tip) return;
+    if (attached && attached.has(btn)) return;
+    if (attached) attached.add(btn);
     btn.addEventListener('mouseenter', function () {
       if (timer) clearTimeout(timer);
       timer = setTimeout(function () { show(btn); }, DELAY);
@@ -1086,7 +1121,14 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
     btn.addEventListener('blur', hide);
   }
 
-  document.querySelectorAll('#_sd_left-toolbar .toggle-group .btn[data-tip]').forEach(attach);
+  function attachAll(root) {
+    var scope = root || document;
+    scope.querySelectorAll('[data-tip]').forEach(attach);
+  }
+
+  S.attachTooltips = attachAll;
+
+  attachAll(document.getElementById('_sd_left-toolbar'));
 
   // Hide on scroll/resize because the cached position becomes stale.
   window.addEventListener('scroll', hide, { passive: true });
