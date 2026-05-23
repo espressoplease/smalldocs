@@ -316,6 +316,29 @@ function bridgeShouldRender(currentMode) {
   return currentMode === 'write' || currentMode === 'raw' || currentMode === 'comment';
 }
 
+// "Actively connected" = the bridge is currently mirroring this document to
+// disk. We don't include 'connecting' (still establishing) or the lost /
+// submitted states. Used to gate the small "live" chip next to the filename.
+function bridgeIsLive(status) {
+  return status === 'connected' || status === 'saving' || status === 'saved';
+}
+
+// Compact pill rendered next to the filename in non-editing modes. The
+// screen-share glyph + the word "live" tells the reader this file is
+// syncing with disk, without nagging them when it isn't.
+var BRIDGE_LIVE_CHIP_HTML = ''
+  + '<span class="fic-live-chip" title="Syncing with the file on your machine. Edits here save to disk; changes on disk show up here.">'
+  +   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+  +     ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  +     '<path d="M13 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3"/>'
+  +     '<path d="M8 21h8"/>'
+  +     '<path d="M12 17v4"/>'
+  +     '<path d="m17 8 5-5"/>'
+  +     '<path d="M17 3h5v5"/>'
+  +   '</svg>'
+  +   '<span>live</span>'
+  + '</span>';
+
 // Lucide icons (https://lucide.dev). Inlined so the bundle stays free of
 // icon-library deps. Stroke is currentColor — colour comes from CSS.
 var BRIDGE_SCREEN_SHARE_SVG = ''
@@ -338,12 +361,13 @@ var BRIDGE_SCREEN_SHARE_OFF_SVG = ''
   +   '<path d="m17 3 5 5"/>'
   + '</svg>';
 
-function dataRowHtml(key, label, value, isLocal, isShort) {
+function dataRowHtml(key, label, value, isLocal, isShort, extraHtml) {
   var pill = isLocal ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '';
   var cls = 'fic-row' + (isShort ? ' fic-row-short' : '');
   return '<div class="' + cls + '" data-key="' + key + '">'
     + '<span class="fic-label">' + label + '</span>'
     + '<span class="fic-value">' + escapeHtml(value) + '</span>'
+    + (extraHtml || '')
     + pill
     + '<button class="fic-copy" title="Copy ' + label.toLowerCase() + '">' + COPY_SVG + '</button>'
     + '</div>';
@@ -385,7 +409,14 @@ function renderFileInfoCard() {
   // between the intro / shorten / shortened states.
   var slots = [];
   if (meta.file || bridgeFile) {
-    slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', meta.file || bridgeFile, false, false) });
+    // When the bridge is live and the Edits row isn't showing (read /
+    // style / export / info), drop a small "live" chip next to the
+    // filename so the reader still knows the file is connected. We never
+    // surface a *negative* hint here — disconnect doesn't add a chip.
+    var liveChip = (bridge && bridgeIsLive(bridge.status) && !bridgeShouldRender(S.currentMode))
+      ? BRIDGE_LIVE_CHIP_HTML
+      : '';
+    slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', meta.file || bridgeFile, false, false, liveChip) });
   }
 
   // Don't offer a short URL for the built-in default document (bare / or

@@ -304,6 +304,10 @@
       ? msg.capabilities
       : { canSave: true, canWatch: true, canSubmit: this.mode === 'feedback' };
     this.message = (typeof msg.message === 'string' && msg.message.trim().length) ? msg.message.trim() : null;
+    // hello is authoritative for the filename. Persist it onto cfg so any
+    // file-info render after this picks it up even when the URL fragment
+    // didn't carry &file=... (e.g. tests, or a direct WS reconnect).
+    if (typeof msg.file === 'string' && msg.file.length) this.cfg.file = msg.file;
 
     // Strip the bridge params from the URL bar so the user doesn't share
     // their session token by accident. The hash listener already wires this
