@@ -97,22 +97,44 @@ function renderForm(host, block) {
   form.setAttribute('novalidate', 'true');
   form.addEventListener('submit', function (e) { e.preventDefault(); });
 
-  // Render each field. A field is { name, type, label, help, required,
-  // default, placeholder, options, rows, maxlength }.
+  // Group buttons by their inline-anchor field (if any). Bottom-row
+  // buttons are those without `after`.
+  var inlineButtonsByField = {};
+  var bottomButtons = [];
+  block.buttons.forEach(function (b) {
+    if (b.after && typeof b.after === 'string') {
+      (inlineButtonsByField[b.after] = inlineButtonsByField[b.after] || []).push(b);
+    } else {
+      bottomButtons.push(b);
+    }
+  });
+
+  // Render each field, slotting in any buttons anchored to it.
   block.fields.forEach(function (f) {
     var initial = (block.answers && Object.prototype.hasOwnProperty.call(block.answers, f.name))
       ? block.answers[f.name]
       : f.default;
     form.appendChild(renderField(f, initial));
+    var inline = inlineButtonsByField[f.name];
+    if (inline && inline.length) {
+      var inlineRow = document.createElement('div');
+      inlineRow.className = 'sdoc-form-buttons sdoc-form-buttons-inline';
+      inline.forEach(function (b) {
+        inlineRow.appendChild(renderButton(b, block, form, token));
+      });
+      form.appendChild(inlineRow);
+    }
   });
 
-  // Buttons.
-  var btnRow = document.createElement('div');
-  btnRow.className = 'sdoc-form-buttons';
-  block.buttons.forEach(function (b) {
-    btnRow.appendChild(renderButton(b, block, form, token));
-  });
-  form.appendChild(btnRow);
+  // Bottom-row buttons (those with no `after`).
+  if (bottomButtons.length) {
+    var btnRow = document.createElement('div');
+    btnRow.className = 'sdoc-form-buttons';
+    bottomButtons.forEach(function (b) {
+      btnRow.appendChild(renderButton(b, block, form, token));
+    });
+    form.appendChild(btnRow);
+  }
 
   host.appendChild(form);
 }
@@ -178,6 +200,76 @@ function renderField(field, initialValue) {
       control.appendChild(line);
     });
     wrap.appendChild(control);
+  } else if (field.type === 'checkbox') {
+    control = document.createElement('div');
+    control.className = 'sdoc-form-checkbox-group';
+    control.setAttribute('role', 'group');
+    var checkedSet = {};
+    if (Array.isArray(initialValue)) {
+      initialValue.forEach(function (v) { checkedSet[String(v)] = true; });
+    }
+    (field.options || []).forEach(function (opt, idx) {
+      var line = document.createElement('label');
+      line.className = 'sdoc-form-checkbox-line';
+      var input = document.createElement('input');
+      input.type = 'checkbox';
+      input.value = String(opt);
+      input.setAttribute('data-field-name', field.name);
+      input.id = controlId(field.name) + '-' + idx;
+      if (checkedSet[String(opt)]) input.checked = true;
+      var span = document.createElement('span');
+      span.textContent = String(opt);
+      line.appendChild(input);
+      line.appendChild(span);
+      control.appendChild(line);
+    });
+    wrap.appendChild(control);
+  } else if (field.type === 'select') {
+    control = document.createElement('select');
+    control.className = 'sdoc-form-select';
+    control.id = controlId(field.name);
+    label.setAttribute('for', controlId(field.name));
+    control.setAttribute('data-field-name', field.name);
+    if (!field.required) {
+      // A blank first option lets the user pick "nothing". For required
+      // selects we omit it and the first option becomes the initial value.
+      var blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = field.placeholder ? String(field.placeholder) : '';
+      control.appendChild(blank);
+    }
+    (field.options || []).forEach(function (opt) {
+      var o = document.createElement('option');
+      o.value = String(opt);
+      o.textContent = String(opt);
+      if (initialValue != null && String(opt) === String(initialValue)) o.selected = true;
+      control.appendChild(o);
+    });
+    wrap.appendChild(control);
+  } else if (field.type === 'number') {
+    control = document.createElement('input');
+    control.type = 'number';
+    control.className = 'sdoc-form-input sdoc-form-input-number';
+    control.id = controlId(field.name);
+    label.setAttribute('for', controlId(field.name));
+    control.setAttribute('data-field-name', field.name);
+    if (field.placeholder) control.setAttribute('placeholder', String(field.placeholder));
+    if (field.min != null && Number.isFinite(+field.min)) control.setAttribute('min', String(+field.min));
+    if (field.max != null && Number.isFinite(+field.max)) control.setAttribute('max', String(+field.max));
+    if (field.step != null && Number.isFinite(+field.step)) control.setAttribute('step', String(+field.step));
+    if (initialValue != null && initialValue !== '') control.value = String(initialValue);
+    wrap.appendChild(control);
+  } else if (field.type === 'date') {
+    control = document.createElement('input');
+    control.type = 'date';
+    control.className = 'sdoc-form-input sdoc-form-input-date';
+    control.id = controlId(field.name);
+    label.setAttribute('for', controlId(field.name));
+    control.setAttribute('data-field-name', field.name);
+    if (field.min != null) control.setAttribute('min', String(field.min));
+    if (field.max != null) control.setAttribute('max', String(field.max));
+    if (initialValue != null && initialValue !== '') control.value = String(initialValue);
+    wrap.appendChild(control);
   }
 
   if (field.help) {
@@ -223,7 +315,7 @@ function handleSubmit(form, block, buttonSpec, token) {
     var f = block.fields[i];
     if (scope.indexOf(f.name) < 0) continue;
     var v = readField(form, f);
-    if (f.required && (v == null || v === '')) {
+    if (f.required && isEmptyValue(v)) {
       markFieldError(form, f.name, (f.label || f.name) + ' is required');
       if (!firstInvalid) firstInvalid = f.name;
     } else {
@@ -232,7 +324,8 @@ function handleSubmit(form, block, buttonSpec, token) {
     values[f.name] = v;
   }
   if (firstInvalid) {
-    var first = form.querySelector('[data-field="' + cssAttr(firstInvalid) + '"] input, [data-field="' + cssAttr(firstInvalid) + '"] textarea');
+    var fSel = '[data-field="' + cssAttr(firstInvalid) + '"]';
+    var first = form.querySelector(fSel + ' input, ' + fSel + ' textarea, ' + fSel + ' select');
     if (first) first.focus();
     return;
   }
@@ -272,6 +365,28 @@ function readField(form, field) {
     var checked = form.querySelector('input[type="radio"][name="' + cssAttr(field.name) + '"]:checked');
     return checked ? checked.value : null;
   }
+  if (field.type === 'checkbox') {
+    var boxes = form.querySelectorAll('input[type="checkbox"][data-field-name="' + cssAttr(field.name) + '"]');
+    var values = [];
+    for (var i = 0; i < boxes.length; i++) {
+      if (boxes[i].checked) values.push(boxes[i].value);
+    }
+    return values;
+  }
+  if (field.type === 'select') {
+    var sel = form.querySelector('select[data-field-name="' + cssAttr(field.name) + '"]');
+    return sel ? sel.value : '';
+  }
+  if (field.type === 'number') {
+    var num = form.querySelector('input[type="number"][data-field-name="' + cssAttr(field.name) + '"]');
+    if (!num || num.value === '') return null;
+    var n = Number(num.value);
+    return Number.isFinite(n) ? n : null;
+  }
+  if (field.type === 'date') {
+    var d = form.querySelector('input[type="date"][data-field-name="' + cssAttr(field.name) + '"]');
+    return d ? d.value : '';
+  }
   if (field.type === 'textarea') {
     var ta = form.querySelector('textarea[data-field-name="' + cssAttr(field.name) + '"]');
     return ta ? ta.value : '';
@@ -279,6 +394,13 @@ function readField(form, field) {
   // text
   var inp = form.querySelector('input[data-field-name="' + cssAttr(field.name) + '"]');
   return inp ? inp.value : '';
+}
+
+function isEmptyValue(v) {
+  if (v == null) return true;
+  if (v === '') return true;
+  if (Array.isArray(v) && v.length === 0) return true;
+  return false;
 }
 
 function markFieldError(form, fieldName, msg) {
