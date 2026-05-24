@@ -357,6 +357,9 @@
           formId: msg.form_id || null,
           buttonName: msg.button_name || null,
           final: !!msg.final,
+          // Pass the file so the renderer can show "Saved to <file>"
+          // confirmation next to the clicked button.
+          file: (this.cfg && this.cfg.file) || null,
         },
       }));
     } catch (_) {}

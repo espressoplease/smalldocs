@@ -892,6 +892,13 @@ foreignObject span { line-height: normal; }
   /* Slight indent so the hint visually sits under its button. */
   padding-left: 2px;
 }
+.sdoc-form-button-saved {
+  font-size: 0.78em;
+  color: #2e9b5e;
+  font-style: italic;
+  line-height: 1.35;
+  padding-left: 2px;
+}
 .sdoc-form-submit.is-sending {
   opacity: 0.75;
   cursor: progress;
