@@ -27,7 +27,7 @@ var ALLOWED_TYPES     = { text: 1, textarea: 1, radio: 1,
 var FIELD_KEYS        = ['name','type','label','help','required',
                          'default','placeholder','options','rows',
                          'maxlength','min','max','step'];
-var BUTTON_KEYS       = ['name','label','scope','final','after'];
+var BUTTON_KEYS       = ['name','label','scope','final','after','help'];
 
 // ─── Scalar parsing (string in, JS in) ────────────────────────
 
