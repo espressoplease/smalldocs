@@ -496,12 +496,33 @@ document.addEventListener('sdocs-form-submitted', function (e) {
   var btn = document.querySelector('.sdoc-form button[data-button-name="' + cssAttr(d.buttonName) + '"]');
   if (!btn) return;
   setButtonState(btn, 'sent');
+  // Drop a persistent "Saved to <file> · <time>" line under this button.
+  // Each subsequent click updates the same line so the user sees the
+  // most recent save without the cell growing forever.
+  recordSavedLine(btn, d.file);
   // Brief confirmation, then revert (unless the session is ending — in
   // which case the lock will overwrite this momentarily).
   setTimeout(function () {
     if (!btn.classList.contains('is-locked')) setButtonState(btn, 'idle');
   }, 1200);
 });
+
+function recordSavedLine(btn, file) {
+  var cell = btn.closest('.sdoc-form-button-cell');
+  if (!cell) return;
+  var line = cell.querySelector('.sdoc-form-button-saved');
+  if (!line) {
+    line = document.createElement('div');
+    line.className = 'sdoc-form-button-saved';
+    cell.appendChild(line);
+  }
+  var time = new Date();
+  var hh = String(time.getHours()).padStart(2, '0');
+  var mm = String(time.getMinutes()).padStart(2, '0');
+  var ss = String(time.getSeconds()).padStart(2, '0');
+  var fileText = (file && typeof file === 'string') ? file : 'the file';
+  line.textContent = '✓ Saved to ' + fileText + ' · ' + hh + ':' + mm + ':' + ss;
+}
 
 document.addEventListener('sdocs-form-session-ended', function () {
   var forms = document.querySelectorAll('.sdoc-form');
