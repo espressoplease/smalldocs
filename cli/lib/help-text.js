@@ -20,6 +20,9 @@ USAGE
   sdoc charts                      Chart types, options, and styling guide
   sdoc diagrams                    Mermaid diagrams reference (\`\`\`mermaid blocks)
   sdoc comments                    Comment-format reference (for agents)
+  sdoc feedback                    Interactive form DSL reference (\`\`\`form blocks)
+  sdoc feedback <file>             Open <file> for the user to fill in; exits on first submit
+  sdoc feedback <file> --keep-open Stay alive across many submits; tail stdout per click
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
   sdoc setup                       Wire SDocs into your coding agents
@@ -52,9 +55,32 @@ OPTIONS
   --json                Machine-readable output (safe subcommand only).
   --audit               Also print GitHub links to server-side source
                         files (safe subcommand only).
+  --keep-open           feedback subcommand: keep the bridge alive across
+                        many submits instead of exiting on the first one.
+  --log-file <path>     feedback subcommand: append one JSON line per
+                        submit to <path> (mirror of stdout, for harnesses
+                        that can't tail a background process).
+  --message <text>      feedback subcommand: show <text> as a banner
+                        above the document.
 
 ENVIRONMENT
   SDOCS_URL   Fallback base URL if --url is not passed.
+
+INTERACTIVE FEEDBACK (sdoc feedback)
+  An agent writes a fenced \`\`\`form block into a markdown file and runs
+  \`sdoc feedback file.md\`. The browser renders real form controls
+  (radio, checkbox, select, text, textarea, number, date). When the
+  user clicks a submit button:
+
+    - the bridge writes their answers into the same file
+      (under \`answers:\` and \`submissions:\` inside the form block)
+    - one JSON line lands on stdout: {event, by, at, scope, values, final}
+    - in single-shot mode (no --keep-open) the process exits 0
+    - in --keep-open mode the bridge stays alive for the next click
+
+  Run \`sdoc feedback\` (no args) for the full DSL reference: field
+  types, button options, the multi-round flow, and how agents on
+  different harnesses should consume the events.
 
 FILE INFO CARD
   When you \`sdoc <file>\`, the browser shows a small info card

@@ -18,8 +18,8 @@ const fs   = require('fs');
 const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
-const AGENT_BLOCK_VERSION = 4;
-const AGENT_BLOCK_REASON  = 'Add `sdoc diagrams` reference for the new Mermaid render path; tell agents to read it before writing ```mermaid blocks; mention `.mmd` / `.mermaid` standalone files.';
+const AGENT_BLOCK_VERSION = 5;
+const AGENT_BLOCK_REASON  = 'Add `sdoc feedback` reference. Agents can now write a fenced ```form block into a markdown file and run `sdoc feedback file.md` to ask the user something structured; the user clicks a submit button, the bridge writes their answers into the same file, and one JSON line per click lands on stdout.';
 
 const AGENT_BLOCK_BODY = `## SDocs
 
@@ -35,6 +35,7 @@ The \`sdoc\` CLI is installed globally:
 - \`sdoc schema\` - how to adjust all stylable properties (fonts, colors, spacing).
 - \`sdoc charts\` - read this before writing a \`\`\`chart block. The JSON shape is specific and easy to get wrong from memory.
 - \`sdoc diagrams\` - read this before writing a \`\`\`mermaid block. Covers supported diagram types and the security model. Standalone \`.mmd\` / \`.mermaid\` files also work: \`sdoc graph.mmd\`.
+- \`sdoc feedback\` - read this before writing a \`\`\`form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run \`sdoc feedback file.md\`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; \`--keep-open\` for multi-click sessions.
 - \`sdoc --help\` - full usage.
 
 When helping the user themselves, prefer \`sdoc file.md\` over \`sdoc share file.md\`. Share is for sending a link to someone else.
