@@ -309,6 +309,25 @@ function startBridge(opts) {
   // answering without re-launching the CLI.
   const keepOpen = !!opts.keepOpen;
 
+  // Event sinks for "user clicked a submit button". Stdout receives a
+  // JSON line per submit so agents can tail the process. logFile receives
+  // the same line appended to a named file, for harnesses that can't
+  // stream a background process's stdout but can read a file. onEvent is
+  // an in-process callback used by tests.
+  const eventLogFile = typeof opts.logFile === 'string' && opts.logFile ? opts.logFile : null;
+  if (eventLogFile) {
+    // Fail-fast: confirm we can append to the path before the browser
+    // ever sees the form, so the user doesn't fill in a form and then
+    // discover the events have nowhere to land.
+    try {
+      fs.appendFileSync(eventLogFile, '');
+    } catch (e) {
+      throw new Error('startBridge: --log-file is not writable: ' + e.message);
+    }
+  }
+  const onEvent = typeof opts.onEvent === 'function' ? opts.onEvent : null;
+  const emitEvents = !!(keepOpen || eventLogFile || onEvent);
+
   const token   = opts.token   || crypto.randomBytes(32).toString('base64url');
   const port    = opts.port    || 0;
   const extra   = opts.allowedOrigins || [];
@@ -550,9 +569,41 @@ function startBridge(opts) {
       final: final,
     });
 
+    // Emit one event per successful submit. Agents reading the process's
+    // stdout (Claude Code, Codex, etc.) get a clean trigger; weak-shell
+    // harnesses can read --log-file instead.
+    const lastSubmission = next.submissions[next.submissions.length - 1];
+    emitSubmitEvent({
+      event:   'submit',
+      form_id: formId,
+      by:      buttonName,
+      at:      lastSubmission.at,
+      scope:   lastSubmission.scope,
+      values:  lastSubmission.values,
+      final:   final,
+    });
+
     if (final || !keepOpen) {
       wsSendJson(socket, { type: 'submitted' });
       terminate({ kind: 'submit', code: 0 });
+    }
+  }
+
+  function emitSubmitEvent(ev) {
+    if (!emitEvents) return;
+    const line = JSON.stringify(ev) + '\n';
+    if (keepOpen) {
+      // stdout is the agent's primary trigger in --keep-open mode. We
+      // only write here when keepOpen is on; in single-shot the process
+      // exit IS the trigger, and stdout would otherwise mix with the
+      // shutdown lifecycle.
+      try { process.stdout.write(line); } catch (_) {}
+    }
+    if (eventLogFile) {
+      try { fs.appendFileSync(eventLogFile, line); } catch (_) {}
+    }
+    if (onEvent) {
+      try { onEvent(ev); } catch (_) {}
     }
   }
 

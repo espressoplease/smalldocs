@@ -29,6 +29,10 @@ markdown file, then run:
                                        # rewrite the file and the user will see
                                        # the new form without reloading
   sdoc feedback file.md --message "Q"  # show "Q" above the document
+  sdoc feedback file.md --keep-open \\
+       --log-file /tmp/sdoc.jsonl      # also append each submit event to a file
+                                       # (use when your harness can't tail
+                                       #  a background process's stdout)
 
 A form block has four sections: id, fields, buttons, and (added by the
 bridge on submit) answers + submissions. You author id, fields, buttons.
@@ -147,6 +151,31 @@ Multi-round flow (with --keep-open)
   5. The browser refreshes automatically. The user answers the new form.
   6. Repeat until the user clicks a button with \`final: true\`, or closes
      the tab.
+
+How to know a submit happened (events)
+--------------------------------------
+
+In --keep-open mode the bridge stays alive across many submits, so the
+process exit is no longer your per-submit signal. Two output channels
+let you react to each click:
+
+  stdout      one JSON line per successful submit, e.g.
+              {"event":"submit","form_id":"q1","by":"send_decision",
+               "at":"2026-05-24T10:01:32.123Z","scope":["ready"],
+               "values":{"ready":"Yes"},"final":false}
+              Use this when your agent harness can tail the stdout of a
+              background process (Claude Code, Codex CLI, opencode, etc.).
+              Startup chatter is on stderr so stdout is event-only.
+
+  --log-file  the same JSON line, appended to the named file. Use this
+              when your harness can't stream stdout but can read files
+              (Aider, Cursor's older terminal modes, Continue). Each line
+              is a complete JSON object; agents tail by line count or
+              file size.
+
+Single-shot mode (no --keep-open) does NOT emit on stdout — the process
+exit IS the trigger. --log-file still appends one line before exit if
+you want a uniform reading pattern.
 
 On submit, the form block grows two new sections:
 
