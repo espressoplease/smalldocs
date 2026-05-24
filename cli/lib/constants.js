@@ -25,14 +25,27 @@ Ask the user something structured. Write a fenced \`\`\`form block into a
 markdown file, then run:
 
   sdoc feedback file.md                # opens the file, exits on first submit
-  sdoc feedback file.md --keep-open    # stays alive across submits; you can
-                                       # rewrite the file and the user will see
-                                       # the new form without reloading
-  sdoc feedback file.md --message "Q"  # show "Q" above the document
+
+That is the simplest, recommended shape: ONE submit button, single
+process invocation. The user clicks, the file gets the answers, the
+process prints one JSON line on stdout, and exits. You just spawn the
+command, wait for it to finish, and read its stdout.
+
+You only need the other modes when you genuinely want multiple submits
+in one session:
+
+  sdoc feedback file.md --keep-open    # bridge stays alive across many
+                                       # submits; you tail stdout to
+                                       # react per click
   sdoc feedback file.md --keep-open \\
-       --log-file /tmp/sdoc.jsonl      # also append each submit event to a file
-                                       # (use when your harness can't tail
-                                       #  a background process's stdout)
+       --log-file /tmp/sdoc.jsonl      # also mirror events to a file
+                                       # (fallback for harnesses that
+                                       #  can't tail a background process)
+  sdoc feedback file.md --message "Q"  # show "Q" above the document
+
+Strong default: write forms with ONE button. Reach for --keep-open + a
+multi-button form only when "the user submits several things during one
+session" is the actual goal.
 
 A form block has four sections: id, fields, buttons, and (added by the
 bridge on submit) answers + submissions. You author id, fields, buttons.
@@ -138,6 +151,9 @@ Buttons
   after      optional field name. Renders the button inline right under
              that field instead of in the bottom row. Combine with scope
              for a "submit just this section" pattern.
+  help       optional one-line description shown under the button as
+             grey text. Overrides the auto-generated "what happens" hint
+             (e.g. "Sends just these answers. You can keep editing.").
 
 Multi-round flow (with --keep-open)
 -----------------------------------

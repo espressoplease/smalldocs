@@ -459,6 +459,95 @@ buttons:
   }
 });
 
+test('form: button hint text auto-generates from final/scope and accepts help override', async ({ page }) => {
+  const body = `\`\`\`form
+id: hints
+fields:
+  - name: a
+    type: text
+    label: "A"
+buttons:
+  - name: only_a
+    label: "Only A"
+    scope: [a]
+  - name: all
+    label: "All"
+  - name: done
+    label: "Done"
+    final: true
+  - name: custom
+    label: "Custom"
+    scope: [a]
+    help: "This is the agent's own note."
+\`\`\`
+`;
+  const file = tmpFile('hints.md', body);
+  const bridge = await startBridge({
+    files: [file], mode: 'feedback', keepOpen: true,
+    noConnectTimeoutMs: 15000, reconnectGraceMs: 10000, idleTimeoutMs: 0,
+  });
+  try {
+    await page.goto(bridgeUrl(bridge));
+    await waitForFormReady(page);
+    const hints = await page.$$eval('.sdoc-form-button-hint', els => els.map(e => e.textContent));
+    expect(hints[0]).toMatch(/Sends just these answers.*a/);
+    expect(hints[1]).toMatch(/Sends all answers/);
+    expect(hints[2]).toMatch(/ends this session/);
+    expect(hints[3]).toBe("This is the agent's own note.");
+  } finally {
+    bridge.close();
+    await bridge.awaitTerminal();
+  }
+});
+
+test('form: submit button flips to Sending then ✓ Sent on ack', async ({ page }) => {
+  const file = tmpFile('states.md', FORM_BODY);
+  const bridge = await startBridge({
+    files: [file], mode: 'feedback', keepOpen: true,
+    noConnectTimeoutMs: 15000, reconnectGraceMs: 10000, idleTimeoutMs: 0,
+  });
+  try {
+    await page.goto(bridgeUrl(bridge));
+    await waitForFormReady(page);
+    const btn = page.locator('button[data-button-name="send_ready"]');
+    await btn.click();
+    // The "Sent" state lasts ~1200ms, so we should be able to see it.
+    await expect(btn).toContainText('Sent', { timeout: 3000 });
+    // After the timeout, it reverts to its label.
+    await expect(btn).toContainText('Send decision', { timeout: 3000 });
+  } finally {
+    bridge.close();
+    await bridge.awaitTerminal();
+  }
+});
+
+test('form: final submit locks every field + every button', async ({ page }) => {
+  const file = tmpFile('lock.md', FORM_BODY);
+  const bridge = await startBridge({
+    files: [file], mode: 'feedback',
+    noConnectTimeoutMs: 15000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+  });
+  const termPromise = bridge.awaitTerminal();
+  try {
+    await page.goto(bridgeUrl(bridge));
+    await waitForFormReady(page);
+    await page.locator('button[data-button-name="send_all"]').click();
+    await termPromise;
+    // Wait for the lock to apply (driven by the WS `submitted` round-trip).
+    await expect(page.locator('.sdoc-form-locked')).toBeVisible({ timeout: 3000 });
+    // Every input + textarea + button inside the form is now disabled.
+    const enabledCount = await page.$$eval(
+      '.sdoc-form input:not([disabled]), .sdoc-form textarea:not([disabled]), .sdoc-form select:not([disabled]), .sdoc-form button:not([disabled])',
+      els => els.length
+    );
+    expect(enabledCount).toBe(0);
+    // The "session ended" status appears.
+    await expect(page.locator('.sdoc-form-ended-note')).toContainText(/Session ended/);
+  } finally {
+    bridge.close();
+  }
+});
+
 test('form: XSS payloads in option labels are not executed', async ({ page }) => {
   const body = `\`\`\`form
 id: xss

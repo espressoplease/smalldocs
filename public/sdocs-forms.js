@@ -288,16 +288,67 @@ function renderField(field, initialValue) {
 }
 
 function renderButton(buttonSpec, block, form, token) {
+  // The submit row holds the button itself plus a small grey hint line
+  // explaining what happens when the user clicks it. The hint comes from
+  // the agent's optional `help:` key, or is auto-generated from the
+  // button's `final`/`scope` shape so users always get some context.
+  var wrap = document.createElement('span');
+  wrap.className = 'sdoc-form-button-cell';
+
   var btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'sdoc-form-submit';
-  btn.textContent = String(buttonSpec.label || buttonSpec.name);
+  var originalLabel = String(buttonSpec.label || buttonSpec.name);
+  btn.textContent = originalLabel;
   btn.setAttribute('data-button-name', buttonSpec.name);
+  btn.setAttribute('data-button-label', originalLabel);
   if (buttonSpec.final) btn.setAttribute('data-final', 'true');
   btn.addEventListener('click', function () {
+    if (btn.disabled) return;
+    setButtonState(btn, 'sending');
     handleSubmit(form, block, buttonSpec, token);
   });
-  return btn;
+  wrap.appendChild(btn);
+
+  var hint = document.createElement('div');
+  hint.className = 'sdoc-form-button-hint';
+  hint.textContent = buttonHintText(buttonSpec, block);
+  wrap.appendChild(hint);
+
+  return wrap;
+}
+
+function buttonHintText(buttonSpec, block) {
+  if (buttonSpec.help && typeof buttonSpec.help === 'string') {
+    return buttonSpec.help;
+  }
+  if (buttonSpec.final) {
+    return 'Submitting hands off to the agent and ends this session.';
+  }
+  var scope = Array.isArray(buttonSpec.scope) ? buttonSpec.scope : null;
+  if (scope && scope.length) {
+    return 'Sends just these answers (' + scope.join(', ') + '). You can keep editing.';
+  }
+  return 'Sends all answers. You can keep editing.';
+}
+
+// Visual states the submit button can be in. We do it via classes so CSS
+// owns the look; the JS only swaps state + label text.
+function setButtonState(btn, state) {
+  btn.classList.remove('is-sending', 'is-sent');
+  var label = btn.getAttribute('data-button-label') || btn.textContent;
+  if (state === 'sending') {
+    btn.classList.add('is-sending');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+  } else if (state === 'sent') {
+    btn.classList.add('is-sent');
+    btn.disabled = true; // briefly, until idle revert
+    btn.textContent = '✓ Sent';
+  } else {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
 }
 
 // ─── Submit gather + validate + dispatch ──────────────────────
@@ -432,9 +483,53 @@ function cssAttr(s) {
   return String(s).replace(/["\\]/g, '\\$&');
 }
 
+// ─── Bridge event hookup ──────────────────────────────────────
+//
+// The bridge dispatches `sdocs-form-submitted` after the server acks a
+// submit, and `sdocs-form-session-ended` after a final submit (or any
+// submit in single-shot mode). We listen at the document level once so
+// hot re-renders don't multiply listeners.
+
+document.addEventListener('sdocs-form-submitted', function (e) {
+  var d = (e && e.detail) || {};
+  if (!d.buttonName) return;
+  var btn = document.querySelector('.sdoc-form button[data-button-name="' + cssAttr(d.buttonName) + '"]');
+  if (!btn) return;
+  setButtonState(btn, 'sent');
+  // Brief confirmation, then revert (unless the session is ending — in
+  // which case the lock will overwrite this momentarily).
+  setTimeout(function () {
+    if (!btn.classList.contains('is-locked')) setButtonState(btn, 'idle');
+  }, 1200);
+});
+
+document.addEventListener('sdocs-form-session-ended', function () {
+  var forms = document.querySelectorAll('.sdoc-form');
+  for (var i = 0; i < forms.length; i++) lockForm(forms[i]);
+});
+
+function lockForm(form) {
+  if (form.classList.contains('sdoc-form-locked')) return;
+  form.classList.add('sdoc-form-locked');
+  // Disable every interactive control in this form.
+  var ctrls = form.querySelectorAll('input, textarea, select, button');
+  for (var i = 0; i < ctrls.length; i++) {
+    var c = ctrls[i];
+    c.disabled = true;
+    if (c.tagName === 'BUTTON') c.classList.add('is-locked');
+  }
+  // Append a small status line so the user knows their listener is gone.
+  if (!form.querySelector('.sdoc-form-ended-note')) {
+    var note = document.createElement('div');
+    note.className = 'sdoc-form-ended-note';
+    note.textContent = 'Session ended. The agent has the final answers.';
+    form.appendChild(note);
+  }
+}
+
 // ─── Expose for orchestrator ──────────────────────────────────
 
 S.renderForms = renderForms;
-S.formsInternals = { mountForm: mountForm };
+S.formsInternals = { mountForm: mountForm, setButtonState: setButtonState, lockForm: lockForm };
 
 }());
