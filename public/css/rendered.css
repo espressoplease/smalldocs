@@ -867,14 +867,58 @@ foreignObject span { line-height: normal; }
 }
 .sdoc-form-buttons {
   display: flex;
-  gap: 8px;
+  gap: 14px;
   margin-top: 16px;
   flex-wrap: wrap;
+  align-items: flex-start;
 }
 .sdoc-form-buttons-inline {
   /* Inline submits sit tighter against the field they belong to. */
   margin-top: 8px;
   margin-bottom: 4px;
+}
+.sdoc-form-button-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  /* Stops a long hint line from breaking the row layout. */
+  max-width: 360px;
+}
+.sdoc-form-button-hint {
+  font-size: 0.78em;
+  color: var(--md-color-muted, #777);
+  line-height: 1.35;
+  /* Slight indent so the hint visually sits under its button. */
+  padding-left: 2px;
+}
+.sdoc-form-submit.is-sending {
+  opacity: 0.75;
+  cursor: progress;
+}
+.sdoc-form-submit.is-sent {
+  background: #2e9b5e;
+  border-color: #2e9b5e;
+}
+.sdoc-form-submit.is-locked,
+.sdoc-form-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+}
+.sdoc-form-locked .sdoc-form-button-hint {
+  opacity: 0.55;
+}
+.sdoc-form-locked .sdoc-form-label {
+  opacity: 0.7;
+}
+.sdoc-form-ended-note {
+  margin-top: 14px;
+  padding: 6px 10px;
+  font-size: 0.85em;
+  color: var(--md-color-muted, #777);
+  border-left: 2px solid var(--md-block-border, #d6d6d6);
+  background: var(--md-block-bg-soft, transparent);
 }
 .sdoc-form-submit {
   appearance: none;
