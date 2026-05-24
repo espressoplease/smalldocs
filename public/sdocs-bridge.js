@@ -347,6 +347,19 @@
         ? 'Submitted. You can close this tab.'
         : 'Sent to the agent.');
     }
+    // Notify the form renderer so it can flip the clicked button from
+    // "Sending…" back to its label (briefly via a "Sent ✓" state). The
+    // bridge owns transport; the renderer owns UI.
+    try {
+      document.dispatchEvent(new CustomEvent('sdocs-form-submitted', {
+        bubbles: true,
+        detail: {
+          formId: msg.form_id || null,
+          buttonName: msg.button_name || null,
+          final: !!msg.final,
+        },
+      }));
+    } catch (_) {}
     // When --keep-open is in play, server keeps the session alive; the
     // next external-change will refresh the form on its own. For final
     // submits, _onSubmitted runs in addition (the server sends both).
@@ -426,6 +439,14 @@
     // Session is over — clearing the stash means a refresh won't try to
     // re-attach to a bridge that has already exited.
     clearStash();
+    // Tell forms to lock — every field disabled, every button disabled,
+    // a small "Session ended" status near the form so the user knows
+    // their listener is gone before they start typing into a void.
+    try {
+      document.dispatchEvent(new CustomEvent('sdocs-form-session-ended', {
+        bubbles: true,
+      }));
+    } catch (_) {}
   };
 
   BridgeSource.prototype._onError = function (msg) {
