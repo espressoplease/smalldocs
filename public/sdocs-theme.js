@@ -57,6 +57,11 @@ const LIGHT_DEFAULTS = {
   bqBorderColor: '#2563eb',
   bqBg:          '#f7f5f2',
   bqColor:       '#6b6560',
+  tableBorder:      '#e2ddd6',
+  tableHeaderBg:    '#f4f1ed',
+  tableEvenBg:      '#fafaf8',
+  tableOddBg:       '#ffffff',
+  tableText:        '#1c1917',
 };
 
 const DARK_DEFAULTS = {
@@ -68,6 +73,11 @@ const DARK_DEFAULTS = {
   bqBorderColor: '#60a5fa',
   bqBg:          '#252320',
   bqColor:       '#a8a29e',
+  tableBorder:      '#3d3935',
+  tableHeaderBg:    '#2c2926',
+  tableEvenBg:      '#242220',
+  tableOddBg:       '#2c2a26',
+  tableText:        '#e7e5e2',
 };
 
 function getThemeDefaults() {
@@ -233,6 +243,11 @@ function getStandaloneDefault(ctrlId) {
     '_sd_ctrl-block-bg':        d.codeBg,
     '_sd_ctrl-block-text':      d.bqColor,
     '_sd_ctrl-chart-accent':    '#3b82f6',
+    '_sd_ctrl-table-border':    d.tableBorder,
+    '_sd_ctrl-table-header-bg': d.tableHeaderBg,
+    '_sd_ctrl-table-even-bg':   d.tableEvenBg,
+    '_sd_ctrl-table-odd-bg':    d.tableOddBg,
+    '_sd_ctrl-table-text':      d.tableText,
   };
   return map[ctrlId];
 }

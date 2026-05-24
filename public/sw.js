@@ -79,6 +79,9 @@ self.addEventListener('fetch', function (e) {
   // on the next load without a second refresh.
   if (url.pathname === '/api/feedback') return;
 
+  // Shape playground is a dev tool that iterates quickly; never cache it.
+  if (url.pathname === '/shapes') return;
+
   // Google Fonts: cache-first (they're immutable)
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
     e.respondWith(

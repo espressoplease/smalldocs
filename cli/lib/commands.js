@@ -88,6 +88,7 @@ async function prepareUrl(opts) {
       defaultStyles: !content ? defaults : null,
       section: opts.section,
       local,
+      present: opts.present,
     });
   }
 
@@ -145,10 +146,107 @@ function newCommand(opts) {
   console.log(`SDocs → ${url}`);
 }
 
+// `sdoc slides` family. Dispatches on the positional after `slides`:
+//   sdoc slides                     -> prints SLIDES_HELP
+//   sdoc slides list                -> built-in template registry
+//   sdoc slides custom-shapes       -> raw-shape reference
+//   sdoc slides icons [query]       -> Lucide icon name listing
+function slidesCommand(opts) {
+  const helpText = require('./help-text');
+  const sub = opts.file;
+  if (sub === 'list')          { printSlideStdlib();           return; }
+  if (sub === 'custom-shapes') { console.log(helpText.SLIDES_CUSTOM_SHAPES_HELP); return; }
+  if (sub === 'icons')         { printIconList(opts.extra);    return; }
+  console.log(helpText.SLIDES_HELP);
+}
+
+// `sdoc present <file>` opens the file straight into fullscreen slide
+// view. Delegates to openCommand with `present: true` set so the URL
+// gets `&present=0` and the browser auto-enters present mode on load.
+function presentCommand(opts) {
+  return openCommand(Object.assign({}, opts, { present: true }));
+}
+
+function printSlideStdlib() {
+  // Require lazily so the browser-side slide stdlib (which uses window
+  // globals) is only loaded when this command actually runs.
+  const SDocSlideStdlib = require('../../public/sdocs-slide-stdlib.js');
+  const names = SDocSlideStdlib.names || Object.keys(SDocSlideStdlib.templates || {});
+  const slots = SDocSlideStdlib.slots || {};
+  console.log('Built-in slide templates');
+  console.log('========================');
+  const pad = 22;
+  for (let i = 0; i < names.length; i++) {
+    const n = names[i];
+    let label = '@extends ' + n;
+    while (label.length < pad) label += ' ';
+    const slotList = (slots[n] || []).join(', ');
+    console.log(label + ' ' + slotList);
+  }
+  console.log('');
+  console.log('`!` marks a required slot (resolver errors when omitted).');
+  console.log('Use a built-in by adding `@extends <name>` to a slide block.');
+  console.log('Define a user @template with the same name to override (you\'ll get a warning).');
+}
+
+function printIconList(query) {
+  let names;
+  try {
+    // The manifest sits next to this file (via cli/bin/). Require by
+    // resolved path so it works whether we're invoked from a globally
+    // installed binary or from a checkout.
+    names = require('../bin/sdocs-icon-names.js');
+  } catch (e) {
+    console.error('sdoc: icon names manifest missing (cli/bin/sdocs-icon-names.js).');
+    console.error('Run `node scripts/build-icons.js` to generate it.');
+    process.exit(1);
+  }
+
+  const q = (query || '').toLowerCase().trim();
+  const matches = q ? names.filter(n => n.indexOf(q) !== -1) : names;
+
+  if (q && matches.length === 0) {
+    console.log('No Lucide icons match "' + query + '".');
+    console.log('Browse the full set at https://lucide.dev/icons/ or run `sdoc slides icons` to list everything.');
+    return;
+  }
+
+  if (q) {
+    console.log('Lucide icons matching "' + query + '" (' + matches.length + ' of ' + names.length + ')');
+  } else {
+    console.log('Lucide icons available to the `icon` shape kind (' + names.length + ' total)');
+  }
+  console.log('Source: https://lucide.dev/icons/  -  use `name=<icon>` in slides');
+  console.log('');
+
+  const longest = matches.reduce((m, n) => n.length > m ? n.length : m, 0);
+  const colWidth = longest + 2;
+  const cols = 4;
+  const rows = Math.ceil(matches.length / cols);
+  for (let r = 0; r < rows; r++) {
+    let line = '';
+    for (let c = 0; c < cols; c++) {
+      const idx = c * rows + r;
+      if (idx >= matches.length) break;
+      let name = matches[idx];
+      while (name.length < colWidth) name += ' ';
+      line += name;
+    }
+    console.log(line.replace(/\s+$/, ''));
+  }
+
+  if (!q) {
+    console.log('');
+    console.log('Tip: filter with `sdoc slides icons <substring>` (e.g. `sdoc slides icons cloud`).');
+  }
+}
+
 module.exports = {
   prepareUrl,
   openCommand,
   shareCommand,
   defaultsCommand,
   newCommand,
+  slidesCommand,
+  presentCommand,
 };
