@@ -38,7 +38,7 @@ Teach [Claude Code](https://docs.anthropic.com/en/docs/claude-code) about `sdoc`
 npm i -g sdocs-dev
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=4 -->
+<!-- sdocs-agent-block:start v=5 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -53,6 +53,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc feedback` - read this before writing a ```form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run `sdoc feedback file.md`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; `--keep-open` for multi-click sessions.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -72,7 +73,7 @@ Teach [Codex](https://developers.openai.com/codex) about `sdoc`:
 npm i -g sdocs-dev
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=4 -->
+<!-- sdocs-agent-block:start v=5 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -87,6 +88,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc feedback` - read this before writing a ```form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run `sdoc feedback file.md`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; `--keep-open` for multi-click sessions.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -106,7 +108,7 @@ Teach [Gemini CLI](https://github.com/google-gemini/gemini-cli) about `sdoc`:
 npm i -g sdocs-dev
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=4 -->
+<!-- sdocs-agent-block:start v=5 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -121,6 +123,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc feedback` - read this before writing a ```form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run `sdoc feedback file.md`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; `--keep-open` for multi-click sessions.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -141,7 +144,7 @@ npm i -g sdocs-dev
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=4 -->
+<!-- sdocs-agent-block:start v=5 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -156,6 +159,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc feedback` - read this before writing a ```form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run `sdoc feedback file.md`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; `--keep-open` for multi-click sessions.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -466,7 +470,7 @@ If you expand a child section while its parent is still collapsed, the parent's 
 
 Every header has its own copy and paste button. This copies its content and all of its children's content. At the moment this is the fastest way to get SmallDoc content into your agent's context, but we're looking for novel ideas to make this better.
 
-### Feedback for agents
+### Reviewing agent-generated documents (comments)
 
 When an agent generates a `.md` file, you often want to push back on parts of it: flag a paragraph, ask for clarification, mark a section to revise. Comment mode (the speech-bubble icon in the top toolbar) lets you mark up the rendered document directly, then copy any section together with your notes back into the agent's terminal.
 
@@ -478,6 +482,16 @@ Two ways to leave a note:
 Each comment carries an author name and a colour, both set in the comment toolbar (`Commenting as: [name] [color]`). New comments pick up those preferences; existing comments keep what they were saved with. The comment icon in the top toolbar shows a coloured dot whenever the document carries any comments, tinted with the most recent comment's colour.
 
 To round-trip, click the **copy with comments** button next to any heading (or the one in the comment toolbar to grab the whole document). It copies the section's markdown along with each comment as plain text, ready to paste into the agent's terminal. Comments live in the YAML front matter under a `comments:` key, so they travel with the document through `sdoc share` and survive a styled `.md` export.
+
+### Interactive forms (agents asking the user)
+
+The other direction: an agent wants the user to answer something *structured*. Instead of asking in chat and parsing free text, the agent writes a fenced ` ```form ` block into a markdown file and runs `sdoc feedback file.md`. The browser renders real form controls — radio buttons, checkboxes, dropdowns, text fields, textareas, numbers, dates — with pre-filled defaults the user can edit.
+
+When the user clicks a submit button, the bridge writes their answers into the same file (under `answers:` and `submissions:` inside the form block) and emits one JSON line per click on the CLI's stdout. In single-shot mode the process exits on the first click; with `--keep-open` it stays alive across many submits so the agent can keep asking follow-ups in the same browser tab.
+
+Each submit button can carry a `scope:` (only submit some fields), an `after:` (render inline next to a specific field), a `final:` (this click ends the session), and a `help:` (custom hint line). Auto-generated grey hint text under each button explains what it does; a green "✓ Saved to <file> · <time>" confirmation appears after each successful click; the entire form locks with a calm "Session ended" note when the bridge exits.
+
+Run `sdoc feedback` with no arguments to print the full DSL reference: every field type, every button option, the multi-round flow, and how agents on different harnesses (Claude Code, Codex, Aider, Cursor) should consume the submit events.
 
 ### Works offline
 
@@ -644,7 +658,7 @@ The manual way: copy and paste the one-line commands below into your terminal. E
 ```bash
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=4 -->
+<!-- sdocs-agent-block:start v=5 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -659,6 +673,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc feedback` - read this before writing a ```form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run `sdoc feedback file.md`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; `--keep-open` for multi-click sessions.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -673,7 +688,7 @@ SDOC
 ```bash
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=4 -->
+<!-- sdocs-agent-block:start v=5 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -688,6 +703,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc feedback` - read this before writing a ```form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run `sdoc feedback file.md`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; `--keep-open` for multi-click sessions.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -702,7 +718,7 @@ SDOC
 ```bash
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=4 -->
+<!-- sdocs-agent-block:start v=5 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -717,6 +733,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc feedback` - read this before writing a ```form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run `sdoc feedback file.md`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; `--keep-open` for multi-click sessions.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
@@ -732,7 +749,7 @@ SDOC
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=4 -->
+<!-- sdocs-agent-block:start v=5 -->
 ## SDocs
 
 SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
@@ -747,6 +764,7 @@ The `sdoc` CLI is installed globally:
 - `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
 - `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
 - `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc feedback` - read this before writing a ```form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run `sdoc feedback file.md`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; `--keep-open` for multi-click sessions.
 - `sdoc --help` - full usage.
 
 When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.

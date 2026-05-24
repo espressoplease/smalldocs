@@ -13,6 +13,48 @@ The CLI links here whenever it updates an existing block. Each entry shows the
 exact text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v5 (next, 2026-05-24)
+
+**Reason:** Adds a `sdoc feedback` reference. Agents can now write a
+fenced ```form block into a markdown file and run `sdoc feedback file.md`
+to ask the user something structured (radio / checkbox / select / text /
+textarea / number / date). The user clicks a submit button, the bridge
+writes their answers into the same file, and one JSON line per click
+lands on the CLI's stdout — so the agent gets a clean trigger without
+having to poll. Defaults to single-shot mode (one click, process exits);
+`--keep-open` keeps the bridge alive for multi-click sessions.
+
+Diff vs v4 is one new bullet inserted after the diagrams line:
+
+```
+- `sdoc feedback` - read this before writing a ```form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run `sdoc feedback file.md`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; `--keep-open` for multi-click sessions.
+```
+
+Block body:
+
+```markdown
+## SDocs
+
+SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
+Content lives in the URL hash - nothing hits a server.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file.
+Also handy for copying specific code - SDocs code blocks have copy buttons.
+
+The `sdoc` CLI is installed globally:
+- `sdoc file.md` - open styled in browser (great for easy reading).
+- `sdoc share file.md` - copy shareable URL to clipboard.
+- `sdoc schema` - how to adjust all stylable properties (fonts, colors, spacing).
+- `sdoc charts` - read this before writing a ```chart block. The JSON shape is specific and easy to get wrong from memory.
+- `sdoc diagrams` - read this before writing a ```mermaid block. Covers supported diagram types and the security model. Standalone `.mmd` / `.mermaid` files also work: `sdoc graph.mmd`.
+- `sdoc feedback` - read this before writing a ```form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run `sdoc feedback file.md`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; `--keep-open` for multi-click sessions.
+- `sdoc --help` - full usage.
+
+When helping the user themselves, prefer `sdoc file.md` over `sdoc share file.md`. Share is for sending a link to someone else.
+
+Source: https://github.com/espressoplease/SDocs
+```
+
 ## v4 (1.6.0, 2026-05-08)
 
 **Reason:** Adds a `sdoc diagrams` reference for the new Mermaid render
