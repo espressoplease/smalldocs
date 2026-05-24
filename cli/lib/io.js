@@ -29,6 +29,7 @@ function parseArgs(argv) {
   let idleTimeoutS = null;
   let reconnectGraceMs = null;
   let keepOpenFlag = false;
+  let logFile = null;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -68,6 +69,7 @@ function parseArgs(argv) {
     if (arg === '--idle-timeout')                    { idleTimeoutS     = Number(args[++i]); continue; }
     if (arg === '--reconnect-grace')                 { reconnectGraceMs = Number(args[++i]); continue; }
     if (arg === '--keep-open')                       { keepOpenFlag     = true; continue; }
+    if (arg === '--log-file')                        { logFile          = args[++i]; continue; }
 
     if (!subcommand && SUBCOMMANDS.has(arg)) {
       subcommand = arg;
@@ -81,7 +83,7 @@ function parseArgs(argv) {
     file, mode, url, subcommand, section, theme,
     resetFlag, shortFlag, jsonFlag, auditFlag, waitFlag,
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
-    keepOpenFlag,
+    keepOpenFlag, logFile,
   };
 }
 
