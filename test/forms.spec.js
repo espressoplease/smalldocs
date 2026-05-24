@@ -521,6 +521,42 @@ test('form: submit button flips to Sending then ✓ Sent on ack', async ({ page 
   }
 });
 
+test('form: "Saved to <file> · <time>" appears under the clicked button and updates on each click', async ({ page }) => {
+  const file = tmpFile('saved.md', FORM_BODY);
+  const bridge = await startBridge({
+    files: [file], mode: 'feedback', keepOpen: true,
+    noConnectTimeoutMs: 15000, reconnectGraceMs: 10000, idleTimeoutMs: 0,
+  });
+  try {
+    await page.goto(bridgeUrl(bridge));
+    await waitForFormReady(page);
+
+    // Click once. A saved line appears under that button only.
+    await page.locator('button[data-button-name="send_ready"]').click();
+    const cell = page.locator('.sdoc-form-button-cell:has(button[data-button-name="send_ready"])');
+    const saved = cell.locator('.sdoc-form-button-saved');
+    await expect(saved).toContainText('✓ Saved to', { timeout: 3000 });
+    await expect(saved).toContainText('saved.md');
+
+    // The OTHER button's cell still has no saved line.
+    const otherCell = page.locator('.sdoc-form-button-cell:has(button[data-button-name="send_all"])');
+    await expect(otherCell.locator('.sdoc-form-button-saved')).toHaveCount(0);
+
+    const firstText = await saved.textContent();
+    // Click again after a small delay; the same line is updated (not duplicated).
+    await page.waitForTimeout(1100);
+    await page.locator('button[data-button-name="send_ready"]').click();
+    await expect(saved).toContainText('✓ Saved to', { timeout: 3000 });
+    await expect(cell.locator('.sdoc-form-button-saved')).toHaveCount(1);
+    const secondText = await saved.textContent();
+    // The timestamp should have advanced.
+    expect(secondText).not.toBe(firstText);
+  } finally {
+    bridge.close();
+    await bridge.awaitTerminal();
+  }
+});
+
 test('form: final submit locks every field + every button', async ({ page }) => {
   const file = tmpFile('lock.md', FORM_BODY);
   const bridge = await startBridge({
