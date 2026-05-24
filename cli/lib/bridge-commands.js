@@ -78,6 +78,7 @@ async function runBridge(opts, mode, label) {
       { files: [opts.file], mode },
       mode === 'feedback' && opts.messageText ? { message: opts.messageText } : {},
       opts.keepOpenFlag ? { keepOpen: true } : {},
+      opts.logFile         ? { logFile: opts.logFile } : {},
       timeoutOpts(opts),
     ));
   } catch (e) {
@@ -91,7 +92,9 @@ async function runBridge(opts, mode, label) {
   process.on('SIGTERM', onSignal);
 
   openBrowser(url);
-  console.log(`${label} ${path.basename(opts.file)} in browser. Close the tab or press Ctrl-C to stop.`);
+  // Startup chatter goes to stderr so stdout stays a clean event
+  // channel (one JSON line per submit) in --keep-open mode.
+  console.error(`${label} ${path.basename(opts.file)} in browser. Close the tab or press Ctrl-C to stop.`);
 
   const result = await bridge.awaitTerminal();
   process.off('SIGINT',  onSignal);
