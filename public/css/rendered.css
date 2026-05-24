@@ -919,6 +919,24 @@ foreignObject span { line-height: normal; }
 .sdoc-form-locked .sdoc-form-label {
   opacity: 0.7;
 }
+/* Browsers don't visibly disable input value text by default (Chromium
+   keeps it near-black), so we explicitly mute color + cursor for every
+   text-bearing control inside a locked form. */
+.sdoc-form-locked .sdoc-form-input,
+.sdoc-form-locked .sdoc-form-textarea,
+.sdoc-form-locked .sdoc-form-select {
+  color: var(--md-color-muted, #888);
+  background: rgba(0, 0, 0, 0.03);
+  border-color: var(--md-block-border, #d6d6d6);
+  cursor: not-allowed;
+}
+/* Native radio / checkbox dots don't take `color`. Opacity is the only
+   reliable way to read them as inactive across themes. */
+.sdoc-form-locked .sdoc-form-radio-line,
+.sdoc-form-locked .sdoc-form-checkbox-line {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 .sdoc-form-ended-note {
   margin-top: 14px;
   padding: 6px 10px;
