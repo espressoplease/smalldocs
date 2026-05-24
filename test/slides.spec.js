@@ -57,13 +57,18 @@ test.describe('Slide rendering pipeline', () => {
     expect(sizes[1]).toBeCloseTo(12, 3);
   });
 
-  test('default role is body (24px); no autofit, no font= attr needed', async ({ page }) => {
+  test('default role is body (24px); cap-mode autofit settles at role size when content fits', async ({ page }) => {
     await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 | hello'));
     const info = await page.$eval('.sdoc-slide .shape-rect', (el) => ({
       autofit: el.dataset.autofit,
       fontSize: el.style.fontSize,
     }));
-    expect(info.autofit).toBe('off');
+    // The default role-based path runs autofit in 'cap' mode: the role's
+    // size IS the cap, so the binary search only shrinks the font if
+    // content overflows. For content that fits, the rendered font size
+    // matches the role's default exactly — same outcome as autofit=off
+    // would have produced, but with graceful overflow handling kept on.
+    expect(info.autofit).toBe('cap');
     expect(info.fontSize).toBe('24px');
   });
 

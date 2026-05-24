@@ -102,7 +102,9 @@ test.describe('shape playground', () => {
   test('invalid grid surfaces error and falls back to default', async ({ page }) => {
     await gotoPlayground(page);
     await setDSL(page, 'grid 100\nr 0 0 10 10');
-    await expect(page.locator('#errors')).toContainText('expected "grid W H"');
+    // Error message expanded to mention optional [key=val ...] attrs; the
+    // substring check now stops at H to stay tolerant of either wording.
+    await expect(page.locator('#errors')).toContainText('expected "grid W H');
     // Still renders shape on default grid
     await expect(page.locator('#stage .shape-rect')).toHaveCount(1);
   });
@@ -260,11 +262,18 @@ test.describe('shape playground', () => {
       'a @a @b',
     ].join('\n'));
     const line = page.locator('#stage svg g line').first();
-    // Center of a = (10, 10); center of b = (90, 50)
+    // Center of a = (10, 10); center of b = (90, 50). The SVG line is
+    // shortened by ~0.1 units so the arrowhead's visual tip lands at the
+    // target instead of overshooting by half a stroke-width — assert with
+    // a tolerance rather than exact equality.
     await expect(line).toHaveAttribute('x1', '10');
     await expect(line).toHaveAttribute('y1', '10');
-    await expect(line).toHaveAttribute('x2', '90');
-    await expect(line).toHaveAttribute('y2', '50');
+    const coords = await line.evaluate((el) => ({
+      x2: parseFloat(el.getAttribute('x2')),
+      y2: parseFloat(el.getAttribute('y2')),
+    }));
+    expect(coords.x2).toBeCloseTo(90, 0);
+    expect(coords.y2).toBeCloseTo(50, 0);
   });
 
   test('@a.right anchors arrow start at right edge', async ({ page }) => {
@@ -593,10 +602,16 @@ test.describe('shape playground', () => {
       'a @b @a.topright',
     ].join('\n'));
     const line = page.locator('#stage svg g line').first();
-    // b center = a center = (20, 20); a topright = (30, 10)
+    // b center = a center = (20, 20); a topright = (30, 10). x2/y2
+    // are slightly pulled back from the target so the SVG arrowhead's
+    // visual tip lands at (30, 10) — assert with a tolerance.
     await expect(line).toHaveAttribute('x1', '20');
     await expect(line).toHaveAttribute('y1', '20');
-    await expect(line).toHaveAttribute('x2', '30');
-    await expect(line).toHaveAttribute('y2', '10');
+    const coords = await line.evaluate((el) => ({
+      x2: parseFloat(el.getAttribute('x2')),
+      y2: parseFloat(el.getAttribute('y2')),
+    }));
+    expect(coords.x2).toBeCloseTo(30, 0);
+    expect(coords.y2).toBeCloseTo(10, 0);
   });
 });
