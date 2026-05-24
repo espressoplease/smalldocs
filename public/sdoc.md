@@ -225,6 +225,20 @@ This layer of privacy is built into how HTTP works. The hash fragment (everythin
 
 The [sdocs.dev](https://sdocs.dev) site is purely a rendering space. JavaScript reads `window.location.hash`, decompresses and decodes the content, and renders your `.md` locally.
 
+#### Bridge mode trust boundary
+
+When you run a `sdoc` command and the SmallDocs page opens with a local bridge connection, the bridge accepts WebSocket connections only from pages served by `smalldocs.org` (or its subdomains), only with a session token the CLI minted, and only when the Host header matches the loopback address it bound to. That keeps other websites and other processes on your machine from talking to the bridge.
+
+It does not protect you from the SmallDocs page itself. The bridge trusts whatever JavaScript the smalldocs.org HTTPS page is currently running. If that page were ever compromised - a hostile dependency, a supply-chain attack, a stolen deploy key - the JavaScript it served could ask the bridge to write to the file you opened. The bridge would oblige, because from its point of view that's a legitimate request from the allowed origin.
+
+The mitigations that exist:
+
+- The bridge can only touch the files passed on the `sdoc` command line. Files outside that allowlist are unreachable.
+- The bridge holds the file by inode at session start; replacing the file underneath the session is refused.
+- The token in the URL fragment never reaches the SmallDocs server.
+
+The mitigation that does not exist: there is no cheap way for the bridge to know that the smalldocs.org page is the version we shipped rather than a tampered one. Subresource integrity protects individual scripts but not the page that loads them. Treat the bridge as having the same trust level as the website itself.
+
 ### Short links
 
 Short links are an optional feature that produces a much shorter URL for sharing. When implementing them we've tried to balance our focus on privacy with the need to store some aspect of your document on our server (which is what enables the URL to be short). We feel we found a clever solution, but you can be the judge.
