@@ -543,14 +543,20 @@ test('form: "Saved to <file> · <time>" appears under the clicked button and upd
     await expect(otherCell.locator('.sdoc-form-button-saved')).toHaveCount(0);
 
     const firstText = await saved.textContent();
-    // Click again after a small delay; the same line is updated (not duplicated).
-    await page.waitForTimeout(1100);
+    // Click again after a comfortable delay (>1s so the wall-clock
+    // timestamp resolution ticks over to a new HH:MM:SS), then wait
+    // for the saved-line text to differ from the first click. The
+    // previous "✓ Saved to" / count=1 assertions match the OLD value
+    // too, so they can't gate on the update — we have to poll for
+    // the actual content change.
+    await page.waitForTimeout(1200);
     await page.locator('button[data-button-name="send_ready"]').click();
-    await expect(saved).toContainText('✓ Saved to', { timeout: 3000 });
+    await expect.poll(
+      async () => await saved.textContent(),
+      { timeout: 5000 }
+    ).not.toBe(firstText);
+    // Still exactly one saved line in the cell (not duplicated).
     await expect(cell.locator('.sdoc-form-button-saved')).toHaveCount(1);
-    const secondText = await saved.textContent();
-    // The timestamp should have advanced.
-    expect(secondText).not.toBe(firstText);
   } finally {
     bridge.close();
     await bridge.awaitTerminal();
