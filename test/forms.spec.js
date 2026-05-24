@@ -240,6 +240,69 @@ buttons:
   }
 });
 
+test('form: --log-file appends one JSON event per submit, onEvent fires in-process', async ({ page }) => {
+  const file = tmpFile('events.md', FORM_BODY);
+  const logFile = file + '.events.jsonl';
+  const events = [];
+  const bridge = await startBridge({
+    files: [file], mode: 'feedback', keepOpen: true,
+    logFile: logFile,
+    onEvent: (ev) => events.push(ev),
+    noConnectTimeoutMs: 15000, reconnectGraceMs: 10000, idleTimeoutMs: 0,
+  });
+  try {
+    await page.goto(bridgeUrl(bridge));
+    await waitForFormReady(page);
+
+    // Click two non-final scoped submits.
+    await page.locator('input[type="radio"][name="ready"][value="Push out"]').check();
+    await page.locator('button[data-button-name="send_ready"]').click();
+    await expect.poll(() => events.length, { timeout: 5000 }).toBeGreaterThanOrEqual(1);
+
+    await page.locator('button[data-button-name="send_ready"]').click();
+    await expect.poll(() => events.length, { timeout: 5000 }).toBeGreaterThanOrEqual(2);
+
+    // In-process onEvent saw both with the right shape.
+    expect(events[0].event).toBe('submit');
+    expect(events[0].by).toBe('send_ready');
+    expect(events[0].form_id).toBe('demo');
+    expect(events[0].scope).toEqual(['ready']);
+    expect(events[0].values).toEqual({ ready: 'Push out' });
+    expect(events[0].final).toBe(false);
+    expect(typeof events[0].at).toBe('string');
+
+    // --log-file got both lines, each a parseable JSON object on its own line.
+    const logContents = fs.readFileSync(logFile, 'utf-8');
+    const lines = logContents.split('\n').filter(Boolean);
+    expect(lines.length).toBe(2);
+    const parsed0 = JSON.parse(lines[0]);
+    expect(parsed0.event).toBe('submit');
+    expect(parsed0.by).toBe('send_ready');
+    expect(parsed0.values).toEqual({ ready: 'Push out' });
+  } finally {
+    bridge.close();
+    await bridge.awaitTerminal();
+  }
+});
+
+test('form: startBridge throws fast when --log-file is unwritable', async () => {
+  const file = tmpFile('badlog.md', FORM_BODY);
+  // A nonexistent directory means the appendFileSync probe fails.
+  const badLog = '/this/path/does/not/exist/sdoc.jsonl';
+  let threw = null;
+  try {
+    await startBridge({
+      files: [file], mode: 'feedback', keepOpen: true,
+      logFile: badLog,
+      noConnectTimeoutMs: 15000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+  } catch (e) {
+    threw = e;
+  }
+  expect(threw).not.toBeNull();
+  expect(threw.message).toMatch(/log-file/);
+});
+
 test('form: orphan copy button from code-block decorator is removed', async ({ page }) => {
   const file = tmpFile('nocopy.md', FORM_BODY);
   const bridge = await startBridge({
