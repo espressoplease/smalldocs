@@ -1,0 +1,369 @@
+// @ts-check
+// Playwright tests for the slide-rendering pipeline: grid bg=, role-based
+// typography (text=title|subtitle|body|caption), size= override, size=fit
+// opt-in autofit, and the error-badge Copy button. Runs against the dev
+// server via playwright.config.js.
+const { test, expect } = require('@playwright/test');
+
+async function renderBody(page, body) {
+  await page.goto('/');
+  await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function', null, { timeout: 5000 });
+  // Match the real loadMarkdown path: strip front matter, apply styles, then
+  // render the body. Writing to currentBody alone skips applyStylesFromMeta
+  // and leaves --md-* vars at their defaults.
+  await page.evaluate((b) => {
+    var parsed = window.SDocYaml.parseFrontMatter(b);
+    window.SDocs.currentMeta = parsed.meta;
+    window.SDocs.currentBody = parsed.body;
+    if (parsed.meta.styles) window.SDocs.applyStylesFromMeta(parsed.meta.styles);
+    window.SDocs.render();
+  }, body);
+  // Wait two frames so the renderer's rAF-based autofit/font conversion has
+  // settled before assertions read font-size values.
+  await page.waitForTimeout(200);
+}
+
+function slideDoc(slideBody) {
+  return '# Deck\n\n```slide\n' + slideBody + '\n```\n';
+}
+
+test.describe('Slide rendering pipeline', () => {
+  test('grid bg= paints the slide container background', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25 bg=#0f172a\nr 10 10 80 20 color=#fff | hello'));
+    const bg = await page.$eval('.sdoc-slide .sd-shape-stage', (el) => getComputedStyle(el).backgroundColor);
+    // #0f172a → rgb(15, 23, 42)
+    expect(bg).toBe('rgb(15, 23, 42)');
+  });
+
+  test('no grid bg= leaves stage without explicit background', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 | hello'));
+    const inline = await page.$eval('.sdoc-slide .sd-shape-stage', (el) => el.style.backgroundColor);
+    expect(inline).toBe('');
+  });
+
+  test('size=18px emits 18px at the reference size', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 size=18px | caption'));
+    const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
+    expect(fs).toBe('18px');
+  });
+
+  test('size=24px emits a larger size than size=12px', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 0 0 50 20 size=24px | big\nr 50 0 50 20 size=12px | small\n```\n';
+    await renderBody(page, body);
+    const sizes = await page.$$eval('.sdoc-slide .shape-rect', (els) => els.map((el) => parseFloat(el.style.fontSize)));
+    expect(sizes.length).toBe(2);
+    expect(sizes[0]).toBeGreaterThan(sizes[1]);
+    expect(sizes[0]).toBeCloseTo(24, 3);
+    expect(sizes[1]).toBeCloseTo(12, 3);
+  });
+
+  test('default role is body (24px); no autofit, no font= attr needed', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 | hello'));
+    const info = await page.$eval('.sdoc-slide .shape-rect', (el) => ({
+      autofit: el.dataset.autofit,
+      fontSize: el.style.fontSize,
+    }));
+    expect(info.autofit).toBe('off');
+    expect(info.fontSize).toBe('24px');
+  });
+
+  test('text=title resolves to the title role px (64px)', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 0 0 100 20 text=title | Big title'));
+    const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
+    expect(fs).toBe('64px');
+  });
+
+  test('roles span a fixed 4-step scale (title > subtitle > body > caption)', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\n'
+      + 'r 0 0 100 14 text=title    | Title\n'
+      + 'r 0 14 100 14 text=subtitle | Subtitle\n'
+      + 'r 0 28 100 14 text=body     | Body\n'
+      + 'r 0 42 100 14 text=caption  | Caption\n'
+      + '```\n';
+    await renderBody(page, body);
+    const sizes = await page.$$eval('.sdoc-slide .shape-rect', (els) => els.map((el) => parseFloat(el.style.fontSize)));
+    expect(sizes).toEqual([64, 40, 24, 14]);
+  });
+
+  test('size= overrides the role even when text= is set', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 0 0 100 20 text=title size=18px | smaller than the role default'));
+    const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
+    expect(fs).toBe('18px');
+  });
+
+  test('size=fit opts in to autofit (binary search picks a px size)', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 30 size=fit | autofit title'));
+    const info = await page.$eval('.sdoc-slide .shape-rect', (el) => ({
+      autofit: el.dataset.autofit,
+      fontSize: el.style.fontSize,
+    }));
+    expect(info.autofit).toBe('on');
+    expect(info.fontSize).toMatch(/px$/);
+  });
+
+  test('unknown role names fall back to body (24px) without error', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 text=hedaing | typo'));
+    const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
+    expect(fs).toBe('24px');
+  });
+
+  test('error badge lists line-numbered errors and has a Copy button', async ({ page }) => {
+    // Unknown shape kind `b` + bogus grid token → at least two parser errors.
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nb 10 10 80 10 | unknown kind\nr 150 10 50 10 | out of grid\n```\n';
+    await renderBody(page, body);
+    const badge = await page.$('.sdoc-slide-errbadge');
+    expect(badge).not.toBeNull();
+    const items = await page.$$eval('.sdoc-slide-errbadge-list li', (lis) => lis.map((li) => li.textContent));
+    expect(items.length).toBeGreaterThanOrEqual(1);
+    // Each item starts with "line N: "
+    for (const t of items) expect(t).toMatch(/^line \d+: /);
+    const btn = await page.$('.sdoc-slide-errbadge-copy');
+    expect(btn).not.toBeNull();
+    expect(await btn.textContent()).toBe('Copy');
+  });
+
+  test('error badge Copy button writes slide index + errors + DSL fence to clipboard', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nb 10 10 80 10 | unknown kind\n```\n';
+    await renderBody(page, body);
+    await page.click('.sdoc-slide-errbadge-copy');
+    // Button flips to "Copied" and the diagnostic is on the clipboard.
+    await expect(page.locator('.sdoc-slide-errbadge-copy')).toHaveText('Copied');
+    const text = await page.evaluate(() => navigator.clipboard.readText());
+    expect(text).toMatch(/^SDocs slide 1 — \d+ error/);
+    expect(text).toContain('b 10 10 80 10 | unknown kind');
+    expect(text).toContain('~~~slide');
+  });
+
+  test('h1Scale and pScale inject em-based overrides into the shadow root', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 h1Scale=3 pScale=0.4 |\n  # Big\n  small caption\n```\n';
+    await renderBody(page, body);
+    // Read the shadow root's <style> to confirm the override rules exist.
+    const styleText = await page.$eval('.sdoc-slide .shape-md', (host) => {
+      if (!host.shadowRoot) return '';
+      const s = host.shadowRoot.querySelector('style');
+      return s ? s.textContent : '';
+    });
+    expect(styleText).toContain('h1 { font-size: 3em; }');
+    expect(styleText).toContain('p { font-size: 0.4em; }');
+  });
+
+  test('invalid or missing scales are ignored', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 h1Scale=bogus h2Scale=-1 |\n  # Heading\n```\n';
+    await renderBody(page, body);
+    const styleText = await page.$eval('.sdoc-slide .shape-md', (host) => {
+      return host.shadowRoot ? host.shadowRoot.querySelector('style').textContent : '';
+    });
+    // Defaults (1.4em for h1, 1.2em for h2) remain; no NaNem / negative-em rules.
+    expect(styleText).not.toMatch(/font-size:\s*NaNem/);
+    expect(styleText).not.toMatch(/font-size:\s*-\d/);
+  });
+
+  test('size=fit autofit runs even when slide is inside a collapsed section', async ({ page }) => {
+    // Slides render at a reference size in an offscreen stage, so autofit
+    // no longer depends on the live container being laid out. Even inside
+    // a closed .md-section-body, the rect should have its px font-size
+    // populated on first render - not empty.
+    const body = '# Deck\n\n## Section\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 size=fit | Hello\n```\n';
+    await page.goto('/');
+    await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
+    await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
+    await page.waitForTimeout(500);
+    const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
+    expect(fs).toMatch(/px$/);
+    expect(parseFloat(fs)).toBeGreaterThan(0);
+  });
+
+  test('exportSlidesPdf builds a downloadable PDF without calling window.print', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | One\n```\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Two\n```\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Three\n```\n';
+    await page.goto('/');
+    await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
+    await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
+    await page.waitForTimeout(500);
+    // Grab the Blob object directly — a.href is revoked right after .click()
+    // returns, so intercepting the href alone is racy.
+    await page.evaluate(() => {
+      window.__printCalls = 0;
+      window.print = () => { window.__printCalls++; };
+      window.__capturedBlob = null;
+      window.__downloadedName = null;
+      const origCreateObjectURL = URL.createObjectURL.bind(URL);
+      URL.createObjectURL = function (obj) {
+        if (obj instanceof Blob && obj.type === 'application/pdf') {
+          window.__capturedBlob = obj;
+        }
+        return origCreateObjectURL(obj);
+      };
+      const origCreateEl = document.createElement.bind(document);
+      document.createElement = function (tag) {
+        const el = origCreateEl(tag);
+        if (tag === 'a') {
+          el.click = function () { window.__downloadedName = el.download; };
+        }
+        return el;
+      };
+    });
+    await page.evaluate(() => window.SDocs.exportSlidesPdf());
+    await page.waitForFunction(() => !!window.__capturedBlob, { timeout: 30000 });
+    const name = await page.evaluate(() => window.__downloadedName);
+    expect(name).toMatch(/-slides\.pdf$/);
+    const isPdf = await page.evaluate(async () => {
+      const buf = await window.__capturedBlob.arrayBuffer();
+      const header = new Uint8Array(buf.slice(0, 4));
+      return header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46;
+    });
+    expect(isPdf).toBe(true);
+    const printCalls = await page.evaluate(() => window.__printCalls);
+    expect(printCalls).toBe(0);
+    // No lingering print-stage or printing-slides class from the old path.
+    const leftoverStage = await page.$('#_sd_print-stage');
+    expect(leftoverStage).toBeNull();
+    const leftoverClass = await page.evaluate(() => document.body.classList.contains('sdoc-printing-slides'));
+    expect(leftoverClass).toBe(false);
+  });
+
+  test('present-mode export button toggles the side panel', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Only slide\n```\n';
+    await page.goto('/');
+    await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
+    await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
+    await page.waitForTimeout(500);
+    await page.evaluate(() => { window.SDocPresent && window.SDocPresent.open(0); });
+    await page.waitForTimeout(500);
+    const panelBefore = await page.$('.sdoc-present-exp-panel.open');
+    expect(panelBefore).toBeNull();
+    await page.click('.sdoc-present-export-btn');
+    await page.waitForTimeout(300);
+    const panelAfter = await page.$('.sdoc-present-exp-panel.open');
+    expect(panelAfter).not.toBeNull();
+    // Click the export button again — should toggle it closed.
+    await page.click('.sdoc-present-export-btn');
+    await page.waitForTimeout(300);
+    const panelClosed = await page.$('.sdoc-present-exp-panel.open');
+    expect(panelClosed).toBeNull();
+  });
+
+  // Helper: open the export panel via the overflow ("...") menu when the
+  // Export button is collapsed behind it at the test viewport width.
+  async function openExportPanel(page) {
+    const overflow = page.locator('#_sd_btn-overflow');
+    if (await overflow.isVisible().catch(() => false)) {
+      await overflow.click();
+      await page.waitForTimeout(150);
+    }
+    await page.click('#_sd_btn-export');
+  }
+
+  test('Slides PDF menu option hidden when doc has no slides', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
+    await page.evaluate(() => { window.SDocs.currentBody = '# Plain doc\n\nNo slides here.\n'; window.SDocs.render(); });
+    await page.waitForTimeout(300);
+    await openExportPanel(page);
+    await page.waitForTimeout(200);
+    const display = await page.$eval('#_sd_exp-slides-pdf', (el) => el.style.display);
+    expect(display).toBe('none');
+  });
+
+  test('Slides PDF menu option visible when doc has slides', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
+    await page.evaluate(() => { window.SDocs.currentBody = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Hi\n```\n'; window.SDocs.render(); });
+    await page.waitForTimeout(500);
+    await openExportPanel(page);
+    await page.waitForTimeout(200);
+    const display = await page.$eval('#_sd_exp-slides-pdf', (el) => el.style.display);
+    expect(display).not.toBe('none');
+  });
+
+  test('error badge Copy click does not bubble to open present mode', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nb 10 10 80 10 | bad\n```\n';
+    await renderBody(page, body);
+    await page.click('.sdoc-slide-errbadge-copy');
+    await page.waitForTimeout(200);
+    const presentOpen = await page.evaluate(() => document.body.classList.contains('sdoc-present-open'));
+    expect(presentOpen).toBe(false);
+  });
+
+  // ── Style inheritance from host doc ────────────────────────
+  // Doc styles propagate into slides two ways:
+  //   1. Automatic — --md-* CSS vars cascade into shape shadow roots, so
+  //      headings adopt doc heading colors and slide bg inherits --md-bg.
+  //   2. Explicit — shape attrs can say fill=$h1.color, which the renderer
+  //      rewrites to var(--md-h1-color) before paint.
+  // Both resolve at paint time so dark-mode inversion happens for free.
+
+  test('slide stage background inherits styles.background when grid has no bg=', async ({ page }) => {
+    const body = '---\nstyles:\n  background: "#0f172a"\n---\n# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 color=#fff | hello\n```\n';
+    await renderBody(page, body);
+    const bg = await page.$eval('.sdoc-slide .sd-shape-stage', (el) => getComputedStyle(el).backgroundColor);
+    expect(bg).toBe('rgb(15, 23, 42)');
+  });
+
+  test('grid bg= still overrides inherited styles.background', async ({ page }) => {
+    const body = '---\nstyles:\n  background: "#0f172a"\n---\n# Deck\n\n```slide\ngrid 100 56.25 bg=#fff5e6\nr 10 10 80 30 | hello\n```\n';
+    await renderBody(page, body);
+    const bg = await page.$eval('.sdoc-slide .sd-shape-stage', (el) => getComputedStyle(el).backgroundColor);
+    expect(bg).toBe('rgb(255, 245, 230)');
+  });
+
+  test('shape heading adopts styles.h1.color when shape has no color= attr', async ({ page }) => {
+    const body = '---\nstyles:\n  h1: { color: "#c0392b" }\n---\n# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 |\n  # Adopted\n```\n';
+    await renderBody(page, body);
+    const color = await page.$eval('.sdoc-slide .shape-md', (host) => {
+      const h1 = host.shadowRoot.querySelector('h1');
+      return getComputedStyle(h1).color;
+    });
+    // #c0392b → rgb(192, 57, 43)
+    expect(color).toBe('rgb(192, 57, 43)');
+  });
+
+  test('shape color= still wins over inherited doc heading color', async ({ page }) => {
+    const body = '---\nstyles:\n  h1: { color: "#c0392b" }\n---\n# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 color=#00ff00 |\n  # Overridden\n```\n';
+    await renderBody(page, body);
+    const color = await page.$eval('.sdoc-slide .shape-md', (host) => {
+      const h1 = host.shadowRoot.querySelector('h1');
+      return getComputedStyle(h1).color;
+    });
+    // #00ff00 → rgb(0, 255, 0)
+    expect(color).toBe('rgb(0, 255, 0)');
+  });
+
+  test('fill=$h1.color rewrites to var(--md-h1-color) and paints that color', async ({ page }) => {
+    const body = '---\nstyles:\n  h1: { color: "#1e40af" }\n---\n# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 fill=$h1.color color=#fff | Title\n```\n';
+    await renderBody(page, body);
+    const info = await page.$eval('.sdoc-slide .shape-rect', (el) => ({
+      inline: el.style.background,
+      computed: getComputedStyle(el).backgroundColor,
+    }));
+    expect(info.inline).toMatch(/var\(--md-h1-color\)/);
+    // #1e40af → rgb(30, 64, 175)
+    expect(info.computed).toBe('rgb(30, 64, 175)');
+  });
+
+  test('grid bg=$background inherits doc background', async ({ page }) => {
+    const body = '---\nstyles:\n  background: "#fdf6e3"\n---\n# Deck\n\n```slide\ngrid 100 56.25 bg=$background\nr 10 10 80 30 | Hi\n```\n';
+    await renderBody(page, body);
+    const bg = await page.$eval('.sdoc-slide .sd-shape-stage', (el) => getComputedStyle(el).backgroundColor);
+    // #fdf6e3 → rgb(253, 246, 227)
+    expect(bg).toBe('rgb(253, 246, 227)');
+  });
+
+  test('unknown $path.to.prop surfaces as an error-badge line', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 fill=$bogus.thing | hello\n```\n';
+    await renderBody(page, body);
+    const items = await page.$$eval('.sdoc-slide-errbadge-list li', (lis) => lis.map((li) => li.textContent));
+    expect(items.some((t) => /unknown style reference "\$bogus\.thing"/.test(t))).toBe(true);
+  });
+
+  test('present-mode stage background reflects doc styles.background', async ({ page }) => {
+    const body = '---\nstyles:\n  background: "#1a1a2e"\n---\n# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 color=#fff | Hi\n```\n';
+    await renderBody(page, body);
+    await page.evaluate(() => window.SDocPresent && window.SDocPresent.open(0));
+    await page.waitForTimeout(300);
+    const bg = await page.$eval('.sdoc-present-stage', (el) => getComputedStyle(el).backgroundColor);
+    // #1a1a2e → rgb(26, 26, 46)
+    expect(bg).toBe('rgb(26, 26, 46)');
+  });
+});

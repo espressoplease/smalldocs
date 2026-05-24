@@ -31,6 +31,8 @@ function buildBridgeUrl(opts, bridge) {
   params.set('bridge', '127.0.0.1:' + bridge.port);
   params.set('token',  bridge.token);
   if (opts.file) params.set('file', path.basename(opts.file));
+  // `sdoc present <file>` triggers fullscreen slide view on load.
+  if (opts.present) params.set('present', '0');
   return base + '/#' + params.toString();
 }
 

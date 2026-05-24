@@ -19,7 +19,7 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 const AGENT_BLOCK_VERSION = 5;
-const AGENT_BLOCK_REASON  = 'Add `sdoc feedback` reference. Agents can now write a fenced ```form block into a markdown file and run `sdoc feedback file.md` to ask the user something structured; the user clicks a submit button, the bridge writes their answers into the same file, and one JSON line per click lands on stdout.';
+const AGENT_BLOCK_REASON  = 'Two features land together. `sdoc feedback` adds the interactive form DSL (```form blocks; the user clicks a submit, the bridge writes answers into the file and prints one JSON line on stdout). `sdoc slides` + `sdoc present` add the slide DSL (```slide / ~~~slide blocks render inline, present mode runs fullscreen). Three new bullets in alphabetical order: feedback, present, slides.';
 
 const AGENT_BLOCK_BODY = `## SDocs
 
@@ -36,6 +36,8 @@ The \`sdoc\` CLI is installed globally:
 - \`sdoc charts\` - read this before writing a \`\`\`chart block. The JSON shape is specific and easy to get wrong from memory.
 - \`sdoc diagrams\` - read this before writing a \`\`\`mermaid block. Covers supported diagram types and the security model. Standalone \`.mmd\` / \`.mermaid\` files also work: \`sdoc graph.mmd\`.
 - \`sdoc feedback\` - read this before writing a \`\`\`form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run \`sdoc feedback file.md\`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; \`--keep-open\` for multi-click sessions.
+- \`sdoc present file.md\` - open file directly in fullscreen presentation mode.
+- \`sdoc slides\` - slide DSL reference (grids, shapes, content). Slides render from \`\`\`slide or ~~~slide blocks.
 - \`sdoc --help\` - full usage.
 
 When helping the user themselves, prefer \`sdoc file.md\` over \`sdoc share file.md\`. Share is for sending a link to someone else.

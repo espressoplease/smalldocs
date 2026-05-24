@@ -43,6 +43,8 @@
   --md-table-border:    #E2DDD6;
   --md-table-header-bg: #F4F1ED;
   --md-table-even-bg:   #FAFAF8;
+  --md-table-odd-bg:    #FFFFFF;
+  --md-table-text:      #1C1917;
   --md-copy-btn-border: rgba(0,0,0,0.12);
   --md-copy-btn-hover:  rgba(0,0,0,0.05);
 }
@@ -84,6 +86,8 @@ html[data-theme="dark"] {
   --md-table-border:    #3D3935;
   --md-table-header-bg: #2C2926;
   --md-table-even-bg:   #242220;
+  --md-table-odd-bg:    #2C2A26;
+  --md-table-text:      #E7E5E2;
   --md-copy-btn-border: rgba(255,255,255,0.12);
   --md-copy-btn-hover:  rgba(255,255,255,0.06);
 }

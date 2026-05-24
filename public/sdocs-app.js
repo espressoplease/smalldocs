@@ -245,6 +245,7 @@ function render() {
   S.processCharts(S.renderedEl);
   if (S.processMath) S.processMath(S.renderedEl);
   if (S.processMermaid) S.processMermaid(S.renderedEl);
+  if (window.SDocSlides) window.SDocSlides.processSlides(S.renderedEl);
   if (S.renderForms) S.renderForms(S.renderedEl);
   renderFileInfoCard();
   if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
@@ -811,11 +812,32 @@ function normalizedBasePath() {
   return p;
 }
 
+// Params set by other modules (presentation mode, etc.) that we must preserve
+// when updateHash rewrites the hash. Without this list, opening present mode
+// sets ?present=N but the next debounced updateHash wipes it out, collapsing
+// present mode via the hashchange listener.
+var PRESERVED_HASH_PARAMS = ['present'];
+
 function updateHash() {
   clearTimeout(S._hashTimer);
   S._hashTimer = setTimeout(async function() {
+    var existing = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    var preserved = {};
+    for (var i = 0; i < PRESERVED_HASH_PARAMS.length; i++) {
+      var k = PRESERVED_HASH_PARAMS[i];
+      if (existing.has(k)) preserved[k] = existing.get(k);
+    }
+    var writePreserved = function (p) {
+      for (var k in preserved) p.set(k, preserved[k]);
+    };
     if (S._isDefaultState && S.currentMode === 'read') {
-      history.replaceState(null, '', normalizedBasePath());
+      if (Object.keys(preserved).length === 0) {
+        history.replaceState(null, '', normalizedBasePath());
+      } else {
+        var p0 = new URLSearchParams();
+        writePreserved(p0);
+        history.replaceState(null, '', normalizedBasePath() + '#' + p0.toString());
+      }
       return;
     }
     var params = new URLSearchParams();
@@ -831,6 +853,7 @@ function updateHash() {
     if (S.currentMode !== 'read') {
       params.set('mode', S.currentMode);
     }
+    writePreserved(params);
     history.replaceState(null, '', normalizedBasePath() + '#' + params.toString());
   }, 400);
 }
@@ -976,6 +999,17 @@ function setMode(mode, skipHash) {
 
   if (prev === 'comment' && mode !== 'comment' && S.commentsUi) S.commentsUi.exit();
   if (mode === 'comment' && S.commentsUi) S.commentsUi.enter();
+
+  // The Slides PDF + PowerPoint options only make sense when the rendered
+  // doc contains at least one ```slide block. Gate visibility each time
+  // the panel opens.
+  if (mode === 'export') {
+    var hasSlides = !!document.querySelector('.sdoc-slide');
+    var slidesOpt = document.getElementById('_sd_exp-slides-pdf');
+    if (slidesOpt) slidesOpt.style.display = hasSlides ? '' : 'none';
+    var pptxOpt = document.getElementById('_sd_exp-slides-pptx');
+    if (pptxOpt) pptxOpt.style.display = hasSlides ? '' : 'none';
+  }
 
   // Enter write mode — populate contentEditable
   if (mode === 'write') {

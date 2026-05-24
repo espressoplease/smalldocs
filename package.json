@@ -22,6 +22,7 @@
     "marked": "^11.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.59.1"
+    "@playwright/test": "^1.59.1",
+    "lucide-static": "^1.16.0"
   }
 }

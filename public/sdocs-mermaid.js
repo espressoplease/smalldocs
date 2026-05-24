@@ -327,6 +327,18 @@
   // cluster's bounding rect, sort smallest-first (so nested subgraphs claim
   // their nodes before their parent), and assign each node to the smallest
   // cluster whose rect contains the node's centre.
+  //
+  // getBoundingClientRect is the right tool here because mermaid lays nodes
+  // out with subtle padding that getBBox + a CTM walk struggles with - some
+  // nodes end up just outside their containing cluster in SVG user space.
+  // BCR uses post-layout viewport pixels and gets this right.
+  //
+  // BCR returns 0x0 when the SVG sits inside a display:none ancestor (e.g.
+  // a slide rendered into a collapsed section at initial page render). To
+  // handle that case, doApplyClusterTints below probes BCR once; if any
+  // cluster measures zero, we register an IntersectionObserver and re-run
+  // when the SVG actually becomes visible. Idempotent: nodes that already
+  // got a tint keep it.
   var TINT_HUES = ['#3b82f6', '#16a34a', '#d97706', '#9333ea', '#ec4899', '#0d9488'];
   function applyClusterTints(svgEl, blockBg) {
     var clusters = svgEl.querySelectorAll('g.cluster');
@@ -334,39 +346,62 @@
     var nodes = svgEl.querySelectorAll('g.node');
     if (!nodes.length) return;
 
-    var clusterInfo = [];
-    for (var i = 0; i < clusters.length; i++) {
-      var bb = clusters[i].getBoundingClientRect();
-      if (!bb.width || !bb.height) continue;
-      clusterInfo.push({ rect: bb, idx: i });
-    }
-    clusterInfo.sort(function (a, b) {
-      return (a.rect.width * a.rect.height) - (b.rect.width * b.rect.height);
-    });
+    function doPass() {
+      var clusterInfo = [];
+      var anyZero = false;
+      for (var i = 0; i < clusters.length; i++) {
+        var bb = clusters[i].getBoundingClientRect();
+        if (!bb.width || !bb.height) { anyZero = true; continue; }
+        clusterInfo.push({ rect: bb, idx: i });
+      }
+      if (clusterInfo.length < 2) return false; // can't tint without comparators
+      clusterInfo.sort(function (a, b) {
+        return (a.rect.width * a.rect.height) - (b.rect.width * b.rect.height);
+      });
 
-    nodes.forEach(function (node) {
-      var nb = node.getBoundingClientRect();
-      var ncx = (nb.left + nb.right) / 2;
-      var ncy = (nb.top + nb.bottom) / 2;
-      for (var k = 0; k < clusterInfo.length; k++) {
-        var cr = clusterInfo[k].rect;
-        if (ncx >= cr.left && ncx <= cr.right && ncy >= cr.top && ncy <= cr.bottom) {
-          var hue = TINT_HUES[clusterInfo[k].idx % TINT_HUES.length];
-          var fillCol = mixHex(blockBg, hue, 0.10);
-          var strokeCol = mixHex(blockBg, hue, 0.65);
-          for (var c = 0; c < node.children.length; c++) {
-            var child = node.children[c];
-            var tn = child.tagName.toLowerCase();
-            if (tn === 'rect' || tn === 'polygon' || tn === 'circle' ||
-                tn === 'ellipse' || tn === 'path') {
-              child.style.fill = fillCol;
-              child.style.stroke = strokeCol;
+      nodes.forEach(function (node) {
+        var nb = node.getBoundingClientRect();
+        var ncx = (nb.left + nb.right) / 2;
+        var ncy = (nb.top + nb.bottom) / 2;
+        for (var k = 0; k < clusterInfo.length; k++) {
+          var cr = clusterInfo[k].rect;
+          if (ncx >= cr.left && ncx <= cr.right && ncy >= cr.top && ncy <= cr.bottom) {
+            var hue = TINT_HUES[clusterInfo[k].idx % TINT_HUES.length];
+            var fillCol = mixHex(blockBg, hue, 0.10);
+            var strokeCol = mixHex(blockBg, hue, 0.65);
+            for (var c = 0; c < node.children.length; c++) {
+              var child = node.children[c];
+              var tn = child.tagName.toLowerCase();
+              if (tn === 'rect' || tn === 'polygon' || tn === 'circle' ||
+                  tn === 'ellipse' || tn === 'path') {
+                child.style.fill = fillCol;
+                child.style.stroke = strokeCol;
+              }
             }
+            break;
           }
-          break;
+        }
+      });
+      return !anyZero;
+    }
+
+    // First pass: if the SVG is already laid out (e.g. it's the main present
+    // stage or an open section), tinting completes here and we're done.
+    if (doPass()) return;
+
+    // Otherwise the SVG was rendered into a collapsed / off-screen context.
+    // Defer until it actually paints, then re-run once.
+    if (typeof IntersectionObserver === 'undefined') return;
+    var io = new IntersectionObserver(function (entries) {
+      for (var e = 0; e < entries.length; e++) {
+        if (entries[e].isIntersecting) {
+          doPass();
+          io.disconnect();
+          return;
         }
       }
     });
+    io.observe(svgEl);
   }
 
   function withTimeout(p, ms) {
@@ -376,12 +411,70 @@
     ]);
   }
 
+  // Walk up the DOM (across shadow boundaries) looking for a slide
+  // wrapper ancestor. When found, the mermaid render is happening inside
+  // a slide shape and the slide's error badge handles surfacing the
+  // error - we suppress the in-shape error pre so the slide stays
+  // visually clean. Outside a slide (plain doc-flow mermaid block) the
+  // inline error pre is still the right UI.
+  function findSlideAncestor(el) {
+    var node = el;
+    while (node) {
+      if (node.classList && node.classList.contains('sdoc-slide')) return node;
+      if (node.parentElement) {
+        node = node.parentElement;
+      } else if (node.getRootNode) {
+        var root = node.getRootNode();
+        if (root && root.host && root !== node) node = root.host;
+        else return null;
+      } else {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function renderError(wrapper, message) {
+    var msg = String(message || 'Could not render diagram');
+    // Always show the inline pre in the wrapper. Inside a slide it makes
+    // the broken slide visually obvious; outside a slide it's the only
+    // surface error UI. The pre is small enough that it doesn't dominate.
     wrapper.classList.add('sdoc-mermaid-error');
-    var msg = document.createElement('pre');
-    msg.className = 'sdoc-mermaid-error-msg';
-    msg.textContent = String(message || 'Could not render diagram');
-    wrapper.appendChild(msg);
+    var pre = document.createElement('pre');
+    pre.className = 'sdoc-mermaid-error-msg';
+    pre.textContent = msg;
+    wrapper.appendChild(pre);
+    // Inside a slide, ALSO hand the error to the slide error badge so the
+    // author can copy a diagnostic for an LLM. Badge dedupes against the
+    // inline pre - duplicate info, two surfaces with different jobs:
+    // inline says "this slide is broken", badge gives the agent the fix.
+    var slide = findSlideAncestor(wrapper);
+    if (slide && window.SDocSlides && typeof window.SDocSlides.appendSlideError === 'function') {
+      try {
+        window.SDocSlides.appendSlideError(slide, { source: 'mermaid', message: msg });
+      } catch (_) {}
+    }
+  }
+
+  // Mermaid v10 attaches temporary nodes to document.body during render:
+  //   - `<div id="d<our-id>">` enclosing container (always appended)
+  //   - `<iframe id="i<our-id>">` for font-size measurement (sometimes)
+  //   - `<svg id="<our-id>">` the rendered SVG (sometimes attached
+  //                          directly to body before being extracted)
+  // On success it removes them. On syntax error it populates the enclosing
+  // div with the native errorRenderer SVG (bomb icon + "Syntax error in
+  // text") and leaves the lot behind. Our wrapper already shows the
+  // textual parse error; the leftover bomb is noise.
+  // Call after every render attempt to sweep any of the three.
+  function cleanupRenderOrphan(id) {
+    if (!id) return;
+    var ids = [id, 'd' + id, 'i' + id];
+    for (var i = 0; i < ids.length; i++) {
+      var n = document.getElementById(ids[i]);
+      if (n && n.parentNode === document.body) {
+        try { document.body.removeChild(n); } catch (_) {}
+      }
+    }
   }
 
   // Walk all code.language-mermaid blocks in container, render each, and
@@ -429,7 +522,11 @@
 
         var p;
         try { p = mermaid.render(id, src); }
-        catch (e) { renderError(wrapper, e && e.message); return Promise.resolve(); }
+        catch (e) {
+          renderError(wrapper, e && e.message);
+          cleanupRenderOrphan(id);
+          return Promise.resolve();
+        }
 
         return withTimeout(p, RENDER_TIMEOUT_MS)
           .then(function (out) {
@@ -455,7 +552,8 @@
           })
           .catch(function (err) {
             renderError(wrapper, (err && err.message) || 'Mermaid render error');
-          });
+          })
+          .then(function () { cleanupRenderOrphan(id); });
       });
 
       return Promise.all(jobs);
@@ -542,5 +640,16 @@
         .catch(function () { return { wrapper: wrapper, dataUrl: null }; });
     });
     return Promise.all(jobs);
+  };
+
+  // Single-wrapper rasterizer for the slide-PDF path. getMermaidImages only
+  // scans the light DOM; slide diagrams live inside shape shadow roots, so
+  // the slide exporter walks those roots itself and rasterizes one wrapper
+  // at a time. Resolves to a PNG data URL, or null if there's no SVG yet.
+  S.rasterizeMermaidWrapper = function (wrapper) {
+    if (!wrapper) return Promise.resolve(null);
+    var svg = wrapper.querySelector('svg');
+    if (!svg) return Promise.resolve(null);
+    return rasterizeSvgToPng(wrapper, svg, 2).catch(function () { return null; });
   };
 })();

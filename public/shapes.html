@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDocs — shape playground</title>
+<style>
+  :root {
+    --bg: #0f0d0c;
+    --panel: #1a1816;
+    --text: #e7e5e2;
+    --muted: #8a8580;
+    --border: #2a2724;
+    --accent: #f59e0b;
+    --error: #ef4444;
+    --canvas-bg: #f7f5f2;
+    --shape-fill: #ffffff;
+    --shape-stroke: #94a3b8;
+    --shape-shadow: 0 1px 2px rgba(15, 23, 42, .08), 0 1px 3px rgba(15, 23, 42, .05);
+    --shape-text: #0f172a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    grid-template-rows: 44px 1fr;
+    overflow: hidden;
+  }
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  header h1 { font-size: 13px; font-weight: 600; margin: 0; letter-spacing: .02em; }
+  header .spacer { flex: 1; }
+  header label { color: var(--muted); }
+  header select {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  #left {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+    overflow: hidden;
+  }
+  #dsl {
+    flex: 1;
+    width: 100%;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    border: none;
+    outline: none;
+    font-family: ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: none;
+    tab-size: 2;
+  }
+  #errors {
+    max-height: 200px;
+    overflow-y: auto;
+    background: #1f1513;
+    border-top: 1px solid var(--border);
+    font-family: ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+    font-size: 12px;
+    color: var(--error);
+  }
+  #errors:empty { display: none; }
+  .err { padding: 6px 16px; border-bottom: 1px solid #2d1d1a; }
+  .err .where { color: var(--muted); margin-right: 8px; }
+  #right {
+    padding: 32px;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at 20% 30%, #1a1816, var(--bg) 60%);
+  }
+  #stage {
+    /* --gw / --gh are set by the renderer from the DSL's grid line. */
+    --gw: 400;
+    --gh: 225;
+    width: 100%;
+    /* Cap width by viewport height so aspect-ratio is never broken by max-height. */
+    max-width: min(960px, calc((100vh - 120px) * var(--gw) / var(--gh)));
+    background: var(--canvas-bg);
+    border-radius: 4px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
+  }
+  /* Playground-specific overrides on the shared shape CSS */
+  #stage .shape-rect { background: var(--shape-fill); box-shadow: var(--shape-shadow); color: var(--shape-text); font-size: 14px; }
+  #stage .shape-text { color: var(--shape-text); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>shape playground</h1>
+  <span id="grid-info" style="color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace;"></span>
+  <div class="spacer"></div>
+  <span id="shape-count" style="color: var(--muted); font-size: 12px;"></span>
+</header>
+
+<section id="left">
+  <textarea id="dsl" spellcheck="false" autocomplete="off" autocorrect="off">// Shape playground. First line sets the grid (W × H). Aspect = W / H.
+//   r x y w h           rectangle       c <pt> r        circle
+//   e <pt> rx ry        ellipse         l <pt> <pt>     line
+//   a <pt> <pt>         arrow           p <pt> ...      polygon (~ = curved)
+// Refs: @id[.anchor]   anchor ∈ center | top | bottom | left | right | topleft | ...
+
+grid 100 56.25
+
+// A title bar using an h1 inside the shape
+r 4 4 92 10 #title fill=#0f172a color=#fff |
+  # Shapes with markdown content
+
+// A rect with multiple markdown elements
+r 6 18 44 34 fill=#ffffff color=#0f172a stroke=#cbd5e1 strokeWidth=0.2 |
+  ## Wins
+  - Shipped **X** on time
+  - Launched *Y* ahead of schedule
+  - Closed deal with `big-client`
+
+// A rect with a blockquote + inline code
+r 54 18 40 20 fill=#f1f5f9 color=#0f172a stroke=#cbd5e1 strokeWidth=0.2 |
+  > *"Simplicity is the ultimate sophistication."*
+
+  Code runs via `marked` + DOMPurify.
+
+// A circle with bold emphasis
+c 70 44 7 fill=#f59e0b color=#0f172a | **Hi!**
+
+// An ellipse using em-emphasis
+e 86 44 8 5 fill=#ef4444 color=#fff | *urgent*
+</textarea>
+  <div id="errors"></div>
+</section>
+
+<main id="right">
+  <div id="stage"><svg class="shape-svg"></svg></div>
+</main>
+
+<script src="/public/vendor/marked.min.js"></script>
+<script src="/public/vendor/purify.min.js"></script>
+<script src="/public/sdocs-shapes.js"></script>
+<script src="/public/sdocs-shape-render.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var stage = document.getElementById('stage');
+  var dsl = document.getElementById('dsl');
+  var errorsEl = document.getElementById('errors');
+  var gridInfo = document.getElementById('grid-info');
+  var countEl = document.getElementById('shape-count');
+
+  function render() {
+    var result = window.SDocShapeRender.renderShapes(dsl.value, stage);
+
+    gridInfo.textContent = 'grid ' + result.grid.w + ' × ' + result.grid.h;
+
+    errorsEl.innerHTML = '';
+    for (var j = 0; j < result.errors.length; j++) {
+      var err = result.errors[j];
+      var row = document.createElement('div');
+      row.className = 'err';
+      var where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = 'line ' + err.line;
+      row.appendChild(where);
+      row.appendChild(document.createTextNode(err.message));
+      errorsEl.appendChild(row);
+    }
+
+    countEl.textContent = result.shapes.length + ' shape' + (result.shapes.length === 1 ? '' : 's');
+  }
+
+  dsl.addEventListener('input', render);
+  render();
+})();
+</script>
+</body>
+</html>

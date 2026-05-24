@@ -195,6 +195,43 @@ function loadPdfLib() {
   });
 }
 
+// ── PptxGenJS loader ──────────────────────────────────
+//
+// PptxGenJS expects JSZip to be globally available (it's a peer dep, not
+// bundled). Load JSZip first, then the pptxgen UMD; resolve when both are
+// ready. Caching the promise makes subsequent exports cheap.
+var pptxGenLoaded = null;
+function loadPptxGen() {
+  if (pptxGenLoaded) return pptxGenLoaded;
+  pptxGenLoaded = new Promise(function (resolve, reject) {
+    function loadScript(src) {
+      return new Promise(function (res, rej) {
+        var s = document.createElement('script');
+        s.src = src;
+        s.onload = function () { res(); };
+        s.onerror = function () { rej(new Error('Could not load ' + src)); };
+        document.head.appendChild(s);
+      });
+    }
+    var zipReady = window.JSZip
+      ? Promise.resolve()
+      : loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+    zipReady
+      .then(function () {
+        if (window.PptxGenJS) return;
+        return loadScript('https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.min.js');
+      })
+      .then(function () {
+        if (typeof window.PptxGenJS !== 'function') {
+          throw new Error('PptxGenJS global not constructable after load');
+        }
+        resolve();
+      })
+      .catch(function (e) { pptxGenLoaded = null; reject(e); });
+  });
+  return pptxGenLoaded;
+}
+
 // ── Font loading ──
 
 var fontBufCache = {};
@@ -488,16 +525,16 @@ function readComputedBlock(el) {
   };
 }
 
-// ── pdf-lib rendering engine ──
-
-async function renderPdf(rendered, st, chartImages, mermaidImages) {
-  mermaidImages = mermaidImages || [];
-  var PDFDocument = PDFLib.PDFDocument;
-  var rgb = PDFLib.rgb;
-  var doc = await PDFDocument.create();
-  doc.registerFontkit(fontkit);
-
-  // Load fonts
+// ── Shared font loading ──
+//
+// Both renderPdf and renderSlidesPdf need the same embedded fonts, loaded
+// from Fontsource. { subset: true } is critical: the default
+// CustomFontEmbedder builds its ToUnicode CMap from the font's cmap table
+// only, so any glyph produced by OpenType substitution (e.g. Inter's "case"
+// feature swapping "(" for an uppercase-aware variant next to capitals) has
+// no Unicode mapping and becomes unextractable. SubsetEmbedder CMaps every
+// glyph that encodeText actually uses, so substitutions round-trip correctly.
+async function loadPdfFonts(doc) {
   var bodyFontRaw = getCssVar('--md-font-family') || "'Inter', sans-serif";
   var headFontRaw = getCssVar('--md-h-font-family') || 'inherit';
   var bodyName = bodyFontRaw.replace(/['"]/g, '').split(',')[0].trim();
@@ -509,12 +546,6 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
   try {
     var b400 = await fetchFontBuf(bodySlug, 400);
     var b700 = await fetchFontBuf(bodySlug, 700);
-    // { subset: true } is critical: the default CustomFontEmbedder builds its
-    // ToUnicode CMap from the font's cmap table only, so any glyph produced
-    // by OpenType substitution (e.g. Inter's "case" feature swapping "(" for
-    // an uppercase-aware variant next to capitals) has no Unicode mapping
-    // and becomes unextractable. SubsetEmbedder CMaps every glyph that
-    // encodeText actually uses, so substitutions round-trip correctly.
     font = await doc.embedFont(b400, { subset: true });
     bold = await doc.embedFont(b700, { subset: true });
   } catch (e) {
@@ -573,8 +604,52 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
   headBold = withFallback(headBold, [emoji]);
   mono     = withFallback(mono,     [emoji]);
 
-  // Drop counter shared across all pages. Read by exportPDF after render to
-  // surface "N characters omitted" in the status bar.
+  return {
+    body: font, bodyBold: bold,
+    heading: headFont, headingBold: headBold,
+    mono: mono,
+    bodyName: bodyName.toLowerCase(),
+    headingName: headName.toLowerCase(),
+  };
+}
+
+// ── pdf-lib rendering engine ──
+
+async function renderPdf(rendered, st, chartImages, mermaidImages, mathImages) {
+  mermaidImages = mermaidImages || [];
+  mathImages = mathImages || [];
+  var PDFDocument = PDFLib.PDFDocument;
+  var rgb = PDFLib.rgb;
+  var doc = await PDFDocument.create();
+  doc.registerFontkit(fontkit);
+
+  var fontPack = await loadPdfFonts(doc);
+  var font = fontPack.body;
+  var bold = fontPack.bodyBold;
+  var headFont = fontPack.heading;
+  var headBold = fontPack.headingBold;
+  var mono = fontPack.mono;
+
+  // Pre-embed all math PNGs once so extractRuns + drawMathBlock can look
+  // up an already-embedded pdf-image reference synchronously by element.
+  // Stashed on the entry as .pdfImg; falls back to null on embed failure.
+  for (var __mi = 0; __mi < mathImages.length; __mi++) {
+    var __mEntry = mathImages[__mi];
+    if (!__mEntry || !__mEntry.dataUrl) continue;
+    try {
+      var __mBytes = Uint8Array.from(atob(__mEntry.dataUrl.split(',')[1]), function (c) { return c.charCodeAt(0); });
+      __mEntry.pdfImg = await doc.embedPng(__mBytes);
+    } catch (_) { __mEntry.pdfImg = null; }
+  }
+  function lookupMathEntry(el) {
+    for (var i = 0; i < mathImages.length; i++) {
+      if (mathImages[i].el === el) return mathImages[i];
+    }
+    return null;
+  }
+
+  // Drop counter shared across all pages. Read at the end of renderPdf
+  // to surface "N characters omitted" in the status bar.
   var dropCounter = { count: 0 };
 
   // Page layout
@@ -664,6 +739,15 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
           runs.push({ text: n.textContent, color: st.linkColor, link: n.href, underline: true });
         } else if (tag === 'br') {
           runs.push({ text: '\n', color: st.pColor });
+        } else if (tag === 'span' && n.classList.contains('sdocs-math-inline')) {
+          var mEntry = lookupMathEntry(n);
+          if (mEntry && mEntry.pdfImg) {
+            runs.push({ math: true, pdfImg: mEntry.pdfImg, mathW: mEntry.width, mathH: mEntry.height });
+          } else {
+            // Fallback: render the LaTeX source as inline code.
+            var tex = (mEntry && mEntry.tex) || n.getAttribute('data-tex') || '';
+            if (tex) runs.push({ text: tex, code: true, color: st.codeColor });
+          }
         } else if (tag !== 'img') {
           runs = runs.concat(extractRuns(n));
         }
@@ -678,6 +762,20 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
     var lineW = 0;
     runs.forEach(function(run) {
       if (run.text === '\n') { lines.push([]); lineW = 0; return; }
+
+      // Inline math: pre-embedded PNG. Scale height to the current
+      // body text size (with a small inflate so the equation isn't
+      // smaller than surrounding x-height) and preserve aspect.
+      if (run.math) {
+        var lineH = fontSize * 1.3;
+        var ratio = run.mathH > 0 ? (run.mathW / run.mathH) : 1;
+        var imgH = lineH;
+        var imgW = imgH * ratio;
+        if (lineW + imgW > maxW && lineW > 0) { lines.push([]); lineW = 0; }
+        lines[lines.length - 1].push({ math: true, pdfImg: run.pdfImg, width: imgW, height: imgH });
+        lineW += imgW;
+        return;
+      }
 
       // Inline code: treat the whole run as one unit (don't word-split)
       // so spaces inside "npm i -g sdocs-dev" stay in one pill.
@@ -770,6 +868,7 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
   function mergeRuns(lineRuns) {
     var out = [];
     lineRuns.forEach(function(r) {
+      if (r.math) { out.push(r); return; }
       if (!r.text) return;
       var last = out[out.length - 1];
       var key = (r.font === last ? 'x' : '') + '|' + r.size + '|' + (r.color || '') +
@@ -799,6 +898,16 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
     var merged = mergeRuns(lineRuns);
     var cx = x;
     merged.forEach(function(r) {
+      if (r.math && r.pdfImg) {
+        // Drop the image so its visual midline roughly aligns with the
+        // text x-height. KaTeX's HTML render is anchored at the equation's
+        // own baseline, so placing the image bottom slightly below the
+        // text baseline matches what the reader sees on screen.
+        var imgY = ly - r.height * 0.18;
+        page.drawImage(r.pdfImg, { x: cx, y: imgY, width: r.width, height: r.height });
+        cx += r.width;
+        return;
+      }
       if (!r.text) return;
       var w = r.font.widthOfTextAtSize(r.text, r.size);
       // Inline code pill — pill width = w + 2*padX, text centered with padX inset
@@ -876,10 +985,35 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
       else if (tag === 'ol') drawList(el, true);
       else if (el.classList.contains('sdoc-chart')) await drawChart();
       else if (el.classList.contains('sdoc-mermaid')) await drawMermaid();
+      else if (el.classList.contains('sdocs-math-display')) await drawMathBlock(el);
+      else if (el.classList.contains('sdoc-slide')) await drawInlineSlide(el);
       else if (tag === 'hr') drawHR(el);
       else if (tag === 'img') await drawImage(el);
       else if (tag === 'table') drawTable(el);
     }
+  }
+
+  // Inline slide: draws the slide shape+text onto the current page at a
+  // 16:9 rectangle the width of the content area. Shares fonts with the
+  // body so headings render with the same embedded font.
+  async function drawInlineSlide(el) {
+    var dsl = el.getAttribute('data-dsl');
+    if (!dsl || !window.SDocSlidePdf) return;
+    var parsed = window.SDocShapes.parse(dsl);
+    var aspect = parsed.grid.w / parsed.grid.h;
+    var slideW = CW;
+    var slideH = slideW / aspect;
+    y -= 8;
+    ensureSpace(slideH + 8);
+    try {
+      await window.SDocSlidePdf.drawSlide({
+        dsl: dsl, page: page, pdfDoc: doc, fonts: fontPack,
+        bounds: { x: ML, y: y - slideH, w: slideW, h: slideH },
+      });
+    } catch (e) {
+      if (window.console) console.warn('Inline slide render failed:', e);
+    }
+    y -= slideH + 12;
   }
 
   // ── Element renderers (CSS-driven) ──
@@ -1108,6 +1242,35 @@ async function renderPdf(rendered, st, chartImages, mermaidImages) {
     } catch (e) { console.warn('Mermaid embed failed:', e); }
   }
 
+  // Block math: KaTeX-rendered display equation captured to PNG by
+  // S.getMathImages(). Centered on the page like a figure; if the
+  // rasterizer failed (e.g. KaTeX CSS fetch blocked offline), fall back
+  // to monospace LaTeX source so the page isn't silently empty.
+  function drawMathBlock(el) {
+    var entry = lookupMathEntry(el);
+    if (!entry || !entry.pdfImg) {
+      var tex = (entry && entry.tex) || el.getAttribute('data-tex') || '';
+      if (!tex) return;
+      var size = fontSize * 0.95;
+      var w = mono.widthOfTextAtSize(tex, size);
+      var drawH = size * 1.6;
+      ensureSpace(drawH + 8);
+      var cx = ML + Math.max(0, (CW - w) / 2);
+      page.drawText(tex, { x: cx, y: y - size, size: size, font: mono, color: hexToRgb(st.codeColor) });
+      y -= drawH + 6;
+      return;
+    }
+    var natW = entry.width;
+    var natH = entry.height;
+    var scale = Math.min(CW / natW, 1);
+    var drawW = natW * scale;
+    var drawH = natH * scale;
+    ensureSpace(drawH + 16);
+    var cx = ML + (CW - drawW) / 2;
+    page.drawImage(entry.pdfImg, { x: cx, y: y - drawH, width: drawW, height: drawH });
+    y -= drawH + 12;
+  }
+
   function drawHR(el) {
     var s = el ? readComputedBlock(el) : { marT: 20, marB: 20 };
     y -= s.marT * 0.5;
@@ -1207,7 +1370,8 @@ async function exportPDF() {
     var st = readPdfStyles();
     var chartImages = S.getChartImages ? S.getChartImages() : [];
     var mermaidImages = S.getMermaidImages ? await S.getMermaidImages() : [];
-    var result = await renderPdf(S.renderedEl, st, chartImages, mermaidImages);
+    var mathImages = S.getMathImages ? await S.getMathImages() : [];
+    var result = await renderPdf(S.renderedEl, st, chartImages, mermaidImages, mathImages);
     restoreSections(closed);
 
     var blob = new Blob([result.bytes], { type: 'application/pdf' });
@@ -1280,10 +1444,143 @@ function download(filename, content) {
   URL.revokeObjectURL(a.href);
 }
 
+// ── Slide-only PDF export ─────────────────────────────
+//
+// Builds a landscape PDF with one 1280x720 pt page per slide in the
+// document. Slides render as real PDF primitives (shapes + text) via
+// SDocSlidePdf — no rasterization, no print dialog, text remains
+// selectable and extractable.
+//
+// Called by both the main export panel's "Slides PDF" option and the
+// export button in the presentation-mode topbar.
+async function exportSlidesPdf() {
+  var sources = document.querySelectorAll('.sdoc-slide[data-dsl]');
+  if (!sources.length) {
+    S.setStatus('No slides in this document');
+    return;
+  }
+  if (!window.SDocSlidePdf) {
+    S.setStatus('Slide PDF renderer not loaded');
+    return;
+  }
+  S.setStatus('Generating slide PDF\u2026');
+  try {
+    await loadPdfLib();
+    var PDFDocument = PDFLib.PDFDocument;
+    var doc = await PDFDocument.create();
+    doc.registerFontkit(fontkit);
+    var fonts = await loadPdfFonts(doc);
+    // Same composite-font dispatch the body-PDF pages get. Without this the
+    // page's native drawText receives the composite wrapper object and
+    // throws \u2014 silently dropping every glyph on every slide.
+    var dropCounter = { count: 0 };
+
+    for (var i = 0; i < sources.length; i++) {
+      if (sources.length > 1) S.setStatus('Rendering slide ' + (i + 1) + '/' + sources.length + '\u2026');
+      var dsl = sources[i].getAttribute('data-dsl');
+      // Size each page to its own slide's grid aspect. A fixed 1280x720
+      // page distorts any deck that isn't 16:9 (e.g. grid 4 3).
+      var pageW = 1280, pageH = 720;
+      try {
+        var g = window.SDocShapes.parse(dsl).grid;
+        if (g && g.w > 0 && g.h > 0) pageH = pageW * g.h / g.w;
+      } catch (e) { /* fall back to 1280x720 */ }
+      var page = doc.addPage([pageW, pageH]);
+      wrapPageDrawText(page, dropCounter);
+      await window.SDocSlidePdf.drawSlide({
+        dsl: dsl, page: page, pdfDoc: doc, fonts: fonts,
+        bounds: { x: 0, y: 0, w: pageW, h: pageH },
+      });
+    }
+
+    var bytes = await doc.save();
+    var blob = new Blob([bytes], { type: 'application/pdf' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = ((S.currentMeta && S.currentMeta.title) || 'slides').replace(/[^a-z0-9_-]/gi, '_') + '-slides.pdf';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    S.setStatus('Slides PDF downloaded');
+  } catch (e) {
+    S.setStatus('Slide PDF export failed: ' + e.message);
+    console.error(e);
+  }
+}
+
+S.exportSlidesPdf = exportSlidesPdf;
+
+// ── PowerPoint export (editable) ──────────────────────
+
+async function exportSlidesPptx() {
+  var sources = document.querySelectorAll('.sdoc-slide[data-dsl]');
+  if (!sources.length) {
+    S.setStatus('No slides in this document');
+    return;
+  }
+  if (!window.SDocSlidePptx) {
+    S.setStatus('Slide PPTX renderer not loaded');
+    return;
+  }
+  S.setStatus('Generating PowerPoint…');
+  try {
+    await loadPptxGen();
+    var pres = new window.PptxGenJS();
+
+    // PowerPoint files carry ONE deck-wide slide size (<p:sldSz>); per-slide
+    // layouts can be defined but Keynote / PowerPoint apply the deck size
+    // to every slide on render. We pick the aspect of the first slide's
+    // grid (with a sensible cap) and stick with it for the whole deck.
+    // Decks that mix aspect ratios should be exported separately.
+    var slideW = 13.333, slideH = 7.5;
+    try {
+      var g0 = window.SDocShapes.parse(sources[0].getAttribute('data-dsl')).grid;
+      if (g0 && g0.w > 0 && g0.h > 0) {
+        slideH = (slideW * g0.h) / g0.w;
+        if (slideH > 10) { slideH = 10; slideW = (slideH * g0.w) / g0.h; }
+      }
+    } catch (e) { /* keep widescreen default */ }
+    pres.defineLayout({ name: 'SDOCS_LAYOUT', width: slideW, height: slideH });
+    pres.layout = 'SDOCS_LAYOUT';
+
+    var totalWarnings = 0;
+    for (var i = 0; i < sources.length; i++) {
+      if (sources.length > 1) S.setStatus('Rendering slide ' + (i + 1) + '/' + sources.length + '…');
+      var dsl = sources[i].getAttribute('data-dsl');
+      var slide = pres.addSlide();
+      var res = await window.SDocSlidePptx.drawSlide({
+        dsl: dsl, slide: slide, pres: pres,
+        slideW: slideW, slideH: slideH,
+      });
+      if (res && res.warnings) totalWarnings += res.warnings;
+    }
+
+    var name = ((S.currentMeta && S.currentMeta.title) || 'slides').replace(/[^a-z0-9_-]/gi, '_') + '-slides.pptx';
+    var blob = await pres.write({ outputType: 'blob' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    if (totalWarnings > 0) {
+      S.setStatus('PowerPoint downloaded with ' + totalWarnings + ' warning' + (totalWarnings === 1 ? '' : 's') + ' (see console)');
+    } else {
+      S.setStatus('PowerPoint downloaded');
+    }
+  } catch (e) {
+    S.setStatus('PowerPoint export failed: ' + e.message);
+    console.error(e);
+  }
+}
+
+S.exportSlidesPptx = exportSlidesPptx;
+
 // ── Export panel handlers ──────────────────────────────
 
 document.getElementById('_sd_exp-pdf').addEventListener('click', exportPDF);
 document.getElementById('_sd_exp-word').addEventListener('click', exportWord);
+document.getElementById('_sd_exp-slides-pdf').addEventListener('click', exportSlidesPdf);
+var pptxBtn = document.getElementById('_sd_exp-slides-pptx');
+if (pptxBtn) pptxBtn.addEventListener('click', exportSlidesPptx);
 
 document.getElementById('_sd_exp-raw').addEventListener('click', function() {
   download('document.md', S.currentBody);

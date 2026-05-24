@@ -69,6 +69,11 @@ const CTRL_CSS_MAP = {
   '_sd_ctrl-list-indent-num':  { cssVar: '--md-list-indent', suffix: 'em' },
   '_sd_ctrl-chart-accent':     { cssVar: '--md-chart-accent' },
   '_sd_ctrl-chart-palette':    { cssVar: '--md-chart-palette' },
+  '_sd_ctrl-table-border':     { cssVar: '--md-table-border' },
+  '_sd_ctrl-table-header-bg':  { cssVar: '--md-table-header-bg' },
+  '_sd_ctrl-table-even-bg':    { cssVar: '--md-table-even-bg' },
+  '_sd_ctrl-table-odd-bg':     { cssVar: '--md-table-odd-bg' },
+  '_sd_ctrl-table-text':       { cssVar: '--md-table-text' },
 };
 
 // Range ↔ Number input pairs
@@ -308,6 +313,15 @@ function collectStyles(values, overriddenColors) {
   if (overriddenColors.has('_sd_ctrl-chart-text'))  chartObj.textColor = gv('_sd_ctrl-chart-text');
   if (Object.keys(chartObj).length) styles.chart = chartObj;
 
+  // Table styles
+  var tableObj = {};
+  if (overriddenColors.has('_sd_ctrl-table-border'))    tableObj.border = gv('_sd_ctrl-table-border');
+  if (overriddenColors.has('_sd_ctrl-table-header-bg')) tableObj.headerBackground = gv('_sd_ctrl-table-header-bg');
+  if (overriddenColors.has('_sd_ctrl-table-even-bg'))   tableObj.evenBackground = gv('_sd_ctrl-table-even-bg');
+  if (overriddenColors.has('_sd_ctrl-table-odd-bg'))    tableObj.oddBackground = gv('_sd_ctrl-table-odd-bg');
+  if (overriddenColors.has('_sd_ctrl-table-text'))      tableObj.color = gv('_sd_ctrl-table-text');
+  if (Object.keys(tableObj).length) styles.table = tableObj;
+
   return styles;
 }
 
@@ -397,6 +411,13 @@ function stylesToControls(styles) {
   if (ch.background) { controls['_sd_ctrl-chart-bg'] = ch.background; overridden.add('_sd_ctrl-chart-bg'); }
   if (ch.textColor)  { controls['_sd_ctrl-chart-text'] = ch.textColor; overridden.add('_sd_ctrl-chart-text'); }
 
+  const tb = styles.table || {};
+  if (tb.border)           { controls['_sd_ctrl-table-border'] = tb.border; overridden.add('_sd_ctrl-table-border'); }
+  if (tb.headerBackground) { controls['_sd_ctrl-table-header-bg'] = tb.headerBackground; overridden.add('_sd_ctrl-table-header-bg'); }
+  if (tb.evenBackground)   { controls['_sd_ctrl-table-even-bg'] = tb.evenBackground; overridden.add('_sd_ctrl-table-even-bg'); }
+  if (tb.oddBackground)    { controls['_sd_ctrl-table-odd-bg'] = tb.oddBackground; overridden.add('_sd_ctrl-table-odd-bg'); }
+  if (tb.color)            { controls['_sd_ctrl-table-text'] = tb.color; overridden.add('_sd_ctrl-table-text'); }
+
   return { controls, overriddenColors: overridden };
 }
 
@@ -408,6 +429,7 @@ var STANDALONE_COLOR_IDS = [
   '_sd_ctrl-bg-color','_sd_ctrl-link-color',
   '_sd_ctrl-bq-border-color',
   '_sd_ctrl-chart-accent',
+  '_sd_ctrl-table-border','_sd_ctrl-table-header-bg','_sd_ctrl-table-even-bg','_sd_ctrl-table-odd-bg','_sd_ctrl-table-text',
 ];
 
 var CASCADE_COLOR_IDS = Object.keys(COLOR_VAR_MAP);
@@ -454,6 +476,13 @@ function parseDarkBlock(block) {
   if (block.chart) {
     if (block.chart.background) colors['_sd_ctrl-chart-bg'] = block.chart.background;
     if (block.chart.textColor) colors['_sd_ctrl-chart-text'] = block.chart.textColor;
+  }
+  if (block.table) {
+    if (block.table.border)           colors['_sd_ctrl-table-border'] = block.table.border;
+    if (block.table.headerBackground) colors['_sd_ctrl-table-header-bg'] = block.table.headerBackground;
+    if (block.table.evenBackground)   colors['_sd_ctrl-table-even-bg'] = block.table.evenBackground;
+    if (block.table.oddBackground)    colors['_sd_ctrl-table-odd-bg'] = block.table.oddBackground;
+    if (block.table.color)            colors['_sd_ctrl-table-text'] = block.table.color;
   }
 
   return colors;
@@ -533,6 +562,78 @@ function stripStyleDefaults(styles) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  STYLE REFERENCE RESOLVER ($path.to.prop → var(--md-*))
+// ═══════════════════════════════════════════════════════
+
+// Maps YAML-schema paths to the CSS custom property that carries their
+// live value. Used by the slide shape DSL so an agent can write
+// `fill=$h1.color` and have the slide pick up whatever the doc's h1
+// color currently is, including dark-mode inversion. The value is
+// resolved at CSS-paint time, not parse time — theme changes Just Work.
+//
+// Keep this list aligned with COLOR_VAR_MAP + CTRL_CSS_MAP above, plus
+// a few convenience aliases (e.g. `headers.color` as well as `h.color`).
+var STYLE_PATH_TO_VAR = {
+  // General
+  'background':            '--md-bg',
+  'color':                 '--md-color',
+  'fontFamily':            '--md-font-family',
+
+  // Headings
+  'h.color':               '--md-h-color',
+  'headers.color':         '--md-h-color',
+  'headers.fontFamily':    '--md-h-font-family',
+  'h1.color':              '--md-h1-color',
+  'h2.color':              '--md-h2-color',
+  'h3.color':              '--md-h3-color',
+  'h4.color':              '--md-h4-color',
+
+  // Paragraph / list
+  'p.color':               '--md-p-color',
+  'list.color':            '--md-list-color',
+
+  // Link
+  'link.color':            '--md-link-color',
+
+  // Blocks cascade (code / blockquote / chart parent)
+  'blocks.background':     '--md-block-bg',
+  'blocks.color':          '--md-block-text',
+
+  // Code
+  'code.background':       '--md-code-bg',
+  'code.color':            '--md-code-color',
+  'code.font':             '--md-code-font',
+
+  // Blockquote
+  'blockquote.background': '--md-bq-bg',
+  'blockquote.color':      '--md-bq-color',
+  'blockquote.borderColor':'--md-bq-border-color',
+
+  // Chart
+  'chart.accent':          '--md-chart-accent',
+  'chart.background':      '--md-chart-bg',
+  'chart.textColor':       '--md-chart-text',
+
+  // Table
+  'table.border':           '--md-table-border',
+  'table.headerBackground': '--md-table-header-bg',
+  'table.evenBackground':   '--md-table-even-bg',
+  'table.oddBackground':    '--md-table-odd-bg',
+  'table.color':            '--md-table-text',
+};
+
+// Given a raw token (typically a shape attribute value), return the
+// CSS var() expression to use in its place, or null if not a ref.
+// Returns { value, error } so callers can surface unknown refs.
+function resolveStyleRef(token) {
+  if (typeof token !== 'string' || token.charAt(0) !== '$') return null;
+  var key = token.slice(1);
+  var cssVar = STYLE_PATH_TO_VAR[key];
+  if (cssVar) return { value: 'var(' + cssVar + ')' };
+  return { error: 'unknown style reference "$' + key + '"' };
+}
+
+// ═══════════════════════════════════════════════════════
 //  EXPORTS
 // ═══════════════════════════════════════════════════════
 exports.COLOR_DEFAULT   = COLOR_DEFAULT;
@@ -554,6 +655,8 @@ exports.parseDarkBlock        = parseDarkBlock;
 exports.stylesToControls      = stylesToControls;
 exports.STYLE_DEFAULTS        = STYLE_DEFAULTS;
 exports.stripStyleDefaults    = stripStyleDefaults;
+exports.STYLE_PATH_TO_VAR     = STYLE_PATH_TO_VAR;
+exports.resolveStyleRef       = resolveStyleRef;
 
 // UMD tail: in Node (tests) this writes to module.exports; in the browser
 // it creates window.SDocStyles.  We use this pattern instead of ES modules
