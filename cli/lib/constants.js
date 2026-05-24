@@ -155,27 +155,33 @@ Multi-round flow (with --keep-open)
 How to know a submit happened (events)
 --------------------------------------
 
-In --keep-open mode the bridge stays alive across many submits, so the
-process exit is no longer your per-submit signal. Two output channels
-let you react to each click:
+Every successful submit emits one JSON line to stdout, e.g.
 
-  stdout      one JSON line per successful submit, e.g.
-              {"event":"submit","form_id":"q1","by":"send_decision",
-               "at":"2026-05-24T10:01:32.123Z","scope":["ready"],
-               "values":{"ready":"Yes"},"final":false}
-              Use this when your agent harness can tail the stdout of a
-              background process (Claude Code, Codex CLI, opencode, etc.).
-              Startup chatter is on stderr so stdout is event-only.
+  {"event":"submit","form_id":"q1","by":"send_decision",
+   "at":"2026-05-24T10:01:32.123Z","scope":["ready"],
+   "values":{"ready":"Yes"},"final":false}
 
-  --log-file  the same JSON line, appended to the named file. Use this
-              when your harness can't stream stdout but can read files
-              (Aider, Cursor's older terminal modes, Continue). Each line
-              is a complete JSON object; agents tail by line count or
-              file size.
+Startup chatter is on stderr, so stdout is a clean event channel.
 
-Single-shot mode (no --keep-open) does NOT emit on stdout — the process
-exit IS the trigger. --log-file still appends one line before exit if
-you want a uniform reading pattern.
+Two reading patterns:
+
+  Single-shot   sdoc feedback file.md
+                User clicks once, bridge writes the file, prints one
+                JSON line to stdout, exits 0. Agent runs the command,
+                waits for it to finish, reads stdout. No tailing. Works
+                in every harness that can run a child process.
+
+  Multi-click   sdoc feedback file.md --keep-open
+                Bridge stays alive. Each click prints another JSON
+                line. Agent runs the command in the background and
+                reads new lines as they arrive (Claude Code, Codex,
+                opencode all support this).
+
+  Log fallback  --log-file PATH
+                The same JSON lines, also appended to a file. Use this
+                when your harness can run a backgrounded process but
+                can't stream its stdout (Aider, older Cursor modes).
+                Agent reads the file periodically.
 
 On submit, the form block grows two new sections:
 

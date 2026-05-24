@@ -326,7 +326,11 @@ function startBridge(opts) {
     }
   }
   const onEvent = typeof opts.onEvent === 'function' ? opts.onEvent : null;
-  const emitEvents = !!(keepOpen || eventLogFile || onEvent);
+  // Every successful submit emits at minimum one JSON line on stdout.
+  // In single-shot mode the process exits right after, so the agent
+  // reads stdout once and is done — no tailing, no log file required.
+  // --keep-open keeps the bridge alive across many submits; the agent
+  // tails stdout to react per click.
 
   const token   = opts.token   || crypto.randomBytes(32).toString('base64url');
   const port    = opts.port    || 0;
@@ -590,15 +594,13 @@ function startBridge(opts) {
   }
 
   function emitSubmitEvent(ev) {
-    if (!emitEvents) return;
     const line = JSON.stringify(ev) + '\n';
-    if (keepOpen) {
-      // stdout is the agent's primary trigger in --keep-open mode. We
-      // only write here when keepOpen is on; in single-shot the process
-      // exit IS the trigger, and stdout would otherwise mix with the
-      // shutdown lifecycle.
-      try { process.stdout.write(line); } catch (_) {}
-    }
+    // Always write to stdout. In single-shot mode this lands right
+    // before exit, so the agent reads its full output once the process
+    // is done. In --keep-open mode each click writes another line and
+    // the agent tails. Startup chatter is on stderr so stdout is a
+    // clean event channel either way.
+    try { process.stdout.write(line); } catch (_) {}
     if (eventLogFile) {
       try { fs.appendFileSync(eventLogFile, line); } catch (_) {}
     }
