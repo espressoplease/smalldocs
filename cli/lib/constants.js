@@ -151,9 +151,30 @@ Buttons
   after      optional field name. Renders the button inline right under
              that field instead of in the bottom row. Combine with scope
              for a "submit just this section" pattern.
-  help       optional one-line description shown under the button as
-             grey text. Overrides the auto-generated "what happens" hint
-             (e.g. "Sends just these answers. You can keep editing.").
+  help       optional one-line override for the auto-generated hint
+             (see "Button hints" below). Only set this when your own
+             one-liner is clearly better than the default.
+
+Button hints (automatic, you do not author these)
+-------------------------------------------------
+
+Every button gets a small grey line under it explaining what happens
+when the user clicks. You do not write the hint; it is derived from the
+button's shape:
+
+  final: true            -> "Submitting hands off to the agent and ends
+                             this session."
+  scope: [a, b]          -> "Sends just these answers (a, b). You can
+                             keep editing."
+  no scope (non-final)   -> "Sends all answers. You can keep editing."
+
+After a successful submit, a green italic line also appears under that
+same button: "Saved to <filename> at HH:MM:SS". It updates in place on
+each subsequent click of that button. You do not author this either.
+
+Set the per-button \`help: "..."\` key only when your own copy is
+genuinely more useful than the default (e.g. when the field semantics
+are non-obvious and the auto hint would mislead).
 
 Multi-round flow (with --keep-open)
 -----------------------------------
