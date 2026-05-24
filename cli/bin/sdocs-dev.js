@@ -68,6 +68,12 @@ function buildRouter() {
   // feedback mode: Done returns 0, close-without-Done returns 2.
   r.register('feedback', { handler: (opts) => bridgeCommands.feedbackCommand(opts) });
 
+  // `sdoc slides` family — reference text + helper subcommands.
+  r.register('slides',  { handler: (opts) => { commands.slidesCommand(opts); process.exit(0); } });
+  // `sdoc present <file>` — same as the default open flow but enters
+  // fullscreen slide view on load.
+  r.register('present', { handler: (opts) => commands.presentCommand(opts) });
+
   // `sdoc share <file>` (URL-only, non-blocking) and the default file-open
   // flow. The default handler starts a Bridge when given a real file path,
   // and falls back to URL-encoded snapshot for stdin / no-file.

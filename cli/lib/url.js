@@ -82,6 +82,13 @@ function buildUrl(content, opts) {
     params.set('sec', slugify(opts.section));
   }
 
+  // `sdoc present <file>` opens straight into fullscreen slide view.
+  // The browser checks for `present` in the hash and triggers present
+  // mode after the document loads. The value "0" picks the first slide.
+  if (opts.present) {
+    params.set('present', '0');
+  }
+
   const qs = params.toString();
   return qs ? `${baseUrl}/#${qs}` : baseUrl;
 }

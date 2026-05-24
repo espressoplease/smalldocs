@@ -1,0 +1,371 @@
+// sdocs-slides.js — render ```slide fenced blocks as inline thumbnails.
+// Mirrors the processCharts pattern in sdocs-charts.js: walks the rendered
+// markdown DOM, finds code.language-slide blocks, and replaces each with a
+// thumbnail containing a fully-rendered shape canvas.
+//
+// Clicking a thumbnail is a Phase 6 concern (presentation mode) — for now
+// the thumbnail is visual only.
+
+(function () {
+'use strict';
+
+// One-shot CSS injection so the thumbnail container looks consistent in any
+// host page without needing a separate stylesheet wiring step.
+var CSS_ID = 'sdocs-slides-css';
+var CSS = [
+  '.sdoc-slide {',
+  '  display: block;',
+  '  margin: 1.2em 0;',
+  '  max-width: 100%;',
+  '  background: var(--md-code-bg, #f6f5f2);',
+  /* Border derives from the doc\'s text color so it contrasts whatever */
+  /* the page background is. 14% opacity stays subtle in both themes. */
+  '  border: 1px solid color-mix(in srgb, var(--md-color, #000) 14%, transparent);',
+  '  border-radius: 6px;',
+  '  overflow: hidden;',
+  '  box-shadow: 0 1px 3px rgba(0,0,0,.05);',
+  '  position: relative;',
+  '}',
+  /* No hover affordance on the slide body: the slide itself is no longer */
+  /* clickable. The present button (top-right) is the only activator and */
+  /* owns its own hover state. */
+  /* Present button: small top-right overlay, mirrors the copy button */
+  /* pattern on code blocks. Always visible so users don\'t have to */
+  /* hover-probe to discover it. Colors derive from the slide\'s own */
+  /* --md-bg and --md-color via color-mix, so the button tints with */
+  /* the doc theme (cream on a cream doc, dark on a dark-mode doc) */
+  /* without any per-slide work. Fallbacks keep it legible if someone */
+  /* embeds the shape renderer outside an SDocs document. */
+  /* Matches the code-block copy button and mermaid expand button: 26x26 */
+  /* square, transparent default, 1px border, opacity 0.7 -> 1 on hover. */
+  '.sdoc-slide-present {',
+  '  position: absolute; top: 6px; right: 6px; z-index: 5;',
+  '  display: inline-flex; align-items: center; justify-content: center;',
+  '  width: 26px; height: 26px;',
+  '  background: transparent;',
+  '  color: var(--md-color, #1c1917);',
+  '  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));',
+  '  border-radius: 4px; padding: 0;',
+  '  cursor: pointer; opacity: 0.7;',
+  '  transition: opacity .15s, background .12s;',
+  '}',
+  /* Hovering anywhere on the slide lifts the present button to full */
+  /* opacity, mirroring how the code copy button reveals on pre:hover.   */
+  '.sdoc-slide:hover .sdoc-slide-present,',
+  '.sdoc-slide-present:hover,',
+  '.sdoc-slide-present:focus { opacity: 1; }',
+  '.sdoc-slide-present:hover {',
+  '  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));',
+  '}',
+  '.sdoc-slide-present:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
+  '.sdoc-slide-present svg { display: block; }',
+  /* The button inherits the doc\'s foreground color, but a slide can paint */
+  /* its own background (grid bg= or a full-bleed rect) that doesn\'t track */
+  /* the doc theme. sdocs-slides.js measures the top-right corner\'s */
+  /* luminance and tags the slide so the button flips to the contrasting */
+  /* palette - light icon on a dark slide, dark icon on a light one - */
+  /* instead of going invisible against its own background. */
+  '.sdoc-slide-dark-ui .sdoc-slide-present {',
+  '  color: #e7e5e2;',
+  '  border-color: rgba(255,255,255,0.22);',
+  '}',
+  '.sdoc-slide-dark-ui .sdoc-slide-present:hover { background: rgba(255,255,255,0.10); }',
+  '.sdoc-slide-light-ui .sdoc-slide-present {',
+  '  color: #1c1917;',
+  '  border-color: rgba(0,0,0,0.18);',
+  '}',
+  '.sdoc-slide-light-ui .sdoc-slide-present:hover { background: rgba(0,0,0,0.06); }',
+  '.sdoc-slide .sd-shape-stage {',
+  '  width: 100%;',
+  /* Inherit the doc\'s page background so slides feel visually connected to */
+  /* the surrounding text. The DSL `grid ... bg=...` attribute wins when set. */
+  '  background: var(--md-bg, #ffffff);',
+  '  display: block;',
+  '}',
+  '.sdoc-slide.sdoc-slide-error {',
+  '  padding: 12px 16px;',
+  '  color: #b91c1c;',
+  '  font-family: ui-monospace, Menlo, monospace;',
+  '  font-size: 12px;',
+  '  white-space: pre-wrap;',
+  '  cursor: default;',
+  '}',
+  '.sdoc-slide-errbadge {',
+  '  padding: 8px 10px;',
+  '  font: 12px/1.45 ui-monospace, Menlo, monospace;',
+  '  color: #991b1b;',
+  '  background: #fef2f2;',
+  '  border-top: 1px solid #fecaca;',
+  '  display: flex; gap: 10px; align-items: flex-start; justify-content: space-between;',
+  '}',
+  '.sdoc-slide-errbadge-msg { flex: 1; }',
+  '.sdoc-slide-errbadge-title { font-weight: 700; display: block; margin-bottom: 2px; }',
+  '.sdoc-slide-errbadge-list { margin: 0; padding: 0 0 0 16px; }',
+  '.sdoc-slide-errbadge-list li { margin: 2px 0; }',
+  '.sdoc-slide-errbadge-copy {',
+  '  all: unset; cursor: pointer; flex-shrink: 0;',
+  '  padding: 4px 10px; border-radius: 4px;',
+  '  background: #fff; border: 1px solid #fecaca; color: #991b1b;',
+  '  font: 11px/1 ui-monospace, Menlo, monospace;',
+  '  transition: background .12s, border-color .12s;',
+  '}',
+  '.sdoc-slide-errbadge-copy:hover { background: #fff5f5; border-color: #f87171; }',
+  '.sdoc-slide-errbadge-copy.copied { background: #dcfce7; border-color: #86efac; color: #166534; }',
+].join('\n');
+
+function injectCSS() {
+  if (document.getElementById(CSS_ID)) return;
+  var style = document.createElement('style');
+  style.id = CSS_ID;
+  style.textContent = CSS;
+  document.head.appendChild(style);
+}
+if (typeof document !== 'undefined') injectCSS();
+
+// Lucide "presentation" icon — a monitor with a small chart glyph.
+// Matches lucide.dev/icons/presentation. Inline SVG avoids shipping an
+// icon set; the geometry stays stable and can be recolored via currentColor.
+var PRESENT_ICON_SVG =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+  + 'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  + '<path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/>'
+  + '<path d="m7 21 5-5 5 5"/></svg>';
+
+function buildPresentButton(slideIdx) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sdoc-slide-present';
+  btn.setAttribute('aria-label', 'Open slide ' + (slideIdx + 1) + ' in presentation mode');
+  btn.title = 'Present (Enter)';
+  btn.innerHTML = PRESENT_ICON_SVG;
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (window.SDocPresent) window.SDocPresent.open(slideIdx);
+  });
+  return btn;
+}
+
+function renderError(wrapper, message) {
+  wrapper.classList.add('sdoc-slide-error');
+  wrapper.textContent = message;
+}
+
+// Error badge carries everything an agent needs to fix the slide without
+// context-hunting: formatted error list + a "Copy" button that puts the
+// full diagnostic (slide index, errors, the actual DSL text) on the
+// clipboard in one shot. The click on the button doesn't bubble to the
+// slide wrapper so it doesn't also open present mode.
+//
+// Errors can arrive in two waves:
+//   1. Sync DSL errors from the resolver and shape renderer (parse,
+//      bounds, unresolved $refs, unknown template slots).
+//   2. Async content-block errors from inside slide shapes (mermaid
+//      syntax, chart JSON parse). Those bubble up via a composed
+//      'sdoc-slide-error' CustomEvent the wrapper listens for.
+// `formatErrorLine` accepts both shapes - sync errors carry a line
+// number relative to the slide DSL, async errors carry a `source`
+// (e.g. 'mermaid') and no line.
+function formatErrorLine(err) {
+  if (err.line) return 'line ' + err.line + ': ' + err.message;
+  if (err.source) return err.source + ': ' + err.message;
+  return err.message;
+}
+
+function buildErrorBadge(wrapper) {
+  var errors = wrapper.__sdocErrors || [];
+  var dslText = wrapper.__sdocRawText || '';
+  var slideIdx = wrapper.__sdocSlideIdx || 0;
+
+  var badge = document.createElement('div');
+  badge.className = 'sdoc-slide-errbadge';
+
+  var msg = document.createElement('div');
+  msg.className = 'sdoc-slide-errbadge-msg';
+  var title = document.createElement('span');
+  title.className = 'sdoc-slide-errbadge-title';
+  title.textContent = errors.length + ' error' + (errors.length === 1 ? '' : 's')
+    + ' in slide ' + (slideIdx + 1);
+  msg.appendChild(title);
+  var list = document.createElement('ul');
+  list.className = 'sdoc-slide-errbadge-list';
+  for (var i = 0; i < errors.length; i++) {
+    var li = document.createElement('li');
+    li.textContent = formatErrorLine(errors[i]);
+    list.appendChild(li);
+  }
+  msg.appendChild(list);
+  badge.appendChild(msg);
+
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sdoc-slide-errbadge-copy';
+  btn.textContent = 'Copy';
+  btn.setAttribute('title', 'Copy a diagnostic your agent can use to fix this slide');
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var report = buildErrorReport(errors, dslText, slideIdx);
+    var done = function () {
+      btn.classList.add('copied');
+      btn.textContent = 'Copied';
+      setTimeout(function () { btn.classList.remove('copied'); btn.textContent = 'Copy'; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(report).then(done).catch(function () {
+        legacyCopy(report); done();
+      });
+    } else {
+      legacyCopy(report); done();
+    }
+  });
+  badge.appendChild(btn);
+
+  return badge;
+}
+
+// Render or rebuild the wrapper's badge from its stored error list.
+// Removes any existing badge first so callers don't accumulate duplicates
+// when a second wave of async errors lands.
+function syncErrorBadge(wrapper) {
+  var existing = wrapper.querySelector(':scope > .sdoc-slide-errbadge');
+  if (existing) existing.parentNode.removeChild(existing);
+  var errors = wrapper.__sdocErrors || [];
+  if (!errors.length) return;
+  wrapper.appendChild(buildErrorBadge(wrapper));
+}
+
+// Public: append a single error to a slide wrapper and re-render its
+// badge. Used by the composed 'sdoc-slide-error' event listener so async
+// content-block failures (mermaid, chart) surface in the same place as
+// sync DSL errors.
+function appendSlideError(wrapper, err) {
+  if (!wrapper || !err) return;
+  if (!wrapper.__sdocErrors) wrapper.__sdocErrors = [];
+  wrapper.__sdocErrors.push(err);
+  syncErrorBadge(wrapper);
+}
+
+function buildErrorReport(errors, dslText, slideIdx) {
+  var lines = [];
+  lines.push('SDocs slide ' + (slideIdx + 1) + ' — ' + errors.length + ' error' + (errors.length === 1 ? '' : 's'));
+  for (var i = 0; i < errors.length; i++) {
+    lines.push('  ' + formatErrorLine(errors[i]));
+  }
+  lines.push('');
+  lines.push('Slide source (fenced block):');
+  lines.push('~~~slide');
+  lines.push(dslText.replace(/\s+$/, ''));
+  lines.push('~~~');
+  return lines.join('\n');
+}
+
+function legacyCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (_) {}
+  document.body.removeChild(ta);
+}
+
+function processSlides(container) {
+  if (!container) return;
+  if (!window.SDocShapeRender || !window.SDocShapes) return;
+  var blocks = container.querySelectorAll('code.language-slide');
+  if (!blocks.length) return;
+
+  // Resolve templates in a single batch. The resolver is pure: it takes
+  // the raw DSL text of every slide block (in document order) and returns
+  // the DSL to actually render, plus a skip flag for @template slides.
+  // We do it before any DOM mutation so templates never produce a flash
+  // of placeholder content, and consumers always see the expanded DSL.
+  var rawDsls = [];
+  for (var b = 0; b < blocks.length; b++) rawDsls.push(blocks[b].textContent);
+  var stdlibTemplates = window.SDocSlideStdlib ? window.SDocSlideStdlib.templates : null;
+  var resolved = window.SDocSlideResolve
+    ? window.SDocSlideResolve.resolveSlides(rawDsls, window.SDocShapes, { stdlib: stdlibTemplates })
+    : rawDsls.map(function (d) { return { dsl: d, skip: false, errors: [] }; });
+
+  var slideIdx = 0;
+  for (var i = 0; i < blocks.length; i++) {
+    var codeEl = blocks[i];
+    var pre = codeEl.closest('pre');
+    if (!pre) continue;
+
+    var entry = resolved[i];
+    var preWrapper = pre.closest('.pre-wrapper');
+    var target = preWrapper || pre;
+
+    // Template slides register but never render — strip the element so the
+    // author sees nothing in its place and it's not counted in slideIdx.
+    if (entry.skip) {
+      target.parentNode.removeChild(target);
+      continue;
+    }
+
+    var dslText = entry.dsl;
+    var rawText = codeEl.textContent;
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'sdoc-slide';
+    wrapper.setAttribute('data-dsl', dslText);
+    wrapper.setAttribute('data-slide-index', String(slideIdx));
+    // Stash the bits the badge / event listener need so async errors can
+    // rebuild the badge without re-deriving them. Error badge shows the
+    // author's original source (with directives), not the post-merge DSL -
+    // that's what they edit to fix the problem.
+    wrapper.__sdocErrors = [];
+    wrapper.__sdocRawText = rawText;
+    wrapper.__sdocSlideIdx = slideIdx;
+    // Composed events from inside slide shape shadow roots (mermaid, chart)
+    // bubble up here. The handler appends to errors and rebuilds the badge.
+    wrapper.addEventListener('sdoc-slide-error', function (ev) {
+      if (!ev || !ev.detail) return;
+      appendSlideError(wrapper, ev.detail);
+    });
+
+    var hasError = false;
+    try {
+      // Nested slide-wrap so the aspect-ratio-locked slide doesn't overlap
+      // the (optional) error badge below it in the sdoc-slide flow.
+      var slideWrap = document.createElement('div');
+      wrapper.appendChild(slideWrap);
+      var result = window.SDocShapeRender.renderShapes(dslText, slideWrap);
+      // The present button inherits the doc's foreground color, but a slide
+      // can paint its own background that doesn't track the doc theme. When
+      // that background is detectably dark or light, flip the button to the
+      // contrasting palette so it never goes invisible on its own slide.
+      var lum = result.cornerLuminance;
+      if (typeof lum === 'number') {
+        wrapper.classList.add(lum < 0.5 ? 'sdoc-slide-dark-ui' : 'sdoc-slide-light-ui');
+      }
+      var allErrors = (entry.errors || []).concat(result.errors || []);
+      if (allErrors.length) {
+        wrapper.__sdocErrors = allErrors.slice();
+        syncErrorBadge(wrapper);
+      }
+    } catch (e) {
+      renderError(wrapper, 'slide render failed: ' + e.message);
+      hasError = true;
+    }
+
+    // Per-slide presentation button. Sits top-right as a small icon,
+    // mirroring the code-block copy button. The slide itself is no
+    // longer clickable — that frees text inside shapes to be selected,
+    // copied, and (for agents) scraped out of the DOM.
+    if (!hasError) {
+      wrapper.appendChild(buildPresentButton(slideIdx));
+    }
+
+    target.parentNode.replaceChild(wrapper, target);
+    slideIdx++;
+  }
+
+  // Let presentation mode re-scan slides.
+  if (window.SDocPresent && window.SDocPresent.refresh) window.SDocPresent.refresh();
+}
+
+window.SDocSlides = { processSlides: processSlides, appendSlideError: appendSlideError };
+
+})();

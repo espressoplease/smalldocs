@@ -9,11 +9,13 @@ const SUBCOMMANDS = new Set([
   'charts', 'diagrams', 'comments',
   'setup', 'safe', 'auto-update', 'refresh',
   'feedback',
+  'slides', 'present',
 ]);
 
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
   let file = null;
+  let extra = null;
   let mode = null;
   let url = null;
   let subcommand = null;
@@ -77,10 +79,13 @@ function parseArgs(argv) {
     }
 
     if (!file) { file = arg; continue; }
+    // Second positional is captured as `extra` so `sdoc slides icons heart`
+    // gets {subcommand: 'slides', file: 'icons', extra: 'heart'}.
+    if (extra === null) { extra = arg; continue; }
   }
 
   return {
-    file, mode, url, subcommand, section, theme,
+    file, extra, mode, url, subcommand, section, theme,
     resetFlag, shortFlag, jsonFlag, auditFlag, waitFlag,
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,

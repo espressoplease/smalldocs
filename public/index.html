@@ -345,6 +345,35 @@
                 </div>
               </div>
             </div>
+
+          </div>
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="_sd_sub-colors-table">
+            <span class="arrow">▶</span> Tables
+          </div>
+          <div class="sub-body" id="_sd_sub-colors-table">
+            <div class="control-row">
+              <label>Text</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-table-text" value="#1c1917"><button class="reset-btn" id="_sd_reset-table-text" title="Reset to default">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Header bg</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-table-header-bg" value="#f4f1ed"><button class="reset-btn" id="_sd_reset-table-header-bg" title="Reset to default">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Odd row bg</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-table-odd-bg" value="#ffffff"><button class="reset-btn" id="_sd_reset-table-odd-bg" title="Reset to default">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Even row bg</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-table-even-bg" value="#fafaf8"><button class="reset-btn" id="_sd_reset-table-even-bg" title="Reset to default">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Border</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-table-border" value="#e2ddd6"><button class="reset-btn" id="_sd_reset-table-border" title="Reset to default">↺</button></div>
+            </div>
           </div>
         </div>
       </div>
@@ -635,6 +664,20 @@
           <span class="export-option-desc">Download as PDF document</span>
         </div>
       </button>
+      <button class="export-option" id="_sd_exp-slides-pdf" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="m8 22 4-4 4 4"/><path d="M12 18v-4"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">Slides PDF</span>
+          <span class="export-option-desc">One slide per landscape page with selectable text</span>
+        </div>
+      </button>
+      <button class="export-option" id="_sd_exp-slides-pptx" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M7 9h10"/><path d="M7 13h7"/><path d="m8 22 4-4 4 4"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">PowerPoint (.pptx)</span>
+          <span class="export-option-desc">Editable shapes and text in PowerPoint / Keynote / Slides</span>
+        </div>
+      </button>
       <button class="export-option" id="_sd_exp-word">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M8 12l1.5 4 2-3 2 3 1.5-4"/></svg>
         <div class="export-option-text">
@@ -759,6 +802,14 @@
 <script src="/public/sdocs-math.js"></script>
 <script src="/public/sdocs-mermaid.js"></script>
 <script src="/public/sdocs-mermaid-focus.js"></script>
+<script src="/public/sdocs-shapes.js"></script>
+<script src="/public/sdocs-shape-render.js"></script>
+<script src="/public/sdocs-slide-stdlib.js"></script>
+<script src="/public/sdocs-slide-resolve.js"></script>
+<script src="/public/sdocs-slide-pdf.js"></script>
+<script src="/public/sdocs-slide-pptx.js"></script>
+<script src="/public/sdocs-present.js"></script>
+<script src="/public/sdocs-slides.js"></script>
 <script src="/public/sdocs-comments.js"></script>
 <script src="/public/sdocs-form-block.js"></script>
 <script src="/public/sdocs-forms.js"></script>

@@ -447,8 +447,41 @@
     var isScatterLike = chartType === 'scatter' || chartType === 'bubble';
     var isRadar = chartType === 'radar';
 
-    // Hide labels on scatter/bubble — too cluttered
-    if (isScatterLike) return { display: false };
+    // Scatter/bubble: hidden by default (too cluttered for dense plots).
+    // Opt in by setting `dataLabels: true` on the chart, OR by giving each
+    // data point its own `label` field; in either case the plugin renders
+    // the point's label next to the marker.
+    if (isScatterLike) {
+      var hasPointLabels = false;
+      var allDatasets = data.datasets || (data.values ? [{ data: data.values }] : []);
+      for (var di = 0; di < allDatasets.length; di++) {
+        var pts = allDatasets[di].data || [];
+        for (var pi = 0; pi < pts.length; pi++) {
+          if (pts[pi] && typeof pts[pi] === 'object' && pts[pi].label) {
+            hasPointLabels = true;
+            break;
+          }
+        }
+        if (hasPointLabels) break;
+      }
+      if (data.dataLabels !== true && !hasPointLabels) return { display: false };
+      return {
+        display: true,
+        color: th.text,
+        font: { size: 11, weight: '500' },
+        anchor: 'end',
+        align: 'top',
+        offset: 4,
+        clip: false,
+        formatter: function (value, ctx) {
+          if (value && typeof value === 'object' && value.label) return value.label;
+          var ds = ctx.dataset || {};
+          // Fall back to the dataset label only when one point per dataset.
+          if ((ds.data || []).length === 1 && ds.label) return ds.label;
+          return '';
+        }
+      };
+    }
 
     if (isRadial) {
       return {
@@ -648,8 +681,48 @@
   // Store chart data alongside instances so we can rebuild with new colors
   var chartDataStore = [];
 
+  // Tune a Chart.js config for use inside a slide shape. Slides own their
+  // sizing (the shape wrapper has explicit pixel dimensions and the stage
+  // CSS-transform scales the whole canvas visually); we hand Chart.js a
+  // fixed size so it doesn't try to re-measure under the transform and
+  // collapse. Fonts get scaled up because Chart.js fonts are absolute px:
+  // a 12px axis label that's fine in a 600px doc-flow chart looks tiny on
+  // a 1280px REF-stage chart - we bump all font.size values to roughly
+  // match the slide's body role (24px).
+  function tuneConfigForSlide(config) {
+    var opts = config.options = config.options || {};
+    opts.responsive = false;
+    opts.maintainAspectRatio = false;
+    opts.devicePixelRatio = Math.max(2, window.devicePixelRatio || 1);
+    // Slides are non-interactive in present mode; tooltips need a hover
+    // listener that doesn't work through the shadow boundary anyway, and
+    // they don't appear in PNG snapshots. Drop them.
+    opts.events = [];
+    opts.plugins = opts.plugins || {};
+    opts.plugins.tooltip = opts.plugins.tooltip || {};
+    opts.plugins.tooltip.enabled = false;
+    // Walk every font.size in options and bump by SCALE. Mirrors the
+    // chart's visual weight to the slide's body role (24px); without
+    // this, 12px axis labels look like ~half a body bullet's height.
+    var SCALE = 1.8;
+    function bumpFonts(obj) {
+      if (!obj || typeof obj !== 'object') return;
+      if (obj.font && typeof obj.font === 'object' && typeof obj.font.size === 'number') {
+        obj.font.size = Math.round(obj.font.size * SCALE);
+      }
+      for (var k in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, k) && typeof obj[k] === 'object') {
+          bumpFonts(obj[k]);
+        }
+      }
+    }
+    bumpFonts(opts);
+    return config;
+  }
+
   var _origProcess = processCharts;
-  processCharts = function (container) {
+  processCharts = function (container, options) {
+    options = options || {};
     chartDataStore = [];
     var chartBlocks = container.querySelectorAll('code.language-chart');
     if (!chartBlocks.length) return;
@@ -662,6 +735,7 @@
         if (!data) { pre.classList.add('sdoc-chart-error'); return; }
         var config = buildConfig(data);
         if (!config) return;
+        if (options.slideContext) tuneConfigForSlide(config);
 
         var chartIndex = chartDataStore.length;
         var wrapper = document.createElement('div');
@@ -674,6 +748,23 @@
         var preWrapper = pre.closest('.pre-wrapper');
         var target = preWrapper || pre;
         target.parentNode.replaceChild(wrapper, target);
+
+        // With responsive:false we own canvas dimensions. The caller
+        // passes the shape's declared REF-pixel size; we use it directly
+        // so the bitmap aspect matches the display box and the doughnut
+        // / pie / square plot areas render at their natural aspect. No
+        // DOM measurement, no layout-timing race.
+        if (options.slideContext) {
+          var w = options.shapeWidth;
+          var h = options.shapeHeight;
+          if (!(w > 0) || !(h > 0)) {
+            throw new Error('processCharts: slideContext requires positive shapeWidth/shapeHeight');
+          }
+          canvas.width = w;
+          canvas.height = h;
+          canvas.style.width = w + 'px';
+          canvas.style.height = h + 'px';
+        }
 
         var chart = new Chart(canvas, config);
         activeCharts.push(chart);
