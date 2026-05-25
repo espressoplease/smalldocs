@@ -214,6 +214,52 @@ module.exports = function (h) {
       assert.strictEqual(r.status, 404);
     });
 
+    // Gate tests (Items B + C): the file-read and bridge-spawn endpoints
+    // refuse paths that aren't in the library, paths on the deny list,
+    // and symlinks whose realpath escapes the library.
+    await testAsync('library-agent: /file refuses a real file that is NOT in the index', async () => {
+      const outsider = path.join(SANDBOX, 'outsider.md');
+      fs.writeFileSync(outsider, '# not indexed\n');
+      // realFile was seeded into the index in setup; outsider was not.
+      const r = await req('GET', '/api/library/file?path=' + encodeURIComponent(outsider));
+      assert.strictEqual(r.status, 403);
+      assert.ok(/index/i.test(r.body.error || ''));
+    });
+
+    await testAsync('library-agent: /file accepts a path that IS in the index', async () => {
+      const r = await req('GET', '/api/library/file?path=' + encodeURIComponent(realFile));
+      assert.strictEqual(r.status, 200);
+      assert.ok(typeof r.body.content === 'string');
+    });
+
+    await testAsync('library-agent: /file refuses a deny-listed path even if it exists', async () => {
+      const denied = path.join(SANDBOX, '.env');
+      fs.writeFileSync(denied, 'SECRET=xxx\n');
+      const r = await req('GET', '/api/library/file?path=' + encodeURIComponent(denied));
+      assert.strictEqual(r.status, 403);
+      assert.ok(/deny/i.test(r.body.error || ''));
+    });
+
+    await testAsync('library-agent: /file refuses a symlink whose target is not indexed', async () => {
+      const secret = path.join(SANDBOX, 'pretend-secret.txt');
+      fs.writeFileSync(secret, 'private');
+      const link = path.join(SANDBOX, 'safe-looking-link.md');
+      try { fs.unlinkSync(link); } catch (_) {}
+      fs.symlinkSync(secret, link);
+      // The symlink's source path isn't indexed; its realpath is the
+      // un-indexed secret. Both refusals are acceptable - gatePath
+      // checks the realpath against the index.
+      const r = await req('GET', '/api/library/file?path=' + encodeURIComponent(link));
+      assert.strictEqual(r.status, 403);
+    });
+
+    await testAsync('library-agent: /bridge-for refuses a real file that is NOT in the index', async () => {
+      const outsider = path.join(SANDBOX, 'bridge-outsider.md');
+      fs.writeFileSync(outsider, '# not indexed\n');
+      const r = await req('POST', '/api/library/bridge-for', { path: outsider });
+      assert.strictEqual(r.status, 403);
+    });
+
     await testAsync('library-agent: GET /api/library/project-tags requires a path', async () => {
       const r = await req('GET', '/api/library/project-tags');
       assert.strictEqual(r.status, 400);

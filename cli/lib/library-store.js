@@ -100,6 +100,34 @@ function clearIndex() {
   saveIndex({ entries: [] });
 }
 
+// "Is this absolute path currently in the index?" Compares the
+// requested path (and, where it exists, its realpath) against each
+// entry's stored path AND - for rescued entries - the path the rescue
+// copy came from. The realpath check is what guards against symlink
+// shenanigans (Item C): a symlink that points outside the library can
+// be requested by its source path, but realpath resolves outside any
+// indexed location and the lookup fails.
+function isIndexed(absPath) {
+  if (!absPath) return false;
+  const fs = require('fs');
+  const path = require('path');
+  let real = absPath;
+  try { real = fs.realpathSync(absPath); } catch (_) { /* not a real path - take as-is */ }
+  const idx = loadIndex();
+  for (const e of idx.entries) {
+    if (e.path === absPath || e.path === real) return true;
+    if (e.rescued && e.rescuedFrom && (e.rescuedFrom === absPath || e.rescuedFrom === real)) return true;
+    // Also realpath each entry's path for the symmetric case where the
+    // index stored a symlinked path. Cheap: at most a few hundred
+    // entries on a typical library.
+    try {
+      const er = fs.realpathSync(e.path);
+      if (er === absPath || er === real) return true;
+    } catch (_) { /* entry path may have vanished - skip */ }
+  }
+  return false;
+}
+
 module.exports = {
   ensureDir,
   atomicWriteJson,
@@ -109,4 +137,5 @@ module.exports = {
   upsertEntry, removeEntry, getEntry, setStar,
   clearIndex,
   idForPath,
+  isIndexed,
 };
