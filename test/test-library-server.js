@@ -115,38 +115,65 @@ module.exports = function (h) {
       assert.strictEqual(store.getEntry('real').starred, true);
     });
 
-    await testAsync('library-agent: POST /api/library/tags adds tags to the file', async () => {
-      const r = await req('POST', '/api/library/tags', {
-        path: realFile, add: ['plan', 'refactor'], remove: [],
-      });
+    await testAsync('library-agent: POST /api/library/reindex updates the index for one file', async () => {
+      // Mutate the real file behind the agent's back, then ask for a
+      // reindex. The library should pick up the new tags.
+      fs.writeFileSync(realFile, '---\ntags:\n  - freshly-added\n---\n# Real\n');
+      const r = await req('POST', '/api/library/reindex', { path: realFile });
       assert.strictEqual(r.status, 200);
-      assert.ok(r.body.tags.includes('plan'));
-      assert.ok(r.body.tags.includes('refactor'));
-      // File on disk reflects the new tags.
-      const raw = fs.readFileSync(realFile, 'utf8');
-      assert.ok(/tags:[\s\S]*plan/.test(raw));
-      assert.ok(/tags:[\s\S]*refactor/.test(raw));
+      assert.ok(r.body.tags.includes('freshly-added'),
+                'reindex should reflect the new tag');
     });
 
-    await testAsync('library-agent: POST /api/library/tags removes tags from the file', async () => {
-      const r = await req('POST', '/api/library/tags', {
-        path: realFile, add: [], remove: ['plan'],
-      });
-      assert.strictEqual(r.status, 200);
-      assert.ok(!r.body.tags.includes('plan'),
-                'plan should be gone, got ' + JSON.stringify(r.body.tags));
-    });
-
-    await testAsync('library-agent: POST /api/library/tags requires a path', async () => {
-      const r = await req('POST', '/api/library/tags', { add: ['x'] });
+    await testAsync('library-agent: POST /api/library/reindex requires a path', async () => {
+      const r = await req('POST', '/api/library/reindex', {});
       assert.strictEqual(r.status, 400);
     });
 
-    await testAsync('library-agent: POST /api/library/tags 404s on missing file', async () => {
-      const r = await req('POST', '/api/library/tags', {
-        path: '/nope/missing.md', add: ['x'], remove: [],
-      });
+    await testAsync('library-agent: POST /api/library/reindex 404s on missing file', async () => {
+      const r = await req('POST', '/api/library/reindex', { path: '/nope/missing.md' });
       assert.strictEqual(r.status, 404);
+    });
+
+    await testAsync('library-agent: POST /api/library/bridge-for hands back port + token for a real file', async () => {
+      const r = await req('POST', '/api/library/bridge-for', { path: realFile });
+      assert.strictEqual(r.status, 200);
+      assert.ok(typeof r.body.port === 'number');
+      assert.ok(typeof r.body.token === 'string' && r.body.token.length > 0);
+      assert.strictEqual(r.body.file, 'real.md');
+      // Don't leave the bridge running - it'll idle-timeout on its own
+      // but we can also close the port immediately by failing a
+      // handshake. For the unit test, just trust the timeout.
+    });
+
+    await testAsync('library-agent: POST /api/library/bridge-for 404s on missing file', async () => {
+      const r = await req('POST', '/api/library/bridge-for', { path: '/nope/missing.md' });
+      assert.strictEqual(r.status, 404);
+    });
+
+    await testAsync('library-agent: GET /api/library/project-tags requires a path', async () => {
+      const r = await req('GET', '/api/library/project-tags');
+      assert.strictEqual(r.status, 400);
+    });
+
+    await testAsync('library-agent: GET /api/library/project-tags returns tags under the file\'s project', async () => {
+      // Seed: two files under SANDBOX that share a fake git root.
+      fs.mkdirSync(path.join(SANDBOX, '.git'), { recursive: true });
+      const f1 = path.join(SANDBOX, 'one.md');
+      const f2 = path.join(SANDBOX, 'two.md');
+      fs.writeFileSync(f1, '---\ntags:\n  - shared\n  - one\n---\n# one');
+      fs.writeFileSync(f2, '---\ntags:\n  - shared\n  - two\n---\n# two');
+      const libIndex = require('../cli/lib/library-index');
+      libIndex.indexFile(f1);
+      libIndex.indexFile(f2);
+
+      const r = await req('GET', '/api/library/project-tags?path=' + encodeURIComponent(f1));
+      assert.strictEqual(r.status, 200);
+      assert.strictEqual(r.body.root, SANDBOX, 'should resolve project root via .git');
+      const tags = (r.body.tags || []).map(t => t.tag);
+      assert.ok(tags.includes('shared'));
+      assert.ok(tags.includes('one'));
+      assert.ok(tags.includes('two'));
     });
 
     server.close();
