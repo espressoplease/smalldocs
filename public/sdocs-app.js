@@ -29,7 +29,17 @@ var S = SDocs;
 var LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-var CLOSE_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+// Tag chip × uses the standard SDocs close icon (same stroke / weight as
+// the comment composer's Cancel button, scaled down for chip rendering).
+var TAG_CLOSE_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+// Lucide-style plus, sits in the row's right-hand icon slot alongside
+// the standard copy buttons on other rows.
+var PLUS_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
+// Save (tick) and Cancel (×) for the inline composer. Same intrinsic
+// size as TAG_CLOSE_SVG (10×10) so the icons read as the same weight
+// as the × on non-editable chips - CSS scales them within the buttons.
+var TAG_TICK_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+var TAG_CANCEL_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 
 // Ping the local library agent and remember reachability. The editor
 // page uses this to decide whether the Tags row should be editable. Same
@@ -44,56 +54,183 @@ function pingLibraryAgent() {
     .catch(function() { if (to) clearTimeout(to); S.libraryAgent = { reachable: false }; });
 }
 
-// POST to the library agent's tag mutation endpoint. Returns the new
-// tag list on success or throws.
-function libraryMutateTags(filePath, add, remove) {
-  return fetch('http://127.0.0.1:47843/api/library/tags', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path: filePath, add: add || [], remove: remove || [] }),
-  }).then(function(r) {
-    if (!r.ok) throw new Error('agent ' + r.status);
-    return r.json();
+// Tag edits use the Bridge as the sole write channel. This helper
+// mutates S.currentMeta.tags in memory, asks the Bridge to autosave the
+// file, and then nudges the library agent to re-index immediately so
+// the library list reflects the change without waiting for a rescan.
+function bridgeApplyTagChange(filePath, opts) {
+  if (!S.currentMeta) S.currentMeta = {};
+  var existing = Array.isArray(S.currentMeta.tags) ? S.currentMeta.tags.map(String) : [];
+  var lower = existing.map(function(t){ return String(t).toLowerCase(); });
+  var add    = (opts && opts.add)    || [];
+  var remove = (opts && opts.remove) || [];
+  var next = existing.slice();
+  add.forEach(function(t) {
+    var n = String(t).trim().toLowerCase();
+    if (!n) return;
+    if (lower.indexOf(n) >= 0) return;
+    next.push(n); lower.push(n);
+  });
+  if (remove.length) {
+    var drop = new Set(remove.map(function(t){ return String(t).toLowerCase(); }));
+    next = next.filter(function(t){ return !drop.has(String(t).toLowerCase()); });
+  }
+  if (next.length) S.currentMeta.tags = next;
+  else delete S.currentMeta.tags;
+  // Hand off to the Bridge - it serializes meta + body and autosaves.
+  if (S.bridge && typeof S.bridge._queueSave === 'function') {
+    S.bridge._queueSave();
+  }
+  // Best-effort: ask the library agent to re-index so the search list
+  // is up-to-date even before the next scheduled scan. The Bridge save
+  // is debounced 500ms; wait a beat longer so the reindex picks up the
+  // post-save content rather than the pre-save state.
+  if (filePath) {
+    setTimeout(function() {
+      fetch('http://127.0.0.1:47843/api/library/reindex', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: filePath }),
+      }).catch(function(){});
+    }, 800);
+  }
+  renderFileInfoCard();
+}
+
+// Ask the agent for tags used on other files in the same project as
+// this one. Returns [{ tag, count }, ...] sorted by use. Best-effort:
+// silently returns [] on any failure.
+function libraryProjectTags(filePath) {
+  return fetch('http://127.0.0.1:47843/api/library/project-tags?path=' + encodeURIComponent(filePath))
+    .then(function(r) { if (!r.ok) throw new Error('agent ' + r.status); return r.json(); })
+    .then(function(data) { return (data && data.tags) || []; })
+    .catch(function() { return []; });
+}
+
+function commitTagChange(filePath, add, remove) {
+  bridgeApplyTagChange(filePath, { add: add, remove: remove });
+}
+
+function escapeAttr(s) { return String(s).replace(/[&<>"']/g, function(c){
+  return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'})[c];
+}); }
+
+// Open the inline tag composer inside the Tags row: input + tick + ×,
+// plus a row of "ghost" chips for tags already used elsewhere in this
+// project. Clicking a ghost chip applies it without typing. Save
+// commits whatever's in the input. Cancel collapses everything.
+function openTagComposer(row, filePath, currentTags) {
+  // Don't stack composers if one is already open in this row.
+  if (row.querySelector('.fic-tag-composer')) {
+    var existingInput = row.querySelector('.fic-tag-input');
+    if (existingInput) existingInput.focus();
+    return;
+  }
+  var chips = row.querySelector('.fic-tag-chips');
+
+  // The composer is a single pill-shaped container holding the # prefix,
+  // the input, and tick/cancel icons - same shape as the comment
+  // composer's pill. The input grows with content; tick/cancel sit at
+  // the right edge of the pill.
+  var composer = document.createElement('span');
+  composer.className = 'fic-tag-composer';
+  // The ruler is an invisible span that mirrors the input's text. We
+  // read offsetWidth off it to size the input precisely, instead of
+  // relying on the HTML `size` attribute (which overestimates for
+  // strings of thin characters and leaves an ugly trailing gap).
+  composer.innerHTML = ''
+    + '<span class="fic-tag-composer-hash">#</span>'
+    + '<input class="fic-tag-input" type="text" placeholder="tag" autocomplete="off" />'
+    + '<span class="fic-tag-input-ruler" aria-hidden="true"></span>'
+    + '<button class="fic-tag-save sdoc-icon-btn" type="button" aria-label="Save tag" title="Save">' + TAG_TICK_SVG + '</button>'
+    + '<button class="fic-tag-cancel sdoc-icon-btn" type="button" aria-label="Cancel" title="Cancel">' + TAG_CANCEL_SVG + '</button>';
+  chips.appendChild(composer);
+
+  // Suggestions live on their own line below. Only inserted later
+  // (after the fetch resolves) so they don't claim margin when empty.
+  var suggestions = null;
+
+  var input  = composer.querySelector('.fic-tag-input');
+  var ruler  = composer.querySelector('.fic-tag-input-ruler');
+  var save   = composer.querySelector('.fic-tag-save');
+  var cancel = composer.querySelector('.fic-tag-cancel');
+
+  function close() {
+    composer.remove();
+    if (suggestions) suggestions.remove();
+    row.classList.remove('fic-row-tags-composing');
+  }
+
+  function commitFromInput() {
+    var v = (input.value || '').trim().replace(/^[#+]/, '').toLowerCase();
+    if (!v || !/^[a-z][\w-]{0,63}$/.test(v)) { input.focus(); return; }
+    commitTagChange(filePath, [v], []);
+    // renderFileInfoCard re-creates the row, so no need to close here.
+  }
+
+  // Resize the input to fit its content exactly. The ruler shares the
+  // input's font and gets the same text (or the placeholder when the
+  // input is empty); we set the input's width to the ruler's measured
+  // width plus a tiny breathing margin. Result: the pill stays snug
+  // around the typed text regardless of which characters are in it.
+  var INPUT_MIN_WIDTH = 28;
+  var INPUT_BREATHING = 2;
+  function resizeInput() {
+    ruler.textContent = input.value || input.placeholder || '';
+    var w = ruler.offsetWidth;
+    input.style.width = Math.max(INPUT_MIN_WIDTH, w + INPUT_BREATHING) + 'px';
+  }
+
+  save.addEventListener('click',   function(e) { e.stopPropagation(); commitFromInput(); });
+  cancel.addEventListener('click', function(e) { e.stopPropagation(); close(); });
+  input.addEventListener('input',  resizeInput);
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter')  { e.preventDefault(); commitFromInput(); }
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+  });
+
+  row.classList.add('fic-row-tags-composing');
+  resizeInput(); // size to placeholder before showing
+  input.focus();
+
+  // Populate suggestions with project tags the file doesn't already
+  // have. Only render the container at all if there's something to show
+  // - keeps the empty case from claiming layout space.
+  libraryProjectTags(filePath).then(function(items) {
+    var have = new Set((currentTags || []).map(function(t){ return String(t).toLowerCase(); }));
+    var shown = items.filter(function(it){ return !have.has(it.tag); }).slice(0, 12);
+    if (!shown.length) return;
+    suggestions = document.createElement('span');
+    suggestions.className = 'fic-tag-suggestions';
+    suggestions.innerHTML = '<span class="fic-tag-suggestions-label">From this project:</span>'
+      + shown.map(function(it){
+          return '<button class="fic-tag-ghost" type="button" data-tag="' + escapeAttr(it.tag) + '">#' + escapeAttr(it.tag) + '</button>';
+        }).join('');
+    chips.appendChild(suggestions);
+    suggestions.querySelectorAll('.fic-tag-ghost').forEach(function(btn){
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        commitTagChange(filePath, [btn.getAttribute('data-tag')], []);
+      });
+    });
   });
 }
 
-// Wire the + button and × buttons in a freshly-rendered Tags row.
-function attachTagRowHandlers(row, filePath) {
-  var input = row.querySelector('.fic-tag-input');
+// Wire up the freshly-rendered Tags row: the right-side + button opens
+// the composer; the × on each chip removes that tag immediately.
+function attachTagRowHandlers(row, filePath, currentTags) {
   var addBtn = row.querySelector('.fic-tag-add');
-  function commit(tag) {
-    tag = (tag || '').trim().replace(/^[#+]/, '').toLowerCase();
-    if (!tag || !/^[a-z][\w-]{0,63}$/.test(tag)) return;
-    libraryMutateTags(filePath, [tag], []).then(function(r) {
-      if (!S.currentMeta) S.currentMeta = {};
-      S.currentMeta.tags = r.tags || [];
-      renderFileInfoCard();
-    }).catch(function(){});
-  }
-  if (addBtn && input) {
+  if (addBtn) {
     addBtn.addEventListener('click', function(e) {
       e.stopPropagation();
-      input.hidden = false;
-      input.focus();
-    });
-    input.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') { e.preventDefault(); commit(input.value); input.value = ''; input.hidden = true; }
-      else if (e.key === 'Escape') { input.value = ''; input.hidden = true; }
-    });
-    input.addEventListener('blur', function() {
-      if (input.value.trim()) commit(input.value);
-      input.value = ''; input.hidden = true;
+      openTagComposer(row, filePath, currentTags);
     });
   }
   row.querySelectorAll('.fic-tag-x').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       e.stopPropagation();
       var t = btn.getAttribute('data-tag');
-      libraryMutateTags(filePath, [], [t]).then(function(r) {
-        if (!S.currentMeta) S.currentMeta = {};
-        S.currentMeta.tags = r.tags || [];
-        renderFileInfoCard();
-      }).catch(function(){});
+      commitTagChange(filePath, [], [t]);
     });
   });
 }
@@ -503,19 +640,26 @@ function renderFileInfoCard() {
   if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, true, false) });
 
   // Tags row: front-matter tags + body hashtags, merged and deduped.
-  // Editable when the file lives on disk (local.fullPath) and the local
-  // library agent answers - then we add/remove tags via the agent and
-  // it writes the file. Otherwise the row is read-only chips.
+  // Editing is gated to "the Bridge is connected and can save" - the
+  // Bridge is the single write channel for the file, so without it the
+  // row is read-only. A small hint nudges the user to `sdoc <file>`.
   var fmTags   = Array.isArray(meta.tags) ? meta.tags.map(String) : [];
   var bodyTags = (window.SDocLibraryTags && window.SDocLibraryTags.extractBodyHashtags)
     ? window.SDocLibraryTags.extractBodyHashtags(S.currentBody || '') : [];
   var tagList = (window.SDocLibraryTags && window.SDocLibraryTags.mergeTags)
     ? window.SDocLibraryTags.mergeTags(fmTags, bodyTags)
     : fmTags.concat(bodyTags);
-  var agentReachable = !!(S.libraryAgent && S.libraryAgent.reachable);
-  var canEditTags = !!(local.fullPath && agentReachable);
-  if (tagList.length || canEditTags) {
-    slots.push({ type: 'tags', tags: tagList, canEdit: canEditTags, filePath: local.fullPath });
+  var bridge = S.bridge || null;
+  var canEditTags = !!(bridge && bridge._connected && bridge.capabilities && bridge.capabilities.canSave);
+  // Show the hint only when the user could plausibly want to edit -
+  // i.e. the file is local but no Bridge is alive. Don't nag on
+  // genuinely-shared documents (short links, hash URLs).
+  var showEditHint = !canEditTags && !!local.fullPath;
+  if (tagList.length || canEditTags || showEditHint) {
+    slots.push({
+      type: 'tags', tags: tagList, canEdit: canEditTags,
+      filePath: local.fullPath, showEditHint: showEditHint,
+    });
   }
 
   // Agent request: shown when the bridge greeted us with a message and the
@@ -574,17 +718,22 @@ function renderFileInfoCard() {
       tagRow.className = 'fic-row fic-row-tags' + (slot.canEdit ? ' fic-row-tags-edit' : '');
       var chipsHtml = slot.tags.map(function(t) {
         return '<span class="fic-tag-chip">#' + escapeHtml(t)
-          + (slot.canEdit ? '<button class="fic-tag-x" type="button" data-tag="' + escapeHtml(t) + '" aria-label="Remove tag">' + CLOSE_SVG + '</button>' : '')
+          + (slot.canEdit ? '<button class="fic-tag-x" type="button" data-tag="' + escapeHtml(t) + '" aria-label="Remove tag" title="Remove tag">' + TAG_CLOSE_SVG + '</button>' : '')
           + '</span>';
       }).join('');
       var addCtl = slot.canEdit
-        ? '<button class="fic-tag-add" type="button" aria-label="Add tag" title="Add tag">+</button>'
-          + '<input class="fic-tag-input" type="text" placeholder="add tag" autocomplete="off" hidden>'
+        ? '<button class="fic-tag-add" type="button" aria-label="Add tag" title="Add tag">' + PLUS_SVG + '</button>'
+        : '';
+      var hint = slot.showEditHint
+        ? '<span class="fic-tag-hint">' + (slot.tags.length
+            ? 'read-only - open via <code>sdoc</code> to edit'
+            : 'open via <code>sdoc</code> to add tags') + '</span>'
         : '';
       tagRow.innerHTML = ''
         + '<span class="fic-label">Tags</span>'
-        + '<span class="fic-value fic-tag-chips">' + chipsHtml + addCtl + '</span>';
-      if (slot.canEdit) attachTagRowHandlers(tagRow, slot.filePath);
+        + '<span class="fic-value fic-tag-chips">' + chipsHtml + hint + '</span>'
+        + addCtl;
+      if (slot.canEdit) attachTagRowHandlers(tagRow, slot.filePath, slot.tags);
       rowsEl.appendChild(tagRow);
     } else if (slot.type === 'intro') {
       var introRow = document.createElement('div');
@@ -1432,11 +1581,19 @@ async function loadFromHash() {
 
   // Read &local=<base64url-json> into memory, then strip it from the URL bar
   // so anything the user copies/shares no longer contains it.
+  //
+  // After stripping, persist it to sessionStorage so reloads of the
+  // same tab still find the file path. sessionStorage is per-tab and
+  // wiped when the tab closes - so it doesn't survive sharing the URL
+  // or opening a new tab, but it does survive ⌘R. Without this, the
+  // Tags row goes read-only and any Bridge address is lost on reload.
+  var LOCAL_META_KEY = 'sdocs.localMeta';
   if (localParam) {
     try {
       var b64 = localParam.replace(/-/g, '+').replace(/_/g, '/');
       while (b64.length % 4) b64 += '=';
       S.localMeta = JSON.parse(atob(b64)) || {};
+      try { sessionStorage.setItem(LOCAL_META_KEY, JSON.stringify(S.localMeta)); } catch (_) {}
     } catch (e) {
       S.localMeta = {};
     }
@@ -1445,6 +1602,12 @@ async function loadFromHash() {
     var newUrl = window.location.pathname + (newHash ? '#' + newHash : '');
     window.history.replaceState(null, '', newUrl);
     _lastLoadedHash = newHash; // prevent re-trigger
+  } else if (!S.localMeta || !Object.keys(S.localMeta).length) {
+    // No local in the URL - restore from sessionStorage if present.
+    try {
+      var stored = sessionStorage.getItem(LOCAL_META_KEY);
+      if (stored) S.localMeta = JSON.parse(stored) || {};
+    } catch (_) {}
   }
 
   S._loadingDocument = true;
@@ -1458,6 +1621,29 @@ async function loadFromHash() {
     } catch (e) {
       console.warn('sdocs-dev: could not decode hash', e);
     }
+  }
+
+  // When the file lives on disk and the local agent answers, prefer
+  // the live file content over the URL-hash snapshot. The hash is what
+  // the CLI captured at open time; it goes stale as soon as anything
+  // (the tag composer, the user's editor) edits the file. Without this
+  // refresh, reload shows the original content and any edits look like
+  // they've vanished.
+  if (S.localMeta && S.localMeta.fullPath) {
+    try {
+      var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var to = ctrl ? setTimeout(function(){ ctrl.abort(); }, 800) : null;
+      var liveResp = await fetch('http://127.0.0.1:47843/api/library/file?path='
+        + encodeURIComponent(S.localMeta.fullPath), ctrl ? { signal: ctrl.signal } : {});
+      if (to) clearTimeout(to);
+      if (liveResp.ok) {
+        var live = await liveResp.json();
+        if (live && typeof live.content === 'string') {
+          S._isDefaultState = false;
+          loadText(live.content);
+        }
+      }
+    } catch (_) { /* agent unreachable or timed out - keep the snapshot */ }
   }
 
   if (themeParam === 'light' || themeParam === 'dark') {

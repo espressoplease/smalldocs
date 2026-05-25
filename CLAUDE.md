@@ -209,6 +209,28 @@ npx playwright test test/write-mode.spec.js # write mode browser tests (needs Ch
 node test/preview.js file.md --screenshot out.png  # visual preview (needs server on :3000)
 ```
 
+### Which `sdoc` is running
+
+The global `sdoc` on the developer's `$PATH` is whatever was last `npm i -g sdocs-dev`'d. It often lags the in-repo CLI — meaningful behaviour (e.g. bridge for default open, new flags, fresh agent endpoints) lives in `cli/bin/sdocs-dev.js` here, NOT in the global binary.
+
+Before reasoning about CLI behaviour, check both versions:
+
+```bash
+sdoc --version                                       # global
+cat $(npm root -g)/sdocs-dev/package.json | grep ver # belt-and-braces
+cat cli/package.json | grep version                  # in-repo
+```
+
+To run the in-repo CLI directly (preferred when testing this repo's CLI changes):
+
+```bash
+node /Users/jsummers/smalldocs/cli/bin/sdocs-dev.js <file>
+# or:
+cd cli && npm link    # global `sdoc` becomes the in-repo CLI
+```
+
+When demonstrating a feature to the user, always invoke `node cli/bin/sdocs-dev.js` (or `npm link`-installed `sdoc`) so the demo reflects current code. Don't trust whatever's on `$PATH`.
+
 **Dev mode (`SDOCS_DEV=1` or `NODE_ENV=development`)**: serves CSS/JS with `Cache-Control: no-store`, injects a flag into the HTML that unregisters the service worker and clears its caches on load. Use this when iterating on frontend code so changes appear without hard-refreshing. The service worker normally caches the app shell and serves stale files even through hard reloads - dev mode sidesteps both layers.
 
 ## Visual preview testing

@@ -476,22 +476,50 @@ async function rescan() {
   }
 }
 
-// Ask the agent to encode an entry as a sdocs URL and open it in a new
-// tab. The agent reads the file and returns the URL path; we attach the
-// current origin so the tab opens on whichever SDocs instance we're on.
+// Open a library entry by asking the agent to start a Bridge for the
+// underlying file, then opening a bridged URL in a new tab. Live
+// editing (including tag edits) works because the Bridge is the single
+// write channel. If the bridge-for endpoint fails for any reason
+// (e.g. file missing, port exhaustion), fall back to the snapshot URL
+// so the user can still read the document.
 async function openEntry(id) {
   try {
-    const r = await fetch(api('/api/library/open?id=' + encodeURIComponent(id)));
-    if (!r.ok) {
-      const j = await r.json().catch(() => ({}));
-      showBanner('Could not open: ' + (j.error || r.status), 'error');
+    const entryResp = await fetch(api('/api/library/entry?id=' + encodeURIComponent(id)));
+    if (!entryResp.ok) {
+      showBanner({ kind: 'error', message: 'Entry not found.' });
       return;
     }
-    const data = await r.json();
-    const target = new URL(data.url, location.origin).toString();
-    window.open(target, '_blank');
+    const entry = await entryResp.json();
+    const filePath = entry.rescued && entry.rescuedFrom ? entry.rescuedFrom : entry.path;
+
+    // Try to spin up a Bridge for editable open. Success -> bridged URL.
+    const bridgeResp = await fetch(api('/api/library/bridge-for'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: filePath }),
+    });
+    if (bridgeResp.ok) {
+      const b = await bridgeResp.json();
+      const params = new URLSearchParams();
+      params.set('bridge', '127.0.0.1:' + b.port);
+      params.set('token', b.token);
+      params.set('file',  b.file);
+      window.open(location.origin + '/#' + params.toString(), '_blank');
+      return;
+    }
+
+    // Fallback: snapshot URL. Read-only by design - the user can read
+    // but tag edits won't be available in the opened tab.
+    const snapResp = await fetch(api('/api/library/open?id=' + encodeURIComponent(id)));
+    if (!snapResp.ok) {
+      const j = await snapResp.json().catch(() => ({}));
+      showBanner({ kind: 'error', message: 'Could not open: ' + (j.error || snapResp.status) });
+      return;
+    }
+    const snap = await snapResp.json();
+    window.open(new URL(snap.url, location.origin).toString(), '_blank');
   } catch (e) {
-    showBanner('Could not open entry: ' + e.message, 'error');
+    showBanner({ kind: 'error', message: 'Could not open entry: ' + e.message });
   }
 }
 

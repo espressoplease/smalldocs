@@ -16,6 +16,7 @@ const store      = require('./library-store');
 const libIndex   = require('./library-index');
 const autostart  = require('./library-autostart');
 const url        = require('./url');
+const { startBridge } = require('../bin/sdocs-bridge');
 
 // Five-digit port in a relatively quiet range. The agent falls back to
 // a random free port if this one is occupied, and the CLI prints the
@@ -137,6 +138,29 @@ function createServer({ port } = {}) {
         return;
       }
 
+      // Tags used by other files in the same project as the given path.
+      // The agent walks up from `path` looking for `.git/` to find the
+      // project root; if none, falls back to the file's parent directory
+      // (NOT `/` - all-tags-ever is too noisy to suggest).
+      if (req.method === 'GET' && route === '/api/library/project-tags') {
+        const filePath = u.searchParams.get('path');
+        if (!filePath) { sendJson(res, 400, { error: 'path required' }); return; }
+        const pathMod = require('path');
+        const fsMod   = require('fs');
+        const startDir = pathMod.dirname(pathMod.resolve(filePath));
+        let root = startDir;
+        let foundGit = false;
+        for (let i = 0; i < 30; i++) {
+          if (fsMod.existsSync(pathMod.join(root, '.git'))) { foundGit = true; break; }
+          const parent = pathMod.dirname(root);
+          if (parent === root) break;
+          root = parent;
+        }
+        if (!foundGit) root = startDir;
+        sendJson(res, 200, { root, tags: libIndex.tagsUnderPrefix(root) });
+        return;
+      }
+
       if (req.method === 'POST' && route === '/api/library/star') {
         const body = await readBody(req);
         const ok = store.setStar(body.id, !!body.starred);
@@ -150,11 +174,31 @@ function createServer({ port } = {}) {
         return;
       }
 
-      // Mutate the tag list on a file. Used by the file info card in the
-      // editor so users can add or remove tags without dropping into a
-      // terminal. The file must exist on disk; short-link / hash-URL
-      // documents have no path to write to, so the editor sends nothing.
-      if (req.method === 'POST' && route === '/api/library/tags') {
+      // Serve the current contents of a local file. The editor page
+      // uses this to refresh content after the URL-hash snapshot goes
+      // stale (e.g. after the user edited tags then reloaded). Local-
+      // only by transport (the agent binds 127.0.0.1) and only files
+      // already on disk are readable.
+      if (req.method === 'GET' && route === '/api/library/file') {
+        const filePath = u.searchParams.get('path');
+        if (!filePath) { sendJson(res, 400, { error: 'path required' }); return; }
+        const fsMod   = require('fs');
+        const pathMod = require('path');
+        const abs = pathMod.resolve(filePath);
+        if (!fsMod.existsSync(abs)) { sendJson(res, 404, { error: 'file not found' }); return; }
+        let content;
+        try { content = fsMod.readFileSync(abs, 'utf8'); }
+        catch (e) { sendJson(res, 500, { error: e.message }); return; }
+        const stat = fsMod.statSync(abs);
+        sendJson(res, 200, { path: abs, content, mtimeMs: stat.mtimeMs });
+        return;
+      }
+
+      // Re-index a single file. Called by the editor page after a Bridge
+      // save so the library catches up immediately (instead of waiting
+      // for the next manual scan). Pure read-then-index; never writes
+      // the file the path points at.
+      if (req.method === 'POST' && route === '/api/library/reindex') {
         const body = await readBody(req);
         const filePath = body && body.path;
         if (!filePath || typeof filePath !== 'string') {
@@ -166,13 +210,41 @@ function createServer({ port } = {}) {
           sendJson(res, 404, { error: 'file not found' });
           return;
         }
-        const add    = Array.isArray(body.add)    ? body.add    : [];
-        const remove = Array.isArray(body.remove) ? body.remove : [];
-        if (add.length)    libIndex.injectTagsIntoFile(resolved, add);
-        if (remove.length) libIndex.removeTagsFromFile(resolved, remove);
-        // Re-index so the library mirrors the new state immediately.
         const entry = libIndex.indexFile(resolved);
         sendJson(res, 200, { ok: true, tags: entry ? entry.tags : [] });
+        return;
+      }
+
+      // Start a Bridge for a path and hand the page back the address
+      // and one-time token. The agent process runs this Bridge in-tree
+      // (same node process), so there's no subprocess to babysit; the
+      // Bridge's own idle-timeout handles cleanup when the tab closes.
+      // The agent never writes user files itself - any write goes
+      // through the Bridge after the user's page connects to it.
+      if (req.method === 'POST' && route === '/api/library/bridge-for') {
+        const body = await readBody(req);
+        const filePath = body && body.path;
+        if (!filePath || typeof filePath !== 'string') {
+          sendJson(res, 400, { error: 'path required' });
+          return;
+        }
+        const pathMod = require('path');
+        const fsMod   = require('fs');
+        const resolved = pathMod.resolve(filePath);
+        if (!fsMod.existsSync(resolved)) {
+          sendJson(res, 404, { error: 'file not found' });
+          return;
+        }
+        try {
+          const bridge = await startBridge({ files: [resolved], mode: 'open' });
+          sendJson(res, 200, {
+            port:  bridge.port,
+            token: bridge.token,
+            file:  pathMod.basename(resolved),
+          });
+        } catch (e) {
+          sendJson(res, 500, { error: 'could not start bridge: ' + e.message });
+        }
         return;
       }
 
