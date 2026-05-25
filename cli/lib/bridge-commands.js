@@ -98,6 +98,23 @@ async function runBridge(opts, mode, label) {
   // channel (one JSON line per submit) in --keep-open mode.
   console.error(`${label} ${path.basename(opts.file)} in browser. Close the tab or press Ctrl-C to stop.`);
 
+  // Loud warning if the parent isn't going to notice the submit. The
+  // form's whole protocol assumes the spawning agent waits for this
+  // process to exit. If stdout isn't a TTY AND we're in feedback mode,
+  // the caller is probably an agent harness - flag the wrong shape
+  // (shell `&` fire-and-forget) before the user wastes time filling in
+  // a form whose answer no one's listening for.
+  if (mode === 'feedback' && !process.stdout.isTTY) {
+    console.error(
+      'sdoc feedback: stdout is not a TTY. If your agent harness uses\n' +
+      '  shell `&` to background this process, the parent will NOT be\n' +
+      '  notified when the user submits. Use your harness\'s\n' +
+      '  run-in-background primitive instead (e.g. Claude Code\'s Bash\n' +
+      '  `run_in_background: true` flag), or run foreground and capture\n' +
+      '  stdout directly. See `sdoc feedback` (no args) for details.'
+    );
+  }
+
   const result = await bridge.awaitTerminal();
   process.off('SIGINT',  onSignal);
   process.off('SIGTERM', onSignal);
@@ -106,6 +123,12 @@ async function runBridge(opts, mode, label) {
     console.error('sdoc: no browser connected within the connect timeout.');
   } else if (result.kind === 'cancel') {
     console.error('sdoc: cancelled (tab closed without clicking Done).');
+  } else if (result.kind === 'submit') {
+    // Belt-and-braces confirmation on stderr. The submit JSON already
+    // went to stdout (clean event channel); this line is for harnesses
+    // that merge stderr/stdout to a single log and need a human-
+    // readable "yes the submit happened, look in stdout" marker.
+    console.error('sdoc feedback: submission received - JSON line on stdout, exiting 0.');
   }
   process.exit(result.code || 0);
 }
