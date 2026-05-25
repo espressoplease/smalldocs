@@ -14,9 +14,45 @@ const path = require('path');
 
 const store      = require('./library-store');
 const libIndex   = require('./library-index');
+const libScan    = require('./library-scan');
 const autostart  = require('./library-autostart');
 const url        = require('./url');
 const { startBridge } = require('../bin/sdocs-bridge');
+
+// The two endpoints that work with a caller-supplied path - /file and
+// /bridge-for - go through this gate. Three checks, all independent:
+//
+//   1. realpath() the requested path so a symlink can't smuggle the
+//      target past the membership check.
+//   2. The deny-pattern list (SSH keys, .env, credentials.{json,...}
+//      and anything under .ssh/.aws/.gnupg/...).
+//   3. Library-membership: the real path must appear in the index.
+//      The index is what the user has explicitly opened with sdoc or
+//      placed under a scanned root; arbitrary paths outside that set
+//      are refused.
+//
+// Returns { ok: true, realPath } on pass, { ok: false, reason, status }
+// on refusal. Caller picks the HTTP status from `status`.
+function gatePath(filePath) {
+  const fsMod   = require('fs');
+  const pathMod = require('path');
+  if (!filePath || typeof filePath !== 'string') {
+    return { ok: false, status: 400, reason: 'path required' };
+  }
+  const resolved = pathMod.resolve(filePath);
+  if (!fsMod.existsSync(resolved)) {
+    return { ok: false, status: 404, reason: 'file not found' };
+  }
+  let real = resolved;
+  try { real = fsMod.realpathSync(resolved); } catch (_) {}
+  if (libScan.deniedByPattern(real) || libScan.deniedByPattern(resolved)) {
+    return { ok: false, status: 403, reason: 'path is on the deny list' };
+  }
+  if (!store.isIndexed(real)) {
+    return { ok: false, status: 403, reason: 'path is not in the library index' };
+  }
+  return { ok: true, realPath: real };
+}
 
 // Five-digit port in a relatively quiet range. The agent falls back to
 // a random free port if this one is occupied, and the CLI prints the
@@ -248,21 +284,18 @@ function createServer({ port } = {}) {
 
       // Serve the current contents of a local file. The editor page
       // uses this to refresh content after the URL-hash snapshot goes
-      // stale (e.g. after the user edited tags then reloaded). Local-
-      // only by transport (the agent binds 127.0.0.1) and only files
-      // already on disk are readable.
+      // stale (e.g. after the user edited tags then reloaded). Gated
+      // by gatePath() - only files already in the library index are
+      // readable, after realpath resolution and deny-pattern check.
       if (req.method === 'GET' && route === '/api/library/file') {
-        const filePath = u.searchParams.get('path');
-        if (!filePath) { sendJson(res, 400, { error: 'path required' }); return; }
-        const fsMod   = require('fs');
-        const pathMod = require('path');
-        const abs = pathMod.resolve(filePath);
-        if (!fsMod.existsSync(abs)) { sendJson(res, 404, { error: 'file not found' }); return; }
+        const g = gatePath(u.searchParams.get('path'));
+        if (!g.ok) { sendJson(res, g.status, { error: g.reason }); return; }
+        const fsMod = require('fs');
         let content;
-        try { content = fsMod.readFileSync(abs, 'utf8'); }
+        try { content = fsMod.readFileSync(g.realPath, 'utf8'); }
         catch (e) { sendJson(res, 500, { error: e.message }); return; }
-        const stat = fsMod.statSync(abs);
-        sendJson(res, 200, { path: abs, content, mtimeMs: stat.mtimeMs });
+        const stat = fsMod.statSync(g.realPath);
+        sendJson(res, 200, { path: g.realPath, content, mtimeMs: stat.mtimeMs });
         return;
       }
 
@@ -292,27 +325,19 @@ function createServer({ port } = {}) {
       // (same node process), so there's no subprocess to babysit; the
       // Bridge's own idle-timeout handles cleanup when the tab closes.
       // The agent never writes user files itself - any write goes
-      // through the Bridge after the user's page connects to it.
+      // through the Bridge after the user's page connects to it. Gated
+      // by gatePath() - only library-indexed files can be bridged.
       if (req.method === 'POST' && route === '/api/library/bridge-for') {
         const body = await readBody(req);
-        const filePath = body && body.path;
-        if (!filePath || typeof filePath !== 'string') {
-          sendJson(res, 400, { error: 'path required' });
-          return;
-        }
+        const g = gatePath(body && body.path);
+        if (!g.ok) { sendJson(res, g.status, { error: g.reason }); return; }
         const pathMod = require('path');
-        const fsMod   = require('fs');
-        const resolved = pathMod.resolve(filePath);
-        if (!fsMod.existsSync(resolved)) {
-          sendJson(res, 404, { error: 'file not found' });
-          return;
-        }
         try {
-          const bridge = await startBridge({ files: [resolved], mode: 'open' });
+          const bridge = await startBridge({ files: [g.realPath], mode: 'open' });
           sendJson(res, 200, {
             port:  bridge.port,
             token: bridge.token,
-            file:  pathMod.basename(resolved),
+            file:  pathMod.basename(g.realPath),
           });
         } catch (e) {
           sendJson(res, 500, { error: 'could not start bridge: ' + e.message });
