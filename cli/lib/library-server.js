@@ -24,22 +24,75 @@ const { startBridge } = require('../bin/sdocs-bridge');
 // gracefully rather than crashing.
 const DEFAULT_PORT = 47843;
 
-const CORS = {
-  'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Max-Age':       '86400',
-};
+// Browser origins the agent will accept cross-origin requests from.
+// The set is the SDocs site (production + future) plus the local dev
+// server. SDOCS_URL extends the list for users hosting the page on a
+// non-default origin (e.g. running the dev server on a different
+// port). SDOCS_AGENT_ALLOWED_ORIGINS is the explicit override.
+//
+// Loopback-anchored requests with no Origin header (curl, the CLI's
+// own callers, other local tools) are allowed - the agent's bind to
+// 127.0.0.1 is the same-machine boundary for those.
+function defaultAllowedOrigins() {
+  const set = new Set([
+    'https://sdocs.dev',
+    'https://smalldocs.org',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ]);
+  if (process.env.SDOCS_URL) {
+    try { set.add(new URL(process.env.SDOCS_URL).origin); } catch (_) {}
+  }
+  if (process.env.SDOCS_AGENT_ALLOWED_ORIGINS) {
+    process.env.SDOCS_AGENT_ALLOWED_ORIGINS.split(',')
+      .map(s => s.trim()).filter(Boolean).forEach(o => set.add(o));
+  }
+  return set;
+}
+
+function originAllowed(origin) {
+  if (!origin) return true; // no-Origin → non-browser caller, loopback-only
+  return defaultAllowedOrigins().has(origin);
+}
+
+// Host header must point at loopback. Same rule the Bridge applies, for
+// the same reason (DNS rebinding: an attacker DNS that resolves to
+// 127.0.0.1 from a script-running page can otherwise reach us via the
+// browser even when CORS is locked down).
+function hostOk(host) {
+  if (!host) return false;
+  const h = String(host).toLowerCase();
+  // Strip port for comparison.
+  const noPort = h.replace(/:\d+$/, '');
+  return noPort === '127.0.0.1' || noPort === 'localhost' || noPort === '[::1]';
+}
+
+function corsHeadersFor(origin) {
+  // No Origin → echo back nothing (the response is for a non-browser
+  // caller; CORS doesn't apply). Allowed Origin → echo it back. Disallowed
+  // origins never reach this function because we 403 before they do.
+  if (!origin) return {};
+  return {
+    'Access-Control-Allow-Origin':  origin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age':       '86400',
+    'Vary':                         'Origin',
+  };
+}
 
 function send(res, status, body, headers) {
+  // CORS for the request's origin is stashed on res by the request
+  // handler before any sendJson runs - keeps callsites unchanged.
   res.writeHead(status, Object.assign({
     'Cache-Control': 'no-store',
-  }, CORS, headers || {}));
+  }, corsHeadersFor(res._origin || null), headers || {}));
   res.end(body);
 }
 
 function sendJson(res, status, obj) {
-  send(res, status, JSON.stringify(obj), { 'Content-Type': 'application/json; charset=utf-8' });
+  send(res, status, JSON.stringify(obj),
+       { 'Content-Type': 'application/json; charset=utf-8' });
 }
 
 function readBody(req) {
@@ -81,7 +134,26 @@ function buildOpenUrl(entry) {
 
 function createServer({ port } = {}) {
   const server = http.createServer(async (req, res) => {
+    const origin = req.headers['origin'] || null;
+    // Stash so sendJson echoes the right Access-Control-Allow-Origin.
+    // Only set when the origin is allowed - disallowed/missing origins
+    // produce responses with no CORS headers, which is the desired
+    // browser-side rejection signal.
+    res._origin = (origin && originAllowed(origin)) ? origin : null;
     try {
+      // Gate every request, including preflight. Order matters: Host
+      // first (a missing/wrong Host means the request didn't reach us
+      // legitimately, including via DNS rebinding), then Origin
+      // (browser cross-origin rejection), then route.
+      if (!hostOk(req.headers['host'])) {
+        send(res, 403, 'bad host');
+        return;
+      }
+      if (origin && !originAllowed(origin)) {
+        send(res, 403, 'origin not allowed');
+        return;
+      }
+
       if (req.method === 'OPTIONS') {
         send(res, 204, '');
         return;
@@ -277,4 +349,8 @@ function createServer({ port } = {}) {
   });
 }
 
-module.exports = { createServer, DEFAULT_PORT };
+module.exports = {
+  createServer, DEFAULT_PORT,
+  // Exported for tests of the gate logic.
+  originAllowed, hostOk, defaultAllowedOrigins,
+};
