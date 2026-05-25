@@ -200,6 +200,37 @@ Every successful submit emits one JSON line to stdout, e.g.
 
 Startup chatter is on stderr, so stdout is a clean event channel.
 
+DO NOT fire-and-forget
+----------------------
+
+The submit JSON arrives WHEN the user clicks - which could be seconds
+or minutes after you spawn the command. The whole protocol depends on
+you (or your harness) noticing when the process exits.
+
+Wrong:
+
+  bash -c 'sdoc feedback file.md > log.json 2>&1 &'
+        ^^                                      ^^
+        starts                          shell backgrounding;
+        immediately                     parent NEVER notices exit
+
+That looks like it worked. The user fills out the form, clicks submit,
+the JSON lands in log.json, the process exits 0... and your agent
+never knows. You just sit there.
+
+Right (depends on your harness):
+
+  Claude Code     Bash tool with run_in_background: true
+                  (you get a notification when the process exits)
+  Codex           Codex's background-task primitive, same shape
+  Plain shell     Foreground: sdoc feedback file.md, then wait.
+                  Or:         sdoc feedback file.md & wait \$!
+                              (the wait \$! is what was missing)
+  Make / script   Run it foreground and capture stdout - no '&'
+
+The CLI prints a stderr warning when stdout is not a TTY at startup,
+so you get a hint if you set it up wrong.
+
 Two reading patterns:
 
   Single-shot   sdoc feedback file.md
