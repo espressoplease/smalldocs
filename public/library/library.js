@@ -10,7 +10,7 @@ const AGENT_URL = (() => {
   }
   // Default: try the canonical port. If it answers, we use it; if not,
   // the banner asks the user to run `sdoc library`.
-  return 'http://127.0.0.1:4778';
+  return 'http://127.0.0.1:47843';
 })();
 
 function api(p) { return AGENT_URL + p; }
