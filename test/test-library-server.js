@@ -74,15 +74,78 @@ module.exports = function (h) {
       assert.strictEqual(typeof r.body.autostart.enabled, 'boolean');
     });
 
-    await testAsync('library-agent: CORS Allow-Origin is set on data response', async () => {
+    await testAsync('library-agent: CORS Allow-Origin echoes the allowed origin', async () => {
       const r = await req('GET', '/api/library/data');
-      assert.strictEqual(r.headers['access-control-allow-origin'], '*');
+      // Request was made with Origin: https://sdocs.dev (allowed),
+      // so the response should echo that exact origin (not `*`).
+      assert.strictEqual(r.headers['access-control-allow-origin'], 'https://sdocs.dev');
     });
 
     await testAsync('library-agent: OPTIONS preflight returns 204 with CORS headers', async () => {
       const r = await req('OPTIONS', '/api/library/data');
       assert.strictEqual(r.status, 204);
       assert.ok(/POST/.test(r.headers['access-control-allow-methods'] || ''));
+    });
+
+    await testAsync('library-agent: rejects requests from disallowed Origin', async () => {
+      const r = await new Promise((resolve, reject) => {
+        const u = new URL(agentUrl + '/api/library/data');
+        require('http').request({
+          method: 'GET',
+          hostname: u.hostname, port: u.port, path: u.pathname,
+          headers: { 'Origin': 'https://evil.example.com' },
+        }, res => {
+          let raw = '';
+          res.on('data', d => raw += d);
+          res.on('end', () => resolve({ status: res.statusCode, body: raw, headers: res.headers }));
+        }).on('error', reject).end();
+      });
+      assert.strictEqual(r.status, 403);
+      // No CORS headers when refused, so the browser can't read the body either.
+      assert.strictEqual(r.headers['access-control-allow-origin'], undefined);
+    });
+
+    await testAsync('library-agent: allows no-Origin (CLI / curl) requests', async () => {
+      // Replicate a curl-style call: no Origin header.
+      const r = await new Promise((resolve, reject) => {
+        const u = new URL(agentUrl + '/api/library/data');
+        require('http').get({
+          hostname: u.hostname, port: u.port, path: u.pathname,
+        }, res => {
+          let raw = '';
+          res.on('data', d => raw += d);
+          res.on('end', () => resolve({ status: res.statusCode, body: raw }));
+        }).on('error', reject);
+      });
+      assert.strictEqual(r.status, 200);
+    });
+
+    await testAsync('library-agent: rejects bad Host header (DNS rebinding guard)', async () => {
+      const r = await new Promise((resolve, reject) => {
+        const u = new URL(agentUrl + '/api/library/data');
+        require('http').request({
+          method: 'GET',
+          hostname: u.hostname, port: u.port, path: u.pathname,
+          headers: { 'Host': 'evil.example.com', 'Origin': 'https://sdocs.dev' },
+        }, res => {
+          let raw = '';
+          res.on('data', d => raw += d);
+          res.on('end', () => resolve({ status: res.statusCode, body: raw }));
+        }).on('error', reject).end();
+      });
+      assert.strictEqual(r.status, 403);
+    });
+
+    await testAsync('library-agent: SDOCS_AGENT_ALLOWED_ORIGINS env var extends the allowlist', async () => {
+      const libServer = require('../cli/lib/library-server');
+      // Before: random origin not allowed.
+      assert.strictEqual(libServer.originAllowed('https://my-staging.example.com'), false);
+      process.env.SDOCS_AGENT_ALLOWED_ORIGINS = 'https://my-staging.example.com';
+      try {
+        assert.strictEqual(libServer.originAllowed('https://my-staging.example.com'), true);
+      } finally {
+        delete process.env.SDOCS_AGENT_ALLOWED_ORIGINS;
+      }
     });
 
     await testAsync('library-agent: GET /api/library/open returns a sdocs URL', async () => {
