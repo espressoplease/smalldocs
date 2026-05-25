@@ -263,6 +263,20 @@ The static check in `test/test-files.js` ("every HTML route in server.js goes th
 
 The two-server cache-bust check in `test/test-cache-bust.js` is the tripwire: it starts a server, captures `APP_VERSION` and the rewritten HTML, mutates `public/` (writes a non-dotfile so `walkPublic` picks it up), restarts the server, and asserts every `/public/` URL on `/`, `/feedback`, and `/trust` carries the new version. If you change anything about the rewriter, this test must still pass.
 
+## Using `sdoc feedback` from an agent
+
+`sdoc feedback file.md` opens a form in the browser, waits for the user to submit, prints one JSON line to stdout, exits. Read the full DSL reference by running `sdoc feedback` with no args.
+
+**The trap to avoid.** The submit lands whenever the user clicks - seconds to minutes after the process starts. The protocol depends on the spawning agent *noticing the exit*. Shell `&` fire-and-forget does NOT count: it returns immediately and the parent never gets a callback when the process actually exits. The submission JSON goes to a log file no one reads, the form looks broken even though it worked, the user is left waiting.
+
+Right shapes:
+
+- **Claude Code**: `Bash` tool with `run_in_background: true` (no `&` in the command). The harness pings on exit and the stdout JSON line lands as part of the task result.
+- **Other agents**: their equivalent background-task primitive, NOT shell `&`.
+- **Plain shell / Makefile**: run foreground, or `sdoc feedback ... & wait $!` so the parent stays attached.
+
+The CLI prints a stderr warning at startup when stdout is not a TTY in feedback mode - if you see "stdout is not a TTY" in the agent's stderr, you've probably picked the wrong shape.
+
 ## Pre-deploy check: service-worker refresh
 
 The service worker caches the app shell and serves stale copies for one page load after a deploy. On that load the SW posts `check-update`; when the server's `APP_VERSION` differs it purges the cache, re-fetches, and posts `sdocs-reload` to force the client onto the new code.
