@@ -103,6 +103,41 @@ function resolveAllowedPath(p) {
   return path.join(fs.realpathSync(dir), path.basename(abs));
 }
 
+// Open the allowlisted file read-only and capture (dev, ino) so we can
+// confirm it's still the same file at every write. O_NOFOLLOW where
+// supported so a symlink replacement at the resolved path can't grab a
+// handle to whatever the symlink points at. The fd is held purely as an
+// identity anchor; writes still go through the tmp+rename path.
+function openIdentity(filepath) {
+  let flags = fs.constants.O_RDONLY;
+  if (typeof fs.constants.O_NOFOLLOW === 'number') flags |= fs.constants.O_NOFOLLOW;
+  let fd;
+  try { fd = fs.openSync(filepath, flags); }
+  catch (_) { return null; }
+  let stat;
+  try { stat = fs.fstatSync(fd); }
+  catch (_) {
+    try { fs.closeSync(fd); } catch (_) {}
+    return null;
+  }
+  return { fd: fd, dev: stat.dev, ino: stat.ino };
+}
+
+function closeIdentity(id) {
+  if (!id) return;
+  try { fs.closeSync(id.fd); } catch (_) {}
+}
+
+// Stat the resolved path and compare (dev, ino) to a captured identity.
+// True only when the file on disk is the exact inode we opened.
+function sameIdentity(resolvedPath, id) {
+  if (!id) return false;
+  let st;
+  try { st = fs.lstatSync(resolvedPath); }
+  catch (_) { return false; }
+  return st.dev === id.dev && st.ino === id.ino;
+}
+
 // Atomic write inside the same directory, then rename. The temp filename is
 // hidden (dot-prefixed) so editors that scan the directory don't pick it up.
 function atomicWrite(target, content) {
@@ -378,9 +413,15 @@ function startBridge(opts) {
   const filepath = allowlist[0];
 
   const state = { content: Buffer.alloc(0), hash: null };
+  // Identity anchor: (dev, ino) of the file we were authorized to touch.
+  // Mutated when the watcher detects a legitimate external save or after
+  // our own atomic rename (rename always changes the inode by design).
+  // Null until the file first exists on disk (compose mode).
+  let identity = null;
   if (fs.existsSync(filepath)) {
     state.content = fs.readFileSync(filepath);
     state.hash    = hashContent(state.content);
+    identity      = openIdentity(filepath);
   }
 
   // Subscribers — the CLI listens to onSubmit/onClose/onConnect to decide
@@ -417,6 +458,8 @@ function startBridge(opts) {
     terminal = t;
     clearAllTimers();
     if (watchStop) { try { watchStop(); } catch (_) {} watchStop = null; }
+    closeIdentity(identity);
+    identity = null;
     if (socket && !socket.destroyed) {
       wsSendClose(socket, 1000, '');
       try { socket.destroy(); } catch (_) {}
@@ -453,6 +496,12 @@ function startBridge(opts) {
         wsSendJson(socket, { type: 'error', code: 'EPATH', message: 'path now resolves outside the allowlist', id: msg.id });
         return;
       }
+      // Identity gate: realpath catches symlink swaps; this catches the
+      // in-place inode swap (unlink + recreate at the same path).
+      if (identity && !sameIdentity(filepath, identity)) {
+        wsSendJson(socket, { type: 'error', code: 'EPATH', message: 'file identity changed since session start', id: msg.id });
+        return;
+      }
       try {
         state.hash = hashContent(buf);   // set before rename: the watcher will
         state.content = buf;             // see our own write and suppress it
@@ -461,6 +510,10 @@ function startBridge(opts) {
         wsSendJson(socket, { type: 'error', code: e.code || 'EWRITE', message: e.message, id: msg.id });
         return;
       }
+      // Atomic rename always changes the inode. Recapture so the next write
+      // compares against fresh identity, not the orphaned one.
+      closeIdentity(identity);
+      identity = openIdentity(filepath);
       if (msg.id) wsSendJson(socket, { type: 'ack', for: msg.id });
 
       if (msg.type === 'submit') {
@@ -586,6 +639,10 @@ function startBridge(opts) {
       return wsSendJson(socket, { type: 'error', code: 'EFORM_REPARSE', message: 'spliced form failed to re-parse' });
     }
 
+    // Identity gate before writing (same as the write/submit handler).
+    if (identity && !sameIdentity(filepath, identity)) {
+      return wsSendJson(socket, { type: 'error', code: 'EPATH', message: 'file identity changed since session start' });
+    }
     // Atomic write. The watcher will see the change, hash will match
     // what we just wrote, no echo.
     const buf = Buffer.from(newDoc, 'utf-8');
@@ -596,6 +653,8 @@ function startBridge(opts) {
     } catch (e) {
       return wsSendJson(socket, { type: 'error', code: e.code || 'EWRITE', message: e.message });
     }
+    closeIdentity(identity);
+    identity = openIdentity(filepath);
 
     wsSendJson(socket, {
       type: 'form-submitted',
@@ -801,17 +860,28 @@ function startBridge(opts) {
       const addr = server.address();
       // Start watching now — the agent or another editor may write before the
       // browser connects, and we want the hello message to carry fresh content.
-      watchStop = startWatch(filepath, () => state.hash, (change) => {
-        if (change.deleted) {
+      // opts.watch === false skips the watcher entirely. Test escape hatch
+      // so tests can exercise the identity gate without racing the debounce.
+      if (opts.watch !== false) {
+        watchStop = startWatch(filepath, () => state.hash, (change) => {
+          if (change.deleted) {
+            if (socket) pushExternal(change);
+            state.content = Buffer.alloc(0);
+            state.hash = hashContent(state.content);
+            closeIdentity(identity);
+            identity = null;
+            return;
+          }
+          state.content = change.content;
+          state.hash    = change.hash;
+          // External editors (vim's backupcopy, JetBrains, etc.) commonly
+          // change the inode on save. Recapture so the user's next write
+          // doesn't trip the identity gate on a legitimate edit.
+          closeIdentity(identity);
+          identity = openIdentity(filepath);
           if (socket) pushExternal(change);
-          state.content = Buffer.alloc(0);
-          state.hash = hashContent(state.content);
-          return;
-        }
-        state.content = change.content;
-        state.hash    = change.hash;
-        if (socket) pushExternal(change);
-      });
+        });
+      }
 
       if (noConnMs > 0) {
         noConnectTimer = setTimeout(() => {
