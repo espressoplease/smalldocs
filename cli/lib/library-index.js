@@ -207,10 +207,14 @@ function rebuild() {
 // path, typically). For the file-info-card autocomplete.
 function tagsUnderPrefix(prefix) {
   const root = path.resolve(prefix);
+  // Special case: the filesystem root ('/' on posix, 'C:\' on win) is
+  // already its own separator, so `root + path.sep` becomes '//' which
+  // matches nothing. Treat it as "everything".
+  const rootIsFsRoot = root === path.sep || /^[A-Za-z]:[\\/]$/.test(root);
   const counts = {};
   for (const e of store.loadIndex().entries) {
     const p = e.rescued && e.rescuedFrom ? e.rescuedFrom : e.path;
-    if (p === root || p.startsWith(root + path.sep)) {
+    if (rootIsFsRoot || p === root || p.startsWith(root + path.sep)) {
       for (const t of e.tags || []) counts[t] = (counts[t] || 0) + 1;
     }
   }

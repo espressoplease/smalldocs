@@ -223,7 +223,7 @@ test('library UI: double-click opens the entry in a new tab', async ({ page, con
   ]);
   await newPage.waitForLoadState('domcontentloaded');
   const url = newPage.url();
-  expect(url).toMatch(/#md=/);
+  expect(url).toMatch(/#bridge=/);
 });
 
 test('library UI: click already-selected row opens it', async ({ page, context }) => {
@@ -236,7 +236,7 @@ test('library UI: click already-selected row opens it', async ({ page, context }
     row.click(), // second click opens
   ]);
   await newPage.waitForLoadState('domcontentloaded');
-  expect(newPage.url()).toMatch(/#md=/);
+  expect(newPage.url()).toMatch(/#bridge=/);
 });
 
 test('library UI: Enter key on selected row opens it', async ({ page, context }) => {
@@ -250,7 +250,7 @@ test('library UI: Enter key on selected row opens it', async ({ page, context })
     page.press('#q', 'Enter'),
   ]);
   await newPage.waitForLoadState('domcontentloaded');
-  expect(newPage.url()).toMatch(/#md=/);
+  expect(newPage.url()).toMatch(/#bridge=/);
 });
 
 test('library UI: status line shows entry count', async ({ page }) => {

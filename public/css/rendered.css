@@ -612,8 +612,10 @@ foreignObject span { line-height: normal; }
 #_sd_sdocs-file-info .fic-copy:hover {
   color: var(--md-p-color);
 }
-/* Tags row: chips inline; remove (×) and add (+) controls only when
-   the file is on disk and the local library agent is reachable. */
+/* Tags row: chips in the value column, + button in the right-hand icon
+   slot like the copy buttons on other rows. When the file is on disk
+   and the library agent is reachable, chips show a × control and the
+   + opens an inline composer with suggestions from this project. */
 #_sd_sdocs-file-info .fic-row-tags {
   cursor: default;
   align-items: flex-start;
@@ -628,8 +630,8 @@ foreignObject span { line-height: normal; }
 #_sd_sdocs-file-info .fic-tag-chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 7px;
+  gap: 4px;
+  padding: 2px 4px 2px 8px;
   background: var(--md-pre-bg, rgba(0,0,0,0.04));
   border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.08));
   border-radius: 999px;
@@ -650,48 +652,180 @@ foreignObject span { line-height: normal; }
   border-radius: 999px;
   color: var(--fic-muted);
   cursor: pointer;
-  opacity: 0;
+  /* Always visible (subtle), pops on hover. The user asked for this so
+     the right edge of each chip doesn't leave a blank gap. */
+  opacity: .45;
   transition: opacity .12s, color .12s, background .12s;
 }
-#_sd_sdocs-file-info .fic-tag-chip:hover .fic-tag-x { opacity: .7; }
+#_sd_sdocs-file-info .fic-tag-chip:hover .fic-tag-x { opacity: .8; }
 #_sd_sdocs-file-info .fic-tag-x:hover {
   opacity: 1; color: var(--md-p-color);
-  background: var(--md-copy-btn-hover, rgba(0,0,0,0.06));
+  background: var(--md-copy-btn-hover, rgba(0,0,0,0.08));
 }
+/* + button: sits in the icon slot on the right of the row, same look
+   as the copy buttons. */
 #_sd_sdocs-file-info .fic-tag-add {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--fic-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  background: none;
-  border: 1px dashed var(--md-copy-btn-border, rgba(0,0,0,0.15));
-  border-radius: 999px;
-  color: var(--fic-muted);
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  transition: color .12s, border-color .12s, background .12s;
+  border-radius: 4px;
+  transition: color .12s, background .12s;
 }
 #_sd_sdocs-file-info .fic-tag-add:hover {
   color: var(--md-p-color);
-  border-color: var(--md-copy-btn-border);
-  background: var(--md-copy-btn-hover, rgba(0,0,0,0.04));
+  background: var(--md-copy-btn-hover, rgba(0,0,0,0.06));
 }
-#_sd_sdocs-file-info .fic-tag-input {
-  border: 1px solid var(--md-copy-btn-border);
+#_sd_sdocs-file-info .fic-row-tags-composing .fic-tag-add {
+  visibility: hidden; /* keep its slot so the row width stays steady */
+}
+/* Faint hint shown in the read-only Tags row when the file is on disk
+   but no Bridge is alive - tells the user how to enable editing. */
+#_sd_sdocs-file-info .fic-tag-hint {
+  font-size: 10.5px;
+  color: var(--fic-muted);
+  font-style: italic;
+  margin-left: 4px;
+}
+#_sd_sdocs-file-info .fic-tag-hint code {
   background: var(--md-pre-bg, rgba(0,0,0,0.04));
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: var(--md-code-font);
+  font-size: 10.5px;
+  font-style: normal;
+}
+
+/* Inline composer: a single pill-shaped container that mirrors a chip's
+   look (same height, same background, same border-radius). Inside sit
+   the `#` prefix, the input (borderless, transparent, grows with the
+   typed text via the HTML `size` attribute), and the tick/cancel
+   icons. Modelled on the comment composer's pill. */
+#_sd_sdocs-file-info .fic-tag-composer {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 4px 0 8px;
+  background: var(--md-pre-bg, rgba(0,0,0,0.04));
+  border: 1px solid var(--accent, #2563EB);
   border-radius: 999px;
-  padding: 2px 9px;
   font-family: var(--md-code-font);
   font-size: 11.5px;
+  line-height: 1.4;
+  /* Match the chip's vertical rhythm: chip padding is 2px top/bottom +
+     1.4 line-height + 1px border = ~22px. Set min-height so even with
+     empty input the pill doesn't shrink below a chip. */
+  min-height: 22px;
+}
+#_sd_sdocs-file-info .fic-tag-composer-hash {
+  color: var(--text-3, var(--fic-muted));
+  user-select: none;
+}
+#_sd_sdocs-file-info .fic-tag-input {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
   color: var(--md-code-color);
   outline: none;
-  min-width: 100px;
+  min-width: 0;
+  /* Width is set in JS to match the ruler's offsetWidth. */
 }
-#_sd_sdocs-file-info .fic-tag-input:focus {
-  border-color: var(--accent, #2563EB);
+/* Off-screen but laid out in the same font as the input so its
+   offsetWidth is the exact rendered pixel width of the text. */
+#_sd_sdocs-file-info .fic-tag-input-ruler {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  padding: 0;
+}
+#_sd_sdocs-file-info .fic-tag-input::placeholder {
+  color: var(--text-3, var(--fic-muted));
+  opacity: .7;
+}
+#_sd_sdocs-file-info .fic-tag-save,
+#_sd_sdocs-file-info .fic-tag-cancel {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--fic-muted);
+  border-radius: 999px;
+  transition: color .12s, background .12s;
+}
+/* Same SVG size as the chip × so the icons read as the same weight. */
+#_sd_sdocs-file-info .fic-tag-save svg,
+#_sd_sdocs-file-info .fic-tag-cancel svg {
+  width: 10px;
+  height: 10px;
+}
+#_sd_sdocs-file-info .fic-tag-save:hover {
+  color: #2E7D32; /* same green as the recovery banner's tick */
+  background: rgba(0,0,0,0.06);
+}
+#_sd_sdocs-file-info .fic-tag-cancel:hover {
+  color: var(--md-p-color);
+  background: rgba(0,0,0,0.06);
+}
+
+/* Suggested tags from the same project, shown beneath the composer. A
+   ghost chip with a dashed outline, clicked to apply. Container is
+   only inserted when there are items to show, so an :empty fallback
+   isn't strictly needed - but keep it cheap in case that contract
+   slips later. */
+#_sd_sdocs-file-info .fic-tag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  width: 100%;
+  margin-top: 6px;
+}
+#_sd_sdocs-file-info .fic-tag-suggestions:empty {
+  display: none;
+  margin-top: 0;
+}
+#_sd_sdocs-file-info .fic-tag-suggestions-label {
+  font-size: 10.5px;
+  color: var(--text-3, var(--fic-muted));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  margin-right: 4px;
+}
+#_sd_sdocs-file-info .fic-tag-ghost {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px dashed var(--md-copy-btn-border, rgba(0,0,0,0.18));
+  border-radius: 999px;
+  font-family: var(--md-code-font);
+  font-size: 11.5px;
+  color: var(--fic-muted);
+  cursor: pointer;
+  line-height: 1.4;
+  transition: color .12s, border-color .12s, background .12s;
+}
+#_sd_sdocs-file-info .fic-tag-ghost:hover {
+  color: var(--md-code-color, var(--md-p-color));
+  border-color: var(--md-copy-btn-border);
+  background: var(--md-copy-btn-hover, rgba(0,0,0,0.04));
 }
 
 /* Edits row: same layout as data rows (label, value, pill, RHS icon).
