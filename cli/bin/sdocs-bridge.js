@@ -38,9 +38,8 @@ const NO_CONNECT_TIMEOUT_MS = 30000;    // exit if the browser never connects
 const IDLE_TIMEOUT_MS       = 0;        // 0 = off. Background-throttled tabs
                                         // otherwise stall pings and trip this.
 const MAX_MESSAGE_BYTES     = 20 * 1024 * 1024;
-const DEFAULT_ALLOWED_ORIGINS = [
-  'https://sdocs.dev',
-];
+const ALLOWED_ROOT = 'smalldocs.org';
+const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost'];
 
 // ── Helpers ───────────────────────────────────────────────
 
@@ -48,11 +47,29 @@ function hashContent(buf) {
   return crypto.createHash('sha256').update(buf).digest('hex');
 }
 
+// Origin pin: parse the header as a URL and compare structured fields. A
+// string-suffix check would let through smalldocs.org.attacker.com; the
+// hostname-equality + leading-dot subdomain check below does not.
 function isAllowedOrigin(origin, extra) {
   if (!origin) return false;
-  if (DEFAULT_ALLOWED_ORIGINS.indexOf(origin) >= 0) return true;
-  // Dev / tests: pages served from loopback talk to a loopback bridge.
-  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+  let u;
+  try { u = new URL(origin); } catch (_) { return false; }
+  // Origin headers carry no path / search / hash. Reject anything weird that
+  // still parses (some browsers will tolerate junk).
+  if (u.pathname && u.pathname !== '/') return false;
+  if (u.search || u.hash) return false;
+  const host = u.hostname.toLowerCase();
+  // Production: HTTPS only, exact root or any subdomain. The leading dot in
+  // the suffix is what closes smalldocs.org.attacker.com style footguns.
+  if (u.protocol === 'https:') {
+    if (host === ALLOWED_ROOT) return true;
+    if (host.endsWith('.' + ALLOWED_ROOT)) return true;
+  }
+  // Loopback (dev + tests): page on localhost talks to a loopback bridge.
+  if ((u.protocol === 'http:' || u.protocol === 'https:') && LOOPBACK_HOSTS.indexOf(host) >= 0) {
+    return true;
+  }
+  // CLI escape hatch: exact-string allowlist passed via `--allowed-origin`.
   if (extra && extra.indexOf(origin) >= 0) return true;
   return false;
 }
