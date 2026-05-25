@@ -25,7 +25,7 @@ const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
 function clientHandshake(port, token, opts) {
   opts = opts || {};
-  const origin = opts.origin || 'https://sdocs.dev';
+  const origin = opts.origin || 'https://smalldocs.org';
   return new Promise((resolve, reject) => {
     const key = crypto.randomBytes(16).toString('base64');
     const sock = net.createConnection({ host: '127.0.0.1', port }, () => {
@@ -128,10 +128,28 @@ module.exports = function (harness) {
 
   // 1. Pure functions.
 
-  test('isAllowedOrigin: sdocs.dev and loopback are accepted', () => {
-    assert.strictEqual(bridge.isAllowedOrigin('https://sdocs.dev'), true);
+  test('isAllowedOrigin: smalldocs.org, subdomains, loopback accepted; footguns rejected', () => {
+    // Production root + subdomains.
+    assert.strictEqual(bridge.isAllowedOrigin('https://smalldocs.org'), true);
+    assert.strictEqual(bridge.isAllowedOrigin('https://app.smalldocs.org'), true);
+    assert.strictEqual(bridge.isAllowedOrigin('https://blog.staging.smalldocs.org'), true);
+    // Loopback for dev + Playwright.
     assert.strictEqual(bridge.isAllowedOrigin('http://localhost:3000'), true);
     assert.strictEqual(bridge.isAllowedOrigin('http://127.0.0.1:8080'), true);
+    assert.strictEqual(bridge.isAllowedOrigin('https://localhost'), true);
+    // The pre-rename origin must no longer be accepted.
+    assert.strictEqual(bridge.isAllowedOrigin('https://sdocs.dev'), false);
+    // Suffix footguns: leading-dot subdomain check closes these.
+    assert.strictEqual(bridge.isAllowedOrigin('https://smalldocs.org.attacker.com'), false);
+    assert.strictEqual(bridge.isAllowedOrigin('https://smalldocs-org.attacker.com'), false);
+    assert.strictEqual(bridge.isAllowedOrigin('https://notsmalldocs.org'), false);
+    assert.strictEqual(bridge.isAllowedOrigin('https://evilsmalldocs.org'), false);
+    // Protocol and shape rejects.
+    assert.strictEqual(bridge.isAllowedOrigin('http://smalldocs.org'), false);
+    assert.strictEqual(bridge.isAllowedOrigin('https://smalldocs.org/evil'), false);
+    assert.strictEqual(bridge.isAllowedOrigin('https://smalldocs.org?x=1'), false);
+    assert.strictEqual(bridge.isAllowedOrigin('https://smalldocs.org#frag'), false);
+    assert.strictEqual(bridge.isAllowedOrigin('not a url'), false);
     assert.strictEqual(bridge.isAllowedOrigin('https://evil.example'), false);
     assert.strictEqual(bridge.isAllowedOrigin(''), false);
     assert.strictEqual(bridge.isAllowedOrigin(undefined), false);
