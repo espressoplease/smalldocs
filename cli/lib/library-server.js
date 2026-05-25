@@ -146,6 +146,32 @@ function createServer({ port } = {}) {
         return;
       }
 
+      // Mutate the tag list on a file. Used by the file info card in the
+      // editor so users can add or remove tags without dropping into a
+      // terminal. The file must exist on disk; short-link / hash-URL
+      // documents have no path to write to, so the editor sends nothing.
+      if (req.method === 'POST' && route === '/api/library/tags') {
+        const body = await readBody(req);
+        const filePath = body && body.path;
+        if (!filePath || typeof filePath !== 'string') {
+          sendJson(res, 400, { error: 'path required' });
+          return;
+        }
+        const resolved = require('path').resolve(filePath);
+        if (!require('fs').existsSync(resolved)) {
+          sendJson(res, 404, { error: 'file not found' });
+          return;
+        }
+        const add    = Array.isArray(body.add)    ? body.add    : [];
+        const remove = Array.isArray(body.remove) ? body.remove : [];
+        if (add.length)    libIndex.injectTagsIntoFile(resolved, add);
+        if (remove.length) libIndex.removeTagsFromFile(resolved, remove);
+        // Re-index so the library mirrors the new state immediately.
+        const entry = libIndex.indexFile(resolved);
+        sendJson(res, 200, { ok: true, tags: entry ? entry.tags : [] });
+        return;
+      }
+
       sendJson(res, 404, { error: 'not found' });
     } catch (e) {
       sendJson(res, 500, { error: e.message });
