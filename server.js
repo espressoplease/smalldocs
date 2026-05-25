@@ -480,7 +480,9 @@ const server = http.createServer((req, res) => {
       // Bridge process the `sdoc edit|watch|compose --wait` CLI spawns. The
       // Bridge binds to loopback only and gates the upgrade on a per-session
       // token, so the policy still excludes arbitrary internal IPs.
-      "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com ws://127.0.0.1:* ws://localhost:*",
+      // http://127.0.0.1:* and http://localhost:* are the equivalent for
+      // the local library agent (`sdoc library`) - same trust boundary.
+      "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*",
       "frame-src 'none'",
       "object-src 'none'",
     ].join('; ');
