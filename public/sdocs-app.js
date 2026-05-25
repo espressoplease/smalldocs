@@ -29,6 +29,74 @@ var S = SDocs;
 var LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+var CLOSE_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+// Ping the local library agent and remember reachability. The editor
+// page uses this to decide whether the Tags row should be editable. Same
+// canonical port (4778) as the library page. Re-pings on demand.
+function pingLibraryAgent() {
+  var url = 'http://127.0.0.1:4778/api/library/health';
+  // 700ms timeout so a missing agent doesn't slow the first render.
+  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var to = ctrl ? setTimeout(function(){ ctrl.abort(); }, 700) : null;
+  return fetch(url, ctrl ? { signal: ctrl.signal } : {})
+    .then(function(r) { if (to) clearTimeout(to); S.libraryAgent = { reachable: r.ok }; })
+    .catch(function() { if (to) clearTimeout(to); S.libraryAgent = { reachable: false }; });
+}
+
+// POST to the library agent's tag mutation endpoint. Returns the new
+// tag list on success or throws.
+function libraryMutateTags(filePath, add, remove) {
+  return fetch('http://127.0.0.1:4778/api/library/tags', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: filePath, add: add || [], remove: remove || [] }),
+  }).then(function(r) {
+    if (!r.ok) throw new Error('agent ' + r.status);
+    return r.json();
+  });
+}
+
+// Wire the + button and × buttons in a freshly-rendered Tags row.
+function attachTagRowHandlers(row, filePath) {
+  var input = row.querySelector('.fic-tag-input');
+  var addBtn = row.querySelector('.fic-tag-add');
+  function commit(tag) {
+    tag = (tag || '').trim().replace(/^[#+]/, '').toLowerCase();
+    if (!tag || !/^[a-z][\w-]{0,63}$/.test(tag)) return;
+    libraryMutateTags(filePath, [tag], []).then(function(r) {
+      if (!S.currentMeta) S.currentMeta = {};
+      S.currentMeta.tags = r.tags || [];
+      renderFileInfoCard();
+    }).catch(function(){});
+  }
+  if (addBtn && input) {
+    addBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      input.hidden = false;
+      input.focus();
+    });
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); commit(input.value); input.value = ''; input.hidden = true; }
+      else if (e.key === 'Escape') { input.value = ''; input.hidden = true; }
+    });
+    input.addEventListener('blur', function() {
+      if (input.value.trim()) commit(input.value);
+      input.value = ''; input.hidden = true;
+    });
+  }
+  row.querySelectorAll('.fic-tag-x').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var t = btn.getAttribute('data-tag');
+      libraryMutateTags(filePath, [], [t]).then(function(r) {
+        if (!S.currentMeta) S.currentMeta = {};
+        S.currentMeta.tags = r.tags || [];
+        renderFileInfoCard();
+      }).catch(function(){});
+    });
+  });
+}
 var CHEVRON_SVG = '<span class="section-toggle"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 var COPY_FEEDBACK_MS = 1500;
 
@@ -434,6 +502,22 @@ function renderFileInfoCard() {
   if (local.path)     slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, true, false) });
   if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, true, false) });
 
+  // Tags row: front-matter tags + body hashtags, merged and deduped.
+  // Editable when the file lives on disk (local.fullPath) and the local
+  // library agent answers - then we add/remove tags via the agent and
+  // it writes the file. Otherwise the row is read-only chips.
+  var fmTags   = Array.isArray(meta.tags) ? meta.tags.map(String) : [];
+  var bodyTags = (window.SDocLibraryTags && window.SDocLibraryTags.extractBodyHashtags)
+    ? window.SDocLibraryTags.extractBodyHashtags(S.currentBody || '') : [];
+  var tagList = (window.SDocLibraryTags && window.SDocLibraryTags.mergeTags)
+    ? window.SDocLibraryTags.mergeTags(fmTags, bodyTags)
+    : fmTags.concat(bodyTags);
+  var agentReachable = !!(S.libraryAgent && S.libraryAgent.reachable);
+  var canEditTags = !!(local.fullPath && agentReachable);
+  if (tagList.length || canEditTags) {
+    slots.push({ type: 'tags', tags: tagList, canEdit: canEditTags, filePath: local.fullPath });
+  }
+
   // Agent request: shown when the bridge greeted us with a message and the
   // session can submit (feedback mode). Sits ABOVE Edits — it's the thing the
   // user is here to respond to, so it should land first when scanning the
@@ -485,6 +569,23 @@ function renderFileInfoCard() {
         if (S.bridge && typeof S.bridge.submit === 'function') S.bridge.submit();
       });
       rowsEl.appendChild(rqRow);
+    } else if (slot.type === 'tags') {
+      var tagRow = document.createElement('div');
+      tagRow.className = 'fic-row fic-row-tags' + (slot.canEdit ? ' fic-row-tags-edit' : '');
+      var chipsHtml = slot.tags.map(function(t) {
+        return '<span class="fic-tag-chip">#' + escapeHtml(t)
+          + (slot.canEdit ? '<button class="fic-tag-x" type="button" data-tag="' + escapeHtml(t) + '" aria-label="Remove tag">' + CLOSE_SVG + '</button>' : '')
+          + '</span>';
+      }).join('');
+      var addCtl = slot.canEdit
+        ? '<button class="fic-tag-add" type="button" aria-label="Add tag" title="Add tag">+</button>'
+          + '<input class="fic-tag-input" type="text" placeholder="add tag" autocomplete="off" hidden>'
+        : '';
+      tagRow.innerHTML = ''
+        + '<span class="fic-label">Tags</span>'
+        + '<span class="fic-value fic-tag-chips">' + chipsHtml + addCtl + '</span>';
+      if (slot.canEdit) attachTagRowHandlers(tagRow, slot.filePath);
+      rowsEl.appendChild(tagRow);
     } else if (slot.type === 'intro') {
       var introRow = document.createElement('div');
       introRow.className = 'fic-row fic-row-short-intro';
@@ -558,6 +659,10 @@ document.addEventListener('DOMContentLoaded', function() {
       copyWithIconFeedback(S.currentBody || '', copyFile);
     });
   }
+  // Discover the local library agent once. Re-render the file info card
+  // when it answers so the Tags row can show edit controls if it's
+  // reachable.
+  pingLibraryAgent().then(function() { renderFileInfoCard(); });
 });
 
 // ── Status ──────────────────────────────────

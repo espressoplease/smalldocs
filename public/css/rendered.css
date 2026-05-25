@@ -612,6 +612,88 @@ foreignObject span { line-height: normal; }
 #_sd_sdocs-file-info .fic-copy:hover {
   color: var(--md-p-color);
 }
+/* Tags row: chips inline; remove (×) and add (+) controls only when
+   the file is on disk and the local library agent is reachable. */
+#_sd_sdocs-file-info .fic-row-tags {
+  cursor: default;
+  align-items: flex-start;
+}
+#_sd_sdocs-file-info .fic-row-tags .fic-value {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  font-family: inherit;
+}
+#_sd_sdocs-file-info .fic-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  background: var(--md-pre-bg, rgba(0,0,0,0.04));
+  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.08));
+  border-radius: 999px;
+  font-family: var(--md-code-font);
+  font-size: 11.5px;
+  color: var(--md-code-color, var(--md-p-color));
+  line-height: 1.4;
+}
+#_sd_sdocs-file-info .fic-tag-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  color: var(--fic-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s, color .12s, background .12s;
+}
+#_sd_sdocs-file-info .fic-tag-chip:hover .fic-tag-x { opacity: .7; }
+#_sd_sdocs-file-info .fic-tag-x:hover {
+  opacity: 1; color: var(--md-p-color);
+  background: var(--md-copy-btn-hover, rgba(0,0,0,0.06));
+}
+#_sd_sdocs-file-info .fic-tag-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: 1px dashed var(--md-copy-btn-border, rgba(0,0,0,0.15));
+  border-radius: 999px;
+  color: var(--fic-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: color .12s, border-color .12s, background .12s;
+}
+#_sd_sdocs-file-info .fic-tag-add:hover {
+  color: var(--md-p-color);
+  border-color: var(--md-copy-btn-border);
+  background: var(--md-copy-btn-hover, rgba(0,0,0,0.04));
+}
+#_sd_sdocs-file-info .fic-tag-input {
+  border: 1px solid var(--md-copy-btn-border);
+  background: var(--md-pre-bg, rgba(0,0,0,0.04));
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-family: var(--md-code-font);
+  font-size: 11.5px;
+  color: var(--md-code-color);
+  outline: none;
+  min-width: 100px;
+}
+#_sd_sdocs-file-info .fic-tag-input:focus {
+  border-color: var(--accent, #2563EB);
+}
+
 /* Edits row: same layout as data rows (label, value, pill, RHS icon).
    Default icon colour matches the existing copy-button colour so the
    row reads as ambient state, not an alert. Only the lost state goes
