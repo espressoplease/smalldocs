@@ -34,11 +34,11 @@ test.beforeAll(async () => {
     if (k.includes('library-') || k.includes('sdocs-library-')) delete require.cache[k];
   }
   // The agent runs on port 0 here for isolation, but the editor page
-  // pings the canonical port (4778). For the editable tests we run the
-  // agent on 4778; the read-only test uses a URL the page hits but no
+  // pings the canonical port (47843). For the editable tests we run the
+  // agent on 47843; the read-only test uses a URL the page hits but no
   // running agent, which falls back to read-only.
   const libServer = require('../cli/lib/library-server');
-  const r = await libServer.createServer({ port: 4778 });
+  const r = await libServer.createServer({ port: 47843 });
   agentServer = r.server;
   agentUrl = r.agentUrl;
 });

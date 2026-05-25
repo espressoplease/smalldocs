@@ -17,7 +17,11 @@ const libIndex   = require('./library-index');
 const autostart  = require('./library-autostart');
 const url        = require('./url');
 
-const DEFAULT_PORT = 4778;
+// Five-digit port in a relatively quiet range. The agent falls back to
+// a random free port if this one is occupied, and the CLI prints the
+// agent URL on launch either way - so a rare collision degrades
+// gracefully rather than crashing.
+const DEFAULT_PORT = 47843;
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
