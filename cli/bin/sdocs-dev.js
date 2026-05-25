@@ -32,6 +32,7 @@ const io          = require('../lib/io');
 const helpText    = require('../lib/help-text');
 const commands    = require('../lib/commands');
 const bridgeCommands = require('../lib/bridge-commands');
+const libraryCommands = require('../lib/library-commands');
 
 // ── Router ────────────────────────────────────────────────
 // One place that knows the full set of verbs. New chunks register here.
@@ -78,7 +79,17 @@ function buildRouter() {
   // flow. The default handler starts a Bridge when given a real file path,
   // and falls back to URL-encoded snapshot for stdin / no-file.
   r.register('share',    { handler: (opts) => commands.shareCommand(opts) });
-  r.register(null,       { handler: (opts) => commands.openCommand(opts) });
+
+  // `sdoc library [enable|disable|status|rebuild]`. No sub-arg opens
+  // the library UI.
+  r.register('library',  { handler: async (opts) => { await libraryCommands.libraryCommand(opts); /* libraryOpen blocks */ } });
+
+  r.register(null,       { handler: (opts) => {
+    // Index-on-open tap: fires before the open so any hashtag args land
+    // in the file's front matter before the browser receives the content.
+    libraryCommands.tapOpen(opts);
+    return commands.openCommand(opts);
+  } });
 
   return r;
 }

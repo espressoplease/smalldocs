@@ -10,7 +10,13 @@ const SUBCOMMANDS = new Set([
   'setup', 'safe', 'auto-update', 'refresh',
   'feedback',
   'slides', 'present',
+  'library',
 ]);
+
+// CLI tag arguments are `+tag` (shell-safe, no quoting). The on-disk
+// markdown still uses `#tag` for body hashtags - that's the standard
+// notation and lives inside files, not on the command line.
+const TAG_ARG = /^\+[A-Za-z][\w-]{0,63}$/;
 
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
@@ -32,6 +38,7 @@ function parseArgs(argv) {
   let reconnectGraceMs = null;
   let keepOpenFlag = false;
   let logFile = null;
+  const addTags = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -78,6 +85,11 @@ function parseArgs(argv) {
       continue;
     }
 
+    // Tag arguments anywhere on the command line: collected into
+    // addTags, used by the library tap to inject tags into the file's
+    // front matter at open time.
+    if (TAG_ARG.test(arg)) { addTags.push(arg.slice(1).toLowerCase()); continue; }
+
     if (!file) { file = arg; continue; }
     // Second positional is captured as `extra` so `sdoc slides icons heart`
     // gets {subcommand: 'slides', file: 'icons', extra: 'heart'}.
@@ -89,6 +101,7 @@ function parseArgs(argv) {
     resetFlag, shortFlag, jsonFlag, auditFlag, waitFlag,
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,
+    addTags,
   };
 }
 
