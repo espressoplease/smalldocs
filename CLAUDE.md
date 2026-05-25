@@ -209,28 +209,6 @@ npx playwright test test/write-mode.spec.js # write mode browser tests (needs Ch
 node test/preview.js file.md --screenshot out.png  # visual preview (needs server on :3000)
 ```
 
-### Which `sdoc` is running
-
-The global `sdoc` on the developer's `$PATH` is whatever was last `npm i -g sdocs-dev`'d. It often lags the in-repo CLI — meaningful behaviour (e.g. bridge for default open, new flags, fresh agent endpoints) lives in `cli/bin/sdocs-dev.js` here, NOT in the global binary.
-
-Before reasoning about CLI behaviour, check both versions:
-
-```bash
-sdoc --version                                       # global
-cat $(npm root -g)/sdocs-dev/package.json | grep ver # belt-and-braces
-cat cli/package.json | grep version                  # in-repo
-```
-
-To run the in-repo CLI directly (preferred when testing this repo's CLI changes):
-
-```bash
-node /Users/jsummers/smalldocs/cli/bin/sdocs-dev.js <file>
-# or:
-cd cli && npm link    # global `sdoc` becomes the in-repo CLI
-```
-
-When demonstrating a feature to the user, always invoke `node cli/bin/sdocs-dev.js` (or `npm link`-installed `sdoc`) so the demo reflects current code. Don't trust whatever's on `$PATH`.
-
 **Dev mode (`SDOCS_DEV=1` or `NODE_ENV=development`)**: serves CSS/JS with `Cache-Control: no-store`, injects a flag into the HTML that unregisters the service worker and clears its caches on load. Use this when iterating on frontend code so changes appear without hard-refreshing. The service worker normally caches the app shell and serves stale files even through hard reloads - dev mode sidesteps both layers.
 
 ## Visual preview testing
@@ -262,20 +240,6 @@ Markup constraints the regex relies on (write tags this way or they ship un-vers
 The static check in `test/test-files.js` ("every HTML route in server.js goes through serveHtmlWithRewrite") fails CI if a future route is wired to `serveFile()` with a `.html` argument, which would silently bypass the rewriter.
 
 The two-server cache-bust check in `test/test-cache-bust.js` is the tripwire: it starts a server, captures `APP_VERSION` and the rewritten HTML, mutates `public/` (writes a non-dotfile so `walkPublic` picks it up), restarts the server, and asserts every `/public/` URL on `/`, `/feedback`, and `/trust` carries the new version. If you change anything about the rewriter, this test must still pass.
-
-## Using `sdoc feedback` from an agent
-
-`sdoc feedback file.md` opens a form in the browser, waits for the user to submit, prints one JSON line to stdout, exits. Read the full DSL reference by running `sdoc feedback` with no args.
-
-**The trap to avoid.** The submit lands whenever the user clicks - seconds to minutes after the process starts. The protocol depends on the spawning agent *noticing the exit*. Shell `&` fire-and-forget does NOT count: it returns immediately and the parent never gets a callback when the process actually exits. The submission JSON goes to a log file no one reads, the form looks broken even though it worked, the user is left waiting.
-
-Right shapes:
-
-- **Claude Code**: `Bash` tool with `run_in_background: true` (no `&` in the command). The harness pings on exit and the stdout JSON line lands as part of the task result.
-- **Other agents**: their equivalent background-task primitive, NOT shell `&`.
-- **Plain shell / Makefile**: run foreground, or `sdoc feedback ... & wait $!` so the parent stays attached.
-
-The CLI prints a stderr warning at startup when stdout is not a TTY in feedback mode - if you see "stdout is not a TTY" in the agent's stderr, you've probably picked the wrong shape.
 
 ## Pre-deploy check: service-worker refresh
 
