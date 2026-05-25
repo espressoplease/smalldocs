@@ -33,9 +33,9 @@ var CLOSE_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" str
 
 // Ping the local library agent and remember reachability. The editor
 // page uses this to decide whether the Tags row should be editable. Same
-// canonical port (4778) as the library page. Re-pings on demand.
+// canonical port (47843) as the library page. Re-pings on demand.
 function pingLibraryAgent() {
-  var url = 'http://127.0.0.1:4778/api/library/health';
+  var url = 'http://127.0.0.1:47843/api/library/health';
   // 700ms timeout so a missing agent doesn't slow the first render.
   var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   var to = ctrl ? setTimeout(function(){ ctrl.abort(); }, 700) : null;
@@ -47,7 +47,7 @@ function pingLibraryAgent() {
 // POST to the library agent's tag mutation endpoint. Returns the new
 // tag list on success or throws.
 function libraryMutateTags(filePath, add, remove) {
-  return fetch('http://127.0.0.1:4778/api/library/tags', {
+  return fetch('http://127.0.0.1:47843/api/library/tags', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path: filePath, add: add || [], remove: remove || [] }),
