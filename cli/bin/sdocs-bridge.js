@@ -74,6 +74,20 @@ function isAllowedOrigin(origin, extra) {
   return false;
 }
 
+// Host header check: blocks DNS-rebinding. The browser sends whatever
+// hostname it used to reach us in the Host header; if that isn't a loopback
+// hostname on our exact bound port, the request didn't legitimately come
+// from a local page.
+function isAllowedHost(hostHeader, boundPort) {
+  if (!hostHeader || boundPort == null) return false;
+  const m = /^([^:]+)(?::(\d+))?$/.exec(String(hostHeader).trim());
+  if (!m) return false;
+  const host = m[1].toLowerCase();
+  const port = m[2] ? parseInt(m[2], 10) : null;
+  if (port !== boundPort) return false;
+  return LOOPBACK_HOSTS.indexOf(host) >= 0;
+}
+
 // Resolve a path through realpath. For files that don't exist yet, realpath
 // the parent directory (which must exist) and append the basename so a later
 // rename of the parent can't shift us out of the allowlist.
@@ -745,6 +759,13 @@ function startBridge(opts) {
     if (!isAllowedOrigin(origin, extra)) {
       return reject('403 Forbidden', 'bridge: origin not allowed');
     }
+    // Host header: blocks DNS-rebinding. The request must claim it's talking
+    // to our exact loopback host + bound port.
+    const addr = server.address();
+    const boundPort = addr ? addr.port : null;
+    if (!isAllowedHost(req.headers['host'], boundPort)) {
+      return reject('403 Forbidden', 'bridge: host not allowed');
+    }
     // Token gate: 32-byte session secret in the query string.
     const url = new URL(req.url, 'http://127.0.0.1');
     const got = url.searchParams.get('token');
@@ -838,6 +859,7 @@ module.exports = {
   encodeFrame,
   hashContent,
   isAllowedOrigin,
+  isAllowedHost,
   resolveAllowedPath,
   atomicWrite,
   capsForMode,
