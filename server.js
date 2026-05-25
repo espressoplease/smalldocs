@@ -387,6 +387,33 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Library page: the UI shell only. The data API lives on a local agent
+  // the user starts with `sdoc library`. The page reads ?agent=<url>
+  // from the query string and fetches everything from there; no data
+  // crosses this server.
+  if (pathname === '/library') {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'wasm-unsafe-eval'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data:",
+      // The page talks to a local agent (`sdoc library` server). Allow
+      // http/https to loopback only; this matches the existing rule the
+      // Bridge uses for ws://localhost.
+      "connect-src 'self' http://127.0.0.1:* http://localhost:*",
+      "frame-src 'none'",
+      "object-src 'none'",
+    ].join('; ');
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'library.html'), null, {
+      'Cache-Control': 'no-cache',
+      'Content-Security-Policy': csp,
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+    });
+    return;
+  }
+
   // Trust page — always available. Proves the frontend served matches the
   // commit the server claims to be running. See public/trust.html for copy.
   if (pathname === '/trust') {
