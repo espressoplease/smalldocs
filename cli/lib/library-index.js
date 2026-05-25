@@ -124,6 +124,25 @@ function injectTagsIntoFile(absPath, addTags) {
   return out;
 }
 
+// Remove tags from a file's front matter. Returns the new tag list or
+// null if the file was missing / had no tags to remove.
+function removeTagsFromFile(absPath, removeTags) {
+  if (!removeTags || !removeTags.length) return null;
+  const raw = readFileSafe(absPath);
+  if (raw == null) return null;
+  const parsed = SDocYaml.parseFrontMatter(raw);
+  const meta = parsed.meta || {};
+  const existing = Array.isArray(meta.tags) ? meta.tags : [];
+  if (!existing.length) return null;
+  const drop = new Set(removeTags.map(t => String(t).toLowerCase()));
+  const next = existing.filter(t => !drop.has(String(t).toLowerCase()));
+  if (next.length === existing.length) return null;
+  if (next.length) meta.tags = next; else delete meta.tags;
+  const out = SDocYaml.serializeFrontMatter(meta) + '\n' + (parsed.body || '');
+  fs.writeFileSync(absPath, out);
+  return next;
+}
+
 // Per-file opt-out: front matter `sdocs-library: false` skips indexing.
 function isOptedOut(content) {
   if (!content) return false;
@@ -206,6 +225,7 @@ module.exports = {
   rebuild,
   buildEntry,
   injectTagsIntoFile,
+  removeTagsFromFile,
   tagsUnderPrefix,
   isOptedOut,
   bodyExcerpt,

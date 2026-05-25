@@ -115,6 +115,40 @@ module.exports = function (h) {
       assert.strictEqual(store.getEntry('real').starred, true);
     });
 
+    await testAsync('library-agent: POST /api/library/tags adds tags to the file', async () => {
+      const r = await req('POST', '/api/library/tags', {
+        path: realFile, add: ['plan', 'refactor'], remove: [],
+      });
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.body.tags.includes('plan'));
+      assert.ok(r.body.tags.includes('refactor'));
+      // File on disk reflects the new tags.
+      const raw = fs.readFileSync(realFile, 'utf8');
+      assert.ok(/tags:[\s\S]*plan/.test(raw));
+      assert.ok(/tags:[\s\S]*refactor/.test(raw));
+    });
+
+    await testAsync('library-agent: POST /api/library/tags removes tags from the file', async () => {
+      const r = await req('POST', '/api/library/tags', {
+        path: realFile, add: [], remove: ['plan'],
+      });
+      assert.strictEqual(r.status, 200);
+      assert.ok(!r.body.tags.includes('plan'),
+                'plan should be gone, got ' + JSON.stringify(r.body.tags));
+    });
+
+    await testAsync('library-agent: POST /api/library/tags requires a path', async () => {
+      const r = await req('POST', '/api/library/tags', { add: ['x'] });
+      assert.strictEqual(r.status, 400);
+    });
+
+    await testAsync('library-agent: POST /api/library/tags 404s on missing file', async () => {
+      const r = await req('POST', '/api/library/tags', {
+        path: '/nope/missing.md', add: ['x'], remove: [],
+      });
+      assert.strictEqual(r.status, 404);
+    });
+
     server.close();
     try { fs.rmSync(SANDBOX, { recursive: true, force: true }); } catch (_) {}
   };

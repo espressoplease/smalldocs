@@ -78,6 +78,27 @@ module.exports = function (h) {
     assert.deepStrictEqual(parsed.meta.tags, ['existing', 'new']);
   });
 
+  test('removeTagsFromFile: drops a tag and writes the file', () => {
+    const f = write('remove-tag.md', '---\ntags:\n  - keep\n  - drop\n---\n# h\nbody');
+    const next = libIndex.removeTagsFromFile(f, ['drop']);
+    assert.deepStrictEqual(next, ['keep']);
+    const parsed = SDocYaml.parseFrontMatter(fs.readFileSync(f, 'utf8'));
+    assert.deepStrictEqual(parsed.meta.tags, ['keep']);
+  });
+
+  test('removeTagsFromFile: deletes the tags key when the list goes empty', () => {
+    const f = write('remove-last-tag.md', '---\ntags:\n  - only\n---\n# h\nbody');
+    libIndex.removeTagsFromFile(f, ['only']);
+    const parsed = SDocYaml.parseFrontMatter(fs.readFileSync(f, 'utf8'));
+    assert.strictEqual(parsed.meta.tags, undefined);
+  });
+
+  test('removeTagsFromFile: returns null when nothing matches', () => {
+    const f = write('no-match.md', '---\ntags:\n  - keep\n---\n# h\nbody');
+    const out = libIndex.removeTagsFromFile(f, ['ghost']);
+    assert.strictEqual(out, null);
+  });
+
   test('indexFile: opted out via sdocs-library: false is skipped', () => {
     store.clearIndex();
     const f = write('skip.md', '---\nsdocs-library: false\n---\n# nope');
