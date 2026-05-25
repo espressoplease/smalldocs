@@ -90,6 +90,59 @@
     try { window.sessionStorage.removeItem(STASH_KEY); } catch (_) {}
   }
 
+  // ── Safari banner ────────────────────────────────────────
+  //
+  // Safari blocks ws:// to 127.0.0.1 from an HTTPS page as mixed content, so
+  // the local bridge can never connect. Rather than fail silently we show a
+  // persistent banner. The dismissal is remembered per browser via
+  // localStorage. The =v=1 suffix lets us reshow on material wording changes
+  // by bumping to =v=2.
+  var SAFARI_BANNER_DISMISS_KEY = 'sdocs_safari_banner_dismissed_v=1';
+
+  function isSafariBannerDismissed() {
+    try { return window.localStorage.getItem(SAFARI_BANNER_DISMISS_KEY) === '1'; }
+    catch (_) { return false; }
+  }
+
+  function hideSafariBannerElement() {
+    var el = document.getElementById('_sd_safari-banner');
+    if (el) el.hidden = true;
+  }
+
+  function dismissSafariBanner() {
+    try { window.localStorage.setItem(SAFARI_BANNER_DISMISS_KEY, '1'); } catch (_) {}
+    hideSafariBannerElement();
+  }
+
+  function showSafariBannerIfNeeded() {
+    if (isSafariBannerDismissed()) return;
+    var el = document.getElementById('_sd_safari-banner');
+    if (!el) return;
+    if (!el.dataset.rendered) {
+      // textContent + createElement to keep this XSS-safe even though no
+      // user input flows in here today.
+      while (el.firstChild) el.removeChild(el.firstChild);
+      var text = document.createElement('span');
+      text.className = 'sd-safari-banner-text';
+      text.textContent = "Editing needs Chrome or Firefox - Safari can't reach the local bridge.";
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sd-safari-banner-dismiss';
+      btn.setAttribute('aria-label', 'Dismiss');
+      btn.textContent = '×'; // multiplication sign
+      btn.addEventListener('click', dismissSafariBanner);
+      el.appendChild(text);
+      el.appendChild(btn);
+      el.dataset.rendered = '1';
+    }
+    el.hidden = false;
+  }
+
+  function isSafariBrowser() {
+    var ua = navigator.userAgent || '';
+    return /Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua);
+  }
+
   // If the hash already carries bridge params we leave them alone (that's a
   // fresh `sdoc <file>` invocation). Otherwise, if the tab has a stash from
   // a previous load, splice it back into the hash so the source registry
@@ -164,6 +217,7 @@
 
   BridgeSource.prototype.load = function () {
     if (!this._supported()) {
+      showSafariBannerIfNeeded();
       if (S.setStatus) S.setStatus('Bridge editor needs Chrome or Firefox.', 'error');
       return Promise.resolve();
     }
@@ -508,4 +562,20 @@
     paramsFromHash: paramsFromHash,
     BridgeSource: BridgeSource,
   };
+
+  // Module-load probe: show the Safari banner whenever the page has bridge
+  // intent on a browser that can't run the bridge. Belt + braces in case the
+  // source registry never instantiates a BridgeSource (e.g. another source
+  // matches first). The visibility gate is intent + Safari + not-dismissed.
+  (function maybeShowSafariBannerOnLoad() {
+    if (!isSafariBrowser()) return;
+    var hashHasBridge  = paramsFromHash(window.location.hash) != null;
+    var stashHasBridge = readStash() != null;
+    if (!hashHasBridge && !stashHasBridge) return;
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', showSafariBannerIfNeeded);
+    } else {
+      showSafariBannerIfNeeded();
+    }
+  }());
 }());
