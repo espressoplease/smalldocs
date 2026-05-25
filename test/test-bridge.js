@@ -397,6 +397,61 @@ module.exports = function (harness) {
     await b.awaitTerminal();
   });
 
+  t('e2e: in-place inode swap mid-session is refused (identity gate)', async () => {
+    // The realpath gate above catches symlink swaps. This one covers the
+    // complementary case: the path still resolves cleanly, but the inode
+    // underneath has been replaced (unlink + recreate in place). The
+    // identity gate is what catches this.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-bridge-'));
+    const target = path.join(dir, 'doc.md');
+    fs.writeFileSync(target, 'a');
+
+    const b = await bridge.startBridge({
+      files: [target], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+      // Disable the watcher so it doesn't recapture identity behind us;
+      // we're simulating the attacker race window before the watcher fires.
+      watch: false,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock); // hello
+
+    // Replace the file at the same path with a fresh inode.
+    fs.unlinkSync(target);
+    fs.writeFileSync(target, 'planted by attacker');
+
+    sendJson(sock, { type: 'write', id: 'w1', content: 'evil' });
+    const reply = await nextMessage(sock);
+    assert.strictEqual(reply.type, 'error');
+    assert.strictEqual(reply.code, 'EPATH');
+    // The planted content survives; the bridge refused to clobber it.
+    assert.strictEqual(fs.readFileSync(target, 'utf-8'), 'planted by attacker');
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: two sequential writes both succeed (identity recapture after rename)', async () => {
+    const f = tmpFile('two.md', 'a\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock); // hello
+
+    sendJson(sock, { type: 'write', id: 'w1', content: 'b\n' });
+    const ack1 = await nextMessage(sock);
+    assert.strictEqual(ack1.type, 'ack');
+
+    sendJson(sock, { type: 'write', id: 'w2', content: 'c\n' });
+    const ack2 = await nextMessage(sock);
+    assert.strictEqual(ack2.type, 'ack');
+    assert.strictEqual(fs.readFileSync(f, 'utf-8'), 'c\n');
+
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
   t('e2e: feedback mode forwards the agent message in hello', async () => {
     const f = tmpFile('fb.md', 'draft\n');
     const b = await bridge.startBridge({
