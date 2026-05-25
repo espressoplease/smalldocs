@@ -80,6 +80,46 @@ body {
 
 
 /* ═══════════════════════════════════════════════════
+   SAFARI BANNER (Bridge mode unsupported)
+═══════════════════════════════════════════════════ */
+#_sd_safari-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+#_sd_safari-banner[hidden] { display: none; }
+.sd-safari-banner-text { flex: 1; color: var(--text); }
+.sd-safari-banner-dismiss {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui);
+  flex-shrink: 0;
+}
+.sd-safari-banner-dismiss:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+/* ═══════════════════════════════════════════════════
    MAIN LAYOUT
 ═══════════════════════════════════════════════════ */
 #_sd_main {
