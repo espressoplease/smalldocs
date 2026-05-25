@@ -31,7 +31,7 @@ function clientHandshake(port, token, opts) {
     const sock = net.createConnection({ host: '127.0.0.1', port }, () => {
       const lines = [
         'GET /?token=' + encodeURIComponent(token) + ' HTTP/1.1',
-        'Host: 127.0.0.1:' + port,
+        'Host: ' + (opts.host || ('127.0.0.1:' + port)),
         'Upgrade: websocket',
         'Connection: Upgrade',
         'Origin: ' + origin,
@@ -153,6 +153,20 @@ module.exports = function (harness) {
     assert.strictEqual(bridge.isAllowedOrigin('https://evil.example'), false);
     assert.strictEqual(bridge.isAllowedOrigin(''), false);
     assert.strictEqual(bridge.isAllowedOrigin(undefined), false);
+  });
+
+  test('isAllowedHost: only loopback hostnames on the exact bound port accepted', () => {
+    assert.strictEqual(bridge.isAllowedHost('127.0.0.1:5500', 5500), true);
+    assert.strictEqual(bridge.isAllowedHost('localhost:5500', 5500), true);
+    // Wrong port (could be a different process or a rebound attacker).
+    assert.strictEqual(bridge.isAllowedHost('127.0.0.1:5501', 5500), false);
+    // Non-loopback hostname is the DNS-rebinding shape we're blocking.
+    assert.strictEqual(bridge.isAllowedHost('attacker.example:5500', 5500), false);
+    // Missing port: HTTP/1.1 should always carry one; treat absence as suspect.
+    assert.strictEqual(bridge.isAllowedHost('127.0.0.1', 5500), false);
+    assert.strictEqual(bridge.isAllowedHost('', 5500), false);
+    assert.strictEqual(bridge.isAllowedHost(undefined, 5500), false);
+    assert.strictEqual(bridge.isAllowedHost('127.0.0.1:5500', null), false);
   });
 
   test('resolveAllowedPath: existing file resolves through realpath', () => {
@@ -320,6 +334,20 @@ module.exports = function (harness) {
       noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
     });
     const { head } = await clientHandshake(b.port, b.token, { origin: 'https://evil.example' });
+    assert.ok(head.includes('403 Forbidden'));
+    b.close();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: non-loopback Host header is rejected with 403 (DNS rebinding)', async () => {
+    const f = tmpFile('h.md', '');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { head } = await clientHandshake(b.port, b.token, {
+      host: 'attacker.example:' + b.port,
+    });
     assert.ok(head.includes('403 Forbidden'));
     b.close();
     await b.awaitTerminal();
