@@ -297,6 +297,21 @@ module.exports = function(harness) {
       await assertEveryAssetVersioned('/trust', v);
     });
 
+    await testAsync('GET /library returns the library shell', async () => {
+      const r = await get(BASE + '/library');
+      assert.strictEqual(r.status, 200);
+      assert.ok(/text\/html/.test(r.headers['content-type']));
+      assert.ok(r.body.includes('SDocs - Library'),
+                '/library should serve the library shell');
+      assert.ok(/connect-src[^;]*localhost/.test(r.headers['content-security-policy'] || ''),
+                'CSP must allow connect-src to localhost so the page can reach the local agent');
+    });
+
+    await testAsync('asset-versioning: /library is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/library', v);
+    });
+
     await testAsync('asset-versioning: /agent-changes is versioned', async () => {
       const v = JSON.parse((await get(BASE + '/version-check')).body).version;
       await assertEveryAssetVersioned('/agent-changes', v);
