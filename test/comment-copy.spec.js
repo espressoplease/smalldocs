@@ -1,7 +1,7 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.PLAYWRIGHT_BASE || 'http://localhost:3000';
 
 /**
  * Copy-with-comments end-to-end tests.
@@ -281,6 +281,46 @@ test.describe('copy-with-comments: section scoping', () => {
     const out = await copySection(page, 'B');
     // Header must reflect the file name when present.
     expect(out.startsWith('Feedback on demo.md:')).toBe(true);
+  });
+
+  test('per-section copy: fenced block containing `## ...` does not truncate the section (v7-proposal bug)', async ({ page }) => {
+    // Repro of the reported "copy with comments" bug. A doc whose section
+    // contains a ```markdown fence with `## SDocs` inside used to slice
+    // away everything after the opening fence, leaving the user with just
+    // the heading + opening fence + footnote definitions and no body.
+    const md = [
+      '## The proposed block',
+      '',
+      '```markdown',
+      '## SDocs',
+      '',
+      'SDocs (sdocs.dev) renders markdown into a styled browser view.',
+      '',
+      '- `sdoc file.md` - open the file styled in the browser.',
+      '',
+      'Source: https://github.com/espressoplease/SDocs',
+      '```',
+      '',
+    ].join('\n');
+    await setBody(page, md);
+    await page.evaluate(() => {
+      document.querySelectorAll('h2').forEach(h => {
+        var section = h.closest('.md-section');
+        var body = section && section.querySelector(':scope > .md-section-body');
+        if (body) body.classList.add('open');
+      });
+    });
+    // Comment on text inside the fence.
+    await anchorOnNthOccurrence(page, 'sdoc file.md', 0, 'drop this');
+    const out = await copySection(page, 'The proposed block');
+    // Body content from inside the fence must survive.
+    expect(out).toContain('SDocs (sdocs.dev) renders markdown into a styled browser view');
+    expect(out).toContain('Source: https://github.com/espressoplease/SDocs');
+    // Closing fence preserved.
+    expect(out).toMatch(/```[\s\S]*\n```/);
+    // Footnote ref + def both present.
+    expect(out).toContain('[^c1]');
+    expect(out).toContain('drop this');
   });
 
   test('per-section copy: block comment whose target lives in section A is excluded from section B copy', async ({ page }) => {
