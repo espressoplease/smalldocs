@@ -73,15 +73,6 @@ test('file info: read-only tag chips render from front-matter when file is not l
   await expect(page.locator('.fic-tag-add')).toHaveCount(0);
 });
 
-test('file info: body hashtags surface alongside front-matter tags', async ({ page }) => {
-  const md = '---\ntitle: With body tag\ntags:\n  - fromfront\n---\n\n# t\n\nfor #frombody only.';
-  await page.goto(buildHashUrl(md));
-  await page.waitForSelector('.fic-row-tags');
-  const chips = await page.$$eval('.fic-tag-chip', els => els.map(e => e.textContent.trim()));
-  expect(chips.some(c => c.includes('fromfront'))).toBeTruthy();
-  expect(chips.some(c => c.includes('frombody'))).toBeTruthy();
-});
-
 test('file info: hint shown when file is local but no Bridge is connected', async ({ page }) => {
   const realFile = path.join(SANDBOX, 'hint.md');
   fs.writeFileSync(realFile, '---\ntags:\n  - one\n---\n# t');

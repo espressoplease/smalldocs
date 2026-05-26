@@ -28,6 +28,11 @@ USAGE
   sdoc slides icons [query]        Lucide icon names available to the \`icon\` shape kind
   sdoc slides custom-shapes        Raw-shape primitives + design principles reference
   sdoc present <file>              Open <file> and jump straight into fullscreen slides
+  sdoc library                     Open the personal markdown library at sdocs.dev/library
+  sdoc library ls                  List markdown indexed in this project (walks up to .git)
+  sdoc library ls --tags           Tag bag (tag - count) for this project
+  sdoc library --help              Full library reference - commands, tagging, rescue, autostart
+  sdoc <file> +tag1 +tag2          Inject tags into the file's front matter at open time
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
   sdoc setup                       Wire SDocs into your coding agents
@@ -93,6 +98,8 @@ FILE INFO CARD
     file       The filename — included in the share URL.
     path       Relative path from the cwd — local only.
     fullPath   Absolute path on your machine — local only.
+    tags       YAML front-matter tags. Editable when the Bridge is
+               connected; read-only otherwise.
 
   Local fields (path, fullPath) are passed to the browser via a
   separate URL parameter that JS reads into memory and then strips
@@ -100,6 +107,40 @@ FILE INFO CARD
   user can copy, and \`sdoc share <file>\` never includes them in
   the generated link. If someone opens your shared URL, only
   \`file\` is visible.
+
+LIBRARY (personal, on-machine index)
+  Every \`sdoc <file>\` records the file in ~/.sdocs/library-index.json -
+  path, title, tags, last-touched. \`sdoc library\` opens a search UI at
+  sdocs.dev/library that talks to a local loopback agent the CLI runs
+  on 127.0.0.1:47843. Click a result to open the file for live editing.
+  Nothing about the library ever leaves the machine.
+
+  Top commands:
+    sdoc library                Open the search UI.
+    sdoc library ls             List indexed files in this project.
+    sdoc library ls --tags      Tag bag (tag - count) for this project.
+    sdoc library rebuild        Walk \$HOME and refresh every entry.
+    sdoc library status         Show enabled/disabled + entry count.
+    sdoc library autostart      Manage the macOS LaunchAgent.
+
+  Tagging works two ways, both ending up in the file's YAML front
+  matter on disk:
+    1. Front-matter \`tags: [a, b]\` written directly (or edited via
+       the Tags row in the file-info card when the Bridge is live).
+    2. CLI flag at open time: \`sdoc plan.md +planning +q2\` injects
+       those tags into the file's front matter. The \`+\` prefix is
+       shell-safe (\`#\` would be eaten as a comment).
+
+  Files in OS-managed temp folders (/tmp, ~/.cache, ~/.Trash, etc.)
+  get a RESCUE COPY at index time so the entry survives when the OS
+  cleans the original. Per-file opt-out: \`sdocs-library: false\` in
+  the file's front matter. Per-directory opt-out: drop a .sdocsignore
+  (subset of gitignore syntax) into any directory.
+
+  Run \`sdoc library --help\` for the full reference - commands,
+  tagging, rescue, autostart, security gates, and answers to common
+  questions ("I added a tag and it didn't save", "an entry seems
+  stale", "how do I keep this work folder out of the library").
 
 SHORT LINKS (sdoc share --short)
   By default, \`sdoc share <file>\` encodes the document into the URL hash:
@@ -196,6 +237,7 @@ COMMENTS
 Run \`sdoc comments\` for the full format reference and authoring guide.
 Run \`sdoc schema\` for the complete list of style properties.
 Run \`sdoc charts\` for chart types, options, and styling.
+Run \`sdoc library --help\` for the personal markdown library reference.
 `;
 
 const COMMENTS_HELP = `
@@ -2116,4 +2158,279 @@ See also:
   sdoc diagrams          Mermaid fenced blocks (\`\`\`mermaid)
 `;
 
-module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP };
+const LIBRARY_HELP = `
+SDocs - Library
+===============
+The library is a personal, on-machine index of every markdown file you
+open with \`sdoc <file>\`. It lets you search, browse, and re-open your
+notes without remembering where they live on disk.
+
+WHAT IT IS, IN ONE PARAGRAPH
+  Every \`sdoc <file>\` writes a small record into ~/.sdocs/library-
+  index.json - the file path, its title, its tags, when it was last
+  touched. A small loopback HTTP server reads that index when you visit
+  sdocs.dev/library in a browser, so the page can show your files
+  without anything leaving your machine. Click a result and SDocs spins
+  up a live editing session against the file on disk. Nothing about
+  the library ever touches a remote server.
+
+COMMANDS
+  Open and inspect
+    sdoc library                          Open the library UI at
+                                          sdocs.dev/library (or
+                                          localhost:3000/library when
+                                          running the dev server).
+                                          Starts the local agent if it
+                                          isn't already running.
+    sdoc library ls                       List markdown indexed under
+                                          this project (walks up to the
+                                          nearest .git, falls back to
+                                          cwd). Pass a path to override
+                                          scope: \`sdoc library ls ~/notes\`.
+    sdoc library ls --tags                Same scope, but prints the tag
+                                          bag (tag - count, sorted by
+                                          frequency). Run before tagging
+                                          a new file to stay consistent.
+    sdoc library status                   Print enabled/disabled, entry
+                                          count, last scan time.
+
+  Refresh
+    sdoc library rebuild                  Walk \$HOME again from scratch
+                                          and refresh every entry. Use
+                                          after moving files around or
+                                          when an entry seems stale.
+
+  On/off
+    sdoc library enable                   Re-enable indexing-on-open if
+                                          you had turned it off. New
+                                          opens will be recorded again.
+    sdoc library disable                  Stop indexing on \`sdoc <file>\`.
+                                          The existing index is left in
+                                          place; the library page still
+                                          shows what's already there.
+
+  Autostart (macOS)
+    sdoc library autostart                Same as \`autostart status\`:
+                                          print whether the LaunchAgent
+                                          is installed.
+    sdoc library autostart enable         Install the LaunchAgent so the
+                                          loopback agent comes back on
+                                          every login. This is the
+                                          default the first time you run
+                                          \`sdoc library\`.
+    sdoc library autostart disable        Remove the LaunchAgent and
+                                          record that you turned it off;
+                                          the default-on logic respects
+                                          this until you re-enable.
+    sdoc library autostart status         Print whether the LaunchAgent
+                                          is installed and where its
+                                          plist lives.
+
+  Help
+    sdoc library --help                   This help.
+    sdoc library help                     Same.
+
+WHAT GETS INDEXED
+  Every file you open with \`sdoc <file>\` is recorded at open time.
+  \`sdoc library rebuild\` additionally walks \$HOME looking for
+  markdown that fits these rules:
+    - extension is .md, .mdx, or .markdown
+    - size is at most 1 MB
+    - not under a hidden directory (.git, .venv, .cache, ...)
+    - not under a system / framework directory (node_modules, dist,
+      build, target, vendor, .next, __pycache__, ...)
+    - not under a sensitive directory (.ssh, .aws, .gnupg, .docker,
+      .kube, .gcloud, .azure, .bitwarden, .password-store)
+    - the file's basename does not match the deny list (SSH keys,
+      .env files, .key/.pem/.crt/.kdbx etc., credentials.json,
+      api-secret.yaml, ...). Markdown is deliberately NOT denied by
+      name - \`credentials-handling.md\` is a legitimate note about
+      secrets, not a secret.
+    - the file is not excluded by a .sdocsignore (see below)
+    - the file's front matter does not contain \`sdocs-library: false\`
+      (per-file opt-out)
+
+PER-FILE OPT-OUT
+  Add \`sdocs-library: false\` to a file's YAML front matter to keep
+  it out of the library. The file still opens with \`sdoc <file>\`,
+  it just isn't indexed.
+
+  ---
+  title: My private notes
+  sdocs-library: false
+  ---
+
+PER-DIRECTORY EXCLUDES (.sdocsignore)
+  Drop a \`.sdocsignore\` file into any directory. Subset of gitignore
+  syntax:
+    # comments and blank lines are skipped
+    drafts/                  exclude this directory
+    *.local.md               exclude by glob, basename match
+    sub/secret.md            anchored path match (relative to this file)
+    **/scratch/              cross-directory globstar
+  Patterns inherit downward. Negation (\`!\`) and other gitignore
+  niceties are not in v1.
+
+EPHEMERAL PATHS AND RESCUE
+  Files opened from OS-managed temp folders are special: the OS will
+  clean them on its own schedule (next reboot, days later, when you
+  empty the trash). The library handles this by taking a one-shot
+  RESCUE COPY at index time and pointing the entry at the copy.
+
+  Rescue triggers when the path sits inside any of:
+    macOS    /tmp, /private/tmp, /var/tmp, /private/var/tmp,
+             ~/.Trash, plus Node's os.tmpdir()
+    Linux    /tmp, /var/tmp, /run, /dev/shm, ~/.cache, plus os.tmpdir()
+    Windows  %TEMP%, %TMP%, C:\\Windows\\Temp
+
+  The copy lives at ~/.sdocs/library/rescued/<hash>-<basename>. The
+  hash prefix avoids name collisions between two /tmp/notes.md from
+  different sessions. The entry's \`rescuedFrom\` field records the
+  original path; the agent's security gate accepts requests for both
+  the rescued copy and the original path.
+
+  Caveat: rescue is a SNAPSHOT, not a live mirror. Edit \`/tmp/foo.md\`
+  after the first \`sdoc\` and the rescued copy is stale until you
+  re-open the file (which triggers an index update). Once the OS
+  deletes the original, the rescued copy is what you have.
+
+TAGGING (TWO WAYS TO TAG)
+  Tags live in the file's YAML front matter on disk. There are two
+  ways to put them there:
+
+  1. Write the front matter directly. The canonical place; survives
+     every export and round-trip.
+
+       ---
+       title: Q2 plan
+       tags:
+         - planning
+         - q2
+         - finance
+       ---
+
+     The Tags row in the file-info card (browser editor) is also a
+     write into the file's front matter, performed by the Bridge.
+
+  2. CLI flag at open time. Append \`+tag\` to any \`sdoc\` invocation:
+
+       sdoc plan.md +planning +q2
+
+     SDocs injects those tags into the file's YAML front matter
+     before the browser receives the content, so they survive future
+     opens, exports, and any sync. The \`+\` prefix is shell-safe
+     (\`#\` would be eaten as a comment). Multiple \`+tag\` args
+     anywhere on the command line are allowed.
+
+  #words in prose are NOT extracted as tags. Front matter is the
+  one source of truth; everything else is a way to write to it.
+
+EDITING TAGS FROM THE BROWSER
+  Open any indexed file (\`sdoc <file>\`) and look at the file info
+  card above the document. There is a Tags row with chips. Hover a
+  chip for an \`x\` to drop it; click \`+\` at the end of the row to
+  add a new one.
+
+  Edits happen through the BRIDGE (the WebSocket connection that
+  also handles live save). The library agent never writes content -
+  exactly one process writes to your file at a time, which avoids
+  the race condition two parallel writers would create.
+
+  If the Tags row is read-only with a hint, you opened the file via
+  a short link or hash URL and there is no Bridge to save through.
+  Open the file via \`sdoc <file>\` to get an editable Tags row.
+
+CONSISTENCY HINTS FOR AGENTS
+  Before tagging a new file in a project, run:
+
+      sdoc library ls --tags
+
+  This prints the project's current tag vocabulary (tag - count). Re-use
+  existing tags where possible so the library stays consistent. The
+  scope walks up to the nearest .git, so cd anywhere inside the repo
+  works.
+
+  To see what's already in the project:
+
+      sdoc library ls
+
+THE LOCAL AGENT
+  The library page (sdocs.dev/library or localhost:3000/library) is
+  hosted from the SDocs server; the data it shows comes from a tiny
+  HTTP server the CLI runs at 127.0.0.1:47843. That server:
+    - reads ~/.sdocs/library-index.json
+    - never writes user content (writes go through the Bridge)
+    - refuses any browser request whose Origin is not sdocs.dev,
+      smalldocs.org, or localhost:3000 (extend with SDOCS_URL or
+      SDOCS_AGENT_ALLOWED_ORIGINS)
+    - refuses requests whose Host header is not 127.0.0.1 / localhost
+      (DNS-rebinding guard)
+    - refuses path arguments outside the library, on the deny list,
+      or behind a symlink that resolves outside the library
+  If port 47843 is busy, the CLI falls back to a random port and
+  prints the URL with the port baked in.
+
+AUTOSTART (macOS)
+  The first time you run \`sdoc library\`, a LaunchAgent plist is
+  written to ~/Library/LaunchAgents so the agent comes back after
+  every reboot. Turn it off explicitly with:
+
+      sdoc library autostart disable
+
+  Once disabled, the default-on logic does not re-enable it without
+  you running \`sdoc library autostart enable\` again. The browser
+  shows a small recovery banner only when autostart was enabled but
+  the agent isn't actually answering.
+
+  Linux and Windows do not have autostart in v1. The agent only
+  runs when you start it explicitly with \`sdoc library\`.
+
+CLI INTERACTION CHEAT SHEET FOR AGENTS
+  Before authoring a new note inside a project:
+    sdoc library ls --tags         see the project's tag vocabulary
+
+  When opening or creating a file with tags:
+    sdoc draft.md +planning +q2    tags get written into front matter
+
+  When you want a file kept OUT of the library:
+    add \`sdocs-library: false\` to its YAML front matter
+
+  When the user asks "where is X?":
+    sdoc library                   opens the search UI in their browser
+
+PRIVACY MODEL
+  The library is per-machine and per-user. Nothing about it is
+  uploaded to sdocs.dev or any other server. The browser page on
+  sdocs.dev calls the local agent over plain HTTP on 127.0.0.1; it
+  cannot see file content the agent doesn't already have indexed,
+  and the agent cannot read files outside the library.
+
+COMMON QUESTIONS
+  Q: I opened a file but I don't see it in the library.
+  A: Check \`sdoc library status\` (is it enabled?), then
+     \`sdoc library rebuild\`. If the file is in front matter
+     \`sdocs-library: false\`, that's the opt-out. Also check for a
+     .sdocsignore in the file's directory or any ancestor.
+
+  Q: The library page shows "agent is not running".
+  A: Run \`sdoc library\` once to start it, or enable autostart with
+     \`sdoc library autostart enable\`. The banner is dismissible if
+     you don't want one running.
+
+  Q: A tag I added in the browser didn't save.
+  A: The Tags row needs a connected Bridge. Open the file via
+     \`sdoc <file>\` (not via a share URL or short link) so the
+     editor knows the on-disk path.
+
+  Q: I added a tag with \`+tag\` but it didn't appear.
+  A: The \`+\` is what makes it a tag arg; \`tag\` alone would be read
+     as a filename. Valid form: \`+name\` where name starts with a
+     letter and contains letters, digits, underscores, or hyphens
+     (max 64 chars).
+
+  Q: I want to keep work notes out of the library.
+  A: Add \`sdocs-library: false\` to the file's front matter, or
+     drop a \`.sdocsignore\` into the directory with the pattern.
+`;
+
+module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };

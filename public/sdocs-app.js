@@ -28,6 +28,7 @@ var S = SDocs;
 
 var LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+var WRAP_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="m16 16-2 2 2 2"/><path d="M3 18h7"/></svg>';
 var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 // Tag chip × uses the standard SDocs close icon (same stroke / weight as
 // the comment composer's Cancel button, scaled down for chip rendering).
@@ -328,6 +329,20 @@ function attachCodeCopyButtons(container) {
     wrapper.className = 'pre-wrapper';
     pre.parentNode.insertBefore(wrapper, pre);
     wrapper.appendChild(pre);
+
+    // Wrap toggle — only visible when the <pre> overflows horizontally,
+    // or when the user has already turned wrapping on.
+    var wrapBtn = document.createElement('button');
+    wrapBtn.className = 'wrap-btn';
+    wrapBtn.innerHTML = WRAP_SVG;
+    wrapBtn.title = 'Toggle text wrap';
+    wrapBtn.addEventListener('click', function() {
+      pre.classList.toggle('wrapped');
+      wrapBtn.classList.toggle('active', pre.classList.contains('wrapped'));
+      refreshWrapButton(pre, wrapBtn);
+    });
+    wrapper.appendChild(wrapBtn);
+
     var btn = document.createElement('button');
     btn.className = 'copy-btn';
     btn.innerHTML = COPY_SVG;
@@ -340,8 +355,26 @@ function attachCodeCopyButtons(container) {
       });
     });
     wrapper.appendChild(btn);
+
+    refreshWrapButton(pre, wrapBtn);
   });
 }
+
+function refreshWrapButton(pre, btn) {
+  if (pre.classList.contains('wrapped')) { btn.style.display = ''; return; }
+  btn.style.display = (pre.scrollWidth > pre.clientWidth + 1) ? '' : 'none';
+}
+
+// One window-level listener: re-evaluate wrap-button visibility on resize.
+// scrollWidth depends on container width, so blocks can move in/out of
+// overflow as the viewport changes.
+window.addEventListener('resize', function () {
+  S.renderedEl && S.renderedEl.querySelectorAll('.pre-wrapper').forEach(function (w) {
+    var pre = w.querySelector(':scope > pre');
+    var btn = w.querySelector(':scope > .wrap-btn');
+    if (pre && btn) refreshWrapButton(pre, btn);
+  });
+});
 
 var SECTION_LEVELS = { H2: 2, H3: 3, H4: 4 };
 
@@ -639,16 +672,14 @@ function renderFileInfoCard() {
   if (local.path)     slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, true, false) });
   if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, true, false) });
 
-  // Tags row: front-matter tags + body hashtags, merged and deduped.
-  // Editing is gated to "the Bridge is connected and can save" - the
-  // Bridge is the single write channel for the file, so without it the
-  // row is read-only. A small hint nudges the user to `sdoc <file>`.
-  var fmTags   = Array.isArray(meta.tags) ? meta.tags.map(String) : [];
-  var bodyTags = (window.SDocLibraryTags && window.SDocLibraryTags.extractBodyHashtags)
-    ? window.SDocLibraryTags.extractBodyHashtags(S.currentBody || '') : [];
+  // Tags row: YAML front-matter tags only. Editing is gated to "the
+  // Bridge is connected and can save" - the Bridge is the single write
+  // channel for the file, so without it the row is read-only. A small
+  // hint nudges the user to `sdoc <file>`.
+  var fmTags  = Array.isArray(meta.tags) ? meta.tags.map(String) : [];
   var tagList = (window.SDocLibraryTags && window.SDocLibraryTags.mergeTags)
-    ? window.SDocLibraryTags.mergeTags(fmTags, bodyTags)
-    : fmTags.concat(bodyTags);
+    ? window.SDocLibraryTags.mergeTags(fmTags)
+    : fmTags.slice();
   var bridge = S.bridge || null;
   var canEditTags = !!(bridge && bridge._connected && bridge.capabilities && bridge.capabilities.canSave);
   // Show the hint only when the user could plausibly want to edit -
