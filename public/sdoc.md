@@ -38,7 +38,7 @@ Teach [Claude Code](https://docs.anthropic.com/en/docs/claude-code) about `sdoc`
 npm i -g sdocs-dev
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=7 -->
+<!-- sdocs-agent-block:start v=8 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -61,7 +61,7 @@ SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
 - `sdoc charts` - rendering inline charts (```chart blocks)
-- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom)
+- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
@@ -79,7 +79,7 @@ Teach [Codex](https://developers.openai.com/codex) about `sdoc`:
 npm i -g sdocs-dev
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=7 -->
+<!-- sdocs-agent-block:start v=8 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -102,7 +102,7 @@ SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
 - `sdoc charts` - rendering inline charts (```chart blocks)
-- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom)
+- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
@@ -120,7 +120,7 @@ Teach [Gemini CLI](https://github.com/google-gemini/gemini-cli) about `sdoc`:
 npm i -g sdocs-dev
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=7 -->
+<!-- sdocs-agent-block:start v=8 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -143,7 +143,7 @@ SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
 - `sdoc charts` - rendering inline charts (```chart blocks)
-- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom)
+- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
@@ -162,7 +162,7 @@ npm i -g sdocs-dev
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=7 -->
+<!-- sdocs-agent-block:start v=8 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -185,7 +185,7 @@ SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
 - `sdoc charts` - rendering inline charts (```chart blocks)
-- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom)
+- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
@@ -722,7 +722,7 @@ The manual way: copy and paste the one-line commands below into your terminal. E
 ```bash
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=7 -->
+<!-- sdocs-agent-block:start v=8 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -745,7 +745,7 @@ SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
 - `sdoc charts` - rendering inline charts (```chart blocks)
-- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom)
+- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
@@ -758,7 +758,7 @@ SDOC
 ```bash
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=7 -->
+<!-- sdocs-agent-block:start v=8 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -781,7 +781,7 @@ SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
 - `sdoc charts` - rendering inline charts (```chart blocks)
-- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom)
+- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
@@ -794,7 +794,7 @@ SDOC
 ```bash
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=7 -->
+<!-- sdocs-agent-block:start v=8 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -817,7 +817,7 @@ SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
 - `sdoc charts` - rendering inline charts (```chart blocks)
-- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom)
+- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
@@ -831,7 +831,7 @@ SDOC
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=7 -->
+<!-- sdocs-agent-block:start v=8 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -854,7 +854,7 @@ SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
 - `sdoc charts` - rendering inline charts (```chart blocks)
-- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom)
+- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
