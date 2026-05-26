@@ -13,9 +13,9 @@ const SUBCOMMANDS = new Set([
   'library',
 ]);
 
-// CLI tag arguments are `+tag` (shell-safe, no quoting). The on-disk
-// markdown still uses `#tag` for body hashtags - that's the standard
-// notation and lives inside files, not on the command line.
+// CLI tag arguments are `+tag` (shell-safe, no quoting). Tags written
+// this way are injected into the file's YAML front matter at open time;
+// front matter is the only place SDocs stores tags.
 const TAG_ARG = /^\+[A-Za-z][\w-]{0,63}$/;
 
 function parseArgs(argv) {
@@ -38,12 +38,20 @@ function parseArgs(argv) {
   let reconnectGraceMs = null;
   let keepOpenFlag = false;
   let logFile = null;
+  let tagsFlag = false;
+  let helpFlag = false;
   const addTags = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
-    if (arg === '--help' || arg === '-h') { subcommand = 'help'; continue; }
+    // `--help` before a subcommand prints the global help. After a
+    // subcommand, it is a flag the subcommand handler reads (library
+    // uses this to print its own help).
+    if (arg === '--help' || arg === '-h') {
+      if (subcommand) helpFlag = true; else subcommand = 'help';
+      continue;
+    }
     if (arg === '--schema')               { subcommand = 'schema'; continue; }
 
     if (arg === '--write')   { mode = 'write'; continue; }
@@ -79,6 +87,7 @@ function parseArgs(argv) {
     if (arg === '--reconnect-grace')                 { reconnectGraceMs = Number(args[++i]); continue; }
     if (arg === '--keep-open')                       { keepOpenFlag     = true; continue; }
     if (arg === '--log-file')                        { logFile          = args[++i]; continue; }
+    if (arg === '--tags')                            { tagsFlag         = true; continue; }
 
     if (!subcommand && SUBCOMMANDS.has(arg)) {
       subcommand = arg;
@@ -101,6 +110,7 @@ function parseArgs(argv) {
     resetFlag, shortFlag, jsonFlag, auditFlag, waitFlag,
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,
+    tagsFlag, helpFlag,
     addTags,
   };
 }

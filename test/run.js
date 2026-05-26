@@ -32,6 +32,7 @@ require('./test-library-store')(harness);
 require('./test-library-index')(harness);
 require('./test-library-autostart')(harness);
 require('./test-library-deny')(harness);
+require('./test-library-ls')(harness);
 const runBridge = require('./test-bridge')(harness);
 
 // ── HTTP tests (async, starts server) ──────────────
