@@ -549,6 +549,103 @@ module.exports = function (harness) {
     assert.strictEqual(c.text, 'already addressed');
   });
 
+  // ── findTopHeadings / findSectionRange ────────────────────────────────
+  // Per-section "copy with comments" relies on these to slice the source
+  // body between headings. Headings INSIDE fenced code blocks must not
+  // count as section boundaries; the surrounding bug was a doc whose
+  // ```markdown fence contained `## SDocs`, which truncated the slice to
+  // just the opening fence and silently dropped the body.
+
+  test('findTopHeadings: collects top-level ATX headings outside fences', () => {
+    const md = '# Title\n\n## A\n\nbody\n\n## B\n\nmore\n';
+    const out = SDC.findTopHeadings(md);
+    assert.deepStrictEqual(out.map(h => [h.level, h.text]), [
+      [1, 'Title'], [2, 'A'], [2, 'B'],
+    ]);
+  });
+
+  test('findTopHeadings: skips headings inside ```fenced``` blocks', () => {
+    const md = [
+      '## Outer',
+      '',
+      '```markdown',
+      '## Inner',
+      '',
+      'body',
+      '```',
+      '',
+      '## Sibling',
+      '',
+    ].join('\n');
+    const out = SDC.findTopHeadings(md);
+    assert.deepStrictEqual(out.map(h => h.text), ['Outer', 'Sibling']);
+  });
+
+  test('findTopHeadings: skips headings inside ~~~fenced~~~ blocks', () => {
+    const md = '## Outer\n\n~~~\n## Inner\n~~~\n\n## Sibling\n';
+    const out = SDC.findTopHeadings(md);
+    assert.deepStrictEqual(out.map(h => h.text), ['Outer', 'Sibling']);
+  });
+
+  test('findTopHeadings: handles a 4-backtick fence that contains a 3-backtick fence', () => {
+    // 4-backtick opener requires a 4-backtick closer; a stray 3-backtick
+    // line inside must not close the outer fence (and any `##` inside
+    // must stay scoped to the fence).
+    const md = [
+      '## Outer',
+      '',
+      '````markdown',
+      '## Inner',
+      '```',
+      'code inside',
+      '```',
+      '````',
+      '',
+      '## Sibling',
+      '',
+    ].join('\n');
+    const out = SDC.findTopHeadings(md);
+    assert.deepStrictEqual(out.map(h => h.text), ['Outer', 'Sibling']);
+  });
+
+  test('findSectionRange: section ends at next equal-or-higher heading', () => {
+    const md = '## A\n\nbody A\n\n### A.1\n\nsub\n\n## B\n\nbody B\n';
+    const r = SDC.findSectionRange(md, 2, 'A');
+    assert.ok(r.body.indexOf('body A') !== -1);
+    assert.ok(r.body.indexOf('A.1') !== -1, 'sub-section included');
+    assert.strictEqual(r.body.indexOf('body B'), -1, 'B excluded');
+  });
+
+  test('findSectionRange: heading inside a fenced block does NOT truncate the slice (the v7-proposal bug)', () => {
+    // Repro of the reported "copy with comments" bug. Without the fix the
+    // body collapses to just '## The proposed block\n\n```markdown' and the
+    // copy output ends up showing only the opening fence + footnotes.
+    const md = [
+      '## The proposed block',
+      '',
+      '```markdown',
+      '## SDocs',
+      '',
+      'SDocs (sdocs.dev) renders markdown into a styled browser view.',
+      '',
+      'Source: https://github.com/...',
+      '```',
+      '',
+    ].join('\n');
+    const r = SDC.findSectionRange(md, 2, 'The proposed block');
+    assert.ok(r.body.indexOf('## SDocs') !== -1, 'inner heading kept');
+    assert.ok(r.body.indexOf('renders markdown into a styled browser view') !== -1,
+      'fenced body kept');
+    assert.ok(r.body.indexOf('Source: https://github.com/...') !== -1,
+      'fenced trailer kept');
+    assert.ok(r.body.trim().endsWith('```'), 'closing fence kept');
+  });
+
+  test('findSectionRange: returns null when heading is not found', () => {
+    const md = '## A\n\nbody\n';
+    assert.strictEqual(SDC.findSectionRange(md, 2, 'Missing'), null);
+  });
+
   test('parseFootnotes: round-trips with serializeFootnotes (no information lost)', () => {
     const meta = {
       comments: [
