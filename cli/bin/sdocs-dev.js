@@ -85,7 +85,7 @@ function buildRouter() {
   r.register('library',  { handler: async (opts) => { await libraryCommands.libraryCommand(opts); /* libraryOpen blocks */ } });
 
   r.register(null,       { handler: (opts) => {
-    // Index-on-open tap: fires before the open so any hashtag args land
+    // Index-on-open tap: fires before the open so any +tag CLI args land
     // in the file's front matter before the browser receives the content.
     libraryCommands.tapOpen(opts);
     return commands.openCommand(opts);

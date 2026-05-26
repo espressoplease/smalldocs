@@ -78,9 +78,8 @@ function buildEntry({ absPath, content, addTags, stats, rescuedFrom = null }) {
   const meta = parsed.meta || {};
   const body = parsed.body || '';
 
-  const fmTags  = Array.isArray(meta.tags) ? meta.tags : [];
-  const hashtagsInBody = SDocLibTags.extractBodyHashtags(body);
-  const tags = SDocLibTags.mergeTags(fmTags, hashtagsInBody, addTags || []);
+  const fmTags = Array.isArray(meta.tags) ? meta.tags : [];
+  const tags = SDocLibTags.mergeTags(fmTags, addTags || []);
 
   const git = detectGitProject(absPath);
   const sdocsMeta = meta['sdocs-library'] && typeof meta['sdocs-library'] === 'object'
@@ -204,17 +203,32 @@ function rebuild() {
 }
 
 // Tags used by entries whose path is under a given prefix (the project
-// path, typically). For the file-info-card autocomplete.
+// path, typically). For the file-info-card autocomplete and `sdoc
+// library ls --tags`. Both the prefix and each entry path are tested
+// against their realpaths too so a symlinked /var on macOS doesn't
+// hide entries from the tag bag.
 function tagsUnderPrefix(prefix) {
   const root = path.resolve(prefix);
+  let rootReal = root;
+  try { rootReal = fs.realpathSync(root); } catch (_) {}
   // Special case: the filesystem root ('/' on posix, 'C:\' on win) is
   // already its own separator, so `root + path.sep` becomes '//' which
   // matches nothing. Treat it as "everything".
   const rootIsFsRoot = root === path.sep || /^[A-Za-z]:[\\/]$/.test(root);
+  const sep = path.sep;
+  function under(p) {
+    if (rootIsFsRoot) return true;
+    if (!p) return false;
+    if (p === root || p.startsWith(root + sep)) return true;
+    if (rootReal !== root && (p === rootReal || p.startsWith(rootReal + sep))) return true;
+    return false;
+  }
   const counts = {};
   for (const e of store.loadIndex().entries) {
     const p = e.rescued && e.rescuedFrom ? e.rescuedFrom : e.path;
-    if (rootIsFsRoot || p === root || p.startsWith(root + path.sep)) {
+    let pReal = p;
+    try { pReal = fs.realpathSync(p); } catch (_) {}
+    if (under(p) || under(pReal)) {
       for (const t of e.tags || []) counts[t] = (counts[t] || 0) + 1;
     }
   }
