@@ -18,31 +18,35 @@ const fs   = require('fs');
 const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
-const AGENT_BLOCK_VERSION = 5;
-const AGENT_BLOCK_REASON  = 'Two features land together. `sdoc feedback` adds the interactive form DSL (```form blocks; the user clicks a submit, the bridge writes answers into the file and prints one JSON line on stdout). `sdoc slides` + `sdoc present` add the slide DSL (```slide / ~~~slide blocks render inline, present mode runs fullscreen). Three new bullets in alphabetical order: feedback, present, slides.';
+const AGENT_BLOCK_VERSION = 7;
+const AGENT_BLOCK_REASON  = 'Block restructured around when to reach for SDocs vs when to skip it. Adds an explicit "skip it for quick Q&A" line (no more reflexive over-reach), groups rendering features under one frame, names the matching fenced-block info-strings (```chart, ```mermaid, ```slide, ```form), tells the agent it can\'t actually deliver `sdoc share` links, and notes the library indexes by tag/dir/date (not content - fall back to grep). Iterated through 36 sub-agent simulations across Opus/Sonnet/Haiku.';
 
 const AGENT_BLOCK_BODY = `## SDocs
 
-SDocs (sdocs.dev) renders markdown with clean styling you can adjust.
-Content lives in the URL hash - nothing hits a server.
+The \`sdoc\` CLI (\`sdoc path/to/file.md\`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs \`sdoc share\`.
 
-Use it (or offer it) when the user wants to read, share, or export a \`.md\` file.
-Also handy for copying specific code - SDocs code blocks have copy buttons.
+Use it (or offer it) when the user wants to read, share, or export a \`.md\` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
-The \`sdoc\` CLI is installed globally:
-- \`sdoc file.md\` - open styled in browser (great for easy reading).
-- \`sdoc share file.md\` - copy shareable URL to clipboard.
-- \`sdoc schema\` - how to adjust all stylable properties (fonts, colors, spacing).
-- \`sdoc charts\` - read this before writing a \`\`\`chart block. The JSON shape is specific and easy to get wrong from memory.
-- \`sdoc diagrams\` - read this before writing a \`\`\`mermaid block. Covers supported diagram types and the security model. Standalone \`.mmd\` / \`.mermaid\` files also work: \`sdoc graph.mmd\`.
-- \`sdoc feedback\` - read this before writing a \`\`\`form block. You can ask the user something structured (radio / checkbox / select / text / textarea / number / date), run \`sdoc feedback file.md\`, and a single JSON line lands on stdout when they click a submit button. Defaults to one-button single-shot mode; \`--keep-open\` for multi-click sessions.
-- \`sdoc present file.md\` - open file directly in fullscreen presentation mode.
-- \`sdoc slides\` - slide DSL reference (grids, shapes, content). Slides render from \`\`\`slide or ~~~slide blocks.
-- \`sdoc --help\` - full usage.
+### Basic \`sdoc\` usage
 
-When helping the user themselves, prefer \`sdoc file.md\` over \`sdoc share file.md\`. Share is for sending a link to someone else.
+- \`sdoc file.md\` - open a file for easy reading/sharing in the browser
+- \`sdoc library\` - opens a library view in the browser. SDocs automatically indexes every \`.md\` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to \`grep\` for that). Opt out per-directory with \`.sdocsignore\` or per-file with \`sdocs-library: false\` in front matter. (\`sdoc library --help\` for the full reference.)
+- \`sdoc file.md +tag1 +tag2\` - open the file and inject tags into its YAML front matter which persist. The \`+\` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
+- \`sdoc library ls --tags\` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
+- \`sdoc share file.md\` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
+- \`sdoc --help\` - full reference.
 
-Source: https://github.com/espressoplease/SDocs
+### SmallDocs expands what you can create with Markdown
+
+SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the \`.md\` file first, then \`sdoc path/to/file.md\`.
+
+Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
+
+- \`sdoc charts\` - rendering inline charts (\`\`\`chart blocks)
+- \`sdoc diagrams\` - rendering inline Mermaid diagrams (\`\`\`mermaid blocks; has full-screen mode for zoom)
+- \`sdoc slides\` - inline slide decks (\`\`\`slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as \`.pdf\` or \`.pptx\`. \`sdoc present file.md\` - open file directly in fullscreen presentation mode.
+- \`sdoc schema\` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
+- \`sdoc feedback\` - rendering interactive elements (\`\`\`form blocks) to receive structured input from the user. Run \`sdoc feedback file.md\` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 `;
 
 const AGENT_BLOCK_START_PREFIX = '<!-- sdocs-agent-block:start v=';

@@ -22,7 +22,7 @@ module.exports = function (h) {
     // Seed: one ordinary entry, one whose file actually exists on disk
     // so the open endpoint can produce a URL for it.
     const realFile = path.join(SANDBOX, 'real.md');
-    fs.writeFileSync(realFile, '# Real\n\nsome content with #demo');
+    fs.writeFileSync(realFile, '# Real\n\nsome ordinary body content.');
     store.upsertEntry({
       id: 'real', path: realFile, title: 'Real',
       tags: ['demo'], mtime: new Date().toISOString(),

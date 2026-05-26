@@ -253,6 +253,45 @@ module.exports = function(harness) {
     assert.strictEqual(result.section, 'Getting Started');
   });
 
+  test('parseArgs: library subcommand with ls positional', () => {
+    const result = cli.parseArgs(['library', 'ls']);
+    assert.strictEqual(result.subcommand, 'library');
+    assert.strictEqual(result.file, 'ls');
+    assert.strictEqual(result.tagsFlag, false);
+  });
+
+  test('parseArgs: library ls --tags sets tagsFlag', () => {
+    const result = cli.parseArgs(['library', 'ls', '--tags']);
+    assert.strictEqual(result.subcommand, 'library');
+    assert.strictEqual(result.file, 'ls');
+    assert.strictEqual(result.tagsFlag, true);
+  });
+
+  test('parseArgs: library ls with explicit path lands in opts.extra', () => {
+    const result = cli.parseArgs(['library', 'ls', '/some/path']);
+    assert.strictEqual(result.subcommand, 'library');
+    assert.strictEqual(result.file, 'ls');
+    assert.strictEqual(result.extra, '/some/path');
+  });
+
+  test('parseArgs: library --help sets helpFlag, leaves subcommand at library', () => {
+    const result = cli.parseArgs(['library', '--help']);
+    assert.strictEqual(result.subcommand, 'library');
+    assert.strictEqual(result.helpFlag, true);
+  });
+
+  test('parseArgs: bare --help still maps to help subcommand', () => {
+    const result = cli.parseArgs(['--help']);
+    assert.strictEqual(result.subcommand, 'help');
+    assert.strictEqual(result.helpFlag, false);
+  });
+
+  test('parseArgs: +tag args accumulate into addTags', () => {
+    const result = cli.parseArgs(['plan.md', '+planning', '+q2']);
+    assert.strictEqual(result.file, 'plan.md');
+    assert.deepStrictEqual(result.addTags, ['planning', 'q2']);
+  });
+
   console.log('\n── buildUrl Tests ─────────────────────────────\n');
 
   test('buildUrl: defaults to sdocs.dev with style mode when no content', () => {
