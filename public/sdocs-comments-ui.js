@@ -1030,20 +1030,11 @@ function extractSectionSource(headingEl) {
   var level = parseInt(headingEl.tagName[1], 10);
   var headingText = getHeadingPlainText(headingEl);
   var md = S.currentBody || '';
-  var headingRe = new RegExp('^(#{1,' + level + '})\\s+(.+)$', 'gm');
-  var m, startIdx = -1;
-  while ((m = headingRe.exec(md)) !== null) {
-    if (m[2].trim() === headingText && m[1].length === level) {
-      startIdx = m.index;
-      break;
-    }
-  }
-  if (startIdx === -1) return null;
-  var afterRe = new RegExp('\\n(#{1,' + level + '})\\s+', 'g');
-  afterRe.lastIndex = startIdx + 1;
-  var a = afterRe.exec(md);
-  var endIdx = a ? a.index : md.length;
-  var sectionBody = md.slice(startIdx, endIdx).trim() + '\n';
+  // findSectionRange walks fences so a ` ```markdown ` block whose contents
+  // contain `## ...` headings doesn't truncate the section.
+  var range = SDC.findSectionRange(md, level, headingText);
+  if (!range) return null;
+  var sectionBody = range.body.trim() + '\n';
   var all = SDC.getComments(S.currentMeta);
   var blocksInSection = listBlocksInSection(headingEl, level);
   function inBlocks(el) {

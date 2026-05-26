@@ -194,6 +194,72 @@ function updateComment(meta, id, patch) {
   return changed ? setComments(meta, list) : meta;
 }
 
+// ── Section slicing ─────────────────────────────────────────────────────
+
+// Walk lines and collect every top-level ATX heading (`#` ... `######`)
+// that sits OUTSIDE a fenced code block. Used by per-section copy to find
+// the section boundaries in the raw source.
+//
+// Why: a naive `^(#{1,N})\s+...` regex pulls in `##` lines that live inside
+// a ` ```markdown ` fence, which would silently truncate the copy at the
+// first inner heading. Tracking fence state line-by-line is enough.
+//
+// Fence rules (CommonMark-shaped, just enough for this use case):
+//   - opener:  ^[ ]{0,3}(`{3,}|~{3,}).*$
+//   - closer:  same fence char, count >= opener's count, only whitespace
+//              after the closing run
+function findTopHeadings(md) {
+  if (typeof md !== 'string') return [];
+  var out = [];
+  var lines = md.split('\n');
+  var fence = null; // null when outside; e.g. '```' or '~~~~' when inside
+  var pos = 0;
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var trimmed = line.replace(/^[ \t]{0,3}/, '');
+    var fenceMatch = /^(`{3,}|~{3,})/.exec(trimmed);
+    if (fence) {
+      if (fenceMatch && fenceMatch[1][0] === fence[0]
+          && fenceMatch[1].length >= fence.length
+          && /^\s*$/.test(trimmed.slice(fenceMatch[1].length))) {
+        fence = null;
+      }
+    } else if (fenceMatch) {
+      fence = fenceMatch[1];
+    } else {
+      var h = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+      if (h) {
+        out.push({ index: pos, level: h[1].length, text: h[2].trim() });
+      }
+    }
+    pos += line.length + 1; // +1 for the consumed '\n'
+  }
+  return out;
+}
+
+// Slice `md` to the substring covered by the section whose ATX heading
+// matches (level, headingText). Section ends at the next heading of equal
+// or higher rank, ignoring any headings inside fenced code blocks. Returns
+// null if the heading isn't found.
+function findSectionRange(md, level, headingText) {
+  var headings = findTopHeadings(md);
+  var startIdx = -1, startI = -1;
+  for (var i = 0; i < headings.length; i++) {
+    var h = headings[i];
+    if (h.level === level && h.text === headingText) {
+      startIdx = h.index;
+      startI = i;
+      break;
+    }
+  }
+  if (startIdx === -1) return null;
+  var endIdx = md.length;
+  for (var j = startI + 1; j < headings.length; j++) {
+    if (headings[j].level <= level) { endIdx = headings[j].index; break; }
+  }
+  return { startIdx: startIdx, endIdx: endIdx, body: md.slice(startIdx, endIdx) };
+}
+
 // ── Copy serializers ────────────────────────────────────────────────────
 
 /**
@@ -446,5 +512,7 @@ exports.updateComment       = updateComment;
 exports.serializeFootnotes  = serializeFootnotes;
 exports.parseFootnotes      = parseFootnotes;
 exports.serializeClean      = serializeClean;
+exports.findTopHeadings     = findTopHeadings;
+exports.findSectionRange    = findSectionRange;
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocComments = {}));
