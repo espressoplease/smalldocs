@@ -27,21 +27,34 @@ module.exports = function (h) {
   test('buildEntry: title from first heading when meta lacks title', () => {
     const e = libIndex.buildEntry({
       absPath: '/x/foo.md',
-      content: '# Hello world\n\nbody #plan',
+      content: '# Hello world\n\nbody text',
       addTags: [],
     });
     assert.strictEqual(e.title, 'Hello world');
-    assert.deepStrictEqual(e.tags, ['plan']);
+    assert.deepStrictEqual(e.tags, []);
   });
 
-  test('buildEntry: meta.tags merge with body hashtags and addTags', () => {
-    const md = '---\ntitle: T\ntags:\n  - front\n---\n\n#body and more';
+  test('buildEntry: meta.tags merge with addTags', () => {
+    const md = '---\ntitle: T\ntags:\n  - front\n---\n\nbody text';
     const e = libIndex.buildEntry({
       absPath: '/x/foo.md',
       content: md,
       addTags: ['cli'],
     });
-    assert.deepStrictEqual(e.tags, ['front', 'body', 'cli']);
+    assert.deepStrictEqual(e.tags, ['front', 'cli']);
+  });
+
+  test('buildEntry: #words in body are NOT extracted as tags', () => {
+    // Body hashtags were removed - prose mentions like "#planning" are
+    // just words to SDocs. Only YAML front matter and +tag CLI args
+    // contribute to a file's tag list.
+    const md = '---\ntitle: T\ntags:\n  - front\n---\n\n#planning is mentioned but not a tag';
+    const e = libIndex.buildEntry({
+      absPath: '/x/foo.md',
+      content: md,
+      addTags: [],
+    });
+    assert.deepStrictEqual(e.tags, ['front']);
   });
 
   test('buildEntry: pulls agent/session from sdocs-library namespace', () => {
@@ -53,7 +66,7 @@ module.exports = function (h) {
 
   test('indexFile: indexes a plain file', () => {
     store.clearIndex();
-    const f = write('plain.md', '# Plain\n\nhello #demo');
+    const f = write('plain.md', '---\ntags:\n  - demo\n---\n# Plain\n\nhello');
     const entry = libIndex.indexFile(f);
     assert.ok(entry);
     assert.strictEqual(entry.title, 'Plain');
@@ -152,9 +165,9 @@ module.exports = function (h) {
     store.clearIndex();
     const projA = path.join(CONTENT, 'proj-a');
     const projB = path.join(CONTENT, 'proj-b');
-    write('proj-a/one.md', '# one\n#alpha');
-    write('proj-a/two.md', '# two\n#alpha #beta');
-    write('proj-b/three.md', '# three\n#gamma');
+    write('proj-a/one.md', '---\ntags:\n  - alpha\n---\n# one');
+    write('proj-a/two.md', '---\ntags:\n  - alpha\n  - beta\n---\n# two');
+    write('proj-b/three.md', '---\ntags:\n  - gamma\n---\n# three');
     libIndex.scanAndIndex({ roots: [CONTENT] });
     const tagsA = libIndex.tagsUnderPrefix(projA).map(t => t.tag);
     assert.deepStrictEqual(tagsA.sort(), ['alpha', 'beta']);

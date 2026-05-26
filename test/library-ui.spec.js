@@ -59,7 +59,7 @@ test.beforeAll(async () => {
   process.env.SDOCS_LAUNCHAGENTS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-la-'));
   process.env.SDOCS_AUTOSTART_DRY_RUN = '1';
   const realFile = path.join(SANDBOX, 'real.md');
-  fs.writeFileSync(realFile, '# Real one\n\nbody with #demo content');
+  fs.writeFileSync(realFile, '# Real one\n\nordinary body content.');
   seed(SANDBOX, realFile);
   // Mirror the production default: autostart on by default for the
   // happy path tests below.
