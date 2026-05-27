@@ -157,6 +157,16 @@ function indexFile(absPath, { addTags } = {}) {
   const resolved = path.resolve(absPath);
   if (!fs.existsSync(resolved)) return null;
 
+  // OS scratch directories (macOS /var/folders, Linux /run, Windows
+  // %TEMP%) never make it into the library. Test runners and build
+  // tools write here constantly; rescue copies would just accumulate.
+  // The escape hatch is for the test suite, which legitimately uses
+  // mkdtemp under os.tmpdir() to isolate fixtures and needs indexing
+  // to work against those paths.
+  if (ephemeral.isThrowawayPath(resolved) && !process.env.SDOCS_ALLOW_THROWAWAY_INDEXING) {
+    return null;
+  }
+
   if (addTags && addTags.length) {
     injectTagsIntoFile(resolved, addTags);
   }
@@ -182,7 +192,24 @@ function indexFile(absPath, { addTags } = {}) {
   return store.upsertEntry(entry);
 }
 
-// Bulk scan: walk roots, index each .md found. Returns counts.
+// Drop entries whose underlying file is gone. For rescued entries the
+// rescue copy under ~/.sdocs/library/rescued/ is the source of truth -
+// if that's missing the entry can't be opened, so it's pruned even if
+// rescuedFrom happens to still exist. Returns the count removed.
+function pruneMissing() {
+  const idx = store.loadIndex();
+  let removed = 0;
+  for (const e of idx.entries.slice()) {
+    if (!e.path || !fs.existsSync(e.path)) {
+      store.removeEntry(e.id);
+      removed++;
+    }
+  }
+  return removed;
+}
+
+// Bulk scan: walk roots, index each .md found, then prune entries
+// whose files have disappeared since the last scan. Returns counts.
 function scanAndIndex({ roots, excludes, maxFileSize } = {}) {
   const found = scanner.scan({ roots, excludes, maxFileSize });
   let added = 0, updated = 0;
@@ -191,10 +218,11 @@ function scanAndIndex({ roots, excludes, maxFileSize } = {}) {
     indexFile(f.path);
     if (before) updated++; else added++;
   }
+  const removed = pruneMissing();
   const state = store.loadState();
   state.lastScanAt = Date.now();
   store.saveState(state);
-  return { scanned: found.length, added, updated };
+  return { scanned: found.length, added, updated, removed };
 }
 
 function rebuild() {
@@ -239,6 +267,7 @@ function tagsUnderPrefix(prefix) {
 
 module.exports = {
   indexFile,
+  pruneMissing,
   scanAndIndex,
   rebuild,
   buildEntry,

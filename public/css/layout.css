@@ -139,8 +139,14 @@ body {
   background: var(--bg-input);
 }
 
+/* Three-column grid keeps the icons dead center regardless of how
+   wide the brand or Library button get. The 1fr side columns are
+   forced to equal width via the `minmax(0, 1fr)` form (plain `1fr`
+   would let either side stretch past the other when content is wide).
+   Mobile drops back to flex - see css/mobile.css. */
 #_sd_left-toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 6px;
   height: 40px;
@@ -153,6 +159,11 @@ body {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
+/* Brand sits at the start of column 1, Library at the end of column 3.
+   The middle column (toggle-group) is auto-sized and naturally centered. */
+#_sd_left-toolbar > #_sd_toolbar-brand { justify-self: start; }
+#_sd_left-toolbar > .toggle-group       { justify-self: center; }
+#_sd_left-toolbar > #_sd_btn-library    { justify-self: end; margin-left: 0; }
 #_sd_left-toolbar::-webkit-scrollbar {
   display: none;
 }
@@ -234,14 +245,27 @@ body {
   color: var(--text);
 }
 
-#_sd_drop-hint {
+#_sd_btn-library {
   font-size: 11.5px;
   color: var(--text-2);
   margin-left: auto;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color .15s, color .15s, border-color .15s;
 }
+#_sd_btn-library:hover {
+  background: var(--bg-input);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+#_sd_btn-library svg { flex: 0 0 auto; }
 
 .toolbar-icon-btn {
   display: inline-flex;
