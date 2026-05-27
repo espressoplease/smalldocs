@@ -414,6 +414,17 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Static explainer for the rescued-files badge. Pure prose, same CSP
+  // as the rest of the site since it doesn't touch the local agent.
+  if (pathname === '/library/rescued') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'rescued.html'), null, {
+      'Cache-Control': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+    });
+    return;
+  }
+
   // Trust page — always available. Proves the frontend served matches the
   // commit the server claims to be running. See public/trust.html for copy.
   if (pathname === '/trust') {

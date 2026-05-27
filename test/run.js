@@ -5,6 +5,12 @@
  * Requires all test groups and runs them in sequence.
  */
 
+// Tests use mkdtemp under os.tmpdir() for sandbox isolation. The
+// library scanner refuses to index OS scratch dirs by default
+// (production rule) - the test runner opts out so fixtures behave
+// like real user files.
+process.env.SDOCS_ALLOW_THROWAWAY_INDEXING = '1';
+
 const harness = require('./runner');
 
 // ── Unit test groups (synchronous) ──────────────────

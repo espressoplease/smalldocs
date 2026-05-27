@@ -40,4 +40,39 @@ module.exports = function (h) {
     const roots = ephem.ephemeralRoots();
     assert.ok(roots.includes(path.resolve(os.tmpdir())), 'expected tmpdir() in roots');
   });
+
+  test('isThrowawayPath: tmpdir() qualifies', () => {
+    const f = path.join(os.tmpdir(), 'scratch.md');
+    assert.strictEqual(ephem.isThrowawayPath(f), true);
+  });
+
+  if (process.platform === 'darwin') {
+    test('isThrowawayPath: /var/folders is throwaway on macOS', () => {
+      assert.strictEqual(ephem.isThrowawayPath('/var/folders/aa/bb/T/test.md'), true);
+    });
+    test('isThrowawayPath: /private/var/folders alias is throwaway', () => {
+      assert.strictEqual(ephem.isThrowawayPath('/private/var/folders/aa/bb/T/test.md'), true);
+    });
+    test('isEphemeralPath: /private/var/folders alias matches tmpdir()', () => {
+      // Regression: the bug that let test artifacts skip rescue. The
+      // /private prefix should be canonicalised so it matches os.tmpdir().
+      const synthetic = '/private' + path.resolve(os.tmpdir()) + '/sample.md';
+      assert.strictEqual(ephem.isEphemeralPath(synthetic), true);
+    });
+    test('isThrowawayPath: /tmp is NOT throwaway (only ephemeral)', () => {
+      // /tmp gets rescue copies; users do work there. Only OS scratch
+      // dirs are throwaway.
+      assert.strictEqual(ephem.isThrowawayPath('/tmp/foo.md'), false);
+    });
+  }
+
+  test('isThrowawayPath: ordinary home file is not throwaway', () => {
+    const f = path.join(os.homedir(), 'docs', 'note.md');
+    assert.strictEqual(ephem.isThrowawayPath(f), false);
+  });
+
+  test('isThrowawayPath: empty / null returns false', () => {
+    assert.strictEqual(ephem.isThrowawayPath(''), false);
+    assert.strictEqual(ephem.isThrowawayPath(null), false);
+  });
 };

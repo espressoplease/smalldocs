@@ -18,8 +18,8 @@ const fs   = require('fs');
 const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
-const AGENT_BLOCK_VERSION = 7;
-const AGENT_BLOCK_REASON  = 'Block restructured around when to reach for SDocs vs when to skip it. Adds an explicit "skip it for quick Q&A" line (no more reflexive over-reach), groups rendering features under one frame, names the matching fenced-block info-strings (```chart, ```mermaid, ```slide, ```form), tells the agent it can\'t actually deliver `sdoc share` links, and notes the library indexes by tag/dir/date (not content - fall back to grep). Iterated through 36 sub-agent simulations across Opus/Sonnet/Haiku.';
+const AGENT_BLOCK_VERSION = 8;
+const AGENT_BLOCK_REASON  = 'Mermaid diagrams line now names system / architectural diagrams (sequence, flow, component layout) as the primary fit so agents reach for them when explaining shape instead of writing three paragraphs of prose.';
 
 const AGENT_BLOCK_BODY = `## SDocs
 
@@ -43,7 +43,7 @@ SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
 - \`sdoc charts\` - rendering inline charts (\`\`\`chart blocks)
-- \`sdoc diagrams\` - rendering inline Mermaid diagrams (\`\`\`mermaid blocks; has full-screen mode for zoom)
+- \`sdoc diagrams\` - rendering inline Mermaid diagrams (\`\`\`mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - \`sdoc slides\` - inline slide decks (\`\`\`slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as \`.pdf\` or \`.pptx\`. \`sdoc present file.md\` - open file directly in fullscreen presentation mode.
 - \`sdoc schema\` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - \`sdoc feedback\` - rendering interactive elements (\`\`\`form blocks) to receive structured input from the user. Run \`sdoc feedback file.md\` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.

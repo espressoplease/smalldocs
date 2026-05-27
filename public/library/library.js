@@ -15,6 +15,31 @@ const AGENT_URL = (() => {
 
 function api(p) { return AGENT_URL + p; }
 
+// Minimum CLI version the library page expects. Any older install
+// (including any pre-version-reporting build) is flagged with an
+// "update your CLI" banner. Bump this when the page starts relying on
+// a newer agent endpoint or response shape, or when an earlier version
+// has a known behavioural problem worth nudging users away from.
+//
+// 1.11.0 added the throwaway-folder block and prune-missing on
+// rescan. Pre-1.11 installs can hang on Rescan because the walker
+// dives into /var/folders and similar - so anything older than 1.11
+// gets a soft update prompt.
+const MIN_AGENT_VERSION = '1.11.0';
+
+// Loose semver compare: returns -1, 0, or 1. Anything that fails to
+// parse (empty string, garbage) sorts as "older than everything" so
+// the page errs toward asking the user to update.
+function compareVersion(a, b) {
+  const pa = String(a || '0').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b || '0').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const da = pa[i] || 0, db = pb[i] || 0;
+    if (da !== db) return da < db ? -1 : 1;
+  }
+  return 0;
+}
+
 // Same icons SDocs uses on code blocks and the file-info copy buttons.
 const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 const CHECK_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -149,7 +174,6 @@ const FACET_DEFS = {
   path: {
     title: 'Path',
     getOptions: pathPrefixOptions,
-    column: true,
     chipKey: 'path',
     match: (e, val) => (e.path || '').toLowerCase().includes(val.toLowerCase()),
   },
@@ -163,12 +187,24 @@ const FACET_DEFS = {
     title: 'When',
     getOptions: () => TIME_OPTIONS.map(o => ({ value: o.value, label: o.value, labelExtra: o.label })),
     exclusive: true,
-    column: true,
     chipKey: 'since',
+    // val is either a preset like "7d" or a custom range
+    // "range:YYYY-MM-DD..YYYY-MM-DD" (either end may be blank for an
+    // open interval).
     match: (e, val) => {
       const d = dateFor(e); if (!d) return false;
+      const t = new Date(d).getTime();
+      if (typeof val === 'string' && val.startsWith('range:')) {
+        const body = val.slice(6);
+        const sep = body.indexOf('..');
+        const from = sep >= 0 ? body.slice(0, sep) : body;
+        const to   = sep >= 0 ? body.slice(sep + 2) : '';
+        const fromT = from ? new Date(from + 'T00:00:00').getTime() : -Infinity;
+        const toT   = to   ? new Date(to   + 'T23:59:59.999').getTime() : Infinity;
+        return t >= fromT && t <= toT;
+      }
       const days = daysFromSince(val);
-      return (Date.now() - new Date(d).getTime()) / 86400000 <= days;
+      return (Date.now() - t) / 86400000 <= days;
     },
   },
   tag: {
@@ -179,11 +215,43 @@ const FACET_DEFS = {
   },
 };
 
-function hasChip(k, v) { return STATE.chips.some(c => c.key === k && c.value === v); }
+// Chips carry an optional `exclude: true` flag. Three states are
+// possible for a (key, value) pair: not present (no chip), include
+// (chip without exclude), exclude (chip with exclude). Clicking a
+// facet option or typing in the search box cycles through them.
+function chipFor(k, v) {
+  return STATE.chips.find(c => c.key === k && c.value === v) || null;
+}
+function chipState(k, v) {
+  const c = chipFor(k, v);
+  if (!c) return 'none';
+  return c.exclude ? 'exclude' : 'include';
+}
+function hasChip(k, v) { return chipState(k, v) !== 'none'; }
 function removeChip(k, v) { STATE.chips = STATE.chips.filter(c => !(c.key === k && c.value === v)); }
+function setChip(k, v, opts) {
+  removeChip(k, v);
+  STATE.chips.push({ key: k, value: v, exclude: !!(opts && opts.exclude) });
+}
 function setExclusiveChip(k, v) {
   STATE.chips = STATE.chips.filter(c => c.key !== k);
   if (v) STATE.chips.push({ key: k, value: v });
+}
+// One click = next state. Skip the exclude state for exclusive facets
+// (date "since" presets) where excluding a single bucket makes no
+// useful sense compared to picking a different bucket.
+function cycleChip(k, v, opts) {
+  const def = FACET_DEFS[k];
+  const exclusive = def && def.exclusive;
+  if (exclusive) {
+    if (hasChip(k, v)) setExclusiveChip(k, '');
+    else setExclusiveChip(k, v);
+    return;
+  }
+  const state = chipState(k, v);
+  if (state === 'none') setChip(k, v, { exclude: false });
+  else if (state === 'include') setChip(k, v, { exclude: true });
+  else removeChip(k, v);
 }
 
 function applyFilters() {
@@ -192,7 +260,13 @@ function applyFilters() {
     if (STATE.starredOnly && !e.starred) return false;
     for (const c of STATE.chips) {
       const def = FACET_DEFS[c.key];
-      if (def && !def.match(e, c.value)) return false;
+      if (!def) continue;
+      const matched = def.match(e, c.value);
+      if (c.exclude) {
+        if (matched) return false;
+      } else {
+        if (!matched) return false;
+      }
     }
     if (q) {
       const blob = (
@@ -210,15 +284,25 @@ function applyFilters() {
   });
 }
 
+// Search-box syntax: `tag:foo` adds an include chip; `-tag:foo`
+// (or `not:tag:foo`) adds an exclude chip. Unknown keys fall through
+// to free-text search.
 function parseInput(s) {
   const KEYS = ['project','agent','path','since','tag'];
   const tokens = s.split(/\s+/);
   const remaining = [];
   for (const t of tokens) {
-    const m = t.match(/^(\w+):(.+)$/);
+    if (!t) continue;
+    let exclude = false;
+    let token = t;
+    if (token.startsWith('-')) { exclude = true; token = token.slice(1); }
+    else if (token.toLowerCase().startsWith('not:')) { exclude = true; token = token.slice(4); }
+    const m = token.match(/^(\w+):(.+)$/);
     if (m && KEYS.includes(m[1])) {
-      if (!hasChip(m[1], m[2])) STATE.chips.push({ key: m[1], value: m[2] });
-    } else if (t) remaining.push(t);
+      setChip(m[1], m[2], { exclude });
+    } else {
+      remaining.push(t);
+    }
   }
   return remaining.join(' ');
 }
@@ -263,11 +347,28 @@ function splitPath(p) {
 
 let openFacet = null;
 
+function chipDisplayValue(c) {
+  if (c.key === 'since' && typeof c.value === 'string' && c.value.startsWith('range:')) {
+    const body = c.value.slice(6);
+    const sep = body.indexOf('..');
+    const from = sep >= 0 ? body.slice(0, sep) : body;
+    const to   = sep >= 0 ? body.slice(sep + 2) : '';
+    if (from && to)   return from + ' → ' + to;
+    if (from && !to)  return 'after ' + from;
+    if (!from && to)  return 'before ' + to;
+    return c.value;
+  }
+  return c.value;
+}
+
 function renderChipsInline() {
   const row = document.getElementById('chips-row');
-  row.innerHTML = STATE.chips.map((c, i) =>
-    `<span class="filter-chip">${c.key}:${escHtml(c.value)}<span class="x" data-rm="${i}" title="remove">&times;</span></span>`
-  ).join('');
+  row.innerHTML = STATE.chips.map((c, i) => {
+    const prefix = c.exclude ? '−&nbsp;' : '';
+    const cls = c.exclude ? 'filter-chip exclude' : 'filter-chip';
+    const title = c.exclude ? 'excluded - click × to remove' : 'included - click × to remove';
+    return `<span class="${cls}" title="${title}">${prefix}${c.key}:${escHtml(chipDisplayValue(c))}<span class="x" data-rm="${i}" title="remove">&times;</span></span>`;
+  }).join('');
   document.querySelectorAll('[data-rm]').forEach(el => el.addEventListener('click', () => {
     STATE.chips.splice(+el.dataset.rm, 1);
     renderAll();
@@ -305,10 +406,15 @@ function renderFacetPanel() {
     container.innerHTML = '<div class="muted" style="font-size:11.5px">no values yet</div>';
     return;
   }
+  const cycleHint = def.exclusive
+    ? 'click to filter; click again to clear'
+    : 'click to include; click again to exclude; once more to clear';
   container.innerHTML = opts.map(o => {
-    const sel = hasChip(openFacet, o.value);
+    const state = chipState(openFacet, o.value);
+    const stateCls = state === 'include' ? 'selected' : state === 'exclude' ? 'excluded' : '';
     return `
-      <button class="facet-option ${sel ? 'selected' : ''}" data-key="${openFacet}" data-value="${escHtml(o.value)}" ${def.exclusive ? 'data-exclusive="1"' : ''}>
+      <button class="facet-option ${stateCls}" data-key="${openFacet}" data-value="${escHtml(o.value)}" ${def.exclusive ? 'data-exclusive="1"' : ''} title="${cycleHint}">
+        ${state === 'exclude' ? '<span class="exclude-mark" aria-hidden="true">−</span>' : ''}
         <span class="prefix">${openFacet}:</span><span>${escHtml(o.label)}</span>
         ${o.labelExtra ? `<span class="label-extra">${escHtml(o.labelExtra)}</span>` : ''}
         ${o.count != null ? `<span class="count">${o.count}</span>` : ''}
@@ -316,16 +422,57 @@ function renderFacetPanel() {
     `;
   }).join('');
   container.querySelectorAll('.facet-option').forEach(el => el.addEventListener('click', () => {
-    const k = el.dataset.key, v = el.dataset.value;
-    if (el.dataset.exclusive === '1') {
-      if (hasChip(k, v)) setExclusiveChip(k, '');
-      else setExclusiveChip(k, v);
-    } else {
-      if (hasChip(k, v)) removeChip(k, v);
-      else STATE.chips.push({ key: k, value: v });
-    }
+    cycleChip(el.dataset.key, el.dataset.value);
     renderAll();
   }));
+
+  if (openFacet === 'since') renderDateRangePicker(container);
+}
+
+function currentRangeBounds() {
+  const sinceChip = STATE.chips.find(c => c.key === 'since' && !c.exclude);
+  if (!sinceChip || typeof sinceChip.value !== 'string' || !sinceChip.value.startsWith('range:')) {
+    return { from: '', to: '' };
+  }
+  const body = sinceChip.value.slice(6);
+  const sep = body.indexOf('..');
+  return {
+    from: sep >= 0 ? body.slice(0, sep) : body,
+    to:   sep >= 0 ? body.slice(sep + 2) : '',
+  };
+}
+
+function renderDateRangePicker(container) {
+  const { from, to } = currentRangeBounds();
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const wrap = document.createElement('div');
+  wrap.className = 'date-range';
+  wrap.innerHTML = `
+    <div class="date-range-row">
+      <label class="date-range-label">From</label>
+      <input type="date" class="date-range-input" data-end="from" value="${from}" max="${todayIso}" />
+      <label class="date-range-label">to</label>
+      <input type="date" class="date-range-input" data-end="to" value="${to}" max="${todayIso}" />
+      <button class="date-range-apply" type="button" data-act="apply">Apply</button>
+      ${from || to ? '<button class="date-range-clear" type="button" data-act="clear">Clear</button>' : ''}
+    </div>
+    <div class="date-range-hint">Pick a custom range. Either end can be blank for an open interval.</div>
+  `;
+  container.appendChild(wrap);
+
+  const applyBtn = wrap.querySelector('[data-act="apply"]');
+  applyBtn.addEventListener('click', () => {
+    const f = wrap.querySelector('[data-end="from"]').value || '';
+    const t = wrap.querySelector('[data-end="to"]').value || '';
+    if (!f && !t) return;
+    setExclusiveChip('since', 'range:' + f + '..' + t);
+    renderAll();
+  });
+  const clearBtn = wrap.querySelector('[data-act="clear"]');
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    setExclusiveChip('since', '');
+    renderAll();
+  });
 }
 
 function renderResults() {
@@ -364,7 +511,9 @@ function renderResults() {
     }
     const project = e.gitProject ? `<code>${escHtml(e.gitProject)}</code>` : '';
     const agent = e.agent ? `<span>${escHtml(e.agent)}</span>` : '';
-    const rescued = e.rescued ? `<span class="rescued-badge" title="Copied from ${escHtml(e.rescuedFrom || '')}">rescued</span>` : '';
+    const rescued = e.rescued
+      ? `<a class="rescued-badge" href="/library/rescued" target="_blank" rel="noopener" title="This file lived in a throwaway folder. SDocs kept a snapshot so it survives. Click for details.${e.rescuedFrom ? '\n\nOriginal: ' + e.rescuedFrom : ''}" onclick="event.stopPropagation()">rescued</a>`
+      : '';
     const when = dateFor(e) ? new Date(dateFor(e)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
     return `
     <div class="res ${i === STATE.selected ? 'sel' : ''}" data-idx="${i}" data-id="${escHtml(e.id)}">
@@ -426,10 +575,18 @@ async function loadData() {
     STATE.lastScanAt = data.lastScanAt || 0;
     STATE.enabled = data.enabled !== false;
     STATE.autostart = data.autostart || { supported: false, enabled: false, userDisabled: false };
-    // Show the recovery banner only when autostart *should* be on but
-    // isn't, and the user hasn't explicitly turned it off. If they have,
-    // their preference is the truth; don't nag.
-    if (STATE.autostart.supported && !STATE.autostart.enabled && !STATE.autostart.userDisabled) {
+    // Stale-CLI check runs before the autostart nag - an outdated
+    // install is the more urgent thing for the user to see.
+    if (compareVersion(data.version, MIN_AGENT_VERSION) < 0) {
+      showBanner({
+        kind: 'info',
+        message: 'Your SDocs CLI is out of date. Update with:',
+        command: 'npm i -g sdocs-dev',
+      });
+    } else if (STATE.autostart.supported && !STATE.autostart.enabled && !STATE.autostart.userDisabled) {
+      // Show the recovery banner only when autostart *should* be on but
+      // isn't, and the user hasn't explicitly turned it off. If they have,
+      // their preference is the truth; don't nag.
       showBanner({
         kind: 'info',
         message: 'Library auto-start isn’t on. Turn it back on with:',
@@ -443,8 +600,8 @@ async function loadData() {
   } catch (e) {
     showBanner({
       kind: 'error',
-      message: 'The local library agent isn’t running. Start it with:',
-      command: 'sdoc library',
+      message: 'No local library running. Install the CLI (if you haven’t), then start it with:',
+      command: 'npm i -g sdocs-dev && sdoc library',
     });
     STATE.entries = [];
     renderAll();
@@ -490,7 +647,12 @@ async function openEntry(id) {
       return;
     }
     const entry = await entryResp.json();
-    const filePath = entry.rescued && entry.rescuedFrom ? entry.rescuedFrom : entry.path;
+    // Always bridge against the entry's stable path. For rescued entries
+    // that is the snapshot copy under ~/.sdocs/library/rescued/ - the
+    // whole point of rescuing is that the original location (rescuedFrom)
+    // is unreliable, so we never re-open from it even when it still
+    // exists. rescuedFrom stays around as provenance only.
+    const filePath = entry.path;
 
     // Try to spin up a Bridge for editable open. Success -> bridged URL.
     const bridgeResp = await fetch(api('/api/library/bridge-for'), {
@@ -546,9 +708,29 @@ document.addEventListener('keydown', (e) => {
     if (el) el.scrollIntoView({ block: 'nearest' });
     return;
   }
-  if (e.key === 'Enter' && STATE.shownLen) {
-    const el = document.querySelector(`.res[data-idx="${STATE.selected}"]`);
-    if (el && el.dataset.id) { e.preventDefault(); openEntry(el.dataset.id); }
+  if (e.key === 'Enter') {
+    // If the search input has pending facet syntax (e.g. `-tag:foo`
+    // typed without a trailing space), Enter materialises it as a
+    // chip instead of opening the selected row. This keeps the input
+    // box predictable: pressing Enter always commits whatever is in
+    // it before performing the secondary action.
+    const inputEl = document.getElementById('q');
+    const raw = inputEl && inputEl.value.trim();
+    if (raw && /(^|\s)-?\w+:/.test(raw)) {
+      const before = STATE.chips.length;
+      const remaining = parseInput(raw);
+      if (STATE.chips.length !== before || remaining !== raw) {
+        e.preventDefault();
+        inputEl.value = remaining;
+        STATE.q = remaining;
+        renderAll();
+        return;
+      }
+    }
+    if (STATE.shownLen) {
+      const el = document.querySelector(`.res[data-idx="${STATE.selected}"]`);
+      if (el && el.dataset.id) { e.preventDefault(); openEntry(el.dataset.id); }
+    }
   }
 });
 

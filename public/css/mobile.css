@@ -14,8 +14,19 @@
   .toolbar-brand-short { display: inline; font-size: 13px; font-weight: 600; }
 
   /* ── Sticky left toolbar: horizontal scroll, left-aligned ── */
-  #_sd_left-toolbar { position: sticky; top: 0; z-index: 99; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* Desktop uses a centered grid; mobile drops back to flex so the
+     icons sit hard against the brand on the left and the page can
+     scroll horizontally without empty columns reserving space. */
+  #_sd_left-toolbar {
+    display: flex;
+    grid-template-columns: none;
+    position: sticky; top: 0; z-index: 99;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
   #_sd_left-toolbar > * { flex-shrink: 0; }
+  #_sd_left-toolbar > #_sd_toolbar-brand,
+  #_sd_left-toolbar > .toggle-group,
+  #_sd_left-toolbar > #_sd_btn-library { justify-self: auto; }
   #_sd_toolbar-brand { margin-right: 0; }
 
   /* ── Stack layout instead of side-by-side ── */
@@ -36,8 +47,8 @@
   /* ── Write toolbar: sticky below left-toolbar ── */
   body.write-mode #_sd_write-toolbar { position: sticky; top: 36px; z-index: 98; justify-content: flex-start; }
 
-  /* ── Left toolbar: hide drop hint ── */
-  #_sd_drop-hint { display: none; }
+  /* ── Left toolbar: hide library button (desktop-only) ── */
+  #_sd_btn-library { display: none; }
 
   /* ── Status bar: hidden on mobile ── */
   #_sd_statusbar { display: none; }

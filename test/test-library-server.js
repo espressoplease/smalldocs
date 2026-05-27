@@ -172,6 +172,40 @@ module.exports = function (h) {
       assert.strictEqual(r.body.ok, true);
     });
 
+    await testAsync('library-agent: health response carries the CLI version', async () => {
+      const r = await req('GET', '/api/library/health');
+      assert.strictEqual(typeof r.body.version, 'string', 'version should be a string');
+      // Should look like a semver dotted version.
+      assert.ok(/^\d+\.\d+\.\d+/.test(r.body.version), 'version should look like X.Y.Z, got: ' + r.body.version);
+    });
+
+    await testAsync('library-agent: data response carries the CLI version', async () => {
+      const r = await req('GET', '/api/library/data');
+      assert.strictEqual(typeof r.body.version, 'string');
+      assert.ok(/^\d+\.\d+\.\d+/.test(r.body.version));
+    });
+
+    await testAsync('library-agent: open uses entry.path for rescued entries (snapshot, not original)', async () => {
+      // Set up: a rescued entry whose rescuedFrom path does NOT exist on
+      // disk, but whose entry.path (rescue copy) does. The open endpoint
+      // should still produce a URL by reading the rescue copy.
+      const rescueCopy = path.join(SANDBOX, 'rescued-snap.md');
+      fs.writeFileSync(rescueCopy, '# Snapshot\n\nrescued body lives here.');
+      store.upsertEntry({
+        id: 'rescued-1',
+        path: rescueCopy,
+        rescued: true,
+        rescuedFrom: '/totally/gone/original.md',
+        title: 'Snapshot',
+        tags: [],
+        mtime: new Date().toISOString(),
+      });
+      const r = await req('GET', '/api/library/open?id=rescued-1');
+      assert.strictEqual(r.status, 200, 'open should succeed even when rescuedFrom is gone');
+      assert.ok(r.body.url && r.body.url.includes('#md='), 'should produce a hashed URL from the snapshot');
+      assert.strictEqual(r.body.path, rescueCopy, 'reported path should be the rescue copy');
+    });
+
     await testAsync('library-agent: POST /api/library/star updates the entry', async () => {
       const r = await req('POST', '/api/library/star', { id: 'real', starred: true });
       assert.strictEqual(r.status, 200);

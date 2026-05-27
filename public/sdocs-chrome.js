@@ -193,7 +193,7 @@
     var rgb = H.parseRgb(docBg);
     var chromeKey = (rgb && H.luminance(rgb) < 0.5) ? 'dark' : 'light';
     var base = BASES[chromeKey];
-    // Chrome text (toolbar icons, drop-hint) tints from the doc's heading
+    // Chrome text (toolbar icons, library button) tints from the doc's heading
     // color — headings usually carry the doc's accent. Chrome accents
     // (logo, sliders, save-button, footer pill) use the doc's body text
     // color verbatim, which tends to be more distinct than the heading.

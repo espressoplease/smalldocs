@@ -175,6 +175,74 @@ module.exports = function (h) {
     assert.deepStrictEqual(tagsB, ['gamma']);
   });
 
+  test('indexFile: refuses files under OS scratch dirs (throwaway)', () => {
+    // The runner sets SDOCS_ALLOW_THROWAWAY_INDEXING=1 so the rest of
+    // these tests can use mkdtemp paths. Toggle it off here to verify
+    // the production rule blocks the same path.
+    const prev = process.env.SDOCS_ALLOW_THROWAWAY_INDEXING;
+    delete process.env.SDOCS_ALLOW_THROWAWAY_INDEXING;
+    try {
+      const f = path.join(os.tmpdir(), 'throwaway-' + Date.now() + '.md');
+      fs.writeFileSync(f, '# scratch');
+      const result = libIndex.indexFile(f);
+      assert.strictEqual(result, null, 'throwaway path should be refused');
+      try { fs.unlinkSync(f); } catch (_) {}
+    } finally {
+      if (prev !== undefined) process.env.SDOCS_ALLOW_THROWAWAY_INDEXING = prev;
+    }
+  });
+
+  test('pruneMissing: drops entries whose path no longer exists', () => {
+    store.clearIndex();
+    const realFile = path.join(CONTENT, 'present.md');
+    fs.mkdirSync(path.dirname(realFile), { recursive: true });
+    fs.writeFileSync(realFile, '# alive');
+    libIndex.indexFile(realFile);
+
+    // Inject a synthetic entry whose path is gone.
+    store.upsertEntry({
+      id: 'gone-entry',
+      path: path.join(CONTENT, 'never-existed-' + Date.now() + '.md'),
+      title: 'gone',
+      tags: [],
+    });
+    assert.ok(store.getEntry('gone-entry'), 'precondition: ghost entry exists');
+    const realEntries = store.loadIndex().entries.filter(e => e.id !== 'gone-entry');
+    assert.ok(realEntries.length >= 1, 'precondition: at least one real entry');
+
+    const removed = libIndex.pruneMissing();
+    assert.ok(removed >= 1, 'expected at least one entry pruned, got ' + removed);
+    assert.strictEqual(store.getEntry('gone-entry'), null, 'ghost should be gone');
+
+    // The real entry survives the prune. Because realFile lives under
+    // os.tmpdir(), indexFile rescues it - so the survivor is keyed by
+    // a path under SDOCS_HOME (the rescue copy), with rescuedFrom set
+    // to realFile.
+    const afterReal = store.loadIndex().entries.filter(e =>
+      e.path !== store.getEntry('gone-entry')?.path
+    );
+    assert.ok(afterReal.length >= 1, 'real entry should remain in the index');
+  });
+
+  test('scanAndIndex: returns a removed count and prunes during scan', () => {
+    store.clearIndex();
+    const realFile = path.join(CONTENT, 'real-during-prune.md');
+    fs.writeFileSync(realFile, '# real');
+    libIndex.indexFile(realFile);
+
+    store.upsertEntry({
+      id: 'phantom-prune',
+      path: path.join(CONTENT, 'phantom-' + Date.now() + '.md'),
+      title: 'phantom',
+      tags: [],
+    });
+
+    const result = libIndex.scanAndIndex({ roots: [CONTENT] });
+    assert.ok('removed' in result, 'scanAndIndex result should include removed count');
+    assert.ok(result.removed >= 1, 'phantom should have been pruned');
+    assert.strictEqual(store.getEntry('phantom-prune'), null);
+  });
+
   test('cleanup', () => {
     try { fs.rmSync(SANDBOX, { recursive: true, force: true }); } catch (_) {}
     try { fs.rmSync(CONTENT, { recursive: true, force: true }); } catch (_) {}

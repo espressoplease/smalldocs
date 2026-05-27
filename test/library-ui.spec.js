@@ -91,9 +91,12 @@ test('library UI: shows error banner when agent is unreachable', async ({ page }
   await page.waitForSelector('#agent-banner:not([hidden])');
   const text = await page.textContent('#agent-banner');
   expect(text).toMatch(/sdoc library/i);
-  // The fallback should include a copy button and the command in a code element.
+  // The fallback should include a copy button and the command in a code
+  // element. Copy now covers both first-install and stopped states:
+  // "npm i -g sdocs-dev && sdoc library".
   const cmd = await page.textContent('.agent-banner-cmd');
-  expect(cmd.trim()).toBe('sdoc library');
+  expect(cmd.trim()).toContain('sdoc library');
+  expect(cmd.trim()).toContain('sdocs-dev');
   expect(await page.locator('.agent-banner-copy').count()).toBe(1);
 });
 
@@ -258,4 +261,89 @@ test('library UI: status line shows entry count', async ({ page }) => {
   await page.waitForSelector('.res');
   const status = await page.textContent('#status-line');
   expect(status).toContain('4 entries');
+});
+
+// ── Exclude-chip cycle ──────────────────────────────────
+
+test('library UI: clicking a tag twice cycles to exclude (drops matching rows)', async ({ page }) => {
+  await page.goto(pageUrl);
+  await page.waitForSelector('.res');
+  await page.click('button[data-facet="tag"]');
+  await page.waitForSelector('.facet-panel.open .facet-option');
+
+  // First click: include. Narrows to entries that have tag "bridge".
+  await page.click('.facet-option:has-text("bridge")');
+  await page.waitForFunction(() => document.querySelectorAll('.res').length === 1);
+
+  // Second click: exclude. Now narrows to entries WITHOUT tag "bridge".
+  await page.click('.facet-option:has-text("bridge")');
+  await page.waitForFunction(() => document.querySelectorAll('.res').length === 3);
+
+  // Excluded chip should carry the exclude class.
+  const chip = await page.locator('.filter-chip.exclude').first();
+  await expect(chip).toBeVisible();
+
+  // Third click: chip removed.
+  await page.click('.facet-option:has-text("bridge")');
+  await page.waitForFunction(() => document.querySelectorAll('.res').length === 4);
+});
+
+test('library UI: search box supports -tag:foo to exclude a tag', async ({ page }) => {
+  await page.goto(pageUrl);
+  await page.waitForSelector('.res');
+  await page.fill('#q', '-tag:bridge');
+  // Submitting the search syntax materialises an exclude chip and
+  // clears the matching entries from view.
+  await page.press('#q', 'Enter');
+  await page.waitForFunction(() => document.querySelectorAll('.res').length === 3);
+  await expect(page.locator('.filter-chip.exclude')).toHaveCount(1);
+});
+
+// ── Calendar date-range picker ──────────────────────────
+
+test('library UI: opening the date facet exposes a calendar range picker', async ({ page }) => {
+  await page.goto(pageUrl);
+  await page.waitForSelector('.res');
+  await page.click('button[data-facet="since"]');
+  await page.waitForSelector('.facet-panel.open');
+  // Two date inputs + Apply button live inside the panel.
+  await expect(page.locator('.date-range-input[data-end="from"]')).toBeVisible();
+  await expect(page.locator('.date-range-input[data-end="to"]')).toBeVisible();
+  await expect(page.locator('.date-range-apply')).toBeVisible();
+});
+
+test('library UI: applying a custom date range filters by mtime', async ({ page }) => {
+  await page.goto(pageUrl);
+  await page.waitForSelector('.res');
+  await page.click('button[data-facet="since"]');
+  await page.waitForSelector('.facet-panel.open .date-range-input');
+  // Seed entries land in May 2026 (aaa) and earlier. Pick a window
+  // that only covers aaa's mtime (2026-05-19).
+  await page.fill('.date-range-input[data-end="from"]', '2026-05-15');
+  await page.fill('.date-range-input[data-end="to"]',   '2026-05-25');
+  await page.click('.date-range-apply');
+  await page.waitForFunction(() => document.querySelectorAll('.res').length === 1);
+  await expect(page.locator('.filter-chip')).toContainText('2026-05-15');
+});
+
+// ── Rescued badge tooltip ───────────────────────────────
+
+test('library UI: rescued badge, when present, links to the explainer page', async ({ page }) => {
+  await page.goto(pageUrl);
+  await page.waitForSelector('.res');
+  // The default fixture has no rescued entries, so this test is a
+  // markup-shape check only. Any rescue badge that does render must be
+  // an <a> pointing at /library/rescued.
+  const badges = page.locator('.rescued-badge');
+  const count = await badges.count();
+  for (let i = 0; i < count; i++) {
+    const tag = await badges.nth(i).evaluate(el => el.tagName.toLowerCase());
+    expect(tag).toBe('a');
+    await expect(badges.nth(i)).toHaveAttribute('href', '/library/rescued');
+  }
+});
+
+test('rescued explainer page renders at /library/rescued', async ({ page }) => {
+  await page.goto('http://localhost:3000/library/rescued');
+  await expect(page.locator('h1')).toHaveText('Rescued files');
 });

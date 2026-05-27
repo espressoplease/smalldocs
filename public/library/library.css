@@ -112,6 +112,16 @@ body {
   opacity: .55; cursor: pointer;
 }
 .filter-chip .x:hover { opacity: 1; background: rgba(255,255,255,.4); }
+.filter-chip.exclude {
+  background: color-mix(in srgb, var(--danger, #d35454) 16%, var(--bg-input));
+  color: var(--danger, #c83a3a);
+  border-color: color-mix(in srgb, var(--danger, #d35454) 45%, var(--border));
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--danger, #d35454) 55%, transparent);
+  text-decoration-thickness: 1px;
+}
+.filter-chip.exclude .x { color: var(--danger, #c83a3a); }
+.filter-chip.exclude .x:hover { background: color-mix(in srgb, var(--danger, #d35454) 25%, transparent); }
 
 .filter-strip {
   display: flex; align-items: center; gap: 6px;
@@ -209,6 +219,25 @@ body {
   background: var(--accent); border-color: var(--accent); color: var(--text-inv);
 }
 .facet-option.selected .prefix { color: rgba(255,255,255,.75); }
+.facet-option.excluded {
+  background: color-mix(in srgb, var(--danger, #d35454) 14%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--danger, #d35454) 50%, var(--border));
+  color: var(--danger, #c83a3a);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--danger, #d35454) 55%, transparent);
+  text-decoration-thickness: 1px;
+}
+.facet-option.excluded:hover { background: color-mix(in srgb, var(--danger, #d35454) 22%, var(--bg-surface)); }
+.facet-option.excluded .prefix { color: color-mix(in srgb, var(--danger, #d35454) 65%, var(--text-3)); }
+.facet-option.excluded .count { color: color-mix(in srgb, var(--danger, #d35454) 65%, var(--text-3)); }
+.facet-option .exclude-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: color-mix(in srgb, var(--danger, #d35454) 60%, transparent);
+  color: #fff; font-size: 12px; font-weight: 700;
+  margin-right: 2px;
+  text-decoration: none;
+}
 .facet-option .count {
   font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
   color: var(--text-3); opacity: .85;
@@ -216,6 +245,56 @@ body {
 .facet-option.selected .count { color: var(--text-inv); opacity: .7; }
 .facet-option .label-extra { font-size: 11px; color: var(--text-3); margin-left: 4px; }
 .facet-option.selected .label-extra { color: var(--text-inv); opacity: .7; }
+
+.date-range {
+  width: 100%;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-subtle);
+  flex-basis: 100%;
+}
+.date-range-row {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+}
+.date-range-label {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--text-3); font-weight: 600;
+}
+.date-range-input {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 5px);
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  outline: none;
+  transition: border-color .12s;
+}
+.date-range-input:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.date-range-input:focus { border-color: var(--accent); }
+.date-range-apply, .date-range-clear {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px; font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--text-inv);
+  transition: filter .12s;
+}
+.date-range-apply:hover { filter: brightness(1.05); }
+.date-range-clear {
+  background: transparent;
+  color: var(--text-2);
+  border-color: var(--border);
+}
+.date-range-clear:hover { background: var(--bg-hover); color: var(--text); }
+.date-range-hint {
+  margin-top: 6px;
+  font-size: 10.5px; color: var(--text-3);
+}
 
 .results-meta {
   display: flex; align-items: center; gap: 12px;
@@ -285,6 +364,11 @@ body {
   color: var(--star); padding: 1px 6px;
   border-radius: 3px; font-size: 10.5px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: background .12s;
+}
+.res-meta a.rescued-badge:hover {
+  background: color-mix(in srgb, var(--star) 32%, var(--bg-input));
 }
 .res-side {
   display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
