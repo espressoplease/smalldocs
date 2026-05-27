@@ -19,6 +19,14 @@ const autostart  = require('./library-autostart');
 const url        = require('./url');
 const { startBridge } = require('../bin/sdocs-bridge');
 
+// The CLI version this agent ships with. The library page reads it
+// from /api/library/health and /api/library/data so it can flag stale
+// installs ("update your CLI") versus an absent agent ("install it").
+let CLI_VERSION = '';
+try {
+  CLI_VERSION = require('../package.json').version || '';
+} catch (_) { /* tarball edge case; surface as empty string */ }
+
 // The two endpoints that work with a caller-supplied path - /file and
 // /bridge-for - go through this gate. Three checks, all independent:
 //
@@ -152,7 +160,10 @@ function stripBody(e) {
 // Build a sdocs.dev hash URL from a file's contents. Returns null when
 // the file has gone missing on disk (entry might be stale).
 function buildOpenUrl(entry) {
-  const filePath = entry.rescued ? entry.path : entry.path;
+  // Always read from entry.path. For rescued entries that is the
+  // snapshot copy under the sdocs home, which is the authoritative
+  // version - the original (rescuedFrom) may be stale or gone.
+  const filePath = entry.path;
   if (!fs.existsSync(filePath)) return null;
   let content;
   try { content = fs.readFileSync(filePath, 'utf8'); } catch (_) { return null; }
@@ -199,7 +210,7 @@ function createServer({ port } = {}) {
       const route = u.pathname;
 
       if (req.method === 'GET' && (route === '/' || route === '/api/library/health')) {
-        sendJson(res, 200, { ok: true, agent: 'sdocs-library' });
+        sendJson(res, 200, { ok: true, agent: 'sdocs-library', version: CLI_VERSION });
         return;
       }
 
@@ -208,6 +219,7 @@ function createServer({ port } = {}) {
         const state = store.loadState();
         const as = autostart.status();
         sendJson(res, 200, {
+          version: CLI_VERSION,
           entries: idx.entries.map(stripBody),
           generatedAt: idx.generatedAt,
           enabled: state.enabled !== false,
