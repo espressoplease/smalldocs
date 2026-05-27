@@ -42,17 +42,12 @@ var PLUS_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stro
 var TAG_TICK_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 var TAG_CANCEL_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 
-// Ping the local library agent and remember reachability. The editor
-// page uses this to decide whether the Tags row should be editable. Same
-// canonical port (47843) as the library page. Re-pings on demand.
-function pingLibraryAgent() {
-  var url = 'http://127.0.0.1:47843/api/library/health';
-  // 700ms timeout so a missing agent doesn't slow the first render.
-  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-  var to = ctrl ? setTimeout(function(){ ctrl.abort(); }, 700) : null;
-  return fetch(url, ctrl ? { signal: ctrl.signal } : {})
-    .then(function(r) { if (to) clearTimeout(to); S.libraryAgent = { reachable: r.ok }; })
-    .catch(function() { if (to) clearTimeout(to); S.libraryAgent = { reachable: false }; });
+// Whether this browser has been through the /connect walkthrough and
+// has granted the agent loopback permission. Used to gate any fetch
+// to the local library agent so a first-time visitor never sees the
+// Chrome Private Network Access prompt without asking for it.
+function isConnected() {
+  return !!(window.SDocsConnect && window.SDocsConnect.isConnected());
 }
 
 // Tag edits use the Bridge as the sole write channel. This helper
@@ -85,8 +80,11 @@ function bridgeApplyTagChange(filePath, opts) {
   // Best-effort: ask the library agent to re-index so the search list
   // is up-to-date even before the next scheduled scan. The Bridge save
   // is debounced 500ms; wait a beat longer so the reindex picks up the
-  // post-save content rather than the pre-save state.
-  if (filePath) {
+  // post-save content rather than the pre-save state. Gated on the
+  // browser having been through /connect - otherwise the library
+  // either isn't running or hasn't been authorised yet, and we skip
+  // the network call. The bridge save still happens regardless.
+  if (filePath && isConnected()) {
     setTimeout(function() {
       fetch('http://127.0.0.1:47843/api/library/reindex', {
         method: 'POST',
@@ -100,8 +98,11 @@ function bridgeApplyTagChange(filePath, opts) {
 
 // Ask the agent for tags used on other files in the same project as
 // this one. Returns [{ tag, count }, ...] sorted by use. Best-effort:
-// silently returns [] on any failure.
+// silently returns [] on any failure. Only fires when the browser
+// has been through /connect; otherwise returns [] without making any
+// network call so we never trigger Chrome's PNA prompt unprompted.
 function libraryProjectTags(filePath) {
+  if (!isConnected()) return Promise.resolve([]);
   return fetch('http://127.0.0.1:47843/api/library/project-tags?path=' + encodeURIComponent(filePath))
     .then(function(r) { if (!r.ok) throw new Error('agent ' + r.status); return r.json(); })
     .then(function(data) { return (data && data.tags) || []; })
@@ -839,10 +840,9 @@ document.addEventListener('DOMContentLoaded', function() {
       copyWithIconFeedback(S.currentBody || '', copyFile);
     });
   }
-  // Discover the local library agent once. Re-render the file info card
-  // when it answers so the Tags row can show edit controls if it's
-  // reachable.
-  pingLibraryAgent().then(function() { renderFileInfoCard(); });
+  // No ping on load - tagging works through the bridge (which doesn't
+  // need PNA permission) and library-agent features are routed through
+  // /connect, the only place we deliberately trigger the loopback fetch.
 });
 
 // ── Status ──────────────────────────────────
@@ -1660,7 +1660,10 @@ async function loadFromHash() {
   // (the tag composer, the user's editor) edits the file. Without this
   // refresh, reload shows the original content and any edits look like
   // they've vanished.
-  if (S.localMeta && S.localMeta.fullPath) {
+  // Pull live content from the library agent if this browser has
+  // connected before. Without that flag, skip the fetch entirely so
+  // a first-time visitor never trips the PNA prompt on reload.
+  if (S.localMeta && S.localMeta.fullPath && isConnected()) {
     try {
       var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
       var to = ctrl ? setTimeout(function(){ ctrl.abort(); }, 800) : null;

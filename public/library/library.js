@@ -2,6 +2,22 @@
 // comes from a local agent the user starts with `sdoc library`. The
 // agent's URL is passed as ?agent=http://127.0.0.1:<port>. The page
 // shows a fallback banner when the agent isn't reachable.
+//
+// First-visit gate: if this browser has never been through /connect,
+// bounce there with a return URL so the user sees the explainer +
+// permission prompt in the right context. Skippable with ?force=1
+// for testing or sharing direct links to filtered views.
+(function ensureConnected() {
+  if (typeof window === 'undefined' || !window.SDocsConnect) return;
+  if (window.SDocsConnect.isConnected()) return;
+  var p = new URLSearchParams(location.search);
+  // ?force=1 - used by tests. ?demo=1 - the public sample library
+  // linked from /connect. Neither talks to the local agent so neither
+  // needs the connect gate.
+  if (p.get('force') === '1' || p.get('demo') === '1') return;
+  var ret = location.pathname + location.search + location.hash;
+  location.replace('/connect?return=' + encodeURIComponent(ret));
+})();
 
 const AGENT_URL = (() => {
   const fromQuery = new URLSearchParams(location.search).get('agent');
@@ -237,21 +253,24 @@ function setExclusiveChip(k, v) {
   STATE.chips = STATE.chips.filter(c => c.key !== k);
   if (v) STATE.chips.push({ key: k, value: v });
 }
-// One click = next state. Skip the exclude state for exclusive facets
-// (date "since" presets) where excluding a single bucket makes no
-// useful sense compared to picking a different bucket.
-function cycleChip(k, v, opts) {
+// Two explicit toggles, called by the +/- buttons on a facet option.
+// Either button can switch state directly: if currently included and
+// you press -, you move to excluded (no intermediate "off" step).
+// Exclude is meaningless for exclusive facets ("since" date presets),
+// which is enforced at the render layer by not drawing a - button.
+function toggleIncludeChip(k, v) {
   const def = FACET_DEFS[k];
-  const exclusive = def && def.exclusive;
-  if (exclusive) {
-    if (hasChip(k, v)) setExclusiveChip(k, '');
+  if (def && def.exclusive) {
+    if (chipState(k, v) === 'include') setExclusiveChip(k, '');
     else setExclusiveChip(k, v);
     return;
   }
-  const state = chipState(k, v);
-  if (state === 'none') setChip(k, v, { exclude: false });
-  else if (state === 'include') setChip(k, v, { exclude: true });
-  else removeChip(k, v);
+  if (chipState(k, v) === 'include') removeChip(k, v);
+  else setChip(k, v, { exclude: false });
+}
+function toggleExcludeChip(k, v) {
+  if (chipState(k, v) === 'exclude') removeChip(k, v);
+  else setChip(k, v, { exclude: true });
 }
 
 function applyFilters() {
@@ -406,25 +425,39 @@ function renderFacetPanel() {
     container.innerHTML = '<div class="muted" style="font-size:11.5px">no values yet</div>';
     return;
   }
-  const cycleHint = def.exclusive
-    ? 'click to filter; click again to clear'
-    : 'click to include; click again to exclude; once more to clear';
+  const exclusive = !!def.exclusive;
   container.innerHTML = opts.map(o => {
     const state = chipState(openFacet, o.value);
     const stateCls = state === 'include' ? 'selected' : state === 'exclude' ? 'excluded' : '';
+    // The label is the main click target (acts as +). Then explicit
+    // + and - buttons in the right edge of the pill so the user can
+    // see what each click will do. Exclude is hidden for exclusive
+    // facets where there's no useful "not this date bucket" meaning.
+    const plusTitle  = state === 'include' ? 'remove from filter' : 'include';
+    const minusTitle = state === 'exclude' ? 'remove from filter' : 'exclude';
     return `
-      <button class="facet-option ${stateCls}" data-key="${openFacet}" data-value="${escHtml(o.value)}" ${def.exclusive ? 'data-exclusive="1"' : ''} title="${cycleHint}">
-        ${state === 'exclude' ? '<span class="exclude-mark" aria-hidden="true">−</span>' : ''}
-        <span class="prefix">${openFacet}:</span><span>${escHtml(o.label)}</span>
-        ${o.labelExtra ? `<span class="label-extra">${escHtml(o.labelExtra)}</span>` : ''}
-        ${o.count != null ? `<span class="count">${o.count}</span>` : ''}
-      </button>
+      <div class="facet-option ${stateCls}" data-key="${openFacet}" data-value="${escHtml(o.value)}" ${exclusive ? 'data-exclusive="1"' : ''}>
+        <button class="opt-label" data-act="include" type="button">
+          <span class="prefix">${openFacet}:</span><span>${escHtml(o.label)}</span>
+          ${o.labelExtra ? `<span class="label-extra">${escHtml(o.labelExtra)}</span>` : ''}
+          ${o.count != null ? `<span class="count">${o.count}</span>` : ''}
+        </button>
+        <button class="opt-btn opt-plus" data-act="include" type="button" title="${plusTitle}" aria-label="${plusTitle}">+</button>
+        ${exclusive ? '' : `<button class="opt-btn opt-minus" data-act="exclude" type="button" title="${minusTitle}" aria-label="${minusTitle}">−</button>`}
+      </div>
     `;
   }).join('');
-  container.querySelectorAll('.facet-option').forEach(el => el.addEventListener('click', () => {
-    cycleChip(el.dataset.key, el.dataset.value);
-    renderAll();
-  }));
+  container.querySelectorAll('.facet-option').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-act]');
+      if (!target) return;
+      const act = target.dataset.act;
+      const k = el.dataset.key, v = el.dataset.value;
+      if (act === 'include') toggleIncludeChip(k, v);
+      else if (act === 'exclude') toggleExcludeChip(k, v);
+      renderAll();
+    });
+  });
 
   if (openFacet === 'since') renderDateRangePicker(container);
 }
@@ -566,7 +599,153 @@ function renderAll() {
   else clearBtn.setAttribute('hidden', '');
 }
 
+// A small fixed dataset for the public demo view. Linked from
+// /connect so curious visitors can poke at the library experience
+// before installing the CLI. No agent involved, no network call,
+// no real files.
+const DEMO_ENTRIES = [
+  {
+    id: 'd1', title: 'Architecture proposal: event bus',
+    path: '/Users/example/work/platform/notes/event-bus-proposal.md',
+    tags: ['proposal', 'architecture', 'platform'],
+    gitProject: 'platform', agent: 'claude-code',
+    bodyExcerpt: 'Proposing a small in-process event bus to decouple the ingest pipeline from downstream consumers...',
+    mtime: '2026-05-22T10:00:00Z',
+  },
+  {
+    id: 'd2', title: 'Q2 launch plan',
+    path: '/Users/example/work/marketing/q2-launch.md',
+    tags: ['launch', 'marketing', 'planning'],
+    gitProject: 'marketing', agent: 'codex',
+    bodyExcerpt: 'Three workstreams, two weeks each, one cross-team checkpoint at the midpoint...',
+    mtime: '2026-05-18T14:30:00Z',
+  },
+  {
+    id: 'd3', title: 'Accessibility audit findings',
+    path: '/Users/example/work/platform/a11y/audit.md',
+    tags: ['a11y', 'audit', 'reliability'],
+    gitProject: 'platform', agent: 'claude-code',
+    bodyExcerpt: 'Two blockers, six nice-to-haves. The colour contrast in dark mode is the most urgent...',
+    mtime: '2026-05-12T09:15:00Z', starred: true,
+  },
+  {
+    id: 'd4', title: 'Meeting notes — design review',
+    path: '/Users/example/Documents/notes/design-review-may.md',
+    tags: ['meeting-notes', 'design'],
+    bodyExcerpt: 'Anna walked us through the new onboarding flow. Three open questions, all about copy...',
+    mtime: '2026-05-09T16:45:00Z',
+  },
+  {
+    id: 'd5', title: 'Recipe: weeknight bolognese',
+    path: '/Users/example/Documents/personal/recipes/bolognese.md',
+    tags: ['recipe', 'personal'],
+    bodyExcerpt: 'Brown the mince in batches. Pancetta gives it the depth - don\'t skip it...',
+    mtime: '2026-04-28T19:00:00Z',
+  },
+  {
+    id: 'd6', title: 'Scratch ideas from yesterday',
+    path: '/Users/example/.sdocs/library/rescued/a1c3-scratch.md',
+    rescued: true,
+    rescuedFrom: '/tmp/scratch-2026-04-15.md',
+    tags: ['scratch'],
+    bodyExcerpt: 'Idea: what if the bridge could carry partial documents - just the section you\'re editing?',
+    mtime: '2026-04-15T11:30:00Z',
+  },
+  {
+    id: 'd7', title: 'Reading list',
+    path: '/Users/example/Documents/notes/reading.md',
+    tags: ['reading', 'personal'],
+    bodyExcerpt: 'Currently: Designing Data-Intensive Applications. Next up: A Philosophy of Software Design...',
+    mtime: '2026-03-20T08:00:00Z',
+  },
+  {
+    id: 'd8', title: 'Onboarding checklist - new hires',
+    path: '/Users/example/work/people/onboarding.md',
+    tags: ['onboarding', 'people', 'process'],
+    gitProject: 'people-ops', agent: 'claude-code',
+    bodyExcerpt: 'Day one: accounts, laptop, intro coffee. Week one: shadow each team for a half day...',
+    mtime: '2026-05-25T13:20:00Z',
+  },
+  {
+    id: 'd9', title: 'Postmortem - May 14 outage',
+    path: '/Users/example/work/platform/postmortems/2026-05-14.md',
+    tags: ['postmortem', 'reliability', 'platform'],
+    gitProject: 'platform', agent: 'codex',
+    bodyExcerpt: 'Root cause: a stale DNS record cached at the edge for 14 hours after we cut over...',
+    mtime: '2026-05-15T17:00:00Z', starred: true,
+  },
+  {
+    id: 'd10', title: 'Trip planning - Lisbon',
+    path: '/Users/example/Documents/personal/travel/lisbon.md',
+    tags: ['travel', 'personal', 'planning'],
+    bodyExcerpt: 'Five days in late October. Three days central, two days out to Sintra. Need to book Pasteis...',
+    mtime: '2026-05-11T20:45:00Z',
+  },
+  {
+    id: 'd11', title: 'Pricing experiments - Q3',
+    path: '/Users/example/work/marketing/pricing-q3.md',
+    tags: ['pricing', 'marketing', 'experiment'],
+    gitProject: 'marketing',
+    bodyExcerpt: 'Three variants, geographic split. Hold annual flat at the top of the funnel; test monthly tiers...',
+    mtime: '2026-05-07T11:10:00Z',
+  },
+  {
+    id: 'd12', title: 'API design - rate limits v2',
+    path: '/Users/example/work/platform/api/rate-limits.md',
+    tags: ['api', 'architecture', 'platform'],
+    gitProject: 'platform', agent: 'claude-code',
+    bodyExcerpt: 'Move from a fixed per-key bucket to per-route token buckets with shared overdraft...',
+    mtime: '2026-05-03T09:30:00Z',
+  },
+  {
+    id: 'd13', title: 'Garden notes - spring 2026',
+    path: '/Users/example/Documents/personal/garden/spring-2026.md',
+    tags: ['garden', 'personal'],
+    bodyExcerpt: 'Tomatoes in by mid-April this year. The dwarf French beans went in too early - frost took half of them...',
+    mtime: '2026-04-22T07:30:00Z',
+  },
+  {
+    id: 'd14', title: 'Brainstorm - product names',
+    path: '/Users/example/.sdocs/library/rescued/b9f2-names.md',
+    rescued: true,
+    rescuedFrom: '/tmp/names-2026-04-08.md',
+    tags: ['brainstorm', 'naming'],
+    bodyExcerpt: 'Words that feel calm but specific. Avoid anything ending in -ify. Three-syllable maximum for the brand...',
+    mtime: '2026-04-08T15:00:00Z',
+  },
+];
+
+function isDemoMode() {
+  return typeof window !== 'undefined' &&
+    new URLSearchParams(location.search).get('demo') === '1';
+}
+
+function showDemoBanner() {
+  const b = document.getElementById('agent-banner');
+  if (!b) return;
+  b.className = 'agent-banner info';
+  b.innerHTML = '';
+  const text = document.createElement('span');
+  text.className = 'agent-banner-text';
+  text.textContent = 'This is a sample library. The files aren\'t real; nothing connects to your machine. Install SDocs to browse your own files.';
+  b.appendChild(text);
+  const cmd = document.createElement('code');
+  cmd.className = 'agent-banner-cmd';
+  cmd.textContent = 'npm i -g sdocs-dev';
+  b.appendChild(cmd);
+  b.hidden = false;
+}
+
 async function loadData() {
+  if (isDemoMode()) {
+    STATE.entries = DEMO_ENTRIES.slice();
+    STATE.lastScanAt = Date.now();
+    STATE.enabled = true;
+    STATE.autostart = { supported: false, enabled: false, userDisabled: false };
+    showDemoBanner();
+    renderAll();
+    return;
+  }
   try {
     const r = await fetch(api('/api/library/data'));
     if (!r.ok) throw new Error('agent returned ' + r.status);
@@ -609,6 +788,7 @@ async function loadData() {
 }
 
 async function toggleStar(id, starred) {
+  if (isDemoMode()) return; // local state already updated in the click handler
   try {
     await fetch(api('/api/library/star'), {
       method: 'POST',
@@ -619,6 +799,10 @@ async function toggleStar(id, starred) {
 }
 
 async function rescan() {
+  if (isDemoMode()) {
+    showDemoBanner();
+    return;
+  }
   const btn = document.getElementById('rescan-btn');
   btn.textContent = 'scanning...';
   btn.disabled = true;
@@ -640,6 +824,10 @@ async function rescan() {
 // (e.g. file missing, port exhaustion), fall back to the snapshot URL
 // so the user can still read the document.
 async function openEntry(id) {
+  if (isDemoMode()) {
+    showDemoBanner();
+    return;
+  }
   try {
     const entryResp = await fetch(api('/api/library/entry?id=' + encodeURIComponent(id)));
     if (!entryResp.ok) {
@@ -792,4 +980,16 @@ document.getElementById('clear').addEventListener('click', () => {
   input.value = ''; renderAll();
 });
 
-loadData();
+// Hold the kick-off fetch until we know the user has been through
+// /connect. The ensureConnected() IIFE at the top of the file
+// redirects in that case; we just need to make sure no loopback
+// fetch races the navigation. Demo and force modes both skip the
+// gate, but only the connected / force paths actually hit the agent
+// (loadData() short-circuits to baked entries when demo=1).
+const search = new URLSearchParams(location.search);
+if (!window.SDocsConnect ||
+    window.SDocsConnect.isConnected() ||
+    search.get('force') === '1' ||
+    search.get('demo')  === '1') {
+  loadData();
+}
