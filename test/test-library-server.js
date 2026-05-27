@@ -87,6 +87,19 @@ module.exports = function (h) {
       assert.ok(/POST/.test(r.headers['access-control-allow-methods'] || ''));
     });
 
+    await testAsync('library-agent: preflight response opts in to Private Network Access', async () => {
+      // Without this header Chrome prompts the user the first time a
+      // public origin (sdocs.dev / smalldocs.org) talks to the loopback
+      // agent. Server-side opt-in is enough; no per-user "Allow" needed.
+      const r = await req('OPTIONS', '/api/library/data');
+      assert.strictEqual(r.headers['access-control-allow-private-network'], 'true');
+    });
+
+    await testAsync('library-agent: GET response also carries the PNA header', async () => {
+      const r = await req('GET', '/api/library/data');
+      assert.strictEqual(r.headers['access-control-allow-private-network'], 'true');
+    });
+
     await testAsync('library-agent: rejects requests from disallowed Origin', async () => {
       const r = await new Promise((resolve, reject) => {
         const u = new URL(agentUrl + '/api/library/data');
