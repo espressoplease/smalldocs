@@ -117,11 +117,18 @@ function corsHeadersFor(origin) {
   // origins never reach this function because we 403 before they do.
   if (!origin) return {};
   return {
-    'Access-Control-Allow-Origin':  origin,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age':       '86400',
-    'Vary':                         'Origin',
+    'Access-Control-Allow-Origin':           origin,
+    'Access-Control-Allow-Methods':          'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers':          'Content-Type',
+    // Chrome's Private Network Access: a public origin reaching a
+    // loopback target normally prompts the user ("smalldocs.org wants
+    // to access other apps and services"). Responding to the preflight
+    // with this header lets us consent server-side, which Chrome
+    // accepts as enough - no prompt. Safe because the origin allowlist
+    // already gates who can talk to the agent.
+    'Access-Control-Allow-Private-Network':  'true',
+    'Access-Control-Max-Age':                '86400',
+    'Vary':                                  'Origin',
   };
 }
 
