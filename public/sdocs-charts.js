@@ -535,6 +535,15 @@
                    rawType === 'polarArea' || rawType === 'radar';
     if (isRadial) return 1;
     var w = (typeof window !== 'undefined' && window.innerWidth) || 1024;
+    // Line-family charts stack multiple series up the value axis; a short plot
+    // squashes them together. Give them extra height on narrow screens so the
+    // lines have room to separate.
+    var isLineFamily = rawType === 'line' || rawType === 'area' || rawType === 'stackedArea';
+    if (isLineFamily) {
+      if (w < 600) return 0.85;
+      if (w < 900) return 1.3;
+      return 2;
+    }
     if (w < 600) return 1.15;
     if (w < 900) return 1.6;
     return 2;
