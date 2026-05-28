@@ -258,7 +258,7 @@ function applyStylesFromMeta(s) {
       darkColors[id] = explicitDark[id];
     } else {
       darkOverridden.add(id);
-      darkColors[id] = SDocStyles.invertLightness(lightColors[id]);
+      darkColors[id] = SDocStyles.invertLightness(lightColors[id], SDocStyles.colorControlRole(id));
     }
   });
 
