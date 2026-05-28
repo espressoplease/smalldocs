@@ -1913,21 +1913,47 @@ var CHART_SHADOW_CSS = [
 // then scales the viewBox content to fit, with letterboxing on the
 // long axis instead of vertical overflow.
 function kickShadowMermaid(shadow) {
-  var attempts = 0;
-  function tick() {
-    attempts++;
+  var done = false;
+  var ro = null, mo = null;
+
+  function reveal() {
+    if (done) return;
     var wrapper = shadow.querySelector('.sdoc-mermaid');
     var svg = wrapper && wrapper.querySelector('svg.sdoc-mermaid-svg');
-    if (wrapper && svg && wrapper.clientWidth > 0 && wrapper.clientHeight > 0) {
-      svg.style.setProperty('width',  wrapper.clientWidth  + 'px', 'important');
-      svg.style.setProperty('height', wrapper.clientHeight + 'px', 'important');
-      svg.style.setProperty('max-width', '100%', 'important');
-      svg.style.setProperty('visibility', 'visible', 'important');
+    if (!wrapper || !svg) return;           // SVG not rendered yet
+    // SVG has appeared - stop watching for its insertion.
+    if (mo) { mo.disconnect(); mo = null; }
+    if (!(wrapper.clientWidth > 0 && wrapper.clientHeight > 0)) {
+      // SVG exists but the wrapper is collapsed (0x0) - e.g. the slide is
+      // in a section that hasn't been expanded yet. Watch for it to gain a
+      // real box and reveal then, rather than giving up.
+      if (!ro && typeof ResizeObserver !== 'undefined') {
+        ro = new ResizeObserver(reveal);
+        ro.observe(wrapper);
+      }
       return;
     }
-    if (attempts < 40) setTimeout(tick, 100);
+    svg.style.setProperty('width',  wrapper.clientWidth  + 'px', 'important');
+    svg.style.setProperty('height', wrapper.clientHeight + 'px', 'important');
+    svg.style.setProperty('max-width', '100%', 'important');
+    svg.style.setProperty('visibility', 'visible', 'important');
+    done = true;
+    if (ro) { ro.disconnect(); ro = null; }
   }
-  setTimeout(tick, 80);
+
+  // The wrapper + SVG appear asynchronously: mermaid lazy-loads from a CDN,
+  // then renders. Watch the shadow root for that insertion instead of
+  // polling for a fixed window - a cold CDN fetch can take longer than any
+  // reasonable timeout, which left slide diagrams blank until a hard
+  // refresh warmed the cache.
+  if (typeof MutationObserver !== 'undefined') {
+    mo = new MutationObserver(reveal);
+    mo.observe(shadow, { childList: true, subtree: true });
+  }
+  reveal();
+  // Fallbacks for environments without observers, and to catch the first
+  // paint when the SVG was already present.
+  [80, 300, 1200, 4000].forEach(function (t) { setTimeout(reveal, t); });
 }
 
 // Wait until every chart canvas inside `stage` has a Chart.js instance
