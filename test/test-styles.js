@@ -351,6 +351,34 @@ module.exports = function(harness) {
     assert.ok(light !== '#4a3020');
   });
 
+  test('invertLightness: very dark TEXT color becomes light (readable in dark mode)', () => {
+    // #1c1a17 is near-black body text. In dark mode it must become light,
+    // not be preserved as an "intentional dark background".
+    const brightness = (hex) => {
+      const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+      return m ? (parseInt(m[1], 16) + parseInt(m[2], 16) + parseInt(m[3], 16)) / 3 : null;
+    };
+    const light = S.invertLightness('#1c1a17', 'text');
+    assert.ok(brightness(light) > 150, `expected light text, got ${light} (brightness ${brightness(light)})`);
+  });
+
+  test('invertLightness: very dark BACKGROUND color stays dark', () => {
+    // Backgrounds (and the default role) keep the intentional-dark behaviour.
+    assert.strictEqual(S.invertLightness('#1c1a17', 'background'), '#1c1a17');
+    assert.strictEqual(S.invertLightness('#1c1a17'), '#1c1a17');
+  });
+
+  test('colorControlRole: classifies text vs background controls', () => {
+    assert.strictEqual(S.colorControlRole('_sd_ctrl-color'), 'text');
+    assert.strictEqual(S.colorControlRole('_sd_ctrl-h1-color'), 'text');
+    assert.strictEqual(S.colorControlRole('_sd_ctrl-block-text'), 'text');
+    assert.strictEqual(S.colorControlRole('_sd_ctrl-bq-color'), 'text');
+    assert.strictEqual(S.colorControlRole('_sd_ctrl-link-color'), 'text');
+    assert.strictEqual(S.colorControlRole('_sd_ctrl-bg-color'), 'background');
+    assert.strictEqual(S.colorControlRole('_sd_ctrl-block-bg'), 'background');
+    assert.strictEqual(S.colorControlRole('_sd_ctrl-code-bg'), 'background');
+  });
+
   test('stylesToControls: top-level colors are light mode', () => {
     const styles = { fontFamily: 'Inter', color: '#ff0000', h1: { color: '#0000ff' } };
     const result = S.stylesToControls(styles);
