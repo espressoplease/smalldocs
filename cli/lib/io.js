@@ -11,6 +11,7 @@ const SUBCOMMANDS = new Set([
   'feedback',
   'slides', 'present',
   'library',
+  'color-analysis',
 ]);
 
 // CLI tag arguments are `+tag` (shell-safe, no quoting). Tags written

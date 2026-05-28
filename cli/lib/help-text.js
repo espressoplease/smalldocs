@@ -19,6 +19,8 @@ USAGE
   sdoc schema                      Print the full styles schema
   sdoc charts                      Chart types, options, and styling guide
   sdoc diagrams                    Mermaid diagrams reference (\`\`\`mermaid blocks)
+  sdoc color-analysis <file>       Check custom colours for readable contrast
+                                   (both themes). Run after styling a doc.
   sdoc comments                    Comment-format reference (for agents)
   sdoc feedback                    Interactive form DSL reference (\`\`\`form blocks)
   sdoc feedback <file>             Open <file> for the user to fill in; exits on first submit
@@ -463,6 +465,15 @@ SDocs — Styles Schema
 All style values live under the \`styles:\` key in YAML front matter.
 Every property is optional — omit anything you want left at its default.
 
+  ┌────────────────────────────────────────────────────────────┐
+  │ IMPORTANT — if you set ANY custom colours, run:              │
+  │     sdoc color-analysis <file>                               │
+  │ It grades every text-on-background pair for BOTH the light   │
+  │ and dark themes and flags anything unreadable. Hand-picked   │
+  │ palettes (especially when you only looked at one theme) are  │
+  │ the #1 source of unreadable docs. Run it before you ship.    │
+  └────────────────────────────────────────────────────────────┘
+
 GENERAL
   fontFamily    string   Any of the supported fonts (see FONTS below)
                          Default: "Inter"
@@ -607,6 +618,12 @@ THEME COLORS
 
   Non-color properties (fonts, sizes, spacing, weights) remain at the
   top level and are shared across both themes.
+
+  Because dark mode is auto-derived, a colour that reads fine in the
+  light theme can invert to something unreadable in the dark theme (a
+  mid-blue heading becomes dark navy, light text becomes near-black).
+  ALWAYS run \`sdoc color-analysis <file>\` after setting colours — it
+  checks both themes and tells you exactly which pair fails and why.
 
 FONTS (24 supported, loaded lazily from Google Fonts)
   Inter · Roboto · Open Sans · Lato · Montserrat · Source Sans 3

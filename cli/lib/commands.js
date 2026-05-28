@@ -139,6 +139,53 @@ function defaultsCommand(opts) {
   else showDefaults();
 }
 
+// `sdoc color-analysis <file>` — grade every text-on-background pair in the
+// document's custom palette against WCAG ratios, for both the light and dark
+// themes. Exits 1 if anything is unreadable so an agent (or CI) notices.
+async function colorAnalysisCommand(opts) {
+  const SDocContrast = require('../shared/sdocs-contrast.js');
+  const content = await readContent(opts.file);
+  if (!content) {
+    console.error('sdoc color-analysis: pass a markdown file (or pipe one in)');
+    console.error('  e.g. sdoc color-analysis report.md');
+    process.exit(1);
+  }
+  const meta = SDocYaml.parseFrontMatter(content).meta || {};
+  const styles = meta.styles || null;
+  const name = opts.file ? path.basename(opts.file) : 'stdin';
+
+  if (!styles || !SDocContrast.hasCustomColors(styles)) {
+    console.log(`sdoc color-analysis: ${name}`);
+    console.log('  No custom colours set - the built-in palette is contrast-safe in both themes.');
+    process.exit(0);
+  }
+
+  const a = SDocContrast.analyzeStyles(styles);
+  const pad = (s, n) => (s + ' '.repeat(n)).slice(0, n);
+  const minRatio = SDocContrast.MIN_CONTRAST;
+  function line(p) {
+    const tag = p.ok ? 'ok  ' : 'FAIL';
+    const ratio = p.ratio == null ? '   ?  ' : (p.ratio.toFixed(2) + ':1');
+    return `  ${tag}  ${pad(p.label, 16)} ${pad(p.fg + ' on ' + p.bg, 22)} ${pad(ratio, 9)} ${p.ok ? '' : '(needs ' + minRatio + ':1)'}`;
+  }
+
+  console.log(`sdoc color-analysis: ${name}\n`);
+  console.log('LIGHT THEME');
+  a.light.forEach(p => console.log(line(p)));
+  console.log('\nDARK THEME');
+  a.dark.forEach(p => console.log(line(p)));
+
+  console.log('');
+  if (a.fails.length === 0) {
+    console.log('All text/background pairs meet WCAG AA. ✓');
+    process.exit(0);
+  }
+  console.log(`${a.fails.length} unreadable pair${a.fails.length === 1 ? '' : 's'} (contrast below ${minRatio}:1).`);
+  console.log('Fix the flagged colours, or add a `dark:` override so the dark theme has its own readable values.');
+  console.log('Reminder: top-level colours are the LIGHT theme; dark mode is auto-derived unless you set `dark:`.');
+  process.exit(1);
+}
+
 function newCommand(opts) {
   const baseUrl = opts.url || process.env.SDOCS_URL || DEFAULT_URL;
   const url = baseUrl + '/new';
@@ -246,6 +293,7 @@ module.exports = {
   openCommand,
   shareCommand,
   defaultsCommand,
+  colorAnalysisCommand,
   newCommand,
   slidesCommand,
   presentCommand,
