@@ -141,17 +141,42 @@ function hslToHex(h, s, l) {
  * Keeps hue and saturation, mirrors lightness around 50%.
  * Slightly biased: dark bgs get very dark (L≈10-20), light text gets bright (L≈80-90).
  */
+// Color controls whose value is painted as TEXT rather than a fill. Their
+// dark-mode counterpart must stay readable, so a very dark text color is
+// lightened instead of preserved as an "intentional dark background".
+var TEXT_COLOR_CONTROLS = {
+  '_sd_ctrl-color': 1, '_sd_ctrl-h-color': 1,
+  '_sd_ctrl-h1-color': 1, '_sd_ctrl-h2-color': 1,
+  '_sd_ctrl-h3-color': 1, '_sd_ctrl-h4-color': 1,
+  '_sd_ctrl-p-color': 1, '_sd_ctrl-list-color': 1,
+  '_sd_ctrl-link-color': 1, '_sd_ctrl-block-text': 1,
+  '_sd_ctrl-code-color': 1, '_sd_ctrl-bq-color': 1,
+  '_sd_ctrl-chart-text': 1, '_sd_ctrl-table-text': 1
+};
+
 /**
- * invertLightness(hex)
+ * colorControlRole(ctrlId) -> 'text' | 'background'
+ * Tells invertLightness whether a control's color is rendered as text.
+ */
+function colorControlRole(ctrlId) {
+  return TEXT_COLOR_CONTROLS[ctrlId] ? 'text' : 'background';
+}
+
+/**
+ * invertLightness(hex, role)
  * Generates a dark-theme counterpart for a light-theme color.
  *
  * Strategy: colors that look "right" in light mode get adapted for dark mode.
  *   - Very light colors (L>65): page/block backgrounds → make very dark
  *   - Very dark colors (L<20): already dark, likely intentional → keep as-is
+ *     UNLESS role is 'text', in which case lighten it so it stays readable.
  *   - Dark-ish colors (20<L<45): body text, headings → make light
  *   - Mid-range (45-65): accent colors → moderate shift
+ *
+ * role: 'text' for colors painted as text (body, headings, links, code text),
+ *       'background' (default) for fills. Text colors are never kept dark.
  */
-function invertLightness(hex) {
+function invertLightness(hex, role) {
   var hsl = hexToHsl(hex);
   if (!hsl) return hex;
   var h = hsl[0], s = hsl[1], l = hsl[2];
@@ -165,7 +190,7 @@ function invertLightness(hex) {
     // Light background/accent → dark
     invL = 12 + (100 - l) * 0.4;  // L70→24, L65→26
     invS = s * 0.75;
-  } else if (l < 20) {
+  } else if (l < 20 && role !== 'text') {
     // Already very dark → keep as-is (intentional dark bg like code blocks)
     return hex;
   } else if (l < 40) {
@@ -650,6 +675,7 @@ exports.hslToHex              = hslToHex;
 exports.controlToCssVars      = controlToCssVars;
 exports.cascadeColor          = cascadeColor;
 exports.invertLightness       = invertLightness;
+exports.colorControlRole      = colorControlRole;
 exports.collectStyles         = collectStyles;
 exports.parseDarkBlock        = parseDarkBlock;
 exports.stylesToControls      = stylesToControls;
