@@ -110,6 +110,50 @@ test('theme toggle re-themes an already-rendered diagram', async ({ page }) => {
   expect(lightFill).not.toBe(darkFill);
 });
 
+test('theme toggle re-themes a diagram embedded in a slide', async ({ page }) => {
+  const md = [
+    '## Diagrams',
+    '',
+    '~~~slide',
+    'grid 100 56.25',
+    'r 8 10 84 36 align=center valign=center |',
+    '  ```mermaid',
+    '  flowchart LR',
+    '    A --> B',
+    '  ```',
+    '~~~',
+  ].join('\n');
+
+  // Render while the page is dark so the slide diagram bakes in dark fills.
+  await page.goto(BASE);
+  await page.waitForSelector('#_sd_rendered');
+  await page.evaluate(() => window.SDocs.switchThemeAndUpdate('dark'));
+  await page.evaluate((m) => window.SDocs.loadText(m), md);
+  await page.evaluate(() => window.SDocs.expandAllSections && window.SDocs.expandAllSections());
+
+  const slideFill = () => page.evaluate(() => {
+    const host = document.querySelector('#_sd_rendered .shape-md');
+    const n = host && host.shadowRoot && host.shadowRoot.querySelector(
+      'svg.sdoc-mermaid-svg .node rect, svg.sdoc-mermaid-svg .node polygon, svg.sdoc-mermaid-svg .node path'
+    );
+    return n ? getComputedStyle(n).fill : null;
+  });
+
+  await page.waitForFunction(() => {
+    const host = document.querySelector('#_sd_rendered .shape-md');
+    return !!(host && host.shadowRoot && host.shadowRoot.querySelector('svg.sdoc-mermaid-svg .node'));
+  }, null, { timeout: 10000 });
+  const darkFill = await slideFill();
+
+  await page.evaluate(() => window.SDocs.switchThemeAndUpdate('light'));
+  await page.waitForTimeout(1500);
+  const lightFill = await slideFill();
+
+  // The slide diagram must re-theme along with the rest of the page.
+  expect(darkFill).not.toBe(null);
+  expect(lightFill).not.toBe(darkFill);
+});
+
 // ── Security: XSS through diagram source ──────────────────
 
 test('XSS: <script> in label is escaped, no script element survives', async ({ page }) => {
