@@ -279,8 +279,19 @@ function applyStylesFromMeta(s) {
 
 function collectStyles() {
   S.saveCurrentThemeColors();
-  // Always emit top-level colors (light) via the simple collector
-  var styles = SDocStyles.collectStyles(readAllControlValues(), S.overriddenColors);
+  // Top-level colours ARE the light theme by definition. Read colour values
+  // from the stored light palette rather than the live controls, which hold
+  // the DARK palette when the viewer is in dark mode - otherwise saving,
+  // sharing, or generating a short link while in dark mode bakes the
+  // dark-resolved colours into the light slots and the document renders
+  // dark-on-dark next time it's opened in light mode. Non-colour controls
+  // (fonts, sizes, spacing) are theme-independent, so they stay as-is.
+  var values = readAllControlValues();
+  var lightColors = S.themeColors.light || {};
+  Object.keys(lightColors).forEach(function (id) {
+    if (lightColors[id] != null) values[id] = lightColors[id];
+  });
+  var styles = SDocStyles.collectStyles(values, S.themeOverridden.light);
 
   // Emit dark: block for any explicitly set dark overrides
   // (don't emit auto-inverted values — those are generated on load)
