@@ -203,40 +203,81 @@ body {
 }
 .syntax-hint { font-size: 10.5px; color: var(--text-3); }
 .facet-option {
-  display: inline-flex; align-items: baseline; gap: 4px;
-  padding: 5px 11px;
+  display: inline-flex; align-items: stretch; gap: 0;
+  padding: 0 6px 0 0;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 999px;
   color: var(--text); font-size: 12px; font-weight: 500;
-  cursor: pointer; line-height: 1;
+  line-height: 1;
   font-family: 'JetBrains Mono', monospace;
   transition: background .12s, border-color .12s, color .12s;
+  overflow: hidden;
+}
+.facet-option .opt-label {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  background: none; border: none;
+  padding: 6px 4px 6px 11px;
+  color: inherit; font: inherit; line-height: 1;
+  cursor: pointer;
 }
 .facet-option .prefix { color: var(--text-3); font-weight: 400; }
 .facet-option:hover { background: var(--bg-hover); }
+.facet-option .opt-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none;
+  width: 16px; height: 16px; padding: 0;
+  align-self: center;
+  margin-left: 3px;
+  border-radius: 999px;
+  color: var(--text-3);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; opacity: .45;
+  font-family: inherit;
+  transition: opacity .12s, background .12s, color .12s;
+}
+.facet-option:hover .opt-btn { opacity: .75; }
+.facet-option .opt-btn:hover {
+  opacity: 1;
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+/* Selected (include) — accent fill, the + button is the "active" affordance */
 .facet-option.selected {
   background: var(--accent); border-color: var(--accent); color: var(--text-inv);
 }
 .facet-option.selected .prefix { color: rgba(255,255,255,.75); }
+.facet-option.selected .opt-btn { color: var(--text-inv); }
+.facet-option.selected .opt-plus {
+  opacity: 1;
+  background: rgba(255,255,255,.22);
+  color: var(--text-inv);
+}
+.facet-option.selected:hover .opt-plus { background: rgba(255,255,255,.32); }
+
+/* Excluded — red tint, strikethrough on the label, - button is active */
 .facet-option.excluded {
   background: color-mix(in srgb, var(--danger, #d35454) 14%, var(--bg-surface));
   border-color: color-mix(in srgb, var(--danger, #d35454) 50%, var(--border));
   color: var(--danger, #c83a3a);
+}
+.facet-option.excluded .opt-label {
   text-decoration: line-through;
   text-decoration-color: color-mix(in srgb, var(--danger, #d35454) 55%, transparent);
   text-decoration-thickness: 1px;
 }
 .facet-option.excluded:hover { background: color-mix(in srgb, var(--danger, #d35454) 22%, var(--bg-surface)); }
 .facet-option.excluded .prefix { color: color-mix(in srgb, var(--danger, #d35454) 65%, var(--text-3)); }
-.facet-option.excluded .count { color: color-mix(in srgb, var(--danger, #d35454) 65%, var(--text-3)); }
-.facet-option .exclude-mark {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 14px; height: 14px; border-radius: 50%;
-  background: color-mix(in srgb, var(--danger, #d35454) 60%, transparent);
-  color: #fff; font-size: 12px; font-weight: 700;
-  margin-right: 2px;
-  text-decoration: none;
+.facet-option.excluded .count  { color: color-mix(in srgb, var(--danger, #d35454) 65%, var(--text-3)); }
+.facet-option.excluded .opt-btn { color: var(--danger, #c83a3a); }
+.facet-option.excluded .opt-minus {
+  opacity: 1;
+  background: color-mix(in srgb, var(--danger, #d35454) 25%, transparent);
+  color: var(--danger, #c83a3a);
+}
+.facet-option.excluded:hover .opt-minus {
+  background: color-mix(in srgb, var(--danger, #d35454) 38%, transparent);
 }
 .facet-option .count {
   font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
