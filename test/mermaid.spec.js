@@ -44,6 +44,44 @@ test('replaces the original <pre> (no raw mermaid source visible)', async ({ pag
   expect(preCount).toBe(0);
 });
 
+// ── Slide-embedded diagram reveal (collapsed section / slow render) ──
+
+test('diagram inside a slide reveals after its collapsed section expands', async ({ page }) => {
+  const md = [
+    '## Diagrams',
+    '',
+    '~~~slide',
+    'grid 100 56.25',
+    'r 8 10 84 36 align=center valign=center |',
+    '  ```mermaid',
+    '  flowchart LR',
+    '    A --> B --> C',
+    '  ```',
+    '~~~',
+  ].join('\n');
+  await loadDoc(page, md);
+
+  // The slide sits in a section that is collapsed by default, so its shape
+  // wrapper measures 0x0. The embedded SVG renders but starts hidden. Wait
+  // well past the old bounded reveal poll (~4s) so a regression can't pass
+  // by luck - the SVG must still be revealed once the section is expanded.
+  await page.waitForTimeout(5000);
+  await page.evaluate(() => window.SDocs.expandAllSections && window.SDocs.expandAllSections());
+
+  await page.waitForFunction(() => {
+    const host = document.querySelector('#_sd_rendered .shape-md');
+    const svg = host && host.shadowRoot && host.shadowRoot.querySelector('svg.sdoc-mermaid-svg');
+    return !!svg && getComputedStyle(svg).visibility === 'visible';
+  }, null, { timeout: 6000 });
+
+  const visible = await page.evaluate(() => {
+    const host = document.querySelector('#_sd_rendered .shape-md');
+    const svg = host && host.shadowRoot && host.shadowRoot.querySelector('svg.sdoc-mermaid-svg');
+    return !!svg && getComputedStyle(svg).visibility === 'visible';
+  });
+  expect(visible).toBe(true);
+});
+
 // ── Theme: re-render on theme toggle (no stale baked-in colors) ──────
 
 test('theme toggle re-themes an already-rendered diagram', async ({ page }) => {
