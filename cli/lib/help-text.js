@@ -30,7 +30,7 @@ USAGE
   sdoc slides icons [query]        Lucide icon names available to the \`icon\` shape kind
   sdoc slides custom-shapes        Raw-shape primitives + design principles reference
   sdoc present <file>              Open <file> and jump straight into fullscreen slides
-  sdoc library                     Open the personal markdown library at sdocs.dev/library
+  sdoc library                     Open the personal markdown library at smalldocs.org/library
   sdoc library ls                  List markdown indexed in this project (walks up to .git)
   sdoc library ls --tags           Tag bag (tag - count) for this project
   sdoc library --help              Full library reference - commands, tagging, rescue, autostart
@@ -40,6 +40,7 @@ USAGE
   sdoc setup                       Wire SDocs into your coding agents
   sdoc refresh                     Update the SDocs section in agent files to the current version
   sdoc auto-update [on|off]        Toggle auto-install of sdoc updates
+  sdoc upgrade                     Upgrade sdoc to the latest version now
   sdoc safe                        Verify the SDocs server is running the published code
   sdoc safe --json                 Same, machine-readable (for agents)
   sdoc safe --audit                Same, plus GitHub links to server-side source files
@@ -60,7 +61,7 @@ OPTIONS
   --section <heading>   Scroll to heading section on load
   --light               Open in light theme
   --dark                Open in dark theme
-  --url <base>          Custom base URL (default: https://sdocs.dev)
+  --url <base>          Custom base URL (default: https://smalldocs.org)
   --mode <m>            Alias for --read / --write / --style / --raw / --comment
   --short               Use the encrypted /s/<id> short-URL form (share
                         subcommand only). See SHORT LINKS below.
@@ -113,7 +114,7 @@ FILE INFO CARD
 LIBRARY (personal, on-machine index)
   Every \`sdoc <file>\` records the file in ~/.sdocs/library-index.json -
   path, title, tags, last-touched. \`sdoc library\` opens a search UI at
-  sdocs.dev/library that talks to a local loopback agent the CLI runs
+  smalldocs.org/library that talks to a local loopback agent the CLI runs
   on 127.0.0.1:47843. Click a result to open the file for live editing.
   Nothing about the library ever leaves the machine.
 
@@ -146,10 +147,10 @@ LIBRARY (personal, on-machine index)
 
 SHORT LINKS (sdoc share --short)
   By default, \`sdoc share <file>\` encodes the document into the URL hash:
-  \`https://sdocs.dev/#md=<base64url>\`. The whole document lives in the
+  \`https://smalldocs.org/#md=<base64url>\`. The whole document lives in the
   hash, which the browser does not send to any server.
 
-  \`--short\` produces a shorter, encrypted form: \`https://sdocs.dev/s/<id>#k=<key>\`.
+  \`--short\` produces a shorter, encrypted form: \`https://smalldocs.org/s/<id>#k=<key>\`.
 
   How it works:
     1. The CLI brotli-compresses the content, generates a 256-bit AES-GCM
@@ -157,7 +158,7 @@ SHORT LINKS (sdoc share --short)
     2. The CLI POSTs the ciphertext (nonce + ct + auth tag, base64url) to
        /api/short. The server stores it under a random short id and
        returns the id. The key NEVER leaves the CLI.
-    3. The CLI assembles \`https://sdocs.dev/s/<id>#k=<key>\` and copies
+    3. The CLI assembles \`https://smalldocs.org/s/<id>#k=<key>\` and copies
        it to the clipboard. The key lives in the URL fragment, which the
        browser does not send to the server on page load.
     4. Whoever opens the link: the browser fetches the ciphertext from
@@ -183,7 +184,7 @@ SHORT LINKS (sdoc share --short)
   server at all.
 
 VERIFYING THE SERVER (sdoc safe)
-  \`sdoc safe\` asks https://sdocs.dev what commit it is running, pulls the
+  \`sdoc safe\` asks https://smalldocs.org what commit it is running, pulls the
   authoritative fingerprint list for that commit from GitHub (published by the
   publish-manifest workflow on every push to main), downloads every frontend
   file from the host, hashes each one with SHA-256, and compares. Bytes come
@@ -2186,7 +2187,7 @@ WHAT IT IS, IN ONE PARAGRAPH
   Every \`sdoc <file>\` writes a small record into ~/.sdocs/library-
   index.json - the file path, its title, its tags, when it was last
   touched. A small loopback HTTP server reads that index when you visit
-  sdocs.dev/library in a browser, so the page can show your files
+  smalldocs.org/library in a browser, so the page can show your files
   without anything leaving your machine. Click a result and SDocs spins
   up a live editing session against the file on disk. Nothing about
   the library ever touches a remote server.
@@ -2194,7 +2195,7 @@ WHAT IT IS, IN ONE PARAGRAPH
 COMMANDS
   Open and inspect
     sdoc library                          Open the library UI at
-                                          sdocs.dev/library (or
+                                          smalldocs.org/library (or
                                           localhost:3000/library when
                                           running the dev server).
                                           Starts the local agent if it
@@ -2372,13 +2373,13 @@ CONSISTENCY HINTS FOR AGENTS
       sdoc library ls
 
 THE LOCAL AGENT
-  The library page (sdocs.dev/library or localhost:3000/library) is
+  The library page (smalldocs.org/library or localhost:3000/library) is
   hosted from the SDocs server; the data it shows comes from a tiny
   HTTP server the CLI runs at 127.0.0.1:47843. That server:
     - reads ~/.sdocs/library-index.json
     - never writes user content (writes go through the Bridge)
-    - refuses any browser request whose Origin is not sdocs.dev,
-      smalldocs.org, or localhost:3000 (extend with SDOCS_URL or
+    - refuses any browser request whose Origin is not smalldocs.org,
+      sdocs.dev, or localhost:3000 (extend with SDOCS_URL or
       SDOCS_AGENT_ALLOWED_ORIGINS)
     - refuses requests whose Host header is not 127.0.0.1 / localhost
       (DNS-rebinding guard)
@@ -2417,8 +2418,8 @@ CLI INTERACTION CHEAT SHEET FOR AGENTS
 
 PRIVACY MODEL
   The library is per-machine and per-user. Nothing about it is
-  uploaded to sdocs.dev or any other server. The browser page on
-  sdocs.dev calls the local agent over plain HTTP on 127.0.0.1; it
+  uploaded to smalldocs.org or any other server. The browser page on
+  smalldocs.org calls the local agent over plain HTTP on 127.0.0.1; it
   cannot see file content the agent doesn't already have indexed,
   and the agent cannot read files outside the library.
 
