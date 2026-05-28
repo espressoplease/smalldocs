@@ -414,6 +414,30 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // /connect: the single door for opting into local features. The
+  // page is mostly static, but the script makes a deliberate fetch
+  // to the loopback agent when the user clicks Connect - so the CSP
+  // needs the same allowance the library page uses.
+  if (pathname === '/connect') {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data:",
+      "connect-src 'self' http://127.0.0.1:* http://localhost:*",
+      "frame-src 'none'",
+      "object-src 'none'",
+    ].join('; ');
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'connect.html'), null, {
+      'Cache-Control': 'no-cache',
+      'Content-Security-Policy': csp,
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+    });
+    return;
+  }
+
   // Static explainer for the rescued-files badge. Pure prose, same CSP
   // as the rest of the site since it doesn't touch the local agent.
   if (pathname === '/library/rescued') {

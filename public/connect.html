@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>SDocs - Connect</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/library/library.css">
+<style>
+  .connect {
+    max-width: 720px;
+    margin: 28px auto 80px;
+    padding: 0 24px;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .connect h1 {
+    font-size: 22px;
+    margin: 0 0 6px;
+    font-weight: 600;
+  }
+  .connect .lede {
+    color: var(--text-2);
+    margin: 0 0 28px;
+  }
+  .connect h2 {
+    font-size: 14.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-2);
+    margin: 32px 0 10px;
+    font-weight: 600;
+  }
+  .connect p { margin: 0 0 14px; }
+  .connect code {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 12.5px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 10px 0 24px;
+  }
+  .feature-grid.two { grid-template-columns: repeat(2, 1fr); }
+  .feature-card a { color: var(--accent-text); text-decoration: none; }
+  .feature-card a:hover { text-decoration: underline; }
+  .feature-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 6px);
+    padding: 14px 14px 12px;
+    background: var(--bg-surface);
+  }
+  .feature-card-title {
+    font-weight: 600;
+    font-size: 13.5px;
+    margin: 0 0 6px;
+  }
+  .feature-card-title svg {
+    color: currentColor;
+    vertical-align: -2px;
+  }
+  .feature-card-body {
+    font-size: 12.5px;
+    color: var(--text-2);
+    line-height: 1.5;
+    margin: 0;
+  }
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding: 0;
+    margin: 0 0 24px;
+  }
+  .step {
+    counter-increment: step;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 6px);
+    background: var(--bg-surface);
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .step::before {
+    content: counter(step);
+    position: absolute;
+    left: -10px; top: -10px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--text-inv);
+    font-size: 12px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .step-title {
+    font-weight: 600;
+    margin: 0 0 6px;
+    font-size: 13.5px;
+  }
+  .step-body { font-size: 13px; color: var(--text-2); margin: 0 0 10px; }
+  .step-cmd {
+    display: flex; gap: 6px; align-items: center;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 6px);
+    padding: 6px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+  }
+  .step-cmd code { background: none; border: none; padding: 0; flex: 1; }
+  .step-cmd .copy-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-3); padding: 2px;
+    display: inline-flex; align-items: center;
+    transition: color .12s;
+  }
+  .step-cmd .copy-btn:hover { color: var(--accent-text); }
+  .step-cmd .copy-btn.copied { color: var(--accent-text); }
+  .connect-btn {
+    padding: 10px 22px;
+    border-radius: var(--radius, 6px);
+    font-size: 14px; font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--text-inv);
+    transition: filter .12s, opacity .12s;
+  }
+  .connect-btn:hover { filter: brightness(1.05); }
+  .connect-btn:disabled { opacity: .55; cursor: progress; }
+  .connect-btn.success { background: var(--success, #2a8e4f); border-color: var(--success, #2a8e4f); }
+  .status-msg {
+    margin-top: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .status-msg.error { color: var(--danger, #c83a3a); }
+  .status-msg.ok { color: var(--success, #2a8e4f); }
+  .nav-buttons {
+    display: flex; gap: 10px; margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .nav-buttons a, .nav-buttons button {
+    padding: 8px 16px;
+    border-radius: var(--radius, 6px);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text);
+    transition: background-color .12s, border-color .12s;
+  }
+  .nav-buttons a:hover, .nav-buttons button:hover {
+    background: var(--bg-hover);
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  }
+  .nav-buttons .primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--text-inv);
+  }
+  .nav-buttons .primary:hover {
+    background: var(--accent);
+    filter: brightness(1.05);
+  }
+  .small-link {
+    font-size: 12.5px;
+    color: var(--text-3);
+    margin-top: 18px;
+  }
+  .small-link a { color: var(--text-2); }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="/">SDocs</a>
+    <span class="brand-sep">/</span>
+    <span class="brand-page">connect</span>
+  </div>
+
+  <main class="connect">
+    <h1>Local Connect</h1>
+    <p class="lede">Markdown files live on your computer, but SmallDocs is in the browser. If given permission, browsers can connect with your local machine. SmallDocs has two features which build upon this functionality and require your permission to start.</p>
+
+    <section class="feature-grid two">
+      <div class="feature-card">
+        <p class="feature-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+          Markdown library
+        </p>
+        <p class="feature-card-body">Browse every <code>.md</code> file under your computer's home, by tag, project, or date. <a href="/library?demo=1" target="_blank" rel="noopener">See a sample library →</a></p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          Tag autocomplete
+        </p>
+        <p class="feature-card-body">When you add a tag to a document in the SmallDocs UI, see the tags already used elsewhere in the same project.</p>
+      </div>
+    </section>
+
+    <h2>How it works</h2>
+    <p>SmallDocs ships a small CLI you install on your computer. Running <code>sdoc library</code> starts a small program in the background that reads the markdown files on your machine. Your browser asks that program for results over loopback (<code>127.0.0.1</code>), an address that only resolves to your own computer. The library page is rendered in your browser from that data, the same way every other SmallDocs page is. None of it reaches a SmallDocs server.</p>
+    <p>Your files stay 100% on your machine unless you explicitly run <code>sdoc share file.md</code> (which uploads an encrypted copy that only the recipient's browser can read) or save to the SmallDocs cloud from the editor.</p>
+    <p>Editing a file you opened with <code>sdoc file.md</code> already works without anything on this page - those edits flow through a different channel (a WebSocket bridge) that the browser allows by default. The setup below is only for the library and tag autocomplete.</p>
+
+    <ol class="steps">
+      <li class="step">
+        <p class="step-title">Install the SDocs CLI</p>
+        <p class="step-body">Skip this step if you already have <code>sdoc</code> on your machine. Requires Node.js.</p>
+        <div class="step-cmd">
+          <code id="cmd-install">npm i -g sdocs-dev</code>
+          <button class="copy-btn" data-copy="cmd-install" title="Copy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </li>
+      <li class="step">
+        <p class="step-title">Start the library</p>
+        <p class="step-body">This launches a small loopback agent that the browser will talk to. Leave it running in the background.</p>
+        <div class="step-cmd">
+          <code id="cmd-start">sdoc library</code>
+          <button class="copy-btn" data-copy="cmd-start" title="Copy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </li>
+      <li class="step">
+        <p class="step-title">Grant browser access</p>
+        <p class="step-body">When you press the button below, your browser may ask permission to talk to local apps. That's the loopback connection - click Allow. You'll only see this prompt once.</p>
+        <button id="connect-btn" class="connect-btn">Connect now</button>
+        <div id="status" class="status-msg" hidden></div>
+      </li>
+    </ol>
+
+    <div class="nav-buttons" id="nav-buttons" hidden>
+      <a href="/library" class="primary">Open library →</a>
+      <a href="/">Back to editor</a>
+    </div>
+
+    <p class="small-link">Already connected on another browser? Each browser stores its own permission, so you'll see this page once per browser.</p>
+  </main>
+
+  <script src="/public/sdocs-connect.js"></script>
+  <script src="/public/connect.js"></script>
+</body>
+</html>
