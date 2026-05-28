@@ -477,6 +477,58 @@
     }
   }
 
+  // Render mermaid source into an existing .sdoc-mermaid wrapper/stage.
+  // Shared by the initial pass and the theme re-render. The source is
+  // stashed on the wrapper so a later theme toggle can regenerate the SVG
+  // with new theme colours - mermaid bakes its palette into the SVG at
+  // render time, so swapping CSS variables alone leaves stale fills behind.
+  function renderSourceIntoWrapper(mermaid, wrapper, stage, rawSrc, themeVars) {
+    wrapper._sdMermaidSource = rawSrc;
+
+    if (rawSrc.length > SOURCE_BYTE_CAP) {
+      renderError(wrapper, 'Diagram source exceeds ' + (SOURCE_BYTE_CAP / 1024) + ' KB cap');
+      return Promise.resolve();
+    }
+
+    var src = stripDirectives(rawSrc);
+    diagramCounter += 1;
+    var id = 'sdoc-mermaid-' + diagramCounter;
+
+    var p;
+    try { p = mermaid.render(id, src); }
+    catch (e) {
+      renderError(wrapper, e && e.message);
+      cleanupRenderOrphan(id);
+      return Promise.resolve();
+    }
+
+    return withTimeout(p, RENDER_TIMEOUT_MS)
+      .then(function (out) {
+        var svg = (out && out.svg) || '';
+        stage.innerHTML = sanitizeSvg(svg);
+        // Stamp a class on the rendered <svg> so polish rules in
+        // rendered.css can target both this inline copy and the cloned
+        // copy in the focus modal with a single selector. Mermaid's own
+        // inline `max-width: <natural-px>` is kept - small diagrams render
+        // at natural size rather than scaling up to fill the wrapper.
+        var svgEl = stage.querySelector('svg');
+        if (svgEl) {
+          svgEl.classList.add('sdoc-mermaid-svg');
+          try { applyClusterTints(svgEl, themeVars.background); } catch (_) {}
+        }
+        // Per-diagram fullscreen button (sdocs-mermaid-focus.js). Optional,
+        // and guarded so a theme re-render doesn't stack duplicate buttons.
+        if (S.SDocMermaidFocus && S.SDocMermaidFocus.buildZoomButton &&
+            !wrapper.querySelector('.sdoc-mermaid-zoom-btn')) {
+          wrapper.appendChild(S.SDocMermaidFocus.buildZoomButton(wrapper));
+        }
+      })
+      .catch(function (err) {
+        renderError(wrapper, (err && err.message) || 'Mermaid render error');
+      })
+      .then(function () { cleanupRenderOrphan(id); });
+  }
+
   // Walk all code.language-mermaid blocks in container, render each, and
   // replace the <pre> with a <div class="sdoc-mermaid"> wrapping the SVG.
   // Returns a Promise that resolves once every diagram has rendered (or
@@ -510,50 +562,7 @@
         target.parentNode.replaceChild(wrapper, target);
         pre._mermaidDone = true;
 
-        if (rawSrc.length > SOURCE_BYTE_CAP) {
-          renderError(wrapper, 'Diagram source exceeds ' + (SOURCE_BYTE_CAP / 1024) + ' KB cap');
-          return Promise.resolve();
-        }
-
-        var src = stripDirectives(rawSrc);
-
-        diagramCounter += 1;
-        var id = 'sdoc-mermaid-' + diagramCounter;
-
-        var p;
-        try { p = mermaid.render(id, src); }
-        catch (e) {
-          renderError(wrapper, e && e.message);
-          cleanupRenderOrphan(id);
-          return Promise.resolve();
-        }
-
-        return withTimeout(p, RENDER_TIMEOUT_MS)
-          .then(function (out) {
-            var svg = (out && out.svg) || '';
-            stage.innerHTML = sanitizeSvg(svg);
-            // Stamp a class on the rendered <svg> so polish rules in
-            // rendered.css can target both this inline copy and the
-            // cloned copy in the focus modal with a single selector.
-            // Mermaid's own inline `max-width: <natural-px>` is kept -
-            // small diagrams should render at natural size rather than
-            // scale up to fill the wrapper, which makes them look
-            // cartoonish.
-            var svgEl = stage.querySelector('svg');
-            if (svgEl) {
-              svgEl.classList.add('sdoc-mermaid-svg');
-              try { applyClusterTints(svgEl, themeVars.background); } catch (_) {}
-            }
-            // Per-diagram fullscreen button (sdocs-mermaid-focus.js).
-            // Optional - the diagram still renders if focus mode isn't loaded.
-            if (S.SDocMermaidFocus && S.SDocMermaidFocus.buildZoomButton) {
-              wrapper.appendChild(S.SDocMermaidFocus.buildZoomButton(wrapper));
-            }
-          })
-          .catch(function (err) {
-            renderError(wrapper, (err && err.message) || 'Mermaid render error');
-          })
-          .then(function () { cleanupRenderOrphan(id); });
+        return renderSourceIntoWrapper(mermaid, wrapper, stage, rawSrc, themeVars);
       });
 
       return Promise.all(jobs);
@@ -564,6 +573,35 @@
   }
 
   S.processMermaid = processMermaid;
+
+  // Re-render every already-rendered doc-flow diagram with the current
+  // theme. Mermaid bakes its palette into the SVG at render time, so a
+  // theme toggle (which only swaps CSS variables) would otherwise leave
+  // diagrams showing the previous theme's colours. Called from the theme
+  // switch in sdocs-theme.js.
+  function rethemeMermaid() {
+    var wrappers = Array.prototype.slice
+      .call(document.querySelectorAll('.sdoc-mermaid'))
+      .filter(function (w) { return w._sdMermaidSource; });
+    if (!wrappers.length) return Promise.resolve();
+
+    return loadMermaid().then(function (mermaid) {
+      try { initMermaid(mermaid); } catch (_) {}   // re-reads themeVariables
+      var themeVars = readThemeVars();
+      var jobs = wrappers.map(function (wrapper) {
+        var stage = wrapper.querySelector('.sdoc-mermaid-stage');
+        if (!stage) return Promise.resolve();
+        // Drop any prior error state before re-rendering.
+        wrapper.classList.remove('sdoc-mermaid-error');
+        var errMsg = wrapper.querySelector('.sdoc-mermaid-error-msg');
+        if (errMsg) errMsg.remove();
+        return renderSourceIntoWrapper(mermaid, wrapper, stage, wrapper._sdMermaidSource, themeVars);
+      });
+      return Promise.all(jobs);
+    }).catch(function () { /* CDN load failure - leave diagrams as-is */ });
+  }
+
+  S.rethemeMermaid = rethemeMermaid;
 
   // ── PDF / Word export rasterization ────────────────────
   // Mirrors S.getChartImages() — returns one entry per .sdoc-mermaid wrapper

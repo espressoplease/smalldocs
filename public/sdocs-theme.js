@@ -197,6 +197,9 @@ function switchThemeAndUpdate(theme) {
   // Single sync with 'theme' source: refreshes currentMeta/raw/hash
   // without flipping _isDefaultState.
   S.syncAll('theme');
+  // Mermaid bakes its palette into the rendered SVG, so a CSS-variable swap
+  // doesn't re-colour existing diagrams. Regenerate them for the new theme.
+  if (S.rethemeMermaid) S.rethemeMermaid();
 }
 
 function toggleTheme() {
