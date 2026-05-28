@@ -68,8 +68,11 @@ test.beforeAll(async () => {
     autostart.enable();
   }
   agent = await startAgent(SANDBOX);
-  pageUrl = `http://localhost:3000/library?agent=${encodeURIComponent(agent.agentUrl)}`;
-  brokenPageUrl = `http://localhost:3000/library?agent=${encodeURIComponent('http://127.0.0.1:1')}`;
+  // force=1 skips the "first-visit-redirects-to-/connect" gate so the
+  // existing UI tests don't all have to walk through the connect flow.
+  // The redirect itself is covered by the connect-flow tests below.
+  pageUrl = `http://localhost:3000/library?force=1&agent=${encodeURIComponent(agent.agentUrl)}`;
+  brokenPageUrl = `http://localhost:3000/library?force=1&agent=${encodeURIComponent('http://127.0.0.1:1')}`;
 });
 
 test.afterAll(async () => {
@@ -265,27 +268,30 @@ test('library UI: status line shows entry count', async ({ page }) => {
 
 // ── Exclude-chip cycle ──────────────────────────────────
 
-test('library UI: clicking a tag twice cycles to exclude (drops matching rows)', async ({ page }) => {
+test('library UI: tag option + / - buttons include and exclude explicitly', async ({ page }) => {
   await page.goto(pageUrl);
   await page.waitForSelector('.res');
   await page.click('button[data-facet="tag"]');
   await page.waitForSelector('.facet-panel.open .facet-option');
 
-  // First click: include. Narrows to entries that have tag "bridge".
-  await page.click('.facet-option:has-text("bridge")');
+  // Click the main label to include: narrows to entries with tag "bridge".
+  const bridgeOption = page.locator('.facet-option:has-text("bridge")');
+  await bridgeOption.locator('.opt-label').click();
   await page.waitForFunction(() => document.querySelectorAll('.res').length === 1);
+  await expect(bridgeOption).toHaveClass(/selected/);
 
-  // Second click: exclude. Now narrows to entries WITHOUT tag "bridge".
-  await page.click('.facet-option:has-text("bridge")');
+  // Click the - button to switch directly to exclude. The pill flips
+  // colour and the row count moves to entries WITHOUT tag "bridge".
+  await bridgeOption.locator('.opt-minus').click();
   await page.waitForFunction(() => document.querySelectorAll('.res').length === 3);
+  await expect(bridgeOption).toHaveClass(/excluded/);
+  await expect(page.locator('.filter-chip.exclude').first()).toBeVisible();
 
-  // Excluded chip should carry the exclude class.
-  const chip = await page.locator('.filter-chip.exclude').first();
-  await expect(chip).toBeVisible();
-
-  // Third click: chip removed.
-  await page.click('.facet-option:has-text("bridge")');
+  // Click - again to clear.
+  await bridgeOption.locator('.opt-minus').click();
   await page.waitForFunction(() => document.querySelectorAll('.res').length === 4);
+  await expect(bridgeOption).not.toHaveClass(/excluded/);
+  await expect(bridgeOption).not.toHaveClass(/selected/);
 });
 
 test('library UI: search box supports -tag:foo to exclude a tag', async ({ page }) => {
@@ -346,4 +352,72 @@ test('library UI: rescued badge, when present, links to the explainer page', asy
 test('rescued explainer page renders at /library/rescued', async ({ page }) => {
   await page.goto('http://localhost:3000/library/rescued');
   await expect(page.locator('h1')).toHaveText('Rescued files');
+});
+
+// ── Connect-flow gate ────────────────────────────────
+
+test('connect page renders at /connect', async ({ page }) => {
+  await page.goto('http://localhost:3000/connect');
+  await expect(page.locator('h1')).toHaveText('Local Connect');
+  await expect(page.locator('#connect-btn')).toBeVisible();
+});
+
+test('first visit to /library redirects to /connect with a return URL', async ({ page }) => {
+  // Fresh context, no localStorage yet -> should redirect.
+  const noForceUrl = `http://localhost:3000/library?agent=${encodeURIComponent(agent.agentUrl)}`;
+  await page.goto(noForceUrl);
+  await page.waitForURL(/\/connect\?return=/);
+  // The return param round-trips the original library path back to the connect page.
+  expect(decodeURIComponent(page.url())).toContain('return=/library?agent=');
+});
+
+test('library does NOT redirect when localStorage marks the browser connected', async ({ page, context }) => {
+  await context.addInitScript(() => {
+    localStorage.setItem('sdocs.connect', JSON.stringify({ connected: true, version: '1.11.1', at: Date.now() }));
+  });
+  const noForceUrl = `http://localhost:3000/library?agent=${encodeURIComponent(agent.agentUrl)}`;
+  await page.goto(noForceUrl);
+  // Stays on /library and loads results.
+  await page.waitForSelector('.res');
+  expect(page.url()).toContain('/library');
+});
+
+test('connect button marks the browser connected and shows the open-library link', async ({ page }) => {
+  // Point the connect button at our test agent by overriding its URL
+  // via a pre-init script. The connect script always hits the canonical
+  // port (47843) which we can't bind from tests, so we monkey-patch
+  // fetch to redirect that one URL to our agent.
+  const agentUrl = agent.agentUrl;
+  await page.addInitScript(({ realAgentUrl }) => {
+    const orig = window.fetch;
+    window.fetch = function (url, init) {
+      if (typeof url === 'string' && url.startsWith('http://127.0.0.1:47843')) {
+        return orig(url.replace('http://127.0.0.1:47843', realAgentUrl), init);
+      }
+      return orig(url, init);
+    };
+  }, { realAgentUrl: agentUrl });
+  await page.goto('http://localhost:3000/connect');
+  await page.click('#connect-btn');
+  await expect(page.locator('#status.ok')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('#nav-buttons')).toBeVisible();
+  // localStorage now records the success.
+  const stored = await page.evaluate(() => localStorage.getItem('sdocs.connect'));
+  expect(stored).toContain('"connected":true');
+});
+
+test('home page does not fire any fetch to 127.0.0.1 on load', async ({ page }) => {
+  // The whole point of /connect is that first-time visitors never
+  // touch the loopback agent without consenting. This is the
+  // canary test for that promise.
+  const loopbackHits = [];
+  page.on('request', req => {
+    const url = req.url();
+    if (url.includes('127.0.0.1:47843') || url.includes('localhost:47843')) {
+      loopbackHits.push(url);
+    }
+  });
+  await page.goto('http://localhost:3000/');
+  await page.waitForLoadState('networkidle');
+  expect(loopbackHits).toEqual([]);
 });
