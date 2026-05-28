@@ -44,6 +44,34 @@ test('replaces the original <pre> (no raw mermaid source visible)', async ({ pag
   expect(preCount).toBe(0);
 });
 
+// ── Theme: re-render on theme toggle (no stale baked-in colors) ──────
+
+test('theme toggle re-themes an already-rendered diagram', async ({ page }) => {
+  await loadDoc(page, '```mermaid\ngraph TD\n  A --> B\n```');
+  await page.waitForSelector('.sdoc-mermaid-stage svg .node', { timeout: 10000 });
+
+  const fillOf = () => page.evaluate(() => {
+    const el = document.querySelector(
+      '.sdoc-mermaid-stage svg .node rect, .sdoc-mermaid-stage svg .node polygon, .sdoc-mermaid-stage svg .node path'
+    );
+    return el ? getComputedStyle(el).fill : null;
+  });
+
+  await page.evaluate(() => window.SDocs.switchThemeAndUpdate('dark'));
+  await page.waitForTimeout(900);
+  const darkFill = await fillOf();
+
+  await page.evaluate(() => window.SDocs.switchThemeAndUpdate('light'));
+  await page.waitForTimeout(900);
+  const lightFill = await fillOf();
+
+  // Node fill is derived from the page background, which differs between
+  // themes. Without a re-render the SVG keeps its baked-in fill and the two
+  // are identical (the bug).
+  expect(darkFill).not.toBe(null);
+  expect(lightFill).not.toBe(darkFill);
+});
+
 // ── Security: XSS through diagram source ──────────────────
 
 test('XSS: <script> in label is escaped, no script element survives', async ({ page }) => {
