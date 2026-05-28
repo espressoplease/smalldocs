@@ -574,15 +574,27 @@
 
   S.processMermaid = processMermaid;
 
-  // Re-render every already-rendered doc-flow diagram with the current
-  // theme. Mermaid bakes its palette into the SVG at render time, so a
-  // theme toggle (which only swaps CSS variables) would otherwise leave
-  // diagrams showing the previous theme's colours. Called from the theme
-  // switch in sdocs-theme.js.
+  // Re-render every already-rendered diagram with the current theme.
+  // Mermaid bakes its palette into the SVG at render time, so a theme
+  // toggle (which only swaps CSS variables) would otherwise leave diagrams
+  // showing the previous theme's colours. Covers both doc-flow diagrams and
+  // diagrams embedded in slide shapes (which live in shadow roots). Called
+  // from the theme switch in sdocs-theme.js.
   function rethemeMermaid() {
-    var wrappers = Array.prototype.slice
-      .call(document.querySelectorAll('.sdoc-mermaid'))
-      .filter(function (w) { return w._sdMermaidSource; });
+    var wrappers = Array.prototype.slice.call(document.querySelectorAll('.sdoc-mermaid'));
+
+    // Slide-embedded diagrams sit in the shadow root of each slide shape;
+    // querySelectorAll above doesn't cross shadow boundaries.
+    var shadowRoots = [];
+    Array.prototype.forEach.call(document.querySelectorAll('.shape-md'), function (host) {
+      if (!host.shadowRoot) return;
+      var inner = host.shadowRoot.querySelectorAll('.sdoc-mermaid');
+      if (!inner.length) return;
+      shadowRoots.push(host.shadowRoot);
+      Array.prototype.push.apply(wrappers, inner);
+    });
+
+    wrappers = wrappers.filter(function (w) { return w._sdMermaidSource; });
     if (!wrappers.length) return Promise.resolve();
 
     return loadMermaid().then(function (mermaid) {
@@ -597,7 +609,16 @@
         if (errMsg) errMsg.remove();
         return renderSourceIntoWrapper(mermaid, wrapper, stage, wrapper._sdMermaidSource, themeVars);
       });
-      return Promise.all(jobs);
+      return Promise.all(jobs).then(function () {
+        // A re-rendered slide diagram gets a fresh SVG that starts hidden
+        // (shadow CSS) and unsized; the shape renderer's reveal pass sizes
+        // and shows it again.
+        if (window.SDocShapeRender && window.SDocShapeRender.kickShadowMermaid) {
+          shadowRoots.forEach(function (root) {
+            try { window.SDocShapeRender.kickShadowMermaid(root); } catch (_) {}
+          });
+        }
+      });
     }).catch(function () { /* CDN load failure - leave diagrams as-is */ });
   }
 

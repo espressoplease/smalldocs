@@ -2135,6 +2135,9 @@ window.SDocShapeRender = {
   bubPath: bubPath,
   tabPath: tabPath,
   docPaths: docPaths,
+  // Exposed so a mermaid theme re-render can re-size and re-reveal a slide's
+  // embedded diagram after replacing its (hidden-by-default) SVG.
+  kickShadowMermaid: kickShadowMermaid,
 };
 
 })();
