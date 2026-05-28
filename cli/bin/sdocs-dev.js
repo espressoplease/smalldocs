@@ -62,6 +62,10 @@ function buildRouter() {
   // Defaults: show / reset.
   r.register('defaults', { handler: (opts) => { commands.defaultsCommand(opts); process.exit(0); } });
 
+  // `sdoc color-analysis <file>` — WCAG contrast lint for custom palettes.
+  // Exits 1 on unreadable pairs (the handler calls process.exit itself).
+  r.register('color-analysis', { handler: (opts) => commands.colorAnalysisCommand(opts) });
+
   // `sdoc new`: open blank /new editor.
   r.register('new',      { handler: (opts) => { commands.newCommand(opts); process.exit(0); } });
 
