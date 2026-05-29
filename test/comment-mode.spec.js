@@ -505,6 +505,72 @@ test.describe('copy-with-comments buttons', () => {
     expect(state['Section A']).toBe('H2');
     expect(state['Section B']).toBeUndefined();
   });
+
+  // Trigger an H2's "with comments" copy and capture what lands on the
+  // clipboard, without depending on real clipboard read permissions.
+  async function copySectionByHeading(page, headingText) {
+    return page.evaluate(async (needle) => {
+      var captured = null;
+      var orig = navigator.clipboard.writeText;
+      navigator.clipboard.writeText = function (t) { captured = t; return Promise.resolve(); };
+      try {
+        var h = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6'))
+          .find(function (el) { return el.textContent.indexOf(needle) !== -1; });
+        var btn = h && h.querySelector('.sdoc-head-copy-c');
+        if (btn) btn.click();
+        await new Promise(function (r) { setTimeout(r, 50); });
+      } finally {
+        navigator.clipboard.writeText = orig;
+      }
+      return captured;
+    }, headingText);
+  }
+
+  // The second H2 ("Other section") and its comment must never leak into a
+  // copy of the first section. This guards against the per-section copy
+  // silently falling back to copying the whole document (which happened
+  // when an inline comment on the heading corrupted the heading-text lookup).
+  const TWO_SECTION_DOC =
+    '# Title\n\n## Built for agents\n\nBody paragraph here.\n\n' +
+    '## Other section\n\nOutside paragraph here.\n';
+
+  // Regression: per-section copy used to filter comments by DOM membership
+  // starting AFTER the heading, so a comment anchored to the heading itself
+  // was dropped even though the body slice includes the `## Heading` line.
+  // Separately, an inline comment on the heading text leaked the comment
+  // card into the heading-text lookup, making the section unfindable and
+  // silently copying the whole document.
+  test('section copy keeps a comment anchored to the heading text', async ({ page }) => {
+    await setBody(page, TWO_SECTION_DOC);
+    // Inline comment on the heading's own text.
+    await saveInline(page, 'Built for agents', { prefix: '', suffix: '', text: 'heading note' });
+    // Inline comment on the body paragraph in the same section.
+    await saveInline(page, 'Body paragraph', { prefix: '', suffix: ' here', text: 'body note' });
+    // A comment in the OTHER section - must not appear in this copy.
+    await saveInline(page, 'Outside paragraph', { prefix: '', suffix: ' here', text: 'outside note' });
+    const out = await copySectionByHeading(page, 'Built for agents');
+    // The heading line is present, with its quote turned into a footnote ref.
+    expect(out).toMatch(/##\s+\[Built for agents\]\[\^c\d+\]/);
+    expect(out).toContain('heading note');
+    expect(out).toContain('body note');
+    // Scoped to this section only: the other section is absent.
+    expect(out).not.toContain('Other section');
+    expect(out).not.toContain('outside note');
+  });
+
+  test('section copy keeps a block comment on the heading', async ({ page }) => {
+    await setBody(page, TWO_SECTION_DOC);
+    // Block comment on the heading element itself (h2:0).
+    await saveBlock(page, 'h2:0', 'heading block note');
+    await saveInline(page, 'Body paragraph', { prefix: '', suffix: ' here', text: 'body note' });
+    await saveInline(page, 'Outside paragraph', { prefix: '', suffix: ' here', text: 'outside note' });
+    const out = await copySectionByHeading(page, 'Built for agents');
+    expect(out).toContain('## Built for agents');
+    expect(out).toContain('heading block note');
+    expect(out).toContain('body note');
+    expect(out).not.toContain('Other section');
+    expect(out).not.toContain('outside note');
+  });
 });
 
 test.describe('copy variants', () => {
