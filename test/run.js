@@ -32,6 +32,7 @@ require('./test-comments')(harness);
 require('./test-forms')(harness);
 require('./test-agent-block')(harness);
 require('./test-router')(harness);
+require('./test-update-check')(harness);
 require('./test-source')(harness);
 require('./test-library-tags')(harness);
 require('./test-library-ephemeral')(harness);

@@ -19,13 +19,22 @@ const { UPDATE_CACHE, VERSION, ONE_DAY, GITHUB_REPO_URL, INSTALL_SH_URL } = requ
 const { readSetupState } = require('./agent-block');
 
 // Install-method detection. The URL installer (install.sh) drops the CLI into
-// ~/.sdocs/cli; a global npm install lives under npm's prefix. The two upgrade
-// differently, so every upgrade path branches on this. If you change the
-// installed layout in install.sh, update this check to match.
-function isUrlInstall() {
+// $SDOCS_HOME/cli (default ~/.sdocs/cli); a global npm install lives under
+// npm's prefix. The two upgrade differently, so every upgrade path branches on
+// this. If you change the installed layout in install.sh, update this check.
+//
+// Both sides are realpath-resolved before comparing: `__dirname` is already
+// canonical, but the home path is raw, so a symlink anywhere above ~/.sdocs
+// (common on macOS/managed homes) would make a raw startsWith() miss. The
+// SDOCS_HOME env var mirrors install.sh so a custom install dir is detected
+// too. realpathSync throws when $SDOCS_HOME/cli does not exist (the npm and
+// dev-checkout cases); the catch turns that into `false`.
+function isUrlInstall(moduleDir) {
   try {
-    const cliRoot = path.join(os.homedir(), '.sdocs', 'cli') + path.sep;
-    return (path.resolve(__dirname, '..') + path.sep).startsWith(cliRoot);
+    const home = process.env.SDOCS_HOME || path.join(os.homedir(), '.sdocs');
+    const cliRoot = fs.realpathSync(path.join(home, 'cli')) + path.sep;
+    const here = fs.realpathSync(path.resolve(moduleDir || __dirname, '..')) + path.sep;
+    return here.startsWith(cliRoot);
   } catch (_) { return false; }
 }
 
