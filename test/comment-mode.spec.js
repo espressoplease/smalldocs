@@ -470,6 +470,88 @@ test.describe('selection guard', () => {
   });
 });
 
+// ── Comments on links ────────────────────────────────────────────────────
+
+test.describe('comments on links', () => {
+  // A link with several words so a comment can target a SUBSET of the link
+  // text. That is the case that lands the anchor span inside the <a> (a
+  // whole-link selection instead wraps the <a> in the span, which never
+  // had the bug). Comment target: "full documentation".
+  const LINK_DOC = 'Please [read the full documentation here](https://example.com/nav) now.\n';
+
+  // Open the inline composer over a sub-selection of the first link by
+  // driving the user's path: select text, fire selectionchange to surface
+  // the popover, click it.
+  async function openComposerOnLinkSubset(page) {
+    await page.evaluate(() => {
+      var node = document.querySelector('#_sd_rendered a').firstChild;
+      var text = node.textContent;
+      var start = text.indexOf('full documentation');
+      var range = document.createRange();
+      range.setStart(node, start);
+      range.setEnd(node, start + 'full documentation'.length);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+      document.querySelector('.sdoc-selection-add').click();
+    });
+  }
+
+  // Regression: the anchor span (and thus the composer / saved card) was
+  // inserted inside the <a>. Clicking the save tick - or Enter, which calls
+  // save.click() - fired the link's default navigation, so the page left
+  // instead of storing the comment.
+  test('composer for a link is hoisted out of the <a> and saving does not navigate', async ({ page }) => {
+    // Block the link target so an accidental navigation fails fast rather
+    // than hitting the network; we assert the URL is unchanged regardless.
+    await page.route('https://example.com/**', (route) => route.abort());
+    await setBody(page, LINK_DOC);
+    await openComposerOnLinkSubset(page);
+    const composerInAnchor = await page.evaluate(() => {
+      var input = document.querySelector('.sdoc-card-input');
+      return !!(input && input.closest('a'));
+    });
+    expect(composerInAnchor).toBe(false);
+    // Type a comment and press Enter (pill input -> Enter saves).
+    await page.evaluate(() => {
+      var input = document.querySelector('.sdoc-card-input');
+      input.value = 'a note on the link';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    await page.waitForTimeout(50);
+    const state = await page.evaluate(() => ({
+      url: location.href,
+      count: (window.SDocs.currentMeta.comments || []).length,
+      quote: (window.SDocs.currentMeta.comments || [])[0] &&
+             window.SDocs.currentMeta.comments[0].quote,
+    }));
+    expect(state.url).toBe(BASE + '/');
+    expect(state.count).toBe(1);
+    expect(state.quote).toBe('full documentation');
+  });
+
+  test('saved card on a link renders outside the <a>, highlight stays inside', async ({ page }) => {
+    await setBody(page, LINK_DOC);
+    await saveInline(page, 'full documentation', { prefix: 'read the ', suffix: ' here' });
+    const state = await page.evaluate(() => {
+      var anchor = document.querySelector('span.sdoc-anchor[data-c="c1"]');
+      var card = document.querySelector('.sdoc-card[data-c="c1"]');
+      return {
+        anchorInLink: !!(anchor && anchor.closest('a')),
+        cardInLink: !!(card && card.closest('a')),
+        cardExists: !!card,
+      };
+    });
+    // The highlight sits inside the link (correct - it marks the link text),
+    // but the interactive card must sit outside so its controls don't
+    // trigger navigation.
+    expect(state.anchorInLink).toBe(true);
+    expect(state.cardExists).toBe(true);
+    expect(state.cardInLink).toBe(false);
+  });
+});
+
 // ── Copy serializers ─────────────────────────────────────────────────────
 
 test.describe('copy-with-comments buttons', () => {
