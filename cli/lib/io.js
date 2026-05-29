@@ -7,7 +7,7 @@ const { execFileSync } = require('child_process');
 const SUBCOMMANDS = new Set([
   'new', 'share', 'schema', 'defaults', 'help',
   'charts', 'diagrams', 'comments',
-  'setup', 'safe', 'auto-update', 'refresh',
+  'setup', 'safe', 'auto-update', 'refresh', 'upgrade',
   'feedback',
   'slides', 'present',
   'library',

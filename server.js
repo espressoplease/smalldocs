@@ -71,6 +71,7 @@ const MIME = {
   '.json': 'application/json',
   '.md':   'text/plain',
   '.smd':  'text/plain',
+  '.sh':   'text/x-shellscript; charset=utf-8',
   '.woff2': 'font/woff2',
   '.wasm':  'application/wasm',
   '.png':  'image/png',
@@ -341,6 +342,13 @@ const server = http.createServer((req, res) => {
   if (pathname.startsWith('/api/short/')) {
     const id = pathname.slice('/api/short/'.length);
     handleShortLinkGet(res, id);
+    return;
+  }
+
+  // CLI installer script: `curl -fsSL https://smalldocs.org/install.sh | sh`.
+  // Installs the `sdoc` command under ~/.sdocs without npm or root.
+  if (pathname === '/install.sh') {
+    serveFile(res, path.join(__dirname, 'install.sh'), { 'Cache-Control': 'no-cache' });
     return;
   }
 
