@@ -9,13 +9,32 @@
 //   - non-TTY: one-line hint.
 
 const fs    = require('fs');
+const os    = require('os');
 const path  = require('path');
 const https = require('https');
 const readline = require('readline');
 const { execSync, spawnSync } = require('child_process');
 
-const { UPDATE_CACHE, VERSION, ONE_DAY, GITHUB_REPO_URL } = require('./constants');
+const { UPDATE_CACHE, VERSION, ONE_DAY, GITHUB_REPO_URL, INSTALL_SH_URL } = require('./constants');
 const { readSetupState } = require('./agent-block');
+
+// Install-method detection. The URL installer (install.sh) drops the CLI into
+// ~/.sdocs/cli; a global npm install lives under npm's prefix. The two upgrade
+// differently, so every upgrade path branches on this. If you change the
+// installed layout in install.sh, update this check to match.
+function isUrlInstall() {
+  try {
+    const cliRoot = path.join(os.homedir(), '.sdocs', 'cli') + path.sep;
+    return (path.resolve(__dirname, '..') + path.sep).startsWith(cliRoot);
+  } catch (_) { return false; }
+}
+
+// The command that upgrades sdoc in place, given how it was installed.
+function upgradeCommand() {
+  return isUrlInstall()
+    ? `curl -fsSL ${INSTALL_SH_URL} | sh`
+    : 'npm i -g sdocs-dev@latest';
+}
 
 function isNewer(latest, current) {
   const a = latest.split('.').map(Number);
@@ -32,15 +51,17 @@ function readCachedLatest() {
   catch (_) { return null; }
 }
 
-// Self-upgrade: runs npm i -g, then re-execs into the new binary.
-// On any failure, falls through (so the user's actual command still runs).
+// Self-upgrade: runs the right upgrade command for the install method, then
+// re-execs into the new binary. On any failure, falls through (so the user's
+// actual command still runs).
 function autoInstallAndReexec(latest) {
   console.log(`\nUpdating sdoc ${VERSION} → ${latest}...`);
+  const cmd = upgradeCommand();
   try {
-    execSync('npm i -g sdocs-dev@latest', { stdio: 'pipe' });
+    execSync(cmd, { stdio: 'pipe' });
   } catch (e) {
     console.error(`! sdoc auto-update to ${latest} failed: ${(e.stderr || e.message || '').toString().trim().split('\n')[0]}`);
-    console.error(`  Run \`npm i -g sdocs-dev@latest\` manually to upgrade.`);
+    console.error(`  Run \`${cmd}\` manually to upgrade.`);
     return false;
   }
   console.log(`✓ sdoc updated ${VERSION} → ${latest}`);
@@ -64,7 +85,7 @@ async function maybeUpdateBinary() {
 
   const isInteractive = process.stdout.isTTY && process.stdin.isTTY;
   if (!isInteractive) {
-    console.log(`Update available: ${VERSION} → ${latest}. Run \`npm i -g sdocs-dev@latest\` to upgrade.`);
+    console.log(`Update available: ${VERSION} → ${latest}. Run \`${upgradeCommand()}\` to upgrade.`);
     return;
   }
 
@@ -76,13 +97,28 @@ async function maybeUpdateBinary() {
   });
   if (answer && answer !== 'y' && answer !== 'yes') return;
 
-  console.log('Installing sdocs-dev@latest...');
+  const cmd = upgradeCommand();
+  console.log('Installing the latest sdoc...');
   try {
-    execSync('npm i -g sdocs-dev@latest', { stdio: 'inherit' });
+    execSync(cmd, { stdio: 'inherit' });
     console.log(`✓ Updated to v${latest}`);
   } catch (_) {
-    console.error('Update failed. You may need: sudo npm i -g sdocs-dev');
+    console.error(`Update failed. Run \`${cmd}\` to upgrade.`);
   }
+}
+
+// `sdoc upgrade` — force an upgrade to the latest version right now,
+// regardless of the daily update cache. Branches on install method.
+function runUpgrade() {
+  const cmd = upgradeCommand();
+  console.log(`Upgrading sdoc (currently ${VERSION})...`);
+  try {
+    execSync(cmd, { stdio: 'inherit' });
+  } catch (_) {
+    console.error(`\nUpgrade failed. Run \`${cmd}\` manually.`);
+    process.exit(1);
+  }
+  console.log('✓ sdoc is up to date.');
 }
 
 // Daily refresh of the cached `latest` version from npm. Not gated on TTY:
@@ -109,7 +145,10 @@ function refreshUpdateCache() {
 module.exports = {
   isNewer,
   readCachedLatest,
+  isUrlInstall,
+  upgradeCommand,
   autoInstallAndReexec,
   maybeUpdateBinary,
+  runUpgrade,
   refreshUpdateCache,
 };
