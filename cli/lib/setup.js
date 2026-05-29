@@ -23,6 +23,8 @@ const {
   implicitConsentState,
 } = require('./agent-block');
 
+const { upgradeCommand } = require('./update-check');
+
 const {
   detectAgents,
   fileHasBlock,
@@ -43,7 +45,7 @@ function ask(question) {
 async function askAutoInstallConsent() {
   console.log('\nAuto-install sdoc updates when available?');
   console.log('');
-  console.log('This runs `npm i -g sdocs-dev@latest` on your behalf when a new');
+  console.log('This runs `' + upgradeCommand() + '` on your behalf when a new');
   console.log('version ships. The output includes a source-diff link so you');
   console.log('(or your agent) can verify what was installed.');
   console.log('');

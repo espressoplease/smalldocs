@@ -114,9 +114,17 @@ All CLI-side state lives under `~/.sdocs/`:
 - `update-check.json` - daily npm version cache
 - `setup.json` - agent setup tracking. Schema v1 fields (added in 1.5.0): `schemaVersion`, `setupCompleted`, `writtenTo`, `declined`, `autoRefreshAgentFiles`, `autoInstallUpdates`, `lastRunVersion`. Pre-1.5.0 state files are migrated transparently on first read by `migrateSetupState()`.
 
+When the CLI was installed via the install script (see "Installer" below), `~/.sdocs/` also holds `cli/` (the unpacked npm tarball) and `bin/sdoc` (a symlink onto `cli/bin/sdocs-dev.js`).
+
+## Installer
+
+`install.sh` (repo root) is the URL-based installer: `curl -fsSL https://smalldocs.org/install.sh | sh`. The server serves it at the apex path `/install.sh` (route + `.sh` MIME in `server.js`). It resolves the latest version from the npm registry, downloads the `sdocs-dev` tarball, unpacks it into `~/.sdocs/cli`, symlinks `sdoc` into `~/.sdocs/bin`, and adds that directory to PATH via the shell rc. It needs Node and curl/wget present; it never uses npm and never needs root, so it cannot hit the EACCES error a root-owned npm prefix causes. Re-running it upgrades in place. npm (`npm i -g sdocs-dev`) stays as a fallback, so the package name keeps its install history.
+
+The CLI detects which way it was installed (`isUrlInstall()` in `cli/lib/update-check.js`: true when the package root resolves under `~/.sdocs/cli`). Every upgrade path - `sdoc upgrade`, the daily auto-update prompt, the silent auto-install, the `sdoc setup` consent copy - branches through `upgradeCommand()`: URL installs re-run `install.sh` (via `INSTALL_SH_URL` in `constants.js`), npm installs run `npm i -g sdocs-dev@latest`. If you change the installed layout in `install.sh`, update `isUrlInstall()` to match.
+
 ## Published npm tarball
 
-`sdocs-dev` on npm is published from `cli/`. Its `files` array is `["bin/", "shared/"]`, so the tarball contains `cli/bin/sdocs-dev.js`, `cli/bin/sdocs-postinstall.js`, and the three browser-shared modules under `cli/shared/`. Everything else - `server.js`, `short-links/`, `feedback/`, `analytics/`, all of `public/` (including the symlinks to `cli/shared/`), and the tests - belongs to the server and never reaches a user via `npm i -g`.
+`sdocs-dev` on npm is published from `cli/`. Its `files` array is `["bin/", "lib/", "shared/"]`, so the tarball contains `cli/bin/sdocs-dev.js`, `cli/bin/sdocs-postinstall.js`, every runtime module under `cli/lib/`, and the three browser-shared modules under `cli/shared/`. `lib/` is mandatory: the thin `bin/sdocs-dev.js` entrypoint `require`s `../lib/*` at startup, so a tarball without it installs a CLI that crashes on first run. Everything else - `server.js`, `short-links/`, `feedback/`, `analytics/`, all of `public/` (including the symlinks to `cli/shared/`), and the tests - belongs to the server and never reaches a user via `npm i -g`. (`install.sh` smoke-checks both `bin/sdocs-dev.js` and `lib/constants.js` after unpacking, so a future `files` regression fails the install instead of shipping a broken CLI.)
 
 The symlinks under `public/` resolve into `cli/`, but `npm pack` only follows files that already live under the package root, so the published tarball contains the three shared modules as real files and no symlinks.
 
