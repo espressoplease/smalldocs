@@ -1,6 +1,6 @@
 {
   "name": "sdocs-dev",
-  "version": "1.11.1",
+  "version": "1.12.0",
   "description": "Open, share, and style markdown files from the terminal",
   "main": "bin/sdocs-dev.js",
   "bin": {
@@ -9,6 +9,7 @@
   },
   "files": [
     "bin/",
+    "lib/",
     "shared/"
   ],
   "scripts": {
@@ -30,5 +31,5 @@
     "type": "git",
     "url": "git+https://github.com/espressoplease/SDocs.git"
   },
-  "homepage": "https://sdocs.dev"
+  "homepage": "https://smalldocs.org"
 }

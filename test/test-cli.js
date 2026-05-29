@@ -294,9 +294,9 @@ module.exports = function(harness) {
 
   console.log('\n── buildUrl Tests ─────────────────────────────\n');
 
-  test('buildUrl: defaults to sdocs.dev with style mode when no content', () => {
+  test('buildUrl: defaults to smalldocs.org with style mode when no content', () => {
     const url = cli.buildUrl(null, {});
-    assert.ok(url.startsWith('https://sdocs.dev/'));
+    assert.ok(url.startsWith('https://smalldocs.org/'));
     assert.ok(url.includes('mode=style'));
     assert.ok(!url.includes('md='));
   });

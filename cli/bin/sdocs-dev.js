@@ -55,6 +55,7 @@ function buildRouter() {
     setup.runAutoUpdateSubcommand((opts.file || '').toLowerCase());
     process.exit(0);
   } });
+  r.register('upgrade',     { handler: () => { updateCheck.runUpgrade(); process.exit(0); } });
 
   // Trust verification (calls process.exit internally with a result code).
   r.register('safe',     { handler: (opts) => safe.runSafe(opts) });

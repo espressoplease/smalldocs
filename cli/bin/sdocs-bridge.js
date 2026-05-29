@@ -1,4 +1,4 @@
-// Local Bridge: lets the sdocs.dev page read and write files on the user's
+// Local Bridge: lets the smalldocs.org page read and write files on the user's
 // own machine. Started by `sdoc watch | edit | compose --wait`.
 //
 // Shape of a session:

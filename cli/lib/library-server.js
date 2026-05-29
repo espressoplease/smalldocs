@@ -164,7 +164,7 @@ function stripBody(e) {
   return rest;
 }
 
-// Build a sdocs.dev hash URL from a file's contents. Returns null when
+// Build a smalldocs.org hash URL from a file's contents. Returns null when
 // the file has gone missing on disk (entry might be stale).
 function buildOpenUrl(entry) {
   // Always read from entry.path. For rescued entries that is the
