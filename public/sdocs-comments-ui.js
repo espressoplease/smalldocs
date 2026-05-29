@@ -1005,14 +1005,19 @@ function sectionContainsComment(heading) {
 
 // ── Copy with comments ──────────────────────────────────────────────────
 
-// Read a heading's source text without the companion buttons that
-// SDocs appends inside it (.header-anchor, .header-copy-btn, the
-// "with comments" companion). Without this, headingEl.textContent
-// returns "H2 Titlewith comments" and never matches the markdown.
+// Read a heading's source text without the UI that SDocs appends inside
+// it: the companion buttons (.header-anchor, .header-copy-btn, the "with
+// comments" companion) and any comment card pill rendered inline. An
+// inline comment anchored to heading text inserts its .sdoc-card as a
+// sibling of the anchor span, i.e. a child of the heading - without
+// stripping it, headingEl.textContent reads "Built for agentsu heading
+// note" and never matches the markdown, so the section lookup fails and
+// the per-section copy silently falls back to the whole document. The
+// .sdoc-anchor span itself is kept: its text IS the heading text.
 function getHeadingPlainText(headingEl) {
   var clone = headingEl.cloneNode(true);
   clone.querySelectorAll(
-    '.header-anchor, .header-copy-btn, .sdoc-head-copy-c, .sdoc-copy-with-c'
+    '.header-anchor, .header-copy-btn, .sdoc-head-copy-c, .sdoc-copy-with-c, .sdoc-card'
   ).forEach(function (el) { el.remove(); });
   return (clone.textContent || '').replace(/\s+$/, '').trim();
 }
@@ -1073,9 +1078,16 @@ function extractSectionSource(headingEl) {
 
 // Walk forward from headingEl in document order and collect every
 // top-level block until we hit a heading of equal-or-higher level.
+//
+// The heading element itself is included as the first block. The body
+// slice (findSectionRange) starts at the heading line, so a comment
+// anchored to the heading - its block, or inline text within it - must
+// count as in-section too. Membership filtering and occurrence counting
+// both build on this list, so all three stay in sync with the slice.
 function listBlocksInSection(headingEl, level) {
   var out = [];
   if (!headingEl || !S.renderedEl) return out;
+  out.push(headingEl);
   var all = Array.from(S.renderedEl.querySelectorAll('*'));
   var startIdx = all.indexOf(headingEl);
   if (startIdx === -1) return out;
