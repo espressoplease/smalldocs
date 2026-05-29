@@ -443,6 +443,30 @@ function replaceWithEdit(viewCard, c, shape) {
 
 // ── Render anchors + cards ──────────────────────────────────────────────
 
+// Decide where to drop an inline card/composer for an anchor span.
+// Cards carry interactive controls (save tick, delete); the default spot
+// is right after the span, but two ancestors force a hoist:
+//   - <table>: a card inside a <td> widens the cell and breaks the grid.
+//   - <a>: a card inside a link means clicking its controls (or Enter ->
+//     save.click()) triggers the link's default navigation, so the page
+//     leaves instead of saving the comment.
+// In both cases place the card as a sibling right after the ancestor.
+function inlineCardInsertPoint(span) {
+  if (!span) return null;
+  var table = span.closest('table');
+  if (table && table.parentNode) {
+    return { parent: table.parentNode, before: table.nextSibling };
+  }
+  var link = span.closest('a');
+  if (link && link.parentNode) {
+    return { parent: link.parentNode, before: link.nextSibling };
+  }
+  if (span.parentNode) {
+    return { parent: span.parentNode, before: span.nextSibling };
+  }
+  return null;
+}
+
 function renderComment(c) {
   if (c.kind === 'inline') {
     var resolved = resolveAnchor(c, S.renderedEl);
@@ -450,15 +474,8 @@ function renderComment(c) {
       var span = wrapRange(resolved.range, c.id, c.color);
       if (span) {
         var pill = makeCardElement(c, { shape: 'pill', mode: 'view' });
-        // Anchors inside a <table> can't take an inline card inside a
-        // <td> - the card widens the cell and breaks the column grid.
-        // For tables, place the card as a sibling of the <table>.
-        var table = span.closest('table');
-        if (table && table.parentNode) {
-          table.parentNode.insertBefore(pill, table.nextSibling);
-        } else {
-          span.parentNode.insertBefore(pill, span.nextSibling);
-        }
+        var at = inlineCardInsertPoint(span);
+        if (at) at.parent.insertBefore(pill, at.before);
         return false;
       }
     }
@@ -742,12 +759,12 @@ function openSelectionComposerFromSelection(range) {
   });
   composerEl = composer;
   // Place the inline composer pill right after the pending anchor - same
-  // physical spot the saved pill will land in. Tables get sibling-of-table.
-  var table = pendingSpan ? pendingSpan.closest('table') : null;
-  if (table && table.parentNode) {
-    table.parentNode.insertBefore(composer, table.nextSibling);
-  } else if (pendingSpan && pendingSpan.parentNode) {
-    pendingSpan.parentNode.insertBefore(composer, pendingSpan.nextSibling);
+  // physical spot the saved pill will land in. Tables and links get
+  // hoisted out (see inlineCardInsertPoint): a composer inside an <a>
+  // would navigate the link on save instead of storing the comment.
+  var at = pendingSpan ? inlineCardInsertPoint(pendingSpan) : null;
+  if (at) {
+    at.parent.insertBefore(composer, at.before);
   } else {
     // Fallback: sibling-after-block (matches old behavior if anchor wrap failed)
     block.parentNode.insertBefore(composer, block.nextSibling);
