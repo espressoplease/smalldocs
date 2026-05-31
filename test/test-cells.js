@@ -138,6 +138,39 @@ module.exports = function(harness) {
     assert.strictEqual(serializeCsv(rows), src);
   });
 
+  // ── CSV file references (baked by the CLI) ──
+  test('parseCells: unresolved {{ref}} reports the referenced path', () => {
+    const m = parseCells('{{data/report.csv}}');
+    assert.strictEqual(m.unresolved, 'data/report.csv');
+    assert.strictEqual(m.empty, false);
+  });
+
+  test('parseCells: baked block strips the directive and keeps source', () => {
+    const m = parseCells('sdoc-cells: source=report.csv\nRegion,Q1\nNorth,100');
+    assert.strictEqual(m.source, 'report.csv');
+    assert.strictEqual(m.rows, 2);
+    assert.strictEqual(m.cells[0][0].value, 'Region');
+    assert.strictEqual(m.cells[1][1].value, 100);
+  });
+
+  test('parseCells: baked directive carries a range view hint', () => {
+    const m = parseCells('sdoc-cells: source=r.csv range=B5:J32\na,b\n1,2');
+    assert.strictEqual(m.source, 'r.csv');
+    assert.strictEqual(m.range, 'B5:J32');
+  });
+
+  test('parseCells: baked error directive surfaces the message', () => {
+    const m = parseCells('sdoc-cells: error="Could not read report.csv"');
+    assert.strictEqual(m.error, 'Could not read report.csv');
+    assert.strictEqual(m.empty, false);
+  });
+
+  test('parseCells: a normal CSV row is not mistaken for a directive', () => {
+    const m = parseCells('Region,Q1\nNorth,100');
+    assert.strictEqual(m.source, undefined);
+    assert.strictEqual(m.rows, 2);
+  });
+
   test('parseCells: raw is preserved verbatim for round-trip', () => {
     const m = parseCells('  spaced  ,42');
     // raw keeps the spaces; value/type use the trimmed view.
