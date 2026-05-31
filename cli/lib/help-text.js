@@ -923,7 +923,8 @@ BASIC SYNTAX
   \`\`\`
 
   Every row is a row (numbered from 1); every column gets a letter
-  (A, B, C ...). There is no special "header row" - row 1 is just row 1.
+  (A, B, C ...). A text first row over numeric data is auto-detected as a
+  header: shown bold and kept pinned to the top when you sort.
 
 DATA & TYPES
   Numbers are detected and align right; text aligns left; blank fields are
