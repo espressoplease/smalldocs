@@ -2,6 +2,7 @@
  * HTTP server tests (async, starts server)
  */
 const path = require('path');
+const http = require('http');
 
 module.exports = function(harness) {
   const { assert, testAsync, get, post } = harness;
@@ -123,6 +124,50 @@ module.exports = function(harness) {
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].includes('image/jpeg'),
         'expected image/jpeg, got ' + r.headers['content-type']);
+    });
+
+    // Range support: without this the homepage hero video falls back to
+    // "buffer the whole 32MB before playing", which surfaces as a never-
+    // ending tab spinner. The browser sends Range: bytes=0- on the first
+    // probe and expects a 206 with Content-Range to know the server can seek.
+    await testAsync('GET /public/* advertises Accept-Ranges and honours Range', async () => {
+      const full = await get(BASE + '/public/homepage/demo-poster.jpg');
+      assert.strictEqual(full.headers['accept-ranges'], 'bytes',
+        'expected Accept-Ranges: bytes on a regular GET, got ' + full.headers['accept-ranges']);
+
+      const rangeRes = await new Promise((resolve, reject) => {
+        const req = http.request(BASE + '/public/homepage/demo-poster.jpg', {
+          headers: { Range: 'bytes=0-99' },
+        }, res => {
+          let body = '';
+          let bytes = 0;
+          res.on('data', d => { bytes += d.length; body += d.toString('binary'); });
+          res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, bytes }));
+        });
+        req.on('error', reject);
+        req.end();
+      });
+      assert.strictEqual(rangeRes.status, 206, 'Range request should return 206 Partial Content');
+      assert.strictEqual(rangeRes.bytes, 100, 'Range should deliver exactly 100 bytes (0-99)');
+      assert.ok(/^bytes 0-99\/\d+$/.test(rangeRes.headers['content-range']),
+        'Content-Range should be "bytes 0-99/<total>", got ' + rangeRes.headers['content-range']);
+    });
+
+    await testAsync('GET /public/* returns 416 for an unsatisfiable Range', async () => {
+      const r = await new Promise((resolve, reject) => {
+        const req = http.request(BASE + '/public/homepage/demo-poster.jpg', {
+          headers: { Range: 'bytes=999999999-' },
+        }, res => {
+          let body = '';
+          res.on('data', d => body += d);
+          res.on('end', () => resolve({ status: res.statusCode, headers: res.headers }));
+        });
+        req.on('error', reject);
+        req.end();
+      });
+      assert.strictEqual(r.status, 416, 'unsatisfiable Range should return 416');
+      assert.ok(/^bytes \*\/\d+$/.test(r.headers['content-range']),
+        'Content-Range should be "bytes */<total>", got ' + r.headers['content-range']);
     });
 
     await testAsync('GET /public/images/*.webp returns 200 with image/webp + cacheable', async () => {
