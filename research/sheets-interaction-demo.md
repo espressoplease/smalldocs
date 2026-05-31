@@ -17,9 +17,9 @@ interact:
 Nothing you do here changes the document or any file. Edits live in the page
 and are gone on reload.
 
-## The practice sheet
-
-Use this one for everything below.
+**The practice sheet.** Use this one for everything below. The Total column
+and Total row are live formulas - the grid computes them when it renders.
+Hover a computed cell to see its formula.
 
 ```cells
 format: B=, C=$ D=$
@@ -31,55 +31,49 @@ Dock,18,210,=B5*C5
 Total,=SUM(B2:B5),,=SUM(D2:D5)
 ```
 
-The Total column and Total row are live formulas - the grid computes them when
-it renders. Hover a computed cell to see its formula.
+---
 
-## Inline interactions
+**Inline - select.** Click a cell. Its column letter and row number light up,
+and the top bar shows its address (like `B3`).
 
-**Select.** Click a cell. Its column letter and row number light up, and the
-top bar shows its address (like `B3`).
+**Inline - select a range.** Drag across cells, or Shift+Click, or
+Shift+Arrow. The top bar shows the span (like `B2:C4`).
 
-**Select a range.** Drag across cells, or Shift+Click, or Shift+Arrow. The top
-bar shows the span (like `B2:C4`).
+**Inline - select a whole column or row.** Click its letter or number.
 
-**Select a whole column or row.** Click its letter or number.
+**Inline - move with the keyboard.** Arrow keys move the selection. Cmd+Arrow
+(Ctrl on Windows) jumps to the far edge. Esc clears the selection.
 
-**Move with the keyboard.** Arrow keys move the selection. Cmd+Arrow (Ctrl on
-Windows) jumps to the far edge. Esc clears the selection.
+**Inline - sort.** Hover a column header and click the small caret. Click
+again for descending, a third time to turn it off. The header row stays
+pinned. Sorting only reorders the view - the document is untouched.
 
-**Sort.** Hover a column header and click the small caret. Click again for
-descending, a third time to turn it off. The header row stays pinned. Sorting
-only reorders the view - the document is untouched.
+**Inline - resize a column.** Drag the right edge of its column letter.
 
-**Resize a column.** Drag the right edge of its column letter.
+**Inline - copy.** The copy icon in the top bar copies the whole sheet as CSV.
+When something is selected, a second button appears that copies just the
+selection.
 
-**Copy.** The copy icon in the top bar copies the whole sheet as CSV. When
-something is selected, a second button appears that copies just the selection.
+**Inline - expand.** The expand icon opens the sheet fullscreen - that is
+where editing lives. Everything below happens there.
 
-**Expand.** The expand icon opens the sheet fullscreen - that is where editing
-lives.
+---
 
-## Fullscreen interactions
+**Fullscreen - type to edit.** Click a cell and start typing - an editor opens
+with what you typed. Enter commits and moves down, Tab commits and moves
+right, Shift+ goes the other way, Esc cancels.
 
-Open the practice sheet fullscreen first (expand icon, top right of the sheet).
+**Fullscreen - edit what is there.** Double-click a cell (or press Enter / F2
+on it) to open it with its current value.
 
-**Type to edit.** Click a cell and start typing - an editor opens with what you
-typed. Enter commits and moves down, Tab commits and moves right, Shift+ goes
-the other way, Esc cancels.
+**Fullscreen - the formula bar.** The wide field at the top edits the active
+cell. Click a cell, type into the bar, press Enter. The name box to its left
+shows the address of what is selected.
 
-**Edit what is there.** Double-click a cell (or press Enter / F2 on it) to open
-it with its current value.
+**Fullscreen - the stats footer.** Select a range of numbers - the bottom
+right shows their Sum, Avg, Min, Max, and Count.
 
-**The formula bar.** The wide field at the top edits the active cell. Click a
-cell, type into the bar, press Enter.
-
-**The name box.** To the left of the formula bar - shows the address of what is
-selected.
-
-**The stats footer.** Select a range of numbers - the bottom right shows their
-Sum, Avg, Min, Max, and Count.
-
-**Write formulas.** Start a cell with `=`. Supported:
+**Fullscreen - write formulas.** Start a cell with `=`. Supported:
 
 - arithmetic: `=B2*C2`, `=(A1+B1)/2`, percentages like `=B2*10%`
 - aggregates: `SUM` `AVERAGE` `MIN` `MAX` `COUNT` `COUNTA` `PRODUCT`
@@ -89,9 +83,10 @@ Sum, Avg, Min, Max, and Count.
 A broken formula shows a short red code (`#DIV/0!`, `#NAME?`, `#CIRC!` for
 circular references) instead of breaking the sheet.
 
-**Point at cells while writing a formula.** This is the newest feature. While
-typing a formula, the arrow keys stop moving the text caret and instead point
-at cells in the grid, writing their reference into the formula for you:
+**Fullscreen - point at cells while writing a formula.** This is the newest
+feature. While typing a formula, the arrow keys stop moving the text caret and
+instead point at cells in the grid, writing their reference into the formula
+for you:
 
 1. Click an empty cell and type `=SUM(`
 2. Press the up arrow a few times - watch `B5`, `B4`, `B3` appear in the
@@ -104,22 +99,26 @@ then arrow to the end. And after any operator (`+`, `*`, a comma in a
 function), the arrows are armed again for the next reference. This works in
 the cell editor and in the formula bar.
 
-**Clear cells.** Select a cell or range, press Delete or Backspace.
+**Fullscreen - clear cells.** Select a cell or range, press Delete or
+Backspace.
 
-**Undo / redo.** Cmd+Z / Shift+Cmd+Z (Ctrl+Z / Ctrl+Y on Windows). Every edit,
-clear, and paste is undoable.
+**Fullscreen - undo / redo.** Cmd+Z / Shift+Cmd+Z (Ctrl+Z / Ctrl+Y on
+Windows). Every edit, clear, and paste is undoable.
 
-**Paste a block of data.** Copy cells from Excel, Google Sheets, or any CSV
-text, click a cell, and paste. The block lands with its top-left corner at
-your selection.
+**Fullscreen - paste a block of data.** Copy cells from Excel, Google Sheets,
+or any CSV text, click a cell, and paste. The block lands with its top-left
+corner at your selection.
 
-**Close.** Esc or the X. Your edits show in the inline grid in the document -
-but they are display-only and vanish on reload.
+**Fullscreen - close.** Esc or the X. Your edits show in the inline grid in
+the document - but they are display-only and vanish on reload.
 
-## A second sheet to play with
+---
 
-Monthly numbers, no formulas - good for trying sort, ranges, and the stats
-footer, or for building your own formulas fullscreen.
+**A second sheet to play with.** Monthly numbers, no formulas - good for
+trying sort, ranges, and the stats footer, or for building your own formulas
+fullscreen. Try this one fullscreen: click an empty cell below Costs, type
+`=SUM(`, arrow up to March's costs, Shift+Arrow up to January's, type `)`,
+Enter.
 
 ```cells
 format: B=$ C=$ D=%
@@ -132,12 +131,10 @@ May,55400,34800,0.372
 June,49100,33900,0.310
 ```
 
-Try fullscreen: click an empty cell below Costs, type `=SUM(`, arrow up to
-March's costs, Shift+Arrow up to January's, type `)`, Enter.
+---
 
-## Loading a real CSV file
-
-A cells block can reference a file instead of holding data:
+**Loading a real CSV file.** A cells block can reference a file instead of
+holding data:
 
     ```cells
     {{path/to/report.csv}}
@@ -147,9 +144,7 @@ When you open the doc with `sdoc`, the file's contents are baked into the
 document so a shared link always shows the data. `sdoc report.csv` also opens
 a CSV directly as a sheet.
 
-## What editing is not
-
-Edits never write back to this markdown file, and never touch a referenced
-CSV. The fullscreen sheet is for exploring numbers - what-if changes, quick
-sums, scratch calculations - not for maintaining data. The document stays
-exactly as the author wrote it.
+**What editing is not.** Edits never write back to this markdown file, and
+never touch a referenced CSV. The fullscreen sheet is for exploring numbers -
+what-if changes, quick sums, scratch calculations - not for maintaining data.
+The document stays exactly as the author wrote it.
