@@ -291,12 +291,16 @@
         el.dataset.r = String(r);
         el.dataset.c = String(c2);
         // Display only - the model's raw is untouched, so copy / export emit
-        // the original. Numbers get thousands separators; text keeps its
+        // the original. Numbers use the column's format (currency / percent /
+        // plain / decimals) or default thousands separators; text keeps its
         // content with a literal <br> rendered as a line break (still plain
         // text via textContent, so no markup is ever parsed).
-        el.textContent = cell.type === 'number'
-          ? CELLS.formatNumber(cell.raw)
-          : cell.raw.replace(/<br\s*\/?>/gi, '\n');
+        if (cell.type === 'number') {
+          var fmt = model.formats && model.formats[c2];
+          el.textContent = fmt ? CELLS.formatValue(cell, fmt) : CELLS.formatNumber(cell.raw);
+        } else {
+          el.textContent = cell.raw.replace(/<br\s*\/?>/gi, '\n');
+        }
         grid.appendChild(el);
       }
     }
