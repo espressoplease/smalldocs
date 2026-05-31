@@ -412,27 +412,27 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   color: var(--ink);
 }
 
-/* expandable extras: paper-tinted so they sit calmly inside the
-   white panel without competing with the dark terminal block */
+/* expandable extras: paper-tinted, borderless, lower visual weight
+   than the install command block above them */
 .trouble {
-  margin-top: 12px;
+  margin-top: 8px;
   background: var(--paper);
-  border: 1px solid var(--line);
   border-radius: var(--r);
 }
-.trouble + .trouble { margin-top: 8px; }
+.trouble + .trouble { margin-top: 6px; }
 .trouble[open] { background: var(--paper); }
 .trouble > summary {
   list-style: none;
   cursor: pointer;
-  padding: 14px 18px;
+  padding: 9px 14px;
   display: flex;
   align-items: center;
   gap: 12px;
   font-size: var(--t-sm);
   font-weight: 400;
-  color: var(--ink);
+  color: var(--ink-2);
 }
+.trouble > summary:hover { color: var(--ink); }
 .trouble > summary::-webkit-details-marker { display: none; }
 .trouble > summary code {
   font-family: var(--mono);
@@ -449,7 +449,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   color: var(--ink-3);
 }
 .trouble[open] > summary .chev { transform: rotate(90deg); }
-.trouble-body { padding: 4px 22px 22px; }
+.trouble-body { padding: 2px 14px 16px; }
 .trouble-step {
   padding: 14px 0;
   border-top: 1px solid var(--line);
