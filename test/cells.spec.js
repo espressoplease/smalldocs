@@ -305,6 +305,38 @@ test('a {{ref}} resolves live via the bridge, leaving the document untouched', a
   expect(await page.evaluate(() => window.SDocs.currentBody.includes('{{data/sales.csv}}'))).toBe(true);
 });
 
+test('expand opens a fullscreen focus overlay with a name/value bar', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Region,Q1,Q2', 'North,100,150', 'South,90,95', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await page.locator('.sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus');
+  // The overlay supplies the chrome; the inline toolbar is suppressed inside it.
+  expect(await page.locator('.sdoc-cells-focus .sdoc-cells-bar').count()).toBe(0);
+  // Selecting a cell updates the name box + value field.
+  await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  expect(await page.locator('.sdoc-cells-focus-name').innerText()).toBe('B2');
+  expect(await page.locator('.sdoc-cells-focus-value').innerText()).toBe('100');
+  // Esc closes it.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.sdoc-cells-focus')).toHaveCount(0);
+});
+
+test('fullscreen pads the grid with empty cells past the data', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b', '1,2', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  // Inline does NOT pad - just the 2x2 data.
+  expect(await page.locator('.sdoc-cells-colhead').count()).toBe(2);
+  await page.locator('.sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus');
+  // Fullscreen pads well beyond the data so the canvas fills + scrolls.
+  expect(await page.locator('.sdoc-cells-focus .sdoc-cells-colhead').count()).toBeGreaterThan(10);
+  const far = page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="5"][data-c="5"]');
+  await expect(far).toHaveCount(1);
+  await far.click();
+  expect(await page.locator('.sdoc-cells-focus-name').innerText()).toBe('F6');
+  expect(await page.locator('.sdoc-cells-focus-value').innerText()).toBe(''); // padded cell is empty
+});
+
 test('export inlines the grid as a real table', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Region,Q1', 'North,100', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
