@@ -120,6 +120,92 @@ test('truncation note sits outside the scroller so it stays pinned', async ({ pa
   expect(await page.locator('.sdoc-cells-scroll .sdoc-cells-note').count()).toBe(0);
 });
 
+test('clicking a cell selects it and highlights its axis headers', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Region,Q1,Q2', 'North,100,150', 'South,90,95', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await expect(page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveClass(/is-active/);
+  expect(await page.locator('.sdoc-cells-colhead[data-c="1"].is-active-col').count()).toBe(1);
+  expect(await page.locator('.sdoc-cells-rowhead[data-r="1"].is-active-row').count()).toBe(1);
+  // only one active cell at a time
+  expect(await page.locator('.sdoc-cells-cell.is-active').count()).toBe(1);
+});
+
+test('arrow keys move the selection; Ctrl+arrow jumps to the far edge', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b,c,d', '1,2,3,4', '5,6,7,8', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await page.locator('.sdoc-cells-cell[data-r="0"][data-c="0"]').click();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.sdoc-cells-cell[data-r="0"][data-c="1"]')).toHaveClass(/is-active/);
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveClass(/is-active/);
+  // jump to the last column (index 3)
+  await page.keyboard.press('Control+ArrowRight');
+  await expect(page.locator('.sdoc-cells-cell[data-r="1"][data-c="3"]')).toHaveClass(/is-active/);
+  // jump to the first row (index 0)
+  await page.keyboard.press('Control+ArrowUp');
+  await expect(page.locator('.sdoc-cells-cell[data-r="0"][data-c="3"]')).toHaveClass(/is-active/);
+  // arrows clamp at the edge - can't go past the last column
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.sdoc-cells-cell[data-r="0"][data-c="3"]')).toHaveClass(/is-active/);
+});
+
+test('click-drag selects a rectangular range', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b,c,d', '1,2,3,4', '5,6,7,8', '9,10,11,12', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const from = page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]');
+  const to = page.locator('.sdoc-cells-cell[data-r="2"][data-c="2"]');
+  await from.hover();
+  await page.mouse.down();
+  await to.hover();
+  await page.mouse.up();
+  // a 2x2 range = 4 cells highlighted, axis spans 2 cols + 2 rows
+  expect(await page.locator('.sdoc-cells-cell.in-range').count()).toBe(4);
+  expect(await page.locator('.sdoc-cells-colhead.is-active-col').count()).toBe(2);
+  expect(await page.locator('.sdoc-cells-rowhead.is-active-row').count()).toBe(2);
+  // no single-cell box while a range is active
+  expect(await page.locator('.sdoc-cells-cell.is-active').count()).toBe(0);
+});
+
+test('shift+arrow extends the range; a plain arrow collapses it', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b,c', '1,2,3', '4,5,6', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await page.locator('.sdoc-cells-cell[data-r="0"][data-c="0"]').click();
+  await page.keyboard.press('Shift+ArrowRight');
+  await page.keyboard.press('Shift+ArrowDown');
+  // anchor A1 (0,0) -> focus B2 (1,1): a 2x2 range
+  expect(await page.locator('.sdoc-cells-cell.in-range').count()).toBe(4);
+  // a plain arrow collapses back to a single active cell
+  await page.keyboard.press('ArrowRight');
+  expect(await page.locator('.sdoc-cells-cell.in-range').count()).toBe(0);
+  expect(await page.locator('.sdoc-cells-cell.is-active').count()).toBe(1);
+});
+
+test('dragging to the right edge auto-scrolls and extends the range', async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 360 });
+  const header = ['m'].concat(Array.from({ length: 30 }, (_, i) => 'c' + i)).join(',');
+  const row = ['R'].concat(Array.from({ length: 30 }, (_, i) => String(i))).join(',');
+  await loadDoc(page, [FENCE + 'cells', header, row, FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const scroll = page.locator('.sdoc-cells-scroll');
+  expect(await scroll.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+
+  await page.locator('.sdoc-cells-cell[data-r="0"][data-c="0"]').hover();
+  await page.mouse.down();
+  const box = await scroll.boundingBox();
+  await page.mouse.move(box.x + box.width - 5, box.y + box.height / 2); // hold at right edge
+  await page.waitForTimeout(500);                                       // let it auto-scroll
+  await page.mouse.up();
+
+  expect(await scroll.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  const maxCol = await page.evaluate(() => {
+    let m = 0;
+    document.querySelectorAll('.sdoc-cells-cell.in-range').forEach((e) => { m = Math.max(m, +e.dataset.c); });
+    return m;
+  });
+  expect(maxCol).toBeGreaterThan(5); // range swept well past the initially-visible columns
+});
+
 test('export inlines the grid as a real table', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Region,Q1', 'North,100', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
