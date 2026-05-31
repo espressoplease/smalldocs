@@ -119,11 +119,21 @@
   }
 
   function buildBar(wrapper, model) {
+    var source = model.source || '';
     var bar = document.createElement('div');
     bar.className = 'sdoc-cells-bar';
 
     var ref = document.createElement('div');
     ref.className = 'sdoc-cells-ref';
+    // Left label: the selection address and/or the source filename, e.g.
+    // "report.csv", "B3", or "B3 · report.csv".
+    function setRef(addr) {
+      var parts = [];
+      if (addr) parts.push(addr);
+      if (source) parts.push(source);
+      ref.textContent = parts.join('  ·  ');
+    }
+    setRef('');
     bar.appendChild(ref);
 
     var actions = document.createElement('div');
@@ -170,16 +180,16 @@
     wrapper.addEventListener('cells-selection', function (e) {
       var s = e.detail;
       if (!s || s.empty) {
-        ref.textContent = '';
+        setRef('');
         selBtn.style.display = 'none';
         return;
       }
       var a = CELLS.colName(s.c0) + (s.r0 + 1);
       if (s.single) {
-        ref.textContent = a;
+        setRef(a);
         selBtn.querySelector('.sdoc-cells-copy-label').textContent = 'cell';
       } else {
-        ref.textContent = a + ':' + CELLS.colName(s.c1) + (s.r1 + 1);
+        setRef(a + ':' + CELLS.colName(s.c1) + (s.r1 + 1));
         selBtn.querySelector('.sdoc-cells-copy-label').textContent = 'selection';
       }
       selBtn.style.display = '';
@@ -284,6 +294,53 @@
     pre.textContent = String(message || 'Could not render cells');
     wrapper.appendChild(pre);
     target.parentNode.replaceChild(wrapper, target);
+    return wrapper;
+  }
+
+  // Neutral message (e.g. a loading placeholder), not an error.
+  function renderNotice(target, message) {
+    var wrapper = document.createElement('div');
+    wrapper.className = 'sdoc-cells sdoc-cells-msg';
+    var body = document.createElement('div');
+    body.className = 'sdoc-cells-msg-body';
+    body.textContent = String(message || '');
+    wrapper.appendChild(body);
+    target.parentNode.replaceChild(wrapper, target);
+    return wrapper;
+  }
+
+  // Build the grid for a model and swap it in for `target`. `src` is stashed
+  // so the exporter can re-parse the model to a clean table.
+  function mountGrid(target, model, src) {
+    var wrapper = buildGrid(model);
+    wrapper.dataset.cellsSrc = src;
+    target.parentNode.replaceChild(wrapper, target);
+    return wrapper;
+  }
+
+  // A {{file.csv}} reference reached the browser unbaked (live `sdoc file.md`).
+  // If a bridge is connected, ask it to read the file and paint the grid -
+  // display only; the document keeps its {{ref}} so the save loop is untouched.
+  // Without a bridge (e.g. a raw file dropped in), explain how to load it.
+  function resolveReference(target, ref) {
+    var filePath = String(ref).replace(/:([A-Za-z]+\d+(?::[A-Za-z]+\d+)?)$/, '');
+    var bridge = S.bridge;
+    if (!bridge || typeof bridge.readFile !== 'function') {
+      renderError(target, 'References ' + ref +
+        ' - open this document with the sdoc CLI to load the data.');
+      return;
+    }
+    var notice = renderNotice(target, 'Loading ' + filePath + '…');
+    bridge.readFile(filePath).then(function (csv) {
+      var base = filePath.replace(/^.*[\\/]/, '');
+      var baked = 'sdoc-cells: source=' + base + '\n' + String(csv).replace(/\s+$/, '');
+      var model = CELLS.parseCells(baked);
+      if (model.error) { renderError(notice, model.error); return; }
+      if (model.empty) { renderError(notice, 'Empty file ' + base); return; }
+      mountGrid(notice, model, baked);
+    }).catch(function (e) {
+      renderError(notice, 'Could not load ' + filePath + ' - ' + ((e && e.message) || 'read failed'));
+    });
   }
 
   // Walk every code.language-cells block in container, parse it, and replace
@@ -306,12 +363,10 @@
       var model;
       try { model = CELLS.parseCells(rawSrc); }
       catch (e) { renderError(target, (e && e.message) || 'Parse error'); continue; }
+      if (model.unresolved) { resolveReference(target, model.unresolved); continue; }
+      if (model.error) { renderError(target, model.error); continue; }
       if (model.empty) { renderError(target, 'Empty cells block'); continue; }
-      var wrapper = buildGrid(model);
-      // Stash the source so the exporter can re-parse the model to a clean
-      // table without reading geometry back out of the rendered grid.
-      wrapper.dataset.cellsSrc = rawSrc;
-      target.parentNode.replaceChild(wrapper, target);
+      mountGrid(target, model, rawSrc);
     }
   }
 

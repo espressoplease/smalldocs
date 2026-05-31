@@ -256,6 +256,62 @@ module.exports = function (harness) {
     await b.awaitTerminal();
   });
 
+  t('e2e: read-file returns a file from the document folder', async () => {
+    const f = tmpFile('doc.md', '# doc\n```cells\n{{data.csv}}\n```\n');
+    fs.writeFileSync(path.join(path.dirname(f), 'data.csv'), 'a,b\n1,2\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock); // hello
+    sendJson(sock, { type: 'read-file', id: 'r1', path: 'data.csv' });
+    const res = await nextMessage(sock);
+    assert.strictEqual(res.type, 'file');
+    assert.strictEqual(res.id, 'r1');
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(res.content, 'a,b\n1,2\n');
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: read-file errors on a missing file', async () => {
+    const f = tmpFile('doc2.md', '# doc\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock);
+    sendJson(sock, { type: 'read-file', id: 'r2', path: 'nope.csv' });
+    const res = await nextMessage(sock);
+    assert.strictEqual(res.type, 'file');
+    assert.strictEqual(res.ok, false);
+    assert.strictEqual(res.error, 'not found');
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: read-file honours a parent-folder path (no folder sandbox)', async () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-bridge-'));
+    fs.mkdirSync(path.join(base, 'sub'));
+    const f = path.join(base, 'sub', 'doc.md');
+    fs.writeFileSync(f, '# doc\n');
+    fs.writeFileSync(path.join(base, 'parent.csv'), 'x\n9\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock);
+    sendJson(sock, { type: 'read-file', id: 'r3', path: '../parent.csv' });
+    const res = await nextMessage(sock);
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(res.content, 'x\n9\n');
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
   t('e2e: write message persists file atomically', async () => {
     const f = tmpFile('w.md', 'old\n');
     const b = await bridge.startBridge({

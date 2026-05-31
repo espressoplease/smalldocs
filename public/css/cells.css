@@ -246,3 +246,9 @@
   color: #b91c1c;
   white-space: pre-wrap;
 }
+
+.sdoc-cells-msg-body {
+  padding: 8px 10px;
+  font-size: 0.85em;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 60%, var(--md-bg, #fff) 40%);
+}

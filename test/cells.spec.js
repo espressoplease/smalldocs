@@ -270,6 +270,41 @@ test('copy button reverts to the copy icon after the tick, even on a repeat clic
   expect(await glyph()).toBe('copy');                   // must not be stuck on a tick
 });
 
+test('a baked CSV reference renders with the source filename in the bar', async ({ page }) => {
+  await loadDoc(page, [
+    FENCE + 'cells', 'sdoc-cells: source=report.csv', 'Region,Q1', 'North,100', FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-ref').innerText()).toBe('report.csv');
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  expect(await page.locator('.sdoc-cells-ref').innerText()).toBe('A2 · report.csv');
+});
+
+test('an unresolved {{ref}} with no bridge shows a load-with-CLI message', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', '{{data/report.csv}}', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-error');
+  expect(await page.locator('.sdoc-cells-grid').count()).toBe(0);
+  expect(await page.locator('.sdoc-cells-error-msg').innerText()).toContain('data/report.csv');
+});
+
+test('a {{ref}} resolves live via the bridge, leaving the document untouched', async ({ page }) => {
+  await page.goto(BASE);
+  await page.waitForSelector('#_sd_rendered');
+  // Stand in for a connected bridge that reads the referenced file.
+  await page.evaluate(() => {
+    window.SDocs.bridge = {
+      readFile: function () { return Promise.resolve('Month,Revenue\nJan,12000\nFeb,13500\n'); },
+    };
+  });
+  await page.evaluate((md) => window.SDocs.loadText(md),
+    [FENCE + 'cells', '{{data/sales.csv}}', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-ref').innerText()).toBe('sales.csv');
+  expect(await page.locator('.sdoc-cells-cell').count()).toBe(6); // 3 rows x 2 cols
+  // The document keeps its {{ref}} - the save loop is never handed baked data.
+  expect(await page.evaluate(() => window.SDocs.currentBody.includes('{{data/sales.csv}}'))).toBe(true);
+});
+
 test('export inlines the grid as a real table', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Region,Q1', 'North,100', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
