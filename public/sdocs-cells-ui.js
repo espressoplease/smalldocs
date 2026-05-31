@@ -51,6 +51,131 @@
   var MAX_COLS = 200;               // widest grid we paint inline
   var MAX_CELLS = 5000;             // total painted cells (rows * cols)
 
+  // ── Top toolbar ─────────────────────────────────────────
+  // A permanent white bar above the grid (white so only the axis stays
+  // green). Left: the current selection address. Right: a copy button that
+  // copies the whole sheet as CSV, plus a dynamic button that copies the
+  // selected range (label "selection") or single cell (label "cell"), shown
+  // only while something is selected. Styling mirrors the comments
+  // "copy with comments" button.
+  // Copy / tick glyphs sized to order (stroke-width 2, matching the code-block
+  // copy button). tickIcon mirrors the icon's size so the confirmation swap
+  // doesn't resize the button.
+  function copyIcon(size) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  }
+  function tickIcon(size) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  }
+
+  function rawRows(cells) {
+    return cells.map(function (row) {
+      return row.map(function (cell) { return cell.raw; });
+    });
+  }
+
+  // Show a tick, then revert to the copy icon after a delay. Always reverts to
+  // the copy glyph (a fixed value, not whatever is showing) and clears any
+  // pending revert first - otherwise a second click while the tick is up would
+  // capture the tick as the "original" and leave it stuck on a tick.
+  function flashTick(btn) {
+    var svg = btn.querySelector('svg');
+    if (!svg) return;
+    var size = svg.getAttribute('width') || '13';
+    if (btn._tickTimer) clearTimeout(btn._tickTimer);
+    svg.outerHTML = tickIcon(size);
+    btn._tickTimer = setTimeout(function () {
+      var cur = btn.querySelector('svg');
+      if (cur) cur.outerHTML = copyIcon(size);
+      btn._tickTimer = null;
+    }, 1500);
+  }
+
+  function copyText(text, btn) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { flashTick(btn); }).catch(function () {});
+      return;
+    }
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flashTick(btn); } catch (_) {}
+    document.body.removeChild(ta);
+  }
+
+  // Labelled ghost button (the dynamic selection / cell copy).
+  function copyButton(extraClass, label) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sdoc-cells-copy ' + extraClass;
+    b.innerHTML = copyIcon(13) + '<span class="sdoc-cells-copy-label">' + label + '</span>';
+    return b;
+  }
+
+  function buildBar(wrapper, model) {
+    var bar = document.createElement('div');
+    bar.className = 'sdoc-cells-bar';
+
+    var ref = document.createElement('div');
+    ref.className = 'sdoc-cells-ref';
+    bar.appendChild(ref);
+
+    var actions = document.createElement('div');
+    actions.className = 'sdoc-cells-bar-actions';
+
+    // Dynamic: copies the current selection. Hidden until something is picked.
+    var selBtn = copyButton('sdoc-cells-copy-sel', 'selection');
+    selBtn.style.display = 'none';
+    selBtn.title = 'Copy selection as CSV';
+    selBtn.addEventListener('click', function () {
+      var s = wrapper._cellsSelection;
+      if (!s || s.empty) return;
+      var sub = [];
+      for (var r = s.r0; r <= s.r1; r++) sub.push(model.cells[r].slice(s.c0, s.c1 + 1));
+      copyText(CELLS.serializeCsv(rawRows(sub)), selBtn);
+    });
+
+    // Always present: a borderless 14px copy icon (matching the code-block
+    // copy button) that copies the whole sheet (full data, even if the
+    // inline preview was capped) as CSV.
+    var allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.className = 'sdoc-cells-copy-icon sdoc-cells-copy-all';
+    allBtn.title = 'Copy whole sheet as CSV';
+    allBtn.setAttribute('aria-label', 'Copy whole sheet as CSV');
+    allBtn.innerHTML = copyIcon(14);
+    allBtn.addEventListener('click', function () {
+      copyText(CELLS.serializeCsv(rawRows(model.cells)), allBtn);
+    });
+
+    actions.appendChild(selBtn);
+    actions.appendChild(allBtn);
+    bar.appendChild(actions);
+
+    wrapper.addEventListener('cells-selection', function (e) {
+      var s = e.detail;
+      if (!s || s.empty) {
+        ref.textContent = '';
+        selBtn.style.display = 'none';
+        return;
+      }
+      var a = CELLS.colName(s.c0) + (s.r0 + 1);
+      if (s.single) {
+        ref.textContent = a;
+        selBtn.querySelector('.sdoc-cells-copy-label').textContent = 'cell';
+      } else {
+        ref.textContent = a + ':' + CELLS.colName(s.c1) + (s.r1 + 1);
+        selBtn.querySelector('.sdoc-cells-copy-label').textContent = 'selection';
+      }
+      selBtn.style.display = '';
+    });
+
+    return bar;
+  }
+
   // Build the inline grid DOM from a model. Returns the wrapper element.
   // Caps rows/cols to keep the inline preview bounded; a note reports any
   // truncation so a clipped sheet never silently reads as complete. The
@@ -63,6 +188,9 @@
 
     var wrapper = document.createElement('div');
     wrapper.className = 'sdoc-cells';
+
+    // Permanent top toolbar (selection address + copy actions).
+    wrapper.appendChild(buildBar(wrapper, model));
 
     // The grid scrolls horizontally inside this inner box; the wrapper
     // itself stays put, so the truncation note (and a future toolbar / the

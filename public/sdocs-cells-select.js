@@ -104,6 +104,24 @@
         var f = cellAt(focus.r, focus.c);
         if (f) ensureVisible(f);
       }
+
+      // Publish the selection so the toolbar can update its address label and
+      // dynamic copy button.
+      wrapper._cellsSelection = { r0: r0, c0: c0, r1: r1, c1: c1, single: single };
+      emit(wrapper._cellsSelection);
+    }
+
+    function emit(detail) {
+      try {
+        wrapper.dispatchEvent(new CustomEvent('cells-selection', { detail: detail }));
+      } catch (_) {}
+    }
+
+    function clearSelection() {
+      anchor.r = anchor.c = focus.r = focus.c = -1;
+      clear();
+      wrapper._cellsSelection = null;
+      emit({ empty: true });
     }
 
     // Move the whole selection to a single cell (anchor == focus).
@@ -167,6 +185,7 @@
     });
 
     grid.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { e.preventDefault(); clearSelection(); return; }
       if (anchor.r < 0) return;
       var jump = e.metaKey || e.ctrlKey;             // far edge
       var extend = e.shiftKey;                        // grow the range
