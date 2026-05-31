@@ -205,6 +205,7 @@
 .sdoc-cells-cell.is-number { justify-content: flex-end; }
 .sdoc-cells-cell.is-text   { justify-content: flex-start; }
 .sdoc-cells-cell.is-empty  { min-width: var(--sdoc-cells-col-min, 64px); }
+.sdoc-cells-cell.is-negative { color: #d64545; }   /* muted red for negatives */
 
 /* ── Selection (sdocs-cells-select.js) ──────────────────── */
 /* The selection box is the focus cue, so suppress the default focus ring. */

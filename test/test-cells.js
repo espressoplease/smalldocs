@@ -8,7 +8,7 @@ module.exports = function(harness) {
 
   console.log('\n── Cells Model Tests ──────────────────────────\n');
 
-  const { colName, classify, parseCsv, parseCells, serializeCsv, selectionStats } = require('../public/sdocs-cells');
+  const { colName, classify, parseCsv, parseCells, serializeCsv, selectionStats, formatNumber } = require('../public/sdocs-cells');
 
   // ── Column names (bijective base-26) ──
   test('colName: first columns', () => {
@@ -136,6 +136,34 @@ module.exports = function(harness) {
     const src = 'name,note\n"Smith, J","a ""quote""\nline"\nplain,42';
     const rows = parseCsv(src);
     assert.strictEqual(serializeCsv(rows), src);
+  });
+
+  // ── Number formatting (display only - raw is preserved) ──
+  test('formatNumber: adds thousands separators', () => {
+    assert.strictEqual(formatNumber('1000'), '1,000');
+    assert.strictEqual(formatNumber('12000'), '12,000');
+    assert.strictEqual(formatNumber('1234567'), '1,234,567');
+  });
+
+  test('formatNumber: small numbers unchanged', () => {
+    assert.strictEqual(formatNumber('0'), '0');
+    assert.strictEqual(formatNumber('999'), '999');
+  });
+
+  test('formatNumber: preserves the decimal part verbatim (incl. trailing zeros)', () => {
+    assert.strictEqual(formatNumber('3.14'), '3.14');
+    assert.strictEqual(formatNumber('1234.50'), '1,234.50');
+    assert.strictEqual(formatNumber('1000000.5'), '1,000,000.5');
+  });
+
+  test('formatNumber: handles negatives', () => {
+    assert.strictEqual(formatNumber('-7'), '-7');
+    assert.strictEqual(formatNumber('-12000'), '-12,000');
+    assert.strictEqual(formatNumber('-1234.5'), '-1,234.5');
+  });
+
+  test('formatNumber: only groups the integer part', () => {
+    assert.strictEqual(formatNumber('12345.6789'), '12,345.6789');
   });
 
   // ── Selection stats (Sum / Avg / Count / Min / Max) ──
