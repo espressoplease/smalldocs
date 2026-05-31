@@ -206,6 +206,70 @@ test('dragging to the right edge auto-scrolls and extends the range', async ({ p
   expect(maxCol).toBeGreaterThan(5); // range swept well past the initially-visible columns
 });
 
+test('toolbar: copy whole sheet, copy selection, address + dynamic label', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await loadDoc(page, [FENCE + 'cells', 'Region,Q1,Q2', 'North,100,150', 'South,90,95', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-bar');
+
+  // Nothing selected: only the always-on copy button; no address.
+  await expect(page.locator('.sdoc-cells-copy-all')).toBeVisible();
+  await expect(page.locator('.sdoc-cells-copy-sel')).toBeHidden();
+  expect(await page.locator('.sdoc-cells-ref').innerText()).toBe('');
+
+  // Copy the whole sheet as CSV (values only, no axis chrome).
+  await page.locator('.sdoc-cells-copy-all').click();
+  expect(await page.evaluate(() => navigator.clipboard.readText()))
+    .toBe('Region,Q1,Q2\nNorth,100,150\nSouth,90,95');
+
+  // Single cell -> address + "cell" button copying that one value.
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await expect(page.locator('.sdoc-cells-copy-sel')).toBeVisible();
+  expect(await page.locator('.sdoc-cells-copy-sel .sdoc-cells-copy-label').innerText()).toBe('cell');
+  expect(await page.locator('.sdoc-cells-ref').innerText()).toBe('B2');
+  await page.locator('.sdoc-cells-copy-sel').click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('100');
+
+  // Range -> "selection" button + A1-style address span, copies the block.
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').hover();
+  await page.mouse.down();
+  await page.locator('.sdoc-cells-cell[data-r="2"][data-c="2"]').hover();
+  await page.mouse.up();
+  expect(await page.locator('.sdoc-cells-copy-sel .sdoc-cells-copy-label').innerText()).toBe('selection');
+  expect(await page.locator('.sdoc-cells-ref').innerText()).toBe('B2:C3');
+  await page.locator('.sdoc-cells-copy-sel').click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('100,150\n90,95');
+
+  // Escape (with the grid focused) clears the selection: button hides, address empties.
+  await page.locator('.sdoc-cells-grid').focus();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.sdoc-cells-copy-sel')).toBeHidden();
+  expect(await page.locator('.sdoc-cells-ref').innerText()).toBe('');
+});
+
+test('top bar height stays constant when the dynamic copy button appears', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b', '1,2', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-bar');
+  const before = await page.locator('.sdoc-cells-bar').evaluate((el) => el.offsetHeight);
+  await page.locator('.sdoc-cells-cell[data-r="0"][data-c="0"]').click();
+  await expect(page.locator('.sdoc-cells-copy-sel')).toBeVisible();
+  const after = await page.locator('.sdoc-cells-bar').evaluate((el) => el.offsetHeight);
+  expect(after).toBe(before);
+});
+
+test('copy button reverts to the copy icon after the tick, even on a repeat click', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await loadDoc(page, [FENCE + 'cells', 'a,b', '1,2', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-bar');
+  const glyph = () => page.locator('.sdoc-cells-copy-all svg')
+    .evaluate((s) => s.querySelector('rect') ? 'copy' : (s.querySelector('polyline') ? 'tick' : '?'));
+  await page.locator('.sdoc-cells-copy-all').click();
+  await page.waitForTimeout(150);
+  expect(await glyph()).toBe('tick');
+  await page.locator('.sdoc-cells-copy-all').click();   // re-click while the tick is up
+  await page.waitForTimeout(1700);
+  expect(await glyph()).toBe('copy');                   // must not be stuck on a tick
+});
+
 test('export inlines the grid as a real table', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Region,Q1', 'North,100', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
