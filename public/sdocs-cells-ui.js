@@ -285,15 +285,18 @@
         var el = document.createElement('div');
         var typeCls = cell.type === 'number' ? ' is-number'
           : cell.type === 'empty' ? ' is-empty' : ' is-text';
+        if (cell.type === 'number' && cell.value < 0) typeCls += ' is-negative';
         el.className = 'sdoc-cells-cell' + typeCls;
         el.setAttribute('role', 'gridcell');
         el.dataset.r = String(r);
         el.dataset.c = String(c2);
-        // Display only: a literal <br> becomes a newline (CSS white-space
-        // pre-wrap then renders it as a line break). Still plain text - set
-        // via textContent, so no markup is ever parsed. The model's raw is
-        // untouched; this is a render-time convenience for hand-typed <br>.
-        el.textContent = cell.raw.replace(/<br\s*\/?>/gi, '\n');
+        // Display only - the model's raw is untouched, so copy / export emit
+        // the original. Numbers get thousands separators; text keeps its
+        // content with a literal <br> rendered as a line break (still plain
+        // text via textContent, so no markup is ever parsed).
+        el.textContent = cell.type === 'number'
+          ? CELLS.formatNumber(cell.raw)
+          : cell.raw.replace(/<br\s*\/?>/gi, '\n');
         grid.appendChild(el);
       }
     }
