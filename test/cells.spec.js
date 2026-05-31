@@ -29,7 +29,7 @@ test('renders a ```cells block as a grid', async ({ page }) => {
 test('shows column letters and row numbers', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'a,b,c', '1,2,3', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
-  expect(await page.locator('.sdoc-cells-colhead').allInnerTexts()).toEqual(['A', 'B', 'C']);
+  expect(await page.locator('.sdoc-cells-colhead-label').allInnerTexts()).toEqual(['A', 'B', 'C']);
   expect(await page.locator('.sdoc-cells-rowhead').allInnerTexts()).toEqual(['1', '2']);
 });
 
@@ -403,6 +403,24 @@ test('a format: directive applies currency / percent / plain per column', async 
   const html = await page.evaluate(() => window.SDocs.buildExportHTML([]));
   expect(html).toContain('0.23');
   expect(html).not.toContain('23%');
+});
+
+test('clicking a sort caret sorts the view (asc -> desc -> off), header kept', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Name,Score', 'Bea,30', 'Al,10', 'Cy,20', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const caret = page.locator('.sdoc-cells-colhead[data-c="1"] .sdoc-cells-sort');
+  // asc by Score: header (row 0) fixed, then 10, 20, 30
+  await caret.click();
+  expect(await page.locator('.sdoc-cells-cell[data-r="0"][data-c="0"]').innerText()).toBe('Name'); // header stays
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').innerText()).toBe('Al');
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').innerText()).toBe('10');
+  // desc
+  await caret.click();
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').innerText()).toBe('Bea');
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').innerText()).toBe('30');
+  // off -> original order
+  await caret.click();
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').innerText()).toBe('Bea'); // original row 1
 });
 
 test('export inlines the grid as a real table', async ({ page }) => {

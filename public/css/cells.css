@@ -185,6 +185,18 @@
 }
 /* Column letters / row numbers select the whole column / row on click. */
 .sdoc-cells-colhead, .sdoc-cells-rowhead { cursor: pointer; }
+.sdoc-cells-colhead { gap: 3px; }
+
+/* Sort caret: faint, appears on header hover; the active sort shows ↑ / ↓ in
+ * the accent colour. Always occupies space so headers don't jump on hover. */
+.sdoc-cells-sort {
+  font-size: 0.85em; line-height: 1; cursor: pointer; opacity: 0;
+  transition: opacity .12s, color .12s;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 60%, var(--md-bg, #fff) 40%);
+}
+.sdoc-cells-colhead:hover .sdoc-cells-sort { opacity: 0.45; }
+.sdoc-cells-sort:hover { opacity: 0.85; }
+.sdoc-cells-colhead.is-sorted .sdoc-cells-sort { opacity: 1; color: var(--sdoc-cells-accent); }
 
 /* Freeze the header row and the row-number column. Inline this is inert;
  * in the scrolling fullscreen view it keeps headers in sight. */

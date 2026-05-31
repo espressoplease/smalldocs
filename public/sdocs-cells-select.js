@@ -123,6 +123,7 @@
       wrapper._cellsSelection = null;
       emit({ empty: true });
     }
+    grid._clearSelection = clearSelection;   // the resort calls this
 
     // Move the whole selection to a single cell (anchor == focus).
     function moveTo(r, c, doScroll) {
@@ -177,6 +178,7 @@
 
     grid.addEventListener('mousedown', function (e) {
       var t = e.target;
+      if (t.closest && t.closest('.sdoc-cells-sort')) return;   // sort caret, not a selection
       var cell = t.closest ? t.closest('.sdoc-cells-cell') : null;
       if (cell && grid.contains(cell)) {
         e.preventDefault();                          // suppress the text caret
