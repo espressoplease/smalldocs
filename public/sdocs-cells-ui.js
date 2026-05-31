@@ -319,6 +319,7 @@
           var typeCls = cell.type === 'number' ? ' is-number'
             : cell.type === 'empty' ? ' is-empty' : ' is-text';
           if (cell.type === 'number' && cell.value < 0) typeCls += ' is-negative';
+          if (hasHeader && r === 0) typeCls += ' is-header';   // detected header row
           el.className = 'sdoc-cells-cell' + typeCls;
           el.setAttribute('role', 'gridcell');
           el.dataset.r = String(r);
