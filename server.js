@@ -97,21 +97,77 @@ function cacheHeader(ext) {
   return 'no-cache';
 }
 
-function serveFile(res, filePath, extraHeaders) {
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
+// Serve a file from disk, honouring HTTP Range requests so video/audio
+// elements can stream in chunks instead of downloading the whole body up
+// front. Without Range support a <video> tag sees a 200 (not 206), assumes
+// the server can't seek, and blocks playback (and the page's load event)
+// until the entire file has buffered - which is why the homepage hero
+// video stalled the tab loading indicator.
+function serveFile(req, res, filePath, extraHeaders) {
+  fs.stat(filePath, (err, stat) => {
+    if (err || !stat.isFile()) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('Not Found');
       return;
     }
     const ext = path.extname(filePath);
-    const headers = {
+    const baseHeaders = Object.assign({
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Cache-Control': cacheHeader(ext),
-    };
-    Object.assign(headers, extraHeaders);
-    res.writeHead(200, headers);
-    res.end(data);
+      'Accept-Ranges': 'bytes',
+    }, extraHeaders || {});
+
+    const rangeHeader = req && req.headers && req.headers.range;
+    if (rangeHeader) {
+      // Single-range form only: bytes=START-END, bytes=START-, or bytes=-SUFFIX.
+      // Multi-range (comma-separated) is rare for media playback and we don't
+      // bother supporting it; falling through to the unparsed branch sends the
+      // full body, which is the same fallback any plain GET gets.
+      const m = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+      if (m) {
+        const hasStart = m[1] !== '';
+        const hasEnd = m[2] !== '';
+        let start, end;
+        if (!hasStart && hasEnd) {
+          // Suffix: last N bytes.
+          const suffix = parseInt(m[2], 10);
+          start = Math.max(0, stat.size - suffix);
+          end = stat.size - 1;
+        } else if (hasStart) {
+          start = parseInt(m[1], 10);
+          end = hasEnd ? parseInt(m[2], 10) : stat.size - 1;
+        } else {
+          // bytes=- with nothing on either side: unsatisfiable.
+          res.writeHead(416, Object.assign({}, baseHeaders, {
+            'Content-Range': 'bytes */' + stat.size,
+          }));
+          res.end();
+          return;
+        }
+        if (start < 0 || end >= stat.size || start > end) {
+          res.writeHead(416, Object.assign({}, baseHeaders, {
+            'Content-Range': 'bytes */' + stat.size,
+          }));
+          res.end();
+          return;
+        }
+        res.writeHead(206, Object.assign({}, baseHeaders, {
+          'Content-Range': 'bytes ' + start + '-' + end + '/' + stat.size,
+          'Content-Length': end - start + 1,
+        }));
+        const stream = fs.createReadStream(filePath, { start, end });
+        stream.on('error', () => res.end());
+        stream.pipe(res);
+        return;
+      }
+    }
+
+    res.writeHead(200, Object.assign({}, baseHeaders, {
+      'Content-Length': stat.size,
+    }));
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', () => res.end());
+    stream.pipe(res);
   });
 }
 
@@ -349,7 +405,7 @@ const server = http.createServer((req, res) => {
   // CLI installer script: `curl -fsSL https://smalldocs.org/install | sh`.
   // Installs the `sdoc` command under ~/.sdocs without npm or root.
   if (pathname === '/install') {
-    serveFile(res, path.join(__dirname, 'install.sh'), { 'Cache-Control': 'no-cache' });
+    serveFile(req, res, path.join(__dirname, 'install.sh'), { 'Cache-Control': 'no-cache' });
     return;
   }
 
@@ -562,7 +618,7 @@ const server = http.createServer((req, res) => {
 
   // Service worker must be served from root scope
   if (pathname === '/sw.js') {
-    serveFile(res, path.join(__dirname, 'public', 'sw.js'), { 'Cache-Control': 'no-cache' });
+    serveFile(req, res, path.join(__dirname, 'public', 'sw.js'), { 'Cache-Control': 'no-cache' });
     return;
   }
 
@@ -570,7 +626,7 @@ const server = http.createServer((req, res) => {
   // before it was renamed to sdoc.md. Serve the new file under the old path
   // so cached clients keep rendering until their SW updates.
   if (pathname === '/public/default.md') {
-    serveFile(res, path.join(__dirname, 'public', 'sdoc.md'));
+    serveFile(req, res, path.join(__dirname, 'public', 'sdoc.md'));
     return;
   }
 
@@ -583,7 +639,7 @@ const server = http.createServer((req, res) => {
       res.end('Forbidden');
       return;
     }
-    serveFile(res, filePath, { 'X-Sdocs-Commit': RUNNING_COMMIT });
+    serveFile(req, res, filePath, { 'X-Sdocs-Commit': RUNNING_COMMIT });
     return;
   }
 
