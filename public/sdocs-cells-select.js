@@ -136,6 +136,17 @@
       focus.c = clamp(c, cols);
       apply(doScroll);
     }
+    // Select a whole column / row (clicking its header).
+    function selectColumn(c) {
+      anchor.r = 0; anchor.c = clamp(c, cols);
+      focus.r = rows - 1; focus.c = anchor.c;
+      apply(false);
+    }
+    function selectRow(r) {
+      anchor.r = clamp(r, rows); anchor.c = 0;
+      focus.r = anchor.r; focus.c = cols - 1;
+      apply(false);
+    }
 
     // While a drag holds the pointer near the left/right edge of a
     // horizontally-scrollable grid, scroll that way each frame and extend the
@@ -165,19 +176,27 @@
     }
 
     grid.addEventListener('mousedown', function (e) {
-      var cell = e.target.closest ? e.target.closest('.sdoc-cells-cell') : null;
-      if (!cell || !grid.contains(cell)) return;
-      e.preventDefault();                            // suppress the text caret
-      var r = +cell.dataset.r, c = +cell.dataset.c;
-      if (e.shiftKey && anchor.r >= 0) extendTo(r, c, false);  // shift-click extends
-      else moveTo(r, c, false);
-      // Begin a drag: moves extend the range; the edge auto-scroll loop runs
-      // until mouseup clears `drag`.
-      drag = { grid: grid, x: e.clientX, y: e.clientY, onTo: function (rr, cc) {
-        if (rr !== focus.r || cc !== focus.c) extendTo(rr, cc, false);
-      } };
-      grid.focus({ preventScroll: true });
-      requestAnimationFrame(autoScrollTick);
+      var t = e.target;
+      var cell = t.closest ? t.closest('.sdoc-cells-cell') : null;
+      if (cell && grid.contains(cell)) {
+        e.preventDefault();                          // suppress the text caret
+        var r = +cell.dataset.r, c = +cell.dataset.c;
+        if (e.shiftKey && anchor.r >= 0) extendTo(r, c, false);  // shift-click extends
+        else moveTo(r, c, false);
+        // Begin a drag: moves extend the range; the edge auto-scroll loop runs
+        // until mouseup clears `drag`.
+        drag = { grid: grid, x: e.clientX, y: e.clientY, onTo: function (rr, cc) {
+          if (rr !== focus.r || cc !== focus.c) extendTo(rr, cc, false);
+        } };
+        grid.focus({ preventScroll: true });
+        requestAnimationFrame(autoScrollTick);
+        return;
+      }
+      // Header click selects a whole column / row.
+      var col = t.closest ? t.closest('.sdoc-cells-colhead') : null;
+      if (col && grid.contains(col)) { e.preventDefault(); selectColumn(+col.dataset.c); grid.focus({ preventScroll: true }); return; }
+      var row = t.closest ? t.closest('.sdoc-cells-rowhead') : null;
+      if (row && grid.contains(row)) { e.preventDefault(); selectRow(+row.dataset.r); grid.focus({ preventScroll: true }); return; }
     });
 
     grid.addEventListener('focus', function () {

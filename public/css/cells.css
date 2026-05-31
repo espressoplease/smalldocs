@@ -183,6 +183,8 @@
   white-space: nowrap;   /* column letters / row numbers never wrap */
   user-select: none;
 }
+/* Column letters / row numbers select the whole column / row on click. */
+.sdoc-cells-colhead, .sdoc-cells-rowhead { cursor: pointer; }
 
 /* Freeze the header row and the row-number column. Inline this is inert;
  * in the scrolling fullscreen view it keeps headers in sight. */
