@@ -430,7 +430,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   align-items: center;
   gap: 12px;
   font-size: var(--t-sm);
-  font-weight: 500;
+  font-weight: 400;
   color: var(--ink);
 }
 .trouble > summary::-webkit-details-marker { display: none; }
@@ -451,24 +451,10 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .trouble[open] > summary .chev { transform: rotate(90deg); }
 .trouble-body { padding: 4px 22px 22px; }
 .trouble-step {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: 14px;
   padding: 14px 0;
   border-top: 1px solid var(--line);
 }
 .trouble-step:first-child { border-top: 0; padding-top: 6px; }
-.trouble-num {
-  width: 26px; height: 26px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--white);
-  border: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--ink-2);
-}
 .trouble-step h4 {
   font-size: 0.95rem;
   font-weight: 600;
@@ -650,68 +636,52 @@ footer {
 
         <details class="trouble">
           <summary>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v3.6M8 5.2v.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
             <span>Why a custom install script</span>
             <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </summary>
           <div class="trouble-body">
-            <div class="trouble-step" style="grid-template-columns: 1fr">
-              <div>
-                <p>
-                  npm&rsquo;s global folder is usually owned by root, so a
-                  regular install can fail with a permission error. This
-                  script installs SmallDocs into <code>~/.sdocs</code>, a
-                  folder you own, so it doesn&rsquo;t need <code>sudo</code>.
-                </p>
-              </div>
+            <div class="trouble-step">
+              <p>
+                npm&rsquo;s global folder is usually owned by root, so a
+                regular install can fail with a permission error. This
+                script installs SmallDocs into <code>~/.sdocs</code>, a
+                folder you own, so it doesn&rsquo;t need <code>sudo</code>.
+              </p>
             </div>
           </div>
         </details>
 
         <details class="trouble">
           <summary>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v3.6M8 5.2v.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
             <span>If <code>sdoc</code> isn&rsquo;t found, add it to your PATH</span>
             <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </summary>
           <div class="trouble-body">
             <div class="trouble-step">
-              <div class="trouble-num">1</div>
-              <div>
-                <h4>Check which shell you&rsquo;re using</h4>
-                <p>Run this in your terminal:</p>
-                <div class="mini">echo $SHELL
+              <h4>Check which shell you&rsquo;re using</h4>
+              <p>Run this in your terminal:</p>
+              <div class="mini">echo $SHELL
 # /bin/zsh  or  /bin/bash  or  /usr/bin/fish</div>
-              </div>
             </div>
             <div class="trouble-step">
-              <div class="trouble-num">2</div>
-              <div>
-                <h4>Open your shell&rsquo;s config file</h4>
-                <ul>
-                  <li>bash &middot; <code>~/.bashrc</code></li>
-                  <li>zsh &middot; <code>~/.zshrc</code></li>
-                  <li>fish &middot; <code>~/.config/fish/config.fish</code></li>
-                </ul>
-              </div>
+              <h4>Open your shell&rsquo;s config file</h4>
+              <ul>
+                <li>bash &middot; <code>~/.bashrc</code></li>
+                <li>zsh &middot; <code>~/.zshrc</code></li>
+                <li>fish &middot; <code>~/.config/fish/config.fish</code></li>
+              </ul>
             </div>
             <div class="trouble-step">
-              <div class="trouble-num">3</div>
-              <div>
-                <h4>Add the SmallDocs directory to PATH</h4>
-                <p>Add this line to that file (fish users see below):</p>
-                <div class="mini">export PATH="$HOME/.sdocs/bin:$PATH"</div>
-                <p style="margin-top:10px">For fish, use:</p>
-                <div class="mini">fish_add_path $HOME/.sdocs/bin</div>
-              </div>
+              <h4>Add the SmallDocs directory to PATH</h4>
+              <p>Add this line to that file (fish users see below):</p>
+              <div class="mini">export PATH="$HOME/.sdocs/bin:$PATH"</div>
+              <p style="margin-top:10px">For fish, use:</p>
+              <div class="mini">fish_add_path $HOME/.sdocs/bin</div>
             </div>
             <div class="trouble-step">
-              <div class="trouble-num">4</div>
-              <div>
-                <h4>Reload your shell</h4>
-                <p>Either open a new terminal window, or run:</p>
-                <div class="mini">source ~/.zshrc   # or ~/.bashrc</div>
-              </div>
+              <h4>Reload your shell</h4>
+              <p>Either open a new terminal window, or run:</p>
+              <div class="mini">source ~/.zshrc   # or ~/.bashrc</div>
             </div>
           </div>
         </details>
