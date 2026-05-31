@@ -695,6 +695,175 @@ test('fullscreen: edits show in the inline grid after close', async ({ page }) =
   await expect(page.locator('#_sd_rendered .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('55');
 });
 
+// ── Drag-to-fill (the fill handle) ─────────────────────────
+test('fill handle: appears on the selection corner in fullscreen', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  // The handle sits inside the selection's bottom-right cell.
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"] .sdoc-cells-fill-handle')).toBeVisible();
+  // Extending the selection moves it to the new corner.
+  await fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').click({ modifiers: ['Shift'] });
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"] .sdoc-cells-fill-handle')).toBeVisible();
+  expect(await fs.locator('.sdoc-cells-fill-handle').count()).toBe(1);
+});
+
+test('fill handle: dragging a formula down fills it with shifted references', async ({ page }) => {
+  const fs = await openFullscreen(page, [
+    FENCE + 'cells',
+    'Item,Qty,Price,Total',
+    'Laptop,12,1100,=B2*C2',
+    'Monitor,30,280,',
+    'Keyboard,45,90,',
+    FENCE,
+  ]);
+  // Select D2 (the formula) and drag its fill handle down to D4.
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="3"]').click();
+  const handle = fs.locator('.sdoc-cells-fill-handle');
+  const hb = await handle.boundingBox();
+  const target = await fs.locator('.sdoc-cells-cell[data-r="3"][data-c="3"]').boundingBox();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 5 });
+  await page.mouse.up();
+  // D3 = B3*C3 = 30*280 = 8400; D4 = B4*C4 = 45*90 = 4050
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="3"]')).toHaveText('8,400');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="3"]')).toHaveText('4,050');
+  // The originals are untouched.
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="3"]')).toHaveText('13,200');
+});
+
+test('fill handle: dragging two numbers down continues the series', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Week,Sales', '1,100', '2,200', FENCE]);
+  // Select A2:A3 (1, 2) and drag down two rows -> 3, 4.
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  await fs.locator('.sdoc-cells-cell[data-r="2"][data-c="0"]').click({ modifiers: ['Shift'] });
+  const handle = fs.locator('.sdoc-cells-fill-handle');
+  const hb = await handle.boundingBox();
+  const target = await fs.locator('.sdoc-cells-cell[data-r="4"][data-c="0"]').boundingBox();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="0"]')).toHaveText('3');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="4"][data-c="0"]')).toHaveText('4');
+});
+
+test('fill handle: a fill is undoable', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  const handle = fs.locator('.sdoc-cells-fill-handle');
+  const hb = await handle.boundingBox();
+  const target = await fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').boundingBox();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]')).toHaveText('10');
+  await page.locator('.sdoc-cells-focus .sdoc-cells-grid').focus();
+  await page.keyboard.press('Control+z');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]')).toHaveText('');
+});
+
+// ── Copy / paste with formula adjustment ──────────────────
+// Clipboard events are synthesized (DataTransfer + ClipboardEvent) so the
+// tests exercise the handlers without OS clipboard permissions.
+async function copySelection(page) {
+  return page.evaluate(() => {
+    const dt = new DataTransfer();
+    const ev = new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true });
+    document.dispatchEvent(ev);
+    return dt.getData('text/plain');
+  });
+}
+async function pasteText(page, text) {
+  return page.evaluate((t) => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', t);
+    const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+    document.dispatchEvent(ev);
+  }, text);
+}
+
+test('copy a formula cell, paste onto a selection: references adjust per cell', async ({ page }) => {
+  const fs = await openFullscreen(page, [
+    FENCE + 'cells',
+    'Item,Qty,Price,Total',
+    'Laptop,12,1100,=B2*C2',
+    'Monitor,30,280,',
+    'Keyboard,45,90,',
+    FENCE,
+  ]);
+  // Copy D2 (the formula).
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="3"]').click();
+  const copied = await copySelection(page);
+  expect(copied).toBe('=B2*C2');
+  // Select D3:D4 and paste - each cell gets the formula shifted to its row.
+  await fs.locator('.sdoc-cells-cell[data-r="2"][data-c="3"]').click();
+  await fs.locator('.sdoc-cells-cell[data-r="3"][data-c="3"]').click({ modifiers: ['Shift'] });
+  await pasteText(page, copied);
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="3"]')).toHaveText('8,400');   // B3*C3
+  await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="3"]')).toHaveText('4,050');   // B4*C4
+});
+
+test('copy a block of cells, paste at a new anchor: formulas shift by the move', async ({ page }) => {
+  const fs = await openFullscreen(page, [
+    FENCE + 'cells',
+    'A,B,C',
+    '10,20,=A2+B2',
+    '30,40,',
+    FENCE,
+  ]);
+  // Copy A2:C2 (10, 20, =A2+B2).
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="2"]').click({ modifiers: ['Shift'] });
+  const copied = await copySelection(page);
+  expect(copied).toBe('10\t20\t=A2+B2');
+  // Paste at A3: the block lands there, the formula becomes =A3+B3 -> 70.
+  await fs.locator('.sdoc-cells-cell[data-r="2"][data-c="0"]').click();
+  await pasteText(page, copied);
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="0"]')).toHaveText('10');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="2"]')).toHaveText('30');      // 10+20 of the pasted row
+});
+
+test('pasting external (non-copied) text still works as plain values', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b', '1,2', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  await pasteText(page, '7\t8\n9\t10');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]')).toHaveText('7');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('8');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="0"]')).toHaveText('9');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]')).toHaveText('10');
+});
+
+// ── Formula view toggle ────────────────────────────────────
+test('formula view: a sheet with formulas gets a toggle that shows formula text', async ({ page }) => {
+  const fs = await openFullscreen(page, [
+    FENCE + 'cells', 'Item,Qty,Total', 'A,10,=B2*2', 'B,20,=B3*2', FENCE,
+  ]);
+  const toggle = fs.locator('.sdoc-cells-fx-toggle');
+  await expect(toggle).toBeVisible();
+  // Computed view first.
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="2"]')).toHaveText('20');
+  // Toggle on: cells show their formula source, ready to read / edit in place.
+  await toggle.click();
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="2"]')).toHaveText('=B2*2');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="2"]')).toHaveText('=B3*2');
+  // Editing in formula view edits the raw formula.
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="2"]').dblclick();
+  await expect(page.locator('.sdoc-cells-editor')).toHaveValue('=B2*2');
+  await page.locator('.sdoc-cells-editor').fill('=B2*3');
+  await page.keyboard.press('Enter');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="2"]')).toHaveText('=B2*3');
+  // Toggle off: back to computed values (with the edit applied).
+  await toggle.click();
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="2"]')).toHaveText('30');
+});
+
+test('formula view: a sheet without formulas has no toggle', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b', '1,2', FENCE]);
+  expect(await fs.locator('.sdoc-cells-fx-toggle').count()).toBe(0);
+});
+
 // ── Formula point mode (arrow keys write cell refs while typing a formula) ──
 //
 // Sheet used by every test:

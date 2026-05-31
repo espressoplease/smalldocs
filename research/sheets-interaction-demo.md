@@ -110,6 +110,26 @@ then arrow to the end. And after any operator (`+`, `*`, a comma in a
 function), the arrows are armed again for the next reference. This works in
 the cell editor and in the formula bar.
 
+**Fullscreen - drag to fill.** Select a cell or range and a small green
+square appears on its corner. Drag it down (or across) to fill the cells you
+pass over: a formula's references shift as it goes (`=B2*C2` becomes
+`=B3*C3`, `=B4*C4`...), plain values repeat, and a run of numbers like 1, 2
+continues as 3, 4, 5. Try it: in the practice sheet, the Total column's
+formula can rebuild itself - clear D3:D5 (select, press Delete), click D2,
+then drag its corner square down.
+
+**Fullscreen - copy and paste formulas.** Cmd+C (Ctrl+C on Windows) copies
+the selected cells, formulas included. Paste them somewhere else and every
+formula adjusts to its new position - copy `=B2*C2`, select five cells below,
+paste, and each one multiplies its own row. External data (from Excel, Google
+Sheets, any CSV) still pastes as plain values.
+
+**Fullscreen - formula view.** When a sheet contains formulas, an `=fx`
+button appears in the top bar. Click it and every formula cell shows its
+source (`=B2*C2`) instead of its result - the whole sheet's logic at a
+glance, and you can edit any formula in place. Click again to go back to
+values.
+
 **Fullscreen - clear cells.** Select a cell or range, press Delete or
 Backspace.
 
