@@ -81,9 +81,28 @@
     return rows;
   }
 
+  // A bare {{path/to/file.csv}} reference (optionally with a :range suffix).
+  // Present only when a doc is opened WITHOUT the CLI (which otherwise bakes
+  // the data in); the renderer shows a "load it with sdoc" message.
+  var REFERENCE_RE = /^\{\{\s*([^}]+?)\s*\}\}$/;
+  // The machine-generated metadata line the CLI prepends to a baked block:
+  //   sdoc-cells: source=report.csv range=B5:J32
+  //   sdoc-cells: error="Could not read report.csv"
+  var DIRECTIVE_RE = /^sdoc-cells:\s*(.*)$/;
+
+  // Parse `key=value` / `key="quoted value"` pairs from a directive line.
+  function parseDirectives(str) {
+    var meta = {};
+    var re = /(\w+)=(?:"([^"]*)"|(\S+))/g;
+    var m;
+    while ((m = re.exec(str))) meta[m[1]] = m[2] !== undefined ? m[2] : m[3];
+    return meta;
+  }
+
   // Build the grid model from a ```cells block body.
-  // Returns { rows, cols, cells, empty } where cells is row-major,
-  // every row padded to `cols` with empty cells so the grid is rectangular.
+  // Returns { rows, cols, cells, empty } where cells is row-major, every row
+  // padded to `cols` with empty cells so the grid is rectangular. May instead
+  // return { unresolved: <ref> } or { error: <msg> } for reference blocks.
   function parseCells(src) {
     var text = String(src == null ? '' : src);
     // Drop leading blank lines and all trailing whitespace (incl. the final
@@ -91,6 +110,25 @@
     // meaningful in a sheet.
     var trimmed = text.replace(/^\n+/, '').replace(/\s+$/, '');
     if (trimmed === '') return { rows: 0, cols: 0, cells: [], empty: true };
+
+    // Unresolved reference: the CLI never baked it (e.g. dropped into the
+    // browser directly). Surface the path so the renderer can explain.
+    var ref = trimmed.match(REFERENCE_RE);
+    if (ref) return { empty: false, unresolved: ref[1] };
+
+    // A baked block: strip the metadata line, keep its source / range / error.
+    var source, range;
+    var firstBreak = trimmed.indexOf('\n');
+    var firstLine = firstBreak === -1 ? trimmed : trimmed.slice(0, firstBreak);
+    var dir = firstLine.match(DIRECTIVE_RE);
+    if (dir) {
+      var meta = parseDirectives(dir[1]);
+      source = meta.source;
+      range = meta.range;
+      if (meta.error) return { empty: false, error: meta.error, source: source };
+      trimmed = firstBreak === -1 ? '' : trimmed.slice(firstBreak + 1).replace(/\s+$/, '');
+      if (trimmed === '') return { rows: 0, cols: 0, cells: [], empty: true, source: source, range: range };
+    }
 
     var raw = parseCsv(trimmed);
     var cols = 0;
@@ -106,7 +144,7 @@
       }
       cells.push(out);
     }
-    return { rows: raw.length, cols: cols, cells: cells, empty: false };
+    return { rows: raw.length, cols: cols, cells: cells, empty: false, source: source, range: range };
   }
 
   // Serialize a 2D array of raw cell strings back to CSV (RFC 4180 quoting:

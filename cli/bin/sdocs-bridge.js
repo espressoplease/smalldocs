@@ -482,6 +482,27 @@ function startBridge(opts) {
     }
     if (msg.type === 'pong') return;
 
+    // Read a file the document references (e.g. a {{report.csv}} cells block),
+    // for display only. Resolved relative to the document's folder; absolute
+    // paths are honoured as-is. No folder restriction by design - the gate is
+    // this authenticated, localhost-only socket. This never touches the
+    // document's own content/sync, so it can't affect what gets saved back.
+    if (msg.type === 'read-file') {
+      const rid = msg.id;
+      const rel = typeof msg.path === 'string' ? msg.path : '';
+      try {
+        const target = path.resolve(path.dirname(filepath), rel);
+        const content = fs.readFileSync(target, 'utf-8');
+        wsSendJson(socket, { type: 'file', id: rid, ok: true, path: rel, content: content });
+      } catch (e) {
+        wsSendJson(socket, {
+          type: 'file', id: rid, ok: false,
+          error: (e && e.code === 'ENOENT') ? 'not found' : ((e && e.message) || 'read failed'),
+        });
+      }
+      return;
+    }
+
     if (msg.type === 'write' || msg.type === 'submit') {
       const body = typeof msg.content === 'string' ? msg.content : '';
       const buf  = Buffer.from(body, 'utf-8');
