@@ -209,11 +209,12 @@
     gridWrap.addEventListener('cells-selection', function (e) {
       var d = e.detail;
       if (!d || d.empty) { nameBox.textContent = ''; valueBox.textContent = ''; status.textContent = ''; return; }
+      var vm = gridWrap._cellsModel || model;       // effective (sorted) view
       var addr = CELLS.colName(d.c0) + (d.r0 + 1);
       nameBox.textContent = d.single ? addr : addr + ':' + CELLS.colName(d.c1) + (d.r1 + 1);
-      var cell = model.cells[d.r0] && model.cells[d.r0][d.c0];
+      var cell = vm.cells[d.r0] && vm.cells[d.r0][d.c0];
       valueBox.textContent = cell ? cell.raw : '';
-      status.textContent = S.formatCellsStats ? S.formatCellsStats(model, d) : '';
+      status.textContent = S.formatCellsStats ? S.formatCellsStats(vm, d) : '';
     });
 
     modal.appendChild(topbar);

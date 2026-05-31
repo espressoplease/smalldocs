@@ -135,9 +135,10 @@
     selBtn.addEventListener('click', function () {
       var s = src._cellsSelection;
       if (!s || s.empty) return;
+      var m = src._cellsModel || model;             // the effective (sorted) view
       var sub = [];
       for (var r = s.r0; r <= s.r1; r++) {
-        var line = model.cells[r];
+        var line = m.cells[r];
         var out = [];
         for (var c = s.c0; c <= s.c1; c++) out.push((line && line[c]) ? line[c].raw : '');
         sub.push(out);                              // padded cells copy as empty
@@ -152,7 +153,7 @@
     allBtn.setAttribute('aria-label', 'Copy whole sheet as CSV');
     allBtn.innerHTML = copyIcon(14);
     allBtn.addEventListener('click', function () {
-      copyText(CELLS.serializeCsv(rawRows(model.cells)), allBtn);
+      copyText(CELLS.serializeCsv(rawRows((src._cellsModel || model).cells)), allBtn);
     });
 
     box.appendChild(selBtn);
@@ -242,70 +243,102 @@
     var wrapper = document.createElement('div');
     wrapper.className = 'sdoc-cells' + (fullscreen ? ' sdoc-cells-fs' : '');
 
-    // Permanent top toolbar (selection address + copy actions). Suppressed in
-    // fullscreen, where the focus overlay supplies its own chrome.
-    if (!fullscreen) wrapper.appendChild(buildBar(wrapper, model));
-
-    // The grid scrolls horizontally inside this inner box; the wrapper
-    // itself stays put, so the truncation note (and a future toolbar / the
-    // fullscreen button) pin to the visible area instead of scrolling off
-    // with the cells.
     var scroll = document.createElement('div');
     scroll.className = 'sdoc-cells-scroll';
 
     var grid = document.createElement('div');
     grid.className = 'sdoc-cells-grid';
     grid.setAttribute('role', 'grid');
-    // Row-number gutter + N content columns. Content columns size to their
-    // text within a sensible min/max so the grid reads like a sheet.
     grid.style.gridTemplateColumns =
       'min-content repeat(' + renderCols + ', minmax(var(--sdoc-cells-col-min, 64px), max-content))';
 
-    var corner = document.createElement('div');
-    corner.className = 'sdoc-cells-corner';
-    grid.appendChild(corner);
-    for (var c = 0; c < renderCols; c++) {
-      var ch = document.createElement('div');
-      ch.className = 'sdoc-cells-colhead';
-      ch.dataset.c = String(c);
-      ch.textContent = CELLS.colName(c);
-      grid.appendChild(ch);
-    }
-
     var EMPTY_CELL = { raw: '', value: '', type: 'empty' };
-    for (var r = 0; r < renderRows; r++) {
-      var rh = document.createElement('div');
-      rh.className = 'sdoc-cells-rowhead';
-      rh.dataset.r = String(r);
-      rh.textContent = String(r + 1);
-      grid.appendChild(rh);
-      var line = model.cells[r];
-      for (var c2 = 0; c2 < renderCols; c2++) {
-        var cell = (line && line[c2]) || EMPTY_CELL;   // pad past the data
-        var el = document.createElement('div');
-        var typeCls = cell.type === 'number' ? ' is-number'
-          : cell.type === 'empty' ? ' is-empty' : ' is-text';
-        if (cell.type === 'number' && cell.value < 0) typeCls += ' is-negative';
-        el.className = 'sdoc-cells-cell' + typeCls;
-        el.setAttribute('role', 'gridcell');
-        el.dataset.r = String(r);
-        el.dataset.c = String(c2);
-        // Display only - the model's raw is untouched, so copy / export emit
-        // the original. Numbers use the column's format (currency / percent /
-        // plain / decimals) or default thousands separators; text keeps its
-        // content with a literal <br> rendered as a line break (still plain
-        // text via textContent, so no markup is ever parsed).
-        if (cell.type === 'number') {
-          var fmt = model.formats && model.formats[c2];
-          el.textContent = fmt ? CELLS.formatValue(cell, fmt) : CELLS.formatNumber(cell.raw);
-        } else {
-          el.textContent = cell.raw.replace(/<br\s*\/?>/gi, '\n');
+    var hasHeader = CELLS.looksLikeHeader(model);
+    var sort = opts.sort || null;   // { col, dir } - a view reorder
+
+    // (Re)paint the grid body from the effective (possibly sorted) model.
+    // wrapper._cellsModel always holds that effective model, so the toolbar,
+    // copy, stats, and value bar reflect what is on screen after a sort.
+    function paint() {
+      var vm = model;
+      if (sort) {
+        var order = CELLS.sortRows(model, sort.col, sort.dir, hasHeader);
+        vm = { rows: model.rows, cols: model.cols, formats: model.formats,
+               source: model.source, cells: order.map(function (ri) { return model.cells[ri]; }) };
+      }
+      wrapper._cellsModel = vm;
+      while (grid.firstChild) grid.removeChild(grid.firstChild);
+
+      var corner = document.createElement('div');
+      corner.className = 'sdoc-cells-corner';
+      grid.appendChild(corner);
+      for (var c = 0; c < renderCols; c++) {
+        var ch = document.createElement('div');
+        ch.className = 'sdoc-cells-colhead' + (sort && sort.col === c ? ' is-sorted' : '');
+        ch.dataset.c = String(c);
+        var label = document.createElement('span');
+        label.className = 'sdoc-cells-colhead-label';
+        label.textContent = CELLS.colName(c);
+        ch.appendChild(label);
+        if (c < cols) {                                  // sort only real columns
+          var caret = document.createElement('span');
+          caret.className = 'sdoc-cells-sort';
+          caret.dataset.c = String(c);
+          caret.textContent = (sort && sort.col === c) ? (sort.dir === 'asc' ? '↑' : '↓') : '↕';
+          ch.appendChild(caret);
         }
-        grid.appendChild(el);
+        grid.appendChild(ch);
+      }
+
+      for (var r = 0; r < renderRows; r++) {
+        var rh = document.createElement('div');
+        rh.className = 'sdoc-cells-rowhead';
+        rh.dataset.r = String(r);
+        rh.textContent = String(r + 1);
+        grid.appendChild(rh);
+        var line = vm.cells[r];
+        for (var c2 = 0; c2 < renderCols; c2++) {
+          var cell = (line && line[c2]) || EMPTY_CELL;   // pad past the data
+          var el = document.createElement('div');
+          var typeCls = cell.type === 'number' ? ' is-number'
+            : cell.type === 'empty' ? ' is-empty' : ' is-text';
+          if (cell.type === 'number' && cell.value < 0) typeCls += ' is-negative';
+          el.className = 'sdoc-cells-cell' + typeCls;
+          el.setAttribute('role', 'gridcell');
+          el.dataset.r = String(r);
+          el.dataset.c = String(c2);
+          // Display only - the model's raw is untouched, so copy / export emit
+          // the original. Numbers use the column's format; text keeps its
+          // content with a literal <br> as a line break (plain text only).
+          if (cell.type === 'number') {
+            var fmt = vm.formats && vm.formats[c2];
+            el.textContent = fmt ? CELLS.formatValue(cell, fmt) : CELLS.formatNumber(cell.raw);
+          } else {
+            el.textContent = cell.raw.replace(/<br\s*\/?>/gi, '\n');
+          }
+          grid.appendChild(el);
+        }
       }
     }
+    paint();
+
+    // Click a column-header sort caret: cycle asc -> desc -> off, repaint, and
+    // clear the (now-stale) selection.
+    grid.addEventListener('click', function (e) {
+      var caret = e.target.closest ? e.target.closest('.sdoc-cells-sort') : null;
+      if (!caret || !grid.contains(caret)) return;
+      e.stopPropagation();
+      var c = +caret.dataset.c;
+      if (!sort || sort.col !== c) sort = { col: c, dir: 'asc' };
+      else if (sort.dir === 'asc') sort = { col: c, dir: 'desc' };
+      else sort = null;
+      paint();
+      if (grid._clearSelection) grid._clearSelection();
+    });
 
     scroll.appendChild(grid);
+    // Toolbar reads wrapper._cellsModel (set by paint) so copy follows a sort.
+    if (!fullscreen) wrapper.appendChild(buildBar(wrapper, model));
     wrapper.appendChild(scroll);
 
     // Watch for a space-reserving scrollbar; toggles .has-xscroll so the

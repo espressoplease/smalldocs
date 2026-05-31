@@ -961,8 +961,15 @@ FORMATTING
   values. This is what makes a cells block more than a CSV: the author
   chooses how each column reads.
 
+SORTING
+  Hover a column header and click the sort caret to sort the view by that
+  column (click cycles ascending -> descending -> off). A text first row is
+  kept pinned as a header. Sorting is a view reorder - it does not change the
+  document; copy reflects what is on screen.
+
 SELECTING
   Click a cell to select it; its column letter and row number light up.
+  Click a column letter / row number to select the whole column / row.
   Drag to select a range; Shift+Click or Shift+Arrow extends it. Arrow
   keys move the selection; Cmd/Ctrl+Arrow jumps to the far edge;
   Shift+(Cmd/Ctrl+)Arrow extends to it. Dragging to the left/right edge of
