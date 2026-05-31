@@ -178,7 +178,7 @@
 
     grid.addEventListener('mousedown', function (e) {
       var t = e.target;
-      if (t.closest && t.closest('.sdoc-cells-sort')) return;   // sort caret, not a selection
+      if (t.closest && t.closest('.sdoc-cells-sort, .sdoc-cells-resize')) return;   // caret / resize handle
       var cell = t.closest ? t.closest('.sdoc-cells-cell') : null;
       if (cell && grid.contains(cell)) {
         e.preventDefault();                          // suppress the text caret

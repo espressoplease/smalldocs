@@ -249,8 +249,20 @@
     var grid = document.createElement('div');
     grid.className = 'sdoc-cells-grid';
     grid.setAttribute('role', 'grid');
-    grid.style.gridTemplateColumns =
-      'min-content repeat(' + renderCols + ', minmax(var(--sdoc-cells-col-min, 64px), max-content))';
+
+    // Per-column explicit widths (set by dragging a header's resize handle).
+    // Persist across re-sorts. Undefined = auto (content-sized).
+    var colWidths = [];
+    function applyTemplate() {
+      var parts = ['min-content'];
+      for (var c = 0; c < renderCols; c++) {
+        parts.push(colWidths[c] != null
+          ? colWidths[c] + 'px'
+          : 'minmax(var(--sdoc-cells-col-min, 64px), max-content)');
+      }
+      grid.style.gridTemplateColumns = parts.join(' ');
+    }
+    applyTemplate();
 
     var EMPTY_CELL = { raw: '', value: '', type: 'empty' };
     var hasHeader = CELLS.looksLikeHeader(model);
@@ -287,6 +299,10 @@
           caret.textContent = (sort && sort.col === c) ? (sort.dir === 'asc' ? '↑' : '↓') : '↕';
           ch.appendChild(caret);
         }
+        var handle = document.createElement('span');   // drag to resize this column
+        handle.className = 'sdoc-cells-resize';
+        handle.dataset.c = String(c);
+        ch.appendChild(handle);
         grid.appendChild(ch);
       }
 
@@ -334,6 +350,25 @@
       else sort = null;
       paint();
       if (grid._clearSelection) grid._clearSelection();
+    });
+
+    // Drag a column header's resize handle to set an explicit width.
+    grid.addEventListener('mousedown', function (e) {
+      var handle = e.target.closest ? e.target.closest('.sdoc-cells-resize') : null;
+      if (!handle || !grid.contains(handle)) return;
+      e.preventDefault(); e.stopPropagation();
+      var c = +handle.dataset.c;
+      var head = grid.querySelector('.sdoc-cells-colhead[data-c="' + c + '"]');
+      var startX = e.clientX, startW = head.getBoundingClientRect().width;
+      function onMove(ev) { colWidths[c] = Math.max(40, Math.round(startW + (ev.clientX - startX))); applyTemplate(); }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.classList.remove('sdoc-cells-resizing');
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.body.classList.add('sdoc-cells-resizing');
     });
 
     scroll.appendChild(grid);

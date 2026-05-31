@@ -423,6 +423,20 @@ test('clicking a sort caret sorts the view (asc -> desc -> off), header kept', a
   expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').innerText()).toBe('Bea'); // original row 1
 });
 
+test('dragging a column header resize handle widens the column', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b,c', '1,2,3', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const colB = page.locator('.sdoc-cells-colhead[data-c="1"]');
+  const before = (await colB.boundingBox()).width;
+  const hb = await page.locator('.sdoc-cells-colhead[data-c="1"] .sdoc-cells-resize').boundingBox();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x + 90, hb.y + hb.height / 2, { steps: 6 });
+  await page.mouse.up();
+  const after = (await colB.boundingBox()).width;
+  expect(after).toBeGreaterThan(before + 50);
+});
+
 test('export inlines the grid as a real table', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Region,Q1', 'North,100', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
