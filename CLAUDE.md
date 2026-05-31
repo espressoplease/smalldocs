@@ -211,6 +211,24 @@ node test/preview.js file.md --screenshot out.png  # visual preview (needs serve
 
 **Dev mode (`SDOCS_DEV=1` or `NODE_ENV=development`)**: serves CSS/JS with `Cache-Control: no-store`, injects a flag into the HTML that unregisters the service worker and clears its caches on load. Use this when iterating on frontend code so changes appear without hard-refreshing. The service worker normally caches the app shell and serves stale files even through hard reloads - dev mode sidesteps both layers.
 
+## Running the local CLI (not the global install)
+
+The globally-installed `sdoc` is the published release and lags this repo. To exercise the CLI you are editing, run it straight from source:
+
+```bash
+node cli/bin/sdocs-dev.js <file.md> [args]   # the `sdoc` command, from this branch
+node cli/bin/sdocs-dev.js --help             # same flags as the installed sdoc
+```
+
+To preview a doc against a **local** dev server - so it renders this branch's frontend (new modules, CSS) rather than production `sdocs.dev` - start a server and point the CLI at it with `--url`:
+
+```bash
+PORT=3210 SDOCS_DEV=1 node server.js                              # serve this branch's frontend
+node cli/bin/sdocs-dev.js file.md --url http://localhost:3210     # open it against that server
+```
+
+`--url <base>` (or the `SDOCS_URL` env var) overrides the default base (`https://sdocs.dev`). The document still travels in the URL hash; the local server only serves the HTML/JS that renders it. This is the way to see in-progress frontend features (e.g. a new fenced-block type) actually render, since the installed CLI and production both point at the released frontend.
+
 ## Visual preview testing
 
 The dev server caches JS files for 24 hours (`Cache-Control: public, max-age=86400`). This means browser and Playwright sessions serve stale JS after code changes. The `test/preview.js` helper bypasses this by injecting fresh (cache-busted) JS modules on every run:
