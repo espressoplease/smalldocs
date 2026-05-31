@@ -498,6 +498,10 @@
     if (st.numericCount > 0) {
       parts.push('Sum ' + fmtStatNum(st.sum));
       parts.push('Avg ' + fmtStatNum(st.avg));
+      if (st.numericCount > 1) {
+        parts.push('Min ' + fmtStatNum(st.min));
+        parts.push('Max ' + fmtStatNum(st.max));
+      }
     }
     parts.push('Count ' + st.count);
     return parts.join('   ·   ');
