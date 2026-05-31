@@ -373,6 +373,20 @@ test('numbers display with thousands separators; negatives get a red class', asy
   expect(html).not.toContain('12,000');
 });
 
+test('clicking a column header selects the whole column; a row header the whole row', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b,c', '1,2,3', '4,5,6', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  // Click column B's header -> the whole column is selected.
+  await page.locator('.sdoc-cells-colhead[data-c="1"]').click();
+  expect(await page.locator('.sdoc-cells-cell.in-range[data-c="1"]').count()).toBe(3);
+  expect(await page.locator('.sdoc-cells-cell.in-range[data-c="0"]').count()).toBe(0);
+  expect(await page.locator('.sdoc-cells-colhead.is-active-col[data-c="1"]').count()).toBe(1);
+  // Click row 2's header (data-r=1) -> the whole row is selected.
+  await page.locator('.sdoc-cells-rowhead[data-r="1"]').click();
+  expect(await page.locator('.sdoc-cells-cell.in-range[data-r="1"]').count()).toBe(3);
+  expect(await page.locator('.sdoc-cells-cell.in-range[data-r="0"]').count()).toBe(0);
+});
+
 test('export inlines the grid as a real table', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Region,Q1', 'North,100', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
