@@ -50,6 +50,8 @@
   var DOC_BLOCK_CAP = 50;           // per-document ```cells block count
   var MAX_COLS = 200;               // widest grid we paint inline
   var MAX_CELLS = 5000;             // total painted cells (rows * cols)
+  var MAX_COLS_FULL = 1000;         // fullscreen: room for the whole sheet
+  var MAX_CELLS_FULL = 60000;       // fullscreen cap (true virtualization is later)
 
   // ── Top toolbar ─────────────────────────────────────────
   // A permanent white bar above the grid (white so only the axis stays
@@ -118,6 +120,54 @@
     return b;
   }
 
+  // Copy controls shared by the inline toolbar and the fullscreen overlay so
+  // they behave identically: a borderless icon that copies the WHOLE sheet,
+  // and a dynamic ghost button that copies the current cell / selection. `src`
+  // is the element that carries the selection (the grid wrapper) - it holds
+  // _cellsSelection and fires `cells-selection`. Returns { box, selBtn, allBtn }.
+  function buildCopyControls(src, model) {
+    var box = document.createElement('div');
+    box.className = 'sdoc-cells-bar-actions';
+
+    var selBtn = copyButton('sdoc-cells-copy-sel', 'selection');
+    selBtn.style.display = 'none';
+    selBtn.title = 'Copy selection as CSV';
+    selBtn.addEventListener('click', function () {
+      var s = src._cellsSelection;
+      if (!s || s.empty) return;
+      var sub = [];
+      for (var r = s.r0; r <= s.r1; r++) {
+        var line = model.cells[r];
+        var out = [];
+        for (var c = s.c0; c <= s.c1; c++) out.push((line && line[c]) ? line[c].raw : '');
+        sub.push(out);                              // padded cells copy as empty
+      }
+      copyText(CELLS.serializeCsv(sub), selBtn);
+    });
+
+    var allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.className = 'sdoc-cells-copy-icon sdoc-cells-copy-all';
+    allBtn.title = 'Copy whole sheet as CSV';
+    allBtn.setAttribute('aria-label', 'Copy whole sheet as CSV');
+    allBtn.innerHTML = copyIcon(14);
+    allBtn.addEventListener('click', function () {
+      copyText(CELLS.serializeCsv(rawRows(model.cells)), allBtn);
+    });
+
+    box.appendChild(selBtn);
+    box.appendChild(allBtn);
+
+    src.addEventListener('cells-selection', function (e) {
+      var s = e.detail;
+      if (!s || s.empty) { selBtn.style.display = 'none'; return; }
+      selBtn.querySelector('.sdoc-cells-copy-label').textContent = s.single ? 'cell' : 'selection';
+      selBtn.style.display = '';
+    });
+
+    return { box: box, selBtn: selBtn, allBtn: allBtn };
+  }
+
   function buildBar(wrapper, model) {
     var source = model.source || '';
     var bar = document.createElement('div');
@@ -136,63 +186,28 @@
     setRef('');
     bar.appendChild(ref);
 
-    var actions = document.createElement('div');
-    actions.className = 'sdoc-cells-bar-actions';
+    var controls = buildCopyControls(wrapper, model);
 
-    // Dynamic: copies the current selection. Hidden until something is picked.
-    var selBtn = copyButton('sdoc-cells-copy-sel', 'selection');
-    selBtn.style.display = 'none';
-    selBtn.title = 'Copy selection as CSV';
-    selBtn.addEventListener('click', function () {
-      var s = wrapper._cellsSelection;
-      if (!s || s.empty) return;
-      var sub = [];
-      for (var r = s.r0; r <= s.r1; r++) sub.push(model.cells[r].slice(s.c0, s.c1 + 1));
-      copyText(CELLS.serializeCsv(rawRows(sub)), selBtn);
-    });
-
-    // Always present: a borderless 14px copy icon (matching the code-block
-    // copy button) that copies the whole sheet (full data, even if the
-    // inline preview was capped) as CSV.
-    var allBtn = document.createElement('button');
-    allBtn.type = 'button';
-    allBtn.className = 'sdoc-cells-copy-icon sdoc-cells-copy-all';
-    allBtn.title = 'Copy whole sheet as CSV';
-    allBtn.setAttribute('aria-label', 'Copy whole sheet as CSV');
-    allBtn.innerHTML = copyIcon(14);
-    allBtn.addEventListener('click', function () {
-      copyText(CELLS.serializeCsv(rawRows(model.cells)), allBtn);
-    });
-
-    // Fullscreen expand - placeholder for now; the focus view is wired later.
+    // Fullscreen expand (inline only - the overlay is already fullscreen).
     var expandBtn = document.createElement('button');
     expandBtn.type = 'button';
     expandBtn.className = 'sdoc-cells-copy-icon sdoc-cells-expand';
     expandBtn.title = 'Open fullscreen';
     expandBtn.setAttribute('aria-label', 'Open fullscreen');
     expandBtn.innerHTML = EXPAND_SVG;
+    expandBtn.addEventListener('click', function () {
+      if (S.cellsFocus) S.cellsFocus.open(model);
+    });
+    controls.box.appendChild(expandBtn);
 
-    actions.appendChild(selBtn);
-    actions.appendChild(allBtn);
-    actions.appendChild(expandBtn);
-    bar.appendChild(actions);
+    bar.appendChild(controls.box);
 
+    // The address label is inline-only; the overlay has a dedicated name box.
     wrapper.addEventListener('cells-selection', function (e) {
       var s = e.detail;
-      if (!s || s.empty) {
-        setRef('');
-        selBtn.style.display = 'none';
-        return;
-      }
+      if (!s || s.empty) { setRef(''); return; }
       var a = CELLS.colName(s.c0) + (s.r0 + 1);
-      if (s.single) {
-        setRef(a);
-        selBtn.querySelector('.sdoc-cells-copy-label').textContent = 'cell';
-      } else {
-        setRef(a + ':' + CELLS.colName(s.c1) + (s.r1 + 1));
-        selBtn.querySelector('.sdoc-cells-copy-label').textContent = 'selection';
-      }
-      selBtn.style.display = '';
+      setRef(s.single ? a : a + ':' + CELLS.colName(s.c1) + (s.r1 + 1));
     });
 
     return bar;
@@ -202,17 +217,34 @@
   // Caps rows/cols to keep the inline preview bounded; a note reports any
   // truncation so a clipped sheet never silently reads as complete. The
   // fullscreen view (later) renders the same model without the inline cap.
-  function buildGrid(model) {
-    var cols = Math.min(model.cols, MAX_COLS);
-    var maxRows = Math.max(1, Math.floor(MAX_CELLS / Math.max(1, cols)));
+  function buildGrid(model, opts) {
+    opts = opts || {};
+    var fullscreen = !!opts.fullscreen;
+    var colCap = fullscreen ? MAX_COLS_FULL : MAX_COLS;
+    var cellCap = fullscreen ? MAX_CELLS_FULL : MAX_CELLS;
+    var cols = Math.min(model.cols, colCap);
+    var maxRows = Math.max(1, Math.floor(cellCap / Math.max(1, cols)));
     var rows = Math.min(model.rows, maxRows);
     var truncated = cols < model.cols || rows < model.rows;
 
-    var wrapper = document.createElement('div');
-    wrapper.className = 'sdoc-cells';
+    // Fullscreen pads the grid past the data with empty cells so it fills the
+    // canvas and scrolls, like a real spreadsheet. Sized to the viewport with
+    // sensible floors; inline never pads (renderCols/Rows == cols/rows).
+    var renderCols = cols, renderRows = rows;
+    if (fullscreen) {
+      var vw = (typeof window !== 'undefined' && window.innerWidth) || 1280;
+      var vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
+      renderCols = Math.min(colCap, Math.max(cols, 26, Math.ceil(vw / 64)));
+      renderRows = Math.min(Math.max(1, Math.floor(cellCap / Math.max(1, renderCols))),
+                            Math.max(rows, 50, Math.ceil(vh / 22)));
+    }
 
-    // Permanent top toolbar (selection address + copy actions).
-    wrapper.appendChild(buildBar(wrapper, model));
+    var wrapper = document.createElement('div');
+    wrapper.className = 'sdoc-cells' + (fullscreen ? ' sdoc-cells-fs' : '');
+
+    // Permanent top toolbar (selection address + copy actions). Suppressed in
+    // fullscreen, where the focus overlay supplies its own chrome.
+    if (!fullscreen) wrapper.appendChild(buildBar(wrapper, model));
 
     // The grid scrolls horizontally inside this inner box; the wrapper
     // itself stays put, so the truncation note (and a future toolbar / the
@@ -227,12 +259,12 @@
     // Row-number gutter + N content columns. Content columns size to their
     // text within a sensible min/max so the grid reads like a sheet.
     grid.style.gridTemplateColumns =
-      'min-content repeat(' + cols + ', minmax(48px, max-content))';
+      'min-content repeat(' + renderCols + ', minmax(var(--sdoc-cells-col-min, 64px), max-content))';
 
     var corner = document.createElement('div');
     corner.className = 'sdoc-cells-corner';
     grid.appendChild(corner);
-    for (var c = 0; c < cols; c++) {
+    for (var c = 0; c < renderCols; c++) {
       var ch = document.createElement('div');
       ch.className = 'sdoc-cells-colhead';
       ch.dataset.c = String(c);
@@ -240,15 +272,16 @@
       grid.appendChild(ch);
     }
 
-    for (var r = 0; r < rows; r++) {
+    var EMPTY_CELL = { raw: '', value: '', type: 'empty' };
+    for (var r = 0; r < renderRows; r++) {
       var rh = document.createElement('div');
       rh.className = 'sdoc-cells-rowhead';
       rh.dataset.r = String(r);
       rh.textContent = String(r + 1);
       grid.appendChild(rh);
       var line = model.cells[r];
-      for (var c2 = 0; c2 < cols; c2++) {
-        var cell = line[c2];
+      for (var c2 = 0; c2 < renderCols; c2++) {
+        var cell = (line && line[c2]) || EMPTY_CELL;   // pad past the data
         var el = document.createElement('div');
         var typeCls = cell.type === 'number' ? ' is-number'
           : cell.type === 'empty' ? ' is-empty' : ' is-text';
@@ -273,8 +306,9 @@
     if (overflowRO) overflowRO.observe(scroll);
 
     // Click-to-select + keyboard navigation (sdocs-cells-select.js). Late
-    // binding so load order between the two modules does not matter.
-    if (S.wireCellsSelection) S.wireCellsSelection(wrapper, grid, scroll, rows, cols);
+    // binding so load order between the two modules does not matter. Bounds use
+    // the rendered extent so you can navigate into the padded empty area.
+    if (S.wireCellsSelection) S.wireCellsSelection(wrapper, grid, scroll, renderRows, renderCols);
 
     if (truncated) {
       var note = document.createElement('div');
@@ -373,4 +407,5 @@
   S.processCells = processCells;
   // Exposed for the fullscreen view + editor to reuse the same renderer.
   S.buildCellsGrid = buildGrid;
+  S.buildCellsCopyControls = buildCopyControls;
 })();
