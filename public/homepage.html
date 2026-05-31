@@ -319,65 +319,28 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   color: var(--ink-3);
 }
 
-/* ── INSTALL: a document panel ──────────────────────────
-   The install procedure lives inside chrome that mirrors how
-   SmallDocs renders a .md file: a filename bar at the top, a
-   hairline border, a generous body, document-scale type. */
+/* ── INSTALL: a calm tinted panel matching the video width ────
+   Same overall idea as Cursor's homepage info blocks - a wide
+   warm-beige section sitting inside the wrap, no drop shadow,
+   two columns inside (text + action). Width matches the video
+   so the page reads as one visual column top to bottom. */
 
 #install {
-  padding: 96px 0 120px;
+  padding: 64px 0 88px;
 }
-.docpanel {
-  max-width: 880px;
-  margin: 0 auto;
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  box-shadow: var(--sh-lift);
-  overflow: hidden;
+.install-panel {
+  background: #EDE6D9;
+  border-radius: 22px;
+  padding: 64px 64px;
 }
-.docpanel-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 22px;
-  background: var(--paper);
-  border-bottom: 1px solid var(--line);
-}
-.docpanel-bar .lbl {
-  font-size: var(--t-mono);
-  font-family: var(--mono);
-  color: var(--ink-3);
-}
-.docpanel-bar .fname {
-  font-family: var(--mono);
-  font-size: var(--t-mono);
-  color: var(--ink);
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  padding: 3px 9px;
-}
-.docpanel-bar .docpanel-icons {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--ink-3);
-}
-.docpanel-bar .docpanel-icons span {
-  width: 26px; height: 26px;
+.install-grid {
   display: grid;
-  place-items: center;
-  border-radius: 6px;
-  transition: background .14s, color .14s;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 56px;
+  align-items: start;
 }
-.docpanel-bar .docpanel-icons span:hover { background: var(--white); color: var(--ink-2); }
-
-.docbody {
-  padding: 44px 56px 48px;
-}
-.doc-eyebrow {
+.install-text { max-width: 30ch; }
+.install-eyebrow {
   font-family: var(--mono);
   font-size: var(--t-mono);
   font-weight: 500;
@@ -385,27 +348,22 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   text-transform: uppercase;
   color: var(--accent-ink);
 }
-.docbody h2 {
+.install-text h2 {
   margin-top: 14px;
-  font-size: 1.75rem;
+  font-size: 1.85rem;
   font-weight: 600;
-  line-height: 1.18;
+  line-height: 1.16;
   letter-spacing: -0.022em;
   color: var(--ink);
 }
-.doc-lead {
-  margin-top: 18px;
+.install-text p {
+  margin-top: 16px;
   font-size: 1.0625rem;
-  line-height: 1.68;
+  line-height: 1.65;
   color: var(--ink-2);
-  max-width: 58ch;
 }
-.doc-divider {
-  margin: 30px 0 26px;
-  border: 0;
-  border-top: 1px solid var(--line);
-}
-.doc-section-label {
+.install-actions { padding-top: 4px; }
+.install-section-label {
   display: flex;
   align-items: baseline;
   gap: 14px;
@@ -416,18 +374,18 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   text-transform: uppercase;
   color: var(--ink-3);
 }
-.doc-section-label::after {
+.install-section-label::after {
   content: "";
   flex: 1;
   height: 1px;
-  background: var(--line);
+  background: rgba(27,24,21,.08);
   position: relative;
   top: -3px;
 }
-.doc-context {
-  margin-top: 14px;
-  font-size: 1rem;
-  line-height: 1.6;
+.install-context {
+  margin-top: 12px;
+  font-size: 0.9375rem;
+  line-height: 1.55;
   color: var(--ink-2);
 }
 
@@ -478,25 +436,27 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   line-height: 1.6;
 }
 .install-fine code,
-.doc-context code {
+.install-context code {
   font-family: var(--mono);
   font-size: 0.85em;
-  background: var(--paper);
-  border: 1px solid var(--line);
+  background: rgba(255,255,255,.55);
+  border: 1px solid rgba(27,24,21,.09);
   border-radius: 5px;
   padding: 2px 7px;
   color: var(--ink);
 }
 
-/* expandable extras */
+/* expandable extras: live on the tinted panel, so use translucent
+   inner backgrounds rather than --paper / --white to stay tonally
+   consistent with the panel's beige */
 .trouble {
   margin-top: 12px;
-  background: var(--paper);
-  border: 1px solid var(--line);
+  background: rgba(255,255,255,.4);
+  border: 1px solid rgba(27,24,21,.08);
   border-radius: var(--r);
 }
 .trouble + .trouble { margin-top: 8px; }
-.trouble[open] { background: var(--white); }
+.trouble[open] { background: rgba(255,255,255,.78); }
 .trouble > summary {
   list-style: none;
   cursor: pointer;
@@ -512,8 +472,8 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .trouble > summary code {
   font-family: var(--mono);
   font-size: 0.84em;
-  background: var(--white);
-  border: 1px solid var(--line);
+  background: rgba(255,255,255,.7);
+  border: 1px solid rgba(27,24,21,.09);
   border-radius: 5px;
   padding: 1px 6px;
   color: var(--ink);
@@ -530,7 +490,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   grid-template-columns: 28px 1fr;
   gap: 14px;
   padding: 14px 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgba(27,24,21,.07);
 }
 .trouble-step:first-child { border-top: 0; padding-top: 6px; }
 .trouble-num {
@@ -538,8 +498,8 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--paper);
-  border: 1px solid var(--line);
+  background: rgba(255,255,255,.6);
+  border: 1px solid rgba(27,24,21,.09);
   font-family: var(--mono);
   font-size: 12px;
   color: var(--ink-2);
@@ -567,8 +527,8 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .trouble-step code, .trouble-step .mini {
   font-family: var(--mono);
   font-size: 0.84em;
-  background: var(--paper);
-  border: 1px solid var(--line);
+  background: rgba(255,255,255,.7);
+  border: 1px solid rgba(27,24,21,.09);
   border-radius: 5px;
   padding: 2px 7px;
   color: var(--ink);
@@ -609,8 +569,11 @@ footer {
 
 /* ── RESPONSIVE ──────────────────────────────────────── */
 @media (max-width: 900px) {
-  #install { padding: 64px 0 88px; }
-  .docbody { padding: 36px 32px 36px; }
+  #install { padding: 56px 0 80px; }
+  .install-panel { padding: 44px 36px; border-radius: 18px; }
+  .install-grid { grid-template-columns: 1fr; gap: 32px; }
+  .install-text { max-width: 100%; }
+  .install-text h2 { font-size: 1.7rem; }
 }
 @media (max-width: 620px) {
   .wrap { padding: 0 22px; }
@@ -624,12 +587,11 @@ footer {
   .vid-btn { font-size: 11.5px; padding: 7px 10px; }
   .vid-controls { right: 10px; bottom: 10px; gap: 6px; }
   .vid-loading { left: 10px; bottom: 10px; }
-  #install { padding: 48px 0 64px; }
-  .docbody { padding: 28px 22px 30px; }
-  .docbody h2 { font-size: 1.45rem; }
+  #install { padding: 40px 0 56px; }
+  .install-panel { padding: 32px 22px; border-radius: 16px; }
+  .install-text h2 { font-size: 1.45rem; }
   .install-cmd { padding: 12px 12px 12px 14px; }
   .install-cmd .cmd { font-size: 0.84rem; }
-  .docpanel-bar { padding: 10px 16px; }
 }
 </style>
 </head>
@@ -692,35 +654,27 @@ footer {
   </div>
 </header>
 
-<!-- ═══ INSTALL: a document panel ════════════════════════ -->
+<!-- ═══ INSTALL ══════════════════════════════════════════ -->
 <section id="install">
   <div class="wrap">
-    <article class="docpanel">
-      <div class="docpanel-bar">
-        <span class="lbl">Filename</span>
-        <span class="fname">install.md</span>
-        <div class="docpanel-icons" aria-hidden="true">
-          <span title="Comments"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10v6H7l-2.5 2v-2H3v-6z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></span>
-          <span title="Copy link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6" stroke="currentColor" stroke-width="1.4"/><path d="M3.5 10.5H3a1.5 1.5 0 0 1-1.5-1.5V3A1.5 1.5 0 0 1 3 1.5h6A1.5 1.5 0 0 1 10.5 3v.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
-          <span title="Share"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="8" r="1.6" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="4" r="1.6" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="12" r="1.6" stroke="currentColor" stroke-width="1.4"/><path d="M5.4 7.2l5.2-2.4M5.4 8.8l5.2 2.4" stroke="currentColor" stroke-width="1.4"/></svg></span>
+    <div class="install-panel">
+      <div class="install-grid">
+
+        <div class="install-text">
+          <span class="install-eyebrow">Install</span>
+          <h2>Install SmallDocs.</h2>
+          <p>
+            SmallDocs is open source and free to use. It installs as a
+            small command-line tool under your home directory. Runs on
+            macOS and Linux.
+          </p>
         </div>
-      </div>
 
-      <div class="docbody">
-        <span class="doc-eyebrow">Install</span>
-        <h2>Install SmallDocs.</h2>
-        <p class="doc-lead">
-          SmallDocs is open source and free to use. It installs as a small
-          command-line tool under your home directory. Runs on macOS and
-          Linux.
-        </p>
+        <div class="install-actions">
+          <div class="install-section-label"><span>macOS &middot; Linux</span></div>
+          <p class="install-context">Paste this into your terminal:</p>
 
-        <hr class="doc-divider" />
-
-        <div class="doc-section-label"><span>macOS &middot; Linux</span></div>
-        <p class="doc-context">Paste this into your terminal:</p>
-
-        <div class="install-cmd">
+          <div class="install-cmd">
           <span class="pr">$</span>
           <span class="cmd">curl -fsSL https://smalldocs.org/install | sh</span>
           <button class="copy" data-copy="curl -fsSL https://smalldocs.org/install | sh">
@@ -800,8 +754,10 @@ footer {
             </div>
           </div>
         </details>
-      </div>
-    </article>
+
+        </div><!-- /install-actions -->
+      </div><!-- /install-grid -->
+    </div><!-- /install-panel -->
   </div>
 </section>
 
