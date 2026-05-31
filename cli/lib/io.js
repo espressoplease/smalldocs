@@ -3,10 +3,11 @@
 const fs   = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { transcludeCells, wrapCsvFile } = require('./cells-transclude');
 
 const SUBCOMMANDS = new Set([
   'new', 'share', 'schema', 'defaults', 'help',
-  'charts', 'diagrams', 'comments',
+  'charts', 'diagrams', 'cells', 'comments',
   'setup', 'safe', 'auto-update', 'refresh',
   'feedback',
   'slides', 'present',
@@ -128,6 +129,13 @@ async function readContent(file) {
     // fenced block so the renderer picks them up. No special CLI path needed.
     if (/\.(mmd|mermaid)$/i.test(file)) {
       raw = '```mermaid\n' + raw.replace(/\s+$/, '') + '\n```\n';
+    } else if (/\.csv$/i.test(file)) {
+      // A standalone .csv opens directly as a sheet (mirrors .mmd).
+      raw = wrapCsvFile(raw, file);
+    } else {
+      // Bake any {{path/to/file.csv}} cells references into the doc, resolving
+      // paths relative to the markdown file. Self-contained docs share safely.
+      raw = transcludeCells(raw, path.dirname(resolved));
     }
     return raw;
   }

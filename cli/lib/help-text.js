@@ -19,6 +19,7 @@ USAGE
   sdoc schema                      Print the full styles schema
   sdoc charts                      Chart types, options, and styling guide
   sdoc diagrams                    Mermaid diagrams reference (\`\`\`mermaid blocks)
+  sdoc cells                       Inline spreadsheet reference (\`\`\`cells blocks)
   sdoc color-analysis <file>       Check custom colours for readable contrast
                                    (both themes). Run after styling a doc.
   sdoc comments                    Comment-format reference (for agents)
@@ -903,6 +904,84 @@ EXAMPLE
   \`\`\`
 `;
 
+
+const CELLS_HELP = `
+SDocs - Cells (sheets)
+======================
+Render data as an inline spreadsheet using \`\`\`cells fenced code blocks.
+The body is CSV; the grid shows column letters, row numbers, type-aware
+alignment, click-and-drag selection, and a small copy toolbar. No CDN and
+no dependency - it renders from the markdown itself.
+
+BASIC SYNTAX
+  Put CSV inside a \`\`\`cells fence:
+
+  \`\`\`cells
+  Region,Q1,Q2,Q3
+  North,100,150,130
+  South,90,95,-7
+  \`\`\`
+
+  Every row is a row (numbered from 1); every column gets a letter
+  (A, B, C ...). There is no special "header row" - row 1 is just row 1.
+
+DATA & TYPES
+  Numbers are detected and align right; text aligns left; blank fields are
+  empty cells. Negatives and decimals are numbers. A quoted value like
+  "1,200" stays text (no locale guessing). Full CSV quoting is supported:
+  commas inside "quotes", escaped ""quotes"", and quoted fields spanning
+  multiple lines.
+
+WRAPPING
+  A long value wraps once its column hits a width cap (rather than running
+  ever wider), growing the row. A literal <br> becomes a line break, and a
+  quoted cell with a real newline keeps it. Cell content is always plain
+  text - markup never renders.
+
+SELECTING
+  Click a cell to select it; its column letter and row number light up.
+  Drag to select a range; Shift+Click or Shift+Arrow extends it. Arrow
+  keys move the selection; Cmd/Ctrl+Arrow jumps to the far edge;
+  Shift+(Cmd/Ctrl+)Arrow extends to it. Dragging to the left/right edge of
+  a wide sheet auto-scrolls. Esc clears the selection.
+
+TOOLBAR
+  A white bar sits above each sheet:
+    - Left: the selection address (e.g. B3 or B2:C3) and, for a sheet
+      loaded from a file, the source filename - "B3 · report.csv".
+    - Right: a copy icon that copies the WHOLE sheet as CSV (values only,
+      no row / column labels).
+    - When something is selected, a second button copies just the
+      selection ("cell" for one cell, "selection" for a range).
+    - A fullscreen expand button is present (placeholder for now).
+
+LOADING FROM A CSV FILE
+  Reference a file instead of typing data inline:
+
+  \`\`\`cells
+  {{path/to/report.csv}}
+  \`\`\`
+
+  sdoc reads that file (resolved relative to the markdown document), reads
+  the whole thing, and bakes the CSV straight into the document. The result
+  is self-contained: a shared link shows the data, never a "file not
+  found". Only the filename is recorded as the source (shown in the bar),
+  not the full path.
+
+  - One reference per cells block (the block's entire body is the
+    reference).
+  - \`sdoc report.csv\` opens a CSV file directly as a sheet.
+
+LIMITS
+  - Per-block source-size cap and a per-document block cap.
+  - The inline preview bounds very large grids and notes what it clipped
+    ("Showing 200 × 50 of 231 × 60 cells"); the full data still travels and
+    copies.
+
+EXPORT
+  HTML / Word / PDF export emit a real table of the values (the source
+  label and the row / column chrome are dropped).
+`;
 
 const SLIDES_HELP = `
 SDocs — Slides
@@ -2450,4 +2529,4 @@ COMMON QUESTIONS
      drop a \`.sdocsignore\` into the directory with the pattern.
 `;
 
-module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };
+module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, CELLS_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };
