@@ -105,6 +105,26 @@ module.exports = function(harness) {
       assert.notStrictEqual(r.status, 200, '/install.sh should not be a live route');
     });
 
+    await testAsync('GET /homepage returns the marketing landing HTML', async () => {
+      const r = await get(BASE + '/homepage');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'),
+        'expected text/html, got ' + r.headers['content-type']);
+      assert.ok(r.body.includes('id="install"'),
+        'homepage should contain the install section');
+      assert.ok(r.body.includes('curl -fsSL https://smalldocs.org/install | sh'),
+        'homepage should show the canonical install command');
+      assert.ok(r.body.includes('/public/homepage/demo-web.mp4'),
+        'homepage should reference the hero video');
+    });
+
+    await testAsync('GET /public/homepage/demo-poster.jpg serves the hero poster', async () => {
+      const r = await get(BASE + '/public/homepage/demo-poster.jpg');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('image/jpeg'),
+        'expected image/jpeg, got ' + r.headers['content-type']);
+    });
+
     await testAsync('GET /public/images/*.webp returns 200 with image/webp + cacheable', async () => {
       const r = await get(BASE + '/public/images/example_sdoc_pdf.webp');
       assert.strictEqual(r.status, 200);

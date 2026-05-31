@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SmallDocs - an office suite for coding agents</title>
+<meta name="description" content="An office suite your existing coding agents use to produce beautiful, sharable artifacts." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ───────────────────────────────────────────────────────────────
+   SmallDocs homepage. Warm-paper palette, one disciplined type
+   scale, one accent, hairline borders, soft layered shadows. The
+   install section sits directly below the hero video so the
+   primary CTAs only need to scroll past the demo.
+   ─────────────────────────────────────────────────────────────── */
+
+:root {
+  --paper:     #F6F4F1;
+  --white:     #FFFFFF;
+  --ink:       #1B1815;
+  --ink-2:     #56504A;
+  --ink-3:     #938C82;
+  --line:      #E7E2DA;
+  --line-2:    #DAD3C9;
+  --accent:    #2563EB;
+  --accent-ink:#1D4ED8;
+  --terminal:  #1C1916;
+
+  --t-display: clamp(2.6rem, 1.62rem + 3.7vw, 4.05rem);
+  --t-h2:      clamp(1.95rem, 1.5rem + 1.7vw, 2.55rem);
+  --t-h3:      1.35rem;
+  --t-lead:    clamp(1.08rem, 1.01rem + 0.34vw, 1.25rem);
+  --t-body:    1.0625rem;
+  --t-sm:      0.9375rem;
+  --t-label:   0.75rem;
+  --t-mono:    0.8125rem;
+
+  --r-sm: 8px;
+  --r:    12px;
+  --r-lg: 18px;
+
+  --sh-card: 0 1px 2px rgba(27,24,21,.04), 0 6px 16px rgba(27,24,21,.05);
+  --sh-lift: 0 2px 4px rgba(27,24,21,.04), 0 14px 32px rgba(27,24,21,.07),
+             0 40px 64px rgba(27,24,21,.06);
+
+  --font:  'Inter', system-ui, -apple-system, sans-serif;
+  --mono:  'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--t-body);
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+a { color: inherit; }
+.wrap { width: 100%; max-width: 1128px; margin: 0 auto; padding: 0 36px; }
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.eyebrow::before {
+  content: "";
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
+
+/* ── NAV ─────────────────────────────────────────────── */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background .25s ease, border-color .25s ease;
+}
+.nav.scrolled {
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom-color: var(--line);
+}
+.nav-in {
+  height: 74px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--accent);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.nav-links {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+.nav-links a {
+  font-size: var(--t-sm);
+  font-weight: 450;
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: color .14s;
+}
+.nav-links a:hover { color: var(--ink); }
+
+/* ── BUTTONS ─────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .12s ease;
+}
+.btn-primary {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 12px 19px;
+}
+.btn-primary:hover { background: #000; }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary .arr { transition: transform .16s ease; }
+.btn-primary:hover .arr { transform: translateX(3px); }
+.btn-sm { padding: 9px 15px; }
+.btn-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn-text .arr { transition: transform .16s ease; color: var(--ink-3); }
+.btn-text:hover .arr { transform: translateX(3px); color: var(--ink-2); }
+
+/* ── HERO ────────────────────────────────────────────── */
+.hero {
+  padding: 78px 0 28px;
+  text-align: left;
+}
+.hero h1.eyebrow { margin: 0; }
+.hero .hero-display {
+  margin-top: 14px;
+  text-align: left;
+  max-width: 21.1ch;
+  font-size: 39px;
+  font-weight: 600;
+  line-height: 1.27;
+  letter-spacing: -0.034em;
+  color: var(--ink);
+}
+.hero .lead {
+  margin-top: 12px;
+  text-align: left;
+  max-width: 42ch;
+  font-size: var(--t-lead);
+  line-height: 1.56;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+.hero-cta {
+  margin-top: 22px;
+  display: flex;
+  gap: 20px;
+}
+.hero-works {
+  margin-top: 24px;
+  font-size: var(--t-mono);
+  font-family: var(--mono);
+  letter-spacing: 0.01em;
+  color: var(--ink-3);
+}
+
+/* ── HERO VIDEO ──────────────────────────────────────── */
+.hero-visual { margin: 56px 0 0; }
+.videocard {
+  position: relative;
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-lift);
+  overflow: hidden;
+}
+.videocard .vid {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.vid-loading {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px 7px 11px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(20,18,16,.62);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  transition: opacity .45s ease;
+}
+.videocard.ready .vid-loading { opacity: 0; pointer-events: none; }
+.spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255,255,255,.32);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.vid-controls {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 8px;
+}
+.vid-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(20,18,16,.62);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  padding: 8px 13px;
+  line-height: 1;
+  transition: background .14s ease, border-color .14s ease, opacity .14s ease;
+}
+.vid-btn:hover { background: rgba(20,18,16,.84); }
+.vid-btn svg { display: block; }
+.vid-btn.cc-off { opacity: .48; }
+.vid-btn .ic-sound { display: none; }
+.videocard.sound-on .vid-btn .ic-muted { display: none; }
+.videocard.sound-on .vid-btn .ic-sound { display: block; }
+
+.vid-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 62px;
+  transform: translateX(-50%);
+  max-width: 78%;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 450;
+  line-height: 1.45;
+  pointer-events: none;
+}
+.vid-caption span {
+  color: #fff;
+  background: rgba(20,18,16,.74);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 4px 9px;
+  border-radius: 5px;
+}
+.vid-caption:empty,
+.vid-caption.cc-hidden { display: none; }
+
+.vid-play {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20,18,16,.3);
+  cursor: pointer;
+}
+.videocard.needs-play .vid-play { display: flex; }
+.vid-play span {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 22px rgba(0,0,0,.28);
+}
+.hero-cap {
+  margin-top: 20px;
+  text-align: center;
+  font-size: var(--t-sm);
+  color: var(--ink-3);
+}
+
+/* ── SECTION SCAFFOLD ────────────────────────────────── */
+section { padding: 116px 0; }
+.sec-head { max-width: 30ch; }
+.sec-head.center { max-width: 38ch; margin: 0 auto; text-align: center; }
+.sec-head h2 {
+  margin-top: 16px;
+  font-size: var(--t-h2);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+.sec-head p {
+  margin-top: 18px;
+  font-size: var(--t-lead);
+  line-height: 1.56;
+  color: var(--ink-2);
+}
+.sec-head.center p { margin-left: auto; margin-right: auto; max-width: 52ch; }
+
+/* ── INSTALL SECTION (sits directly below the hero video) ── */
+#install { padding: 68px 0 96px; }
+.install-grid {
+  display: grid;
+  grid-template-columns: 0.92fr 1.08fr;
+  gap: 72px;
+  align-items: start;
+}
+.install-text h2 {
+  margin-top: 16px;
+  font-size: var(--t-h2);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+.install-text p {
+  margin-top: 18px;
+  font-size: var(--t-lead);
+  line-height: 1.56;
+  color: var(--ink-2);
+}
+.install-right {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* big copy-able command line */
+.install-cmd {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--terminal);
+  border: 1px solid #322D27;
+  border-radius: var(--r);
+  padding: 14px 14px 14px 20px;
+  box-shadow: var(--sh-card);
+}
+.install-cmd .pr { color: #6E665C; font-family: var(--mono); font-size: var(--t-mono); }
+.install-cmd .cmd {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.9375rem;
+  color: #EDE8E0;
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.install-cmd .cmd::-webkit-scrollbar { display: none; }
+.install-cmd .copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  color: #8E867B;
+  background: #262119;
+  border: 1px solid #322D27;
+  border-radius: 6px;
+  padding: 7px 11px;
+  cursor: pointer;
+  transition: color .14s, background .14s;
+}
+.install-cmd .copy:hover { color: #E8E3DA; background: #2E2922; }
+.install-cmd .copy.done { color: #5FB87A; }
+
+/* fine-print under the command */
+.install-fine {
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+.install-fine code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 7px;
+  color: var(--ink);
+}
+.install-fine strong { color: var(--ink); font-weight: 600; }
+
+/* expandable troubleshooting block (Bun-style PATH fixup) */
+.trouble {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--sh-card);
+}
+.trouble[open] { box-shadow: var(--sh-lift); }
+.trouble > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--ink);
+}
+.trouble > summary::-webkit-details-marker { display: none; }
+.trouble > summary .chev {
+  margin-left: auto;
+  transition: transform .2s ease;
+  color: var(--ink-3);
+}
+.trouble[open] > summary .chev { transform: rotate(90deg); }
+.trouble-body { padding: 4px 22px 22px; }
+.trouble-step {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.trouble-step:first-child { border-top: 0; padding-top: 6px; }
+.trouble-num {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.trouble-step h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.trouble-step p {
+  margin-top: 4px;
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.trouble-step ul {
+  margin-top: 6px;
+  list-style: none;
+  font-size: var(--t-sm);
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.trouble-step ul li::before { content: "·  "; color: var(--ink-3); }
+.trouble-step code, .trouble-step .mini {
+  font-family: var(--mono);
+  font-size: 0.84em;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 7px;
+  color: var(--ink);
+}
+.trouble-step .mini {
+  display: inline-block;
+  padding: 9px 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #EDE8E0;
+  background: var(--terminal);
+  border-color: #322D27;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* ── CAPABILITIES ────────────────────────────────────── */
+.caps { display: flex; flex-direction: column; gap: 100px; margin-top: 84px; }
+.cap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 76px;
+  align-items: center;
+}
+.cap:nth-child(even) .cap-text { order: 2; }
+.cap-num {
+  font-family: var(--mono);
+  font-size: var(--t-mono);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+}
+.cap-num b { color: var(--accent-ink); font-weight: 500; }
+.cap-ask {
+  margin-top: 20px;
+  font-size: 1.5rem;
+  line-height: 1.34;
+  letter-spacing: -0.02em;
+  font-weight: 450;
+  color: var(--ink);
+}
+.cap-do {
+  margin-top: 22px;
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.cap-do .verb { color: var(--accent); font-weight: 600; }
+.cap-note {
+  margin-top: 12px;
+  max-width: 40ch;
+  font-size: var(--t-body);
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.artifact {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-card);
+  aspect-ratio: 4 / 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px;
+}
+.artifact-chip {
+  width: 58px; height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+}
+.artifact-label {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.artifact-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.artifact-meta .ph {
+  width: 6px; height: 6px;
+  border-radius: 2px;
+  border: 1px solid var(--line-2);
+}
+
+/* ── SET UP (agents message, no terminal - install lives above) ── */
+.setup-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  max-width: 56ch;
+  margin: 0 auto;
+  text-align: center;
+}
+.agents {
+  margin-top: 26px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  justify-content: center;
+}
+.agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--t-sm);
+  font-weight: 450;
+  color: var(--ink-2);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px;
+}
+.agent::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ── CLOSING ─────────────────────────────────────────── */
+.closing { text-align: center; }
+.closing h2 {
+  font-size: var(--t-h2);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  max-width: 18ch;
+  margin: 16px auto 0;
+}
+.closing p {
+  margin: 18px auto 0;
+  max-width: 50ch;
+  font-size: var(--t-lead);
+  color: var(--ink-2);
+}
+.closing .hero-cta { margin-top: 30px; justify-content: center; }
+.cmdline {
+  margin: 22px auto 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: var(--t-mono);
+  color: var(--ink-2);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 10px 10px 10px 15px;
+}
+.cmdline .copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 9px;
+  cursor: pointer;
+  transition: background .14s, color .14s;
+}
+.cmdline .copy:hover { background: var(--white); color: var(--ink); }
+.cmdline .copy.done { color: #15803d; }
+
+/* ── FOOTER ──────────────────────────────────────────── */
+footer {
+  background: var(--ink);
+  color: #BDB6AC;
+  padding: 60px 0 52px;
+}
+.foot-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.foot-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--paper);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+.foot-brand .mark { width: 22px; height: 22px; }
+.foot-links { display: flex; gap: 28px; flex-wrap: wrap; }
+.foot-links a {
+  font-size: var(--t-sm);
+  color: #BDB6AC;
+  text-decoration: none;
+  transition: color .14s;
+}
+.foot-links a:hover { color: var(--paper); }
+.foot-rule {
+  height: 1px;
+  background: #322D27;
+  margin: 36px 0 22px;
+}
+.foot-fine {
+  font-size: var(--t-sm);
+  color: #7C7468;
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .nav-links a.nav-hide { display: none; }
+  .cap { grid-template-columns: 1fr; gap: 30px; }
+  .cap:nth-child(even) .cap-text { order: 0; }
+  .install-grid { grid-template-columns: 1fr; gap: 40px; }
+  .caps { gap: 72px; margin-top: 60px; }
+  section { padding: 86px 0; }
+  #install { padding: 48px 0 72px; }
+}
+@media (max-width: 620px) {
+  .wrap { padding: 0 22px; }
+  .hero { padding: 52px 0 20px; }
+  .hero .hero-display { font-size: 30px; max-width: 100%; line-height: 1.2; }
+  .hero .lead { max-width: 100%; }
+  .hero-cta { flex-direction: column; gap: 14px; }
+  .hero-cta .btn-primary { width: 100%; justify-content: center; }
+  .hero-visual { margin-top: 40px; }
+  .vid-caption { font-size: 12.5px; bottom: 50px; max-width: 88%; }
+  .vid-btn { font-size: 11.5px; padding: 7px 10px; }
+  .vid-controls { right: 10px; bottom: 10px; gap: 6px; }
+  .vid-loading { left: 10px; bottom: 10px; }
+  .install-cmd { padding: 12px 12px 12px 14px; }
+  .install-cmd .cmd { font-size: 0.84rem; }
+  .cap-ask { font-size: 1.3rem; }
+  section { padding: 72px 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ NAV ══════════════════════════════════════════════ -->
+<nav class="nav" id="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top">SmallDocs</a>
+    <div class="nav-links">
+      <a href="#capabilities" class="nav-hide">How it works</a>
+      <a href="#install" class="nav-hide">Install</a>
+      <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener" class="nav-hide">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="#install">Install SmallDocs</a>
+    </div>
+  </div>
+</nav>
+
+<span id="top"></span>
+
+<!-- ═══ HERO ═════════════════════════════════════════════ -->
+<header class="hero">
+  <div class="wrap">
+    <h1 class="eyebrow">The office suite for coding agents</h1>
+    <p class="hero-display">You could be getting more from your agents.</p>
+    <p class="lead">
+      SmallDocs unlocks unparalleled analysis, collaboration and
+      communication for agents &amp; the people using them.
+    </p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#install">
+        Install SmallDocs
+        <svg class="arr" width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8h9M8.5 3.5L13 8l-4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a class="btn-text" href="#capabilities">
+        See how it works
+        <svg class="arr" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v9M4 8.5L8 12.5l4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </div>
+    <p class="hero-works">Compatible with Claude &middot; Codex &middot; Gemini &middot; opencode</p>
+
+    <div class="hero-visual">
+      <div class="videocard" id="videocard">
+        <video class="vid" id="heroVid" muted loop autoplay playsinline preload="auto" poster="/public/homepage/demo-poster.jpg">
+          <source src="/public/homepage/demo-web.mp4" type="video/mp4">
+        </video>
+        <div class="vid-caption" id="heroCap" aria-live="polite"></div>
+        <div class="vid-loading"><span class="spinner"></span>Loading</div>
+        <div class="vid-controls">
+          <button class="vid-btn" id="ccBtn" type="button" aria-pressed="true" title="Subtitles">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.3" y="3" width="13.4" height="10" rx="2.4" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 6.7a1.7 1.7 0 1 0 0 2.6M11.3 6.7a1.7 1.7 0 1 0 0 2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            CC
+          </button>
+          <button class="vid-btn" id="muteBtn" type="button" title="Unmute">
+            <svg class="ic-muted" width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2.5 6v4h2.2L8 12.6V3.4L4.7 6H2.5z" fill="currentColor"/><path d="M11 6l3 4M14 6l-3 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <svg class="ic-sound" width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2.5 6v4h2.2L8 12.6V3.4L4.7 6H2.5z" fill="currentColor"/><path d="M10.6 5.6a3.3 3.3 0 0 1 0 4.8M12.6 3.8a6 6 0 0 1 0 8.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="lbl">Unmute</span>
+          </button>
+        </div>
+        <div class="vid-play" id="playOverlay" title="Play">
+          <span><svg width="24" height="24" viewBox="0 0 16 16"><path d="M5 3.1l8 4.9-8 4.9z" fill="#1B1815"/></svg></span>
+        </div>
+      </div>
+      <p class="hero-cap">A SmallDoc is a single link. Anyone you send it to can read it.</p>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ INSTALL (sits directly below the hero video) ═════ -->
+<section id="install">
+  <div class="wrap">
+    <div class="install-grid">
+      <div class="install-text">
+        <span class="eyebrow">Install</span>
+        <h2>One command. No npm, no root.</h2>
+        <p>
+          npm&rsquo;s global folder is often owned by root, so a regular
+          install crashes with a permission error; this script writes into
+          a folder you own under your home directory instead.
+        </p>
+      </div>
+      <div class="install-right">
+        <div class="install-cmd">
+          <span class="pr">$</span>
+          <span class="cmd">curl -fsSL https://smalldocs.org/install | sh</span>
+          <button class="copy" data-copy="curl -fsSL https://smalldocs.org/install | sh">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 10.5H3a1.5 1.5 0 0 1-1.5-1.5V3A1.5 1.5 0 0 1 3 1.5h6A1.5 1.5 0 0 1 10.5 3v.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <span class="lbl">Copy</span>
+          </button>
+        </div>
+        <p class="install-fine">
+          Needs Node.js. Runs on macOS and Linux.
+          <strong>Prefer npm?</strong> <code>npm i -g sdocs-dev</code> still works as a fallback.
+        </p>
+
+        <details class="trouble">
+          <summary>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v3.6M8 5.2v.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <span>If <code>sdoc</code> isn&rsquo;t found after installing, add it to your PATH</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <div class="trouble-body">
+            <div class="trouble-step">
+              <div class="trouble-num">1</div>
+              <div>
+                <h4>Check which shell you&rsquo;re using</h4>
+                <p>Run this in your terminal:</p>
+                <div class="mini">echo $SHELL
+# /bin/zsh  or  /bin/bash  or  /usr/bin/fish</div>
+              </div>
+            </div>
+            <div class="trouble-step">
+              <div class="trouble-num">2</div>
+              <div>
+                <h4>Open your shell&rsquo;s config file</h4>
+                <ul>
+                  <li>bash &middot; <code>~/.bashrc</code></li>
+                  <li>zsh &middot; <code>~/.zshrc</code></li>
+                  <li>fish &middot; <code>~/.config/fish/config.fish</code></li>
+                </ul>
+              </div>
+            </div>
+            <div class="trouble-step">
+              <div class="trouble-num">3</div>
+              <div>
+                <h4>Add the SmallDocs directory to PATH</h4>
+                <p>Add this line to that file (fish users see below):</p>
+                <div class="mini">export PATH="$HOME/.sdocs/bin:$PATH"</div>
+                <p style="margin-top:10px">For fish, use:</p>
+                <div class="mini">fish_add_path $HOME/.sdocs/bin</div>
+              </div>
+            </div>
+            <div class="trouble-step">
+              <div class="trouble-num">4</div>
+              <div>
+                <h4>Reload your shell</h4>
+                <p>Either open a new terminal window, or run:</p>
+                <div class="mini">source ~/.zshrc   # or ~/.bashrc</div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CAPABILITIES ═════════════════════════════════════ -->
+<section id="capabilities">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow">What it makes</span>
+      <h2>Ask. SmallDocs makes it.</h2>
+      <p>
+        It&rsquo;s an office suite your existing coding agents use to produce
+        beautiful, sharable artifacts, fresh power for how your team
+        collaborates and communicates.
+      </p>
+    </div>
+
+    <div class="caps">
+
+      <article class="cap">
+        <div class="cap-text">
+          <div class="cap-num">01 <b>/</b> DIAGRAMS</div>
+          <p class="cap-ask">&ldquo;What&rsquo;s the architecture of our email service?&rdquo;</p>
+          <p class="cap-do">SmallDocs <span class="verb">renders</span> it.</p>
+          <p class="cap-note">
+            Your agent already knows the codebase. It hands back a clean,
+            zoomable architecture diagram instead of a wall of prose.
+          </p>
+        </div>
+        <div class="cap-visual">
+          <div class="artifact">
+            <span class="artifact-chip">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="8.5" y="2.5" width="7" height="5" rx="1.4" stroke="currentColor" stroke-width="1.5"/><rect x="2.5" y="16.5" width="7" height="5" rx="1.4" stroke="currentColor" stroke-width="1.5"/><rect x="14.5" y="16.5" width="7" height="5" rx="1.4" stroke="currentColor" stroke-width="1.5"/><path d="M12 7.5v4M12 11.5H6v5M12 11.5h6v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="artifact-label">Architecture diagram</span>
+            <span class="artifact-meta"><span class="ph"></span>placeholder</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="cap">
+        <div class="cap-text">
+          <div class="cap-num">02 <b>/</b> CHARTS</div>
+          <p class="cap-ask">&ldquo;How many merge requests did we get into prod last quarter?&rdquo;</p>
+          <p class="cap-do">SmallDocs <span class="verb">charts</span> it.</p>
+          <p class="cap-note">
+            The numbers come back as a chart you read at a glance, not a
+            paragraph you have to parse line by line.
+          </p>
+        </div>
+        <div class="cap-visual">
+          <div class="artifact">
+            <span class="artifact-chip">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 20.5h16.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="5.5" y="12.5" width="3.6" height="6" rx="0.8" stroke="currentColor" stroke-width="1.5"/><rect x="10.7" y="7.5" width="3.6" height="11" rx="0.8" stroke="currentColor" stroke-width="1.5"/><rect x="15.9" y="3.5" width="3.6" height="15" rx="0.8" stroke="currentColor" stroke-width="1.5"/></svg>
+            </span>
+            <span class="artifact-label">Chart</span>
+            <span class="artifact-meta"><span class="ph"></span>placeholder</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="cap">
+        <div class="cap-text">
+          <div class="cap-num">03 <b>/</b> SLIDES</div>
+          <p class="cap-ask">&ldquo;Produce a slide deck for this week&rsquo;s all-hands.&rdquo;</p>
+          <p class="cap-do">SmallDocs <span class="verb">builds</span> it.</p>
+          <p class="cap-note">
+            A complete deck from a single prompt, formatted and ready to
+            present without opening another tool.
+          </p>
+        </div>
+        <div class="cap-visual">
+          <div class="artifact">
+            <span class="artifact-chip">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="4.5" width="18" height="11.5" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M12 16v4M8 20h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </span>
+            <span class="artifact-label">Slide deck</span>
+            <span class="artifact-meta"><span class="ph"></span>placeholder</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="cap">
+        <div class="cap-text">
+          <div class="cap-num">04 <b>/</b> DOCUMENTS</div>
+          <p class="cap-ask">&ldquo;Sales needs documentation for the proposed integration.&rdquo;</p>
+          <p class="cap-do">SmallDocs <span class="verb">formats</span> it.</p>
+          <p class="cap-note">
+            Rough notes become a styled document, on brand and ready to send
+            as a link the moment it&rsquo;s done.
+          </p>
+        </div>
+        <div class="cap-visual">
+          <div class="artifact">
+            <span class="artifact-chip">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6 2.5h7L19 8.5v12a1.3 1.3 0 0 1-1.3 1.3H6A1.3 1.3 0 0 1 4.7 20.5v-16.7A1.3 1.3 0 0 1 6 2.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12.8 2.5V8.7H19M8 13h8M8 16.5h8M8 9.5h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </span>
+            <span class="artifact-label">Formatted document</span>
+            <span class="artifact-meta"><span class="ph"></span>placeholder</span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══ AGENTS ═══════════════════════════════════════════ -->
+<section id="setup">
+  <div class="wrap setup-grid">
+    <span class="eyebrow">Set up once</span>
+    <h2 style="margin-top:14px;font-size:var(--t-h2);line-height:1.1;letter-spacing:-0.03em">Your agents are already invited</h2>
+    <p style="margin-top:16px;font-size:var(--t-lead);line-height:1.56;color:var(--ink-2)">
+      After install, run <code style="font-family:var(--mono);font-size:.92em;background:var(--white);border:1px solid var(--line);border-radius:5px;padding:2px 7px">sdoc setup</code> once.
+      Your existing coding agents detect SmallDocs and reach for it on their own.
+    </p>
+    <div class="agents">
+      <span class="agent">Claude Code</span>
+      <span class="agent">Codex</span>
+      <span class="agent">Gemini CLI</span>
+      <span class="agent">opencode</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CLOSING ══════════════════════════════════════════ -->
+<section class="closing">
+  <div class="wrap">
+    <span class="eyebrow">Start in a minute</span>
+    <h2>Give your agents a place to do their best work</h2>
+    <p>
+      Install the command-line tool once. From there, SmallDocs becomes part
+      of how your team writes, shares, and presents.
+    </p>
+    <div class="cmdline">
+      <span>curl -fsSL https://smalldocs.org/install | sh</span>
+      <button class="copy" data-copy="curl -fsSL https://smalldocs.org/install | sh">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 10.5H3a1.5 1.5 0 0 1-1.5-1.5V3A1.5 1.5 0 0 1 3 1.5h6A1.5 1.5 0 0 1 10.5 3v.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span class="lbl">Copy</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══════════════════════════════════════════ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <a class="foot-brand" href="#top">
+        <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="var(--paper)"/>
+          <path d="M7.5 8h9M7.5 12h9M7.5 16h5.5" stroke="var(--ink)" stroke-width="1.9" stroke-linecap="round"/>
+        </svg>
+        SmallDocs
+      </a>
+      <div class="foot-links">
+        <a href="#capabilities">How it works</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener">Open source</a>
+      </div>
+    </div>
+    <div class="foot-rule"></div>
+    <p class="foot-fine">
+      smalldocs.org &nbsp;&middot;&nbsp; An office suite for coding agents. The content of every
+      document travels in its link, so nothing is stored on a server.
+    </p>
+  </div>
+</footer>
+
+<script>
+const nav = document.getElementById('nav');
+const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 6);
+window.addEventListener('scroll', onScroll, { passive: true });
+onScroll();
+
+document.querySelectorAll('[data-copy]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(btn.getAttribute('data-copy')); }
+    catch (e) { /* clipboard blocked */ }
+    const lbl = btn.querySelector('.lbl');
+    const original = lbl ? lbl.textContent : '';
+    btn.classList.add('done');
+    if (lbl) lbl.textContent = 'Copied';
+    setTimeout(() => {
+      btn.classList.remove('done');
+      if (lbl) lbl.textContent = original;
+    }, 1600);
+  });
+});
+
+/* Hero video: muted autoplay, click to unmute (restarts from start with sound).
+   Captions are custom-rendered so they match the page type; cues below are
+   placeholder text until the real transcript lands. */
+(function () {
+  const card = document.getElementById('videocard');
+  const vid  = document.getElementById('heroVid');
+  if (!card || !vid) return;
+
+  const muteBtn = document.getElementById('muteBtn');
+  const ccBtn   = document.getElementById('ccBtn');
+  const cap     = document.getElementById('heroCap');
+  const playOv  = document.getElementById('playOverlay');
+
+  const cues = [
+    { t0: 0.5,   t1: 5.5,   text: 'Placeholder caption - first line of the demo.' },
+    { t0: 5.5,   t1: 12.0,  text: 'These lines are stand-ins until the real transcript lands.' },
+    { t0: 12.0,  t1: 19.0,  text: 'A cue is just a start time, an end time and some text.' },
+    { t0: 19.0,  t1: 27.0,  text: 'Captions show by default while the video is muted.' },
+    { t0: 27.0,  t1: 35.0,  text: 'Press unmute and the video restarts from the top with sound.' },
+    { t0: 70.0,  t1: 78.0,  text: 'Placeholder caption around the one-minute mark.' },
+    { t0: 130.0, t1: 138.0, text: 'Placeholder caption around the two-minute mark.' },
+    { t0: 185.0, t1: 193.0, text: 'Placeholder caption near the end of the demo.' }
+  ];
+
+  vid.addEventListener('playing', () => card.classList.add('ready'), { once: true });
+
+  const tryPlay = () => {
+    const p = vid.play();
+    if (p && p.catch) p.catch(() => card.classList.add('needs-play'));
+  };
+  tryPlay();
+  playOv.addEventListener('click', () => {
+    card.classList.remove('needs-play');
+    tryPlay();
+  });
+
+  muteBtn.addEventListener('click', () => {
+    if (vid.muted) {
+      vid.muted = false;
+      vid.loop = false;
+      vid.currentTime = 0;
+      vid.play();
+      card.classList.add('sound-on');
+      muteBtn.querySelector('.lbl').textContent = 'Mute';
+      muteBtn.title = 'Mute';
+    } else {
+      vid.muted = true;
+      card.classList.remove('sound-on');
+      muteBtn.querySelector('.lbl').textContent = 'Unmute';
+      muteBtn.title = 'Unmute';
+    }
+  });
+
+  ccBtn.addEventListener('click', () => {
+    const on = ccBtn.getAttribute('aria-pressed') === 'true';
+    ccBtn.setAttribute('aria-pressed', String(!on));
+    ccBtn.classList.toggle('cc-off', on);
+    cap.classList.toggle('cc-hidden', on);
+  });
+
+  let shown;
+  vid.addEventListener('timeupdate', () => {
+    const t = vid.currentTime;
+    const cue = cues.find(c => t >= c.t0 && t < c.t1) || null;
+    if (cue === shown) return;
+    shown = cue;
+    cap.innerHTML = cue
+      ? '<span>' + cue.text.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>'
+      : '';
+  });
+})();
+</script>
+
+</body>
+</html>
