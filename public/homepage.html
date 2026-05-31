@@ -172,6 +172,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   text-align: left;
 }
 .hero h1.eyebrow { margin: 0; }
+.hero h1.eyebrow::before { display: none; }
 .hero .hero-display {
   margin-top: 14px;
   text-align: left;
@@ -825,11 +826,11 @@ footer {
     <div class="install-grid">
       <div class="install-text">
         <span class="eyebrow">Install</span>
-        <h2>One command. No npm, no root.</h2>
+        <h2>Install SmallDocs.</h2>
         <p>
-          npm&rsquo;s global folder is often owned by root, so a regular
-          install crashes with a permission error; this script writes into
-          a folder you own under your home directory instead.
+          SmallDocs is open source and free to use. It installs as a small
+          command-line tool under your home directory. Runs on macOS and
+          Linux.
         </p>
       </div>
       <div class="install-right">
@@ -842,14 +843,33 @@ footer {
           </button>
         </div>
         <p class="install-fine">
-          Needs Node.js. Runs on macOS and Linux.
-          <strong>Prefer npm?</strong> <code>npm i -g sdocs-dev</code> still works as a fallback.
+          Needs Node.js. Prefer npm? <code>npm i -g sdocs-dev</code> works too.
         </p>
 
         <details class="trouble">
           <summary>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v3.6M8 5.2v.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-            <span>If <code>sdoc</code> isn&rsquo;t found after installing, add it to your PATH</span>
+            <span>Why a custom install script</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <div class="trouble-body">
+            <div class="trouble-step" style="grid-template-columns: 1fr">
+              <div>
+                <p>
+                  npm&rsquo;s global folder is usually owned by root, so a
+                  regular install can fail with a permission error. This
+                  script installs SmallDocs into <code>~/.sdocs</code>, a
+                  folder you own, so it doesn&rsquo;t need <code>sudo</code>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="trouble">
+          <summary>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.2v3.6M8 5.2v.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <span>If <code>sdoc</code> isn&rsquo;t found, add it to your PATH</span>
             <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </summary>
           <div class="trouble-body">
