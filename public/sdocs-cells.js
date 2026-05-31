@@ -189,10 +189,26 @@
     };
   }
 
+  // Display formatting for a numeric raw string: group the integer part with
+  // thousands separators, preserve the sign and the decimal part verbatim
+  // (so "1234.50" keeps its trailing zero). Display only - the model's raw is
+  // untouched, so copy / export still emit the original value.
+  function formatNumber(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    var neg = s.charAt(0) === '-';
+    if (neg) s = s.slice(1);
+    var dot = s.indexOf('.');
+    var intPart = dot === -1 ? s : s.slice(0, dot);
+    var rest = dot === -1 ? '' : s.slice(dot);
+    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (neg ? '-' : '') + intPart + rest;
+  }
+
   exports.colName = colName;
   exports.classify = classify;
   exports.parseCsv = parseCsv;
   exports.parseCells = parseCells;
   exports.serializeCsv = serializeCsv;
   exports.selectionStats = selectionStats;
+  exports.formatNumber = formatNumber;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocCells = {}));
