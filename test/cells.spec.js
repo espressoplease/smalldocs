@@ -437,6 +437,16 @@ test('dragging a column header resize handle widens the column', async ({ page }
   expect(after).toBeGreaterThan(before + 50);
 });
 
+test('a detected text header row is styled bold; numeric-only sheets are not', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Region,Q1', 'North,100', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await expect(page.locator('.sdoc-cells-cell[data-r="0"][data-c="0"]')).toHaveClass(/is-header/);
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"].is-header').count()).toBe(0);
+  await loadDoc(page, [FENCE + 'cells', '1,2', '3,4', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-cell.is-header').count()).toBe(0); // no header in numeric-only
+});
+
 test('export inlines the grid as a real table', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Region,Q1', 'North,100', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');

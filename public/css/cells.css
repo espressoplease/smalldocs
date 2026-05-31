@@ -228,6 +228,7 @@ body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
 .sdoc-cells-cell.is-text   { justify-content: flex-start; }
 .sdoc-cells-cell.is-empty  { min-width: var(--sdoc-cells-col-min, 64px); }
 .sdoc-cells-cell.is-negative { color: #d64545; }   /* muted red for negatives */
+.sdoc-cells-cell.is-header   { font-weight: 600; }  /* a detected header row */
 
 /* ── Selection (sdocs-cells-select.js) ──────────────────── */
 /* The selection box is the focus cue, so suppress the default focus ring. */
