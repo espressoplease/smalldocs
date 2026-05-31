@@ -85,6 +85,7 @@
     for (var c = 0; c < cols; c++) {
       var ch = document.createElement('div');
       ch.className = 'sdoc-cells-colhead';
+      ch.dataset.c = String(c);
       ch.textContent = CELLS.colName(c);
       grid.appendChild(ch);
     }
@@ -92,6 +93,7 @@
     for (var r = 0; r < rows; r++) {
       var rh = document.createElement('div');
       rh.className = 'sdoc-cells-rowhead';
+      rh.dataset.r = String(r);
       rh.textContent = String(r + 1);
       grid.appendChild(rh);
       var line = model.cells[r];
@@ -119,6 +121,10 @@
     // Watch for a space-reserving scrollbar; toggles .has-xscroll so the
     // closing line under the last row is drawn only when needed.
     if (overflowRO) overflowRO.observe(scroll);
+
+    // Click-to-select + keyboard navigation (sdocs-cells-select.js). Late
+    // binding so load order between the two modules does not matter.
+    if (S.wireCellsSelection) S.wireCellsSelection(wrapper, grid, scroll, rows, cols);
 
     if (truncated) {
       var note = document.createElement('div');

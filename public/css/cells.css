@@ -99,9 +99,11 @@
 
 /* Freeze the header row and the row-number column. Inline this is inert;
  * in the scrolling fullscreen view it keeps headers in sight. */
-.sdoc-cells-colhead { position: sticky; top: 0; z-index: 1; }
-.sdoc-cells-rowhead { position: sticky; left: 0; justify-content: flex-end; line-height: 0; }
-.sdoc-cells-corner  { position: sticky; top: 0; left: 0; z-index: 2; }
+/* z-index: sticky headers (2) sit above the active-cell box (1) so they keep
+ * covering scrolled cells; the corner (3) sits above both. */
+.sdoc-cells-colhead { position: sticky; top: 0; z-index: 2; }
+.sdoc-cells-rowhead { position: sticky; left: 0; justify-content: flex-end; line-height: 0; z-index: 2; }
+.sdoc-cells-corner  { position: sticky; top: 0; left: 0; z-index: 3; }
 
 /* Data cells wrap: a very long value, or one with an embedded newline /
  * <br>, grows the row instead of stretching the column past the cap. The
@@ -110,10 +112,42 @@
   max-width: var(--sdoc-cells-max-col, 18rem);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  cursor: default;       /* standard pointer (matches Google Sheets), not a text caret */
+  user-select: none;     /* clicking selects the cell, doesn't drag-select text */
 }
 .sdoc-cells-cell.is-number { justify-content: flex-end; }
 .sdoc-cells-cell.is-text   { justify-content: flex-start; }
 .sdoc-cells-cell.is-empty  { min-width: 48px; }
+
+/* ── Selection (sdocs-cells-select.js) ──────────────────── */
+/* The selection box is the focus cue, so suppress the default focus ring. */
+.sdoc-cells-grid:focus { outline: none; }
+
+/* Active cell: faint accent wash + a 2px inset accent box. position+z-index
+ * lift it above plain neighbours (but below the sticky headers). */
+.sdoc-cells-cell.is-active {
+  background: color-mix(in oklab, var(--md-bg, #fff) 90%, var(--sdoc-cells-accent) 10%);
+  box-shadow: inset 0 0 0 2px var(--sdoc-cells-accent);
+  position: relative;
+  z-index: 1;
+}
+
+/* Range cells: the same faint wash; the accent outline around the range is
+ * applied as an inline box-shadow on the edge cells by the selection JS. */
+.sdoc-cells-cell.in-range {
+  background: color-mix(in oklab, var(--md-bg, #fff) 90%, var(--sdoc-cells-accent) 10%);
+  position: relative;
+  z-index: 1;
+}
+
+/* Axis highlight: the active cell's column letter and row number light up
+ * with a stronger green wash + bold accent text, echoing the cell. */
+.sdoc-cells-colhead.is-active-col,
+.sdoc-cells-rowhead.is-active-row {
+  background: color-mix(in oklab, var(--md-bg, #fff) 72%, var(--sdoc-cells-accent) 28%);
+  color: color-mix(in oklab, var(--md-color, #1c1917) 38%, var(--sdoc-cells-accent) 62%);
+  font-weight: 700;
+}
 
 .sdoc-cells-note {
   padding: 4px 9px;
