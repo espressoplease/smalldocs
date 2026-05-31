@@ -8,7 +8,7 @@ module.exports = function(harness) {
 
   console.log('\n── Cells Model Tests ──────────────────────────\n');
 
-  const { colName, classify, parseCsv, parseCells, serializeCsv, selectionStats, formatNumber } = require('../public/sdocs-cells');
+  const { colName, classify, parseCsv, parseCells, serializeCsv, selectionStats, formatNumber, parseFormats, formatValue, colIndex } = require('../public/sdocs-cells');
 
   // ── Column names (bijective base-26) ──
   test('colName: first columns', () => {
@@ -136,6 +136,67 @@ module.exports = function(harness) {
     const src = 'name,note\n"Smith, J","a ""quote""\nline"\nplain,42';
     const rows = parseCsv(src);
     assert.strictEqual(serializeCsv(rows), src);
+  });
+
+  // ── Column format directives (author-controlled, display only) ──
+  test('colIndex: letters to 0-based index', () => {
+    assert.strictEqual(colIndex('A'), 0);
+    assert.strictEqual(colIndex('B'), 1);
+    assert.strictEqual(colIndex('Z'), 25);
+    assert.strictEqual(colIndex('AA'), 26);
+  });
+
+  test('parseFormats: parses per-column format spec', () => {
+    const f = parseFormats('A=plain B=$ C=% D=,');
+    assert.strictEqual(f[0].kind, 'plain');
+    assert.strictEqual(f[1].kind, 'currency');
+    assert.strictEqual(f[1].symbol, '$');
+    assert.strictEqual(f[1].decimals, 2);
+    assert.strictEqual(f[2].kind, 'percent');
+    assert.strictEqual(f[3].kind, 'number');
+  });
+
+  test('parseFormats: currency symbols and decimal overrides', () => {
+    const f = parseFormats('A=£ B=$.0 C=%.1 D=.2');
+    assert.strictEqual(f[0].symbol, '£');
+    assert.strictEqual(f[1].decimals, 0);
+    assert.strictEqual(f[2].kind, 'percent');
+    assert.strictEqual(f[2].decimals, 1);
+    assert.strictEqual(f[3].kind, 'number');
+    assert.strictEqual(f[3].decimals, 2);
+  });
+
+  test('formatValue: currency', () => {
+    assert.strictEqual(formatValue(classify('12000'), { kind: 'currency', symbol: '$', decimals: 2 }), '$12,000.00');
+    assert.strictEqual(formatValue(classify('-1200'), { kind: 'currency', symbol: '$', decimals: 2 }), '-$1,200.00');
+    assert.strictEqual(formatValue(classify('5'), { kind: 'currency', symbol: '£', decimals: 0 }), '£5');
+  });
+
+  test('formatValue: percent multiplies by 100', () => {
+    assert.strictEqual(formatValue(classify('0.23'), { kind: 'percent' }), '23%');
+    assert.strictEqual(formatValue(classify('0.2356'), { kind: 'percent', decimals: 1 }), '23.6%');
+  });
+
+  test('formatValue: plain returns the raw (no separators - good for years/ids)', () => {
+    assert.strictEqual(formatValue(classify('2024'), { kind: 'plain' }), '2024');
+  });
+
+  test('formatValue: number with fixed decimals', () => {
+    assert.strictEqual(formatValue(classify('3.14159'), { kind: 'number', decimals: 2 }), '3.14');
+    assert.strictEqual(formatValue(classify('12000'), { kind: 'number' }), '12,000');
+  });
+
+  test('formatValue: text cells get no number format', () => {
+    assert.strictEqual(formatValue(classify('Region'), { kind: 'currency', symbol: '$' }), null);
+  });
+
+  test('parseCells: peels a format: directive into model.formats', () => {
+    const m = parseCells('format: A=plain B=$\n2024,12000\n2025,15000');
+    assert.ok(m.formats);
+    assert.strictEqual(m.formats[0].kind, 'plain');
+    assert.strictEqual(m.formats[1].kind, 'currency');
+    assert.strictEqual(m.rows, 2);
+    assert.strictEqual(m.cells[0][0].value, 2024);   // the directive line is stripped
   });
 
   // ── Number formatting (display only - raw is preserved) ──

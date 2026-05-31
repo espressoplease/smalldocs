@@ -36,6 +36,19 @@
     return s;
   }
 
+  // Inverse of colName: a column letter -> 0-based index ("A" -> 0, "AA" -> 26).
+  // Returns -1 for anything that isn't a run of A-Z letters.
+  function colIndex(letter) {
+    var s = String(letter).toUpperCase();
+    var n = 0;
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charCodeAt(i) - 64;   // A -> 1
+      if (c < 1 || c > 26) return -1;
+      n = n * 26 + c;
+    }
+    return s.length ? n - 1 : -1;
+  }
+
   // Strict literal number: optional sign, digits, optional single decimal.
   // No thousands separators in v1 - a bare "1,000" is two CSV fields, and a
   // quoted "1,000" stays text rather than guessing the user's locale.
@@ -111,26 +124,33 @@
     var trimmed = text.replace(/^\n+/, '').replace(/\s+$/, '');
     if (trimmed === '') return { rows: 0, cols: 0, cells: [], empty: true };
 
-    // Unresolved reference: the CLI never baked it (e.g. dropped into the
-    // browser directly). Surface the path so the renderer can explain.
-    var ref = trimmed.match(REFERENCE_RE);
-    if (ref) return { empty: false, unresolved: ref[1] };
-
-    // A baked block: strip the metadata line, keep its source / range / error.
-    var source, range;
-    var firstBreak = trimmed.indexOf('\n');
-    var firstLine = firstBreak === -1 ? trimmed : trimmed.slice(0, firstBreak);
-    var dir = firstLine.match(DIRECTIVE_RE);
-    if (dir) {
-      var meta = parseDirectives(dir[1]);
-      source = meta.source;
-      range = meta.range;
-      if (meta.error) return { empty: false, error: meta.error, source: source };
-      trimmed = firstBreak === -1 ? '' : trimmed.slice(firstBreak + 1).replace(/\s+$/, '');
-      if (trimmed === '') return { rows: 0, cols: 0, cells: [], empty: true, source: source, range: range };
+    // Peel leading directive lines (in any order, machine or author):
+    //   sdoc-cells: source=... range=... error=...   (baked metadata)
+    //   format: A=$ B=% C=plain                        (author column formats)
+    var source, range, formats;
+    var lines = trimmed.split('\n');
+    var idx = 0;
+    var FORMAT_RE = /^format:\s*(.*)$/i;
+    while (idx < lines.length) {
+      var dm = lines[idx].match(DIRECTIVE_RE);
+      var fm = lines[idx].match(FORMAT_RE);
+      if (dm) {
+        var meta = parseDirectives(dm[1]);
+        source = meta.source; range = meta.range;
+        if (meta.error) return { empty: false, error: meta.error, source: source };
+        idx++; continue;
+      }
+      if (fm) { formats = parseFormats(fm[1]); idx++; continue; }
+      break;
     }
+    var body = lines.slice(idx).join('\n').replace(/\s+$/, '');
 
-    var raw = parseCsv(trimmed);
+    // Unresolved reference (after directives): the CLI never baked it.
+    var ref = body.match(REFERENCE_RE);
+    if (ref) return { empty: false, unresolved: ref[1], formats: formats };
+    if (body === '') return { rows: 0, cols: 0, cells: [], empty: true, source: source, range: range, formats: formats };
+
+    var raw = parseCsv(body);
     var cols = 0;
     for (var r = 0; r < raw.length; r++) {
       if (raw[r].length > cols) cols = raw[r].length;
@@ -144,7 +164,7 @@
       }
       cells.push(out);
     }
-    return { rows: raw.length, cols: cols, cells: cells, empty: false, source: source, range: range };
+    return { rows: raw.length, cols: cols, cells: cells, empty: false, source: source, range: range, formats: formats };
   }
 
   // Serialize a 2D array of raw cell strings back to CSV (RFC 4180 quoting:
@@ -204,6 +224,62 @@
     return (neg ? '-' : '') + intPart + rest;
   }
 
+  // Parse one format token into a spec: { kind, symbol?, decimals? }.
+  // Tokens: $ / usd / currency, £ / gbp, € / eur, % / percent, , / comma /
+  // number, plain / text / raw, plus an optional trailing .N for decimals
+  // (e.g. "$.0", "%.1", ".2"). Unknown tokens return null.
+  function parseFmtToken(tok) {
+    var t = String(tok).trim();
+    var decimals = null;
+    var dm = t.match(/\.(\d+)$/);
+    if (dm) { decimals = parseInt(dm[1], 10); t = t.slice(0, t.length - dm[0].length); }
+    var lc = t.toLowerCase();
+    if (t === '$' || lc === 'usd' || lc === 'currency') return { kind: 'currency', symbol: '$', decimals: decimals == null ? 2 : decimals };
+    if (t === '£' || lc === 'gbp') return { kind: 'currency', symbol: '£', decimals: decimals == null ? 2 : decimals };
+    if (t === '€' || lc === 'eur') return { kind: 'currency', symbol: '€', decimals: decimals == null ? 2 : decimals };
+    if (t === '%' || lc === 'percent') { var p = { kind: 'percent' }; if (decimals != null) p.decimals = decimals; return p; }
+    if (t === ',' || lc === 'comma' || lc === 'number' || lc === 'num') { var nn = { kind: 'number' }; if (decimals != null) nn.decimals = decimals; return nn; }
+    if (lc === 'plain' || lc === 'text' || lc === 'raw') return { kind: 'plain' };
+    if (t === '' && decimals != null) return { kind: 'number', decimals: decimals };
+    return null;
+  }
+
+  // Parse a per-column format spec like "A=plain B=$ C=%.1" into a map
+  // { colIndex: fmt }. Keys are column letters; unknown tokens are skipped.
+  function parseFormats(spec) {
+    var out = {};
+    var re = /([A-Za-z]+)\s*=\s*(\S+)/g;
+    var m;
+    while ((m = re.exec(spec))) {
+      var col = colIndex(m[1]);
+      var fmt = parseFmtToken(m[2]);
+      if (col >= 0 && fmt) out[col] = fmt;
+    }
+    return out;
+  }
+
+  // Format a numeric cell's display per a column format. Returns null for
+  // non-number cells (the caller falls back to text rendering). Display only -
+  // the model's raw is untouched, so copy / export emit the original.
+  function formatValue(cell, fmt) {
+    if (!cell || cell.type !== 'number') return null;
+    var v = cell.value;
+    if (!fmt || fmt.kind === 'number') {
+      return (fmt && fmt.decimals != null) ? formatNumber(v.toFixed(fmt.decimals)) : formatNumber(cell.raw);
+    }
+    if (fmt.kind === 'plain') return cell.raw;
+    if (fmt.kind === 'currency') {
+      var d = fmt.decimals == null ? 2 : fmt.decimals;
+      return (v < 0 ? '-' : '') + fmt.symbol + formatNumber(Math.abs(v).toFixed(d));
+    }
+    if (fmt.kind === 'percent') {
+      var p = v * 100;
+      var str = fmt.decimals != null ? p.toFixed(fmt.decimals) : String(Math.round(p * 1e6) / 1e6);
+      return formatNumber(str) + '%';
+    }
+    return formatNumber(cell.raw);
+  }
+
   exports.colName = colName;
   exports.classify = classify;
   exports.parseCsv = parseCsv;
@@ -211,4 +287,7 @@
   exports.serializeCsv = serializeCsv;
   exports.selectionStats = selectionStats;
   exports.formatNumber = formatNumber;
+  exports.colIndex = colIndex;
+  exports.parseFormats = parseFormats;
+  exports.formatValue = formatValue;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocCells = {}));

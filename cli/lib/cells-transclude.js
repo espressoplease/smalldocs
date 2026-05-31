@@ -34,24 +34,27 @@ function directiveValue(s) {
   return /\s|"/.test(s) ? JSON.stringify(s) : s;
 }
 
-function bakeBlock(boundary, ref, baseDir, readFile) {
+function bakeBlock(boundary, ref, baseDir, readFile, preLines) {
   var range = '';
   var filePath = ref;
   var rm = ref.match(RANGE_SUFFIX);
   if (rm) { range = rm[1]; filePath = ref.slice(0, ref.length - rm[0].length); }
 
   var base = path.basename(filePath);
+  // Author format: lines (e.g. `format: B=$`) sit before the reference and are
+  // preserved verbatim above the baked data.
+  var head = (preLines && preLines.length ? preLines.join('\n') + '\n' : '');
   var csv;
   try {
     csv = readFile(path.resolve(baseDir, filePath));
   } catch (e) {
-    return boundary + '```cells\nsdoc-cells: error=' +
+    return boundary + '```cells\n' + head + 'sdoc-cells: error=' +
       directiveValue('Could not read ' + base) + '\n```';
   }
   csv = String(csv).replace(/\s+$/, '');
   var directive = 'sdoc-cells: source=' + directiveValue(base) +
     (range ? ' range=' + range : '');
-  return boundary + '```cells\n' + directive + '\n' + csv + '\n```';
+  return boundary + '```cells\n' + head + directive + '\n' + csv + '\n```';
 }
 
 // Replace every {{file.csv}} cells block in `content` with the baked data.
@@ -60,9 +63,15 @@ function transcludeCells(content, baseDir, readFile) {
   if (typeof content !== 'string' || content.indexOf('```cells') === -1) return content;
   var read = readFile || function (p) { return fs.readFileSync(p, 'utf-8'); };
   return content.replace(CELLS_BLOCK, function (whole, boundary, body) {
-    var m = body.trim().match(REFERENCE);
+    // Peel any leading author `format:` lines, then require a sole {{ref}}.
+    var lines = body.split('\n');
+    var pre = [];
+    var i = 0;
+    while (i < lines.length && /^\s*format:\s*/i.test(lines[i])) { pre.push(lines[i].trim()); i++; }
+    var rest = lines.slice(i).join('\n').trim();
+    var m = rest.match(REFERENCE);
     if (!m) return whole;                    // inline data - leave alone
-    return bakeBlock(boundary, m[1], baseDir, read);
+    return bakeBlock(boundary, m[1], baseDir, read, pre);
   });
 }
 

@@ -387,6 +387,24 @@ test('clicking a column header selects the whole column; a row header the whole 
   expect(await page.locator('.sdoc-cells-cell.in-range[data-r="0"]').count()).toBe(0);
 });
 
+test('a format: directive applies currency / percent / plain per column', async ({ page }) => {
+  await loadDoc(page, [
+    FENCE + 'cells',
+    'format: A=plain B=$ C=%',
+    'Year,Revenue,Margin',
+    '2024,12000,0.23',
+    FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').innerText()).toBe('2024');     // plain - no comma on the year
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').innerText()).toBe('$12,000.00'); // currency
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="2"]').innerText()).toBe('23%');        // percent
+  // copy still emits the raw values
+  const html = await page.evaluate(() => window.SDocs.buildExportHTML([]));
+  expect(html).toContain('0.23');
+  expect(html).not.toContain('23%');
+});
+
 test('export inlines the grid as a real table', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Region,Q1', 'North,100', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');

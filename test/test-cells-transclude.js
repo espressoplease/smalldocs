@@ -60,6 +60,15 @@ module.exports = function(harness) {
     assert.ok(out.includes('source=b.csv'));
   });
 
+  test('preserves a leading format: line above a baked reference', () => {
+    const content = '```cells\nformat: B=$\n{{report.csv}}\n```';
+    const out = transcludeCells(content, '/base', reader({ '/base/report.csv': 'a,b\n1,2' }));
+    assert.ok(out.includes('format: B=$'), 'format line kept');
+    assert.ok(out.includes('sdoc-cells: source=report.csv'));
+    assert.ok(out.includes('a,b\n1,2'));
+    assert.ok(!out.includes('{{report.csv}}'));
+  });
+
   test('wrapCsvFile wraps a standalone csv with a source label', () => {
     const out = wrapCsvFile('a,b\n1,2\n', '/x/y/data.csv');
     assert.ok(out.startsWith('```cells\nsdoc-cells: source=data.csv\n'));

@@ -938,6 +938,29 @@ WRAPPING
   quoted cell with a real newline keeps it. Cell content is always plain
   text - markup never renders.
 
+FORMATTING
+  Numbers display with thousands separators and negatives in red by default.
+  An optional first line sets per-column formats by column letter:
+
+  \`\`\`cells
+  format: A=plain B=$ C=%
+  Year,Revenue,Margin
+  2024,12000,0.23
+  \`\`\`
+
+  Renders 2024 (plain - no comma), $12,000.00, 23%.
+
+  Format tokens (keyed by column letter):
+    $ / usd        currency, e.g. $12,000.00   (also £ / gbp, € / eur)
+    %              percent - multiplies by 100, e.g. 0.23 -> 23%
+    , / number     thousands separators (the default)
+    plain / text   no number formatting (good for years, ids, codes)
+    .N suffix      fixed decimals, e.g. $.0 (no cents), %.1, .2
+
+  Formatting is display only - copy and export always emit the original
+  values. This is what makes a cells block more than a CSV: the author
+  chooses how each column reads.
+
 SELECTING
   Click a cell to select it; its column letter and row number light up.
   Drag to select a range; Shift+Click or Shift+Arrow extends it. Arrow
