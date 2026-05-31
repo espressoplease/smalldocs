@@ -69,11 +69,71 @@ async function askAutoRefreshConsent() {
   return !a || a === 'y' || a === 'yes';
 }
 
-async function runSetup({ force = false } = {}) {
+async function runSetup({ force = false, yes = false } = {}) {
   if (!force) {
     if (!process.stdout.isTTY || !process.stdin.isTTY) return;
     if (process.env.CI || process.env.SDOCS_NO_SETUP) return;
     if (readSetupState()) return;
+  }
+
+  // ── --yes (non-interactive) path ───────────────────────────
+  // Pulled out of the detection branch so this is the SINGLE place that
+  // handles every --yes case: fresh install, old block (upgrade), legacy
+  // open-marker (migration), already-current (no-op), no agents at all.
+  // Idempotent by design - an agent or user can re-paste the install prompt
+  // any number of times and the result is a current block in every detected
+  // config, or a clean "nothing to do".
+  if (yes) {
+    // Step 1: refresh any existing outdated / legacy blocks. This is what
+    // closes the gap where re-running setup --yes used to silently no-op
+    // on a stale install.
+    const refreshResults = refreshAllAgentFiles();
+    const refreshedFiles = refreshResults.filter(r => r.changed).map(r => r.path);
+    if (refreshResults.some(r => r.changed)) printRefreshSummary(refreshResults);
+
+    // Step 2: any agent whose config dir exists but doesn't yet have a
+    // block gets one written. Re-detect after refresh because the refresh
+    // step may have flipped some files from "needs block" to "has block".
+    const stillMissing = detectAgents().filter(t => !fileHasBlock(t.filePath));
+    const writtenTo = [];
+    for (const t of stillMissing) {
+      try { writeBookendedBlock(t.filePath); writtenTo.push(t.filePath); console.log(`✓ ${t.name}: ${t.filePath}`); }
+      catch (e) { console.error(`✗ ${t.name}: ${e.message}`); }
+    }
+
+    const affected = [...new Set([...writtenTo, ...refreshedFiles])];
+
+    if (affected.length === 0) {
+      const anyAgentDir = detectAgents().length > 0;
+      writeSetupState({
+        setupCompleted: new Date().toISOString(),
+        writtenTo: [], declined: !anyAgentDir,
+        autoRefreshAgentFiles: anyAgentDir,
+        autoInstallUpdates: false,
+        lastRunVersion: VERSION,
+      });
+      if (anyAgentDir) {
+        console.log('All SDocs agent blocks already at current version. Nothing to do.');
+      } else {
+        console.log('No coding-agent configs detected. Nothing to write.');
+        console.log('Re-run `sdoc setup` (interactive) if you want to include opencode.');
+      }
+      return;
+    }
+
+    writeSetupState({
+      setupCompleted: new Date().toISOString(),
+      writtenTo: affected, declined: false,
+      autoRefreshAgentFiles: true,
+      autoInstallUpdates: false,
+      lastRunVersion: VERSION,
+    });
+    const n = affected.length;
+    const verb = writtenTo.length && refreshedFiles.length
+      ? 'Wrote/refreshed'
+      : (writtenTo.length ? 'Wrote' : 'Refreshed');
+    console.log(`\nDone. ${verb} SDocs block in ${n} ${n === 1 ? 'file' : 'files'}.`);
+    return;
   }
 
   const detected = detectAgents().filter(t => !fileHasBlock(t.filePath));
