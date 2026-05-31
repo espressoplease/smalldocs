@@ -337,6 +337,28 @@ test('fullscreen pads the grid with empty cells past the data', async ({ page })
   expect(await page.locator('.sdoc-cells-focus-value').innerText()).toBe(''); // padded cell is empty
 });
 
+test('fullscreen shows Sum / Avg / Count for a selected range', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b', '10,20', '30,40', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await page.locator('.sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus');
+  // No stats for a single cell.
+  await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  expect((await page.locator('.sdoc-cells-focus-status').innerText()).trim()).toBe('');
+  // Drag the 2x2 numeric block (10,20,30,40).
+  await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="0"]').hover();
+  await page.mouse.down();
+  await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="2"][data-c="1"]').hover();
+  await page.mouse.up();
+  const status = await page.locator('.sdoc-cells-focus-status').innerText();
+  expect(status).toContain('Sum');
+  expect(status).toContain('100');   // 10+20+30+40
+  expect(status).toContain('Avg');
+  expect(status).toContain('25');    // 100 / 4
+  expect(status).toContain('Count');
+  expect(status).toMatch(/Count\D*4/);
+});
+
 test('export inlines the grid as a real table', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Region,Q1', 'North,100', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');

@@ -404,6 +404,30 @@
     }
   }
 
+  // Short numeric display for stats - round to a few decimals, drop trailing
+  // zeros. (Thousands separators come with the number-formatting step.)
+  function fmtStatNum(n) {
+    if (n == null) return '';
+    return String(Math.round(n * 100) / 100);
+  }
+
+  // A "Sum · Avg · Count" line for a selected range (Excel/Sheets status bar).
+  // Empty for nothing / a single cell (the value bar already shows that one).
+  function formatStats(model, sel) {
+    if (!sel || sel.empty) return '';
+    if (sel.single || (sel.r0 === sel.r1 && sel.c0 === sel.c1)) return '';
+    var st = CELLS.selectionStats(model, sel.r0, sel.c0, sel.r1, sel.c1);
+    if (st.count === 0) return '';
+    var parts = [];
+    if (st.numericCount > 0) {
+      parts.push('Sum ' + fmtStatNum(st.sum));
+      parts.push('Avg ' + fmtStatNum(st.avg));
+    }
+    parts.push('Count ' + st.count);
+    return parts.join('   ·   ');
+  }
+  S.formatCellsStats = formatStats;
+
   S.processCells = processCells;
   // Exposed for the fullscreen view + editor to reuse the same renderer.
   S.buildCellsGrid = buildGrid;
