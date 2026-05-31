@@ -5,7 +5,7 @@ file: sdoc.md
 # Meet `sdoc`: Markdown without the frustrations
 
 
-(**TLDR:** `sdoc path/to/README.md` opens your file at https://smalldocs.org with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `curl -fsSL https://smalldocs.org/install.sh | sh`. SDocs is [open-source](https://github.com/espressoplease/SDocs). You're reading markdown right now.)
+(**TLDR:** `sdoc path/to/README.md` opens your file at https://smalldocs.org with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `curl -fsSL https://smalldocs.org/install | sh`. SDocs is [open-source](https://github.com/espressoplease/SDocs). You're reading markdown right now.)
 
 ---
 
@@ -22,7 +22,7 @@ Reading a `.md` file in SmallDocs feels just like this (you're reading markdown 
 Creating a SmallDoc for a `.md` file (+ automatically opening your browser to read it) is as simple as:
 
 ```
-# curl -fsSL https://smalldocs.org/install.sh | sh
+# curl -fsSL https://smalldocs.org/install | sh
 sdoc README.md                # open styled in browser
 sdoc share README.md          # copy shareable link to clipboard
 ```
@@ -35,7 +35,7 @@ From personal experience, SDocs is great for sharing agent debugging reports acr
 Teach [Claude Code](https://docs.anthropic.com/en/docs/claude-code) about `sdoc` so it can read, style, and share `.md` files across all your projects:
 
 ```bash
-curl -fsSL https://smalldocs.org/install.sh | sh
+curl -fsSL https://smalldocs.org/install | sh
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
 <!-- sdocs-agent-block:start v=8 -->
@@ -76,7 +76,7 @@ Or run `sdoc setup` once installed to do this automatically.
 Teach [Codex](https://developers.openai.com/codex) about `sdoc`:
 
 ```bash
-curl -fsSL https://smalldocs.org/install.sh | sh
+curl -fsSL https://smalldocs.org/install | sh
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
 <!-- sdocs-agent-block:start v=8 -->
@@ -117,7 +117,7 @@ Or run `sdoc setup` once installed to do this automatically.
 Teach [Gemini CLI](https://github.com/google-gemini/gemini-cli) about `sdoc`:
 
 ```bash
-curl -fsSL https://smalldocs.org/install.sh | sh
+curl -fsSL https://smalldocs.org/install | sh
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
 <!-- sdocs-agent-block:start v=8 -->
@@ -158,7 +158,7 @@ Or run `sdoc setup` once installed to do this automatically.
 Teach [opencode](https://opencode.ai) about `sdoc`:
 
 ```bash
-curl -fsSL https://smalldocs.org/install.sh | sh
+curl -fsSL https://smalldocs.org/install | sh
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
@@ -596,7 +596,7 @@ The two "local" fields are passed to the browser via a separate URL parameter (`
 SmallDocs has a command-line tool that lets you open, share, and style markdown files from the terminal. Install it with one command:
 
 ```
-curl -fsSL https://smalldocs.org/install.sh | sh
+curl -fsSL https://smalldocs.org/install | sh
 ```
 
 This installs the `sdoc` command under `~/.sdocs`, a directory you own. It needs Node.js already on your machine, but never needs root and never writes to npm's global folder. Re-running the same command upgrades sdoc in place, as does `sdoc upgrade`.

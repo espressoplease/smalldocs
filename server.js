@@ -345,9 +345,9 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // CLI installer script: `curl -fsSL https://smalldocs.org/install.sh | sh`.
+  // CLI installer script: `curl -fsSL https://smalldocs.org/install | sh`.
   // Installs the `sdoc` command under ~/.sdocs without npm or root.
-  if (pathname === '/install.sh') {
+  if (pathname === '/install') {
     serveFile(res, path.join(__dirname, 'install.sh'), { 'Cache-Control': 'no-cache' });
     return;
   }
