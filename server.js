@@ -81,6 +81,7 @@ const MIME = {
   '.gif':  'image/gif',
   '.svg':  'image/svg+xml',
   '.ico':  'image/x-icon',
+  '.mp4':  'video/mp4',
 };
 
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico']);
@@ -349,6 +350,16 @@ const server = http.createServer((req, res) => {
   // Installs the `sdoc` command under ~/.sdocs without npm or root.
   if (pathname === '/install') {
     serveFile(res, path.join(__dirname, 'install.sh'), { 'Cache-Control': 'no-cache' });
+    return;
+  }
+
+  // Marketing landing page. Standalone HTML (no /public/ assets except the
+  // hero video + poster under /public/homepage/), but still routed through
+  // serveHtmlWithRewrite so any future asset additions get cache-busted.
+  if (pathname === '/homepage') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'homepage.html'), null, {
+      'Cache-Control': 'no-cache',
+    });
     return;
   }
 
