@@ -26,6 +26,88 @@
   overflow: hidden;         /* clip the inner scroller to the rounded corners */
 }
 
+/* ── Top toolbar ────────────────────────────────────────
+ * White (standard cell surface) so the chrome stays light - only the axis
+ * letters / numbers are green. Left: selection address. Right: copy actions. */
+.sdoc-cells-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  /* Reserve the height of the bordered dynamic button (border-box global
+   * reset, so this is the full bar height) so the bar doesn't grow the
+   * moment the selection / cell copy button appears. */
+  min-height: 35px;
+  background: var(--md-bg, #ffffff);
+  border-bottom: 1px solid var(--sdoc-cells-line);
+}
+.sdoc-cells-ref {
+  padding-left: 3px;
+  font-size: 0.78em;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 52%, var(--md-bg, #fff) 48%);
+  user-select: none;
+}
+.sdoc-cells-bar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Copy buttons - mirror the comments "copy with comments" ghost button,
+ * with color-mix fallbacks so they hold up if those tokens are absent. */
+.sdoc-cells-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background: transparent;
+  border: 1px solid var(--border, color-mix(in oklab, var(--md-color, #1c1917) 22%, transparent));
+  color: var(--text-2, color-mix(in oklab, var(--md-color, #1c1917) 62%, var(--md-bg, #fff) 38%));
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  font-family: var(--font-ui, inherit);
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.sdoc-cells-copy:hover {
+  background: var(--bg-hover, color-mix(in oklab, var(--md-color, #1c1917) 8%, transparent));
+  color: var(--text, var(--md-color, #1c1917));
+  border-color: var(--border-strong, color-mix(in oklab, var(--md-color, #1c1917) 38%, transparent));
+}
+.sdoc-cells-copy svg { flex-shrink: 0; }
+.sdoc-cells-copy-label { white-space: nowrap; }
+
+/* Whole-sheet copy: a borderless 14px copy icon, matching the code-block
+ * copy button (no border, no label). */
+.sdoc-cells-copy-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 58%, var(--md-bg, #fff) 42%);
+  opacity: 0.75;
+  transition: opacity .15s, background .12s, color .12s;
+}
+.sdoc-cells-copy-icon:hover {
+  opacity: 1;
+  background: var(--md-copy-btn-hover, color-mix(in oklab, var(--md-color, #1c1917) 8%, transparent));
+}
+.sdoc-cells-copy-icon svg { display: block; }
+
+/* Dynamic selection / cell button: match the address label's weight + colour
+ * so "selection" / "cell" reads as light as "B4", not heavier. */
+.sdoc-cells-copy-sel {
+  font-weight: 400;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 52%, var(--md-bg, #fff) 48%);
+}
+
 /* The horizontal scroller. Only the cells scroll; the note below stays put.
  * Thin, subtle scrollbar tinted from the text colour so it themes. When it
  * reserves space (always-on scrollbars), the last row is closed by the

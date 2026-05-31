@@ -109,8 +109,21 @@
     return { rows: raw.length, cols: cols, cells: cells, empty: false };
   }
 
+  // Serialize a 2D array of raw cell strings back to CSV (RFC 4180 quoting:
+  // wrap in quotes and double any embedded quote when a field contains a
+  // comma, quote, or newline). The inverse of parseCsv for the copy actions.
+  function serializeCsv(rows) {
+    return rows.map(function (row) {
+      return row.map(function (v) {
+        var s = String(v == null ? '' : v);
+        return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(',');
+    }).join('\n');
+  }
+
   exports.colName = colName;
   exports.classify = classify;
   exports.parseCsv = parseCsv;
   exports.parseCells = parseCells;
+  exports.serializeCsv = serializeCsv;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocCells = {}));
