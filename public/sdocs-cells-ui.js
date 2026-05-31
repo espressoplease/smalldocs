@@ -67,6 +67,9 @@
   function tickIcon(size) {
     return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
   }
+  // Fullscreen "expand" glyph - the same lucide icon the Mermaid focus button
+  // uses (sdocs-mermaid-focus.js).
+  var EXPAND_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
 
   function rawRows(cells) {
     return cells.map(function (row) {
@@ -151,8 +154,17 @@
       copyText(CELLS.serializeCsv(rawRows(model.cells)), allBtn);
     });
 
+    // Fullscreen expand - placeholder for now; the focus view is wired later.
+    var expandBtn = document.createElement('button');
+    expandBtn.type = 'button';
+    expandBtn.className = 'sdoc-cells-copy-icon sdoc-cells-expand';
+    expandBtn.title = 'Open fullscreen';
+    expandBtn.setAttribute('aria-label', 'Open fullscreen');
+    expandBtn.innerHTML = EXPAND_SVG;
+
     actions.appendChild(selBtn);
     actions.appendChild(allBtn);
+    actions.appendChild(expandBtn);
     bar.appendChild(actions);
 
     wrapper.addEventListener('cells-selection', function (e) {
