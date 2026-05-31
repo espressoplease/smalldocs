@@ -329,9 +329,10 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   padding: 64px 0 88px;
 }
 .install-panel {
-  background: #EDE6D9;
-  border-radius: 22px;
-  padding: 64px 64px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 56px 64px;
 }
 .install-grid {
   display: grid;
@@ -339,17 +340,8 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   gap: 56px;
   align-items: start;
 }
-.install-text { max-width: 30ch; }
-.install-eyebrow {
-  font-family: var(--mono);
-  font-size: var(--t-mono);
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--accent-ink);
-}
+.install-text { max-width: 32ch; }
 .install-text h2 {
-  margin-top: 14px;
   font-size: 1.85rem;
   font-weight: 600;
   line-height: 1.16;
@@ -363,38 +355,12 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   color: var(--ink-2);
 }
 .install-actions { padding-top: 4px; }
-.install-section-label {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  font-family: var(--mono);
-  font-size: var(--t-mono);
-  font-weight: 500;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-.install-section-label::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: rgba(27,24,21,.08);
-  position: relative;
-  top: -3px;
-}
-.install-context {
-  margin-top: 12px;
-  font-size: 0.9375rem;
-  line-height: 1.55;
-  color: var(--ink-2);
-}
 
 /* terminal-style command block, kept dark for strong identity */
 .install-cmd {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 14px;
   background: var(--terminal);
   border: 1px solid #322D27;
   border-radius: var(--r);
@@ -439,24 +405,23 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .install-context code {
   font-family: var(--mono);
   font-size: 0.85em;
-  background: rgba(255,255,255,.55);
-  border: 1px solid rgba(27,24,21,.09);
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: 5px;
   padding: 2px 7px;
   color: var(--ink);
 }
 
-/* expandable extras: live on the tinted panel, so use translucent
-   inner backgrounds rather than --paper / --white to stay tonally
-   consistent with the panel's beige */
+/* expandable extras: paper-tinted so they sit calmly inside the
+   white panel without competing with the dark terminal block */
 .trouble {
   margin-top: 12px;
-  background: rgba(255,255,255,.4);
-  border: 1px solid rgba(27,24,21,.08);
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: var(--r);
 }
 .trouble + .trouble { margin-top: 8px; }
-.trouble[open] { background: rgba(255,255,255,.78); }
+.trouble[open] { background: var(--paper); }
 .trouble > summary {
   list-style: none;
   cursor: pointer;
@@ -472,8 +437,8 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .trouble > summary code {
   font-family: var(--mono);
   font-size: 0.84em;
-  background: rgba(255,255,255,.7);
-  border: 1px solid rgba(27,24,21,.09);
+  background: var(--white);
+  border: 1px solid var(--line);
   border-radius: 5px;
   padding: 1px 6px;
   color: var(--ink);
@@ -490,7 +455,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   grid-template-columns: 28px 1fr;
   gap: 14px;
   padding: 14px 0;
-  border-top: 1px solid rgba(27,24,21,.07);
+  border-top: 1px solid var(--line);
 }
 .trouble-step:first-child { border-top: 0; padding-top: 6px; }
 .trouble-num {
@@ -498,8 +463,8 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: rgba(255,255,255,.6);
-  border: 1px solid rgba(27,24,21,.09);
+  background: var(--white);
+  border: 1px solid var(--line);
   font-family: var(--mono);
   font-size: 12px;
   color: var(--ink-2);
@@ -527,8 +492,8 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .trouble-step code, .trouble-step .mini {
   font-family: var(--mono);
   font-size: 0.84em;
-  background: rgba(255,255,255,.7);
-  border: 1px solid rgba(27,24,21,.09);
+  background: var(--white);
+  border: 1px solid var(--line);
   border-radius: 5px;
   padding: 2px 7px;
   color: var(--ink);
@@ -661,19 +626,14 @@ footer {
       <div class="install-grid">
 
         <div class="install-text">
-          <span class="install-eyebrow">Install</span>
           <h2>Install SmallDocs.</h2>
           <p>
             SmallDocs is open source and free to use. It installs as a
-            small command-line tool under your home directory. Runs on
-            macOS and Linux.
+            small command-line tool under your home directory.
           </p>
         </div>
 
         <div class="install-actions">
-          <div class="install-section-label"><span>macOS &middot; Linux</span></div>
-          <p class="install-context">Paste this into your terminal:</p>
-
           <div class="install-cmd">
           <span class="pr">$</span>
           <span class="cmd">curl -fsSL https://smalldocs.org/install | sh</span>
@@ -684,7 +644,8 @@ footer {
         </div>
 
         <p class="install-fine">
-          Needs Node.js. Prefer npm? <code>npm i -g sdocs-dev</code> works too.
+          The script runs on macOS and Linux. On Windows, or via npm,
+          install with <code>npm i -g sdocs-dev</code>.
         </p>
 
         <details class="trouble">
