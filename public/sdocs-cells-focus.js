@@ -20,7 +20,7 @@
     '  position: fixed; inset: 0; z-index: 10100;',
     '  background: var(--sdoc-focus-bg, #ffffff);',
     '  color: var(--sdoc-focus-fg, #1c1917);',
-    '  display: grid; grid-template-rows: 40px 31px 1fr;',
+    '  display: grid; grid-template-rows: 40px 31px 1fr 26px;',
     '  font-family: var(--md-font-family, ui-sans-serif, system-ui, sans-serif);',
     '  animation: sdoc-cells-focus-fade .15s ease-out;',
     '}',
@@ -76,6 +76,14 @@
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
     '.sdoc-cells-focus-stage { min-height: 0; overflow: hidden; }',
+    /* Status footer: Sum / Avg / Count of the selection, like Excel/Sheets. */
+    '.sdoc-cells-focus-status {',
+    '  display: flex; align-items: center; justify-content: flex-end;',
+    '  height: 26px; padding: 0 14px; font-size: 12px; font-variant-numeric: tabular-nums;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 60%, var(--sdoc-focus-bg, #fff) 40%);',
+    '  border-top: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 14%, transparent);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-bg, #fff) 92%, var(--sdoc-focus-fg, #1c1917) 8%);',
+    '}',
     /* The grid wrapper fills the stage and scrolls both axes; no border / */
     /* radius / hug-width here - the overlay is the frame. */
     '.sdoc-cells-focus-stage .sdoc-cells-fs {',
@@ -193,19 +201,25 @@
     bar.appendChild(nameBox);
     bar.appendChild(valueBox);
 
-    // Keep the name box + value field in sync with the grid's selection.
+    // Status footer: Sum / Avg / Count of the selection.
+    var status = document.createElement('div');
+    status.className = 'sdoc-cells-focus-status';
+
+    // Keep the name box, value field, and status footer in sync with selection.
     gridWrap.addEventListener('cells-selection', function (e) {
       var d = e.detail;
-      if (!d || d.empty) { nameBox.textContent = ''; valueBox.textContent = ''; return; }
+      if (!d || d.empty) { nameBox.textContent = ''; valueBox.textContent = ''; status.textContent = ''; return; }
       var addr = CELLS.colName(d.c0) + (d.r0 + 1);
       nameBox.textContent = d.single ? addr : addr + ':' + CELLS.colName(d.c1) + (d.r1 + 1);
       var cell = model.cells[d.r0] && model.cells[d.r0][d.c0];
       valueBox.textContent = cell ? cell.raw : '';
+      status.textContent = S.formatCellsStats ? S.formatCellsStats(model, d) : '';
     });
 
     modal.appendChild(topbar);
     modal.appendChild(bar);
     modal.appendChild(stage);
+    modal.appendChild(status);
     document.body.appendChild(modal);
     document.body.classList.add('sdoc-cells-focus-open');
     state.modal = modal;

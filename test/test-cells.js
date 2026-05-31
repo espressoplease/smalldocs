@@ -8,7 +8,7 @@ module.exports = function(harness) {
 
   console.log('\n── Cells Model Tests ──────────────────────────\n');
 
-  const { colName, classify, parseCsv, parseCells, serializeCsv } = require('../public/sdocs-cells');
+  const { colName, classify, parseCsv, parseCells, serializeCsv, selectionStats } = require('../public/sdocs-cells');
 
   // ── Column names (bijective base-26) ──
   test('colName: first columns', () => {
@@ -136,6 +136,63 @@ module.exports = function(harness) {
     const src = 'name,note\n"Smith, J","a ""quote""\nline"\nplain,42';
     const rows = parseCsv(src);
     assert.strictEqual(serializeCsv(rows), src);
+  });
+
+  // ── Selection stats (Sum / Avg / Count / Min / Max) ──
+  test('selectionStats: sums numbers across a range', () => {
+    const m = parseCells('1,2,3\n4,5,6');
+    const s = selectionStats(m, 0, 0, 1, 2);     // the whole 2x3 grid
+    assert.strictEqual(s.sum, 21);
+    assert.strictEqual(s.count, 6);
+    assert.strictEqual(s.numericCount, 6);
+    assert.strictEqual(s.avg, 3.5);
+    assert.strictEqual(s.min, 1);
+    assert.strictEqual(s.max, 6);
+  });
+
+  test('selectionStats: text/empty counted as non-empty but excluded from sum', () => {
+    const m = parseCells('Region,100\nNorth,\nSouth,50');
+    const s = selectionStats(m, 0, 0, 2, 1);     // 3x2: Region/100, North/(empty), South/50
+    assert.strictEqual(s.numericCount, 2);       // 100, 50
+    assert.strictEqual(s.sum, 150);
+    assert.strictEqual(s.avg, 75);
+    assert.strictEqual(s.count, 5);              // non-empty: Region,100,North,South,50
+  });
+
+  test('selectionStats: an all-empty range has no numbers', () => {
+    const m = parseCells(',\n,');
+    const s = selectionStats(m, 0, 0, 1, 1);
+    assert.strictEqual(s.count, 0);
+    assert.strictEqual(s.numericCount, 0);
+    assert.strictEqual(s.sum, 0);
+    assert.strictEqual(s.avg, null);
+    assert.strictEqual(s.min, null);
+    assert.strictEqual(s.max, null);
+  });
+
+  test('selectionStats: negatives and decimals', () => {
+    const m = parseCells('-5,2.5\n10,-1');
+    const s = selectionStats(m, 0, 0, 1, 1);
+    assert.strictEqual(s.sum, 6.5);
+    assert.strictEqual(s.min, -5);
+    assert.strictEqual(s.max, 10);
+  });
+
+  test('selectionStats: a single numeric cell', () => {
+    const m = parseCells('a,b\n1,2');
+    const s = selectionStats(m, 1, 1, 1, 1);     // just "2"
+    assert.strictEqual(s.sum, 2);
+    assert.strictEqual(s.count, 1);
+    assert.strictEqual(s.numericCount, 1);
+    assert.strictEqual(s.avg, 2);
+  });
+
+  test('selectionStats: a range past the data treats padding as empty', () => {
+    const m = parseCells('1,2\n3,4');                 // 2x2 of numbers
+    const s = selectionStats(m, 0, 0, 3, 3);          // select a 4x4 region (fullscreen padding)
+    assert.strictEqual(s.sum, 10);                    // only the real data
+    assert.strictEqual(s.numericCount, 4);
+    assert.strictEqual(s.count, 4);
   });
 
   // ── CSV file references (baked by the CLI) ──

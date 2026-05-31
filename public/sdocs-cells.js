@@ -159,9 +159,40 @@
     }).join('\n');
   }
 
+  // Stats for a selected rectangle [r0..r1] x [c0..c1] of a model. Numbers
+  // drive sum/avg/min/max; count is every non-empty cell (Excel's "Count").
+  // Cells past the data (fullscreen padding) read as empty.
+  function selectionStats(model, r0, c0, r1, c1) {
+    var count = 0, numericCount = 0, sum = 0, min = null, max = null;
+    for (var r = r0; r <= r1; r++) {
+      var line = model.cells[r];
+      for (var c = c0; c <= c1; c++) {
+        var cell = line && line[c];
+        if (!cell || cell.type === 'empty') continue;
+        count++;
+        if (cell.type === 'number') {
+          numericCount++;
+          var v = cell.value;
+          sum += v;
+          if (min === null || v < min) min = v;
+          if (max === null || v > max) max = v;
+        }
+      }
+    }
+    return {
+      count: count,
+      numericCount: numericCount,
+      sum: sum,
+      avg: numericCount > 0 ? sum / numericCount : null,
+      min: min,
+      max: max,
+    };
+  }
+
   exports.colName = colName;
   exports.classify = classify;
   exports.parseCsv = parseCsv;
   exports.parseCells = parseCells;
   exports.serializeCsv = serializeCsv;
+  exports.selectionStats = selectionStats;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocCells = {}));
