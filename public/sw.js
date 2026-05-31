@@ -68,6 +68,12 @@ self.addEventListener('fetch', function (e) {
 
   if (e.request.method !== 'GET') return;
 
+  // Range requests pass through to the network. The Cache API matches
+  // only by URL+method, so caching a partial 206 would return the wrong
+  // byte slice to any follow-up request that asked for a different range,
+  // which silently breaks video/audio playback. Network handles this.
+  if (e.request.headers.get('range')) return;
+
   // Version-check always hits network
   if (url.pathname === '/version-check') return;
 
