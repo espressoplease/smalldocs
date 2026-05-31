@@ -359,6 +359,20 @@ test('fullscreen shows Sum / Avg / Count for a selected range', async ({ page })
   expect(status).toMatch(/Count\D*4/);
 });
 
+test('numbers display with thousands separators; negatives get a red class', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Revenue,Loss', '12000,-3500', 'Small,9', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').innerText()).toBe('12,000');
+  expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').innerText()).toBe('9'); // small, no separator
+  const neg = page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]');
+  expect(await neg.innerText()).toBe('-3,500');
+  await expect(neg).toHaveClass(/is-negative/);
+  // copy still emits the RAW value (no separators) - data integrity
+  const html = await page.evaluate(() => window.SDocs.buildExportHTML([]));
+  expect(html).toContain('12000');
+  expect(html).not.toContain('12,000');
+});
+
 test('export inlines the grid as a real table', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Region,Q1', 'North,100', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
