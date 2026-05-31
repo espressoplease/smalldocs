@@ -80,7 +80,9 @@ cell. Click a cell, type into the bar, press Enter. The name box to its left
 shows the address of what is selected.
 
 **Fullscreen - the stats footer.** Select a range of numbers - the bottom
-right shows their Sum, Avg, Min, Max, and Count.
+right shows their Sum, Avg, Min, Max, and Count. Computed formula cells
+count by their value, so selecting the Total column above includes the
+$29,430 total, not the formula text.
 
 **Fullscreen - write formulas.** Start a cell with `=`. Supported:
 

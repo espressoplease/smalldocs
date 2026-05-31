@@ -301,6 +301,11 @@
       // Maps a painted (display) row index to its row in the source model. Null
       // when unsorted (identity). The editor uses this to write the right cell.
       wrapper._cellsRowOrder = order;
+      // The same results re-indexed by DISPLAY row, for consumers that work in
+      // view space (the selection stats footer).
+      wrapper._cellsFxView = (fx && order)
+        ? order.map(function (ri) { return fx[ri]; })
+        : fx;
       while (grid.firstChild) grid.removeChild(grid.firstChild);
 
       var corner = document.createElement('div');
@@ -582,10 +587,12 @@
 
   // A "Sum · Avg · Count" line for a selected range (Excel/Sheets status bar).
   // Empty for nothing / a single cell (the value bar already shows that one).
-  function formatStats(model, sel) {
+  // fx (optional, display-aligned) lets formula cells count as their computed
+  // value - pass wrapper._cellsFxView alongside wrapper._cellsModel.
+  function formatStats(model, sel, fx) {
     if (!sel || sel.empty) return '';
     if (sel.single || (sel.r0 === sel.r1 && sel.c0 === sel.c1)) return '';
-    var st = CELLS.selectionStats(model, sel.r0, sel.c0, sel.r1, sel.c1);
+    var st = CELLS.selectionStats(model, sel.r0, sel.c0, sel.r1, sel.c1, fx);
     if (st.count === 0) return '';
     var parts = [];
     if (st.numericCount > 0) {

@@ -1050,8 +1050,9 @@ LIMITS
 FULLSCREEN & EDITING
   The expand button opens the sheet full-window: frozen headers, both-axis
   scroll, a name box + formula bar, and a Sum / Avg / Min / Max / Count
-  footer for the selection. The fullscreen sheet is editable (the inline
-  one stays read-only):
+  footer for the selection. Formula cells count toward those stats by
+  their computed value. The fullscreen sheet is editable (the inline one
+  stays read-only):
     - Double-click a cell, or just start typing, to edit it.
     - Enter / Tab (and Shift+ to go back) commit and move on.
     - The formula bar edits the active cell; type a value or =formula, Enter.

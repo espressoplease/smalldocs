@@ -360,6 +360,22 @@ test('fullscreen shows Sum / Avg / Count for a selected range', async ({ page })
   expect(status).toMatch(/Count\D*4/);
 });
 
+test('fullscreen stats include computed formula values in the selection', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', 'Total,=SUM(B2:B3)', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await page.locator('.sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus');
+  // Select B2:B4 - two plain numbers and one computed cell (10, 20, 30).
+  await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="3"][data-c="1"]')
+    .click({ modifiers: ['Shift'] });
+  const status = page.locator('.sdoc-cells-focus-status');
+  await expect(status).toContainText('Sum 60');    // 10 + 20 + computed 30
+  await expect(status).toContainText('Avg 20');
+  await expect(status).toContainText('Max 30');    // the computed value, not text
+  await expect(status).toContainText('Count 3');
+});
+
 test('numbers display with thousands separators; negatives get a red class', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Revenue,Loss', '12000,-3500', 'Small,9', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
