@@ -10,10 +10,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* ───────────────────────────────────────────────────────────────
-   SmallDocs homepage. Warm-paper palette, one disciplined type
-   scale, one accent, hairline borders, soft layered shadows. The
-   install section sits directly below the hero video so the
-   primary CTAs only need to scroll past the demo.
+   SmallDocs homepage. Two registers stacked: a confident hero
+   (eyebrow + display heading + lead + demo video), then a
+   document-panel install section styled to nod at how SmallDocs
+   renders its own .md files - filename chrome, hairline divider,
+   document-scale type. The page ends just below that panel.
    ─────────────────────────────────────────────────────────────── */
 
 :root {
@@ -28,7 +29,6 @@
   --accent-ink:#1D4ED8;
   --terminal:  #1C1916;
 
-  --t-display: clamp(2.6rem, 1.62rem + 3.7vw, 4.05rem);
   --t-h2:      clamp(1.95rem, 1.5rem + 1.7vw, 2.55rem);
   --t-h3:      1.35rem;
   --t-lead:    clamp(1.08rem, 1.01rem + 0.34vw, 1.25rem);
@@ -153,18 +153,6 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .btn-primary .arr { transition: transform .16s ease; }
 .btn-primary:hover .arr { transform: translateX(3px); }
 .btn-sm { padding: 9px 15px; }
-.btn-text {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: var(--t-sm);
-  font-weight: 500;
-  color: var(--ink);
-  text-decoration: none;
-  cursor: pointer;
-}
-.btn-text .arr { transition: transform .16s ease; color: var(--ink-3); }
-.btn-text:hover .arr { transform: translateX(3px); color: var(--ink-2); }
 
 /* ── HERO ────────────────────────────────────────────── */
 .hero {
@@ -331,60 +319,128 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   color: var(--ink-3);
 }
 
-/* ── SECTION SCAFFOLD ────────────────────────────────── */
-section { padding: 116px 0; }
-.sec-head { max-width: 30ch; }
-.sec-head.center { max-width: 38ch; margin: 0 auto; text-align: center; }
-.sec-head h2 {
-  margin-top: 16px;
-  font-size: var(--t-h2);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-}
-.sec-head p {
-  margin-top: 18px;
-  font-size: var(--t-lead);
-  line-height: 1.56;
-  color: var(--ink-2);
-}
-.sec-head.center p { margin-left: auto; margin-right: auto; max-width: 52ch; }
+/* ── INSTALL: a document panel ──────────────────────────
+   The install procedure lives inside chrome that mirrors how
+   SmallDocs renders a .md file: a filename bar at the top, a
+   hairline border, a generous body, document-scale type. */
 
-/* ── INSTALL SECTION (sits directly below the hero video) ── */
-#install { padding: 68px 0 96px; }
-.install-grid {
-  display: grid;
-  grid-template-columns: 0.92fr 1.08fr;
-  gap: 72px;
-  align-items: start;
+#install {
+  padding: 96px 0 120px;
 }
-.install-text h2 {
-  margin-top: 16px;
-  font-size: var(--t-h2);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+.docpanel {
+  max-width: 880px;
+  margin: 0 auto;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-lift);
+  overflow: hidden;
 }
-.install-text p {
-  margin-top: 18px;
-  font-size: var(--t-lead);
-  line-height: 1.56;
-  color: var(--ink-2);
-}
-.install-right {
+.docpanel-bar {
   display: flex;
-  flex-direction: column;
-  gap: 22px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 22px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.docpanel-bar .lbl {
+  font-size: var(--t-mono);
+  font-family: var(--mono);
+  color: var(--ink-3);
+}
+.docpanel-bar .fname {
+  font-family: var(--mono);
+  font-size: var(--t-mono);
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 3px 9px;
+}
+.docpanel-bar .docpanel-icons {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-3);
+}
+.docpanel-bar .docpanel-icons span {
+  width: 26px; height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  transition: background .14s, color .14s;
+}
+.docpanel-bar .docpanel-icons span:hover { background: var(--white); color: var(--ink-2); }
+
+.docbody {
+  padding: 44px 56px 48px;
+}
+.doc-eyebrow {
+  font-family: var(--mono);
+  font-size: var(--t-mono);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.docbody h2 {
+  margin-top: 14px;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+}
+.doc-lead {
+  margin-top: 18px;
+  font-size: 1.0625rem;
+  line-height: 1.68;
+  color: var(--ink-2);
+  max-width: 58ch;
+}
+.doc-divider {
+  margin: 30px 0 26px;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.doc-section-label {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: var(--t-mono);
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.doc-section-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+  position: relative;
+  top: -3px;
+}
+.doc-context {
+  margin-top: 14px;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ink-2);
 }
 
-/* big copy-able command line */
+/* terminal-style command block, kept dark for strong identity */
 .install-cmd {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-top: 14px;
   background: var(--terminal);
   border: 1px solid #322D27;
   border-radius: var(--r);
   padding: 14px 14px 14px 20px;
-  box-shadow: var(--sh-card);
 }
 .install-cmd .pr { color: #6E665C; font-family: var(--mono); font-size: var(--t-mono); }
 .install-cmd .cmd {
@@ -415,35 +471,36 @@ section { padding: 116px 0; }
 .install-cmd .copy:hover { color: #E8E3DA; background: #2E2922; }
 .install-cmd .copy.done { color: #5FB87A; }
 
-/* fine-print under the command */
 .install-fine {
+  margin-top: 14px;
   font-size: var(--t-sm);
   color: var(--ink-2);
   line-height: 1.6;
 }
-.install-fine code {
+.install-fine code,
+.doc-context code {
   font-family: var(--mono);
   font-size: 0.85em;
-  background: var(--white);
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 5px;
   padding: 2px 7px;
   color: var(--ink);
 }
-.install-fine strong { color: var(--ink); font-weight: 600; }
 
-/* expandable troubleshooting block (Bun-style PATH fixup) */
+/* expandable extras */
 .trouble {
-  background: var(--white);
+  margin-top: 12px;
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  box-shadow: var(--sh-card);
 }
-.trouble[open] { box-shadow: var(--sh-lift); }
+.trouble + .trouble { margin-top: 8px; }
+.trouble[open] { background: var(--white); }
 .trouble > summary {
   list-style: none;
   cursor: pointer;
-  padding: 16px 18px;
+  padding: 14px 18px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -452,6 +509,15 @@ section { padding: 116px 0; }
   color: var(--ink);
 }
 .trouble > summary::-webkit-details-marker { display: none; }
+.trouble > summary code {
+  font-family: var(--mono);
+  font-size: 0.84em;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--ink);
+}
 .trouble > summary .chev {
   margin-left: auto;
   transition: transform .2s ease;
@@ -519,222 +585,32 @@ section { padding: 116px 0; }
   white-space: pre-wrap;
 }
 
-/* ── CAPABILITIES ────────────────────────────────────── */
-.caps { display: flex; flex-direction: column; gap: 100px; margin-top: 84px; }
-.cap {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 76px;
-  align-items: center;
-}
-.cap:nth-child(even) .cap-text { order: 2; }
-.cap-num {
-  font-family: var(--mono);
-  font-size: var(--t-mono);
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  color: var(--ink-3);
-}
-.cap-num b { color: var(--accent-ink); font-weight: 500; }
-.cap-ask {
-  margin-top: 20px;
-  font-size: 1.5rem;
-  line-height: 1.34;
-  letter-spacing: -0.02em;
-  font-weight: 450;
-  color: var(--ink);
-}
-.cap-do {
-  margin-top: 22px;
-  font-size: 1.25rem;
-  font-weight: 500;
-  letter-spacing: -0.015em;
-  color: var(--ink);
-}
-.cap-do .verb { color: var(--accent); font-weight: 600; }
-.cap-note {
-  margin-top: 12px;
-  max-width: 40ch;
-  font-size: var(--t-body);
-  line-height: 1.6;
-  color: var(--ink-2);
-}
-
-.artifact {
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  box-shadow: var(--sh-card);
-  aspect-ratio: 4 / 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 32px;
-}
-.artifact-chip {
-  width: 58px; height: 58px;
-  display: grid;
-  place-items: center;
-  border-radius: 14px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  color: var(--ink-2);
-}
-.artifact-label {
-  font-size: var(--t-sm);
-  font-weight: 600;
-  color: var(--ink);
-  letter-spacing: -0.01em;
-}
-.artifact-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--ink-3);
-}
-.artifact-meta .ph {
-  width: 6px; height: 6px;
-  border-radius: 2px;
-  border: 1px solid var(--line-2);
-}
-
-/* ── SET UP (agents message, no terminal - install lives above) ── */
-.setup-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
-  max-width: 56ch;
-  margin: 0 auto;
-  text-align: center;
-}
-.agents {
-  margin-top: 26px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 9px;
-  justify-content: center;
-}
-.agent {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--t-sm);
-  font-weight: 450;
-  color: var(--ink-2);
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 8px 14px;
-}
-.agent::before {
-  content: "";
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-/* ── CLOSING ─────────────────────────────────────────── */
-.closing { text-align: center; }
-.closing h2 {
-  font-size: var(--t-h2);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-  max-width: 18ch;
-  margin: 16px auto 0;
-}
-.closing p {
-  margin: 18px auto 0;
-  max-width: 50ch;
-  font-size: var(--t-lead);
-  color: var(--ink-2);
-}
-.closing .hero-cta { margin-top: 30px; justify-content: center; }
-.cmdline {
-  margin: 22px auto 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  font-family: var(--mono);
-  font-size: var(--t-mono);
-  color: var(--ink-2);
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  padding: 10px 10px 10px 15px;
-}
-.cmdline .copy {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-family: var(--font);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink-2);
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 6px 9px;
-  cursor: pointer;
-  transition: background .14s, color .14s;
-}
-.cmdline .copy:hover { background: var(--white); color: var(--ink); }
-.cmdline .copy.done { color: #15803d; }
-
-/* ── FOOTER ──────────────────────────────────────────── */
+/* ── FOOTER (minimal hairline) ───────────────────────── */
 footer {
-  background: var(--ink);
-  color: #BDB6AC;
-  padding: 60px 0 52px;
+  border-top: 1px solid var(--line);
+  padding: 28px 0 36px;
 }
-.foot-top {
+.foot-fine {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  gap: 32px;
-  flex-wrap: wrap;
-}
-.foot-brand {
-  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  color: var(--paper);
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  text-decoration: none;
-}
-.foot-brand .mark { width: 22px; height: 22px; }
-.foot-links { display: flex; gap: 28px; flex-wrap: wrap; }
-.foot-links a {
+  flex-wrap: wrap;
+  gap: 14px;
   font-size: var(--t-sm);
-  color: #BDB6AC;
+  color: var(--ink-3);
+}
+.foot-fine a {
+  color: var(--ink-2);
   text-decoration: none;
   transition: color .14s;
 }
-.foot-links a:hover { color: var(--paper); }
-.foot-rule {
-  height: 1px;
-  background: #322D27;
-  margin: 36px 0 22px;
-}
-.foot-fine {
-  font-size: var(--t-sm);
-  color: #7C7468;
-}
+.foot-fine a:hover { color: var(--ink); }
+.foot-fine .dot { color: var(--line-2); padding: 0 4px; }
 
 /* ── RESPONSIVE ──────────────────────────────────────── */
 @media (max-width: 900px) {
-  .nav-links a.nav-hide { display: none; }
-  .cap { grid-template-columns: 1fr; gap: 30px; }
-  .cap:nth-child(even) .cap-text { order: 0; }
-  .install-grid { grid-template-columns: 1fr; gap: 40px; }
-  .caps { gap: 72px; margin-top: 60px; }
-  section { padding: 86px 0; }
-  #install { padding: 48px 0 72px; }
+  #install { padding: 64px 0 88px; }
+  .docbody { padding: 36px 32px 36px; }
 }
 @media (max-width: 620px) {
   .wrap { padding: 0 22px; }
@@ -748,10 +624,12 @@ footer {
   .vid-btn { font-size: 11.5px; padding: 7px 10px; }
   .vid-controls { right: 10px; bottom: 10px; gap: 6px; }
   .vid-loading { left: 10px; bottom: 10px; }
+  #install { padding: 48px 0 64px; }
+  .docbody { padding: 28px 22px 30px; }
+  .docbody h2 { font-size: 1.45rem; }
   .install-cmd { padding: 12px 12px 12px 14px; }
   .install-cmd .cmd { font-size: 0.84rem; }
-  .cap-ask { font-size: 1.3rem; }
-  section { padding: 72px 0; }
+  .docpanel-bar { padding: 10px 16px; }
 }
 </style>
 </head>
@@ -762,8 +640,6 @@ footer {
   <div class="wrap nav-in">
     <a class="brand" href="#top">SmallDocs</a>
     <div class="nav-links">
-      <a href="#capabilities" class="nav-hide">How it works</a>
-      <a href="#install" class="nav-hide">Install</a>
       <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener" class="nav-hide">GitHub</a>
       <a class="btn btn-primary btn-sm" href="#install">Install SmallDocs</a>
     </div>
@@ -785,10 +661,6 @@ footer {
       <a class="btn btn-primary" href="#install">
         Install SmallDocs
         <svg class="arr" width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8h9M8.5 3.5L13 8l-4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
-      <a class="btn-text" href="#capabilities">
-        See how it works
-        <svg class="arr" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v9M4 8.5L8 12.5l4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </a>
     </div>
     <p class="hero-works">Compatible with Claude &middot; Codex &middot; Gemini &middot; opencode</p>
@@ -820,20 +692,34 @@ footer {
   </div>
 </header>
 
-<!-- ═══ INSTALL (sits directly below the hero video) ═════ -->
+<!-- ═══ INSTALL: a document panel ════════════════════════ -->
 <section id="install">
   <div class="wrap">
-    <div class="install-grid">
-      <div class="install-text">
-        <span class="eyebrow">Install</span>
+    <article class="docpanel">
+      <div class="docpanel-bar">
+        <span class="lbl">Filename</span>
+        <span class="fname">install.md</span>
+        <div class="docpanel-icons" aria-hidden="true">
+          <span title="Comments"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10v6H7l-2.5 2v-2H3v-6z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></span>
+          <span title="Copy link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6" stroke="currentColor" stroke-width="1.4"/><path d="M3.5 10.5H3a1.5 1.5 0 0 1-1.5-1.5V3A1.5 1.5 0 0 1 3 1.5h6A1.5 1.5 0 0 1 10.5 3v.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+          <span title="Share"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="8" r="1.6" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="4" r="1.6" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="12" r="1.6" stroke="currentColor" stroke-width="1.4"/><path d="M5.4 7.2l5.2-2.4M5.4 8.8l5.2 2.4" stroke="currentColor" stroke-width="1.4"/></svg></span>
+        </div>
+      </div>
+
+      <div class="docbody">
+        <span class="doc-eyebrow">Install</span>
         <h2>Install SmallDocs.</h2>
-        <p>
+        <p class="doc-lead">
           SmallDocs is open source and free to use. It installs as a small
           command-line tool under your home directory. Runs on macOS and
           Linux.
         </p>
-      </div>
-      <div class="install-right">
+
+        <hr class="doc-divider" />
+
+        <div class="doc-section-label"><span>macOS &middot; Linux</span></div>
+        <p class="doc-context">Paste this into your terminal:</p>
+
         <div class="install-cmd">
           <span class="pr">$</span>
           <span class="cmd">curl -fsSL https://smalldocs.org/install | sh</span>
@@ -842,6 +728,7 @@ footer {
             <span class="lbl">Copy</span>
           </button>
         </div>
+
         <p class="install-fine">
           Needs Node.js. Prefer npm? <code>npm i -g sdocs-dev</code> works too.
         </p>
@@ -914,172 +801,18 @@ footer {
           </div>
         </details>
       </div>
-    </div>
+    </article>
   </div>
 </section>
 
-<!-- ═══ CAPABILITIES ═════════════════════════════════════ -->
-<section id="capabilities">
-  <div class="wrap">
-    <div class="sec-head center">
-      <span class="eyebrow">What it makes</span>
-      <h2>Ask. SmallDocs makes it.</h2>
-      <p>
-        It&rsquo;s an office suite your existing coding agents use to produce
-        beautiful, sharable artifacts, fresh power for how your team
-        collaborates and communicates.
-      </p>
-    </div>
-
-    <div class="caps">
-
-      <article class="cap">
-        <div class="cap-text">
-          <div class="cap-num">01 <b>/</b> DIAGRAMS</div>
-          <p class="cap-ask">&ldquo;What&rsquo;s the architecture of our email service?&rdquo;</p>
-          <p class="cap-do">SmallDocs <span class="verb">renders</span> it.</p>
-          <p class="cap-note">
-            Your agent already knows the codebase. It hands back a clean,
-            zoomable architecture diagram instead of a wall of prose.
-          </p>
-        </div>
-        <div class="cap-visual">
-          <div class="artifact">
-            <span class="artifact-chip">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="8.5" y="2.5" width="7" height="5" rx="1.4" stroke="currentColor" stroke-width="1.5"/><rect x="2.5" y="16.5" width="7" height="5" rx="1.4" stroke="currentColor" stroke-width="1.5"/><rect x="14.5" y="16.5" width="7" height="5" rx="1.4" stroke="currentColor" stroke-width="1.5"/><path d="M12 7.5v4M12 11.5H6v5M12 11.5h6v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            <span class="artifact-label">Architecture diagram</span>
-            <span class="artifact-meta"><span class="ph"></span>placeholder</span>
-          </div>
-        </div>
-      </article>
-
-      <article class="cap">
-        <div class="cap-text">
-          <div class="cap-num">02 <b>/</b> CHARTS</div>
-          <p class="cap-ask">&ldquo;How many merge requests did we get into prod last quarter?&rdquo;</p>
-          <p class="cap-do">SmallDocs <span class="verb">charts</span> it.</p>
-          <p class="cap-note">
-            The numbers come back as a chart you read at a glance, not a
-            paragraph you have to parse line by line.
-          </p>
-        </div>
-        <div class="cap-visual">
-          <div class="artifact">
-            <span class="artifact-chip">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 20.5h16.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="5.5" y="12.5" width="3.6" height="6" rx="0.8" stroke="currentColor" stroke-width="1.5"/><rect x="10.7" y="7.5" width="3.6" height="11" rx="0.8" stroke="currentColor" stroke-width="1.5"/><rect x="15.9" y="3.5" width="3.6" height="15" rx="0.8" stroke="currentColor" stroke-width="1.5"/></svg>
-            </span>
-            <span class="artifact-label">Chart</span>
-            <span class="artifact-meta"><span class="ph"></span>placeholder</span>
-          </div>
-        </div>
-      </article>
-
-      <article class="cap">
-        <div class="cap-text">
-          <div class="cap-num">03 <b>/</b> SLIDES</div>
-          <p class="cap-ask">&ldquo;Produce a slide deck for this week&rsquo;s all-hands.&rdquo;</p>
-          <p class="cap-do">SmallDocs <span class="verb">builds</span> it.</p>
-          <p class="cap-note">
-            A complete deck from a single prompt, formatted and ready to
-            present without opening another tool.
-          </p>
-        </div>
-        <div class="cap-visual">
-          <div class="artifact">
-            <span class="artifact-chip">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="4.5" width="18" height="11.5" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M12 16v4M8 20h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            </span>
-            <span class="artifact-label">Slide deck</span>
-            <span class="artifact-meta"><span class="ph"></span>placeholder</span>
-          </div>
-        </div>
-      </article>
-
-      <article class="cap">
-        <div class="cap-text">
-          <div class="cap-num">04 <b>/</b> DOCUMENTS</div>
-          <p class="cap-ask">&ldquo;Sales needs documentation for the proposed integration.&rdquo;</p>
-          <p class="cap-do">SmallDocs <span class="verb">formats</span> it.</p>
-          <p class="cap-note">
-            Rough notes become a styled document, on brand and ready to send
-            as a link the moment it&rsquo;s done.
-          </p>
-        </div>
-        <div class="cap-visual">
-          <div class="artifact">
-            <span class="artifact-chip">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6 2.5h7L19 8.5v12a1.3 1.3 0 0 1-1.3 1.3H6A1.3 1.3 0 0 1 4.7 20.5v-16.7A1.3 1.3 0 0 1 6 2.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12.8 2.5V8.7H19M8 13h8M8 16.5h8M8 9.5h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            </span>
-            <span class="artifact-label">Formatted document</span>
-            <span class="artifact-meta"><span class="ph"></span>placeholder</span>
-          </div>
-        </div>
-      </article>
-
-    </div>
-  </div>
-</section>
-
-<!-- ═══ AGENTS ═══════════════════════════════════════════ -->
-<section id="setup">
-  <div class="wrap setup-grid">
-    <span class="eyebrow">Set up once</span>
-    <h2 style="margin-top:14px;font-size:var(--t-h2);line-height:1.1;letter-spacing:-0.03em">Your agents are already invited</h2>
-    <p style="margin-top:16px;font-size:var(--t-lead);line-height:1.56;color:var(--ink-2)">
-      After install, run <code style="font-family:var(--mono);font-size:.92em;background:var(--white);border:1px solid var(--line);border-radius:5px;padding:2px 7px">sdoc setup</code> once.
-      Your existing coding agents detect SmallDocs and reach for it on their own.
-    </p>
-    <div class="agents">
-      <span class="agent">Claude Code</span>
-      <span class="agent">Codex</span>
-      <span class="agent">Gemini CLI</span>
-      <span class="agent">opencode</span>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ CLOSING ══════════════════════════════════════════ -->
-<section class="closing">
-  <div class="wrap">
-    <span class="eyebrow">Start in a minute</span>
-    <h2>Give your agents a place to do their best work</h2>
-    <p>
-      Install the command-line tool once. From there, SmallDocs becomes part
-      of how your team writes, shares, and presents.
-    </p>
-    <div class="cmdline">
-      <span>curl -fsSL https://smalldocs.org/install | sh</span>
-      <button class="copy" data-copy="curl -fsSL https://smalldocs.org/install | sh">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 10.5H3a1.5 1.5 0 0 1-1.5-1.5V3A1.5 1.5 0 0 1 3 1.5h6A1.5 1.5 0 0 1 10.5 3v.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <span class="lbl">Copy</span>
-      </button>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ FOOTER ═══════════════════════════════════════════ -->
+<!-- ═══ FOOTER (minimal) ═════════════════════════════════ -->
 <footer>
   <div class="wrap">
-    <div class="foot-top">
-      <a class="foot-brand" href="#top">
-        <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="var(--paper)"/>
-          <path d="M7.5 8h9M7.5 12h9M7.5 16h5.5" stroke="var(--ink)" stroke-width="1.9" stroke-linecap="round"/>
-        </svg>
-        SmallDocs
-      </a>
-      <div class="foot-links">
-        <a href="#capabilities">How it works</a>
-        <a href="#install">Install</a>
-        <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener">Open source</a>
-      </div>
-    </div>
-    <div class="foot-rule"></div>
     <p class="foot-fine">
-      smalldocs.org &nbsp;&middot;&nbsp; An office suite for coding agents. The content of every
-      document travels in its link, so nothing is stored on a server.
+      <span>smalldocs.org</span>
+      <span>
+        <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener">Open source on GitHub</a>
+      </span>
     </p>
   </div>
 </footer>
@@ -1105,9 +838,9 @@ document.querySelectorAll('[data-copy]').forEach(btn => {
   });
 });
 
-/* Hero video: muted autoplay, click to unmute (restarts from start with sound).
-   Captions are custom-rendered so they match the page type; cues below are
-   placeholder text until the real transcript lands. */
+/* Hero video: muted autoplay, click to unmute (restarts from start
+   with sound). Captions custom-rendered; cues below are placeholder
+   text until the real transcript lands. */
 (function () {
   const card = document.getElementById('videocard');
   const vid  = document.getElementById('heroVid');
