@@ -198,6 +198,14 @@
 .sdoc-cells-sort:hover { opacity: 0.85; }
 .sdoc-cells-colhead.is-sorted .sdoc-cells-sort { opacity: 1; color: var(--sdoc-cells-accent); }
 
+/* Column resize: a thin handle straddling each header's right edge. */
+.sdoc-cells-colhead { position: relative; }
+.sdoc-cells-resize {
+  position: absolute; top: 0; right: -4px; width: 8px; height: 100%;
+  cursor: col-resize; z-index: 3;
+}
+body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
+
 /* Freeze the header row and the row-number column. Inline this is inert;
  * in the scrolling fullscreen view it keeps headers in sight. */
 /* z-index: sticky headers (2) sit above the active-cell box (1) so they keep

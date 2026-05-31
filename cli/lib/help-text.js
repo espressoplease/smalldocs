@@ -967,6 +967,10 @@ SORTING
   kept pinned as a header. Sorting is a view reorder - it does not change the
   document; copy reflects what is on screen.
 
+RESIZING
+  Drag a column header's right edge to set an explicit width; it persists
+  through sorts. Otherwise columns size to their content.
+
 SELECTING
   Click a cell to select it; its column letter and row number light up.
   Click a column letter / row number to select the whole column / row.
