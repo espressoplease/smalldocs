@@ -8,7 +8,7 @@ module.exports = function(harness) {
 
   console.log('\n── Cells Model Tests ──────────────────────────\n');
 
-  const { colName, classify, parseCsv, parseCells } = require('../public/sdocs-cells');
+  const { colName, classify, parseCsv, parseCells, serializeCsv } = require('../public/sdocs-cells');
 
   // ── Column names (bijective base-26) ──
   test('colName: first columns', () => {
@@ -120,6 +120,22 @@ module.exports = function(harness) {
     assert.strictEqual(m.cells[1][0].type, 'empty');
     assert.strictEqual(m.cells[1][1].type, 'empty');
     assert.strictEqual(m.cells[2][0].value, 'c');
+  });
+
+  // ── CSV serialization (copy actions) ──
+  test('serializeCsv: plain rows', () => {
+    assert.strictEqual(serializeCsv([['a', 'b'], ['1', '2']]), 'a,b\n1,2');
+  });
+
+  test('serializeCsv: quotes fields with comma / quote / newline', () => {
+    assert.strictEqual(serializeCsv([['Smith, J', 'he said "hi"', 'one\ntwo']]),
+      '"Smith, J","he said ""hi""","one\ntwo"');
+  });
+
+  test('serializeCsv: round-trips through parseCsv', () => {
+    const src = 'name,note\n"Smith, J","a ""quote""\nline"\nplain,42';
+    const rows = parseCsv(src);
+    assert.strictEqual(serializeCsv(rows), src);
   });
 
   test('parseCells: raw is preserved verbatim for round-trip', () => {
