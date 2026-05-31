@@ -14,6 +14,7 @@
 
 .sdoc-cells {
   --sdoc-cells-accent: #1e8e3e;                                           /* Sheets/Excel green nod */
+  --sdoc-cells-col-min: 64px;                                             /* min column width (Excel's default) */
   --sdoc-cells-max-col: 18rem;                                            /* widest a column grows before text wraps */
   --sdoc-cells-line: color-mix(in oklab, var(--md-color, #1c1917) 16%, transparent);
   --sdoc-cells-head-bg: color-mix(in oklab, var(--md-bg, #fff) 90%, var(--sdoc-cells-accent) 10%);
@@ -159,8 +160,12 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 4px 9px;
-  min-height: 1.5em;
+  padding: 3px 6px;          /* tight like Sheets/Excel, a touch more generous */
+  /* Bake the standard one-line text height (+ vertical padding) into the
+   * floor so an empty cell is the same height as a text cell - with the
+   * border-box reset, min-height is the TOTAL, so without the +6px (= the
+   * vertical padding) an empty row sits shorter than a row with text. */
+  min-height: calc(1.5em + 6px);
   line-height: 1.5;
 }
 
@@ -199,7 +204,7 @@
 }
 .sdoc-cells-cell.is-number { justify-content: flex-end; }
 .sdoc-cells-cell.is-text   { justify-content: flex-start; }
-.sdoc-cells-cell.is-empty  { min-width: 48px; }
+.sdoc-cells-cell.is-empty  { min-width: var(--sdoc-cells-col-min, 64px); }
 
 /* ── Selection (sdocs-cells-select.js) ──────────────────── */
 /* The selection box is the focus cue, so suppress the default focus ring. */
