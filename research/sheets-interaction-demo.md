@@ -46,10 +46,16 @@ Shift+Arrow. The top bar shows the span (like `B2:C4`).
 
 **Inline - sort.** Hover a column letter: an arrow appears on its right
 showing what a click will do (up = sort ascending, down = descending, x =
-clear). The current sort stays visible as a colored arrow. The header row
-stays pinned. Sorting only reorders the view - the document is untouched.
-Formula cells (like the Total column above) sort by their computed value,
-and each value stays with its row.
+clear). The current sort stays visible as a colored arrow. Sorting only
+reorders the view - the document is untouched. Three kinds of rows are
+treated differently:
+
+- The header row stays pinned at the top.
+- Data rows sort by value; formula cells (like the Total column above) sort
+  by their computed value, and each value stays with its row.
+- A summary row - one whose formula adds up a range of other rows, like the
+  Total row's `=SUM(D2:D5)` - stays pinned at the bottom. Sorting never
+  jumbles it into the data.
 
 **Inline - resize a column.** Drag the right edge of its column letter.
 
