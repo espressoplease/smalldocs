@@ -209,6 +209,52 @@
     };
   }
 
+  // Heuristic: is row 0 a header? True when row 0 has no numbers and there is
+  // numeric data below it - so a sort can keep it pinned to the top.
+  function looksLikeHeader(model) {
+    if (!model || model.rows < 2) return false;
+    var row0 = model.cells[0];
+    for (var c = 0; c < model.cols; c++) {
+      if (row0[c] && row0[c].type === 'number') return false;
+    }
+    for (var r = 1; r < model.rows; r++) {
+      var line = model.cells[r];
+      for (var c2 = 0; c2 < model.cols; c2++) {
+        if (line[c2] && line[c2].type === 'number') return true;
+      }
+    }
+    return false;
+  }
+
+  // Sort key: numbers (rank 0) sort before text (rank 1); empty (rank 2) last.
+  function sortKey(cell) {
+    if (!cell || cell.type === 'empty') return { rank: 2, v: 0 };
+    if (cell.type === 'number') return { rank: 0, v: cell.value };
+    return { rank: 1, v: String(cell.value).toLowerCase() };
+  }
+
+  // Return the row order (array of original indices) sorting the model by a
+  // column. A view reorder - the model itself is not changed. Empty cells stay
+  // last either direction; a header row (when hasHeader) stays pinned to row 0.
+  function sortRows(model, col, dir, hasHeader) {
+    var order = [];
+    for (var r = 0; r < model.rows; r++) order.push(r);
+    var start = hasHeader ? 1 : 0;
+    var head = order.slice(0, start);
+    var body = order.slice(start);
+    var sign = dir === 'desc' ? -1 : 1;
+    body.sort(function (ra, rb) {
+      var a = sortKey(model.cells[ra] && model.cells[ra][col]);
+      var b = sortKey(model.cells[rb] && model.cells[rb][col]);
+      if (a.rank === 2 || b.rank === 2) return a.rank - b.rank;  // empty always last
+      if (a.rank !== b.rank) return (a.rank - b.rank) * sign;
+      if (a.v < b.v) return -1 * sign;
+      if (a.v > b.v) return 1 * sign;
+      return 0;
+    });
+    return head.concat(body);
+  }
+
   // Display formatting for a numeric raw string: group the integer part with
   // thousands separators, preserve the sign and the decimal part verbatim
   // (so "1234.50" keeps its trailing zero). Display only - the model's raw is
@@ -290,4 +336,6 @@
   exports.colIndex = colIndex;
   exports.parseFormats = parseFormats;
   exports.formatValue = formatValue;
+  exports.looksLikeHeader = looksLikeHeader;
+  exports.sortRows = sortRows;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocCells = {}));

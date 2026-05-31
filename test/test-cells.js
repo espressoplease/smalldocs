@@ -8,7 +8,7 @@ module.exports = function(harness) {
 
   console.log('\n── Cells Model Tests ──────────────────────────\n');
 
-  const { colName, classify, parseCsv, parseCells, serializeCsv, selectionStats, formatNumber, parseFormats, formatValue, colIndex } = require('../public/sdocs-cells');
+  const { colName, classify, parseCsv, parseCells, serializeCsv, selectionStats, formatNumber, parseFormats, formatValue, colIndex, sortRows, looksLikeHeader } = require('../public/sdocs-cells');
 
   // ── Column names (bijective base-26) ──
   test('colName: first columns', () => {
@@ -136,6 +136,39 @@ module.exports = function(harness) {
     const src = 'name,note\n"Smith, J","a ""quote""\nline"\nplain,42';
     const rows = parseCsv(src);
     assert.strictEqual(serializeCsv(rows), src);
+  });
+
+  // ── Sorting (a view reorder - returns the row order) ──
+  test('looksLikeHeader: text row 0 over numeric data is a header', () => {
+    assert.strictEqual(looksLikeHeader(parseCells('Region,Q1\nNorth,100\nSouth,90')), true);
+    assert.strictEqual(looksLikeHeader(parseCells('1,2\n3,4')), false);       // numeric row 0
+    assert.strictEqual(looksLikeHeader(parseCells('only,one')), false);       // < 2 rows
+  });
+
+  test('sortRows: ascending by a numeric column (header kept fixed)', () => {
+    const m = parseCells('Name,Score\nBea,30\nAl,10\nCy,20');
+    const order = sortRows(m, 1, 'asc', true);   // sort by Score, header fixed
+    assert.deepStrictEqual(order, [0, 2, 3, 1]); // header, then 10, 20, 30
+  });
+
+  test('sortRows: descending', () => {
+    const m = parseCells('Name,Score\nBea,30\nAl,10\nCy,20');
+    const order = sortRows(m, 1, 'desc', true);
+    assert.deepStrictEqual(order, [0, 1, 3, 2]); // header, then 30, 20, 10
+  });
+
+  test('sortRows: text sorts alphabetically', () => {
+    const m = parseCells('x\nBea\nAl\nCy');       // rows: x, Bea, Al, Cy
+    const order = sortRows(m, 0, 'asc', false);  // no header
+    assert.deepStrictEqual(order, [2, 1, 3, 0]); // Al, Bea, Cy, x
+  });
+
+  test('sortRows: empty cells go last regardless of direction', () => {
+    const m = parseCells('a\n5\n\n2');            // rows: 5, (empty), 2
+    const asc = sortRows(m, 0, 'asc', false);
+    assert.strictEqual(asc[asc.length - 1], 2);   // the empty row last
+    const desc = sortRows(m, 0, 'desc', false);
+    assert.strictEqual(desc[desc.length - 1], 2); // still last
   });
 
   // ── Column format directives (author-controlled, display only) ──
