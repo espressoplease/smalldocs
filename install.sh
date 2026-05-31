@@ -1,7 +1,7 @@
 #!/bin/sh
 # SmallDocs CLI installer.
 #
-#   curl -fsSL https://smalldocs.org/install.sh | sh
+#   curl -fsSL https://smalldocs.org/install | sh
 #
 # Installs the `sdoc` command under ~/.sdocs, a directory you own. It never
 # needs root and never writes to npm's global folder, so it cannot hit the

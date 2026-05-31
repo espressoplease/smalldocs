@@ -91,13 +91,18 @@ module.exports = function(harness) {
       assert.ok(r.headers['content-type'].includes('javascript'));
     });
 
-    await testAsync('GET /install.sh returns the CLI installer script', async () => {
-      const r = await get(BASE + '/install.sh');
+    await testAsync('GET /install returns the CLI installer script', async () => {
+      const r = await get(BASE + '/install');
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].includes('shellscript'),
         'expected a shell-script content-type, got ' + r.headers['content-type']);
-      assert.ok(r.body.startsWith('#!/bin/sh'), 'install.sh should start with a sh shebang');
-      assert.ok(r.body.includes('.sdocs'), 'install.sh should install under ~/.sdocs');
+      assert.ok(r.body.startsWith('#!/bin/sh'), 'installer should start with a sh shebang');
+      assert.ok(r.body.includes('.sdocs'), 'installer should install under ~/.sdocs');
+    });
+
+    await testAsync('GET /install.sh is not exposed (the canonical URL is /install)', async () => {
+      const r = await get(BASE + '/install.sh');
+      assert.notStrictEqual(r.status, 200, '/install.sh should not be a live route');
     });
 
     await testAsync('GET /public/images/*.webp returns 200 with image/webp + cacheable', async () => {

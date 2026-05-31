@@ -12,7 +12,7 @@ exports.UPDATE_CACHE      = path.join(os.homedir(), '.sdocs', 'update-check.json
 exports.SETUP_CACHE       = path.join(os.homedir(), '.sdocs', 'setup.json');
 exports.ONE_DAY           = 86400000;
 exports.AGENT_CHANGES_URL = 'https://smalldocs.org/agent-changes';
-exports.INSTALL_SH_URL    = exports.DEFAULT_URL + '/install.sh';
+exports.INSTALL_SH_URL    = exports.DEFAULT_URL + '/install';
 exports.GITHUB_REPO_URL   = 'https://github.com/espressoplease/SDocs';
 
 // Printed by `sdoc feedback` with no args. Goal: an agent can read this
