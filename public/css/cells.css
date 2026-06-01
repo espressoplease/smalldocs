@@ -195,18 +195,29 @@
 }
 /* Column letters / row numbers select the whole column / row on click. */
 .sdoc-cells-colhead, .sdoc-cells-rowhead { cursor: pointer; }
-.sdoc-cells-colhead { gap: 3px; }
 
-/* Sort caret: faint, appears on header hover; the active sort shows ↑ / ↓ in
- * the accent colour. Always occupies space so headers don't jump on hover. */
+/* Sort control: absolutely positioned on the header's right edge so the
+ * column letter stays centred. Two layers inside it:
+ *   .sdoc-cells-sort-cur   the column's CURRENT sort (accent up/down arrow);
+ *                          empty when the column is unsorted.
+ *   .sdoc-cells-sort-next  what one click will do (up / down / clear);
+ *                          replaces the current layer while the header is
+ *                          hovered, as a preview. */
 .sdoc-cells-sort {
-  font-size: 0.85em; line-height: 1; cursor: pointer; opacity: 0;
-  transition: opacity .12s, color .12s;
-  color: color-mix(in oklab, var(--md-color, #1c1917) 60%, var(--md-bg, #fff) 40%);
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; cursor: pointer; line-height: 0;
 }
-.sdoc-cells-colhead:hover .sdoc-cells-sort { opacity: 0.45; }
-.sdoc-cells-sort:hover { opacity: 0.85; }
-.sdoc-cells-colhead.is-sorted .sdoc-cells-sort { opacity: 1; color: var(--sdoc-cells-accent); }
+.sdoc-cells-sort-cur,
+.sdoc-cells-sort-next { display: inline-flex; align-items: center; }
+.sdoc-cells-sort-cur { color: var(--sdoc-cells-accent); }
+.sdoc-cells-sort-next {
+  display: none;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 55%, var(--md-bg, #fff) 45%);
+}
+.sdoc-cells-colhead:hover .sdoc-cells-sort-cur { display: none; }
+.sdoc-cells-colhead:hover .sdoc-cells-sort-next { display: inline-flex; }
+.sdoc-cells-sort:hover .sdoc-cells-sort-next { color: var(--md-color, #1c1917); }
 
 /* Column resize: a thin handle straddling each header's right edge. */
 .sdoc-cells-colhead { position: relative; }
