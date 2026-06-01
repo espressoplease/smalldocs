@@ -20,7 +20,7 @@
     '  position: fixed; inset: 0; z-index: 10100;',
     '  background: var(--sdoc-focus-bg, #ffffff);',
     '  color: var(--sdoc-focus-fg, #1c1917);',
-    '  display: grid; grid-template-rows: 40px 31px 1fr 26px;',
+    '  display: grid; grid-template-rows: 40px 31px 1fr;',
     '  font-family: var(--md-font-family, ui-sans-serif, system-ui, sans-serif);',
     '  animation: sdoc-cells-focus-fade .15s ease-out;',
     '}',
@@ -70,6 +70,17 @@
     '  font-variant-numeric: tabular-nums; font-weight: 500;',
     '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 75%, var(--sdoc-focus-bg, #fff) 25%);',
     '}',
+    /* Selection stats (Sum / Avg / Min / Max / Count): a quiet segment right */
+    /* of the name box. :empty collapses it (single cell / no selection) so   */
+    /* the formula bar gets the full width back.                              */
+    '.sdoc-cells-focus-stats {',
+    '  flex-shrink: 0; display: flex; align-items: center; padding: 0 12px;',
+    '  font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 60%, var(--sdoc-focus-bg, #fff) 40%);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-bg, #fff) 95%, var(--sdoc-focus-fg, #1c1917) 5%);',
+    '  border-right: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 14%, transparent);',
+    '}',
+    '.sdoc-cells-focus-stats:empty { display: none; }',
     /* The value field is an <input> (the formula bar): strip native chrome so */
     /* it reads as a flat bar, with a faint accent underline when focused.     */
     '.sdoc-cells-focus-value {',
@@ -81,14 +92,6 @@
     '}',
     '.sdoc-cells-focus-value:focus { border-bottom-color: #3B82F6; }',
     '.sdoc-cells-focus-stage { min-height: 0; overflow: hidden; }',
-    /* Status footer: Sum / Avg / Count of the selection, like Excel/Sheets. */
-    '.sdoc-cells-focus-status {',
-    '  display: flex; align-items: center; justify-content: flex-end;',
-    '  height: 26px; padding: 0 14px; font-size: 12px; font-variant-numeric: tabular-nums;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 60%, var(--sdoc-focus-bg, #fff) 40%);',
-    '  border-top: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 14%, transparent);',
-    '  background: color-mix(in oklab, var(--sdoc-focus-bg, #fff) 92%, var(--sdoc-focus-fg, #1c1917) 8%);',
-    '}',
     /* The grid wrapper fills the stage and scrolls both axes; no border / */
     /* radius / hug-width here - the overlay is the frame. */
     '.sdoc-cells-focus-stage .sdoc-cells-fs {',
@@ -208,17 +211,21 @@
     actions.appendChild(closeBtn);
     topbar.appendChild(actions);
 
-    // ── Name box / value bar ──
+    // ── Name box / selection stats / value bar ──
     var bar = document.createElement('div');
     bar.className = 'sdoc-cells-focus-bar';
     var nameBox = document.createElement('div');
     nameBox.className = 'sdoc-cells-focus-name';
+    // Sum / Avg / Min / Max / Count of the selection, right of the address.
+    var stats = document.createElement('div');
+    stats.className = 'sdoc-cells-focus-stats';
     var valueBox = document.createElement('input');
     valueBox.type = 'text';
     valueBox.spellcheck = false;
     valueBox.className = 'sdoc-cells-focus-value';
     valueBox.setAttribute('aria-label', 'Cell value / formula');
     bar.appendChild(nameBox);
+    bar.appendChild(stats);
     bar.appendChild(valueBox);
 
     function focusGrid() {
@@ -240,15 +247,11 @@
       e.stopPropagation();
     });
 
-    // Status footer: Sum / Avg / Count of the selection.
-    var status = document.createElement('div');
-    status.className = 'sdoc-cells-focus-status';
-
-    // Keep the name box, value field, and status footer in sync with selection.
+    // Keep the name box, stats segment, and value field in sync with selection.
     // Skipped while the formula bar itself is focused, so typing there is not
     // clobbered by a programmatic reselect.
     function syncSelection(d) {
-      if (!d || d.empty) { nameBox.textContent = ''; valueBox.value = ''; status.textContent = ''; return; }
+      if (!d || d.empty) { nameBox.textContent = ''; valueBox.value = ''; stats.textContent = ''; return; }
       var vm = gridWrap._cellsModel || model;       // effective (sorted) view
       var addr = CELLS.colName(d.c0) + (d.r0 + 1);
       nameBox.textContent = d.single ? addr : addr + ':' + CELLS.colName(d.c1) + (d.r1 + 1);
@@ -256,7 +259,7 @@
       if (document.activeElement !== valueBox) valueBox.value = cell ? cell.raw : '';
       // The display-aligned formula results let computed cells count toward
       // Sum / Avg / Min / Max instead of reading as text.
-      status.textContent = S.formatCellsStats
+      stats.textContent = S.formatCellsStats
         ? S.formatCellsStats(vm, d, gridWrap._cellsFxView) : '';
     }
     gridWrap.addEventListener('cells-selection', function (e) { syncSelection(e.detail); });
@@ -274,7 +277,6 @@
     modal.appendChild(topbar);
     modal.appendChild(bar);
     modal.appendChild(stage);
-    modal.appendChild(status);
     document.body.appendChild(modal);
     document.body.classList.add('sdoc-cells-focus-open');
     state.modal = modal;
