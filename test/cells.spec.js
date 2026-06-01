@@ -455,3 +455,33 @@ test('export inlines the grid as a real table', async ({ page }) => {
   expect(html).toContain('North');
   expect(html).not.toContain('sdoc-cells-grid');
 });
+
+// Regression: a sheet narrower than the page must not show a spurious
+// horizontal scrollbar. The scroller now sizes to the grid (not the toolbar),
+// so a small grid fits exactly; a genuinely wide grid still overflows and
+// scrolls. (Polled because layout settles a frame or two after first paint.)
+test('a narrow sheet has no horizontal scrollbar', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Region,Q1,Q2', 'North,100,150', 'South,90,95', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await expect(async () => {
+    const over = await page.evaluate(() => {
+      const el = document.querySelector('.sdoc-cells-scroll');
+      return el.scrollWidth - el.clientWidth;
+    });
+    expect(over).toBeLessThanOrEqual(1);
+  }).toPass({ timeout: 3000 });
+});
+
+test('a sheet wider than the page still scrolls', async ({ page }) => {
+  const head = Array.from({ length: 40 }, (_, i) => 'LongColHeading' + i).join(',');
+  const row = Array.from({ length: 40 }, (_, i) => 'cellvalue' + i).join(',');
+  await loadDoc(page, [FENCE + 'cells', head, row, FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await expect(async () => {
+    const over = await page.evaluate(() => {
+      const el = document.querySelector('.sdoc-cells-scroll');
+      return el.scrollWidth - el.clientWidth;
+    });
+    expect(over).toBeGreaterThan(1);
+  }).toPass({ timeout: 3000 });
+});
