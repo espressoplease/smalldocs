@@ -44,9 +44,10 @@ Shift+Arrow. The top bar shows the span (like `B2:C4`).
 **Inline - move with the keyboard.** Arrow keys move the selection. Cmd+Arrow
 (Ctrl on Windows) jumps to the far edge. Esc clears the selection.
 
-**Inline - sort.** Hover a column header and click the small caret. Click
-again for descending, a third time to turn it off. The header row stays
-pinned. Sorting only reorders the view - the document is untouched.
+**Inline - sort.** Hover a column letter: an arrow appears on its right
+showing what a click will do (up = sort ascending, down = descending, x =
+clear). The current sort stays visible as a colored arrow. The header row
+stays pinned. Sorting only reorders the view - the document is untouched.
 
 **Inline - resize a column.** Drag the right edge of its column letter.
 

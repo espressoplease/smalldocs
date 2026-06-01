@@ -424,6 +424,56 @@ test('clicking a sort caret sorts the view (asc -> desc -> off), header kept', a
   expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').innerText()).toBe('Bea'); // original row 1
 });
 
+test('column letter stays centred; the sort control sits on the right edge', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Name,Score', 'Bea,30', 'Al,10', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const head = page.locator('.sdoc-cells-colhead[data-c="1"]');
+  const headBox = await head.boundingBox();
+  const labelBox = await head.locator('.sdoc-cells-colhead-label').boundingBox();
+  // The letter's centre matches the header's centre - the sort control must
+  // not push it sideways (it is absolutely positioned, out of the flow).
+  const headCx = headBox.x + headBox.width / 2;
+  const labelCx = labelBox.x + labelBox.width / 2;
+  expect(Math.abs(headCx - labelCx)).toBeLessThan(2);
+  // The sort control hugs the right side of the header.
+  const sortBox = await head.locator('.sdoc-cells-sort').boundingBox();
+  expect(sortBox.x).toBeGreaterThan(headCx);
+  // Hovering shows a readable arrow, not a tiny glyph: at least 11px square.
+  await head.hover();
+  const arrow = await head.locator('.sdoc-cells-sort-next svg').boundingBox();
+  expect(arrow.width).toBeGreaterThanOrEqual(11);
+  expect(arrow.height).toBeGreaterThanOrEqual(11);
+});
+
+test('sort control previews the next state on hover (asc -> desc -> clear)', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Name,Score', 'Bea,30', 'Al,10', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const head = () => page.locator('.sdoc-cells-colhead[data-c="1"]');
+  // Resting, unsorted: nothing rendered as the "current" state.
+  expect(await head().locator('.sdoc-cells-sort-cur svg').count()).toBe(0);
+  // Hover: preview shows what a click will do - sort ascending (up arrow).
+  await head().hover();
+  await expect(head().locator('.sdoc-cells-sort-next svg.sdoc-cells-sort-up')).toBeVisible();
+  // Click -> sorted ascending. Move the mouse away: the up arrow stays as the
+  // current-state indicator.
+  await head().locator('.sdoc-cells-sort').click();
+  await page.mouse.move(0, 0);
+  await expect(head().locator('.sdoc-cells-sort-cur svg.sdoc-cells-sort-up')).toBeVisible();
+  // Hover again: preview = descending (down arrow).
+  await head().hover();
+  await expect(head().locator('.sdoc-cells-sort-next svg.sdoc-cells-sort-down')).toBeVisible();
+  // Click -> descending; resting shows the down arrow, hover previews "clear".
+  await head().locator('.sdoc-cells-sort').click();
+  await page.mouse.move(0, 0);
+  await expect(head().locator('.sdoc-cells-sort-cur svg.sdoc-cells-sort-down')).toBeVisible();
+  await head().hover();
+  await expect(head().locator('.sdoc-cells-sort-next svg.sdoc-cells-sort-clear')).toBeVisible();
+  // Click -> sort cleared: back to no current-state arrow.
+  await head().locator('.sdoc-cells-sort').click();
+  await page.mouse.move(0, 0);
+  expect(await head().locator('.sdoc-cells-sort-cur svg').count()).toBe(0);
+});
+
 test('dragging a column header resize handle widens the column', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'a,b,c', '1,2,3', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
