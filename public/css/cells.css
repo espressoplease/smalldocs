@@ -119,6 +119,16 @@
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, var(--md-color, #1c1917) 30%, transparent) transparent;
 }
+/* Inline: size the scroller to the grid, not the toolbar. A scroll container
+ * does not pass its content's width up to the max-content wrapper, so without
+ * this the wrapper hugs the toolbar and any grid wider than the toolbar gets a
+ * needless horizontal scrollbar. With it, the scroller is the grid's width and
+ * only scrolls once the sheet is genuinely wider than the page. The fullscreen
+ * view fills the viewport on purpose, so it keeps the default (auto) width. */
+.sdoc-cells:not(.sdoc-cells-fs) .sdoc-cells-scroll {
+  width: max-content;
+  max-width: 100%;
+}
 .sdoc-cells-scroll::-webkit-scrollbar { height: 11px; }
 .sdoc-cells-scroll::-webkit-scrollbar-track { background: transparent; }
 .sdoc-cells-scroll::-webkit-scrollbar-thumb {
