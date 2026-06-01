@@ -70,11 +70,16 @@
     '  font-variant-numeric: tabular-nums; font-weight: 500;',
     '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 75%, var(--sdoc-focus-bg, #fff) 25%);',
     '}',
+    /* The value field is an <input> (the formula bar): strip native chrome so */
+    /* it reads as a flat bar, with a faint accent underline when focused.     */
     '.sdoc-cells-focus-value {',
-    '  flex: 1; display: flex; align-items: center; padding: 0 12px;',
+    '  flex: 1; min-width: 0; padding: 0 12px;',
+    '  background: transparent; border: none; outline: none;',
+    '  border-bottom: 1.5px solid transparent;',
+    '  font: inherit; color: var(--sdoc-focus-fg, #1c1917);',
     '  white-space: pre; overflow: hidden; text-overflow: ellipsis;',
-    '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
+    '.sdoc-cells-focus-value:focus { border-bottom-color: #3B82F6; }',
     '.sdoc-cells-focus-stage { min-height: 0; overflow: hidden; }',
     /* Status footer: Sum / Avg / Count of the selection, like Excel/Sheets. */
     '.sdoc-cells-focus-status {',
@@ -132,23 +137,35 @@
       });
   }
 
-  var state = { modal: null, prevFocus: null, keyHandler: null };
+  var state = { modal: null, prevFocus: null, keyHandler: null,
+                editApi: null, dirty: false, inlineWrapper: null, model: null };
 
   function close() {
     if (!state.modal) return;
+    if (state.editApi) { try { state.editApi.detach(); } catch (_) {} }
     if (state.keyHandler) window.removeEventListener('keydown', state.keyHandler);
     state.keyHandler = null;
     state.modal.remove();
     state.modal = null;
     document.body.classList.remove('sdoc-cells-focus-open');
+    // Edits mutate the shared model object, so the inline grid only needs a
+    // repaint to reflect them; the app can persist if it wants to.
+    if (state.dirty && state.inlineWrapper && state.inlineWrapper._cellsRepaint) {
+      try { state.inlineWrapper._cellsRepaint(); } catch (_) {}
+    }
+    if (state.dirty && S.onCellsEdited) { try { S.onCellsEdited(state.model, state.inlineWrapper); } catch (_) {} }
+    state.editApi = null; state.dirty = false; state.inlineWrapper = null; state.model = null;
     if (state.prevFocus && state.prevFocus.focus) { try { state.prevFocus.focus(); } catch (_) {} }
     state.prevFocus = null;
   }
 
-  function open(model) {
+  function open(model, inlineWrapper) {
     if (!model || model.empty || !S.buildCellsGrid) return;
     if (state.modal) close();
     state.prevFocus = document.activeElement;
+    state.model = model;
+    state.inlineWrapper = inlineWrapper || null;
+    state.dirty = false;
 
     var modal = document.createElement('div');
     modal.className = 'sdoc-cells-focus';
@@ -196,26 +213,60 @@
     bar.className = 'sdoc-cells-focus-bar';
     var nameBox = document.createElement('div');
     nameBox.className = 'sdoc-cells-focus-name';
-    var valueBox = document.createElement('div');
+    var valueBox = document.createElement('input');
+    valueBox.type = 'text';
+    valueBox.spellcheck = false;
     valueBox.className = 'sdoc-cells-focus-value';
+    valueBox.setAttribute('aria-label', 'Cell value / formula');
     bar.appendChild(nameBox);
     bar.appendChild(valueBox);
+
+    function focusGrid() {
+      var g = gridWrap.querySelector('.sdoc-cells-grid');
+      if (g) { try { g.focus({ preventScroll: true }); } catch (_) {} }
+    }
+    // Formula bar: Enter commits to the active cell and steps down; Esc reverts
+    // the field to the selected cell's raw and returns focus to the grid.
+    valueBox.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (state.editApi) state.editApi.setActiveRaw(valueBox.value, true);
+        focusGrid();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        syncSelection(gridWrap._cellsSelection);
+        focusGrid();
+      }
+      e.stopPropagation();
+    });
 
     // Status footer: Sum / Avg / Count of the selection.
     var status = document.createElement('div');
     status.className = 'sdoc-cells-focus-status';
 
     // Keep the name box, value field, and status footer in sync with selection.
-    gridWrap.addEventListener('cells-selection', function (e) {
-      var d = e.detail;
-      if (!d || d.empty) { nameBox.textContent = ''; valueBox.textContent = ''; status.textContent = ''; return; }
+    // Skipped while the formula bar itself is focused, so typing there is not
+    // clobbered by a programmatic reselect.
+    function syncSelection(d) {
+      if (!d || d.empty) { nameBox.textContent = ''; valueBox.value = ''; status.textContent = ''; return; }
       var vm = gridWrap._cellsModel || model;       // effective (sorted) view
       var addr = CELLS.colName(d.c0) + (d.r0 + 1);
       nameBox.textContent = d.single ? addr : addr + ':' + CELLS.colName(d.c1) + (d.r1 + 1);
       var cell = vm.cells[d.r0] && vm.cells[d.r0][d.c0];
-      valueBox.textContent = cell ? cell.raw : '';
+      if (document.activeElement !== valueBox) valueBox.value = cell ? cell.raw : '';
       status.textContent = S.formatCellsStats ? S.formatCellsStats(vm, d) : '';
-    });
+    }
+    gridWrap.addEventListener('cells-selection', function (e) { syncSelection(e.detail); });
+
+    // Client-only editing: type into the sheet, =formulas, undo/redo, paste.
+    // Edits mutate the shared model object; the inline grid is repainted on
+    // close so they appear there too.
+    if (S.cellsEdit && S.cellsEdit.attach) {
+      state.editApi = S.cellsEdit.attach(gridWrap, {
+        valueInput: valueBox,
+        onChange: function () { state.dirty = true; syncSelection(gridWrap._cellsSelection); },
+      });
+    }
 
     modal.appendChild(topbar);
     modal.appendChild(bar);
