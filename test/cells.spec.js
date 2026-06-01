@@ -509,3 +509,69 @@ test('a broken formula shows an error code, not a crash', async ({ page }) => {
   await expect(cell).toHaveText('#DIV/0!');
   await expect(cell).toHaveClass(/is-formula-error/);
 });
+
+// ── Fullscreen editing (client-only) ──────────────────────
+async function openFullscreen(page, lines) {
+  await loadDoc(page, lines.join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await page.locator('.sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus .sdoc-cells-grid');
+  return page.locator('.sdoc-cells-focus');
+}
+
+test('fullscreen: typing opens the editor and edits the cell', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await page.keyboard.press('9');                       // a printable key starts editing
+  const editor = page.locator('.sdoc-cells-editor');
+  await expect(editor).toBeVisible();
+  await expect(editor).toHaveValue('9');                // seeded with the typed char
+  await editor.fill('99');
+  await page.keyboard.press('Enter');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('99');
+});
+
+test('fullscreen: double-click edits, keeping the existing value', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').dblclick();
+  const editor = page.locator('.sdoc-cells-editor');
+  await expect(editor).toHaveValue('20');
+  await editor.fill('25');
+  await page.keyboard.press('Enter');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]')).toHaveText('25');
+});
+
+test('fullscreen: the formula bar commits a =formula that recalcs', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click();
+  await fs.locator('.sdoc-cells-focus-value').fill('=SUM(B2:B3)');
+  await fs.locator('.sdoc-cells-focus-value').press('Enter');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]')).toHaveText('30');
+});
+
+test('fullscreen: undo reverts an edit', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').dblclick();
+  await page.locator('.sdoc-cells-editor').fill('7');
+  await page.keyboard.press('Enter');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('7');
+  await page.locator('.sdoc-cells-focus .sdoc-cells-grid').focus();
+  await page.keyboard.press('Control+z');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('10');
+});
+
+test('fullscreen: Delete clears a selected cell', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').click();
+  await page.keyboard.press('Delete');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]')).toHaveText('');
+});
+
+test('fullscreen: edits show in the inline grid after close', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').dblclick();
+  await page.locator('.sdoc-cells-editor').fill('55');
+  await page.keyboard.press('Enter');
+  await page.locator('.sdoc-cells-focus-close').click();
+  await expect(page.locator('#_sd_rendered .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('55');
+});

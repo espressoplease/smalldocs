@@ -237,6 +237,23 @@ body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
   font-variant-numeric: normal;
 }
 
+/* In-cell editor (fullscreen editing): an input overlaid on the active cell
+ * while typing. Fixed-positioned to the cell rect by the JS; sits above the
+ * overlay chrome. */
+.sdoc-cells-editor {
+  position: fixed;
+  z-index: 10200;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 3px 6px;
+  border: 2px solid var(--sdoc-cells-accent);
+  border-radius: 0;
+  outline: none;
+  background: var(--md-bg, #fff);
+  color: var(--md-color, #1c1917);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+}
+
 /* ── Selection (sdocs-cells-select.js) ──────────────────── */
 /* The selection box is the focus cue, so suppress the default focus ring. */
 .sdoc-cells-grid:focus { outline: none; }
