@@ -85,4 +85,38 @@ module.exports = function (harness) {
     assert.strictEqual(F.isFormula('123'), false);
     assert.strictEqual(F.isFormula('='), false);
   });
+
+  // ── shiftFormula: relative reference adjustment (fill / copy-paste) ──
+  test('shiftFormula: shifts row references', () => {
+    assert.strictEqual(F.shiftFormula('=B2*C2', 1, 0), '=B3*C3');
+    assert.strictEqual(F.shiftFormula('=B2*C2', 3, 0), '=B5*C5');
+    assert.strictEqual(F.shiftFormula('=B5+1', -2, 0), '=B3+1');
+  });
+
+  test('shiftFormula: shifts column references', () => {
+    assert.strictEqual(F.shiftFormula('=B2+C2', 0, 1), '=C2+D2');
+    assert.strictEqual(F.shiftFormula('=Z1', 0, 1), '=AA1');     // letter rollover
+    assert.strictEqual(F.shiftFormula('=AA1', 0, -1), '=Z1');
+  });
+
+  test('shiftFormula: shifts ranges and leaves function names alone', () => {
+    assert.strictEqual(F.shiftFormula('=SUM(B2:B5)', 0, 1), '=SUM(C2:C5)');
+    assert.strictEqual(F.shiftFormula('=SUM(B2:B5)', 2, 0), '=SUM(B4:B7)');
+    assert.strictEqual(F.shiftFormula('=ROUND(A1,2)', 1, 1), '=ROUND(B2,2)');
+    // numbers and operators untouched
+    assert.strictEqual(F.shiftFormula('=A1*2+10%', 1, 0), '=A2*2+10%');
+  });
+
+  test('shiftFormula: a reference pushed off the sheet becomes #REF!', () => {
+    assert.strictEqual(F.shiftFormula('=A1+B1', -1, 0), '=#REF!+#REF!');
+    assert.strictEqual(F.shiftFormula('=A1', 0, -1), '=#REF!');
+    // and evaluating that yields a #REF! error, not a crash
+    assert.strictEqual(evalIn([], F.shiftFormula('=A1', -1, 0)), '#REF!');
+  });
+
+  test('shiftFormula: zero shift is identity; non-formulas pass through', () => {
+    assert.strictEqual(F.shiftFormula('=SUM(A1:B2)*3', 0, 0), '=SUM(A1:B2)*3');
+    assert.strictEqual(F.shiftFormula('plain text', 1, 1), 'plain text');
+    assert.strictEqual(F.shiftFormula('123', 1, 1), '123');
+  });
 };
