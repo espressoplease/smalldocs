@@ -197,7 +197,7 @@
     expandBtn.setAttribute('aria-label', 'Open fullscreen');
     expandBtn.innerHTML = EXPAND_SVG;
     expandBtn.addEventListener('click', function () {
-      if (S.cellsFocus) S.cellsFocus.open(model);
+      if (S.cellsFocus) S.cellsFocus.open(model, wrapper);
     });
     controls.box.appendChild(expandBtn);
 
@@ -273,12 +273,16 @@
     // copy, stats, and value bar reflect what is on screen after a sort.
     function paint() {
       var vm = model;
+      var order = null;
       if (sort) {
-        var order = CELLS.sortRows(model, sort.col, sort.dir, hasHeader);
+        order = CELLS.sortRows(model, sort.col, sort.dir, hasHeader);
         vm = { rows: model.rows, cols: model.cols, formats: model.formats,
                source: model.source, cells: order.map(function (ri) { return model.cells[ri]; }) };
       }
       wrapper._cellsModel = vm;
+      // Maps a painted (display) row index to its row in the source model. Null
+      // when unsorted (identity). The editor uses this to write the right cell.
+      wrapper._cellsRowOrder = order;
       // Resolve any =formula cells once for this paint. fx[r][c] carries the
       // computed result (or an error code) so a formula cell shows its value
       // while its raw keeps the formula for copy / export.
@@ -397,6 +401,12 @@
     });
 
     scroll.appendChild(grid);
+    // Hooks for the fullscreen editor: the mutable source model, a repaint
+    // trigger (re-derives sort + recalc), and the rendered extent so it knows
+    // how far the padded blank area reaches.
+    wrapper._cellsSource = model;
+    wrapper._cellsRepaint = paint;
+    wrapper._cellsExtent = { rows: renderRows, cols: renderCols };
     // Toolbar reads wrapper._cellsModel (set by paint) so copy follows a sort.
     if (!fullscreen) wrapper.appendChild(buildBar(wrapper, model));
     wrapper.appendChild(scroll);

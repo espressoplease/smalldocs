@@ -137,6 +137,18 @@
       focus.c = clamp(c, cols);
       apply(doScroll);
     }
+    // Hooks for the fullscreen editor: move/extend the selection programmatically
+    // (e.g. after a commit) and read the current rectangle.
+    grid._moveTo = moveTo;
+    grid._extendTo = extendTo;
+    grid._selectionRect = function () {
+      if (anchor.r < 0) return null;
+      return {
+        r0: Math.min(anchor.r, focus.r), c0: Math.min(anchor.c, focus.c),
+        r1: Math.max(anchor.r, focus.r), c1: Math.max(anchor.c, focus.c),
+      };
+    };
+
     // Select a whole column / row (clicking its header).
     function selectColumn(c) {
       anchor.r = 0; anchor.c = clamp(c, cols);
