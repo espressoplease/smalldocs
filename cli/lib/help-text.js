@@ -992,6 +992,10 @@ SORTING
   a header. Sorting is a view reorder - it does not change the document;
   copy reflects what is on screen.
 
+  Formula cells sort by their computed value, and that value travels with
+  its row: references keep meaning what the author wrote, so a sorted
+  =SUM(...) row never recomputes against the shuffled view.
+
 RESIZING
   Drag a column header's right edge to set an explicit width; it persists
   through sorts. Otherwise columns size to their content.

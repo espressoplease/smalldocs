@@ -171,6 +171,34 @@ module.exports = function(harness) {
     assert.strictEqual(desc[desc.length - 1], 2); // still last
   });
 
+  test('sortRows: formula cells sort by their computed value when fx is given', () => {
+    // Without fx, "=..." cells are text and sort alphabetically by formula
+    // source - wrong. With a recalc results grid they sort by computed value.
+    const m = parseCells('Item,Val\nA,=1*30\nB,=1*10\nC,=1*20');
+    const fx = [
+      [{ kind: 'text' }, { kind: 'text' }],
+      [{ kind: 'text' }, { kind: 'number', value: 30 }],
+      [{ kind: 'text' }, { kind: 'number', value: 10 }],
+      [{ kind: 'text' }, { kind: 'number', value: 20 }],
+    ];
+    const order = sortRows(m, 1, 'asc', true, fx);
+    assert.deepStrictEqual(order, [0, 2, 3, 1]);  // header, then 10, 20, 30
+    const desc = sortRows(m, 1, 'desc', true, fx);
+    assert.deepStrictEqual(desc, [0, 1, 3, 2]);   // header, then 30, 20, 10
+  });
+
+  test('sortRows: formula errors sort with text (after numbers)', () => {
+    // rows: 0 = error formula, 1 = plain 5, 2 = formula evaluating to 4
+    const m = parseCells('=NOPE(\n5\n=2*2');
+    const fx = [
+      [{ kind: 'error', code: '#NAME?' }],
+      [{ kind: 'number', value: 5 }],
+      [{ kind: 'number', value: 4 }],
+    ];
+    const order = sortRows(m, 0, 'asc', false, fx);
+    assert.deepStrictEqual(order, [2, 1, 0]);     // 4, 5, then the error
+  });
+
   // ── Column format directives (author-controlled, display only) ──
   test('colIndex: letters to 0-based index', () => {
     assert.strictEqual(colIndex('A'), 0);

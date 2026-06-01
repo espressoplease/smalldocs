@@ -219,12 +219,15 @@
 .sdoc-cells-colhead:hover .sdoc-cells-sort-next { display: inline-flex; }
 .sdoc-cells-sort:hover .sdoc-cells-sort-next { color: var(--md-color, #1c1917); }
 
-/* Column resize: a thin handle straddling each header's right edge. */
+/* Column resize: a thin handle straddling each header's right edge. The last
+ * column's handle (.is-last) stays inside the grid box - an overhang there
+ * would count as scrollable overflow and open a white gap right of the grid. */
 .sdoc-cells-colhead { position: relative; }
 .sdoc-cells-resize {
   position: absolute; top: 0; right: -4px; width: 8px; height: 100%;
   cursor: col-resize; z-index: 3;
 }
+.sdoc-cells-resize.is-last { right: 0; width: 5px; }
 body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
 
 /* Freeze the header row and the row-number column. Inline this is inert;
