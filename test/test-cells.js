@@ -199,6 +199,49 @@ module.exports = function(harness) {
     assert.deepStrictEqual(order, [2, 1, 0]);     // 4, 5, then the error
   });
 
+  test('sortRows: a trailing Total row (range formula) stays pinned at the bottom', () => {
+    // A summary row aggregates a multi-row range (=SUM(B2:B4)); per-row
+    // formulas (=B2*2) do not. Sorting must not jumble the summary into the
+    // data - it stays last, like the header stays first.
+    const m = parseCells('Item,Val\nB,30\nA,10\nTotal,=SUM(B2:B3)');
+    const fx = [
+      [{ kind: 'text' }, { kind: 'text' }],
+      [{ kind: 'text' }, { kind: 'number', value: 30 }],
+      [{ kind: 'text' }, { kind: 'number', value: 10 }],
+      [{ kind: 'text' }, { kind: 'number', value: 40 }],
+    ];
+    const asc = sortRows(m, 1, 'asc', true, fx);
+    assert.deepStrictEqual(asc, [0, 2, 1, 3]);    // header, 10, 30, Total pinned
+    const desc = sortRows(m, 1, 'desc', true, fx);
+    assert.deepStrictEqual(desc, [0, 1, 2, 3]);   // header, 30, 10, Total pinned
+  });
+
+  test('sortRows: multiple trailing summary rows stay pinned in their own order', () => {
+    const m = parseCells('Val\n30\n10\n=SUM(A2:A3)\n=AVERAGE(A2:A3)');
+    const fx = [
+      [{ kind: 'text' }],
+      [{ kind: 'number', value: 30 }],
+      [{ kind: 'number', value: 10 }],
+      [{ kind: 'number', value: 40 }],
+      [{ kind: 'number', value: 20 }],
+    ];
+    const order = sortRows(m, 0, 'asc', true, fx);
+    assert.deepStrictEqual(order, [0, 2, 1, 3, 4]);  // header, 10, 30, SUM, AVERAGE
+  });
+
+  test('sortRows: a same-row formula (no range) is NOT treated as a summary row', () => {
+    // =A2*2 references a single cell, not a range - it sorts with the data.
+    const m = parseCells('A,B\n3,=A2*2\n1,=A3*2\n2,=A4*2');
+    const fx = [
+      [{ kind: 'text' }, { kind: 'text' }],
+      [{ kind: 'number', value: 3 }, { kind: 'number', value: 6 }],
+      [{ kind: 'number', value: 1 }, { kind: 'number', value: 2 }],
+      [{ kind: 'number', value: 2 }, { kind: 'number', value: 4 }],
+    ];
+    const order = sortRows(m, 1, 'asc', true, fx);
+    assert.deepStrictEqual(order, [0, 2, 3, 1]);  // header, 2, 4, 6 - nothing pinned
+  });
+
   // ── Column format directives (author-controlled, display only) ──
   test('colIndex: letters to 0-based index', () => {
     assert.strictEqual(colIndex('A'), 0);

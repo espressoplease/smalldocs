@@ -432,12 +432,13 @@ test('sorting a formula column orders by computed values, with no #CIRC! errors'
     'Monitor,30,280,=B3*C3',     // 8400
     'Keyboard,45,90,=B4*C4',     // 4050
     'Dock,18,210,=B5*C5',        // 3780
-    'Total,,,=SUM(D2:D5)',       // 29430
+    'Total,,,=SUM(D2:D5)',       // 29430 - a summary row, pinned to the bottom
     FENCE,
   ].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
   const sortBtn = () => page.locator('.sdoc-cells-colhead[data-c="3"] .sdoc-cells-sort');
-  // Ascending by computed Total: Dock 3,780 < Keyboard < Monitor < Laptop < Total
+  // Ascending by computed Total. The Total row (a range formula, =SUM) is a
+  // summary of the others - it stays pinned at the bottom, outside the sort.
   await sortBtn().click();
   expect(await page.locator('.sdoc-cells-cell[data-c="0"]').allInnerTexts())
     .toEqual(['Item', 'Dock', 'Keyboard', 'Monitor', 'Laptop', 'Total']);
@@ -446,10 +447,11 @@ test('sorting a formula column orders by computed values, with no #CIRC! errors'
   await expect(page.locator('.sdoc-cells-cell[data-r="4"][data-c="3"]')).toHaveText('13,200');
   // Nothing went circular from evaluating against a reordered view.
   expect(await page.locator('.is-formula-error').count()).toBe(0);
-  // Descending flips the data rows.
+  // Descending flips the data rows; the Total row still holds the bottom.
   await sortBtn().click();
   expect(await page.locator('.sdoc-cells-cell[data-c="0"]').allInnerTexts())
-    .toEqual(['Item', 'Total', 'Laptop', 'Monitor', 'Keyboard', 'Dock']);
+    .toEqual(['Item', 'Laptop', 'Monitor', 'Keyboard', 'Dock', 'Total']);
+  await expect(page.locator('.sdoc-cells-cell[data-r="5"][data-c="3"]')).toHaveText('29,430');
   expect(await page.locator('.is-formula-error').count()).toBe(0);
 });
 
