@@ -79,10 +79,10 @@ on it) to open it with its current value.
 cell. Click a cell, type into the bar, press Enter. The name box to its left
 shows the address of what is selected.
 
-**Fullscreen - the stats footer.** Select a range of numbers - the bottom
-right shows their Sum, Avg, Min, Max, and Count. Computed formula cells
-count by their value, so selecting the Total column above includes the
-$29,430 total, not the formula text.
+**Fullscreen - selection stats.** Select a range of numbers - their Sum, Avg,
+Min, Max, and Count appear in the header bar, right next to the selection
+address. Computed formula cells count by their value, so selecting the Total
+column above includes the $29,430 total, not the formula text.
 
 **Fullscreen - write formulas.** Start a cell with `=`. Supported:
 
