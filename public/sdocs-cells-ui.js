@@ -411,6 +411,28 @@
     if (!fullscreen) wrapper.appendChild(buildBar(wrapper, model));
     wrapper.appendChild(scroll);
 
+    // Inline only: size the scroller to the grid's real rendered width so a
+    // sheet narrower than the page shows no scrollbar. CSS max-content
+    // under-measures a grid with minmax() column floors + gaps (the laid-out
+    // grid.scrollWidth runs a few px wider), which would force a spurious
+    // scrollbar; measuring and setting the width avoids it. Re-run on resize
+    // (column widths / wraps shift) and after a sort repaint. The fullscreen
+    // view fills the viewport on purpose, so it is left at auto.
+    if (!fullscreen) {
+      var sizeScroller = function () {
+        scroll.style.width = '';                       // measure unconstrained
+        var w = grid.scrollWidth;
+        if (w > 0) scroll.style.width = w + 'px';
+      };
+      wrapper._cellsSizeScroller = sizeScroller;
+      if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(sizeScroller);
+      else sizeScroller();
+      if (typeof ResizeObserver !== 'undefined') {
+        var sizeRO = new ResizeObserver(function () { sizeScroller(); });
+        sizeRO.observe(grid);
+      }
+    }
+
     // Watch for a space-reserving scrollbar; toggles .has-xscroll so the
     // closing line under the last row is drawn only when needed.
     if (overflowRO) overflowRO.observe(scroll);
