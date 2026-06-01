@@ -238,17 +238,39 @@
     return { rank: 1, v: String(cell.value).toLowerCase() };
   }
 
+  // A summary row aggregates other rows: it holds at least one formula with a
+  // range spanning 2+ rows, e.g. =SUM(D2:D5). Per-row formulas (=B2*C2) refer
+  // to single cells and do not count. Used by sortRows to keep a trailing
+  // "Total" row pinned at the bottom instead of jumbling it into the data.
+  var ROW_RANGE_RE = /[A-Za-z]+([0-9]+)\s*:\s*[A-Za-z]+([0-9]+)/;
+  function isSummaryRow(row) {
+    if (!row) return false;
+    for (var i = 0; i < row.length; i++) {
+      var raw = row[i] && row[i].raw;
+      if (!raw || raw.charAt(0) !== '=') continue;
+      var m = ROW_RANGE_RE.exec(raw);
+      if (m && m[1] !== m[2]) return true;       // the range spans rows
+    }
+    return false;
+  }
+
   // Return the row order (array of original indices) sorting the model by a
   // column. A view reorder - the model itself is not changed. Empty cells stay
-  // last either direction; a header row (when hasHeader) stays pinned to row 0.
+  // last either direction; a header row (when hasHeader) stays pinned to row 0;
+  // trailing summary rows (see isSummaryRow) stay pinned at the bottom.
   // fx (optional) is a recalc results grid indexed by SOURCE row: formula
   // cells then sort by their computed value instead of their source text.
   function sortRows(model, col, dir, hasHeader, fx) {
     var order = [];
     for (var r = 0; r < model.rows; r++) order.push(r);
     var start = hasHeader ? 1 : 0;
+    // Trailing summary rows (a Total / Average footer) sit outside the sort,
+    // in their original order.
+    var end = model.rows;
+    while (end > start && isSummaryRow(model.cells[end - 1])) end--;
     var head = order.slice(0, start);
-    var body = order.slice(start);
+    var tail = order.slice(end);
+    var body = order.slice(start, end);
     var sign = dir === 'desc' ? -1 : 1;
     function fxFor(r, cell) {
       if (!fx || !cell || !cell.raw || cell.raw.charAt(0) !== '=') return null;
@@ -265,7 +287,7 @@
       if (a.v > b.v) return 1 * sign;
       return 0;
     });
-    return head.concat(body);
+    return head.concat(body).concat(tail);
   }
 
   // Display formatting for a numeric raw string: group the integer part with

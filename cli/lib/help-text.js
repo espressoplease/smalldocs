@@ -996,6 +996,11 @@ SORTING
   its row: references keep meaning what the author wrote, so a sorted
   =SUM(...) row never recomputes against the shuffled view.
 
+  A trailing summary row - one whose formula aggregates a range of other
+  rows, like a Total row with =SUM(D2:D5) - is pinned to the bottom and
+  stays there through any sort, the same way a header row stays at the top.
+  Per-row formulas like =B2*C2 sort with the data as normal.
+
 RESIZING
   Drag a column header's right edge to set an explicit width; it persists
   through sorts. Otherwise columns size to their content.
