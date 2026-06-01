@@ -43,6 +43,9 @@ require('./test-library-deny')(harness);
 require('./test-library-ls')(harness);
 const runBridge = require('./test-bridge')(harness);
 
+// ── Async test groups (no server) ───────────────────
+const runSetupScenarios = require('./test-setup-scenarios')(harness);
+
 // ── HTTP tests (async, starts server) ──────────────
 const runHttp = require('./test-http')(harness);
 const runCacheBust = require('./test-cache-bust')(harness);
@@ -50,6 +53,7 @@ const runLibraryServer = require('./test-library-server')(harness);
 
 (async () => {
   await runBridge();
+  await runSetupScenarios();
   await runHttp();
   await runCacheBust();
   await runLibraryServer();
