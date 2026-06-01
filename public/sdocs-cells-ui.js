@@ -279,6 +279,12 @@
                source: model.source, cells: order.map(function (ri) { return model.cells[ri]; }) };
       }
       wrapper._cellsModel = vm;
+      // Resolve any =formula cells once for this paint. fx[r][c] carries the
+      // computed result (or an error code) so a formula cell shows its value
+      // while its raw keeps the formula for copy / export.
+      var FX = window.SDocCellsFormula;
+      var fx = FX ? FX.recalc(vm) : null;
+      wrapper._cellsFx = fx;
       while (grid.firstChild) grid.removeChild(grid.firstChild);
 
       var corner = document.createElement('div');
@@ -316,9 +322,20 @@
         for (var c2 = 0; c2 < renderCols; c2++) {
           var cell = (line && line[c2]) || EMPTY_CELL;   // pad past the data
           var el = document.createElement('div');
-          var typeCls = cell.type === 'number' ? ' is-number'
-            : cell.type === 'empty' ? ' is-empty' : ' is-text';
-          if (cell.type === 'number' && cell.value < 0) typeCls += ' is-negative';
+          var fmt = vm.formats && vm.formats[c2];
+          // A formula cell (raw starts with '=') shows its computed result and
+          // behaves like a number for alignment / formatting; its raw is kept.
+          var fxCell = (fx && FX.isFormula(cell.raw)) ? fx[r][c2] : null;
+
+          var typeCls;
+          if (fxCell) {
+            if (fxCell.kind === 'error') typeCls = ' is-text is-formula-error';
+            else typeCls = ' is-number is-formula' + (fxCell.value < 0 ? ' is-negative' : '');
+          } else {
+            typeCls = cell.type === 'number' ? ' is-number'
+              : cell.type === 'empty' ? ' is-empty' : ' is-text';
+            if (cell.type === 'number' && cell.value < 0) typeCls += ' is-negative';
+          }
           if (hasHeader && r === 0) typeCls += ' is-header';   // detected header row
           el.className = 'sdoc-cells-cell' + typeCls;
           el.setAttribute('role', 'gridcell');
@@ -327,8 +344,15 @@
           // Display only - the model's raw is untouched, so copy / export emit
           // the original. Numbers use the column's format; text keeps its
           // content with a literal <br> as a line break (plain text only).
-          if (cell.type === 'number') {
-            var fmt = vm.formats && vm.formats[c2];
+          if (fxCell) {
+            if (fxCell.kind === 'error') {
+              el.textContent = fxCell.code;
+            } else {
+              var fcell = { value: fxCell.value, raw: String(fxCell.value), type: 'number' };
+              el.textContent = fmt ? CELLS.formatValue(fcell, fmt) : CELLS.formatNumber(fcell.raw);
+            }
+            el.title = cell.raw;                              // hover shows the formula
+          } else if (cell.type === 'number') {
             el.textContent = fmt ? CELLS.formatValue(cell, fmt) : CELLS.formatNumber(cell.raw);
           } else {
             el.textContent = cell.raw.replace(/<br\s*\/?>/gi, '\n');
