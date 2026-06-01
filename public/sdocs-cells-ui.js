@@ -280,10 +280,20 @@
     // wrapper._cellsModel always holds that effective model, so the toolbar,
     // copy, stats, and value bar reflect what is on screen after a sort.
     function paint() {
+      // Resolve any =formula cells against the SOURCE model first: cell
+      // references mean what the author wrote, regardless of any sort. The
+      // computed value then travels with its row when the view is reordered
+      // (evaluating against a sorted view would point refs at the wrong rows
+      // and turn self-overlapping ranges into #CIRC!). fx is indexed by
+      // SOURCE row.
+      var FX = window.SDocCellsFormula;
+      var fx = FX ? FX.recalc(model) : null;
+      wrapper._cellsFx = fx;
       var vm = model;
       var order = null;
       if (sort) {
-        order = CELLS.sortRows(model, sort.col, sort.dir, hasHeader);
+        // fx makes formula cells sort by their computed value, not "=..." text.
+        order = CELLS.sortRows(model, sort.col, sort.dir, hasHeader, fx);
         vm = { rows: model.rows, cols: model.cols, formats: model.formats,
                source: model.source, cells: order.map(function (ri) { return model.cells[ri]; }) };
       }
@@ -291,12 +301,6 @@
       // Maps a painted (display) row index to its row in the source model. Null
       // when unsorted (identity). The editor uses this to write the right cell.
       wrapper._cellsRowOrder = order;
-      // Resolve any =formula cells once for this paint. fx[r][c] carries the
-      // computed result (or an error code) so a formula cell shows its value
-      // while its raw keeps the formula for copy / export.
-      var FX = window.SDocCellsFormula;
-      var fx = FX ? FX.recalc(vm) : null;
-      wrapper._cellsFx = fx;
       while (grid.firstChild) grid.removeChild(grid.firstChild);
 
       var corner = document.createElement('div');
@@ -334,7 +338,9 @@
           ch.appendChild(caret);
         }
         var handle = document.createElement('span');   // drag to resize this column
-        handle.className = 'sdoc-cells-resize';
+        // The last column's handle stays inside the grid box (is-last) so its
+        // 4px overhang cannot widen scrollWidth and leave a gap on the right.
+        handle.className = 'sdoc-cells-resize' + (c === renderCols - 1 ? ' is-last' : '');
         handle.dataset.c = String(c);
         ch.appendChild(handle);
         grid.appendChild(ch);
@@ -347,13 +353,16 @@
         rh.textContent = String(r + 1);
         grid.appendChild(rh);
         var line = vm.cells[r];
+        // fx is indexed by source row; under a sort the displayed row r holds
+        // source row order[r]'s cells, so its computed values live there too.
+        var srcR = order ? order[r] : r;
         for (var c2 = 0; c2 < renderCols; c2++) {
           var cell = (line && line[c2]) || EMPTY_CELL;   // pad past the data
           var el = document.createElement('div');
           var fmt = vm.formats && vm.formats[c2];
           // A formula cell (raw starts with '=') shows its computed result and
           // behaves like a number for alignment / formatting; its raw is kept.
-          var fxCell = (fx && FX.isFormula(cell.raw)) ? fx[r][c2] : null;
+          var fxCell = (fx && FX.isFormula(cell.raw) && fx[srcR]) ? fx[srcR][c2] : null;
 
           var typeCls;
           if (fxCell) {
@@ -445,6 +454,10 @@
     if (!fullscreen) {
       var sizeScroller = function () {
         scroll.style.width = '';                       // measure unconstrained
+        // grid.scrollWidth is integer-rounded (>= the grid's fractional box
+        // width), so the scroller never under-measures into a scrollbar. The
+        // last column's resize handle is kept inside the grid box (.is-last)
+        // so it cannot inflate this measurement into a white gap.
         var w = grid.scrollWidth;
         if (w > 0) scroll.style.width = w + 'px';
       };
