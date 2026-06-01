@@ -424,6 +424,50 @@ test('clicking a sort caret sorts the view (asc -> desc -> off), header kept', a
   expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').innerText()).toBe('Bea'); // original row 1
 });
 
+test('sorting a formula column orders by computed values, with no #CIRC! errors', async ({ page }) => {
+  await loadDoc(page, [
+    FENCE + 'cells',
+    'Item,Qty,Price,Total',
+    'Laptop,12,1100,=B2*C2',     // 13200
+    'Monitor,30,280,=B3*C3',     // 8400
+    'Keyboard,45,90,=B4*C4',     // 4050
+    'Dock,18,210,=B5*C5',        // 3780
+    'Total,,,=SUM(D2:D5)',       // 29430
+    FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const sortBtn = () => page.locator('.sdoc-cells-colhead[data-c="3"] .sdoc-cells-sort');
+  // Ascending by computed Total: Dock 3,780 < Keyboard < Monitor < Laptop < Total
+  await sortBtn().click();
+  expect(await page.locator('.sdoc-cells-cell[data-c="0"]').allInnerTexts())
+    .toEqual(['Item', 'Dock', 'Keyboard', 'Monitor', 'Laptop', 'Total']);
+  // Each value travelled with its row: Dock still shows 3,780, Laptop 13,200.
+  await expect(page.locator('.sdoc-cells-cell[data-r="1"][data-c="3"]')).toHaveText('3,780');
+  await expect(page.locator('.sdoc-cells-cell[data-r="4"][data-c="3"]')).toHaveText('13,200');
+  // Nothing went circular from evaluating against a reordered view.
+  expect(await page.locator('.is-formula-error').count()).toBe(0);
+  // Descending flips the data rows.
+  await sortBtn().click();
+  expect(await page.locator('.sdoc-cells-cell[data-c="0"]').allInnerTexts())
+    .toEqual(['Item', 'Total', 'Laptop', 'Monitor', 'Keyboard', 'Dock']);
+  expect(await page.locator('.is-formula-error').count()).toBe(0);
+});
+
+test('the sheet wrapper hugs the grid - no white gap right of the last column', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  // The scroller is sized on a rAF + ResizeObserver; poll until it settles.
+  await expect(async () => {
+    const gap = await page.evaluate(() => {
+      const wrap = document.querySelector('.sdoc-cells');
+      const lastCol = wrap.querySelector('.sdoc-cells-colhead[data-c="1"]');
+      return wrap.getBoundingClientRect().right - lastCol.getBoundingClientRect().right;
+    });
+    // Only the 1px wrapper border + sub-pixel rounding may remain.
+    expect(gap).toBeLessThanOrEqual(2.5);
+  }).toPass({ timeout: 5000 });
+});
+
 test('column letter stays centred; the sort control sits on the right edge', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'Name,Score', 'Bea,30', 'Al,10', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');

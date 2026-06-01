@@ -48,6 +48,8 @@ Shift+Arrow. The top bar shows the span (like `B2:C4`).
 showing what a click will do (up = sort ascending, down = descending, x =
 clear). The current sort stays visible as a colored arrow. The header row
 stays pinned. Sorting only reorders the view - the document is untouched.
+Formula cells (like the Total column above) sort by their computed value,
+and each value stays with its row.
 
 **Inline - resize a column.** Drag the right edge of its column letter.
 
