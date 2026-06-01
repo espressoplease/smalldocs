@@ -72,6 +72,14 @@
   // Fullscreen "expand" glyph - the same lucide icon the Mermaid focus button
   // uses (sdocs-mermaid-focus.js).
   var EXPAND_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+  // Sort glyphs (lucide arrow-up / arrow-down / x), 12px so they read clearly
+  // at header size. Class names let tests and CSS target each state.
+  function sortSvg(cls, paths) {
+    return '<svg class="' + cls + '" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+  }
+  var SORT_UP_SVG = sortSvg('sdoc-cells-sort-up', '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>');
+  var SORT_DOWN_SVG = sortSvg('sdoc-cells-sort-down', '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>');
+  var SORT_CLEAR_SVG = sortSvg('sdoc-cells-sort-clear', '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
 
   function rawRows(cells) {
     return cells.map(function (row) {
@@ -303,10 +311,26 @@
         label.textContent = CELLS.colName(c);
         ch.appendChild(label);
         if (c < cols) {                                  // sort only real columns
+          // The sort control sits absolutely on the header's right edge (the
+          // letter stays centred). It holds two layers: the CURRENT state
+          // (accent arrow, only when this column is sorted) and the NEXT state
+          // (what one click will do), which replaces it on header hover -
+          // up = will sort ascending, down = descending, x = will clear.
+          var sorted = sort && sort.col === c ? sort.dir : null;
           var caret = document.createElement('span');
           caret.className = 'sdoc-cells-sort';
           caret.dataset.c = String(c);
-          caret.textContent = (sort && sort.col === c) ? (sort.dir === 'asc' ? '↑' : '↓') : '↕';
+          caret.title = !sorted ? 'Sort ascending'
+            : (sorted === 'asc' ? 'Sort descending' : 'Clear sort');
+          var cur = document.createElement('span');
+          cur.className = 'sdoc-cells-sort-cur';
+          if (sorted) cur.innerHTML = sorted === 'asc' ? SORT_UP_SVG : SORT_DOWN_SVG;
+          var nxt = document.createElement('span');
+          nxt.className = 'sdoc-cells-sort-next';
+          nxt.innerHTML = !sorted ? SORT_UP_SVG
+            : (sorted === 'asc' ? SORT_DOWN_SVG : SORT_CLEAR_SVG);
+          caret.appendChild(cur);
+          caret.appendChild(nxt);
           ch.appendChild(caret);
         }
         var handle = document.createElement('span');   // drag to resize this column
