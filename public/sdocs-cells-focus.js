@@ -58,6 +58,17 @@
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
     '.sdoc-cells-focus .sdoc-cells-copy:hover { border-color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 32%, transparent); }',
+    /* Formula view toggle: a small "=fx" ghost button; accent when active. */
+    '.sdoc-cells-fx-toggle {',
+    '  all: unset; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;',
+    '  height: 28px; padding: 0 8px; border-radius: 4px;',
+    '  font-size: 12px; font-weight: 600; font-style: italic; font-family: ui-serif, Georgia, serif;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 75%, transparent);',
+    '  transition: background .12s, color .12s;',
+    '}',
+    '.sdoc-cells-fx-toggle:hover { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 8%, transparent); color: var(--sdoc-focus-fg, #1c1917); }',
+    '.sdoc-cells-fx-toggle.is-on { background: rgba(139, 92, 246, 0.15); color: #7c4fe0; }',
+    '.sdoc-cells-fx-toggle:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
     /* Name box + value/formula bar - the classic spreadsheet header. */
     '.sdoc-cells-focus-bar {',
     '  display: flex; align-items: stretch; height: 31px; font-size: 13px;',
@@ -201,6 +212,35 @@
     var actions = S.buildCellsCopyControls
       ? S.buildCellsCopyControls(gridWrap, model).box
       : document.createElement('div');
+    // Formula view toggle - only when the sheet actually contains formulas.
+    // On: every formula cell shows its "=..." source (and stays editable in
+    // place); off: computed values. The selection survives the repaint.
+    var hasFormulas = (model.cells || []).some(function (row) {
+      return (row || []).some(function (cl) {
+        return cl && cl.raw && cl.raw.charAt(0) === '=' && cl.raw.length > 1;
+      });
+    });
+    if (hasFormulas) {
+      var fxBtn = document.createElement('button');
+      fxBtn.type = 'button';
+      fxBtn.className = 'sdoc-cells-fx-toggle';
+      fxBtn.title = 'Show formulas';
+      fxBtn.setAttribute('aria-label', 'Show formulas');
+      fxBtn.textContent = '=fx';
+      fxBtn.addEventListener('click', function () {
+        gridWrap._cellsShowFormulas = !gridWrap._cellsShowFormulas;
+        fxBtn.classList.toggle('is-on', !!gridWrap._cellsShowFormulas);
+        fxBtn.title = gridWrap._cellsShowFormulas ? 'Show values' : 'Show formulas';
+        var gridEl2 = gridWrap.querySelector('.sdoc-cells-grid');
+        var rect = gridEl2 && gridEl2._selectionRect ? gridEl2._selectionRect() : null;
+        if (gridWrap._cellsRepaint) gridWrap._cellsRepaint();
+        if (rect && gridEl2 && gridEl2._moveTo) {
+          gridEl2._moveTo(rect.r0, rect.c0, false);
+          gridEl2._extendTo(rect.r1, rect.c1, false);
+        }
+      });
+      actions.appendChild(fxBtn);
+    }
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'sdoc-cells-focus-close';
