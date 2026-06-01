@@ -315,7 +315,8 @@ test('expand opens a fullscreen focus overlay with a name/value bar', async ({ p
   // Selecting a cell updates the name box + value field.
   await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="1"]').click();
   expect(await page.locator('.sdoc-cells-focus-name').innerText()).toBe('B2');
-  expect(await page.locator('.sdoc-cells-focus-value').innerText()).toBe('100');
+  // The value field is now a real formula-bar <input>.
+  expect(await page.locator('.sdoc-cells-focus-value').inputValue()).toBe('100');
   // Esc closes it.
   await page.keyboard.press('Escape');
   await expect(page.locator('.sdoc-cells-focus')).toHaveCount(0);
