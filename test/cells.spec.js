@@ -338,26 +338,32 @@ test('fullscreen pads the grid with empty cells past the data', async ({ page })
   expect(await page.locator('.sdoc-cells-focus-value').innerText()).toBe(''); // padded cell is empty
 });
 
-test('fullscreen shows Sum / Avg / Count for a selected range', async ({ page }) => {
+test('fullscreen shows Sum / Avg / Count beside the selection address', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'a,b', '10,20', '30,40', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
   await page.locator('.sdoc-cells-expand').click();
   await page.waitForSelector('.sdoc-cells-focus');
-  // No stats for a single cell.
+  // No stats for a single cell (the element collapses to nothing).
   await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="0"]').click();
-  expect((await page.locator('.sdoc-cells-focus-status').innerText()).trim()).toBe('');
+  expect((await page.locator('.sdoc-cells-focus-stats').innerText()).trim()).toBe('');
   // Drag the 2x2 numeric block (10,20,30,40).
   await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="0"]').hover();
   await page.mouse.down();
   await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="2"][data-c="1"]').hover();
   await page.mouse.up();
-  const status = await page.locator('.sdoc-cells-focus-status').innerText();
-  expect(status).toContain('Sum');
-  expect(status).toContain('100');   // 10+20+30+40
-  expect(status).toContain('Avg');
-  expect(status).toContain('25');    // 100 / 4
-  expect(status).toContain('Count');
-  expect(status).toMatch(/Count\D*4/);
+  // The stats live in the header bar, immediately right of the name box.
+  const stats = page.locator('.sdoc-cells-focus-bar .sdoc-cells-focus-stats');
+  const text = await stats.innerText();
+  expect(text).toContain('Sum');
+  expect(text).toContain('100');     // 10+20+30+40
+  expect(text).toContain('Avg');
+  expect(text).toContain('25');      // 100 / 4
+  expect(text).toMatch(/Count\D*4/);
+  const nameBox = await page.locator('.sdoc-cells-focus-name').boundingBox();
+  const statsBox = await stats.boundingBox();
+  expect(statsBox.x).toBeGreaterThanOrEqual(nameBox.x + nameBox.width - 1);
+  // The old footer row is gone.
+  expect(await page.locator('.sdoc-cells-focus-status').count()).toBe(0);
 });
 
 test('fullscreen stats include computed formula values in the selection', async ({ page }) => {
@@ -369,11 +375,11 @@ test('fullscreen stats include computed formula values in the selection', async 
   await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="1"]').click();
   await page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="3"][data-c="1"]')
     .click({ modifiers: ['Shift'] });
-  const status = page.locator('.sdoc-cells-focus-status');
-  await expect(status).toContainText('Sum 60');    // 10 + 20 + computed 30
-  await expect(status).toContainText('Avg 20');
-  await expect(status).toContainText('Max 30');    // the computed value, not text
-  await expect(status).toContainText('Count 3');
+  const stats = page.locator('.sdoc-cells-focus-stats');
+  await expect(stats).toContainText('Sum 60');     // 10 + 20 + computed 30
+  await expect(stats).toContainText('Avg 20');
+  await expect(stats).toContainText('Max 30');     // the computed value, not text
+  await expect(stats).toContainText('Count 3');
 });
 
 test('numbers display with thousands separators; negatives get a red class', async ({ page }) => {
