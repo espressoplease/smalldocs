@@ -225,6 +225,73 @@ Write mode uses `contentEditable` which behaves differently under Playwright aut
 - **Chromium represents newlines as `<br>` in contentEditable `<pre>`.** Both `insertText('\n')` and `insertLineBreak` produce `<br>` elements. `textContent` does **not** include these - only `innerHTML` and `childNodes` reveal them. When counting trailing BRs, skip whitespace-only text nodes (e.g. trailing `\n` from initialization).
 - **N Enter presses = N+1 trailing `<br>` elements** (the extra one is the browser's caret placeholder).
 
+## Testing the CLI install / setup flow
+
+Historically the only way to verify `sdoc setup`, `sdoc refresh`, or any agent-block migration was: bump the version, publish to npm, run a real `npm i -g sdocs-dev` (or the curl installer), eyeball the result, then uninstall and try again. Slow, fragile, easy to skip - which is how regressions in the install / setup path used to ship.
+
+`test/cli-harness.js` + `test/test-setup-scenarios.js` replace that loop. The harness spawns the real CLI binary (`cli/bin/sdocs-dev.js`) against a temp directory that pretends to be `$HOME`. Every path the CLI reads or writes is derived from `os.homedir()`, which reads `$HOME` on macOS / Linux, so the spawned process believes that temp dir is the world. The fixture is wiped at the end. Nothing escapes; no `npm publish` involved.
+
+**Re-run these scenarios whenever you touch:**
+- `cli/lib/setup.js` (the setup / refresh state machine, the `--yes` non-interactive path)
+- `cli/lib/agent-block.js` (block format, `AGENT_BLOCK_VERSION`, `AGENT_BLOCK_BODY`, legacy-migration logic, `~/.sdocs/setup.json` schema)
+- `cli/lib/agent-files.js` (detection, atomic write, lock, refresh dispatch)
+- `cli/lib/constants.js` (paths like `SETUP_CACHE`)
+- `cli/lib/io.js` parser, when adding flags consumed by setup / refresh
+
+If a scenario fails after a change in any of those, the regression is real - a real user upgrading on the live CLI would hit it. Bumping `AGENT_BLOCK_VERSION` is the most common reason scenario 4 (v6 → current) needs attention; that test pins the upgrade path.
+
+**Run:**
+
+```bash
+node test/run.js                             # full suite, scenarios live under "── CLI Setup Scenarios ──"
+
+# Fast iteration on just the scenarios:
+node -e "const h=require('./test/runner');const r=require('./test/test-setup-scenarios')(h);(async()=>{await r();h.report();})()"
+```
+
+Each scenario takes ~100ms; the seven together run well under a second.
+
+**Scenarios covered:**
+
+1. Fresh install, no agent configs → `setup --yes` records `declined: true`, writes nothing
+2. Fresh install, Claude detected → `setup --yes` appends current-version bookended block
+3. Already current → `setup --yes` is a no-op (no stacked blocks, file byte-identical, "already at current version" message)
+4. Old (v6) block → `refresh` rewrites at current version, old marker gone
+5. Legacy open-marker block → `refresh` rewrites as bookended at current version
+6. Hand-edited legacy block → `refresh` leaves it alone, prints a "local edits" hint
+7. Outdated v6 block → `setup --yes` ALSO upgrades it (idempotency: setup is safe to re-run on a stale install)
+8. Existing user content in `CLAUDE.md` → `setup --yes` appends the block without breaking the user's prior content
+9. Multiple agents detected → `setup --yes` writes to all in one pass (catches loop-bail regressions)
+
+**Idempotency contract:** `sdoc setup --yes` is the canonical "make my agent config current" command and is safe to re-run any number of times. Internally it calls `refreshAllAgentFiles()` first (handles upgrades + legacy migration), then `writeBookendedBlock()` for any detected agent without a block. Scenarios 3, 7, 8 all pin this. If you change `runSetup` and a re-run of `setup --yes` stops being a no-op on already-current state, or stops upgrading on stale state, the contract is broken.
+
+**Harness API** (`test/cli-harness.js`):
+
+```js
+const { createFixture } = require('./cli-harness');
+
+const fx = createFixture({
+  agents:        ['claude', 'codex'],                  // create empty config files
+  existingBlock: { in: 'claude', version: 6 },         // optional: seed a bookended block
+  legacyBlock:   { in: 'claude', version: 2 },         // optional: seed a 1.4.x open-marker block
+  fileSeed:      { claude: '# hand-written file\n' },  // optional: raw initial file content
+  setupState:    { lastRunVersion: '1.10.0', autoRefreshAgentFiles: true }, // optional: seed ~/.sdocs/setup.json
+});
+const r = await fx.run('setup --yes');                 // { stdout, stderr, exitCode }
+fx.readAgent('claude');                                // resulting file content (or null)
+fx.readSetupState();                                   // parsed setup.json (or null)
+fx.exists('.sdocs/setup.json');                        // relative-to-HOME existence check
+fx.cleanup();                                          // always call in a finally
+```
+
+`fx.run(args, opts)` exposes `opts.stdin` for piping input, `opts.timeoutMs` (default 10s), `opts.env` for additional env vars, and `opts.allowAutoRefresh: true` to remove the default `SDOCS_NO_REFRESH=1` guard (set it when testing the auto-refresh-on-version-bump path through `postCommandHooks`). The harness already strips `CI` and sets `SDOCS_NO_UPDATE_CHECK=1` + `SDOCS_NO_SETUP=1` so spawned processes don't phone home or trigger first-run prompts.
+
+**Adding a new scenario**: append to `test/test-setup-scenarios.js` using the `scenario(name, async () => { ... })` helper. Seed a fixture, run the CLI, assert on the resulting filesystem, `cleanup()` in `finally`. The runner is sequential and counted into the same total as the rest of `node test/run.js`.
+
+**Running scenarios through a sub-agent**: a sub-agent in a fresh context can run `node test/run.js` and get clean pass / fail without any setup. To hand the agent one scenario at a time (e.g. "seed a v6 block, run setup --yes, tell me the resulting CLAUDE.md") point it at `test/cli-harness.js` - the API above is the contract and the comments at the top of that file are self-contained.
+
+**End-to-end testing of `install.sh`** is a separate problem because the script downloads a tarball from the npm registry. Not covered by this harness. The natural next phase: add an `SDOCS_TARBALL_URL` env override to `install.sh`, `npm pack` the local CLI to a temp tarball, point the script at it via `file://`, run it with `HOME=<fixture>`, assert `~/.sdocs/cli/bin/sdocs-dev.js` exists and `~/.sdocs/bin/sdoc` symlinks onto it.
+
 ## Toolbar overflow & scroll hints
 
 Both `#left-toolbar` and `#write-toolbar` can overflow horizontally on narrow screens. The pattern:
@@ -241,9 +308,12 @@ Both `#left-toolbar` and `#write-toolbar` can overflow horizontally on narrow sc
 node server.js                              # http://localhost:3000
 PORT=8080 node server.js
 SDOCS_DEV=1 node server.js                  # dev mode: no-cache, SW disabled
-node test/run.js                            # starts server on :3099, runs tests, kills it
+node test/run.js                            # starts server on :3099, runs tests, kills it (includes CLI setup scenarios)
 npx playwright test test/write-mode.spec.js # write mode browser tests (needs Chromium)
 node test/preview.js file.md --screenshot out.png  # visual preview (needs server on :3000)
+
+# Just the CLI setup / refresh scenarios (fake $HOME, no npm publish needed - see "Testing the CLI install / setup flow"):
+node -e "const h=require('./test/runner');const r=require('./test/test-setup-scenarios')(h);(async()=>{await r();h.report();})()"
 ```
 
 **Dev mode (`SDOCS_DEV=1` or `NODE_ENV=development`)**: serves CSS/JS with `Cache-Control: no-store`, injects a flag into the HTML that unregisters the service worker and clears its caches on load. Use this when iterating on frontend code so changes appear without hard-refreshing. The service worker normally caches the app shell and serves stale files even through hard reloads - dev mode sidesteps both layers.
