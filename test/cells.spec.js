@@ -485,3 +485,27 @@ test('a sheet wider than the page still scrolls', async ({ page }) => {
     expect(over).toBeGreaterThan(1);
   }).toPass({ timeout: 3000 });
 });
+
+// Formulas: a cell whose raw starts with '=' shows its computed result while
+// the model keeps the formula (for copy / export). Errors surface as a short
+// #CODE! in red.
+test('a =formula cell renders its computed value', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells',
+    'Item,Qty', 'A,10', 'B,15', 'Total,=SUM(B2:B3)', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const total = page.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]');
+  await expect(total).toHaveText('25');
+  await expect(total).toHaveClass(/is-formula/);
+  // raw formula preserved on the model for copy-out
+  expect(await page.evaluate(() => {
+    return document.querySelector('.sdoc-cells')._cellsModel.cells[3][1].raw;
+  })).toBe('=SUM(B2:B3)');
+});
+
+test('a broken formula shows an error code, not a crash', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'x,y', 'a,=1/0', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const cell = page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]');
+  await expect(cell).toHaveText('#DIV/0!');
+  await expect(cell).toHaveClass(/is-formula-error/);
+});
