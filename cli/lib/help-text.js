@@ -1013,6 +1013,11 @@ SELECTING
   Shift+(Cmd/Ctrl+)Arrow extends to it. Dragging to the left/right edge of
   a wide sheet auto-scrolls. Esc clears the selection.
 
+  Selecting a multi-cell range opens a stats strip between the toolbar and
+  the grid with the range's Sum / Avg / Min / Max / Count. Formula cells
+  count by their computed value. It collapses when the selection is cleared
+  or back to a single cell.
+
 TOOLBAR
   A white bar sits above each sheet:
     - Left: the selection address (e.g. B3 or B2:C3) and, for a sheet
@@ -1077,6 +1082,11 @@ FULLSCREEN & EDITING
       its value, editable in place. Click again for values.
   Editing is client-side and ephemeral: changes show in the inline grid when
   you close, but nothing is written back to the document or to any file.
+
+  After a fullscreen edit, the inline toolbar shows an "edited" pill: the
+  grid is showing your edits, the document is unchanged. Click the pill to
+  flip between your edits and the document's original data. Expanding again
+  always resumes from the edits.
 
 EXPORT
   HTML / Word / PDF export emit a real table of the values (the source
