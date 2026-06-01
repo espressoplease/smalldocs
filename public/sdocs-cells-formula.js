@@ -31,6 +31,18 @@
     return n - 1;
   }
 
+  // 0-based index -> column letters (inverse of colIndex): 0 -> A, 26 -> AA.
+  function colName(index) {
+    var name = '';
+    var n = index + 1;
+    while (n > 0) {
+      var rem = (n - 1) % 26;
+      name = String.fromCharCode(65 + rem) + name;
+      n = Math.floor((n - 1) / 26);
+    }
+    return name;
+  }
+
   function isFormula(raw) {
     return typeof raw === 'string' && raw.charAt(0) === '=' && raw.length > 1;
   }
@@ -75,6 +87,9 @@
         continue;
       }
       if ('+-*/^%(),:='.indexOf(c) !== -1) { toks.push({ t: 'op', v: c }); i++; continue; }
+      // A literal #REF! (left behind by shiftFormula when a reference was
+      // pushed off the sheet) evaluates to that error.
+      if (c === '#') throw mkErr(src.slice(i, i + 5).toUpperCase() === '#REF!' ? '#REF!' : '#NAME?');
       throw mkErr('#NAME?');
     }
     return toks;
@@ -273,6 +288,43 @@
     throw mkErr('#NAME?');
   }
 
+  // ── Relative reference shifting (fill handle / copy-paste) ──
+  // Rewrite every cell reference in a formula by (dr, dc) rows/columns:
+  // shiftFormula('=B2*C2', 1, 0) -> '=B3*C3'. Function names (SUM, IF...) are
+  // left alone - a word is only a reference when it is letters+digits and not
+  // followed by '('. A reference pushed past row 1 / column A becomes the
+  // literal #REF!, which evaluates to a #REF! error. Non-formula strings pass
+  // through unchanged.
+  function shiftFormula(formula, dr, dc) {
+    if (!isFormula(formula)) return formula;
+    var src = formula.slice(1);
+    var out = '';
+    var i = 0, n = src.length;
+    function isAlpha(ch) { return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'); }
+    function isDigit(ch) { return ch >= '0' && ch <= '9'; }
+    while (i < n) {
+      var c = src[i];
+      if (isAlpha(c)) {
+        var j = i;
+        while (j < n && (isAlpha(src[j]) || isDigit(src[j]))) j++;
+        var word = src.slice(i, j);
+        var m = /^([A-Za-z]+)([0-9]+)$/.exec(word);
+        if (m && src[j] !== '(') {
+          var col = colIndex(m[1].toUpperCase()) + dc;
+          var row = parseInt(m[2], 10) - 1 + dr;
+          out += (col < 0 || row < 0) ? '#REF!' : colName(col) + (row + 1);
+        } else {
+          out += word;
+        }
+        i = j;
+        continue;
+      }
+      out += c;
+      i++;
+    }
+    return '=' + out;
+  }
+
   // Evaluate one formula string against ctx. Returns { value } or { error }.
   function evaluate(formula, ctx) {
     try {
@@ -332,9 +384,11 @@
   }
 
   exports.colIndex = colIndex;
+  exports.colName = colName;
   exports.isFormula = isFormula;
   exports.tokenize = tokenize;
   exports.parse = parse;
   exports.evaluate = evaluate;
   exports.recalc = recalc;
+  exports.shiftFormula = shiftFormula;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocCellsFormula = {}));
