@@ -45,9 +45,10 @@ Shift+Arrow. The top bar shows the span (like `B2:C4`).
 (Ctrl on Windows) jumps to the far edge. Esc clears the selection.
 
 **Inline - selection stats.** Select a range of numbers and a strip slides
-open between the top bar and the grid with the range's Sum, Avg, Min, Max,
-and Count. Formula cells count by their computed value. It closes when the
-selection collapses to a single cell or is cleared.
+open below the grid with the range's Sum, Avg, Min, Max, and Count. Formula
+cells count by their computed value. It closes when the selection collapses
+to a single cell or is cleared. It opens downward so the cells never move
+while you are selecting.
 
 **Inline - sort.** Hover a column letter: an arrow appears on its right
 showing what a click will do (up = sort ascending, down = descending, x =
