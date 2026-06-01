@@ -227,7 +227,12 @@
   }
 
   // Sort key: numbers (rank 0) sort before text (rank 1); empty (rank 2) last.
-  function sortKey(cell) {
+  // fxCell, when given, is the cell's computed formula result ({kind, value} /
+  // {kind: 'error', code}) and takes precedence: a formula sorts by the value
+  // the user sees, not by its "=..." source text. Errors sort with text.
+  function sortKey(cell, fxCell) {
+    if (fxCell && fxCell.kind === 'number') return { rank: 0, v: fxCell.value };
+    if (fxCell && fxCell.kind === 'error') return { rank: 1, v: String(fxCell.code || '').toLowerCase() };
     if (!cell || cell.type === 'empty') return { rank: 2, v: 0 };
     if (cell.type === 'number') return { rank: 0, v: cell.value };
     return { rank: 1, v: String(cell.value).toLowerCase() };
@@ -236,16 +241,24 @@
   // Return the row order (array of original indices) sorting the model by a
   // column. A view reorder - the model itself is not changed. Empty cells stay
   // last either direction; a header row (when hasHeader) stays pinned to row 0.
-  function sortRows(model, col, dir, hasHeader) {
+  // fx (optional) is a recalc results grid indexed by SOURCE row: formula
+  // cells then sort by their computed value instead of their source text.
+  function sortRows(model, col, dir, hasHeader, fx) {
     var order = [];
     for (var r = 0; r < model.rows; r++) order.push(r);
     var start = hasHeader ? 1 : 0;
     var head = order.slice(0, start);
     var body = order.slice(start);
     var sign = dir === 'desc' ? -1 : 1;
+    function fxFor(r, cell) {
+      if (!fx || !cell || !cell.raw || cell.raw.charAt(0) !== '=') return null;
+      return (fx[r] && fx[r][col]) || null;
+    }
     body.sort(function (ra, rb) {
-      var a = sortKey(model.cells[ra] && model.cells[ra][col]);
-      var b = sortKey(model.cells[rb] && model.cells[rb][col]);
+      var ca = model.cells[ra] && model.cells[ra][col];
+      var cb = model.cells[rb] && model.cells[rb][col];
+      var a = sortKey(ca, fxFor(ra, ca));
+      var b = sortKey(cb, fxFor(rb, cb));
       if (a.rank === 2 || b.rank === 2) return a.rank - b.rank;  // empty always last
       if (a.rank !== b.rank) return (a.rank - b.rank) * sign;
       if (a.v < b.v) return -1 * sign;
