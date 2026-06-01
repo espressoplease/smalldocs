@@ -31,6 +31,7 @@ require('./test-chrome')(harness);
 require('./test-comments')(harness);
 require('./test-forms')(harness);
 require('./test-cells')(harness);
+require('./test-cells-formula')(harness);
 require('./test-cells-transclude')(harness);
 require('./test-agent-block')(harness);
 require('./test-router')(harness);
