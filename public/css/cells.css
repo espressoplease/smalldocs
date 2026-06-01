@@ -229,6 +229,13 @@ body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
 .sdoc-cells-cell.is-empty  { min-width: var(--sdoc-cells-col-min, 64px); }
 .sdoc-cells-cell.is-negative { color: #d64545; }   /* muted red for negatives */
 .sdoc-cells-cell.is-header   { font-weight: 600; }  /* a detected header row */
+/* A formula cell whose evaluation failed shows its #ERROR! code in red,
+ * left-aligned like text so the short code reads clearly. */
+.sdoc-cells-cell.is-formula-error {
+  color: #d64545;
+  justify-content: flex-start;
+  font-variant-numeric: normal;
+}
 
 /* ── Selection (sdocs-cells-select.js) ──────────────────── */
 /* The selection box is the focus cue, so suppress the default focus ring. */
