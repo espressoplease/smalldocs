@@ -1058,6 +1058,8 @@ test('edited pill: hidden until a fullscreen edit, then shows "edited"', async (
   await expect(pill).toBeVisible();
   await expect(pill).toHaveText('showing edited');
   await expect(page.locator('#_sd_rendered .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('99');
+  // The pill sits in the bar's right-side action group, with the copy buttons.
+  expect(await pill.evaluate((el) => el.parentElement.className)).toContain('sdoc-cells-bar-actions');
 });
 
 test('edited pill: click toggles between the edited and original data', async ({ page }) => {

@@ -200,11 +200,11 @@
     // the inline grid shows them - but the document is unchanged. This pill
     // says so out loud: it appears after the first edit, and clicking it
     // flips the grid between your edits and the document's original data.
+    // It lives on the bar's right side, with the copy / expand actions.
     var pill = document.createElement('button');
     pill.type = 'button';
     pill.className = 'sdoc-cells-edit-pill';
     pill.style.display = 'none';
-    bar.appendChild(pill);
 
     // While the original is showing, the edited cells are stashed here; null
     // means the grid shows the live (possibly edited) model.
@@ -254,6 +254,8 @@
     });
 
     var controls = buildCopyControls(wrapper, model);
+    // The pill leads the right-side action group (left of the copy buttons).
+    controls.box.insertBefore(pill, controls.box.firstChild);
 
     // Fullscreen expand (inline only - the overlay is already fullscreen).
     var expandBtn = document.createElement('button');
