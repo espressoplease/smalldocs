@@ -254,7 +254,10 @@
       nameBox.textContent = d.single ? addr : addr + ':' + CELLS.colName(d.c1) + (d.r1 + 1);
       var cell = vm.cells[d.r0] && vm.cells[d.r0][d.c0];
       if (document.activeElement !== valueBox) valueBox.value = cell ? cell.raw : '';
-      status.textContent = S.formatCellsStats ? S.formatCellsStats(vm, d) : '';
+      // The display-aligned formula results let computed cells count toward
+      // Sum / Avg / Min / Max instead of reading as text.
+      status.textContent = S.formatCellsStats
+        ? S.formatCellsStats(vm, d, gridWrap._cellsFxView) : '';
     }
     gridWrap.addEventListener('cells-selection', function (e) { syncSelection(e.detail); });
 
