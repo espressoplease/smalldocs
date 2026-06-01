@@ -181,8 +181,10 @@
 
   // Stats for a selected rectangle [r0..r1] x [c0..c1] of a model. Numbers
   // drive sum/avg/min/max; count is every non-empty cell (Excel's "Count").
-  // Cells past the data (fullscreen padding) read as empty.
-  function selectionStats(model, r0, c0, r1, c1) {
+  // Cells past the data (fullscreen padding) read as empty. fx (optional) is
+  // a recalc results grid aligned to this model's rows: a formula cell then
+  // contributes its computed value (errors count as non-empty, not numeric).
+  function selectionStats(model, r0, c0, r1, c1, fx) {
     var count = 0, numericCount = 0, sum = 0, min = null, max = null;
     for (var r = r0; r <= r1; r++) {
       var line = model.cells[r];
@@ -190,9 +192,16 @@
         var cell = line && line[c];
         if (!cell || cell.type === 'empty') continue;
         count++;
-        if (cell.type === 'number') {
+        var isNum = cell.type === 'number';
+        var v = cell.value;
+        // A formula cell's raw is "=..." text; its computed result decides.
+        if (fx && cell.raw && cell.raw.charAt(0) === '=') {
+          var fxCell = fx[r] && fx[r][c];
+          isNum = !!fxCell && fxCell.kind === 'number';
+          if (isNum) v = fxCell.value;
+        }
+        if (isNum) {
           numericCount++;
-          var v = cell.value;
           sum += v;
           if (min === null || v < min) min = v;
           if (max === null || v > max) max = v;
