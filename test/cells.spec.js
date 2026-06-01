@@ -576,3 +576,109 @@ test('fullscreen: edits show in the inline grid after close', async ({ page }) =
   await page.locator('.sdoc-cells-focus-close').click();
   await expect(page.locator('#_sd_rendered .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('55');
 });
+
+// ── Formula point mode (arrow keys write cell refs while typing a formula) ──
+//
+// Sheet used by every test:
+//   row 0 (display)  Item , Qty       -> A1, B1
+//   row 1            A    , 10        -> A2, B2
+//   row 2            B    , 20        -> A3, B3
+// The formula is typed into display cell [3][1] = B4.
+const POINT_SHEET = [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE];
+
+test('point mode: an arrow after = writes the cell ref; more arrows move it', async ({ page }) => {
+  const fs = await openFullscreen(page, POINT_SHEET);
+  await fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click();
+  await page.keyboard.type('=');
+  const editor = page.locator('.sdoc-cells-editor');
+  await page.keyboard.press('ArrowUp');                 // points at the cell above (B3)
+  await expect(editor).toHaveValue('=B3');
+  await page.keyboard.press('ArrowUp');                 // moves the ref, does not append
+  await expect(editor).toHaveValue('=B2');
+  await page.keyboard.press('ArrowLeft');               // pointer moves left, still one ref
+  await expect(editor).toHaveValue('=A2');
+});
+
+test('point mode: shift+arrow extends the pointed ref into a range', async ({ page }) => {
+  const fs = await openFullscreen(page, POINT_SHEET);
+  await fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click();
+  await page.keyboard.type('=SUM(');
+  const editor = page.locator('.sdoc-cells-editor');
+  await page.keyboard.press('ArrowUp');                 // B3
+  await expect(editor).toHaveValue('=SUM(B3');
+  await page.keyboard.press('Shift+ArrowUp');           // extend up -> B2:B3
+  await expect(editor).toHaveValue('=SUM(B2:B3');
+  await page.keyboard.type(')');
+  await page.keyboard.press('Enter');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]')).toHaveText('30');
+});
+
+test('point mode: typing ":" locks the start, arrows then write the range end', async ({ page }) => {
+  const fs = await openFullscreen(page, POINT_SHEET);
+  await fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click();
+  await page.keyboard.type('=SUM(');
+  const editor = page.locator('.sdoc-cells-editor');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');                 // B2 (start of range)
+  await expect(editor).toHaveValue('=SUM(B2');
+  await page.keyboard.type(':');
+  await page.keyboard.press('ArrowDown');               // end moves down from B2 -> B3
+  await expect(editor).toHaveValue('=SUM(B2:B3');
+  await page.keyboard.type(')');
+  await page.keyboard.press('Enter');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]')).toHaveText('30');
+});
+
+test('point mode: an operator re-arms pointing for the next ref', async ({ page }) => {
+  const fs = await openFullscreen(page, POINT_SHEET);
+  await fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click();
+  await page.keyboard.type('=');
+  const editor = page.locator('.sdoc-cells-editor');
+  await page.keyboard.press('ArrowUp');                 // B3 (=20)
+  await expect(editor).toHaveValue('=B3');
+  await page.keyboard.type('+');                        // keeps B3, re-arms pointing
+  await page.keyboard.press('ArrowUp');                 // new pointer from B4 -> B3
+  await page.keyboard.press('ArrowUp');                 // -> B2 (=10)
+  await expect(editor).toHaveValue('=B3+B2');
+  await page.keyboard.press('Enter');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]')).toHaveText('30');
+});
+
+test('point mode: the pointed cells are highlighted on the grid', async ({ page }) => {
+  const fs = await openFullscreen(page, POINT_SHEET);
+  await fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click();
+  await page.keyboard.type('=SUM(');
+  await page.keyboard.press('ArrowUp');                 // pointing at B3
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]')).toHaveClass(/is-ref-point/);
+  await page.keyboard.press('Shift+ArrowUp');           // range B2:B3 -> both highlighted
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveClass(/is-ref-point/);
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]')).toHaveClass(/is-ref-point/);
+  // committing clears the highlight
+  await page.keyboard.type(')');
+  await page.keyboard.press('Enter');
+  expect(await fs.locator('.is-ref-point').count()).toBe(0);
+});
+
+test('point mode: arrows in plain (non-formula) text still move the caret', async ({ page }) => {
+  const fs = await openFullscreen(page, POINT_SHEET);
+  await fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click();
+  await page.keyboard.type('hello');
+  await page.keyboard.press('ArrowLeft');               // caret moves, no ref inserted
+  await page.keyboard.type('x');
+  await expect(page.locator('.sdoc-cells-editor')).toHaveValue('hellxo');
+});
+
+test('point mode: works from the formula bar too', async ({ page }) => {
+  const fs = await openFullscreen(page, POINT_SHEET);
+  await fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click();
+  const bar = fs.locator('.sdoc-cells-focus-value');
+  await bar.click();
+  await bar.pressSequentially('=SUM(');
+  await bar.press('ArrowUp');                           // points from the active cell (B4) -> B3
+  await expect(bar).toHaveValue('=SUM(B3');
+  await bar.press('Shift+ArrowUp');                     // -> B2:B3
+  await expect(bar).toHaveValue('=SUM(B2:B3');
+  await bar.pressSequentially(')');
+  await bar.press('Enter');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]')).toHaveText('30');
+});
