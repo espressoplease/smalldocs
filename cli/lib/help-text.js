@@ -962,6 +962,29 @@ FORMATTING
   values. This is what makes a cells block more than a CSV: the author
   chooses how each column reads.
 
+FORMULAS
+  A cell whose value starts with = is a formula, evaluated in the browser.
+  The cell shows the result; the formula stays underneath (copy / export and
+  the formula bar show the =formula, hovering shows it as a tooltip).
+
+  \`\`\`cells
+  Item,Qty,Price,Total
+  Widget,10,12,=B2*C2
+  Gadget,15,8,=B3*C3
+  Total,=SUM(B2:B3),,=SUM(D2:D3)
+  \`\`\`
+
+  Supported:
+    arithmetic    + - * / ^ %  with parentheses, e.g. =(A1+B1)*2
+    references    A1, B12; ranges A1:B3 inside a function
+    aggregates    SUM AVERAGE (AVG) MIN MAX COUNT COUNTA PRODUCT
+    functions     ROUND(x,n) ABS(x) IF(cond, a, b)
+    comparisons   = <> < <= > >=   (mostly for IF)
+
+  A failed formula shows a short red error code: #DIV/0!, #NAME? (unknown
+  name), #REF! (bad range), #VALUE! (e.g. text in arithmetic), #CIRC! (a
+  circular reference). Formulas recalculate live while you edit.
+
 SORTING
   Hover a column header and click the sort caret to sort the view by that
   column (click cycles ascending -> descending -> off). A text first row is
@@ -988,7 +1011,8 @@ TOOLBAR
       no row / column labels).
     - When something is selected, a second button copies just the
       selection ("cell" for one cell, "selection" for a range).
-    - A fullscreen expand button is present (placeholder for now).
+    - A fullscreen expand button opens the sheet as a full-window,
+      editable spreadsheet (see FULLSCREEN & EDITING).
 
 LOADING FROM A CSV FILE
   Reference a file instead of typing data inline:
@@ -1012,6 +1036,20 @@ LIMITS
   - The inline preview bounds very large grids and notes what it clipped
     ("Showing 200 × 50 of 231 × 60 cells"); the full data still travels and
     copies.
+
+FULLSCREEN & EDITING
+  The expand button opens the sheet full-window: frozen headers, both-axis
+  scroll, a name box + formula bar, and a Sum / Avg / Min / Max / Count
+  footer for the selection. The fullscreen sheet is editable (the inline
+  one stays read-only):
+    - Double-click a cell, or just start typing, to edit it.
+    - Enter / Tab (and Shift+ to go back) commit and move on.
+    - The formula bar edits the active cell; type a value or =formula, Enter.
+    - Delete / Backspace clears the selected cell(s).
+    - Cmd/Ctrl+Z undoes, Shift+Cmd/Ctrl+Z (or Ctrl+Y) redoes.
+    - Paste TSV or CSV to drop a block of values in at the selection.
+  Editing is client-side and ephemeral: changes show in the inline grid when
+  you close, but nothing is written back to the document or to any file.
 
 EXPORT
   HTML / Word / PDF export emit a real table of the values (the source
