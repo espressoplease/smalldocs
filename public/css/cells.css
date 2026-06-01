@@ -285,6 +285,16 @@ body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
   z-index: 1;
 }
 
+/* Formula point mode: cells currently referenced by an in-progress formula
+ * (arrow keys while typing "=..."). Violet, so it reads as "referenced by the
+ * formula" rather than "selected"; the rect outline is an inline box-shadow
+ * applied to the edge cells by the editing JS. */
+.sdoc-cells-cell.is-ref-point {
+  background: rgba(139, 92, 246, 0.12);
+  position: relative;
+  z-index: 1;
+}
+
 /* Axis highlight: the active cell's column letter and row number light up
  * with a stronger green wash + bold accent text, echoing the cell. */
 .sdoc-cells-colhead.is-active-col,

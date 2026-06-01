@@ -1048,6 +1048,11 @@ FULLSCREEN & EDITING
     - Delete / Backspace clears the selected cell(s).
     - Cmd/Ctrl+Z undoes, Shift+Cmd/Ctrl+Z (or Ctrl+Y) redoes.
     - Paste TSV or CSV to drop a block of values in at the selection.
+    - Point mode: while typing a formula, arrow keys point at cells and
+      write their reference into the formula. Type =SUM( then arrow to a
+      cell, hold Shift+Arrow to grow it into a range, type ) and Enter.
+      Or arrow to the range start, type :, arrow to the end. Works in the
+      cell editor and the formula bar; the pointed cells highlight violet.
   Editing is client-side and ephemeral: changes show in the inline grid when
   you close, but nothing is written back to the document or to any file.
 
