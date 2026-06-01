@@ -342,6 +342,39 @@
       begin(+cell.dataset.r, +cell.dataset.c);
     }
 
+    // ── Copy / paste ─────────────────────────────────────────
+    // Copying a selection (Cmd/Ctrl+C with the grid focused) writes its raw
+    // values - formulas included - as TSV, and remembers the snapshot. Pasting
+    // that same text back is formula-aware: each pasted formula's references
+    // shift by how far the cell moved (=B2*C2 pasted one row down -> =B3*C3),
+    // and a single copied cell fills the whole target selection. Any other
+    // clipboard text pastes as plain TSV/CSV values.
+    var internalCopy = null;   // { text, raws, modelRows, c0 } from the last in-grid copy
+
+    function gridHasFocus() {
+      return grid.contains(document.activeElement) || document.activeElement === grid;
+    }
+
+    function onCopy(e) {
+      if (editing) return;                       // native copy inside the editor input
+      if (!gridHasFocus()) return;
+      var rect = grid._selectionRect && grid._selectionRect();
+      if (!rect) return;
+      e.preventDefault();
+      var raws = [], modelRows = [], lines = [];
+      for (var r = rect.r0; r <= rect.r1; r++) {
+        var mr = dispToModelRow(r);
+        modelRows.push(mr);
+        var row = [];
+        for (var c = rect.c0; c <= rect.c1; c++) row.push(rawAt(model, mr, c));
+        raws.push(row);
+        lines.push(row.join('\t'));
+      }
+      var text = lines.join('\n');
+      try { e.clipboardData.setData('text/plain', text); } catch (_) {}
+      internalCopy = { text: text, raws: raws, modelRows: modelRows, c0: rect.c0 };
+    }
+
     // ── Paste (TSV/CSV) ─────────────────────────────────────
     function parseClip(text) {
       text = text.replace(/\r\n?/g, '\n').replace(/\n$/, '');
@@ -358,15 +391,49 @@
       if (editing) return;
       // Only when the grid (or a cell in it) has focus, so we don't hijack
       // pastes elsewhere on the page.
-      if (!grid.contains(document.activeElement) && document.activeElement !== grid) return;
+      if (!gridHasFocus()) return;
       var text = e.clipboardData && e.clipboardData.getData('text/plain');
       if (!text) return;
       e.preventDefault();
+      var a = active();
+      var FX = window.SDocCellsFormula;
+      var touched = false, r, c;
+
+      // Formula-aware paste: the clipboard holds what we last copied in-grid.
+      if (FX && internalCopy && internalCopy.text === text) {
+        var srcRows = internalCopy.raws.length;
+        var srcCols = internalCopy.raws[0].length;
+        var sel = grid._selectionRect && grid._selectionRect();
+        // A 1x1 copy fills the whole selection; a block lands at the anchor.
+        var t = (srcRows === 1 && srcCols === 1 && sel)
+          ? sel
+          : { r0: a.r, c0: a.c, r1: a.r + srcRows - 1, c1: a.c + srcCols - 1 };
+        pushUndo();
+        for (r = t.r0; r <= t.r1; r++) {
+          for (c = t.c0; c <= t.c1; c++) {
+            var si = (r - t.r0) % srcRows, sj = (c - t.c0) % srcCols;
+            var raw = internalCopy.raws[si][sj];
+            if (FX.isFormula(raw)) {
+              raw = FX.shiftFormula(raw,
+                dispToModelRow(r) - internalCopy.modelRows[si],
+                c - (internalCopy.c0 + sj));
+            }
+            setRaw(model, dispToModelRow(r), c, raw);
+            touched = true;
+          }
+        }
+        if (touched) {
+          repaint(); changed();
+          if (grid._moveTo) grid._moveTo(t.r0, t.c0, false);
+          if (grid._extendTo) grid._extendTo(t.r1, t.c1, false);
+        } else undo.pop();
+        return;
+      }
+
+      // Plain TSV/CSV paste (external clipboard content).
       var rows = parseClip(text);
       if (!rows.length) return;
-      var a = active();
       pushUndo();
-      var touched = false;
       for (var i = 0; i < rows.length; i++) {
         var mr = dispToModelRow(a.r + i);
         for (var j = 0; j < rows[i].length; j++) {
@@ -377,8 +444,164 @@
       else undo.pop();
     }
 
+    // ── Fill handle (drag to fill) ───────────────────────────
+    // A small square on the selection's bottom-right corner. Dragging it over
+    // neighbouring cells fills them from the selection: formulas shift their
+    // relative references (=B2*C2 -> =B3*C3), plain values repeat, and a run
+    // of 2+ numbers along the fill axis continues as a linear series (1, 2 ->
+    // 3, 4). One axis at a time, like Sheets - whichever the pointer favours.
+    var fillHandle = document.createElement('span');
+    fillHandle.className = 'sdoc-cells-fill-handle';
+    var fillDrag = null;   // { src: rect, dir: 'v'|'h'|null, to: index } while dragging
+
+    function removeFillHandle() {
+      if (fillHandle.parentNode) fillHandle.parentNode.removeChild(fillHandle);
+    }
+    function placeFillHandle() {
+      var rect = grid._selectionRect && grid._selectionRect();
+      if (!rect) { removeFillHandle(); return; }
+      var corner = cellAt(rect.r1, rect.c1);
+      if (!corner) { removeFillHandle(); return; }
+      corner.appendChild(fillHandle);
+    }
+    function onSelectionChange() { placeFillHandle(); }
+
+    function clearFillPreview() {
+      var prev = grid.querySelectorAll('.is-fill-preview');
+      for (var i = 0; i < prev.length; i++) prev[i].classList.remove('is-fill-preview');
+    }
+
+    // The rectangle a fill drag would write, or null when still inside the source.
+    function fillTarget() {
+      if (!fillDrag || fillDrag.dir == null) return null;
+      var s = fillDrag.src;
+      if (fillDrag.dir === 'v') {
+        if (fillDrag.to > s.r1) return { r0: s.r1 + 1, r1: fillDrag.to, c0: s.c0, c1: s.c1 };
+        if (fillDrag.to < s.r0) return { r0: fillDrag.to, r1: s.r0 - 1, c0: s.c0, c1: s.c1 };
+      } else {
+        if (fillDrag.to > s.c1) return { r0: s.r0, r1: s.r1, c0: s.c1 + 1, c1: fillDrag.to };
+        if (fillDrag.to < s.c0) return { r0: s.r0, r1: s.r1, c0: fillDrag.to, c1: s.c0 - 1 };
+      }
+      return null;
+    }
+    function paintFillPreview() {
+      clearFillPreview();
+      var t = fillTarget();
+      if (!t) return;
+      for (var r = t.r0; r <= t.r1; r++) {
+        for (var c = t.c0; c <= t.c1; c++) {
+          var cell = cellAt(r, c);
+          if (cell) cell.classList.add('is-fill-preview');
+        }
+      }
+    }
+    function onFillMove(e) {
+      if (!fillDrag) return;
+      var el = document.elementFromPoint(e.clientX, e.clientY);
+      var cell = el && el.closest ? el.closest('.sdoc-cells-cell') : null;
+      if (!cell || !grid.contains(cell)) return;
+      var r = +cell.dataset.r, c = +cell.dataset.c;
+      var s = fillDrag.src;
+      // Whichever axis the pointer has left the source rect on (further wins).
+      var dv = r > s.r1 ? r - s.r1 : (r < s.r0 ? s.r0 - r : 0);
+      var dh = c > s.c1 ? c - s.c1 : (c < s.c0 ? s.c0 - c : 0);
+      if (dv === 0 && dh === 0) { fillDrag.dir = null; clearFillPreview(); return; }
+      if (dv >= dh) { fillDrag.dir = 'v'; fillDrag.to = r; }
+      else { fillDrag.dir = 'h'; fillDrag.to = c; }
+      paintFillPreview();
+    }
+
+    // All-numeric source values along the fill axis continue arithmetically.
+    function seriesStep(vals) {
+      if (vals.length < 2) return null;
+      var step = vals[1] - vals[0];
+      for (var i = 2; i < vals.length; i++) {
+        if (Math.abs((vals[i] - vals[i - 1]) - step) > 1e-9) return null;
+      }
+      return step;
+    }
+    // Numeric values of the source cells along the fill axis for one fill
+    // line (a column for vertical fill, a row for horizontal), or null.
+    function axisValues(s, dir, lineIndex) {
+      var vals = [], k, cl;
+      if (dir === 'v') {
+        for (k = s.r0; k <= s.r1; k++) {
+          cl = model.cells[dispToModelRow(k)] && model.cells[dispToModelRow(k)][lineIndex];
+          if (!cl || cl.type !== 'number') return null;
+          vals.push(cl.value);
+        }
+      } else {
+        for (k = s.c0; k <= s.c1; k++) {
+          cl = model.cells[dispToModelRow(lineIndex)] && model.cells[dispToModelRow(lineIndex)][k];
+          if (!cl || cl.type !== 'number') return null;
+          vals.push(cl.value);
+        }
+      }
+      return vals;
+    }
+
+    function commitFill() {
+      var t = fillTarget();
+      if (!t) return;
+      var s = fillDrag.src, dir = fillDrag.dir;
+      var FX = window.SDocCellsFormula;
+      var srcRows = s.r1 - s.r0 + 1, srcCols = s.c1 - s.c0 + 1;
+      pushUndo();
+      for (var r = t.r0; r <= t.r1; r++) {
+        for (var c = t.c0; c <= t.c1; c++) {
+          // The source cell this target tiles from.
+          var sR, sC, dist;
+          if (dir === 'v') {
+            sC = c;
+            dist = r > s.r1 ? r - s.r1 : -(s.r0 - r);
+            sR = dist > 0 ? s.r0 + ((dist - 1) % srcRows) : s.r1 - ((-dist - 1) % srcRows);
+          } else {
+            sR = r;
+            dist = c > s.c1 ? c - s.c1 : -(s.c0 - c);
+            sC = dist > 0 ? s.c0 + ((dist - 1) % srcCols) : s.c1 - ((-dist - 1) % srcCols);
+          }
+          var srcModelR = dispToModelRow(sR);
+          var raw = rawAt(model, srcModelR, sC);
+          if (FX && FX.isFormula(raw)) {
+            raw = FX.shiftFormula(raw, dispToModelRow(r) - srcModelR, c - sC);
+          } else {
+            var vals = axisValues(s, dir, dir === 'v' ? c : r);
+            var step = vals ? seriesStep(vals) : null;
+            if (step !== null) {
+              var base = dist > 0 ? vals[vals.length - 1] : vals[0];
+              raw = String(base + step * dist);
+            }
+          }
+          setRaw(model, dispToModelRow(r), c, raw);
+        }
+      }
+      repaint(); changed();
+      // Select source + filled area together, like Sheets.
+      if (grid._moveTo) grid._moveTo(Math.min(s.r0, t.r0), Math.min(s.c0, t.c0), false);
+      if (grid._extendTo) grid._extendTo(Math.max(s.r1, t.r1), Math.max(s.c1, t.c1), false);
+    }
+
+    function onFillUp() {
+      document.removeEventListener('mousemove', onFillMove);
+      document.removeEventListener('mouseup', onFillUp);
+      clearFillPreview();
+      if (fillDrag && fillDrag.dir != null) commitFill();
+      fillDrag = null;
+    }
+    fillHandle.addEventListener('mousedown', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var rect = grid._selectionRect && grid._selectionRect();
+      if (!rect) return;
+      fillDrag = { src: rect, dir: null, to: 0 };
+      document.addEventListener('mousemove', onFillMove);
+      document.addEventListener('mouseup', onFillUp);
+    });
+
+    wrapper.addEventListener('cells-selection', onSelectionChange);
+
     grid.addEventListener('keydown', onGridKey);
     grid.addEventListener('dblclick', onDblClick);
+    document.addEventListener('copy', onCopy);
     document.addEventListener('paste', onPaste);
 
     // The formula bar gets its own point-mode session: arrows there write refs
@@ -400,8 +623,11 @@
       canUndo: function () { return undo.length > 0; },
       detach: function () {
         if (editing) commit(true);
+        removeFillHandle();
+        wrapper.removeEventListener('cells-selection', onSelectionChange);
         grid.removeEventListener('keydown', onGridKey);
         grid.removeEventListener('dblclick', onDblClick);
+        document.removeEventListener('copy', onCopy);
         document.removeEventListener('paste', onPaste);
         if (opts.valueInput && onBarKey) {
           barPointer.end();

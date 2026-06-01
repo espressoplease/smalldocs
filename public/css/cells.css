@@ -309,6 +309,36 @@ body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
   z-index: 1;
 }
 
+/* Formula view (the =fx toggle in fullscreen): formula cells show their
+ * "=..." source. Monospace + violet so they read as code, left-aligned. */
+.sdoc-cells-cell.is-formula-src {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  justify-content: flex-start;
+  font-variant-numeric: normal;
+  color: #7c4fe0;
+}
+
+/* Fill handle: the small square on the selection's bottom-right corner
+ * (fullscreen editing only - the editor module places it). Drag to fill. */
+.sdoc-cells-fill-handle {
+  position: absolute;
+  right: -1px; bottom: -1px;
+  width: 8px; height: 8px;
+  background: var(--sdoc-cells-accent);
+  border: 1.5px solid var(--md-bg, #fff);
+  cursor: crosshair;
+  z-index: 4;
+}
+/* Cells the fill drag would write: a faint wash + dashed look via outline. */
+.sdoc-cells-cell.is-fill-preview {
+  background: color-mix(in oklab, var(--md-bg, #fff) 92%, var(--sdoc-cells-accent) 8%);
+  outline: 1.5px dashed var(--sdoc-cells-accent);
+  outline-offset: -1.5px;
+  position: relative;
+  z-index: 1;
+}
+
 /* Axis highlight: the active cell's column letter and row number light up
  * with a stronger green wash + bold accent text, echoing the cell. */
 .sdoc-cells-colhead.is-active-col,

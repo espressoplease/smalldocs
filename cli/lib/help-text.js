@@ -1064,6 +1064,17 @@ FULLSCREEN & EDITING
       cell, hold Shift+Arrow to grow it into a range, type ) and Enter.
       Or arrow to the range start, type :, arrow to the end. Works in the
       cell editor and the formula bar; the pointed cells highlight violet.
+    - Fill handle: drag the small square on the selection's corner to fill
+      neighbouring cells. Formulas shift their references (=B2*C2 becomes
+      =B3*C3 one row down), values repeat, and a run of numbers (1, 2)
+      continues as a series (3, 4...).
+    - Copy / paste formulas: Cmd/Ctrl+C copies the selection (formulas
+      included); pasting back in adjusts each formula's references for
+      where it lands. Copy one formula, select a range, paste - every cell
+      gets the formula relative to its own row/column.
+    - Formula view: when a sheet has formulas, an =fx button in the top bar
+      switches every formula cell to show its source ("=B2*C2") instead of
+      its value, editable in place. Click again for values.
   Editing is client-side and ephemeral: changes show in the inline grid when
   you close, but nothing is written back to the document or to any file.
 

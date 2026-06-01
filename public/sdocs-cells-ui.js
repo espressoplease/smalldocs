@@ -368,9 +368,14 @@
           // A formula cell (raw starts with '=') shows its computed result and
           // behaves like a number for alignment / formatting; its raw is kept.
           var fxCell = (fx && FX.isFormula(cell.raw) && fx[srcR]) ? fx[srcR][c2] : null;
+          // Formula view (wrapper._cellsShowFormulas, toggled in fullscreen):
+          // formula cells show their "=..." source instead of the result.
+          var showSrc = !!wrapper._cellsShowFormulas && !!fxCell;
 
           var typeCls;
-          if (fxCell) {
+          if (showSrc) {
+            typeCls = ' is-text is-formula-src';
+          } else if (fxCell) {
             if (fxCell.kind === 'error') typeCls = ' is-text is-formula-error';
             else typeCls = ' is-number is-formula' + (fxCell.value < 0 ? ' is-negative' : '');
           } else {
@@ -386,7 +391,10 @@
           // Display only - the model's raw is untouched, so copy / export emit
           // the original. Numbers use the column's format; text keeps its
           // content with a literal <br> as a line break (plain text only).
-          if (fxCell) {
+          if (showSrc) {
+            el.textContent = cell.raw;                        // the formula source
+            el.title = fxCell.kind === 'error' ? fxCell.code : String(fxCell.value);
+          } else if (fxCell) {
             if (fxCell.kind === 'error') {
               el.textContent = fxCell.code;
             } else {
