@@ -986,10 +986,11 @@ FORMULAS
   circular reference). Formulas recalculate live while you edit.
 
 SORTING
-  Hover a column header and click the sort caret to sort the view by that
-  column (click cycles ascending -> descending -> off). A text first row is
-  kept pinned as a header. Sorting is a view reorder - it does not change the
-  document; copy reflects what is on screen.
+  Hover a column letter: an arrow appears on its right showing what a click
+  will do (up = sort ascending, down = descending, x = clear the sort). The
+  current sort shows as a colored arrow. A text first row is kept pinned as
+  a header. Sorting is a view reorder - it does not change the document;
+  copy reflects what is on screen.
 
 RESIZING
   Drag a column header's right edge to set an explicit width; it persists
