@@ -380,6 +380,38 @@ module.exports = function(harness) {
     assert.strictEqual(s.avg, 2);
   });
 
+  test('selectionStats: formula cells contribute their computed value when fx is given', () => {
+    // rows: header, 10, 20, =SUM (computes to 30)
+    const m = parseCells('Qty\n10\n20\n=SUM(A2:A3)');
+    const fx = [
+      [{ kind: 'text' }],
+      [{ kind: 'number', value: 10 }],
+      [{ kind: 'number', value: 20 }],
+      [{ kind: 'number', value: 30 }],
+    ];
+    const s = selectionStats(m, 0, 0, 3, 0, fx);
+    assert.strictEqual(s.sum, 60);               // 10 + 20 + computed 30
+    assert.strictEqual(s.numericCount, 3);
+    assert.strictEqual(s.count, 4);              // header text still counts as non-empty
+    assert.strictEqual(s.max, 30);
+    // Without fx the formula cell falls back to text (raw "=SUM...").
+    const s2 = selectionStats(m, 0, 0, 3, 0);
+    assert.strictEqual(s2.sum, 30);
+    assert.strictEqual(s2.numericCount, 2);
+  });
+
+  test('selectionStats: formula errors count as non-empty but not numeric', () => {
+    const m = parseCells('=1/0\n5');
+    const fx = [
+      [{ kind: 'error', code: '#DIV/0!' }],
+      [{ kind: 'number', value: 5 }],
+    ];
+    const s = selectionStats(m, 0, 0, 1, 0, fx);
+    assert.strictEqual(s.sum, 5);
+    assert.strictEqual(s.numericCount, 1);
+    assert.strictEqual(s.count, 2);
+  });
+
   test('selectionStats: a range past the data treats padding as empty', () => {
     const m = parseCells('1,2\n3,4');                 // 2x2 of numbers
     const s = selectionStats(m, 0, 0, 3, 3);          // select a 4x4 region (fullscreen padding)
