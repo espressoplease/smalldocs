@@ -1083,10 +1083,10 @@ FULLSCREEN & EDITING
   Editing is client-side and ephemeral: changes show in the inline grid when
   you close, but nothing is written back to the document or to any file.
 
-  After a fullscreen edit, the inline toolbar shows an "edited" pill: the
-  grid is showing your edits, the document is unchanged. Click the pill to
-  flip between your edits and the document's original data. Expanding again
-  always resumes from the edits.
+  After a fullscreen edit, the inline toolbar shows a "showing edited" pill:
+  the grid displays your edits, the document is unchanged. Click the pill to
+  flip to the document's original data ("showing original") and back.
+  Expanding again always resumes from the edits.
 
 EXPORT
   HTML / Word / PDF export emit a real table of the values (the source
