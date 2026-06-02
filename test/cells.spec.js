@@ -984,13 +984,19 @@ test('inline stats strip: opens with Sum / Avg for a range selection', async ({ 
   await expect(strip).toContainText('Sum 100');
   await expect(strip).toContainText('Avg 25');
   await expect(strip).toContainText('Count 4');
-  // It sits between the top bar and the scroller.
+  // It sits below the grid (after the scroller) so opening it never shifts
+  // the cells under the pointer.
   const order = await page.evaluate(() => {
     const kids = Array.from(document.querySelector('#_sd_rendered .sdoc-cells').children);
     return kids.map((k) => k.className.split(' ')[0]);
   });
-  expect(order.indexOf('sdoc-cells-stats')).toBeGreaterThan(order.indexOf('sdoc-cells-bar'));
-  expect(order.indexOf('sdoc-cells-stats')).toBeLessThan(order.indexOf('sdoc-cells-scroll'));
+  expect(order.indexOf('sdoc-cells-stats')).toBeGreaterThan(order.indexOf('sdoc-cells-scroll'));
+  // Opening / closing the strip must not move the grid: the scroller's top
+  // edge stays put.
+  const scrollTop = (await page.locator('#_sd_rendered .sdoc-cells-scroll').boundingBox()).y;
+  await page.keyboard.press('Escape');
+  await expect(strip).not.toHaveClass(/is-open/);
+  expect((await page.locator('#_sd_rendered .sdoc-cells-scroll').boundingBox()).y).toBeCloseTo(scrollTop, 1);
 });
 
 test('inline stats strip: collapses for a single cell and on Escape', async ({ page }) => {
@@ -1097,4 +1103,26 @@ test('edited pill: formulas recalc against whichever view is showing', async ({ 
   // Original view recomputes from the original inputs.
   await page.locator('#_sd_rendered .sdoc-cells-edit-pill').click();
   await expect(total).toHaveText('30');
+});
+
+test('inline stats strip: the area right of the grid is tinted and shrinks back on close', async ({ page }) => {
+  // Two narrow columns + 5-digit numbers -> the stats line runs wider than
+  // the grid, so the wrapper expands past the scroller.
+  await loadDoc(page, [FENCE + 'cells', 'a,b', '11111,22222', '33333,44444', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const wrapper = page.locator('#_sd_rendered .sdoc-cells');
+  const closedWidth = (await wrapper.boundingBox()).width;
+  // Select all four numbers.
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').click({ modifiers: ['Shift'] });
+  await expect(page.locator('.sdoc-cells-stats')).toHaveClass(/is-open/);
+  // The wrapper grows to fit the stats line...
+  await expect.poll(async () => (await wrapper.boundingBox()).width).toBeGreaterThan(closedWidth + 10);
+  // ...and the area not covered by cells is tinted, not the page background.
+  const bg = await wrapper.evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(bg).not.toBe('rgba(0, 0, 0, 0)');
+  // Clearing the selection collapses the strip and the wrapper hugs the grid again.
+  await page.keyboard.press('Escape');
+  await expect.poll(async () => (await wrapper.boundingBox()).width, { timeout: 3000 })
+    .toBeLessThan(closedWidth + 5);
 });
