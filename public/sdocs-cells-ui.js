@@ -778,10 +778,11 @@
   }
 
   // Short numeric display for stats - round to a few decimals, drop trailing
-  // zeros. (Thousands separators come with the number-formatting step.)
+  // zeros, then add thousands separators (same helper the cells use, so the
+  // strip reads like the grid: 228,000 not 228000).
   function fmtStatNum(n) {
     if (n == null) return '';
-    return String(Math.round(n * 100) / 100);
+    return CELLS.formatNumber(String(Math.round(n * 100) / 100));
   }
 
   // A "Sum · Avg · Count" line for a selected range (Excel/Sheets status bar).
@@ -802,7 +803,7 @@
         parts.push('Max ' + fmtStatNum(st.max));
       }
     }
-    parts.push('Count ' + st.count);
+    parts.push('Count ' + CELLS.formatNumber(String(st.count)));
     return parts.join('   ·   ');
   }
   S.formatCellsStats = formatStats;
