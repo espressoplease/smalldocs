@@ -56,6 +56,78 @@
   gap: 6px;
 }
 
+/* ── Edited pill ────────────────────────────────────────
+ * Appears in the top bar after a fullscreen edit. The document never changes;
+ * this marks that the grid is showing your edits, and clicking it flips
+ * between the edited and the document's original data. Amber dot = edits
+ * showing, grey dot = original showing. */
+.sdoc-cells-edit-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--sdoc-cells-line);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--font-ui, inherit);
+  font-size: 0.72em;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 62%, var(--md-bg, #fff) 38%);
+  transition: background .12s, color .12s, border-color .12s;
+}
+.sdoc-cells-edit-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d97706;                          /* amber: edits showing */
+  transition: background .12s;
+}
+.sdoc-cells-edit-pill.is-original::before {
+  background: color-mix(in oklab, var(--md-color, #1c1917) 35%, var(--md-bg, #fff) 65%);
+}
+.sdoc-cells-edit-pill:hover {
+  background: var(--bg-hover, color-mix(in oklab, var(--md-color, #1c1917) 8%, transparent));
+  color: var(--text, var(--md-color, #1c1917));
+  border-color: var(--border-strong, color-mix(in oklab, var(--md-color, #1c1917) 38%, transparent));
+}
+
+/* ── Stats strip ────────────────────────────────────────
+ * A band between the top bar and the grid: the inline counterpart of the
+ * fullscreen header stats, on the same tinted surface. Collapsed (0fr row)
+ * until a multi-cell range is selected. Every property that changes is
+ * animated on the standard curve so opening / closing reads as one motion:
+ * the row track, opacity, the divider border, and the inner vertical padding
+ * (which must reach 0 for the box to fully collapse under border-box). */
+.sdoc-cells-stats {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  background: color-mix(in oklab, var(--md-bg, #fff) 95%, var(--md-color, #1c1917) 5%);
+  border-bottom: 1px solid transparent;
+  transition: grid-template-rows .3s cubic-bezier(.4,0,.2,1),
+              opacity .3s cubic-bezier(.4,0,.2,1),
+              border-color .3s cubic-bezier(.4,0,.2,1);
+}
+.sdoc-cells-stats.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  border-bottom-color: var(--sdoc-cells-line);
+}
+.sdoc-cells-stats-inner {
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 10px;
+  font-size: 0.78em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 60%, var(--md-bg, #fff) 40%);
+  transition: padding .3s cubic-bezier(.4,0,.2,1);
+}
+.sdoc-cells-stats.is-open .sdoc-cells-stats-inner {
+  padding: 5px 10px;
+}
+
 /* Copy buttons - mirror the comments "copy with comments" ghost button,
  * with color-mix fallbacks so they hold up if those tokens are absent. */
 .sdoc-cells-copy {

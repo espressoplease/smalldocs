@@ -969,3 +969,132 @@ test('point mode: works from the formula bar too', async ({ page }) => {
   await bar.press('Enter');
   await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]')).toHaveText('30');
 });
+
+// ── Inline stats strip (between the top bar and the grid) ──────
+test('inline stats strip: opens with Sum / Avg for a range selection', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b', '10,20', '30,40', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const strip = page.locator('.sdoc-cells-stats');
+  // Collapsed (closed) before any selection.
+  await expect(strip).not.toHaveClass(/is-open/);
+  // Select the 2x2 numeric block (10,20,30,40) by shift-click.
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').click({ modifiers: ['Shift'] });
+  await expect(strip).toHaveClass(/is-open/);
+  await expect(strip).toContainText('Sum 100');
+  await expect(strip).toContainText('Avg 25');
+  await expect(strip).toContainText('Count 4');
+  // It sits between the top bar and the scroller.
+  const order = await page.evaluate(() => {
+    const kids = Array.from(document.querySelector('#_sd_rendered .sdoc-cells').children);
+    return kids.map((k) => k.className.split(' ')[0]);
+  });
+  expect(order.indexOf('sdoc-cells-stats')).toBeGreaterThan(order.indexOf('sdoc-cells-bar'));
+  expect(order.indexOf('sdoc-cells-stats')).toBeLessThan(order.indexOf('sdoc-cells-scroll'));
+});
+
+test('inline stats strip: collapses for a single cell and on Escape', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b', '10,20', '30,40', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const strip = page.locator('.sdoc-cells-stats');
+  // Range -> open.
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').click({ modifiers: ['Shift'] });
+  await expect(strip).toHaveClass(/is-open/);
+  // Collapse back to a single cell -> closed (the value is already visible in the cell).
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  await expect(strip).not.toHaveClass(/is-open/);
+  // Range again, then Escape clears the selection -> closed.
+  await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').click({ modifiers: ['Shift'] });
+  await expect(strip).toHaveClass(/is-open/);
+  await page.keyboard.press('Escape');
+  await expect(strip).not.toHaveClass(/is-open/);
+});
+
+test('inline stats strip: computed formula cells count by value', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', 'Total,=SUM(B2:B3)', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  // Select B2:B4 - two numbers and one computed cell (10, 20, 30).
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await page.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click({ modifiers: ['Shift'] });
+  const strip = page.locator('.sdoc-cells-stats');
+  await expect(strip).toContainText('Sum 60');
+  await expect(strip).toContainText('Max 30');
+  await expect(strip).toContainText('Count 3');
+});
+
+test('inline stats strip: not rendered in the fullscreen overlay', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b', '10,20', '30,40', FENCE]);
+  // Fullscreen has its own header stats segment; the inline strip stays inline.
+  expect(await fs.locator('.sdoc-cells-stats').count()).toBe(0);
+});
+
+// ── Edited indicator + original/edited toggle ──────────────────
+async function editCellFullscreen(page, fs, r, c, value) {
+  await fs.locator(`.sdoc-cells-cell[data-r="${r}"][data-c="${c}"]`).dblclick();
+  await page.locator('.sdoc-cells-editor').fill(value);
+  await page.keyboard.press('Enter');
+}
+
+test('edited pill: hidden until a fullscreen edit, then shows "edited"', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  const pill = page.locator('#_sd_rendered .sdoc-cells-edit-pill');
+  // Hidden before any edit.
+  await expect(pill).toBeHidden();
+  // Closing without editing keeps it hidden.
+  await page.locator('.sdoc-cells-focus-close').click();
+  await expect(pill).toBeHidden();
+  // Edit fullscreen, close -> the pill appears, the inline grid shows the edit.
+  await page.locator('#_sd_rendered .sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus .sdoc-cells-grid');
+  await editCellFullscreen(page, page.locator('.sdoc-cells-focus'), 1, 1, '99');
+  await page.locator('.sdoc-cells-focus-close').click();
+  await expect(pill).toBeVisible();
+  await expect(pill).toHaveText('edited');
+  await expect(page.locator('#_sd_rendered .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('99');
+});
+
+test('edited pill: click toggles between the edited and original data', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  await editCellFullscreen(page, fs, 1, 1, '99');
+  await page.locator('.sdoc-cells-focus-close').click();
+  const pill = page.locator('#_sd_rendered .sdoc-cells-edit-pill');
+  const cell = page.locator('#_sd_rendered .sdoc-cells-cell[data-r="1"][data-c="1"]');
+  await expect(cell).toHaveText('99');
+  // Toggle to the document's original data.
+  await pill.click();
+  await expect(pill).toHaveText('original');
+  await expect(cell).toHaveText('10');
+  // And back to the edits.
+  await pill.click();
+  await expect(pill).toHaveText('edited');
+  await expect(cell).toHaveText('99');
+});
+
+test('edited pill: expanding while viewing the original reopens with the edits', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  await editCellFullscreen(page, fs, 1, 1, '99');
+  await page.locator('.sdoc-cells-focus-close').click();
+  const pill = page.locator('#_sd_rendered .sdoc-cells-edit-pill');
+  await pill.click();                                    // viewing the original
+  await expect(page.locator('#_sd_rendered .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('10');
+  // Expand: editing always resumes from the edited data, and the inline view
+  // flips back to "edited" so what you see matches what you will edit.
+  await page.locator('#_sd_rendered .sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus .sdoc-cells-grid');
+  await expect(page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('99');
+  await expect(pill).toHaveText('edited');
+});
+
+test('edited pill: formulas recalc against whichever view is showing', async ({ page }) => {
+  const fs = await openFullscreen(page, [
+    FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', 'Total,=SUM(B2:B3)', FENCE]);
+  // Edit a number the Total depends on: 10 -> 100, so Total becomes 120.
+  await editCellFullscreen(page, fs, 1, 1, '100');
+  await page.locator('.sdoc-cells-focus-close').click();
+  const total = page.locator('#_sd_rendered .sdoc-cells-cell[data-r="3"][data-c="1"]');
+  await expect(total).toHaveText('120');
+  // Original view recomputes from the original inputs.
+  await page.locator('#_sd_rendered .sdoc-cells-edit-pill').click();
+  await expect(total).toHaveText('30');
+});
