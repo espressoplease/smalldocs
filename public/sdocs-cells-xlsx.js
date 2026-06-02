@@ -122,10 +122,23 @@
 
   // ── Worksheet XML ───────────────────────────────────────
 
-  // xl/worksheets/sheet1.xml from a cell model. fx (optional) is the formula
-  // engine's recalc() output, indexed [row][col]; when given, formula cells
-  // carry their computed value as a cached <v> so the sheet shows numbers
-  // even before Excel recalculates.
+  // Error codes that prove a formula PARSED AND RAN inside our grammar - it
+  // just hit a legitimate computational error. These may still export as live
+  // formulas. #NAME? (unknown function) and #VALUE! (syntax we don't have)
+  // are deliberately absent: those are exactly the cases where the formula
+  // contains things our engine never vetted.
+  var COMPUTED_ERROR_CODES = { '#DIV/0!': 1, '#CIRC!': 1, '#REF!': 1 };
+
+  // xl/worksheets/sheet1.xml from a cell model. fx is the formula engine's
+  // recalc() output, indexed [row][col].
+  //
+  // SECURITY: a formula exports as a live Excel formula ONLY when fx shows our
+  // engine evaluated it - proof it stays inside our purely computational
+  // grammar (no WEBSERVICE, no HYPERLINK, no DDE, no functions we don't know).
+  // Anything else - including all formulas when fx is null - exports as inert
+  // inline text. Without this, a shared document could smuggle an Excel
+  // data-exfiltration or phishing formula into a trusted .xlsx download
+  // (the CSV-injection attack class).
   function sheetXml(model, fx) {
     var fc = collectFormats(model);
     var rowsXml = [];
@@ -138,12 +151,18 @@
         var ref = colLetter(c) + (r + 1);
         var style = fc.styleForCol[c] ? ' s="' + fc.styleForCol[c] + '"' : '';
         var isFormula = cell.raw && cell.raw.charAt(0) === '=' && cell.raw.length > 1;
-        if (isFormula) {
-          var fxCell = (fx && fx[r]) ? fx[r][c] : null;
-          var cached = (fxCell && fxCell.kind === 'number' && isFinite(fxCell.value))
+        var fxCell = (isFormula && fx && fx[r]) ? fx[r][c] : null;
+        var vetted = fxCell && (fxCell.kind === 'number' ||
+          (fxCell.kind === 'error' && COMPUTED_ERROR_CODES[fxCell.code]));
+        if (isFormula && vetted) {
+          var cached = (fxCell.kind === 'number' && isFinite(fxCell.value))
             ? '<v>' + fxCell.value + '</v>' : '';
           cellsXml.push('<c r="' + ref + '"' + style + '><f>' +
             escapeXml(excelFormula(cell.raw)) + '</f>' + cached + '</c>');
+        } else if (isFormula) {
+          // Unvetted formula: visible, copyable, but inert.
+          cellsXml.push('<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' +
+            escapeXml(cell.raw) + '</t></is></c>');
         } else if (cell.type === 'number') {
           cellsXml.push('<c r="' + ref + '"' + style + '><v>' + cell.value + '</v></c>');
         } else {
