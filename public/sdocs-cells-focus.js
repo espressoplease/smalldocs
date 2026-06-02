@@ -208,18 +208,19 @@
       file.textContent = model.source;          // plain text - no markup
       topbar.appendChild(file);
     }
-    // Same copy behaviour as inline: whole-sheet icon + dynamic cell/selection.
-    var actions = S.buildCellsCopyControls
-      ? S.buildCellsCopyControls(gridWrap, model).box
-      : document.createElement('div');
-    // Formula view toggle - only when the sheet actually contains formulas.
-    // On: every formula cell shows its "=..." source (and stays editable in
-    // place); off: computed values. The selection survives the repaint.
+    // Same copy behaviour as inline (buttons copy computed values), plus a
+    // "formulas" button to copy the raw data when the sheet holds formulas.
     var hasFormulas = (model.cells || []).some(function (row) {
       return (row || []).some(function (cl) {
         return cl && cl.raw && cl.raw.charAt(0) === '=' && cl.raw.length > 1;
       });
     });
+    var actions = S.buildCellsCopyControls
+      ? S.buildCellsCopyControls(gridWrap, model, { rawButton: hasFormulas }).box
+      : document.createElement('div');
+    // Formula view toggle - only when the sheet actually contains formulas.
+    // On: every formula cell shows its "=..." source (and stays editable in
+    // place); off: computed values. The selection survives the repaint.
     if (hasFormulas) {
       var fxBtn = document.createElement('button');
       fxBtn.type = 'button';
