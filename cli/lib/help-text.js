@@ -1013,10 +1013,10 @@ SELECTING
   Shift+(Cmd/Ctrl+)Arrow extends to it. Dragging to the left/right edge of
   a wide sheet auto-scrolls. Esc clears the selection.
 
-  Selecting a multi-cell range opens a stats strip between the toolbar and
-  the grid with the range's Sum / Avg / Min / Max / Count. Formula cells
-  count by their computed value. It collapses when the selection is cleared
-  or back to a single cell.
+  Selecting a multi-cell range opens a stats strip below the grid with the
+  range's Sum / Avg / Min / Max / Count. Formula cells count by their
+  computed value. It collapses when the selection is cleared or back to a
+  single cell.
 
 TOOLBAR
   A white bar sits above each sheet:
