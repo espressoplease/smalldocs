@@ -38,18 +38,18 @@ Things to check:
   grid shows the same tinted surface as the strip, not bare page white.
 
 **2. The edited pill.** Open the sheet fullscreen (expand icon), change any
-number (double-click a cell, type, Enter), then close. An "edited" pill now
-sits in the sheet's top bar.
+number (double-click a cell, type, Enter), then close. A "showing edited"
+pill now sits in the sheet's top bar.
 
 Things to check:
 
-- The inline grid shows your edit; the pill says "edited".
+- The inline grid shows your edit; the pill says "showing edited".
 - Click the pill - the grid flips to the document's original data and the
-  pill says "original".
+  pill says "showing original".
 - Click it again - back to your edits.
 - While viewing the original, click expand - the fullscreen sheet opens with
   your edits (editing always resumes from them), and the inline view flips
-  back to "edited" to match.
+  back to "showing edited" to match.
 - Edit a number the Total depends on - the Total recomputes in whichever
   view is showing.
 

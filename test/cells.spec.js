@@ -1056,7 +1056,7 @@ test('edited pill: hidden until a fullscreen edit, then shows "edited"', async (
   await editCellFullscreen(page, page.locator('.sdoc-cells-focus'), 1, 1, '99');
   await page.locator('.sdoc-cells-focus-close').click();
   await expect(pill).toBeVisible();
-  await expect(pill).toHaveText('edited');
+  await expect(pill).toHaveText('showing edited');
   await expect(page.locator('#_sd_rendered .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('99');
 });
 
@@ -1069,11 +1069,11 @@ test('edited pill: click toggles between the edited and original data', async ({
   await expect(cell).toHaveText('99');
   // Toggle to the document's original data.
   await pill.click();
-  await expect(pill).toHaveText('original');
+  await expect(pill).toHaveText('showing original');
   await expect(cell).toHaveText('10');
   // And back to the edits.
   await pill.click();
-  await expect(pill).toHaveText('edited');
+  await expect(pill).toHaveText('showing edited');
   await expect(cell).toHaveText('99');
 });
 
@@ -1089,7 +1089,7 @@ test('edited pill: expanding while viewing the original reopens with the edits',
   await page.locator('#_sd_rendered .sdoc-cells-expand').click();
   await page.waitForSelector('.sdoc-cells-focus .sdoc-cells-grid');
   await expect(page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('99');
-  await expect(pill).toHaveText('edited');
+  await expect(pill).toHaveText('showing edited');
 });
 
 test('edited pill: formulas recalc against whichever view is showing', async ({ page }) => {

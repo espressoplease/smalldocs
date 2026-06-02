@@ -150,10 +150,10 @@ corner at your selection.
 the document - but they are display-only and vanish on reload.
 
 **After editing - the edited pill.** Once a sheet has been edited fullscreen,
-an "edited" pill appears in its inline top bar: the grid is showing your
+a "showing edited" pill appears in its inline top bar: the grid displays your
 edits, the document is unchanged. Click it to see the document's original
-data (the pill flips to "original"), click again for your edits. Expanding
-always resumes from the edits.
+data (the pill flips to "showing original"), click again for your edits.
+Expanding always resumes from the edits.
 
 ---
 
