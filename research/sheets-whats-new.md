@@ -25,7 +25,8 @@ Total,=SUM(B2:B5),,=SUM(D2:D5)
 
 **1. Inline selection stats.** Select a range of numbers in the grid above -
 drag across cells, or click one and Shift+Click another. A strip slides open
-between the top bar and the grid showing Sum, Avg, Min, Max, and Count.
+below the grid showing Sum, Avg, Min, Max, and Count. It opens downward so
+the cells stay put under your mouse while you select.
 
 Things to check:
 
@@ -33,6 +34,8 @@ Things to check:
   values, not the formula text.
 - Click a single cell - the strip closes (the value is already visible).
 - Press Esc - the strip closes.
+- When the stats line is wider than the sheet, the spare area right of the
+  grid shows the same tinted surface as the strip, not bare page white.
 
 **2. The edited pill.** Open the sheet fullscreen (expand icon), change any
 number (double-click a cell, type, Enter), then close. An "edited" pill now

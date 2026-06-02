@@ -283,12 +283,14 @@
   }
 
   // ── Inline stats strip ──────────────────────────────────
-  // The inline counterpart of the fullscreen header stats: a band between the
-  // top bar and the grid, on the same tinted surface, that opens when a
-  // multi-cell range is selected and shows its Sum / Avg / Min / Max / Count.
-  // Collapsed the rest of the time (a single cell's value is already visible
-  // in the cell). The text is left in place while it closes so the collapse
-  // animation doesn't blank mid-motion.
+  // The inline counterpart of the fullscreen header stats: a band BELOW the
+  // grid, on the same tinted surface, that opens when a multi-cell range is
+  // selected and shows its Sum / Avg / Min / Max / Count. It sits below (not
+  // above) the grid so opening it never shifts the cells under the pointer
+  // mid-selection. Collapsed the rest of the time (a single cell's value is
+  // already visible in the cell). The text is left in place while it closes
+  // so the collapse animation doesn't blank mid-motion, then cleared once the
+  // close finishes so a long stats line stops widening the wrapper.
   function buildStatsStrip(wrapper, model) {
     var strip = document.createElement('div');
     strip.className = 'sdoc-cells-stats';
@@ -302,6 +304,9 @@
         : '';
       if (txt) inner.textContent = txt;
       strip.classList.toggle('is-open', !!txt);
+    });
+    strip.addEventListener('transitionend', function () {
+      if (!strip.classList.contains('is-open')) inner.textContent = '';
     });
     return strip;
   }
@@ -538,11 +543,11 @@
     wrapper._cellsRepaint = paint;
     wrapper._cellsExtent = { rows: renderRows, cols: renderCols };
     // Toolbar reads wrapper._cellsModel (set by paint) so copy follows a sort.
-    if (!fullscreen) {
-      wrapper.appendChild(buildBar(wrapper, model));
-      wrapper.appendChild(buildStatsStrip(wrapper, model));
-    }
+    if (!fullscreen) wrapper.appendChild(buildBar(wrapper, model));
     wrapper.appendChild(scroll);
+    // The stats strip goes under the grid: opening it grows the sheet
+    // downward, so the cells (and the pointer over them) never move.
+    if (!fullscreen) wrapper.appendChild(buildStatsStrip(wrapper, model));
 
     // Inline only: size the scroller to the grid's real rendered width so a
     // sheet narrower than the page shows no scrollbar. CSS max-content

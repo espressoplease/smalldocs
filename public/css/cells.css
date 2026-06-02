@@ -19,12 +19,17 @@
   --sdoc-cells-line: color-mix(in oklab, var(--md-color, #1c1917) 16%, transparent);
   --sdoc-cells-head-bg: color-mix(in oklab, var(--md-bg, #fff) 90%, var(--sdoc-cells-accent) 10%);
   --sdoc-cells-head-fg: color-mix(in oklab, var(--md-color, #1c1917) 68%, var(--sdoc-cells-accent) 32%);
+  --sdoc-cells-surface: color-mix(in oklab, var(--md-bg, #fff) 95%, var(--md-color, #1c1917) 5%);
   margin: 1.2em 0;
   width: max-content;       /* hug the grid, not the column width */
   max-width: 100%;          /* but never exceed the content area */
   border: 1px solid var(--sdoc-cells-line);   /* real border = smooth rounded corners */
   border-radius: 6px;
   overflow: hidden;         /* clip the inner scroller to the rounded corners */
+  /* When a long stats line makes the wrapper wider than the grid, the area
+   * not covered by cells shows this tinted surface (the stats strip colour)
+   * instead of the page background. */
+  background: var(--sdoc-cells-surface);
 }
 
 /* ── Top toolbar ────────────────────────────────────────
@@ -93,18 +98,20 @@
 }
 
 /* ── Stats strip ────────────────────────────────────────
- * A band between the top bar and the grid: the inline counterpart of the
- * fullscreen header stats, on the same tinted surface. Collapsed (0fr row)
- * until a multi-cell range is selected. Every property that changes is
- * animated on the standard curve so opening / closing reads as one motion:
- * the row track, opacity, the divider border, and the inner vertical padding
- * (which must reach 0 for the box to fully collapse under border-box). */
+ * A band below the grid: the inline counterpart of the fullscreen header
+ * stats, on the same tinted surface. It sits under the grid (not above) so
+ * opening it grows the sheet downward and the cells never shift under the
+ * pointer mid-selection. Collapsed (0fr row) until a multi-cell range is
+ * selected. Every property that changes is animated on the standard curve so
+ * opening / closing reads as one motion: the row track, opacity, the divider
+ * border, and the inner vertical padding (which must reach 0 for the box to
+ * fully collapse under border-box). */
 .sdoc-cells-stats {
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
-  background: color-mix(in oklab, var(--md-bg, #fff) 95%, var(--md-color, #1c1917) 5%);
-  border-bottom: 1px solid transparent;
+  background: var(--sdoc-cells-surface);
+  border-top: 1px solid transparent;
   transition: grid-template-rows .3s cubic-bezier(.4,0,.2,1),
               opacity .3s cubic-bezier(.4,0,.2,1),
               border-color .3s cubic-bezier(.4,0,.2,1);
@@ -112,7 +119,7 @@
 .sdoc-cells-stats.is-open {
   grid-template-rows: 1fr;
   opacity: 1;
-  border-bottom-color: var(--sdoc-cells-line);
+  border-top-color: var(--sdoc-cells-line);
 }
 .sdoc-cells-stats-inner {
   overflow: hidden;
