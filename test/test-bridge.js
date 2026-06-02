@@ -351,6 +351,84 @@ module.exports = function (harness) {
     await b.awaitTerminal();
   });
 
+  // ── Wrapped files (.csv / .mmd) over the bridge ──────────
+  // `sdoc report.csv` goes through the bridge like any real file. The browser
+  // must receive the same fenced-block document the URL-snapshot path builds
+  // (a ```cells wrap), not the raw bytes - raw CSV renders as paragraph soup.
+  // And because the document is a derived view, saves are refused: writing
+  // the fenced version back would corrupt the .csv.
+
+  t('e2e: a .csv file arrives wrapped in a cells fence, read-only', async () => {
+    const f = tmpFile('report.csv', 'Item,Qty\nLaptop,12\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    const hello = await nextMessage(sock);
+    assert.strictEqual(hello.type, 'hello');
+    assert.ok(hello.content.startsWith('```cells\nsdoc-cells: source=report.csv\n'),
+      'csv content should be wrapped for display, got: ' + hello.content.slice(0, 60));
+    assert.ok(hello.content.includes('Item,Qty\nLaptop,12'));
+    assert.strictEqual(hello.capabilities.canSave, false);
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: a .csv external change arrives wrapped too', async () => {
+    const f = tmpFile('live.csv', 'a,b\n1,2\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock); // hello
+
+    const dir = path.dirname(f);
+    const tmp = path.join(dir, '.swap');
+    fs.writeFileSync(tmp, 'a,b\n3,4\n');
+    fs.renameSync(tmp, f);
+
+    const ext = await nextMessage(sock, 6000);
+    assert.strictEqual(ext.type, 'external-change');
+    assert.ok(ext.content.startsWith('```cells\n'), 'external change should be wrapped');
+    assert.ok(ext.content.includes('3,4'));
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: writes to a .csv session are refused and the file is untouched', async () => {
+    const f = tmpFile('ro.csv', 'a,b\n1,2\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock); // hello
+    sendJson(sock, { type: 'write', id: 'w1', content: '```cells\nbroken\n```\n' });
+    const res = await nextMessage(sock);
+    assert.strictEqual(res.type, 'error');
+    assert.strictEqual(res.code, 'EREADONLY');
+    assert.strictEqual(fs.readFileSync(f, 'utf-8'), 'a,b\n1,2\n', 'file must be untouched');
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: a .mmd file arrives wrapped in a mermaid fence', async () => {
+    const f = tmpFile('flow.mmd', 'graph TD\nA-->B\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    const hello = await nextMessage(sock);
+    assert.ok(hello.content.startsWith('```mermaid\n'));
+    assert.ok(hello.content.includes('A-->B'));
+    assert.strictEqual(hello.capabilities.canSave, false);
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
   t('e2e: bridge does not echo its own writes back as external-change', async () => {
     const f = tmpFile('echo.md', 'a\n');
     const b = await bridge.startBridge({
