@@ -933,6 +933,11 @@ DATA & TYPES
   commas inside "quotes", escaped ""quotes"", and quoted fields spanning
   multiple lines.
 
+  Number convention is fixed to comma-thousands / dot-decimal (1,000.50).
+  European-convention data (1.000,50; semicolon-delimited CSV) is not
+  supported - write numbers as 1000.50 in the source and the grid formats
+  them for display.
+
 WRAPPING
   A long value wraps once its column hits a width cap (rather than running
   ever wider), growing the row. A literal <br> becomes a line break, and a

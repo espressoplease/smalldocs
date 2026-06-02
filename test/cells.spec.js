@@ -1029,6 +1029,28 @@ test('inline stats strip: computed formula cells count by value', async ({ page 
   await expect(strip).toContainText('Count 3');
 });
 
+test('stats numbers carry thousands separators (inline strip and fullscreen bar)', async ({ page }) => {
+  const doc = [FENCE + 'cells', 'Region,Revenue', 'North,54000', 'South,76000', 'East,98000', FENCE].join('\n');
+  await loadDoc(page, doc);
+  await page.waitForSelector('.sdoc-cells-grid');
+  // Inline strip: select the three revenue numbers.
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await page.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click({ modifiers: ['Shift'] });
+  const strip = page.locator('.sdoc-cells-stats');
+  await expect(strip).toContainText('Sum 228,000');
+  await expect(strip).toContainText('Avg 76,000');
+  await expect(strip).toContainText('Min 54,000');
+  await expect(strip).toContainText('Max 98,000');
+  await expect(strip).toContainText('Count 3');
+  // Fullscreen bar: same selection, same formatting.
+  await page.locator('.sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus .sdoc-cells-grid');
+  const fs = page.locator('.sdoc-cells-focus');
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click({ modifiers: ['Shift'] });
+  await expect(page.locator('.sdoc-cells-focus-stats')).toContainText('Sum 228,000');
+});
+
 test('inline stats strip: not rendered in the fullscreen overlay', async ({ page }) => {
   const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b', '10,20', '30,40', FENCE]);
   // Fullscreen has its own header stats segment; the inline strip stays inline.
