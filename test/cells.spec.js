@@ -970,6 +970,37 @@ test('point mode: works from the formula bar too', async ({ page }) => {
   await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]')).toHaveText('30');
 });
 
+// ── Mobile: fullscreen topbar ──────────────────────────────────
+test('mobile: fullscreen close button stays on screen and closes the sheet', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  // A formula sheet is the worst case: the topbar holds values + formulas +
+  // download + copy + =fx + close.
+  await loadDoc(page, [FENCE + 'cells', 'Item,Qty,Price,Total', 'A,10,12,=B2*C2', 'B,15,8,=B3*C3', 'Total,=SUM(B2:B3),,=SUM(D2:D3)', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await page.locator('.sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus .sdoc-cells-grid');
+  // The close button must sit fully inside the viewport.
+  const closeBox = await page.locator('.sdoc-cells-focus-close').boundingBox();
+  expect(closeBox).not.toBeNull();
+  expect(closeBox.x).toBeGreaterThanOrEqual(0);
+  expect(closeBox.x + closeBox.width).toBeLessThanOrEqual(390);
+  // The brand abbreviates like the main topbar (SmallDocs -> SD).
+  await expect(page.locator('.sdoc-cells-focus-brand-tiny')).toBeVisible();
+  await expect(page.locator('.sdoc-cells-focus-brand-full')).toBeHidden();
+  // Tapping it closes the overlay.
+  await page.locator('.sdoc-cells-focus-close').click();
+  await expect(page.locator('.sdoc-cells-focus')).toHaveCount(0);
+});
+
+test('desktop: fullscreen topbar keeps the full brand and the filename', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b', '1,2', FENCE]);
+  await expect(fs.locator('.sdoc-cells-focus-brand-full')).toBeVisible();
+  await expect(fs.locator('.sdoc-cells-focus-brand-tiny')).toBeHidden();
+  // Close still works from inside its pinned slot.
+  await fs.locator('.sdoc-cells-focus-close').click();
+  await expect(page.locator('.sdoc-cells-focus')).toHaveCount(0);
+});
+
 // ── Inline stats strip (between the top bar and the grid) ──────
 test('inline stats strip: opens with Sum / Avg for a range selection', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'a,b', '10,20', '30,40', FENCE].join('\n'));
