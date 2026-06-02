@@ -42,7 +42,9 @@ Shift+Arrow. The top bar shows the span (like `B2:C4`).
 **Inline - select a whole column or row.** Click its letter or number.
 
 **Inline - move with the keyboard.** Arrow keys move the selection. Cmd+Arrow
-(Ctrl on Windows) jumps to the far edge. Esc clears the selection.
+(Ctrl on Windows) jumps to the far edge. Esc clears the selection, and so
+does clicking anywhere outside the sheet - the sheet settles back to its
+resting look.
 
 **Inline - selection stats.** Select a range of numbers and a strip slides
 open below the grid with the range's Sum, Avg, Min, Max, and Count. Formula

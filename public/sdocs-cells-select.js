@@ -31,6 +31,23 @@
       if (cell && drag.grid.contains(cell)) drag.onTo(+cell.dataset.r, +cell.dataset.c);
     });
     document.addEventListener('mouseup', function () { drag = null; });
+
+    // Clicking anywhere outside an inline sheet clears its selection, so the
+    // sheet settles back to its resting look (no highlight, stats strip
+    // closed, address label empty). Clicks inside the sheet's own wrapper -
+    // grid, toolbar, stats strip - keep it. Fullscreen grids are exempt: the
+    // overlay's chrome (formula bar, name box, topbar) sits outside the grid
+    // wrapper and clicking it must not drop the active cell.
+    document.addEventListener('mousedown', function (e) {
+      var grids = document.querySelectorAll('.sdoc-cells:not(.sdoc-cells-fs) .sdoc-cells-grid');
+      for (var i = 0; i < grids.length; i++) {
+        var wrap = grids[i].closest('.sdoc-cells');
+        if (wrap && wrap._cellsSelection && !wrap.contains(e.target) &&
+            grids[i]._clearSelection) {
+          grids[i]._clearSelection();
+        }
+      }
+    });
   }
 
   function wire(wrapper, grid, scroll, rows, cols) {

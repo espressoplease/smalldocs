@@ -1154,3 +1154,44 @@ test('edited pill: edits past the original grid grow the inline grid', async ({ 
   await expect(inline.locator('.sdoc-cells-colhead-label')).toHaveText(['A', 'B', 'C', 'D']);
   await expect(inline.locator('.sdoc-cells-cell[data-r="4"][data-c="0"]')).toHaveText('NewRow');
 });
+
+// ── Click-away deselect (inline) ────────────────────────────────
+test('inline: clicking outside the sheet clears the selection', async ({ page }) => {
+  await loadDoc(page, ['# Title', '', 'Some paragraph text.', '',
+    FENCE + 'cells', 'a,b', '10,20', '30,40', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  // Select a range: cells highlight, the stats strip opens, the bar shows the address.
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').click({ modifiers: ['Shift'] });
+  expect(await page.locator('.sdoc-cells-cell.in-range').count()).toBeGreaterThan(0);
+  await expect(page.locator('.sdoc-cells-stats')).toHaveClass(/is-open/);
+  // Click the document text outside the sheet: everything settles back.
+  await page.locator('#_sd_rendered h1').click();
+  expect(await page.locator('.sdoc-cells-cell.in-range, .sdoc-cells-cell.is-active').count()).toBe(0);
+  await expect(page.locator('.sdoc-cells-stats')).not.toHaveClass(/is-open/);
+  expect((await page.locator('.sdoc-cells-ref').innerText()).trim()).toBe('');
+});
+
+test('inline: clicking the sheet\'s own toolbar keeps the selection', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b', '10,20', '30,40', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').click({ modifiers: ['Shift'] });
+  // The copy-selection button copies the selection - clicking it must not clear it.
+  await page.locator('.sdoc-cells-copy-sel').click();
+  expect(await page.locator('.sdoc-cells-cell.in-range').count()).toBeGreaterThan(0);
+  // Same for the stats strip below the grid.
+  await page.locator('.sdoc-cells-stats').click();
+  expect(await page.locator('.sdoc-cells-cell.in-range').count()).toBeGreaterThan(0);
+});
+
+test('fullscreen: clicking the overlay chrome does NOT clear the selection', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  // The formula bar and topbar live outside the grid wrapper; clicking them
+  // must keep the active cell (the formula bar edits it).
+  await fs.locator('.sdoc-cells-focus-value').click();
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveClass(/is-active/);
+  await fs.locator('.sdoc-cells-focus-topbar').click();
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveClass(/is-active/);
+});
