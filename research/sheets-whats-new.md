@@ -52,6 +52,9 @@ Things to check:
   back to "showing edited" to match.
 - Edit a number the Total depends on - the Total recomputes in whichever
   view is showing.
+- Type something into a column or row past the edge of the data (say two
+  columns to the right) - the inline grid grows to show it, and shrinks back
+  to the document's shape when viewing the original.
 
 ---
 

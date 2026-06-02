@@ -39,6 +39,13 @@
     var anchor = { r: -1, c: -1 };
     var focus = { r: -1, c: -1 };
 
+    // The grid can grow or shrink between paints (fullscreen edits add rows /
+    // columns; the edited/original toggle swaps data of a different shape),
+    // so bounds are read live from wrapper._cellsExtent rather than captured
+    // at wire time. The wire-time values are the fallback.
+    function maxRows() { return (wrapper._cellsExtent && wrapper._cellsExtent.rows) || rows; }
+    function maxCols() { return (wrapper._cellsExtent && wrapper._cellsExtent.cols) || cols; }
+
     function clamp(v, n) { return Math.max(0, Math.min(n - 1, v)); }
     function cellAt(r, c) {
       return grid.querySelector('.sdoc-cells-cell[data-r="' + r + '"][data-c="' + c + '"]');
@@ -127,14 +134,14 @@
 
     // Move the whole selection to a single cell (anchor == focus).
     function moveTo(r, c, doScroll) {
-      anchor.r = focus.r = clamp(r, rows);
-      anchor.c = focus.c = clamp(c, cols);
+      anchor.r = focus.r = clamp(r, maxRows());
+      anchor.c = focus.c = clamp(c, maxCols());
       apply(doScroll);
     }
     // Extend the range: keep the anchor, move the focus.
     function extendTo(r, c, doScroll) {
-      focus.r = clamp(r, rows);
-      focus.c = clamp(c, cols);
+      focus.r = clamp(r, maxRows());
+      focus.c = clamp(c, maxCols());
       apply(doScroll);
     }
     // Hooks for the fullscreen editor: move/extend the selection programmatically
@@ -151,13 +158,13 @@
 
     // Select a whole column / row (clicking its header).
     function selectColumn(c) {
-      anchor.r = 0; anchor.c = clamp(c, cols);
-      focus.r = rows - 1; focus.c = anchor.c;
+      anchor.r = 0; anchor.c = clamp(c, maxCols());
+      focus.r = maxRows() - 1; focus.c = anchor.c;
       apply(false);
     }
     function selectRow(r) {
-      anchor.r = clamp(r, rows); anchor.c = 0;
-      focus.r = anchor.r; focus.c = cols - 1;
+      anchor.r = clamp(r, maxRows()); anchor.c = 0;
+      focus.r = anchor.r; focus.c = maxCols() - 1;
       apply(false);
     }
 
@@ -225,9 +232,9 @@
       var r = focus.r, c = focus.c, handled = true;
       switch (e.key) {
         case 'ArrowUp':    r = jump ? 0 : r - 1; break;
-        case 'ArrowDown':  r = jump ? rows - 1 : r + 1; break;
+        case 'ArrowDown':  r = jump ? maxRows() - 1 : r + 1; break;
         case 'ArrowLeft':  c = jump ? 0 : c - 1; break;
-        case 'ArrowRight': c = jump ? cols - 1 : c + 1; break;
+        case 'ArrowRight': c = jump ? maxCols() - 1 : c + 1; break;
         default: handled = false;
       }
       if (!handled) return;
