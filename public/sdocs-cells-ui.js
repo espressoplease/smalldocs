@@ -173,12 +173,21 @@
       copyText(CELLS.serializeCsv(sub), selBtn);
     });
 
-    var allBtn = document.createElement('button');
-    allBtn.type = 'button';
-    allBtn.className = 'sdoc-cells-copy-icon sdoc-cells-copy-all';
-    allBtn.title = 'Copy whole sheet as CSV';
-    allBtn.setAttribute('aria-label', 'Copy whole sheet as CSV');
-    allBtn.innerHTML = copyIcon(14);
+    // Whole-sheet (values) copy. Standing alone it is the borderless icon;
+    // next to a "formulas" button it becomes a matching labelled "values"
+    // button so the pair reads as a clear choice.
+    var allBtn;
+    if (opts.rawButton) {
+      allBtn = copyButton('sdoc-cells-copy-all', 'values');
+      allBtn.title = 'Copy whole sheet values as CSV';
+    } else {
+      allBtn = document.createElement('button');
+      allBtn.type = 'button';
+      allBtn.className = 'sdoc-cells-copy-icon sdoc-cells-copy-all';
+      allBtn.title = 'Copy whole sheet as CSV';
+      allBtn.setAttribute('aria-label', 'Copy whole sheet as CSV');
+      allBtn.innerHTML = copyIcon(14);
+    }
     allBtn.addEventListener('click', function () {
       var m = src._cellsModel || model;
       var rows = m.cells.map(function (row, r) {
@@ -188,6 +197,7 @@
     });
 
     box.appendChild(selBtn);
+    box.appendChild(allBtn);
 
     // Raw copy: the sheet's data as written, formulas included.
     var rawBtn = null;
@@ -199,8 +209,6 @@
       });
       box.appendChild(rawBtn);
     }
-
-    box.appendChild(allBtn);
 
     src.addEventListener('cells-selection', function (e) {
       var s = e.detail;
@@ -335,17 +343,26 @@
     var inner = document.createElement('div');
     inner.className = 'sdoc-cells-stats-inner';
     strip.appendChild(inner);
+    // After a close, the stale text is cleared so a long stats line stops
+    // widening the wrapper. transitionend is the normal path; the timer is
+    // the fallback for when the transition doesn't run to completion (a
+    // throttled/hidden tab, reduced motion).
+    var clearTimer = null;
+    function clearWhenClosed() {
+      if (!strip.classList.contains('is-open')) inner.textContent = '';
+      clearTimer = null;
+    }
     wrapper.addEventListener('cells-selection', function (e) {
       var s = e.detail;
       var txt = (s && !s.empty)
         ? formatStats(wrapper._cellsModel || model, s, wrapper._cellsFxView)
         : '';
+      if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
       if (txt) inner.textContent = txt;
+      else clearTimer = setTimeout(clearWhenClosed, 400);
       strip.classList.toggle('is-open', !!txt);
     });
-    strip.addEventListener('transitionend', function () {
-      if (!strip.classList.contains('is-open')) inner.textContent = '';
-    });
+    strip.addEventListener('transitionend', clearWhenClosed);
     return strip;
   }
 
