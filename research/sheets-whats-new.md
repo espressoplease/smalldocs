@@ -23,6 +23,12 @@ Total,=SUM(B2:B5),,=SUM(D2:D5)
 
 ## New today
 
+**0. Excel export.** The download icon in any sheet's toolbar (inline or
+fullscreen) saves it as a real .xlsx workbook. Open it in Excel: the
+formulas are live - `=B2*C2` and `=SUM(D2:D5)` keep computing, and the
+currency columns keep their formats. Edits you made fullscreen travel with
+the file. Try it on the practice sheet above.
+
 **1. Inline selection stats.** Select a range of numbers in the grid above -
 drag across cells, or click one and Shift+Click another. A strip slides open
 below the grid showing Sum, Avg, Min, Max, and Count. It opens downward so

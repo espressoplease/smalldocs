@@ -72,6 +72,10 @@
   // Fullscreen "expand" glyph - the same lucide icon the Mermaid focus button
   // uses (sdocs-mermaid-focus.js).
   var EXPAND_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+  // Download glyph (lucide download) for the Excel export button.
+  function downloadIcon(size) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+  }
   // Sort glyphs (lucide arrow-up / arrow-down / x), 12px so they read clearly
   // at header size. Class names let tests and CSS target each state.
   function sortSvg(cls, paths) {
@@ -210,6 +214,35 @@
       box.appendChild(rawBtn);
     }
 
+    // Excel export: download the sheet as a real .xlsx workbook. Formulas
+    // export as live Excel formulas (they recalculate in Excel); the data is
+    // the SOURCE model - document order plus any fullscreen edits - never the
+    // sorted view, so formula references keep meaning what they say.
+    var xlsxBtn = null;
+    if (window.SDocCellsXlsx) {
+      xlsxBtn = document.createElement('button');
+      xlsxBtn.type = 'button';
+      xlsxBtn.className = 'sdoc-cells-copy-icon sdoc-cells-xlsx';
+      xlsxBtn.title = 'Download as Excel (.xlsx)';
+      xlsxBtn.setAttribute('aria-label', 'Download as Excel (.xlsx)');
+      xlsxBtn.innerHTML = downloadIcon(14);
+      xlsxBtn.addEventListener('click', function () {
+        var XL = window.SDocCellsXlsx;
+        var FX = window.SDocCellsFormula;
+        var m = src._cellsSource || model;
+        var bytes = XL.buildXlsx(m, FX ? FX.recalc(m) : null);
+        var blob = new Blob([bytes],
+          { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        var base = (m.source || 'sheet').replace(/\.[^.]*$/, '').replace(/[^a-z0-9_-]/gi, '_');
+        a.download = (base || 'sheet') + '.xlsx';
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      });
+      box.appendChild(xlsxBtn);
+    }
+
     src.addEventListener('cells-selection', function (e) {
       var s = e.detail;
       if (!s || s.empty) { selBtn.style.display = 'none'; return; }
@@ -217,7 +250,7 @@
       selBtn.style.display = '';
     });
 
-    return { box: box, selBtn: selBtn, allBtn: allBtn, rawBtn: rawBtn };
+    return { box: box, selBtn: selBtn, allBtn: allBtn, rawBtn: rawBtn, xlsxBtn: xlsxBtn };
   }
 
   function buildBar(wrapper, model) {

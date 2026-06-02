@@ -1243,3 +1243,62 @@ test('fullscreen copy: no formulas -> the plain icon copy button, no formulas bu
   expect(await fs.locator('.sdoc-cells-copy-all .sdoc-cells-copy-label').count()).toBe(0);
   expect(await fs.locator('.sdoc-cells-copy-raw').count()).toBe(0);
 });
+
+// ── Excel (.xlsx) export ─────────────────────────────────────────
+const fsMod = require('fs');
+
+test('xlsx export: the download button produces a workbook with live formulas', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'format: C=$', 'Item,Qty,Price', 'Laptop,12,1100',
+    'Total,=SUM(B2:B2),', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-bar');
+  const xlsxBtn = page.locator('#_sd_rendered .sdoc-cells-xlsx');
+  await expect(xlsxBtn).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    xlsxBtn.click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('sheet.xlsx');
+  const file = await download.path();
+  const bytes = fsMod.readFileSync(file);
+  // A ZIP ("PK") holding the workbook parts; stored entries mean the XML is
+  // readable in the raw bytes - formulas included, our = stripped.
+  expect(bytes[0]).toBe(0x50);
+  expect(bytes[1]).toBe(0x4b);
+  const s = bytes.toString('latin1');
+  expect(s).toContain('xl/worksheets/sheet1.xml');
+  expect(s).toContain('<f>SUM(B2:B2)</f>');
+  expect(s).toContain('$#,##0.00');
+});
+
+test('xlsx export: fullscreen has the button too, and edits are included', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  // Edit a cell, then export from fullscreen: the edit travels.
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').dblclick();
+  await page.locator('.sdoc-cells-editor').fill('=B3*2');
+  await page.keyboard.press('Enter');
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    fs.locator('.sdoc-cells-xlsx').click(),
+  ]);
+  const bytes = fsMod.readFileSync(await download.path());
+  const s = bytes.toString('latin1');
+  expect(s).toContain('<f>B3*2</f>');     // the edited formula, live in Excel
+  expect(s).toContain('<v>40</v>');       // with its cached value (20*2)
+});
+
+test('xlsx export: a sorted view still exports in document order', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Item,Qty', 'Zebra,1', 'Apple,2', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  // Sort by Item ascending: Apple displays first.
+  await page.locator('.sdoc-cells-colhead[data-c="0"]').hover();
+  await page.locator('.sdoc-cells-sort[data-c="0"]').click();
+  await expect(page.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]')).toHaveText('Apple');
+  // Export: rows stay in the document's order (Zebra first) - formula
+  // references must keep meaning what the author wrote.
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.sdoc-cells-xlsx').click(),
+  ]);
+  const s = fsMod.readFileSync(await download.path()).toString('latin1');
+  expect(s.indexOf('Zebra')).toBeLessThan(s.indexOf('Apple'));
+});

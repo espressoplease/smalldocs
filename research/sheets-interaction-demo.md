@@ -73,6 +73,12 @@ selection. Copies hold what the sheet shows: a formula cell copies as its
 computed value, not its formula text. (To copy the formulas themselves, use
 the "formulas" button in the fullscreen view.)
 
+**Inline - download as Excel.** The download icon in the top bar saves the
+sheet as a real .xlsx workbook. Formulas land as live Excel formulas - open
+the file and `=B2*C2` keeps computing. Currency and percent columns carry
+their formats over. The file uses the document's row order plus any edits
+you made fullscreen.
+
 **Inline - expand.** The expand icon opens the sheet fullscreen - that is
 where editing lives. Everything below happens there.
 

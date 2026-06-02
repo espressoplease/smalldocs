@@ -1098,6 +1098,13 @@ FULLSCREEN & EDITING
 EXPORT
   HTML / Word / PDF export emit a real table of the values (the source
   label and the row / column chrome are dropped).
+
+  The download button in a sheet's toolbar (inline and fullscreen) exports
+  that sheet as an Excel workbook (.xlsx). Formulas export as live Excel
+  formulas and recalculate when the file opens; the format: directive's
+  currency / percent / comma columns carry over as Excel number formats.
+  The export uses the document's row order (plus any fullscreen edits),
+  never the sorted view, so formula references stay correct.
 `;
 
 const SLIDES_HELP = `
