@@ -321,22 +321,6 @@
     var fullscreen = !!opts.fullscreen;
     var colCap = fullscreen ? MAX_COLS_FULL : MAX_COLS;
     var cellCap = fullscreen ? MAX_CELLS_FULL : MAX_CELLS;
-    var cols = Math.min(model.cols, colCap);
-    var maxRows = Math.max(1, Math.floor(cellCap / Math.max(1, cols)));
-    var rows = Math.min(model.rows, maxRows);
-    var truncated = cols < model.cols || rows < model.rows;
-
-    // Fullscreen pads the grid past the data with empty cells so it fills the
-    // canvas and scrolls, like a real spreadsheet. Sized to the viewport with
-    // sensible floors; inline never pads (renderCols/Rows == cols/rows).
-    var renderCols = cols, renderRows = rows;
-    if (fullscreen) {
-      var vw = (typeof window !== 'undefined' && window.innerWidth) || 1280;
-      var vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
-      renderCols = Math.min(colCap, Math.max(cols, 26, Math.ceil(vw / 64)));
-      renderRows = Math.min(Math.max(1, Math.floor(cellCap / Math.max(1, renderCols))),
-                            Math.max(rows, 50, Math.ceil(vh / 22)));
-    }
 
     var wrapper = document.createElement('div');
     wrapper.className = 'sdoc-cells' + (fullscreen ? ' sdoc-cells-fs' : '');
@@ -347,6 +331,33 @@
     var grid = document.createElement('div');
     grid.className = 'sdoc-cells-grid';
     grid.setAttribute('role', 'grid');
+
+    // Render extent: how many rows / columns get painted. Recomputed at the
+    // top of every paint() so a model that grew after a fullscreen edit (new
+    // rows or columns typed past the original data) paints in full on the
+    // next repaint - and shrinks back when the edited/original toggle swaps
+    // the smaller original data in.
+    var cols, rows, truncated, renderCols, renderRows;
+    function computeExtent() {
+      cols = Math.min(model.cols, colCap);
+      var maxRows = Math.max(1, Math.floor(cellCap / Math.max(1, cols)));
+      rows = Math.min(model.rows, maxRows);
+      truncated = cols < model.cols || rows < model.rows;
+      // Fullscreen pads the grid past the data with empty cells so it fills
+      // the canvas and scrolls, like a real spreadsheet. Sized to the viewport
+      // with sensible floors; inline never pads (renderCols/Rows == cols/rows).
+      renderCols = cols; renderRows = rows;
+      if (fullscreen) {
+        var vw = (typeof window !== 'undefined' && window.innerWidth) || 1280;
+        var vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
+        renderCols = Math.min(colCap, Math.max(cols, 26, Math.ceil(vw / 64)));
+        renderRows = Math.min(Math.max(1, Math.floor(cellCap / Math.max(1, renderCols))),
+                              Math.max(rows, 50, Math.ceil(vh / 22)));
+      }
+      // Selection, keyboard nav, and the editor all read the live extent here.
+      wrapper._cellsExtent = { rows: renderRows, cols: renderCols };
+    }
+    computeExtent();
 
     // Per-column explicit widths (set by dragging a header's resize handle).
     // Persist across re-sorts. Undefined = auto (content-sized).
@@ -360,16 +371,17 @@
       }
       grid.style.gridTemplateColumns = parts.join(' ');
     }
-    applyTemplate();
 
     var EMPTY_CELL = { raw: '', value: '', type: 'empty' };
-    var hasHeader = CELLS.looksLikeHeader(model);
     var sort = opts.sort || null;   // { col, dir } - a view reorder
 
     // (Re)paint the grid body from the effective (possibly sorted) model.
     // wrapper._cellsModel always holds that effective model, so the toolbar,
     // copy, stats, and value bar reflect what is on screen after a sort.
     function paint() {
+      computeExtent();    // the model may have grown / shrunk since last paint
+      applyTemplate();    // the column template follows the extent
+      var hasHeader = CELLS.looksLikeHeader(model);
       // Resolve any =formula cells against the SOURCE model first: cell
       // references mean what the author wrote, regardless of any sort. The
       // computed value then travels with its row when the view is reordered
@@ -537,12 +549,11 @@
     });
 
     scroll.appendChild(grid);
-    // Hooks for the fullscreen editor: the mutable source model, a repaint
-    // trigger (re-derives sort + recalc), and the rendered extent so it knows
-    // how far the padded blank area reaches.
+    // Hooks for the fullscreen editor: the mutable source model and a repaint
+    // trigger (re-derives extent + sort + recalc). The rendered extent lives
+    // in wrapper._cellsExtent, kept current by computeExtent() in paint().
     wrapper._cellsSource = model;
     wrapper._cellsRepaint = paint;
-    wrapper._cellsExtent = { rows: renderRows, cols: renderCols };
     // Toolbar reads wrapper._cellsModel (set by paint) so copy follows a sort.
     if (!fullscreen) wrapper.appendChild(buildBar(wrapper, model));
     wrapper.appendChild(scroll);
