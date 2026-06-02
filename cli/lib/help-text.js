@@ -1053,6 +1053,30 @@ LOADING FROM A CSV FILE
     reference).
   - \`sdoc report.csv\` opens a CSV file directly as a sheet.
 
+CSV FILES WITH FORMULAS
+  A .csv file can hold =formulas in its cells, exactly like an inline
+  block:
+
+    Item,Qty,Total
+    Laptop,12,=B2*100
+    Total,=SUM(B2:B2),=SUM(C2:C2)
+
+  \`sdoc that-file.csv\` opens it as a working sheet - the formulas
+  compute - and the Excel download carries them as live formulas. This
+  is the lowest-friction way for an agent to hand over a spreadsheet:
+  write a plain CSV with formulas where computed values belong, run
+  sdoc on it. Quote any formula containing commas ("=ROUND(B2, 1)") -
+  standard CSV quoting. The file itself opens read-only; it stays the
+  clean source of truth.
+
+EXCEL EXPORT SECURITY
+  Only formulas this sheet itself can compute (the FORMULAS list above)
+  export as live Excel formulas. Anything else - Excel functions we do
+  not support, and especially the CSV-injection attack class
+  (WEBSERVICE, HYPERLINK, DDE) - exports as inert text. A document
+  someone shares with you can never smuggle an executable formula into
+  your downloaded workbook.
+
 LIMITS
   - Per-block source-size cap and a per-document block cap.
   - The inline preview bounds very large grids and notes what it clipped
