@@ -1126,3 +1126,29 @@ test('inline stats strip: the area right of the grid is tinted and shrinks back 
   await expect.poll(async () => (await wrapper.boundingBox()).width, { timeout: 3000 })
     .toBeLessThan(closedWidth + 5);
 });
+
+test('edited pill: edits past the original grid grow the inline grid', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', FENCE]);
+  // The document is 2 columns x 3 rows. Type into column D (a new column,
+  // with a gap at C) and into row 5 (a new row, with a gap at row 4).
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="3"]').dblclick();
+  await page.locator('.sdoc-cells-editor').fill('77');
+  await page.keyboard.press('Enter');
+  await fs.locator('.sdoc-cells-cell[data-r="4"][data-c="0"]').dblclick();
+  await page.locator('.sdoc-cells-editor').fill('NewRow');
+  await page.keyboard.press('Enter');
+  await page.locator('.sdoc-cells-focus-close').click();
+  // The inline grid now spans A-D and 5 rows, showing both edits.
+  const inline = page.locator('#_sd_rendered .sdoc-cells');
+  await expect(inline.locator('.sdoc-cells-colhead-label')).toHaveText(['A', 'B', 'C', 'D']);
+  await expect(inline.locator('.sdoc-cells-cell[data-r="1"][data-c="3"]')).toHaveText('77');
+  await expect(inline.locator('.sdoc-cells-cell[data-r="4"][data-c="0"]')).toHaveText('NewRow');
+  // Toggling to the original shrinks the grid back to the document's shape...
+  await page.locator('#_sd_rendered .sdoc-cells-edit-pill').click();
+  await expect(inline.locator('.sdoc-cells-colhead-label')).toHaveText(['A', 'B']);
+  expect(await inline.locator('.sdoc-cells-rowhead').count()).toBe(3);
+  // ...and back to edited restores the extended grid.
+  await page.locator('#_sd_rendered .sdoc-cells-edit-pill').click();
+  await expect(inline.locator('.sdoc-cells-colhead-label')).toHaveText(['A', 'B', 'C', 'D']);
+  await expect(inline.locator('.sdoc-cells-cell[data-r="4"][data-c="0"]')).toHaveText('NewRow');
+});
