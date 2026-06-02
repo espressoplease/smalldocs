@@ -211,7 +211,8 @@
     var editedStash = null;
     function setPillState() {
       var orig = !!editedStash;
-      pill.textContent = orig ? 'original' : 'edited';
+      // The label names what the grid is showing right now; clicking flips it.
+      pill.textContent = orig ? 'showing original' : 'showing edited';
       pill.classList.toggle('is-original', orig);
       pill.title = orig
         ? "Showing the document's data. Click to see your edits."
