@@ -1195,3 +1195,46 @@ test('fullscreen: clicking the overlay chrome does NOT clear the selection', asy
   await fs.locator('.sdoc-cells-focus-topbar').click();
   await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveClass(/is-active/);
 });
+
+// ── Copy: values by default, formulas on request ────────────────
+test('inline copy: buttons emit computed values, and there is no formulas button', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await loadDoc(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', 'Total,=SUM(B2:B3)', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-bar');
+  // Whole-sheet copy: the formula cell lands as its computed value.
+  await page.locator('.sdoc-cells-copy-all').click();
+  let csv = await page.evaluate(() => navigator.clipboard.readText());
+  expect(csv).toContain('Total,30');
+  expect(csv).not.toContain('=SUM');
+  // Selection copy: select B2:B4 (10, 20, =SUM -> 30).
+  await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await page.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').click({ modifiers: ['Shift'] });
+  await page.locator('.sdoc-cells-copy-sel').click();
+  csv = await page.evaluate(() => navigator.clipboard.readText());
+  expect(csv).toBe('10\n20\n30');
+  // Inline has no "copy formulas" button.
+  expect(await page.locator('#_sd_rendered .sdoc-cells-copy-raw').count()).toBe(0);
+});
+
+test('fullscreen copy: values by default, a formulas button copies the raw data', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', 'Total,=SUM(B2:B3)', FENCE]);
+  // The existing whole-sheet copy emits values.
+  await fs.locator('.sdoc-cells-copy-all').click();
+  let csv = await page.evaluate(() => navigator.clipboard.readText());
+  expect(csv).toContain('Total,30');
+  expect(csv).not.toContain('=SUM');
+  // The "formulas" button emits the raw data - formulas as written.
+  const rawBtn = fs.locator('.sdoc-cells-copy-raw');
+  await expect(rawBtn).toBeVisible();
+  expect(await rawBtn.locator('.sdoc-cells-copy-label').innerText()).toBe('formulas');
+  await rawBtn.click();
+  csv = await page.evaluate(() => navigator.clipboard.readText());
+  expect(csv).toContain('Total,=SUM(B2:B3)');
+});
+
+test('fullscreen copy: no formulas button when the sheet has no formulas', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b', '1,2', FENCE]);
+  await expect(fs.locator('.sdoc-cells-copy-all')).toBeVisible();
+  expect(await fs.locator('.sdoc-cells-copy-raw').count()).toBe(0);
+});
