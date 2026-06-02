@@ -42,7 +42,8 @@ The two never share a `package.json` again. See "Published npm tarball" below fo
   - `sdocs-comments-ui.js` - browser-only comment UI: rendering, selection popover, composer, navigation
   - `sdocs-cells.js` - pure cells data model (CSV parse, type classify, column names, format directive, selection stats, sort, header detection), UMD shared with tests
   - `sdocs-cells-formula.js` - pure formula engine for `=` cells (tokenize/parse/eval, refs + ranges, SUM/AVG/MIN/MAX/COUNT/COUNTA/PRODUCT/ROUND/ABS/IF, whole-model recalc with cycle detection), UMD shared with tests
-  - `sdocs-cells-ui.js` - ```cells renderer: CSS-grid sheet (inline + fullscreen via a `fullscreen` flag), formula display, number/format rendering, copy toolbar, JS scroller sizing
+  - `sdocs-cells-xlsx.js` - pure .xlsx writer (stored ZIP + SpreadsheetML, live formulas, number formats), zero dependencies, UMD shared with tests
+  - `sdocs-cells-ui.js` - ```cells renderer: CSS-grid sheet (inline + fullscreen via a `fullscreen` flag), formula display, number/format rendering, copy toolbar, xlsx download, JS scroller sizing
   - `sdocs-cells-select.js` - cell + range selection and keyboard navigation for a cells grid
   - `sdocs-cells-focus.js` - fullscreen "focus" overlay for a sheet (name box, formula bar, selection stats footer); hosts the editor
   - `sdocs-cells-edit.js` - client-only in-cell editing for the fullscreen view (type/dblclick to edit, nav keys, undo/redo, delete-clear, TSV/CSV paste); mutates the shared model, never the document
@@ -60,6 +61,7 @@ The two never share a `package.json` again. See "Published npm tarball" below fo
   - `test/test-cache-bust.js` - two-server check that asset URLs change when public/ contents change
   - `test/test-comments.js` - comment data-model + YAML/footnote round-trip + sanitisation tests
   - `test/test-mermaid.js` - directive stripping + marked output shape + hardening assertions
+  - `test/test-cells-xlsx.js` - .xlsx writer tests (ZIP structure, worksheet XML, formula translation, number formats)
 - **Playwright tests**: `npx playwright test test/write-mode.spec.js` - write mode editor tests
   - `test/write-mode.spec.js` - 42 tests for toolbar actions, toggles, shortcuts, block exits
   - `test/comment-mode.spec.js` - comment-mode integration: anchor resolution, composer, navigation
