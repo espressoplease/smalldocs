@@ -1011,7 +1011,8 @@ SELECTING
   Drag to select a range; Shift+Click or Shift+Arrow extends it. Arrow
   keys move the selection; Cmd/Ctrl+Arrow jumps to the far edge;
   Shift+(Cmd/Ctrl+)Arrow extends to it. Dragging to the left/right edge of
-  a wide sheet auto-scrolls. Esc clears the selection.
+  a wide sheet auto-scrolls. Esc - or clicking anywhere outside the sheet -
+  clears the selection.
 
   Selecting a multi-cell range opens a stats strip below the grid with the
   range's Sum / Avg / Min / Max / Count. Formula cells count by their
