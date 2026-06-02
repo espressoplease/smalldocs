@@ -26,6 +26,7 @@ const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
 const FormBlock = require('../shared/sdocs-form-block.js');
+const { isWrappedFile, wrapForDisplay } = require('../lib/cells-transclude');
 
 // ── Constants ─────────────────────────────────────────────
 
@@ -504,6 +505,15 @@ function startBridge(opts) {
     }
 
     if (msg.type === 'write' || msg.type === 'submit') {
+      // A wrapped file's document (a .csv shown as a ```cells sheet, a .mmd
+      // shown as a diagram) is a derived view, not the file. Writing it back
+      // would replace the data with fence markup, so saves are refused. The
+      // browser also gets canSave: false in hello; this is the backstop.
+      if (isWrappedFile(filepath)) {
+        wsSendJson(socket, { type: 'error', code: 'EREADONLY',
+          message: path.basename(filepath) + ' opens as a read-only view; edit the file itself', id: msg.id });
+        return;
+      }
       const body = typeof msg.content === 'string' ? msg.content : '';
       const buf  = Buffer.from(body, 'utf-8');
       // Re-resolve through realpath every write to defeat a symlink swap.
@@ -738,7 +748,9 @@ function startBridge(opts) {
     state.hash    = change.hash;
     wsSendJson(socket, {
       type: 'external-change',
-      content: change.content.toString('utf-8'),
+      // Same display transform as hello: wrapped files travel as their
+      // renderable fenced-block document.
+      content: wrapForDisplay(change.content.toString('utf-8'), filepath),
       file: path.basename(filepath),
     });
   }
@@ -778,12 +790,15 @@ function startBridge(opts) {
     wsSendJson(sock, {
       type: 'hello',
       file: path.basename(filepath),
-      content: state.content.toString('utf-8'),
+      // Wrapped files (.csv -> ```cells sheet, .mmd -> ```mermaid diagram)
+      // are sent as their renderable document, matching what the URL-snapshot
+      // path (io.js readContent) builds. Markdown goes through raw.
+      content: wrapForDisplay(state.content.toString('utf-8'), filepath),
       mode,
       message,
       path: localPath,
       fullPath: filepath,
-      capabilities: capsForMode(mode),
+      capabilities: capsForMode(mode, filepath),
     });
     emit('connect', { firstTime: subs.connect.length === 0 || !subs._everEmitted });
     // Mark first connect so reconnects don't re-emit "first" semantics if a
@@ -930,12 +945,13 @@ function startBridge(opts) {
   });
 }
 
-function capsForMode(mode) {
-  // The browser never gets a server-enforced read-only mode in this model.
+function capsForMode(mode, filepath) {
   // Both 'open' and 'feedback' can save; 'feedback' additionally exposes the
-  // Done button (canSubmit).
+  // Done button (canSubmit). The exception is wrapped files (.csv / .mmd):
+  // their document is a derived view, so saving is off and the write handler
+  // refuses as a backstop.
   return {
-    canSave:   true,
+    canSave:   !isWrappedFile(filepath),
     canWatch:  true,
     canSubmit: mode === 'feedback',
   };
