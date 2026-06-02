@@ -1219,8 +1219,11 @@ test('inline copy: buttons emit computed values, and there is no formulas button
 test('fullscreen copy: values by default, a formulas button copies the raw data', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', 'Total,=SUM(B2:B3)', FENCE]);
-  // The existing whole-sheet copy emits values.
-  await fs.locator('.sdoc-cells-copy-all').click();
+  // With formulas present, the whole-sheet copy is a labelled "values" button
+  // (same style as the formulas button) so the pair reads clearly.
+  const valBtn = fs.locator('.sdoc-cells-copy-all');
+  expect(await valBtn.locator('.sdoc-cells-copy-label').innerText()).toBe('values');
+  await valBtn.click();
   let csv = await page.evaluate(() => navigator.clipboard.readText());
   expect(csv).toContain('Total,30');
   expect(csv).not.toContain('=SUM');
@@ -1233,8 +1236,10 @@ test('fullscreen copy: values by default, a formulas button copies the raw data'
   expect(csv).toContain('Total,=SUM(B2:B3)');
 });
 
-test('fullscreen copy: no formulas button when the sheet has no formulas', async ({ page }) => {
+test('fullscreen copy: no formulas -> the plain icon copy button, no formulas button', async ({ page }) => {
   const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b', '1,2', FENCE]);
   await expect(fs.locator('.sdoc-cells-copy-all')).toBeVisible();
+  // Without formulas the whole-sheet copy stays the borderless icon (no label).
+  expect(await fs.locator('.sdoc-cells-copy-all .sdoc-cells-copy-label').count()).toBe(0);
   expect(await fs.locator('.sdoc-cells-copy-raw').count()).toBe(0);
 });
