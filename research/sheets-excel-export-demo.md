@@ -56,6 +56,10 @@ Total in 3 yrs at 7% growth,,,"=ROUND(D7*1.07^3, 0)",,,
   block's own grid.
 - The exported file uses the document's row order plus any fullscreen
   edits. Sorting a column changes the view, never the export.
+- Only formulas the sheet itself can compute export as live Excel formulas.
+  Functions outside the supported set - including the CSV-injection attack
+  class (`WEBSERVICE`, `HYPERLINK`, DDE) - export as inert text, so a shared
+  document cannot smuggle an executable formula into your download.
 
 **One more to try.** Edit this one fullscreen first (change some numbers,
 add a formula of your own), then download - your edits travel into the
