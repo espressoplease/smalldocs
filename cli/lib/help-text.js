@@ -1030,6 +1030,11 @@ TOOLBAR
     - A fullscreen expand button opens the sheet as a full-window,
       editable spreadsheet (see FULLSCREEN & EDITING).
 
+  Copy buttons copy what the sheet shows: formula cells emit their
+  computed value, not the "=..." text. In fullscreen, a sheet with
+  formulas gets one extra "formulas" button that copies the raw data -
+  formulas as written, plain values elsewhere.
+
 LOADING FROM A CSV FILE
   Reference a file instead of typing data inline:
 

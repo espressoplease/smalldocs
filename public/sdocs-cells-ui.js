@@ -132,10 +132,30 @@
   // they behave identically: a borderless icon that copies the WHOLE sheet,
   // and a dynamic ghost button that copies the current cell / selection. `src`
   // is the element that carries the selection (the grid wrapper) - it holds
-  // _cellsSelection and fires `cells-selection`. Returns { box, selBtn, allBtn }.
-  function buildCopyControls(src, model) {
+  // _cellsSelection and fires `cells-selection`.
+  //
+  // Both buttons copy what the sheet SHOWS: a formula cell emits its computed
+  // value (or error code), not its "=..." source. opts.rawButton adds a
+  // labelled "formulas" button that copies the raw data instead - formulas as
+  // written, values elsewhere (the fullscreen overlay asks for it when the
+  // sheet holds formulas). Returns { box, selBtn, allBtn, rawBtn }.
+  function buildCopyControls(src, model, opts) {
+    opts = opts || {};
     var box = document.createElement('div');
     box.className = 'sdoc-cells-bar-actions';
+
+    // The copy value of cell (r, c) in the effective model: formula cells
+    // resolve through the display-aligned results (src._cellsFxView, set by
+    // paint), everything else copies its raw text.
+    function copyValue(m, r, c) {
+      var cell = m.cells[r] && m.cells[r][c];
+      if (!cell) return '';                          // padded cells copy as empty
+      var FX = window.SDocCellsFormula;
+      var fxView = src._cellsFxView;
+      var fxCell = (FX && FX.isFormula(cell.raw) && fxView && fxView[r]) ? fxView[r][c] : null;
+      if (!fxCell) return cell.raw;
+      return fxCell.kind === 'error' ? fxCell.code : String(fxCell.value);
+    }
 
     var selBtn = copyButton('sdoc-cells-copy-sel', 'selection');
     selBtn.style.display = 'none';
@@ -146,10 +166,9 @@
       var m = src._cellsModel || model;             // the effective (sorted) view
       var sub = [];
       for (var r = s.r0; r <= s.r1; r++) {
-        var line = m.cells[r];
         var out = [];
-        for (var c = s.c0; c <= s.c1; c++) out.push((line && line[c]) ? line[c].raw : '');
-        sub.push(out);                              // padded cells copy as empty
+        for (var c = s.c0; c <= s.c1; c++) out.push(copyValue(m, r, c));
+        sub.push(out);
       }
       copyText(CELLS.serializeCsv(sub), selBtn);
     });
@@ -161,10 +180,26 @@
     allBtn.setAttribute('aria-label', 'Copy whole sheet as CSV');
     allBtn.innerHTML = copyIcon(14);
     allBtn.addEventListener('click', function () {
-      copyText(CELLS.serializeCsv(rawRows((src._cellsModel || model).cells)), allBtn);
+      var m = src._cellsModel || model;
+      var rows = m.cells.map(function (row, r) {
+        return row.map(function (_cell, c) { return copyValue(m, r, c); });
+      });
+      copyText(CELLS.serializeCsv(rows), allBtn);
     });
 
     box.appendChild(selBtn);
+
+    // Raw copy: the sheet's data as written, formulas included.
+    var rawBtn = null;
+    if (opts.rawButton) {
+      rawBtn = copyButton('sdoc-cells-copy-raw', 'formulas');
+      rawBtn.title = 'Copy whole sheet with formulas as CSV';
+      rawBtn.addEventListener('click', function () {
+        copyText(CELLS.serializeCsv(rawRows((src._cellsModel || model).cells)), rawBtn);
+      });
+      box.appendChild(rawBtn);
+    }
+
     box.appendChild(allBtn);
 
     src.addEventListener('cells-selection', function (e) {
@@ -174,7 +209,7 @@
       selBtn.style.display = '';
     });
 
-    return { box: box, selBtn: selBtn, allBtn: allBtn };
+    return { box: box, selBtn: selBtn, allBtn: allBtn, rawBtn: rawBtn };
   }
 
   function buildBar(wrapper, model) {

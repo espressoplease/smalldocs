@@ -69,7 +69,9 @@ treated differently:
 
 **Inline - copy.** The copy icon in the top bar copies the whole sheet as CSV.
 When something is selected, a second button appears that copies just the
-selection.
+selection. Copies hold what the sheet shows: a formula cell copies as its
+computed value, not its formula text. (To copy the formulas themselves, use
+the "formulas" button in the fullscreen view.)
 
 **Inline - expand.** The expand icon opens the sheet fullscreen - that is
 where editing lives. Everything below happens there.
