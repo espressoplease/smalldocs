@@ -44,6 +44,11 @@ Shift+Arrow. The top bar shows the span (like `B2:C4`).
 **Inline - move with the keyboard.** Arrow keys move the selection. Cmd+Arrow
 (Ctrl on Windows) jumps to the far edge. Esc clears the selection.
 
+**Inline - selection stats.** Select a range of numbers and a strip slides
+open between the top bar and the grid with the range's Sum, Avg, Min, Max,
+and Count. Formula cells count by their computed value. It closes when the
+selection collapses to a single cell or is cleared.
+
 **Inline - sort.** Hover a column letter: an arrow appears on its right
 showing what a click will do (up = sort ascending, down = descending, x =
 clear). The current sort stays visible as a colored arrow. Sorting only
@@ -142,6 +147,12 @@ corner at your selection.
 
 **Fullscreen - close.** Esc or the X. Your edits show in the inline grid in
 the document - but they are display-only and vanish on reload.
+
+**After editing - the edited pill.** Once a sheet has been edited fullscreen,
+an "edited" pill appears in its inline top bar: the grid is showing your
+edits, the document is unchanged. Click it to see the document's original
+data (the pill flips to "original"), click again for your edits. Expanding
+always resumes from the edits.
 
 ---
 
