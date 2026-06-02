@@ -195,6 +195,63 @@
     setRef('');
     bar.appendChild(ref);
 
+    // ── Edited pill ──
+    // Fullscreen edits mutate the shared model, so after the overlay closes
+    // the inline grid shows them - but the document is unchanged. This pill
+    // says so out loud: it appears after the first edit, and clicking it
+    // flips the grid between your edits and the document's original data.
+    var pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'sdoc-cells-edit-pill';
+    pill.style.display = 'none';
+    bar.appendChild(pill);
+
+    // While the original is showing, the edited cells are stashed here; null
+    // means the grid shows the live (possibly edited) model.
+    var editedStash = null;
+    function setPillState() {
+      var orig = !!editedStash;
+      pill.textContent = orig ? 'original' : 'edited';
+      pill.classList.toggle('is-original', orig);
+      pill.title = orig
+        ? "Showing the document's data. Click to see your edits."
+        : 'Edited fullscreen - the document is unchanged. Click to see its data.';
+    }
+    function repaintFresh() {
+      if (wrapper._cellsRepaint) wrapper._cellsRepaint();
+      var g = wrapper.querySelector('.sdoc-cells-grid');
+      if (g && g._clearSelection) g._clearSelection();
+    }
+    // Show the document's data: re-parse the block source and swap it into
+    // the model, stashing the edited cells for the flip back.
+    wrapper._cellsViewOriginal = function () {
+      if (editedStash) return;
+      var orig;
+      try { orig = CELLS.parseCells(wrapper.dataset.cellsSrc || ''); } catch (_) { return; }
+      if (!orig || orig.error || orig.empty) return;
+      editedStash = { cells: model.cells, rows: model.rows, cols: model.cols };
+      model.cells = orig.cells; model.rows = orig.rows; model.cols = orig.cols;
+      setPillState();
+      repaintFresh();
+    };
+    // Put the stashed edits back.
+    wrapper._cellsViewEdited = function () {
+      if (!editedStash) return;
+      model.cells = editedStash.cells; model.rows = editedStash.rows; model.cols = editedStash.cols;
+      editedStash = null;
+      setPillState();
+      repaintFresh();
+    };
+    // Called (via S.onCellsEdited) when the fullscreen editor closes dirty.
+    wrapper._cellsMarkEdited = function () {
+      pill.style.display = '';
+      setPillState();
+    };
+    pill.addEventListener('click', function () {
+      if (editedStash) wrapper._cellsViewEdited();
+      else wrapper._cellsViewOriginal();
+    });
+
     var controls = buildCopyControls(wrapper, model);
 
     // Fullscreen expand (inline only - the overlay is already fullscreen).
@@ -205,6 +262,9 @@
     expandBtn.setAttribute('aria-label', 'Open fullscreen');
     expandBtn.innerHTML = EXPAND_SVG;
     expandBtn.addEventListener('click', function () {
+      // Editing always resumes from the edited data: if the grid is showing
+      // the original, flip back first so what you expand is what you edit.
+      if (wrapper._cellsViewEdited) wrapper._cellsViewEdited();
       if (S.cellsFocus) S.cellsFocus.open(model, wrapper);
     });
     controls.box.appendChild(expandBtn);
@@ -220,6 +280,30 @@
     });
 
     return bar;
+  }
+
+  // ── Inline stats strip ──────────────────────────────────
+  // The inline counterpart of the fullscreen header stats: a band between the
+  // top bar and the grid, on the same tinted surface, that opens when a
+  // multi-cell range is selected and shows its Sum / Avg / Min / Max / Count.
+  // Collapsed the rest of the time (a single cell's value is already visible
+  // in the cell). The text is left in place while it closes so the collapse
+  // animation doesn't blank mid-motion.
+  function buildStatsStrip(wrapper, model) {
+    var strip = document.createElement('div');
+    strip.className = 'sdoc-cells-stats';
+    var inner = document.createElement('div');
+    inner.className = 'sdoc-cells-stats-inner';
+    strip.appendChild(inner);
+    wrapper.addEventListener('cells-selection', function (e) {
+      var s = e.detail;
+      var txt = (s && !s.empty)
+        ? formatStats(wrapper._cellsModel || model, s, wrapper._cellsFxView)
+        : '';
+      if (txt) inner.textContent = txt;
+      strip.classList.toggle('is-open', !!txt);
+    });
+    return strip;
   }
 
   // Build the inline grid DOM from a model. Returns the wrapper element.
@@ -454,7 +538,10 @@
     wrapper._cellsRepaint = paint;
     wrapper._cellsExtent = { rows: renderRows, cols: renderCols };
     // Toolbar reads wrapper._cellsModel (set by paint) so copy follows a sort.
-    if (!fullscreen) wrapper.appendChild(buildBar(wrapper, model));
+    if (!fullscreen) {
+      wrapper.appendChild(buildBar(wrapper, model));
+      wrapper.appendChild(buildStatsStrip(wrapper, model));
+    }
     wrapper.appendChild(scroll);
 
     // Inline only: size the scroller to the grid's real rendered width so a
@@ -615,6 +702,12 @@
     return parts.join('   ·   ');
   }
   S.formatCellsStats = formatStats;
+
+  // The fullscreen editor closed with edits: surface the edited/original
+  // toggle on the inline grid's bar (sdocs-cells-focus.js calls this hook).
+  S.onCellsEdited = function (model, wrapper) {
+    if (wrapper && wrapper._cellsMarkEdited) wrapper._cellsMarkEdited();
+  };
 
   S.processCells = processCells;
   // Exposed for the fullscreen view + editor to reuse the same renderer.
