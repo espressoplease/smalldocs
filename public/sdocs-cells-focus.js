@@ -20,7 +20,9 @@
     '  position: fixed; inset: 0; z-index: 10100;',
     '  background: var(--sdoc-focus-bg, #ffffff);',
     '  color: var(--sdoc-focus-fg, #1c1917);',
-    '  display: grid; grid-template-rows: 40px 31px 1fr;',
+    /* minmax(0, 1fr) column: a row whose content is wider than the viewport */
+    /* scrolls inside itself instead of blowing the overlay out sideways.    */
+    '  display: grid; grid-template-rows: 40px 31px 1fr; grid-template-columns: minmax(0, 1fr);',
     '  font-family: var(--md-font-family, ui-sans-serif, system-ui, sans-serif);',
     '  animation: sdoc-cells-focus-fade .15s ease-out;',
     '}',
@@ -30,14 +32,26 @@
     '  background: color-mix(in oklab, var(--sdoc-focus-bg, #fff) 92%, var(--sdoc-focus-fg, #1c1917) 8%);',
     '  border-bottom: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 14%, transparent);',
     '}',
-    '.sdoc-cells-focus-brand { display: inline-flex; align-items: baseline; color: #3B82F6; font-size: 13px; font-weight: 600; }',
+    '.sdoc-cells-focus-brand { display: inline-flex; align-items: baseline; color: #3B82F6; font-size: 13px; font-weight: 600; flex-shrink: 0; }',
     '.sdoc-cells-focus-brand-suf { color: var(--sdoc-focus-fg, #1c1917); font-weight: 400; margin-left: 4px; }',
+    /* Brand variants: "SmallDocs" on desktop, "SD" on narrow screens - same */
+    /* treatment as the main topbar brand.                                    */
+    '.sdoc-cells-focus-brand-tiny { display: none; }',
     '.sdoc-cells-focus-file { font-size: 12px; color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 58%, var(--sdoc-focus-bg, #fff) 42%); }',
-    '.sdoc-cells-focus-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }',
-    /* Close: a 28x28 square icon button, matching the other overlays. */
+    /* Actions scroll horizontally when they overflow (hidden scrollbars, the */
+    /* standard toolbar pattern); each child keeps its natural width.         */
+    '.sdoc-cells-focus-actions {',
+    '  margin-left: auto; display: flex; align-items: center; gap: 6px; min-width: 0;',
+    '  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;',
+    '}',
+    '.sdoc-cells-focus-actions::-webkit-scrollbar { display: none; }',
+    '.sdoc-cells-focus-actions > * { flex-shrink: 0; }',
+    /* Close: a 28x28 square icon button, matching the other overlays. It is */
+    /* a direct child of the topbar (not the scrollable actions group) so it */
+    /* can never be scrolled or pushed off-screen.                           */
     '.sdoc-cells-focus-close {',
     '  all: unset; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;',
-    '  width: 28px; height: 28px; border-radius: 4px;',
+    '  width: 28px; height: 28px; border-radius: 4px; flex-shrink: 0;',
     '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 75%, transparent);',
     '  transition: background .12s, color .12s;',
     '}',
@@ -111,6 +125,21 @@
     '}',
     '.sdoc-cells-focus-stage .sdoc-cells-fs .sdoc-cells-scroll { flex: 1; min-height: 0; overflow: auto; }',
     'body.sdoc-cells-focus-open { overflow: hidden; }',
+    /* Narrow screens: abbreviate the brand, drop the filename, tighten the   */
+    /* padding. The actions group scrolls; the close button stays pinned.     */
+    '@media (max-width: 560px) {',
+    '  .sdoc-cells-focus-topbar { gap: 6px; padding: 0 8px; }',
+    '  .sdoc-cells-focus-brand-full { display: none; }',
+    '  .sdoc-cells-focus-brand-tiny { display: inline; }',
+    '  .sdoc-cells-focus-file { display: none; }',
+    /* The name box shrinks and the stats segment scrolls in place, so the   */
+    /* formula bar keeps some width instead of being pushed off-screen.      */
+    '  .sdoc-cells-focus-name { width: auto; min-width: 56px; padding: 0 8px; }',
+    '  .sdoc-cells-focus-stats {',
+    '    flex-shrink: 1; min-width: 0; overflow-x: auto; scrollbar-width: none;',
+    '  }',
+    '  .sdoc-cells-focus-stats::-webkit-scrollbar { display: none; }',
+    '}',
   ].join('\n');
 
   function injectCSS() {
@@ -200,7 +229,9 @@
     topbar.className = 'sdoc-cells-focus-topbar';
     var brand = document.createElement('span');
     brand.className = 'sdoc-cells-focus-brand';
-    brand.innerHTML = 'SmallDocs<span class="sdoc-cells-focus-brand-suf">Sheet</span>';
+    brand.innerHTML = '<span class="sdoc-cells-focus-brand-full">SmallDocs</span>' +
+      '<span class="sdoc-cells-focus-brand-tiny">SD</span>' +
+      '<span class="sdoc-cells-focus-brand-suf">Sheet</span>';
     topbar.appendChild(brand);
     if (model.source) {
       var file = document.createElement('span');
@@ -218,6 +249,9 @@
     var actions = S.buildCellsCopyControls
       ? S.buildCellsCopyControls(gridWrap, model, { rawButton: hasFormulas }).box
       : document.createElement('div');
+    // The box comes from the shared copy-controls builder with its own class;
+    // this one adds the focus-topbar layout (scrollable, pinned-close layout).
+    actions.classList.add('sdoc-cells-focus-actions');
     // Formula view toggle - only when the sheet actually contains formulas.
     // On: every formula cell shows its "=..." source (and stays editable in
     // place); off: computed values. The selection survives the repaint.
@@ -242,6 +276,9 @@
       });
       actions.appendChild(fxBtn);
     }
+    topbar.appendChild(actions);
+    // The close button lives outside the scrollable actions group, pinned as
+    // the topbar's last child, so it stays reachable on any screen width.
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'sdoc-cells-focus-close';
@@ -249,8 +286,7 @@
     closeBtn.setAttribute('aria-label', 'Close');
     closeBtn.innerHTML = X_ICON;
     closeBtn.addEventListener('click', close);
-    actions.appendChild(closeBtn);
-    topbar.appendChild(actions);
+    topbar.appendChild(closeBtn);
 
     // ── Name box / selection stats / value bar ──
     var bar = document.createElement('div');
