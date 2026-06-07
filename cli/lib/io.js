@@ -3,10 +3,11 @@
 const fs   = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { transcludeCells, isWrappedFile, wrapForDisplay } = require('./cells-transclude');
 
 const SUBCOMMANDS = new Set([
   'new', 'share', 'schema', 'defaults', 'help',
-  'charts', 'diagrams', 'comments',
+  'charts', 'diagrams', 'cells', 'comments',
   'setup', 'safe', 'auto-update', 'refresh', 'upgrade',
   'feedback',
   'slides', 'present',
@@ -126,10 +127,16 @@ async function readContent(file) {
       process.exit(1);
     }
     let raw = fs.readFileSync(resolved, 'utf-8');
-    // .mmd / .mermaid files (standalone Mermaid sources) are wrapped in a
-    // fenced block so the renderer picks them up. No special CLI path needed.
-    if (/\.(mmd|mermaid)$/i.test(file)) {
-      raw = '```mermaid\n' + raw.replace(/\s+$/, '') + '\n```\n';
+    // .csv / .mmd / .mermaid files are wrapped in their fenced block so the
+    // renderer picks them up (a standalone .csv opens directly as a sheet).
+    // The same transform runs in the bridge for live sessions - if you change
+    // one, change the other (both call wrapForDisplay).
+    if (isWrappedFile(file)) {
+      raw = wrapForDisplay(raw, file);
+    } else {
+      // Bake any {{path/to/file.csv}} cells references into the doc, resolving
+      // paths relative to the markdown file. Self-contained docs share safely.
+      raw = transcludeCells(raw, path.dirname(resolved));
     }
     return raw;
   }
