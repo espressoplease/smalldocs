@@ -256,6 +256,62 @@ module.exports = function (harness) {
     await b.awaitTerminal();
   });
 
+  t('e2e: read-file returns a file from the document folder', async () => {
+    const f = tmpFile('doc.md', '# doc\n```cells\n{{data.csv}}\n```\n');
+    fs.writeFileSync(path.join(path.dirname(f), 'data.csv'), 'a,b\n1,2\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock); // hello
+    sendJson(sock, { type: 'read-file', id: 'r1', path: 'data.csv' });
+    const res = await nextMessage(sock);
+    assert.strictEqual(res.type, 'file');
+    assert.strictEqual(res.id, 'r1');
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(res.content, 'a,b\n1,2\n');
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: read-file errors on a missing file', async () => {
+    const f = tmpFile('doc2.md', '# doc\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock);
+    sendJson(sock, { type: 'read-file', id: 'r2', path: 'nope.csv' });
+    const res = await nextMessage(sock);
+    assert.strictEqual(res.type, 'file');
+    assert.strictEqual(res.ok, false);
+    assert.strictEqual(res.error, 'not found');
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: read-file honours a parent-folder path (no folder sandbox)', async () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-bridge-'));
+    fs.mkdirSync(path.join(base, 'sub'));
+    const f = path.join(base, 'sub', 'doc.md');
+    fs.writeFileSync(f, '# doc\n');
+    fs.writeFileSync(path.join(base, 'parent.csv'), 'x\n9\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock);
+    sendJson(sock, { type: 'read-file', id: 'r3', path: '../parent.csv' });
+    const res = await nextMessage(sock);
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(res.content, 'x\n9\n');
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
   t('e2e: write message persists file atomically', async () => {
     const f = tmpFile('w.md', 'old\n');
     const b = await bridge.startBridge({
@@ -291,6 +347,84 @@ module.exports = function (harness) {
     const ext = await nextMessage(sock, 6000);
     assert.strictEqual(ext.type, 'external-change');
     assert.strictEqual(ext.content, 'two\n');
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  // ── Wrapped files (.csv / .mmd) over the bridge ──────────
+  // `sdoc report.csv` goes through the bridge like any real file. The browser
+  // must receive the same fenced-block document the URL-snapshot path builds
+  // (a ```cells wrap), not the raw bytes - raw CSV renders as paragraph soup.
+  // And because the document is a derived view, saves are refused: writing
+  // the fenced version back would corrupt the .csv.
+
+  t('e2e: a .csv file arrives wrapped in a cells fence, read-only', async () => {
+    const f = tmpFile('report.csv', 'Item,Qty\nLaptop,12\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    const hello = await nextMessage(sock);
+    assert.strictEqual(hello.type, 'hello');
+    assert.ok(hello.content.startsWith('```cells\nsdoc-cells: source=report.csv\n'),
+      'csv content should be wrapped for display, got: ' + hello.content.slice(0, 60));
+    assert.ok(hello.content.includes('Item,Qty\nLaptop,12'));
+    assert.strictEqual(hello.capabilities.canSave, false);
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: a .csv external change arrives wrapped too', async () => {
+    const f = tmpFile('live.csv', 'a,b\n1,2\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock); // hello
+
+    const dir = path.dirname(f);
+    const tmp = path.join(dir, '.swap');
+    fs.writeFileSync(tmp, 'a,b\n3,4\n');
+    fs.renameSync(tmp, f);
+
+    const ext = await nextMessage(sock, 6000);
+    assert.strictEqual(ext.type, 'external-change');
+    assert.ok(ext.content.startsWith('```cells\n'), 'external change should be wrapped');
+    assert.ok(ext.content.includes('3,4'));
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: writes to a .csv session are refused and the file is untouched', async () => {
+    const f = tmpFile('ro.csv', 'a,b\n1,2\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    await nextMessage(sock); // hello
+    sendJson(sock, { type: 'write', id: 'w1', content: '```cells\nbroken\n```\n' });
+    const res = await nextMessage(sock);
+    assert.strictEqual(res.type, 'error');
+    assert.strictEqual(res.code, 'EREADONLY');
+    assert.strictEqual(fs.readFileSync(f, 'utf-8'), 'a,b\n1,2\n', 'file must be untouched');
+    sock.destroy();
+    await b.awaitTerminal();
+  });
+
+  t('e2e: a .mmd file arrives wrapped in a mermaid fence', async () => {
+    const f = tmpFile('flow.mmd', 'graph TD\nA-->B\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    const hello = await nextMessage(sock);
+    assert.ok(hello.content.startsWith('```mermaid\n'));
+    assert.ok(hello.content.includes('A-->B'));
+    assert.strictEqual(hello.capabilities.canSave, false);
     sock.destroy();
     await b.awaitTerminal();
   });
