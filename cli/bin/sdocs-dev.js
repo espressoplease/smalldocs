@@ -45,6 +45,7 @@ function buildRouter() {
   r.register('schema',   { handler: () => { console.log(helpText.SCHEMA);        process.exit(0); } });
   r.register('charts',   { handler: () => { console.log(helpText.CHARTS_HELP);   process.exit(0); } });
   r.register('diagrams', { handler: () => { console.log(helpText.DIAGRAMS_HELP); process.exit(0); } });
+  r.register('cells',    { handler: () => { console.log(helpText.CELLS_HELP);    process.exit(0); } });
   r.register('comments', { handler: () => { console.log(helpText.COMMENTS_HELP); process.exit(0); } });
 
   // Setup / refresh / auto-update.

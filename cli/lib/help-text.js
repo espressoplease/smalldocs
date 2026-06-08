@@ -19,6 +19,7 @@ USAGE
   sdoc schema                      Print the full styles schema
   sdoc charts                      Chart types, options, and styling guide
   sdoc diagrams                    Mermaid diagrams reference (\`\`\`mermaid blocks)
+  sdoc cells                       Inline spreadsheet reference (\`\`\`cells blocks)
   sdoc color-analysis <file>       Check custom colours for readable contrast
                                    (both themes). Run after styling a doc.
   sdoc comments                    Comment-format reference (for agents)
@@ -904,6 +905,237 @@ EXAMPLE
   \`\`\`
 `;
 
+
+const CELLS_HELP = `
+SDocs - Cells (sheets)
+======================
+Render data as an inline spreadsheet using \`\`\`cells fenced code blocks.
+The body is CSV; the grid shows column letters, row numbers, type-aware
+alignment, click-and-drag selection, and a small copy toolbar. No CDN and
+no dependency - it renders from the markdown itself.
+
+BASIC SYNTAX
+  Put CSV inside a \`\`\`cells fence:
+
+  \`\`\`cells
+  Region,Q1,Q2,Q3
+  North,100,150,130
+  South,90,95,-7
+  \`\`\`
+
+  Every row is a row (numbered from 1); every column gets a letter
+  (A, B, C ...). A text first row over numeric data is auto-detected as a
+  header: shown bold and kept pinned to the top when you sort.
+
+DATA & TYPES
+  Numbers are detected and align right; text aligns left; blank fields are
+  empty cells. Negatives and decimals are numbers. A quoted value like
+  "1,200" stays text (no locale guessing). Full CSV quoting is supported:
+  commas inside "quotes", escaped ""quotes"", and quoted fields spanning
+  multiple lines.
+
+  Number convention is fixed to comma-thousands / dot-decimal (1,000.50).
+  European-convention data (1.000,50; semicolon-delimited CSV) is not
+  supported - write numbers as 1000.50 in the source and the grid formats
+  them for display.
+
+WRAPPING
+  A long value wraps once its column hits a width cap (rather than running
+  ever wider), growing the row. A literal <br> becomes a line break, and a
+  quoted cell with a real newline keeps it. Cell content is always plain
+  text - markup never renders.
+
+FORMATTING
+  Numbers display with thousands separators and negatives in red by default.
+  An optional first line sets per-column formats by column letter:
+
+  \`\`\`cells
+  format: A=plain B=$ C=%
+  Year,Revenue,Margin
+  2024,12000,0.23
+  \`\`\`
+
+  Renders 2024 (plain - no comma), $12,000.00, 23%.
+
+  Format tokens (keyed by column letter):
+    $ / usd        currency, e.g. $12,000.00   (also £ / gbp, € / eur)
+    %              percent - multiplies by 100, e.g. 0.23 -> 23%
+    , / number     thousands separators (the default)
+    plain / text   no number formatting (good for years, ids, codes)
+    .N suffix      fixed decimals, e.g. $.0 (no cents), %.1, .2
+
+  Formatting is display only - copy and export always emit the original
+  values. This is what makes a cells block more than a CSV: the author
+  chooses how each column reads.
+
+FORMULAS
+  A cell whose value starts with = is a formula, evaluated in the browser.
+  The cell shows the result; the formula stays underneath (copy / export and
+  the formula bar show the =formula, hovering shows it as a tooltip).
+
+  \`\`\`cells
+  Item,Qty,Price,Total
+  Widget,10,12,=B2*C2
+  Gadget,15,8,=B3*C3
+  Total,=SUM(B2:B3),,=SUM(D2:D3)
+  \`\`\`
+
+  Supported:
+    arithmetic    + - * / ^ %  with parentheses, e.g. =(A1+B1)*2
+    references    A1, B12; ranges A1:B3 inside a function
+    aggregates    SUM AVERAGE (AVG) MIN MAX COUNT COUNTA PRODUCT
+    functions     ROUND(x,n) ABS(x) IF(cond, a, b)
+    comparisons   = <> < <= > >=   (mostly for IF)
+
+  A failed formula shows a short red error code: #DIV/0!, #NAME? (unknown
+  name), #REF! (bad range), #VALUE! (e.g. text in arithmetic), #CIRC! (a
+  circular reference). Formulas recalculate live while you edit.
+
+SORTING
+  Hover a column letter: an arrow appears on its right showing what a click
+  will do (up = sort ascending, down = descending, x = clear the sort). The
+  current sort shows as a colored arrow. A text first row is kept pinned as
+  a header. Sorting is a view reorder - it does not change the document;
+  copy reflects what is on screen.
+
+  Formula cells sort by their computed value, and that value travels with
+  its row: references keep meaning what the author wrote, so a sorted
+  =SUM(...) row never recomputes against the shuffled view.
+
+  A trailing summary row - one whose formula aggregates a range of other
+  rows, like a Total row with =SUM(D2:D5) - is pinned to the bottom and
+  stays there through any sort, the same way a header row stays at the top.
+  Per-row formulas like =B2*C2 sort with the data as normal.
+
+RESIZING
+  Drag a column header's right edge to set an explicit width; it persists
+  through sorts. Otherwise columns size to their content.
+
+SELECTING
+  Click a cell to select it; its column letter and row number light up.
+  Click a column letter / row number to select the whole column / row.
+  Drag to select a range; Shift+Click or Shift+Arrow extends it. Arrow
+  keys move the selection; Cmd/Ctrl+Arrow jumps to the far edge;
+  Shift+(Cmd/Ctrl+)Arrow extends to it. Dragging to the left/right edge of
+  a wide sheet auto-scrolls. Esc - or clicking anywhere outside the sheet -
+  clears the selection.
+
+  Selecting a multi-cell range opens a stats strip below the grid with the
+  range's Sum / Avg / Min / Max / Count. Formula cells count by their
+  computed value. It collapses when the selection is cleared or back to a
+  single cell.
+
+TOOLBAR
+  A white bar sits above each sheet:
+    - Left: the selection address (e.g. B3 or B2:C3) and, for a sheet
+      loaded from a file, the source filename - "B3 · report.csv".
+    - Right: a copy icon that copies the WHOLE sheet as CSV (values only,
+      no row / column labels).
+    - When something is selected, a second button copies just the
+      selection ("cell" for one cell, "selection" for a range).
+    - A fullscreen expand button opens the sheet as a full-window,
+      editable spreadsheet (see FULLSCREEN & EDITING).
+
+  Copy buttons copy what the sheet shows: formula cells emit their
+  computed value, not the "=..." text. In fullscreen, a sheet with
+  formulas swaps the copy icon for a labelled "values" button and adds a
+  "formulas" button beside it that copies the raw data - formulas as
+  written, plain values elsewhere.
+
+LOADING FROM A CSV FILE
+  Reference a file instead of typing data inline:
+
+  \`\`\`cells
+  {{path/to/report.csv}}
+  \`\`\`
+
+  sdoc reads that file (resolved relative to the markdown document), reads
+  the whole thing, and bakes the CSV straight into the document. The result
+  is self-contained: a shared link shows the data, never a "file not
+  found". Only the filename is recorded as the source (shown in the bar),
+  not the full path.
+
+  - One reference per cells block (the block's entire body is the
+    reference).
+  - \`sdoc report.csv\` opens a CSV file directly as a sheet.
+
+CSV FILES WITH FORMULAS
+  A .csv file can hold =formulas in its cells, exactly like an inline
+  block:
+
+    Item,Qty,Total
+    Laptop,12,=B2*100
+    Total,=SUM(B2:B2),=SUM(C2:C2)
+
+  \`sdoc that-file.csv\` opens it as a working sheet - the formulas
+  compute - and the Excel download carries them as live formulas. This
+  is the lowest-friction way for an agent to hand over a spreadsheet:
+  write a plain CSV with formulas where computed values belong, run
+  sdoc on it. Quote any formula containing commas ("=ROUND(B2, 1)") -
+  standard CSV quoting. The file itself opens read-only; it stays the
+  clean source of truth.
+
+EXCEL EXPORT SECURITY
+  Only formulas this sheet itself can compute (the FORMULAS list above)
+  export as live Excel formulas. Anything else - Excel functions we do
+  not support, and especially the CSV-injection attack class
+  (WEBSERVICE, HYPERLINK, DDE) - exports as inert text. A document
+  someone shares with you can never smuggle an executable formula into
+  your downloaded workbook.
+
+LIMITS
+  - Per-block source-size cap and a per-document block cap.
+  - The inline preview bounds very large grids and notes what it clipped
+    ("Showing 200 × 50 of 231 × 60 cells"); the full data still travels and
+    copies.
+
+FULLSCREEN & EDITING
+  The expand button opens the sheet full-window: frozen headers, both-axis
+  scroll, and a header bar with the selection address, its Sum / Avg /
+  Min / Max / Count, and the formula bar. Formula cells count toward those
+  stats by their computed value. The fullscreen sheet is editable (the
+  inline one stays read-only):
+    - Double-click a cell, or just start typing, to edit it.
+    - Enter / Tab (and Shift+ to go back) commit and move on.
+    - The formula bar edits the active cell; type a value or =formula, Enter.
+    - Delete / Backspace clears the selected cell(s).
+    - Cmd/Ctrl+Z undoes, Shift+Cmd/Ctrl+Z (or Ctrl+Y) redoes.
+    - Paste TSV or CSV to drop a block of values in at the selection.
+    - Point mode: while typing a formula, arrow keys point at cells and
+      write their reference into the formula. Type =SUM( then arrow to a
+      cell, hold Shift+Arrow to grow it into a range, type ) and Enter.
+      Or arrow to the range start, type :, arrow to the end. Works in the
+      cell editor and the formula bar; the pointed cells highlight violet.
+    - Fill handle: drag the small square on the selection's corner to fill
+      neighbouring cells. Formulas shift their references (=B2*C2 becomes
+      =B3*C3 one row down), values repeat, and a run of numbers (1, 2)
+      continues as a series (3, 4...).
+    - Copy / paste formulas: Cmd/Ctrl+C copies the selection (formulas
+      included); pasting back in adjusts each formula's references for
+      where it lands. Copy one formula, select a range, paste - every cell
+      gets the formula relative to its own row/column.
+    - Formula view: when a sheet has formulas, an =fx button in the top bar
+      switches every formula cell to show its source ("=B2*C2") instead of
+      its value, editable in place. Click again for values.
+  Editing is client-side and ephemeral: changes show in the inline grid when
+  you close, but nothing is written back to the document or to any file.
+
+  After a fullscreen edit, the inline toolbar shows a "showing edited" pill:
+  the grid displays your edits, the document is unchanged. Click the pill to
+  flip to the document's original data ("showing original") and back.
+  Expanding again always resumes from the edits.
+
+EXPORT
+  HTML / Word / PDF export emit a real table of the values (the source
+  label and the row / column chrome are dropped).
+
+  The download button in a sheet's toolbar (inline and fullscreen) exports
+  that sheet as an Excel workbook (.xlsx). Formulas export as live Excel
+  formulas and recalculate when the file opens; the format: directive's
+  currency / percent / comma columns carry over as Excel number formats.
+  The export uses the document's row order (plus any fullscreen edits),
+  never the sorted view, so formula references stay correct.
+`;
 
 const SLIDES_HELP = `
 SDocs — Slides
@@ -2451,4 +2683,4 @@ COMMON QUESTIONS
      drop a \`.sdocsignore\` into the directory with the pattern.
 `;
 
-module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };
+module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, CELLS_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };

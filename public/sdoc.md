@@ -38,7 +38,7 @@ Teach [Claude Code](https://docs.anthropic.com/en/docs/claude-code) about `sdoc`
 curl -fsSL https://smalldocs.org/install | sh
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=8 -->
+<!-- sdocs-agent-block:start v=9 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -63,6 +63,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - `sdoc charts` - rendering inline charts (```chart blocks)
 - `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
+- `sdoc cells` - rendering spreadsheets (```cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. `sdoc report.csv` opens a CSV file directly as a sheet.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 <!-- sdocs-agent-block:end -->
@@ -79,7 +80,7 @@ Teach [Codex](https://developers.openai.com/codex) about `sdoc`:
 curl -fsSL https://smalldocs.org/install | sh
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=8 -->
+<!-- sdocs-agent-block:start v=9 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -104,6 +105,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - `sdoc charts` - rendering inline charts (```chart blocks)
 - `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
+- `sdoc cells` - rendering spreadsheets (```cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. `sdoc report.csv` opens a CSV file directly as a sheet.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 <!-- sdocs-agent-block:end -->
@@ -120,7 +122,7 @@ Teach [Gemini CLI](https://github.com/google-gemini/gemini-cli) about `sdoc`:
 curl -fsSL https://smalldocs.org/install | sh
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=8 -->
+<!-- sdocs-agent-block:start v=9 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -145,6 +147,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - `sdoc charts` - rendering inline charts (```chart blocks)
 - `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
+- `sdoc cells` - rendering spreadsheets (```cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. `sdoc report.csv` opens a CSV file directly as a sheet.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 <!-- sdocs-agent-block:end -->
@@ -162,7 +165,7 @@ curl -fsSL https://smalldocs.org/install | sh
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=8 -->
+<!-- sdocs-agent-block:start v=9 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -187,6 +190,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - `sdoc charts` - rendering inline charts (```chart blocks)
 - `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
+- `sdoc cells` - rendering spreadsheets (```cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. `sdoc report.csv` opens a CSV file directly as a sheet.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 <!-- sdocs-agent-block:end -->
@@ -742,7 +746,7 @@ The manual way: copy and paste the one-line commands below into your terminal. E
 ```bash
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=8 -->
+<!-- sdocs-agent-block:start v=9 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -767,6 +771,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - `sdoc charts` - rendering inline charts (```chart blocks)
 - `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
+- `sdoc cells` - rendering spreadsheets (```cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. `sdoc report.csv` opens a CSV file directly as a sheet.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 <!-- sdocs-agent-block:end -->
@@ -778,7 +783,7 @@ SDOC
 ```bash
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=8 -->
+<!-- sdocs-agent-block:start v=9 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -803,6 +808,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - `sdoc charts` - rendering inline charts (```chart blocks)
 - `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
+- `sdoc cells` - rendering spreadsheets (```cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. `sdoc report.csv` opens a CSV file directly as a sheet.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 <!-- sdocs-agent-block:end -->
@@ -814,7 +820,7 @@ SDOC
 ```bash
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=8 -->
+<!-- sdocs-agent-block:start v=9 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -839,6 +845,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - `sdoc charts` - rendering inline charts (```chart blocks)
 - `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
+- `sdoc cells` - rendering spreadsheets (```cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. `sdoc report.csv` opens a CSV file directly as a sheet.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 <!-- sdocs-agent-block:end -->
@@ -851,7 +858,7 @@ SDOC
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=8 -->
+<!-- sdocs-agent-block:start v=9 -->
 ## SDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
@@ -876,6 +883,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - `sdoc charts` - rendering inline charts (```chart blocks)
 - `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
+- `sdoc cells` - rendering spreadsheets (```cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. `sdoc report.csv` opens a CSV file directly as a sheet.
 - `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 <!-- sdocs-agent-block:end -->
