@@ -1,0 +1,450 @@
+/* cells.css - ```cells inline grid (sheets-v1).
+ *
+ * Gridlines are drawn by a 1px gap on the grid container with a tinted
+ * container background showing through; each cell paints its own bg over
+ * it. Sticky row/column headers cost nothing inline (no vertical scroll)
+ * and pay off when the same grid is reused in the scrolling fullscreen
+ * view. Colours come from the theme-aware tokens (--md-bg / --md-color)
+ * so the grid themes with the document and flips in dark mode.
+ *
+ * The column-letter / row-number headers wash the sheet background with a
+ * faint Sheets/Excel green rather than a flat grey block: same surface as
+ * the cells, just tinted, so the gridlines still read and it carries a
+ * familiar spreadsheet feel. Override --sdoc-cells-accent to retint. */
+
+.sdoc-cells {
+  --sdoc-cells-accent: #1e8e3e;                                           /* Sheets/Excel green nod */
+  --sdoc-cells-col-min: 64px;                                             /* min column width (Excel's default) */
+  --sdoc-cells-max-col: 18rem;                                            /* widest a column grows before text wraps */
+  --sdoc-cells-line: color-mix(in oklab, var(--md-color, #1c1917) 16%, transparent);
+  --sdoc-cells-head-bg: color-mix(in oklab, var(--md-bg, #fff) 90%, var(--sdoc-cells-accent) 10%);
+  --sdoc-cells-head-fg: color-mix(in oklab, var(--md-color, #1c1917) 68%, var(--sdoc-cells-accent) 32%);
+  --sdoc-cells-surface: color-mix(in oklab, var(--md-bg, #fff) 95%, var(--md-color, #1c1917) 5%);
+  margin: 1.2em 0;
+  width: max-content;       /* hug the grid, not the column width */
+  max-width: 100%;          /* but never exceed the content area */
+  border: 1px solid var(--sdoc-cells-line);   /* real border = smooth rounded corners */
+  border-radius: 6px;
+  overflow: hidden;         /* clip the inner scroller to the rounded corners */
+  /* When a long stats line makes the wrapper wider than the grid, the area
+   * not covered by cells shows this tinted surface (the stats strip colour)
+   * instead of the page background. */
+  background: var(--sdoc-cells-surface);
+}
+
+/* ── Top toolbar ────────────────────────────────────────
+ * White (standard cell surface) so the chrome stays light - only the axis
+ * letters / numbers are green. Left: selection address. Right: copy actions. */
+.sdoc-cells-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  /* Reserve the height of the bordered dynamic button (border-box global
+   * reset, so this is the full bar height) so the bar doesn't grow the
+   * moment the selection / cell copy button appears. */
+  min-height: 35px;
+  background: var(--md-bg, #ffffff);
+  border-bottom: 1px solid var(--sdoc-cells-line);
+}
+.sdoc-cells-ref {
+  padding-left: 3px;
+  font-size: 0.78em;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 52%, var(--md-bg, #fff) 48%);
+  user-select: none;
+}
+.sdoc-cells-bar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Edited pill ────────────────────────────────────────
+ * Appears in the top bar after a fullscreen edit. The document never changes;
+ * this marks that the grid is showing your edits, and clicking it flips
+ * between the edited and the document's original data. Amber dot = edits
+ * showing, grey dot = original showing. */
+.sdoc-cells-edit-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--sdoc-cells-line);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--font-ui, inherit);
+  font-size: 0.72em;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 62%, var(--md-bg, #fff) 38%);
+  transition: background .12s, color .12s, border-color .12s;
+}
+.sdoc-cells-edit-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d97706;                          /* amber: edits showing */
+  transition: background .12s;
+}
+.sdoc-cells-edit-pill.is-original::before {
+  background: color-mix(in oklab, var(--md-color, #1c1917) 35%, var(--md-bg, #fff) 65%);
+}
+.sdoc-cells-edit-pill:hover {
+  background: var(--bg-hover, color-mix(in oklab, var(--md-color, #1c1917) 8%, transparent));
+  color: var(--text, var(--md-color, #1c1917));
+  border-color: var(--border-strong, color-mix(in oklab, var(--md-color, #1c1917) 38%, transparent));
+}
+
+/* ── Stats strip ────────────────────────────────────────
+ * A band below the grid: the inline counterpart of the fullscreen header
+ * stats, on the same tinted surface. It sits under the grid (not above) so
+ * opening it grows the sheet downward and the cells never shift under the
+ * pointer mid-selection. Collapsed (0fr row) until a multi-cell range is
+ * selected. Every property that changes is animated on the standard curve so
+ * opening / closing reads as one motion: the row track, opacity, the divider
+ * border, and the inner vertical padding (which must reach 0 for the box to
+ * fully collapse under border-box). */
+.sdoc-cells-stats {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  background: var(--sdoc-cells-surface);
+  border-top: 1px solid transparent;
+  transition: grid-template-rows .3s cubic-bezier(.4,0,.2,1),
+              opacity .3s cubic-bezier(.4,0,.2,1),
+              border-color .3s cubic-bezier(.4,0,.2,1);
+}
+.sdoc-cells-stats.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  border-top-color: var(--sdoc-cells-line);
+}
+.sdoc-cells-stats-inner {
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 10px;
+  font-size: 0.78em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 60%, var(--md-bg, #fff) 40%);
+  transition: padding .3s cubic-bezier(.4,0,.2,1);
+}
+.sdoc-cells-stats.is-open .sdoc-cells-stats-inner {
+  padding: 5px 10px;
+}
+
+/* Copy buttons - mirror the comments "copy with comments" ghost button,
+ * with color-mix fallbacks so they hold up if those tokens are absent. */
+.sdoc-cells-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background: transparent;
+  border: 1px solid var(--border, color-mix(in oklab, var(--md-color, #1c1917) 22%, transparent));
+  color: var(--text-2, color-mix(in oklab, var(--md-color, #1c1917) 62%, var(--md-bg, #fff) 38%));
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  font-family: var(--font-ui, inherit);
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.sdoc-cells-copy:hover {
+  background: var(--bg-hover, color-mix(in oklab, var(--md-color, #1c1917) 8%, transparent));
+  color: var(--text, var(--md-color, #1c1917));
+  border-color: var(--border-strong, color-mix(in oklab, var(--md-color, #1c1917) 38%, transparent));
+}
+.sdoc-cells-copy svg { flex-shrink: 0; }
+.sdoc-cells-copy-label { white-space: nowrap; }
+
+/* Whole-sheet copy: a borderless 14px copy icon, matching the code-block
+ * copy button (no border, no label). */
+.sdoc-cells-copy-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 58%, var(--md-bg, #fff) 42%);
+  opacity: 0.75;
+  transition: opacity .15s, background .12s, color .12s;
+}
+.sdoc-cells-copy-icon:hover {
+  opacity: 1;
+  background: var(--md-copy-btn-hover, color-mix(in oklab, var(--md-color, #1c1917) 8%, transparent));
+}
+.sdoc-cells-copy-icon svg { display: block; }
+
+/* Dynamic selection / cell button: match the address label's weight + colour
+ * so "selection" / "cell" reads as light as "B4", not heavier. */
+.sdoc-cells-copy-sel {
+  font-weight: 400;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 52%, var(--md-bg, #fff) 48%);
+}
+
+/* The horizontal scroller. Only the cells scroll; the note below stays put.
+ * Thin, subtle scrollbar tinted from the text colour so it themes. When it
+ * reserves space (always-on scrollbars), the last row is closed by the
+ * .has-xscroll line below; when it overlays or is absent, the wrapper
+ * border closes it and no extra line is drawn (no doubling). */
+.sdoc-cells-scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--md-color, #1c1917) 30%, transparent) transparent;
+}
+/* Inline: the scroller is sized to the grid's real rendered width in JS (see
+ * sizeScroller in sdocs-cells-ui.js), capped at the content width. A scroll
+ * container does not pass its content width up to the max-content wrapper, and
+ * CSS max-content under-measures a grid with minmax() column floors + gaps by a
+ * few px - enough to force a spurious scrollbar. Measuring grid.scrollWidth and
+ * setting it here avoids both. The fullscreen view fills the viewport on
+ * purpose, so it keeps the default (auto) width. */
+.sdoc-cells:not(.sdoc-cells-fs) .sdoc-cells-scroll {
+  max-width: 100%;
+}
+.sdoc-cells-scroll::-webkit-scrollbar { height: 11px; }
+.sdoc-cells-scroll::-webkit-scrollbar-track { background: transparent; }
+.sdoc-cells-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--md-color, #1c1917) 30%, transparent);
+  border-radius: 6px;
+  border: 3px solid transparent;     /* inset the thumb so it reads slim */
+  background-clip: padding-box;
+}
+.sdoc-cells-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--md-color, #1c1917) 45%, transparent);
+}
+
+/* Drawn only when JS detects a space-reserving scrollbar (.has-xscroll):
+ * closes the last row directly above the scrollbar. Without a reserved
+ * scrollbar the wrapper border already closes it, so this is skipped and
+ * the bottom line never doubles. */
+.sdoc-cells.has-xscroll .sdoc-cells-grid {
+  border-bottom: 1px solid var(--sdoc-cells-line);
+}
+
+.sdoc-cells-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--sdoc-cells-line);   /* shows through the gap as gridlines */
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+  width: max-content;
+}
+
+.sdoc-cells-corner,
+.sdoc-cells-colhead,
+.sdoc-cells-rowhead,
+.sdoc-cells-cell {
+  background: var(--md-bg, #ffffff);
+  color: var(--md-color, #1c1917);
+  /* Flex so content centres vertically when a cell is stretched to the row
+   * height (the tallest cell sets it). Horizontal placement is via
+   * justify-content below, since flex ignores text-align for the item. */
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 3px 6px;          /* tight like Sheets/Excel, a touch more generous */
+  /* Bake the standard one-line text height (+ vertical padding) into the
+   * floor so an empty cell is the same height as a text cell - with the
+   * border-box reset, min-height is the TOTAL, so without the +6px (= the
+   * vertical padding) an empty row sits shorter than a row with text. */
+  min-height: calc(1.5em + 6px);
+  line-height: 1.5;
+}
+
+/* Headers: the sheet surface washed with a faint green, lighter weight and
+ * muted text - the same cell, tinted, so the gridlines between letters /
+ * numbers stay visible instead of reading as one grey bar. */
+.sdoc-cells-corner,
+.sdoc-cells-colhead,
+.sdoc-cells-rowhead {
+  background: var(--sdoc-cells-head-bg);
+  color: var(--sdoc-cells-head-fg);
+  font-weight: 500;
+  font-size: 0.82em;
+  justify-content: center;
+  white-space: nowrap;   /* column letters / row numbers never wrap */
+  user-select: none;
+}
+/* Column letters / row numbers select the whole column / row on click. */
+.sdoc-cells-colhead, .sdoc-cells-rowhead { cursor: pointer; }
+
+/* Sort control: absolutely positioned on the header's right edge so the
+ * column letter stays centred. Two layers inside it:
+ *   .sdoc-cells-sort-cur   the column's CURRENT sort (accent up/down arrow);
+ *                          empty when the column is unsorted.
+ *   .sdoc-cells-sort-next  what one click will do (up / down / clear);
+ *                          replaces the current layer while the header is
+ *                          hovered, as a preview. */
+.sdoc-cells-sort {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; cursor: pointer; line-height: 0;
+}
+.sdoc-cells-sort-cur,
+.sdoc-cells-sort-next { display: inline-flex; align-items: center; }
+.sdoc-cells-sort-cur { color: var(--sdoc-cells-accent); }
+.sdoc-cells-sort-next {
+  display: none;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 55%, var(--md-bg, #fff) 45%);
+}
+.sdoc-cells-colhead:hover .sdoc-cells-sort-cur { display: none; }
+.sdoc-cells-colhead:hover .sdoc-cells-sort-next { display: inline-flex; }
+.sdoc-cells-sort:hover .sdoc-cells-sort-next { color: var(--md-color, #1c1917); }
+
+/* Column resize: a thin handle straddling each header's right edge. The last
+ * column's handle (.is-last) stays inside the grid box - an overhang there
+ * would count as scrollable overflow and open a white gap right of the grid. */
+.sdoc-cells-colhead { position: relative; }
+.sdoc-cells-resize {
+  position: absolute; top: 0; right: -4px; width: 8px; height: 100%;
+  cursor: col-resize; z-index: 3;
+}
+.sdoc-cells-resize.is-last { right: 0; width: 5px; }
+body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
+
+/* Freeze the header row and the row-number column. Inline this is inert;
+ * in the scrolling fullscreen view it keeps headers in sight. */
+/* z-index: sticky headers (2) sit above the active-cell box (1) so they keep
+ * covering scrolled cells; the corner (3) sits above both. */
+.sdoc-cells-colhead { position: sticky; top: 0; z-index: 2; }
+.sdoc-cells-rowhead { position: sticky; left: 0; justify-content: flex-end; line-height: 0; z-index: 2; }
+.sdoc-cells-corner  { position: sticky; top: 0; left: 0; z-index: 3; }
+
+/* Data cells wrap: a very long value, or one with an embedded newline /
+ * <br>, grows the row instead of stretching the column past the cap. The
+ * column auto-sizes to content up to --sdoc-cells-max-col, then wraps. */
+.sdoc-cells-cell {
+  max-width: var(--sdoc-cells-max-col, 18rem);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: default;       /* standard pointer (matches Google Sheets), not a text caret */
+  user-select: none;     /* clicking selects the cell, doesn't drag-select text */
+}
+.sdoc-cells-cell.is-number { justify-content: flex-end; }
+.sdoc-cells-cell.is-text   { justify-content: flex-start; }
+.sdoc-cells-cell.is-empty  { min-width: var(--sdoc-cells-col-min, 64px); }
+.sdoc-cells-cell.is-negative { color: #d64545; }   /* muted red for negatives */
+.sdoc-cells-cell.is-header   { font-weight: 600; }  /* a detected header row */
+/* A formula cell whose evaluation failed shows its #ERROR! code in red,
+ * left-aligned like text so the short code reads clearly. */
+.sdoc-cells-cell.is-formula-error {
+  color: #d64545;
+  justify-content: flex-start;
+  font-variant-numeric: normal;
+}
+
+/* In-cell editor (fullscreen editing): an input overlaid on the active cell
+ * while typing. Fixed-positioned to the cell rect by the JS; sits above the
+ * overlay chrome. */
+.sdoc-cells-editor {
+  position: fixed;
+  z-index: 10200;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 3px 6px;
+  border: 2px solid var(--sdoc-cells-accent);
+  border-radius: 0;
+  outline: none;
+  background: var(--md-bg, #fff);
+  color: var(--md-color, #1c1917);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Selection (sdocs-cells-select.js) ──────────────────── */
+/* The selection box is the focus cue, so suppress the default focus ring. */
+.sdoc-cells-grid:focus { outline: none; }
+
+/* Active cell: faint accent wash + a 2px inset accent box. position+z-index
+ * lift it above plain neighbours (but below the sticky headers). */
+.sdoc-cells-cell.is-active {
+  background: color-mix(in oklab, var(--md-bg, #fff) 90%, var(--sdoc-cells-accent) 10%);
+  box-shadow: inset 0 0 0 2px var(--sdoc-cells-accent);
+  position: relative;
+  z-index: 1;
+}
+
+/* Range cells: the same faint wash; the accent outline around the range is
+ * applied as an inline box-shadow on the edge cells by the selection JS. */
+.sdoc-cells-cell.in-range {
+  background: color-mix(in oklab, var(--md-bg, #fff) 90%, var(--sdoc-cells-accent) 10%);
+  position: relative;
+  z-index: 1;
+}
+
+/* Formula point mode: cells currently referenced by an in-progress formula
+ * (arrow keys while typing "=..."). Violet, so it reads as "referenced by the
+ * formula" rather than "selected"; the rect outline is an inline box-shadow
+ * applied to the edge cells by the editing JS. */
+.sdoc-cells-cell.is-ref-point {
+  background: rgba(139, 92, 246, 0.12);
+  position: relative;
+  z-index: 1;
+}
+
+/* Formula view (the =fx toggle in fullscreen): formula cells show their
+ * "=..." source. Monospace + violet so they read as code, left-aligned. */
+.sdoc-cells-cell.is-formula-src {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  justify-content: flex-start;
+  font-variant-numeric: normal;
+  color: #7c4fe0;
+}
+
+/* Fill handle: the small square on the selection's bottom-right corner
+ * (fullscreen editing only - the editor module places it). Drag to fill. */
+.sdoc-cells-fill-handle {
+  position: absolute;
+  right: -1px; bottom: -1px;
+  width: 8px; height: 8px;
+  background: var(--sdoc-cells-accent);
+  border: 1.5px solid var(--md-bg, #fff);
+  cursor: crosshair;
+  z-index: 4;
+}
+/* Cells the fill drag would write: a faint wash + dashed look via outline. */
+.sdoc-cells-cell.is-fill-preview {
+  background: color-mix(in oklab, var(--md-bg, #fff) 92%, var(--sdoc-cells-accent) 8%);
+  outline: 1.5px dashed var(--sdoc-cells-accent);
+  outline-offset: -1.5px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Axis highlight: the active cell's column letter and row number light up
+ * with a stronger green wash + bold accent text, echoing the cell. */
+.sdoc-cells-colhead.is-active-col,
+.sdoc-cells-rowhead.is-active-row {
+  background: color-mix(in oklab, var(--md-bg, #fff) 72%, var(--sdoc-cells-accent) 28%);
+  color: color-mix(in oklab, var(--md-color, #1c1917) 38%, var(--sdoc-cells-accent) 62%);
+  font-weight: 700;
+}
+
+.sdoc-cells-note {
+  padding: 4px 9px;
+  font-size: 0.75em;
+  color: var(--sdoc-cells-head-fg);
+  background: var(--sdoc-cells-head-bg);
+  border-top: 1px solid var(--sdoc-cells-line);
+}
+
+.sdoc-cells-error-msg {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.85em;
+  color: #b91c1c;
+  white-space: pre-wrap;
+}
+
+.sdoc-cells-msg-body {
+  padding: 8px 10px;
+  font-size: 0.85em;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 60%, var(--md-bg, #fff) 40%);
+}

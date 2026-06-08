@@ -133,6 +133,43 @@ function inlineMermaid(clone, mermaidImages) {
   }
 }
 
+// Build a plain data <table> from a ```cells source string. Export wants the
+// data, not the spreadsheet chrome (A/B/C letters, row numbers), so this drops
+// the gutter and renders just the cells. First row becomes <th> - the common
+// case is a label row, and it gives the exporter's table styling a header to
+// shade. Re-parses from the stashed source rather than reading geometry back
+// out of the rendered grid. Returns null if there's nothing to draw.
+function cellsSrcToTable(src) {
+  var SDocCells = window.SDocCells;
+  if (!SDocCells || !src) return null;
+  var model;
+  try { model = SDocCells.parseCells(src); } catch (e) { return null; }
+  if (model.empty) return null;
+  var table = document.createElement('table');
+  for (var r = 0; r < model.rows; r++) {
+    var tr = document.createElement('tr');
+    for (var c = 0; c < model.cols; c++) {
+      var cell = model.cells[r][c];
+      var td = document.createElement(r === 0 ? 'th' : 'td');
+      td.textContent = cell.raw;
+      tr.appendChild(td);
+    }
+    table.appendChild(tr);
+  }
+  return table;
+}
+
+// Swap every rendered .sdoc-cells grid in the export clone for a clean
+// data table so the HTML / Word export carries a real table.
+function inlineCells(clone) {
+  clone.querySelectorAll('.sdoc-cells').forEach(function(w) {
+    var src = w.dataset ? w.dataset.cellsSrc : null;
+    var table = cellsSrcToTable(src);
+    if (table) w.parentNode.replaceChild(table, w);
+    else w.remove();
+  });
+}
+
 function buildExportHTML(mermaidImages) {
   var fontName = document.getElementById('_sd_ctrl-font-family').value.replace(/['"]/g,'').split(',')[0].trim();
   var fontLink = S.GOOGLE_FONTS.includes(fontName)
@@ -142,6 +179,7 @@ function buildExportHTML(mermaidImages) {
   var clone = S.renderedEl.cloneNode(true);
   inlineCharts(clone);
   inlineMermaid(clone, mermaidImages);
+  inlineCells(clone);
   inlineImages(clone);
   clone.querySelectorAll('.section-toggle').forEach(function(el) { el.remove(); });
   clone.querySelectorAll('.md-section-body').forEach(function(el) {
@@ -987,6 +1025,7 @@ async function renderPdf(rendered, st, chartImages, mermaidImages, mathImages) {
       else if (el.classList.contains('sdoc-mermaid')) await drawMermaid();
       else if (el.classList.contains('sdocs-math-display')) await drawMathBlock(el);
       else if (el.classList.contains('sdoc-slide')) await drawInlineSlide(el);
+      else if (el.classList.contains('sdoc-cells')) drawCells(el);
       else if (tag === 'hr') drawHR(el);
       else if (tag === 'img') await drawImage(el);
       else if (tag === 'table') drawTable(el);
@@ -1337,6 +1376,15 @@ async function renderPdf(rendered, st, chartImages, mermaidImages, mathImages) {
     page.drawLine({ start: { x: ML, y: y + rows.length * rowH }, end: { x: ML, y: y }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
     page.drawLine({ start: { x: ML + CW, y: y + rows.length * rowH }, end: { x: ML + CW, y: y }, thickness: 0.3, color: hexToRgb(st.tableBorder) });
     y -= 8;
+  }
+
+  // A ```cells grid draws as its data table - reuse drawTable on a clean
+  // table built from the stashed source (chrome stripped, same as the
+  // HTML/Word path via cellsSrcToTable).
+  function drawCells(el) {
+    var src = el && el.dataset ? el.dataset.cellsSrc : null;
+    var table = cellsSrcToTable(src);
+    if (table) drawTable(table);
   }
 
   // ── Render ──
