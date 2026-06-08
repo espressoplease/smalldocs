@@ -115,8 +115,12 @@ module.exports = function(harness) {
         'homepage should contain the install section');
       assert.ok(r.body.includes('curl -fsSL https://smalldocs.org/install | sh'),
         'homepage should show the canonical install command');
-      assert.ok(r.body.includes('/public/homepage/demo-web.mp4'),
-        'homepage should reference the hero video');
+      // The hero currently shows the static poster image; the <video> is
+      // temporarily swapped out while the hero layout is iterated on (see the
+      // "Restore the <video> element when ready" note in homepage.html). When
+      // the video is restored, switch this back to demo-web.mp4.
+      assert.ok(r.body.includes('/public/homepage/demo-poster.jpg'),
+        'homepage should reference the hero media (poster image)');
     });
 
     await testAsync('GET /public/homepage/demo-poster.jpg serves the hero poster', async () => {
