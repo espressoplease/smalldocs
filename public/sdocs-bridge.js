@@ -192,6 +192,8 @@
     this._saveTimer = null;
     this._pingTimer = null;
     this._submitted = false;
+    this._fileReqs = {};          // pending readFile() promises, keyed by id
+    this._fileReqSeq = 0;
     this._loadResolve = null;
     this._loadPromise = new Promise(function (resolve) { this._loadResolve = resolve; }.bind(this));
     S.bridge = this; // single global instance — useful for tests + UI hooks
@@ -391,8 +393,38 @@
     if (msg.type === 'submitted')       return this._onSubmitted();
     if (msg.type === 'form-submitted')  return this._onFormSubmitted(msg);
     if (msg.type === 'form-stale')      return this._onFormStale(msg);
+    if (msg.type === 'file')            return this._onFile(msg);
     if (msg.type === 'error')           return this._onError(msg);
     // Unknown types ignored.
+  };
+
+  // ── File reads (display-only, e.g. a {{report.csv}} cells block) ─────────
+  // Round-trip: ask the bridge to read a file the document references, paint
+  // it on screen. The document content (and the save loop) is never touched.
+  BridgeSource.prototype.readFile = function (relPath) {
+    var self = this;
+    if (!this._ws || this._ws.readyState !== 1) {
+      return Promise.reject(new Error('bridge not connected'));
+    }
+    var id = 'rf' + (++this._fileReqSeq);
+    return new Promise(function (resolve, reject) {
+      self._fileReqs[id] = { resolve: resolve, reject: reject };
+      self._send({ type: 'read-file', path: relPath, id: id });
+      setTimeout(function () {
+        if (self._fileReqs[id]) {
+          delete self._fileReqs[id];
+          reject(new Error('timed out reading ' + relPath));
+        }
+      }, 10000);
+    });
+  };
+
+  BridgeSource.prototype._onFile = function (msg) {
+    var req = this._fileReqs[msg.id];
+    if (!req) return;
+    delete this._fileReqs[msg.id];
+    if (msg.ok) req.resolve(msg.content);
+    else req.reject(new Error(msg.error || 'read failed'));
   };
 
   BridgeSource.prototype._onFormSubmitted = function (msg) {

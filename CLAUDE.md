@@ -40,6 +40,13 @@ The two never share a `package.json` again. See "Published npm tarball" below fo
   - `sdocs-mermaid-focus.js` - per-diagram fullscreen pan/zoom modal (drag, wheel, fit/100%/reset, ESC)
   - `sdocs-comments.js` - pure comment data model (anchor resolution helpers, YAML round-trip, footnote serializer), UMD shared with tests
   - `sdocs-comments-ui.js` - browser-only comment UI: rendering, selection popover, composer, navigation
+  - `sdocs-cells.js` - pure cells data model (CSV parse, type classify, column names, format directive, selection stats, sort, header detection), UMD shared with tests
+  - `sdocs-cells-formula.js` - pure formula engine for `=` cells (tokenize/parse/eval, refs + ranges, SUM/AVG/MIN/MAX/COUNT/COUNTA/PRODUCT/ROUND/ABS/IF, whole-model recalc with cycle detection), UMD shared with tests
+  - `sdocs-cells-xlsx.js` - pure .xlsx writer (stored ZIP + SpreadsheetML, live formulas, number formats), zero dependencies, UMD shared with tests
+  - `sdocs-cells-ui.js` - ```cells renderer: CSS-grid sheet (inline + fullscreen via a `fullscreen` flag), formula display, number/format rendering, copy toolbar, xlsx download, JS scroller sizing
+  - `sdocs-cells-select.js` - cell + range selection and keyboard navigation for a cells grid
+  - `sdocs-cells-focus.js` - fullscreen "focus" overlay for a sheet (name box, formula bar, selection stats footer); hosts the editor
+  - `sdocs-cells-edit.js` - client-only in-cell editing for the fullscreen view (type/dblclick to edit, nav keys, undo/redo, delete-clear, TSV/CSV paste); mutates the shared model, never the document
   - `sdocs-app.js` - render orchestration, hash encode/decode, Brotli compression, syncAll, mode switching, drag/drop, file info card, scroll hints, init
   - `sdocs-info.js` - info panel, feedback link, notification dot
 - **Tests**: `node test/run.js` - red/green, no test framework, uses Node `assert` + `http`
@@ -54,6 +61,7 @@ The two never share a `package.json` again. See "Published npm tarball" below fo
   - `test/test-cache-bust.js` - two-server check that asset URLs change when public/ contents change
   - `test/test-comments.js` - comment data-model + YAML/footnote round-trip + sanitisation tests
   - `test/test-mermaid.js` - directive stripping + marked output shape + hardening assertions
+  - `test/test-cells-xlsx.js` - .xlsx writer tests (ZIP structure, worksheet XML, formula translation, number formats)
 - **Playwright tests**: `npx playwright test test/write-mode.spec.js` - write mode editor tests
   - `test/write-mode.spec.js` - 42 tests for toolbar actions, toggles, shortcuts, block exits
   - `test/comment-mode.spec.js` - comment-mode integration: anchor resolution, composer, navigation
@@ -317,6 +325,24 @@ node -e "const h=require('./test/runner');const r=require('./test/test-setup-sce
 ```
 
 **Dev mode (`SDOCS_DEV=1` or `NODE_ENV=development`)**: serves CSS/JS with `Cache-Control: no-store`, injects a flag into the HTML that unregisters the service worker and clears its caches on load. Use this when iterating on frontend code so changes appear without hard-refreshing. The service worker normally caches the app shell and serves stale files even through hard reloads - dev mode sidesteps both layers.
+
+## Running the local CLI (not the global install)
+
+The globally-installed `sdoc` is the published release and lags this repo. To exercise the CLI you are editing, run it straight from source:
+
+```bash
+node cli/bin/sdocs-dev.js <file.md> [args]   # the `sdoc` command, from this branch
+node cli/bin/sdocs-dev.js --help             # same flags as the installed sdoc
+```
+
+To preview a doc against a **local** dev server - so it renders this branch's frontend (new modules, CSS) rather than production `sdocs.dev` - start a server and point the CLI at it with `--url`:
+
+```bash
+PORT=3210 SDOCS_DEV=1 node server.js                              # serve this branch's frontend
+node cli/bin/sdocs-dev.js file.md --url http://localhost:3210     # open it against that server
+```
+
+`--url <base>` (or the `SDOCS_URL` env var) overrides the default base (`https://sdocs.dev`). The document still travels in the URL hash; the local server only serves the HTML/JS that renders it. This is the way to see in-progress frontend features (e.g. a new fenced-block type) actually render, since the installed CLI and production both point at the released frontend.
 
 ## Visual preview testing
 
