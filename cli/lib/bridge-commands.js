@@ -16,13 +16,35 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 
 const { startBridge } = require('../bin/sdocs-bridge');
 const { DEFAULT_URL } = require('./constants');
 const { openBrowser } = require('./io');
+const { stripAndCompress } = require('./url');
 
 function baseUrlFor(opts) {
   return opts.url || process.env.SDOCS_URL || DEFAULT_URL;
+}
+
+// Wrapped files (.csv, .mmd, .mermaid) render a derived view the bridge builds
+// on connect, not the raw bytes, so we don't embed a static snapshot for them -
+// they keep the pre-existing connect-or-blank behaviour. Everything else gets a
+// `md=` snapshot so the page renders read-only before the socket connects and
+// falls back to read-only if it never does.
+const WRAPPED_EXT = new Set(['.csv', '.mmd', '.mermaid']);
+
+// The compressed `md=` snapshot for the bridged file, or null when we can't /
+// shouldn't embed one (wrapped file, unreadable, etc.). Failure is non-fatal:
+// without `md=` the page just behaves as it did before this change.
+function bridgeSnapshot(file) {
+  if (!file) return null;
+  if (WRAPPED_EXT.has(path.extname(file).toLowerCase())) return null;
+  try {
+    return stripAndCompress(fs.readFileSync(file, 'utf-8'));
+  } catch (_) {
+    return null;
+  }
 }
 
 function buildBridgeUrl(opts, bridge) {
@@ -31,6 +53,11 @@ function buildBridgeUrl(opts, bridge) {
   params.set('bridge', '127.0.0.1:' + bridge.port);
   params.set('token',  bridge.token);
   if (opts.file) params.set('file', path.basename(opts.file));
+  // Progressive enhancement: embed the document so the page can render it
+  // (read-only) before the live socket connects, and fall back to it if the
+  // socket never does, instead of showing a blank page.
+  const snapshot = bridgeSnapshot(opts.file);
+  if (snapshot) params.set('md', snapshot);
   // `sdoc present <file>` triggers fullscreen slide view on load.
   if (opts.present) params.set('present', '0');
   return base + '/#' + params.toString();

@@ -19,6 +19,13 @@ BIN_DIR="$SDOCS_HOME/bin"
 LAUNCHER="$BIN_DIR/sdoc"
 REGISTRY="https://registry.npmjs.org/sdocs-dev"
 
+# Preview/test override. When SDOCS_TARBALL_URL is set (e.g. a file:// path to
+# a locally `npm pack`ed tarball), the installer skips the npm registry lookup
+# and installs that tarball instead. SDOCS_VERSION names it in log output.
+# Both are unset in normal use, so production installs are unaffected.
+SDOCS_TARBALL_URL="${SDOCS_TARBALL_URL:-}"
+SDOCS_VERSION="${SDOCS_VERSION:-}"
+
 err() { printf 'sdoc install: %s\n' "$1" >&2; }
 
 # 1. Node is required to run sdoc.
@@ -40,21 +47,28 @@ else
   exit 1
 fi
 
-# 3. Resolve the latest published version from the npm registry.
-#    node parses the JSON, since node is already a requirement above.
-printf 'Resolving the latest sdoc version...\n'
-VERSION=$(fetch "$REGISTRY/latest" | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>{try{process.stdout.write(String(JSON.parse(s).version||""))}catch(e){}})')
-if [ -z "${VERSION:-}" ]; then
-  err "Could not resolve the latest version from the npm registry."
-  exit 1
+# 3. Resolve the tarball to install: an override URL when given, otherwise the
+#    latest version from the npm registry (node parses the JSON).
+if [ -n "$SDOCS_TARBALL_URL" ]; then
+  VERSION="${SDOCS_VERSION:-local}"
+  TARBALL_URL="$SDOCS_TARBALL_URL"
+  printf 'Installing sdoc from %s...\n' "$SDOCS_TARBALL_URL"
+else
+  printf 'Resolving the latest sdoc version...\n'
+  VERSION=$(fetch "$REGISTRY/latest" | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>{try{process.stdout.write(String(JSON.parse(s).version||""))}catch(e){}})')
+  if [ -z "${VERSION:-}" ]; then
+    err "Could not resolve the latest version from the npm registry."
+    exit 1
+  fi
+  TARBALL_URL="$REGISTRY/-/sdocs-dev-$VERSION.tgz"
+  printf 'Installing sdoc %s...\n' "$VERSION"
 fi
 
 # 4. Download and unpack the package into a temp directory.
-printf 'Installing sdoc %s...\n' "$VERSION"
 TMP=$(mktemp -d 2>/dev/null || mktemp -d -t sdocs)
 trap 'rm -rf "$TMP"' EXIT INT TERM
 
-fetch_file "$REGISTRY/-/sdocs-dev-$VERSION.tgz" "$TMP/sdoc.tgz"
+fetch_file "$TARBALL_URL" "$TMP/sdoc.tgz"
 mkdir -p "$TMP/cli"
 # npm tarballs wrap everything in a top-level package/ directory; strip it.
 tar -xzf "$TMP/sdoc.tgz" -C "$TMP/cli" --strip-components=1
