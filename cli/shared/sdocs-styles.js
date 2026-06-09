@@ -534,9 +534,9 @@ var STYLE_DEFAULTS = {
   h3: { fontSize: 1.2, fontWeight: 600 },
   h4: { fontSize: 1.0, fontWeight: 600 },
   p: { lineHeight: 1.75, marginBottom: 1.1 },
-  link: { decoration: 'underline' },
+  link: { color: '#2563eb', decoration: 'underline' },
   code: { font: 'JetBrains Mono' },
-  blockquote: { borderWidth: 3, fontSize: 1.0 },
+  blockquote: { borderColor: '#2563eb', borderWidth: 3, fontSize: 1.0 },
   list: { spacing: 0.3, indent: 1.6 },
 };
 
