@@ -43,6 +43,24 @@ function decompressFromBase64Url(b64url) {
   }
 }
 
+// Strip default styles from the front matter, then brotli+base64url the result.
+// This is the exact `md=` payload the browser's fragment Source decodes. Shared
+// by buildUrl (static / share links) and the bridge URL builder so both paths
+// emit one identical encoding - no second code path to drift out of sync.
+function stripAndCompress(content) {
+  const parsed = SDocYaml.parseFrontMatter(content);
+  if (parsed.meta && parsed.meta.styles) {
+    const stripped = SDocStyles.stripStyleDefaults(parsed.meta.styles);
+    if (Object.keys(stripped).length > 0) {
+      parsed.meta.styles = stripped;
+    } else {
+      delete parsed.meta.styles;
+    }
+    content = SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
+  }
+  return compressToBase64Url(content);
+}
+
 function buildUrl(content, opts) {
   const baseUrl = opts.url || process.env.SDOCS_URL || DEFAULT_URL;
   const params = new URLSearchParams();
@@ -57,17 +75,7 @@ function buildUrl(content, opts) {
   }
 
   if (content) {
-    const parsed = SDocYaml.parseFrontMatter(content);
-    if (parsed.meta && parsed.meta.styles) {
-      const stripped = SDocStyles.stripStyleDefaults(parsed.meta.styles);
-      if (Object.keys(stripped).length > 0) {
-        parsed.meta.styles = stripped;
-      } else {
-        delete parsed.meta.styles;
-      }
-      content = SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
-    }
-    params.set('md', compressToBase64Url(content));
+    params.set('md', stripAndCompress(content));
   } else if (opts.defaultStyles) {
     const stylesJson = JSON.stringify(opts.defaultStyles);
     params.set('styles', encodeURIComponent(Buffer.from(stylesJson, 'utf-8').toString('base64')));
@@ -98,5 +106,6 @@ module.exports = {
   fromBase64Url,
   compressToBase64Url,
   decompressFromBase64Url,
+  stripAndCompress,
   buildUrl,
 };
