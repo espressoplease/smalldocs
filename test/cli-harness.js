@@ -32,10 +32,12 @@ const CLI_BIN = path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js');
 // Mirror of AGENT_TARGETS in cli/lib/agent-block.js. Kept here so tests
 // don't need to require the CLI internals just to know where files go.
 const AGENT_TARGET_MAP = {
-  claude:   { name: 'Claude Code', dir: '.claude',                              file: 'CLAUDE.md' },
-  codex:    { name: 'Codex',       dir: '.codex',                               file: 'AGENTS.md' },
-  gemini:   { name: 'Gemini CLI',  dir: '.gemini',                              file: 'GEMINI.md' },
-  opencode: { name: 'opencode',    dir: path.join('.config', 'opencode'),       file: 'AGENTS.md' },
+  claude:    { name: 'Claude Code', dir: '.claude',                              file: 'CLAUDE.md' },
+  codex:     { name: 'Codex',       dir: '.codex',                               file: 'AGENTS.md' },
+  gemini:    { name: 'Gemini CLI',  dir: '.gemini',                              file: 'GEMINI.md' },
+  opencode:  { name: 'opencode',    dir: path.join('.config', 'opencode'),       file: 'AGENTS.md' },
+  pi:        { name: 'pi',          dir: path.join('.pi', 'agent'),              file: 'AGENTS.md' },
+  codewhale: { name: 'CodeWhale',   dir: '.codewhale',                           file: 'AGENTS.md' },
 };
 
 // Distinct from production AGENT_BLOCK_BODY so "block was rewritten"
