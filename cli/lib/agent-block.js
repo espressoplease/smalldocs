@@ -19,7 +19,7 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 const AGENT_BLOCK_VERSION = 9;
-const AGENT_BLOCK_REASON  = 'Adds the sdoc cells bullet: spreadsheets (```cells blocks) where plain values and =formulas mix and compute live - sortable, editable fullscreen, and downloadable as Excel (.xlsx) with the formulas still working.';
+const AGENT_BLOCK_REASON  = 'Adds the sdoc cells bullet: spreadsheets (```cells blocks) where plain values and =formulas mix and compute live - sortable, editable fullscreen, and downloadable as Excel (.xlsx) with the formulas still working. Also tightens the sdoc schema bullet: styling is for when the comfortable defaults are not enough, not a default step.';
 
 const AGENT_BLOCK_BODY = `## SDocs
 
@@ -46,7 +46,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - \`sdoc diagrams\` - rendering inline Mermaid diagrams (\`\`\`mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - \`sdoc slides\` - inline slide decks (\`\`\`slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as \`.pdf\` or \`.pptx\`. \`sdoc present file.md\` - open file directly in fullscreen presentation mode.
 - \`sdoc cells\` - rendering spreadsheets (\`\`\`cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. \`sdoc report.csv\` opens a CSV file directly as a sheet.
-- \`sdoc schema\` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
+- \`sdoc schema\` - styling Markdown (fonts, colors, spacing). The default styles are already comfortable to read; reach for this only when they aren't enough - client-facing polish or a bit of fun.
 - \`sdoc feedback\` - rendering interactive elements (\`\`\`form blocks) to receive structured input from the user. Run \`sdoc feedback file.md\` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 `;
 
@@ -55,11 +55,17 @@ const AGENT_BLOCK_START_RE     = /<!-- sdocs-agent-block:start v=(\d+) -->/;
 const AGENT_BLOCK_END_MARKER   = '<!-- sdocs-agent-block:end -->';
 const AGENT_BLOCK_LEGACY_OPEN  = '<!-- sdocs-agent-block -->';
 
+// `detectDir` (optional) is the directory whose existence signals "this agent
+// is installed". It defaults to `dir`. pi keeps its global instructions one
+// level down (`~/.pi/agent/AGENTS.md`), so we detect on the parent `~/.pi`
+// the installer creates and let writeBookendedBlock mkdir the `agent` subdir.
 const AGENT_TARGETS = [
   { name: 'Claude Code', dir: '.claude',                file: 'CLAUDE.md'  },
   { name: 'Codex',       dir: '.codex',                 file: 'AGENTS.md'  },
   { name: 'Gemini CLI',  dir: '.gemini',                file: 'GEMINI.md'  },
   { name: 'opencode',    dir: path.join('.config', 'opencode'), file: 'AGENTS.md' },
+  { name: 'pi',          dir: path.join('.pi', 'agent'), file: 'AGENTS.md', detectDir: '.pi' },
+  { name: 'CodeWhale',   dir: '.codewhale',             file: 'AGENTS.md'  },
 ];
 
 function formatAgentBlock(version, body) {

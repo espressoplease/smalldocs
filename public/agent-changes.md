@@ -20,7 +20,9 @@ in this release: CSV rows where plain values and =formulas mix and compute
 live, sortable and editable in the browser, downloadable as Excel (.xlsx)
 with the formulas still working. Without this bullet, agents have no way to
 discover that the block type exists. One bullet added between slides and
-schema; the rest of the block is unchanged from v8.
+schema. The `sdoc schema` bullet was also tightened: styling is framed as a
+step for when the comfortable default styles aren't enough, not a default
+move. The rest of the block is unchanged from v8.
 
 The block body:
 
@@ -50,7 +52,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. `sdoc present file.md` - open file directly in fullscreen presentation mode.
 - `sdoc cells` - rendering spreadsheets (```cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. `sdoc report.csv` opens a CSV file directly as a sheet.
-- `sdoc schema` - styling Markdown (fonts, colors, spacing). Good for client-facing communication (or a bit of fun).
+- `sdoc schema` - styling Markdown (fonts, colors, spacing). The default styles are already comfortable to read; reach for this only when they aren't enough - client-facing polish or a bit of fun.
 - `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 ```
 

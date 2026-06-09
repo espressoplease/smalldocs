@@ -24,7 +24,7 @@ const { AGENT_CHANGES_URL } = require('./constants');
 function detectAgents() {
   const home = os.homedir();
   return AGENT_TARGETS
-    .map(t => ({ ...t, dirPath: path.join(home, t.dir), filePath: path.join(home, t.dir, t.file) }))
+    .map(t => ({ ...t, dirPath: path.join(home, t.detectDir || t.dir), filePath: path.join(home, t.dir, t.file) }))
     .filter(t => fs.existsSync(t.dirPath));
 }
 

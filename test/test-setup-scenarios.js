@@ -249,6 +249,28 @@ module.exports = function (harness) {
     } finally { fx.cleanup(); }
   });
 
+  // ── 9. pi + CodeWhale detected ────────────────────────
+  // pi keeps its global instructions at ~/.pi/agent/AGENTS.md (detected via
+  // the ~/.pi parent) and CodeWhale at ~/.codewhale/AGENTS.md. Both must get
+  // the block on a fresh `setup --yes`.
+  scenario('fresh / pi + codewhale detected → setup --yes writes to both', async () => {
+    const fx = createFixture({ agents: ['pi', 'codewhale'] });
+    try {
+      const r = await fx.run('setup --yes');
+      assert.strictEqual(r.exitCode, 0, `exit code (stderr=${r.stderr})`);
+      for (const agent of ['pi', 'codewhale']) {
+        const content = fx.readAgent(agent);
+        assert.ok(content, `${agent} file should exist`);
+        assert.ok(
+          content.includes(`<!-- sdocs-agent-block:start v=${cli.AGENT_BLOCK_VERSION} -->`),
+          `${agent} should have current-version block`,
+        );
+      }
+      const state = fx.readSetupState();
+      assert.strictEqual(state.writtenTo.length, 2, 'wrote two files');
+    } finally { fx.cleanup(); }
+  });
+
   // Return the runner so the orchestrator can await completion before
   // calling report(). Tests run sequentially: each spawns its own CLI
   // child and owns its own temp HOME, but parallelising them muddles
