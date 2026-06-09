@@ -120,7 +120,7 @@ Never use em dashes (`-`) or en dashes (`-`) anywhere: source files, comments, c
 
 ## Agent integration block
 
-The `sdoc setup` command writes a SDocs explainer into coding-agent config files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, etc.). The block lives as `AGENT_BLOCK_BODY` in `cli/bin/sdocs-dev.js` and is duplicated as per-agent snippets in `public/sdoc.md` (the "Set up your agent" section). **If you reword one, reword the other.**
+The `sdoc setup` command writes a SDocs explainer into coding-agent config files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, etc.). The block lives as `AGENT_BLOCK_BODY` in `cli/lib/agent-block.js` (re-exported through `cli/bin/sdocs-dev.js`) and is duplicated as per-agent snippets in `public/sdoc.md` (the "Set up your agent" section). The set of config files it gets written to is `AGENT_TARGETS` in the same module. **If you reword one, reword the other.**
 
 The block is wrapped in HTML-comment bookend markers:
 
@@ -134,7 +134,7 @@ Claude Code strips block-level HTML comments before context injection (zero toke
 
 ### Release checklist when AGENT_BLOCK_BODY changes
 
-1. Bump `AGENT_BLOCK_VERSION` in `cli/bin/sdocs-dev.js`.
+1. Bump `AGENT_BLOCK_VERSION` in `cli/lib/agent-block.js`.
 2. Set `AGENT_BLOCK_REASON` to a one-line summary of what changed.
 3. Prepend a new `## v<N>` section to `public/agent-changes.md` with the reason and full block body.
 4. Reword the per-agent snippets in `public/sdoc.md` (Set up your agent section) to match.
@@ -142,7 +142,7 @@ Claude Code strips block-level HTML comments before context injection (zero toke
 
 ### Legacy migration
 
-Pre-1.5.0 sdoc wrote the block with a single open-only marker `<!-- sdocs-agent-block -->`. `findLegacyBlock()` in `cli/bin/sdocs-dev.js` matches v1 (1.4.0/1.4.1) and v2 (1.4.2) bodies by their `Source: https://github.com/JoshInLisbon/SDocs` terminator and rewrites them with bookend markers. After the install base has rotated through 1.5.0+, this code path can be removed.
+Pre-1.5.0 sdoc wrote the block with a single open-only marker `<!-- sdocs-agent-block -->`. `findLegacyBlock()` in `cli/lib/agent-block.js` matches v1 (1.4.0/1.4.1) and v2 (1.4.2) bodies by their `Source: https://github.com/JoshInLisbon/SDocs` terminator and rewrites them with bookend markers. After the install base has rotated through 1.5.0+, this code path can be removed.
 
 ## CLI state
 
