@@ -51,6 +51,10 @@ test.describe('progressive-enhancement bridge', () => {
     // ...and trying to enter an editing mode is blocked (coerced back to read).
     await page.evaluate(() => window.SDocs.setMode('write'));
     await expect(page.locator('body')).not.toHaveClass(/write-mode/);
+
+    // The degraded state is VISIBLE, not silent: a read-only chip appears next
+    // to the filename so it doesn't look like an ordinary read-only document.
+    await expect(page.locator('.fic-readonly-chip')).toBeVisible({ timeout: 8000 });
   });
 
   test('live bridge upgrades: hello content wins, editing enabled, md stripped from URL', async ({ page }) => {

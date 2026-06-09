@@ -581,6 +581,21 @@ var BRIDGE_LIVE_CHIP_HTML = ''
   +   '<span>local sync</span>'
   + '</span>';
 
+// Counterpart to the live chip: shown next to the filename when a bridge session
+// exists but the live socket never connected (Safari, a blocked loopback port,
+// the bridge process gone). Without it, the read-only fallback looks identical
+// to a normal read-only document and the user can't tell editing failed.
+var BRIDGE_READONLY_CHIP_HTML = ''
+  + '<span class="fic-live-chip fic-readonly-chip"'
+  +   ' data-tip="Read-only: the local editing bridge didn\'t connect. Open via sdoc in Chrome or Firefox to edit; changes here are not saved to the file.">'
+  +   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+  +     ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  +     '<rect x="3" y="11" width="18" height="11" rx="2"/>'
+  +     '<path d="M7 11V7a5 5 0 0 1 9.9-1"/>'
+  +   '</svg>'
+  +   '<span>read-only</span>'
+  + '</span>';
+
 // Lucide icons (https://lucide.dev). Inlined so the bundle stays free of
 // icon-library deps. Stroke is currentColor — colour comes from CSS.
 var BRIDGE_SCREEN_SHARE_SVG = ''
@@ -655,9 +670,15 @@ function renderFileInfoCard() {
     // style / export / info), drop a small "live" chip next to the
     // filename so the reader still knows the file is connected. We never
     // surface a *negative* hint here — disconnect doesn't add a chip.
-    var liveChip = (bridge && bridgeIsLive(bridge.status) && !bridgeShouldRender(S.currentMode))
-      ? BRIDGE_LIVE_CHIP_HTML
-      : '';
+    // In non-editing modes, surface bridge state next to the filename: a "live"
+    // chip when syncing, a "read-only" chip when a bridge session failed to
+    // connect. The read-only chip is what stops a failed bridge from looking
+    // like an ordinary read-only document.
+    var liveChip = '';
+    if (bridge && !bridgeShouldRender(S.currentMode)) {
+      if (bridgeIsLive(bridge.status)) liveChip = BRIDGE_LIVE_CHIP_HTML;
+      else if (bridgeStateIsLost(bridge.status)) liveChip = BRIDGE_READONLY_CHIP_HTML;
+    }
     slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', meta.file || bridgeFile, false, false, liveChip) });
   }
 
