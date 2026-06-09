@@ -1557,6 +1557,10 @@ S.setStatus = setStatus;
 S.setMode = setMode;
 S.render = render;
 S.loadText = loadText;
+// Exposed seam: the bridge Source decodes its embedded `md=` snapshot through
+// the same brotli/deflate decode the fragment Source uses, so there's one decode
+// path, not two that can drift.
+S.decompressText = decompressText;
 S.renderFileInfoCard = renderFileInfoCard;
 
 // The short-link mechanism as one internal interface. Chunk 7's commercial
@@ -1891,7 +1895,14 @@ var commentHint = initScrollHint(document.getElementById('_sd_comment-toolbar'))
 
 // Re-check and peek when entering write/comment mode
 var _origSetMode = setMode;
+// Modes that mutate the document body or comments. Blocked while a bridge
+// session is showing its read-only static snapshot, so an edit made before the
+// live socket connects can't be silently discarded when the live document loads.
+var _EDIT_MODES = { write: 1, raw: 1, comment: 1 };
 setMode = function(mode, skipHash) {
+  if (_EDIT_MODES[mode] && S.bridge && S.bridge._staticReadOnly) {
+    mode = 'read';
+  }
   _origSetMode(mode, skipHash);
   if (mode === 'write') {
     setTimeout(function() { writeHint.update(); writeHint.peek(); }, 100);
