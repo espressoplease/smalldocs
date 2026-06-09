@@ -47,6 +47,7 @@
       addr:  addr,
       token: p.get('token') || '',
       file:  p.get('file')  || null,
+      md:    p.get('md')    || null,
     };
   }
 
@@ -74,6 +75,7 @@
       if (!/^127\.0\.0\.1:\d+$/.test(v.bridge) && !/^localhost:\d+$/i.test(v.bridge)) {
         return null;
       }
+      if (v.md != null && typeof v.md !== 'string') delete v.md;
       return v;
     } catch (_) { return null; }
   }
@@ -82,6 +84,9 @@
     try {
       var payload = { bridge: cfg.addr, token: cfg.token };
       if (cfg.file) payload.file = cfg.file;
+      // Keep the snapshot in per-tab storage (never re-added to the visible URL)
+      // so a refresh that fails to reconnect still renders read-only, not blank.
+      if (cfg.md) payload.md = cfg.md;
       window.sessionStorage.setItem(STASH_KEY, JSON.stringify(payload));
     } catch (_) { /* private mode, quota — never block on this */ }
   }
@@ -157,6 +162,7 @@
     p.set('bridge', stash.bridge);
     p.set('token', stash.token);
     if (stash.file) p.set('file', stash.file);
+    if (stash.md) p.set('md', stash.md);
     var newUrl = window.location.pathname + '#' + p.toString();
     window.history.replaceState(null, '', newUrl);
   }());
@@ -186,6 +192,12 @@
     this._ws = null;
     this._connected = false;
     this._helloed = false;
+    // Progressive-enhancement state. While `_staticReadOnly` is true the page is
+    // showing the embedded `md=` snapshot read-only; editing modes are blocked
+    // (sdocs-app.js setMode guard) and saves are gated until `hello` flips to live.
+    this._staticReadOnly = false;
+    this._staticRendered = false;
+    this._staticStatus = null;
     this._lastWritten = null;     // full document string we last persisted
     this._pendingExternal = null; // queued external content when user is dirty
     this._writeId = 0;
@@ -219,14 +231,53 @@
 
   BridgeSource.prototype.load = function () {
     if (!this._supported()) {
+      // Safari can't reach the loopback bridge. Render the embedded snapshot
+      // read-only so the user still sees their document, then explain why it's
+      // not live.
+      this._renderStaticFallback('disconnected', "Read-only - editing needs Chrome or Firefox");
       showSafariBannerIfNeeded();
       if (S.setStatus) S.setStatus('Bridge editor needs Chrome or Firefox.', 'error');
       return Promise.resolve();
     }
+    // Install hooks while capabilities are still the writable default, BEFORE the
+    // snapshot render flips canSave off - otherwise the autosave hook would bail
+    // and live edits after `hello` would never persist.
     this._installAutoSaveHook();
     this._installFormSubmitHook();
+    // Instant read-only first paint from the embedded snapshot (no-op if there's
+    // no `md=`, e.g. a wrapped file - those keep the old connect-or-blank path).
+    this._renderStaticFallback('connecting', 'Connecting...');
     this._connect();
     return this._loadPromise;
+  };
+
+  // Render the embedded `md=` snapshot read-only. Idempotent (renders once), and
+  // every failure path funnels through it so "show the document, not a blank
+  // page" lives in exactly one place. `hello` later replaces this with the live,
+  // editable document - and because the editor is genuinely read-only until then
+  // (canSave off + setMode guard), the handoff can never discard a user edit.
+  BridgeSource.prototype._renderStaticFallback = function (statusKind, statusLabel) {
+    if (this._helloed) return;            // live content already won
+    this._staticReadOnly = true;
+    this._staticStatus = { kind: statusKind || 'readonly', label: statusLabel || null };
+    if (this._staticRendered) {
+      // Already painted - just move the status to the latest (e.g. connecting -> disconnected).
+      this._setStatus(this._staticStatus.kind, this._staticStatus.label);
+      return;
+    }
+    var md = this.cfg && this.cfg.md;
+    if (!md || typeof S.decompressText !== 'function') return;
+    this._staticRendered = true;
+    this.capabilities = { canSave: false, canWatch: false, canSubmit: false };
+    var self = this;
+    Promise.resolve(S.decompressText(md)).then(function (text) {
+      if (self._helloed) return;          // hello landed during decode - it wins
+      var name = (self.cfg && self.cfg.file) || 'untitled.md';
+      S._isDefaultState = false;
+      if (S.loadText) S.loadText(text, name);
+      if (S.setMode) S.setMode('read', true);
+      self._setStatus(self._staticStatus.kind, self._staticStatus.label);
+    }).catch(function () { /* leave whatever's on screen; connect may still win */ });
   };
 
   // Listen for sdocs-form-submit events bubbling up from rendered form
@@ -375,8 +426,12 @@
   };
 
   BridgeSource.prototype._fail = function (msg) {
+    // Single funnel for every pre-hello failure (ws error, close-before-hello,
+    // the bridge's no-connect timeout): show the snapshot read-only instead of
+    // a blank page.
+    this._renderStaticFallback('disconnected', 'Read-only (not connected)');
     if (S.setStatus) S.setStatus(msg, 'error');
-    this._setStatus('error', 'Connection failed');
+    if (!this._staticRendered) this._setStatus('error', 'Connection failed');
     if (this._loadResolve) { this._loadResolve(); this._loadResolve = null; }
     // Couldn't talk to the bridge — drop the stash so refreshing doesn't put
     // the page back into the same failing reconnect loop.
@@ -462,6 +517,9 @@
 
   BridgeSource.prototype._onHello = function (msg) {
     this._helloed = true;
+    // Live content is authoritative now - release the read-only gate so the user
+    // can edit. capabilities are restored from the server's hello just below.
+    this._staticReadOnly = false;
     var content = typeof msg.content === 'string' ? msg.content : '';
     var name = msg.file || this.cfg.file || 'untitled.md';
 
@@ -486,7 +544,7 @@
     try {
       var h = window.location.hash.charAt(0) === '#' ? window.location.hash.slice(1) : window.location.hash;
       var p = new URLSearchParams(h);
-      p.delete('bridge'); p.delete('token'); p.delete('file');
+      p.delete('bridge'); p.delete('token'); p.delete('file'); p.delete('md');
       var newHash = p.toString();
       var newUrl = window.location.pathname + (newHash ? '#' + newHash : '');
       window.history.replaceState(null, '', newUrl);
