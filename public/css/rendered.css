@@ -601,14 +601,6 @@ foreignObject span { line-height: normal; }
   flex-shrink: 0;
 }
 #_sd_sdocs-file-info .fic-live-chip svg { color: var(--fic-muted); }
-/* Read-only counterpart: warm amber tone so a failed bridge reads as a
-   degraded state, distinct from the muted "live sync" chip, without being a
-   hard red error. */
-#_sd_sdocs-file-info .fic-readonly-chip {
-  color: #b45309;
-  border-color: color-mix(in srgb, #b45309 40%, transparent);
-}
-#_sd_sdocs-file-info .fic-readonly-chip svg { color: #b45309; }
 #_sd_sdocs-file-info .fic-copy {
   display: inline-flex;
   align-items: center;
