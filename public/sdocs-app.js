@@ -30,6 +30,8 @@ var LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stro
 var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 var WRAP_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="m16 16-2 2 2 2"/><path d="M3 18h7"/></svg>';
 var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+// Lucide expand-corners - same icon the diagram / sheet expand buttons use.
+var EXPAND_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
 // Tag chip × uses the standard SDocs close icon (same stroke / weight as
 // the comment composer's Cancel button, scaled down for chip rendering).
 var TAG_CLOSE_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
@@ -375,8 +377,30 @@ function attachCodeCopyButtons(container) {
     });
     wrapper.appendChild(btn);
 
+    // Expand-to-fullscreen, mirroring diagrams / sheets. Skip blocks claimed
+    // by another renderer (chart / mermaid / cells ...): those <pre>s are about
+    // to be replaced by their widget, which carries its own expand affordance.
+    var codeEl = pre.querySelector('code');
+    var lang = codeEl ? langClassOf(codeEl) : '';
+    if (S.codeFocus && !CODE_FILE_RESERVED[lang]) {
+      var expandBtn = document.createElement('button');
+      expandBtn.className = 'expand-btn';
+      expandBtn.innerHTML = EXPAND_SVG;
+      expandBtn.title = 'Open in fullscreen';
+      expandBtn.setAttribute('aria-label', 'Open code in fullscreen');
+      expandBtn.addEventListener('click', function() { S.codeFocus.open(pre); });
+      wrapper.appendChild(expandBtn);
+      wrapper.classList.add('has-expand');
+    }
+
     refreshWrapButton(pre, wrapBtn);
   });
+}
+
+// Pull the language token off a <code class="language-xxx"> element.
+function langClassOf(codeEl) {
+  var m = (codeEl.className || '').match(/(?:^|\s)language-([\w+#-]+)/i);
+  return m ? m[1].toLowerCase() : '';
 }
 
 function refreshWrapButton(pre, btn) {
@@ -394,6 +418,46 @@ window.addEventListener('resize', function () {
     if (pre && btn) refreshWrapButton(pre, btn);
   });
 });
+
+// Block types owned by other renderers - a doc that is only one of these is
+// NOT a code file (e.g. `sdoc graph.mmd` is a single ```mermaid block).
+var CODE_FILE_RESERVED = { chart: 1, mermaid: 1, cells: 1, form: 1, math: 1, slide: 1, slides: 1 };
+
+// When the ENTIRE document is a single fenced code block - i.e. an opened
+// source file (`sdoc app.rb`) rather than prose with a snippet in it - return
+// its language. Otherwise null. Used to drop the "code card in a document"
+// framing in favour of a full-bleed file view.
+function wholeFileCodeLang(body) {
+  var t = (body || '').replace(/^﻿/, '').trim();
+  if (t.slice(0, 3) !== '```') return null;
+  var nl = t.indexOf('\n');
+  if (nl < 0) return null;
+  var lang = t.slice(3, nl).trim().toLowerCase();
+  if (CODE_FILE_RESERVED[lang]) return null;
+  var rest = t.slice(nl + 1);
+  var close = rest.lastIndexOf('\n```');
+  if (close < 0) return null;
+  if (rest.slice(close + 4).trim() !== '') return null;   // nothing after the closing fence
+  if (/(^|\n)```/.test(rest.slice(0, close))) return null; // a second fence => not one block
+  return lang || 'code';
+}
+S.wholeFileCodeLang = wholeFileCodeLang;
+
+// Opening a source file should land straight in the fullscreen code view, the
+// way `sdoc present` lands in the slide view. Fires at most once per page, and
+// only when the document is a whole code file we know the name of (so a
+// hand-typed single block in the editor doesn't trigger it).
+var _codeFileAutoExpanded = false;
+function maybeAutoExpandCodeFile() {
+  if (_codeFileAutoExpanded || !S.codeFocus) return;
+  if (!wholeFileCodeLang(S.currentBody)) return;
+  var hasName = (S.currentMeta && S.currentMeta.file) || (S.localMeta && S.localMeta.fullPath);
+  if (!hasName) return;
+  var pre = S.renderedEl && S.renderedEl.querySelector('.pre-wrapper > pre');
+  if (!pre) return;
+  _codeFileAutoExpanded = true;
+  S.codeFocus.open(pre);
+}
 
 var SECTION_LEVELS = { H2: 2, H3: 3, H4: 4 };
 
@@ -1691,6 +1755,7 @@ async function loadFromHash() {
       S._isDefaultState = false;
       var text = await decompressText(mdParam);
       loadText(text);
+      maybeAutoExpandCodeFile();
     } catch (e) {
       console.warn('sdocs-dev: could not decode hash', e);
     }
