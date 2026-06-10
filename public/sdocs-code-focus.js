@@ -178,6 +178,28 @@
     '.sdoc-code-focus-lines:hover button.sdoc-cl-fold,',
     '.sdoc-cl-row.collapsed button.sdoc-cl-fold { opacity: 1; }',
     'button.sdoc-cl-fold:hover { color: var(--sdoc-focus-fg, #1c1917); }',
+    // Master fold control: a single always-visible chevron at the top of the
+    // gutter column, the parent of every row chevron. Sticky so it stays put as
+    // the code scrolls; points down when everything is open, right when folded,
+    // exactly like the per-row chevrons. Same action as the toolbar button.
+    '.sdoc-cl-master {',
+    '  position: sticky; top: 0; z-index: 3;',
+    '  display: flex; align-items: center; height: 24px; margin-bottom: 2px;',
+    '  background: var(--sdoc-focus-bg, #f4f1ed);',
+    '}',
+    '.sdoc-cl-master-btn {',
+    '  all: unset; cursor: pointer;',
+    '  position: sticky; left: 0;',
+    '  width: 15px; height: 20px; flex: 0 0 auto;',
+    '  display: inline-flex; align-items: center; justify-content: center;',
+    '  background: var(--sdoc-focus-bg, #f4f1ed);',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 55%, transparent);',
+    '  transform: rotate(90deg); transition: transform .15s, color .12s;',
+    '}',
+    '.sdoc-cl-master-btn svg { display: block; }',
+    '.sdoc-cl-master-btn:hover { color: var(--sdoc-focus-fg, #1c1917); }',
+    '.sdoc-cl-master-btn:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
+    '.sdoc-cl-master.collapsed .sdoc-cl-master-btn { transform: rotate(0deg); }',
     '.sdoc-cl-num {',
     '  flex: 0 0 auto; width: var(--sdoc-ln-w); box-sizing: content-box;',
     '  padding-right: 16px; padding-left: 4px; text-align: right;',
@@ -279,7 +301,7 @@
     return m ? m[1] : '';
   }
 
-  var modal = null, docEl = null, linesEl = null, rawText = '', prevFocus = null, keyHandler = null;
+  var modal = null, docEl = null, linesEl = null, masterEl = null, rawText = '', prevFocus = null, keyHandler = null;
   var folds = null;       // per-line { header:bool, end:int } from indentation
   var parents = null;     // immediate enclosing header index per line (or -1)
   var collapsed = null;   // Set of collapsed header line indices
@@ -478,17 +500,32 @@
     syncFoldAllBtn();
   }
 
-  // The button shows "Collapse all" while everything is open, "Expand all" once
-  // anything is folded - same convention as the markdown fold button.
+  // Toggle the whole file between outline and fully expanded, then remember the
+  // new default. Shared by the toolbar button and the gutter master chevron.
+  function toggleAll() {
+    var nextCollapsed = !collapsed || collapsed.size === 0;
+    setAllCollapsed(nextCollapsed);
+    savePref(nextCollapsed);
+  }
+
+  // Keep both fold-all controls in step. The toolbar button shows "Collapse all"
+  // while everything is open and "Expand all" once anything is folded; the gutter
+  // chevron points down when open and right when folded, like the row chevrons.
   function syncFoldAllBtn() {
     if (!modal) return;
-    var btn = modal.querySelector('[data-act="foldall"]');
-    if (!btn) return;
     var allOpen = !collapsed || collapsed.size === 0;
-    btn.classList.toggle('is-open', allOpen);
     var label = allOpen ? 'Collapse all' : 'Expand all';
-    btn.setAttribute('aria-label', label);
-    btn.setAttribute('title', label);
+    var btn = modal.querySelector('[data-act="foldall"]');
+    if (btn) {
+      btn.classList.toggle('is-open', allOpen);
+      btn.setAttribute('aria-label', label);
+      btn.setAttribute('title', label);
+    }
+    if (masterEl) {
+      masterEl.classList.toggle('collapsed', !allOpen);
+      var mbtn = masterEl.querySelector('.sdoc-cl-master-btn');
+      if (mbtn) { mbtn.setAttribute('aria-label', label); mbtn.setAttribute('title', label); }
+    }
   }
 
   function renderRows(lineParts) {
@@ -583,9 +620,15 @@
     stage.className = 'sdoc-code-focus-stage';
     docEl = document.createElement('div');
     docEl.className = 'sdoc-code-focus-doc wrapped'; // wrap on by default
+    masterEl = document.createElement('div');
+    masterEl.className = 'sdoc-cl-master';
+    masterEl.innerHTML = '<button type="button" class="sdoc-cl-master-btn" '
+      + 'aria-label="Collapse all" title="Collapse all">' + CHEVRON + '</button>';
+    masterEl.addEventListener('click', function () { toggleAll(); });
     linesEl = document.createElement('div');
     linesEl.className = 'sdoc-code-focus-lines';
     linesEl.addEventListener('click', onFoldClick);
+    docEl.appendChild(masterEl);
     docEl.appendChild(linesEl);
     stage.appendChild(docEl);
 
@@ -631,7 +674,7 @@
     if (keyHandler) window.removeEventListener('keydown', keyHandler);
     keyHandler = null;
     modal.remove();
-    modal = null; docEl = null; linesEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
+    modal = null; docEl = null; linesEl = null; masterEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
     srcLines = null; structuralRe = null; openToken = null;
     document.body.classList.remove('sdoc-code-focus-open');
     if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (_) {} }
@@ -643,13 +686,7 @@
     if (!btn) return;
     var act = btn.dataset.act;
     if (act === 'close') { close(); return; }
-    if (act === 'foldall') {
-      // Toggle on the current state, then remember the new default for next time.
-      var nextCollapsed = !collapsed || collapsed.size === 0;
-      setAllCollapsed(nextCollapsed);
-      savePref(nextCollapsed);
-      return;
-    }
+    if (act === 'foldall') { toggleAll(); return; }
     if (act === 'wrap') {
       if (!docEl) return;
       var on = docEl.classList.toggle('wrapped');
