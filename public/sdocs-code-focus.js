@@ -1,16 +1,22 @@
 // sdocs-code-focus.js - fullscreen view for a code block.
 //
 // Mirrors sdocs-mermaid-focus.js: each code block carries a small expand button
-// (added in sdocs-app.js). Clicking it clones the block's <pre> into a
-// full-screen surface whose background IS the code background, with its own
-// toolbar (brand + filename, copy, wrap, close). A whole opened source file
-// (`sdoc app.rb`) lands here automatically on load.
+// (added in sdocs-app.js). Clicking it opens a full-screen surface whose
+// background IS the code background, with its own toolbar (brand + filename,
+// copy, wrap, close). A whole opened source file (`sdoc app.rb`) lands here
+// automatically on load.
 //
-// The token colours come from the broadened `.hljs-*` rules in rendered.css
-// (scoped to :is(#_sd_rendered, .sdoc-code-focus)); this module only forwards a
-// few base vars so the cloned code reads with the same font/colour, then runs
-// the highlighter on the clone so the overlay is self-sufficient regardless of
-// whether the inline block had finished highlighting.
+// The view shows a line-number gutter and SOFT-WRAPS long lines by default.
+// Those two go together: when a long line wraps, only its first visual row
+// carries a number, so the reader can tell a wrapped line is still one logical
+// line. The gutter and wrap live only here, not on the inline block.
+//
+// Each source line is its own row (number cell + code cell, top-aligned), so a
+// wrapped line grows downward while its number stays put. Highlight token
+// colours come from the broadened `.hljs-*` rules in rendered.css (scoped to
+// :is(#_sd_rendered, .sdoc-code-focus)); the code is highlighted in a detached
+// element so the overlay is self-sufficient even if the inline block has not
+// finished loading highlight.js from the CDN.
 (function () {
   'use strict';
   var S = window.SDocs;
@@ -84,37 +90,42 @@
     '  border-color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 32%, transparent);',
     '}',
     '.sdoc-code-focus-action svg { flex-shrink: 0; }',
-    // Stage: a scroll container holding a centered, readable code column.
+    // Stage: scroll container holding the code column.
     '.sdoc-code-focus-stage { overflow: auto; }',
-    // Match the inline code width (~660px) so a block is the same width whether
-    // it sits in the document or is expanded - popping out strips the document
-    // chrome, not the code measure. Narrow screens add padding back so code
-    // never touches the edge.
+    // Wrapped (default): a 660px column - same width the block has inline - so a
+    // block is the same measure whether inline or expanded. Not wrapped: the
+    // column goes full width so long lines scroll horizontally.
     '.sdoc-code-focus-doc {',
-    '  max-width: 660px; margin: 0 auto; padding: 22px 0 64px;',
-    '  box-sizing: border-box;',
-    '}',
-    '.sdoc-code-focus-doc pre {',
-    '  margin: 0; background: transparent; border: 0; padding: 0;',
-    '  overflow: visible; white-space: pre;',
-    '}',
-    '.sdoc-code-focus-doc pre code {',
+    '  margin: 0 auto; padding: 22px 0 64px; box-sizing: border-box;',
     '  font-family: var(--md-code-font, ui-monospace, monospace);',
     '  color: var(--md-code-color, inherit);',
-    '  font-size: 13.5px; line-height: 1.65; white-space: inherit;',
+    '  font-size: 13.5px; line-height: 1.65;',
+    '  --sdoc-ln-w: 2ch;',
     '}',
-    '.sdoc-code-focus-doc pre.wrapped, .sdoc-code-focus-doc pre.wrapped code {',
-    '  white-space: pre-wrap; word-break: break-word;',
-    '}',
-    // Below the column width, restore horizontal padding so code keeps a
-    // margin from the screen edge.
+    '.sdoc-code-focus-doc.wrapped { max-width: 660px; }',
+    '.sdoc-code-focus-doc:not(.wrapped) { max-width: none; padding-left: 22px; padding-right: 22px; }',
     '@media (max-width: 660px) {',
-    '  .sdoc-code-focus-doc { padding-left: 20px; padding-right: 20px; }',
+    '  .sdoc-code-focus-doc.wrapped { padding-left: 20px; padding-right: 20px; }',
+    '}',
+    // One row per logical source line. Number cell stays at the top of the row
+    // (align-items: flex-start) so a wrapped line keeps its number aligned to
+    // its first visual line.
+    '.sdoc-cl-row { display: flex; align-items: flex-start; }',
+    '.sdoc-code-focus-doc:not(.wrapped) .sdoc-cl-row { min-width: max-content; }',
+    '.sdoc-cl-num {',
+    '  flex: 0 0 auto; width: var(--sdoc-ln-w); box-sizing: content-box;',
+    '  padding-right: 20px; text-align: right;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 36%, transparent);',
+    '  user-select: none; -webkit-user-select: none;',
+    '  position: sticky; left: 0; background: var(--sdoc-focus-bg, #f4f1ed);',
+    '}',
+    '.sdoc-cl-code { white-space: pre; }',
+    '.sdoc-code-focus-doc.wrapped .sdoc-cl-code {',
+    '  white-space: pre-wrap; word-break: break-word; flex: 1 1 auto; min-width: 0;',
     '}',
     '@media (max-width: 540px) {',
     '  .sdoc-code-focus-brand-full { display: none; }',
     '  .sdoc-code-focus-brand-short { display: inline; }',
-    '  .sdoc-code-focus-doc { padding-left: 18px; padding-right: 18px; padding-bottom: 48px; }',
     '}',
     'body.sdoc-code-focus-open { overflow: hidden; }'
   ].join('\n');
@@ -140,17 +151,38 @@
     + '<path d="m16 16-2 2 2 2"/><path d="M3 18h7"/>');
   var X_ICON = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
 
-  function basename(p) {
-    return String(p || '').split(/[\\/]/).pop();
-  }
+  function basename(p) { return String(p || '').split(/[\\/]/).pop(); }
   function isTransparent(c) {
     if (!c) return true;
     c = String(c).replace(/\s+/g, '');
     return c === 'transparent' || c === 'rgba(0,0,0,0)';
   }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>]/g, function (c) {
+      return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;';
+    });
+  }
 
-  // The title shown in the toolbar: the filename for a whole opened file, the
-  // language label for a block inside a prose document, else nothing.
+  // Split highlight.js output into per-line HTML, re-balancing spans so a token
+  // that spans newlines (multiline string / comment) stays valid on each line:
+  // close still-open spans at the line end, re-open them at the next line start.
+  function splitHighlightedLines(html) {
+    var lines = String(html).split('\n');
+    var out = [];
+    var open = []; // stack of opening <span ...> tag strings still in effect
+    for (var i = 0; i < lines.length; i++) {
+      var prefix = open.join('');
+      var re = /<span\b[^>]*>|<\/span>/g, m;
+      while ((m = re.exec(lines[i]))) {
+        if (m[0] === '</span>') open.pop(); else open.push(m[0]);
+      }
+      out.push(prefix + lines[i] + new Array(open.length + 1).join('</span>'));
+    }
+    return out;
+  }
+
+  // The title in the toolbar: the filename for a whole opened file, the language
+  // label for a block inside a prose document, else nothing.
   function titleFor(codeEl) {
     var name = (S.currentMeta && S.currentMeta.file)
       || (S.localMeta && basename(S.localMeta.fullPath));
@@ -159,13 +191,26 @@
     return m ? m[1] : '';
   }
 
-  var modal = null, stageEl = null, preEl = null, prevFocus = null, keyHandler = null;
+  var modal = null, docEl = null, linesEl = null, rawText = '', prevFocus = null, keyHandler = null;
+
+  function renderRows(lineParts) {
+    if (!linesEl) return;
+    var digits = String(lineParts.length).length;
+    docEl.style.setProperty('--sdoc-ln-w', digits + 'ch');
+    var html = '';
+    for (var i = 0; i < lineParts.length; i++) {
+      html += '<div class="sdoc-cl-row"><span class="sdoc-cl-num">' + (i + 1)
+        + '</span><span class="sdoc-cl-code">' + lineParts[i] + '</span></div>';
+    }
+    linesEl.innerHTML = html;
+  }
 
   function open(sourcePre) {
     if (modal) close();
     if (!sourcePre) return;
     var srcCode = sourcePre.querySelector('code');
     if (!srcCode) return;
+    rawText = srcCode.textContent || '';
     prevFocus = document.activeElement;
 
     modal = document.createElement('div');
@@ -174,9 +219,7 @@
     modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-label', 'Code fullscreen view');
 
-    // Forward the code surface vars so the overlay reads like the block, just
-    // bigger. The .hljs token colours come from rendered.css (which declares
-    // --hl-* on .sdoc-code-focus too), so only the base font/colour/bg here.
+    // Forward the code surface vars so the overlay reads like the block, bigger.
     var rendered = document.getElementById('_sd_rendered');
     var cs = rendered ? getComputedStyle(rendered) : null;
     if (cs) {
@@ -204,40 +247,55 @@
       +   '<button type="button" class="sdoc-code-focus-action" data-act="copy" title="Copy code" aria-label="Copy code">'
       +     COPY_ICON + '<span class="sdoc-code-focus-action-label">Copy</span>'
       +   '</button>'
-      +   '<button type="button" class="sdoc-code-focus-btn" data-act="wrap" title="Toggle soft wrap" aria-label="Toggle soft wrap">' + WRAP_ICON + '</button>'
+      +   '<button type="button" class="sdoc-code-focus-btn active" data-act="wrap" title="Toggle soft wrap" aria-label="Toggle soft wrap" aria-pressed="true">' + WRAP_ICON + '</button>'
       +   '<span class="sdoc-code-focus-sep" aria-hidden="true"></span>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="close" title="Close (Esc)" aria-label="Close">' + X_ICON + '</button>'
       + '</div>';
     if (name) topbar.querySelector('.sdoc-code-focus-name').textContent = name;
 
-    stageEl = document.createElement('div');
-    stageEl.className = 'sdoc-code-focus-stage';
-    var doc = document.createElement('div');
-    doc.className = 'sdoc-code-focus-doc';
-    preEl = sourcePre.cloneNode(true);
-    // The clone may carry inline copy/wrap/expand buttons - strip them.
-    preEl.className = preEl.className.replace(/\bwrapped\b/, '').trim();
-    doc.appendChild(preEl);
-    stageEl.appendChild(doc);
+    var stage = document.createElement('div');
+    stage.className = 'sdoc-code-focus-stage';
+    docEl = document.createElement('div');
+    docEl.className = 'sdoc-code-focus-doc wrapped'; // wrap on by default
+    linesEl = document.createElement('div');
+    linesEl.className = 'sdoc-code-focus-lines';
+    docEl.appendChild(linesEl);
+    stage.appendChild(docEl);
+
+    // Show plain numbered lines immediately; upgrade to highlighted once ready.
+    renderRows(escapeHtml(rawText).split('\n'));
 
     modal.appendChild(topbar);
-    modal.appendChild(stageEl);
+    modal.appendChild(stage);
     document.body.appendChild(modal);
     document.body.classList.add('sdoc-code-focus-open');
 
-    // Make the overlay self-sufficient: if the clone isn't highlighted yet
-    // (inline highlight may still be loading from the CDN), highlight it here.
-    var clonedCode = preEl.querySelector('code');
-    if (clonedCode && !clonedCode.dataset.hlDone && S.processHighlight) {
-      S.processHighlight(doc);
-    }
+    highlightThenRender(srcCode.className || '');
 
     topbar.addEventListener('click', onTopbarClick);
     keyHandler = onKey;
     window.addEventListener('keydown', keyHandler);
-
     var closeBtn = topbar.querySelector('[data-act="close"]');
     if (closeBtn) closeBtn.focus();
+  }
+
+  // Highlight the source in a detached element, then re-render the rows with the
+  // coloured HTML. No-ops (keeps the plain rows) if there's no language or the
+  // highlighter isn't available.
+  function highlightThenRender(className) {
+    if (!S.processHighlight || className.indexOf('language-') < 0) return;
+    var holder = document.createElement('div');
+    var pre = document.createElement('pre');
+    var code = document.createElement('code');
+    code.className = className;
+    code.textContent = rawText;
+    pre.appendChild(code); holder.appendChild(pre);
+    var token = linesEl;
+    Promise.resolve(S.processHighlight(holder)).then(function () {
+      if (linesEl !== token) return; // overlay closed/reopened meanwhile
+      var hl = code.innerHTML;
+      if (hl && hl.indexOf('<span') >= 0) renderRows(splitHighlightedLines(hl));
+    });
   }
 
   function close() {
@@ -245,7 +303,7 @@
     if (keyHandler) window.removeEventListener('keydown', keyHandler);
     keyHandler = null;
     modal.remove();
-    modal = null; stageEl = null; preEl = null;
+    modal = null; docEl = null; linesEl = null; rawText = '';
     document.body.classList.remove('sdoc-code-focus-open');
     if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (_) {} }
     prevFocus = null;
@@ -257,17 +315,14 @@
     var act = btn.dataset.act;
     if (act === 'close') { close(); return; }
     if (act === 'wrap') {
-      if (!preEl) return;
-      var on = preEl.classList.toggle('wrapped');
+      if (!docEl) return;
+      var on = docEl.classList.toggle('wrapped');
       btn.classList.toggle('active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       return;
     }
-    if (act === 'copy') {
-      var code = preEl && preEl.querySelector('code');
-      var text = code ? code.textContent : '';
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(function () { flashCopy(btn); });
-      }
+    if (act === 'copy' && navigator.clipboard) {
+      navigator.clipboard.writeText(rawText).then(function () { flashCopy(btn); });
     }
   }
 
