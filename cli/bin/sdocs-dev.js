@@ -54,6 +54,7 @@ function buildRouter() {
     if ((opts.file || '').toLowerCase() === 'verify') return cellsVerify.cellsVerifyCommand(opts);
     console.log(helpText.CELLS_HELP); process.exit(0);
   } });
+  r.register('code',     { handler: () => { console.log(helpText.CODE_HELP);     process.exit(0); } });
   r.register('comments', { handler: () => { console.log(helpText.COMMENTS_HELP); process.exit(0); } });
 
   // Setup / refresh / auto-update.
