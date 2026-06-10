@@ -115,6 +115,9 @@
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
     '.sdoc-code-focus-btn:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
+    '.sdoc-code-focus-btn .sdoc-icon-fold { display: none; }',
+    '.sdoc-code-focus-btn.is-open .sdoc-icon-unfold { display: none; }',
+    '.sdoc-code-focus-btn.is-open .sdoc-icon-fold { display: inline-flex; }',
     '.sdoc-code-focus-action {',
     '  all: unset; cursor: pointer;',
     '  display: inline-flex; align-items: center; gap: 5px;',
@@ -228,6 +231,13 @@
     + '<path d="m16 16-2 2 2 2"/><path d="M3 18h7"/>');
   var X_ICON = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
   var CHEVRON = lucide('<polyline points="9 18 15 12 9 6"/>', 12);
+  // Two icons, switched by the button's .is-open class: outward arrows mean
+  // "expand all" (shown when something is collapsed), inward arrows mean
+  // "collapse all" (shown when everything is open). Mirrors the markdown
+  // section fold button in the main toolbar.
+  var FOLDALL_ICONS =
+    '<svg class="sdoc-icon-unfold" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6"/><path d="M12 8V2"/><path d="M4 12H2"/><path d="M10 12H8"/><path d="M16 12h-2"/><path d="M22 12h-2"/><path d="m15 19-3 3-3-3"/><path d="m15 5-3-3-3 3"/></svg>'
+    + '<svg class="sdoc-icon-fold" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6"/><path d="M12 8V2"/><path d="M4 12H2"/><path d="M10 12H8"/><path d="M16 12h-2"/><path d="M22 12h-2"/><path d="m15 19-3-3-3 3"/><path d="m15 5-3 3-3-3"/></svg>';
 
   function basename(p) { return String(p || '').split(/[\\/]/).pop(); }
   function isTransparent(c) {
@@ -276,6 +286,17 @@
   var srcLines = null;    // raw source lines, for structural-keyword matching
   var structuralRe = null; // array of RegExp for the current language, or null
   var openToken = null;   // identity of the current open(); guards async races
+
+  // Whether code files open collapsed-to-outline or fully expanded. Set by the
+  // toolbar's fold-all button and remembered across files (and reloads), kept
+  // deliberately separate from the markdown section fold state.
+  var FOLD_PREF_KEY = 'sdocs:codeFoldAll';
+  function prefCollapsed() {
+    try { return localStorage.getItem(FOLD_PREF_KEY) === '1'; } catch (_) { return false; }
+  }
+  function savePref(on) {
+    try { localStorage.setItem(FOLD_PREF_KEY, on ? '1' : '0'); } catch (_) {}
+  }
 
   // Does this line carry a language keyword that should survive the outline?
   // Null means no definitions are loaded - the caller keeps every member then.
@@ -440,6 +461,34 @@
       if (collapse) collapsed.add(d); else collapsed.delete(d);
     }
     refreshFold();
+    syncFoldAllBtn();
+  }
+
+  function allHeaderIndices() {
+    var s = [];
+    for (var i = 0; folds && i < folds.length; i++) if (folds[i].header) s.push(i);
+    return s;
+  }
+
+  // Collapse every block to the outline, or open everything. The button's two
+  // states map onto these; individual chevrons still work on top afterwards.
+  function setAllCollapsed(on) {
+    collapsed = new Set(on ? allHeaderIndices() : []);
+    refreshFold();
+    syncFoldAllBtn();
+  }
+
+  // The button shows "Collapse all" while everything is open, "Expand all" once
+  // anything is folded - same convention as the markdown fold button.
+  function syncFoldAllBtn() {
+    if (!modal) return;
+    var btn = modal.querySelector('[data-act="foldall"]');
+    if (!btn) return;
+    var allOpen = !collapsed || collapsed.size === 0;
+    btn.classList.toggle('is-open', allOpen);
+    var label = allOpen ? 'Collapse all' : 'Expand all';
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', label);
   }
 
   function renderRows(lineParts) {
@@ -470,7 +519,7 @@
     srcLines = rawText.split('\n');
     folds = computeFolds(srcLines);
     parents = computeParents(folds);
-    collapsed = new Set();
+    collapsed = new Set(prefCollapsed() ? allHeaderIndices() : []);
     structuralRe = null;
     openToken = {};
     prevFocus = document.activeElement;
@@ -523,6 +572,7 @@
       +   '<button type="button" class="sdoc-code-focus-action" data-act="copy" title="Copy code" aria-label="Copy code">'
       +     COPY_ICON + '<span class="sdoc-code-focus-action-label">Copy</span>'
       +   '</button>'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="foldall" title="Collapse all" aria-label="Collapse all">' + FOLDALL_ICONS + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn active" data-act="wrap" title="Toggle soft wrap" aria-label="Toggle soft wrap" aria-pressed="true">' + WRAP_ICON + '</button>'
       +   '<span class="sdoc-code-focus-sep" aria-hidden="true"></span>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="close" title="Close (Esc)" aria-label="Close">' + X_ICON + '</button>'
@@ -546,6 +596,7 @@
     modal.appendChild(stage);
     document.body.appendChild(modal);
     document.body.classList.add('sdoc-code-focus-open');
+    syncFoldAllBtn();
 
     highlightThenRender(srcCode.className || '');
 
@@ -592,6 +643,13 @@
     if (!btn) return;
     var act = btn.dataset.act;
     if (act === 'close') { close(); return; }
+    if (act === 'foldall') {
+      // Toggle on the current state, then remember the new default for next time.
+      var nextCollapsed = !collapsed || collapsed.size === 0;
+      setAllCollapsed(nextCollapsed);
+      savePref(nextCollapsed);
+      return;
+    }
     if (act === 'wrap') {
       if (!docEl) return;
       var on = docEl.classList.toggle('wrapped');
