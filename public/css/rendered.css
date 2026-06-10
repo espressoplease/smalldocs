@@ -298,6 +298,100 @@
   white-space: pre;
   word-break: normal;
 }
+
+/* ── Syntax highlighting (highlight.js token classes) ──
+   highlight.js emits <span class="hljs-keyword"> etc.; we colour them here
+   rather than ship one of its 300 prebuilt themes, so the palette tracks our
+   light/dark themes and the block background stays --md-pre-bg.
+
+   Comments are deliberately NOT the usual washed-out grey. In a document the
+   comments carry the human explanation, so they are styled to stand out -
+   italic, full-contrast colour, and a faint tint - while code tokens are
+   coloured but quieter. This is the "comments pop" behaviour. */
+#_sd_rendered {
+  --hl-keyword:  #7c3aed;  /* keywords, storage, operators-as-words */
+  --hl-string:   #b45309;  /* strings, regexp, char literals */
+  --hl-number:   #be185d;  /* numbers, booleans, literals */
+  --hl-function: #2563eb;  /* function / method names */
+  --hl-type:     #0e7490;  /* classes, types, built-ins */
+  --hl-meta:     #6d28d9;  /* decorators, annotations, preprocessor */
+  --hl-attr:     #0369a1;  /* object keys, attributes, properties */
+  --hl-tag:      #9333ea;  /* markup/HTML tag names */
+  --hl-muted:    #8a857d;  /* punctuation that should recede */
+  --hl-comment:  #0f766e;  /* comments - the prominent lane (see above) */
+  --hl-comment-bg: rgba(15, 118, 110, 0.07);
+}
+html[data-theme="dark"] #_sd_rendered {
+  --hl-keyword:  #c4b5fd;
+  --hl-string:   #fcd34d;
+  --hl-number:   #f9a8d4;
+  --hl-function: #93c5fd;
+  --hl-type:     #67e8f9;
+  --hl-meta:     #a5b4fc;  /* distinct from keyword (was a clash) */
+  --hl-attr:     #7dd3fc;
+  --hl-tag:      #d8b4fe;
+  --hl-muted:    #9b948b;
+  --hl-comment:  #5eead4;
+  --hl-comment-bg: rgba(94, 234, 212, 0.10);
+}
+
+#_sd_rendered pre code .hljs-keyword,
+#_sd_rendered pre code .hljs-built_in.hljs-keyword,
+#_sd_rendered pre code .hljs-literal,
+#_sd_rendered pre code .hljs-selector-tag,
+#_sd_rendered pre code .hljs-doctag { color: var(--hl-keyword); }
+
+#_sd_rendered pre code .hljs-string,
+#_sd_rendered pre code .hljs-regexp,
+#_sd_rendered pre code .hljs-char.escape_,
+#_sd_rendered pre code .hljs-symbol,
+#_sd_rendered pre code .hljs-template-tag,
+#_sd_rendered pre code .hljs-quote { color: var(--hl-string); }
+
+#_sd_rendered pre code .hljs-number,
+#_sd_rendered pre code .hljs-bullet { color: var(--hl-number); }
+
+#_sd_rendered pre code .hljs-title,
+#_sd_rendered pre code .hljs-title.function_,
+#_sd_rendered pre code .hljs-section { color: var(--hl-function); font-weight: 600; }
+
+#_sd_rendered pre code .hljs-type,
+#_sd_rendered pre code .hljs-built_in,
+#_sd_rendered pre code .hljs-class .hljs-title,
+#_sd_rendered pre code .hljs-title.class_,
+#_sd_rendered pre code .hljs-params .hljs-keyword { color: var(--hl-type); }
+
+#_sd_rendered pre code .hljs-meta,
+#_sd_rendered pre code .hljs-meta .hljs-keyword,
+#_sd_rendered pre code .hljs-meta-keyword { color: var(--hl-meta); }
+
+#_sd_rendered pre code .hljs-attr,
+#_sd_rendered pre code .hljs-attribute,
+#_sd_rendered pre code .hljs-property,
+#_sd_rendered pre code .hljs-variable,
+#_sd_rendered pre code .hljs-template-variable { color: var(--hl-attr); }
+
+#_sd_rendered pre code .hljs-tag,
+#_sd_rendered pre code .hljs-name,
+#_sd_rendered pre code .hljs-selector-id,
+#_sd_rendered pre code .hljs-selector-class { color: var(--hl-tag); }
+
+#_sd_rendered pre code .hljs-punctuation,
+#_sd_rendered pre code .hljs-operator { color: var(--hl-muted); }
+
+#_sd_rendered pre code .hljs-deletion { color: #b91c1c; }
+#_sd_rendered pre code .hljs-addition { color: #15803d; }
+
+/* Comments: the prominent lane. Italic, full-contrast colour, faint tint, and
+   a hair of horizontal padding so a trailing `# note` reads as its own thing. */
+#_sd_rendered pre code .hljs-comment {
+  color: var(--hl-comment);
+  background: var(--hl-comment-bg);
+  font-style: italic;
+  border-radius: 3px;
+  padding: 0 0.25em;
+}
+
 /* ── Charts ── */
 .sdoc-chart {
   margin: 1.2em 0;

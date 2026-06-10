@@ -75,35 +75,4 @@ module.exports = function(harness) {
     assert.ok(out.includes('a,b\n1,2'));
     assert.ok(out.trimEnd().endsWith('```'));
   });
-
-  // ── wrapForDisplay / isWrappedFile ──────────────────────
-  // The shared "file -> renderable document" transform. Used by readContent
-  // (the URL-snapshot path) AND the bridge (the live-sync path) so a .csv /
-  // .mmd opened either way renders as its fenced block, not as raw text.
-  const { wrapForDisplay, isWrappedFile } = require('../cli/lib/cells-transclude');
-
-  test('isWrappedFile: csv / mmd / mermaid are wrapped types; md is not', () => {
-    assert.strictEqual(isWrappedFile('report.csv'), true);
-    assert.strictEqual(isWrappedFile('/a/b/REPORT.CSV'), true);
-    assert.strictEqual(isWrappedFile('graph.mmd'), true);
-    assert.strictEqual(isWrappedFile('graph.mermaid'), true);
-    assert.strictEqual(isWrappedFile('doc.md'), false);
-    assert.strictEqual(isWrappedFile(''), false);
-    assert.strictEqual(isWrappedFile(null), false);
-  });
-
-  test('wrapForDisplay: csv content lands inside a cells fence', () => {
-    const out = wrapForDisplay('a,b\n1,2\n', '/tmp/report.csv');
-    assert.ok(out.startsWith('```cells\nsdoc-cells: source=report.csv\n'));
-    assert.ok(out.includes('a,b\n1,2'));
-  });
-
-  test('wrapForDisplay: mermaid content lands inside a mermaid fence', () => {
-    const out = wrapForDisplay('graph TD\nA-->B\n', 'flow.mmd');
-    assert.strictEqual(out, '```mermaid\ngraph TD\nA-->B\n```\n');
-  });
-
-  test('wrapForDisplay: markdown passes through untouched', () => {
-    assert.strictEqual(wrapForDisplay('# hi\n', 'doc.md'), '# hi\n');
-  });
 };

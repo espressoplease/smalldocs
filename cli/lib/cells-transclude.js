@@ -86,29 +86,7 @@ function wrapCsvFile(csv, filename) {
     String(csv).replace(/\s+$/, '') + '\n```\n';
 }
 
-// A "wrapped" file is one whose renderable document is DERIVED from the file
-// (its contents inside a fenced block) rather than the file itself. The two
-// open paths (URL snapshot via readContent, live sync via the bridge) both
-// wrap these for display, and the bridge refuses to save the derived view
-// back - that would overwrite the .csv / .mmd with fence markup.
-function isWrappedFile(filePath) {
-  return /\.(csv|mmd|mermaid)$/i.test(String(filePath || ''));
-}
-
-// File contents -> renderable document. Wrapped types get their fence;
-// everything else (markdown) passes through untouched.
-function wrapForDisplay(raw, filePath) {
-  var name = String(filePath || '');
-  if (/\.(mmd|mermaid)$/i.test(name)) {
-    return '```mermaid\n' + String(raw).replace(/\s+$/, '') + '\n```\n';
-  }
-  if (/\.csv$/i.test(name)) return wrapCsvFile(raw, name);
-  return String(raw);
-}
-
 module.exports = {
   transcludeCells: transcludeCells,
   wrapCsvFile: wrapCsvFile,
-  isWrappedFile: isWrappedFile,
-  wrapForDisplay: wrapForDisplay,
 };

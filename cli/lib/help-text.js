@@ -2784,4 +2784,53 @@ COMMON QUESTIONS
      drop a \`.sdocsignore\` into the directory with the pattern.
 `;
 
-module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, CELLS_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };
+const CODE_HELP = `
+SDocs - Code (syntax highlighting)
+==================================
+Fenced code blocks are syntax-highlighted by language. Tag the fence with a
+language and the block is coloured in the browser; highlight.js is loaded from
+a CDN on first use, so a document with no code blocks pays nothing.
+
+BASIC SYNTAX
+  Tag the opening fence with a language name:
+
+  \`\`\`ruby
+  def greet(name)
+    # comments are styled to stand out, not fade away
+    puts "hello, #{name}"
+  end
+  \`\`\`
+
+  An untagged fence stays plain (no guessing). Blocks claimed by other
+  features - chart, mermaid, cells, form, math, slide - are never treated
+  as code.
+
+OPENING A SOURCE FILE
+  Point sdoc at a source file and it opens as a highlighted listing:
+
+    sdoc app.rb
+    sdoc server.js
+    sdoc main.go
+
+  The file travels in the URL like any document; nothing is uploaded. The
+  fence label is chosen from the extension (.rb -> ruby, .py -> python,
+  .ts -> typescript, and so on). Markdown and plain text open as documents,
+  not as code.
+
+COMMENTS
+  Comments are deliberately prominent - italic, full-contrast colour, a faint
+  tint - rather than the usual muted grey, so the human explanation in a
+  listing is the easiest part to read.
+
+STYLING
+  Token colours track the light/dark theme. The block background follows the
+  same control as other code blocks (Blocks / Code in the style panel).
+
+SUPPORTED LANGUAGES
+  The common set ships in the core bundle (javascript, typescript, python,
+  ruby, go, rust, java, c, cpp, csharp, php, bash, sql, yaml, json, xml,
+  css, and more). Less common languages are fetched on demand the first time
+  they appear. An unknown language label renders as plain text.
+`;
+
+module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, CELLS_HELP, CODE_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };

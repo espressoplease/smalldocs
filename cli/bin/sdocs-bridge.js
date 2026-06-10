@@ -26,7 +26,7 @@ const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
 const FormBlock = require('../shared/sdocs-form-block.js');
-const { isWrappedFile, wrapForDisplay } = require('../lib/cells-transclude');
+const { isWrappedFile, wrapForDisplay } = require('../lib/file-wrap');
 
 // ── Constants ─────────────────────────────────────────────
 
