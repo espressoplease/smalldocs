@@ -457,7 +457,8 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .tf-field textarea {
   width: 100%;
   font-family: var(--font);
-  font-size: var(--t-sm);
+  /* 16px minimum: anything smaller makes iOS Safari zoom in on focus. */
+  font-size: 1rem;
   color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--line-2);
