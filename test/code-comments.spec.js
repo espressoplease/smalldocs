@@ -47,9 +47,21 @@ async function openCode(page, lang, code) {
     window.SDocs.codeFocus.open(pre);
   }, { lang, code });
   await expect(page.locator('.sdoc-code-focus')).toBeVisible();
-  // Wait for the one-shot highlight upgrade to settle so its row rebuild can't
-  // land mid-interaction and move the hover affordance.
+  await settleHighlight(page);
+}
+
+// Wait for the one-shot highlight upgrade to settle so its row rebuild can't
+// land mid-interaction and move the hover affordance.
+async function settleHighlight(page) {
   await page.locator('.sdoc-cl-code .hljs-keyword').first().waitFor({ timeout: 5000 }).catch(function () {});
+}
+
+// Close and reopen the overlay over the same rendered code, settling highlight.
+async function reopen(page) {
+  await page.evaluate(() => window.SDocs.codeFocus.close());
+  await page.evaluate(() => window.SDocs.codeFocus.open(document.querySelector('#_sd_rendered pre')));
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  await settleHighlight(page);
 }
 
 async function enterCommentMode(page) {
@@ -63,10 +75,10 @@ async function enterCommentMode(page) {
 async function addNote(page, ln, text, grain) {
   if (grain) await page.locator('.sdoc-cc-grain [data-grain="' + grain + '"]').click();
   await page.locator('.sdoc-cl-row[data-ln="' + ln + '"] .sdoc-cl-code').hover();
-  // The + is a single element moved into the hovered row's gutter; in method
-  // grain it lands on the method header rather than the hovered line, so click
-  // it wherever it currently is.
-  await page.locator('.sdoc-cc-add').click();
+  // Line grain: each row owns its "+" in the gutter, so target that row's.
+  // Method grain: the single tall tab spanning the hovered method.
+  if (grain === 'method') await page.locator('.sdoc-cc-madd').click();
+  else await page.locator('.sdoc-cl-row[data-ln="' + ln + '"] .sdoc-cc-add').click();
   await page.locator('.sdoc-cc-composer .sdoc-cc-input').fill(text);
   await page.locator('.sdoc-cc-composer [data-cc="save"]').click();
 }
@@ -114,6 +126,23 @@ test('method hover highlights the whole method range', async ({ page }) => {
   await expect(page.locator('.sdoc-cl-row.sdoc-cc-mhl').first()).toBeVisible();
   const n = await page.locator('.sdoc-cl-row.sdoc-cc-mhl').count();
   expect(n).toBeGreaterThan(1);
+});
+
+test('the method add affordance spans the method height and leaves a stripe', async ({ page }) => {
+  await openCode(page, 'ruby', RUBY);
+  await enterCommentMode(page);
+  await page.locator('.sdoc-cc-grain [data-grain="method"]').click();
+  await page.locator('.sdoc-cl-row[data-ln="10"] .sdoc-cl-code').hover(); // inside def fetch
+  const tab = page.locator('.sdoc-cc-madd.show');
+  await expect(tab).toBeVisible();
+  const box = await tab.boundingBox();
+  const rowBox = await page.locator('.sdoc-cl-row[data-ln="10"]').boundingBox();
+  expect(box.height).toBeGreaterThan(rowBox.height * 2); // spans multiple lines
+  // save a method note, then a persistent stripe marks the whole method
+  await page.locator('.sdoc-cc-madd').click();
+  await page.locator('.sdoc-cc-composer .sdoc-cc-input').fill('refactor');
+  await page.locator('.sdoc-cc-composer [data-cc="save"]').click();
+  expect(await page.locator('.sdoc-cl-row.sdoc-cc-method-marked').count()).toBeGreaterThan(2);
 });
 
 test('edits a comment in place', async ({ page }) => {
@@ -164,12 +193,9 @@ test('notes persist across a close and reopen of the same file', async ({ page }
   await openCode(page, 'ruby', RUBY);
   await enterCommentMode(page);
   await addNote(page, 1, 'sticky note');
+  await expect(page.locator('.sdoc-cc-count')).toHaveText('1 note');
   // close, then reopen the same content (storage is content-keyed)
-  await page.evaluate(() => window.SDocs.codeFocus.close());
-  await page.evaluate(() => {
-    var pre = document.querySelector('#_sd_rendered pre');
-    window.SDocs.codeFocus.open(pre);
-  });
+  await reopen(page);
   await page.locator('.sdoc-code-focus [data-act="comment"]').click();
   await expect(page.locator('.sdoc-cc-thread[data-ln="1"] .sdoc-cc-card-body')).toHaveText('sticky note');
 });
@@ -179,11 +205,7 @@ test('the granularity choice is remembered across reopen', async ({ page }) => {
   await enterCommentMode(page);
   await page.locator('.sdoc-cc-grain [data-grain="method"]').click();
   await expect(page.locator('.sdoc-cc-grain [data-grain="method"]')).toHaveClass(/active/);
-  await page.evaluate(() => window.SDocs.codeFocus.close());
-  await page.evaluate(() => {
-    var pre = document.querySelector('#_sd_rendered pre');
-    window.SDocs.codeFocus.open(pre);
-  });
+  await reopen(page);
   await page.locator('.sdoc-code-focus [data-act="comment"]').click();
   await expect(page.locator('.sdoc-cc-grain [data-grain="method"]')).toHaveClass(/active/);
 });
