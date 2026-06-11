@@ -47,6 +47,9 @@ The two never share a `package.json` again. See "Published npm tarball" below fo
   - `sdocs-cells-select.js` - cell + range selection and keyboard navigation for a cells grid
   - `sdocs-cells-focus.js` - fullscreen "focus" overlay for a sheet (name box, formula bar, selection stats footer); hosts the editor
   - `sdocs-cells-edit.js` - client-only in-cell editing for the fullscreen view (type/dblclick to edit, nav keys, undo/redo, delete-clear, TSV/CSV paste); mutates the shared model, never the document
+  - `sdocs-code-focus.js` - fullscreen view for a code block / whole opened file: line-number gutter, soft wrap, language-aware hierarchical folding (collapse-all master + per-row chevrons), and comment mode. Hosts the comment UI directly (composer, inline thread cards, gutter markers, Lines/Methods granularity toggle, note navigation)
+  - `sdocs-code-comments.js` - pure data model for code comments (line- or method-anchored), UMD shared with tests: add/remove/update, colour + text sanitisation, `resolveLine()` re-anchoring after the file shifts, JSON serialize/parse for localStorage
+  - `sdocs-code-lang/<lang>.js` - per-language structural-keyword tables, lazy-loaded by file extension; drive the collapsed-class outline (a `structural` line survives the fold, a comment or stray statement does not)
   - `sdocs-app.js` - render orchestration, hash encode/decode, Brotli compression, syncAll, mode switching, drag/drop, file info card, scroll hints, init
   - `sdocs-info.js` - info panel, feedback link, notification dot
 - **Tests**: `node test/run.js` - red/green, no test framework, uses Node `assert` + `http`
@@ -60,11 +63,14 @@ The two never share a `package.json` again. See "Published npm tarball" below fo
   - `test/test-http.js` - HTTP server tests (async); includes the per-route asset-versioning assertions
   - `test/test-cache-bust.js` - two-server check that asset URLs change when public/ contents change
   - `test/test-comments.js` - comment data-model + YAML/footnote round-trip + sanitisation tests
+  - `test/test-code-comments.js` - code-comment model: add/remove/update, sanitisation, anchor re-resolution after drift, localStorage JSON round-trip
+  - `test/test-code-structural.js` - per-language structural-keyword tables (keep vs fold sample lines)
   - `test/test-mermaid.js` - directive stripping + marked output shape + hardening assertions
   - `test/test-cells-xlsx.js` - .xlsx writer tests (ZIP structure, worksheet XML, formula translation, number formats)
 - **Playwright tests**: `npx playwright test test/write-mode.spec.js` - write mode editor tests
   - `test/write-mode.spec.js` - 42 tests for toolbar actions, toggles, shortcuts, block exits
   - `test/comment-mode.spec.js` - comment-mode integration: anchor resolution, composer, navigation
+  - `test/code-comments.spec.js` - code-comment mode in the fullscreen view: add line/method notes, edit, delete, navigate, fold interaction, localStorage persistence, orphan handling
   - `test/footnote-input.spec.js` - parsing markdown-footnote-format comment input
   - `test/xss.spec.js` - script / event-handler / iframe injection through markdown
   - `test/mermaid.spec.js` - real-browser Mermaid render + XSS payloads + DoS cap (CDN-dependent)
