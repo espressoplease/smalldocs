@@ -42,6 +42,7 @@ function buildRouter() {
 
   // Help-text verbs print and exit.
   r.register('help',     { handler: () => { console.log(helpText.HELP);          process.exit(0); } });
+  r.register('version',  { handler: () => { console.log(constants.VERSION);      process.exit(0); } });
   r.register('schema',   { handler: () => { console.log(helpText.SCHEMA);        process.exit(0); } });
   r.register('charts',   { handler: () => { console.log(helpText.CHARTS_HELP);   process.exit(0); } });
   r.register('diagrams', { handler: () => { console.log(helpText.DIAGRAMS_HELP); process.exit(0); } });
