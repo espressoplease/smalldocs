@@ -235,6 +235,28 @@ test('navigation walks between notes and flashes the target', async ({ page }) =
   await expect(page.locator('.sdoc-cc-card.sdoc-cc-flash')).toHaveCount(1);
 });
 
+test('a header copy button copies that section: a method copies itself, a class copies all of it', async ({ page }) => {
+  await openCode(page, 'ruby', RUBY);
+  await page.evaluate(() => {
+    window.__copied = [];
+    navigator.clipboard.writeText = function (t) { window.__copied.push(t); return Promise.resolve(); };
+  });
+  // def fetch header (line 8): copies just the method
+  await page.locator('.sdoc-cl-row[data-ln="8"] .sdoc-cl-code').hover();
+  await page.locator('.sdoc-cl-row[data-ln="8"] .sdoc-cl-copy').click();
+  let copied = await page.evaluate(() => window.__copied[window.__copied.length - 1]);
+  expect(copied).toContain('def fetch(symbol)');
+  expect(copied).not.toContain('class PriceCache');
+  expect(copied).not.toContain('def initialize');
+  // class header (line 0): copies the whole class including every method
+  await page.locator('.sdoc-cl-row[data-ln="0"] .sdoc-cl-code').hover();
+  await page.locator('.sdoc-cl-row[data-ln="0"] .sdoc-cl-copy').click();
+  copied = await page.evaluate(() => window.__copied[window.__copied.length - 1]);
+  expect(copied).toContain('class PriceCache');
+  expect(copied).toContain('def initialize');
+  expect(copied).toContain('def fetch(symbol)');
+});
+
 test('a note whose anchor line is gone is parked in the orphan list', async ({ page }) => {
   await openCode(page, 'ruby', RUBY);
   // Seed storage with a note whose anchorText is absent from the source, under

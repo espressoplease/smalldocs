@@ -233,6 +233,22 @@
     '.sdoc-code-focus-lines:hover button.sdoc-cl-fold,',
     '.sdoc-cl-row.collapsed button.sdoc-cl-fold { opacity: 1; }',
     'button.sdoc-cl-fold:hover { color: var(--sdoc-focus-fg, #1c1917); }',
+    // Copy-section button on a header line, after its code. Mirrors the markdown
+    // heading copy: faint until the row is hovered, a tick on success.
+    '.sdoc-cl-copy {',
+    '  all: unset; cursor: pointer; vertical-align: middle;',
+    '  display: inline-flex; align-items: center; margin-left: 10px;',
+    '  padding: 0 4px; border-radius: 4px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
+    '  opacity: 0; pointer-events: none;',
+    '  transition: opacity .12s, background .12s, color .12s;',
+    '}',
+    '.sdoc-cl-row:hover .sdoc-cl-copy { opacity: .55; pointer-events: auto; }',
+    '.sdoc-cl-copy:hover {',
+    '  opacity: 1; color: var(--sdoc-focus-fg, #1c1917);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
+    '}',
+    '.sdoc-cl-copy svg { display: block; width: 12px; height: 12px; }',
     '.sdoc-cl-num {',
     '  flex: 0 0 auto; width: var(--sdoc-ln-w); box-sizing: content-box;',
     '  padding-right: 16px; padding-left: 4px; text-align: right;',
@@ -728,6 +744,28 @@
     return s;
   }
 
+  // The source lines of the section a header owns: the header through its fold
+  // end (a container pulls in everything nested; a leaf just its own body),
+  // trailing blank lines trimmed.
+  function sectionText(h) {
+    if (!folds || !folds[h]) return '';
+    var end = folds[h].end;
+    return srcLines.slice(h, end + 1).join('\n').replace(/\s+$/, '');
+  }
+
+  function onCopyClick(e) {
+    var btn = e.target.closest('.sdoc-cl-copy');
+    if (!btn) return;
+    e.stopPropagation();
+    var h = parseInt(btn.getAttribute('data-copy-h'), 10);
+    if (isNaN(h) || !navigator.clipboard) return;
+    navigator.clipboard.writeText(sectionText(h) + '\n').then(function () {
+      var prev = btn.innerHTML;
+      btn.innerHTML = CHECK_ICON;
+      setTimeout(function () { if (btn) btn.innerHTML = prev; }, 1200);
+    });
+  }
+
   // Collapse every block to the outline, or open everything. The button's two
   // states map onto these; individual chevrons still work on top afterwards.
   function setAllCollapsed(on) {
@@ -771,12 +809,18 @@
       var fold = (f && f.header)
         ? '<button class="sdoc-cl-fold" type="button" tabindex="-1" data-h="' + i + '" aria-label="Fold or unfold" aria-expanded="true">' + CHEVRON + '</button>'
         : '<span class="sdoc-cl-fold"></span>';
+      // A header row carries a copy-section button, like the markdown heading
+      // copy: a container (class) copies itself + everything nested; a leaf
+      // (method) copies just itself. The fold range gives exactly that span.
+      var copy = (f && f.header)
+        ? '<button class="sdoc-cl-copy" type="button" tabindex="-1" data-copy-h="' + i + '" aria-label="Copy section" title="Copy this section">' + COPY_ICON + '</button>'
+        : '';
       html += '<div class="sdoc-cl-row" data-ln="' + i + '">'
         + '<span class="sdoc-cl-gutter">'
         + '<button class="sdoc-cc-add" type="button" tabindex="-1" data-ln="' + i + '" aria-label="Add a comment" title="Add a comment">' + PLUS_ICON + '</button>'
         + fold
         + '<span class="sdoc-cl-num">' + (i + 1) + '</span></span>'
-        + '<span class="sdoc-cl-code">' + lineParts[i] + '</span></div>';
+        + '<span class="sdoc-cl-code">' + lineParts[i] + copy + '</span></div>';
     }
     // A row rebuild (the one-shot highlight upgrade) wipes the listing. Preserve
     // an open composer across it so a note half-typed in the first second isn't
@@ -902,6 +946,7 @@
     linesEl = document.createElement('div');
     linesEl.className = 'sdoc-code-focus-lines';
     linesEl.addEventListener('click', onFoldClick);
+    linesEl.addEventListener('click', onCopyClick);
     linesEl.addEventListener('click', onCommentClick);
     linesEl.addEventListener('mouseover', onLinesHover);
     linesEl.addEventListener('keydown', onComposerKey);
