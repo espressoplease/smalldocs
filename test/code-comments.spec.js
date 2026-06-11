@@ -102,19 +102,18 @@ test('adds a line comment with a card, marker, and count', async ({ page }) => {
   await addNote(page, 1, 'magic number?');
   const card = page.locator('.sdoc-cc-thread[data-ln="1"] .sdoc-cc-card-body');
   await expect(card).toHaveText('magic number?');
-  await expect(page.locator('.sdoc-cc-thread[data-ln="1"] .sdoc-cc-card-kind')).toHaveText('line');
   await expect(page.locator('.sdoc-cl-row[data-ln="1"].sdoc-cc-has-comment')).toHaveCount(1);
   await expect(page.locator('.sdoc-cc-count')).toHaveText('1 note');
 });
 
-test('adds a method comment that anchors to the signature and badges as method', async ({ page }) => {
+test('adds a method comment that anchors to the signature', async ({ page }) => {
   await openCode(page, 'ruby', RUBY);
   await enterCommentMode(page);
   // hover a line in the body of `def fetch` (line index 9), method grain anchors
   // the note to the signature line (index 8).
   await addNote(page, 9, 'extract a fetcher', 'method');
   await expect(page.locator('.sdoc-cc-thread-method[data-ln="8"]')).toHaveCount(1);
-  await expect(page.locator('.sdoc-cc-thread[data-ln="8"] .sdoc-cc-card-kind')).toHaveText('method');
+  await expect(page.locator('.sdoc-cc-thread[data-ln="8"] .sdoc-cc-card-body')).toHaveText('extract a fetcher');
 });
 
 test('method hover highlights the whole method range', async ({ page }) => {
@@ -274,6 +273,30 @@ test('copy-with-comments emits the code plus a notes list', async ({ page }) => 
   expect(copied).toContain('class PriceCache');
   expect(copied).toContain('Notes:');
   expect(copied).toContain('magic number?');
+});
+
+test('a note gives its parent headers a copy-with-comments button', async ({ page }) => {
+  await openCode(page, 'ruby', RUBY);
+  await enterCommentMode(page);
+  // no notes yet, so no copy-with-comments buttons
+  await expect(page.locator('.sdoc-cl-copyc')).toHaveCount(0);
+  // a note inside def fetch (line 9) marks both the method header (8) and the class (0)
+  await addNote(page, 9, 'memoise?');
+  await expect(page.locator('.sdoc-cl-row[data-ln="0"] .sdoc-cl-copyc')).toHaveCount(1);
+  await expect(page.locator('.sdoc-cl-row[data-ln="8"] .sdoc-cl-copyc')).toHaveCount(1);
+  // def initialize (line 3) has no note, so no button there
+  await expect(page.locator('.sdoc-cl-row[data-ln="3"] .sdoc-cl-copyc')).toHaveCount(0);
+  // clicking the method's copies just that section with its note
+  await page.evaluate(() => {
+    window.__copied = [];
+    navigator.clipboard.writeText = function (t) { window.__copied.push(t); return Promise.resolve(); };
+  });
+  await page.locator('.sdoc-cl-row[data-ln="8"] .sdoc-cl-copyc').click();
+  const copied = await page.evaluate(() => window.__copied[window.__copied.length - 1]);
+  expect(copied).toContain('def fetch(symbol)');
+  expect(copied).toContain('Notes:');
+  expect(copied).toContain('memoise?');
+  expect(copied).not.toContain('def initialize');
 });
 
 test('a note whose anchor line is gone is parked in the orphan list', async ({ page }) => {
