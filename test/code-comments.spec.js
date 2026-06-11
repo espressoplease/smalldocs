@@ -257,6 +257,25 @@ test('a header copy button copies that section: a method copies itself, a class 
   expect(copied).toContain('def fetch(symbol)');
 });
 
+test('copy-with-comments emits the code plus a notes list', async ({ page }) => {
+  await openCode(page, 'ruby', RUBY);
+  await enterCommentMode(page);
+  // hidden until there are notes
+  await expect(page.locator('.sdoc-cc-copyc')).toBeHidden();
+  await addNote(page, 1, 'magic number?');
+  await page.evaluate(() => {
+    window.__copied = [];
+    navigator.clipboard.writeText = function (t) { window.__copied.push(t); return Promise.resolve(); };
+  });
+  await expect(page.locator('.sdoc-cc-copyc')).toBeVisible();
+  await page.locator('.sdoc-cc-copyc').click();
+  const copied = await page.evaluate(() => window.__copied[window.__copied.length - 1]);
+  expect(copied).toContain('```ruby');
+  expect(copied).toContain('class PriceCache');
+  expect(copied).toContain('Notes:');
+  expect(copied).toContain('magic number?');
+});
+
 test('a note whose anchor line is gone is parked in the orphan list', async ({ page }) => {
   await openCode(page, 'ruby', RUBY);
   // Seed storage with a note whose anchorText is absent from the source, under
