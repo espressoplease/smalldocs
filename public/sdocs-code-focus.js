@@ -536,6 +536,7 @@
   var grain = 'line';       // current granularity
   var storeKey = null;      // localStorage key for the current file
   var navId = null;         // id of the comment the nav cursor last landed on
+  var currentLang = '';     // language label, for the copy-with-comments fence
 
   function prefGrain() {
     try { var g = localStorage.getItem(GRAIN_KEY); return g === 'method' ? 'method' : 'line'; }
@@ -870,6 +871,7 @@
     // signatures. Async and best-effort: until it lands (or if absent) the
     // outline keeps every member. The token guards against a close/reopen race.
     var langMatch = (srcCode.className || '').match(/language-([\w+#-]+)/i);
+    currentLang = langMatch ? langMatch[1] : '';
     if (langMatch) {
       var myToken = openToken;
       loadStructural(langMatch[1]).then(function (defn) {
@@ -937,7 +939,10 @@
       +   '<span class="sdoc-cc-count"></span>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="cc-next" title="Next note" aria-label="Next note">' + lucide('<polyline points="9 18 15 12 9 6"/>', 13) + '</button>'
       + '</span>'
-      + '<span class="sdoc-cc-subbar-hint">Hover a line, click the + to add a note</span>';
+      + '<span class="sdoc-cc-subbar-hint">Hover a line, click the + to add a note</span>'
+      + '<button type="button" class="sdoc-code-focus-action sdoc-cc-copyc" data-act="cc-copy" title="Copy the code with its comments" aria-label="Copy with comments" style="display:none">'
+      +   COPY_ICON + '<span class="sdoc-code-focus-action-label">with comments</span>'
+      + '</button>';
 
     var stage = document.createElement('div');
     stage.className = 'sdoc-code-focus-stage';
@@ -1064,6 +1069,7 @@
     if (act === 'comment') { setCommenting(!commenting); return; }
     if (act === 'cc-prev') { navComment(-1); return; }
     if (act === 'cc-next') { navComment(1); return; }
+    if (act === 'cc-copy') { copyWithComments(btn); return; }
     if (act === 'wrap') {
       if (!docEl) return;
       var on = docEl.classList.toggle('wrapped');
@@ -1524,6 +1530,26 @@
     }
     var hint = modal.querySelector('.sdoc-cc-subbar-hint');
     if (hint) hint.style.display = count > 0 ? 'none' : '';
+    var copyc = modal.querySelector('.sdoc-cc-copyc');
+    if (copyc) copyc.style.display = count > 0 ? '' : 'none';
+  }
+
+  // Copy the whole source plus its notes as one annotated block (see the model's
+  // serializeAnnotations). The code analogue of the markdown copy-with-comments.
+  function fileNameForCopy() {
+    var fullPath = S.localMeta && S.localMeta.fullPath;
+    return (S.currentMeta && S.currentMeta.file) || (fullPath ? basename(fullPath) : '') || 'code';
+  }
+  function copyWithComments(btn) {
+    if (!CC || !navigator.clipboard) return;
+    var text = CC.serializeAnnotations(comments, srcLines, { fileName: fileNameForCopy(), lang: currentLang });
+    navigator.clipboard.writeText(text).then(function () {
+      var label = btn && btn.querySelector('.sdoc-code-focus-action-label');
+      if (!label) return;
+      var prev = label.textContent;
+      label.textContent = 'Copied';
+      setTimeout(function () { if (label) label.textContent = prev; }, 1500);
+    });
   }
 
   S.codeFocus = { open: open, close: close };
