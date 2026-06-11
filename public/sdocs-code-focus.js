@@ -382,7 +382,10 @@
     + '<path d="m16 16-2 2 2 2"/><path d="M3 18h7"/>');
   var X_ICON = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
   var CHEVRON = lucide('<polyline points="9 18 15 12 9 6"/>', 12);
-  var COMMENT_ICON = lucide('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>');
+  // Same speech-bubble-with-dots as the main toolbar comment button
+  // (#_sd_btn-comment in index.html), so the icon reads the same everywhere.
+  var COMMENT_ICON = lucide('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'
+    + '<path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/>');
   var TRASH_ICON = lucide('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', 13);
   var CHECK_ICON = lucide('<path d="M20 6 9 17l-5-5"/>', 13);
   var PENCIL_ICON = lucide('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 13);
@@ -803,6 +806,9 @@
       +   (name ? '<span class="sdoc-code-focus-name"></span>' : '')
       + '</span>'
       + '<div class="sdoc-code-focus-actions">'
+      +   '<button type="button" class="sdoc-code-focus-action" data-act="copy" title="Copy code" aria-label="Copy code">'
+      +     COPY_ICON + '<span class="sdoc-code-focus-action-label">Copy</span>'
+      +   '</button>'
       +   '<span class="sdoc-cc-nav" style="display:none">'
       +     '<button type="button" class="sdoc-code-focus-btn" data-act="cc-prev" title="Previous note" aria-label="Previous note">' + lucide('<polyline points="15 18 9 12 15 6"/>', 13) + '</button>'
       +     '<span class="sdoc-cc-count"></span>'
@@ -813,10 +819,6 @@
       +     '<button type="button" data-grain="method" title="Comment on whole methods">Methods</button>'
       +   '</span>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="comment" title="Comment mode" aria-label="Comment mode" aria-pressed="false">' + COMMENT_ICON + '</button>'
-      +   '<span class="sdoc-code-focus-sep" aria-hidden="true"></span>'
-      +   '<button type="button" class="sdoc-code-focus-action" data-act="copy" title="Copy code" aria-label="Copy code">'
-      +     COPY_ICON + '<span class="sdoc-code-focus-action-label">Copy</span>'
-      +   '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="foldall" title="Collapse all" aria-label="Collapse all">' + FOLDALL_ICONS + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn active" data-act="wrap" title="Toggle soft wrap" aria-label="Toggle soft wrap" aria-pressed="true">' + WRAP_ICON + '</button>'
       +   '<span class="sdoc-code-focus-sep" aria-hidden="true"></span>'
