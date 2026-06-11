@@ -180,9 +180,10 @@
     'button.sdoc-cl-fold:hover { color: var(--sdoc-focus-fg, #1c1917); }',
     // Master fold control: a small labelled button at the top of the gutter
     // column that folds or unfolds the whole file. A hairline under it reads as
-    // the header of the listing rather than a glyph floating in space. Its
-    // chevron points down when everything is open, right when folded, like the
-    // per-row chevrons. Same action as the toolbar button.
+    // the header of the listing rather than a glyph floating in space. It uses
+    // the same fold/unfold arrows as the toolbar button (and the markdown
+    // section fold button), so the icon language stays consistent. Same action
+    // as the toolbar button.
     '.sdoc-cl-master {',
     '  position: sticky; top: 0; z-index: 3;',
     '  display: flex; align-items: center; height: 30px; margin-bottom: 6px;',
@@ -205,11 +206,11 @@
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
     '.sdoc-cl-master-btn:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
-    '.sdoc-cl-master-chev {',
-    '  display: block; flex: 0 0 auto;',
-    '  transform: rotate(90deg); transition: transform .15s;',
-    '}',
-    '.sdoc-cl-master.collapsed .sdoc-cl-master-chev { transform: rotate(0deg); }',
+    '.sdoc-cl-master-btn .sdoc-icon-unfold,',
+    '.sdoc-cl-master-btn .sdoc-icon-fold { flex: 0 0 auto; }',
+    '.sdoc-cl-master-btn .sdoc-icon-fold { display: none; }',
+    '.sdoc-cl-master-btn.is-open .sdoc-icon-unfold { display: none; }',
+    '.sdoc-cl-master-btn.is-open .sdoc-icon-fold { display: inline-flex; }',
     '.sdoc-cl-num {',
     '  flex: 0 0 auto; width: var(--sdoc-ln-w); box-sizing: content-box;',
     '  padding-right: 16px; padding-left: 4px; text-align: right;',
@@ -263,17 +264,18 @@
     + '<path d="m16 16-2 2 2 2"/><path d="M3 18h7"/>');
   var X_ICON = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
   var CHEVRON = lucide('<polyline points="9 18 15 12 9 6"/>', 12);
-  var MASTER_CHEVRON = '<svg class="sdoc-cl-master-chev" width="12" height="12" '
-    + 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" '
-    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-    + '<polyline points="9 18 15 12 9 6"/></svg>';
   // Two icons, switched by the button's .is-open class: outward arrows mean
   // "expand all" (shown when something is collapsed), inward arrows mean
-  // "collapse all" (shown when everything is open). Mirrors the markdown
-  // section fold button in the main toolbar.
-  var FOLDALL_ICONS =
-    '<svg class="sdoc-icon-unfold" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6"/><path d="M12 8V2"/><path d="M4 12H2"/><path d="M10 12H8"/><path d="M16 12h-2"/><path d="M22 12h-2"/><path d="m15 19-3 3-3-3"/><path d="m15 5-3-3-3 3"/></svg>'
-    + '<svg class="sdoc-icon-fold" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6"/><path d="M12 8V2"/><path d="M4 12H2"/><path d="M10 12H8"/><path d="M16 12h-2"/><path d="M22 12h-2"/><path d="m15 19-3-3-3 3"/><path d="m15 5-3 3-3-3"/></svg>';
+  // "collapse all" (shown when everything is open). This is the same fold
+  // glyph the markdown section fold button uses in the main toolbar, so the
+  // icon language stays consistent across the site. Both the toolbar button
+  // and the master gutter control reuse it via foldIcons(size).
+  function foldIcons(size) {
+    var s = size || 14;
+    return '<svg class="sdoc-icon-unfold" width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6"/><path d="M12 8V2"/><path d="M4 12H2"/><path d="M10 12H8"/><path d="M16 12h-2"/><path d="M22 12h-2"/><path d="m15 19-3 3-3-3"/><path d="m15 5-3-3-3 3"/></svg>'
+      + '<svg class="sdoc-icon-fold" width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6"/><path d="M12 8V2"/><path d="M4 12H2"/><path d="M10 12H8"/><path d="M16 12h-2"/><path d="M22 12h-2"/><path d="m15 19-3-3-3 3"/><path d="m15 5-3 3-3-3"/></svg>';
+  }
+  var FOLDALL_ICONS = foldIcons(14);
 
   function basename(p) { return String(p || '').split(/[\\/]/).pop(); }
   function isTransparent(c) {
@@ -536,11 +538,14 @@
       btn.setAttribute('title', label);
     }
     if (masterEl) {
-      masterEl.classList.toggle('collapsed', !allOpen);
       var mbtn = masterEl.querySelector('.sdoc-cl-master-btn');
       var mlabel = masterEl.querySelector('.sdoc-cl-master-label');
       if (mlabel) mlabel.textContent = label;
-      if (mbtn) { mbtn.setAttribute('aria-label', label); mbtn.setAttribute('title', label); }
+      if (mbtn) {
+        mbtn.classList.toggle('is-open', allOpen);
+        mbtn.setAttribute('aria-label', label);
+        mbtn.setAttribute('title', label);
+      }
     }
   }
 
@@ -638,8 +643,8 @@
     docEl.className = 'sdoc-code-focus-doc wrapped'; // wrap on by default
     masterEl = document.createElement('div');
     masterEl.className = 'sdoc-cl-master';
-    masterEl.innerHTML = '<button type="button" class="sdoc-cl-master-btn" '
-      + 'aria-label="Collapse all" title="Collapse all">' + MASTER_CHEVRON
+    masterEl.innerHTML = '<button type="button" class="sdoc-cl-master-btn is-open" '
+      + 'aria-label="Collapse all" title="Collapse all">' + foldIcons(13)
       + '<span class="sdoc-cl-master-label">Collapse all</span></button>';
     masterEl.addEventListener('click', function () { toggleAll(); });
     linesEl = document.createElement('div');
