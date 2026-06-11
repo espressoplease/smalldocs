@@ -1,5 +1,11 @@
 [
   {
+    "id": 5,
+    "date": "2026-06-12",
+    "title": "SDocs is now SmallDocs, and sdoc bridge is here",
+    "link": "https://smalldocs.org/blogs/new-home"
+  },
+  {
     "id": 4,
     "date": "2026-06-02",
     "title": "Sheets: spreadsheets with live formulas in markdown",
