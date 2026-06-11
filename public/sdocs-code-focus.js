@@ -240,7 +240,125 @@
     '  .sdoc-code-focus-brand-full { display: none; }',
     '  .sdoc-code-focus-brand-short { display: inline; }',
     '}',
-    'body.sdoc-code-focus-open { overflow: hidden; }'
+    'body.sdoc-code-focus-open { overflow: hidden; }',
+
+    // ── Comment mode ──────────────────────────────────────────────────────
+    // Toolbar comment toggle: a dot marks it when the file already has notes;
+    // the active state tints it like the wrap toggle.
+    '.sdoc-code-focus-btn[data-act="comment"] { position: relative; }',
+    '.sdoc-code-focus-btn[data-act="comment"].active {',
+    '  background: color-mix(in oklab, #3B82F6 16%, transparent); color: #3B82F6;',
+    '}',
+    '.sdoc-code-focus-btn[data-act="comment"].has-notes::after {',
+    '  content: ""; position: absolute; top: 4px; right: 4px;',
+    '  width: 5px; height: 5px; border-radius: 50%; background: #3B82F6;',
+    '}',
+    // Granularity segmented control + note counter, shown only in comment mode.
+    '.sdoc-cc-grain {',
+    '  display: inline-flex; align-items: center; border-radius: 6px;',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 8%, transparent);',
+    '  padding: 2px; gap: 2px; margin-right: 2px;',
+    '}',
+    '.sdoc-cc-grain button {',
+    '  all: unset; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 500;',
+    '  padding: 3px 9px; border-radius: 4px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 62%, transparent);',
+    '  transition: background .12s, color .12s;',
+    '}',
+    '.sdoc-cc-grain button:hover { color: var(--sdoc-focus-fg, #1c1917); }',
+    '.sdoc-cc-grain button.active {',
+    '  background: var(--sdoc-focus-bg, #f4f1ed); color: #3B82F6;',
+    '  box-shadow: 0 1px 2px rgba(0,0,0,.08);',
+    '}',
+    '.sdoc-cc-nav { display: inline-flex; align-items: center; gap: 1px; margin-right: 2px; }',
+    '.sdoc-cc-count {',
+    '  font-size: 11.5px; font-weight: 500; min-width: 44px; text-align: center;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 62%, transparent);',
+    '}',
+    // The "+" add affordance lives in a reserved strip at the gutter's left,
+    // present only in comment mode so line numbers stay aligned. A single button
+    // is moved into the hovered row, so only that row shows it.
+    '.sdoc-code-focus.sdoc-cc-on .sdoc-cl-gutter { padding-left: 20px; }',
+    '.sdoc-cc-add {',
+    '  all: unset; box-sizing: border-box; cursor: pointer;',
+    '  position: absolute; left: 0; top: 0; width: 18px; height: 1.65em;',
+    '  display: inline-flex; align-items: center; justify-content: center;',
+    '  border-radius: 4px; color: #fff; background: #3B82F6;',
+    '  opacity: 0; transform: scale(.8); transition: opacity .1s, transform .1s;',
+    '}',
+    '.sdoc-cl-row:hover .sdoc-cc-add { opacity: 1; transform: scale(1); }',
+    '.sdoc-cc-add svg { display: block; width: 13px; height: 13px; }',
+    // A line that carries comments gets a small accent dot in its number cell.
+    '.sdoc-cl-row.sdoc-cc-has-comment .sdoc-cl-num { position: relative; }',
+    '.sdoc-cl-row.sdoc-cc-has-comment .sdoc-cl-num::before {',
+    '  content: ""; position: absolute; left: 2px; top: 50%; margin-top: -2px;',
+    '  width: 4px; height: 4px; border-radius: 50%;',
+    '  background: var(--sdoc-cc-marker, #3B82F6);',
+    '}',
+    // Method highlight while hovering / composing / navigating a method comment.
+    '.sdoc-cl-row.sdoc-cc-mhl {',
+    '  background: color-mix(in oklab, #3B82F6 9%, transparent);',
+    '  box-shadow: inset 2px 0 #3B82F6;',
+    '}',
+    // Thread rows: a comment card sitting in its own row beneath the anchor.
+    '.sdoc-cc-thread {',
+    '  display: block; padding: 4px 16px 6px;',
+    '  padding-left: calc(var(--sdoc-ln-w) + 40px);',
+    '}',
+    '.sdoc-code-focus.sdoc-cc-on .sdoc-cc-thread { padding-left: calc(var(--sdoc-ln-w) + 60px); }',
+    '.sdoc-cc-card {',
+    '  --sdoc-cc-color: #ffbb00;',
+    '  border-left: 3px solid var(--sdoc-cc-color);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 5%, transparent);',
+    '  border-radius: 0 6px 6px 0; padding: 7px 10px; max-width: 560px;',
+    '  font-family: ui-sans-serif, system-ui, sans-serif;',
+    '}',
+    '.sdoc-cc-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }',
+    '.sdoc-cc-card-author { font-size: 12px; font-weight: 600; color: var(--sdoc-focus-fg, #1c1917); }',
+    '.sdoc-cc-card-kind {',
+    '  font-size: 10px; text-transform: uppercase; letter-spacing: .04em;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 45%, transparent);',
+    '  border: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 20%, transparent);',
+    '  border-radius: 3px; padding: 0 4px;',
+    '}',
+    '.sdoc-cc-card-actions { margin-left: auto; display: inline-flex; gap: 2px; }',
+    '.sdoc-cc-iconbtn {',
+    '  all: unset; cursor: pointer; padding: 3px; border-radius: 4px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 55%, transparent);',
+    '  display: inline-flex; transition: background .12s, color .12s;',
+    '}',
+    '.sdoc-cc-iconbtn:hover {',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '}',
+    '.sdoc-cc-iconbtn svg { display: block; }',
+    '.sdoc-cc-card-body {',
+    '  font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 88%, transparent);',
+    '}',
+    // Composer: textarea + save / cancel.
+    '.sdoc-cc-card-edit { display: flex; align-items: flex-start; gap: 6px; }',
+    '.sdoc-cc-input {',
+    '  flex: 1 1 auto; min-width: 0; resize: none; overflow: hidden;',
+    '  font: inherit; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 13px;',
+    '  line-height: 1.5; border: none; background: transparent; outline: none;',
+    '  color: var(--sdoc-focus-fg, #1c1917); padding: 0;',
+    '}',
+    '.sdoc-cc-card-edit-actions { display: inline-flex; gap: 2px; flex: 0 0 auto; }',
+    '.sdoc-cc-flash { animation: sdoc-cc-pulse .9s ease-out; }',
+    '@keyframes sdoc-cc-pulse {',
+    '  0% { background: color-mix(in oklab, #3B82F6 32%, transparent); }',
+    '  100% { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 5%, transparent); }',
+    '}',
+    // Orphaned comments whose anchor line is gone, parked at the foot.
+    '.sdoc-cc-orphans { padding: 16px; margin-top: 12px;',
+    '  border-top: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 12%, transparent); }',
+    '.sdoc-cc-orphans-head {',
+    '  font-family: ui-sans-serif, system-ui, sans-serif; font-size: 11px;',
+    '  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 45%, transparent);',
+    '}',
+    '.sdoc-cc-orphans .sdoc-cc-thread { padding-left: 0; }'
   ].join('\n');
 
   function injectCSS() {
@@ -264,6 +382,11 @@
     + '<path d="m16 16-2 2 2 2"/><path d="M3 18h7"/>');
   var X_ICON = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
   var CHEVRON = lucide('<polyline points="9 18 15 12 9 6"/>', 12);
+  var COMMENT_ICON = lucide('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>');
+  var TRASH_ICON = lucide('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', 13);
+  var CHECK_ICON = lucide('<path d="M20 6 9 17l-5-5"/>', 13);
+  var PENCIL_ICON = lucide('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 13);
+  var PLUS_ICON = lucide('<path d="M12 5v14"/><path d="M5 12h14"/>', 14);
   // Two icons, switched by the button's .is-open class: outward arrows mean
   // "expand all" (shown when something is collapsed), inward arrows mean
   // "collapse all" (shown when everything is open). This is the same fold
@@ -334,6 +457,51 @@
   }
   function savePref(on) {
     try { localStorage.setItem(FOLD_PREF_KEY, on ? '1' : '0'); } catch (_) {}
+  }
+
+  // ── Comments ───────────────────────────────────────────────────────────────
+  // The reader can annotate the open file. Comments anchor to a source line or a
+  // whole method and persist in localStorage keyed by the file - there is no
+  // document round-trip here (an opened code file is not a saved SmallDocs doc),
+  // so they ride alongside it in the browser like the fold preference does. The
+  // pure model lives in sdocs-code-comments.js; this layer owns storage and DOM.
+  var CC = window.SDocsCodeComments;
+  var GRAIN_KEY = 'sdocs:codeCommentGrain'; // 'line' | 'method', remembered
+  var comments = [];        // current file's comment list (model objects)
+  var commenting = false;   // comment mode on/off
+  var grain = 'line';       // current granularity
+  var storeKey = null;      // localStorage key for the current file
+  var navId = null;         // id of the comment the nav cursor last landed on
+
+  function prefGrain() {
+    try { var g = localStorage.getItem(GRAIN_KEY); return g === 'method' ? 'method' : 'line'; }
+    catch (_) { return 'line'; }
+  }
+  function saveGrain(g) { try { localStorage.setItem(GRAIN_KEY, g); } catch (_) {} }
+
+  // A stable identity for the open file: its path when opened from disk, else a
+  // short hash of the source so re-opening the same content finds its comments.
+  function hashStr(s) {
+    var h = 5381;
+    for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  function fileKey() {
+    var path = S.localMeta && S.localMeta.fullPath;
+    if (path) return 'path:' + path;
+    return 'hash:' + hashStr(rawText || '');
+  }
+  function loadComments() {
+    storeKey = 'sdocs:codeComments:' + fileKey();
+    try { comments = CC ? CC.parse(localStorage.getItem(storeKey)) : []; }
+    catch (_) { comments = []; }
+  }
+  function saveComments() {
+    if (!storeKey || !CC) return;
+    try {
+      if (comments.length) localStorage.setItem(storeKey, CC.serialize(comments));
+      else localStorage.removeItem(storeKey);
+    } catch (_) {}
   }
 
   // Does this line carry a language keyword that should survive the outline?
@@ -451,7 +619,9 @@
   //     definitions loaded, every member is kept (the plain indentation outline).
   function refreshFold() {
     if (!linesEl || !folds) return;
-    var rows = linesEl.children;
+    // Source rows only: comment threads (.sdoc-cc-thread) are interleaved as
+    // extra rows in comment mode, so index by the real code rows, not children.
+    var rows = linesEl.querySelectorAll(':scope > .sdoc-cl-row');
     var inGap = false; // a run of dropped members already shows its ellipsis
     for (var i = 0; i < rows.length; i++) {
       var f = folds[i], p = parents[i], row = rows[i];
@@ -483,6 +653,7 @@
       var btn = row.querySelector('button.sdoc-cl-fold');
       if (btn) btn.setAttribute('aria-expanded', isC ? 'false' : 'true');
     }
+    syncThreadVisibility();
   }
 
   // Toggling a header applies to every header nested under it, mirroring the
@@ -559,13 +730,14 @@
       var fold = (f && f.header)
         ? '<button class="sdoc-cl-fold" type="button" tabindex="-1" data-h="' + i + '" aria-label="Fold or unfold" aria-expanded="true">' + CHEVRON + '</button>'
         : '<span class="sdoc-cl-fold"></span>';
-      html += '<div class="sdoc-cl-row">'
+      html += '<div class="sdoc-cl-row" data-ln="' + i + '">'
         + '<span class="sdoc-cl-gutter">' + fold
         + '<span class="sdoc-cl-num">' + (i + 1) + '</span></span>'
         + '<span class="sdoc-cl-code">' + lineParts[i] + '</span></div>';
     }
     linesEl.innerHTML = html;
     refreshFold();
+    renderThreads(); // re-attach comment markers + threads after a rebuild
   }
 
   function open(sourcePre) {
@@ -581,6 +753,10 @@
     structuralRe = null;
     openToken = {};
     prevFocus = document.activeElement;
+    commenting = false;
+    grain = prefGrain();
+    navId = null;
+    loadComments();
 
     // Load this language's structural keywords so a collapsed class folds to its
     // signatures. Async and best-effort: until it lands (or if absent) the
@@ -627,6 +803,17 @@
       +   (name ? '<span class="sdoc-code-focus-name"></span>' : '')
       + '</span>'
       + '<div class="sdoc-code-focus-actions">'
+      +   '<span class="sdoc-cc-nav" style="display:none">'
+      +     '<button type="button" class="sdoc-code-focus-btn" data-act="cc-prev" title="Previous note" aria-label="Previous note">' + lucide('<polyline points="15 18 9 12 15 6"/>', 13) + '</button>'
+      +     '<span class="sdoc-cc-count"></span>'
+      +     '<button type="button" class="sdoc-code-focus-btn" data-act="cc-next" title="Next note" aria-label="Next note">' + lucide('<polyline points="9 18 15 12 9 6"/>', 13) + '</button>'
+      +   '</span>'
+      +   '<span class="sdoc-cc-grain" role="group" aria-label="Comment granularity" style="display:none">'
+      +     '<button type="button" data-grain="line" class="active" title="Comment on individual lines">Lines</button>'
+      +     '<button type="button" data-grain="method" title="Comment on whole methods">Methods</button>'
+      +   '</span>'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="comment" title="Comment mode" aria-label="Comment mode" aria-pressed="false">' + COMMENT_ICON + '</button>'
+      +   '<span class="sdoc-code-focus-sep" aria-hidden="true"></span>'
       +   '<button type="button" class="sdoc-code-focus-action" data-act="copy" title="Copy code" aria-label="Copy code">'
       +     COPY_ICON + '<span class="sdoc-code-focus-action-label">Copy</span>'
       +   '</button>'
@@ -650,6 +837,15 @@
     linesEl = document.createElement('div');
     linesEl.className = 'sdoc-code-focus-lines';
     linesEl.addEventListener('click', onFoldClick);
+    linesEl.addEventListener('click', onCommentClick);
+    linesEl.addEventListener('mouseover', onLinesHover);
+    linesEl.addEventListener('keydown', onComposerKey);
+    addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'sdoc-cc-add';
+    addBtn.setAttribute('aria-label', 'Add a comment');
+    addBtn.setAttribute('title', 'Add a comment');
+    addBtn.innerHTML = PLUS_ICON;
     docEl.appendChild(masterEl);
     docEl.appendChild(linesEl);
     stage.appendChild(docEl);
@@ -698,17 +894,23 @@
     modal.remove();
     modal = null; docEl = null; linesEl = null; masterEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
     srcLines = null; structuralRe = null; openToken = null;
+    comments = []; commenting = false; storeKey = null; navId = null; addBtn = null;
     document.body.classList.remove('sdoc-code-focus-open');
     if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (_) {} }
     prevFocus = null;
   }
 
   function onTopbarClick(e) {
+    var grainBtn = e.target.closest('[data-grain]');
+    if (grainBtn) { setGrain(grainBtn.getAttribute('data-grain')); return; }
     var btn = e.target.closest('[data-act]');
     if (!btn) return;
     var act = btn.dataset.act;
     if (act === 'close') { close(); return; }
     if (act === 'foldall') { toggleAll(); return; }
+    if (act === 'comment') { setCommenting(!commenting); return; }
+    if (act === 'cc-prev') { navComment(-1); return; }
+    if (act === 'cc-next') { navComment(1); return; }
     if (act === 'wrap') {
       if (!docEl) return;
       var on = docEl.classList.toggle('wrapped');
@@ -731,7 +933,396 @@
 
   function onKey(e) {
     if (!modal) return;
-    if (e.key === 'Escape') { e.preventDefault(); close(); }
+    // A composer swallows Escape to cancel itself first; only close the overlay
+    // when nothing finer is listening.
+    if (e.key === 'Escape') {
+      if (cancelComposer()) { e.preventDefault(); return; }
+      e.preventDefault(); close();
+    }
+  }
+
+  // ── Comment interactions ────────────────────────────────────────────────────
+
+  // The enclosing METHOD for a source line: the nearest header that holds code
+  // but not nested definitions (a leaf block - a method/function), walking up
+  // from the line. Returns { header, end } or null when the line sits in no
+  // method (top-level statements, or inside a bare class body). A leaf header
+  // line is its own method.
+  function methodFor(i) {
+    if (!folds || !folds[i]) return null;
+    var idx = (folds[i].header && !folds[i].container) ? i : -1;
+    if (idx < 0) {
+      var p = parents[i];
+      while (p >= 0) {
+        if (folds[p].header && !folds[p].container) { idx = p; break; }
+        p = parents[p];
+      }
+    }
+    if (idx < 0) return null;
+    return { header: idx, end: folds[idx].end };
+  }
+
+  function trimmed(i) { return (srcLines[i] || '').trim(); }
+
+  // The author handle stamped on new comments. Remembered so a reader's notes
+  // carry a consistent name; defaults to "you" and is not surfaced in the v1 UI.
+  function commentAuthor() {
+    try { return localStorage.getItem('sdocs:codeCommentAuthor') || 'you'; }
+    catch (_) { return 'you'; }
+  }
+
+  // Group comments by their resolved source line. Orphans (anchor lost) collect
+  // under key -1 and render at the foot of the listing.
+  function commentsByLine() {
+    var map = {};
+    comments.forEach(function (c) {
+      var ln = CC ? CC.resolveLine(c, srcLines) : c.line;
+      (map[ln] = map[ln] || []).push(c);
+    });
+    return map;
+  }
+
+  // Rebuild every marker and thread from the model. Idempotent: clears its own
+  // prior DOM first, so it is safe to call after any row rebuild or mutation.
+  function renderThreads() {
+    if (!linesEl) return;
+    var old = linesEl.querySelectorAll('.sdoc-cc-thread, .sdoc-cc-orphans');
+    for (var k = 0; k < old.length; k++) old[k].remove();
+    var marked = linesEl.querySelectorAll('.sdoc-cc-has-comment');
+    for (var j = 0; j < marked.length; j++) marked[j].classList.remove('sdoc-cc-has-comment');
+    if (!commenting) { updateCommentChrome(); return; }
+
+    var byLine = commentsByLine();
+    Object.keys(byLine).forEach(function (key) {
+      var ln = parseInt(key, 10);
+      var list = byLine[key];
+      if (ln < 0) return; // orphans handled below
+      var row = linesEl.querySelector('.sdoc-cl-row[data-ln="' + ln + '"]');
+      if (!row) return;
+      row.classList.add('sdoc-cc-has-comment');
+      var anchor = row;
+      list.forEach(function (c) {
+        var thread = buildCard(c, ln);
+        anchor.insertAdjacentElement('afterend', thread);
+        anchor = thread;
+      });
+    });
+
+    // Orphaned comments: their anchor line is gone. Keep them reachable at the
+    // bottom rather than dropping them silently.
+    var orphans = (byLine[-1] || []);
+    if (orphans.length) {
+      var box = document.createElement('div');
+      box.className = 'sdoc-cc-orphans';
+      var head = document.createElement('div');
+      head.className = 'sdoc-cc-orphans-head';
+      head.textContent = 'Comments whose lines are gone';
+      box.appendChild(head);
+      orphans.forEach(function (c) { box.appendChild(buildCard(c, -1)); });
+      linesEl.appendChild(box);
+    }
+    syncThreadVisibility();
+    updateCommentChrome();
+  }
+
+  // Hide a thread when its anchor line is folded away, so notes travel with the
+  // code they sit on. Orphan threads (no live anchor) always show.
+  function syncThreadVisibility() {
+    if (!linesEl) return;
+    var threads = linesEl.querySelectorAll('.sdoc-cc-thread[data-ln]');
+    for (var i = 0; i < threads.length; i++) {
+      var ln = threads[i].getAttribute('data-ln');
+      var row = linesEl.querySelector('.sdoc-cl-row[data-ln="' + ln + '"]');
+      threads[i].style.display = (row && row.style.display === 'none') ? 'none' : '';
+    }
+  }
+
+  // A saved comment, rendered as a card in its own row beneath the anchor line.
+  function buildCard(c, ln) {
+    var row = document.createElement('div');
+    row.className = 'sdoc-cc-thread';
+    if (ln >= 0) row.setAttribute('data-ln', ln);
+    row.setAttribute('data-c', c.id);
+    if (c.kind === 'method') row.classList.add('sdoc-cc-thread-method');
+    if (c.color) row.style.setProperty('--sdoc-cc-color', c.color);
+
+    var card = document.createElement('div');
+    card.className = 'sdoc-cc-card';
+    card.innerHTML =
+      '<div class="sdoc-cc-card-head">'
+      +   '<span class="sdoc-cc-card-author">' + escapeHtml(c.author || 'you') + '</span>'
+      +   '<span class="sdoc-cc-card-kind">' + (c.kind === 'method' ? 'method' : 'line') + '</span>'
+      +   '<span class="sdoc-cc-card-actions">'
+      +     '<button type="button" class="sdoc-cc-iconbtn" data-cc="edit" title="Edit" aria-label="Edit comment">' + PENCIL_ICON + '</button>'
+      +     '<button type="button" class="sdoc-cc-iconbtn" data-cc="delete" title="Delete" aria-label="Delete comment">' + TRASH_ICON + '</button>'
+      +   '</span>'
+      + '</div>'
+      + '<div class="sdoc-cc-card-body"></div>';
+    card.querySelector('.sdoc-cc-card-body').textContent = c.text || '';
+    row.appendChild(card);
+    return row;
+  }
+
+  // Open an inline composer beneath an anchor. spec: { kind, line, endLine?,
+  // anchorText, editId? }. When editId is set the composer pre-fills and replaces
+  // an existing card on save instead of adding a new comment.
+  function openComposer(spec) {
+    cancelComposer();
+    var anchorRow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + spec.line + '"]');
+    if (!anchorRow) return;
+
+    var row = document.createElement('div');
+    row.className = 'sdoc-cc-thread sdoc-cc-composer';
+    row.setAttribute('data-ln', spec.line);
+    if (spec.kind === 'method') row.classList.add('sdoc-cc-thread-method');
+
+    var card = document.createElement('div');
+    card.className = 'sdoc-cc-card sdoc-cc-card-edit';
+    card.innerHTML =
+      '<textarea class="sdoc-cc-input" rows="1" placeholder="'
+      + (spec.kind === 'method' ? 'Comment on this method...' : 'Comment on this line...') + '"></textarea>'
+      + '<div class="sdoc-cc-card-edit-actions">'
+      +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="save" title="Save (Cmd/Ctrl+Enter)" aria-label="Save">' + CHECK_ICON + '</button>'
+      +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="cancel" title="Cancel (Esc)" aria-label="Cancel">' + X_ICON + '</button>'
+      + '</div>';
+    row.appendChild(card);
+
+    // For an edit, drop the composer where the existing card sits; otherwise
+    // place it right under the anchor line (or under any cards already there).
+    var after = anchorRow;
+    if (spec.editId) {
+      var existing = linesEl.querySelector('.sdoc-cc-thread[data-c="' + spec.editId + '"]');
+      if (existing) { existing.replaceWith(row); after = null; }
+    }
+    if (after) {
+      var next = anchorRow.nextElementSibling;
+      while (next && next.classList.contains('sdoc-cc-thread') && !next.classList.contains('sdoc-cc-composer')) {
+        after = next; next = next.nextElementSibling;
+      }
+      after.insertAdjacentElement('afterend', row);
+    }
+
+    var ta = card.querySelector('.sdoc-cc-input');
+    if (spec.editId) {
+      var prev = comments.filter(function (c) { return c.id === spec.editId; })[0];
+      if (prev) ta.value = prev.text || '';
+    }
+    autoGrow(ta);
+    ta.addEventListener('input', function () { autoGrow(ta); });
+    row.dataset.spec = JSON.stringify(spec);
+    if (spec.kind === 'method') highlightMethod(spec.line, spec.endLine);
+    ta.focus();
+  }
+
+  function autoGrow(ta) {
+    ta.style.height = 'auto';
+    ta.style.height = Math.max(ta.scrollHeight, 22) + 'px';
+  }
+
+  // Remove an open composer, if any. Returns true when it removed one (so the
+  // Escape handler knows it consumed the key).
+  function cancelComposer() {
+    if (!linesEl) return false;
+    var c = linesEl.querySelector('.sdoc-cc-composer');
+    if (!c) return false;
+    c.remove();
+    clearMethodHighlight();
+    return true;
+  }
+
+  function saveComposer(composerRow) {
+    var spec;
+    try { spec = JSON.parse(composerRow.dataset.spec || '{}'); } catch (_) { spec = {}; }
+    var ta = composerRow.querySelector('.sdoc-cc-input');
+    var text = (ta && ta.value || '').trim();
+    if (!text) { if (ta) ta.focus(); return; }
+    if (spec.editId) {
+      comments = CC.updateComment(comments, spec.editId, { text: text });
+    } else {
+      var res = CC.addComment(comments, {
+        kind: spec.kind, line: spec.line, endLine: spec.endLine, anchorText: spec.anchorText
+      }, { text: text, author: commentAuthor() });
+      comments = res.list;
+      navId = res.id;
+    }
+    saveComments();
+    clearMethodHighlight();
+    renderThreads();
+  }
+
+  // Highlight a method's whole line range (header..end) while it is being
+  // hovered, composed, or navigated to.
+  function highlightMethod(header, end) {
+    clearMethodHighlight();
+    if (header == null) return;
+    if (end == null) end = header;
+    for (var i = header; i <= end; i++) {
+      var row = linesEl.querySelector('.sdoc-cl-row[data-ln="' + i + '"]');
+      if (row) row.classList.add('sdoc-cc-mhl');
+    }
+  }
+  function clearMethodHighlight() {
+    if (!linesEl) return;
+    var hl = linesEl.querySelectorAll('.sdoc-cc-mhl');
+    for (var i = 0; i < hl.length; i++) hl[i].classList.remove('sdoc-cc-mhl');
+  }
+
+  // Move the single "+" add button into the hovered row's gutter (comment mode
+  // only). In method grain, also light up the whole enclosing method.
+  function onLinesHover(e) {
+    if (!commenting) return;
+    var row = e.target.closest('.sdoc-cl-row');
+    if (!row || !linesEl.contains(row)) return;
+    if (row.style.display === 'none') return;
+    var ln = parseInt(row.getAttribute('data-ln'), 10);
+    if (isNaN(ln)) return;
+    if (grain === 'method') {
+      var m = methodFor(ln);
+      if (m) { highlightMethod(m.header, m.end); placeAddButton(m.header); return; }
+      clearMethodHighlight();
+    }
+    placeAddButton(ln);
+  }
+  function placeAddButton(ln) {
+    if (!addBtn) return;
+    var row = linesEl.querySelector('.sdoc-cl-row[data-ln="' + ln + '"]');
+    if (!row) return;
+    var gutter = row.querySelector('.sdoc-cl-gutter');
+    if (gutter && addBtn.parentNode !== gutter) gutter.appendChild(addBtn);
+    addBtn.setAttribute('data-ln', ln);
+  }
+
+  var addBtn = null; // the single floating "+" affordance, moved between rows
+
+  function onCommentClick(e) {
+    if (!commenting) return;
+    var btn = e.target.closest('[data-cc]');
+    var add = e.target.closest('.sdoc-cc-add');
+    if (add) {
+      e.stopPropagation();
+      var ln = parseInt(add.getAttribute('data-ln'), 10);
+      if (isNaN(ln)) return;
+      if (grain === 'method') {
+        var m = methodFor(ln);
+        if (m) { openComposer({ kind: 'method', line: m.header, endLine: m.end, anchorText: trimmed(m.header) }); return; }
+      }
+      openComposer({ kind: 'line', line: ln, anchorText: trimmed(ln) });
+      return;
+    }
+    if (!btn) return;
+    e.stopPropagation();
+    var act = btn.getAttribute('data-cc');
+    if (act === 'save') { saveComposer(btn.closest('.sdoc-cc-composer')); return; }
+    if (act === 'cancel') { cancelComposer(); return; }
+    var threadRow = btn.closest('.sdoc-cc-thread');
+    var id = threadRow && threadRow.getAttribute('data-c');
+    if (!id) return;
+    if (act === 'delete') {
+      comments = CC.removeComment(comments, id);
+      saveComments();
+      renderThreads();
+      return;
+    }
+    if (act === 'edit') {
+      var c = comments.filter(function (x) { return x.id === id; })[0];
+      if (!c) return;
+      var ln2 = CC ? CC.resolveLine(c, srcLines) : c.line;
+      if (ln2 < 0) return;
+      openComposer({ kind: c.kind, line: ln2, endLine: c.endLine, anchorText: c.anchorText, editId: id });
+    }
+  }
+
+  function onComposerKey(e) {
+    if (!commenting) return;
+    if (e.key !== 'Enter') return;
+    var composer = e.target.closest && e.target.closest('.sdoc-cc-composer');
+    if (!composer) return;
+    if (e.metaKey || e.ctrlKey) { e.preventDefault(); saveComposer(composer); }
+  }
+
+  // Enter / leave comment mode. Folding, wrap, copy all keep working underneath.
+  function setCommenting(on) {
+    commenting = on;
+    if (modal) modal.classList.toggle('sdoc-cc-on', on);
+    var btn = modal && modal.querySelector('[data-act="comment"]');
+    if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+    if (!on) { cancelComposer(); clearMethodHighlight(); }
+    renderThreads();
+  }
+
+  function setGrain(g) {
+    grain = g === 'method' ? 'method' : 'line';
+    saveGrain(grain);
+    clearMethodHighlight();
+    var seg = modal && modal.querySelector('.sdoc-cc-grain');
+    if (seg) {
+      seg.querySelectorAll('[data-grain]').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-grain') === grain);
+      });
+    }
+  }
+
+  // Jump the nav cursor to the next/previous comment (in source order), open its
+  // method/line into view, and flash it. delta of 0 re-focuses the current one.
+  function navComment(delta) {
+    if (!comments.length) return;
+    var ordered = comments.slice().sort(function (a, b) {
+      var la = CC.resolveLine(a, srcLines), lb = CC.resolveLine(b, srcLines);
+      return la - lb;
+    });
+    var idx = 0;
+    for (var i = 0; i < ordered.length; i++) if (ordered[i].id === navId) { idx = i; break; }
+    idx = (idx + delta + ordered.length) % ordered.length;
+    var c = ordered[idx];
+    navId = c.id;
+    var ln = CC.resolveLine(c, srcLines);
+    if (ln >= 0) {
+      // Open any collapsed ancestor so the line is visible.
+      revealLine(ln);
+      var thread = linesEl.querySelector('.sdoc-cc-thread[data-c="' + c.id + '"]');
+      var target = thread || linesEl.querySelector('.sdoc-cl-row[data-ln="' + ln + '"]');
+      if (target) {
+        target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        flashThread(c.id);
+        if (c.kind === 'method') highlightMethod(ln, c.endLine);
+      }
+    }
+    updateCommentChrome();
+  }
+
+  // Expand any collapsed header that hides `ln`, so navigation can land on it.
+  function revealLine(ln) {
+    if (!collapsed || !collapsed.size) return;
+    var changed = false;
+    collapsed.forEach(function (h) {
+      if (h < ln && folds[h] && folds[h].end >= ln) { collapsed.delete(h); changed = true; }
+    });
+    if (changed) { refreshFold(); syncFoldAllBtn(); }
+  }
+
+  function flashThread(id) {
+    var el = linesEl.querySelector('.sdoc-cc-thread[data-c="' + id + '"] .sdoc-cc-card');
+    if (!el) return;
+    el.classList.remove('sdoc-cc-flash');
+    void el.offsetWidth; // restart the animation
+    el.classList.add('sdoc-cc-flash');
+  }
+
+  // Keep the toolbar comment cluster in step: count, nav enablement, and the
+  // little dot that marks the toggle when the file already carries notes.
+  function updateCommentChrome() {
+    if (!modal) return;
+    var count = comments.length;
+    var toggle = modal.querySelector('[data-act="comment"]');
+    if (toggle) toggle.classList.toggle('has-notes', count > 0);
+    var nav = modal.querySelector('.sdoc-cc-nav');
+    if (nav) {
+      nav.style.display = (commenting && count > 0) ? '' : 'none';
+      var label = nav.querySelector('.sdoc-cc-count');
+      if (label) label.textContent = count === 1 ? '1 note' : count + ' notes';
+    }
+    var grainSeg = modal.querySelector('.sdoc-cc-grain');
+    if (grainSeg) grainSeg.style.display = commenting ? '' : 'none';
   }
 
   S.codeFocus = { open: open, close: close };
