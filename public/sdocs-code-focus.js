@@ -68,32 +68,34 @@
     '  position: fixed; inset: 0; z-index: 10100;',
     '  background: var(--sdoc-focus-bg, #f4f1ed);',
     '  color: var(--sdoc-focus-fg, #1c1917);',
-    '  display: grid; grid-template-rows: 40px 1fr;',
+    '  display: grid; grid-template-rows: 40px auto 1fr;',
     '  font-family: ui-sans-serif, system-ui, sans-serif;',
     '  animation: sdoc-code-fade .15s ease-out;',
     '}',
     '@keyframes sdoc-code-fade { from { opacity: 0 } to { opacity: 1 } }',
+    // Three-column grid, the same shape the markdown reader toolbar uses: equal
+    // flexible side columns keep the middle cluster centred with no JS. Brand
+    // (logo only) sits at the left, the X at the right, controls in the centre.
     '.sdoc-code-focus-topbar {',
     '  position: relative;',
-    '  display: flex; align-items: center; gap: 2px;',
+    '  display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr);',
+    '  align-items: center; gap: 6px;',
     '  height: 40px; padding: 0 12px;',
     '  background: color-mix(in oklab, var(--sdoc-focus-bg, #f4f1ed) 88%, var(--sdoc-focus-fg, #1c1917) 12%);',
     '  border-bottom: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 14%, transparent);',
     '}',
     '.sdoc-code-focus-brand {',
+    '  justify-self: start;',
     '  display: inline-flex; align-items: baseline; min-width: 0;',
     '  color: #3B82F6; font-size: 13px; font-weight: 600;',
-    '  margin-right: auto;',
     '}',
     '.sdoc-code-focus-brand-text { display: none; }',
     '.sdoc-code-focus-brand-full { display: inline; }',
-    '.sdoc-code-focus-name {',
-    '  color: var(--sdoc-focus-fg, #1c1917); font-weight: 500;',
-    '  font-family: var(--md-code-font, ui-monospace, monospace);',
-    '  font-size: 12px; margin-left: 8px;',
-    '  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;',
+    '.sdoc-code-focus-center {',
+    '  justify-self: center;',
+    '  display: inline-flex; align-items: center; gap: 3px;',
     '}',
-    '.sdoc-code-focus-actions { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }',
+    '.sdoc-code-focus-actions { justify-self: end; display: flex; gap: 2px; align-items: center; }',
     '.sdoc-code-focus-sep {',
     '  width: 1px; height: 16px; flex-shrink: 0;',
     '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 18%, transparent);',
@@ -133,6 +135,59 @@
     '  border-color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 32%, transparent);',
     '}',
     '.sdoc-code-focus-action svg { flex-shrink: 0; }',
+    // The centre collapse/expand control carries a text label beside its icon.
+    '.sdoc-cf-foldall { padding: 5px 9px; gap: 0; }',
+    '.sdoc-cf-label { font-size: 11.5px; font-weight: 500; margin-left: 5px; white-space: nowrap; }',
+    // Comment sub-bar: a second toolbar row under the topbar, present only in
+    // comment mode. Slides in like the markdown reader comment toolbar.
+    '.sdoc-cc-subbar {',
+    '  display: flex; align-items: center; justify-content: center; gap: 10px;',
+    '  height: 0; min-height: 0; opacity: 0; overflow: hidden; padding: 0 12px;',
+    '  background: var(--sdoc-focus-bg, #f4f1ed); border-bottom: 1px solid transparent;',
+    '  transition: height .3s cubic-bezier(.4,0,.2,1), opacity .22s ease, border-color .3s ease;',
+    '}',
+    '.sdoc-code-focus.sdoc-cc-on .sdoc-cc-subbar {',
+    '  height: 36px; opacity: 1;',
+    '  border-bottom-color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 12%, transparent);',
+    '}',
+    '.sdoc-cc-subbar-hint {',
+    '  font-size: 11.5px; font-family: ui-sans-serif, system-ui, sans-serif;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
+    '}',
+    // File-info card at the top of the listing: filename + paths, each copyable.
+    // Mirrors the markdown reader file-info card, in the overlay colour vars.
+    '.sdoc-cf-fileinfo {',
+    '  font-family: ui-sans-serif, system-ui, sans-serif;',
+    '  max-width: 660px; margin: 0 auto 4px; padding: 4px 0 12px;',
+    '  border-bottom: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
+    '}',
+    '.sdoc-code-focus-doc:not(.wrapped) .sdoc-cf-fileinfo { max-width: none; }',
+    '.sdoc-cf-firow {',
+    '  display: flex; align-items: center; gap: 8px; padding: 2px 0;',
+    '  font-size: 12px; cursor: pointer; border-radius: 4px;',
+    '}',
+    '.sdoc-cf-firow:hover { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 5%, transparent); }',
+    '.sdoc-cf-filabel {',
+    '  flex: 0 0 auto; min-width: 64px; font-weight: 500;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
+    '}',
+    '.sdoc-cf-fival {',
+    '  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '  font-family: var(--md-code-font, ui-monospace, monospace);',
+    '}',
+    '.sdoc-cf-firow .sdoc-cf-ficopy {',
+    '  all: unset; cursor: pointer; flex: 0 0 auto; padding: 2px; border-radius: 4px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 45%, transparent);',
+    '  opacity: 0; transition: opacity .12s, background .12s, color .12s;',
+    '}',
+    '.sdoc-cf-firow:hover .sdoc-cf-ficopy { opacity: 1; }',
+    '.sdoc-cf-ficopy:hover {',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '}',
+    '.sdoc-cf-ficopy svg { display: block; }',
+    '.sdoc-cf-filename .sdoc-cf-fival { font-weight: 600; }',
     // Stage: scroll container holding the code column.
     '.sdoc-code-focus-stage { overflow: auto; }',
     // Wrapped (default): a 660px column - same width the block has inline - so a
@@ -178,39 +233,6 @@
     '.sdoc-code-focus-lines:hover button.sdoc-cl-fold,',
     '.sdoc-cl-row.collapsed button.sdoc-cl-fold { opacity: 1; }',
     'button.sdoc-cl-fold:hover { color: var(--sdoc-focus-fg, #1c1917); }',
-    // Master fold control: a small labelled button at the top of the gutter
-    // column that folds or unfolds the whole file. A hairline under it reads as
-    // the header of the listing rather than a glyph floating in space. It uses
-    // the same fold/unfold arrows as the toolbar button (and the markdown
-    // section fold button), so the icon language stays consistent. Same action
-    // as the toolbar button.
-    '.sdoc-cl-master {',
-    '  position: sticky; top: 0; z-index: 3;',
-    '  display: flex; align-items: center; height: 30px; margin-bottom: 6px;',
-    '  background: var(--sdoc-focus-bg, #f4f1ed);',
-    '  border-bottom: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
-    '}',
-    '.sdoc-cl-master-btn {',
-    '  all: unset; cursor: pointer;',
-    '  position: sticky; left: 0;',
-    '  display: inline-flex; align-items: center; gap: 5px;',
-    '  padding: 3px 9px 3px 5px; border-radius: 5px;',
-    '  background: var(--sdoc-focus-bg, #f4f1ed);',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 62%, transparent);',
-    '  font-family: ui-sans-serif, system-ui, sans-serif;',
-    '  font-size: 11.5px; font-weight: 500;',
-    '  transition: color .12s, background .12s;',
-    '}',
-    '.sdoc-cl-master-btn:hover {',
-    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 8%, transparent);',
-    '  color: var(--sdoc-focus-fg, #1c1917);',
-    '}',
-    '.sdoc-cl-master-btn:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
-    '.sdoc-cl-master-btn .sdoc-icon-unfold,',
-    '.sdoc-cl-master-btn .sdoc-icon-fold { flex: 0 0 auto; }',
-    '.sdoc-cl-master-btn .sdoc-icon-fold { display: none; }',
-    '.sdoc-cl-master-btn.is-open .sdoc-icon-unfold { display: none; }',
-    '.sdoc-cl-master-btn.is-open .sdoc-icon-fold { display: inline-flex; }',
     '.sdoc-cl-num {',
     '  flex: 0 0 auto; width: var(--sdoc-ln-w); box-sizing: content-box;',
     '  padding-right: 16px; padding-left: 4px; text-align: right;',
@@ -443,7 +465,7 @@
     return m ? m[1] : '';
   }
 
-  var modal = null, docEl = null, linesEl = null, masterEl = null, rawText = '', prevFocus = null, keyHandler = null;
+  var modal = null, docEl = null, linesEl = null, rawText = '', prevFocus = null, keyHandler = null;
   var folds = null;       // per-line { header:bool, end:int } from indentation
   var parents = null;     // immediate enclosing header index per line (or -1)
   var collapsed = null;   // Set of collapsed header line indices
@@ -710,16 +732,8 @@
       btn.classList.toggle('is-open', allOpen);
       btn.setAttribute('aria-label', label);
       btn.setAttribute('title', label);
-    }
-    if (masterEl) {
-      var mbtn = masterEl.querySelector('.sdoc-cl-master-btn');
-      var mlabel = masterEl.querySelector('.sdoc-cl-master-label');
-      if (mlabel) mlabel.textContent = label;
-      if (mbtn) {
-        mbtn.classList.toggle('is-open', allOpen);
-        mbtn.setAttribute('aria-label', label);
-        mbtn.setAttribute('title', label);
-      }
+      var lab = btn.querySelector('.sdoc-cf-label');
+      if (lab) lab.textContent = label;
     }
   }
 
@@ -738,9 +752,28 @@
         + '<span class="sdoc-cl-num">' + (i + 1) + '</span></span>'
         + '<span class="sdoc-cl-code">' + lineParts[i] + '</span></div>';
     }
+    // A row rebuild (the one-shot highlight upgrade) wipes the listing. Preserve
+    // an open composer across it so a note half-typed in the first second isn't
+    // lost when highlighting lands.
+    var openComp = captureComposer();
     linesEl.innerHTML = html;
     refreshFold();
     renderThreads(); // re-attach comment markers + threads after a rebuild
+    if (openComp && openComp.spec) {
+      openComposer(openComp.spec);
+      var ta = linesEl.querySelector('.sdoc-cc-composer .sdoc-cc-input');
+      if (ta) { ta.value = openComp.text; autoGrow(ta); }
+    }
+  }
+
+  function captureComposer() {
+    if (!linesEl) return null;
+    var c = linesEl.querySelector('.sdoc-cc-composer');
+    if (!c) return null;
+    var ta = c.querySelector('.sdoc-cc-input');
+    var spec;
+    try { spec = JSON.parse(c.dataset.spec || '{}'); } catch (_) { return null; }
+    return { spec: spec, text: ta ? ta.value : '' };
   }
 
   function open(sourcePre) {
@@ -799,43 +832,45 @@
     var name = titleFor(srcCode);
     var topbar = document.createElement('div');
     topbar.className = 'sdoc-code-focus-topbar';
+    // Brand (logo only) at the left, controls centred in the auto middle column,
+    // the close X at the right. The filename moved to a file-info card below.
     topbar.innerHTML =
       '<span class="sdoc-code-focus-brand">'
       +   '<span class="sdoc-code-focus-brand-text sdoc-code-focus-brand-full">SmallDocs</span>'
       +   '<span class="sdoc-code-focus-brand-text sdoc-code-focus-brand-short">SD</span>'
-      +   (name ? '<span class="sdoc-code-focus-name"></span>' : '')
       + '</span>'
-      + '<div class="sdoc-code-focus-actions">'
+      + '<div class="sdoc-code-focus-center">'
+      +   '<button type="button" class="sdoc-code-focus-btn sdoc-cf-foldall" data-act="foldall" title="Collapse all" aria-label="Collapse all">' + FOLDALL_ICONS + '<span class="sdoc-cf-label">Collapse all</span></button>'
+      +   '<button type="button" class="sdoc-code-focus-btn active" data-act="wrap" title="Toggle soft wrap" aria-label="Toggle soft wrap" aria-pressed="true">' + WRAP_ICON + '</button>'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="comment" title="Comment mode" aria-label="Comment mode" aria-pressed="false">' + COMMENT_ICON + '</button>'
       +   '<button type="button" class="sdoc-code-focus-action" data-act="copy" title="Copy code" aria-label="Copy code">'
       +     COPY_ICON + '<span class="sdoc-code-focus-action-label">Copy</span>'
       +   '</button>'
-      +   '<span class="sdoc-cc-nav" style="display:none">'
-      +     '<button type="button" class="sdoc-code-focus-btn" data-act="cc-prev" title="Previous note" aria-label="Previous note">' + lucide('<polyline points="15 18 9 12 15 6"/>', 13) + '</button>'
-      +     '<span class="sdoc-cc-count"></span>'
-      +     '<button type="button" class="sdoc-code-focus-btn" data-act="cc-next" title="Next note" aria-label="Next note">' + lucide('<polyline points="9 18 15 12 9 6"/>', 13) + '</button>'
-      +   '</span>'
-      +   '<span class="sdoc-cc-grain" role="group" aria-label="Comment granularity" style="display:none">'
-      +     '<button type="button" data-grain="line" class="active" title="Comment on individual lines">Lines</button>'
-      +     '<button type="button" data-grain="method" title="Comment on whole methods">Methods</button>'
-      +   '</span>'
-      +   '<button type="button" class="sdoc-code-focus-btn" data-act="comment" title="Comment mode" aria-label="Comment mode" aria-pressed="false">' + COMMENT_ICON + '</button>'
-      +   '<button type="button" class="sdoc-code-focus-btn" data-act="foldall" title="Collapse all" aria-label="Collapse all">' + FOLDALL_ICONS + '</button>'
-      +   '<button type="button" class="sdoc-code-focus-btn active" data-act="wrap" title="Toggle soft wrap" aria-label="Toggle soft wrap" aria-pressed="true">' + WRAP_ICON + '</button>'
-      +   '<span class="sdoc-code-focus-sep" aria-hidden="true"></span>'
+      + '</div>'
+      + '<div class="sdoc-code-focus-actions">'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="close" title="Close (Esc)" aria-label="Close">' + X_ICON + '</button>'
       + '</div>';
-    if (name) topbar.querySelector('.sdoc-code-focus-name').textContent = name;
+
+    // Comment sub-bar: holds the granularity toggle and note navigation; slides
+    // in under the topbar only in comment mode.
+    var subbar = document.createElement('div');
+    subbar.className = 'sdoc-cc-subbar';
+    subbar.innerHTML =
+      '<span class="sdoc-cc-grain" role="group" aria-label="Comment granularity">'
+      +   '<button type="button" data-grain="line" class="active" title="Comment on individual lines">Lines</button>'
+      +   '<button type="button" data-grain="method" title="Comment on whole methods">Methods</button>'
+      + '</span>'
+      + '<span class="sdoc-cc-nav" style="display:none">'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="cc-prev" title="Previous note" aria-label="Previous note">' + lucide('<polyline points="15 18 9 12 15 6"/>', 13) + '</button>'
+      +   '<span class="sdoc-cc-count"></span>'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="cc-next" title="Next note" aria-label="Next note">' + lucide('<polyline points="9 18 15 12 9 6"/>', 13) + '</button>'
+      + '</span>'
+      + '<span class="sdoc-cc-subbar-hint">Hover a line, click the + to add a note</span>';
 
     var stage = document.createElement('div');
     stage.className = 'sdoc-code-focus-stage';
     docEl = document.createElement('div');
     docEl.className = 'sdoc-code-focus-doc wrapped'; // wrap on by default
-    masterEl = document.createElement('div');
-    masterEl.className = 'sdoc-cl-master';
-    masterEl.innerHTML = '<button type="button" class="sdoc-cl-master-btn is-open" '
-      + 'aria-label="Collapse all" title="Collapse all">' + foldIcons(13)
-      + '<span class="sdoc-cl-master-label">Collapse all</span></button>';
-    masterEl.addEventListener('click', function () { toggleAll(); });
     linesEl = document.createElement('div');
     linesEl.className = 'sdoc-code-focus-lines';
     linesEl.addEventListener('click', onFoldClick);
@@ -848,7 +883,8 @@
     addBtn.setAttribute('aria-label', 'Add a comment');
     addBtn.setAttribute('title', 'Add a comment');
     addBtn.innerHTML = PLUS_ICON;
-    docEl.appendChild(masterEl);
+    var fileInfo = buildFileInfo(name);
+    if (fileInfo) { fileInfo.addEventListener('click', onFileInfoClick); docEl.appendChild(fileInfo); }
     docEl.appendChild(linesEl);
     stage.appendChild(docEl);
 
@@ -856,6 +892,7 @@
     renderRows(escapeHtml(rawText).split('\n'));
 
     modal.appendChild(topbar);
+    modal.appendChild(subbar);
     modal.appendChild(stage);
     document.body.appendChild(modal);
     document.body.classList.add('sdoc-code-focus-open');
@@ -866,10 +903,49 @@
     highlightThenRender(srcCode.className || '');
 
     topbar.addEventListener('click', onTopbarClick);
+    subbar.addEventListener('click', onTopbarClick);
     keyHandler = onKey;
     window.addEventListener('keydown', keyHandler);
     var closeBtn = topbar.querySelector('[data-act="close"]');
     if (closeBtn) closeBtn.focus();
+  }
+
+  // File-info card at the top of the listing: filename + paths, each copyable.
+  // Built only for a real file view (an opened file), not an inline code block.
+  function buildFileInfo() {
+    var fullPath = S.localMeta && S.localMeta.fullPath;
+    var relPath = S.localMeta && S.localMeta.path;
+    var fileName = (S.currentMeta && S.currentMeta.file) || (fullPath ? basename(fullPath) : '');
+    if (!fileName && !fullPath) return null;
+    if (!fileName) fileName = basename(fullPath);
+    var rows = fiRow('Filename', fileName, 'sdoc-cf-filename');
+    if (fullPath) rows += fiRow('Abs. path', fullPath, '');
+    if (relPath && relPath !== fullPath) rows += fiRow('Rel. path', relPath, '');
+    var card = document.createElement('div');
+    card.className = 'sdoc-cf-fileinfo';
+    card.innerHTML = rows;
+    return card;
+  }
+  function fiRow(label, value, extraCls) {
+    var low = label.toLowerCase();
+    return '<div class="sdoc-cf-firow ' + extraCls + '">'
+      + '<span class="sdoc-cf-filabel">' + escapeHtml(label) + '</span>'
+      + '<span class="sdoc-cf-fival">' + escapeHtml(value) + '</span>'
+      + '<button type="button" class="sdoc-cf-ficopy" title="Copy ' + escapeHtml(low) + '" aria-label="Copy ' + escapeHtml(low) + '">' + COPY_ICON + '</button>'
+      + '</div>';
+  }
+  function onFileInfoClick(e) {
+    var row = e.target.closest('.sdoc-cf-firow');
+    if (!row) return;
+    var val = row.querySelector('.sdoc-cf-fival');
+    if (!val || !navigator.clipboard) return;
+    navigator.clipboard.writeText(val.textContent).then(function () {
+      var btn = row.querySelector('.sdoc-cf-ficopy');
+      if (!btn) return;
+      var prev = btn.innerHTML;
+      btn.innerHTML = CHECK_ICON;
+      setTimeout(function () { if (btn) btn.innerHTML = prev; }, 1200);
+    });
   }
 
   // Highlight the source in a detached element, then re-render the rows with the
@@ -896,7 +972,7 @@
     if (keyHandler) window.removeEventListener('keydown', keyHandler);
     keyHandler = null;
     modal.remove();
-    modal = null; docEl = null; linesEl = null; masterEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
+    modal = null; docEl = null; linesEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
     srcLines = null; structuralRe = null; openToken = null;
     comments = []; commenting = false; storeKey = null; navId = null; addBtn = null;
     document.body.classList.remove('sdoc-code-focus-open');
@@ -1204,7 +1280,11 @@
     var add = e.target.closest('.sdoc-cc-add');
     if (add) {
       e.stopPropagation();
-      var ln = parseInt(add.getAttribute('data-ln'), 10);
+      // Read the target from the row the + currently sits in, not a cached
+      // attribute: a row rebuild can move the button between hover and click.
+      var addRow = add.closest('.sdoc-cl-row');
+      var ln = addRow ? parseInt(addRow.getAttribute('data-ln'), 10)
+                      : parseInt(add.getAttribute('data-ln'), 10);
       if (isNaN(ln)) return;
       if (grain === 'method') {
         var m = methodFor(ln);
@@ -1319,14 +1399,17 @@
     var count = comments.length;
     var toggle = modal.querySelector('[data-act="comment"]');
     if (toggle) toggle.classList.toggle('has-notes', count > 0);
+    // In the sub-bar: the note nav appears once there are notes; the "how to add"
+    // hint shows until then. The grain toggle is always present in the sub-bar
+    // (the sub-bar itself only shows in comment mode).
     var nav = modal.querySelector('.sdoc-cc-nav');
     if (nav) {
-      nav.style.display = (commenting && count > 0) ? '' : 'none';
+      nav.style.display = count > 0 ? '' : 'none';
       var label = nav.querySelector('.sdoc-cc-count');
       if (label) label.textContent = count === 1 ? '1 note' : count + ' notes';
     }
-    var grainSeg = modal.querySelector('.sdoc-cc-grain');
-    if (grainSeg) grainSeg.style.display = commenting ? '' : 'none';
+    var hint = modal.querySelector('.sdoc-cc-subbar-hint');
+    if (hint) hint.style.display = count > 0 ? 'none' : '';
   }
 
   S.codeFocus = { open: open, close: close };
