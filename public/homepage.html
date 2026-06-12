@@ -136,7 +136,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   transition: background .12s, border-color .12s, color .12s;
 }
 .btn-gh:hover { background: #E8E3DD; border-color: #D4CFC9; }
-.btn-gh svg { display: block; }
+.btn-gh svg, .btn-read svg, .btn-secondary svg { display: block; flex-shrink: 0; }
 
 /* ── BUTTONS ─────────────────────────────────────────── */
 .btn {
@@ -728,12 +728,17 @@ footer {
     <h1 class="hero-display">The document format as intelligent as your agents</h1>
     <p class="lead">
       A SmallDoc is a new kind of document. They're written by the agents you already use. Developers, scientists and analysts who work agentically use them to go deeper, think clearer and collaborate faster.</p>
-    <a class="btn-read" href="/blogs/what-is-a-smalldoc">Read a SmallDoc</a>
+    <a class="btn-read" href="/blogs/what-is-a-smalldoc">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>
+      Read a SmallDoc
+    </a>
     <div class="hero-cta">
       <a class="btn btn-secondary" href="#install">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
         Free for personal use
       </a>
       <a class="btn btn-secondary" href="#teams">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2a9 9 0 0 1 9 9"/><path d="M13 6a5 5 0 0 1 5 5"/><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
         SmallDocs for teams
       </a>
     </div>
