@@ -300,6 +300,29 @@ test('a note gives its parent headers a copy-with-comments button', async ({ pag
   expect(copied).not.toContain('def initialize');
 });
 
+test('the summary-view toggle folds the whole file and stays in sync with the toolbar', async ({ page }) => {
+  await openCode(page, 'ruby', RUBY);
+  const summary = page.locator('.sdoc-code-focus .sdoc-cf-summary');
+  await expect(summary).toBeVisible();
+  // Toggle it and assert the file folds and the chevron state flips, without
+  // assuming the initial fold preference (it persists across files).
+  const before = await summary.evaluate(el => el.classList.contains('is-open'));
+  await summary.click();
+  const after = await summary.evaluate(el => el.classList.contains('is-open'));
+  expect(after).toBe(!before);
+  if (after === false) {
+    expect(await page.locator('.sdoc-cl-row.collapsed').count()).toBeGreaterThan(0);
+  }
+  // The toolbar fold-all button reflects the same state (one source of truth).
+  const tb = await page.locator('.sdoc-code-focus [data-act="foldall"]')
+    .evaluate(el => el.classList.contains('is-open'));
+  expect(tb).toBe(after);
+  // And toggling the toolbar button flips the summary chevron back in step.
+  await page.locator('.sdoc-code-focus [data-act="foldall"]').click();
+  const summaryAfter = await summary.evaluate(el => el.classList.contains('is-open'));
+  expect(summaryAfter).toBe(before);
+});
+
 test('a note whose anchor line is gone is parked in the orphan list', async ({ page }) => {
   await openCode(page, 'ruby', RUBY);
   // Seed storage with a note whose anchorText is absent from the source, under

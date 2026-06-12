@@ -197,6 +197,32 @@
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
     '.sdoc-cf-ficopy svg { display: block; pointer-events: none; }',
+    // Summary-view toggle: a standalone disclosure above the code that folds the
+    // whole file to its outline (or unfolds it), the same action as the toolbar
+    // fold-all button. It speaks the chevron language the rows use - the chevron
+    // sits in a 15px column so it lines up under the row fold chevrons / numbers,
+    // points right when the file is collapsed to its summary, down when expanded.
+    '.sdoc-cf-summary {',
+    '  all: unset; cursor: pointer; box-sizing: border-box;',
+    '  display: inline-flex; align-items: center; gap: 5px;',
+    '  margin: 2px 0 8px; padding: 3px 8px 3px 0; border-radius: 4px;',
+    '  font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 60%, transparent);',
+    '  transition: color .12s, background .12s;',
+    '}',
+    '.sdoc-cf-summary:hover {',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 6%, transparent);',
+    '}',
+    '.sdoc-cf-summary:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
+    '.sdoc-cf-summary-chev {',
+    '  flex: 0 0 auto; width: 15px;',
+    '  display: inline-flex; align-items: center; justify-content: center;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
+    '  transition: transform .15s;',
+    '}',
+    '.sdoc-cf-summary.is-open .sdoc-cf-summary-chev { transform: rotate(90deg); }',
+    '.sdoc-cf-summary-chev svg { display: block; }',
     // Stage: scroll container holding the code column.
     '.sdoc-code-focus-stage { overflow: auto; }',
     // Wrapped (default): a 660px column - same width the block has inline - so a
@@ -903,6 +929,15 @@
       btn.setAttribute('aria-label', label);
       btn.setAttribute('title', label);
     }
+    // The summary disclosure: chevron down (is-open) when the file is fully
+    // expanded, right when collapsed to its outline. Its tooltip mirrors the
+    // toolbar button's action.
+    var sumBtn = modal.querySelector('.sdoc-cf-summary');
+    if (sumBtn) {
+      sumBtn.classList.toggle('is-open', allOpen);
+      sumBtn.setAttribute('aria-label', label);
+      sumBtn.setAttribute('title', label);
+    }
   }
 
   function renderRows(lineParts) {
@@ -1074,6 +1109,8 @@
     methodTab.innerHTML = COMMENT_ICON;
     var fileInfo = buildFileInfo(name);
     if (fileInfo) { fileInfo.addEventListener('click', onFileInfoClick); docEl.appendChild(fileInfo); }
+    var summary = buildSummaryToggle();
+    if (summary) docEl.appendChild(summary);
     docEl.appendChild(linesEl);
     stage.appendChild(docEl);
 
@@ -1116,6 +1153,22 @@
     card.innerHTML = '<div class="sdoc-cf-firows">' + rows + '</div>';
     return card;
   }
+  // A standalone "> Summary view" disclosure above the listing. Same action as
+  // the toolbar fold-all button (toggleAll), in the chevron language the rows
+  // use, so a developer can fold the file to its outline right where the code
+  // starts. Only built when the file actually has foldable structure.
+  function buildSummaryToggle() {
+    if (!folds || !allHeaderIndices().length) return null;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sdoc-cf-summary';
+    btn.innerHTML =
+      '<span class="sdoc-cf-summary-chev">' + CHEVRON + '</span>'
+      + '<span class="sdoc-cf-summary-label">Summary view</span>';
+    btn.addEventListener('click', function () { toggleAll(); });
+    return btn;
+  }
+
   function fiRow(label, value) {
     var low = label.toLowerCase();
     return '<div class="sdoc-cf-firow">'
