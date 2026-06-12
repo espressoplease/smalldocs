@@ -18,6 +18,8 @@ const crypto = require('crypto');
 const { spawn } = require('child_process');
 
 const bridge = require('../cli/bin/sdocs-bridge');
+const bridgeCommands = require('../cli/lib/bridge-commands');
+const urlLib = require('../cli/lib/url');
 
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
@@ -237,7 +239,56 @@ module.exports = function (harness) {
     assert.strictEqual(got, 'foobar');
   });
 
+  // ── bridgeSnapshot: the read-only `md=` fallback the page renders on every
+  // refresh until the socket reconnects. It MUST embed the same renderable
+  // document the live bridge sends - for a code file that means the fenced,
+  // named listing, not the raw source (which renders as markdown soup and loses
+  // the code view, its folding, and comments).
+
+  test('bridgeSnapshot wraps a code file as a fenced, named document', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-bridge-'));
+    const f = path.join(dir, 'rate_limiter.py');
+    fs.writeFileSync(f, 'class A:\n    def run(self):\n        return 1\n');
+    const md = bridgeCommands.bridgeSnapshot(f);
+    assert.ok(md, 'a code file should still get a snapshot');
+    const doc = urlLib.decompressFromBase64Url(md);
+    assert.ok(doc.includes('```python'), 'snapshot must fence the code so refresh shows the code view, not markdown');
+    assert.ok(/file:\s*rate_limiter\.py/.test(doc), 'snapshot must carry the filename so the code view names it and auto-expands');
+    assert.ok(doc.includes('class A:'), 'snapshot keeps the source');
+  });
+
+  test('bridgeSnapshot leaves a markdown file unwrapped', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-bridge-'));
+    const f = path.join(dir, 'notes.md');
+    fs.writeFileSync(f, '# Title\n\nbody\n');
+    const doc = urlLib.decompressFromBase64Url(bridgeCommands.bridgeSnapshot(f));
+    assert.ok(doc.includes('# Title'));
+    assert.ok(!doc.includes('```'), 'markdown must not be fenced');
+  });
+
+  test('bridgeSnapshot returns null for a derived-view file (.csv builds its view on connect)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-bridge-'));
+    const f = path.join(dir, 'data.csv');
+    fs.writeFileSync(f, 'a,b\n1,2\n');
+    assert.strictEqual(bridgeCommands.bridgeSnapshot(f), null);
+  });
+
   // 2. End-to-end through a real bridge.
+
+  t('e2e: a code file arrives wrapped in its language fence over the live bridge', async () => {
+    const f = tmpFile('limiter.py', 'class A:\n    def run(self):\n        return 1\n');
+    const b = await bridge.startBridge({
+      files: [f], mode: 'open',
+      noConnectTimeoutMs: 5000, reconnectGraceMs: 0, idleTimeoutMs: 0,
+    });
+    const { sock } = await clientHandshake(b.port, b.token);
+    const hello = await nextMessage(sock);
+    assert.ok(hello.content.startsWith('```python\n'),
+      'code content should be wrapped for display, got: ' + hello.content.slice(0, 40));
+    assert.ok(hello.content.includes('def run'));
+    sock.destroy();
+    await b.awaitTerminal();
+  });
 
   t('e2e: handshake -> hello with file content', async () => {
     const f = tmpFile('doc.md', '# hi from disk\n');
