@@ -15,8 +15,10 @@ module.exports = function(harness) {
     const os = require('os');
     const testDbPath = path.join(os.tmpdir(), 'sdocs-test-analytics-' + process.pid + '.db');
     const testShortLinksDbPath = path.join(os.tmpdir(), 'sdocs-test-short-links-' + process.pid + '.db');
+    const testTeamsDbPath = path.join(os.tmpdir(), 'sdocs-test-teams-' + process.pid + '.db');
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
+    try { fs.unlinkSync(testTeamsDbPath); } catch (_) {}
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
       env: {
         ...process.env,
@@ -25,6 +27,7 @@ module.exports = function(harness) {
         ANALYTICS_DB: testDbPath,
         ANALYTICS_FLUSH_IMMEDIATE: '1',
         SHORT_LINKS_DB: testShortLinksDbPath,
+        TEAMS_DB: testTeamsDbPath,
       },
       stdio: 'pipe',
     });
@@ -439,6 +442,55 @@ module.exports = function(harness) {
       assert.ok(!/\?v=[a-f0-9]+\?v=/.test(a), 'rewriter double-stamped a URL');
     });
 
+    // ── Teams-interest endpoint ──
+    // The spawned server writes to testTeamsDbPath; assertions read the same
+    // file directly so "stored" / "not stored" is checked at the source of
+    // truth, not inferred from status codes.
+    const teamsRows = () => {
+      const Database = require('better-sqlite3');
+      const d = new Database(testTeamsDbPath, { readonly: true });
+      const rows = d.prepare('SELECT email, company, message FROM teams_interest ORDER BY id').all();
+      d.close();
+      return rows;
+    };
+
+    await testAsync('POST /api/teams-interest stores a valid submission', async () => {
+      const r = await post(BASE + '/api/teams-interest', {
+        email: 'lead@example.com', company: 'Acme', message: 'We ship reports weekly.',
+      });
+      assert.strictEqual(r.status, 201);
+      const rows = teamsRows();
+      assert.strictEqual(rows.length, 1);
+      assert.strictEqual(rows[0].email, 'lead@example.com');
+      assert.strictEqual(rows[0].company, 'Acme');
+    });
+
+    await testAsync('POST /api/teams-interest rejects a missing/invalid email', async () => {
+      const r1 = await post(BASE + '/api/teams-interest', { company: 'NoMail Ltd' });
+      assert.strictEqual(r1.status, 400);
+      const r2 = await post(BASE + '/api/teams-interest', { email: 'not-an-email' });
+      assert.strictEqual(r2.status, 400);
+      assert.strictEqual(teamsRows().length, 1);
+    });
+
+    await testAsync('POST /api/teams-interest honeypot gets 201 but stores nothing', async () => {
+      const r = await post(BASE + '/api/teams-interest', {
+        email: 'bot@example.com', website: 'http://spam.example',
+      });
+      assert.strictEqual(r.status, 201);
+      assert.strictEqual(teamsRows().length, 1);
+    });
+
+    await testAsync('POST /api/teams-interest stores email-only submissions with null extras', async () => {
+      const r = await post(BASE + '/api/teams-interest', { email: 'solo@example.com' });
+      assert.strictEqual(r.status, 201);
+      const rows = teamsRows();
+      assert.strictEqual(rows.length, 2);
+      assert.strictEqual(rows[1].email, 'solo@example.com');
+      assert.strictEqual(rows[1].company, null);
+      assert.strictEqual(rows[1].message, null);
+    });
+
     server.kill();
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testDbPath + '-wal'); } catch (_) {}
@@ -446,5 +498,8 @@ module.exports = function(harness) {
     try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath + '-shm'); } catch (_) {}
+    try { fs.unlinkSync(testTeamsDbPath); } catch (_) {}
+    try { fs.unlinkSync(testTeamsDbPath + '-wal'); } catch (_) {}
+    try { fs.unlinkSync(testTeamsDbPath + '-shm'); } catch (_) {}
   };
 };

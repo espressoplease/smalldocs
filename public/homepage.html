@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SmallDocs - an office suite for coding agents</title>
-<meta name="description" content="An office suite your existing coding agents use to produce beautiful, sharable artifacts." />
+<meta name="description" content="An office suite your existing coding agents use to write documents, charts, slides, sheets, and forms." />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -45,12 +45,6 @@
   --sh-card: 0 1px 2px rgba(27,24,21,.04), 0 6px 16px rgba(27,24,21,.05);
   --sh-lift: 0 2px 4px rgba(27,24,21,.04), 0 14px 32px rgba(27,24,21,.07),
              0 40px 64px rgba(27,24,21,.06);
-
-  /* Width of the RHS column inside panels at the default desktop viewport.
-     Derived from the install-cmd's natural content width (its nowrap curl
-     command pushes the grid column to this size). Reused as a min-width on
-     .teams-visual so the teams panel's RHS matches install's RHS exactly. */
-  --panel-rhs-width: 511px;
 
   --font:  'Inter', system-ui, -apple-system, sans-serif;
   --mono:  'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
@@ -178,8 +172,8 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   padding: 78px 0 0 0;
   text-align: left;
 }
-.hero h1.eyebrow { margin: 0; }
-.hero h1.eyebrow::before { display: none; }
+.hero .eyebrow { margin: 0; }
+.hero .eyebrow::before { display: none; }
 .hero .hero-display {
   margin-top: 14px;
   text-align: left;
@@ -331,6 +325,61 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   box-shadow: 0 6px 22px rgba(0,0,0,.28);
 }
 
+/* ── MAKE: what the agent can hand you. Same panel shell as the
+   install section; a plain three-up grid of short text items.
+   Each item can later take a small still above the title. */
+#make { padding: 66px 0 0 0; }
+.make-head { max-width: 46ch; }
+.make-head h2 {
+  font-size: var(--t-lead);
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  line-height: 1.16;
+  color: var(--ink);
+}
+.make-head p {
+  margin-top: 12px;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.make-grid {
+  margin-top: 36px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 34px 44px;
+}
+.make-item h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.make-item p {
+  margin-top: 6px;
+  font-size: var(--t-sm);
+  line-height: 1.58;
+  color: var(--ink-2);
+}
+.make-foot {
+  margin-top: 36px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+  font-size: var(--t-sm);
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 72ch;
+}
+.make-foot code {
+  font-family: var(--mono);
+  font-size: 0.84em;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--ink);
+}
+
 /* ── INSTALL: a calm tinted panel matching the video width ────
    Same overall idea as Cursor's homepage info blocks - a wide
    warm-beige section sitting inside the wrap, no drop shadow,
@@ -338,7 +387,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
    so the page reads as one visual column top to bottom. */
 
 #install {
-  padding: 66px 0 0 0;
+  padding: 18px 0 0 0;
 }
 .install-panel {
   background: var(--white);
@@ -417,7 +466,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   display: grid;
   grid-template-columns: 0.95fr 1.05fr;
   gap: 56px;
-  align-items: center;
+  align-items: start;
 }
 .teams-text { max-width: 32ch; }
 .teams-text h2 {
@@ -434,21 +483,46 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   color: var(--ink-2);
   font-weight: 400;
 }
-.teams-cta { margin-top: 22px; }
-.teams-visual {
-  position: relative;
-  background: #000;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  overflow: hidden;
-  /* Match the install panel's RHS column width. See --panel-rhs-width. */
-  min-width: var(--panel-rhs-width);
-}
-.teams-visual .vid {
+/* Teams interest form: fields share the install-cmd family's cream
+   surfaces so the two panels' RHS columns read as one system. */
+.teams-form { display: grid; gap: 14px; }
+.tf-field label {
   display: block;
+  margin-bottom: 6px;
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+}
+.tf-field .tf-opt { font-weight: 400; color: var(--ink-3); }
+.tf-field input,
+.tf-field textarea {
   width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
+  font-family: var(--font);
+  font-size: var(--t-sm);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color .15s ease;
+}
+.tf-field input:focus,
+.tf-field textarea:focus { border-color: var(--accent); }
+.tf-field textarea { resize: vertical; min-height: 96px; }
+.tf-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.tf-actions { display: flex; align-items: center; gap: 14px; }
+.tf-status { font-size: var(--t-sm); color: var(--ink-2); }
+.tf-status.err { color: #B4231F; }
+.tf-note { font-size: var(--t-label); color: var(--ink-3); }
+.teams-thanks {
+  font-size: var(--t-body);
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: var(--r);
+  padding: 22px 24px;
 }
 
 /* expandable extras: paper-tinted, borderless, lower visual weight
@@ -458,6 +532,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   border-radius: var(--r);
 }
 .trouble + .trouble { margin-top: 6px; }
+.install-cmd + .trouble { margin-top: 14px; }
 .trouble[open] { background: var(--paper); }
 .trouble > summary {
   list-style: none;
@@ -618,17 +693,22 @@ footer {
 
 /* ── RESPONSIVE ──────────────────────────────────────── */
 @media (max-width: 900px) {
-  #install { padding: 56px 0 80px; }
+  #make { padding: 56px 0 0; }
+  .make-grid { grid-template-columns: repeat(2, 1fr); gap: 28px 36px; }
+  #install { padding: 18px 0 0; }
   .install-panel { padding: 44px 36px; border-radius: 18px; }
   .install-grid { grid-template-columns: 1fr; gap: 32px; }
   .install-text { max-width: 100%; }
   .install-text h2 { font-size: 1.7rem; }
-  #teams { padding: 8px 0 64px; }
+  #teams { padding: 18px 0 64px; }
   .teams-grid { grid-template-columns: 1fr; gap: 28px; }
   .teams-text { max-width: 100%; }
 }
 @media (max-width: 620px) {
   .wrap { padding: 0 22px; }
+  .nav-hide { display: none; }
+  #make { padding: 40px 0 0; }
+  .make-grid { grid-template-columns: 1fr; gap: 22px; }
   .hero { padding: 52px 0 20px; }
   .hero .hero-display { font-size: 30px; max-width: 100%; line-height: 1.2; }
   .hero .lead { max-width: 100%; }
@@ -640,7 +720,8 @@ footer {
   .vid-btn { font-size: 11.5px; padding: 7px 10px; }
   .vid-controls { right: 10px; bottom: 10px; gap: 6px; }
   .vid-loading { left: 10px; bottom: 10px; }
-  #install { padding: 40px 0 56px; }
+  #install { padding: 14px 0 0; }
+  #teams { padding: 14px 0 48px; }
   .install-panel { padding: 32px 22px; border-radius: 16px; }
   .install-text h2 { font-size: 1.45rem; }
   .install-cmd { padding: 12px 12px 12px 14px; }
@@ -666,19 +747,20 @@ footer {
 <!-- ═══ HERO ═════════════════════════════════════════════ -->
 <header class="hero">
   <div class="wrap">
-    <h1 class="eyebrow">If Claude &amp; Microsoft Office had a baby...</h1>
-    <p class="hero-display">The document format as intelligent as your agents</p>
+    <p class="eyebrow">If Claude &amp; Microsoft Office had a baby...</p>
+    <h1 class="hero-display">The document format as intelligent as your agents</h1>
     <p class="lead">
-      A SmallDoc is a new kind of document. They're written by the agents you already use. Developers, scientists and analysts who work agenticly use them to go deeper, think clearer and collaborate faster.</p>
+      A SmallDoc is a plain markdown file, written by the agents you already use. Your browser renders it as a styled document, spreadsheet, slide deck, chart, diagram or form.</p>
     <div class="hero-cta">
-      <a class="btn btn-secondary" href="#teams">
-        Learn about team solutions
-      </a>
-      <a class="btn btn-secondary" href="#install">
+      <a class="btn btn-primary" href="#install">
         Free for personal use
+        <span class="arr">&rarr;</span>
+      </a>
+      <a class="btn btn-secondary" href="#teams">
+        SmallDocs for teams
       </a>
     </div>
-    <p class="hero-works">Compatible with Claude &middot; Codex &middot; Cursor &middot; Gemini &middot; Antigravity &middot; opencode</p>
+    <p class="hero-works">Works with Claude &middot; Codex &middot; Cursor &middot; Gemini &middot; Antigravity &middot; opencode</p>
 
     <div class="hero-visual">
       <div class="videocard" id="videocard">
@@ -690,6 +772,47 @@ footer {
   </div>
 </header>
 
+<!-- ═══ MAKE: what the agent can hand you ════════════════ -->
+<section id="make">
+  <div class="wrap">
+    <div class="install-panel">
+      <div class="make-head">
+        <h2>One file, six things it can be</h2>
+        <p>Each is a fenced block in the same <code style="font-family:var(--mono); font-size:0.84em">.md</code> file, rendered live in the browser. Ask your agent for:</p>
+      </div>
+      <div class="make-grid">
+        <div class="make-item">
+          <h3>Documents</h3>
+          <p>Styled, readable pages from any markdown file. Fonts, colors and spacing set from a panel or carried in the file itself.</p>
+        </div>
+        <div class="make-item">
+          <h3>Sheets</h3>
+          <p>Spreadsheets with live formulas. Sort, select ranges for quick stats, edit fullscreen, download as Excel with the formulas working.</p>
+        </div>
+        <div class="make-item">
+          <h3>Slides</h3>
+          <p>Decks written in plain text, presented fullscreen, exported to PDF or PowerPoint.</p>
+        </div>
+        <div class="make-item">
+          <h3>Charts</h3>
+          <p>Bar, line, pie and more from a small block of JSON. Rendered live, carried through exports.</p>
+        </div>
+        <div class="make-item">
+          <h3>Diagrams</h3>
+          <p>Mermaid flowcharts, sequence and architecture diagrams, with fullscreen pan and zoom.</p>
+        </div>
+        <div class="make-item">
+          <h3>Forms</h3>
+          <p>Interactive inputs whose answers land back in your agent's terminal, so it can act on what you chose.</p>
+        </div>
+      </div>
+      <p class="make-foot">
+        And when you're working a file back and forth, <code>sdoc bridge file.md</code> ties the open page to the file on disk: edits in the browser save to the file, edits to the file appear on the page.
+      </p>
+    </div>
+  </div>
+</section>
+
 <!-- ═══ INSTALL ══════════════════════════════════════════ -->
 <section id="install">
   <div class="wrap">
@@ -697,13 +820,19 @@ footer {
       <div class="install-grid">
 
         <div class="install-text">
-          <h2>Free for for personal use</h2>
+          <h2>Install SmallDocs</h2>
           <p>
-            Install SmallDocs for unlimited personal use. Empower your agent to create beautiful documents you can read, style and share.
+            Free for personal use. One command installs the <code style="font-family:var(--mono); font-size:0.84em">sdoc</code> CLI; <code style="font-family:var(--mono); font-size:0.84em">sdoc setup</code> wires it into your coding agents. From then on, your agent writes the markdown and you read, style and share it.
           </p>
         </div>
 
         <div class="install-actions">
+
+        <div class="install-cmd">
+          <span class="pr">$</span>
+          <span class="cmd">curl -fsSL https://smalldocs.org/install | sh</span>
+          <button class="copy" data-copy="curl -fsSL https://smalldocs.org/install | sh" title="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+        </div>
 
         <details class="trouble">
           <summary>
@@ -763,20 +892,14 @@ If any step fails, stop and tell me what happened before doing more.</pre>
 
         <details class="trouble">
           <summary>
-            <span>Manually install SmallDocs</span>
+            <span>Install notes</span>
             <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </summary>
           <div class="trouble-body">
             <div class="trouble-step">
-              <div class="install-cmd">
-                <span class="pr">$</span>
-                <span class="cmd">curl -fsSL https://smalldocs.org/install | sh</span>
-                <button class="copy" data-copy="curl -fsSL https://smalldocs.org/install | sh" title="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-              </div>
+              <p style="margin-top: 0;">The script runs on macOS and Linux. It installs everything into <code>~/.sdocs</code>, a folder you own, so it never needs <code>sudo</code>. Re-running it upgrades in place.</p>
 
-              <p>The script runs on macOS and Linux. On Windows, or via npm, install with <code>npm i -g sdocs-dev</code>.</p>
-
-              <p>npm&rsquo;s global folder is usually owned by root, so a regular install can fail with a permission error. This script installs SmallDocs into <code>~/.sdocs</code>, a folder you own, so it doesn&rsquo;t need <code>sudo</code>.</p>
+              <p>On Windows, or via npm, install with <code>npm i -g sdocs-dev</code>.</p>
 
               <p>After installing, run <code>sdoc setup</code> to wire SmallDocs into your coding-agent config files. The setup command is interactive; answer <code>Y</code> when it asks which files to update.</p>
             </div>
@@ -785,7 +908,7 @@ If any step fails, stop and tell me what happened before doing more.</pre>
 
         <details class="trouble">
           <summary>
-            <span>What to check post installation</span>
+            <span>What to check after installing</span>
             <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </summary>
           <div class="trouble-body">
@@ -793,7 +916,7 @@ If any step fails, stop and tell me what happened before doing more.</pre>
               <p style="margin-top: 0;">A few quick checks once <code>sdoc</code> is installed:</p>
               <ul>
                 <li>Run <code>which sdoc</code> in a new terminal and confirm it returns a path. If it doesn&rsquo;t, your shell hasn&rsquo;t picked up the updated PATH yet, open a fresh terminal or source your shell rc file.</li>
-                <li>Run <code>sdoc --help</code> to confirm the CLI launches and prints its reference.</li>
+                <li>Run <code>sdoc --version</code> to confirm the CLI launches and is current.</li>
                 <li>Open a fresh chat session with your coding agent and ask it to &ldquo;sdoc me a test file&rdquo;. A styled document should open in your browser.</li>
                 <li>If the agent doesn&rsquo;t recognise the request, check that the SmallDocs section in your global agent config (e.g. <code>~/.claude/CLAUDE.md</code>) was written by <code>sdoc setup</code>.</li>
               </ul>
@@ -803,7 +926,7 @@ If any step fails, stop and tell me what happened before doing more.</pre>
 
         <details class="trouble">
           <summary>
-            <span>How private and secure is SmallDocs?</span>
+            <span>Privacy and security</span>
             <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </summary>
           <div class="trouble-body">
@@ -830,18 +953,37 @@ If any step fails, stop and tell me what happened before doing more.</pre>
         <div class="teams-text">
           <h2>SmallDocs Teams</h2>
           <p class="lead">
-            For organisations using coding agents at scale. Shared style libraries, central distribution of company-standard documents, and SSO. Your teams write and share artifacts that look the same wherever they land.
+            We're building Teams for organisations using coding agents: shared style libraries, central distribution of company-standard documents, and SSO. Your teams write and share artifacts that look the same wherever they land.
           </p>
-          <div class="teams-cta">
-            <a class="btn btn-primary" href="mailto:hi@smalldocs.org?subject=SmallDocs%20Teams">
-              Get SmallDocs Teams
-            </a>
-          </div>
+          <p class="lead">
+            Tell us what your team needs and we'll be in touch.
+          </p>
         </div>
 
-        <div class="teams-visual" aria-hidden="true">
-          <img class="vid" src="/public/homepage/demo-poster.jpg" alt="" />
-        </div>
+        <form class="teams-form" id="teamsForm" novalidate>
+          <div class="tf-field">
+            <label for="tf-email">Work email</label>
+            <input id="tf-email" name="email" type="email" required autocomplete="email" />
+          </div>
+          <div class="tf-field">
+            <label for="tf-company">Company or team <span class="tf-opt">optional</span></label>
+            <input id="tf-company" name="company" type="text" autocomplete="organization" />
+          </div>
+          <div class="tf-field">
+            <label for="tf-message">What would your team use it for? <span class="tf-opt">optional</span></label>
+            <textarea id="tf-message" name="message" rows="4"></textarea>
+          </div>
+          <!-- Honeypot: hidden from people, filled by naive bots. -->
+          <div class="tf-hp" aria-hidden="true">
+            <label for="tf-website">Website</label>
+            <input id="tf-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+          </div>
+          <div class="tf-actions">
+            <button class="btn btn-primary" type="submit" id="tf-submit">Register interest</button>
+            <span class="tf-status" id="tf-status" aria-live="polite"></span>
+          </div>
+          <p class="tf-note">We store what you submit and use it only to reply.</p>
+        </form>
 
       </div><!-- /teams-grid -->
     </div><!-- /install-panel -->
@@ -854,6 +996,10 @@ If any step fails, stop and tell me what happened before doing more.</pre>
     <p class="foot-fine">
       <span>smalldocs.org</span>
       <span>
+        <a href="/blogs/new-home">What's new</a><span class="dot">&middot;</span>
+        <a href="/privacy">Privacy</a><span class="dot">&middot;</span>
+        <a href="/trust">Trust</a><span class="dot">&middot;</span>
+        <a href="/legal">Terms</a><span class="dot">&middot;</span>
         <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">Open source on GitHub</a>
       </span>
     </p>
@@ -887,6 +1033,53 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
     setTimeout(() => { btn.innerHTML = COPY_SVG; }, COPY_FEEDBACK_MS);
   });
 });
+
+/* Teams interest form: POST to /api/teams-interest, which stores the
+   submission and pings us. On success the whole form is replaced with a
+   confirmation so a double-submit isn't possible. */
+(function () {
+  const form = document.getElementById('teamsForm');
+  if (!form) return;
+  const email   = document.getElementById('tf-email');
+  const company = document.getElementById('tf-company');
+  const message = document.getElementById('tf-message');
+  const hp      = document.getElementById('tf-website');
+  const submit  = document.getElementById('tf-submit');
+  const status  = document.getElementById('tf-status');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const addr = email.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(addr)) {
+      status.textContent = 'Enter a valid email address.';
+      status.classList.add('err');
+      email.focus();
+      return;
+    }
+    status.classList.remove('err');
+    status.textContent = 'Sending…';
+    submit.disabled = true;
+    try {
+      const r = await fetch('/api/teams-interest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: addr,
+          company: company.value.trim(),
+          message: message.value.trim(),
+          website: hp.value,
+        }),
+      });
+      if (!r.ok) throw new Error('http ' + r.status);
+      form.innerHTML = '<div class="teams-thanks">Thanks. We’ll be in touch at <strong>'
+        + addr.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</strong>.</div>';
+    } catch (err) {
+      submit.disabled = false;
+      status.classList.add('err');
+      status.textContent = 'Something went wrong; nothing was sent. Try again, or email hi@sdocs.dev.';
+    }
+  });
+})();
 
 /* Hero video: muted autoplay, click to unmute (restarts from start
    with sound). Captions custom-rendered; cues below are placeholder
