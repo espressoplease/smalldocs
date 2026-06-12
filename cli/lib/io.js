@@ -6,7 +6,7 @@ const { execFileSync } = require('child_process');
 const { transcludeCells, isWrappedFile, wrapForDisplay } = require('./cells-transclude');
 
 const SUBCOMMANDS = new Set([
-  'new', 'share', 'schema', 'defaults', 'help',
+  'new', 'share', 'schema', 'defaults', 'help', 'version',
   'charts', 'diagrams', 'cells', 'comments',
   'setup', 'safe', 'auto-update', 'refresh', 'upgrade',
   'bridge', 'feedback',
@@ -56,6 +56,7 @@ function parseArgs(argv) {
       continue;
     }
     if (arg === '--schema')               { subcommand = 'schema'; continue; }
+    if (arg === '--version' || arg === '-v' || arg === '-V') { subcommand = 'version'; continue; }
 
     if (arg === '--write')   { mode = 'write'; continue; }
     if (arg === '--style')   { mode = 'style'; continue; }
