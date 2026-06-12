@@ -214,6 +214,17 @@
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 6%, transparent);',
     '}',
+    // Selected = the file is collapsed to its summary (chevron right). Mirrors
+    // the top-menu toggles\' active state: the neutral tint + full-strength text,
+    // so the button reads as "on" exactly when the summary is what you\'re seeing.
+    '.sdoc-cf-summary:not(.is-open) {',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 12%, transparent);',
+    '}',
+    '.sdoc-cf-summary:not(.is-open) .sdoc-cf-summary-chev { color: var(--sdoc-focus-fg, #1c1917); }',
+    '.sdoc-cf-summary:not(.is-open):hover {',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 16%, transparent);',
+    '}',
     '.sdoc-cf-summary:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
     '.sdoc-cf-summary-chev {',
     '  flex: 0 0 auto; width: 15px;',
@@ -1164,7 +1175,7 @@
     btn.className = 'sdoc-cf-summary';
     btn.innerHTML =
       '<span class="sdoc-cf-summary-chev">' + CHEVRON + '</span>'
-      + '<span class="sdoc-cf-summary-label">Summary view</span>';
+      + '<span class="sdoc-cf-summary-label">Summary</span>';
     btn.addEventListener('click', function () { toggleAll(); });
     return btn;
   }
