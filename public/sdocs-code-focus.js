@@ -139,9 +139,6 @@
     '  border-color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 32%, transparent);',
     '}',
     '.sdoc-code-focus-action svg { flex-shrink: 0; }',
-    // The centre collapse/expand control carries a text label beside its icon.
-    '.sdoc-cf-foldall { padding: 5px 9px; gap: 0; }',
-    '.sdoc-cf-label { font-size: 11.5px; font-weight: 500; margin-left: 5px; white-space: nowrap; }',
     // Comment sub-bar: a second toolbar row under the topbar, present only in
     // comment mode. Slides in like the markdown reader comment toolbar.
     '.sdoc-cc-subbar {',
@@ -307,10 +304,9 @@
     // ── Comment mode ──────────────────────────────────────────────────────
     // Toolbar comment toggle: a dot marks it when the file already has notes;
     // the active state tints it like the wrap toggle.
+    // The active state uses the shared .sdoc-code-focus-btn.active (the same
+    // neutral tint the wrap toggle uses), so the two toggles read identically.
     '.sdoc-code-focus-btn[data-act="comment"] { position: relative; }',
-    '.sdoc-code-focus-btn[data-act="comment"].active {',
-    '  background: color-mix(in oklab, #3B82F6 16%, transparent); color: #3B82F6;',
-    '}',
     '.sdoc-code-focus-btn[data-act="comment"].has-notes::after {',
     '  content: ""; position: absolute; top: 4px; right: 4px;',
     '  width: 5px; height: 5px; border-radius: 50%; background: var(--sdoc-cc-accent, #ffbb00);',
@@ -864,7 +860,9 @@
       var ln = CC.resolveLine(c, srcLines);
       return ln >= h && ln <= end;
     });
-    var text = CC.serializeAnnotations(within, sectionLines, { fileName: fileNameForCopy(), lang: currentLang });
+    // The fence holds just this section, but the notes should cite the file's
+    // real line numbers, so offset the printed numbers by the section start (h).
+    var text = CC.serializeAnnotations(within, sectionLines, { fileName: fileNameForCopy(), lang: currentLang, lineOffset: h });
     navigator.clipboard.writeText(text).then(function () {
       if (!btn) return;
       var lab = btn.querySelector('span');
@@ -891,9 +889,10 @@
     savePref(nextCollapsed);
   }
 
-  // Keep both fold-all controls in step. The toolbar button shows "Collapse all"
-  // while everything is open and "Expand all" once anything is folded; the gutter
-  // chevron points down when open and right when folded, like the row chevrons.
+  // Keep the fold-all icon button in step: the inward-arrows ("collapse all")
+  // glyph shows while everything is open, the outward-arrows ("expand all") glyph
+  // once anything is folded. The label drives only the tooltip / aria-label now;
+  // the button carries no visible text.
   function syncFoldAllBtn() {
     if (!modal) return;
     var allOpen = !collapsed || collapsed.size === 0;
@@ -903,8 +902,6 @@
       btn.classList.toggle('is-open', allOpen);
       btn.setAttribute('aria-label', label);
       btn.setAttribute('title', label);
-      var lab = btn.querySelector('.sdoc-cf-label');
-      if (lab) lab.textContent = label;
     }
   }
 
@@ -1022,7 +1019,7 @@
       +   '<span class="sdoc-code-focus-brand-text sdoc-code-focus-brand-short">SD</span>'
       + '</span>'
       + '<div class="sdoc-code-focus-center">'
-      +   '<button type="button" class="sdoc-code-focus-btn sdoc-cf-foldall" data-act="foldall" title="Collapse all" aria-label="Collapse all">' + FOLDALL_ICONS + '<span class="sdoc-cf-label">Collapse all</span></button>'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="foldall" title="Collapse all" aria-label="Collapse all">' + FOLDALL_ICONS + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn active" data-act="wrap" title="Toggle soft wrap" aria-label="Toggle soft wrap" aria-pressed="true">' + WRAP_ICON + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="comment" title="Comment mode" aria-label="Comment mode" aria-pressed="false">' + COMMENT_ICON + '</button>'
       +   '<button type="button" class="sdoc-code-focus-action" data-act="copy" title="Copy code" aria-label="Copy code">'

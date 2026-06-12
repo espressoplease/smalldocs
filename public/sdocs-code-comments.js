@@ -182,12 +182,20 @@
   // numbered Notes list keyed by line (or method range) with author and text.
   // Pasteable into an agent or chat. Notes are ordered by their resolved line;
   // a note whose anchor is gone is dropped from the list (its anchor can't be
-  // pointed at). opts: { fileName, lang }.
+  // pointed at). opts: { fileName, lang, lineOffset }.
+  //
+  // lineOffset shifts the line numbers PRINTED in the notes without changing how
+  // anchors resolve. A per-section copy fences only the section slice but still
+  // wants to cite the file's real line numbers, so it passes the section's start
+  // index (0-based) as lineOffset: a note resolved to slice row 0 then prints as
+  // the absolute line it came from, not "line 1".
   function serializeAnnotations(list, srcLines, opts) {
     opts = opts || {};
     var lines = Array.isArray(srcLines) ? srcLines : String(srcLines || '').split('\n');
     var lang = opts.lang || '';
     var fileName = opts.fileName || 'code';
+    var off = toInt(opts.lineOffset, 0);
+    if (off < 0) off = 0;
     var resolved = getComments(list).map(function (c) {
       return { c: c, ln: resolveLine(c, lines) };
     }).filter(function (r) { return r.ln >= 0; });
@@ -206,9 +214,9 @@
         var end = ln + (toInt(c.endLine, ln) - toInt(c.line, ln));
         if (end < ln) end = ln;
         if (end >= lines.length) end = lines.length - 1;
-        loc = 'method `' + (lines[ln] || '').trim() + '` (lines ' + (ln + 1) + '-' + (end + 1) + ')';
+        loc = 'method `' + (lines[ln] || '').trim() + '` (lines ' + (ln + 1 + off) + '-' + (end + 1 + off) + ')';
       } else {
-        loc = 'line ' + (ln + 1) + ' `' + (lines[ln] || '').trim() + '`';
+        loc = 'line ' + (ln + 1 + off) + ' `' + (lines[ln] || '').trim() + '`';
       }
       out += '[' + (i + 1) + '] ' + loc + ' - ' + author + ': ' + text + '\n';
     });
