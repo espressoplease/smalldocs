@@ -38,7 +38,7 @@
     var addr = p.get('bridge');
     if (!addr) return null;
     // Only loopback addresses are permitted. The CLI builds these URLs
-    // itself, but a hostile sdocs.dev shouldn't be able to coax the page
+    // itself, but a hostile smalldocs.org shouldn't be able to coax the page
     // into talking to an arbitrary host.
     if (!/^127\.0\.0\.1:\d+$/.test(addr) && !/^localhost:\d+$/i.test(addr)) {
       return null;

@@ -81,7 +81,7 @@ function parseReferer(ref) {
   if (!ref || ref.length > 2048) return 'direct';
   try {
     var host = new URL(ref).hostname.replace('www.', '');
-    if (host === 'sdocs.dev' || host === 'localhost') return 'direct';
+    if (host === 'smalldocs.org' || host === 'sdocs.dev' || host === 'localhost') return 'direct';
     if (host.includes('google') || host.includes('bing') || host.includes('duckduckgo')) return 'search';
     if (host.includes('github')) return 'github';
     if (host.includes('npmjs')) return 'npm';

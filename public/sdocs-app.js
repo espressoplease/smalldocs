@@ -494,7 +494,7 @@ function render() {
 
 // ── File-info card ─────────────────────────────────────────
 
-var SHORT_LINKS_LEARN_URL = 'https://sdocs.dev/#sec=short-links';
+var SHORT_LINKS_LEARN_URL = 'https://smalldocs.org/#sec=short-links';
 
 function shortenErrorMessage(code) {
   return code === 'rate_limited' ? 'Too many requests, try again later.'

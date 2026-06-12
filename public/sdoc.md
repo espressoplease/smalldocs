@@ -5,13 +5,13 @@ file: sdoc.md
 # Meet `sdoc`: Markdown without the frustrations
 
 
-(**TLDR:** `sdoc path/to/README.md` opens your file at https://smalldocs.org with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `curl -fsSL https://smalldocs.org/install | sh`. SDocs is [open-source](https://github.com/espressoplease/SDocs). You're reading markdown right now.)
+(**TLDR:** `sdoc path/to/README.md` opens your file at https://smalldocs.org with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SmallDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `curl -fsSL https://smalldocs.org/install | sh`. SmallDocs is [open-source](https://github.com/espressoplease/smalldocs). You're reading markdown right now.)
 
 ---
 
 Markdown is great for agents, but a bit annoying for humans. Quickly and elegantly reading a `.md` file requires you to open your code editor and enter "preview" mode. Sharing a markdown file requires you to actually send the file to someone. They then have to download it and find the least annoying way to read it.
 
-SmallDocs is an [open-source](https://github.com/espressoplease/SDocs) attempt at something different. It lets you (or your agent) easily, elegantly and <ins>100% privately</ins> **read**, **format**, **share** and **export** `.md` files.
+SmallDocs is an [open-source](https://github.com/espressoplease/smalldocs) attempt at something different. It lets you (or your agent) easily, elegantly and <ins>100% privately</ins> **read**, **format**, **share** and **export** `.md` files.
 
 Reading a `.md` file in SmallDocs feels just like this (you're reading markdown right now). And by playing with the styles, you can create things like:
 
@@ -28,9 +28,9 @@ sdoc share README.md          # copy shareable link to clipboard
 ```
 Or telling your agent to *"sdoc it"*.
 
-From personal experience, SDocs is great for sharing agent debugging reports across teams, doing in-depth reading on a topic and presenting agent output in a copyable format (e.g. a series of bash commands that need to be ran).
+From personal experience, SmallDocs is great for sharing agent debugging reports across teams, doing in-depth reading on a topic and presenting agent output in a copyable format (e.g. a series of bash commands that need to be ran).
 
-#### Claude Code + SDocs
+#### Claude Code + SmallDocs
 
 Teach [Claude Code](https://docs.anthropic.com/en/docs/claude-code) about `sdoc` so it can read, style, and share `.md` files across all your projects:
 
@@ -38,18 +38,20 @@ Teach [Claude Code](https://docs.anthropic.com/en/docs/claude-code) about `sdoc`
 curl -fsSL https://smalldocs.org/install | sh
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=9 -->
-## SDocs
+<!-- sdocs-agent-block:start v=10 -->
+## SmallDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
 
-Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
 ### Basic `sdoc` usage
 
 - `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
 - `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- `sdoc library` - opens a library view in the browser. SDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library` - opens a library view in the browser. SmallDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 - `sdoc file.md +tag1 +tag2` - open the file and inject tags into its YAML front matter which persist. The `+` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - `sdoc library ls --tags` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
@@ -57,7 +59,7 @@ Use it (or offer it) when the user wants to read, share, or export a `.md` file,
 
 ### SmallDocs expands what you can create with Markdown
 
-SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
@@ -73,7 +75,7 @@ SDOC
 
 Or run `sdoc setup` once installed to do this automatically.
 
-#### Codex + SDocs
+#### Codex + SmallDocs
 
 Teach [Codex](https://developers.openai.com/codex) about `sdoc`:
 
@@ -81,18 +83,20 @@ Teach [Codex](https://developers.openai.com/codex) about `sdoc`:
 curl -fsSL https://smalldocs.org/install | sh
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=9 -->
-## SDocs
+<!-- sdocs-agent-block:start v=10 -->
+## SmallDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
 
-Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
 ### Basic `sdoc` usage
 
 - `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
 - `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- `sdoc library` - opens a library view in the browser. SDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library` - opens a library view in the browser. SmallDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 - `sdoc file.md +tag1 +tag2` - open the file and inject tags into its YAML front matter which persist. The `+` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - `sdoc library ls --tags` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
@@ -100,7 +104,7 @@ Use it (or offer it) when the user wants to read, share, or export a `.md` file,
 
 ### SmallDocs expands what you can create with Markdown
 
-SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
@@ -116,7 +120,7 @@ SDOC
 
 Or run `sdoc setup` once installed to do this automatically.
 
-#### Gemini CLI + SDocs
+#### Gemini CLI + SmallDocs
 
 Teach [Gemini CLI](https://github.com/google-gemini/gemini-cli) about `sdoc`:
 
@@ -124,18 +128,20 @@ Teach [Gemini CLI](https://github.com/google-gemini/gemini-cli) about `sdoc`:
 curl -fsSL https://smalldocs.org/install | sh
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=9 -->
-## SDocs
+<!-- sdocs-agent-block:start v=10 -->
+## SmallDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
 
-Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
 ### Basic `sdoc` usage
 
 - `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
 - `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- `sdoc library` - opens a library view in the browser. SDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library` - opens a library view in the browser. SmallDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 - `sdoc file.md +tag1 +tag2` - open the file and inject tags into its YAML front matter which persist. The `+` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - `sdoc library ls --tags` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
@@ -143,7 +149,7 @@ Use it (or offer it) when the user wants to read, share, or export a `.md` file,
 
 ### SmallDocs expands what you can create with Markdown
 
-SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
@@ -159,7 +165,7 @@ SDOC
 
 Or run `sdoc setup` once installed to do this automatically.
 
-#### opencode + SDocs
+#### opencode + SmallDocs
 
 Teach [opencode](https://opencode.ai) about `sdoc`:
 
@@ -168,18 +174,20 @@ curl -fsSL https://smalldocs.org/install | sh
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=9 -->
-## SDocs
+<!-- sdocs-agent-block:start v=10 -->
+## SmallDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
 
-Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
 ### Basic `sdoc` usage
 
 - `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
 - `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- `sdoc library` - opens a library view in the browser. SDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library` - opens a library view in the browser. SmallDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 - `sdoc file.md +tag1 +tag2` - open the file and inject tags into its YAML front matter which persist. The `+` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - `sdoc library ls --tags` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
@@ -187,7 +195,7 @@ Use it (or offer it) when the user wants to read, share, or export a `.md` file,
 
 ### SmallDocs expands what you can create with Markdown
 
-SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
@@ -241,7 +249,7 @@ Because the SmallDocs url format is:
 https://smalldocs.org/#md={compressed & encoded .md}
 ```
 
-Your document never hits the SDocs server.
+Your document never hits the SmallDocs server.
 
 This layer of privacy is built into how HTTP works. The hash fragment (everything after the `#` in a URL) is never sent to the server by the browser. It always stays entirely client-side:
 
@@ -267,7 +275,7 @@ The mitigation that does not exist: there is no cheap way for the bridge to know
 
 Short links are an optional feature that produces a much shorter URL for sharing. When implementing them we've tried to balance our focus on privacy with the need to store some aspect of your document on our server (which is what enables the URL to be short). We feel we found a clever solution, but you can be the judge.
 
-To maximize privacy the document is encrypted in your browser before upload. The SDocs server only receives (and stores) ciphertext, not the original (human readable) text. The decryption key required to convert the ciphertext into readable text stays with you.
+To maximize privacy the document is encrypted in your browser before upload. The SmallDocs server only receives (and stores) ciphertext, not the original (human readable) text. The decryption key required to convert the ciphertext into readable text stays with you.
 
 Clicking **Generate** creates a short link of the form:
 
@@ -288,7 +296,7 @@ The rest of this section walks through exactly what the server receives and what
 Before you click Generate, here's what each side has:
 
 ```
-  Your browser                       SDocs server
+  Your browser                       SmallDocs server
   ────────────                       ────────────
   • the document                     (nothing)
 ```
@@ -304,7 +312,7 @@ key = randomBytes(32)
 Updated picture:
 
 ```
-  Your browser                       SDocs server
+  Your browser                       SmallDocs server
   ────────────                       ────────────
   • the document                     (nothing)
   • the encryption key
@@ -323,17 +331,17 @@ The ciphertext is a blob of random-looking bytes that cannot be read without the
 Updated picture:
 
 ```
-  Your browser                       SDocs server
+  Your browser                       SmallDocs server
   ────────────                       ────────────
   • the document                     (nothing)
   • the encryption key
   • the encrypted blob
 ```
 
-**Step 3: your browser uploads only the encrypted blob** to the SDocs server. **The key stays in your browser.** The server stores the blob under a short random ID and sends the ID back:
+**Step 3: your browser uploads only the encrypted blob** to the SmallDocs server. **The key stays in your browser.** The server stores the blob under a short random ID and sends the ID back:
 
 ```
-  Your browser                       SDocs server
+  Your browser                       SmallDocs server
   ────────────                       ────────────
   • the document                     • the encrypted blob
   • the encryption key               • the short id
@@ -345,13 +353,13 @@ Updated picture:
 
 When someone opens the link, their browser sends the short ID to the server, receives the encrypted blob back, reads the key from the URL hash, and decrypts the blob locally. The server never sees the plain document or the key, only ciphertext. This pattern is called [end-to-end encryption](https://en.wikipedia.org/wiki/End-to-end_encryption): the two "ends" are your browser and the recipient's browser, and everything in between (our server included) handles ciphertext only.
 
-To confirm this, open your browser's developer tools, switch to the Network tab, click **Generate**, and inspect the request body. You will see a base64-encoded blob of random bytes, not your document. The source is at [SDocs on GitHub](https://github.com/espressoplease/SDocs) if you want to read the exact code that runs before the upload.
+To confirm this, open your browser's developer tools, switch to the Network tab, click **Generate**, and inspect the request body. You will see a base64-encoded blob of random bytes, not your document. The source is at [SmallDocs on GitHub](https://github.com/espressoplease/smalldocs) if you want to read the exact code that runs before the upload.
 
 Short links are opt-in. The default `#md=...` URL format still works exactly as before and never reaches a server.
 
 ### Formatting
 
-SDocs adds basic styling to markdown files. You write your content in regular markdown and the styles live in a metadata block at the top of the file.
+SmallDocs adds basic styling to markdown files. You write your content in regular markdown and the styles live in a metadata block at the top of the file.
 
 That metadata block is called [YAML front matter](https://jekyllrb.com/docs/front-matter/). It's a convention that started with [Jekyll](https://jekyllrb.com/) (the static site generator) back in 2008 and has since been adopted by [Hugo](https://gohugo.io/), [Gatsby](https://www.gatsbyjs.com/), [Obsidian](https://obsidian.md/), and most of the markdown ecosystem. It looks like a block of key-value pairs between two `---` lines at the top of your file:
 
@@ -362,7 +370,7 @@ author: Someone
 ---
 ```
 
-SDocs uses a `styles:` key with CSS properties written beneath it in YAML:
+SmallDocs uses a `styles:` key with CSS properties written beneath it in YAML:
 
 ```yaml
 ---
@@ -478,7 +486,7 @@ Supports 13 diagram types: flowcharts, sequence diagrams, class diagrams, state 
 
 Standalone `.mmd` files work too — `sdoc graph.mmd` wraps the file in a ` ```mermaid ` fence and opens it. Run `sdoc diagrams` for the full reference.
 
-Mermaid runs with `securityLevel: 'strict'` and `htmlLabels: true`. The htmlLabels flag lets long labels wrap inside a `<foreignObject>`, which is otherwise a script-injection vector; SDocs makes it safe by post-sanitising the SVG before insertion. `<script>`, `<iframe>`, `<form>`, `<input>`, `<use>`, animation tags, `on*` event handlers, and `javascript:` URLs are stripped, and `%%{init:...}%%` directives in the source are removed because they can flip security settings at parse time. Per-diagram source is capped at 64 KB and each render times out after 5 seconds.
+Mermaid runs with `securityLevel: 'strict'` and `htmlLabels: true`. The htmlLabels flag lets long labels wrap inside a `<foreignObject>`, which is otherwise a script-injection vector; SmallDocs makes it safe by post-sanitising the SVG before insertion. `<script>`, `<iframe>`, `<form>`, `<input>`, `<use>`, animation tags, `on*` event handlers, and `javascript:` URLs are stripped, and `%%{init:...}%%` directives in the source are removed because they can flip security settings at parse time. Per-diagram source is capped at 64 KB and each render times out after 5 seconds.
 
 ### Slides
 
@@ -567,7 +575,7 @@ Run `sdoc feedback` with no arguments to print the full DSL reference: every fie
 
 ### Works offline
 
-SDocs uses a [service worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) to cache all assets (HTML, CSS, JS, fonts) in the browser. After your first visit, the site loads entirely from this cache — no network required. You can open SDocs URLs and edit documents while offline.
+SmallDocs uses a [service worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) to cache all assets (HTML, CSS, JS, fonts) in the browser. After your first visit, the site loads entirely from this cache — no network required. You can open SmallDocs URLs and edit documents while offline.
 
 On each visit, the service worker sends a single request to `/version-check` in the background. This compares the cached app version against the server's current version. If they differ, the cache is purged and fresh assets are fetched — the update takes effect on your next page load. If the request fails (e.g. you're offline), nothing happens and the cached version continues to work.
 
@@ -575,9 +583,9 @@ On each visit, the service worker sends a single request to `/version-check` in 
 
 We don't use any third-party analytics provider.
 
-The `/version-check` request described in the works offline section above is the only request SDocs makes to the server. Like any HTTP request, it includes your IP address, browser user-agent, referring URL, and the timestamp — this is standard to how the web works and is not something we add. The server logs the user-agent, referer, and accept-language to stdout, but does not record your IP address anywhere.
+The `/version-check` request described in the works offline section above is the only request SmallDocs makes to the server. Like any HTTP request, it includes your IP address, browser user-agent, referring URL, and the timestamp — this is standard to how the web works and is not something we add. The server logs the user-agent, referer, and accept-language to stdout, but does not record your IP address anywhere.
 
-In addition to these standard fields, the version-check request includes your cohort week — the week you first visited SDocs. This is stored in your browser's localStorage under the key `sdocs_cohort`. For example, if you first visit on 2026-04-10, the value `2026-W15` is stored and sent with each subsequent version-check.
+In addition to these standard fields, the version-check request includes your cohort week — the week you first visited SmallDocs. This is stored in your browser's localStorage under the key `sdocs_cohort`. For example, if you first visit on 2026-04-10, the value `2026-W15` is stored and sent with each subsequent version-check.
 
 This is not a unique identifier. It groups you with every other person who first visited that same week. Alongside the cohort, each visit also records a coarse device label (desktop / mobile / tablet), browser family (Chrome, Safari, etc.), and referrer category parsed from the standard HTTP headers — none of which identifies you individually. Every 15 minutes, buffered visits are written to a local SQLite database. The dashboard at [smalldocs.org/analytics](https://smalldocs.org/analytics) shows visit counts per cohort per week.
 
@@ -609,7 +617,7 @@ curl -fsSL https://smalldocs.org/install | sh
 
 This installs the `sdoc` command under `~/.sdocs`, a directory you own. It needs Node.js already on your machine, but never needs root and never writes to npm's global folder. Re-running the same command upgrades sdoc in place, as does `sdoc upgrade`.
 
-The first time you run `sdoc`, you'll see a one-time prompt offering to wire SDocs into any coding agents you have installed (see Setup below). You can accept, skip, or opt out - and re-run it any time with `sdoc setup`.
+The first time you run `sdoc`, you'll see a one-time prompt offering to wire SmallDocs into any coding agents you have installed (see Setup below). You can accept, skip, or opt out - and re-run it any time with `sdoc setup`.
 
 #### Installing with npm instead
 
@@ -635,13 +643,13 @@ After this, every global npm install lives under `~/.npm-global` and never needs
 sdoc setup
 ```
 
-Detects which coding agents you have installed (Claude Code, Codex, Gemini CLI, opencode, pi, CodeWhale) and offers to append a short SDocs section to each of their global config files. This is what lets your agents know `sdoc` exists and what it does, so they can read, style, and share `.md` files on your behalf.
+Detects which coding agents you have installed (Claude Code, Codex, Gemini CLI, opencode, pi, CodeWhale) and offers to append a short SmallDocs section to each of their global config files. This is what lets your agents know `sdoc` exists and what it does, so they can read, style, and share `.md` files on your behalf.
 
 `sdoc setup` also auto-prompts once the first time you use the CLI. If you decline or skip it then, you can always come back and run it manually. It's safe to run any time - it detects existing sections and skips files that already have them.
 
 The setup wizard also asks whether you want sdoc to auto-install its own updates when a new version ships on npm. Recommended if you mostly use sdoc through coding agents (which never see the interactive update prompt). Toggle later with `sdoc auto-update on` or `sdoc auto-update off`. Each auto-install prints a source-diff link so you (or your agent) can verify what was installed.
 
-When the SDocs block in your agent files is itself updated (rare, only on releases that change the wording), sdoc prints a one-line summary plus a link to [the agent-block changelog](/agent-changes) so you can audit what changed.
+When the SmallDocs block in your agent files is itself updated (rare, only on releases that change the wording), sdoc prints a one-line summary plus a link to [the agent-block changelog](/agent-changes) so you can audit what changed.
 
 ### Open a file
 
@@ -743,25 +751,27 @@ sdoc charts            # chart types, JSON format, styling, annotations
 
 The easy way: run `sdoc setup`. It detects which coding agents you have installed and appends the snippets below for you. You're prompted automatically the first time you run any `sdoc` command, and you can re-run `sdoc setup` any time.
 
-The manual way: copy and paste the one-line commands below into your terminal. Each appends SDocs instructions to the tool's global config file.
+The manual way: copy and paste the one-line commands below into your terminal. Each appends SmallDocs instructions to the tool's global config file.
 
 #### Claude Code → `~/.claude/CLAUDE.md`
 
 ```bash
 cat >> ~/.claude/CLAUDE.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=9 -->
-## SDocs
+<!-- sdocs-agent-block:start v=10 -->
+## SmallDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
 
-Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
 ### Basic `sdoc` usage
 
 - `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
 - `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- `sdoc library` - opens a library view in the browser. SDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library` - opens a library view in the browser. SmallDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 - `sdoc file.md +tag1 +tag2` - open the file and inject tags into its YAML front matter which persist. The `+` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - `sdoc library ls --tags` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
@@ -769,7 +779,7 @@ Use it (or offer it) when the user wants to read, share, or export a `.md` file,
 
 ### SmallDocs expands what you can create with Markdown
 
-SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
@@ -788,18 +798,20 @@ SDOC
 ```bash
 cat >> ~/.codex/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=9 -->
-## SDocs
+<!-- sdocs-agent-block:start v=10 -->
+## SmallDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
 
-Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
 ### Basic `sdoc` usage
 
 - `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
 - `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- `sdoc library` - opens a library view in the browser. SDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library` - opens a library view in the browser. SmallDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 - `sdoc file.md +tag1 +tag2` - open the file and inject tags into its YAML front matter which persist. The `+` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - `sdoc library ls --tags` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
@@ -807,7 +819,7 @@ Use it (or offer it) when the user wants to read, share, or export a `.md` file,
 
 ### SmallDocs expands what you can create with Markdown
 
-SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
@@ -826,18 +838,20 @@ SDOC
 ```bash
 cat >> ~/.gemini/GEMINI.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=9 -->
-## SDocs
+<!-- sdocs-agent-block:start v=10 -->
+## SmallDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
 
-Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
 ### Basic `sdoc` usage
 
 - `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
 - `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- `sdoc library` - opens a library view in the browser. SDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library` - opens a library view in the browser. SmallDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 - `sdoc file.md +tag1 +tag2` - open the file and inject tags into its YAML front matter which persist. The `+` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - `sdoc library ls --tags` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
@@ -845,7 +859,7 @@ Use it (or offer it) when the user wants to read, share, or export a `.md` file,
 
 ### SmallDocs expands what you can create with Markdown
 
-SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
@@ -865,18 +879,20 @@ SDOC
 mkdir -p ~/.config/opencode
 cat >> ~/.config/opencode/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=9 -->
-## SDocs
+<!-- sdocs-agent-block:start v=10 -->
+## SmallDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
 
-Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
 ### Basic `sdoc` usage
 
 - `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
 - `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- `sdoc library` - opens a library view in the browser. SDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library` - opens a library view in the browser. SmallDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 - `sdoc file.md +tag1 +tag2` - open the file and inject tags into its YAML front matter which persist. The `+` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - `sdoc library ls --tags` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
@@ -884,7 +900,7 @@ Use it (or offer it) when the user wants to read, share, or export a `.md` file,
 
 ### SmallDocs expands what you can create with Markdown
 
-SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
@@ -904,18 +920,20 @@ SDOC
 mkdir -p ~/.pi/agent
 cat >> ~/.pi/agent/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=9 -->
-## SDocs
+<!-- sdocs-agent-block:start v=10 -->
+## SmallDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
 
-Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
 ### Basic `sdoc` usage
 
 - `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
 - `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- `sdoc library` - opens a library view in the browser. SDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library` - opens a library view in the browser. SmallDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 - `sdoc file.md +tag1 +tag2` - open the file and inject tags into its YAML front matter which persist. The `+` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - `sdoc library ls --tags` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
@@ -923,7 +941,7 @@ Use it (or offer it) when the user wants to read, share, or export a `.md` file,
 
 ### SmallDocs expands what you can create with Markdown
 
-SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
@@ -943,18 +961,20 @@ SDOC
 mkdir -p ~/.codewhale
 cat >> ~/.codewhale/AGENTS.md << 'SDOC'
 
-<!-- sdocs-agent-block:start v=9 -->
-## SDocs
+<!-- sdocs-agent-block:start v=10 -->
+## SmallDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
 
-Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
 ### Basic `sdoc` usage
 
 - `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
 - `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- `sdoc library` - opens a library view in the browser. SDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library` - opens a library view in the browser. SmallDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 - `sdoc file.md +tag1 +tag2` - open the file and inject tags into its YAML front matter which persist. The `+` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - `sdoc library ls --tags` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
@@ -962,7 +982,7 @@ Use it (or offer it) when the user wants to read, share, or export a `.md` file,
 
 ### SmallDocs expands what you can create with Markdown
 
-SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 

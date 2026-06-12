@@ -1,21 +1,23 @@
-# SDocs
+# SmallDocs
 
-**Read, style, and share markdown files — privately.**
+**Read, style, and share markdown files - privately.**
 
-SDocs is a lightweight, stateless markdown editor with live styling. Your entire document lives in the URL hash — nothing is ever sent to a server.
+SmallDocs (formerly SDocs) is a lightweight, stateless markdown editor with live styling. Your document lives in the URL hash fragment - browsers never send it to the server.
 
-**[sdocs.dev](https://sdocs.dev)** &nbsp;|&nbsp; **[npm](https://www.npmjs.com/package/sdocs-dev)** &nbsp;|&nbsp; **[MIT License](LICENSE)**
+**[smalldocs.org](https://smalldocs.org)** &nbsp;|&nbsp; **[npm](https://www.npmjs.com/package/sdocs-dev)** &nbsp;|&nbsp; **[MIT License](LICENSE)**
 
 ---
 
 ## What it does
 
-- **Read** — open any `.md` file with clean, styled formatting
-- **Style** — customize fonts, colors, sizes, and spacing via a visual panel or YAML front matter
-- **Share** — compress a document into a URL and share it with anyone (no server, no account)
-- **Export** — PDF, Word (.docx), raw `.md`, or styled `.md` with front matter
+- **Read** - open any `.md` file with clean, styled formatting
+- **Style** - customize fonts, colors, sizes, and spacing via a visual panel or YAML front matter
+- **Share** - compress a document into a URL, or mint an encrypted short link the server can't read
+- **Export** - PDF, Word (.docx), PowerPoint (slides), Excel (sheets), raw `.md`, or styled `.md` with front matter
+- **Render more than text** - charts, Mermaid diagrams, slide decks, and live-formula spreadsheets from fenced code blocks
+- **Bridge** - `sdoc bridge file.md` ties the open browser page to the file on disk: browser edits autosave to the file, file edits push to the page
 
-Everything runs client-side. The server is a small Node.js script that serves static files. The hosted instance at smalldocs.org counts anonymous visits (no IPs, no tracking IDs) which you can see at [smalldocs.org/analytics](https://smalldocs.org/analytics); self-hosted and CLI use never phone home.
+Everything that touches document content runs client-side. The server serves static files, stores ciphertext for short links, and counts anonymous visits (no IPs, no tracking IDs - see [smalldocs.org/analytics](https://smalldocs.org/analytics)). The `/trust` page explains how to verify the served code matches this repository.
 
 ## CLI
 
@@ -27,54 +29,45 @@ curl -fsSL https://smalldocs.org/install | sh
 
 This installs `sdoc` under `~/.sdocs`, a directory you own. It needs Node.js already on your machine, but never needs root and never writes to npm's global folder. Re-running the command upgrades in place, as does `sdoc upgrade`.
 
-Prefer npm? `npm i -g sdocs-dev` also works. If npm fails with `EACCES: permission denied`, its global directory (`/usr/local/lib/node_modules`) is owned by root. Either use the install script above, or point npm at a user-owned prefix:
+Prefer npm? `npm i -g sdocs-dev` also works. If npm fails with `EACCES: permission denied`, its global directory is owned by root; use the install script above, or point npm at a user-owned prefix. Avoid `sudo npm i -g`: it works once, then every later upgrade without sudo hits the same EACCES.
 
 ```bash
-mkdir -p ~/.npm-global
-npm config set prefix ~/.npm-global
-echo 'export PATH=$HOME/.npm-global/bin:$PATH' >> ~/.bashrc   # or ~/.zshrc
-source ~/.bashrc
-npm i -g sdocs-dev
-```
-
-Avoid `sudo npm i -g`: it works once, then every later upgrade without sudo hits the same EACCES because the directory stays root-owned.
-
-```bash
-sdoc README.md                          # open styled in browser
-sdoc share report.md                    # copy shareable link to clipboard
-sdoc share report.md --dark             # link opens in dark theme
-sdoc share report.md --section "Results"  # deep-link to a heading
+sdoc README.md                          # open styled in browser (read-only render)
+sdoc bridge draft.md                    # live session: browser edits save to disk
+sdoc share report.md                    # copy encrypted short link to clipboard
+sdoc library                            # browse every .md under your home directory
 sdoc new                                # blank document in write mode
-sdoc schema                             # print all style properties
+sdoc setup                              # teach your coding agents about sdoc
+sdoc charts | diagrams | slides | cells # reference for each fenced-block type
 cat notes.md | sdoc                     # pipe markdown to browser
 ```
 
 ## How it works
 
-Documents are compressed with [Brotli](https://en.wikipedia.org/wiki/Brotli) and encoded as [base64url](https://en.wikipedia.org/wiki/Base64#URL_applications) in the URL hash fragment. The hash fragment is never sent to the server by the browser — it stays entirely client-side.
+Documents are compressed with [Brotli](https://en.wikipedia.org/wiki/Brotli) and encoded as [base64url](https://en.wikipedia.org/wiki/Base64#URL_applications) in the URL hash fragment. The hash fragment is never sent to the server by the browser - it stays entirely client-side.
 
 ```
-https://sdocs.dev/#md={brotli compressed + base64url encoded .md}
+https://smalldocs.org/#md={brotli compressed + base64url encoded .md}
 ```
 
 Styles are stored as [YAML front matter](https://jekyllrb.com/docs/front-matter/) in the `.md` file using a `styles:` key. Default style values are omitted from URLs to keep them short. Run `sdoc schema` to see all available properties.
 
-## Stack
+## Repository layout
 
-- **Server**: `server.js` — pure Node.js `http` module
-- **Frontend**: plain HTML, CSS, and JS in `public/` — no build step, no framework
-- **Markdown parsing**: [marked](https://github.com/markedjs/marked) (the only runtime dependency)
-- **Compression**: [brotli-wasm](https://github.com/nicolo-ribaudo/brotli-wasm) (WebAssembly, loaded in browser)
-- **Tests**: `node test/run.js` — custom red/green harness using Node `assert`
-- **Browser tests**: [Playwright](https://playwright.dev/) (Chromium)
+The repo holds two programs:
+
+- **Server** (root `package.json`, private): `server.js` is a pure Node `http` server; the frontend is plain HTML, CSS, and JS under `public/` - no build step, no framework.
+- **CLI** (`cli/package.json`, published to npm as `sdocs-dev`): `cli/bin/sdocs-dev.js` plus modules under `cli/lib/`. Zero runtime dependencies - plain Node standard library, so installing it pulls nothing and compiles nothing.
+
+Three small modules are shared between Node and the browser via a UMD pattern; they live in `cli/shared/` with symlinks under `public/`.
 
 ## Contributing
 
 ### Setup
 
 ```bash
-git clone https://github.com/espressoplease/SDocs.git
-cd SDocs
+git clone https://github.com/espressoplease/smalldocs.git
+cd smalldocs
 npm install
 ```
 
@@ -97,68 +90,26 @@ npx playwright test test/write-mode.spec.js   # browser tests (needs Chromium)
 
 ### Point the CLI at your local server
 
-By default the CLI opens URLs on `https://sdocs.dev`. When developing, point it at your local instance:
+By default the CLI opens URLs on `https://smalldocs.org`. When developing, point it at your local instance:
 
 ```bash
 # Per-command
-sdoc README.md --url http://localhost:3000
-sdoc share README.md --url http://localhost:3000
+node cli/bin/sdocs-dev.js README.md --url http://localhost:3000
 
 # Or set once for your session
 export SDOCS_URL=http://localhost:3000
-sdoc README.md
-sdoc share README.md
+node cli/bin/sdocs-dev.js README.md
 ```
-
-### Project structure
-
-```
-server.js                   # Node.js static file server
-bin/sdocs-dev.js            # CLI entry point
-public/
-  index.html                # Single HTML file (markup only)
-  css/                      # Modular CSS (tokens, layout, rendered, panel, mobile)
-  sdocs-yaml.js             # YAML front matter parser (UMD, shared with Node)
-  sdocs-styles.js           # Style data tables + logic (UMD, shared with tests)
-  sdocs-state.js            # Shared mutable state namespace (window.SDocs)
-  sdocs-theme.js            # Fonts, dark mode, theme toggle
-  sdocs-controls.js         # CSS variable management, color cascade
-  sdocs-export.js           # PDF/Word/MD export
-  sdocs-write.js            # Write mode (contentEditable)
-  sdocs-app.js              # Core app: render, sync, modes, compression, init
-  brotli-wasm-v1.js         # Brotli WASM wrapper (IIFE)
-  brotli_wasm_bg.wasm       # Brotli WebAssembly binary
-  vendor/marked.min.js      # Markdown parser
-  sw.js                     # Service worker (stale-while-revalidate + version check)
-  sdoc.md                   # Landing page content
-test/
-  run.js                    # Test runner entry point
-  runner.js                 # Shared test harness
-  test-yaml.js              # YAML parser tests
-  test-styles.js            # Style system tests (including stripStyleDefaults)
-  test-cli.js               # CLI argument parsing + URL building tests
-  test-slugify.js           # Slugify + heading dedup tests
-  test-base64.js            # Base64 UTF-8 roundtrip tests
-  test-files.js             # File existence + content assertions
-  test-http.js              # HTTP server tests
-  write-mode.spec.js        # Playwright write mode tests
-  sample.smd                # Test fixture (styled markdown)
-  bench-compression.js      # Compression benchmark (deflate vs brotli)
-```
-
-### Architecture notes
-
-The app is entirely stateless. All state lives in `window.SDocs` in the browser. There is no build step — all JS loads as plain `<script>` tags. Modules that need to run in both the browser and Node (for tests) use a UMD IIFE pattern.
-
-Styles are driven by CSS custom properties on `#rendered`. Every control in the style panel maps to a `--md-*` CSS variable. When exporting, `collectStyles()` reads the current control values from the DOM.
 
 ### Guidelines
 
 - No build step. All browser JS must work as plain `<script>` tags.
-- One runtime dependency (`marked`). Add dependencies only when there's no reasonable alternative.
-- Keep the server simple. It serves static files — no API routes, no database.
+- The CLI has no runtime dependencies; audit standard-library options before adding one.
+- Keep the server simple. Static files plus a small number of API routes (short links, feedback, analytics), each backed by a local SQLite file.
 - Test everything that's testable without a browser in `test/run.js`. Use Playwright for browser-specific behavior.
-- Style properties that match defaults should be omitted (see `stripStyleDefaults` in `sdocs-styles.js`).
+- No em or en dashes anywhere; use plain hyphens.
+
+`CLAUDE.md` in the repo root carries the detailed architecture notes (module map, shared-module pattern, release checklists) and is kept current.
 
 ## License
 

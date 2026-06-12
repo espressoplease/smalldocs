@@ -1,6 +1,6 @@
 // Footer "Open source" badge: reads the latest independent-check result from
 // GitHub and shows how fresh it is. Fetched from raw.githubusercontent.com
-// (not sdocs.dev), so a compromised server cannot forge a green state.
+// (not smalldocs.org), so a compromised server cannot forge a green state.
 //
 // Looks for a `[data-trust-status]` element and replaces its contents with
 // the literal prefix "Open source: " followed by a link to /trust whose text
@@ -14,7 +14,7 @@
 // Falls back silently on any fetch / CORS / parse error, leaving whatever
 // static HTML was there.
 (function () {
-  var URL_CHECK = 'https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json';
+  var URL_CHECK = 'https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/checks/latest.json';
   var CACHE_KEY = 'sdocs.trust.lastCheck.v1';
   var CACHE_TTL_MS = 5 * 60 * 1000;          // 5 min: keep repeat loads off GitHub
   // GitHub Actions cron is best-effort and shares infrastructure with every

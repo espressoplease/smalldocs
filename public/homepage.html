@@ -655,7 +655,7 @@ footer {
   <div class="wrap nav-in">
     <a class="brand" href="#top">SmallDocs</a>
     <div class="nav-links">
-      <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener" class="nav-hide">GitHub</a>
+      <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" class="nav-hide">GitHub</a>
       <a class="btn btn-primary btn-sm" href="#install">Use SmallDocs for free</a>
     </div>
   </div>
@@ -728,7 +728,7 @@ Once it is installed and you know about it, I want to be able to say things like
 
 and you will write the markdown and open it for me as a SmallDoc.
 
-The way you will "know about it" is by having a short SDocs section in your global agent config file: the file that is loaded into every chat session you start. For Claude Code that is `~/.claude/CLAUDE.md`. For Codex it is `~/.codex/AGENTS.md`. For Gemini CLI it is `~/.gemini/GEMINI.md`. For opencode it is `~/.config/opencode/AGENTS.md`. This is the same standing-instructions mechanism you already use for project context.
+The way you will "know about it" is by having a short SmallDocs section in your global agent config file: the file that is loaded into every chat session you start. For Claude Code that is `~/.claude/CLAUDE.md`. For Codex it is `~/.codex/AGENTS.md`. For Gemini CLI it is `~/.gemini/GEMINI.md`. For opencode it is `~/.config/opencode/AGENTS.md`. This is the same standing-instructions mechanism you already use for project context.
 
 Please do the following, and ask me before any step that changes my filesystem.
 
@@ -749,7 +749,7 @@ Please do the following, and ask me before any step that changes my filesystem.
 
 4. Wire SmallDocs into your global config.
    Run: `sdoc setup --yes`
-   This non-interactively appends a short SDocs section to every detected coding-agent config file. It is the canonical writer; do not hand-roll the section yourself, the wording is kept in sync with the CLI version.
+   This non-interactively appends a short SmallDocs section to every detected coding-agent config file. It is the canonical writer; do not hand-roll the section yourself, the wording is kept in sync with the CLI version.
 
 5. Verify it worked.
    Ask me to start a fresh chat session with you (so the updated config file is loaded). In the new session, ask me to say: "sdoc me a test file". A styled document should open in my browser.
@@ -795,7 +795,7 @@ If any step fails, stop and tell me what happened before doing more.</pre>
                 <li>Run <code>which sdoc</code> in a new terminal and confirm it returns a path. If it doesn&rsquo;t, your shell hasn&rsquo;t picked up the updated PATH yet, open a fresh terminal or source your shell rc file.</li>
                 <li>Run <code>sdoc --help</code> to confirm the CLI launches and prints its reference.</li>
                 <li>Open a fresh chat session with your coding agent and ask it to &ldquo;sdoc me a test file&rdquo;. A styled document should open in your browser.</li>
-                <li>If the agent doesn&rsquo;t recognise the request, check that the SDocs section in your global agent config (e.g. <code>~/.claude/CLAUDE.md</code>) was written by <code>sdoc setup</code>.</li>
+                <li>If the agent doesn&rsquo;t recognise the request, check that the SmallDocs section in your global agent config (e.g. <code>~/.claude/CLAUDE.md</code>) was written by <code>sdoc setup</code>.</li>
               </ul>
             </div>
           </div>
@@ -854,7 +854,7 @@ If any step fails, stop and tell me what happened before doing more.</pre>
     <p class="foot-fine">
       <span>smalldocs.org</span>
       <span>
-        <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener">Open source on GitHub</a>
+        <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">Open source on GitHub</a>
       </span>
     </p>
   </div>

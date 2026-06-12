@@ -1,11 +1,11 @@
 ---
-title: SDocs agent block changelog
+title: SmallDocs agent block changelog
 file: agent-changes.md
 ---
 
-# SDocs agent block changelog
+# SmallDocs agent block changelog
 
-Every change to the SDocs section that `sdoc setup` writes into your agent
+Every change to the SmallDocs section that `sdoc setup` writes into your agent
 config files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`,
 `~/.config/opencode/AGENTS.md`).
 
@@ -22,23 +22,28 @@ so the bullet tells agents to run it in the background, and the first
 connection makes the browser ask for local-process / "Apps on device"
 permission the user has to accept. The plain `sdoc file.md` bullet is
 reframed as the default way to open a file for comfortable reading or quick
-sharing. Two bullets changed in the Basic usage list; the rest of the block
-is unchanged from v9.
+sharing. Two bullets changed in the Basic usage list. The block heading is
+renamed from SDocs to SmallDocs, the project's new name and home, and a new
+intro line spells out that "sdoc it" / "sdoc me the plan" / "make me a
+smalldoc" all mean: write the `.md` and open it with `sdoc`. The rest of
+the block is unchanged from v9.
 
 The block body:
 
 ```markdown
-## SDocs
+## SmallDocs
 
 The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
 
-Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
 
 ### Basic `sdoc` usage
 
 - `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
 - `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- `sdoc library` - opens a library view in the browser. SDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library` - opens a library view in the browser. SmallDocs automatically indexes every `.md` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-directory with `.sdocsignore` or per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 - `sdoc file.md +tag1 +tag2` - open the file and inject tags into its YAML front matter which persist. The `+` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - `sdoc library ls --tags` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
@@ -46,7 +51,7 @@ Use it (or offer it) when the user wants to read, share, or export a `.md` file,
 
 ### SmallDocs expands what you can create with Markdown
 
-SDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 

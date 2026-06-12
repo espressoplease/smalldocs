@@ -2625,7 +2625,7 @@ CONSISTENCY HINTS FOR AGENTS
 
 THE LOCAL AGENT
   The library page (smalldocs.org/library or localhost:3000/library) is
-  hosted from the SDocs server; the data it shows comes from a tiny
+  hosted from the SmallDocs server; the data it shows comes from a tiny
   HTTP server the CLI runs at 127.0.0.1:47843. That server:
     - reads ~/.sdocs/library-index.json
     - never writes user content (writes go through the Bridge)

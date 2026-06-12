@@ -335,14 +335,14 @@ node cli/bin/sdocs-dev.js <file.md> [args]   # the `sdoc` command, from this bra
 node cli/bin/sdocs-dev.js --help             # same flags as the installed sdoc
 ```
 
-To preview a doc against a **local** dev server - so it renders this branch's frontend (new modules, CSS) rather than production `sdocs.dev` - start a server and point the CLI at it with `--url`:
+To preview a doc against a **local** dev server - so it renders this branch's frontend (new modules, CSS) rather than production `smalldocs.org` - start a server and point the CLI at it with `--url`:
 
 ```bash
 PORT=3210 SDOCS_DEV=1 node server.js                              # serve this branch's frontend
 node cli/bin/sdocs-dev.js file.md --url http://localhost:3210     # open it against that server
 ```
 
-`--url <base>` (or the `SDOCS_URL` env var) overrides the default base (`https://sdocs.dev`). The document still travels in the URL hash; the local server only serves the HTML/JS that renders it. This is the way to see in-progress frontend features (e.g. a new fenced-block type) actually render, since the installed CLI and production both point at the released frontend.
+`--url <base>` (or the `SDOCS_URL` env var) overrides the default base (`https://smalldocs.org`). The document still travels in the URL hash; the local server only serves the HTML/JS that renders it. This is the way to see in-progress frontend features (e.g. a new fenced-block type) actually render, since the installed CLI and production both point at the released frontend.
 
 ## Visual preview testing
 
