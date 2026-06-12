@@ -137,4 +137,4 @@ else
   printf 'To use it now without restarting:\n'
   printf '  export PATH="$HOME/.sdocs/bin:$PATH"\n'
 fi
-printf 'The first run will offer to wire SDocs into any coding agents you have installed.\n'
+printf 'The first run will offer to wire SmallDocs into any coding agents you have installed.\n'
