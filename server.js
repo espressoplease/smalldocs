@@ -25,6 +25,14 @@ const FEEDBACK_MAX_BYTES = 4 * 1024;            // 4 KB message cap
 feedback.init();
 feedbackRateLimit.startCleanup();
 
+// Teams-interest form (homepage Teams section). Stored in its own SQLite
+// file; an email ping fires when SMTP env vars are set (see teams/notify.js).
+// Shares the feedback rate limiter: both are infrequent human submissions
+// and a common per-IP budget keeps spam cheap to refuse.
+const teamsInterest = require('./teams/db');
+const teamsNotify = require('./teams/notify');
+teamsInterest.init();
+
 // Auto-version: hash all non-font files in public/ at startup.
 // Any file change = new hash = clients purge their SW cache.
 // The per-file SHA-256 list (served at /trust/manifest) is built by the same
@@ -354,6 +362,73 @@ function handleFeedbackPost(req, res) {
   });
 }
 
+// Teams-interest submissions. Email is required (it is the reply channel);
+// company and message are optional. A hidden "website" field acts as a
+// honeypot: humans never see it, naive bots fill it, and a filled value gets
+// a 201 with nothing stored so the bot learns nothing. The email ping is
+// fire-and-forget; the SQLite row is the system of record.
+const TEAMS_EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,24}$/;
+
+function handleTeamsInterestPost(req, res) {
+  const ip = getClientIp(req);
+  if (!feedbackRateLimit.check(ip)) {
+    sendJson(res, 429, { error: 'rate_limited' });
+    return;
+  }
+  let bytes = 0;
+  const chunks = [];
+  let aborted = false;
+  req.on('data', (chunk) => {
+    if (aborted) return;
+    bytes += chunk.length;
+    if (bytes > FEEDBACK_MAX_BYTES + 1024) {
+      aborted = true;
+      sendJson(res, 413, { error: 'payload_too_large' });
+      return;
+    }
+    chunks.push(chunk);
+  });
+  req.on('end', () => {
+    if (aborted) return;
+    let body;
+    try {
+      body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    } catch (_) {
+      sendJson(res, 400, { error: 'invalid_json' });
+      return;
+    }
+    if (body && typeof body.website === 'string' && body.website.trim().length) {
+      sendJson(res, 201, { ok: true });
+      return;
+    }
+    const email = body && typeof body.email === 'string' ? body.email.trim() : '';
+    if (!TEAMS_EMAIL_RE.test(email)) {
+      sendJson(res, 400, { error: 'invalid_email' });
+      return;
+    }
+    const company = body && typeof body.company === 'string' ? body.company.trim().slice(0, 200) : '';
+    const message = body && typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : '';
+    try {
+      teamsInterest.insert({ email, company, message });
+    } catch (e) {
+      sendJson(res, 500, { error: 'db_error' });
+      return;
+    }
+    sendJson(res, 201, { ok: true });
+    teamsNotify.send(
+      'SmallDocs Teams interest: ' + email,
+      'New Teams-interest submission on smalldocs.org\n\n' +
+      'Email:   ' + email + '\n' +
+      'Company: ' + (company || '-') + '\n' +
+      'Message: ' + (message || '-') + '\n\n' +
+      'All submissions: teams_interest.db on the server.'
+    );
+  });
+  req.on('error', () => {
+    if (!aborted) sendJson(res, 400, { error: 'request_error' });
+  });
+}
+
 function handleShortLinkGet(res, id) {
   // Accept both legacy 8-char ids and current 22-char ids. Never narrow this
   // range, or short links minted before the id-length bump stop resolving.
@@ -383,9 +458,15 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // POST /api/feedback: store + mail user-submitted feedback
+  // POST /api/feedback: store user-submitted feedback
   if (req.method === 'POST' && pathname === '/api/feedback') {
     handleFeedbackPost(req, res);
+    return;
+  }
+
+  // POST /api/teams-interest: store a Teams contact request + email ping
+  if (req.method === 'POST' && pathname === '/api/teams-interest') {
+    handleTeamsInterestPost(req, res);
     return;
   }
 
