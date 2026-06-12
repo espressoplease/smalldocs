@@ -22,6 +22,8 @@ const { startBridge } = require('../bin/sdocs-bridge');
 const { DEFAULT_URL } = require('./constants');
 const { openBrowser } = require('./io');
 const { stripAndCompress } = require('./url');
+const { wrapForDisplay } = require('./file-wrap');
+const { isCodeFile } = require('./code-langs');
 
 function baseUrlFor(opts) {
   return opts.url || process.env.SDOCS_URL || DEFAULT_URL;
@@ -41,7 +43,20 @@ function bridgeSnapshot(file) {
   if (!file) return null;
   if (WRAPPED_EXT.has(path.extname(file).toLowerCase())) return null;
   try {
-    return stripAndCompress(fs.readFileSync(file, 'utf-8'));
+    const raw = fs.readFileSync(file, 'utf-8');
+    // A code file's renderable document is the file wrapped in a fence (the same
+    // transform the live bridge applies). The snapshot must embed THAT, not the
+    // raw source: otherwise the read-only fallback - which is what every page
+    // refresh renders until the socket reconnects - shows the file as markdown
+    // (docstrings as prose, indented bodies as stray code blocks) instead of the
+    // fullscreen code view with its folding and comments. Carry the filename in
+    // front matter so the snapshot is self-contained: the code view names it and
+    // auto-expands without depending on the bridge's `file=` param surviving.
+    if (isCodeFile(file)) {
+      const doc = '---\nfile: ' + path.basename(file) + '\n---\n' + wrapForDisplay(raw, file);
+      return stripAndCompress(doc);
+    }
+    return stripAndCompress(raw);
   } catch (_) {
     return null;
   }
@@ -166,6 +181,7 @@ function feedbackCommand(opts)  { return runBridge(opts, 'feedback', 'Feedback o
 module.exports = {
   runBridgedOpen,
   feedbackCommand,
-  buildBridgeUrl, // for tests
-  timeoutOpts,    // for tests
+  buildBridgeUrl,  // for tests
+  bridgeSnapshot,  // for tests
+  timeoutOpts,     // for tests
 };
