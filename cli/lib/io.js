@@ -9,7 +9,7 @@ const SUBCOMMANDS = new Set([
   'new', 'share', 'schema', 'defaults', 'help',
   'charts', 'diagrams', 'cells', 'comments',
   'setup', 'safe', 'auto-update', 'refresh', 'upgrade',
-  'feedback',
+  'bridge', 'feedback',
   'slides', 'present',
   'library',
   'color-analysis',

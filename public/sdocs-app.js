@@ -684,14 +684,14 @@ function renderFileInfoCard() {
     : fmTags.slice();
   var bridge = S.bridge || null;
   var canEditTags = !!(bridge && bridge._connected && bridge.capabilities && bridge.capabilities.canSave);
-  // Show the hint only when the user could plausibly want to edit -
-  // i.e. the file is local but no Bridge is alive. Don't nag on
-  // genuinely-shared documents (short links, hash URLs).
-  var showEditHint = !canEditTags && !!local.fullPath;
-  if (tagList.length || canEditTags || showEditHint) {
+  // Show the row when there are tags to display, or when a live bridge makes
+  // them editable. With no tags and no live bridge there is nothing to show
+  // and nothing to do, so the row stays hidden rather than nagging the user
+  // to start a bridge.
+  if (tagList.length || canEditTags) {
     slots.push({
       type: 'tags', tags: tagList, canEdit: canEditTags,
-      filePath: local.fullPath, showEditHint: showEditHint,
+      filePath: local.fullPath, showEditHint: false,
     });
   }
 

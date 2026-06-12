@@ -75,10 +75,9 @@ module.exports = function (harness) {
     const expected = ['help', 'schema', 'charts', 'diagrams', 'comments',
                       'setup', 'refresh', 'auto-update', 'safe',
                       'defaults', 'new', 'share',
-                      // Bridge verb (chunk 2 — `sdoc <file>` itself runs the
-                      // bridge via the default handler, so only feedback
-                      // earns a dedicated verb slot).
-                      'feedback'];
+                      // `sdoc <file>` is the static render by default; the live
+                      // editing session is opt-in via the `bridge` verb.
+                      'bridge', 'feedback'];
     for (const v of expected) {
       assert.strictEqual(r.has(v), true, 'router missing verb: ' + v);
     }

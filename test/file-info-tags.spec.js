@@ -73,17 +73,28 @@ test('file info: read-only tag chips render from front-matter when file is not l
   await expect(page.locator('.fic-tag-add')).toHaveCount(0);
 });
 
-test('file info: hint shown when file is local but no Bridge is connected', async ({ page }) => {
+test('file info: local file with tags but no Bridge shows chips read-only, no hint', async ({ page }) => {
   const realFile = path.join(SANDBOX, 'hint.md');
   fs.writeFileSync(realFile, '---\ntags:\n  - one\n---\n# t');
   const md = fs.readFileSync(realFile, 'utf-8');
   await page.goto(buildHashUrl(md, { fullPath: realFile }));
   await page.waitForSelector('.fic-row-tags');
-  // Hint mentions running sdoc.
-  const hint = await page.textContent('.fic-tag-hint');
-  expect(hint).toMatch(/sdoc/);
-  // No editing affordances.
+  // Tags still display read-only...
+  await expect(page.locator('.fic-tag-chip')).toHaveCount(1);
+  // ...but no nag hint and no editing affordances without a live Bridge.
+  await expect(page.locator('.fic-tag-hint')).toHaveCount(0);
   await expect(page.locator('.fic-tag-add')).toHaveCount(0);
+});
+
+test('file info: local file with no tags and no Bridge hides the tags row entirely', async ({ page }) => {
+  const realFile = path.join(SANDBOX, 'no-tags.md');
+  fs.writeFileSync(realFile, '# just a heading\n\nno front matter here.');
+  const md = fs.readFileSync(realFile, 'utf-8');
+  await page.goto(buildHashUrl(md, { fullPath: realFile }));
+  // The file-info card renders (path row), but with nothing to show or do the
+  // tags row stays hidden rather than nagging the user to start a bridge.
+  await page.waitForSelector('.fic-row');
+  await expect(page.locator('.fic-row-tags')).toHaveCount(0);
 });
 
 // ── Bridge-gated editing flows ──
