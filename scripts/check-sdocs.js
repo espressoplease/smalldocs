@@ -19,8 +19,8 @@
 const fs = require('fs');
 const crypto = require('crypto');
 
-const DEFAULT_BASE = 'https://sdocs.dev';
-const DEFAULT_RAW  = 'https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests';
+const DEFAULT_BASE = 'https://smalldocs.org';
+const DEFAULT_RAW  = 'https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests';
 const DEFAULT_CONCURRENCY = 8;
 
 function parseArgs(argv) {

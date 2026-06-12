@@ -4,9 +4,9 @@
 # code history. After this runs, the authoritative fingerprints for commit
 # <sha> are at:
 #
-#   https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/<sha>.json
+#   https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/<sha>.json
 #
-# Why on GitHub, not on sdocs.dev: the server authors both the files and the
+# Why on GitHub, not on smalldocs.org: the server authors both the files and the
 # hashes, so a malicious server could trivially forge a matching pair. Hosting
 # the hashes on GitHub means a client comparing them to bytes received from the
 # server can detect tampering.

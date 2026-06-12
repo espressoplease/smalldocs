@@ -1,5 +1,5 @@
 ---
-title: "SDocs — Privacy & Terms"
+title: "SmallDocs - Privacy & Terms"
 styles:
   fontFamily: "Inter"
   baseFontSize: 15
@@ -16,7 +16,7 @@ styles:
 
 **Last updated:** 15 April 2026
 
-SDocs (sdocs.dev) is operated by **Odd Solutions Ltd**, a company registered in England & Wales (company number 16186575). References to "we", "us", or "our" in this policy mean Odd Solutions Ltd. References to "you" mean the individual using SDocs.
+SmallDocs (smalldocs.org) is operated by **Odd Solutions Ltd**, a company registered in England & Wales (company number 16186575). References to "we", "us", or "our" in this policy mean Odd Solutions Ltd. References to "you" mean the individual using SmallDocs.
 
 Contact: [hi@sdocs.dev](mailto:hi@sdocs.dev).
 
@@ -29,7 +29,7 @@ Contact: [hi@sdocs.dev](mailto:hi@sdocs.dev).
 
 ## 1. What we do not collect
 
-When you use SDocs, we do not collect, store, or transmit:
+When you use SmallDocs, we do not collect, store, or transmit:
 
 - The content of the markdown documents you open, edit, share, or export.
 - Your name, email, or any other identifying information (you never create an account).
@@ -48,15 +48,15 @@ On each page load, your browser makes a single background request to our `/versi
 
 No row in this database identifies you. A power user reloading the page fifty times appears as fifty rows.
 
-The aggregated results are published at [sdocs.dev/analytics](https://sdocs.dev/analytics).
+The aggregated results are published at [smalldocs.org/analytics](https://smalldocs.org/analytics).
 
 ## 3. How we use this data
 
-We use the aggregated visit counts as a rough proxy for retention — whether people who discover SDocs keep using it in subsequent weeks. This is the only product signal we rely on. We do not profile, segment, personalise, or sell any of this data.
+We use the aggregated visit counts as a rough proxy for retention — whether people who discover SmallDocs keep using it in subsequent weeks. This is the only product signal we rely on. We do not profile, segment, personalise, or sell any of this data.
 
 ## 4. Third parties
 
-SDocs loads a small number of assets from third-party content delivery networks. These third parties may receive your IP address and user-agent as part of the standard HTTP request for the asset. They do not receive your document content.
+SmallDocs loads a small number of assets from third-party content delivery networks. These third parties may receive your IP address and user-agent as part of the standard HTTP request for the asset. They do not receive your document content.
 
 - **Google Fonts** (`fonts.googleapis.com`, `fonts.gstatic.com`) — loads the web font you select for rendering.
 - **jsDelivr** (`cdn.jsdelivr.net`) — loads the Chart.js library when a document contains a chart.
@@ -65,13 +65,13 @@ If you embed images, links, or other external resources in your markdown, your b
 
 ## 5. Cookies and local storage
 
-SDocs does not set cookies.
+SmallDocs does not set cookies.
 
-SDocs writes a single value to your browser's localStorage under the key `sdocs_cohort` (see section 2). You can clear it from your browser's developer tools, use a private browsing window to avoid it being written, or opt out via the button on [sdocs.dev/analytics](https://sdocs.dev/analytics).
+SmallDocs writes a single value to your browser's localStorage under the key `sdocs_cohort` (see section 2). You can clear it from your browser's developer tools, use a private browsing window to avoid it being written, or opt out via the button on [smalldocs.org/analytics](https://smalldocs.org/analytics).
 
 ## 6. Opting out
 
-To stop being counted in cohort visits: visit [sdocs.dev/analytics](https://sdocs.dev/analytics) and click the opt-out button. Your `sdocs_cohort` value is set to `opt-out`, and all subsequent visits are counted as "Unattributed" with no cohort attribution.
+To stop being counted in cohort visits: visit [smalldocs.org/analytics](https://smalldocs.org/analytics) and click the opt-out button. Your `sdocs_cohort` value is set to `opt-out`, and all subsequent visits are counted as "Unattributed" with no cohort attribution.
 
 ## 7. Your rights under UK GDPR
 
@@ -81,7 +81,7 @@ You have the right to lodge a complaint with the UK Information Commissioner's O
 
 ## 8. Open source
 
-SDocs is open source. Its source code is published at [github.com/espressoplease/SDocs](https://github.com/espressoplease/SDocs). You are welcome and encouraged to audit the code to verify the claims in this policy.
+SmallDocs is open source. Its source code is published at [github.com/espressoplease/smalldocs](https://github.com/espressoplease/smalldocs). You are welcome and encouraged to audit the code to verify the claims in this policy.
 
 ## 9. Changes
 
@@ -93,7 +93,7 @@ We may update this policy from time to time. The "Last updated" date above refle
 
 **Last updated:** 15 April 2026
 
-These Terms of Service ("Terms") govern your use of the SDocs website, CLI, and related services (together, the "Service") operated by **Odd Solutions Ltd** (company number 16186575, registered in England & Wales).
+These Terms of Service ("Terms") govern your use of the SmallDocs website, CLI, and related services (together, the "Service") operated by **Odd Solutions Ltd** (company number 16186575, registered in England & Wales).
 
 By using the Service you agree to these Terms. If you do not agree, do not use the Service.
 
@@ -107,7 +107,7 @@ The Service is open source (see the Privacy Policy, section 8). You are welcome 
 
 ## 2. Your content
 
-You retain all rights to any markdown content you create, open, edit, share, or export using SDocs. We have no access to that content (see Privacy Policy, section 1).
+You retain all rights to any markdown content you create, open, edit, share, or export using SmallDocs. We have no access to that content (see Privacy Policy, section 1).
 
 You are solely responsible for:
 
@@ -117,11 +117,11 @@ You are solely responsible for:
 
 ## 3. Shared links and third-party content
 
-Because document content in SDocs is embedded in the URL hash fragment, anyone you share a URL with will receive whatever content was present when you generated that URL. We have no ability to moderate, review, recall, or take down content that exists only in a URL.
+Because document content in SmallDocs is embedded in the URL hash fragment, anyone you share a URL with will receive whatever content was present when you generated that URL. We have no ability to moderate, review, recall, or take down content that exists only in a URL.
 
 Similarly, any image, link, or other external resource referenced in a document is loaded directly from a third-party host. We do not review, endorse, or accept responsibility for third-party resources, whether embedded in a document by you, by someone sharing a link with you, or by anyone else.
 
-**If you open a shared SDocs link, you are loading content authored by the person who produced that link.** Exercise the same judgement you would with any other external URL.
+**If you open a shared SmallDocs link, you are loading content authored by the person who produced that link.** Exercise the same judgement you would with any other external URL.
 
 ## 4. Acceptable use
 
