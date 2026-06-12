@@ -98,17 +98,17 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   border-bottom-color: var(--line);
 }
 .nav-in {
-  height: 74px;
+  height: 48px;
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 24px;
 }
 .brand {
   display: inline-flex;
   align-items: center;
   text-decoration: none;
   color: var(--accent);
-  font-size: 1.0625rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -116,16 +116,27 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 30px;
+  gap: 14px;
 }
-.nav-links a {
-  font-size: var(--t-sm);
-  font-weight: 450;
+/* GitHub button: the app's standard .btn translated to the homepage
+   palette - 12px label, hairline border, darken on hover. */
+.btn-gh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: var(--white);
   color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
   text-decoration: none;
-  transition: color .14s;
+  transition: background .12s, border-color .12s, color .12s;
 }
-.nav-links a:hover { color: var(--ink); }
+.btn-gh:hover { background: #EFEBE5; border-color: #C9C2B8; color: var(--ink); }
+.btn-gh svg { display: block; }
 
 /* ── BUTTONS ─────────────────────────────────────────── */
 .btn {
@@ -672,7 +683,10 @@ footer {
   <div class="wrap nav-in">
     <a class="brand" href="#top">SmallDocs</a>
     <div class="nav-links">
-      <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">GitHub</a>
+      <a class="btn-gh" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
+        GitHub
+      </a>
     </div>
   </div>
 </nav>
@@ -694,7 +708,7 @@ footer {
         SmallDocs for teams
       </a>
     </div>
-    <p class="hero-works">Works with Claude &middot; Codex &middot; Cursor &middot; Gemini &middot; Antigravity &middot; opencode</p>
+    <p class="hero-works">Works with Claude &middot; Codex &middot; Cursor &middot; Gemini &middot; Antigravity &middot; opencode &middot; Pi</p>
 
     <div class="hero-visual">
       <div class="videocard" id="videocard">
