@@ -125,6 +125,15 @@ module.exports = function(harness) {
     assert.strictEqual(result.resetFlag, false);
   });
 
+  test('parseArgs: --version routes to the version subcommand', () => {
+    for (const flag of ['--version', '-v', '-V']) {
+      const result = cli.parseArgs([flag]);
+      assert.strictEqual(result.subcommand, 'version', flag);
+    }
+    const result = cli.parseArgs(['version']);
+    assert.strictEqual(result.subcommand, 'version');
+  });
+
   test('parseArgs: --url flag', () => {
     const result = cli.parseArgs(['doc.md', '--url', 'http://localhost:3000']);
     assert.strictEqual(result.file, 'doc.md');
