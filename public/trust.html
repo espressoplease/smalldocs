@@ -242,6 +242,8 @@
 <div class="content">
 
   <h1>Proving sdocs.dev is running the public code</h1>
+  <p style="padding:10px 12px; border:1px solid color-mix(in srgb, var(--accent, #2563EB) 30%, transparent); border-radius:6px; background:color-mix(in srgb, var(--accent, #2563EB) 7%, transparent)">
+    <strong>Note (June 2026):</strong> SDocs is now SmallDocs and development moved to <a href="https://smalldocs.org" target="_blank" rel="noopener">smalldocs.org</a>. This page describes the checking pipeline as it ran while sdocs.dev was the active home. The independent GitHub check now runs against smalldocs.org (see <a href="https://smalldocs.org/trust" target="_blank" rel="noopener">smalldocs.org/trust</a>); sdocs.dev keeps serving so existing links keep working, but its bytes are no longer re-checked on a schedule.</p>
   <p>
     SDocs renders Markdown files, and the Markdown files we or our agents produce contain some of the most sensitive information we have (about codebases, unresolved bugs, production logs, etc.). For this reason client-side focused privacy (privacy that leave our server as blind as can be) is an essential component of SDocs.</p>
     <p>In <code>public/sdocs-app.js</code> (which your browser - not our server - compiles and runs) we handle the use of the url fragment for our <a href="https://sdocs.dev/#sec=privacy" target="_blank">100% our client-side default links</a> and the encryption and client-side decryption key isolation for our <a href="https://sdocs.dev/#sec=short-links">short-links</a>. You can use SDocs confidently because all the computation touching the content of your Markdown files is done in your browser and not on our server (i.e. we cannot see the content of your files).</p>

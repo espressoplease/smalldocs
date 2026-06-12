@@ -14,6 +14,11 @@
 // Falls back silently on any fetch / CORS / parse error, leaving whatever
 // static HTML was there.
 (function () {
+  // Legacy freeze: development moved to smalldocs.org and the independent
+  // GitHub check now runs against that host, not this one. Showing its
+  // result here would imply this server's bytes are still being checked.
+  // Leave the static "Open source" footer text instead.
+  return;
   var URL_CHECK = 'https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json';
   var CACHE_KEY = 'sdocs.trust.lastCheck.v1';
   var CACHE_TTL_MS = 5 * 60 * 1000;          // 5 min: keep repeat loads off GitHub

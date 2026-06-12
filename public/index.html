@@ -23,6 +23,27 @@
 </head>
 <body>
 
+<div id="_sd_migration-banner" hidden>
+  <span class="migration-banner-text">
+    SDocs is now <strong>SmallDocs</strong>, at <a href="https://smalldocs.org" target="_blank" rel="noopener">smalldocs.org</a>.
+    Existing links and this site keep working; new features land there.
+    <a href="https://smalldocs.org/blogs/new-home" target="_blank" rel="noopener">What changed and how to upgrade</a>
+  </span>
+  <button id="_sd_migration-dismiss" aria-label="Dismiss" title="Dismiss">&#215;</button>
+</div>
+<script nonce="__CSP_NONCE__">
+  (function(){
+    var KEY = 'sdocs-migration-banner-v1';
+    var el = document.getElementById('_sd_migration-banner');
+    try { if (localStorage.getItem(KEY) === 'dismissed') return; } catch (e) {}
+    el.hidden = false;
+    document.getElementById('_sd_migration-dismiss').addEventListener('click', function(){
+      el.hidden = true;
+      try { localStorage.setItem(KEY, 'dismissed'); } catch (e) {}
+    });
+  })();
+</script>
+
 <div id="_sd_main">
   <!-- ── Left panel ── -->
   <div id="_sd_left">
