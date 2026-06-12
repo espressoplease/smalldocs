@@ -200,6 +200,17 @@ module.exports = function (harness) {
     assert.ok(out.indexOf('first') < out.indexOf('second'), 'earlier line listed first');
   });
 
+  test('serializeAnnotations lineOffset shifts the printed numbers, not the anchoring', () => {
+    // A section copy fences only the slice but cites the file's real lines: the
+    // slice here stands for lines 12-15 of a file, so lineOffset is 11.
+    let list = CC.addComment([], { kind: 'method', line: 0, endLine: 3, anchorText: 'class A' }, { text: 'dfs' }).list;
+    list = CC.addComment(list, { kind: 'line', line: 2, anchorText: 'x = 1' }, { text: 'why?' }).list;
+    const out = CC.serializeAnnotations(list, ASRC, { fileName: 'a.rb', lang: 'ruby', lineOffset: 11 });
+    assert.ok(/method `class A` \(lines 12-15\)/.test(out), 'method note cites file lines, not slice lines');
+    assert.ok(/line 14 `x = 1`/.test(out), 'line note cites the file line');
+    assert.ok(out.indexOf('(lines 1-4)') === -1, 'no slice-relative range leaks through');
+  });
+
   test('serializeAnnotations omits the Notes section when there are no notes', () => {
     const out = CC.serializeAnnotations([], ASRC, { fileName: 'a.rb', lang: 'ruby' });
     assert.ok(out.indexOf('Notes:') === -1);
