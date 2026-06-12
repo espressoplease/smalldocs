@@ -1,12 +1,12 @@
-# Runs from a GitHub-hosted runner (not our server): fetches sdocs.dev, hashes
+# Runs from a GitHub-hosted runner (not our server): fetches smalldocs.org, hashes
 # what it receives, compares to the manifest published by publish-manifest.yml,
 # and writes the result back to the orphan `trust-manifests` branch so the
-# footer on sdocs.dev can read it.
+# footer on smalldocs.org can read it.
 #
-# The "last check" timestamp shown on sdocs.dev therefore comes from GitHub,
+# The "last check" timestamp shown on smalldocs.org therefore comes from GitHub,
 # not from our server. A compromised server cannot forge it.
 
-name: Check sdocs.dev matches published manifest
+name: Check smalldocs.org matches published manifest
 
 on:
   schedule:
@@ -44,7 +44,7 @@ jobs:
         run: |
           set +e
           node scripts/check-sdocs.js \
-            --base https://sdocs.dev \
+            --base https://smalldocs.org \
             --out "$RUNNER_TEMP/latest.json"
           echo "exit=$?"
           cat "$RUNNER_TEMP/latest.json"
@@ -75,5 +75,5 @@ jobs:
             exit 0
           fi
           TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          git commit -m "Check sdocs.dev at ${TS}"
+          git commit -m "Check smalldocs.org at ${TS}"
           git push origin HEAD:trust-manifests

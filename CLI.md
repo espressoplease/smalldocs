@@ -36,7 +36,7 @@ sdocs-dev --schema               # full styles reference (designed for LLMs)
 2. Base64-encodes the content
 3. Opens the browser at:
    ```
-   https://sdocs.dev/#md=<base64>&mode=read
+   https://smalldocs.org/#md=<base64>&mode=read
    ```
 
 The hash fragment is **never sent to the server** — it's parsed entirely in the browser by `URLSearchParams`. This means:
@@ -45,7 +45,7 @@ The hash fragment is **never sent to the server** — it's parsed entirely in th
 
 ## Styled Markdown format
 
-The CLI passes the raw file content (including YAML front matter) as-is. If the file has a `styles:` block, SDocs will parse it and apply all styles automatically on load.
+The CLI passes the raw file content (including YAML front matter) as-is. If the file has a `styles:` block, SmallDocs will parse it and apply all styles automatically on load.
 
 Run `sdocs-dev --schema` for the complete styles reference, including all supported properties, types, defaults, the color cascade rules, and all 24 supported Google Fonts.
 
@@ -59,7 +59,7 @@ Run `sdocs-dev --schema` for the complete styles reference, including all suppor
 ```bash
 # Typical LLM invocation
 sdocs-dev my-report.md
-# → opens https://sdocs.dev/#md=<base64>&mode=read
+# → opens https://smalldocs.org/#md=<base64>&mode=read
 ```
 
 ## package.json bin entry
@@ -74,7 +74,7 @@ sdocs-dev my-report.md
 
 | Flag / Variable | Default             | Description |
 |-----------------|---------------------|-------------|
-| `--url <url>`   | `https://sdocs.dev` | Base URL the CLI opens. |
+| `--url <url>`   | `https://smalldocs.org` | Base URL the CLI opens. |
 | `SDOCS_URL`     | (fallback)          | Used if `--url` is not passed. |
 
 ```bash
@@ -83,7 +83,7 @@ sdocs-dev report.md --url http://localhost:3000   # use local server
 
 ## Contributing
 
-To develop against a local server instead of sdocs.dev:
+To develop against a local server instead of smalldocs.org:
 
 ```bash
 # Terminal 1 — start the dev server

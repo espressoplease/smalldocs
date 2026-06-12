@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SDocs Trust</title>
+<title>SmallDocs Trust</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
   @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/public/fonts/inter-400.woff2') format('woff2'); }
@@ -241,12 +241,12 @@
 
 <div class="content">
 
-  <h1>Proving sdocs.dev is running the public code</h1>
+  <h1>Proving smalldocs.org is running the public code</h1>
   <p>
-    SDocs renders Markdown files, and the Markdown files we or our agents produce contain some of the most sensitive information we have (about codebases, unresolved bugs, production logs, etc.). For this reason client-side focused privacy (privacy that leave our server as blind as can be) is an essential component of SDocs.</p>
-    <p>In <code>public/sdocs-app.js</code> (which your browser - not our server - compiles and runs) we handle the use of the url fragment for our <a href="https://sdocs.dev/#sec=privacy" target="_blank">100% our client-side default links</a> and the encryption and client-side decryption key isolation for our <a href="https://sdocs.dev/#sec=short-links">short-links</a>. You can use SDocs confidently because all the computation touching the content of your Markdown files is done in your browser and not on our server (i.e. we cannot see the content of your files).</p>
+    SmallDocs renders Markdown files, and the Markdown files we or our agents produce contain some of the most sensitive information we have (about codebases, unresolved bugs, production logs, etc.). For this reason client-side focused privacy (privacy that leave our server as blind as can be) is an essential component of SmallDocs.</p>
+    <p>In <code>public/sdocs-app.js</code> (which your browser - not our server - compiles and runs) we handle the use of the url fragment for our <a href="https://smalldocs.org/#sec=privacy" target="_blank">100% our client-side default links</a> and the encryption and client-side decryption key isolation for our <a href="https://smalldocs.org/#sec=short-links">short-links</a>. You can use SmallDocs confidently because all the computation touching the content of your Markdown files is done in your browser and not on our server (i.e. we cannot see the content of your files).</p>
   <p>
-    SDocs is <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener">open-source</a>, which means anyone can inspect our code to prove it does what we say (another layer of trust). However that leaves one broken link in the chain: Just because our open-source code does what we say, it doesn't mean that the sdocs.dev website is actually serving that same code.</p>
+    SmallDocs is <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">open-source</a>, which means anyone can inspect our code to prove it does what we say (another layer of trust). However that leaves one broken link in the chain: Just because our open-source code does what we say, it doesn't mean that the smalldocs.org website is actually serving that same code.</p>
 
     <p>This page explains how we do our best to prove that it is.
     </p>
@@ -257,7 +257,7 @@
     Because our client-side (browser run) files are the only ones that touch your sensitive data, the main thing to prove, and only thing we (and you) can prove, is that the files your browser is receiving to serve our website match the publicly available ones in our GitHub repo.</p>
       <p>Our proof works like this:</p>
   <ul>
-    <li>Our GitHub repo has a publicly available list of commits for our <code>main</code> branch: <a href="https://github.com/espressoplease/SDocs/commits/main" target="_blank">https://github.com/espressoplease/SDocs/commits/main</a></li>
+    <li>Our GitHub repo has a publicly available list of commits for our <code>main</code> branch: <a href="https://github.com/espressoplease/smalldocs/commits/main" target="_blank">https://github.com/espressoplease/smalldocs/commits/main</a></li>
     <li>At each commit, the files that make up our code are in a particular state.</li>
     <li>
     Any file (or string) can be run through a function called a hash function, which produces a fixed-length string of
@@ -269,13 +269,13 @@
 "hello world"   -&gt;  b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
 </pre>
     </li>
-    <li>We have a custom GitHub Action (a script which runs on GitHub after a specified action) every time a commit is merged to our main branch. It goes through all of our <code>public</code> files (the files your browser receives when it renders sdocs.dev) and calculates their hashes using the SHA-256 hashing algorithm.</li>
-    <li>This data is saved on an isolated branch in the public SDocs codebase: <a href="https://github.com/espressoplease/SDocs/tree/trust-manifests" target="_blank">https://github.com/espressoplease/SDocs/tree/trust-manifests</a></li>
+    <li>We have a custom GitHub Action (a script which runs on GitHub after a specified action) every time a commit is merged to our main branch. It goes through all of our <code>public</code> files (the files your browser receives when it renders smalldocs.org) and calculates their hashes using the SHA-256 hashing algorithm.</li>
+    <li>This data is saved on an isolated branch in the public SmallDocs codebase: <a href="https://github.com/espressoplease/smalldocs/tree/trust-manifests" target="_blank">https://github.com/espressoplease/smalldocs/tree/trust-manifests</a></li>
     <li>For example, for commit <code>043623163f2bcd6b25eb2ff71f378e716b9552d3</code>, the list of hashes looks like:
     <pre>{
   "commit": "043623163f2bcd6b25eb2ff71f378e716b9552d3",
   "builtAt": "2026-04-19T07:15:35Z",
-  "repo": "https://github.com/espressoplease/SDocs",
+  "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
       "path": "/brotli_wasm_bg.wasm",
@@ -294,24 +294,24 @@
       "bytes": 42229
     },
     ...</pre>
-    See the <a href="https://github.com/espressoplease/SDocs/blob/trust-manifests/043623163f2bcd6b25eb2ff71f378e716b9552d3.json" target="_blank">exact list</a>.
+    See the <a href="https://github.com/espressoplease/smalldocs/blob/trust-manifests/043623163f2bcd6b25eb2ff71f378e716b9552d3.json" target="_blank">exact list</a>.
     </li>
-    <li>When you render a page at SDocs we send a custom <code>X-Sdocs-Commit</code> header which says which commit the sdocs.dev server is pointing too. For example, if the sdocs.dev server was pointing to <code>043623163f2bcd6b25eb2ff71f378e716b9552d3</code>, in the request headers section of the inspector you'd see:
+    <li>When you render a page at SmallDocs we send a custom <code>X-Sdocs-Commit</code> header which says which commit the smalldocs.org server is pointing too. For example, if the smalldocs.org server was pointing to <code>043623163f2bcd6b25eb2ff71f378e716b9552d3</code>, in the request headers section of the inspector you'd see:
     <pre>
 X-Sdocs-Commit           043623163f2bcd6b25eb2ff71f378e716b9552d3</pre>
     </li>
-    <li>Every time we deploy to production, and on a schedule set for every 10 minutes via <a href="https://github.com/espressoplease/SDocs/actions/workflows/check-sdocs.yml" target="_blank" rel="noopener">a different GitHub Action</a>, we fetch the current code from sdocs.dev and compare the SHA-256 hashes from the code sdocs.dev returns, with the hashes from the corresponding commit in the public isolated branch discussed above.
+    <li>Every time we deploy to production, and on a schedule set for every 10 minutes via <a href="https://github.com/espressoplease/smalldocs/actions/workflows/check-sdocs.yml" target="_blank" rel="noopener">a different GitHub Action</a>, we fetch the current code from smalldocs.org and compare the SHA-256 hashes from the code smalldocs.org returns, with the hashes from the corresponding commit in the public isolated branch discussed above.
     </br>
-      Please note: Even though our job is scheduled for every 10 minutes, GitHub Actions cron jobs share infrastructure with every other repo on GitHub, so runs get delayed or skipped under load. Actual gaps we've observed on this repo range from around 30 minutes to a few hours (recent samples: 32m, 39m, 42m, 1h 23m, 2h 3m, 3h 18m). To trigger a fresh check on demand, open <a href="https://github.com/espressoplease/SDocs/actions/workflows/check-sdocs.yml" target="_blank" rel="noopener">the Action page</a> and click "Run workflow".
+      Please note: Even though our job is scheduled for every 10 minutes, GitHub Actions cron jobs share infrastructure with every other repo on GitHub, so runs get delayed or skipped under load. Actual gaps we've observed on this repo range from around 30 minutes to a few hours (recent samples: 32m, 39m, 42m, 1h 23m, 2h 3m, 3h 18m). To trigger a fresh check on demand, open <a href="https://github.com/espressoplease/smalldocs/actions/workflows/check-sdocs.yml" target="_blank" rel="noopener">the Action page</a> and click "Run workflow".
     </br>
-    The final step of this GitHub action is to update a publicly available JSON file hosted on GitHub with the latest trust status. You can read the latest status here: <a href="https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json" target="_blank">https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json</a>
+    The final step of this GitHub action is to update a publicly available JSON file hosted on GitHub with the latest trust status. You can read the latest status here: <a href="https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/checks/latest.json" target="_blank">https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/checks/latest.json</a>
     </li>
     <li>
       On success, this endpoint returns:
       <pre>
 {
   "checkedAt": "2026-04-19T07:03:45.361Z",
-  "base": "https://sdocs.dev",
+  "base": "https://smalldocs.org",
   "commit": "043623163f2bcd6b25eb2ff71f378e716b9552d3",
   "commitShort": "e158bea",
   "result": "ok",
@@ -325,9 +325,9 @@ And on failure it returns:
 <pre>
 {
   "checkedAt": "2026-04-19T08:14:34.140Z",
-  "base": "https://sdocs.dev",
+  "base": "https://smalldocs.org",
   "result": "error",
-  "error": "Could not read /trust/manifest from server: HTTP 404 for https://sdocs.dev/trust/manifest"
+  "error": "Could not read /trust/manifest from server: HTTP 404 for https://smalldocs.org/trust/manifest"
 }
 </pre>
     </li>
@@ -357,7 +357,7 @@ And on failure it returns:
 
   <pre>(async () =&gt; {
   const srv = await fetch('/trust/manifest').then(r =&gt; r.json());
-  const url = 'https://raw.githubusercontent.com/espressoplease/SDocs'
+  const url = 'https://raw.githubusercontent.com/espressoplease/smalldocs'
             + '/trust-manifests/' + srv.commit + '.json';
   const gh  = await fetch(url).then(r =&gt; r.json());
   const hex = b =&gt; [...new Uint8Array(b)].map(x =&gt; x.toString(16).padStart(2, '0')).join('');
@@ -410,15 +410,15 @@ sdoc safe --audit           # also prints links to the server-side source files
 
   <ul>
     <li>
-      <a href="https://github.com/espressoplease/SDocs/tree/trust-manifests" target="_blank" rel="noopener">All fingerprint lists and check results</a>
+      <a href="https://github.com/espressoplease/smalldocs/tree/trust-manifests" target="_blank" rel="noopener">All fingerprint lists and check results</a>
       (the <code>trust-manifests</code> branch)
     </li>
     <li>
-      <a href="https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests/checks/latest.json" target="_blank" rel="noopener">Latest check result</a>
-      (read by the footer on every sdocs.dev page)
+      <a href="https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/checks/latest.json" target="_blank" rel="noopener">Latest check result</a>
+      (read by the footer on every smalldocs.org page)
     </li>
     <li>
-      <a href="https://github.com/espressoplease/SDocs/commits/trust-manifests" target="_blank" rel="noopener">Commit history</a>
+      <a href="https://github.com/espressoplease/smalldocs/commits/trust-manifests" target="_blank" rel="noopener">Commit history</a>
       of that branch (one commit per publish + one per check update)
     </li>
   </ul> -->
@@ -427,10 +427,10 @@ sdoc safe --audit           # also prints links to the server-side source files
 
 <div class="statusbar">
   <span style="margin-left:auto; display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
-    <span>100% private (<a href="https://sdocs.dev/#sec=privacy" target="_blank" rel="noopener">learn why</a>)</span>
+    <span>100% private (<a href="https://smalldocs.org/#sec=privacy" target="_blank" rel="noopener">learn why</a>)</span>
     &middot; <span data-trust-status>Open source: <a href="/trust" target="_blank" rel="noopener">verify server</a></span>
     &middot; CLI for you &amp; your agents: <span class="cli-wrap" id="cli-wrap" title="Click to copy install command"><code>npm i -g sdocs-dev</code><button class="copy-btn" id="cli-copy-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
-    &middot; <a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener">GitHub</a>
+    &middot; <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">GitHub</a>
     &middot; <span>You agree to our <a href="/legal" target="_blank" rel="noopener">Terms</a></span>
   </span>
 </div>
@@ -459,9 +459,9 @@ sdoc safe --audit           # also prints links to the server-side source files
 //   2. Fetch the authoritative fingerprint list for that commit from GitHub
 //      (raw.githubusercontent.com/.../trust-manifests/<sha>.json). Published
 //      by the publish-manifest.yml Action on every push to main.
-//   3. For each file, fetch it from sdocs.dev, hash it locally with
+//   3. For each file, fetch it from smalldocs.org, hash it locally with
 //      crypto.subtle.digest('SHA-256', ...), and compare to GitHub's list.
-// Bytes come from sdocs.dev. Fingerprints come from GitHub.
+// Bytes come from smalldocs.org. Fingerprints come from GitHub.
 (function () {
   var commitEl = document.getElementById('commit-sha');
   var commitLink = document.getElementById('commit-link');
@@ -470,8 +470,8 @@ sdoc safe --audit           # also prints links to the server-side source files
   var list = document.getElementById('list');
   var manifest = null;
 
-  var REPO = 'https://github.com/espressoplease/SDocs';
-  var RAW_BASE = 'https://raw.githubusercontent.com/espressoplease/SDocs/trust-manifests';
+  var REPO = 'https://github.com/espressoplease/smalldocs';
+  var RAW_BASE = 'https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests';
 
   function shortSha(s) { return s && s.length >= 7 ? s.slice(0, 7) : s; }
 
@@ -577,7 +577,7 @@ sdoc safe --audit           # also prints links to the server-side source files
     if (fail === 0) {
       setSummary(
         'All ' + ok + ' files match the list GitHub published for this commit. ' +
-        'Bytes came from sdocs.dev; fingerprints came from GitHub. The server cannot produce a match it did not already publish to GitHub.',
+        'Bytes came from smalldocs.org; fingerprints came from GitHub. The server cannot produce a match it did not already publish to GitHub.',
         'ok'
       );
     } else {
