@@ -352,6 +352,9 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   gap: 56px;
   align-items: start;
 }
+/* Grid items default to min-width auto, which lets nowrap content
+   (the curl command) widen the track past the viewport on phones. */
+.install-grid > *, .teams-grid > * { min-width: 0; }
 .install-text { max-width: 32ch; }
 .install-text h2 {
   font-size: var(--t-lead);
@@ -379,6 +382,9 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .install-cmd .pr { color: #6E665C; font-family: var(--mono); font-size: var(--t-mono); }
 .install-cmd .cmd {
   flex: 1;
+  /* min-width 0 lets the nowrap command shrink with the column and
+     scroll inside the pill instead of stretching the page. */
+  min-width: 0;
   font-family: var(--mono);
   font-size: var(--t-mono);
   white-space: nowrap;
