@@ -455,20 +455,21 @@
     '}',
     '.sdoc-cc-card-body { display: inline; white-space: pre-wrap; word-break: break-word; }',
     '.sdoc-cc-card-actions { position: absolute; top: 2px; right: 4px; display: inline-flex; gap: 1px; }',
-    // Delete (view) / save + cancel (edit) sit in the top-right of the card. Like
-    // the markdown sidecar card they stay visible rather than waiting for hover,
-    // muted at rest and picking up the card tint on hover.
+    // Delete (view) / save + cancel (edit) sit in the top-right of the card.
+    // Same treatment as the markdown sidecar card\'s .sdoc-icon-btn: a solid
+    // muted tone (the overlay analogue of var(--text-2)), always visible, picking
+    // up the card tint on hover. Icons render at 14px to match the markdown
+    // composer rather than looking smaller and lighter.
     '.sdoc-cc-iconbtn {',
     '  all: unset; cursor: pointer; padding: 2px; border-radius: 4px;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 45%, transparent);',
-    '  display: inline-flex; opacity: .75; transition: background .12s, color .12s, opacity .12s;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 58%, transparent);',
+    '  display: inline-flex; transition: background .12s, color .12s;',
     '}',
-    '.sdoc-cc-card:hover .sdoc-cc-iconbtn, .sdoc-cc-card-edit .sdoc-cc-iconbtn { opacity: 1; }',
     '.sdoc-cc-iconbtn:hover {',
     '  background: color-mix(in oklab, var(--sdoc-cc-color) 42%, var(--sdoc-focus-bg, #f4f1ed));',
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
-    '.sdoc-cc-iconbtn svg { display: block; width: 13px; height: 13px; }',
+    '.sdoc-cc-iconbtn svg { display: block; width: 14px; height: 14px; }',
     // Composer: transparent textarea on the same tint, save / cancel top-right.
     '.sdoc-cc-card-edit { padding: 4px 48px 4px 8px; }',
     '.sdoc-cc-input {',
@@ -522,6 +523,13 @@
     + '<path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/>');
   var TRASH_ICON = lucide('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', 13);
   var CHECK_ICON = lucide('<path d="M20 6 9 17l-5-5"/>', 13);
+  // The comment composer's save / cancel reuse the markdown composer's exact
+  // tick and cross (sdocs-comments-ui.js TICK_SVG / X_SVG): a heavier 2.5 stroke,
+  // so the two composers read identically rather than the code one looking
+  // thinner. Kept separate from CHECK_ICON / X_ICON, which stay at the lighter
+  // 2-stroke used by the topbar and copy-feedback affordances.
+  var TICK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+  var X_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
   // Two icons, switched by the button's .is-open class: outward arrows mean
   // "expand all" (shown when something is collapsed), inward arrows mean
   // "collapse all" (shown when everything is open). This is the same fold
@@ -1429,8 +1437,8 @@
     card.innerHTML =
       '<textarea class="sdoc-cc-input" rows="1" placeholder="Add a comment..."></textarea>'
       + '<div class="sdoc-cc-card-edit-actions">'
-      +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="save" title="Save (Cmd/Ctrl+Enter)" aria-label="Save">' + CHECK_ICON + '</button>'
-      +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="cancel" title="Cancel (Esc)" aria-label="Cancel">' + X_ICON + '</button>'
+      +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="save" title="Save (Cmd/Ctrl+Enter)" aria-label="Save">' + TICK_SVG + '</button>'
+      +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="cancel" title="Cancel (Esc)" aria-label="Cancel">' + X_SVG + '</button>'
       + '</div>';
     row.appendChild(card);
 
