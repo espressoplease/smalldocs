@@ -124,6 +124,93 @@ module.exports = function (harness) {
     assert.deepStrictEqual(data.weeks, ['2026-W15', '2026-W16', '2026-W17']);
   });
 
+  console.log('\n── Analytics: Legacy Merge Tests ────────────────\n');
+
+  test('mergeVisitPayloads sums two databases cell by cell', () => {
+    const Database = require('better-sqlite3');
+    const schema = `CREATE TABLE visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cohort_week TEXT NOT NULL DEFAULT '',
+      visit_week TEXT NOT NULL,
+      device TEXT NOT NULL DEFAULT '',
+      browser TEXT NOT NULL DEFAULT '',
+      referer TEXT NOT NULL DEFAULT ''
+    );`;
+    const mk = (rows) => {
+      const d = new Database(':memory:');
+      d.exec(schema);
+      const ins = d.prepare('INSERT INTO visits (cohort_week, visit_week, device, browser, referer) VALUES (?, ?, ?, ?, ?)');
+      rows.forEach(r => ins.run(...r));
+      return d;
+    };
+
+    // Legacy site: W15 cohort, 2 visits in its birth week, Safari/mobile.
+    const legacy = mk([
+      ['2026-W15', '2026-W15', 'mobile', 'Safari', 'github'],
+      ['2026-W15', '2026-W15', 'mobile', 'Safari', 'github'],
+      ['',          '2026-W15', 'desktop', 'Chrome', ''],
+    ]);
+    // Current site: same cohort reappears in W20, plus a new W20 cohort.
+    const current = mk([
+      ['2026-W15', '2026-W20', 'desktop', 'Chrome', 'direct'],
+      ['2026-W20', '2026-W20', 'desktop', 'Chrome', 'direct'],
+    ]);
+
+    const a = analyticsQuery.readVisitPayload(current);
+    const b = analyticsQuery.readVisitPayload(legacy);
+    const m = analyticsQuery.mergeVisitPayloads(a, b);
+
+    assert.deepStrictEqual(m.weeks, ['2026-W15', '2026-W20']);
+    const w15 = m.cohorts.find(c => c.cohort_week === '2026-W15');
+    assert.strictEqual(w15.cohort_size, 2, 'birth-week size comes from the legacy db');
+    assert.deepStrictEqual(w15.visits, { '2026-W15': 2, '2026-W20': 1 },
+      'one cohort row spans both databases');
+    assert.strictEqual(m.unattributed['2026-W15'], 1);
+    assert.deepStrictEqual(m.volume, [
+      { visit_week: '2026-W15', visits: 3 },
+      { visit_week: '2026-W20', visits: 2 },
+    ]);
+    const chrome = m.browsers.find(r => r.browser === 'Chrome');
+    const safari = m.browsers.find(r => r.browser === 'Safari');
+    assert.strictEqual(chrome.count, 3);
+    assert.strictEqual(safari.count, 2);
+    legacy.close();
+    current.close();
+  });
+
+  test('getRetentionData merges a legacy db pointed at by ANALYTICS_LEGACY_DB', () => {
+    const fs = require('fs');
+    const os = require('os');
+    const Database = require('better-sqlite3');
+    const legacyPath = path.join(os.tmpdir(), 'sdocs-test-legacy-analytics-' + process.pid + '.db');
+    try { fs.unlinkSync(legacyPath); } catch (_) {}
+    const d = new Database(legacyPath);
+    d.exec(`CREATE TABLE visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cohort_week TEXT NOT NULL DEFAULT '',
+      visit_week TEXT NOT NULL,
+      device TEXT NOT NULL DEFAULT '',
+      browser TEXT NOT NULL DEFAULT '',
+      referer TEXT NOT NULL DEFAULT ''
+    );`);
+    d.prepare("INSERT INTO visits (cohort_week, visit_week, device, browser, referer) VALUES ('2026-W10', '2026-W10', 'desktop', 'Firefox', 'search')").run();
+    d.close();
+
+    // The in-memory primary db still holds the scenario seeded above
+    // (W15/W16 cohorts). With the env var set, W10 joins the result.
+    process.env.ANALYTICS_LEGACY_DB = legacyPath;
+    try {
+      const data = analyticsQuery.getRetentionData();
+      assert.ok(data.weeks.includes('2026-W10'), 'legacy week appears');
+      assert.ok(data.weeks.includes('2026-W15'), 'primary weeks remain');
+      const w10 = data.cohorts.find(c => c.cohort_week === '2026-W10');
+      assert.strictEqual(w10.cohort_size, 1);
+    } finally {
+      delete process.env.ANALYTICS_LEGACY_DB;
+      try { fs.unlinkSync(legacyPath); } catch (_) {}
+    }
+  });
+
   // Clean up
   analyticsDb.close();
 };
