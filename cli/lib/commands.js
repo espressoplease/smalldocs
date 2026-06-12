@@ -4,7 +4,6 @@
 // share `prepareUrl` for the load-content / apply-defaults / build-URL
 // flow that `open` and `share` both need.
 
-const fs   = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
@@ -17,7 +16,6 @@ const { buildUrl } = require('./url');
 const { buildShortUrl } = require('./short-link');
 const { refreshUpdateCache, maybeUpdateBinary } = require('./update-check');
 const { runSetup, maybeAutoRefresh } = require('./setup');
-const { runBridgedOpen } = require('./bridge-commands');
 
 // Shared "after the command ran" tail used by `open` and `share`.
 async function postCommandHooks() {
@@ -97,24 +95,17 @@ async function prepareUrl(opts) {
 
 // Default flow: `sdoc <file>` or `sdoc` (no args, or piped stdin).
 //
-// When the caller passes a real file path on disk, route to the Bridge so the
-// browser is connected to the live file (autosave back to disk, external
-// changes pushed to the page). For everything else — stdin pipes, no file at
-// all — fall back to the URL-encoded snapshot path.
+// The document travels in the URL hash and renders read-only-by-default in the
+// browser; nothing connects back to disk. This is the everywhere-works path -
+// no local socket, no browser permission prompt. The live, autosaving session
+// (browser <-> file on disk) is opt-in via `sdoc bridge <file>`.
 //
 // The non-blocking, share-by-URL case is `sdoc share <file>`.
 async function openCommand(opts) {
-  if (opts.file && fileExistsSync(opts.file)) {
-    return runBridgedOpen(opts);
-  }
   const { url } = await prepareUrl(opts);
   openBrowser(url);
   console.log(`SDocs → ${url.length > 80 ? url.slice(0, 77) + '...' : url}`);
   await postCommandHooks();
-}
-
-function fileExistsSync(p) {
-  try { return fs.statSync(p).isFile(); } catch (_) { return false; }
 }
 
 async function shareCommand(opts) {
