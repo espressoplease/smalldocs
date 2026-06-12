@@ -148,7 +148,8 @@ test('edits a comment in place', async ({ page }) => {
   await openCode(page, 'ruby', RUBY);
   await enterCommentMode(page);
   await addNote(page, 1, 'first');
-  await page.locator('.sdoc-cc-thread[data-ln="1"] [data-cc="edit"]').click();
+  // Click the card body to edit, mirroring the markdown card's click-to-edit.
+  await page.locator('.sdoc-cc-thread[data-ln="1"] .sdoc-cc-card-body').click();
   await page.locator('.sdoc-cc-composer .sdoc-cc-input').fill('second');
   await page.locator('.sdoc-cc-composer [data-cc="save"]').click();
   await expect(page.locator('.sdoc-cc-thread[data-ln="1"] .sdoc-cc-card-body')).toHaveText('second');
