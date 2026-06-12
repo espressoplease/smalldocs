@@ -7,11 +7,13 @@ SDocs CLI
 Open, share, and style markdown files from the terminal.
 
 USAGE
-  sdoc <file>                      Open file in browser (read mode)
+  sdoc <file>                      Open file in browser (read mode, no live link)
   sdoc <file> --write              Open in write mode
   sdoc <file> --style              Open with style panel
   sdoc <file> --raw                Open raw markdown source
   sdoc <file> --comment            Open in comment mode (review/annotate)
+  sdoc bridge <file>               Live editing session: edits autosave to disk,
+                                   external changes push to the page (see LIVE BRIDGE)
   sdoc new                         New blank document (write mode)
   sdoc share <file>                Copy shareable link to clipboard
   sdoc share <file> --section "X"  Link with section anchor
@@ -95,6 +97,23 @@ INTERACTIVE FEEDBACK (sdoc feedback)
   Run \`sdoc feedback\` (no args) for the full DSL reference: field
   types, button options, the multi-round flow, and how agents on
   different harnesses should consume the events.
+
+LIVE BRIDGE (sdoc bridge)
+  \`sdoc <file>\` renders a snapshot: the document travels in the URL and
+  opens read-only-by-default. Nothing connects back to disk, so it works
+  everywhere with no prompts. Use this to read, share, or hand off a file.
+
+  \`sdoc bridge <file>\` opens a live session instead. The CLI starts a
+  local server on 127.0.0.1 and the browser connects to it, so edits in
+  the page autosave to the file on disk and external edits push to the
+  page. The terminal stays parked until you close the tab or press
+  Ctrl-C, so run it in the background when you want to keep working.
+
+  The first time the page connects, the browser asks permission to talk
+  to a local process (Chrome calls this "Apps on device" / Local Network
+  Access). The user has to accept, or the page stays read-only. Safari
+  does not allow the loopback connection at all; there the page stays on
+  the read-only snapshot.
 
 FILE INFO CARD
   When you \`sdoc <file>\`, the browser shows a small info card

@@ -71,6 +71,13 @@ function buildRouter() {
   // `sdoc new`: open blank /new editor.
   r.register('new',      { handler: (opts) => { commands.newCommand(opts); process.exit(0); } });
 
+  // `sdoc bridge <file>` — live editing session. Starts a local bridge so the
+  // browser is connected to the file on disk (autosave back, external changes
+  // pushed to the page). Blocks the terminal until the tab closes or Ctrl-C.
+  // The browser will ask to talk to a local process ("Apps on device" /
+  // local-network permission); the user must accept for the live link to work.
+  r.register('bridge',   { handler: (opts) => bridgeCommands.runBridgedOpen(opts) });
+
   // `sdoc feedback <file> --message "..."` — agent handoff. Bridge in
   // feedback mode: Done returns 0, close-without-Done returns 2.
   r.register('feedback', { handler: (opts) => bridgeCommands.feedbackCommand(opts) });
