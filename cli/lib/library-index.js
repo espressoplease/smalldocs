@@ -22,8 +22,13 @@ const MAX_EXCERPT = 400;
 
 function deriveTitle(meta, body) {
   if (meta && typeof meta.title === 'string' && meta.title.trim()) return meta.title.trim();
-  const m = (body || '').match(/^#\s+(.+?)\s*$/m);
-  if (m) return m[1];
+  const lines = (body || '').split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const m = lines[i].match(/^#\s+(.+?)\s*$/);
+    if (m) return m[1];
+    break;
+  }
   return null;
 }
 
