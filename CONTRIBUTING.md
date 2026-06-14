@@ -2,6 +2,10 @@
 
 Thanks for your interest. This guide covers how to get set up, what the project expects from contributions, and how to get a change merged.
 
+## Questions
+
+For questions, discussion, or help before opening an issue, join the [Discord server](https://discord.gg/8n6DR4v46f).
+
 ## Before you start
 
 - Check the [open issues](https://github.com/espressoplease/smalldocs/issues) to see if something is already being worked on.
