@@ -50,7 +50,7 @@ function buildRouter() {
   r.register('comments', { handler: () => { console.log(helpText.COMMENTS_HELP); process.exit(0); } });
 
   // Setup / refresh / auto-update.
-  r.register('setup',       { handler: async (opts) => { await setup.runSetup({ force: true, yes: !!opts.yesFlag }); process.exit(0); } });
+  r.register('setup',       { handler: async (opts) => { await setup.runSetup({ force: true, yes: !!opts.yesFlag, dryRun: !!opts.dryRunFlag }); process.exit(0); } });
   r.register('refresh',     { handler: async () => { await setup.runRefresh(); process.exit(0); } });
   r.register('auto-update', { handler: (opts) => {
     // Sub-arg lives in opts.file (positional). Accept on/off/empty.

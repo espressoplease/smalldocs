@@ -271,6 +271,41 @@ module.exports = function (harness) {
     } finally { fx.cleanup(); }
   });
 
+  // ── 10. Dry-run preview (multiple agents) ────────────────
+  // The issue describes the problem as setup writing to multiple agent
+  // config files without preview. Dry-run must print every file path and
+  // the block that would be written to each, then exit without touching
+  // any file or creating setup state.
+  scenario('dry-run / multiple agents detected → setup --yes --dry-run prints all paths and block, writes nothing', async () => {
+    const fx = createFixture({ agents: ['claude', 'codex', 'gemini'] });
+    try {
+      const r = await fx.run('setup --yes --dry-run');
+      assert.strictEqual(r.exitCode, 0, `exit code (stderr=${r.stderr})`);
+
+      // No file written - every agent file must still be empty.
+      for (const agent of ['claude', 'codex', 'gemini']) {
+        assert.strictEqual(fx.readAgent(agent), '', `${agent} file must be unchanged (dry-run writes nothing)`);
+      }
+
+      // Output must contain a header line for each agent file path.
+      for (const dir of ['.claude', '.codex', '.gemini']) {
+        assert.ok(
+          r.stdout.includes(dir),
+          `expected ${dir} path in stdout, got:\n${r.stdout}`,
+        );
+      }
+
+      // Output must contain the block that would have been written.
+      assert.ok(
+        r.stdout.includes(`<!-- sdocs-agent-block:start v=${cli.AGENT_BLOCK_VERSION} -->`),
+        `expected block start marker in stdout, got:\n${r.stdout}`,
+      );
+
+      // Setup state must not have been created.
+      assert.strictEqual(fx.readSetupState(), null, 'setup.json must not be created by dry-run');
+    } finally { fx.cleanup(); }
+  });
+
   // Return the runner so the orchestrator can await completion before
   // calling report(). Tests run sequentially: each spawns its own CLI
   // child and owns its own temp HOME, but parallelising them muddles
