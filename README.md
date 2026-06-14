@@ -4,7 +4,7 @@
 
 SmallDocs (formerly SDocs) is a lightweight, stateless markdown editor with live styling. Your document lives in the URL hash fragment - browsers never send it to the server.
 
-**[smalldocs.org](https://smalldocs.org)** &nbsp;|&nbsp; **[npm](https://www.npmjs.com/package/sdocs-dev)** &nbsp;|&nbsp; **[MIT License](LICENSE)**
+**[smalldocs.org](https://smalldocs.org)** &nbsp;|&nbsp; **[npm](https://www.npmjs.com/package/sdocs-dev)** &nbsp;|&nbsp; **[MIT License](LICENSE)** &nbsp;|&nbsp; **[Discord](https://discord.gg/8n6DR4v46f)**
 
 ---
 
