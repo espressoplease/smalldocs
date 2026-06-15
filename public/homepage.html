@@ -356,53 +356,78 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   box-shadow: 0 6px 22px rgba(0,0,0,.28);
 }
 
-/* ── POWERS: live, interactive demo grid ─────────────── */
-.powers { margin-top: 26px; }
+/* ── SHOWCASE: full-width live demos, each from an agent prompt ── */
+.showcase-intro { margin-top: 30px; }
 .powers-blurb {
-  margin: 0 0 18px;
-  max-width: 52ch;
+  margin: 0;
+  max-width: 54ch;
   font-size: var(--t-lead);
   line-height: 1.5;
   color: var(--ink-2);
 }
-.demo-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  align-items: stretch;
+.showcase { margin-top: 34px; }
+.showcase-head { margin-bottom: 16px; }
+.showcase-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
-.demo-cell {
-  position: relative;
+/* The agent prompt, styled like a line typed to a coding agent. */
+.showcase-prompt {
+  margin: 0;
+  display: inline-block;
+  max-width: 100%;
+  font-size: var(--t-sm);
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 14px 9px 12px;
+}
+.showcase-prompt::before {
+  content: "\203A";
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+/* Horizontal scroller for charts and slides. Hidden scrollbar with a fade on
+   the right edge hinting there is more to scroll to. */
+.scroll-row {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-row::-webkit-scrollbar { display: none; }
+.scroll-item {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
   min-width: 0;
-  overflow: hidden;
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 15px 16px 16px;
 }
-.demo-label {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-}
-/* The demo itself fills the rest of the card and centres vertically. */
-.demo-canvas {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-}
-.demo-canvas > * { min-width: 0; }
-.demo-canvas > :first-child { margin-top: 0; }
-.demo-canvas > :last-child { margin-bottom: 0; }
-/* Stack to a single column on narrow screens. */
+.scroll-item.chart-item { width: 360px; padding: 16px; }
+.scroll-item.slide-item { width: 470px; padding: 0; overflow: hidden; }
+.scroll-item > * { min-width: 0; }
+
+/* Full-width single demos (sheet, diagram). Each feature brings its own card
+   styling via cells.css / rendered.css, so the wrapper just sets the width. */
+.showcase-wide { width: 100%; min-width: 0; }
+
 @media (max-width: 720px) {
-  .demo-grid { grid-template-columns: 1fr; }
+  .scroll-item.chart-item { width: 300px; }
+  .scroll-item.slide-item { width: 340px; }
 }
 
 /* ── INSTALL: a calm tinted panel matching the video width ────
@@ -808,32 +833,53 @@ footer {
   </div>
 </header>
 
-<!-- ═══ POWERS: live, interactive demos ══════════════════
-     A real chart, an editable sheet, a presentable slide, and an expandable
-     diagram - rendered by the same modules the SmallDocs app uses. Filled in
-     by the bootstrap script at the end of the body. Stacks to one column on
-     narrow screens. -->
-<section class="powers">
+<!-- ═══ SHOWCASE: full-width live demos, each from an agent prompt ═══
+     Every block is the real, interactive feature, rendered by the same
+     modules the SmallDocs app uses. Charts and slides scroll horizontally;
+     the sheet scrolls internally; the diagram is full width. -->
+<section class="showcase-intro">
   <div class="wrap">
-    <p class="powers-blurb">SmallDocs takes markdown and gives it special powers. Your agents can generate:</p>
-    <div class="demo-grid" id="demoGrid">
-      <div class="demo-cell">
-        <span class="demo-label">Charts</span>
-        <div class="demo-canvas" id="demo-chart"></div>
-      </div>
-      <div class="demo-cell">
-        <span class="demo-label">Sheets</span>
-        <div class="demo-canvas" id="demo-cells"></div>
-      </div>
-      <div class="demo-cell">
-        <span class="demo-label">Slides</span>
-        <div class="demo-canvas" id="demo-slide"></div>
-      </div>
-      <div class="demo-cell">
-        <span class="demo-label">Diagram</span>
-        <div class="demo-canvas" id="demo-mermaid"></div>
-      </div>
+    <p class="powers-blurb">SmallDocs takes Markdown and gives it special powers. Your agents can generate:</p>
+  </div>
+</section>
+
+<section class="showcase">
+  <div class="wrap">
+    <div class="showcase-head">
+      <span class="showcase-label">Charts</span>
+      <p class="showcase-prompt">Claude, show me last month&rsquo;s revenue, margins, churn and P&amp;L</p>
     </div>
+    <div class="scroll-row" id="row-charts"></div>
+  </div>
+</section>
+
+<section class="showcase">
+  <div class="wrap">
+    <div class="showcase-head">
+      <span class="showcase-label">Sheets</span>
+      <p class="showcase-prompt">Codex, build the business case for expanding into Europe</p>
+    </div>
+    <div class="showcase-wide" id="demo-cells"></div>
+  </div>
+</section>
+
+<section class="showcase">
+  <div class="wrap">
+    <div class="showcase-head">
+      <span class="showcase-label">Slides</span>
+      <p class="showcase-prompt">Cursor, draft a board deck for our Series B raise</p>
+    </div>
+    <div class="scroll-row" id="row-slides"></div>
+  </div>
+</section>
+
+<section class="showcase">
+  <div class="wrap">
+    <div class="showcase-head">
+      <span class="showcase-label">Diagrams</span>
+      <p class="showcase-prompt">Gemini, sketch out our data pipeline architecture</p>
+    </div>
+    <div class="showcase-wide" id="demo-mermaid"></div>
   </div>
 </section>
 
@@ -1205,8 +1251,7 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
 <script src="/public/sdocs-slides.js"></script>
 <script>
 (function () {
-  function render(id, md) {
-    var el = document.getElementById(id);
+  function renderInto(el, md) {
     if (!el) return;
     el.innerHTML = DOMPurify.sanitize(marked.parse(md), { FORBID_ATTR: ['style'] });
     var S = window.SDocs || {};
@@ -1215,10 +1260,42 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
     if (window.SDocSlides && window.SDocSlides.processSlides) window.SDocSlides.processSlides(el);
     if (S.processCells) S.processCells(el);
   }
-  render('demo-chart', '```chart\n{"type":"bar","title":"Spend on AI agents","labels":["2025","2026","2030","2035"],"values":[7.9,11.5,52,294],"prefix":"$","dataLabels":true}\n```');
-  render('demo-cells', '```cells\nformat: B=, C=, D=%.0\nWeek,Visits,New visitors,Returning share\nW19,7882,6923,=(B2-C2)/B2\nW20,1280,736,=(B3-C3)/B3\nW21,708,352,=(B4-C4)/B4\nW22,560,324,=(B5-C5)/B5\nW23,910,512,=(B6-C6)/B6\nTotal,=SUM(B2:B6),=SUM(C2:C6),=(B7-C7)/B7\n```');
-  render('demo-slide', '~~~slide\ngrid 100 56.25\nr 10 16 80 4 text=caption align=left color=#e0701e | A NEW TYPE OF DOCUMENT\nr 10 22 80 11 text=title align=left color=#1c1a17 | SmallDocs\nr 10.5 35 14 0.6 fill=#4d65ff\nr 10 38 80 6 text=subtitle align=left color=#8a8378 | Word, a spreadsheet and slides in one file\n~~~');
-  render('demo-mermaid', '```mermaid\nflowchart LR\n  A[Markdown file] --> B{sdoc}\n  B -->|read| C[Styled in browser]\n  B -->|share| D[Encrypted link]\n  C --> E[Charts &amp; sheets]\n  C --> F[Slides &amp; diagrams]\n  D --> G[Opens, decodes locally]\n```');
+  function fill(rowId, sources, itemClass) {
+    var row = document.getElementById(rowId);
+    if (!row) return;
+    sources.forEach(function (md) {
+      var item = document.createElement('div');
+      item.className = 'scroll-item ' + itemClass;
+      row.appendChild(item);
+      renderInto(item, md);
+    });
+  }
+
+  // Charts: revenue, margin, churn, P&L - a horizontal scroll of four.
+  var charts = [
+    '```chart\n{"type":"bar","title":"Revenue","subtitle":"Monthly, $000s","labels":["Jan","Feb","Mar","Apr","May","Jun"],"values":[420,448,471,505,540,602],"prefix":"$","dataLabels":false}\n```',
+    '```chart\n{"type":"line","title":"Gross margin","subtitle":"Percent","labels":["Jan","Feb","Mar","Apr","May","Jun"],"values":[61,62,63,64,66,68]}\n```',
+    '```chart\n{"type":"line","title":"Monthly churn","subtitle":"Percent","labels":["Jan","Feb","Mar","Apr","May","Jun"],"values":[3.1,2.9,2.6,2.4,2.2,1.9]}\n```',
+    '```chart\n{"type":"bar","title":"Net profit","subtitle":"Monthly, $000s","labels":["Jan","Feb","Mar","Apr","May","Jun"],"values":[28,41,55,72,96,140],"prefix":"$","dataLabels":false}\n```'
+  ];
+  fill('row-charts', charts, 'chart-item');
+
+  // Sheet: a quarterly P&L wide enough to scroll internally.
+  renderInto(document.getElementById('demo-cells'),
+    '```cells\nformat: B=, C=, D=, E=, F=, G=, H=, I=\nMetric,Y1 Q1,Y1 Q2,Y1 Q3,Y1 Q4,Y2 Q1,Y2 Q2,Y2 Q3,Y2 Q4\nRevenue,180,240,320,430,560,720,910,1150\nCOGS,70,92,120,158,200,252,315,392\nGross profit,=B2-B3,=C2-C3,=D2-D3,=E2-E3,=F2-F3,=G2-G3,=H2-H3,=I2-I3\nSales & marketing,120,150,185,220,260,300,340,380\nG&A,40,46,54,64,76,90,104,120\nEBITDA,=B4-B5-B6,=C4-C5-C6,=D4-D5-D6,=E4-E5-E6,=F4-F5-F6,=G4-G5-G6,=H4-H5-H6,=I4-I5-I6\n```');
+
+  // Slides: a short board deck that scrolls horizontally.
+  var slides = [
+    '~~~slide\ngrid 100 56.25\nr 10 18 80 4 text=caption align=left color=#e0701e | SERIES B - BOARD REVIEW\nr 10 24 80 12 text=title align=left color=#1c1a17 | Scaling into Europe\nr 10.5 39 14 0.6 fill=#4d65ff\nr 10 42 80 6 text=subtitle align=left color=#8a8378 | Q2 board meeting - growth, unit economics, and the raise\n~~~',
+    '~~~slide\ngrid 100 56.25\nr 10 9 80 4 text=caption align=left color=#e0701e | WHY NOW\nr 10 14 80 7 text=title align=left color=#1c1a17 | Three reasons to move\nr 10 26 5 5 fill=#4d65ff\nr 18 26 70 5 text=subtitle align=left color=#1c1a17 | Net revenue retention crossed 130%\nr 10 34 5 5 fill=#7c8cff\nr 18 34 70 5 text=subtitle align=left color=#1c1a17 | European pipeline doubled in two quarters\nr 10 42 5 5 fill=#f59e3b\nr 18 42 70 5 text=subtitle align=left color=#1c1a17 | Payback period down to nine months\n~~~',
+    '~~~slide\ngrid 100 56.25 bg=#0e1330\nr 8 10 84 4 text=caption align=left color=#f59e3b | THE NUMBERS\nr 8 15 84 7 text=title align=left color=#ffffff | Where we are today\nr 8 28 24 16 fill=#161b3d stroke=#39406f strokeWidth=0.02\nr 10 31 20 8 text=title align=left color=#ffffff | $7.2M\nr 10 40 20 2 text=caption align=left color=#9aa3c7 | ARR\nr 38 28 24 16 fill=#161b3d stroke=#39406f strokeWidth=0.02\nr 40 31 20 8 text=title align=left color=#ffffff | 132%\nr 40 40 20 2 text=caption align=left color=#9aa3c7 | NET REVENUE RETENTION\nr 68 28 24 16 fill=#161b3d stroke=#39406f strokeWidth=0.02\nr 70 31 20 8 text=title align=left color=#ffffff | 1.9%\nr 70 40 20 2 text=caption align=left color=#9aa3c7 | MONTHLY CHURN\n~~~',
+    '~~~slide\ngrid 100 56.25\nr 10 20 80 4 text=caption align=left color=#e0701e | THE ASK\nr 10 25 80 12 text=title align=left color=#1c1a17 | $25M to own Europe\nr 10.5 40 14 0.6 fill=#4d65ff\nr 10 43 80 6 text=subtitle align=left color=#8a8378 | 18 months runway - GTM, localisation, and two regional teams\n~~~'
+  ];
+  fill('row-slides', slides, 'slide-item');
+
+  // Diagram: a data pipeline with subgraphs, full width.
+  renderInto(document.getElementById('demo-mermaid'),
+    '```mermaid\nflowchart LR\n  subgraph SRC[Sources]\n    A[App events]\n    B[(Postgres)]\n    C[Stripe]\n  end\n  subgraph ING[Ingest]\n    D[Kafka]\n    E[Fivetran]\n  end\n  subgraph WH[Warehouse]\n    F[(Snowflake)]\n    G[dbt models]\n  end\n  subgraph SRV[Serve]\n    H[BI dashboards]\n    J[Reverse ETL]\n    K[ML features]\n  end\n  A --> D\n  B --> E\n  C --> E\n  D --> F\n  E --> F\n  F --> G\n  G --> H\n  G --> J\n  G --> K\n```');
 })();
 </script>
 </body>
