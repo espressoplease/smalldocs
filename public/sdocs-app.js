@@ -481,6 +481,15 @@ function render() {
     if (body) body.classList.add('open');
     if (toggle) toggle.classList.add('open');
   });
+  // Front matter `expand: all` opens every section on load - for homepages and
+  // landing docs where the content (and live demos) should be visible without a
+  // click. Opening before the feature processors run also means charts and
+  // diagrams measure their real width instead of 0x0 inside a collapsed body.
+  var expandMeta = S.currentMeta && S.currentMeta.expand;
+  if (expandMeta === true || expandMeta === 'all' || expandMeta === 'true' || expandMeta === 'open') {
+    S.renderedEl.querySelectorAll('.md-section-body').forEach(function (b) { b.classList.add('open'); });
+    S.renderedEl.querySelectorAll('.section-toggle').forEach(function (t) { t.classList.add('open'); });
+  }
   S.processCharts(S.renderedEl);
   if (S.processMath) S.processMath(S.renderedEl);
   if (S.processMermaid) S.processMermaid(S.renderedEl);

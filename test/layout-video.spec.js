@@ -86,3 +86,18 @@ test('autoplay video is muted (so the browser allows it)', async ({ page }) => {
   await expect(v).toHaveJSProperty('autoplay', true);
   await expect(v).toHaveJSProperty('muted', true);
 });
+
+// ── expand: all front matter (homepage / landing docs) ────
+
+test('front matter expand: all opens every section on load', async ({ page }) => {
+  await load(page, '---\nexpand: all\n---\n\n# Title\n\n## One\nalpha\n\n## Two\nbeta\n');
+  const total = await page.locator(`${R} .md-section-body`).count();
+  expect(total).toBeGreaterThan(0);
+  await expect(page.locator(`${R} .md-section-body.open`)).toHaveCount(total);
+});
+
+test('without the flag, sections start collapsed', async ({ page }) => {
+  await load(page, '# Title\n\n## One\nalpha\n');
+  await expect(page.locator(`${R} .md-section-body`)).toHaveCount(1);
+  await expect(page.locator(`${R} .md-section-body.open`)).toHaveCount(0);
+});
