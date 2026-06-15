@@ -3,7 +3,8 @@
 // versions ship.
 //
 // runSetup: first-run interactive flow. Detects agent configs, writes
-//   the block into the ones the user agrees to.
+//   the block into the ones the user agrees to. Pass dryRun:true to
+//   preview what would be written without touching any file or state.
 // runRefresh: unconditional refresh of every agent file that already
 //   has a recognised block.
 // runAutoUpdateSubcommand: flips state.autoInstallUpdates.
@@ -17,6 +18,7 @@ const readline = require('readline');
 const {
   AGENT_BLOCK_VERSION,
   AGENT_BLOCK_BODY,
+  formatAgentBlock,
   compareVersions,
   readSetupState,
   writeSetupState,
@@ -69,7 +71,7 @@ async function askAutoRefreshConsent() {
   return !a || a === 'y' || a === 'yes';
 }
 
-async function runSetup({ force = false, yes = false } = {}) {
+async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
   if (!force) {
     if (!process.stdout.isTTY || !process.stdin.isTTY) return;
     if (process.env.CI || process.env.SDOCS_NO_SETUP) return;
@@ -84,6 +86,23 @@ async function runSetup({ force = false, yes = false } = {}) {
   // any number of times and the result is a current block in every detected
   // config, or a clean "nothing to do".
   if (yes) {
+    // ── --dry-run (preview only) path ─────────────────────────────────────
+    // Prints each file path and the block that would be written, then exits
+    // without touching any file or mutating setup state. Must return before
+    // the write steps below.
+    if (dryRun) {
+      const toWrite = detectAgents().filter(t => !fileHasBlock(t.filePath));
+      if (toWrite.length === 0) {
+        console.log('All SDocs agent blocks already at current version. Nothing to do.');
+        return;
+      }
+      for (const t of toWrite) {
+        console.log(`--- ${t.filePath} ---`);
+        console.log(formatAgentBlock(AGENT_BLOCK_VERSION, AGENT_BLOCK_BODY));
+      }
+      return;
+    }
+
     // Step 1: refresh any existing outdated / legacy blocks. This is what
     // closes the gap where re-running setup --yes used to silently no-op
     // on a stale install.
