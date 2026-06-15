@@ -105,6 +105,93 @@ module.exports = function (harness) {
     assert.strictEqual(viaRecalc[2][0].code, '#CIRC!');    // cycle
   });
 
+  // ── Cross-tab references (Sheet!A1) via recalcWorkbook ──
+  // Build a workbook from {name: [[raw,...],...]} and return its results grids
+  // keyed by sheet name for easy assertion.
+  function workbook(spec) {
+    const sheets = Object.keys(spec).map((name) => ({ name, model: model(spec[name]) }));
+    const grids = F.recalcWorkbook(sheets);
+    const byName = {};
+    sheets.forEach((s, i) => { byName[s.name] = grids[i]; });
+    return byName;
+  }
+
+  test('cross-tab: Sheet!A1 reads another sheet; bare ref stays local', () => {
+    const wb = workbook({
+      Expenses: [['Category', 'Jan'], ['Rent', '1200'], ['Total', '=B2']],
+      Summary: [['Grand', '=Expenses!B3'], ['7', '=A2']],
+    });
+    assert.strictEqual(wb.Expenses[2][1].value, 1200);   // =B2 local
+    assert.strictEqual(wb.Summary[0][1].value, 1200);    // =Expenses!B3 cross-sheet
+    assert.strictEqual(wb.Summary[1][1].value, 7);       // =A2 stays local (Summary's own A2 = 7)
+  });
+
+  test('cross-tab: a qualified range walks only the named sheet', () => {
+    const wb = workbook({
+      Expenses: [['1', '2', '3'], ['10', '20', '30']],
+      Summary: [['=SUM(Expenses!A2:C2)']],
+    });
+    assert.strictEqual(wb.Summary[0][0].value, 60);
+  });
+
+  test('cross-tab: a range spanning two sheets is #REF!', () => {
+    const wb = workbook({
+      Sheet1: [['1']],
+      Sheet2: [['2']],
+      Out: [['=SUM(Sheet1!A1:Sheet2!A1)']],
+    });
+    assert.strictEqual(wb.Out[0][0].kind, 'error');
+    assert.strictEqual(wb.Out[0][0].code, '#REF!');
+  });
+
+  test('cross-tab: a reference to a missing sheet is #REF! and terminates', () => {
+    const wb = workbook({ Only: [['=Nope!A1']] });
+    assert.strictEqual(wb.Only[0][0].code, '#REF!');
+  });
+
+  test('cross-tab: out-of-bounds cell on a valid sheet reads 0', () => {
+    const wb = workbook({
+      Sales: [['5']],
+      Summary: [['=Sales!Z99+1']],
+    });
+    assert.strictEqual(wb.Summary[0][0].value, 1);   // empty ref = 0, +1
+  });
+
+  test('cross-tab: a self-referential qualified ref is #CIRC!', () => {
+    // Sales!B2 written in Sales B2 (row 2, col B) refers to itself.
+    const wb = workbook({ Sales: [['x', 'y'], ['a', '=Sales!B2']] });
+    assert.strictEqual(wb.Sales[1][1].code, '#CIRC!');
+  });
+
+  test('cross-tab: a cycle that spans two sheets is #CIRC! on both', () => {
+    const wb = workbook({
+      A: [['=B!A1']],
+      B: [['=A!A1']],
+    });
+    assert.strictEqual(wb.A[0][0].code, '#CIRC!');
+    assert.strictEqual(wb.B[0][0].code, '#CIRC!');
+  });
+
+  test('cross-tab: sheet lookup is case-insensitive', () => {
+    const wb = workbook({
+      Sales: [['42']],
+      Summary: [['=sales!A1', '=SALES!A1']],
+    });
+    assert.strictEqual(wb.Summary[0][0].value, 42);
+    assert.strictEqual(wb.Summary[0][1].value, 42);
+  });
+
+  test('cross-tab: on a name collision the first sheet wins', () => {
+    // Two sheets both named Dup; a ref resolves to the first one's data.
+    const sheets = [
+      { name: 'Dup', model: model([['100']]) },
+      { name: 'Dup', model: model([['200']]) },
+      { name: 'Ref', model: model([['=Dup!A1']]) },
+    ];
+    const grids = F.recalcWorkbook(sheets);
+    assert.strictEqual(grids[2][0][0].value, 100);
+  });
+
   // ── shiftFormula: relative reference adjustment (fill / copy-paste) ──
   test('shiftFormula: shifts row references', () => {
     assert.strictEqual(F.shiftFormula('=B2*C2', 1, 0), '=B3*C3');
@@ -131,6 +218,13 @@ module.exports = function (harness) {
     assert.strictEqual(F.shiftFormula('=A1', 0, -1), '=#REF!');
     // and evaluating that yields a #REF! error, not a crash
     assert.strictEqual(evalIn([], F.shiftFormula('=A1', -1, 0)), '#REF!');
+  });
+
+  test('shiftFormula: a sheet name is kept, only the cell ref shifts', () => {
+    assert.strictEqual(F.shiftFormula('=Sales!B2', 1, 0), '=Sales!B3');
+    // a numeric-suffixed sheet name must not be shifted as a cell ref
+    assert.strictEqual(F.shiftFormula('=Sheet1!B2*2', 0, 1), '=Sheet1!C2*2');
+    assert.strictEqual(F.shiftFormula('=Q1!A1+B1', 1, 0), '=Q1!A2+B2');
   });
 
   test('shiftFormula: zero shift is identity; non-formulas pass through', () => {
