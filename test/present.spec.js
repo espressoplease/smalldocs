@@ -166,9 +166,9 @@ test.describe('presentation mode', () => {
     ]);
     await page.locator('.sdoc-slide-present').first().click();
     const label = page.locator('.sdoc-present-copy-num');
-    await expect(label).toHaveText('p1');
+    await expect(label).toHaveText('slide 1');
     await page.keyboard.press('ArrowRight');
-    await expect(label).toHaveText('p2');
+    await expect(label).toHaveText('slide 2');
   });
 
   test('copy-slide button copies the active slide text and flashes "copied"', async ({ page, context }) => {

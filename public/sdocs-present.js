@@ -106,9 +106,9 @@ var CSS = [
   '  font-family: ui-monospace, Menlo, monospace;',
   '  padding: 0 6px; flex-shrink: 0;',
   '}',
-  /* "Copy slide" button: copy icon + a page label (p1, p2 ...) that tracks */
-  /* the active slide. Tabular numerals so the label width stays steady as */
-  /* the page number changes. Shares the .sdoc-present-btn chrome. */
+  /* "Copy slide" button: copy icon + a label (slide 1, slide 2 ...) that */
+  /* tracks the active slide. Tabular numerals so the label width stays */
+  /* steady as the number changes. Shares the .sdoc-present-btn chrome. */
   '.sdoc-present-actions .sdoc-present-copy-btn { gap: 5px; }',
   '.sdoc-present-copy-num { font-family: ui-monospace, Menlo, monospace; font-size: 11px; font-variant-numeric: tabular-nums; }',
   '.sdoc-present-actions .sdoc-present-copy-btn.copied { color: #4ade80; }',
@@ -387,7 +387,7 @@ function renderActive() {
   }
   if (state.copyBtn) {
     var copyNum = state.copyBtn.querySelector('.sdoc-present-copy-num');
-    if (copyNum) copyNum.textContent = 'p' + (state.index + 1);
+    if (copyNum) copyNum.textContent = 'slide ' + (state.index + 1);
   }
 }
 
@@ -498,7 +498,7 @@ function open(startIndex) {
   sep1.className = 'sdoc-present-sep';
   actions.appendChild(sep1);
 
-  // Copy the active slide's text. Label tracks the page (p1, p2 ...) and is
+  // Copy the active slide's text. Label tracks the slide (slide 1, slide 2 ...) and is
   // refreshed in renderActive whenever the slide changes.
   var copyBtn = document.createElement('button');
   copyBtn.className = 'sdoc-present-btn sdoc-present-copy-btn';
