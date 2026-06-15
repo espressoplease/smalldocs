@@ -331,7 +331,7 @@ function processSlides(container) {
       // the (optional) error badge below it in the sdoc-slide flow.
       var slideWrap = document.createElement('div');
       wrapper.appendChild(slideWrap);
-      var result = window.SDocShapeRender.renderShapes(dslText, slideWrap);
+      var result = window.SDocShapeRender.renderShapes(dslText, slideWrap, { copyButtons: true });
       // The present button inherits the doc's foreground color, but a slide
       // can paint its own background that doesn't track the doc theme. When
       // that background is detectably dark or light, flip the button to the

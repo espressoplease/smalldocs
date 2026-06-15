@@ -77,4 +77,28 @@ test.describe('Slide interaction model', () => {
     expect(attrs.role).toBeNull();
     expect(attrs.tabindex).toBeNull();
   });
+
+  test('a text-bearing shape gets a per-element copy button, hidden until hover', async ({ page }) => {
+    await renderDeck(page, ['grid 100 56.25\nr 10 10 80 40 fill=#1e40af color=#fff | Copy me']);
+    const rect = page.locator('.sdoc-slide .shape-rect').first();
+    const btn = rect.locator('.sd-shape-copy-btn');
+    await expect(btn).toHaveCount(1);
+    // Hidden (display:none) until the shape is hovered.
+    expect(await btn.evaluate((b) => getComputedStyle(b).display)).toBe('none');
+    await rect.hover();
+    await expect.poll(() => btn.evaluate((b) => getComputedStyle(b).display)).not.toBe('none');
+  });
+
+  test('copy button contrast class flips with the shape fill luminance', async ({ page }) => {
+    await renderDeck(page, [
+      'grid 100 56.25\nr 5 5 40 40 fill=#0b1f3a color=#fff | Dark panel',
+      'grid 100 56.25\nr 5 5 40 40 fill=#f59e0b color=#111 | Light panel',
+    ]);
+    const dark = await page.locator('.sdoc-slide').nth(0).locator('.shape-rect .sd-shape-copy-btn').first()
+      .evaluate((b) => b.className);
+    const light = await page.locator('.sdoc-slide').nth(1).locator('.shape-rect .sd-shape-copy-btn').first()
+      .evaluate((b) => b.className);
+    expect(dark).toContain('is-dark');   // dark fill -> light icon
+    expect(light).toContain('is-light'); // light fill -> dark icon
+  });
 });

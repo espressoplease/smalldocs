@@ -73,6 +73,35 @@ var CSS = [
   '.sd-shape-stage .shape-rect[data-valign="bottom"],',
   '.sd-shape-stage .shape-text[data-valign="bottom"] { align-items: flex-end; }',
   '.sd-shape-stage .shape-md { display: block; max-width: 100%; color: inherit; }',
+  /* Per-element copy button. Sits top-right of a text-bearing shape, hidden */
+  /* until the shape is hovered (or the button is focused). Lives inside the */
+  /* scaled stage, so its reference px size is deliberately generous to stay */
+  /* clickable once the stage shrinks for small inline slides. Default colour */
+  /* inherits the doc foreground; .is-dark / .is-light variants are toggled */
+  /* by JS from the shape\'s own fill luminance so it contrasts a coloured */
+  /* shape instead of vanishing into it. */
+  '.sd-shape-stage .sd-shape-copy-btn {',
+  '  position: absolute; top: 4px; right: 4px; z-index: 6;',
+  '  display: none; align-items: center; justify-content: center;',
+  '  width: 30px; height: 30px; padding: 0; margin: 0;',
+  '  background: rgba(127,127,127,0.12);',
+  '  color: currentColor;',
+  '  border: 1px solid rgba(127,127,127,0.30);',
+  '  border-radius: 5px; cursor: pointer; opacity: 0.9;',
+  '  transition: opacity .15s, background .12s;',
+  '}',
+  '.sd-shape-stage .sd-shape-copy-btn svg { width: 16px; height: 16px; display: block; pointer-events: none; }',
+  '.sd-shape-stage .shape-rect:hover > .sd-shape-copy-btn,',
+  '.sd-shape-stage .shape-text:hover > .sd-shape-copy-btn,',
+  '.sd-shape-stage .sd-shape-copy-btn:focus-visible,',
+  '.sd-shape-stage .sd-shape-copy-btn.copied { display: inline-flex; }',
+  '.sd-shape-stage .sd-shape-copy-btn:hover { opacity: 1; background: rgba(127,127,127,0.22); }',
+  '.sd-shape-stage .sd-shape-copy-btn:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
+  '.sd-shape-stage .sd-shape-copy-btn.is-dark { color: #f5f5f4; background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.32); }',
+  '.sd-shape-stage .sd-shape-copy-btn.is-dark:hover { background: rgba(255,255,255,0.24); }',
+  '.sd-shape-stage .sd-shape-copy-btn.is-light { color: #1c1917; background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.22); }',
+  '.sd-shape-stage .sd-shape-copy-btn.is-light:hover { background: rgba(0,0,0,0.12); }',
+  '.sd-shape-stage .sd-shape-copy-btn.copied { color: #16a34a; border-color: #86efac; opacity: 1; }',
 ].join('\n');
 
 // This is the only place markdown styling lives. Because the shadow root
@@ -320,6 +349,93 @@ function contentIsOnlyCodeBlock(content) {
   var m = t.match(/^(```|~~~)[^\n]*\n[\s\S]*?\n(```|~~~)$/);
   if (!m) return false;
   return m[1] === m[2];
+}
+
+// Read the rendered plain text of a text-bearing shape element. Its content
+// lives in an open shadow root (.shape-md), so reach through it the same way
+// measurementTarget does; fall back to the element's own textContent for the
+// no-shadow path (test runners, plain-text fallback).
+function readShapeText(el) {
+  if (!el) return '';
+  var shapeMd = el.querySelector && el.querySelector('.shape-md');
+  if (shapeMd && shapeMd.shadowRoot) {
+    var inner = shapeMd.shadowRoot.querySelector('.inner');
+    if (inner) return (inner.textContent || '').trim();
+  }
+  return (el.textContent || '').trim();
+}
+
+// Concatenate the rendered text of every text-bearing shape in a stage, in
+// DOM (paint) order, so "copy slide" yields the slide's readable text.
+function collectSlideText(stage) {
+  if (!stage || !stage.querySelectorAll) return '';
+  var els = stage.querySelectorAll('.shape-rect, .shape-text');
+  var parts = [];
+  for (var i = 0; i < els.length; i++) {
+    var t = readShapeText(els[i]);
+    if (t) parts.push(t);
+  }
+  return parts.join('\n\n');
+}
+
+function legacyCopyText(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (_) {}
+  document.body.removeChild(ta);
+}
+
+function copyTextToClipboard(text, onDone) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onDone, function () { legacyCopyText(text); onDone(); });
+  } else {
+    legacyCopyText(text);
+    onDone();
+  }
+}
+
+// True when a shape carries copyable prose. Pure code blocks are excluded —
+// they already get their own in-shadow copy button via attachCodeCopyButtons,
+// which also covers chart / mermaid fenced blocks (their JSON/source isn't
+// useful as "slide text").
+function shapeHasCopyableText(s, el) {
+  if (!s || s.content == null || s.content === '') return false;
+  if (contentIsOnlyCodeBlock(s.content)) return false;
+  return readShapeText(el).length > 0;
+}
+
+// Per-element copy button for a text-bearing shape. Hidden until the shape is
+// hovered; its colour contrasts the shape's own fill so it stays legible on a
+// coloured shape. Copies the shape's rendered text.
+function attachShapeCopyButton(el, s, grid) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sd-shape-copy-btn';
+  btn.title = 'Copy text';
+  btn.setAttribute('aria-label', 'Copy this text');
+  btn.innerHTML = SHAPE_COPY_SVG;
+  // Contrast: prefer the shape's own fill, then the grid background.
+  var fill = s.attrs && s.attrs.fill;
+  var bg = (fill && fill !== 'none' && fill !== 'transparent')
+    ? fill
+    : (grid && grid.attrs && grid.attrs.bg) || null;
+  var lum = bg ? colorLuminance(bg) : null;
+  if (typeof lum === 'number') btn.classList.add(lum < 0.5 ? 'is-dark' : 'is-light');
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    copyTextToClipboard(readShapeText(el), function () {
+      btn.classList.add('copied');
+      btn.innerHTML = SHAPE_CHECK_SVG;
+      setTimeout(function () { btn.classList.remove('copied'); btn.innerHTML = SHAPE_COPY_SVG; }, 1500);
+    });
+  });
+  el.appendChild(btn);
+  return btn;
 }
 
 function shapePaddingGridUnits(s) {
@@ -1702,6 +1818,9 @@ function renderShapes(dslText, wrap, options) {
         var rectEl = renderRect(s, grid);
         rectEl.dataset.shapeIdx = String(i);
         L.el.appendChild(rectEl);
+        if (options.copyButtons && shapeHasCopyableText(s, rectEl)) {
+          attachShapeCopyButton(rectEl, s, grid);
+        }
       } else {
         // Every SVG primitive gets its own <svg> wrapper so its DOM
         // position among the sublayer's children is preserved.
@@ -1749,6 +1868,9 @@ function renderShapes(dslText, wrap, options) {
           var overlay = renderTextOverlay(s, grid);
           overlay.dataset.shapeIdx = String(i);
           L.el.appendChild(overlay);
+          if (options.copyButtons && shapeHasCopyableText(s, overlay)) {
+            attachShapeCopyButton(overlay, s, grid);
+          }
         }
       }
     } catch (e) {
@@ -2138,6 +2260,10 @@ window.SDocShapeRender = {
   // Exposed so a mermaid theme re-render can re-size and re-reveal a slide's
   // embedded diagram after replacing its (hidden-by-default) SVG.
   kickShadowMermaid: kickShadowMermaid,
+  // Exposed so present mode can read a rendered slide's plain text for its
+  // "copy slide" action without re-parsing the DSL.
+  collectSlideText: collectSlideText,
+  readShapeText: readShapeText,
 };
 
 })();
