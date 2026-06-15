@@ -487,6 +487,7 @@ function render() {
   if (window.SDocSlides) window.SDocSlides.processSlides(S.renderedEl);
   if (S.renderForms) S.renderForms(S.renderedEl);
   if (S.processCells) S.processCells(S.renderedEl);
+  if (S.processVideo) S.processVideo(S.renderedEl);
   renderFileInfoCard();
   if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
   if (S.syncFoldButton) S.syncFoldButton();
