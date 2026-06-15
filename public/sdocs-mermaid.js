@@ -163,7 +163,14 @@
         htmlLabels: true,
         nodeSpacing: 60,
         rankSpacing: 70,
-        padding: 16
+        padding: 16,
+        // Reserve extra vertical room for subgraph titles. Mermaid's own
+        // title-height accounting is one-line-based, so a multi-line title
+        // (a `<br/>` in the subgraph label) renders taller than the band it
+        // reserved and laps into the nodes. This margin opens the box up;
+        // fixClusterTitleOverlap() below does the deterministic correction
+        // for whatever overlap remains.
+        subGraphTitleMargin: { top: 8, bottom: 8 }
       },
       sequence:  { htmlLabels: true },
       // Quadrant chart layout knobs - Mermaid's defaults pack labels into
@@ -404,6 +411,105 @@
     io.observe(svgEl);
   }
 
+  // Lift subgraph titles that overlap their own nodes.
+  //
+  // Mermaid sizes a subgraph title's <foreignObject> for the real (possibly
+  // multi-line) label, but offsets the cluster's child nodes by a one-line
+  // title allowance. A title with a `<br/>` therefore renders taller than the
+  // band Mermaid left for it and laps over the top row of nodes - the classic
+  // "second line hidden behind the boxes" bug. subGraphTitleMargin widens the
+  // box but doesn't change the title-to-node gap, so a constant sliver still
+  // overlaps.
+  //
+  // The SVG shape is:
+  //   <g class="cluster"> <rect/> <g class="cluster-label" transform=
+  //   "translate(tx,ty)"> <foreignObject/> </g> </g>
+  // The label group's translate-Y is the title's top edge. We measure (in
+  // screen px) how far the title's bottom drops past the topmost node, lift
+  // the label group up by that much (converted to SVG user units via the
+  // foreignObject's own screen/attr height ratio), and grow the cluster rect
+  // upward by the same amount so the lifted title stays inside the box.
+  //
+  // No-op when nothing overlaps, so single-line titles are untouched. Shares
+  // the collapsed-section deferral shape with applyClusterTints: a 0x0 BCR
+  // means the SVG isn't painted yet, so we retry once it becomes visible.
+  var TITLE_NODE_GAP_PX = 6;
+  function fixClusterTitleOverlap(svgEl) {
+    var clusters = svgEl.querySelectorAll('g.cluster');
+    if (!clusters.length) return;
+    var nodes = svgEl.querySelectorAll('g.node');
+    if (!nodes.length) return;
+
+    function liftOne(cluster) {
+      var labelG = cluster.querySelector('g.cluster-label');
+      var fo = labelG && labelG.querySelector('foreignObject');
+      var rect = cluster.querySelector('rect');
+      if (!labelG || !fo || !rect) return true; // nothing to do, treat as done
+
+      var foBox = fo.getBoundingClientRect();
+      if (!foBox.width || !foBox.height) return false; // not painted yet
+
+      // Topmost node whose centre sits inside this cluster's box.
+      var cb = rect.getBoundingClientRect();
+      if (!cb.width || !cb.height) return false;
+      var topNode = Infinity;
+      nodes.forEach(function (n) {
+        var nb = n.getBoundingClientRect();
+        if (!nb.width || !nb.height) return;
+        var cx = (nb.left + nb.right) / 2, cy = (nb.top + nb.bottom) / 2;
+        if (cx >= cb.left && cx <= cb.right && cy >= cb.top && cy <= cb.bottom) {
+          if (nb.top < topNode) topNode = nb.top;
+        }
+      });
+      if (topNode === Infinity) return true; // no nodes in this cluster
+
+      var overlapPx = foBox.bottom - (topNode - TITLE_NODE_GAP_PX);
+      if (overlapPx <= 0) return true; // title already clears the nodes
+
+      // Screen px -> SVG user units, from the foreignObject's own scale.
+      var foAttrH = parseFloat(fo.getAttribute('height')) || 0;
+      if (!foAttrH) return true;
+      var scale = foBox.height / foAttrH;
+      if (!scale || !isFinite(scale)) return true;
+      var shiftUser = overlapPx / scale;
+
+      // Lift the label group.
+      var tm = /translate\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/.exec(labelG.getAttribute('transform') || '');
+      var tx = tm ? parseFloat(tm[1]) : 0;
+      var ty = tm ? parseFloat(tm[2]) : 0;
+      var newTy = ty - shiftUser;
+      labelG.setAttribute('transform', 'translate(' + tx + ', ' + newTy + ')');
+
+      // Grow the rect upward if the lifted title would poke out of the box.
+      var ry = parseFloat(rect.getAttribute('y')) || 0;
+      var rh = parseFloat(rect.getAttribute('height')) || 0;
+      var titlePadUser = TITLE_NODE_GAP_PX / scale;
+      if (newTy - titlePadUser < ry) {
+        var delta = ry - (newTy - titlePadUser);
+        rect.setAttribute('y', String(ry - delta));
+        rect.setAttribute('height', String(rh + delta));
+      }
+      return true;
+    }
+
+    function doPass() {
+      var anyDeferred = false;
+      for (var i = 0; i < clusters.length; i++) {
+        if (!liftOne(clusters[i])) anyDeferred = true;
+      }
+      return !anyDeferred;
+    }
+
+    if (doPass()) return;
+    if (typeof IntersectionObserver === 'undefined') return;
+    var io = new IntersectionObserver(function (entries) {
+      for (var e = 0; e < entries.length; e++) {
+        if (entries[e].isIntersecting) { doPass(); io.disconnect(); return; }
+      }
+    });
+    io.observe(svgEl);
+  }
+
   function withTimeout(p, ms) {
     return Promise.race([
       p,
@@ -515,6 +621,7 @@
         if (svgEl) {
           svgEl.classList.add('sdoc-mermaid-svg');
           try { applyClusterTints(svgEl, themeVars.background); } catch (_) {}
+          try { fixClusterTitleOverlap(svgEl); } catch (_) {}
         }
         // Per-diagram fullscreen button (sdocs-mermaid-focus.js). Optional,
         // and guarded so a theme re-render doesn't stack duplicate buttons.
