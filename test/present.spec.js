@@ -158,4 +158,31 @@ test.describe('presentation mode', () => {
     hash = await page.evaluate(() => window.location.hash);
     expect(hash).not.toContain('present=');
   });
+
+  test('topbar copy-slide button label tracks the active slide', async ({ page }) => {
+    await loadDocWithSlides(page, [
+      'grid 100 56.25\nr 10 10 80 40 | First',
+      'grid 100 56.25\nr 10 10 80 40 | Second',
+    ]);
+    await page.locator('.sdoc-slide-present').first().click();
+    const label = page.locator('.sdoc-present-copy-num');
+    await expect(label).toHaveText('p1');
+    await page.keyboard.press('ArrowRight');
+    await expect(label).toHaveText('p2');
+  });
+
+  test('copy-slide button copies the active slide text and flashes "copied"', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await loadDocWithSlides(page, [
+      'grid 100 56.25\nr 10 10 80 40 | Alpha line\nr 10 30 80 20 | Beta line',
+      'grid 100 56.25\nr 10 10 80 40 | Gamma line',
+    ]);
+    await page.locator('.sdoc-slide-present').first().click();
+    await page.locator('.sdoc-present-copy-btn').click();
+    await expect(page.locator('.sdoc-present-copy-btn')).toHaveClass(/copied/);
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clip).toContain('Alpha line');
+    expect(clip).toContain('Beta line');
+    expect(clip).not.toContain('Gamma line'); // text comes from the active slide only
+  });
 });

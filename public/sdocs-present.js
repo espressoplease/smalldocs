@@ -106,6 +106,12 @@ var CSS = [
   '  font-family: ui-monospace, Menlo, monospace;',
   '  padding: 0 6px; flex-shrink: 0;',
   '}',
+  /* "Copy slide" button: copy icon + a page label (p1, p2 ...) that tracks */
+  /* the active slide. Tabular numerals so the label width stays steady as */
+  /* the page number changes. Shares the .sdoc-present-btn chrome. */
+  '.sdoc-present-actions .sdoc-present-copy-btn { gap: 5px; }',
+  '.sdoc-present-copy-num { font-family: ui-monospace, Menlo, monospace; font-size: 11px; font-variant-numeric: tabular-nums; }',
+  '.sdoc-present-actions .sdoc-present-copy-btn.copied { color: #4ade80; }',
   '.sdoc-present-rail {',
   '  grid-row: 2;',
   '  background: #131210; border-right: 1px solid #2a2724;',
@@ -175,6 +181,7 @@ var state = {
   modal: null,
   stage: null,
   counter: null,
+  copyBtn: null,         // topbar "copy slide text" button (label tracks page)
   expPanel: null,        // slide-in export panel
   expBtn: null,          // topbar export button
   savedScrollY: 0,
@@ -329,11 +336,40 @@ function sizeStage() {
   state.stage.style.height = pick.h + 'px';
 }
 
+// Copy the rendered text of the active slide. Delegates text collection to
+// the shape renderer (single source of truth for what a slide's text is) and
+// flashes the copy button label to "copied" briefly.
+function copyCurrentSlideText() {
+  var btn = state.copyBtn;
+  if (!btn || !state.stage || !window.SDocShapeRender || !window.SDocShapeRender.collectSlideText) return;
+  var text = window.SDocShapeRender.collectSlideText(state.stage);
+  var num = btn.querySelector('.sdoc-present-copy-num');
+  var restore = num ? num.textContent : '';
+  var done = function () {
+    btn.classList.add('copied');
+    if (num) num.textContent = 'copied';
+    setTimeout(function () {
+      btn.classList.remove('copied');
+      if (num) num.textContent = restore;
+    }, 1300);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, done);
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+    done();
+  }
+}
+
 function renderActive() {
   if (!state.stage) return;
 
   var dsl = state.slides[state.index] || '';
-  window.SDocShapeRender.renderShapes(dsl, state.stage);
+  window.SDocShapeRender.renderShapes(dsl, state.stage, { copyButtons: true });
   state.stage.classList.add('sdoc-present-stage');
   sizeStage();
 
@@ -348,6 +384,10 @@ function renderActive() {
   }
   if (state.counter) {
     state.counter.textContent = (state.index + 1) + ' / ' + state.slides.length;
+  }
+  if (state.copyBtn) {
+    var copyNum = state.copyBtn.querySelector('.sdoc-present-copy-num');
+    if (copyNum) copyNum.textContent = 'p' + (state.index + 1);
   }
 }
 
@@ -458,6 +498,19 @@ function open(startIndex) {
   sep1.className = 'sdoc-present-sep';
   actions.appendChild(sep1);
 
+  // Copy the active slide's text. Label tracks the page (p1, p2 ...) and is
+  // refreshed in renderActive whenever the slide changes.
+  var copyBtn = document.createElement('button');
+  copyBtn.className = 'sdoc-present-btn sdoc-present-copy-btn';
+  copyBtn.type = 'button';
+  copyBtn.setAttribute('aria-label', 'Copy this slide\'s text');
+  copyBtn.title = 'Copy slide text';
+  copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+    + '<span class="sdoc-present-copy-num"></span>';
+  copyBtn.addEventListener('click', function (e) { e.stopPropagation(); copyCurrentSlideText(); });
+  actions.appendChild(copyBtn);
+
   var exportBtn = document.createElement('button');
   exportBtn.className = 'sdoc-present-btn sdoc-present-export-btn';
   exportBtn.type = 'button';
@@ -509,6 +562,7 @@ function open(startIndex) {
   state.modal = modal;
   state.stage = stage;
   state.counter = counter;
+  state.copyBtn = copyBtn;
   state.expPanel = expPanel;
   state.expBtn = exportBtn;
   state.open = true;
@@ -540,6 +594,7 @@ function close() {
   state.modal = null;
   state.stage = null;
   state.counter = null;
+  state.copyBtn = null;
   state.open = false;
   document.body.classList.remove('sdoc-present-open');
   updateHashPresent(null);
