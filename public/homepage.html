@@ -9,6 +9,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Feature styles for the live hero demos. Both are scoped to .sdoc-*
+     classes (cells.css) or #_sd_rendered (rendered.css), so they style the
+     embedded chart/sheet/diagram without touching the homepage's own markup. -->
+<link rel="stylesheet" href="/public/css/rendered.css">
+<link rel="stylesheet" href="/public/css/cells.css">
 <style>
 /* ───────────────────────────────────────────────────────────────
    SmallDocs homepage. Two registers stacked: a confident hero
@@ -349,6 +354,34 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   align-items: center;
   justify-content: center;
   box-shadow: 0 6px 22px rgba(0,0,0,.28);
+}
+
+/* ── HERO DEMO GRID (live, interactive) ──────────────── */
+.demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.demo-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 16px 16px 14px;
+}
+.demo-cell > * { min-width: 0; }
+/* The rendered feature blocks carry their own top/bottom margins; trim them
+   so each demo sits centred in its card. */
+.demo-cell > :first-child { margin-top: 0; }
+.demo-cell > :last-child { margin-bottom: 0; }
+/* Stack to a single column on narrow screens. */
+@media (max-width: 720px) {
+  .demo-grid { grid-template-columns: 1fr; }
 }
 
 /* ── INSTALL: a calm tinted panel matching the video width ────
@@ -745,10 +778,15 @@ footer {
     <p class="hero-works">Works with Claude &middot; Codex &middot; Cursor &middot; Gemini &middot; Antigravity &middot; opencode &middot; Pi</p>
 
     <div class="hero-visual">
-      <div class="videocard" id="videocard">
-        <!-- Video temporarily disabled: showing the poster only while we
-             iterate on layout. Restore the <video> element when ready. -->
-        <img class="vid" src="/public/homepage/demo-poster.jpg" alt="" />
+      <!-- Live, interactive demos: a real chart, an editable sheet, a
+           presentable slide, and an expandable diagram. Filled in by the
+           bootstrap script at the end of the body. Stacks to one column on
+           narrow screens. -->
+      <div class="demo-grid" id="demoGrid">
+        <div class="demo-cell" id="demo-chart"></div>
+        <div class="demo-cell" id="demo-cells"></div>
+        <div class="demo-cell" id="demo-slide"></div>
+        <div class="demo-cell" id="demo-mermaid"></div>
       </div>
     </div>
   </div>
@@ -1092,5 +1130,51 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
 })();
 </script>
 
+<!-- ═══ LIVE HERO DEMOS ══════════════════════════════════
+     The same render modules the SmallDocs app uses, loaded here so the four
+     hero cards are the real, interactive features (not screenshots). Chart.js
+     and Mermaid lazy-load from CDN on first use. -->
+<script src="/public/vendor/marked.min.js"></script>
+<script src="/public/vendor/purify.min.js"></script>
+<script src="/public/sdocs-yaml.js"></script>
+<script src="/public/sdocs-styles.js"></script>
+<script src="/public/sdocs-state.js"></script>
+<script src="/public/sdocs-slugify.js"></script>
+<script src="/public/sdocs-charts.js"></script>
+<script src="/public/sdocs-mermaid.js"></script>
+<script src="/public/sdocs-mermaid-focus.js"></script>
+<script src="/public/sdocs-cells.js"></script>
+<script src="/public/sdocs-cells-formula.js"></script>
+<script src="/public/sdocs-cells-xlsx.js"></script>
+<script src="/public/sdocs-cells-ui.js"></script>
+<script src="/public/sdocs-cells-select.js"></script>
+<script src="/public/sdocs-cells-focus.js"></script>
+<script src="/public/sdocs-cells-edit.js"></script>
+<script src="/public/sdocs-shapes.js"></script>
+<script src="/public/sdocs-shape-render.js"></script>
+<script src="/public/sdocs-slide-stdlib.js"></script>
+<script src="/public/sdocs-slide-resolve.js"></script>
+<script src="/public/sdocs-slide-pdf.js"></script>
+<script src="/public/sdocs-slide-pptx.js"></script>
+<script src="/public/sdocs-present.js"></script>
+<script src="/public/sdocs-slides.js"></script>
+<script>
+(function () {
+  function render(id, md) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = DOMPurify.sanitize(marked.parse(md), { FORBID_ATTR: ['style'] });
+    var S = window.SDocs || {};
+    if (S.processCharts) S.processCharts(el);
+    if (S.processMermaid) S.processMermaid(el);
+    if (window.SDocSlides && window.SDocSlides.processSlides) window.SDocSlides.processSlides(el);
+    if (S.processCells) S.processCells(el);
+  }
+  render('demo-chart', '```chart\n{"type":"bar","title":"Spend on AI agents","labels":["2025","2026","2030","2035"],"values":[7.9,11.5,52,294],"prefix":"$","dataLabels":true}\n```');
+  render('demo-cells', '```cells\nformat: B=\nWeek,Visits\nW19,7882\nW20,1280\nW21,708\nTotal,=SUM(B2:B4)\n```');
+  render('demo-slide', '~~~slide\ngrid 100 56.25\nr 10 16 80 4 text=caption align=left color=#e0701e | A NEW TYPE OF DOCUMENT\nr 10 22 80 11 text=title align=left color=#1c1a17 | SmallDocs\nr 10.5 35 14 0.6 fill=#4d65ff\nr 10 38 80 6 text=subtitle align=left color=#8a8378 | Word, a spreadsheet and slides in one file\n~~~');
+  render('demo-mermaid', '```mermaid\nflowchart LR\n  A[Plain text] --> B[SmallDoc]\n  B --> C[Share]\n```');
+})();
+</script>
 </body>
 </html>
