@@ -34,6 +34,31 @@ module.exports = function (h) {
     assert.deepStrictEqual(e.tags, []);
   });
 
+  test('buildEntry: title from first heading with leading blank lines', () => {
+    const e = libIndex.buildEntry({
+      absPath: '/x/foo.md',
+      content: '\n\n  \n# Title with leading blank lines\n\nbody text',
+    });
+    assert.strictEqual(e.title, 'Title with leading blank lines');
+  });
+
+  test('buildEntry: trims trailing spaces from heading title', () => {
+    const e = libIndex.buildEntry({
+      absPath: '/x/foo.md',
+      content: '# Clean Title      ',
+    });
+    assert.strictEqual(e.title, 'Clean Title');
+  });
+
+  test('buildEntry: ignores headings that are not on the first content line', () => {
+    const content = 'This is prose before the heading.\n\n# Not the title\nBody content.';
+    const e = libIndex.buildEntry({
+      absPath: '/x/foo.md',
+      content: content,
+    });
+    assert.strictEqual(e.title, 'foo');
+  });
+
   test('buildEntry: meta.tags merge with addTags', () => {
     const md = '---\ntitle: T\ntags:\n  - front\n---\n\nbody text';
     const e = libIndex.buildEntry({
