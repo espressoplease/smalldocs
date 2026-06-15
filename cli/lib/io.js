@@ -7,7 +7,7 @@ const { transcludeCells, isWrappedFile, wrapForDisplay } = require('./cells-tran
 
 const SUBCOMMANDS = new Set([
   'new', 'share', 'schema', 'defaults', 'help', 'version',
-  'charts', 'diagrams', 'cells', 'comments',
+  'charts', 'diagrams', 'cells', 'layout', 'video', 'comments',
   'setup', 'safe', 'auto-update', 'refresh', 'upgrade',
   'bridge', 'feedback',
   'slides', 'present',

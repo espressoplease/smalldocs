@@ -22,6 +22,8 @@ USAGE
   sdoc charts                      Chart types, options, and styling guide
   sdoc diagrams                    Mermaid diagrams reference (\`\`\`mermaid blocks)
   sdoc cells                       Inline spreadsheet reference (\`\`\`cells blocks)
+  sdoc layout                      Grid / column layout reference (:::grid blocks)
+  sdoc video                       Inline video reference (\`\`\`video blocks)
   sdoc color-analysis <file>       Check custom colours for readable contrast
                                    (both themes). Run after styling a doc.
   sdoc comments                    Comment-format reference (for agents)
@@ -2703,4 +2705,113 @@ COMMON QUESTIONS
      drop a \`.sdocsignore\` into the directory with the pattern.
 `;
 
-module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, CELLS_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };
+const LAYOUT_HELP = `
+SmallDocs - Layout (grid / columns)
+===================================
+Arrange markdown side by side with colon-fenced containers. A container
+wraps ordinary markdown - including other fenced blocks (charts, cells,
+slides, diagrams, video) - so anything that renders in a document renders
+inside a column too. On screens under 640px every grid stacks to a single
+column.
+
+BASIC SYNTAX
+  :::grid cols=3
+  :::card
+  ## Diagrams
+  \`\`\`mermaid
+  graph TD; A --> B
+  \`\`\`
+  :::
+  :::card
+  ## Sheets
+  \`\`\`cells
+  Item,Total
+  Pens,=2*4
+  \`\`\`
+  :::
+  :::card
+  ## Notes
+  - plain markdown works too
+  :::
+  :::
+
+CONTAINERS
+  :::grid ... :::    the arranging parent (CSS grid). Alias: :::row
+  :::col ... :::     a plain cell
+  :::card ... :::    a cell with a visible surface (border + padding)
+  Close every container with a line that is exactly \`:::\`. Containers
+  nest; a colon line inside a code fence is left alone.
+
+ATTRIBUTES (on the opening line, e.g. :::grid cols=3 gap=lg)
+  cols=1..6         fixed column count (default: fit as many as fit)
+  gap=none|xs|sm|md|lg|xl   space between cells
+  align=start|center|end|stretch   vertical alignment of cells
+  span=2..4         on a :::col / :::card, make it span N columns
+  Unknown keys and out-of-range values are dropped. Attributes only ever
+  become \`data-*\` hooks on the wrapper - no inline styles or handlers.
+
+NOTES
+  - A column is full markdown: headings, lists, images, code, and every
+    SmallDocs block render inside it, keeping their own controls (a sheet
+    keeps its expand button, a diagram its fullscreen, and so on).
+  - PDF and Word export currently stack grid columns vertically rather
+    than side by side; on-screen and HTML keep the columns.
+
+EXAMPLE (two-column text)
+  :::grid cols=2
+  :::col
+  **Left.** Flows normally.
+  :::
+  :::col
+  **Right.** Sits beside the left on wide screens, stacks on a phone.
+  :::
+  :::
+`;
+
+
+const VIDEO_HELP = `
+SmallDocs - Video
+=================
+Embed a video player in a document with a \`\`\`video fenced block. The
+player is built after sanitisation, so only the fields below reach it.
+
+BASIC SYNTAX
+  \`\`\`video
+  src: /demos/intro.mp4
+  poster: /demos/intro.jpg
+  caption: A short walkthrough
+  \`\`\`
+
+  A single bare URL line also works as the source:
+  \`\`\`video
+  https://example.com/clip.mp4
+  \`\`\`
+
+FIELDS
+  src       video URL (required). http/https, root-relative (/x), or
+            relative paths only. A missing or unsafe src shows a notice.
+  poster    still image shown before play (same URL rules).
+  caption   text under the player (rendered as plain text).
+  controls  show player controls (default: true).
+  autoplay  start on load (default: false). Forces muted, as browsers
+            require for autoplay.
+  loop      restart when finished (default: false).
+  muted     start muted (default: false).
+
+NOTES
+  - A video block works inside a :::grid column like any other block.
+  - mp4 and webm play in every current browser; pick mp4 for the widest
+    reach. Host the file yourself or point at any reachable URL.
+  - PDF and Word export cannot embed a player; the poster (if set) stands
+    in for the video.
+
+SECURITY
+  The block never injects author HTML. src and poster pass a scheme
+  allowlist (http/https/relative), so \`javascript:\` and \`data:\` URLs are
+  rejected. Caption text is set as text, never parsed as markup. A raw
+  \`<video>\` tag typed into markdown is removed by the sanitiser; the
+  fenced block is the only way to add a player.
+`;
+
+
+module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, CELLS_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP, LAYOUT_HELP, VIDEO_HELP };
