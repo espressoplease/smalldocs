@@ -43,6 +43,7 @@ function parseArgs(argv) {
   let tagsFlag = false;
   let helpFlag = false;
   let yesFlag = false;
+  let dryRunFlag = false;
   const addTags = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -93,6 +94,7 @@ function parseArgs(argv) {
     if (arg === '--log-file')                        { logFile          = args[++i]; continue; }
     if (arg === '--tags')                            { tagsFlag         = true; continue; }
     if (arg === '--yes' || arg === '-y')             { yesFlag          = true; continue; }
+    if (arg === '--dry-run')                         { dryRunFlag       = true; continue; }
 
     if (!subcommand && SUBCOMMANDS.has(arg)) {
       subcommand = arg;
@@ -115,7 +117,7 @@ function parseArgs(argv) {
     resetFlag, shortFlag, jsonFlag, auditFlag, waitFlag,
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,
-    tagsFlag, helpFlag, yesFlag,
+    tagsFlag, helpFlag, yesFlag, dryRunFlag,
     addTags,
   };
 }
