@@ -44,6 +44,57 @@ test('replaces the original <pre> (no raw mermaid source visible)', async ({ pag
   expect(preCount).toBe(0);
 });
 
+// ── Multi-line subgraph titles must not lap over their nodes ─────────
+// Mermaid sizes a subgraph title's <foreignObject> for the real (multi-line)
+// label but offsets the cluster's nodes by a one-line allowance, so a `<br/>`
+// title renders into the top row of nodes. fixClusterTitleOverlap() lifts the
+// title clear of the nodes after render.
+
+test('two-line subgraph title clears its nodes', async ({ page }) => {
+  await loadDoc(page, [
+    '```mermaid',
+    'flowchart LR',
+    '  subgraph A["Terraform builds this<br/>(the cloud plumbing)"]',
+    '    a1[DNS]',
+    '    a2[Load Balancer]',
+    '    a3[WAF firewall]',
+    '  end',
+    '  subgraph B["Kubernetes / Flux builds this<br/>(what runs inside)"]',
+    '    b1[Traefik router]',
+    '    b2[Istio router]',
+    '  end',
+    '  A --> B',
+    '```'
+  ].join('\n'));
+  await page.waitForSelector('svg.sdoc-mermaid-svg', { timeout: 10000 });
+  await page.waitForTimeout(800); // let the post-render lift settle
+
+  const overlaps = await page.evaluate(() => {
+    const svg = document.querySelector('svg.sdoc-mermaid-svg');
+    const nodes = Array.from(svg.querySelectorAll('g.node')).map((n) => n.getBoundingClientRect());
+    return Array.from(svg.querySelectorAll('g.cluster')).map((cluster) => {
+      const fo = cluster.querySelector('g.cluster-label foreignObject');
+      const box = cluster.querySelector('rect').getBoundingClientRect();
+      const titleBottom = fo.getBoundingClientRect().bottom;
+      // Topmost node whose centre sits inside this cluster's box.
+      let topNode = Infinity;
+      nodes.forEach((nb) => {
+        const cx = (nb.left + nb.right) / 2, cy = (nb.top + nb.bottom) / 2;
+        if (cx >= box.left && cx <= box.right && cy >= box.top && cy <= box.bottom) {
+          if (nb.top < topNode) topNode = nb.top;
+        }
+      });
+      // Positive => title overlaps the node; we want it <= 0 (a gap).
+      return topNode === Infinity ? -1 : titleBottom - topNode;
+    });
+  });
+
+  expect(overlaps.length).toBe(2);
+  for (const o of overlaps) {
+    expect(o).toBeLessThanOrEqual(0);
+  }
+});
+
 // ── Slide-embedded diagram reveal (collapsed section / slow render) ──
 
 test('diagram inside a slide reveals after its collapsed section expands', async ({ page }) => {
