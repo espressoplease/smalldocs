@@ -872,6 +872,12 @@
     var FX = window.SDocCellsFormula;
     var fxGrids = FX ? FX.recalcWorkbook(workbookSheets(sheets)) : [];
     var multi = sheets.length > 1;
+
+    // Opt-in inline tabbed pane: a doc with `cells-tabs: tabbed` in its front
+    // matter collapses its tabs into one in-document widget (a tab strip + one
+    // grid at a time), placed where the first tab sat. Default stays stacked.
+    if (multi && isTabbedDoc()) { mountTabbedPane(sheets, fxGrids); return; }
+
     for (var k = 0; k < sheets.length; k++) {
       var s2 = sheets[k];
       var showCaption = multi || (s2.model.name && String(s2.model.name).trim());
@@ -882,6 +888,82 @@
         duplicate: s2.duplicate,
       });
     }
+  }
+
+  // Does the document opt into the inline tabbed pane? Read from the parsed
+  // front matter (S.currentMeta), set before processCells runs.
+  function isTabbedDoc() {
+    var meta = (S && S.currentMeta) || {};
+    var v = meta['cells-tabs'];
+    if (v == null) return false;
+    v = String(v).toLowerCase().trim();
+    return v === 'tabbed' || v === 'true' || v === 'inline' || v === 'on' || v === 'yes';
+  }
+
+  // Collapse the workbook's tabs into a single inline pane: a tab strip on top,
+  // one grid visible at a time. Each grid is a normal inline grid (sort, copy,
+  // expand-to-fullscreen all work); only one is shown. Placed where the first
+  // tab's block sat; the other blocks are removed from the document flow.
+  function mountTabbedPane(sheets, fxGrids) {
+    var pane = document.createElement('div');
+    pane.className = 'sdoc-cells-pane';
+    var strip = document.createElement('div');
+    strip.className = 'sdoc-cells-pane-tabs';
+    strip.setAttribute('role', 'tablist');
+    var body = document.createElement('div');
+    body.className = 'sdoc-cells-pane-body';
+
+    var wrappers = [], tabs = [];
+    function show(idx) {
+      wrappers.forEach(function (w, i) { w.style.display = i === idx ? '' : 'none'; });
+      tabs.forEach(function (t, i) {
+        t.classList.toggle('is-active', i === idx);
+        t.setAttribute('aria-selected', i === idx ? 'true' : 'false');
+      });
+      // A hidden grid measures 0-wide; size the scroller now it is visible.
+      var w = wrappers[idx];
+      if (w && w._cellsSizeScroller) w._cellsSizeScroller();
+    }
+
+    sheets.forEach(function (s, i) {
+      var wrap = buildGrid(s.model, {
+        workbookFx: fxGrids[i] || null,
+        sheetName: s.name,
+        showCaption: false,          // the tab strip names the sheet
+        duplicate: s.duplicate,
+      });
+      wrap.dataset.cellsSrc = s.rawSrc;
+      if (s.name) wrap.dataset.cellsName = s.name;
+      wrap.style.display = i === 0 ? '' : 'none';
+      body.appendChild(wrap);
+      wrappers.push(wrap);
+      s.wrapper = wrap;
+
+      var tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'sdoc-cells-pane-tab' + (i === 0 ? ' is-active' : '');
+      tab.setAttribute('role', 'tab');
+      tab.textContent = s.name;       // textContent - untrusted name
+      if (s.duplicate) {
+        tab.classList.add('is-duplicate');
+        tab.title = 'Another tab already uses this name; cross-tab references resolve to the first.';
+      }
+      tab.addEventListener('click', function () { show(i); });
+      strip.appendChild(tab);
+      tabs.push(tab);
+    });
+
+    pane.appendChild(strip);
+    pane.appendChild(body);
+
+    // Place the pane where the first tab was; remove the other tab blocks.
+    var first = sheets[0].target;
+    if (first && first.parentNode) first.parentNode.replaceChild(pane, first);
+    for (var j = 1; j < sheets.length; j++) {
+      var t = sheets[j].target;
+      if (t && t.parentNode) t.parentNode.removeChild(t);
+    }
+    show(0);
   }
 
   // The {name, model} pairs recalcWorkbook expects, projected from the richer
