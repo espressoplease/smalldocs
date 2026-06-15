@@ -356,29 +356,50 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   box-shadow: 0 6px 22px rgba(0,0,0,.28);
 }
 
-/* ── HERO DEMO GRID (live, interactive) ──────────────── */
+/* ── POWERS: live, interactive demo grid ─────────────── */
+.powers { margin-top: 26px; }
+.powers-blurb {
+  margin: 0 0 18px;
+  max-width: 52ch;
+  font-size: var(--t-lead);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
 .demo-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+  align-items: stretch;
 }
 .demo-cell {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 12px;
   min-width: 0;
   overflow: hidden;
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 16px 16px 14px;
+  padding: 15px 16px 16px;
 }
-.demo-cell > * { min-width: 0; }
-/* The rendered feature blocks carry their own top/bottom margins; trim them
-   so each demo sits centred in its card. */
-.demo-cell > :first-child { margin-top: 0; }
-.demo-cell > :last-child { margin-bottom: 0; }
+.demo-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+/* The demo itself fills the rest of the card and centres vertically. */
+.demo-canvas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.demo-canvas > * { min-width: 0; }
+.demo-canvas > :first-child { margin-top: 0; }
+.demo-canvas > :last-child { margin-bottom: 0; }
 /* Stack to a single column on narrow screens. */
 @media (max-width: 720px) {
   .demo-grid { grid-template-columns: 1fr; }
@@ -778,19 +799,43 @@ footer {
     <p class="hero-works">Works with Claude &middot; Codex &middot; Cursor &middot; Gemini &middot; Antigravity &middot; opencode &middot; Pi</p>
 
     <div class="hero-visual">
-      <!-- Live, interactive demos: a real chart, an editable sheet, a
-           presentable slide, and an expandable diagram. Filled in by the
-           bootstrap script at the end of the body. Stacks to one column on
-           narrow screens. -->
-      <div class="demo-grid" id="demoGrid">
-        <div class="demo-cell" id="demo-chart"></div>
-        <div class="demo-cell" id="demo-cells"></div>
-        <div class="demo-cell" id="demo-slide"></div>
-        <div class="demo-cell" id="demo-mermaid"></div>
+      <div class="videocard" id="videocard">
+        <!-- Video temporarily disabled: showing the poster only while we
+             iterate on layout. Restore the <video> element when ready. -->
+        <img class="vid" src="/public/homepage/demo-poster.jpg" alt="" />
       </div>
     </div>
   </div>
 </header>
+
+<!-- ═══ POWERS: live, interactive demos ══════════════════
+     A real chart, an editable sheet, a presentable slide, and an expandable
+     diagram - rendered by the same modules the SmallDocs app uses. Filled in
+     by the bootstrap script at the end of the body. Stacks to one column on
+     narrow screens. -->
+<section class="powers">
+  <div class="wrap">
+    <p class="powers-blurb">SmallDocs takes markdown and gives it special powers. Your agents can generate:</p>
+    <div class="demo-grid" id="demoGrid">
+      <div class="demo-cell">
+        <span class="demo-label">Charts</span>
+        <div class="demo-canvas" id="demo-chart"></div>
+      </div>
+      <div class="demo-cell">
+        <span class="demo-label">Sheets</span>
+        <div class="demo-canvas" id="demo-cells"></div>
+      </div>
+      <div class="demo-cell">
+        <span class="demo-label">Slides</span>
+        <div class="demo-canvas" id="demo-slide"></div>
+      </div>
+      <div class="demo-cell">
+        <span class="demo-label">Diagram</span>
+        <div class="demo-canvas" id="demo-mermaid"></div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- ═══ INSTALL ══════════════════════════════════════════ -->
 <section id="install">
@@ -1171,9 +1216,9 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
     if (S.processCells) S.processCells(el);
   }
   render('demo-chart', '```chart\n{"type":"bar","title":"Spend on AI agents","labels":["2025","2026","2030","2035"],"values":[7.9,11.5,52,294],"prefix":"$","dataLabels":true}\n```');
-  render('demo-cells', '```cells\nformat: B=\nWeek,Visits\nW19,7882\nW20,1280\nW21,708\nTotal,=SUM(B2:B4)\n```');
+  render('demo-cells', '```cells\nformat: B=, C=, D=%.0\nWeek,Visits,New visitors,Returning share\nW19,7882,6923,=(B2-C2)/B2\nW20,1280,736,=(B3-C3)/B3\nW21,708,352,=(B4-C4)/B4\nW22,560,324,=(B5-C5)/B5\nW23,910,512,=(B6-C6)/B6\nTotal,=SUM(B2:B6),=SUM(C2:C6),=(B7-C7)/B7\n```');
   render('demo-slide', '~~~slide\ngrid 100 56.25\nr 10 16 80 4 text=caption align=left color=#e0701e | A NEW TYPE OF DOCUMENT\nr 10 22 80 11 text=title align=left color=#1c1a17 | SmallDocs\nr 10.5 35 14 0.6 fill=#4d65ff\nr 10 38 80 6 text=subtitle align=left color=#8a8378 | Word, a spreadsheet and slides in one file\n~~~');
-  render('demo-mermaid', '```mermaid\nflowchart LR\n  A[Plain text] --> B[SmallDoc]\n  B --> C[Share]\n```');
+  render('demo-mermaid', '```mermaid\nflowchart LR\n  A[Markdown file] --> B{sdoc}\n  B -->|read| C[Styled in browser]\n  B -->|share| D[Encrypted link]\n  C --> E[Charts &amp; sheets]\n  C --> F[Slides &amp; diagrams]\n  D --> G[Opens, decodes locally]\n```');
 })();
 </script>
 </body>
