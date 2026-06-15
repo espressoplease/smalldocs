@@ -120,33 +120,31 @@
     /* Bottom tab strip (Excel / Sheets): present only for a multi-tab workbook, */
     /* which adds a fourth grid row under the stage.                             */
     '.sdoc-cells-focus.has-tabs { grid-template-rows: 40px 31px 1fr auto; }',
-    /* Bottom tab strip: a tinted footer with a divider along its top edge. The */
-    /* tabs align to the bottom so the active one can rise to meet the grid.    */
+    /* Bottom tab strip: a quiet footer with a divider along its top edge. */
     '.sdoc-cells-focus-tabs {',
-    '  display: flex; align-items: flex-end; height: 37px; gap: 3px;',
-    '  padding: 3px 8px 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;',
-    '  background: color-mix(in oklab, var(--sdoc-focus-bg, #fff) 88%, var(--sdoc-focus-fg, #1c1917) 12%);',
+    '  display: flex; align-items: center; height: 32px; gap: 2px;',
+    '  padding: 0 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;',
+    '  background: color-mix(in oklab, var(--sdoc-focus-bg, #fff) 95%, var(--sdoc-focus-fg, #1c1917) 5%);',
     '  border-top: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 14%, transparent);',
     '}',
-    /* A tab shape: rounded outer (bottom) corners, muted when inactive. The   */
-    /* active tab is the sheet surface, raised over the divider, with a green  */
-    /* accent on its free (bottom) edge - the Excel sheet-tab cue.             */
+    /* Flat tabs: muted label when inactive, a filled green chip when selected */
+    /* (the cells selection colour) - no border.                              */
     '.sdoc-cells-focus-tab {',
     '  all: unset; cursor: pointer; display: inline-flex; align-items: center;',
-    '  padding: 6px 16px; font-size: 12.5px; white-space: nowrap; flex-shrink: 0;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 58%, var(--sdoc-focus-bg, #fff) 42%);',
-    '  border-radius: 0 0 5px 5px; border-bottom: 2px solid transparent;',
+    '  padding: 3px 13px; font-size: 12px; white-space: nowrap; flex-shrink: 0;',
+    '  border-radius: 5px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 55%, var(--sdoc-focus-bg, #fff) 45%);',
     '}',
     '.sdoc-cells-focus-tab:hover {',
     '  color: var(--sdoc-focus-fg, #1c1917);',
-    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 7%, transparent);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 6%, transparent);',
     '}',
     '.sdoc-cells-focus-tab.is-active {',
-    '  margin-top: -1px; color: var(--sdoc-focus-fg, #1c1917); font-weight: 600;',
-    '  background: var(--sdoc-focus-bg, #fff); border-bottom-color: #1e8e3e;',
-    '  box-shadow: 0 1px 3px color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 16%, transparent);',
+    '  font-weight: 600;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 28%, #1e8e3e 72%);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-bg, #fff) 80%, #1e8e3e 20%);',
     '}',
-    '.sdoc-cells-focus-tab:focus-visible { outline: 1px solid #3B82F6; outline-offset: -2px; }',
+    '.sdoc-cells-focus-tab:focus-visible { outline: 1px solid #3B82F6; outline-offset: -1px; }',
     /* The grid wrapper fills the stage and scrolls both axes; no border / */
     /* radius / hug-width here - the overlay is the frame. */
     '.sdoc-cells-focus-stage .sdoc-cells-fs {',

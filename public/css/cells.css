@@ -474,7 +474,10 @@ body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
 /* Inline tabbed pane (opt-in via `cells-tabs: tabbed` front matter): the
  * workbook's tabs collapse into one in-document widget - the grid, with a tab
  * strip along the BOTTOM (like Excel / Google Sheets). The pane is the frame,
- * so the inner grid wrappers drop their own border / radius / margin. */
+ * so the inner grid wrappers drop their own border / radius / margin. The pane
+ * carries the tinted surface so that, when the tab strip is wider than the
+ * grid, the area beside the grid reads as chosen grey (the same treatment the
+ * grid uses when a long stats line outruns it) instead of raw white. */
 .sdoc-cells-pane {
   margin: 1.2em 0;
   width: fit-content;
@@ -482,56 +485,51 @@ body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
   border: 1px solid var(--sdoc-cells-line, color-mix(in oklab, var(--md-color, #1c1917) 16%, transparent));
   border-radius: 6px;
   overflow: hidden;
+  background: var(--sdoc-cells-surface, color-mix(in oklab, var(--md-bg, #fff) 95%, var(--md-color, #1c1917) 5%));
 }
-/* The footer bar the tabs sit on: a tint darker than the sheet, with a divider
- * line along its top edge (separating the grid above from the tabs). */
+/* A quiet footer bar; a divider separates the grid above from the tabs. */
 .sdoc-cells-pane-tabs {
   display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  padding: 3px 6px 0;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 5px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
-  background: color-mix(in oklab, var(--md-bg, #fff) 87%, var(--md-color, #1c1917) 13%);
   border-top: 1px solid var(--sdoc-cells-line, color-mix(in oklab, var(--md-color, #1c1917) 16%, transparent));
 }
-/* Each tab is a shape with rounded outer (bottom) corners. Inactive tabs read
- * as muted labels on the bar; the active one is the sheet's own surface,
- * raised to cover the divider so it joins the grid above, with an Excel-style
- * accent on its free (bottom) edge. */
+/* Flat tabs: an inactive one is just a muted label; the selected one is a
+ * filled green chip (the cells selection colour), no border - the app's
+ * standard "selected" cue. */
 .sdoc-cells-pane-tab {
   all: unset;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  padding: 5px 16px;
-  font-size: 0.78em;
+  padding: 3px 11px;
+  font-size: 0.72em;
   font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
-  color: color-mix(in oklab, var(--md-color, #1c1917) 55%, var(--md-bg, #fff) 45%);
-  border-radius: 0 0 5px 5px;
-  border-bottom: 2px solid transparent;
+  border-radius: 5px;
+  color: color-mix(in oklab, var(--md-color, #1c1917) 52%, var(--md-bg, #fff) 48%);
 }
 .sdoc-cells-pane-tab:hover {
   color: var(--md-color, #1c1917);
-  background: color-mix(in oklab, var(--md-color, #1c1917) 7%, transparent);
+  background: color-mix(in oklab, var(--md-color, #1c1917) 6%, transparent);
 }
 .sdoc-cells-pane-tab.is-active {
-  margin-top: -1px;                 /* rise over the divider to meet the sheet */
-  color: var(--md-color, #1c1917);
   font-weight: 600;
-  background: var(--md-bg, #fff);
-  border-bottom-color: #1e8e3e;
-  box-shadow: 0 1px 3px color-mix(in oklab, var(--md-color, #1c1917) 14%, transparent);
+  color: color-mix(in oklab, var(--md-color, #1c1917) 30%, #1e8e3e 70%);
+  background: color-mix(in oklab, var(--md-bg, #fff) 80%, #1e8e3e 20%);
 }
 .sdoc-cells-pane-tab.is-duplicate { color: #b45309; }
-.sdoc-cells-pane-tab:focus-visible { outline: 1px solid #3B82F6; outline-offset: -2px; }
-/* Inside the pane the grid wrapper is no longer its own card. */
+.sdoc-cells-pane-tab:focus-visible { outline: 1px solid #3B82F6; outline-offset: -1px; }
+/* Inside the pane the grid wrapper is no longer its own card; it stretches to
+ * the pane width so its surface fills any space the tab strip adds. */
 .sdoc-cells-pane .sdoc-cells {
   margin: 0;
   border: none;
   border-radius: 0;
-  max-width: 100%;
+  width: 100%;
 }
