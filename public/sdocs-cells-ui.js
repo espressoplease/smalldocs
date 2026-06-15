@@ -27,6 +27,26 @@
   var CELLS = window.SDocCells;
   if (!CELLS) return; // model must load first; fall through quietly otherwise
 
+  // A tab name lives in the fence info string: ```cells Sales. marked keeps
+  // only the first word ("cells") as the language class and drops the rest,
+  // so normalise the name into the block body as a `sdoc-cells: name=...`
+  // directive (which parseCells already peels) before marked renders. This
+  // runs on the real code tokens marked produced, so it is robust to nesting,
+  // ~~~ fences, and indentation - no fragile DOM-order matching. The quoted
+  // value lets a multi-word name survive the directive parser.
+  if (typeof window.marked !== 'undefined' && window.marked && typeof window.marked.use === 'function') {
+    window.marked.use({
+      walkTokens: function (token) {
+        if (token.type !== 'code' || !token.lang) return;
+        var m = /^cells[ \t]+(\S.*)$/.exec(token.lang);
+        if (!m) return;
+        var name = m[1].trim().replace(/"/g, '');
+        token.lang = 'cells';
+        token.text = 'sdoc-cells: name="' + name + '"\n' + token.text;
+      },
+    });
+  }
+
   // A space-reserving (always-on) scrollbar leaves the last row open above
   // its strip; an overlay scrollbar (or none) does not. We close the last
   // row with a CSS line ONLY in the reserving case (.has-xscroll), else the
@@ -475,8 +495,12 @@
       // (evaluating against a sorted view would point refs at the wrong rows
       // and turn self-overlapping ranges into #CIRC!). fx is indexed by
       // SOURCE row.
+      // Prefer the workbook-wide results computed once across all tabs (so a
+      // cross-tab ref like Sales!A1 has a value here). It is indexed by source
+      // row, so it survives a sort. Fall back to a single-sheet recalc for the
+      // fullscreen / editor path, which has no workbook context.
       var FX = window.SDocCellsFormula;
-      var fx = FX ? FX.recalc(model) : null;
+      var fx = opts.workbookFx || (FX ? FX.recalc(model) : null);
       wrapper._cellsFx = fx;
       var vm = model;
       var order = null;
@@ -641,6 +665,19 @@
     // in wrapper._cellsExtent, kept current by computeExtent() in paint().
     wrapper._cellsSource = model;
     wrapper._cellsRepaint = paint;
+    // Tab name caption (inline only). Shown when the doc has more than one tab
+    // or a single tab was explicitly named. textContent only - the name comes
+    // from untrusted document text, so it is never parsed as markup.
+    if (!fullscreen && opts.showCaption && opts.sheetName) {
+      var cap = document.createElement('div');
+      cap.className = 'sdoc-cells-caption';
+      cap.textContent = opts.sheetName;
+      if (opts.duplicate) {
+        cap.classList.add('is-duplicate');
+        cap.title = 'Another tab already uses this name; cross-tab references resolve to the first.';
+      }
+      wrapper.appendChild(cap);
+    }
     // Toolbar reads wrapper._cellsModel (set by paint) so copy follows a sort.
     if (!fullscreen) wrapper.appendChild(buildBar(wrapper, model));
     wrapper.appendChild(scroll);
@@ -717,10 +754,19 @@
   }
 
   // Build the grid for a model and swap it in for `target`. `src` is stashed
-  // so the exporter can re-parse the model to a clean table.
-  function mountGrid(target, model, src) {
-    var wrapper = buildGrid(model);
+  // so the exporter can re-parse the model to a clean table. `mount` carries
+  // the workbook context: the precomputed formula results for this sheet
+  // (workbookFx), the resolved tab name, and whether to show the name caption.
+  function mountGrid(target, model, src, mount) {
+    mount = mount || {};
+    var wrapper = buildGrid(model, {
+      workbookFx: mount.workbookFx || null,
+      sheetName: mount.sheetName,
+      showCaption: mount.showCaption,
+      duplicate: mount.duplicate,
+    });
     wrapper.dataset.cellsSrc = src;
+    if (mount.sheetName) wrapper.dataset.cellsName = mount.sheetName;
     target.parentNode.replaceChild(wrapper, target);
     return wrapper;
   }
@@ -752,11 +798,23 @@
 
   // Walk every code.language-cells block in container, parse it, and replace
   // the <pre> (or its .pre-wrapper) with the rendered grid.
+  //
+  // Two passes so the tabs form one workbook: pass 1 parses + names every
+  // block, pass 2 recalculates them together (recalcWorkbook) so a formula in
+  // one tab can read a cell in another (Sales!A1), then mounts each grid with
+  // its precomputed result slice. A lone unnamed block behaves exactly as
+  // before: one anonymous sheet, no caption, recalc output identical.
   function processCells(container) {
     var scope = container || document.getElementById('_sd_rendered');
     if (!scope) return;
     var nodes = scope.querySelectorAll('code.language-cells');
     var capped = Array.prototype.slice.call(nodes, 0, DOC_BLOCK_CAP);
+
+    // Pass 1: parse + name. Non-grid blocks (unresolved / error / empty) are
+    // handled inline and never become sheets, so they take no SheetN number.
+    var sheets = [];          // { target, model, rawSrc, name, duplicate }
+    var autoIdx = 0;
+    var seenNames = {};       // lower-cased name -> already used
     for (var i = 0; i < capped.length; i++) {
       var codeEl = capped[i];
       var pre = codeEl.closest('pre');
@@ -773,7 +831,33 @@
       if (model.unresolved) { resolveReference(target, model.unresolved); continue; }
       if (model.error) { renderError(target, model.error); continue; }
       if (model.empty) { renderError(target, 'Empty cells block'); continue; }
-      mountGrid(target, model, rawSrc);
+      var explicit = model.name && String(model.name).trim();
+      var sheetName = explicit ? String(model.name).trim() : 'Sheet' + (++autoIdx);
+      var key = sheetName.toLowerCase();
+      var duplicate = !!seenNames[key];
+      seenNames[key] = true;
+      sheets.push({ target: target, model: model, rawSrc: rawSrc, name: sheetName, duplicate: duplicate });
+    }
+    if (!sheets.length) return;
+
+    // Pass 2: one workbook recalc over all sheets, then mount each grid with
+    // its precomputed result slice. The caption shows only when the workbook
+    // has more than one tab (or a single tab was explicitly named), so an
+    // existing single-table doc renders unchanged.
+    var FX = window.SDocCellsFormula;
+    var fxGrids = FX ? FX.recalcWorkbook(sheets.map(function (s) {
+      return { name: s.name, model: s.model };
+    })) : [];
+    var multi = sheets.length > 1;
+    for (var k = 0; k < sheets.length; k++) {
+      var s2 = sheets[k];
+      var showCaption = multi || (s2.model.name && String(s2.model.name).trim());
+      mountGrid(s2.target, s2.model, s2.rawSrc, {
+        workbookFx: fxGrids[k] || null,
+        sheetName: s2.name,
+        showCaption: showCaption,
+        duplicate: s2.duplicate,
+      });
     }
   }
 
