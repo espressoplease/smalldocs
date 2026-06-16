@@ -125,6 +125,15 @@
   flex-direction: column;
   gap: 4px;
 }
+/* Copy triggers that appear above a commented slide's cards. Reuse the
+   .sdoc-copy-with-c pill vocabulary so they match the heading + toolbar
+   "with comments" buttons. */
+.sdoc-slide-comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
 .sdoc-slide-card { position: relative; }
 .sdoc-slide-card-num {
   display: inline-flex;
@@ -182,6 +191,18 @@
   text-transform: uppercase;
   letter-spacing: .5px;
   margin-bottom: 2px;
+}
+/* Copy buttons inside the dark present panel - the default .sdoc-copy-with-c
+   tones are tuned for the light doc body, so restate them for dark chrome. */
+.sdoc-present-comment-panel .sdoc-copy-with-c {
+  background: #1a1816;
+  border-color: #3f3c38;
+  color: #d6d3d1;
+}
+.sdoc-present-comment-panel .sdoc-copy-with-c:hover {
+  background: #211f1c;
+  border-color: #57534e;
+  color: #fff;
 }
 /* In present, the stage-wrap leaves room for the panel so the active slide
    doesn't hide behind it. */
