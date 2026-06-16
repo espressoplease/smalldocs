@@ -1,0 +1,197 @@
+/* ═══════════════════════════════════════════════════
+   SLIDE COMMENTS
+   ═══════════════════════════════════════════════════
+   Comment mode for ```slide blocks. A transparent hit layer sits over the
+   rendered slide; hovering an overlay highlights it, clicking opens a
+   composer. Styling borrows the comment-mode vocabulary (.sdoc-card,
+   --sdoc-anchor-color tints, .sdoc-icon-btn) so text and slide commenting
+   read as one system. See css/comments.css.
+*/
+
+/* ── Hit layer ────────────────────────────────────────────────────────── */
+/* Sits above the slide shapes but below the present button (z-index 5).
+   The layer itself ignores pointer events so gaps between shapes fall
+   through to whatever is underneath; the per-shape overlays capture them. */
+.sdoc-slide-hit-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.sdoc-slide-hit {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background .12s ease, box-shadow .12s ease;
+  /* outline drawn via box-shadow so it doesn't add layout box and stays
+     crisp at any slide scale. */
+}
+.sdoc-slide-hit:hover,
+.sdoc-slide-hit:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--sdoc-anchor-color, #ffbb00) 22%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sdoc-anchor-color, #ffbb00) 70%, transparent);
+}
+/* The element currently being composed against - same look as a strong
+   hover, held while the composer is open. */
+.sdoc-slide-hit.is-composing {
+  background: color-mix(in srgb, var(--sdoc-anchor-color, #ffbb00) 26%, transparent);
+  box-shadow: 0 0 0 2px var(--sdoc-anchor-color, #ffbb00);
+}
+/* Already has a comment: faint persistent tint so the user sees at a glance
+   which elements carry feedback. */
+.sdoc-slide-hit.is-commented {
+  background: color-mix(in srgb, var(--sdoc-anchor-color, #ffbb00) 14%, transparent);
+}
+.sdoc-slide-hit.is-commented:hover {
+  background: color-mix(in srgb, var(--sdoc-anchor-color, #ffbb00) 28%, transparent);
+}
+
+/* Numbered dot, top-left of a commented element. Lines up with the card's
+   leading number below the slide. */
+.sdoc-slide-hit-dot {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--sdoc-anchor-color, #ffbb00);
+  color: #1c1917;
+  font: 600 10px/1 var(--font-ui, system-ui);
+  pointer-events: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,.25);
+}
+
+/* ── Whole-slide comment button (top-left) ────────────────────────────── */
+/* Mirrors .sdoc-slide-present (top-right) but on the opposite corner so the
+   two never collide. */
+.sdoc-slide-comment-btn {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: var(--md-bg, #fff);
+  color: var(--md-color, #1c1917);
+  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));
+  border-radius: 4px;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity .15s, background .12s, border-color .12s;
+}
+.sdoc-slide-comment-btn:hover,
+.sdoc-slide-comment-btn:focus-visible {
+  opacity: 1;
+  outline: none;
+  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));
+}
+.sdoc-slide-comment-btn svg { display: block; }
+/* When the slide already carries a whole-slide note, the button fills with
+   the comment colour so it reads as an indicator. */
+.sdoc-slide-comment-btn.has-comment {
+  opacity: 1;
+  background: color-mix(in srgb, var(--sdoc-anchor-color, #ffbb00) 32%, var(--md-bg, #fff));
+  border-color: color-mix(in srgb, var(--sdoc-anchor-color, #ffbb00) 55%, transparent);
+}
+.sdoc-slide-comment-btn.has-comment:hover {
+  background: color-mix(in srgb, var(--sdoc-anchor-color, #ffbb00) 45%, var(--md-bg, #fff));
+}
+/* Whole-slide compose: ring the slide so it's clear the note is for all of
+   it, not one element. */
+.sd-slide-wrap.sdoc-slide-whole-hot {
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--sdoc-anchor-color, #ffbb00) 70%, transparent);
+}
+
+/* ── Cards (reuse .sdoc-card; add slide-specific bits) ────────────────── */
+.sdoc-slide-comment-list {
+  margin: 6px 0 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sdoc-slide-card { position: relative; }
+.sdoc-slide-card-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin-right: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-anchor-color)) 55%, var(--md-bg, #fff));
+  color: var(--text);
+  font: 600 10px/1 var(--font-ui, system-ui);
+  vertical-align: baseline;
+}
+.sdoc-slide-card-target {
+  margin-left: 6px;
+  font-size: 0.92em;
+  color: var(--text-3, var(--text-2));
+  font-style: italic;
+}
+.sdoc-slide-card-target-compose {
+  display: block;
+  margin: 0 0 4px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: none;
+}
+
+/* ── Present-mode comment panel ───────────────────────────────────────── */
+/* Docks to the right of the stage while commenting is on. Dark theme to
+   match the present chrome. */
+.sdoc-present-comment-panel {
+  position: fixed;
+  top: 40px;
+  right: 0;
+  bottom: 0;
+  width: 300px;
+  z-index: 10001;
+  background: #131210;
+  border-left: 1px solid #2a2724;
+  padding: 14px;
+  overflow-y: auto;
+  color: #e7e5e2;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sdoc-present-comment-panel-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a8580;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 2px;
+}
+/* In present, the stage-wrap leaves room for the panel so the active slide
+   doesn't hide behind it. */
+.sdoc-present.sdoc-present-commenting .sdoc-present-stage-wrap {
+  padding-right: 312px;
+}
+@media (max-width: 720px) {
+  .sdoc-present-comment-panel { width: 100%; top: auto; height: 48%; border-left: none; border-top: 1px solid #2a2724; }
+  .sdoc-present.sdoc-present-commenting .sdoc-present-stage-wrap { padding-right: 16px; padding-bottom: 50%; }
+}
+
+/* The present comment toggle in the topbar reuses .sdoc-present-btn; the
+   active state styling already exists in present.css (.active). */
