@@ -72,6 +72,21 @@
       if (isAlpha(c)) {
         var word = '';
         while (i < n && (isAlpha(src[i]) || isDigit(src[i]))) word += src[i++];
+        // A sheet-qualified reference: Sheet!A1. The word before '!' is the
+        // sheet name (any letters/digits run - Sales, Summary, Sheet1, Q1);
+        // the part after '!' must be a plain cell ref. Emitted as ONE ref
+        // token carrying `sheet`, so the parser's range branch (the next ':'
+        // check) keeps the sheet on the qualified endpoint.
+        if (src[i] === '!') {
+          var sheet = word;
+          i++; // consume '!'
+          var cellWord = '';
+          while (i < n && (isAlpha(src[i]) || isDigit(src[i]))) cellWord += src[i++];
+          var cm = /^([A-Za-z]+)([0-9]+)$/.exec(cellWord);
+          if (!cm) throw mkErr('#REF!');
+          toks.push({ t: 'ref', sheet: sheet, col: colIndex(cm[1].toUpperCase()), row: parseInt(cm[2], 10) - 1 });
+          continue;
+        }
         var m = /^([A-Za-z]+)([0-9]+)$/.exec(word);
         if (m && src[i] !== '(') {
           toks.push({ t: 'ref', col: colIndex(m[1].toUpperCase()), row: parseInt(m[2], 10) - 1 });
@@ -152,9 +167,15 @@
         if (peek() && peek().t === 'op' && peek().v === ':') {
           next(); var end = next();
           if (!end || end.t !== 'ref') throw mkErr('#REF!');
-          return { k: 'range', c0: t.col, r0: t.row, c1: end.col, r1: end.row };
+          // A range stays within one sheet. A qualified start (Sales!A1:B3)
+          // applies its sheet to both ends; a range that names two different
+          // sheets (Sheet1!A1:Sheet2!B2) has no coherent rectangle -> #REF!.
+          var startKey = (t.sheet || '').toLowerCase();
+          var endKey = (end.sheet || '').toLowerCase();
+          if (end.sheet != null && endKey !== startKey) throw mkErr('#REF!');
+          return { k: 'range', sheet: t.sheet, c0: t.col, r0: t.row, c1: end.col, r1: end.row };
         }
-        return { k: 'ref', col: t.col, row: t.row };
+        return { k: 'ref', col: t.col, row: t.row, sheet: t.sheet };
       }
       if (t.t === 'name') {
         if (peek() && peek().t === 'op' && peek().v === '(') {
@@ -210,7 +231,7 @@
         }
         return r ? 1 : 0;
       }
-      case 'ref': return refValue(ctx.cell(node.col, node.row));
+      case 'ref': return refValue(ctx.cell(node.col, node.row, node.sheet));
       case 'range': throw mkErr('#VALUE!');
       case 'call': return callFn(node, ctx);
     }
@@ -232,7 +253,7 @@
       var r0 = Math.min(arg.r0, arg.r1), r1 = Math.max(arg.r0, arg.r1);
       var c0 = Math.min(arg.c0, arg.c1), c1 = Math.max(arg.c0, arg.c1);
       for (var r = r0; r <= r1; r++) {
-        for (var c = c0; c <= c1; c++) out.push(ctx.cell(c, r));
+        for (var c = c0; c <= c1; c++) out.push(ctx.cell(c, r, arg.sheet));
       }
       return out;
     }
@@ -308,6 +329,15 @@
         var j = i;
         while (j < n && (isAlpha(src[j]) || isDigit(src[j]))) j++;
         var word = src.slice(i, j);
+        // A sheet qualifier (Sheet!A1) - emit the name + '!' untouched and let
+        // the next iteration shift the cell ref that follows. Without this a
+        // numeric-suffixed sheet name (Q1, Sheet1) would be shifted as if it
+        // were a cell reference.
+        if (src[j] === '!') {
+          out += word + '!';
+          i = j + 1;
+          continue;
+        }
         var m = /^([A-Za-z]+)([0-9]+)$/.exec(word);
         if (m && src[j] !== '(') {
           var col = colIndex(m[1].toUpperCase()) + dc;
