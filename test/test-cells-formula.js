@@ -86,6 +86,25 @@ module.exports = function (harness) {
     assert.strictEqual(F.isFormula('='), false);
   });
 
+  // ── recalc is a thin adapter over recalcWorkbook ──
+  // recalc(model) must stay byte-identical to running the same model as a
+  // single anonymous sheet through recalcWorkbook. This pins the refactor:
+  // any future change that lets the two diverge breaks every existing doc.
+  test('recalc(model) deep-equals recalcWorkbook([{model}])[0]', () => {
+    const m = model([
+      ['1', '2', 'hi'],          // numbers + a text cell
+      ['=A1+B1', '=SUM(A1:B1)', '=C1+1'],  // formula, range, text-ref error
+      ['=A3', '', ''],           // self-cycle on A3
+    ]);
+    const viaRecalc = F.recalc(m);
+    const viaWorkbook = F.recalcWorkbook([{ name: '', model: m }])[0];
+    assert.deepStrictEqual(viaRecalc, viaWorkbook);
+    // and the fixture genuinely exercises every result kind
+    assert.strictEqual(viaRecalc[1][0].value, 3);          // number
+    assert.strictEqual(viaRecalc[1][2].code, '#VALUE!');   // text ref
+    assert.strictEqual(viaRecalc[2][0].code, '#CIRC!');    // cycle
+  });
+
   // ── shiftFormula: relative reference adjustment (fill / copy-paste) ──
   test('shiftFormula: shifts row references', () => {
     assert.strictEqual(F.shiftFormula('=B2*C2', 1, 0), '=B3*C3');
