@@ -136,8 +136,17 @@ function normalizeComment(c) {
     // A slide comment without a resolvable slide index is meaningless;
     // default to slide 0 rather than dropping the note entirely.
     out.slide = toIndex(c.slide) == null ? 0 : toIndex(c.slide);
-    var shp = toIndex(c.shape);
-    if (shp != null) out.shape = shp;
+    // `shapes` (array) is the multi-element form; a single index collapses to
+    // `shape` so single-element notes keep their existing on-disk shape. A
+    // whole-slide note carries neither.
+    if (Array.isArray(c.shapes)) {
+      var arr = c.shapes.map(toIndex).filter(function (n) { return n != null; });
+      if (arr.length === 1) out.shape = arr[0];
+      else if (arr.length > 1) out.shapes = arr;
+    } else {
+      var shp = toIndex(c.shape);
+      if (shp != null) out.shape = shp;
+    }
     if (c.slide_text) out.slide_text = c.slide_text;
   }
   if (c.block) out.block = c.block;
@@ -217,6 +226,7 @@ function addSlideComment(meta, anchor, noteMeta) {
     kind: 'slide',
     slide: anchor.slide,
     shape: anchor.shape,
+    shapes: anchor.shapes,
     slide_text: anchor.slide_text || '',
     author: (noteMeta || {}).author,
     color: (noteMeta || {}).color,
@@ -392,7 +402,12 @@ function serializeFootnotes(meta, body) {
       // targets one shape, carry its index (matches `data-shape-idx` and the
       // shape's line in the slide source) plus the shape's visible text.
       var slideTag = 'slide ' + ((typeof c.slide === 'number' ? c.slide : 0) + 1);
-      if (typeof c.shape === 'number') {
+      if (Array.isArray(c.shapes) && c.shapes.length) {
+        // Multi-element note: list the indices joined with '+', then one
+        // quoted hint covering all of them (the UI joins the labels).
+        slideTag += ', elements ' + c.shapes.join('+');
+        if (c.slide_text) slideTag += ' "' + sanitizeText(c.slide_text) + '"';
+      } else if (typeof c.shape === 'number') {
         slideTag += ', element ' + c.shape;
         if (c.slide_text) slideTag += ' "' + sanitizeText(c.slide_text) + '"';
       } else if (c.slide_text) {
@@ -499,12 +514,17 @@ function parseFootnotes(body) {
     // Trailing "(slide N[, element M][ "text"])" hint - the inverse of the
     // slide label serializeFootnotes emits. Slide number is 1-based on disk;
     // store it 0-based to match the in-memory anchor.
-    var sTag = (out.text || '').match(/\s*\(slide\s+(\d+)(?:,\s*element\s+(\d+))?(?:\s+"([^"]*)")?\)\s*$/);
+    var sTag = (out.text || '').match(/\s*\(slide\s+(\d+)(?:,\s*elements?\s+([\d+]+))?(?:\s+"([^"]*)")?\)\s*$/);
     if (sTag) {
       out.slide = parseInt(sTag[1], 10) - 1;
-      if (sTag[2] != null) out.shape = parseInt(sTag[2], 10);
+      if (sTag[2] != null) {
+        var idxs = sTag[2].split('+').map(function (x) { return parseInt(x, 10); })
+          .filter(function (n) { return !isNaN(n); });
+        if (idxs.length > 1) out.shapes = idxs;
+        else if (idxs.length === 1) out.shape = idxs[0];
+      }
       if (sTag[3]) out.slide_text = sTag[3];
-      out.text = out.text.replace(/\s*\(slide\s+\d+(?:,\s*element\s+\d+)?(?:\s+"[^"]*")?\)\s*$/, '');
+      out.text = out.text.replace(/\s*\(slide\s+\d+(?:,\s*elements?\s+[\d+]+)?(?:\s+"[^"]*")?\)\s*$/, '');
     }
     return out;
   }
@@ -562,7 +582,8 @@ function parseFootnotes(body) {
       // Slide notes carry a "(slide N ...)" hint and no body marker, so they
       // land here as orphan definitions. Rebuild the slide anchor.
       c3 = { id: id, kind: 'slide', slide: d3.slide, text: d3.text };
-      if (typeof d3.shape === 'number') c3.shape = d3.shape;
+      if (Array.isArray(d3.shapes)) c3.shapes = d3.shapes;
+      else if (typeof d3.shape === 'number') c3.shape = d3.shape;
       if (d3.slide_text) c3.slide_text = d3.slide_text;
     } else {
       c3 = { id: id, kind: 'block', text: d3.text };

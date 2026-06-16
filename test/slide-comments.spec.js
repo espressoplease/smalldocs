@@ -224,6 +224,69 @@ test.describe('inline slide comments', () => {
     expect(clip).not.toContain('Closing');
   });
 
+  test('shift-clicking several elements makes one note covering all of them', async ({ page }) => {
+    await enterCommentMode(page);
+    await loadDeck(page);
+    const slide = page.locator('.sdoc-slide[data-slide-index="0"]');
+    await slide.locator('.sdoc-slide-hit[data-shape-idx="0"]').click({ modifiers: ['Shift'] });
+    await slide.locator('.sdoc-slide-hit[data-shape-idx="1"]').click({ modifiers: ['Shift'] });
+    // One group composer, both elements highlighted, target names the count.
+    const composer = page.locator('.sdoc-slide-card.sdoc-card-edit');
+    await expect(composer).toHaveCount(1);
+    await expect(composer.locator('.sdoc-slide-card-target')).toContainText('2 elements');
+    await expect(slide.locator('.sdoc-slide-hit.is-composing')).toHaveCount(2);
+
+    await composer.locator('.sdoc-card-input').fill('balance these two');
+    await composer.locator('.sdoc-card-save').click();
+    await page.waitForTimeout(150);
+
+    const cs = await slideComments(page);
+    expect(cs.length).toBe(1);
+    expect(cs[0].shapes).toEqual([0, 1]);
+    expect(cs[0].text).toBe('balance these two');
+    // Both elements carry the same numbered dot.
+    await expect(slide.locator('.sdoc-slide-hit[data-shape-idx="0"].is-commented .sdoc-slide-hit-dot')).toHaveText('1');
+    await expect(slide.locator('.sdoc-slide-hit[data-shape-idx="1"].is-commented .sdoc-slide-hit-dot')).toHaveText('1');
+
+    // Copy reflects both elements.
+    await page.locator('.sdoc-slide-comment-list[data-for="0"] .sdoc-slide-copy-c').first().click();
+    await page.waitForTimeout(80);
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clip).toMatch(/\[\^c1\]:.*balance these two \(slide 1, elements 0\+1 "Q4 Review \+/);
+  });
+
+  test('shift-clicking an element twice removes it from the selection', async ({ page }) => {
+    await enterCommentMode(page);
+    await loadDeck(page);
+    const slide = page.locator('.sdoc-slide[data-slide-index="0"]');
+    await slide.locator('.sdoc-slide-hit[data-shape-idx="0"]').click({ modifiers: ['Shift'] });
+    await slide.locator('.sdoc-slide-hit[data-shape-idx="1"]').click({ modifiers: ['Shift'] });
+    await expect(slide.locator('.sdoc-slide-hit.is-composing')).toHaveCount(2);
+    // Toggle shape 1 back off -> drops to a single-element selection.
+    await slide.locator('.sdoc-slide-hit[data-shape-idx="1"]').click({ modifiers: ['Shift'] });
+    await expect(slide.locator('.sdoc-slide-hit.is-composing')).toHaveCount(1);
+    await expect(page.locator('.sdoc-slide-card.sdoc-card-edit .sdoc-slide-card-target')).not.toContainText('elements');
+  });
+
+  test('text-less shape (an arrow) labels by kind + ordinal, not a bare index', async ({ page }) => {
+    const arrowDeck = '~~~slide\ngrid 100 56.25\nr 5 5 90 10 text=subtitle | Flow\na 20 20 60 45\n~~~\n';
+    await enterCommentMode(page);
+    await loadDeck(page, arrowDeck);
+    await page.locator('.sdoc-slide[data-slide-index="0"] .sdoc-slide-hit[data-shape-idx="1"]').click();
+    const composer = page.locator('.sdoc-slide-card.sdoc-card-edit');
+    await expect(composer.locator('.sdoc-slide-card-target')).toContainText('1st arrow');
+    await composer.locator('.sdoc-card-input').fill('make it dashed');
+    await composer.locator('.sdoc-card-save').click();
+    await page.waitForTimeout(120);
+    const cs = await slideComments(page);
+    expect(cs[0].slide_text).toBe('1st arrow');
+
+    await page.locator('.sdoc-slide-comment-list[data-for="0"] .sdoc-slide-copy-c').first().click();
+    await page.waitForTimeout(80);
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clip).toMatch(/\[\^c1\]:.*make it dashed \(slide 1, element 1 "1st arrow"\)/);
+  });
+
   test('slide comments are not counted as orphaned text comments', async ({ page }) => {
     await enterCommentMode(page);
     await loadDeck(page);
