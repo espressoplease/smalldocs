@@ -29,6 +29,7 @@ require('./test-analytics')(harness);
 require('./test-short-links')(harness);
 require('./test-chrome')(harness);
 require('./test-comments')(harness);
+require('./test-slide-comments')(harness);
 require('./test-forms')(harness);
 require('./test-cells')(harness);
 require('./test-cells-formula')(harness);
