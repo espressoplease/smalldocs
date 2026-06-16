@@ -587,8 +587,17 @@ function presentToggle(btn) {
   presentState.btn = btn || presentState.btn;
   presentState.commenting = !presentState.commenting;
   if (presentState.btn) presentState.btn.classList.toggle('active', presentState.commenting);
-  if (presentState.commenting) presentRender();
-  else clearPresentOverlay();
+  // Add/remove the panel first - that changes the stage area. Then, on the
+  // next frame (so the new width has laid out), re-fit the stage and draw
+  // overlays. Skipping the refit leaves the hit-layer sized to the stale
+  // pre-panel height (the overlays sit too low / too tall until a slide flip).
+  ensurePresentPanel();
+  var raf = (typeof requestAnimationFrame !== 'undefined') ? requestAnimationFrame : function (f) { setTimeout(f, 16); };
+  raf(function () {
+    if (window.SDocPresent && window.SDocPresent.refit) window.SDocPresent.refit();
+    if (presentState.commenting) presentRender();
+    else clearPresentOverlay();
+  });
 }
 
 function clearPresentOverlay() {
