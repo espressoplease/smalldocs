@@ -117,6 +117,31 @@
     '}',
     '.sdoc-cells-focus-value:focus { border-bottom-color: #3B82F6; }',
     '.sdoc-cells-focus-stage { min-height: 0; overflow: hidden; }',
+    /* Bottom tab strip (Excel / Sheets): present only for a multi-tab workbook, */
+    /* which adds a fourth grid row under the stage.                             */
+    '.sdoc-cells-focus.has-tabs { grid-template-rows: 40px 31px 1fr auto; }',
+    '.sdoc-cells-focus-tabs {',
+    '  display: flex; align-items: stretch; height: 34px; gap: 1px;',
+    '  padding: 0 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;',
+    '  background: color-mix(in oklab, var(--sdoc-focus-bg, #fff) 92%, var(--sdoc-focus-fg, #1c1917) 8%);',
+    '  border-top: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 14%, transparent);',
+    '}',
+    '.sdoc-cells-focus-tab {',
+    '  all: unset; cursor: pointer; display: inline-flex; align-items: center;',
+    '  padding: 0 14px; font-size: 12.5px; white-space: nowrap; flex-shrink: 0;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 60%, var(--sdoc-focus-bg, #fff) 40%);',
+    '  border-top: 2px solid transparent;',
+    '}',
+    '.sdoc-cells-focus-tab:hover {',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 5%, transparent);',
+    '}',
+    '.sdoc-cells-focus-tab.is-active {',
+    '  color: var(--sdoc-focus-fg, #1c1917); font-weight: 600;',
+    '  background: var(--sdoc-focus-bg, #fff);',
+    '  border-top-color: #1e8e3e;',
+    '}',
+    '.sdoc-cells-focus-tab:focus-visible { outline: 1px solid #3B82F6; outline-offset: -2px; }',
     /* The grid wrapper fills the stage and scrolls both axes; no border / */
     /* radius / hug-width here - the overlay is the frame. */
     '.sdoc-cells-focus-stage .sdoc-cells-fs {',
@@ -181,7 +206,28 @@
   }
 
   var state = { modal: null, prevFocus: null, keyHandler: null,
-                editApi: null, dirty: false, inlineWrapper: null, model: null };
+                editApi: null, entries: null, activeIndex: -1, edited: null };
+
+  function findEntry(model) {
+    if (!state.entries) return null;
+    for (var i = 0; i < state.entries.length; i++) {
+      if (state.entries[i].model === model) return state.entries[i];
+    }
+    return null;
+  }
+
+  // Each tab whose model was edited gets its inline grid repainted (and its
+  // "edited" pill shown) when the overlay closes - edits mutate the shared
+  // model objects, so the inline grids just need to re-render.
+  function repaintEdited() {
+    if (!state.edited) return;
+    state.edited.forEach(function (m) {
+      var entry = findEntry(m);
+      if (!entry || !entry.wrapper) return;
+      if (S.onCellsEdited) { try { S.onCellsEdited(m, entry.wrapper); } catch (_) {} }
+      if (entry.wrapper._cellsRepaint) { try { entry.wrapper._cellsRepaint(); } catch (_) {} }
+    });
+  }
 
   function close() {
     if (!state.modal) return;
@@ -191,42 +237,44 @@
     state.modal.remove();
     state.modal = null;
     document.body.classList.remove('sdoc-cells-focus-open');
-    // Edits mutate the shared model object, so the inline grid only needs a
-    // repaint to reflect them; the app can persist if it wants to. Mark the
-    // wrapper edited BEFORE repainting so the repaint recomputes this sheet
-    // (the once-per-document workbook results no longer match the edited model).
-    if (state.dirty && S.onCellsEdited) { try { S.onCellsEdited(state.model, state.inlineWrapper); } catch (_) {} }
-    if (state.dirty && state.inlineWrapper && state.inlineWrapper._cellsRepaint) {
-      try { state.inlineWrapper._cellsRepaint(); } catch (_) {}
-    }
-    state.editApi = null; state.dirty = false; state.inlineWrapper = null; state.model = null;
+    repaintEdited();
+    state.editApi = null; state.entries = null; state.edited = null; state.activeIndex = -1;
     if (state.prevFocus && state.prevFocus.focus) { try { state.prevFocus.focus(); } catch (_) {} }
     state.prevFocus = null;
+  }
+
+  // The tab list for `model`: every tab of its workbook (so the strip can
+  // switch between them), or a single anonymous entry for a standalone grid.
+  function entriesFor(model, inlineWrapper) {
+    var wb = S.cellsWorkbook;
+    if (wb && wb.length) {
+      for (var i = 0; i < wb.length; i++) {
+        if (wb[i].model === model) return wb.slice();
+      }
+    }
+    return [{ name: '', model: model, wrapper: inlineWrapper }];
   }
 
   function open(model, inlineWrapper) {
     if (!model || model.empty || !S.buildCellsGrid) return;
     if (state.modal) close();
     state.prevFocus = document.activeElement;
-    state.model = model;
-    state.inlineWrapper = inlineWrapper || null;
-    state.dirty = false;
+    state.edited = [];
+
+    var entries = entriesFor(model, inlineWrapper);
+    state.entries = entries;
+    var activeIndex = 0;
+    for (var ei = 0; ei < entries.length; ei++) { if (entries[ei].model === model) { activeIndex = ei; break; } }
+    var tabbed = entries.length > 1;
 
     var modal = document.createElement('div');
-    modal.className = 'sdoc-cells-focus';
+    modal.className = 'sdoc-cells-focus' + (tabbed ? ' has-tabs' : '');
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-label', 'Sheet fullscreen view');
     forwardVars(modal);
 
-    // ── Stage: the full grid (built first so the topbar's copy controls can
-    // listen to its selection) ──
-    var stage = document.createElement('div');
-    stage.className = 'sdoc-cells-focus-stage';
-    var gridWrap = S.buildCellsGrid(model, { fullscreen: true });
-    stage.appendChild(gridWrap);
-
-    // ── Topbar: brand + filename + copy controls + close ──
+    // ── Topbar skeleton: brand + filename + (per-sheet) actions + close ──
     var topbar = document.createElement('div');
     topbar.className = 'sdoc-cells-focus-topbar';
     var brand = document.createElement('span');
@@ -235,52 +283,11 @@
       '<span class="sdoc-cells-focus-brand-tiny">SD</span>' +
       '<span class="sdoc-cells-focus-brand-suf">Sheet</span>';
     topbar.appendChild(brand);
-    if (model.source) {
-      var file = document.createElement('span');
-      file.className = 'sdoc-cells-focus-file';
-      file.textContent = model.source;          // plain text - no markup
-      topbar.appendChild(file);
-    }
-    // Same copy behaviour as inline (buttons copy computed values), plus a
-    // "formulas" button to copy the raw data when the sheet holds formulas.
-    var hasFormulas = (model.cells || []).some(function (row) {
-      return (row || []).some(function (cl) {
-        return cl && cl.raw && cl.raw.charAt(0) === '=' && cl.raw.length > 1;
-      });
-    });
-    var actions = S.buildCellsCopyControls
-      ? S.buildCellsCopyControls(gridWrap, model, { rawButton: hasFormulas }).box
-      : document.createElement('div');
-    // The box comes from the shared copy-controls builder with its own class;
-    // this one adds the focus-topbar layout (scrollable, pinned-close layout).
-    actions.classList.add('sdoc-cells-focus-actions');
-    // Formula view toggle - only when the sheet actually contains formulas.
-    // On: every formula cell shows its "=..." source (and stays editable in
-    // place); off: computed values. The selection survives the repaint.
-    if (hasFormulas) {
-      var fxBtn = document.createElement('button');
-      fxBtn.type = 'button';
-      fxBtn.className = 'sdoc-cells-fx-toggle';
-      fxBtn.title = 'Show formulas';
-      fxBtn.setAttribute('aria-label', 'Show formulas');
-      fxBtn.textContent = '=fx';
-      fxBtn.addEventListener('click', function () {
-        gridWrap._cellsShowFormulas = !gridWrap._cellsShowFormulas;
-        fxBtn.classList.toggle('is-on', !!gridWrap._cellsShowFormulas);
-        fxBtn.title = gridWrap._cellsShowFormulas ? 'Show values' : 'Show formulas';
-        var gridEl2 = gridWrap.querySelector('.sdoc-cells-grid');
-        var rect = gridEl2 && gridEl2._selectionRect ? gridEl2._selectionRect() : null;
-        if (gridWrap._cellsRepaint) gridWrap._cellsRepaint();
-        if (rect && gridEl2 && gridEl2._moveTo) {
-          gridEl2._moveTo(rect.r0, rect.c0, false);
-          gridEl2._extendTo(rect.r1, rect.c1, false);
-        }
-      });
-      actions.appendChild(fxBtn);
-    }
-    topbar.appendChild(actions);
-    // The close button lives outside the scrollable actions group, pinned as
-    // the topbar's last child, so it stays reachable on any screen width.
+    var fileSpan = document.createElement('span');
+    fileSpan.className = 'sdoc-cells-focus-file';
+    topbar.appendChild(fileSpan);
+    // The close button is pinned as the last topbar child; the per-sheet copy
+    // actions are inserted just before it (and replaced when the tab changes).
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'sdoc-cells-focus-close';
@@ -290,12 +297,11 @@
     closeBtn.addEventListener('click', close);
     topbar.appendChild(closeBtn);
 
-    // ── Name box / selection stats / value bar ──
+    // ── Name box / selection stats / value bar (static; reads the active grid) ──
     var bar = document.createElement('div');
     bar.className = 'sdoc-cells-focus-bar';
     var nameBox = document.createElement('div');
     nameBox.className = 'sdoc-cells-focus-name';
-    // Sum / Avg / Min / Max / Count of the selection, right of the address.
     var stats = document.createElement('div');
     stats.className = 'sdoc-cells-focus-stats';
     var valueBox = document.createElement('input');
@@ -307,12 +313,48 @@
     bar.appendChild(stats);
     bar.appendChild(valueBox);
 
+    var stage = document.createElement('div');
+    stage.className = 'sdoc-cells-focus-stage';
+
+    // ── Tab strip (only when the workbook has more than one tab) ──
+    var tabButtons = [];
+    var tabStrip = null;
+    if (tabbed) {
+      tabStrip = document.createElement('div');
+      tabStrip.className = 'sdoc-cells-focus-tabs';
+      tabStrip.setAttribute('role', 'tablist');
+      entries.forEach(function (entry, i) {
+        var tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = 'sdoc-cells-focus-tab';
+        tab.setAttribute('role', 'tab');
+        tab.textContent = entry.name || ('Sheet' + (i + 1));   // textContent - untrusted name
+        tab.addEventListener('click', function () { mountSheet(i); });
+        tabStrip.appendChild(tab);
+        tabButtons.push(tab);
+      });
+    }
+
+    // The active grid + its actions, swapped by mountSheet.
+    var activeWrap = null, activeModel = null, activeActions = null;
+
     function focusGrid() {
-      var g = gridWrap.querySelector('.sdoc-cells-grid');
+      var g = activeWrap && activeWrap.querySelector('.sdoc-cells-grid');
       if (g) { try { g.focus({ preventScroll: true }); } catch (_) {} }
     }
-    // Formula bar: Enter commits to the active cell and steps down; Esc reverts
-    // the field to the selected cell's raw and returns focus to the grid.
+    // Keep the name box, stats, and value field in sync with the active grid's
+    // selection. Skipped while the formula bar itself is focused.
+    function syncSelection(d) {
+      if (!activeWrap) return;
+      if (!d || d.empty) { nameBox.textContent = ''; valueBox.value = ''; stats.textContent = ''; return; }
+      var vm = activeWrap._cellsModel || activeModel;   // effective (sorted) view
+      var addr = CELLS.colName(d.c0) + (d.r0 + 1);
+      nameBox.textContent = d.single ? addr : addr + ':' + CELLS.colName(d.c1) + (d.r1 + 1);
+      var cell = vm.cells[d.r0] && vm.cells[d.r0][d.c0];
+      if (document.activeElement !== valueBox) valueBox.value = cell ? cell.raw : '';
+      stats.textContent = S.formatCellsStats
+        ? S.formatCellsStats(vm, d, activeWrap._cellsFxView) : '';
+    }
     valueBox.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -320,42 +362,89 @@
         focusGrid();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        syncSelection(gridWrap._cellsSelection);
+        syncSelection(activeWrap && activeWrap._cellsSelection);
         focusGrid();
       }
       e.stopPropagation();
     });
 
-    // Keep the name box, stats segment, and value field in sync with selection.
-    // Skipped while the formula bar itself is focused, so typing there is not
-    // clobbered by a programmatic reselect.
-    function syncSelection(d) {
-      if (!d || d.empty) { nameBox.textContent = ''; valueBox.value = ''; stats.textContent = ''; return; }
-      var vm = gridWrap._cellsModel || model;       // effective (sorted) view
-      var addr = CELLS.colName(d.c0) + (d.r0 + 1);
-      nameBox.textContent = d.single ? addr : addr + ':' + CELLS.colName(d.c1) + (d.r1 + 1);
-      var cell = vm.cells[d.r0] && vm.cells[d.r0][d.c0];
-      if (document.activeElement !== valueBox) valueBox.value = cell ? cell.raw : '';
-      // The display-aligned formula results let computed cells count toward
-      // Sum / Avg / Min / Max instead of reading as text.
-      stats.textContent = S.formatCellsStats
-        ? S.formatCellsStats(vm, d, gridWrap._cellsFxView) : '';
-    }
-    gridWrap.addEventListener('cells-selection', function (e) { syncSelection(e.detail); });
+    // Build (or rebuild) the active sheet into the stage: a fresh grid, its copy
+    // controls + formula toggle, selection wiring, and the editor. Cross-tab
+    // refs resolve because buildGrid's paint computes against the whole workbook
+    // (S.cellsWorkbookFx) when there is no precomputed slice.
+    function mountSheet(index) {
+      if (index < 0 || index >= entries.length) return;
+      if (state.editApi) { try { state.editApi.detach(); } catch (_) {} state.editApi = null; }
+      var entry = entries[index];
+      var m = entry.model;
 
-    // Client-only editing: type into the sheet, =formulas, undo/redo, paste.
-    // Edits mutate the shared model object; the inline grid is repainted on
-    // close so they appear there too.
-    if (S.cellsEdit && S.cellsEdit.attach) {
-      state.editApi = S.cellsEdit.attach(gridWrap, {
-        valueInput: valueBox,
-        onChange: function () { state.dirty = true; syncSelection(gridWrap._cellsSelection); },
+      while (stage.firstChild) stage.removeChild(stage.firstChild);
+      var gridWrap = S.buildCellsGrid(m, { fullscreen: true });
+      stage.appendChild(gridWrap);
+      activeWrap = gridWrap; activeModel = m;
+      state.activeIndex = index;
+      fileSpan.textContent = m.source || '';
+
+      // Copy controls (+ a raw "formulas" button when the sheet has formulas)
+      // and the =fx formula-view toggle, rebuilt for this sheet and swapped in.
+      var hasFormulas = (m.cells || []).some(function (row) {
+        return (row || []).some(function (cl) {
+          return cl && cl.raw && cl.raw.charAt(0) === '=' && cl.raw.length > 1;
+        });
       });
+      var actions = S.buildCellsCopyControls
+        ? S.buildCellsCopyControls(gridWrap, m, { rawButton: hasFormulas }).box
+        : document.createElement('div');
+      actions.classList.add('sdoc-cells-focus-actions');
+      if (hasFormulas) {
+        var fxBtn = document.createElement('button');
+        fxBtn.type = 'button';
+        fxBtn.className = 'sdoc-cells-fx-toggle';
+        fxBtn.title = 'Show formulas';
+        fxBtn.setAttribute('aria-label', 'Show formulas');
+        fxBtn.textContent = '=fx';
+        fxBtn.addEventListener('click', function () {
+          gridWrap._cellsShowFormulas = !gridWrap._cellsShowFormulas;
+          fxBtn.classList.toggle('is-on', !!gridWrap._cellsShowFormulas);
+          fxBtn.title = gridWrap._cellsShowFormulas ? 'Show values' : 'Show formulas';
+          var gridEl2 = gridWrap.querySelector('.sdoc-cells-grid');
+          var rect = gridEl2 && gridEl2._selectionRect ? gridEl2._selectionRect() : null;
+          if (gridWrap._cellsRepaint) gridWrap._cellsRepaint();
+          if (rect && gridEl2 && gridEl2._moveTo) {
+            gridEl2._moveTo(rect.r0, rect.c0, false);
+            gridEl2._extendTo(rect.r1, rect.c1, false);
+          }
+        });
+        actions.appendChild(fxBtn);
+      }
+      if (activeActions) topbar.removeChild(activeActions);
+      topbar.insertBefore(actions, closeBtn);
+      activeActions = actions;
+
+      gridWrap.addEventListener('cells-selection', function (e) { syncSelection(e.detail); });
+      if (S.cellsEdit && S.cellsEdit.attach) {
+        state.editApi = S.cellsEdit.attach(gridWrap, {
+          valueInput: valueBox,
+          onChange: function () {
+            if (state.edited.indexOf(m) === -1) state.edited.push(m);
+            syncSelection(gridWrap._cellsSelection);
+          },
+        });
+      }
+
+      tabButtons.forEach(function (t, i) {
+        t.classList.toggle('is-active', i === index);
+        t.setAttribute('aria-selected', i === index ? 'true' : 'false');
+      });
+
+      var gridEl = gridWrap.querySelector('.sdoc-cells-grid');
+      if (gridEl) { try { gridEl.focus(); } catch (_) {} }
     }
 
     modal.appendChild(topbar);
     modal.appendChild(bar);
     modal.appendChild(stage);
+    if (tabStrip) modal.appendChild(tabStrip);
     document.body.appendChild(modal);
     document.body.classList.add('sdoc-cells-focus-open');
     state.modal = modal;
@@ -363,9 +452,7 @@
     state.keyHandler = function (e) { if (e.key === 'Escape') { e.preventDefault(); close(); } };
     window.addEventListener('keydown', state.keyHandler);
 
-    // Focus the grid so arrows work straight away (its focus handler selects A1).
-    var gridEl = gridWrap.querySelector('.sdoc-cells-grid');
-    if (gridEl) { try { gridEl.focus(); } catch (_) {} }
+    mountSheet(activeIndex);
   }
 
   S.cellsFocus = { open: open, close: close };
