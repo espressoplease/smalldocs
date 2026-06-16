@@ -31,22 +31,54 @@ function computeHitRects(dsl, shapesLib) {
   var resolved = lib.resolve(parsed.shapes);
   var grid = parsed.grid || lib.DEFAULT_GRID;
   var gw = grid.w || 100, gh = grid.h || 56.25;
+  // Lines and horizontal/vertical arrows have a zero-thickness bbox; give
+  // every overlay a small minimum so thin decorative shapes stay clickable.
+  var minW = gw * 0.03, minH = gh * 0.03;
   var rects = [];
+  var kindCount = {};
   for (var i = 0; i < resolved.shapes.length; i++) {
     var s = resolved.shapes[i];
+    // Count every shape of this kind in source order so the ordinal label
+    // ("1st arrow") is stable and matches what a reader counts top-to-bottom.
+    kindCount[s.kind] = (kindCount[s.kind] || 0) + 1;
     var box;
     try { box = lib.bboxOf(s); } catch (_) { continue; }
-    if (!box || box.w <= 0 || box.h <= 0) continue;
+    if (!box) continue;
+    var x = box.x, y = box.y, w = box.w, h = box.h;
+    if (w < minW) { x -= (minW - w) / 2; w = minW; }
+    if (h < minH) { y -= (minH - h) / 2; h = minH; }
+    var text = shapeText(s);
     rects.push({
       shapeIdx: i,
-      leftPct: (box.x / gw) * 100,
-      topPct: (box.y / gh) * 100,
-      wPct: (box.w / gw) * 100,
-      hPct: (box.h / gh) * 100,
-      text: shapeText(s),
+      leftPct: (x / gw) * 100,
+      topPct: (y / gh) * 100,
+      wPct: (w / gw) * 100,
+      hPct: (h / gh) * 100,
+      text: text,
+      // A human-readable anchor for the note: the shape's own text when it
+      // has any, else its kind + ordinal ("1st arrow") so a text-less
+      // decorative shape still reads clearly in the copied feedback and UI.
+      label: text || (ordinal(kindCount[s.kind]) + ' ' + kindName(s)),
     });
   }
   return rects;
+}
+
+// Friendly name for a shape kind, shown when the shape has no text of its own.
+var KIND_NAMES = {
+  r: 'box', c: 'circle', e: 'ellipse', l: 'line', a: 'arrow', p: 'shape',
+  chev: 'chevron', cyl: 'cylinder', bub: 'bubble', tab: 'tab', doc: 'document',
+  cloud: 'cloud', icon: 'icon',
+};
+function kindName(s) {
+  if (s && s.kind === 'icon' && s.attrs && s.attrs.name) return 'icon (' + s.attrs.name + ')';
+  return (s && KIND_NAMES[s.kind]) || 'element';
+}
+
+// 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 11/12/13 -> "th", else "Nth".
+function ordinal(n) {
+  var s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
 // The visible text of a shape, trimmed to a short hint. Shapes carry their
@@ -142,17 +174,14 @@ function makeSlideCard(c, ordinal, ctx) {
   body.textContent = c.text || '';
   card.appendChild(body);
 
-  if (c.slide_text) {
-    var ctxEl = document.createElement('span');
-    ctxEl.className = 'sdoc-slide-card-target';
-    ctxEl.textContent = typeof c.shape === 'number' ? '“' + c.slide_text + '”' : 'whole slide';
-    card.appendChild(ctxEl);
-  } else if (typeof c.shape !== 'number') {
-    var ws = document.createElement('span');
-    ws.className = 'sdoc-slide-card-target';
-    ws.textContent = 'whole slide';
-    card.appendChild(ws);
+  var target = document.createElement('span');
+  target.className = 'sdoc-slide-card-target';
+  if (shapesOf(c).length) {
+    target.textContent = c.slide_text ? '“' + c.slide_text + '”' : 'element';
+  } else {
+    target.textContent = 'whole slide';
   }
+  card.appendChild(target);
 
   var del = iconBtn(TRASH_SVG, 'Delete comment', 'sdoc-card-delete', function (e) {
     e.stopPropagation();
@@ -174,7 +203,7 @@ function replaceWithEdit(viewCard, c, ctx) {
     color: c.color,
     author: c.author,
     text: c.text,
-    targetLabel: typeof c.shape === 'number' ? (c.slide_text || 'element ' + c.shape) : 'whole slide',
+    targetLabel: shapesOf(c).length ? (c.slide_text || 'element') : 'whole slide',
     onSave: function (text) {
       var sdc = SDC();
       if (text !== (c.text || '')) {
@@ -242,6 +271,89 @@ function makeComposerCard(opts) {
 
 function activeComposer() { return document.querySelector('.sdoc-slide-card.sdoc-card-edit'); }
 
+// The element indices a slide comment covers (single, multi, or none).
+function shapesOf(c) {
+  if (Array.isArray(c.shapes)) return c.shapes;
+  if (typeof c.shape === 'number') return [c.shape];
+  return [];
+}
+
+// Pending multi-element selection while the user shift-clicks a group, before
+// they save the single note that covers it. Only one is active at a time.
+var pending = null;
+function sameCtx(a, b) { return a && b && a.wrap === b.wrap && a.slideIndex === b.slideIndex; }
+function clearPending() { pending = null; }
+
+// shapeIdx -> label, for naming elements in the group composer / footnote.
+function labelMap(dsl) {
+  var m = {};
+  computeHitRects(dsl).forEach(function (r) { m[r.shapeIdx] = r.label; });
+  return m;
+}
+
+// A click on an element overlay. Shift extends/toggles a multi-element
+// selection; a plain click is a single-element note (and clears any group).
+function handleHitClick(ctx, rect, additive) {
+  if (additive) {
+    if (!pending || !sameCtx(pending.ctx, ctx)) pending = { ctx: ctx, idxs: [] };
+    var at = pending.idxs.indexOf(rect.shapeIdx);
+    if (at === -1) pending.idxs.push(rect.shapeIdx); else pending.idxs.splice(at, 1);
+    if (!pending.idxs.length) {
+      clearHighlights(ctx.wrap);
+      var open0 = activeComposer();
+      if (open0 && open0.parentNode) open0.parentNode.removeChild(open0);
+      pending = null;
+      return;
+    }
+    if (pending.idxs.length === 1) {
+      // Dropped back to one element - reuse the single-element composer.
+      var only = computeHitRects(ctx.dsl).filter(function (r) { return r.shapeIdx === pending.idxs[0]; })[0];
+      openElementComposer(ctx, only || rect);
+      return;
+    }
+    openGroupComposer(ctx, pending.idxs.slice());
+    return;
+  }
+  pending = null;
+  openElementComposer(ctx, rect);
+}
+
+function highlightShapes(wrap, idxs, color) {
+  clearHighlights(wrap);
+  if (!wrap) return;
+  idxs.forEach(function (sh) {
+    var hit = wrap.querySelector('.sdoc-slide-hit[data-shape-idx="' + sh + '"]');
+    if (hit) {
+      hit.classList.add('is-composing');
+      if (color) hit.style.setProperty('--sdoc-anchor-color', color);
+    }
+  });
+}
+
+function openGroupComposer(ctx, idxs) {
+  var existing = activeComposer();
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+  var p = prefs();
+  highlightShapes(ctx.wrap, idxs, p.color);
+  var lm = labelMap(ctx.dsl);
+  var joined = idxs.map(function (i) { return lm[i] || ('element ' + i); }).join(' + ');
+  var composer = makeComposerCard({
+    color: p.color,
+    author: p.author,
+    targetLabel: idxs.length + ' elements · ' + joined,
+    onSave: function (text) {
+      var res = SDC().addSlideComment(S().currentMeta || {}, {
+        slide: ctx.slideIndex, shapes: idxs, slide_text: joined,
+      }, { author: p.author, color: p.color, at: new Date().toISOString(), text: text });
+      S().currentMeta = res.meta;
+      pending = null;
+      afterChange(ctx);
+    },
+    onCancel: function () { clearHighlights(ctx.wrap); pending = null; afterChange(ctx); },
+  });
+  placeComposer(ctx, composer);
+}
+
 function buildLayer(ctx) {
   var wrap = ctx.wrap;
   if (!wrap) return;
@@ -253,13 +365,17 @@ function buildLayer(ctx) {
 
   var rects = computeHitRects(ctx.dsl);
   var comments = slideComments(ctx.slideIndex);
-  // Map shape index -> ordinal (1-based) among this slide's comments, for the
-  // numbered dot. Element comments only.
-  var ordinalOfShape = {};
+  // Map shape index -> { ordinal, color } among this slide's comments, for the
+  // numbered dot. A multi-element note tags every shape it covers with the
+  // same number.
+  var ordinalOfShape = {}, colorOfShape = {};
   comments.forEach(function (c, i) {
-    if (typeof c.shape === 'number' && ordinalOfShape[c.shape] == null) {
-      ordinalOfShape[c.shape] = i + 1;
-    }
+    shapesOf(c).forEach(function (sh) {
+      if (ordinalOfShape[sh] == null) {
+        ordinalOfShape[sh] = i + 1;
+        colorOfShape[sh] = c.color || prefs().color;
+      }
+    });
   });
 
   var layer = document.createElement('div');
@@ -281,14 +397,14 @@ function buildLayer(ctx) {
       var dot = document.createElement('span');
       dot.className = 'sdoc-slide-hit-dot';
       dot.textContent = ordinalOfShape[r.shapeIdx];
-      // Tint the dot with the comment's own colour.
-      var owner = comments.find(function (c) { return c.shape === r.shapeIdx; });
-      if (owner) dot.style.background = owner.color || prefs().color;
+      if (colorOfShape[r.shapeIdx]) dot.style.background = colorOfShape[r.shapeIdx];
       hit.appendChild(dot);
     }
     hit.addEventListener('click', function (e) {
       e.stopPropagation();
-      openElementComposer(ctx, r);
+      // Shift-click gathers several elements into one note; plain click is a
+      // single-element note.
+      handleHitClick(ctx, r, e.shiftKey);
     });
     layer.appendChild(hit);
   });
@@ -397,10 +513,10 @@ function openElementComposer(ctx, rect) {
   var composer = makeComposerCard({
     color: p.color,
     author: p.author,
-    targetLabel: rect.text ? '“' + rect.text + '”' : 'element ' + rect.shapeIdx,
+    targetLabel: '“' + (rect.label || ('element ' + rect.shapeIdx)) + '”',
     onSave: function (text) {
       var res = SDC().addSlideComment(S().currentMeta || {}, {
-        slide: ctx.slideIndex, shape: rect.shapeIdx, slide_text: rect.text,
+        slide: ctx.slideIndex, shape: rect.shapeIdx, slide_text: rect.label,
       }, { author: p.author, color: p.color, at: new Date().toISOString(), text: text });
       S().currentMeta = res.meta;
       afterChange(ctx);
@@ -506,7 +622,7 @@ function stripInline() {
 }
 
 function enter() { renderInline(); }
-function exit() { stripInline(); presentTeardown(); }
+function exit() { pending = null; stripInline(); presentTeardown(); }
 function render() { renderInline(); }
 
 // ── Present mode ────────────────────────────────────────────────────────────
