@@ -15,12 +15,22 @@
  *   Block-anchored:
  *     { id, kind: 'block', block, author, color, at, text }
  *
+ *   Slide-anchored (a ```slide block, optionally a single shape within it):
+ *     { id, kind: 'slide', slide, shape?, slide_text?, author, color, at, text }
+ *
  * - `quote` is the exact rendered-text phrase to highlight.
  * - `prefix` / `suffix` (0-60 chars) disambiguate when `quote` appears
  *   multiple times in the target block.
  * - `block` is a "tagname:index-among-siblings-of-that-tagname" hint, e.g.
  *   "p:3" = 4th <p> in render order. Per-type indexing is more resilient to
  *   block reordering than a single global ordinal.
+ * - `slide` is the 0-based index of the ```slide block in document order.
+ *   `shape` (optional) is the 0-based index of a shape within that slide's
+ *   resolved DSL - it matches the `data-shape-idx` the renderer stamps on
+ *   each shape, and lines up with a shape line the model can read in the
+ *   slide source. Absent `shape` = a comment on the whole slide.
+ *   `slide_text` is the visible text of the targeted shape (or the slide's
+ *   leading text for a whole-slide note), kept as a human/AI-readable hint.
  *
  * Anchor resolution at render time uses a three-tier fallback:
  *   1. Block-scoped:  find block → locate (prefix+quote+suffix) in its text.
@@ -100,17 +110,35 @@ function nextId(meta) {
   return 'c' + (max + 1);
 }
 
+// Coerce a value to a non-negative integer index, or null if it isn't one.
+// Slide / shape indices arrive from the DOM (data attributes, parsed as
+// strings) or hand-edited YAML (kept as strings by our parser), so accept
+// both numbers and numeric strings.
+function toIndex(v) {
+  if (v == null || v === '') return null;
+  var n = typeof v === 'number' ? v : parseInt(v, 10);
+  return (isFinite(n) && n >= 0) ? Math.floor(n) : null;
+}
+
 function normalizeComment(c) {
   if (!isValidId(c.id)) return null;
   var out = {
     id: c.id,
-    kind: c.kind || (c.quote ? 'inline' : 'block'),
+    kind: c.kind || (c.slide != null ? 'slide' : (c.quote ? 'inline' : 'block')),
   };
   // Anchor fields
   if (out.kind === 'inline') {
     out.quote = c.quote || '';
     if (c.prefix) out.prefix = c.prefix;
     if (c.suffix) out.suffix = c.suffix;
+  }
+  if (out.kind === 'slide') {
+    // A slide comment without a resolvable slide index is meaningless;
+    // default to slide 0 rather than dropping the note entirely.
+    out.slide = toIndex(c.slide) == null ? 0 : toIndex(c.slide);
+    var shp = toIndex(c.shape);
+    if (shp != null) out.shape = shp;
+    if (c.slide_text) out.slide_text = c.slide_text;
   }
   if (c.block) out.block = c.block;
   // block_text: first ~60 chars of the block at write time. Used as a
@@ -167,6 +195,29 @@ function addBlockComment(meta, anchor, noteMeta) {
     kind: 'block',
     block: anchor.block,
     block_text: anchor.block_text || '',
+    author: (noteMeta || {}).author,
+    color: (noteMeta || {}).color,
+    at: (noteMeta || {}).at,
+    text: (noteMeta || {}).text,
+  });
+  var list = getComments(meta);
+  list.push(c);
+  return { meta: setComments(meta, list), id: id };
+}
+
+// anchor: { slide, shape?, slide_text? } where slide is a 0-based slide
+// index and shape (optional) is a 0-based shape index within that slide.
+function addSlideComment(meta, anchor, noteMeta) {
+  if (!anchor || toIndex(anchor.slide) == null) {
+    throw new Error('addSlideComment requires a slide index');
+  }
+  var id = nextId(meta);
+  var c = normalizeComment({
+    id: id,
+    kind: 'slide',
+    slide: anchor.slide,
+    shape: anchor.shape,
+    slide_text: anchor.slide_text || '',
     author: (noteMeta || {}).author,
     color: (noteMeta || {}).color,
     at: (noteMeta || {}).at,
@@ -333,6 +384,22 @@ function serializeFootnotes(meta, body) {
       if (c.block_text) blockTag += ' "' + sanitizeText(c.block_text) + '..."';
       label += ' (block ' + blockTag + ')';
     }
+    if (c.kind === 'slide') {
+      // Slides don't anchor into body text (their source is the fenced DSL,
+      // which we never rewrite), so the location rides entirely in the
+      // footnote label. Slide number is 1-based to match what the user sees
+      // in the present-mode counter and the slide badge. When the note
+      // targets one shape, carry its index (matches `data-shape-idx` and the
+      // shape's line in the slide source) plus the shape's visible text.
+      var slideTag = 'slide ' + ((typeof c.slide === 'number' ? c.slide : 0) + 1);
+      if (typeof c.shape === 'number') {
+        slideTag += ', element ' + c.shape;
+        if (c.slide_text) slideTag += ' "' + sanitizeText(c.slide_text) + '"';
+      } else if (c.slide_text) {
+        slideTag += ' "' + sanitizeText(c.slide_text) + '"';
+      }
+      label += ' (' + slideTag + ')';
+    }
     footnotes.push('[^' + c.id + ']: ' + label);
   });
   return out.replace(/\n*$/, '') + '\n\n' + footnotes.join('\n') + '\n';
@@ -429,6 +496,16 @@ function parseFootnotes(body) {
       out.block = tag[1];
       out.text = out.text.replace(/\s*\(block\s+\w+:\d+\)\s*$/, '');
     }
+    // Trailing "(slide N[, element M][ "text"])" hint - the inverse of the
+    // slide label serializeFootnotes emits. Slide number is 1-based on disk;
+    // store it 0-based to match the in-memory anchor.
+    var sTag = (out.text || '').match(/\s*\(slide\s+(\d+)(?:,\s*element\s+(\d+))?(?:\s+"([^"]*)")?\)\s*$/);
+    if (sTag) {
+      out.slide = parseInt(sTag[1], 10) - 1;
+      if (sTag[2] != null) out.shape = parseInt(sTag[2], 10);
+      if (sTag[3]) out.slide_text = sTag[3];
+      out.text = out.text.replace(/\s*\(slide\s+\d+(?:,\s*element\s+\d+)?(?:\s+"[^"]*")?\)\s*$/, '');
+    }
     return out;
   }
 
@@ -480,8 +557,17 @@ function parseFootnotes(body) {
     if (!ID_RE.test(id) || seen[id]) return;
     seen[id] = true;
     var d3 = decodeDef(defs[id]);
-    var c3 = { id: id, kind: 'block', text: d3.text };
-    if (d3.block) c3.block = d3.block;
+    var c3;
+    if (typeof d3.slide === 'number') {
+      // Slide notes carry a "(slide N ...)" hint and no body marker, so they
+      // land here as orphan definitions. Rebuild the slide anchor.
+      c3 = { id: id, kind: 'slide', slide: d3.slide, text: d3.text };
+      if (typeof d3.shape === 'number') c3.shape = d3.shape;
+      if (d3.slide_text) c3.slide_text = d3.slide_text;
+    } else {
+      c3 = { id: id, kind: 'block', text: d3.text };
+      if (d3.block) c3.block = d3.block;
+    }
     if (d3.author) c3.author = d3.author;
     if (d3.resolved) c3.resolved = true;
     comments.push(c3);
@@ -507,6 +593,7 @@ exports.nextId              = nextId;
 exports.normalizeComment    = normalizeComment;
 exports.addSelectionComment = addSelectionComment;
 exports.addBlockComment     = addBlockComment;
+exports.addSlideComment     = addSlideComment;
 exports.removeComment       = removeComment;
 exports.updateComment       = updateComment;
 exports.serializeFootnotes  = serializeFootnotes;
