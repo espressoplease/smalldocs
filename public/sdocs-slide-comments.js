@@ -353,28 +353,18 @@ function copyBtn(label, title, onClick) {
   return b;
 }
 
-// The two copy triggers that appear once a slide carries a note:
-//   "slide with comments" - this slide's source + its notes (new).
-//   "with comments"       - the whole doc with comments, reusing the exact
-//                           comment-mode path (a slide note is just another
-//                           place to trigger it).
+// "slide with comments" - copies just this slide's source + its notes.
+// The doc-wide / per-section "with comments" copy is NOT duplicated here: a
+// slide note now lights up the existing header companion button (see
+// sectionContainsComment in sdocs-comments-ui.js), so that path is reached
+// the same way text comments reach it - next to the heading above the slide.
 function buildSlideActions(ctx) {
   var row = document.createElement('div');
   row.className = 'sdoc-slide-comment-actions';
-
   row.appendChild(copyBtn('slide with comments',
     'Copy this slide and its comments', function (btn) {
       copySlideWithComments(ctx, btn);
     }));
-
-  row.appendChild(copyBtn('with comments',
-    'Copy the whole document with its comments', function (btn) {
-      var ui = S() && S().commentsUi;
-      if (ui && ui.copyWithComments) {
-        ui.copyWithComments(null, true, {}).then(function (ok) { if (ok) flashTick(btn); });
-      }
-    }));
-
   return row;
 }
 
