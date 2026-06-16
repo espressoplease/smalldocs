@@ -448,3 +448,25 @@ body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
   font-size: 0.85em;
   color: color-mix(in oklab, var(--md-color, #1c1917) 60%, var(--md-bg, #fff) 40%);
 }
+
+/* Tab name caption - a small label bar at the top of a sheet, shown when a
+ * document holds more than one ```cells tab (or a single tab was named). It
+ * reads like a spreadsheet tab: tinted with the sheet accent, name in the
+ * head foreground. A duplicate name (two tabs share it) is muted with a
+ * warning hue, since cross-tab references resolve to the first such tab. */
+.sdoc-cells-caption {
+  padding: 5px 10px;
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--sdoc-cells-head-fg);
+  background: var(--sdoc-cells-head-bg);
+  border-bottom: 1px solid var(--sdoc-cells-line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sdoc-cells-caption.is-duplicate {
+  color: #b45309;
+  background: color-mix(in oklab, var(--md-bg, #fff) 86%, #b45309 14%);
+}

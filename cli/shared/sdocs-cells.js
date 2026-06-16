@@ -125,9 +125,12 @@
     if (trimmed === '') return { rows: 0, cols: 0, cells: [], empty: true };
 
     // Peel leading directive lines (in any order, machine or author):
-    //   sdoc-cells: source=... range=... error=...   (baked metadata)
+    //   sdoc-cells: source=... range=... error=... name=...  (baked metadata)
     //   format: A=$ B=% C=plain                        (author column formats)
-    var source, range, formats;
+    // `name` is the tab name. Authored as the fence info string (```cells
+    // Sales); the renderer + CLI normalise that into this directive so the
+    // name has one home in the model.
+    var source, range, formats, name;
     var lines = trimmed.split('\n');
     var idx = 0;
     var FORMAT_RE = /^format:\s*(.*)$/i;
@@ -137,7 +140,8 @@
       if (dm) {
         var meta = parseDirectives(dm[1]);
         source = meta.source; range = meta.range;
-        if (meta.error) return { empty: false, error: meta.error, source: source };
+        if (meta.name != null) name = meta.name;
+        if (meta.error) return { empty: false, error: meta.error, source: source, name: name };
         idx++; continue;
       }
       if (fm) { formats = parseFormats(fm[1]); idx++; continue; }
@@ -147,8 +151,8 @@
 
     // Unresolved reference (after directives): the CLI never baked it.
     var ref = body.match(REFERENCE_RE);
-    if (ref) return { empty: false, unresolved: ref[1], formats: formats };
-    if (body === '') return { rows: 0, cols: 0, cells: [], empty: true, source: source, range: range, formats: formats };
+    if (ref) return { empty: false, unresolved: ref[1], formats: formats, name: name };
+    if (body === '') return { rows: 0, cols: 0, cells: [], empty: true, source: source, range: range, formats: formats, name: name };
 
     var raw = parseCsv(body);
     var cols = 0;
@@ -164,7 +168,7 @@
       }
       cells.push(out);
     }
-    return { rows: raw.length, cols: cols, cells: cells, empty: false, source: source, range: range, formats: formats };
+    return { rows: raw.length, cols: cols, cells: cells, empty: false, source: source, range: range, formats: formats, name: name };
   }
 
   // Serialize a 2D array of raw cell strings back to CSV (RFC 4180 quoting:
