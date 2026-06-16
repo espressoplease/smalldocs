@@ -143,6 +143,54 @@ test.describe('inline slide comments', () => {
     expect(clip).toMatch(/\[\^c1\]:.*punchier please \(slide 1, element 0 "Q4 Review"\)/);
   });
 
+  test('a commented slide shows both copy triggers above its cards', async ({ page }) => {
+    await enterCommentMode(page);
+    await loadDeck(page);
+    // No actions row before any comment exists.
+    await expect(page.locator('.sdoc-slide-comment-actions')).toHaveCount(0);
+    await page.locator('.sdoc-slide[data-slide-index="0"] .sdoc-slide-hit[data-shape-idx="0"]').click();
+    await page.locator('.sdoc-slide-card.sdoc-card-edit .sdoc-card-input').fill('note');
+    await page.locator('.sdoc-slide-card.sdoc-card-edit .sdoc-card-save').click();
+    await page.waitForTimeout(120);
+    const actions = page.locator('.sdoc-slide-comment-list[data-for="0"] .sdoc-slide-comment-actions');
+    await expect(actions).toHaveCount(1);
+    await expect(actions.locator('.sdoc-slide-copy-c')).toHaveCount(2);
+    await expect(actions.locator('.sdoc-slide-copy-c').first()).toContainText('slide with comments');
+    await expect(actions.locator('.sdoc-slide-copy-c').nth(1)).toContainText('with comments');
+  });
+
+  test('"slide with comments" copies that slide source + its notes', async ({ page }) => {
+    await enterCommentMode(page);
+    await loadDeck(page);
+    await page.locator('.sdoc-slide[data-slide-index="0"] .sdoc-slide-hit[data-shape-idx="0"]').click();
+    await page.locator('.sdoc-slide-card.sdoc-card-edit .sdoc-card-input').fill('punchier');
+    await page.locator('.sdoc-slide-card.sdoc-card-edit .sdoc-card-save').click();
+    await page.waitForTimeout(120);
+    await page.locator('.sdoc-slide-comment-list[data-for="0"] .sdoc-slide-copy-c').first().click();
+    await page.waitForTimeout(80);
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clip).toContain('Feedback on slide 1:');
+    expect(clip).toContain('~~~slide');
+    expect(clip).toMatch(/\[\^c1\]:.*punchier \(slide 1, element 0 "Q4 Review"\)/);
+    // It should be just this slide - the second slide's "Thank you" must not leak in.
+    expect(clip).not.toContain('Thank you');
+  });
+
+  test('"with comments" from a slide copies the whole document with comments', async ({ page }) => {
+    await enterCommentMode(page);
+    await loadDeck(page);
+    await page.locator('.sdoc-slide[data-slide-index="1"] .sdoc-slide-comment-btn').click();
+    await page.locator('.sdoc-slide-card.sdoc-card-edit .sdoc-card-input').fill('drop this');
+    await page.locator('.sdoc-slide-card.sdoc-card-edit .sdoc-card-save').click();
+    await page.waitForTimeout(120);
+    await page.locator('.sdoc-slide-comment-list[data-for="1"] .sdoc-slide-copy-c').nth(1).click();
+    await page.waitForTimeout(80);
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    // Whole-doc copy: includes the prose body AND the slide note footnote.
+    expect(clip).toContain('between the slides');
+    expect(clip).toMatch(/\[\^c1\]:.*drop this \(slide 2/);
+  });
+
   test('slide comments are not counted as orphaned text comments', async ({ page }) => {
     await enterCommentMode(page);
     await loadDeck(page);
@@ -196,6 +244,24 @@ test.describe('present-mode slide comments', () => {
     expect(cs[0].slide).toBe(0);
     expect(cs[0].shape).toBe(0);
     expect(cs[0].text).toBe('about the last six months');
+  });
+
+  test('present comment panel surfaces the copy-with-comments buttons', async ({ page }) => {
+    await loadDeck(page);
+    await page.locator('.sdoc-slide-present').first().click();
+    await page.locator('.sdoc-present-comment-btn').click();
+    await page.locator('.sdoc-present .sdoc-slide-hit[data-shape-idx="0"]').click();
+    const composer = page.locator('.sdoc-present-comment-panel .sdoc-card-edit');
+    await composer.locator('.sdoc-card-input').fill('tighten the title');
+    await composer.locator('.sdoc-card-save').click();
+    await page.waitForTimeout(150);
+    const actions = page.locator('.sdoc-present-comment-panel .sdoc-slide-comment-actions');
+    await expect(actions.locator('.sdoc-slide-copy-c')).toHaveCount(2);
+    // The whole-doc "with comments" trigger works from inside present too.
+    await actions.locator('.sdoc-slide-copy-c').nth(1).click();
+    await page.waitForTimeout(80);
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clip).toMatch(/\[\^c1\]:.*tighten the title \(slide 1, element 0/);
   });
 
   test('present comment panel lists the active slide notes', async ({ page }) => {
