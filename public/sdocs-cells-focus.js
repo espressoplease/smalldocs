@@ -192,11 +192,13 @@
     state.modal = null;
     document.body.classList.remove('sdoc-cells-focus-open');
     // Edits mutate the shared model object, so the inline grid only needs a
-    // repaint to reflect them; the app can persist if it wants to.
+    // repaint to reflect them; the app can persist if it wants to. Mark the
+    // wrapper edited BEFORE repainting so the repaint recomputes this sheet
+    // (the once-per-document workbook results no longer match the edited model).
+    if (state.dirty && S.onCellsEdited) { try { S.onCellsEdited(state.model, state.inlineWrapper); } catch (_) {} }
     if (state.dirty && state.inlineWrapper && state.inlineWrapper._cellsRepaint) {
       try { state.inlineWrapper._cellsRepaint(); } catch (_) {}
     }
-    if (state.dirty && S.onCellsEdited) { try { S.onCellsEdited(state.model, state.inlineWrapper); } catch (_) {} }
     state.editApi = null; state.dirty = false; state.inlineWrapper = null; state.model = null;
     if (state.prevFocus && state.prevFocus.focus) { try { state.prevFocus.focus(); } catch (_) {} }
     state.prevFocus = null;
