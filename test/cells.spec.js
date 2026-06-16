@@ -1490,3 +1490,47 @@ test('fullscreen tab strip: cross-tab value resolves on the switched-to tab', as
   await expect(cell).toHaveText('21');
   await expect(cell).not.toHaveClass(/is-formula-error/);
 });
+
+test('inline tabbed pane: cells-tabs front matter collapses tabs into one pane', async ({ page }) => {
+  await loadDoc(page, [
+    '---', 'cells-tabs: tabbed', '---', '',
+    FENCE + 'cells Alpha', 'Name,N', 'a,1', FENCE,
+    '',
+    FENCE + 'cells Beta', 'City,Pop', 'x,10', FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-pane');
+  expect(await page.locator('.sdoc-cells-pane').count()).toBe(1);
+  await expect(page.locator('.sdoc-cells-pane-tab')).toHaveText(['Alpha', 'Beta']);
+  const grids = page.locator('.sdoc-cells-pane .sdoc-cells');
+  await expect(grids.nth(0)).toBeVisible();
+  await expect(grids.nth(1)).toBeHidden();
+  // Switch tabs: visibility and active state follow.
+  await page.locator('.sdoc-cells-pane-tab').nth(1).click();
+  await expect(grids.nth(0)).toBeHidden();
+  await expect(grids.nth(1)).toBeVisible();
+  await expect(page.locator('.sdoc-cells-pane-tab.is-active')).toHaveText('Beta');
+});
+
+test('inline tabbed pane: without the flag, tabs stay stacked', async ({ page }) => {
+  await loadDoc(page, [
+    FENCE + 'cells Alpha', 'a,b', '1,2', FENCE,
+    '',
+    FENCE + 'cells Beta', 'c,d', '3,4', FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-pane').count()).toBe(0);
+  expect(await page.locator('.sdoc-cells-grid').count()).toBe(2);
+});
+
+test('inline tabbed pane: cross-tab values still compute', async ({ page }) => {
+  await loadDoc(page, [
+    '---', 'cells-tabs: tabbed', '---', '',
+    FENCE + 'cells Data', 'Amount', '8', FENCE,
+    '',
+    FENCE + 'cells View', 'Doubled', '=Data!A2*2', FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-pane');
+  await page.locator('.sdoc-cells-pane-tab').nth(1).click();
+  const cell = page.locator('.sdoc-cells-pane .sdoc-cells').nth(1).locator('.sdoc-cells-cell[data-r="1"][data-c="0"]');
+  await expect(cell).toHaveText('16');
+});
