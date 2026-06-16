@@ -143,7 +143,7 @@ test.describe('inline slide comments', () => {
     expect(clip).toMatch(/\[\^c1\]:.*punchier please \(slide 1, element 0 "Q4 Review"\)/);
   });
 
-  test('a commented slide shows both copy triggers above its cards', async ({ page }) => {
+  test('a commented slide shows a single "slide with comments" trigger (no standalone whole-doc pill)', async ({ page }) => {
     await enterCommentMode(page);
     await loadDeck(page);
     // No actions row before any comment exists.
@@ -154,9 +154,10 @@ test.describe('inline slide comments', () => {
     await page.waitForTimeout(120);
     const actions = page.locator('.sdoc-slide-comment-list[data-for="0"] .sdoc-slide-comment-actions');
     await expect(actions).toHaveCount(1);
-    await expect(actions.locator('.sdoc-slide-copy-c')).toHaveCount(2);
+    await expect(actions.locator('.sdoc-slide-copy-c')).toHaveCount(1);
     await expect(actions.locator('.sdoc-slide-copy-c').first()).toContainText('slide with comments');
-    await expect(actions.locator('.sdoc-slide-copy-c').nth(1)).toContainText('with comments');
+    // The whole-doc "with comments" is reached via the heading companion, not a pill here.
+    await expect(actions.locator('.sdoc-slide-copy-c')).not.toContainText('^with comments$');
   });
 
   test('"slide with comments" copies that slide source + its notes', async ({ page }) => {
@@ -176,19 +177,51 @@ test.describe('inline slide comments', () => {
     expect(clip).not.toContain('Thank you');
   });
 
-  test('"with comments" from a slide copies the whole document with comments', async ({ page }) => {
+  test('a commented slide lights up the heading\'s existing "with comments" companion, scoped to that section', async ({ page }) => {
+    const headed = '## Cover\n\n~~~slide\ngrid 100 56.25\nr 8 18 84 14 text=title | Q4 Review\n~~~\n\n'
+      + '## Closing\n\n~~~slide\ngrid 100 56.25\nr 10 10 80 40 | Thank you\n~~~\n';
     await enterCommentMode(page);
-    await loadDeck(page);
-    await page.locator('.sdoc-slide[data-slide-index="1"] .sdoc-slide-comment-btn').click();
-    await page.locator('.sdoc-slide-card.sdoc-card-edit .sdoc-card-input').fill('drop this');
+    await loadDeck(page, headed);
+    // H2 sections render collapsed by default; expand so the slide is visible
+    // and its hit overlays are clickable.
+    await page.evaluate(() => {
+      document.querySelectorAll('.md-section-body').forEach((b) => b.classList.add('open'));
+      document.querySelectorAll('.section-toggle').forEach((t) => t.classList.add('open'));
+    });
+    await page.waitForTimeout(50);
+    // Before any comment, no heading companion exists.
+    await expect(page.locator('.sdoc-head-copy-c')).toHaveCount(0);
+    // Comment the slide under "Cover".
+    await page.locator('.sdoc-slide[data-slide-index="0"] .sdoc-slide-hit[data-shape-idx="0"]').click();
+    await page.locator('.sdoc-slide-card.sdoc-card-edit .sdoc-card-input').fill('punchier title');
     await page.locator('.sdoc-slide-card.sdoc-card-edit .sdoc-card-save').click();
-    await page.waitForTimeout(120);
-    await page.locator('.sdoc-slide-comment-list[data-for="1"] .sdoc-slide-copy-c').nth(1).click();
+    await page.waitForTimeout(150);
+
+    // The "Cover" heading now carries the companion; "Closing" does not.
+    const coverBtn = await page.evaluate(() => {
+      const hs = Array.from(document.querySelectorAll('h2'));
+      const cover = hs.find((h) => h.textContent.includes('Cover'));
+      const closing = hs.find((h) => h.textContent.includes('Closing'));
+      return {
+        coverHas: !!(cover && cover.querySelector('.sdoc-head-copy-c')),
+        closingHas: !!(closing && closing.querySelector('.sdoc-head-copy-c')),
+      };
+    });
+    expect(coverBtn.coverHas).toBe(true);
+    expect(coverBtn.closingHas).toBe(false);
+
+    // Clicking it copies the Cover SECTION with the slide note - not the whole doc.
+    await page.evaluate(() => {
+      const cover = Array.from(document.querySelectorAll('h2')).find((h) => h.textContent.includes('Cover'));
+      cover.querySelector('.sdoc-head-copy-c').click();
+    });
     await page.waitForTimeout(80);
     const clip = await page.evaluate(() => navigator.clipboard.readText());
-    // Whole-doc copy: includes the prose body AND the slide note footnote.
-    expect(clip).toContain('between the slides');
-    expect(clip).toMatch(/\[\^c1\]:.*drop this \(slide 2/);
+    expect(clip).toContain('Q4 Review');
+    expect(clip).toMatch(/\[\^c1\]:.*punchier title \(slide 1, element 0 "Q4 Review"\)/);
+    // Section-scoped: the Closing slide must not leak in.
+    expect(clip).not.toContain('Thank you');
+    expect(clip).not.toContain('Closing');
   });
 
   test('slide comments are not counted as orphaned text comments', async ({ page }) => {
@@ -246,7 +279,7 @@ test.describe('present-mode slide comments', () => {
     expect(cs[0].text).toBe('about the last six months');
   });
 
-  test('present comment panel surfaces the copy-with-comments buttons', async ({ page }) => {
+  test('present comment panel surfaces the "slide with comments" trigger', async ({ page }) => {
     await loadDeck(page);
     await page.locator('.sdoc-slide-present').first().click();
     await page.locator('.sdoc-present-comment-btn').click();
@@ -256,11 +289,13 @@ test.describe('present-mode slide comments', () => {
     await composer.locator('.sdoc-card-save').click();
     await page.waitForTimeout(150);
     const actions = page.locator('.sdoc-present-comment-panel .sdoc-slide-comment-actions');
-    await expect(actions.locator('.sdoc-slide-copy-c')).toHaveCount(2);
-    // The whole-doc "with comments" trigger works from inside present too.
-    await actions.locator('.sdoc-slide-copy-c').nth(1).click();
+    // Present has no headings to host the doc-wide companion, so just the
+    // focused per-slide trigger appears.
+    await expect(actions.locator('.sdoc-slide-copy-c')).toHaveCount(1);
+    await actions.locator('.sdoc-slide-copy-c').first().click();
     await page.waitForTimeout(80);
     const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clip).toContain('Feedback');
     expect(clip).toMatch(/\[\^c1\]:.*tighten the title \(slide 1, element 0/);
   });
 

@@ -1085,6 +1085,14 @@ function extractSectionSource(headingEl) {
       var bEl = findBlockById(c.block, S.renderedEl, c.block_text);
       return bEl && blocksInSection.indexOf(bEl) !== -1;
     }
+    if (c.kind === 'slide' && typeof c.slide === 'number') {
+      // A slide note is in-section when its rendered .sdoc-slide sits inside
+      // the heading's section. .sdoc-slide isn't a TOP_BLOCK_SEL block, so it
+      // never lands in blocksInSection - test containment directly.
+      var slideEl = S.renderedEl && S.renderedEl.querySelector(
+        '.sdoc-slide[data-slide-index="' + c.slide + '"]');
+      return slideElInSection(slideEl, headingEl, level);
+    }
     return false;
   });
   // Preserve other top-level meta (file, styles, etc.) so the copy
@@ -1126,6 +1134,28 @@ function listBlocksInSection(headingEl, level) {
     }
   }
   return out;
+}
+
+// True when a rendered .sdoc-slide element falls inside headingEl's section.
+// H2/H3/H4 are wrapped in .md-section, so containment is a direct test;
+// H1/H5/H6 aren't wrapped, so walk document order to the next same-or-higher
+// heading and check the slide appears before it. Mirrors the two cases in
+// sectionContainsComment.
+function slideElInSection(slideEl, headingEl, level) {
+  if (!slideEl || !headingEl) return false;
+  var section = headingEl.closest('.md-section');
+  if (section) return section.contains(slideEl);
+  if (!S.renderedEl) return false;
+  var all = Array.prototype.slice.call(S.renderedEl.querySelectorAll('*'));
+  var hIdx = all.indexOf(headingEl);
+  var sIdx = all.indexOf(slideEl);
+  if (hIdx === -1 || sIdx === -1 || sIdx <= hIdx) return false;
+  for (var i = hIdx + 1; i < all.length; i++) {
+    if (/^H[1-6]$/.test(all[i].tagName) && parseInt(all[i].tagName[1], 10) <= level) {
+      return sIdx < i;
+    }
+  }
+  return true;
 }
 
 // For each inline comment, compute the occurrence-index of its anchor
@@ -1299,11 +1329,14 @@ function render() {
   // out of the text path so they aren't mistaken for orphaned block comments.
   var textComments = comments.filter(function (c) { return c.kind !== 'slide'; });
   textComments.forEach(function (c) { renderComment(c); });
-  paintHeadingCopyWithComments(textComments);
   paintDescendantCommentHints(textComments);
   paintToolbar();
   // Slide blocks get their own hit-layer + cards (kind:'slide' comments).
+  // Render them BEFORE the heading scan so a slide-only section's heading
+  // still gets the "with comments" companion - a slide note is just another
+  // trigger for the existing per-section copy button.
   if (S.slideComments) S.slideComments.render();
+  paintHeadingCopyWithComments(comments);
 }
 
 // Push the user's pref colour onto <body> as --sdoc-anchor-color so
