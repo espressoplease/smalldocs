@@ -34,6 +34,7 @@ require('./test-cells')(harness);
 require('./test-cells-formula')(harness);
 require('./test-cells-xlsx')(harness);
 require('./test-cells-transclude')(harness);
+require('./test-cells-verify')(harness);
 require('./test-agent-block')(harness);
 require('./test-router')(harness);
 require('./test-update-check')(harness);
