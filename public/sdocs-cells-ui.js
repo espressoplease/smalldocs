@@ -857,10 +857,11 @@
     if (!sheets.length) return;
 
     // Register the workbook so any grid (inline OR the fullscreen overlay) can
-    // resolve cross-tab references against every tab, and recompute live when a
-    // tab is edited. Without this the fullscreen view would only see its own
-    // sheet and every Sheet!A1 reference would read #REF!.
-    S.cellsWorkbook = sheets.map(function (s) { return { name: s.name, model: s.model }; });
+    // resolve cross-tab references against every tab, recompute live when a tab
+    // is edited, and - for the fullscreen tab strip - reach each tab's name,
+    // model, and inline wrapper. Without this the fullscreen view would only
+    // see its own sheet and every Sheet!A1 reference would read #REF!.
+    S.cellsWorkbook = sheets;   // entries: { target, model, rawSrc, name, duplicate, wrapper }
 
     // Pass 2: one workbook recalc over all sheets, then mount each grid with
     // its precomputed result slice (the fast path for the initial inline
@@ -869,18 +870,24 @@
     // than one tab (or a single tab was explicitly named), so an existing
     // single-table doc renders unchanged.
     var FX = window.SDocCellsFormula;
-    var fxGrids = FX ? FX.recalcWorkbook(S.cellsWorkbook) : [];
+    var fxGrids = FX ? FX.recalcWorkbook(workbookSheets(sheets)) : [];
     var multi = sheets.length > 1;
     for (var k = 0; k < sheets.length; k++) {
       var s2 = sheets[k];
       var showCaption = multi || (s2.model.name && String(s2.model.name).trim());
-      mountGrid(s2.target, s2.model, s2.rawSrc, {
+      s2.wrapper = mountGrid(s2.target, s2.model, s2.rawSrc, {
         workbookFx: fxGrids[k] || null,
         sheetName: s2.name,
         showCaption: showCaption,
         duplicate: s2.duplicate,
       });
     }
+  }
+
+  // The {name, model} pairs recalcWorkbook expects, projected from the richer
+  // workbook entries (which also carry target / wrapper / rawSrc).
+  function workbookSheets(entries) {
+    return entries.map(function (s) { return { name: s.name, model: s.model }; });
   }
 
   // Recompute the whole workbook and return THIS model's result grid, found by
@@ -896,7 +903,7 @@
     var idx = -1;
     for (var i = 0; i < wb.length; i++) { if (wb[i].model === model) { idx = i; break; } }
     if (idx < 0) return null;
-    return FX.recalcWorkbook(wb)[idx] || null;
+    return FX.recalcWorkbook(workbookSheets(wb))[idx] || null;
   }
   S.cellsWorkbookFx = cellsWorkbookFx;
 
