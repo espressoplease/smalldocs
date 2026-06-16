@@ -1446,3 +1446,47 @@ test('fullscreen: a cross-tab reference still resolves (not #REF!)', async ({ pa
   await expect(cell).toHaveText('10');
   await expect(cell).not.toHaveClass(/is-formula-error/);
 });
+
+test('fullscreen tab strip: switch between workbook tabs', async ({ page }) => {
+  await loadDoc(page, [
+    FENCE + 'cells Alpha', 'Name,N', 'a,1', 'b,2', FENCE,
+    '',
+    FENCE + 'cells Beta', 'City,Pop', 'x,10', 'y,20', FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await page.locator('.sdoc-cells').nth(0).locator('.sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus-tabs');
+  // The strip lists both tabs; the expanded one is active.
+  await expect(page.locator('.sdoc-cells-focus-tab')).toHaveText(['Alpha', 'Beta']);
+  await expect(page.locator('.sdoc-cells-focus-tab.is-active')).toHaveText('Alpha');
+  await expect(page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="0"][data-c="0"]')).toHaveText('Name');
+  // Click Beta: the strip and the grid both switch.
+  await page.locator('.sdoc-cells-focus-tab').nth(1).click();
+  await expect(page.locator('.sdoc-cells-focus-tab.is-active')).toHaveText('Beta');
+  await expect(page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="0"][data-c="0"]')).toHaveText('City');
+  await expect(page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('10');
+});
+
+test('fullscreen: a single-tab doc has no tab strip', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b', '1,2', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await page.locator('.sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus .sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-focus-tabs').count()).toBe(0);
+});
+
+test('fullscreen tab strip: cross-tab value resolves on the switched-to tab', async ({ page }) => {
+  await loadDoc(page, [
+    FENCE + 'cells Data', 'Amount', '7', FENCE,
+    '',
+    FENCE + 'cells View', 'Tripled', '=Data!A2*3', FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  // Expand Data, then switch to View - its cross-tab formula must resolve (21).
+  await page.locator('.sdoc-cells').nth(0).locator('.sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus-tabs');
+  await page.locator('.sdoc-cells-focus-tab').nth(1).click();
+  const cell = page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="0"]');
+  await expect(cell).toHaveText('21');
+  await expect(cell).not.toHaveClass(/is-formula-error/);
+});
