@@ -900,10 +900,11 @@
     return v === 'tabbed' || v === 'true' || v === 'inline' || v === 'on' || v === 'yes';
   }
 
-  // Collapse the workbook's tabs into a single inline pane: a tab strip on top,
-  // one grid visible at a time. Each grid is a normal inline grid (sort, copy,
-  // expand-to-fullscreen all work); only one is shown. Placed where the first
-  // tab's block sat; the other blocks are removed from the document flow.
+  // Collapse the workbook's tabs into a single inline pane: the grid with a tab
+  // strip along the bottom (Excel / Sheets), one grid visible at a time. Each
+  // grid is a normal inline grid (sort, copy, expand-to-fullscreen all work);
+  // only one is shown. Placed where the first tab's block sat; the other blocks
+  // are removed from the document flow.
   function mountTabbedPane(sheets, fxGrids) {
     var pane = document.createElement('div');
     pane.className = 'sdoc-cells-pane';
@@ -953,8 +954,10 @@
       tabs.push(tab);
     });
 
-    pane.appendChild(strip);
+    // Tabs sit at the BOTTOM, like Excel / Google Sheets: the grid first, the
+    // tab strip under it.
     pane.appendChild(body);
+    pane.appendChild(strip);
 
     // Place the pane where the first tab was; remove the other tab blocks.
     var first = sheets[0].target;
