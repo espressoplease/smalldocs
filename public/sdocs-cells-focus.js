@@ -120,26 +120,31 @@
     /* Bottom tab strip (Excel / Sheets): present only for a multi-tab workbook, */
     /* which adds a fourth grid row under the stage.                             */
     '.sdoc-cells-focus.has-tabs { grid-template-rows: 40px 31px 1fr auto; }',
+    /* Bottom tab strip: a tinted footer with a divider along its top edge. The */
+    /* tabs align to the bottom so the active one can rise to meet the grid.    */
     '.sdoc-cells-focus-tabs {',
-    '  display: flex; align-items: stretch; height: 34px; gap: 1px;',
-    '  padding: 0 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;',
-    '  background: color-mix(in oklab, var(--sdoc-focus-bg, #fff) 92%, var(--sdoc-focus-fg, #1c1917) 8%);',
+    '  display: flex; align-items: flex-end; height: 37px; gap: 3px;',
+    '  padding: 3px 8px 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;',
+    '  background: color-mix(in oklab, var(--sdoc-focus-bg, #fff) 88%, var(--sdoc-focus-fg, #1c1917) 12%);',
     '  border-top: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 14%, transparent);',
     '}',
+    /* A tab shape: rounded outer (bottom) corners, muted when inactive. The   */
+    /* active tab is the sheet surface, raised over the divider, with a green  */
+    /* accent on its free (bottom) edge - the Excel sheet-tab cue.             */
     '.sdoc-cells-focus-tab {',
     '  all: unset; cursor: pointer; display: inline-flex; align-items: center;',
-    '  padding: 0 14px; font-size: 12.5px; white-space: nowrap; flex-shrink: 0;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 60%, var(--sdoc-focus-bg, #fff) 40%);',
-    '  border-top: 2px solid transparent;',
+    '  padding: 6px 16px; font-size: 12.5px; white-space: nowrap; flex-shrink: 0;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 58%, var(--sdoc-focus-bg, #fff) 42%);',
+    '  border-radius: 0 0 5px 5px; border-bottom: 2px solid transparent;',
     '}',
     '.sdoc-cells-focus-tab:hover {',
     '  color: var(--sdoc-focus-fg, #1c1917);',
-    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 5%, transparent);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 7%, transparent);',
     '}',
     '.sdoc-cells-focus-tab.is-active {',
-    '  color: var(--sdoc-focus-fg, #1c1917); font-weight: 600;',
-    '  background: var(--sdoc-focus-bg, #fff);',
-    '  border-top-color: #1e8e3e;',
+    '  margin-top: -1px; color: var(--sdoc-focus-fg, #1c1917); font-weight: 600;',
+    '  background: var(--sdoc-focus-bg, #fff); border-bottom-color: #1e8e3e;',
+    '  box-shadow: 0 1px 3px color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 16%, transparent);',
     '}',
     '.sdoc-cells-focus-tab:focus-visible { outline: 1px solid #3B82F6; outline-offset: -2px; }',
     /* The grid wrapper fills the stage and scrolls both axes; no border / */
