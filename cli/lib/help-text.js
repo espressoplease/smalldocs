@@ -1038,6 +1038,15 @@ MULTIPLE TABS (SHEETS)
   that runs between tabs are all reported as errors (#REF! / #CIRC!), never a
   wrong number or a hang.
 
+  Two ways to view the tabs:
+    - Stacked (default): each tab renders where its block sits, named by a
+      small caption - good for a document with prose between the tabs.
+    - One pane (opt in): expanding ANY tab opens the whole workbook in one
+      window with a tab strip to switch sheets. For an in-document tabbed
+      pane, add  cells-tabs: tabbed  to the document's front matter and the
+      tabs collapse into a single widget (a tab strip + one grid at a time),
+      placed where the first tab sat.
+
 VERIFYING (for agents)
   Check the computed values without a browser:
 
