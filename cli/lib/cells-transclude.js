@@ -22,9 +22,11 @@
 const fs = require('fs');
 const path = require('path');
 
-// A ```cells fenced block (captures leading boundary + body). Tilde fences and
-// inline-data blocks are left untouched.
-const CELLS_BLOCK = /(^|\n)```cells[ \t]*\n([\s\S]*?)\n```/g;
+// A ```cells fenced block (captures leading boundary, optional fence name, and
+// body). The name (```cells Sales) is preserved on the baked block so a tab
+// loaded from a CSV keeps its identity. Tilde fences and inline-data blocks are
+// left untouched.
+const CELLS_BLOCK = /(^|\n)```cells[ \t]*([^\n]*)\n([\s\S]*?)\n```/g;
 const REFERENCE = /^\{\{\s*([^}]+?)\s*\}\}$/;
 // A trailing :range suffix like :B5:J32 or :B5 (a view hint; data is baked in
 // whole regardless, so we just strip it off the path for now).
@@ -34,12 +36,13 @@ function directiveValue(s) {
   return /\s|"/.test(s) ? JSON.stringify(s) : s;
 }
 
-function bakeBlock(boundary, ref, baseDir, readFile, preLines) {
+function bakeBlock(boundary, name, ref, baseDir, readFile, preLines) {
   var range = '';
   var filePath = ref;
   var rm = ref.match(RANGE_SUFFIX);
   if (rm) { range = rm[1]; filePath = ref.slice(0, ref.length - rm[0].length); }
 
+  var fence = '```cells' + (name ? ' ' + name : '');
   var base = path.basename(filePath);
   // Author format: lines (e.g. `format: B=$`) sit before the reference and are
   // preserved verbatim above the baked data.
@@ -48,13 +51,13 @@ function bakeBlock(boundary, ref, baseDir, readFile, preLines) {
   try {
     csv = readFile(path.resolve(baseDir, filePath));
   } catch (e) {
-    return boundary + '```cells\n' + head + 'sdoc-cells: error=' +
+    return boundary + fence + '\n' + head + 'sdoc-cells: error=' +
       directiveValue('Could not read ' + base) + '\n```';
   }
   csv = String(csv).replace(/\s+$/, '');
   var directive = 'sdoc-cells: source=' + directiveValue(base) +
     (range ? ' range=' + range : '');
-  return boundary + '```cells\n' + head + directive + '\n' + csv + '\n```';
+  return boundary + fence + '\n' + head + directive + '\n' + csv + '\n```';
 }
 
 // Replace every {{file.csv}} cells block in `content` with the baked data.
@@ -62,7 +65,7 @@ function bakeBlock(boundary, ref, baseDir, readFile, preLines) {
 function transcludeCells(content, baseDir, readFile) {
   if (typeof content !== 'string' || content.indexOf('```cells') === -1) return content;
   var read = readFile || function (p) { return fs.readFileSync(p, 'utf-8'); };
-  return content.replace(CELLS_BLOCK, function (whole, boundary, body) {
+  return content.replace(CELLS_BLOCK, function (whole, boundary, name, body) {
     // Peel any leading author `format:` lines, then require a sole {{ref}}.
     var lines = body.split('\n');
     var pre = [];
@@ -71,7 +74,7 @@ function transcludeCells(content, baseDir, readFile) {
     var rest = lines.slice(i).join('\n').trim();
     var m = rest.match(REFERENCE);
     if (!m) return whole;                    // inline data - leave alone
-    return bakeBlock(boundary, m[1], baseDir, read, pre);
+    return bakeBlock(boundary, (name || '').trim(), m[1], baseDir, read, pre);
   });
 }
 

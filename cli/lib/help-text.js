@@ -1011,6 +1011,50 @@ FORMULAS
   name), #REF! (bad range), #VALUE! (e.g. text in arithmetic), #CIRC! (a
   circular reference). Formulas recalculate live while you edit.
 
+MULTIPLE TABS (SHEETS)
+  A document can hold several tabs that work together. Each tab is its own
+  \`\`\`cells block; name it in the fence, right after the word cells:
+
+  \`\`\`cells Expenses
+  Category,Jan,Feb,Mar
+  Rent,1200,1200,1200
+  Food,350,400,380
+  Total,=SUM(B2:B3),=SUM(C2:C3),=SUM(D2:D3)
+  \`\`\`
+
+  \`\`\`cells Summary
+  Metric,Value
+  Grand Total,=SUM(Expenses!B4:D4)
+  \`\`\`
+
+  A formula reads another tab with a Sheet!A1 reference: =Expenses!B4 reads
+  cell B4 of the Expenses tab, =SUM(Expenses!B4:D4) sums a range on it. A
+  bare reference (=B4) always means the current tab. Names are
+  case-insensitive; an unnamed block is Sheet1, Sheet2... by order; if two
+  tabs share a name the first one owns it for references.
+
+  Qualified ranges stay within one tab (Expenses!A1:C1). A range that names
+  two different tabs, a reference to a tab that does not exist, and a cycle
+  that runs between tabs are all reported as errors (#REF! / #CIRC!), never a
+  wrong number or a hang.
+
+VERIFYING (for agents)
+  Check the computed values without a browser:
+
+    sdoc cells verify <file.md>            # values of every tab as CSV
+    sdoc cells verify <file.md> --json     # structured, lossless
+    sdoc cells verify <file.md> --sheet Summary   # one tab only
+
+  It runs the SAME engine the page does, so the numbers it prints are the
+  numbers the document will show. Formula cells print their result; an
+  errored cell prints its code (#REF! etc.) in place. The exit code is 0 when
+  every tab computes cleanly and 1 when any cell errors, so an agent can gate
+  on it. Write formulas, run verify, read the values back, fix, repeat.
+
+  The default output banners each tab with "# sheet: <name>". A data row
+  could itself start with that text, so for machine parsing use --json (its
+  per-tab values array is unambiguous).
+
 SORTING
   Hover a column letter: an arrow appears on its right showing what a click
   will do (up = sort ascending, down = descending, x = clear the sort). The
