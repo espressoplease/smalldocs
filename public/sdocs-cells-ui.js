@@ -328,6 +328,9 @@
       if (!orig || orig.error || orig.empty) return;
       editedStash = { cells: model.cells, rows: model.rows, cols: model.cols };
       model.cells = orig.cells; model.rows = orig.rows; model.cols = orig.cols;
+      // The model now holds the original data, so the workbook results match
+      // again - cross-tab values come back.
+      wrapper._cellsModelOriginal = true;
       setPillState();
       repaintFresh();
     };
@@ -336,12 +339,14 @@
       if (!editedStash) return;
       model.cells = editedStash.cells; model.rows = editedStash.rows; model.cols = editedStash.cols;
       editedStash = null;
+      wrapper._cellsModelOriginal = false;   // edited data: recompute this sheet
       setPillState();
       repaintFresh();
     };
     // Called (via S.onCellsEdited) when the fullscreen editor closes dirty.
     wrapper._cellsMarkEdited = function () {
       pill.style.display = '';
+      wrapper._cellsModelOriginal = false;   // the live model now differs from parse
       setPillState();
     };
     pill.addEventListener('click', function () {
@@ -497,10 +502,14 @@
       // SOURCE row.
       // Prefer the workbook-wide results computed once across all tabs (so a
       // cross-tab ref like Sales!A1 has a value here). It is indexed by source
-      // row, so it survives a sort. Fall back to a single-sheet recalc for the
-      // fullscreen / editor path, which has no workbook context.
+      // row, so it survives a sort. It is valid only while the model is in its
+      // original parsed state: a fullscreen edit mutates the model, so once
+      // edited we recompute this sheet on its own (cross-tab refs then resolve
+      // only when the whole document re-renders). _cellsModelOriginal is unset
+      // (=> original) until the first edit; the edited/original pill flips it.
       var FX = window.SDocCellsFormula;
-      var fx = opts.workbookFx || (FX ? FX.recalc(model) : null);
+      var canUseWorkbook = opts.workbookFx && wrapper._cellsModelOriginal !== false;
+      var fx = canUseWorkbook ? opts.workbookFx : (FX ? FX.recalc(model) : null);
       wrapper._cellsFx = fx;
       var vm = model;
       var order = null;

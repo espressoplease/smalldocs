@@ -1355,3 +1355,78 @@ test('xlsx export: a sorted view still exports in document order', async ({ page
   const s = fsMod.readFileSync(await download.path()).toString('latin1');
   expect(s.indexOf('Zebra')).toBeLessThan(s.indexOf('Apple'));
 });
+
+// ── Multiple tabs (deeper sheets) ─────────────────────────
+// Several ```cells blocks form one workbook: a formula in one tab can read a
+// cell in another with a Sheet!A1 reference, the name shows as a caption, and
+// the single-block case is unchanged.
+
+test('two named tabs render and a cross-tab formula shows the other tab value', async ({ page }) => {
+  await loadDoc(page, [
+    FENCE + 'cells Expenses', 'Category,Jan', 'Rent,1200', 'Total,=SUM(B2:B2)', FENCE,
+    '',
+    FENCE + 'cells Summary', 'Metric,Value', 'Grand,=Expenses!B3', FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-grid').count()).toBe(2);
+  // Expenses!B3 is the Total (=SUM(B2:B2) = 1200); the Summary tab reads it.
+  const summary = page.locator('.sdoc-cells').nth(1);
+  const grand = summary.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]');
+  await expect(grand).toHaveText('1,200');   // computed cross-tab, display-formatted
+  await expect(grand).toHaveClass(/is-formula/);
+});
+
+test('a tab name renders as a caption (textContent)', async ({ page }) => {
+  await loadDoc(page, [
+    FENCE + 'cells Expenses', 'a,b', '1,2', FENCE,
+    '',
+    FENCE + 'cells Summary', 'a,b', '3,4', FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-caption');
+  expect(await page.locator('.sdoc-cells-caption').allInnerTexts()).toEqual(['Expenses', 'Summary']);
+});
+
+test('a single unnamed block shows no caption (back-compat)', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'a,b', '1,2', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-caption').count()).toBe(0);
+});
+
+test('a cross-sheet cycle renders #CIRC! in both tabs without hanging', async ({ page }) => {
+  await loadDoc(page, [
+    FENCE + 'cells A', '=B!A1', FENCE,
+    '',
+    FENCE + 'cells B', '=A!A1', FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const a = page.locator('.sdoc-cells').nth(0).locator('.sdoc-cells-cell[data-r="0"][data-c="0"]');
+  const b = page.locator('.sdoc-cells').nth(1).locator('.sdoc-cells-cell[data-r="0"][data-c="0"]');
+  await expect(a).toHaveText('#CIRC!');
+  await expect(b).toHaveText('#CIRC!');
+  await expect(a).toHaveClass(/is-formula-error/);
+});
+
+test('a tab name with markup is painted as text, never executed', async ({ page }) => {
+  let dialog = false;
+  page.on('dialog', (d) => { dialog = true; d.dismiss(); });
+  await loadDoc(page, [
+    FENCE + 'cells <img src=x onerror=alert(1)>', 'a,b', '1,2', FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-caption');
+  await page.waitForTimeout(150);
+  const cap = page.locator('.sdoc-cells-caption');
+  expect(await cap.locator('img').count()).toBe(0);
+  expect(dialog).toBe(false);
+  expect(await cap.innerText()).toContain('<img');
+});
+
+test('the per-document block cap still holds across named tabs', async ({ page }) => {
+  const blocks = [];
+  for (let i = 0; i < 55; i++) {
+    blocks.push(FENCE + 'cells Tab' + i, 'a,b', String(i) + ',' + String(i + 1), FENCE, '');
+  }
+  await loadDoc(page, blocks.join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  // DOC_BLOCK_CAP = 50: no more than 50 grids render even with 55 tabs.
+  expect(await page.locator('.sdoc-cells-grid').count()).toBe(50);
+});
