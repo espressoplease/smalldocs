@@ -299,6 +299,28 @@ test.describe('present-mode slide comments', () => {
     expect(clip).toMatch(/\[\^c1\]:.*tighten the title \(slide 1, element 0/);
   });
 
+  test('hit overlays align with their shapes immediately after the panel opens (no flick needed)', async ({ page }) => {
+    await loadDeck(page);
+    await page.locator('.sdoc-slide-present').first().click();
+    await page.waitForTimeout(200);
+    // Opening the panel narrows the stage; the overlay must re-fit, not keep
+    // the pre-panel height. Measure overlay-vs-shape without any slide flip.
+    await page.locator('.sdoc-present-comment-btn').click();
+    await page.waitForTimeout(250);
+    const delta = await page.evaluate(() => {
+      const hit = document.querySelector('.sdoc-present-stage .sdoc-slide-hit[data-shape-idx="1"]');
+      const shape = document.querySelector('.sdoc-present-stage .sd-shape-stage [data-shape-idx="1"]');
+      if (!hit || !shape) return null;
+      const a = hit.getBoundingClientRect(), b = shape.getBoundingClientRect();
+      return { dx: Math.abs(a.left - b.left), dy: Math.abs(a.top - b.top), dw: Math.abs(a.width - b.width), dh: Math.abs(a.height - b.height) };
+    });
+    expect(delta).not.toBeNull();
+    expect(delta.dx).toBeLessThanOrEqual(2);
+    expect(delta.dy).toBeLessThanOrEqual(2);
+    expect(delta.dw).toBeLessThanOrEqual(2);
+    expect(delta.dh).toBeLessThanOrEqual(2);
+  });
+
   test('present comment panel lists the active slide notes', async ({ page }) => {
     await loadDeck(page);
     await page.locator('.sdoc-slide-present').first().click();

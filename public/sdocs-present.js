@@ -712,6 +712,12 @@ window.SDocPresent = {
   close: close,
   go: go,
   refresh: refresh,
+  // Re-fit the active stage to its current wrap width. Called when the
+  // comment panel opens/closes, which changes the stage area: without a
+  // refit the stage keeps a height computed for the old width and the
+  // comment hit-layer (sized as % of the stage) misaligns until the next
+  // slide change re-runs sizeStage.
+  refit: function () { sizeStage(); },
 };
 
 })();
