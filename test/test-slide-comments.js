@@ -57,6 +57,71 @@ module.exports = function (harness) {
     assert.strictEqual(SDSC.shapeText({ content: '' }), '');
   });
 
+  test('computeHitRects: text-bearing shape labels with its text; text-less falls back to kind + ordinal', () => {
+    // Two diagonal arrows (text-less) + a labelled box.
+    const rects = SDSC.computeHitRects(
+      'grid 100 50\nr 0 0 40 10 | Title\na 10 20 40 35\na 10 30 60 45', SDShapes);
+    const byIdx = {};
+    rects.forEach((r) => { byIdx[r.shapeIdx] = r.label; });
+    assert.strictEqual(byIdx[0], 'Title');
+    assert.strictEqual(byIdx[1], '1st arrow');
+    assert.strictEqual(byIdx[2], '2nd arrow');
+  });
+
+  test('computeHitRects: thin line/arrow still gets a clickable overlay (min thickness)', () => {
+    // A purely horizontal arrow has zero-height bbox; it must still appear.
+    const rects = SDSC.computeHitRects('grid 100 50\na 10 25 40 25', SDShapes);
+    const arrow = rects.find((r) => r.shapeIdx === 0);
+    assert.ok(arrow, 'thin arrow overlay present');
+    assert.ok(arrow.hPct > 0, 'overlay has non-zero height: ' + arrow.hPct);
+  });
+
+  // ── Multi-element (shapes array) ─────────────────────────────────────────
+
+  test('normalizeComment: shapes array is kept for multi; single collapses to shape', () => {
+    const multi = SDC.normalizeComment({ id: 'c1', kind: 'slide', slide: 0, shapes: [1, 3] });
+    assert.deepStrictEqual(multi.shapes, [1, 3]);
+    assert.ok(!('shape' in multi));
+    const single = SDC.normalizeComment({ id: 'c2', kind: 'slide', slide: 0, shapes: [2] });
+    assert.strictEqual(single.shape, 2);
+    assert.ok(!('shapes' in single));
+  });
+
+  test('addSlideComment: stores a multi-element shapes array', () => {
+    const { meta } = SDC.addSlideComment({}, { slide: 1, shapes: [1, 2], slide_text: 'Wins + Risks' }, { text: 'balance these' });
+    const c = SDC.getComments(meta)[0];
+    assert.deepStrictEqual(c.shapes, [1, 2]);
+    assert.strictEqual(c.slide_text, 'Wins + Risks');
+  });
+
+  test('serializeFootnotes: multi-element note lists indices joined with + and one quote', () => {
+    const meta = { comments: [
+      SDC.normalizeComment({ id: 'c1', kind: 'slide', slide: 1, shapes: [1, 3], slide_text: 'Wins + Risks', text: 'balance these' }),
+    ] };
+    const out = SDC.serializeFootnotes(meta, 'body\n');
+    assert.ok(/\[\^c1\]: user - balance these \(slide 2, elements 1\+3 "Wins \+ Risks"\)/.test(out), out);
+  });
+
+  test('parseFootnotes: recovers a multi-element note', () => {
+    const body = 'b\n\n[^c1]: amy - balance these (slide 2, elements 1+3 "Wins + Risks")\n';
+    const c = SDC.parseFootnotes(body).comments[0];
+    assert.strictEqual(c.kind, 'slide');
+    assert.strictEqual(c.slide, 1);
+    assert.deepStrictEqual(c.shapes, [1, 3]);
+    assert.strictEqual(c.slide_text, 'Wins + Risks');
+    assert.strictEqual(c.text, 'balance these');
+  });
+
+  test('round-trip: multi-element note survives serialize -> parse', () => {
+    const meta = { comments: [
+      SDC.normalizeComment({ id: 'c1', kind: 'slide', slide: 0, shapes: [0, 2, 4], slide_text: 'A + B + C', author: 'sam', text: 'unify' }),
+    ] };
+    const c = SDC.parseFootnotes(SDC.serializeFootnotes(meta, 'doc\n')).comments[0];
+    assert.deepStrictEqual(c.shapes, [0, 2, 4]);
+    assert.strictEqual(c.slide_text, 'A + B + C');
+    assert.strictEqual(c.text, 'unify');
+  });
+
   test('normalizeComment: infers slide kind from a slide index', () => {
     const c = SDC.normalizeComment({ id: 'c1', slide: 2 });
     assert.strictEqual(c.kind, 'slide');
