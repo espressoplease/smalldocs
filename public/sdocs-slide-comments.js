@@ -88,6 +88,8 @@ var COMMENT_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" 
 var TICK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 var X_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 var TRASH_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+// Same copy glyph the heading / toolbar "with comments" buttons use.
+var COPY_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 
 function prefs() {
   var ui = S() && S().commentsUi;
@@ -315,6 +317,67 @@ function buildLayer(ctx) {
   renderCardList(ctx, comments);
 }
 
+function flashTick(btn) {
+  var ui = S() && S().commentsUi;
+  if (ui && ui.flashCopyTick) { ui.flashCopyTick(btn); return; }
+}
+
+// Copy just this slide: its source fenced block plus its own notes, formatted
+// the same way as the doc-wide copy so it pastes into a model as focused
+// feedback ("here is the slide and what to change about it").
+function copySlideWithComments(ctx, btn) {
+  var sdc = SDC();
+  if (!sdc) return;
+  var meta = (S() && S().currentMeta) || {};
+  var comments = slideComments(ctx.slideIndex);
+  var miniMeta = Object.assign({}, meta, { comments: comments });
+  var body = '~~~slide\n' + (ctx.dsl || '').replace(/\s+$/, '') + '\n~~~\n';
+  var file = meta && typeof meta.file === 'string' ? meta.file : '';
+  var header = (file ? 'Feedback on ' + file + ' ' : 'Feedback on ') + 'slide ' + (ctx.slideIndex + 1) + ':';
+  var payload = header + '\n\n' + sdc.serializeFootnotes(miniMeta, body);
+  if (!navigator.clipboard || !navigator.clipboard.writeText) return;
+  navigator.clipboard.writeText(payload).then(function () {
+    flashTick(btn);
+    if (S().setStatus) S().setStatus('Copied slide (with comments)');
+  }).catch(function () {});
+}
+
+function copyBtn(label, title, onClick) {
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'sdoc-copy-with-c sdoc-slide-copy-c';
+  b.title = title;
+  b.setAttribute('aria-label', title);
+  b.innerHTML = COPY_SVG + '<span class="sdoc-copy-with-c-label">' + label + '</span>';
+  b.addEventListener('click', function (e) { e.stopPropagation(); onClick(b); });
+  return b;
+}
+
+// The two copy triggers that appear once a slide carries a note:
+//   "slide with comments" - this slide's source + its notes (new).
+//   "with comments"       - the whole doc with comments, reusing the exact
+//                           comment-mode path (a slide note is just another
+//                           place to trigger it).
+function buildSlideActions(ctx) {
+  var row = document.createElement('div');
+  row.className = 'sdoc-slide-comment-actions';
+
+  row.appendChild(copyBtn('slide with comments',
+    'Copy this slide and its comments', function (btn) {
+      copySlideWithComments(ctx, btn);
+    }));
+
+  row.appendChild(copyBtn('with comments',
+    'Copy the whole document with its comments', function (btn) {
+      var ui = S() && S().commentsUi;
+      if (ui && ui.copyWithComments) {
+        ui.copyWithComments(null, true, {}).then(function (ok) { if (ok) flashTick(btn); });
+      }
+    }));
+
+  return row;
+}
+
 function renderCardList(ctx, comments) {
   if (!ctx.cardParent) return;
   var existing = ctx.cardParent.querySelector(':scope > .sdoc-slide-comment-list[data-for="' + ctx.slideIndex + '"]');
@@ -323,6 +386,8 @@ function renderCardList(ctx, comments) {
   var list = document.createElement('div');
   list.className = 'sdoc-slide-comment-list';
   list.setAttribute('data-for', String(ctx.slideIndex));
+  // Copy actions sit above the cards.
+  list.appendChild(buildSlideActions(ctx));
   comments.forEach(function (c, i) {
     list.appendChild(makeSlideCard(c, i + 1, ctx));
   });

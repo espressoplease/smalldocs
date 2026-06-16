@@ -1395,6 +1395,10 @@ S.commentsUi = {
   focusComment: focusComment,
   readPrefs: readPrefs,
   writePrefs: writePrefs,
+  // Exposed so sdocs-slide-comments.js can reuse the exact same whole-doc /
+  // section copy-with-comments path (a slide note is just another trigger).
+  copyWithComments: copyWithComments,
+  flashCopyTick: flashCopyTick,
   // Exposed for tests.
   _computeBlockId: computeBlockId,
   _findBlockById: findBlockById,
