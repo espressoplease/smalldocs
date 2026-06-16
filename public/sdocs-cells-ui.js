@@ -500,16 +500,23 @@
       // (evaluating against a sorted view would point refs at the wrong rows
       // and turn self-overlapping ranges into #CIRC!). fx is indexed by
       // SOURCE row.
-      // Prefer the workbook-wide results computed once across all tabs (so a
-      // cross-tab ref like Sales!A1 has a value here). It is indexed by source
-      // row, so it survives a sort. It is valid only while the model is in its
-      // original parsed state: a fullscreen edit mutates the model, so once
-      // edited we recompute this sheet on its own (cross-tab refs then resolve
-      // only when the whole document re-renders). _cellsModelOriginal is unset
-      // (=> original) until the first edit; the edited/original pill flips it.
+      // Formula results, indexed by SOURCE row. Three sources, in order:
+      //  1. The precomputed workbook slice (opts.workbookFx) - the fast path for
+      //     the initial inline render and sorts, valid while the model is in its
+      //     original parsed state (_cellsModelOriginal unset until the first edit).
+      //  2. A fresh whole-workbook recompute (S.cellsWorkbookFx) - used by the
+      //     fullscreen overlay and by any repaint after an edit, so a cross-tab
+      //     ref resolves against the other tabs (and reflects the live edit).
+      //  3. A single-sheet recalc - the fallback for a grid outside any workbook.
       var FX = window.SDocCellsFormula;
-      var canUseWorkbook = opts.workbookFx && wrapper._cellsModelOriginal !== false;
-      var fx = canUseWorkbook ? opts.workbookFx : (FX ? FX.recalc(model) : null);
+      var fx;
+      if (opts.workbookFx && wrapper._cellsModelOriginal !== false) {
+        fx = opts.workbookFx;
+      } else if (S.cellsWorkbookFx) {
+        fx = S.cellsWorkbookFx(model) || (FX ? FX.recalc(model) : null);
+      } else {
+        fx = FX ? FX.recalc(model) : null;
+      }
       wrapper._cellsFx = fx;
       var vm = model;
       var order = null;
@@ -849,14 +856,20 @@
     }
     if (!sheets.length) return;
 
+    // Register the workbook so any grid (inline OR the fullscreen overlay) can
+    // resolve cross-tab references against every tab, and recompute live when a
+    // tab is edited. Without this the fullscreen view would only see its own
+    // sheet and every Sheet!A1 reference would read #REF!.
+    S.cellsWorkbook = sheets.map(function (s) { return { name: s.name, model: s.model }; });
+
     // Pass 2: one workbook recalc over all sheets, then mount each grid with
-    // its precomputed result slice. The caption shows only when the workbook
-    // has more than one tab (or a single tab was explicitly named), so an
-    // existing single-table doc renders unchanged.
+    // its precomputed result slice (the fast path for the initial inline
+    // render; fullscreen and post-edit repaints recompute fresh via
+    // S.cellsWorkbookFx). The caption shows only when the workbook has more
+    // than one tab (or a single tab was explicitly named), so an existing
+    // single-table doc renders unchanged.
     var FX = window.SDocCellsFormula;
-    var fxGrids = FX ? FX.recalcWorkbook(sheets.map(function (s) {
-      return { name: s.name, model: s.model };
-    })) : [];
+    var fxGrids = FX ? FX.recalcWorkbook(S.cellsWorkbook) : [];
     var multi = sheets.length > 1;
     for (var k = 0; k < sheets.length; k++) {
       var s2 = sheets[k];
@@ -869,6 +882,23 @@
       });
     }
   }
+
+  // Recompute the whole workbook and return THIS model's result grid, found by
+  // object identity in the registered workbook. Used by the fullscreen view and
+  // post-edit repaints so a cross-tab reference resolves against the live state
+  // of the other tabs (including any in-progress edit to this one). Returns null
+  // when the model is not part of a registered workbook (a standalone grid), so
+  // the caller falls back to a single-sheet recalc.
+  function cellsWorkbookFx(model) {
+    var FX = window.SDocCellsFormula;
+    var wb = S.cellsWorkbook;
+    if (!FX || !wb || !wb.length) return null;
+    var idx = -1;
+    for (var i = 0; i < wb.length; i++) { if (wb[i].model === model) { idx = i; break; } }
+    if (idx < 0) return null;
+    return FX.recalcWorkbook(wb)[idx] || null;
+  }
+  S.cellsWorkbookFx = cellsWorkbookFx;
 
   // Short numeric display for stats - round to a few decimals, drop trailing
   // zeros, then add thousands separators (same helper the cells use, so the

@@ -1430,3 +1430,19 @@ test('the per-document block cap still holds across named tabs', async ({ page }
   // DOC_BLOCK_CAP = 50: no more than 50 grids render even with 55 tabs.
   expect(await page.locator('.sdoc-cells-grid').count()).toBe(50);
 });
+
+test('fullscreen: a cross-tab reference still resolves (not #REF!)', async ({ page }) => {
+  await loadDoc(page, [
+    FENCE + 'cells Data', 'Amount', '5', FENCE,
+    '',
+    FENCE + 'cells View', 'Doubled', '=Data!A2*2', FENCE,
+  ].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  // Inline already resolves; expanding the View tab must keep the cross-tab
+  // value, not fall back to a single-sheet recalc (which would show #REF!).
+  await page.locator('.sdoc-cells').nth(1).locator('.sdoc-cells-expand').click();
+  await page.waitForSelector('.sdoc-cells-focus .sdoc-cells-grid');
+  const cell = page.locator('.sdoc-cells-focus .sdoc-cells-cell[data-r="1"][data-c="0"]');
+  await expect(cell).toHaveText('10');
+  await expect(cell).not.toHaveClass(/is-formula-error/);
+});
