@@ -31,6 +31,7 @@ const styles      = require('../lib/styles');
 const io          = require('../lib/io');
 const helpText    = require('../lib/help-text');
 const commands    = require('../lib/commands');
+const cellsVerify = require('../lib/cells-verify');
 const bridgeCommands = require('../lib/bridge-commands');
 const libraryCommands = require('../lib/library-commands');
 
@@ -46,7 +47,13 @@ function buildRouter() {
   r.register('schema',   { handler: () => { console.log(helpText.SCHEMA);        process.exit(0); } });
   r.register('charts',   { handler: () => { console.log(helpText.CHARTS_HELP);   process.exit(0); } });
   r.register('diagrams', { handler: () => { console.log(helpText.DIAGRAMS_HELP); process.exit(0); } });
-  r.register('cells',    { handler: () => { console.log(helpText.CELLS_HELP);    process.exit(0); } });
+  // `sdoc cells` prints the reference; `sdoc cells verify <file>` evaluates a
+  // document's tabs headlessly and prints the computed values (the handler
+  // calls process.exit with the 0/1/2 result code).
+  r.register('cells',    { handler: (opts) => {
+    if ((opts.file || '').toLowerCase() === 'verify') return cellsVerify.cellsVerifyCommand(opts);
+    console.log(helpText.CELLS_HELP); process.exit(0);
+  } });
   r.register('comments', { handler: () => { console.log(helpText.COMMENTS_HELP); process.exit(0); } });
 
   // Setup / refresh / auto-update.

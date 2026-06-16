@@ -44,6 +44,7 @@ function parseArgs(argv) {
   let helpFlag = false;
   let yesFlag = false;
   let dryRunFlag = false;
+  let sheetName = null;
   const addTags = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -95,6 +96,7 @@ function parseArgs(argv) {
     if (arg === '--tags')                            { tagsFlag         = true; continue; }
     if (arg === '--yes' || arg === '-y')             { yesFlag          = true; continue; }
     if (arg === '--dry-run')                         { dryRunFlag       = true; continue; }
+    if (arg === '--sheet')                           { sheetName        = args[++i]; continue; }
 
     if (!subcommand && SUBCOMMANDS.has(arg)) {
       subcommand = arg;
@@ -117,7 +119,7 @@ function parseArgs(argv) {
     resetFlag, shortFlag, jsonFlag, auditFlag, waitFlag,
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,
-    tagsFlag, helpFlag, yesFlag, dryRunFlag,
+    tagsFlag, helpFlag, yesFlag, dryRunFlag, sheetName,
     addTags,
   };
 }
