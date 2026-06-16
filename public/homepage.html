@@ -200,8 +200,28 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   color: var(--ink-2);
   font-weight: 400;
 }
-.hero-cta {
+/* "Read a SmallDoc": the quiet white pill (the GitHub button's first
+   palette), on its own line above the CTA pair. */
+.btn-read {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   margin-top: 20px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: var(--white);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.btn-read:hover { background: #EFEBE5; border-color: #C9C2B8; color: var(--ink); }
+
+.hero-cta {
+  margin-top: 14px;
   display: flex;
   gap: 20px;
 }
@@ -709,6 +729,7 @@ footer {
     <h1 class="hero-display">The document format as intelligent as your agents</h1>
     <p class="lead">
       A SmallDoc is a new kind of document. They're written by the agents you already use. Developers, scientists and analysts who work agentically use them to go deeper, think clearer and collaborate faster.</p>
+    <a class="btn-read" href="/blogs/what-is-a-smalldoc">Read a SmallDoc</a>
     <div class="hero-cta">
       <a class="btn btn-secondary" href="#install">
         Free for personal use
