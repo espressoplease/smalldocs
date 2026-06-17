@@ -13,7 +13,7 @@ The CLI links here whenever it updates an existing block. Each entry shows the
 exact text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
-## v11 (1.13.0, unreleased)
+## v11 (1.13.1, unreleased)
 
 **Reason:** Notes that cells blocks can be multi-tab. Naming a block
 (```cells Expenses) builds a workbook of several sheets whose formulas
