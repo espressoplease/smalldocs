@@ -513,6 +513,18 @@ foreignObject span { line-height: normal; }
   margin: 1.2em 0;
   font-size: 0.92em;
 }
+/* Wide tables on a narrow screen: scroll the table on its own instead of
+   widening the page. The wrapper is page-width, the table stays width:100% so
+   it compresses exactly as before; only once columns hit their min-content and
+   the table can't shrink further does it overflow the wrapper and scroll.
+   sdocs-app.js wraps each rendered table in this container after render. */
+:is(#_sd_rendered, #_sd_write) .md-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  margin: 1.2em 0;
+}
+:is(#_sd_rendered, #_sd_write) .md-table-scroll > table { margin: 0; }
 :is(#_sd_rendered, #_sd_write) th, :is(#_sd_rendered, #_sd_write) td {
   border: 1px solid var(--md-table-border);
   padding: 7px 12px;
