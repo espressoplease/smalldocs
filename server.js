@@ -652,7 +652,7 @@ const server = http.createServer((req, res) => {
     : null;
   // The /s/<id> id range stays {1,32} so links minted before the id-length
   // bump (8 chars) and after it (22 chars) both serve the app shell.
-  if (pathname === '/' || pathname === '/new' || pathname === '/legal' || pathname === '/privacy' || pathname === '/agent-changes' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  if (pathname === '/' || pathname === '/new' || pathname === '/legal' || pathname === '/privacy' || pathname === '/agent-changes' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     const nonce = crypto.randomBytes(16).toString('base64');
     const defaultMdPath = pathname === '/legal'
       ? '/public/legal.md'
@@ -660,9 +660,11 @@ const server = http.createServer((req, res) => {
         ? '/public/privacy.md'
         : pathname === '/agent-changes'
           ? '/public/agent-changes.md'
-          : blogSlug
-            ? '/public/blogs/' + blogSlug + '.md'
-            : '/public/sdoc.md';
+          : pathname === '/upgrade'
+            ? '/public/upgrade.md'
+            : blogSlug
+              ? '/public/blogs/' + blogSlug + '.md'
+              : '/public/sdoc.md';
     const csp = [
       "default-src 'self'",
       "script-src 'self' 'nonce-" + nonce + "' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
