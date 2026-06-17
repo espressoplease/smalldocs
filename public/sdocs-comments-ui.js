@@ -1294,10 +1294,16 @@ function render() {
   var comments = SDC.getComments(S.currentMeta)
     .map(SDC.normalizeComment)
     .filter(function (c) { return c !== null; });
-  comments.forEach(function (c) { renderComment(c); });
-  paintHeadingCopyWithComments(comments);
-  paintDescendantCommentHints(comments);
+  // Slide-anchored comments don't live in body text - sdocs-slide-comments.js
+  // owns their rendering (hit-layer overlays + cards on the slide). Keep them
+  // out of the text path so they aren't mistaken for orphaned block comments.
+  var textComments = comments.filter(function (c) { return c.kind !== 'slide'; });
+  textComments.forEach(function (c) { renderComment(c); });
+  paintHeadingCopyWithComments(textComments);
+  paintDescendantCommentHints(textComments);
   paintToolbar();
+  // Slide blocks get their own hit-layer + cards (kind:'slide' comments).
+  if (S.slideComments) S.slideComments.render();
 }
 
 // Push the user's pref colour onto <body> as --sdoc-anchor-color so
@@ -1320,6 +1326,7 @@ function exit() {
   hideSelectionPopover();
   hideComposer();
   strip();
+  if (S.slideComments) S.slideComments.exit();
   focusedId = null;
   document.body.style.removeProperty('--sdoc-anchor-color');
 }

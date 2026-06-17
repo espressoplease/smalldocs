@@ -389,6 +389,12 @@ function renderActive() {
     var copyNum = state.copyBtn.querySelector('.sdoc-present-copy-num');
     if (copyNum) copyNum.textContent = 'slide ' + (state.index + 1);
   }
+
+  // Let slide-comment mode rebuild its hit-layer + panel against the freshly
+  // rendered stage (no-op unless commenting is toggled on).
+  if (window.SDocSlideComments && window.SDocSlideComments.onPresentRender) {
+    window.SDocSlideComments.onPresentRender(state.modal, state.index, dsl);
+  }
 }
 
 function onKey(e) {
@@ -511,6 +517,31 @@ function open(startIndex) {
   copyBtn.addEventListener('click', function (e) { e.stopPropagation(); copyCurrentSlideText(); });
   actions.appendChild(copyBtn);
 
+  // Comment toggle: turns on the hit-layer + comment panel for the active
+  // slide so a deck can be marked up while presenting. State + overlay are
+  // owned by SDocSlideComments; this button just flips it and reflects the
+  // active class. Only shown when the slide-comments module is present.
+  var commentBtn = null;
+  if (window.SDocSlideComments) {
+    commentBtn = document.createElement('button');
+    commentBtn.className = 'sdoc-present-btn sdoc-present-comment-btn';
+    commentBtn.type = 'button';
+    commentBtn.setAttribute('aria-label', 'Comment on slides');
+    commentBtn.title = 'Comment on slides';
+    commentBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+      + '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
+    commentBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      window.SDocSlideComments.presentToggle(commentBtn);
+    });
+    actions.appendChild(commentBtn);
+    state.commentBtn = commentBtn;
+
+    var sepC = document.createElement('span');
+    sepC.className = 'sdoc-present-sep';
+    actions.appendChild(sepC);
+  }
+
   var exportBtn = document.createElement('button');
   exportBtn.className = 'sdoc-present-btn sdoc-present-export-btn';
   exportBtn.type = 'button';
@@ -586,6 +617,9 @@ function close() {
   window.removeEventListener('keydown', onKey);
   if (state.sizer) window.removeEventListener('resize', state.sizer);
   state.sizer = null;
+  if (window.SDocSlideComments && window.SDocSlideComments.presentTeardown) {
+    window.SDocSlideComments.presentTeardown();
+  }
   closeExportPanel();
   if (state.expPanel && state.expPanel.parentNode) state.expPanel.parentNode.removeChild(state.expPanel);
   state.expPanel = null;
