@@ -136,6 +136,15 @@ var CSS = [
   '  grid-row: 2;',
   '  display: flex; align-items: center; justify-content: center;',
   '  padding: 32px; overflow: hidden; position: relative;',
+  '  transition: padding .2s ease-out;',
+  '}',
+  /* When the export panel is open, the stage leaves room on the right so the */
+  /* panel pushes the slide aside instead of overlaying it - mirrors the */
+  /* comment panel\'s padding-right trick (slide-comments.css). 260px panel + */
+  /* a 12px gutter. The padding transition matches the panel slide-in so the */
+  /* slide and panel move together. */
+  '.sdoc-present.sdoc-present-exporting .sdoc-present-stage-wrap {',
+  '  padding-right: 272px;',
   '}',
   /* Present-mode stage sits outside #_sd_rendered, so the doc\'s --md-* */
   /* vars don\'t reach it via normal cascade. We copy the relevant vars */
@@ -151,6 +160,17 @@ var CSS = [
   '  .sdoc-present { grid-template-columns: 1fr; }',
   '  .sdoc-present-rail { display: none; }',
   '  .sdoc-present-stage-wrap { padding: 16px; }',
+  /* On a phone the panel becomes a bottom sheet (full width, slides up) and */
+  /* the stage makes room below itself, matching the comment panel. */
+  '  .sdoc-present-exp-panel {',
+  '    top: auto; width: 100%; height: 48%;',
+  '    border-left: none; border-top: 1px solid #2a2724;',
+  '    transform: translateY(100%);',
+  '  }',
+  '  .sdoc-present-exp-panel.open { transform: translateY(0); }',
+  '  .sdoc-present.sdoc-present-exporting .sdoc-present-stage-wrap {',
+  '    padding: 16px 16px 50%;',
+  '  }',
   '  .sdoc-present-topbar { gap: 10px; }',
   /* Tighter: swap "SmallDocs Slides" for "SDoc Slides". */
   '  .sdoc-present-brand { margin-right: 0; }',
@@ -250,6 +270,8 @@ function toggleExportPanel() {
 function openExportPanel() {
   if (!state.expPanel) return;
   state.expPanel.classList.add('open');
+  // Push the stage aside (vs overlaying it) while the panel is open.
+  if (state.modal) state.modal.classList.add('sdoc-present-exporting');
   if (state.expBtn) state.expBtn.classList.add('active');
   state.outsideClose = function (e) {
     if (state.expPanel && state.expPanel.contains(e.target)) return;
@@ -265,6 +287,7 @@ function openExportPanel() {
 function closeExportPanel() {
   if (!state.expPanel) return;
   state.expPanel.classList.remove('open');
+  if (state.modal) state.modal.classList.remove('sdoc-present-exporting');
   if (state.expBtn) state.expBtn.classList.remove('active');
   if (state.outsideClose) {
     document.removeEventListener('click', state.outsideClose);

@@ -201,6 +201,33 @@ test.describe('presentation mode', () => {
     await expect(titles.nth(1)).toHaveText('PowerPoint (.pptx)');
   });
 
+  test('opening the export panel pushes the stage aside instead of overlaying it', async ({ page }) => {
+    await loadDocWithSlides(page, [
+      'grid 100 56.25\nr 10 10 80 40 | A',
+    ]);
+    await page.locator('.sdoc-slide-present').first().click();
+
+    const stageWrap = page.locator('.sdoc-present-stage-wrap');
+    const padBefore = await stageWrap.evaluate(el => parseFloat(getComputedStyle(el).paddingRight));
+
+    await page.locator('.sdoc-present-export-btn').click();
+    await expect(page.locator('.sdoc-present')).toHaveClass(/sdoc-present-exporting/);
+    // The transition is .2s; wait for it to settle.
+    await page.waitForTimeout(300);
+    const padOpen = await stageWrap.evaluate(el => parseFloat(getComputedStyle(el).paddingRight));
+    expect(padOpen).toBeGreaterThan(padBefore);
+    // Room is made for the full panel width, so the slide clears it.
+    const panelWidth = await page.locator('.sdoc-present-exp-panel').evaluate(el => el.getBoundingClientRect().width);
+    expect(padOpen).toBeGreaterThanOrEqual(panelWidth);
+
+    // Closing restores the original padding (no leftover gap).
+    await page.locator('.sdoc-present-export-btn').click();
+    await expect(page.locator('.sdoc-present')).not.toHaveClass(/sdoc-present-exporting/);
+    await page.waitForTimeout(300);
+    const padClosed = await stageWrap.evaluate(el => parseFloat(getComputedStyle(el).paddingRight));
+    expect(padClosed).toBe(padBefore);
+  });
+
   test('PowerPoint export option calls SDocs.exportSlidesPptx', async ({ page }) => {
     await loadDocWithSlides(page, [
       'grid 100 56.25\nr 10 10 80 40 | A',
