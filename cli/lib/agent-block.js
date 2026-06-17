@@ -18,8 +18,8 @@ const fs   = require('fs');
 const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
-const AGENT_BLOCK_VERSION = 10;
-const AGENT_BLOCK_REASON  = 'Documents `sdoc bridge file.md`: a live editing session for iterating on a file with the user (browser edits autosave to disk, file edits push to the page). Notes that it parks the terminal so it should run in the background, and that the browser asks for local-process / "Apps on device" permission the user must accept. Reframes plain `sdoc file.md` as the default way to open a file for comfortable reading or quick sharing. Renames the block heading from SDocs to SmallDocs, the project\'s new name and home, and spells out that "sdoc it" / "sdoc me the plan" / "make me a smalldoc" all mean: write the .md and open it with sdoc.';
+const AGENT_BLOCK_VERSION = 11;
+const AGENT_BLOCK_REASON  = 'Notes that cells blocks can be multi-tab: naming a block (```cells Expenses) builds a workbook of several sheets whose formulas reference each other across tabs (=Expenses!B4), and `sdoc cells verify file.md` computes the whole workbook headlessly so the agent can read the values back. The rest of the cells line is unchanged.';
 
 const AGENT_BLOCK_BODY = `## SmallDocs
 
@@ -48,7 +48,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - \`sdoc charts\` - rendering inline charts (\`\`\`chart blocks)
 - \`sdoc diagrams\` - rendering inline Mermaid diagrams (\`\`\`mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - \`sdoc slides\` - inline slide decks (\`\`\`slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as \`.pdf\` or \`.pptx\`. \`sdoc present file.md\` - open file directly in fullscreen presentation mode.
-- \`sdoc cells\` - rendering spreadsheets (\`\`\`cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. \`sdoc report.csv\` opens a CSV file directly as a sheet.
+- \`sdoc cells\` - rendering spreadsheets (\`\`\`cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Name a block (\`\`\`cells Expenses) to build a workbook of several tabs whose formulas reference each other across sheets (\`=Expenses!B4\`); run \`sdoc cells verify file.md\` to compute the whole workbook headlessly and read the values back. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. \`sdoc report.csv\` opens a CSV file directly as a sheet.
 - \`sdoc schema\` - styling Markdown (fonts, colors, spacing). The default styles are already comfortable to read; reach for this only when they aren't enough - client-facing polish or a bit of fun.
 - \`sdoc feedback\` - rendering interactive elements (\`\`\`form blocks) to receive structured input from the user. Run \`sdoc feedback file.md\` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 `;
