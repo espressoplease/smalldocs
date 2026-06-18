@@ -85,3 +85,39 @@ test('fullscreen on a beta sheet shows only beta tabs', async ({ page }) => {
   await expect(focus).toBeVisible();
   expect(await focus.locator('.sdoc-cells-focus-tab').allTextContents()).toEqual(['Data', 'Calc']);
 });
+
+test('the inline download on a workbook sheet exports the whole workbook (not one orphaned sheet)', async ({ page }) => {
+  const fs = require('fs');
+  await load(page);
+  const beta = page.locator('.sdoc-cells-pane').nth(1);
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    beta.locator('.sdoc-cells-xlsx:visible').first().click(),
+  ]);
+  const s = fs.readFileSync(await download.path()).toString('latin1');
+  // A whole-workbook file has a second worksheet part; an orphaned single sheet would not.
+  expect(s.includes('xl/worksheets/sheet2.xml')).toBeTruthy();
+  expect(s.includes('name="Data"') && s.includes('name="Calc"')).toBeTruthy();
+});
+
+test('the fullscreen workbook download produces one .xlsx with that workbook\'s sheets', async ({ page }) => {
+  const fs = require('fs');
+  await load(page);
+  const beta = page.locator('.sdoc-cells-pane').nth(1);
+  await beta.locator('.sdoc-cells-expand:visible').first().click();
+  const focus = page.locator('.sdoc-cells-focus');
+  const dl = focus.locator('.sdoc-cells-focus-dl');
+  await expect(dl).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    dl.click(),
+  ]);
+  const buf = fs.readFileSync(await download.path());
+  expect(buf[0]).toBe(0x50);                 // "P"
+  expect(buf[1]).toBe(0x4b);                 // "K" - a real ZIP
+  const s = buf.toString('latin1');          // stored ZIP -> XML readable in place
+  expect(s.includes('xl/worksheets/sheet1.xml')).toBeTruthy();
+  expect(s.includes('xl/worksheets/sheet2.xml')).toBeTruthy();
+  expect(s.includes('name="Data"')).toBeTruthy();
+  expect(s.includes('name="Calc"')).toBeTruthy();
+});

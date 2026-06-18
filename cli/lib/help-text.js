@@ -1047,6 +1047,32 @@ MULTIPLE TABS (SHEETS)
       tabs collapse into a single widget (a tab strip + one grid at a time),
       placed where the first tab sat.
 
+WORKBOOK GROUPS (independent tab sets in one document)
+  Name a workbook before the sheet to split a document into separate,
+  independent workbooks. The part before the first "/" is the workbook, the
+  part after is the sheet name:
+
+  \`\`\`cells financials/Model
+  Line,2025,2026
+  Revenue,=Drivers!B2,=Drivers!C2
+  \`\`\`
+
+  \`\`\`cells financials/Drivers
+  Driver,2025,2026
+  Seats,800,2500
+  \`\`\`
+
+  Blocks that share a workbook id form one workbook: their own tab strip (under
+  cells-tabs: tabbed), their own sheet-name namespace, and their own formula
+  scope. Two workbooks on a page render as two separate tab strips. A Sheet!A1
+  reference into another workbook reads #REF! - the isolation is total, so two
+  workbooks may reuse a sheet name without colliding. A block with no "/" stays
+  in the default workbook and behaves exactly as before.
+
+  In the fullscreen view a "Download workbook" button exports the whole
+  workbook as one .xlsx, every sheet and its cross-sheet formulas intact; the
+  per-sheet download on each grid still exports just that one sheet.
+
 VERIFYING (for agents)
   Check the computed values without a browser:
 
@@ -1060,9 +1086,11 @@ VERIFYING (for agents)
   every tab computes cleanly and 1 when any cell errors, so an agent can gate
   on it. Write formulas, run verify, read the values back, fix, repeat.
 
-  The default output banners each tab with "# sheet: <name>". A data row
-  could itself start with that text, so for machine parsing use --json (its
-  per-tab values array is unambiguous).
+  The default output banners each tab with "# sheet: <name>", or "# workbook:
+  <id> / sheet: <name>" when the sheet sits in a named workbook (each workbook
+  is verified in isolation). A data row could itself start with that text, so
+  for machine parsing use --json (its per-tab values array, and each tab's
+  optional workbook field, are unambiguous).
 
 SORTING
   Hover a column letter: an arrow appears on its right showing what a click

@@ -40,10 +40,10 @@ The two never share a `package.json` again. See "Published npm tarball" below fo
   - `sdocs-mermaid-focus.js` - per-diagram fullscreen pan/zoom modal (drag, wheel, fit/100%/reset, ESC)
   - `sdocs-comments.js` - pure comment data model (anchor resolution helpers, YAML round-trip, footnote serializer), UMD shared with tests
   - `sdocs-comments-ui.js` - browser-only comment UI: rendering, selection popover, composer, navigation
-  - `sdocs-cells.js` - pure cells data model (CSV parse, type classify, column names, format directive, selection stats, sort, header detection), UMD shared with tests
+  - `sdocs-cells.js` - pure cells data model (CSV parse, type classify, column names, format directive, `workbook/sheet` fence split via `parseFenceInfo`, selection stats, sort, header detection), UMD shared with tests
   - `sdocs-cells-formula.js` - pure formula engine for `=` cells (tokenize/parse/eval, refs + ranges, SUM/AVG/MIN/MAX/COUNT/COUNTA/PRODUCT/ROUND/ABS/IF, whole-model recalc with cycle detection), UMD shared with tests
-  - `sdocs-cells-xlsx.js` - pure .xlsx writer (stored ZIP + SpreadsheetML, live formulas, number formats), zero dependencies, UMD shared with tests
-  - `sdocs-cells-ui.js` - ```cells renderer: CSS-grid sheet (inline + fullscreen via a `fullscreen` flag), formula display, number/format rendering, copy toolbar, xlsx download, JS scroller sizing
+  - `sdocs-cells-xlsx.js` - pure .xlsx writer (stored ZIP + SpreadsheetML, live formulas, number formats), zero dependencies, UMD shared with tests. `buildXlsx` writes a single sheet; `buildXlsxWorkbook` writes a multi-sheet workbook (one shared styles part, per-sheet content-type/rels, cross-sheet formula qualifiers rewritten to sanitised + de-duped Excel sheet names)
+  - `sdocs-cells-ui.js` - ```cells renderer: CSS-grid sheet (inline + fullscreen via a `fullscreen` flag), formula display, number/format rendering, copy toolbar, xlsx download, JS scroller sizing. `processCells` partitions blocks by workbook id (the `workbook/sheet` fence): each workbook is named/recalced in isolation and renders as its own tab strip; the shared `S.cellsWorkbook` list is tagged so `cellsWorkbookFx` and the fullscreen overlay filter back to a sheet's own workbook
   - `sdocs-cells-select.js` - cell + range selection and keyboard navigation for a cells grid
   - `sdocs-cells-focus.js` - fullscreen "focus" overlay for a sheet (name box, formula bar, selection stats footer); hosts the editor
   - `sdocs-cells-edit.js` - client-only in-cell editing for the fullscreen view (type/dblclick to edit, nav keys, undo/redo, delete-clear, TSV/CSV paste); mutates the shared model, never the document

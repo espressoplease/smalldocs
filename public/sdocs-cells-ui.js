@@ -238,29 +238,45 @@
       box.appendChild(rawBtn);
     }
 
-    // Excel export: download the sheet as a real .xlsx workbook. Formulas
-    // export as live Excel formulas (they recalculate in Excel); the data is
-    // the SOURCE model - document order plus any fullscreen edits - never the
-    // sorted view, so formula references keep meaning what they say.
+    // Excel export. When this sheet belongs to a multi-sheet workbook the
+    // download is the WHOLE workbook (every tab, cross-sheet formulas live), so
+    // a sheet whose formulas reference a sibling never lands in Excel as a
+    // broken external link. A standalone grid downloads just itself. Formulas
+    // export live (Excel recalculates on open); the data is the SOURCE model -
+    // document order plus any fullscreen edits - never the sorted view.
     var xlsxBtn = null;
     if (window.SDocCellsXlsx) {
+      var partOfWorkbook = (function () {
+        var g = S.cellsWorkbookGroupFor && S.cellsWorkbookGroupFor(model);
+        return !!(g && g.sheets.length > 1);
+      })();
+      var dlLabel = partOfWorkbook ? 'Download workbook (.xlsx)' : 'Download as Excel (.xlsx)';
       xlsxBtn = document.createElement('button');
       xlsxBtn.type = 'button';
       xlsxBtn.className = 'sdoc-cells-copy-icon sdoc-cells-xlsx';
-      xlsxBtn.title = 'Download as Excel (.xlsx)';
-      xlsxBtn.setAttribute('aria-label', 'Download as Excel (.xlsx)');
+      xlsxBtn.title = dlLabel;
+      xlsxBtn.setAttribute('aria-label', dlLabel);
       xlsxBtn.innerHTML = downloadIcon(14);
       xlsxBtn.addEventListener('click', function () {
         var XL = window.SDocCellsXlsx;
         var FX = window.SDocCellsFormula;
-        var m = src._cellsSource || model;
-        var bytes = XL.buildXlsx(m, FX ? FX.recalc(m) : null);
+        var group = S.cellsWorkbookGroupFor && S.cellsWorkbookGroupFor(model);
+        var bytes, base;
+        if (group && group.sheets.length > 1) {
+          var grids = FX ? FX.recalcWorkbook(group.sheets) : [];
+          bytes = XL.buildXlsxWorkbook(group.sheets, grids);
+          base = group.id || ((group.sheets[0].model.source || 'workbook'));
+        } else {
+          var m = src._cellsSource || model;
+          bytes = XL.buildXlsx(m, FX ? FX.recalc(m) : null);
+          base = (m.source || 'sheet');
+        }
         var blob = new Blob([bytes],
           { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        var base = (m.source || 'sheet').replace(/\.[^.]*$/, '').replace(/[^a-z0-9_-]/gi, '_');
-        a.download = (base || 'sheet') + '.xlsx';
+        base = String(base).replace(/\.[^.]*$/, '').replace(/[^a-z0-9_-]/gi, '_');
+        a.download = (base || 'workbook') + '.xlsx';
         a.click();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
       });
@@ -1017,6 +1033,27 @@
     return FX.recalcWorkbook(workbookSheets(slice))[idx] || null;
   }
   S.cellsWorkbookFx = cellsWorkbookFx;
+
+  // The full workbook a model belongs to, as { id, sheets: [{name, model}] } in
+  // tab order, using each sheet's effective (possibly fullscreen-edited) source
+  // model. Returns null for a standalone grid (not part of a registered
+  // workbook). Callers use sheets.length > 1 to decide between a one-sheet and
+  // a whole-workbook .xlsx export so cross-sheet formulas always resolve.
+  function cellsWorkbookGroupFor(model) {
+    var wb = S.cellsWorkbook;
+    if (!wb || !wb.length) return null;
+    var entry = null;
+    for (var i = 0; i < wb.length; i++) { if (wb[i].model === model) { entry = wb[i]; break; } }
+    if (!entry) return null;
+    var wid = entry.workbook || '';
+    var sheets = wb.filter(function (s) { return (s.workbook || '') === wid; })
+      .map(function (s) {
+        var eff = (s.wrapper && s.wrapper._cellsSource) || s.model;
+        return { name: s.name, model: eff };
+      });
+    return { id: wid, sheets: sheets };
+  }
+  S.cellsWorkbookGroupFor = cellsWorkbookGroupFor;
 
   // Short numeric display for stats - round to a few decimals, drop trailing
   // zeros, then add thousands separators (same helper the cells use, so the
