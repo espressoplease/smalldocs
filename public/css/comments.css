@@ -595,6 +595,18 @@ body.comment-mode .sdoc-block-host::before {
 @media (max-width: 768px) {
   body.comment-mode #_sd_rendered { padding-left: 44px; }
   .sdoc-block-commented::before { left: -8px; }
+
+  /* The comment input inherits the card's 0.82em (~13px), which trips iOS
+     Safari's auto-zoom-on-focus (it zooms the viewport whenever a focused
+     text field computes under 16px). Pin it to 16px so tapping into a
+     comment never yanks the page around. Larger than the desktop size is
+     fine here - it only affects the field being typed into, not the saved
+     comment text. Mirrors the same 16px guard on the raw editor (mobile.css).
+     Both selectors are scoped to match the base rules' specificity (the pill
+     and sidecar inputs each set font-size: inherit) so this wins on source
+     order rather than losing the cascade. */
+  .sdoc-card-pill .sdoc-card-input,
+  .sdoc-card-sidecar .sdoc-card-input { font-size: 16px; }
 }
 
 /* ── Selection popover ──────────────────────────────────────────
