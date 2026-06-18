@@ -83,6 +83,10 @@
     '.sdoc-cells-fx-toggle:hover { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 8%, transparent); color: var(--sdoc-focus-fg, #1c1917); }',
     '.sdoc-cells-fx-toggle.is-on { background: rgba(139, 92, 246, 0.15); color: #7c4fe0; }',
     '.sdoc-cells-fx-toggle:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
+    /* Workbook-download button: icon + label, sits by the close button. */
+    '.sdoc-cells-focus-dl { display: inline-flex; align-items: center; gap: 5px; font-style: normal; font-family: inherit; }',
+    '.sdoc-cells-focus-dl-label { font-size: 12px; font-weight: 600; }',
+    '@media (max-width: 560px) { .sdoc-cells-focus-dl-label { display: none; } }',
     /* Name box + value/formula bar - the classic spreadsheet header. */
     '.sdoc-cells-focus-bar {',
     '  display: flex; align-items: stretch; height: 31px; font-size: 13px;',
@@ -185,6 +189,7 @@
       'aria-hidden="true">' + paths + '</svg>';
   }
   var X_ICON = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
+  var DL_ICON = lucide('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>');
 
   // The overlay lives outside #_sd_rendered, so forward the document's theme
   // tokens onto it (mirrors sdocs-mermaid-focus.js).
@@ -302,6 +307,41 @@
     closeBtn.setAttribute('aria-label', 'Close');
     closeBtn.innerHTML = X_ICON;
     closeBtn.addEventListener('click', close);
+
+    // Download the WHOLE workbook (every sheet of this group) as one .xlsx with
+    // its cross-sheet formulas intact. Shown only for a real multi-sheet
+    // workbook; the per-sheet download stays on each grid's own toolbar.
+    if (tabbed && window.SDocCellsXlsx) {
+      var wbBtn = document.createElement('button');
+      wbBtn.type = 'button';
+      wbBtn.className = 'sdoc-cells-fx-toggle sdoc-cells-focus-dl';
+      wbBtn.title = 'Download workbook (.xlsx)';
+      wbBtn.setAttribute('aria-label', 'Download workbook (.xlsx)');
+      wbBtn.innerHTML = DL_ICON + '<span class="sdoc-cells-focus-dl-label">Workbook</span>';
+      wbBtn.addEventListener('click', function () {
+        var XL = window.SDocCellsXlsx, FXm = window.SDocCellsFormula;
+        // Use each sheet's effective (possibly edited) source model, in tab
+        // order; recompute so cached values match the formulas Excel reopens.
+        var book = entries.map(function (e) {
+          var m = (e.wrapper && e.wrapper._cellsSource) || e.model;
+          return { name: e.name, model: m };
+        });
+        var grids = FXm ? FXm.recalcWorkbook(book) : [];
+        var bytes = XL.buildXlsxWorkbook(book, grids);
+        var blob = new Blob([bytes],
+          { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        var wid = (entries[0] && entries[0].workbook) || '';
+        var srcBase = (entries[0] && entries[0].model && entries[0].model.source) || 'workbook';
+        var base = String(wid || srcBase).replace(/\.[^.]*$/, '').replace(/[^a-z0-9_-]/gi, '_') || 'workbook';
+        a.download = base + '.xlsx';
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      });
+      topbar.appendChild(wbBtn);
+    }
+
     topbar.appendChild(closeBtn);
 
     // ── Name box / selection stats / value bar (static; reads the active grid) ──

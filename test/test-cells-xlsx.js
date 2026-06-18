@@ -186,4 +186,85 @@ module.exports = (h) => {
     }
     assert.strictEqual(entries, 6, 'content types, .rels, workbook, wb rels, styles, sheet');
   });
+
+  // ── Multi-sheet workbook export (a cells "workbook" group -> one .xlsx) ──
+
+  test('xlsx: single-sheet buildXlsx keeps the legacy hardcoded sheet (byte-stable path)', () => {
+    const s = bytesToStr(XLSX.buildXlsx(CELLS.parseCells('a\n1'), null));
+    assert.ok(s.indexOf('<sheet name="Sheet1" sheetId="1" r:id="rId1"/>') >= 0);
+  });
+
+  test('xlsx: buildXlsxWorkbook emits a worksheet part + a Content-Types Override per sheet', () => {
+    const a = CELLS.parseCells('sdoc-cells: name="A"\nx\n1');
+    const b = CELLS.parseCells('sdoc-cells: name="B"\ny\n2');
+    const s = bytesToStr(XLSX.buildXlsxWorkbook([{ name: 'A', model: a }, { name: 'B', model: b }], []));
+    assert.ok(s.indexOf('xl/worksheets/sheet1.xml') >= 0);
+    assert.ok(s.indexOf('xl/worksheets/sheet2.xml') >= 0);
+    const overrides = (s.match(/Override PartName="\/xl\/worksheets\/sheet\d+\.xml"/g) || []).length;
+    assert.strictEqual(overrides, 2, 'one worksheet content-type override per sheet');
+  });
+
+  test('xlsx: workbook rels give each sheet a unique rId and styles a distinct one', () => {
+    const a = CELLS.parseCells('sdoc-cells: name="A"\nx\n1');
+    const b = CELLS.parseCells('sdoc-cells: name="B"\ny\n2');
+    const s = bytesToStr(XLSX.buildXlsxWorkbook([{ name: 'A', model: a }, { name: 'B', model: b }], []));
+    assert.ok(s.indexOf('Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"') >= 0);
+    assert.ok(s.indexOf('Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"') >= 0);
+    assert.ok(s.indexOf('Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"') >= 0);
+    // sheetId (tab id) and r:id (rels pointer) stay aligned - crossing them makes Excel refuse the file.
+    assert.ok(s.indexOf('<sheet name="A" sheetId="1" r:id="rId1"/>') >= 0);
+    assert.ok(s.indexOf('<sheet name="B" sheetId="2" r:id="rId2"/>') >= 0);
+  });
+
+  test('xlsx: sheet names are sanitized to Excel rules and de-duped case-insensitively', () => {
+    assert.strictEqual(XLSX.sanitizeSheetName('P&L: 2026 [draft]/v2'), 'P&L 2026 draft v2');
+    assert.strictEqual(XLSX.sanitizeSheetName('X'.repeat(40)).length, 31);
+    assert.strictEqual(XLSX.sanitizeSheetName(''), 'Sheet');
+    assert.deepStrictEqual(XLSX.dedupeSheetNames(['Data', 'data', 'DATA']), ['Data', 'data~2', 'DATA~3']);
+  });
+
+  test('xlsx: a cross-sheet formula stays a live formula pointing at its sibling tab', () => {
+    const drv = CELLS.parseCells('sdoc-cells: name="Drivers"\na\n5');
+    const mdl = CELLS.parseCells('sdoc-cells: name="Model"\nt,=Drivers!A2*2');
+    const grids = FX.recalcWorkbook([{ name: 'Drivers', model: drv }, { name: 'Model', model: mdl }]);
+    const s = bytesToStr(XLSX.buildXlsxWorkbook([{ name: 'Drivers', model: drv }, { name: 'Model', model: mdl }], grids));
+    assert.ok(s.indexOf('<f>Drivers!A2*2</f>') >= 0, 'cross-sheet reference exported as a live formula');
+  });
+
+  test('xlsx: a renamed/spaced target tab gets single-quoted in the formula', () => {
+    // If a tab name sanitised to something with a space, the qualifier must quote it.
+    assert.strictEqual(XLSX.excelFormula('=Drivers!B2+1', { drivers: 'Rev by Region' }), "'Rev by Region'!B2+1");
+    // A plain identifier stays bare; a cell-address-like name is quoted.
+    assert.strictEqual(XLSX.excelFormula('=Model!A1', { model: 'Model' }), 'Model!A1');
+    assert.strictEqual(XLSX.excelFormula('=AB12!A1', { ab12: 'AB12' }), "'AB12'!A1");
+  });
+
+  test('xlsx: a single-sheet export degrades a cross-sheet formula to its value (no broken external link)', () => {
+    const npv = CELLS.parseCells('sdoc-cells: name="NPV"\nY,R\n1,=Assumptions!B2*2');
+    const asm = CELLS.parseCells('sdoc-cells: name="Assumptions"\nk,v\nbase,21');
+    const grids = FX.recalcWorkbook([{ name: 'NPV', model: npv }, { name: 'Assumptions', model: asm }]);
+    // Alone, NPV cannot reach Assumptions, so the formula must NOT ship as a
+    // live link; it lands as its computed value (21*2 = 42) instead.
+    const single = bytesToStr(XLSX.buildXlsx(npv, grids[0]));
+    assert.ok(single.indexOf('Assumptions!') < 0, 'no dangling cross-sheet reference in a single-sheet export');
+    assert.ok(single.indexOf('<v>42</v>') >= 0, 'the cell carries the computed value');
+    // In the full workbook the sibling IS present, so it stays a live formula.
+    const book = bytesToStr(XLSX.buildXlsxWorkbook([{ name: 'NPV', model: npv }, { name: 'Assumptions', model: asm }], grids));
+    assert.ok(book.indexOf('<f>Assumptions!B2*2</f>') >= 0, 'the workbook export keeps the cross-sheet formula live');
+  });
+
+  test('xlsx: workbook entry count is the 5 fixed parts plus one per sheet', () => {
+    const mk = (n) => CELLS.parseCells('sdoc-cells: name="' + n + '"\nx\n1');
+    const bytes = XLSX.buildXlsxWorkbook([{ name: 'A', model: mk('A') }, { name: 'B', model: mk('B') }, { name: 'C', model: mk('C') }], []);
+    let i = 0, entries = 0;
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    while (i < bytes.length && view.getUint32(i, true) === 0x04034b50) {
+      const nameLen = view.getUint16(i + 26, true);
+      const extraLen = view.getUint16(i + 28, true);
+      const csize = view.getUint32(i + 18, true);
+      i += 30 + nameLen + extraLen + csize;
+      entries++;
+    }
+    assert.strictEqual(entries, 8, '5 fixed parts + 3 sheets');
+  });
 };
