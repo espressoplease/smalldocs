@@ -1009,6 +1009,7 @@ async function renderPdf(rendered, st, chartImages, mermaidImages, mathImages) {
       if (el.classList.contains('section-toggle') || el.classList.contains('copy-btn') ||
           el.classList.contains('header-copy-btn') || el.classList.contains('header-anchor')) continue;
       if (el.classList.contains('md-section') || el.classList.contains('md-section-body')) { await walk(el); continue; }
+      if (el.classList.contains('md-table-scroll')) { await walk(el); continue; }
       if (el.classList.contains('pre-wrapper')) {
         var ip = el.querySelector('pre');
         if (ip) drawCodeBlock(ip);
