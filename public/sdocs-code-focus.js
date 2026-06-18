@@ -68,6 +68,10 @@
     '  position: fixed; inset: 0; z-index: 10100;',
     '  background: var(--sdoc-focus-bg, #f4f1ed);',
     '  color: var(--sdoc-focus-fg, #1c1917);',
+    // The comment accent: the colour new notes (and their affordances) take.
+    // Defaults to the same amber as the markdown reader, overridden inline from
+    // the reader\'s saved colour pref so the whole comment language is one colour.
+    '  --sdoc-cc-accent: #ffbb00;',
     '  display: grid; grid-template-rows: 40px auto 1fr;',
     '  font-family: ui-sans-serif, system-ui, sans-serif;',
     '  animation: sdoc-code-fade .15s ease-out;',
@@ -257,15 +261,17 @@
     '.sdoc-cl-copy svg { display: block; width: 12px; height: 12px; }',
     // Copy-with-comments on a header whose section carries a note (added in
     // comment mode). Tinted with the accent so it reads as the commented twin.
+    // The same shape as the markdown reader\'s heading copy-with-comments
+    // companion (.sdoc-head-copy-c): a quiet link-toned label, faint at rest,
+    // brightening on hover. No filled pill - it sits beside the plain copy button.
     '.sdoc-cl-copyc {',
     '  all: unset; cursor: pointer; vertical-align: middle;',
     '  display: inline-flex; align-items: center; gap: 3px; margin-left: 6px;',
-    '  padding: 0 5px; border-radius: 4px; font-size: 10.5px; font-weight: 500;',
+    '  padding: 0 4px; border-radius: 4px; font-size: 10.5px; font-weight: 500;',
     '  font-family: ui-sans-serif, system-ui, sans-serif;',
-    '  color: #3B82F6; background: color-mix(in oklab, #3B82F6 12%, transparent);',
-    '  transition: background .12s;',
+    '  color: #3B82F6; opacity: .55; transition: opacity .12s, background .12s;',
     '}',
-    '.sdoc-cl-copyc:hover { background: color-mix(in oklab, #3B82F6 22%, transparent); }',
+    '.sdoc-cl-copyc:hover { opacity: 1; background: color-mix(in oklab, #3B82F6 12%, transparent); }',
     '.sdoc-cl-copyc svg { display: block; width: 11px; height: 11px; }',
     '.sdoc-cl-num {',
     '  flex: 0 0 auto; width: var(--sdoc-ln-w); box-sizing: content-box;',
@@ -307,7 +313,35 @@
     '}',
     '.sdoc-code-focus-btn[data-act="comment"].has-notes::after {',
     '  content: ""; position: absolute; top: 4px; right: 4px;',
-    '  width: 5px; height: 5px; border-radius: 50%; background: #3B82F6;',
+    '  width: 5px; height: 5px; border-radius: 50%; background: var(--sdoc-cc-accent, #ffbb00);',
+    '}',
+    // Author + colour prefs, mirroring the markdown reader\'s "Commenting as:"
+    // cluster (.sdoc-comment-prefs). New notes take this name and colour, and the
+    // colour drives --sdoc-cc-accent so every add affordance reads in it.
+    '.sdoc-cc-prefs { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }',
+    '.sdoc-cc-prefs-label {',
+    '  font-size: 11.5px; white-space: nowrap;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
+    '}',
+    '.sdoc-cc-pref-author {',
+    '  font: inherit; font-size: 11.5px; color: var(--sdoc-focus-fg, #1c1917);',
+    '  background: transparent; border-radius: 4px; padding: 2px 6px;',
+    '  width: 74px; height: 22px; box-sizing: border-box; outline: none;',
+    '  border: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 18%, transparent);',
+    '}',
+    '.sdoc-cc-pref-author:focus { border-color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 34%, transparent); }',
+    '.sdoc-cc-pref-color {',
+    '  width: 22px; height: 22px; padding: 0; border-radius: 4px;',
+    '  background: transparent; cursor: pointer; flex-shrink: 0;',
+    '  border: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 18%, transparent);',
+    '}',
+    '.sdoc-cc-pref-color::-webkit-color-swatch-wrapper { padding: 2px; }',
+    '.sdoc-cc-pref-color::-webkit-color-swatch { border: none; border-radius: 2px; }',
+    '.sdoc-cc-pref-color::-moz-color-swatch { border: none; border-radius: 2px; }',
+    // A thin divider between the prefs and the granularity control.
+    '.sdoc-cc-subbar-div {',
+    '  width: 1px; height: 18px; flex-shrink: 0;',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 14%, transparent);',
     '}',
     // Granularity segmented control + note counter, shown only in comment mode.
     '.sdoc-cc-grain {',
@@ -337,17 +371,27 @@
     // chase the pointer or land on a neighbour. Hidden in method grain, where
     // the tall tab takes over.
     '.sdoc-code-focus.sdoc-cc-on .sdoc-cl-gutter { padding-left: 20px; }',
+    // The same vocabulary as the markdown reader\'s gutter add button
+    // (.sdoc-gutter-add): a quiet tab tucked into the margin, panel-tone at rest,
+    // the speech-bubble icon, that warms to the comment accent on hover. The
+    // asymmetric rounding (heavier on the outer edge) reads as tucked in.
     '.sdoc-cc-add {',
     '  all: unset; box-sizing: border-box; cursor: pointer;',
     '  position: absolute; left: 0; top: 0; width: 18px; height: 1.65em;',
     '  display: none; align-items: center; justify-content: center;',
-    '  border-radius: 4px; color: #fff; background: #3B82F6;',
-    '  opacity: 0; transform: scale(.85); transition: opacity .1s, transform .1s;',
+    '  border-radius: 6px 3px 3px 6px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 6%, var(--sdoc-focus-bg, #f4f1ed));',
+    '  opacity: 0; transition: opacity .12s, background .12s, color .12s;',
     '}',
     '.sdoc-code-focus.sdoc-cc-on .sdoc-cl-row .sdoc-cc-add { display: inline-flex; }',
-    '.sdoc-code-focus.sdoc-cc-on .sdoc-cl-row:hover .sdoc-cc-add { opacity: 1; transform: scale(1); }',
+    '.sdoc-code-focus.sdoc-cc-on .sdoc-cl-row:hover .sdoc-cc-add { opacity: 1; }',
+    '.sdoc-cc-add:hover {',
+    '  background: color-mix(in oklab, var(--sdoc-cc-accent, #ffbb00) 38%, var(--sdoc-focus-bg, #f4f1ed));',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '}',
     '.sdoc-code-focus.sdoc-cc-grain-method .sdoc-cc-add { display: none; }',
-    '.sdoc-cc-add svg { display: block; width: 13px; height: 13px; }',
+    '.sdoc-cc-add svg { display: block; width: 14px; height: 14px; }',
     // Method grain: a tall "+" tab spanning the whole method, mirroring the
     // markdown block gutter button. Positioned over the method line range.
     '.sdoc-code-focus-lines { position: relative; }',
@@ -355,29 +399,36 @@
     '  all: unset; box-sizing: border-box; cursor: pointer;',
     '  position: absolute; left: 0; width: 20px; z-index: 2;',
     '  display: none; flex-direction: column; align-items: center;',
-    '  padding-top: 5px; color: #fff;',
-    '  background: color-mix(in oklab, #3B82F6 88%, var(--sdoc-focus-fg, #1c1917));',
+    '  padding-top: 5px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 6%, var(--sdoc-focus-bg, #f4f1ed));',
     '  border-radius: 8px 3px 3px 8px;',
-    '  opacity: 0; transition: opacity .12s, background .12s;',
+    '  opacity: 0; transition: opacity .12s, background .12s, color .12s;',
     '}',
     '.sdoc-cc-madd.show { display: flex; opacity: 1; }',
-    '.sdoc-cc-madd:hover { background: #3B82F6; }',
-    '.sdoc-cc-madd svg { display: block; width: 13px; height: 13px; }',
-    // A method that carries a comment keeps a persistent accent stripe down its
-    // whole height: an inset left bar on each row in the method range, which
-    // stacks into one continuous line.
-    '.sdoc-cl-row.sdoc-cc-method-marked { box-shadow: inset 2px 0 var(--sdoc-cc-marker, #3B82F6); }',
-    // A line that carries comments gets a small accent dot in its number cell.
-    '.sdoc-cl-row.sdoc-cc-has-comment .sdoc-cl-num { position: relative; }',
-    '.sdoc-cl-row.sdoc-cc-has-comment .sdoc-cl-num::before {',
-    '  content: ""; position: absolute; left: 2px; top: 50%; margin-top: -2px;',
-    '  width: 4px; height: 4px; border-radius: 50%;',
-    '  background: var(--sdoc-cc-marker, #3B82F6);',
+    '.sdoc-cc-madd:hover {',
+    '  background: color-mix(in oklab, var(--sdoc-cc-accent, #ffbb00) 38%, var(--sdoc-focus-bg, #f4f1ed));',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
-    // Method highlight while hovering / composing / navigating a method comment.
+    '.sdoc-cc-madd svg { display: block; width: 14px; height: 14px; }',
+    // A method that carries a comment keeps a persistent stripe down its whole
+    // height in the comment\'s colour: an inset left bar on each row in the method
+    // range, which stacks into one continuous line. --sdoc-cc-marker is set per
+    // row from the comment\'s colour (renderThreads), defaulting to the accent.
+    '.sdoc-cl-row.sdoc-cc-method-marked { box-shadow: inset 2px 0 var(--sdoc-cc-marker, var(--sdoc-cc-accent, #ffbb00)); }',
+    // A commented line is tinted in the comment colour, the code analogue of the
+    // markdown reader\'s .sdoc-anchor highlight: a translucent wash of the colour
+    // over the code cell so the annotated line reads the same way an annotated
+    // span does in prose.
+    '.sdoc-cl-row.sdoc-cc-has-comment .sdoc-cl-code {',
+    '  background: color-mix(in oklab, var(--sdoc-cc-marker, var(--sdoc-cc-accent, #ffbb00)) 18%, transparent);',
+    '  border-radius: 2px;',
+    '}',
+    // Method highlight while hovering / composing / navigating a method comment,
+    // tinted in the accent so the preview matches the colour the note will take.
     '.sdoc-cl-row.sdoc-cc-mhl {',
-    '  background: color-mix(in oklab, #3B82F6 9%, transparent);',
-    '  box-shadow: inset 2px 0 #3B82F6;',
+    '  background: color-mix(in oklab, var(--sdoc-cc-accent, #ffbb00) 16%, transparent);',
+    '  box-shadow: inset 2px 0 var(--sdoc-cc-accent, #ffbb00);',
     '}',
     // Thread rows: a comment card sitting in its own row beneath the anchor.
     '.sdoc-cc-thread {',
@@ -391,11 +442,12 @@
     '.sdoc-cc-card {',
     '  --sdoc-cc-color: #ffbb00; position: relative; display: block; max-width: 60ch;',
     '  font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12.5px; line-height: 1.4;',
-    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '  color: var(--sdoc-focus-fg, #1c1917); cursor: pointer;',
     '  background: color-mix(in oklab, var(--sdoc-cc-color) 22%, var(--sdoc-focus-bg, #f4f1ed));',
     '  border: 1px solid color-mix(in oklab, var(--sdoc-cc-color) 50%, transparent);',
-    '  border-radius: 5px; padding: 3px 48px 3px 8px;',
+    '  border-radius: 5px; padding: 3px 26px 3px 8px;',
     '}',
+    '.sdoc-cc-card.sdoc-cc-card-edit { cursor: default; }',
     '.sdoc-cc-card-author { font-weight: 600; color: var(--sdoc-focus-fg, #1c1917); }',
     '.sdoc-cc-card-author::after {',
     '  content: ":"; margin-right: 4px;',
@@ -403,10 +455,13 @@
     '}',
     '.sdoc-cc-card-body { display: inline; white-space: pre-wrap; word-break: break-word; }',
     '.sdoc-cc-card-actions { position: absolute; top: 2px; right: 4px; display: inline-flex; gap: 1px; }',
+    // Delete (view) / save + cancel (edit) sit in the top-right of the card. Like
+    // the markdown sidecar card they stay visible rather than waiting for hover,
+    // muted at rest and picking up the card tint on hover.
     '.sdoc-cc-iconbtn {',
     '  all: unset; cursor: pointer; padding: 2px; border-radius: 4px;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
-    '  display: inline-flex; opacity: 0; transition: background .12s, color .12s, opacity .12s;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 45%, transparent);',
+    '  display: inline-flex; opacity: .75; transition: background .12s, color .12s, opacity .12s;',
     '}',
     '.sdoc-cc-card:hover .sdoc-cc-iconbtn, .sdoc-cc-card-edit .sdoc-cc-iconbtn { opacity: 1; }',
     '.sdoc-cc-iconbtn:hover {',
@@ -467,8 +522,6 @@
     + '<path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/>');
   var TRASH_ICON = lucide('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', 13);
   var CHECK_ICON = lucide('<path d="M20 6 9 17l-5-5"/>', 13);
-  var PENCIL_ICON = lucide('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 13);
-  var PLUS_ICON = lucide('<path d="M12 5v14"/><path d="M5 12h14"/>', 14);
   // Two icons, switched by the button's .is-open class: outward arrows mean
   // "expand all" (shown when something is collapsed), inward arrows mean
   // "collapse all" (shown when everything is open). This is the same fold
@@ -865,7 +918,7 @@
         : '';
       html += '<div class="sdoc-cl-row" data-ln="' + i + '">'
         + '<span class="sdoc-cl-gutter">'
-        + '<button class="sdoc-cc-add" type="button" tabindex="-1" data-ln="' + i + '" aria-label="Add a comment" title="Add a comment">' + PLUS_ICON + '</button>'
+        + '<button class="sdoc-cc-add" type="button" tabindex="-1" data-ln="' + i + '" aria-label="Add a comment" title="Add a comment">' + COMMENT_ICON + '</button>'
         + fold
         + '<span class="sdoc-cl-num">' + (i + 1) + '</span></span>'
         + '<span class="sdoc-cl-code">' + lineParts[i] + copy + '</span></div>';
@@ -977,7 +1030,13 @@
     var subbar = document.createElement('div');
     subbar.className = 'sdoc-cc-subbar';
     subbar.innerHTML =
-      '<span class="sdoc-cc-grain" role="group" aria-label="Comment granularity">'
+      '<span class="sdoc-cc-prefs">'
+      +   '<span class="sdoc-cc-prefs-label">Commenting as</span>'
+      +   '<input type="text" class="sdoc-cc-pref-author" aria-label="Your name" maxlength="32" spellcheck="false" />'
+      +   '<input type="color" class="sdoc-cc-pref-color" aria-label="Comment colour" />'
+      + '</span>'
+      + '<span class="sdoc-cc-subbar-div" aria-hidden="true"></span>'
+      + '<span class="sdoc-cc-grain" role="group" aria-label="Comment granularity">'
       +   '<button type="button" data-grain="line" class="active" title="Comment on individual lines">Lines</button>'
       +   '<button type="button" data-grain="method" title="Comment on whole methods">Methods</button>'
       + '</span>'
@@ -986,7 +1045,7 @@
       +   '<span class="sdoc-cc-count"></span>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="cc-next" title="Next note" aria-label="Next note">' + lucide('<polyline points="9 18 15 12 9 6"/>', 13) + '</button>'
       + '</span>'
-      + '<span class="sdoc-cc-subbar-hint">Hover a line, click the + to add a note</span>'
+      + '<span class="sdoc-cc-subbar-hint">Hover a line and click the comment icon to add a note</span>'
       + '<button type="button" class="sdoc-code-focus-action sdoc-cc-copyc" data-act="cc-copy" title="Copy the code with its comments" aria-label="Copy with comments" style="display:none">'
       +   COPY_ICON + '<span class="sdoc-code-focus-action-label">with comments</span>'
       + '</button>';
@@ -1007,7 +1066,7 @@
     methodTab.className = 'sdoc-cc-madd';
     methodTab.setAttribute('aria-label', 'Comment on this method');
     methodTab.setAttribute('title', 'Comment on this method');
-    methodTab.innerHTML = PLUS_ICON;
+    methodTab.innerHTML = COMMENT_ICON;
     var fileInfo = buildFileInfo(name);
     if (fileInfo) { fileInfo.addEventListener('click', onFileInfoClick); docEl.appendChild(fileInfo); }
     docEl.appendChild(linesEl);
@@ -1023,6 +1082,7 @@
     document.body.classList.add('sdoc-code-focus-open');
     syncFoldAllBtn();
     setGrain(grain);          // sync the granularity control to the saved choice
+    wireCommentPrefs();       // fill the author/colour inputs and apply the accent
     updateCommentChrome();
 
     highlightThenRender(srcCode.className || '');
@@ -1170,11 +1230,52 @@
 
   function trimmed(i) { return (srcLines[i] || '').trim(); }
 
-  // The author handle stamped on new comments. Remembered so a reader's notes
-  // carry a consistent name; defaults to "you" and is not surfaced in the v1 UI.
-  function commentAuthor() {
-    try { return localStorage.getItem('sdocs:codeCommentAuthor') || 'you'; }
-    catch (_) { return 'you'; }
+  // Author + colour preferences for new notes, mirroring the markdown reader's
+  // comment prefs. Remembered across files so a reader's notes carry a consistent
+  // name and colour. The colour also drives the overlay's --sdoc-cc-accent so the
+  // add affordances read in the same colour the saved note will take.
+  var CC_PREFS_KEY = 'sdocs:codeCommentPrefs';
+  function readCommentPrefs() {
+    try {
+      var raw = localStorage.getItem(CC_PREFS_KEY);
+      var v = raw ? JSON.parse(raw) : {};
+      var color = (CC && CC.sanitizeColor) ? CC.sanitizeColor(v.color) : (v.color || '#ffbb00');
+      return { author: (v.author || 'you'), color: color };
+    } catch (_) { return { author: 'you', color: '#ffbb00' }; }
+  }
+  function writeCommentPrefs(p) {
+    try { localStorage.setItem(CC_PREFS_KEY, JSON.stringify(p)); } catch (_) {}
+  }
+  function commentAuthor() { return readCommentPrefs().author; }
+
+  // Push the current pref colour onto the overlay as --sdoc-cc-accent, so every
+  // add affordance (the line + tab, the method tab, the hover highlight) reads in
+  // it without each piece needing its own copy.
+  function applyAccent() {
+    if (modal) modal.style.setProperty('--sdoc-cc-accent', readCommentPrefs().color);
+  }
+
+  // Fill the sub-bar's author/colour inputs from the saved prefs and keep them in
+  // sync as the reader edits them. The colour input retints the overlay live.
+  function wireCommentPrefs() {
+    if (!modal) return;
+    var prefs = readCommentPrefs();
+    var nameI = modal.querySelector('.sdoc-cc-pref-author');
+    var colorI = modal.querySelector('.sdoc-cc-pref-color');
+    if (nameI) {
+      nameI.value = prefs.author;
+      nameI.addEventListener('input', function () {
+        writeCommentPrefs({ author: nameI.value || 'you', color: colorI ? colorI.value : prefs.color });
+      });
+    }
+    if (colorI) {
+      colorI.value = prefs.color;
+      colorI.addEventListener('input', function () {
+        writeCommentPrefs({ author: nameI ? (nameI.value || 'you') : 'you', color: colorI.value });
+        applyAccent();
+      });
+    }
+    applyAccent();
   }
 
   // Group comments by their resolved source line. Orphans (anchor lost) collect
@@ -1195,7 +1296,10 @@
     var old = linesEl.querySelectorAll('.sdoc-cc-thread, .sdoc-cc-orphans, .sdoc-cl-copyc');
     for (var k = 0; k < old.length; k++) old[k].remove();
     var marked = linesEl.querySelectorAll('.sdoc-cc-has-comment, .sdoc-cc-method-marked');
-    for (var j = 0; j < marked.length; j++) marked[j].classList.remove('sdoc-cc-has-comment', 'sdoc-cc-method-marked');
+    for (var j = 0; j < marked.length; j++) {
+      marked[j].classList.remove('sdoc-cc-has-comment', 'sdoc-cc-method-marked');
+      marked[j].style.removeProperty('--sdoc-cc-marker');
+    }
     if (!commenting) { updateCommentChrome(); return; }
 
     var byLine = commentsByLine();
@@ -1205,14 +1309,18 @@
       if (ln < 0) return; // orphans handled below
       var row = linesEl.querySelector('.sdoc-cl-row[data-ln="' + ln + '"]');
       if (!row) return;
+      // The line tint takes the colour of the note that sits on it.
+      var lineColor = (list[0] && list[0].color) || readCommentPrefs().color;
       row.classList.add('sdoc-cc-has-comment');
-      // A method comment paints a persistent accent stripe down the whole
-      // method, so its reach is visible the way a markdown block comment's is.
-      if (list.some(function (c) { return c.kind === 'method'; })) {
+      row.style.setProperty('--sdoc-cc-marker', lineColor);
+      // A method comment paints a persistent stripe down the whole method in its
+      // own colour, so its reach is visible the way a markdown block comment's is.
+      var methodC = list.filter(function (c) { return c.kind === 'method'; })[0];
+      if (methodC) {
         var m = methodFor(ln);
         if (m) for (var r = m.header; r <= m.end; r++) {
           var rr = linesEl.querySelector('.sdoc-cl-row[data-ln="' + r + '"]');
-          if (rr) rr.classList.add('sdoc-cc-method-marked');
+          if (rr) { rr.classList.add('sdoc-cc-method-marked'); rr.style.setProperty('--sdoc-cc-marker', methodC.color || lineColor); }
         }
       }
       var anchor = row;
@@ -1296,7 +1404,6 @@
       '<span class="sdoc-cc-card-author">' + escapeHtml(c.author || 'you') + '</span>'
       + '<span class="sdoc-cc-card-body"></span>'
       + '<span class="sdoc-cc-card-actions">'
-      +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="edit" title="Edit" aria-label="Edit comment">' + PENCIL_ICON + '</button>'
       +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="delete" title="Delete" aria-label="Delete comment">' + TRASH_ICON + '</button>'
       + '</span>';
     card.querySelector('.sdoc-cc-card-body').textContent = c.text || '';
@@ -1320,8 +1427,7 @@
     var card = document.createElement('div');
     card.className = 'sdoc-cc-card sdoc-cc-card-edit';
     card.innerHTML =
-      '<textarea class="sdoc-cc-input" rows="1" placeholder="'
-      + (spec.kind === 'method' ? 'Comment on this method...' : 'Comment on this line...') + '"></textarea>'
+      '<textarea class="sdoc-cc-input" rows="1" placeholder="Add a comment..."></textarea>'
       + '<div class="sdoc-cc-card-edit-actions">'
       +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="save" title="Save (Cmd/Ctrl+Enter)" aria-label="Save">' + CHECK_ICON + '</button>'
       +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="cancel" title="Cancel (Esc)" aria-label="Cancel">' + X_ICON + '</button>'
@@ -1380,9 +1486,10 @@
     if (spec.editId) {
       comments = CC.updateComment(comments, spec.editId, { text: text });
     } else {
+      var prefs = readCommentPrefs();
       var res = CC.addComment(comments, {
         kind: spec.kind, line: spec.line, endLine: spec.endLine, anchorText: spec.anchorText
-      }, { text: text, author: commentAuthor() });
+      }, { text: text, author: prefs.author, color: prefs.color });
       comments = res.list;
       navId = res.id;
     }
@@ -1484,7 +1591,16 @@
       openComposer({ kind: 'line', line: ln, anchorText: trimmed(ln) });
       return;
     }
-    if (!btn) return;
+    if (!btn) {
+      // Click the card body (anywhere but an action button) to edit it, the same
+      // affordance as the markdown card. The open composer's card is excluded.
+      var card = e.target.closest('.sdoc-cc-card');
+      if (!card || card.classList.contains('sdoc-cc-card-edit')) return;
+      var tRow = card.closest('.sdoc-cc-thread');
+      var cid = tRow && tRow.getAttribute('data-c');
+      if (cid) { e.stopPropagation(); startEdit(cid); }
+      return;
+    }
     e.stopPropagation();
     var act = btn.getAttribute('data-cc');
     if (act === 'save') { saveComposer(btn.closest('.sdoc-cc-composer')); return; }
@@ -1496,15 +1612,16 @@
       comments = CC.removeComment(comments, id);
       saveComments();
       renderThreads();
-      return;
     }
-    if (act === 'edit') {
-      var c = comments.filter(function (x) { return x.id === id; })[0];
-      if (!c) return;
-      var ln2 = CC ? CC.resolveLine(c, srcLines) : c.line;
-      if (ln2 < 0) return;
-      openComposer({ kind: c.kind, line: ln2, endLine: c.endLine, anchorText: c.anchorText, editId: id });
-    }
+  }
+
+  // Open the composer pre-filled over an existing note, replacing its card.
+  function startEdit(id) {
+    var c = comments.filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    var ln = CC ? CC.resolveLine(c, srcLines) : c.line;
+    if (ln < 0) return;
+    openComposer({ kind: c.kind, line: ln, endLine: c.endLine, anchorText: c.anchorText, editId: id });
   }
 
   function onComposerKey(e) {
