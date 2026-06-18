@@ -279,6 +279,24 @@ function getSectionMarkdown(headingIndex) {
 
 // ── Render sub-functions ──────────────────────────────────
 
+// Wrap each rendered markdown table in a horizontal-scroll container so a wide
+// table scrolls on its own on a narrow screen instead of widening the page.
+// Runs on the freshly parsed output, before sections/anchors, so the wrapper
+// travels with the table when buildCollapsibleSections reparents it. The PDF
+// export walker recurses into .md-table-scroll so tables still export.
+function wrapTables(container) {
+  var tables = container.querySelectorAll('table');
+  for (var i = 0; i < tables.length; i++) {
+    var t = tables[i];
+    var p = t.parentNode;
+    if (p && p.classList && p.classList.contains('md-table-scroll')) continue;
+    var wrap = document.createElement('div');
+    wrap.className = 'md-table-scroll';
+    p.insertBefore(wrap, t);
+    wrap.appendChild(t);
+  }
+}
+
 function attachHeadingAnchors(container) {
   var slugCounts = {};
   var allHeadings = [].slice.call(container.querySelectorAll('h1, h2, h3, h4'));
@@ -467,6 +485,7 @@ function render() {
   if (oldSpacer) oldSpacer.remove();
   S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody), { FORBID_ATTR: ['style'] });
 
+  wrapTables(S.renderedEl);
   attachHeadingAnchors(S.renderedEl);
   attachCodeCopyButtons(S.renderedEl);
   buildCollapsibleSections(S.renderedEl);
