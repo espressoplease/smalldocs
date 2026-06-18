@@ -130,4 +130,35 @@ module.exports = function(harness) {
     assert.ok(Math.abs(projY - my) < 1e-6, 'midpoint y drifted');
     assert.ok(after.scale > before.scale, 'should have zoomed in');
   });
+
+  // ── clampTranslate (slide pan bounds) ────────────────
+  const { clampTranslate } = ZM;
+
+  test('clampTranslate: at fit (scale 1, content == viewport) both axes pin to centre', () => {
+    const c = clampTranslate(120, -80, 1, STAGE_W, STAGE_H, STAGE_W, STAGE_H);
+    assert.ok(c.tx === 0, 'tx pinned, got ' + c.tx);
+    assert.ok(c.ty === 0, 'ty pinned, got ' + c.ty);
+  });
+
+  test('clampTranslate: zoomed-in pan is bounded to half the overflow', () => {
+    // 2x: content 1600x1200 in an 800x600 viewport => overflow 800x600, half = 400x300.
+    const c = clampTranslate(9999, -9999, 2, STAGE_W, STAGE_H, STAGE_W, STAGE_H);
+    assert.strictEqual(c.tx, 400);
+    assert.strictEqual(c.ty, -300);
+  });
+
+  test('clampTranslate: an in-bounds offset is left untouched', () => {
+    const c = clampTranslate(100, -50, 2, STAGE_W, STAGE_H, STAGE_W, STAGE_H);
+    assert.strictEqual(c.tx, 100);
+    assert.strictEqual(c.ty, -50);
+  });
+
+  test('clampTranslate: letterboxed axis stays pinned until the slide outgrows the viewport', () => {
+    // Slide fitted to 800x450 (16:9) inside an 800x600 viewport: vertically
+    // letterboxed. At 1.2x the slide is 540 tall < 600 => still pinned vertically;
+    // horizontally 960 > 800 => pannable by (960-800)/2 = 80.
+    const c = clampTranslate(500, 500, 1.2, 800, 450, 800, 600);
+    assert.strictEqual(c.ty, 0, 'vertical pinned while slide shorter than viewport');
+    assert.strictEqual(c.tx, 80, 'horizontal bounded to half the overflow');
+  });
 };
