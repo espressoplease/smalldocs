@@ -512,6 +512,7 @@ async function runShortenFlow(btn, errEl) {
     var result = await shortenCurrentDocument();
     S.shortUrl = result.url;
     S.shortLinkId = result.id;
+    S.shortLinkSnapshot = serializeCurrentDocument();
     renderFileInfoCard();
     // Fade in the new short URL row.
     var newRow = document.querySelector('.fic-row-short');
@@ -1044,14 +1045,22 @@ async function unsealDocument(cipherB64, keyBytes) {
   return decompressText(compressedB64);
 }
 
-// Compress current document, encrypt with a fresh key, upload ciphertext.
-// Returns { url, id } on success; throws on failure.
-async function shortenCurrentDocument() {
+// Canonical serialization of the live document - the exact bytes a short link
+// (and the URL hash) encode. Used both to seal a short link and to detect
+// whether the live document has since diverged from one a short link points at,
+// so the two can never disagree about what "the same document" means.
+function serializeCurrentDocument() {
   var styles = SDocStyles.stripStyleDefaults(S.collectStyles());
   var meta = Object.assign({}, S.currentMeta);
   if (Object.keys(styles).length > 0) meta.styles = styles;
   else delete meta.styles;
-  var full = SDocYaml.serializeFrontMatter(meta) + '\n' + S.currentBody;
+  return SDocYaml.serializeFrontMatter(meta) + '\n' + S.currentBody;
+}
+
+// Compress current document, encrypt with a fresh key, upload ciphertext.
+// Returns { url, id } on success; throws on failure.
+async function shortenCurrentDocument() {
+  var full = serializeCurrentDocument();
 
   var keyBytes = await generateShortLinkKey();
   var cipherB64 = await sealDocument(full, keyBytes);
@@ -1128,12 +1137,7 @@ function updateHash() {
     }
     var params = new URLSearchParams();
     if (!S._isDefaultState) {
-      var styles = SDocStyles.stripStyleDefaults(S.collectStyles());
-      var meta = Object.assign({}, S.currentMeta);
-      if (Object.keys(styles).length > 0) meta.styles = styles;
-      else delete meta.styles;
-      var full = SDocYaml.serializeFrontMatter(meta) + '\n' + S.currentBody;
-      var compressed = await compressText(full);
+      var compressed = await compressText(serializeCurrentDocument());
       params.set('md', compressed);
     }
     if (S.currentMode !== 'read') {
@@ -1146,17 +1150,29 @@ function updateHash() {
 
 // ── State sync ──────────────────────────────────
 
-// A loaded short link is an immutable snapshot of one exact document. Once the
-// live document diverges from that snapshot - an edit to text, styles, or
-// comments, or a fresh document loaded over it - the short URL no longer
-// points at what the user sees, so stop advertising it. Clearing both fields
-// and re-rendering the file info card drops the stale "Short URL" row.
-// (initShortLink re-sets these immediately after its own loadText, so clearing
-// on the 'load' source does no harm.)
-function dropShortLinkIfDiverged() {
+// A short link (loaded or freshly minted) is an immutable snapshot of one exact
+// document; S.shortLinkSnapshot holds that document's canonical serialization.
+// After the document state for a sync source has been applied, compare the live
+// document against the snapshot: if a real edit - text, styles, or comments, or
+// a fresh document loaded over it - has changed the bytes, the short URL no
+// longer points at what the reader sees, so stop advertising it (clearing the
+// fields and re-rendering the file info card drops the stale "Short URL" row).
+// A sync that re-renders without changing the bytes (a re-entered render, a
+// no-op control pass) leaves the link intact - that is the guard against
+// clearing a link the reader never actually edited.
+function reconcileShortLink(source) {
   if (!S.shortUrl && !S.shortLinkId) return;
+  // Theme is a viewer preference, not a document edit. Keep the link, but
+  // re-baseline the snapshot to the theme the reader now sees so a later real
+  // edit is still measured against it rather than reading as divergence.
+  if (source === 'theme') {
+    S.shortLinkSnapshot = serializeCurrentDocument();
+    return;
+  }
+  if (S.shortLinkSnapshot != null && serializeCurrentDocument() === S.shortLinkSnapshot) return;
   S.shortUrl = null;
   S.shortLinkId = null;
+  S.shortLinkSnapshot = null;
   renderFileInfoCard();
 }
 
@@ -1164,9 +1180,6 @@ function syncAll(source) {
   if (S._syncing) return;
   S._syncing = true;
   try {
-    // Theme is a viewer preference, not a document change, so it keeps any
-    // loaded short link. Every other source means the document diverged.
-    if (source !== 'theme') dropShortLinkIfDiverged();
     if (source === 'controls') {
       S._isDefaultState = false;
       S.invalidateLocalMeta();
@@ -1204,6 +1217,9 @@ function syncAll(source) {
       render();
       updateHash();
     }
+    // Now that this source's edit has been applied to the live document,
+    // decide whether a loaded/minted short link still matches it.
+    reconcileShortLink(source);
   } finally {
     S._syncing = false;
     if (S.applyChromeTint) S.applyChromeTint();
@@ -1787,6 +1803,7 @@ async function initShortLink(id) {
     }
     S.shortUrl = window.location.origin + window.location.pathname + '#k=' + keyB64;
     S.shortLinkId = id;
+    S.shortLinkSnapshot = serializeCurrentDocument();
     if (typeof renderFileInfoCard === 'function') renderFileInfoCard();
   } catch (e) {
     var msg = e && e.message === 'not_found'
