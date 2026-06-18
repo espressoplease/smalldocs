@@ -28,11 +28,34 @@ var CSS = [
   '@keyframes sdoc-present-fade { from { opacity: 0 } to { opacity: 1 } }',
   '.sdoc-present-topbar {',
   '  grid-column: 1 / -1;',
+  '  position: relative;',  // anchors the overflow-fade ::after
   '  display: flex; align-items: center; gap: 6px;',
   '  height: 40px; padding: 0 12px;',
   '  background: #131210; border-bottom: 1px solid #2a2724;',
   '  flex-shrink: 0;',
+  /* On a narrow page the controls are wider than the viewport. Without this
+     the topbar (a grid item, default min-width:auto) grows past the page edge,
+     pushing the far-right controls off-screen and squeezing the copy label
+     onto two lines. min-width:0 lets the grid cell clip it; overflow-x:auto
+     turns the excess into a hidden-scrollbar horizontal scroll, matching the
+     inline (#left-toolbar) pattern. Children must not shrink/wrap or they'd
+     compress instead of scrolling. */
+  '  min-width: 0;',
+  '  overflow-x: auto; overflow-y: hidden;',
+  '  scrollbar-width: none; -webkit-overflow-scrolling: touch;',
   '}',
+  '.sdoc-present-topbar::-webkit-scrollbar { display: none; }',
+  '.sdoc-present-topbar > *, .sdoc-present-actions > * { flex-shrink: 0; }',
+  '.sdoc-present-copy-num { white-space: nowrap; }',
+  /* Right-edge fade hint when the topbar scrolls. JS (sdocs-present-mobile.js)
+     toggles .has-overflow / .scrolled-end, mirroring the inline toolbar. */
+  '.sdoc-present-topbar.has-overflow::after {',
+  '  content: ""; position: absolute; top: 0; right: 0;',
+  '  width: 28px; height: 100%;',
+  '  background: linear-gradient(to right, transparent, #131210 80%);',
+  '  pointer-events: none; opacity: 1; transition: opacity .2s ease;',
+  '}',
+  '.sdoc-present-topbar.scrolled-end::after { opacity: 0; }',
   /* Brand mirrors the main SDocs wordmark: logo blue, 13px, weight 600, with */
   /* "Slides" appended in white/normal weight so the section identity reads */
   /* as "SmallDocs · Slides". Three responsive tiers mirror the main */
