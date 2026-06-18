@@ -345,6 +345,17 @@
     if (chromeTimer) { window.clearTimeout(chromeTimer); chromeTimer = 0; }
   }
   function toggleChrome() { if (chromeVisible) hideChrome(); else showChrome(); }
+
+  // Toggle the right-edge fade hint when the topbar scrolls horizontally
+  // (mirrors the inline #left-toolbar). The CSS scroll itself works without
+  // this; the class just shows/hides the gradient cue.
+  function updateTopbarOverflow() {
+    if (!topbar) return;
+    var over = topbar.scrollWidth > topbar.clientWidth + 1;
+    topbar.classList.toggle('has-overflow', over);
+    var atEnd = topbar.scrollLeft + topbar.clientWidth >= topbar.scrollWidth - 1;
+    topbar.classList.toggle('scrolled-end', atEnd);
+  }
   function armChromeTimer() {
     if (chromeTimer) window.clearTimeout(chromeTimer);
     // Only landscape auto-hides; desktop/portrait keep the bar.
@@ -379,6 +390,7 @@
     cacheRects();
     clampPan();
     setTransformAnimated(false);
+    updateTopbarOverflow();
   }
 
   // ── toasts (coachmark + rotate hint) ──────────────────
@@ -495,8 +507,10 @@
 
     // On rotation, the present sizer re-runs sizeStage on resize; we re-cache
     // and re-clamp one rAF later (iOS reports stale dims during the event).
-    resizeHandler = function () { requestAnimationFrame(function () { cacheRects(); clampPan(); applyTransform(); }); };
+    resizeHandler = function () { requestAnimationFrame(function () { cacheRects(); clampPan(); applyTransform(); updateTopbarOverflow(); }); };
     window.addEventListener('resize', resizeHandler);
+
+    if (topbar) topbar.addEventListener('scroll', updateTopbarOverflow, { passive: true });
 
     applyFormFactor();
   }
@@ -507,6 +521,7 @@
     total = document.querySelectorAll('.sdoc-slide[data-dsl]').length;
     resetZoom();      // every slide change returns to fit
     cacheRects();
+    updateTopbarOverflow(); // the copy label width changes with the slide number
   }
 
   function onClose() {

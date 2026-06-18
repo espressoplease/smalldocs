@@ -111,6 +111,40 @@ test('single tap toggles the chrome; tapping again restores it', async ({ page }
   await expect(modal).not.toHaveClass(/pm-chrome-hidden/);
 });
 
+test.describe('narrow portrait topbar', () => {
+  // A genuinely narrow portrait phone: the full control cluster is wider than
+  // the page, which used to overrun the viewport and wrap the copy label.
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 360, height: 780 } });
+
+  test('topbar fits the page and scrolls instead of overflowing / wrapping', async ({ page }) => {
+    const many = Array.from({ length: 20 }, (_, i) => 'grid 100 56.25\nr 5 5 90 90 | S' + (i + 1));
+    await loadDeck(page, many);
+    await openPresent(page);
+    await page.evaluate(() => window.SDocPresent.go(17)); // copy label -> "slide 18"
+    await page.waitForTimeout(150);
+    const m = await page.evaluate(() => {
+      const tb = document.querySelector('.sdoc-present-topbar');
+      const copy = document.querySelector('.sdoc-present-copy-btn');
+      return {
+        vw: window.innerWidth,
+        clientW: tb.clientWidth,
+        scrollW: tb.scrollWidth,
+        overflowX: getComputedStyle(tb).overflowX,
+        copyH: copy.offsetHeight,
+        hasOverflow: tb.classList.contains('has-overflow'),
+      };
+    });
+    // The bar is clipped to the page, not wider than it.
+    expect(m.clientW).toBeLessThanOrEqual(m.vw + 1);
+    // Excess content becomes horizontal scroll, like the inline toolbar.
+    expect(m.overflowX).toBe('auto');
+    expect(m.scrollW).toBeGreaterThan(m.clientW);
+    expect(m.hasOverflow).toBeTruthy();
+    // The copy label stays on one line (a wrapped label is taller than ~32px).
+    expect(m.copyH).toBeLessThan(32);
+  });
+});
+
 test('changing slide resets zoom to fit', async ({ page }) => {
   await loadDeck(page, ['grid 100 56.25\nr 5 5 90 90 | One', 'grid 100 56.25\nr 5 5 90 90 | Two']);
   await openPresent(page);
