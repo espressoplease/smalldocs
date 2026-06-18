@@ -439,6 +439,11 @@ function renderActive() {
   if (window.SDocSlideComments && window.SDocSlideComments.onPresentRender) {
     window.SDocSlideComments.onPresentRender(state.modal, state.index, dsl);
   }
+
+  // Reset zoom-to-fit and re-measure for the touch layer on every slide change.
+  if (window.SDocPresentMobile && window.SDocPresentMobile.onRender) {
+    window.SDocPresentMobile.onRender(state.index);
+  }
 }
 
 function onKey(e) {
@@ -649,6 +654,13 @@ function open(startIndex) {
   renderActive();
   updateHashPresent(state.index);
 
+  // Touch + responsive-chrome layer (no-op on desktop / when not loaded).
+  if (window.SDocPresentMobile && window.SDocPresentMobile.onOpen) {
+    window.SDocPresentMobile.onOpen({
+      modal: modal, stage: stage, wrap: wrap, topbar: topbar, index: state.index
+    });
+  }
+
   // Focus the stage so keyboard events land on the document body.
   modal.tabIndex = -1;
   setTimeout(function () { modal.focus(); }, 0);
@@ -663,6 +675,9 @@ function close() {
   state.sizer = null;
   if (window.SDocSlideComments && window.SDocSlideComments.presentTeardown) {
     window.SDocSlideComments.presentTeardown();
+  }
+  if (window.SDocPresentMobile && window.SDocPresentMobile.onClose) {
+    window.SDocPresentMobile.onClose();
   }
   closeExportPanel();
   if (state.expPanel && state.expPanel.parentNode) state.expPanel.parentNode.removeChild(state.expPanel);
