@@ -337,56 +337,56 @@ html[data-theme="dark"] :is(#_sd_rendered, .sdoc-code-focus) {
   --hl-comment-bg: rgba(94, 234, 212, 0.10);
 }
 
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-keyword,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-built_in.hljs-keyword,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-literal,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-selector-tag,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-doctag { color: var(--hl-keyword); }
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-keyword,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-built_in.hljs-keyword,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-literal,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-selector-tag,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-doctag { color: var(--hl-keyword); }
 
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-string,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-regexp,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-char.escape_,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-symbol,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-template-tag,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-quote { color: var(--hl-string); }
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-string,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-regexp,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-char.escape_,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-symbol,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-template-tag,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-quote { color: var(--hl-string); }
 
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-number,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-bullet { color: var(--hl-number); }
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-number,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-bullet { color: var(--hl-number); }
 
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-title,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-title.function_,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-section { color: var(--hl-function); font-weight: 600; }
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-title,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-title.function_,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-section { color: var(--hl-function); font-weight: 600; }
 
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-type,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-built_in,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-class .hljs-title,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-title.class_,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-params .hljs-keyword { color: var(--hl-type); }
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-type,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-built_in,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-class .hljs-title,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-title.class_,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-params .hljs-keyword { color: var(--hl-type); }
 
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-meta,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-meta .hljs-keyword,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-meta-keyword { color: var(--hl-meta); }
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-meta,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-meta .hljs-keyword,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-meta-keyword { color: var(--hl-meta); }
 
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-attr,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-attribute,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-property,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-variable,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-template-variable { color: var(--hl-attr); }
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-attr,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-attribute,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-property,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-variable,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-template-variable { color: var(--hl-attr); }
 
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-tag,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-name,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-selector-id,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-selector-class { color: var(--hl-tag); }
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-tag,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-name,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-selector-id,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-selector-class { color: var(--hl-tag); }
 
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-punctuation,
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-operator { color: var(--hl-muted); }
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-punctuation,
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-operator { color: var(--hl-muted); }
 
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-deletion { color: #b91c1c; }
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-addition { color: #15803d; }
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-deletion { color: #b91c1c; }
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-addition { color: #15803d; }
 
 /* Comments: the prominent lane. Italic, full-contrast colour, faint tint, and
    a hair of horizontal padding so a trailing `# note` reads as its own thing. */
-:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-comment {
+:is(#_sd_rendered pre code, .sdoc-code-focus) .hljs-comment {
   color: var(--hl-comment);
   background: var(--hl-comment-bg);
   font-style: italic;
