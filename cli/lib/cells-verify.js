@@ -31,30 +31,44 @@ function scanCellsBlocks(md) {
   var blocks = [];
   var m;
   while ((m = re.exec(md))) {
-    blocks.push({ name: (m[2] || '').trim().replace(/"/g, ''), body: m[3] });
+    blocks.push({ info: (m[2] || '').replace(/"/g, ''), body: m[3] });
   }
   return blocks;
 }
 
-// Parse + name every block into a workbook, mirroring the renderer: a fence
-// name wins, then an explicit `name=` directive, then auto Sheet1/Sheet2... by
-// order among the blocks that became real grids. Non-grid blocks (empty /
-// unresolved) are skipped; a parse error is recorded so the exit code reflects it.
+// Parse + name + group every block into workbooks, mirroring the renderer.
+// Each block's fence info is split into a workbook id and a sheet name (the
+// first "/" separates them); a baked `workbook=` / `name=` directive is the
+// fallback. Blocks bucket by workbook id in first-seen order; within each
+// workbook a fence/directive name wins, else auto Sheet1/Sheet2..., and both
+// the auto counter and duplicate detection reset per workbook. recalcWorkbook
+// later resolves references only within one workbook, so a Sheet!A1 into
+// another workbook reads #REF! - the same isolation the browser enforces.
 function buildWorkbook(md) {
   var blocks = scanCellsBlocks(md);
-  var sheets = [];   // { name, model }
+  var order = [];     // workbook ids, first-seen order
+  var byWb = {};      // id -> [{ name, model }]
   var parseErrors = [];
-  var autoIdx = 0;
   for (var i = 0; i < blocks.length; i++) {
     var model;
     try { model = CELLS.parseCells(blocks[i].body); }
     catch (e) { parseErrors.push((e && e.message) || 'parse error'); continue; }
     if (model.error) { parseErrors.push(model.error); continue; }
     if (model.unresolved || model.empty) continue;
-    var name = blocks[i].name || (model.name && String(model.name).trim()) || ('Sheet' + (++autoIdx));
-    sheets.push({ name: name, model: model });
+    var fence = CELLS.parseFenceInfo(blocks[i].info || '');
+    var wbId = fence.workbook || (model.workbook != null ? String(model.workbook) : '');
+    var explicitName = fence.name || (model.name && String(model.name).trim()) || '';
+    if (!byWb[wbId]) { byWb[wbId] = []; order.push(wbId); }
+    byWb[wbId].push({ name: explicitName, model: model });
   }
-  return { sheets: sheets, parseErrors: parseErrors };
+  var workbooks = order.map(function (id) {
+    var autoIdx = 0;
+    var sheets = byWb[id].map(function (s) {
+      return { name: s.name || ('Sheet' + (++autoIdx)), model: s.model };
+    });
+    return { id: id, sheets: sheets };
+  });
+  return { workbooks: workbooks, parseErrors: parseErrors };
 }
 
 // Render one sheet's computed grid to a 2D array of display strings: a formula
@@ -111,17 +125,24 @@ async function cellsVerifyCommand(opts) {
   }
 
   var wb = buildWorkbook(content);
-  var fxGrids = FX.recalcWorkbook(wb.sheets.map(function (s) {
-    return { name: s.name, model: s.model };
-  }));
 
-  // Build the per-sheet view once; --sheet filters it afterwards.
-  var rendered = wb.sheets.map(function (s, i) {
-    return {
-      name: s.name,
-      values: valuesFor(s.model, fxGrids[i] || []),
-      errors: errorsFor(s.name, s.model, fxGrids[i] || []),
-    };
+  // Recalc each workbook in isolation, then flatten to a per-sheet view that
+  // remembers which workbook each sheet came from. --sheet filters it after.
+  var rendered = [];
+  wb.workbooks.forEach(function (book) {
+    var fxGrids = FX.recalcWorkbook(book.sheets.map(function (s) {
+      return { name: s.name, model: s.model };
+    }));
+    book.sheets.forEach(function (s, i) {
+      var errs = errorsFor(s.name, s.model, fxGrids[i] || []);
+      if (book.id) errs.forEach(function (e) { e.workbook = book.id; });
+      rendered.push({
+        workbook: book.id,
+        name: s.name,
+        values: valuesFor(s.model, fxGrids[i] || []),
+        errors: errs,
+      });
+    });
   });
 
   if (opts.sheetName) {
@@ -141,14 +162,19 @@ async function cellsVerifyCommand(opts) {
   if (opts.jsonFlag) {
     process.stdout.write(JSON.stringify({
       ok: ok,
-      sheets: rendered.map(function (r) { return { name: r.name, values: r.values }; }),
+      sheets: rendered.map(function (r) {
+        var o = { name: r.name, values: r.values };
+        if (r.workbook) o.workbook = r.workbook;
+        return o;
+      }),
       errors: allErrors,
       parseErrors: wb.parseErrors,
     }, null, 2) + '\n');
   } else {
     if (!rendered.length) console.error('sdoc: no cells tabs found in ' + file);
     var chunks = rendered.map(function (r) {
-      return '# sheet: ' + r.name + '\n' + CELLS.serializeCsv(r.values);
+      var banner = r.workbook ? ('# workbook: ' + r.workbook + ' / sheet: ' + r.name) : ('# sheet: ' + r.name);
+      return banner + '\n' + CELLS.serializeCsv(r.values);
     });
     if (chunks.length) process.stdout.write(chunks.join('\n') + '\n');
     wb.parseErrors.forEach(function (e) { console.error('sdoc: cells parse error - ' + e); });

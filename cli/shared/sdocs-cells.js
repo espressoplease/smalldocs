@@ -112,6 +112,20 @@
     return meta;
   }
 
+  // Split a fence info string (everything after "cells ") into a workbook id
+  // and a sheet name. The first "/" separates them: "financials/Model" ->
+  // workbook "financials", name "Model". No slash -> default workbook "" and
+  // the whole string is the name. Everything after the first "/" is the name
+  // verbatim, so a sheet name may contain slashes; a workbook id may not. This
+  // is the one place both the browser renderer and the CLI split the fence, so
+  // the two never drift.
+  function parseFenceInfo(rest) {
+    var s = String(rest == null ? '' : rest).trim();
+    var slash = s.indexOf('/');
+    if (slash < 0) return { workbook: '', name: s };
+    return { workbook: s.slice(0, slash).trim(), name: s.slice(slash + 1).trim() };
+  }
+
   // Build the grid model from a ```cells block body.
   // Returns { rows, cols, cells, empty } where cells is row-major, every row
   // padded to `cols` with empty cells so the grid is rectangular. May instead
@@ -130,7 +144,7 @@
     // `name` is the tab name. Authored as the fence info string (```cells
     // Sales); the renderer + CLI normalise that into this directive so the
     // name has one home in the model.
-    var source, range, formats, name;
+    var source, range, formats, name, workbook;
     var lines = trimmed.split('\n');
     var idx = 0;
     var FORMAT_RE = /^format:\s*(.*)$/i;
@@ -141,7 +155,8 @@
         var meta = parseDirectives(dm[1]);
         source = meta.source; range = meta.range;
         if (meta.name != null) name = meta.name;
-        if (meta.error) return { empty: false, error: meta.error, source: source, name: name };
+        if (meta.workbook != null) workbook = meta.workbook;
+        if (meta.error) return { empty: false, error: meta.error, source: source, name: name, workbook: workbook };
         idx++; continue;
       }
       if (fm) { formats = parseFormats(fm[1]); idx++; continue; }
@@ -151,8 +166,8 @@
 
     // Unresolved reference (after directives): the CLI never baked it.
     var ref = body.match(REFERENCE_RE);
-    if (ref) return { empty: false, unresolved: ref[1], formats: formats, name: name };
-    if (body === '') return { rows: 0, cols: 0, cells: [], empty: true, source: source, range: range, formats: formats, name: name };
+    if (ref) return { empty: false, unresolved: ref[1], formats: formats, name: name, workbook: workbook };
+    if (body === '') return { rows: 0, cols: 0, cells: [], empty: true, source: source, range: range, formats: formats, name: name, workbook: workbook };
 
     var raw = parseCsv(body);
     var cols = 0;
@@ -168,7 +183,7 @@
       }
       cells.push(out);
     }
-    return { rows: raw.length, cols: cols, cells: cells, empty: false, source: source, range: range, formats: formats, name: name };
+    return { rows: raw.length, cols: cols, cells: cells, empty: false, source: source, range: range, formats: formats, name: name, workbook: workbook };
   }
 
   // Serialize a 2D array of raw cell strings back to CSV (RFC 4180 quoting:
@@ -378,6 +393,7 @@
   exports.classify = classify;
   exports.parseCsv = parseCsv;
   exports.parseCells = parseCells;
+  exports.parseFenceInfo = parseFenceInfo;
   exports.serializeCsv = serializeCsv;
   exports.selectionStats = selectionStats;
   exports.formatNumber = formatNumber;
