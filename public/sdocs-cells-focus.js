@@ -246,13 +246,17 @@
     state.prevFocus = null;
   }
 
-  // The tab list for `model`: every tab of its workbook (so the strip can
-  // switch between them), or a single anonymous entry for a standalone grid.
+  // The tab list for `model`: every tab of its OWN workbook (so the strip
+  // switches only between sibling sheets, never another workbook's), or a
+  // single anonymous entry for a standalone grid.
   function entriesFor(model, inlineWrapper) {
     var wb = S.cellsWorkbook;
     if (wb && wb.length) {
-      for (var i = 0; i < wb.length; i++) {
-        if (wb[i].model === model) return wb.slice();
+      var entry = null;
+      for (var i = 0; i < wb.length; i++) { if (wb[i].model === model) { entry = wb[i]; break; } }
+      if (entry) {
+        var wid = entry.workbook || '';
+        return wb.filter(function (s) { return (s.workbook || '') === wid; });
       }
     }
     return [{ name: '', model: model, wrapper: inlineWrapper }];
