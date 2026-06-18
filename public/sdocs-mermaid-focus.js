@@ -3,8 +3,9 @@
 // Each rendered .sdoc-mermaid wrapper carries a small top-right icon button
 // (added by sdocs-mermaid.js after render). Clicking the button clones the
 // already-rendered SVG into a centered stage with:
-//   - drag to pan
+//   - drag to pan (one finger on touch)
 //   - wheel to zoom toward cursor
+//   - two-finger pinch to zoom + pan, anchored at the finger midpoint (maps)
 //   - + / - keys to zoom; 0 to fit; arrows for pan; ESC to close
 //   - Copy PNG / Save PNG / Fit / Zoom -/+ buttons in the topbar
 //
@@ -15,6 +16,9 @@
 (function () {
   'use strict';
   var S = window.SDocs;
+  var ZM = window.SDocZoomMath; // pure transform math, shared with Node tests
+
+  var MIN_SCALE = 0.1, MAX_SCALE = 16;
 
   var CSS_ID = 'sdocs-mermaid-focus-css';
   var CSS = [
@@ -255,6 +259,28 @@
   var isDragging = false;
   var dragStart = null; // { x, y, tx, ty }
 
+  // Touch gesture state. Mode is derived from finger count on every
+  // touchstart/touchend (syncTouchMode), so we never carry stale
+  // per-finger state across a count change.
+  var lastTouch = null;  // single-finger drag origin { x, y, tx, ty }
+  var pinch = null;      // two-finger frame anchor { mx, my, dist } (stage-local)
+  // Stage rect cached once per gesture so the per-touchmove path never calls
+  // getBoundingClientRect (a layout-read after each transform write is the
+  // classic touch-loop thrash). Invalidated on gesture end and on resize.
+  var stageRect = null;  // { left, top, width, height }
+
+  // rAF-batch the transform write: a 120Hz finger can deliver a burst of
+  // touchmoves between paints; collapse them to one style write per frame.
+  var rafPending = false;
+  function scheduleTransform() {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(function () {
+      rafPending = false;
+      applyTransform();
+    });
+  }
+
   function applyTransform() {
     if (svgWrap) svgWrap.style.transform =
       'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
@@ -297,23 +323,18 @@
   }
 
   // Zoom toward a stage-local point (sx, sy) by multiplying scale by f.
-  // (tx, ty) are offsets from the wrap's flex-centered position, with
-  // transform-origin at wrap's centre. The wrap's centre in stage coords
-  // is at (stageW/2 + tx, stageH/2 + ty). Keeping (sx, sy) fixed under
-  // a zoom factor k means: (sx - cx)/scale stays constant.
+  // Thin DOM wrapper over ZM.nextTransform - the one zoom core that wheel,
+  // keyboard, toolbar buttons and touch-pinch all share, so a `+` press and
+  // a pinch to the same scale land on identical transforms. Uses the cached
+  // stage rect during a touch gesture, falls back to a live measure for the
+  // one-shot wheel / button / key callers.
   function zoomAt(sx, sy, f) {
     if (!stageEl) return;
-    var minScale = 0.1, maxScale = 16;
-    var newScale = Math.max(minScale, Math.min(maxScale, scale * f));
-    var stb = stageEl.getBoundingClientRect();
-    var cx = stb.width / 2 + tx;
-    var cy = stb.height / 2 + ty;
-    var k = newScale / scale;
-    var newCx = sx - (sx - cx) * k;
-    var newCy = sy - (sy - cy) * k;
-    tx = newCx - stb.width / 2;
-    ty = newCy - stb.height / 2;
-    scale = newScale;
+    var w, h;
+    if (stageRect) { w = stageRect.width; h = stageRect.height; }
+    else { var stb = stageEl.getBoundingClientRect(); w = stb.width; h = stb.height; }
+    var next = ZM.nextTransform({ tx: tx, ty: ty, scale: scale }, w, h, sx, sy, f, MIN_SCALE, MAX_SCALE);
+    tx = next.tx; ty = next.ty; scale = next.scale;
     applyTransform();
   }
 
@@ -436,10 +457,14 @@
     stageEl.addEventListener('touchstart', onTouchStart, { passive: false });
     stageEl.addEventListener('touchmove', onTouchMove, { passive: false });
     stageEl.addEventListener('touchend', onTouchEnd);
+    stageEl.addEventListener('touchcancel', onTouchCancel);
 
     keyHandler = onKey;
     window.addEventListener('keydown', keyHandler);
-    resizeHandler = updateTopbarOverflow;
+    // Resize / orientation change can move the stage's viewport rect; drop the
+    // cached copy so the next gesture re-measures. (It can't go stale mid-
+    // gesture: the modal is position:fixed and the page can't scroll under it.)
+    resizeHandler = function () { stageRect = null; updateTopbarOverflow(); };
     window.addEventListener('resize', resizeHandler);
 
     // Initial fit-to-screen after DOM has laid out
@@ -461,6 +486,9 @@
     modal = null; stageEl = null; svgWrap = null; topbarEl = null;
     document.body.classList.remove('sdoc-mermaid-focus-open');
     tx = 0; ty = 0; scale = 1; isDragging = false; dragStart = null;
+    // Clear gesture state so a pinch interrupted by close() can't leak into
+    // the next time the modal opens.
+    lastTouch = null; pinch = null; stageRect = null; rafPending = false;
     restorePresentModal();
     if (prevFocus && prevFocus.focus) try { prevFocus.focus(); } catch (_) {}
     prevFocus = null;
@@ -654,23 +682,102 @@
     zoomAt(sx, sy, f);
   }
 
-  // Single-finger drag only in v1. Pinch is "v2 if there's demand"; the
-  // explicit cap keeps the touch path predictable.
-  var lastTouch = null;
+  // Map-style touch: one finger pans, two fingers pinch-zoom + pan anchored
+  // at the finger midpoint. The whole gesture is driven off finger COUNT,
+  // not finger identity: syncTouchMode re-derives the mode and re-seeds the
+  // origins from scratch on every touchstart/touchend. That dissolves the
+  // 1->2->1, third-finger, and same-frame-lift cases - there's never any
+  // stale per-finger state carried across a count change.
+  function cacheStageRect() {
+    if (!stageEl) { stageRect = null; return; }
+    var r = stageEl.getBoundingClientRect();
+    stageRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+  }
+
+  // Midpoint + spread of the first two fingers, in stage-local coords.
+  function twoFingerState(touches) {
+    var ax = touches[0].clientX, ay = touches[0].clientY;
+    var bx = touches[1].clientX, by = touches[1].clientY;
+    return {
+      mx: (ax + bx) / 2 - stageRect.left,
+      my: (ay + by) / 2 - stageRect.top,
+      dist: Math.hypot(bx - ax, by - ay)
+    };
+  }
+
+  // Re-derive gesture mode from the live finger count. 0 = idle, 1 = drag,
+  // 2+ = pinch on the first two fingers. Always re-seeds the relevant origin
+  // from the current fingers and the current transform, so a count change
+  // (finger added / lifted) resumes with no jump.
+  function syncTouchMode(e) {
+    var n = e.touches.length;
+    if (n === 0) {
+      lastTouch = null; pinch = null; isDragging = false;
+      if (stageEl) stageEl.classList.remove('is-dragging');
+      return;
+    }
+    if (!stageRect) cacheStageRect();
+    if (n === 1) {
+      pinch = null;
+      var p = e.touches[0];
+      lastTouch = { x: p.clientX, y: p.clientY, tx: tx, ty: ty };
+      isDragging = true;
+      if (stageEl) stageEl.classList.add('is-dragging');
+    } else {
+      lastTouch = null;
+      isDragging = false;
+      if (stageEl) stageEl.classList.remove('is-dragging');
+      pinch = twoFingerState(e.touches);
+    }
+  }
+
   function onTouchStart(e) {
-    if (e.touches.length !== 1) { lastTouch = null; return; }
     e.preventDefault();
-    lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY, tx: tx, ty: ty };
-    isDragging = true;
+    cacheStageRect(); // fresh measure at the start of (or change in) a gesture
+    syncTouchMode(e);
   }
+
   function onTouchMove(e) {
-    if (!lastTouch || e.touches.length !== 1) return;
-    e.preventDefault();
-    tx = lastTouch.tx + (e.touches[0].clientX - lastTouch.x);
-    ty = lastTouch.ty + (e.touches[0].clientY - lastTouch.y);
-    applyTransform();
+    if (!stageRect) return;
+    if (pinch && e.touches.length >= 2) {
+      e.preventDefault();
+      var cur = twoFingerState(e.touches);
+      var next = ZM.applyPinch(
+        { tx: tx, ty: ty, scale: scale },
+        stageRect.width, stageRect.height, pinch, cur, MIN_SCALE, MAX_SCALE
+      );
+      tx = next.tx; ty = next.ty; scale = next.scale;
+      // Handler advances the anchor (the pure fn must not); mutate fields
+      // in place to keep the move path allocation-free.
+      pinch.mx = cur.mx; pinch.my = cur.my; pinch.dist = cur.dist;
+      scheduleTransform();
+      return;
+    }
+    if (lastTouch && e.touches.length === 1) {
+      e.preventDefault();
+      var t = e.touches[0];
+      tx = lastTouch.tx + (t.clientX - lastTouch.x);
+      ty = lastTouch.ty + (t.clientY - lastTouch.y);
+      scheduleTransform();
+    }
   }
-  function onTouchEnd() { lastTouch = null; isDragging = false; }
+
+  // A finger lifted. Re-derive from whatever REMAINS (e.touches, not
+  // changedTouches): on a 2->1 drop this re-seeds the single-drag origin
+  // from the surviving finger + current transform, so the pan continues
+  // without snapping to the lifted finger's last position.
+  function onTouchEnd(e) {
+    syncTouchMode(e);
+    if (e.touches.length === 0) stageRect = null;
+  }
+
+  // Gesture stolen by the OS (notification, palm rejection, edge swipe).
+  // touchend may never fire, so reset the same state here or the next touch
+  // resumes a phantom gesture.
+  function onTouchCancel() {
+    lastTouch = null; pinch = null; isDragging = false; stageRect = null;
+    if (stageEl) stageEl.classList.remove('is-dragging');
+  }
 
   function onKey(e) {
     if (!modal) return;
