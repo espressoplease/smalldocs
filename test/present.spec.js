@@ -185,4 +185,38 @@ test.describe('presentation mode', () => {
     expect(clip).toContain('Beta line');
     expect(clip).not.toContain('Gamma line'); // text comes from the active slide only
   });
+
+  test('export panel offers both PDF and PowerPoint downloads', async ({ page }) => {
+    await loadDocWithSlides(page, [
+      'grid 100 56.25\nr 10 10 80 40 | A',
+    ]);
+    await page.locator('.sdoc-slide-present').first().click();
+    await page.locator('.sdoc-present-export-btn').click();
+
+    const panel = page.locator('.sdoc-present-exp-panel.open');
+    await expect(panel).toBeVisible();
+    const titles = panel.locator('.sdoc-present-exp-btn-title');
+    await expect(titles).toHaveCount(2);
+    await expect(titles.nth(0)).toHaveText('PDF');
+    await expect(titles.nth(1)).toHaveText('PowerPoint (.pptx)');
+  });
+
+  test('PowerPoint export option calls SDocs.exportSlidesPptx', async ({ page }) => {
+    await loadDocWithSlides(page, [
+      'grid 100 56.25\nr 10 10 80 40 | A',
+    ]);
+    // Stub the export entry so the test asserts wiring, not the full PptxGenJS
+    // pipeline (CDN-dependent). The panel button must reach this function.
+    await page.evaluate(() => {
+      window.__pptxCalled = 0;
+      window.SDocs.exportSlidesPptx = function () { window.__pptxCalled++; };
+    });
+    await page.locator('.sdoc-slide-present').first().click();
+    await page.locator('.sdoc-present-export-btn').click();
+    await page.locator('.sdoc-present-exp-btn').nth(1).click();
+    const called = await page.evaluate(() => window.__pptxCalled);
+    expect(called).toBe(1);
+    // Picking an option closes the panel.
+    await expect(page.locator('.sdoc-present-exp-panel.open')).toHaveCount(0);
+  });
 });
