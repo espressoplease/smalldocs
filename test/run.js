@@ -35,6 +35,7 @@ require('./test-slide-comments')(harness);
 require('./test-forms')(harness);
 require('./test-cells')(harness);
 require('./test-cells-formula')(harness);
+require('./test-cells-groups')(harness);
 require('./test-cells-xlsx')(harness);
 require('./test-cells-transclude')(harness);
 require('./test-cells-verify')(harness);

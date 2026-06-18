@@ -40,9 +40,13 @@
         if (token.type !== 'code' || !token.lang) return;
         var m = /^cells[ \t]+(\S.*)$/.exec(token.lang);
         if (!m) return;
-        var name = m[1].trim().replace(/"/g, '');
+        var info = CELLS.parseFenceInfo(m[1]);
+        var name = String(info.name || '').replace(/"/g, '');
+        var wb = String(info.workbook || '').replace(/"/g, '');
         token.lang = 'cells';
-        token.text = 'sdoc-cells: name="' + name + '"\n' + token.text;
+        var dir = 'sdoc-cells: name="' + name + '"';
+        if (wb) dir += ' workbook="' + wb + '"';
+        token.text = dir + '\n' + token.text;
       },
     });
   }
@@ -826,11 +830,13 @@
     var nodes = scope.querySelectorAll('code.language-cells');
     var capped = Array.prototype.slice.call(nodes, 0, DOC_BLOCK_CAP);
 
-    // Pass 1: parse + name. Non-grid blocks (unresolved / error / empty) are
-    // handled inline and never become sheets, so they take no SheetN number.
-    var sheets = [];          // { target, model, rawSrc, name, duplicate }
-    var autoIdx = 0;
-    var seenNames = {};       // lower-cased name -> already used
+    // Pass 1: parse every block and bucket it by workbook id, preserving the
+    // order workbooks first appear in. Non-grid blocks (unresolved / error /
+    // empty) are handled inline and never become sheets. A block with no
+    // workbook id falls in the default workbook "" - so a doc that uses no
+    // "/" reads exactly as it did before workbooks existed.
+    var order = [];        // workbook ids, first-seen order
+    var byWb = {};         // workbook id -> [{ target, model, rawSrc, workbook }]
     for (var i = 0; i < capped.length; i++) {
       var codeEl = capped[i];
       var pre = codeEl.closest('pre');
@@ -847,46 +853,60 @@
       if (model.unresolved) { resolveReference(target, model.unresolved); continue; }
       if (model.error) { renderError(target, model.error); continue; }
       if (model.empty) { renderError(target, 'Empty cells block'); continue; }
-      var explicit = model.name && String(model.name).trim();
-      var sheetName = explicit ? String(model.name).trim() : 'Sheet' + (++autoIdx);
-      var key = sheetName.toLowerCase();
-      var duplicate = !!seenNames[key];
-      seenNames[key] = true;
-      sheets.push({ target: target, model: model, rawSrc: rawSrc, name: sheetName, duplicate: duplicate });
+      var wbId = model.workbook != null ? String(model.workbook) : '';
+      if (!byWb[wbId]) { byWb[wbId] = []; order.push(wbId); }
+      byWb[wbId].push({ target: target, model: model, rawSrc: rawSrc, workbook: wbId });
     }
-    if (!sheets.length) return;
+    if (!order.length) return;
 
-    // Register the workbook so any grid (inline OR the fullscreen overlay) can
-    // resolve cross-tab references against every tab, recompute live when a tab
-    // is edited, and - for the fullscreen tab strip - reach each tab's name,
-    // model, and inline wrapper. Without this the fullscreen view would only
-    // see its own sheet and every Sheet!A1 reference would read #REF!.
-    S.cellsWorkbook = sheets;   // entries: { target, model, rawSrc, name, duplicate, wrapper }
-
-    // Pass 2: one workbook recalc over all sheets, then mount each grid with
-    // its precomputed result slice (the fast path for the initial inline
-    // render; fullscreen and post-edit repaints recompute fresh via
-    // S.cellsWorkbookFx). The caption shows only when the workbook has more
-    // than one tab (or a single tab was explicitly named), so an existing
-    // single-table doc renders unchanged.
+    // Pass 2: name + recalc each workbook in isolation. Auto Sheet1/Sheet2
+    // numbering and duplicate-name detection reset per workbook, so two
+    // workbooks may reuse a name without colliding. recalcWorkbook resolves
+    // cross-sheet references only within the array it is handed, so a Sheet!A1
+    // reference into another workbook reads #REF! - the isolation is total.
+    // S.cellsWorkbook keeps every sheet, tagged with its workbook id, so the
+    // fullscreen overlay and post-edit repaints can filter back to a sheet's
+    // own workbook (see cellsWorkbookFx / entriesFor).
     var FX = window.SDocCellsFormula;
-    var fxGrids = FX ? FX.recalcWorkbook(workbookSheets(sheets)) : [];
-    var multi = sheets.length > 1;
+    var all = [];
+    var fxByWb = {};
+    for (var o = 0; o < order.length; o++) {
+      var wid = order[o];
+      var entries = byWb[wid];
+      var autoIdx = 0, seenNames = {};
+      for (var e = 0; e < entries.length; e++) {
+        var en = entries[e];
+        var explicit = en.model.name && String(en.model.name).trim();
+        var sheetName = explicit ? String(en.model.name).trim() : 'Sheet' + (++autoIdx);
+        var key = sheetName.toLowerCase();
+        en.name = sheetName;
+        en.duplicate = !!seenNames[key];
+        seenNames[key] = true;
+        all.push(en);
+      }
+      fxByWb[wid] = FX ? FX.recalcWorkbook(workbookSheets(entries)) : [];
+    }
+    S.cellsWorkbook = all;   // entries: { target, model, rawSrc, name, duplicate, workbook, wrapper }
 
-    // Opt-in inline tabbed pane: a doc with `cells-tabs: tabbed` in its front
-    // matter collapses its tabs into one in-document widget (a tab strip + one
-    // grid at a time), placed where the first tab sat. Default stays stacked.
-    if (multi && isTabbedDoc()) { mountTabbedPane(sheets, fxGrids); return; }
-
-    for (var k = 0; k < sheets.length; k++) {
-      var s2 = sheets[k];
-      var showCaption = multi || (s2.model.name && String(s2.model.name).trim());
-      s2.wrapper = mountGrid(s2.target, s2.model, s2.rawSrc, {
-        workbookFx: fxGrids[k] || null,
-        sheetName: s2.name,
-        showCaption: showCaption,
-        duplicate: s2.duplicate,
-      });
+    // Pass 3: render each workbook. With `cells-tabs: tabbed` a workbook of
+    // more than one sheet collapses into its own inline tab strip, placed
+    // where that workbook's first block sat; otherwise sheets render stacked
+    // in place. Two tabbed workbooks therefore become two independent panes.
+    for (var o2 = 0; o2 < order.length; o2++) {
+      var gsheets = byWb[order[o2]];
+      var gfx = fxByWb[order[o2]];
+      var multi = gsheets.length > 1;
+      if (multi && isTabbedDoc()) { mountTabbedPane(gsheets, gfx); continue; }
+      for (var k = 0; k < gsheets.length; k++) {
+        var s2 = gsheets[k];
+        var showCaption = multi || (s2.model.name && String(s2.model.name).trim());
+        s2.wrapper = mountGrid(s2.target, s2.model, s2.rawSrc, {
+          workbookFx: gfx[k] || null,
+          sheetName: s2.name,
+          showCaption: showCaption,
+          duplicate: s2.duplicate,
+        });
+      }
     }
   }
 
@@ -985,10 +1005,16 @@
     var FX = window.SDocCellsFormula;
     var wb = S.cellsWorkbook;
     if (!FX || !wb || !wb.length) return null;
-    var idx = -1;
-    for (var i = 0; i < wb.length; i++) { if (wb[i].model === model) { idx = i; break; } }
+    var entry = null;
+    for (var i = 0; i < wb.length; i++) { if (wb[i].model === model) { entry = wb[i]; break; } }
+    if (!entry) return null;
+    // Recompute only the model's own workbook, so a cross-workbook reference
+    // resolves to #REF! rather than leaking a value from a neighbour.
+    var wid = entry.workbook || '';
+    var slice = wb.filter(function (s) { return (s.workbook || '') === wid; });
+    var idx = slice.indexOf(entry);
     if (idx < 0) return null;
-    return FX.recalcWorkbook(workbookSheets(wb))[idx] || null;
+    return FX.recalcWorkbook(workbookSheets(slice))[idx] || null;
   }
   S.cellsWorkbookFx = cellsWorkbookFx;
 
