@@ -55,7 +55,28 @@
     };
   }
 
+  // Clamp the pan offset so scaled content can't be dragged off the viewport
+  // into empty space - the map / Photos / PDF behaviour. The diagram modal
+  // deliberately does NOT use this (a diagram is free-roam); slides do, so a
+  // zoomed slide always keeps its content against the screen edges.
+  //
+  // Geometry: content is centred in the viewport at (tx,ty)=(0,0) and scales
+  // about its centre. The centre may travel at most half the overflow on each
+  // axis before an edge of the content would pull inside the viewport. When
+  // the scaled content is no larger than the viewport on an axis (contentDim *
+  // scale <= viewDim), that axis is pinned centred (max = 0).
+  //
+  // contentW/H = the fitted (scale-1) content size; viewW/H = the viewport
+  // (the clipping frame). For a letterboxed slide these differ on the
+  // non-constraining axis, which is why both are passed explicitly.
+  function clampTranslate(tx, ty, scale, contentW, contentH, viewW, viewH) {
+    var maxTx = Math.max(0, (contentW * scale - viewW) / 2);
+    var maxTy = Math.max(0, (contentH * scale - viewH) / 2);
+    return { tx: clamp(tx, -maxTx, maxTx), ty: clamp(ty, -maxTy, maxTy) };
+  }
+
   exports.clamp = clamp;
   exports.nextTransform = nextTransform;
   exports.applyPinch = applyPinch;
+  exports.clampTranslate = clampTranslate;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocZoomMath = {}));
