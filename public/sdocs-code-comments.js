@@ -175,6 +175,51 @@
     return -1;
   }
 
+  // ── Copy with comments ────────────────────────────────────────────────────
+
+  // Emit the source plus its notes as a single annotated block, the code
+  // analogue of the markdown footnote copy: the code fenced unchanged, then a
+  // numbered Notes list keyed by line (or method range) with author and text.
+  // Pasteable into an agent or chat. Notes are ordered by their resolved line;
+  // a note whose anchor is gone is dropped from the list (its anchor can't be
+  // pointed at). opts: { fileName, lang }.
+  function serializeAnnotations(list, srcLines, opts) {
+    opts = opts || {};
+    var lines = Array.isArray(srcLines) ? srcLines : String(srcLines || '').split('\n');
+    var lang = opts.lang || '';
+    var fileName = opts.fileName || 'code';
+    var resolved = getComments(list).map(function (c) {
+      return { c: c, ln: resolveLine(c, lines) };
+    }).filter(function (r) { return r.ln >= 0; });
+    resolved.sort(function (a, b) { return a.ln - b.ln || idNum(a.c) - idNum(b.c); });
+
+    var out = 'Comments on ' + fileName + '\n\n';
+    out += '```' + lang + '\n' + lines.join('\n').replace(/\s+$/, '') + '\n```\n';
+    if (!resolved.length) return out;
+    out += '\nNotes:\n';
+    resolved.forEach(function (r, i) {
+      var c = r.c, ln = r.ln;
+      var author = sanitizeText(c.author || 'you');
+      var text = sanitizeText(c.text || '').replace(/\n+/g, ' ');
+      var loc;
+      if (c.kind === 'method') {
+        var end = ln + (toInt(c.endLine, ln) - toInt(c.line, ln));
+        if (end < ln) end = ln;
+        if (end >= lines.length) end = lines.length - 1;
+        loc = 'method `' + (lines[ln] || '').trim() + '` (lines ' + (ln + 1) + '-' + (end + 1) + ')';
+      } else {
+        loc = 'line ' + (ln + 1) + ' `' + (lines[ln] || '').trim() + '`';
+      }
+      out += '[' + (i + 1) + '] ' + loc + ' - ' + author + ': ' + text + '\n';
+    });
+    return out;
+  }
+
+  function idNum(c) {
+    var m = /^c(\d+)$/.exec((c && c.id) || '');
+    return m ? parseInt(m[1], 10) : 0;
+  }
+
   // ── Persistence (string <-> array) ────────────────────────────────────────
 
   // Serialise to a compact JSON string for localStorage. Pure: the UI hands the
@@ -207,5 +252,6 @@
   exports.resolveLine    = resolveLine;
   exports.serialize      = serialize;
   exports.parse          = parse;
+  exports.serializeAnnotations = serializeAnnotations;
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocsCodeComments = {}));

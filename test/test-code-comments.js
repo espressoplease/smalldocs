@@ -177,4 +177,44 @@ module.exports = function (harness) {
     const hostile = JSON.stringify([{ id: 'c1', kind: 'line', line: 0, anchorText: 'a', color: 'url(x)' }]);
     assert.strictEqual(CC.parse(hostile)[0].color, CC.DEFAULT_COLOR);
   });
+
+  // ── serializeAnnotations (copy with comments) ──────────────────────────────
+
+  const ASRC = ['class A', '  def one', '    x = 1', '  end', '  def two', '    y = 2', '  end', 'end'];
+
+  test('serializeAnnotations fences the code and lists notes by line', () => {
+    let list = CC.addComment([], { kind: 'line', line: 2, anchorText: 'x = 1' }, { text: 'why?', author: 'jo' }).list;
+    list = CC.addComment(list, { kind: 'method', line: 4, endLine: 6, anchorText: 'def two' }, { text: 'rename', author: 'jo' }).list;
+    const out = CC.serializeAnnotations(list, ASRC, { fileName: 'a.rb', lang: 'ruby' });
+    assert.ok(out.indexOf('Comments on a.rb') === 0, 'leads with the filename');
+    assert.ok(out.indexOf('```ruby\nclass A') !== -1, 'fences the code with the language');
+    assert.ok(out.indexOf('\nNotes:\n') !== -1, 'has a Notes section');
+    assert.ok(/\[1\] line 3 `x = 1` - jo: why\?/.test(out), 'line note with 1-based line and anchor');
+    assert.ok(/\[2\] method `def two` \(lines 5-7\) - jo: rename/.test(out), 'method note with range');
+  });
+
+  test('serializeAnnotations orders notes by resolved line', () => {
+    let list = CC.addComment([], { kind: 'line', line: 5, anchorText: 'y = 2' }, { text: 'second' }).list;
+    list = CC.addComment(list, { kind: 'line', line: 2, anchorText: 'x = 1' }, { text: 'first' }).list;
+    const out = CC.serializeAnnotations(list, ASRC, { fileName: 'a.rb', lang: 'ruby' });
+    assert.ok(out.indexOf('first') < out.indexOf('second'), 'earlier line listed first');
+  });
+
+  test('serializeAnnotations omits the Notes section when there are no notes', () => {
+    const out = CC.serializeAnnotations([], ASRC, { fileName: 'a.rb', lang: 'ruby' });
+    assert.ok(out.indexOf('Notes:') === -1);
+    assert.ok(out.indexOf('```ruby') !== -1);
+  });
+
+  test('serializeAnnotations drops a note whose anchor is gone', () => {
+    const list = CC.addComment([], { kind: 'line', line: 1, anchorText: 'NOT PRESENT' }, { text: 'lost' }).list;
+    const out = CC.serializeAnnotations(list, ASRC, { fileName: 'a.rb', lang: 'ruby' });
+    assert.ok(out.indexOf('Notes:') === -1, 'no resolvable notes, so no Notes section');
+  });
+
+  test('serializeAnnotations uses plain hyphens, never em or en dashes', () => {
+    const list = CC.addComment([], { kind: 'line', line: 2, anchorText: 'x = 1' }, { text: 'hi' }).list;
+    const out = CC.serializeAnnotations(list, ASRC, { fileName: 'a.rb', lang: 'ruby' });
+    assert.ok(out.indexOf('—') === -1 && out.indexOf('–') === -1, 'no em/en dashes');
+  });
 };
