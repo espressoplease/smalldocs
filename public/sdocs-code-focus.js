@@ -155,39 +155,47 @@
     '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
     '}',
     // File-info card at the top of the listing: filename + paths, each copyable.
-    // Mirrors the markdown reader file-info card, in the overlay colour vars.
+    // Mirrors the markdown reader file-info card (#_sd_sdocs-file-info) exactly:
+    // same 12.5px ui font, muted labels, baseline rows with 1px separators, a
+    // bottom hairline, and a plain (not bold) value.
     '.sdoc-cf-fileinfo {',
-    '  font-family: ui-sans-serif, system-ui, sans-serif;',
-    '  max-width: 660px; margin: 0 auto 4px; padding: 4px 0 12px;',
-    '  border-bottom: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
+    '  font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12.5px;',
+    '  max-width: 660px; margin: 0 auto; padding: 4px 0 0;',
+    '  display: flex; flex-direction: column; gap: 2px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 40%, transparent);',
     '}',
     '.sdoc-code-focus-doc:not(.wrapped) .sdoc-cf-fileinfo { max-width: none; }',
-    '.sdoc-cf-firow {',
-    '  display: flex; align-items: center; gap: 8px; padding: 2px 0;',
-    '  font-size: 12px; cursor: pointer; border-radius: 4px;',
+    '.sdoc-cf-firows {',
+    '  display: flex; flex-direction: column;',
+    '  border-bottom: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 12%, transparent);',
     '}',
-    '.sdoc-cf-firow:hover { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 5%, transparent); }',
+    '.sdoc-cf-firow {',
+    '  display: flex; align-items: baseline; gap: 12px; padding: 5px 0; line-height: 1.5;',
+    '  border-top: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
+    '  cursor: pointer;',
+    '}',
+    '.sdoc-cf-firow:first-child { border-top: none; }',
+    '.sdoc-cf-firow:hover .sdoc-cf-ficopy { color: var(--sdoc-focus-fg, #1c1917); }',
     '.sdoc-cf-filabel {',
-    '  flex: 0 0 auto; min-width: 64px; font-weight: 500;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
+    '  flex-shrink: 0; min-width: 58px; font-weight: 500;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 40%, transparent);',
     '}',
     '.sdoc-cf-fival {',
-    '  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
-    '  color: var(--sdoc-focus-fg, #1c1917);',
-    '  font-family: var(--md-code-font, ui-monospace, monospace);',
+    '  flex: 1; min-width: 0; color: var(--sdoc-focus-fg, #1c1917);',
+    '  overflow-wrap: anywhere; word-break: break-word;',
     '}',
-    '.sdoc-cf-firow .sdoc-cf-ficopy {',
-    '  all: unset; cursor: pointer; flex: 0 0 auto; padding: 2px; border-radius: 4px;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 45%, transparent);',
-    '  opacity: 0; transition: opacity .12s, background .12s, color .12s;',
+    '.sdoc-cf-ficopy {',
+    '  all: unset; cursor: pointer; flex-shrink: 0;',
+    '  display: inline-flex; align-items: center; justify-content: center;',
+    '  width: 20px; height: 20px; border-radius: 4px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 40%, transparent);',
+    '  transition: background .12s, color .12s;',
     '}',
-    '.sdoc-cf-firow:hover .sdoc-cf-ficopy { opacity: 1; }',
     '.sdoc-cf-ficopy:hover {',
     '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
-    '.sdoc-cf-ficopy svg { display: block; }',
-    '.sdoc-cf-filename .sdoc-cf-fival { font-weight: 600; }',
+    '.sdoc-cf-ficopy svg { display: block; pointer-events: none; }',
     // Stage: scroll container holding the code column.
     '.sdoc-code-focus-stage { overflow: auto; }',
     // Wrapped (default): a 660px column - same width the block has inline - so a
@@ -234,21 +242,31 @@
     '.sdoc-cl-row.collapsed button.sdoc-cl-fold { opacity: 1; }',
     'button.sdoc-cl-fold:hover { color: var(--sdoc-focus-fg, #1c1917); }',
     // Copy-section button on a header line, after its code. Mirrors the markdown
-    // heading copy: faint until the row is hovered, a tick on success.
+    // heading copy. Always visible (faint), darkening on hover, a tick on success.
     '.sdoc-cl-copy {',
     '  all: unset; cursor: pointer; vertical-align: middle;',
     '  display: inline-flex; align-items: center; margin-left: 10px;',
     '  padding: 0 4px; border-radius: 4px;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
-    '  opacity: 0; pointer-events: none;',
-    '  transition: opacity .12s, background .12s, color .12s;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 40%, transparent);',
+    '  opacity: 1; transition: background .12s, color .12s;',
     '}',
-    '.sdoc-cl-row:hover .sdoc-cl-copy { opacity: .55; pointer-events: auto; }',
     '.sdoc-cl-copy:hover {',
-    '  opacity: 1; color: var(--sdoc-focus-fg, #1c1917);',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
     '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
     '}',
     '.sdoc-cl-copy svg { display: block; width: 12px; height: 12px; }',
+    // Copy-with-comments on a header whose section carries a note (added in
+    // comment mode). Tinted with the accent so it reads as the commented twin.
+    '.sdoc-cl-copyc {',
+    '  all: unset; cursor: pointer; vertical-align: middle;',
+    '  display: inline-flex; align-items: center; gap: 3px; margin-left: 6px;',
+    '  padding: 0 5px; border-radius: 4px; font-size: 10.5px; font-weight: 500;',
+    '  font-family: ui-sans-serif, system-ui, sans-serif;',
+    '  color: #3B82F6; background: color-mix(in oklab, #3B82F6 12%, transparent);',
+    '  transition: background .12s;',
+    '}',
+    '.sdoc-cl-copyc:hover { background: color-mix(in oklab, #3B82F6 22%, transparent); }',
+    '.sdoc-cl-copyc svg { display: block; width: 11px; height: 11px; }',
     '.sdoc-cl-num {',
     '  flex: 0 0 auto; width: var(--sdoc-ln-w); box-sizing: content-box;',
     '  padding-right: 16px; padding-left: 4px; text-align: right;',
@@ -367,49 +385,49 @@
     '  padding-left: calc(var(--sdoc-ln-w) + 40px);',
     '}',
     '.sdoc-code-focus.sdoc-cc-on .sdoc-cc-thread { padding-left: calc(var(--sdoc-ln-w) + 60px); }',
+    // Comment card: mirrors the markdown comment card (.sdoc-card) - a tinted box
+    // in the per-comment colour with the author and body inline, action icons in
+    // the top-right corner. Tint = colour 22% over the surface, border = 50%.
     '.sdoc-cc-card {',
-    '  --sdoc-cc-color: #ffbb00;',
-    '  border-left: 3px solid var(--sdoc-cc-color);',
-    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 5%, transparent);',
-    '  border-radius: 0 6px 6px 0; padding: 7px 10px; max-width: 560px;',
-    '  font-family: ui-sans-serif, system-ui, sans-serif;',
+    '  --sdoc-cc-color: #ffbb00; position: relative; display: block; max-width: 60ch;',
+    '  font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12.5px; line-height: 1.4;',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '  background: color-mix(in oklab, var(--sdoc-cc-color) 22%, var(--sdoc-focus-bg, #f4f1ed));',
+    '  border: 1px solid color-mix(in oklab, var(--sdoc-cc-color) 50%, transparent);',
+    '  border-radius: 5px; padding: 3px 48px 3px 8px;',
     '}',
-    '.sdoc-cc-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }',
-    '.sdoc-cc-card-author { font-size: 12px; font-weight: 600; color: var(--sdoc-focus-fg, #1c1917); }',
-    '.sdoc-cc-card-kind {',
-    '  font-size: 10px; text-transform: uppercase; letter-spacing: .04em;',
+    '.sdoc-cc-card-author { font-weight: 600; color: var(--sdoc-focus-fg, #1c1917); }',
+    '.sdoc-cc-card-author::after {',
+    '  content: ":"; margin-right: 4px;',
     '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 45%, transparent);',
-    '  border: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 20%, transparent);',
-    '  border-radius: 3px; padding: 0 4px;',
     '}',
-    '.sdoc-cc-card-actions { margin-left: auto; display: inline-flex; gap: 2px; }',
+    '.sdoc-cc-card-body { display: inline; white-space: pre-wrap; word-break: break-word; }',
+    '.sdoc-cc-card-actions { position: absolute; top: 2px; right: 4px; display: inline-flex; gap: 1px; }',
     '.sdoc-cc-iconbtn {',
-    '  all: unset; cursor: pointer; padding: 3px; border-radius: 4px;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 55%, transparent);',
-    '  display: inline-flex; transition: background .12s, color .12s;',
+    '  all: unset; cursor: pointer; padding: 2px; border-radius: 4px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 50%, transparent);',
+    '  display: inline-flex; opacity: 0; transition: background .12s, color .12s, opacity .12s;',
     '}',
+    '.sdoc-cc-card:hover .sdoc-cc-iconbtn, .sdoc-cc-card-edit .sdoc-cc-iconbtn { opacity: 1; }',
     '.sdoc-cc-iconbtn:hover {',
-    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
+    '  background: color-mix(in oklab, var(--sdoc-cc-color) 42%, var(--sdoc-focus-bg, #f4f1ed));',
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
-    '.sdoc-cc-iconbtn svg { display: block; }',
-    '.sdoc-cc-card-body {',
-    '  font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 88%, transparent);',
-    '}',
-    // Composer: textarea + save / cancel.
-    '.sdoc-cc-card-edit { display: flex; align-items: flex-start; gap: 6px; }',
+    '.sdoc-cc-iconbtn svg { display: block; width: 13px; height: 13px; }',
+    // Composer: transparent textarea on the same tint, save / cancel top-right.
+    '.sdoc-cc-card-edit { padding: 4px 48px 4px 8px; }',
     '.sdoc-cc-input {',
-    '  flex: 1 1 auto; min-width: 0; resize: none; overflow: hidden;',
-    '  font: inherit; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 13px;',
-    '  line-height: 1.5; border: none; background: transparent; outline: none;',
+    '  display: block; width: 100%; box-sizing: border-box; resize: none; overflow: hidden;',
+    '  font: inherit; line-height: 1.5; min-height: 1.4em;',
+    '  border: none; background: transparent; outline: none;',
     '  color: var(--sdoc-focus-fg, #1c1917); padding: 0;',
     '}',
-    '.sdoc-cc-card-edit-actions { display: inline-flex; gap: 2px; flex: 0 0 auto; }',
+    '.sdoc-cc-input::placeholder { color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 40%, transparent); }',
+    '.sdoc-cc-card-edit-actions { position: absolute; top: 3px; right: 4px; display: inline-flex; gap: 1px; }',
     '.sdoc-cc-flash { animation: sdoc-cc-pulse .9s ease-out; }',
     '@keyframes sdoc-cc-pulse {',
-    '  0% { background: color-mix(in oklab, #3B82F6 32%, transparent); }',
-    '  100% { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 5%, transparent); }',
+    '  0% { box-shadow: 0 0 0 3px color-mix(in oklab, #3B82F6 45%, transparent); }',
+    '  100% { box-shadow: 0 0 0 0 transparent; }',
     '}',
     // Orphaned comments whose anchor line is gone, parked at the foot.
     '.sdoc-cc-orphans { padding: 16px; margin-top: 12px;',
@@ -755,6 +773,13 @@
   }
 
   function onCopyClick(e) {
+    var cBtn = e.target.closest('.sdoc-cl-copyc');
+    if (cBtn) {
+      e.stopPropagation();
+      var ch = parseInt(cBtn.getAttribute('data-copyc-h'), 10);
+      if (!isNaN(ch)) copySectionWithComments(ch, cBtn);
+      return;
+    }
     var btn = e.target.closest('.sdoc-cl-copy');
     if (!btn) return;
     e.stopPropagation();
@@ -764,6 +789,28 @@
       var prev = btn.innerHTML;
       btn.innerHTML = CHECK_ICON;
       setTimeout(function () { if (btn) btn.innerHTML = prev; }, 1200);
+    });
+  }
+
+  // Copy a section's source plus only the notes that fall inside it. Mirrors the
+  // markdown per-heading "copy section with comments". Notes resolve against the
+  // section slice, so line numbers in the output are relative to the snippet.
+  function copySectionWithComments(h, btn) {
+    if (!CC || !folds || !folds[h] || !navigator.clipboard) return;
+    var end = folds[h].end;
+    var sectionLines = srcLines.slice(h, end + 1);
+    var within = comments.filter(function (c) {
+      var ln = CC.resolveLine(c, srcLines);
+      return ln >= h && ln <= end;
+    });
+    var text = CC.serializeAnnotations(within, sectionLines, { fileName: fileNameForCopy(), lang: currentLang });
+    navigator.clipboard.writeText(text).then(function () {
+      if (!btn) return;
+      var lab = btn.querySelector('span');
+      if (!lab) return;
+      var prev = lab.textContent;
+      lab.textContent = 'Copied';
+      setTimeout(function () { if (lab) lab.textContent = prev; }, 1200);
     });
   }
 
@@ -996,17 +1043,17 @@
     var fileName = (S.currentMeta && S.currentMeta.file) || (fullPath ? basename(fullPath) : '');
     if (!fileName && !fullPath) return null;
     if (!fileName) fileName = basename(fullPath);
-    var rows = fiRow('Filename', fileName, 'sdoc-cf-filename');
-    if (fullPath) rows += fiRow('Abs. path', fullPath, '');
-    if (relPath && relPath !== fullPath) rows += fiRow('Rel. path', relPath, '');
+    var rows = fiRow('Filename', fileName);
+    if (fullPath) rows += fiRow('Abs. path', fullPath);
+    if (relPath && relPath !== fullPath) rows += fiRow('Rel. path', relPath);
     var card = document.createElement('div');
     card.className = 'sdoc-cf-fileinfo';
-    card.innerHTML = rows;
+    card.innerHTML = '<div class="sdoc-cf-firows">' + rows + '</div>';
     return card;
   }
-  function fiRow(label, value, extraCls) {
+  function fiRow(label, value) {
     var low = label.toLowerCase();
-    return '<div class="sdoc-cf-firow ' + extraCls + '">'
+    return '<div class="sdoc-cf-firow">'
       + '<span class="sdoc-cf-filabel">' + escapeHtml(label) + '</span>'
       + '<span class="sdoc-cf-fival">' + escapeHtml(value) + '</span>'
       + '<button type="button" class="sdoc-cf-ficopy" title="Copy ' + escapeHtml(low) + '" aria-label="Copy ' + escapeHtml(low) + '">' + COPY_ICON + '</button>'
@@ -1145,7 +1192,7 @@
   // prior DOM first, so it is safe to call after any row rebuild or mutation.
   function renderThreads() {
     if (!linesEl) return;
-    var old = linesEl.querySelectorAll('.sdoc-cc-thread, .sdoc-cc-orphans');
+    var old = linesEl.querySelectorAll('.sdoc-cc-thread, .sdoc-cc-orphans, .sdoc-cl-copyc');
     for (var k = 0; k < old.length; k++) old[k].remove();
     var marked = linesEl.querySelectorAll('.sdoc-cc-has-comment, .sdoc-cc-method-marked');
     for (var j = 0; j < marked.length; j++) marked[j].classList.remove('sdoc-cc-has-comment', 'sdoc-cc-method-marked');
@@ -1189,8 +1236,37 @@
       orphans.forEach(function (c) { box.appendChild(buildCard(c, -1)); });
       linesEl.appendChild(box);
     }
+    addSectionCommentCopies();
     syncThreadVisibility();
     updateCommentChrome();
+  }
+
+  // Give every fold header whose section contains a note a "with comments" copy
+  // button, after its plain section copy. A note inside a method thus lights up
+  // both the method header and its enclosing class - the parents - mirroring the
+  // markdown per-heading copy-with-comments.
+  function addSectionCommentCopies() {
+    if (!folds) return;
+    var lines = comments.map(function (c) { return CC ? CC.resolveLine(c, srcLines) : c.line; })
+      .filter(function (ln) { return ln >= 0; });
+    if (!lines.length) return;
+    for (var h = 0; h < folds.length; h++) {
+      if (!folds[h].header) continue;
+      var end = folds[h].end, has = false;
+      for (var i = 0; i < lines.length; i++) { if (lines[i] >= h && lines[i] <= end) { has = true; break; } }
+      if (!has) continue;
+      var codeEl = linesEl.querySelector('.sdoc-cl-row[data-ln="' + h + '"] .sdoc-cl-code');
+      if (!codeEl || codeEl.querySelector('.sdoc-cl-copyc')) continue;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sdoc-cl-copyc';
+      btn.tabIndex = -1;
+      btn.setAttribute('data-copyc-h', h);
+      btn.setAttribute('title', 'Copy this section with its comments');
+      btn.setAttribute('aria-label', 'Copy section with comments');
+      btn.innerHTML = COPY_ICON + '<span>with comments</span>';
+      codeEl.appendChild(btn);
+    }
   }
 
   // Hide a thread when its anchor line is folded away, so notes travel with the
@@ -1217,15 +1293,12 @@
     var card = document.createElement('div');
     card.className = 'sdoc-cc-card';
     card.innerHTML =
-      '<div class="sdoc-cc-card-head">'
-      +   '<span class="sdoc-cc-card-author">' + escapeHtml(c.author || 'you') + '</span>'
-      +   '<span class="sdoc-cc-card-kind">' + (c.kind === 'method' ? 'method' : 'line') + '</span>'
-      +   '<span class="sdoc-cc-card-actions">'
-      +     '<button type="button" class="sdoc-cc-iconbtn" data-cc="edit" title="Edit" aria-label="Edit comment">' + PENCIL_ICON + '</button>'
-      +     '<button type="button" class="sdoc-cc-iconbtn" data-cc="delete" title="Delete" aria-label="Delete comment">' + TRASH_ICON + '</button>'
-      +   '</span>'
-      + '</div>'
-      + '<div class="sdoc-cc-card-body"></div>';
+      '<span class="sdoc-cc-card-author">' + escapeHtml(c.author || 'you') + '</span>'
+      + '<span class="sdoc-cc-card-body"></span>'
+      + '<span class="sdoc-cc-card-actions">'
+      +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="edit" title="Edit" aria-label="Edit comment">' + PENCIL_ICON + '</button>'
+      +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="delete" title="Delete" aria-label="Delete comment">' + TRASH_ICON + '</button>'
+      + '</span>';
     card.querySelector('.sdoc-cc-card-body').textContent = c.text || '';
     row.appendChild(card);
     return row;
