@@ -65,6 +65,7 @@ const AGENT_BLOCK_LEGACY_OPEN  = '<!-- sdocs-agent-block -->';
 const AGENT_TARGETS = [
   { name: 'Claude Code', dir: '.claude',                file: 'CLAUDE.md'  },
   { name: 'Codex',       dir: '.codex',                 file: 'AGENTS.md'  },
+  { name: 'Cursor',      dir: path.join('.cursor', 'rules'), file: 'sdocs.mdc'  },
   { name: 'Gemini CLI',  dir: '.gemini',                file: 'GEMINI.md'  },
   { name: 'opencode',    dir: path.join('.config', 'opencode'), file: 'AGENTS.md' },
   { name: 'pi',          dir: path.join('.pi', 'agent'), file: 'AGENTS.md', detectDir: '.pi' },
