@@ -192,30 +192,51 @@ var state = {
 
 // ── Export panel ─────────────────────────────────────
 //
-// Small slide-in panel anchored to the right of the topbar. One option
-// today: "PDF" — delegates to SDocs.exportSlidesPdf() which builds the
-// PDF client-side via pdf-lib and triggers a direct download. No print
-// dialog; text stays selectable.
+// Small slide-in panel anchored to the right of the topbar. Two options,
+// each delegating to the matching SDocs export entry point used by the main
+// export menu, so present mode offers the same downloads:
+//   - PDF   — SDocs.exportSlidesPdf(): one landscape page per slide,
+//             selectable text, built client-side via pdf-lib. No print dialog.
+//   - PPTX  — SDocs.exportSlidesPptx(): editable shapes + text via PptxGenJS.
 function buildExportPanel() {
   var p = document.createElement('div');
   p.className = 'sdoc-present-exp-panel';
   var h = document.createElement('h3');
   h.textContent = 'Export';
   p.appendChild(h);
-  var btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'sdoc-present-exp-btn';
-  btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+
+  // PDF
+  var pdfBtn = document.createElement('button');
+  pdfBtn.type = 'button';
+  pdfBtn.className = 'sdoc-present-exp-btn';
+  pdfBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
     + '<rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>'
     + '<span class="sdoc-present-exp-btn-text">'
     +   '<span class="sdoc-present-exp-btn-title">PDF</span>'
     +   '<span class="sdoc-present-exp-btn-desc">One slide per landscape page with selectable text</span>'
     + '</span>';
-  btn.addEventListener('click', function () {
+  pdfBtn.addEventListener('click', function () {
     closeExportPanel();
     if (window.SDocs && window.SDocs.exportSlidesPdf) window.SDocs.exportSlidesPdf();
   });
-  p.appendChild(btn);
+  p.appendChild(pdfBtn);
+
+  // PowerPoint (.pptx)
+  var pptxBtn = document.createElement('button');
+  pptxBtn.type = 'button';
+  pptxBtn.className = 'sdoc-present-exp-btn';
+  pptxBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<rect x="2" y="4" width="20" height="14" rx="2"/><path d="M7 9h10"/><path d="M7 13h7"/><path d="m8 22 4-4 4 4"/></svg>'
+    + '<span class="sdoc-present-exp-btn-text">'
+    +   '<span class="sdoc-present-exp-btn-title">PowerPoint (.pptx)</span>'
+    +   '<span class="sdoc-present-exp-btn-desc">Editable shapes and text in PowerPoint / Keynote / Slides</span>'
+    + '</span>';
+  pptxBtn.addEventListener('click', function () {
+    closeExportPanel();
+    if (window.SDocs && window.SDocs.exportSlidesPptx) window.SDocs.exportSlidesPptx();
+  });
+  p.appendChild(pptxBtn);
+
   return p;
 }
 
