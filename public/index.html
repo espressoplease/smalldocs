@@ -833,6 +833,7 @@
 <script src="/public/sdocs-app.js"></script>
 <script src="/public/sdocs-info.js"></script>
 <script src="/public/sdocs-comments-ui.js"></script>
+<script src="/public/sdocs-update.js"></script>
 <script src="/public/sdocs-trust-footer.js" defer></script>
 <script nonce="__CSP_NONCE__">
 var APP_VERSION = '__APP_VERSION__';
@@ -870,18 +871,27 @@ if (SDOCS_DEV && 'serviceWorker' in navigator) {
     var _c = localStorage.getItem('sdocs_cohort') || '';
     _cohort = _c === 'opt-out' ? '' : _c;
   } catch (e) {}
-  // After the SW detects a version mismatch and refreshes the cache, it
-  // posts { type: 'sdocs-reload' } — reload so the page runs fresh code.
-  // Safe to reload unconditionally: all document state lives in the URL hash.
+  // After the SW detects a version mismatch and refreshes the cache, it posts
+  // { type: 'sdocs-reload', version }. SDocUpdate decides whether to reload
+  // (loop-guard, don't-reload-over-an-edit) and shows the "updating" note;
+  // it also re-checks when a backgrounded tab returns to the foreground.
+  // Falls back to the original unconditional reload if the module is absent.
+  var _U = window.SDocUpdate;
   navigator.serviceWorker.addEventListener('message', function (e) {
-    if (e.data && e.data.type === 'sdocs-reload') location.reload();
+    if (!e.data || e.data.type !== 'sdocs-reload') return;
+    if (_U && _U.onReloadSignal) _U.onReloadSignal(e.data.version);
+    else location.reload();
   });
   navigator.serviceWorker.register('/sw.js').then(function (reg) {
-    var msg = { type: 'check-update', version: APP_VERSION, cohort: _cohort };
-    if (reg.active) reg.active.postMessage(msg);
-    navigator.serviceWorker.addEventListener('controllerchange', function () {
-      if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage(msg);
-    });
+    if (_U && _U.start) {
+      _U.start({ appVersion: APP_VERSION, cohort: _cohort });
+    } else {
+      var msg = { type: 'check-update', version: APP_VERSION, cohort: _cohort };
+      if (reg.active) reg.active.postMessage(msg);
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage(msg);
+      });
+    }
   });
 }
 </script>

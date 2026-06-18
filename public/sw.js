@@ -140,7 +140,10 @@ self.addEventListener('fetch', function (e) {
 // repopulates the cache as the user uses the app.
 self.addEventListener('message', function (e) {
   if (e.data && e.data.type === 'check-update' && e.data.version) {
-    var qs = '?cohort=' + encodeURIComponent(e.data.cohort || '');
+    // r = the client's per-session reload count, forwarded so the server log
+    // can spot a tab reload-looping in the wild (a single grep on r).
+    var qs = '?cohort=' + encodeURIComponent(e.data.cohort || '')
+      + '&r=' + encodeURIComponent(e.data.r || 0);
     fetch('/version-check' + qs).then(function (res) {
       return res.json();
     }).then(function (data) {
@@ -148,9 +151,11 @@ self.addEventListener('message', function (e) {
         caches.delete(CACHE_NAME).then(function () {
           return self.clients.matchAll({ includeUncontrolled: true });
         }).then(function (clients) {
-          clients.forEach(function (c) { c.postMessage({ type: 'sdocs-reload' }); });
+          // Include the target version so the client loop-guard can tell
+          // whether a prior reload actually moved it forward.
+          clients.forEach(function (c) { c.postMessage({ type: 'sdocs-reload', version: data.version }); });
         });
       }
-    }).catch(function () { /* offline, ignore */ });
+    }).catch(function () { /* offline or error → do nothing, keep old code */ });
   }
 });
