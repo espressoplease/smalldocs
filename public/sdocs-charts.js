@@ -549,6 +549,35 @@
     return 2;
   }
 
+  // ── Aspect ratio adjusted for a wrapping legend ──
+  // Chart.js fits the legend inside a fixed-height box, so a legend that stacks
+  // into several rows (long labels on a narrow phone) steals that height from
+  // the plot and crushes it to a sliver. Add height for each legend row beyond
+  // the first so the plot keeps its intended size. Desktop legends fit on one
+  // row, so this returns the unmodified default there.
+  function computeAspect(data) {
+    if (data.aspectRatio) return data.aspectRatio;
+    var rawType = normalizeType(data.type);
+    var base = getDefaultAspect(rawType);
+    var datasets = data.datasets || [];
+    var isRadial = rawType === 'pie' || rawType === 'doughnut' ||
+                   rawType === 'polarArea' || rawType === 'radar';
+    var showLegend = data.legend !== false &&
+                     (isRadial || datasets.length > 1 || rawType === 'mixed');
+    var legendPos = data.legendPosition || 'bottom';
+    if (!showLegend || (legendPos !== 'top' && legendPos !== 'bottom')) return base;
+    var legendItems = isRadial ? (data.labels || []).length : datasets.length;
+    if (legendItems < 2) return base;
+    var w = (typeof window !== 'undefined' && window.innerWidth) || 1024;
+    // Conservative items-per-row estimate (errs toward more rows -> taller, the
+    // safe direction for readability). Each legend item is roughly 200px wide.
+    var itemsPerRow = Math.max(1, Math.floor(w / 200));
+    var extraRows = Math.max(0, Math.ceil(legendItems / itemsPerRow) - 1);
+    if (extraRows === 0) return base;
+    var baseHeight = w / base;
+    return w / (baseHeight + extraRows * 44);
+  }
+
   // ── Build Chart.js config ──
   function buildConfig(data) {
     var rawType = normalizeType(data.type);
@@ -587,7 +616,7 @@
         animation: false,
         layout: { padding: { top: 20 } },
         font: th.font ? { family: th.font } : undefined,
-        aspectRatio: data.aspectRatio || getDefaultAspect(rawType),
+        aspectRatio: computeAspect(data),
         indexAxis: isHorizontal ? 'y' : undefined,
         plugins: {
           title: {
@@ -993,8 +1022,7 @@
     resizeTimer = setTimeout(function () {
       chartDataStore.forEach(function (entry) {
         if (entry.data.aspectRatio) return;
-        var rawType = normalizeType(entry.data.type);
-        var nextAspect = getDefaultAspect(rawType);
+        var nextAspect = computeAspect(entry.data);
         if (entry.chart.options.aspectRatio === nextAspect) return;
         entry.chart.destroy();
         entry.chart = new Chart(entry.canvas, buildConfig(entry.data));
