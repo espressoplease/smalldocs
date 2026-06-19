@@ -246,4 +246,24 @@ test.describe('presentation mode', () => {
     // Picking an option closes the panel.
     await expect(page.locator('.sdoc-present-exp-panel.open')).toHaveCount(0);
   });
+
+  test('typing a space in the present comment composer does not jump slides', async ({ page }) => {
+    await loadDocWithSlides(page, [
+      'grid 100 56.25\nr 10 10 80 40 | Slide A',
+      'grid 100 56.25\nr 10 10 80 40 | Slide B',
+    ]);
+    await page.locator('.sdoc-slide-present').first().click();
+    await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Slide A');
+
+    // Enter comment mode, open the whole-slide composer, focus its textarea.
+    await page.locator('.sdoc-present-comment-btn').click();
+    await page.locator('.sdoc-slide-comment-btn').first().click({ force: true });
+    const input = page.locator('.sdoc-card-input').first();
+    await expect(input).toBeFocused();
+
+    // The space must land in the textarea, not advance the deck.
+    await page.keyboard.type('hello world');
+    await expect(input).toHaveValue('hello world');
+    await expect(page.locator('.sdoc-present-stage .shape-rect .shape-md .inner').first()).toContainText('Slide A');
+  });
 });
