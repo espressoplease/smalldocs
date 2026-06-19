@@ -152,6 +152,7 @@ module.exports = {
   compressAndEncrypt: shortLink.compressAndEncrypt,
   uploadShortLink:    shortLink.uploadShortLink,
   buildShortUrl:      shortLink.buildShortUrl,
+  formatShareSuccessMessage: commands.formatShareSuccessMessage,
 
   // Default styles
   mergeStyles:        styles.mergeStyles,
