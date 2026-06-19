@@ -506,6 +506,8 @@ function render() {
   if (window.SDocSlides) window.SDocSlides.processSlides(S.renderedEl);
   if (S.renderForms) S.renderForms(S.renderedEl);
   if (S.processCells) S.processCells(S.renderedEl);
+  // Last: highlight the plain code blocks that no other processor claimed.
+  if (S.processHighlight) S.processHighlight(S.renderedEl);
   renderFileInfoCard();
   if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
   if (S.syncFoldButton) S.syncFoldButton();

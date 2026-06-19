@@ -3,11 +3,12 @@
 const fs   = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { transcludeCells, isWrappedFile, wrapForDisplay } = require('./cells-transclude');
+const { transcludeCells } = require('./cells-transclude');
+const { isWrappedFile, wrapForDisplay } = require('./file-wrap');
 
 const SUBCOMMANDS = new Set([
   'new', 'share', 'schema', 'defaults', 'help', 'version',
-  'charts', 'diagrams', 'cells', 'comments',
+  'charts', 'diagrams', 'cells', 'code', 'comments',
   'setup', 'safe', 'auto-update', 'refresh', 'upgrade',
   'bridge', 'feedback',
   'slides', 'present',
