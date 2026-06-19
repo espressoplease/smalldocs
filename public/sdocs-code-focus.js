@@ -858,6 +858,8 @@
     document.body.appendChild(modal);
     document.body.classList.add('sdoc-code-focus-open');
     syncFoldAllBtn();
+    setGrain(grain);          // sync the granularity control to the saved choice
+    updateCommentChrome();
 
     highlightThenRender(srcCode.className || '');
 
