@@ -259,6 +259,7 @@
   margin: 0;
 }
 #_sd_rendered .pre-wrapper .copy-btn,
+#_sd_rendered .pre-wrapper .expand-btn,
 #_sd_rendered .pre-wrapper .wrap-btn {
   position: absolute;
   top: 6px;
@@ -280,6 +281,7 @@
 }
 #_sd_rendered .pre-wrapper .wrap-btn { right: 36px; }
 #_sd_rendered .pre-wrapper .copy-btn:hover,
+#_sd_rendered .pre-wrapper .expand-btn:hover,
 #_sd_rendered .pre-wrapper .wrap-btn:hover { opacity: 1; background: var(--md-copy-btn-hover); }
 #_sd_rendered .pre-wrapper .wrap-btn.active { opacity: 1; background: var(--md-copy-btn-hover); }
 #_sd_rendered pre.wrapped,
@@ -308,7 +310,7 @@
    comments carry the human explanation, so they are styled to stand out -
    italic, full-contrast colour, and a faint tint - while code tokens are
    coloured but quieter. This is the "comments pop" behaviour. */
-#_sd_rendered {
+:is(#_sd_rendered, .sdoc-code-focus) {
   --hl-keyword:  #7c3aed;  /* keywords, storage, operators-as-words */
   --hl-string:   #b45309;  /* strings, regexp, char literals */
   --hl-number:   #be185d;  /* numbers, booleans, literals */
@@ -321,7 +323,7 @@
   --hl-comment:  #0f766e;  /* comments - the prominent lane (see above) */
   --hl-comment-bg: rgba(15, 118, 110, 0.07);
 }
-html[data-theme="dark"] #_sd_rendered {
+html[data-theme="dark"] :is(#_sd_rendered, .sdoc-code-focus) {
   --hl-keyword:  #c4b5fd;
   --hl-string:   #fcd34d;
   --hl-number:   #f9a8d4;
@@ -335,62 +337,69 @@ html[data-theme="dark"] #_sd_rendered {
   --hl-comment-bg: rgba(94, 234, 212, 0.10);
 }
 
-#_sd_rendered pre code .hljs-keyword,
-#_sd_rendered pre code .hljs-built_in.hljs-keyword,
-#_sd_rendered pre code .hljs-literal,
-#_sd_rendered pre code .hljs-selector-tag,
-#_sd_rendered pre code .hljs-doctag { color: var(--hl-keyword); }
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-keyword,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-built_in.hljs-keyword,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-literal,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-selector-tag,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-doctag { color: var(--hl-keyword); }
 
-#_sd_rendered pre code .hljs-string,
-#_sd_rendered pre code .hljs-regexp,
-#_sd_rendered pre code .hljs-char.escape_,
-#_sd_rendered pre code .hljs-symbol,
-#_sd_rendered pre code .hljs-template-tag,
-#_sd_rendered pre code .hljs-quote { color: var(--hl-string); }
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-string,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-regexp,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-char.escape_,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-symbol,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-template-tag,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-quote { color: var(--hl-string); }
 
-#_sd_rendered pre code .hljs-number,
-#_sd_rendered pre code .hljs-bullet { color: var(--hl-number); }
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-number,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-bullet { color: var(--hl-number); }
 
-#_sd_rendered pre code .hljs-title,
-#_sd_rendered pre code .hljs-title.function_,
-#_sd_rendered pre code .hljs-section { color: var(--hl-function); font-weight: 600; }
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-title,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-title.function_,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-section { color: var(--hl-function); font-weight: 600; }
 
-#_sd_rendered pre code .hljs-type,
-#_sd_rendered pre code .hljs-built_in,
-#_sd_rendered pre code .hljs-class .hljs-title,
-#_sd_rendered pre code .hljs-title.class_,
-#_sd_rendered pre code .hljs-params .hljs-keyword { color: var(--hl-type); }
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-type,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-built_in,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-class .hljs-title,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-title.class_,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-params .hljs-keyword { color: var(--hl-type); }
 
-#_sd_rendered pre code .hljs-meta,
-#_sd_rendered pre code .hljs-meta .hljs-keyword,
-#_sd_rendered pre code .hljs-meta-keyword { color: var(--hl-meta); }
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-meta,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-meta .hljs-keyword,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-meta-keyword { color: var(--hl-meta); }
 
-#_sd_rendered pre code .hljs-attr,
-#_sd_rendered pre code .hljs-attribute,
-#_sd_rendered pre code .hljs-property,
-#_sd_rendered pre code .hljs-variable,
-#_sd_rendered pre code .hljs-template-variable { color: var(--hl-attr); }
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-attr,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-attribute,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-property,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-variable,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-template-variable { color: var(--hl-attr); }
 
-#_sd_rendered pre code .hljs-tag,
-#_sd_rendered pre code .hljs-name,
-#_sd_rendered pre code .hljs-selector-id,
-#_sd_rendered pre code .hljs-selector-class { color: var(--hl-tag); }
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-tag,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-name,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-selector-id,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-selector-class { color: var(--hl-tag); }
 
-#_sd_rendered pre code .hljs-punctuation,
-#_sd_rendered pre code .hljs-operator { color: var(--hl-muted); }
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-punctuation,
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-operator { color: var(--hl-muted); }
 
-#_sd_rendered pre code .hljs-deletion { color: #b91c1c; }
-#_sd_rendered pre code .hljs-addition { color: #15803d; }
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-deletion { color: #b91c1c; }
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-addition { color: #15803d; }
 
 /* Comments: the prominent lane. Italic, full-contrast colour, faint tint, and
    a hair of horizontal padding so a trailing `# note` reads as its own thing. */
-#_sd_rendered pre code .hljs-comment {
+:is(#_sd_rendered, .sdoc-code-focus) pre code .hljs-comment {
   color: var(--hl-comment);
   background: var(--hl-comment-bg);
   font-style: italic;
   border-radius: 3px;
   padding: 0 0.25em;
 }
+
+/* The expand button sits with the copy / wrap cluster, top-right of a block.
+   Copy stays rightmost; expand sits beside it; wrap (shown only on overflow)
+   trails to the left. Mirrors the diagram / sheet expand affordance. */
+#_sd_rendered .pre-wrapper.has-expand .copy-btn { right: 6px; }
+#_sd_rendered .pre-wrapper.has-expand .expand-btn { right: 36px; }
+#_sd_rendered .pre-wrapper.has-expand .wrap-btn { right: 66px; }
 
 /* ── Charts ── */
 .sdoc-chart {
