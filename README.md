@@ -4,7 +4,7 @@
 
 SmallDocs (formerly SDocs) is a lightweight, stateless markdown editor with live styling. Your document lives in the URL hash fragment - browsers never send it to the server.
 
-**[smalldocs.org](https://smalldocs.org)** &nbsp;|&nbsp; **[npm](https://www.npmjs.com/package/sdocs-dev)** &nbsp;|&nbsp; **[MIT License](LICENSE)** &nbsp;|&nbsp; **[Discord](https://discord.gg/8n6DR4v46f)**
+**[smalldocs.org](https://smalldocs.org)** &nbsp;|&nbsp; **[npm](https://www.npmjs.com/package/sdocs-dev)** &nbsp;|&nbsp; **[Elastic License 2.0](LICENSE)** &nbsp;|&nbsp; **[Discord](https://discord.gg/8n6DR4v46f)**
 
 ---
 
@@ -113,4 +113,4 @@ node cli/bin/sdocs-dev.js README.md
 
 ## License
 
-[MIT](LICENSE)
+[Elastic License 2.0](LICENSE). The source is public and you may use, copy, modify, and redistribute it. You may not offer SmallDocs to third parties as a hosted or managed service, strip its licensing notices, or circumvent its license-key functionality.
