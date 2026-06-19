@@ -126,4 +126,4 @@ No period at the end. Keep the subject line under 72 characters. If more context
 
 ## License
 
-By contributing you agree your work is released under the [MIT License](LICENSE).
+By contributing you agree your work is released under the [Elastic License 2.0](LICENSE).

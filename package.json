@@ -8,7 +8,7 @@
     "test": "node test/run.js"
   },
   "author": "Josh Summers",
-  "license": "MIT",
+  "license": "Elastic-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/espressoplease/smalldocs.git"
