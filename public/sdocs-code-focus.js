@@ -178,28 +178,38 @@
     '.sdoc-code-focus-lines:hover button.sdoc-cl-fold,',
     '.sdoc-cl-row.collapsed button.sdoc-cl-fold { opacity: 1; }',
     'button.sdoc-cl-fold:hover { color: var(--sdoc-focus-fg, #1c1917); }',
-    // Master fold control: a single always-visible chevron at the top of the
-    // gutter column, the parent of every row chevron. Sticky so it stays put as
-    // the code scrolls; points down when everything is open, right when folded,
-    // exactly like the per-row chevrons. Same action as the toolbar button.
+    // Master fold control: a small labelled button at the top of the gutter
+    // column that folds or unfolds the whole file. A hairline under it reads as
+    // the header of the listing rather than a glyph floating in space. Its
+    // chevron points down when everything is open, right when folded, like the
+    // per-row chevrons. Same action as the toolbar button.
     '.sdoc-cl-master {',
     '  position: sticky; top: 0; z-index: 3;',
-    '  display: flex; align-items: center; height: 24px; margin-bottom: 2px;',
+    '  display: flex; align-items: center; height: 30px; margin-bottom: 6px;',
     '  background: var(--sdoc-focus-bg, #f4f1ed);',
+    '  border-bottom: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
     '}',
     '.sdoc-cl-master-btn {',
     '  all: unset; cursor: pointer;',
     '  position: sticky; left: 0;',
-    '  width: 15px; height: 20px; flex: 0 0 auto;',
-    '  display: inline-flex; align-items: center; justify-content: center;',
+    '  display: inline-flex; align-items: center; gap: 5px;',
+    '  padding: 3px 9px 3px 5px; border-radius: 5px;',
     '  background: var(--sdoc-focus-bg, #f4f1ed);',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 55%, transparent);',
-    '  transform: rotate(90deg); transition: transform .15s, color .12s;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 62%, transparent);',
+    '  font-family: ui-sans-serif, system-ui, sans-serif;',
+    '  font-size: 11.5px; font-weight: 500;',
+    '  transition: color .12s, background .12s;',
     '}',
-    '.sdoc-cl-master-btn svg { display: block; }',
-    '.sdoc-cl-master-btn:hover { color: var(--sdoc-focus-fg, #1c1917); }',
+    '.sdoc-cl-master-btn:hover {',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 8%, transparent);',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '}',
     '.sdoc-cl-master-btn:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
-    '.sdoc-cl-master.collapsed .sdoc-cl-master-btn { transform: rotate(0deg); }',
+    '.sdoc-cl-master-chev {',
+    '  display: block; flex: 0 0 auto;',
+    '  transform: rotate(90deg); transition: transform .15s;',
+    '}',
+    '.sdoc-cl-master.collapsed .sdoc-cl-master-chev { transform: rotate(0deg); }',
     '.sdoc-cl-num {',
     '  flex: 0 0 auto; width: var(--sdoc-ln-w); box-sizing: content-box;',
     '  padding-right: 16px; padding-left: 4px; text-align: right;',
@@ -253,6 +263,10 @@
     + '<path d="m16 16-2 2 2 2"/><path d="M3 18h7"/>');
   var X_ICON = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
   var CHEVRON = lucide('<polyline points="9 18 15 12 9 6"/>', 12);
+  var MASTER_CHEVRON = '<svg class="sdoc-cl-master-chev" width="12" height="12" '
+    + 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<polyline points="9 18 15 12 9 6"/></svg>';
   // Two icons, switched by the button's .is-open class: outward arrows mean
   // "expand all" (shown when something is collapsed), inward arrows mean
   // "collapse all" (shown when everything is open). Mirrors the markdown
@@ -524,6 +538,8 @@
     if (masterEl) {
       masterEl.classList.toggle('collapsed', !allOpen);
       var mbtn = masterEl.querySelector('.sdoc-cl-master-btn');
+      var mlabel = masterEl.querySelector('.sdoc-cl-master-label');
+      if (mlabel) mlabel.textContent = label;
       if (mbtn) { mbtn.setAttribute('aria-label', label); mbtn.setAttribute('title', label); }
     }
   }
@@ -623,7 +639,8 @@
     masterEl = document.createElement('div');
     masterEl.className = 'sdoc-cl-master';
     masterEl.innerHTML = '<button type="button" class="sdoc-cl-master-btn" '
-      + 'aria-label="Collapse all" title="Collapse all">' + CHEVRON + '</button>';
+      + 'aria-label="Collapse all" title="Collapse all">' + MASTER_CHEVRON
+      + '<span class="sdoc-cl-master-label">Collapse all</span></button>';
     masterEl.addEventListener('click', function () { toggleAll(); });
     linesEl = document.createElement('div');
     linesEl.className = 'sdoc-code-focus-lines';
