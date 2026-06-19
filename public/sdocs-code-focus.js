@@ -297,19 +297,42 @@
     '  font-size: 11.5px; font-weight: 500; min-width: 44px; text-align: center;',
     '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 62%, transparent);',
     '}',
-    // The "+" add affordance lives in a reserved strip at the gutter's left,
-    // present only in comment mode so line numbers stay aligned. A single button
-    // is moved into the hovered row, so only that row shows it.
+    // Each row owns a "+" in a reserved strip at the gutter\'s left, shown only
+    // in comment mode (line grain) on row hover. Per-row rather than one moving
+    // element: it is rebuilt with its row and reads its own line, so nothing can
+    // chase the pointer or land on a neighbour. Hidden in method grain, where
+    // the tall tab takes over.
     '.sdoc-code-focus.sdoc-cc-on .sdoc-cl-gutter { padding-left: 20px; }',
     '.sdoc-cc-add {',
     '  all: unset; box-sizing: border-box; cursor: pointer;',
     '  position: absolute; left: 0; top: 0; width: 18px; height: 1.65em;',
-    '  display: inline-flex; align-items: center; justify-content: center;',
+    '  display: none; align-items: center; justify-content: center;',
     '  border-radius: 4px; color: #fff; background: #3B82F6;',
-    '  opacity: 0; transform: scale(.8); transition: opacity .1s, transform .1s;',
+    '  opacity: 0; transform: scale(.85); transition: opacity .1s, transform .1s;',
     '}',
-    '.sdoc-cl-row:hover .sdoc-cc-add { opacity: 1; transform: scale(1); }',
+    '.sdoc-code-focus.sdoc-cc-on .sdoc-cl-row .sdoc-cc-add { display: inline-flex; }',
+    '.sdoc-code-focus.sdoc-cc-on .sdoc-cl-row:hover .sdoc-cc-add { opacity: 1; transform: scale(1); }',
+    '.sdoc-code-focus.sdoc-cc-grain-method .sdoc-cc-add { display: none; }',
     '.sdoc-cc-add svg { display: block; width: 13px; height: 13px; }',
+    // Method grain: a tall "+" tab spanning the whole method, mirroring the
+    // markdown block gutter button. Positioned over the method line range.
+    '.sdoc-code-focus-lines { position: relative; }',
+    '.sdoc-cc-madd {',
+    '  all: unset; box-sizing: border-box; cursor: pointer;',
+    '  position: absolute; left: 0; width: 20px; z-index: 2;',
+    '  display: none; flex-direction: column; align-items: center;',
+    '  padding-top: 5px; color: #fff;',
+    '  background: color-mix(in oklab, #3B82F6 88%, var(--sdoc-focus-fg, #1c1917));',
+    '  border-radius: 8px 3px 3px 8px;',
+    '  opacity: 0; transition: opacity .12s, background .12s;',
+    '}',
+    '.sdoc-cc-madd.show { display: flex; opacity: 1; }',
+    '.sdoc-cc-madd:hover { background: #3B82F6; }',
+    '.sdoc-cc-madd svg { display: block; width: 13px; height: 13px; }',
+    // A method that carries a comment keeps a persistent accent stripe down its
+    // whole height: an inset left bar on each row in the method range, which
+    // stacks into one continuous line.
+    '.sdoc-cl-row.sdoc-cc-method-marked { box-shadow: inset 2px 0 var(--sdoc-cc-marker, #3B82F6); }',
     // A line that carries comments gets a small accent dot in its number cell.
     '.sdoc-cl-row.sdoc-cc-has-comment .sdoc-cl-num { position: relative; }',
     '.sdoc-cl-row.sdoc-cc-has-comment .sdoc-cl-num::before {',
@@ -679,6 +702,7 @@
       if (btn) btn.setAttribute('aria-expanded', isC ? 'false' : 'true');
     }
     syncThreadVisibility();
+    hideMethodTab(); // row offsets changed; it re-shows on the next hover
   }
 
   // Toggling a header applies to every header nested under it, mirroring the
@@ -748,7 +772,9 @@
         ? '<button class="sdoc-cl-fold" type="button" tabindex="-1" data-h="' + i + '" aria-label="Fold or unfold" aria-expanded="true">' + CHEVRON + '</button>'
         : '<span class="sdoc-cl-fold"></span>';
       html += '<div class="sdoc-cl-row" data-ln="' + i + '">'
-        + '<span class="sdoc-cl-gutter">' + fold
+        + '<span class="sdoc-cl-gutter">'
+        + '<button class="sdoc-cc-add" type="button" tabindex="-1" data-ln="' + i + '" aria-label="Add a comment" title="Add a comment">' + PLUS_ICON + '</button>'
+        + fold
         + '<span class="sdoc-cl-num">' + (i + 1) + '</span></span>'
         + '<span class="sdoc-cl-code">' + lineParts[i] + '</span></div>';
     }
@@ -763,6 +789,8 @@
       openComposer(openComp.spec);
       var ta = linesEl.querySelector('.sdoc-cc-composer .sdoc-cc-input');
       if (ta) { ta.value = openComp.text; autoGrow(ta); }
+    } else {
+      replaceAddAffordance();
     }
   }
 
@@ -877,12 +905,12 @@
     linesEl.addEventListener('click', onCommentClick);
     linesEl.addEventListener('mouseover', onLinesHover);
     linesEl.addEventListener('keydown', onComposerKey);
-    addBtn = document.createElement('button');
-    addBtn.type = 'button';
-    addBtn.className = 'sdoc-cc-add';
-    addBtn.setAttribute('aria-label', 'Add a comment');
-    addBtn.setAttribute('title', 'Add a comment');
-    addBtn.innerHTML = PLUS_ICON;
+    methodTab = document.createElement('button');
+    methodTab.type = 'button';
+    methodTab.className = 'sdoc-cc-madd';
+    methodTab.setAttribute('aria-label', 'Comment on this method');
+    methodTab.setAttribute('title', 'Comment on this method');
+    methodTab.innerHTML = PLUS_ICON;
     var fileInfo = buildFileInfo(name);
     if (fileInfo) { fileInfo.addEventListener('click', onFileInfoClick); docEl.appendChild(fileInfo); }
     docEl.appendChild(linesEl);
@@ -974,7 +1002,7 @@
     modal.remove();
     modal = null; docEl = null; linesEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
     srcLines = null; structuralRe = null; openToken = null;
-    comments = []; commenting = false; storeKey = null; navId = null; addBtn = null;
+    comments = []; commenting = false; storeKey = null; navId = null; methodTab = null; hoverLn = -1;
     document.body.classList.remove('sdoc-code-focus-open');
     if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (_) {} }
     prevFocus = null;
@@ -1068,8 +1096,8 @@
     if (!linesEl) return;
     var old = linesEl.querySelectorAll('.sdoc-cc-thread, .sdoc-cc-orphans');
     for (var k = 0; k < old.length; k++) old[k].remove();
-    var marked = linesEl.querySelectorAll('.sdoc-cc-has-comment');
-    for (var j = 0; j < marked.length; j++) marked[j].classList.remove('sdoc-cc-has-comment');
+    var marked = linesEl.querySelectorAll('.sdoc-cc-has-comment, .sdoc-cc-method-marked');
+    for (var j = 0; j < marked.length; j++) marked[j].classList.remove('sdoc-cc-has-comment', 'sdoc-cc-method-marked');
     if (!commenting) { updateCommentChrome(); return; }
 
     var byLine = commentsByLine();
@@ -1080,6 +1108,15 @@
       var row = linesEl.querySelector('.sdoc-cl-row[data-ln="' + ln + '"]');
       if (!row) return;
       row.classList.add('sdoc-cc-has-comment');
+      // A method comment paints a persistent accent stripe down the whole
+      // method, so its reach is visible the way a markdown block comment's is.
+      if (list.some(function (c) { return c.kind === 'method'; })) {
+        var m = methodFor(ln);
+        if (m) for (var r = m.header; r <= m.end; r++) {
+          var rr = linesEl.querySelector('.sdoc-cl-row[data-ln="' + r + '"]');
+          if (rr) rr.classList.add('sdoc-cc-method-marked');
+        }
+      }
       var anchor = row;
       list.forEach(function (c) {
         var thread = buildCard(c, ln);
@@ -1249,33 +1286,63 @@
 
   // Move the single "+" add button into the hovered row's gutter (comment mode
   // only). In method grain, also light up the whole enclosing method.
+  // Line grain: each row owns its own "+" (rendered into the gutter), shown on
+  // hover via CSS - no moving element to chase. This handler only drives the
+  // method grain: light up the enclosing method and stretch the tall tab over it.
   function onLinesHover(e) {
-    if (!commenting) return;
+    if (!commenting || grain !== 'method') return;
+    if (methodTab && methodTab.contains(e.target)) return;
     var row = e.target.closest('.sdoc-cl-row');
-    if (!row || !linesEl.contains(row)) return;
-    if (row.style.display === 'none') return;
+    if (!row || !linesEl.contains(row) || row.style.display === 'none') return;
     var ln = parseInt(row.getAttribute('data-ln'), 10);
     if (isNaN(ln)) return;
-    if (grain === 'method') {
-      var m = methodFor(ln);
-      if (m) { highlightMethod(m.header, m.end); placeAddButton(m.header); return; }
-      clearMethodHighlight();
-    }
-    placeAddButton(ln);
-  }
-  function placeAddButton(ln) {
-    if (!addBtn) return;
-    var row = linesEl.querySelector('.sdoc-cl-row[data-ln="' + ln + '"]');
-    if (!row) return;
-    var gutter = row.querySelector('.sdoc-cl-gutter');
-    if (gutter && addBtn.parentNode !== gutter) gutter.appendChild(addBtn);
-    addBtn.setAttribute('data-ln', ln);
+    hoverLn = ln;
+    var m = methodFor(ln);
+    if (m) { highlightMethod(m.header, m.end); placeMethodTab(m.header, m.end); }
+    else { clearMethodHighlight(); hideMethodTab(); }
   }
 
-  var addBtn = null; // the single floating "+" affordance, moved between rows
+  // After a row rebuild the tall method tab is detached. Re-stretch it over the
+  // last-hovered method so it is not briefly missing under the pointer.
+  function replaceAddAffordance() {
+    if (!commenting || grain !== 'method' || hoverLn < 0) return;
+    var m = methodFor(hoverLn);
+    if (m) placeMethodTab(m.header, m.end);
+  }
+  // Position the tall method "+" tab over a method's whole line range, so the
+  // affordance spans the method's height like the markdown block gutter button.
+  function placeMethodTab(header, end) {
+    if (!methodTab || !linesEl) return;
+    var hRow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + header + '"]');
+    var eRow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + end + '"]');
+    if (!hRow) { hideMethodTab(); return; }
+    if (!eRow || eRow.style.display === 'none') eRow = hRow;
+    if (methodTab.parentNode !== linesEl) linesEl.appendChild(methodTab);
+    var top = hRow.offsetTop;
+    var bottom = eRow.offsetTop + eRow.offsetHeight;
+    methodTab.style.top = top + 'px';
+    methodTab.style.height = Math.max(bottom - top, 18) + 'px';
+    methodTab.setAttribute('data-ln', header);
+    methodTab.classList.add('show');
+  }
+  function hideMethodTab() {
+    if (methodTab) methodTab.classList.remove('show');
+  }
+
+  var methodTab = null; // method grain: a tall "+" tab over the method range
+  var hoverLn = -1;     // last row the pointer was over, to re-stretch the tab
+                        // after a row rebuild (the one-shot highlight upgrade)
 
   function onCommentClick(e) {
     if (!commenting) return;
+    var madd = e.target.closest('.sdoc-cc-madd');
+    if (madd) {
+      e.stopPropagation();
+      var hl = parseInt(madd.getAttribute('data-ln'), 10);
+      var mm = methodFor(hl);
+      if (mm) openComposer({ kind: 'method', line: mm.header, endLine: mm.end, anchorText: trimmed(mm.header) });
+      return;
+    }
     var btn = e.target.closest('[data-cc]');
     var add = e.target.closest('.sdoc-cc-add');
     if (add) {
@@ -1330,7 +1397,7 @@
     if (modal) modal.classList.toggle('sdoc-cc-on', on);
     var btn = modal && modal.querySelector('[data-act="comment"]');
     if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }
-    if (!on) { cancelComposer(); clearMethodHighlight(); }
+    if (!on) { cancelComposer(); clearMethodHighlight(); hideMethodTab(); }
     renderThreads();
   }
 
@@ -1338,6 +1405,8 @@
     grain = g === 'method' ? 'method' : 'line';
     saveGrain(grain);
     clearMethodHighlight();
+    hideMethodTab();
+    if (modal) modal.classList.toggle('sdoc-cc-grain-method', grain === 'method');
     var seg = modal && modal.querySelector('.sdoc-cc-grain');
     if (seg) {
       seg.querySelectorAll('[data-grain]').forEach(function (b) {
