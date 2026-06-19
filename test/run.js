@@ -40,6 +40,7 @@ require('./test-cells-xlsx')(harness);
 require('./test-cells-transclude')(harness);
 require('./test-cells-verify')(harness);
 require('./test-code-langs')(harness);
+require('./test-code-structural')(harness);
 require('./test-file-wrap')(harness);
 require('./test-agent-block')(harness);
 require('./test-router')(harness);
