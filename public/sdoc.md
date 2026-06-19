@@ -353,6 +353,8 @@ Updated picture:
 
 When someone opens the link, their browser sends the short ID to the server, receives the encrypted blob back, reads the key from the URL hash, and decrypts the blob locally. The server never sees the plain document or the key, only ciphertext. This pattern is called [end-to-end encryption](https://en.wikipedia.org/wiki/End-to-end_encryption): the two "ends" are your browser and the recipient's browser, and everything in between (our server included) handles ciphertext only.
 
+Short-link storage is cleaned by last access, not by creation date. A short link is deleted after 365 days without a successful fetch. Each successful fetch refreshes the last-accessed timestamp, so active links stay available unless the operator deletes stored ciphertext earlier.
+
 To confirm this, open your browser's developer tools, switch to the Network tab, click **Generate**, and inspect the request body. You will see a base64-encoded blob of random bytes, not your document. The source is at [SmallDocs on GitHub](https://github.com/espressoplease/smalldocs) if you want to read the exact code that runs before the upload.
 
 Short links are opt-in. The default `#md=...` URL format still works exactly as before and never reaches a server.
@@ -666,6 +668,8 @@ sdoc share README.md
 ```
 
 This copies a shareable link to your clipboard.
+
+Without `--short`, the whole document stays in the URL hash and SmallDocs stores nothing, so there is no server-side expiry. Add `--short` to create an encrypted `/s/<id>#k=<key>` link; those server-backed ciphertext blobs are deleted after 365 days without a successful fetch.
 
 You can also combine it with options:
 

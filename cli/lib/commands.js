@@ -116,13 +116,18 @@ async function shareCommand(opts) {
       : 'xsel --clipboard --input';
     execSync(clip, { input: url, stdio: ['pipe', 'ignore', 'ignore'] });
     const name = opts.file ? path.basename(opts.file) : 'stdin';
-    const label = opts.shortFlag ? 'Short link' : 'Link';
-    console.log(`✓ ${label} for ${name} copied to clipboard`);
+    console.log(formatShareSuccessMessage(name, opts.shortFlag));
     if (opts.shortFlag) console.log(`  ${url}`);
   } catch (_) {
     process.stdout.write(url + '\n');
   }
   await postCommandHooks();
+}
+
+function formatShareSuccessMessage(name, shortFlag) {
+  const label = shortFlag ? 'Short link' : 'Link';
+  const lifecycle = shortFlag ? ' (kept while used; deleted after 365 days without access)' : '';
+  return `✓ ${label} for ${name} copied to clipboard${lifecycle}`;
 }
 
 function defaultsCommand(opts) {
@@ -283,6 +288,7 @@ module.exports = {
   prepareUrl,
   openCommand,
   shareCommand,
+  formatShareSuccessMessage,
   defaultsCommand,
   colorAnalysisCommand,
   newCommand,

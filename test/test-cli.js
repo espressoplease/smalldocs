@@ -199,6 +199,17 @@ module.exports = function(harness) {
     assert.strictEqual(result.file, 'report.md');
   });
 
+  test('formatShareSuccessMessage: short links mention retention', () => {
+    assert.strictEqual(
+      cli.formatShareSuccessMessage('report.md', true),
+      '✓ Short link for report.md copied to clipboard (kept while used; deleted after 365 days without access)'
+    );
+    assert.strictEqual(
+      cli.formatShareSuccessMessage('report.md', false),
+      '✓ Link for report.md copied to clipboard'
+    );
+  });
+
   test('parseArgs: share with --write mode', () => {
     const result = cli.parseArgs(['share', 'doc.md', '--write']);
     assert.strictEqual(result.subcommand, 'share');

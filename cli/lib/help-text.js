@@ -186,6 +186,13 @@ SHORT LINKS (sdoc share --short)
        /api/short/<id>, reads \`#k=\` from window.location.hash, decrypts
        in JavaScript, and renders.
 
+  Storage lifecycle:
+    - Short-link ciphertext is deleted after 365 days without a successful
+      fetch.
+    - Each successful fetch refreshes the last-accessed timestamp, so active
+      links remain available unless the operator deletes stored ciphertext
+      earlier.
+
   What the server can see:
     - That a ciphertext blob was uploaded under id <id>.
     - When it was fetched and from which IP (standard server logs).
