@@ -47,6 +47,9 @@ async function openCode(page, lang, code) {
     window.SDocs.codeFocus.open(pre);
   }, { lang, code });
   await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  // Wait for the one-shot highlight upgrade to settle so its row rebuild can't
+  // land mid-interaction and move the hover affordance.
+  await page.locator('.sdoc-cl-code .hljs-keyword').first().waitFor({ timeout: 5000 }).catch(function () {});
 }
 
 async function enterCommentMode(page) {
