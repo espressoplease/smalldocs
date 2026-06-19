@@ -469,8 +469,17 @@ function renderActive() {
   }
 }
 
+// A keystroke aimed at a text field (the comment composer) must reach the field,
+// not steer the deck. Without this, typing a space jumps to the next slide.
+function isTypingTarget(t) {
+  if (!t) return false;
+  var tag = t.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || t.isContentEditable;
+}
+
 function onKey(e) {
   if (!state.open) return;
+  if (isTypingTarget(e.target)) return;
   if (e.key === 'Escape') {
     e.preventDefault();
     if (state.expPanel && state.expPanel.classList.contains('open')) closeExportPanel();
