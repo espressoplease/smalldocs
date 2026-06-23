@@ -843,10 +843,22 @@
     return 'pre:0';
   }
 
-  // Every code note in the document, across all blocks.
+  // Every code note in the document, across all blocks. A shared document's
+  // front matter is attacker-controllable, so each note is normalised on the way
+  // in (sanitises text + colour, validates id/line, drops malformed) and the
+  // list is capped. The model's sanitisers must run on inbound data, not only
+  // when the local user edits - the same guard prose comments get on load.
+  var CC_MAX = 500; // far above any real use; caps a hostile shared doc
   function readAll() {
     var a = S.currentMeta && S.currentMeta.codeComments;
-    return Array.isArray(a) ? a.slice() : [];
+    if (!Array.isArray(a)) return [];
+    if (!CC) return a.slice();
+    var out = [];
+    for (var i = 0; i < a.length && out.length < CC_MAX; i++) {
+      var c = CC.normalize(a[i]);
+      if (c) out.push(c);
+    }
+    return out;
   }
   // Load just this block's notes into the working set.
   function loadComments() {
@@ -1591,8 +1603,10 @@
       if (ln < 0) return; // orphans handled below
       var row = linesEl.querySelector('.sdoc-cl-row[data-ln="' + ln + '"]');
       if (!row) return;
-      // The line tint takes the colour of the note that sits on it.
-      var lineColor = (list[0] && list[0].color) || readCommentPrefs().color;
+      // The line tint takes the colour of the note that sits on it. Hex-gate at
+      // the sink: a stored colour rides in from a shared doc into a CSS var.
+      var rawLineColor = (list[0] && list[0].color) || readCommentPrefs().color;
+      var lineColor = CC ? CC.sanitizeColor(rawLineColor) : rawLineColor;
       row.classList.add('sdoc-cc-has-comment');
       row.style.setProperty('--sdoc-cc-marker', lineColor);
       // A method comment paints a persistent stripe down the whole method in its
@@ -1602,7 +1616,7 @@
         var m = methodFor(ln);
         if (m) for (var r = m.header; r <= m.end; r++) {
           var rr = linesEl.querySelector('.sdoc-cl-row[data-ln="' + r + '"]');
-          if (rr) { rr.classList.add('sdoc-cc-method-marked'); rr.style.setProperty('--sdoc-cc-marker', methodC.color || lineColor); }
+          if (rr) { rr.classList.add('sdoc-cc-method-marked'); rr.style.setProperty('--sdoc-cc-marker', (CC ? CC.sanitizeColor(methodC.color) : methodC.color) || lineColor); }
         }
       }
       var anchor = row;
@@ -1737,7 +1751,9 @@
     if (ln >= 0) row.setAttribute('data-ln', ln);
     row.setAttribute('data-c', c.id);
     if (c.kind === 'method') row.classList.add('sdoc-cc-thread-method');
-    if (c.color) row.style.setProperty('--sdoc-cc-color', c.color);
+    // Colour flows into a CSS var substituted into background: var(...); a
+    // crafted shared doc could smuggle url(...) here, so hex-gate at the sink.
+    if (c.color) row.style.setProperty('--sdoc-cc-color', CC ? CC.sanitizeColor(c.color) : c.color);
 
     var card = document.createElement('div');
     card.className = 'sdoc-cc-card';

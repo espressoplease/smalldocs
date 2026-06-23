@@ -407,3 +407,48 @@ test('notes stay attached to their own code block in a multi-block document', as
   const blocks = await page.evaluate(() => (window.SDocs.currentMeta.codeComments || []).map(function (c) { return c.block; }));
   expect(blocks).toContain('pre:0');
 });
+
+// A shared document's front matter (and thus its code comments) is authored by
+// someone else and rendered in the reader's browser. These guard the inbound
+// path: the model's sanitisers must run on load, and the list must be capped.
+test('a hostile shared doc cannot smuggle a url() colour or control chars through code comments', async ({ page }) => {
+  await openCode(page, 'ruby', RUBY);
+  await page.evaluate(() => {
+    window.SDocs.currentMeta = Object.assign({}, window.SDocs.currentMeta, {
+      codeComments: [
+        { id: 'c1', kind: 'line', block: 'pre:0', line: 1, anchorText: 'CACHE_TTL = 300',
+          color: 'url(https://evil/p.gif)', text: 'see‮reversedbell', author: 'x' },
+        { id: 'bad-id', kind: 'line', block: 'pre:0', line: 2, text: 'dropped' }, // invalid id
+      ],
+    });
+    window.SDocs.codeFocus.close();
+    window.SDocs.codeFocus.open(document.querySelector('#_sd_rendered pre'));
+  });
+  await page.locator('.sdoc-code-focus [data-act="comment"]').click();
+  // colour is hex-gated: no url() reaches the CSS var
+  const marker = await page.locator('.sdoc-cl-row[data-ln="1"]')
+    .evaluate((el) => el.style.getPropertyValue('--sdoc-cc-marker'));
+  expect(marker.toLowerCase()).not.toContain('url(');
+  // bidi-override and control bytes stripped from the card body
+  const body = await page.locator('.sdoc-cc-thread[data-ln="1"] .sdoc-cc-card-body').textContent();
+  expect(body).not.toMatch(/[‮]/);
+  // the malformed (invalid id) entry is dropped, so it never renders
+  await expect(page.locator('.sdoc-cc-thread[data-ln="2"]:not(.sdoc-cc-composer)')).toHaveCount(0);
+});
+
+test('code comments from a shared doc are capped to guard against a flood', async ({ page }) => {
+  await openCode(page, 'ruby', RUBY);
+  await page.evaluate(() => {
+    var many = [];
+    for (var i = 1; i <= 600; i++) {
+      many.push({ id: 'c' + i, kind: 'line', block: 'pre:0', line: 1, anchorText: 'CACHE_TTL = 300', text: 'n' + i });
+    }
+    window.SDocs.currentMeta = Object.assign({}, window.SDocs.currentMeta, { codeComments: many });
+    window.SDocs.codeFocus.close();
+    window.SDocs.codeFocus.open(document.querySelector('#_sd_rendered pre'));
+  });
+  await page.locator('.sdoc-code-focus [data-act="comment"]').click();
+  const threads = await page.locator('.sdoc-cc-thread:not(.sdoc-cc-composer)').count();
+  expect(threads).toBeLessThanOrEqual(500);
+  expect(threads).toBeGreaterThan(0);
+});
