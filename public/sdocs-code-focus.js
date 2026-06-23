@@ -1452,11 +1452,15 @@
     if (keyHandler) window.removeEventListener('keydown', keyHandler);
     keyHandler = null;
     hideSelPopover();
+    // Carry comment mode back to the reader: if you were commenting in the
+    // viewer, closing lands you in the reader's comment mode, not plain read.
+    var wasCommenting = commenting;
     modal.remove();
     modal = null; docEl = null; linesEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
     srcLines = null; structuralRe = null; openToken = null;
     comments = []; commenting = false; blockId = ''; navId = null; methodTab = null; hoverLn = -1;
     document.body.classList.remove('sdoc-code-focus-open');
+    if (wasCommenting && S.setMode && !document.body.classList.contains('comment-mode')) S.setMode('comment');
     if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (_) {} }
     prevFocus = null;
   }
