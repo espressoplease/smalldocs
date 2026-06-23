@@ -71,11 +71,11 @@ test('select a token in the viewer, comment on it, and see a precise mark', asyn
   expect(stored.kind).toBe('token');
   expect(stored.quote).toBe('dog_count');
 
-  // a precise mark is painted over the phrase, and an inline pill sits right
-  // after it (the prose shape), not a card below the line
+  // a precise mark is painted over the phrase, and the comment renders as a
+  // full-width card BELOW the line (never inline, to avoid colliding with code)
   await expect(page.locator('.sdoc-cc-token-mark')).toHaveCount(1);
   await expect(page.locator('.sdoc-cc-token-mark').first()).toHaveText('dog_count');
-  await expect(page.locator('.sdoc-cc-pill .sdoc-cc-pill-body')).toHaveText('should be cat_count');
+  await expect(page.locator('.sdoc-cc-thread .sdoc-cc-card-body')).toHaveText('should be cat_count');
 });
 
 test('a token comment re-renders its mark after close and reopen', async ({ page }) => {
@@ -113,22 +113,22 @@ test('a token comment survives a trip through prose mode and reopen', async ({ p
   await expect(page.locator('.sdoc-code-focus .sdoc-cc-token-mark')).toHaveText('dog_count');
 });
 
-test('a token pill edits and deletes in place', async ({ page }) => {
+test('a token comment edits and deletes in place', async ({ page }) => {
   await openViewer(page, PY);
   await page.locator('.sdoc-code-focus [data-act="comment"]').click();
   await selectToken(page, 'dog_count');
   await page.locator('.sdoc-cc-selbtn').click();
   await page.locator('.sdoc-cc-composer .sdoc-cc-input').fill('first');
   await page.locator('.sdoc-cc-composer [data-cc="save"]').click();
-  await expect(page.locator('.sdoc-cc-pill .sdoc-cc-pill-body')).toHaveText('first');
-  // click the pill body to edit it in place
-  await page.locator('.sdoc-cc-pill .sdoc-cc-pill-body').click();
+  await expect(page.locator('.sdoc-cc-thread .sdoc-cc-card-body')).toHaveText('first');
+  // click the card body to edit it in place
+  await page.locator('.sdoc-cc-thread .sdoc-cc-card-body').click();
   await page.locator('.sdoc-cc-composer .sdoc-cc-input').fill('second');
   await page.locator('.sdoc-cc-composer [data-cc="save"]').click();
-  await expect(page.locator('.sdoc-cc-pill .sdoc-cc-pill-body')).toHaveText('second');
-  // delete via the pill's own delete button; the mark goes with it
-  await page.locator('.sdoc-cc-pill [data-cc="delete"]').click();
-  await expect(page.locator('.sdoc-cc-pill')).toHaveCount(0);
+  await expect(page.locator('.sdoc-cc-thread .sdoc-cc-card-body')).toHaveText('second');
+  // delete via the card's delete button; the mark goes with it
+  await page.locator('.sdoc-cc-thread [data-cc="delete"]').click();
+  await expect(page.locator('.sdoc-cc-thread')).toHaveCount(0);
   await expect(page.locator('.sdoc-cc-token-mark')).toHaveCount(0);
 });
 
