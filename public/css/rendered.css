@@ -260,6 +260,7 @@
 }
 #_sd_rendered .pre-wrapper .copy-btn,
 #_sd_rendered .pre-wrapper .expand-btn,
+#_sd_rendered .pre-wrapper .code-comment-btn,
 #_sd_rendered .pre-wrapper .wrap-btn {
   position: absolute;
   top: 6px;
@@ -282,8 +283,25 @@
 #_sd_rendered .pre-wrapper .wrap-btn { right: 36px; }
 #_sd_rendered .pre-wrapper .copy-btn:hover,
 #_sd_rendered .pre-wrapper .expand-btn:hover,
+#_sd_rendered .pre-wrapper .code-comment-btn:hover,
 #_sd_rendered .pre-wrapper .wrap-btn:hover { opacity: 1; background: var(--md-copy-btn-hover); }
 #_sd_rendered .pre-wrapper .wrap-btn.active { opacity: 1; background: var(--md-copy-btn-hover); }
+
+/* Comment indicator: sits leftmost in the cluster (the other three keep their
+   has-expand offsets), always shown when present, with a small accent dot so it
+   reads as "this block has notes". */
+#_sd_rendered .pre-wrapper.has-comment-notes .code-comment-btn { right: 96px; opacity: 1; }
+#_sd_rendered .pre-wrapper .code-comment-btn::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--md-code-color, #6B21A8);
+  border: 1px solid var(--md-pre-bg);
+}
 #_sd_rendered pre.wrapped,
 #_sd_rendered pre.wrapped code {
   white-space: pre-wrap;

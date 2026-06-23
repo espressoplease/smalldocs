@@ -1203,7 +1203,7 @@
     return { spec: spec, text: ta ? ta.value : '' };
   }
 
-  function open(sourcePre) {
+  function open(sourcePre, opts) {
     if (modal) close();
     if (!sourcePre) return;
     var srcCode = sourcePre.querySelector('code');
@@ -1342,6 +1342,9 @@
     wireCommentPrefs();       // fill the author/colour inputs and apply the accent
     updateCommentChrome();
     initFocusTheme();         // apply the viewer-local light/dark choice (or follow doc)
+    // Opened straight from the reader's comment indicator: land in comment mode
+    // so the block's notes are visible without a second click.
+    if (opts && opts.comment) setCommenting(true);
 
     highlightThenRender(srcCode.className || '');
 

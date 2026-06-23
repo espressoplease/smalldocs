@@ -32,6 +32,20 @@ var WRAP_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stro
 var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 // Lucide expand-corners - same icon the diagram / sheet expand buttons use.
 var EXPAND_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+var COMMENT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+
+// How many code-viewer comments the document carries for a given block id
+// ("pre:N"). Used to surface a reader-side indicator on a code block whose
+// notes live in the fullscreen viewer (where they are read and edited).
+function codeCommentCountFor(blockId) {
+  var list = SDocs.currentMeta && SDocs.currentMeta.codeComments;
+  if (!Array.isArray(list)) return 0;
+  var n = 0;
+  for (var i = 0; i < list.length; i++) {
+    if (list[i] && list[i].block === blockId) n++;
+  }
+  return n;
+}
 // Tag chip × uses the standard SDocs close icon (same stroke / weight as
 // the comment composer's Cancel button, scaled down for chip rendering).
 var TAG_CLOSE_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
@@ -345,7 +359,7 @@ function attachHeadingAnchors(container) {
 }
 
 function attachCodeCopyButtons(container) {
-  container.querySelectorAll('pre').forEach(function(pre) {
+  container.querySelectorAll('pre').forEach(function(pre, idx) {
     var wrapper = document.createElement('div');
     wrapper.className = 'pre-wrapper';
     pre.parentNode.insertBefore(wrapper, pre);
@@ -391,6 +405,21 @@ function attachCodeCopyButtons(container) {
       expandBtn.addEventListener('click', function() { S.codeFocus.open(pre); });
       wrapper.appendChild(expandBtn);
       wrapper.classList.add('has-expand');
+
+      // Indicator: this block carries code-viewer comments, which are read and
+      // edited in the fullscreen view. Surface a dot here so they are findable
+      // from the reader; clicking opens the viewer straight into comment mode.
+      var noteCount = codeCommentCountFor('pre:' + idx);
+      if (noteCount > 0) {
+        var commentBtn = document.createElement('button');
+        commentBtn.className = 'code-comment-btn';
+        commentBtn.innerHTML = COMMENT_SVG;
+        commentBtn.title = noteCount + (noteCount === 1 ? ' comment' : ' comments');
+        commentBtn.setAttribute('aria-label', commentBtn.title);
+        commentBtn.addEventListener('click', function() { S.codeFocus.open(pre, { comment: true }); });
+        wrapper.appendChild(commentBtn);
+        wrapper.classList.add('has-comment-notes');
+      }
     }
 
     refreshWrapButton(pre, wrapBtn);
