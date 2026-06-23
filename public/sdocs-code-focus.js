@@ -245,6 +245,13 @@
     '  color: var(--md-code-color, inherit);',
     '  font-size: 13.5px; line-height: 1.65;',
     '  --sdoc-ln-w: 2ch;',
+    // Full gutter width = fold chevron (15px) + number cell (--sdoc-ln-w plus its
+    // 4+16px padding). The "+" add affordance is absolutely positioned, so it adds
+    // nothing here. Desktop balances the row with this much padding on the right so
+    // the code column re-centres on the page with the numbers hanging in the left
+    // margin; tying it to --sdoc-ln-w keeps the balance exact when a long file
+    // widens the number cell to 3ch / 4ch.
+    '  --sdoc-cf-gutter-w: calc(35px + var(--sdoc-ln-w));',
     '}',
     '.sdoc-code-focus-doc.wrapped { max-width: 660px; }',
     '.sdoc-code-focus-doc:not(.wrapped) { max-width: none; padding-left: 22px; padding-right: 22px; }',
@@ -259,7 +266,12 @@
     '.sdoc-code-focus-doc:not(.wrapped) .sdoc-cl-row { min-width: max-content; }',
     '.sdoc-cl-gutter {',
     '  position: sticky; left: 0; flex: 0 0 auto;',
-    '  display: inline-flex; align-items: flex-start;',
+    // Stretch to the whole row height (a soft-wrapped row is several lines tall)
+    // so the gutter background fills the number margin top-to-bottom; align-items
+    // keeps the number / chevron pinned to the first line. Without the stretch the
+    // gutter is one line tall and a row highlight (method select / comment tint)
+    // shows through the margin on the wrapped continuation lines.
+    '  align-self: stretch; display: inline-flex; align-items: flex-start;',
     '  background: var(--sdoc-focus-bg, #f4f1ed);',
     '  user-select: none; -webkit-user-select: none;',
     '}',
@@ -280,33 +292,31 @@
     '.sdoc-cl-row.collapsed button.sdoc-cl-fold { opacity: 1; }',
     'button.sdoc-cl-fold:hover { color: var(--sdoc-focus-fg, #1c1917); }',
     // Copy-section button on a header line, after its code. Mirrors the markdown
-    // heading copy. Always visible (faint), darkening on hover, a tick on success.
+    // heading copy-btn exactly: a bare inline icon, permanently visible at rest,
+    // full strength on hover (opacity only, no background pill), a tick on success.
+    // No padding/radius so it sits at the line\'s height like any inline glyph.
     '.sdoc-cl-copy {',
-    '  all: unset; cursor: pointer; vertical-align: middle;',
+    '  all: unset; cursor: pointer; vertical-align: middle; line-height: 1;',
     '  display: inline-flex; align-items: center; margin-left: 10px;',
-    '  padding: 0 4px; border-radius: 4px;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 40%, transparent);',
-    '  opacity: 1; transition: background .12s, color .12s;',
-    '}',
-    '.sdoc-cl-copy:hover {',
     '  color: var(--sdoc-focus-fg, #1c1917);',
-    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
+    '  opacity: .55; transition: opacity .12s;',
     '}',
+    '.sdoc-cl-copy:hover { opacity: 1; }',
     '.sdoc-cl-copy svg { display: block; width: 12px; height: 12px; }',
     // Copy-with-comments on a header whose section carries a note (added in
-    // comment mode). Tinted with the accent so it reads as the commented twin.
-    // The same shape as the markdown reader\'s heading copy-with-comments
-    // companion (.sdoc-head-copy-c): a quiet link-toned label, faint at rest,
-    // brightening on hover. No filled pill - it sits beside the plain copy button.
+    // comment mode). Same bare-icon model as the plain copy button and the same
+    // grey foreground colour - it reads as the commented twin sitting beside it,
+    // not a differently-coloured control. margin-left 4px matches the prose
+    // header copy-with-comments companion.
     '.sdoc-cl-copyc {',
-    '  all: unset; cursor: pointer; vertical-align: middle;',
-    '  display: inline-flex; align-items: center; gap: 3px; margin-left: 6px;',
-    '  padding: 0 4px; border-radius: 4px; font-size: 10.5px; font-weight: 500;',
+    '  all: unset; cursor: pointer; vertical-align: middle; line-height: 1;',
+    '  display: inline-flex; align-items: center; gap: 3px; margin-left: 4px;',
+    '  font-size: 11.5px; font-weight: 500;',
     '  font-family: ui-sans-serif, system-ui, sans-serif;',
-    '  color: #3B82F6; opacity: .55; transition: opacity .12s, background .12s;',
+    '  color: var(--sdoc-focus-fg, #1c1917); opacity: .55; transition: opacity .12s;',
     '}',
-    '.sdoc-cl-copyc:hover { opacity: 1; background: color-mix(in oklab, #3B82F6 12%, transparent); }',
-    '.sdoc-cl-copyc svg { display: block; width: 11px; height: 11px; }',
+    '.sdoc-cl-copyc:hover { opacity: 1; }',
+    '.sdoc-cl-copyc svg { display: block; width: 12px; height: 12px; }',
     '.sdoc-cl-num {',
     '  flex: 0 0 auto; width: var(--sdoc-ln-w); box-sizing: content-box;',
     '  padding-right: 16px; padding-left: 4px; text-align: right;',
@@ -331,6 +341,24 @@
     '.sdoc-cl-code { white-space: pre; }',
     '.sdoc-code-focus-doc.wrapped .sdoc-cl-code {',
     '  white-space: pre-wrap; word-break: break-word; flex: 1 1 auto; min-width: 0;',
+    // padding-left + equal negative text-indent = a hanging indent: the line\'s
+    // own leading whitespace lands the first visual line where it always was,
+    // while every wrapped continuation starts at --cl-ind instead of column 0.
+    // Keeps a wrapped comment (and its tint) aligned under its own text.
+    '  padding-left: var(--cl-ind, 0); text-indent: calc(-1 * var(--cl-ind, 0));',
+    '}',
+    // Desktop only: keep the code measure at 660px (the markdown reader width) but
+    // widen the doc by a gutter-width on each side and pad the row by the same on
+    // the right. The line-number gutter then hangs in the left margin while the
+    // code column (and the file-info card, which already centres at 660px) sits
+    // centred on the page - a slightly wider, properly centred listing. Mobile and
+    // the narrow wrapped layout below keep the gutter inside the column unchanged.
+    '@media (min-width: 768px) {',
+    '  .sdoc-code-focus-doc.wrapped { max-width: calc(660px + 2 * var(--sdoc-cf-gutter-w)); }',
+    '  .sdoc-code-focus-doc.wrapped .sdoc-cl-row { padding-right: var(--sdoc-cf-gutter-w); }',
+    '  .sdoc-code-focus-doc.wrapped .sdoc-cf-summary {',
+    '    margin-left: var(--sdoc-cf-gutter-w); margin-right: var(--sdoc-cf-gutter-w);',
+    '  }',
     '}',
     '@media (max-width: 540px) {',
     '  .sdoc-code-focus-brand-full { display: none; }',
@@ -344,9 +372,13 @@
     // The active state uses the shared .sdoc-code-focus-btn.active (the same
     // neutral tint the wrap toggle uses), so the two toggles read identically.
     '.sdoc-code-focus-btn[data-act="comment"] { position: relative; }',
+    // Match the prose comment-button dot (.btn-with-dot .info-dot): 6px, sat in
+    // the corner at 2px/2px with a ring in the toolbar colour so it reads off the
+    // glyph rather than crowding it.
     '.sdoc-code-focus-btn[data-act="comment"].has-notes::after {',
-    '  content: ""; position: absolute; top: 4px; right: 4px;',
-    '  width: 5px; height: 5px; border-radius: 50%; background: var(--sdoc-cc-accent, #ffbb00);',
+    '  content: ""; position: absolute; top: 2px; right: 2px;',
+    '  width: 6px; height: 6px; border-radius: 50%; background: var(--sdoc-cc-accent, #ffbb00);',
+    '  box-shadow: 0 0 0 1px color-mix(in oklab, var(--sdoc-focus-bg, #f4f1ed) 88%, var(--sdoc-focus-fg, #1c1917) 12%);',
     '}',
     // Author + colour prefs, mirroring the markdown reader\'s "Commenting as:"
     // cluster (.sdoc-comment-prefs). New notes take this name and colour, and the
@@ -546,6 +578,10 @@
   }
   var COPY_ICON = lucide('<rect x="9" y="9" width="13" height="13" rx="2"/>'
     + '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', 13);
+  // Same tray-with-down-arrow glyph the markdown reader\'s export button uses
+  // (#_sd_btn-export in index.html), so "download" reads the same everywhere.
+  var DOWNLOAD_ICON = lucide('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>'
+    + '<polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>');
   var WRAP_ICON = lucide('<path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/>'
     + '<path d="m16 16-2 2 2 2"/><path d="M3 18h7"/>');
   var X_ICON = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
@@ -967,12 +1003,20 @@
       var copy = (f && f.header)
         ? '<button class="sdoc-cl-copy" type="button" tabindex="-1" data-copy-h="' + i + '" aria-label="Copy section" title="Copy this section">' + COPY_ICON + '</button>'
         : '';
+      // Hanging indent for soft-wrapped lines: a wrapped line's continuation
+      // should line up under where the line's content starts, not jump back to
+      // the code-column left edge. Carry the line's own indentation width as a
+      // CSS var the wrapped-mode rule turns into padding-left + negative
+      // text-indent. (--cl-ind from the SOURCE line, so it is right whether the
+      // part is plain or syntax-highlighted HTML.)
+      var iw = srcLines ? indentWidth(srcLines[i]) : -1;
+      var indStyle = iw > 0 ? ' style="--cl-ind:' + iw + 'ch"' : '';
       html += '<div class="sdoc-cl-row" data-ln="' + i + '">'
         + '<span class="sdoc-cl-gutter">'
         + '<button class="sdoc-cc-add" type="button" tabindex="-1" data-ln="' + i + '" aria-label="Add a comment" title="Add a comment">' + COMMENT_ICON + '</button>'
         + fold
         + '<span class="sdoc-cl-num">' + (i + 1) + '</span></span>'
-        + '<span class="sdoc-cl-code">' + lineParts[i] + copy + '</span></div>';
+        + '<span class="sdoc-cl-code"' + indStyle + '>' + lineParts[i] + copy + '</span></div>';
     }
     // A row rebuild (the one-shot highlight upgrade) wipes the listing. Preserve
     // an open composer across it so a note half-typed in the first second isn't
@@ -1065,12 +1109,11 @@
       +   '<span class="sdoc-code-focus-brand-text sdoc-code-focus-brand-short">SD</span>'
       + '</span>'
       + '<div class="sdoc-code-focus-center">'
-      +   '<button type="button" class="sdoc-code-focus-btn" data-act="foldall" title="Collapse all" aria-label="Collapse all">' + FOLDALL_ICONS + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn active" data-act="wrap" title="Toggle soft wrap" aria-label="Toggle soft wrap" aria-pressed="true">' + WRAP_ICON + '</button>'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="foldall" title="Collapse all" aria-label="Collapse all">' + FOLDALL_ICONS + '</button>'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="copy" title="Copy code" aria-label="Copy code">' + COPY_ICON + '</button>'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="download" title="Download file" aria-label="Download file">' + DOWNLOAD_ICON + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="comment" title="Comment mode" aria-label="Comment mode" aria-pressed="false">' + COMMENT_ICON + '</button>'
-      +   '<button type="button" class="sdoc-code-focus-action" data-act="copy" title="Copy code" aria-label="Copy code">'
-      +     COPY_ICON + '<span class="sdoc-code-focus-action-label">Copy</span>'
-      +   '</button>'
       + '</div>'
       + '<div class="sdoc-code-focus-actions">'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="close" title="Close (Esc)" aria-label="Close">' + X_ICON + '</button>'
@@ -1253,17 +1296,36 @@
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       return;
     }
+    if (act === 'download') { downloadFile(); return; }
     if (act === 'copy' && navigator.clipboard) {
       navigator.clipboard.writeText(rawText).then(function () { flashCopy(btn); });
     }
   }
 
+  // Icon-only copy button: swap the clipboard glyph for a tick briefly, the same
+  // success feedback the per-line copy buttons use.
   function flashCopy(btn) {
-    var label = btn.querySelector('.sdoc-code-focus-action-label');
-    if (!label) return;
-    var prev = label.textContent;
-    label.textContent = 'Copied';
-    setTimeout(function () { if (label) label.textContent = prev; }, 1500);
+    if (!btn) return;
+    var prev = btn.innerHTML;
+    btn.innerHTML = CHECK_ICON;
+    setTimeout(function () { if (btn) btn.innerHTML = prev; }, 1200);
+  }
+
+  // Download the opened file's exact source under its own name (token_bucket.py
+  // saves as token_bucket.py). Pure client-side Blob; nothing is uploaded.
+  function downloadFile() {
+    if (!rawText) return;
+    try {
+      var blob = new Blob([rawText], { type: 'text/plain;charset=utf-8' });
+      var href = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = href;
+      a.download = fileNameForCopy();
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(href); }, 0);
+    } catch (_) {}
   }
 
   function onKey(e) {
@@ -1309,8 +1371,8 @@
       var raw = localStorage.getItem(CC_PREFS_KEY);
       var v = raw ? JSON.parse(raw) : {};
       var color = (CC && CC.sanitizeColor) ? CC.sanitizeColor(v.color) : (v.color || '#ffbb00');
-      return { author: (v.author || 'you'), color: color };
-    } catch (_) { return { author: 'you', color: '#ffbb00' }; }
+      return { author: (v.author || 'user'), color: color };
+    } catch (_) { return { author: 'user', color: '#ffbb00' }; }
   }
   function writeCommentPrefs(p) {
     try { localStorage.setItem(CC_PREFS_KEY, JSON.stringify(p)); } catch (_) {}
@@ -1334,13 +1396,13 @@
     if (nameI) {
       nameI.value = prefs.author;
       nameI.addEventListener('input', function () {
-        writeCommentPrefs({ author: nameI.value || 'you', color: colorI ? colorI.value : prefs.color });
+        writeCommentPrefs({ author: nameI.value || 'user', color: colorI ? colorI.value : prefs.color });
       });
     }
     if (colorI) {
       colorI.value = prefs.color;
       colorI.addEventListener('input', function () {
-        writeCommentPrefs({ author: nameI ? (nameI.value || 'you') : 'you', color: colorI.value });
+        writeCommentPrefs({ author: nameI ? (nameI.value || 'user') : 'user', color: colorI.value });
         applyAccent();
       });
     }
@@ -1470,7 +1532,7 @@
     var card = document.createElement('div');
     card.className = 'sdoc-cc-card';
     card.innerHTML =
-      '<span class="sdoc-cc-card-author">' + escapeHtml(c.author || 'you') + '</span>'
+      '<span class="sdoc-cc-card-author">' + escapeHtml(c.author || 'user') + '</span>'
       + '<span class="sdoc-cc-card-body"></span>'
       + '<span class="sdoc-cc-card-actions">'
       +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="delete" title="Delete" aria-label="Delete comment">' + TRASH_ICON + '</button>'

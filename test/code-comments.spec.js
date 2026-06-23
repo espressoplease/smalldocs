@@ -127,6 +127,31 @@ test('method hover highlights the whole method range', async ({ page }) => {
   expect(n).toBeGreaterThan(1);
 });
 
+// A method whose body comment is long enough to soft-wrap onto a second visual
+// line. The line-number gutter must fill the full height of that wrapped row,
+// otherwise a method / comment highlight shows through the gutter on the
+// continuation line and the number margin looks ragged.
+const WRAPPING = [
+  'function demo() {',
+  '  // ' + 'this is a deliberately long inline comment written so that it has to soft wrap onto a second visual line inside the focus view code column making this row taller than a single line',
+  '  return 1;',
+  '}',
+].join('\n');
+
+test('the line-number gutter fills the full height of a soft-wrapped row', async ({ page }) => {
+  await openCode(page, 'javascript', WRAPPING);
+  await enterCommentMode(page);
+  await page.locator('.sdoc-cc-grain [data-grain="method"]').click();
+  await page.locator('.sdoc-cl-row[data-ln="1"] .sdoc-cl-code').hover();
+  // the comment row (1) must actually wrap: taller than the single-line code row (2)
+  const codeRow = await page.locator('.sdoc-cl-row[data-ln="2"]').boundingBox();
+  const wrapRow = await page.locator('.sdoc-cl-row[data-ln="1"]').boundingBox();
+  expect(wrapRow.height).toBeGreaterThan(codeRow.height * 1.5);
+  // the gutter background must cover the whole wrapped row, not just line one
+  const gutter = await page.locator('.sdoc-cl-row[data-ln="1"] .sdoc-cl-gutter').boundingBox();
+  expect(gutter.height).toBeGreaterThanOrEqual(wrapRow.height - 1);
+});
+
 test('the method add affordance spans the method height and leaves a stripe', async ({ page }) => {
   await openCode(page, 'ruby', RUBY);
   await enterCommentMode(page);

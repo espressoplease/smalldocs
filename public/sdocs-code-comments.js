@@ -207,7 +207,7 @@
     out += '\nNotes:\n';
     resolved.forEach(function (r, i) {
       var c = r.c, ln = r.ln;
-      var author = sanitizeText(c.author || 'you');
+      var author = sanitizeText(c.author || 'user');
       var text = sanitizeText(c.text || '').replace(/\n+/g, ' ');
       var loc;
       if (c.kind === 'method') {
