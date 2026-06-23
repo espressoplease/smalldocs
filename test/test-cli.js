@@ -344,6 +344,46 @@ module.exports = function(harness) {
     assert.ok(url.includes('sec=getting-started'));
   });
 
+  console.log('\n── Annotation arg Tests ───────────────────────\n');
+
+  test('parseArgs: single-line annotation, file preserved', () => {
+    const r = cli.parseArgs(['app.py', '22:this is the bug']);
+    assert.strictEqual(r.file, 'app.py');
+    assert.deepStrictEqual(r.annotations, [{ line: 22, endLine: 22, text: 'this is the bug' }]);
+  });
+
+  test('parseArgs: range annotation', () => {
+    const r = cli.parseArgs(['app.py', '25-28:the whole block']);
+    assert.deepStrictEqual(r.annotations, [{ line: 25, endLine: 28, text: 'the whole block' }]);
+  });
+
+  test('parseArgs: multiple annotations, surviving shell quotes stripped', () => {
+    const r = cli.parseArgs(['app.py', '3:"first note"', "7:'second'"]);
+    assert.deepStrictEqual(r.annotations, [
+      { line: 3, endLine: 3, text: 'first note' },
+      { line: 7, endLine: 7, text: 'second' },
+    ]);
+  });
+
+  test('parseArgs: malformed / empty annotations are ignored', () => {
+    assert.deepStrictEqual(cli.parseArgs(['app.py', 'abc:hi']).annotations, []); // non-numeric prefix
+    assert.deepStrictEqual(cli.parseArgs(['app.py', '5:   ']).annotations, []);  // whitespace-only text
+  });
+
+  test('annotations ride in md= so they survive share (which strips local)', () => {
+    const meta = { file: 'app.py', annotations: [
+      { line: 5, endLine: 5, text: 'note A' },
+      { line: 8, endLine: 10, text: 'note **B**' },
+    ] };
+    const content = SDocYaml.serializeFrontMatter(meta) + '\n```python\nx = 1\n```\n';
+    const url = cli.buildUrl(content, {}); // no `local` => the share-style URL
+    assert.ok(!url.includes('local='), 'share-style URL carries no local payload');
+    const params = new URLSearchParams(url.split('#')[1]);
+    const decoded = cli.decompressFromBase64Url(params.get('md'));
+    const rt = cli.parseFrontMatter(decoded);
+    assert.deepStrictEqual(rt.meta.annotations, meta.annotations);
+  });
+
   test('buildUrl: section with special chars', () => {
     const url = cli.buildUrl('# Hello', { section: "What's New?" });
     assert.ok(url.includes('sec=whats-new'));

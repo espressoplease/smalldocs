@@ -2,9 +2,10 @@
  * code-comments data-model tests - public/sdocs-code-comments.js.
  *
  * The pure model behind annotating a source file in the fullscreen code view:
- * add / remove / update comments, sanitise colour + text, re-anchor a comment
- * to its line after the file shifts, and round-trip through the localStorage
- * JSON string. No DOM, no storage - those live in sdocs-code-focus.js.
+ * add / remove / update comments, carry a block tag, sanitise colour + text,
+ * re-anchor a comment to its line after the file shifts, and round-trip through
+ * the JSON serializer. No DOM, no storage - the document round-trip and the DOM
+ * live in sdocs-code-focus.js.
  */
 
 const CC = require('../public/sdocs-code-comments.js');
@@ -66,6 +67,25 @@ module.exports = function (harness) {
   test('method endLine below the header is clamped up to the header line', () => {
     const { list } = CC.addComment([], { kind: 'method', line: 5, endLine: 2, anchorText: 'def x' }, {});
     assert.strictEqual(list[0].endLine, 5);
+  });
+
+  // ── block tag (multi-block scoping) ────────────────────────────────────────
+
+  test('addComment carries the block tag through to the stored note', () => {
+    const { list } = CC.addComment([], { kind: 'line', line: 1, anchorText: 'a', block: 'pre:2' }, {});
+    assert.strictEqual(list[0].block, 'pre:2');
+  });
+
+  test('normalize keeps a valid block tag and drops an empty or non-string one', () => {
+    assert.strictEqual(CC.normalize({ id: 'c1', kind: 'line', line: 0, block: 'pre:1' }).block, 'pre:1');
+    assert.ok(!('block' in CC.normalize({ id: 'c1', kind: 'line', line: 0, block: '' })));
+    assert.ok(!('block' in CC.normalize({ id: 'c1', kind: 'line', line: 0, block: 5 })));
+    assert.ok(!('block' in CC.normalize({ id: 'c1', kind: 'line', line: 0 })));
+  });
+
+  test('serialize then parse round-trips the block tag', () => {
+    const list = CC.addComment([], { kind: 'line', line: 0, anchorText: 'a', block: 'pre:3' }, {}).list;
+    assert.strictEqual(CC.parse(CC.serialize(list))[0].block, 'pre:3');
   });
 
   // ── remove / update ───────────────────────────────────────────────────────

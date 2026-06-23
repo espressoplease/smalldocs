@@ -36,11 +36,19 @@ async function prepareUrl(opts) {
   }
 
   // Inject `file:` into front matter (basename only — safe to share).
-  // Respects user-set file: if already present.
+  // Respects user-set file: if already present. Agent annotations
+  // (`sdoc app.py 22:"..."`) ride here too, in `annotations:`, so they travel
+  // with the link and through `sdoc share` (front matter rides in the body,
+  // unlike `local` which share strips).
   if (content && opts.file) {
     const parsed = SDocYaml.parseFrontMatter(content);
-    if (!parsed.meta.file) {
-      parsed.meta.file = path.basename(opts.file);
+    let changed = false;
+    if (!parsed.meta.file) { parsed.meta.file = path.basename(opts.file); changed = true; }
+    if (opts.annotations && opts.annotations.length) {
+      parsed.meta.annotations = opts.annotations;
+      changed = true;
+    }
+    if (changed) {
       content = SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
     }
   }

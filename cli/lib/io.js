@@ -21,6 +21,14 @@ const SUBCOMMANDS = new Set([
 // front matter is the only place SDocs stores tags.
 const TAG_ARG = /^\+[A-Za-z][\w-]{0,63}$/;
 
+// Agent annotation arguments: `N:"text"` or `N-M:"text"` (the shell removes the
+// quotes, so the token arrives as `22:this is the bug`). Line numbers are
+// 1-based, matching what the reader sees in the gutter. Collected into an
+// annotations list and written into the opened file's front matter so they
+// travel with the link. The part before the colon must be digits (an optional
+// range), so file paths like `app.py` never match.
+const ANNOTATION_ARG = /^(\d+)(?:-(\d+))?:([\s\S]+)$/;
+
 function parseArgs(argv) {
   const args = argv || process.argv.slice(2);
   let file = null;
@@ -47,6 +55,7 @@ function parseArgs(argv) {
   let dryRunFlag = false;
   let sheetName = null;
   const addTags = [];
+  const annotations = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -109,6 +118,20 @@ function parseArgs(argv) {
     // front matter at open time.
     if (TAG_ARG.test(arg)) { addTags.push(arg.slice(1).toLowerCase()); continue; }
 
+    // Agent annotation: `N:"text"` / `N-M:"text"`. Captured before the file /
+    // extra slots so a `22:...` token is never mistaken for a path.
+    const ann = ANNOTATION_ARG.exec(arg);
+    if (ann) {
+      const start = parseInt(ann[1], 10);
+      const end = ann[2] ? parseInt(ann[2], 10) : start;
+      // Strip one layer of surrounding quotes if a shell preserved them.
+      const text = ann[3].replace(/^"([\s\S]*)"$/, '$1').replace(/^'([\s\S]*)'$/, '$1');
+      if (start >= 1 && end >= start && text.trim()) {
+        annotations.push({ line: start, endLine: end, text });
+      }
+      continue;
+    }
+
     if (!file) { file = arg; continue; }
     // Second positional is captured as `extra` so `sdoc slides icons heart`
     // gets {subcommand: 'slides', file: 'icons', extra: 'heart'}.
@@ -121,7 +144,7 @@ function parseArgs(argv) {
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,
     tagsFlag, helpFlag, yesFlag, dryRunFlag, sheetName,
-    addTags,
+    addTags, annotations,
   };
 }
 

@@ -1,26 +1,30 @@
 // sdocs-code-comments.js - pure data model for code-viewer comments.
 //
 // The fullscreen code view (sdocs-code-focus.js) lets a reader annotate a
-// source file. Unlike markdown comments - which anchor to rendered-text quotes
-// and live in the document's YAML front matter - code comments anchor to a
-// SOURCE LINE (or a method, a run of lines), and persist in localStorage keyed
-// by the file. There is no document round-trip here: a code file opened with
-// `sdoc app.rb` is not a saved SmallDocs document, so the comments ride
-// alongside it in the browser the same way the fold preference does.
+// source file. Like markdown comments, code comments live in the document's
+// YAML front matter (under `codeComments`), so they travel with a short link, a
+// share, and an export the same way prose comments do. Where a prose comment
+// anchors to a rendered-text quote, a code comment anchors to a SOURCE LINE (or
+// a method, a run of lines) inside a specific code block: it carries a `block`
+// tag ("pre:N", the block's index among the document's code blocks) plus the
+// line index, so several code blocks in one document keep their notes apart.
 //
 // This module is pure: it transforms plain arrays and objects and never touches
-// the DOM or localStorage. The UI layer in sdocs-code-focus.js owns load/save
-// and rendering. Keeping the model pure means the Node test suite exercises the
-// anchoring, sanitisation, and serialisation directly.
+// the DOM or storage. The UI layer in sdocs-code-focus.js owns the document
+// round-trip and rendering. Keeping the model pure means the Node test suite
+// exercises the anchoring, sanitisation, and serialisation directly.
 //
 // Comment shape (flat, JSON-friendly):
 //
 //   Line-anchored:
-//     { id, kind: 'line',   line, anchorText, author, color, at, text, resolved? }
+//     { id, kind: 'line',   block, line, anchorText, author, color, at, text, resolved? }
 //
 //   Method-anchored:
-//     { id, kind: 'method', line, endLine, anchorText, author, color, at, text, resolved? }
+//     { id, kind: 'method', block, line, endLine, anchorText, author, color, at, text, resolved? }
 //
+// - `block` is "pre:N", the 0-based index of the code block among the
+//   document's code blocks, so a multi-block document keeps each block's notes
+//   apart. A note without a block tag is treated as belonging to the first block.
 // - `line` is the 0-based source-line index the comment was placed on. For a
 //   method comment it is the header line (the `def` / `function` / `fn` line).
 // - `endLine` (method only) is the last line of the method body, so the whole
@@ -98,6 +102,7 @@
       at: c.at || new Date().toISOString(),
       text: sanitizeText(c.text || ''),
     };
+    if (typeof c.block === 'string' && c.block) out.block = c.block;
     if (kind === 'method') {
       var end = toInt(c.endLine, line);
       out.endLine = end < line ? line : end;
@@ -117,6 +122,7 @@
     var c = normalize({
       id: id,
       kind: anchor.kind,
+      block: anchor.block,
       line: anchor.line,
       endLine: anchor.endLine,
       anchorText: anchor.anchorText,
