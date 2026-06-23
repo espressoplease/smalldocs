@@ -18,8 +18,8 @@ const fs   = require('fs');
 const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
-const AGENT_BLOCK_VERSION = 11;
-const AGENT_BLOCK_REASON  = 'Notes that cells blocks can be multi-tab: naming a block (```cells Expenses) builds a workbook of several sheets whose formulas reference each other across tabs (=Expenses!B4), and `sdoc cells verify file.md` computes the whole workbook headlessly so the agent can read the values back. The rest of the cells line is unchanged.';
+const AGENT_BLOCK_VERSION = 12;
+const AGENT_BLOCK_REASON  = 'Adds `sdoc code`: opening a source file (sdoc app.rb) or a ```lang fenced block as a syntax-highlighted listing - a light code viewer for reading code with the user away from the IDE - with source comments given a prominent lane, a fullscreen view that folds by method/class, and a comment mode for the user to annotate a line or method, kept in the browser, not the file. One bullet added after the cells line; the rest of the block is unchanged from v11.';
 
 const AGENT_BLOCK_BODY = `## SmallDocs
 
@@ -49,6 +49,7 @@ Each command below prints its reference when run with no arguments - run it befo
 - \`sdoc diagrams\` - rendering inline Mermaid diagrams (\`\`\`mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - \`sdoc slides\` - inline slide decks (\`\`\`slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as \`.pdf\` or \`.pptx\`. \`sdoc present file.md\` - open file directly in fullscreen presentation mode.
 - \`sdoc cells\` - rendering spreadsheets (\`\`\`cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Name a block (\`\`\`cells Expenses) to build a workbook of several tabs whose formulas reference each other across sheets (\`=Expenses!B4\`); run \`sdoc cells verify file.md\` to compute the whole workbook headlessly and read the values back. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. \`sdoc report.csv\` opens a CSV file directly as a sheet.
+- \`sdoc code\` - opening a source file or a fenced code block as a syntax-highlighted listing: a light code viewer for reading code with the user away from the IDE. \`sdoc app.rb\` (or \`.js\`, \`.py\`, \`.go\`, \`.rs\`, \`.ts\`...) opens a file as a highlighted listing; a \`\`\`lang fenced block is highlighted inline. Comments in the source get a prominent lane so the code reads clearly top to bottom. The fullscreen view adds a line-number gutter and language-aware folding (collapse a whole method or class); a comment mode lets the user annotate a line or method with review notes, kept in the browser rather than the file. The file rides in the URL like any document; nothing is uploaded. Reach for it when reading or reviewing code with the user, not for prose.
 - \`sdoc schema\` - styling Markdown (fonts, colors, spacing). The default styles are already comfortable to read; reach for this only when they aren't enough - client-facing polish or a bit of fun.
 - \`sdoc feedback\` - rendering interactive elements (\`\`\`form blocks) to receive structured input from the user. Run \`sdoc feedback file.md\` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 `;

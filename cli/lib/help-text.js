@@ -1,5 +1,5 @@
 // Long help strings printed by `sdoc help`, `sdoc schema`, `sdoc charts`,
-// `sdoc diagrams`, `sdoc comments`. Kept as plain data with no logic.
+// `sdoc diagrams`, `sdoc code`, `sdoc comments`. Kept as plain data with no logic.
 
 const HELP = `
 SmallDocs CLI
@@ -22,6 +22,8 @@ USAGE
   sdoc charts                      Chart types, options, and styling guide
   sdoc diagrams                    Mermaid diagrams reference (\`\`\`mermaid blocks)
   sdoc cells                       Inline spreadsheet reference (\`\`\`cells blocks)
+  sdoc code                        Syntax highlighting + code-viewer reference
+  sdoc app.rb / server.js / ...    Open a source file as a highlighted listing
   sdoc color-analysis <file>       Check custom colours for readable contrast
                                    (both themes). Run after styling a doc.
   sdoc comments                    Comment-format reference (for agents)
