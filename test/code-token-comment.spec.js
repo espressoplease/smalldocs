@@ -93,6 +93,25 @@ test('a token comment re-renders its mark after close and reopen', async ({ page
   await expect(page.locator('.sdoc-cc-token-mark').first()).toHaveText('dog_count');
 });
 
+test('a token comment survives a trip through prose mode and reopen', async ({ page }) => {
+  await openViewer(page, PY);
+  await page.locator('.sdoc-code-focus [data-act="comment"]').click();
+  await selectToken(page, 'dog_count');
+  await page.locator('.sdoc-cc-selbtn').click();
+  await page.locator('.sdoc-cc-composer .sdoc-cc-input').fill('rename');
+  await page.locator('.sdoc-cc-composer [data-cc="save"]').click();
+  // close from comment mode -> the reader lands in comment mode and shows it
+  await page.evaluate(() => window.SDocs.codeFocus.close());
+  await expect(page.locator('body.comment-mode')).toBeVisible();
+  await expect(page.locator('#_sd_rendered pre span.sdoc-anchor')).toHaveCount(1);
+  // reopen the viewer -> the token comment is STILL visible (source is read clean,
+  // not polluted by the card the reader injected into the <pre>).
+  await page.evaluate(() => window.SDocs.codeFocus.open(document.querySelector('#_sd_rendered pre'), { comment: true }));
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  await page.locator('.sdoc-cl-code .hljs-keyword').first().waitFor({ timeout: 5000 }).catch(() => {});
+  await expect(page.locator('.sdoc-code-focus .sdoc-cc-token-mark')).toHaveText('dog_count');
+});
+
 test('a multi-line selection does not offer the token button', async ({ page }) => {
   await openViewer(page, PY);
   await page.locator('.sdoc-code-focus [data-act="comment"]').click();
