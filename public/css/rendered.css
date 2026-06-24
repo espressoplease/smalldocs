@@ -261,6 +261,7 @@
 #_sd_rendered .pre-wrapper .copy-btn,
 #_sd_rendered .pre-wrapper .expand-btn,
 #_sd_rendered .pre-wrapper .code-comment-btn,
+#_sd_rendered .pre-wrapper .agent-comment-btn,
 #_sd_rendered .pre-wrapper .wrap-btn {
   position: absolute;
   top: 6px;
@@ -284,6 +285,7 @@
 #_sd_rendered .pre-wrapper .copy-btn:hover,
 #_sd_rendered .pre-wrapper .expand-btn:hover,
 #_sd_rendered .pre-wrapper .code-comment-btn:hover,
+#_sd_rendered .pre-wrapper .agent-comment-btn:hover,
 #_sd_rendered .pre-wrapper .wrap-btn:hover { opacity: 1; background: var(--md-copy-btn-hover); }
 #_sd_rendered .pre-wrapper .wrap-btn.active { opacity: 1; background: var(--md-copy-btn-hover); }
 
@@ -300,6 +302,21 @@
   height: 7px;
   border-radius: 50%;
   background: var(--md-code-color, #6B21A8);
+  border: 1px solid var(--md-pre-bg);
+}
+/* Agent-comment indicator: distinct periwinkle accent, sits left of the user
+   indicator. At 96px when alone, 126px when the user indicator is also present. */
+#_sd_rendered .pre-wrapper.has-agent-notes .agent-comment-btn { right: 96px; opacity: 1; color: #7c84d8; }
+#_sd_rendered .pre-wrapper.has-agent-notes.has-comment-notes .agent-comment-btn { right: 126px; }
+#_sd_rendered .pre-wrapper .agent-comment-btn::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #7c84d8;
   border: 1px solid var(--md-pre-bg);
 }
 #_sd_rendered pre.wrapped,

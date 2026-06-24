@@ -62,6 +62,25 @@ test('a comment made in the viewer surfaces as a reader indicator after closing'
   await expect(page.locator('#_sd_rendered .pre-wrapper .code-comment-btn')).toHaveCount(1);
 });
 
+test('a code block with agent comments shows a distinct agent indicator that opens the viewer', async ({ page }) => {
+  await page.evaluate(() => {
+    var S = window.SDocs, NL = String.fromCharCode(10);
+    // prose + a code block so it does not auto-expand; annotations in front matter
+    S.currentBody = '# Doc' + NL + NL + '```python' + NL + 'def fetch():' + NL + '    return 1' + NL + '```' + NL;
+    S.currentMeta = { annotations: [{ line: 1, text: 'inject a clock' }, { line: 2, text: 'magic number?' }] };
+    S.render();
+  });
+  const agent = page.locator('#_sd_rendered .pre-wrapper .agent-comment-btn');
+  await expect(agent).toHaveCount(1);
+  await expect(agent).toHaveAttribute('title', /2 agent comments/);
+  // it is the agent indicator, not the user-comment one
+  await expect(page.locator('#_sd_rendered .pre-wrapper .code-comment-btn')).toHaveCount(0);
+  // clicking opens the viewer where the annotations render
+  await agent.click();
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  await expect(page.locator('.sdoc-code-focus .sdoc-ann-card')).toHaveCount(2);
+});
+
 test('the indicator is block-scoped in a multi-block document', async ({ page }) => {
   await renderDoc(page, '```ruby\nputs 1\n```\n\n```ruby\nputs 2\n```\n', {
     comments: [
