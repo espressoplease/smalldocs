@@ -6,7 +6,7 @@ const { test, expect } = require('@playwright/test');
  * view (sdocs-code-focus.js + sdocs-code-comments.js).
  *
  * A reader annotates an open source file. Notes anchor to a source line or a
- * whole method and live in the document's front matter (currentMeta.codeComments),
+ * whole method and live in the document's front matter (currentMeta.comments),
  * exactly like prose comments - so they travel with a short link / share / export.
  * These tests drive the overlay the way a user would (hover a line, click +,
  * type, save) and assert on the resulting DOM, the document, and persistence
@@ -352,7 +352,7 @@ test('a note whose anchor line is gone is parked in the orphan list', async ({ p
   await page.evaluate(() => {
     var CC = window.SDocsCodeComments;
     var list = CC.addComment([], { kind: 'line', line: 1, anchorText: 'NOPE NOT HERE', block: 'pre:0' }, { text: 'orphaned' }).list;
-    window.SDocs.currentMeta = Object.assign({}, window.SDocs.currentMeta, { codeComments: list });
+    window.SDocs.currentMeta = Object.assign({}, window.SDocs.currentMeta, { comments: list });
     window.SDocs.codeFocus.close();
     window.SDocs.codeFocus.open(document.querySelector('#_sd_rendered pre'));
   });
@@ -365,7 +365,7 @@ test('a code note is written into the document front matter so it travels with t
   await openCode(page, 'ruby', RUBY);
   await enterCommentMode(page);
   await addNote(page, 1, 'rides along');
-  const notes = await page.evaluate(() => window.SDocs.currentMeta.codeComments);
+  const notes = await page.evaluate(() => window.SDocs.currentMeta.comments);
   expect(Array.isArray(notes)).toBe(true);
   expect(notes.length).toBe(1);
   expect(notes[0].text).toBe('rides along');
@@ -404,7 +404,7 @@ test('notes stay attached to their own code block in a multi-block document', as
   await page.locator('.sdoc-code-focus [data-act="comment"]').click();
   await expect(page.locator('.sdoc-cc-thread[data-ln="0"] .sdoc-cc-card-body')).toHaveText('note on block one');
   // The document records the note under the first block.
-  const blocks = await page.evaluate(() => (window.SDocs.currentMeta.codeComments || []).map(function (c) { return c.block; }));
+  const blocks = await page.evaluate(() => (window.SDocs.currentMeta.comments || []).map(function (c) { return c.block; }));
   expect(blocks).toContain('pre:0');
 });
 
@@ -415,7 +415,7 @@ test('a hostile shared doc cannot smuggle a url() colour or control chars throug
   await openCode(page, 'ruby', RUBY);
   await page.evaluate(() => {
     window.SDocs.currentMeta = Object.assign({}, window.SDocs.currentMeta, {
-      codeComments: [
+      comments: [
         { id: 'c1', kind: 'line', block: 'pre:0', line: 1, anchorText: 'CACHE_TTL = 300',
           color: 'url(https://evil/p.gif)', text: 'see‮reversedbell', author: 'x' },
         { id: 'bad-id', kind: 'line', block: 'pre:0', line: 2, text: 'dropped' }, // invalid id
@@ -443,7 +443,7 @@ test('code comments from a shared doc are capped to guard against a flood', asyn
     for (var i = 1; i <= 600; i++) {
       many.push({ id: 'c' + i, kind: 'line', block: 'pre:0', line: 1, anchorText: 'CACHE_TTL = 300', text: 'n' + i });
     }
-    window.SDocs.currentMeta = Object.assign({}, window.SDocs.currentMeta, { codeComments: many });
+    window.SDocs.currentMeta = Object.assign({}, window.SDocs.currentMeta, { comments: many });
     window.SDocs.codeFocus.close();
     window.SDocs.codeFocus.open(document.querySelector('#_sd_rendered pre'));
   });
