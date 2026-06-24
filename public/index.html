@@ -765,12 +765,12 @@
   <span style="margin-left:auto; font-size:10.5px; color:var(--text-2); display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
     <span>100% private (<a href="https://smalldocs.org/#sec=privacy" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">learn why</a>)</span>
     · <span data-trust-status>Open source: <a href="/trust" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">verify server</a></span>
-    · CLI for you &amp; your agents: <span id="_sd_cli-prompt-wrap" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer" title="Copy a prompt that asks your coding agent to install and set up SmallDocs"><code id="_sd_cli-prompt-label" style="background:var(--bg-surface); border:1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius:3px; padding:1px 5px; font-size:10px; color:var(--accent); transition:border-color .15s">Copy install prompt</code><button id="_sd_cli-prompt-btn" style="background:none; border:none; cursor:pointer; color:var(--accent); padding:0; vertical-align:middle; opacity:0.5; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span> · <span id="_sd_cli-install-wrap" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer" title="Click to copy the install command for your system"><code id="_sd_cli-install-cmd" style="background:var(--bg-surface); border:1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius:3px; padding:1px 5px; font-size:10px; color:var(--accent); transition:border-color .15s">curl -fsSL https://smalldocs.org/install | sh</code><button id="_sd_cli-copy-btn" style="background:none; border:none; cursor:pointer; color:var(--accent); padding:0; vertical-align:middle; opacity:0.5; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
+    · <span id="_sd_cli-lead">CLI for you &amp; your agents:</span> <span id="_sd_cli-prompt-wrap" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer" title="Copy a prompt that asks your coding agent to install and set up SmallDocs"><code id="_sd_cli-prompt-label" style="background:var(--bg-surface); border:1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius:3px; padding:1px 5px; font-size:10px; color:var(--accent); transition:border-color .15s">Copy install prompt</code><button id="_sd_cli-prompt-btn" style="background:none; border:none; cursor:pointer; color:var(--accent); padding:0; vertical-align:middle; opacity:0.5; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span> · <span id="_sd_cli-install-wrap" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer" title="Click to copy the install command for your system"><code id="_sd_cli-install-cmd" style="background:var(--bg-surface); border:1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius:3px; padding:1px 5px; font-size:10px; color:var(--accent); transition:border-color .15s">curl -fsSL https://smalldocs.org/install | sh</code><button id="_sd_cli-copy-btn" style="background:none; border:none; cursor:pointer; color:var(--accent); padding:0; vertical-align:middle; opacity:0.5; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
     · <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">GitHub</a>
     · <span>You agree to our <a href="/legal" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">Terms</a></span>
   </span>
 </div>
-<pre id="_sd_cli-prompt-text" style="display:none">Please install and set up SmallDocs for me.
+<pre id="_sd_cli-prompt-text" style="display:none">Please install or update SmallDocs for me, and make sure you (my coding agent) know about its latest features.
 
 SmallDocs is a CLI (`sdoc`) that renders local markdown files as styled, readable documents in the browser. It also supports charts, diagrams, slide decks, and interactive forms inside markdown. Nothing leaves my machine unless I explicitly run `sdoc share`.
 
@@ -787,13 +787,13 @@ The way you will "know about it" is by having a short SmallDocs section in your 
 Please do the following, and ask me before any step that changes my filesystem.
 
 1. Check whether `sdoc` is already installed.
-   Run `which sdoc` (or `where sdoc` on Windows). If you get a path back, skip to step 3.
+   Run `which sdoc` (or `where sdoc` on Windows).
 
-2. Install it, choosing the command that matches my operating system:
+2. If it is NOT installed, install it, choosing the command that matches my operating system:
    - macOS or Linux: `curl -fsSL https://smalldocs.org/install | sh`
      This puts everything under `~/.sdocs/` (no root needed) and adds `~/.sdocs/bin` to my PATH via my shell's rc file.
    - Windows: `npm i -g sdocs-dev` (needs Node and npm installed).
-   If you are not sure which I am on, check before running anything.
+   If it IS already installed, update it to the latest version: run `sdoc upgrade`. If that command is not found, re-run the installer instead (`curl -fsSL https://smalldocs.org/install | sh` on macOS or Linux, `npm i -g sdocs-dev@latest` on Windows).
 
 3. Make sure `sdoc` is on PATH.
    Run `which sdoc` again (`where sdoc` on Windows). If it is still not found on macOS or Linux:
@@ -803,13 +803,28 @@ Please do the following, and ask me before any step that changes my filesystem.
    - For fish, run `fish_add_path $HOME/.sdocs/bin` or add it to `~/.config/fish/config.fish`.
    - Then tell me to open a new terminal, or to run `source ~/.zshrc` (or the matching rc file) in mine.
 
-4. Wire SmallDocs into your global config.
+4. Teach yourself the latest features.
    Run: `sdoc setup --yes`
-   This non-interactively appends a short SmallDocs section to every detected coding-agent config file. It is the canonical writer; do not hand-roll the section yourself, the wording is kept in sync with the CLI version.
+   This non-interactively writes or refreshes the short SmallDocs section in every detected coding-agent config file, so you pick up the newest blocks (sheets, slides, bridge). It is the canonical writer; do not hand-roll the section yourself, the wording is kept in sync with the CLI version.
 
 5. Verify it worked.
    Ask me to start a fresh chat session with you (so the updated config file is loaded). In the new session, ask me to say: "sdoc me a test file". A styled document should open in my browser.
    If it does not open, check that my global config file contains a line beginning with `&lt;!-- sdocs-agent-block:start` and tell me what is missing.
+
+6. Offer me a tour. Ask first, and only show the parts I say yes to - do not run the whole thing unprompted. The point of the tour is for me to learn what I can ask you to generate, so build each example from my own work where you can, and for every output tell me the plain phrase I could say to get it next time. (If you are not sure whether this is a first install or just an update, ask me which.)
+
+   For a first install, offer to walk me through it:
+     a. Privacy: write a short SmallDoc - a few real lines, for instance about this project - and open it (`sdoc path/to/file.md`), then explain in a line or two that the whole document travels in the URL fragment (the part after `#`), which browsers never send to a server, so nothing leaves my machine unless I run `sdoc share`.
+     b. Code: open one of my real source files as a SmallDoc (`sdoc path/to/file`) so I can see the syntax highlighting and the comment lane. Pick an obvious one, or ask me which.
+     c. Rich outputs: build one SmallDoc, drawn from my real work where possible, that shows the block types SmallDocs can render, and for each one tell me the phrase I could say next time:
+        - a diagram, e.g. of this project's structure ("sdoc me a diagram of this flow")
+        - a slide deck ("make me a slide deck and sdoc it")
+        - a branded slide deck in my own colours - run `sdoc slides` first for the shape and styling syntax, and ask me for a brand colour (or use the document's accent colour)
+        - a chart of some real numbers ("sdoc me a chart of these numbers")
+        - a live spreadsheet ("sdoc me a budget with live totals"); run `sdoc cells verify path/to/file.md` to confirm the totals compute before you open it
+     Run the matching reference commands (`sdoc diagrams`, `sdoc slides`, `sdoc charts`, `sdoc cells`, `sdoc code`) to get each block's syntax right before you write it.
+
+   For an update, offer a shorter tour of what is newest instead - sheets (`cells`), slide decks including custom shapes and branding, the code viewer, and `sdoc bridge` live editing - again built from my real work, and skip anything I have clearly used already.
 
 If any step fails, stop and tell me what happened before doing more.</pre>
 <style>
@@ -832,19 +847,35 @@ If any step fails, stop and tell me what happened before doing more.</pre>
     });
   }
 
-  // Show the install command that suits the visitor's OS. The markup ships the
-  // curl installer (macOS / Linux); only Windows, which has no POSIX shell to
-  // run it, falls back to npm.
+  // Someone reading a document arrived via a #md= hash, so they are likely
+  // already a SmallDocs user: frame the footer around updating, not installing.
+  // Everyone else (root, /new, blog) gets the install framing. The copied
+  // prompt installs-or-updates either way, so the framing is just labelling.
+  var isDocPage = /(^|[#&])md=/.test(location.hash || '');
+
+  // Command chip. On a doc page it offers the canonical update verb; otherwise
+  // the OS-correct install command (curl on macOS / Linux, npm on Windows,
+  // which has no POSIX shell to run the installer).
   var plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
   var isWindows = /win/i.test(plat) || /windows/i.test(navigator.userAgent || '');
   var installCmd = isWindows ? 'npm i -g sdocs-dev' : 'curl -fsSL https://smalldocs.org/install | sh';
+  var cmd = isDocPage ? 'sdoc upgrade' : installCmd;
   var cmdEl = document.getElementById('_sd_cli-install-cmd');
-  if (cmdEl) cmdEl.textContent = installCmd;
+  if (cmdEl) cmdEl.textContent = cmd;
+
+  if (isDocPage) {
+    var label = document.getElementById('_sd_cli-prompt-label');
+    if (label) label.textContent = 'Copy update prompt';
+    var pwrap = document.getElementById('_sd_cli-prompt-wrap');
+    if (pwrap) pwrap.title = 'Copy a prompt that asks your coding agent to update SmallDocs and learn its latest features';
+    var iwrap = document.getElementById('_sd_cli-install-wrap');
+    if (iwrap) iwrap.title = 'Click to copy the update command';
+  }
 
   bindCopy(
     document.getElementById('_sd_cli-install-wrap'),
     document.getElementById('_sd_cli-copy-btn'),
-    function () { return installCmd; }
+    function () { return cmd; }
   );
 
   var promptEl = document.getElementById('_sd_cli-prompt-text');
@@ -853,6 +884,46 @@ If any step fails, stop and tell me what happened before doing more.</pre>
     document.getElementById('_sd_cli-prompt-btn'),
     function () { return promptEl ? promptEl.textContent.trim() : ''; }
   );
+
+  // On a doc page, fold how long ago the newest CLI shipped into the lead-in
+  // itself ("CLI update released 2 hours ago:") - a quiet nudge for anyone
+  // running an older copy. The server caches the npm lookup; if it is
+  // unavailable the lead-in keeps its neutral text rather than a wrong figure.
+  if (isDocPage) {
+    var leadEl = document.getElementById('_sd_cli-lead');
+    fetch('/cli-latest').then(function (r) {
+      if (!r.ok) throw new Error('unavailable');
+      return r.json();
+    }).then(function (info) {
+      if (!leadEl || !info || !info.time) return;
+      var rel = timeAgo(info.time);
+      if (!rel) return;
+      leadEl.textContent = 'CLI update released ' + rel + ':';
+      if (info.version) leadEl.title = 'sdoc v' + info.version + ', published ' + new Date(info.time).toLocaleString();
+    }).catch(function () { /* keep the neutral lead-in */ });
+  }
+
+  function timeAgo(iso) {
+    var then = new Date(iso).getTime();
+    if (!then) return '';
+    var s = Math.max(0, (Date.now() - then) / 1000);
+    if (s < 60) return 'just now';
+    var units = [
+      [31536000, 'year'],
+      [2592000, 'month'],
+      [604800, 'week'],
+      [86400, 'day'],
+      [3600, 'hour'],
+      [60, 'minute'],
+    ];
+    for (var i = 0; i < units.length; i++) {
+      if (s >= units[i][0]) {
+        var n = Math.round(s / units[i][0]);
+        return n + ' ' + units[i][1] + (n > 1 ? 's' : '') + ' ago';
+      }
+    }
+    return 'just now';
+  }
 })();
 </script>
 
