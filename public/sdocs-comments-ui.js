@@ -363,18 +363,25 @@ function makeCardElement(c, opts) {
       card.appendChild(badge);
     }
 
-    var del = iconBtn(TRASH_SVG, 'Delete comment', function (e) {
-      e.stopPropagation();
-      deleteComment(c.id);
-    });
-    del.classList.add('sdoc-card-delete');
-    card.appendChild(del);
+    // A read-only card is a foreign comment shown for parity (a code comment
+    // surfaced in the reader): edited on its own surface, so no delete and no
+    // click-to-edit here.
+    if (opts.readonly) {
+      card.classList.add('sdoc-card-foreign');
+    } else {
+      var del = iconBtn(TRASH_SVG, 'Delete comment', function (e) {
+        e.stopPropagation();
+        deleteComment(c.id);
+      });
+      del.classList.add('sdoc-card-delete');
+      card.appendChild(del);
 
-    card.addEventListener('click', function (e) {
-      if (e.target.closest('.sdoc-icon-btn')) return;
-      focusComment(c.id);
-      replaceWithEdit(card, c, shape);
-    });
+      card.addEventListener('click', function (e) {
+        if (e.target.closest('.sdoc-icon-btn')) return;
+        focusComment(c.id);
+        replaceWithEdit(card, c, shape);
+      });
+    }
   } else {
     var inputEl;
     if (shape === 'pill') {
@@ -508,6 +515,51 @@ function renderComment(c) {
   var orphanBlock = makeCardElement(c, { shape: 'sidecar', mode: 'view', orphaned: true });
   S.renderedEl.appendChild(orphanBlock);
   return true;
+}
+
+// A code-kind comment (line / method / token) - lives in the one store but is
+// anchored to source, so the reader renders it via renderCodeComments(), not the
+// prose path.
+function isCodeComment(c) {
+  return !!c && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token');
+}
+
+// Parity: render the document's CODE comments (line / method / token) on their
+// code block in the reader, read-only (they are edited in the fullscreen
+// viewer). They share the one comment store; the prose path renders only prose
+// kinds, so we handle the code kinds here, anchoring each by a quote: the
+// selection for a token, else the anchored source line (method = its header).
+function renderCodeComments() {
+  var CC = window.SDocsCodeComments;
+  if (!CC || !S.renderedEl) return;
+  var all = SDC.getComments(S.currentMeta);
+  for (var i = 0; i < all.length; i++) {
+    var raw = all[i];
+    if (!raw || (raw.kind !== 'line' && raw.kind !== 'method' && raw.kind !== 'token')) continue;
+    var c = CC.normalize(raw);
+    if (!c || !c.block) continue;
+    var block = findBlockById(c.block, S.renderedEl, null);
+    if (!block) continue;
+    var quote = codeQuoteFor(block, c);
+    if (!quote) continue;
+    var range = findAnchorRange(block, '', quote, '');
+    if (!range) continue;
+    var span = wrapRange(range, c.id, c.color);
+    if (!span) continue;
+    var pill = makeCardElement(c, { shape: 'pill', mode: 'view', readonly: true });
+    var at = inlineCardInsertPoint(span);
+    if (at) at.parent.insertBefore(pill, at.before);
+  }
+}
+
+// The phrase to highlight for a code comment in the reader: the selection for a
+// token, else the anchored source line (a method uses its header line).
+function codeQuoteFor(block, c) {
+  if (c.kind === 'token' && c.quote) return c.quote;
+  var lines = (block.textContent || '').replace(/\n$/, '').split('\n');
+  var ln = c.line;
+  if (!(ln >= 0) || ln >= lines.length) return '';
+  return lines[ln].trim() || lines[ln];
 }
 
 // ── Gutter buttons ──────────────────────────────────────────────────────
@@ -1321,7 +1373,11 @@ function render() {
   // Inject hosts BEFORE rendering comments so block-level renders can
   // attach the sidecar inside the host (and apply .sdoc-host-commented).
   injectGutterButtons();
+  // Code-kind comments (line / method / token) share this one store but are
+  // rendered by renderCodeComments() on their code block, so keep them out of
+  // the prose path here (otherwise the block branch would render them a 2nd time).
   var comments = SDC.getComments(S.currentMeta)
+    .filter(function (c) { return !isCodeComment(c); })
     .map(SDC.normalizeComment)
     .filter(function (c) { return c !== null; });
   // Slide-anchored comments don't live in body text - sdocs-slide-comments.js
@@ -1329,6 +1385,7 @@ function render() {
   // out of the text path so they aren't mistaken for orphaned block comments.
   var textComments = comments.filter(function (c) { return c.kind !== 'slide'; });
   textComments.forEach(function (c) { renderComment(c); });
+  renderCodeComments();
   paintDescendantCommentHints(textComments);
   paintToolbar();
   // Slide blocks get their own hit-layer + cards (kind:'slide' comments).
