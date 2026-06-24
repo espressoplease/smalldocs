@@ -524,26 +524,6 @@
     // A foreign comment (a prose comment shown here for parity) reads as the same
     // card, marked dashed so it is clear it is edited back on its own surface.
     '.sdoc-cc-thread.sdoc-cc-foreign .sdoc-cc-card { border-style: dashed; }',
-    // Inline comment pill at the end of a line, the same square-ish solid shape
-    // the prose reader uses next to a commented word - so a comment looks and
-    // behaves identically in the reader and here.
-    '.sdoc-cc-pill {',
-    '  display: inline-flex; align-items: center; gap: 4px; vertical-align: middle;',
-    '  white-space: normal; word-break: break-word; max-width: 44ch;',
-    '  margin: 0 2px 0 12px; padding: 1px 5px 1px 8px; border-radius: 4px;',
-    '  font-size: 0.82em; line-height: 1.4; cursor: pointer;',
-    '  background: color-mix(in oklab, var(--sdoc-cc-color, var(--sdoc-cc-accent, #ffbb00)) 22%, var(--sdoc-focus-bg, #f4f1ed));',
-    '  border: 1px solid color-mix(in oklab, var(--sdoc-cc-color, var(--sdoc-cc-accent, #ffbb00)) 50%, transparent);',
-    '  color: var(--sdoc-focus-fg, #1c1917);',
-    '}',
-    '.sdoc-cc-pill-author { font-weight: 600; }',
-    '.sdoc-cc-pill-author::after { content: ":"; margin: 0 2px 0 1px; opacity: 0.6; }',
-    '.sdoc-cc-pill-del {',
-    '  border: 0; background: none; padding: 0; cursor: pointer; display: inline-flex; align-items: center;',
-    '  color: inherit; opacity: 0.5;',
-    '}',
-    '.sdoc-cc-pill-del:hover { opacity: 1; }',
-    '.sdoc-cc-pill-del svg { width: 12px; height: 12px; display: block; }',
     // Method highlight while hovering / composing / navigating a method comment,
     // tinted in the accent so the preview matches the colour the note will take.
     '.sdoc-cl-row.sdoc-cc-mhl {',
@@ -1696,23 +1676,23 @@
       }
       var anchor = row;
       list.forEach(function (c) {
-        if (c.kind === 'token' && c.quote) {
-          // Token comment: a precise mark over the exact phrase, plus a pill at
-          // the END of the line (not mid-line - a pill spliced into preformatted
-          // code would break the line and split a word).
-          var mark = markQuoteInRow(row, c.quote, (CC ? CC.sanitizeColor(c.color) : c.color) || lineColor, c.id);
-          if (mark) { placeLinePill(row, buildPill(c)); return; }
-        }
-        // Line / method (or a token whose phrase wasn't found): card below.
+        // Every code comment renders as a full-width card BELOW its line - never
+        // inline, because a box spliced into preformatted code collides with the
+        // monospace grid (prose can reflow around an inline pill; code cannot).
+        // A token comment also gets a precise mark over its phrase so you can see
+        // which part it is about.
         var thread = buildCard(c, ln);
         anchor.insertAdjacentElement('afterend', thread);
         anchor = thread;
+        if (c.kind === 'token' && c.quote) {
+          markQuoteInRow(row, c.quote, (CC ? CC.sanitizeColor(c.color) : c.color) || lineColor, c.id);
+        }
       });
     });
 
     // Parity: also show prose inline comments that fall in this block's source,
-    // so a comment made in the reader on code text appears here too. Read-only
-    // here (edited back in the reader); we only render and mark them.
+    // so a comment made in the reader on code text appears here too. Same shape:
+    // a precise mark over the phrase plus a card below the line, editable here.
     if (window.SDocComments) {
       var prose = window.SDocComments.getComments(S.currentMeta).filter(function (c) {
         return c && c.kind === 'inline' && c.quote && (!c.block || c.block === blockId);
@@ -1723,12 +1703,8 @@
         if (pln < 0) continue;
         var prow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + pln + '"]');
         if (!prow) continue;
-        // Precise mark + read-only pill at the line end (no whole-line wash).
-        var pmark = markQuoteInRow(prow, pc.quote, (CC ? CC.sanitizeColor(pc.color) : pc.color), pc.id);
-        if (pmark) { placeLinePill(prow, buildPill(pc)); continue; }
-        // Fallback (phrase not found): a read-only card below, with the wash.
-        prow.classList.add('sdoc-cc-has-comment');
-        var pcard = buildCard(pc, pln, true);
+        markQuoteInRow(prow, pc.quote, (CC ? CC.sanitizeColor(pc.color) : pc.color), pc.id);
+        var pcard = buildCard(pc, pln);
         var pafter = prow, pnext = prow.nextElementSibling;
         while (pnext && pnext.classList.contains('sdoc-cc-thread')) { pafter = pnext; pnext = pnext.nextElementSibling; }
         pafter.insertAdjacentElement('afterend', pcard);
@@ -2027,35 +2003,6 @@
     return span;
   }
 
-  // A compact inline pill, the same shape the prose reader uses next to a
-  // commented word. Always editable (click to edit, delete button); the edit/
-  // delete dispatch by the comment's kind so a prose comment routes to the prose
-  // store and a code comment to the code store - so it behaves identically here
-  // and in the reader regardless of where it was made.
-  function buildPill(c) {
-    var pill = document.createElement('span');
-    pill.className = 'sdoc-cc-pill';
-    pill.setAttribute('data-c', c.id);
-    if (c.color) pill.style.setProperty('--sdoc-cc-color', window.SDocsCodeComments ? window.SDocsCodeComments.sanitizeColor(c.color) : c.color);
-    var author = document.createElement('span');
-    author.className = 'sdoc-cc-pill-author';
-    author.textContent = c.author || 'user';
-    var body = document.createElement('span');
-    body.className = 'sdoc-cc-pill-body';
-    body.textContent = c.text || '';
-    pill.appendChild(author);
-    pill.appendChild(body);
-    var del = document.createElement('button');
-    del.type = 'button';
-    del.className = 'sdoc-cc-pill-del';
-    del.setAttribute('data-cc', 'delete');
-    del.setAttribute('title', 'Delete');
-    del.setAttribute('aria-label', 'Delete comment');
-    del.innerHTML = TRASH_ICON;
-    pill.appendChild(del);
-    return pill;
-  }
-
   // Look up a comment by id across the whole document (code + prose).
   function commentById(id) {
     var all = allComments();
@@ -2083,13 +2030,6 @@
     } else {
       persistAll(CC.updateComment(allComments(), id, { text: text }));
     }
-  }
-
-  // Put a pill at the end of a row's code (after the code text), so it shares the
-  // line without splicing into the middle of preformatted code.
-  function placeLinePill(row, pill) {
-    var codeEl = row && row.querySelector('.sdoc-cl-code');
-    if (codeEl) codeEl.appendChild(pill);
   }
 
   // First source line (0-based) that contains the phrase, or -1. Used to place a
