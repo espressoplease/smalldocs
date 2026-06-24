@@ -905,6 +905,20 @@
   function loadComments() {
     comments = readCode().filter(function (c) { return c && c.block === blockId; });
   }
+  // Every comment on the open block, ANY kind: code kinds for this block, prose
+  // inline comments whose quote lands in the source, and a block comment for
+  // this block. Used by copy-with-comments so the copy is complete.
+  function blockComments() {
+    var all = allComments(), out = [];
+    for (var i = 0; i < all.length; i++) {
+      var c = all[i];
+      if (!c) continue;
+      if ((c.kind === 'line' || c.kind === 'method' || c.kind === 'token') && c.block === blockId) out.push(c);
+      else if (c.kind === 'inline' && c.quote && (!c.block || c.block === blockId) && lineOfQuote(c.quote) >= 0) out.push(c);
+      else if (c.kind === 'block' && c.block === blockId) out.push(c);
+    }
+    return out;
+  }
   // Persist the full comment list back into the document and re-encode (so notes
   // travel), preserving prose comments, then refresh this block's working set.
   function persistAll(fullList) {
@@ -1125,13 +1139,13 @@
     if (!CC || !folds || !folds[h] || !navigator.clipboard) return;
     var end = folds[h].end;
     var sectionLines = srcLines.slice(h, end + 1);
-    var within = comments.filter(function (c) {
-      var ln = CC.resolveLine(c, srcLines);
+    var within = blockComments().filter(function (c) {
+      var ln = CC.resolveAnyLine(c, srcLines);
       return ln >= h && ln <= end;
     });
     // The fence holds just this section, but the notes should cite the file's
     // real line numbers, so offset the printed numbers by the section start (h).
-    var text = CC.serializeAnnotations(within, sectionLines, { fileName: fileNameForCopy(), lang: currentLang, lineOffset: h });
+    var text = CC.serializeBlockComments(within, sectionLines, { fileName: fileNameForCopy(), lang: currentLang, lineOffset: h });
     navigator.clipboard.writeText(text).then(function () {
       if (!btn) return;
       var lab = btn.querySelector('span');
@@ -2334,7 +2348,7 @@
   }
   function copyWithComments(btn) {
     if (!CC || !navigator.clipboard) return;
-    var text = CC.serializeAnnotations(comments, srcLines, { fileName: fileNameForCopy(), lang: currentLang });
+    var text = CC.serializeBlockComments(blockComments(), srcLines, { fileName: fileNameForCopy(), lang: currentLang });
     navigator.clipboard.writeText(text).then(function () {
       var label = btn && btn.querySelector('.sdoc-code-focus-action-label');
       if (!label) return;

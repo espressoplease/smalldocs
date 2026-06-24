@@ -265,6 +265,35 @@ module.exports = function (harness) {
     assert.ok(out.indexOf('Notes:') === -1, 'no resolvable notes, so no Notes section');
   });
 
+  // ── serializeBlockComments (unified copy: every kind, each located) ─────────
+
+  test('serializeBlockComments locates every comment kind on a block', () => {
+    const src = ['class A', '  def run', '    x = 1', '  end'];
+    const list = [
+      { id: 'c1', kind: 'inline', quote: 'x = 1', text: 'inline note' },
+      { id: 'c2', kind: 'line', line: 1, anchorText: 'def run', text: 'line note' },
+      { id: 'c3', kind: 'block', text: 'block note' },
+    ];
+    const out = CC.serializeBlockComments(list, src, { fileName: 'a.rb', lang: 'ruby' });
+    assert.ok(out.indexOf('Comments on a.rb') === 0, 'leads with the filename');
+    assert.ok(out.indexOf('```ruby\nclass A') !== -1, 'fences the code');
+    // ordered by line: line comment (line 2) then inline (line 3) then block (last)
+    assert.ok(/\[1\] line 2 `def run` - user: line note/.test(out), 'line comment located');
+    assert.ok(/\[2\] line 3 `x = 1` - user: inline note/.test(out), 'inline comment located by quote');
+    assert.ok(/\[3\] whole block - user: block note/.test(out), 'block comment kept as whole-block');
+  });
+
+  test('serializeBlockComments drops a non-block comment whose anchor is gone', () => {
+    const src = ['a', 'b', 'c'];
+    const list = [
+      { id: 'c1', kind: 'inline', quote: 'NOT HERE', text: 'lost' },
+      { id: 'c2', kind: 'block', text: 'kept' },
+    ];
+    const out = CC.serializeBlockComments(list, src, { fileName: 'x', lang: '' });
+    assert.ok(out.indexOf('lost') === -1, 'lost anchor dropped');
+    assert.ok(out.indexOf('whole block - user: kept') !== -1, 'block kept');
+  });
+
   test('serializeAnnotations uses plain hyphens, never em or en dashes', () => {
     const list = CC.addComment([], { kind: 'line', line: 2, anchorText: 'x = 1' }, { text: 'hi' }).list;
     const out = CC.serializeAnnotations(list, ASRC, { fileName: 'a.rb', lang: 'ruby' });

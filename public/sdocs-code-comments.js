@@ -241,6 +241,67 @@
     return m ? parseInt(m[1], 10) : 0;
   }
 
+  // Resolve ANY comment kind to a 0-based source line: code kinds by their
+  // stored line (+ anchorText drift recovery), a quote-anchored comment (inline
+  // or token without a line) by the first line containing its quote, and a block
+  // comment to -1 (it covers the whole block, not a single line).
+  function resolveAnyLine(c, srcLines) {
+    if (!c || !Array.isArray(srcLines)) return -1;
+    if (c.kind === 'block') return -1;
+    if (c.kind === 'inline' || (c.kind === 'token' && toInt(c.line, -1) < 0)) {
+      var q = String(c.quote || '').trim();
+      if (!q) return -1;
+      for (var i = 0; i < srcLines.length; i++) if (srcLines[i].indexOf(q) >= 0) return i;
+      return -1;
+    }
+    return resolveLine(c, srcLines);
+  }
+
+  // Serialize ONE code block plus EVERY comment on it (any kind) as clean code
+  // followed by an ordered, located notes list. Both the reader and the viewer
+  // use this for "copy a code block with its comments", so the output is
+  // identical and complete no matter which surface (or kind) it came from.
+  function serializeBlockComments(list, srcLines, opts) {
+    opts = opts || {};
+    var lines = Array.isArray(srcLines) ? srcLines : String(srcLines || '').split('\n');
+    var lang = opts.lang || '';
+    var fileName = opts.fileName || 'code';
+    var off = toInt(opts.lineOffset, 0);
+    if (off < 0) off = 0;
+    var resolved = getComments(list).map(function (c) {
+      return { c: c, ln: resolveAnyLine(c, lines) };
+    }).filter(function (r) {
+      if (!r.c || !sanitizeText(r.c.text || '').trim()) return false;
+      return r.c.kind === 'block' || r.ln >= 0; // block always kept; others need a line
+    });
+    resolved.sort(function (a, b) {
+      var la = a.ln < 0 ? Infinity : a.ln, lb = b.ln < 0 ? Infinity : b.ln;
+      return la - lb || idNum(a.c) - idNum(b.c);
+    });
+    var out = 'Comments on ' + fileName + '\n\n';
+    out += '```' + lang + '\n' + lines.join('\n').replace(/\s+$/, '') + '\n```\n';
+    if (!resolved.length) return out;
+    out += '\nNotes:\n';
+    resolved.forEach(function (r, i) {
+      var c = r.c, ln = r.ln;
+      var author = sanitizeText(c.author || 'user');
+      var text = sanitizeText(c.text || '').replace(/\n+/g, ' ');
+      var loc;
+      if (c.kind === 'block' || ln < 0) {
+        loc = 'whole block';
+      } else if (c.kind === 'method') {
+        var end = ln + (toInt(c.endLine, ln) - toInt(c.line, ln));
+        if (end < ln) end = ln;
+        if (end >= lines.length) end = lines.length - 1;
+        loc = 'method `' + (lines[ln] || '').trim() + '` (lines ' + (ln + 1 + off) + '-' + (end + 1 + off) + ')';
+      } else {
+        loc = 'line ' + (ln + 1 + off) + ' `' + (lines[ln] || '').trim() + '`';
+      }
+      out += '[' + (i + 1) + '] ' + loc + ' - ' + author + ': ' + text + '\n';
+    });
+    return out;
+  }
+
   // ── Persistence (string <-> array) ────────────────────────────────────────
 
   // Serialise to a compact JSON string for localStorage. Pure: the UI hands the
@@ -274,5 +335,7 @@
   exports.serialize      = serialize;
   exports.parse          = parse;
   exports.serializeAnnotations = serializeAnnotations;
+  exports.resolveAnyLine = resolveAnyLine;
+  exports.serializeBlockComments = serializeBlockComments;
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocsCodeComments = {}));
