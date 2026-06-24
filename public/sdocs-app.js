@@ -402,7 +402,7 @@ function attachCodeCopyButtons(container) {
       expandBtn.innerHTML = EXPAND_SVG;
       expandBtn.title = 'Open in fullscreen';
       expandBtn.setAttribute('aria-label', 'Open code in fullscreen');
-      expandBtn.addEventListener('click', function() { S.codeFocus.open(pre); });
+      expandBtn.addEventListener('click', function() { S.codeFocus.open(pre, { comment: document.body.classList.contains('comment-mode') }); });
       wrapper.appendChild(expandBtn);
       wrapper.classList.add('has-expand');
 
@@ -485,7 +485,7 @@ function maybeAutoExpandCodeFile() {
   var pre = S.renderedEl && S.renderedEl.querySelector('.pre-wrapper > pre');
   if (!pre) return;
   _codeFileAutoExpanded = true;
-  S.codeFocus.open(pre);
+  S.codeFocus.open(pre, { comment: document.body.classList.contains('comment-mode') });
 }
 
 var SECTION_LEVELS = { H2: 2, H3: 3, H4: 4 };
