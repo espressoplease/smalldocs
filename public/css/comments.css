@@ -267,6 +267,11 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   border-style: dashed;
   opacity: 0.85;
 }
+/* A foreign comment shown for parity (a code comment surfaced in the reader):
+   same card, dashed to signal it is read-only here and edited in the viewer. */
+.sdoc-card-foreign {
+  border-style: dashed;
+}
 .sdoc-card-author {
   font-weight: 600;
   color: var(--text);

@@ -37,3 +37,20 @@ test('a prose inline comment on code shows in the viewer (read-only)', async ({ 
   // ...and no delete affordance (it is edited back in the reader).
   await expect(page.locator('.sdoc-cc-thread.sdoc-cc-foreign [data-cc="delete"]')).toHaveCount(0);
 });
+
+test('a code comment shows in the reader (read-only) in comment mode', async ({ page }) => {
+  await page.evaluate((body) => {
+    var S = window.SDocs;
+    S.currentBody = body;
+    S.currentMeta = { comments: [
+      { id: 'c1', kind: 'token', block: 'pre:0', line: 1, quote: 'def run', anchorText: '  def run', text: 'rename run', author: 'u', color: '#ffbb00' },
+    ] };
+    S.render();
+    S.setMode('comment');
+  }, DOC);
+  // the code comment is anchored on the code block in the reader, with its card
+  await expect(page.locator('#_sd_rendered pre span.sdoc-anchor[data-c="c1"]')).toHaveText('def run');
+  await expect(page.locator('#_sd_rendered .sdoc-card[data-c="c1"]')).toContainText('rename run');
+  // read-only foreign card: no delete affordance (edited in the viewer)
+  await expect(page.locator('.sdoc-card[data-c="c1"].sdoc-card-foreign .sdoc-card-delete')).toHaveCount(0);
+});
