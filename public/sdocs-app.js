@@ -571,7 +571,17 @@ function render() {
   if (S.renderForms) S.renderForms(S.renderedEl);
   if (S.processCells) S.processCells(S.renderedEl);
   // Last: highlight the plain code blocks that no other processor claimed.
-  if (S.processHighlight) S.processHighlight(S.renderedEl);
+  // Highlight is async (lazy CDN) and rewrites each block's innerHTML when it
+  // lands, which would wipe the comment anchors rendered just below. Re-apply
+  // comments once it settles so highlighted code keeps its anchors.
+  if (S.processHighlight) {
+    var hlPromise = S.processHighlight(S.renderedEl);
+    if (hlPromise && hlPromise.then) {
+      hlPromise.then(function () {
+        if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
+      });
+    }
+  }
   renderFileInfoCard();
   if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
   if (S.syncFoldButton) S.syncFoldButton();

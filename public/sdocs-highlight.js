@@ -95,12 +95,14 @@
     return html;
   }
 
-  function highlightOne(hljs, codeEl) {
+  // src is captured by the caller BEFORE the async CDN gap, not read here: by the
+  // time this resolves the comment layer may have injected anchor/card nodes into
+  // the block, so reading textContent now would absorb their text into the code.
+  function highlightOne(hljs, codeEl, src) {
     if (!codeEl || codeEl.dataset.hlDone) return Promise.resolve();
     var lang = langOf(codeEl);
     if (!lang || RESERVED[lang]) return Promise.resolve();
 
-    var src = codeEl.textContent || '';
     if (src.length > SOURCE_MAX_CHARS) { codeEl.dataset.hlDone = '1'; return Promise.resolve(); }
 
     return ensureLanguage(hljs, lang).then(function (ok) {
@@ -122,19 +124,21 @@
     if (!nodes.length) return Promise.resolve();
 
     // Filter to blocks we'll actually touch before paying the CDN cost, so a
-    // doc full of mermaid/chart blocks never loads highlight.js.
+    // doc full of mermaid/chart blocks never loads highlight.js. Capture each
+    // block's source text NOW (synchronously, before any later layer such as the
+    // comment renderer mutates the block) and carry it through the async load.
     var todo = [];
     for (var i = 0; i < nodes.length && todo.length < DOC_BLOCK_CAP; i++) {
       var el = nodes[i];
       if (el.dataset.hlDone) continue;
       var lang = langOf(el);
       if (!lang || RESERVED[lang]) continue;
-      todo.push(el);
+      todo.push({ el: el, src: el.textContent || '' });
     }
     if (!todo.length) return Promise.resolve();
 
     return loadCore().then(function (hljs) {
-      return Promise.all(todo.map(function (el) { return highlightOne(hljs, el); }));
+      return Promise.all(todo.map(function (t) { return highlightOne(hljs, t.el, t.src); }));
     }).catch(function () { /* core CDN failure: plain text, no throw into render */ });
   }
 
