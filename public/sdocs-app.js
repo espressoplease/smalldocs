@@ -33,6 +33,8 @@ var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" str
 // Lucide expand-corners - same icon the diagram / sheet expand buttons use.
 var EXPAND_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
 var COMMENT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+// Sparkles - agent (read-only) comments, distinct from the user speech bubble.
+var AGENT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z"/></svg>';
 
 // How many code-kind comments (line / method / token) the document carries for
 // a given block id ("pre:N"). They share the one comment store with prose
@@ -44,6 +46,18 @@ function codeCommentCountFor(blockId) {
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
     if (c && c.block === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) n++;
+  }
+  return n;
+}
+// Count valid agent annotations (read-only notes in front matter, line-numbered,
+// not block-tagged). Mirrors the validation in the viewer's getAnnotations.
+function agentAnnotationCount() {
+  var list = SDocs.currentMeta && SDocs.currentMeta.annotations;
+  if (!Array.isArray(list)) return 0;
+  var n = 0;
+  for (var i = 0; i < list.length; i++) {
+    var a = list[i];
+    if (a && parseInt(a.line, 10) >= 1 && typeof a.text === 'string' && a.text.trim()) n++;
   }
   return n;
 }
@@ -360,6 +374,10 @@ function attachHeadingAnchors(container) {
 }
 
 function attachCodeCopyButtons(container) {
+  // Agent annotations are line-numbered and not block-tagged, so the indicator
+  // goes on the first code block (the common single-file case has exactly one).
+  var agentShown = false;
+  var agentTotal = agentAnnotationCount();
   container.querySelectorAll('pre').forEach(function(pre, idx) {
     var wrapper = document.createElement('div');
     wrapper.className = 'pre-wrapper';
@@ -420,6 +438,21 @@ function attachCodeCopyButtons(container) {
         commentBtn.addEventListener('click', function() { S.codeFocus.open(pre, { comment: true }); });
         wrapper.appendChild(commentBtn);
         wrapper.classList.add('has-comment-notes');
+      }
+
+      // Indicator: this block carries agent comments (read-only annotations).
+      // Distinct icon/colour from user comments; clicking opens the viewer
+      // (annotations show there in any mode). Shown on the first code block.
+      if (agentTotal > 0 && !agentShown) {
+        agentShown = true;
+        var agentBtn = document.createElement('button');
+        agentBtn.className = 'agent-comment-btn';
+        agentBtn.innerHTML = AGENT_SVG;
+        agentBtn.title = agentTotal + (agentTotal === 1 ? ' agent comment' : ' agent comments');
+        agentBtn.setAttribute('aria-label', agentBtn.title);
+        agentBtn.addEventListener('click', function() { S.codeFocus.open(pre); });
+        wrapper.appendChild(agentBtn);
+        wrapper.classList.add('has-agent-notes');
       }
     }
 
