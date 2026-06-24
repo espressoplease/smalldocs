@@ -225,6 +225,16 @@
     '.sdoc-cf-shortlearn:hover { color: var(--sdoc-focus-fg, #1c1917); }',
     '.sdoc-cf-shorterr { font-size: 11px; color: #b42318; }',
     '.sdoc-cf-shorterr[hidden] { display: none; }',
+    // "Local only" pill on path rows + the footer note - mirrors the prose card
+    // (.fic-local-tag / .fic-privacy-note): both 11px, 40%-muted.
+    '.sdoc-cf-localtag {',
+    '  flex-shrink: 0; font-size: 11px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 40%, transparent);',
+    '}',
+    '.sdoc-cf-privacy {',
+    '  margin-top: 4px; font-size: 11px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 40%, transparent);',
+    '}',
     // Summary-view toggle: a standalone disclosure above the code that folds the
     // whole file to its outline (or unfolds it), the same action as the toolbar
     // fold-all button. It speaks the chevron language the rows use - the chevron
@@ -1466,11 +1476,17 @@
           + '</div>';
       }
     }
-    if (relPath && relPath !== fullPath) rows += fiRow('Rel. Path', relPath);
-    if (fullPath) rows += fiRow('Abs. Path', fullPath);
+    var hasLocalRow = !!(relPath || fullPath);
+    if (relPath && relPath !== fullPath) rows += fiRow('Rel. Path', relPath, true);
+    if (fullPath) rows += fiRow('Abs. Path', fullPath, true);
     var card = document.createElement('div');
     card.className = 'sdoc-cf-fileinfo';
-    card.innerHTML = '<div class="sdoc-cf-firows">' + rows + '</div>';
+    // Footer note - mirrors the prose card: local-only rows (the paths) never
+    // travel in a short link, so say so when any are shown.
+    var note = hasLocalRow
+      ? '<span class="sdoc-cf-privacy">Local only rows aren\'t included in shared sdocs</span>'
+      : '';
+    card.innerHTML = '<div class="sdoc-cf-firows">' + rows + '</div>' + note;
     return card;
   }
 
@@ -1518,11 +1534,15 @@
     return btn;
   }
 
-  function fiRow(label, value) {
+  function fiRow(label, value, local) {
     var low = label.toLowerCase();
+    var pill = local
+      ? '<span class="sdoc-cf-localtag" title="Only visible on this device, not included in shared sdocs">Local only</span>'
+      : '';
     return '<div class="sdoc-cf-firow">'
       + '<span class="sdoc-cf-filabel">' + escapeHtml(label) + '</span>'
       + '<span class="sdoc-cf-fival">' + escapeHtml(value) + '</span>'
+      + pill
       + '<button type="button" class="sdoc-cf-ficopy" title="Copy ' + escapeHtml(low) + '" aria-label="Copy ' + escapeHtml(low) + '">' + COPY_ICON + '</button>'
       + '</div>';
   }

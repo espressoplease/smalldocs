@@ -76,6 +76,22 @@ test('clicking the link icon also generates the short link', async ({ page }) =>
   await expect(urlVal).toContainText('/s/xyz789#k=');
 });
 
+test('path rows are tagged "Local only" with the shared-link footer note', async ({ page }) => {
+  await page.evaluate(() => {
+    var S = window.SDocs, NL = String.fromCharCode(10);
+    S.currentBody = '```python' + NL + 'def f():' + NL + '    return 1' + NL + '```' + NL;
+    S.currentMeta = { file: 'f.py' };
+    S.localMeta = { fullPath: '/Users/dev/proj/src/f.py', path: 'src/f.py' };
+    S.render();
+    S.codeFocus.open(document.querySelector('#_sd_rendered pre'));
+  });
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  // both path rows carry a "Local only" pill; filename/short-url rows do not
+  await expect(page.locator('.sdoc-code-focus .sdoc-cf-localtag')).toHaveCount(2);
+  await expect(page.locator('.sdoc-code-focus .sdoc-cf-privacy'))
+    .toHaveText("Local only rows aren't included in shared sdocs");
+});
+
 test('opening a short link to a code file lands straight in the expanded viewer', async ({ page }) => {
   // mint a REAL short link for a code-file doc via the dev server, then open it
   // fresh like a recipient would - it should auto-open the code viewer.
