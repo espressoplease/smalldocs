@@ -204,23 +204,27 @@
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
     '.sdoc-cf-ficopy svg { display: block; pointer-events: none; }',
-    // Short-link "Generate" intro row (mirrors the prose file-info card): the
-    // label, a Generate button, an explanatory note, then the generate icon.
+    // Short-link "Generate" intro row - matches the prose file-info card exactly
+    // (rendered.css .fic-shorten-button / .fic-short-intro-text / -learn / -error):
+    // a transparent dotted-underline text button (font inherits the 12.5px row),
+    // a 12px 40%-muted note, a muted underline "learn more", and a red error.
+    '.sdoc-cf-shortintro { cursor: default; }',
     '.sdoc-cf-shortbtn {',
-    '  all: unset; cursor: pointer; flex-shrink: 0; font-family: inherit; font-size: 11px;',
-    '  padding: 3px 9px; border-radius: 4px; color: var(--sdoc-focus-fg, #1c1917);',
-    '  border: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 22%, transparent);',
-    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 4%, transparent);',
-    '  transition: background .12s;',
+    '  all: unset; cursor: pointer; font: inherit; color: var(--sdoc-focus-fg, #1c1917);',
+    '  text-decoration: underline dotted; text-underline-offset: 3px;',
+    '  text-decoration-color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 45%, transparent);',
+    '  transition: text-decoration-color .12s, text-decoration-style .12s;',
     '}',
-    '.sdoc-cf-shortbtn:hover { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 9%, transparent); }',
-    '.sdoc-cf-shortbtn[disabled] { opacity: .6; cursor: default; }',
+    '.sdoc-cf-shortbtn:hover:not([disabled]) { text-decoration-style: solid; text-decoration-color: var(--sdoc-focus-fg, #1c1917); }',
+    '.sdoc-cf-shortbtn[disabled] { cursor: default; opacity: .6; }',
     '.sdoc-cf-shortnote {',
-    '  flex: 1; min-width: 0; font-size: 11px;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 55%, transparent);',
+    '  flex: 1; min-width: 0; font-size: 12px; overflow-wrap: anywhere;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 40%, transparent);',
     '}',
-    '.sdoc-cf-shortnote a { color: inherit; text-decoration: underline; }',
-    '.sdoc-cf-shorterr { font-size: 11px; color: #dc2626; }',
+    '.sdoc-cf-shortlearn { color: inherit; text-decoration: underline; transition: color .12s; }',
+    '.sdoc-cf-shortlearn:hover { color: var(--sdoc-focus-fg, #1c1917); }',
+    '.sdoc-cf-shorterr { font-size: 11px; color: #b42318; }',
+    '.sdoc-cf-shorterr[hidden] { display: none; }',
     // Summary-view toggle: a standalone disclosure above the code that folds the
     // whole file to its outline (or unfolds it), the same action as the toolbar
     // fold-all button. It speaks the chevron language the rows use - the chevron
@@ -1443,12 +1447,10 @@
     if (!fileName && !fullPath) return null;
     if (!fileName) fileName = basename(fullPath);
     var rows = fiRow('Filename', fileName);
-    if (fullPath) rows += fiRow('Abs. path', fullPath);
-    if (relPath && relPath !== fullPath) rows += fiRow('Rel. path', relPath);
-    // Short link - mirrors the prose file-info card exactly: a "Generate"
-    // affordance until a link exists, then the URL in a copyable row. Uses the
-    // shared generator (S.generateShortLink), so a code-file link auto-opens this
-    // view and the two cards stay in sync.
+    // Short URL sits directly under Filename, above the paths - and the whole row
+    // mirrors the prose file-info card exactly: a subtle dotted "Generate" until a
+    // link exists, then the URL in a copyable row. Shared generator keeps both in
+    // sync. (Same wording the prose card uses, verbatim.)
     if (S.generateShortLink && navigator.clipboard) {
       if (S.shortUrl) {
         rows += fiRow('Short URL', S.shortUrl);
@@ -1456,14 +1458,16 @@
         var learn = S.SHORT_LINKS_LEARN_URL || 'https://smalldocs.org/#sec=short-links';
         rows += '<div class="sdoc-cf-firow sdoc-cf-shortintro">'
           + '<span class="sdoc-cf-filabel">Short URL</span>'
-          + '<button type="button" class="sdoc-cf-shortbtn" title="Generate a short link for this document">Generate</button>'
-          + '<span class="sdoc-cf-shortnote">Encrypted on our server, the key stays in the link '
-          +   '(<a href="' + escapeHtml(learn) + '" target="_blank" rel="noopener">learn more</a>)</span>'
+          + '<button type="button" class="sdoc-cf-shortbtn" data-shorten title="Generate a short link for this document">Generate</button>'
+          + '<span class="sdoc-cf-shortnote">Encrypted document on our server, but decryption key stays with you '
+          +   '(<a class="sdoc-cf-shortlearn" href="' + escapeHtml(learn) + '" target="_blank" rel="noopener">learn more</a>)</span>'
           + '<span class="sdoc-cf-shorterr" hidden></span>'
-          + '<button type="button" class="sdoc-cf-ficopy sdoc-cf-shortbtn" title="Generate a short link" aria-label="Generate a short link">' + LINK_ICON + '</button>'
+          + '<button type="button" class="sdoc-cf-ficopy" data-shorten title="Generate a short link" aria-label="Generate a short link">' + LINK_ICON + '</button>'
           + '</div>';
       }
     }
+    if (relPath && relPath !== fullPath) rows += fiRow('Rel. Path', relPath);
+    if (fullPath) rows += fiRow('Abs. Path', fullPath);
     var card = document.createElement('div');
     card.className = 'sdoc-cf-fileinfo';
     card.innerHTML = '<div class="sdoc-cf-firows">' + rows + '</div>';
