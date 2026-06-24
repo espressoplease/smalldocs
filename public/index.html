@@ -804,8 +804,9 @@ Please do the following, and ask me before any step that changes my filesystem.
    - Then tell me to open a new terminal, or to run `source ~/.zshrc` (or the matching rc file) in mine.
 
 4. Teach yourself the latest features.
-   Run: `sdoc setup --yes`
-   This non-interactively writes or refreshes the short SmallDocs section in every detected coding-agent config file, so you pick up the newest blocks (sheets, slides, bridge). It is the canonical writer; do not hand-roll the section yourself, the wording is kept in sync with the CLI version.
+   First, if my config file already has a SmallDocs section (the block between `&lt;!-- sdocs-agent-block:start v=N --&gt;` and `&lt;!-- sdocs-agent-block:end --&gt;`), copy that whole block aside and note its `v=N` version number. This snapshot is how you will spot exactly what a new release adds. On a fresh install there is no such block yet, which is fine.
+   Then run: `sdoc setup --yes`
+   This non-interactively writes or refreshes that SmallDocs section in every detected coding-agent config file, bumping it to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the section yourself, the wording is kept in sync with the CLI version.
 
 5. Verify it worked.
    Ask me to start a fresh chat session with you (so the updated config file is loaded). In the new session, ask me to say: "sdoc me a test file". A styled document should open in my browser.
@@ -824,7 +825,7 @@ Please do the following, and ask me before any step that changes my filesystem.
         - a live spreadsheet ("sdoc me a budget with live totals"); run `sdoc cells verify path/to/file.md` to confirm the totals compute before you open it
      Run the matching reference commands (`sdoc diagrams`, `sdoc slides`, `sdoc charts`, `sdoc cells`, `sdoc code`) to get each block's syntax right before you write it.
 
-   For an update, offer a shorter tour of what is newest instead - sheets (`cells`), slide decks including custom shapes and branding, the code viewer, and `sdoc bridge` live editing - again built from my real work, and skip anything I have clearly used already.
+   For an update, do not re-tour everything. Compare the SmallDocs block in my config now against the snapshot you took aside in step 4. Tour only what actually changed: the bullets that were added or reworded, which the higher `v=N` in the start marker confirms. Walk me through each genuinely new capability the way the first-install tour does - build it from my real work and give me the plain phrase I would say to get it again. If the block is unchanged from before (same `v=N`, same text), this was a maintenance release with no new authoring features: tell me that plainly and skip the tour rather than repeating things I already have.
 
 If any step fails, stop and tell me what happened before doing more.</pre>
 <style>
