@@ -678,6 +678,17 @@ function shortenErrorMessage(code) {
     : 'Could not create short link.';
 }
 
+// Mint a short link for the current document AND record the snapshot state the
+// staleness check uses. The reusable core behind both the prose file-info card's
+// Generate button and the code viewer's. Returns { url, id }.
+async function generateShortLink() {
+  var result = await shortenCurrentDocument();
+  S.shortUrl = result.url;
+  S.shortLinkId = result.id;
+  S.shortLinkSnapshot = serializeCurrentDocument();
+  return result;
+}
+
 async function runShortenFlow(btn, errEl) {
   btn.disabled = true;
   btn.classList.add('fic-shorten-loading');
@@ -685,10 +696,7 @@ async function runShortenFlow(btn, errEl) {
   btn.textContent = 'Shortening…';
   if (errEl) errEl.hidden = true;
   try {
-    var result = await shortenCurrentDocument();
-    S.shortUrl = result.url;
-    S.shortLinkId = result.id;
-    S.shortLinkSnapshot = serializeCurrentDocument();
+    await generateShortLink();
     renderFileInfoCard();
     // Fade in the new short URL row.
     var newRow = document.querySelector('.fic-row-short');
@@ -1763,6 +1771,8 @@ S.loadText = loadText;
 // same generator the prose file-info card uses; document-level, mode-agnostic).
 S.shortenCurrentDocument = shortenCurrentDocument;
 S.shortenErrorMessage = shortenErrorMessage;
+S.generateShortLink = generateShortLink;
+S.SHORT_LINKS_LEARN_URL = SHORT_LINKS_LEARN_URL;
 // Exposed seam: the bridge Source decodes its embedded `md=` snapshot through
 // the same brotli/deflate decode the fragment Source uses, so there's one decode
 // path, not two that can drift.
@@ -1996,6 +2006,10 @@ async function initShortLink(id) {
     S.shortLinkId = id;
     S.shortLinkSnapshot = serializeCurrentDocument();
     if (typeof renderFileInfoCard === 'function') renderFileInfoCard();
+    // A short link to a whole-file code doc should land in the code view, same
+    // as the #md= path - otherwise the recipient sees the inline block, not the
+    // expanded viewer the sender shared from.
+    maybeAutoExpandCodeFile();
   } catch (e) {
     var msg = e && e.message === 'not_found'
       ? 'Short link not found. It may have expired.'

@@ -204,19 +204,23 @@
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
     '.sdoc-cf-ficopy svg { display: block; pointer-events: none; }',
-    // "Copy short link" action under the file rows.
-    '.sdoc-cf-share { display: flex; align-items: center; gap: 10px; margin-top: 9px; flex-wrap: wrap; }',
-    '.sdoc-cf-shorten {',
-    '  all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;',
-    '  padding: 5px 10px; border-radius: 5px; font-size: 12px; font-family: inherit;',
-    '  color: var(--sdoc-focus-fg, #1c1917);',
+    // Short-link "Generate" intro row (mirrors the prose file-info card): the
+    // label, a Generate button, an explanatory note, then the generate icon.
+    '.sdoc-cf-shortbtn {',
+    '  all: unset; cursor: pointer; flex-shrink: 0; font-family: inherit; font-size: 11px;',
+    '  padding: 3px 9px; border-radius: 4px; color: var(--sdoc-focus-fg, #1c1917);',
     '  border: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 22%, transparent);',
     '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 4%, transparent);',
     '  transition: background .12s;',
     '}',
-    '.sdoc-cf-shorten:hover { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 9%, transparent); }',
-    '.sdoc-cf-shorten svg { display: block; }',
-    '.sdoc-cf-shorten-hint { font-size: 11px; color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 55%, transparent); }',
+    '.sdoc-cf-shortbtn:hover { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 9%, transparent); }',
+    '.sdoc-cf-shortbtn[disabled] { opacity: .6; cursor: default; }',
+    '.sdoc-cf-shortnote {',
+    '  flex: 1; min-width: 0; font-size: 11px;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 55%, transparent);',
+    '}',
+    '.sdoc-cf-shortnote a { color: inherit; text-decoration: underline; }',
+    '.sdoc-cf-shorterr { font-size: 11px; color: #dc2626; }',
     // Summary-view toggle: a standalone disclosure above the code that folds the
     // whole file to its outline (or unfolds it), the same action as the toolbar
     // fold-all button. It speaks the chevron language the rows use - the chevron
@@ -749,7 +753,7 @@
     return m ? m[1] : '';
   }
 
-  var modal = null, docEl = null, linesEl = null, rawText = '', prevFocus = null, keyHandler = null;
+  var modal = null, docEl = null, linesEl = null, rawText = '', prevFocus = null, keyHandler = null, fileInfoEl = null;
   var folds = null;       // per-line { header:bool, end:int } from indentation
   var parents = null;     // immediate enclosing header index per line (or -1)
   var collapsed = null;   // Set of collapsed header line indices
@@ -941,6 +945,9 @@
     if (window.SDocComments) S.currentMeta = window.SDocComments.setComments(S.currentMeta || {}, fullList);
     if (S.syncAll) S.syncAll('comment');
     loadComments();
+    // A comment change rewrites the doc, so any short link is now stale; the
+    // global staleness clears S.shortUrl, and this re-renders the card to match.
+    refreshFileInfo();
   }
 
   // Does this line carry a language keyword that should survive the outline?
@@ -1393,8 +1400,8 @@
     methodTab.setAttribute('aria-label', 'Comment on this method');
     methodTab.setAttribute('title', 'Comment on this method');
     methodTab.innerHTML = COMMENT_ICON;
-    var fileInfo = buildFileInfo(name);
-    if (fileInfo) { fileInfo.addEventListener('click', onFileInfoClick); docEl.appendChild(fileInfo); }
+    fileInfoEl = buildFileInfo();
+    if (fileInfoEl) { fileInfoEl.addEventListener('click', onFileInfoClick); docEl.appendChild(fileInfoEl); }
     var summary = buildSummaryToggle();
     if (summary) docEl.appendChild(summary);
     docEl.appendChild(linesEl);
@@ -1438,39 +1445,57 @@
     var rows = fiRow('Filename', fileName);
     if (fullPath) rows += fiRow('Abs. path', fullPath);
     if (relPath && relPath !== fullPath) rows += fiRow('Rel. path', relPath);
+    // Short link - mirrors the prose file-info card exactly: a "Generate"
+    // affordance until a link exists, then the URL in a copyable row. Uses the
+    // shared generator (S.generateShortLink), so a code-file link auto-opens this
+    // view and the two cards stay in sync.
+    if (S.generateShortLink && navigator.clipboard) {
+      if (S.shortUrl) {
+        rows += fiRow('Short URL', S.shortUrl);
+      } else {
+        var learn = S.SHORT_LINKS_LEARN_URL || 'https://smalldocs.org/#sec=short-links';
+        rows += '<div class="sdoc-cf-firow sdoc-cf-shortintro">'
+          + '<span class="sdoc-cf-filabel">Short URL</span>'
+          + '<button type="button" class="sdoc-cf-shortbtn" title="Generate a short link for this document">Generate</button>'
+          + '<span class="sdoc-cf-shortnote">Encrypted on our server, the key stays in the link '
+          +   '(<a href="' + escapeHtml(learn) + '" target="_blank" rel="noopener">learn more</a>)</span>'
+          + '<span class="sdoc-cf-shorterr" hidden></span>'
+          + '<button type="button" class="sdoc-cf-ficopy sdoc-cf-shortbtn" title="Generate a short link" aria-label="Generate a short link">' + LINK_ICON + '</button>'
+          + '</div>';
+      }
+    }
     var card = document.createElement('div');
     card.className = 'sdoc-cf-fileinfo';
-    // A "copy short link" action - the same generator the prose file-info card
-    // uses. A code-file link auto-opens this view, so it's how a developer hands
-    // a readable, commentable code file to someone with nothing installed.
-    var share = (S.shortenCurrentDocument && navigator.clipboard)
-      ? '<div class="sdoc-cf-share">'
-        + '<button type="button" class="sdoc-cf-shorten" title="Create a short link to this code and copy it" aria-label="Copy short link">'
-        +   LINK_ICON + '<span class="sdoc-cf-shorten-label">Copy short link</span></button>'
-        + '<span class="sdoc-cf-shorten-hint">Opens straight into this view.</span>'
-        + '</div>'
-      : '';
-    card.innerHTML = '<div class="sdoc-cf-firows">' + rows + '</div>' + share;
+    card.innerHTML = '<div class="sdoc-cf-firows">' + rows + '</div>';
     return card;
   }
 
-  // Mint a short link for the current document and copy it. Each click makes a
-  // fresh link for the current state (so adding a note then sharing is always
-  // current); no persistent URL row to go stale.
-  function shortenAndCopy(btn) {
-    if (!S.shortenCurrentDocument || !navigator.clipboard || btn.dataset.busy) return;
-    btn.dataset.busy = '1';
-    var label = btn.querySelector('.sdoc-cf-shorten-label');
-    var prev = label ? label.textContent : '';
-    if (label) label.textContent = 'Creating…';
-    S.shortenCurrentDocument().then(function (res) {
-      return navigator.clipboard.writeText(res.url);
-    }).then(function () {
-      if (label) label.textContent = 'Copied link';
-      setTimeout(function () { if (label) label.textContent = prev; delete btn.dataset.busy; }, 1500);
-    }).catch(function (err) {
-      if (label) label.textContent = (S.shortenErrorMessage ? S.shortenErrorMessage(err && err.message) : 'Could not create link');
-      setTimeout(function () { if (label) label.textContent = prev; delete btn.dataset.busy; }, 2400);
+  // Rebuild the file-info card in place (after generating a short link, or when a
+  // comment change may have invalidated one), so it reflects the current state.
+  function refreshFileInfo() {
+    if (!fileInfoEl || !fileInfoEl.parentNode) return;
+    var fresh = buildFileInfo();
+    if (!fresh) return;
+    fresh.addEventListener('click', onFileInfoClick);
+    fileInfoEl.parentNode.replaceChild(fresh, fileInfoEl);
+    fileInfoEl = fresh;
+  }
+
+  // Generate a short link via the shared generator, then re-render the card so
+  // the URL shows in a copyable row - the same two-step UX as the prose card.
+  function shortenGenerate() {
+    if (!S.generateShortLink || !fileInfoEl || fileInfoEl.dataset.shortBusy) return;
+    fileInfoEl.dataset.shortBusy = '1';
+    var textBtn = fileInfoEl.querySelector('button.sdoc-cf-shortbtn:not(.sdoc-cf-ficopy)');
+    var err = fileInfoEl.querySelector('.sdoc-cf-shorterr');
+    if (textBtn) { textBtn.disabled = true; textBtn.textContent = 'Generating…'; }
+    if (err) err.hidden = true;
+    S.generateShortLink().then(function () {
+      refreshFileInfo();
+    }).catch(function (e) {
+      if (fileInfoEl) delete fileInfoEl.dataset.shortBusy;
+      if (textBtn) { textBtn.disabled = false; textBtn.textContent = 'Generate'; }
+      if (err) { err.textContent = (S.shortenErrorMessage ? S.shortenErrorMessage(e && e.message) : 'Could not create link'); err.hidden = false; }
     });
   }
   // A standalone "> Summary view" disclosure above the listing. Same action as
@@ -1498,8 +1523,7 @@
       + '</div>';
   }
   function onFileInfoClick(e) {
-    var sh = e.target.closest('.sdoc-cf-shorten');
-    if (sh) { e.stopPropagation(); shortenAndCopy(sh); return; }
+    if (e.target.closest('.sdoc-cf-shortbtn')) { e.stopPropagation(); shortenGenerate(); return; }
     var row = e.target.closest('.sdoc-cf-firow');
     if (!row) return;
     var val = row.querySelector('.sdoc-cf-fival');
@@ -1541,7 +1565,7 @@
     // viewer, closing lands you in the reader's comment mode, not plain read.
     var wasCommenting = commenting;
     modal.remove();
-    modal = null; docEl = null; linesEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
+    modal = null; docEl = null; linesEl = null; fileInfoEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
     srcLines = null; structuralRe = null; openToken = null;
     comments = []; commenting = false; blockId = ''; navId = null; methodTab = null; hoverLn = -1;
     document.body.classList.remove('sdoc-code-focus-open');

@@ -31,7 +31,7 @@ test('the code menu orders icons: wrap, fold, copy, comment, download | theme', 
   expect(order).toEqual(['wrap', 'foldall', 'copy', 'comment', 'download', 'sep', 'theme']);
 });
 
-test('the file-info card mints and copies a short link', async ({ page }) => {
+test('the file-info card generates a short link into a copyable Short URL row', async ({ page }) => {
   // stub the short-link endpoint + the clipboard
   await page.evaluate(() => {
     window.__copies = [];
@@ -45,13 +45,32 @@ test('the file-info card mints and copies a short link', async ({ page }) => {
     };
   });
   await openCodeFile(page);
-  const btn = page.locator('.sdoc-code-focus .sdoc-cf-shorten');
-  await expect(btn).toBeVisible();
-  await btn.click();
-  await expect(async () => {
-    const copied = await page.evaluate(() => window.__copies[window.__copies.length - 1] || '');
-    expect(copied).toContain('/s/abc123#k=');
-  }).toPass({ timeout: 4000 });
-  // brief "Copied link" confirmation on the button
-  await expect(btn).toContainText('Copied link');
+  // intro state: a Generate button, no URL row yet (matches the prose card)
+  const gen = page.locator('.sdoc-code-focus .sdoc-cf-shortbtn').first();
+  await expect(gen).toBeVisible();
+  await gen.click();
+  // after generate: the Short URL appears in a copyable row, Generate is gone
+  const urlVal = page.locator('.sdoc-code-focus .sdoc-cf-firow', { hasText: 'Short URL' }).locator('.sdoc-cf-fival');
+  await expect(urlVal).toContainText('/s/abc123#k=');
+  await expect(page.locator('.sdoc-code-focus .sdoc-cf-shortbtn')).toHaveCount(0);
+  // clicking the row copies the URL (same affordance as the other file rows)
+  await page.locator('.sdoc-code-focus .sdoc-cf-firow', { hasText: 'Short URL' }).locator('.sdoc-cf-ficopy').click();
+  const copied = await page.evaluate(() => window.__copies[window.__copies.length - 1] || '');
+  expect(copied).toContain('/s/abc123#k=');
+});
+
+test('opening a short link to a code file lands straight in the expanded viewer', async ({ page }) => {
+  // mint a REAL short link for a code-file doc via the dev server, then open it
+  // fresh like a recipient would - it should auto-open the code viewer.
+  const url = await page.evaluate(async () => {
+    var S = window.SDocs, NL = String.fromCharCode(10);
+    S.currentBody = '```python' + NL + 'def fetch():' + NL + '    return 1' + NL + '```' + NL;
+    S.currentMeta = { file: 'fetch.py' };
+    S.render();
+    var res = await S.generateShortLink();
+    return res.url;
+  });
+  expect(url).toContain('/s/');
+  await page.goto(url);
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible({ timeout: 6000 });
 });
