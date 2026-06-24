@@ -33,7 +33,7 @@ test('a code block with no comments shows no indicator', async ({ page }) => {
 
 test('a code block with comments shows an indicator that opens the viewer in comment mode', async ({ page }) => {
   await renderDoc(page, '```ruby\n' + RUBY + '\n```\n', {
-    codeComments: [
+    comments: [
       { id: 'c1', kind: 'line', block: 'pre:0', line: 1, anchorText: 'def run', text: 'rename this', author: 'u', color: '#ffbb00' },
     ],
   });
@@ -64,7 +64,7 @@ test('a comment made in the viewer surfaces as a reader indicator after closing'
 
 test('the indicator is block-scoped in a multi-block document', async ({ page }) => {
   await renderDoc(page, '```ruby\nputs 1\n```\n\n```ruby\nputs 2\n```\n', {
-    codeComments: [
+    comments: [
       { id: 'c1', kind: 'line', block: 'pre:1', line: 0, anchorText: 'puts 2', text: 'second block note', author: 'u', color: '#ffbb00' },
     ],
   });

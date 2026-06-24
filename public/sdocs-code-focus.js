@@ -826,14 +826,15 @@
   }
 
   // ── Comments ───────────────────────────────────────────────────────────────
-  // The reader can annotate the open file. Notes anchor to a source line or a
-  // whole method and live in the document's front matter (S.currentMeta.
-  // codeComments), exactly the way prose comments live in S.currentMeta.comments
-  // - so a note travels with a short link, a share, and an export. Each note
-  // carries a `block` tag ("pre:N") so several code blocks in one document keep
-  // their notes apart. The pure model lives in sdocs-code-comments.js; this
-  // layer owns the document round-trip and the DOM.
+  // The reader can annotate the open file. Code notes live in the document's ONE
+  // comment store (S.currentMeta.comments) alongside prose comments, tagged by
+  // kind (line / method / token) and by `block` ("pre:N") so several code blocks
+  // keep their notes apart. One store means a note travels with a short link /
+  // share / export and is rendered + edited by BOTH the reader and this viewer.
+  // The pure models live in sdocs-code-comments.js (code kinds) and
+  // sdocs-comments.js (prose kinds); this layer owns the round-trip and the DOM.
   var CC = window.SDocsCodeComments;
+  var SDC = window.SDocComments;
   var GRAIN_KEY = 'sdocs:codeCommentGrain'; // 'line' | 'method', remembered
   var comments = [];        // this block's notes (model objects), refreshed from the doc
   var commenting = false;   // comment mode on/off
@@ -859,34 +860,34 @@
     return 'pre:0';
   }
 
-  // Every code note in the document, across all blocks. A shared document's
-  // front matter is attacker-controllable, so each note is normalised on the way
-  // in (sanitises text + colour, validates id/line, drops malformed) and the
-  // list is capped. The model's sanitisers must run on inbound data, not only
-  // when the local user edits - the same guard prose comments get on load.
   var CC_MAX = 500; // far above any real use; caps a hostile shared doc
-  function readAll() {
-    var a = S.currentMeta && S.currentMeta.codeComments;
-    if (!Array.isArray(a)) return [];
-    if (!CC) return a.slice();
-    var out = [];
-    for (var i = 0; i < a.length && out.length < CC_MAX; i++) {
-      var c = CC.normalize(a[i]);
+  function isCodeKind(c) { return !!c && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token'); }
+
+  // The document's full comment list (prose + code), exactly as stored. Mutations
+  // run against this so prose comments are carried through untouched.
+  function allComments() { return SDC ? SDC.getComments(S.currentMeta) : []; }
+
+  // The code-kind comments only, normalised + capped. A shared document's front
+  // matter is attacker-controllable, so each is normalised on the way in
+  // (sanitises text + colour, validates id/line, drops malformed).
+  function readCode() {
+    if (!CC) return [];
+    var all = allComments(), out = [];
+    for (var i = 0; i < all.length && out.length < CC_MAX; i++) {
+      if (!isCodeKind(all[i])) continue;
+      var c = CC.normalize(all[i]);
       if (c) out.push(c);
     }
     return out;
   }
   // Load just this block's notes into the working set.
   function loadComments() {
-    comments = readAll().filter(function (c) { return c && c.block === blockId; });
+    comments = readCode().filter(function (c) { return c && c.block === blockId; });
   }
-  // Write the full code-note list back into the document and re-encode (so the
-  // notes travel like prose comments), then refresh this block's working set.
+  // Persist the full comment list back into the document and re-encode (so notes
+  // travel), preserving prose comments, then refresh this block's working set.
   function persistAll(fullList) {
-    var m = Object.assign({}, S.currentMeta || {});
-    if (fullList && fullList.length) m.codeComments = fullList.slice();
-    else delete m.codeComments;
-    S.currentMeta = m;
+    if (SDC) S.currentMeta = SDC.setComments(S.currentMeta || {}, fullList);
     if (S.syncAll) S.syncAll('comment');
     loadComments();
   }
@@ -1873,10 +1874,10 @@
     var text = (ta && ta.value || '').trim();
     if (!text) { if (ta) ta.focus(); return; }
     if (spec.editId) {
-      persistAll(CC.updateComment(readAll(), spec.editId, { text: text }));
+      persistAll(CC.updateComment(allComments(), spec.editId, { text: text }));
     } else {
       var prefs = readCommentPrefs();
-      var res = CC.addComment(readAll(), {
+      var res = CC.addComment(allComments(), {
         kind: spec.kind, block: blockId, line: spec.line, endLine: spec.endLine, quote: spec.quote, anchorText: spec.anchorText
       }, { text: text, author: prefs.author, color: prefs.color });
       persistAll(res.list);
@@ -2115,7 +2116,7 @@
     var id = threadRow && threadRow.getAttribute('data-c');
     if (!id) return;
     if (act === 'delete') {
-      persistAll(CC.removeComment(readAll(), id));
+      persistAll(CC.removeComment(allComments(), id));
       renderThreads();
     }
   }

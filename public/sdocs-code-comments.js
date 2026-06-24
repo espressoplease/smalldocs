@@ -1,13 +1,14 @@
 // sdocs-code-comments.js - pure data model for code-viewer comments.
 //
 // The fullscreen code view (sdocs-code-focus.js) lets a reader annotate a
-// source file. Like markdown comments, code comments live in the document's
-// YAML front matter (under `codeComments`), so they travel with a short link, a
-// share, and an export the same way prose comments do. Where a prose comment
-// anchors to a rendered-text quote, a code comment anchors to a SOURCE LINE (or
-// a method, a run of lines) inside a specific code block: it carries a `block`
-// tag ("pre:N", the block's index among the document's code blocks) plus the
-// line index, so several code blocks in one document keep their notes apart.
+// source file. Code comments live in the document's ONE comment store
+// (`comments` in the YAML front matter) alongside prose comments, so they travel
+// with a short link / share / export and are rendered by both the reader and the
+// viewer. Where a prose comment anchors to a rendered-text quote, a code comment
+// anchors to a SOURCE LINE (or a method, a run of lines, or a token selection)
+// inside a specific code block: it carries a `block` tag ("pre:N", the block's
+// index among the document's code blocks) plus the line index (and a `quote` for
+// a token), so several code blocks in one document keep their notes apart.
 //
 // This module is pure: it transforms plain arrays and objects and never touches
 // the DOM or storage. The UI layer in sdocs-code-focus.js owns the document

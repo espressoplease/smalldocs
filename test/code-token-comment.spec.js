@@ -67,7 +67,7 @@ test('select a token in the viewer, comment on it, and see a precise mark', asyn
   await page.locator('.sdoc-cc-composer [data-cc="save"]').click();
 
   // stored as a token comment carrying the quote, in the document store
-  const stored = await page.evaluate(() => (window.SDocs.currentMeta.codeComments || [])[0]);
+  const stored = await page.evaluate(() => (window.SDocs.currentMeta.comments || [])[0]);
   expect(stored.kind).toBe('token');
   expect(stored.quote).toBe('dog_count');
 

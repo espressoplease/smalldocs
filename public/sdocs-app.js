@@ -34,15 +34,16 @@ var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" str
 var EXPAND_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
 var COMMENT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
 
-// How many code-viewer comments the document carries for a given block id
-// ("pre:N"). Used to surface a reader-side indicator on a code block whose
-// notes live in the fullscreen viewer (where they are read and edited).
+// How many code-kind comments (line / method / token) the document carries for
+// a given block id ("pre:N"). They share the one comment store with prose
+// comments; this counts only the code kinds for the reader-side indicator.
 function codeCommentCountFor(blockId) {
-  var list = SDocs.currentMeta && SDocs.currentMeta.codeComments;
+  var list = SDocs.currentMeta && SDocs.currentMeta.comments;
   if (!Array.isArray(list)) return 0;
   var n = 0;
   for (var i = 0; i < list.length; i++) {
-    if (list[i] && list[i].block === blockId) n++;
+    var c = list[i];
+    if (c && c.block === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) n++;
   }
   return n;
 }
