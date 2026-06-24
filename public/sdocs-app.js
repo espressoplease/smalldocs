@@ -1759,6 +1759,10 @@ S.setStatus = setStatus;
 S.setMode = setMode;
 S.render = render;
 S.loadText = loadText;
+// Exposed so the code viewer's file-info card can mint a short link too (the
+// same generator the prose file-info card uses; document-level, mode-agnostic).
+S.shortenCurrentDocument = shortenCurrentDocument;
+S.shortenErrorMessage = shortenErrorMessage;
 // Exposed seam: the bridge Source decodes its embedded `md=` snapshot through
 // the same brotli/deflate decode the fragment Source uses, so there's one decode
 // path, not two that can drift.

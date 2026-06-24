@@ -204,6 +204,19 @@
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '}',
     '.sdoc-cf-ficopy svg { display: block; pointer-events: none; }',
+    // "Copy short link" action under the file rows.
+    '.sdoc-cf-share { display: flex; align-items: center; gap: 10px; margin-top: 9px; flex-wrap: wrap; }',
+    '.sdoc-cf-shorten {',
+    '  all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;',
+    '  padding: 5px 10px; border-radius: 5px; font-size: 12px; font-family: inherit;',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '  border: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 22%, transparent);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 4%, transparent);',
+    '  transition: background .12s;',
+    '}',
+    '.sdoc-cf-shorten:hover { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 9%, transparent); }',
+    '.sdoc-cf-shorten svg { display: block; }',
+    '.sdoc-cf-shorten-hint { font-size: 11px; color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 55%, transparent); }',
     // Summary-view toggle: a standalone disclosure above the code that folds the
     // whole file to its outline (or unfolds it), the same action as the toolbar
     // fold-all button. It speaks the chevron language the rows use - the chevron
@@ -665,6 +678,9 @@
     + '<path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/>');
   var TRASH_ICON = lucide('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', 13);
   var CHECK_ICON = lucide('<path d="M20 6 9 17l-5-5"/>', 13);
+  // Lucide link - the "copy short link" action in the file-info card.
+  var LINK_ICON = lucide('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>'
+    + '<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>', 13);
   // Sun / moon for the code-viewer-local light/dark toggle. Same lucide glyphs the
   // main toolbar theme button uses, so the icon reads the same. The button shows
   // the icon for the mode it switches TO: a moon while the viewer is light, a sun
@@ -1323,10 +1339,11 @@
       + '<div class="sdoc-code-focus-center">'
       +   '<button type="button" class="sdoc-code-focus-btn active" data-act="wrap" title="Toggle soft wrap" aria-label="Toggle soft wrap" aria-pressed="true">' + WRAP_ICON + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="foldall" title="Collapse all" aria-label="Collapse all">' + FOLDALL_ICONS + '</button>'
-      +   '<button type="button" class="sdoc-code-focus-btn" data-act="theme" title="Switch code viewer to dark" aria-label="Switch code viewer theme">' + MOON_ICON + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="copy" title="Copy code" aria-label="Copy code">' + COPY_ICON + '</button>'
-      +   '<button type="button" class="sdoc-code-focus-btn" data-act="download" title="Download file" aria-label="Download file">' + DOWNLOAD_ICON + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="comment" title="Comment mode" aria-label="Comment mode" aria-pressed="false">' + COMMENT_ICON + '</button>'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="download" title="Download file" aria-label="Download file">' + DOWNLOAD_ICON + '</button>'
+      +   '<span class="sdoc-code-focus-sep" aria-hidden="true"></span>'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="theme" title="Switch code viewer to dark" aria-label="Switch code viewer theme">' + MOON_ICON + '</button>'
       + '</div>'
       + '<div class="sdoc-code-focus-actions">'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="close" title="Close (Esc)" aria-label="Close">' + X_ICON + '</button>'
@@ -1423,8 +1440,38 @@
     if (relPath && relPath !== fullPath) rows += fiRow('Rel. path', relPath);
     var card = document.createElement('div');
     card.className = 'sdoc-cf-fileinfo';
-    card.innerHTML = '<div class="sdoc-cf-firows">' + rows + '</div>';
+    // A "copy short link" action - the same generator the prose file-info card
+    // uses. A code-file link auto-opens this view, so it's how a developer hands
+    // a readable, commentable code file to someone with nothing installed.
+    var share = (S.shortenCurrentDocument && navigator.clipboard)
+      ? '<div class="sdoc-cf-share">'
+        + '<button type="button" class="sdoc-cf-shorten" title="Create a short link to this code and copy it" aria-label="Copy short link">'
+        +   LINK_ICON + '<span class="sdoc-cf-shorten-label">Copy short link</span></button>'
+        + '<span class="sdoc-cf-shorten-hint">Opens straight into this view.</span>'
+        + '</div>'
+      : '';
+    card.innerHTML = '<div class="sdoc-cf-firows">' + rows + '</div>' + share;
     return card;
+  }
+
+  // Mint a short link for the current document and copy it. Each click makes a
+  // fresh link for the current state (so adding a note then sharing is always
+  // current); no persistent URL row to go stale.
+  function shortenAndCopy(btn) {
+    if (!S.shortenCurrentDocument || !navigator.clipboard || btn.dataset.busy) return;
+    btn.dataset.busy = '1';
+    var label = btn.querySelector('.sdoc-cf-shorten-label');
+    var prev = label ? label.textContent : '';
+    if (label) label.textContent = 'Creating…';
+    S.shortenCurrentDocument().then(function (res) {
+      return navigator.clipboard.writeText(res.url);
+    }).then(function () {
+      if (label) label.textContent = 'Copied link';
+      setTimeout(function () { if (label) label.textContent = prev; delete btn.dataset.busy; }, 1500);
+    }).catch(function (err) {
+      if (label) label.textContent = (S.shortenErrorMessage ? S.shortenErrorMessage(err && err.message) : 'Could not create link');
+      setTimeout(function () { if (label) label.textContent = prev; delete btn.dataset.busy; }, 2400);
+    });
   }
   // A standalone "> Summary view" disclosure above the listing. Same action as
   // the toolbar fold-all button (toggleAll), in the chevron language the rows
@@ -1451,6 +1498,8 @@
       + '</div>';
   }
   function onFileInfoClick(e) {
+    var sh = e.target.closest('.sdoc-cf-shorten');
+    if (sh) { e.stopPropagation(); shortenAndCopy(sh); return; }
     var row = e.target.closest('.sdoc-cf-firow');
     if (!row) return;
     var val = row.querySelector('.sdoc-cf-fival');
