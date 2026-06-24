@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => window.SDocs && window.SDocs.codeFocus && window.SDocComments);
 });
 
-test('a prose inline comment on code shows in the viewer (read-only)', async ({ page }) => {
+test('a prose inline comment on code shows in the viewer, identical and editable', async ({ page }) => {
   await page.evaluate((body) => {
     var S = window.SDocs, SDC = window.SDocComments;
     S.currentBody = body;
@@ -29,13 +29,18 @@ test('a prose inline comment on code shows in the viewer (read-only)', async ({ 
     S.codeFocus.open(document.querySelector('#_sd_rendered pre'), { comment: true });
   }, DOC);
   await expect(page.locator('.sdoc-code-focus')).toBeVisible();
-  // the prose comment appears as a foreign (read-only) inline pill with its text...
-  await expect(page.locator('.sdoc-code-focus .sdoc-cc-pill.sdoc-cc-foreign .sdoc-cc-pill-body'))
+  // the prose comment appears as an inline pill with its text...
+  await expect(page.locator('.sdoc-code-focus .sdoc-cc-pill .sdoc-cc-pill-body'))
     .toHaveText('rename run');
   // ...a precise mark over the quoted phrase...
   await expect(page.locator('.sdoc-code-focus .sdoc-cc-token-mark')).toHaveText('def run');
-  // ...and no delete affordance (it is edited back in the reader).
-  await expect(page.locator('.sdoc-cc-pill.sdoc-cc-foreign [data-cc="delete"]')).toHaveCount(0);
+  // ...and it is editable here too (has a delete), same as in the reader.
+  await expect(page.locator('.sdoc-cc-pill [data-cc="delete"]')).toHaveCount(1);
+  // deleting it in the viewer removes it from the document (routes to the prose store)
+  await page.locator('.sdoc-cc-pill [data-cc="delete"]').click();
+  await expect(page.locator('.sdoc-code-focus .sdoc-cc-pill')).toHaveCount(0);
+  const left = await page.evaluate(() => (window.SDocs.currentMeta.comments || []).length);
+  expect(left).toBe(0);
 });
 
 test('a code comment shows in the reader (read-only) in comment mode', async ({ page }) => {
