@@ -529,7 +529,7 @@
     // comments shown here for parity).
     '.sdoc-cc-pill {',
     '  display: inline-block; vertical-align: middle; white-space: normal;',
-    '  margin: 0 2px 0 6px; padding: 0 6px; border-radius: 10px;',
+    '  margin: 0 2px 0 12px; padding: 0 7px; border-radius: 10px;',
     '  font-size: 0.82em; line-height: 1.6; max-width: 44ch; cursor: pointer;',
     '  background: color-mix(in oklab, var(--sdoc-cc-color, var(--sdoc-cc-accent, #ffbb00)) 22%, var(--sdoc-focus-bg, #f4f1ed));',
     '  border: 1px solid color-mix(in oklab, var(--sdoc-cc-color, var(--sdoc-cc-accent, #ffbb00)) 50%, transparent);',
@@ -1677,8 +1677,13 @@
       // the sink: a stored colour rides in from a shared doc into a CSS var.
       var rawLineColor = (list[0] && list[0].color) || readCommentPrefs().color;
       var lineColor = CC ? CC.sanitizeColor(rawLineColor) : rawLineColor;
-      row.classList.add('sdoc-cc-has-comment');
-      row.style.setProperty('--sdoc-cc-marker', lineColor);
+      // Whole-line wash for line/method comments. A token comment marks only its
+      // phrase (precise, like prose), so it skips the wash unless a line/method
+      // note also sits on the row.
+      if (list.some(function (c) { return c.kind === 'line' || c.kind === 'method'; })) {
+        row.classList.add('sdoc-cc-has-comment');
+        row.style.setProperty('--sdoc-cc-marker', lineColor);
+      }
       // A method comment paints a persistent stripe down the whole method in its
       // own colour, so its reach is visible the way a markdown block comment's is.
       var methodC = list.filter(function (c) { return c.kind === 'method'; })[0];
@@ -1692,10 +1697,11 @@
       var anchor = row;
       list.forEach(function (c) {
         if (c.kind === 'token' && c.quote) {
-          // Token comment: a precise mark over the phrase plus an inline pill
-          // right after it, the same shape the reader uses next to a word.
+          // Token comment: a precise mark over the exact phrase, plus a pill at
+          // the END of the line (not mid-line - a pill spliced into preformatted
+          // code would break the line and split a word).
           var mark = markQuoteInRow(row, c.quote, (CC ? CC.sanitizeColor(c.color) : c.color) || lineColor, c.id);
-          if (mark) { mark.insertAdjacentElement('afterend', buildPill(c, false)); return; }
+          if (mark) { placeLinePill(row, buildPill(c, false)); return; }
         }
         // Line / method (or a token whose phrase wasn't found): card below.
         var thread = buildCard(c, ln);
@@ -1717,10 +1723,11 @@
         if (pln < 0) continue;
         var prow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + pln + '"]');
         if (!prow) continue;
-        prow.classList.add('sdoc-cc-has-comment');
-        // Read-only inline pill next to the phrase, matching the token shape.
+        // Precise mark + read-only pill at the line end (no whole-line wash).
         var pmark = markQuoteInRow(prow, pc.quote, (CC ? CC.sanitizeColor(pc.color) : pc.color), pc.id);
-        if (pmark) { pmark.insertAdjacentElement('afterend', buildPill(pc, true)); continue; }
+        if (pmark) { placeLinePill(prow, buildPill(pc, true)); continue; }
+        // Fallback (phrase not found): a read-only card below, with the wash.
+        prow.classList.add('sdoc-cc-has-comment');
         var pcard = buildCard(pc, pln, true);
         var pafter = prow, pnext = prow.nextElementSibling;
         while (pnext && pnext.classList.contains('sdoc-cc-thread')) { pafter = pnext; pnext = pnext.nextElementSibling; }
@@ -2047,6 +2054,13 @@
       pill.appendChild(del);
     }
     return pill;
+  }
+
+  // Put a pill at the end of a row's code (after the code text), so it shares the
+  // line without splicing into the middle of preformatted code.
+  function placeLinePill(row, pill) {
+    var codeEl = row && row.querySelector('.sdoc-cl-code');
+    if (codeEl) codeEl.appendChild(pill);
   }
 
   // First source line (0-based) that contains the phrase, or -1. Used to place a
