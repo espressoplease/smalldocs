@@ -29,13 +29,13 @@ test('a prose inline comment on code shows in the viewer (read-only)', async ({ 
     S.codeFocus.open(document.querySelector('#_sd_rendered pre'), { comment: true });
   }, DOC);
   await expect(page.locator('.sdoc-code-focus')).toBeVisible();
-  // the prose comment appears as a foreign (read-only) card with its text...
-  await expect(page.locator('.sdoc-code-focus .sdoc-cc-thread.sdoc-cc-foreign .sdoc-cc-card-body'))
+  // the prose comment appears as a foreign (read-only) inline pill with its text...
+  await expect(page.locator('.sdoc-code-focus .sdoc-cc-pill.sdoc-cc-foreign .sdoc-cc-pill-body'))
     .toHaveText('rename run');
   // ...a precise mark over the quoted phrase...
   await expect(page.locator('.sdoc-code-focus .sdoc-cc-token-mark')).toHaveText('def run');
   // ...and no delete affordance (it is edited back in the reader).
-  await expect(page.locator('.sdoc-cc-thread.sdoc-cc-foreign [data-cc="delete"]')).toHaveCount(0);
+  await expect(page.locator('.sdoc-cc-pill.sdoc-cc-foreign [data-cc="delete"]')).toHaveCount(0);
 });
 
 test('a code comment shows in the reader (read-only) in comment mode', async ({ page }) => {
