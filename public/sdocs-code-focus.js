@@ -505,6 +505,22 @@
     '  background: color-mix(in oklab, var(--sdoc-cc-marker, var(--sdoc-cc-accent, #ffbb00)) 18%, transparent);',
     '  border-radius: 2px;',
     '}',
+    // A token comment paints a precise mark over its quoted phrase within the
+    // line: a stronger wash than the whole-line tint, so the exact phrase reads.
+    '.sdoc-cc-token-mark {',
+    '  background: color-mix(in oklab, var(--sdoc-cc-color, var(--sdoc-cc-accent, #ffbb00)) 36%, transparent);',
+    '  border-radius: 2px;',
+    '  box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--sdoc-cc-color, #ffbb00) 70%, transparent);',
+    '}',
+    // Floating "comment on selection" button shown after a drag-select in code.
+    '.sdoc-cc-selbtn {',
+    '  display: none; align-items: center; justify-content: center;',
+    '  width: 26px; height: 26px; padding: 0; cursor: pointer; z-index: 10200;',
+    '  background: var(--sdoc-focus-bg, #f4f1ed); color: var(--sdoc-cc-accent, #ffbb00);',
+    '  border: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 22%, transparent);',
+    '  border-radius: 6px; box-shadow: 0 2px 8px color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 24%, transparent);',
+    '}',
+    '.sdoc-cc-selbtn svg { display: block; width: 15px; height: 15px; }',
     // Method highlight while hovering / composing / navigating a method comment,
     // tinted in the accent so the preview matches the colour the note will take.
     '.sdoc-cl-row.sdoc-cc-mhl {',
@@ -1316,6 +1332,8 @@
     linesEl.addEventListener('click', onCommentClick);
     linesEl.addEventListener('mouseover', onLinesHover);
     linesEl.addEventListener('keydown', onComposerKey);
+    linesEl.addEventListener('mousedown', hideSelPopover);
+    linesEl.addEventListener('mouseup', onLineSelect);
     methodTab = document.createElement('button');
     methodTab.type = 'button';
     methodTab.className = 'sdoc-cc-madd';
@@ -1433,6 +1451,7 @@
     if (!modal) return;
     if (keyHandler) window.removeEventListener('keydown', keyHandler);
     keyHandler = null;
+    hideSelPopover();
     modal.remove();
     modal = null; docEl = null; linesEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
     srcLines = null; structuralRe = null; openToken = null;
@@ -1597,6 +1616,7 @@
       marked[j].classList.remove('sdoc-cc-has-comment', 'sdoc-cc-method-marked');
       marked[j].style.removeProperty('--sdoc-cc-marker');
     }
+    unwrapTokenMarks();
     if (!commenting) { updateCommentChrome(); return; }
 
     var byLine = commentsByLine();
@@ -1627,6 +1647,11 @@
         var thread = buildCard(c, ln);
         anchor.insertAdjacentElement('afterend', thread);
         anchor = thread;
+        // A token comment also paints a precise mark over its quoted phrase
+        // within the line, so the reader sees exactly which token it is about.
+        if (c.kind === 'token' && c.quote) {
+          markQuoteInRow(row, c.quote, (CC ? CC.sanitizeColor(c.color) : c.color) || lineColor, c.id);
+        }
       });
     });
 
@@ -1848,13 +1873,131 @@
     } else {
       var prefs = readCommentPrefs();
       var res = CC.addComment(readAll(), {
-        kind: spec.kind, block: blockId, line: spec.line, endLine: spec.endLine, anchorText: spec.anchorText
+        kind: spec.kind, block: blockId, line: spec.line, endLine: spec.endLine, quote: spec.quote, anchorText: spec.anchorText
       }, { text: text, author: prefs.author, color: prefs.color });
       persistAll(res.list);
       navId = res.id;
     }
     clearMethodHighlight();
     renderThreads();
+  }
+
+  // ── Token (text-selection) comments ─────────────────────────────────────────
+  // Select a phrase inside a line and comment on it. The phrase is stored as the
+  // comment's `quote`; rendering paints a precise mark over it and the card sits
+  // under the line like a line comment. Reuses the line composer + card path.
+
+  var selPopover = null;     // floating "comment on selection" button
+  var pendingSel = null;     // { line, quote } captured when the popover shows
+
+  // Unwrap any token marks so renderThreads can re-apply them idempotently.
+  function unwrapTokenMarks() {
+    if (!linesEl) return;
+    var marks = linesEl.querySelectorAll('.sdoc-cc-token-mark');
+    for (var i = 0; i < marks.length; i++) {
+      var m = marks[i], par = m.parentNode;
+      if (!par) continue;
+      while (m.firstChild) par.insertBefore(m.firstChild, m);
+      par.removeChild(m);
+      par.normalize();
+    }
+  }
+
+  // Wrap the first occurrence of `quote` within a row's code in a mark span. The
+  // code may be syntax-highlighted (the quote can span several token spans), so
+  // wrap a DOM Range, falling back to extract+insert when surroundContents
+  // refuses a boundary-crossing range.
+  function markQuoteInRow(row, quote, color, cid) {
+    var codeEl = row && row.querySelector('.sdoc-cl-code');
+    if (!codeEl || !quote) return;
+    var full = codeEl.textContent || '';
+    var at = full.indexOf(quote);
+    if (at < 0) return;
+    var lo = at, hi = at + quote.length;
+    var walker = document.createTreeWalker(codeEl, NodeFilter.SHOW_TEXT, null);
+    var acc = 0, sN = null, sO = 0, eN = null, eO = 0, node;
+    while ((node = walker.nextNode())) {
+      var len = node.nodeValue.length;
+      if (sN === null && acc + len > lo) { sN = node; sO = lo - acc; }
+      if (acc + len >= hi) { eN = node; eO = hi - acc; break; }
+      acc += len;
+    }
+    if (sN === null || eN === null) return;
+    var span = document.createElement('span');
+    span.className = 'sdoc-cc-token-mark';
+    if (color) span.style.setProperty('--sdoc-cc-color', color);
+    if (cid) span.setAttribute('data-c', cid);
+    var range = document.createRange();
+    try {
+      range.setStart(sN, sO); range.setEnd(eN, eO);
+      range.surroundContents(span);
+    } catch (_) {
+      try {
+        range.setStart(sN, sO); range.setEnd(eN, eO);
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
+      } catch (__) { /* give up: no mark; the card still names the quote */ }
+    }
+  }
+
+  // The .sdoc-cl-code ancestor of a node, or null.
+  function nodeCode(node) {
+    var el = node && (node.nodeType === 1 ? node : node.parentNode);
+    return el && el.closest ? el.closest('.sdoc-cl-code') : null;
+  }
+
+  function ensureSelPopover() {
+    if (selPopover) return selPopover;
+    selPopover = document.createElement('button');
+    selPopover.type = 'button';
+    selPopover.className = 'sdoc-cc-selbtn';
+    selPopover.setAttribute('aria-label', 'Comment on selection');
+    selPopover.setAttribute('title', 'Comment on selection');
+    selPopover.innerHTML = COMMENT_ICON;
+    selPopover.style.display = 'none';
+    selPopover.addEventListener('mousedown', function (e) { e.preventDefault(); }); // keep the selection alive
+    selPopover.addEventListener('click', onSelComment);
+    return selPopover;
+  }
+
+  function hideSelPopover() {
+    if (selPopover) selPopover.style.display = 'none';
+    pendingSel = null;
+  }
+
+  // After a drag-select inside one line's code, offer a "comment on selection"
+  // button. Single-line selections only (the common "comment on this token" case).
+  function onLineSelect() {
+    if (!commenting) return;
+    var sel = window.getSelection && window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) { hideSelPopover(); return; }
+    var range = sel.getRangeAt(0);
+    var startCode = nodeCode(range.startContainer);
+    var endCode = nodeCode(range.endContainer);
+    if (!startCode || startCode !== endCode) { hideSelPopover(); return; }
+    var row = startCode.closest('.sdoc-cl-row');
+    if (!row || !linesEl.contains(row)) { hideSelPopover(); return; }
+    var quote = sel.toString();
+    if (!quote.trim()) { hideSelPopover(); return; }
+    var ln = parseInt(row.getAttribute('data-ln'), 10);
+    if (isNaN(ln)) { hideSelPopover(); return; }
+    pendingSel = { line: ln, quote: quote };
+    var rect = range.getBoundingClientRect();
+    var btn = ensureSelPopover();
+    if (modal && btn.parentNode !== modal) modal.appendChild(btn); // theme vars resolve from the modal
+    btn.style.display = 'flex';
+    btn.style.position = 'fixed';
+    btn.style.left = Math.round(rect.right + 6) + 'px';
+    btn.style.top = Math.round(rect.top - 4) + 'px';
+  }
+
+  function onSelComment() {
+    if (!pendingSel) return;
+    var spec = { kind: 'token', line: pendingSel.line, quote: pendingSel.quote, anchorText: trimmed(pendingSel.line) };
+    hideSelPopover();
+    var sel = window.getSelection && window.getSelection();
+    if (sel) sel.removeAllRanges();
+    openComposer(spec);
   }
 
   // Highlight a method's whole line range (header..end) while it is being
@@ -1996,7 +2139,7 @@
     if (modal) modal.classList.toggle('sdoc-cc-on', on);
     var btn = modal && modal.querySelector('[data-act="comment"]');
     if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }
-    if (!on) { cancelComposer(); clearMethodHighlight(); hideMethodTab(); }
+    if (!on) { cancelComposer(); clearMethodHighlight(); hideMethodTab(); hideSelPopover(); }
     renderThreads();
   }
 

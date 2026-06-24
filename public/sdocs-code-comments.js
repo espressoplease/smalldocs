@@ -89,9 +89,13 @@
   // bar as freshly created comments.
   function normalize(c) {
     if (!c || !isValidId(c.id)) return null;
-    var kind = c.kind === 'method' ? 'method' : 'line';
     var line = toInt(c.line, -1);
     if (line < 0) return null;
+    var kind = c.kind === 'method' ? 'method' : (c.kind === 'token' ? 'token' : 'line');
+    // A token comment anchors to a selected phrase WITHIN a line, so it needs a
+    // quote. Without one it can't be placed, so it degrades to a line comment.
+    var quote = (kind === 'token' && typeof c.quote === 'string') ? sanitizeText(c.quote) : '';
+    if (kind === 'token' && !quote.trim()) kind = 'line';
     var out = {
       id: c.id,
       kind: kind,
@@ -107,6 +111,7 @@
       var end = toInt(c.endLine, line);
       out.endLine = end < line ? line : end;
     }
+    if (kind === 'token') out.quote = quote;
     if (c.resolved === true || c.resolved === 'true') out.resolved = true;
     return out;
   }
@@ -125,6 +130,7 @@
       block: anchor.block,
       line: anchor.line,
       endLine: anchor.endLine,
+      quote: anchor.quote,
       anchorText: anchor.anchorText,
       author: (note || {}).author,
       color: (note || {}).color,
