@@ -2819,6 +2819,18 @@ OPENING A SOURCE FILE
   .ts -> typescript, and so on). Markdown and plain text open as documents,
   not as code.
 
+ANNOTATIONS (walk someone through the code)
+  Pin a markdown explanation to a line as you open the file:
+
+    sdoc app.py 22:"this method is where the bug is"
+    sdoc app.py 25-28:"the equality check compares the **wrong** value"
+
+  Each note renders as a callout below its line (a range stripes the lines it
+  covers), with markdown inside - bold, inline code, links. They ride in the
+  link and through \`sdoc share\`, and never touch the source file. This is for
+  an agent explaining code to the reader; the in-browser comment mode
+  (--comment) is the reverse - the reader's own review notes.
+
 COMMENTS
   Comments are deliberately prominent - italic, full-contrast colour, a faint
   tint - rather than the usual muted grey, so the human explanation in a

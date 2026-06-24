@@ -547,7 +547,7 @@ function render() {
   });
   var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
   if (oldSpacer) oldSpacer.remove();
-  S.renderedEl.innerHTML = DOMPurify.sanitize(marked.parse(S.currentBody), { FORBID_ATTR: ['style'] });
+  S.renderedEl.innerHTML = S.renderMarkdownSafe(S.currentBody);
 
   wrapTables(S.renderedEl);
   attachHeadingAnchors(S.renderedEl);
@@ -1632,6 +1632,16 @@ if (!_defaultMdPath || _defaultMdPath.charAt(0) !== '/') _defaultMdPath = '/publ
 var _defaultReady = fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
 
 // ── Register on SDocs for cross-module access ──────────
+
+// One place that turns untrusted markdown into sanitised HTML, so every caller
+// uses the same DOMPurify config. The render orchestrator and the code-focus
+// annotation cards both go through here.
+S.renderMarkdownSafe = function (text) {
+  try {
+    return DOMPurify.sanitize(marked.parse(String(text == null ? '' : text)),
+      { FORBID_ATTR: ['style'] });
+  } catch (e) { return ''; }
+};
 
 function startNewDocument() {
   S.resetAllStyles();

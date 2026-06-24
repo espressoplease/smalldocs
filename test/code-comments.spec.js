@@ -6,9 +6,11 @@ const { test, expect } = require('@playwright/test');
  * view (sdocs-code-focus.js + sdocs-code-comments.js).
  *
  * A reader annotates an open source file. Notes anchor to a source line or a
- * whole method and persist in localStorage keyed by the file. These tests drive
- * the overlay the way a user would (hover a line, click +, type, save) and
- * assert on the resulting DOM and on persistence across a close / reopen.
+ * whole method and live in the document's front matter (currentMeta.codeComments),
+ * exactly like prose comments - so they travel with a short link / share / export.
+ * These tests drive the overlay the way a user would (hover a line, click +,
+ * type, save) and assert on the resulting DOM, the document, and persistence
+ * across a close / reopen.
  *
  * The overlay is opened directly via SDocs.codeFocus.open(pre) rather than
  * through the auto-open-on-load path, so each test controls its own source.
@@ -31,14 +33,9 @@ const RUBY = [
   'end',
 ].join('\n');
 
-// Open a fresh overlay over a fenced code block. Clears any persisted notes for
-// a clean slate (storage is keyed by content hash, so reruns would otherwise
-// accumulate).
+// Open a fresh overlay over a fenced code block. Notes live in the document, so
+// resetting currentMeta to {} (below) is the clean slate for each run.
 async function openCode(page, lang, code) {
-  await page.evaluate(() => {
-    try { Object.keys(localStorage).filter(function (k) { return k.indexOf('sdocs:codeComments') === 0; })
-      .forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
-  });
   await page.evaluate(({ lang, code }) => {
     window.SDocs.currentBody = '```' + lang + '\n' + code + '\n```\n';
     window.SDocs.currentMeta = {};
@@ -350,20 +347,63 @@ test('the summary-view toggle folds the whole file and stays in sync with the to
 
 test('a note whose anchor line is gone is parked in the orphan list', async ({ page }) => {
   await openCode(page, 'ruby', RUBY);
-  // Seed storage with a note whose anchorText is absent from the source, under
-  // the same content-hash key the overlay derives, then reopen so it loads.
+  // Seed the document with a note (tagged to this block, pre:0) whose anchorText
+  // is absent from the source, then reopen so it loads from the front matter.
   await page.evaluate(() => {
     var CC = window.SDocsCodeComments;
-    var raw = document.querySelector('#_sd_rendered pre code').textContent;
-    var h = 5381;
-    for (var i = 0; i < raw.length; i++) h = ((h << 5) + h + raw.charCodeAt(i)) | 0;
-    var key = 'sdocs:codeComments:hash:' + (h >>> 0).toString(36);
-    var list = CC.addComment([], { kind: 'line', line: 1, anchorText: 'NOPE NOT HERE' }, { text: 'orphaned' }).list;
-    localStorage.setItem(key, CC.serialize(list));
+    var list = CC.addComment([], { kind: 'line', line: 1, anchorText: 'NOPE NOT HERE', block: 'pre:0' }, { text: 'orphaned' }).list;
+    window.SDocs.currentMeta = Object.assign({}, window.SDocs.currentMeta, { codeComments: list });
     window.SDocs.codeFocus.close();
     window.SDocs.codeFocus.open(document.querySelector('#_sd_rendered pre'));
   });
   await page.locator('.sdoc-code-focus [data-act="comment"]').click();
   await expect(page.locator('.sdoc-cc-orphans')).toHaveCount(1);
   await expect(page.locator('.sdoc-cc-orphans .sdoc-cc-card-body')).toHaveText('orphaned');
+});
+
+test('a code note is written into the document front matter so it travels with the doc', async ({ page }) => {
+  await openCode(page, 'ruby', RUBY);
+  await enterCommentMode(page);
+  await addNote(page, 1, 'rides along');
+  const notes = await page.evaluate(() => window.SDocs.currentMeta.codeComments);
+  expect(Array.isArray(notes)).toBe(true);
+  expect(notes.length).toBe(1);
+  expect(notes[0].text).toBe('rides along');
+  expect(notes[0].block).toBe('pre:0');
+});
+
+test('notes stay attached to their own code block in a multi-block document', async ({ page }) => {
+  // Two separate code blocks in one document (keyword-bearing so the syntax
+  // highlight settles quickly between opens).
+  await page.evaluate(() => {
+    window.SDocs.currentBody =
+      '```ruby\ndef first\n  return 1\nend\n```\n\n' +
+      '```ruby\ndef second\n  return 2\nend\n```\n';
+    window.SDocs.currentMeta = {};
+    window.SDocs.render();
+  });
+  await expect(page.locator('#_sd_rendered pre')).toHaveCount(2);
+  // Comment on the FIRST block.
+  await page.evaluate(() => window.SDocs.codeFocus.open(document.querySelectorAll('#_sd_rendered pre')[0]));
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  await settleHighlight(page);
+  await enterCommentMode(page);
+  await addNote(page, 0, 'note on block one');
+  await page.evaluate(() => window.SDocs.codeFocus.close());
+  // Open the SECOND block: it carries no notes of its own.
+  await page.evaluate(() => window.SDocs.codeFocus.open(document.querySelectorAll('#_sd_rendered pre')[1]));
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  await settleHighlight(page);
+  await page.locator('.sdoc-code-focus [data-act="comment"]').click();
+  await expect(page.locator('.sdoc-cc-thread')).toHaveCount(0);
+  // Reopen the FIRST block: its note is still there.
+  await page.evaluate(() => window.SDocs.codeFocus.close());
+  await page.evaluate(() => window.SDocs.codeFocus.open(document.querySelectorAll('#_sd_rendered pre')[0]));
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  await settleHighlight(page);
+  await page.locator('.sdoc-code-focus [data-act="comment"]').click();
+  await expect(page.locator('.sdoc-cc-thread[data-ln="0"] .sdoc-cc-card-body')).toHaveText('note on block one');
+  // The document records the note under the first block.
+  const blocks = await page.evaluate(() => (window.SDocs.currentMeta.codeComments || []).map(function (c) { return c.block; }));
+  expect(blocks).toContain('pre:0');
 });

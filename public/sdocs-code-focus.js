@@ -72,6 +72,13 @@
     // Defaults to the same amber as the markdown reader, overridden inline from
     // the reader\'s saved colour pref so the whole comment language is one colour.
     '  --sdoc-cc-accent: #ffbb00;',
+    // Agent-annotation palette. Defined on the focus root (not the doc) so a value
+    // set inline here by the local light/dark toggle overrides the html[data-theme]
+    // dark rule below: descendants inherit from the modal, and inline-on-modal wins.
+    '  --sdoc-ann-accent: #7c84d8;',
+    '  --sdoc-ann-card-bg: #fff;',
+    '  --sdoc-ann-card-shadow: 0 1px 2px color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 12%, transparent);',
+    '  --sdoc-ann-wash: color-mix(in oklab, var(--sdoc-ann-accent, #7c84d8) 15%, transparent);',
     '  display: grid; grid-template-rows: 40px auto 1fr;',
     '  font-family: ui-sans-serif, system-ui, sans-serif;',
     '  animation: sdoc-code-fade .15s ease-out;',
@@ -252,6 +259,15 @@
     // margin; tying it to --sdoc-ln-w keeps the balance exact when a long file
     // widens the number cell to 3ch / 4ch.
     '  --sdoc-cf-gutter-w: calc(35px + var(--sdoc-ln-w));',
+    '}',
+    // Dark mode: a lighter periwinkle plus a quiet grey card, so the card and the
+    // line wash read clearly against the dark code surface. Set on the focus root
+    // (not the doc) so the local light/dark toggle's inline values override these.
+    'html[data-theme="dark"] .sdoc-code-focus {',
+    '  --sdoc-ann-accent: #9aa3ea;',
+    '  --sdoc-ann-card-bg: color-mix(in oklab, #fff 12%, var(--sdoc-focus-bg, #1a1816));',
+    '  --sdoc-ann-card-shadow: none;',
+    '  --sdoc-ann-wash: color-mix(in oklab, #9aa3ea 26%, transparent);',
     '}',
     '.sdoc-code-focus-doc.wrapped { max-width: 660px; }',
     '.sdoc-code-focus-doc:not(.wrapped) { max-width: none; padding-left: 22px; padding-right: 22px; }',
@@ -501,6 +517,45 @@
     '  padding-left: calc(var(--sdoc-ln-w) + 40px);',
     '}',
     '.sdoc-code-focus.sdoc-cc-on .sdoc-cc-thread { padding-left: calc(var(--sdoc-ln-w) + 60px); }',
+    // Agent annotation: an always-on, read-only explanation card below its line.
+    // Uses the app card pattern (.sdoc-card / .sdoc-cc-card): a tinted fill with a
+    // full border, not a left bar - so it reads as part of SmallDocs. The indigo
+    // tint plus the matching line wash distinguish it from a user comment (yellow)
+    // or a source comment (green), and the tint is strong enough to stand out on a
+    // dark code surface. Renders markdown inside.
+    '.sdoc-ann-row { display: block; }',
+    '.sdoc-ann-card {',
+    '  margin: 5px 24px 9px calc(var(--sdoc-ln-w) + 60px); max-width: 70ch;',
+    '  padding: 8px 12px; border-radius: 5px;',
+    '  background: var(--sdoc-ann-card-bg, #fff);',
+    '  box-shadow: var(--sdoc-ann-card-shadow, 0 1px 2px color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 12%, transparent));',
+    '  color: var(--sdoc-focus-fg, #1c1917);',
+    '  font-family: ui-sans-serif, system-ui, sans-serif; font-size: 13px; line-height: 1.5;',
+    '}',
+    '.sdoc-ann-card > :first-child { margin-top: 0; }',
+    '.sdoc-ann-card > :last-child { margin-bottom: 0; }',
+    '.sdoc-ann-card p { margin: 0 0 6px; }',
+    '.sdoc-ann-card ul, .sdoc-ann-card ol { margin: 0 0 6px; padding-left: 20px; }',
+    '.sdoc-ann-card a { color: var(--sdoc-ann-accent, #6366f1); }',
+    '.sdoc-ann-card code {',
+    '  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em;',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 10%, transparent);',
+    '  padding: 1px 4px; border-radius: 3px;',
+    '}',
+    '.sdoc-ann-card pre {',
+    '  margin: 4px 0 6px; overflow-x: auto; padding: 8px 10px; border-radius: 4px;',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 12%, transparent);',
+    '  font-size: 12px; line-height: 1.45;',
+    '}',
+    '.sdoc-ann-card pre code { background: none; padding: 0; }',
+    // Wash every line an annotation covers in the accent, the code-review cue for
+    // "this is what the note is about" (mirrors the comment line tint at line 488,
+    // and GitHub / GitLab range highlighting). A single line shows one tinted row;
+    // a range shows a contiguous tinted block, so line-vs-range is obvious.
+    '.sdoc-cl-row.sdoc-ann-marked .sdoc-cl-code {',
+    '  background: var(--sdoc-ann-wash, color-mix(in oklab, var(--sdoc-ann-accent, #7c84d8) 15%, transparent));',
+    '  border-radius: 2px;',
+    '}',
     // Comment card: mirrors the markdown comment card (.sdoc-card) - a tinted box
     // in the per-comment colour with the author and body inline, action icons in
     // the top-right corner. Tint = colour 22% over the surface, border = 50%.
@@ -592,6 +647,14 @@
     + '<path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/>');
   var TRASH_ICON = lucide('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', 13);
   var CHECK_ICON = lucide('<path d="M20 6 9 17l-5-5"/>', 13);
+  // Sun / moon for the code-viewer-local light/dark toggle. Same lucide glyphs the
+  // main toolbar theme button uses, so the icon reads the same. The button shows
+  // the icon for the mode it switches TO: a moon while the viewer is light, a sun
+  // while it is dark (mirrors the markdown reader's theme button convention).
+  var SUN_ICON = lucide('<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/>'
+    + '<path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/>'
+    + '<path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>', 14);
+  var MOON_ICON = lucide('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>', 14);
   // The comment composer's save / cancel reuse the markdown composer's exact
   // tick and cross (sdocs-comments-ui.js TICK_SVG / X_SVG): a heavier 2.5 stroke,
   // so the two composers read identically rather than the code one looking
@@ -659,6 +722,7 @@
   var srcLines = null;    // raw source lines, for structural-keyword matching
   var structuralRe = null; // array of RegExp for the current language, or null
   var openToken = null;   // identity of the current open(); guards async races
+  var focusTheme = null;  // 'light' | 'dark' for the viewer-local theme toggle
 
   // Whether code files open collapsed-to-outline or fully expanded. Set by the
   // toolbar's fold-all button and remembered across files (and reloads), kept
@@ -671,18 +735,94 @@
     try { localStorage.setItem(FOLD_PREF_KEY, on ? '1' : '0'); } catch (_) {}
   }
 
+  // ── Viewer-local light/dark ─────────────────────────────────────────────────
+  // The fullscreen code viewer can be flipped light/dark on its own, without
+  // touching the document's theme. Every surface in here derives from a handful
+  // of CSS variables on the modal, so a flip is just: write a whole palette inline
+  // on the modal element. Inline-on-modal beats both the light defaults and the
+  // html[data-theme="dark"] rule, and descendants inherit it. The canonical values
+  // mirror the document light/dark themes (rendered.css + tokens.css) so the
+  // viewer matches what each mode looks like elsewhere. The choice is remembered
+  // across files like the fold preference; with no saved choice the viewer follows
+  // the document theme (the colours captured at open in open()).
+  var FOCUS_THEME_KEY = 'sdocs:codeFocusTheme';
+  var FOCUS_PALETTES = {
+    light: {
+      '--sdoc-focus-bg': '#f4f1ed', '--sdoc-focus-fg': '#1c1917', '--md-code-color': '#6b21a8',
+      '--hl-keyword': '#7c3aed', '--hl-string': '#b45309', '--hl-number': '#be185d',
+      '--hl-function': '#2563eb', '--hl-type': '#0e7490', '--hl-meta': '#6d28d9',
+      '--hl-attr': '#0369a1', '--hl-tag': '#9333ea', '--hl-muted': '#8a857d',
+      '--hl-comment': '#0f766e', '--hl-comment-bg': 'rgba(15,118,110,0.07)',
+      '--sdoc-ann-accent': '#7c84d8', '--sdoc-ann-card-bg': '#fff',
+      '--sdoc-ann-card-shadow': '0 1px 2px color-mix(in oklab, #1c1917 12%, transparent)',
+      '--sdoc-ann-wash': 'color-mix(in oklab, #7c84d8 15%, transparent)'
+    },
+    dark: {
+      '--sdoc-focus-bg': '#1a1816', '--sdoc-focus-fg': '#e7e5e2', '--md-code-color': '#b8a99a',
+      '--hl-keyword': '#c4b5fd', '--hl-string': '#fcd34d', '--hl-number': '#f9a8d4',
+      '--hl-function': '#93c5fd', '--hl-type': '#67e8f9', '--hl-meta': '#a5b4fc',
+      '--hl-attr': '#7dd3fc', '--hl-tag': '#d8b4fe', '--hl-muted': '#9b948b',
+      '--hl-comment': '#5eead4', '--hl-comment-bg': 'rgba(94,234,212,0.10)',
+      '--sdoc-ann-accent': '#9aa3ea',
+      '--sdoc-ann-card-bg': 'color-mix(in oklab, #fff 12%, #1a1816)',
+      '--sdoc-ann-card-shadow': 'none',
+      '--sdoc-ann-wash': 'color-mix(in oklab, #9aa3ea 26%, transparent)'
+    }
+  };
+  function docTheme() {
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  }
+  function prefFocusTheme() {
+    try {
+      var v = localStorage.getItem(FOCUS_THEME_KEY);
+      return (v === 'light' || v === 'dark') ? v : null;
+    } catch (_) { return null; }
+  }
+  // Paint a full palette inline on the modal. persist=true also remembers the choice.
+  function applyFocusTheme(theme, persist) {
+    focusTheme = theme === 'dark' ? 'dark' : 'light';
+    if (modal) {
+      var pal = FOCUS_PALETTES[focusTheme];
+      for (var k in pal) modal.style.setProperty(k, pal[k]);
+    }
+    if (persist) { try { localStorage.setItem(FOCUS_THEME_KEY, focusTheme); } catch (_) {} }
+    updateThemeBtn();
+  }
+  // Show the icon for the mode the button switches TO (moon while light, sun while dark).
+  function updateThemeBtn() {
+    if (!modal) return;
+    var btn = modal.querySelector('[data-act="theme"]');
+    if (!btn) return;
+    var dark = focusTheme === 'dark';
+    btn.innerHTML = dark ? SUN_ICON : MOON_ICON;
+    var label = dark ? 'Switch code viewer to light' : 'Switch code viewer to dark';
+    btn.setAttribute('title', label);
+    btn.setAttribute('aria-label', label);
+  }
+  // Called once per open(): a saved choice that differs from the document theme
+  // paints its palette; otherwise the viewer keeps the colours captured at open
+  // (which already match the document) and we only sync the button glyph.
+  function initFocusTheme() {
+    var stored = prefFocusTheme();
+    if (stored && stored !== docTheme()) { applyFocusTheme(stored, false); return; }
+    focusTheme = stored || docTheme();
+    updateThemeBtn();
+  }
+
   // ── Comments ───────────────────────────────────────────────────────────────
-  // The reader can annotate the open file. Comments anchor to a source line or a
-  // whole method and persist in localStorage keyed by the file - there is no
-  // document round-trip here (an opened code file is not a saved SmallDocs doc),
-  // so they ride alongside it in the browser like the fold preference does. The
-  // pure model lives in sdocs-code-comments.js; this layer owns storage and DOM.
+  // The reader can annotate the open file. Notes anchor to a source line or a
+  // whole method and live in the document's front matter (S.currentMeta.
+  // codeComments), exactly the way prose comments live in S.currentMeta.comments
+  // - so a note travels with a short link, a share, and an export. Each note
+  // carries a `block` tag ("pre:N") so several code blocks in one document keep
+  // their notes apart. The pure model lives in sdocs-code-comments.js; this
+  // layer owns the document round-trip and the DOM.
   var CC = window.SDocsCodeComments;
   var GRAIN_KEY = 'sdocs:codeCommentGrain'; // 'line' | 'method', remembered
-  var comments = [];        // current file's comment list (model objects)
+  var comments = [];        // this block's notes (model objects), refreshed from the doc
   var commenting = false;   // comment mode on/off
   var grain = 'line';       // current granularity
-  var storeKey = null;      // localStorage key for the current file
+  var blockId = '';         // "pre:N" of the open block - the notes' anchor scope
   var navId = null;         // id of the comment the nav cursor last landed on
   var currentLang = '';     // language label, for the copy-with-comments fence
 
@@ -692,29 +832,35 @@
   }
   function saveGrain(g) { try { localStorage.setItem(GRAIN_KEY, g); } catch (_) {} }
 
-  // A stable identity for the open file: its path when opened from disk, else a
-  // short hash of the source so re-opening the same content finds its comments.
-  function hashStr(s) {
-    var h = 5381;
-    for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-    return (h >>> 0).toString(36);
+  // "pre:N" for the open code block: its index among the rendered document's
+  // code blocks. Deterministic for a given document body, so the same note
+  // resolves to the same block on reopen and for anyone the doc is shared with.
+  function blockIdFor(pre) {
+    var root = document.getElementById('_sd_rendered');
+    if (!root || !pre) return 'pre:0';
+    var pres = root.querySelectorAll('pre');
+    for (var i = 0; i < pres.length; i++) if (pres[i] === pre) return 'pre:' + i;
+    return 'pre:0';
   }
-  function fileKey() {
-    var path = S.localMeta && S.localMeta.fullPath;
-    if (path) return 'path:' + path;
-    return 'hash:' + hashStr(rawText || '');
+
+  // Every code note in the document, across all blocks.
+  function readAll() {
+    var a = S.currentMeta && S.currentMeta.codeComments;
+    return Array.isArray(a) ? a.slice() : [];
   }
+  // Load just this block's notes into the working set.
   function loadComments() {
-    storeKey = 'sdocs:codeComments:' + fileKey();
-    try { comments = CC ? CC.parse(localStorage.getItem(storeKey)) : []; }
-    catch (_) { comments = []; }
+    comments = readAll().filter(function (c) { return c && c.block === blockId; });
   }
-  function saveComments() {
-    if (!storeKey || !CC) return;
-    try {
-      if (comments.length) localStorage.setItem(storeKey, CC.serialize(comments));
-      else localStorage.removeItem(storeKey);
-    } catch (_) {}
+  // Write the full code-note list back into the document and re-encode (so the
+  // notes travel like prose comments), then refresh this block's working set.
+  function persistAll(fullList) {
+    var m = Object.assign({}, S.currentMeta || {});
+    if (fullList && fullList.length) m.codeComments = fullList.slice();
+    else delete m.codeComments;
+    S.currentMeta = m;
+    if (S.syncAll) S.syncAll('comment');
+    loadComments();
   }
 
   // Does this line carry a language keyword that should survive the outline?
@@ -1025,6 +1171,7 @@
     linesEl.innerHTML = html;
     refreshFold();
     renderThreads(); // re-attach comment markers + threads after a rebuild
+    renderAnnotations(); // re-attach agent annotation cards after a rebuild
     if (openComp && openComp.spec) {
       openComposer(openComp.spec);
       var ta = linesEl.querySelector('.sdoc-cc-composer .sdoc-cc-input');
@@ -1060,6 +1207,7 @@
     commenting = false;
     grain = prefGrain();
     navId = null;
+    blockId = blockIdFor(sourcePre);
     loadComments();
 
     // Load this language's structural keywords so a collapsed class folds to its
@@ -1111,6 +1259,7 @@
       + '<div class="sdoc-code-focus-center">'
       +   '<button type="button" class="sdoc-code-focus-btn active" data-act="wrap" title="Toggle soft wrap" aria-label="Toggle soft wrap" aria-pressed="true">' + WRAP_ICON + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="foldall" title="Collapse all" aria-label="Collapse all">' + FOLDALL_ICONS + '</button>'
+      +   '<button type="button" class="sdoc-code-focus-btn" data-act="theme" title="Switch code viewer to dark" aria-label="Switch code viewer theme">' + MOON_ICON + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="copy" title="Copy code" aria-label="Copy code">' + COPY_ICON + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="download" title="Download file" aria-label="Download file">' + DOWNLOAD_ICON + '</button>'
       +   '<button type="button" class="sdoc-code-focus-btn" data-act="comment" title="Comment mode" aria-label="Comment mode" aria-pressed="false">' + COMMENT_ICON + '</button>'
@@ -1180,6 +1329,7 @@
     setGrain(grain);          // sync the granularity control to the saved choice
     wireCommentPrefs();       // fill the author/colour inputs and apply the accent
     updateCommentChrome();
+    initFocusTheme();         // apply the viewer-local light/dark choice (or follow doc)
 
     highlightThenRender(srcCode.className || '');
 
@@ -1271,7 +1421,7 @@
     modal.remove();
     modal = null; docEl = null; linesEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
     srcLines = null; structuralRe = null; openToken = null;
-    comments = []; commenting = false; storeKey = null; navId = null; methodTab = null; hoverLn = -1;
+    comments = []; commenting = false; blockId = ''; navId = null; methodTab = null; hoverLn = -1;
     document.body.classList.remove('sdoc-code-focus-open');
     if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (_) {} }
     prevFocus = null;
@@ -1285,6 +1435,7 @@
     var act = btn.dataset.act;
     if (act === 'close') { close(); return; }
     if (act === 'foldall') { toggleAll(); return; }
+    if (act === 'theme') { applyFocusTheme(focusTheme === 'dark' ? 'light' : 'dark', true); return; }
     if (act === 'comment') { setCommenting(!commenting); return; }
     if (act === 'cc-prev') { navComment(-1); return; }
     if (act === 'cc-next') { navComment(1); return; }
@@ -1508,15 +1659,74 @@
     }
   }
 
-  // Hide a thread when its anchor line is folded away, so notes travel with the
-  // code they sit on. Orphan threads (no live anchor) always show.
+  // Hide any extra row (a comment thread or an annotation card) when its anchor
+  // line is folded away, so notes and annotations travel with the code they sit
+  // on. Orphan threads (no live anchor) always show.
   function syncThreadVisibility() {
     if (!linesEl) return;
-    var threads = linesEl.querySelectorAll('.sdoc-cc-thread[data-ln]');
-    for (var i = 0; i < threads.length; i++) {
-      var ln = threads[i].getAttribute('data-ln');
+    var extra = linesEl.querySelectorAll('.sdoc-cc-thread[data-ln], .sdoc-ann-row[data-ln]');
+    for (var i = 0; i < extra.length; i++) {
+      var ln = extra[i].getAttribute('data-ln');
       var row = linesEl.querySelector('.sdoc-cl-row[data-ln="' + ln + '"]');
-      threads[i].style.display = (row && row.style.display === 'none') ? 'none' : '';
+      extra[i].style.display = (row && row.style.display === 'none') ? 'none' : '';
+    }
+  }
+
+  // Agent annotations arrive in the document front matter (S.currentMeta.
+  // annotations) as { line, endLine, text } with 1-based line numbers. Read-only,
+  // always-on, sanitised markdown. A generous count cap guards a runaway agent;
+  // the realistic risk here is volume, not an attacker (the agent authored its
+  // own link), but the text is still sanitised because it rides in the URL.
+  var ANN_MAX = 300;
+  function getAnnotations() {
+    var raw = (S.currentMeta && S.currentMeta.annotations) || [];
+    if (!Array.isArray(raw)) return [];
+    var out = [];
+    for (var i = 0; i < raw.length && out.length < ANN_MAX; i++) {
+      var a = raw[i]; if (!a) continue;
+      var line = parseInt(a.line, 10);
+      if (!(line >= 1)) continue;
+      var end = parseInt(a.endLine, 10); if (!(end >= line)) end = line;
+      var text = (typeof a.text === 'string') ? a.text : '';
+      if (!text.trim()) continue;
+      out.push({ line: line, endLine: end, text: text });
+    }
+    return out;
+  }
+
+  // Render annotation cards below their anchor line. Owns its own teardown (the
+  // comment-thread rebuild does not touch .sdoc-ann-* rows). Line numbers are
+  // 1-based on the surface; data-ln in the DOM is 0-based, so subtract one.
+  function renderAnnotations() {
+    if (!linesEl) return;
+    var old = linesEl.querySelectorAll('.sdoc-ann-row');
+    for (var k = 0; k < old.length; k++) old[k].remove();
+    var marked = linesEl.querySelectorAll('.sdoc-cl-row.sdoc-ann-marked');
+    for (var m = 0; m < marked.length; m++) marked[m].classList.remove('sdoc-ann-marked');
+    var list = getAnnotations();
+    var renderMd = (S.renderMarkdownSafe) ? S.renderMarkdownSafe : function (t) {
+      return DOMPurify.sanitize(marked.parse(String(t || '')), { FORBID_ATTR: ['style'] });
+    };
+    for (var i = 0; i < list.length; i++) {
+      var a = list[i];
+      var ln0 = a.line - 1, end0 = a.endLine - 1;
+      var anchor = linesEl.querySelector('.sdoc-cl-row[data-ln="' + ln0 + '"]');
+      if (!anchor) { continue; } // out of range: skip quietly
+      for (var r = ln0; r <= end0; r++) {
+        var rr = linesEl.querySelector('.sdoc-cl-row[data-ln="' + r + '"]');
+        if (rr) rr.classList.add('sdoc-ann-marked');
+      }
+      // Card sits after the last covered line, but its data-ln tracks the FIRST
+      // line so it folds together with the block it explains.
+      var afterRow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + end0 + '"]') || anchor;
+      var row = document.createElement('div');
+      row.className = 'sdoc-ann-row';
+      row.setAttribute('data-ln', ln0);
+      var card = document.createElement('div');
+      card.className = 'sdoc-ann-card';
+      card.innerHTML = renderMd(a.text);
+      row.appendChild(card);
+      afterRow.insertAdjacentElement('afterend', row);
     }
   }
 
@@ -1615,16 +1825,15 @@
     var text = (ta && ta.value || '').trim();
     if (!text) { if (ta) ta.focus(); return; }
     if (spec.editId) {
-      comments = CC.updateComment(comments, spec.editId, { text: text });
+      persistAll(CC.updateComment(readAll(), spec.editId, { text: text }));
     } else {
       var prefs = readCommentPrefs();
-      var res = CC.addComment(comments, {
-        kind: spec.kind, line: spec.line, endLine: spec.endLine, anchorText: spec.anchorText
+      var res = CC.addComment(readAll(), {
+        kind: spec.kind, block: blockId, line: spec.line, endLine: spec.endLine, anchorText: spec.anchorText
       }, { text: text, author: prefs.author, color: prefs.color });
-      comments = res.list;
+      persistAll(res.list);
       navId = res.id;
     }
-    saveComments();
     clearMethodHighlight();
     renderThreads();
   }
@@ -1740,8 +1949,7 @@
     var id = threadRow && threadRow.getAttribute('data-c');
     if (!id) return;
     if (act === 'delete') {
-      comments = CC.removeComment(comments, id);
-      saveComments();
+      persistAll(CC.removeComment(readAll(), id));
       renderThreads();
     }
   }
