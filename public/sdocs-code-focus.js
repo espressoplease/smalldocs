@@ -1527,7 +1527,7 @@
       + '</div>';
   }
   function onFileInfoClick(e) {
-    if (e.target.closest('.sdoc-cf-shortbtn')) { e.stopPropagation(); shortenGenerate(); return; }
+    if (e.target.closest('[data-shorten]')) { e.stopPropagation(); shortenGenerate(); return; }
     var row = e.target.closest('.sdoc-cf-firow');
     if (!row) return;
     var val = row.querySelector('.sdoc-cf-fival');
