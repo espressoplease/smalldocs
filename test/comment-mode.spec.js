@@ -761,6 +761,27 @@ test.describe('edge-case content', () => {
     expect(state.insidePre).toBe(true);
   });
 
+  // Regression: syntax highlighting is lazy-loaded (async) and rewrites a code
+  // block's innerHTML when it lands. That used to wipe a comment anchor/card
+  // rendered into the block and absorb the card's text into the code. The fix
+  // captures clean source before the async gap and re-applies comments after
+  // highlight settles, so both the highlight and the anchor survive.
+  test('a comment on a code block survives the async syntax highlight', async ({ page }) => {
+    await setBody(page, '```js\nconst x = 42;\nconst y = x + 1;\n```\n');
+    await saveInline(page, 'const x = 42;', {});
+    // wait for highlight.js to land and re-colour the block
+    await page.waitForFunction(() => {
+      var c = document.querySelector('#_sd_rendered pre code');
+      return !!(c && c.classList.contains('hljs'));
+    }, null, { timeout: 10000 });
+    // anchor AND card both survive the re-highlight, both still inside the pre
+    await expect(page.locator('#_sd_rendered pre span.sdoc-anchor[data-c="c1"]')).toHaveCount(1);
+    await expect(page.locator('#_sd_rendered pre .sdoc-card[data-c="c1"]')).toHaveCount(1);
+    // and the card's text was not absorbed into the highlighted code
+    const cardBody = await page.locator('.sdoc-card[data-c="c1"]').innerText();
+    expect(cardBody).toContain('note');
+  });
+
   test('comment on a heading is allowed and anchors correctly', async ({ page }) => {
     await setBody(page, '# My Heading Title\n\nBody.\n');
     await saveInline(page, 'Heading', { prefix: 'My ', suffix: ' Title' });
