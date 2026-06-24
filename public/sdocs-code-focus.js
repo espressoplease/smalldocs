@@ -547,7 +547,6 @@
     '  margin: 5px 24px 9px calc(var(--sdoc-ln-w) + 60px); max-width: 70ch;',
     '  padding: 8px 12px; border-radius: 5px;',
     '  background: var(--sdoc-ann-card-bg, #fff);',
-    '  box-shadow: var(--sdoc-ann-card-shadow, 0 1px 2px color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 12%, transparent));',
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '  font-family: ui-sans-serif, system-ui, sans-serif; font-size: 13px; line-height: 1.5;',
     '}',
