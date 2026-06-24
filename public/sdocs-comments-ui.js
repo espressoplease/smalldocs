@@ -1339,21 +1339,33 @@ function copyWithComments(headingEl, docWide, mods) {
     payload = SDC.serializeClean(source.meta, source.body);
     label = 'Copied (clean)';
   } else {
-    // Prepend a one-line header so an agent receiving the pasted text
-    // knows what it is and (when known) which file it relates to.
-    var filename = source.meta && typeof source.meta.file === 'string' ? source.meta.file : '';
-    var header = filename ? 'Feedback on ' + filename + ':' : 'Feedback:';
-    var enriched;
-    if (scopeForOccurrence === S.renderedEl) {
-      enriched = enrichInlineCommentsWithOccurrence(
-        SDC.getComments(source.meta), scopeForOccurrence);
+    // A whole-file code doc: route through the one code-block serializer so the
+    // reader's copy is identical to the viewer's (complete + located, any kind),
+    // instead of footnotes that can't anchor a line-numbered code comment.
+    var codeFile = (docWide || !headingEl) && S.wholeFileCodeLang && S.wholeFileCodeLang(source.body);
+    var fm = codeFile ? (source.body || '').replace(/^﻿/, '').trim().match(/^```([^\n]*)\n([\s\S]*?)\n```\s*$/) : null;
+    if (fm && window.SDocsCodeComments) {
+      var fname = (source.meta && typeof source.meta.file === 'string' && source.meta.file) || 'code';
+      payload = window.SDocsCodeComments.serializeBlockComments(
+        SDC.getComments(source.meta), fm[2].split('\n'), { fileName: fname, lang: fm[1].trim() });
+      label = 'Copied (with comments)';
     } else {
-      enriched = enrichForSectionScope(
-        SDC.getComments(source.meta), scopeForOccurrence);
+      // Prepend a one-line header so an agent receiving the pasted text
+      // knows what it is and (when known) which file it relates to.
+      var filename = source.meta && typeof source.meta.file === 'string' ? source.meta.file : '';
+      var header = filename ? 'Feedback on ' + filename + ':' : 'Feedback:';
+      var enriched;
+      if (scopeForOccurrence === S.renderedEl) {
+        enriched = enrichInlineCommentsWithOccurrence(
+          SDC.getComments(source.meta), scopeForOccurrence);
+      } else {
+        enriched = enrichForSectionScope(
+          SDC.getComments(source.meta), scopeForOccurrence);
+      }
+      var enrichedMeta = Object.assign({}, source.meta, { comments: enriched });
+      payload = header + '\n\n' + SDC.serializeFootnotes(enrichedMeta, source.body);
+      label = 'Copied (footnotes)';
     }
-    var enrichedMeta = Object.assign({}, source.meta, { comments: enriched });
-    payload = header + '\n\n' + SDC.serializeFootnotes(enrichedMeta, source.body);
-    label = 'Copied (footnotes)';
   }
   return navigator.clipboard.writeText(payload).then(function () {
     if (S.setStatus) S.setStatus(label);

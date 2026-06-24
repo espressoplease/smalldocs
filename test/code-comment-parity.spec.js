@@ -43,6 +43,46 @@ test('a prose inline comment on code shows in the viewer, identical and editable
   expect(left).toBe(0);
 });
 
+test('both copy-with-comments buttons produce identical, complete output', async ({ page }) => {
+  await page.evaluate(() => {
+    var S = window.SDocs, NL = String.fromCharCode(10);
+    navigator.clipboard.writeText = function (t) { window.__copies = window.__copies || []; window.__copies.push(t); return Promise.resolve(); };
+    S.currentBody = '```python' + NL + 'class TokenBucket:' + NL + '    def __init__(self):' + NL + '        self.tokens = 0' + NL + '        self.updated = now()' + NL + '```' + NL;
+    // mixed kinds, all on the one block: inline (jjj), line (hhh), block (ddd)
+    S.currentMeta = {
+      file: 'token_bucket.py',
+      comments: [
+        { id: 'c1', kind: 'inline', quote: 'self.tokens = 0', block: 'pre:0', author: 'user', color: '#ffbb00', text: 'jjj' },
+        { id: 'c2', kind: 'line', block: 'pre:0', line: 3, anchorText: 'self.updated = now()', author: 'user', color: '#ffbb00', text: 'hhh' },
+        { id: 'c3', kind: 'block', block: 'pre:0', block_text: 'class TokenBucket:', author: 'user', color: '#ffbb00', text: 'ddd' },
+      ],
+    };
+    S.render();
+  });
+  // prose (reader) copy-with-comments, whole doc
+  const proseCopy = await page.evaluate(() => {
+    window.__copies = [];
+    return window.SDocs.commentsUi.copyWithComments(null, true, {}).then(function () {
+      return window.__copies[window.__copies.length - 1];
+    });
+  });
+  // viewer copy-with-comments
+  await page.evaluate(() => window.SDocs.codeFocus.open(document.querySelector('#_sd_rendered pre'), { comment: true }));
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  await page.locator('.sdoc-cl-code .hljs-keyword').first().waitFor({ timeout: 5000 }).catch(() => {});
+  await page.evaluate(() => { window.__copies = []; });
+  await page.locator('.sdoc-code-focus [data-act="cc-copy"]').click();
+  const viewerCopy = await page.evaluate(() => window.__copies[window.__copies.length - 1]);
+
+  // identical output from both surfaces
+  expect(viewerCopy).toBe(proseCopy);
+  // complete: every comment present and located
+  for (const txt of ['jjj', 'hhh', 'ddd']) expect(viewerCopy).toContain(txt);
+  expect(viewerCopy).toContain('line 3 `self.tokens = 0`');   // inline jjj
+  expect(viewerCopy).toContain('line 4 `self.updated = now()`'); // line hhh
+  expect(viewerCopy).toContain('whole block');                  // block ddd
+});
+
 // The legibility guarantee: a comment card must never overlap the code text.
 // This fails if any comment is rendered inline in a code line (the bug we kept
 // hitting); cards below their line cannot overlap.
