@@ -521,6 +521,9 @@
     '  border-radius: 6px; box-shadow: 0 2px 8px color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 24%, transparent);',
     '}',
     '.sdoc-cc-selbtn svg { display: block; width: 15px; height: 15px; }',
+    // A foreign comment (a prose comment shown here for parity) reads as the same
+    // card, marked dashed so it is clear it is edited back on its own surface.
+    '.sdoc-cc-thread.sdoc-cc-foreign .sdoc-cc-card { border-style: dashed; }',
     // Method highlight while hovering / composing / navigating a method comment,
     // tinted in the accent so the preview matches the colour the note will take.
     '.sdoc-cl-row.sdoc-cc-mhl {',
@@ -834,7 +837,6 @@
   // The pure models live in sdocs-code-comments.js (code kinds) and
   // sdocs-comments.js (prose kinds); this layer owns the round-trip and the DOM.
   var CC = window.SDocsCodeComments;
-  var SDC = window.SDocComments;
   var GRAIN_KEY = 'sdocs:codeCommentGrain'; // 'line' | 'method', remembered
   var comments = [];        // this block's notes (model objects), refreshed from the doc
   var commenting = false;   // comment mode on/off
@@ -865,7 +867,7 @@
 
   // The document's full comment list (prose + code), exactly as stored. Mutations
   // run against this so prose comments are carried through untouched.
-  function allComments() { return SDC ? SDC.getComments(S.currentMeta) : []; }
+  function allComments() { return window.SDocComments ? window.SDocComments.getComments(S.currentMeta) : []; }
 
   // The code-kind comments only, normalised + capped. A shared document's front
   // matter is attacker-controllable, so each is normalised on the way in
@@ -887,7 +889,7 @@
   // Persist the full comment list back into the document and re-encode (so notes
   // travel), preserving prose comments, then refresh this block's working set.
   function persistAll(fullList) {
-    if (SDC) S.currentMeta = SDC.setComments(S.currentMeta || {}, fullList);
+    if (window.SDocComments) S.currentMeta = window.SDocComments.setComments(S.currentMeta || {}, fullList);
     if (S.syncAll) S.syncAll('comment');
     loadComments();
   }
@@ -1660,6 +1662,28 @@
       });
     });
 
+    // Parity: also show prose inline comments that fall in this block's source,
+    // so a comment made in the reader on code text appears here too. Read-only
+    // here (edited back in the reader); we only render and mark them.
+    if (window.SDocComments) {
+      var prose = window.SDocComments.getComments(S.currentMeta).filter(function (c) {
+        return c && c.kind === 'inline' && c.quote && (!c.block || c.block === blockId);
+      });
+      for (var p = 0; p < prose.length; p++) {
+        var pc = prose[p];
+        var pln = lineOfQuote(pc.quote);
+        if (pln < 0) continue;
+        var prow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + pln + '"]');
+        if (!prow) continue;
+        prow.classList.add('sdoc-cc-has-comment');
+        var pcard = buildCard(pc, pln, true);
+        var pafter = prow, pnext = prow.nextElementSibling;
+        while (pnext && pnext.classList.contains('sdoc-cc-thread')) { pafter = pnext; pnext = pnext.nextElementSibling; }
+        pafter.insertAdjacentElement('afterend', pcard);
+        markQuoteInRow(prow, pc.quote, (CC ? CC.sanitizeColor(pc.color) : pc.color), pc.id);
+      }
+    }
+
     // Orphaned comments: their anchor line is gone. Keep them reachable at the
     // bottom rather than dropping them silently.
     var orphans = (byLine[-1] || []);
@@ -1778,24 +1802,30 @@
   }
 
   // A saved comment, rendered as a card in its own row beneath the anchor line.
-  function buildCard(c, ln) {
+  // readonly cards are foreign comments shown for parity (a prose comment on the
+  // code): visible here, but edited back on their native surface, so they carry
+  // no delete affordance and click-to-edit ignores them.
+  function buildCard(c, ln, readonly) {
     var row = document.createElement('div');
     row.className = 'sdoc-cc-thread';
     if (ln >= 0) row.setAttribute('data-ln', ln);
     row.setAttribute('data-c', c.id);
     if (c.kind === 'method') row.classList.add('sdoc-cc-thread-method');
+    if (readonly) row.classList.add('sdoc-cc-foreign');
     // Colour flows into a CSS var substituted into background: var(...); a
     // crafted shared doc could smuggle url(...) here, so hex-gate at the sink.
     if (c.color) row.style.setProperty('--sdoc-cc-color', CC ? CC.sanitizeColor(c.color) : c.color);
 
     var card = document.createElement('div');
     card.className = 'sdoc-cc-card';
+    var actions = readonly ? ''
+      : '<span class="sdoc-cc-card-actions">'
+      +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="delete" title="Delete" aria-label="Delete comment">' + TRASH_ICON + '</button>'
+      + '</span>';
     card.innerHTML =
       '<span class="sdoc-cc-card-author">' + escapeHtml(c.author || 'user') + '</span>'
       + '<span class="sdoc-cc-card-body"></span>'
-      + '<span class="sdoc-cc-card-actions">'
-      +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="delete" title="Delete" aria-label="Delete comment">' + TRASH_ICON + '</button>'
-      + '</span>';
+      + actions;
     card.querySelector('.sdoc-cc-card-body').textContent = c.text || '';
     row.appendChild(card);
     return row;
@@ -1943,6 +1973,14 @@
         range.insertNode(span);
       } catch (__) { /* give up: no mark; the card still names the quote */ }
     }
+  }
+
+  // First source line (0-based) that contains the phrase, or -1. Used to place a
+  // prose inline comment (quote-anchored) onto a line in this viewer.
+  function lineOfQuote(q) {
+    if (!q || !srcLines) return -1;
+    for (var i = 0; i < srcLines.length; i++) if (srcLines[i].indexOf(q) >= 0) return i;
+    return -1;
   }
 
   // The .sdoc-cl-code ancestor of a node, or null.
