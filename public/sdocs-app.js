@@ -32,9 +32,10 @@ var WRAP_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stro
 var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 // Lucide expand-corners - same icon the diagram / sheet expand buttons use.
 var EXPAND_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
-var COMMENT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
-// Sparkles - agent (read-only) comments, distinct from the user speech bubble.
-var AGENT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z"/></svg>';
+// Lucide message-square-code - used for both the user and agent comment
+// indicators; they are told apart by the dot colour, not the glyph.
+var COMMENT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7.5 8 10l2 2.5"/><path d="m14 7.5 2 2.5-2 2.5"/><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+var AGENT_SVG = COMMENT_SVG;
 
 // How many code-kind comments (line / method / token) the document carries for
 // a given block id ("pre:N"). They share the one comment store with prose
@@ -48,6 +49,16 @@ function codeCommentCountFor(blockId) {
     if (c && c.block === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) n++;
   }
   return n;
+}
+// The colour of the first code comment on a block, for tinting its indicator dot.
+function codeCommentColorFor(blockId) {
+  var list = SDocs.currentMeta && SDocs.currentMeta.comments;
+  if (!Array.isArray(list)) return '';
+  for (var i = 0; i < list.length; i++) {
+    var c = list[i];
+    if (c && c.block === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) return c.color || '';
+  }
+  return '';
 }
 // Count valid agent annotations (read-only notes in front matter, line-numbered,
 // not block-tagged). Mirrors the validation in the viewer's getAnnotations.
@@ -384,6 +395,12 @@ function attachCodeCopyButtons(container) {
     pre.parentNode.insertBefore(wrapper, pre);
     wrapper.appendChild(pre);
 
+    // All corner buttons live in one flex cluster so they always pack together
+    // with no gaps, whatever subset is present (e.g. when the wrap toggle hides).
+    var tools = document.createElement('div');
+    tools.className = 'pre-tools';
+    wrapper.appendChild(tools);
+
     // Wrap toggle — only visible when the <pre> overflows horizontally,
     // or when the user has already turned wrapping on.
     var wrapBtn = document.createElement('button');
@@ -395,7 +412,7 @@ function attachCodeCopyButtons(container) {
       wrapBtn.classList.toggle('active', pre.classList.contains('wrapped'));
       refreshWrapButton(pre, wrapBtn);
     });
-    wrapper.appendChild(wrapBtn);
+    tools.appendChild(wrapBtn);
 
     var btn = document.createElement('button');
     btn.className = 'copy-btn';
@@ -408,7 +425,7 @@ function attachCodeCopyButtons(container) {
         setTimeout(function() { btn.innerHTML = COPY_SVG; }, COPY_FEEDBACK_MS);
       });
     });
-    wrapper.appendChild(btn);
+    tools.appendChild(btn);
 
     // Expand-to-fullscreen, mirroring diagrams / sheets. Skip blocks claimed
     // by another renderer (chart / mermaid / cells ...): those <pre>s are about
@@ -422,12 +439,12 @@ function attachCodeCopyButtons(container) {
       expandBtn.title = 'Open in fullscreen';
       expandBtn.setAttribute('aria-label', 'Open code in fullscreen');
       expandBtn.addEventListener('click', function() { S.codeFocus.open(pre, { comment: document.body.classList.contains('comment-mode') }); });
-      wrapper.appendChild(expandBtn);
-      wrapper.classList.add('has-expand');
+      tools.appendChild(expandBtn);
 
       // Indicator: this block carries code-viewer comments, which are read and
       // edited in the fullscreen view. Surface a dot here so they are findable
       // from the reader; clicking opens the viewer straight into comment mode.
+      // The icon is the standard colour; only the dot carries the comment colour.
       var noteCount = codeCommentCountFor('pre:' + idx);
       if (noteCount > 0) {
         var commentBtn = document.createElement('button');
@@ -435,14 +452,15 @@ function attachCodeCopyButtons(container) {
         commentBtn.innerHTML = COMMENT_SVG;
         commentBtn.title = noteCount + (noteCount === 1 ? ' comment' : ' comments');
         commentBtn.setAttribute('aria-label', commentBtn.title);
+        var dot = codeCommentColorFor('pre:' + idx);
+        if (dot) commentBtn.style.setProperty('--dot', dot);
         commentBtn.addEventListener('click', function() { S.codeFocus.open(pre, { comment: true }); });
-        wrapper.appendChild(commentBtn);
-        wrapper.classList.add('has-comment-notes');
+        tools.appendChild(commentBtn);
       }
 
       // Indicator: this block carries agent comments (read-only annotations).
-      // Distinct icon/colour from user comments; clicking opens the viewer
-      // (annotations show there in any mode). Shown on the first code block.
+      // Same glyph as user comments; the dot is the agent (periwinkle) colour.
+      // Clicking opens the viewer. Shown on the first code block.
       if (agentTotal > 0 && !agentShown) {
         agentShown = true;
         var agentBtn = document.createElement('button');
@@ -450,9 +468,9 @@ function attachCodeCopyButtons(container) {
         agentBtn.innerHTML = AGENT_SVG;
         agentBtn.title = agentTotal + (agentTotal === 1 ? ' agent comment' : ' agent comments');
         agentBtn.setAttribute('aria-label', agentBtn.title);
+        agentBtn.style.setProperty('--dot', '#7c84d8');
         agentBtn.addEventListener('click', function() { S.codeFocus.open(pre); });
-        wrapper.appendChild(agentBtn);
-        wrapper.classList.add('has-agent-notes');
+        tools.appendChild(agentBtn);
       }
     }
 

@@ -258,14 +258,22 @@
   padding-top: 26px;
   margin: 0;
 }
+/* All corner buttons live in one flex cluster, top-right, so they always pack
+   together with no gaps no matter which subset is present. */
+#_sd_rendered .pre-wrapper .pre-tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 1;
+}
 #_sd_rendered .pre-wrapper .copy-btn,
 #_sd_rendered .pre-wrapper .expand-btn,
 #_sd_rendered .pre-wrapper .code-comment-btn,
 #_sd_rendered .pre-wrapper .agent-comment-btn,
 #_sd_rendered .pre-wrapper .wrap-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
   background: var(--md-pre-bg);
   border: 1px solid var(--md-copy-btn-border);
   border-radius: 4px;
@@ -279,9 +287,13 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  z-index: 1;
 }
-#_sd_rendered .pre-wrapper .wrap-btn { right: 36px; }
+/* left-to-right order within the cluster: indicators, then wrap / expand / copy */
+#_sd_rendered .pre-wrapper .agent-comment-btn { order: 1; }
+#_sd_rendered .pre-wrapper .code-comment-btn  { order: 2; }
+#_sd_rendered .pre-wrapper .wrap-btn          { order: 3; }
+#_sd_rendered .pre-wrapper .expand-btn        { order: 4; }
+#_sd_rendered .pre-wrapper .copy-btn          { order: 5; }
 #_sd_rendered .pre-wrapper .copy-btn:hover,
 #_sd_rendered .pre-wrapper .expand-btn:hover,
 #_sd_rendered .pre-wrapper .code-comment-btn:hover,
@@ -289,34 +301,21 @@
 #_sd_rendered .pre-wrapper .wrap-btn:hover { opacity: 1; background: var(--md-copy-btn-hover); }
 #_sd_rendered .pre-wrapper .wrap-btn.active { opacity: 1; background: var(--md-copy-btn-hover); }
 
-/* Comment indicator: sits leftmost in the cluster (the other three keep their
-   has-expand offsets), always shown when present, with a small accent dot so it
-   reads as "this block has notes". */
-#_sd_rendered .pre-wrapper.has-comment-notes .code-comment-btn { right: 96px; opacity: 1; }
-#_sd_rendered .pre-wrapper .code-comment-btn::after {
-  content: "";
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--md-code-color, #6B21A8);
-  border: 1px solid var(--md-pre-bg);
-}
-/* Agent-comment indicator: distinct periwinkle accent, sits left of the user
-   indicator. At 96px when alone, 126px when the user indicator is also present. */
-#_sd_rendered .pre-wrapper.has-agent-notes .agent-comment-btn { right: 96px; opacity: 1; color: #7c84d8; }
-#_sd_rendered .pre-wrapper.has-agent-notes.has-comment-notes .agent-comment-btn { right: 126px; }
+/* Comment indicators: always shown (created only when notes exist). The icon
+   keeps the standard colour; a small dot in the comment's own colour (via --dot)
+   sits just inside the top-right corner. */
+#_sd_rendered .pre-wrapper .code-comment-btn,
+#_sd_rendered .pre-wrapper .agent-comment-btn { opacity: 1; position: relative; }
+#_sd_rendered .pre-wrapper .code-comment-btn::after,
 #_sd_rendered .pre-wrapper .agent-comment-btn::after {
   content: "";
   position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 7px;
-  height: 7px;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #7c84d8;
+  background: var(--dot, var(--md-code-color, #6B21A8));
   border: 1px solid var(--md-pre-bg);
 }
 #_sd_rendered pre.wrapped,
@@ -428,13 +427,6 @@ html[data-theme="dark"] :is(#_sd_rendered, .sdoc-code-focus) {
   border-radius: 3px;
   padding: 0 0.25em;
 }
-
-/* The expand button sits with the copy / wrap cluster, top-right of a block.
-   Copy stays rightmost; expand sits beside it; wrap (shown only on overflow)
-   trails to the left. Mirrors the diagram / sheet expand affordance. */
-#_sd_rendered .pre-wrapper.has-expand .copy-btn { right: 6px; }
-#_sd_rendered .pre-wrapper.has-expand .expand-btn { right: 36px; }
-#_sd_rendered .pre-wrapper.has-expand .wrap-btn { right: 66px; }
 
 /* ── Charts ── */
 .sdoc-chart {
