@@ -88,6 +88,28 @@ module.exports = function (harness) {
     assert.strictEqual(CC.parse(CC.serialize(list))[0].block, 'pre:3');
   });
 
+  // ── token kind (text-selection comments) ───────────────────────────────────
+
+  test('addComment keeps a token kind with its quote', () => {
+    const { list } = CC.addComment([], { kind: 'token', block: 'pre:0', line: 4, anchorText: 'if dog_count == 5', quote: 'dog_count' }, { text: 'cat_count?' });
+    assert.strictEqual(list[0].kind, 'token');
+    assert.strictEqual(list[0].quote, 'dog_count');
+    assert.strictEqual(list[0].line, 4);
+  });
+
+  test('a token without a usable quote degrades to a line comment', () => {
+    assert.strictEqual(CC.normalize({ id: 'c1', kind: 'token', line: 0, quote: '   ' }).kind, 'line');
+    assert.strictEqual(CC.normalize({ id: 'c1', kind: 'token', line: 0 }).kind, 'line');
+    assert.ok(!('quote' in CC.normalize({ id: 'c1', kind: 'token', line: 0 })));
+  });
+
+  test('serialize then parse round-trips a token comment', () => {
+    const list = CC.addComment([], { kind: 'token', block: 'pre:0', line: 2, anchorText: 'x = 1', quote: 'x' }, { text: 'rename' }).list;
+    const back = CC.parse(CC.serialize(list))[0];
+    assert.strictEqual(back.kind, 'token');
+    assert.strictEqual(back.quote, 'x');
+  });
+
   // ── remove / update ───────────────────────────────────────────────────────
 
   test('removeComment drops the matching id only', () => {
