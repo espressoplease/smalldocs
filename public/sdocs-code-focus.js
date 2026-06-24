@@ -851,6 +851,26 @@
   }
   function saveGrain(g) { try { localStorage.setItem(GRAIN_KEY, g); } catch (_) {} }
 
+  // Read a code block's source text WITHOUT any comment DOM the reader may have
+  // injected into it: an anchor span wraps real code (keep its text), but a
+  // comment card is not code (drop it). Without this, expanding from the reader's
+  // comment mode would read a rendered card as source and lose the anchors.
+  function cleanSource(codeEl) {
+    if (!codeEl) return '';
+    if (!codeEl.querySelector('.sdoc-card, .sdoc-anchor')) return codeEl.textContent || '';
+    var clone = codeEl.cloneNode(true);
+    var cards = clone.querySelectorAll('.sdoc-card');
+    for (var i = 0; i < cards.length; i++) cards[i].remove();
+    var anchors = clone.querySelectorAll('.sdoc-anchor');
+    for (var j = 0; j < anchors.length; j++) {
+      var a = anchors[j], par = a.parentNode;
+      if (!par) continue;
+      while (a.firstChild) par.insertBefore(a.firstChild, a);
+      par.removeChild(a);
+    }
+    return clone.textContent || '';
+  }
+
   // "pre:N" for the open code block: its index among the rendered document's
   // code blocks. Deterministic for a given document body, so the same note
   // resolves to the same block on reopen and for anyone the doc is shared with.
@@ -1227,7 +1247,7 @@
     if (!sourcePre) return;
     var srcCode = sourcePre.querySelector('code');
     if (!srcCode) return;
-    rawText = srcCode.textContent || '';
+    rawText = cleanSource(srcCode);
     srcLines = rawText.split('\n');
     folds = computeFolds(srcLines);
     parents = computeParents(folds);
