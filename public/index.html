@@ -26,6 +26,7 @@
 <body>
 
 <div id="_sd_safari-banner" hidden></div>
+<div id="_sd_discord-banner" hidden></div>
 <div id="_sd_main">
   <!-- ── Left panel ── -->
   <div id="_sd_left">
@@ -709,6 +710,10 @@
   <div id="_sd_info-panel">
     <div id="_sd_info-panel-header">Info</div>
     <div id="_sd_info-panel-body">
+      <div class="info-section">
+        <div class="info-section-title">Community</div>
+        <p class="info-section-text">Questions, ideas, or want to follow along? <a href="https://discord.gg/9TH2gQepT" target="_blank" rel="noopener">Join our Discord</a>.</p>
+      </div>
       <div class="info-settings">
         <div class="info-settings-row">
           <span class="info-settings-label">Notify me about new features</span>
@@ -763,9 +768,10 @@
 <div id="_sd_statusbar">
   <span id="_sd_status-text"></span>
   <span style="margin-left:auto; font-size:10.5px; color:var(--text-2); display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
-    <span>100% private (<a href="https://smalldocs.org/#sec=privacy" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">learn why</a>)</span>
+    <span><a href="https://smalldocs.org/#sec=privacy" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">100% private</a></span>
     · <span data-trust-status>Open source: <a href="/trust" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">verify server</a></span>
     · <span id="_sd_cli-lead">CLI for you &amp; your agents:</span> <span id="_sd_cli-prompt-wrap" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer" title="Copy a prompt that asks your coding agent to install and set up SmallDocs"><code id="_sd_cli-prompt-label" style="background:var(--bg-surface); border:1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius:3px; padding:1px 5px; font-size:10px; color:var(--accent); transition:border-color .15s">Copy install prompt</code><button id="_sd_cli-prompt-btn" style="background:none; border:none; cursor:pointer; color:var(--accent); padding:0; vertical-align:middle; opacity:0.5; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span> · <span id="_sd_cli-install-wrap" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer" title="Click to copy the install command for your system"><code id="_sd_cli-install-cmd" style="background:var(--bg-surface); border:1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius:3px; padding:1px 5px; font-size:10px; color:var(--accent); transition:border-color .15s">curl -fsSL https://smalldocs.org/install | sh</code><button id="_sd_cli-copy-btn" style="background:none; border:none; cursor:pointer; color:var(--accent); padding:0; vertical-align:middle; opacity:0.5; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>
+    · <a href="https://discord.gg/9TH2gQepT" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">Discord</a>
     · <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">GitHub</a>
     · <span>You agree to our <a href="/legal" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">Terms</a></span>
   </span>
@@ -902,6 +908,72 @@ If any step fails, stop and tell me what happened before doing more.</pre>
       leadEl.textContent = 'CLI update released ' + rel + ':';
       if (info.version) leadEl.title = 'sdoc v' + info.version + ', published ' + new Date(info.time).toLocaleString();
     }).catch(function () { /* keep the neutral lead-in */ });
+  }
+
+  // Light engagement nudge. Once someone has opened a few distinct documents
+  // they are clearly using SmallDocs, so invite them to the community once.
+  // Counting is entirely client-side (localStorage); nothing is sent anywhere.
+  var DISCORD_URL = 'https://discord.gg/9TH2gQepT';
+  var DOC_OPENS_KEY = '_sd_doc_opens';
+  var DISCORD_DISMISS_KEY = '_sd_discord_invite_dismissed';
+  var DISCORD_THRESHOLD = 3;
+
+  if (isDocPage) { try { recordDocOpenAndMaybeInvite(); } catch (_) {} }
+
+  function docFingerprint() {
+    var h = location.hash || '';
+    var m = /[#&]md=([^&]+)/.exec(h);
+    var v = m ? m[1] : h;
+    return v.slice(0, 48);
+  }
+
+  function recordDocOpenAndMaybeInvite() {
+    try { if (localStorage.getItem(DISCORD_DISMISS_KEY) === '1') return; } catch (_) { return; }
+    var fp = docFingerprint();
+    if (!fp) return;
+    var seen = [];
+    try { seen = JSON.parse(localStorage.getItem(DOC_OPENS_KEY) || '[]'); } catch (_) { seen = []; }
+    if (!Array.isArray(seen)) seen = [];
+    if (seen.indexOf(fp) === -1) {
+      seen.push(fp);
+      if (seen.length > 20) seen = seen.slice(-20);
+      try { localStorage.setItem(DOC_OPENS_KEY, JSON.stringify(seen)); } catch (_) {}
+    }
+    if (seen.length >= DISCORD_THRESHOLD) showDiscordBanner();
+  }
+
+  function dismissDiscordBanner() {
+    try { localStorage.setItem(DISCORD_DISMISS_KEY, '1'); } catch (_) {}
+    var el = document.getElementById('_sd_discord-banner');
+    if (el) el.hidden = true;
+  }
+
+  function showDiscordBanner() {
+    var el = document.getElementById('_sd_discord-banner');
+    if (!el) return;
+    if (!el.dataset.rendered) {
+      while (el.firstChild) el.removeChild(el.firstChild);
+      var text = document.createElement('span');
+      text.className = 'sd-discord-banner-text';
+      text.textContent = "Please join the SmallDocs Discord. We want to understand our users better.";
+      var join = document.createElement('a');
+      join.className = 'sd-discord-banner-join';
+      join.href = DISCORD_URL;
+      join.target = '_blank';
+      join.rel = 'noopener';
+      join.textContent = 'Join the Discord';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sd-discord-banner-dismiss';
+      btn.setAttribute('aria-label', 'Dismiss');
+      btn.textContent = '×'; // multiplication sign
+      btn.addEventListener('click', dismissDiscordBanner);
+      el.appendChild(text);
+      el.appendChild(join);
+      el.appendChild(btn);
+      el.dataset.rendered = '1';
+    }
+    el.hidden = false;
   }
 
   function timeAgo(iso) {
