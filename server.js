@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -12,6 +13,64 @@ const shortLinksRateLimit = require('./short-links/rate-limit');
 const SHORT_LINKS_MAX_BYTES = 256 * 1024;       // 256 KB ciphertext cap
 const SHORT_LINKS_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 shortLinksRateLimit.startCleanup();
+
+// ── Latest sdocs-dev release (powers the reader footer's "update" hint) ──────
+// The browser cannot see whether a visitor has the CLI installed, so on a doc
+// page the footer instead shows the newest published release and how long ago
+// it shipped. We read the npm packument, keep it in memory, and refresh at most
+// once an hour so a busy site never hammers the registry. A failed lookup keeps
+// any prior value rather than going blank.
+const CLI_PKG = 'sdocs-dev';
+const CLI_LATEST_TTL_MS = 60 * 60 * 1000;        // 1 hour
+const CLI_PACKUMENT_MAX_BYTES = 5 * 1024 * 1024; // guard against a runaway body
+let cliLatestCache = null;                        // { version, time } once resolved
+let cliLatestFetchedAt = 0;
+let cliLatestInflight = null;
+
+function fetchCliLatest() {
+  return new Promise((resolve, reject) => {
+    const req = https.get('https://registry.npmjs.org/' + CLI_PKG, {
+      headers: { 'Accept': 'application/json' },
+      timeout: 5000,
+    }, (resp) => {
+      if (resp.statusCode !== 200) { resp.resume(); reject(new Error('npm ' + resp.statusCode)); return; }
+      let body = '';
+      resp.setEncoding('utf8');
+      resp.on('data', (c) => {
+        body += c;
+        if (body.length > CLI_PACKUMENT_MAX_BYTES) { req.destroy(); reject(new Error('packument too large')); }
+      });
+      resp.on('end', () => {
+        try {
+          const doc = JSON.parse(body);
+          const version = doc['dist-tags'] && doc['dist-tags'].latest;
+          const time = version && doc.time && doc.time[version];
+          if (!version || !time) { reject(new Error('no latest version/time')); return; }
+          resolve({ version: version, time: time });
+        } catch (e) { reject(e); }
+      });
+    });
+    req.on('timeout', () => { req.destroy(); reject(new Error('npm timeout')); });
+    req.on('error', reject);
+  });
+}
+
+function getCliLatest() {
+  const fresh = cliLatestCache && (Date.now() - cliLatestFetchedAt) < CLI_LATEST_TTL_MS;
+  if (fresh) return Promise.resolve(cliLatestCache);
+  if (cliLatestInflight) return cliLatestInflight;
+  cliLatestInflight = fetchCliLatest().then((res) => {
+    cliLatestCache = res;
+    cliLatestFetchedAt = Date.now();
+    cliLatestInflight = null;
+    return res;
+  }).catch((err) => {
+    cliLatestInflight = null;
+    if (cliLatestCache) return cliLatestCache;   // serve stale through a transient failure
+    throw err;
+  });
+  return cliLatestInflight;
+}
 // Kick off one cleanup on boot, then once per day
 setImmediate(() => { try { shortLinks.cleanupExpired(); } catch (_) {} });
 const _shortLinksCleanupTimer = setInterval(() => {
@@ -520,6 +579,26 @@ const server = http.createServer((req, res) => {
       'Cache-Control': 'no-cache',
     });
     res.end(JSON.stringify({ version: APP_VERSION }));
+    return;
+  }
+
+  // Latest CLI release — the reader footer reads this on doc pages to show how
+  // long ago the newest sdocs-dev shipped. Cached server-side; safe to cache at
+  // the edge briefly too.
+  if (pathname === '/cli-latest') {
+    getCliLatest().then((info) => {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=1800',
+      });
+      res.end(JSON.stringify({ version: info.version, time: info.time }));
+    }).catch(() => {
+      res.writeHead(503, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+      });
+      res.end(JSON.stringify({ error: 'unavailable' }));
+    });
     return;
   }
 
