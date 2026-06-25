@@ -661,8 +661,10 @@ textarea#_sd_info-feedback:focus {
    dots). #sb-private is always the first visible item, so it never
    shows a leading dot. */
 #_sd_sb-links .sb-item {
-  display: inline-flex;
-  align-items: center;
+  /* inline-block, not inline-flex: a flex item collapses the whitespace
+     text node between an item's label and its link ("You agree to our"
+     + "Terms"). Only #sb-cli, with its chips, needs flex. */
+  display: inline-block;
   white-space: nowrap;
   /* Keep natural width: the cluster fits by dropping whole items
      (fitFooter), never by squashing them. */
@@ -673,7 +675,7 @@ textarea#_sd_info-feedback:focus {
   margin-right: 6px;
   color: var(--text-2);
 }
-#_sd_sb-links #sb-cli { gap: 6px; }
+#_sd_sb-links #sb-cli { display: inline-flex; align-items: center; gap: 6px; }
 /* Install-command chip. display lives here (not inline) so fitFooter's
    reset (clearing the inline display) restores the chip to inline-flex
    rather than a plain inline span. */
