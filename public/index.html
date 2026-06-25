@@ -893,6 +893,56 @@ If any step fails, stop and tell me what happened before doing more.</pre>
     function () { return promptEl ? promptEl.textContent.trim() : ''; }
   );
 
+  // Footer fit. The bar is one fixed-height line and must never wrap. Its
+  // content differs by page - the doc-page "sdoc upgrade" chip is far
+  // shorter than the homepage curl command, and the lead-in text varies -
+  // so a fixed width breakpoint would drop items too early for the
+  // narrower variants. Instead, drop the lowest-priority items (in this
+  // order) only when the cluster actually overflows, re-checked on resize
+  // and whenever the content changes. Each variant then lasts as long as
+  // it physically fits. #sb-private and #sb-terms are never dropped.
+  var FOOTER_DROP_ORDER = ['_sd_cli-install-wrap', 'sb-trust', 'sb-cli', 'sb-discord', 'sb-github', 'sb-business'];
+  function fitFooter() {
+    var bar = document.getElementById('_sd_statusbar');
+    var links = document.getElementById('_sd_sb-links');
+    if (!bar || !links || getComputedStyle(bar).display === 'none') return;
+    var i, el;
+    // Restore every droppable item to its stylesheet visibility, then
+    // re-hide from the bottom of the priority list until the line fits.
+    for (i = 0; i < FOOTER_DROP_ORDER.length; i++) {
+      el = document.getElementById(FOOTER_DROP_ORDER[i]);
+      if (el) el.style.display = '';
+    }
+    var gap = parseFloat(getComputedStyle(links).gap) || 0;
+    function overflows() {
+      // The cluster shrinks to the available width and its nowrap items
+      // spill off the left edge (invisible to scrollWidth), so measure
+      // fit directly: sum the visible items' natural widths + gaps and
+      // compare against the width the cluster actually has.
+      var kids = links.children, used = 0, n = 0;
+      for (var k = 0; k < kids.length; k++) {
+        if (getComputedStyle(kids[k]).display === 'none') continue;
+        used += kids[k].getBoundingClientRect().width;
+        n++;
+      }
+      if (n > 1) used += gap * (n - 1);
+      return used > links.clientWidth + 0.5;
+    }
+    for (i = 0; i < FOOTER_DROP_ORDER.length && overflows(); i++) {
+      el = document.getElementById(FOOTER_DROP_ORDER[i]);
+      if (el) el.style.display = 'none';
+    }
+  }
+  var fitRaf;
+  function scheduleFit() {
+    if (fitRaf) cancelAnimationFrame(fitRaf);
+    fitRaf = requestAnimationFrame(fitFooter);
+  }
+  window.addEventListener('resize', scheduleFit);
+  scheduleFit();
+  // Text metrics shift the moment the web font swaps in; re-fit then.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleFit);
+
   // On a doc page, fold how long ago the newest CLI shipped into the lead-in
   // itself ("CLI update released 2 hours ago:") - a quiet nudge for anyone
   // running an older copy. The server caches the npm lookup; if it is
@@ -908,6 +958,7 @@ If any step fails, stop and tell me what happened before doing more.</pre>
       if (!rel) return;
       leadEl.textContent = 'CLI update released ' + rel + ':';
       if (info.version) leadEl.title = 'sdoc v' + info.version + ', published ' + new Date(info.time).toLocaleString();
+      scheduleFit();
     }).catch(function () { /* keep the neutral lead-in */ });
   }
 

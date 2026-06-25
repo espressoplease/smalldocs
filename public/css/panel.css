@@ -664,6 +664,9 @@ textarea#_sd_info-feedback:focus {
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
+  /* Keep natural width: the cluster fits by dropping whole items
+     (fitFooter), never by squashing them. */
+  flex-shrink: 0;
 }
 #_sd_sb-links .sb-item:not(:first-child)::before {
   content: "\00B7";
@@ -671,9 +674,9 @@ textarea#_sd_info-feedback:focus {
   color: var(--text-2);
 }
 #_sd_sb-links #sb-cli { gap: 6px; }
-/* Install-command chip. display lives here (not inline) so the first
-   breakpoint in mobile.css can hide it - an inline `display` would
-   outrank the stylesheet and the chip would never drop. */
+/* Install-command chip. display lives here (not inline) so fitFooter's
+   reset (clearing the inline display) restores the chip to inline-flex
+   rather than a plain inline span. */
 #_sd_sb-links #_sd_cli-install-wrap { display: inline-flex; }
 /* Separator between the prompt chip and the install command inside the
    CLI item; hidden with the install command at the first breakpoint. */
