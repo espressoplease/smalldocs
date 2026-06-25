@@ -92,6 +92,66 @@ test('path rows are tagged "Local only" with the shared-link footer note', async
     .toHaveText("Local only rows aren't included in shared sdocs");
 });
 
+test('a whole-file code doc shows the short-link row in the expanded viewer', async ({ page }) => {
+  await page.evaluate(() => {
+    var S = window.SDocs, NL = String.fromCharCode(10);
+    S.currentBody = '```python' + NL + 'def f():' + NL + '    return 1' + NL + '```' + NL;
+    S.currentMeta = { file: 'f.py' };
+    S.render();
+    S.codeFocus.open(document.querySelector('#_sd_rendered pre'));
+  });
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  // the whole document IS this file, so the share affordance is meaningful
+  await expect(page.locator('.sdoc-code-focus .sdoc-cf-shortintro')).toHaveCount(1);
+});
+
+test('a code block expanded from a mixed prose+code doc hides the short-link row', async ({ page }) => {
+  // A short link encodes the WHOLE document, so sharing from a single block in a
+  // larger article would open the whole article in reading mode, never this
+  // block. The viewer must not offer the share affordance here.
+  await page.evaluate(() => {
+    var S = window.SDocs, NL = String.fromCharCode(10);
+    S.currentBody = '# An article' + NL + NL + 'Some prose before the code.' + NL + NL
+      + '```ruby' + NL + 'puts "hi"' + NL + '```' + NL + NL + 'And prose after.' + NL;
+    S.currentMeta = { file: 'article.md' };
+    S.localMeta = { fullPath: '/Users/dev/proj/article.md', path: 'article.md' };
+    S.render();
+    S.codeFocus.open(document.querySelector('#_sd_rendered pre'));
+  });
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  // no short-link row, and the local path rows + footer note follow the same gate
+  await expect(page.locator('.sdoc-code-focus .sdoc-cf-shortintro')).toHaveCount(0);
+  await expect(page.locator('.sdoc-code-focus .sdoc-cf-firow', { hasText: 'Short URL' })).toHaveCount(0);
+  await expect(page.locator('.sdoc-code-focus .sdoc-cf-localtag')).toHaveCount(0);
+  await expect(page.locator('.sdoc-code-focus .sdoc-cf-privacy')).toHaveCount(0);
+});
+
+test('a shared code file keeps its human comments through the round trip', async ({ page }) => {
+  // The store mixes prose and code comment kinds; on load each must go through
+  // its own sanitiser. The prose one strips a code note's line/anchorText, so
+  // before the fix a shared code file arrived with its notes gone. This pins the
+  // whole path: generate a real short link carrying a code comment, open it
+  // fresh, and assert the note survived with its anchor and renders.
+  const url = await page.evaluate(async () => {
+    var S = window.SDocs, NL = String.fromCharCode(10);
+    S.currentBody = '```js' + NL + 'function f() {' + NL + '  return 1;' + NL + '}' + NL + '```' + NL;
+    S.currentMeta = { file: 'f.js', comments: [
+      { id: 'c1', kind: 'line', block: 'pre:0', line: 1, anchorText: '  return 1;', author: 'Joshua', color: '#ffbb00', text: 'check this' },
+    ] };
+    S.render();
+    var res = await S.generateShortLink();
+    return res.url;
+  });
+  await page.goto(url + '&mode=comment');
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible({ timeout: 6000 });
+  const c = await page.evaluate(() => (window.SDocs.currentMeta.comments || [])[0]);
+  expect(c.kind).toBe('line');
+  expect(c.line).toBe(1);
+  expect(c.anchorText).toBe('  return 1;');
+  expect(c.text).toBe('check this');
+  await expect(page.locator('.sdoc-code-focus .sdoc-cc-card-body')).toHaveText('check this');
+});
+
 test('opening a short link to a code file lands straight in the expanded viewer', async ({ page }) => {
   // mint a REAL short link for a code-file doc via the dev server, then open it
   // fresh like a recipient would - it should auto-open the code viewer.

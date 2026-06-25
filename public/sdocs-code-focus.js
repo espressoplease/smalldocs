@@ -1456,12 +1456,21 @@
     var fileName = (S.currentMeta && S.currentMeta.file) || (fullPath ? basename(fullPath) : '');
     if (!fileName && !fullPath) return null;
     if (!fileName) fileName = basename(fullPath);
+    // Short link + local paths only make sense when the WHOLE document is this
+    // one code file. A short link encodes the whole document, so for a code block
+    // expanded out of a mixed prose+code doc it would share the entire article and
+    // open it in reading mode - never this isolated block. Gating on
+    // wholeFileCodeLang (the same condition that drives auto-expand) keeps the
+    // share affordance off exactly when it would mislead. The paths and the
+    // shared-link footer note follow the same gate: they speak to "this file you
+    // opened", which a block inside a larger doc is not.
+    var isWholeFileCode = !!(S.wholeFileCodeLang && S.wholeFileCodeLang(S.currentBody));
     var rows = fiRow('Filename', fileName);
     // Short URL sits directly under Filename, above the paths - and the whole row
     // mirrors the prose file-info card exactly: a subtle dotted "Generate" until a
     // link exists, then the URL in a copyable row. Shared generator keeps both in
     // sync. (Same wording the prose card uses, verbatim.)
-    if (S.generateShortLink && navigator.clipboard) {
+    if (isWholeFileCode && S.generateShortLink && navigator.clipboard) {
       if (S.shortUrl) {
         rows += fiRow('Short URL', S.shortUrl);
       } else {
@@ -1476,9 +1485,9 @@
           + '</div>';
       }
     }
-    var hasLocalRow = !!(relPath || fullPath);
-    if (relPath && relPath !== fullPath) rows += fiRow('Rel. Path', relPath, true);
-    if (fullPath) rows += fiRow('Abs. Path', fullPath, true);
+    var hasLocalRow = isWholeFileCode && !!(relPath || fullPath);
+    if (isWholeFileCode && relPath && relPath !== fullPath) rows += fiRow('Rel. Path', relPath, true);
+    if (isWholeFileCode && fullPath) rows += fiRow('Abs. Path', fullPath, true);
     var card = document.createElement('div');
     card.className = 'sdoc-cf-fileinfo';
     // Footer note - mirrors the prose card: local-only rows (the paths) never

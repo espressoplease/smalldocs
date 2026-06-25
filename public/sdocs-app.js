@@ -534,7 +534,11 @@ function maybeAutoExpandCodeFile() {
   if (!wholeFileCodeLang(S.currentBody)) return;
   var hasName = (S.currentMeta && S.currentMeta.file) || (S.localMeta && S.localMeta.fullPath);
   if (!hasName) return;
-  var pre = S.renderedEl && S.renderedEl.querySelector('.pre-wrapper > pre');
+  // In comment mode the rendered block is wrapped differently, so `.pre-wrapper
+  // > pre` can miss; fall back to the first pre so a short link that lands in
+  // comment mode still auto-expands into the viewer.
+  var pre = (S.renderedEl && S.renderedEl.querySelector('.pre-wrapper > pre'))
+    || (S.renderedEl && S.renderedEl.querySelector('pre'));
   if (!pre) return;
   _codeFileAutoExpanded = true;
   S.codeFocus.open(pre, { comment: document.body.classList.contains('comment-mode') });
@@ -1056,8 +1060,18 @@ function loadText(text, filename) {
     var existing = (S.currentMeta.comments || []).filter(function (c) {
       return !fn.comments.some(function (n) { return n.id === c.id; });
     });
+    // The store holds BOTH prose kinds (inline/block/slide) and code kinds
+    // (line/method/token). Each kind has its own sanitiser: the prose one drops
+    // the line/anchorText/quote fields that pin a code note, so code comments
+    // must go through the code model's normaliser or they arrive on a shared
+    // load with their anchors stripped (the note vanishes). Route by kind.
+    var CC = window.SDocsCodeComments;
+    var CODE_KINDS = { line: 1, method: 1, token: 1 };
     var merged = existing.concat(fn.comments)
-      .map(window.SDocComments.normalizeComment)
+      .map(function (c) {
+        if (c && CODE_KINDS[c.kind] && CC && CC.normalize) return CC.normalize(c);
+        return window.SDocComments.normalizeComment(c);
+      })
       .filter(function (c) { return c !== null; });
     if (merged.length) {
       S.currentMeta = Object.assign({}, S.currentMeta, { comments: merged });
