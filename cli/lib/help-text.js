@@ -21,6 +21,7 @@ USAGE
   sdoc schema                      Print the full styles schema
   sdoc charts                      Chart types, options, and styling guide
   sdoc diagrams                    Mermaid diagrams reference (\`\`\`mermaid blocks)
+  sdoc videos                      YouTube embed reference (\`\`\`video blocks)
   sdoc cells                       Inline spreadsheet reference (\`\`\`cells blocks)
   sdoc code                        Syntax highlighting + code-viewer reference
   sdoc app.rb / server.js / ...    Open a source file as a highlighted listing
@@ -925,6 +926,55 @@ EXAMPLE
     S->>S: render() → SVG
     S->>U: paint diagram
   \`\`\`
+`;
+
+
+const VIDEOS_HELP = `
+SmallDocs - Videos
+==================
+Embed a YouTube video in markdown using a \`\`\`video fenced code block.
+The body is a YouTube URL (any common shape) or a bare 11-character
+video id, with optional \`title:\` and \`start:\` lines.
+
+BASIC SYNTAX
+  \`\`\`video
+  https://www.youtube.com/watch?v=dQw4w9WgXcQ
+  \`\`\`
+
+  Bare id, short link, embed link and shorts link all work:
+  \`\`\`video
+  dQw4w9WgXcQ
+  \`\`\`
+
+WITH A TITLE AND START TIME
+  \`\`\`video
+  https://youtu.be/dQw4w9WgXcQ
+  title: Our launch walkthrough
+  start: 1:30
+  \`\`\`
+  \`start:\` accepts seconds (90), clock (1:30, 1:02:03) or 1m30s / 1h2m3s.
+  A \`t=\` parameter already on the URL is used when no \`start:\` is given.
+  \`title:\` sets the iframe title (accessibility) and a caption link.
+
+WHAT RENDERS
+  A responsive 16:9 player that scales with the body column. The embed
+  host is youtube-nocookie.com, so no tracking cookie is set until the
+  viewer presses play. \`rel=0\` is applied, which limits the end-screen
+  suggestions to the source channel (YouTube no longer allows fully
+  removing them from an embed).
+
+LIMITS
+  - Per-block source cap: 8 KB.
+  - Per-document video cap: 50 (excess rendered as plain code).
+
+SECURITY
+  No iframe ever travels through the document markup - SmallDocs still
+  strips iframes from ordinary markdown. The renderer reads only the
+  block text, extracts the 11-character video id, validates it against
+  \`[A-Za-z0-9_-]{11}\`, and builds the player from a src it constructs
+  itself. Anything that is not a recognised YouTube URL or a valid id
+  renders as an inline error, never an embed. Treat block source as
+  untrusted - it travels in the URL hash with the rest of the document.
 `;
 
 
@@ -2847,4 +2897,4 @@ SUPPORTED LANGUAGES
   they appear. An unknown language label renders as plain text.
 `;
 
-module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, CELLS_HELP, CODE_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };
+module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, VIDEOS_HELP, CELLS_HELP, CODE_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };
