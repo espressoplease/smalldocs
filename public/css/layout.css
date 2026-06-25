@@ -96,6 +96,49 @@ body {
   flex-shrink: 0;
 }
 #_sd_safari-banner[hidden] { display: none; }
+
+/* Discord invite banner - tinted accent surface so it reads as its own strip
+   above the chrome, not part of it. Mirrors the migration banner pattern. */
+#_sd_discord-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 9px 13px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 9%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+#_sd_discord-banner[hidden] { display: none; }
+.sd-discord-banner-text { flex: 1; min-width: 0; }
+.sd-discord-banner-join {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 3px 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: var(--radius-sm);
+}
+.sd-discord-banner-join:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: var(--accent);
+}
+.sd-discord-banner-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+.sd-discord-banner-dismiss:hover { color: var(--text); }
 .sd-safari-banner-text { flex: 1; color: var(--text); }
 .sd-safari-banner-dismiss {
   background: transparent;

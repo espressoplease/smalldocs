@@ -603,6 +603,13 @@ textarea#_sd_info-feedback:focus {
   font-size: 11px;
   color: var(--text-3);
 }
+.info-section-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-2);
+  margin: 0;
+}
+.info-section-text a { color: var(--accent); }
 
 /* Toolbar-button corner dot (info "new features", comment "doc has comments").
    Per-button color comes from --btn-dot-color (set inline by JS); the default
