@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SmallDocs for business</title>
+<meta name="description" content="SmallDocs for teams and companies: a private vault, your own domain, dedicated encryption keys, brand styling, and a documents API. Tell us what your team needs." />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ───────────────────────────────────────────────────────────────
+   SmallDocs for business. Same paper/ink design system as the
+   homepage so the two pages read as one site. A short hero, a grid
+   of capability cards (most of it roadmap, said plainly), then the
+   same contact form the homepage Teams section uses - it posts to
+   /api/teams-interest, which stores the submission and pings us.
+   ─────────────────────────────────────────────────────────────── */
+
+:root {
+  --paper:     #F6F4F1;
+  --white:     #FFFFFF;
+  --ink:       #1B1815;
+  --ink-2:     #56504A;
+  --ink-3:     #938C82;
+  --line:      #E7E2DA;
+  --line-2:    #DAD3C9;
+  --accent:    #2563EB;
+  --accent-ink:#1D4ED8;
+
+  --t-h1:      clamp(1.95rem, 1.5rem + 1.7vw, 2.55rem);
+  --t-lead:    clamp(1.08rem, 1.01rem + 0.34vw, 1.25rem);
+  --t-h3:      1.0625rem;
+  --t-body:    1.0625rem;
+  --t-sm:      0.9375rem;
+  --t-label:   0.75rem;
+
+  --r-sm: 8px;
+  --r:    12px;
+  --r-lg: 18px;
+
+  --sh-card: 0 1px 2px rgba(27,24,21,.04), 0 6px 16px rgba(27,24,21,.05);
+
+  --font:  'Inter', system-ui, -apple-system, sans-serif;
+  --mono:  'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--t-body);
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+a { color: inherit; }
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
+.wrap { width: 100%; max-width: 1040px; margin: 0 auto; padding: 0 36px; }
+
+/* ── NAV ─────────────────────────────────────────────── */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.nav-in {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 36px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--accent);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.nav-links {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.nav-links a {
+  text-decoration: none;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 450;
+}
+.nav-links a:hover { color: var(--ink); }
+
+/* ── BUTTONS ─────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .12s ease;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--paper);
+  padding: 11px 18px;
+}
+.btn-primary:hover { background: #000; }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { opacity: .55; cursor: default; }
+.btn-primary:disabled:hover { background: var(--accent); }
+
+/* ── HERO ────────────────────────────────────────────── */
+.hero { padding: 64px 0 8px 0; }
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--t-label);
+  letter-spacing: 0.01em;
+  color: var(--ink-3);
+}
+.hero h1 {
+  margin-top: 14px;
+  font-size: var(--t-h1);
+  line-height: 1.12;
+}
+.hero .lead {
+  margin-top: 18px;
+  font-size: var(--t-lead);
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 58ch;
+}
+
+/* ── CAPABILITY CARDS ────────────────────────────────── */
+.caps { padding: 44px 0 8px 0; }
+.caps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+.cap {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 22px 22px 24px;
+}
+.cap-icon {
+  width: 34px; height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--accent) 10%, var(--white));
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.cap-icon svg { display: block; }
+.cap h3 {
+  font-size: var(--t-h3);
+  font-weight: 600;
+  color: var(--ink);
+}
+.cap p {
+  margin-top: 7px;
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+/* ── CONTACT ─────────────────────────────────────────── */
+#contact { padding: 56px 0 88px 0; }
+.contact-panel {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 44px 44px;
+}
+.contact-grid {
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 56px;
+  align-items: start;
+}
+.contact-grid > * { min-width: 0; }
+.contact-text h2 {
+  font-size: var(--t-lead);
+  font-weight: 600;
+  line-height: 1.16;
+  color: var(--ink);
+}
+.contact-text .lead {
+  margin-top: 14px;
+  font-size: var(--t-sm);
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 36ch;
+}
+.contact-text .alt {
+  margin-top: 18px;
+  font-size: var(--t-sm);
+  color: var(--ink-3);
+}
+.contact-text .alt a { color: var(--accent); text-decoration: none; }
+.contact-text .alt a:hover { text-decoration: underline; }
+
+.teams-form { display: grid; gap: 14px; }
+.tf-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+}
+.tf-field .tf-opt { font-weight: 400; color: var(--ink-3); }
+.tf-field input,
+.tf-field textarea {
+  width: 100%;
+  font-family: var(--font);
+  /* 16px minimum: anything smaller makes iOS Safari zoom in on focus. */
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color .15s ease;
+}
+.tf-field input:focus,
+.tf-field textarea:focus { border-color: var(--accent); }
+.tf-field textarea { resize: vertical; min-height: 96px; }
+.tf-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.tf-actions { display: flex; align-items: center; gap: 14px; }
+.tf-status { font-size: var(--t-sm); color: var(--ink-2); }
+.tf-status.err { color: #B4231F; }
+.tf-note { font-size: var(--t-label); color: var(--ink-3); }
+.teams-thanks {
+  font-size: var(--t-body);
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: var(--r);
+  padding: 22px 24px;
+}
+
+/* ── FOOTER ──────────────────────────────────────────── */
+.foot {
+  border-top: 1px solid var(--line);
+  padding: 26px 0 40px;
+}
+.foot-in {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  font-size: var(--t-sm);
+  color: var(--ink-3);
+}
+.foot-in a { color: var(--ink-2); text-decoration: none; }
+.foot-in a:hover { color: var(--ink); }
+
+@media (max-width: 880px) {
+  .caps-grid { grid-template-columns: repeat(2, 1fr); }
+  .contact-grid { grid-template-columns: 1fr; gap: 30px; }
+  .contact-text .lead { max-width: 100%; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 22px; }
+  .nav-in { padding: 0 22px; }
+  .caps-grid { grid-template-columns: 1fr; }
+  .contact-panel { padding: 30px 22px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="brand" href="/">
+      <svg width="18" height="18" viewBox="0 0 32 32" fill="none"><rect x="2" y="2" width="28" height="28" rx="7" fill="#2563EB" fill-opacity=".15"/><rect x="2" y="2" width="28" height="28" rx="7" stroke="#2563EB" stroke-width="2"/><path d="M9 11h14M9 16h11M9 21h8" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/></svg>
+      SmallDocs
+    </a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="#contact">Get in touch</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">SmallDocs for business</p>
+    <h1>Bring SmallDocs to your team</h1>
+    <p class="lead">
+      SmallDocs is free for personal use. For teams and companies we are building a set of capabilities around control, security, and brand, so the documents your agents produce stay private, on-brand, and easy to govern.
+    </p>
+  </div>
+</header>
+
+<section class="caps">
+  <div class="wrap">
+    <div class="caps-grid">
+
+      <div class="cap">
+        <span class="cap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <h3>Vault</h3>
+        <p>A private, shared home for your team's documents. Central storage and distribution of company-standard files, instead of links scattered across chats.</p>
+      </div>
+
+      <div class="cap">
+        <span class="cap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+        <h3>Private domains</h3>
+        <p>Serve and share documents from your own domain, for example docs.yourcompany.com, rather than smalldocs.org.</p>
+      </div>
+
+      <div class="cap">
+        <span class="cap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/><circle cx="16.5" cy="7.5" r="1"/></svg></span>
+        <h3>Dedicated encryption keys</h3>
+        <p>Your own keys for shared and stored documents, isolated from every other account, so the encryption boundary is yours alone.</p>
+      </div>
+
+      <div class="cap">
+        <span class="cap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 22a4 4 0 0 0 4-4 2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2 4 4 0 0 0 4 4z"/></svg></span>
+        <h3>Brand styling</h3>
+        <p>House styles, your fonts, colours, and spacing, applied across every document your team creates, so output is on-brand without manual work.</p>
+      </div>
+
+      <div class="cap">
+        <span class="cap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg></span>
+        <h3>Documents API</h3>
+        <p>Generate, render, and export SmallDocs programmatically from your own systems and pipelines, the same documents your people read in the browser.</p>
+      </div>
+
+      <div class="cap">
+        <span class="cap-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <h3>SSO &amp; access control</h3>
+        <p>Sign in with your identity provider and control who can read, edit, and share. Audit and retention controls for the documents that matter.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="wrap">
+    <div class="contact-panel">
+      <div class="contact-grid">
+
+        <div class="contact-text">
+          <h2>Tell us what your team needs</h2>
+          <p class="lead">
+            Leave a work email and a line about how your team would use SmallDocs. We read every one and reply ourselves; it shapes what we build next.
+          </p>
+          <p class="alt">Prefer email? <a href="mailto:hi@smalldocs.org">hi@smalldocs.org</a></p>
+        </div>
+
+        <form class="teams-form" id="teamsForm" novalidate>
+          <div class="tf-field">
+            <label for="tf-email">Work email</label>
+            <input id="tf-email" name="email" type="email" required autocomplete="email" />
+          </div>
+          <div class="tf-field">
+            <label for="tf-company">Company or team <span class="tf-opt">optional</span></label>
+            <input id="tf-company" name="company" type="text" autocomplete="organization" />
+          </div>
+          <div class="tf-field">
+            <label for="tf-message">What would your team use it for? <span class="tf-opt">optional</span></label>
+            <textarea id="tf-message" name="message" rows="4"></textarea>
+          </div>
+          <!-- Honeypot: hidden from people, filled by naive bots. -->
+          <div class="tf-hp" aria-hidden="true">
+            <label for="tf-website">Website</label>
+            <input id="tf-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+          </div>
+          <div class="tf-actions">
+            <button class="btn btn-primary" type="submit" id="tf-submit">Get in touch</button>
+            <span class="tf-status" id="tf-status" aria-live="polite"></span>
+          </div>
+          <p class="tf-note">We store what you submit and use it only to reply.</p>
+        </form>
+
+      </div><!-- /contact-grid -->
+    </div><!-- /contact-panel -->
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-in">
+      <a href="/">SmallDocs</a>
+      <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://discord.gg/9TH2gQepT" target="_blank" rel="noopener">Discord</a>
+      <span style="margin-left:auto">Free for personal use.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* Contact form: POST to /api/teams-interest, which stores the submission
+   and pings us. On success the whole form is replaced with a confirmation
+   so a double-submit isn't possible. Mirrors the homepage Teams form. */
+(function () {
+  const form = document.getElementById('teamsForm');
+  if (!form) return;
+  const email   = document.getElementById('tf-email');
+  const company = document.getElementById('tf-company');
+  const message = document.getElementById('tf-message');
+  const hp      = document.getElementById('tf-website');
+  const submit  = document.getElementById('tf-submit');
+  const status  = document.getElementById('tf-status');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const addr = email.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(addr)) {
+      status.textContent = 'Enter a valid email address.';
+      status.classList.add('err');
+      email.focus();
+      return;
+    }
+    status.classList.remove('err');
+    status.textContent = 'Sending...';
+    submit.disabled = true;
+    try {
+      const r = await fetch('/api/teams-interest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: addr,
+          company: company.value.trim(),
+          message: message.value.trim(),
+          website: hp.value,
+        }),
+      });
+      if (!r.ok) throw new Error('http ' + r.status);
+      form.innerHTML = '<div class="teams-thanks">Thanks. We will be in touch at <strong>'
+        + addr.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</strong>.</div>';
+    } catch (err) {
+      submit.disabled = false;
+      status.classList.add('err');
+      status.textContent = 'Something went wrong; nothing was sent. Try again, or email hi@smalldocs.org.';
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

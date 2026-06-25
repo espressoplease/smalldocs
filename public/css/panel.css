@@ -653,3 +653,32 @@ textarea#_sd_info-feedback:focus {
   background: #22C55E;
   flex-shrink: 0;
 }
+/* Footer link cluster. Single line, never wraps - the fixed 24px bar
+   has no room for a second line, so as the window narrows we drop whole
+   items (see the breakpoints in mobile.css) rather than letting them
+   wrap and overflow the bar. Each item carries its own leading "·" via
+   ::before, so hiding an item takes its separator with it (no orphan
+   dots). #sb-private is always the first visible item, so it never
+   shows a leading dot. */
+#_sd_sb-links .sb-item {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+#_sd_sb-links .sb-item:not(:first-child)::before {
+  content: "\00B7";
+  margin-right: 6px;
+  color: var(--text-2);
+}
+#_sd_sb-links #sb-cli { gap: 6px; }
+/* Install-command chip. display lives here (not inline) so the first
+   breakpoint in mobile.css can hide it - an inline `display` would
+   outrank the stylesheet and the chip would never drop. */
+#_sd_sb-links #_sd_cli-install-wrap { display: inline-flex; }
+/* Separator between the prompt chip and the install command inside the
+   CLI item; hidden with the install command at the first breakpoint. */
+#_sd_sb-links #_sd_cli-install-wrap::before {
+  content: "\00B7";
+  margin-right: 6px;
+  color: var(--text-2);
+}
