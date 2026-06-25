@@ -1,23 +1,11 @@
-/* ═══════════════════════════════════════════════════
-   FOOTER STATUS BAR - progressive item drop
-
-   The bar is one fixed-height line and never wraps. As the window
-   narrows, drop whole items in priority order (widest / least
-   essential first) so the visible set always fits on that line.
-   Below 768px the whole bar is hidden (see the mobile block below).
-   Each query is cumulative: a 820px viewport matches every breakpoint
-   at or above 820, so the hidden set grows as the window shrinks.
-   The chosen widths are validated headlessly (test/footer-fit.spec.js).
-═══════════════════════════════════════════════════ */
-/* The #_sd_sb-links prefix is required: the base rule
-   `#_sd_sb-links .sb-item` (id + class) outranks a bare `#sb-x` id,
-   so these hides must match its specificity to win. */
-@media (max-width: 1199px) { #_sd_sb-links #_sd_cli-install-wrap { display: none; } }   /* drop curl command */
-@media (max-width: 1099px) { #_sd_sb-links #sb-trust            { display: none; } }   /* drop verify-server */
-@media (max-width: 999px)  { #_sd_sb-links #sb-cli              { display: none; } }   /* drop rest of CLI */
-@media (max-width: 929px)  { #_sd_sb-links #sb-discord          { display: none; } }   /* drop Discord */
-@media (max-width: 879px)  { #_sd_sb-links #sb-github           { display: none; } }   /* drop GitHub */
-@media (max-width: 829px)  { #_sd_sb-links #sb-business         { display: none; } }   /* drop For business */
+/* Footer status bar: one fixed-height line that must not wrap. As the
+   window narrows, items are dropped in priority order so the line always
+   fits - but the drop is driven live in JS (fitFooter in index.html), not
+   by width breakpoints, because the bar's content differs by page (the
+   doc-page "sdoc upgrade" chip is far shorter than the homepage curl
+   command) and a fixed breakpoint drops items too early for the narrower
+   variants. Below 768px the whole bar is hidden (see the mobile block
+   below). Validated headlessly in test/footer-fit.spec.js. */
 
 /* ═══════════════════════════════════════════════════
    MOBILE
