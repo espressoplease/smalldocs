@@ -345,6 +345,9 @@
     '.sdoc-cl-copy {',
     '  all: unset; cursor: pointer; vertical-align: middle; line-height: 1;',
     '  display: inline-flex; align-items: center; margin-left: 10px;',
+    // all:unset makes text-indent inherit, so an indented line\'s negative
+    // hanging-indent (see .sdoc-cl-code) would leak in and shift this button.
+    '  text-indent: 0;',
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '  opacity: .55; transition: opacity .12s;',
     '}',
@@ -358,6 +361,10 @@
     '.sdoc-cl-copyc {',
     '  all: unset; cursor: pointer; vertical-align: middle; line-height: 1;',
     '  display: inline-flex; align-items: center; gap: 3px; margin-left: 4px;',
+    // text-indent: 0 stops the negative hanging-indent of an indented code line
+    // (.sdoc-cl-code) from inheriting in via all:unset and sliding the "with
+    // comments" label left under the icon on nested method headers.
+    '  text-indent: 0;',
     '  font-size: 11.5px; font-weight: 500;',
     '  font-family: ui-sans-serif, system-ui, sans-serif;',
     '  color: var(--sdoc-focus-fg, #1c1917); opacity: .55; transition: opacity .12s;',

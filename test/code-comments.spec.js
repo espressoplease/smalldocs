@@ -436,6 +436,33 @@ test('a hostile shared doc cannot smuggle a url() colour or control chars throug
   await expect(page.locator('.sdoc-cc-thread[data-ln="2"]:not(.sdoc-cc-composer)')).toHaveCount(0);
 });
 
+test('the "with comments" label is not shrunk on an indented (nested) method header', async ({ page }) => {
+  // A nested method header carries a hanging indent (padding-left + negative
+  // text-indent on .sdoc-cl-code). Because the copy buttons use all:unset,
+  // text-indent (an inherited property) would leak in and slide the "with
+  // comments" label left under its icon - only on the indented header. The
+  // labels on the outer and the indented inner header must render the same width.
+  await page.evaluate(() => {
+    var S = window.SDocs, NL = String.fromCharCode(10);
+    var lines = ['function outer() {', '  return function inner() {', '    return 1;', '  };', '}'];
+    S.currentBody = '```js' + NL + lines.join(NL) + NL + '```' + NL;
+    S.currentMeta = { comments: [
+      { id: 'c1', kind: 'line', block: 'pre:0', line: 2, anchorText: '    return 1;', author: 'user', color: '#ffbb00', text: 'note' },
+    ] };
+    S.render();
+    S.codeFocus.open(document.querySelector('#_sd_rendered pre'), { comment: true });
+  });
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  await settleHighlight(page);
+  // both the outer (line 0) and the nested, indented inner (line 1) header carry a
+  // "with comments" copy; their labels must be the same rendered width.
+  const widths = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.sdoc-code-focus .sdoc-cl-copyc span'))
+      .map(s => Math.round(s.getBoundingClientRect().width)));
+  expect(widths.length).toBeGreaterThanOrEqual(2);
+  expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1);
+});
+
 test('code comments from a shared doc are capped to guard against a flood', async ({ page }) => {
   await openCode(page, 'ruby', RUBY);
   await page.evaluate(() => {
