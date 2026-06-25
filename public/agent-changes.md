@@ -13,7 +13,7 @@ The CLI links here whenever it updates an existing block. Each entry shows the
 exact text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
-## v12 (1.14.0, unreleased)
+## v12 (1.14.0, 2026-06-25)
 
 **Reason:** Adds `sdoc code`: opening a source file (`sdoc app.rb`) or a
 ```lang fenced block as a syntax-highlighted listing - a light code viewer for
