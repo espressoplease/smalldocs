@@ -559,6 +559,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // SmallDocs for business: capability overview + contact form. The form
+  // posts to /api/teams-interest (stores + email ping), same as the
+  // homepage Teams section.
+  if (pathname === '/business') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'business.html'), null, {
+      'Cache-Control': 'no-cache',
+    });
+    return;
+  }
+
   // Version check — used by service worker to detect updates
   if (pathname === '/version-check') {
     const v = url.searchParams.get('v') || '';
