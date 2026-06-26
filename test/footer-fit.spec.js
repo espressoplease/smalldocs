@@ -74,7 +74,7 @@ test.beforeEach(async ({ page }) => {
 
 function assertInvariants(m, w) {
   expect(m.hidden, `bar visible at ${w}px`).toBe(false);
-  expect(m.barH, `one line at ${w}px`).toBeLessThanOrEqual(25);
+  expect(m.barH, `one line at ${w}px`).toBeLessThanOrEqual(29);
   expect(m.overflowPx, `fits at ${w}px`).toBeLessThanOrEqual(1);
   for (const id of ALWAYS) expect(m.shown[id], `${id} kept at ${w}px`).toBe(true);
   // Priority order: items drop from the front of FOOTER_DROP_ORDER, so the
@@ -116,10 +116,12 @@ test('doc-page footer keeps the CLI affordance far longer', async ({ page }) => 
     assertInvariants(await measure(page), w);
   }
 
-  // The whole point of the change: at 800px the CLI block (lead + prompt
+  // The whole point of the change: at 860px the CLI block (lead + prompt
   // chip) is still present - the old fixed breakpoint dropped it at 999px.
-  await page.setViewportSize({ width: 800, height: 900 });
+  // (With the 28px bar / 11.5px footer text it now drops around 820px, still
+  // far below the old 999px.)
+  await page.setViewportSize({ width: 860, height: 900 });
   await page.waitForTimeout(120);
   const m = await measure(page);
-  expect(m.shown['sb-cli'], 'CLI block still shown at 800px on a doc page').toBe(true);
+  expect(m.shown['sb-cli'], 'CLI block still shown at 860px on a doc page').toBe(true);
 });
