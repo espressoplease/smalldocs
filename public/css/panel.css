@@ -634,7 +634,7 @@ textarea#_sd_info-feedback:focus {
    FOOTER / STATUS
 ═══════════════════════════════════════════════════ */
 #_sd_statusbar {
-  height: 24px;
+  height: 28px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -644,7 +644,7 @@ textarea#_sd_info-feedback:focus {
   flex-shrink: 0;
 }
 #_sd_statusbar span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-2);
 }
 #_sd_statusbar .dot {
