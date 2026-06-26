@@ -652,6 +652,7 @@ function render() {
   S.processCharts(S.renderedEl);
   if (S.processMath) S.processMath(S.renderedEl);
   if (S.processMermaid) S.processMermaid(S.renderedEl);
+  if (S.processVideo) S.processVideo(S.renderedEl);
   if (window.SDocSlides) window.SDocSlides.processSlides(S.renderedEl);
   if (S.renderForms) S.renderForms(S.renderedEl);
   if (S.processCells) S.processCells(S.renderedEl);
