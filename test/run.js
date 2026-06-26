@@ -25,6 +25,7 @@ require('./test-base64')(harness);
 require('./test-files')(harness);
 require('./test-chart-replace')(harness);
 require('./test-mermaid')(harness);
+require('./test-video')(harness);
 require('./test-zoom-math')(harness);
 require('./test-update')(harness);
 require('./test-analytics')(harness);

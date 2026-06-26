@@ -8,7 +8,7 @@ const { isWrappedFile, wrapForDisplay } = require('./file-wrap');
 
 const SUBCOMMANDS = new Set([
   'new', 'share', 'schema', 'defaults', 'help', 'version',
-  'charts', 'diagrams', 'cells', 'code', 'comments',
+  'charts', 'diagrams', 'videos', 'video', 'cells', 'code', 'comments',
   'setup', 'safe', 'auto-update', 'refresh', 'upgrade',
   'bridge', 'feedback',
   'slides', 'present',

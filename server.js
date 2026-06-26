@@ -767,7 +767,10 @@ const server = http.createServer((req, res) => {
       // http://127.0.0.1:* and http://localhost:* are the equivalent for
       // the local library agent (`sdoc library`) - same trust boundary.
       "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*",
-      "frame-src 'none'",
+      // YouTube embeds (```video blocks) load only from the no-cookie host -
+      // the exact origin sdocs-video.js builds its iframe src from. The
+      // renderer never emits standard youtube.com, so it is not allowed here.
+      "frame-src https://www.youtube-nocookie.com",
       "object-src 'none'",
     ].join('; ');
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'index.html'), {
