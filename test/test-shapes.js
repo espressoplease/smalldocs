@@ -1003,4 +1003,29 @@ module.exports = function(harness) {
     const p2 = parse(serialize(p1.shapes));
     assert.strictEqual(p2.shapes[0].attrs.opacity, '0.4');
   });
+
+  // ── Cylinder lid colours ─────────────────────────────
+
+  test('cylLidColors: lighter lid + darker seam from a hex fill', () => {
+    const c = SDocShapes.cylLidColors('#0165a5');
+    assert.ok(c, 'returns colours for a hex fill');
+    assert.match(c.lid, /^#[0-9a-f]{6}$/);
+    assert.match(c.seam, /^#[0-9a-f]{6}$/);
+    // lid is lighter than the fill, seam is darker (compare summed channels).
+    const sum = (h) => parseInt(h.slice(1, 3), 16) + parseInt(h.slice(3, 5), 16) + parseInt(h.slice(5, 7), 16);
+    const fill = sum('#0165a5');
+    assert.ok(sum(c.lid) > fill, 'lid lighter than fill');
+    assert.ok(sum(c.seam) < fill, 'seam darker than fill');
+  });
+
+  test('cylLidColors: accepts 3-digit hex', () => {
+    const c = SDocShapes.cylLidColors('#08a');
+    assert.ok(c && /^#[0-9a-f]{6}$/.test(c.lid));
+  });
+
+  test('cylLidColors: returns null for non-hex fills (caller falls back)', () => {
+    assert.strictEqual(SDocShapes.cylLidColors('tomato'), null);
+    assert.strictEqual(SDocShapes.cylLidColors('rgb(1,2,3)'), null);
+    assert.strictEqual(SDocShapes.cylLidColors(undefined), null);
+  });
 };

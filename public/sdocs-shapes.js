@@ -542,6 +542,26 @@ function cylLip(s) {
   }
   return Math.min(s.h * 0.2, s.w * 0.4);
 }
+// Lid colours for a filled cylinder: a clearly lighter top so it reads as a
+// database lid, plus a slightly darker seam line for the lid/body edge. Both
+// derive from the fill so the lid reads on any colour (dark or light). Returns
+// null when the fill is not a hex colour, so the caller can fall back.
+function cylLidColors(fill) {
+  if (typeof fill !== 'string') return null;
+  var m = fill.trim().replace(/^#/, '');
+  if (m.length === 3) m = m[0] + m[0] + m[1] + m[1] + m[2] + m[2];
+  if (!/^[0-9a-fA-F]{6}$/.test(m)) return null;
+  var r = parseInt(m.slice(0, 2), 16),
+      g = parseInt(m.slice(2, 4), 16),
+      b = parseInt(m.slice(4, 6), 16);
+  function mix(t, amt) {
+    var to = t ? 255 : 0;
+    function c(v) { return Math.round(v + (to - v) * amt); }
+    function h(v) { return ('0' + c(v).toString(16)).slice(-2); }
+    return '#' + h(r) + h(g) + h(b);
+  }
+  return { lid: mix(1, 0.42), seam: mix(0, 0.16) };
+}
 function bubTail(s) {
   if (s.attrs && s.attrs.tail) {
     var parts = String(s.attrs.tail).split(/[\s,]+/).filter(function (p) { return p !== ''; });
@@ -980,6 +1000,7 @@ exports.parseTextBox = parseTextBox;
 exports.chevTip = chevTip;
 exports.chevNotch = chevNotch;
 exports.cylLip = cylLip;
+exports.cylLidColors = cylLidColors;
 exports.bubTail = bubTail;
 exports.tabHeight = tabHeight;
 exports.docFold = docFold;

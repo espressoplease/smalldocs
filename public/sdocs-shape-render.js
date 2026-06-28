@@ -854,12 +854,27 @@ function renderCyl(s) {
   applySvgStroke(body, s.attrs, 'none');
   if (!s.attrs.fill) body.setAttribute('fill', '#ffffff');
   g.appendChild(body);
-  var cap = document.createElementNS(SVG_NS, 'path');
-  cap.setAttribute('d', p.cap);
-  cap.setAttribute('fill', 'none');
-  cap.setAttribute('stroke', p.capColor);
-  cap.setAttribute('stroke-width', String(p.capW));
-  g.appendChild(cap);
+  // Lid: the full top ellipse, so the shape reads as a database cylinder
+  // rather than a lidless tube. On a filled cyl the lid is a light highlight
+  // (its lower edge is the seam between lid and body); on an outline cyl it is
+  // the ellipse outline.
+  var lip = window.SDocShapes.cylLip(s);
+  var lid = document.createElementNS(SVG_NS, 'ellipse');
+  lid.setAttribute('cx', String(s.x + s.w / 2));
+  lid.setAttribute('cy', String(s.y + lip / 2));
+  lid.setAttribute('rx', String(s.w / 2));
+  lid.setAttribute('ry', String(lip / 2));
+  if (s.attrs.fill) {
+    var lc = window.SDocShapes.cylLidColors(s.attrs.fill);
+    lid.setAttribute('fill', lc ? lc.lid : 'rgba(255,255,255,0.45)');
+    lid.setAttribute('stroke', lc ? lc.seam : 'rgba(0,0,0,0.15)');
+    lid.setAttribute('stroke-width', String(p.capW));
+  } else {
+    lid.setAttribute('fill', 'none');
+    lid.setAttribute('stroke', p.capColor);
+    lid.setAttribute('stroke-width', String(p.capW));
+  }
+  g.appendChild(lid);
   if (s.id) g.dataset.id = s.id;
   return g;
 }

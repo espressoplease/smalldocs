@@ -587,22 +587,31 @@ function drawShapeCyl(page, s, grid, bounds) {
   var make = window.SDocShapeRender && window.SDocShapeRender.cylPaths;
   if (!make) return;
   var p = make(s);
-  // Body uses the shape's own fill/stroke. Cap is a stroke-only arc drawn
-  // on top so the lid reads as 3D even when the body is filled.
   drawGridSvgPath(page, p.body, s, grid, bounds);
-  // Cap stroke width is in grid units; convert to pt and divide out the
-  // path scale (matching drawShapePolygon's borderWidth pattern).
-  var scale = bounds.w / grid.w;
+  // Lid: the full top ellipse, so the shape reads as a database cylinder
+  // rather than a lidless tube (mirrors renderCyl in sdocs-shape-render.js).
+  // A filled cyl gets a light highlight whose lower edge is the lid/body seam;
+  // an outline cyl gets the ellipse outline.
+  var lip = window.SDocShapes.cylLip(s);
+  var cx = s.x + s.w / 2, cy = s.y + lip / 2, rx = s.w / 2, ry = lip / 2;
+  var lid = 'M ' + (cx - rx) + ' ' + cy +
+            ' A ' + rx + ' ' + ry + ' 0 1 0 ' + (cx + rx) + ' ' + cy +
+            ' A ' + rx + ' ' + ry + ' 0 1 0 ' + (cx - rx) + ' ' + cy + ' Z';
   var capSwPt = (p.capW / grid.w) * bounds.w;
-  drawGridSvgPath(page, p.cap, s, grid, bounds, {
-    fill: null,
-    stroke: toHex(p.capColor) || '#94a3b8',
-    strokeWidthPt: capSwPt,
-  });
-  // Workaround: drawGridSvgPath sets borderWidth = sw / scale, then the
-  // shared call also passes scale, so the cap stroke gets divided once.
-  // We computed capSwPt above so the divide-out matches the body's path.
-  // (No additional fix needed; the math collapses to capSwPt in PDF pt.)
+  if (s.attrs && s.attrs.fill) {
+    var lc = window.SDocShapes.cylLidColors(s.attrs.fill);
+    drawGridSvgPath(page, lid, s, grid, bounds, {
+      fill: lc ? lc.lid : '#ffffff',
+      stroke: lc ? lc.seam : '#cccccc',
+      strokeWidthPt: capSwPt,
+    });
+  } else {
+    drawGridSvgPath(page, lid, s, grid, bounds, {
+      fill: null,
+      stroke: toHex(p.capColor) || '#94a3b8',
+      strokeWidthPt: capSwPt,
+    });
+  }
 }
 
 function drawShapeBub(page, s, grid, bounds) {
