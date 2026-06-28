@@ -838,13 +838,22 @@ function resolve(shapes) {
   return { shapes: shapes, errors: errors };
 }
 
-// Flags shapes whose bounding box extends outside the declared grid. A common
-// agent mistake is writing `h 70` on a 56.25-tall grid and not realising the
-// shape falls off the bottom. Surfaces as a parse-time error so the thumbnail
-// badge catches it before the overflow is rendered.
+// Flags shapes whose bounding box extends GROSSLY outside the declared grid. A
+// common agent mistake is writing `h 70` on a 56.25-tall grid and not realising
+// the shape falls off the bottom. Surfaces as a parse-time error so the
+// thumbnail badge catches it before the overflow is rendered.
+//
+// Intentional bleed is legitimate design, though — a setting sun clipped behind
+// a mountain range, a decorative shape kissing the edge. So we allow a bleed
+// tolerance of BLEED_TOL of each grid dimension before flagging. The `h 70`
+// typo overflows by ~42% of grid height and stays flagged; a sun poking 1-2%
+// past the bottom passes.
+var BLEED_TOL = 0.1;
 function checkGridBounds(shapes, grid) {
   var errs = [];
   var EPS = 0.001;
+  var tolX = grid.w * BLEED_TOL;
+  var tolY = grid.h * BLEED_TOL;
   for (var i = 0; i < shapes.length; i++) {
     var s = shapes[i];
     // Lines and arrows are decorative, SVG clips them cleanly, and they
@@ -855,7 +864,7 @@ function checkGridBounds(shapes, grid) {
       var bb = bboxOf(s);
       var right = bb.x + bb.w;
       var bottom = bb.y + bb.h;
-      if (bb.x < -EPS || bb.y < -EPS || right > grid.w + EPS || bottom > grid.h + EPS) {
+      if (bb.x < -tolX - EPS || bb.y < -tolY - EPS || right > grid.w + tolX + EPS || bottom > grid.h + tolY + EPS) {
         errs.push({
           line: s.lineNumber,
           message: 'shape extends outside grid ' + grid.w + 'x' + grid.h

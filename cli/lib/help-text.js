@@ -1895,7 +1895,8 @@ navigate.
   errors + the full slide source — for pasting back to an agent.
 
   Common errors:
-    - "shape extends outside grid WxH"   y+h > H (or x+w > W)
+    - "shape extends outside grid WxH"   bbox past an edge by >10% of the
+                                         grid (a little bleed is allowed)
     - \`unknown id "@name"\`               @-ref before the shape is declared
     - \`duplicate id "#name"\`             two shapes share an id
     - \`invalid attribute key\`            key must start with a letter
