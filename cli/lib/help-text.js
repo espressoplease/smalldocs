@@ -2020,6 +2020,37 @@ rather than as designed.
     default. Spend visual weight only on the one or two things the
     slide is about. Empty space is half the design.
 
+  Text alignment.
+    Except for slides with very few elements, or custom shapes with
+    very few words, prefer left-aligned text throughout a slide.
+    Left-aligning most elements - particularly any with more than
+    three words - creates a calm, confident slide that is easy to
+    follow.
+
+  An implicit grid.
+    Take inspiration from Josef Muller-Brockmann's work on grid
+    systems. Consistency of alignment between elements gives off the
+    feeling of considered, structured thinking. Unless you are
+    creating something specific from custom shapes, prefer to build
+    an implicit grid on the slide. A presentation feels even more
+    professional when that grid language flows from slide to slide.
+
+  Branding, borders and background.
+    Less is often more. Precise layouts are hard with custom shapes:
+    overlapping positions may not land where you expect, and you
+    cannot easily check how the slide feels. So when you give a slide
+    a mood through coloured background shapes, keep it relatively
+    simple. This should not stop you being bold, but design with a
+    few key shapes (which may overlap), not many overlapping ones.
+
+  Contrast and legibility.
+    Consider the colour of text against the colour of whatever falls
+    directly beneath it. Readers should be able to calmly take text
+    in from a slide, so ensure there is healthy contrast, at least,
+    between text and the colour beneath it. In general, try to
+    overlay text on a single patch of colour (or very closely
+    related colours) to keep it straightforwardly legible.
+
 ── SHAPE KINDS ───────────────────────────────────────
   r x y w h            rectangle  (x,y = top-left; w,h = size)
   i x y w h            image rect (sugar for \`r\` with \`image=\`; see IMAGES)
@@ -2119,6 +2150,12 @@ rather than as designed.
                                    placeholder marks each icon position
                                    so the layout doesn't reflow when
                                    icons swap in.
+
+  Pair an icon with its label as two separate shapes - the icon in
+  its own small box, the text in a shape beside or below it. Don't
+  put \`|\` text on an icon (it overlaps the glyph) or drop an icon
+  onto a text shape. Keep every icon in a set the same size (w = h)
+  on a shared row.
 
   Arrow geometry: the coordinates are the line's centerline. The head is
   symmetric around the line, extending up to 3 * strokeWidth perpendicular
@@ -2329,6 +2366,18 @@ rather than as designed.
      Same w, same h, same size, same padding, truncated to fit.
      The three cards then read as a parallel set rather than three
      improvisations.
+
+  5. Icons collide with text when they share a box.
+
+     The \`icon\` shape paints its glyph across its whole bbox, so
+     text in the same box - or a text shape the icon sits on top of
+     - overlaps it. Keep them as two shapes on one row:
+
+       icon 8 20 4 4 name=recycle color=#0165a5
+       r 13 20 26 4 text=body align=left valign=center | Repairable by design
+
+     Icon in its own 4x4 box; the label starts after it at x=13,
+     centred on the same y. Size every icon in a set the same.
 
 ── SHAPE ATTRIBUTES ──────────────────────────────────
   Between geometry and \`|\`:
