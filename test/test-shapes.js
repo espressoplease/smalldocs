@@ -590,6 +590,16 @@ module.exports = function(harness) {
     assert.strictEqual(res.errors[0].line, 2);
   });
 
+  test('bounds: small intentional bleed past an edge is allowed', () => {
+    // A sun setting behind a mountain range: center on-grid, bottom 0.75
+    // units past the 56.25 edge (~1.3%). Within the bleed tolerance.
+    const res = parseAndResolve([
+      'grid 100 56.25',
+      'c 79 47 10 fill=#F0A04B',
+    ].join('\n'));
+    assert.strictEqual(res.errors.length, 0);
+  });
+
   test('bounds: shape entirely inside grid has no error', () => {
     const res = parseAndResolve([
       'grid 100 56.25',
