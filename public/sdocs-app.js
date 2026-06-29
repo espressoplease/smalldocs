@@ -851,6 +851,15 @@ function renderFileInfoCard() {
     slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', meta.file || bridgeFile, false, false, liveChip) });
   }
 
+  // Blog pages already live at a stable, shareable URL, so surface that as the
+  // Short URL instead of the encrypt-and-upload Generate flow (which the
+  // default-state guard below suppresses for these pages anyway). The link
+  // points at the canonical production URL so it's shareable from anywhere.
+  var blogMatch = /^\/blogs\/[A-Za-z0-9_-]+$/.test(location.pathname || '');
+  if (blogMatch) {
+    slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Short URL', 'https://smalldocs.org' + location.pathname, false, true) });
+  }
+
   // Don't offer a short URL for the built-in default document (bare / or
   // /legal landing pages). Shortening marketing copy isn't useful and
   // clutters the info card. The flag flips false as soon as the user drops

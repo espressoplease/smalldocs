@@ -170,7 +170,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   border-color: #D4CFC9;
   padding: 11px 18px;
 }
-.btn-secondary:hover { background: #E8E3DD; border-color: #D4CFC9; }
+.btn-secondary:hover { background: #E8E3DD; border-color: #C2BBB0; color: #000; }
 .btn-secondary:active { transform: translateY(1px); }
 
 /* ── HERO ────────────────────────────────────────────── */
@@ -217,7 +217,12 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   text-decoration: none;
   transition: background .12s, border-color .12s, color .12s;
 }
-.btn-read:hover { background: #EFEBE5; border-color: #C9C2B8; color: var(--ink); }
+/* Subtle hover: a faint background nudge plus a darker border and text, so the
+   button reads as pressable without the old hard white-to-cream jump. */
+.btn-read:hover { background: #FBF9F6; border-color: #C2BBB0; color: #000; }
+/* "Read a SmallDoc" + "Learn how to sdoc" sit on one line above the CTA pair. */
+.hero-read-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.hero-read-row .btn-read { margin-top: 0; }
 
 .hero-cta {
   margin-top: 14px;
@@ -231,6 +236,33 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   letter-spacing: 0.01em;
   color: var(--ink-3);
 }
+
+/* ── LEARN ───────────────────────────────────────────── */
+#learn { padding: 64px 0 0; }
+.learn-more { margin-top: 16px; font-size: var(--t-sm); color: var(--ink-2); }
+.learn-more a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+/* Each example is a single-line button that opens a real SmallDoc in a new
+   tab. Styled to match the install-area expandable rows exactly (same cream
+   fill, padding, radius, muted text), no border - just the external-link icon
+   where the chevron would sit. */
+.learn-items { display: flex; flex-direction: column; gap: 6px; }
+.learn-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  border-radius: var(--r);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 400;
+  text-decoration: none;
+  transition: background .12s, color .12s;
+}
+.learn-item:hover { background: #F0EBE3; color: var(--ink); }
+.learn-item-prompt { flex: 1; min-width: 0; }
+.learn-item-icon { flex-shrink: 0; margin-left: auto; color: var(--ink-3); transition: color .12s; }
+.learn-item:hover .learn-item-icon { color: var(--accent); }
 
 /* ── HERO VIDEO ──────────────────────────────────────── */
 .hero-visual { margin: 56px 0 0; }
@@ -388,7 +420,6 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   line-height: 1.65;
   color: var(--ink-2);
 }
-
 /* terminal-style command block, kept dark for strong identity */
 .install-cmd {
   display: flex;
@@ -423,7 +454,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   padding: 0;
   color: var(--ink-2);
   background: transparent;
-  border: 1px solid rgba(0,0,0,0.12);
+  border: none;
   border-radius: 4px;
   cursor: pointer;
   opacity: 0.7;
@@ -431,6 +462,17 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 }
 .install-cmd .copy:hover { opacity: 1; background: rgba(0,0,0,0.05); color: var(--ink); }
 .install-cmd .copy.done { opacity: 1; color: #2E8C46; }
+/* Two commands (install, then sdoc setup) in one grey block: the box stacks
+   its rows, each row keeps the $ / command / copy layout. */
+.install-cmd-stack { flex-direction: column; align-items: stretch; gap: 0; }
+.install-cmd-line { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* A shell-style comment between commands - muted, monospace, no copy button. */
+.install-cmd-comment {
+  font-family: var(--mono);
+  font-size: var(--t-mono);
+  color: var(--ink-3);
+  padding: 0;
+}
 
 /* ── TEAMS: sibling panel below the install section ──────────
    Reuses .install-panel for the outer shell so the page reads as
@@ -508,7 +550,10 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .trouble {
   background: var(--paper);
   border-radius: var(--r);
+  transition: background .12s;
 }
+/* Subtle hover on the whole row - no border, matching the learn buttons. */
+.trouble:hover { background: #F0EBE3; }
 .trouble + .trouble { margin-top: 6px; }
 .install-cmd + .trouble { margin-top: 14px; }
 .trouble[open] { background: var(--paper); }
@@ -715,6 +760,10 @@ footer {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
         GitHub
       </a>
+      <a class="btn-gh" href="https://discord.gg/txjATTsDaq" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>
+        Discord
+      </a>
     </div>
   </div>
 </nav>
@@ -727,11 +776,17 @@ footer {
     <p class="eyebrow">If Claude &amp; Microsoft Office had a baby...</p>
     <h1 class="hero-display">The document format as intelligent as your agents</h1>
     <p class="lead">
-      A SmallDoc is a new kind of document. They're written by the agents you already use. Developers, scientists and analysts who work agentically use them to go deeper, think clearer and collaborate faster.</p>
-    <a class="btn-read" href="/blogs/what-is-a-smalldoc" target="_blank" rel="noopener">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>
-      Read a SmallDoc
-    </a>
+      SmallDocs are a new kind of document. They're written by the agents you already use. They handle code, slides, spreadsheets, architecture diagrams, and more. They're built with Markdown, but export to all formats (.pptx, .xlsx, .pdf, etc.). They're fast, lightweight, 100% private and instantly shareable. They're the productivity Swiss Army Knife you, your team and your agents need.</p>
+    <div class="hero-read-row">
+      <a class="btn-read" href="/blogs/what-is-a-smalldoc" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>
+        Read a SmallDoc
+      </a>
+      <a class="btn-read" href="#learn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>
+        Learn how to &ldquo;sdoc&rdquo;
+      </a>
+    </div>
     <div class="hero-cta">
       <a class="btn btn-secondary" href="#install">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
@@ -754,6 +809,53 @@ footer {
   </div>
 </header>
 
+<!-- ═══ LEARN ════════════════════════════════════════════ -->
+<section id="learn">
+  <div class="wrap">
+    <div class="install-panel">
+      <div class="install-grid">
+
+        <div class="install-text">
+          <h2>Learn how to &ldquo;sdoc&rdquo;</h2>
+          <p>
+            Once SmallDocs is set up, your coding agent knows what a SmallDoc is. You make one the same way you ask for anything else - in plain words. Each example opens a real SmallDoc in a new tab.
+          </p>
+          <p class="learn-more">New to it? <a href="/blogs/what-is-a-smalldoc" target="_blank" rel="noopener">Read what a SmallDoc is</a>, or browse the <a href="/" target="_blank" rel="noopener">full reference</a>.</p>
+        </div>
+
+        <div class="learn-items">
+
+          <a class="learn-item" href="https://smalldocs.org/#md=G444UZRK1gWJomxyxgfooYCTK1YHEbWGD0fNffpWoeiPjaHTmxm9eHH2sMtWFoxfRQQ1LPCqogLBYoQks76vs-rdVH83w0P4QmQvxqbwYDHrCRZPMmEuNIgLy866vP0_nbp7mf6zNZyVuNGngyFpTxQGlZTWAVKI96GFr29Tv0b9lD437EGXqQ6h8oD672Z-dtcL0r8zC5ZglO1_YfoYhYnIO5YdgAG-zdVGyJjaCtNmUdDpWiIr_v-bS8sdENIBhxA6q2mdEp0r17Golnffm2_9mRHeD7vyDosCu4pIDuAUPvMBpRg7HyGn3HbuXVauXLq09d2rzu39ojq3p5LSmuZFtBegH9AABeO24bfFMFR3-zGmfs2P2rTbgYx98A6Jv6NURj3RQXde4MZPXW9uSP_Sd6k42h6j82-aXGmgg1PbcHSHr-oGh27mBodTGb_p3KdDY8vkKSiV-Ly2gxxuX19F46_vHSAJuik6y79wV1T2_HpAHLtvvombq_oTmXmEwgsuviBgqOC1IVoyZYs_vi36rlMoasSnKeLTa8JfXOpksKYgszUNYOuE0bgE2WQ3TDhsJXDXUIT7ayrlXRchB37GCotf7LS9d9PmJoDB-InRxXu_veuKQmwWBm9bKqiJ8P7Bd9L7ynipOBowZJD9Qq9XT6EpKUOJCoI88bQz2dxvovuxkWSx4fF7vB5E_6TlC--XszXYu8Ce6AszbPOrg20KAZabL4Dy_J6CRsZ84fnEXNxYqTY3q0fNCuGXltrN_sYHyryKNfh4zv1krzMrcfb3FBdhiizXE8amk1C-rm2N-WKY2XFixMMTRcJUEkAVc74EY4unx-R6hjAtj4T3FZkOQOdQF0WecPZB9nAd88_oA7w60vGJZx-lLcXeYvIv6BtcO40xxs87l_cA_HY4McGDgLcedL8xz3jSb_gytB1J5yTTjzV9vjf3ml5zInUqct_38o5h3Mmdruh9DeWNoTr7r8SUjFaMy4ytVYA35UgP6jqHhAR4gDQYB83xR36DN1575cUdkFuv67VN-jEIySW2t7e9fFBJFecTvBcK2sNcp16DfwOxPPfS44IVYdOXrRSnue0MfuYI5kkeVxP9mVZfkWSlJgr51l-Jf759Dh9THgOZ3nJhNYi5td8A9Lixf0XoChK8qpVDhL9cWE4UXeyfdsUHOJMccZFxHlp_GYqulshYgA9_hMS-41Q9pR53N6GeN9ctOEVg-Sl08DaPYBD39UXcvw0BBh5IBIBPXrIeQ4oOeBcEhwq28vtoxL8LdqJPMfTXPGpebtd0TNaWptWubPDjUrm0nnlYKidMwVBErlRO1UpyokYL2oPnBszkCRQhYJx9qqbqzJVaqQKgdpE3VQCSzqVapSl4Wik_KwelNsP4Ru1YiAY40ysyeZssMCARreXsIlkpkvDXS2FMr6IRRND4HBsyxUjVaAvV15HsYndIyCn69P7_9ziM3mra6kVUUIAzM_5KvqmYVAoOkc_vqlcLbS7vIqGFjFke-Zs9lWt6TtlRGVdVSA5SuFuT6hh_sH_1hFnPFxLBBDvFMf2gvhCqamvKT9DuRP9o0oSveJNUn91bpQrRcyepFbFdFHQjkWvtGYlMlKKsIVmHG4R8nF8993zweBsrbXer8NxaSFjX-_pKTaDpwaMCIy00HeaICRbosrRuaM2Utff1UCACEWdJX6Gqavo5Teqy5mC_rgcVKatT2nTlZDsJDkxJmQBxNtiV6Bvk-4_Wq-cARuwtL03ClZT-fxBlz9refmrPNRpz3m-mOUPyrn4ObV-lOEMzf5VXr7ohGF-zxmiasnBsghLvtB1uDobP8DzIktTXyHZnIEYzX9_AppTuJc-LrfX6NMbDiIIYjK2Qn_i08FPDkHMSh9khExIPLkH65yk5mY1WGY7a9XIULjEqHkCuKK-CBfg4YgBYAY1d3cDKvqjL71hTdmmDknPFAOdnKSQvEKGHrstwsd4uoWLiuVY11r9JKb4pcI4Uv1E2YYpzNAdNakJ5Ikbdt1psF_ak0uEJ92t1wV4fV9dwYSIfJAk-vpfwKUkfxEQ_X8wEmtWNjNSTH1GiMLOhjyNMk167J-vwCpVgCvxMZSq2UkPT93GvSZrSnJZQSRzHpCaHVlc9Zx1mE-iQlrEnmys4gwLu0lVcsaXfHURIod54er8m-_5pDk9ESdKkPKdy5CXShX0fzRRIWXyn09DqoB0CpZvaCHdf27UH3Ar02LeNIt8S9XGDxfOxx8W_eqilCQnccrtMoCCUwHdM0U1rJiq-xEfUV5B0E_sU8YDReRUIbeZCdbpFl35cEXLh743FEyH2ufcbG2CS5eE-_Uhph9l4f3FTqvSVm_pbpx7mVfofusEpi9CMkm0fCB_6neyvRzuI0zWZzfn05RdIsVSzpa2krjzYa0fNPhoIDHmrEZLzFRX9ZvrsJ4uzoftqgu879lKUEAqkIlV6PsLOJv2RKEqiKImiJIqSKHrF7itZxZFVHFnFkVUcWXFZ1GVRT7-GHsOPEU3nhpgAYIDQiKKzSvjoXKVYRooloyT8Y3gLAkkLEys-ItVPQSgSAhCAEEhIQlKkolSUilYDnJupslt2uSes4-q0vNMJ48A6ctFaVHx-dCOvejnqNjhxcET_x-d8fquMk9Njy7gy3hDEBAADhEYU7dRHMZvjmWzEdsk-5Sq7ZEtbSf3t4_e4aOo_V6LKbjMdg83PxjYrDd0cJU5ETGQsmh_qahdrFfQET_AET6Cwjf3l3GbjkIM2NYqVqIyqsLZp6CTqKNqmKuYe1uBkpvgsZRE0BrvFcM-JhwKWFZtkSo7T-U8qdf6KIksnaszIVGLdiDEM01TcoNuJUKecqxV-BRFdioQFzbEbl_JmOUKISyJvrV8Ok7RkIY_aZHa4IPp0HLFU3KCbROFrDd50NF-Bi_HZCyGiHIS1RnZjrFCLxOFGQ_1FKw3XaXvRjhXsAzGmVJxY5qhXriHCRyoahkEQaAiRqli7U8R3zOIBF27Z5Gj4_keJ3DB61-DfS3VOZV501dMX2bwY2HgiSlAj1CLEh3PyLcRZ6-BzYADNNvQ_SybZcZb-sLA-hNOeLHCqnRoTH1gqWRR6DTpD13_D3f4U15LKBrUQeNhTg0lwsyFmCFwjVaL7xokjy5OUEnDS_rxGi0LNnsU7STcvaPBr1A8nVZlz025k_5NHn52W3mnWdGnnX3teNpmtxkrXGTKraFgnE_K_yvtCzcC88_13cNfzGZ4QrXnHmA4yF1kOHiLVU5rGtQUtD6E0RdaD61FGH_M8cjw_4lSac0NDWYooiojkALGbgTr6ZQ9lHCZgyhrKhcfhgDg_OrsvvD14Z0nFrGVYZZJtBOUzwT_yLT2K1PiPb78SU7yoC7BrI-4Qlzbq1a5S3tEhLu20b_pPJ2x93VbvxxW24jK0Bd2kAZa-eeAw6umG8icaA5PT4ENGVAs0WvWLIdiWhwkIu0pc7dxHuI38TYaqBp5QK3d5JbFdVMEu1thtKHHxLyLX2lacX3oyXPQdxT-UpenF6vIa9cr1amsQnEK8pPLq8XgpgDuCwKVHqdUzxpl7kbTU-PBFJap1OjBKd4Cx-TnJUyji7Ea6oLFfd3upMNEeivM1d6w77smPIO0bTJIPL00sEuCatO-DC3uacxfwIiBgqZPIiHT6FzHgdgk6bA33KHRkOWt0c5wplhy5qKaArNbN8NwWLLgYpQDaq_exBIooSPWGYBTOcQ8NWZhJcj39_jHT2XnbcE3BkOEFCfcu6OaYU3-eaEoaU9rlXLx4LC_7FQxVOr3yvtnvEZiLtw9xSzeR_ftMxyRYLcy_0GRJjflSz3WZNxdDQ1RNod61g7h1hTMZ5lg2Gn23L-pWCQfhcotWDRASPFc6lVK-sepyYWDsScZLn22dQrzfED87Jgwz-ylhwAkqvyDBwD8GV6C_r5iwArhfFN3Q-ANl79JgJt5yvNMJ5wQhRGWOCIRbsuZZ49jGEAh7aOKiNpFAPhSesiuRTmuGWncA0rjniDbw-6lIHtcwnm_SnaT600kVSetnlDdYXSJCYcsaBZU7mETr_cbhydsU_t3SlgJCZgsmdiBJe8QqbRtGFGc1Cb5Lmrmtt5FTcdZcaZqnW7A8vjrIde9psDqdlOqd4chgwjXd0E9Llo2i3KTz3VhN_I3UMMqxAupvYf-Lxwd7JG72PeZhBFv8x363PxyyeGxwv9Q9IN9p8f9Mi_MRAQjZkt0fMRjQcljVKNZup0x9GjXNpQnN3Pd3ZjHzxK1kh32lMbWXtn7d3zNhj3elbiAT1NtEp1mEZcKSH9qkF8I3KA2YSXuDwoLTXKdglsNLZBK_jD5c3lfy-aUXBZ1Wtjdx9j06M5Bw6HBQ-WbFE_eChBS94jZrMS3BKuS-z0rx6wlrDV5h85wXjjBdgYOKxLGlGG0Ez60r6XyOr4T2GEbi2ncHIJw2Z42Cu1e5jBl1K-iG53Y031o0re3EA8deCC1mUPUJ-yd7-Pc8anOkMvTFPKQ89DDyHnQybegy9CoAcw56PTLeWd8nshBePSArnUww_pi67LAkL-HRNWHYQ-JOeIvuhU5I-tAc2ks0EquVt41KKOKUt47rO6xit5_GTepkCwmDjLyWGy5teSh9Z8dU4GNy8SOwRj-_STJNvSwmkV_VTFKOfdZFruBYeydoBTXYwfa7kVhcCPwMQ6N9pXU2Y5LbKIYCBJ8PjTM9mN_-HuLm9UeK8X4Rb0Rd5UyjRi8OJahmeiikq_upPZfGrO1YSEJ2DK-YFkR8FWHLAf6hqnmlphrMijwGoGkvI7bMovsQPcE5rIIpiqUow4zIrrzI-QoWvbNBEVsQYqGZN8ghwl018StoWiObtczlNiu4IqoeL_0sQvwhEbH9xNQm70gprViAR-Ves-oURsSv2_8R1yh0S-dXUULrN4Z6P9YgZpZKyts26mYZ5IdJtbzQxi27qhB23RyvlQxau5JdAqWpT-VjWvbO9m2iE2msg2SPo4mpZxoRLIWMMI7YArx2pbewikQ6wHQyv-V4J8RIaMbcyG1e-_mNJjpl3buySUqmy5yRhQfXzqawNb4iV6ZDhfG1lZDgKNDvIvCU5lq_kd4d9uQWBxtjI2WI7cCb5JyD-4Pu121FevCOLMbSY9TtGflMa89FDW2YBfTEPmmf7QjxvQaQQSx6SmyV5mTNYV63sMA3EOy3uWwZfkYbbLTy1klw84lwKH4JQ3nRfHDeGTfdHjaUNwzfLn0-q4JTe85iY50raTuFmZDlBAlV4scPLNIWsc7bGN9z9t1utIVUbSe_CUd89TEZCyfziJ_FH7kXLXduaFWOIY4pzOCs5t5qTj6UJGq7nSzcVnxEabwm5UuJ8Irh3T0OpcUMZTgjGc3YjFtej74gsYdnUvQVY5FldwNy-PtgzAK7Ah2BlkAhEGzDejtVeFicKxD4mGbPHwgKGIa1rUAniqAt6R-WsjhjVsFJPKJAd6fsTNW3NTwsX46mE_gjkIlersr1qVRxY9Pdw8MKSaoVUVKg6L0jVZgKamt4WM2ir-4gcedKMfVf3CM1khAcy6ToCRsgj5aUwP4MGpVDC-AhEOgMegpnUWy4B5HxVHysVkTWjiBTPQA" target="_blank" rel="noopener">
+            <span class="learn-item-prompt">&ldquo;Claude, sdoc me a pitch deck with a live financial model&rdquo;</span>
+            <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+          </a>
+
+          <a class="learn-item" href="https://smalldocs.org/#md=G6oKIBwHdpMPhGXxa9yKEXrNf6az_S_T64kS6kpOfYzQOjmsAhM5lZqf5aqZOJey0XsK9yqfPJAGVGjr1fx_7lX93xKwamsVHYsqNAFz7_trJtY5KOt4xx5gwfLaWsNS1fMYri6-CxhSLtB5P3mMyfvfaCBMb9f3zchFs0wtIhyjA9FAqxNYTLQyUtRNMnXuGivW1wSzr5wQ0jAYwIrOLd47NQtK87Ef0btMfSLRh3fp7edwCs5ts4p-TvQ3YrZJoOBhfhXJNXCedY_DUVgRTUpQKrxAGEKS-tE9hWGhMqJ_8PD3f85DKkQZCTUmw5wR8DxO8qAot8nEJA8C3yarAKXDgOvABEen5WV1XBcJrUKYorBlL47hjV1-qAShZ1KeE0UtfFoJY6paVSOqlQXj68UsNSsTMgAFweHLcLyupM245geKUjj8UPe4Oa2PKiEaxgEZQ8n53-knVsPP4c3L890QfaPIOaXrzINkUKgpViAgho2SNNuNEJc6zi4NJLpYK8DI6zNZH0OrElItlW__nEuIBle40aJYyC9kZN6CUm4IBErKdv7WrxiPnBWJXRlwT_MTxcMAbIaE4oWSM3Zk2hgfUqNn2-xNtsC1cePkRBilrYFywjdBSE_jt0GYdi4BtJhGc9PWo14pC9qyV1KzmDqZUgSrUK5nwj-dgbtFf2eylUynl1UYc5L5GwWq7kGSn-JSZr7NGNkB7V6DKJGGyq6XZzG8o5ndyz97qwbNxs02ZVGakZXTiRtvBBy_TePpGJCpnHl06OT0mAtAKdg520u16rQiyiIvXOzxcnu-VTDE2c-Q6gY4GJ_Gl8iuIEMOfJPRCimiA-nFZ7lmAmzcbJzrar7A8eX9ORjjGXN5deTlgw0RK_oDrpkWBQ0WCCHUC56YowwBDEm9iwAa4DF8NCo-XSDlR5pypRmYpxKCzUJ5i4ewVL2WEKdGF1RxGzEhtQpymzFTAxImIPJgf7Z54SdgDy8gZZBAvLBih3gJv9AlU67UM0-NmBQ5rmjXrnFbM7-sy65jb4-DL0oi5LODyp204Ty0y4xao4TJo5lDJvNyDYWjkoraZ_xymsIVPzAJtSUNqhxrzJJ3RqpkflWvpD_5G-BJqhQn3NfRTrdRFKwUw787r7Xc_JNRkAs810kDC-WHF9F2" target="_blank" rel="noopener">
+            <span class="learn-item-prompt">&ldquo;Codex, make me a deck on DRY, in Patagonia&rsquo;s brand colours&rdquo;</span>
+            <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+          </a>
+
+          <a class="learn-item" href="https://smalldocs.org/#md=G9IeADwE8IaM6jfSEXvGJfQVYWufVudDxlOxx0bZqoCNkGTW1L0-L0GnByO5ynnGsOPPBcgEvOCQA9ZTW9oNStDS28vpfI1a6yHn2_1Jx_yMtuAQHslRCiCmqlXPppq7LL6kD9n-XH_RbxIdACWI2t0zbtOm0x7U6VMEN-gA-Qs86VkhhXgf2mlLsyh0zYVozX-VDYUVrwzD_XYvR12Nr4io0Cb-92t97gYXUZFQARQ-wkWnfITbOefc9-r3696u7f7zU-mZpYEFwNczs4QqQOCimG2siVSB8ubnhk2lepINUfO7R2KsBRxDltx2xcnu2elw78OH5ICiDC54X-XTpleKz-I7YBJSQgddxzvgq7_ZjwGcUfuW2I_xjzq5BDiyepE53_GTlFMXTpJhDJyva0ytcduvUArlu47AMBLaT7xvv1brl7tU8Xcwn2l6IEJHmF2aCfOfXNUTJ_syr9jXKwoDQnZDbDgppWpt26ssi82S8asCOKXjr1PZJd7dtGuNANSueBaHPBRCVpv8ZZ1tzjwvWC6GFzUI3BoqQlOaJNq88tXCV0MVKMlm1865ftZoh3oeaPir0OHBw84DyFk7GY6ZjOu561BYHnccY-9A7uC3SDBdlCOMpViWf9-X1ufDLHjRk_kOQH5uvm14P40AXWaDez_KnXVw1-J29h8qBg9E9fg3VnU_5ENlRyKvbGFmGoBRfsJpl0PYAPfUF7TGrFbyIs5SGR6tzw5LkC02MiZR7b__2AIy2ShkF_U4YHF5hT3yqqYFayAxHcWpB6CcYPZVPW7wWwmivm1xJHR3iPXeYXjIgbFmAlpz-q1vNyH3dp8D9L_ewm1xsh03sGk5dnkqYT00jRsqYGro8uPPLDCkTVqbf-FLdQK0DEATN__UXl8AbQB2vgV8ap0iKMaK_db-q_Hi2ldYIDcdusLaAT9YiSHthbSH5JJMj3pHA4TNCc5niVMM9Xie80P1vFt7VXLS-uznmV_LAvBOGtCoYoqe1UKaoeMJxn1PuysuK_IyTrzIF6PCL_1OMk-f1RGQ7udxyE-djU2WdeYTDyYwJSVO1vfEsXwzYMfWuZXGW57pHkxwX209Z4UrsWNC3LgJo6WUoRm9TY3kavwV3Pt0XL17354E285dhorD0dQKeBPOYMA8pwU2ePLZSGQf-lHcXtnyKQNi0j_s5gIG-zhkP75YrplraJX5QisrA6DNSj3d-cxXUjpKg3poZD8RppIa0zzm93Zvvl0bU-O3814Qg7ShJ9fvjqVHdXrYZlzbrfXDxJtro3y7VNh8_75muskddeqvW_d6P_VCX2iDdt4ss5ijB3-1sezSvMypc270xF6N6yZI1Xnr59x6_5_7__T71rrHZT0X_vhnDHvu2X9tlFSU-sL4U1_GY8km9AuGZLd7Hk_-XXr2-7U6VqGqwViXeroPICIYjWQpj_9JP_6w04NYR7hsemin2YHRDDwf-K80HNsFx22QZSFlvr7L7-lDjhr6J98D_u_P6RtROouvQqVgtg1n-bSIcqcv0VHUe09dcIYe7HJ-R0SePagHnWL2eoReoBykP_qJOiAkZ9lgxolFh2mbO5uas6p3vHmjcxvSAQ6lKTTJqdIuvYhKSw__6p-jecEHAao0N-YCTb4NNmmFYgxO2UQZDK1PIH1g7FiK1tNLIauaQCxFMewNurtAP1Kxmb3egp4A20HSUgt_A73zQEqv0cQkSAxiJF_d5tD_PEqFBvMOHi6-_HbGmDFnrCzHD5B4S6Uf1-i1wCsllKDfMjbgHlTsHaSZW5CFR7UG2zJuS45c0afZmP0_iG3D8zMPON3rteMkGBJDvgx7PcVX9Oaclo99NKcAHXoPxPXTkFrUf5yFN0SaAC9oXaM__GO_pv2b53-M18tK5n7E6c8zlHYDdTONteJvn7bixAIfe_vq78uqA42jS6MpsgR51n1fx1a3A97GheUQpFk3ySRig1Xcpddz8f0NQwwIuDHgFjpvN-7S_6PVl8lLLjcpBMQ4y18SjLyPoLLpFBruWPJmwtLAZwjiKU8zkFeqGShyDnheF2arnkagL24ImgeRSikfb59wJW3e5-bHpCV0SoCXrVTHd2-VNppVlUvZrw_nbQdLY5e_rPbCeJNyf56jmB_UmUWZWNQXWs8XPJqX4dBtr0tcXT5KUlzgtK2EDhdswlyotjR7yeaePcznBquQ9DbYGVql2oLsko9JRWpYnqaxAPw6tDffX9K4n5ICkgHRTKAj_FwthGGha2H7xTJeoJ_sk_1oFlk0CfHscNrCW-n8mbq7c907XH2ZlM1qfEfxR5yeSFDsv8TbSyPkcB78E072_pUwgW4nT5TENSSQfoijLJUo4Uj3-xwD_a7HlRTcxa5MKQBBVH-K7Wi4iis0oULE7gcLDs9YB6q7fneQeeGnWRFL8nPHJlG-aXbo46xfN4APztskq03FsZ4SLLJ6G_KtkKl9JsjBm_O7rd9Hfudfy1lVeXRxHVrOnTYDiSl-lqJgbnvibSjMpNkosZF0ORbdZ7m1fjOlQn7eZYkeDIakmEEcENN-dhKG2vQ5R2ttl0DOJyLlVi-DB8NoQItsQghm2NcF0adsNCEx4Vl4_aiC-HzLsYq0wGV1GK9AuNsO3XlUJUCSPM7jOhPR1oa099kFY2KIAYukUwBXc3J6KB7YGfTuVe5UHHay8nU7Dn0hd1ViUPz1jqLERLdEJwlJ18k6Dkl24pyXOluHz0RnZVqlUi0JLPcvYXTswBH-VqW7pI-zc1c32Y0jfudoS3rc8crEzc1NabYJsEOF5JfDfElOMuiCZCBkSr86DU1iozRbZNU5xWEJ9JbO1CqhmDAGNlWn99LisB5d9dSU8uw1ahpfZ-DViBssGdpV5AoyND-NeLq4lopUdfTGf-q40VXDak4J8fW3NqkjHBYJbAJpjihW_Mu7vu66fQ7vsCDXrfHiwhtRWhvJ8LjocvJwS4PE9FEZWpVXjq2JFH_-0h1Di1elpYriaYrH2gK1GalR2OkvaTdUpIriKnhUHKJkIzeVqJ1IWVx1cwDVpS7cRlEYoq3WGzJoayRDCSbRJqrQoIL87YjiRQKJ6QVf0zWufRW1LlXAPHb-2noZyNjKx7i83c3HU457HWs9a7q0Wu5FBrZCoCS90Gk2YJl9JxB6cs3kfylRRdFq0W6Aik722Rj00c5nmYK0Bo12caLjUVNQucI2Wx8BQcNd3BGIYSSfMKY_u03LW7IlTwPrEbgJp3N3SBB5z4AZAHjbv3kYsCXr9uPLAR7c2DMr16BbbJXnrLskjpsKvPE69S5lnfZZ-5OC0mEQKlNUINqZXRg0hi1gnuOKUeuk-arV9Sv2Z-omYEXmo3k7LX61Wv1rF_1tYidvmZRJFFZdhvkR1YI1D0VDTyxdsnoF7CMXJ3yvM03lSvQqdnSnEUb1XS_OluW3b1YPbZidb9mn1pXx-wZFzJe9dn7DNanuA0LOUY04zB3bNlmc85wVkkPofR02iRUFTi4RFFcRy4m0KGGphekNDKgz_Nqz5xl_-PWxhVt4oEs4u3U30cfA-DqDVSN5g_kIImmoDZpoDB6NMdQG8hWnxh88iieYabolT6fVDUpqZbBtnuSnPu2pGPGfkNCVDJpxk7koIiOGqiuzjdt91mwit1UANBkCUwWybg3Q7Pug-Ewp5uoAiTK4jKM1KMAmqOUEkNr57Pgup-x1EFToh7VvA6UAdMymqxlvrkOIngvGMllRUdEhUNIYN627iL58CivWS8aU6ia3vKXBONdzpngvy42nzrSun7MoURzL7bKkNjvVq-FC32ZnIOid62uCqw0pAqoV9GU3VJkJDFGj4_HotvTtIoQXN5pa41VD34KlNSRXsPZztOyEsFdwtYnwjd2akiKeoQAX6a_1Vz6ixDJvQ1rbNnUqNYi5r7PCZHCo2SOOHEMLbP44egm_OSOa-dOhprFWazSKP4xHeqB8PHM6Ugh5-kIrnnuhcdsrDmrBLZal7Y6bCX9xZYuX_z87cX_m5tLOt-1YhsQ20xVwcxlPDaJGUOkvQ_EmtooIHpqjUEJbpZnFKSgWlbayseqeKdpvmxjekjAW2XZ3JAxNGKXOKNrv9jCYEA" target="_blank" rel="noopener">
+            <span class="learn-item-prompt">&ldquo;DeepSeek, sdoc me a 5-year dividend consistency study&rdquo;</span>
+            <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+          </a>
+
+          <a class="learn-item" href="https://smalldocs.org/#md=GzItADwMcIeyyN_gwSusmjT4XuVST2jvlzefQdEgIySZ9X3VdNcyfbsrj2TKKKeOdczUAJ6I3Mlm0SNw1fTXev-MmmTdUTxyu0Q1PcaPrQACZjZATF_nb6ul1w-kvUzjl-6SuolLDhQw57r4QiRTutpSBqbL6n1V7QyH1LSuSrWVsHt7N8L7H4A-IFAmSCiAdEqEQ37_EQVAJ1IV5RBCUafUuetlsG19NkzCj9C1iFMPHeCpTUxSZJEVu_vcl_2w9ZkJtj_mfxG8IRpzc9votqizX_M5XAwlDWkdYaVzwHQ5xnST-GWYgpj82K5VLGEUZ7D08pGp4VkSQdt3L7rBusbhLgb6-aAZiFgQ7IIcSxu5VobyTva3mZc8abDXTasMlP6jYIjSNWbmkl9Q1He9lWVfFDJwqUrHgZQASdIcMOjSDgRYZkdHZxgb70YmDIAbmQ2OI_AsS4N-WHYxt33gk1AWnRpm0t8QywMaDC4pl2QBXsF6h088wtmcd6_dKbRPGxDDdNqasDId6k_8IjpEm-MKToMJHANwWABw6VA3Gxi3YlaVGX1TPZHYtHoYU2vFDolIGCDo08bFdukvBnYeVlaPVh-497TCq2ABzg8SRyvNumlZeHlKZFtkhq1Vp-zTo688c9AN8PHGn3O2vwm-iQ3DEgHQ6OY5EWtbwi7v7atNRFceytIZlhB1sPIa5vIHJIvp_gqucYQphljN0DQ9Z7RhoLMLUsfOFnHamlU5UsQBkQPAdWdi5jKp8M2IW9bTAKksFdLQQ6IXQeIDOQfkuFCaKQwj7DSqC2W6N8tNnraRzFQcejwvh0PFov9JGKhykV7ikoYuglzt8wa-QSSKVRx5XOWqOokgSZvj9T_vPa0K1G3LxnsFk_XDqYK_m71oQmf7yf8111gFrbHNtO9FYyAD4pTgSQvvzAe_fMUHrmi-VIrz4nWZ8YH3ENK9lfQF5DgoVLo7K9X8sxuO1QXdLFfbQGMfq3MmqVfJTq2AVLZXhioLCKj33bdbusP6Tkcw3cRi5LCrwig09K-tsu5gJuHpLCuQPNVJzYbMZlM-ZoU0iI2AHcD3x7FtaGw9HoVurn3BDtdTgQcfjyfa-af0w1dvxgV0XwoGbYgNjj3SZYpBu45lRlQ0DcDVT8Q4aLDIrq8WAEW2PMQ4VFzMrTBwG6z4PQ58CupNQlqUeyoJta2NMUZ5Sn3ZUHp-zRJI8lJHnoesaGU1nC_c4ARTYzCemFPZGEIeq-eINosjXgJ3MB5Hk8f6MaTyFj1xymPJCyXpvHdF7mWt0mmTxV5z8-iKrTkCs436kEOr9W42tYR1nwgDe6BHCa7JKMqOlsUS6AETa37AOG4xdQ8pMssdC2TEHpDJb_4CO-8pE5rGQ7KHQLkKhMiZYsUw7fZ-fngJbVa6XnfCfeFALW272XB4u-3GtXCCpW3S8CJGWaEkC78A2NK1F-uvnnfNCMp4qEmNdUHLoRXiANsZAqqy7T82y_yUKVEjBL6FeoQ_fVrPb7KrdunOTt_hag_PqkGNkSQa9uhZd8Bta-VsxCsn2v5cQHkO5Q9TiWsGXVnE4ILpMC-t9qOy79lNqyejYutj7baYq8NvVSdfLDCvwpB-OyT0zkNJSR1mLovvPoZo6qpwgBZyPU3ky7jUQ3uRx91ql01FMsHKh2NOmR0hesg3mUDiptj5zcEY9yjEih0Ll_hdOYARaXLF2qU4W7cioGCD_Lsfx0puDGGO08elu2YnKjpAwB8ZWdRS6yoii6hOYZsjvyupPswo2qK_C0NY19S9rIaMhAiSqEGLcL0Y2S3Fasu8PQjhhqJLNgvvnF0whMtXYXYIQmmfiCwb-RkMSUvyKVQ7QWTbGR2A0g1KWSVjLrzHXfjDDoScEnZBZM_KcfCjbOM69z6gnth7zIhohfwHHC4kl45z7golgX4a826R0gBl42o8Wj2CdwW5KAqVNJamwhKH8kWQYD8BydZEkZx7f7hzPYLMoYwcmhf_VOfSK8UZuXHafPvyubm4ciRAMqVnFWQaEhv1SZpqAxfgiIzYQtZufj8mrJBMkNpnJPhKGFafZTYFA3FBdfhvwqmV16kVsi7ymrpt8OhViCF97EtkLUqoiq_xekw7OSkQofPw9mxirlXIqDRBiLoZ2ubjDDVvAD-nvKSYATFwAE1ColJX3CJayDOURLAn3bvnGqT-caGymr2pmTEyZRd9h5VuGImW-Bk3YPySPetsBpcRoO6J00WOKnC5mO4LOjPTFlgJkfwSVDRAOhUlxvn12OM1iVd33mKe2DGU7skLDIQ1yNp7y6u09fSgR9uSH_R2FC0jody16HZceHIA5vbdOW6A1qWTYS-wjEncxfBvJEnmKyAOWfnud759aCgtyDGBVzxas68J4RbulfjSWWR4vhFIU1lTWTyPKtzjnodIt-FM-DOvw0UA24KA4Bd35a_hnG0BnT9LcJ7h6EBpJzBEh-UAzMTwq48guoTgHlOqckyuCurdmffj9z7t06GKNI2qdTXeHrvycnb8tqq7VMSxBmf4FSPt0g6P5I4uxLxcJG3qZDJ4Vjcr7pQqKqHsj5uikaYJaawGAn8U8uVvaJn00Qay96Op8O5Ktc2KBcfDeuAh2b4ehd9_OxKRMLadlRUivgkhaSNOsnqaMVLdbPlIlaklKktLJ-w61vxRvA9-uXYCkzTsZxV4XGNpoUgsRNwfrnMXI_iY-dJWd4MvEYeUrZZJ9gM3lyK1hM2a_SFaIlOEROXcqMclqIiwCyga3O7n2hyIQgTwt15Pw8iUQ8jvhjJllRGJEKxGMh_AGx3a30HqW6SvKiukGj_mtQ342Yi-k_wpN7ZEmMOyKS-y3fvtYtr_OheoMw4pzvc5bj33uEphdFQRzrc0CcW3yomtWRcQPFmCSSURylyCEagFxD5OiEMdH82i8ID1ciook6h8XisVp23uk3W9Amyqn9lPJWIo4Yw5v2rtwxvR-ExYOcUV-cENA6vs4BtHl61H1IqE2Y4R_tZKZVh-olWWn8JsA44bqLxlgfJ6rg20uwFc3gCzUs0dYRPbRtb27ntmhwPvNjpHm3Ovn0AFeoT6uMYMDPzXRamJjD94MVPERbK4-SFD1grxh4uUokV2orfwDSxn9eTtqJaEC09uLn_nF547z9nztDmtKyDaUoTNEIDf1bXM8NZ9Qdk21uVY5p3unbNONtbbcIGvhrZLJdGaS4byH_sdTdqww0qWtFLYPupVetiIG-OSYx6z3fc7dqWcMw6_mv_rJTQBkTJ9ZPfwA6NzrLNYYY2WwIApHvj7wvQFLyVlTWU80gsbHE1q9cCtfL-zmToQdO_pqN6jRxm7Td7mFGN8zADhyObzIvp9NEgvw5aNJZITpurUDt2Ala3vt12udRRKTiTFHmX4zE1TCuYJOr9AJr2QPOZddSeRmSWyfGcOdZsontdVcx00qm0DDRrYpm_eA9S1TXwIZKt1fMkAphlExz6Kbgsb3YAORnaDPAhipu81OQPHpf0rUZMx6bsp58I40pIPSUvaD8mmIlZYR7TNY54xke0hExcuqwBoEsenlFB9SWE4keDwA6_6wHvxo-HRFSxG13A2uatmt6iOmfZAhJL1fUxlqp5YcqOrH9sdMC0mxYs4kbKlpnUa7w8UcdVWN_WqR5XbVXiPJke21Fn_2il3G0XwHEnAssPoXP2V3rnOlbdpyUwdxcbaUidQwqAhoaMTNiTCALte-i1ZnvEGDmOFmKPEqmyNODDHtv9hhui2RlWpKQtKhwK72Fj3ToMO7O7I3hNzQ1idjD_Nst1QN1jTKk_jeO09VhlgVyZ72YejJFJjswf9TynrFl5BxEXUnSR4HzVjKoNBFY46fc6EMcKo7VjRk6_EydWzg1sgVUTvdXueGeNx_MBRKFwiqpH5Hq-pPT6Oo5e-eghjnMNfwf-Wt3a5Des4PtAn1uyTzAp0YPBghh2TZoaThLwZp1V3QkvhwtT_OEZ0jqJ8X9iNTt6lYM1k9oPtqgNqkhQv7SZmJ8U3xDbISm_IfuDWRnBjZg6eDC4BkhPQaSXRNP0KhKeioZlCWpMBJYiLHAP6ajASYdxPyZw4CK77jYWnkpmsSQ8UWG6-9Kk0wBPBXEECikKK_RrILLShSmEBxjwWqqUnt76lJCjlI-nwlHUBrB8HqhqDK_WMRDuxypnb7GbG82y3yPHO1p5FkiDAbYprJ9uqp3tX27XkWl7XU3Vw4HIAAJ2V54WqOHLUGhSXzldkyYzHF3jUpSpjpQAXRPf9oRNQW1-oEVBw9tlSUOMLdysvmMSqtokl7PwD3uiGQOan0UV0EeyVqyE2q6F1p25ZmDLEIRAxxFIsj45HtwdRMn-VsyRdnbMGqMYHaZZD5fuQrjspRLwGaQmTBoi8jzQyP3Ku_hBSJhY9V3O4EwxmSNlPn6rRhGtqUI3F8kyq4sM2gfZB4KUpQ4AZKnQ3VGD6pNcPqrAmbydVkq5adK2esYsyWNkhMhocvuKGwGEd4Jo31Tzmuh4VZv0TF5Eohw9xwFwwk9vomVL1LwZKoZsBTF3tus-p4BtrfvLKL7PU9ndqQaurPNA_g713EYyGwzEFdJxAjjRDZpc-vhxkgaCiEdP8V-1-xG6nQgId41W_clwMCecjw1TQznYMvARJ8R8h3zTjSX4kAW2gWAKO2zlSja8TiAR2fKC_2jPmobnL7L3raNNspimwhbaw7d1gqVtaWJzYSejKdTiALW4QIl9km7OJecUPtFkSaQFITiyVtkimpeKK7sJXF-FyZ4nQooXF-6GBPvaSyNxM-iVmOTGAyXbEIeADr6DWT35mWf-GGIjyJpPcws7KAjdi5Xr0m8pWHEWHcCyRs6XIMPQrW-GdXYbXd7D8yKPoy6aCXnHWhvLYVoX9H_oShnx6gxYt-NjDCqbRMu4wCe6zi22zqKdd3KvpZjJDf9G-PztGe36RP7wDeQV2nY1xMvSv1i3VlKqc8EfqaCvqXNoFYebSdGPYVdU4CANx0PjTTru5NjXICegyUTyU0qjmvwbTA5uptOF0OD8FA1ybWsabbC5pqOTYHO1xxlSy_Epllb95unpz6VuCL9ZZNHEY3pYsc5MvoulJ1IWLvJ0nKyNHB05qdk11jrf9qBlWloLkhKOTaDFHKHDJX8LnEOpl9bQ7DV2qPzdRcZVMVWeFFMBuZoY5PyQ6f_NsrFP_oi9vfBNgeVR7ZP6ZbUumyuhaC-0ic10MIFLHnCuOWFvMJLTsgugwUK2XdePcn1USa5VzZhr3kjtWujHzGwRUL8kN01jNTICeplL63fDVqvzllKfkR_banCsu" target="_blank" rel="noopener">
+            <span class="learn-item-prompt">&ldquo;Gemini, read the browser-use repo and sdoc me its architecture&rdquo;</span>
+            <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+          </a>
+
+          <a class="learn-item" href="https://smalldocs.org/#md=G3sLAIzDxhmtvIoaMQ6U_G9pev-X0xucIhKBS8eDU06t3hErQfZrd0EDpMhOEIU-P9qvhWRaIo2QaXex8Wbm74kaJsn3PirJJEEjksVDJ2Vo2JBp_b1SAsd0ROt_q5SiyPtgiOJbcGI-FIpeVkHsTK0mQIHU34zTqwAIafp0A_LDhvi13WiSkNsCe1ZApyR_xhhkPWLAPh-GN39KbaNLE0MJKp_rllBcDePQ6Pe1BT-tmAovWjBk5fzU6vlFYNyH6Ec33KCQcqICAoGix0sDX5m9qgySLC1QcZxamh9BQ5Dszd7olyVM8A23Jjz2c2txcRb-mroZxRIKVBYyLkgC43Nn3IWGXQ5IwInWuxIxze35lgiMIEFh1llEvl-RY2TNysWFxeXJ9KGEVlZnZ-4hUsvA18Q2_6ssVQ6C-YkwTnUxM2kwVeD5VKDKpGzAp4mhwPCjm3b1hi89ZEyQ-tRMQ59lbducSIToDW23QgKG2gBxYoSVjOGxonBiKE9twx9ZV6kohF9_Z1OD9tzexBzUg1MP2heN0MLeTEVW1407HHWT5IrBwngzzpniSvENdb2ZYhy8soKCM9DyIUm98L6ph5zbtvpFpGL80dHkrfcoKF5cQqz_hElg7x94v_Y2K5ZW0bbi8ROHKJnhOuzrrmrcXRRaqScHFRTKgdOhooH6tbNfqlglotd3TvqO0Xa-5XHcBEARDxqcGj45jqYxRXW6aMnRJ7UegS5WOCVNk4-QsacZvhJyVEINNOKZrviXLCJIEiGXa25QcFmZHF3mcdr1Ol2yKRx_xa9099QUIpxbcm3u7wnnuvh-TBqSlvM4xmgXa4afAOUcgknsILdVT1hqfdOtihqIu7UAIdhfGSCbNQT7QVil_kUfcsotJx47thnNZRge-eQfVjRwGEBXER_d_255T8HHfZroUclsLAfUPFNnDYovPW_4HbCRFB0VLZxJpzgj7P1Sgz-EwMP4R--tEwyVQJZny6eWwWkuLTUoz0r5HzyqiciYsOgab1SgpiRe_MbEEleko5sHTp2etuhbuV92t73UH1jVVIZKgB5TveRPv7I4lVD32OS812FSCLG0ypNuohwP_ktWucVig8Mcw1jm4NeMc5sWQnDGcutYHeb4Dl24EzPLYlJVVtLnCrLekMI-tAepg-oJcmYi5rei35NLbolPnqMAzPUemRdyI8VnSno92HsNaD0TLo83h4P6F1kRltOjAr6-kg93JwucpTJEo32XQCscQic6q4s8SR7Zjg5D0TBDT7Xe_ti2pxFxhKvTf-AcrCWcO3hOzglDAHCES6wRTPELI-c3nsXhIY13_pDEXFzaUC1rKLtXa_ugyTCFTTaVeDoHusVe9ngM2bP3uTEXMDiheL7R3UgDIRN2aifaQsJHB9gbjkKMx_HIG-SdiAcX3ddwPqTzMB57q7Ok2dLos3gVstBxEA" target="_blank" rel="noopener">
+            <span class="learn-item-prompt">&ldquo;Claude, sdoc me this Python rate limiter with annotations&rdquo;</span>
+            <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+          </a>
+
+        </div><!-- /learn-items -->
+      </div><!-- /install-grid -->
+    </div><!-- /install-panel -->
+  </div>
+</section>
+
 <!-- ═══ INSTALL ══════════════════════════════════════════ -->
 <section id="install">
   <div class="wrap">
@@ -769,10 +871,18 @@ footer {
 
         <div class="install-actions">
 
-        <div class="install-cmd">
-          <span class="pr">$</span>
-          <span class="cmd">curl -fsSL https://smalldocs.org/install | sh</span>
-          <button class="copy" data-copy="curl -fsSL https://smalldocs.org/install | sh" title="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+        <div class="install-cmd install-cmd-stack">
+          <div class="install-cmd-line">
+            <span class="pr">$</span>
+            <span class="cmd" id="install-cmd-text">curl -fsSL https://smalldocs.org/install | sh</span>
+            <button class="copy" id="install-cmd-copy" data-copy="curl -fsSL https://smalldocs.org/install | sh" title="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          </div>
+          <div class="install-cmd-comment" id="install-cmd-comment"># then, in a new terminal:</div>
+          <div class="install-cmd-line">
+            <span class="pr">$</span>
+            <span class="cmd">sdoc setup</span>
+            <button class="copy" data-copy="sdoc setup" title="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          </div>
         </div>
 
         <details class="trouble">
@@ -786,46 +896,7 @@ footer {
 
               <div class="agent-prompt-wrap">
                 <button class="copy agent-prompt-copy" data-copy-from="#agent-prompt" title="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-<pre id="agent-prompt" class="agent-prompt">Please install and set up SmallDocs for me.
-
-SmallDocs is a CLI (`sdoc`) that renders local markdown files as styled, readable documents in the browser. It also supports charts, diagrams, slide decks, and interactive forms inside markdown. Nothing leaves my machine unless I explicitly run `sdoc share`.
-
-Once it is installed and you know about it, I want to be able to say things like:
-
-- "sdoc me a bug report on X"
-- "sdoc me this service's architecture"
-- "sdoc me an analysis of last month's results"
-
-and you will write the markdown and open it for me as a SmallDoc.
-
-The way you will "know about it" is by having a short SmallDocs section in your global agent config file: the file that is loaded into every chat session you start. For Claude Code that is `~/.claude/CLAUDE.md`. For Codex it is `~/.codex/AGENTS.md`. For Gemini CLI it is `~/.gemini/GEMINI.md`. For opencode it is `~/.config/opencode/AGENTS.md`. This is the same standing-instructions mechanism you already use for project context.
-
-Please do the following, and ask me before any step that changes my filesystem.
-
-1. Check whether `sdoc` is already installed.
-   Run `which sdoc`. If you get a path back, skip to step 3.
-
-2. Install it.
-   Run: `curl -fsSL https://smalldocs.org/install | sh`
-   The installer puts everything under `~/.sdocs/` (no root needed) and tries to add `~/.sdocs/bin` to my PATH via my shell's rc file.
-
-3. Make sure `sdoc` is on PATH.
-   Run `which sdoc` again. If it is still not found:
-   - Run `echo $SHELL` to see which shell I am using.
-   - For zsh, append `export PATH="$HOME/.sdocs/bin:$PATH"` to `~/.zshrc`.
-   - For bash, the same line to `~/.bashrc`.
-   - For fish, run `fish_add_path $HOME/.sdocs/bin` or add it to `~/.config/fish/config.fish`.
-   - Then tell me to open a new terminal, or to run `source ~/.zshrc` (or the matching rc file) in mine.
-
-4. Wire SmallDocs into your global config.
-   Run: `sdoc setup --yes`
-   This non-interactively appends a short SmallDocs section to every detected coding-agent config file. It is the canonical writer; do not hand-roll the section yourself, the wording is kept in sync with the CLI version.
-
-5. Verify it worked.
-   Ask me to start a fresh chat session with you (so the updated config file is loaded). In the new session, ask me to say: "sdoc me a test file". A styled document should open in my browser.
-   If it does not open, check that my global config file contains a line beginning with `&lt;!-- sdocs-agent-block:start` and tell me what is missing.
-
-If any step fails, stop and tell me what happened before doing more.</pre>
+<pre id="agent-prompt" class="agent-prompt"></pre>
               </div>
             </div>
           </div>
@@ -875,6 +946,33 @@ If any step fails, stop and tell me what happened before doing more.</pre>
               <p style="margin-top: 0;">By default, nothing leaves your machine. When you run <code>sdoc file.md</code> the CLI compresses and encodes the file content into a single string and opens a URL of the form <code>https://smalldocs.org/#md=&hellip;</code> in your browser. That string sits in the URL's hash fragment (everything after the <code>#</code>), which browsers never send to the server. Our server sees a request for the page; it does not see your document.</p>
               <p>The one feature that uploads anything is generating a short link (either manually on the site or via <code>sdoc share file.md</code>), which is end-to-end encrypted. Your browser generates a random key, encrypts the document with AES-GCM, and uploads only the ciphertext. The decryption key lives in the URL hash, so our server never sees it.</p>
               <p>The longer version, with verifiable steps, is at <a href="/privacy" style="text-decoration: underline; color: var(--ink);">smalldocs.org/privacy</a>. Supply-chain trust (proving the JavaScript we ship matches the open-source code) is at <a href="/trust" style="text-decoration: underline; color: var(--ink);">smalldocs.org/trust</a>.</p>
+            </div>
+          </div>
+        </details>
+
+        <details class="trouble">
+          <summary>
+            <span>Updating the CLI</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <div class="trouble-body">
+            <div class="trouble-step">
+              <p style="margin-top: 0;">Update to the latest SmallDocs in place:</p>
+
+              <div class="install-cmd">
+                <span class="pr">$</span>
+                <span class="cmd" id="update-cmd-text">sdoc upgrade</span>
+                <button class="copy" id="update-cmd-copy" data-copy="sdoc upgrade" title="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+              </div>
+
+              <p>If <code>sdoc</code> isn&rsquo;t found, re-run the installer, which upgrades in place: <code id="update-reinstall-cmd">curl -fsSL https://smalldocs.org/install | sh</code>.</p>
+
+              <p>Or have your coding agent do it. Paste the prompt below into a session: it installs or updates SmallDocs, then walks you through whatever changed.</p>
+
+              <div class="agent-prompt-wrap">
+                <button class="copy agent-prompt-copy" data-copy-from="#update-agent-prompt" title="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+<pre id="update-agent-prompt" class="agent-prompt"></pre>
+              </div>
             </div>
           </div>
         </details>
@@ -944,11 +1042,50 @@ If any step fails, stop and tell me what happened before doing more.</pre>
   </div>
 </footer>
 
+<script src="/public/sdocs-cli-setup.js"></script>
 <script>
 const nav = document.getElementById('nav');
 const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 6);
 window.addEventListener('scroll', onScroll, { passive: true });
 onScroll();
+
+/* Platform-aware install / upgrade commands and the canonical agent prompt,
+   all pulled from the shared SDocCliSetup module so they stay identical to the
+   in-app footer (the single source of truth). */
+(function () {
+  const CLI = window.SDocCliSetup;
+  if (!CLI) return;
+  const win = CLI.isWindows();
+
+  // Install command chip in "Free for personal use" (curl on macOS/Linux,
+  // npm on Windows, which has no POSIX shell for the installer).
+  const installCmd = CLI.installCommand(win);
+  const it = document.getElementById('install-cmd-text');
+  const ib = document.getElementById('install-cmd-copy');
+  if (it) it.textContent = installCmd;
+  if (ib) ib.setAttribute('data-copy', installCmd);
+
+  // The curl installer only edits the shell rc, so sdoc lands on PATH in a new
+  // shell - hence "new terminal". npm puts its global bin on PATH already, so
+  // on Windows sdoc setup runs in the same session.
+  const cc = document.getElementById('install-cmd-comment');
+  if (cc) cc.textContent = win ? '# then:' : '# then, in a new terminal:';
+
+  // "Updating the CLI": the upgrade verb is the same on every OS; only the
+  // reinstall fallback differs by platform.
+  const rc = document.getElementById('update-reinstall-cmd');
+  if (rc) rc.textContent = CLI.reinstallCommand(win);
+
+  // The agent prompt is identical to the footer's - inject it from the module
+  // so the two never drift. The same install-or-update prompt serves both the
+  // install section and the "Updating the CLI" section.
+  if (CLI.SETUP_PROMPT) {
+    ['agent-prompt', 'update-agent-prompt'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = CLI.SETUP_PROMPT;
+    });
+  }
+})();
 
 /* Copy button: icon-only, swap to a check on click, revert after 1.5s
    so the user can recopy. Matches how the main SmallDocs renderer
