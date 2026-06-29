@@ -1883,6 +1883,15 @@ async function loadFromHash() {
   if (hash === _lastLoadedHash) return;
   _lastLoadedHash = hash;
 
+  // Navigating to another document (a link, or Back/Forward): dismiss any open
+  // code viewer / walkthrough so it doesn't linger on top of the newly loaded
+  // doc - pressing Back from a walkthrough should land you on the previous doc,
+  // not leave the modal covering it. Re-arm the once-per-load auto-openers so
+  // the next doc can open its own viewer.
+  if (S.codeFocus && S.codeFocus.close) S.codeFocus.close();
+  _codewalkAutoOpened = false;
+  _codeFileAutoExpanded = false;
+
   clearTimeout(S._hashTimer);
 
   var params = hash ? new URLSearchParams(hash) : new URLSearchParams();
