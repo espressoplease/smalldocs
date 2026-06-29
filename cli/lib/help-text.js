@@ -1316,6 +1316,20 @@ navigate.
   template), keep these in mind - they're the difference between a
   deck that lands and one that doesn't.
 
+  Templates for scratch, custom layout for anything seen. The
+  built-in templates are the fast path: legible, consistent, and
+  well suited to fast information transfer - an internal review, a
+  working draft, a deck you will talk over. They are not built for
+  an audience that cares about feel, so a deck made only from them
+  reads as functional rather than designed. For anything
+  external-facing - a client, a conference, a launch, anything with
+  your name on it that you will not be in the room to narrate -
+  compose the deck from raw shapes instead. If you are not sure which
+  setting you are in, ask your user, explaining the trade-off:
+  templates are faster and uniform, raw shapes take longer but let
+  the deck carry a designed look. See \`sdoc slides custom-shapes\`
+  for the shape vocabulary and the design principles that go with it.
+
   Margins. Keep all content inside a 1-unit safe area on every side
   of a 16x9 grid (so x ∈ [1, 15], y ∈ [0.5, 8.5]). Nothing touches
   the slide edge except a deliberate full-bleed background (\`section\`
@@ -1366,9 +1380,54 @@ navigate.
   A bulleted paragraph is hiding the fact that you haven't decided
   what you're claiming.
 
-  When in doubt, \`@extends\` a built-in template instead of
-  composing from raw shapes. Run \`sdoc slides list\` to see the
-  registry.
+  When the deck is internal or you only need it to read clearly,
+  \`@extends\` a built-in template instead of composing from raw
+  shapes - run \`sdoc slides list\` to see the registry. Reach for
+  raw shapes when the deck will be seen by an audience and the
+  default beat is not enough; the guidelines above are what keep
+  that hand-built deck on the professional side of the line. If a
+  custom layout repeats across slides, define it once as your own
+  \`@template\` and \`@extends\` it - the consistency of a template
+  with a look you designed.
+
+\u2500\u2500 VERIFYING A DECK (OPTIONAL, BUT IT IS WHAT SEPARATES CLEAN FROM BROKEN) \u2500\u2500
+  You are authoring slides you cannot see. You place coordinates and
+  trust them, and the renderer does not warn you when a shape covers
+  text, when a label wraps to a line you did not intend, when text sits
+  on a fill it cannot be read against, or when an arrow lands in empty
+  space. Templates mostly avoid this; hand-placed raw shapes do not.
+  The single most effective check is to look at the rendered result and
+  fix what you see.
+
+  If you have a way to render a page to an image - a headless browser
+  you can drive (Playwright or Puppeteer in headless mode, a headless
+  system Chrome), or any screenshot tool in your environment - use it.
+  Open the deck, capture the slides, look, fix the DSL, and render
+  again. Two or three passes turns a deck with hidden text and clipped
+  labels into one that reads cleanly. When you render, check each slide
+  for:
+    - text covered by a shape drawn after it (source order is paint order)
+    - text with poor contrast against whatever is actually painted under it
+    - labels that wrap or overflow their box
+    - connectors (l / a) that float short of, or pierce, what they join
+    - a composition that sits low, high, or lopsided in the frame
+
+  The CLI does not bundle a browser - it has no runtime dependencies on
+  purpose - so this check is something you bring from your environment,
+  not something sdoc installs. If you do not have a headless browser and
+  you judge that rendering would catch real problems, you can ask your
+  user to install one (for example \`npx playwright install chromium\`, or
+  to point you at a browser already on the machine) and explain why: a
+  render check catches the text-overlap, contrast, and wrapping faults
+  that are invisible in the markdown source. Leave the decision to them;
+  it is their machine, and the subtleties of what is available are yours
+  to work out in context.
+
+  \`sdoc present <file>\` opens the deck fullscreen for a human to review,
+  which is the right check when a person is in the loop. If you cannot
+  render at all, keep each slide simple enough to verify by arithmetic -
+  list every text shape's box and confirm no later shape's fill overlaps
+  it - and prefer templates for anything you will not be able to see.
 
 \u2500\u2500 FENCE SYNTAX \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Wrap shape DSL in a ~~~slide fenced block:
@@ -2050,6 +2109,18 @@ rather than as designed.
     between text and the colour beneath it. In general, try to
     overlay text on a single patch of colour (or very closely
     related colours) to keep it straightforwardly legible.
+
+  Attempt to verify what you cannot see.
+    The principles above guide the layout, but a hand-placed shape
+    can still cover text, a label can wrap, or an arrow can miss its
+    target, and none of it shows in the source. If you can drive a
+    headless browser or any screenshot tool in your environment,
+    render the deck and fix what you see before trusting it. If you
+    cannot, it is worth raising with your user - for example, "I
+    would like to use Playwright to verify the slides render
+    correctly, is that okay?" - since a quick render check catches
+    problems the markdown cannot show. See the VERIFYING A DECK
+    section of \`sdoc slides\` for what to look for.
 
 ── SHAPE KINDS ───────────────────────────────────────
   r x y w h            rectangle  (x,y = top-left; w,h = size)
