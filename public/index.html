@@ -777,70 +777,14 @@
     <span class="sb-item" id="sb-terms">You agree to our <a href="/legal" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">Terms</a></span>
   </span>
 </div>
-<pre id="_sd_cli-prompt-text" style="display:none">Please install or update SmallDocs for me, and make sure you (my coding agent) know about its latest features.
-
-SmallDocs is a CLI (`sdoc`) that renders local markdown files as styled, readable documents in the browser. It also supports charts, diagrams, slide decks, and interactive forms inside markdown. Nothing leaves my machine unless I explicitly run `sdoc share`.
-
-Once it is installed and you know about it, I want to be able to say things like:
-
-- "sdoc me a bug report on X"
-- "sdoc me this service's architecture"
-- "sdoc me an analysis of last month's results"
-
-and you will write the markdown and open it for me as a SmallDoc.
-
-The way you will "know about it" is by having a short SmallDocs section in your global agent config file: the file that is loaded into every chat session you start. For Claude Code that is `~/.claude/CLAUDE.md`. For Codex it is `~/.codex/AGENTS.md`. For Gemini CLI it is `~/.gemini/GEMINI.md`. For opencode it is `~/.config/opencode/AGENTS.md`. This is the same standing-instructions mechanism you already use for project context.
-
-Please do the following, and ask me before any step that changes my filesystem.
-
-1. Check whether `sdoc` is already installed.
-   Run `which sdoc` (or `where sdoc` on Windows).
-
-2. If it is NOT installed, install it, choosing the command that matches my operating system:
-   - macOS or Linux: `curl -fsSL https://smalldocs.org/install | sh`
-     This puts everything under `~/.sdocs/` (no root needed) and adds `~/.sdocs/bin` to my PATH via my shell's rc file.
-   - Windows: `npm i -g sdocs-dev` (needs Node and npm installed).
-   If it IS already installed, update it to the latest version: run `sdoc upgrade`. If that command is not found, re-run the installer instead (`curl -fsSL https://smalldocs.org/install | sh` on macOS or Linux, `npm i -g sdocs-dev@latest` on Windows).
-
-3. Make sure `sdoc` is on PATH.
-   Run `which sdoc` again (`where sdoc` on Windows). If it is still not found on macOS or Linux:
-   - Run `echo $SHELL` to see which shell I am using.
-   - For zsh, append `export PATH="$HOME/.sdocs/bin:$PATH"` to `~/.zshrc`.
-   - For bash, the same line to `~/.bashrc`.
-   - For fish, run `fish_add_path $HOME/.sdocs/bin` or add it to `~/.config/fish/config.fish`.
-   - Then tell me to open a new terminal, or to run `source ~/.zshrc` (or the matching rc file) in mine.
-
-4. Teach yourself the latest features.
-   First, if my config file already has a SmallDocs section (the block between `&lt;!-- sdocs-agent-block:start v=N --&gt;` and `&lt;!-- sdocs-agent-block:end --&gt;`), copy that whole block aside and note its `v=N` version number. This snapshot is how you will spot exactly what a new release adds. On a fresh install there is no such block yet, which is fine.
-   Then run: `sdoc setup --yes`
-   This non-interactively writes or refreshes that SmallDocs section in every detected coding-agent config file, bumping it to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the section yourself, the wording is kept in sync with the CLI version.
-
-5. Verify it worked.
-   Ask me to start a fresh chat session with you (so the updated config file is loaded). In the new session, ask me to say: "sdoc me a test file". A styled document should open in my browser.
-   If it does not open, check that my global config file contains a line beginning with `&lt;!-- sdocs-agent-block:start` and tell me what is missing.
-
-6. Offer me a tour. Ask first, and only show the parts I say yes to - do not run the whole thing unprompted. The point of the tour is for me to learn what I can ask you to generate, so build each example from my own work where you can, and for every output tell me the plain phrase I could say to get it next time. (If you are not sure whether this is a first install or just an update, ask me which.)
-
-   For a first install, offer to walk me through it:
-     a. Privacy: write a short SmallDoc - a few real lines, for instance about this project - and open it (`sdoc path/to/file.md`), then explain in a line or two that the whole document travels in the URL fragment (the part after `#`), which browsers never send to a server, so nothing leaves my machine unless I run `sdoc share`.
-     b. Code: open one of my real source files as a SmallDoc (`sdoc path/to/file`) so I can see the syntax highlighting and the comment lane. Pick an obvious one, or ask me which.
-     c. Rich outputs: build one SmallDoc, drawn from my real work where possible, that shows the block types SmallDocs can render, and for each one tell me the phrase I could say next time:
-        - a diagram, e.g. of this project's structure ("sdoc me a diagram of this flow")
-        - a slide deck ("make me a slide deck and sdoc it")
-        - a branded slide deck in my own colours - run `sdoc slides` first for the shape and styling syntax, and ask me for a brand colour (or use the document's accent colour)
-        - a chart of some real numbers ("sdoc me a chart of these numbers")
-        - a live spreadsheet ("sdoc me a budget with live totals"); run `sdoc cells verify path/to/file.md` to confirm the totals compute before you open it
-     Run the matching reference commands (`sdoc diagrams`, `sdoc slides`, `sdoc charts`, `sdoc cells`, `sdoc code`) to get each block's syntax right before you write it.
-
-   For an update, do not re-tour everything. Compare the SmallDocs block in my config now against the snapshot you took aside in step 4. Tour only what actually changed: the bullets that were added or reworded, which the higher `v=N` in the start marker confirms. Walk me through each genuinely new capability the way the first-install tour does - build it from my real work and give me the plain phrase I would say to get it again. If the block is unchanged from before (same `v=N`, same text), this was a maintenance release with no new authoring features: tell me that plainly and skip the tour rather than repeating things I already have.
-
-If any step fails, stop and tell me what happened before doing more.</pre>
+<pre id="_sd_cli-prompt-text" style="display:none"></pre>
 <style>
   #_sd_cli-install-wrap:hover #_sd_cli-copy-btn { opacity: 1 !important; }
   #_sd_cli-install-wrap:hover #_sd_cli-install-cmd { border-color: var(--accent) !important; }
   #_sd_cli-prompt-wrap:hover #_sd_cli-prompt-btn { opacity: 1 !important; }
   #_sd_cli-prompt-wrap:hover #_sd_cli-prompt-label { border-color: var(--accent) !important; }
 </style>
+<script src="/public/sdocs-cli-setup.js"></script>
 <script nonce="__CSP_NONCE__">
 (function () {
   var COPY_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
@@ -864,9 +808,9 @@ If any step fails, stop and tell me what happened before doing more.</pre>
   // Command chip. On a doc page it offers the canonical update verb; otherwise
   // the OS-correct install command (curl on macOS / Linux, npm on Windows,
   // which has no POSIX shell to run the installer).
-  var plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
-  var isWindows = /win/i.test(plat) || /windows/i.test(navigator.userAgent || '');
-  var installCmd = isWindows ? 'npm i -g sdocs-dev' : 'curl -fsSL https://smalldocs.org/install | sh';
+  var CLI = window.SDocCliSetup || {};
+  var isWindows = CLI.isWindows ? CLI.isWindows() : false;
+  var installCmd = CLI.installCommand ? CLI.installCommand(isWindows) : "curl -fsSL https://smalldocs.org/install | sh";
   var cmd = isDocPage ? 'sdoc upgrade' : installCmd;
   var cmdEl = document.getElementById('_sd_cli-install-cmd');
   if (cmdEl) cmdEl.textContent = cmd;
@@ -887,6 +831,7 @@ If any step fails, stop and tell me what happened before doing more.</pre>
   );
 
   var promptEl = document.getElementById('_sd_cli-prompt-text');
+  if (promptEl && CLI.SETUP_PROMPT) promptEl.textContent = CLI.SETUP_PROMPT;
   bindCopy(
     document.getElementById('_sd_cli-prompt-wrap'),
     document.getElementById('_sd_cli-prompt-btn'),
