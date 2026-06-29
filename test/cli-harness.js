@@ -38,6 +38,7 @@ const AGENT_TARGET_MAP = {
   opencode:  { name: 'opencode',    dir: path.join('.config', 'opencode'),       file: 'AGENTS.md' },
   pi:        { name: 'pi',          dir: path.join('.pi', 'agent'),              file: 'AGENTS.md' },
   codewhale: { name: 'CodeWhale',   dir: '.codewhale',                           file: 'AGENTS.md' },
+  cursor:    { name: 'Cursor',      dir: path.join('.cursor', 'rules'),          file: 'sdocs.mdc' },
 };
 
 // Distinct from production AGENT_BLOCK_BODY so "block was rewritten"
