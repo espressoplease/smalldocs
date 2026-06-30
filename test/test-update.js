@@ -11,7 +11,7 @@ module.exports = function (harness) {
   console.log('\n── Update / Refresh Tests ─────────────────────\n');
 
   const U = require('../public/sdocs-update.js');
-  const { decideReload, decideCheck } = U;
+  const { decideReload, decideCheck, buildCheckMessage } = U;
 
   const MAX = 3;
 
@@ -58,5 +58,20 @@ module.exports = function (harness) {
   test('decideCheck: within throttle window of last check -> no check (dedupes double-fire)', () => {
     // away is long enough, but we checked 10s ago.
     assert.strictEqual(decideCheck(200000, 190000, 100000, MIN_AWAY, THROTTLE), false);
+  });
+
+  test('buildCheckMessage: a normal (non-reload) check carries u=0 -> server counts it', () => {
+    const m = buildCheckMessage('v1', '2026-W15', 0, false);
+    assert.deepStrictEqual(m, { type: 'check-update', version: 'v1', cohort: '2026-W15', r: 0, u: 0 });
+  });
+
+  test('buildCheckMessage: a reload re-check carries u=1 -> server skips counting it', () => {
+    // This is the inflation fix: after a deploy reloads an open tab, the first
+    // check on the reloaded page is flagged so it is NOT logged as a fresh visit.
+    const m = buildCheckMessage('v2', '2026-W15', 1, true);
+    assert.strictEqual(m.u, 1);
+    assert.strictEqual(m.r, 1, 'reload count still forwarded for the stdout loop-grep');
+    assert.strictEqual(m.version, 'v2');
+    assert.strictEqual(m.cohort, '2026-W15');
   });
 };
