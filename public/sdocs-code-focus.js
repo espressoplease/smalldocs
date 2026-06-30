@@ -76,6 +76,10 @@
     // set inline here by the local light/dark toggle overrides the html[data-theme]
     // dark rule below: descendants inherit from the modal, and inline-on-modal wins.
     '  --sdoc-ann-accent: #7c84d8;',
+    // Walkthrough "focused step" colour: a strong amber so the active card,
+    // its ring, its line wash, and its Next/Prev buttons stand out from the
+    // quieter unfocused cards. Reads on both the light and dark focus themes.
+    '  --sdoc-cw-focus: #f0a500;',
     '  --sdoc-ann-card-bg: #fff;',
     '  --sdoc-ann-card-shadow: 0 1px 2px color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 12%, transparent);',
     '  --sdoc-ann-wash: color-mix(in oklab, var(--sdoc-ann-accent, #7c84d8) 15%, transparent);',
@@ -582,7 +586,8 @@
     // dark code surface. Renders markdown inside.
     '.sdoc-ann-row { display: block; }',
     '.sdoc-ann-card {',
-    '  margin: 5px 24px 9px calc(var(--sdoc-ln-w) + 60px); max-width: 70ch;',
+    '  position: relative;',
+    '  margin: 8px 24px 9px calc(var(--sdoc-ln-w) + 60px); max-width: 70ch;',
     '  padding: 8px 12px; border-radius: 5px;',
     '  background: var(--sdoc-ann-card-bg, #fff);',
     '  color: var(--sdoc-focus-fg, #1c1917);',
@@ -611,6 +616,88 @@
     '.sdoc-cl-row.sdoc-ann-marked .sdoc-cl-code {',
     '  background: var(--sdoc-ann-wash, color-mix(in oklab, var(--sdoc-ann-accent, #7c84d8) 15%, transparent));',
     '  border-radius: 2px;',
+    '}',
+    // ── Walkthrough: tab strip + on-card stepper ──────────────────────────
+    // A fourth grid row holds the tab strip between the subbar and the stage.
+    '.sdoc-code-focus.has-cw-tabs { grid-template-rows: 40px auto auto 1fr; }',
+    '.sdoc-cw-tabs {',
+    '  display: flex; align-items: center; gap: 3px; flex-wrap: wrap;',
+    '  padding: 6px 14px;',
+    '  background: var(--sdoc-focus-bg, #f4f1ed);',
+    '  border-bottom: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 14%, transparent);',
+    '}',
+    '.sdoc-cw-tab {',
+    '  all: unset; box-sizing: border-box; cursor: pointer;',
+    '  display: inline-flex; align-items: center;',
+    '  padding: 4px 13px; border-radius: 6px;',
+    '  font-family: var(--md-code-font, ui-monospace, SFMono-Regular, Menlo, monospace);',
+    '  font-size: 12.5px; font-weight: 500; white-space: nowrap;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 58%, var(--sdoc-focus-bg, #f4f1ed) 42%);',
+    '}',
+    '.sdoc-cw-tab:hover { color: var(--sdoc-focus-fg, #1c1917); background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 7%, transparent); }',
+    '.sdoc-cw-tab.is-active { font-weight: 600; color: #fff; background: var(--sdoc-ann-accent, #6366f1); }',
+    '.sdoc-cw-tab:focus-visible { outline: 2px solid var(--sdoc-ann-accent, #6366f1); outline-offset: 1px; }',
+    // The stepper footer inside an annotation card.
+    '.sdoc-cw-step {',
+    '  display: flex; align-items: center; justify-content: space-between; gap: 10px;',
+    '  margin-top: 9px; padding-top: 7px;',
+    '  border-top: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 12%, transparent);',
+    '}',
+    '.sdoc-cw-pos { font-size: 11.5px; font-weight: 600; color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 55%, transparent); }',
+    // Unfocused cards keep quiet, neutral buttons so they recede; the focused
+    // card (below) recolours its buttons amber to pull the eye.
+    '.sdoc-cw-nav-btn {',
+    '  all: unset; box-sizing: border-box; cursor: pointer;',
+    '  display: inline-flex; align-items: center; justify-content: center; gap: 3px;',
+    '  height: 26px; padding: 0 9px; border-radius: 5px;',
+    '  font-size: 12px; font-weight: 600;',
+    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 52%, transparent);',
+    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 8%, transparent);',
+    '}',
+    '.sdoc-cw-nav-btn:hover { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 15%, transparent); }',
+    '.sdoc-cw-nav-btn[disabled] { opacity: .4; cursor: default; pointer-events: none; }',
+    '.sdoc-cw-nav-btn svg { display: block; }',
+    // Focused card: amber ring + a faint amber wash so it reads as "you are here".
+    '.sdoc-ann-row.sdoc-cw-active .sdoc-ann-card {',
+    '  box-shadow: 0 0 0 2px var(--sdoc-cw-focus, #f0a500);',
+    '  background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 12%, var(--sdoc-ann-card-bg, #fff));',
+    '}',
+    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-step { border-top-color: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 40%, transparent); }',
+    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-pos { color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 75%, var(--sdoc-cw-focus, #f0a500)); }',
+    // Focused buttons: Prev is an amber tint, Next is filled amber (the primary
+    // "keep going" affordance), both with dark text for contrast on the amber.
+    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn {',
+    '  color: #2a2207; background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 30%, transparent);',
+    '}',
+    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn:hover { background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 45%, transparent); }',
+    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn[data-cw="next"]:not([disabled]) { background: var(--sdoc-cw-focus, #f0a500); }',
+    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn[data-cw="next"]:not([disabled]):hover { background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 86%, #000); }',
+    // Right-side action cluster (restart + next), and the restart-to-start button.
+    '.sdoc-cw-actions { display: inline-flex; align-items: center; gap: 6px; }',
+    // Square: same 26px height as the other nav buttons, width matched.
+    '.sdoc-cw-restart-btn { width: 26px; padding: 0; }',
+    // On the final step Next is dead, so restart becomes the primary action: fill
+    // it amber so "start over" is the obvious thing to do at the end of the tour.
+    '.sdoc-ann-row.sdoc-cw-last .sdoc-cw-restart-btn:not([disabled]) { color: #2a2207; background: var(--sdoc-cw-focus, #f0a500); }',
+    '.sdoc-ann-row.sdoc-cw-last .sdoc-cw-restart-btn:not([disabled]):hover { background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 86%, #000); }',
+    // The focused step\'s covered code lines wash amber (the other annotated
+    // lines keep the quiet periwinkle wash above), so the eye finds the code the
+    // current note is about. This rule follows .sdoc-ann-marked so it wins.
+    '.sdoc-cl-row.sdoc-cw-line-active .sdoc-cl-code {',
+    '  background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 26%, transparent);',
+    '  border-radius: 2px;',
+    '}',
+    // The "you jumped files" pill: shown on the focused card ONLY when the
+    // current step was reached by a stepper jump that crossed files (never on a
+    // same-file step or a manual tab click). It persists while that card is the
+    // focus, and is removed the moment you navigate on.
+    '.sdoc-cw-jump-note {',
+    '  position: absolute; top: -11px; left: 14px; z-index: 2;',
+    '  display: inline-flex; align-items: center; gap: 4px;',
+    '  padding: 2px 10px; border-radius: 999px;',
+    '  background: var(--sdoc-cw-focus, #f0a500); color: #2a2207;',
+    '  font-family: var(--md-code-font, ui-monospace, SFMono-Regular, Menlo, monospace);',
+    '  font-size: 11px; font-weight: 700; white-space: nowrap; pointer-events: none;',
     '}',
     // Comment card: mirrors the markdown comment card (.sdoc-card) - a tinted box
     // in the per-comment colour with the author and body inline, action icons in
@@ -767,6 +854,9 @@
   // The title in the toolbar: the filename for a whole opened file, the language
   // label for a block inside a prose document, else nothing.
   function titleFor(codeEl) {
+    // A walkthrough tab names itself from its own <pre data-file>.
+    var df = currentFileName();
+    if (df) return df;
     var name = (S.currentMeta && S.currentMeta.file)
       || (S.localMeta && basename(S.localMeta.fullPath));
     if (name && S.wholeFileCodeLang && S.wholeFileCodeLang(S.currentBody)) return name;
@@ -775,6 +865,8 @@
   }
 
   var modal = null, docEl = null, linesEl = null, rawText = '', prevFocus = null, keyHandler = null, fileInfoEl = null;
+  var currentPre = null;   // the source <pre> of the file shown in the active tab
+  var walk = null;         // walkthrough state when open on a multi-file doc (else null)
   var folds = null;       // per-line { header:bool, end:int } from indentation
   var parents = null;     // immediate enclosing header index per line (or -1)
   var collapsed = null;   // Set of collapsed header line indices
@@ -1299,39 +1391,20 @@
     return { spec: spec, text: ta ? ta.value : '' };
   }
 
-  function open(sourcePre, opts) {
-    if (modal) close();
-    if (!sourcePre) return;
-    var srcCode = sourcePre.querySelector('code');
-    if (!srcCode) return;
-    rawText = cleanSource(srcCode);
-    srcLines = rawText.split('\n');
-    folds = computeFolds(srcLines);
-    parents = computeParents(folds);
-    collapsed = new Set(prefCollapsed() ? allHeaderIndices() : []);
-    structuralRe = null;
-    openToken = {};
+  // The overlay is built in two halves so a multi-file walkthrough can keep one
+  // modal and swap the file shown in the stage:
+  //   buildModalChrome() - the modal, topbar, subbar, stage, the persistent
+  //                        linesEl + its listeners, the window keydown handler,
+  //                        and the modal-wide prefs. Runs ONCE per open.
+  //   mountFile(pre)     - everything tied to ONE file: the per-file state, the
+  //                        file-info card, the rows, the async highlight. Runs
+  //                        on the initial open AND on every tab switch, fully
+  //                        resetting the previous file's state (see close()'s
+  //                        reset list, which is this function's mirror image).
+  function buildModalChrome() {
     prevFocus = document.activeElement;
     commenting = false;
     grain = prefGrain();
-    navId = null;
-    blockId = blockIdFor(sourcePre);
-    loadComments();
-
-    // Load this language's structural keywords so a collapsed class folds to its
-    // signatures. Async and best-effort: until it lands (or if absent) the
-    // outline keeps every member. The token guards against a close/reopen race.
-    var langMatch = (srcCode.className || '').match(/language-([\w+#-]+)/i);
-    currentLang = langMatch ? langMatch[1] : '';
-    if (langMatch) {
-      var myToken = openToken;
-      loadStructural(langMatch[1]).then(function (defn) {
-        if (openToken !== myToken || !defn) return;
-        structuralRe = defn.structural || null;
-        recomputeContainers();
-        refreshFold();
-      });
-    }
 
     modal = document.createElement('div');
     modal.className = 'sdoc-code-focus';
@@ -1354,7 +1427,6 @@
       if (codeColor) modal.style.setProperty('--md-code-color', codeColor);
     }
 
-    var name = titleFor(srcCode);
     var topbar = document.createElement('div');
     topbar.className = 'sdoc-code-focus-topbar';
     // Brand (logo only) at the left, controls centred in the auto middle column,
@@ -1415,6 +1487,68 @@
     linesEl.addEventListener('keydown', onComposerKey);
     linesEl.addEventListener('mousedown', hideSelPopover);
     linesEl.addEventListener('mouseup', onLineSelect);
+    linesEl.addEventListener('click', onWalkClick);
+    docEl.appendChild(linesEl);
+    stage.appendChild(docEl);
+
+    // Tab strip (walkthrough only): built by openWalkthrough before the first
+    // mountFile, sits between the topbar and the stage.
+    modal.appendChild(topbar);
+    modal.appendChild(subbar);
+    modal.appendChild(stage);
+    document.body.appendChild(modal);
+    document.body.classList.add('sdoc-code-focus-open');
+    setGrain(grain);          // sync the granularity control to the saved choice
+    wireCommentPrefs();       // fill the author/colour inputs and apply the accent
+    initFocusTheme();         // apply the viewer-local light/dark choice (or follow doc)
+
+    topbar.addEventListener('click', onTopbarClick);
+    subbar.addEventListener('click', onTopbarClick);
+    keyHandler = onKey;
+    window.addEventListener('keydown', keyHandler);
+  }
+
+  // Render ONE file into the stage. Safe to call repeatedly (tab switch): it
+  // resets every piece of per-file state the previous file left behind.
+  function mountFile(sourcePre, opts) {
+    if (!sourcePre) return;
+    var srcCode = sourcePre.querySelector('code');
+    if (!srcCode) return;
+    currentPre = sourcePre;
+
+    // Tear down the previous file's per-file DOM (linesEl persists; its content
+    // is rebuilt by renderRows below, so the old methodTab inside it goes too).
+    if (fileInfoEl && fileInfoEl.parentNode) fileInfoEl.remove();
+    var oldSummary = docEl.querySelector(':scope > .sdoc-cf-summary');
+    if (oldSummary) oldSummary.remove();
+
+    rawText = cleanSource(srcCode);
+    srcLines = rawText.split('\n');
+    folds = computeFolds(srcLines);
+    parents = computeParents(folds);
+    collapsed = new Set(prefCollapsed() ? allHeaderIndices() : []);
+    structuralRe = null;
+    openToken = {};           // re-arm: invalidates the previous tab's async work
+    navId = null;
+    hoverLn = -1;
+    blockId = blockIdFor(sourcePre);
+    loadComments();
+
+    // Load this language's structural keywords so a collapsed class folds to its
+    // signatures. Async and best-effort: until it lands (or if absent) the
+    // outline keeps every member. The token guards against a close/reopen race.
+    var langMatch = (srcCode.className || '').match(/language-([\w+#-]+)/i);
+    currentLang = langMatch ? langMatch[1] : '';
+    if (langMatch) {
+      var myToken = openToken;
+      loadStructural(langMatch[1]).then(function (defn) {
+        if (openToken !== myToken || !defn) return;
+        structuralRe = defn.structural || null;
+        recomputeContainers();
+        refreshFold();
+      });
+    }
+
     methodTab = document.createElement('button');
     methodTab.type = 'button';
     methodTab.className = 'sdoc-cc-madd';
@@ -1422,37 +1556,200 @@
     methodTab.setAttribute('title', 'Comment on this method');
     methodTab.innerHTML = COMMENT_ICON;
     fileInfoEl = buildFileInfo();
-    if (fileInfoEl) { fileInfoEl.addEventListener('click', onFileInfoClick); docEl.appendChild(fileInfoEl); }
+    if (fileInfoEl) { fileInfoEl.addEventListener('click', onFileInfoClick); docEl.insertBefore(fileInfoEl, linesEl); }
     var summary = buildSummaryToggle();
-    if (summary) docEl.appendChild(summary);
-    docEl.appendChild(linesEl);
-    stage.appendChild(docEl);
+    if (summary) docEl.insertBefore(summary, linesEl);
 
     // Show plain numbered lines immediately; upgrade to highlighted once ready.
     renderRows(escapeHtml(rawText).split('\n'));
-
-    modal.appendChild(topbar);
-    modal.appendChild(subbar);
-    modal.appendChild(stage);
-    document.body.appendChild(modal);
-    document.body.classList.add('sdoc-code-focus-open');
     syncFoldAllBtn();
-    setGrain(grain);          // sync the granularity control to the saved choice
-    wireCommentPrefs();       // fill the author/colour inputs and apply the accent
     updateCommentChrome();
-    initFocusTheme();         // apply the viewer-local light/dark choice (or follow doc)
     // Opened straight from the reader's comment indicator: land in comment mode
     // so the block's notes are visible without a second click.
     if (opts && opts.comment) setCommenting(true);
 
     highlightThenRender(srcCode.className || '');
+  }
 
-    topbar.addEventListener('click', onTopbarClick);
-    subbar.addEventListener('click', onTopbarClick);
-    keyHandler = onKey;
-    window.addEventListener('keydown', keyHandler);
-    var closeBtn = topbar.querySelector('[data-act="close"]');
+  function open(sourcePre, opts) {
+    if (modal) close();
+    if (!sourcePre || !sourcePre.querySelector('code')) return;
+    walk = null;
+    buildModalChrome();
+    mountFile(sourcePre, opts);
+    var closeBtn = modal.querySelector('[data-act="close"]');
     if (closeBtn) closeBtn.focus();
+  }
+
+  // ── Multi-file walkthrough ────────────────────────────────────────────────
+  // Open the document as a tabbed code walkthrough: one tab per file, an
+  // ordered set of annotations that step across the tabs. Driven by the pure
+  // model (sdocs-codewalk.js) over S.currentMeta; each file is the <pre
+  // data-file> the renderer stamped, found in the reader DOM.
+  function preMapForWalk() {
+    var root = document.getElementById('_sd_rendered');
+    var map = Object.create(null);
+    if (!root) return map;
+    var pres = root.querySelectorAll('pre[data-file]');
+    for (var i = 0; i < pres.length; i++) {
+      var f = pres[i].getAttribute('data-file');
+      if (f && !map[f]) map[f] = pres[i];
+    }
+    return map;
+  }
+
+  function openWalkthrough(opts) {
+    var CW = window.SDocCodewalk;
+    if (!CW) return;
+    var model = CW.build(S.currentMeta);
+    var preByFile = preMapForWalk();
+    // Keep only the model's files we actually have a rendered block for.
+    var files = model.files.filter(function (f) { return preByFile[f]; });
+    if (!files.length) return;
+
+    if (modal) close();
+    buildModalChrome();
+    walk = {
+      files: files,
+      steps: model.steps,
+      byFile: model.byFile,
+      preByFile: preByFile,
+      stepIndex: model.steps.length ? 0 : -1,
+      stripEl: null,
+      jumpNote: null,   // filename to show the jump pill for (null = no pill)
+    };
+    // One file needs no tab strip (the file-info card already names it); the
+    // stepper still drives the walkthrough.
+    if (files.length > 1) buildTabStrip(files);
+
+    var firstFile = (walk.stepIndex >= 0) ? model.steps[0].file : files[0];
+    if (!preByFile[firstFile]) firstFile = files[0];
+    mountTab(firstFile, opts);
+    if (walk.stepIndex >= 0) scrollActiveStepIntoView();
+
+    var closeBtn = modal.querySelector('[data-act="close"]');
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function buildTabStrip(files) {
+    var strip = document.createElement('div');
+    strip.className = 'sdoc-cw-tabs';
+    strip.setAttribute('role', 'tablist');
+    files.forEach(function (f) {
+      var tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'sdoc-cw-tab';
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('data-cw-tab', f);
+      tab.textContent = f;            // textContent: the filename is untrusted
+      strip.appendChild(tab);
+    });
+    strip.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-cw-tab]');
+      if (t) goToTab(t.getAttribute('data-cw-tab'));
+    });
+    var stage = modal.querySelector('.sdoc-code-focus-stage');
+    modal.insertBefore(strip, stage);
+    modal.classList.add('has-cw-tabs');
+    walk.stripEl = strip;
+  }
+
+  function setActiveTab(file) {
+    if (!walk || !walk.stripEl) return;
+    var tabs = walk.stripEl.querySelectorAll('[data-cw-tab]');
+    for (var i = 0; i < tabs.length; i++) {
+      var on = tabs[i].getAttribute('data-cw-tab') === file;
+      tabs[i].classList.toggle('is-active', on);
+      tabs[i].setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+  }
+
+  function mountTab(file, opts) {
+    if (!walk || !walk.preByFile[file]) return;
+    setActiveTab(file);
+    mountFile(walk.preByFile[file], opts);
+  }
+
+  function goToTab(file) {
+    if (!walk || file === currentFileName()) return;
+    walk.jumpNote = null;   // a manual tab click is quiet, no pill
+    mountTab(file);
+  }
+
+  // Move the walkthrough cursor to step idx (clamped), switching tabs if the
+  // step lives in another file, then scroll its card into view.
+  function goToStep(idx) {
+    var CW = window.SDocCodewalk;
+    if (!walk || !walk.steps.length || !CW) return;
+    idx = CW.clamp(idx, walk.steps.length);
+    walk.stepIndex = idx;
+    var step = walk.steps[idx];
+    // Only a stepper jump that crosses files gets the pill; a same-file step
+    // clears it ("press next to a non-jump one and it goes").
+    var crossed = step.file !== currentFileName();
+    walk.jumpNote = crossed ? step.file : null;
+    if (crossed) mountTab(step.file); // re-renders + re-marks + re-pills
+    else { markActiveStep(); }
+    scrollActiveStepIntoView();
+  }
+
+  // Put the persistent jump pill on the focused card when walk.jumpNote is set
+  // (a cross-file stepper jump), and nowhere otherwise. Re-run on every render
+  // and every step so the pill survives the async highlight rebuild but vanishes
+  // the moment you move to a non-jump step or click a tab.
+  function syncJumpNote() {
+    if (!linesEl || !walk) return;
+    var old = linesEl.querySelectorAll('.sdoc-cw-jump-note');
+    for (var i = 0; i < old.length; i++) old[i].remove();
+    if (!walk.jumpNote) return;
+    var card = linesEl.querySelector('.sdoc-ann-row[data-cw-step="' + walk.stepIndex + '"] .sdoc-ann-card');
+    if (!card) return;
+    var note = document.createElement('div');
+    note.className = 'sdoc-cw-jump-note';
+    note.innerHTML = lucide('<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>', 12);
+    note.appendChild(document.createTextNode(walk.jumpNote)); // filename is untrusted
+    card.appendChild(note);
+  }
+
+  function markActiveStep() {
+    if (!linesEl || !walk) return;
+    var prev = linesEl.querySelectorAll('.sdoc-ann-row.sdoc-cw-active');
+    for (var i = 0; i < prev.length; i++) prev[i].classList.remove('sdoc-cw-active');
+    var el = linesEl.querySelector('.sdoc-ann-row[data-cw-step="' + walk.stepIndex + '"]');
+    if (el) el.classList.add('sdoc-cw-active');
+    syncActiveWash();
+    syncJumpNote();
+  }
+
+  // Move the amber line wash onto the focused step's covered code rows (tagged
+  // with data-cw-step in renderAnnotations).
+  function syncActiveWash() {
+    if (!linesEl || !walk) return;
+    var prev = linesEl.querySelectorAll('.sdoc-cl-row.sdoc-cw-line-active');
+    for (var i = 0; i < prev.length; i++) prev[i].classList.remove('sdoc-cw-line-active');
+    var rows = linesEl.querySelectorAll('.sdoc-cl-row[data-cw-step="' + walk.stepIndex + '"]');
+    for (var j = 0; j < rows.length; j++) rows[j].classList.add('sdoc-cw-line-active');
+  }
+
+  function scrollActiveStepIntoView() {
+    if (!linesEl || !walk || walk.stepIndex < 0) return;
+    var idx = walk.stepIndex;
+    requestAnimationFrame(function () {
+      if (!linesEl || !walk || walk.stepIndex !== idx) return;
+      var el = linesEl.querySelector('.sdoc-ann-row[data-cw-step="' + idx + '"]');
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
+  function onWalkClick(e) {
+    if (!walk) return;
+    var btn = e.target.closest('[data-cw]');
+    if (!btn || !linesEl.contains(btn)) return;
+    var dir = btn.getAttribute('data-cw');
+    if (dir === 'next') goToStep(walk.stepIndex + 1);
+    else if (dir === 'prev') goToStep(walk.stepIndex - 1);
+    else if (dir === 'restart') goToStep(0);
   }
 
   // File-info card at the top of the listing: filename + paths, each copyable.
@@ -1460,7 +1757,7 @@
   function buildFileInfo() {
     var fullPath = S.localMeta && S.localMeta.fullPath;
     var relPath = S.localMeta && S.localMeta.path;
-    var fileName = (S.currentMeta && S.currentMeta.file) || (fullPath ? basename(fullPath) : '');
+    var fileName = currentFileName() || (S.currentMeta && S.currentMeta.file) || (fullPath ? basename(fullPath) : '');
     if (!fileName && !fullPath) return null;
     if (!fileName) fileName = basename(fullPath);
     // Short link + local paths only make sense when the WHOLE document is this
@@ -1588,9 +1885,12 @@
     code.className = className;
     code.textContent = rawText;
     pre.appendChild(code); holder.appendChild(pre);
-    var token = linesEl;
+    // Guard on openToken, not linesEl: linesEl now persists across tab switches
+    // in a walkthrough, so only the per-mount token distinguishes "this file's
+    // highlight" from a previous tab's in-flight callback (or a close/reopen).
+    var token = openToken;
     Promise.resolve(S.processHighlight(holder)).then(function () {
-      if (linesEl !== token) return; // overlay closed/reopened meanwhile
+      if (openToken !== token || !linesEl) return; // switched tab / closed meanwhile
       var hl = code.innerHTML;
       if (hl && hl.indexOf('<span') >= 0) renderRows(splitHighlightedLines(hl));
     });
@@ -1608,6 +1908,7 @@
     modal = null; docEl = null; linesEl = null; fileInfoEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
     srcLines = null; structuralRe = null; openToken = null;
     comments = []; commenting = false; blockId = ''; navId = null; methodTab = null; hoverLn = -1;
+    currentPre = null; walk = null;
     document.body.classList.remove('sdoc-code-focus-open');
     if (wasCommenting && S.setMode && !document.body.classList.contains('comment-mode')) S.setMode('comment');
     if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (_) {} }
@@ -1673,6 +1974,17 @@
     if (e.key === 'Escape') {
       if (cancelComposer()) { e.preventDefault(); return; }
       e.preventDefault(); close();
+      return;
+    }
+    // Walkthrough: arrow keys step across the tour, unless the user is typing in
+    // a field (the comment author/colour inputs, a composer textarea).
+    if (walk && walk.steps.length) {
+      var t = e.target;
+      var typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+      if (!typing && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+        e.preventDefault();
+        goToStep(walk.stepIndex + (e.key === 'ArrowRight' ? 1 : -1));
+      }
     }
   }
 
@@ -1902,12 +2214,24 @@
   // the realistic risk here is volume, not an attacker (the agent authored its
   // own link), but the text is still sanitised because it rides in the URL.
   var ANN_MAX = 300;
+  // The active tab's filename (the data-file the renderer stamped on its <pre>),
+  // or '' for an inline single-file view that carries no such attribute.
+  function currentFileName() {
+    return (currentPre && currentPre.dataset && currentPre.dataset.file) || '';
+  }
   function getAnnotations() {
     var raw = (S.currentMeta && S.currentMeta.annotations) || [];
     if (!Array.isArray(raw)) return [];
+    // In a walkthrough each annotation carries the file it belongs to; show only
+    // the active tab's. A plain single-file view (no data-file, not a codewalk)
+    // has no per-file binding, so every annotation belongs to it - unchanged.
+    var scope = currentFileName();
+    var scoped = !!(scope && window.SDocCodewalk &&
+                    window.SDocCodewalk.isCodewalk(S.currentMeta));
     var out = [];
     for (var i = 0; i < raw.length && out.length < ANN_MAX; i++) {
       var a = raw[i]; if (!a) continue;
+      if (scoped && String(a.file || '') !== scope) continue;
       var line = parseInt(a.line, 10);
       if (!(line >= 1)) continue;
       var end = parseInt(a.endLine, 10); if (!(end >= line)) end = line;
@@ -1927,7 +2251,11 @@
     for (var k = 0; k < old.length; k++) old[k].remove();
     var marked = linesEl.querySelectorAll('.sdoc-cl-row.sdoc-ann-marked');
     for (var m = 0; m < marked.length; m++) marked[m].classList.remove('sdoc-ann-marked');
-    var list = getAnnotations();
+    // In a walkthrough the cards come from the model's per-file step list (so
+    // each carries its global step index for the stepper); otherwise from the
+    // flat annotation list. Both yield { line, endLine, text }.
+    var list = walk ? (walk.byFile[currentFileName()] || []) : getAnnotations();
+    var total = walk ? walk.steps.length : 0;
     var renderMd = (S.renderMarkdownSafe) ? S.renderMarkdownSafe : function (t) {
       return DOMPurify.sanitize(marked.parse(String(t || '')), { FORBID_ATTR: ['style'] });
     };
@@ -1938,7 +2266,10 @@
       if (!anchor) { continue; } // out of range: skip quietly
       for (var r = ln0; r <= end0; r++) {
         var rr = linesEl.querySelector('.sdoc-cl-row[data-ln="' + r + '"]');
-        if (rr) rr.classList.add('sdoc-ann-marked');
+        if (rr) {
+          rr.classList.add('sdoc-ann-marked');
+          if (walk) rr.setAttribute('data-cw-step', a.index); // for the focused-line wash
+        }
       }
       // Card sits after the last covered line, but its data-ln tracks the FIRST
       // line so it folds together with the block it explains.
@@ -1949,9 +2280,34 @@
       var card = document.createElement('div');
       card.className = 'sdoc-ann-card';
       card.innerHTML = renderMd(a.text);
+      if (walk) {
+        row.setAttribute('data-cw-step', a.index);
+        if (a.index === walk.stepIndex) row.classList.add('sdoc-cw-active');
+        if (a.index === total - 1) row.classList.add('sdoc-cw-last'); // emphasise restart here
+        var nav = document.createElement('div');
+        nav.className = 'sdoc-cw-step';
+        nav.innerHTML =
+          '<button type="button" class="sdoc-cw-nav-btn" data-cw="prev" aria-label="Previous step"'
+          +   (a.index <= 0 ? ' disabled' : '') + '>'
+          +   lucide('<polyline points="15 18 9 12 15 6"/>', 13) + '<span>Prev</span>'
+          + '</button>'
+          + '<span class="sdoc-cw-pos">Step ' + (a.index + 1) + ' of ' + total + '</span>'
+          + '<span class="sdoc-cw-actions">'
+          +   '<button type="button" class="sdoc-cw-nav-btn sdoc-cw-restart-btn" data-cw="restart" title="Back to start" aria-label="Back to the first step"'
+          +     (a.index <= 0 ? ' disabled' : '') + '>'
+          +     lucide('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>', 14)
+          +   '</button>'
+          +   '<button type="button" class="sdoc-cw-nav-btn" data-cw="next" aria-label="Next step"'
+          +     (a.index >= total - 1 ? ' disabled' : '') + '>'
+          +     '<span>Next</span>' + lucide('<polyline points="9 18 15 12 9 6"/>', 13)
+          +   '</button>'
+          + '</span>';
+        card.appendChild(nav);
+      }
       row.appendChild(card);
       afterRow.insertAdjacentElement('afterend', row);
     }
+    if (walk) { syncActiveWash(); syncJumpNote(); }
   }
 
   // A saved comment, rendered as a card in its own row beneath the anchor line.
@@ -2471,5 +2827,5 @@
     });
   }
 
-  S.codeFocus = { open: open, close: close };
+  S.codeFocus = { open: open, close: close, openWalkthrough: openWalkthrough };
 })();

@@ -51,6 +51,13 @@ module.exports = function(harness) {
     assert.strictEqual(wrapCodeFile(src, 'a.rb'), '```ruby\ndef a\n\n  b\nend\n```\n');
   });
 
+  test('wrapCodeFile: optional label rides in the fence info string', () => {
+    // A code walkthrough labels each fence with its filename so the browser
+    // can name the tab; a plain open passes no label and the fence is unchanged.
+    assert.strictEqual(wrapCodeFile('puts 1', 'app.rb', 'app.rb'), '```ruby app.rb\nputs 1\n```\n');
+    assert.strictEqual(wrapCodeFile('puts 1', 'app.rb'), '```ruby\nputs 1\n```\n');
+  });
+
   // Drift guard: the CLI writes these labels into the fence, and the browser
   // hands them straight to highlight.js. Every label must therefore be a name
   // highlight.js actually knows (core bundle or an on-demand pack). This list

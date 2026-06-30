@@ -346,22 +346,25 @@ module.exports = function(harness) {
 
   console.log('\n── Annotation arg Tests ───────────────────────\n');
 
+  // parseArgs binds each annotation to its file (the cursor). The single-file
+  // front-matter path strips `file` back out so the serialized shape is
+  // unchanged (see the round-trip test below); multi-file keeps it.
   test('parseArgs: single-line annotation, file preserved', () => {
     const r = cli.parseArgs(['app.py', '22:this is the bug']);
     assert.strictEqual(r.file, 'app.py');
-    assert.deepStrictEqual(r.annotations, [{ line: 22, endLine: 22, text: 'this is the bug' }]);
+    assert.deepStrictEqual(r.annotations, [{ line: 22, endLine: 22, text: 'this is the bug', file: 'app.py' }]);
   });
 
   test('parseArgs: range annotation', () => {
     const r = cli.parseArgs(['app.py', '25-28:the whole block']);
-    assert.deepStrictEqual(r.annotations, [{ line: 25, endLine: 28, text: 'the whole block' }]);
+    assert.deepStrictEqual(r.annotations, [{ line: 25, endLine: 28, text: 'the whole block', file: 'app.py' }]);
   });
 
   test('parseArgs: multiple annotations, surviving shell quotes stripped', () => {
     const r = cli.parseArgs(['app.py', '3:"first note"', "7:'second'"]);
     assert.deepStrictEqual(r.annotations, [
-      { line: 3, endLine: 3, text: 'first note' },
-      { line: 7, endLine: 7, text: 'second' },
+      { line: 3, endLine: 3, text: 'first note', file: 'app.py' },
+      { line: 7, endLine: 7, text: 'second', file: 'app.py' },
     ]);
   });
 
