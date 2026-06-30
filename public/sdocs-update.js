@@ -43,8 +43,25 @@
     return true;
   }
 
+  // Build the 'check-update' message posted to the service worker. `u` flags a
+  // check that fired because THIS load was an auto-reload for an update: the
+  // tab's original load was already counted, and a deploy reloads every open
+  // tab, so the server skips logging a u=1 check — otherwise one release would
+  // inflate analytics by one visit per open tab. Only the first check after a
+  // reload carries it; later return-to-foreground checks send u=0.
+  function buildCheckMessage(appVersion, cohort, reloadCount, justReloaded) {
+    return {
+      type: 'check-update',
+      version: appVersion,
+      cohort: cohort,
+      r: reloadCount,
+      u: justReloaded ? 1 : 0,
+    };
+  }
+
   exports.decideReload = decideReload;
   exports.decideCheck = decideCheck;
+  exports.buildCheckMessage = buildCheckMessage;
 
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -62,7 +79,7 @@
   var K_TARGET = 'sdocs_update_target';
 
   var appVersion = '', cohort = '';
-  var hiddenSince = null, lastCheck = 0, started = false;
+  var hiddenSince = null, lastCheck = 0, started = false, justReloaded = false;
 
   function ss(get, key, val) {
     try {
@@ -150,8 +167,10 @@
   function postCheck() {
     lastCheck = Date.now();
     var count = parseInt(ss(true, K_COUNT) || '0', 10) || 0;
+    var msg = buildCheckMessage(appVersion, cohort, count, justReloaded);
+    justReloaded = false; // marker is one-shot: only the first check after a reload carries u=1
     activeWorker(function (w) {
-      w.postMessage({ type: 'check-update', version: appVersion, cohort: cohort, r: count });
+      w.postMessage(msg);
     });
   }
   function maybeCheck() {
@@ -222,6 +241,12 @@
     started = true;
     appVersion = (opts && opts.appVersion) || '';
     cohort = (opts && opts.cohort) || '';
+
+    // Did this load happen because we auto-reloaded for an update? K_DONE is set
+    // in doReload() right before reload. Capture it BEFORE
+    // showUpdatedConfirmationIfFlagged() consumes the flag, so the initial check
+    // below tells the server "reload re-check, don't count" (see buildCheckMessage).
+    justReloaded = ss(true, K_DONE) != null;
 
     showUpdatedConfirmationIfFlagged();
     postCheck(); // initial check on this load

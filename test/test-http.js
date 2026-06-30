@@ -251,6 +251,23 @@ module.exports = function(harness) {
       }
     });
 
+    await testAsync('version-check with u=1 (reload re-check) does NOT write a visit row', async () => {
+      // A deploy reloads every open tab; each reload re-fires version-check.
+      // Those re-checks carry u=1 and must not be counted, or one release would
+      // inflate analytics by one visit per open tab.
+      const Database = require('better-sqlite3');
+      const countRows = () => {
+        const db = new Database(testDbPath, { readonly: true });
+        try { return db.prepare("SELECT COUNT(*) AS c FROM visits WHERE cohort_week = '2026-W77'").get().c; }
+        finally { db.close(); }
+      };
+      await get(BASE + '/version-check?cohort=2026-W77&u=1');
+      assert.strictEqual(countRows(), 0, 'u=1 check must not insert a row');
+      // A plain check for the same cohort still counts — proves we skipped only the reload re-check.
+      await get(BASE + '/version-check?cohort=2026-W77');
+      assert.strictEqual(countRows(), 1, 'a normal check for the same cohort is still counted');
+    });
+
     // ── Short-link endpoints ──────────────────────────
 
     let createdId;
