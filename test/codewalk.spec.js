@@ -176,6 +176,19 @@ test('restart returns to the first step, is disabled on step 1, and marked on th
   await expect(page.locator('.sdoc-cw-tab.is-active')).toHaveText('app.py');
 });
 
+test('navigating away closes an open walkthrough (so Back returns to the doc)', async ({ page }) => {
+  await openWalk(page, TWO_FILES, STEPS);
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  // Simulate a navigation (a link click, or pressing Back to another doc):
+  // the hash changes and loadFromHash runs. The viewer must be dismissed so it
+  // doesn't cover the doc that loads underneath.
+  await page.evaluate(() => {
+    window.location.hash = 'theme=dark';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  });
+  await expect(page.locator('.sdoc-code-focus')).toHaveCount(0);
+});
+
 test('a non-codewalk doc gets no data-file and no walkthrough', async ({ page }) => {
   const tabs = await page.evaluate(() => {
     window.SDocs.currentBody = '```python app.py\nx = 1\n```\n';
