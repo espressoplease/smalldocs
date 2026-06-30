@@ -393,6 +393,20 @@ Returning users therefore see a brief (~0.5-2s) flash of the OLD HTML before the
 3. Reload the tab (not a hard reload). You should see: old shell renders briefly, console logs `sdocs-reload`, page auto-reloads into the new shell.
 4. If the intermediate state is visibly broken, either defer-guard the JS (early-return on missing elements, which most modules already do) or call it out in the PR description so reviewers know the flash is expected.
 
+## Releasing: get sign-off on user-facing content before it ships
+
+User-facing release artifacts must be **read and approved by the user before they reach production**. This is a hard gate, not a courtesy. It covers:
+
+- the **notification alert** (`public/notifications.json`) and the **feature-introduction doc** it links to (including the example links / walkthroughs inside it),
+- any **announcement / blog / showcase copy**,
+- the **agent integration block** copy (what `sdoc setup` writes into users' configs).
+
+The rule: when a release includes any of the above, **open the actual rendered artifact (the intro doc, the walkthrough examples, the notification target) and wait for the user to read and approve it before deploying or pushing the notification.** Do not deploy the intro doc or light up the notification dot on unreviewed content. "Commit and release" authorizes the code release and deploy; it does **not** waive this review of the user-facing announcement content - confirm that content explicitly, separately.
+
+If a deploy has already gone out with unreviewed announcement content, the fix is to pull the notification entry (or the offending copy), redeploy, and restore it only after the user has signed off.
+
+Code, tests, and the deploy mechanics themselves don't need this extra gate (the user reviews those as the work happens); this is specifically about the *words and demos the public sees*.
+
 ## Adding a new markdown feature
 
 Every fenced-block / inline-render feature (charts, math, mermaid, future ones) touches the same set of surfaces. Mermaid is the most recent worked example; mirror that shape unless there's a reason not to. Skipping any of these tends to ship in a half-broken state that only shows up after a deploy.
@@ -416,7 +430,7 @@ Every fenced-block / inline-render feature (charts, math, mermaid, future ones) 
 12. **Showcase + feature-intro docs**. Build a gallery page covering every supported sub-type with source blocks, plus a separate feature-introduction doc with intro paragraph, agent-prompt examples, CLI upgrade note, then the gallery. Keep them as two files: gallery is reference, intro is the announcement payload.
 13. **`public/sdoc.md`**. Add a feature section with a link to the gallery; mirror the way charts and diagrams are listed.
 14. **Agent integration block** (`cli/bin/sdocs-dev.js`). Only update if agents need to know the feature exists to use it (Mermaid + Charts qualify; styling tweaks don't). Bump `AGENT_BLOCK_VERSION`, set `AGENT_BLOCK_REASON`, prepend a `## v<N>` section to `public/agent-changes.md`, reword the per-agent snippets in `public/sdoc.md`, and tag the release. (Full release checklist is in the "Agent integration block" section above.)
-15. **Notification entry** (`public/notifications.json`). Add an entry at the top with a fresh `id`, today's date, calm title, and a hash-encoded link to the feature-introduction doc. The user-facing notification dot lights up only for entries newer than the user's last-seen mark.
+15. **Notification entry** (`public/notifications.json`). Add an entry at the top with a fresh `id`, today's date, calm title, and a hash-encoded link to the feature-introduction doc. The user-facing notification dot lights up only for entries newer than the user's last-seen mark. **Before this ships, show the user the rendered intro doc and its example links and get their sign-off** (see "Releasing: get sign-off on user-facing content before it ships").
 
 ## Charts
 
