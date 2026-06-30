@@ -573,6 +573,11 @@ const server = http.createServer((req, res) => {
   if (pathname === '/version-check') {
     const v = url.searchParams.get('v') || '';
     const cohort = url.searchParams.get('cohort') || '';
+    // u=1 means this check fired because the page auto-reloaded for an update.
+    // The tab's original load was already counted, and one deploy reloads every
+    // open tab, so counting reload re-checks would inflate visits by one per
+    // open tab on each release. Log the line for diagnostics, skip the visit.
+    const reloadRecheck = url.searchParams.get('u') === '1';
     if (ANALYTICS_ENABLED) {
       console.log([
         new Date().toISOString(),
@@ -581,8 +586,11 @@ const server = http.createServer((req, res) => {
         req.headers['accept-language'] || '',
         v ? 'cached:' + v : 'no-cache',
         cohort || '-',
+        reloadRecheck ? 'reload' : 'visit',
       ].join(' | '));
-      try { analytics.logVisit(cohort, req.headers['user-agent'] || '', req.headers['referer'] || ''); } catch (e) { /* analytics failure should not break version-check */ }
+      if (!reloadRecheck) {
+        try { analytics.logVisit(cohort, req.headers['user-agent'] || '', req.headers['referer'] || ''); } catch (e) { /* analytics failure should not break version-check */ }
+      }
     }
     res.writeHead(200, {
       'Content-Type': 'application/json',

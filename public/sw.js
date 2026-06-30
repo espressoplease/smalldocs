@@ -142,8 +142,11 @@ self.addEventListener('message', function (e) {
   if (e.data && e.data.type === 'check-update' && e.data.version) {
     // r = the client's per-session reload count, forwarded so the server log
     // can spot a tab reload-looping in the wild (a single grep on r).
+    // u=1 marks a check fired by an auto-reload-for-update; the server skips
+    // counting it so a deploy doesn't log one visit per open tab.
     var qs = '?cohort=' + encodeURIComponent(e.data.cohort || '')
-      + '&r=' + encodeURIComponent(e.data.r || 0);
+      + '&r=' + encodeURIComponent(e.data.r || 0)
+      + '&u=' + encodeURIComponent(e.data.u || 0);
     fetch('/version-check' + qs).then(function (res) {
       return res.json();
     }).then(function (data) {
