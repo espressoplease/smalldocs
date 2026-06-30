@@ -10,7 +10,7 @@ const { execSync } = require('child_process');
 const SDocYaml = require('../shared/sdocs-yaml.js');
 
 const { DEFAULT_URL } = require('./constants');
-const { readContent, openBrowser } = require('./io');
+const { readContent, readCodewalkContent, openBrowser } = require('./io');
 const { loadDefaultStyles, applyDefaultStyles, showDefaults, resetDefaults } = require('./styles');
 const { buildUrl } = require('./url');
 const { buildShortUrl } = require('./short-link');
@@ -28,7 +28,78 @@ async function postCommandHooks() {
 // Load content (file or stdin), apply ~/.sdocs/styles.yaml defaults, inject
 // `file:` into front matter, and build either a hash URL or a short URL.
 // Returns { url, contentPresent }.
+// Build a hash URL (or short URL for `share --short`) from finished content.
+// Shared by the single-file and the code-walkthrough paths so both honour
+// `--short`, mode, theme, section, and present identically.
+async function finishUrl(opts, content, local, defaults) {
+  if (opts.shortFlag) {
+    if (opts.subcommand !== 'share') {
+      console.error('sdoc: --short is only valid with the `share` subcommand');
+      process.exit(1);
+    }
+    if (!content) {
+      console.error('sdoc: --short needs content (a file path or piped stdin)');
+      process.exit(1);
+    }
+    try {
+      const url = await buildShortUrl(content, {
+        url: opts.url, mode: opts.mode, theme: opts.theme, section: opts.section,
+      });
+      return { url, contentPresent: !!content };
+    } catch (e) {
+      console.error('sdoc: could not create short link -', e.message);
+      process.exit(1);
+    }
+  }
+  const url = buildUrl(content, {
+    url: opts.url,
+    mode: opts.mode,
+    theme: opts.theme,
+    defaultStyles: !content ? defaults : null,
+    section: opts.section,
+    local,
+    present: opts.present,
+  });
+  return { url, contentPresent: !!content };
+}
+
+// `sdoc file1.py 4:"..." file2.py 13:"..."` — two or more source files become
+// one code-walkthrough document: a tabbed multi-file view whose annotations
+// step in command order across the tabs. The browser keys off `codewalk: true`
+// in front matter. Front matter carries only basenames, so it is share-safe.
+async function prepareCodewalkUrl(opts) {
+  const { body, files } = readCodewalkContent(opts.files);
+
+  const meta = { codewalk: true, files };
+  const anns = (opts.annotations || []).map((a) => {
+    // Bind to the cursor file's basename; fall back to the first tab when an
+    // annotation was given before any file (or its file dropped out).
+    let base = a.file ? path.basename(a.file) : files[0];
+    if (files.indexOf(base) === -1) base = files[0];
+    return { file: base, line: a.line, endLine: a.endLine, text: a.text };
+  });
+  if (anns.length) meta.annotations = anns;
+
+  let content = SDocYaml.serializeFrontMatter(meta) + '\n' + body;
+  const defaults = loadDefaultStyles();
+  if (defaults) content = applyDefaultStyles(content);
+
+  // local (the edit-this-file affordance) is single-file today; the
+  // walkthrough renders entirely from the shared front matter for now.
+  return finishUrl(opts, content, null, defaults);
+}
+
 async function prepareUrl(opts) {
+  // Annotations render as a walkthrough: a tabbed tour for 2+ files, a single-
+  // tab stepper for one. A plain `sdoc app.py` with no annotations stays the
+  // ordinary single-file view. Walkthrough order is the order the annotations
+  // were given on the command line, not their line order.
+  const files = opts.files || [];
+  const anns = opts.annotations || [];
+  if (files.length > 1 || (files.length >= 1 && anns.length > 0)) {
+    return prepareCodewalkUrl(opts);
+  }
+
   let content = await readContent(opts.file);
   const defaults = loadDefaultStyles();
   if (content && defaults) {
@@ -45,7 +116,10 @@ async function prepareUrl(opts) {
     let changed = false;
     if (!parsed.meta.file) { parsed.meta.file = path.basename(opts.file); changed = true; }
     if (opts.annotations && opts.annotations.length) {
-      parsed.meta.annotations = opts.annotations;
+      // A single file needs no per-annotation `file` binding — drop it so the
+      // serialized shape stays {line, endLine, text}. (Multi-file keeps it, in
+      // prepareCodewalkUrl.)
+      parsed.meta.annotations = opts.annotations.map(({ file, ...rest }) => rest);
       changed = true;
     }
     if (changed) {
@@ -65,40 +139,7 @@ async function prepareUrl(opts) {
     }
   }
 
-  let url;
-  if (opts.shortFlag) {
-    if (opts.subcommand !== 'share') {
-      console.error('sdoc: --short is only valid with the `share` subcommand');
-      process.exit(1);
-    }
-    if (!content) {
-      console.error('sdoc: --short needs content (a file path or piped stdin)');
-      process.exit(1);
-    }
-    try {
-      url = await buildShortUrl(content, {
-        url: opts.url,
-        mode: opts.mode,
-        theme: opts.theme,
-        section: opts.section,
-      });
-    } catch (e) {
-      console.error('sdoc: could not create short link -', e.message);
-      process.exit(1);
-    }
-  } else {
-    url = buildUrl(content, {
-      url: opts.url,
-      mode: opts.mode,
-      theme: opts.theme,
-      defaultStyles: !content ? defaults : null,
-      section: opts.section,
-      local,
-      present: opts.present,
-    });
-  }
-
-  return { url, contentPresent: !!content };
+  return finishUrl(opts, content, local, defaults);
 }
 
 // Default flow: `sdoc <file>` or `sdoc` (no args, or piped stdin).

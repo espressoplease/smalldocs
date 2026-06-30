@@ -3002,6 +3002,23 @@ ANNOTATIONS (walk someone through the code)
   an agent explaining code to the reader; the in-browser comment mode
   (--comment) is the reverse - the reader's own review notes.
 
+  Annotations render as a WALKTHROUGH: the file opens in the fullscreen viewer
+  with each note carrying a Prev / Next stepper, so the reader is guided from
+  one note to the next (arrow keys work too; a restart button returns to the
+  start). The steps follow the ORDER YOU PASS THEM, not line order:
+
+    sdoc app.py 10:"start here" 5:"then jump back up here"
+
+  walks to line 10 first, then line 5.
+
+  Pass several files to narrate across them - each becomes a tab, and a step
+  in another file switches to its tab as you walk (a small "-> file" marker
+  shows when a step crosses files):
+
+    sdoc app.py 5:"entry point" util.py 12:"it calls into here" app.py 9:"back"
+
+  Naming a file twice gives one tab; the walk still hops between them in order.
+
 COMMENTS
   Comments are deliberately prominent - italic, full-contrast colour, a faint
   tint - rather than the usual muted grey, so the human explanation in a

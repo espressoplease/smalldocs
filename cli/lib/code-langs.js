@@ -72,9 +72,15 @@ function isCodeFile(filePath) {
 
 // File contents -> a fenced code document. Trailing whitespace is trimmed so a
 // file's final newline doesn't render as an empty last line in the block.
-function wrapCodeFile(raw, filePath) {
+//
+// `label` (optional) is appended to the fence info string after the language,
+// e.g. wrapCodeFile(src, 'app.py', 'app.py') -> ```python app.py. A multi-file
+// code walkthrough uses this so the browser can name each tab; a plain single
+// `sdoc app.py` passes no label and the fence stays ```python.
+function wrapCodeFile(raw, filePath, label) {
   var lang = langForFile(filePath);
-  return '```' + lang + '\n' + String(raw).replace(/\s+$/, '') + '\n```\n';
+  var info = label ? (lang + ' ' + String(label).trim()) : lang;
+  return '```' + info + '\n' + String(raw).replace(/\s+$/, '') + '\n```\n';
 }
 
 module.exports = {
