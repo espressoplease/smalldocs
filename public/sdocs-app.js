@@ -707,8 +707,29 @@ function render() {
     }
   }
   renderFileInfoCard();
+  updateDocumentTitle();
   if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
   if (S.syncFoldButton) S.syncFoldButton();
+}
+
+// Reflect the current document in the browser tab / history / bookmarks.
+// The browser holds the decrypted content, so this works for both #md= and
+// short-link (/s/) loads. Prefer a front-matter `title:`, fall back to the
+// first rendered heading, and fall back to the bare site name for an empty or
+// untitled doc. Kept to a plain textContent read so no markup leaks into the
+// title, and capped so a runaway heading can't produce an absurd tab label.
+var DEFAULT_TITLE = 'SmallDocs';
+function updateDocumentTitle() {
+  var name = '';
+  var meta = S.currentMeta;
+  if (meta && typeof meta.title === 'string') name = meta.title.trim();
+  if (!name) {
+    var heading = S.renderedEl && S.renderedEl.querySelector('h1, h2, h3');
+    if (heading) name = (heading.textContent || '').trim();
+  }
+  name = name.replace(/\s+/g, ' ');
+  if (name.length > 120) name = name.slice(0, 119).trimEnd() + '…';
+  document.title = name ? name + ' - ' + DEFAULT_TITLE : DEFAULT_TITLE;
 }
 
 // ── File-info card ─────────────────────────────────────────
