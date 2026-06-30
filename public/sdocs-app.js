@@ -72,6 +72,19 @@ function agentAnnotationCount() {
   }
   return n;
 }
+// In a walkthrough each annotation is bound to a file, so each tab's inline
+// block shows its OWN count (not the whole-doc total on the first block).
+function agentAnnotationCountFor(file) {
+  var list = SDocs.currentMeta && SDocs.currentMeta.annotations;
+  if (!Array.isArray(list)) return 0;
+  var n = 0;
+  for (var i = 0; i < list.length; i++) {
+    var a = list[i];
+    if (a && String(a.file || '') === file && parseInt(a.line, 10) >= 1 &&
+        typeof a.text === 'string' && a.text.trim()) n++;
+  }
+  return n;
+}
 // Tag chip × uses the standard SDocs close icon (same stroke / weight as
 // the comment composer's Cancel button, scaled down for chip rendering).
 var TAG_CLOSE_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
@@ -387,8 +400,11 @@ function attachHeadingAnchors(container) {
 function attachCodeCopyButtons(container) {
   // Agent annotations are line-numbered and not block-tagged, so the indicator
   // goes on the first code block (the common single-file case has exactly one).
+  // In a walkthrough each block carries data-file, so the indicator instead goes
+  // on every file block, scoped to that file's own annotations.
   var agentShown = false;
   var agentTotal = agentAnnotationCount();
+  var isWalk = !!(window.SDocCodewalk && window.SDocCodewalk.isCodewalk(SDocs.currentMeta));
   container.querySelectorAll('pre').forEach(function(pre, idx) {
     var wrapper = document.createElement('div');
     wrapper.className = 'pre-wrapper';
@@ -460,16 +476,22 @@ function attachCodeCopyButtons(container) {
 
       // Indicator: this block carries agent comments (read-only annotations).
       // Same glyph as user comments; the dot is the agent (periwinkle) colour.
-      // Clicking opens the viewer. Shown on the first code block.
-      if (agentTotal > 0 && !agentShown) {
+      // Walkthrough: one per file block, scoped + opens the tour. Single file:
+      // the whole-doc total, once, on the first block.
+      var walkFile = isWalk ? pre.getAttribute('data-file') : '';
+      var agentHere = isWalk ? (walkFile ? agentAnnotationCountFor(walkFile) : 0) : agentTotal;
+      if (agentHere > 0 && (isWalk || !agentShown)) {
         agentShown = true;
         var agentBtn = document.createElement('button');
         agentBtn.className = 'agent-comment-btn';
         agentBtn.innerHTML = AGENT_SVG;
-        agentBtn.title = agentTotal + (agentTotal === 1 ? ' agent comment' : ' agent comments');
+        agentBtn.title = agentHere + (agentHere === 1 ? ' agent comment' : ' agent comments');
         agentBtn.setAttribute('aria-label', agentBtn.title);
         agentBtn.style.setProperty('--dot', '#7c84d8');
-        agentBtn.addEventListener('click', function() { S.codeFocus.open(pre); });
+        agentBtn.addEventListener('click', function() {
+          if (isWalk && S.codeFocus.openWalkthrough) S.codeFocus.openWalkthrough();
+          else S.codeFocus.open(pre);
+        });
         tools.appendChild(agentBtn);
       }
     }
@@ -531,6 +553,9 @@ S.wholeFileCodeLang = wholeFileCodeLang;
 var _codeFileAutoExpanded = false;
 function maybeAutoExpandCodeFile() {
   if (_codeFileAutoExpanded || !S.codeFocus) return;
+  // A codewalk doc (even a single annotated file) is handled by the walkthrough
+  // opener; don't also open the plain single-file viewer over the top of it.
+  if (window.SDocCodewalk && window.SDocCodewalk.isCodewalk(S.currentMeta)) return;
   if (!wholeFileCodeLang(S.currentBody)) return;
   var hasName = (S.currentMeta && S.currentMeta.file) || (S.localMeta && S.localMeta.fullPath);
   if (!hasName) return;
@@ -542,6 +567,19 @@ function maybeAutoExpandCodeFile() {
   if (!pre) return;
   _codeFileAutoExpanded = true;
   S.codeFocus.open(pre, { comment: document.body.classList.contains('comment-mode') });
+}
+
+// A multi-file code walkthrough (`codewalk: true` front matter, 2+ `<pre
+// data-file>` blocks) lands straight in the tabbed viewer, the same way a
+// single code file auto-expands above. Fires at most once per page.
+var _codewalkAutoOpened = false;
+function maybeAutoExpandCodewalk() {
+  if (_codewalkAutoOpened || !S.codeFocus || !S.codeFocus.openWalkthrough) return;
+  if (!window.SDocCodewalk || !window.SDocCodewalk.isCodewalk(S.currentMeta)) return;
+  var pres = S.renderedEl ? S.renderedEl.querySelectorAll('pre[data-file]') : [];
+  if (!pres || pres.length < 1) return;
+  _codewalkAutoOpened = true;
+  S.codeFocus.openWalkthrough({ comment: document.body.classList.contains('comment-mode') });
 }
 
 var SECTION_LEVELS = { H2: 2, H3: 3, H4: 4 };
@@ -1894,6 +1932,7 @@ async function loadFromHash() {
       S._isDefaultState = false;
       var text = await decompressText(mdParam);
       loadText(text);
+      maybeAutoExpandCodewalk();
       maybeAutoExpandCodeFile();
     } catch (e) {
       console.warn('sdocs-dev: could not decode hash', e);
@@ -2033,6 +2072,7 @@ async function initShortLink(id) {
     // A short link to a whole-file code doc should land in the code view, same
     // as the #md= path - otherwise the recipient sees the inline block, not the
     // expanded viewer the sender shared from.
+    maybeAutoExpandCodewalk();
     maybeAutoExpandCodeFile();
   } catch (e) {
     var msg = e && e.message === 'not_found'

@@ -5,6 +5,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { transcludeCells } = require('./cells-transclude');
 const { isWrappedFile, wrapForDisplay } = require('./file-wrap');
+const codeLangs = require('./code-langs');
 
 const SUBCOMMANDS = new Set([
   'new', 'share', 'schema', 'defaults', 'help', 'version',
@@ -56,6 +57,13 @@ function parseArgs(argv) {
   let sheetName = null;
   const addTags = [];
   const annotations = [];
+  // Multi-file code walkthrough: every source-code positional is collected
+  // into `files`, in command order. `currentFile` is the cursor an annotation
+  // binds to, so `file1.py 4:"x" file2.py 13:"y"` ties line 4 to file1 and
+  // line 13 to file2. The first code file also fills the single-file `file`
+  // slot, so a one-file `sdoc app.py` is unchanged.
+  const files = [];
+  let currentFile = null;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -127,8 +135,21 @@ function parseArgs(argv) {
       // Strip one layer of surrounding quotes if a shell preserved them.
       const text = ann[3].replace(/^"([\s\S]*)"$/, '$1').replace(/^'([\s\S]*)'$/, '$1');
       if (start >= 1 && end >= start && text.trim()) {
-        annotations.push({ line: start, endLine: end, text });
+        // `file` binds the annotation to the most-recently-named code file
+        // (null if none yet — resolved to the only/first file downstream).
+        annotations.push({ line: start, endLine: end, text, file: currentFile });
       }
+      continue;
+    }
+
+    // A source-code positional (in the default flow, not under a subcommand):
+    // collect it as a walkthrough file and move the annotation cursor onto it.
+    // Subcommand sub-args (e.g. `slides icons`) are never code files, so they
+    // fall through to the file/extra slots below as before.
+    if (!subcommand && codeLangs.isCodeFile(arg)) {
+      files.push(arg);
+      currentFile = arg;
+      if (!file) file = arg;
       continue;
     }
 
@@ -144,7 +165,7 @@ function parseArgs(argv) {
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,
     tagsFlag, helpFlag, yesFlag, dryRunFlag, sheetName,
-    addTags, annotations,
+    addTags, annotations, files,
   };
 }
 
@@ -183,6 +204,38 @@ async function readContent(file) {
   return null; // no content — just open studio
 }
 
+// Read N source files into one code-walkthrough body: each unique file wrapped
+// in a ```<lang> <basename> fence, joined in command order. Returns the body
+// plus the de-duplicated basename list (the tab order). Tabs are keyed by
+// basename — a file named twice on the command line is one tab; two DIFFERENT
+// files sharing a basename is an error rather than a silent merge (and keeps
+// the shared front matter to safe basenames, matching the single-file `file:`).
+function readCodewalkContent(files) {
+  const parts = [];
+  const tabs = [];
+  const byBase = Object.create(null);
+  for (const f of files) {
+    const resolved = path.resolve(f);
+    const base = path.basename(f);
+    if (byBase[base]) {
+      if (byBase[base] !== resolved) {
+        console.error(`sdoc: a code walkthrough needs distinct file names — two files named "${base}"`);
+        process.exit(1);
+      }
+      continue; // same file referenced again → one tab
+    }
+    if (!fs.existsSync(resolved)) {
+      console.error(`sdoc: file not found: ${f}`);
+      process.exit(1);
+    }
+    byBase[base] = resolved;
+    tabs.push(base);
+    const raw = fs.readFileSync(resolved, 'utf-8');
+    parts.push(codeLangs.wrapCodeFile(raw, f, base));
+  }
+  return { body: parts.join('\n'), files: tabs };
+}
+
 function openBrowser(url) {
   try {
     if (process.platform === 'darwin')      execFileSync('open', [url]);
@@ -197,5 +250,6 @@ module.exports = {
   SUBCOMMANDS,
   parseArgs,
   readContent,
+  readCodewalkContent,
   openBrowser,
 };
