@@ -211,3 +211,38 @@ test('a hostile filename cannot inject script into the tab strip or data-file', 
   await expect(page.locator('.sdoc-cw-tabs script')).toHaveCount(0);
   expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
 });
+
+// ── Short link on a walkthrough ─────────────────────────────────────────────
+// A walkthrough is the whole document, so the file-info card offers the same
+// short link as a single opened code file. The step cursor is ephemeral and
+// never serialised, so a link minted while sitting on a later tab still reopens
+// the walkthrough on the first annotation's tab.
+
+test('the walkthrough file-info card offers a short link', async ({ page }) => {
+  await openWalk(page, TWO_FILES, STEPS);
+  await expect(page.locator('.sdoc-cf-fileinfo')).toBeVisible();
+  // The "Short URL — Generate" intro row (identical UI to the single-file card).
+  await expect(page.locator('.sdoc-cf-shortintro')).toBeVisible();
+  await expect(page.locator('.sdoc-cf-shortbtn[data-shorten]')).toBeVisible();
+});
+
+test('a short link minted from a later tab reopens on the first step tab', async ({ page }) => {
+  await openWalk(page, TWO_FILES, STEPS);
+  // Switch to the SECOND tab before minting — the active tab must not leak into
+  // the link.
+  await page.locator('.sdoc-cw-tab', { hasText: 'util.py' }).click();
+  await expect(page.locator('.sdoc-cw-tab.is-active')).toHaveText('util.py');
+
+  // Mint the link through the real card button (shortenGenerate → generateShortLink).
+  await page.locator('.sdoc-cf-shortbtn[data-shorten]').first().click();
+  await expect(page.locator('.sdoc-cf-firow', { hasText: 'Short URL' })).toBeVisible();
+  const shortUrl = await page.evaluate(() => window.SDocs.shortUrl);
+  expect(shortUrl).toBeTruthy();
+
+  // Reopen the short link fresh.
+  await page.goto(shortUrl);
+  await page.waitForFunction(() => document.querySelector('.sdoc-code-focus'));
+  // Reopens on app.py — the first annotation's file — not util.py.
+  await expect(page.locator('.sdoc-cw-tab.is-active')).toHaveText('app.py');
+  await expect(page.locator(activePos)).toHaveText('Step 1 of 3');
+});
