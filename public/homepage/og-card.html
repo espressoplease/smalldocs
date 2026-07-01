@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:   #F6F4F1;
+    --white:   #FFFFFF;
+    --ink:     #1B1815;
+    --ink-2:   #56504A;
+    --ink-3:   #938C82;
+    --line:    #E7E2DA;
+    --line-2:  #DAD3C9;
+    --accent:  #2563EB;
+    --font: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    font-family: var(--font);
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    overflow: hidden;
+  }
+  /* subtle top accent hairline, echoing the site chrome */
+  .card {
+    width: 100%; height: 100%;
+    padding: 84px 96px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+  }
+  /* faint decorative document lines, bottom-right, from the favicon motif */
+  .glyph {
+    position: absolute;
+    right: 76px; bottom: 68px;
+    opacity: 0.9;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    color: var(--accent);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .brand .mark {
+    width: 44px; height: 44px;
+    display: block;
+  }
+  .eyebrow {
+    margin-top: 54px;
+    font-size: 22px;
+    font-weight: 450;
+    color: var(--ink-3);
+    letter-spacing: 0.005em;
+  }
+  .display {
+    margin-top: 18px;
+    max-width: 30ch;
+    font-size: 60px;
+    font-weight: 600;
+    line-height: 1.16;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+  }
+  .foot {
+    margin-top: 56px;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink-2);
+    letter-spacing: 0.01em;
+  }
+  .foot .url { color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="2" width="28" height="28" rx="7" fill="#2563EB" fill-opacity=".15"/>
+        <rect x="2" y="2" width="28" height="28" rx="7" stroke="#2563EB" stroke-width="2"/>
+        <path d="M9 11h14M9 16h11M9 21h8" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      SmallDocs
+    </div>
+
+    <p class="eyebrow">If Claude Code &amp; Microsoft Office had a baby&hellip;</p>
+    <h1 class="display">The document format as<br>intelligent as your agents</h1>
+
+    <p class="foot"><span class="url">smalldocs.org</span></p>
+  </div>
+</body>
+</html>
