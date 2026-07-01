@@ -529,7 +529,12 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.method !== 'GET') {
+  // HEAD is routed exactly like GET. Node's http server omits the response
+  // body for HEAD automatically while still sending headers (Content-Type,
+  // Content-Length), so a HEAD gets correct metadata with no payload. Some
+  // link-preview crawlers (WhatsApp) HEAD an og:image before downloading it;
+  // answering 405 made them drop the preview.
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405, { 'Content-Type': 'text/plain' });
     res.end('Method Not Allowed');
     return;
