@@ -1769,12 +1769,19 @@
     // shared-link footer note follow the same gate: they speak to "this file you
     // opened", which a block inside a larger doc is not.
     var isWholeFileCode = !!(S.wholeFileCodeLang && S.wholeFileCodeLang(S.currentBody));
+    // A code walkthrough is itself the whole document: the short link encodes the
+    // walkthrough and reopens it (always at step 1 - the step cursor is ephemeral
+    // and never serialised), so the share affordance is just as safe here as for a
+    // single opened file. The local path rows below stay whole-file-only: they name
+    // one file you opened, which a multi-file walkthrough doesn't have.
+    var isCodewalk = !!(window.SDocCodewalk && window.SDocCodewalk.isCodewalk(S.currentMeta));
+    var canShortLink = isWholeFileCode || isCodewalk;
     var rows = fiRow('Filename', fileName);
     // Short URL sits directly under Filename, above the paths - and the whole row
     // mirrors the prose file-info card exactly: a subtle dotted "Generate" until a
     // link exists, then the URL in a copyable row. Shared generator keeps both in
     // sync. (Same wording the prose card uses, verbatim.)
-    if (isWholeFileCode && S.generateShortLink && navigator.clipboard) {
+    if (canShortLink && S.generateShortLink && navigator.clipboard) {
       if (S.shortUrl) {
         rows += fiRow('Short URL', S.shortUrl);
       } else {
