@@ -359,6 +359,47 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .vid-btn .ic-sound { display: none; }
 .videocard.sound-on .vid-btn .ic-muted { display: none; }
 .videocard.sound-on .vid-btn .ic-sound { display: block; }
+.vid-btn .ic-play { display: none; }
+.videocard.paused .vid-btn .ic-pause { display: none; }
+.videocard.paused .vid-btn .ic-play { display: block; }
+
+/* Teaser: a short muted loop stacked on top of the main video until
+   the visitor presses play. */
+.vid-teaser {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease;
+}
+.videocard.teaser .vid-teaser { opacity: 1; }
+.videocard.teaser .vid-controls,
+.videocard.teaser .vid-caption { opacity: 0; pointer-events: none; }
+.videocard.teaser .vid-play { display: flex; }
+
+/* Full screen: the whole card goes fullscreen (not the bare video) so the
+   custom captions and controls stay visible. */
+.videocard:fullscreen { border: 0; border-radius: 0; }
+.videocard:fullscreen .vid {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+.videocard:-webkit-full-screen { border: 0; border-radius: 0; }
+.videocard:-webkit-full-screen .vid {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+
+@media (max-width: 560px) {
+  .vid-btn .lbl { display: none; }
+}
 
 .vid-caption {
   position: absolute;
@@ -387,10 +428,13 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   position: absolute;
   inset: 0;
   display: none;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 14px;
   background: rgba(20,18,16,.3);
   cursor: pointer;
+  z-index: 2;
 }
 .videocard.needs-play .vid-play { display: flex; }
 .vid-play span {
@@ -402,6 +446,19 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   align-items: center;
   justify-content: center;
   box-shadow: 0 6px 22px rgba(0,0,0,.28);
+  transition: transform .18s ease;
+}
+.vid-play:hover span { transform: scale(1.06); }
+.vid-play em {
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(20,18,16,.62);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  padding: 7px 14px;
 }
 
 /* ── INSTALL: a calm tinted panel matching the video width ────
@@ -820,27 +877,40 @@ footer {
     <p class="hero-works">Works with Claude &middot; Codex &middot; Cursor &middot; Gemini &middot; Antigravity &middot; opencode &middot; Pi</p>
 
     <div class="hero-visual">
-      <div class="videocard" id="videocard">
+      <div class="videocard teaser" id="videocard">
         <!-- Hero demo is served from Cloudflare R2 (bucket: smalldocs-media),
-             not this server, so a full watch costs us no bandwidth. -->
-        <video class="vid" id="heroVid" muted loop autoplay playsinline preload="metadata" poster="/public/homepage/demo-poster.jpg">
+             not this server, so a full watch costs us no bandwidth.
+             A short muted teaser loops until the visitor presses play;
+             the full demo then starts from the top with sound. -->
+        <video class="vid" id="heroVid" playsinline preload="metadata" poster="/public/homepage/demo-poster.jpg">
           <source src="https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-web.mp4" type="video/mp4">
         </video>
+        <video class="vid-teaser" id="heroTeaser" muted loop autoplay playsinline preload="auto" src="https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-teaser.mp4"></video>
         <div class="vid-caption" id="heroCap" aria-live="polite"></div>
         <div class="vid-loading"><span class="spinner"></span>Loading</div>
         <div class="vid-controls">
+          <button class="vid-btn" id="pauseBtn" type="button" title="Pause">
+            <svg class="ic-pause" width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M5.4 3.4v9.2M10.6 3.4v9.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg class="ic-play" width="15" height="15" viewBox="0 0 16 16"><path d="M5 3.1l7.6 4.9L5 12.9z" fill="currentColor"/></svg>
+            <span class="lbl">Pause</span>
+          </button>
           <button class="vid-btn" id="ccBtn" type="button" aria-pressed="true" title="Subtitles">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.3" y="3" width="13.4" height="10" rx="2.4" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 6.7a1.7 1.7 0 1 0 0 2.6M11.3 6.7a1.7 1.7 0 1 0 0 2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
             CC
           </button>
-          <button class="vid-btn" id="muteBtn" type="button" title="Unmute">
+          <button class="vid-btn" id="muteBtn" type="button" title="Mute">
             <svg class="ic-muted" width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2.5 6v4h2.2L8 12.6V3.4L4.7 6H2.5z" fill="currentColor"/><path d="M11 6l3 4M14 6l-3 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             <svg class="ic-sound" width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2.5 6v4h2.2L8 12.6V3.4L4.7 6H2.5z" fill="currentColor"/><path d="M10.6 5.6a3.3 3.3 0 0 1 0 4.8M12.6 3.8a6 6 0 0 1 0 8.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <span class="lbl">Unmute</span>
+            <span class="lbl">Mute</span>
+          </button>
+          <button class="vid-btn" id="fsBtn" type="button" title="Full screen">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2.2 5.6V2.2h3.4M13.8 5.6V2.2h-3.4M2.2 10.4v3.4h3.4M13.8 10.4v3.4h-3.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="lbl">Full screen</span>
           </button>
         </div>
-        <div class="vid-play" id="playOverlay" title="Play">
+        <div class="vid-play" id="playOverlay" title="Play the demo">
           <span><svg width="24" height="24" viewBox="0 0 16 16"><path d="M5 3.1l8 4.9-8 4.9z" fill="#1B1815"/></svg></span>
+          <em>Watch the demo</em>
         </div>
       </div>
     </div>
@@ -1267,50 +1337,296 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
   });
 })();
 
-/* Hero video: muted autoplay, click to unmute (restarts from start
-   with sound). Captions custom-rendered; cues below are placeholder
-   text until the real transcript lands. */
+/* Hero video: a muted teaser loops until the visitor presses play, then
+   the full demo starts from the top with sound. Captions custom-rendered
+   from the cues list (transcript of the demo narration). */
 (function () {
   const card = document.getElementById('videocard');
   const vid  = document.getElementById('heroVid');
   if (!card || !vid) return;
 
-  const muteBtn = document.getElementById('muteBtn');
-  const ccBtn   = document.getElementById('ccBtn');
-  const cap     = document.getElementById('heroCap');
-  const playOv  = document.getElementById('playOverlay');
+  const teaser   = document.getElementById('heroTeaser');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const muteBtn  = document.getElementById('muteBtn');
+  const ccBtn    = document.getElementById('ccBtn');
+  const fsBtn    = document.getElementById('fsBtn');
+  const cap      = document.getElementById('heroCap');
+  const playOv   = document.getElementById('playOverlay');
 
-  // No cues yet for the current 13:36 demo. Leave empty until the real
-  // transcript lands; an empty list renders no captions.
-  const cues = [];
+  const cues = [
+    { t0: 0.00, t1: 2.84, text: 'All right, I\'m gonna walk you through a demo of SmallDocs.' },
+    { t0: 2.84, t1: 4.08, text: 'Gonna start off with a little mini demo' },
+    { t0: 4.08, t1: 8.36, text: 'and explain why SmallDocs exists and how it works.' },
+    { t0: 8.36, t1: 11.46, text: 'Then I\'m gonna show you some demos of regular usage,' },
+    { t0: 11.46, t1: 13.16, text: 'which show you how to create documents with your agents' },
+    { t0: 13.16, t1: 15.44, text: 'and also how to read code with your agents.' },
+    { t0: 15.44, t1: 18.80, text: 'And then I\'m gonna explain why SmallDocs is private.' },
+    { t0: 18.80, t1: 21.80, text: 'And then I\'m gonna show you some advanced demos' },
+    { t0: 21.80, t1: 25.44, text: 'for people who are enjoying the first part and wanna see the real full set' },
+    { t0: 25.44, t1: 27.20, text: 'of SmallDocs capabilities.' },
+    { t0: 28.24, t1: 32.82, text: 'So SmallDocs is a way for you to work with your agents' },
+    { t0: 32.82, t1: 35.12, text: 'to produce easy to read, easy to share documents.' },
+    { t0: 35.12, t1: 40.76, text: 'So here I just asked Claude to s.me@poem and it\'s opened the document in the browser' },
+    { t0: 40.76, t1: 44.52, text: 'and I can generate a little short link to share it.' },
+    { t0: 44.52, t1: 48.28, text: 'And even though it\'s in the browser, it\'s private and I\'m gonna explain that later.' },
+    { t0: 49.76, t1: 53.04, text: 'So agents have really changed the way that we work.' },
+    { t0: 55.02, t1: 57.20, text: 'You can really tackle all different types of work' },
+    { t0: 57.20, t1: 59.44, text: 'with an agent and SmallDocs needs to handle' },
+    { t0: 59.44, t1: 62.80, text: 'that flexibility too and it\'s built to do that.' },
+    { t0: 62.80, t1: 66.06, text: 'So with SmallDocs, you can build presentations,' },
+    { t0: 67.48, t1: 73.12, text: 'which can be very, very complicated. You can do financial analysis' },
+    { t0: 73.12, t1: 76.92, text: 'and look at data in a really powerful way.' },
+    { t0: 76.92, t1: 80.90, text: 'For example, you can use the traditional calculations.' },
+    { t0: 83.20, t1: 85.30, text: 'You can build interactive charts' },
+    { t0: 86.84, t1: 89.52, text: 'and you can create these mermaid diagrams,' },
+    { t0: 89.52, t1: 90.64, text: 'but you don\'t create them, your agent does,' },
+    { t0: 90.64, t1: 92.74, text: 'but it\'s about your agent being able to express itself' },
+    { t0: 92.74, t1: 98.74, text: 'to handle the broad topic of topics of work that we now do with our agents' },
+    { t0: 98.74, t1: 104.02, text: 'because they are a great way to get analytical and creation work done.' },
+    { t0: 104.96, t1: 106.32, text: 'So how does this work?' },
+    { t0: 108.28, t1: 111.56, text: 'SmallDocs is actually a CLI. You just s.doc and then a path to a file' },
+    { t0: 111.56, t1: 115.68, text: 'and it\'s that that opens it in the browser.' },
+    { t0: 116.80, t1: 119.78, text: 'But typically you don\'t actually do this, normally your agents do it.' },
+    { t0: 119.78, t1: 124.86, text: 'And they\'re able to do it because when we install SmallDocs,' },
+    { t0: 124.86, t1: 131.04, text: 'when you install it via a CLI, we go through and we go into your root agent folder.' },
+    { t0: 131.04, t1: 133.74, text: 'So when you install Cloud Code, for example, you get a Cloud folder.' },
+    { t0: 133.74, t1: 135.96, text: 'When you install Codex, you get a Codex folder.' },
+    { t0: 135.96, t1: 139.40, text: 'Inside of that folder, there\'s a Cloud.md file' },
+    { t0: 139.40, t1: 143.44, text: 'in the Cloud folder and in the Codex folder, there\'s an agents.md file.' },
+    { t0: 143.44, t1: 147.60, text: 'And these files, if you put information in them, it\'s global context,' },
+    { t0: 147.60, t1: 149.44, text: 'which all of your agent sessions will use.' },
+    { t0: 149.44, t1: 153.08, text: 'And so here, if we look inside of the Cloud.md file,' },
+    { t0: 153.08, t1: 155.48, text: 'we can see we\'ve added something about SmallDocs' },
+    { t0: 155.48, t1: 158.24, text: 'and the same is true for the agents.md file.' },
+    { t0: 158.24, t1: 161.92, text: 'And this means that all of those agent sessions understand that SmallDocs exist' },
+    { t0: 161.92, t1: 163.64, text: 'and they understand a bit about how to use it.' },
+    { t0: 163.64, t1: 165.96, text: 'And they also understand what commands they need to run' },
+    { t0: 165.96, t1: 170.56, text: 'if they\'re gonna use it to produce something powerful. So if they wanna build slides,' },
+    { t0: 170.56, t1: 174.54, text: 'they\'ll first run s.slides and that gives them the documentation' },
+    { t0: 174.54, t1: 179.68, text: 'that they need to build slides. So that documentation is not always in your,' },
+    { t0: 179.68, t1: 183.76, text: 'in those agent folders. That\'s just, they just know they need to run s.slides' },
+    { t0: 183.76, t1: 185.88, text: 'if they wanna get information on how to build slides' },
+    { t0: 185.88, t1: 187.88, text: 'that render in SmallDocs, for example.' },
+    { t0: 189.20, t1: 190.04, text: 'Okay.' },
+    { t0: 191.08, t1: 193.40, text: 'So let\'s look at some demos now of the kind of stuff' },
+    { t0: 193.40, t1: 197.04, text: 'that you can do and I do with SmallDocs.' },
+    { t0: 197.04, t1: 201.96, text: 'So I\'m an engineer and SmallDocs is a great way for you to get your agent' },
+    { t0: 201.96, t1: 205.20, text: 'to teach you conceptual engineering things. So for example, here,' },
+    { t0: 205.20, t1: 210.22, text: 'I\'ve downloaded the browser use repository and I wanna understand its architecture.' },
+    { t0: 210.22, t1: 214.00, text: 'And maybe for example, I wanna, I want to,' },
+    { t0: 214.00, t1: 215.28, text: 'I don\'t necessarily wanna do this in my computer' },
+    { t0: 215.28, t1: 219.00, text: 'and I wanna generate a short link to myself and go and read it on a park bench.' },
+    { t0: 219.00, t1: 221.00, text: 'But it allows the agent to explain things' },
+    { t0: 221.00, t1: 223.56, text: 'and for you to ingest things in a kind of more natural' },
+    { t0: 223.56, t1: 227.40, text: 'and calm and easy way than in a kind of narrow terminal window' },
+    { t0: 227.40, t1: 230.02, text: 'that isn\'t always great to work in.' },
+    { t0: 232.12, t1: 236.56, text: 'And, for example, you can use code to do financial analysis' },
+    { t0: 236.56, t1: 238.48, text: 'or data analysis and SmallDocs is really good for that.' },
+    { t0: 238.48, t1: 243.72, text: 'So here, I\'m just looking at some dividend returns and it can pick up data' },
+    { t0: 243.72, t1: 247.36, text: 'and produce complex data analysis' },
+    { t0: 247.36, t1: 252.36, text: 'with sheets that I can then kind of work through my own time' },
+    { t0: 253.64, t1: 255.64, text: 'basically or share with someone on my team.' },
+    { t0: 258.44, t1: 260.72, text: 'So let\'s look at using it in codecs.' },
+    { t0: 262.48, t1: 266.40, text: 'So here, I\'ve asked codecs to produce a presentation' },
+    { t0: 266.40, t1: 269.00, text: 'on the don\'t repeat yourself coding concept' },
+    { t0: 269.00, t1: 273.44, text: 'in Patagonia\'s branding just to show you some of the stuff that SmallDocs can do.' },
+    { t0: 273.44, t1: 277.74, text: 'And let\'s just wait for codecs to respond.' },
+    { t0: 277.74, t1: 281.96, text: 'And so here, it\'s opened up and created this document.' },
+    { t0: 281.96, t1: 288.20, text: 'And the cool thing is you can start off in inside of a Small Doc,' },
+    { t0: 288.20, t1: 292.12, text: 'but then you can actually export to the traditional formats you\'re used to.' },
+    { t0: 292.12, t1: 294.68, text: 'So it\'s a cool way to begin working on a slide deck.' },
+    { t0: 296.96, t1: 299.88, text: 'And so another thing that\'s changed with agents' },
+    { t0: 299.88, t1: 303.36, text: 'is that we, in a way we\'ve left our IDEs behind.' },
+    { t0: 303.36, t1: 308.36, text: 'So if you\'re used to working with an agent in a terminal,' },
+    { t0: 308.48, t1: 314.84, text: 'just open your coding IDE much less than you did. And SmallDocs is there to step in' },
+    { t0: 314.84, t1: 316.50, text: 'if you need to read code files.' },
+    { t0: 316.50, t1: 319.68, text: 'So you can always just say to your agent s.me a code file' },
+    { t0: 319.68, t1: 321.64, text: 'and it will open nice in your browser' },
+    { t0: 321.64, t1: 325.08, text: 'and we have a little language specific summary functionality' },
+    { t0: 325.08, t1: 328.24, text: 'which collapses files, but still allows you to ingest' },
+    { t0: 328.24, t1: 330.80, text: 'kind of what\'s the headline structure of this file.' },
+    { t0: 332.96, t1: 337.48, text: 'And we can also do things like get your agent can also annotate code' },
+    { t0: 337.48, t1: 339.48, text: 'and it can create a pathway through some code.' },
+    { t0: 339.48, t1: 345.36, text: 'So for example, I wanna create a code walkthrough of how we rate limit a request.' },
+    { t0: 345.36, t1: 350.18, text: 'And here it\'s opened two files, the API and the rate limiter.' },
+    { t0: 351.54, t1: 356.56, text: 'And it\'s given me some steps that I can follow starting off in one file,' },
+    { t0: 356.56, t1: 360.56, text: 'now jumping to the rate limiter file and jumping back to the API file.' },
+    { t0: 360.56, t1: 363.84, text: 'So it\'s a way for me to, for you and your agent' },
+    { t0: 363.84, t1: 366.44, text: 'to kind of teach each other stuff and understand code.' },
+    { t0: 368.60, t1: 370.60, text: 'So the files that I\'m talking about' },
+    { t0: 370.60, t1: 373.04, text: 'are actually like the most private files you have.' },
+    { t0: 374.04, t1: 375.20, text: 'Markdown files that you\'re working on,' },
+    { t0: 375.20, t1: 376.76, text: 'they might contain live information about a bug' },
+    { t0: 376.76, t1: 379.34, text: 'and obviously your coding files are highly sensitive.' },
+    { t0: 379.34, t1: 382.38, text: 'So privacy is paramount with SmallDocs.' },
+    { t0: 383.64, t1: 386.48, text: 'And we achieve that by using something called' },
+    { t0: 386.48, t1: 390.88, text: 'the URL fragment, which is this little hash that you can see here.' },
+    { t0: 390.88, t1: 395.00, text: 'And so you\'ll see that there\'s this hash and then there\'s a big long string of text.' },
+    { t0: 395.00, t1: 397.88, text: 'This long string of text is actually your underlying document' },
+    { t0: 397.88, t1: 401.84, text: 'effectively basically encoded, which is what the CLI does' },
+    { t0: 401.84, t1: 406.12, text: 'and put into the URL beyond this little hash which is the URL fragment.' },
+    { t0: 406.12, t1: 411.12, text: 'And the UI fragment, it is not sent to the server basically.' },
+    { t0: 411.44, t1: 416.00, text: 'So this is MDN docs, it\'s processed by the client,' },
+    { t0: 416.00, t1: 420.28, text: 'the browser after the resource is received. So when you make a request, the SmallDocs' },
+    { t0: 420.28, t1: 424.16, text: 'we\'re actually doing is just fetching a JavaScript rendering engine,' },
+    { t0: 424.16, t1: 430.44, text: 'which knows how to kind of decompress these strings and render them as files,' },
+    { t0: 430.44, t1: 433.62, text: 'as things you can actually interpret basically.' },
+    { t0: 433.62, t1: 436.92, text: 'So we\'re not, this data isn\'t being sent to SmallDocs.' },
+    { t0: 436.92, t1: 441.44, text: 'SmallDocs is just rendering whatever is in this hidden URL fragment.' },
+    { t0: 441.44, t1: 445.44, text: 'We take privacy very seriously and we have a little verified check,' },
+    { t0: 445.44, t1: 448.48, text: 'which checks that the code that you\'re actually receiving' },
+    { t0: 448.48, t1: 450.28, text: 'is the code that\'s in our open source repository.' },
+    { t0: 450.28, t1: 455.24, text: 'So you know that we\'re not doing anything spooky behind the scenes.' },
+    { t0: 455.24, t1: 457.24, text: 'And if you create a short link,' },
+    { t0: 457.24, t1: 459.20, text: 'to create a short link that doesn\'t have your full document' },
+    { t0: 459.20, t1: 461.28, text: 'in it, we do need to send something to our server.' },
+    { t0: 461.28, t1: 466.60, text: 'But to ensure this is extremely secure, we, on your clients, on the browser,' },
+    { t0: 466.60, t1: 471.18, text: 'we encrypt your document and we get a decryption key,' },
+    { t0: 471.18, t1: 476.84, text: 'which is this little key K here, basically. This is the decryption key.' },
+    { t0: 478.28, t1: 481.36, text: 'The data that the ciphertext, so the encrypted text is sent to our server,' },
+    { t0: 481.36, t1: 485.00, text: 'which is saved under this ID. But it\'s only legible if it\'s combined' },
+    { t0: 485.00, t1: 490.10, text: 'with this decryption key, which stays behind the URL fragment.' },
+    { t0: 490.10, t1: 492.10, text: 'So we\'re using that same concept twice,' },
+    { t0: 492.10, t1: 494.48, text: 'once with the full document, which is the standard usage,' },
+    { t0: 494.48, t1: 496.20, text: 'and then once with the decryption key,' },
+    { t0: 496.20, t1: 498.66, text: 'which is how we allow you to create short links.' },
+    { t0: 500.68, t1: 504.96, text: 'So time to look at some more advanced features of SmallDocs now.' },
+    { t0: 506.56, t1: 508.76, text: 'So the file that we\'ve been working with,' },
+    { t0: 508.76, t1: 511.20, text: 'even though they\'re pointing at a local file in our computer,' },
+    { t0: 511.20, t1: 513.76, text: 'we\'re not actually doing a live sync between the two.' },
+    { t0: 513.76, t1: 516.52, text: 'So if I was to edit this file here in SmallDocs,' },
+    { t0: 516.52, t1: 519.32, text: 'it would not actually edit the underlying file' },
+    { t0: 519.32, t1: 524.52, text: 'on the computer, but you can create a bridge between your local machine and the file.' },
+    { t0: 524.52, t1: 528.00, text: 'So the key word that your agent is looking for, in that case, is the word bridge.' },
+    { t0: 528.00, t1: 534.54, text: 'So here I can say sdocme, a launch brief with a bridge, and it\'s gonna open up.' },
+    { t0: 538.58, t1: 541.92, text: 'And you can see here that it says local sync is enabled, basically.' },
+    { t0: 542.78, t1: 548.04, text: 'And what that means is, so for example here, this is me catting this file.' },
+    { t0: 548.04, t1: 551.64, text: 'So you can see that the H1 is Q3 launch brief, which you can see here.' },
+    { t0: 551.64, t1: 558.52, text: 'But if I edit this and change it to Q4 launch brief, and I now cat this again,' },
+    { t0: 558.52, t1: 560.88, text: 'you can see that that change has flowed back to the document.' },
+    { t0: 560.88, t1: 566.72, text: 'So we\'re working on things together. So let me go back to read mode.' },
+    { t0: 566.72, t1: 569.80, text: 'And this also means we have a little comment functionality,' },
+    { t0: 569.80, t1: 573.36, text: 'which is a nice way to give feedback on things.' },
+    { t0: 573.36, t1: 576.68, text: 'So you can either leave comments like this or inline comments.' },
+    { t0: 579.04, t1: 584.04, text: 'And so, for example, you can do things like change to read.' },
+    { t0: 587.88, t1: 592.46, text: 'And I can tell the agent I\'ve left some comments.' },
+    { t0: 593.76, t1: 597.88, text: 'And it can then pick up those comments in the file' },
+    { t0: 597.88, t1: 599.84, text: 'in a live way because we\'re sharing data' },
+    { t0: 599.84, t1: 602.28, text: 'and those comments add information to the file.' },
+    { t0: 602.28, t1: 607.28, text: 'So here it\'s reading that and it will make a change.' },
+    { t0: 608.80, t1: 610.60, text: 'So you can see it\'s making a change.' },
+    { t0: 612.32, t1: 615.20, text: 'And you can see that\'s come through now.' },
+    { t0: 615.20, t1: 617.56, text: 'So we\'re kind of working together on a document.' },
+    { t0: 618.96, t1: 620.72, text: 'You can, if you wanna just leave comments,' },
+    { t0: 620.72, t1: 623.64, text: 'another way you can give comments to the agent is,' },
+    { t0: 623.64, t1: 628.64, text: 'say, for example, if I wanted to delete this paragraph,' },
+    { t0: 631.36, t1: 634.92, text: 'you can then just copy with comments. For example, if I haven\'t got a bridge open' },
+    { t0: 634.92, t1: 639.04, text: 'and paste that into the document and it comes with your comment there' },
+    { t0: 639.04, t1: 642.00, text: 'and the agent will then act on that as well.' },
+    { t0: 644.96, t1: 648.54, text: 'So that\'s comments in a bridge. And now feedback.' },
+    { t0: 651.48, t1: 652.96, text: 'Another thing you can do is your agent' },
+    { t0: 652.96, t1: 657.24, text: 'can create an interactive HTML form in a small doc' },
+    { t0: 657.24, t1: 661.20, text: 'and then run a process in the background that\'s waiting for you to give it feedback.' },
+    { t0: 661.20, t1: 664.44, text: 'So it\'s a way of, if you wanna scope out something quite complicated with your agent,' },
+    { t0: 664.44, t1: 668.64, text: 'it can do it in a way that\'s more flexible than doing so in the browser.' },
+    { t0: 668.64, t1: 671.36, text: 'For here, for example, we wanna s.feedback' },
+    { t0: 671.36, t1: 674.62, text: 'the table of content sidebar feature plan with me. So coming up with some feature.' },
+    { t0: 678.12, t1: 682.64, text: 'It\'s then gonna open that. And you can see here that it\'s given us' },
+    { t0: 682.64, t1: 687.20, text: 'an interactive HTML form to give feedback on' },
+    { t0: 687.20, t1: 690.84, text: 'and it\'s running a process in the background. So it\'s waiting for us to submit this' },
+    { t0: 690.84, t1: 693.72, text: 'and that\'s gonna kill the process and give the data back to the agent.' },
+    { t0: 693.72, t1: 701.08, text: 'So I think I\'m gonna do this. I\'ll move it to the left and build it in red.' },
+    { t0: 702.44, t1: 707.48, text: 'And then I\'ve sent that back. The session has ended and you can see now' },
+    { t0: 707.48, t1: 712.14, text: 'it\'s picked up the scope that we have given it basically.' },
+    { t0: 714.44, t1: 717.80, text: 'So yeah, you can see it built in red. So it\'s got that feedback from us.' },
+    { t0: 719.96, t1: 725.00, text: 'And the final thing is that we create so much markdown these days that,' },
+    { t0: 725.00, t1: 726.96, text: 'and SmallDocs is opening all these markdown files for you' },
+    { t0: 726.96, t1: 730.32, text: '\'cause it\'s a nice way to read them, but it also comes with a markdown library.' },
+    { t0: 731.16, t1: 733.92, text: 'And this allows you to, for example,' },
+    { t0: 733.92, t1: 738.92, text: 'filter things by project, search for things like brief.' },
+    { t0: 742.12, t1: 746.16, text: 'And you can tag things if you want and filter by date and star files.' },
+    { t0: 746.16, t1: 747.88, text: 'And we also have a little thing called a rescued,' },
+    { t0: 747.88, t1: 751.44, text: 'which is basically when your Mac creates a markdown file' },
+    { t0: 751.44, t1: 753.60, text: 'in a folder or when your agent creates a markdown file' },
+    { t0: 753.60, t1: 755.92, text: 'in like a temp folder that\'s gonna delete itself,' },
+    { t0: 755.92, t1: 761.72, text: 'we add it to like a local kind of directory in SmallDocs on your computer,' },
+    { t0: 761.72, t1: 765.64, text: 'which means that if it\'s been s-docked to be opened, which means that it\'s not lost.' },
+    { t0: 765.64, t1: 769.00, text: 'So you won\'t go back and be like, ah, that was written in my temp folder, that plan,' },
+    { t0: 769.00, t1: 771.08, text: 'and now it\'s gone, we\'ve saved it for you.' },
+    { t0: 772.52, t1: 778.72, text: 'So that is SmallDocs in its current form. It\'s open source on GitHub.' },
+    { t0: 779.64, t1: 784.88, text: 'Please check out the repo. And if you wanna build features, make a pull request,' },
+    { t0: 784.88, t1: 790.22, text: 'and we also have a Discord that you can join and we\'d love to talk with you.' },
+    { t0: 790.22, t1: 795.02, text: 'For businesses, it\'s totally free to use for individuals.' },
+    { t0: 795.02, t1: 800.08, text: 'You can install it and get going with it. For businesses, get in touch' },
+    { t0: 800.08, t1: 806.90, text: 'and we can do interesting things like cloud shared libraries' },
+    { t0: 807.48, t1: 810.80, text: 'and doing things on custom domains and custom branding and stuff like that.' },
+    { t0: 812.48, t1: 816.44, text: 'So yeah, enjoy using SmallDocs and thanks for listening.' }
+  ];
 
-  vid.addEventListener('playing', () => card.classList.add('ready'), { once: true });
+  const markReady = () => card.classList.add('ready');
+  vid.addEventListener('playing', markReady, { once: true });
+  if (teaser) {
+    teaser.addEventListener('playing', markReady, { once: true });
+    // Teaser missing or unplayable: fall back to the old muted autoplay.
+    teaser.addEventListener('error', () => startDemo(true));
+  } else {
+    startDemo(true);
+  }
 
-  const tryPlay = () => {
+  function syncMute() {
+    card.classList.toggle('sound-on', !vid.muted);
+    muteBtn.querySelector('.lbl').textContent = vid.muted ? 'Unmute' : 'Mute';
+    muteBtn.title = vid.muted ? 'Unmute' : 'Mute';
+  }
+  function syncPause() {
+    const paused = vid.paused;
+    card.classList.toggle('paused', paused);
+    pauseBtn.querySelector('.lbl').textContent = paused ? 'Play' : 'Pause';
+    pauseBtn.title = paused ? 'Play' : 'Pause';
+  }
+
+  function startDemo(mutedFallback) {
+    card.classList.remove('teaser');
+    if (teaser) teaser.pause();
+    vid.muted = !!mutedFallback;
+    vid.loop  = !!mutedFallback;
+    syncMute();
     const p = vid.play();
     if (p && p.catch) p.catch(() => card.classList.add('needs-play'));
-  };
-  tryPlay();
+  }
+
   playOv.addEventListener('click', () => {
     card.classList.remove('needs-play');
-    tryPlay();
+    startDemo(false);
+  });
+
+  // When the demo finishes, hand the card back to the teaser loop.
+  vid.addEventListener('ended', () => {
+    vid.currentTime = 0;
+    vid.muted = true;
+    syncMute();
+    if (teaser) {
+      card.classList.add('teaser');
+      teaser.currentTime = 0;
+      teaser.play();
+    }
+  });
+
+  pauseBtn.addEventListener('click', () => {
+    if (vid.paused) vid.play(); else vid.pause();
+  });
+  vid.addEventListener('play',  syncPause);
+  vid.addEventListener('pause', syncPause);
+
+  // Clicking the video itself toggles play/pause (once out of the teaser).
+  vid.addEventListener('click', () => {
+    if (card.classList.contains('teaser')) return;
+    if (vid.paused) vid.play(); else vid.pause();
   });
 
   muteBtn.addEventListener('click', () => {
-    if (vid.muted) {
-      vid.muted = false;
-      vid.loop = false;
-      vid.currentTime = 0;
-      vid.play();
-      card.classList.add('sound-on');
-      muteBtn.querySelector('.lbl').textContent = 'Mute';
-      muteBtn.title = 'Mute';
-    } else {
-      vid.muted = true;
-      card.classList.remove('sound-on');
-      muteBtn.querySelector('.lbl').textContent = 'Unmute';
-      muteBtn.title = 'Unmute';
-    }
+    vid.muted = !vid.muted;
+    syncMute();
   });
 
   ccBtn.addEventListener('click', () => {
@@ -1318,6 +1634,19 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
     ccBtn.setAttribute('aria-pressed', String(!on));
     ccBtn.classList.toggle('cc-off', on);
     cap.classList.toggle('cc-hidden', on);
+  });
+
+  fsBtn.addEventListener('click', () => {
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fsEl) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else if (card.requestFullscreen) {
+      card.requestFullscreen();
+    } else if (card.webkitRequestFullscreen) {
+      card.webkitRequestFullscreen();
+    } else if (vid.webkitEnterFullscreen) {
+      vid.webkitEnterFullscreen(); // iOS Safari: video-only fullscreen
+    }
   });
 
   let shown;
