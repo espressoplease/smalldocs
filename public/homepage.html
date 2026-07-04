@@ -821,9 +821,27 @@ footer {
 
     <div class="hero-visual">
       <div class="videocard" id="videocard">
-        <!-- Video temporarily disabled: showing the poster only while we
-             iterate on layout. Restore the <video> element when ready. -->
-        <img class="vid" src="/public/homepage/demo-poster.jpg" alt="" />
+        <!-- Hero demo is served from Cloudflare R2 (bucket: smalldocs-media),
+             not this server, so a full watch costs us no bandwidth. -->
+        <video class="vid" id="heroVid" muted loop autoplay playsinline preload="metadata" poster="/public/homepage/demo-poster.jpg">
+          <source src="https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-web.mp4" type="video/mp4">
+        </video>
+        <div class="vid-caption" id="heroCap" aria-live="polite"></div>
+        <div class="vid-loading"><span class="spinner"></span>Loading</div>
+        <div class="vid-controls">
+          <button class="vid-btn" id="ccBtn" type="button" aria-pressed="true" title="Subtitles">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.3" y="3" width="13.4" height="10" rx="2.4" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 6.7a1.7 1.7 0 1 0 0 2.6M11.3 6.7a1.7 1.7 0 1 0 0 2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            CC
+          </button>
+          <button class="vid-btn" id="muteBtn" type="button" title="Unmute">
+            <svg class="ic-muted" width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2.5 6v4h2.2L8 12.6V3.4L4.7 6H2.5z" fill="currentColor"/><path d="M11 6l3 4M14 6l-3 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <svg class="ic-sound" width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2.5 6v4h2.2L8 12.6V3.4L4.7 6H2.5z" fill="currentColor"/><path d="M10.6 5.6a3.3 3.3 0 0 1 0 4.8M12.6 3.8a6 6 0 0 1 0 8.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="lbl">Unmute</span>
+          </button>
+        </div>
+        <div class="vid-play" id="playOverlay" title="Play">
+          <span><svg width="24" height="24" viewBox="0 0 16 16"><path d="M5 3.1l8 4.9-8 4.9z" fill="#1B1815"/></svg></span>
+        </div>
       </div>
     </div>
   </div>
@@ -843,6 +861,20 @@ footer {
         </div>
 
         <div class="learn-items">
+
+          <details class="trouble">
+            <summary>
+              <span>Why SmallDocs?</span>
+              <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </summary>
+            <div class="trouble-body">
+              <div class="trouble-step">
+                <p style="margin-top: 0;">Coding agents are where we now do our most fluid and productive work. And they change the shape of that work: coding work becomes more strategic, and strategic work involves more coding.</p>
+                <p>This new mode of work needs a document layer to match. SmallDocs is that layer. Working with your agents, you can intuitively produce beautiful, deep documents - reports, decks, live financial models, architecture walkthroughs - and read code comfortably when you don&rsquo;t want to enter your IDE.</p>
+                <p>SmallDocs focuses on speed, privacy, and documents designed to let you ingest information efficiently.</p>
+              </div>
+            </div>
+          </details>
 
           <details class="trouble">
             <summary>
@@ -1248,16 +1280,9 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
   const cap     = document.getElementById('heroCap');
   const playOv  = document.getElementById('playOverlay');
 
-  const cues = [
-    { t0: 0.5,   t1: 5.5,   text: 'Placeholder caption - first line of the demo.' },
-    { t0: 5.5,   t1: 12.0,  text: 'These lines are stand-ins until the real transcript lands.' },
-    { t0: 12.0,  t1: 19.0,  text: 'A cue is just a start time, an end time and some text.' },
-    { t0: 19.0,  t1: 27.0,  text: 'Captions show by default while the video is muted.' },
-    { t0: 27.0,  t1: 35.0,  text: 'Press unmute and the video restarts from the top with sound.' },
-    { t0: 70.0,  t1: 78.0,  text: 'Placeholder caption around the one-minute mark.' },
-    { t0: 130.0, t1: 138.0, text: 'Placeholder caption around the two-minute mark.' },
-    { t0: 185.0, t1: 193.0, text: 'Placeholder caption near the end of the demo.' }
-  ];
+  // No cues yet for the current 13:36 demo. Leave empty until the real
+  // transcript lands; an empty list renders no captions.
+  const cues = [];
 
   vid.addEventListener('playing', () => card.classList.add('ready'), { once: true });
 
