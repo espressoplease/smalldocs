@@ -56,9 +56,21 @@ module.exports = function(harness) {
       assert.ok(r.headers['content-type'].includes('text/html'));
     });
 
-    await testAsync('GET / body contains SDocs markup', async () => {
+    await testAsync('GET / serves the marketing landing page', async () => {
       const r = await get(BASE + '/');
+      assert.ok(r.body.includes('id="install"'),
+        'root should contain the landing install section');
+      assert.ok(r.body.includes('curl -fsSL https://smalldocs.org/install | sh'),
+        'root should show the canonical install command');
+    });
+
+    await testAsync('GET /docs serves the app shell rendering sdoc.md', async () => {
+      const r = await get(BASE + '/docs');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'));
       assert.ok(r.body.includes('SDocs'));
+      assert.ok(r.body.includes('/public/sdoc.md'),
+        '/docs should default to sdoc.md');
     });
 
     await testAsync('GET /new returns 200 with HTML', async () => {
@@ -109,21 +121,10 @@ module.exports = function(harness) {
       assert.notStrictEqual(r.status, 200, '/install.sh should not be a live route');
     });
 
-    await testAsync('GET /homepage returns the marketing landing HTML', async () => {
+    await testAsync('GET /homepage redirects to the root landing page', async () => {
       const r = await get(BASE + '/homepage');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.headers['content-type'].includes('text/html'),
-        'expected text/html, got ' + r.headers['content-type']);
-      assert.ok(r.body.includes('id="install"'),
-        'homepage should contain the install section');
-      assert.ok(r.body.includes('curl -fsSL https://smalldocs.org/install | sh'),
-        'homepage should show the canonical install command');
-      // The hero currently shows the static poster image; the <video> is
-      // temporarily swapped out while the hero layout is iterated on (see the
-      // "Restore the <video> element when ready" note in homepage.html). When
-      // the video is restored, switch this back to demo-web.mp4.
-      assert.ok(r.body.includes('/public/homepage/demo-poster.jpg'),
-        'homepage should reference the hero media (poster image)');
+      assert.strictEqual(r.status, 301);
+      assert.strictEqual(r.headers['location'], '/');
     });
 
     await testAsync('GET /public/homepage/demo-poster.jpg serves the hero poster', async () => {
@@ -195,8 +196,8 @@ module.exports = function(harness) {
         'expected cacheable Cache-Control, got ' + r.headers['cache-control']);
     });
 
-    await testAsync('GET / HTML references all CSS modules', async () => {
-      const r = await get(BASE + '/');
+    await testAsync('GET /docs HTML references all CSS modules', async () => {
+      const r = await get(BASE + '/docs');
       assert.ok(r.body.includes('css/tokens.css'), 'missing tokens.css link');
       assert.ok(r.body.includes('css/layout.css'), 'missing layout.css link');
       assert.ok(r.body.includes('css/rendered.css'), 'missing rendered.css link');
@@ -204,8 +205,8 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('css/mobile.css'), 'missing mobile.css link');
     });
 
-    await testAsync('GET / HTML references all JS modules in order', async () => {
-      const r = await get(BASE + '/');
+    await testAsync('GET /docs HTML references all JS modules in order', async () => {
+      const r = await get(BASE + '/docs');
       const yamlIdx = r.body.indexOf('sdocs-yaml.js');
       const stateIdx = r.body.indexOf('sdocs-state.js');
       const appIdx = r.body.indexOf('sdocs-app.js');

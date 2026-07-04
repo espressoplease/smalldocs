@@ -2,7 +2,7 @@
 var CACHE_NAME = 'sdocs-cache';
 
 var APP_SHELL = [
-  '/',
+  '/docs',
   '/public/css/tokens.css',
   '/public/css/layout.css',
   '/public/css/rendered.css',

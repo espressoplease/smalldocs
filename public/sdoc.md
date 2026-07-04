@@ -446,6 +446,36 @@ Supports 13 chart types: pie, doughnut, bar, horizontal bar, stacked bar, line, 
 
 Style chart colors via `chart.accent` and `chart.palette` in front matter. Run `sdoc charts` for the full reference of types, options, and styling.
 
+### Sheets
+
+Render spreadsheets in markdown using ` ```cells ` code blocks: CSV rows where plain values and `=formulas` sit in the same grid and compute live.
+
+```cells
+Item,Price,Qty,Total
+Laptop,1200,2,=B2*C2
+Monitor,340,4,=B3*C3
+Dock,89,4,=B4*C4
+Total,,,=SUM(D2:D4)
+```
+
+The source for the sheet above:
+
+````
+```cells
+Item,Price,Qty,Total
+Laptop,1200,2,=B2*C2
+Monitor,340,4,=B3*C3
+Dock,89,4,=B4*C4
+Total,,,=SUM(D2:D4)
+```
+````
+
+Formulas support SUM, AVERAGE, MIN, MAX, COUNT, PRODUCT, ROUND, ABS, IF, and cell ranges. The reader can sort columns, select a range for quick stats, open the sheet fullscreen to edit a scratch copy (undo/redo, paste from Excel), and download it as a real `.xlsx` with the formulas still working.
+
+Name a block (` ```cells Expenses `) to build a workbook of several tabs whose formulas reference each other across sheets (`=Expenses!B4`). Agents can run `sdoc cells verify file.md` to compute the whole workbook headlessly and check the numbers before handing it over. `sdoc report.csv` opens a CSV file directly as a sheet.
+
+Run `sdoc cells` for the full reference of formulas, formatting directives, and workbooks.
+
 ### Math
 
 Write LaTeX between `$...$` (inline) or `$$...$$` (display). Rendered by KaTeX, loaded lazily from CDN only when a math delimiter is present.

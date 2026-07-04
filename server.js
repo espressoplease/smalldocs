@@ -554,14 +554,24 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Marketing landing page. Standalone HTML (no /public/ assets except the
-  // hero poster under /public/homepage/; the hero video streams from
-  // Cloudflare R2, bucket smalldocs-media), but still routed through
-  // serveHtmlWithRewrite so any future asset additions get cache-busted.
-  if (pathname === '/homepage') {
+  // Marketing landing page, served at the root. Standalone HTML (no /public/
+  // assets except the hero poster under /public/homepage/; the hero video
+  // streams from Cloudflare R2, bucket smalldocs-media), but still routed
+  // through serveHtmlWithRewrite so any future asset additions get
+  // cache-busted. Hash-encoded document links (#md=...) that land on the
+  // root belong to the app at /docs; fragments never reach the server, so
+  // an inline script in the page forwards them client-side.
+  if (pathname === '/') {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'homepage.html'), null, {
       'Cache-Control': 'no-cache',
     });
+    return;
+  }
+
+  // The landing page's old address, kept as a redirect for links in the wild.
+  if (pathname === '/homepage') {
+    res.writeHead(301, { Location: '/' });
+    res.end();
     return;
   }
 
@@ -755,7 +765,7 @@ const server = http.createServer((req, res) => {
     : null;
   // The /s/<id> id range stays {1,32} so links minted before the id-length
   // bump (8 chars) and after it (22 chars) both serve the app shell.
-  if (pathname === '/' || pathname === '/new' || pathname === '/legal' || pathname === '/privacy' || pathname === '/agent-changes' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  if (pathname === '/docs' || pathname === '/new' || pathname === '/legal' || pathname === '/privacy' || pathname === '/agent-changes' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     const nonce = crypto.randomBytes(16).toString('base64');
     const defaultMdPath = pathname === '/legal'
       ? '/public/legal.md'
