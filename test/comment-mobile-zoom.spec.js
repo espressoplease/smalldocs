@@ -13,7 +13,7 @@ const { test, expect } = require('@playwright/test');
 const BASE = 'http://localhost:3000';
 
 async function enterCommentModeWithBlockComposer(page) {
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() => !!window.SDocs && !!window.SDocs.render);
   await page.evaluate(() => window.SDocs.loadText('# T\n\nA paragraph to comment on.'));
   await page.evaluate(() => {

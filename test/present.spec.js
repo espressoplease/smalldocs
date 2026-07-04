@@ -6,7 +6,7 @@ const BASE = 'http://localhost:3000';
 async function loadDocWithSlides(page, slides) {
   var md = '# Test deck\n\n'
     + slides.map((dsl) => '```slide\n' + dsl + '\n```').join('\n\nbetween\n\n');
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
   await page.evaluate((body) => {
     window.SDocs.currentBody = body;

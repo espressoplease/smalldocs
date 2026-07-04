@@ -24,14 +24,14 @@ function buildHashUrl(content, local) {
   const params = new URLSearchParams();
   if (content) params.set('md', compressToBase64Url(content));
   if (local)   params.set('local', toBase64Url(Buffer.from(JSON.stringify(local), 'utf-8')));
-  return 'http://localhost:3000/#' + params.toString();
+  return 'http://localhost:3000/docs#' + params.toString();
 }
 function buildBridgeUrl(port, token, file) {
   const params = new URLSearchParams();
   params.set('bridge', '127.0.0.1:' + port);
   params.set('token', token);
   params.set('file',  file);
-  return 'http://localhost:3000/#' + params.toString();
+  return 'http://localhost:3000/docs#' + params.toString();
 }
 
 let SANDBOX;

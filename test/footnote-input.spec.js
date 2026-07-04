@@ -45,7 +45,7 @@ async function loadDoc(page, md) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() => !!window.SDocs && !!window.SDocs.loadText);
   await enterCommentMode(page);
 });

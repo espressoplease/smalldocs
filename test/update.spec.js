@@ -13,7 +13,7 @@ const { test, expect } = require('@playwright/test');
 const BASE = 'http://localhost:3000';
 
 async function ready(page) {
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() => !!window.SDocUpdate && typeof window.SDocUpdate.onReloadSignal === 'function');
 }
 

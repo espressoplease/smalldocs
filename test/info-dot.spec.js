@@ -19,7 +19,7 @@ async function dotState(page) {
 
 test.describe('Info notification dot', () => {
   test('fresh visitor lands caught up: no dot, seen-id seeded to maxId', async ({ page }) => {
-    await page.goto(BASE + '/');
+    await page.goto(BASE + '/docs');
     await waitForFeed(page);
 
     const state = await dotState(page);
@@ -31,7 +31,7 @@ test.describe('Info notification dot', () => {
 
   test('returning visitor with explicit seen=0 still sees the dot', async ({ page }) => {
     // First load establishes the origin so we can write localStorage.
-    await page.goto(BASE + '/');
+    await page.goto(BASE + '/docs');
     await page.evaluate((key) => localStorage.setItem(key, '0'), SEEN_KEY);
     await page.reload();
     await waitForFeed(page);
@@ -43,7 +43,7 @@ test.describe('Info notification dot', () => {
   });
 
   test('clicking the info button clears the dot', async ({ page }) => {
-    await page.goto(BASE + '/');
+    await page.goto(BASE + '/docs');
     await page.evaluate((key) => localStorage.setItem(key, '0'), SEEN_KEY);
     await page.reload();
     await waitForFeed(page);

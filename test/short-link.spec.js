@@ -28,7 +28,7 @@ const BASE = 'http://localhost:3000';
 // Open the app, build a real document, mint a short link, then open it.
 // Returns the { url, id } the page is now sitting on.
 async function openFreshShortLink(page) {
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() =>
     window.SDocs && window.SDocs.shortLink && typeof window.SDocs.shortLink.create === 'function');
 

@@ -7,7 +7,7 @@ const { test, expect } = require('@playwright/test');
 const BASE = 'http://localhost:3000';
 
 async function loadDoc(page, md) {
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
   await page.evaluate((body) => { window.SDocs.currentBody = body; window.SDocs.render(); }, md);
   await page.waitForTimeout(300);

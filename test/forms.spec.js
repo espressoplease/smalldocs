@@ -23,7 +23,7 @@ function tmpFile(name, body) {
 }
 
 function bridgeUrl(bridge) {
-  return BASE + '/#bridge=127.0.0.1:' + bridge.port + '&token=' + encodeURIComponent(bridge.token);
+  return BASE + '/docs#bridge=127.0.0.1:' + bridge.port + '&token=' + encodeURIComponent(bridge.token);
 }
 
 const FORM_BODY = `# A small ask

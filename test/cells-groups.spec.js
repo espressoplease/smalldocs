@@ -44,7 +44,7 @@ const DOC = [
 ].join('\n');
 
 async function load(page) {
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
   await page.evaluate((c) => window.SDocs.loadText(c, 'groups.md'), DOC);
   await page.waitForSelector('.sdoc-cells-pane');

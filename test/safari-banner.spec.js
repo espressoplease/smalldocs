@@ -16,21 +16,21 @@ test.describe('Safari Bridge banner', () => {
   test('appears when a bridge URL loads in Safari', async ({ page }) => {
     // Fake bridge params - we don't need a real bridge running. The banner
     // gates on UA + intent, not on connection success.
-    await page.goto(BASE + '/#bridge=127.0.0.1:9999&token=abc');
+    await page.goto(BASE + '/docs#bridge=127.0.0.1:9999&token=abc');
     const banner = page.locator('#_sd_safari-banner');
     await expect(banner).toBeVisible();
     await expect(banner.locator('.sd-safari-banner-text')).toContainText('Chrome or Firefox');
   });
 
   test('does not appear on a normal (no-bridge) page load', async ({ page }) => {
-    await page.goto(BASE + '/');
+    await page.goto(BASE + '/docs');
     // Give the page a beat to evaluate scripts.
     await page.waitForTimeout(200);
     await expect(page.locator('#_sd_safari-banner')).toBeHidden();
   });
 
   test('dismiss persists across reload via localStorage', async ({ page }) => {
-    await page.goto(BASE + '/#bridge=127.0.0.1:9999&token=abc');
+    await page.goto(BASE + '/docs#bridge=127.0.0.1:9999&token=abc');
     const banner = page.locator('#_sd_safari-banner');
     await expect(banner).toBeVisible();
 
@@ -50,7 +50,7 @@ test.describe('Safari Bridge banner', () => {
 test.describe('Safari Bridge banner: non-Safari UA does not see it', () => {
   // Default Playwright UA is Chromium-flavoured; the banner should never appear.
   test('no banner on bridge URL in Chromium', async ({ page }) => {
-    await page.goto(BASE + '/#bridge=127.0.0.1:9999&token=abc');
+    await page.goto(BASE + '/docs#bridge=127.0.0.1:9999&token=abc');
     await page.waitForTimeout(200);
     await expect(page.locator('#_sd_safari-banner')).toBeHidden();
   });

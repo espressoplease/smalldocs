@@ -11,7 +11,7 @@ const BASE = 'http://localhost:3000';
  */
 test.describe('Theme toggle on default state', () => {
   test('dark-mode toggle keeps default state and empty hash', async ({ page }) => {
-    await page.goto(BASE + '/');
+    await page.goto(BASE + '/docs');
     await page.waitForSelector('#_sd_btn-theme');
     const before = await page.evaluate(() => ({
       hash: location.hash,
@@ -36,7 +36,7 @@ test.describe('Theme toggle on default state', () => {
   });
 
   test('logo click after theme toggle resets cleanly in place', async ({ page, context }) => {
-    await page.goto(BASE + '/');
+    await page.goto(BASE + '/docs');
     await page.waitForSelector('#_sd_btn-theme');
     await page.click('#_sd_btn-theme');
     await page.waitForTimeout(600);

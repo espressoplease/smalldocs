@@ -125,7 +125,7 @@ async function copyWholeDoc(page) {
 
 test.beforeEach(async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() => !!window.SDocs && !!window.SDocs.render);
   await enterCommentMode(page);
 });
