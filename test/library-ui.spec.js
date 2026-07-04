@@ -417,7 +417,7 @@ test('home page does not fire any fetch to 127.0.0.1 on load', async ({ page }) 
       loopbackHits.push(url);
     }
   });
-  await page.goto('http://localhost:3000/');
+  await page.goto('http://localhost:3000/docs');
   await page.waitForLoadState('networkidle');
   expect(loopbackHits).toEqual([]);
 });

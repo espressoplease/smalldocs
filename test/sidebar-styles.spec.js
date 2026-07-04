@@ -8,7 +8,7 @@ const BASE = 'http://localhost:3000';
  * Returns the page with sidebar visible.
  */
 async function gotoStyleMode(page) {
-  await page.goto(BASE + '/#mode=style');
+  await page.goto(BASE + '/docs#mode=style');
   await page.waitForSelector('#_sd_right');
   // Wait for app to init
   await page.waitForTimeout(500);

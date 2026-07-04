@@ -7,7 +7,7 @@ const BASE = 'http://localhost:3000';
 
 /** Navigate to style mode and wait for the right panel to be visible */
 async function gotoStyleMode(page) {
-  await page.goto(BASE + '/#mode=style');
+  await page.goto(BASE + '/docs#mode=style');
   await page.waitForSelector('#_sd_right', { state: 'visible' });
 }
 

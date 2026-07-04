@@ -25,7 +25,7 @@ function tmpFile(name, body) {
 }
 
 function bridgeUrl(bridge) {
-  return BASE + '/#bridge=127.0.0.1:' + bridge.port + '&token=' + encodeURIComponent(bridge.token);
+  return BASE + '/docs#bridge=127.0.0.1:' + bridge.port + '&token=' + encodeURIComponent(bridge.token);
 }
 
 test('open mode: typing into the editor writes the updated body to disk', async ({ page }) => {

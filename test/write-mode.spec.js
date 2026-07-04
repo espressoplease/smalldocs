@@ -5,7 +5,7 @@ const BASE = 'http://localhost:3000';
 
 /** Navigate to write mode and wait for the editor to be ready */
 async function gotoWriteMode(page) {
-  await page.goto(BASE + '/#mode=write');
+  await page.goto(BASE + '/docs#mode=write');
   await page.waitForSelector('#_sd_write[contenteditable="true"]');
   await page.evaluate(() => document.getElementById('_sd_write').focus());
 }

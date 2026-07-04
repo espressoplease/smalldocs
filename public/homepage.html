@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <script>
-if (location.hash && location.hash.indexOf('md=') !== -1)
+// App state travels in the hash as key=value params (md=, bridge=, mode=,
+// styles=...). Installed CLIs and old share links point those at the root,
+// where the app used to live; forward them to /docs. The homepage's own
+// anchors (#learn, #install...) carry no '=' and stay here.
+if (location.hash && location.hash.indexOf('=') !== -1)
   location.replace('/docs' + location.hash);
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />

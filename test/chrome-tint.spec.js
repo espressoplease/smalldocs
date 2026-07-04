@@ -44,7 +44,7 @@ function lightnessFromColor(str) {
 
 test.describe('Chrome tinting', () => {
   test('default landing page leaves chrome untinted', async ({ page }) => {
-    await page.goto(BASE + '/');
+    await page.goto(BASE + '/docs');
     await page.waitForSelector('#_sd_rendered');
     // Give chrome module a chance to run
     await page.waitForTimeout(100);
@@ -59,7 +59,7 @@ test.describe('Chrome tinting', () => {
   });
 
   test('dark-bg doc under light theme produces readable panel text', async ({ page }) => {
-    await page.goto(BASE + '/');
+    await page.goto(BASE + '/docs');
     await page.waitForSelector('#_sd_rendered');
     await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
 
@@ -95,7 +95,7 @@ test.describe('Chrome tinting', () => {
   });
 
   test('custom bg gets cleared when a doc without custom colors loads after', async ({ page }) => {
-    await page.goto(BASE + '/');
+    await page.goto(BASE + '/docs');
     await page.waitForSelector('#_sd_rendered');
 
     // First: apply a doc with a custom bg (tints chrome)

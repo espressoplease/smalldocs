@@ -136,7 +136,7 @@ test('preserves images with safe src', async ({ page }) => {
 // ── Write mode sanitization ──────────────────────────────
 
 test('write mode also sanitizes content', async ({ page }) => {
-  await page.goto(BASE + '/#mode=write');
+  await page.goto(BASE + '/docs#mode=write');
   await page.waitForSelector('#_sd_write[contenteditable="true"]');
 
   await page.evaluate((md) => {

@@ -80,7 +80,7 @@ async function saveBlock(page, blockId, text) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() => !!window.SDocs && !!window.SDocs.render);
   await enterCommentMode(page);
 });
@@ -526,7 +526,7 @@ test.describe('comments on links', () => {
       quote: (window.SDocs.currentMeta.comments || [])[0] &&
              window.SDocs.currentMeta.comments[0].quote,
     }));
-    expect(state.url).toBe(BASE + '/');
+    expect(state.url).toBe(BASE + '/docs');
     expect(state.count).toBe(1);
     expect(state.quote).toBe('full documentation');
   });
@@ -930,7 +930,7 @@ test.describe('hash persistence', () => {
     const hash = await page.evaluate(() => window.location.hash);
     expect(hash).toContain('md=');
     // Reload the URL + re-enter comment mode
-    await page.goto(BASE + '/' + hash);
+    await page.goto(BASE + '/docs' + hash);
     await page.waitForFunction(() => !!window.SDocs && window.SDocs.currentBody);
     await enterCommentMode(page);
     const state = await page.evaluate(() => ({

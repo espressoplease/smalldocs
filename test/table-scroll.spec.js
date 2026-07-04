@@ -11,7 +11,7 @@ const BASE = 'http://localhost:3000';
 test.use({ viewport: { width: 360, height: 760 } });
 
 async function render(page, md) {
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
   await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, md);
   await page.waitForTimeout(120);

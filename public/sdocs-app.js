@@ -1767,15 +1767,17 @@ document.getElementById('_sd_factory-reset-styles').addEventListener('click', fu
 
 document.getElementById('_sd_toolbar-brand').addEventListener('click', function(e) {
   e.preventDefault();
-  // Pages other than /docs (e.g. /legal) load a different default doc via
-  // the meta tag. The logo should take you back to the app's home — not
-  // reset in place, which would just re-render the same off-home doc.
+  // The logo takes you to the site home (the root landing page). Pages other
+  // than /docs (e.g. /legal, short links) navigate there directly; a /docs
+  // tab with a document open keeps the doc and opens home in a new tab.
+  // A plain /docs tab has nothing to preserve, so the logo resets styles
+  // in place instead of navigating away from the app.
   if (window.location.pathname !== '/docs') {
-    window.location.href = window.location.origin + '/docs';
+    window.location.href = window.location.origin + '/';
     return;
   }
   if (window.location.hash && window.location.hash.indexOf('md=') !== -1) {
-    window.open(window.location.origin + window.location.pathname, '_blank');
+    window.open(window.location.origin + '/', '_blank');
     return;
   }
   S.resetAllStyles();

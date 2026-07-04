@@ -15,7 +15,7 @@ test.use({ hasTouch: true, isMobile: true, viewport: { width: 844, height: 390 }
 
 async function loadDeck(page, slides) {
   const md = '# Deck\n\n' + slides.map((d) => '```slide\n' + d + '\n```').join('\n\nx\n\n');
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
   await page.evaluate((body) => { window.SDocs.currentBody = body; window.SDocs.render(); }, md);
   await page.waitForTimeout(200);

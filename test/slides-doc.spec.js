@@ -6,7 +6,7 @@ const BASE = 'http://localhost:3000';
 
 async function loadDocWithSlide(page, dsl) {
   const md = '# Test doc\n\n```slide\n' + dsl + '\n```\n\nparagraph after\n';
-  await page.goto(BASE + '/');
+  await page.goto(BASE + '/docs');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function', null, { timeout: 5000 });
   await page.evaluate((body) => {
     window.SDocs.currentBody = body;
@@ -71,7 +71,7 @@ test.describe('slide blocks in documents', () => {
       '  Rendered identically in the thumbnail and at fullscreen.',
       '```',
     ].join('\n');
-    await page.goto(BASE + '/');
+    await page.goto(BASE + '/docs');
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate((body) => { window.SDocs.currentBody = body; window.SDocs.render(); }, md);
     await page.waitForTimeout(400);
