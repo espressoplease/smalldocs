@@ -802,6 +802,9 @@ footer {
 
 /* ── RESPONSIVE ──────────────────────────────────────── */
 @media (max-width: 900px) {
+  /* One 56px gap between every panel: the section top padding is the
+     only vertical space between boxes, so all three must match. */
+  #learn { padding: 56px 0 0; }
   #install { padding: 56px 0 0; }
   .install-panel { padding: 44px 36px; border-radius: 18px; }
   .install-grid { grid-template-columns: 1fr; gap: 32px; }
@@ -813,7 +816,9 @@ footer {
 }
 @media (max-width: 620px) {
   .wrap { padding: 0 22px; }
-  .hero { padding: 52px 0 20px; }
+  /* Hero bottom padding stays 0 so the video-to-panel gap equals the
+     40px panel-to-panel rhythm below. */
+  .hero { padding: 52px 0 0; }
   .hero .hero-display { font-size: 30px; max-width: 100%; line-height: 1.2; }
   .hero .lead { max-width: 100%; }
   .hero-cta { flex-wrap: wrap; gap: 12px; }
@@ -822,8 +827,9 @@ footer {
   .vid-btn { font-size: 11.5px; padding: 7px 10px; }
   .vid-controls { right: 10px; bottom: 10px; gap: 6px; }
   .vid-loading { left: 10px; bottom: 10px; }
+  #learn { padding: 40px 0 0; }
   #install { padding: 40px 0 0; }
-  #teams { padding: 14px 0 48px; }
+  #teams { padding: 40px 0 48px; }
   .install-panel { padding: 32px 22px; border-radius: 16px; }
   .install-text h2 { font-size: 1.45rem; }
   .install-cmd { padding: 12px 12px 12px 14px; }
@@ -1107,20 +1113,6 @@ footer {
                 <li>Open a fresh chat session with your coding agent and ask it to &ldquo;sdoc me a test file&rdquo;. A styled document should open in your browser.</li>
                 <li>If the agent doesn&rsquo;t recognize the request, check that the SmallDocs section in your global agent config (e.g. <code>~/.claude/CLAUDE.md</code>) was written by <code>sdoc setup</code>.</li>
               </ul>
-            </div>
-          </div>
-        </details>
-
-        <details class="trouble">
-          <summary>
-            <span>Privacy and security</span>
-            <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </summary>
-          <div class="trouble-body">
-            <div class="trouble-step">
-              <p style="margin-top: 0;">By default, nothing leaves your machine. When you run <code>sdoc file.md</code> the CLI compresses and encodes the file content into a single string and opens a URL of the form <code>https://smalldocs.org/#md=&hellip;</code> in your browser. That string sits in the URL's hash fragment (everything after the <code>#</code>), which browsers never send to the server. Our server sees a request for the page; it does not see your document.</p>
-              <p>The one feature that uploads anything is generating a short link (either manually on the site or via <code>sdoc share file.md</code>), which is end-to-end encrypted. Your browser generates a random key, encrypts the document with AES-GCM, and uploads only the ciphertext. The decryption key lives in the URL hash, so our server never sees it.</p>
-              <p>The longer version, with verifiable steps, is at <a href="/privacy" style="text-decoration: underline; color: var(--ink);">smalldocs.org/privacy</a>. Supply-chain trust (proving the JavaScript we ship matches the open-source code) is at <a href="/trust" style="text-decoration: underline; color: var(--ink);">smalldocs.org/trust</a>.</p>
             </div>
           </div>
         </details>
