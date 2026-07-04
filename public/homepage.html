@@ -1555,13 +1555,17 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
   // starting, and again if the demo stalls to rebuffer mid-watch.
   vid.addEventListener('playing', () => card.classList.add('ready'));
   vid.addEventListener('waiting', () => card.classList.remove('ready'));
-  // The teaser runs twice, then freezes on its last frame (still behind
-  // the play button) instead of looping forever next to the hero copy.
+  // On desktop the teaser runs twice, then freezes on its last frame (still
+  // behind the play button) instead of looping forever next to the hero copy.
+  // On phones the card fills the viewport, so a frozen frame reads as a
+  // broken video; there the teaser loops indefinitely. The media query is
+  // checked per loop so a rotate or resize picks up the right behavior.
   let teaserPlays = 0;
   if (teaser) {
     teaser.addEventListener('ended', () => {
       teaserPlays++;
-      if (teaserPlays < 2) {
+      const isMobile = window.matchMedia('(max-width: 620px)').matches;
+      if (isMobile || teaserPlays < 2) {
         teaser.currentTime = 0;
         teaser.play();
       }
