@@ -555,7 +555,8 @@ const server = http.createServer((req, res) => {
   }
 
   // Marketing landing page. Standalone HTML (no /public/ assets except the
-  // hero video + poster under /public/homepage/), but still routed through
+  // hero poster under /public/homepage/; the hero video streams from
+  // Cloudflare R2, bucket smalldocs-media), but still routed through
   // serveHtmlWithRewrite so any future asset additions get cache-busted.
   if (pathname === '/homepage') {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'homepage.html'), null, {
