@@ -1370,7 +1370,7 @@ var SHORT_LINK_PATH_RE = /^\/s\/([A-Za-z0-9_-]{1,32})$/;
 
 function normalizedBasePath() {
   var p = window.location.pathname;
-  if (p === '/new' || SHORT_LINK_PATH_RE.test(p)) return '/';
+  if (p === '/new' || SHORT_LINK_PATH_RE.test(p)) return '/docs';
   return p;
 }
 
@@ -1767,11 +1767,11 @@ document.getElementById('_sd_factory-reset-styles').addEventListener('click', fu
 
 document.getElementById('_sd_toolbar-brand').addEventListener('click', function(e) {
   e.preventDefault();
-  // Off-root pages (e.g. /legal) load a different default doc via the
-  // meta tag. The logo should take you back to the real home — not reset
-  // in place, which would just re-render the same off-root doc.
-  if (window.location.pathname !== '/') {
-    window.location.href = window.location.origin + '/';
+  // Pages other than /docs (e.g. /legal) load a different default doc via
+  // the meta tag. The logo should take you back to the app's home — not
+  // reset in place, which would just re-render the same off-home doc.
+  if (window.location.pathname !== '/docs') {
+    window.location.href = window.location.origin + '/docs';
     return;
   }
   if (window.location.hash && window.location.hash.indexOf('md=') !== -1) {
