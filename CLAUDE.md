@@ -28,6 +28,7 @@ The two never share a `package.json` again. See "Published npm tarball" below fo
   - `sdocs-yaml.js` - symlink to `../cli/shared/sdocs-yaml.js` (YAML front matter parse/serialize, UMD shared with Node)
   - `sdocs-slugify.js` - symlink to `../cli/shared/sdocs-slugify.js` (slugify heading text to URL-safe IDs, UMD shared with Node)
   - `sdocs-styles.js` - symlink to `../cli/shared/sdocs-styles.js` (pure style data tables + logic, UMD shared with tests)
+  - `sdocs-marked-del.js` - overrides marked's GFM strikethrough tokenizer to require double tildes (`~~x~~`); bare `~` pairs ("~$14,527 ... ~17-year") stay literal text instead of striking through the span between them. Loads right after `vendor/marked.min.js`. UMD shared with tests (`test/test-marked-del.js`)
   - `sdocs-state.js` - shared `window.SDocs` mutable state namespace
   - `sdocs-theme.js` - Google Fonts, font loading, dark mode, theme toggle
   - `sdocs-controls.js` - CSS variable management, color cascade, control wiring
@@ -194,7 +195,7 @@ Styles are driven entirely by CSS custom properties on `#rendered`. Every contro
 All browser JS modules communicate through `window.SDocs` (created by `sdocs-state.js`). Modules register functions on `SDocs` for cross-module access (e.g. `SDocs.syncAll`, `SDocs.setColorValue`). Event handlers use late binding - they reference `SDocs.fn()` rather than capturing `fn` at parse time, so modules can load in sequence without forward-declaration issues.
 
 **Script load order** (in `index.html`):
-`marked` -> `purify` -> `sdocs-yaml.js` -> `sdocs-styles.js` -> `sdocs-state.js` -> `sdocs-slugify.js` -> `sdocs-theme.js` -> `sdocs-controls.js` -> `sdocs-chrome.js` -> `sdocs-export.js` -> `sdocs-write.js` -> `sdocs-charts.js` -> `sdocs-math.js` -> `sdocs-mermaid.js` -> `sdocs-mermaid-focus.js` -> `sdocs-comments.js` -> `sdocs-app.js` -> `sdocs-info.js` -> `sdocs-comments-ui.js`
+`marked` -> `sdocs-marked-del.js` -> `purify` -> `sdocs-yaml.js` -> `sdocs-styles.js` -> `sdocs-state.js` -> `sdocs-slugify.js` -> `sdocs-theme.js` -> `sdocs-controls.js` -> `sdocs-chrome.js` -> `sdocs-export.js` -> `sdocs-write.js` -> `sdocs-charts.js` -> `sdocs-math.js` -> `sdocs-mermaid.js` -> `sdocs-mermaid-focus.js` -> `sdocs-comments.js` -> `sdocs-app.js` -> `sdocs-info.js` -> `sdocs-comments-ui.js`
 
 `sdocs-comments-ui.js` loads after `sdocs-app.js` because it hooks into `SDocs.commentsUi.{enter,exit}` from inside `setMode`; that wiring needs the orchestrator's `setMode` defined first.
 
