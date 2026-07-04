@@ -377,6 +377,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 }
 .videocard.teaser .vid-teaser { opacity: 1; }
 .videocard.teaser .vid-controls,
+.videocard.teaser .vid-loading,
 .videocard.teaser .vid-caption { opacity: 0; pointer-events: none; }
 .videocard.teaser .vid-play { display: flex; }
 
@@ -885,7 +886,7 @@ footer {
         <video class="vid" id="heroVid" playsinline preload="metadata" poster="/public/homepage/demo-poster.jpg">
           <source src="https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-web.mp4" type="video/mp4">
         </video>
-        <video class="vid-teaser" id="heroTeaser" muted loop autoplay playsinline preload="auto" src="https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-teaser.mp4"></video>
+        <video class="vid-teaser" id="heroTeaser" muted autoplay playsinline preload="auto" src="https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-teaser.mp4"></video>
         <div class="vid-caption" id="heroCap" aria-live="polite"></div>
         <div class="vid-loading"><span class="spinner"></span>Loading</div>
         <div class="vid-controls">
@@ -1563,10 +1564,22 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
     { t0: 812.48, t1: 816.44, text: 'So yeah, enjoy using SmallDocs and thanks for listening.' }
   ];
 
-  const markReady = () => card.classList.add('ready');
-  vid.addEventListener('playing', markReady, { once: true });
+  // The loading pill tracks the MAIN video only: hidden during the teaser
+  // (the poster covers its load), shown between pressing play and playback
+  // starting, and again if the demo stalls to rebuffer mid-watch.
+  vid.addEventListener('playing', () => card.classList.add('ready'));
+  vid.addEventListener('waiting', () => card.classList.remove('ready'));
+  // The teaser runs twice, then freezes on its last frame (still behind
+  // the play button) instead of looping forever next to the hero copy.
+  let teaserPlays = 0;
   if (teaser) {
-    teaser.addEventListener('playing', markReady, { once: true });
+    teaser.addEventListener('ended', () => {
+      teaserPlays++;
+      if (teaserPlays < 2) {
+        teaser.currentTime = 0;
+        teaser.play();
+      }
+    });
     // Teaser missing or unplayable: fall back to the old muted autoplay.
     teaser.addEventListener('error', () => startDemo(true));
   } else {
@@ -1607,6 +1620,7 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
     syncMute();
     if (teaser) {
       card.classList.add('teaser');
+      teaserPlays = 0;
       teaser.currentTime = 0;
       teaser.play();
     }
