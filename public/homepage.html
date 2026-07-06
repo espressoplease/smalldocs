@@ -370,6 +370,59 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .vid-btn .ic-play { display: none; }
 .videocard.paused .vid-btn .ic-pause { display: none; }
 .videocard.paused .vid-btn .ic-play { display: block; }
+/* Icon-only seek buttons (skip 10s, prev/next chapter) pack tighter. */
+.vid-btn.seek { padding: 8px 9px; }
+.vid-btn.seek svg text { stroke: none; font-weight: 600; }
+.videocard.chapters-open #chapBtn { background: rgba(20,18,16,.9); border-color: rgba(255,255,255,.32); }
+
+/* Chapters dropdown: a scrollable list floating above the control bar.
+   Populated from the chapters[] list in the player script. */
+.vid-chapmenu {
+  position: absolute;
+  right: 14px;
+  bottom: 60px;
+  z-index: 6;
+  width: 264px;
+  max-height: 264px;
+  overflow-y: auto;
+  padding: 6px;
+  background: rgba(20,18,16,.9);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 12px;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease;
+}
+.videocard.chapters-open .vid-chapmenu { opacity: 1; transform: none; pointer-events: auto; }
+.videocard.teaser .vid-chapmenu { opacity: 0 !important; pointer-events: none; }
+.vid-chap {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.vid-chap:hover { background: rgba(255,255,255,.12); }
+.vid-chap.active { background: rgba(255,255,255,.16); }
+.vid-chap .t {
+  min-width: 38px;
+  color: rgba(255,255,255,.55);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.vid-chap.active .t { color: #fff; }
 
 /* Teaser: a short muted loop stacked on top of the main video until
    the visitor presses play. */
@@ -408,6 +461,21 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 
 @media (max-width: 560px) {
   .vid-btn .lbl { display: none; }
+  /* The 9-button bar overflows a phone; the chapters menu already covers
+     navigation there, so drop the chapter-skip buttons and keep +/-10s. */
+  .vid-controls { gap: 6px; }
+  #prevChapBtn, #nextChapBtn { display: none; }
+  /* The inline video card is short on a phone; pin the menu between the top
+     and the control bar so it can never overhang and clip against the card. */
+  .vid-chapmenu {
+    top: 8px;
+    bottom: 50px;
+    right: 10px;
+    width: 210px;
+    max-height: none;
+  }
+  .vid-chap { padding: 5px 9px; font-size: 12px; }
+  .vid-chap .t { min-width: 32px; font-size: 11px; }
 }
 
 .vid-caption {
@@ -983,6 +1051,22 @@ footer {
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.3" y="3" width="13.4" height="10" rx="2.4" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 6.7a1.7 1.7 0 1 0 0 2.6M11.3 6.7a1.7 1.7 0 1 0 0 2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
             CC
           </button>
+          <button class="vid-btn seek" id="back10Btn" type="button" title="Back 10 seconds">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/><text x="12.5" y="15.6" font-size="8.5" fill="currentColor" text-anchor="middle">10</text></svg>
+          </button>
+          <button class="vid-btn seek" id="fwd10Btn" type="button" title="Forward 10 seconds">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/><text x="11.5" y="15.6" font-size="8.5" fill="currentColor" text-anchor="middle">10</text></svg>
+          </button>
+          <button class="vid-btn seek" id="prevChapBtn" type="button" title="Previous chapter">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4"/><rect x="4" y="4" width="2.4" height="16" rx="1"/></svg>
+          </button>
+          <button class="vid-btn" id="chapBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Chapters">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5.5 4H14M5.5 8H14M5.5 12H14M2.2 4h.01M2.2 8h.01M2.2 12h.01"/></svg>
+            <span class="lbl">Chapters</span>
+          </button>
+          <button class="vid-btn seek" id="nextChapBtn" type="button" title="Next chapter">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20"/><rect x="17.6" y="4" width="2.4" height="16" rx="1"/></svg>
+          </button>
           <button class="vid-btn" id="muteBtn" type="button" title="Mute">
             <svg class="ic-muted" width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2.5 6v4h2.2L8 12.6V3.4L4.7 6H2.5z" fill="currentColor"/><path d="M11 6l3 4M14 6l-3 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             <svg class="ic-sound" width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2.5 6v4h2.2L8 12.6V3.4L4.7 6H2.5z" fill="currentColor"/><path d="M10.6 5.6a3.3 3.3 0 0 1 0 4.8M12.6 3.8a6 6 0 0 1 0 8.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -993,6 +1077,7 @@ footer {
             <span class="lbl">Full screen</span>
           </button>
         </div>
+        <div class="vid-chapmenu" id="chapMenu" role="menu" aria-label="Chapters"></div>
         <div class="vid-play" id="playOverlay" title="Play the demo">
           <span><svg width="24" height="24" viewBox="0 0 16 16"><path d="M5 3.1l8 4.9-8 4.9z" fill="#1B1815"/></svg></span>
           <em>Watch the demo</em>
@@ -1465,6 +1550,22 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
   const fsBtn    = document.getElementById('fsBtn');
   const cap      = document.getElementById('heroCap');
   const playOv   = document.getElementById('playOverlay');
+  const back10   = document.getElementById('back10Btn');
+  const fwd10    = document.getElementById('fwd10Btn');
+  const prevChap = document.getElementById('prevChapBtn');
+  const nextChap = document.getElementById('nextChapBtn');
+  const chapBtn  = document.getElementById('chapBtn');
+  const chapMenu = document.getElementById('chapMenu');
+
+  // Chapter start times (seconds), derived from the narration transcript.
+  const chapters = [
+    { t: 0.00,   title: 'Intro' },
+    { t: 104.96, title: 'How it works' },
+    { t: 191.08, title: 'Demos' },
+    { t: 368.60, title: 'Privacy' },
+    { t: 500.68, title: 'Advanced demos' },
+    { t: 719.96, title: 'Library & wrap-up' },
+  ];
 
   const cues = [
     { t0: 0.00, t1: 2.84, text: 'All right, I\'m gonna walk you through a demo of SmallDocs.' },
@@ -1779,15 +1880,88 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
     }
   });
 
-  let shown;
+  // ── Chapters + seek ──────────────────────────────────────────────
+  const fmt = (s) => {
+    s = Math.max(0, Math.floor(s || 0));
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  };
+  // Index of the chapter that contains time t.
+  const chapterAt = (t) => {
+    let i = 0;
+    for (let j = 0; j < chapters.length; j++) if (t >= chapters[j].t) i = j;
+    return i;
+  };
+  function seekTo(t) {
+    const dur = vid.duration || Infinity;
+    vid.currentTime = Math.min(Math.max(0, t), isFinite(dur) ? dur - 0.05 : t);
+    if (vid.paused) vid.play();
+  }
+
+  // Build the dropdown once.
+  chapters.forEach((c, i) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'vid-chap';
+    row.setAttribute('role', 'menuitem');
+    row.dataset.i = i;
+    row.innerHTML = '<span class="t">' + fmt(c.t) + '</span><span class="l"></span>';
+    row.querySelector('.l').textContent = c.title;
+    row.addEventListener('click', () => { seekTo(c.t + 0.01); closeMenu(); });
+    chapMenu.appendChild(row);
+  });
+  const chapRows = Array.from(chapMenu.children);
+
+  function openMenu() {
+    card.classList.add('chapters-open');
+    chapBtn.setAttribute('aria-expanded', 'true');
+    const active = chapMenu.querySelector('.vid-chap.active');
+    if (active) active.scrollIntoView({ block: 'nearest' });
+  }
+  function closeMenu() {
+    card.classList.remove('chapters-open');
+    chapBtn.setAttribute('aria-expanded', 'false');
+  }
+  chapBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    card.classList.contains('chapters-open') ? closeMenu() : openMenu();
+  });
+  document.addEventListener('click', (e) => {
+    if (card.classList.contains('chapters-open') && !chapMenu.contains(e.target) && e.target !== chapBtn)
+      closeMenu();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMenu();
+  });
+
+  back10.addEventListener('click', () => seekTo(vid.currentTime - 10));
+  fwd10.addEventListener('click',  () => seekTo(vid.currentTime + 10));
+  nextChap.addEventListener('click', () => {
+    const i = chapterAt(vid.currentTime);
+    seekTo(i < chapters.length - 1 ? chapters[i + 1].t + 0.01 : vid.duration || vid.currentTime);
+  });
+  prevChap.addEventListener('click', () => {
+    const i = chapterAt(vid.currentTime);
+    // Within 3s of a chapter's start, jump to the previous one; else restart the current.
+    const target = (vid.currentTime - chapters[i].t < 3 && i > 0) ? i - 1 : i;
+    seekTo(chapters[target].t + 0.01);
+  });
+
+  let shown, activeChap = -1;
   vid.addEventListener('timeupdate', () => {
     const t = vid.currentTime;
     const cue = cues.find(c => t >= c.t0 && t < c.t1) || null;
-    if (cue === shown) return;
-    shown = cue;
-    cap.innerHTML = cue
-      ? '<span>' + cue.text.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>'
-      : '';
+    if (cue !== shown) {
+      shown = cue;
+      cap.innerHTML = cue
+        ? '<span>' + cue.text.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>'
+        : '';
+    }
+    const ci = chapterAt(t);
+    if (ci !== activeChap) {
+      if (chapRows[activeChap]) chapRows[activeChap].classList.remove('active');
+      if (chapRows[ci]) chapRows[ci].classList.add('active');
+      activeChap = ci;
+    }
   });
 })();
 </script>
