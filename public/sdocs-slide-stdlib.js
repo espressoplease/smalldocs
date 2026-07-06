@@ -97,7 +97,7 @@ var TEMPLATES = {
     'grid 16 9',
     'r 1 0.7 14 0.9 #title text=caption color=#475569 align=left |',
     'r 1 1.9 7.5 6.2 #image! align=center valign=center | (required: ![alt](url))',
-    'r 9 1.9 6 6.2 #body! text=body align=left valign=center | (required: body)',
+    'r 9 1.9 6 6.2 #body! text=body align=left valign=top | (required: body)',
   ].join('\n'),
 
   // Image-dominant slide. The figure carries the slide; a small
