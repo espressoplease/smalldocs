@@ -902,7 +902,7 @@ footer {
   min-height: 180px;
   background: var(--paper);
   border-radius: var(--r);
-  padding: 22px 22px 20px;
+  padding: 14px;
 }
 .praise-card blockquote {
   margin: 0;
@@ -927,6 +927,22 @@ footer {
   line-height: 1;
   vertical-align: 3px;
 }
+/* Per-card "context" link to the original HN comment. The card itself is
+   not a link; only this small icon reacts to a direct hover (matching the
+   external-link icon on the "Example sdocs" rows above). margin-top:auto
+   parks it at the card's bottom-right without overlapping a long quote. */
+.praise-context {
+  margin-top: auto;
+  align-self: flex-end;
+  padding-top: 16px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: color .12s;
+}
+.praise-context:hover { color: var(--accent); }
+.praise-context svg { flex-shrink: 0; display: block; }
 
 /* ── RESPONSIVE ──────────────────────────────────────── */
 @media (max-width: 900px) {
@@ -1211,38 +1227,47 @@ footer {
 
         <figure class="praise-card">
           <blockquote>&ldquo;I think agents making Word docs and PowerPoints is going to go away. [SmallDocs] is the future.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48809212" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
         <figure class="praise-card">
           <blockquote>&ldquo;Great job on this. I can see this being extremely useful for my teams.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48810851" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
         <figure class="praise-card">
           <blockquote>&ldquo;So amusing that small devs get it so right, while a trillion-dollar company still can&rsquo;t figure out what Copilot is to their ecosystem.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48814273" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
         <figure class="praise-card praise-extra">
           <blockquote>&ldquo;Very good and well done. I found an immediate use-case for this.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48811944" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
         <figure class="praise-card praise-extra">
           <blockquote>&ldquo;This is super cool - so many uses.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48812725" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
         <figure class="praise-card praise-extra">
           <blockquote>&ldquo;You&rsquo;ve clearly put a lot of thought into making it useful.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48812874" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
         <figure class="praise-card praise-extra">
           <blockquote>&ldquo;Very smart - could open the door to lots of other privacy-friendly web apps.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=47791141" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
         <figure class="praise-card praise-extra">
           <blockquote>&ldquo;Markdown style editing looks very easy and convenient.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=47790018" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
         <figure class="praise-card praise-extra">
           <blockquote>&ldquo;The URL fragment trick for privacy is clever.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=47814454" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
       </div><!-- /praise-grid -->
