@@ -804,16 +804,74 @@ footer {
 .foot-fine a:hover { color: var(--ink); }
 .foot-fine .dot { color: var(--line-2); padding: 0 4px; }
 
+/* ── PRAISE (Hacker News comment wall) ────────────────
+   Reuses .install-panel for the outer shell so the page reads as
+   one family of boxes; cards echo the .learn-item surface. */
+#praise { padding: 66px 0 0 0; }
+.praise-head h2 {
+  font-size: var(--t-lead);
+  font-weight: 600;
+  line-height: 1.16;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+}
+.praise-head p {
+  margin-top: 14px;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.praise-grid {
+  margin-top: 30px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.praise-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 180px;
+  background: var(--paper);
+  border-radius: var(--r);
+  padding: 22px 22px 20px;
+}
+.praise-card blockquote {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  letter-spacing: -0.006em;
+  color: var(--ink);
+}
+/* Small Hacker News monogram: orange square, white Y. Shown once,
+   inline in the blurb, rather than repeated on every card. */
+.hn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: #FF6600;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: 3px;
+}
+
 /* ── RESPONSIVE ──────────────────────────────────────── */
 @media (max-width: 900px) {
   /* One 56px gap between every panel: the section top padding is the
      only vertical space between boxes, so all three must match. */
   #learn { padding: 56px 0 0; }
   #install { padding: 56px 0 0; }
+  #praise { padding: 56px 0 0; }
   .install-panel { padding: 44px 36px; border-radius: 18px; }
   .install-grid { grid-template-columns: 1fr; gap: 32px; }
   .install-text { max-width: 100%; }
   .install-text h2 { font-size: 1.7rem; }
+  .praise-grid { grid-template-columns: repeat(2, 1fr); }
   #teams { padding: 56px 0 64px; }
   .teams-grid { grid-template-columns: 1fr; gap: 28px; }
   .teams-text { max-width: 100%; }
@@ -833,11 +891,15 @@ footer {
   .vid-loading { left: 10px; bottom: 10px; }
   #learn { padding: 40px 0 0; }
   #install { padding: 40px 0 0; }
+  #praise { padding: 40px 0 0; }
   #teams { padding: 40px 0 48px; }
   .install-panel { padding: 32px 22px; border-radius: 16px; }
   .install-text h2 { font-size: 1.45rem; }
   .install-cmd { padding: 12px 12px 12px 14px; }
   .install-cmd .cmd { font-size: 0.84rem; }
+  .praise-grid { grid-template-columns: 1fr; }
+  /* A single column gets long fast; keep only the three strongest. */
+  .praise-extra { display: none; }
 }
 </style>
 </head>
@@ -855,6 +917,14 @@ footer {
       <a class="btn-gh" href="https://discord.gg/txjATTsDaq" target="_blank" rel="noopener">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>
         Discord
+      </a>
+      <a class="btn-gh" href="/docs">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
+        Docs
+      </a>
+      <a class="btn-gh" href="/library">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+        Library
       </a>
     </div>
   </div>
@@ -1041,6 +1111,57 @@ footer {
   </div>
 </section>
 
+<!-- ═══ PRAISE ═══════════════════════════════════════════ -->
+<section id="praise">
+  <div class="wrap">
+    <div class="install-panel">
+      <div class="praise-head">
+        <h2><span class="hn-badge">Y</span> Hacker News on SmallDocs</h2>
+        <p>Comments from threads where SmallDocs has been discussed.</p>
+      </div>
+      <div class="praise-grid">
+
+        <figure class="praise-card">
+          <blockquote>&ldquo;I think agents making Word docs and PowerPoints is going to go away. [SmallDocs] is the future.&rdquo;</blockquote>
+        </figure>
+
+        <figure class="praise-card">
+          <blockquote>&ldquo;Great job on this. I can see this being extremely useful for my teams.&rdquo;</blockquote>
+        </figure>
+
+        <figure class="praise-card">
+          <blockquote>&ldquo;So amusing that small devs get it so right, while a trillion-dollar company still can&rsquo;t figure out what Copilot is to their ecosystem.&rdquo;</blockquote>
+        </figure>
+
+        <figure class="praise-card praise-extra">
+          <blockquote>&ldquo;Very good and well done. I found an immediate use-case for this.&rdquo;</blockquote>
+        </figure>
+
+        <figure class="praise-card praise-extra">
+          <blockquote>&ldquo;This is super cool - so many uses.&rdquo;</blockquote>
+        </figure>
+
+        <figure class="praise-card praise-extra">
+          <blockquote>&ldquo;You&rsquo;ve clearly put a lot of thought into making it useful.&rdquo;</blockquote>
+        </figure>
+
+        <figure class="praise-card praise-extra">
+          <blockquote>&ldquo;Very smart - could open the door to lots of other privacy-friendly web apps.&rdquo;</blockquote>
+        </figure>
+
+        <figure class="praise-card praise-extra">
+          <blockquote>&ldquo;Markdown style editing looks very easy and convenient.&rdquo;</blockquote>
+        </figure>
+
+        <figure class="praise-card praise-extra">
+          <blockquote>&ldquo;The URL fragment trick for privacy is clever.&rdquo;</blockquote>
+        </figure>
+
+      </div><!-- /praise-grid -->
+    </div><!-- /install-panel -->
+  </div>
+</section>
+
 <!-- ═══ INSTALL ══════════════════════════════════════════ -->
 <section id="install">
   <div class="wrap">
@@ -1207,6 +1328,7 @@ footer {
         <a href="/blogs/new-home">What's new</a><span class="dot">&middot;</span>
         <a href="/privacy">Privacy</a><span class="dot">&middot;</span>
         <a href="/trust">Trust</a><span class="dot">&middot;</span>
+        <a href="/analytics">Analytics</a><span class="dot">&middot;</span>
         <a href="/legal">Terms</a><span class="dot">&middot;</span>
         <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">Open source on GitHub</a>
       </span>
