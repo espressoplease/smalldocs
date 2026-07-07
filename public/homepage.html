@@ -968,6 +968,9 @@ footer {
   .praise-grid { grid-template-columns: 1fr; }
   /* A single column gets long fast; keep only the three strongest. */
   .praise-extra { display: none; }
+  /* Docs and Library overflow the nav on narrow screens; drop them so
+     GitHub and Discord fit without horizontal scroll. */
+  .nav-hide-mobile { display: none; }
 }
 </style>
 </head>
@@ -986,11 +989,11 @@ footer {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>
         Discord
       </a>
-      <a class="btn-gh" href="/docs">
+      <a class="btn-gh nav-hide-mobile" href="/docs">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
         Docs
       </a>
-      <a class="btn-gh" href="/library">
+      <a class="btn-gh nav-hide-mobile" href="/library">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
         Library
       </a>
