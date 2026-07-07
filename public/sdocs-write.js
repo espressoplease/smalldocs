@@ -76,8 +76,16 @@ function walkBlock(nodes, lines, indent) {
       lines.push('');
       var bqLines = [];
       walkBlock(node.childNodes, bqLines, '');
+      // Inner blocks (e.g. a <p>) emit their own leading/trailing blank lines;
+      // prefixing those with '> ' produced stray '> ' lines around the quote.
+      while (bqLines.length && !bqLines[0].trim()) bqLines.shift();
+      while (bqLines.length && !bqLines[bqLines.length - 1].trim()) bqLines.pop();
+      var prevBlank = false;
       for (var b = 0; b < bqLines.length; b++) {
-        lines.push('> ' + bqLines[b]);
+        var blank = !bqLines[b].trim();
+        if (blank && prevBlank) continue; // collapse runs of blank lines to one '>'
+        lines.push(blank ? '>' : '> ' + bqLines[b]);
+        prevBlank = blank;
       }
       lines.push('');
     } else if (tag === 'PRE') {
@@ -90,8 +98,14 @@ function walkBlock(nodes, lines, indent) {
       }
       lines.push('');
       lines.push('```' + lang);
-      lines.push((codeEl || node).textContent);
+      // Strip the single trailing newline browsers keep on code textContent;
+      // left in, it serialized as a blank line before the closing fence.
+      lines.push((codeEl || node).textContent.replace(/\n$/, ''));
       lines.push('```');
+      lines.push('');
+    } else if (tag === 'TABLE') {
+      lines.push('');
+      walkTable(node, lines, indent);
       lines.push('');
     } else if (tag === 'HR') {
       lines.push('');
@@ -125,26 +139,67 @@ function walkBlock(nodes, lines, indent) {
 function walkList(listEl, lines, indent, type) {
   var items = listEl.children;
   var num = 1;
+  // Fallback indent for a stray nested list (see the UL/OL branch below); tracks
+  // the content column of the item most recently emitted.
+  var lastChildIndent = indent + '  ';
   for (var i = 0; i < items.length; i++) {
-    if (items[i].tagName !== 'LI') continue;
-    var li = items[i];
+    var item = items[i];
+    // A nested list can appear as a direct child of the list rather than inside
+    // the preceding <li> — Chrome's execCommand('indent') produces exactly this
+    // shape. Attach it as a sub-list of the item above it; without this branch
+    // walkList skipped it and the indented items vanished on the way to read mode.
+    if (item.tagName === 'UL' || item.tagName === 'OL') {
+      walkList(item, lines, lastChildIndent, item.tagName === 'UL' ? 'ul' : 'ol');
+      continue;
+    }
+    if (item.tagName !== 'LI') continue;
+    var li = item;
     var bullet = type === 'ul' ? '- ' : (num++) + '. ';
-    var text = '';
-    var subLists = [];
-    for (var j = 0; j < li.childNodes.length; j++) {
-      var child = li.childNodes[j];
-      if (child.nodeType === 1 && (child.tagName === 'UL' || child.tagName === 'OL')) {
-        subLists.push(child);
-      } else if (child.nodeType === 1) {
-        text += inlineToMd(child);
-      } else if (child.nodeType === 3) {
-        text += child.textContent;
+    // Nested content aligns under the marker (2 cols for "- ", 3 for "1. ") so
+    // it re-parses as a child list rather than a sibling / lazy continuation.
+    var childIndent = indent + repeat(' ', bullet.length);
+    lastChildIndent = childIndent;
+    // GFM task list: preserve the checkbox state as [ ] / [x].
+    var checkbox = li.querySelector ? li.querySelector('input[type="checkbox"]') : null;
+    var prefix = checkbox ? (checkbox.checked ? '[x] ' : '[ ] ') : '';
+    // inlineToMd over the whole <li> keeps top-level **bold** / [links] that a
+    // per-child pass dropped, and skips nested UL/OL (walked separately below).
+    var text = inlineToMd(li);
+    lines.push(indent + bullet + prefix + text.trim());
+    var kids = li.children;
+    for (var k = 0; k < kids.length; k++) {
+      if (kids[k].tagName === 'UL' || kids[k].tagName === 'OL') {
+        walkList(kids[k], lines, childIndent, kids[k].tagName === 'UL' ? 'ul' : 'ol');
       }
     }
-    lines.push(indent + bullet + text.trim());
-    for (var k = 0; k < subLists.length; k++) {
-      walkList(subLists[k], lines, indent + '  ', subLists[k].tagName === 'UL' ? 'ul' : 'ol');
+  }
+}
+
+function repeat(str, n) {
+  var out = '';
+  for (var i = 0; i < n; i++) out += str;
+  return out;
+}
+
+function walkTable(table, lines, indent) {
+  var rows = table.querySelectorAll('tr');
+  if (!rows.length) return;
+  function cellsOf(row) {
+    var cells = row.querySelectorAll('th,td');
+    var out = [];
+    for (var i = 0; i < cells.length; i++) {
+      out.push(inlineToMd(cells[i]).trim().replace(/\|/g, '\\|'));
     }
+    return out;
+  }
+  var header = cellsOf(rows[0]);
+  if (!header.length) return;
+  lines.push(indent + '| ' + header.join(' | ') + ' |');
+  lines.push(indent + '| ' + header.map(function () { return '---'; }).join(' | ') + ' |');
+  for (var r = 1; r < rows.length; r++) {
+    var cells = cellsOf(rows[r]);
+    if (!cells.length) continue;
+    lines.push(indent + '| ' + cells.join(' | ') + ' |');
   }
 }
 
@@ -175,6 +230,10 @@ function inlineToMd(node) {
         result += '![' + alt + '](' + src + ')';
       } else if (tag === 'BR') {
         result += '  \n';
+      } else if (tag === 'UL' || tag === 'OL') {
+        // Nested lists inside an <li> are serialized by walkList, not here.
+      } else if (tag === 'INPUT') {
+        // Task-list checkbox is captured as a [ ]/[x] prefix by walkList.
       } else {
         result += inlineToMd(child);
       }
