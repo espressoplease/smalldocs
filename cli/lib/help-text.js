@@ -1299,6 +1299,30 @@ present-mode icon in the slide's top-right corner to enter fullscreen.
 Text inside a slide thumbnail is selectable. Esc to exit, arrows to
 navigate.
 
+\u2500\u2500 START HERE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  Building a quick or internal deck - a draft, a review, notes you
+  will talk over? \`@extends\` a built-in template. Fill named slots
+  and the template handles layout, spacing, and alignment for you:
+
+    ~~~slide
+    @extends title-body
+    #title: What is SmallDocs?
+    #body:
+    - Markdown in, styled docs out
+    - No server, hash-only state
+    ~~~
+
+  Run \`sdoc slides list\` for the template + slot names (cover,
+  title-body, two-column, three-column, exhibit, quote, metric,
+  section, closing). This is the default path - it is faster and it
+  avoids the overlap, contrast, and floating-text faults that are
+  invisible in the source of a hand-placed deck.
+
+  Only hand-place raw shapes (\`r x y w h\`) when the deck is
+  external-facing and needs a designed look a template cannot give -
+  a client, a launch, a conference. It is slower and easy to get
+  wrong; the DESIGN GUIDELINES below are what keep it legible.
+
 \u2500\u2500 COMMANDS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   sdoc present <file>              Open file directly in fullscreen slide view
   sdoc <file>                      Open normally (click a slide's present icon)
@@ -1360,9 +1384,13 @@ navigate.
   Caption renders as ~3px in a 240px-wide thumbnail - never put
   load-bearing content in caption role.
 
-  Default \`valign=center\`. \`valign=top\` reads right only when the
-  body shape is sized to its content. On an oversized body shape
-  top-anchoring leaves dead space underneath; centering balances it.
+  Use \`valign=top\` for body copy - bullets, paragraphs, columns.
+  Text has a reading order and a top edge readers expect just under
+  the title, so anchor it there and let it grow down. \`valign=center\`
+  is for a single short block that balances its box or a neighbouring
+  visual (a takeaway beside a chart, a caption, a lead line) - not for
+  a list. If a top-anchored body leaves dead space below, shrink the
+  shape rather than re-centering the text.
 
   Content fills 55-65% of the safe area, no more. Empty space is a
   feature: it's what makes a deck feel confident rather than crowded.
@@ -1668,17 +1696,20 @@ navigate.
     - Title shapes (one heading or phrase)
     - Subheaders, section labels
     - Standalone caption text
+    - A single short block balancing a box or a neighbouring visual
 
-  Switch to \`align=left\` when the shape holds body copy - paragraphs,
-  bullet lists, numbered lists, blockquotes. Left-aligned reads better
-  once you have multiple lines. Keep \`valign=center\` (the default) so
-  the block floats in the middle of the shape; switch to \`valign=top\`
-  only when the shape is sized exactly to the content and you want it
-  anchored to the top.
+  Switch to \`align=left valign=top\` when the shape holds body copy -
+  paragraphs, bullet lists, numbered lists, blockquotes. Left-aligned
+  reads better once you have multiple lines, and top-anchoring puts the
+  first line just under the title where the reader looks first.
+  Centering a list in an oversized box floats it toward the middle, so
+  the gap under the title reads as a mistake. If top-anchoring leaves
+  dead space below, shrink the shape - don't re-center the text.
 
   Rule of thumb:
-    ONE short phrase  \u2192  leave centered
-    MULTIPLE lines    \u2192  align=left, keep valign=center
+    ONE short phrase / balancing block   \u2192  center both axes
+    MULTIPLE lines / bullets / columns   \u2192  align=left valign=top
+    Footer / attribution label           \u2192  valign=bottom
 
 \u2500\u2500 PULLING FROM DOC STYLES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   Slides pick up the host document's styles so a deck feels visually
