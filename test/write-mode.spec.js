@@ -423,6 +423,126 @@ test.describe('Lists', () => {
 });
 
 // ─────────────────────────────────────────────
+// Write → Read serialization (htmlToMarkdown)
+// ─────────────────────────────────────────────
+
+/** Run exitWriteMode and return the resulting markdown body */
+async function markdownAfterExit(page) {
+  return page.evaluate(() => {
+    SDocs.exitWriteMode();
+    return SDocs.currentBody;
+  });
+}
+
+test.describe('List + blockquote serialization to read mode', () => {
+  test('indented item nested directly under the list survives (execCommand indent shape)', async ({ page }) => {
+    await gotoWriteMode(page);
+    // The exact DOM Chrome's execCommand('indent') produces: the nested <ul>
+    // is a direct child of the outer <ul>, a sibling of the <li>s, NOT inside one.
+    await setWriteHTML(page, '<ul><li>First goal</li><li>Second goal</li><ul><li>Third goal</li></ul></ul>');
+    const md = await markdownAfterExit(page);
+    // Third goal must not vanish; it becomes a sub-bullet of Second goal.
+    expect(md).toContain('Third goal');
+    expect(md).toMatch(/- Second goal\n {2}- Third goal/);
+  });
+
+  test('ordered list with a directly-nested sublist keeps its numbering', async ({ page }) => {
+    await gotoWriteMode(page);
+    await setWriteHTML(page, '<ol><li>One</li><li>Two</li><ol><li>Two-a</li></ol></ol>');
+    const md = await markdownAfterExit(page);
+    expect(md).toContain('Two-a');
+    expect(md).toMatch(/1\. One/);
+    expect(md).toMatch(/2\. Two/);
+    // The nested item must not consume a top-level number.
+    expect(md).not.toMatch(/3\. /);
+  });
+
+  test('Tab-indent then exit preserves the indented bullet in markdown', async ({ page }) => {
+    await gotoWriteMode(page);
+    await setWriteHTML(page, '<ul><li>Item 1</li><li>Item 2</li></ul>');
+    await placeCursorAtEnd(page, '#_sd_write ul li:nth-child(2)');
+    await page.evaluate(() => {
+      const w = document.getElementById('_sd_write');
+      w.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+    });
+    const md = await markdownAfterExit(page);
+    expect(md).toContain('Item 1');
+    expect(md).toContain('Item 2');
+    expect(md).toMatch(/- Item 1\n {2}- Item 2/);
+  });
+
+  test('blockquote round-trips without stray empty quote lines', async ({ page }) => {
+    await gotoWriteMode(page);
+    await setWriteHTML(page, '<blockquote><p>A note.</p></blockquote>');
+    const md = await markdownAfterExit(page);
+    expect(md).toContain('> A note.');
+    // No bare "> " (with trailing space) lines around the quote.
+    expect(md).not.toMatch(/^> $/m);
+  });
+
+  test('multi-paragraph blockquote keeps a bare > separator between paragraphs', async ({ page }) => {
+    await gotoWriteMode(page);
+    await setWriteHTML(page, '<blockquote><p>First para.</p><p>Second para.</p></blockquote>');
+    const md = await markdownAfterExit(page);
+    expect(md).toContain('> First para.');
+    expect(md).toContain('> Second para.');
+    // Paragraphs inside a blockquote are separated by a bare ">" line.
+    expect(md).toMatch(/> First para\.\n>\n> Second para\./);
+  });
+
+  test('list item keeps its inline bold, code, and link formatting', async ({ page }) => {
+    await gotoWriteMode(page);
+    await setWriteHTML(page, '<ul><li>Text with <strong>bold</strong>, <code>code</code> and a <a href="https://x.com">link</a></li></ul>');
+    const md = await markdownAfterExit(page);
+    expect(md).toContain('**bold**');
+    expect(md).toContain('`code`');
+    expect(md).toContain('[link](https://x.com)');
+  });
+
+  test('task list checkboxes serialize to [ ] and [x]', async ({ page }) => {
+    await gotoWriteMode(page);
+    await setWriteHTML(page, '<ul><li><input type="checkbox"> Todo item</li><li><input type="checkbox" checked> Done item</li></ul>');
+    const md = await markdownAfterExit(page);
+    expect(md).toMatch(/- \[ \] Todo item/);
+    expect(md).toMatch(/- \[x\] Done item/);
+  });
+
+  test('table serializes to a GFM pipe table, not flattened cells', async ({ page }) => {
+    await gotoWriteMode(page);
+    await setWriteHTML(page,
+      '<table><thead><tr><th>Name</th><th>Value</th></tr></thead>' +
+      '<tbody><tr><td>a</td><td>1</td></tr><tr><td>b</td><td>2</td></tr></tbody></table>');
+    const md = await markdownAfterExit(page);
+    expect(md).toMatch(/\| Name \| Value \|/);
+    expect(md).toMatch(/\| ?-{3,} ?\| ?-{3,} ?\|/);
+    expect(md).toMatch(/\| a \| 1 \|/);
+    expect(md).toMatch(/\| b \| 2 \|/);
+    // The table must re-parse as a real <table>, not a run of bare text lines.
+    const tableCount = await page.evaluate(() => document.querySelectorAll('#_sd_rendered table').length);
+    expect(tableCount).toBe(1);
+  });
+
+  test('ordered sub-list is indented enough to re-parse as nested', async ({ page }) => {
+    await gotoWriteMode(page);
+    await setWriteHTML(page, '<ol><li>One<ol><li>One-a</li></ol></li><li>Two</li></ol>');
+    const md = await markdownAfterExit(page);
+    // Content column of "1. " is 3, so the sub-item needs 3 leading spaces.
+    expect(md).toMatch(/1\. One\n {3}1\. One-a/);
+    // And it re-renders as a nested list.
+    const nested = await page.evaluate(() => document.querySelectorAll('#_sd_rendered ol ol').length);
+    expect(nested).toBe(1);
+  });
+
+  test('code block does not gain a trailing blank line before the closing fence', async ({ page }) => {
+    await gotoWriteMode(page);
+    await setWriteHTML(page, '<pre><code class="language-js">const x = 1;\n</code></pre>');
+    const md = await markdownAfterExit(page);
+    expect(md).not.toMatch(/const x = 1;\n\n```/);
+    expect(md).toMatch(/const x = 1;\n```/);
+  });
+});
+
+// ─────────────────────────────────────────────
 // Bold / Italic / Strikethrough
 // ─────────────────────────────────────────────
 
