@@ -351,6 +351,18 @@ body {
 .strip-clear:hover { background: var(--bg-hover); }
 .strip-clear[hidden] { display: none; }
 
+.day-group { margin-bottom: 20px; }
+.day-group:last-child { margin-bottom: 0; }
+.day-header {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 0 4px 7px;
+}
+.day-label {
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  letter-spacing: .01em;
+}
+.day-count { font-size: 11px; color: var(--text-3); }
+
 .results-list {
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
