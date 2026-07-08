@@ -508,6 +508,79 @@ function renderDateRangePicker(container) {
   });
 }
 
+// Local calendar-day key for grouping ("2026-07-08"). Uses local date
+// parts, not toISOString (which is UTC), so a file touched at 11pm local
+// lands on the day the user remembers touching it. Null-dated entries key
+// to '' so they collect in one trailing group.
+function dayKey(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// "Today" / "Yesterday" for the two most recent days, otherwise a full
+// weekday + date ("Tuesday, Jul 8"). The year is appended once the day
+// falls outside the current calendar year.
+function dayLabel(key) {
+  if (!key) return 'No date';
+  const todayKey = dayKey(new Date().toISOString());
+  const yd = new Date(); yd.setDate(yd.getDate() - 1);
+  const yesterdayKey = dayKey(yd.toISOString());
+  if (key === todayKey) return 'Today';
+  if (key === yesterdayKey) return 'Yesterday';
+  const d = new Date(key + 'T12:00:00');
+  const opts = { weekday: 'long', month: 'short', day: 'numeric' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString(undefined, opts);
+}
+
+// One result row. `i` is the running index across the whole shown set so
+// the shared keyboard/click handlers (which key off data-idx) work in
+// both the flat list and the day-grouped view.
+function renderRow(e, i, tagMatches) {
+  const isStarred = !!e.starred;
+  let snippetHtml = '';
+  if (STATE.q.trim()) {
+    const bodyHit = findSnippet(e.bodyExcerpt, STATE.q);
+    if (bodyHit) snippetHtml = `<span class="src">body</span>${bodyHit}`;
+  }
+  let pathHtml = '';
+  if (e.path) {
+    const { dir, base } = splitPath(e.path);
+    pathHtml = `<span class="path" title="${escHtml(e.path)}">
+      <span class="path-dir">${highlight(dir, STATE.q)}</span><span class="path-base">${highlight(base, STATE.q)}</span>
+    </span>`;
+  }
+  const project = e.gitProject ? `<code>${escHtml(e.gitProject)}</code>` : '';
+  const agent = e.agent ? `<span>${escHtml(e.agent)}</span>` : '';
+  const rescued = e.rescued
+    ? `<a class="rescued-badge" href="/library/rescued" target="_blank" rel="noopener" title="This file lived in a throwaway folder. SDocs kept a snapshot so it survives. Click for details.${e.rescuedFrom ? '\n\nOriginal: ' + e.rescuedFrom : ''}" onclick="event.stopPropagation()">rescued</a>`
+    : '';
+  const when = dateFor(e) ? new Date(dateFor(e)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+  return `
+  <div class="res ${i === STATE.selected ? 'sel' : ''}" data-idx="${i}" data-id="${escHtml(e.id)}">
+    <div>
+      <div class="res-title">${highlight(e.title || e.path || '(untitled)', STATE.q)}</div>
+      <div class="res-meta">
+        ${project} ${agent} ${pathHtml} ${rescued}
+        ${(e.tags || []).map(t => `<span class="tag ${tagMatches(t)?'match':''}">#${escHtml(t)}</span>`).join('')}
+      </div>
+      ${snippetHtml ? `<div class="res-snippet">${snippetHtml}</div>` : ''}
+    </div>
+    <div class="res-side">
+      <button class="res-star ${isStarred ? 'on' : ''}" data-star="${escHtml(e.id)}" aria-pressed="${isStarred}">
+        <svg viewBox="0 0 24 24" width="15" height="15"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="${isStarred ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="res-when">${escHtml(when)}</div>
+    </div>
+  </div>
+`;
+}
+
 function renderResults() {
   const all = applyFilters();
   const shown = all.slice(0, 60);
@@ -528,49 +601,33 @@ function renderResults() {
   const q = STATE.q.trim().toLowerCase();
   const tagMatches = (tag) => tagChips.has(tag) || (q && tag.toLowerCase().includes(q));
 
-  const rows = shown.map((e, i) => {
-    const isStarred = !!e.starred;
-    let snippetHtml = '';
-    if (STATE.q.trim()) {
-      const bodyHit = findSnippet(e.bodyExcerpt, STATE.q);
-      if (bodyHit) snippetHtml = `<span class="src">body</span>${bodyHit}`;
-    }
-    let pathHtml = '';
-    if (e.path) {
-      const { dir, base } = splitPath(e.path);
-      pathHtml = `<span class="path" title="${escHtml(e.path)}">
-        <span class="path-dir">${highlight(dir, STATE.q)}</span><span class="path-base">${highlight(base, STATE.q)}</span>
-      </span>`;
-    }
-    const project = e.gitProject ? `<code>${escHtml(e.gitProject)}</code>` : '';
-    const agent = e.agent ? `<span>${escHtml(e.agent)}</span>` : '';
-    const rescued = e.rescued
-      ? `<a class="rescued-badge" href="/library/rescued" target="_blank" rel="noopener" title="This file lived in a throwaway folder. SDocs kept a snapshot so it survives. Click for details.${e.rescuedFrom ? '\n\nOriginal: ' + e.rescuedFrom : ''}" onclick="event.stopPropagation()">rescued</a>`
-      : '';
-    const when = dateFor(e) ? new Date(dateFor(e)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
-    return `
-    <div class="res ${i === STATE.selected ? 'sel' : ''}" data-idx="${i}" data-id="${escHtml(e.id)}">
-      <div>
-        <div class="res-title">${highlight(e.title || e.path || '(untitled)', STATE.q)}</div>
-        <div class="res-meta">
-          ${project} ${agent} ${pathHtml} ${rescued}
-          ${(e.tags || []).map(t => `<span class="tag ${tagMatches(t)?'match':''}">#${escHtml(t)}</span>`).join('')}
-        </div>
-        ${snippetHtml ? `<div class="res-snippet">${snippetHtml}</div>` : ''}
-      </div>
-      <div class="res-side">
-        <button class="res-star ${isStarred ? 'on' : ''}" data-star="${escHtml(e.id)}" aria-pressed="${isStarred}">
-          <svg viewBox="0 0 24 24" width="15" height="15"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="${isStarred ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-        </button>
-        <div class="res-when">${escHtml(when)}</div>
-      </div>
-    </div>
-  `}).join('');
-
   const overflow = all.length > shown.length
     ? `<div class="res-overflow">Showing first ${shown.length} of ${all.length} - narrow with a filter or refine your search.</div>`
     : '';
-  c.innerHTML = '<div class="results-list">' + rows + overflow + '</div>';
+
+  // Walk the already-sorted (date-descending) shown set, opening a new
+  // group each time the calendar day changes. `all` is sorted the same
+  // way, so days stay contiguous and no re-sort is needed.
+  let html = '';
+  let curKey = null;
+  let groupOpen = false;
+  shown.forEach((e, i) => {
+    const k = dayKey(dateFor(e));
+    if (k !== curKey) {
+      if (groupOpen) html += '</div></div>';
+      curKey = k;
+      // Count of shown entries in this day (the run of same-key rows).
+      let n = 0;
+      for (let j = i; j < shown.length && dayKey(dateFor(shown[j])) === k; j++) n++;
+      html += `<div class="day-group">
+        <div class="day-header"><span class="day-label">${escHtml(dayLabel(k))}</span><span class="day-count">${n} doc${n === 1 ? '' : 's'}</span></div>
+        <div class="results-list">`;
+      groupOpen = true;
+    }
+    html += renderRow(e, i, tagMatches);
+  });
+  if (groupOpen) html += '</div></div>';
+  c.innerHTML = html + overflow;
 }
 
 function renderStarToggle() {
