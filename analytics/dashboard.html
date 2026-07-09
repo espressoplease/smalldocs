@@ -283,20 +283,18 @@
   <div id="container" class="table-wrap"><p class="loading">Loading...</p></div>
 
   <div id="cohorts-by-type" class="segment" style="display:none">
-    <h2 class="segment-title">Cohorts by how visits opened</h2>
-    <p class="segment-note">The same retention view, split by how the page was opened. Only counts visits after 10 July 2026.</p>
+    <h2 class="segment-title">Cohorts grouped by page function</h2>
+    <p class="segment-note">Only counts visits after 10 July 2026.</p>
     <div id="cohorts-by-type-body"></div>
   </div>
 
   <div id="dow-by-week" class="segment" style="display:none">
-    <h2 class="segment-title">Day of week, by week</h2>
-    <p class="segment-note">One mini chart per week (Mon → Sun), local time. Bars share a scale across weeks so height is comparable.</p>
+    <h2 class="segment-title">Usage by day of the week:</h2>
     <div id="dow-by-week-body" class="mini-row"></div>
   </div>
 
   <div id="hour-by-week" class="segment" style="display:none">
-    <h2 class="segment-title">Time of day, by week</h2>
-    <p class="segment-note">One mini chart per week (00 → 23h), local time, shared scale.</p>
+    <h2 class="segment-title">Usage by hour of the day:</h2>
     <div id="hour-by-week-body" class="mini-row"></div>
   </div>
 
@@ -501,7 +499,7 @@ function renderTable(data) {
 // load_type: the bare editor ('app') is counted as document usage alongside the
 // full #md link. `hue` colours the channel's heat scale to match its swatch.
 var CHANNELS = [
-  { key: 'md',    label: 'Full link (#md)',   swatch: '#ef4444', hue: 2,   types: ['hash', 'app', 'local'] },
+  { key: 'md',    label: 'Local link (#md)',  swatch: '#ef4444', hue: 2,   types: ['hash', 'app', 'local'] },
   { key: 'short', label: 'Short link (/s/)',  swatch: '#22c55e', hue: 142, types: ['short'] },
   { key: 'home',  label: 'Homepage',          swatch: '#3b82f6', hue: 217, types: ['home'] }
 ];

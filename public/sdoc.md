@@ -642,7 +642,7 @@ The `/version-check` request described in the works offline section above is the
 
 In addition to these standard fields, the version-check request includes your cohort week — the week you first visited SmallDocs. This is stored in your browser's localStorage under the key `sdocs_cohort`. For example, if you first visit on 2026-04-10, the value `2026-W15` is stored and sent with each subsequent version-check.
 
-This is not a unique identifier. It groups you with every other person who first visited that same week. Alongside the cohort, each visit also records a coarse device label (desktop / mobile / tablet), browser family (Chrome, Safari, etc.), and referrer category parsed from the standard HTTP headers — none of which identifies you individually. Every 15 minutes, buffered visits are written to a local SQLite database. The dashboard at [smalldocs.org/analytics](https://smalldocs.org/analytics) shows visit counts per cohort per week.
+This is not a unique identifier. It groups you with every other person who first visited that same week. Alongside the cohort, each visit also records a coarse device label (desktop / mobile / tablet), browser family (Chrome, Safari, etc.), a referrer category parsed from the standard HTTP headers, and the local hour and weekday from your device's clock at the time of the visit - none of which identifies you individually. Every 15 minutes, buffered visits are written to a local SQLite database. The dashboard at [smalldocs.org/analytics](https://smalldocs.org/analytics) shows visit counts per cohort per week.
 
 To opt out, visit [smalldocs.org/analytics](https://smalldocs.org/analytics). Subsequent visits are sent with an empty cohort and counted under "Unattributed".
 
