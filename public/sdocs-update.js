@@ -49,19 +49,44 @@
   // tab, so the server skips logging a u=1 check — otherwise one release would
   // inflate analytics by one visit per open tab. Only the first check after a
   // reload carries it; later return-to-foreground checks send u=0.
-  function buildCheckMessage(appVersion, cohort, reloadCount, justReloaded) {
-    return {
+  // Classify how the page was ENTERED, from location alone. Must be read at
+  // initial load and frozen: the app later rewrites the hash (a homepage that
+  // gets edited becomes #md=), so reading it later would misattribute the
+  // session. 'short' = /s/ link, 'hash' = a document link (#md — includes CLI
+  // file opens, which carry md= alongside a local= path hint), 'app' = bare
+  // app/home with no document.
+  function detectLoadType(loc) {
+    try {
+      var p = (loc && loc.pathname) || '';
+      if (/^\/s\/[A-Za-z0-9_-]{1,32}$/.test(p)) return 'short';
+      var h = (loc && loc.hash) || '';
+      if (h.indexOf('md=') !== -1) return 'hash';
+      return 'app';
+    } catch (e) { return 'app'; }
+  }
+
+  // localHour (0-23) / localDow (0=Sun..6=Sat) are the visitor's own clock at
+  // check time; loadType is the frozen entry classification. All attached only
+  // when supplied so the pure Node tests (which omit them) still get the exact
+  // base message shape.
+  function buildCheckMessage(appVersion, cohort, reloadCount, justReloaded, localHour, localDow, loadType) {
+    var msg = {
       type: 'check-update',
       version: appVersion,
       cohort: cohort,
       r: reloadCount,
       u: justReloaded ? 1 : 0,
     };
+    if (typeof localHour === 'number') msg.lh = localHour;
+    if (typeof localDow === 'number') msg.ld = localDow;
+    if (loadType) msg.lt = loadType;
+    return msg;
   }
 
   exports.decideReload = decideReload;
   exports.decideCheck = decideCheck;
   exports.buildCheckMessage = buildCheckMessage;
+  exports.detectLoadType = detectLoadType;
 
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -78,7 +103,7 @@
   var K_DONE = 'sdocs_just_updated';
   var K_TARGET = 'sdocs_update_target';
 
-  var appVersion = '', cohort = '';
+  var appVersion = '', cohort = '', loadType = '';
   var hiddenSince = null, lastCheck = 0, started = false, justReloaded = false;
 
   function ss(get, key, val) {
@@ -167,7 +192,8 @@
   function postCheck() {
     lastCheck = Date.now();
     var count = parseInt(ss(true, K_COUNT) || '0', 10) || 0;
-    var msg = buildCheckMessage(appVersion, cohort, count, justReloaded);
+    var now = new Date();
+    var msg = buildCheckMessage(appVersion, cohort, count, justReloaded, now.getHours(), now.getDay(), loadType);
     justReloaded = false; // marker is one-shot: only the first check after a reload carries u=1
     activeWorker(function (w) {
       w.postMessage(msg);
@@ -241,6 +267,9 @@
     started = true;
     appVersion = (opts && opts.appVersion) || '';
     cohort = (opts && opts.cohort) || '';
+    // Prefer the caller's synchronously-captured type (read before the app
+    // rewrote the hash); fall back to detecting now if it wasn't supplied.
+    loadType = (opts && opts.loadType) || detectLoadType(typeof window !== 'undefined' ? window.location : null);
 
     // Did this load happen because we auto-reloaded for an update? K_DONE is set
     // in doReload() right before reload. Capture it BEFORE

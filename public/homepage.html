@@ -1451,6 +1451,24 @@ footer {
 
 <script src="/public/sdocs-cli-setup.js"></script>
 <script>
+// Log a landing-page visit, tagged 'home', so analytics can separate homepage
+// traffic from in-app document usage. The marketing page otherwise reports
+// nothing to the server; this is a one-shot GET, the same visit-count path the
+// app uses. Cohort is read (never set) so we don't change cohort semantics.
+// Skipped when the page is mid-redirect to /docs (a full #md share link).
+(function () {
+  try {
+    if (location.hash && location.hash.indexOf('=') !== -1) return; // redirecting to the app
+    var cohort = '';
+    try { var c = localStorage.getItem('sdocs_cohort'); cohort = (c === 'opt-out') ? '' : (c || ''); } catch (e) {}
+    var now = new Date();
+    var qs = '?cohort=' + encodeURIComponent(cohort) + '&lt=home'
+      + '&lh=' + now.getHours() + '&ld=' + now.getDay();
+    fetch('/version-check' + qs).catch(function () {});
+  } catch (e) {}
+})();
+</script>
+<script>
 const nav = document.getElementById('nav');
 const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 6);
 window.addEventListener('scroll', onScroll, { passive: true });

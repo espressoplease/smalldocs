@@ -65,6 +65,44 @@ module.exports = function (harness) {
     assert.deepStrictEqual(m, { type: 'check-update', version: 'v1', cohort: '2026-W15', r: 0, u: 0 });
   });
 
+  test('buildCheckMessage: local hour/weekday attach as lh/ld when supplied', () => {
+    const m = buildCheckMessage('v1', '2026-W15', 0, false, 0, 0);
+    // hour 0 (midnight) and weekday 0 (Sunday) must survive — a falsy guard
+    // would have dropped them.
+    assert.strictEqual(m.lh, 0);
+    assert.strictEqual(m.ld, 0);
+    const m2 = buildCheckMessage('v1', '2026-W15', 0, false, 14, 3);
+    assert.strictEqual(m2.lh, 14);
+    assert.strictEqual(m2.ld, 3);
+  });
+
+  test('buildCheckMessage: no lh/ld/lt keys when those extras are omitted', () => {
+    const m = buildCheckMessage('v1', '2026-W15', 0, false);
+    assert.ok(!('lh' in m), 'lh absent when not supplied');
+    assert.ok(!('ld' in m), 'ld absent when not supplied');
+    assert.ok(!('lt' in m), 'lt absent when not supplied');
+  });
+
+  test('buildCheckMessage: load type attaches as lt when supplied', () => {
+    const m = buildCheckMessage('v1', '2026-W15', 0, false, 9, 2, 'short');
+    assert.strictEqual(m.lt, 'short');
+  });
+
+  test('detectLoadType: classifies short / hash / app from location', () => {
+    const { detectLoadType } = U;
+    assert.strictEqual(detectLoadType({ pathname: '/s/abc123', hash: '' }), 'short');
+    assert.strictEqual(detectLoadType({ pathname: '/s/abc123', hash: '#k=xyz' }), 'short');
+    assert.strictEqual(detectLoadType({ pathname: '/', hash: '#md=abc' }), 'hash');
+    // A CLI file open carries local= AND md=; md= wins, so it counts as a
+    // document (#md) visit, not a separate bucket.
+    assert.strictEqual(detectLoadType({ pathname: '/docs', hash: '#local=p&md=abc' }), 'hash');
+    // local= with no md= is a rare style-only open; it falls through to app.
+    assert.strictEqual(detectLoadType({ pathname: '/', hash: '#local=abc' }), 'app');
+    assert.strictEqual(detectLoadType({ pathname: '/', hash: '' }), 'app');
+    assert.strictEqual(detectLoadType({ pathname: '/blogs/x', hash: '' }), 'app');
+    assert.strictEqual(detectLoadType(null), 'app', 'null location degrades to app, not a throw');
+  });
+
   test('buildCheckMessage: a reload re-check carries u=1 -> server skips counting it', () => {
     // This is the inflation fix: after a deploy reloads an open tab, the first
     // check on the reloaded page is flagged so it is NOT logged as a fresh visit.

@@ -127,7 +127,7 @@ const BUILT_AT = new Date().toISOString();
 const TRUST_MANIFEST = {
   commit: RUNNING_COMMIT,
   builtAt: BUILT_AT,
-  repo: 'https://github.com/espressoplease/SDocs',
+  repo: 'https://github.com/espressoplease/smalldocs',
   files: trustFiles,
 };
 
@@ -589,6 +589,12 @@ const server = http.createServer((req, res) => {
   if (pathname === '/version-check') {
     const v = url.searchParams.get('v') || '';
     const cohort = url.searchParams.get('cohort') || '';
+    // Browser-reported local hour (0-23) and weekday (0=Sun..6=Sat) at visit
+    // time. logVisit clamps/validates; a missing or bad value is stored NULL.
+    const localHour = url.searchParams.get('lh');
+    const localDow = url.searchParams.get('ld');
+    // How the page opened (short / hash / local / app). logVisit allowlists it.
+    const loadType = url.searchParams.get('lt');
     // u=1 means this check fired because the page auto-reloaded for an update.
     // The tab's original load was already counted, and one deploy reloads every
     // open tab, so counting reload re-checks would inflate visits by one per
@@ -605,7 +611,7 @@ const server = http.createServer((req, res) => {
         reloadRecheck ? 'reload' : 'visit',
       ].join(' | '));
       if (!reloadRecheck) {
-        try { analytics.logVisit(cohort, req.headers['user-agent'] || '', req.headers['referer'] || ''); } catch (e) { /* analytics failure should not break version-check */ }
+        try { analytics.logVisit(cohort, req.headers['user-agent'] || '', req.headers['referer'] || '', localHour, localDow, loadType); } catch (e) { /* analytics failure should not break version-check */ }
       }
     }
     res.writeHead(200, {

@@ -211,6 +211,177 @@ module.exports = function (harness) {
     }
   });
 
+  console.log('\n── Analytics: Local Time-of-Day Tests ───────────\n');
+
+  test('logVisit stores local hour + weekday; out-of-range values become NULL', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    analyticsDb.logVisit('2026-W15', '', '', 14, 3);   // valid
+    analyticsDb.logVisit('2026-W15', '', '', 0, 0);    // midnight / Sunday — must persist
+    analyticsDb.logVisit('2026-W15', '', '', 99, -1);  // both out of range → NULL
+    analyticsDb.logVisit('2026-W15', '', '');          // omitted → NULL
+    analyticsDb.flush();
+    const db = analyticsDb.getDB();
+    assert.strictEqual(db.prepare('SELECT COUNT(*) as c FROM visits WHERE local_hour IS NOT NULL').get().c, 2);
+    assert.strictEqual(db.prepare('SELECT COUNT(*) as c FROM visits WHERE local_dow IS NOT NULL').get().c, 2);
+    assert.strictEqual(db.prepare('SELECT COUNT(*) as c FROM visits WHERE local_hour = 0').get().c, 1);
+    assert.strictEqual(db.prepare('SELECT COUNT(*) as c FROM visits WHERE local_dow = 0').get().c, 1);
+  });
+
+  test('getRetentionData buckets byHour and byDow', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    const db = analyticsDb.getDB();
+    const ins = db.prepare('INSERT INTO visits (cohort_week, visit_week, local_hour, local_dow) VALUES (?, ?, ?, ?)');
+    // 3 visits at hour 9 / Monday(1), 2 at hour 14 / Wednesday(3), 1 with no local data.
+    for (let i = 0; i < 3; i++) ins.run('2026-W15', '2026-W15', 9, 1);
+    for (let i = 0; i < 2; i++) ins.run('2026-W15', '2026-W15', 14, 3);
+    ins.run('2026-W15', '2026-W15', null, null);
+
+    const data = analyticsQuery.getRetentionData();
+    const h9 = data.byHour.find(r => Number(r.hour) === 9);
+    const h14 = data.byHour.find(r => Number(r.hour) === 14);
+    assert.strictEqual(h9.count, 3);
+    assert.strictEqual(h14.count, 2);
+    assert.ok(!data.byHour.some(r => r.hour === null), 'null hour excluded');
+
+    const mon = data.byDow.find(r => Number(r.dow) === 1);
+    const wed = data.byDow.find(r => Number(r.dow) === 3);
+    assert.strictEqual(mon.count, 3);
+    assert.strictEqual(wed.count, 2);
+  });
+
+  test('readVisitPayload degrades to empty byHour/byDow on a legacy db without the columns', () => {
+    const Database = require('better-sqlite3');
+    const legacy = new Database(':memory:');
+    legacy.exec(`CREATE TABLE visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cohort_week TEXT NOT NULL DEFAULT '',
+      visit_week TEXT NOT NULL,
+      device TEXT NOT NULL DEFAULT '',
+      browser TEXT NOT NULL DEFAULT '',
+      referer TEXT NOT NULL DEFAULT ''
+    );`);
+    legacy.prepare("INSERT INTO visits (cohort_week, visit_week) VALUES ('2026-W10', '2026-W10')").run();
+    const payload = analyticsQuery.readVisitPayload(legacy);
+    assert.deepStrictEqual(payload.byHour, [], 'missing column → empty, not a throw');
+    assert.deepStrictEqual(payload.byDow, []);
+    legacy.close();
+  });
+
+  test('mergeVisitPayloads sums byHour/byDow in clock order', () => {
+    const a = { byHour: [{ hour: 9, count: 2 }], byDow: [{ dow: 3, count: 2 }] };
+    const b = { byHour: [{ hour: 9, count: 1 }, { hour: 2, count: 5 }], byDow: [{ dow: 1, count: 4 }] };
+    const m = analyticsQuery.mergeVisitPayloads(a, b);
+    assert.deepStrictEqual(m.byHour.map(r => Number(r.hour)), [2, 9], 'sorted ascending by hour');
+    assert.strictEqual(m.byHour.find(r => Number(r.hour) === 9).count, 3, 'same hour summed across dbs');
+    assert.deepStrictEqual(m.byDow.map(r => Number(r.dow)), [1, 3]);
+  });
+
+  console.log('\n── Analytics: Load-Type Tests ───────────────────\n');
+
+  test('logVisit stores load_type; unknown values become empty', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'hash');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'home');   // marketing landing page
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'bogus');  // not allowlisted → ''
+    analyticsDb.logVisit('2026-W15', '', '', null, null);           // omitted → ''
+    analyticsDb.flush();
+    const db = analyticsDb.getDB();
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'short'").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'hash'").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'home'").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = ''").get().c, 2);
+  });
+
+  test('getRetentionData buckets loadTypes, excluding empties', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    const db = analyticsDb.getDB();
+    const ins = db.prepare('INSERT INTO visits (cohort_week, visit_week, load_type) VALUES (?, ?, ?)');
+    for (let i = 0; i < 5; i++) ins.run('2026-W15', '2026-W15', 'short');
+    for (let i = 0; i < 3; i++) ins.run('2026-W15', '2026-W15', 'hash');
+    ins.run('2026-W15', '2026-W15', '');  // no load type — must not appear as a bucket
+
+    const data = analyticsQuery.getRetentionData();
+    const short = data.loadTypes.find(r => r.type === 'short');
+    const hash = data.loadTypes.find(r => r.type === 'hash');
+    assert.strictEqual(short.count, 5);
+    assert.strictEqual(hash.count, 3);
+    assert.ok(!data.loadTypes.some(r => r.type === ''), 'empty load_type excluded');
+    assert.strictEqual(data.loadTypes[0].type, 'short', 'ordered by count desc');
+  });
+
+  test('readVisitPayload degrades to empty loadTypes on a legacy db without the column', () => {
+    const Database = require('better-sqlite3');
+    const legacy = new Database(':memory:');
+    legacy.exec(`CREATE TABLE visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cohort_week TEXT NOT NULL DEFAULT '',
+      visit_week TEXT NOT NULL,
+      device TEXT NOT NULL DEFAULT '',
+      browser TEXT NOT NULL DEFAULT '',
+      referer TEXT NOT NULL DEFAULT ''
+    );`);
+    legacy.prepare("INSERT INTO visits (cohort_week, visit_week) VALUES ('2026-W10', '2026-W10')").run();
+    const payload = analyticsQuery.readVisitPayload(legacy);
+    assert.deepStrictEqual(payload.loadTypes, [], 'missing column → empty, not a throw');
+    legacy.close();
+  });
+
+  test('mergeVisitPayloads sums loadTypes across dbs', () => {
+    const a = { loadTypes: [{ type: 'short', count: 4 }, { type: 'hash', count: 2 }] };
+    const b = { loadTypes: [{ type: 'short', count: 1 }, { type: 'app', count: 3 }] };
+    const m = analyticsQuery.mergeVisitPayloads(a, b);
+    assert.strictEqual(m.loadTypes.find(r => r.type === 'short').count, 5);
+    assert.strictEqual(m.loadTypes.find(r => r.type === 'hash').count, 2);
+    assert.strictEqual(m.loadTypes.find(r => r.type === 'app').count, 3);
+  });
+
+  console.log('\n── Analytics: Segment Tests (per-channel cohorts, per-week day/hour) ──\n');
+
+  test('getRetentionData builds cohortsByType, dowByWeek and hourByWeek', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    const db = analyticsDb.getDB();
+    const ins = db.prepare('INSERT INTO visits (cohort_week, visit_week, local_hour, local_dow, load_type) VALUES (?, ?, ?, ?, ?)');
+    // W15 cohort: 4 #md visits in W15 (Mon 9h), 2 #md in W16 (Tue 10h), 3 short in W15 (Wed 14h).
+    for (let i = 0; i < 4; i++) ins.run('2026-W15', '2026-W15', 9, 1, 'hash');
+    for (let i = 0; i < 2; i++) ins.run('2026-W15', '2026-W16', 10, 2, 'hash');
+    for (let i = 0; i < 3; i++) ins.run('2026-W15', '2026-W15', 14, 3, 'short');
+    ins.run('2026-W15', '2026-W15', null, null, 'home'); // home visit, no local time
+
+    const data = analyticsQuery.getRetentionData();
+
+    // Per-channel cohort matrices
+    const hashCohort = data.cohortsByType.hash.find(c => c.cohort_week === '2026-W15');
+    assert.strictEqual(hashCohort.cohort_size, 4, '#md birth-week size');
+    assert.deepStrictEqual(hashCohort.visits, { '2026-W15': 4, '2026-W16': 2 });
+    assert.strictEqual(data.cohortsByType.short.find(c => c.cohort_week === '2026-W15').cohort_size, 3);
+    assert.ok(data.cohortsByType.home, 'home channel present');
+
+    // Per-week day/hour buckets (inner keys are the dow/hour integers)
+    assert.strictEqual(data.dowByWeek['2026-W15'][1], 4, 'Mon W15 = 4 (#md)');
+    assert.strictEqual(data.dowByWeek['2026-W15'][3], 3, 'Wed W15 = 3 (short)');
+    assert.strictEqual(data.dowByWeek['2026-W16'][2], 2, 'Tue W16 = 2');
+    assert.strictEqual(data.hourByWeek['2026-W15'][9], 4, 'hour 9 in W15 = 4');
+    assert.strictEqual(data.hourByWeek['2026-W16'][10], 2, 'hour 10 in W16 = 2');
+  });
+
+  test('readSegments degrades to empty on a legacy db without the columns', () => {
+    const Database = require('better-sqlite3');
+    const legacy = new Database(':memory:');
+    legacy.exec('CREATE TABLE visits (id INTEGER PRIMARY KEY AUTOINCREMENT, cohort_week TEXT, visit_week TEXT);');
+    legacy.prepare("INSERT INTO visits (cohort_week, visit_week) VALUES ('2026-W10', '2026-W10')").run();
+    const seg = analyticsQuery.readSegments(legacy);
+    assert.deepStrictEqual(seg.cohortsByType, {}, 'no load_type column → empty, not a throw');
+    assert.deepStrictEqual(seg.dowByWeek, {});
+    assert.deepStrictEqual(seg.hourByWeek, {});
+    legacy.close();
+  });
+
   // Clean up
   analyticsDb.close();
 };

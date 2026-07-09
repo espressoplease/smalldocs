@@ -119,6 +119,51 @@
   }
   .chart-card canvas { max-width: 100%; }
 
+  /* ── Segments (cohort-by-type, per-week small multiples) ── */
+  .segment { margin-top: 32px; }
+  .segment-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: #1C1917; }
+  .segment-note { font-size: 12px; color: #57534E; margin-bottom: 14px; max-width: 720px; }
+  .subtable { margin-bottom: 18px; }
+  .subtable-label { font-size: 12px; font-weight: 600; color: #1C1917; margin-bottom: 6px; display: flex; align-items: center; gap: 7px; }
+  .subtable-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  /* Per-week mini "small multiples" */
+  .mini-row { display: flex; flex-wrap: wrap; gap: 16px; }
+  .mini { flex: 0 0 auto; cursor: pointer; }
+  .mini:hover .mini-bars { border-color: #57534E; }
+  .mini-bars {
+    display: flex; align-items: flex-end; gap: 1px;
+    height: 46px; padding: 4px 6px;
+    background: #F1EDE8; border: 1px solid #D4CFC9; border-radius: 6px;
+    transition: border-color .15s;
+  }
+
+  /* Expanded mini modal */
+  .mini-modal {
+    position: fixed; inset: 0; z-index: 100; padding: 20px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(28, 25, 23, 0.45);
+  }
+  .mini-modal-card {
+    background: #FAFAF8; border: 1px solid #D4CFC9; border-radius: 10px;
+    width: 100%; max-width: 680px; box-shadow: 0 12px 44px rgba(0,0,0,0.22);
+  }
+  .mini-modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 16px; border-bottom: 1px solid #E7E2DB;
+    font-size: 14px; font-weight: 600; color: #1C1917;
+  }
+  .mini-modal-close {
+    background: none; border: none; font-size: 22px; line-height: 1;
+    cursor: pointer; color: #57534E; padding: 0 4px;
+  }
+  .mini-modal-close:hover { color: #1C1917; }
+  .mini-modal-body { padding: 16px; height: 340px; }
+  .mini-bars.dow { width: 96px; gap: 3px; }
+  .mini-bars.hour { width: 172px; }
+  .mini-bars .b { flex: 1 1 0; min-height: 1px; border-radius: 1px; }
+  .mini-label { font-size: 11px; color: #57534E; text-align: center; margin-top: 5px; font-weight: 500; }
+
   /* ── Opt-out panel ── */
   .cohort-panel {
     margin: 24px 0;
@@ -202,6 +247,16 @@
     .cohort-panel button:hover { border-color: #57534E; }
     .chart-card { background: #252320; border-color: #3D3935; }
     .chart-card h2 { color: #A8A29E; }
+    .segment-title { color: #E7E5E2; }
+    .segment-note { color: #A8A29E; }
+    .subtable-label { color: #E7E5E2; }
+    .mini-bars { background: #252320; border-color: #3D3935; }
+    .mini:hover .mini-bars { border-color: #57534E; }
+    .mini-label { color: #A8A29E; }
+    .mini-modal-card { background: #211F1D; border-color: #3D3935; }
+    .mini-modal-head { color: #E7E5E2; border-color: #332F2B; }
+    .mini-modal-close { color: #A8A29E; }
+    .mini-modal-close:hover { color: #E7E5E2; }
     .statusbar { background: #1C1A17; border-color: #332F2B; color: #A8A29E; }
     .statusbar a { color: #A8A29E; }
     .statusbar code { background: #252320; border-color: #3B82F6; color: #3B82F6; }
@@ -227,6 +282,24 @@
   <div id="cohort-panel" class="cohort-panel" style="display:none"></div>
   <div id="container" class="table-wrap"><p class="loading">Loading...</p></div>
 
+  <div id="cohorts-by-type" class="segment" style="display:none">
+    <h2 class="segment-title">Cohorts by how visits opened</h2>
+    <p class="segment-note">The same retention view, split by how the page was opened. Only counts visits after 10 July 2026.</p>
+    <div id="cohorts-by-type-body"></div>
+  </div>
+
+  <div id="dow-by-week" class="segment" style="display:none">
+    <h2 class="segment-title">Day of week, by week</h2>
+    <p class="segment-note">One mini chart per week (Mon → Sun), local time. Bars share a scale across weeks so height is comparable.</p>
+    <div id="dow-by-week-body" class="mini-row"></div>
+  </div>
+
+  <div id="hour-by-week" class="segment" style="display:none">
+    <h2 class="segment-title">Time of day, by week</h2>
+    <p class="segment-note">One mini chart per week (00 → 23h), local time, shared scale.</p>
+    <div id="hour-by-week-body" class="mini-row"></div>
+  </div>
+
   <div class="charts-grid" id="charts-grid" style="display:none">
     <div class="chart-card" id="card-volume" style="display:none">
       <h2>Weekly visits</h2>
@@ -249,9 +322,19 @@
       <div class="chart-holder"><canvas id="chart-shortlinks"></canvas></div>
     </div>
     <div class="chart-card" id="card-stars" style="display:none">
-      <h2>GitHub stars (<a href="https://github.com/espressoplease/SDocs" target="_blank" rel="noopener" style="color:inherit">repo</a>)</h2>
+      <h2>GitHub stars (<a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" style="color:inherit">repo</a>)</h2>
       <div class="chart-holder"><canvas id="chart-stars"></canvas></div>
     </div>
+  </div>
+</div>
+
+<div id="mini-modal" class="mini-modal" style="display:none">
+  <div class="mini-modal-card">
+    <div class="mini-modal-head">
+      <span id="mini-modal-title"></span>
+      <button id="mini-modal-close" class="mini-modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="mini-modal-body"><canvas id="mini-modal-canvas"></canvas></div>
   </div>
 </div>
 
@@ -339,6 +422,13 @@ fetch('/analytics/data')
     } else {
       renderTable(data);
     }
+    renderCohortsByType(data);
+    var dowOrder = [1, 2, 3, 4, 5, 6, 0];               // Mon → Sun
+    var dowLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    var hourOrder = [], hourLabels = [];
+    for (var _h = 0; _h < 24; _h++) { hourOrder.push(_h); hourLabels.push(String(_h).padStart(2, '0')); }
+    renderMiniMultiples('dow-by-week-body', 'dow-by-week', data.dowByWeek, dowOrder, dowLabels, 'dow', '#8b5cf6', 'Day of week');
+    renderMiniMultiples('hour-by-week-body', 'hour-by-week', data.hourByWeek, hourOrder, hourLabels, 'hour', '#14b8a6', 'Time of day');
     renderCharts(data);
   })
   .catch(function (e) { document.getElementById('container').innerHTML = '<p class="error">Failed to load: ' + e.message + '</p>'; });
@@ -349,16 +439,14 @@ function fmtWeek(w) {
   return parts[1] + "'" + parts[0].slice(2);
 }
 
-function renderTable(data) {
-  var weeks = data.weeks;
-  var cohorts = data.cohorts;
-
-  // Color scale relative to the largest single-cell visit count
+// Build the cohort retention <table> markup. Shared by the aggregate table and
+// the per-channel sub-tables. `unattributed` is optional (aggregate only).
+// `hue` sets the heat-scale colour so each channel reads in its own hue.
+function cohortTableHtml(cohorts, weeks, unattributed, hue) {
+  if (hue == null) hue = 142; // default green (aggregate table)
   var maxVisits = 1;
   cohorts.forEach(function (c) {
-    Object.keys(c.visits).forEach(function (w) {
-      if (c.visits[w] > maxVisits) maxVisits = c.visits[w];
-    });
+    Object.keys(c.visits).forEach(function (w) { if (c.visits[w] > maxVisits) maxVisits = c.visits[w]; });
   });
 
   var html = '<table><thead><tr><th class="row-header">Cohort</th>';
@@ -374,7 +462,7 @@ function renderTable(data) {
         var count = c.visits[w];
         var intensity = count / maxVisits;
         var lightness = 82 - (intensity * 50);
-        var bg = 'hsl(142, 55%, ' + lightness + '%)';
+        var bg = 'hsl(' + hue + ', 55%, ' + lightness + '%)';
         var fg = intensity > 0.5 ? '#fff' : '#1C1917';
         html += '<td style="background:' + bg + ';color:' + fg + '">' + count + '</td>';
       }
@@ -382,8 +470,7 @@ function renderTable(data) {
     html += '</tr>';
   });
 
-  // Unattributed row (visits with no cohort reported)
-  var unattr = data.unattributed || {};
+  var unattr = unattributed || {};
   if (Object.keys(unattr).length) {
     html += '<tr style="border-top:2px solid #D4CFC9"><td class="row-header" style="color:#A8A29E">Unattributed</td>';
     weeks.forEach(function (w) {
@@ -395,12 +482,142 @@ function renderTable(data) {
   }
 
   html += '</tbody></table>';
-  var wrap = document.getElementById('container');
-  wrap.innerHTML = html;
+  return html;
+}
+
+function wireOverflow(wrap) {
   updateOverflow(wrap);
   wrap.addEventListener('scroll', function () { updateOverflow(wrap); });
   window.addEventListener('resize', function () { updateOverflow(wrap); });
 }
+
+function renderTable(data) {
+  var wrap = document.getElementById('container');
+  wrap.innerHTML = cohortTableHtml(data.cohorts, data.weeks, data.unattributed);
+  wireOverflow(wrap);
+}
+
+// Channels shown as cohort tables. A channel can fold in more than one raw
+// load_type: the bare editor ('app') is counted as document usage alongside the
+// full #md link. `hue` colours the channel's heat scale to match its swatch.
+var CHANNELS = [
+  { key: 'md',    label: 'Full link (#md)',   swatch: '#ef4444', hue: 2,   types: ['hash', 'app', 'local'] },
+  { key: 'short', label: 'Short link (/s/)',  swatch: '#22c55e', hue: 142, types: ['short'] },
+  { key: 'home',  label: 'Homepage',          swatch: '#3b82f6', hue: 217, types: ['home'] }
+];
+
+// Sum several per-type cohort arrays into one, adding cohort_size and per-week
+// visits by cohort_week.
+function mergeCohortArrays(arrays) {
+  var map = {};
+  arrays.forEach(function (arr) {
+    (arr || []).forEach(function (c) {
+      var m = map[c.cohort_week] || (map[c.cohort_week] = { cohort_week: c.cohort_week, cohort_size: 0, visits: {} });
+      m.cohort_size += c.cohort_size || 0;
+      Object.keys(c.visits).forEach(function (w) { m.visits[w] = (m.visits[w] || 0) + c.visits[w]; });
+    });
+  });
+  return Object.keys(map).sort().map(function (k) { return map[k]; });
+}
+
+function renderCohortsByType(data) {
+  var byType = data.cohortsByType || {};
+  var merged = CHANNELS.map(function (ch) {
+    return { ch: ch, cohorts: mergeCohortArrays(ch.types.map(function (t) { return byType[t]; })) };
+  });
+
+  // Shared week header = union of visit weeks across all channels, so the
+  // sub-tables align and stay compact (not the full aggregate week range).
+  var weekSet = {};
+  merged.forEach(function (x) {
+    x.cohorts.forEach(function (c) {
+      weekSet[c.cohort_week] = 1;
+      Object.keys(c.visits).forEach(function (w) { weekSet[w] = 1; });
+    });
+  });
+  var weeks = Object.keys(weekSet).sort();
+  if (!weeks.length) return; // nothing recorded yet
+
+  var body = document.getElementById('cohorts-by-type-body');
+  body.innerHTML = '';
+  merged.forEach(function (x) {
+    if (!x.cohorts.length) return;
+    var block = document.createElement('div');
+    block.className = 'subtable';
+    var tw = document.createElement('div');
+    tw.className = 'table-wrap';
+    tw.innerHTML = cohortTableHtml(x.cohorts, weeks, null, x.ch.hue);
+    block.innerHTML = '<div class="subtable-label"><span class="subtable-swatch" style="background:' + x.ch.swatch + '"></span>' + x.ch.label + '</div>';
+    block.appendChild(tw);
+    body.appendChild(block);
+    wireOverflow(tw);
+  });
+  document.getElementById('cohorts-by-type').style.display = '';
+}
+
+// Per-week mini bar "small multiples". byWeek is {week: {slot: count}}.
+// slotOrder controls bar order (Mon-first for days, 0-23 for hours); slotLabels
+// are the aligned axis labels used when a mini is expanded. All minis share one
+// global max so bar height is comparable week to week. Clicking a mini opens a
+// full chart with axes.
+function renderMiniMultiples(bodyId, sectionId, byWeek, slotOrder, slotLabels, kind, color, metricName) {
+  var weeks = Object.keys(byWeek || {}).sort();
+  if (!weeks.length) return;
+  weeks = weeks.slice(-14); // keep compact: most recent 14 weeks
+  var globalMax = 1;
+  weeks.forEach(function (w) {
+    slotOrder.forEach(function (s) { var v = byWeek[w][s] || 0; if (v > globalMax) globalMax = v; });
+  });
+  var body = document.getElementById(bodyId);
+  body.innerHTML = '';
+  weeks.forEach(function (w) {
+    var values = slotOrder.map(function (s) { return byWeek[w][s] || 0; });
+    var bars = '';
+    values.forEach(function (v) {
+      var h = v ? Math.max(6, Math.round((v / globalMax) * 100)) : 0;
+      bars += '<div class="b" title="' + v + '" style="height:' + h + '%;background:' + color + '"></div>';
+    });
+    var mini = document.createElement('div');
+    mini.className = 'mini';
+    mini.title = 'Click to expand';
+    mini.innerHTML = '<div class="mini-bars ' + kind + '">' + bars + '</div><div class="mini-label">' + fmtWeek(w) + '</div>';
+    mini.addEventListener('click', function () {
+      openMiniModal(metricName + ' — ' + fmtWeek(w), slotLabels, values, color);
+    });
+    body.appendChild(mini);
+  });
+  document.getElementById(sectionId).style.display = '';
+}
+
+// Expanded view for a single week's mini: a full bar chart with axes.
+var _miniChart = null;
+function openMiniModal(title, labels, values, color) {
+  if (!window.Chart) return; // Chart.js still loading; minis stay readable on their own
+  document.getElementById('mini-modal-title').textContent = title;
+  document.getElementById('mini-modal').style.display = 'flex';
+  if (_miniChart) { _miniChart.destroy(); _miniChart = null; }
+  _miniChart = new Chart(document.getElementById('mini-modal-canvas'), {
+    type: 'bar',
+    data: { labels: labels, datasets: [{ data: values, backgroundColor: color, borderWidth: 0 }] },
+    options: chartOpts({
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: textColor, maxRotation: 0, autoSkip: true, autoSkipPadding: 6 }, grid: { display: false } },
+        y: { ticks: { color: textColor, precision: 0 }, grid: { color: gridColor }, beginAtZero: true }
+      }
+    })
+  });
+}
+function closeMiniModal() {
+  document.getElementById('mini-modal').style.display = 'none';
+  if (_miniChart) { _miniChart.destroy(); _miniChart = null; }
+}
+(function () {
+  var modal = document.getElementById('mini-modal');
+  document.getElementById('mini-modal-close').addEventListener('click', closeMiniModal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) closeMiniModal(); }); // backdrop
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMiniModal(); });
+})();
 
 function updateOverflow(el) {
   var hasOverflow = el.scrollWidth > el.clientWidth + 1;

@@ -39,7 +39,10 @@ function init(dbPath) {
       visit_week TEXT NOT NULL,
       device TEXT NOT NULL DEFAULT '',
       browser TEXT NOT NULL DEFAULT '',
-      referer TEXT NOT NULL DEFAULT ''
+      referer TEXT NOT NULL DEFAULT '',
+      local_hour INTEGER,
+      local_dow INTEGER,
+      load_type TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_visits_cohort ON visits(cohort_week, visit_week);
     CREATE INDEX IF NOT EXISTS idx_visits_week ON visits(visit_week);
@@ -49,11 +52,23 @@ function init(dbPath) {
   try { db.exec("ALTER TABLE visits ADD COLUMN device TEXT NOT NULL DEFAULT ''"); } catch (e) {}
   try { db.exec("ALTER TABLE visits ADD COLUMN browser TEXT NOT NULL DEFAULT ''"); } catch (e) {}
   try { db.exec("ALTER TABLE visits ADD COLUMN referer TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+  // The browser reports its own local hour (0-23) and weekday (0=Sun..6=Sat)
+  // at visit time, so "time of day" / "day of week" reflect when the visitor
+  // actually used it, not UTC. Nullable — rows before this shipped, and any
+  // visit that doesn't report them, leave both NULL and drop out of those two
+  // charts. No timezone or offset is stored, only the two small integers.
+  try { db.exec("ALTER TABLE visits ADD COLUMN local_hour INTEGER"); } catch (e) {}
+  try { db.exec("ALTER TABLE visits ADD COLUMN local_dow INTEGER"); } catch (e) {}
+  // How the page was opened: a /s/ short link, a document link (#md — includes
+  // CLI file opens, which carry md=), or the bare app/home. Lets the dashboard
+  // compare short-link opens against full-link opens against homepage landings.
+  // Empty for rows before this shipped.
+  try { db.exec("ALTER TABLE visits ADD COLUMN load_type TEXT NOT NULL DEFAULT ''"); } catch (e) {}
   // Drop legacy ip_hash column. We deliberately stopped storing any per-user
   // identifier — all metrics are now raw page-load counts.
   try { db.exec("ALTER TABLE visits DROP COLUMN ip_hash"); } catch (e) {}
 
-  insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, device, browser, referer) VALUES (?, ?, ?, ?, ?)');
+  insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, device, browser, referer, local_hour, local_dow, load_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
 
   flushTimer = setInterval(flush, FLUSH_INTERVAL);
   if (flushTimer.unref) flushTimer.unref();
@@ -89,12 +104,30 @@ function parseReferer(ref) {
   } catch (e) { return 'direct'; }
 }
 
-function logVisit(cohortWeek, userAgent, referer) {
+// Clamp a reported integer to [min, max]; anything out of range or unparseable
+// becomes null so a bad/absent value can't skew a bucket.
+function normInt(v, min, max) {
+  var n = parseInt(v, 10);
+  if (isNaN(n) || n < min || n > max) return null;
+  return n;
+}
+
+// Constrain load_type to the known set; anything else is stored as '' so a
+// junk value can't create a phantom bucket in the dashboard. 'home' is the
+// marketing landing page; 'app' is the bare app shell with no document.
+function normLoadType(v) {
+  return (v === 'short' || v === 'hash' || v === 'app' || v === 'home') ? v : '';
+}
+
+function logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType) {
   if (!db) init();
   var visitWeek = getISOWeek(new Date());
   var ua = parseUA(userAgent);
   var ref = parseReferer(referer);
-  buffer.push([cohortWeek || '', visitWeek, ua.device, ua.browser, ref]);
+  var lh = normInt(localHour, 0, 23);
+  var ld = normInt(localDow, 0, 6);
+  var lt = normLoadType(loadType);
+  buffer.push([cohortWeek || '', visitWeek, ua.device, ua.browser, ref, lh, ld, lt]);
   if (process.env.ANALYTICS_FLUSH_IMMEDIATE === '1') flush();
 }
 

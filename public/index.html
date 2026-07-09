@@ -1113,6 +1113,9 @@ if (SDOCS_DEV && 'serviceWorker' in navigator) {
   // it also re-checks when a backgrounded tab returns to the foreground.
   // Falls back to the original unconditional reload if the module is absent.
   var _U = window.SDocUpdate;
+  // Snapshot how this page was opened NOW, synchronously, before the app boots
+  // and rewrites the hash. Frozen for the tab's lifetime and sent with visits.
+  var _loadType = (_U && _U.detectLoadType) ? _U.detectLoadType(window.location) : '';
   navigator.serviceWorker.addEventListener('message', function (e) {
     if (!e.data || e.data.type !== 'sdocs-reload') return;
     if (_U && _U.onReloadSignal) _U.onReloadSignal(e.data.version);
@@ -1120,9 +1123,9 @@ if (SDOCS_DEV && 'serviceWorker' in navigator) {
   });
   navigator.serviceWorker.register('/sw.js').then(function (reg) {
     if (_U && _U.start) {
-      _U.start({ appVersion: APP_VERSION, cohort: _cohort });
+      _U.start({ appVersion: APP_VERSION, cohort: _cohort, loadType: _loadType });
     } else {
-      var msg = { type: 'check-update', version: APP_VERSION, cohort: _cohort };
+      var msg = { type: 'check-update', version: APP_VERSION, cohort: _cohort, lt: _loadType };
       if (reg.active) reg.active.postMessage(msg);
       navigator.serviceWorker.addEventListener('controllerchange', function () {
         if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage(msg);

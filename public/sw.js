@@ -147,6 +147,11 @@ self.addEventListener('message', function (e) {
     var qs = '?cohort=' + encodeURIComponent(e.data.cohort || '')
       + '&r=' + encodeURIComponent(e.data.r || 0)
       + '&u=' + encodeURIComponent(e.data.u || 0);
+    // lh/ld are the browser's local hour + weekday. Guard on typeof so hour 0
+    // (midnight) / weekday 0 (Sunday) aren't dropped by a falsy check.
+    if (typeof e.data.lh === 'number') qs += '&lh=' + encodeURIComponent(e.data.lh);
+    if (typeof e.data.ld === 'number') qs += '&ld=' + encodeURIComponent(e.data.ld);
+    if (e.data.lt) qs += '&lt=' + encodeURIComponent(e.data.lt);
     fetch('/version-check' + qs).then(function (res) {
       return res.json();
     }).then(function (data) {
