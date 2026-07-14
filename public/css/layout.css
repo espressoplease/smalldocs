@@ -120,6 +120,78 @@ body {
   background: var(--bg-hover);
 }
 
+/* Design-partner nudge - a tinted accent strip above the chrome inviting
+   frequent users to leave a work email. Mirrors the old invite-banner shape,
+   plus an inline email field. The homepage carries its own copy of this in an
+   inline <style> (it loads no shared CSS); keep the two in sync. */
+#_sd_dp-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 9px 13px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 9%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+#_sd_dp-banner[hidden] { display: none; }
+.sd-dp-text { flex: 1; min-width: 0; }
+.sd-dp-form { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.sd-dp-email, .sd-dp-name {
+  font: inherit;
+  padding: 4px 9px;
+  min-width: 0;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius-sm);
+}
+.sd-dp-name { width: 110px; }
+.sd-dp-email { width: 170px; }
+.sd-dp-email:focus, .sd-dp-name:focus { outline: none; border-color: var(--accent); }
+.sd-dp-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.sd-dp-submit {
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 4px 11px;
+  border-radius: var(--radius-sm);
+}
+.sd-dp-submit:hover { filter: brightness(1.05); }
+.sd-dp-submit:disabled { opacity: .6; cursor: default; }
+.sd-dp-status { font-size: 11.5px; color: var(--text-2); }
+.sd-dp-status.sd-dp-err { color: #c0392b; }
+
+/* Same form, mounted at the top of the info side panel. The panel is narrow,
+   so it stacks vertically with full-width inputs (16px to avoid iOS zoom). */
+#_sd_dp-info {
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+#_sd_dp-info[hidden] { display: none; }
+#_sd_dp-info .sd-dp-text { display: block; font-size: 13px; line-height: 1.45; margin-bottom: 11px; }
+#_sd_dp-info .sd-dp-form { flex-direction: column; align-items: stretch; gap: 8px; }
+#_sd_dp-info .sd-dp-name,
+#_sd_dp-info .sd-dp-email { width: 100%; font-size: 16px; }
+#_sd_dp-info .sd-dp-submit { width: 100%; font-size: 14px; padding: 7px 11px; }
+#_sd_dp-info .sd-dp-status { font-size: 12px; }
+
+/* Mobile: stack into two layers - info line, then the input row - and bump
+   input font to 16px so iOS doesn't auto-zoom the page on focus. */
+@media (max-width: 900px) {
+  #_sd_dp-banner { flex-wrap: wrap; gap: 8px 10px; }
+  .sd-dp-text { flex: 1 1 100%; }
+  .sd-dp-form { flex: 1 1 100%; flex-wrap: wrap; }
+  .sd-dp-name, .sd-dp-email { flex: 1 1 120px; width: auto; font-size: 16px; }
+  .sd-dp-submit { flex: 0 0 auto; }
+}
+
 /* ═══════════════════════════════════════════════════
    MAIN LAYOUT
 ═══════════════════════════════════════════════════ */

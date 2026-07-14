@@ -988,9 +988,64 @@ footer {
      GitHub and Discord fit without horizontal scroll. */
   .nav-hide-mobile { display: none; }
 }
+/* Design-partner nudge - top strip inviting frequent visitors to leave a
+   work email. Kept in sync with the app copy in css/layout.css (this page
+   loads no shared CSS, so the rules are duplicated here against homepage
+   variables). */
+#_sd_dp-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+#_sd_dp-banner[hidden] { display: none; }
+.sd-dp-text { flex: 1; min-width: 0; }
+.sd-dp-form { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.sd-dp-email, .sd-dp-name {
+  font: inherit;
+  padding: 5px 10px;
+  min-width: 0;
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-radius: var(--r-sm);
+}
+.sd-dp-name { width: 120px; }
+.sd-dp-email { width: 180px; }
+.sd-dp-email:focus, .sd-dp-name:focus { outline: none; border-color: var(--accent); }
+.sd-dp-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.sd-dp-submit {
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 5px 13px;
+  border-radius: var(--r-sm);
+}
+.sd-dp-submit:hover { background: var(--accent-ink); }
+.sd-dp-submit:disabled { opacity: .6; cursor: default; }
+.sd-dp-status { font-size: 12px; color: var(--ink-2); }
+.sd-dp-status.sd-dp-err { color: #c0392b; }
+@media (max-width: 900px) {
+  #_sd_dp-banner { flex-wrap: wrap; gap: 8px 10px; }
+  .sd-dp-text { flex: 1 1 100%; }
+  .sd-dp-form { flex: 1 1 100%; flex-wrap: wrap; }
+  .sd-dp-name, .sd-dp-email { flex: 1 1 120px; width: auto; font-size: 16px; }
+  .sd-dp-submit { flex: 0 0 auto; }
+}
 </style>
 </head>
 <body>
+
+<div id="_sd_dp-banner" hidden></div>
 
 <!-- ═══ NAV ══════════════════════════════════════════════ -->
 <nav class="nav" id="nav">
@@ -1450,6 +1505,11 @@ footer {
 </footer>
 
 <script src="/public/sdocs-cli-setup.js"></script>
+<script src="/public/sdocs-design-partner.js"></script>
+<script>
+// Design-partner nudge, keyed on homepage visit count (5th and 25th load).
+if (window.SDocsDesignPartner) { try { SDocsDesignPartner.init('home'); } catch (_) {} }
+</script>
 <script>
 // Log a landing-page visit, tagged 'home', so analytics can separate homepage
 // traffic from in-app document usage. The marketing page otherwise reports
