@@ -113,14 +113,14 @@
     var name = document.createElement('input');
     name.type = 'text';
     name.className = 'sd-dp-name';
-    name.placeholder = 'first name';
+    name.placeholder = 'First Name';
     name.setAttribute('autocomplete', 'given-name');
     name.setAttribute('aria-label', 'First name');
 
     var input = document.createElement('input');
     input.type = 'email';
     input.className = 'sd-dp-email';
-    input.placeholder = 'work email';
+    input.placeholder = 'Work Email';
     input.setAttribute('autocomplete', 'email');
     input.setAttribute('aria-label', 'Work email');
 
