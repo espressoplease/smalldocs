@@ -47,7 +47,6 @@
 <body>
 
 <div id="_sd_safari-banner" hidden></div>
-<div id="_sd_discord-banner" hidden></div>
 <div id="_sd_main">
   <!-- ── Left panel ── -->
   <div id="_sd_left">
@@ -926,72 +925,6 @@
       if (info.version) leadEl.title = 'sdoc v' + info.version + ', published ' + new Date(info.time).toLocaleString();
       scheduleFit();
     }).catch(function () { /* keep the neutral lead-in */ });
-  }
-
-  // Light engagement nudge. Once someone has opened a few distinct documents
-  // they are clearly using SmallDocs, so invite them to the community once.
-  // Counting is entirely client-side (localStorage); nothing is sent anywhere.
-  var DISCORD_URL = 'https://discord.gg/txjATTsDaq';
-  var DOC_OPENS_KEY = '_sd_doc_opens';
-  var DISCORD_DISMISS_KEY = '_sd_discord_invite_dismissed';
-  var DISCORD_THRESHOLD = 3;
-
-  if (isDocPage) { try { recordDocOpenAndMaybeInvite(); } catch (_) {} }
-
-  function docFingerprint() {
-    var h = location.hash || '';
-    var m = /[#&]md=([^&]+)/.exec(h);
-    var v = m ? m[1] : h;
-    return v.slice(0, 48);
-  }
-
-  function recordDocOpenAndMaybeInvite() {
-    try { if (localStorage.getItem(DISCORD_DISMISS_KEY) === '1') return; } catch (_) { return; }
-    var fp = docFingerprint();
-    if (!fp) return;
-    var seen = [];
-    try { seen = JSON.parse(localStorage.getItem(DOC_OPENS_KEY) || '[]'); } catch (_) { seen = []; }
-    if (!Array.isArray(seen)) seen = [];
-    if (seen.indexOf(fp) === -1) {
-      seen.push(fp);
-      if (seen.length > 20) seen = seen.slice(-20);
-      try { localStorage.setItem(DOC_OPENS_KEY, JSON.stringify(seen)); } catch (_) {}
-    }
-    if (seen.length >= DISCORD_THRESHOLD) showDiscordBanner();
-  }
-
-  function dismissDiscordBanner() {
-    try { localStorage.setItem(DISCORD_DISMISS_KEY, '1'); } catch (_) {}
-    var el = document.getElementById('_sd_discord-banner');
-    if (el) el.hidden = true;
-  }
-
-  function showDiscordBanner() {
-    var el = document.getElementById('_sd_discord-banner');
-    if (!el) return;
-    if (!el.dataset.rendered) {
-      while (el.firstChild) el.removeChild(el.firstChild);
-      var text = document.createElement('span');
-      text.className = 'sd-discord-banner-text';
-      text.textContent = "Please join our Discord. We'd love to get to know you better & improve SmallDocs based on your feedback.";
-      var join = document.createElement('a');
-      join.className = 'sd-discord-banner-join';
-      join.href = DISCORD_URL;
-      join.target = '_blank';
-      join.rel = 'noopener';
-      join.textContent = 'Join the Discord';
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'sd-discord-banner-dismiss';
-      btn.setAttribute('aria-label', 'Dismiss');
-      btn.textContent = '×'; // multiplication sign
-      btn.addEventListener('click', dismissDiscordBanner);
-      el.appendChild(text);
-      el.appendChild(join);
-      el.appendChild(btn);
-      el.dataset.rendered = '1';
-    }
-    el.hidden = false;
   }
 
   function timeAgo(iso) {
