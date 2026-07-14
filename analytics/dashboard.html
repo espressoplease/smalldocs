@@ -323,6 +323,10 @@
       <h2>GitHub stars (<a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" style="color:inherit">repo</a>)</h2>
       <div class="chart-holder"><canvas id="chart-stars"></canvas></div>
     </div>
+    <div class="chart-card" id="card-downloads" style="display:none">
+      <h2>npm downloads (<a href="https://www.npmjs.com/package/sdocs-dev" target="_blank" rel="noopener" style="color:inherit">sdocs-dev</a>)</h2>
+      <div class="chart-holder"><canvas id="chart-downloads"></canvas></div>
+    </div>
   </div>
 </div>
 
@@ -710,6 +714,21 @@ function renderCharts(data) {
           labels: data.shortLinks.map(function (v) { return fmtWeek(v.week); }),
           datasets: [
             { label: 'Short links', data: data.shortLinks.map(function (v) { return v.count; }), borderColor: COLORS[2], borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 }
+          ]
+        },
+        options: chartOpts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true } } })
+      });
+    }
+
+    // npm downloads — line chart (weekly download counts)
+    if (data.downloads && data.downloads.length) {
+      document.getElementById('card-downloads').style.display = '';
+      new Chart(document.getElementById('chart-downloads'), {
+        type: 'line',
+        data: {
+          labels: data.downloads.map(function (v) { return fmtWeek(v.week); }),
+          datasets: [
+            { label: 'Downloads', data: data.downloads.map(function (v) { return v.downloads; }), borderColor: COLORS[6], borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 }
           ]
         },
         options: chartOpts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true } } })

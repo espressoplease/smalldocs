@@ -19,6 +19,7 @@ const fs = require('fs');
 const { getDB } = require('./db');
 const shortLinks = require('../short-links/db');
 const githubStars = require('./github-stars');
+const npmDownloads = require('./npm-downloads');
 
 // All visit-table reads for one database handle. `sources` is returned
 // un-truncated here; the top-10 cut happens after any merge so the
@@ -273,6 +274,11 @@ function getRetentionData() {
   var stars = [];
   try { stars = githubStars.getWeeklyStars(); } catch (e) { /* network unavailable */ }
 
+  // npm downloads for the CLI package, weekly. Same one-package story as stars:
+  // a single public API, nothing to merge across deployments.
+  var downloads = [];
+  try { downloads = npmDownloads.getWeeklyDownloads(); } catch (e) { /* network unavailable */ }
+
   return {
     generated: new Date().toISOString(),
     weeks: payload.weeks,
@@ -289,7 +295,8 @@ function getRetentionData() {
     dowByWeek: segments.dowByWeek,
     hourByWeek: segments.hourByWeek,
     shortLinks: shortLinkWeekly,
-    stars: stars
+    stars: stars,
+    downloads: downloads
   };
 }
 
