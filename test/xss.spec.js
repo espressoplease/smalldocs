@@ -8,7 +8,7 @@ const BASE = 'http://localhost:3000';
  * sanitized HTML that ends up in #_sd_rendered.
  */
 async function loadAndGetHTML(page, markdown) {
-  await page.goto(BASE);
+  await page.goto(BASE + '/docs');
   await page.waitForSelector('#_sd_rendered');
   await page.evaluate((md) => window.SDocs.loadText(md), markdown);
   return page.locator('#_sd_rendered').innerHTML();
@@ -88,7 +88,7 @@ test('strips object/embed tags', async ({ page }) => {
 
 test('no script actually executes during render', async ({ page }) => {
   // Set a sentinel — if any XSS fires, it sets window.__xss
-  await page.goto(BASE);
+  await page.goto(BASE + '/docs');
   await page.waitForSelector('#_sd_rendered');
   await page.evaluate(() => { window.__xss = false; });
 
