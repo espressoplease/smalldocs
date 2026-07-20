@@ -32,6 +32,10 @@ window.SDocs = {
   // Sync flags
   _syncing: false,
   _isDefaultState: true,
+  // Set when a `#md=` payload would not decode (usually a truncated link).
+  // While it is set, updateHash leaves the URL alone so the bytes that did
+  // arrive survive for diagnosis. loadText clears it.
+  _hashDecodeFailed: false,
   _hashTimer: null,
   _rawSyncTimer: null,
   _writeSyncTimer: null,

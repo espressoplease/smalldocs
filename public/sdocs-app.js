@@ -1110,9 +1110,34 @@ function setStatus(msg) {
   document.getElementById('_sd_status-text').textContent = msg;
 }
 
+// A `#md=` payload that will not decode. The document is not recoverable from
+// here, so the job is to say what happened and name the way out, rather than
+// render an empty page that reads as an empty document.
+function showHashDecodeError(mdParam) {
+  setStatus('Could not read this link');
+  if (!S.renderedEl) return;
+  var received = String(mdParam.length).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  S.renderedEl.innerHTML =
+    '<div class="sdoc-load-error">'
+    + '<h2>This link is incomplete</h2>'
+    + '<p>A SmallDoc carries its whole document inside the link. Only part of '
+    + 'this one arrived, so it could not be decoded (' + received
+    + ' characters received).</p>'
+    + '<p>If you opened this with the <code>sdoc</code> CLI, run '
+    + '<code>sdoc upgrade</code> and try again. The handoff from a command line '
+    + 'to an already-running browser truncates URLs over 32 KB without '
+    + 'reporting it, and recent CLI versions route long documents around that '
+    + 'limit. <code>sdoc share &lt;file&gt;</code> also avoids it, by producing '
+    + 'a short link.</p>'
+    + '</div>';
+}
+
 // ── Load content ──────────────────────────────────
 
 function loadText(text, filename) {
+  // A real document is arriving, so whatever the previous hash failed to
+  // decode no longer matters: let updateHash write the URL again.
+  S._hashDecodeFailed = false;
   var parsed = SDocYaml.parseFrontMatter(text);
   S.currentMeta = parsed.meta;
   S.currentBody = parsed.body;
@@ -1381,8 +1406,19 @@ function normalizedBasePath() {
 var PRESERVED_HASH_PARAMS = ['present'];
 
 function updateHash() {
+  // The hash we were handed did not decode. Serializing the empty document
+  // over it would erase the only copy of what actually arrived, a few hundred
+  // milliseconds after the failure and before anyone can read the address bar.
+  // loadText clears the flag as soon as a real document arrives.
+  //
+  // Checked twice on purpose: resetAllStyles runs BEFORE the decode is
+  // attempted and schedules a write, so the flag is set while that write is
+  // already pending. The outer check stops new writes, the inner one stops the
+  // pending write that was queued before we knew the load had failed.
+  if (S._hashDecodeFailed) { clearTimeout(S._hashTimer); return; }
   clearTimeout(S._hashTimer);
   S._hashTimer = setTimeout(async function() {
+    if (S._hashDecodeFailed) return;
     var existing = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     var preserved = {};
     for (var i = 0; i < PRESERVED_HASH_PARAMS.length; i++) {
@@ -1967,7 +2003,14 @@ async function loadFromHash() {
       maybeAutoExpandCodewalk();
       maybeAutoExpandCodeFile();
     } catch (e) {
+      // Almost always a truncated link: the whole document rides in the hash,
+      // and the OS handoff between a CLI and an already-running browser has a
+      // 32 KB ceiling that neither side reports (see openBrowser in
+      // cli/lib/io.js). Say so instead of rendering a blank page that looks
+      // deliberate, and stop updateHash from overwriting what did arrive.
+      S._hashDecodeFailed = true;
       console.warn('sdocs-dev: could not decode hash', e);
+      showHashDecodeError(mdParam);
     }
   }
 
