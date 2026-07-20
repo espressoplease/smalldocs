@@ -1,7 +1,10 @@
 // CLI I/O helpers: argv parsing, content reading, browser opening.
 
-const fs   = require('fs');
-const path = require('path');
+const fs     = require('fs');
+const os     = require('os');
+const path   = require('path');
+const crypto = require('crypto');
+const { pathToFileURL } = require('url');
 const { execFileSync } = require('child_process');
 const { transcludeCells } = require('./cells-transclude');
 const { isWrappedFile, wrapForDisplay } = require('./file-wrap');
@@ -236,12 +239,91 @@ function readCodewalkContent(files) {
   return { body: parts.join('\n'), files: tabs };
 }
 
+// ── Long-URL handoff ────────────────────────────────
+//
+// A document travels in the URL hash, so a large file means a large URL, and
+// the OS handoff has a hard ceiling that neither side reports.
+//
+// On Linux, when Chrome is ALREADY RUNNING, the process `xdg-open` starts does
+// not parse its own argv. It forwards the command line to the running instance
+// over the process-singleton socket as `START \0 <cwd> \0 <argv0> \0 <url>`.
+// Chromium reads that into a fixed buffer (`kMaxMessageLength = 32 * 1024` in
+// chrome/browser/process_singleton_posix.cc), splits whatever fits on \0, and
+// opens the result. Nothing checks the length on either side, so a longer URL
+// arrives truncated and the browser loads a corrupt link. Windows has the same
+// wall from a different direction: `cmd /c start` caps the command line at
+// 32,767 characters. A cold browser start is fine on both, which is what makes
+// this look intermittent.
+//
+// Above the budget, hand the browser a short `file://` URL whose only job is to
+// redirect to the real one. The hash then never passes through the OS handoff.
+// Nothing is uploaded and no local server is involved.
+const OS_HANDOFF_LIMIT = 32 * 1024;
+// cwd, argv0 and the delimiters share the same buffer as the URL. 1 KB covers
+// a deep working directory with room to spare; being early costs one temp file.
+const OS_HANDOFF_HEADROOM = 1024;
+const HOP_DIR = path.join(os.homedir(), '.sdocs', 'open');
+const HOP_MAX_AGE_MS = 5 * 60 * 1000;
+
+function directUrlBudget(cwd) {
+  return OS_HANDOFF_LIMIT - OS_HANDOFF_HEADROOM
+    - Buffer.byteLength(cwd === undefined ? process.cwd() : cwd);
+}
+
+function needsHopFile(url, cwd) {
+  return Buffer.byteLength(url) > directUrlBudget(cwd);
+}
+
+// The redirect page. `location.replace` keeps the hop out of the back button,
+// and the hash survives because the navigation happens inside the browser.
+// A base64url payload cannot contain `<`, but escaping it keeps the page safe
+// if the URL shape ever changes.
+function buildHopHtml(url) {
+  const literal = JSON.stringify(url).replace(/</g, '\\u003c');
+  return '<!doctype html>\n'
+    + '<meta charset="utf-8">\n'
+    + '<title>SmallDocs</title>\n'
+    + `<script>location.replace(${literal})</script>\n`
+    + '<p>Opening SmallDocs...</p>\n';
+}
+
+// Old hop files are dead as soon as the browser has followed them, but there
+// is no signal for that, so sweep on the way past instead.
+function pruneHopFiles(now) {
+  const cutoff = (now === undefined ? Date.now() : now) - HOP_MAX_AGE_MS;
+  let names;
+  try { names = fs.readdirSync(HOP_DIR); } catch { return; }
+  for (const name of names) {
+    if (!/^open-[0-9a-f]+\.html$/.test(name)) continue;
+    const full = path.join(HOP_DIR, name);
+    try {
+      if (fs.statSync(full).mtimeMs < cutoff) fs.unlinkSync(full);
+    } catch { /* another run got there first */ }
+  }
+}
+
+function writeHopFile(url) {
+  fs.mkdirSync(HOP_DIR, { recursive: true, mode: 0o700 });
+  pruneHopFiles();
+  const file = path.join(HOP_DIR, `open-${crypto.randomBytes(8).toString('hex')}.html`);
+  fs.writeFileSync(file, buildHopHtml(url), { mode: 0o600 });
+  return file;
+}
+
 function openBrowser(url) {
+  // On failure, fall through to the direct URL: that is today's behaviour, so
+  // a hop file that cannot be written never makes things worse than they were.
+  let target = url;
+  if (needsHopFile(url)) {
+    try { target = pathToFileURL(writeHopFile(url)).href; } catch { target = url; }
+  }
   try {
-    if (process.platform === 'darwin')      execFileSync('open', [url]);
-    else if (process.platform === 'win32')  execFileSync('cmd', ['/c', 'start', '', url]);
-    else                                    execFileSync('xdg-open', [url]);
+    if (process.platform === 'darwin')      execFileSync('open', [target]);
+    else if (process.platform === 'win32')  execFileSync('cmd', ['/c', 'start', '', target]);
+    else                                    execFileSync('xdg-open', [target]);
   } catch {
+    // Print the real URL, never the hop file: this line is for the user to
+    // paste into a browser, and the address bar has no 32 KB limit.
     console.log(`Open in browser: ${url}`);
   }
 }
@@ -252,4 +334,7 @@ module.exports = {
   readContent,
   readCodewalkContent,
   openBrowser,
+  directUrlBudget,
+  needsHopFile,
+  buildHopHtml,
 };

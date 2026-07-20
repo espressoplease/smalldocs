@@ -163,6 +163,11 @@ module.exports = {
   // CLI parsing
   parseArgs: io.parseArgs,
 
+  // Long-URL handoff (see openBrowser in cli/lib/io.js)
+  directUrlBudget: io.directUrlBudget,
+  needsHopFile:    io.needsHopFile,
+  buildHopHtml:    io.buildHopHtml,
+
   // Agent block (pure functions and constants)
   AGENT_BLOCK_VERSION:  agentBlock.AGENT_BLOCK_VERSION,
   AGENT_BLOCK_BODY:     agentBlock.AGENT_BLOCK_BODY,

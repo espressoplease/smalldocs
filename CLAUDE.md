@@ -157,6 +157,7 @@ All CLI-side state lives under `~/.sdocs/`:
 - `styles.yaml` - user-editable default styles
 - `update-check.json` - daily npm version cache
 - `setup.json` - agent setup tracking. Schema v1 fields (added in 1.5.0): `schemaVersion`, `setupCompleted`, `writtenTo`, `declined`, `autoRefreshAgentFiles`, `autoInstallUpdates`, `lastRunVersion`. Pre-1.5.0 state files are migrated transparently on first read by `migrateSetupState()`.
+- `open/` - redirect pages for documents too large to hand to the browser on a command line. A document rides in the URL hash, and the OS handoff to an already-running browser truncates the command line without reporting it: 32 KB in Chromium's process singleton, 32,767 characters in Windows `cmd /c start`. Over that budget, `openBrowser()` in `cli/lib/io.js` writes `open-<random>.html` here (mode 0600) and opens a short `file://` URL that redirects to the real one, so the hash never passes through the handoff. Each run prunes hop files older than five minutes. If the write fails, the direct URL is used, which is the pre-1.16 behaviour.
 
 When the CLI was installed via the install script (see "Installer" below), `~/.sdocs/` also holds `cli/` (the unpacked npm tarball) and `bin/sdoc` (a symlink onto `cli/bin/sdocs-dev.js`).
 
