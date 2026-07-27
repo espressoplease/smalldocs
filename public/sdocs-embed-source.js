@@ -72,6 +72,7 @@
     this._saveTimer = null;
     this._pendingFormAck = null;
     this._formAcks = {};
+    this._dirty = false;
     this._onWindowMessage = this._onWindowMessage.bind(this);
     this._onFormSubmit = this._onFormSubmit.bind(this);
     this._resolveLoad = null;
@@ -102,6 +103,13 @@
       S.setStatus(label, kind);
     }
     if (S.renderFileInfoCard) S.renderFileInfoCard();
+  };
+
+  EmbedSource.prototype._setDirty = function (dirty) {
+    dirty = dirty === true;
+    if (this._dirty === dirty) return;
+    this._dirty = dirty;
+    this._post('dirty-state', { dirty: dirty });
   };
 
   EmbedSource.prototype.load = function () {
@@ -162,6 +170,7 @@
     var mode = allowedModes.indexOf(payload.mode) >= 0 ? payload.mode : 'read';
     S.setMode(mode, true);
     this._lastAcknowledgedDocument = fullDocument();
+    this._setDirty(false);
     this._setStatus('saved', 'Loaded from host');
     if (this._resolveLoad) {
       this._resolveLoad();
@@ -176,6 +185,7 @@
 
   EmbedSource.prototype._queueSave = function (content) {
     this._lastQueuedDocument = content;
+    this._setDirty(true);
     if (this._saveTimer) clearTimeout(this._saveTimer);
     var self = this;
     this._saveTimer = setTimeout(function () {
@@ -213,6 +223,10 @@
       this._lastAcknowledgedDocument = fullDocument();
     }
     this._setStatus('saved', this._lastQueuedDocument == null ? 'Saved' : 'Saving...');
+    this._setDirty(
+      this._lastQueuedDocument != null ||
+      this._lastAcknowledgedSequence < this._sequence
+    );
 
     var ack = this._formAcks[sequence];
     if (ack) {
@@ -230,6 +244,7 @@
   };
 
   EmbedSource.prototype._onSaveConflict = function () {
+    this._setDirty(true);
     this._setStatus('conflict', 'The document changed outside this editor.');
   };
 
@@ -237,6 +252,7 @@
     var message = payload && typeof payload.message === 'string'
       ? payload.message
       : 'Could not save changes.';
+    this._setDirty(true);
     this._setStatus('error', message);
   };
 
@@ -247,6 +263,8 @@
     S.loadText(content, boundedString(payload.file || this.cfg.file || 'untitled.md', 512) || 'untitled.md');
     this._lastQueuedDocument = null;
     this._lastAcknowledgedDocument = fullDocument();
+    this._lastAcknowledgedSequence = this._sequence;
+    this._setDirty(false);
     this._setStatus('saved', 'Reloaded from host');
   };
 
@@ -347,6 +365,7 @@
   EmbedSource.prototype._onSubmitResult = function () {
     this._submitting = false;
     this._submitted = true;
+    this._setDirty(false);
     this._setStatus('submitted', 'Review sent');
     document.dispatchEvent(new CustomEvent('sdocs-form-session-ended', { bubbles: true }));
   };

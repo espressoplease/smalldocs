@@ -104,11 +104,28 @@ module.exports = function (harness) {
     assert.strictEqual(source.submitLabel, 'Send review');
 
     source.save('# Updated');
+    const dirty = f.sent[f.sent.length - 1];
+    assert.strictEqual(dirty.type, 'dirty-state');
+    assert.strictEqual(dirty.payload.dirty, true);
     const sequence = source._sendQueuedSave();
     const changed = f.sent[f.sent.length - 1];
     assert.strictEqual(changed.type, 'document-changed');
     assert.strictEqual(changed.payload.sequence, sequence);
     assert.strictEqual(changed.payload.content, '# Updated');
+
+    f.listeners.message({
+      source: f.parent,
+      data: {
+        scope: 'sdocs-embed',
+        version: 1,
+        channel,
+        type: 'save-result',
+        payload: { sequence, content: '# Updated' },
+      },
+    });
+    const clean = f.sent[f.sent.length - 1];
+    assert.strictEqual(clean.type, 'dirty-state');
+    assert.strictEqual(clean.payload.dirty, false);
 
     source.submit();
     const submitted = f.sent[f.sent.length - 1];

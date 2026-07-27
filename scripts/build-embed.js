@@ -14,7 +14,7 @@ html = html.replace('<html lang="en">', '<html lang="en" data-sdocs-embed>');
 html = html.replace(
   '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
   '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
-    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'self\' \'unsafe-inline\' \'wasm-unsafe-eval\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data: blob:; font-src \'self\'; connect-src \'self\'; worker-src \'none\'; frame-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">\n' +
+    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'self\' \'unsafe-inline\' \'wasm-unsafe-eval\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data: blob:; font-src \'self\'; connect-src \'none\'; worker-src \'none\'; frame-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">\n' +
     '<meta name="referrer" content="no-referrer">'
 );
 html = html.replace(
