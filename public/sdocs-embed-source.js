@@ -187,11 +187,9 @@
     this._lastQueuedDocument = content;
     this._setDirty(true);
     if (this._saveTimer) clearTimeout(this._saveTimer);
-    var self = this;
-    this._saveTimer = setTimeout(function () {
-      self._sendQueuedSave();
-    }, 500);
+    this._saveTimer = null;
     this._setStatus('saving', 'Unsaved changes');
+    this._sendQueuedSave();
   };
 
   EmbedSource.prototype._sendQueuedSave = function () {

@@ -104,11 +104,11 @@ module.exports = function (harness) {
     assert.strictEqual(source.submitLabel, 'Send review');
 
     source.save('# Updated');
-    const dirty = f.sent[f.sent.length - 1];
+    const dirty = f.sent.find(message => message.type === 'dirty-state');
     assert.strictEqual(dirty.type, 'dirty-state');
     assert.strictEqual(dirty.payload.dirty, true);
-    const sequence = source._sendQueuedSave();
-    const changed = f.sent[f.sent.length - 1];
+    const changed = f.sent.find(message => message.type === 'document-changed');
+    const sequence = changed.payload.sequence;
     assert.strictEqual(changed.type, 'document-changed');
     assert.strictEqual(changed.payload.sequence, sequence);
     assert.strictEqual(changed.payload.content, '# Updated');
