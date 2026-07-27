@@ -5,6 +5,8 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
+    "build:embed": "node scripts/build-embed.js",
+    "vendor:embed": "node scripts/fetch-embed-assets.js",
     "test": "node test/run.js"
   },
   "author": "Josh Summers",

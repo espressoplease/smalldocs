@@ -38,7 +38,8 @@
 <link rel="stylesheet" href="/public/css/mobile.css">
 <script nonce="__CSP_NONCE__">
   (function(){
-    var t = localStorage.getItem('sdocs-theme');
+    var t = null;
+    try { t = localStorage.getItem('sdocs-theme'); } catch (_) {}
     if (!t) t = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
     if (t === 'dark') document.documentElement.dataset.theme = 'dark';
   })();
@@ -1018,11 +1019,12 @@
 <script nonce="__CSP_NONCE__">
 var APP_VERSION = '__APP_VERSION__';
 var SDOCS_DEV = '__SDOCS_DEV__' === '1';
+var SDOCS_EMBED = document.documentElement.hasAttribute('data-sdocs-embed');
 // Cohort: store the ISO week of first visit for retention tracking.
 // Not a unique ID — groups all visitors who first came the same week.
 // Sentinel value "opt-out" means the user deliberately declined attribution
 // on /analytics; we leave it in place and send an empty cohort to the server.
-try {
+if (!SDOCS_EMBED) try {
   var _cur = localStorage.getItem('sdocs_cohort');
   if (!_cur) {
     var _d = new Date(), _u = new Date(Date.UTC(_d.getUTCFullYear(), _d.getUTCMonth(), _d.getUTCDate()));
@@ -1033,13 +1035,13 @@ try {
     localStorage.setItem('sdocs_cohort', _u.getUTCFullYear() + '-W' + String(_wn).padStart(2, '0'));
   }
 } catch (e) { /* private browsing or storage disabled */ }
-if (SDOCS_DEV && 'serviceWorker' in navigator) {
+if (!SDOCS_EMBED && SDOCS_DEV && 'serviceWorker' in navigator) {
   // Dev mode: unregister any existing SW and clear caches so edits are picked up instantly.
   navigator.serviceWorker.getRegistrations().then(function (regs) {
     regs.forEach(function (r) { r.unregister(); });
   });
   if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
-} else if ('serviceWorker' in navigator && APP_VERSION.indexOf('__') !== 0) {
+} else if (!SDOCS_EMBED && 'serviceWorker' in navigator && APP_VERSION.indexOf('__') !== 0) {
   // Guard: if APP_VERSION is still the literal "__APP_VERSION__" placeholder, a
   // running server is rendering this file without the substitution step (e.g. a
   // stale process that pre-dates the substitution code). Skipping the SW

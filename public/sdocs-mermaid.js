@@ -27,7 +27,9 @@
   var S = window.SDocs;
 
   var MERMAID_VERSION = '10.9.1';
-  var MERMAID_JS = 'https://cdn.jsdelivr.net/npm/mermaid@' + MERMAID_VERSION + '/dist/mermaid.min.js';
+  var MERMAID_JS = S.embedMode
+    ? S.assetUrl('vendor/embed/mermaid/mermaid.min.js')
+    : 'https://cdn.jsdelivr.net/npm/mermaid@' + MERMAID_VERSION + '/dist/mermaid.min.js';
 
   var SOURCE_BYTE_CAP = 64 * 1024;
   var DOC_BLOCK_CAP   = 50;

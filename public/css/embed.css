@@ -1,0 +1,16 @@
+html[data-sdocs-embed] :is(#_sd_discord-banner, #_sd_dp-banner, #_sd_btn-info, #_sd_btn-library, #_sd_btn-new) {
+  display: none !important;
+}
+
+html[data-sdocs-embed] :is(#_sd_rendered, #_sd_write) {
+  width: 100%;
+  max-width: none;
+  padding-left: clamp(28px, 5vw, 80px);
+  padding-right: clamp(28px, 5vw, 80px);
+}
+
+html[data-sdocs-embed] #_sd_sdocs-file-info {
+  max-width: none;
+  margin-left: clamp(28px, 5vw, 80px);
+  margin-right: clamp(28px, 5vw, 80px);
+}

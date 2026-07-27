@@ -24,6 +24,17 @@
 
 var S = SDocs;
 
+function activeDocumentSource() {
+  return S.activeSource || S.bridge || null;
+}
+
+function requestSourceSave(reason) {
+  var source = activeDocumentSource();
+  if (!source || !source.capabilities || !source.capabilities.canSave ||
+      typeof source.save !== 'function') return;
+  source.save(serializeCurrentDocument(), { reason: reason || 'edit' });
+}
+
 // ── SVG icons ──────────────────────────────────
 
 var LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
@@ -128,10 +139,7 @@ function bridgeApplyTagChange(filePath, opts) {
   }
   if (next.length) S.currentMeta.tags = next;
   else delete S.currentMeta.tags;
-  // Hand off to the Bridge - it serializes meta + body and autosaves.
-  if (S.bridge && typeof S.bridge._queueSave === 'function') {
-    S.bridge._queueSave();
-  }
+  requestSourceSave('tags');
   // Best-effort: ask the library agent to re-index so the search list
   // is up-to-date even before the next scheduled scan. The Bridge save
   // is debounced 500ms; wait a beat longer so the reindex picks up the
@@ -746,6 +754,7 @@ function shortenErrorMessage(code) {
 // staleness check uses. The reusable core behind both the prose file-info card's
 // Generate button and the code viewer's. Returns { url, id }.
 async function generateShortLink() {
+  if (S.disableShortLinks) throw new Error('disabled');
   var result = await shortenCurrentDocument();
   S.shortUrl = result.url;
   S.shortLinkId = result.id;
@@ -876,7 +885,7 @@ function renderFileInfoCard() {
   // the row stays hidden. If the bridge connects then drops, the row sticks
   // around in the "Connection lost" state so the user knows their typing
   // isn't reaching disk any more.
-  var bridge = S.bridge || null;
+  var bridge = activeDocumentSource();
   var bridgeFile = bridge && bridge.cfg && bridge.cfg.file ? bridge.cfg.file : null;
 
   var hasDoc = !!(meta.file || S.currentBody || (S.currentMeta && Object.keys(S.currentMeta).length));
@@ -899,6 +908,7 @@ function renderFileInfoCard() {
   // right after Filename, so the row doesn't jump around as the user moves
   // between the intro / shorten / shortened states.
   var slots = [];
+  var allowShortLinks = !S.disableShortLinks;
   if (meta.file || bridgeFile) {
     // When the bridge is live and the Edits row isn't showing (read /
     // style / export / info), drop a small "live" chip next to the
@@ -915,7 +925,7 @@ function renderFileInfoCard() {
   // default-state guard below suppresses for these pages anyway). The link
   // points at the canonical production URL so it's shareable from anywhere.
   var blogMatch = /^\/blogs\/[A-Za-z0-9_-]+$/.test(location.pathname || '');
-  if (blogMatch) {
+  if (allowShortLinks && blogMatch) {
     slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Short URL', 'https://smalldocs.org' + location.pathname, false, true) });
   }
 
@@ -923,7 +933,7 @@ function renderFileInfoCard() {
   // /legal landing pages). Shortening marketing copy isn't useful and
   // clutters the info card. The flag flips false as soon as the user drops
   // a file, opens a shared link, or edits anything.
-  if (hasDoc && !S._isDefaultState) {
+  if (allowShortLinks && hasDoc && !S._isDefaultState) {
     slots.push(S.shortUrl
       ? { type: 'data', html: dataRowHtml('shortUrl', 'Short URL', S.shortUrl, false, true) }
       : { type: 'intro' });
@@ -940,7 +950,6 @@ function renderFileInfoCard() {
   var tagList = (window.SDocLibraryTags && window.SDocLibraryTags.mergeTags)
     ? window.SDocLibraryTags.mergeTags(fmTags)
     : fmTags.slice();
-  var bridge = S.bridge || null;
   var canEditTags = !!(bridge && bridge._connected && bridge.capabilities && bridge.capabilities.canSave);
   // Show the row when there are tags to display, or when a live bridge makes
   // them editable. With no tags and no live bridge there is nothing to show
@@ -958,7 +967,12 @@ function renderFileInfoCard() {
   // user is here to respond to, so it should land first when scanning the
   // card. Disappears once submitted.
   if (bridge && bridge.message && bridge.capabilities && bridge.capabilities.canSubmit && !bridge._submitted) {
-    slots.push({ type: 'request', message: bridge.message });
+    slots.push({
+      type: 'request',
+      message: bridge.message,
+      label: bridge.submitLabel || 'Done',
+      submitting: !!bridge._submitting,
+    });
   }
 
   // Edits sits at the end so every other row is settled first. Only shown
@@ -999,9 +1013,12 @@ function renderFileInfoCard() {
       rqRow.innerHTML = ''
         + '<span class="fic-label">Agent</span>'
         + '<span class="fic-value fic-request-text">' + escapeHtml(slot.message) + '</span>'
-        + '<button class="fic-request-done" type="button" aria-label="Submit and return control to the agent">Done</button>';
+        + '<button class="fic-request-done" type="button" aria-label="Submit and return control to the agent"'
+        + (slot.submitting ? ' disabled' : '') + '>'
+        + escapeHtml(slot.submitting ? 'Sending...' : slot.label) + '</button>';
       rqRow.querySelector('.fic-request-done').addEventListener('click', function () {
-        if (S.bridge && typeof S.bridge.submit === 'function') S.bridge.submit();
+        var source = activeDocumentSource();
+        if (source && typeof source.submit === 'function') source.submit();
       });
       rowsEl.appendChild(rqRow);
     } else if (slot.type === 'tags') {
@@ -1487,6 +1504,7 @@ function syncAll(source) {
     // Now that this source's edit has been applied to the live document,
     // decide whether a loaded/minted short link still matches it.
     reconcileShortLink(source);
+    if (source !== 'theme' && source !== 'load') requestSourceSave(source);
   } finally {
     S._syncing = false;
     if (S.applyChromeTint) S.applyChromeTint();
@@ -1592,7 +1610,7 @@ function setMode(mode, skipHash) {
   // The Edits row in the file-info card only shows in editing modes, so a
   // mode change needs to re-render the card. Bridge-less sessions skip the
   // call — there's no row whose visibility depends on this.
-  if (S.bridge) renderFileInfoCard();
+  if (activeDocumentSource()) renderFileInfoCard();
 
   if (!skipHash) updateHash();
 }
@@ -1812,7 +1830,9 @@ var _defaultMetaEl = document.querySelector('meta[name="sdocs-default-md"]');
 var _defaultMdPath = _defaultMetaEl && _defaultMetaEl.content;
 // Guard against the server-side template placeholder leaking through
 // (e.g. a stale service-worker cache serving an older index.html).
-if (!_defaultMdPath || _defaultMdPath.charAt(0) !== '/') _defaultMdPath = '/public/sdoc.md';
+if (!_defaultMdPath || _defaultMdPath.indexOf('__') === 0) {
+  _defaultMdPath = S.assetUrl('sdoc.md');
+}
 var _defaultReady = fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
 
 // ── Register on SDocs for cross-module access ──────────
@@ -1848,6 +1868,7 @@ function startNewDocument() {
 }
 
 S.syncAll = syncAll;
+S.serializeCurrentDocument = serializeCurrentDocument;
 S.setStatus = setStatus;
 S.setMode = setMode;
 S.render = render;
@@ -1888,7 +1909,8 @@ S.shortLink = {
 // with the file on disk, so the paths still describe the live content.
 S.invalidateLocalMeta = function() {
   if (S._loadingDocument) return;
-  if (S.bridge && S.bridge._connected) return;
+  var source = activeDocumentSource();
+  if (source && source._connected) return;
   if (!S.localMeta || Object.keys(S.localMeta).length === 0) return;
   S.localMeta = {};
   renderFileInfoCard();
@@ -2165,6 +2187,7 @@ S.Sources.register({
   await _defaultReady;
   var source = S.Sources.select();
   if (source) {
+    S.activeSource = source;
     await source.load();
   }
 }());
@@ -2218,7 +2241,8 @@ var _origSetMode = setMode;
 // live socket connects can't be silently discarded when the live document loads.
 var _EDIT_MODES = { write: 1, raw: 1, comment: 1 };
 setMode = function(mode, skipHash) {
-  if (_EDIT_MODES[mode] && S.bridge && S.bridge._staticReadOnly) {
+  var source = activeDocumentSource();
+  if (_EDIT_MODES[mode] && source && source._staticReadOnly) {
     mode = 'read';
   }
   _origSetMode(mode, skipHash);

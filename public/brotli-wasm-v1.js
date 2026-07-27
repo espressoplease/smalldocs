@@ -430,9 +430,14 @@ async function load(module, imports) {
     }
 }
 
+var brotliScriptUrl = document.currentScript && document.currentScript.src;
+var defaultWasmUrl = brotliScriptUrl
+    ? new URL('brotli_wasm_bg.wasm', brotliScriptUrl).href
+    : '/public/brotli_wasm_bg.wasm';
+
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = '/public/brotli_wasm_bg.wasm';
+        input = defaultWasmUrl;
     }
     const imports = {};
     imports.wbg = {};
@@ -504,7 +509,7 @@ async function init(input) {
 
 
 // Auto-init: fetch WASM from same directory
-var wasmUrl = '/public/brotli_wasm_bg.wasm';
+var wasmUrl = defaultWasmUrl;
 window.BrotliWasm = {
   ready: init(wasmUrl).then(function() {
     window.BrotliWasm.compress = compress;

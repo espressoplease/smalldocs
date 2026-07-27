@@ -3,10 +3,18 @@
 (function () {
 'use strict';
 
+var stateScript = document.currentScript;
+var assetBase = stateScript && stateScript.src
+  ? new URL('.', stateScript.src).href
+  : new URL('/public/', window.location.href).href;
+
 window.SDocs = {
   // Document state
   currentBody: '',
   currentMeta: {},
+  activeSource: null,
+  assetBase: assetBase,
+  embedMode: document.documentElement.hasAttribute('data-sdocs-embed'),
 
   // Runtime-only metadata (path, fullPath) passed via &local= URL param.
   // Stripped from the URL on load so it isn't in anything the user copies/shares.
@@ -44,6 +52,10 @@ window.SDocs = {
   //           applyStylesFromMeta, resetAllStyles, STANDALONE_COLOR_IDS
   // App: syncAll, setStatus, setMode, render, loadText
   // Write: enterWriteMode, exitWriteMode
+};
+
+SDocs.assetUrl = function(path) {
+  return new URL(String(path || '').replace(/^\/+/, ''), SDocs.assetBase).href;
 };
 
 // Backwards compat: S.overriddenColors delegates to active theme's set

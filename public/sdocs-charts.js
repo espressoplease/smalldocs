@@ -18,8 +18,12 @@
   var chartJsLoaded = false;
   var chartJsLoading = false;
   var pendingCallbacks = [];
-  var CDN_CHART = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
-  var CDN_LABELS = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js';
+  var CDN_CHART = S.embedMode
+    ? S.assetUrl('vendor/embed/chart/chart.umd.min.js')
+    : 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
+  var CDN_LABELS = S.embedMode
+    ? S.assetUrl('vendor/embed/chart/chartjs-plugin-datalabels.min.js')
+    : 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2/dist/chartjs-plugin-datalabels.min.js';
   var activeCharts = [];
 
   // ── Fallback palette (used when no accent is set) ──

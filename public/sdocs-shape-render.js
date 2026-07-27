@@ -1116,7 +1116,7 @@ function loadIconBundle() {
     }
   };
   var script = document.createElement('script');
-  script.src = '/public/sdocs-icons-data.js';
+  script.src = window.SDocs.assetUrl('sdocs-icons-data.js');
   script.onerror = function () {
     iconBundleStatus = 'failed';
     // Mark any pending placeholders so they don't keep waiting; the
@@ -2152,7 +2152,9 @@ function injectChartCss(shadow) {
 // <link> inside the shadow root makes the rules apply to katex output
 // that lives there. The browser de-dupes the underlying fetch across
 // many shadow roots that reference the same href.
-var KATEX_CSS_URL = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+var KATEX_CSS_URL = window.SDocs && window.SDocs.embedMode
+  ? window.SDocs.assetUrl('vendor/embed/katex/katex.min.css')
+  : 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
 function injectKatexCss(shadow) {
   if (shadow._katexCssInjected) return;
   shadow._katexCssInjected = true;

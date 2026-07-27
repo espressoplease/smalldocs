@@ -24,7 +24,9 @@
   // the mermaid/charts modules already rely on). The @highlightjs/cdn-assets
   // package mirrors the cdnjs layout: /highlight.min.js + /languages/<lang>.min.js.
   var HLJS_VERSION = '11.11.1';
-  var CDN_BASE = 'https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@' + HLJS_VERSION;
+  var CDN_BASE = S.embedMode
+    ? S.assetUrl('vendor/embed/highlight').replace(/\/$/, '')
+    : 'https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@' + HLJS_VERSION;
   var CORE_JS = CDN_BASE + '/highlight.min.js';
 
   // Blocks owned by other processors. Those modules replace the <pre> with a

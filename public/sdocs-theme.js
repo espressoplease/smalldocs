@@ -18,6 +18,7 @@ const loadedFonts = new Set(['Inter']);
 
 function loadGoogleFont(family) {
   if (loadedFonts.has(family)) return;
+  if (S.embedMode) return;
   loadedFonts.add(family);
   const link = document.createElement('link');
   link.rel = 'stylesheet';
@@ -93,7 +94,8 @@ function getColorDefault() {
 }
 
 function getPreferredTheme() {
-  const stored = localStorage.getItem('sdocs-theme');
+  var stored = null;
+  try { stored = localStorage.getItem('sdocs-theme'); } catch (_) {}
   if (stored === 'dark' || stored === 'light') return stored;
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
@@ -109,7 +111,7 @@ function updateThemeIcon(theme) {
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   S.activeTheme = theme;
-  localStorage.setItem('sdocs-theme', theme);
+  try { localStorage.setItem('sdocs-theme', theme); } catch (_) {}
   updateThemeIcon(theme);
   if (S.applyChromeTint) S.applyChromeTint();
 }
@@ -261,7 +263,9 @@ var initTheme = getPreferredTheme();
 applyTheme(initTheme);
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-  if (!localStorage.getItem('sdocs-theme')) {
+  var stored = null;
+  try { stored = localStorage.getItem('sdocs-theme'); } catch (_) {}
+  if (!stored) {
     switchThemeAndUpdate(e.matches ? 'dark' : 'light');
   }
 });

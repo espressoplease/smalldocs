@@ -19,6 +19,15 @@ if (typeof window === 'undefined') return;
 var S = window.SDocs;
 if (!S) return;
 
+function activeSource() {
+  return S.activeSource || S.bridge || null;
+}
+
+function usesDraftFormButtons() {
+  var source = activeSource();
+  return !!(source && source.formSubmitMode === 'draft');
+}
+
 var FB = window.SDocFormBlock;
 if (!FB) {
   // Module-load order safety: the shared form-block module must be in
@@ -92,6 +101,8 @@ function renderForm(host, block) {
   var token = FB.formRevisionToken(block.fields, block.buttons);
   var form = document.createElement('form');
   form.className = 'sdoc-form';
+  form._sdocFormBlock = block;
+  form._sdocFormToken = token;
   form.setAttribute('data-form-id', block.id);
   form.setAttribute('data-form-token', token);
   form.setAttribute('novalidate', 'true');
@@ -299,6 +310,7 @@ function renderButton(buttonSpec, block, form, token) {
   btn.type = 'button';
   btn.className = 'sdoc-form-submit';
   var originalLabel = String(buttonSpec.label || buttonSpec.name);
+  if (usesDraftFormButtons() && buttonSpec.final) originalLabel = 'Save draft answer';
   btn.textContent = originalLabel;
   btn.setAttribute('data-button-name', buttonSpec.name);
   btn.setAttribute('data-button-label', originalLabel);
@@ -306,7 +318,9 @@ function renderButton(buttonSpec, block, form, token) {
   btn.addEventListener('click', function () {
     if (btn.disabled) return;
     setButtonState(btn, 'sending');
-    handleSubmit(form, block, buttonSpec, token);
+    if (!handleSubmit(form, block, buttonSpec, token)) {
+      setButtonState(btn, 'idle');
+    }
   });
   wrap.appendChild(btn);
 
@@ -321,6 +335,9 @@ function renderButton(buttonSpec, block, form, token) {
 function buttonHintText(buttonSpec, block) {
   if (buttonSpec.help && typeof buttonSpec.help === 'string') {
     return buttonSpec.help;
+  }
+  if (usesDraftFormButtons()) {
+    return 'Saves this answer as a draft. Use the review action when all notes are ready.';
   }
   if (buttonSpec.final) {
     return 'Submitting hands off to the agent and ends this session.';
@@ -340,11 +357,11 @@ function setButtonState(btn, state) {
   if (state === 'sending') {
     btn.classList.add('is-sending');
     btn.disabled = true;
-    btn.textContent = 'Sending…';
+    btn.textContent = usesDraftFormButtons() ? 'Saving…' : 'Sending…';
   } else if (state === 'sent') {
     btn.classList.add('is-sent');
     btn.disabled = true; // briefly, until idle revert
-    btn.textContent = '✓ Sent';
+    btn.textContent = usesDraftFormButtons() ? '✓ Saved' : '✓ Sent';
   } else {
     btn.disabled = false;
     btn.textContent = label;
@@ -378,7 +395,7 @@ function handleSubmit(form, block, buttonSpec, token) {
     var fSel = '[data-field="' + cssAttr(firstInvalid) + '"]';
     var first = form.querySelector(fSel + ' input, ' + fSel + ' textarea, ' + fSel + ' select');
     if (first) first.focus();
-    return;
+    return false;
   }
 
   // Dispatch a custom event the bridge listens for. The bridge owns the
@@ -409,6 +426,56 @@ function handleSubmit(form, block, buttonSpec, token) {
     };
   }
   form.dispatchEvent(ev);
+  return true;
+}
+
+function collectFormValues(form, block, opts) {
+  opts = opts || {};
+  block = block || form._sdocFormBlock;
+  if (!block) return null;
+  var values = {};
+  var firstInvalid = null;
+  for (var i = 0; i < block.fields.length; i++) {
+    var field = block.fields[i];
+    var value = readField(form, field);
+    if (opts.validateRequired && field.required && isEmptyValue(value)) {
+      markFieldError(form, field.name, (field.label || field.name) + ' is required');
+      if (!firstInvalid) firstInvalid = field.name;
+    } else {
+      clearFieldError(form, field.name);
+    }
+    values[field.name] = value;
+  }
+  return {
+    formId: block.id,
+    token: form._sdocFormToken || form.getAttribute('data-form-token') || '',
+    values: values,
+    firstInvalid: firstInvalid,
+  };
+}
+
+function collectAllForms(opts) {
+  opts = opts || {};
+  var forms = document.querySelectorAll('.sdoc-form');
+  var out = [];
+  var firstInvalid = null;
+  for (var i = 0; i < forms.length; i++) {
+    var item = collectFormValues(forms[i], forms[i]._sdocFormBlock, opts);
+    if (!item) continue;
+    if (item.firstInvalid && !firstInvalid) {
+      firstInvalid = { form: forms[i], field: item.firstInvalid };
+    }
+    delete item.firstInvalid;
+    out.push(item);
+  }
+  if (firstInvalid) {
+    var selector = '[data-field="' + cssAttr(firstInvalid.field) + '"]';
+    var control = firstInvalid.form.querySelector(
+      selector + ' input, ' + selector + ' textarea, ' + selector + ' select'
+    );
+    if (control) control.focus();
+  }
+  return { ok: !firstInvalid, forms: out };
 }
 
 function readField(form, field) {
@@ -493,7 +560,18 @@ function cssAttr(s) {
 document.addEventListener('sdocs-form-submitted', function (e) {
   var d = (e && e.detail) || {};
   if (!d.buttonName) return;
-  var btn = document.querySelector('.sdoc-form button[data-button-name="' + cssAttr(d.buttonName) + '"]');
+  var btn = null;
+  if (d.formId) {
+    var formSelector = '.sdoc-form[data-form-id="' + cssAttr(d.formId) + '"]';
+    if (d.token) formSelector += '[data-form-token="' + cssAttr(d.token) + '"]';
+    var form = document.querySelector(formSelector);
+    if (form) {
+      btn = form.querySelector('button[data-button-name="' + cssAttr(d.buttonName) + '"]');
+    }
+  }
+  if (!btn) {
+    btn = document.querySelector('.sdoc-form button[data-button-name="' + cssAttr(d.buttonName) + '"]');
+  }
   if (!btn) return;
   setButtonState(btn, 'sent');
   // Drop a persistent "Saved to <file> · <time>" line under this button.
@@ -551,6 +629,13 @@ function lockForm(form) {
 // ─── Expose for orchestrator ──────────────────────────────────
 
 S.renderForms = renderForms;
-S.formsInternals = { mountForm: mountForm, setButtonState: setButtonState, lockForm: lockForm };
+S.formsInternals = {
+  mountForm: mountForm,
+  setButtonState: setButtonState,
+  lockForm: lockForm,
+  collectAll: collectAllForms,
+};
+window.SDocForms = window.SDocForms || {};
+window.SDocForms.collectAll = collectAllForms;
 
 }());

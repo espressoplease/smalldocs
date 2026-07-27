@@ -202,6 +202,7 @@
     this._pendingExternal = null; // queued external content when user is dirty
     this._writeId = 0;
     this._saveTimer = null;
+    this._pendingDocument = null;
     this._pingTimer = null;
     this._submitted = false;
     this._fileReqs = {};          // pending readFile() promises, keyed by id
@@ -239,10 +240,6 @@
       if (S.setStatus) S.setStatus('Bridge editor needs Chrome or Firefox.', 'error');
       return Promise.resolve();
     }
-    // Install hooks while capabilities are still the writable default, BEFORE the
-    // snapshot render flips canSave off - otherwise the autosave hook would bail
-    // and live edits after `hello` would never persist.
-    this._installAutoSaveHook();
     this._installFormSubmitHook();
     // Instant read-only first paint from the embedded snapshot (no-op if there's
     // no `md=`, e.g. a wrapped file - those keep the old connect-or-blank path).
@@ -304,22 +301,6 @@
     S._bridgeFormSubmitHooked = true;
   };
 
-  // Wrap S.syncAll once so every edit (write / raw / controls / comment)
-  // bounces through the bridge. Theme swaps are viewer-side, not document
-  // changes — skip them.
-  BridgeSource.prototype._installAutoSaveHook = function () {
-    if (!this.capabilities.canSave) return;
-    if (S._bridgeAutosaveHooked) return;
-    var self = this;
-    var orig = S.syncAll;
-    S.syncAll = function (source) {
-      var ret = orig.apply(this, arguments);
-      if (source !== 'theme' && source !== 'load') self._queueSave();
-      return ret;
-    };
-    S._bridgeAutosaveHooked = true;
-  };
-
   // Current full document, the same shape we write to disk.
   //
   // We deliberately *don't* take S.rawEl.value verbatim: the live raw textarea
@@ -344,8 +325,9 @@
     return SDocYaml.serializeFrontMatter(meta) + '\n' + body;
   };
 
-  BridgeSource.prototype._queueSave = function () {
+  BridgeSource.prototype._queueSave = function (content) {
     if (!this.capabilities.canSave) return;
+    if (typeof content === 'string') this._pendingDocument = content;
     if (this._saveTimer) clearTimeout(this._saveTimer);
     var self = this;
     this._saveTimer = setTimeout(function () { self._saveNow('write'); }, 500);
@@ -354,7 +336,8 @@
   BridgeSource.prototype._saveNow = function (kind) {
     if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
     if (!this._connected) return;
-    var doc = this._currentDocument();
+    var doc = this._pendingDocument != null ? this._pendingDocument : this._currentDocument();
+    this._pendingDocument = null;
     if (doc === this._lastWritten && kind !== 'submit') return;
     this._writeId++;
     var msg = { type: kind, id: 'w' + this._writeId, content: doc };
@@ -645,7 +628,7 @@
     this._onExternal = function (msg) { prev.call(self, msg); try { cb(msg); } catch (_) {} };
   };
 
-  BridgeSource.prototype.save = function () { this._queueSave(); };
+  BridgeSource.prototype.save = function (content) { this._queueSave(content); };
 
   // Exposed helpers (used by tests).
   S.bridgeInternals = {

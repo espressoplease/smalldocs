@@ -19,8 +19,12 @@
   'use strict';
   var S = window.SDocs;
 
-  var KATEX_CSS = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
-  var KATEX_JS  = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';
+  var KATEX_CSS = S.embedMode
+    ? S.assetUrl('vendor/embed/katex/katex.min.css')
+    : 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+  var KATEX_JS = S.embedMode
+    ? S.assetUrl('vendor/embed/katex/katex.min.js')
+    : 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';
 
   var katexReady = null;
 

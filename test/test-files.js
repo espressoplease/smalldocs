@@ -118,6 +118,30 @@ module.exports = function(harness) {
     assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', 'sdocs-charts.js')), 'missing sdocs-charts.js');
   });
 
+  test('embed distribution is isolated from product-only modules', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'embed.html'), 'utf-8');
+    assert.ok(html.includes('data-sdocs-embed'), 'missing embed marker');
+    assert.ok(html.includes('sdocs-embed-source.js'), 'missing embed source');
+    assert.ok(html.includes('Content-Security-Policy'), 'missing embed CSP');
+    ['sdocs-bridge.js', 'sdocs-connect.js', 'sdocs-info.js', 'sdocs-update.js',
+      'sdocs-trust-footer.js', 'sdocs-design-partner.js', 'sdocs-cli-setup.js'].forEach(name => {
+      assert.ok(!html.includes('src="./' + name + '"'), 'embed should not load ' + name);
+    });
+  });
+
+  test('pinned embed assets match their SHA-256 manifest', () => {
+    const crypto = require('crypto');
+    const root = path.join(__dirname, '..', 'public', 'vendor', 'embed');
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, 'ASSETS.json'), 'utf-8'));
+    assert.ok(manifest.files.length >= 20, 'embed asset manifest is unexpectedly small');
+    manifest.files.forEach(entry => {
+      const bytes = fs.readFileSync(path.join(root, entry.path));
+      const digest = crypto.createHash('sha256').update(bytes).digest('hex');
+      assert.strictEqual(digest, entry.sha256, 'checksum mismatch: ' + entry.path);
+      assert.strictEqual(bytes.length, entry.bytes, 'size mismatch: ' + entry.path);
+    });
+  });
+
   test('chart palette dropdown defaults to monochrome', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
     assert.ok(html.includes('id="_sd_ctrl-chart-palette"'), 'missing chart palette dropdown');

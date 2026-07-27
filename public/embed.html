@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en" data-sdocs-embed>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>SmallDocs</title>
+<meta name="description" content="An office suite your existing coding agents use to write documents, charts, slides, sheets, and forms." />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="SmallDocs" />
+<meta property="og:url" content="https://smalldocs.org/" />
+<meta property="og:title" content="SmallDocs - an office suite for coding agents" />
+<meta property="og:description" content="An office suite your existing coding agents use to write documents, charts, slides, sheets, and forms." />
+<meta property="og:image" content="https://smalldocs.org/public/homepage/og-preview.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="SmallDocs - the document format as intelligent as your agents" />
+
+<!-- Twitter / X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="SmallDocs - an office suite for coding agents" />
+<meta name="twitter:description" content="An office suite your existing coding agents use to write documents, charts, slides, sheets, and forms." />
+<meta name="twitter:image" content="https://smalldocs.org/public/homepage/og-preview.png" />
+<meta name="twitter:image:alt" content="SmallDocs - the document format as intelligent as your agents" />
+
+<meta name="sdocs-default-md" content="./sdoc.md">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./css/tokens.css">
+<link rel="stylesheet" href="./css/layout.css">
+<link rel="stylesheet" href="./css/rendered.css">
+<link rel="stylesheet" href="./css/panel.css">
+<link rel="stylesheet" href="./css/write.css">
+<link rel="stylesheet" href="./css/comments.css">
+<link rel="stylesheet" href="./css/slide-comments.css">
+<link rel="stylesheet" href="./css/cells.css">
+<link rel="stylesheet" href="./css/mobile.css">
+<link rel="stylesheet" href="./css/embed.css">
+<script nonce="__CSP_NONCE__">
+  (function(){
+    var t = null;
+    try { t = localStorage.getItem('sdocs-theme'); } catch (_) {}
+    if (!t) t = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+    if (t === 'dark') document.documentElement.dataset.theme = 'dark';
+  })();
+</script>
+</head>
+<body>
+
+<div id="_sd_safari-banner" hidden></div>
+<div id="_sd_dp-banner" hidden></div>
+<div id="_sd_main">
+  <!-- ── Left panel ── -->
+  <div id="_sd_left">
+    <div id="_sd_left-toolbar">
+      <a id="_sd_toolbar-brand" href="#" title="SmallDocs - reset to defaults">
+        <span class="toolbar-brand-text toolbar-brand-full">SmallDocs</span>
+        <span class="toolbar-brand-text toolbar-brand-short">SDocs</span>
+        <span class="toolbar-brand-text toolbar-brand-tiny">SD</span>
+      </a>
+      <div class="toggle-group">
+        <button class="btn active" id="_sd_btn-read" data-tip="Read" aria-label="Read">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>
+        </button>
+        <button class="btn" id="_sd_btn-fold" data-tip="Expand all" aria-label="Expand all">
+          <svg class="icon-unfold" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6"/><path d="M12 8V2"/><path d="M4 12H2"/><path d="M10 12H8"/><path d="M16 12h-2"/><path d="M22 12h-2"/><path d="m15 19-3 3-3-3"/><path d="m15 5-3-3-3 3"/></svg>
+          <svg class="icon-fold" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6"/><path d="M12 8V2"/><path d="M4 12H2"/><path d="M10 12H8"/><path d="M16 12h-2"/><path d="M22 12h-2"/><path d="m15 19-3-3-3 3"/><path d="m15 5-3 3-3-3"/></svg>
+        </button>
+        <button class="btn" id="_sd_btn-copy-file" data-tip="Copy document" aria-label="Copy document">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button class="btn btn-with-dot" id="_sd_btn-comment" data-tip="Feedback for agents / Comments" aria-label="Comment mode">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>
+          <span class="info-dot" aria-hidden="true"></span>
+        </button>
+        <button class="btn" id="_sd_btn-write" data-tip="Edit document" aria-label="Edit document">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
+        </button>
+        <button class="btn" id="_sd_btn-overflow" type="button" data-tip="More options" aria-label="More options" aria-expanded="false">
+          <svg class="icon-menu" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+          <svg class="icon-x" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <span class="toggle-group-collapsible" id="_sd_toggle-overflow">
+          <button class="btn" id="_sd_btn-style" data-tip="Style" aria-label="Style">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.622 17.897-10.68-2.913"/><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"/><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/></svg>
+          </button>
+          <button class="btn" id="_sd_btn-raw" data-tip="Raw markdown" aria-label="Raw markdown">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </button>
+          <button class="btn" id="_sd_btn-export" data-tip="Export" aria-label="Export">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+          <button class="btn" id="_sd_btn-new" data-tip="New document" aria-label="New document">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.35 22H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v5.35"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M14 19h6"/><path d="M17 16v6"/></svg>
+          </button>
+        </span>
+        <span class="write-tb-sep"></span>
+        <button class="btn" id="_sd_btn-theme" data-tip="Theme" aria-label="Toggle dark mode">
+          <svg id="_sd_icon-theme" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke-width="2"/></svg>
+        </button>
+        <button class="btn btn-with-dot" id="_sd_btn-info" data-tip="What's new" aria-label="Info">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span class="info-dot" aria-hidden="true"></span>
+        </button>
+      </div>
+      <a id="_sd_btn-library" href="/library" data-tip="Browse your Markdown files">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+        <span class="library-btn-label">Markdown Library</span>
+      </a>
+    </div>
+    <div id="_sd_write-toolbar">
+      <button class="write-tb-btn" id="_sd_wb-bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+      <button class="write-tb-btn" id="_sd_wb-italic" title="Italic (Ctrl+I)"><em>I</em></button>
+      <button class="write-tb-btn" id="_sd_wb-strike" title="Strikethrough (Ctrl+Shift+X)"><s>S</s></button>
+      <button class="write-tb-btn" id="_sd_wb-code" title="Inline code (Ctrl+E)"><code>&lt;/&gt;</code></button>
+      <span class="write-tb-sep"></span>
+      <button class="write-tb-btn" id="_sd_wb-h1" title="Heading 1">H1</button>
+      <button class="write-tb-btn" id="_sd_wb-h2" title="Heading 2">H2</button>
+      <button class="write-tb-btn" id="_sd_wb-h3" title="Heading 3">H3</button>
+      <button class="write-tb-btn" id="_sd_wb-h4" title="Heading 4">H4</button>
+      <button class="write-tb-btn" id="_sd_wb-h5" title="Heading 5">H5</button>
+      <button class="write-tb-btn" id="_sd_wb-p" title="Normal paragraph">&#182;</button>
+      <span class="write-tb-sep"></span>
+      <button class="write-tb-btn" id="_sd_wb-ul" title="Bullet list">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button class="write-tb-btn" id="_sd_wb-ol" title="Numbered list">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><text x="2" y="8" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif">1</text><text x="2" y="14" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif">2</text><text x="2" y="20" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif">3</text></svg>
+      </button>
+      <button class="write-tb-btn" id="_sd_wb-bq" title="Blockquote">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="4" x2="3" y2="20"/><line x1="9" y1="8" x2="20" y2="8"/><line x1="9" y1="12" x2="18" y2="12"/><line x1="9" y1="16" x2="16" y2="16"/></svg>
+      </button>
+      <button class="write-tb-btn" id="_sd_wb-codeblock" title="Code block">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      </button>
+      <span class="write-tb-sep"></span>
+      <button class="write-tb-btn" id="_sd_wb-link" title="Insert link (Ctrl+K)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </button>
+      <button class="write-tb-btn" id="_sd_wb-image" title="Insert image">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+      </button>
+      <button class="write-tb-btn" id="_sd_wb-hr" title="Horizontal rule">&#8212;</button>
+      <span class="write-tb-sep"></span>
+      <button class="write-tb-btn" id="_sd_wb-clear" title="Clear formatting">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><line x1="4" y1="20" x2="20" y2="4" stroke-width="1.5" opacity="0.5"/></svg>
+      </button>
+    </div>
+    <div id="_sd_comment-toolbar">
+      <span class="sdoc-comment-prefs" title="Author and colour applied to new comments. Existing comments keep their own values.">
+        <span class="sdoc-comment-prefs-label">Commenting as:</span>
+        <input type="text" id="_sd_comment-pref-author" class="sdoc-comment-pref-author" placeholder="user" value="user" aria-label="Comment author">
+        <input type="color" id="_sd_comment-pref-color" class="sdoc-comment-pref-color" value="#ffbb00" aria-label="Comment colour">
+      </span>
+      <span class="write-tb-sep"></span>
+      <div class="sdoc-toolbar-middle">
+        <span class="sdoc-toolbar-state sdoc-toolbar-zero is-active">Select text, or click the <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg> beside a block, to comment</span>
+        <div class="sdoc-toolbar-state sdoc-toolbar-active">
+          <button class="write-tb-btn" id="_sd_comment-prev" title="Previous comment" aria-label="Previous comment">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span id="_sd_comment-count" class="sdoc-comment-count">0 / 0</span>
+          <button class="write-tb-btn" id="_sd_comment-next" title="Next comment" aria-label="Next comment">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <span class="write-tb-sep"></span>
+          <button class="sdoc-copy-with-c" id="_sd_comment-copy-doc" title="Copy the whole document with its comments" aria-label="Copy document with comments">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span class="sdoc-copy-with-c-label">with comments</span>
+          </button>
+        </div>
+      </div>
+      <span id="_sd_comment-orphan" class="sdoc-comment-orphan" hidden></span>
+    </div>
+    <div id="_sd_content-area" tabindex="0">
+      <div id="_sd_sdocs-file-info" hidden>
+        <div class="fic-rows"></div>
+        <span class="fic-privacy-note" hidden>Local only rows aren't included in shared sdocs</span>
+      </div>
+      <div id="_sd_rendered"></div>
+      <div id="_sd_write" contenteditable="true" spellcheck="true"></div>
+      <textarea id="_sd_raw" spellcheck="false"></textarea>
+    </div>
+  </div>
+
+  <div id="_sd_divider"></div>
+
+  <!-- ── Right panel ── -->
+  <div id="_sd_right">
+    <div id="_sd_right-header">Styles</div>
+
+    <!-- GENERAL -->
+    <div class="panel-section">
+      <div class="panel-header open" data-target="_sd_body-general">
+        <span class="arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        General
+      </div>
+      <div class="panel-body open" id="_sd_body-general">
+        <div class="control-row">
+          <label>Font family</label>
+          <select id="_sd_ctrl-font-family"></select>
+        </div>
+        <div class="control-row">
+          <label>Base size</label>
+          <input type="range" id="_sd_ctrl-base-size-range" min="10" max="28" step="1" value="16">
+          <input type="number" id="_sd_ctrl-base-size-num" min="10" max="28" value="16">
+          <span class="unit">px</span>
+        </div>
+        <div class="control-row">
+          <label>Line height</label>
+          <input type="range" id="_sd_ctrl-line-height-range" min="1.0" max="2.5" step="0.05" value="1.75">
+          <input type="number" id="_sd_ctrl-line-height-num" min="1.0" max="2.5" step="0.05" value="1.75">
+        </div>
+        <button class="factory-reset-btn" id="_sd_factory-reset-styles" title="Reset all styles to defaults">Reset all styles</button>
+      </div>
+    </div>
+
+    <!-- COLORS -->
+    <div class="panel-section">
+      <div class="panel-header" data-target="_sd_body-colors">
+        <span class="arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Colors
+      </div>
+      <div class="panel-body" id="_sd_body-colors">
+        <div id="_sd_theme-tabs">
+          <div class="toggle-group">
+            <button class="btn active" id="_sd_theme-tab-light">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              Light
+            </button>
+            <button class="btn" id="_sd_theme-tab-dark">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+              Dark
+            </button>
+          </div>
+        </div>
+        <div class="control-row">
+          <label>Background</label>
+          <div class="color-pair"><input type="color" id="_sd_ctrl-bg-color" value="#ffffff"><button class="reset-btn" id="_sd_reset-bg-color" title="Reset to default">↺</button></div>
+        </div>
+        <div class="control-row">
+          <label>Text</label>
+          <div class="color-pair"><input type="color" id="_sd_ctrl-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-color" title="Reset to default">↺</button></div>
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="_sd_sub-colors-headings">
+            <span class="arrow">▶</span> Headings
+          </div>
+          <div class="sub-body" id="_sd_sub-colors-headings">
+            <div class="control-row">
+              <label>All</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-h-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-h-color" title="Follow body text color">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>H1</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-h1-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-h1-color" title="Follow header color">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>H2</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-h2-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-h2-color" title="Follow header color">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>H3</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-h3-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-h3-color" title="Follow header color">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>H4</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-h4-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-h4-color" title="Follow header color">↺</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <label>Paragraph</label>
+          <div class="color-pair"><input type="color" id="_sd_ctrl-p-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-p-color" title="Follow body text color">↺</button></div>
+        </div>
+        <div class="control-row">
+          <label>Lists</label>
+          <div class="color-pair"><input type="color" id="_sd_ctrl-list-color" value="#1c1917"><button class="reset-btn" id="_sd_reset-list-color" title="Follow paragraph color">↺</button></div>
+        </div>
+        <div class="control-row">
+          <label>Link</label>
+          <div class="color-pair"><input type="color" id="_sd_ctrl-link-color" value="#2563eb"><button class="reset-btn" id="_sd_reset-link-color" title="Reset to default">↺</button></div>
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="_sd_sub-colors-blocks">
+            <span class="arrow">▶</span> Blocks
+          </div>
+          <div class="sub-body" id="_sd_sub-colors-blocks">
+            <p style="font-size:11px; color:var(--text-3); margin:0 0 8px; line-height:1.5;">Default for code blocks, blockquotes, and charts. Override individually below.</p>
+            <div class="control-row">
+              <label>Background</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-block-bg" value="#f4f1ed"><button class="reset-btn" id="_sd_reset-block-bg" title="Reset to default">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Text</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-block-text" value="#6b6560"><button class="reset-btn" id="_sd_reset-block-text" title="Reset to default">↺</button></div>
+            </div>
+
+            <div class="sub-section">
+              <div class="sub-header" data-target="_sd_sub-colors-code">
+                <span class="arrow">▶</span> Code
+              </div>
+              <div class="sub-body" id="_sd_sub-colors-code">
+                <div class="control-row">
+                  <label>Background</label>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-code-bg" value="#f4f1ed"><button class="reset-btn" id="_sd_reset-code-bg" title="Follow block background">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Text</label>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-code-color" value="#6b21a8"><button class="reset-btn" id="_sd_reset-code-color" title="Follow block text">↺</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sub-section">
+              <div class="sub-header" data-target="_sd_sub-colors-bq">
+                <span class="arrow">▶</span> Blockquote
+              </div>
+              <div class="sub-body" id="_sd_sub-colors-bq">
+                <div class="control-row">
+                  <label>Border</label>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-bq-border-color" value="#2563eb"><button class="reset-btn" id="_sd_reset-bq-border-color" title="Reset to default">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Background</label>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-bq-bg" value="#f7f5f2"><button class="reset-btn" id="_sd_reset-bq-bg" title="Follow block background">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Text</label>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-bq-color" value="#6b6560"><button class="reset-btn" id="_sd_reset-bq-color" title="Follow block text">↺</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sub-section">
+              <div class="sub-header" data-target="_sd_sub-colors-charts">
+                <span class="arrow">▶</span> Charts
+              </div>
+              <div class="sub-body" id="_sd_sub-colors-charts">
+                <div class="control-row">
+                  <label>Background</label>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-chart-bg" value="#f4f1ed"><button class="reset-btn" id="_sd_reset-chart-bg" title="Follow block background">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Text</label>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-chart-text" value="#78716c"><button class="reset-btn" id="_sd_reset-chart-text" title="Follow block text">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Accent</label>
+                  <div class="color-pair"><input type="color" id="_sd_ctrl-chart-accent" value="#3b82f6"><button class="reset-btn" id="_sd_reset-chart-accent" title="Reset to default palette">↺</button></div>
+                </div>
+                <div class="control-row">
+                  <label>Palette</label>
+                  <select id="_sd_ctrl-chart-palette">
+                    <option value="monochrome" selected>Monochrome</option>
+                    <option value="complementary">Complementary</option>
+                    <option value="analogous">Analogous</option>
+                    <option value="triadic">Triadic</option>
+                    <option value="pastel">Pastel</option>
+                    <option value="warm">Warm</option>
+                    <option value="cool">Cool</option>
+                    <option value="earth">Earth</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="_sd_sub-colors-table">
+            <span class="arrow">▶</span> Tables
+          </div>
+          <div class="sub-body" id="_sd_sub-colors-table">
+            <div class="control-row">
+              <label>Text</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-table-text" value="#1c1917"><button class="reset-btn" id="_sd_reset-table-text" title="Reset to default">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Header bg</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-table-header-bg" value="#f4f1ed"><button class="reset-btn" id="_sd_reset-table-header-bg" title="Reset to default">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Odd row bg</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-table-odd-bg" value="#ffffff"><button class="reset-btn" id="_sd_reset-table-odd-bg" title="Reset to default">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Even row bg</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-table-even-bg" value="#fafaf8"><button class="reset-btn" id="_sd_reset-table-even-bg" title="Reset to default">↺</button></div>
+            </div>
+            <div class="control-row">
+              <label>Border</label>
+              <div class="color-pair"><input type="color" id="_sd_ctrl-table-border" value="#e2ddd6"><button class="reset-btn" id="_sd_reset-table-border" title="Reset to default">↺</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEADERS -->
+    <div class="panel-section">
+      <div class="panel-header" data-target="_sd_body-headers">
+        <span class="arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Headers
+      </div>
+      <div class="panel-body" id="_sd_body-headers">
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="_sd_sub-headers-general">
+            <span class="arrow">▶</span> General <span class="tag">h1–h4</span>
+          </div>
+          <div class="sub-body" id="_sd_sub-headers-general">
+            <div class="control-row">
+              <label>Font family</label>
+              <select id="_sd_ctrl-h-font-family"><option value="inherit">Same as body</option></select>
+            </div>
+            <div class="control-row">
+              <label>Size scale</label>
+              <input type="range" id="_sd_ctrl-h-scale-range" min="0.5" max="2.0" step="0.05" value="1.0">
+              <input type="number" id="_sd_ctrl-h-scale-num" min="0.5" max="2.0" step="0.05" value="1.0">
+            </div>
+            <div class="control-row">
+              <label>Margin bottom</label>
+              <input type="range" id="_sd_ctrl-h-mb-range" min="0" max="2" step="0.1" value="0.4">
+              <input type="number" id="_sd_ctrl-h-mb-num" min="0" max="2" step="0.1" value="0.4">
+              <span class="unit">em</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="_sd_sub-h1">
+            <span class="arrow">▶</span> H1 <span class="tag">h1</span>
+          </div>
+          <div class="sub-body" id="_sd_sub-h1">
+            <div class="control-row">
+              <label>Size</label>
+              <input type="range" id="_sd_ctrl-h1-size-range" min="1" max="4" step="0.1" value="2.1">
+              <input type="number" id="_sd_ctrl-h1-size-num" min="1" max="4" step="0.1" value="2.1">
+              <span class="unit">em</span>
+            </div>
+            <div class="control-row">
+              <label>Weight</label>
+              <select id="_sd_ctrl-h1-weight">
+                <option value="400">Regular</option>
+                <option value="500">Medium</option>
+                <option value="600">SemiBold</option>
+                <option value="700" selected>Bold</option>
+                <option value="800">ExtraBold</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="_sd_sub-h2">
+            <span class="arrow">▶</span> H2 <span class="tag">h2</span>
+          </div>
+          <div class="sub-body" id="_sd_sub-h2">
+            <div class="control-row">
+              <label>Size</label>
+              <input type="range" id="_sd_ctrl-h2-size-range" min="1" max="3" step="0.1" value="1.55">
+              <input type="number" id="_sd_ctrl-h2-size-num" min="1" max="3" step="0.1" value="1.55">
+              <span class="unit">em</span>
+            </div>
+            <div class="control-row">
+              <label>Weight</label>
+              <select id="_sd_ctrl-h2-weight">
+                <option value="400">Regular</option>
+                <option value="500">Medium</option>
+                <option value="600" selected>SemiBold</option>
+                <option value="700">Bold</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="_sd_sub-h3">
+            <span class="arrow">▶</span> H3 <span class="tag">h3</span>
+          </div>
+          <div class="sub-body" id="_sd_sub-h3">
+            <div class="control-row">
+              <label>Size</label>
+              <input type="range" id="_sd_ctrl-h3-size-range" min="0.8" max="2.5" step="0.1" value="1.2">
+              <input type="number" id="_sd_ctrl-h3-size-num" min="0.8" max="2.5" step="0.1" value="1.2">
+              <span class="unit">em</span>
+            </div>
+            <div class="control-row">
+              <label>Weight</label>
+              <select id="_sd_ctrl-h3-weight">
+                <option value="400">Regular</option>
+                <option value="500">Medium</option>
+                <option value="600" selected>SemiBold</option>
+                <option value="700">Bold</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-header" data-target="_sd_sub-h4">
+            <span class="arrow">▶</span> H4 <span class="tag">h4</span>
+          </div>
+          <div class="sub-body" id="_sd_sub-h4">
+            <div class="control-row">
+              <label>Size</label>
+              <input type="range" id="_sd_ctrl-h4-size-range" min="0.8" max="2" step="0.1" value="1.0">
+              <input type="number" id="_sd_ctrl-h4-size-num" min="0.8" max="2" step="0.1" value="1.0">
+              <span class="unit">em</span>
+            </div>
+            <div class="control-row">
+              <label>Weight</label>
+              <select id="_sd_ctrl-h4-weight">
+                <option value="400">Regular</option>
+                <option value="500">Medium</option>
+                <option value="600" selected>SemiBold</option>
+                <option value="700">Bold</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- PARAGRAPH -->
+    <div class="panel-section">
+      <div class="panel-header" data-target="_sd_body-paragraph">
+        <span class="arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Paragraph
+      </div>
+      <div class="panel-body" id="_sd_body-paragraph">
+        <div class="control-row">
+          <label>Line height</label>
+          <input type="range" id="_sd_ctrl-p-lh-range" min="1.0" max="2.5" step="0.05" value="1.75">
+          <input type="number" id="_sd_ctrl-p-lh-num" min="1.0" max="2.5" step="0.05" value="1.75">
+        </div>
+        <div class="control-row">
+          <label>Margin bottom</label>
+          <input type="range" id="_sd_ctrl-p-mb-range" min="0" max="3" step="0.1" value="1.1">
+          <input type="number" id="_sd_ctrl-p-mb-num" min="0" max="3" step="0.1" value="1.1">
+          <span class="unit">em</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LISTS -->
+    <div class="panel-section">
+      <div class="panel-header" data-target="_sd_body-lists">
+        <span class="arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Lists
+      </div>
+      <div class="panel-body" id="_sd_body-lists">
+        <div class="control-row">
+          <label>Item spacing</label>
+          <input type="range" id="_sd_ctrl-list-spacing-range" min="0" max="1.5" step="0.05" value="0.3">
+          <input type="number" id="_sd_ctrl-list-spacing-num" min="0" max="1.5" step="0.05" value="0.3">
+          <span class="unit">em</span>
+        </div>
+        <div class="control-row">
+          <label>Indent</label>
+          <input type="range" id="_sd_ctrl-list-indent-range" min="0.5" max="3" step="0.1" value="1.6">
+          <input type="number" id="_sd_ctrl-list-indent-num" min="0.5" max="3" step="0.1" value="1.6">
+          <span class="unit">em</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LINKS -->
+    <div class="panel-section">
+      <div class="panel-header" data-target="_sd_body-links">
+        <span class="arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Links
+      </div>
+      <div class="panel-body" id="_sd_body-links">
+        <div class="control-row">
+          <label>Decoration</label>
+          <select id="_sd_ctrl-link-decoration">
+            <option value="underline" selected>Underline</option>
+            <option value="none">None</option>
+            <option value="dotted underline">Dotted</option>
+            <option value="dashed underline">Dashed</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- CODE -->
+    <div class="panel-section">
+      <div class="panel-header" data-target="_sd_body-code">
+        <span class="arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Code
+      </div>
+      <div class="panel-body" id="_sd_body-code">
+        <div class="control-row">
+          <label>Font family</label>
+          <select id="_sd_ctrl-code-font">
+            <option value="'JetBrains Mono', 'Fira Mono', monospace" selected>JetBrains Mono</option>
+            <option value="'Fira Mono', monospace">Fira Mono</option>
+            <option value="'Source Code Pro', monospace">Source Code Pro</option>
+            <option value="'Courier New', monospace">Courier New</option>
+            <option value="monospace">System mono</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- BLOCKQUOTE -->
+    <div class="panel-section">
+      <div class="panel-header" data-target="_sd_body-blockquote">
+        <span class="arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Blockquote
+      </div>
+      <div class="panel-body" id="_sd_body-blockquote">
+        <div class="control-row">
+          <label>Border width</label>
+          <input type="range" id="_sd_ctrl-bq-bw-range" min="1" max="8" step="1" value="3">
+          <input type="number" id="_sd_ctrl-bq-bw-num" min="1" max="8" value="3">
+          <span class="unit">px</span>
+        </div>
+        <div class="control-row">
+          <label>Font size</label>
+          <input type="range" id="_sd_ctrl-bq-size-range" min="0.7" max="1.5" step="0.05" value="1.0">
+          <input type="number" id="_sd_ctrl-bq-size-num" min="0.7" max="1.5" step="0.05" value="1.0">
+          <span class="unit">em</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVE AS DEFAULT -->
+    <div class="panel-section">
+      <div class="panel-header" data-target="_sd_body-save-default" style="color: var(--accent-text);">
+        <span class="arrow">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Save as default styles
+      </div>
+      <div class="panel-body" id="_sd_body-save-default">
+        <ul style="font-size:11.5px; color:var(--text-2); margin:0 0 10px; padding-left:1.2em; line-height:1.6; list-style:disc;">
+          <li>Requires <strong>sdocs-dev</strong> CLI
+            <ul style="padding-left:1.2em; margin:2px 0 0; list-style:circle;">
+              <li style="color:var(--text-3);">Install: <code style="font-size:10px; background:var(--bg-surface); border:1px solid var(--border); border-radius:3px; padding:1px 4px;">npm link</code> from project root</li>
+            </ul>
+          </li>
+          <li>Saves to <code style="font-size:10px; background:var(--bg-surface); border:1px solid var(--border); border-radius:3px; padding:1px 4px;">~/.sdocs/styles.yaml</code></li>
+          <li>Paste the command below in your terminal</li>
+        </ul>
+        <div style="display:flex; gap:6px; margin-bottom:8px;">
+          <button class="btn" id="_sd_btn-copy-default" style="flex:1; justify-content:center;">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="3.5" y="3.5" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 3.5V2a1 1 0 00-1-1H2a1 1 0 00-1 1v5.5a1 1 0 001 1h1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+            Copy
+          </button>
+        </div>
+        <pre id="_sd_save-default-display" style="font-size:10.5px; line-height:1.55; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); padding:10px; overflow-x:auto; white-space:pre-wrap; word-break:break-all; color:var(--text-2); margin:0;"></pre>
+        <div id="_sd_save-default-msg" style="display:none; margin-top:6px; font-size:11px; color:var(--accent-text); text-align:center;"></div>
+      </div>
+    </div>
+
+  </div><!-- /#_sd_right -->
+
+  <!-- ── Export panel ── -->
+  <div id="_sd_export-panel">
+    <div id="_sd_export-panel-header">Export</div>
+    <div id="_sd_export-panel-body">
+      <button class="export-option" id="_sd_exp-pdf">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M4 14h16" stroke-dasharray="2 2"/><path d="M8 19h8"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">PDF</span>
+          <span class="export-option-desc">Download as PDF document</span>
+        </div>
+      </button>
+      <button class="export-option" id="_sd_exp-slides-pdf" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="m8 22 4-4 4 4"/><path d="M12 18v-4"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">Slides PDF</span>
+          <span class="export-option-desc">One slide per landscape page with selectable text</span>
+        </div>
+      </button>
+      <button class="export-option" id="_sd_exp-slides-pptx" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M7 9h10"/><path d="M7 13h7"/><path d="m8 22 4-4 4 4"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">PowerPoint (.pptx)</span>
+          <span class="export-option-desc">Editable shapes and text in PowerPoint / Keynote / Slides</span>
+        </div>
+      </button>
+      <button class="export-option" id="_sd_exp-word">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M8 12l1.5 4 2-3 2 3 1.5-4"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">Word (.docx)</span>
+          <span class="export-option-desc">Download as Word document</span>
+        </div>
+      </button>
+      <button class="export-option" id="_sd_exp-raw">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">.md</span>
+          <span class="export-option-desc">Plain markdown, no styles</span>
+        </div>
+      </button>
+      <button class="export-option" id="_sd_exp-styled">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>
+        <div class="export-option-text">
+          <span class="export-option-title">Styled .md</span>
+          <span class="export-option-desc">Markdown with YAML front matter styles</span>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Info panel -->
+  <div id="_sd_info-panel">
+    <div id="_sd_info-panel-header">Info</div>
+    <div id="_sd_info-panel-body">
+      <div id="_sd_dp-info" hidden></div>
+      <div class="info-section">
+        <div class="info-section-title">Community</div>
+        <p class="info-section-text">Questions, ideas, or want to follow along? <a href="https://discord.gg/txjATTsDaq" target="_blank" rel="noopener">Join our Discord</a>.</p>
+      </div>
+      <div class="info-settings">
+        <div class="info-settings-row">
+          <span class="info-settings-label">Notify me about new features</span>
+          <div class="toggle-group info-settings-toggle" role="radiogroup" aria-label="Notify me about new features">
+            <button class="btn" id="_sd_info-notify-on" role="radio" aria-checked="true">On</button>
+            <button class="btn" id="_sd_info-notify-off" role="radio" aria-checked="false">Off</button>
+          </div>
+        </div>
+        <p class="info-settings-help">When off, the info icon won't show a dot for unseen updates. Open this panel any time to check.</p>
+      </div>
+      <div class="info-section">
+        <div class="info-section-title">New features</div>
+        <ul id="_sd_info-features" class="info-feature-list"></ul>
+      </div>
+      <div class="info-section">
+        <div class="info-section-title">Blog posts</div>
+        <ul class="info-links">
+          <li><a href="/blogs/journey-to-pdf-generation" target="_blank" rel="noopener">The surprisingly complex journey to text-selectable client-side generated PDFs</a><span class="info-links-desc">How we built selectable-text PDFs in the browser.</span></li>
+        </ul>
+      </div>
+      <div class="info-section">
+        <div class="info-section-title">Feedback</div>
+        <textarea id="_sd_info-feedback" rows="6" placeholder="Tell us what's working, what's broken, what you'd like to see."></textarea>
+        <p id="_sd_info-feedback-warning" class="info-feedback-warning" hidden>
+          That looks like an email address. Feedback is displayed publicly, so remove it if you don't want it shared.
+        </p>
+        <div class="info-feedback-actions">
+          <button class="btn" id="_sd_info-feedback-send">Send</button>
+          <span id="_sd_info-feedback-status" class="info-feedback-status" aria-live="polite"></span>
+        </div>
+        <p class="info-feedback-note">
+          Displayed publicly at <a href="/feedback" target="_blank" rel="noopener">smalldocs.org/feedback</a>.
+          Stored in a small SQLite database on our server. We store the message and a timestamp, nothing else. Don't include personal info.
+        </p>
+      </div>
+      <div class="info-section">
+        <div class="info-section-title">Links</div>
+        <ul class="info-links">
+          <li><a href="/feedback" target="_blank" rel="noopener">Read feedback</a><span class="info-links-desc">What other users have sent in.</span></li>
+          <li><a href="/analytics" target="_blank" rel="noopener">Analytics</a><span class="info-links-desc">Visit counts, cohorts, devices.</span></li>
+          <li><a href="https://smalldocs.org/" target="_blank" rel="noopener">Learn about SmallDocs</a><span class="info-links-desc">How the app works and why.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div><!-- /#_sd_main -->
+
+<!-- Toolbar tooltip (shared element, JS-positioned per-target) -->
+<div id="_sd_tooltip" class="sdoc-tooltip" role="tooltip" aria-hidden="true"></div>
+
+<!-- Status bar -->
+<div id="_sd_statusbar">
+  <span id="_sd_status-text"></span>
+  <span id="_sd_sb-links" style="margin-left:auto; font-size:11.5px; color:var(--text-2); display:flex; align-items:center; gap:6px; flex-wrap:nowrap; justify-content:flex-end; min-width:0">
+    <span class="sb-item" id="sb-private"><a href="https://smalldocs.org/#sec=privacy" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">100% private</a></span>
+    <span class="sb-item" id="sb-trust" data-trust-status>Open source: <a href="/trust" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">verify server</a></span>
+    <span class="sb-item" id="sb-cli"><span id="_sd_cli-lead">CLI for you &amp; your agents:</span> <span id="_sd_cli-prompt-wrap" style="display:inline-flex; align-items:center; gap:3px; cursor:pointer" title="Copy a prompt that asks your coding agent to install and set up SmallDocs"><code id="_sd_cli-prompt-label" style="background:var(--bg-surface); border:1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius:3px; padding:1px 5px; font-size:11px; color:var(--accent); transition:border-color .15s">Copy install prompt</code><button id="_sd_cli-prompt-btn" style="background:none; border:none; cursor:pointer; color:var(--accent); padding:0; vertical-align:middle; opacity:0.5; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span><span id="_sd_cli-install-wrap" style="align-items:center; gap:3px; cursor:pointer" title="Click to copy the install command for your system"><code id="_sd_cli-install-cmd" style="background:var(--bg-surface); border:1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius:3px; padding:1px 5px; font-size:11px; color:var(--accent); transition:border-color .15s">curl -fsSL https://smalldocs.org/install | sh</code><button id="_sd_cli-copy-btn" style="background:none; border:none; cursor:pointer; color:var(--accent); padding:0; vertical-align:middle; opacity:0.5; transition:opacity .15s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></span>
+    <span class="sb-item" id="sb-discord"><a href="https://discord.gg/txjATTsDaq" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">Discord</a></span>
+    <span class="sb-item" id="sb-github"><a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">GitHub</a></span>
+    <span class="sb-item" id="sb-business"><a href="/business" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">For business</a></span>
+    <span class="sb-item" id="sb-terms">You agree to our <a href="/legal" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">Terms</a></span>
+  </span>
+</div>
+<pre id="_sd_cli-prompt-text" style="display:none"></pre>
+<style>
+  #_sd_cli-install-wrap:hover #_sd_cli-copy-btn { opacity: 1 !important; }
+  #_sd_cli-install-wrap:hover #_sd_cli-install-cmd { border-color: var(--accent) !important; }
+  #_sd_cli-prompt-wrap:hover #_sd_cli-prompt-btn { opacity: 1 !important; }
+  #_sd_cli-prompt-wrap:hover #_sd_cli-prompt-label { border-color: var(--accent) !important; }
+</style>
+<script nonce="__CSP_NONCE__">
+(function () {
+  var COPY_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var CHECK_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  function bindCopy(wrap, btn, getText) {
+    if (!wrap || !btn) return;
+    wrap.addEventListener('click', function () {
+      navigator.clipboard.writeText(getText()).then(function () {
+        btn.innerHTML = CHECK_ICON;
+        setTimeout(function () { btn.innerHTML = COPY_ICON; }, 1500);
+      });
+    });
+  }
+
+  // Someone reading a document arrived via a #md= hash, so they are likely
+  // already a SmallDocs user: frame the footer around updating, not installing.
+  // Everyone else (root, /new, blog) gets the install framing. The copied
+  // prompt installs-or-updates either way, so the framing is just labelling.
+  var isDocPage = /(^|[#&])md=/.test(location.hash || '');
+
+  // Design-partner nudge, keyed on distinct documents opened. Self-guards to
+  // real document loads, so app-shell / non-doc loads never count.
+  if (window.SDocsDesignPartner) {
+    try { SDocsDesignPartner.init('doc'); } catch (_) {}
+    // Standing copy of the same form at the top of the info side panel.
+    try { SDocsDesignPartner.mount(document.getElementById('_sd_dp-info'), 'info panel'); } catch (_) {}
+  }
+
+  // Command chip. On a doc page it offers the canonical update verb; otherwise
+  // the OS-correct install command (curl on macOS / Linux, npm on Windows,
+  // which has no POSIX shell to run the installer).
+  var CLI = window.SDocCliSetup || {};
+  var isWindows = CLI.isWindows ? CLI.isWindows() : false;
+  var installCmd = CLI.installCommand ? CLI.installCommand(isWindows) : "curl -fsSL https://smalldocs.org/install | sh";
+  var cmd = isDocPage ? 'sdoc upgrade' : installCmd;
+  var cmdEl = document.getElementById('_sd_cli-install-cmd');
+  if (cmdEl) cmdEl.textContent = cmd;
+
+  if (isDocPage) {
+    var label = document.getElementById('_sd_cli-prompt-label');
+    if (label) label.textContent = 'Copy update prompt';
+    var pwrap = document.getElementById('_sd_cli-prompt-wrap');
+    if (pwrap) pwrap.title = 'Copy a prompt that asks your coding agent to update SmallDocs and learn its latest features';
+    var iwrap = document.getElementById('_sd_cli-install-wrap');
+    if (iwrap) iwrap.title = 'Click to copy the update command';
+  }
+
+  bindCopy(
+    document.getElementById('_sd_cli-install-wrap'),
+    document.getElementById('_sd_cli-copy-btn'),
+    function () { return cmd; }
+  );
+
+  var promptEl = document.getElementById('_sd_cli-prompt-text');
+  if (promptEl && CLI.SETUP_PROMPT) promptEl.textContent = CLI.SETUP_PROMPT;
+  bindCopy(
+    document.getElementById('_sd_cli-prompt-wrap'),
+    document.getElementById('_sd_cli-prompt-btn'),
+    function () { return promptEl ? promptEl.textContent.trim() : ''; }
+  );
+
+  // Footer fit. The bar is one fixed-height line and must never wrap. Its
+  // content differs by page - the doc-page "sdoc upgrade" chip is far
+  // shorter than the homepage curl command, and the lead-in text varies -
+  // so a fixed width breakpoint would drop items too early for the
+  // narrower variants. Instead, drop the lowest-priority items (in this
+  // order) only when the cluster actually overflows, re-checked on resize
+  // and whenever the content changes. Each variant then lasts as long as
+  // it physically fits. #sb-private and #sb-terms are never dropped.
+  var FOOTER_DROP_ORDER = ['_sd_cli-install-wrap', 'sb-trust', 'sb-cli', 'sb-discord', 'sb-github', 'sb-business'];
+  function fitFooter() {
+    var bar = document.getElementById('_sd_statusbar');
+    var links = document.getElementById('_sd_sb-links');
+    if (!bar || !links || getComputedStyle(bar).display === 'none') return;
+    var i, el;
+    // Restore every droppable item to its stylesheet visibility, then
+    // re-hide from the bottom of the priority list until the line fits.
+    for (i = 0; i < FOOTER_DROP_ORDER.length; i++) {
+      el = document.getElementById(FOOTER_DROP_ORDER[i]);
+      if (el) el.style.display = '';
+    }
+    var gap = parseFloat(getComputedStyle(links).gap) || 0;
+    function overflows() {
+      // The cluster shrinks to the available width and its nowrap items
+      // spill off the left edge (invisible to scrollWidth), so measure
+      // fit directly: sum the visible items' natural widths + gaps and
+      // compare against the width the cluster actually has.
+      var kids = links.children, used = 0, n = 0;
+      for (var k = 0; k < kids.length; k++) {
+        if (getComputedStyle(kids[k]).display === 'none') continue;
+        used += kids[k].getBoundingClientRect().width;
+        n++;
+      }
+      if (n > 1) used += gap * (n - 1);
+      return used > links.clientWidth + 0.5;
+    }
+    for (i = 0; i < FOOTER_DROP_ORDER.length && overflows(); i++) {
+      el = document.getElementById(FOOTER_DROP_ORDER[i]);
+      if (el) el.style.display = 'none';
+    }
+  }
+  var fitRaf;
+  function scheduleFit() {
+    if (fitRaf) cancelAnimationFrame(fitRaf);
+    fitRaf = requestAnimationFrame(fitFooter);
+  }
+  window.addEventListener('resize', scheduleFit);
+  scheduleFit();
+  // Text metrics shift the moment the web font swaps in; re-fit then.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleFit);
+
+  // On a doc page, fold how long ago the newest CLI shipped into the lead-in
+  // itself ("CLI update released 2 hours ago:") - a quiet nudge for anyone
+  // running an older copy. The server caches the npm lookup; if it is
+  // unavailable the lead-in keeps its neutral text rather than a wrong figure.
+  if (isDocPage) {
+    var leadEl = document.getElementById('_sd_cli-lead');
+    fetch('/cli-latest').then(function (r) {
+      if (!r.ok) throw new Error('unavailable');
+      return r.json();
+    }).then(function (info) {
+      if (!leadEl || !info || !info.time) return;
+      var rel = timeAgo(info.time);
+      if (!rel) return;
+      leadEl.textContent = 'CLI update released ' + rel + ':';
+      if (info.version) leadEl.title = 'sdoc v' + info.version + ', published ' + new Date(info.time).toLocaleString();
+      scheduleFit();
+    }).catch(function () { /* keep the neutral lead-in */ });
+  }
+
+  function timeAgo(iso) {
+    var then = new Date(iso).getTime();
+    if (!then) return '';
+    var s = Math.max(0, (Date.now() - then) / 1000);
+    if (s < 60) return 'just now';
+    var units = [
+      [31536000, 'year'],
+      [2592000, 'month'],
+      [604800, 'week'],
+      [86400, 'day'],
+      [3600, 'hour'],
+      [60, 'minute'],
+    ];
+    for (var i = 0; i < units.length; i++) {
+      if (s >= units[i][0]) {
+        var n = Math.round(s / units[i][0]);
+        return n + ' ' + units[i][1] + (n > 1 ? 's' : '') + ' ago';
+      }
+    }
+    return 'just now';
+  }
+})();
+</script>
+
+<script src="./brotli-wasm-v1.js"></script>
+<script src="./vendor/marked.min.js"></script>
+<script src="./sdocs-marked-del.js"></script>
+<script src="./vendor/purify.min.js"></script>
+<script src="./sdocs-yaml.js"></script>
+<script src="./sdocs-styles.js"></script>
+<script src="./sdocs-library-tags.js"></script>
+<script src="./sdocs-state.js"></script>
+<script src="./sdocs-slugify.js"></script>
+<script src="./sdocs-theme.js"></script>
+<script src="./sdocs-controls.js"></script>
+<script src="./sdocs-chrome.js"></script>
+<script src="./sdocs-export.js"></script>
+<script src="./sdocs-write.js"></script>
+<script src="./sdocs-charts.js"></script>
+<script src="./sdocs-math.js"></script>
+<script src="./sdocs-mermaid.js"></script>
+<script src="./sdocs-video.js"></script>
+<script src="./sdocs-zoom-math.js"></script>
+<script src="./sdocs-mermaid-focus.js"></script>
+<script src="./sdocs-highlight.js"></script>
+<script src="./sdocs-codewalk.js"></script>
+<script src="./sdocs-codewalk-ui.js"></script>
+<script src="./sdocs-code-comments.js"></script>
+<script src="./sdocs-code-focus.js"></script>
+<script src="./sdocs-shapes.js"></script>
+<script src="./sdocs-shape-render.js"></script>
+<script src="./sdocs-slide-stdlib.js"></script>
+<script src="./sdocs-slide-resolve.js"></script>
+<script src="./sdocs-slide-pdf.js"></script>
+<script src="./sdocs-slide-pptx.js"></script>
+<script src="./sdocs-present.js"></script>
+<script src="./sdocs-present-mobile.js"></script>
+<script src="./sdocs-slides.js"></script>
+<script src="./sdocs-comments.js"></script>
+<script src="./sdocs-slide-comments.js"></script>
+<script src="./sdocs-form-block.js"></script>
+<script src="./sdocs-forms.js"></script>
+<script src="./sdocs-cells.js"></script>
+<script src="./sdocs-cells-formula.js"></script>
+<script src="./sdocs-cells-xlsx.js"></script>
+<script src="./sdocs-cells-ui.js"></script>
+<script src="./sdocs-cells-select.js"></script>
+<script src="./sdocs-cells-focus.js"></script>
+<script src="./sdocs-cells-edit.js"></script>
+<script src="./sdocs-source.js"></script>
+<script src="./sdocs-embed-source.js"></script>
+<script src="./sdocs-app.js"></script>
+<script src="./sdocs-comments-ui.js"></script>
+<script nonce="__CSP_NONCE__">
+var APP_VERSION = '__APP_VERSION__';
+var SDOCS_DEV = '__SDOCS_DEV__' === '1';
+var SDOCS_EMBED = document.documentElement.hasAttribute('data-sdocs-embed');
+// Cohort: store the ISO week of first visit for retention tracking.
+// Not a unique ID — groups all visitors who first came the same week.
+// Sentinel value "opt-out" means the user deliberately declined attribution
+// on /analytics; we leave it in place and send an empty cohort to the server.
+if (!SDOCS_EMBED) try {
+  var _cur = localStorage.getItem('sdocs_cohort');
+  if (!_cur) {
+    var _d = new Date(), _u = new Date(Date.UTC(_d.getUTCFullYear(), _d.getUTCMonth(), _d.getUTCDate()));
+    var _dn = _u.getUTCDay() || 7;
+    _u.setUTCDate(_u.getUTCDate() + 4 - _dn);
+    var _ys = new Date(Date.UTC(_u.getUTCFullYear(), 0, 1));
+    var _wn = Math.ceil((((_u - _ys) / 86400000) + 1) / 7);
+    localStorage.setItem('sdocs_cohort', _u.getUTCFullYear() + '-W' + String(_wn).padStart(2, '0'));
+  }
+} catch (e) { /* private browsing or storage disabled */ }
+if (!SDOCS_EMBED && SDOCS_DEV && 'serviceWorker' in navigator) {
+  // Dev mode: unregister any existing SW and clear caches so edits are picked up instantly.
+  navigator.serviceWorker.getRegistrations().then(function (regs) {
+    regs.forEach(function (r) { r.unregister(); });
+  });
+  if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+} else if (!SDOCS_EMBED && 'serviceWorker' in navigator && APP_VERSION.indexOf('__') !== 0) {
+  // Guard: if APP_VERSION is still the literal "__APP_VERSION__" placeholder, a
+  // running server is rendering this file without the substitution step (e.g. a
+  // stale process that pre-dates the substitution code). Skipping the SW
+  // register avoids the loop where /version-check returns a real hash, the SW
+  // sees a mismatch, posts sdocs-reload, and the next render hits the same
+  // placeholder. Falls back to "no SW" until a clean server is up.
+  var _cohort = '';
+  try {
+    var _c = localStorage.getItem('sdocs_cohort') || '';
+    _cohort = _c === 'opt-out' ? '' : _c;
+  } catch (e) {}
+  // After the SW detects a version mismatch and refreshes the cache, it posts
+  // { type: 'sdocs-reload', version }. SDocUpdate decides whether to reload
+  // (loop-guard, don't-reload-over-an-edit) and shows the "updating" note;
+  // it also re-checks when a backgrounded tab returns to the foreground.
+  // Falls back to the original unconditional reload if the module is absent.
+  var _U = window.SDocUpdate;
+  // Snapshot how this page was opened NOW, synchronously, before the app boots
+  // and rewrites the hash. Frozen for the tab's lifetime and sent with visits.
+  var _loadType = (_U && _U.detectLoadType) ? _U.detectLoadType(window.location) : '';
+  navigator.serviceWorker.addEventListener('message', function (e) {
+    if (!e.data || e.data.type !== 'sdocs-reload') return;
+    if (_U && _U.onReloadSignal) _U.onReloadSignal(e.data.version);
+    else location.reload();
+  });
+  navigator.serviceWorker.register('/sw.js').then(function (reg) {
+    if (_U && _U.start) {
+      _U.start({ appVersion: APP_VERSION, cohort: _cohort, loadType: _loadType });
+    } else {
+      var msg = { type: 'check-update', version: APP_VERSION, cohort: _cohort, lt: _loadType };
+      if (reg.active) reg.active.postMessage(msg);
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage(msg);
+      });
+    }
+  });
+}
+</script>
+</body>
+</html>

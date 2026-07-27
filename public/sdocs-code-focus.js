@@ -54,7 +54,7 @@
     if (langCache[key]) return langCache[key];
     langCache[key] = new Promise(function (resolve) {
       var s = document.createElement('script');
-      s.src = '/public/sdocs-code-lang/' + key + '.js' + (SELF_V ? '?' + SELF_V : '');
+      s.src = S.assetUrl('sdocs-code-lang/' + key + '.js') + (SELF_V ? '?' + SELF_V : '');
       s.onload = function () { resolve((window.SDocsCodeLang || {})[key] || null); };
       s.onerror = function () { resolve(null); };
       document.head.appendChild(s);

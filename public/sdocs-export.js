@@ -4,6 +4,10 @@
 
 var S = SDocs;
 
+function runtimeAsset(path, remoteUrl) {
+  return S.embedMode ? S.assetUrl('vendor/embed/' + path) : remoteUrl;
+}
+
 function getCssVar(name) {
   return (S.renderedEl.style.getPropertyValue(name) ||
           getComputedStyle(S.renderedEl).getPropertyValue(name)).trim();
@@ -172,7 +176,7 @@ function inlineCells(clone) {
 
 function buildExportHTML(mermaidImages) {
   var fontName = document.getElementById('_sd_ctrl-font-family').value.replace(/['"]/g,'').split(',')[0].trim();
-  var fontLink = S.GOOGLE_FONTS.includes(fontName)
+  var fontLink = !S.embedMode && S.GOOGLE_FONTS.includes(fontName)
     ? '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=' + encodeURIComponent(fontName) + ':wght@400;500;600;700&display=swap">'
     : '';
   var title = (S.currentMeta.title || 'Document').replace(/</g,'&lt;');
@@ -220,10 +224,10 @@ function loadPdfLib() {
   return new Promise(function(resolve, reject) {
     if (pdfLibLoaded) { resolve(); return; }
     var s1 = document.createElement('script');
-    s1.src = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+    s1.src = runtimeAsset('export/pdf-lib.min.js', 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js');
     s1.onload = function() {
       var s2 = document.createElement('script');
-      s2.src = 'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js';
+      s2.src = runtimeAsset('export/fontkit.umd.min.js', 'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js');
       s2.onload = function() { pdfLibLoaded = true; resolve(); };
       s2.onerror = function() { reject(new Error('Could not load fontkit')); };
       document.head.appendChild(s2);
@@ -253,11 +257,11 @@ function loadPptxGen() {
     }
     var zipReady = window.JSZip
       ? Promise.resolve()
-      : loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+      : loadScript(runtimeAsset('export/jszip.min.js', 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'));
     zipReady
       .then(function () {
         if (window.PptxGenJS) return;
-        return loadScript('https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.min.js');
+        return loadScript(runtimeAsset('export/pptxgenjs.min.js', 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.min.js'));
       })
       .then(function () {
         if (typeof window.PptxGenJS !== 'function') {
@@ -279,6 +283,7 @@ function fontSlug(name) { return name.toLowerCase().replace(/\s+/g, '-'); }
 function fetchFontBuf(slug, weight) {
   var key = slug + '-' + weight;
   if (fontBufCache[key]) return Promise.resolve(fontBufCache[key]);
+  if (S.embedMode) return Promise.reject(new Error('remote fonts disabled in embed mode'));
   var url = 'https://cdn.jsdelivr.net/fontsource/fonts/' + slug + '@latest/latin-' + weight + '-normal.ttf';
   return fetch(url).then(function(r) {
     if (!r.ok) throw new Error(r.status);
@@ -609,7 +614,7 @@ async function loadPdfFonts(doc) {
   // Pinned to a stable version tag so a master push can't break the export.
   // Falls back to the fontsource latin subset, then to Courier.
   try {
-    var monoBuf = await fetchFullTtf('https://cdn.jsdelivr.net/gh/JetBrains/JetBrainsMono@v2.304/fonts/ttf/JetBrainsMono-Regular.ttf');
+    var monoBuf = await fetchFullTtf(runtimeAsset('fonts/JetBrainsMono-Regular.ttf', 'https://cdn.jsdelivr.net/gh/JetBrains/JetBrainsMono@v2.304/fonts/ttf/JetBrainsMono-Regular.ttf'));
     mono = await doc.embedFont(monoBuf, { subset: true });
   } catch (e) {
     try {
@@ -626,7 +631,7 @@ async function loadPdfFonts(doc) {
   // simply join the dropped-character count instead of crashing.
   var emoji = null;
   try {
-    var emojiBuf = await fetchFullTtf('https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@v2.034/fonts/NotoEmoji-Regular.ttf');
+    var emojiBuf = await fetchFullTtf(runtimeAsset('fonts/NotoEmoji-Regular.ttf', 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@v2.034/fonts/NotoEmoji-Regular.ttf'));
     emoji = await doc.embedFont(emojiBuf, { subset: true });
   } catch (e) { /* emoji unavailable; chain falls through to drop */ }
 
@@ -1453,7 +1458,7 @@ function loadHtmlToDocx() {
     if (htmlToDocxLoaded) { resolve(); return; }
     window.global = window; // polyfill for browser
     var s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/@turbodocx/html-to-docx@1/dist/html-to-docx.browser.js';
+    s.src = runtimeAsset('export/html-to-docx.browser.js', 'https://cdn.jsdelivr.net/npm/@turbodocx/html-to-docx@1/dist/html-to-docx.browser.js');
     s.onload = function() { htmlToDocxLoaded = true; resolve(); };
     s.onerror = function() { reject(new Error('Could not load html-to-docx')); };
     document.head.appendChild(s);
