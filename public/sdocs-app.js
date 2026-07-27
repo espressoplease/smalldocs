@@ -1769,11 +1769,14 @@ document.getElementById('_sd_export-panel-header').addEventListener('click', fun
   }
 });
 
-document.getElementById('_sd_info-panel-header').addEventListener('click', function() {
-  if (window.innerWidth <= 768) {
-    document.body.classList.toggle('mobile-info-open');
-  }
-});
+var _infoPanelHeader = document.getElementById('_sd_info-panel-header');
+if (_infoPanelHeader) {
+  _infoPanelHeader.addEventListener('click', function() {
+    if (window.innerWidth <= 768) {
+      document.body.classList.toggle('mobile-info-open');
+    }
+  });
+}
 
 document.getElementById('_sd_factory-reset-styles').addEventListener('click', function() {
   S.resetAllStyles();
