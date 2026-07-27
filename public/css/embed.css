@@ -2,6 +2,14 @@ html[data-sdocs-embed] :is(#_sd_discord-banner, #_sd_dp-banner, #_sd_btn-info, #
   display: none !important;
 }
 
+html[data-sdocs-embed] #_sd_toolbar-brand {
+  pointer-events: none;
+}
+
+html[data-sdocs-embed] #_sd_statusbar {
+  min-height: 28px;
+}
+
 html[data-sdocs-embed] :is(#_sd_rendered, #_sd_write) {
   width: 100%;
   max-width: none;

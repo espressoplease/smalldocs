@@ -1833,7 +1833,9 @@ var _defaultMdPath = _defaultMetaEl && _defaultMetaEl.content;
 if (!_defaultMdPath || _defaultMdPath.indexOf('__') === 0) {
   _defaultMdPath = S.assetUrl('sdoc.md');
 }
-var _defaultReady = fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
+var _defaultReady = S.embedMode
+  ? Promise.resolve()
+  : fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
 
 // ── Register on SDocs for cross-module access ──────────
 

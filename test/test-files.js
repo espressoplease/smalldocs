@@ -123,6 +123,9 @@ module.exports = function(harness) {
     assert.ok(html.includes('data-sdocs-embed'), 'missing embed marker');
     assert.ok(html.includes('sdocs-embed-source.js'), 'missing embed source');
     assert.ok(html.includes('Content-Security-Policy'), 'missing embed CSP');
+    assert.ok(!html.includes('CLI for you &amp; your agents'), 'embed should omit product footer');
+    assert.ok(!html.includes('Displayed publicly at'), 'embed should omit product feedback');
+    assert.ok(!html.includes('fetch(_defaultMdPath)'), 'embed should not fetch default content');
     ['sdocs-bridge.js', 'sdocs-connect.js', 'sdocs-info.js', 'sdocs-update.js',
       'sdocs-trust-footer.js', 'sdocs-design-partner.js', 'sdocs-cli-setup.js'].forEach(name => {
       assert.ok(!html.includes('src="./' + name + '"'), 'embed should not load ' + name);

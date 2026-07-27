@@ -14,7 +14,7 @@ html = html.replace('<html lang="en">', '<html lang="en" data-sdocs-embed>');
 html = html.replace(
   '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
   '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
-    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'self\' \'unsafe-inline\' \'wasm-unsafe-eval\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data: blob:; font-src \'self\'; connect-src \'none\'; worker-src \'none\'; frame-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">\n' +
+    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'self\' \'unsafe-inline\' \'wasm-unsafe-eval\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data: blob:; font-src \'self\'; connect-src \'self\'; worker-src \'none\'; frame-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">\n' +
     '<meta name="referrer" content="no-referrer">'
 );
 html = html.replace(
@@ -36,6 +36,26 @@ for (const name of omittedScripts) {
   const line = new RegExp('^<script src="/public/' + name.replace('.', '\\.') + '"(?: defer)?></script>\\n?', 'm');
   html = html.replace(line, '');
 }
+
+function removeBetween(start, end, replacement) {
+  const startIndex = html.indexOf(start);
+  const endIndex = html.indexOf(end, startIndex + start.length);
+  if (startIndex < 0 || endIndex < 0) {
+    throw new Error('embed build marker not found: ' + start);
+  }
+  html = html.slice(0, startIndex) + replacement + html.slice(endIndex);
+}
+
+removeBetween(
+  '  <!-- Info panel -->',
+  '</div><!-- /#_sd_main -->',
+  ''
+);
+removeBetween(
+  '<!-- Status bar -->',
+  '<script src="/public/brotli-wasm-v1.js"></script>',
+  '<div id="_sd_statusbar"><span id="_sd_status-text"></span></div>\n\n'
+);
 
 html = html.replace(
   '<script src="/public/sdocs-source.js"></script>',
