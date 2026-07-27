@@ -22,3 +22,16 @@ html[data-sdocs-embed] #_sd_sdocs-file-info {
   margin-left: clamp(28px, 5vw, 80px);
   margin-right: clamp(28px, 5vw, 80px);
 }
+
+@media (max-width: 600px) {
+  html[data-sdocs-embed] #_sd_sdocs-file-info .fic-row-request {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  html[data-sdocs-embed] #_sd_sdocs-file-info .fic-request-done {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
