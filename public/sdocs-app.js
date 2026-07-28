@@ -1939,6 +1939,45 @@ function scrollToSlug(slug) {
   target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// Map a raw link fragment onto an id that exists in the rendered document.
+// Scoped to #rendered so a fragment can never reach into the app chrome.
+// Only heading-derived ids resolve here; author-supplied ids in markdown are a
+// separate question and deliberately out of scope.
+function resolveAnchorId(raw) {
+  var frag = raw;
+  try { frag = decodeURIComponent(raw); } catch (_) {}
+  var cands = SDocSlugify.anchorCandidates(frag);
+  for (var i = 0; i < cands.length; i++) {
+    var el = document.getElementById(cands[i]);
+    if (el && S.renderedEl.contains(el)) return cands[i];
+  }
+  return null;
+}
+
+// The document itself lives in the URL hash (#md=...), so letting a plain
+// in-page anchor navigate would replace that hash with the bare fragment and
+// take the document with it. Intercept the click: scroll ourselves, and rewrite
+// the URL through buildSectionUrl so md= (and every other param) survives and
+// the address bar stays shareable.
+S.renderedEl.addEventListener('click', function (e) {
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  var a = e.target && e.target.closest ? e.target.closest('a[href^="#"]') : null;
+  if (!a || !S.renderedEl.contains(a)) return;
+  if (a.target && a.target !== '_self') return;
+
+  var raw = a.getAttribute('href').slice(1);
+  if (!raw) return;
+  var id = resolveAnchorId(raw);
+  // Unresolvable: leave the click alone rather than silently swallowing it.
+  // loadFromHash's bare-fragment backstop keeps the document from being lost.
+  if (!id) return;
+
+  e.preventDefault();
+  scrollToSlug(id);
+  history.replaceState(null, '', buildSectionUrl(id));
+  _lastLoadedHash = window.location.hash.slice(1);
+});
+
 // ── Load document from URL hash ──────────────────────────────────
 
 var _lastLoadedHash = null;
@@ -1947,6 +1986,17 @@ async function loadFromHash() {
   var hash = window.location.hash.slice(1);
   if (hash === _lastLoadedHash) return;
   _lastLoadedHash = hash;
+
+  // Backstop for anything that reaches the hash as a bare fragment (`#intro`)
+  // rather than a param set - Back/Forward, or a link the click handler could
+  // not resolve. Every real sdocs hash carries at least one `key=value`, so a
+  // fragment with no `=` is only ever an in-page anchor. Running the loader on
+  // it would find no md= and reset the page to DEFAULT_MD, i.e. throw the
+  // document away. Scroll instead and leave the document alone.
+  if (hash && hash.indexOf('=') === -1 && S.currentBody) {
+    scrollToSlug(resolveAnchorId(hash) || hash);
+    return;
+  }
 
   // Navigating to another document (a link, or Back/Forward): dismiss any open
   // code viewer / walkthrough so it doesn't linger on top of the newly loaded
