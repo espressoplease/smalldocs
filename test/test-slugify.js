@@ -7,7 +7,7 @@ module.exports = function(harness) {
 
   console.log('\n── Slugify + TOC Tests ────────────────────────\n');
 
-  const { slugify } = require('../cli/shared/sdocs-slugify');
+  const { slugify, anchorCandidates } = require('../cli/shared/sdocs-slugify');
 
   test('slugify: basic text', () => {
     assert.strictEqual(slugify('Getting Started'), 'getting-started');
@@ -53,5 +53,37 @@ module.exports = function(harness) {
       results.push(slug);
     });
     assert.deepStrictEqual(results, ['setup', 'usage', 'setup-1', 'setup-2']);
+  });
+
+  test('anchorCandidates: literal fragment comes first', () => {
+    assert.strictEqual(anchorCandidates('getting-started')[0], 'getting-started');
+  });
+
+  test('anchorCandidates: an exact match yields no extra work', () => {
+    assert.deepStrictEqual(anchorCandidates('getting-started'), ['getting-started']);
+  });
+
+  test('anchorCandidates: GitHub doubled hyphens fall back to our slug', () => {
+    assert.deepStrictEqual(anchorCandidates('step-1--setup'),
+      ['step-1--setup', 'step-1-setup']);
+  });
+
+  test('anchorCandidates: GitHub underscores fall back to our slug', () => {
+    assert.deepStrictEqual(anchorCandidates('my_heading'),
+      ['my_heading', 'myheading']);
+  });
+
+  test('anchorCandidates: mixed case fragment normalises', () => {
+    assert.deepStrictEqual(anchorCandidates('Getting-Started'),
+      ['Getting-Started', 'getting-started']);
+  });
+
+  test('anchorCandidates: underscore plus doubled hyphen offers both shapes', () => {
+    assert.deepStrictEqual(anchorCandidates('a_b--c'),
+      ['a_b--c', 'ab-c', 'a_b-c']);
+  });
+
+  test('anchorCandidates: empty fragment yields nothing', () => {
+    assert.deepStrictEqual(anchorCandidates(''), []);
   });
 };
