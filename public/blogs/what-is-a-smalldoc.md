@@ -224,7 +224,7 @@ Once it is installed and you know about it, I want to be able to say things like
 
 and you will write the markdown and open it for me as a SmallDoc.
 
-The way you will "know about it" is by having a short SmallDocs section in your global agent config file: the file that is loaded into every chat session you start. For Claude Code that is `~/.claude/CLAUDE.md`. For Codex it is `~/.codex/AGENTS.md`. For Gemini CLI it is `~/.gemini/GEMINI.md`. For opencode it is `~/.config/opencode/AGENTS.md`. This is the same standing-instructions mechanism you already use for project context.
+The way you will "know about it" is through the SmallDocs skill: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand. `sdoc setup` writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md` and symlinks it into each detected coding agent's own skills directory (`~/.claude/skills/smalldocs`, `~/.codex/skills/smalldocs`, and so on). This is the same on-demand skill mechanism you already use for other agent skills.
 
 Please do the following, and ask me before any step that changes my filesystem.
 
@@ -246,13 +246,13 @@ Please do the following, and ask me before any step that changes my filesystem.
    - Then tell me to open a new terminal, or to run `source ~/.zshrc` (or the matching rc file) in mine.
 
 4. Teach yourself the latest features.
-   First, if my config file already has a SmallDocs section (the block between `<!-- sdocs-agent-block:start v=N -->` and `<!-- sdocs-agent-block:end -->`), copy that whole block aside and note its `v=N` version number. This snapshot is how you will spot exactly what a new release adds. On a fresh install there is no such block yet, which is fine.
+   First, if `~/.agents/skills/smalldocs/SKILL.md` already exists, copy it aside and note its `v=N` version number (the `<!-- sdocs-skill: v=N -->` line). This snapshot is how you will spot exactly what a new release adds. On a fresh install there is no such file yet, which is fine.
    Then run: `sdoc setup --yes`
-   This non-interactively writes or refreshes that SmallDocs section in every detected coding-agent config file, bumping it to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the section yourself, the wording is kept in sync with the CLI version.
+   This installs (or refreshes) the SmallDocs skill at ~/.agents/skills/smalldocs/SKILL.md and symlinks it into each detected coding agent's skills directory, bumping it to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the skill yourself, the wording is kept in sync with the CLI version.
 
 5. Verify it worked.
    Ask me to start a fresh chat session with you (so the updated config file is loaded). In the new session, ask me to say: "sdoc me a test file". A styled document should open in my browser.
-   If it does not open, check that my global config file contains a line beginning with `<!-- sdocs-agent-block:start` and tell me what is missing.
+   If it does not open, check that `~/.agents/skills/smalldocs/SKILL.md` exists (and that your agent's skills directory has a `smalldocs` symlink pointing at it) and tell me what is missing.
 
 6. Offer me a tour. Ask first, and only show the parts I say yes to - do not run the whole thing unprompted. The point of the tour is for me to learn what I can ask you to generate, so build each example from my own work where you can, and for every output tell me the plain phrase I could say to get it next time. (If you are not sure whether this is a first install or just an update, ask me which.)
 
@@ -299,7 +299,7 @@ Once it is installed and you know about it, I want to be able to say things like
 
 and you will write the markdown and open it for me as a SmallDoc.
 
-The way you will "know about it" is by having a short SmallDocs section in your global agent config file: the file that is loaded into every chat session you start. For Claude Code that is `~/.claude/CLAUDE.md`. For Codex it is `~/.codex/AGENTS.md`. For Gemini CLI it is `~/.gemini/GEMINI.md`. For opencode it is `~/.config/opencode/AGENTS.md`. This is the same standing-instructions mechanism you already use for project context.
+The way you will "know about it" is through the SmallDocs skill: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand. `sdoc setup` writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md` and symlinks it into each detected coding agent's own skills directory (`~/.claude/skills/smalldocs`, `~/.codex/skills/smalldocs`, and so on). This is the same on-demand skill mechanism you already use for other agent skills.
 
 Please do the following, and ask me before any step that changes my filesystem.
 
@@ -321,13 +321,13 @@ Please do the following, and ask me before any step that changes my filesystem.
    - Then tell me to open a new terminal, or to run `source ~/.zshrc` (or the matching rc file) in mine.
 
 4. Teach yourself the latest features.
-   First, if my config file already has a SmallDocs section (the block between `<!-- sdocs-agent-block:start v=N -->` and `<!-- sdocs-agent-block:end -->`), copy that whole block aside and note its `v=N` version number. This snapshot is how you will spot exactly what a new release adds. On a fresh install there is no such block yet, which is fine.
+   First, if `~/.agents/skills/smalldocs/SKILL.md` already exists, copy it aside and note its `v=N` version number (the `<!-- sdocs-skill: v=N -->` line). This snapshot is how you will spot exactly what a new release adds. On a fresh install there is no such file yet, which is fine.
    Then run: `sdoc setup --yes`
-   This non-interactively writes or refreshes that SmallDocs section in every detected coding-agent config file, bumping it to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the section yourself, the wording is kept in sync with the CLI version.
+   This installs (or refreshes) the SmallDocs skill at ~/.agents/skills/smalldocs/SKILL.md and symlinks it into each detected coding agent's skills directory, bumping it to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the skill yourself, the wording is kept in sync with the CLI version.
 
 5. Verify it worked.
    Ask me to start a fresh chat session with you (so the updated config file is loaded). In the new session, ask me to say: "sdoc me a test file". A styled document should open in my browser.
-   If it does not open, check that my global config file contains a line beginning with `<!-- sdocs-agent-block:start` and tell me what is missing.
+   If it does not open, check that `~/.agents/skills/smalldocs/SKILL.md` exists (and that your agent's skills directory has a `smalldocs` symlink pointing at it) and tell me what is missing.
 
 6. Offer me a tour. Ask first, and only show the parts I say yes to - do not run the whole thing unprompted. The point of the tour is for me to learn what I can ask you to generate, so build each example from my own work where you can, and for every output tell me the plain phrase I could say to get it next time. (If you are not sure whether this is a first install or just an update, ask me which.)
 

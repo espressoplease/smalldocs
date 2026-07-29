@@ -135,8 +135,14 @@ Install or upgrade my SmallDocs `sdoc` CLI to the latest version, and make sure 
 3. Clear out any old copy that shadows it. Run `which sdoc` again. If it points anywhere other than `~/.sdocs/bin/sdoc` (for example a global npm path), an older install is ahead of the new one on my PATH - run `npm uninstall -g sdocs-dev` to remove it. If that fails with a permission error, the old copy is in a root-owned folder: stop and tell me, don't sudo without asking.
 4. Make sure `~/.sdocs/bin` is on my PATH. If `which sdoc` still does not resolve, add `export PATH="$HOME/.sdocs/bin:$PATH"` to my shell's startup file (`~/.zshrc` for zsh, `~/.bashrc` for bash, `~/.config/fish/config.fish` for fish) and tell me to open a new terminal.
 5. Teach yourself the new features. Run: sdoc setup --yes
-   This refreshes the short SmallDocs section in my global agent config (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`, or the opencode equivalent) so you know about the latest blocks, including sheets (`cells`), slides, and `sdoc bridge`. It is the canonical writer - do not hand-write that section yourself.
-6. Verify and report all three: `sdoc --version` prints the current version; `which sdoc` points at `~/.sdocs/bin/sdoc`; and my global agent config contains a line beginning with `<!-- sdocs-agent-block:start`.
+   This installs the SmallDocs skill at ~/.agents/skills/smalldocs/SKILL.md and
+   symlinks it into each detected coding agent's skills directory, so you know
+   about the latest blocks, including sheets (`cells`), slides, and `sdoc bridge`.
+   It is the canonical writer - do not hand-write the skill yourself.
+6. Verify and report all three: `sdoc --version` prints the current version;
+   `which sdoc` points at `~/.sdocs/bin/sdoc`; and
+   `~/.agents/skills/smalldocs/SKILL.md` exists (with a `<!-- sdocs-skill: v=N -->`
+   line).
 
 If any step fails, stop and tell me what happened before going further.
 ```

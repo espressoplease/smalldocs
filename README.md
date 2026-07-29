@@ -37,7 +37,7 @@ sdoc bridge draft.md                    # live session: browser edits save to di
 sdoc share report.md                    # copy encrypted short link to clipboard
 sdoc library                            # browse every .md under your home directory
 sdoc new                                # blank document in write mode
-sdoc setup                              # teach your coding agents about sdoc
+sdoc setup                              # install the SmallDocs skill for your coding agents
 sdoc charts | diagrams | slides | cells # reference for each fenced-block type
 cat notes.md | sdoc                     # pipe markdown to browser
 ```

@@ -97,33 +97,35 @@ Sandbox ready.
 
   HOME=$ROOT/home-fresh $ROOT/npm/bin/sdoc setup
 
-You should see the three-prompt setup wizard:
-  - Prompt 1: write the SDocs block (with reason + examples)
-  - Prompt 2: keep block updated on future sdoc upgrades
+You should see the setup wizard:
+  - Prompt 1: install the SmallDocs skill (with reason + examples)
+  - Prompt 2: keep the skill updated on future sdoc upgrades
   - Prompt 3: auto-install sdoc updates
 
 Then inspect:
-  cat $ROOT/home-fresh/.claude/CLAUDE.md
+  cat $ROOT/home-fresh/.agents/skills/smalldocs/SKILL.md
+  ls -l $ROOT/home-fresh/.claude/skills/smalldocs   # symlink -> canonical
   cat $ROOT/home-fresh/.sdocs/setup.json
 
-============== 2) Upgrade rehearsal (v=2 -> v=3) ==============
+============== 2) Upgrade rehearsal (legacy v=2 block -> skill) ==============
 
   HOME=$ROOT/home-upgrade $ROOT/npm/bin/sdoc share $ROOT/test.md
 
 Expected output includes the auto-refresh notice:
-  ✓ SDocs agent block updated to v3 in 1 file
-    Changes: https://sdocs.dev/agent-changes#v3
+  ✓ SmallDocs skill updated to v<N> at .../.agents/skills/smalldocs/SKILL.md
+  ✓ removed old SmallDocs block from .../.claude/CLAUDE.md
 
 \`sdoc share\` copies a URL to your real clipboard. Cosmetic.
 
 Then inspect:
   cat $ROOT/home-upgrade/.claude/CLAUDE.md
+  cat $ROOT/home-upgrade/.agents/skills/smalldocs/SKILL.md
   cat $ROOT/home-upgrade/.sdocs/setup.json
 
-The CLAUDE.md should now have bookend markers around the v=3 body
-(new chart wording, "prefer sdoc over sdoc share" paragraph, plain
-hyphens). The pre-1.5.0 setup.json should be migrated in place to
-schemaVersion 1 with autoRefreshAgentFiles=true.
+The CLAUDE.md should no longer contain the legacy SmallDocs block (it has
+been stripped; the user's own notes are preserved). The skill is written at
+~/.agents/skills/smalldocs/SKILL.md. The pre-1.5.0 setup.json should be
+migrated in place to schemaVersion 1 with autoRefreshAgentFiles=true.
 
 ============== Cleanup ==============
 
