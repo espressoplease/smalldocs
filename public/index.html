@@ -47,7 +47,6 @@
 <body>
 
 <div id="_sd_safari-banner" hidden></div>
-<div id="_sd_dp-banner" hidden></div>
 <div id="_sd_main">
   <!-- ── Left panel ── -->
   <div id="_sd_left">
@@ -731,7 +730,6 @@
   <div id="_sd_info-panel">
     <div id="_sd_info-panel-header">Info</div>
     <div id="_sd_info-panel-body">
-      <div id="_sd_dp-info" hidden></div>
       <div class="info-section">
         <div class="info-section-title">Community</div>
         <p class="info-section-text">Questions, ideas, or want to follow along? <a href="https://discord.gg/txjATTsDaq" target="_blank" rel="noopener">Join our Discord</a>.</p>
@@ -807,7 +805,6 @@
   #_sd_cli-prompt-wrap:hover #_sd_cli-prompt-label { border-color: var(--accent) !important; }
 </style>
 <script src="/public/sdocs-cli-setup.js"></script>
-<script src="/public/sdocs-design-partner.js"></script>
 <script nonce="__CSP_NONCE__">
 (function () {
   var COPY_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
@@ -827,14 +824,6 @@
   // Everyone else (root, /new, blog) gets the install framing. The copied
   // prompt installs-or-updates either way, so the framing is just labelling.
   var isDocPage = /(^|[#&])md=/.test(location.hash || '');
-
-  // Design-partner nudge, keyed on distinct documents opened. Self-guards to
-  // real document loads, so app-shell / non-doc loads never count.
-  if (window.SDocsDesignPartner) {
-    try { SDocsDesignPartner.init('doc'); } catch (_) {}
-    // Standing copy of the same form at the top of the info side panel.
-    try { SDocsDesignPartner.mount(document.getElementById('_sd_dp-info'), 'info panel'); } catch (_) {}
-  }
 
   // Command chip. On a doc page it offers the canonical update verb; otherwise
   // the OS-correct install command (curl on macOS / Linux, npm on Windows,

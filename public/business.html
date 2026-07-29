@@ -13,9 +13,9 @@
 /* ───────────────────────────────────────────────────────────────
    SmallDocs for business. Same paper/ink design system as the
    homepage so the two pages read as one site. A short hero, a grid
-   of capability cards (most of it roadmap, said plainly), then the
-   same contact form the homepage Teams section uses - it posts to
-   /api/teams-interest, which stores the submission and pings us.
+   of capability cards (most of it roadmap, said plainly), then a contact
+   form that posts to /api/teams-interest, which stores the submission
+   and pings us.
    ─────────────────────────────────────────────────────────────── */
 
 :root {
@@ -421,7 +421,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 <script>
 /* Contact form: POST to /api/teams-interest, which stores the submission
    and pings us. On success the whole form is replaced with a confirmation
-   so a double-submit isn't possible. Mirrors the homepage Teams form. */
+   so a double-submit isn't possible. */
 (function () {
   const form = document.getElementById('teamsForm');
   if (!form) return;
