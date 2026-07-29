@@ -39,6 +39,14 @@ module.exports = function(harness) {
     assert.ok(css.includes('[data-theme="dark"]'), 'missing dark theme selector');
   });
 
+  test('form submit button uses document theme colors', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'rendered.css'), 'utf-8');
+    const rule = css.match(/\.sdoc-form-submit\s*\{([\s\S]*?)\}/);
+    assert.ok(rule, 'missing .sdoc-form-submit rule');
+    assert.ok(rule[1].includes('background: var(--md-link-color'), 'form button background must follow document link color');
+    assert.ok(rule[1].includes('color: var(--md-bg'), 'form button text must contrast using document background');
+  });
+
   test('index.html contains theme toggle button', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
     assert.ok(html.includes('id="_sd_btn-theme"'), 'missing theme toggle button');
