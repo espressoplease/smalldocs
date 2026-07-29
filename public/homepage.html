@@ -779,6 +779,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 
 /* ── FOOTER (minimal hairline) ───────────────────────── */
 footer {
+  margin-top: 66px;
   border-top: 1px solid var(--line);
   padding: 28px 0 36px;
 }
@@ -875,11 +876,11 @@ footer {
 
 /* ── RESPONSIVE ──────────────────────────────────────── */
 @media (max-width: 900px) {
-  /* One 56px gap between every panel: the section top padding is the
-     only vertical space between boxes, so all three must match. */
+  /* One 56px gap between every panel and before the footer. */
   #learn { padding: 56px 0 0; }
   #install { padding: 56px 0 0; }
   #praise { padding: 56px 0 0; }
+  footer { margin-top: 56px; }
   .install-panel { padding: 44px 36px; border-radius: 18px; }
   .install-grid { grid-template-columns: 1fr; gap: 32px; }
   .install-text { max-width: 100%; }
@@ -902,6 +903,7 @@ footer {
   #learn { padding: 40px 0 0; }
   #install { padding: 40px 0 0; }
   #praise { padding: 40px 0 0; }
+  footer { margin-top: 40px; }
   .install-panel { padding: 32px 22px; border-radius: 16px; }
   .install-text h2 { font-size: 1.45rem; }
   .install-cmd { padding: 12px 12px 12px 14px; }
