@@ -116,9 +116,23 @@ function refreshCanonicalSkill(home) {
 
 // ── symlink install ────────────────────────────────────────
 
+// A real directory at an agent skills path is only safe to replace if it looks
+// like one of our own copy-fallback installs (a prior Windows run, or a system
+// where symlinks are unavailable): it must contain a SKILL.md carrying our
+// sdocs-skill marker. Anything else is user content we must not destroy.
+function looksLikeOurSkillDir(dir) {
+  try {
+    const content = fs.readFileSync(path.join(dir, 'SKILL.md'), 'utf-8');
+    return readSkillVersion(content) !== null;
+  } catch (_) { return false; }
+}
+
 // Ensure <linkDir> resolves to <canonicalDir>. Idempotent: a link already
-// pointing at canonical is a no-op; a wrong/stale link or a real dir is
-// replaced. Returns { method } where method is symlink | copy | noop | error.
+// pointing at canonical is a no-op; a wrong/stale link or a stray file is
+// replaced. A real directory is replaced only if it is recognisably one of our
+// copy-fallback installs; otherwise it is left untouched (returns an error) so
+// the user's own files are never clobbered. Returns { method } where method is
+// symlink | copy | noop | error.
 function ensureSkillLink(canonicalDir, linkDir) {
   try {
     const st = fs.lstatSync(linkDir);
@@ -126,9 +140,17 @@ function ensureSkillLink(canonicalDir, linkDir) {
       const tgt = fs.readlinkSync(linkDir);
       const resolved = path.resolve(path.dirname(linkDir), tgt);
       if (resolved === canonicalDir) return { method: 'noop' };
+      // Stale/wrong symlink: safe to remove (a link holds no user data).
+      fs.rmSync(linkDir, { recursive: true, force: true });
+    } else if (st.isDirectory()) {
+      if (!looksLikeOurSkillDir(linkDir)) {
+        return { method: 'error', error: 'exists and is not a SmallDocs skill directory; left untouched' };
+      }
+      fs.rmSync(linkDir, { recursive: true, force: true });
+    } else {
+      // A stray regular file: safe to remove.
+      fs.rmSync(linkDir, { force: true });
     }
-    // Exists but is not our link (stale link, real dir, or a stray file).
-    fs.rmSync(linkDir, { recursive: true, force: true });
   } catch (_) { /* did not exist - fine */ }
 
   fs.mkdirSync(path.dirname(linkDir), { recursive: true });
@@ -287,6 +309,7 @@ module.exports = {
   copyDirRecursive,
   refreshCanonicalSkill,
   ensureSkillLink,
+  looksLikeOurSkillDir,
   detectSkillAgents,
   hasSetupEvidence,
   stripLegacyBlocks,

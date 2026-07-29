@@ -260,7 +260,7 @@ node test/run.js                             # full suite, scenarios live under 
 node -e "const h=require('./test/runner');const r=require('./test/test-setup-scenarios')(h);(async()=>{await r();h.report();})()"
 ```
 
-Each scenario takes ~100ms; the twelve together run well under a second.
+Each scenario takes ~100ms; the thirteen together run well under a second.
 
 **Scenarios covered:**
 

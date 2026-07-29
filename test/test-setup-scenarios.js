@@ -157,9 +157,7 @@ module.exports = function (harness) {
     const fx = createFixture({ agents: ['claude'] });
     try {
       // Seed a stale canonical skill at an older version.
-      const stale = cli.formatSkill(cli.SKILL_VERSION - 5).replace(
-        `v=${cli.SKILL_VERSION - 5}`, `v=${cli.SKILL_VERSION - 5}`,
-      );
+      const stale = cli.formatSkill(cli.SKILL_VERSION - 5);
       const staleFile = require('path').join(fx.home, skillRel);
       require('fs').mkdirSync(require('path').dirname(staleFile), { recursive: true });
       require('fs').writeFileSync(staleFile, stale);
@@ -253,6 +251,31 @@ module.exports = function (harness) {
     try {
       // A recognised block in a historical config file is prior consent.
       assert.strictEqual(hasSetupEvidence(fx.home, {}), true, 'legacy block counts as evidence');
+    } finally { fx.cleanup(); }
+  });
+
+  // ── 13. User-maintained skill dir is never clobbered ──────
+  // If someone hand-maintains ~/.claude/skills/smalldocs with their own
+  // content, setup must NOT recursively delete it to make room for a symlink.
+  scenario('ensureSkillLink / user-maintained dir left untouched', async () => {
+    const fx = createFixture({ agents: ['claude'] });
+    try {
+      // Seed a real dir that does NOT look like one of our copy-fallback
+      // installs (no sdocs-skill marker).
+      fx.write('.claude/skills/smalldocs/SKILL.md', '---\nname: smalldocs\ndescription: mine\n---\nmy custom skill\n');
+      const before = fx.read('.claude/skills/smalldocs/SKILL.md');
+
+      const r = await fx.run('setup --yes');
+      assert.strictEqual(r.exitCode, 0, `exit code (stderr=${r.stderr})`);
+
+      // The canonical skill is still written.
+      assert.ok(fx.read(skillRel), 'canonical skill written');
+
+      // The user's hand-maintained dir is preserved verbatim (no symlink
+      // replaced it, no content destroyed).
+      assert.strictEqual(fx.read('.claude/skills/smalldocs/SKILL.md'), before, 'user skill dir untouched');
+      assert.strictEqual(fx.readlink('.claude/skills/smalldocs'), null, 'no symlink overwrote the dir');
+      assert.ok(/left untouched/i.test(r.stdout), 'setup reports it left the dir alone');
     } finally { fx.cleanup(); }
   });
 
