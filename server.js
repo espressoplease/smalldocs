@@ -84,8 +84,8 @@ const FEEDBACK_MAX_BYTES = 4 * 1024;            // 4 KB message cap
 feedback.init();
 feedbackRateLimit.startCleanup();
 
-// Teams-interest form (homepage Teams section). Stored in its own SQLite
-// file; an email ping fires when SMTP env vars are set (see teams/notify.js).
+// Business-interest contact form. Stored in its own SQLite file; an email
+// ping fires when SMTP env vars are set (see teams/notify.js).
 // Shares the feedback rate limiter: both are infrequent human submissions
 // and a common per-IP budget keeps spam cheap to refuse.
 const teamsInterest = require('./teams/db');
@@ -576,8 +576,7 @@ const server = http.createServer((req, res) => {
   }
 
   // SmallDocs for business: capability overview + contact form. The form
-  // posts to /api/teams-interest (stores + email ping), same as the
-  // homepage Teams section.
+  // posts to /api/teams-interest (stores + email ping).
   if (pathname === '/business') {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'business.html'), null, {
       'Cache-Control': 'no-cache',

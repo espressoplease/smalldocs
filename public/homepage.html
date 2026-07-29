@@ -560,7 +560,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 }
 /* Grid items default to min-width auto, which lets nowrap content
    (the curl command) widen the track past the viewport on phones. */
-.install-grid > *, .teams-grid > * { min-width: 0; }
+.install-grid > * { min-width: 0; }
 .install-text { max-width: 32ch; }
 .install-text h2 {
   font-size: var(--t-lead);
@@ -627,77 +627,6 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   font-size: var(--t-mono);
   color: var(--ink-3);
   padding: 0;
-}
-
-/* ── TEAMS: sibling panel below the install section ──────────
-   Reuses .install-panel for the outer shell so the page reads as
-   one stack of equal-width tinted panels. Inside it switches to a
-   text-left / video-right grid. */
-#teams {
-  padding: 66px 0 80px 0;
-}
-.teams-grid {
-  display: grid;
-  grid-template-columns: 0.95fr 1.05fr;
-  gap: 56px;
-  align-items: start;
-}
-.teams-text { max-width: 32ch; }
-.teams-text h2 {
-  font-size: var(--t-lead);
-  font-weight: 600;
-  letter-spacing: -0.022em;
-  line-height: 1.16;
-  color: var(--ink);
-}
-.teams-text .lead {
-  margin-top: 16px;
-  font-size: 1.0625rem;
-  line-height: 1.65;
-  color: var(--ink-2);
-  font-weight: 400;
-}
-/* Teams interest form: fields share the install-cmd family's cream
-   surfaces so the two panels' RHS columns read as one system. */
-.teams-form { display: grid; gap: 14px; }
-.tf-field label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: var(--t-label);
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  color: var(--ink-2);
-}
-.tf-field .tf-opt { font-weight: 400; color: var(--ink-3); }
-.tf-field input,
-.tf-field textarea {
-  width: 100%;
-  font-family: var(--font);
-  /* 16px minimum: anything smaller makes iOS Safari zoom in on focus. */
-  font-size: 1rem;
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-sm);
-  padding: 10px 12px;
-  outline: none;
-  transition: border-color .15s ease;
-}
-.tf-field input:focus,
-.tf-field textarea:focus { border-color: var(--accent); }
-.tf-field textarea { resize: vertical; min-height: 96px; }
-.tf-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
-.tf-actions { display: flex; align-items: center; gap: 14px; }
-.tf-status { font-size: var(--t-sm); color: var(--ink-2); }
-.tf-status.err { color: #B4231F; }
-.tf-note { font-size: var(--t-label); color: var(--ink-3); }
-.teams-thanks {
-  font-size: var(--t-body);
-  line-height: 1.6;
-  color: var(--ink);
-  background: var(--paper);
-  border-radius: var(--r);
-  padding: 22px 24px;
 }
 
 /* expandable extras: paper-tinted, borderless, lower visual weight
@@ -956,9 +885,6 @@ footer {
   .install-text { max-width: 100%; }
   .install-text h2 { font-size: 1.7rem; }
   .praise-grid { grid-template-columns: repeat(2, 1fr); }
-  #teams { padding: 56px 0 64px; }
-  .teams-grid { grid-template-columns: 1fr; gap: 28px; }
-  .teams-text { max-width: 100%; }
 }
 @media (max-width: 620px) {
   .wrap { padding: 0 22px; }
@@ -976,7 +902,6 @@ footer {
   #learn { padding: 40px 0 0; }
   #install { padding: 40px 0 0; }
   #praise { padding: 40px 0 0; }
-  #teams { padding: 40px 0 48px; }
   .install-panel { padding: 32px 22px; border-radius: 16px; }
   .install-text h2 { font-size: 1.45rem; }
   .install-cmd { padding: 12px 12px 12px 14px; }
@@ -988,64 +913,9 @@ footer {
      GitHub and Discord fit without horizontal scroll. */
   .nav-hide-mobile { display: none; }
 }
-/* Design-partner nudge - top strip inviting frequent visitors to leave a
-   work email. Kept in sync with the app copy in css/layout.css (this page
-   loads no shared CSS, so the rules are duplicated here against homepage
-   variables). */
-#_sd_dp-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 18px;
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--ink);
-  background: color-mix(in srgb, var(--accent) 8%, var(--paper));
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
-}
-#_sd_dp-banner[hidden] { display: none; }
-.sd-dp-text { flex: 1; min-width: 0; }
-.sd-dp-form { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.sd-dp-email, .sd-dp-name {
-  font: inherit;
-  padding: 5px 10px;
-  min-width: 0;
-  color: var(--ink);
-  background: var(--white);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
-  border-radius: var(--r-sm);
-}
-.sd-dp-name { width: 120px; }
-.sd-dp-email { width: 180px; }
-.sd-dp-email:focus, .sd-dp-name:focus { outline: none; border-color: var(--accent); }
-.sd-dp-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
-.sd-dp-submit {
-  font: inherit;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  color: #fff;
-  background: var(--accent);
-  border: 1px solid var(--accent);
-  padding: 5px 13px;
-  border-radius: var(--r-sm);
-}
-.sd-dp-submit:hover { background: var(--accent-ink); }
-.sd-dp-submit:disabled { opacity: .6; cursor: default; }
-.sd-dp-status { font-size: 12px; color: var(--ink-2); }
-.sd-dp-status.sd-dp-err { color: #c0392b; }
-@media (max-width: 900px) {
-  #_sd_dp-banner { flex-wrap: wrap; gap: 8px 10px; }
-  .sd-dp-text { flex: 1 1 100%; }
-  .sd-dp-form { flex: 1 1 100%; flex-wrap: wrap; }
-  .sd-dp-name, .sd-dp-email { flex: 1 1 120px; width: auto; font-size: 16px; }
-  .sd-dp-submit { flex: 0 0 auto; }
-}
 </style>
 </head>
 <body>
-
-<div id="_sd_dp-banner" hidden></div>
 
 <!-- ═══ NAV ══════════════════════════════════════════════ -->
 <nav class="nav" id="nav">
@@ -1095,10 +965,6 @@ footer {
       <a class="btn btn-secondary" href="#install">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
         Free for personal use
-      </a>
-      <a class="btn btn-secondary" href="#teams">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/></svg>
-        SmallDocs for teams
       </a>
     </div>
     <p class="hero-works">Works with Claude &middot; Codex &middot; Cursor &middot; Gemini &middot; Antigravity &middot; opencode &middot; Pi</p>
@@ -1443,49 +1309,6 @@ footer {
   </div>
 </section>
 
-<!-- ═══ TEAMS ════════════════════════════════════════════ -->
-<section id="teams">
-  <div class="wrap">
-    <div class="install-panel">
-      <div class="teams-grid">
-
-        <div class="teams-text">
-          <h2>SmallDocs Teams</h2>
-          <p class="lead">
-            Shared style libraries, central distribution of company-standard documents, and SSO. If your team works with coding agents and wants to move faster, get in touch.
-          </p>
-        </div>
-
-        <form class="teams-form" id="teamsForm" novalidate>
-          <div class="tf-field">
-            <label for="tf-email">Work email</label>
-            <input id="tf-email" name="email" type="email" required autocomplete="email" />
-          </div>
-          <div class="tf-field">
-            <label for="tf-company">Company or team <span class="tf-opt">optional</span></label>
-            <input id="tf-company" name="company" type="text" autocomplete="organization" />
-          </div>
-          <div class="tf-field">
-            <label for="tf-message">What would your team use it for? <span class="tf-opt">optional</span></label>
-            <textarea id="tf-message" name="message" rows="4"></textarea>
-          </div>
-          <!-- Honeypot: hidden from people, filled by naive bots. -->
-          <div class="tf-hp" aria-hidden="true">
-            <label for="tf-website">Website</label>
-            <input id="tf-website" name="website" type="text" tabindex="-1" autocomplete="off" />
-          </div>
-          <div class="tf-actions">
-            <button class="btn btn-primary" type="submit" id="tf-submit">Get in touch</button>
-            <span class="tf-status" id="tf-status" aria-live="polite"></span>
-          </div>
-          <p class="tf-note">We store what you submit and use it only to reply.</p>
-        </form>
-
-      </div><!-- /teams-grid -->
-    </div><!-- /install-panel -->
-  </div>
-</section>
-
 <!-- ═══ FOOTER (minimal) ═════════════════════════════════ -->
 <footer>
   <div class="wrap">
@@ -1505,11 +1328,6 @@ footer {
 </footer>
 
 <script src="/public/sdocs-cli-setup.js"></script>
-<script src="/public/sdocs-design-partner.js"></script>
-<script>
-// Design-partner nudge, keyed on homepage visit count (5th and 25th load).
-if (window.SDocsDesignPartner) { try { SDocsDesignPartner.init('home'); } catch (_) {} }
-</script>
 <script>
 // Log a landing-page visit, tagged 'home', so analytics can separate homepage
 // traffic from in-app document usage. The marketing page otherwise reports
@@ -1593,53 +1411,6 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
     setTimeout(() => { btn.innerHTML = COPY_SVG; }, COPY_FEEDBACK_MS);
   });
 });
-
-/* Teams interest form: POST to /api/teams-interest, which stores the
-   submission and pings us. On success the whole form is replaced with a
-   confirmation so a double-submit isn't possible. */
-(function () {
-  const form = document.getElementById('teamsForm');
-  if (!form) return;
-  const email   = document.getElementById('tf-email');
-  const company = document.getElementById('tf-company');
-  const message = document.getElementById('tf-message');
-  const hp      = document.getElementById('tf-website');
-  const submit  = document.getElementById('tf-submit');
-  const status  = document.getElementById('tf-status');
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const addr = email.value.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(addr)) {
-      status.textContent = 'Enter a valid email address.';
-      status.classList.add('err');
-      email.focus();
-      return;
-    }
-    status.classList.remove('err');
-    status.textContent = 'Sending…';
-    submit.disabled = true;
-    try {
-      const r = await fetch('/api/teams-interest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: addr,
-          company: company.value.trim(),
-          message: message.value.trim(),
-          website: hp.value,
-        }),
-      });
-      if (!r.ok) throw new Error('http ' + r.status);
-      form.innerHTML = '<div class="teams-thanks">Thanks. We’ll be in touch at <strong>'
-        + addr.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</strong>.</div>';
-    } catch (err) {
-      submit.disabled = false;
-      status.classList.add('err');
-      status.textContent = 'Something went wrong; nothing was sent. Try again, or email hi@smalldocs.org.';
-    }
-  });
-})();
 
 /* Hero video: a muted teaser loops until the visitor presses play, then
    the full demo starts from the top with sound. Captions custom-rendered

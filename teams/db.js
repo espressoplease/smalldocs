@@ -1,6 +1,6 @@
 /**
- * Teams-interest database. SQLite storage for "register interest" form
- * submissions from the homepage Teams section.
+ * Teams-interest database. SQLite storage for contact-form submissions from
+ * the SmallDocs for business page.
  *
  * Unlike feedback.db this deliberately stores contact details (that is the
  * point of the form: the visitor asks to be contacted). It is never exposed
