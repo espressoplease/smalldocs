@@ -58,6 +58,60 @@ test('a loaded short link populates shortUrl / shortLinkId and the card row', as
   expect(await page.locator('.fic-row-short').count()).toBeGreaterThan(0);
 });
 
+test('expand all clicked while a short link is loading is applied after render', async ({ page }) => {
+  await page.goto(BASE + '/docs');
+  await page.waitForFunction(() =>
+    window.SDocs && window.SDocs.shortLink && typeof window.SDocs.shortLink.create === 'function');
+
+  const link = await page.evaluate(async () => {
+    window.SDocs.loadText([
+      '# Delayed document',
+      '',
+      '## First section',
+      '',
+      'First body.',
+      '',
+      '### Nested section',
+      '',
+      'Nested body.',
+      '',
+      '## Second section',
+      '',
+      'Second body.',
+    ].join('\n'));
+    window.SDocs._isDefaultState = false;
+    return await window.SDocs.shortLink.create();
+  });
+
+  let releaseFetch;
+  const fetchGate = new Promise(resolve => { releaseFetch = resolve; });
+  let markIntercepted;
+  const intercepted = new Promise(resolve => { markIntercepted = resolve; });
+  await page.route('**/api/short/' + link.id, async route => {
+    markIntercepted();
+    await fetchGate;
+    await route.continue();
+  });
+
+  await page.goto(link.url, { waitUntil: 'domcontentloaded' });
+  await intercepted;
+
+  const foldButton = page.locator('#_sd_btn-fold');
+  await expect(foldButton).toBeVisible();
+  await expect(page.locator('.md-section-body')).toHaveCount(0);
+  await foldButton.click();
+  await expect(foldButton).toHaveAttribute('aria-label', 'Collapse all');
+
+  releaseFetch();
+  await expect(page.locator('.md-section-body')).toHaveCount(3);
+  await expect(page.locator('.md-section-body.open')).toHaveCount(3);
+  await expect(foldButton).toHaveAttribute('aria-label', 'Collapse all');
+
+  await foldButton.click();
+  await expect(page.locator('.md-section-body.open')).toHaveCount(0);
+  await expect(foldButton).toHaveAttribute('aria-label', 'Expand all');
+});
+
 test('editing a loaded short link clears the stale short URL from the card', async ({ page }) => {
   await openFreshShortLink(page);
 
