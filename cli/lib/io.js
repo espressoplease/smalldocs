@@ -239,10 +239,10 @@ function readCodewalkContent(files) {
   return { body: parts.join('\n'), files: tabs };
 }
 
-// ── Long-URL handoff ────────────────────────────────
+// ── Inline-document handoff ─────────────────────────
 //
-// A document travels in the URL hash, so a large file means a large URL, and
-// the OS handoff has a hard ceiling that neither side reports.
+// A document travels in the URL hash. Browsers can accept large URLs, but the
+// external path used to launch them can silently truncate one first.
 //
 // On Linux, when Chrome is ALREADY RUNNING, the process `xdg-open` starts does
 // not parse its own argv. It forwards the command line to the running instance
@@ -250,41 +250,45 @@ function readCodewalkContent(files) {
 // Chromium reads that into a fixed buffer (`kMaxMessageLength = 32 * 1024` in
 // chrome/browser/process_singleton_posix.cc), splits whatever fits on \0, and
 // opens the result. Nothing checks the length on either side, so a longer URL
-// arrives truncated and the browser loads a corrupt link. Windows has the same
-// wall from a different direction: `cmd /c start` caps the command line at
-// 32,767 characters. A cold browser start is fine on both, which is what makes
-// this look intermittent.
+// arrives truncated and the browser loads a corrupt link. Windows has a
+// different launcher limit: `cmd.exe`, which `openBrowser()` currently uses,
+// accepts command strings up to 8,191 characters.
 //
-// Above the budget, hand the browser a short `file://` URL whose only job is to
-// redirect to the real one. The hash then never passes through the OS handoff.
-// Nothing is uploaded and no local server is involved.
-const OS_HANDOFF_LIMIT = 32 * 1024;
-// cwd, argv0 and the delimiters share the same buffer as the URL. 1 KB covers
-// a deep working directory with room to spare; being early costs one temp file.
-const OS_HANDOFF_HEADROOM = 1024;
+// Limits vary by platform, browser, launch state, and working directory. Do not
+// turn any one of them into a SmallDocs capability cap. Every inline `#md=`
+// document instead goes through a short local `file://` bootstrap; ordinary
+// pages and short links still open directly. The browser follows the full URL
+// internally, so only its real URL capability applies. Nothing is uploaded and
+// no local server is involved.
 const HOP_DIR = path.join(os.homedir(), '.sdocs', 'open');
 const HOP_MAX_AGE_MS = 5 * 60 * 1000;
 
-function directUrlBudget(cwd) {
-  return OS_HANDOFF_LIMIT - OS_HANDOFF_HEADROOM
-    - Buffer.byteLength(cwd === undefined ? process.cwd() : cwd);
-}
-
-function needsHopFile(url, cwd) {
-  return Buffer.byteLength(url) > directUrlBudget(cwd);
+function shouldBootstrapUrl(url) {
+  try {
+    const hash = new URL(url).hash.slice(1);
+    return new URLSearchParams(hash).has('md');
+  } catch {
+    return false;
+  }
 }
 
 // The redirect page. `location.replace` keeps the hop out of the back button,
 // and the hash survives because the navigation happens inside the browser.
-// A base64url payload cannot contain `<`, but escaping it keeps the page safe
-// if the URL shape ever changes.
+// The link is a no-JavaScript fallback for restrictive browser or enterprise
+// policies. Escape both contexts even though today's payload is base64url.
 function buildHopHtml(url) {
   const literal = JSON.stringify(url).replace(/</g, '\\u003c');
+  const href = String(url)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
   return '<!doctype html>\n'
     + '<meta charset="utf-8">\n'
     + '<title>SmallDocs</title>\n'
     + `<script>location.replace(${literal})</script>\n`
-    + '<p>Opening SmallDocs...</p>\n';
+    + `<p>Opening SmallDocs… If it does not open, <a href="${href}">continue manually</a>.</p>\n`;
 }
 
 // Old hop files are dead as soon as the browser has followed them, but there
@@ -314,7 +318,7 @@ function openBrowser(url) {
   // On failure, fall through to the direct URL: that is today's behaviour, so
   // a hop file that cannot be written never makes things worse than they were.
   let target = url;
-  if (needsHopFile(url)) {
+  if (shouldBootstrapUrl(url)) {
     try { target = pathToFileURL(writeHopFile(url)).href; } catch { target = url; }
   }
   try {
@@ -334,7 +338,6 @@ module.exports = {
   readContent,
   readCodewalkContent,
   openBrowser,
-  directUrlBudget,
-  needsHopFile,
+  shouldBootstrapUrl,
   buildHopHtml,
 };

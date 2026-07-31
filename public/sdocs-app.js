@@ -1124,11 +1124,11 @@ function showHashDecodeError(mdParam) {
     + 'this one arrived, so it could not be decoded (' + received
     + ' characters received).</p>'
     + '<p>If you opened this with the <code>sdoc</code> CLI, run '
-    + '<code>sdoc upgrade</code> and try again. The handoff from a command line '
-    + 'to an already-running browser truncates URLs over 32 KB without '
-    + 'reporting it, and recent CLI versions route long documents around that '
-    + 'limit. <code>sdoc share &lt;file&gt;</code> also avoids it, by producing '
-    + 'a short link.</p>'
+    + '<code>sdoc upgrade</code> and try again. Some command-line-to-browser '
+    + 'handoffs silently truncate long URLs; recent CLI versions open inline '
+    + 'documents through a private local bootstrap so the browser receives the '
+    + 'complete link. <code>sdoc share &lt;file&gt;</code> also avoids the handoff '
+    + 'by producing a short link.</p>'
     + '</div>';
 }
 
@@ -2004,10 +2004,10 @@ async function loadFromHash() {
       maybeAutoExpandCodeFile();
     } catch (e) {
       // Almost always a truncated link: the whole document rides in the hash,
-      // and the OS handoff between a CLI and an already-running browser has a
-      // 32 KB ceiling that neither side reports (see openBrowser in
-      // cli/lib/io.js). Say so instead of rendering a blank page that looks
-      // deliberate, and stop updateHash from overwriting what did arrive.
+      // and some external browser-launch paths silently shorten long command
+      // lines before the browser sees them (see openBrowser in cli/lib/io.js).
+      // Say so instead of rendering a blank page that looks deliberate, and
+      // stop updateHash from overwriting what did arrive.
       S._hashDecodeFailed = true;
       console.warn('sdocs-dev: could not decode hash', e);
       showHashDecodeError(mdParam);

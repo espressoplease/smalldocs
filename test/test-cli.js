@@ -542,41 +542,23 @@ module.exports = function(harness) {
     assert.ok(overriddenColors.has('_sd_ctrl-list-color'));
   });
 
-  console.log('\n── Long-URL Handoff Tests ─────────────────────\n');
+  console.log('\n── Inline-Document Handoff Tests ──────────────\n');
 
-  // The OS handoff between a CLI and an already-running browser truncates the
-  // command line at 32 KB (Chromium's process singleton) or 32,767 characters
-  // (Windows `cmd /c start`), silently. A URL over that budget has to go
-  // through a local redirect file instead. See openBrowser in cli/lib/io.js.
+  // Launcher limits vary. SmallDocs does not guess a universal budget: every
+  // inline document takes a local bootstrap path, while URLs that carry no
+  // document keep opening directly. See openBrowser in cli/lib/io.js.
 
-  test('directUrlBudget: leaves headroom below the 32 KB handoff buffer', () => {
-    const budget = cli.directUrlBudget('/home/u/proj');
-    assert.ok(budget < 32 * 1024, 'budget must sit under the 32 KB ceiling');
-    assert.ok(budget > 30 * 1024, `budget unexpectedly small: ${budget}`);
+  test('shouldBootstrapUrl: inline documents use the bootstrap at any size', () => {
+    assert.strictEqual(cli.shouldBootstrapUrl('https://smalldocs.org/#md=x'), true);
+    assert.strictEqual(cli.shouldBootstrapUrl('https://smalldocs.org/#local=e30&md=x'), true);
+    assert.strictEqual(cli.shouldBootstrapUrl('https://smalldocs.org/#md=' + 'a'.repeat(40000)), true);
   });
 
-  test('directUrlBudget: shrinks as the working directory gets longer', () => {
-    const shallow = cli.directUrlBudget('/a');
-    const deep = cli.directUrlBudget('/a' + '/nested'.repeat(40));
-    // cwd rides in the same 32 KB buffer as the URL, which is why the failure
-    // threshold moves with the directory you run sdoc from.
-    assert.strictEqual(shallow - deep, 'nested/'.length * 40);
-  });
-
-  test('needsHopFile: ordinary documents open directly', () => {
-    assert.strictEqual(cli.needsHopFile('https://smalldocs.org/#md=' + 'a'.repeat(5000), '/tmp'), false);
-  });
-
-  test('needsHopFile: a document over the budget takes the redirect path', () => {
-    const budget = cli.directUrlBudget('/tmp');
-    assert.strictEqual(cli.needsHopFile('a'.repeat(budget), '/tmp'), false);
-    assert.strictEqual(cli.needsHopFile('a'.repeat(budget + 1), '/tmp'), true);
-  });
-
-  test('needsHopFile: measures bytes, not characters', () => {
-    const budget = cli.directUrlBudget('/tmp');
-    // A multi-byte character costs its full width in the socket message.
-    assert.strictEqual(cli.needsHopFile('é'.repeat(budget), '/tmp'), true);
+  test('shouldBootstrapUrl: pages and short links still open directly', () => {
+    assert.strictEqual(cli.shouldBootstrapUrl('https://smalldocs.org/'), false);
+    assert.strictEqual(cli.shouldBootstrapUrl('https://smalldocs.org/library'), false);
+    assert.strictEqual(cli.shouldBootstrapUrl('https://smalldocs.org/s/abc123'), false);
+    assert.strictEqual(cli.shouldBootstrapUrl('not a URL'), false);
   });
 
   test('buildHopHtml: redirects to the full URL', () => {
@@ -584,11 +566,14 @@ module.exports = function(harness) {
     const html = cli.buildHopHtml(url);
     assert.ok(html.indexOf('location.replace(') !== -1);
     assert.ok(html.indexOf(url) !== -1, 'the whole URL must survive into the page');
+    assert.ok(html.indexOf('continue manually') !== -1, 'a no-JavaScript fallback must be present');
   });
 
-  test('buildHopHtml: the URL cannot close the script tag', () => {
-    const html = cli.buildHopHtml('https://smalldocs.org/#md=x</script><img onerror=alert(1)>');
-    assert.strictEqual(html.indexOf('</script><img'), -1);
+  test('buildHopHtml: the URL cannot escape the script or fallback link', () => {
+    const html = cli.buildHopHtml('https://smalldocs.org/#md=x</script><img src=x>&q="quoted"');
+    assert.strictEqual(html.indexOf('</script><img'), -1, 'script literal must stay open');
     assert.ok(html.indexOf('\\u003c/script>') !== -1);
+    assert.strictEqual(html.indexOf('href="https://smalldocs.org/#md=x</script>'), -1);
+    assert.ok(html.indexOf('&lt;/script&gt;&lt;img src=x&gt;&amp;q=&quot;quoted&quot;') !== -1);
   });
 };
