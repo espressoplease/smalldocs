@@ -583,6 +583,7 @@ function maybeAutoExpandCodewalk() {
 }
 
 var SECTION_LEVELS = { H2: 2, H3: 3, H4: 4 };
+var _pendingFoldAllOpen = null;
 
 function buildCollapsibleSections(container) {
   // H1 expand/collapse toggle (controls all sections below)
@@ -676,6 +677,13 @@ function render() {
   attachHeadingAnchors(S.renderedEl);
   attachCodeCopyButtons(S.renderedEl);
   buildCollapsibleSections(S.renderedEl);
+  // The toolbar is available before async document sources (notably short
+  // links) finish loading. Preserve an expand/collapse click made during that
+  // window and apply it to the first rendered set of sections.
+  if (_pendingFoldAllOpen !== null) {
+    setAllSectionsOpen(_pendingFoldAllOpen);
+    _pendingFoldAllOpen = null;
+  }
   // Re-expand sections that were open before this render.
   openIds.forEach(function (id) {
     var heading = S.renderedEl.querySelector('#' + CSS.escape(id));
@@ -1604,20 +1612,34 @@ document.getElementById('_sd_btn-read').addEventListener('click',   function() {
 document.getElementById('_sd_btn-fold').addEventListener('click', function() {
   if (!S.renderedEl) return;
   var bodies = S.renderedEl.querySelectorAll('.md-section-body');
-  var allOpen = bodies.length > 0 && Array.prototype.every.call(bodies, function(b) { return b.classList.contains('open'); });
+  var allOpen = bodies.length > 0
+    ? Array.prototype.every.call(bodies, function(b) { return b.classList.contains('open'); })
+    : _pendingFoldAllOpen === true;
   var nextOpen = !allOpen;
-  S.renderedEl.querySelectorAll('h1 > .section-toggle').forEach(function(t) { t.classList.toggle('open', nextOpen); });
-  bodies.forEach(function(b) { b.classList.toggle('open', nextOpen); });
-  S.renderedEl.querySelectorAll('.md-section .section-toggle').forEach(function(t) { t.classList.toggle('open', nextOpen); });
+  if (!bodies.length) {
+    _pendingFoldAllOpen = nextOpen;
+  } else {
+    _pendingFoldAllOpen = null;
+    setAllSectionsOpen(nextOpen);
+  }
   syncFoldButton();
 });
+
+function setAllSectionsOpen(isOpen) {
+  if (!S.renderedEl) return;
+  S.renderedEl.querySelectorAll('h1 > .section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
+  S.renderedEl.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.toggle('open', isOpen); });
+  S.renderedEl.querySelectorAll('.md-section .section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
+}
 
 function syncFoldButton() {
   var btn = document.getElementById('_sd_btn-fold');
   if (!btn || !S.renderedEl) return;
   var bodies = S.renderedEl.querySelectorAll('.md-section-body');
-  btn.style.display = bodies.length ? '' : 'none';
-  var allOpen = bodies.length > 0 && Array.prototype.every.call(bodies, function(b) { return b.classList.contains('open'); });
+  btn.style.display = (bodies.length || _pendingFoldAllOpen !== null) ? '' : 'none';
+  var allOpen = bodies.length > 0
+    ? Array.prototype.every.call(bodies, function(b) { return b.classList.contains('open'); })
+    : _pendingFoldAllOpen === true;
   btn.classList.toggle('is-open', allOpen);
   var label = allOpen ? 'Collapse all' : 'Expand all';
   btn.setAttribute('aria-label', label);
