@@ -279,6 +279,21 @@ module.exports = function (h) {
       assert.ok(typeof r.body.content === 'string');
     });
 
+    await testAsync('library-agent: /file accepts an indexed path under a scan-only directory', async () => {
+      const generatedDir = path.join(SANDBOX, 'dist');
+      const generatedFile = path.join(generatedDir, 'notes.md');
+      fs.mkdirSync(generatedDir, { recursive: true });
+      fs.writeFileSync(generatedFile, '# Previously indexed notes\n');
+      store.upsertEntry({
+        id: 'generated-notes', path: generatedFile, title: 'Previously indexed notes',
+        tags: [], mtime: new Date().toISOString(),
+      });
+
+      const r = await req('GET', '/api/library/file?path=' + encodeURIComponent(generatedFile));
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.body.content.includes('Previously indexed notes'));
+    });
+
     await testAsync('library-agent: /file refuses a deny-listed path even if it exists', async () => {
       const denied = path.join(SANDBOX, '.env');
       fs.writeFileSync(denied, 'SECRET=xxx\n');

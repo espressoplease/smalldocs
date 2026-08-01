@@ -15,18 +15,13 @@ const paths     = require('./library-paths');
 const DEFAULT_MAX_SIZE = 1 * 1024 * 1024;
 
 const DIRNAME_BLOCKLIST = new Set([
-  'node_modules',
   '.git',
   '.svn',
   '.hg',
-  'dist',
-  'build',
-  'vendor',
   '.venv',
   '.next',
   '.cache',
   '__pycache__',
-  'target',
   '.gradle',
   '.idea',
   '.vscode',
@@ -44,6 +39,19 @@ const DIRNAME_BLOCKLIST = new Set([
   '.azure',
   '.bitwarden',
   '.password-store',
+]);
+
+// Directories skipped during scanning traversal for speed, but NOT blocked
+// from path-gating when opening an explicitly indexed file.
+const SCAN_SKIP_DIRNAMES = new Set([
+  'assets',
+  'graphify',
+  'node_modules',
+  'vendor',
+  'target',
+  'dist',
+  'build',
+  'venv',
 ]);
 
 // File basenames that should never make it into the library, regardless
@@ -129,8 +137,10 @@ function deniedByPattern(absPath) {
 }
 
 function shouldSkipDir(absDir, base, skipSet, exemptRoots) {
-  if (base.startsWith('.') && base !== '.' && base !== '..') return true;
+  // Exempt .sdocs so AI coding agent markdown artifacts are indexed
+  if (base.startsWith('.') && base !== '.' && base !== '..' && base !== '.sdocs') return true;
   if (DIRNAME_BLOCKLIST.has(base)) return true;
+  if (SCAN_SKIP_DIRNAMES.has(base)) return true;
   if (skipSet.has(absDir)) return true;
   // Skip ephemeral paths during descent unless we're inside a root that
   // the caller explicitly named (in which case they want it scanned).
