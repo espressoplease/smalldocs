@@ -51,6 +51,16 @@ module.exports = function (h) {
     assert.strictEqual(scanner.deniedByPattern('/Users/x/.gnupg/somefile.md'), true);
   });
 
+  test('deniedByPattern: scan-only directory names remain openable', () => {
+    for (const dirname of ['assets', 'dist', 'build', 'vendor', 'node_modules', 'target']) {
+      assert.strictEqual(
+        scanner.deniedByPattern(path.join(path.sep, 'project', dirname, 'notes.md')),
+        false,
+        `${dirname} should affect scanning, not path gating`
+      );
+    }
+  });
+
   test('deniedByPattern: ordinary markdown is allowed', () => {
     assert.strictEqual(scanner.deniedByPattern('/Users/x/work/plan.md'), false);
     assert.strictEqual(scanner.deniedByPattern('/Users/x/Documents/notes/breakers.md'), false);
@@ -70,6 +80,21 @@ module.exports = function (h) {
     const out = scanner.scan({ roots: [root] });
     const bases = out.map(f => path.basename(f.path)).sort();
     assert.deepStrictEqual(bases, ['credentials.md', 'good.md', 'secret-santa.md']);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  test('scan: indexes nested .sdocs but skips other hidden, generated, and sensitive directories', () => {
+    const root = tmpDir('sdocs-agent-artifacts-');
+    write(path.join(root, 'keep.md'), '# keep');
+    write(path.join(root, '.sdocs', 'plan.md'), '# plan');
+    write(path.join(root, '.notes', 'hidden.md'), '# hidden');
+    write(path.join(root, 'dist', 'generated.md'), '# generated');
+    write(path.join(root, '.ssh', 'private.md'), '# private');
+
+    const out = scanner.scan({ roots: [root] });
+    const relativePaths = out.map(f => path.relative(root, f.path)).sort();
+    assert.deepStrictEqual(relativePaths, [path.join('.sdocs', 'plan.md'), 'keep.md']);
+
     fs.rmSync(root, { recursive: true, force: true });
   });
 
