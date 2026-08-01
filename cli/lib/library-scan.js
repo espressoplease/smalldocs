@@ -15,18 +15,13 @@ const paths     = require('./library-paths');
 const DEFAULT_MAX_SIZE = 1 * 1024 * 1024;
 
 const DIRNAME_BLOCKLIST = new Set([
-  'node_modules',
   '.git',
   '.svn',
   '.hg',
-  'dist',
-  'build',
-  'vendor',
   '.venv',
   '.next',
   '.cache',
   '__pycache__',
-  'target',
   '.gradle',
   '.idea',
   '.vscode',
