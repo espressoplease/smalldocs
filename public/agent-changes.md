@@ -1,13 +1,13 @@
 ---
-title: SmallDocs agent block changelog
+title: SmallDocs agent skill changelog
 file: agent-changes.md
 ---
 
-# SmallDocs agent block changelog
+# SmallDocs agent skill changelog
 
 Every change to the SmallDocs skill that `sdoc setup` installs (a `SKILL.md`
-written to `~/.agents/skills/smalldocs` and symlinked into each detected
-agent's skills directory).
+written to `~/.agents/skills/smalldocs`; agents using that universal location
+read it directly, while other detected agents receive a symlink).
 
 The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
@@ -22,7 +22,7 @@ loads on demand via the agent's `skill` tool - so it costs almost nothing until
 an agent actually reaches for it. One canonical copy lives at
 `~/.agents/skills/smalldocs/SKILL.md`; every other supported agent gets a
 relative symlink into its own skills directory (single source of truth; one
-write updates every agent). The agent table mirrors `vercel-labs/skills`.
+write updates every agent). The agent table is derived from `vercel-labs/skills`.
 
 Migration: any recognised always-on block previously written into
 `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`,

@@ -224,7 +224,7 @@ Once it is installed and you know about it, I want to be able to say things like
 
 and you will write the markdown and open it for me as a SmallDoc.
 
-The way you will "know about it" is through the SmallDocs skill: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand. `sdoc setup` writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md` and symlinks it into each detected coding agent's own skills directory (`~/.claude/skills/smalldocs`, `~/.codex/skills/smalldocs`, and so on). This is the same on-demand skill mechanism you already use for other agent skills.
+The way you will "know about it" is through the SmallDocs skill: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand. `sdoc setup` writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`. Agents using that universal location read it directly; other detected agents receive a symlink in their own skills directory (for example, `~/.claude/skills/smalldocs`). This is the same on-demand skill mechanism you already use for other agent skills.
 
 Please do the following, and ask me before any step that changes my filesystem.
 
@@ -248,7 +248,7 @@ Please do the following, and ask me before any step that changes my filesystem.
 4. Teach yourself the latest features.
    First, if `~/.agents/skills/smalldocs/SKILL.md` already exists, copy it aside and note its `v=N` version number (the `<!-- sdocs-skill: v=N -->` line). This snapshot is how you will spot exactly what a new release adds. On a fresh install there is no such file yet, which is fine.
    Then run: `sdoc setup --yes`
-   This installs (or refreshes) the SmallDocs skill at ~/.agents/skills/smalldocs/SKILL.md and symlinks it into each detected coding agent's skills directory, bumping it to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the skill yourself, the wording is kept in sync with the CLI version.
+   This installs (or refreshes) the SmallDocs skill at ~/.agents/skills/smalldocs/SKILL.md. Agents using that universal location read it directly; other detected agents receive a symlink. The skill is bumped to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the skill yourself, the wording is kept in sync with the CLI version.
 
 5. Verify it worked.
    Ask me to start a fresh chat session with you (so the updated config file is loaded). In the new session, ask me to say: "sdoc me a test file". A styled document should open in my browser.
@@ -299,7 +299,7 @@ Once it is installed and you know about it, I want to be able to say things like
 
 and you will write the markdown and open it for me as a SmallDoc.
 
-The way you will "know about it" is through the SmallDocs skill: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand. `sdoc setup` writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md` and symlinks it into each detected coding agent's own skills directory (`~/.claude/skills/smalldocs`, `~/.codex/skills/smalldocs`, and so on). This is the same on-demand skill mechanism you already use for other agent skills.
+The way you will "know about it" is through the SmallDocs skill: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand. `sdoc setup` writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`. Agents using that universal location read it directly; other detected agents receive a symlink in their own skills directory (for example, `~/.claude/skills/smalldocs`). This is the same on-demand skill mechanism you already use for other agent skills.
 
 Please do the following, and ask me before any step that changes my filesystem.
 
@@ -323,7 +323,7 @@ Please do the following, and ask me before any step that changes my filesystem.
 4. Teach yourself the latest features.
    First, if `~/.agents/skills/smalldocs/SKILL.md` already exists, copy it aside and note its `v=N` version number (the `<!-- sdocs-skill: v=N -->` line). This snapshot is how you will spot exactly what a new release adds. On a fresh install there is no such file yet, which is fine.
    Then run: `sdoc setup --yes`
-   This installs (or refreshes) the SmallDocs skill at ~/.agents/skills/smalldocs/SKILL.md and symlinks it into each detected coding agent's skills directory, bumping it to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the skill yourself, the wording is kept in sync with the CLI version.
+   This installs (or refreshes) the SmallDocs skill at ~/.agents/skills/smalldocs/SKILL.md. Agents using that universal location read it directly; other detected agents receive a symlink. The skill is bumped to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the skill yourself, the wording is kept in sync with the CLI version.
 
 5. Verify it worked.
    Ask me to start a fresh chat session with you (so the updated config file is loaded). In the new session, ask me to say: "sdoc me a test file". A styled document should open in my browser.

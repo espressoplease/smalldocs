@@ -130,6 +130,19 @@ function createFixture(opts = {}) {
         child.stderr.on('data', d => stderr += d);
         child.on('error', reject);
 
+        // Optional prompt-driven stdin for interactive setup scenarios. Each
+        // response is sent only after its prompt appears, so a fresh readline
+        // interface cannot consume answers intended for later questions.
+        const responses = (runOpts.responses || []).slice();
+        let responseIndex = 0;
+        child.stdout.on('data', () => {
+          const next = responses[responseIndex];
+          if (!next || !stdout.includes(next.prompt)) return;
+          responseIndex++;
+          child.stdin.write(next.answer);
+          if (responseIndex === responses.length) child.stdin.end();
+        });
+
         const timeout = setTimeout(() => {
           child.kill('SIGTERM');
           reject(new Error(`cli-harness: timeout running "sdoc ${argsString}"`));
@@ -142,8 +155,10 @@ function createFixture(opts = {}) {
 
         if (runOpts.stdin != null) {
           child.stdin.write(runOpts.stdin);
+          child.stdin.end();
+        } else if (responses.length === 0) {
+          child.stdin.end();
         }
-        child.stdin.end();
       });
     },
 

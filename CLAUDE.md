@@ -131,7 +131,7 @@ Never use em dashes (`-`) or en dashes (`-`) anywhere: source files, comments, c
 
 - Canonical copy: `~/.agents/skills/smalldocs/SKILL.md` (the single source of truth).
 - Every other supported agent gets a relative symlink from its own skills directory into the canonical dir. Universal agents (whose discovery path *is* `~/.agents/skills` - opencode, Codex, Gemini CLI, Cursor, ...) pick up the canonical copy directly and are skipped to avoid double-listing.
-- The agent table is `resolveSkillAgents()` in `cli/lib/agent-block.js` and mirrors `vercel-labs/skills/src/agents.ts`. Refresh it from upstream when new agents land.
+- The agent table is `resolveSkillAgents()` in `cli/lib/agent-block.js` and is derived from `vercel-labs/skills/src/agents.ts`. Refresh it from upstream when new agents land.
 - The skill body is `SKILL_BODY` in the same module; `formatSkill(v)` emits frontmatter + a `<!-- sdocs-skill: v=N -->` version comment + body. `readSkillVersion()` parses it back for refresh.
 - `syncAgentSkill()` in `cli/lib/agent-files.js` does the full sync: write/refresh the canonical skill, symlink every detected non-universal agent, and strip any legacy always-on block from the historical config files.
 
@@ -260,22 +260,31 @@ node test/run.js                             # full suite, scenarios live under 
 node -e "const h=require('./test/runner');const r=require('./test/test-setup-scenarios')(h);(async()=>{await r();h.report();})()"
 ```
 
-Each scenario takes ~100ms; the thirteen together run well under a second.
+Each scenario takes ~100ms; the nineteen together run well under a second.
 
 **Scenarios covered:**
 
 1. Fresh install, no agent configs → `setup --yes` still writes the canonical skill
-2. Fresh install, Claude detected → `setup --yes` writes the canonical skill + symlinks Claude
-3. Already current → `setup --yes` is a no-op (skill byte-identical, symlink untouched, "Nothing to do")
-4. Old (v6) bookended block → `refresh` strips it, writes the skill, surrounding text preserved
-5. Legacy open-marker block → `refresh` strips it, writes the skill
-6. Hand-edited legacy block → `refresh` leaves it alone, prints a "local edits" hint
-7. Stale canonical skill → `setup --yes` upgrades it to current
-8. Existing user content in `CLAUDE.md` → `setup --yes` strips the block without breaking the user's prior content
-9. Multi-agent (claude + pi + codewhale + opencode) → non-universal agents symlinked; opencode covered by canonical (no `~/.config/opencode/skills` link, avoids double-list)
-10. Dry-run → prints every path and the skill body, writes nothing, no state
+2. Repeated `setup --yes` with no detected agents → canonical install remains accepted and refreshable
+3. Fresh install, Claude detected → `setup --yes` writes the canonical skill + symlinks Claude
+4. Already current → `setup --yes` is a no-op (skill byte-identical, symlink untouched, "Nothing to do")
+5. Old (v6) bookended block → `refresh` strips it, writes the skill, surrounding text preserved
+6. Legacy open-marker block → `refresh` strips it, writes the skill
+7. Hand-edited legacy block → `refresh` leaves it alone, prints a "local edits" hint
+8. Legacy block in a symlinked agent config → target preserved, skip reported, migration left retryable
+9. Stale canonical skill → `setup --yes` upgrades it to current
+10. Existing user content in `CLAUDE.md` → `setup --yes` strips the block without breaking the user's prior content
+11. Multi-agent (claude + pi + codewhale + opencode) → non-universal agents symlinked; opencode covered by canonical (no `~/.config/opencode/skills` link, avoids double-list)
+12. Dry-run → prints every path and the skill body, writes nothing, no state
+13. Fresh auto-refresh gate → no prior setup evidence means no implicit install
+14. Legacy-block auto-refresh gate → a recognised old block counts as prior consent
+15. User-maintained agent skill directory → left untouched and reported
+16. User-maintained canonical skill → left untouched; legacy block retained until setup succeeds
+17. User-owned regular file at an agent skill path → left untouched and reported
+18. Agent skills parent symlinked to the canonical directory → detected as the same filesystem path, no self-link or deletion
+19. Interactive refresh opt-out → persisted exactly as answered
 
-**Idempotency contract:** `sdoc setup --yes` is the canonical "make my agent skill current" command and is safe to re-run any number of times. Internally it calls `syncAgentSkill()`: refresh the canonical skill, ensure every detected non-universal agent's symlink, and strip any legacy block that reappeared. Scenarios 3 pins the no-op; 7 and 8 pin the upgrade/migration. If a re-run of `setup --yes` stops being a no-op on already-current state, or stops upgrading on stale state, the contract is broken.
+**Idempotency contract:** `sdoc setup --yes` is the canonical "make my agent skill current" command and is safe to re-run any number of times. Internally it calls `syncAgentSkill()`: refresh the canonical skill, ensure every detected non-universal agent's symlink, and strip any legacy block that reappeared. Scenario 4 pins the no-op; scenarios 5, 6, 9, and 10 pin upgrade/migration behavior. If a re-run of `setup --yes` stops being a no-op on already-current state, or stops upgrading on stale state, the contract is broken.
 
 **Harness API** (`test/cli-harness.js`):
 

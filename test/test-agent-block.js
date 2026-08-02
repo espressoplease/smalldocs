@@ -7,6 +7,8 @@
  * we ever want it; here we pin the logic that decides what to write.
  */
 
+const fs   = require('fs');
+const os   = require('os');
 const path = require('path');
 const cli  = require(path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js'));
 
@@ -309,6 +311,7 @@ module.exports = function (harness) {
     const home = '/h';
     const agents = cli.resolveSkillAgents(home, {});
     assert.strictEqual(agents.length, 45, '45 agents total (vercel-labs/skills table + codewhale)');
+    assert.strictEqual(new Set(agents.map(a => a.name)).size, agents.length, 'agent names are unique');
 
     const byName = Object.fromEntries(agents.map(a => [a.name, a]));
     // Universal: discovered via ~/.agents/skills, no symlink.
@@ -326,10 +329,28 @@ module.exports = function (harness) {
   });
 
   test('resolveSkillAgents: honours CLAUDE_CONFIG_DIR and CODEX_HOME', () => {
-    const agents = cli.resolveSkillAgents('/h', { CLAUDE_CONFIG_DIR: '/custom/claude', CODEX_HOME: '/custom/codex' });
+    const agents = cli.resolveSkillAgents('/h', {
+      CLAUDE_CONFIG_DIR: '/custom/claude',
+      CODEX_HOME: '/custom/codex',
+      VIBE_HOME: '/custom/vibe',
+    });
     const byName = Object.fromEntries(agents.map(a => [a.name, a]));
     assert.strictEqual(byName['claude-code'].dir, '/custom/claude/skills');
     assert.strictEqual(byName['codex'].dir, '/custom/codex/skills');
+    assert.strictEqual(byName['mistral-vibe'].dir, '/custom/vibe/skills');
+  });
+
+  test('resolveSkillAgents: detects current Kimi path and existing legacy OpenClaw home', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-agent-paths-'));
+    try {
+      fs.mkdirSync(path.join(home, '.clawdbot'), { recursive: true });
+      const agents = cli.resolveSkillAgents(home, {});
+      const byName = Object.fromEntries(agents.map(a => [a.name, a]));
+      assert.ok(byName['kimi-code-cli'].detect.includes(path.join(home, '.kimi-code')));
+      assert.strictEqual(byName.openclaw.dir, path.join(home, '.clawdbot', 'skills'));
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
   });
 
   test('legacyBlockTargets: the six historical config files', () => {

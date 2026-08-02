@@ -39,18 +39,18 @@ curl -fsSL https://smalldocs.org/install | sh
 sdoc setup
 ```
 
-`sdoc setup` installs the SmallDocs **skill**: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand only when the agent reaches for it. One canonical copy is written to `~/.agents/skills/smalldocs/SKILL.md` and symlinked into each detected agent's own skills directory. Agents that already discover `~/.agents/skills` (opencode, Codex, Gemini CLI, Cursor, and the rest of the `.agents/skills` convention) pick up the canonical copy directly.
+`sdoc setup` installs the SmallDocs **skill**: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand only when the agent reaches for it. One canonical copy is written to `~/.agents/skills/smalldocs/SKILL.md`. Agents that discover `~/.agents/skills` (opencode, Codex, Gemini CLI, Cursor, and the rest of the `.agents/skills` convention) read it directly; other detected agents receive a symlink in their own skills directory.
 
-Setup detects 45+ agents by mirroring the [`vercel-labs/skills`](https://github.com/vercel-labs/skills) agent table. It's idempotent - safe to run any time. If you previously ran an older `sdoc setup` that pasted an always-on section into your `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`, running it again removes that section (the skill replaces it).
+Setup detects 45+ agents using a table derived from [`vercel-labs/skills`](https://github.com/vercel-labs/skills). It's idempotent - safe to run any time. If you previously ran an older `sdoc setup` that pasted an always-on section into your `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`, running it again removes that section (the skill replaces it).
 
 **Manual fallback** (if you'd rather not run setup): create the skill directory and drop in a `SKILL.md`:
 
 ```bash
 mkdir -p ~/.agents/skills/smalldocs
-sdoc setup --yes --dry-run    # prints the exact SKILL.md content to stdout
+sdoc setup --yes --dry-run    # previews the SKILL.md and install plan
 ```
 
-The `--dry-run` output is the file setup would write; redirect it into place if you prefer to do that by hand:
+The `--dry-run` output labels the exact `SKILL.md` content and then shows the install plan. Inspect it and copy the labelled skill content into place if you prefer to do that by hand:
 
 ```bash
 sdoc setup --yes --dry-run > /tmp/preview.txt   # inspect it first
@@ -542,7 +542,7 @@ sdoc setup
 
 Installs the SmallDocs skill so your coding agents know `sdoc` exists and what it does. The skill is a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand only when relevant - so it costs almost nothing until an agent actually reaches for it.
 
-Setup writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md` and symlinks it into each detected agent's own skills directory (`~/.claude/skills/smalldocs`, `~/.codewhale/skills/smalldocs`, and so on). Agents that already discover `~/.agents/skills` (opencode, Codex, Gemini CLI, Cursor, and the rest of the `.agents/skills` convention) pick up the canonical copy directly, with no symlink. The full list mirrors the [`vercel-labs/skills`](https://github.com/vercel-labs/skills) agent table.
+Setup writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`. Agents that discover `~/.agents/skills` (opencode, Codex, Gemini CLI, Cursor, and the rest of the `.agents/skills` convention) read it directly, with no symlink. Other detected agents receive a symlink in their own skills directory (`~/.claude/skills/smalldocs`, `~/.codewhale/skills/smalldocs`, and so on). The supported-agent table is derived from [`vercel-labs/skills`](https://github.com/vercel-labs/skills).
 
 `sdoc setup` also auto-prompts once the first time you use the CLI. If you decline or skip it then, you can always come back and run it manually. It's safe to run any time - it is idempotent, so re-running on an up-to-date install is a no-op.
 
@@ -651,9 +651,10 @@ sdoc charts            # chart types, JSON format, styling, annotations
 ### Set up your agent
 
 The easy way: run `sdoc setup`. It detects which coding agents you have
-installed (45+ agents, mirroring the `vercel-labs/skills` table) and installs
+installed (45+ agents, using a table derived from `vercel-labs/skills`) and installs
 the SmallDocs skill for them: one canonical `SKILL.md` at
-`~/.agents/skills/smalldocs`, symlinked into each agent's own skills directory.
+`~/.agents/skills/smalldocs`. Agents using that universal location read it
+directly; other detected agents receive a symlink in their skills directory.
 You're prompted automatically the first time you run any `sdoc` command, and you
 can re-run `sdoc setup` any time (it's idempotent).
 
@@ -662,11 +663,13 @@ section into a `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`, running `sdoc setup` or
 `sdoc refresh` removes it - the skill replaces it, and leaving both would
 double-load the reference.
 
-The manual way: print the exact skill file and write it into place yourself.
+The manual way: preview the exact skill content, then copy the labelled
+`SKILL.md` section into place yourself.
 
 ```bash
 mkdir -p ~/.agents/skills/smalldocs
-sdoc setup --yes --dry-run > ~/.agents/skills/smalldocs/SKILL.md
+sdoc setup --yes --dry-run
+# copy the labelled SKILL.md section into ~/.agents/skills/smalldocs/SKILL.md
 ```
 
 ```bash

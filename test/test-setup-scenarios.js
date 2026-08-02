@@ -22,6 +22,7 @@
  *   - dry-run prints paths and writes nothing
  */
 
+const fs   = require('fs');
 const path = require('path');
 const cli  = require(path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js'));
 const { hasSetupEvidence } = require(path.join(__dirname, '..', 'cli', 'lib', 'agent-files'));
@@ -52,6 +53,19 @@ module.exports = function (harness) {
       assert.ok(state, 'setup.json should exist');
       assert.strictEqual(state.declined, false, 'declined false (canonical written)');
       assert.ok(state.writtenTo.length >= 1, 'writtenTo records the skill');
+    } finally { fx.cleanup(); }
+  });
+
+  scenario('no agent configs / repeated setup --yes keeps canonical install enabled', async () => {
+    const fx = createFixture({});
+    try {
+      await fx.run('setup --yes');
+      const r = await fx.run('setup --yes');
+      assert.strictEqual(r.exitCode, 0, `exit code (stderr=${r.stderr})`);
+      assert.ok(fx.read(skillRel), 'canonical skill remains installed');
+      const state = fx.readSetupState();
+      assert.strictEqual(state.declined, false, 'explicit --yes remains accepted on a no-op');
+      assert.strictEqual(state.autoRefreshAgentFiles, true, 'canonical skill remains refreshable');
     } finally { fx.cleanup(); }
   });
 
@@ -149,6 +163,28 @@ module.exports = function (harness) {
         /hand[-_ ]edited|local edits|left untouched/i.test(r.stdout + r.stderr),
         `expected hand-edited hint, got:\n${r.stdout}\n${r.stderr}`,
       );
+    } finally { fx.cleanup(); }
+  });
+
+  scenario('refresh / legacy block in symlinked agent file is preserved and reported', async () => {
+    const fx = createFixture({
+      agents: ['claude'],
+      existingBlock: { in: 'claude', version: 8 },
+    });
+    try {
+      const agentFile = path.join(fx.home, '.claude', 'CLAUDE.md');
+      const target = path.join(fx.home, 'dotfiles', 'CLAUDE.md');
+      const before = fx.readAgent('claude');
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, before);
+      fs.unlinkSync(agentFile);
+      fs.symlinkSync(path.relative(path.dirname(agentFile), target), agentFile);
+
+      const r = await fx.run('refresh');
+      assert.strictEqual(r.exitCode, 0, `exit code (stderr=${r.stderr})`);
+      assert.strictEqual(fs.readFileSync(target, 'utf8'), before, 'symlink target remains untouched');
+      assert.ok(/symlink|left untouched/i.test(r.stdout + r.stderr), 'skipped migration is reported');
+      assert.strictEqual(fx.readSetupState(), null, 'incomplete migration is retried later');
     } finally { fx.cleanup(); }
   });
 
@@ -276,6 +312,73 @@ module.exports = function (harness) {
       assert.strictEqual(fx.read('.claude/skills/smalldocs/SKILL.md'), before, 'user skill dir untouched');
       assert.strictEqual(fx.readlink('.claude/skills/smalldocs'), null, 'no symlink overwrote the dir');
       assert.ok(/left untouched/i.test(r.stdout), 'setup reports it left the dir alone');
+    } finally { fx.cleanup(); }
+  });
+
+  scenario('canonical skill / user-maintained SKILL.md and legacy block are left untouched', async () => {
+    const fx = createFixture({
+      agents: ['claude'],
+      existingBlock: { in: 'claude', version: 8 },
+    });
+    try {
+      const customSkill = '---\nname: smalldocs\ndescription: mine\n---\nmy custom canonical skill\n';
+      fx.write(skillRel, customSkill);
+      const agentBefore = fx.readAgent('claude');
+
+      const r = await fx.run('setup --yes');
+      assert.strictEqual(r.exitCode, 0, `exit code (stderr=${r.stderr})`);
+      assert.strictEqual(fx.read(skillRel), customSkill, 'custom canonical skill preserved');
+      assert.strictEqual(fx.readAgent('claude'), agentBefore, 'legacy block retained until skill install succeeds');
+      assert.strictEqual(fx.readlink('.claude/skills/smalldocs'), null, 'no link created to a conflicting canonical skill');
+      assert.strictEqual(fx.readSetupState(), null, 'failed setup does not record completion');
+      assert.ok(/left untouched|not managed|conflict/i.test(r.stdout + r.stderr), 'conflict is reported');
+    } finally { fx.cleanup(); }
+  });
+
+  scenario('ensureSkillLink / user-owned regular file left untouched', async () => {
+    const fx = createFixture({ agents: ['claude'] });
+    try {
+      const customFile = 'user-owned file, not a skill directory\n';
+      fx.write('.claude/skills/smalldocs', customFile);
+
+      const r = await fx.run('setup --yes');
+      assert.strictEqual(r.exitCode, 0, `exit code (stderr=${r.stderr})`);
+      assert.strictEqual(fx.read('.claude/skills/smalldocs'), customFile, 'regular file preserved');
+      assert.strictEqual(fx.readlink('.claude/skills/smalldocs'), null, 'regular file not replaced by a link');
+      assert.ok(/left untouched/i.test(r.stdout + r.stderr), 'collision is reported');
+    } finally { fx.cleanup(); }
+  });
+
+  scenario('ensureSkillLink / symlinked skills parent already exposing canonical is a no-op', async () => {
+    const fx = createFixture({ agents: ['claude'] });
+    try {
+      fx.write('.agents/skills/.keep', '');
+      const claudeSkills = path.join(fx.home, '.claude', 'skills');
+      fs.symlinkSync(path.relative(path.dirname(claudeSkills), path.join(fx.home, '.agents', 'skills')), claudeSkills, 'dir');
+
+      const r = await fx.run('setup --yes');
+      assert.strictEqual(r.exitCode, 0, `exit code (stderr=${r.stderr})`);
+      const skill = fx.read(skillRel);
+      assert.ok(skill && skill.includes(`<!-- sdocs-skill: v=${cli.SKILL_VERSION} -->`), 'canonical skill remains intact');
+      assert.strictEqual(fx.readlink(skillDirRel), null, 'canonical skill directory is not replaced by a self-link');
+    } finally { fx.cleanup(); }
+  });
+
+  scenario('interactive setup / declining skill refresh is respected', async () => {
+    const fx = createFixture({ agents: ['claude'] });
+    try {
+      const r = await fx.run('setup', {
+        responses: [
+          { prompt: 'Install? [Y/n/skip]', answer: '\n' },
+          { prompt: 'Keep this skill updated', answer: 'n\n' },
+          { prompt: 'Auto-install sdoc updates', answer: 'n\n' },
+        ],
+      });
+      assert.strictEqual(r.exitCode, 0, `exit code (stderr=${r.stderr})`);
+      const state = fx.readSetupState();
+      assert.ok(state, 'setup state written');
+      assert.strictEqual(state.autoRefreshAgentFiles, false, 'refresh opt-out persisted');
+      assert.strictEqual(state.autoInstallUpdates, false, 'binary update opt-out persisted');
     } finally { fx.cleanup(); }
   });
 

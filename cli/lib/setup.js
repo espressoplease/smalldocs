@@ -131,9 +131,12 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
     const changed = syncChanged(result);
     const detected = detectSkillAgents(os.homedir(), process.env);
 
-    if (changed) {
+    if (changed || result.errors.length) {
       printSyncSummary(result);
-    } else {
+    }
+    if (result.errors.length) return;
+
+    if (!changed) {
       if (detected.length > 0) {
         console.log('SmallDocs skill already at current version. Nothing to do.');
       } else {
@@ -146,8 +149,8 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
     writeSetupState({
       setupCompleted: new Date().toISOString(),
       writtenTo: changed ? [canonicalSkillFile(os.homedir())] : [],
-      declined: !changed && detected.length === 0,
-      autoRefreshAgentFiles: changed || detected.length > 0,
+      declined: false,
+      autoRefreshAgentFiles: true,
       autoInstallUpdates: false,
       lastRunVersion: VERSION,
     });
@@ -163,8 +166,9 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
 
   if (detected.length > 0) {
     console.log('Detected: ' + detected.map(a => a.displayName).join(', '));
-    console.log('\nWill write the skill to ~/.agents/skills/smalldocs/SKILL.md and');
-    console.log('symlink it into each detected agent\'s skills directory.');
+    console.log('\nWill write the skill to ~/.agents/skills/smalldocs/SKILL.md.');
+    console.log('Agents using that universal location read it directly; other');
+    console.log('detected agents receive a symlink in their skills directory.');
   } else {
     console.log('No coding-agent configs detected. Setup still writes the canonical');
     console.log('skill at ~/.agents/skills/smalldocs/SKILL.md, which any agent that');
@@ -195,16 +199,17 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
 
   const result = syncAgentSkill({});
   const changed = syncChanged(result);
-  if (changed) printSyncSummary(result);
+  if (changed || result.errors.length) printSyncSummary(result);
+  if (result.errors.length) return;
 
-  const autoRefresh = changed ? await askAutoRefreshConsent() : false;
-  const autoInstall = changed ? await askAutoInstallConsent() : false;
+  const autoRefresh = await askAutoRefreshConsent();
+  const autoInstall = await askAutoInstallConsent();
 
   writeSetupState({
     setupCompleted: new Date().toISOString(),
     writtenTo: changed ? [canonicalSkillFile(home)] : [],
     declined: false,
-    autoRefreshAgentFiles: changed || autoRefresh,
+    autoRefreshAgentFiles: autoRefresh,
     autoInstallUpdates: autoInstall,
     lastRunVersion: VERSION,
   });
@@ -227,6 +232,7 @@ async function maybeAutoRefresh() {
   if (!state) {
     if (!hasSetupEvidence(os.homedir(), process.env)) return;
     const result = syncAgentSkill({});
+    if (result.errors.length) { printSyncSummary(result); return; }
     if (!syncChanged(result)) return;
     const next = implicitConsentState(toImplicitResults(result), VERSION);
     if (!next) return;
@@ -239,7 +245,7 @@ async function maybeAutoRefresh() {
   if (compareVersions(VERSION, state.lastRunVersion) <= 0) return;
 
   const result = syncAgentSkill({});
-  if (syncChanged(result)) printSyncSummary(result);
+  if (syncChanged(result) || result.errors.length) printSyncSummary(result);
 
   if (!result.errors.length) {
     writeSetupState({ ...state, lastRunVersion: VERSION });

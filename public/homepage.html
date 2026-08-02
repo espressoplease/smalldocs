@@ -1101,8 +1101,8 @@ footer {
             </summary>
             <div class="trouble-body">
               <div class="trouble-step">
-                <p style="margin-top: 0;">Running <code>sdoc setup</code> installs the SmallDocs skill for your coding agents. It writes one <code>SKILL.md</code> to <code>~/.agents/skills/smalldocs</code> and symlinks it into each detected agent&rsquo;s own skills directory (<code>~/.claude/skills</code>, <code>~/.codex/skills</code>, and so on). The skill&rsquo;s short description sits in the agent&rsquo;s context and the full reference loads on demand only when relevant.</p>
-                <p>After that you simply ask your agent to build you a "sdoc" or "SmallDoc" and it knows what to do. Setup supports 45+ agents (mirroring the <a href="https://github.com/vercel-labs/skills">vercel-labs/skills</a> table) and is idempotent.</p>
+                <p style="margin-top: 0;">Running <code>sdoc setup</code> installs the SmallDocs skill for your coding agents. It writes one <code>SKILL.md</code> to <code>~/.agents/skills/smalldocs</code>. Agents using that universal location read it directly; other detected agents receive a symlink in their own skills directory (for example, <code>~/.claude/skills</code>). The skill&rsquo;s short description sits in the agent&rsquo;s context and the full reference loads on demand only when relevant.</p>
+                <p>After that you simply ask your agent to build you a "sdoc" or "SmallDoc" and it knows what to do. Setup supports 45+ agents (using a table derived from <a href="https://github.com/vercel-labs/skills">vercel-labs/skills</a>) and is idempotent.</p>
               </div>
             </div>
           </details>
@@ -1255,7 +1255,7 @@ footer {
 
               <p>On Windows, or via npm, install with <code>npm i -g sdocs-dev</code>.</p>
 
-              <p>After installing, run <code>sdoc setup</code> to install the SmallDocs skill for your coding agents (one <code>SKILL.md</code> at <code>~/.agents/skills/smalldocs</code>, symlinked into each agent). The setup command is interactive; answer <code>Y</code> when it asks whether to install.</p>
+              <p>After installing, run <code>sdoc setup</code> to install the SmallDocs skill for your coding agents (one <code>SKILL.md</code> at <code>~/.agents/skills/smalldocs</code>, with symlinks only for agents that need their own skills directory). The setup command is interactive; answer <code>Y</code> when it asks whether to install.</p>
             </div>
           </div>
         </details>

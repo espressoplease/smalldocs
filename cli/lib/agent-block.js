@@ -5,7 +5,7 @@
 // tool) instead of an always-on block pasted into AGENTS.md. One canonical
 // copy lives at ~/.agents/skills/smalldocs/SKILL.md; every other supported
 // agent gets a relative symlink into its own skills directory. The agent
-// table mirrors vercel-labs/skills/src/agents.ts.
+// table is derived from vercel-labs/skills/src/agents.ts.
 //
 // MIGRATION: the previous scheme wrote a `## SmallDocs` block (wrapped in
 // <!-- sdocs-agent-block:start v=N --> bookends) into a handful of agent
@@ -29,7 +29,7 @@ const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
 const SKILL_VERSION = 14;
-const SKILL_REASON  = 'Setup now installs a discoverable SKILL.md (loaded on demand via the agent skill tool) instead of an always-on block pasted into AGENTS.md. One canonical copy at ~/.agents/skills/smalldocs is symlinked into every supported agent. Existing blocks are stripped on upgrade so content is not loaded twice.';
+const SKILL_REASON  = 'Setup now installs a discoverable SKILL.md (loaded on demand via the agent skill tool) instead of an always-on block pasted into AGENTS.md. Agents using ~/.agents/skills read the canonical copy directly; other supported agents receive a symlink. Existing blocks are stripped on upgrade so content is not loaded twice.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -90,7 +90,7 @@ function canonicalSkillFile(home) {
   return path.join(canonicalSkillDir(home), 'SKILL.md');
 }
 
-// ── Agent table (mirrors vercel-labs/skills/src/agents.ts) ──────
+// ── Agent table (derived from vercel-labs/skills/src/agents.ts) ─
 // Each entry: { name, displayName, dir (global skills dir), universal, detect[] }.
 // `universal` agents discover skills via ~/.agents/skills directly, so the
 // canonical copy already covers them and we skip their symlink (avoids the
@@ -101,10 +101,13 @@ function resolveSkillAgents(home, env) {
   const configHome = (env.XDG_CONFIG_HOME && env.XDG_CONFIG_HOME.trim()) || path.join(home, '.config');
   const claudeHome = (env.CLAUDE_CONFIG_DIR && env.CLAUDE_CONFIG_DIR.trim()) || path.join(home, '.claude');
   const codexHome   = (env.CODEX_HOME && env.CODEX_HOME.trim()) || path.join(home, '.codex');
+  const vibeHome    = (env.VIBE_HOME && env.VIBE_HOME.trim()) || path.join(home, '.vibe');
   const cwd = env.PWD || process.cwd();
   const h = (...p) => path.join(home, ...p);
   const c = (...p) => path.join(configHome, ...p);
   const e = (name, displayName, dir, universal, detect) => ({ name, displayName, dir, universal, detect });
+  const openClawHome = [h('.openclaw'), h('.clawdbot'), h('.moltbot')]
+    .find(p => { try { return fs.existsSync(p); } catch (_) { return false; } }) || h('.openclaw');
   return [
     // ── universal: discovered via ~/.agents/skills (canonical copy). No symlink. ──
     e('opencode',       'opencode',       c('opencode', 'skills'),                 true,  [c('opencode')]),
@@ -114,7 +117,7 @@ function resolveSkillAgents(home, env) {
     e('cline',          'Cline',          h('.agents', 'skills'),                  true,  [h('.cline')]),
     e('warp',           'Warp',           h('.agents', 'skills'),                  true,  [h('.warp')]),
     e('amp',            'Amp',            c('agents', 'skills'),                   true,  [c('amp')]),
-    e('kimi-cli',       'Kimi Code CLI',  c('agents', 'skills'),                   true,  [h('.kimi')]),
+    e('kimi-code-cli',  'Kimi Code CLI',  c('agents', 'skills'),                   true,  [h('.kimi-code'), h('.kimi')]),
     e('replit',         'Replit',         c('agents', 'skills'),                   true,  [path.join(cwd, '.replit'), h('.replit')]),
     e('antigravity',    'Antigravity',    h('.gemini', 'antigravity', 'skills'),    true,  [h('.gemini', 'antigravity')]),
     e('deepagents',     'Deep Agents',    h('.deepagents', 'agent', 'skills'),      true,  [h('.deepagents')]),
@@ -145,14 +148,14 @@ function resolveSkillAgents(home, env) {
     e('continue',       'Continue',       h('.continue', 'skills'),                 false, [path.join(cwd, '.continue'), h('.continue')]),
     e('command-code',   'Command Code',   h('.commandcode', 'skills'),              false, [h('.commandcode')]),
     e('mcpjam',         'MCPJam',         h('.mcpjam', 'skills'),                   false, [h('.mcpjam')]),
-    e('mistral-vibe',   'Mistral Vibe',   h('.vibe', 'skills'),                     false, [h('.vibe')]),
+    e('mistral-vibe',   'Mistral Vibe',   path.join(vibeHome, 'skills'),             false, [vibeHome]),
     e('mux',            'Mux',            h('.mux', 'skills'),                      false, [h('.mux')]),
     e('zencoder',       'Zencoder',       h('.zencoder', 'skills'),                 false, [h('.zencoder')]),
     e('neovate',        'Neovate',        h('.neovate', 'skills'),                  false, [h('.neovate')]),
     e('pochi',          'Pochi',          h('.pochi', 'skills'),                    false, [h('.pochi')]),
     e('adal',           'AdaL',           h('.adal', 'skills'),                     false, [h('.adal')]),
     e('bob',            'IBM Bob',        h('.bob', 'skills'),                      false, [h('.bob')]),
-    e('openclaw',       'OpenClaw',       h('.openclaw', 'skills'),                 false, [h('.openclaw'), h('.clawdbot'), h('.moltbot')]),
+    e('openclaw',       'OpenClaw',       path.join(openClawHome, 'skills'),          false, [h('.openclaw'), h('.clawdbot'), h('.moltbot')]),
   ];
 }
 

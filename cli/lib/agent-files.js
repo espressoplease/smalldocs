@@ -92,18 +92,52 @@ function copyDirRecursive(src, dest) {
   }
 }
 
+// Compare filesystem identity, not just path spelling. Agent skill parents
+// are sometimes symlinked to ~/.agents/skills; in that case two different
+// path strings can name the exact same skill directory.
+function pathsResolveSame(a, b) {
+  try { return fs.realpathSync(a) === fs.realpathSync(b); }
+  catch (_) {}
+
+  function withRealParent(p) {
+    const resolved = path.resolve(p);
+    try { return path.join(fs.realpathSync(path.dirname(resolved)), path.basename(resolved)); }
+    catch (_) { return resolved; }
+  }
+  return withRealParent(a) === withRealParent(b);
+}
+
 // ── canonical skill ────────────────────────────────────────
 
 function refreshCanonicalSkill(home) {
   home = home || os.homedir();
   const file = canonicalSkillFile(home);
   let existing = null;
-  try { existing = fs.readFileSync(file, 'utf-8'); } catch (_) {}
+  try {
+    const st = fs.lstatSync(file);
+    if (!st.isFile()) {
+      return {
+        changed: false, reason: 'conflict', path: file,
+        error: 'existing canonical SKILL.md is not a regular SmallDocs-managed file; left untouched',
+      };
+    }
+    existing = fs.readFileSync(file, 'utf-8');
+  } catch (e) {
+    if (e.code !== 'ENOENT') {
+      return { changed: false, reason: 'error', path: file, error: e.message };
+    }
+  }
   const currentVersion = existing ? readSkillVersion(existing) : null;
+  if (existing !== null && currentVersion === null) {
+    return {
+      changed: false, reason: 'conflict', path: file,
+      error: 'existing canonical SKILL.md is not managed by SmallDocs; left untouched',
+    };
+  }
   if (currentVersion === SKILL_VERSION) {
     return { changed: false, reason: 'current', path: file };
   }
-  if (currentVersion && currentVersion > SKILL_VERSION) {
+  if (currentVersion !== null && currentVersion > SKILL_VERSION) {
     return { changed: false, reason: 'newer', path: file };
   }
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -128,12 +162,14 @@ function looksLikeOurSkillDir(dir) {
 }
 
 // Ensure <linkDir> resolves to <canonicalDir>. Idempotent: a link already
-// pointing at canonical is a no-op; a wrong/stale link or a stray file is
-// replaced. A real directory is replaced only if it is recognisably one of our
-// copy-fallback installs; otherwise it is left untouched (returns an error) so
-// the user's own files are never clobbered. Returns { method } where method is
-// symlink | copy | noop | error.
+// pointing at canonical is a no-op; a wrong/stale symlink is replaced. A real
+// directory is replaced only if it is recognisably one of our copy-fallback
+// installs. Other directories and files are left untouched (returns an error)
+// so the user's own content is never clobbered. Returns { method } where
+// method is symlink | copy | noop | error.
 function ensureSkillLink(canonicalDir, linkDir) {
+  if (pathsResolveSame(canonicalDir, linkDir)) return { method: 'noop' };
+
   try {
     const st = fs.lstatSync(linkDir);
     if (st.isSymbolicLink()) {
@@ -148,20 +184,26 @@ function ensureSkillLink(canonicalDir, linkDir) {
       }
       fs.rmSync(linkDir, { recursive: true, force: true });
     } else {
-      // A stray regular file: safe to remove.
-      fs.rmSync(linkDir, { force: true });
+      return { method: 'error', error: 'exists and is not a SmallDocs skill directory; left untouched' };
     }
-  } catch (_) { /* did not exist - fine */ }
+  } catch (e) {
+    if (e.code !== 'ENOENT') return { method: 'error', error: e.message };
+  }
 
-  fs.mkdirSync(path.dirname(linkDir), { recursive: true });
+  try { fs.mkdirSync(path.dirname(linkDir), { recursive: true }); }
+  catch (e) { return { method: 'error', error: e.message }; }
 
   // Relative symlink on POSIX so it survives a home-dir move; junction on
   // Windows requires an absolute target.
   try {
+    let target = path.resolve(canonicalDir);
+    let linkParent = path.resolve(path.dirname(linkDir));
+    try { target = fs.realpathSync(canonicalDir); } catch (_) {}
+    try { linkParent = fs.realpathSync(path.dirname(linkDir)); } catch (_) {}
     if (IS_WIN) {
-      fs.symlinkSync(canonicalDir, linkDir, 'junction');
+      fs.symlinkSync(target, linkDir, 'junction');
     } else {
-      const rel = path.relative(path.dirname(linkDir), canonicalDir);
+      const rel = path.relative(linkParent, target);
       fs.symlinkSync(rel, linkDir, 'dir');
     }
     return { method: 'symlink' };
@@ -190,7 +232,10 @@ function detectSkillAgents(home, env) {
 function hasSetupEvidence(home, env) {
   home = home || os.homedir();
   env = env || process.env;
-  if (fs.existsSync(canonicalSkillFile(home))) return true;
+  try {
+    const content = fs.readFileSync(canonicalSkillFile(home), 'utf-8');
+    if (readSkillVersion(content) !== null) return true;
+  } catch (_) {}
   for (const t of legacyBlockTargets(home, env)) {
     let content;
     try { content = fs.readFileSync(t.file, 'utf-8'); } catch (_) { continue; }
@@ -204,12 +249,26 @@ function hasSetupEvidence(home, env) {
 function stripLegacyBlocks(home, env) {
   home = home || os.homedir();
   const out = [];
+
+  function skippedTarget(t, reason) {
+    try {
+      const content = fs.readFileSync(t.file, 'utf-8');
+      const hasBlock = !!(findBookendedBlock(content) || findLegacyBlock(content));
+      return {
+        name: t.name, file: t.file, changed: false, reason,
+        error: hasBlock ? `${reason}; recognised legacy SmallDocs block left untouched` : undefined,
+      };
+    } catch (e) {
+      return { name: t.name, file: t.file, changed: false, reason, error: e.message };
+    }
+  }
+
   for (const t of legacyBlockTargets(home, env || process.env)) {
     if (!fs.existsSync(t.file))                    { out.push({ name: t.name, file: t.file, changed: false, reason: 'absent' });   continue; }
-    if (isSymlink(t.file))                          { out.push({ name: t.name, file: t.file, changed: false, reason: 'symlink' }); continue; }
+    if (isSymlink(t.file))                          { out.push(skippedTarget(t, 'symlink')); continue; }
 
     const release = acquireLock(t.file);
-    if (!release)                                   { out.push({ name: t.name, file: t.file, changed: false, reason: 'locked' });  continue; }
+    if (!release)                                   { out.push(skippedTarget(t, 'locked'));  continue; }
     try {
       const content = fs.readFileSync(t.file, 'utf-8');
       const r = removeBlockContent(content);
@@ -239,9 +298,14 @@ function syncAgentSkill(opts = {}) {
   const result = {
     canonical: refreshCanonicalSkill(home),
     links: [],
-    stripped: stripLegacyBlocks(home, env),
+    stripped: [],
     errors: [],
   };
+
+  if (result.canonical.error) {
+    result.errors.push(`${result.canonical.path}: ${result.canonical.error}`);
+    return result;
+  }
 
   for (const agent of detectSkillAgents(home, env)) {
     if (agent.universal) continue; // canonical copy already covers them
@@ -250,6 +314,13 @@ function syncAgentSkill(opts = {}) {
     result.links.push({ name: agent.displayName, path: linkDir, ...r });
     if (r.error) result.errors.push(`${agent.name}: ${r.error}`);
   }
+
+  // Keep the legacy instructions in place unless every required skill link
+  // succeeded. They are the safe fallback if an agent-specific path collides
+  // with user content or cannot be written.
+  if (result.errors.length) return result;
+
+  result.stripped = stripLegacyBlocks(home, env);
   for (const s of result.stripped) {
     if (s.error) result.errors.push(`${s.file}: ${s.error}`);
   }
@@ -271,7 +342,7 @@ function syncChanged(result) {
 function toImplicitResults(result) {
   const arr = [];
   if (result.canonical) {
-    arr.push({ path: result.canonical.path, changed: !!result.canonical.changed });
+    arr.push({ path: result.canonical.path, changed: !!result.canonical.changed, error: result.canonical.error });
   }
   for (const l of result.links) {
     arr.push({ path: l.path, changed: l.method === 'symlink' || l.method === 'copy', error: l.error });
@@ -286,6 +357,9 @@ function printSyncSummary(result) {
   if (result.canonical && result.canonical.changed) {
     console.log(`\u2713 SmallDocs skill updated to v${SKILL_VERSION} at ${result.canonical.path}`);
     console.log(`  Changes: ${AGENT_CHANGES_URL}#v${SKILL_VERSION}`);
+  }
+  if (result.canonical && result.canonical.error) {
+    console.log(`! ${result.canonical.path}: ${result.canonical.error}`);
   }
   for (const l of result.links) {
     if (l.method === 'symlink' || l.method === 'copy') {
