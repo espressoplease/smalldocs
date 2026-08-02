@@ -122,7 +122,7 @@ No period at the end. Keep the subject line under 72 characters. If more context
 - Link the issue the PR closes (`Closes #N` in the description).
 - All tests must pass: `node test/run.js` and any relevant Playwright specs.
 - If the change touches the frontend, run the service-worker refresh check described in `CLAUDE.md` under "Pre-deploy check: service-worker refresh".
-- If the change modifies the agent integration block (`cli/lib/agent-block.js`), follow the release checklist in `CLAUDE.md` under "Agent integration block".
+- If the change modifies the agent skill (`cli/lib/agent-block.js`), follow the release checklist in `CLAUDE.md` under "Agent skill".
 
 ## License
 

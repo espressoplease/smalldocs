@@ -1,24 +1,30 @@
 // `sdoc setup`, `sdoc refresh`, `sdoc auto-update`, and the implicit
-// post-command refresh that keeps agent files in sync as new sdoc
+// post-command refresh that keeps the SmallDocs skill current as new sdoc
 // versions ship.
 //
-// runSetup: first-run interactive flow. Detects agent configs, writes
-//   the block into the ones the user agrees to. Pass dryRun:true to
-//   preview what would be written without touching any file or state.
-// runRefresh: unconditional refresh of every agent file that already
-//   has a recognised block.
+// runSetup: first-run interactive flow. Detects installed agents, installs
+//   the skill (canonical copy + symlinks), strips legacy blocks. Pass
+//   dryRun:true to preview without touching anything.
+// runRefresh: unconditional refresh of the canonical skill + symlinks.
 // runAutoUpdateSubcommand: flips state.autoInstallUpdates.
 // maybeAutoRefresh: called after every successful command. Quiet, only
-//   touches files whose existing block we already manage.
+//   rewrites the canonical skill when its version is stale.
 
-const os = require('os');
+const os   = require('os');
 const path = require('path');
+const fs   = require('fs');
 const readline = require('readline');
 
 const {
-  AGENT_BLOCK_VERSION,
-  AGENT_BLOCK_BODY,
-  formatAgentBlock,
+  SKILL_VERSION,
+  SKILL_BODY,
+  SKILL_NAME,
+  formatSkill,
+  canonicalSkillFile,
+  canonicalSkillDir,
+  legacyBlockTargets,
+  findBookendedBlock,
+  findLegacyBlock,
   compareVersions,
   readSetupState,
   writeSetupState,
@@ -28,11 +34,12 @@ const {
 const { upgradeCommand } = require('./update-check');
 
 const {
-  detectAgents,
-  fileHasBlock,
-  writeBookendedBlock,
-  refreshAllAgentFiles,
-  printRefreshSummary,
+  detectSkillAgents,
+  hasSetupEvidence,
+  syncAgentSkill,
+  syncChanged,
+  toImplicitResults,
+  printSyncSummary,
 } = require('./agent-files');
 
 const { VERSION, AGENT_CHANGES_URL } = require('./constants');
@@ -59,16 +66,54 @@ async function askAutoInstallConsent() {
 }
 
 async function askAutoRefreshConsent() {
-  console.log('\nKeep this block updated on future sdoc upgrades?');
+  console.log('\nKeep this skill updated on future sdoc upgrades?');
   console.log('');
-  console.log('When sdoc adds a feature we sometimes update this section so');
-  console.log('your agent learns about it. Each time the block changes we');
-  console.log(`print a notice with a link to ${AGENT_CHANGES_URL}`);
-  console.log('showing the exact delta - the new wording, and why it changed.');
+  console.log('When sdoc adds a feature we sometimes update the skill so your');
+  console.log('agent learns about it. Each change prints a notice with a link to');
+  console.log(`${AGENT_CHANGES_URL} showing the exact delta - the new wording, and why.`);
   console.log('');
   console.log('Re-run `sdoc setup` any time to change this.\n');
   const a = await ask('Enable? [Y/n] ');
   return !a || a === 'y' || a === 'yes';
+}
+
+// Preview what setup would do: print the skill, the symlinks it would create,
+// the agents covered by the canonical copy, and any legacy blocks it would
+// strip. Touches no file and writes no state.
+function dryRunPreview() {
+  const home = os.homedir();
+  const env = process.env;
+  const skillPath = canonicalSkillFile(home);
+  console.log(`--- ${skillPath} ---`);
+  console.log(formatSkill(SKILL_VERSION));
+
+  const detected = detectSkillAgents(home, env);
+  const linked = detected.filter(a => !a.universal);
+  const universal = detected.filter(a => a.universal);
+
+  if (universal.length) {
+    console.log('\nCovered by the canonical copy (~/.agents/skills, no symlink needed):');
+    for (const a of universal) console.log(`  ${a.displayName}`);
+  }
+  if (linked.length) {
+    console.log('\nSymlinks to create (<agent skills dir> -> canonical):');
+    for (const a of linked) console.log(`  ${path.join(a.dir, SKILL_NAME)} -> ${canonicalSkillDir(home)}`);
+  }
+  if (detected.length === 0) {
+    console.log('\nNo coding-agent configs detected. The canonical skill is still written');
+    console.log('so any agent that discovers ~/.agents/skills picks it up.');
+  }
+
+  const wouldStrip = [];
+  for (const t of legacyBlockTargets(home, env)) {
+    let content;
+    try { content = fs.readFileSync(t.file, 'utf-8'); } catch (_) { continue; }
+    if (findBookendedBlock(content) || findLegacyBlock(content)) wouldStrip.push(t.file);
+  }
+  if (wouldStrip.length) {
+    console.log('\nLegacy SmallDocs blocks to remove:');
+    for (const f of wouldStrip) console.log(`  ${f}`);
+  }
 }
 
 async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
@@ -79,143 +124,67 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
   }
 
   // ── --yes (non-interactive) path ───────────────────────────
-  // Pulled out of the detection branch so this is the SINGLE place that
-  // handles every --yes case: fresh install, old block (upgrade), legacy
-  // open-marker (migration), already-current (no-op), no agents at all.
-  // Idempotent by design - an agent or user can re-paste the install prompt
-  // any number of times and the result is a current block in every detected
-  // config, or a clean "nothing to do".
   if (yes) {
-    // ── --dry-run (preview only) path ─────────────────────────────────────
-    // Prints each file path and the block that would be written, then exits
-    // without touching any file or mutating setup state. Must return before
-    // the write steps below.
-    if (dryRun) {
-      const toWrite = detectAgents().filter(t => !fileHasBlock(t.filePath));
-      if (toWrite.length === 0) {
-        console.log('All SDocs agent blocks already at current version. Nothing to do.');
-        return;
-      }
-      for (const t of toWrite) {
-        console.log(`--- ${t.filePath} ---`);
-        console.log(formatAgentBlock(AGENT_BLOCK_VERSION, AGENT_BLOCK_BODY));
-      }
-      return;
+    if (dryRun) { dryRunPreview(); return; }
+
+    const result = syncAgentSkill({});
+    const changed = syncChanged(result);
+    const detected = detectSkillAgents(os.homedir(), process.env);
+
+    if (changed || result.errors.length) {
+      printSyncSummary(result);
     }
+    if (result.errors.length) return;
 
-    // Step 1: refresh any existing outdated / legacy blocks. This is what
-    // closes the gap where re-running setup --yes used to silently no-op
-    // on a stale install.
-    const refreshResults = refreshAllAgentFiles();
-    const refreshedFiles = refreshResults.filter(r => r.changed).map(r => r.path);
-    if (refreshResults.some(r => r.changed)) printRefreshSummary(refreshResults);
-
-    // Step 2: any agent whose config dir exists but doesn't yet have a
-    // block gets one written. Re-detect after refresh because the refresh
-    // step may have flipped some files from "needs block" to "has block".
-    const stillMissing = detectAgents().filter(t => !fileHasBlock(t.filePath));
-    const writtenTo = [];
-    for (const t of stillMissing) {
-      try { writeBookendedBlock(t.filePath); writtenTo.push(t.filePath); console.log(`✓ ${t.name}: ${t.filePath}`); }
-      catch (e) { console.error(`✗ ${t.name}: ${e.message}`); }
-    }
-
-    const affected = [...new Set([...writtenTo, ...refreshedFiles])];
-
-    if (affected.length === 0) {
-      const anyAgentDir = detectAgents().length > 0;
-      writeSetupState({
-        setupCompleted: new Date().toISOString(),
-        writtenTo: [], declined: !anyAgentDir,
-        autoRefreshAgentFiles: anyAgentDir,
-        autoInstallUpdates: false,
-        lastRunVersion: VERSION,
-      });
-      if (anyAgentDir) {
-        console.log('All SDocs agent blocks already at current version. Nothing to do.');
+    if (!changed) {
+      if (detected.length > 0) {
+        console.log('SmallDocs skill already at current version. Nothing to do.');
       } else {
-        console.log('No coding-agent configs detected. Nothing to write.');
-        console.log('Re-run `sdoc setup` (interactive) if you want to include opencode.');
+        console.log('No coding-agent configs detected. The canonical skill is at');
+        console.log('~/.agents/skills/smalldocs/SKILL.md; any agent that discovers');
+        console.log('~/.agents/skills will pick it up.');
       }
-      return;
     }
 
     writeSetupState({
       setupCompleted: new Date().toISOString(),
-      writtenTo: affected, declined: false,
+      writtenTo: changed ? [canonicalSkillFile(os.homedir())] : [],
+      declined: false,
       autoRefreshAgentFiles: true,
       autoInstallUpdates: false,
       lastRunVersion: VERSION,
     });
-    const n = affected.length;
-    const verb = writtenTo.length && refreshedFiles.length
-      ? 'Wrote/refreshed'
-      : (writtenTo.length ? 'Wrote' : 'Refreshed');
-    console.log(`\nDone. ${verb} SDocs block in ${n} ${n === 1 ? 'file' : 'files'}.`);
     return;
   }
 
-  const detected = detectAgents().filter(t => !fileHasBlock(t.filePath));
+  // ── interactive path ───────────────────────────────────────
+  const home = os.homedir();
+  const detected = detectSkillAgents(home, process.env);
 
-  if (detected.length === 0) {
-    const opencodeAlreadyDone = fileHasBlock(path.join(os.homedir(), '.config', 'opencode', 'AGENTS.md'));
-    if (opencodeAlreadyDone) {
-      writeSetupState({
-        setupCompleted: new Date().toISOString(),
-        writtenTo: [], declined: false,
-        autoRefreshAgentFiles: true, autoInstallUpdates: false,
-        lastRunVersion: VERSION,
-      });
-      console.log('\nSDocs is already set up in all detected agent configs. Nothing to do.');
-      return;
-    }
-    console.log('\n✨─────── SDocs setup ───────✨');
-    console.log('First run only - wire SDocs into your CLI coding agents.\n');
-    console.log('No coding-agent configs detected.');
-    const a = await ask('Do you use opencode? [y/N] ');
-    const writtenTo = [];
-    let autoRefresh = false;
-    let autoInstall = false;
-    if (a === 'y' || a === 'yes') {
-      const target = path.join(os.homedir(), '.config', 'opencode', 'AGENTS.md');
-      try { writeBookendedBlock(target); writtenTo.push(target); console.log(`✓ Wrote SDocs section to ${target}`); }
-      catch (e) { console.error(`Failed to write ${target}: ${e.message}`); }
-      autoRefresh = await askAutoRefreshConsent();
-      autoInstall = await askAutoInstallConsent();
-      console.log('Done. Run `sdoc setup` any time to revisit.');
-    } else {
-      console.log('Skipped. Run `sdoc setup` any time to revisit.');
-    }
-    writeSetupState({
-      setupCompleted: new Date().toISOString(),
-      writtenTo, declined: writtenTo.length === 0,
-      autoRefreshAgentFiles: autoRefresh,
-      autoInstallUpdates: autoInstall,
-      lastRunVersion: VERSION,
-    });
-    return;
+  console.log('\n\u2728─────── SmallDocs setup ───────\u2728');
+  console.log('Install the SmallDocs skill so your coding agents know `sdoc`.\n');
+
+  if (detected.length > 0) {
+    console.log('Detected: ' + detected.map(a => a.displayName).join(', '));
+    console.log('\nWill write the skill to ~/.agents/skills/smalldocs/SKILL.md.');
+    console.log('Agents using that universal location read it directly; other');
+    console.log('detected agents receive a symlink in their skills directory.');
+  } else {
+    console.log('No coding-agent configs detected. Setup still writes the canonical');
+    console.log('skill at ~/.agents/skills/smalldocs/SKILL.md, which any agent that');
+    console.log('discovers ~/.agents/skills will pick up.');
   }
-
-  console.log('\n✨─────── SDocs setup ───────✨');
-  console.log('First run only - wire SDocs into your CLI coding agents.\n');
-  console.log('Detected: ' + detected.map(t => t.name).join(', '));
-  console.log('\nWill append a short SDocs section to:');
-  for (const t of detected) console.log('  ' + t.filePath);
-  console.log('\nThese files are loaded into every conversation across all your');
-  console.log('projects, so SDocs becomes available no matter where you\'re working.');
-  console.log('');
-  console.log('You can ask your agent things like:');
+  console.log('\nYou can ask your agent things like:');
   console.log('  "write up the plan and sdoc it to me"');
   console.log('  "explain async/await to me in a sdoc"');
   console.log('  "draft the release notes as a sdoc I can share"');
-  console.log('');
-  console.log('This is the best way to work with SDocs');
-  const RULE = '═'.repeat(36);
-  console.log(`\n═══════════ Block to add ═══════════`);
-  console.log(AGENT_BLOCK_BODY.trim());
+
+  const RULE = '\u2550'.repeat(36);
+  console.log(`\n${RULE} Skill body ${RULE}`);
+  console.log(SKILL_BODY.trim());
   console.log(RULE);
 
-  const a = await ask('\nAdd to all? [Y/n/skip] ');
+  const a = await ask('\nInstall? [Y/n/skip] ');
   const skipped = a === 'skip' || (a && a !== 'y' && a !== 'yes');
   if (skipped) {
     writeSetupState({
@@ -228,18 +197,18 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
     return;
   }
 
-  const writtenTo = [];
-  for (const t of detected) {
-    try { writeBookendedBlock(t.filePath); writtenTo.push(t.filePath); console.log(`✓ ${t.name}: ${t.filePath}`); }
-    catch (e) { console.error(`✗ ${t.name}: ${e.message}`); }
-  }
+  const result = syncAgentSkill({});
+  const changed = syncChanged(result);
+  if (changed || result.errors.length) printSyncSummary(result);
+  if (result.errors.length) return;
 
-  const autoRefresh = writtenTo.length > 0 ? await askAutoRefreshConsent() : false;
-  const autoInstall = writtenTo.length > 0 ? await askAutoInstallConsent() : false;
+  const autoRefresh = await askAutoRefreshConsent();
+  const autoInstall = await askAutoInstallConsent();
 
   writeSetupState({
     setupCompleted: new Date().toISOString(),
-    writtenTo, declined: false,
+    writtenTo: changed ? [canonicalSkillFile(home)] : [],
+    declined: false,
     autoRefreshAgentFiles: autoRefresh,
     autoInstallUpdates: autoInstall,
     lastRunVersion: VERSION,
@@ -247,25 +216,27 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
   console.log('\nDone. Run `sdoc setup` any time to revisit.');
 }
 
-// Auto-refresh existing agent files when the binary version is newer than the
-// version that last ran. No prompt: the user already consented during setup.
-// Bails on downgrades (block version > shipped version), errors, or partial
-// failures (lastRunVersion only advances when every changed file succeeded).
+// Auto-refresh when the binary version is newer than the version that last
+// ran. No prompt: the user already consented during setup. Rewrites only the
+// canonical skill (every symlink follows); re-checks symlinks and re-strips
+// any block that reappeared. Bails on downgrades or errors.
 async function maybeAutoRefresh() {
   if (process.env.SDOCS_NO_REFRESH) return;
   let state = readSetupState();
 
-  // Implicit-consent migration for users who have a recognised SDocs block in
-  // an agent file but no `~/.sdocs/setup.json`. This is the pre-1.5.0 install
-  // path. `refreshContent` only signals `changed` for a block whose exact
-  // shape we wrote (legacy JoshInLisbon terminator, or our bookend markers);
-  // anything else is left untouched, so a user who deleted the block or
-  // hand-edited it doesn't get state silently created.
+  // Implicit-consent migration for users who have evidence of a prior setup
+  // (a skill file on disk, or a recognised always-on block in one of the
+  // historical config files) but no ~/.sdocs/setup.json. A brand-new user has
+  // no evidence and is left for the interactive first-run prompt instead, so
+  // nothing is auto-installed without consent.
   if (!state) {
-    const results = refreshAllAgentFiles();
-    const next = implicitConsentState(results, VERSION);
+    if (!hasSetupEvidence(os.homedir(), process.env)) return;
+    const result = syncAgentSkill({});
+    if (result.errors.length) { printSyncSummary(result); return; }
+    if (!syncChanged(result)) return;
+    const next = implicitConsentState(toImplicitResults(result), VERSION);
     if (!next) return;
-    printRefreshSummary(results);
+    printSyncSummary(result);
     writeSetupState(next);
     return;
   }
@@ -273,53 +244,37 @@ async function maybeAutoRefresh() {
   if (!state.autoRefreshAgentFiles) return;
   if (compareVersions(VERSION, state.lastRunVersion) <= 0) return;
 
-  const results = refreshAllAgentFiles();
-  const anyChanged = results.some(r => r.changed);
-  if (anyChanged) printRefreshSummary(results);
+  const result = syncAgentSkill({});
+  if (syncChanged(result) || result.errors.length) printSyncSummary(result);
 
-  const anyError = results.some(r => r.error);
-  if (!anyError) {
+  if (!result.errors.length) {
     writeSetupState({ ...state, lastRunVersion: VERSION });
   }
 }
 
-// `sdoc refresh` — unconditional agent-block refresh. Useful for users whose
-// setup.json was never written (pre-1.5.0 installs) or has been deleted, and
-// for agents that want to trigger the migration explicitly without going
-// through the interactive setup flow.
+// `sdoc refresh` - unconditional skill refresh. Useful when setup.json was
+// never written or has been deleted, or to force the migration explicitly.
 async function runRefresh() {
   const existing = readSetupState();
-  const results = refreshAllAgentFiles();
-  const changed = results.filter(r => r.changed);
-  const errors  = results.filter(r => r.error);
-  const current = results.filter(r => r.reason === 'current');
-  const blocksPresent = changed.length + current.length;
+  const result = syncAgentSkill({});
+  printSyncSummary(result);
 
-  printRefreshSummary(results);
-
-  if (changed.length === 0 && errors.length === 0) {
-    if (blocksPresent === 0) {
-      console.log('No SDocs blocks found in any agent file. Run `sdoc setup` to add one.');
-      return;
-    }
-    console.log(`All SDocs agent blocks already at v${AGENT_BLOCK_VERSION}.`);
+  if (!syncChanged(result) && !result.errors.length) {
+    console.log(`SmallDocs skill already at v${SKILL_VERSION}.`);
   }
-
-  if (errors.length > 0) return;
-
-  if (blocksPresent === 0 && !existing) return;
+  if (result.errors.length) return;
 
   writeSetupState({
-    setupCompleted: existing?.setupCompleted || new Date().toISOString(),
-    writtenTo: [...changed, ...current].map(r => r.path),
+    setupCompleted: existing && existing.setupCompleted || new Date().toISOString(),
+    writtenTo: [canonicalSkillFile(os.homedir())],
     declined: false,
     autoRefreshAgentFiles: existing ? existing.autoRefreshAgentFiles !== false : true,
-    autoInstallUpdates: existing?.autoInstallUpdates ?? false,
+    autoInstallUpdates: existing && existing.autoInstallUpdates != null ? existing.autoInstallUpdates : false,
     lastRunVersion: VERSION,
   });
 }
 
-// `sdoc auto-update on|off|status` — flips state.autoInstallUpdates.
+// `sdoc auto-update on|off|status` - flips state.autoInstallUpdates.
 function runAutoUpdateSubcommand(arg) {
   let state = readSetupState();
   if (!state) {
@@ -328,12 +283,12 @@ function runAutoUpdateSubcommand(arg) {
   }
   if (arg === 'on') {
     writeSetupState({ ...state, autoInstallUpdates: true });
-    console.log('✓ Auto-install of sdoc updates: on');
+    console.log('\u2713 Auto-install of sdoc updates: on');
     return;
   }
   if (arg === 'off') {
     writeSetupState({ ...state, autoInstallUpdates: false });
-    console.log('✓ Auto-install of sdoc updates: off');
+    console.log('\u2713 Auto-install of sdoc updates: off');
     return;
   }
   console.log(`Auto-install of sdoc updates: ${state.autoInstallUpdates ? 'on' : 'off'}`);
@@ -344,6 +299,7 @@ module.exports = {
   ask,
   askAutoInstallConsent,
   askAutoRefreshConsent,
+  dryRunPreview,
   runSetup,
   runRefresh,
   runAutoUpdateSubcommand,

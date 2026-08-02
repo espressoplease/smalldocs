@@ -1,27 +1,44 @@
-// Pure data model for the SmallDocs agent integration block.
+// Pure data model for the SmallDocs agent skill + legacy-block migration.
 //
-// IMPORTANT: keep AGENT_BLOCK_BODY in sync with the per-agent setup
-// snippets in public/sdoc.md (the "Set up your agent" section). If you
-// reword one, reword the other.
+// `sdoc setup` installs a discoverable SKILL.md (YAML frontmatter preamble
+// that is always in agent context + a body loaded on demand via the `skill`
+// tool) instead of an always-on block pasted into AGENTS.md. One canonical
+// copy lives at ~/.agents/skills/smalldocs/SKILL.md; every other supported
+// agent gets a relative symlink into its own skills directory. The agent
+// table is derived from vercel-labs/skills/src/agents.ts.
 //
-// Release checklist when AGENT_BLOCK_BODY changes:
-//   1. Bump AGENT_BLOCK_VERSION below.
-//   2. Set AGENT_BLOCK_REASON to a one-line summary of what changed.
+// MIGRATION: the previous scheme wrote a `## SmallDocs` block (wrapped in
+// <!-- sdocs-agent-block:start v=N --> bookends) into a handful of agent
+// config files. On setup/refresh we strip any recognised block from those
+// files so the content is not loaded twice. The detection functions below
+// (findBookendedBlock / findLegacyBlock / removeBlockContent) drive that.
+//
+// This module also owns the on-disk schema for ~/.sdocs/setup.json.
+//
+// Release checklist when the skill body changes:
+//   1. Bump SKILL_VERSION below.
+//   2. Set SKILL_REASON to a one-line summary of what changed.
 //   3. Prepend a new section to public/agent-changes.md.
-//   4. Reword public/sdoc.md per-agent snippets to match.
-//
-// This module also owns the on-disk schema for ~/.sdocs/setup.json
-// (read/write/migrate). The tests cover both the block format and the
-// state migration, so they live together as one cohesive module.
+//   4. Reword public/sdoc.md setup copy to match.
+//   5. Refresh the agent table from vercel-labs/skills/src/agents.ts if new
+//      agents landed upstream.
 
 const fs   = require('fs');
 const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
-const AGENT_BLOCK_VERSION = 13;
-const AGENT_BLOCK_REASON  = 'Agent annotations now render as a guided code walkthrough: each note is a callout below its line with a Prev/Next stepper, walked in the order the notes are passed (not line order), and naming several files (sdoc app.py 5:"..." util.py 12:"..." app.py 9:"...") narrates across them as tabs the walk hops between. The `sdoc code` bullet gains this multi-file walkthrough description plus a trigger to build one when the user asks to be walked through code, an MR, a diff, or the current changes. Only the `sdoc code` bullet changed from v12.';
+// ── Skill model ────────────────────────────────────────────
+const SKILL_VERSION = 14;
+const SKILL_REASON  = 'Setup now installs a discoverable SKILL.md (loaded on demand via the agent skill tool) instead of an always-on block pasted into AGENTS.md. Agents using ~/.agents/skills read the canonical copy directly; other supported agents receive a symlink. Existing blocks are stripped on upgrade so content is not loaded twice.';
+const SKILL_NAME    = 'smalldocs';
 
-const AGENT_BLOCK_BODY = `## SmallDocs
+// Always-in-context preamble. Concise trigger text; the full reference lives
+// in SKILL_BODY and loads on demand. Plain text: no backticks, no em/en dashes,
+// no double quotes (it is emitted as a double-quoted YAML scalar).
+const SKILL_DESCRIPTION = "Render local Markdown files securely in the browser for reading, styling, sharing, and export, plus charts, diagrams, slides, sheets, code walkthroughs, and interactive forms. Installed globally as sdoc (run: sdoc path/to/file.md); nothing hits a server unless the user saves to the SmallDocs cloud or runs sdoc share. Use when the user wants to read, share, or export a .md file, or when a styled or interactive artifact will land harder than chat prose; skip it for quick Q&A. Triggers: 'sdoc it', 'sdoc me the plan', or a request for a smalldoc means write (or locate) the .md file and open it with sdoc.";
+
+// The on-demand reference body. Loaded only when the agent invokes the skill.
+const SKILL_BODY = `## SmallDocs
 
 The \`sdoc\` CLI (\`sdoc path/to/file.md\`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs \`sdoc share\`.
 
@@ -54,23 +71,121 @@ Each command below prints its reference when run with no arguments - run it befo
 - \`sdoc feedback\` - rendering interactive elements (\`\`\`form blocks) to receive structured input from the user. Run \`sdoc feedback file.md\` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 `;
 
+function formatSkill(version) {
+  return `---\nname: ${SKILL_NAME}\ndescription: "${SKILL_DESCRIPTION}"\n---\n\n<!-- sdocs-skill: v=${version} -->\n${SKILL_BODY}`;
+}
+
+const SKILL_VERSION_RE = /<!-- sdocs-skill: v=(\d+) -->/;
+
+// Returns the embedded skill version, or null if the content is not our skill.
+function readSkillVersion(content) {
+  const m = SKILL_VERSION_RE.exec(content || '');
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function canonicalSkillDir(home) {
+  return path.join(home, '.agents', 'skills', SKILL_NAME);
+}
+function canonicalSkillFile(home) {
+  return path.join(canonicalSkillDir(home), 'SKILL.md');
+}
+
+// ── Agent table (derived from vercel-labs/skills/src/agents.ts) ─
+// Each entry: { name, displayName, dir (global skills dir), universal, detect[] }.
+// `universal` agents discover skills via ~/.agents/skills directly, so the
+// canonical copy already covers them and we skip their symlink (avoids the
+// skill listing twice). Non-universal agents get a relative symlink from
+// <dir>/<skill-name> to the canonical dir.
+function resolveSkillAgents(home, env) {
+  env = env || {};
+  const configHome = (env.XDG_CONFIG_HOME && env.XDG_CONFIG_HOME.trim()) || path.join(home, '.config');
+  const claudeHome = (env.CLAUDE_CONFIG_DIR && env.CLAUDE_CONFIG_DIR.trim()) || path.join(home, '.claude');
+  const codexHome   = (env.CODEX_HOME && env.CODEX_HOME.trim()) || path.join(home, '.codex');
+  const vibeHome    = (env.VIBE_HOME && env.VIBE_HOME.trim()) || path.join(home, '.vibe');
+  const cwd = env.PWD || process.cwd();
+  const h = (...p) => path.join(home, ...p);
+  const c = (...p) => path.join(configHome, ...p);
+  const e = (name, displayName, dir, universal, detect) => ({ name, displayName, dir, universal, detect });
+  const openClawHome = [h('.openclaw'), h('.clawdbot'), h('.moltbot')]
+    .find(p => { try { return fs.existsSync(p); } catch (_) { return false; } }) || h('.openclaw');
+  return [
+    // ── universal: discovered via ~/.agents/skills (canonical copy). No symlink. ──
+    e('opencode',       'opencode',       c('opencode', 'skills'),                 true,  [c('opencode')]),
+    e('codex',          'Codex',          path.join(codexHome, 'skills'),           true,  [codexHome, '/etc/codex']),
+    e('gemini-cli',     'Gemini CLI',     h('.gemini', 'skills'),                  true,  [h('.gemini')]),
+    e('cursor',         'Cursor',         h('.cursor', 'skills'),                  true,  [h('.cursor')]),
+    e('cline',          'Cline',          h('.agents', 'skills'),                  true,  [h('.cline')]),
+    e('warp',           'Warp',           h('.agents', 'skills'),                  true,  [h('.warp')]),
+    e('amp',            'Amp',            c('agents', 'skills'),                   true,  [c('amp')]),
+    e('kimi-code-cli',  'Kimi Code CLI',  c('agents', 'skills'),                   true,  [h('.kimi-code'), h('.kimi')]),
+    e('replit',         'Replit',         c('agents', 'skills'),                   true,  [path.join(cwd, '.replit'), h('.replit')]),
+    e('antigravity',    'Antigravity',    h('.gemini', 'antigravity', 'skills'),    true,  [h('.gemini', 'antigravity')]),
+    e('deepagents',     'Deep Agents',    h('.deepagents', 'agent', 'skills'),      true,  [h('.deepagents')]),
+    e('firebender',     'Firebender',     h('.firebender', 'skills'),              true,  [h('.firebender')]),
+    e('github-copilot', 'GitHub Copilot', h('.copilot', 'skills'),                 true,  [h('.copilot')]),
+    // ── non-universal: symlink <dir>/smalldocs -> canonical ──
+    e('claude-code',    'Claude Code',    path.join(claudeHome, 'skills'),          false, [claudeHome]),
+    e('pi',             'Pi',             h('.pi', 'agent', 'skills'),              false, [h('.pi', 'agent')]),
+    e('codewhale',      'CodeWhale',      h('.codewhale', 'skills'),                false, [h('.codewhale')]),
+    e('augment',        'Augment',        h('.augment', 'skills'),                  false, [h('.augment')]),
+    e('openhands',      'OpenHands',      h('.openhands', 'skills'),                false, [h('.openhands')]),
+    e('windsurf',       'Windsurf',       h('.codeium', 'windsurf', 'skills'),      false, [h('.codeium', 'windsurf')]),
+    e('goose',          'Goose',          c('goose', 'skills'),                     false, [c('goose')]),
+    e('crush',          'Crush',          c('crush', 'skills'),                     false, [c('crush')]),
+    e('cortex',         'Cortex Code',    h('.snowflake', 'cortex', 'skills'),      false, [h('.snowflake', 'cortex')]),
+    e('roo',            'Roo Code',       h('.roo', 'skills'),                      false, [h('.roo')]),
+    e('kilo',           'Kilo Code',      h('.kilocode', 'skills'),                 false, [h('.kilocode')]),
+    e('qwen-code',      'Qwen Code',      h('.qwen', 'skills'),                     false, [h('.qwen')]),
+    e('qoder',          'Qoder',          h('.qoder', 'skills'),                    false, [h('.qoder')]),
+    e('trae',           'Trae',           h('.trae', 'skills'),                     false, [h('.trae')]),
+    e('trae-cn',        'Trae CN',        h('.trae-cn', 'skills'),                  false, [h('.trae-cn')]),
+    e('droid',          'Droid',          h('.factory', 'skills'),                  false, [h('.factory')]),
+    e('kode',           'Kode',           h('.kode', 'skills'),                     false, [h('.kode')]),
+    e('kiro-cli',       'Kiro CLI',       h('.kiro', 'skills'),                     false, [h('.kiro')]),
+    e('junie',          'Junie',          h('.junie', 'skills'),                    false, [h('.junie')]),
+    e('iflow-cli',      'iFlow CLI',      h('.iflow', 'skills'),                    false, [h('.iflow')]),
+    e('codebuddy',      'CodeBuddy',      h('.codebuddy', 'skills'),                false, [path.join(cwd, '.codebuddy'), h('.codebuddy')]),
+    e('continue',       'Continue',       h('.continue', 'skills'),                 false, [path.join(cwd, '.continue'), h('.continue')]),
+    e('command-code',   'Command Code',   h('.commandcode', 'skills'),              false, [h('.commandcode')]),
+    e('mcpjam',         'MCPJam',         h('.mcpjam', 'skills'),                   false, [h('.mcpjam')]),
+    e('mistral-vibe',   'Mistral Vibe',   path.join(vibeHome, 'skills'),             false, [vibeHome]),
+    e('mux',            'Mux',            h('.mux', 'skills'),                      false, [h('.mux')]),
+    e('zencoder',       'Zencoder',       h('.zencoder', 'skills'),                 false, [h('.zencoder')]),
+    e('neovate',        'Neovate',        h('.neovate', 'skills'),                  false, [h('.neovate')]),
+    e('pochi',          'Pochi',          h('.pochi', 'skills'),                    false, [h('.pochi')]),
+    e('adal',           'AdaL',           h('.adal', 'skills'),                     false, [h('.adal')]),
+    e('bob',            'IBM Bob',        h('.bob', 'skills'),                      false, [h('.bob')]),
+    e('openclaw',       'OpenClaw',       path.join(openClawHome, 'skills'),          false, [h('.openclaw'), h('.clawdbot'), h('.moltbot')]),
+  ];
+}
+
+// The agent config files that historically received an always-on SmallDocs
+// block. Independent of the skill table: e.g. Codex/Gemini are universal for
+// skills but still carry an old AGENTS.md/GEMINI.md block to strip.
+function legacyBlockTargets(home, env) {
+  env = env || {};
+  const configHome = (env.XDG_CONFIG_HOME && env.XDG_CONFIG_HOME.trim()) || path.join(home, '.config');
+  const claudeHome = (env.CLAUDE_CONFIG_DIR && env.CLAUDE_CONFIG_DIR.trim()) || path.join(home, '.claude');
+  const codexHome   = (env.CODEX_HOME && env.CODEX_HOME.trim()) || path.join(home, '.codex');
+  return [
+    { name: 'Claude Code', file: path.join(claudeHome, 'CLAUDE.md') },
+    { name: 'Codex',       file: path.join(codexHome, 'AGENTS.md') },
+    { name: 'Gemini CLI',  file: path.join(home, '.gemini', 'GEMINI.md') },
+    { name: 'opencode',    file: path.join(configHome, 'opencode', 'AGENTS.md') },
+    { name: 'pi',          file: path.join(home, '.pi', 'agent', 'AGENTS.md') },
+    { name: 'CodeWhale',   file: path.join(home, '.codewhale', 'AGENTS.md') },
+  ];
+}
+
+// ── Legacy block detection (for migration stripping) ───────
 const AGENT_BLOCK_START_PREFIX = '<!-- sdocs-agent-block:start v=';
 const AGENT_BLOCK_START_RE     = /<!-- sdocs-agent-block:start v=(\d+) -->/;
 const AGENT_BLOCK_END_MARKER   = '<!-- sdocs-agent-block:end -->';
 const AGENT_BLOCK_LEGACY_OPEN  = '<!-- sdocs-agent-block -->';
 
-// `detectDir` (optional) is the directory whose existence signals "this agent
-// is installed". It defaults to `dir`. pi keeps its global instructions one
-// level down (`~/.pi/agent/AGENTS.md`), so we detect on the parent `~/.pi`
-// the installer creates and let writeBookendedBlock mkdir the `agent` subdir.
-const AGENT_TARGETS = [
-  { name: 'Claude Code', dir: '.claude',                file: 'CLAUDE.md'  },
-  { name: 'Codex',       dir: '.codex',                 file: 'AGENTS.md'  },
-  { name: 'Gemini CLI',  dir: '.gemini',                file: 'GEMINI.md'  },
-  { name: 'opencode',    dir: path.join('.config', 'opencode'), file: 'AGENTS.md' },
-  { name: 'pi',          dir: path.join('.pi', 'agent'), file: 'AGENTS.md', detectDir: '.pi' },
-  { name: 'CodeWhale',   dir: '.codewhale',             file: 'AGENTS.md'  },
-];
+// Back-compat aliases (older code/tests reference these names).
+const AGENT_BLOCK_VERSION = SKILL_VERSION;
+const AGENT_BLOCK_BODY    = SKILL_BODY;
 
 function formatAgentBlock(version, body) {
   return `${AGENT_BLOCK_START_PREFIX}${version} -->\n${body}${AGENT_BLOCK_END_MARKER}\n`;
@@ -99,8 +214,6 @@ function findBookendedBlock(content) {
 }
 
 // Find a legacy open-only block (1.4.x format). Returns { start, end, version } | null.
-// Only matches bodies whose terminator is the JoshInLisbon URL line, which is the
-// known shape of v1 (1.4.0/1.4.1) and v2 (1.4.2). Hand-edited bodies return null.
 function findLegacyBlock(content) {
   const idx = content.indexOf(AGENT_BLOCK_LEGACY_OPEN);
   if (idx < 0) return null;
@@ -111,30 +224,28 @@ function findLegacyBlock(content) {
   if (termIdx < 0) return null;
   const blockEnd = termIdx + terminator.length;
   const region = content.slice(idx, blockEnd);
-  // Heuristic to recover from-version: v2 added the copy-code line, v1 didn't.
   const version = region.includes('Also handy for copying specific code') ? 2 : 1;
   return { start: idx, end: blockEnd, version };
 }
 
-// Pure: takes content, returns refresh result.
-//   { changed: false, reason: 'absent'|'current'|'newer'|'hand_edited' }
-//   { changed: true, content, fromVersion, toVersion }
+// Pure: takes content, returns refresh result (rewrites block in place).
+// Kept for tests / reference; production migration uses removeBlockContent.
 function refreshContent(content) {
   const bookended = findBookendedBlock(content);
   if (bookended) {
-    if (bookended.version === AGENT_BLOCK_VERSION) {
+    if (bookended.version === SKILL_VERSION) {
       return { changed: false, reason: 'current' };
     }
-    if (bookended.version > AGENT_BLOCK_VERSION) {
+    if (bookended.version > SKILL_VERSION) {
       return { changed: false, reason: 'newer' };
     }
     return {
       changed: true,
       content: content.slice(0, bookended.start)
-             + formatAgentBlock(AGENT_BLOCK_VERSION, AGENT_BLOCK_BODY)
+             + formatAgentBlock(SKILL_VERSION, SKILL_BODY)
              + content.slice(bookended.end),
       fromVersion: bookended.version,
-      toVersion: AGENT_BLOCK_VERSION,
+      toVersion: SKILL_VERSION,
     };
   }
   const legacy = findLegacyBlock(content);
@@ -144,11 +255,31 @@ function refreshContent(content) {
   return {
     changed: true,
     content: content.slice(0, legacy.start)
-           + formatAgentBlock(AGENT_BLOCK_VERSION, AGENT_BLOCK_BODY)
+           + formatAgentBlock(SKILL_VERSION, SKILL_BODY)
            + content.slice(legacy.end),
     fromVersion: legacy.version,
-    toVersion: AGENT_BLOCK_VERSION,
+    toVersion: SKILL_VERSION,
   };
+}
+
+// Pure: remove any recognised SmallDocs block from content. Used by the
+// skill migration so the reference is not loaded twice (always-on block +
+// on-demand skill). Surrounding user text is preserved; only the blank-line
+// seam the installer originally added is normalised.
+function removeBlockContent(content) {
+  const region = findBookendedBlock(content) || findLegacyBlock(content);
+  if (!region) {
+    return { changed: false, reason: content.includes(AGENT_BLOCK_LEGACY_OPEN) ? 'hand_edited' : 'absent' };
+  }
+  const before = content.slice(0, region.start).replace(/\n+$/, '');
+  const after  = content.slice(region.end).replace(/^\n+/, '');
+  let out;
+  if (before && after)      out = before + '\n\n' + after;
+  else if (before)          out = before;
+  else if (after)           out = after;
+  else                      out = '';
+  if (out && !out.endsWith('\n')) out += '\n';
+  return { changed: true, content: out, version: region.version };
 }
 
 function compareVersions(a, b) {
@@ -165,8 +296,6 @@ function compareVersions(a, b) {
 
 const SETUP_SCHEMA_VERSION = 1;
 
-// Pre-1.5.0 setup.json had no `schemaVersion`. Existing users wrote the block
-// (so they want it kept current) but were never asked about auto-install.
 function migrateSetupState(raw) {
   if (!raw || typeof raw !== 'object') return null;
   if (raw.schemaVersion === SETUP_SCHEMA_VERSION) return raw;
@@ -208,8 +337,7 @@ function writeSetupState(state) {
 }
 
 // Pure: given a batch of refresh results plus the current binary version,
-// decide whether a missing setup.json should be lazily populated. Returns the
-// state object to write, or null to leave state untouched.
+// decide whether a missing setup.json should be lazily populated.
 function implicitConsentState(results, version, now = new Date()) {
   const changed = results.filter(r => r.changed);
   if (changed.length === 0) return null;
@@ -225,19 +353,31 @@ function implicitConsentState(results, version, now = new Date()) {
 }
 
 module.exports = {
+  SKILL_VERSION,
+  SKILL_REASON,
+  SKILL_NAME,
+  SKILL_DESCRIPTION,
+  SKILL_BODY,
+  formatSkill,
+  readSkillVersion,
+  canonicalSkillDir,
+  canonicalSkillFile,
+  resolveSkillAgents,
+  legacyBlockTargets,
+  // legacy-block detection / migration
   AGENT_BLOCK_VERSION,
-  AGENT_BLOCK_REASON,
   AGENT_BLOCK_BODY,
   AGENT_BLOCK_START_PREFIX,
   AGENT_BLOCK_START_RE,
   AGENT_BLOCK_END_MARKER,
   AGENT_BLOCK_LEGACY_OPEN,
-  AGENT_TARGETS,
-  SETUP_SCHEMA_VERSION,
   formatAgentBlock,
   findBookendedBlock,
   findLegacyBlock,
   refreshContent,
+  removeBlockContent,
+  // setup state
+  SETUP_SCHEMA_VERSION,
   compareVersions,
   migrateSetupState,
   readSetupState,

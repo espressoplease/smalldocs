@@ -7,6 +7,8 @@
  * we ever want it; here we pin the logic that decides what to write.
  */
 
+const fs   = require('fs');
+const os   = require('os');
 const path = require('path');
 const cli  = require(path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js'));
 
@@ -243,5 +245,123 @@ module.exports = function (harness) {
       '/Users/x/.claude/CLAUDE.md',
       '/Users/x/.codex/AGENTS.md',
     ]);
+  });
+
+  // ── Skill model (formatSkill / readSkillVersion) ────────────
+
+  test('formatSkill emits frontmatter name+description and a version comment', () => {
+    const out = cli.formatSkill(3);
+    assert.ok(out.startsWith('---\n'), 'starts with frontmatter fence');
+    assert.ok(out.includes('name: smalldocs'), 'name field present');
+    assert.ok(out.includes('description: "'), 'description field is a quoted scalar');
+    assert.ok(out.includes('<!-- sdocs-skill: v=3 -->'), 'version comment present');
+  });
+
+  test('readSkillVersion recovers the version formatSkill wrote', () => {
+    assert.strictEqual(cli.readSkillVersion(cli.formatSkill(7)), 7);
+    assert.strictEqual(cli.readSkillVersion('no marker here'), null);
+    assert.strictEqual(cli.readSkillVersion(''), null);
+  });
+
+  test('formatSkill description has no em/en dashes and no double quotes (YAML-safe)', () => {
+    const desc = cli.SKILL_DESCRIPTION;
+    assert.ok(!desc.includes('"'), 'no double quotes (would break the quoted scalar)');
+    assert.ok(!desc.includes('\u2014') && !desc.includes('\u2013'), 'no em/en dashes');
+    assert.ok(desc.length > 0 && desc.length <= 1024, 'within the 1-1024 char limit');
+  });
+
+  // ── removeBlockContent (migration stripper) ─────────────────
+
+  test('removeBlockContent: absent returns absent', () => {
+    const r = cli.removeBlockContent('# readme\n\nno block here\n');
+    assert.strictEqual(r.changed, false);
+    assert.strictEqual(r.reason, 'absent');
+  });
+
+  test('removeBlockContent: bookended block removed, surrounding text preserved', () => {
+    const block = cli.formatAgentBlock(8, '## SDocs\nbody\n');
+    const before = '# Top\n\nintro\n\n';
+    const after = '\n## Tail\n\nmore\n';
+    const r = cli.removeBlockContent(before + block + after);
+    assert.strictEqual(r.changed, true);
+    assert.strictEqual(r.version, 8);
+    assert.ok(r.content.startsWith('# Top'), 'leading user text preserved');
+    assert.ok(r.content.includes('## Tail'), 'trailing user text preserved');
+    assert.ok(!r.content.includes('sdocs-agent-block'), 'no block markers remain');
+  });
+
+  test('removeBlockContent: legacy open-marker block removed', () => {
+    const r = cli.removeBlockContent('# user\n\n' + LEGACY_V2 + 'tail\n');
+    assert.strictEqual(r.changed, true);
+    assert.strictEqual(r.version, 2);
+    assert.ok(r.content.startsWith('# user'));
+    assert.ok(!r.content.includes('JoshInLisbon'));
+  });
+
+  test('removeBlockContent: hand-edited legacy body left alone', () => {
+    const handEdited = '<!-- sdocs-agent-block -->\n## My fork\n\nWhatever I edited\n';
+    const r = cli.removeBlockContent(handEdited);
+    assert.strictEqual(r.changed, false);
+    assert.strictEqual(r.reason, 'hand_edited');
+  });
+
+  // ── Agent table ─────────────────────────────────────────────
+
+  test('resolveSkillAgents: 45 agents; known universal/non-universal split', () => {
+    const home = '/h';
+    const agents = cli.resolveSkillAgents(home, {});
+    assert.strictEqual(agents.length, 45, '45 agents total (vercel-labs/skills table + codewhale)');
+    assert.strictEqual(new Set(agents.map(a => a.name)).size, agents.length, 'agent names are unique');
+
+    const byName = Object.fromEntries(agents.map(a => [a.name, a]));
+    // Universal: discovered via ~/.agents/skills, no symlink.
+    for (const u of ['opencode', 'codex', 'gemini-cli', 'cursor', 'cline', 'warp']) {
+      assert.ok(byName[u] && byName[u].universal, `${u} is universal`);
+    }
+    // Non-universal: get a symlink into their own skills dir.
+    for (const n of ['claude-code', 'pi', 'codewhale', 'augment', 'openhands', 'windsurf']) {
+      assert.ok(byName[n] && !byName[n].universal, `${n} is non-universal`);
+    }
+    // Spot-check a couple of resolved dirs.
+    assert.strictEqual(byName['claude-code'].dir, '/h/.claude/skills');
+    assert.strictEqual(byName['codewhale'].dir, '/h/.codewhale/skills');
+    assert.strictEqual(byName['pi'].dir, '/h/.pi/agent/skills');
+  });
+
+  test('resolveSkillAgents: honours CLAUDE_CONFIG_DIR and CODEX_HOME', () => {
+    const agents = cli.resolveSkillAgents('/h', {
+      CLAUDE_CONFIG_DIR: '/custom/claude',
+      CODEX_HOME: '/custom/codex',
+      VIBE_HOME: '/custom/vibe',
+    });
+    const byName = Object.fromEntries(agents.map(a => [a.name, a]));
+    assert.strictEqual(byName['claude-code'].dir, '/custom/claude/skills');
+    assert.strictEqual(byName['codex'].dir, '/custom/codex/skills');
+    assert.strictEqual(byName['mistral-vibe'].dir, '/custom/vibe/skills');
+  });
+
+  test('resolveSkillAgents: detects current Kimi path and existing legacy OpenClaw home', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-agent-paths-'));
+    try {
+      fs.mkdirSync(path.join(home, '.clawdbot'), { recursive: true });
+      const agents = cli.resolveSkillAgents(home, {});
+      const byName = Object.fromEntries(agents.map(a => [a.name, a]));
+      assert.ok(byName['kimi-code-cli'].detect.includes(path.join(home, '.kimi-code')));
+      assert.strictEqual(byName.openclaw.dir, path.join(home, '.clawdbot', 'skills'));
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('legacyBlockTargets: the six historical config files', () => {
+    const targets = cli.legacyBlockTargets('/h', {});
+    assert.strictEqual(targets.length, 6);
+    const files = targets.map(t => t.file);
+    assert.ok(files.includes('/h/.claude/CLAUDE.md'));
+    assert.ok(files.includes('/h/.codex/AGENTS.md'));
+    assert.ok(files.includes('/h/.gemini/GEMINI.md'));
+    assert.ok(files.includes('/h/.config/opencode/AGENTS.md'));
+    assert.ok(files.includes('/h/.pi/agent/AGENTS.md'));
+    assert.ok(files.includes('/h/.codewhale/AGENTS.md'));
   });
 };

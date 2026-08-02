@@ -163,16 +163,29 @@ module.exports = {
   // CLI parsing
   parseArgs: io.parseArgs,
 
-  // Agent block (pure functions and constants)
-  AGENT_BLOCK_VERSION:  agentBlock.AGENT_BLOCK_VERSION,
-  AGENT_BLOCK_BODY:     agentBlock.AGENT_BLOCK_BODY,
-  formatAgentBlock:     agentBlock.formatAgentBlock,
-  findBookendedBlock:   agentBlock.findBookendedBlock,
-  findLegacyBlock:      agentBlock.findLegacyBlock,
-  refreshContent:       agentBlock.refreshContent,
-  compareVersions:      agentBlock.compareVersions,
-  migrateSetupState:    agentBlock.migrateSetupState,
-  implicitConsentState: agentBlock.implicitConsentState,
+  // Agent skill (pure functions and constants)
+  SKILL_VERSION:         agentBlock.SKILL_VERSION,
+  SKILL_NAME:            agentBlock.SKILL_NAME,
+  SKILL_DESCRIPTION:     agentBlock.SKILL_DESCRIPTION,
+  SKILL_BODY:            agentBlock.SKILL_BODY,
+  formatSkill:           agentBlock.formatSkill,
+  readSkillVersion:      agentBlock.readSkillVersion,
+  canonicalSkillFile:    agentBlock.canonicalSkillFile,
+  canonicalSkillDir:     agentBlock.canonicalSkillDir,
+  resolveSkillAgents:    agentBlock.resolveSkillAgents,
+  legacyBlockTargets:    agentBlock.legacyBlockTargets,
+  removeBlockContent:    agentBlock.removeBlockContent,
+  // Legacy block detection (migration + tests). AGENT_BLOCK_VERSION/BODY are
+  // back-compat aliases that now point at the skill version/body.
+  AGENT_BLOCK_VERSION:   agentBlock.AGENT_BLOCK_VERSION,
+  AGENT_BLOCK_BODY:      agentBlock.AGENT_BLOCK_BODY,
+  formatAgentBlock:      agentBlock.formatAgentBlock,
+  findBookendedBlock:    agentBlock.findBookendedBlock,
+  findLegacyBlock:       agentBlock.findLegacyBlock,
+  refreshContent:        agentBlock.refreshContent,
+  compareVersions:       agentBlock.compareVersions,
+  migrateSetupState:     agentBlock.migrateSetupState,
+  implicitConsentState:  agentBlock.implicitConsentState,
 
   // Router (so contract tests can exercise it directly)
   buildRouter,
