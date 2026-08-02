@@ -70,6 +70,7 @@ const AGENT_TARGETS = [
   { name: 'opencode',    dir: path.join('.config', 'opencode'), file: 'AGENTS.md' },
   { name: 'pi',          dir: path.join('.pi', 'agent'), file: 'AGENTS.md', detectDir: '.pi' },
   { name: 'CodeWhale',   dir: '.codewhale',             file: 'AGENTS.md'  },
+  { name: 'Cursor',      dir: path.join('.cursor', 'rules'), file: 'sdocs.mdc', detectDir: '.cursor' },
 ];
 
 function formatAgentBlock(version, body) {

@@ -271,7 +271,31 @@ module.exports = function (harness) {
     } finally { fx.cleanup(); }
   });
 
-  // ── 10. Dry-run preview (multiple agents) ────────────────
+  // ── 10. Cursor detected ─────────────────────────────────
+  // Cursor uses project rules in ~/.cursor/rules/*.mdc. We detect the
+  // ~/.cursor parent and create the rules directory when writing.
+  scenario('fresh / Cursor detected → setup --yes writes project rule file', async () => {
+    const fx = createFixture({ agents: ['cursor'] });
+    try {
+      const r = await fx.run('setup --yes');
+      assert.strictEqual(r.exitCode, 0, `exit code (stderr=${r.stderr})`);
+      const content = fx.readAgent('cursor');
+      assert.ok(content, 'sdocs.mdc should exist');
+      assert.ok(
+        content.includes(`<!-- sdocs-agent-block:start v=${cli.AGENT_BLOCK_VERSION} -->`),
+        'block at current version present',
+      );
+      const state = fx.readSetupState();
+      assert.strictEqual(state.declined, false);
+      assert.strictEqual(state.writtenTo.length, 1, 'wrote one file');
+      assert.ok(
+        state.writtenTo[0].endsWith(path.join('.cursor', 'rules', 'sdocs.mdc')),
+        `expected Cursor rules path, got ${state.writtenTo[0]}`,
+      );
+    } finally { fx.cleanup(); }
+  });
+
+  // ── 11. Dry-run preview (multiple agents) ────────────────
   // The issue describes the problem as setup writing to multiple agent
   // config files without preview. Dry-run must print every file path and
   // the block that would be written to each, then exit without touching
