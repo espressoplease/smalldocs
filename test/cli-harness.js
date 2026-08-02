@@ -29,8 +29,9 @@ const { spawn } = require('child_process');
 
 const CLI_BIN = path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js');
 
-// Mirror of AGENT_TARGETS in cli/lib/agent-block.js. Kept here so tests
-// don't need to require the CLI internals just to know where files go.
+// Mirror of legacyBlockTargets in cli/lib/agent-block.js. Kept here so tests
+// don't need to require the CLI internals just to know where the historical
+// config files live (used to seed blocks for migration-strip assertions).
 const AGENT_TARGET_MAP = {
   claude:    { name: 'Claude Code', dir: '.claude',                              file: 'CLAUDE.md' },
   codex:     { name: 'Codex',       dir: '.codex',                               file: 'AGENTS.md' },
@@ -113,6 +114,12 @@ function createFixture(opts = {}) {
           SDOCS_NO_UPDATE_CHECK: '1',
           SDOCS_NO_SETUP: '1',
         };
+        // Deterministic agent paths: the CLI honours these env vars, so a
+        // value set on the test host would redirect writes out of the
+        // fixture. Clear them so everything resolves under the fake HOME.
+        delete env.CLAUDE_CONFIG_DIR;
+        delete env.CODEX_HOME;
+        delete env.XDG_CONFIG_HOME;
         if (runOpts.allowAutoRefresh !== true) env.SDOCS_NO_REFRESH = '1';
         delete env.CI;
         if (runOpts.env) Object.assign(env, runOpts.env);
@@ -122,6 +129,19 @@ function createFixture(opts = {}) {
         child.stdout.on('data', d => stdout += d);
         child.stderr.on('data', d => stderr += d);
         child.on('error', reject);
+
+        // Optional prompt-driven stdin for interactive setup scenarios. Each
+        // response is sent only after its prompt appears, so a fresh readline
+        // interface cannot consume answers intended for later questions.
+        const responses = (runOpts.responses || []).slice();
+        let responseIndex = 0;
+        child.stdout.on('data', () => {
+          const next = responses[responseIndex];
+          if (!next || !stdout.includes(next.prompt)) return;
+          responseIndex++;
+          child.stdin.write(next.answer);
+          if (responseIndex === responses.length) child.stdin.end();
+        });
 
         const timeout = setTimeout(() => {
           child.kill('SIGTERM');
@@ -135,8 +155,10 @@ function createFixture(opts = {}) {
 
         if (runOpts.stdin != null) {
           child.stdin.write(runOpts.stdin);
+          child.stdin.end();
+        } else if (responses.length === 0) {
+          child.stdin.end();
         }
-        child.stdin.end();
       });
     },
 
@@ -157,6 +179,31 @@ function createFixture(opts = {}) {
     // Whether a file exists in the fixture home. Path is relative to HOME.
     exists(relPath) {
       return fs.existsSync(path.join(home, relPath));
+    },
+
+    // Read a file relative to HOME. Returns null if missing.
+    read(relPath) {
+      try { return fs.readFileSync(path.join(home, relPath), 'utf-8'); }
+      catch (_) { return null; }
+    },
+
+    // readlink() target of a path relative to HOME. Returns null if the path
+    // is missing or is not a symlink. Used to assert the skill symlink points
+    // at the canonical skill dir.
+    readlink(relPath) {
+      try {
+        const full = path.join(home, relPath);
+        if (!fs.lstatSync(full).isSymbolicLink()) return null;
+        return fs.readlinkSync(full);
+      } catch (_) { return null; }
+    },
+
+    // Write a file relative to HOME (mkdir -p parents). Lets a scenario seed
+    // state (e.g. a canonical skill) before asserting on the gate / migration.
+    write(relPath, content) {
+      const full = path.join(home, relPath);
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, content);
     },
 
     cleanup() {

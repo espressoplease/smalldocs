@@ -43,8 +43,8 @@ USAGE
   sdoc <file> +tag1 +tag2          Inject tags into the file's front matter at open time
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
-  sdoc setup                       Wire SmallDocs into your coding agents
-  sdoc refresh                     Update the SmallDocs section in agent files to the current version
+  sdoc setup                       Install the SmallDocs skill for your coding agents
+  sdoc refresh                     Refresh the SmallDocs skill to the current version
   sdoc auto-update [on|off]        Toggle auto-install of sdoc updates
   sdoc upgrade                     Upgrade sdoc to the latest version now
   sdoc safe                        Verify the SmallDocs server is running the published code

@@ -125,31 +125,27 @@ Use it whenever a change touches the homepage, install copy, README, public docs
 
 Never use em dashes (`-`) or en dashes (`-`) anywhere: source files, comments, commit messages, docs. Use a plain hyphen (`-`) instead. This also means no `\u2014` / `\u2013` Unicode escapes.
 
-## Agent integration block
+## Agent skill
 
-The `sdoc setup` command writes a SDocs explainer into coding-agent config files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, etc.). The block lives as `AGENT_BLOCK_BODY` in `cli/lib/agent-block.js` (re-exported through `cli/bin/sdocs-dev.js`) and is duplicated as per-agent snippets in `public/sdoc.md` (the "Set up your agent" section). The set of config files it gets written to is `AGENT_TARGETS` in the same module. **If you reword one, reword the other.**
+`sdoc setup` installs a discoverable **skill** (a `SKILL.md`) instead of pasting an always-on block into agent config files. The skill carries a short `description` preamble that stays in agent context and a full reference body that loads on demand via the agent's `skill` tool, so it costs almost nothing until an agent reaches for it.
 
-The block is wrapped in HTML-comment bookend markers:
+- Canonical copy: `~/.agents/skills/smalldocs/SKILL.md` (the single source of truth).
+- Every other supported agent gets a relative symlink from its own skills directory into the canonical dir. Universal agents (whose discovery path *is* `~/.agents/skills` - opencode, Codex, Gemini CLI, Cursor, ...) pick up the canonical copy directly and are skipped to avoid double-listing.
+- The agent table is `resolveSkillAgents()` in `cli/lib/agent-block.js` and is derived from `vercel-labs/skills/src/agents.ts`. Refresh it from upstream when new agents land.
+- The skill body is `SKILL_BODY` in the same module; `formatSkill(v)` emits frontmatter + a `<!-- sdocs-skill: v=N -->` version comment + body. `readSkillVersion()` parses it back for refresh.
+- `syncAgentSkill()` in `cli/lib/agent-files.js` does the full sync: write/refresh the canonical skill, symlink every detected non-universal agent, and strip any legacy always-on block from the historical config files.
 
-```
-<!-- sdocs-agent-block:start v=N -->
-[block body]
-<!-- sdocs-agent-block:end -->
-```
+### Release checklist when the skill changes
 
-Claude Code strips block-level HTML comments before context injection (zero token cost). Codex / Gemini / opencode treat them as inert markdown. The `v=N` token lets future sdoc versions detect drift via regex.
-
-### Release checklist when AGENT_BLOCK_BODY changes
-
-1. Bump `AGENT_BLOCK_VERSION` in `cli/lib/agent-block.js`.
-2. Set `AGENT_BLOCK_REASON` to a one-line summary of what changed.
-3. Prepend a new `## v<N>` section to `public/agent-changes.md` with the reason and full block body.
-4. Reword the per-agent snippets in `public/sdoc.md` (Set up your agent section) to match.
+1. Bump `SKILL_VERSION` in `cli/lib/agent-block.js`.
+2. Set `SKILL_REASON` to a one-line summary of what changed.
+3. Prepend a new `## v<N>` section to `public/agent-changes.md` with the reason and the skill body.
+4. Reword the setup copy in `public/sdoc.md` if the install flow changed.
 5. After release: `git tag v<X.Y.Z> && git push origin v<X.Y.Z>` so the source-diff URL printed during auto-install resolves.
 
-### Legacy migration
+### Legacy block migration
 
-Pre-1.5.0 sdoc wrote the block with a single open-only marker `<!-- sdocs-agent-block -->`. `findLegacyBlock()` in `cli/lib/agent-block.js` matches v1 (1.4.0/1.4.1) and v2 (1.4.2) bodies by their `Source: https://github.com/JoshInLisbon/SDocs` terminator and rewrites them with bookend markers. After the install base has rotated through 1.5.0+, this code path can be removed.
+Before the skill model, `sdoc setup` wrote a `## SmallDocs` block wrapped in `<!-- sdocs-agent-block:start v=N -->` / `<!-- sdocs-agent-block:end -->` into a handful of config files. `findBookendedBlock()` / `findLegacyBlock()` in `cli/lib/agent-block.js` detect those (and the pre-1.5.0 open-only `<!-- sdocs-agent-block -->` form, recognised by its `Source: https://github.com/JoshInLisbon/SDocs` terminator). `removeBlockContent()` strips them, preserving surrounding user text. `legacyBlockTargets()` is the fixed list of six files that ever received a block: `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`, `~/.config/opencode/AGENTS.md`, `~/.pi/agent/AGENTS.md`, `~/.codewhale/AGENTS.md`. Once the install base has rotated through the skill model, the block-detection code can be removed.
 
 ## CLI state
 
@@ -242,18 +238,18 @@ Write mode uses `contentEditable` which behaves differently under Playwright aut
 
 ## Testing the CLI install / setup flow
 
-Historically the only way to verify `sdoc setup`, `sdoc refresh`, or any agent-block migration was: bump the version, publish to npm, run a real `npm i -g sdocs-dev` (or the curl installer), eyeball the result, then uninstall and try again. Slow, fragile, easy to skip - which is how regressions in the install / setup path used to ship.
+Historically the only way to verify `sdoc setup`, `sdoc refresh`, or any skill/block migration was: bump the version, publish to npm, run a real `npm i -g sdocs-dev` (or the curl installer), eyeball the result, then uninstall and try again. Slow, fragile, easy to skip - which is how regressions in the install / setup path used to ship.
 
 `test/cli-harness.js` + `test/test-setup-scenarios.js` replace that loop. The harness spawns the real CLI binary (`cli/bin/sdocs-dev.js`) against a temp directory that pretends to be `$HOME`. Every path the CLI reads or writes is derived from `os.homedir()`, which reads `$HOME` on macOS / Linux, so the spawned process believes that temp dir is the world. The fixture is wiped at the end. Nothing escapes; no `npm publish` involved.
 
 **Re-run these scenarios whenever you touch:**
 - `cli/lib/setup.js` (the setup / refresh state machine, the `--yes` non-interactive path)
-- `cli/lib/agent-block.js` (block format, `AGENT_BLOCK_VERSION`, `AGENT_BLOCK_BODY`, legacy-migration logic, `~/.sdocs/setup.json` schema)
-- `cli/lib/agent-files.js` (detection, atomic write, lock, refresh dispatch)
+- `cli/lib/agent-block.js` (skill body / version, agent table, legacy-block detection, `~/.sdocs/setup.json` schema)
+- `cli/lib/agent-files.js` (canonical write, symlink install, lock, block strip, sync dispatch)
 - `cli/lib/constants.js` (paths like `SETUP_CACHE`)
 - `cli/lib/io.js` parser, when adding flags consumed by setup / refresh
 
-If a scenario fails after a change in any of those, the regression is real - a real user upgrading on the live CLI would hit it. Bumping `AGENT_BLOCK_VERSION` is the most common reason scenario 4 (v6 → current) needs attention; that test pins the upgrade path.
+If a scenario fails after a change in any of those, the regression is real - a real user upgrading on the live CLI would hit it. Bumping `SKILL_VERSION` is the most common reason scenario 4 (stale/old block → stripped + skill written) needs attention; that test pins the upgrade path.
 
 **Run:**
 
@@ -264,21 +260,31 @@ node test/run.js                             # full suite, scenarios live under 
 node -e "const h=require('./test/runner');const r=require('./test/test-setup-scenarios')(h);(async()=>{await r();h.report();})()"
 ```
 
-Each scenario takes ~100ms; the seven together run well under a second.
+Each scenario takes ~100ms; the nineteen together run well under a second.
 
 **Scenarios covered:**
 
-1. Fresh install, no agent configs → `setup --yes` records `declined: true`, writes nothing
-2. Fresh install, Claude detected → `setup --yes` appends current-version bookended block
-3. Already current → `setup --yes` is a no-op (no stacked blocks, file byte-identical, "already at current version" message)
-4. Old (v6) block → `refresh` rewrites at current version, old marker gone
-5. Legacy open-marker block → `refresh` rewrites as bookended at current version
-6. Hand-edited legacy block → `refresh` leaves it alone, prints a "local edits" hint
-7. Outdated v6 block → `setup --yes` ALSO upgrades it (idempotency: setup is safe to re-run on a stale install)
-8. Existing user content in `CLAUDE.md` → `setup --yes` appends the block without breaking the user's prior content
-9. Multiple agents detected → `setup --yes` writes to all in one pass (catches loop-bail regressions)
+1. Fresh install, no agent configs → `setup --yes` still writes the canonical skill
+2. Repeated `setup --yes` with no detected agents → canonical install remains accepted and refreshable
+3. Fresh install, Claude detected → `setup --yes` writes the canonical skill + symlinks Claude
+4. Already current → `setup --yes` is a no-op (skill byte-identical, symlink untouched, "Nothing to do")
+5. Old (v6) bookended block → `refresh` strips it, writes the skill, surrounding text preserved
+6. Legacy open-marker block → `refresh` strips it, writes the skill
+7. Hand-edited legacy block → `refresh` leaves it alone, prints a "local edits" hint
+8. Legacy block in a symlinked agent config → target preserved, skip reported, migration left retryable
+9. Stale canonical skill → `setup --yes` upgrades it to current
+10. Existing user content in `CLAUDE.md` → `setup --yes` strips the block without breaking the user's prior content
+11. Multi-agent (claude + pi + codewhale + opencode) → non-universal agents symlinked; opencode covered by canonical (no `~/.config/opencode/skills` link, avoids double-list)
+12. Dry-run → prints every path and the skill body, writes nothing, no state
+13. Fresh auto-refresh gate → no prior setup evidence means no implicit install
+14. Legacy-block auto-refresh gate → a recognised old block counts as prior consent
+15. User-maintained agent skill directory → left untouched and reported
+16. User-maintained canonical skill → left untouched; legacy block retained until setup succeeds
+17. User-owned regular file at an agent skill path → left untouched and reported
+18. Agent skills parent symlinked to the canonical directory → detected as the same filesystem path, no self-link or deletion
+19. Interactive refresh opt-out → persisted exactly as answered
 
-**Idempotency contract:** `sdoc setup --yes` is the canonical "make my agent config current" command and is safe to re-run any number of times. Internally it calls `refreshAllAgentFiles()` first (handles upgrades + legacy migration), then `writeBookendedBlock()` for any detected agent without a block. Scenarios 3, 7, 8 all pin this. If you change `runSetup` and a re-run of `setup --yes` stops being a no-op on already-current state, or stops upgrading on stale state, the contract is broken.
+**Idempotency contract:** `sdoc setup --yes` is the canonical "make my agent skill current" command and is safe to re-run any number of times. Internally it calls `syncAgentSkill()`: refresh the canonical skill, ensure every detected non-universal agent's symlink, and strip any legacy block that reappeared. Scenario 4 pins the no-op; scenarios 5, 6, 9, and 10 pin upgrade/migration behavior. If a re-run of `setup --yes` stops being a no-op on already-current state, or stops upgrading on stale state, the contract is broken.
 
 **Harness API** (`test/cli-harness.js`):
 
@@ -400,7 +406,7 @@ User-facing release artifacts must be **read and approved by the user before the
 
 - the **notification alert** (`public/notifications.json`) and the **feature-introduction doc** it links to (including the example links / walkthroughs inside it),
 - any **announcement / blog / showcase copy**,
-- the **agent integration block** copy (what `sdoc setup` writes into users' configs).
+- the **agent skill** copy (what `sdoc setup` installs).
 
 The rule: when a release includes any of the above, **open the actual rendered artifact (the intro doc, the walkthrough examples, the notification target) and wait for the user to read and approve it before deploying or pushing the notification.** Do not deploy the intro doc or light up the notification dot on unreviewed content. "Commit and release" authorizes the code release and deploy; it does **not** waive this review of the user-facing announcement content - confirm that content explicitly, separately.
 
@@ -426,11 +432,11 @@ Every fenced-block / inline-render feature (charts, math, mermaid, future ones) 
    - **Word export currently breaks on data-URL `<img>` tags** (html-to-docx Buffer-polyfill bug) — affects charts and mermaid. Not a regression to fix per-feature; flag if a user reports it.
 8. **Section toggles.** Diagrams/charts inside collapsed `.md-section-body` measure 0×0. Anything that calls `getBoundingClientRect` (rasterizer, focus modal sizing) must run after `expandAllSections()` or be defensive when called on a hidden element.
 9. **CDN load resilience.** First-use CDN load can fail or be slow. Lazy-load helpers should resolve a single shared promise and surface an inline error in the wrapper rather than throwing into render orchestration.
-10. **CLI reference.** Add `sdoc <feature>` (e.g. `sdoc diagrams`) that prints the type list, syntax, and security model. Agents read this themselves before writing fenced blocks; the agent integration block points at it instead of duplicating syntax.
+10. **CLI reference.** Add `sdoc <feature>` (e.g. `sdoc diagrams`) that prints the type list, syntax, and security model. Agents read this themselves before writing fenced blocks; the skill body points at it instead of duplicating syntax.
 11. **`sdoc <file>` integration**. If the feature owns a file extension (`.mmd`, `.mermaid`), wrap the file in the appropriate fence in `cli/bin/sdocs-dev.js` so `sdoc graph.mmd` works out of the box.
 12. **Showcase + feature-intro docs**. Build a gallery page covering every supported sub-type with source blocks, plus a separate feature-introduction doc with intro paragraph, agent-prompt examples, CLI upgrade note, then the gallery. Keep them as two files: gallery is reference, intro is the announcement payload.
 13. **`public/sdoc.md`**. Add a feature section with a link to the gallery; mirror the way charts and diagrams are listed.
-14. **Agent integration block** (`cli/bin/sdocs-dev.js`). Only update if agents need to know the feature exists to use it (Mermaid + Charts qualify; styling tweaks don't). Bump `AGENT_BLOCK_VERSION`, set `AGENT_BLOCK_REASON`, prepend a `## v<N>` section to `public/agent-changes.md`, reword the per-agent snippets in `public/sdoc.md`, and tag the release. (Full release checklist is in the "Agent integration block" section above.)
+14. **Agent skill** (`cli/lib/agent-block.js`). Only update if agents need to know the feature exists to use it (Mermaid + Charts qualify; styling tweaks don't). Bump `SKILL_VERSION`, set `SKILL_REASON`, prepend a `## v<N>` section to `public/agent-changes.md`, reword the setup copy in `public/sdoc.md` if the install flow changed, and tag the release. (Full release checklist is in the "Agent skill" section above.)
 15. **Notification entry** (`public/notifications.json`). Add an entry at the top with a fresh `id`, today's date, calm title, and a hash-encoded link to the feature-introduction doc. The user-facing notification dot lights up only for entries newer than the user's last-seen mark. **Before this ships, show the user the rendered intro doc and its example links and get their sign-off** (see "Releasing: get sign-off on user-facing content before it ships").
 
 ## Charts
