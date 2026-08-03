@@ -77,6 +77,46 @@ module.exports = function (harness) {
     );
   });
 
+  // checkoutRoot() is what stops an upgrade from overwriting a working tree.
+  // Layout: <repo>/.git + <repo>/cli/{bin,lib}, which is this repo's shape.
+  const repo = path.join(base, 'repo');
+  const repoCliLib = path.join(repo, 'cli', 'lib');
+  fs.mkdirSync(repoCliLib, { recursive: true });
+  fs.mkdirSync(path.join(repo, '.git'));
+
+  test('checkoutRoot: finds the repo above the package root', () => {
+    assert.strictEqual(updateCheck.checkoutRoot(repoCliLib), fs.realpathSync(repo));
+  });
+
+  test('checkoutRoot: a worktree/submodule .git file counts', () => {
+    const wt = path.join(base, 'worktree');
+    fs.mkdirSync(path.join(wt, 'cli', 'lib'), { recursive: true });
+    fs.writeFileSync(path.join(wt, '.git'), 'gitdir: /elsewhere/.git/worktrees/wt\n');
+    assert.strictEqual(updateCheck.checkoutRoot(path.join(wt, 'cli', 'lib')), fs.realpathSync(wt));
+  });
+
+  test('checkoutRoot: null for an installed payload with no .git above it', () => {
+    assert.strictEqual(updateCheck.checkoutRoot(npmLib), null);
+    assert.strictEqual(updateCheck.checkoutRoot(urlCliLib), null);
+  });
+
+  test('checkoutRoot: an install path symlinked onto a checkout is a checkout', () => {
+    // How a dev copy is usually wired in: ~/.sdocs/cli -> <repo>/cli. Judged by
+    // where the code really lives, or install.sh would replace the symlink.
+    const linkHome = path.join(base, 'linked-home');
+    fs.mkdirSync(linkHome);
+    try {
+      fs.symlinkSync(path.join(repo, 'cli'), path.join(linkHome, 'cli'), 'dir');
+    } catch (_) {
+      return; // platform without symlink support; skip
+    }
+    assert.strictEqual(updateCheck.checkoutRoot(path.join(linkHome, 'cli', 'lib')), fs.realpathSync(repo));
+  });
+
+  test('checkoutRoot: null when the package root does not exist', () => {
+    assert.strictEqual(updateCheck.checkoutRoot(path.join(base, 'gone', 'lib')), null);
+  });
+
   // Restore env and clean up the sandbox.
   if (savedHome === undefined) delete process.env.SDOCS_HOME;
   else process.env.SDOCS_HOME = savedHome;

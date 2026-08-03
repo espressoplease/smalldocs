@@ -38,6 +38,30 @@ function isUrlInstall(moduleDir) {
   } catch (_) { return false; }
 }
 
+// Checkout detection. Both upgrade commands overwrite the CLI in place, which
+// is wrong when the code being run is a git working tree: `npm i -g` installs a
+// second copy that shadows it, and install.sh replaces $SDOCS_HOME/cli outright
+// - including when that path is a symlink onto a clone, which is how a dev copy
+// is usually wired in. Neither is recoverable by re-running sdoc, and both can
+// happen with no prompt when autoInstallUpdates is on.
+//
+// A checkout is recognised by a `.git` at or above the package root (a file,
+// not just a directory, so worktrees and submodules count). realpath first, so
+// a symlinked $SDOCS_HOME/cli is judged by where the code actually lives. An
+// npm or install.sh payload has no `.git` above it; if some unusual layout puts
+// one there, the cost is a refused auto-upgrade, which fails safe.
+function checkoutRoot(moduleDir) {
+  let dir;
+  try { dir = fs.realpathSync(path.resolve(moduleDir || __dirname, '..')); }
+  catch (_) { return null; }
+  for (;;) {
+    if (fs.existsSync(path.join(dir, '.git'))) return dir;
+    const up = path.dirname(dir);
+    if (up === dir) return null;
+    dir = up;
+  }
+}
+
 // The command that upgrades sdoc in place, given how it was installed.
 function upgradeCommand() {
   return isUrlInstall()
@@ -81,6 +105,10 @@ function autoInstallAndReexec(latest) {
 
 async function maybeUpdateBinary() {
   if (process.env.NO_UPDATE_NOTIFIER || process.env.CI) return;
+  // A checkout is upgraded with git. Say nothing: the published version is
+  // ahead of a working tree most of the time, so a notice here would print on
+  // nearly every run, and the one thing it could offer would break the copy.
+  if (checkoutRoot()) return;
   const latest = readCachedLatest();
   if (!latest || !isNewer(latest, VERSION)) return;
 
@@ -119,6 +147,15 @@ async function maybeUpdateBinary() {
 // `sdoc upgrade` — force an upgrade to the latest version right now,
 // regardless of the daily update cache. Branches on install method.
 function runUpgrade() {
+  const checkout = checkoutRoot();
+  if (checkout) {
+    console.log(`sdoc ${VERSION} is running from a checkout at ${checkout}`);
+    console.log('Upgrade it with git, not the installer:');
+    console.log(`  git -C ${checkout} pull`);
+    console.log('\nTo replace this copy with the published one, remove the checkout');
+    console.log(`from your install path first, then run \`${upgradeCommand()}\`.`);
+    return;
+  }
   const cmd = upgradeCommand();
   console.log(`Upgrading sdoc (currently ${VERSION})...`);
   try {
@@ -155,6 +192,7 @@ module.exports = {
   isNewer,
   readCachedLatest,
   isUrlInstall,
+  checkoutRoot,
   upgradeCommand,
   autoInstallAndReexec,
   maybeUpdateBinary,

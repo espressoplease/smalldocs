@@ -31,7 +31,7 @@ const {
   implicitConsentState,
 } = require('./agent-block');
 
-const { upgradeCommand } = require('./update-check');
+const { upgradeCommand, checkoutRoot } = require('./update-check');
 
 const {
   detectSkillAgents,
@@ -203,7 +203,9 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
   if (result.errors.length) return;
 
   const autoRefresh = await askAutoRefreshConsent();
-  const autoInstall = await askAutoInstallConsent();
+  // A checkout is upgraded with git, so maybeUpdateBinary() will never act on
+  // this answer. Do not ask for consent that cannot be honoured.
+  const autoInstall = checkoutRoot() ? false : await askAutoInstallConsent();
 
   writeSetupState({
     setupCompleted: new Date().toISOString(),
@@ -282,6 +284,12 @@ function runAutoUpdateSubcommand(arg) {
     return;
   }
   if (arg === 'on') {
+    const checkout = checkoutRoot();
+    if (checkout) {
+      console.log(`sdoc is running from a checkout at ${checkout}, which is`);
+      console.log('upgraded with git. Auto-install stays off while that is the case.');
+      return;
+    }
     writeSetupState({ ...state, autoInstallUpdates: true });
     console.log('\u2713 Auto-install of sdoc updates: on');
     return;
