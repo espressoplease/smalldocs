@@ -52,6 +52,32 @@
     margin: 0;
     padding: 20px 20px 0;
   }
+  #_sd_maintainer-banner {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+    padding: 9px 14px;
+  }
+  .sdoc-maintainer-text {
+    flex: 1 1 calc(100% - 32px);
+  }
+  .sdoc-maintainer-form {
+    order: 3;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+  .sdoc-maintainer-email {
+    flex: 1 1 180px;
+    width: auto;
+    font-size: 16px;
+  }
+  .sdoc-maintainer-status {
+    flex: 1 1 100%;
+  }
+  .sdoc-maintainer-close {
+    margin-left: auto;
+  }
 
   /* ── Write toolbar: sticky below left-toolbar ── */
   body.write-mode #_sd_write-toolbar { position: sticky; top: 36px; z-index: 98; justify-content: flex-start; }
