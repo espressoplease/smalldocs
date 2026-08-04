@@ -16,9 +16,11 @@ module.exports = function(harness) {
     const testDbPath = path.join(os.tmpdir(), 'sdocs-test-analytics-' + process.pid + '.db');
     const testShortLinksDbPath = path.join(os.tmpdir(), 'sdocs-test-short-links-' + process.pid + '.db');
     const testTeamsDbPath = path.join(os.tmpdir(), 'sdocs-test-teams-' + process.pid + '.db');
+    const testMaintainerDbPath = path.join(os.tmpdir(), 'sdocs-test-maintainers-' + process.pid + '.db');
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
     try { fs.unlinkSync(testTeamsDbPath); } catch (_) {}
+    try { fs.unlinkSync(testMaintainerDbPath); } catch (_) {}
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
       env: {
         ...process.env,
@@ -28,6 +30,7 @@ module.exports = function(harness) {
         ANALYTICS_FLUSH_IMMEDIATE: '1',
         SHORT_LINKS_DB: testShortLinksDbPath,
         TEAMS_DB: testTeamsDbPath,
+        MAINTAINER_DB: testMaintainerDbPath,
       },
       stdio: 'pipe',
     });
@@ -509,6 +512,39 @@ module.exports = function(harness) {
       assert.strictEqual(rows[1].message, null);
     });
 
+    // ── Maintainer-interest endpoint ──
+    const maintainerRows = () => {
+      const Database = require('better-sqlite3');
+      const d = new Database(testMaintainerDbPath, { readonly: true });
+      const rows = d.prepare('SELECT email FROM maintainer_interest ORDER BY id').all();
+      d.close();
+      return rows;
+    };
+
+    await testAsync('POST /api/maintainer-interest stores a valid email', async () => {
+      const r = await post(BASE + '/api/maintainer-interest', { email: 'helper@example.com' });
+      assert.strictEqual(r.status, 201);
+      const rows = maintainerRows();
+      assert.strictEqual(rows.length, 1);
+      assert.strictEqual(rows[0].email, 'helper@example.com');
+    });
+
+    await testAsync('POST /api/maintainer-interest rejects a missing/invalid email', async () => {
+      const r1 = await post(BASE + '/api/maintainer-interest', {});
+      assert.strictEqual(r1.status, 400);
+      const r2 = await post(BASE + '/api/maintainer-interest', { email: 'not-an-email' });
+      assert.strictEqual(r2.status, 400);
+      assert.strictEqual(maintainerRows().length, 1);
+    });
+
+    await testAsync('POST /api/maintainer-interest honeypot gets 201 but stores nothing', async () => {
+      const r = await post(BASE + '/api/maintainer-interest', {
+        email: 'bot@example.com', website: 'http://spam.example',
+      });
+      assert.strictEqual(r.status, 201);
+      assert.strictEqual(maintainerRows().length, 1);
+    });
+
     server.kill();
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testDbPath + '-wal'); } catch (_) {}
@@ -519,5 +555,8 @@ module.exports = function(harness) {
     try { fs.unlinkSync(testTeamsDbPath); } catch (_) {}
     try { fs.unlinkSync(testTeamsDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testTeamsDbPath + '-shm'); } catch (_) {}
+    try { fs.unlinkSync(testMaintainerDbPath); } catch (_) {}
+    try { fs.unlinkSync(testMaintainerDbPath + '-wal'); } catch (_) {}
+    try { fs.unlinkSync(testMaintainerDbPath + '-shm'); } catch (_) {}
   };
 };

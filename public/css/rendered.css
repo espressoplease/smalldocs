@@ -735,6 +735,7 @@ foreignObject span { line-height: normal; }
   flex-direction: column;
   border-bottom: 1px solid var(--md-hr-border);
 }
+#_sd_sdocs-file-info .fic-rows[hidden] { display: none; }
 #_sd_sdocs-file-info .fic-row {
   display: flex;
   align-items: baseline;
