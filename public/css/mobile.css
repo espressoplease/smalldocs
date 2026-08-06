@@ -41,6 +41,10 @@
   /* ── Stack layout instead of side-by-side ── */
   #_sd_divider { display: none; }
 
+  /* ── Contents panel: hover/overlay navigation is desktop-only ── */
+  #_sd_toc { display: none; }
+  #_sd_btn-toc { display: none; }
+
   /* ── Content: tighter padding for small screens ── */
   #_sd_rendered { padding: 24px 20px 40px; max-width: 100%; overflow-x: hidden; }
   #_sd_write { padding: 24px 20px 40px; max-width: 100%; }

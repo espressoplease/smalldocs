@@ -251,6 +251,8 @@ body {
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-input);
+  /* anchor for the absolutely-positioned Contents panel */
+  position: relative;
 }
 
 /* Three-column grid keeps the icons dead center regardless of how
@@ -413,6 +415,122 @@ body {
 html[data-theme="dark"] #_sd_content-area {
   background-color: #2c2a26;
 }
+
+/* ═══════════════════════════════════════════════════
+   CONTENTS (TOC) PANEL
+   Overlay at the left edge of the reading area. The 760px content
+   column is centered, so on typical windows the panel sits in the
+   free margin. Open state lives on the .open class; fold state on
+   each item mirrors the document's .md-section-body .open classes.
+═══════════════════════════════════════════════════ */
+#_sd_toc {
+  position: absolute;
+  left: 0;
+  top: 40px; /* below the left toolbar */
+  bottom: 0;
+  width: 232px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 10px 20px;
+  background: var(--bg-input);
+  border-right: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow);
+  z-index: 20;
+  transform: translateX(calc(-100% - 8px)); /* clear the box-shadow too */
+  opacity: 0;
+  visibility: hidden;
+  transition: transform .3s cubic-bezier(.4,0,.2,1),
+              opacity .3s cubic-bezier(.4,0,.2,1),
+              top .3s cubic-bezier(.4,0,.2,1),
+              visibility 0s linear .3s;
+}
+html[data-theme="dark"] #_sd_toc {
+  background: #2c2a26; /* match the dark content-area surface */
+}
+#_sd_toc.open {
+  transform: translateX(0);
+  opacity: 1;
+  visibility: visible;
+  transition: transform .3s cubic-bezier(.4,0,.2,1),
+              opacity .3s cubic-bezier(.4,0,.2,1),
+              top .3s cubic-bezier(.4,0,.2,1);
+}
+/* Track the comment toolbar (34px) sliding in below the main toolbar;
+   same curve/duration as its height transition so they move in sync. */
+body.comment-mode #_sd_toc { top: 74px; }
+/* The panel indexes the rendered document only. */
+body:not(.read-mode):not(.comment-mode) #_sd_toc { display: none; }
+
+#_sd_toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.toc-sub { padding-left: 14px; }
+.toc-collapsed > .toc-sub { display: none; }
+.toc-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+/* Rows without a chevron pad by its width so link text stays aligned. */
+.toc-item:not(.has-children) > .toc-row,
+.toc-item.toc-l1 > .toc-row { padding-left: 18px; }
+.toc-link {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--text-2);
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color .12s, background .12s;
+}
+.toc-link:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.toc-link.active {
+  background: var(--accent-light);
+  color: var(--accent-text);
+}
+html[data-theme="dark"] .toc-link.active { color: var(--text); }
+.toc-item.toc-l1 > .toc-row > .toc-link {
+  font-weight: 600;
+  color: var(--text);
+}
+.toc-chevron {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text-3);
+  border-radius: var(--radius-sm);
+  transition: color .12s, background .12s;
+}
+.toc-chevron:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.toc-chevron svg {
+  transition: transform .2s cubic-bezier(.4,0,.2,1);
+  transform: rotate(90deg);
+}
+.toc-collapsed > .toc-row > .toc-chevron svg { transform: rotate(0deg); }
 
 /* drag overlay */
 #_sd_content-area.drag-over::after {

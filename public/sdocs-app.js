@@ -719,6 +719,7 @@ function render() {
   updateDocumentTitle();
   if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
   if (S.syncFoldButton) S.syncFoldButton();
+  if (S.rebuildToc) S.rebuildToc();
 }
 
 // Reflect the current document in the browser tab / history / bookmarks.
@@ -1754,6 +1755,45 @@ document.getElementById('_sd_btn-fold').addEventListener('click', function() {
   syncFoldButton();
 });
 
+// Open every section on the path to a heading, then scroll it to the top.
+// Shared by sec= deep links and the Contents panel. The spacer lets a
+// heading near the end of the document still reach the top of the view.
+function revealSection(slug) {
+  var target = document.getElementById(slug);
+  if (!target) return;
+
+  var ownSection = target.closest('.md-section');
+  if (ownSection) {
+    var ownBody = ownSection.querySelector(':scope > .md-section-body');
+    if (ownBody) { ownBody.classList.add('open'); }
+    var ownToggle = ownSection.querySelector(':scope > h1 > .section-toggle, :scope > h2 > .section-toggle, :scope > h3 > .section-toggle, :scope > h4 > .section-toggle');
+    if (ownToggle) { ownToggle.classList.add('open'); }
+  }
+
+  var el = target.closest('.md-section-body');
+  while (el) {
+    el.classList.add('open');
+    var parentSection = el.closest('.md-section');
+    if (parentSection) {
+      var toggle = parentSection.querySelector(':scope > h2 > .section-toggle, :scope > h3 > .section-toggle, :scope > h4 > .section-toggle');
+      if (toggle) toggle.classList.add('open');
+    }
+    el = el.parentElement ? el.parentElement.closest('.md-section-body') : null;
+  }
+
+  var spacerNeeded = contentArea.clientHeight - (contentArea.scrollHeight - target.offsetTop);
+  if (spacerNeeded > 0) {
+    var spacer = document.createElement('div');
+    spacer.className = 'sec-scroll-spacer';
+    spacer.style.height = spacerNeeded + 'px';
+    S.renderedEl.appendChild(spacer);
+  }
+
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (S.syncFoldButton) S.syncFoldButton();
+}
+S.revealSection = revealSection;
+
 function setAllSectionsOpen(isOpen) {
   if (!S.renderedEl) return;
   S.renderedEl.querySelectorAll('h1 > .section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
@@ -2182,39 +2222,7 @@ async function loadFromHash() {
   }
 
   if (secParam) {
-    setTimeout(function() {
-      var target = document.getElementById(secParam);
-      if (!target) return;
-
-      var ownSection = target.closest('.md-section');
-      if (ownSection) {
-        var ownBody = ownSection.querySelector(':scope > .md-section-body');
-        if (ownBody) { ownBody.classList.add('open'); }
-        var ownToggle = ownSection.querySelector(':scope > h1 > .section-toggle, :scope > h2 > .section-toggle, :scope > h3 > .section-toggle, :scope > h4 > .section-toggle');
-        if (ownToggle) { ownToggle.classList.add('open'); }
-      }
-
-      var el = target.closest('.md-section-body');
-      while (el) {
-        el.classList.add('open');
-        var parentSection = el.closest('.md-section');
-        if (parentSection) {
-          var toggle = parentSection.querySelector(':scope > h2 > .section-toggle, :scope > h3 > .section-toggle, :scope > h4 > .section-toggle');
-          if (toggle) toggle.classList.add('open');
-        }
-        el = el.parentElement ? el.parentElement.closest('.md-section-body') : null;
-      }
-
-      var spacerNeeded = contentArea.clientHeight - (contentArea.scrollHeight - target.offsetTop);
-      if (spacerNeeded > 0) {
-        var spacer = document.createElement('div');
-        spacer.className = 'sec-scroll-spacer';
-        spacer.style.height = spacerNeeded + 'px';
-        S.renderedEl.appendChild(spacer);
-      }
-
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 200);
+    setTimeout(function() { revealSection(secParam); }, 200);
   }
 
   if (!secParam) {

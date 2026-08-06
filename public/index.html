@@ -65,6 +65,9 @@
           <svg class="icon-unfold" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6"/><path d="M12 8V2"/><path d="M4 12H2"/><path d="M10 12H8"/><path d="M16 12h-2"/><path d="M22 12h-2"/><path d="m15 19-3 3-3-3"/><path d="m15 5-3-3-3 3"/></svg>
           <svg class="icon-fold" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-6"/><path d="M12 8V2"/><path d="M4 12H2"/><path d="M10 12H8"/><path d="M16 12h-2"/><path d="M22 12h-2"/><path d="m15 19-3-3-3 3"/><path d="m15 5-3 3-3-3"/></svg>
         </button>
+        <button class="btn" id="_sd_btn-toc" data-tip="Contents" aria-label="Contents">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5H3"/><path d="M16 12H3"/><path d="M16 19H3"/><path d="M21 5h.01"/><path d="M21 12h.01"/><path d="M21 19h.01"/></svg>
+        </button>
         <button class="btn" id="_sd_btn-copy-file" data-tip="Copy document" aria-label="Copy document">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
@@ -180,6 +183,9 @@
       <div id="_sd_write" contenteditable="true" spellcheck="true"></div>
       <textarea id="_sd_raw" spellcheck="false"></textarea>
     </div>
+    <nav id="_sd_toc" aria-label="Contents">
+      <ul id="_sd_toc-list"></ul>
+    </nav>
   </div>
 
   <div id="_sd_divider"></div>
@@ -1001,6 +1007,7 @@
 <script src="/public/sdocs-source.js"></script>
 <script src="/public/sdocs-bridge.js"></script>
 <script src="/public/sdocs-app.js"></script>
+<script src="/public/sdocs-toc.js"></script>
 <script src="/public/sdocs-info.js"></script>
 <script src="/public/sdocs-comments-ui.js"></script>
 <script src="/public/sdocs-update.js"></script>
