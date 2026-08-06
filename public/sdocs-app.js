@@ -1762,6 +1762,12 @@ function revealSection(slug) {
   var target = document.getElementById(slug);
   if (!target) return;
 
+  // Drop any spacer from a previous reveal before measuring, so repeated
+  // calls neither accumulate spacers nor compute against an inflated
+  // scrollHeight.
+  var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
+  if (oldSpacer) oldSpacer.remove();
+
   var ownSection = target.closest('.md-section');
   if (ownSection) {
     var ownBody = ownSection.querySelector(':scope > .md-section-body');

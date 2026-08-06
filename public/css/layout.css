@@ -458,8 +458,10 @@ html[data-theme="dark"] #_sd_toc {
 /* Track the comment toolbar (34px) sliding in below the main toolbar;
    same curve/duration as its height transition so they move in sync. */
 body.comment-mode #_sd_toc { top: 74px; }
-/* The panel indexes the rendered document only. */
-body:not(.read-mode):not(.comment-mode) #_sd_toc { display: none; }
+/* The panel indexes the rendered document only; hide its toggle
+   button too so no dead control lingers in other modes. */
+body:not(.read-mode):not(.comment-mode) #_sd_toc,
+body:not(.read-mode):not(.comment-mode) #_sd_btn-toc { display: none; }
 
 #_sd_toc ul {
   list-style: none;

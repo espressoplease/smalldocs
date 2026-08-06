@@ -122,12 +122,24 @@ test('scrollspy highlights the section in view', async ({ page }) => {
   await expect(page.locator('.toc-item[data-slug="beta"] .toc-link')).toHaveClass(/active/);
 });
 
-test('panel hides outside read and comment modes', async ({ page }) => {
+test('panel and button hide outside read and comment modes', async ({ page }) => {
   await openDoc(page, DOC);
   await page.click('#_sd_btn-toc');
   await expect(page.locator('#_sd_toc')).toBeVisible();
   await page.evaluate(() => window.SDocs.setMode('raw'));
   await expect(page.locator('#_sd_toc')).toBeHidden();
+  await expect(page.locator('#_sd_btn-toc')).toBeHidden();
   await page.evaluate(() => window.SDocs.setMode('read'));
   await expect(page.locator('#_sd_toc')).toBeVisible();
+  await expect(page.locator('#_sd_btn-toc')).toBeVisible();
+});
+
+test('repeated entry clicks never accumulate scroll spacers', async ({ page }) => {
+  await openDoc(page, DOC);
+  await page.click('#_sd_btn-toc');
+  for (let i = 0; i < 3; i++) {
+    await page.locator('.toc-item[data-slug="beta"] .toc-link').click();
+    await page.waitForTimeout(100);
+  }
+  expect(await page.locator('#_sd_rendered .sec-scroll-spacer').count()).toBeLessThanOrEqual(1);
 });
