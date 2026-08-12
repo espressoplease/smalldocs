@@ -92,10 +92,6 @@ const teamsInterest = require('./teams/db');
 const teamsNotify = require('./teams/notify');
 teamsInterest.init();
 
-// Maintainer-interest banner on rendered document pages. Stored separately
-// from Teams leads because this is a project-maintenance contact path.
-const maintainerInterest = require('./maintainers/db');
-
 // Auto-version: hash all non-font files in public/ at startup.
 // Any file change = new hash = clients purge their SW cache.
 // The per-file SHA-256 list (served at /trust/manifest) is built by the same
@@ -492,62 +488,6 @@ function handleTeamsInterestPost(req, res) {
   });
 }
 
-function handleMaintainerInterestPost(req, res) {
-  const ip = getClientIp(req);
-  if (!feedbackRateLimit.check(ip)) {
-    sendJson(res, 429, { error: 'rate_limited' });
-    return;
-  }
-  let bytes = 0;
-  const chunks = [];
-  let aborted = false;
-  req.on('data', (chunk) => {
-    if (aborted) return;
-    bytes += chunk.length;
-    if (bytes > FEEDBACK_MAX_BYTES + 1024) {
-      aborted = true;
-      sendJson(res, 413, { error: 'payload_too_large' });
-      return;
-    }
-    chunks.push(chunk);
-  });
-  req.on('end', () => {
-    if (aborted) return;
-    let body;
-    try {
-      body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-    } catch (_) {
-      sendJson(res, 400, { error: 'invalid_json' });
-      return;
-    }
-    if (body && typeof body.website === 'string' && body.website.trim().length) {
-      sendJson(res, 201, { ok: true });
-      return;
-    }
-    const email = body && typeof body.email === 'string' ? body.email.trim() : '';
-    if (!CONTACT_EMAIL_RE.test(email)) {
-      sendJson(res, 400, { error: 'invalid_email' });
-      return;
-    }
-    try {
-      maintainerInterest.insert({ email });
-    } catch (e) {
-      sendJson(res, 500, { error: 'db_error' });
-      return;
-    }
-    sendJson(res, 201, { ok: true });
-    teamsNotify.send(
-      'SmallDocs maintainer interest: ' + email,
-      'New maintainer-interest submission on smalldocs.org\n\n' +
-      'Email: ' + email + '\n\n' +
-      'All submissions: maintainer_interest.db on the server.'
-    );
-  });
-  req.on('error', () => {
-    if (!aborted) sendJson(res, 400, { error: 'request_error' });
-  });
-}
-
 function handleShortLinkGet(res, id) {
   // Accept both legacy 8-char ids and current 22-char ids. Never narrow this
   // range, or short links minted before the id-length bump stop resolving.
@@ -586,12 +526,6 @@ const server = http.createServer((req, res) => {
   // POST /api/teams-interest: store a Teams contact request + email ping
   if (req.method === 'POST' && pathname === '/api/teams-interest') {
     handleTeamsInterestPost(req, res);
-    return;
-  }
-
-  // POST /api/maintainer-interest: store a GitHub-maintainer contact request
-  if (req.method === 'POST' && pathname === '/api/maintainer-interest') {
-    handleMaintainerInterestPost(req, res);
     return;
   }
 

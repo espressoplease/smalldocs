@@ -744,134 +744,11 @@ function updateDocumentTitle() {
 // ── File-info card ─────────────────────────────────────────
 
 var SHORT_LINKS_LEARN_URL = 'https://smalldocs.org/#sec=short-links';
-var MAINTAINER_BANNER_DISMISS_KEY = 'sdocs_maintainer_banner_dismissed';
-var MAINTAINER_GITHUB_URL = 'https://github.com/espressoplease/smalldocs';
-var CONTACT_EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,24}$/;
 
 function shortenErrorMessage(code) {
   return code === 'rate_limited' ? 'Too many requests, try again later.'
     : code === 'payload_too_large' ? 'Document is too large to shorten.'
     : 'Could not create short link.';
-}
-
-function isMaintainerBannerDismissed() {
-  if (S._maintainerBannerDismissedInMemory) return true;
-  try { return window.localStorage.getItem(MAINTAINER_BANNER_DISMISS_KEY) === '1'; }
-  catch (_) { return false; }
-}
-
-function rememberMaintainerBannerDismissed() {
-  S._maintainerBannerDismissedInMemory = true;
-  try { window.localStorage.setItem(MAINTAINER_BANNER_DISMISS_KEY, '1'); } catch (_) {}
-}
-
-function shouldShowMaintainerBanner(hasDoc) {
-  if (!hasDoc) return false;
-  if (!String(S.currentBody || '').trim()) return false;
-  if (isMaintainerBannerDismissed()) return false;
-  return true;
-}
-
-function renderMaintainerBanner(show) {
-  var el = document.getElementById('_sd_maintainer-banner');
-  if (!el) return;
-  if (!show) {
-    el.hidden = true;
-    return;
-  }
-  el.className = 'sdoc-maintainer-banner';
-  if (!el.dataset.rendered) {
-    while (el.firstChild) el.removeChild(el.firstChild);
-
-    var text = document.createElement('span');
-    text.className = 'sdoc-maintainer-text';
-    text.appendChild(document.createTextNode('SmallDocs is looking for maintainers for '));
-    var link = document.createElement('a');
-    link.href = MAINTAINER_GITHUB_URL;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    link.textContent = 'our GitHub project';
-    text.appendChild(link);
-    text.appendChild(document.createTextNode('. Leave your email if you want to help.'));
-
-    var form = document.createElement('form');
-    form.className = 'sdoc-maintainer-form';
-    form.setAttribute('novalidate', 'novalidate');
-
-    var input = document.createElement('input');
-    input.type = 'email';
-    input.className = 'sdoc-maintainer-email';
-    input.placeholder = 'email address';
-    input.autocomplete = 'email';
-    input.setAttribute('aria-label', 'Email address');
-
-    var hp = document.createElement('input');
-    hp.type = 'text';
-    hp.className = 'sdoc-maintainer-hp';
-    hp.tabIndex = -1;
-    hp.autocomplete = 'off';
-    hp.setAttribute('aria-hidden', 'true');
-
-    var submit = document.createElement('button');
-    submit.type = 'submit';
-    submit.className = 'sdoc-maintainer-submit';
-    submit.textContent = 'Send';
-
-    var status = document.createElement('span');
-    status.className = 'sdoc-maintainer-status';
-    status.setAttribute('aria-live', 'polite');
-
-    form.appendChild(input);
-    form.appendChild(hp);
-    form.appendChild(submit);
-    form.appendChild(status);
-
-    var close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'sdoc-maintainer-close';
-    close.setAttribute('aria-label', 'Dismiss maintainer banner');
-    close.title = 'Dismiss';
-    close.innerHTML = X_SVG;
-
-    close.addEventListener('click', function () {
-      rememberMaintainerBannerDismissed();
-      renderFileInfoCard();
-    });
-
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var email = input.value.trim();
-      status.classList.remove('sdoc-maintainer-error');
-      if (!CONTACT_EMAIL_RE.test(email)) {
-        status.textContent = 'Enter a valid email.';
-        status.classList.add('sdoc-maintainer-error');
-        input.focus();
-        return;
-      }
-      status.textContent = 'Sending...';
-      submit.disabled = true;
-      fetch('/api/maintainer-interest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, website: hp.value || '' }),
-      }).then(function (resp) {
-        if (!resp.ok) throw new Error('http ' + resp.status);
-        status.textContent = 'Sent.';
-        rememberMaintainerBannerDismissed();
-        setTimeout(function () { renderFileInfoCard(); }, 500);
-      }).catch(function () {
-        submit.disabled = false;
-        status.textContent = 'Could not send.';
-        status.classList.add('sdoc-maintainer-error');
-      });
-    });
-
-    el.appendChild(text);
-    el.appendChild(form);
-    el.appendChild(close);
-    el.dataset.rendered = '1';
-  }
-  el.hidden = false;
 }
 
 // Mint a short link for the current document AND record the snapshot state the
@@ -1016,18 +893,15 @@ function renderFileInfoCard() {
   // only count it toward the privacy-note flag when it'll actually appear.
   var bridgeRowWillRender = !!bridge && bridgeShouldRender(S.currentMode);
   var hasLocalRow = !!(local.path || local.fullPath || bridgeRowWillRender);
-  var showMaintainerBanner = shouldShowMaintainerBanner(hasDoc);
 
   if (!hasDoc && !meta.file && !hasLocalRow && !bridge) {
     card.hidden = true;
-    renderMaintainerBanner(false);
     rowsEl.innerHTML = '';
     rowsEl.hidden = true;
     return;
   }
 
   card.hidden = false;
-  renderMaintainerBanner(showMaintainerBanner);
   var note = card.querySelector('.fic-privacy-note');
   if (note) note.hidden = !hasLocalRow;
 
