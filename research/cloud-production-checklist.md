@@ -12,9 +12,9 @@ This is the work required before SmallDocs Cloud accepts paying customers and cu
 
 Launch a small private beta before a public paid launch:
 
-1. Run production on a small dedicated Hetzner VM. Keep the existing shared host for staging with test data only.
+1. Run the initial SmallDocs Cloud and SmallCRM production betas on one clean Hetzner CX33. Keep the existing shared host for staging with test data only.
 2. Use PostgreSQL on the production VM for Cloud state. The current SQLite stores require a persistence migration before launch.
-3. Run one Node process initially and use separate staging and production credentials.
+3. Run one Node process per product initially. Use separate Linux service users, data directories, database identities, secrets, KMS keys, systemd services, backups, and staging and production credentials.
 4. Invite a small number of known users and exercise recovery, billing, offboarding, conflicts, and search.
 5. Move to a shared transactional database before horizontal scaling, not merely because the product has its first customers.
 
@@ -57,7 +57,7 @@ That is enough capacity for a low-volume Cloud beta if search limits are conserv
 | --- | ---: | --- | --- |
 | Existing Hetzner host | About £2 to £5 incremental, plus the existing server bill | No hosting migration. Add one KMS key, small off-site backups, free email tier, and free monitoring | One host and one process remain the failure boundary |
 | Existing host plus full-time Hetzner staging | About £10 to £14 incremental | The production path above plus an isolated staging server | Staging needs its own updates, secrets, backups, and monitoring |
-| Hetzner CX33 production server | €10.69 before VAT with IPv4 and Hetzner backups, plus KMS and off-site database storage | 4 shared vCPUs, 8 GB RAM, 80 GB disk, and a separate production boundary | More server operations, and KMS is still cross-provider |
+| Hetzner CX33 production server | €10.69 before VAT with IPv4 and Hetzner backups, plus KMS and off-site database storage | 4 shared vCPUs, 8 GB RAM, 80 GB disk, and an intentionally isolated home for the two early product betas | The products still share one VM failure boundary |
 | AWS Lightsail, 4 GB | About £20 to £25 | One AWS account for compute, KMS, snapshots, and object backups | Costs more, still a self-managed single server, and moving the live site adds work |
 | Railway Pro, estimated 2 GB service | About £22 to £30 | Managed deploys, secrets, logs, and a persistent volume | Usage pricing varies; SQLite still forces one replica and coordinated backups |
 | Existing app host plus Neon Postgres | About £11 typical, before app hosting | Managed Postgres with a 7-day restore window | Requires a real database migration; not usable by the current code as a configuration change |
@@ -76,25 +76,57 @@ These totals do not include the existing server bill, VAT, paid support, enginee
 
 ### My recommendation for the beta
 
-Use a Hetzner CX33 in Germany for production and the existing shared host for staging. The server audit found that the shared `deploy` identity runs several applications and has broad administrative paths, so an exploit in a neighboring application would not be confined from Cloud customer data. Keep one SmallDocs process in each environment. Use a different provider for encrypted database backups so loss of the Hetzner account or region does not remove both the service and its recovery copy.
+Use a Hetzner CX33 in Germany for the initial SmallDocs Cloud and SmallCRM production betas, and use the existing shared host for staging. The server audit found that the existing `deploy` identity runs several applications and has broad administrative paths, so it remains unsuitable for customer production data. On the new VM, SmallDocs and SmallCRM run as separate restricted services that cannot read each other's state, backups, or credentials. Use a different provider for encrypted database backups so loss of the Hetzner account or region does not remove both the service and its recovery copy.
 
 The current CX33 price is €8.49 per month before VAT. One Primary IPv4 is €0.50. Hetzner's seven-slot server backup option costs 20 percent of the server price, about €1.70. The resulting Hetzner production invoice is about €10.69 per month before VAT. The server includes 4 shared vCPUs, 8 GB RAM, 80 GB local disk, and 20 TB of traffic in EU locations.
 
-A CX23 would reduce this to about €7.09 before VAT with IPv4 and backups, but it has 4 GB RAM and 40 GB disk. It can run a constrained beta, but the €3.60 monthly saving is not worth halving the memory available to Node, PostgreSQL, in-memory search, operating-system cache, and backup operations.
+A CX23 would reduce this to about €7.09 before VAT with IPv4 and backups, but it has 4 GB RAM and 40 GB disk. It can run one constrained beta, but the €3.60 monthly saving is not worth halving the memory available to two Node processes, PostgreSQL, SmallCRM SQLite, in-memory document search, operating-system cache, and backup operations.
+
+Do not move both products to a CX43 merely because one CX33 becomes busy. At current prices, a SmallDocs CX33 plus a SmallCRM CX23 costs less than one CX43 and creates a better security and failure boundary. Split the products when monitoring, customer value, or operational risk warrants it.
 
 Expected fixed incremental cost:
 
 | Item | Beta | After early growth |
 | --- | ---: | ---: |
 | Existing staging compute | £0 incremental | £0 until isolation requires a move |
-| Dedicated Hetzner CX33 production, IPv4, and native backups | €10.69 before VAT | €10.69 until capacity requires a move |
+| Shared product-production CX33, IPv4, and native backups | €10.69 before VAT | Split into a SmallDocs CX33 and SmallCRM CX23 when warranted |
 | Production and staging KMS keys | About £0.10 to £1.50 | Usually under £3 at this scale |
 | Off-site object backups | Under £1 for small archives | Roughly proportional to stored backup GB |
 | Transactional email | £0 | About £11 to £15 when a paid tier is needed |
 | Uptime and basic telemetry | £0 | £0 to about £22 depending on retention and alerting |
 | Expected total | About €12/month before VAT, plus small currency and request variation | About €20 to €45/month depending on email and monitoring choices |
 
-The existing Hetzner invoice still exists. The dedicated production server is the main new fixed cost.
+The existing Hetzner invoice still exists. The clean CX33 is the main new fixed cost.
+
+### Shared CX33 service boundary
+
+Sharing the first production VM is acceptable because neither product has proven production load and the VM will be built around these two known services. It must not recreate the existing host's shared `deploy` identity.
+
+```text
+Nginx
+  -> smalldocs.service as smalldocs
+       -> SmallDocs PostgreSQL database and role
+       -> SmallDocs KMS identity and keys
+       -> /var/lib/smalldocs
+
+  -> smallcrm.service as smallcrm
+       -> SmallCRM catalog and workspace SQLite files
+       -> SmallCRM-only secrets and future KMS identity
+       -> /var/lib/smallcrm
+```
+
+- [ ] Give each service a non-login Linux user and restrictive umask.
+- [ ] Keep code deployment separate from both runtime identities.
+- [ ] Prevent each service from reading the other's data, environment, backups, logs, or credentials.
+- [ ] Use separate systemd units with explicit writable paths, memory limits, restart policy, and no core dumps.
+- [ ] Bind both Node processes to loopback and expose only Nginx, SSH, HTTP, and HTTPS through the firewall.
+- [ ] Keep SmallDocs PostgreSQL and SmallCRM SQLite backups in separate archives and object-store prefixes.
+- [ ] Do not share KMS keys, IAM credentials, OAuth credentials, email credentials, or application secrets between products.
+- [ ] Monitor CPU, RSS, event-loop delay, disk, backup duration, and request latency by service.
+
+SmallCRM currently loads entire collections for some filters, facets, and views before applying response pagination. A larger combined VM does not remove that scaling limit. Load-test realistic collection sizes and improve those query paths before treating vertical scaling as the answer.
+
+When the shared CX33 is no longer appropriate, move SmallCRM to a CX23 or larger VM while preserving its hostname. At current prices, a SmallDocs CX33 plus a SmallCRM CX23 costs less than one combined CX43 and creates a better failure boundary.
 
 ### KMS comparison
 

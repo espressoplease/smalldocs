@@ -14,17 +14,17 @@ This is a read-only assessment of the existing server before deploying SmallDocs
 
 ## Recommendation
 
-Use a small dedicated VM for the first paid production beta. Use the existing server for staging with test data only. The existing host has enough capacity, but its shared deployment identity is not an adequate boundary for customer documents and payment-related credentials.
+Use a clean Hetzner CX33 for the initial SmallDocs Cloud and SmallCRM production betas. Use the existing server for staging with test data only. The existing host has enough capacity, but its shared deployment identity is not an adequate boundary for customer documents, CRM records, or payment-related credentials.
 
 Use:
 
-- PostgreSQL 16 on the dedicated production VM for Cloud state.
+- PostgreSQL 16 on the clean production VM for SmallDocs Cloud state.
 - A managed KMS for wrapping project encryption keys.
 - Encrypted, application-consistent PostgreSQL backups in a second provider.
-- One SmallDocs application process until the database migration and concurrency tests are complete.
+- One application process per product until their persistence and concurrency behavior justify scaling them independently.
 - The existing host as staging, with separate credentials and no customer data.
 
-Production remains one VM failure boundary for the application and primary database. Off-site backups protect recovery, but do not make the service highly available.
+The two products initially share one VM failure boundary. They run under separate non-login users with separate data, secrets, credentials, service units, databases, and backups. Off-site backups protect recovery, but do not make either service highly available.
 
 ## Confirmed host state
 
@@ -50,7 +50,7 @@ The `deploy` account runs SmallDocs and several neighboring applications. It own
 
 An application compromise on this account is therefore not confined to one service. It could expose other applications, change deployed source, obtain runtime credentials, and reach every local database. Creating a separate `smalldocs` user would improve file permissions, but the existing shared `deploy` account and its applications would still retain a route around that boundary.
 
-It is possible to redesign deployment and privilege separation across the whole host. That is more work and carries more regression risk than placing paid Cloud production on a small dedicated VM. The existing host is still useful for staging because staging must not contain customer data or production credentials.
+It is possible to redesign deployment and privilege separation across the whole existing host. That is more work and carries more regression risk than creating a clean production VM for the two intentionally isolated product services. The existing host is still useful for staging because staging must not contain customer data or production credentials.
 
 ## Required before a paid beta
 
@@ -99,7 +99,7 @@ The current service can see the deploy user's home and has no meaningful filesys
 
 Likely settings include `NoNewPrivileges`, a private temporary directory, a read-only application tree, an explicit writable state directory, a restrictive umask, and memory limits. The exact unit must be tested against email, KMS, PostgreSQL, and static asset behavior before production.
 
-Run production under a dedicated service user with no shell login, SSH keys, GitHub deploy token, broad `sudo`, or access to other applications. Separate code deployment from the runtime identity.
+Run SmallDocs and SmallCRM under different dedicated service users with no shell login, SSH keys, GitHub deploy token, broad `sudo`, or access to each other. Separate code deployment from both runtime identities.
 
 ### 6. Create PostgreSQL roles and database
 
@@ -147,13 +147,13 @@ Moving the Cloud stores to PostgreSQL now has no additional provider cost and av
 
 The cost is engineering time. The current implementation uses synchronous `better-sqlite3` stores, so this is a real adapter and transaction refactor, not a connection-string change. PostgreSQL on the same host improves database concurrency and operations but does not improve availability.
 
-Recommended decision: migrate the Cloud implementation to PostgreSQL before the first paid beta and deploy it on the dedicated production VM. Keep the current SQLite implementation available for tests until PostgreSQL behavior has equivalent tenant, concurrency, idempotency, and restore coverage.
+Recommended decision: migrate the Cloud implementation to PostgreSQL before the first paid beta and deploy it on the clean CX33. SmallCRM can initially retain its isolated per-workspace SQLite layout. Keep the Cloud SQLite implementation available for tests until PostgreSQL behavior has equivalent tenant, concurrency, idempotency, and restore coverage.
 
 ## Proposed order of work
 
-1. Approve a dedicated production VM, PostgreSQL, managed KMS, and off-site object backup as the beta topology.
+1. Approve one clean CX33 for both early production betas, PostgreSQL for SmallDocs, isolated SQLite for SmallCRM, managed KMS, and off-site object backup as the initial topology.
 2. Back up, patch, and reboot the existing host, then use it as staging with test credentials and test data.
-3. Provision the production VM with a dedicated runtime identity, PostgreSQL, Nginx, and restricted network access.
+3. Provision the production VM with separate SmallDocs and SmallCRM runtime identities, PostgreSQL, Nginx, and restricted network access.
 4. Fix the Nginx trusted-proxy, access-log, request-size, and HTTPS configuration in staging and production.
 5. Create the dedicated PostgreSQL roles/database and runtime state directories.
 6. Migrate the Cloud persistence and KMS boundary in the application with tests.
@@ -164,7 +164,7 @@ Recommended decision: migrate the Cloud implementation to PostgreSQL before the 
 
 ## Decisions needed from the owner
 
-- Approve a Hetzner CX33 production VM and the existing host as staging. At the current Germany and Finland price, the server, one IPv4 address, and Hetzner's seven-slot backup option total about €10.69 per month before VAT.
-- Approve PostgreSQL on the dedicated production VM for the beta.
+- Approve one Hetzner CX33 for both early production betas and the existing host as staging. At the current Germany and Finland price, the server, one IPv4 address, and Hetzner's seven-slot backup option total about €10.69 per month before VAT.
+- Approve PostgreSQL for SmallDocs and isolated SQLite for SmallCRM on the clean production VM.
 - Choose AWS KMS plus S3, or Google Cloud KMS plus a separate object store.
 - Choose a maintenance window for the server update and reboot.
