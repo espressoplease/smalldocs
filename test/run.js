@@ -51,6 +51,7 @@ require('./test-router')(harness);
 require('./test-update-check')(harness);
 require('./test-source')(harness);
 require('./test-cloud-auth')(harness);
+const runCloudStore = require('./test-cloud-store')(harness);
 require('./test-library-tags')(harness);
 require('./test-library-ephemeral')(harness);
 require('./test-library-store')(harness);
@@ -71,6 +72,7 @@ const runCacheBust = require('./test-cache-bust')(harness);
 const runLibraryServer = require('./test-library-server')(harness);
 
 (async () => {
+  runCloudStore();
   await runBridge();
   await runSetupScenarios();
   await runTeams();
