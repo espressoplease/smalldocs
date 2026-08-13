@@ -55,7 +55,7 @@ backup_key="daily/$backup_day/$backup_name.tar.gz"
 checksum_key="$backup_key.sha256"
 backup_sha256=$(awk '{print $1}' "$backup_checksum")
 
-/snap/bin/aws s3api put-object \
+/snap/aws-cli/current/bin/aws s3api put-object \
   --region "$SDOCS_BACKUP_REGION" \
   --bucket "$SDOCS_BACKUP_BUCKET" \
   --key "$backup_key" \
@@ -64,7 +64,7 @@ backup_sha256=$(awk '{print $1}' "$backup_checksum")
   --expected-bucket-owner "$SDOCS_BACKUP_ACCOUNT_ID" \
   --metadata "sha256=$backup_sha256,release=$release_commit"
 
-/snap/bin/aws s3api put-object \
+/snap/aws-cli/current/bin/aws s3api put-object \
   --region "$SDOCS_BACKUP_REGION" \
   --bucket "$SDOCS_BACKUP_BUCKET" \
   --key "$checksum_key" \
