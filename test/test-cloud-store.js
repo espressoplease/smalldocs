@@ -30,6 +30,12 @@ function createAsyncKms(rootKey) {
   };
 }
 
+function deferred() {
+  let resolve;
+  const promise = new Promise((resolvePromise) => { resolve = resolvePromise; });
+  return { promise, resolve };
+}
+
 module.exports = function(harness) {
   const { assert, testAsync } = harness;
   const { CloudError, createCloudStore, createLocalKeyProvider, deriveMetadata } = require('../lib/cloud-store');
@@ -526,6 +532,55 @@ module.exports = function(harness) {
         restoreStore.close();
         restoreProvider.clearCache();
         fs.rmSync(restoreDir, { recursive: true, force: true });
+      }
+    });
+
+    await testAsync('revoked access cannot return plaintext after an awaited KMS decrypt', async () => {
+      const revokeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-store-revoke-'));
+      const workingKms = createAsyncKms(Buffer.alloc(32, 23));
+      const decryptStarted = deferred();
+      const releaseDecrypt = deferred();
+      let blockDecrypt = false;
+      const revokeProvider = createManagedKmsKeyProvider({
+        kmsClient: {
+          encrypt: (input) => workingKms.encrypt(input),
+          decrypt(input) {
+            if (!blockDecrypt) return workingKms.decrypt(input);
+            decryptStarted.resolve();
+            return releaseDecrypt.promise.then(() => workingKms.decrypt(input));
+          },
+        },
+        keyId: 'kms://odd-solutions/smalldocs', environment: 'test',
+      });
+      const revokeStore = createCloudStore({
+        dbPath: path.join(revokeDir, 'cloud.db'), keyProvider: revokeProvider,
+        idempotencySecret: 'revoke-idempotency-secret-32-bytes',
+      });
+      try {
+        const workspace = await revokeStore.createTeamWorkspace({
+          userId: 'revoke-owner', name: 'Revoke', projectName: 'Documents',
+        });
+        revokeStore.addWorkspaceMember({ actorUserId: 'revoke-owner', workspaceId: workspace.workspaceId,
+          userId: 'revoked-member', role: 'member' });
+        revokeStore.grantProject({ actorUserId: 'revoke-owner', workspaceId: workspace.workspaceId,
+          projectId: workspace.projectId, userId: 'revoked-member', role: 'viewer' });
+        const created = await revokeStore.createDocument({
+          userId: 'revoke-owner', projectId: workspace.projectId,
+          filename: 'revoked.md', markdown: '# Must not be returned', idempotencyKey: 'revoke-create',
+        });
+        revokeProvider.clearCache();
+        blockDecrypt = true;
+        const opening = revokeStore.getDocument({ userId: 'revoked-member', documentId: created.id });
+        await decryptStarted.promise;
+        revokeStore.removeWorkspaceMember({ actorUserId: 'revoke-owner', workspaceId: workspace.workspaceId,
+          userId: 'revoked-member' });
+        releaseDecrypt.resolve();
+        await assert.rejects(opening, (error) => error.code === 'resource_unavailable');
+      } finally {
+        releaseDecrypt.resolve();
+        revokeStore.close();
+        revokeProvider.clearCache();
+        fs.rmSync(revokeDir, { recursive: true, force: true });
       }
     });
 
