@@ -16,9 +16,12 @@ module.exports = function(harness) {
     const testDbPath = path.join(os.tmpdir(), 'sdocs-test-analytics-' + process.pid + '.db');
     const testShortLinksDbPath = path.join(os.tmpdir(), 'sdocs-test-short-links-' + process.pid + '.db');
     const testTeamsDbPath = path.join(os.tmpdir(), 'sdocs-test-teams-' + process.pid + '.db');
+    const testCloudAuthDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-auth-' + process.pid + '.db');
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
     try { fs.unlinkSync(testTeamsDbPath); } catch (_) {}
+    try { fs.unlinkSync(testCloudAuthDbPath); } catch (_) {}
+    let serverOutput = '';
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
       env: {
         ...process.env,
@@ -28,6 +31,11 @@ module.exports = function(harness) {
         ANALYTICS_FLUSH_IMMEDIATE: '1',
         SHORT_LINKS_DB: testShortLinksDbPath,
         TEAMS_DB: testTeamsDbPath,
+        CLOUD_AUTH_DB: testCloudAuthDbPath,
+        CLOUD_AUTH_PEPPER: 'http-test-cloud-auth-pepper-32-bytes',
+        CLOUD_AUTH_PUBLIC_ORIGIN: 'http://localhost:3099',
+        CLOUD_AUTH_DEV_LOG_CODES: '1',
+        NODE_ENV: 'test',
       },
       stdio: 'pipe',
     });
@@ -35,6 +43,7 @@ module.exports = function(harness) {
     await new Promise((resolve, reject) => {
       let ready = false;
       server.stdout.on('data', d => {
+        serverOutput += d.toString();
         if (!ready && d.toString().includes('running at')) {
           ready = true;
           resolve();
@@ -401,6 +410,132 @@ module.exports = function(harness) {
       await assertEveryAssetVersioned('/trust', v);
     });
 
+    await testAsync('GET /cloud returns the Cloud product page', async () => {
+      const r = await get(BASE + '/cloud');
+      assert.strictEqual(r.status, 200);
+      assert.ok(/text\/html/.test(r.headers['content-type']));
+      assert.ok(r.body.includes('SmallDocs Cloud'));
+      assert.ok(r.body.includes('£5'));
+      assert.ok(r.body.includes('not end-to-end encrypted'));
+      assert.ok(!r.body.toLowerCase().includes('trial'));
+      assert.ok(r.body.includes('/cloud/checkout?plan=personal'));
+      assert.ok(r.body.includes('/cloud/checkout?plan=team'));
+      assert.ok(!r.body.includes('href="/docs"'));
+    });
+
+    await testAsync('asset-versioning: /cloud is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/cloud', v);
+    });
+
+    await testAsync('GET /cloud/admin returns the workspace admin sketch', async () => {
+      const r = await get(BASE + '/cloud/admin');
+      assert.strictEqual(r.status, 200);
+      assert.ok(/text\/html/.test(r.headers['content-type']));
+      assert.ok(r.body.includes('Agent access'));
+      assert.ok(r.body.includes('Invite member'));
+    });
+
+    await testAsync('asset-versioning: /cloud/admin is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/cloud/admin', v);
+    });
+
+    await testAsync('GET /cloud/sign-in returns the Cloud authentication page', async () => {
+      const r = await get(BASE + '/cloud/sign-in?return=%2Fcloud%2Faccount');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.body.includes('<h1 id="auth-title">Sign in</h1>'));
+      assert.ok(r.body.includes('Continue with Google'));
+      assert.ok(r.body.includes('Continue with GitHub'));
+      assert.ok(r.body.includes('class="provider-icon"'));
+      assert.ok(r.body.includes('class="provider-icon provider-icon-github"'));
+      assert.ok(r.body.includes('Email me a code'));
+      assert.ok(!r.body.includes('Your local files stay on this device'));
+      assert.strictEqual(r.headers['cache-control'], 'no-store');
+      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
+      assert.ok(r.headers['content-security-policy'].includes("default-src 'none'"));
+    });
+
+    await testAsync('asset-versioning: /cloud/sign-in is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/cloud/sign-in', v);
+    });
+
+    await testAsync('Cloud email code request rejects a missing Origin', async () => {
+      const r = await post(BASE + '/api/cloud/auth/email/request', { email: 'person@example.com' });
+      assert.strictEqual(r.status, 403);
+      assert.strictEqual(JSON.parse(r.body).error, 'invalid_origin');
+    });
+
+    await testAsync('Cloud email code request and verification create a browser session', async () => {
+      const requested = await post(BASE + '/api/cloud/auth/email/request', {
+        email: 'person@example.com', return_to: '/cloud/account',
+      }, { Origin: BASE });
+      assert.strictEqual(requested.status, 202);
+      const challenge = JSON.parse(requested.body).challenge_id;
+      const codeMatch = new RegExp('\\[cloud-auth-code\\] ' + challenge + ' (\\d{6})').exec(serverOutput);
+      assert.ok(codeMatch, 'development delivery should log the code for this challenge');
+
+      const verified = await post(BASE + '/api/cloud/auth/email/verify', {
+        challenge_id: challenge,
+        code: codeMatch[1],
+        return_to: '/cloud/account',
+      }, { Origin: BASE });
+      assert.strictEqual(verified.status, 200);
+      assert.strictEqual(JSON.parse(verified.body).return_to, '/cloud/account');
+      assert.ok(verified.headers['set-cookie'][0].startsWith('sdocs_cloud='));
+      assert.ok(verified.headers['set-cookie'][0].includes('HttpOnly'));
+      assert.ok(verified.headers['set-cookie'][0].includes('SameSite=Lax'));
+      const account = await get(BASE + '/cloud/account', { Cookie: verified.headers['set-cookie'][0].split(';')[0] });
+      assert.strictEqual(account.status, 200);
+      assert.ok(account.body.includes('Your Cloud account'));
+      assert.ok(account.body.includes('No Cloud documents yet'));
+
+      const loggedOut = await post(BASE + '/api/cloud/auth/logout', '', {
+        Origin: BASE,
+        Cookie: verified.headers['set-cookie'][0].split(';')[0],
+        'Content-Type': 'application/x-www-form-urlencoded',
+      });
+      assert.strictEqual(loggedOut.status, 303);
+      assert.strictEqual(loggedOut.headers.location, '/cloud/sign-in');
+      assert.ok(loggedOut.headers['set-cookie'][0].includes('Max-Age=0'));
+      const afterLogout = await get(BASE + '/cloud/account', { Cookie: verified.headers['set-cookie'][0].split(';')[0] });
+      assert.strictEqual(afterLogout.status, 303);
+    });
+
+    await testAsync('Cloud email verification rejects an external return URL', async () => {
+      const requested = await post(BASE + '/api/cloud/auth/email/request', {
+        email: 'return@example.com',
+      }, { Origin: BASE });
+      const challenge = JSON.parse(requested.body).challenge_id;
+      const codeMatch = new RegExp('\\[cloud-auth-code\\] ' + challenge + ' (\\d{6})').exec(serverOutput);
+      const verified = await post(BASE + '/api/cloud/auth/email/verify', {
+        challenge_id: challenge,
+        code: codeMatch[1],
+        return_to: 'https://evil.example/steal',
+      }, { Origin: BASE });
+      assert.strictEqual(verified.status, 200);
+      assert.strictEqual(JSON.parse(verified.body).return_to, '/cloud/account');
+    });
+
+    await testAsync('Cloud email verification is limited by source IP', async () => {
+      let response;
+      for (let i = 0; i < 25; i++) {
+        response = await post(BASE + '/api/cloud/auth/email/verify', {
+          challenge_id: 'missing-challenge', code: '000000',
+        }, { Origin: BASE, 'X-Forwarded-For': '203.0.113.' + i });
+        if (response.status === 429) break;
+      }
+      assert.strictEqual(response.status, 429);
+      assert.strictEqual(JSON.parse(response.body).error, 'rate_limited');
+    });
+
+    await testAsync('Cloud account redirects to sign-in without a session', async () => {
+      const r = await get(BASE + '/cloud/account');
+      assert.strictEqual(r.status, 303);
+      assert.ok(r.headers.location.startsWith('/cloud/sign-in?return='));
+    });
+
     await testAsync('GET /library returns the library shell', async () => {
       const r = await get(BASE + '/library');
       assert.strictEqual(r.status, 200);
@@ -519,5 +654,8 @@ module.exports = function(harness) {
     try { fs.unlinkSync(testTeamsDbPath); } catch (_) {}
     try { fs.unlinkSync(testTeamsDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testTeamsDbPath + '-shm'); } catch (_) {}
+    try { fs.unlinkSync(testCloudAuthDbPath); } catch (_) {}
+    try { fs.unlinkSync(testCloudAuthDbPath + '-wal'); } catch (_) {}
+    try { fs.unlinkSync(testCloudAuthDbPath + '-shm'); } catch (_) {}
   };
 };

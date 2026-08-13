@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in to SmallDocs Cloud</title>
+<meta name="description" content="Sign in to SmallDocs Cloud with Google, GitHub, or an email code.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/public/css/cloud-sign-in.css">
+</head>
+<body>
+
+<header class="header">
+  <a class="brand" href="/">
+    <span class="brand-full">SmallDocs</span>
+    <span class="brand-short">SDocs</span>
+    <span class="brand-tiny">SD</span>
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-label">Cloud</span>
+</header>
+
+<main class="auth-shell">
+  <section class="auth-card" aria-labelledby="auth-title">
+    <div class="auth-heading">
+      <div class="auth-mark" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+      </div>
+      <div>
+        <h1 id="auth-title">Sign in</h1>
+        <p>Use an existing account or create one when you continue.</p>
+      </div>
+    </div>
+
+    <div class="return-row" id="return-row">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+      <span>After signing in, return to <strong id="return-label">Cloud library</strong></span>
+    </div>
+
+    <div id="choice-view">
+      <div class="provider-list" aria-label="Sign in providers">
+        <a class="provider-button provider-link" data-provider="google" href="/api/cloud/auth/oauth/google">
+          <svg class="provider-icon" viewBox="0 0 18 18" aria-hidden="true">
+            <path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.909c1.703-1.568 2.684-3.878 2.684-6.614Z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.468-.806 5.956-2.181l-2.909-2.258c-.806.54-1.836.859-3.047.859-2.344 0-4.328-1.585-5.037-3.714H.957v2.332A9 9 0 0 0 9 18Z"/>
+            <path fill="#FBBC05" d="M3.963 10.706A5.41 5.41 0 0 1 3.681 9c0-.592.102-1.168.282-1.706V4.962H.957A9 9 0 0 0 0 9c0 1.452.347 2.827.957 4.038l3.006-2.332Z"/>
+            <path fill="#EA4335" d="M9 3.58c1.321 0 2.507.454 3.441 1.346l2.581-2.581C13.464.892 11.426 0 9 0A9 9 0 0 0 .957 4.962l3.006 2.332C4.672 5.165 6.656 3.58 9 3.58Z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </a>
+        <a class="provider-button provider-link" data-provider="github" href="/api/cloud/auth/oauth/github">
+          <svg class="provider-icon provider-icon-github" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M12 .7a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2.23c-3.22.7-3.9-1.37-3.9-1.37-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.57-.29-5.28-1.29-5.28-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.47.11-3.05 0 0 .97-.31 3.16 1.18A10.95 10.95 0 0 1 12 6.1c.98 0 1.96.13 2.88.39 2.19-1.49 3.15-1.18 3.15-1.18.63 1.58.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.71 5.39-5.29 5.68.42.36.78 1.07.78 2.16v3.26c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .7Z"/>
+          </svg>
+          <span>Continue with GitHub</span>
+        </a>
+      </div>
+
+      <div class="divider"><span>or</span></div>
+
+      <form id="email-form" method="post" action="/api/cloud/auth/email/request" novalidate>
+          <input class="return-input" type="hidden" name="return_to" value="/cloud/account">
+        <label for="email">Email address</label>
+        <input class="text-input" id="email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+        <p class="field-error" id="email-error" role="alert"></p>
+        <button class="primary-button" type="submit">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+          Email me a code
+        </button>
+      </form>
+    </div>
+
+    <div id="code-view" hidden>
+      <button class="back-button" id="change-email" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        Use another email
+      </button>
+      <div class="code-intro">
+        <div class="code-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+        </div>
+        <h2>Enter the code from your email</h2>
+        <p>We sent a six-digit code to <strong id="sent-email"></strong>.</p>
+      </div>
+      <form id="code-form" method="post" action="/api/cloud/auth/email/verify" novalidate>
+        <input class="return-input" type="hidden" name="return_to" value="/cloud/account">
+        <input id="email-challenge" type="hidden" name="challenge_id">
+        <label for="code">Six-digit code</label>
+        <input class="text-input code-input" id="code" name="code" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required>
+        <p class="field-error" id="code-error" role="alert"></p>
+        <button class="primary-button" type="submit">Continue</button>
+      </form>
+      <p class="resend-row">Did not receive it? <button id="resend-code" type="button">Send another code</button></p>
+    </div>
+
+    <p class="prototype-status" id="prototype-status" role="status" aria-live="polite"></p>
+  </section>
+</main>
+
+<script src="/public/cloud-sign-in.js"></script>
+</body>
+</html>

@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
+const DEV_MODE = process.env.SDOCS_DEV === '1' || process.env.NODE_ENV === 'development';
 const ANALYTICS_ENABLED = process.env.ANALYTICS_ENABLED === '1';
 const analytics = ANALYTICS_ENABLED ? require('./analytics/db') : null;
 
@@ -92,6 +93,38 @@ const teamsInterest = require('./teams/db');
 const teamsNotify = require('./teams/notify');
 teamsInterest.init();
 
+// Cloud authentication is enabled only when a stable server-side pepper is
+// configured. The sign-in page remains available without it, but auth APIs
+// fail closed. Tests and local development use an isolated database path.
+const cloudAuthHttp = require('./cloud/auth/http');
+const CLOUD_AUTH_PEPPER = process.env.CLOUD_AUTH_PEPPER || '';
+let CLOUD_AUTH_PUBLIC_ORIGIN;
+try {
+  CLOUD_AUTH_PUBLIC_ORIGIN = cloudAuthHttp.parsePublicOrigin(
+    process.env.CLOUD_AUTH_PUBLIC_ORIGIN || `http://localhost:${PORT}`
+  );
+} catch (_) {
+  throw new Error('CLOUD_AUTH_PUBLIC_ORIGIN must be a valid HTTP or HTTPS origin');
+}
+const CLOUD_AUTH_DEV_LOG_CODES = cloudAuthHttp.canLogDevCodes({
+  enabled: process.env.CLOUD_AUTH_DEV_LOG_CODES === '1',
+  nodeEnv: process.env.NODE_ENV,
+  publicOrigin: CLOUD_AUTH_PUBLIC_ORIGIN,
+});
+let cloudAuth = null;
+if (CLOUD_AUTH_PEPPER) {
+  const { createAuthStore } = require('./lib/cloud-auth');
+  cloudAuth = createAuthStore({
+    dbPath: process.env.CLOUD_AUTH_DB || path.join(__dirname, 'cloud_auth.db'),
+    pepper: CLOUD_AUTH_PEPPER,
+  });
+}
+setImmediate(() => { if (cloudAuth) cloudAuth.cleanupExpired(); });
+const cloudAuthCleanupTimer = setInterval(() => {
+  if (cloudAuth) cloudAuth.cleanupExpired();
+}, 24 * 60 * 60 * 1000);
+if (cloudAuthCleanupTimer.unref) cloudAuthCleanupTimer.unref();
+
 // Auto-version: hash all non-font files in public/ at startup.
 // Any file change = new hash = clients purge their SW cache.
 // The per-file SHA-256 list (served at /trust/manifest) is built by the same
@@ -152,8 +185,6 @@ const MIME = {
 };
 
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico']);
-
-const DEV_MODE = process.env.SDOCS_DEV === '1' || process.env.NODE_ENV === 'development';
 
 function cacheHeader(ext) {
   if (DEV_MODE) return 'no-store';
@@ -301,9 +332,7 @@ function serveHtmlWithRewrite(res, filePath, subs, extraHeaders) {
 }
 
 function getClientIp(req) {
-  const xff = req.headers['x-forwarded-for'];
-  if (xff) return String(xff).split(',')[0].trim();
-  return (req.socket && req.socket.remoteAddress) || '';
+  return cloudAuthHttp.getClientIp(req, process.env.TRUST_PROXY === '1');
 }
 
 function sendJson(res, status, obj, extraHeaders) {
@@ -507,6 +536,97 @@ function handleShortLinkGet(res, id) {
   }
 }
 
+function cloudAuthReady(res) {
+  if (cloudAuth) return true;
+  sendJson(res, 503, { ok: false, error: 'authentication_not_configured' });
+  return false;
+}
+
+function cloudAuthPostAllowed(req, res) {
+  if (cloudAuthHttp.sameOrigin(req, CLOUD_AUTH_PUBLIC_ORIGIN)) return true;
+  sendJson(res, 403, { ok: false, error: 'invalid_origin' });
+  return false;
+}
+
+function cloudAuthSession(req) {
+  if (!cloudAuth) return { ok: false, reason: 'not_configured' };
+  const cookies = cloudAuthHttp.parseCookies(req.headers.cookie);
+  const token = cookies['__Host-sdocs_cloud'] || cookies.sdocs_cloud;
+  return cloudAuth.authenticateSession(token);
+}
+
+async function handleCloudEmailRequest(req, res) {
+  if (!cloudAuthReady(res) || !cloudAuthPostAllowed(req, res)) return;
+  try {
+    const body = await cloudAuthHttp.readJson(req);
+    if (!CLOUD_AUTH_DEV_LOG_CODES) {
+      // Email delivery is a launch provider decision. Do not create a login
+      // transaction that the user cannot receive outside explicit dev mode.
+      sendJson(res, 503, { ok: false, error: 'email_delivery_not_configured' });
+      return;
+    }
+    const issued = cloudAuth.issueEmailCode({ email: body.email, ip: getClientIp(req) });
+    console.log('[cloud-auth-code] ' + issued.requestId + ' ' + issued.code);
+    sendJson(res, 202, {
+      ok: true,
+      challenge_id: issued.requestId,
+      expires_at: new Date(issued.expiresAtMs).toISOString(),
+    });
+  } catch (error) {
+    if (error.code === 'payload_too_large') return sendJson(res, 413, { ok: false, error: error.code });
+    if (error.code === 'invalid_json' || error.code === 'invalid_email') {
+      return sendJson(res, 400, { ok: false, error: 'invalid_request' });
+    }
+    if (error.code === 'rate_limited') return sendJson(res, 429, { ok: false, error: 'rate_limited' });
+    sendJson(res, 500, { ok: false, error: 'temporary_service_failure' });
+  }
+}
+
+async function handleCloudEmailVerify(req, res) {
+  if (!cloudAuthReady(res) || !cloudAuthPostAllowed(req, res)) return;
+  try {
+    const body = await cloudAuthHttp.readJson(req);
+    const rate = cloudAuth.consumeRateLimit({
+      action: 'email_code_verify_ip',
+      key: getClientIp(req),
+      limit: 20,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
+    const result = cloudAuth.consumeEmailCode({ requestId: body.challenge_id, code: body.code });
+    if (!result.ok) return sendJson(res, 400, { ok: false, error: 'invalid_or_expired_code' });
+    const session = cloudAuth.createBrowserSession(result.user.id);
+    const returnTo = cloudAuthHttp.safeReturnPath(body.return_to);
+    const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
+    sendJson(res, 200, { ok: true, return_to: returnTo }, {
+      'Set-Cookie': cloudAuthHttp.sessionCookie(session.token, {
+        secure,
+        maxAge: Math.max(1, Math.floor((session.expiresAtMs - Date.now()) / 1000)),
+      }),
+    });
+  } catch (error) {
+    if (error.code === 'payload_too_large') return sendJson(res, 413, { ok: false, error: error.code });
+    if (error.code === 'invalid_json') return sendJson(res, 400, { ok: false, error: 'invalid_request' });
+    sendJson(res, 500, { ok: false, error: 'temporary_service_failure' });
+  }
+}
+
+function handleCloudLogout(req, res) {
+  if (!cloudAuthReady(res) || !cloudAuthPostAllowed(req, res)) return;
+  const authenticated = cloudAuthSession(req);
+  if (authenticated.ok) cloudAuth.revokeSession({
+    sessionToken: cloudAuthHttp.parseCookies(req.headers.cookie)['__Host-sdocs_cloud'] ||
+      cloudAuthHttp.parseCookies(req.headers.cookie).sdocs_cloud,
+  });
+  const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
+  res.writeHead(303, {
+    Location: '/cloud/sign-in',
+    'Set-Cookie': cloudAuthHttp.clearSessionCookie({ secure }),
+    'Cache-Control': 'no-store',
+  });
+  res.end();
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = url.pathname;
@@ -526,6 +646,21 @@ const server = http.createServer((req, res) => {
   // POST /api/teams-interest: store a Teams contact request + email ping
   if (req.method === 'POST' && pathname === '/api/teams-interest') {
     handleTeamsInterestPost(req, res);
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/cloud/auth/email/request') {
+    handleCloudEmailRequest(req, res);
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/cloud/auth/email/verify') {
+    handleCloudEmailVerify(req, res);
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/cloud/auth/logout') {
+    handleCloudLogout(req, res);
     return;
   }
 
@@ -580,6 +715,59 @@ const server = http.createServer((req, res) => {
   if (pathname === '/business') {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'business.html'), null, {
       'Cache-Control': 'no-cache',
+    });
+    return;
+  }
+
+  // SmallDocs Cloud product, pricing, and security details.
+  if (pathname === '/cloud') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud.html'), null, {
+      'Cache-Control': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+    });
+    return;
+  }
+
+  if (pathname === '/cloud/sign-in') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-sign-in.html'), null, {
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+    });
+    return;
+  }
+
+  if (pathname === '/cloud/account') {
+    const authenticated = cloudAuthSession(req);
+    if (!authenticated.ok) {
+      res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent('/cloud/account'), 'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-account.html'), null, {
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+    });
+    return;
+  }
+
+  if (pathname === '/api/cloud/auth/oauth/google' || pathname === '/api/cloud/auth/oauth/github') {
+    sendJson(res, 503, { ok: false, error: 'provider_not_configured' });
+    return;
+  }
+
+  // Interactive local sketch of team workspace administration.
+  if (pathname === '/cloud/admin') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-admin.html'), null, {
+      'Cache-Control': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
     });
     return;
   }

@@ -35,9 +35,9 @@ async function testAsync(name, fn) {
   }
 }
 
-function get(url) {
+function get(url, headers) {
   return new Promise((resolve, reject) => {
-    http.get(url, res => {
+    http.get(url, { headers: headers || {} }, res => {
       let body = '';
       res.on('data', d => body += d);
       res.on('end', () => resolve({ status: res.statusCode, body, headers: res.headers }));

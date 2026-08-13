@@ -50,6 +50,7 @@ require('./test-agent-block')(harness);
 require('./test-router')(harness);
 require('./test-update-check')(harness);
 require('./test-source')(harness);
+require('./test-cloud-auth')(harness);
 require('./test-library-tags')(harness);
 require('./test-library-ephemeral')(harness);
 require('./test-library-store')(harness);
@@ -62,6 +63,7 @@ const runBridge = require('./test-bridge')(harness);
 // ── Async test groups (no server) ───────────────────
 const runSetupScenarios = require('./test-setup-scenarios')(harness);
 const runTeams = require('./test-teams')(harness);
+const runCloudAuthHttp = require('./test-cloud-auth-http')(harness);
 
 // ── HTTP tests (async, starts server) ──────────────
 const runHttp = require('./test-http')(harness);
@@ -72,6 +74,7 @@ const runLibraryServer = require('./test-library-server')(harness);
   await runBridge();
   await runSetupScenarios();
   await runTeams();
+  await runCloudAuthHttp();
   await runHttp();
   await runCacheBust();
   await runLibraryServer();
