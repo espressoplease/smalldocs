@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SmallDocs Cloud Admin</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/public/fonts/inter-400.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('/public/fonts/inter-500.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('/public/fonts/inter-600.woff2') format('woff2'); }
+  :root { --bg:#F7F5F2; --surface:#FFF; --surface-2:#F1EDE8; --text:#1C1917; --text-2:#57534E; --text-3:#8B8680; --border:#D4CFC9; --border-2:#E7E2DB; --blue:#2563EB; --blue-2:#EFF6FF; --green:#15803D; --red:#B42318; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:'Inter',system-ui,-apple-system,sans-serif; font-size:13px; }
+  button, input, select { font:inherit; }
+  button { cursor:pointer; }
+  a { color:var(--blue); }
+  .header { height:42px; display:flex; align-items:center; gap:10px; padding:0 16px; border-bottom:1px solid var(--border); background:var(--bg); position:sticky; top:0; z-index:10; }
+  .brand { color:var(--blue); font-weight:600; text-decoration:none; }
+  .sep { color:#A8A29E; }
+  .crumb { color:var(--text-2); font-size:12px; }
+  .workspace-switch { margin-left:4px; border:0; background:transparent; color:var(--text); font-weight:500; padding:4px 6px; border-radius:4px; }
+  .workspace-switch:hover { background:var(--surface-2); }
+  .prototype { margin-left:auto; color:var(--text-3); font-size:11px; }
+  .open-library { margin-left:8px; padding:6px 9px; border:1px solid var(--border); border-radius:5px; color:var(--text); text-decoration:none; background:var(--surface); font-size:11.5px; }
+  .shell { min-height:calc(100vh - 42px); display:grid; grid-template-columns:190px minmax(0,1fr); }
+  .sidebar { padding:22px 12px; border-right:1px solid var(--border); }
+  .side-label { padding:0 9px 8px; color:var(--text-3); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
+  .nav { width:100%; display:flex; align-items:center; gap:9px; border:0; border-radius:5px; padding:8px 9px; background:transparent; color:var(--text-2); text-align:left; }
+  .nav svg { flex:0 0 auto; }
+  .nav:hover { background:var(--surface-2); color:var(--text); }
+  .nav.active { background:var(--blue-2); color:var(--blue); font-weight:500; }
+  .main { width:100%; max-width:1000px; padding:36px 42px 80px; }
+  .panel[hidden] { display:none; }
+  .page-head { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:24px; }
+  h1 { margin:0 0 6px; font-size:23px; line-height:1.2; letter-spacing:-.015em; }
+  h2 { margin:0; font-size:15px; }
+  .description { margin:0; color:var(--text-2); line-height:1.55; }
+  .btn { border:1px solid var(--border); border-radius:5px; padding:7px 11px; background:var(--surface); color:var(--text); font-weight:500; white-space:nowrap; }
+  .btn:hover { border-color:var(--text-3); }
+  .btn.primary { border-color:var(--blue); background:var(--blue); color:#fff; }
+  .btn.danger { color:var(--red); }
+  .btn.small { padding:5px 8px; font-size:11.5px; }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:24px; }
+  .stat { border:1px solid var(--border); border-radius:7px; background:var(--surface); padding:15px; }
+  .stat strong { display:block; font-size:21px; margin-bottom:5px; }
+  .stat span { color:var(--text-3); font-size:11.5px; }
+  .card { border:1px solid var(--border); border-radius:8px; background:var(--surface); overflow:hidden; margin-bottom:16px; }
+  .card-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--border-2); }
+  .card-head p { margin:3px 0 0; color:var(--text-3); font-size:11.5px; }
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:11px 14px; border-bottom:1px solid var(--border-2); text-align:left; vertical-align:middle; }
+  tr:last-child td { border-bottom:0; }
+  th { color:var(--text-3); font-size:10.5px; font-weight:500; background:color-mix(in srgb,var(--surface-2) 55%,var(--surface)); }
+  td { font-size:12px; }
+  .person { display:flex; align-items:center; gap:9px; min-width:180px; }
+  .avatar { width:28px; height:28px; display:grid; place-items:center; border-radius:50%; background:var(--surface-2); color:var(--text-2); font-size:10px; font-weight:600; }
+  .person strong { display:block; font-size:12px; font-weight:500; }
+  .person span { display:block; color:var(--text-3); font-size:10.5px; margin-top:2px; }
+  .role { border:1px solid var(--border); border-radius:4px; background:var(--surface); color:var(--text); padding:4px 6px; font-size:11.5px; }
+  .tag { display:inline-block; margin:2px 3px 2px 0; padding:3px 6px; border:1px solid var(--border-2); border-radius:99px; color:var(--text-2); background:var(--surface-2); font-size:10.5px; }
+  .status { display:inline-flex; align-items:center; gap:6px; color:var(--text-2); }
+  .status::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); }
+  .status.pending::before { background:#D97706; }
+  .muted { color:var(--text-3); }
+  .project-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .project { border:1px solid var(--border); border-radius:8px; background:var(--surface); padding:16px; }
+  .project-top { display:flex; justify-content:space-between; gap:12px; }
+  .project h2 { margin-bottom:5px; }
+  .project p { margin:0; color:var(--text-3); font-size:11.5px; line-height:1.5; }
+  .project-meta { display:flex; gap:14px; margin-top:18px; color:var(--text-2); font-size:11px; }
+  .notice { padding:12px 14px; border:1px solid #BFDBFE; border-radius:6px; background:#EFF6FF; color:#1E40AF; line-height:1.55; margin-bottom:16px; }
+  .invite { display:none; grid-template-columns:minmax(180px,1.4fr) minmax(110px,.6fr) minmax(180px,1fr) auto; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border-2); background:color-mix(in srgb,var(--blue-2) 58%,var(--surface)); }
+  .invite.open { display:grid; }
+  .field { min-height:34px; border:1px solid var(--border); border-radius:5px; background:var(--surface); color:var(--text); padding:7px 9px; min-width:0; }
+  .field:focus { outline:0; border-color:var(--blue); box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 10%,transparent); }
+  .billing-row { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; padding:15px 16px; border-bottom:1px solid var(--border-2); }
+  .billing-row:last-child { border-bottom:0; }
+  .billing-row strong { display:block; margin-bottom:4px; font-size:12.5px; }
+  .billing-row p { margin:0; color:var(--text-3); font-size:11.5px; line-height:1.5; }
+  .price { font-size:20px; font-weight:600; white-space:nowrap; }
+  .price span { color:var(--text-3); font-size:11px; font-weight:400; }
+  .confirm { position:fixed; inset:0; z-index:20; display:grid; place-items:center; padding:20px; background:rgba(28,25,23,.35); }
+  .confirm[hidden] { display:none; }
+  .confirm-box { width:min(390px,100%); border:1px solid var(--border); border-radius:9px; background:var(--surface); padding:19px; box-shadow:0 18px 50px rgba(28,25,23,.18); }
+  .confirm-box h2 { margin-bottom:8px; }
+  .confirm-box p { margin:0 0 17px; color:var(--text-2); line-height:1.55; }
+  .confirm-actions { display:flex; justify-content:flex-end; gap:8px; }
+  @media(max-width:750px) { .shell{grid-template-columns:1fr}.sidebar{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.nav{width:auto;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:repeat(2,1fr)}.project-grid{grid-template-columns:1fr}.invite.open{grid-template-columns:1fr}.prototype{display:none} }
+  @media(prefers-color-scheme:dark) { :root{--bg:#1C1A17;--surface:#211F1D;--surface-2:#252320;--text:#E7E5E2;--text-2:#A8A29E;--text-3:#77716B;--border:#3D3935;--border-2:#332F2B;--blue:#3B82F6;--blue-2:#17233A;--green:#4ADE80;--red:#FCA5A5}.notice{background:#17233A;border-color:#284B80;color:#BFDBFE} }
+</style>
+</head>
+<body>
+<header class="header">
+  <a class="brand" href="/">SmallDocs</a><span class="sep">/</span><span class="crumb">Cloud</span><span class="sep">/</span>
+  <button class="workspace-switch" type="button">Acme Engineering &#9662;</button>
+  <span class="prototype">Local interface sketch</span>
+  <a class="open-library" href="/library">Open library</a>
+</header>
+<div class="shell">
+  <aside class="sidebar">
+    <p class="side-label">Workspace</p>
+    <button class="nav active" data-panel="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Overview</button>
+    <button class="nav" data-panel="members"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>Members</button>
+    <button class="nav" data-panel="projects"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2.5a1.5 1.5 0 0 1 1.2.6l.6.8a1.5 1.5 0 0 0 1.2.6z"/><path d="M3 8.268a2 2 0 0 0-1 1.738V19a2 2 0 0 0 2 2h11a2 2 0 0 0 1.732-1"/></svg>Projects</button>
+    <button class="nav" data-panel="agents"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>Agent access</button>
+    <button class="nav" data-panel="billing"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Billing</button>
+  </aside>
+  <main class="main">
+    <section class="panel" id="panel-overview">
+      <div class="page-head"><div><h1>Acme Engineering</h1><p class="description">Workspace activity and access at a glance.</p></div></div>
+      <div class="stats"><div class="stat"><strong>8</strong><span>members</span></div><div class="stat"><strong>3</strong><span>projects</span></div><div class="stat"><strong>184</strong><span>documents</span></div><div class="stat"><strong>11</strong><span>active credentials</span></div></div>
+      <div class="card"><div class="card-head"><div><h2>Recent administration</h2><p>Workspace and access changes, not document content.</p></div></div><div class="table-wrap"><table><tbody><tr><td>Priya Shah invited Jamie Lee as Member</td><td class="muted">Today, 10:42</td></tr><tr><td>Josh Grant granted Webhooks editor access to Sam Wilson</td><td class="muted">Yesterday, 16:08</td></tr><tr><td>Priya Shah revoked a CLI credential owned by Alex Chen</td><td class="muted">12 Aug, 09:15</td></tr></tbody></table></div></div>
+    </section>
+
+    <section class="panel" id="panel-members" hidden>
+      <div class="page-head"><div><h1>Members</h1><p class="description">Owners and admins access every project. Members receive explicit project access.</p></div><button class="btn primary" id="invite-open">Invite member</button></div>
+      <div class="card"><form class="invite" id="invite-form"><input class="field" id="invite-email" type="email" placeholder="name@company.com" required><select class="field" aria-label="Workspace role"><option>Member</option><option>Admin</option></select><input class="field" placeholder="Projects, for example Platform, Webhooks"><button class="btn primary" type="submit">Send invite</button></form><div class="table-wrap"><table><thead><tr><th>Person</th><th>Workspace role</th><th>Project access</th><th>Status</th><th></th></tr></thead><tbody id="member-rows">
+        <tr><td><div class="person"><span class="avatar">PS</span><div><strong>Priya Shah</strong><span>priya@acme.dev</span></div></div></td><td><select class="role" disabled><option>Owner</option></select></td><td>All projects</td><td><span class="status">Active</span></td><td></td></tr>
+        <tr><td><div class="person"><span class="avatar">JG</span><div><strong>Josh Grant</strong><span>josh@acme.dev</span></div></div></td><td><select class="role"><option>Admin</option><option>Member</option></select></td><td>All projects</td><td><span class="status">Active</span></td><td><button class="btn small danger js-remove" data-name="Josh Grant">Remove</button></td></tr>
+        <tr><td><div class="person"><span class="avatar">SW</span><div><strong>Sam Wilson</strong><span>sam@acme.dev</span></div></div></td><td><select class="role"><option>Member</option><option>Admin</option></select></td><td><span class="tag">Platform: viewer</span><span class="tag">Webhooks: editor</span></td><td><span class="status">Active</span></td><td><button class="btn small danger js-remove" data-name="Sam Wilson">Remove</button></td></tr>
+        <tr><td><div class="person"><span class="avatar">JL</span><div><strong>Jamie Lee</strong><span>jamie@acme.dev</span></div></div></td><td>Member</td><td><span class="tag">Platform: editor</span></td><td><span class="status pending">Invited</span></td><td><button class="btn small">Resend</button></td></tr>
+      </tbody></table></div></div>
+    </section>
+
+    <section class="panel" id="panel-projects" hidden>
+      <div class="page-head"><div><h1>Projects</h1><p class="description">Group documents that share the same access. Use tags for features and workstreams.</p></div><button class="btn primary">New project</button></div>
+      <div class="project-grid"><article class="project"><div class="project-top"><div><h2>Platform</h2><p>Core application documents.</p></div><button class="btn small">Manage</button></div><div class="project-meta"><span>126 documents</span><span>8 members</span><span>18 tags</span></div></article><article class="project"><div class="project-top"><div><h2>Webhooks</h2><p>Partner integrations and delivery operations.</p></div><button class="btn small">Manage</button></div><div class="project-meta"><span>41 documents</span><span>5 members</span><span>7 tags</span></div></article><article class="project"><div class="project-top"><div><h2>Security</h2><p>Restricted reviews and incident records.</p></div><button class="btn small">Manage</button></div><div class="project-meta"><span>17 documents</span><span>3 members</span><span>5 tags</span></div></article></div>
+    </section>
+
+    <section class="panel" id="panel-agents" hidden>
+      <div class="page-head"><div><h1>Agent access</h1><p class="description">Persistent CLI credentials created when a person signs in on a machine.</p></div></div>
+      <div class="notice">An agent uses the current project access of its owner. Removing a workspace member invalidates that member's credentials. A credential can also be revoked here without removing the person.</div>
+      <div class="card"><div class="table-wrap"><table><thead><tr><th>Credential</th><th>Owner</th><th>Created</th><th>Last used</th><th></th></tr></thead><tbody><tr><td><strong>MacBook Pro CLI</strong><br><span class="muted">CLI credential</span></td><td>Priya Shah</td><td>2 Aug 2026</td><td>4 minutes ago</td><td><button class="btn small danger js-revoke" data-name="MacBook Pro CLI">Revoke</button></td></tr><tr><td><strong>Production docs agent</strong><br><span class="muted">Headless CLI credential</span></td><td>Josh Grant</td><td>7 Aug 2026</td><td>2 hours ago</td><td><button class="btn small danger js-revoke" data-name="Production docs agent">Revoke</button></td></tr><tr><td><strong>Sam's laptop</strong><br><span class="muted">CLI credential</span></td><td>Sam Wilson</td><td>11 Aug 2026</td><td>Yesterday</td><td><button class="btn small danger js-revoke" data-name="Sam's laptop">Revoke</button></td></tr></tbody></table></div></div>
+    </section>
+
+    <section class="panel" id="panel-billing" hidden>
+      <div class="page-head"><div><h1>Billing</h1><p class="description">Team Cloud is billed for human workspace members. Agent credentials do not add seats.</p></div><button class="btn">Manage payment</button></div>
+      <div class="card"><div class="billing-row"><div><strong>Team Cloud</strong><p>8 paid members at £8 each.</p></div><div class="price">£64 <span>/ month</span></div></div><div class="billing-row"><div><strong>Next payment</strong><p>13 September 2026. Taxes are calculated from the billing address.</p></div><button class="btn small">View invoices</button></div><div class="billing-row"><div><strong>Cancel subscription</strong><p>The workspace becomes read-only. Owners can export or delete its Cloud documents.</p></div><button class="btn small danger">Cancel subscription</button></div></div>
+    </section>
+  </main>
+</div>
+
+<div class="confirm" id="confirm" hidden><div class="confirm-box"><h2 id="confirm-title">Confirm action</h2><p id="confirm-copy"></p><div class="confirm-actions"><button class="btn" id="confirm-cancel">Cancel</button><button class="btn danger" id="confirm-action">Confirm</button></div></div></div>
+
+<script>
+(function () {
+  var nav = Array.from(document.querySelectorAll('.nav'));
+  var panels = Array.from(document.querySelectorAll('.panel'));
+  nav.forEach(function (button) {
+    button.addEventListener('click', function () {
+      nav.forEach(function (item) { item.classList.toggle('active', item === button); });
+      panels.forEach(function (panel) { panel.hidden = panel.id !== 'panel-' + button.dataset.panel; });
+    });
+  });
+
+  var inviteOpen = document.getElementById('invite-open');
+  var inviteForm = document.getElementById('invite-form');
+  inviteOpen.addEventListener('click', function () {
+    inviteForm.classList.toggle('open');
+    if (inviteForm.classList.contains('open')) document.getElementById('invite-email').focus();
+  });
+  inviteForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var email = document.getElementById('invite-email').value.trim();
+    if (!email) return;
+    var row = document.createElement('tr');
+    row.innerHTML = '<td><div class="person"><span class="avatar">?</span><div><strong>' + escapeHtml(email.split('@')[0]) + '</strong><span>' + escapeHtml(email) + '</span></div></div></td><td>Member</td><td class="muted">Pending selection</td><td><span class="status pending">Invited</span></td><td><button class="btn small">Resend</button></td>';
+    document.getElementById('member-rows').appendChild(row);
+    inviteForm.reset();
+    inviteForm.classList.remove('open');
+  });
+
+  var confirmBox = document.getElementById('confirm');
+  var pendingButton = null;
+  function ask(button, title, copy) {
+    pendingButton = button;
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-copy').textContent = copy;
+    confirmBox.hidden = false;
+  }
+  document.addEventListener('click', function (event) {
+    var remove = event.target.closest('.js-remove');
+    var revoke = event.target.closest('.js-revoke');
+    if (remove) ask(remove, 'Remove ' + remove.dataset.name + '?', 'They will lose workspace access immediately. Their browser sessions and CLI credentials for this workspace will stop working.');
+    if (revoke) ask(revoke, 'Revoke ' + revoke.dataset.name + '?', 'This credential will stop working immediately. Other credentials owned by the same person are not affected.');
+  });
+  document.getElementById('confirm-cancel').addEventListener('click', function () { confirmBox.hidden = true; pendingButton = null; });
+  document.getElementById('confirm-action').addEventListener('click', function () {
+    if (pendingButton) pendingButton.closest('tr').remove();
+    confirmBox.hidden = true;
+    pendingButton = null;
+  });
+  function escapeHtml(value) { return String(value).replace(/[&<>"']/g, function (c) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]; }); }
+})();
+</script>
+<script src="/public/sdocs-trust-footer.js" defer></script>
+</body>
+</html>

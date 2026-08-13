@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/public/library/library.css">
+<link rel="stylesheet" href="/public/library/cloud-library-prototype.css">
 </head>
 <body>
   <div class="topbar">
@@ -23,6 +24,50 @@
   <div id="agent-banner" hidden></div>
 
   <div class="container">
+    <div class="cloud-library-nav" id="cloud-library-nav" hidden>
+      <div class="library-scope" aria-label="Library location">
+        <a class="library-scope-option" id="local-scope-link" href="/library?force=1&amp;cloud-demo=1&amp;scope=local">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 16h.01"/><path d="M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527a2 2 0 0 0-.212-.896L18.55 5.11A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><path d="M21.946 12.013H2.054"/><path d="M6 16h.01"/></svg>
+          Local
+        </a>
+        <a class="library-scope-option" id="cloud-scope-link" href="/library?force=1&amp;cloud-demo=1&amp;scope=cloud">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          Cloud
+        </a>
+      </div>
+
+      <div class="cloud-library-actions" id="cloud-library-actions" hidden>
+        <div class="workspace-switcher">
+          <button class="workspace-button" id="workspace-button" aria-expanded="false" aria-haspopup="menu">
+            <span class="workspace-mark">A</span>
+            <span>Acme Engineering</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="workspace-menu" id="workspace-menu" role="menu" hidden>
+            <div class="workspace-menu-label">Workspaces</div>
+            <button class="workspace-menu-item" role="menuitem">
+              <span class="workspace-mark personal">J</span>
+              <span><strong>Josh</strong><small>Personal</small></span>
+            </button>
+            <button class="workspace-menu-item selected" role="menuitem">
+              <span class="workspace-mark">A</span>
+              <span><strong>Acme Engineering</strong><small>Team workspace</small></span>
+              <svg class="workspace-check" viewBox="0 0 24 24" aria-label="Current workspace"><path d="m20 6-11 11-5-5"/></svg>
+            </button>
+            <div class="workspace-menu-sep"></div>
+            <a class="workspace-menu-link" href="/cloud/admin">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
+              Workspace settings
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cloud-library-heading" id="cloud-library-heading" hidden>
+      <span class="cloud-access-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/></svg> Signed in as josh@example.com</span>
+    </div>
+
     <div class="input-block">
       <div class="input-row">
         <svg viewBox="0 0 16 16" width="15" height="15" class="search-ico" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5"/><path d="M14 14l-3.5-3.5"/></svg>
@@ -70,5 +115,6 @@
 
   <script src="/public/sdocs-connect.js"></script>
   <script src="/public/library/library.js"></script>
+  <script src="/public/library/cloud-library-prototype.js"></script>
 </body>
 </html>
