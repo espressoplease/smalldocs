@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the SmallDocs production backup each night
+
+[Timer]
+OnCalendar=*-*-* 03:17:00 UTC
+RandomizedDelaySec=20min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

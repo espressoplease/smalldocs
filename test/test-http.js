@@ -1144,7 +1144,15 @@ module.exports = function(harness) {
     });
 
     cloudBilling.close();
-    server.kill();
+    await testAsync('SIGTERM drains and exits without reaching the hard deadline', async () => {
+      const stopped = new Promise((resolve) => server.once('exit', resolve));
+      server.kill('SIGTERM');
+      await Promise.race([
+        stopped,
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error('server did not exit within two seconds')), 2000)),
+      ]);
+    });
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testDbPath + '-shm'); } catch (_) {}

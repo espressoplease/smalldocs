@@ -1,0 +1,35 @@
+[Unit]
+Description=SmallDocs encrypted off-site backup
+After=network-online.target smalldocs.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/smalldocs/backup.env
+LoadCredential=aws-credentials:/etc/smalldocs/backup-aws-credentials
+Environment=AWS_SHARED_CREDENTIALS_FILE=%d/aws-credentials
+Environment=AWS_EC2_METADATA_DISABLED=true
+ExecStart=/opt/smalldocs/current/ops/backup-production.sh
+UMask=0077
+LimitCORE=0
+TimeoutStartSec=10min
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/backups/smalldocs /var/lib/smalldocs

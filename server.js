@@ -2183,12 +2183,12 @@ function shutdown() {
     process.exit(1);
   }, 15000);
   if (forceExit.unref) forceExit.unref();
-  if (typeof server.closeIdleConnections === 'function') server.closeIdleConnections();
   server.close((error) => {
     clearTimeout(forceExit);
     closeResources();
     process.exit(error ? 1 : 0);
   });
+  if (typeof server.closeIdleConnections === 'function') server.closeIdleConnections();
 }
 
 process.once('SIGTERM', shutdown);

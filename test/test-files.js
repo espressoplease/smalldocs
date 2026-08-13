@@ -25,6 +25,19 @@ module.exports = function(harness) {
     assert.ok(unit.includes('LimitCORE=0'));
   });
 
+  test('production backup uses a coordinated snapshot and systemd credentials', () => {
+    const backup = fs.readFileSync(path.join(__dirname, '..', 'ops', 'backup-production.sh'), 'utf8');
+    const unit = fs.readFileSync(path.join(__dirname, '..', 'ops', 'systemd',
+      'smalldocs-backup.service'), 'utf8');
+    const timer = fs.readFileSync(path.join(__dirname, '..', 'ops', 'systemd',
+      'smalldocs-backup.timer'), 'utf8');
+    assert.ok(backup.includes('systemctl stop smalldocs'));
+    assert.ok(backup.includes('restart_service'));
+    assert.ok(backup.includes('checksum-algorithm SHA256'));
+    assert.ok(unit.includes('LoadCredential=aws-credentials:'));
+    assert.ok(timer.includes('Persistent=true'));
+  });
+
   test('public/index.html exists', () => {
     const htmlPath = path.join(__dirname, '..', 'public', 'index.html');
     assert.ok(fs.existsSync(htmlPath), 'public/index.html not found');
