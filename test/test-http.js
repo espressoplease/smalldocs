@@ -17,10 +17,12 @@ module.exports = function(harness) {
     const testShortLinksDbPath = path.join(os.tmpdir(), 'sdocs-test-short-links-' + process.pid + '.db');
     const testTeamsDbPath = path.join(os.tmpdir(), 'sdocs-test-teams-' + process.pid + '.db');
     const testCloudAuthDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-auth-' + process.pid + '.db');
+    const testCloudDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-' + process.pid + '.db');
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
     try { fs.unlinkSync(testTeamsDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath); } catch (_) {}
+    try { fs.unlinkSync(testCloudDbPath); } catch (_) {}
     let serverOutput = '';
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
       env: {
@@ -35,6 +37,10 @@ module.exports = function(harness) {
         CLOUD_AUTH_PEPPER: 'http-test-cloud-auth-pepper-32-bytes',
         CLOUD_AUTH_PUBLIC_ORIGIN: 'http://localhost:3099',
         CLOUD_AUTH_DEV_LOG_CODES: '1',
+        CLOUD_DB: testCloudDbPath,
+        CLOUD_MASTER_KEY: Buffer.alloc(32, 9).toString('base64'),
+        CLOUD_ENVIRONMENT: 'test',
+        CLOUD_IDEMPOTENCY_SECRET: 'http-test-idempotency-secret-32-bytes',
         NODE_ENV: 'test',
       },
       stdio: 'pipe',
@@ -518,6 +524,97 @@ module.exports = function(harness) {
       assert.strictEqual(JSON.parse(verified.body).return_to, '/cloud/account');
     });
 
+    await testAsync('Cloud account redirects to sign-in without a session', async () => {
+      const r = await get(BASE + '/cloud/account');
+      assert.strictEqual(r.status, 303);
+      assert.ok(r.headers.location.startsWith('/cloud/sign-in?return='));
+    });
+
+    let cloudCookie;
+    let cloudWorkspace;
+    let cloudProject;
+    let cloudDocument;
+
+    await testAsync('Cloud API requires an authenticated session', async () => {
+      const r = await get(BASE + '/api/cloud/v1/workspaces');
+      assert.strictEqual(r.status, 401);
+      assert.strictEqual(JSON.parse(r.body).error, 'login_required');
+    });
+
+    await testAsync('email authentication activates a personal workspace', async () => {
+      const requested = await post(BASE + '/api/cloud/auth/email/request', {
+        email: 'cloud-api@example.com',
+      }, { Origin: BASE });
+      const challenge = JSON.parse(requested.body).challenge_id;
+      const codeMatch = new RegExp('\\[cloud-auth-code\\] ' + challenge + ' (\\d{6})').exec(serverOutput);
+      const verified = await post(BASE + '/api/cloud/auth/email/verify', {
+        challenge_id: challenge, code: codeMatch[1], return_to: '/cloud/account',
+      }, { Origin: BASE });
+      cloudCookie = verified.headers['set-cookie'][0].split(';')[0];
+      const response = await get(BASE + '/api/cloud/v1/workspaces', { Cookie: cloudCookie });
+      assert.strictEqual(response.status, 200);
+      const parsed = JSON.parse(response.body);
+      assert.strictEqual(parsed.workspaces.length, 1);
+      assert.strictEqual(parsed.workspaces[0].kind, 'personal');
+      cloudWorkspace = parsed.workspaces[0];
+    });
+
+    await testAsync('Cloud API lists the activated default project', async () => {
+      const response = await get(BASE + '/api/cloud/v1/projects?workspace_id=' + cloudWorkspace.id,
+        { Cookie: cloudCookie });
+      assert.strictEqual(response.status, 200);
+      const parsed = JSON.parse(response.body);
+      assert.strictEqual(parsed.projects.length, 1);
+      assert.strictEqual(parsed.projects[0].name, 'Documents');
+      cloudProject = parsed.projects[0];
+    });
+
+    await testAsync('Cloud API creates, reads, lists, tags, and searches an encrypted document', async () => {
+      const created = await post(BASE + '/api/cloud/v1/documents', {
+        project_id: cloudProject.id,
+        filename: 'cluster-plan.md',
+        markdown: '---\ntags:\n  - infrastructure\n---\n# Cluster plan\nMove workloads to Kubernetes.',
+        idempotency_key: 'http-create-cluster-plan',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(created.status, 201);
+      cloudDocument = JSON.parse(created.body).document;
+      assert.strictEqual(cloudDocument.title, 'Cluster plan');
+
+      const opened = await get(BASE + '/api/cloud/v1/documents/' + cloudDocument.id,
+        { Cookie: cloudCookie });
+      assert.ok(JSON.parse(opened.body).document.markdown.includes('Kubernetes'));
+
+      const listed = await get(BASE + '/api/cloud/v1/documents', { Cookie: cloudCookie });
+      assert.strictEqual(JSON.parse(listed.body).documents[0].id, cloudDocument.id);
+
+      const tags = await get(BASE + '/api/cloud/v1/tags', { Cookie: cloudCookie });
+      assert.deepStrictEqual(JSON.parse(tags.body).tags, [{ tag: 'infrastructure', count: 1 }]);
+
+      const searched = await post(BASE + '/api/cloud/v1/search', { query: 'kubernetes' },
+        { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(JSON.parse(searched.body).documents[0].id, cloudDocument.id);
+    });
+
+    await testAsync('Cloud API revision writes enforce expected-head conflicts', async () => {
+      const saved = await post(BASE + '/api/cloud/v1/documents/' + cloudDocument.id + '/revisions', {
+        expected_head_revision_id: cloudDocument.current_revision_id,
+        filename: 'cluster-plan.md', markdown: '# Cluster plan\nMigration complete.',
+        idempotency_key: 'http-save-cluster-plan-2',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(saved.status, 201);
+      const next = JSON.parse(saved.body).document;
+      assert.strictEqual(next.revision_number, 2);
+
+      const conflict = await post(BASE + '/api/cloud/v1/documents/' + cloudDocument.id + '/revisions', {
+        expected_head_revision_id: cloudDocument.current_revision_id,
+        filename: 'cluster-plan.md', markdown: 'Stale overwrite',
+        idempotency_key: 'http-stale-cluster-plan',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(conflict.status, 409);
+      assert.strictEqual(JSON.parse(conflict.body).current_revision_id, next.current_revision_id);
+      cloudDocument = next;
+    });
+
     await testAsync('Cloud email verification is limited by source IP', async () => {
       let response;
       for (let i = 0; i < 25; i++) {
@@ -528,12 +625,6 @@ module.exports = function(harness) {
       }
       assert.strictEqual(response.status, 429);
       assert.strictEqual(JSON.parse(response.body).error, 'rate_limited');
-    });
-
-    await testAsync('Cloud account redirects to sign-in without a session', async () => {
-      const r = await get(BASE + '/cloud/account');
-      assert.strictEqual(r.status, 303);
-      assert.ok(r.headers.location.startsWith('/cloud/sign-in?return='));
     });
 
     await testAsync('GET /library returns the library shell', async () => {
@@ -657,5 +748,8 @@ module.exports = function(harness) {
     try { fs.unlinkSync(testCloudAuthDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath + '-shm'); } catch (_) {}
+    try { fs.unlinkSync(testCloudDbPath); } catch (_) {}
+    try { fs.unlinkSync(testCloudDbPath + '-wal'); } catch (_) {}
+    try { fs.unlinkSync(testCloudDbPath + '-shm'); } catch (_) {}
   };
 };

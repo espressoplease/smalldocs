@@ -125,6 +125,24 @@ const cloudAuthCleanupTimer = setInterval(() => {
 }, 24 * 60 * 60 * 1000);
 if (cloudAuthCleanupTimer.unref) cloudAuthCleanupTimer.unref();
 
+// Cloud document storage is configured separately from authentication. The
+// local key provider is for development and tests; production must supply the
+// same interface through a managed key service before accepting customer data.
+let cloudStore = null;
+if (process.env.CLOUD_MASTER_KEY) {
+  const { createCloudStore, createLocalKeyProvider } = require('./lib/cloud-store');
+  const cloudKeyProvider = createLocalKeyProvider({
+    masterKey: process.env.CLOUD_MASTER_KEY,
+    environment: process.env.CLOUD_ENVIRONMENT || 'development',
+    reference: process.env.CLOUD_KEY_REFERENCE || 'local-development-key',
+  });
+  cloudStore = createCloudStore({
+    dbPath: process.env.CLOUD_DB || path.join(__dirname, 'cloud.db'),
+    keyProvider: cloudKeyProvider,
+    idempotencySecret: process.env.CLOUD_IDEMPOTENCY_SECRET || CLOUD_AUTH_PEPPER,
+  });
+}
+
 // Auto-version: hash all non-font files in public/ at startup.
 // Any file change = new hash = clients purge their SW cache.
 // The per-file SHA-256 list (served at /trust/manifest) is built by the same
@@ -555,6 +573,137 @@ function cloudAuthSession(req) {
   return cloudAuth.authenticateSession(token);
 }
 
+function cloudApiError(res, error) {
+  const code = error && error.code ? error.code : 'temporary_service_failure';
+  const statuses = {
+    invalid_request: 400,
+    login_required: 401,
+    permission_denied: 403,
+    resource_unavailable: 404,
+    revision_conflict: 409,
+    idempotency_mismatch: 409,
+    rate_limited: 429,
+    temporary_service_failure: 503,
+  };
+  const body = { ok: false, error: code };
+  if (code === 'revision_conflict') {
+    body.document_id = error.documentId;
+    body.base_revision_id = error.baseRevisionId;
+    body.current_revision_id = error.currentRevisionId;
+  }
+  sendJson(res, statuses[code] || 500, body);
+}
+
+function cloudApiPrincipal(req, res) {
+  if (!cloudStore) {
+    sendJson(res, 503, { ok: false, error: 'cloud_storage_not_configured' });
+    return null;
+  }
+  const authenticated = cloudAuthSession(req);
+  if (!authenticated.ok) {
+    sendJson(res, 401, { ok: false, error: 'login_required' });
+    return null;
+  }
+  return authenticated.user;
+}
+
+function cloudApiMutationAllowed(req, res) {
+  if (req.method === 'GET' || req.method === 'HEAD') return true;
+  return cloudAuthPostAllowed(req, res);
+}
+
+async function handleCloudApi(req, res, url) {
+  const user = cloudApiPrincipal(req, res);
+  if (!user || !cloudApiMutationAllowed(req, res)) return;
+  const pathname = url.pathname;
+  const base = '/api/cloud/v1';
+  try {
+    if (req.method === 'GET' && pathname === base + '/workspaces') {
+      const personal = cloudStore.ensurePersonalWorkspace(user.id, 'Personal');
+      sendJson(res, 200, { ok: true, personal_workspace_id: personal.workspaceId,
+        workspaces: cloudStore.listWorkspaces(user.id) });
+      return;
+    }
+    if (req.method === 'GET' && pathname === base + '/projects') {
+      const workspaceId = url.searchParams.get('workspace_id');
+      sendJson(res, 200, { ok: true, projects: cloudStore.listProjects(user.id, workspaceId) });
+      return;
+    }
+    if (req.method === 'GET' && pathname === base + '/documents') {
+      sendJson(res, 200, { ok: true, documents: cloudStore.listDocuments({
+        userId: user.id, projectId: url.searchParams.get('project_id') || undefined,
+      }), next_cursor: null });
+      return;
+    }
+    if (req.method === 'GET' && pathname === base + '/tags') {
+      sendJson(res, 200, { ok: true, tags: cloudStore.listTags({
+        userId: user.id, projectId: url.searchParams.get('project_id') || undefined,
+      }) });
+      return;
+    }
+    if (req.method === 'POST' && pathname === base + '/documents') {
+      const body = await cloudAuthHttp.readJson(req, 2 * 1024 * 1024);
+      const document = cloudStore.createDocument({
+        userId: user.id, projectId: body.project_id, filename: body.filename,
+        markdown: body.markdown, idempotencyKey: body.idempotency_key,
+      });
+      sendJson(res, 201, { ok: true, document });
+      return;
+    }
+    if (req.method === 'POST' && pathname === base + '/search') {
+      const body = await cloudAuthHttp.readJson(req);
+      const documents = cloudStore.search({ userId: user.id, query: body.query,
+        projectId: body.project_id, limit: body.limit });
+      sendJson(res, 200, { ok: true, documents, next_cursor: null });
+      return;
+    }
+
+    const documentMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)$/);
+    if (documentMatch && req.method === 'GET') {
+      const document = cloudStore.getDocument({ userId: user.id, documentId: documentMatch[1] });
+      sendJson(res, 200, { ok: true, document });
+      return;
+    }
+    if (documentMatch && req.method === 'DELETE') {
+      const body = await cloudAuthHttp.readJson(req);
+      const deleted = cloudStore.deleteDocument({ userId: user.id, documentId: documentMatch[1],
+        expectedHeadRevisionId: body.expected_head_revision_id });
+      sendJson(res, 200, { ok: true, document: deleted });
+      return;
+    }
+    const revisionsMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/revisions$/);
+    if (revisionsMatch && req.method === 'GET') {
+      sendJson(res, 200, { ok: true, revisions: cloudStore.listRevisions({
+        userId: user.id, documentId: revisionsMatch[1],
+      }), next_cursor: null });
+      return;
+    }
+    if (revisionsMatch && req.method === 'POST') {
+      const body = await cloudAuthHttp.readJson(req, 2 * 1024 * 1024);
+      const document = cloudStore.saveRevision({
+        userId: user.id, documentId: revisionsMatch[1],
+        expectedHeadRevisionId: body.expected_head_revision_id,
+        markdown: body.markdown, filename: body.filename,
+        idempotencyKey: body.idempotency_key,
+      });
+      sendJson(res, 201, { ok: true, document });
+      return;
+    }
+    const revisionMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/revisions\/([^/]+)$/);
+    if (revisionMatch && req.method === 'GET') {
+      const document = cloudStore.getDocument({ userId: user.id, documentId: revisionMatch[1],
+        revisionId: revisionMatch[2], includeDeleted: true });
+      sendJson(res, 200, { ok: true, document });
+      return;
+    }
+    sendJson(res, 404, { ok: false, error: 'resource_unavailable' });
+  } catch (error) {
+    if (error.code === 'payload_too_large') return sendJson(res, 413, { ok: false, error: 'invalid_request' });
+    if (error.code === 'invalid_json') return sendJson(res, 400, { ok: false, error: 'invalid_request' });
+    cloudApiError(res, error);
+  }
+}
+
 async function handleCloudEmailRequest(req, res) {
   if (!cloudAuthReady(res) || !cloudAuthPostAllowed(req, res)) return;
   try {
@@ -595,6 +744,7 @@ async function handleCloudEmailVerify(req, res) {
     if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
     const result = cloudAuth.consumeEmailCode({ requestId: body.challenge_id, code: body.code });
     if (!result.ok) return sendJson(res, 400, { ok: false, error: 'invalid_or_expired_code' });
+    if (cloudStore) cloudStore.ensurePersonalWorkspace(result.user.id, 'Personal');
     const session = cloudAuth.createBrowserSession(result.user.id);
     const returnTo = cloudAuthHttp.safeReturnPath(body.return_to);
     const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
@@ -630,6 +780,11 @@ function handleCloudLogout(req, res) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = url.pathname;
+
+  if (pathname.startsWith('/api/cloud/v1/')) {
+    handleCloudApi(req, res, url);
+    return;
+  }
 
   // POST /api/short: create a short link for encrypted ciphertext
   if (req.method === 'POST' && pathname === '/api/short') {
