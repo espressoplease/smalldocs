@@ -12,7 +12,7 @@ tags:
 
 Use managed envelope encryption for SmallDocs Cloud.
 
-The initial provider recommendation is AWS KMS because the same AWS account can also hold the off-site S3 backups. SmallDocs will use separate customer-managed symmetric KMS keys for staging and production. The production application will never use a plaintext master encryption key from a configuration file.
+The selected provider is AWS KMS because the same AWS production account can also hold the off-site S3 backups. SmallDocs production uses a customer-managed symmetric KMS key. The production application will never use a plaintext master encryption key from a configuration file.
 
 KMS is part of the application encryption design. It is not a remote database and it does not receive Markdown documents.
 
@@ -48,14 +48,16 @@ flowchart TD
 
 AWS holds the customer-managed KMS key. Its plaintext key material does not leave AWS KMS. SmallDocs sends only 32-byte data keys to KMS for wrapping or sends wrapped data keys back for unwrapping.
 
-Planned aliases:
+Production key:
 
 ```text
-alias/smalldocs-cloud-staging
 alias/smalldocs-cloud-production
+arn:aws:kms:eu-central-1:732006412787:key/fc5537bd-4a58-4ade-853c-77a09439dd65
 ```
 
-Staging and production keys must remain separate. Staging must not contain production data, production ciphertext, or production KMS credentials.
+The production key was created in `eu-central-1` and passed an application-level restart round trip on 14 August 2026. The stored envelope records the concrete ARN returned by AWS, not only the alias.
+
+Staging must not contain production data, production ciphertext, or production KMS credentials. To limit spend before the private beta, local staging can use a development-only local key with disposable test data. Create `alias/smalldocs-cloud-staging` if staging begins to retain realistic or long-lived data; do not point staging at the production key.
 
 ### Project data keys
 

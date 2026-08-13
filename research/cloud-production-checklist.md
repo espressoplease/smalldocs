@@ -31,6 +31,8 @@ Completed on 14 August 2026:
 - [x] Assigned the `Administrators` group to the production account through Identity Center.
 - [x] Configured local temporary-session profiles `odd-solutions-admin` for the management account and `odd-solutions-production-admin` for production. No local long-lived AWS credentials file was created.
 - [x] Created the `odd-solutions-production-monthly` USD 10 cost budget with actual-spend alerts at 50, 80, and 100 percent.
+- [x] Created the single-region AWS KMS key `alias/smalldocs-cloud-production` in `eu-central-1`. The concrete key ARN is `arn:aws:kms:eu-central-1:732006412787:key/fc5537bd-4a58-4ade-853c-77a09439dd65`.
+- [x] Ran the built-in AWS adapter and CloudStore against the production key. A temporary encrypted document remained decryptable after closing and reopening the database, key provider, and AWS client. The temporary database was then removed.
 
 The management account, account ID `703318158341`, contains a legacy `taaalkuser` IAM identity and `taaalk` S3 bucket. The legacy user still has an active access key and the AWS-managed `AmazonS3FullAccess` policy. Do not reuse it for either product or deactivate it until its dependency has been identified. The existing bucket is private, versioned, encrypted with S3-managed AES-256, and treated as unrelated live data.
 
@@ -38,7 +40,7 @@ Create all new SmallDocs and SmallCRM KMS keys, backup buckets, workload roles, 
 
 ## Launch blockers at a glance
 
-- [ ] Complete a real AWS KMS smoke test. The application and CloudStore now support the built-in asynchronous AWS KMS client with bounded retries, timeouts, caching, and generic client-facing failures. Create the production key and verify a create, read, restart, and decrypt cycle with temporary workload credentials.
+- [x] Complete a real AWS KMS smoke test. The application and CloudStore use the built-in asynchronous AWS KMS client with bounded retries, timeouts, caching, and generic client-facing failures. The create, read, restart, and decrypt cycle passed on 14 August 2026 using an Identity Center session. A restricted production workload identity is still required before deployment.
 - [ ] Add production configuration validation. Production startup should refuse partial Cloud configurations, local `CLOUD_MASTER_KEY`, an HTTP public origin, missing durable jobs, and missing billing or mail settings.
 - [ ] Make Stripe tax behavior match the Cloud page. The page says tax is calculated at checkout, but checkout does not currently enable Stripe automatic tax or collect the billing location it needs.
 - [ ] Decide and configure plan allowances, retention, failed-payment grace, and deletion windows.
