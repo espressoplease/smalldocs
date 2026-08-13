@@ -490,6 +490,7 @@ CLOUD_OAUTH_DB=/var/lib/smalldocs/cloud/cloud_oauth.db
 CLOUD_DB=/var/lib/smalldocs/cloud/cloud.db
 CLOUD_BILLING_DB=/var/lib/smalldocs/cloud/cloud_billing.db
 CLOUD_JOBS_DB=/var/lib/smalldocs/cloud/cloud_jobs.db
+SHORT_LINKS_DB=/var/lib/smalldocs/short-links/short_links.db
 
 CLOUD_KMS_KEY_ID=alias/smalldocs-cloud-production
 CLOUD_KMS_REGION=eu-central-1
@@ -546,6 +547,10 @@ The existing production deployment is `smalldocs.service` on port `3003` behind 
 
 ## 8. Backups and recovery
 
+- [ ] Treat the existing short-link SQLite database as live production data. Resolve its configured `SHORT_LINKS_DB` path on the old host before cutover.
+- [ ] Migrate short links with a coordinated SQLite snapshot. Stop short-link writes briefly or use SQLite's online backup mechanism; do not copy only the main database file while WAL writes are active.
+- [ ] Compare row counts and resolve representative existing `/s/...` URLs on the new host before changing DNS.
+- [ ] Include `SHORT_LINKS_DB` in encrypted off-site backups and restore drills. A restored sample must return the same ciphertext for the same short-link ID.
 - [ ] Choose a daily backup schedule and a retention period.
 - [ ] Stop the application briefly for the supported coordinated snapshot, or implement a proper online SQLite backup for every database.
 - [ ] Encrypt the archive and copy it to a different provider or failure domain.
