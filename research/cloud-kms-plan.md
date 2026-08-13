@@ -239,9 +239,9 @@ The implementation is in `lib/cloud-kms.js` with focused coverage in `test/test-
 
 SmallDocs and SmallCRM may share the first CX33, but they must not share KMS keys or AWS runtime credentials.
 
-This document covers SmallDocs Cloud. SmallCRM currently stores CRM records and email bodies as plaintext JSON in SQLite and encrypts Resend credentials using a local application secret. Putting both services on a VM does not automatically extend SmallDocs encryption to SmallCRM.
+This document specifies the SmallDocs Cloud implementation. SmallCRM will use the same envelope-encryption ideas, implemented independently. It currently stores CRM records and email bodies as plaintext JSON in SQLite and encrypts Resend credentials using a local application secret, so that migration remains required before it accepts production customer data.
 
-Before SmallCRM accepts production data, it needs its own encryption-at-rest decision and, if KMS is used, a separate key, IAM identity, data format, restore drill, and rotation procedure. A compromise of the SmallCRM runtime must not grant use of the SmallDocs KMS key.
+SmallCRM will have a separate KMS key, IAM identity, data-encryption keys, envelope format, key cache, restore drill, and rotation procedure. A compromise of the SmallCRM runtime must not grant use of the SmallDocs KMS key.
 
 ## Cost
 
