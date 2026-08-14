@@ -1047,6 +1047,8 @@ async function handleCloudApi(req, res, url) {
       requireCloudEntitlement(user.id, workspaceProjectsMatch[1], 'create_project');
       const project = await cloudStore.createProject({
         userId: user.id, workspaceId: workspaceProjectsMatch[1], name: body.name,
+        beforeCommit: () => requireCloudEntitlement(
+          user.id, workspaceProjectsMatch[1], 'create_project'),
       });
       sendJson(res, 201, { ok: true, project });
       return;
@@ -1108,6 +1110,8 @@ async function handleCloudApi(req, res, url) {
         role: body.role, projectGrants: Array.isArray(body.project_grants) ?
           body.project_grants.map((grant) => ({ projectId: grant.project_id || grant.projectId,
             role: grant.role })) : [],
+        beforeCommit: () => requireCloudEntitlement(
+          user.id, workspaceInvitationsMatch[1], 'manage'),
       });
       const acceptUrl = CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/invite?token=' + encodeURIComponent(invitation.token);
       if (cloudJobs) {
@@ -1201,7 +1205,10 @@ async function handleCloudApi(req, res, url) {
         verifiedEmails });
       requireCloudEntitlement(user.id, invitationContext.workspaceId, 'add_member');
       const result = await cloudStore.acceptInvitation({ userId: user.id,
-        verifiedEmails, token: invitationAcceptMatch[1] });
+        verifiedEmails, token: invitationAcceptMatch[1],
+        beforeCommit: () => requireCloudEntitlement(
+          user.id, invitationContext.workspaceId, 'add_member'),
+      });
       try { await syncTeamSeatQuantity(result.workspaceId); }
       catch (_) {
         scheduleTeamSeatSync(result.workspaceId);
@@ -1262,6 +1269,9 @@ async function handleCloudApi(req, res, url) {
       const document = await cloudStore.createDocument({
         userId: user.id, projectId: body.project_id, filename: body.filename,
         markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId,
+        beforeCommit: () => requireCloudEntitlement(user.id, project.workspaceId, 'store_revision', {
+          fileBytes: cloudMarkdownBytes(body.markdown),
+        }),
       });
       scheduleRevisionPrune(document, entitlements);
       sendJson(res, 201, { ok: true, document });
@@ -1358,7 +1368,9 @@ async function handleCloudApi(req, res, url) {
       requireCloudEntitlement(user.id, context.workspaceId, 'manage');
       const restored = await cloudStore.restoreDeletedDocument({ userId: user.id,
         documentId: documentRestoreMatch[1],
-        expectedHeadRevisionId: body.expected_head_revision_id });
+        expectedHeadRevisionId: body.expected_head_revision_id,
+        beforeCommit: () => requireCloudEntitlement(user.id, context.workspaceId, 'manage'),
+      });
       sendJson(res, 200, { ok: true, document: restored });
       return;
     }
@@ -1391,6 +1403,9 @@ async function handleCloudApi(req, res, url) {
         expectedHeadRevisionId: body.expected_head_revision_id,
         markdown: body.markdown, filename: body.filename,
         idempotencyKey: body.idempotency_key, credentialId,
+        beforeCommit: () => requireCloudEntitlement(user.id, context.workspaceId, 'store_revision', {
+          fileBytes: cloudMarkdownBytes(body.markdown),
+        }),
       });
       scheduleRevisionPrune(document, entitlements);
       sendJson(res, 201, { ok: true, document });
@@ -1416,6 +1431,8 @@ async function handleCloudApi(req, res, url) {
         userId: user.id, documentId: restoreMatch[1], revisionId: restoreMatch[2],
         expectedHeadRevisionId: body.expected_head_revision_id,
         idempotencyKey: body.idempotency_key, credentialId,
+        beforeCommit: () => requireCloudEntitlement(
+          user.id, context.workspaceId, 'store_revision'),
       });
       scheduleRevisionPrune(document, entitlements);
       sendJson(res, 201, { ok: true, document });

@@ -117,6 +117,50 @@ module.exports = function(harness) {
       assert.strictEqual((await store.listProjects(member, team.workspaceId))[0].role, 'viewer');
     });
 
+    await testAsync('commit authorization can stop encrypted writes at the transaction boundary', async () => {
+      const deny = () => { throw new CloudError('subscription_read_only'); };
+      const projectCount = store.db.prepare(
+        'SELECT COUNT(*) AS count FROM cloud_projects WHERE workspace_id = ?').get(team.workspaceId).count;
+      await assert.rejects(store.createProject({
+        userId: owner, workspaceId: team.workspaceId, name: 'Blocked', beforeCommit: deny,
+      }), (error) => error.code === 'subscription_read_only');
+      assert.strictEqual(store.db.prepare(
+        'SELECT COUNT(*) AS count FROM cloud_projects WHERE workspace_id = ?').get(team.workspaceId).count,
+      projectCount);
+
+      const invitationCount = store.db.prepare(
+        'SELECT COUNT(*) AS count FROM cloud_invitations WHERE workspace_id = ?').get(team.workspaceId).count;
+      await assert.rejects(store.createInvitation({
+        userId: owner, workspaceId: team.workspaceId, email: 'blocked@example.com',
+        projectGrants: [], beforeCommit: deny,
+      }), (error) => error.code === 'subscription_read_only');
+      assert.strictEqual(store.db.prepare(
+        'SELECT COUNT(*) AS count FROM cloud_invitations WHERE workspace_id = ?').get(team.workspaceId).count,
+      invitationCount);
+
+      const invite = await store.createInvitation({
+        userId: owner, workspaceId: team.workspaceId, email: 'outsider@example.com',
+        projectGrants: [{ projectId: team.projectId, role: 'viewer' }],
+      });
+      await assert.rejects(store.acceptInvitation({
+        userId: outsider, token: invite.token, verifiedEmails: ['outsider@example.com'], beforeCommit: deny,
+      }), (error) => error.code === 'subscription_read_only');
+      assert.strictEqual(store.db.prepare(`
+        SELECT COUNT(*) AS count FROM cloud_workspace_memberships
+        WHERE workspace_id = ? AND user_id = ? AND status = 'active'
+      `).get(team.workspaceId, outsider).count, 0);
+
+      const documentCount = store.db.prepare(
+        'SELECT COUNT(*) AS count FROM cloud_documents WHERE workspace_id = ?').get(team.workspaceId).count;
+      await assert.rejects(store.createDocument({
+        userId: owner, projectId: team.projectId, filename: 'blocked.md',
+        markdown: '# Blocked', idempotencyKey: 'blocked-create', beforeCommit: deny,
+      }), (error) => error.code === 'subscription_read_only');
+      assert.strictEqual(store.db.prepare(
+        'SELECT COUNT(*) AS count FROM cloud_documents WHERE workspace_id = ?').get(team.workspaceId).count,
+      documentCount);
+    });
+
     await testAsync('an editor creates an encrypted document with an immutable first revision', async () => {
       store.grantProject({ actorUserId: owner, workspaceId: team.workspaceId,
         projectId: team.projectId, userId: member, role: 'editor' });
@@ -179,6 +223,31 @@ module.exports = function(harness) {
       }), (error) => error.code === 'revision_conflict' && error.currentRevisionId === before);
       assert.strictEqual((await store.getDocument({ userId: member, documentId: document.id })).current_revision_id, before);
       assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length, 2);
+    });
+
+    await testAsync('commit authorization blocks revision writes after encryption', async () => {
+      const deny = () => { throw new CloudError('subscription_read_only'); };
+      const before = document.current_revision_id;
+      const revisionCount = store.listRevisions({ userId: member, documentId: document.id }).length;
+      await assert.rejects(store.saveRevision({
+        userId: member, documentId: document.id, expectedHeadRevisionId: before,
+        markdown: '# Blocked save', filename: 'roadmap.md', idempotencyKey: 'blocked-save',
+        beforeCommit: deny,
+      }), (error) => error.code === 'subscription_read_only');
+      assert.strictEqual((await store.getDocument({
+        userId: member, documentId: document.id,
+      })).current_revision_id, before);
+      assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length,
+        revisionCount);
+
+      const source = store.listRevisions({ userId: member, documentId: document.id })
+        .find((revision) => revision.revision_number === 1);
+      await assert.rejects(store.restoreRevision({
+        userId: member, documentId: document.id, revisionId: source.id,
+        expectedHeadRevisionId: before, idempotencyKey: 'blocked-restore', beforeCommit: deny,
+      }), (error) => error.code === 'subscription_read_only');
+      assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length,
+        revisionCount);
     });
 
     await testAsync('restoring an old revision creates a new immutable audited head', async () => {
@@ -534,6 +603,15 @@ module.exports = function(harness) {
         const row = restoreStore.db.prepare(
           'SELECT deleted_at_ms FROM cloud_documents WHERE id = ?').get(created.id);
         assert.notStrictEqual(row.deleted_at_ms, null);
+        failDecrypt = false;
+        restoreProvider.clearCache();
+        await assert.rejects(restoreStore.restoreDeletedDocument({
+          userId: 'restore-user', documentId: created.id,
+          expectedHeadRevisionId: created.current_revision_id,
+          beforeCommit() { throw new CloudError('subscription_read_only'); },
+        }), (error) => error.code === 'subscription_read_only');
+        assert.notStrictEqual(restoreStore.db.prepare(
+          'SELECT deleted_at_ms FROM cloud_documents WHERE id = ?').get(created.id).deleted_at_ms, null);
       } finally {
         restoreStore.close();
         restoreProvider.clearCache();
