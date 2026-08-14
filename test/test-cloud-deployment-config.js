@@ -60,6 +60,15 @@ module.exports = function(harness) {
     assert.strictEqual(config.keyProvider, 'kms');
   });
 
+  test('deployed email accepts a systemd credential path instead of an environment secret', () => {
+    const env = deployedEnv('production');
+    env.CLOUD_KMS_KEY_ID = 'alias/smalldocs-cloud-production';
+    env.CLOUD_KMS_REGION = 'eu-central-1';
+    delete env.NOTIFY_SMTP_PASS;
+    env.NOTIFY_SMTP_PASS_FILE = '/run/credentials/smalldocs.service/resend-api-key';
+    assert.strictEqual(validateCloudDeploymentConfig(env).enabled, true);
+  });
+
   test('deployed modes reject unsafe origins, implicit paths, and development switches', () => {
     assert.throws(() => validateCloudDeploymentConfig({
       ...deployedEnv('staging'), CLOUD_MASTER_KEY: Buffer.alloc(32, 8).toString('base64'),

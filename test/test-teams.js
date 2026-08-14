@@ -42,6 +42,7 @@ module.exports = function(harness) {
     await testAsync('notify: unconfigured env reports not_configured and never sends', async () => {
       delete process.env.NOTIFY_SMTP_USER;
       delete process.env.NOTIFY_SMTP_PASS;
+      delete process.env.NOTIFY_SMTP_PASS_FILE;
       delete process.env.NOTIFY_EMAIL_FROM;
       assert.strictEqual(notify.isConfigured(), false);
       const r = await notify.send('subject', 'body');
@@ -68,6 +69,21 @@ module.exports = function(harness) {
       delete process.env.NOTIFY_SMTP_USER;
       delete process.env.NOTIFY_SMTP_PASS;
       delete process.env.NOTIFY_EMAIL_FROM;
+    });
+
+    test('notify: reads an SMTP password from a credential file', () => {
+      const credential = path.join(os.tmpdir(), 'sdocs-test-smtp-' + process.pid);
+      fs.writeFileSync(credential, 'test-file-password\n', { mode: 0o600 });
+      process.env.NOTIFY_SMTP_USER = 'resend';
+      process.env.NOTIFY_SMTP_PASS = 'ignored-environment-password';
+      process.env.NOTIFY_SMTP_PASS_FILE = credential;
+      process.env.NOTIFY_EMAIL_FROM = 'login@smalldocs.org';
+      assert.strictEqual(notify.config().pass, 'test-file-password');
+      delete process.env.NOTIFY_SMTP_USER;
+      delete process.env.NOTIFY_SMTP_PASS;
+      delete process.env.NOTIFY_SMTP_PASS_FILE;
+      delete process.env.NOTIFY_EMAIL_FROM;
+      fs.unlinkSync(credential);
     });
 
     teams.close();
