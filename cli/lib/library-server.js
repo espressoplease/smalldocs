@@ -35,9 +35,8 @@ try {
 //   2. The deny-pattern list (SSH keys, .env, credentials.{json,...}
 //      and anything under .ssh/.aws/.gnupg/...).
 //   3. Library-membership: the real path must appear in the index.
-//      The index is what the user has explicitly opened with sdoc or
-//      placed under a scanned root; arbitrary paths outside that set
-//      are refused.
+//      The index contains files the user explicitly opened with sdoc;
+//      arbitrary paths outside that set are refused.
 //
 // Returns { ok: true, realPath } on pass, { ok: false, reason, status }
 // on refusal. Caller picks the HTTP status from `status`.
@@ -295,12 +294,6 @@ function createServer({ port } = {}) {
         return;
       }
 
-      if (req.method === 'POST' && route === '/api/library/rescan') {
-        const result = libIndex.scanAndIndex();
-        sendJson(res, 200, result);
-        return;
-      }
-
       // Serve the current contents of a local file. The editor page
       // uses this to refresh content after the URL-hash snapshot goes
       // stale (e.g. after the user edited tags then reloaded). Gated
@@ -319,9 +312,8 @@ function createServer({ port } = {}) {
       }
 
       // Re-index a single file. Called by the editor page after a Bridge
-      // save so the library catches up immediately (instead of waiting
-      // for the next manual scan). Pure read-then-index; never writes
-      // the file the path points at.
+      // save so the library catches up immediately. Pure read-then-index;
+      // never writes the file the path points at.
       if (req.method === 'POST' && route === '/api/library/reindex') {
         const body = await readBody(req);
         const filePath = body && body.path;

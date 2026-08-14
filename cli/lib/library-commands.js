@@ -30,16 +30,8 @@ function libraryDisable() {
 function libraryStatus() {
   const s = store.loadState();
   const idx = store.loadIndex();
-  const last = s.lastScanAt ? new Date(s.lastScanAt).toISOString() : 'never';
   console.log(`library: ${s.enabled === false ? 'disabled' : 'enabled'}`);
   console.log(`entries: ${idx.entries.length}`);
-  console.log(`last scan: ${last}`);
-}
-
-function libraryRebuild() {
-  console.log('library: rebuilding...');
-  const result = libIndex.rebuild();
-  console.log(`library: scanned ${result.scanned}, added ${result.added}, updated ${result.updated}`);
 }
 
 // Walk up from a directory looking for `.git/`. Falls back to the start
@@ -114,7 +106,7 @@ function libraryLs(opts) {
     const tags = libIndex.tagsUnderPrefix(scope);
     if (!tags.length) {
       console.log(`no tagged markdown files indexed under ${scope} yet`);
-      console.log(`(tip: run \`sdoc library rebuild\` if you expected results, or open a file with \`sdoc <file> +tag\` to start tagging)`);
+      console.log(`(tip: open a file with \`sdoc <file> +tag\` to add and tag it)`);
       return;
     }
     console.log(`most frequent tags for tagged markdown files under ${scope} (tag - count):`);
@@ -132,7 +124,7 @@ function libraryLs(opts) {
   const entries = entriesUnderScope(scope);
   if (!entries.length) {
     console.log(`library has no markdown indexed under ${scope} yet`);
-    console.log(`(tip: run \`sdoc library rebuild\` to scan, or open a file with \`sdoc <file>\` to index it)`);
+    console.log(`(tip: open a file with \`sdoc <file>\` to add it)`);
     return;
   }
 
@@ -209,8 +201,8 @@ async function libraryOpen() {
   const { agentUrl } = await libServer.createServer();
   const pageUrl = `${siteUrl}/library?agent=${encodeURIComponent(agentUrl)}`;
   console.log(`library: ${pageUrl}`);
-  console.log(`library: ${idx.entries.length} entries indexed` + (state.enabled === false ? ' (scanning disabled)' : ''));
-  if (!idx.entries.length) console.log('library: click "rescan" in the UI to walk your home for markdown.');
+  console.log(`library: ${idx.entries.length} entries indexed` + (state.enabled === false ? ' (indexing disabled)' : ''));
+  if (!idx.entries.length) console.log('library: open a file with `sdoc <file>` to add it.');
   ensureAutostart();
   console.log(`library: agent at ${agentUrl} (ctrl-c to stop)`);
   openBrowser(pageUrl);
@@ -263,7 +255,6 @@ async function libraryCommand(opts) {
     case 'enable':   libraryEnable();        break;
     case 'disable':  libraryDisable();       break;
     case 'status':   libraryStatus();        break;
-    case 'rebuild':  libraryRebuild();       break;
     case 'autostart': {
       const action = (opts.extra || '').toLowerCase();
       if (action === 'enable')       autostartEnable();
@@ -278,7 +269,7 @@ async function libraryCommand(opts) {
     }
     default:
       console.error(`sdoc library: unknown subcommand "${sub}"`);
-      console.error('usage: sdoc library [ls|enable|disable|status|rebuild|autostart|help]');
+      console.error('usage: sdoc library [ls|enable|disable|status|autostart|help]');
       process.exit(1);
   }
 }
@@ -300,7 +291,7 @@ function tapOpen(opts) {
 
 module.exports = {
   libraryCommand,
-  libraryEnable, libraryDisable, libraryStatus, libraryRebuild, libraryOpen,
+  libraryEnable, libraryDisable, libraryStatus, libraryOpen,
   libraryLs, libraryHelp,
   resolveProjectRoot, resolveLsScope, entriesUnderScope,
   tapOpen,

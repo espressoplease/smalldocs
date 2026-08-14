@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 14;
-const SKILL_REASON  = 'Setup now installs a discoverable SKILL.md (loaded on demand via the agent skill tool) instead of an always-on block pasted into AGENTS.md. Agents using ~/.agents/skills read the canonical copy directly; other supported agents receive a symlink. Existing blocks are stripped on upgrade so content is not loaded twice.';
+const SKILL_VERSION = 15;
+const SKILL_REASON  = 'The local library now contains only files opened explicitly with sdoc; global home-directory scanning has been removed.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -50,7 +50,7 @@ Use it (or offer it) when the user wants to read, share, or export a \`.md\` fil
 
 - \`sdoc file.md\` - the default way to open a file, for comfortable reading or quick sharing.
 - \`sdoc bridge file.md\` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
-- \`sdoc library\` - opens a library view in the browser. SmallDocs automatically indexes every \`.md\` under the user's home directory; filter by directory, date, or tags (the index doesn't search file content - fall back to \`grep\` for that). Opt out per-directory with \`.sdocsignore\` or per-file with \`sdocs-library: false\` in front matter. (\`sdoc library --help\` for the full reference.)
+- \`sdoc library\` - opens a library view containing files previously opened with \`sdoc path/to/file.md\`; filter by directory, date, or tags (the index doesn't search file content - fall back to \`grep\` for that). Opt out per-file with \`sdocs-library: false\` in front matter. (\`sdoc library --help\` for the full reference.)
 - \`sdoc file.md +tag1 +tag2\` - open the file and inject tags into its YAML front matter which persist. The \`+\` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
 - \`sdoc library ls --tags\` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - \`sdoc share file.md\` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.

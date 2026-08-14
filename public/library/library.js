@@ -38,7 +38,7 @@ function api(p) { return AGENT_URL + p; }
 // has a known behavioural problem worth nudging users away from.
 //
 // 1.11.0 added the throwaway-folder block and prune-missing on
-// rescan. Pre-1.11 installs can hang on Rescan because the walker
+// refresh. Pre-1.11 installs can hang while the old walker
 // dives into /var/folders and similar - so anything older than 1.11
 // gets a soft update prompt.
 const MIN_AGENT_VERSION = '1.11.0';
@@ -590,7 +590,7 @@ function renderResults() {
   const c = document.getElementById('results');
   if (!shown.length) {
     if (!STATE.entries.length) {
-      c.innerHTML = '<div class="empty">Library is empty.<div class="tip">Open a markdown file with <code>sdoc file.md</code> or click "rescan" to walk your home directory.</div></div>';
+      c.innerHTML = '<div class="empty">Library is empty.<div class="tip">Open a markdown file with <code>sdoc file.md</code> to add it.</div></div>';
     } else {
       c.innerHTML = '<div class="empty">No matches. Try removing a chip or refining your search.</div>';
     }
@@ -642,10 +642,9 @@ function renderStatus() {
     document.getElementById('status-line').textContent = cloud.workspaceName || 'Cloud';
     return;
   }
-  const last = STATE.lastScanAt ? new Date(STATE.lastScanAt).toLocaleString() : 'never';
   const enabledTxt = STATE.enabled ? '' : ' (disabled)';
   document.getElementById('status-line').textContent =
-    `${STATE.entries.length} entries, last scan ${last}${enabledTxt}`;
+    `${STATE.entries.length} entries${enabledTxt}`;
 }
 
 function renderAll() {
@@ -911,26 +910,6 @@ async function toggleStar(id, starred) {
   } catch (_) {}
 }
 
-async function rescan() {
-  if (isCloudMode()) return;
-  if (isDemoMode()) {
-    showDemoBanner();
-    return;
-  }
-  const btn = document.getElementById('rescan-btn');
-  btn.textContent = 'scanning...';
-  btn.disabled = true;
-  try {
-    await fetch(api('/api/library/rescan'), { method: 'POST' });
-    await loadData();
-  } catch (_) {
-    showBanner('Could not reach the local library agent.', 'error');
-  } finally {
-    btn.textContent = 'rescan';
-    btn.disabled = false;
-  }
-}
-
 // Open a library entry by asking the agent to start a Bridge for the
 // underlying file, then opening a bridged URL in a new tab. Live
 // editing (including tag edits) works because the Bridge is the single
@@ -1045,8 +1024,6 @@ document.getElementById('star-toggle').addEventListener('click', () => {
   renderAll();
 });
 
-document.getElementById('rescan-btn').addEventListener('click', rescan);
-
 document.getElementById('results').addEventListener('click', (e) => {
   const starBtn = e.target.closest('[data-star]');
   if (starBtn) {
@@ -1121,7 +1098,6 @@ if (!window.SDocsConnect ||
 }
 
 if (isCloudMode()) {
-  document.getElementById('rescan-btn').hidden = true;
   document.getElementById('star-toggle').hidden = true;
   document.getElementById('q').placeholder = 'search titles, tags, and document text...';
   const pathButton = document.querySelector('[data-facet="path"]');

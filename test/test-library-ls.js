@@ -40,8 +40,8 @@ module.exports = function (h) {
     assert.ok(lines[0].startsWith('library has no markdown indexed under '),
       'preamble should announce empty state with scope');
     assert.ok(lines[0].includes(SANDBOX), 'scope path appears in preamble');
-    assert.ok(lines.some(l => l.includes('sdoc library rebuild')),
-      'hint mentions rebuild');
+    assert.ok(lines.some(l => l.includes('sdoc <file>')),
+      'hint explains explicit indexing');
   });
 
   test('library ls: lists files with tags inline and closing count', () => {

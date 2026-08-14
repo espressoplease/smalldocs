@@ -13,6 +13,18 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v15 (unreleased)
+
+**Reason:** The local library now contains only files opened explicitly with
+`sdoc path/to/file.md`. Global home-directory scanning and the rebuild/rescan
+controls have been removed.
+
+The `sdoc library` skill entry now reads:
+
+```markdown
+- `sdoc library` - opens a library view containing files previously opened with `sdoc path/to/file.md`; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+```
+
 ## v14 (unreleased)
 
 **Reason:** Setup now installs a discoverable `SKILL.md` instead of pasting an

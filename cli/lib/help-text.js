@@ -151,7 +151,6 @@ LIBRARY (personal, on-machine index)
     sdoc library                Open the search UI.
     sdoc library ls             List indexed files in this project.
     sdoc library ls --tags      Tag bag (tag - count) for this project.
-    sdoc library rebuild        Walk \$HOME and refresh every entry.
     sdoc library status         Show enabled/disabled + entry count.
     sdoc library autostart      Manage the macOS LaunchAgent.
 
@@ -2751,14 +2750,8 @@ COMMANDS
                                           bag (tag - count, sorted by
                                           frequency). Run before tagging
                                           a new file to stay consistent.
-    sdoc library status                   Print enabled/disabled, entry
-                                          count, last scan time.
-
-  Refresh
-    sdoc library rebuild                  Walk \$HOME again from scratch
-                                          and refresh every entry. Use
-                                          after moving files around or
-                                          when an entry seems stale.
+    sdoc library status                   Print enabled/disabled and the
+                                          current entry count.
 
   On/off
     sdoc library enable                   Re-enable indexing-on-open if
@@ -2791,9 +2784,7 @@ COMMANDS
     sdoc library help                     Same.
 
 WHAT GETS INDEXED
-  Every file you open with \`sdoc <file>\` is recorded at open time.
-  \`sdoc library rebuild\` additionally walks \$HOME looking for
-  markdown that fits these rules:
+  Every file you open with \`sdoc <file>\` is recorded at open time when:
     - extension is .md, .mdx, or .markdown
     - size is at most 1 MB
     - not under a hidden directory (.git, .venv, .cache, ...)
@@ -2967,8 +2958,8 @@ PRIVACY MODEL
 
 COMMON QUESTIONS
   Q: I opened a file but I don't see it in the library.
-  A: Check \`sdoc library status\` (is it enabled?), then
-     \`sdoc library rebuild\`. If the file is in front matter
+  A: Check \`sdoc library status\` (is it enabled?), then open the file
+     again with \`sdoc <file>\`. If the file is in front matter
      \`sdocs-library: false\`, that's the opt-out. Also check for a
      .sdocsignore in the file's directory or any ancestor.
 
