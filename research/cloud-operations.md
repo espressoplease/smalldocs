@@ -279,7 +279,7 @@ Do not log request or response bodies for Cloud routes. In particular, exclude:
 
 Redact query parameters in proxy and platform access logs for OAuth callbacks, invitation acceptance, CLI authorization, and any route carrying a token or code. The application sets `Referrer-Policy: no-referrer` on OAuth redirects, but infrastructure access logs can still capture the incoming callback URL.
 
-The billing database records a SHA-256 digest of each raw Stripe webhook payload, not the payload itself. Cloud audit events contain opaque workspace, project, resource, user, and credential IDs plus action, result, and timestamp. Keep customer content out of audit rows, traces, metrics labels, exception metadata, and crash reports.
+The billing database records a SHA-256 digest of each raw Stripe webhook payload, not the payload itself. Subscription state records both the Stripe event creation time and the Stripe subscription creation time. Event time orders updates to one subscription; subscription creation time prevents a delayed event from an older subscription replacing its successor. Cloud audit events contain opaque workspace, project, resource, user, and credential IDs plus action, result, and timestamp. Keep customer content out of audit rows, traces, metrics labels, exception metadata, and crash reports.
 
 Development email-code logging is a local-only mechanism. Production startup configuration cannot enable it for a non-loopback public origin. Do not change that guard to diagnose mail delivery.
 

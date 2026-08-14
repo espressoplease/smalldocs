@@ -175,6 +175,22 @@ module.exports = function (harness) {
       assert.strictEqual(active.providerEventCreatedMs, 2000);
     });
 
+    test('a delayed event from an older Stripe subscription cannot replace its successor', () => {
+      const workspaceId = 'wrk_replaced_subscription';
+      billing.upsertSubscription({ workspaceId, plan: 'personal', status: 'active',
+        provider: 'stripe', providerSubscriptionId: 'sub_replaced_old',
+        providerSubscriptionCreatedMs: 1000, providerEventCreatedMs: 1000 });
+      billing.upsertSubscription({ workspaceId, plan: 'personal', status: 'active',
+        provider: 'stripe', providerSubscriptionId: 'sub_replaced_new',
+        providerSubscriptionCreatedMs: 2000, providerEventCreatedMs: 2000 });
+      const delayed = billing.upsertSubscription({ workspaceId, plan: 'personal', status: 'canceled',
+        provider: 'stripe', providerSubscriptionId: 'sub_replaced_old',
+        providerSubscriptionCreatedMs: 1000, providerEventCreatedMs: 3000 });
+      assert.strictEqual(delayed.status, 'active');
+      assert.strictEqual(delayed.providerSubscriptionId, 'sub_replaced_new');
+      assert.strictEqual(delayed.providerSubscriptionCreatedMs, 2000);
+    });
+
     test('provider identifiers cannot belong to two workspaces', () => {
       assert.throws(() => billing.upsertSubscription({
         workspaceId: 'wrk_collision', plan: 'team', status: 'active', seatQuantity: 2,

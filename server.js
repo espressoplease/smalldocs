@@ -1628,6 +1628,8 @@ function stripeSubscriptionInput(subscription, eventCreatedMs) {
       Number(process.env.CLOUD_PAYMENT_GRACE_MS || 7 * 24 * 60 * 60 * 1000) : null,
     canceledAtMs: subscription.canceled_at ? subscription.canceled_at * 1000 : null,
     providerEventCreatedMs: eventCreatedMs,
+    providerSubscriptionCreatedMs: Number.isSafeInteger(subscription.created)
+      ? subscription.created * 1000 : null,
   };
 }
 
