@@ -46,7 +46,8 @@ tar -C / -czf "$backup_archive" \
   etc/smalldocs/smalldocs.env \
   -C "$backup_work" metadata.txt
 chmod 0600 "$backup_archive"
-sha256sum "$backup_archive" > "$backup_checksum"
+(cd "$(dirname "$backup_archive")" && sha256sum "$(basename "$backup_archive")") \
+  > "$backup_checksum"
 chmod 0600 "$backup_checksum"
 
 restart_service
