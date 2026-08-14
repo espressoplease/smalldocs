@@ -58,6 +58,13 @@ module.exports = function(harness) {
     assert.ok(js.includes('collectStyles'), 'missing collectStyles usage');
   });
 
+  test('library HTML escaping protects text and quoted attributes', () => {
+    const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'library', 'library.js'), 'utf-8');
+    assert.match(js, /replace\(\/\[&<>"'\]\/[a-z]*/);
+    assert.ok(js.includes("'\"': '&quot;'"), 'double quotes are not escaped');
+    assert.ok(js.includes("\"'\": '&#39;'"), 'single quotes are not escaped');
+  });
+
   test('sdocs-theme.js has at least 20 Google Fonts', () => {
     const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'sdocs-theme.js'), 'utf-8');
     const m = js.match(/const GOOGLE_FONTS = \[([\s\S]*?)\]/);

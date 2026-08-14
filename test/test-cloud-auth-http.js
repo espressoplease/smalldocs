@@ -62,6 +62,13 @@ module.exports = function (harness) {
     assert.ok(value.includes('Max-Age=0'));
   });
 
+  test('cloud auth: HTTPS sessions ignore the insecure fallback cookie', () => {
+    const header = 'sdocs_cloud=insecure; __Host-sdocs_cloud=secure';
+    assert.strictEqual(AuthHttp.sessionTokenFromCookies(header, true), 'secure');
+    assert.strictEqual(AuthHttp.sessionTokenFromCookies('sdocs_cloud=insecure', true), undefined);
+    assert.strictEqual(AuthHttp.sessionTokenFromCookies(header, false), 'insecure');
+  });
+
   test('cloud auth: local HTTP cookie drops the secure host prefix', () => {
     const value = AuthHttp.sessionCookie('secret', { secure: false });
     assert.ok(value.startsWith('sdocs_cloud=secret;'));

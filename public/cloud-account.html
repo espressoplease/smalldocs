@@ -32,6 +32,11 @@
         <p>Restore a workspace before its deletion date. Its projects, documents, and revision history will return.</p>
         <div id="deleted-workspace-list"></div>
       </section>
+      <section id="deleted-documents" class="account-empty" hidden>
+        <strong>Recently deleted documents</strong>
+        <p>Restore a document before its deletion date to return it to the Cloud library.</p>
+        <div id="deleted-document-list"></div>
+      </section>
       <div class="account-actions">
         <a href="/library?scope=cloud">Open Cloud library</a>
         <form method="post" action="/api/cloud/auth/logout"><button type="submit">Sign out</button></form>

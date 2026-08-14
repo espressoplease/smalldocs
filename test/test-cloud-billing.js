@@ -164,6 +164,17 @@ module.exports = function (harness) {
       assert.strictEqual(updated.seatQuantity, 3);
     });
 
+    test('older provider events cannot overwrite newer subscription state', () => {
+      const workspaceId = 'wrk_ordered_events';
+      const active = billing.upsertSubscription({ workspaceId, plan: 'personal', status: 'active',
+        provider: 'stripe', providerSubscriptionId: 'sub_new', providerEventCreatedMs: 2000 });
+      const stale = billing.upsertSubscription({ workspaceId, plan: 'personal', status: 'canceled',
+        provider: 'stripe', providerSubscriptionId: 'sub_old', providerEventCreatedMs: 1000 });
+      assert.strictEqual(stale.status, 'active');
+      assert.strictEqual(stale.providerSubscriptionId, 'sub_new');
+      assert.strictEqual(active.providerEventCreatedMs, 2000);
+    });
+
     test('provider identifiers cannot belong to two workspaces', () => {
       assert.throws(() => billing.upsertSubscription({
         workspaceId: 'wrk_collision', plan: 'team', status: 'active', seatQuantity: 2,

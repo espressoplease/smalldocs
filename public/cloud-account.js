@@ -3,6 +3,8 @@
 
   const section = document.getElementById('deleted-workspaces');
   const list = document.getElementById('deleted-workspace-list');
+  const documentSection = document.getElementById('deleted-documents');
+  const documentList = document.getElementById('deleted-document-list');
 
   function showError(message) {
     const row = document.createElement('p');
@@ -51,6 +53,41 @@
     list.append(row);
   }
 
+  function renderDocument(documentItem) {
+    const row = document.createElement('div');
+    row.className = 'deleted-workspace-row';
+    const details = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = documentItem.title || documentItem.filename;
+    const status = document.createElement('p');
+    status.className = 'deleted-workspace-status';
+    status.textContent = documentItem.project.name + ' - available until ' +
+      new Date(documentItem.purge_after).toLocaleString();
+    details.append(name, status);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Restore';
+    button.addEventListener('click', async function () {
+      button.disabled = true;
+      button.textContent = 'Restoring...';
+      try {
+        const response = await fetch('/api/cloud/v1/documents/' + encodeURIComponent(documentItem.id) + '/restore', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_head_revision_id: documentItem.current_revision_id }),
+        });
+        if (!response.ok) throw new Error('restore_failed');
+        row.remove();
+        if (!documentList.children.length) documentSection.hidden = true;
+      } catch (_) {
+        button.disabled = false;
+        button.textContent = 'Restore';
+        status.textContent = 'Could not restore this document. Reload and try again.';
+      }
+    });
+    row.append(details, button);
+    documentList.append(row);
+  }
+
   fetch('/api/cloud/v1/workspaces/deleted', { headers: { Accept: 'application/json' } })
     .then(function (response) {
       if (!response.ok) throw new Error('load_failed');
@@ -64,5 +101,22 @@
     })
     .catch(function () {
       showError('Could not load recently deleted workspaces. Reload to try again.');
+    });
+
+  fetch('/api/cloud/v1/documents/deleted', { headers: { Accept: 'application/json' } })
+    .then(function (response) {
+      if (!response.ok) throw new Error('load_failed');
+      return response.json();
+    })
+    .then(function (body) {
+      const documents = Array.isArray(body.documents) ? body.documents : [];
+      documents.forEach(renderDocument);
+      documentSection.hidden = !documents.length;
+    })
+    .catch(function () {
+      const error = document.createElement('p');
+      error.textContent = 'Could not load recently deleted documents. Reload to try again.';
+      documentList.replaceChildren(error);
+      documentSection.hidden = false;
     });
 })();

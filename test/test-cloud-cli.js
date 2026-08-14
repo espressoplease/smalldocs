@@ -84,6 +84,14 @@ module.exports = function(harness) {
           return { document: { id: 'doc-1', current_revision_id: 'rev-2', revision_number: 2,
             updated_at: '2026-08-14T00:01:00.000Z', tags: ['release'], markdown: '# Release\nDone' } };
         }
+        if (endpoint === '/api/cloud/v1/documents/deleted') {
+          return { documents: [{ id: 'doc-1', title: 'Release', current_revision_id: 'rev-2',
+            purge_after: '2026-09-14T00:00:00.000Z' }] };
+        }
+        if (endpoint === '/api/cloud/v1/documents/doc-1/restore') {
+          return { document: { id: 'doc-1', current_revision_id: 'rev-2', revision_number: 2,
+            tags: ['release'] } };
+        }
         throw new Error('unexpected endpoint ' + endpoint);
       },
     };
@@ -150,6 +158,17 @@ module.exports = function(harness) {
       assert.strictEqual(bindings.get('usr-1', source).revision_id, 'rev-2');
     });
 
+    await testAsync('cloud push explicit identities override a stale local binding after conflict resolution', async () => {
+      fs.writeFileSync(source, '# Release\nMerged result');
+      const callStart = calls.length;
+      const result = await capture(() => runCloudCommand({ file: 'push', extra: source,
+        documentFlag: 'doc-1', baseRevisionFlag: 'rev-current', jsonFlag: true },
+      { client: fakeClient }));
+      const request = JSON.parse(calls.slice(callStart)[0].options.body);
+      assert.strictEqual(request.expected_head_revision_id, 'rev-current');
+      assert.strictEqual(result.base_revision_id, 'rev-current');
+    });
+
     await testAsync('cloud history returns stable revision JSON', async () => {
       const result = await capture(() => runCloudCommand({ file: 'history', extra: 'doc-1',
         jsonFlag: true }, { client: fakeClient }));
@@ -214,6 +233,16 @@ module.exports = function(harness) {
       assert.strictEqual(bindings.getOperationPending('usr-1', 'restore', 'doc-1:rev-1'), null);
     });
 
+    await testAsync('cloud deleted documents can be discovered and restored', async () => {
+      const deleted = await capture(() => runCloudCommand({ file: 'deleted', jsonFlag: true },
+        { client: fakeClient }));
+      assert.strictEqual(deleted.documents[0].current_revision_id, 'rev-2');
+      const restored = await capture(() => runCloudCommand({ file: 'undelete', extra: 'doc-1',
+        baseRevisionFlag: 'rev-2', jsonFlag: true }, { client: fakeClient }));
+      assert.strictEqual(restored.command, 'cloud.undelete');
+      assert.strictEqual(restored.revision_id, 'rev-2');
+    });
+
     await testAsync('cloud pull refuses to replace an unbound file without force', async () => {
       const output = path.join(dir, 'existing.md');
       fs.writeFileSync(output, 'local');
@@ -223,6 +252,72 @@ module.exports = function(harness) {
       assert.strictEqual(result.error, 'unsafe_local_state');
       assert.strictEqual(process.exitCode, 6);
       assert.strictEqual(fs.readFileSync(output, 'utf8'), 'local');
+    });
+
+    await testAsync('cloud pull protects bound paths and historical revisions', async () => {
+      const output = path.join(dir, 'bound-output.md');
+      fs.writeFileSync(output, '# Existing');
+      bindings.set('usr-1', output, { document_id: 'doc-other', revision_id: 'rev-other',
+        content_sha256: bindings.hash('# Existing') });
+      const different = await capture(() => runCloudCommand({ file: 'pull', extra: 'doc-1',
+        outputPath: output, jsonFlag: true }, { client: fakeClient }));
+      assert.strictEqual(different.error, 'unsafe_local_state');
+      const noBind = await capture(() => runCloudCommand({ file: 'pull', extra: 'doc-1',
+        outputPath: output, noBindFlag: true, jsonFlag: true }, { client: fakeClient }));
+      assert.strictEqual(noBind.error, 'unsafe_local_state');
+      const historicalOutput = path.join(dir, 'historical.md');
+      const historical = await capture(() => runCloudCommand({ file: 'pull', extra: 'doc-1',
+        revisionFlag: 'rev-1', outputPath: historicalOutput, jsonFlag: true }, { client: fakeClient }));
+      assert.strictEqual(historical.error, 'unsafe_local_state');
+      assert.strictEqual(fs.existsSync(historicalOutput), false);
+    });
+
+    await testAsync('cloud search sends tag filters before the server limit', async () => {
+      let requestBody;
+      const searchClient = {
+        async authenticated(endpoint, options) {
+          assert.strictEqual(endpoint, '/api/cloud/v1/search');
+          requestBody = JSON.parse(options.body);
+          return { documents: [{ id: 'doc-tagged', tags: ['platform'] }] };
+        },
+      };
+      const result = await capture(() => runCloudCommand({ file: 'search', extra: 'kubernetes',
+        tagFilters: ['platform'], limitFlag: 1, jsonFlag: true }, { client: searchClient }));
+      assert.deepStrictEqual(requestBody.tags, ['platform']);
+      assert.strictEqual(requestBody.limit, 1);
+      assert.strictEqual(result.documents[0].id, 'doc-tagged');
+    });
+
+    await testAsync('local Cloud file commands report login_required before using account state', async () => {
+      const noCredential = { loadCredential() { return null; } };
+      const commands = [
+        { file: 'create', extra: source, projectFlag: 'project-1', jsonFlag: true },
+        { file: 'pull', extra: 'doc-1', outputPath: path.join(dir, 'signed-out.md'), jsonFlag: true },
+        { file: 'push', extra: source, jsonFlag: true },
+      ];
+      for (const opts of commands) {
+        const result = await captureStreams(() => runCloudCommand(opts, { client: noCredential }));
+        const body = JSON.parse(result.stdout);
+        assert.strictEqual(body.error, 'login_required');
+        assert.strictEqual(result.exitCode, 3);
+        assert.strictEqual(result.stderr, '');
+      }
+    });
+
+    await testAsync('Cloud network failures have stable temporary-service JSON and exit behavior', async () => {
+      const client = new CloudClient({
+        origin: 'https://cloud.test',
+        credentials: { load() { return account; }, save() {}, remove() {} },
+        fetch: async () => { throw new Error('socket closed'); },
+      });
+      const result = await captureStreams(() => runCloudCommand({ file: 'status', jsonFlag: true }, { client }));
+      const body = JSON.parse(result.stdout);
+      assert.strictEqual(body.ok, false);
+      assert.strictEqual(body.command, 'cloud.status');
+      assert.strictEqual(body.error, 'temporary_service_failure');
+      assert.strictEqual(body.message, 'Could not reach SmallDocs Cloud.');
+      assert.strictEqual(result.exitCode, 7);
+      assert.strictEqual(result.stderr, '');
     });
 
     await testAsync('cloud create explains a required subscription and exits nonzero', async () => {

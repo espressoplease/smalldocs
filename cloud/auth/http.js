@@ -76,6 +76,11 @@ function clearSessionCookie(options) {
   return sessionCookie('', Object.assign({}, options, { maxAge: 0 }));
 }
 
+function sessionTokenFromCookies(cookieHeader, secure) {
+  const cookies = parseCookies(cookieHeader);
+  return secure ? cookies['__Host-sdocs_cloud'] : cookies.sdocs_cloud;
+}
+
 function csrfToken() {
   return crypto.randomBytes(24).toString('base64url');
 }
@@ -138,6 +143,7 @@ module.exports = {
   parseCookies,
   sessionCookie,
   clearSessionCookie,
+  sessionTokenFromCookies,
   csrfToken,
   timingSafeEqualString,
   sameOrigin,

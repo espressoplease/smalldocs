@@ -243,7 +243,7 @@ function wireClose(dialog) {
   dialog.querySelector('.sdoc-cloud-proto-close').addEventListener('click', closeDialog);
 }
 
-async function openProjectDialog() {
+async function openProjectDialog(preferredWorkspaceId) {
   var backdrop = ensureDialog();
   var dialog = backdrop.querySelector('.sdoc-cloud-proto-dialog');
   backdrop.hidden = false;
@@ -278,6 +278,12 @@ async function openProjectDialog() {
         select.appendChild(option);
       });
     });
+    if (preferredWorkspaceId) {
+      var preferred = Array.prototype.find.call(select.options, function (option) {
+        return option.dataset.workspaceId === preferredWorkspaceId;
+      });
+      if (preferred) select.value = preferred.value;
+    }
     add.disabled = !select.options.length;
   } catch (error) {
     select.replaceChildren(Object.assign(document.createElement('option'), { textContent: 'Projects unavailable' }));
@@ -399,10 +405,18 @@ async function openRevisionHistory() {
     '<p class="sdoc-cloud-proto-note" data-history-status>Loading revisions...</p>');
   wireClose(dialog);
   try {
-    var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id) + '/revisions');
+    var revisions = [];
+    var cursor = null;
+    do {
+      var endpoint = '/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id) +
+        '/revisions?limit=100' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+      var page = await jsonRequest(endpoint);
+      revisions = revisions.concat(page.revisions || []);
+      cursor = page.next_cursor || null;
+    } while (cursor);
     var list = document.createElement('div');
     list.className = 'sdoc-cloud-revision-list';
-    (data.revisions || []).forEach(function (revision) {
+    revisions.forEach(function (revision) {
       var row = document.createElement('div');
       row.className = 'sdoc-cloud-revision-row';
       var details = document.createElement('div');
@@ -509,6 +523,34 @@ function start() {
     new MutationObserver(function () { insertRow(); }).observe(card, { childList: true, subtree: true });
   }
   insertRow();
+  var params = new URLSearchParams(location.search);
+  if (params.get('checkout') === 'success' && params.get('workspace_id')) {
+    var workspaceId = params.get('workspace_id');
+    var url = new URL(location.href);
+    url.searchParams.delete('checkout');
+    url.searchParams.delete('workspace_id');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    waitForSubscription(workspaceId, 0);
+  }
+}
+
+function waitForSubscription(workspaceId, attempt) {
+  jsonRequest('/api/cloud/v1/workspaces/' + encodeURIComponent(workspaceId) + '/billing')
+    .then(function (data) {
+      if (data.billing && data.billing.access && data.billing.access.write) {
+        openProjectDialog(workspaceId);
+        return;
+      }
+      if (attempt >= 9) throw new Error('subscription_pending');
+      setTimeout(function () { waitForSubscription(workspaceId, attempt + 1); }, 1000);
+    })
+    .catch(function () {
+      if (attempt < 9) {
+        setTimeout(function () { waitForSubscription(workspaceId, attempt + 1); }, 1000);
+      } else {
+        openErrorDialog('Payment was accepted, but Cloud access is still being activated. Try Add to Cloud again in a moment.');
+      }
+    });
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);

@@ -9,9 +9,13 @@ const bindings = require('./cloud-bindings');
 
 const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
   resource_unavailable: 4, permission_denied: 4, revision_conflict: 5,
+  idempotency_mismatch: 5,
   unsafe_local_state: 6, base_revision_unavailable: 6, rate_limited: 7,
-  temporary_service_failure: 7, subscription_required: 4,
-  subscription_read_only: 4, payment_grace_expired: 4 };
+  search_limit_reached: 7, temporary_service_failure: 7, billing_not_configured: 7,
+  authentication_not_configured: 7, cloud_storage_not_configured: 7,
+  subscription_required: 4, subscription_read_only: 4, payment_grace_expired: 4,
+  storage_limit_exceeded: 4, project_limit_reached: 4, member_limit_reached: 4,
+  file_too_large: 2 };
 
 const CLOUD_HELP = `SmallDocs Cloud
 
@@ -24,10 +28,12 @@ const CLOUD_HELP = `SmallDocs Cloud
   sdoc cloud search QUERY [--project UUID] [--tag TAG] [--limit N]
   sdoc cloud create PATH --project UUID
   sdoc cloud pull DOCUMENT_UUID [--revision UUID] --output PATH [--no-bind]
-  sdoc cloud push PATH
+  sdoc cloud push PATH [--document UUID --base-revision UUID]
   sdoc cloud history DOCUMENT_UUID
   sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID
   sdoc cloud delete DOCUMENT_UUID --base-revision UUID
+  sdoc cloud deleted
+  sdoc cloud undelete DOCUMENT_UUID --base-revision UUID
 
 Add --json to any command for one machine-readable JSON object on stdout.`;
 
@@ -70,8 +76,17 @@ class CloudClient {
   saveCredential(value) { this.credentials.save(this.origin, value); }
 
   async raw(endpoint, options) {
-    const response = await this.fetch(this.origin + endpoint, options || {});
-    const data = await response.json().catch(() => ({}));
+    let response;
+    try { response = await this.fetch(this.origin + endpoint, options || {}); }
+    catch (error) {
+      throw new CloudCommandError('temporary_service_failure',
+        'Could not reach SmallDocs Cloud.', { cause: error && error.message });
+    }
+    const data = await response.json().catch(() => null);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new CloudCommandError('temporary_service_failure',
+        'SmallDocs Cloud returned an invalid response.', { http_status: response.status });
+    }
     return { response, data };
   }
 
@@ -239,11 +254,13 @@ async function tags(opts, client) {
 
 async function search(opts, client) {
   if (!opts.extra) throw new CloudCommandError('invalid_request', 'usage: sdoc cloud search QUERY');
+  const limit = requestedLimit(opts.limitFlag, 50);
   const response = await client.authenticated('/api/cloud/v1/search', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: opts.extra, project_id: opts.projectFlag, limit: opts.limitFlag || 50 }),
+    body: JSON.stringify({ query: opts.extra, project_id: opts.projectFlag,
+      tags: opts.tagFilters, limit }),
   });
-  const documents = filterTags(response.documents || [], opts.tagFilters);
+  const documents = response.documents || [];
   emit(opts, 'cloud.search', { documents, next_cursor: null }, documents.map((document) =>
     document.id + '  ' + document.title + '\n  ' + ((document.matches && document.matches[0] && document.matches[0].snippet) || '')).join('\n') || 'No matches.');
 }
@@ -257,12 +274,18 @@ function requireFile(file) {
   return absolute;
 }
 
+function requireCredential(client) {
+  const credential = client.loadCredential();
+  if (!credential) throw new CloudCommandError('login_required', 'Run `sdoc cloud login`.');
+  return credential;
+}
+
 async function create(opts, client) {
   const file = requireFile(opts.extra);
   if (!opts.projectFlag) throw new CloudCommandError('invalid_request', '--project UUID is required');
   const content = fs.readFileSync(file, 'utf8');
   const digest = bindings.hash(content);
-  const credential = client.loadCredential();
+  const credential = requireCredential(client);
   let pending = bindings.getPending(credential.user_id, file);
   if (!pending || pending.operation !== 'create' || pending.project_id !== opts.projectFlag || pending.sha256 !== digest) {
     pending = { operation: 'create', project_id: opts.projectFlag, sha256: digest,
@@ -298,8 +321,20 @@ async function pull(opts, client) {
   if (!documentId || !opts.outputPath) throw new CloudCommandError('invalid_request',
     'usage: sdoc cloud pull DOCUMENT_UUID --output PATH');
   const output = bindings.canonical(opts.outputPath);
-  const credential = client.loadCredential();
+  const credential = requireCredential(client);
   const existingBinding = bindings.get(credential.user_id, output);
+  if (opts.noBindFlag && existingBinding) {
+    throw new CloudCommandError('unsafe_local_state',
+      '--no-bind requires an output path that is not already bound');
+  }
+  if (opts.revisionFlag && !opts.noBindFlag) {
+    throw new CloudCommandError('unsafe_local_state',
+      'pulling a historical revision requires --no-bind');
+  }
+  if (existingBinding && existingBinding.document_id !== documentId && !opts.forceFlag) {
+    throw new CloudCommandError('unsafe_local_state',
+      'output is bound to a different Cloud document; use --force to replace and rebind it');
+  }
   if (fs.existsSync(output) && !existingBinding && !opts.forceFlag) {
     throw new CloudCommandError('unsafe_local_state', 'output exists and is not bound; use --force to replace it');
   }
@@ -327,12 +362,18 @@ async function pull(opts, client) {
 
 async function push(opts, client) {
   const file = requireFile(opts.extra);
-  const credential = client.loadCredential();
-  let binding = bindings.get(credential.user_id, file);
-  if (!binding) {
-    if (!opts.documentFlag || !opts.baseRevisionFlag) throw new CloudCommandError('unsafe_local_state',
-      'file is not bound; provide both --document and --base-revision');
+  const credential = requireCredential(client);
+  const hasExplicitBinding = opts.documentFlag || opts.baseRevisionFlag;
+  if (hasExplicitBinding && (!opts.documentFlag || !opts.baseRevisionFlag)) {
+    throw new CloudCommandError('unsafe_local_state',
+      'provide both --document and --base-revision');
+  }
+  let binding = hasExplicitBinding ? null : bindings.get(credential.user_id, file);
+  if (hasExplicitBinding) {
     binding = { document_id: opts.documentFlag, revision_id: opts.baseRevisionFlag };
+  } else if (!binding) {
+    throw new CloudCommandError('unsafe_local_state',
+      'file is not bound; provide both --document and --base-revision');
   }
   const content = fs.readFileSync(file, 'utf8');
   const digest = bindings.hash(content);
@@ -447,6 +488,29 @@ async function deleteDocument(opts, client) {
     purge_after: document.purge_after }, 'Deleted ' + document.id + '.');
 }
 
+async function deletedDocuments(opts, client) {
+  const response = await client.authenticated('/api/cloud/v1/documents/deleted');
+  const documents = response.documents || [];
+  emit(opts, 'cloud.deleted', { documents }, documents.map((document) =>
+    document.id + '  ' + document.title + '  restore before ' + document.purge_after).join('\n') ||
+    'No deleted Cloud documents.');
+}
+
+async function undeleteDocument(opts, client) {
+  const documentId = opts.extra;
+  if (!documentId || !opts.baseRevisionFlag) throw new CloudCommandError('invalid_request',
+    'usage: sdoc cloud undelete DOCUMENT_UUID --base-revision UUID');
+  const response = await client.authenticated('/api/cloud/v1/documents/' +
+    encodeURIComponent(documentId) + '/restore', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expected_head_revision_id: opts.baseRevisionFlag }),
+  });
+  const document = response.document;
+  emit(opts, 'cloud.undelete', { document_id: document.id,
+    revision_id: document.current_revision_id, revision_number: document.revision_number,
+    tags: document.tags }, 'Restored ' + document.id + '.');
+}
+
 async function status(opts, client) {
   const me = await client.authenticated('/api/cloud/v1/me');
   const credential = client.loadCredential();
@@ -473,6 +537,8 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'history') return await history(opts, client);
     if (action === 'restore') return await restore(opts, client);
     if (action === 'delete') return await deleteDocument(opts, client);
+    if (action === 'deleted') return await deletedDocuments(opts, client);
+    if (action === 'undelete') return await undeleteDocument(opts, client);
     throw new CloudCommandError('invalid_request', 'unknown Cloud command: ' + action);
   } catch (error) {
     fail(opts, command, error);

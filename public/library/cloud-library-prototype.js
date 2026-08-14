@@ -125,7 +125,13 @@
     window.SDocsCloudLibrary.workspaces = workspaces;
     const note = heading.querySelector('.cloud-access-note');
     if (note) note.textContent = me.email ? 'Signed in as ' + me.email : 'Signed in';
-    if (workspaces.length) selectWorkspace(workspaces[0]);
+    if (workspaces.length) {
+      var requestedWorkspaceId = params.get('workspace');
+      var selectedWorkspace = workspaces.find(function (workspace) {
+        return workspace.id === requestedWorkspaceId;
+      }) || workspaces[0];
+      selectWorkspace(selectedWorkspace);
+    }
   }).catch(function () {
     const note = heading.querySelector('.cloud-access-note');
     if (note) note.textContent = 'Cloud is temporarily unavailable';

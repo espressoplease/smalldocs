@@ -25,6 +25,7 @@ Keep secrets in the deployment secret manager, not an environment file committed
 | `SDOCS_DEV` | No in production | Enables general development cache behavior. Leave unset in production. |
 | `TRUST_PROXY` | Only behind a trusted proxy | Set to `1` only when the immediate proxy overwrites `X-Forwarded-For`. Otherwise a client can choose the address used by rate limits. When unset, the socket address is used. |
 | `CLOUD_AUTH_PUBLIC_ORIGIN` | Yes | Exact public HTTP or HTTPS origin, without a path, query, credentials, or fragment. Production must use the externally visible HTTPS origin. It determines callback URLs, cookie security, same-origin checks, checkout returns, and invitation links. |
+| `CLOUD_RECENT_AUTH_MS` | Recommended | Maximum browser-session age for billing, export, ownership, membership, invitations, and workspace deletion or recovery. Defaults to 30 minutes. CLI bearer credentials cannot call these routes. |
 
 ### 2.2 Authentication and OAuth
 
@@ -105,8 +106,23 @@ These variables bound one in-memory search operation. They are technical safety 
 | `CLOUD_SEARCH_MAX_DOCUMENTS` | Maximum current documents decrypted and scanned. This is not a document-count subscription limit. |
 | `CLOUD_SEARCH_MAX_BYTES` | Maximum uncompressed bytes scanned. |
 | `CLOUD_SEARCH_DEADLINE_MS` | Wall-clock deadline for the scan. |
+| `CLOUD_SEARCH_SOURCE_LIMIT` | Search requests permitted from one source address in the source window. Defaults to 60. |
+| `CLOUD_SEARCH_SOURCE_WINDOW_MS` | Source-address search window. Defaults to one minute. |
 
 The store applies internal defaults and hard caps when these variables are absent or out of range. Choose production values through load and memory testing. Search decrypts authorized current revisions in application memory and does not persist a keyword index.
+
+Workspace creation and invitation delivery have additional abuse limits:
+
+| Variable | Meaning |
+| --- | --- |
+| `CLOUD_WORKSPACE_CREATE_SOURCE_LIMIT` | Team workspace creations permitted from one source address. Defaults to 10. |
+| `CLOUD_WORKSPACE_CREATE_SOURCE_WINDOW_MS` | Source-address workspace-creation window. Defaults to one hour. |
+| `CLOUD_WORKSPACE_CREATE_USER_LIMIT` | Team workspace creations permitted by one user. Defaults to 5. |
+| `CLOUD_WORKSPACE_CREATE_USER_WINDOW_MS` | Per-user workspace-creation window. Defaults to one day. |
+| `CLOUD_INVITATION_SOURCE_LIMIT` | Invitations permitted from one source address. Defaults to 30. |
+| `CLOUD_INVITATION_SOURCE_WINDOW_MS` | Source-address invitation window. Defaults to one hour. |
+| `CLOUD_INVITATION_WORKSPACE_LIMIT` | Invitations permitted for one user and workspace. Defaults to 100. |
+| `CLOUD_INVITATION_WORKSPACE_WINDOW_MS` | User-workspace invitation window. Defaults to one day. |
 
 ### 2.6 Billing and Stripe
 

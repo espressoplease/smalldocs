@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 15;
-const SKILL_REASON  = 'The local library now contains only files opened explicitly with sdoc; global home-directory scanning has been removed.';
+const SKILL_VERSION = 16;
+const SKILL_REASON  = 'Agents can now discover and use persistent SmallDocs Cloud commands for projects, search, revisions, and headless document updates.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -55,6 +55,18 @@ Use it (or offer it) when the user wants to read, share, or export a \`.md\` fil
 - \`sdoc library ls --tags\` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
 - \`sdoc share file.md\` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
 - \`sdoc --help\` - full reference.
+
+### SmallDocs Cloud for agents
+
+Cloud is the paid, authenticated document store. Local SmallDocs remains free. Run \`sdoc cloud login\` once on a machine; the revocable CLI credential persists across agent sessions. Run \`sdoc cloud --help\` before using the commands, and add \`--json\` when you need one stable machine-readable object on stdout.
+
+- Discover destinations and vocabulary with \`sdoc cloud projects\` and \`sdoc cloud tags --project PROJECT_UUID\`.
+- Find documents by UUID with \`sdoc cloud ls\` or content search with \`sdoc cloud search "QUERY"\`. Both accept project and tag filters.
+- Upload a new local file without opening a browser with \`sdoc cloud create FILE.md --project PROJECT_UUID --json\`.
+- Edit an existing document with \`sdoc cloud pull DOCUMENT_UUID --output FILE.md\`, normal file tools, then \`sdoc cloud push FILE.md --json\`. The local binding supplies the expected base revision and prevents silent overwrite conflicts.
+- Inspect or recover history with \`sdoc cloud history DOCUMENT_UUID\` and \`sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID\`.
+
+Cloud documents are identified by UUID, not filename. A project is the access boundary; tags organize workstreams inside it. Cloud commands other than login are noninteractive. Do not use \`sdoc share\` as a substitute for Cloud: share creates an encrypted snapshot link, while Cloud provides revisions, search, membership, and persistent agent access.
 
 ### SmallDocs expands what you can create with Markdown
 

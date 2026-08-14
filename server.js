@@ -715,8 +715,8 @@ function cloudAuthPostAllowed(req, res) {
 
 function cloudAuthSession(req) {
   if (!cloudAuth) return { ok: false, reason: 'not_configured' };
-  const cookies = cloudAuthHttp.parseCookies(req.headers.cookie);
-  const token = cookies['__Host-sdocs_cloud'] || cookies.sdocs_cloud;
+  const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
+  const token = cloudAuthHttp.sessionTokenFromCookies(req.headers.cookie, secure);
   return cloudAuth.authenticateSession(token);
 }
 
@@ -740,8 +740,11 @@ function cloudApiError(res, error) {
     member_limit_reached: 409,
     search_limit_reached: 429,
     billing_not_configured: 503,
+    subscription_exists: 409,
+    active_subscription_requires_cancellation: 409,
     rate_limited: 429,
     invalid_token: 401,
+    recent_auth_required: 401,
     token_reuse: 401,
     temporary_service_failure: 503,
   };
@@ -766,7 +769,16 @@ function cloudApiPrincipal(req, res) {
     sendJson(res, 401, { ok: false, error: 'login_required' });
     return null;
   }
-  return { user: authenticated.user, credential: authenticated.credential || null };
+  return { user: authenticated.user, credential: authenticated.credential || null,
+    session: authenticated.session || null };
+}
+
+function requireRecentBrowser(principal) {
+  const maxAgeMs = Number(process.env.CLOUD_RECENT_AUTH_MS) || 30 * 60 * 1000;
+  if (!principal || principal.credential || !principal.session ||
+      Date.now() - principal.session.createdAtMs > maxAgeMs) {
+    throw Object.assign(new Error('recent_auth_required'), { code: 'recent_auth_required' });
+  }
 }
 
 function cloudApiMutationAllowed(req, res) {
@@ -880,6 +892,15 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (req.method === 'POST' && pathname === base + '/workspaces') {
+      const sourceRate = cloudAuth.consumeRateLimit({ action: 'cloud_workspace_create_source',
+        key: getClientIp(req), limit: Number(process.env.CLOUD_WORKSPACE_CREATE_SOURCE_LIMIT) || 10,
+        windowMs: Number(process.env.CLOUD_WORKSPACE_CREATE_SOURCE_WINDOW_MS) || 60 * 60 * 1000 });
+      const userRate = cloudAuth.consumeRateLimit({ action: 'cloud_workspace_create_user',
+        key: user.id, limit: Number(process.env.CLOUD_WORKSPACE_CREATE_USER_LIMIT) || 5,
+        windowMs: Number(process.env.CLOUD_WORKSPACE_CREATE_USER_WINDOW_MS) || 24 * 60 * 60 * 1000 });
+      if (!sourceRate.allowed || !userRate.allowed) {
+        throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
+      }
       const body = await cloudAuthHttp.readJson(req);
       const workspace = cloudStore.createTeamWorkspace({
         userId: user.id, name: body.name, projectName: body.project_name || 'Documents',
@@ -917,6 +938,7 @@ async function handleCloudApi(req, res, url) {
     }
     const workspaceBillingPortalMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/billing\/portal$/);
     if (workspaceBillingPortalMatch && req.method === 'POST') {
+      requireRecentBrowser(principal);
       if (!cloudStripe || !cloudBilling) throw Object.assign(new Error('billing_not_configured'),
         { code: 'billing_not_configured' });
       const workspace = cloudStore.listWorkspaces(user.id).find((item) =>
@@ -964,6 +986,7 @@ async function handleCloudApi(req, res, url) {
     }
     const workspaceExportMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/export$/);
     if (workspaceExportMatch && req.method === 'POST') {
+      requireRecentBrowser(principal);
       requireCloudEntitlement(user.id, workspaceExportMatch[1], 'read');
       const exported = cloudStore.exportWorkspace({ userId: user.id,
         workspaceId: workspaceExportMatch[1], includeRevisions: true });
@@ -980,6 +1003,17 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (workspaceInvitationsMatch && req.method === 'POST') {
+      requireRecentBrowser(principal);
+      const sourceRate = cloudAuth.consumeRateLimit({ action: 'cloud_invitation_source',
+        key: getClientIp(req), limit: Number(process.env.CLOUD_INVITATION_SOURCE_LIMIT) || 30,
+        windowMs: Number(process.env.CLOUD_INVITATION_SOURCE_WINDOW_MS) || 60 * 60 * 1000 });
+      const workspaceRate = cloudAuth.consumeRateLimit({ action: 'cloud_invitation_workspace',
+        key: user.id + ':' + workspaceInvitationsMatch[1],
+        limit: Number(process.env.CLOUD_INVITATION_WORKSPACE_LIMIT) || 100,
+        windowMs: Number(process.env.CLOUD_INVITATION_WORKSPACE_WINDOW_MS) || 24 * 60 * 60 * 1000 });
+      if (!sourceRate.allowed || !workspaceRate.allowed) {
+        throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
+      }
       const body = await cloudAuthHttp.readJson(req);
       requireCloudEntitlement(user.id, workspaceInvitationsMatch[1], 'manage');
       const invitation = cloudStore.createInvitation({
@@ -1009,6 +1043,7 @@ async function handleCloudApi(req, res, url) {
     const workspaceInvitationMatch = pathname.match(
       /^\/api\/cloud\/v1\/workspaces\/([^/]+)\/invitations\/([^/]+)$/);
     if (workspaceInvitationMatch && req.method === 'DELETE') {
+      requireRecentBrowser(principal);
       const invitation = cloudStore.revokeWorkspaceInvitation({
         userId: user.id, workspaceId: workspaceInvitationMatch[1],
         invitationId: workspaceInvitationMatch[2],
@@ -1018,6 +1053,7 @@ async function handleCloudApi(req, res, url) {
     }
     const workspaceMemberMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/members\/([^/]+)$/);
     if (workspaceMemberMatch && req.method === 'DELETE') {
+      requireRecentBrowser(principal);
       cloudStore.removeWorkspaceMember({ actorUserId: user.id,
         workspaceId: workspaceMemberMatch[1], userId: workspaceMemberMatch[2] });
       try { await syncTeamSeatQuantity(workspaceMemberMatch[1]); }
@@ -1030,6 +1066,7 @@ async function handleCloudApi(req, res, url) {
     }
     const workspaceOwnersMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/owners$/);
     if (workspaceOwnersMatch && req.method === 'POST') {
+      requireRecentBrowser(principal);
       const body = await cloudAuthHttp.readJson(req);
       const ownership = cloudStore.transferWorkspaceOwnership({
         actorUserId: user.id, workspaceId: workspaceOwnersMatch[1], targetUserId: body.user_id,
@@ -1039,6 +1076,7 @@ async function handleCloudApi(req, res, url) {
     }
     const workspaceRestoreMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/restore$/);
     if (workspaceRestoreMatch && req.method === 'POST') {
+      requireRecentBrowser(principal);
       const restored = cloudStore.restoreWorkspace({
         userId: user.id, workspaceId: workspaceRestoreMatch[1],
       });
@@ -1047,6 +1085,13 @@ async function handleCloudApi(req, res, url) {
     }
     const workspaceMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)$/);
     if (workspaceMatch && req.method === 'DELETE') {
+      requireRecentBrowser(principal);
+      const subscription = cloudBilling && cloudBilling.getSubscription(workspaceMatch[1]);
+      if (subscription && subscription.provider === 'stripe' &&
+          ['active', 'past_due'].includes(subscription.status)) {
+        throw Object.assign(new Error('active_subscription_requires_cancellation'),
+          { code: 'active_subscription_requires_cancellation' });
+      }
       const configuredWindow = Number(process.env.CLOUD_WORKSPACE_RESTORE_WINDOW_MS);
       const deleted = cloudStore.deleteWorkspace({
         userId: user.id, workspaceId: workspaceMatch[1],
@@ -1137,26 +1182,62 @@ async function handleCloudApi(req, res, url) {
     }
     if (req.method === 'POST' && pathname === base + '/search') {
       const body = await cloudAuthHttp.readJson(req);
-      if (body.workspace_id) requireCloudEntitlement(user.id, body.workspace_id, 'search');
-      if (body.project_id) {
-        const project = cloudStore.getProjectContext({ userId: user.id, projectId: body.project_id });
-        requireCloudEntitlement(user.id, project.workspaceId, 'search');
+      const sourceRate = cloudAuth.consumeRateLimit({ action: 'cloud_search_source',
+        key: getClientIp(req), limit: Number(process.env.CLOUD_SEARCH_SOURCE_LIMIT) || 60,
+        windowMs: Number(process.env.CLOUD_SEARCH_SOURCE_WINDOW_MS) || 60000 });
+      if (!sourceRate.allowed) throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
+      const visibleWorkspaces = cloudStore.listWorkspaces(user.id);
+      let projectId = body.project_id || null;
+      let workspaceIds;
+      if (projectId) {
+        const project = cloudStore.getProjectContext({ userId: user.id, projectId });
+        workspaceIds = [project.workspaceId];
+      } else if (body.workspace_id) {
+        if (!visibleWorkspaces.some((workspace) => workspace.id === body.workspace_id)) {
+          throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+        }
+        workspaceIds = [body.workspace_id];
+      } else {
+        workspaceIds = visibleWorkspaces.map((workspace) => workspace.id);
       }
-      const documents = cloudStore.search({ userId: user.id, query: body.query,
-        projectId: body.project_id, workspaceId: body.workspace_id, limit: body.limit,
-        maxProjects: Number(process.env.CLOUD_SEARCH_MAX_PROJECTS) || undefined,
-        maxDocuments: Number(process.env.CLOUD_SEARCH_MAX_DOCUMENTS) || undefined,
-        maxBytes: Number(process.env.CLOUD_SEARCH_MAX_BYTES) || undefined,
-        deadlineMs: Number(process.env.CLOUD_SEARCH_DEADLINE_MS) || undefined });
-      const allowedDocuments = cloudBilling && !body.workspace_id && !body.project_id
-        ? documents.filter((document) => {
-            try {
-              const context = cloudStore.getDocumentContext({ userId: user.id, documentId: document.id });
-              requireCloudEntitlement(user.id, context.workspaceId, 'search');
-              return true;
-            } catch (_) { return false; }
-          }) : documents;
-      sendJson(res, 200, { ok: true, documents: allowedDocuments, next_cursor: null });
+      const searchable = [];
+      let entitlementFailure = null;
+      workspaceIds.forEach((workspaceId) => {
+        try {
+          const entitlements = requireCloudEntitlement(user.id, workspaceId, 'search');
+          const limits = entitlements && entitlements.limits && entitlements.limits.search;
+          if (limits && limits.maxRequests && limits.windowMs) {
+            const budget = cloudAuth.consumeRateLimit({ action: 'cloud_search_workspace',
+              key: user.id + ':' + workspaceId, limit: limits.maxRequests, windowMs: limits.windowMs });
+            if (!budget.allowed) throw Object.assign(new Error('search_limit_reached'),
+              { code: 'search_limit_reached' });
+          }
+          searchable.push(workspaceId);
+        } catch (error) {
+          entitlementFailure = entitlementFailure || error;
+        }
+      });
+      if (!searchable.length && entitlementFailure) throw entitlementFailure;
+      const requestedSearchLimit = Math.max(1, Math.min(Number(body.limit) || 50, 100));
+      const documents = [];
+      searchable.forEach((workspaceId) => {
+        documents.push(...cloudStore.search({ userId: user.id, query: body.query,
+          projectId, workspaceId, tags: body.tags, limit: requestedSearchLimit,
+          maxProjects: Number(process.env.CLOUD_SEARCH_MAX_PROJECTS) || undefined,
+          maxDocuments: Number(process.env.CLOUD_SEARCH_MAX_DOCUMENTS) || undefined,
+          maxBytes: Number(process.env.CLOUD_SEARCH_MAX_BYTES) || undefined,
+          deadlineMs: Number(process.env.CLOUD_SEARCH_DEADLINE_MS) || undefined }));
+      });
+      documents.sort((a, b) => b.updated_at.localeCompare(a.updated_at) || a.id.localeCompare(b.id));
+      sendJson(res, 200, { ok: true, documents: documents.slice(0, requestedSearchLimit),
+        next_cursor: null });
+      return;
+    }
+
+    if (req.method === 'GET' && pathname === base + '/documents/deleted') {
+      sendJson(res, 200, { ok: true, documents: cloudStore.listDeletedDocuments({
+        userId: user.id, workspaceId: url.searchParams.get('workspace_id') || null,
+      }) });
       return;
     }
 
@@ -1171,7 +1252,7 @@ async function handleCloudApi(req, res, url) {
     if (documentMatch && req.method === 'DELETE') {
       const body = await cloudAuthHttp.readJson(req);
       const context = cloudStore.getDocumentContext({ userId: user.id,
-        documentId: documentMatch[1], requiredRole: 'editor' });
+        documentId: documentMatch[1], requiredRole: 'editor', includeDeleted: true });
       requireCloudEntitlement(user.id, context.workspaceId, 'manage');
       const deleted = cloudStore.deleteDocument({ userId: user.id, documentId: documentMatch[1],
         expectedHeadRevisionId: body.expected_head_revision_id });
@@ -1422,7 +1503,7 @@ function readRawBody(req, limit) {
   });
 }
 
-function stripeSubscriptionInput(subscription) {
+function stripeSubscriptionInput(subscription, eventCreatedMs) {
   const metadata = subscription.metadata || {};
   const statusMap = {
     active: 'active', trialing: 'active', past_due: 'past_due', unpaid: 'read_only',
@@ -1441,6 +1522,7 @@ function stripeSubscriptionInput(subscription) {
     graceEndsAtMs: subscription.status === 'past_due' ? Date.now() +
       Number(process.env.CLOUD_PAYMENT_GRACE_MS || 7 * 24 * 60 * 60 * 1000) : null,
     canceledAtMs: subscription.canceled_at ? subscription.canceled_at * 1000 : null,
+    providerEventCreatedMs: eventCreatedMs,
   };
 }
 
@@ -1454,7 +1536,8 @@ async function handleStripeWebhook(req, res) {
     cloudBilling.processWebhookEvent({ provider: 'stripe', eventId: event.id,
       eventType: event.type, payload: rawBody }, (store) => {
       if (event.type.startsWith('customer.subscription.')) {
-        const input = stripeSubscriptionInput(event.data.object);
+        const input = stripeSubscriptionInput(event.data.object,
+          Number.isSafeInteger(event.created) ? event.created * 1000 : null);
         if (input.workspaceId && input.plan) {
           const existing = store.getSubscription(input.workspaceId);
           if (input.status === 'past_due' && existing && existing.status === 'past_due' &&
@@ -1473,14 +1556,13 @@ async function handleStripeWebhook(req, res) {
 function handleCloudLogout(req, res) {
   if (!cloudAuthReady(res) || !cloudAuthPostAllowed(req, res)) return;
   const authenticated = cloudAuthSession(req);
-  if (authenticated.ok) cloudAuth.revokeSession({
-    sessionToken: cloudAuthHttp.parseCookies(req.headers.cookie)['__Host-sdocs_cloud'] ||
-      cloudAuthHttp.parseCookies(req.headers.cookie).sdocs_cloud,
-  });
   const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
+  const sessionToken = cloudAuthHttp.sessionTokenFromCookies(req.headers.cookie, secure);
+  if (authenticated.ok) cloudAuth.revokeSession({ sessionToken });
   res.writeHead(303, {
     Location: '/cloud/sign-in',
-    'Set-Cookie': cloudAuthHttp.clearSessionCookie({ secure }),
+    'Set-Cookie': [cloudAuthHttp.clearSessionCookie({ secure }),
+      cloudAuthHttp.clearSessionCookie({ secure: !secure })],
     'Cache-Control': 'no-store',
   });
   res.end();
@@ -1553,6 +1635,7 @@ const server = http.createServer((req, res) => {
     const principal = cloudApiPrincipal(req, res);
     if (!principal || !cloudAuthPostAllowed(req, res)) return;
     cloudAuthHttp.readJson(req).then(async (body) => {
+      requireRecentBrowser(principal);
       const workspace = cloudStore.listWorkspaces(principal.user.id)
         .find((item) => item.id === body.workspace_id && item.role === 'owner');
       if (!workspace) throw Object.assign(new Error('permission_denied'), { code: 'permission_denied' });
@@ -1563,6 +1646,10 @@ const server = http.createServer((req, res) => {
       }
       const priceId = plan === 'team' ? process.env.STRIPE_TEAM_PRICE_ID : process.env.STRIPE_PERSONAL_PRICE_ID;
       if (!priceId) throw Object.assign(new Error('billing_not_configured'), { code: 'billing_not_configured' });
+      const existingSubscription = cloudBilling.getSubscription(workspace.id);
+      if (existingSubscription && ['active', 'past_due'].includes(existingSubscription.status)) {
+        throw Object.assign(new Error('subscription_exists'), { code: 'subscription_exists' });
+      }
       const usage = cloudStore.getWorkspaceUsage({ userId: principal.user.id, workspaceId: workspace.id });
       const identity = principal.user.identities.find((item) => item.verifiedEmail);
       const successTarget = new URL(cloudAuthHttp.safeReturnPath(body.return_to), CLOUD_AUTH_PUBLIC_ORIGIN);
@@ -1573,7 +1660,8 @@ const server = http.createServer((req, res) => {
         successUrl: successTarget.toString(),
         cancelUrl: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud?checkout=cancelled',
         workspaceId: workspace.id, plan, customerEmail: identity && identity.verifiedEmail,
-        metadata: { owner_user_id: principal.user.id }, idempotencyKey: crypto.randomUUID(),
+        metadata: { owner_user_id: principal.user.id },
+        idempotencyKey: 'workspace-checkout-' + workspace.id + '-' + plan,
       });
       sendJson(res, 200, { ok: true, checkout_url: session.url });
     }).catch((error) => cloudApiError(res, error));
@@ -1738,7 +1826,7 @@ const server = http.createServer((req, res) => {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'no-referrer',
-      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
     });
     return;
   }

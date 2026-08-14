@@ -231,6 +231,11 @@ module.exports = function(harness) {
       const found = store.search({ userId: member, query: 'kubernetes' });
       assert.strictEqual(found.length, 1);
       assert.strictEqual(found[0].id, document.id);
+      assert.strictEqual(found[0].matches[0].line, 4);
+      assert.strictEqual(store.search({ userId: member, query: 'kubernetes',
+        tags: ['planning'], limit: 1 }).length, 1);
+      assert.strictEqual(store.search({ userId: member, query: 'kubernetes',
+        tags: ['another-tag'], limit: 1 }).length, 0);
       assert.strictEqual(store.search({ userId: outsider, query: 'kubernetes' }).length, 0);
       assert.throws(() => store.search({ userId: owner, query: 'missing', maxDocuments: 1 }),
         (error) => error.code === 'search_limit_reached');
@@ -242,6 +247,12 @@ module.exports = function(harness) {
       const deleted = store.deleteDocument({ userId: member, documentId: document.id,
         expectedHeadRevisionId: document.current_revision_id, restoreWindowMs: 60000 });
       assert.ok(deleted.deleted_at);
+      assert.deepStrictEqual(store.deleteDocument({ userId: member, documentId: document.id,
+        expectedHeadRevisionId: document.current_revision_id }), deleted);
+      const recoverable = store.listDeletedDocuments({ userId: member });
+      assert.strictEqual(recoverable.length, 1);
+      assert.strictEqual(recoverable[0].id, document.id);
+      assert.strictEqual(recoverable[0].project.name, 'Product');
       assert.strictEqual(store.listDocuments({ userId: member }).length, 0);
       assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length, 3);
     });
@@ -250,6 +261,7 @@ module.exports = function(harness) {
       const restored = store.restoreDeletedDocument({ userId: member, documentId: document.id,
         expectedHeadRevisionId: document.current_revision_id });
       assert.strictEqual(restored.id, document.id);
+      assert.strictEqual(store.listDeletedDocuments({ userId: member }).length, 0);
       assert.strictEqual(store.listDocuments({ userId: member }).length, 1);
       const exported = store.exportWorkspace({ userId: owner, workspaceId: team.workspaceId });
       assert.strictEqual(exported.documents.length, 1);

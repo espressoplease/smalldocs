@@ -327,7 +327,9 @@ function parseInput(s) {
 }
 
 function escHtml(s) {
-  return String(s == null ? '' : s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
 }
 function highlight(text, q) {
   if (!q || !q.trim()) return escHtml(text);
@@ -812,9 +814,23 @@ async function loadCloudData(query) {
       body: JSON.stringify({ query: query.trim(), workspace_id: workspaceId || undefined }),
     });
   } else {
-    const params = new URLSearchParams();
-    if (workspaceId) params.set('workspace_id', workspaceId);
-    response = await fetch('/api/cloud/v1/documents?' + params.toString(), { credentials: 'same-origin' });
+    const documents = [];
+    let cursor = null;
+    do {
+      const params = new URLSearchParams({ limit: '100' });
+      if (workspaceId) params.set('workspace_id', workspaceId);
+      if (cursor) params.set('cursor', cursor);
+      response = await fetch('/api/cloud/v1/documents?' + params.toString(), { credentials: 'same-origin' });
+      if (response.status === 401) {
+        location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
+        return;
+      }
+      if (!response.ok) throw new Error('Cloud returned ' + response.status);
+      const page = await response.json();
+      documents.push.apply(documents, page.documents || []);
+      cursor = page.next_cursor || null;
+    } while (cursor);
+    response = { ok: true, status: 200, json: async function () { return { documents: documents }; } };
   }
   if (response.status === 401) {
     location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);

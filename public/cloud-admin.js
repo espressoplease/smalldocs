@@ -54,6 +54,7 @@
     var messages = {
       permission_denied: 'Your workspace role does not allow this action.',
       resource_unavailable: 'This item is no longer available.',
+      active_subscription_requires_cancellation: 'Cancel the workspace subscription in Billing before deleting it.',
       final_owner_required: 'Assign another owner before removing the final owner.',
       personal_workspace_cannot_be_deleted: 'Personal workspaces cannot be deleted here.',
       invalid_request: 'Check the submitted details and try again.',
@@ -314,8 +315,9 @@
     byId('billing-usage').textContent = usage
       ? usage.memberCount + ' members, ' + usage.projectCount + ' projects, ' + usage.storedBytes + ' stored bytes'
       : 'No paid Cloud usage is available.';
-    byId('manage-billing').hidden = !billing;
-    byId('subscribe-row').hidden = Boolean(billing);
+    var canManageBilling = state.workspace && state.workspace.role === 'owner';
+    byId('manage-billing').hidden = !billing || !canManageBilling;
+    byId('subscribe-row').hidden = Boolean(billing) || !canManageBilling;
     byId('subscribe-link').href = '/cloud/checkout?plan=' + (state.workspace.kind === 'team' ? 'team' : 'personal');
   }
 
@@ -370,20 +372,33 @@
       request('/workspaces/' + encoded + '/members'),
       request('/workspaces/' + encoded + '/invitations'),
       request('/workspaces/' + encoded + '/projects'),
-      request('/documents?workspace_id=' + encoded),
+      requestAllDocuments(encoded),
       request('/workspaces/' + encoded + '/audit'),
       request('/workspaces/' + encoded + '/billing'),
     ]);
     state.members = responses[0].members || [];
     state.invitations = responses[1].invitations || [];
     state.projects = responses[2].projects || [];
-    state.documents = responses[3].documents || [];
+    state.documents = responses[3];
     state.audit = responses[4].events || [];
     state.billing = responses[5].billing || null;
     var url = new URL(location.href);
     url.searchParams.set('workspace_id', workspace.id);
     history.replaceState(null, '', url.pathname + url.search);
     renderAll();
+  }
+
+  async function requestAllDocuments(encodedWorkspaceId) {
+    var documents = [];
+    var cursor = null;
+    do {
+      var query = '/documents?workspace_id=' + encodedWorkspaceId + '&limit=100';
+      if (cursor) query += '&cursor=' + encodeURIComponent(cursor);
+      var page = await request(query);
+      documents = documents.concat(page.documents || []);
+      cursor = page.next_cursor || null;
+    } while (cursor);
+    return documents;
   }
 
   function ask(title, copy, action, confirmText) {

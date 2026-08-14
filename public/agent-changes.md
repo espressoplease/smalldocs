@@ -13,6 +13,27 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v16 (unreleased)
+
+**Reason:** Agents can now discover and use persistent SmallDocs Cloud commands
+for projects, search, revisions, and headless document updates.
+
+The skill now includes this Cloud reference:
+
+```markdown
+### SmallDocs Cloud for agents
+
+Cloud is the paid, authenticated document store. Local SmallDocs remains free. Run `sdoc cloud login` once on a machine; the revocable CLI credential persists across agent sessions. Run `sdoc cloud --help` before using the commands, and add `--json` when you need one stable machine-readable object on stdout.
+
+- Discover destinations and vocabulary with `sdoc cloud projects` and `sdoc cloud tags --project PROJECT_UUID`.
+- Find documents by UUID with `sdoc cloud ls` or content search with `sdoc cloud search "QUERY"`. Both accept project and tag filters.
+- Upload a new local file without opening a browser with `sdoc cloud create FILE.md --project PROJECT_UUID --json`.
+- Edit an existing document with `sdoc cloud pull DOCUMENT_UUID --output FILE.md`, normal file tools, then `sdoc cloud push FILE.md --json`. The local binding supplies the expected base revision and prevents silent overwrite conflicts.
+- Inspect or recover history with `sdoc cloud history DOCUMENT_UUID` and `sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID`.
+
+Cloud documents are identified by UUID, not filename. A project is the access boundary; tags organize workstreams inside it. Cloud commands other than login are noninteractive. Do not use `sdoc share` as a substitute for Cloud: share creates an encrypted snapshot link, while Cloud provides revisions, search, membership, and persistent agent access.
+```
+
 ## v15 (unreleased)
 
 **Reason:** The local library now contains only files opened explicitly with
