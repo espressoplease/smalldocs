@@ -10,6 +10,7 @@ test-results/
 analytics.db*
 short_links.db*
 feedback.db*
+teams_interest.db*
 cloud_auth.db*
 cloud.db*
 *.tgz

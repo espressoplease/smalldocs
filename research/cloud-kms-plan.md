@@ -52,10 +52,9 @@ Production key:
 
 ```text
 alias/smalldocs-cloud-production
-arn:aws:kms:eu-central-1:732006412787:key/fc5537bd-4a58-4ade-853c-77a09439dd65
 ```
 
-The production key was created in `eu-central-1` and passed an application-level restart round trip on 14 August 2026. The stored envelope records the concrete ARN returned by AWS, not only the alias.
+The production key was created in `eu-central-1` and passed an application-level restart round trip on 14 August 2026. The stored envelope records the concrete ARN returned by AWS, not only the alias. Keep that identifier in the private operator notes.
 
 Staging must not contain production data, production ciphertext, or production KMS credentials. To limit spend before the private beta, local staging can use a development-only local key with disposable test data. Create `alias/smalldocs-cloud-staging` if staging begins to retain realistic or long-lived data; do not point staging at the production key.
 
@@ -226,20 +225,20 @@ The implementation is in `lib/cloud-kms.js` with focused coverage in `test/test-
 
 ## Work still required
 
-- [ ] Refactor the synchronous key-provider and Cloud store boundary to support asynchronous KMS calls.
-- [ ] Add the official AWS KMS client with request timeouts and bounded retries.
-- [ ] Create staging and production KMS keys and policies.
-- [ ] Create the Hetzner runtime IAM identity and root-managed credential delivery.
-- [ ] Add startup validation that rejects `CLOUD_MASTER_KEY` in production.
+- [x] Refactor the key-provider and Cloud store boundary to support asynchronous KMS calls.
+- [x] Add the official AWS KMS client with request timeouts and bounded retries.
+- [x] Create the production document key, backup key, and restricted policies. Create a staging document key when persistent KMS-backed staging is needed.
+- [x] Create the Hetzner runtime IAM identity and read-only systemd credential delivery.
+- [x] Add startup validation that rejects `CLOUD_MASTER_KEY` in production.
 - [ ] Add integration tests against the real staging KMS key.
 - [ ] Add metrics for operation latency, denials, timeouts, cache hits, and decrypt failures without customer metadata.
-- [ ] Clear the plaintext-key cache on graceful shutdown.
-- [ ] Complete a backup restore and decrypt drill.
+- [x] Clear the plaintext-key cache on graceful shutdown and deployment signals.
+- [x] Complete an off-site backup restore and SQLite integrity drill. Repeat it with retained Cloud revisions before launch.
 - [ ] Document key compromise, credential rotation, key disablement, and AWS account recovery procedures.
 
 ## SmallCRM boundary
 
-SmallDocs and SmallCRM may share the first CX33, but they must not share KMS keys or AWS runtime credentials.
+SmallDocs and SmallCRM use separate production VMs and must not share KMS keys or AWS runtime credentials.
 
 This document specifies the SmallDocs Cloud implementation. SmallCRM will use the same envelope-encryption ideas, implemented independently. It currently stores CRM records and email bodies as plaintext JSON in SQLite and encrypts Resend credentials using a local application secret, so that migration remains required before it accepts production customer data.
 
@@ -249,11 +248,12 @@ SmallCRM will have a separate KMS key, IAM identity, data-encryption keys, envel
 
 AWS charges about $1 per customer-managed KMS key per month. At this scale, cryptographic request charges should be negligible compared with the key fee.
 
-The SmallDocs plan initially needs two keys:
+SmallDocs currently uses two production keys. Persistent KMS-backed staging would add a third:
 
 ```text
-staging key       $1 per month
-production key    $1 per month
+document key      $1 per month
+backup key        $1 per month
+staging key       $1 per month when created
 ```
 
 SmallCRM keys would be additional and separate. Do not reduce cost by sharing one production key between the products or between staging and production.

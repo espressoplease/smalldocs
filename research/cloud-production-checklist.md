@@ -12,9 +12,9 @@ This is the work required before SmallDocs Cloud accepts paying customers and cu
 
 Launch a small private beta before a public paid launch:
 
-1. Run the initial SmallDocs Cloud and SmallCRM production betas on one clean Hetzner CX33. Keep the existing shared host for staging with test data only.
-2. Use PostgreSQL on the production VM for Cloud state. The current SQLite stores require a persistence migration before launch.
-3. Run one Node process per product initially. Use separate Linux service users, data directories, database identities, secrets, KMS keys, systemd services, backups, and staging and production credentials.
+1. Run SmallDocs Cloud on its dedicated Hetzner CX23. Give SmallCRM a separate VM when it is ready for production.
+2. Run one SmallDocs Node process against the current local SQLite stores. PostgreSQL 16 is installed but is not used by the current implementation. Migrate before horizontal replication, or earlier if private-beta measurements justify the engineering work.
+3. Keep the existing shared host for staging with test data only after the `smalldocs.org` cutover is complete.
 4. Invite a small number of known users and exercise recovery, billing, offboarding, conflicts, and search.
 5. Move to a shared transactional database before horizontal scaling, not merely because the product has its first customers.
 
@@ -27,124 +27,71 @@ Completed on 14 August 2026:
 - [x] Enabled a single-Region IAM Identity Center organization instance in `eu-central-1` using the AWS-owned encryption key.
 - [x] Created the `joshua` workforce identity, the `Administrators` group, and the one-hour `AdministratorAccess` permission set.
 - [x] Verified that the root identity has MFA and no access keys, then stopped using root for routine administration.
-- [x] Created the `Odd Solutions Production` Organizations member account, account ID `732006412787`.
+- [x] Created the `Odd Solutions Production` Organizations member account.
 - [x] Assigned the `Administrators` group to the production account through Identity Center.
 - [x] Configured local temporary-session profiles `odd-solutions-admin` for the management account and `odd-solutions-production-admin` for production. No local long-lived AWS credentials file was created.
 - [x] Created the `odd-solutions-production-monthly` USD 10 cost budget with actual-spend alerts at 50, 80, and 100 percent.
-- [x] Created the single-region AWS KMS key `alias/smalldocs-cloud-production` in `eu-central-1`. The concrete key ARN is `arn:aws:kms:eu-central-1:732006412787:key/fc5537bd-4a58-4ade-853c-77a09439dd65`.
+- [x] Created the single-region AWS KMS key `alias/smalldocs-cloud-production` in `eu-central-1`. Keep its concrete identifier in the private operator notes.
 - [x] Ran the built-in AWS adapter and CloudStore against the production key. A temporary encrypted document remained decryptable after closing and reopening the database, key provider, and AWS client. The temporary database was then removed.
+- [x] Created a context-restricted application identity with Encrypt and Decrypt access only to the production document key. The real readiness flow passed from the production VM's systemd sandbox.
+- [x] Created a separate KMS-encrypted, versioned S3 backup bucket with 30-day Object Lock retention and public access blocked. Its put-only uploader cannot list, read, delete, or decrypt backups.
 
-The management account, account ID `703318158341`, contains a legacy `taaalkuser` IAM identity and `taaalk` S3 bucket. The legacy user still has an active access key and the AWS-managed `AmazonS3FullAccess` policy. Do not reuse it for either product or deactivate it until its dependency has been identified. The existing bucket is private, versioned, encrypted with S3-managed AES-256, and treated as unrelated live data.
+The management account contains unrelated legacy IAM and S3 resources. Do not reuse or change them until their dependency has been identified. Exact identifiers belong in the private operator notes, not this public implementation checklist.
 
 Create all new SmallDocs and SmallCRM KMS keys, backup buckets, workload roles, audit trails, and budgets in the production member account. Keep separate resources and permissions for each product even though they share the account during the beta.
 
 ## Launch blockers at a glance
 
-- [x] Complete a real AWS KMS smoke test. The application and CloudStore use the built-in asynchronous AWS KMS client with bounded retries, timeouts, caching, and generic client-facing failures. The create, read, restart, and decrypt cycle passed on 14 August 2026 using an Identity Center session. A restricted production workload identity is still required before deployment.
-- [ ] Add production configuration validation. Production startup should refuse partial Cloud configurations, local `CLOUD_MASTER_KEY`, an HTTP public origin, missing durable jobs, and missing billing or mail settings.
+- [x] Complete real AWS KMS smoke tests through both an administrator session and the restricted production workload identity.
+- [x] Add production configuration validation. Production startup refuses partial Cloud configurations, local `CLOUD_MASTER_KEY`, an HTTP public origin, missing durable jobs, and missing billing or mail settings.
 - [ ] Make Stripe tax behavior match the Cloud page. The page says tax is calculated at checkout, but checkout does not currently enable Stripe automatic tax or collect the billing location it needs.
 - [ ] Decide and configure plan allowances, retention, failed-payment grace, and deletion windows.
-- [ ] Set up production authentication, email, Stripe, and KMS accounts.
-- [ ] Create coordinated backups and complete a real restore drill that decrypts retained revisions.
+- [ ] Set up production authentication, email, and Stripe resources.
+- [x] Create coordinated nightly backups and complete a real restore drill. The downloaded archive hash matched and every retained SQLite database passed integrity checking.
 - [ ] Add monitoring for the process, disk, databases, KMS, mail, Stripe webhooks, and dead jobs.
 - [ ] Publish the customer-facing legal and operational documents.
 - [ ] Pass the staging test matrix and a limited private beta.
 
-The first three items require code changes. I can implement those after you choose the KMS provider and tax approach.
+The remaining external setup starts with transactional email, followed by OAuth and Stripe test-mode resources. Keep Cloud disabled until the complete production environment validates.
 
 ## Expected costs and provider comparisons
 
 Prices checked on 14 August 2026. They are planning estimates, not quotes. Most infrastructure prices exclude VAT. Approximate sterling conversions below use £1 = $1.35 and €1 = £0.855. Keep the provider's native currency in the budget because exchange rates move.
 
-### What the existing server changes
+### Current beta infrastructure
 
-The current `smalldocs.org` host has:
-
-```text
-2 vCPUs
-about 8 GB RAM
-about 80 GB disk, with about 56 GB currently free
-current smalldocs.service memory: about 48 MB when checked
-```
-
-That is enough capacity for a low-volume Cloud beta if search limits are conservative and memory, disk, and latency are monitored. Using it avoids a second compute bill. The trade-off is a larger failure boundary: local SmallDocs, short links, Cloud, billing callbacks, jobs, and the SQLite databases all depend on one host and process.
-
-### Estimated launch stacks
-
-| Stack | Expected fixed cost per month | What it buys | Main trade-off |
-| --- | ---: | --- | --- |
-| Existing Hetzner host | About £2 to £5 incremental, plus the existing server bill | No hosting migration. Add one KMS key, small off-site backups, free email tier, and free monitoring | One host and one process remain the failure boundary |
-| Existing host plus full-time Hetzner staging | About £10 to £14 incremental | The production path above plus an isolated staging server | Staging needs its own updates, secrets, backups, and monitoring |
-| Hetzner CX33 production server | €10.69 before VAT with IPv4 and Hetzner backups, plus KMS and off-site database storage | 4 shared vCPUs, 8 GB RAM, 80 GB disk, and an intentionally isolated home for the two early product betas | The products still share one VM failure boundary |
-| AWS Lightsail, 4 GB | About £20 to £25 | One AWS account for compute, KMS, snapshots, and object backups | Costs more, still a self-managed single server, and moving the live site adds work |
-| Railway Pro, estimated 2 GB service | About £22 to £30 | Managed deploys, secrets, logs, and a persistent volume | Usage pricing varies; SQLite still forces one replica and coordinated backups |
-| Existing app host plus Neon Postgres | About £11 typical, before app hosting | Managed Postgres with a 7-day restore window | Requires a real database migration; not usable by the current code as a configuration change |
-| Existing app host plus Supabase Pro | From about £19, before app hosting | Managed Postgres, 8 GB disk, and 7-day daily backups | Also requires migration; bundled auth and storage duplicate features SmallDocs already has |
-
-Sources and assumptions:
-
-- Hetzner's June 2026 price list puts a CX33 at €8.49/month before IPv4 and VAT. Native server backups add 20 percent of the server price and keep seven slots. See [Hetzner's current price adjustment](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/) and [backup billing](https://docs.hetzner.com/cloud/billing/faq/).
-- A separate Hetzner Object Storage account is €4.99/month and includes 1 TB. That is good value once storage grows, but more than a small compressed database backup should cost elsewhere. See [Hetzner Object Storage pricing](https://www.hetzner.com/storage/object-storage/).
-- AWS Lightsail is $24/month for 4 GB RAM with public IPv4 or $44/month for 8 GB. Snapshots cost $0.05 per stored GB-month. See [Lightsail bundles](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html) and [snapshot pricing](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-faq-snapshots.html).
-- Railway Pro has a $20 monthly minimum that is credited against usage. Current rates are $10 per GB-month RAM, $20 per vCPU-month, and $0.15 per GB-month volume. A continuously allocated 2 GB RAM, average 0.25 vCPU, and 10 GB volume is about $26.50/month before egress. See [Railway pricing](https://railway.com/pricing).
-- Neon Launch lists a typical intermittent 1 GB database at $15/month and charges from actual compute and storage. See [Neon pricing](https://neon.com/pricing).
-- Supabase Pro starts at $25/month with one Micro database, 8 GB disk, and seven days of daily backups. Point-in-time recovery is a separate $100/month add-on. See [Supabase pricing](https://supabase.com/pricing).
-
-These totals do not include the existing server bill, VAT, paid support, engineering time, domain registration, legal or accounting advice, or Stripe's variable fees.
-
-### My recommendation for the beta
-
-Use a Hetzner CX33 in Germany for the initial SmallDocs Cloud and SmallCRM production betas, and use the existing shared host for staging. The server audit found that the existing `deploy` identity runs several applications and has broad administrative paths, so it remains unsuitable for customer production data. On the new VM, SmallDocs and SmallCRM run as separate restricted services that cannot read each other's state, backups, or credentials. Use a different provider for encrypted database backups so loss of the Hetzner account or region does not remove both the service and its recovery copy.
-
-The current CX33 price is €8.49 per month before VAT. One Primary IPv4 is €0.50. Hetzner's seven-slot server backup option costs 20 percent of the server price, about €1.70. The resulting Hetzner production invoice is about €10.69 per month before VAT. The server includes 4 shared vCPUs, 8 GB RAM, 80 GB local disk, and 20 TB of traffic in EU locations.
-
-A CX23 would reduce this to about €7.09 before VAT with IPv4 and backups, but it has 4 GB RAM and 40 GB disk. It can run one constrained beta, but the €3.60 monthly saving is not worth halving the memory available to two Node processes, PostgreSQL, SmallCRM SQLite, in-memory document search, operating-system cache, and backup operations.
-
-Do not move both products to a CX43 merely because one CX33 becomes busy. At current prices, a SmallDocs CX33 plus a SmallCRM CX23 costs less than one CX43 and creates a better security and failure boundary. Split the products when monitoring, customer value, or operational risk warrants it.
+SmallDocs has its own CX23 in Nuremberg: 2 shared vCPUs, 4 GB RAM, 40 GB local disk, and a 2 GB low-swappiness swap file. The measured idle application RSS is about 55 MB. PostgreSQL, Nginx, Fail2ban, unattended security updates, and Node 24 LTS are installed. The application runs as a non-login service user and binds only to loopback.
 
 Expected fixed incremental cost:
 
-| Item | Beta | After early growth |
-| --- | ---: | ---: |
-| Existing staging compute | £0 incremental | £0 until isolation requires a move |
-| Shared product-production CX33, IPv4, and native backups | €10.69 before VAT | Split into a SmallDocs CX33 and SmallCRM CX23 when warranted |
-| Production and staging KMS keys | About £0.10 to £1.50 | Usually under £3 at this scale |
-| Off-site object backups | Under £1 for small archives | Roughly proportional to stored backup GB |
-| Transactional email | £0 | About £11 to £15 when a paid tier is needed |
-| Uptime and basic telemetry | £0 | £0 to about £22 depending on retention and alerting |
-| Expected total | About €12/month before VAT, plus small currency and request variation | About €20 to €45/month depending on email and monitoring choices |
+| Item | Initial monthly cost | Notes |
+| --- | ---: | --- |
+| CX23 | €6.59 before VAT | Current selected server price |
+| Primary IPv4 | About €0.70 before VAT | Billed hourly |
+| Hetzner native backups | About €1.32 before VAT | 20 percent of server price when enabled |
+| Document and backup KMS keys | $2 | Two customer-managed keys at $1 each |
+| S3 backup storage and requests | Cents initially | The current locked archive is about 3.1 MB |
+| Transactional email | £0 initially | Subject to the provider's free-tier limits |
+| Monitoring | £0 initially | Add paid retention only after measuring volume |
 
-The existing Hetzner invoice still exists. The clean CX33 is the main new fixed cost.
+The expected fixed total is about €8.60 before VAT plus $2 and small S3 usage. This excludes the existing server bill, Stripe fees, tax, domain registration, and engineering or professional costs.
 
-### Shared CX33 service boundary
-
-Sharing the first production VM is acceptable because neither product has proven production load and the VM will be built around these two known services. It must not recreate the existing host's shared `deploy` identity.
+### Dedicated SmallDocs service boundary
 
 ```text
 Nginx
   -> smalldocs.service as smalldocs
-       -> SmallDocs PostgreSQL database and role
-       -> SmallDocs KMS identity and keys
-       -> /var/lib/smalldocs
-
-  -> smallcrm.service as smallcrm
-       -> SmallCRM catalog and workspace SQLite files
-       -> SmallCRM-only secrets and future KMS identity
-       -> /var/lib/smallcrm
+       -> local SQLite databases under /var/lib/smalldocs
+       -> context-restricted SmallDocs KMS identity
+       -> nightly coordinated backups to locked S3 storage
 ```
 
-- [ ] Give each service a non-login Linux user and restrictive umask.
-- [ ] Keep code deployment separate from both runtime identities.
-- [ ] Prevent each service from reading the other's data, environment, backups, logs, or credentials.
-- [ ] Use separate systemd units with explicit writable paths, memory limits, restart policy, and no core dumps.
-- [ ] Bind both Node processes to loopback and expose only Nginx, SSH, HTTP, and HTTPS through the firewall.
-- [ ] Keep SmallDocs PostgreSQL and SmallCRM SQLite backups in separate archives and object-store prefixes.
-- [ ] Do not share KMS keys, IAM credentials, OAuth credentials, email credentials, or application secrets between products.
+- [x] Give the service a non-login Linux user and restrictive umask.
+- [x] Keep root-owned immutable releases separate from the runtime identity.
+- [x] Use a hardened systemd unit with an explicit writable state path and no core dumps.
+- [x] Bind Node to loopback and expose only SSH, HTTP, and HTTPS through the host and cloud firewalls.
+- [x] Keep document KMS and backup KMS permissions in separate workload identities.
 - [ ] Monitor CPU, RSS, event-loop delay, disk, backup duration, and request latency by service.
-
-SmallCRM currently loads entire collections for some filters, facets, and views before applying response pagination. A larger combined VM does not remove that scaling limit. Load-test realistic collection sizes and improve those query paths before treating vertical scaling as the answer.
-
-When the shared CX33 is no longer appropriate, move SmallCRM to a CX23 or larger VM while preserving its hostname. At current prices, a SmallDocs CX33 plus a SmallCRM CX23 costs less than one combined CX43 and creates a better failure boundary.
 
 ### KMS comparison
 
@@ -160,7 +107,7 @@ KMS request cost is unlikely to affect the decision. Engineering fit, workload a
 - [AWS KMS pricing](https://aws.amazon.com/kms/pricing/)
 - [Google Cloud KMS pricing](https://cloud.google.com/kms/pricing)
 
-Decision: use AWS KMS in the `Odd Solutions Production` member account. It keeps encryption keys and off-site S3 backups under the same temporary-session administration model while separating them from the legacy management-account IAM user and bucket. SmallDocs and SmallCRM receive separate customer-managed keys, workload identities, policies, aliases, backup buckets, and encryption contexts. The official AWS SDK is asynchronous, so the current synchronous KMS boundary still requires refactoring before deployment.
+Decision: use AWS KMS in the production member account. The asynchronous SDK integration, bounded key cache, readiness check, context-restricted application identity, separate backup key, and production-host smoke test are complete.
 
 Do not select a provider based on the difference between $0.06 and $1 per month. Select the one whose account recovery, workload identity, audit access, and operator permissions you are prepared to maintain.
 
@@ -280,20 +227,20 @@ AWS KMS and Google Cloud KMS are both credible choices. The cost comparison abov
 
 ### Account setup
 
-- [ ] Create separate KMS keys for staging and production.
-- [ ] Give them unambiguous aliases such as `alias/smalldocs-cloud-staging` and `alias/smalldocs-cloud-production`.
-- [ ] Create a runtime identity with only the required `kms:Encrypt` and `kms:Decrypt` access to the production key.
-- [ ] Keep key administration separate from the runtime identity.
+- [x] Create the production document key and a separate production backup key. Create a staging document key only when persistent KMS-backed staging is provisioned.
+- [x] Give the production document key the alias `alias/smalldocs-cloud-production`.
+- [x] Create a runtime identity with only the required `kms:Encrypt` and `kms:Decrypt` access to the production key and production encryption context.
+- [x] Keep key administration in Identity Center operator sessions, separate from the runtime identity.
 - [ ] Enable CloudTrail visibility and alerts for denied or unusual decrypt operations.
-- [ ] Do not put email addresses, filenames, document titles, or other customer data in the encryption context. AWS records the context in CloudTrail.
-- [ ] Record the KMS region, key ARN, policy, and recovery owner in the operator runbook.
+- [x] Keep email addresses, filenames, document titles, and other customer data out of the encryption context. AWS records the context in CloudTrail.
+- [x] Record the KMS region, key identifier, policy, and recovery owner in the private operator notes.
 
 ### Required engineering work
 
 - [x] Refactor the current synchronous KMS boundary so the official network client can be awaited without blocking the Node event loop.
 - [x] Integrate the official KMS SDK and set request timeouts.
 - [x] Preserve the current authenticated encryption context: application, environment, purpose, resource ID, and key version.
-- [x] Cache unwrapped data keys for a short, bounded period and clear them on eviction and normal server close. Signal-driven graceful shutdown remains an operations hardening task.
+- [x] Cache unwrapped data keys for a short, bounded period and clear them on eviction, normal server close, SIGTERM, and SIGINT.
 - [x] Fail closed when KMS is unavailable. Reads, search, and writes return a temporary service failure without falling back to a local key.
 - [ ] Add integration tests against a real staging key for encrypt, decrypt, wrong context, disabled key, timeout, and rotated key reference.
 - [ ] Leave `CLOUD_MASTER_KEY` unset in production.
@@ -547,15 +494,15 @@ The existing production deployment is `smalldocs.service` on port `3003` behind 
 
 ## 8. Backups and recovery
 
-- [ ] Treat the existing short-link SQLite database as live production data. Resolve its configured `SHORT_LINKS_DB` path on the old host before cutover.
-- [ ] Migrate short links with a coordinated SQLite snapshot. Stop short-link writes briefly or use SQLite's online backup mechanism; do not copy only the main database file while WAL writes are active.
-- [ ] Compare row counts and resolve representative existing `/s/...` URLs on the new host before changing DNS.
-- [ ] Include `SHORT_LINKS_DB` in encrypted off-site backups and restore drills. A restored sample must return the same ciphertext for the same short-link ID.
-- [ ] Choose a daily backup schedule and a retention period.
-- [ ] Stop the application briefly for the supported coordinated snapshot, or implement a proper online SQLite backup for every database.
-- [ ] Encrypt the archive and copy it to a different provider or failure domain.
-- [ ] Record checksums, the deployed commit, database paths, `CLOUD_ENVIRONMENT`, and KMS key references with each backup.
-- [ ] Back up the application secrets through the secret manager, not inside the database archive.
+- [x] Treat the existing short-link SQLite database as live production data and resolve its default path on the old host.
+- [x] Rehearse migration with SQLite's online backup mechanism. Repeat the snapshot during cutover to capture links created after the rehearsal.
+- [x] Compare the 447-row rehearsal count and verify a representative stored ciphertext through the new host's HTTP API without printing its identifier or value.
+- [x] Include `SHORT_LINKS_DB` in encrypted off-site backups. The rehearsal snapshot is present in the locked archive.
+- [x] Run the coordinated backup nightly with 30-day governance retention in versioned storage.
+- [x] Stop the new application briefly so all local databases and sidecars are archived together, then restart it before upload.
+- [x] Encrypt the archive with a separate AWS KMS key and store it outside Hetzner.
+- [x] Record a portable SHA-256 checksum, deployed commit, state paths, configuration, KMS encryption metadata, and object version.
+- [x] Include the root-managed application environment in the KMS-encrypted archive. The put-only backup identity cannot read or decrypt the archive.
 - [ ] Alert when the latest successful backup is too old.
 
 Complete this drill before launch:
