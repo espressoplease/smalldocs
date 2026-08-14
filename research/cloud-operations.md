@@ -76,7 +76,7 @@ Email codes and workspace invitations use `teams/notify.js`:
 | `NOTIFY_SMTP_HOST` | No | Defaults to `smtp.gmail.com`. |
 | `NOTIFY_SMTP_PORT` | No | Defaults to `587` with STARTTLS. Port `465` uses implicit TLS. |
 
-The service refuses to issue an email login transaction when neither production SMTP nor the restricted development code logger is available. Test SMTP connectivity from the production host. Confirm that outbound mail, SPF, DKIM, DMARC, bounce handling, and abuse limits are acceptable before launch.
+The service refuses to issue an email login transaction when neither production SMTP nor the restricted development code logger is available. The production SMTP path passed a sandboxed send accepted by Resend on 14 August 2026. Confirm delivery across the launch mailbox set, spam placement, DMARC reporting, bounce handling, and abuse limits before launch.
 
 `TEAMS_DB` configures the separate business-interest database. It is not a Cloud account database, but it is used by the same notification module and should have its own backup and retention decision.
 

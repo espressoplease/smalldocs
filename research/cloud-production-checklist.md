@@ -336,12 +336,14 @@ Use a transactional email provider rather than a personal Gmail mailbox. The cur
 - [Resend SMTP configuration](https://resend.com/docs/send-with-smtp)
 - [Resend domain authentication](https://resend.com/docs/dashboard/domains/introduction)
 
-- [ ] Add and verify a dedicated sending subdomain such as `mail.smalldocs.org`.
-- [ ] Publish the provider's SPF and DKIM records.
+- [x] Verify `smalldocs.org` for sending. Resend uses `send.smalldocs.org` as its return path without changing website routing.
+- [x] Publish and verify the provider's SPF and DKIM records.
 - [ ] Start DMARC with reporting, verify every legitimate sender, then move to a stricter policy.
-- [ ] Create a restricted production credential and a separate staging credential.
-- [ ] Configure SMTP host `smtp.resend.com`, port `587`, username `resend`, and the API key as the password.
+- [x] Create a sending-only production credential and deliver it through a root-owned systemd credential.
+- [ ] Create a separate staging credential before persistent email testing in staging.
+- [x] Configure SMTP host `smtp.resend.com`, port `587`, username `resend`, and `login@smalldocs.org` as the sender.
 - [ ] Use a monitored From address on the verified domain.
+- [x] Send a production-path message from the restricted service sandbox and confirm Resend accepted it.
 - [ ] Send test codes and invitations to Gmail, Outlook, iCloud, and a custom-domain mailbox.
 - [ ] Check delivery latency, spam placement, expiry, resend invalidation, bounce behavior, and provider outage behavior.
 - [ ] Confirm neither login codes nor invitation tokens appear in application or proxy logs.
