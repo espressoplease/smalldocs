@@ -40,6 +40,11 @@ USAGE
   sdoc library ls                  List markdown indexed in this project (walks up to .git)
   sdoc library ls --tags           Tag bag (tag - count) for this project
   sdoc library --help              Full library reference - commands, tagging, rescue, autostart
+  sdoc cloud login                 Sign this CLI into SmallDocs Cloud once
+  sdoc cloud projects              List authorized Cloud project UUIDs
+  sdoc cloud ls                    List Cloud documents
+  sdoc cloud search "query"        Search authorized Cloud documents
+  sdoc cloud --help                Full Cloud command reference
   sdoc <file> +tag1 +tag2          Inject tags into the file's front matter at open time
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
@@ -72,7 +77,7 @@ OPTIONS
   --mode <m>            Alias for --read / --write / --style / --raw / --comment
   --short               Use the encrypted /s/<id> short-URL form (share
                         subcommand only). See SHORT LINKS below.
-  --json                Machine-readable output (safe subcommand only).
+  --json                Machine-readable output for safe and Cloud commands.
   --audit               Also print GitHub links to server-side source
                         files (safe subcommand only).
   --keep-open           feedback subcommand: keep the bridge alive across

@@ -585,6 +585,60 @@ module.exports = function(harness) {
       assert.strictEqual(Object.prototype.hasOwnProperty.call(user, 'identities'), false);
     });
 
+    await testAsync('CLI device authorization requires browser approval and issues Bearer tokens', async () => {
+      const issued = await post(BASE + '/api/cloud/v1/cli/device-authorizations', {
+        display_name: 'HTTP test machine',
+      });
+      assert.strictEqual(issued.status, 201);
+      const authorization = JSON.parse(issued.body);
+      assert.ok(authorization.verification_uri_complete.includes(authorization.user_code));
+
+      const pending = await post(BASE + '/api/cloud/v1/cli/device-authorizations/token', {
+        device_code: authorization.device_code,
+      });
+      assert.strictEqual(pending.status, 428);
+      assert.strictEqual(JSON.parse(pending.body).error, 'authorization_pending');
+
+      const page = await get(BASE + '/cloud/authorize?user_code=' + authorization.user_code,
+        { Cookie: cloudCookie });
+      assert.strictEqual(page.status, 200);
+      assert.ok(page.body.includes('Authorize this CLI'));
+
+      const lookup = await get(BASE + '/api/cloud/v1/cli/device-authorizations/lookup?user_code=' + authorization.user_code,
+        { Cookie: cloudCookie });
+      assert.strictEqual(JSON.parse(lookup.body).authorization.display_name, 'HTTP test machine');
+
+      const approved = await post(BASE + '/api/cloud/v1/cli/device-authorizations/approve', {
+        user_code: authorization.user_code,
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(approved.status, 200);
+
+      const token = await post(BASE + '/api/cloud/v1/cli/device-authorizations/token', {
+        device_code: authorization.device_code,
+      });
+      assert.strictEqual(token.status, 200);
+      const credential = JSON.parse(token.body);
+      const account = await get(BASE + '/api/cloud/v1/me', {
+        Authorization: 'Bearer ' + credential.access_token,
+      });
+      assert.strictEqual(JSON.parse(account.body).user.email, 'cloud-api@example.com');
+
+      const refreshed = await post(BASE + '/api/cloud/v1/cli/token/refresh', {
+        refresh_token: credential.refresh_token,
+      });
+      assert.strictEqual(refreshed.status, 200);
+      const next = JSON.parse(refreshed.body);
+      assert.notStrictEqual(next.refresh_token, credential.refresh_token);
+      const oldAccess = await get(BASE + '/api/cloud/v1/me', {
+        Authorization: 'Bearer ' + credential.access_token,
+      });
+      assert.strictEqual(oldAccess.status, 401);
+      const newAccess = await get(BASE + '/api/cloud/v1/me', {
+        Authorization: 'Bearer ' + next.access_token,
+      });
+      assert.strictEqual(newAccess.status, 200);
+    });
+
     await testAsync('Cloud API creates, reads, lists, tags, and searches an encrypted document', async () => {
       const created = await post(BASE + '/api/cloud/v1/documents', {
         project_id: cloudProject.id,

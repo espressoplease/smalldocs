@@ -52,6 +52,7 @@ require('./test-update-check')(harness);
 require('./test-source')(harness);
 require('./test-cloud-auth')(harness);
 const runCloudStore = require('./test-cloud-store')(harness);
+const runCloudCli = require('./test-cloud-cli')(harness);
 require('./test-library-tags')(harness);
 require('./test-library-ephemeral')(harness);
 require('./test-library-store')(harness);
@@ -73,6 +74,7 @@ const runLibraryServer = require('./test-library-server')(harness);
 
 (async () => {
   runCloudStore();
+  await runCloudCli();
   await runBridge();
   await runSetupScenarios();
   await runTeams();

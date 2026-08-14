@@ -185,6 +185,57 @@ module.exports = function(harness) {
       assert.strictEqual(auth.authenticateSession(revocable.token).reason, 'revoked');
     });
 
+    let cliCredential;
+    let originalRefresh;
+    test('device authorization stores only keyed device and user codes', () => {
+      const issued = auth.issueDeviceAuthorization({ displayName: 'Josh MacBook' });
+      originalRefresh = issued;
+      const row = auth.db.prepare('SELECT * FROM cloud_cli_device_authorizations WHERE id = ?').get(issued.id);
+      assert.notStrictEqual(row.device_code_hash, issued.deviceCode);
+      assert.strictEqual(row.device_code_hash.includes(issued.deviceCode), false);
+      assert.notStrictEqual(row.user_code_hash, issued.userCode.replace('-', ''));
+      assert.strictEqual(auth.getDeviceAuthorization(issued.userCode).displayName, 'Josh MacBook');
+      assert.deepStrictEqual(auth.pollDeviceAuthorization({ deviceCode: issued.deviceCode }), {
+        ok: false, reason: 'authorization_pending',
+      });
+    });
+
+    test('approved device authorization issues one persistent CLI credential', () => {
+      auth.approveDeviceAuthorization({ userCode: originalRefresh.userCode, userId: googleUser.id });
+      cliCredential = auth.pollDeviceAuthorization({ deviceCode: originalRefresh.deviceCode });
+      assert.strictEqual(cliCredential.ok, true);
+      assert.strictEqual(cliCredential.userId, googleUser.id);
+      assert.strictEqual(auth.pollDeviceAuthorization({ deviceCode: originalRefresh.deviceCode }).reason, 'expired_token');
+      const access = auth.authenticateAccessToken(cliCredential.accessToken);
+      assert.strictEqual(access.ok, true);
+      assert.strictEqual(access.credential.id, cliCredential.credentialId);
+      const row = auth.db.prepare('SELECT * FROM cloud_cli_credentials WHERE id = ?').get(cliCredential.credentialId);
+      assert.strictEqual(row.refresh_token_hash.includes(cliCredential.refreshToken), false);
+    });
+
+    test('refresh rotates both tokens and revokes the previous access token', () => {
+      const previousAccess = cliCredential.accessToken;
+      const previousRefresh = cliCredential.refreshToken;
+      const refreshed = auth.refreshCliCredential({ refreshToken: previousRefresh });
+      assert.strictEqual(refreshed.ok, true);
+      assert.notStrictEqual(refreshed.refreshToken, previousRefresh);
+      assert.notStrictEqual(refreshed.accessToken, previousAccess);
+      assert.strictEqual(auth.authenticateAccessToken(previousAccess).ok, false);
+      assert.strictEqual(auth.authenticateAccessToken(refreshed.accessToken).ok, true);
+      assert.throws(() => auth.refreshCliCredential({ refreshToken: previousRefresh }),
+        (error) => error instanceof AuthError && error.code === 'token_reuse');
+      assert.strictEqual(auth.authenticateAccessToken(refreshed.accessToken).ok, false);
+    });
+
+    test('users can inspect and revoke CLI installations', () => {
+      const device = auth.issueDeviceAuthorization({ displayName: 'Build machine' });
+      auth.approveDeviceAuthorization({ userCode: device.userCode, userId: googleUser.id });
+      const credential = auth.pollDeviceAuthorization({ deviceCode: device.deviceCode });
+      assert.ok(auth.listCliCredentials(googleUser.id).some((item) => item.id === credential.credentialId));
+      auth.revokeCliCredential({ userId: googleUser.id, credentialId: credential.credentialId });
+      assert.strictEqual(auth.authenticateAccessToken(credential.accessToken).ok, false);
+    });
+
     test('a user cannot revoke another user session by id', () => {
       const actor = auth.createBrowserSession(googleUser.id);
       const target = auth.createBrowserSession(githubUser.id);

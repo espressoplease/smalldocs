@@ -583,6 +583,8 @@ function cloudApiError(res, error) {
     revision_conflict: 409,
     idempotency_mismatch: 409,
     rate_limited: 429,
+    invalid_token: 401,
+    token_reuse: 401,
     temporary_service_failure: 503,
   };
   const body = { ok: false, error: code };
@@ -599,25 +601,92 @@ function cloudApiPrincipal(req, res) {
     sendJson(res, 503, { ok: false, error: 'cloud_storage_not_configured' });
     return null;
   }
-  const authenticated = cloudAuthSession(req);
+  const authorization = String(req.headers.authorization || '');
+  const bearer = /^Bearer\s+(.+)$/i.exec(authorization);
+  const authenticated = bearer ? cloudAuth.authenticateAccessToken(bearer[1]) : cloudAuthSession(req);
   if (!authenticated.ok) {
     sendJson(res, 401, { ok: false, error: 'login_required' });
     return null;
   }
-  return authenticated.user;
+  return { user: authenticated.user, credential: authenticated.credential || null };
 }
 
 function cloudApiMutationAllowed(req, res) {
   if (req.method === 'GET' || req.method === 'HEAD') return true;
+  if (/^Bearer\s+/i.test(String(req.headers.authorization || ''))) return true;
   return cloudAuthPostAllowed(req, res);
 }
 
 async function handleCloudApi(req, res, url) {
-  const user = cloudApiPrincipal(req, res);
-  if (!user || !cloudApiMutationAllowed(req, res)) return;
   const pathname = url.pathname;
   const base = '/api/cloud/v1';
   try {
+    if (req.method === 'POST' && pathname === base + '/cli/device-authorizations') {
+      if (!cloudAuthReady(res)) return;
+      const body = await cloudAuthHttp.readJson(req);
+      const rate = cloudAuth.consumeRateLimit({ action: 'cli_device_issue', key: getClientIp(req),
+        limit: 10, windowMs: 15 * 60 * 1000 });
+      if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
+      const issued = cloudAuth.issueDeviceAuthorization({ displayName: body.display_name });
+      sendJson(res, 201, { ok: true, device_code: issued.deviceCode, user_code: issued.userCode,
+        verification_uri: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/authorize',
+        verification_uri_complete: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/authorize?user_code=' + encodeURIComponent(issued.userCode),
+        expires_in: Math.max(1, Math.floor((issued.expiresAtMs - Date.now()) / 1000)), interval: 2 });
+      return;
+    }
+    if (req.method === 'POST' && pathname === base + '/cli/device-authorizations/token') {
+      if (!cloudAuthReady(res)) return;
+      const body = await cloudAuthHttp.readJson(req);
+      const result = cloudAuth.pollDeviceAuthorization({ deviceCode: body.device_code });
+      if (!result.ok) {
+        const status = result.reason === 'authorization_pending' ? 428 : 400;
+        return sendJson(res, status, { ok: false, error: result.reason });
+      }
+      sendJson(res, 200, { ok: true, credential_id: result.credentialId, user_id: result.userId,
+        access_token: result.accessToken, access_token_expires_at: new Date(result.accessExpiresAtMs).toISOString(),
+        refresh_token: result.refreshToken, token_type: 'Bearer' });
+      return;
+    }
+    if (req.method === 'POST' && pathname === base + '/cli/token/refresh') {
+      if (!cloudAuthReady(res)) return;
+      const body = await cloudAuthHttp.readJson(req);
+      const result = cloudAuth.refreshCliCredential({ refreshToken: body.refresh_token });
+      sendJson(res, 200, { ok: true, credential_id: result.credentialId, user_id: result.userId,
+        access_token: result.accessToken, access_token_expires_at: new Date(result.accessExpiresAtMs).toISOString(),
+        refresh_token: result.refreshToken, token_type: 'Bearer' });
+      return;
+    }
+
+    const principal = cloudApiPrincipal(req, res);
+    if (!principal || !cloudApiMutationAllowed(req, res)) return;
+    const user = principal.user;
+    const credentialId = principal.credential && principal.credential.id;
+
+    if (req.method === 'GET' && pathname === base + '/cli/device-authorizations/lookup') {
+      const authorization = cloudAuth.getDeviceAuthorization(url.searchParams.get('user_code'));
+      if (!authorization) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+      sendJson(res, 200, { ok: true, authorization: {
+        user_code: authorization.userCode, display_name: authorization.displayName,
+        expires_at: new Date(authorization.expiresAtMs).toISOString(),
+      } });
+      return;
+    }
+    if (req.method === 'POST' && pathname === base + '/cli/device-authorizations/approve') {
+      const body = await cloudAuthHttp.readJson(req);
+      cloudAuth.approveDeviceAuthorization({ userCode: body.user_code, userId: user.id });
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+    if (req.method === 'GET' && pathname === base + '/cli/credentials') {
+      sendJson(res, 200, { ok: true, credentials: cloudAuth.listCliCredentials(user.id) });
+      return;
+    }
+    const credentialMatch = pathname.match(/^\/api\/cloud\/v1\/cli\/credentials\/([^/]+)$/);
+    if (credentialMatch && req.method === 'DELETE') {
+      cloudAuth.revokeCliCredential({ userId: user.id, credentialId: credentialMatch[1] });
+      sendJson(res, 200, { ok: true });
+      return;
+    }
     if (req.method === 'GET' && pathname === base + '/workspaces') {
       const personal = cloudStore.ensurePersonalWorkspace(user.id, 'Personal');
       sendJson(res, 200, { ok: true, personal_workspace_id: personal.workspaceId,
@@ -652,7 +721,7 @@ async function handleCloudApi(req, res, url) {
       const body = await cloudAuthHttp.readJson(req, 2 * 1024 * 1024);
       const document = cloudStore.createDocument({
         userId: user.id, projectId: body.project_id, filename: body.filename,
-        markdown: body.markdown, idempotencyKey: body.idempotency_key,
+        markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId,
       });
       sendJson(res, 201, { ok: true, document });
       return;
@@ -691,7 +760,7 @@ async function handleCloudApi(req, res, url) {
         userId: user.id, documentId: revisionsMatch[1],
         expectedHeadRevisionId: body.expected_head_revision_id,
         markdown: body.markdown, filename: body.filename,
-        idempotencyKey: body.idempotency_key,
+        idempotencyKey: body.idempotency_key, credentialId,
       });
       sendJson(res, 201, { ok: true, document });
       return;
@@ -893,6 +962,23 @@ const server = http.createServer((req, res) => {
 
   if (pathname === '/cloud/sign-in') {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-sign-in.html'), null, {
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+    });
+    return;
+  }
+
+  if (pathname === '/cloud/authorize') {
+    const authenticated = cloudAuthSession(req);
+    if (!authenticated.ok) {
+      res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent(req.url), 'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-authorize.html'), null, {
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',

@@ -14,6 +14,7 @@ const SUBCOMMANDS = new Set([
   'bridge', 'feedback',
   'slides', 'present',
   'library',
+  'cloud',
   'color-analysis',
 ]);
 
@@ -55,6 +56,16 @@ function parseArgs(argv) {
   let yesFlag = false;
   let dryRunFlag = false;
   let sheetName = null;
+  let projectFlag = null;
+  let outputPath = null;
+  let revisionFlag = null;
+  let documentFlag = null;
+  let baseRevisionFlag = null;
+  let limitFlag = null;
+  let noOpenFlag = false;
+  let noBindFlag = false;
+  let forceFlag = false;
+  const tagFilters = [];
   const addTags = [];
   const annotations = [];
   // Multi-file code walkthrough: every source-code positional is collected
@@ -115,6 +126,16 @@ function parseArgs(argv) {
     if (arg === '--yes' || arg === '-y')             { yesFlag          = true; continue; }
     if (arg === '--dry-run')                         { dryRunFlag       = true; continue; }
     if (arg === '--sheet')                           { sheetName        = args[++i]; continue; }
+    if (arg === '--project')                         { projectFlag      = args[++i]; continue; }
+    if (arg === '--output' || arg === '-o')          { outputPath       = args[++i]; continue; }
+    if (arg === '--revision')                        { revisionFlag     = args[++i]; continue; }
+    if (arg === '--document')                        { documentFlag     = args[++i]; continue; }
+    if (arg === '--base-revision')                   { baseRevisionFlag = args[++i]; continue; }
+    if (arg === '--limit')                           { limitFlag        = Number(args[++i]); continue; }
+    if (arg === '--tag')                             { tagFilters.push(args[++i]); continue; }
+    if (arg === '--no-open')                         { noOpenFlag       = true; continue; }
+    if (arg === '--no-bind')                         { noBindFlag       = true; continue; }
+    if (arg === '--force')                           { forceFlag        = true; continue; }
 
     if (!subcommand && SUBCOMMANDS.has(arg)) {
       subcommand = arg;
@@ -165,6 +186,8 @@ function parseArgs(argv) {
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,
     tagsFlag, helpFlag, yesFlag, dryRunFlag, sheetName,
+    projectFlag, outputPath, revisionFlag, documentFlag, baseRevisionFlag,
+    limitFlag, noOpenFlag, noBindFlag, forceFlag, tagFilters,
     addTags, annotations, files,
   };
 }
@@ -236,13 +259,13 @@ function readCodewalkContent(files) {
   return { body: parts.join('\n'), files: tabs };
 }
 
-function openBrowser(url) {
+function openBrowser(url, fallback) {
   try {
     if (process.platform === 'darwin')      execFileSync('open', [url]);
     else if (process.platform === 'win32')  execFileSync('cmd', ['/c', 'start', '', url]);
     else                                    execFileSync('xdg-open', [url]);
   } catch {
-    console.log(`Open in browser: ${url}`);
+    (fallback || console.log)(`Open in browser: ${url}`);
   }
 }
 

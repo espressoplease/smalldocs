@@ -34,6 +34,7 @@ const commands    = require('../lib/commands');
 const cellsVerify = require('../lib/cells-verify');
 const bridgeCommands = require('../lib/bridge-commands');
 const libraryCommands = require('../lib/library-commands');
+const cloudCommands = require('../lib/cloud-commands');
 
 // ── Router ────────────────────────────────────────────────
 // One place that knows the full set of verbs. New chunks register here.
@@ -107,6 +108,7 @@ function buildRouter() {
   // `sdoc library [enable|disable|status|rebuild]`. No sub-arg opens
   // the library UI.
   r.register('library',  { handler: async (opts) => { await libraryCommands.libraryCommand(opts); /* libraryOpen blocks */ } });
+  r.register('cloud',    { handler: async (opts) => { await cloudCommands.runCloudCommand(opts); } });
 
   r.register(null,       { handler: (opts) => {
     // Index-on-open tap: fires before the open so any +tag CLI args land
