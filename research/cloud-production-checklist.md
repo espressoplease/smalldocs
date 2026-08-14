@@ -30,6 +30,7 @@ Completed on 14 August 2026:
 - [x] Created the `Odd Solutions Production` Organizations member account, account ID `732006412787`.
 - [x] Assigned the `Administrators` group to the production account through Identity Center.
 - [x] Configured local temporary-session profiles `odd-solutions-admin` for the management account and `odd-solutions-production-admin` for production. No local long-lived AWS credentials file was created.
+- [x] Created the `odd-solutions-production-monthly` USD 10 cost budget with actual-spend alerts at 50, 80, and 100 percent.
 
 The management account, account ID `703318158341`, contains a legacy `taaalkuser` IAM identity and `taaalk` S3 bucket. The legacy user still has an active access key and the AWS-managed `AmazonS3FullAccess` policy. Do not reuse it for either product or deactivate it until its dependency has been identified. The existing bucket is private, versioned, encrypted with S3-managed AES-256, and treated as unrelated live data.
 
