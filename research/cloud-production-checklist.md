@@ -20,6 +20,21 @@ Launch a small private beta before a public paid launch:
 
 Do not add a second application replica until PostgreSQL-backed concurrency, jobs, migrations, and webhook behavior have passed the launch test matrix.
 
+## Provisioned AWS foundation
+
+Completed on 14 August 2026:
+
+- [x] Enabled a single-Region IAM Identity Center organization instance in `eu-central-1` using the AWS-owned encryption key.
+- [x] Created the `joshua` workforce identity, the `Administrators` group, and the one-hour `AdministratorAccess` permission set.
+- [x] Verified that the root identity has MFA and no access keys, then stopped using root for routine administration.
+- [x] Created the `Odd Solutions Production` Organizations member account, account ID `732006412787`.
+- [x] Assigned the `Administrators` group to the production account through Identity Center.
+- [x] Configured local temporary-session profiles `odd-solutions-admin` for the management account and `odd-solutions-production-admin` for production. No local long-lived AWS credentials file was created.
+
+The management account, account ID `703318158341`, contains a legacy `taaalkuser` IAM identity and `taaalk` S3 bucket. The legacy user still has an active access key and the AWS-managed `AmazonS3FullAccess` policy. Do not reuse it for either product or deactivate it until its dependency has been identified. The existing bucket is private, versioned, encrypted with S3-managed AES-256, and treated as unrelated live data.
+
+Create all new SmallDocs and SmallCRM KMS keys, backup buckets, workload roles, audit trails, and budgets in the production member account. Keep separate resources and permissions for each product even though they share the account during the beta.
+
 ## Launch blockers at a glance
 
 - [ ] Finish the managed KMS integration. The current adapter requires synchronous `encrypt` and `decrypt` methods, while normal AWS, Google, and Azure KMS clients make asynchronous network calls. Refactor the key-unwrapping path to support an asynchronous KMS client, then integrate and test one real provider.
@@ -142,7 +157,7 @@ KMS request cost is unlikely to affect the decision. Engineering fit, workload a
 - [AWS KMS pricing](https://aws.amazon.com/kms/pricing/)
 - [Google Cloud KMS pricing](https://cloud.google.com/kms/pricing)
 
-Recommendation: choose AWS KMS if its IAM and audit model are more familiar, or Google Cloud KMS if keeping Google OAuth and key management in one cloud account is operationally useful. Use Google Cloud HSM rather than the software tier if hardware-backed key storage is a requirement. Either official Node client is asynchronous, so both require the same KMS boundary refactor.
+Decision: use AWS KMS in the `Odd Solutions Production` member account. It keeps encryption keys and off-site S3 backups under the same temporary-session administration model while separating them from the legacy management-account IAM user and bucket. SmallDocs and SmallCRM receive separate customer-managed keys, workload identities, policies, aliases, backup buckets, and encryption contexts. The official AWS SDK is asynchronous, so the current synchronous KMS boundary still requires refactoring before deployment.
 
 Do not select a provider based on the difference between $0.06 and $1 per month. Select the one whose account recovery, workload identity, audit access, and operator permissions you are prepared to maintain.
 
