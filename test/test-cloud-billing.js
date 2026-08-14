@@ -57,15 +57,19 @@ module.exports = function (harness) {
       }), error => error instanceof BillingError && error.code === 'invalid_seat_quantity');
     });
 
-    test('team seat quantity controls the effective member allowance', () => {
+    test('team membership can grow to the plan cap while seat billing follows usage', () => {
       billing.upsertSubscription({
         workspaceId: 'wrk_team', plan: 'team', status: 'active', seatQuantity: 4,
       });
       const entitlements = billing.computeEntitlements('wrk_team', { memberCount: 3 });
-      assert.strictEqual(entitlements.limits.maxMembers, 4);
+      assert.strictEqual(entitlements.limits.maxMembers, 50);
+      assert.strictEqual(entitlements.limits.billedSeats, 4);
       assert.strictEqual(entitlements.access.manageMembers, true);
       assert.strictEqual(billing.checkOperation('wrk_team', {
         operation: 'add_member', usage: { memberCount: 4 },
+      }).allowed, true);
+      assert.strictEqual(billing.checkOperation('wrk_team', {
+        operation: 'add_member', usage: { memberCount: 50 },
       }).reason, 'member_limit_reached');
     });
 
@@ -73,7 +77,9 @@ module.exports = function (harness) {
       billing.upsertSubscription({
         workspaceId: 'wrk_large_team', plan: 'team', status: 'active', seatQuantity: 75,
       });
-      assert.strictEqual(billing.computeEntitlements('wrk_large_team').limits.maxMembers, 50);
+      const entitlements = billing.computeEntitlements('wrk_large_team');
+      assert.strictEqual(entitlements.limits.maxMembers, 50);
+      assert.strictEqual(entitlements.limits.billedSeats, 75);
     });
 
     test('active subscription can read, write, and search within limits', () => {

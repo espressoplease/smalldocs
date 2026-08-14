@@ -112,16 +112,40 @@ const CLOUD_AUTH_DEV_LOG_CODES = cloudAuthHttp.canLogDevCodes({
   publicOrigin: CLOUD_AUTH_PUBLIC_ORIGIN,
 });
 let cloudAuth = null;
+let cloudOAuthTransactions = null;
+let cloudGoogleOAuth = null;
+let cloudGitHubOAuth = null;
 if (CLOUD_AUTH_PEPPER) {
   const { createAuthStore } = require('./lib/cloud-auth');
   cloudAuth = createAuthStore({
     dbPath: process.env.CLOUD_AUTH_DB || path.join(__dirname, 'cloud_auth.db'),
     pepper: CLOUD_AUTH_PEPPER,
   });
+  const { createOAuthTransactionStore, createGoogleOAuth, createGitHubOAuth } = require('./lib/cloud-oauth');
+  cloudOAuthTransactions = createOAuthTransactionStore({
+    dbPath: process.env.CLOUD_OAUTH_DB || process.env.CLOUD_AUTH_DB || path.join(__dirname, 'cloud_auth.db'),
+    pepper: CLOUD_AUTH_PEPPER,
+  });
+  if (process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET) {
+    cloudGoogleOAuth = createGoogleOAuth({ clientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+      redirectUri: CLOUD_AUTH_PUBLIC_ORIGIN + '/api/cloud/auth/oauth/google/callback',
+      transactions: cloudOAuthTransactions });
+  }
+  if (process.env.GITHUB_OAUTH_CLIENT_ID && process.env.GITHUB_OAUTH_CLIENT_SECRET) {
+    cloudGitHubOAuth = createGitHubOAuth({ clientId: process.env.GITHUB_OAUTH_CLIENT_ID,
+      clientSecret: process.env.GITHUB_OAUTH_CLIENT_SECRET,
+      redirectUri: CLOUD_AUTH_PUBLIC_ORIGIN + '/api/cloud/auth/oauth/github/callback',
+      transactions: cloudOAuthTransactions });
+  }
 }
-setImmediate(() => { if (cloudAuth) cloudAuth.cleanupExpired(); });
+setImmediate(() => {
+  if (cloudAuth) cloudAuth.cleanupExpired();
+  if (cloudOAuthTransactions) cloudOAuthTransactions.cleanupExpired();
+});
 const cloudAuthCleanupTimer = setInterval(() => {
   if (cloudAuth) cloudAuth.cleanupExpired();
+  if (cloudOAuthTransactions) cloudOAuthTransactions.cleanupExpired();
 }, 24 * 60 * 60 * 1000);
 if (cloudAuthCleanupTimer.unref) cloudAuthCleanupTimer.unref();
 
@@ -129,13 +153,26 @@ if (cloudAuthCleanupTimer.unref) cloudAuthCleanupTimer.unref();
 // local key provider is for development and tests; production must supply the
 // same interface through a managed key service before accepting customer data.
 let cloudStore = null;
-if (process.env.CLOUD_MASTER_KEY) {
-  const { createCloudStore, createLocalKeyProvider } = require('./lib/cloud-store');
-  const cloudKeyProvider = createLocalKeyProvider({
+let cloudKeyProvider = null;
+if (process.env.CLOUD_KMS_CLIENT_MODULE && process.env.CLOUD_KMS_KEY_ID) {
+  const kmsModulePath = path.resolve(process.env.CLOUD_KMS_CLIENT_MODULE);
+  const kmsModule = require(kmsModulePath);
+  const kmsClient = typeof kmsModule.createKmsClient === 'function'
+    ? kmsModule.createKmsClient({ environment: process.env.CLOUD_ENVIRONMENT || 'production' })
+    : kmsModule;
+  cloudKeyProvider = require('./lib/cloud-kms').createManagedKmsKeyProvider({ kmsClient,
+    keyId: process.env.CLOUD_KMS_KEY_ID,
+    environment: process.env.CLOUD_ENVIRONMENT || 'production' });
+} else if (process.env.CLOUD_MASTER_KEY) {
+  const { createLocalKeyProvider } = require('./lib/cloud-store');
+  cloudKeyProvider = createLocalKeyProvider({
     masterKey: process.env.CLOUD_MASTER_KEY,
     environment: process.env.CLOUD_ENVIRONMENT || 'development',
     reference: process.env.CLOUD_KEY_REFERENCE || 'local-development-key',
   });
+}
+if (cloudKeyProvider) {
+  const { createCloudStore } = require('./lib/cloud-store');
   cloudStore = createCloudStore({
     dbPath: process.env.CLOUD_DB || path.join(__dirname, 'cloud.db'),
     keyProvider: cloudKeyProvider,
@@ -161,6 +198,86 @@ if (process.env.CLOUD_BILLING_DB) {
     });
   }
 }
+
+let cloudJobs = null;
+const CLOUD_JOB_WORKER_ID = 'cloud-server-' + process.pid;
+if (process.env.CLOUD_JOBS_DB) {
+  cloudJobs = require('./lib/cloud-jobs').createCloudJobs({ dbPath: process.env.CLOUD_JOBS_DB });
+}
+
+function enqueueCloudJob(input) {
+  if (!cloudJobs) return null;
+  return cloudJobs.enqueue(input);
+}
+
+function scheduleRevisionPrune(document) {
+  const keepLatest = Number(process.env.CLOUD_REVISION_KEEP_LATEST);
+  if (!cloudJobs || !Number.isSafeInteger(keepLatest) || keepLatest < 1 || !document) return;
+  enqueueCloudJob({ type: 'revision_prune',
+    idempotencyKey: document.id + ':' + document.current_revision_id,
+    payload: { documentId: document.id, keepLatest } });
+}
+
+function scheduleTeamSeatSync(workspaceId) {
+  if (!cloudJobs) return;
+  const usage = cloudStore.getWorkspaceUsage({ workspaceId, skipAccess: true });
+  enqueueCloudJob({ type: 'team_seat_sync',
+    idempotencyKey: workspaceId + ':' + usage.memberCount,
+    payload: { workspaceId } });
+}
+
+async function processCloudJob(job) {
+  if (job.type === 'document_purge') {
+    if (cloudStore) cloudStore.purgeDeletedDocuments({ beforeMs: Date.now(), actorUserId: 'system' });
+    return;
+  }
+  if (job.type === 'revision_prune') {
+    if (cloudStore) cloudStore.pruneRevisions({ documentId: job.payload.documentId,
+      keepLatest: job.payload.keepLatest });
+    return;
+  }
+  if (job.type === 'team_seat_sync') {
+    await syncTeamSeatQuantity(job.payload.workspaceId);
+    return;
+  }
+  if (job.type === 'auth_cleanup') {
+    if (cloudAuth) cloudAuth.cleanupExpired();
+    if (cloudOAuthTransactions) cloudOAuthTransactions.cleanupExpired();
+    return;
+  }
+  if (job.type === 'invitation_email') {
+    if (!teamsNotify.isConfigured()) throw Object.assign(new Error('email_delivery_not_configured'),
+      { code: 'email_delivery_not_configured' });
+    const delivered = await teamsNotify.sendTo(job.payload.email, 'You have been invited to SmallDocs Cloud',
+      'You have been invited to a SmallDocs Cloud workspace.\n\nOpen the invitation:\n' + job.payload.acceptUrl);
+    if (!delivered.ok) throw Object.assign(new Error('email_delivery_failed'), { code: 'email_delivery_failed' });
+    return;
+  }
+  throw new Error('unknown_cloud_job_type');
+}
+
+let cloudJobWorkerBusy = false;
+async function runCloudJobWorker() {
+  if (!cloudJobs || cloudJobWorkerBusy) return;
+  cloudJobWorkerBusy = true;
+  try {
+    const job = cloudJobs.claim({ workerId: CLOUD_JOB_WORKER_ID, leaseMs: 60 * 1000 });
+    if (!job) return;
+    try {
+      await processCloudJob(job);
+      cloudJobs.complete({ jobId: job.id, workerId: CLOUD_JOB_WORKER_ID });
+    } catch (error) {
+      cloudJobs.retry({ jobId: job.id, workerId: CLOUD_JOB_WORKER_ID,
+        error: { code: error && error.code ? error.code : 'job_failed' } });
+    }
+  } finally {
+    cloudJobWorkerBusy = false;
+  }
+}
+const cloudJobTimer = setInterval(runCloudJobWorker,
+  Math.max(250, Number(process.env.CLOUD_JOB_POLL_MS) || 1000));
+if (cloudJobTimer.unref) cloudJobTimer.unref();
+setImmediate(runCloudJobWorker);
 
 // Auto-version: hash all non-font files in public/ at startup.
 // Any file change = new hash = clients purge their SW cache.
@@ -849,11 +966,21 @@ async function handleCloudApi(req, res, url) {
           body.project_grants.map((grant) => ({ projectId: grant.project_id || grant.projectId,
             role: grant.role })) : [],
       });
+      const acceptUrl = CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/invite?token=' + encodeURIComponent(invitation.token);
+      if (cloudJobs) {
+        enqueueCloudJob({ type: 'invitation_email', idempotencyKey: invitation.id,
+          payload: { email: invitation.email, acceptUrl } });
+      } else if (teamsNotify.isConfigured()) {
+        const delivered = await teamsNotify.sendTo(invitation.email,
+          'You have been invited to SmallDocs Cloud',
+          'You have been invited to a SmallDocs Cloud workspace.\n\nOpen the invitation:\n' + acceptUrl);
+        if (!delivered.ok) console.error('[cloud-invitation] email delivery failed');
+      }
       sendJson(res, 201, { ok: true, invitation: {
         id: invitation.id, email: invitation.email, role: invitation.role,
         project_grants: invitation.projectGrants,
         expires_at: new Date(invitation.expiresAtMs).toISOString(),
-        accept_url: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/invite?token=' + encodeURIComponent(invitation.token),
+        accept_url: acceptUrl,
       } });
       return;
     }
@@ -862,7 +989,10 @@ async function handleCloudApi(req, res, url) {
       cloudStore.removeWorkspaceMember({ actorUserId: user.id,
         workspaceId: workspaceMemberMatch[1], userId: workspaceMemberMatch[2] });
       try { await syncTeamSeatQuantity(workspaceMemberMatch[1]); }
-      catch (_) { console.error('[cloud-billing] seat synchronization failed'); }
+      catch (_) {
+        scheduleTeamSeatSync(workspaceMemberMatch[1]);
+        console.error('[cloud-billing] seat synchronization queued');
+      }
       sendJson(res, 200, { ok: true });
       return;
     }
@@ -876,7 +1006,10 @@ async function handleCloudApi(req, res, url) {
       const result = cloudStore.acceptInvitation({ userId: user.id,
         verifiedEmails, token: invitationAcceptMatch[1] });
       try { await syncTeamSeatQuantity(result.workspaceId); }
-      catch (_) { console.error('[cloud-billing] seat synchronization failed'); }
+      catch (_) {
+        scheduleTeamSeatSync(result.workspaceId);
+        console.error('[cloud-billing] seat synchronization queued');
+      }
       sendJson(res, 200, { ok: true, workspace_id: result.workspaceId, role: result.role });
       return;
     }
@@ -896,9 +1029,21 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (req.method === 'GET' && pathname === base + '/tags') {
-      sendJson(res, 200, { ok: true, tags: cloudStore.listTags({
-        userId: user.id, projectId: url.searchParams.get('project_id') || undefined,
-      }) });
+      const projectId = url.searchParams.get('project_id') || undefined;
+      let documents = cloudStore.listDocuments({ userId: user.id, projectId });
+      if (cloudBilling) documents = documents.filter((document) => {
+        try {
+          const context = cloudStore.getDocumentContext({ userId: user.id, documentId: document.id });
+          requireCloudEntitlement(user.id, context.workspaceId, 'read');
+          return true;
+        } catch (_) { return false; }
+      });
+      const counts = new Map();
+      documents.forEach((document) => document.tags.forEach((tag) =>
+        counts.set(tag, (counts.get(tag) || 0) + 1)));
+      const tags = Array.from(counts, ([tag, count]) => ({ tag, count }))
+        .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+      sendJson(res, 200, { ok: true, tags });
       return;
     }
     if (req.method === 'POST' && pathname === base + '/documents') {
@@ -912,6 +1057,7 @@ async function handleCloudApi(req, res, url) {
         userId: user.id, projectId: body.project_id, filename: body.filename,
         markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId,
       });
+      scheduleRevisionPrune(document);
       sendJson(res, 201, { ok: true, document });
       return;
     }
@@ -923,7 +1069,11 @@ async function handleCloudApi(req, res, url) {
         requireCloudEntitlement(user.id, project.workspaceId, 'search');
       }
       const documents = cloudStore.search({ userId: user.id, query: body.query,
-        projectId: body.project_id, workspaceId: body.workspace_id, limit: body.limit });
+        projectId: body.project_id, workspaceId: body.workspace_id, limit: body.limit,
+        maxProjects: Number(process.env.CLOUD_SEARCH_MAX_PROJECTS) || undefined,
+        maxDocuments: Number(process.env.CLOUD_SEARCH_MAX_DOCUMENTS) || undefined,
+        maxBytes: Number(process.env.CLOUD_SEARCH_MAX_BYTES) || undefined,
+        deadlineMs: Number(process.env.CLOUD_SEARCH_DEADLINE_MS) || undefined });
       const allowedDocuments = cloudBilling && !body.workspace_id && !body.project_id
         ? documents.filter((document) => {
             try {
@@ -951,6 +1101,9 @@ async function handleCloudApi(req, res, url) {
       requireCloudEntitlement(user.id, context.workspaceId, 'manage');
       const deleted = cloudStore.deleteDocument({ userId: user.id, documentId: documentMatch[1],
         expectedHeadRevisionId: body.expected_head_revision_id });
+      enqueueCloudJob({ type: 'document_purge',
+        idempotencyKey: deleted.id + ':' + deleted.purge_after,
+        payload: {}, availableAtMs: Date.parse(deleted.purge_after) });
       sendJson(res, 200, { ok: true, document: deleted });
       return;
     }
@@ -989,6 +1142,7 @@ async function handleCloudApi(req, res, url) {
         markdown: body.markdown, filename: body.filename,
         idempotencyKey: body.idempotency_key, credentialId,
       });
+      scheduleRevisionPrune(document);
       sendJson(res, 201, { ok: true, document });
       return;
     }
@@ -1013,6 +1167,7 @@ async function handleCloudApi(req, res, url) {
         expectedHeadRevisionId: body.expected_head_revision_id,
         idempotencyKey: body.idempotency_key, credentialId,
       });
+      scheduleRevisionPrune(document);
       sendJson(res, 201, { ok: true, document });
       return;
     }
@@ -1088,6 +1243,89 @@ async function handleCloudEmailVerify(req, res) {
   }
 }
 
+function beginCloudOAuth(req, res, url, provider) {
+  if (!cloudAuthReady(res)) return;
+  const adapter = provider === 'google' ? cloudGoogleOAuth : cloudGitHubOAuth;
+  if (!adapter) {
+    sendJson(res, 503, { ok: false, error: 'provider_not_configured' });
+    return;
+  }
+  try {
+    const rate = cloudAuth.consumeRateLimit({ action: 'oauth_begin_' + provider,
+      key: getClientIp(req), limit: 30, windowMs: 15 * 60 * 1000 });
+    if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
+    const started = adapter.begin({ returnTo: url.searchParams.get('return_to') });
+    const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
+    res.writeHead(303, { Location: started.authorizationUrl, 'Cache-Control': 'no-store',
+      'Referrer-Policy': 'no-referrer',
+      'Set-Cookie': cloudOAuthBindingCookie(provider, new URL(started.authorizationUrl).searchParams.get('state'),
+        { secure, maxAge: Math.max(1, Math.floor((started.expiresAtMs - Date.now()) / 1000)) }) });
+    res.end();
+  } catch (_) {
+    sendJson(res, 400, { ok: false, error: 'invalid_oauth_request' });
+  }
+}
+
+function cloudOAuthBindingCookie(provider, state, options) {
+  options = options || {};
+  const secure = options.secure !== false;
+  const name = (secure ? '__Host-sdocs_oauth_' : 'sdocs_oauth_') + provider;
+  const parts = [name + '=' + encodeURIComponent(state || ''), 'Path=/', 'HttpOnly', 'SameSite=Lax'];
+  if (secure) parts.push('Secure');
+  if (Number.isInteger(options.maxAge) && options.maxAge >= 0) parts.push('Max-Age=' + options.maxAge);
+  return parts.join('; ');
+}
+
+async function finishCloudOAuth(req, res, url, provider) {
+  if (!cloudAuthReady(res)) return;
+  const adapter = provider === 'google' ? cloudGoogleOAuth : cloudGitHubOAuth;
+  if (!adapter) return sendJson(res, 503, { ok: false, error: 'provider_not_configured' });
+  let clearBinding = null;
+  try {
+    const rate = cloudAuth.consumeRateLimit({ action: 'oauth_callback_' + provider,
+      key: getClientIp(req), limit: 30, windowMs: 15 * 60 * 1000 });
+    if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
+    const state = url.searchParams.get('state');
+    const code = url.searchParams.get('code');
+    const providerError = url.searchParams.get('error');
+    const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
+    const cookies = cloudAuthHttp.parseCookies(req.headers.cookie);
+    const bindingName = (secure ? '__Host-sdocs_oauth_' : 'sdocs_oauth_') + provider;
+    if (!state || !cloudAuthHttp.timingSafeEqualString(cookies[bindingName], state)) {
+      throw new Error('invalid OAuth browser binding');
+    }
+    clearBinding = cloudOAuthBindingCookie(provider, '', { secure, maxAge: 0 });
+    if (providerError || !state || !code) {
+      // Every authorization response consumes its transaction, including a
+      // denial. Otherwise a denied state remains a second callback path until
+      // expiry. Do not reflect provider descriptions into our redirect.
+      if (state) cloudOAuthTransactions.consume({ provider, state });
+      const publicError = providerError ? 'oauth_denied' : 'invalid_oauth_request';
+      res.writeHead(303, { Location: '/cloud/sign-in?error=' + publicError,
+        'Set-Cookie': clearBinding, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+      res.end();
+      return;
+    }
+    const completed = await adapter.callback({ state, code });
+    const signedIn = cloudAuth.signInWithExternalIdentity(completed.identity);
+    if (cloudStore) cloudStore.ensurePersonalWorkspace(signedIn.user.id, 'Personal');
+    const session = cloudAuth.createBrowserSession(signedIn.user.id);
+    res.writeHead(303, { Location: cloudAuthHttp.safeReturnPath(completed.returnTo),
+      'Set-Cookie': [cloudAuthHttp.sessionCookie(session.token, { secure,
+        maxAge: Math.max(1, Math.floor((session.expiresAtMs - Date.now()) / 1000)) }), clearBinding],
+      'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+    res.end();
+  } catch (_) {
+    const headers = { Location: '/cloud/sign-in?error=oauth_failed',
+      'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' };
+    // A callback without the browser binding must not clear another valid
+    // transaction that happens to be in progress in this browser.
+    if (clearBinding) headers['Set-Cookie'] = clearBinding;
+    res.writeHead(303, headers);
+    res.end();
+  }
+}
+
 function readRawBody(req, limit) {
   const cap = limit || 1024 * 1024;
   return new Promise((resolve, reject) => {
@@ -1136,7 +1374,12 @@ async function handleStripeWebhook(req, res) {
       eventType: event.type, payload: rawBody }, (store) => {
       if (event.type.startsWith('customer.subscription.')) {
         const input = stripeSubscriptionInput(event.data.object);
-        if (input.workspaceId && input.plan) store.upsertSubscription(input);
+        if (input.workspaceId && input.plan) {
+          const existing = store.getSubscription(input.workspaceId);
+          if (input.status === 'past_due' && existing && existing.status === 'past_due' &&
+              existing.graceEndsAtMs != null) input.graceEndsAtMs = existing.graceEndsAtMs;
+          store.upsertSubscription(input);
+        }
       }
     });
     sendJson(res, 200, { received: true });
@@ -1204,6 +1447,18 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  const oauthBeginMatch = /^\/api\/cloud\/auth\/oauth\/(google|github)$/.exec(pathname);
+  if (req.method === 'GET' && oauthBeginMatch) {
+    beginCloudOAuth(req, res, url, oauthBeginMatch[1]);
+    return;
+  }
+
+  const oauthCallbackMatch = /^\/api\/cloud\/auth\/oauth\/(google|github)\/callback$/.exec(pathname);
+  if (req.method === 'GET' && oauthCallbackMatch) {
+    finishCloudOAuth(req, res, url, oauthCallbackMatch[1]);
+    return;
+  }
+
   if (req.method === 'POST' && pathname === '/api/cloud/billing/stripe/webhook') {
     handleStripeWebhook(req, res);
     return;
@@ -1229,9 +1484,12 @@ const server = http.createServer((req, res) => {
       if (!priceId) throw Object.assign(new Error('billing_not_configured'), { code: 'billing_not_configured' });
       const usage = cloudStore.getWorkspaceUsage({ userId: principal.user.id, workspaceId: workspace.id });
       const identity = principal.user.identities.find((item) => item.verifiedEmail);
+      const successTarget = new URL(cloudAuthHttp.safeReturnPath(body.return_to), CLOUD_AUTH_PUBLIC_ORIGIN);
+      successTarget.searchParams.set('checkout', 'success');
+      successTarget.searchParams.set('workspace_id', workspace.id);
       const session = await cloudStripe.createCheckoutSubscriptionSession({
         priceId, quantity: plan === 'team' ? Math.max(1, usage.memberCount) : 1,
-        successUrl: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/admin?workspace_id=' + encodeURIComponent(workspace.id) + '&checkout=success',
+        successUrl: successTarget.toString(),
         cancelUrl: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud?checkout=cancelled',
         workspaceId: workspace.id, plan, customerEmail: identity && identity.verifiedEmail,
         metadata: { owner_user_id: principal.user.id }, idempotencyKey: crypto.randomUUID(),
@@ -1383,11 +1641,6 @@ const server = http.createServer((req, res) => {
       'Referrer-Policy': 'no-referrer',
       'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
     });
-    return;
-  }
-
-  if (pathname === '/api/cloud/auth/oauth/google' || pathname === '/api/cloud/auth/oauth/github') {
-    sendJson(res, 503, { ok: false, error: 'provider_not_configured' });
     return;
   }
 

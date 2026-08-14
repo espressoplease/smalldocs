@@ -36,6 +36,10 @@
   var codeInput = document.getElementById('code');
   var status = document.getElementById('prototype-status');
 
+  if (params.get('error')) {
+    status.textContent = 'Sign-in could not be completed. Try again or use email.';
+  }
+
   document.getElementById('return-label').textContent = label;
   Array.prototype.forEach.call(document.querySelectorAll('.return-input'), function (input) {
     input.value = returnPath;

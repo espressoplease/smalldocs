@@ -207,6 +207,8 @@ module.exports = function(harness) {
       assert.strictEqual(found.length, 1);
       assert.strictEqual(found[0].id, document.id);
       assert.strictEqual(store.search({ userId: outsider, query: 'kubernetes' }).length, 0);
+      assert.throws(() => store.search({ userId: owner, query: 'missing', maxDocuments: 1 }),
+        (error) => error.code === 'search_limit_reached');
     });
 
     test('delete requires the current head and preserves revisions for restore', () => {

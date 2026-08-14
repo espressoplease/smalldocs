@@ -15,8 +15,15 @@
     <section class="invite-card" aria-labelledby="checkout-title">
       <h1 id="checkout-title">Choose a workspace</h1>
       <p id="checkout-copy">Payment is collected by Stripe. The subscription renews monthly until cancelled.</p>
-      <label for="checkout-workspace">Workspace</label>
-      <select id="checkout-workspace"></select>
+      <div id="checkout-workspace-field">
+        <label for="checkout-workspace">Workspace</label>
+        <select id="checkout-workspace"></select>
+      </div>
+      <div id="checkout-team-field" hidden>
+        <label for="checkout-team-name">Team name</label>
+        <input id="checkout-team-name" type="text" maxlength="512" autocomplete="organization" placeholder="Your team" aria-describedby="checkout-team-note">
+        <p class="field-note" id="checkout-team-note">This creates the workspace that holds your team's projects and documents.</p>
+      </div>
       <button id="checkout-button" type="button" disabled>Continue to payment</button>
       <p class="status" id="checkout-status" role="status" aria-live="polite"></p>
     </section>

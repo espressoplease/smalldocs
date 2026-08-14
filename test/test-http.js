@@ -44,6 +44,10 @@ module.exports = function(harness) {
         CLOUD_ENVIRONMENT: 'test',
         CLOUD_IDEMPOTENCY_SECRET: 'http-test-idempotency-secret-32-bytes',
         CLOUD_BILLING_DB: testCloudBillingDbPath,
+        GOOGLE_OAUTH_CLIENT_ID: 'http-test-google-client',
+        GOOGLE_OAUTH_CLIENT_SECRET: 'http-test-google-secret',
+        GITHUB_OAUTH_CLIENT_ID: '',
+        GITHUB_OAUTH_CLIENT_SECRET: '',
         NODE_ENV: 'test',
       },
       stdio: 'pipe',
@@ -489,6 +493,64 @@ module.exports = function(harness) {
     await testAsync('asset-versioning: /cloud/sign-in is versioned', async () => {
       const v = JSON.parse((await get(BASE + '/version-check')).body).version;
       await assertEveryAssetVersioned('/cloud/sign-in', v);
+    });
+
+    let googleOAuthState;
+    let googleOAuthCookie;
+    await testAsync('configured Google OAuth start redirects with state, nonce, and PKCE', async () => {
+      const r = await get(BASE + '/api/cloud/auth/oauth/google?return_to=' +
+        encodeURIComponent('/cloud/account'));
+      assert.strictEqual(r.status, 303);
+      assert.strictEqual(r.headers['cache-control'], 'no-store');
+      assert.strictEqual(r.headers['referrer-policy'], 'no-referrer');
+      assert.ok(r.headers['set-cookie'][0].startsWith('sdocs_oauth_google='));
+      assert.ok(r.headers['set-cookie'][0].includes('HttpOnly'));
+      assert.ok(r.headers['set-cookie'][0].includes('SameSite=Lax'));
+      googleOAuthCookie = r.headers['set-cookie'][0].split(';')[0];
+      const location = new URL(r.headers.location);
+      assert.strictEqual(location.origin, 'https://accounts.google.com');
+      assert.strictEqual(location.searchParams.get('client_id'), 'http-test-google-client');
+      assert.strictEqual(location.searchParams.get('redirect_uri'),
+        BASE + '/api/cloud/auth/oauth/google/callback');
+      assert.strictEqual(location.searchParams.get('scope'), 'openid email');
+      assert.strictEqual(location.searchParams.get('code_challenge_method'), 'S256');
+      assert.ok(location.searchParams.get('code_challenge'));
+      assert.ok(location.searchParams.get('nonce'));
+      googleOAuthState = location.searchParams.get('state');
+      assert.ok(googleOAuthState);
+    });
+
+    await testAsync('Google OAuth denial consumes state without contacting the provider', async () => {
+      const unbound = await get(BASE + '/api/cloud/auth/oauth/google/callback?error=access_denied&state=' +
+        encodeURIComponent(googleOAuthState));
+      assert.strictEqual(unbound.status, 303);
+      assert.strictEqual(unbound.headers.location, '/cloud/sign-in?error=oauth_failed');
+      assert.ok(!unbound.headers['set-cookie']);
+
+      const denied = await get(BASE + '/api/cloud/auth/oauth/google/callback?error=access_denied&state=' +
+        encodeURIComponent(googleOAuthState) + '&error_description=' +
+        encodeURIComponent('private provider detail'), { Cookie: googleOAuthCookie });
+      assert.strictEqual(denied.status, 303);
+      assert.strictEqual(denied.headers.location, '/cloud/sign-in?error=oauth_denied');
+      assert.ok(!denied.headers.location.includes('private'));
+      assert.ok(denied.headers['set-cookie'][0].includes('Max-Age=0'));
+
+      const reused = await get(BASE + '/api/cloud/auth/oauth/google/callback?error=access_denied&state=' +
+        encodeURIComponent(googleOAuthState), { Cookie: googleOAuthCookie });
+      assert.strictEqual(reused.status, 303);
+      assert.strictEqual(reused.headers.location, '/cloud/sign-in?error=oauth_failed');
+      assert.ok(reused.headers['set-cookie'][0].includes('Max-Age=0'));
+    });
+
+    await testAsync('unconfigured GitHub OAuth start and callback fail closed', async () => {
+      const started = await get(BASE + '/api/cloud/auth/oauth/github?return_to=%2Fcloud%2Faccount');
+      assert.strictEqual(started.status, 503);
+      assert.strictEqual(JSON.parse(started.body).error, 'provider_not_configured');
+      assert.ok(!started.headers.location);
+      const callback = await get(BASE + '/api/cloud/auth/oauth/github/callback?state=unknown&code=unknown');
+      assert.strictEqual(callback.status, 503);
+      assert.strictEqual(JSON.parse(callback.body).error, 'provider_not_configured');
+      assert.ok(!callback.headers['set-cookie']);
     });
 
     await testAsync('Cloud email code request rejects a missing Origin', async () => {

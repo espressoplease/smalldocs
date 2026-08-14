@@ -10,7 +10,8 @@ const bindings = require('./cloud-bindings');
 const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
   resource_unavailable: 4, permission_denied: 4, revision_conflict: 5,
   unsafe_local_state: 6, base_revision_unavailable: 6, rate_limited: 7,
-  temporary_service_failure: 7 };
+  temporary_service_failure: 7, subscription_required: 4,
+  subscription_read_only: 4, payment_grace_expired: 4 };
 
 const CLOUD_HELP = `SmallDocs Cloud
 
@@ -24,6 +25,9 @@ const CLOUD_HELP = `SmallDocs Cloud
   sdoc cloud create PATH --project UUID
   sdoc cloud pull DOCUMENT_UUID [--revision UUID] --output PATH [--no-bind]
   sdoc cloud push PATH
+  sdoc cloud history DOCUMENT_UUID
+  sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID
+  sdoc cloud delete DOCUMENT_UUID --base-revision UUID
 
 Add --json to any command for one machine-readable JSON object on stdout.`;
 
@@ -31,12 +35,27 @@ class CloudCommandError extends Error {
   constructor(code, message, detail) {
     super(message || code);
     this.code = code;
-    if (detail) { this.data = detail; Object.assign(this, detail); }
+    if (detail) this.data = detail;
   }
 }
 
 function origin() {
   return String(process.env.SDOCS_CLOUD_URL || constants.DEFAULT_URL).replace(/\/$/, '');
+}
+
+function entitlementFailure(code, status, cloudOrigin) {
+  if (code === 'read_only') code = 'subscription_read_only';
+  if (status !== 402 && !['subscription_required', 'subscription_read_only',
+    'payment_grace_expired'].includes(code)) return null;
+  if (!['subscription_required', 'subscription_read_only', 'payment_grace_expired'].includes(code)) {
+    code = 'subscription_required';
+  }
+  if (code === 'subscription_required') {
+    return { code, message: 'An active SmallDocs Cloud subscription is required to change documents.',
+      action: 'subscribe', billing_url: cloudOrigin + '/cloud/checkout' };
+  }
+  return { code, message: 'This Cloud workspace is read-only because its subscription is not active. Ask a workspace owner to update billing.',
+    action: 'manage_billing', billing_url: cloudOrigin + '/cloud/admin' };
 }
 
 class CloudClient {
@@ -86,8 +105,14 @@ class CloudClient {
       return this.authenticated(endpoint, options, false);
     }
     if (!result.response.ok) {
+      const entitlement = entitlementFailure(result.data.error, result.response.status, this.origin);
+      if (entitlement) {
+        throw new CloudCommandError(entitlement.code, entitlement.message,
+          Object.assign({}, result.data, { http_status: result.response.status,
+            action: entitlement.action, billing_url: entitlement.billing_url }));
+      }
       throw new CloudCommandError(result.data.error || 'temporary_service_failure',
-        result.data.message, result.data);
+        result.data.message, Object.assign({}, result.data, { http_status: result.response.status }));
     }
     return result.data;
   }
@@ -100,10 +125,14 @@ function emit(opts, command, value, human) {
 
 function fail(opts, command, error) {
   const code = error.code || 'unexpected';
-  const body = Object.assign({ ok: false, command, error: code, message: error.message || code },
-    error.data || {});
+  const body = Object.assign({}, error.data || {},
+    { ok: false, command, error: code, message: error.message || code });
   if (opts.jsonFlag) process.stdout.write(JSON.stringify(body) + '\n');
-  else process.stderr.write('sdoc cloud: ' + body.message + '\n');
+  else {
+    process.stderr.write('sdoc cloud: ' + body.message + '\n');
+    if (body.billing_url) process.stderr.write(
+      (body.action === 'subscribe' ? 'Subscribe: ' : 'Manage billing: ') + body.billing_url + '\n');
+  }
   process.exitCode = EXIT[code] || 1;
 }
 
@@ -314,6 +343,77 @@ async function push(opts, client) {
       + (localChanged ? '; the local file changed again during upload.' : '.'));
 }
 
+async function history(opts, client) {
+  const documentId = opts.extra;
+  if (!documentId) throw new CloudCommandError('invalid_request',
+    'usage: sdoc cloud history DOCUMENT_UUID');
+  const response = await client.authenticated('/api/cloud/v1/documents/'
+    + encodeURIComponent(documentId) + '/revisions');
+  const revisions = response.revisions || [];
+  emit(opts, 'cloud.history', { document_id: documentId, revisions,
+    next_cursor: response.next_cursor == null ? null : response.next_cursor }, revisions.map((revision) =>
+    revision.revision_number + '  ' + revision.id + '  ' + revision.created_at).join('\n') || 'No revisions.');
+}
+
+async function restore(opts, client) {
+  const documentId = opts.extra;
+  const sourceRevisionId = opts.revisionFlag;
+  if (!documentId || !sourceRevisionId) throw new CloudCommandError('invalid_request',
+    'usage: sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID');
+  const currentResponse = await client.authenticated('/api/cloud/v1/documents/'
+    + encodeURIComponent(documentId));
+  const current = currentResponse.document;
+  if (!current || !current.current_revision_id) {
+    throw new CloudCommandError('temporary_service_failure', 'Cloud did not return the current document revision.');
+  }
+  const credential = client.loadCredential();
+  const pendingResource = documentId + ':' + sourceRevisionId;
+  let pending = bindings.getOperationPending(credential.user_id, 'restore', pendingResource);
+  if (!pending) {
+    pending = { expected_head_revision_id: current.current_revision_id,
+      idempotency_key: crypto.randomUUID() };
+    bindings.setOperationPending(credential.user_id, 'restore', pendingResource, pending);
+  }
+  const baseRevisionId = pending.expected_head_revision_id;
+  let response;
+  try {
+    response = await client.authenticated('/api/cloud/v1/documents/'
+      + encodeURIComponent(documentId) + '/revisions/' + encodeURIComponent(sourceRevisionId) + '/restore', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expected_head_revision_id: baseRevisionId,
+        idempotency_key: pending.idempotency_key }),
+    });
+  } catch (error) {
+    if (error && error.code === 'revision_conflict') {
+      bindings.clearOperationPending(credential.user_id, 'restore', pendingResource);
+    }
+    throw error;
+  }
+  bindings.clearOperationPending(credential.user_id, 'restore', pendingResource);
+  const document = response.document;
+  emit(opts, 'cloud.restore', { document_id: document.id,
+    base_revision_id: baseRevisionId,
+    restored_from_revision_id: document.restored_from_revision_id || sourceRevisionId,
+    revision_id: document.current_revision_id,
+    revision_number: document.revision_number,
+    tags: document.tags }, 'Restored revision ' + sourceRevisionId + ' as revision '
+      + document.revision_number + '.');
+}
+
+async function deleteDocument(opts, client) {
+  const documentId = opts.extra;
+  if (!documentId || !opts.baseRevisionFlag) throw new CloudCommandError('invalid_request',
+    'usage: sdoc cloud delete DOCUMENT_UUID --base-revision UUID');
+  const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(documentId), {
+    method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expected_head_revision_id: opts.baseRevisionFlag }),
+  });
+  const document = response.document;
+  emit(opts, 'cloud.delete', { document_id: document.id,
+    base_revision_id: opts.baseRevisionFlag, deleted_at: document.deleted_at,
+    purge_after: document.purge_after }, 'Deleted ' + document.id + '.');
+}
+
 async function status(opts, client) {
   const me = await client.authenticated('/api/cloud/v1/me');
   const credential = client.loadCredential();
@@ -337,10 +437,14 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'create') return await create(opts, client);
     if (action === 'pull') return await pull(opts, client);
     if (action === 'push') return await push(opts, client);
+    if (action === 'history') return await history(opts, client);
+    if (action === 'restore') return await restore(opts, client);
+    if (action === 'delete') return await deleteDocument(opts, client);
     throw new CloudCommandError('invalid_request', 'unknown Cloud command: ' + action);
   } catch (error) {
     fail(opts, command, error);
   }
 }
 
-module.exports = { CloudClient, CloudCommandError, runCloudCommand, filterTags, origin, EXIT, CLOUD_HELP };
+module.exports = { CloudClient, CloudCommandError, runCloudCommand, filterTags, origin, EXIT, CLOUD_HELP,
+  entitlementFailure };

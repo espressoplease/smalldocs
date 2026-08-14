@@ -273,6 +273,8 @@ async function openProjectDialog() {
         option.value = project.id;
         option.textContent = group.workspace.name + ' / ' + project.name;
         option.dataset.projectName = project.name;
+        option.dataset.workspaceId = group.workspace.id;
+        option.dataset.workspaceKind = group.workspace.kind;
         select.appendChild(option);
       });
     });
@@ -303,6 +305,14 @@ async function openProjectDialog() {
       refreshRow();
       renderSuccess(dialog);
     } catch (error) {
+      if (error.status === 402 && (error.data.error === 'subscription_required' ||
+          error.data.error === 'subscription_read_only' || error.data.error === 'payment_grace_expired')) {
+        var selected = select.options[select.selectedIndex];
+        var plan = selected && selected.dataset.workspaceKind === 'team' ? 'team' : 'personal';
+        location.href = '/cloud/checkout?plan=' + plan + '&return=' +
+          encodeURIComponent(location.pathname + location.search + location.hash);
+        return;
+      }
       add.disabled = false;
       add.textContent = 'Try again';
     }

@@ -38,6 +38,23 @@ function clearPending(accountId, file) {
   credentials.atomicWrite(pendingFile(), values);
 }
 
+function operationKey(accountId, operation, resourceId) {
+  return accountId + '\0operation:' + operation + '\0' + resourceId;
+}
+function getOperationPending(accountId, operation, resourceId) {
+  return read(pendingFile())[operationKey(accountId, operation, resourceId)] || null;
+}
+function setOperationPending(accountId, operation, resourceId, value) {
+  const values = read(pendingFile());
+  values[operationKey(accountId, operation, resourceId)] = value;
+  credentials.atomicWrite(pendingFile(), values);
+}
+function clearOperationPending(accountId, operation, resourceId) {
+  const values = read(pendingFile());
+  delete values[operationKey(accountId, operation, resourceId)];
+  credentials.atomicWrite(pendingFile(), values);
+}
+
 function hash(content) { return crypto.createHash('sha256').update(content).digest('hex'); }
 
 function cacheBase(accountId, documentId, revisionId, content) {
@@ -50,4 +67,4 @@ function cacheBase(accountId, documentId, revisionId, content) {
 }
 
 module.exports = { bindingsFile, pendingFile, canonical, get, set, getPending, setPending,
-  clearPending, hash, cacheBase };
+  clearPending, getOperationPending, setOperationPending, clearOperationPending, hash, cacheBase };
