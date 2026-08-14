@@ -12,10 +12,12 @@ EnvironmentFile=/etc/smalldocs/smalldocs.env
 LoadCredential=aws-credentials:/etc/smalldocs/app-aws-credentials
 LoadCredential=resend-api-key:/etc/smalldocs/resend-api-key
 LoadCredential=stripe-api-key:/etc/smalldocs/stripe-api-key
+LoadCredential=stripe-webhook-secret:/etc/smalldocs/stripe-webhook-secret
 Environment=AWS_SHARED_CREDENTIALS_FILE=/run/credentials/smalldocs.service/aws-credentials
 Environment=AWS_EC2_METADATA_DISABLED=true
 Environment=NOTIFY_SMTP_PASS_FILE=/run/credentials/smalldocs.service/resend-api-key
 Environment=STRIPE_SECRET_KEY_FILE=/run/credentials/smalldocs.service/stripe-api-key
+Environment=STRIPE_WEBHOOK_SECRET_FILE=/run/credentials/smalldocs.service/stripe-webhook-secret
 ExecStartPre=/usr/bin/test -r /opt/smalldocs/current/server.js
 ExecStart=/usr/local/bin/node /opt/smalldocs/current/server.js
 Restart=on-failure

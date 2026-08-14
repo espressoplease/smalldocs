@@ -22,10 +22,13 @@ module.exports = function(harness) {
     assert.ok(unit.includes('User=smalldocs'));
     assert.ok(unit.includes('LoadCredential=aws-credentials:'));
     assert.ok(unit.includes('LoadCredential=stripe-api-key:'));
+    assert.ok(unit.includes('LoadCredential=stripe-webhook-secret:'));
     assert.ok(unit.includes(
       'AWS_SHARED_CREDENTIALS_FILE=/run/credentials/smalldocs.service/aws-credentials'));
     assert.ok(unit.includes(
       'STRIPE_SECRET_KEY_FILE=/run/credentials/smalldocs.service/stripe-api-key'));
+    assert.ok(unit.includes(
+      'STRIPE_WEBHOOK_SECRET_FILE=/run/credentials/smalldocs.service/stripe-webhook-secret'));
     assert.ok(unit.includes('ProtectSystem=strict'));
     assert.ok(unit.includes('ReadWritePaths=/var/lib/smalldocs'));
     assert.ok(unit.includes('LimitCORE=0'));

@@ -205,6 +205,11 @@ if (cloudKeyProvider) {
 
 let cloudBilling = null;
 let cloudStripe = null;
+let stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+if (process.env.STRIPE_WEBHOOK_SECRET_FILE) {
+  stripeWebhookSecret = fs.readFileSync(process.env.STRIPE_WEBHOOK_SECRET_FILE, 'utf8').trim();
+  if (!stripeWebhookSecret) throw new Error('STRIPE_WEBHOOK_SECRET_FILE is empty');
+}
 if (process.env.CLOUD_BILLING_DB) {
   const { createBillingStore } = require('./lib/cloud-billing');
   let planLimits = {};
@@ -221,7 +226,7 @@ if (process.env.CLOUD_BILLING_DB) {
   if (stripeSecretKey) {
     cloudStripe = require('./lib/cloud-stripe').createStripeClient({
       secretKey: stripeSecretKey,
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+      webhookSecret: stripeWebhookSecret,
       apiVersion: process.env.STRIPE_API_VERSION || undefined,
     });
   }
@@ -975,6 +980,7 @@ async function handleCloudApi(req, res, url) {
       const portal = await cloudStripe.createBillingPortalSession({
         customerId: subscription.providerCustomerId,
         returnUrl: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/admin?workspace_id=' + encodeURIComponent(workspace.id),
+        configurationId: process.env.STRIPE_PORTAL_CONFIGURATION_ID,
         idempotencyKey: crypto.randomUUID(),
       });
       sendJson(res, 200, { ok: true, portal_url: portal.url });
@@ -1552,7 +1558,7 @@ function stripeSubscriptionInput(subscription, eventCreatedMs) {
 }
 
 async function handleStripeWebhook(req, res) {
-  if (!cloudBilling || !cloudStripe || !process.env.STRIPE_WEBHOOK_SECRET) {
+  if (!cloudBilling || !cloudStripe || !stripeWebhookSecret) {
     return sendJson(res, 503, { ok: false, error: 'billing_not_configured' });
   }
   try {

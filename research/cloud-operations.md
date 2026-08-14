@@ -155,8 +155,10 @@ Workspace creation and invitation delivery have additional abuse limits:
 | `CLOUD_PAYMENT_GRACE_MS` | Before paid launch | Length of a newly observed `past_due` grace period. The code has a default, but production must set and publish the intended policy. Repeated `past_due` webhooks preserve the existing grace end. |
 | `STRIPE_SECRET_KEY` | For Stripe | Stripe server secret supplied directly. Use `STRIPE_SECRET_KEY_FILE` in production instead. |
 | `STRIPE_SECRET_KEY_FILE` | Alternative to `STRIPE_SECRET_KEY` | Read the Stripe server secret from a root-managed systemd credential. Production uses this path. |
-| `STRIPE_WEBHOOK_SECRET` | For Stripe webhooks | Verifies the raw request body and Stripe signature. The webhook endpoint returns unavailable when absent. |
+| `STRIPE_WEBHOOK_SECRET` | For Stripe webhooks | Verifies the raw request body and Stripe signature when supplied directly. Use `STRIPE_WEBHOOK_SECRET_FILE` in production instead. |
+| `STRIPE_WEBHOOK_SECRET_FILE` | Alternative to `STRIPE_WEBHOOK_SECRET` | Reads the signing secret from a root-managed systemd credential. The webhook endpoint returns unavailable when neither source is configured. |
 | `STRIPE_API_VERSION` | Recommended | Pins Stripe response semantics. If absent, the account default applies. Pin and test a version before launch. |
+| `STRIPE_PORTAL_CONFIGURATION_ID` | For the customer portal | Pins portal sessions to the reviewed configuration instead of whichever configuration later becomes the Stripe account default. |
 | `STRIPE_PERSONAL_PRICE_ID` | For Personal checkout | Stripe recurring price ID used by Personal checkout. |
 | `STRIPE_TEAM_PRICE_ID` | For Team checkout | Stripe recurring per-seat price ID used by Team checkout. |
 

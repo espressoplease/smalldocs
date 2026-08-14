@@ -19,6 +19,7 @@ module.exports = function(harness) {
       CLOUD_JOBS_DB: `/var/lib/smalldocs/${mode}/jobs.db`,
       STRIPE_SECRET_KEY: 'stripe-secret',
       STRIPE_WEBHOOK_SECRET: 'stripe-webhook-secret',
+      STRIPE_PORTAL_CONFIGURATION_ID: 'bpc_portal',
       STRIPE_PERSONAL_PRICE_ID: 'price_personal',
       STRIPE_TEAM_PRICE_ID: 'price_team',
       NOTIFY_SMTP_USER: 'smtp-user',
@@ -87,6 +88,13 @@ module.exports = function(harness) {
     assert.throws(() => validateCloudDeploymentConfig(fileEnv), (error) =>
       error.problems.includes(
         'exactly one of STRIPE_SECRET_KEY or STRIPE_SECRET_KEY_FILE is required'));
+
+    delete fileEnv.STRIPE_SECRET_KEY_FILE;
+    fileEnv.STRIPE_SECRET_KEY = 'stripe-secret';
+    delete fileEnv.STRIPE_WEBHOOK_SECRET;
+    fileEnv.STRIPE_WEBHOOK_SECRET_FILE =
+      '/run/credentials/smalldocs.service/stripe-webhook-secret';
+    assert.strictEqual(validateCloudDeploymentConfig(fileEnv).enabled, true);
   });
 
   test('deployed modes reject unsafe origins, implicit paths, and development switches', () => {
