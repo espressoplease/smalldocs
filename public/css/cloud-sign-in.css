@@ -179,6 +179,11 @@ label { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 11.
 .account-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; }
 .account-actions a, .account-actions button { color: var(--text-2); font-size: 11.5px; }
 .account-actions button { border: 0; background: transparent; text-decoration: underline; cursor: pointer; }
+.deleted-workspace-row { display: flex; gap: 16px; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-2); text-align: left; }
+.deleted-workspace-row:first-child { border-top: 0; }
+.deleted-workspace-row p { margin: 3px 0 0; }
+.deleted-workspace-row button { flex: none; padding: 7px 11px; border: 1px solid var(--border-2); border-radius: 5px; color: var(--text-1); background: var(--surface-1); cursor: pointer; }
+.deleted-workspace-row button:disabled { color: var(--text-3); cursor: default; }
 
 @media (max-width: 520px) {
   .brand-full { display: none; }

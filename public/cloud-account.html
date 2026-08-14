@@ -27,11 +27,17 @@
         <strong>Cloud account active</strong>
         <p>Open the Cloud library to search your documents, or open a local document and choose Add to Cloud from its file information.</p>
       </div>
+      <section id="deleted-workspaces" class="account-empty" hidden>
+        <strong>Recently deleted team workspaces</strong>
+        <p>Restore a workspace before its deletion date. Its projects, documents, and revision history will return.</p>
+        <div id="deleted-workspace-list"></div>
+      </section>
       <div class="account-actions">
         <a href="/library?scope=cloud">Open Cloud library</a>
         <form method="post" action="/api/cloud/auth/logout"><button type="submit">Sign out</button></form>
       </div>
     </section>
   </main>
+  <script src="/public/cloud-account.js"></script>
 </body>
 </html>

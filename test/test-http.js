@@ -586,6 +586,9 @@ module.exports = function(harness) {
       assert.strictEqual(account.status, 200);
       assert.ok(account.body.includes('Your Cloud account'));
       assert.ok(account.body.includes('Cloud account active'));
+      assert.ok(account.body.includes('/public/cloud-account.js?v='));
+      assert.ok(/script-src[^;]*'self'/.test(account.headers['content-security-policy'] || ''));
+      assert.ok(/connect-src[^;]*'self'/.test(account.headers['content-security-policy'] || ''));
 
       const loggedOut = await post(BASE + '/api/cloud/auth/logout', '', {
         Origin: BASE,
@@ -837,6 +840,22 @@ module.exports = function(harness) {
         { Cookie: cloudCookie });
       assert.strictEqual(hiddenDocument.status, 404);
 
+      const recoverable = await get(BASE + '/api/cloud/v1/workspaces/deleted', {
+        Cookie: cloudCookie,
+      });
+      assert.strictEqual(recoverable.status, 200);
+      assert.strictEqual(JSON.parse(recoverable.body).workspaces[0].id, cloudTeamWorkspace.workspaceId);
+      const restored = await post(BASE + '/api/cloud/v1/workspaces/' +
+        cloudTeamWorkspace.workspaceId + '/restore', {}, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(restored.status, 200);
+      assert.strictEqual(JSON.parse(restored.body).workspace.id, cloudTeamWorkspace.workspaceId);
+      const visibleDocument = await get(BASE + '/api/cloud/v1/documents/' + documentId,
+        { Cookie: cloudCookie });
+      assert.strictEqual(visibleDocument.status, 200);
+      const deletedAgain = await del(BASE + '/api/cloud/v1/workspaces/' +
+        cloudTeamWorkspace.workspaceId, {}, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(deletedAgain.status, 200);
+
       const Database = require('better-sqlite3');
       const jobs = new Database(testCloudJobsDbPath, { readonly: true });
       const job = jobs.prepare(`
@@ -847,7 +866,7 @@ module.exports = function(harness) {
       assert.ok(job);
       assert.strictEqual(JSON.parse(job.payload_json).workspaceId, cloudTeamWorkspace.workspaceId);
       assert.strictEqual(job.state, 'queued');
-      assert.strictEqual(job.available_at_ms, Date.parse(workspace.purge_after));
+      assert.ok(job.available_at_ms >= Date.parse(workspace.purge_after));
     });
 
     await testAsync('CLI device authorization requires browser approval and issues Bearer tokens', async () => {

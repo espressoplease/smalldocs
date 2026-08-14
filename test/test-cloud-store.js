@@ -356,6 +356,21 @@ module.exports = function(harness) {
       assert.throws(() => store.getInvitationContext({ token: pendingInvitation.token,
         verifiedEmails: ['deleted-workspace@example.com'] }),
       (error) => error.code === 'resource_unavailable');
+      const recoverable = store.listDeletedWorkspaces(owner);
+      assert.strictEqual(recoverable.length, 1);
+      assert.strictEqual(recoverable[0].id, team.workspaceId);
+      assert.strictEqual(recoverable[0].name, 'Acme');
+      assert.strictEqual(store.listDeletedWorkspaces(outsider).length, 0);
+      assert.throws(() => store.restoreWorkspace({ userId: outsider,
+        workspaceId: team.workspaceId }), (error) => error.code === 'resource_unavailable');
+      const restored = store.restoreWorkspace({ userId: owner, workspaceId: team.workspaceId });
+      assert.strictEqual(Date.parse(restored.restored_at), clock);
+      assert.strictEqual(store.listDeletedWorkspaces(owner).length, 0);
+      assert.strictEqual(store.listWorkspaces(owner).some((row) => row.id === team.workspaceId), true);
+      assert.strictEqual(store.listProjects(owner, team.workspaceId).length, 1);
+      assert.strictEqual(store.getInvitationContext({ token: pendingInvitation.token,
+        verifiedEmails: ['deleted-workspace@example.com'] }).workspaceId, team.workspaceId);
+      store.deleteWorkspace({ userId: owner, workspaceId: team.workspaceId, restoreWindowMs: 1000 });
       assert.strictEqual(store.purgeDeletedWorkspaces({ beforeMs: clock,
         workspaceId: team.workspaceId }).purged_count, 0);
       clock += 1001;

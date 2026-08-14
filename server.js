@@ -875,6 +875,10 @@ async function handleCloudApi(req, res, url) {
         workspaces: cloudStore.listWorkspaces(user.id) });
       return;
     }
+    if (req.method === 'GET' && pathname === base + '/workspaces/deleted') {
+      sendJson(res, 200, { ok: true, workspaces: cloudStore.listDeletedWorkspaces(user.id) });
+      return;
+    }
     if (req.method === 'POST' && pathname === base + '/workspaces') {
       const body = await cloudAuthHttp.readJson(req);
       const workspace = cloudStore.createTeamWorkspace({
@@ -1031,6 +1035,14 @@ async function handleCloudApi(req, res, url) {
         actorUserId: user.id, workspaceId: workspaceOwnersMatch[1], targetUserId: body.user_id,
       });
       sendJson(res, 200, { ok: true, ownership });
+      return;
+    }
+    const workspaceRestoreMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/restore$/);
+    if (workspaceRestoreMatch && req.method === 'POST') {
+      const restored = cloudStore.restoreWorkspace({
+        userId: user.id, workspaceId: workspaceRestoreMatch[1],
+      });
+      sendJson(res, 200, { ok: true, workspace: restored });
       return;
     }
     const workspaceMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)$/);
@@ -1673,7 +1685,7 @@ const server = http.createServer((req, res) => {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'no-referrer',
-      'Content-Security-Policy': "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
     });
     return;
   }

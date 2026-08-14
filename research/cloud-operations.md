@@ -153,7 +153,7 @@ If a search request limit is set, its window must also be set. Personal membersh
 | `CLOUD_JOBS_DB` | Recommended before customer use | Durable job SQLite path. Without it, revision pruning, delayed deletion purge, queued invitation email, and deferred seat reconciliation are not durable. |
 | `CLOUD_JOB_POLL_MS` | No | In-process worker polling interval. The implementation applies a lower bound and defaults to one second. |
 | `CLOUD_REVISION_KEEP_LATEST` | Before enabling pruning | Positive number of latest revisions to retain after a write or restore. When absent or invalid, revision-prune jobs are not enqueued. This operational setting must agree with the published retention entitlement. |
-| `CLOUD_WORKSPACE_RESTORE_WINDOW_MS` | Before team-workspace deletion is enabled | Positive team-workspace restore window in milliseconds. The store has an implementation default when absent. Production must set and publish the intended retention period. Personal workspaces cannot be deleted through this operation. |
+| `CLOUD_WORKSPACE_RESTORE_WINDOW_MS` | Before team-workspace deletion is enabled | Positive team-workspace restore window in milliseconds. During this window an owner can restore the workspace from the Cloud account page or API. The store has an implementation default when absent. Production must set and publish the intended retention period. Personal workspaces cannot be deleted through this operation. |
 
 Implemented job types are:
 
