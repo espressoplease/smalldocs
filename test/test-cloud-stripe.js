@@ -50,6 +50,9 @@ module.exports = function(harness) {
       assert.strictEqual(params.get('subscription_data[metadata][plan]'), 'team');
       assert.strictEqual(params.get('customer_email'), 'owner@example.com');
       assert.strictEqual(params.get('payment_method_collection'), 'always');
+      assert.strictEqual(params.get('billing_address_collection'), 'required');
+      assert.strictEqual(params.get('automatic_tax[enabled]'), 'true');
+      assert.strictEqual(params.get('tax_id_collection[enabled]'), 'true');
     });
 
     await testAsync('creates a customer billing portal session', async () => {
