@@ -68,9 +68,10 @@ Email codes and workspace invitations use `teams/notify.js`:
 
 | Variable | Required | Current behavior |
 | --- | --- | --- |
-| `NOTIFY_SMTP_USER` | Yes for production email | SMTP login and From address. |
+| `NOTIFY_SMTP_USER` | Yes for production email | SMTP login. Resend uses the literal value `resend`. |
 | `NOTIFY_SMTP_PASS` | Yes for production email | SMTP password or provider app password. |
-| `NOTIFY_EMAIL_TO` | No for Cloud delivery | Defaults to `NOTIFY_SMTP_USER`. It is used for internal notification mail; Cloud sign-in and invitation mail supply their recipient directly. |
+| `NOTIFY_EMAIL_FROM` | Yes for production email | Envelope and header sender address, for example `login@smalldocs.org`. |
+| `NOTIFY_EMAIL_TO` | No for Cloud delivery | Defaults to `NOTIFY_EMAIL_FROM`. It is used for internal notification mail; Cloud sign-in and invitation mail supply their recipient directly. |
 | `NOTIFY_SMTP_HOST` | No | Defaults to `smtp.gmail.com`. |
 | `NOTIFY_SMTP_PORT` | No | Defaults to `587` with STARTTLS. Port `465` uses implicit TLS. |
 

@@ -42,6 +42,7 @@ module.exports = function(harness) {
     await testAsync('notify: unconfigured env reports not_configured and never sends', async () => {
       delete process.env.NOTIFY_SMTP_USER;
       delete process.env.NOTIFY_SMTP_PASS;
+      delete process.env.NOTIFY_EMAIL_FROM;
       assert.strictEqual(notify.isConfigured(), false);
       const r = await notify.send('subject', 'body');
       assert.strictEqual(r.ok, false);
@@ -52,6 +53,21 @@ module.exports = function(harness) {
       assert.strictEqual(notify.dotStuff('a\n.b\nc'), 'a\r\n..b\r\nc');
       assert.strictEqual(notify.dotStuff('.start'), '..start');
       assert.strictEqual(notify.dotStuff('no dots'), 'no dots');
+    });
+
+    test('notify: Resend login is separate from the sender address', () => {
+      process.env.NOTIFY_SMTP_USER = 'resend';
+      process.env.NOTIFY_SMTP_PASS = 'test-password';
+      process.env.NOTIFY_EMAIL_FROM = 'login@smalldocs.org';
+      delete process.env.NOTIFY_EMAIL_TO;
+      const configured = notify.config();
+      assert.strictEqual(configured.user, 'resend');
+      assert.strictEqual(configured.from, 'login@smalldocs.org');
+      assert.strictEqual(configured.to, 'login@smalldocs.org');
+      assert.strictEqual(notify.isConfigured(), true);
+      delete process.env.NOTIFY_SMTP_USER;
+      delete process.env.NOTIFY_SMTP_PASS;
+      delete process.env.NOTIFY_EMAIL_FROM;
     });
 
     teams.close();

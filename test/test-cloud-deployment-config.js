@@ -23,6 +23,7 @@ module.exports = function(harness) {
       STRIPE_TEAM_PRICE_ID: 'price_team',
       NOTIFY_SMTP_USER: 'smtp-user',
       NOTIFY_SMTP_PASS: 'smtp-password',
+      NOTIFY_EMAIL_FROM: 'login@smalldocs.test',
     };
   }
 
