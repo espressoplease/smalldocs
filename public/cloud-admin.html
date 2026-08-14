@@ -121,7 +121,7 @@
       <div class="page-head"><div><h1 id="overview-name">Cloud workspace</h1><p class="description">Workspace documents, members, projects, and your active agent credentials.</p></div></div>
       <div class="error" id="page-error" role="alert"></div>
       <div class="stats"><div class="stat"><strong id="member-count">-</strong><span>members</span></div><div class="stat"><strong id="project-count">-</strong><span>projects</span></div><div class="stat"><strong id="document-count">-</strong><span>documents</span></div><div class="stat"><strong id="credential-count">-</strong><span>your active credentials</span></div></div>
-      <div class="card"><div class="card-head"><div><h2>Administration history</h2><p>Workspace and access changes, not document content.</p></div></div><p class="empty">Administration history is not available in this interface yet.</p></div>
+      <div class="card"><div class="card-head"><div><h2>Administration history</h2><p>Workspace and access changes, not document content.</p></div></div><div class="table-wrap"><table><tbody id="audit-rows"></tbody></table></div><p class="empty" id="audit-empty" hidden>No administration events have been recorded.</p></div>
     </section>
 
     <section class="panel" id="panel-members" hidden>
@@ -142,8 +142,8 @@
     </section>
 
     <section class="panel" id="panel-billing" hidden>
-      <div class="page-head"><div><h1>Billing</h1><p class="description">Team Cloud billing applies to human workspace members. Agent credentials do not add seats.</p></div></div>
-      <div class="card"><p class="empty">Billing management is not available in this interface yet.</p></div>
+      <div class="page-head"><div><h1>Billing</h1><p class="description">Team Cloud billing applies to human workspace members. Agent credentials do not add seats.</p></div><button class="btn" id="manage-billing" type="button" hidden>Manage payment</button></div>
+      <div class="card"><div class="billing-row"><div><strong id="billing-plan">Cloud subscription</strong><p id="billing-status">Loading billing state.</p></div><div class="price" id="billing-price"></div></div><div class="billing-row"><div><strong>Usage</strong><p id="billing-usage"></p></div></div><div class="billing-row" id="subscribe-row" hidden><div><strong>Subscribe to Cloud</strong><p>Payment is collected by Stripe. The subscription renews monthly until cancelled.</p></div><a class="btn primary" id="subscribe-link" href="/cloud">Subscribe</a></div></div>
     </section>
   </main>
 </div>

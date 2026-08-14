@@ -610,6 +610,7 @@ function cloudApiError(res, error) {
     project_limit_reached: 409,
     member_limit_reached: 409,
     search_limit_reached: 429,
+    billing_not_configured: 503,
     rate_limited: 429,
     invalid_token: 401,
     token_reuse: 401,
@@ -781,6 +782,24 @@ async function handleCloudApi(req, res, url) {
       sendJson(res, 200, { ok: true, billing: entitlements });
       return;
     }
+    const workspaceBillingPortalMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/billing\/portal$/);
+    if (workspaceBillingPortalMatch && req.method === 'POST') {
+      if (!cloudStripe || !cloudBilling) throw Object.assign(new Error('billing_not_configured'),
+        { code: 'billing_not_configured' });
+      const workspace = cloudStore.listWorkspaces(user.id).find((item) =>
+        item.id === workspaceBillingPortalMatch[1] && item.role === 'owner');
+      const subscription = workspace && cloudBilling.getSubscription(workspace.id);
+      if (!subscription || !subscription.providerCustomerId) {
+        throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+      }
+      const portal = await cloudStripe.createBillingPortalSession({
+        customerId: subscription.providerCustomerId,
+        returnUrl: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/admin?workspace_id=' + encodeURIComponent(workspace.id),
+        idempotencyKey: crypto.randomUUID(),
+      });
+      sendJson(res, 200, { ok: true, portal_url: portal.url });
+      return;
+    }
     if (workspaceProjectsMatch && req.method === 'POST') {
       const body = await cloudAuthHttp.readJson(req);
       requireCloudEntitlement(user.id, workspaceProjectsMatch[1], 'create_project');
@@ -805,7 +824,6 @@ async function handleCloudApi(req, res, url) {
     }
     const workspaceAuditMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/audit$/);
     if (workspaceAuditMatch && req.method === 'GET') {
-      requireCloudEntitlement(user.id, workspaceAuditMatch[1], 'read');
       sendJson(res, 200, { ok: true, events: cloudStore.listAuditEvents({
         userId: user.id, workspaceId: workspaceAuditMatch[1], limit: url.searchParams.get('limit'),
       }) });
@@ -843,7 +861,8 @@ async function handleCloudApi(req, res, url) {
     if (workspaceMemberMatch && req.method === 'DELETE') {
       cloudStore.removeWorkspaceMember({ actorUserId: user.id,
         workspaceId: workspaceMemberMatch[1], userId: workspaceMemberMatch[2] });
-      await syncTeamSeatQuantity(workspaceMemberMatch[1]);
+      try { await syncTeamSeatQuantity(workspaceMemberMatch[1]); }
+      catch (_) { console.error('[cloud-billing] seat synchronization failed'); }
       sendJson(res, 200, { ok: true });
       return;
     }
@@ -856,7 +875,8 @@ async function handleCloudApi(req, res, url) {
       requireCloudEntitlement(user.id, invitationContext.workspaceId, 'add_member');
       const result = cloudStore.acceptInvitation({ userId: user.id,
         verifiedEmails, token: invitationAcceptMatch[1] });
-      await syncTeamSeatQuantity(result.workspaceId);
+      try { await syncTeamSeatQuantity(result.workspaceId); }
+      catch (_) { console.error('[cloud-billing] seat synchronization failed'); }
       sendJson(res, 200, { ok: true, workspace_id: result.workspaceId, role: result.role });
       return;
     }

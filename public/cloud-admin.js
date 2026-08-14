@@ -9,6 +9,8 @@
     projects: [],
     documents: [],
     credentials: [],
+    audit: [],
+    billing: null,
     pendingAction: null,
   };
 
@@ -226,6 +228,35 @@
     });
   }
 
+  function renderAudit() {
+    var rows = byId('audit-rows');
+    rows.replaceChildren();
+    byId('audit-empty').hidden = state.audit.length > 0;
+    state.audit.slice(0, 20).forEach(function (event) {
+      var row = document.createElement('tr');
+      row.append(element('td', '', event.action.replace(/\./g, ' ')),
+        element('td', 'muted', formatDate(event.created_at)));
+      rows.appendChild(row);
+    });
+  }
+
+  function renderBilling() {
+    var billing = state.billing;
+    var plan = billing && billing.plan;
+    byId('billing-plan').textContent = plan ? formatRole(plan) + ' Cloud' : 'No active subscription';
+    byId('billing-status').textContent = billing
+      ? 'Status: ' + String(billing.effectiveStatus || billing.subscriptionStatus).replace(/_/g, ' ')
+      : 'Subscribe before storing or searching Cloud documents.';
+    byId('billing-price').textContent = plan === 'team' ? '£8 / member / month' : plan === 'personal' ? '£5 / month' : '';
+    var usage = billing && billing.usage;
+    byId('billing-usage').textContent = usage
+      ? usage.memberCount + ' members, ' + usage.projectCount + ' projects, ' + usage.storedBytes + ' stored bytes'
+      : 'No paid Cloud usage is available.';
+    byId('manage-billing').hidden = !billing;
+    byId('subscribe-row').hidden = Boolean(billing);
+    byId('subscribe-link').href = '/cloud/checkout?plan=' + (state.workspace.kind === 'team' ? 'team' : 'personal');
+  }
+
   function renderPermissions() {
     var canAdminister = state.workspace && (state.workspace.role === 'owner' || state.workspace.role === 'admin');
     byId('invite-open').hidden = !canAdminister;
@@ -254,6 +285,8 @@
     renderMembers();
     renderProjects();
     renderCredentials();
+    renderAudit();
+    renderBilling();
     renderPermissions();
   }
 
@@ -273,10 +306,14 @@
       request('/workspaces/' + encoded + '/members'),
       request('/workspaces/' + encoded + '/projects'),
       request('/documents?workspace_id=' + encoded),
+      request('/workspaces/' + encoded + '/audit'),
+      request('/workspaces/' + encoded + '/billing'),
     ]);
     state.members = responses[0].members || [];
     state.projects = responses[1].projects || [];
     state.documents = responses[2].documents || [];
+    state.audit = responses[3].events || [];
+    state.billing = responses[4].billing || null;
     var url = new URL(location.href);
     url.searchParams.set('workspace_id', workspace.id);
     history.replaceState(null, '', url.pathname + url.search);
@@ -403,6 +440,12 @@
       } finally {
         byId('confirm-action').disabled = false;
       }
+    });
+    byId('manage-billing').addEventListener('click', async function () {
+      try {
+        var result = await mutation('POST', '/workspaces/' + encodeURIComponent(state.workspace.id) + '/billing/portal');
+        location.assign(result.portal_url);
+      } catch (error) { showError(error); }
     });
   }
 
