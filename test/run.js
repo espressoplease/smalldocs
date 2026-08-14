@@ -58,6 +58,7 @@ const runCloudAwsKms = require('./test-cloud-aws-kms')(harness);
 require('./test-cloud-jobs')(harness);
 require('./test-cloud-oauth')(harness);
 require('./test-cloud-cursor')(harness);
+const runCloudDeploymentConfig = require('./test-cloud-deployment-config')(harness);
 const runCloudStore = require('./test-cloud-store')(harness);
 const runCloudCli = require('./test-cloud-cli')(harness);
 const runCloudCheckout = require('./test-cloud-checkout')(harness);
@@ -81,6 +82,7 @@ const runCacheBust = require('./test-cache-bust')(harness);
 const runLibraryServer = require('./test-library-server')(harness);
 
 (async () => {
+  await runCloudDeploymentConfig();
   await runCloudKms();
   await runCloudAwsKms();
   await runCloudStore();

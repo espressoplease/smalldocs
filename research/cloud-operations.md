@@ -10,7 +10,15 @@ The current databases use `better-sqlite3` in WAL mode. The job queue has leases
 
 Do not run multiple application replicas against copied databases or a network filesystem. Do not use an ephemeral container filesystem for any Cloud database. Moving to multiple replicas requires a transactional shared database, an external worker, coordinated migrations, and provider webhook routing that preserves idempotency.
 
-The local `CLOUD_MASTER_KEY` provider is for development and tests. Production document storage requires the built-in asynchronous AWS KMS provider. Run the server on Node.js 20 or later.
+The local `CLOUD_MASTER_KEY` provider is for development and disposable staging data. Production document storage requires the built-in asynchronous AWS KMS provider. Run the server on Node.js 20 or later.
+
+`CLOUD_MODE` controls the deployed Cloud boundary:
+
+- `off` is the default and preserves the existing SmallDocs server behavior.
+- `staging` requires a complete isolated Cloud configuration but permits either a staging KMS key or a local test key.
+- `production` requires AWS KMS and rejects the local key provider.
+
+Staging and production each use their own `CLOUD_AUTH_PUBLIC_ORIGIN`. OAuth callbacks, invitation URLs, checkout returns, billing portal returns, and sign-in return paths are built from that origin, so a staging flow stays on the staging hostname. Do not reuse production databases, Stripe resources, OAuth clients, mail credentials, secrets, encryption context, or customer data in staging.
 
 ## 2. Configuration
 
@@ -20,6 +28,7 @@ Keep secrets in the deployment secret manager, not an environment file committed
 
 | Variable | Required | Current behavior |
 | --- | --- | --- |
+| `CLOUD_MODE` | Yes for deployed Cloud | `off`, `staging`, or `production`. Deployed modes validate their complete configuration before opening the HTTP listener. |
 | `PORT` | Platform dependent | HTTP listen port. Defaults to `3000`. |
 | `NODE_ENV` | Yes in production | Set to `production`. `development` and `test` are the only environments in which development code delivery can be enabled. |
 | `SDOCS_DEV` | No in production | Enables general development cache behavior. Leave unset in production. |
@@ -88,6 +97,8 @@ The service refuses to issue an email login transaction when neither production 
 | `CLOUD_KEY_REFERENCE` | Development only | Label stored with locally wrapped keys. Defaults to `local-development-key`. |
 
 The built-in adapter uses the AWS SDK default credential chain. On the Hetzner host, supply a narrowly scoped workload credential that can call `kms:Encrypt` and `kms:Decrypt` on the SmallDocs key. Do not use an Identity Center administrator session or the management-account IAM user as the runtime identity.
+
+When a deployed mode uses KMS, startup performs a bounded wrap, cache clear, unwrap, and comparison before opening the HTTP listener. The temporary data key and plaintext copies are wiped. A wrong region, disabled key, denied key policy, or unavailable credential causes startup to fail without accepting traffic.
 
 The adapter records the concrete key ARN returned by AWS with every wrapped key. Decryption uses that recorded reference, so changing an alias does not silently redirect old ciphertext to a new key. Keep old KMS key versions or key resources available until every dependent ciphertext has been rewrapped and verified.
 

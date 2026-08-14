@@ -290,11 +290,11 @@ AWS KMS and Google Cloud KMS are both credible choices. The cost comparison abov
 
 ### Required engineering work
 
-- [ ] Refactor the current synchronous KMS boundary so the official network client can be awaited without blocking the Node event loop.
-- [ ] Integrate the official KMS SDK and set request timeouts.
-- [ ] Preserve the current authenticated encryption context: application, environment, purpose, resource ID, and key version.
-- [ ] Cache unwrapped data keys for a short, bounded period and clear them on eviction and shutdown.
-- [ ] Fail closed when KMS is unavailable. Reads, search, and writes must return a temporary service failure without falling back to a local key.
+- [x] Refactor the current synchronous KMS boundary so the official network client can be awaited without blocking the Node event loop.
+- [x] Integrate the official KMS SDK and set request timeouts.
+- [x] Preserve the current authenticated encryption context: application, environment, purpose, resource ID, and key version.
+- [x] Cache unwrapped data keys for a short, bounded period and clear them on eviction and normal server close. Signal-driven graceful shutdown remains an operations hardening task.
+- [x] Fail closed when KMS is unavailable. Reads, search, and writes return a temporary service failure without falling back to a local key.
 - [ ] Add integration tests against a real staging key for encrypt, decrypt, wrong context, disabled key, timeout, and rotated key reference.
 - [ ] Leave `CLOUD_MASTER_KEY` unset in production.
 
@@ -316,6 +316,29 @@ https://cloud-staging.smalldocs.org
 ```
 
 The origin determines secure cookies, same-origin mutation checks, OAuth callbacks, invitation links, and Stripe return URLs.
+
+Initial staging configuration:
+
+```text
+NODE_ENV=production
+CLOUD_MODE=staging
+CLOUD_AUTH_PUBLIC_ORIGIN=https://cloud-staging.smalldocs.org
+CLOUD_ENVIRONMENT=staging
+
+CLOUD_AUTH_DB=/var/lib/smalldocs/staging/cloud_auth.db
+CLOUD_OAUTH_DB=/var/lib/smalldocs/staging/cloud_oauth.db
+CLOUD_DB=/var/lib/smalldocs/staging/cloud.db
+CLOUD_BILLING_DB=/var/lib/smalldocs/staging/cloud_billing.db
+CLOUD_JOBS_DB=/var/lib/smalldocs/staging/cloud_jobs.db
+
+CLOUD_MASTER_KEY=... # disposable staging data only
+STRIPE_SECRET_KEY=... # Stripe test mode
+STRIPE_WEBHOOK_SECRET=... # staging endpoint
+STRIPE_PERSONAL_PRICE_ID=... # test price
+STRIPE_TEAM_PRICE_ID=... # test price
+```
+
+The remaining auth, mail, and secret variables are required in staging as they are in production, but their values must be staging-specific. Replace `CLOUD_MASTER_KEY` with a separate staging KMS key if staging begins to retain realistic or long-lived data.
 
 ## 4. Set up sign-in
 
@@ -452,6 +475,7 @@ Minimum production configuration:
 
 ```text
 NODE_ENV=production
+CLOUD_MODE=production
 PORT=3003
 TRUST_PROXY=1
 CLOUD_AUTH_PUBLIC_ORIGIN=https://smalldocs.org

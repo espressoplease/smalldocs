@@ -6,6 +6,8 @@ const crypto = require('crypto');
 const { createCursorCodec, normalizeLimit } = require('./lib/cloud-cursor');
 
 const PORT = process.env.PORT || 3000;
+const CLOUD_DEPLOYMENT = require('./lib/cloud-deployment-config')
+  .validateCloudDeploymentConfig(process.env);
 const DEV_MODE = process.env.SDOCS_DEV === '1' || process.env.NODE_ENV === 'development';
 const ANALYTICS_ENABLED = process.env.ANALYTICS_ENABLED === '1';
 const analytics = ANALYTICS_ENABLED ? require('./analytics/db') : null;
@@ -2117,8 +2119,23 @@ const server = http.createServer((req, res) => {
   res.end('Not Found');
 });
 
-server.listen(PORT, () => {
-  console.log(`sdocs-dev running at http://localhost:${PORT}`);
+async function startServer() {
+  if (CLOUD_DEPLOYMENT.enabled && CLOUD_DEPLOYMENT.keyProvider === 'kms') {
+    await require('./lib/cloud-deployment-config').checkCloudKmsReadiness(cloudKeyProvider);
+  }
+  server.listen(PORT, () => {
+    console.log(`sdocs-dev running at http://localhost:${PORT}`);
+  });
+}
+
+startServer().catch(() => {
+  console.error('Cloud startup check failed: temporary_service_failure');
+  process.exitCode = 1;
+  if (cloudKeyProvider && typeof cloudKeyProvider.clearCache === 'function') cloudKeyProvider.clearCache();
+  if (cloudManagedKmsClient && typeof cloudManagedKmsClient.destroy === 'function') {
+    cloudManagedKmsClient.destroy();
+  }
+  setImmediate(() => process.exit(1));
 });
 
 server.on('close', () => {
