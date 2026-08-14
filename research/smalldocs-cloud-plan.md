@@ -805,8 +805,8 @@ The initial public offer is:
 
 | Plan | Price | Intended use |
 | --- | --- | --- |
-| Personal | £5 per month | One person using Cloud across devices and authenticated agents |
-| Team | £8 per active human member per month | Shared workspaces, projects, member administration, and team access |
+| Personal | £4, $5, or €5 per month | One person using Cloud across devices and authenticated agents |
+| Team | £7, $9, or €8 per active human member per month | Shared workspaces, projects, member administration, and team access |
 
 There is no free Cloud tier and no trial in V1. Subscription calls to action go directly to checkout. There is no document-count limit. Entitlements use stored bytes, maximum file size, revision retention, search workload, project count, and member count because these correspond to service cost and safety. Exact allowance values must be chosen before public launch and shown on `/cloud` and at checkout.
 

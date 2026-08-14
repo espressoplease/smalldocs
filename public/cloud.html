@@ -106,6 +106,7 @@
   .price { display: flex; align-items: baseline; gap: 5px; margin: 8px 0 14px; }
   .price strong { font-size: 28px; letter-spacing: -.02em; }
   .price span { color: var(--text-3); font-size: 12px; }
+  .currency-prices { color: var(--text-3); font-size: 11.5px; margin: -8px 0 14px; }
   .plan ul { flex: 1; margin-top: 0; }
   .plan li { font-size: 12.5px; color: var(--text-2); }
   .plan .button { width: 100%; }
@@ -214,7 +215,8 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
     <div class="pricing">
       <section class="plan">
         <p class="plan-name">Personal Cloud</p>
-        <p class="price"><strong>£5</strong><span>per month</span></p>
+        <p class="price"><strong>£4</strong><span>per month</span></p>
+        <p class="currency-prices">$5 USD or €5 EUR</p>
         <ul>
           <li>Personal projects</li>
           <li>Browser and mobile access</li>
@@ -226,7 +228,8 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
       </section>
       <section class="plan">
         <p class="plan-name">Team Cloud</p>
-        <p class="price"><strong>£8</strong><span>per member, per month</span></p>
+        <p class="price"><strong>£7</strong><span>per member, per month</span></p>
+        <p class="currency-prices">$9 USD or €8 EUR</p>
         <ul>
           <li>Everything in Personal</li>
           <li>Shared workspace projects</li>
@@ -237,7 +240,7 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
         <a class="button primary" href="/cloud/checkout?plan=team">Subscribe to Team</a>
       </section>
     </div>
-    <p class="billing-note">Payment is collected when you subscribe. Subscriptions renew monthly until cancelled. The workspace owner counts as a member. Agents do not count as paid members. Taxes are calculated at checkout.</p>
+    <p class="billing-note">Payment is collected when you subscribe. Subscriptions renew monthly until cancelled. The workspace owner counts as a member. Agents do not count as paid members. GBP and EUR prices include applicable tax. Tax may be added to USD prices at checkout.</p>
     <div class="security-card">
       <h3>What happens when I cancel?</h3>
       <p>The workspace becomes read-only. Owners can export its current documents and retained revisions or delete the workspace. Cloud data is not deleted immediately when a payment ends.</p>

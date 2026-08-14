@@ -461,7 +461,10 @@ module.exports = function(harness) {
       assert.strictEqual(r.status, 200);
       assert.ok(/text\/html/.test(r.headers['content-type']));
       assert.ok(r.body.includes('SmallDocs Cloud'));
-      assert.ok(r.body.includes('£5'));
+      assert.ok(r.body.includes('£4'));
+      assert.ok(r.body.includes('$5 USD'));
+      assert.ok(r.body.includes('£7'));
+      assert.ok(r.body.includes('$9 USD'));
       assert.ok(r.body.includes('not end-to-end encrypted'));
       assert.ok(!r.body.toLowerCase().includes('trial'));
       assert.ok(r.body.includes('/cloud/checkout?plan=personal'));

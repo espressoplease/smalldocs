@@ -310,7 +310,7 @@
     byId('billing-status').textContent = billing
       ? 'Status: ' + String(billing.effectiveStatus || billing.subscriptionStatus).replace(/_/g, ' ')
       : 'Subscribe before storing or searching Cloud documents.';
-    byId('billing-price').textContent = plan === 'team' ? '£8 / member / month' : plan === 'personal' ? '£5 / month' : '';
+    byId('billing-price').textContent = plan === 'team' ? '£7 / member / month' : plan === 'personal' ? '£4 / month' : '';
     var usage = billing && billing.usage;
     byId('billing-usage').textContent = usage
       ? usage.memberCount + ' members, ' + usage.projectCount + ' projects, ' + usage.storedBytes + ' stored bytes'

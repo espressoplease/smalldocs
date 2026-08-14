@@ -161,21 +161,21 @@ Approximate fee examples for a UK standard card, before VAT treatment and exclud
 
 | Charge | Payments | Billing | Tax Basic | Total Stripe fee | Amount left before tax liability |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| £5 Personal subscription | 27.5p | 3.5p | 2.5p | 33.5p | £4.665 |
-| £8 one-person Team charge | 32p | 5.6p | 4p | 41.6p | £7.584 |
-| £40 Team charge for five seats | 80p | 28p | 20p | £1.28 | £38.72 |
+| £4 Personal subscription | 26p | 2.8p | 2p | 30.8p | £3.692 |
+| £7 one-person Team charge | 30.5p | 4.9p | 3.5p | 38.9p | £6.611 |
+| £35 Team charge for five seats | 72.5p | 24.5p | 17.5p | £1.145 | £33.855 |
 
-One combined Team subscription is cheaper than five separate £8 charges because the 20p card fee is charged once.
+One combined Team subscription is cheaper than five separate £7 charges because the 20p card fee is charged once.
 
 At 100 Personal customers and ten five-seat Teams:
 
 ```text
-Monthly recurring revenue:                         £900.00
-Estimated UK-card Payments fees:                   £35.50
-Estimated Stripe Billing fees:                      £6.30
-Estimated Stripe Tax Basic fees:                    £4.50
-Estimated Stripe total:                            £46.30
-Revenue after those Stripe fees:                  £853.70
+Monthly recurring revenue:                         £750.00
+Estimated UK-card Payments fees:                   £33.25
+Estimated Stripe Billing fees:                      £5.25
+Estimated Stripe Tax Basic fees:                    £3.75
+Estimated Stripe total:                            £42.25
+Revenue after those Stripe fees:                  £707.75
 Expected early fixed Cloud infrastructure:     about £20 to £45
 ```
 
@@ -360,8 +360,8 @@ Use a transactional email provider rather than a personal Gmail mailbox. The cur
 - [Stripe subscription integration guide](https://docs.stripe.com/billing/subscriptions/build-subscriptions)
 
 - [ ] Activate and verify the Stripe business account.
-- [ ] Create a monthly Personal Cloud product at the published £5 price.
-- [ ] Create a monthly Team Cloud per-seat product at the published £8 price.
+- [ ] Create a monthly Personal Cloud multi-currency price at £4, $5, and €5.
+- [ ] Create a monthly Team Cloud per-seat multi-currency price at £7, $9, and €8.
 - [ ] Decide whether displayed prices include or exclude VAT. Make the Cloud page, Checkout, invoices, and accounting treatment agree.
 - [ ] Decide whether to use Stripe Tax. If yes, register the correct head-office address and tax registrations, set a SaaS product tax code, collect a valid billing address, and enable `automatic_tax` in every Checkout Session.
 - [ ] Configure the customer portal for payment-method updates and cancellation.
