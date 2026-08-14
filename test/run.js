@@ -51,6 +51,7 @@ require('./test-router')(harness);
 require('./test-update-check')(harness);
 require('./test-source')(harness);
 require('./test-cloud-auth')(harness);
+require('./test-cloud-billing')(harness);
 const runCloudStore = require('./test-cloud-store')(harness);
 const runCloudCli = require('./test-cloud-cli')(harness);
 require('./test-library-tags')(harness);
