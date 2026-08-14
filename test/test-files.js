@@ -14,6 +14,17 @@ module.exports = function(harness) {
     assert.ok(fs.existsSync(serverPath), 'server.js not found');
   });
 
+  test('production deployment binds Node to loopback and hardens the service', () => {
+    const env = fs.readFileSync(path.join(__dirname, '..', 'ops', 'smalldocs.env.example'), 'utf8');
+    const unit = fs.readFileSync(path.join(__dirname, '..', 'ops', 'systemd', 'smalldocs.service'), 'utf8');
+    assert.ok(env.includes('HOST=127.0.0.1'));
+    assert.ok(env.includes('CLOUD_MODE=off'));
+    assert.ok(unit.includes('User=smalldocs'));
+    assert.ok(unit.includes('ProtectSystem=strict'));
+    assert.ok(unit.includes('ReadWritePaths=/var/lib/smalldocs'));
+    assert.ok(unit.includes('LimitCORE=0'));
+  });
+
   test('public/index.html exists', () => {
     const htmlPath = path.join(__dirname, '..', 'public', 'index.html');
     assert.ok(fs.existsSync(htmlPath), 'public/index.html not found');

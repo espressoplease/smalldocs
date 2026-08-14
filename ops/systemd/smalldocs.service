@@ -1,0 +1,45 @@
+[Unit]
+Description=SmallDocs server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=smalldocs
+Group=smalldocs
+WorkingDirectory=/opt/smalldocs/current
+EnvironmentFile=/etc/smalldocs/smalldocs.env
+ExecStartPre=/usr/bin/test -r /opt/smalldocs/current/server.js
+ExecStart=/usr/local/bin/node /opt/smalldocs/current/server.js
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=30s
+TimeoutStopSec=20s
+UMask=0077
+LimitCORE=0
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=invisible
+ProtectSystem=strict
+ProcSubset=pid
+RemoveIPC=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/var/lib/smalldocs
+
+[Install]
+WantedBy=multi-user.target

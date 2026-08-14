@@ -31,6 +31,7 @@ module.exports = function(harness) {
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
       env: {
         ...process.env,
+        HOST: '127.0.0.1',
         PORT: '3099',
         ANALYTICS_ENABLED: '1',
         ANALYTICS_DB: testDbPath,

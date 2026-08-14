@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { createCursorCodec, normalizeLimit } = require('./lib/cloud-cursor');
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 const CLOUD_DEPLOYMENT = require('./lib/cloud-deployment-config')
   .validateCloudDeploymentConfig(process.env);
 const DEV_MODE = process.env.SDOCS_DEV === '1' || process.env.NODE_ENV === 'development';
@@ -2123,8 +2124,8 @@ async function startServer() {
   if (CLOUD_DEPLOYMENT.enabled && CLOUD_DEPLOYMENT.keyProvider === 'kms') {
     await require('./lib/cloud-deployment-config').checkCloudKmsReadiness(cloudKeyProvider);
   }
-  server.listen(PORT, () => {
-    console.log(`sdocs-dev running at http://localhost:${PORT}`);
+  server.listen(PORT, HOST, () => {
+    console.log(`sdocs-dev running at http://${HOST}:${PORT}`);
   });
 }
 
@@ -2138,11 +2139,59 @@ startServer().catch(() => {
   setImmediate(() => process.exit(1));
 });
 
-server.on('close', () => {
-  if (cloudKeyProvider && typeof cloudKeyProvider.clearCache === 'function') cloudKeyProvider.clearCache();
-  if (cloudManagedKmsClient && typeof cloudManagedKmsClient.destroy === 'function') {
-    cloudManagedKmsClient.destroy();
-  }
-});
+let resourcesClosed = false;
+function closeResources() {
+  if (resourcesClosed) return;
+  resourcesClosed = true;
+  clearInterval(_shortLinksCleanupTimer);
+  clearInterval(cloudAuthCleanupTimer);
+  clearInterval(cloudJobTimer);
+  shortLinksRateLimit.stopCleanup();
+  feedbackRateLimit.stopCleanup();
+  const cleanup = [
+    analytics && (() => analytics.close()),
+    () => shortLinks.close(),
+    () => feedback.close(),
+    () => teamsInterest.close(),
+    cloudAuth && (() => cloudAuth.close()),
+    cloudOAuthTransactions && (() => cloudOAuthTransactions.close()),
+    cloudStore && (() => cloudStore.close()),
+    cloudBilling && (() => cloudBilling.close()),
+    cloudJobs && (() => cloudJobs.close()),
+    cloudKeyProvider && typeof cloudKeyProvider.clearCache === 'function' &&
+      (() => cloudKeyProvider.clearCache()),
+    cloudManagedKmsClient && typeof cloudManagedKmsClient.destroy === 'function' &&
+      (() => cloudManagedKmsClient.destroy()),
+  ];
+  cleanup.forEach((close) => {
+    if (close) {
+      try { close(); } catch (_) {}
+    }
+  });
+}
+
+server.on('close', closeResources);
+
+let shutdownStarted = false;
+function shutdown() {
+  if (shutdownStarted) return;
+  shutdownStarted = true;
+  clearInterval(cloudJobTimer);
+  const forceExit = setTimeout(() => {
+    if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
+    closeResources();
+    process.exit(1);
+  }, 15000);
+  if (forceExit.unref) forceExit.unref();
+  if (typeof server.closeIdleConnections === 'function') server.closeIdleConnections();
+  server.close((error) => {
+    clearTimeout(forceExit);
+    closeResources();
+    process.exit(error ? 1 : 0);
+  });
+}
+
+process.once('SIGTERM', shutdown);
+process.once('SIGINT', shutdown);
 
 module.exports = server;
