@@ -9,7 +9,7 @@ User=root
 Group=root
 EnvironmentFile=/etc/smalldocs/backup.env
 LoadCredential=aws-credentials:/etc/smalldocs/backup-aws-credentials
-Environment=AWS_SHARED_CREDENTIALS_FILE=%d/aws-credentials
+Environment=AWS_SHARED_CREDENTIALS_FILE=/run/credentials/smalldocs-backup.service/aws-credentials
 Environment=AWS_EC2_METADATA_DISABLED=true
 ExecStart=/opt/smalldocs/current/ops/backup-production.sh
 UMask=0077
