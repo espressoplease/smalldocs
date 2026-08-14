@@ -47,6 +47,15 @@ module.exports = function(harness) {
     assert.ok(timer.includes('Persistent=true'));
   });
 
+  test('production deploy verifies, installs, and can roll back systemd unit changes', () => {
+    const deploy = fs.readFileSync(path.join(__dirname, '..', 'ops',
+      'deploy-production.sh'), 'utf8');
+    assert.ok(deploy.includes('systemd-analyze verify "$unit_source"'));
+    assert.ok(deploy.includes('install -o root -g root -m 0644 "$unit_source" "$unit_target"'));
+    assert.ok(deploy.includes('systemctl daemon-reload'));
+    assert.ok(deploy.includes('rollback_release'));
+  });
+
   test('public/index.html exists', () => {
     const htmlPath = path.join(__dirname, '..', 'public', 'index.html');
     assert.ok(fs.existsSync(htmlPath), 'public/index.html not found');
