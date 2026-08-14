@@ -36,10 +36,30 @@ function createFakeKms(rootKey) {
   };
 }
 
-module.exports = function(harness) {
-  const { assert, test } = harness;
+function createAsyncFakeKms(rootKey) {
+  const sync = createFakeKms(rootKey);
+  return {
+    encryptCalls: sync.encryptCalls,
+    decryptCalls: sync.decryptCalls,
+    async encrypt(input) { return sync.encrypt(input); },
+    async decrypt(input) { return sync.decrypt(input); },
+  };
+}
 
-  return function() {
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+module.exports = function(harness) {
+  const { assert, test, testAsync } = harness;
+
+  return async function() {
     console.log('\n-- Cloud Managed KMS Tests ----------------------------\n');
 
     const { KmsKeyProviderError, createManagedKmsKeyProvider } = require('../lib/cloud-kms');
@@ -132,19 +152,124 @@ module.exports = function(harness) {
         (error) => error instanceof KmsKeyProviderError && error.code === 'kms_unavailable');
     });
 
-    test('fails closed for malformed envelopes and asynchronous KMS clients', () => {
+    test('fails closed for malformed envelopes', () => {
       assert.throws(() => provider.unwrapProjectKey('project-1', 1, {
         ciphertext: Buffer.from('invalid'), nonce: Buffer.alloc(12), reference: 'kms://root',
       }), (error) => error.code === 'invalid_ciphertext');
       assert.throws(() => provider.decryptWorkspaceName('workspace-1', {
         ciphertext: Buffer.from('invalid'), nonce: Buffer.alloc(12),
       }), (error) => error.code === 'invalid_ciphertext');
+    });
+
+    await testAsync('supports asynchronous managed KMS clients without changing envelope fields', async () => {
+      const asyncKms = createAsyncFakeKms(rootKey);
       const asyncProvider = createManagedKmsKeyProvider({
+        kmsClient: asyncKms, keyId: 'kms://root', environment: 'test',
+      });
+      const projectKey = crypto.randomBytes(32);
+      const wrapped = await asyncProvider.wrapProjectKey('async-project', 2, projectKey);
+      assert.ok(Buffer.isBuffer(wrapped.ciphertext));
+      assert.ok(wrapped.nonce.equals(Buffer.from('sdocskmsv001')));
+      assert.strictEqual(wrapped.reference, 'kms://projects/sdocs/keys/cloud-root/versions/7');
+      asyncProvider.clearCache();
+      assert.deepStrictEqual(await asyncProvider.unwrapProjectKey('async-project', 2, wrapped), projectKey);
+      const encrypted = await asyncProvider.encryptWorkspaceName('async-workspace', 'Async workspace');
+      asyncProvider.clearCache();
+      assert.strictEqual(await asyncProvider.decryptWorkspaceName('async-workspace', encrypted),
+        'Async workspace');
+      assert.deepStrictEqual(asyncKms.encryptCalls[0].encryptionContext, {
+        application: 'sdocs-cloud', environment: 'test', purpose: 'project-key',
+        resource_id: 'async-project', version: '2',
+      });
+      asyncProvider.clearCache();
+    });
+
+    await testAsync('shares concurrent workspace KMS calls and wipes the request key copy', async () => {
+      const gate = deferred();
+      const syncKms = createFakeKms(rootKey);
+      let encryptCalls = 0;
+      let retainedPlaintext;
+      const singleFlightProvider = createManagedKmsKeyProvider({
+        kmsClient: {
+          encrypt(input) {
+            encryptCalls += 1;
+            retainedPlaintext = input.plaintext;
+            return gate.promise.then(() => syncKms.encrypt(input));
+          },
+          decrypt: async (input) => syncKms.decrypt(input),
+        },
+        keyId: 'kms://root', environment: 'test',
+      });
+      const first = singleFlightProvider.encryptWorkspaceName('shared-workspace', 'First');
+      const second = singleFlightProvider.encryptWorkspaceName('shared-workspace', 'Second');
+      assert.strictEqual(encryptCalls, 1);
+      gate.resolve();
+      const [firstEncrypted, secondEncrypted] = await Promise.all([first, second]);
+      assert.strictEqual(encryptCalls, 1);
+      assert.strictEqual(retainedPlaintext.every((value) => value === 0), true);
+      assert.strictEqual(singleFlightProvider.cache.size, 1);
+      assert.strictEqual(await singleFlightProvider.decryptWorkspaceName('shared-workspace', firstEncrypted),
+        'First');
+      assert.strictEqual(await singleFlightProvider.decryptWorkspaceName('shared-workspace', secondEncrypted),
+        'Second');
+      singleFlightProvider.clearCache();
+    });
+
+    await testAsync('cache clear prevents late KMS work from restoring plaintext cache entries', async () => {
+      const gate = deferred();
+      const syncKms = createFakeKms(rootKey);
+      let retainedPlaintext;
+      const clearingProvider = createManagedKmsKeyProvider({
+        kmsClient: {
+          encrypt(input) {
+            retainedPlaintext = input.plaintext;
+            return gate.promise.then(() => syncKms.encrypt(input));
+          },
+          decrypt: async (input) => syncKms.decrypt(input),
+        },
+        keyId: 'kms://root', environment: 'test',
+      });
+      const pending = clearingProvider.encryptWorkspaceName('cleared-workspace', 'Name');
+      clearingProvider.clearCache();
+      gate.resolve();
+      await assert.rejects(pending, (error) => error.code === 'kms_cache_cleared');
+      assert.strictEqual(clearingProvider.cache.size, 0);
+      assert.strictEqual(clearingProvider.inflight.size, 0);
+      assert.strictEqual(retainedPlaintext.every((value) => value === 0), true);
+    });
+
+    await testAsync('maps asynchronous KMS rejection and malformed responses to provider errors', async () => {
+      let rejectedPlaintext;
+      const unavailable = createManagedKmsKeyProvider({
+        kmsClient: {
+          encrypt: async (input) => {
+            rejectedPlaintext = input.plaintext;
+            throw new Error('network detail');
+          },
+          decrypt: async () => { throw new Error('network detail'); },
+        },
+        keyId: 'kms://root', environment: 'test',
+      });
+      await assert.rejects(unavailable.encryptWorkspaceName('workspace-1', 'Name'),
+        (error) => error instanceof KmsKeyProviderError && error.code === 'kms_unavailable');
+      assert.strictEqual(rejectedPlaintext.every((value) => value === 0), true);
+      const malformed = createManagedKmsKeyProvider({
         kmsClient: { encrypt: async () => ({}), decrypt: async () => ({}) },
         keyId: 'kms://root', environment: 'test',
       });
-      assert.throws(() => asyncProvider.encryptWorkspaceName('workspace-1', 'Name'),
-        (error) => error.code === 'async_kms_client_unsupported');
+      await assert.rejects(malformed.encryptWorkspaceName('workspace-1', 'Name'),
+        (error) => error instanceof KmsKeyProviderError && error.code === 'kms_invalid_response');
+      const adapterMalformed = createManagedKmsKeyProvider({
+        kmsClient: {
+          encrypt: async () => { throw Object.assign(new Error('invalid response'), {
+            code: 'aws_kms_invalid_response',
+          }); },
+          decrypt: async () => ({}),
+        },
+        keyId: 'kms://root', environment: 'test',
+      });
+      await assert.rejects(adapterMalformed.encryptWorkspaceName('workspace-1', 'Name'),
+        (error) => error instanceof KmsKeyProviderError && error.code === 'kms_invalid_response');
     });
 
     test('works through the existing CloudStore keyProvider interface', () => {
