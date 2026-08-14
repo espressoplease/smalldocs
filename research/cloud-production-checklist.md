@@ -343,7 +343,7 @@ Use a transactional email provider rather than a personal Gmail mailbox. The cur
 - [ ] Create a separate staging credential before persistent email testing in staging.
 - [x] Configure SMTP host `smtp.resend.com`, port `587`, username `resend`, and `login@smalldocs.org` as the sender.
 - [ ] Use a monitored From address on the verified domain.
-- [x] Send a production-path message from the restricted service sandbox and confirm Resend accepted it.
+- [x] Send a production-path message from the restricted service sandbox and confirm delivery to Gmail.
 - [ ] Send test codes and invitations to Gmail, Outlook, iCloud, and a custom-domain mailbox.
 - [ ] Check delivery latency, spam placement, expiry, resend invalidation, bounce behavior, and provider outage behavior.
 - [ ] Confirm neither login codes nor invitation tokens appear in application or proxy logs.
