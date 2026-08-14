@@ -25,6 +25,8 @@ const CLOUD_REVISION_RETENTION_DAYS = integerEnvironmentSetting(
 const CLOUD_REVISION_RETENTION_MS = CLOUD_REVISION_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const CLOUD_DOCUMENT_RESTORE_WINDOW_MS = integerEnvironmentSetting(
   'CLOUD_DOCUMENT_RESTORE_WINDOW_MS', 30 * 24 * 60 * 60 * 1000, 1);
+const CLOUD_OAUTH_PROVIDER_TIMEOUT_MS = integerEnvironmentSetting(
+  'CLOUD_OAUTH_PROVIDER_TIMEOUT_MS', 10 * 1000, 1000);
 const CLOUD_DEPLOYMENT = require('./lib/cloud-deployment-config')
   .validateCloudDeploymentConfig(process.env);
 const DEV_MODE = process.env.SDOCS_DEV === '1' || process.env.NODE_ENV === 'development';
@@ -152,13 +154,15 @@ if (CLOUD_AUTH_PEPPER) {
     cloudGoogleOAuth = createGoogleOAuth({ clientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
       clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
       redirectUri: CLOUD_AUTH_PUBLIC_ORIGIN + '/api/cloud/auth/oauth/google/callback',
-      transactions: cloudOAuthTransactions });
+      transactions: cloudOAuthTransactions,
+      providerTimeoutMs: CLOUD_OAUTH_PROVIDER_TIMEOUT_MS });
   }
   if (process.env.GITHUB_OAUTH_CLIENT_ID && process.env.GITHUB_OAUTH_CLIENT_SECRET) {
     cloudGitHubOAuth = createGitHubOAuth({ clientId: process.env.GITHUB_OAUTH_CLIENT_ID,
       clientSecret: process.env.GITHUB_OAUTH_CLIENT_SECRET,
       redirectUri: CLOUD_AUTH_PUBLIC_ORIGIN + '/api/cloud/auth/oauth/github/callback',
-      transactions: cloudOAuthTransactions });
+      transactions: cloudOAuthTransactions,
+      providerTimeoutMs: CLOUD_OAUTH_PROVIDER_TIMEOUT_MS });
   }
 }
 setImmediate(() => {

@@ -21,6 +21,7 @@ module.exports = function (harness) {
       createOAuthTransactionStore,
       createGoogleOAuth,
       createGitHubOAuth,
+      defaultTransport,
       verifyGoogleIdToken,
     } = require('../lib/cloud-oauth');
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-oauth-'));
@@ -31,6 +32,26 @@ module.exports = function (harness) {
       pepper: 'test-oauth-pepper-more-than-16-bytes',
       now: () => clock,
       ttlMs: 60000,
+    });
+
+    await testAsync('default provider transport aborts a stalled request', async () => {
+      const originalFetch = global.fetch;
+      let aborted = false;
+      global.fetch = (_url, options) => new Promise((_resolve, reject) => {
+        options.signal.addEventListener('abort', () => {
+          aborted = true;
+          const error = new Error('aborted');
+          error.name = 'AbortError';
+          reject(error);
+        });
+      });
+      try {
+        await assert.rejects(defaultTransport({ url: 'https://provider.example', timeoutMs: 10 }),
+          error => error instanceof OAuthError && error.code === 'provider_unavailable');
+        assert.strictEqual(aborted, true);
+      } finally {
+        global.fetch = originalFetch;
+      }
     });
 
     let first;
@@ -89,6 +110,7 @@ module.exports = function (harness) {
         clientId: 'google-client', clientSecret: 'google-secret',
         redirectUri: 'https://smalldocs.org/oauth/google/callback',
         transactions, transport, jwks: { keys: [jwk] }, now: () => clock,
+        providerTimeoutMs: 1234,
       });
       const begun = google.begin({ returnTo: '/cloud/account' });
       const url = new URL(begun.authorizationUrl);
@@ -103,6 +125,7 @@ module.exports = function (harness) {
       });
       const exchange = Object.fromEntries(new URLSearchParams(calls[0].body));
       assert.ok(exchange.code_verifier);
+      assert.strictEqual(calls[0].timeoutMs, 1234);
       assert.strictEqual(JSON.stringify(transactions.db.prepare('SELECT * FROM cloud_oauth_transactions').all()).includes('discard-me'), false);
     });
 
@@ -156,6 +179,7 @@ module.exports = function (harness) {
       const github = createGitHubOAuth({
         clientId: 'github-client', clientSecret: 'github-secret',
         redirectUri: 'https://smalldocs.org/oauth/github/callback', transactions, transport,
+        providerTimeoutMs: 2345,
       });
       const begun = github.begin({ returnTo: '/cloud/account' });
       const url = new URL(begun.authorizationUrl);
@@ -167,6 +191,7 @@ module.exports = function (harness) {
       });
       const exchange = Object.fromEntries(new URLSearchParams(calls[0].body));
       assert.ok(exchange.code_verifier);
+      assert.ok(calls.every(call => call.timeoutMs === 2345));
       assert.ok(calls[1].headers.Authorization.includes('github-discard-me'));
       assert.strictEqual(JSON.stringify(transactions.db.prepare('SELECT * FROM cloud_oauth_transactions').all()).includes('github-discard-me'), false);
     });

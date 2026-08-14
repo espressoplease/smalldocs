@@ -43,6 +43,7 @@ Keep secrets in the deployment secret manager, not an environment file committed
 | `CLOUD_AUTH_PEPPER` | Yes | Stable server secret of at least 16 bytes. It keys session, email-code, CLI-token, rate-limit, and OAuth-state digests. Rotation invalidates active credentials and pending transactions. Store it with backups and restore procedures. |
 | `CLOUD_AUTH_DB` | Yes for an explicit production path | Authentication SQLite path. Defaults to `cloud_auth.db` beside `server.js`. |
 | `CLOUD_OAUTH_DB` | Recommended | OAuth transaction SQLite path. Defaults to `CLOUD_AUTH_DB`, then `cloud_auth.db`. A separate path makes ownership and retention clearer but must be included in backup policy. |
+| `CLOUD_OAUTH_PROVIDER_TIMEOUT_MS` | No | Total timeout for each outbound Google or GitHub request. Defaults to 10 seconds and aborts a stalled request. |
 | `CLOUD_AUTH_DEV_LOG_CODES` | No in production | Logs live email codes only when set to `1`, `NODE_ENV` is `development` or `test`, and the public origin is loopback. Leave unset in production. |
 | `GOOGLE_OAUTH_CLIENT_ID` | For Google sign-in | Google OpenID Connect client ID. Google remains unavailable unless both Google variables are set. |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | For Google sign-in | Google client secret. |
