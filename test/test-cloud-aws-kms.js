@@ -16,11 +16,13 @@ function fakeSdk() {
       this.calls = [];
       this.snapshots = [];
       this.responses = [];
+      this.sendOptions = [];
       this.destroyed = false;
       KMSClient.instance = this;
     }
-    async send(command) {
+    async send(command, options) {
       this.calls.push(command);
+      this.sendOptions.push(options);
       const snapshot = {};
       Object.entries(command.input).forEach(([key, value]) => {
         if (Buffer.isBuffer(value) || value instanceof Uint8Array) snapshot[key] = Buffer.from(value);
@@ -49,7 +51,7 @@ module.exports = function(harness) {
       const sdk = fakeSdk();
       const adapter = createAwsKmsClient(Object.assign({
         region: 'eu-central-1', maxAttempts: 2,
-        connectionTimeoutMs: 1500, requestTimeoutMs: 7000,
+        connectionTimeoutMs: 1500, requestTimeoutMs: 7000, operationTimeoutMs: 9000,
       }, sdk));
       assert.strictEqual(sdk.KMSClient.instance.config.region, 'eu-central-1');
       assert.strictEqual(sdk.KMSClient.instance.config.maxAttempts, 2);
@@ -57,6 +59,7 @@ module.exports = function(harness) {
       assert.deepStrictEqual(sdk.NodeHttpHandler.options, {
         connectionTimeout: 1500, requestTimeout: 7000,
       });
+      assert.strictEqual(adapter.operationTimeoutMs, 9000);
       adapter.destroy();
       assert.strictEqual(sdk.KMSClient.instance.destroyed, true);
     });
@@ -86,6 +89,7 @@ module.exports = function(harness) {
         keyId: 'arn:aws:kms:eu-central-1:123:key/key-id',
       });
       assert.deepStrictEqual(command.input.Plaintext, Buffer.alloc(Buffer.byteLength('data key')));
+      assert.strictEqual(sdk.KMSClient.instance.sendOptions[0].abortSignal instanceof AbortSignal, true);
       adapter.destroy();
     });
 
@@ -159,6 +163,25 @@ module.exports = function(harness) {
         adapter.destroy();
       }
       assert.deepStrictEqual(logs, []);
+    });
+
+    await testAsync('aborts a KMS operation at the configured total deadline', async () => {
+      const sdk = fakeSdk();
+      sdk.KMSClient.prototype.send = function(command, options) {
+        this.calls.push(command);
+        return new Promise((resolve, reject) => {
+          options.abortSignal.addEventListener('abort', () => {
+            reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+          }, { once: true });
+        });
+      };
+      const adapter = createAwsKmsClient(Object.assign({
+        region: 'eu-central-1', operationTimeoutMs: 5,
+      }, sdk));
+      await assert.rejects(adapter.encrypt({
+        keyId: 'alias/key', plaintext: Buffer.from([1]), encryptionContext: { purpose: 'test' },
+      }), (error) => error.name === 'AbortError');
+      adapter.destroy();
     });
   };
 };
