@@ -9,6 +9,9 @@ User=smalldocs
 Group=smalldocs
 WorkingDirectory=/opt/smalldocs/current
 EnvironmentFile=/etc/smalldocs/smalldocs.env
+LoadCredential=aws-credentials:/etc/smalldocs/app-aws-credentials
+Environment=AWS_SHARED_CREDENTIALS_FILE=%d/aws-credentials
+Environment=AWS_EC2_METADATA_DISABLED=true
 ExecStartPre=/usr/bin/test -r /opt/smalldocs/current/server.js
 ExecStart=/usr/local/bin/node /opt/smalldocs/current/server.js
 Restart=on-failure
