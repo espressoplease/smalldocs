@@ -52,7 +52,7 @@ function entitlementFailure(code, status, cloudOrigin) {
   }
   if (code === 'subscription_required') {
     return { code, message: 'An active SmallDocs Cloud subscription is required to change documents.',
-      action: 'subscribe', billing_url: cloudOrigin + '/cloud/checkout' };
+      action: 'subscribe', billing_url: cloudOrigin + '/cloud#pricing' };
   }
   return { code, message: 'This Cloud workspace is read-only because its subscription is not active. Ask a workspace owner to update billing.',
     action: 'manage_billing', billing_url: cloudOrigin + '/cloud/admin' };
@@ -200,11 +200,33 @@ function filterTags(documents, tags) {
   return documents.filter((document) => wanted.every((tag) => (document.tags || []).includes(tag)));
 }
 
+function requestedLimit(value, fallback) {
+  if (value == null) return fallback;
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new CloudCommandError('invalid_request', '--limit must be a positive integer');
+  }
+  return value;
+}
+
 async function list(opts, client) {
-  const query = opts.projectFlag ? '?project_id=' + encodeURIComponent(opts.projectFlag) : '';
-  const response = await client.authenticated('/api/cloud/v1/documents' + query);
-  const documents = filterTags(response.documents || [], opts.tagFilters).slice(0, opts.limitFlag || 50);
-  emit(opts, 'cloud.ls', { documents, next_cursor: null }, documents.map((document) =>
+  const target = requestedLimit(opts.limitFlag, 50);
+  const documents = [];
+  const seenCursors = new Set();
+  let cursor = null;
+  do {
+    const params = new URLSearchParams();
+    if (opts.projectFlag) params.set('project_id', opts.projectFlag);
+    params.set('limit', String(Math.min(100, target - documents.length)));
+    if (cursor) params.set('cursor', cursor);
+    const response = await client.authenticated('/api/cloud/v1/documents?' + params.toString());
+    documents.push(...filterTags(response.documents || [], opts.tagFilters)
+      .slice(0, target - documents.length));
+    cursor = response.next_cursor || null;
+    if (cursor && seenCursors.has(cursor)) throw new CloudCommandError('temporary_service_failure',
+      'Cloud returned the same document cursor twice.');
+    if (cursor) seenCursors.add(cursor);
+  } while (documents.length < target && cursor);
+  emit(opts, 'cloud.ls', { documents, next_cursor: cursor }, documents.map((document) =>
     document.id + '  ' + document.title + '  [' + (document.tags || []).join(', ') + ']').join('\n') || 'No Cloud documents.');
 }
 
@@ -347,11 +369,22 @@ async function history(opts, client) {
   const documentId = opts.extra;
   if (!documentId) throw new CloudCommandError('invalid_request',
     'usage: sdoc cloud history DOCUMENT_UUID');
-  const response = await client.authenticated('/api/cloud/v1/documents/'
-    + encodeURIComponent(documentId) + '/revisions');
-  const revisions = response.revisions || [];
+  const revisions = [];
+  const seenCursors = new Set();
+  let cursor = null;
+  do {
+    const params = new URLSearchParams({ limit: '100' });
+    if (cursor) params.set('cursor', cursor);
+    const response = await client.authenticated('/api/cloud/v1/documents/'
+      + encodeURIComponent(documentId) + '/revisions?' + params.toString());
+    revisions.push(...(response.revisions || []));
+    cursor = response.next_cursor || null;
+    if (cursor && seenCursors.has(cursor)) throw new CloudCommandError('temporary_service_failure',
+      'Cloud returned the same revision cursor twice.');
+    if (cursor) seenCursors.add(cursor);
+  } while (cursor);
   emit(opts, 'cloud.history', { document_id: documentId, revisions,
-    next_cursor: response.next_cursor == null ? null : response.next_cursor }, revisions.map((revision) =>
+    next_cursor: null }, revisions.map((revision) =>
     revision.revision_number + '  ' + revision.id + '  ' + revision.created_at).join('\n') || 'No revisions.');
 }
 

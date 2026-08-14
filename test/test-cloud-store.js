@@ -31,6 +31,31 @@ module.exports = function(harness) {
       assert.strictEqual(deriveMetadata('# Heading\nBody', 'fallback.md').title, 'Heading');
     });
 
+    test('document and revision pages preserve keyset ordering', () => {
+      const documents = [
+        { id: 'doc-a', updated_at: '2026-08-14T12:00:00.000Z' },
+        { id: 'doc-b', updated_at: '2026-08-14T12:00:00.000Z' },
+        { id: 'doc-c', updated_at: '2026-08-14T11:00:00.000Z' },
+      ];
+      const firstDocuments = store.pageDocuments(documents, { limit: 2 });
+      assert.deepStrictEqual(firstDocuments.documents.map((item) => item.id), ['doc-a', 'doc-b']);
+      assert.deepStrictEqual(firstDocuments.nextPosition,
+        { updated_at: '2026-08-14T12:00:00.000Z', id: 'doc-b' });
+      assert.deepStrictEqual(store.pageDocuments(documents,
+        { limit: 2, after: firstDocuments.nextPosition }).documents.map((item) => item.id), ['doc-c']);
+
+      const revisions = [
+        { id: 'rev-3', revision_number: 3 },
+        { id: 'rev-2', revision_number: 2 },
+        { id: 'rev-1', revision_number: 1 },
+      ];
+      const firstRevisions = store.pageRevisions(revisions, { limit: 1 });
+      assert.deepStrictEqual(firstRevisions.revisions.map((item) => item.id), ['rev-3']);
+      assert.deepStrictEqual(store.pageRevisions(revisions,
+        { limit: 2, after: firstRevisions.nextPosition }).revisions.map((item) => item.id),
+      ['rev-2', 'rev-1']);
+    });
+
     test('Cloud activation creates one personal workspace and default project', () => {
       personal = store.ensurePersonalWorkspace(owner, 'Josh');
       assert.strictEqual(personal.created, true);
@@ -257,10 +282,97 @@ module.exports = function(harness) {
         filename: 'protected.md', markdown: '# Protected', idempotencyKey: 'protected-document' });
       const first = store.db.prepare('SELECT * FROM cloud_document_revisions WHERE document_id = ? ORDER BY revision_number')
         .get(protectedDocument.id);
+      const corrupted = Buffer.from(first.body_ciphertext);
+      corrupted[0] ^= 1;
       store.db.prepare('UPDATE cloud_document_revisions SET body_ciphertext = ? WHERE id = ?')
-        .run(Buffer.from(first.body_ciphertext).fill(0, 0, 1), first.id);
+        .run(corrupted, first.id);
       assert.throws(() => store.getDocument({ userId: owner, documentId: protectedDocument.id,
         revisionId: first.id, includeDeleted: true }), (error) => error.code === 'temporary_service_failure');
+    });
+
+    test('an owner can promote an active workspace member without losing ownership', () => {
+      const result = store.transferWorkspaceOwnership({ actorUserId: owner,
+        workspaceId: team.workspaceId, targetUserId: member });
+      assert.strictEqual(result.owner_user_id, member);
+      assert.strictEqual(result.retained_owner_user_id, owner);
+      const roles = store.listWorkspaceMembers({ userId: owner, workspaceId: team.workspaceId })
+        .filter((row) => row.user_id === owner || row.user_id === member)
+        .map((row) => row.role).sort();
+      assert.deepStrictEqual(roles, ['owner', 'owner']);
+      assert.throws(() => store.transferWorkspaceOwnership({ actorUserId: outsider,
+        workspaceId: team.workspaceId, targetUserId: owner }),
+      (error) => error.code === 'permission_denied');
+      assert.throws(() => store.transferWorkspaceOwnership({ actorUserId: owner,
+        workspaceId: team.workspaceId, targetUserId: outsider }),
+      (error) => error.code === 'resource_unavailable');
+      const events = store.listAuditEvents({ userId: owner, workspaceId: team.workspaceId });
+      assert.ok(events.some((event) => event.action === 'workspace.owner.add' &&
+        event.resource_id === member));
+    });
+
+    test('workspace admins can list and revoke only pending invitations in their workspace', () => {
+      const invitation = store.createInvitation({ userId: owner, workspaceId: team.workspaceId,
+        email: 'pending@example.com', role: 'member', projectGrants: [] });
+      const pending = store.listWorkspaceInvitations({ userId: owner, workspaceId: team.workspaceId });
+      assert.ok(pending.some((item) => item.id === invitation.id && item.email === 'pending@example.com'));
+      assert.throws(() => store.listWorkspaceInvitations({ userId: outsider,
+        workspaceId: team.workspaceId }), (error) => error.code === 'permission_denied');
+      assert.throws(() => store.revokeWorkspaceInvitation({ userId: owner,
+        workspaceId: personal.workspaceId, invitationId: invitation.id }),
+      (error) => error.code === 'resource_unavailable');
+      const revoked = store.revokeWorkspaceInvitation({ userId: owner,
+        workspaceId: team.workspaceId, invitationId: invitation.id });
+      assert.strictEqual(revoked.id, invitation.id);
+      assert.strictEqual(store.listWorkspaceInvitations({ userId: owner,
+        workspaceId: team.workspaceId }).some((item) => item.id === invitation.id), false);
+      assert.throws(() => store.getInvitationContext({ token: invitation.token,
+        verifiedEmails: ['pending@example.com'] }), (error) => error.code === 'resource_unavailable');
+    });
+
+    test('only an owner can soft delete a Team workspace and personal deletion is refused', () => {
+      const purgeDocument = store.createDocument({ userId: owner, projectId: team.projectId,
+        filename: 'workspace-purge.md', markdown: '# Workspace purge',
+        idempotencyKey: 'workspace-purge-document' });
+      const purgeRevisionId = purgeDocument.current_revision_id;
+      const pendingInvitation = store.createInvitation({ userId: owner, workspaceId: team.workspaceId,
+        email: 'deleted-workspace@example.com', role: 'member', projectGrants: [] });
+      assert.throws(() => store.deleteWorkspace({ userId: owner,
+        workspaceId: personal.workspaceId }),
+      (error) => error.code === 'personal_workspace_cannot_be_deleted');
+      assert.throws(() => store.deleteWorkspace({ userId: outsider,
+        workspaceId: team.workspaceId }),
+      (error) => error.code === 'permission_denied');
+      const deleted = store.deleteWorkspace({ userId: owner,
+        workspaceId: team.workspaceId, restoreWindowMs: 1000 });
+      assert.strictEqual(Date.parse(deleted.deleted_at), clock);
+      assert.strictEqual(Date.parse(deleted.purge_after), clock + 1000);
+      assert.strictEqual(store.listWorkspaces(owner).some((row) => row.id === team.workspaceId), false);
+      assert.strictEqual(store.listWorkspaces(member).some((row) => row.id === team.workspaceId), false);
+      assert.throws(() => store.listProjects(owner, team.workspaceId),
+        (error) => error.code === 'resource_unavailable');
+      assert.strictEqual(store.listDocuments({ userId: owner, workspaceId: team.workspaceId }).length, 0);
+      assert.strictEqual(store.search({ userId: owner, workspaceId: team.workspaceId,
+        query: 'anything' }).length, 0);
+      assert.throws(() => store.getInvitationContext({ token: pendingInvitation.token,
+        verifiedEmails: ['deleted-workspace@example.com'] }),
+      (error) => error.code === 'resource_unavailable');
+      assert.strictEqual(store.purgeDeletedWorkspaces({ beforeMs: clock,
+        workspaceId: team.workspaceId }).purged_count, 0);
+      clock += 1001;
+      assert.strictEqual(store.purgeDeletedWorkspaces({ beforeMs: clock,
+        workspaceId: team.workspaceId }).purged_count, 1);
+      assert.strictEqual(store.db.prepare('SELECT COUNT(*) AS count FROM cloud_workspaces WHERE id = ?')
+        .get(team.workspaceId).count, 0);
+      assert.strictEqual(store.db.prepare('SELECT COUNT(*) AS count FROM cloud_projects WHERE workspace_id = ?')
+        .get(team.workspaceId).count, 0);
+      assert.strictEqual(store.db.prepare('SELECT COUNT(*) AS count FROM cloud_documents WHERE id = ?')
+        .get(purgeDocument.id).count, 0);
+      assert.strictEqual(store.db.prepare('SELECT COUNT(*) AS count FROM cloud_document_revisions WHERE id = ?')
+        .get(purgeRevisionId).count, 0);
+      assert.strictEqual(store.db.prepare(`
+        SELECT COUNT(*) AS count FROM cloud_idempotency_records
+        WHERE resource_id = ? OR resource_id = ?
+      `).get(team.projectId, purgeDocument.id).count, 0);
     });
 
     store.close();

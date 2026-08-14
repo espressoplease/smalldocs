@@ -341,12 +341,55 @@ function openDialog() {
     documentPreview() + '<div class="sdoc-cloud-proto-success"><div class="sdoc-cloud-proto-success-icon">' + CLOUD_CHECK_SVG + '</div>'
     + '<h3>Revision ' + escapeHtml(S.cloudDocument.revision_number) + '</h3><p>Save your current changes as a new immutable revision.</p>'
     + '<div class="sdoc-cloud-proto-actions"><a class="sdoc-cloud-proto-btn" href="/library?scope=cloud">Open library</a>'
+    + '<button class="sdoc-cloud-proto-btn danger" data-action="delete" type="button">Delete from Cloud</button>'
     + '<button class="sdoc-cloud-proto-btn" data-action="history" type="button">Revision history</button>'
     + '<button class="sdoc-cloud-proto-btn primary" data-action="save" type="button">Save to Cloud</button></div>'
     + '<p class="sdoc-cloud-proto-note" data-save-status></p></div>');
   wireClose(dialog);
+  dialog.querySelector('[data-action="delete"]').addEventListener('click', confirmDeleteDocument);
   dialog.querySelector('[data-action="history"]').addEventListener('click', openRevisionHistory);
   dialog.querySelector('[data-action="save"]').addEventListener('click', saveRevision);
+}
+
+function confirmDeleteDocument() {
+  var dialog = ensureDialog().querySelector('.sdoc-cloud-proto-dialog');
+  dialog.innerHTML = shell('Delete from Cloud', currentFilename(),
+    '<p>This removes the document from Cloud now. It can be restored for 30 days before its encrypted revisions are purged.</p>'
+    + '<div class="sdoc-cloud-proto-actions"><button class="sdoc-cloud-proto-btn" data-action="cancel" type="button">Cancel</button>'
+    + '<button class="sdoc-cloud-proto-btn danger" data-action="confirm-delete" type="button">Delete from Cloud</button></div>'
+    + '<p class="sdoc-cloud-proto-note" data-delete-status></p>');
+  wireClose(dialog);
+  dialog.querySelector('[data-action="cancel"]').addEventListener('click', openDialog);
+  dialog.querySelector('[data-action="confirm-delete"]').addEventListener('click', deleteCloudDocument);
+}
+
+async function deleteCloudDocument(event) {
+  var button = event.currentTarget;
+  var dialog = button.closest('.sdoc-cloud-proto-dialog');
+  button.disabled = true;
+  button.textContent = 'Deleting...';
+  try {
+    await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id), {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expected_head_revision_id: S.cloudDocument.current_revision_id }),
+    });
+    S.cloudDocument = null;
+    var url = new URL(location.href);
+    url.searchParams.delete('cloud-document');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    refreshRow();
+    dialog.innerHTML = shell('Deleted from Cloud', currentFilename(),
+      '<p>The current document remains open here. Cloud keeps its encrypted revisions for the 30-day restore window.</p>'
+      + '<div class="sdoc-cloud-proto-actions"><a class="sdoc-cloud-proto-btn" href="/library?scope=cloud">Open library</a>'
+      + '<button class="sdoc-cloud-proto-btn primary" data-action="done" type="button">Done</button></div>');
+    wireClose(dialog);
+    dialog.querySelector('[data-action="done"]').addEventListener('click', closeDialog);
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = error.data && error.data.error === 'revision_conflict'
+      ? 'Document changed' : 'Try again';
+    dialog.querySelector('[data-delete-status]').textContent = 'The document was not deleted.';
+  }
 }
 
 async function openRevisionHistory() {

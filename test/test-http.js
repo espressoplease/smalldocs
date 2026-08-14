@@ -19,12 +19,14 @@ module.exports = function(harness) {
     const testCloudAuthDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-auth-' + process.pid + '.db');
     const testCloudDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-' + process.pid + '.db');
     const testCloudBillingDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-billing-' + process.pid + '.db');
+    const testCloudJobsDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-jobs-' + process.pid + '.db');
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
     try { fs.unlinkSync(testTeamsDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudBillingDbPath); } catch (_) {}
+    try { fs.unlinkSync(testCloudJobsDbPath); } catch (_) {}
     let serverOutput = '';
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
       env: {
@@ -44,6 +46,8 @@ module.exports = function(harness) {
         CLOUD_ENVIRONMENT: 'test',
         CLOUD_IDEMPOTENCY_SECRET: 'http-test-idempotency-secret-32-bytes',
         CLOUD_BILLING_DB: testCloudBillingDbPath,
+        CLOUD_JOBS_DB: testCloudJobsDbPath,
+        CLOUD_WORKSPACE_RESTORE_WINDOW_MS: '60000',
         GOOGLE_OAUTH_CLIENT_ID: 'http-test-google-client',
         GOOGLE_OAUTH_CLIENT_SECRET: 'http-test-google-secret',
         GITHUB_OAUTH_CLIENT_ID: '',
@@ -581,7 +585,7 @@ module.exports = function(harness) {
       const account = await get(BASE + '/cloud/account', { Cookie: verified.headers['set-cookie'][0].split(';')[0] });
       assert.strictEqual(account.status, 200);
       assert.ok(account.body.includes('Your Cloud account'));
-      assert.ok(account.body.includes('No Cloud documents yet'));
+      assert.ok(account.body.includes('Cloud account active'));
 
       const loggedOut = await post(BASE + '/api/cloud/auth/logout', '', {
         Origin: BASE,
@@ -745,6 +749,45 @@ module.exports = function(harness) {
       assert.strictEqual(reused.status, 404);
     });
 
+    await testAsync('Cloud owner can add another active member as an owner and remains an owner', async () => {
+      const promoted = await post(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/owners', {
+        user_id: cloudMemberUser.id,
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(promoted.status, 200);
+      const ownership = JSON.parse(promoted.body).ownership;
+      assert.strictEqual(ownership.owner_user_id, cloudMemberUser.id);
+      const members = await get(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/members',
+        { Cookie: cloudCookie });
+      const owners = JSON.parse(members.body).members.filter((member) => member.role === 'owner');
+      assert.strictEqual(owners.length, 2);
+      assert.ok(owners.some((member) => member.user_id === cloudMemberUser.id));
+      const memberView = await get(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/members',
+        { Cookie: cloudMemberCookie });
+      assert.strictEqual(memberView.status, 200);
+    });
+
+    await testAsync('Cloud admin lists and revokes pending workspace invitations', async () => {
+      const created = await post(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/invitations', {
+        email: 'pending-member@example.com', role: 'member', project_grants: [],
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(created.status, 201);
+      const invitation = JSON.parse(created.body).invitation;
+      const listed = await get(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/invitations',
+        { Cookie: cloudCookie });
+      assert.strictEqual(listed.status, 200);
+      assert.ok(JSON.parse(listed.body).invitations.some((item) =>
+        item.id === invitation.id && item.email === 'pending-member@example.com'));
+      const wrongWorkspace = await del(BASE + '/api/cloud/v1/workspaces/' + cloudWorkspace.id +
+        '/invitations/' + invitation.id, {}, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(wrongWorkspace.status, 404);
+      const revoked = await del(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId +
+        '/invitations/' + invitation.id, {}, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(revoked.status, 200);
+      const after = await get(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/invitations',
+        { Cookie: cloudCookie });
+      assert.strictEqual(JSON.parse(after.body).invitations.some((item) => item.id === invitation.id), false);
+    });
+
     await testAsync('Cloud member removal revokes workspace access and preserves the final owner', async () => {
       const members = await get(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/members',
         { Cookie: cloudCookie });
@@ -764,6 +807,47 @@ module.exports = function(harness) {
         '/members/' + owner.id, {}, { Origin: BASE, Cookie: cloudCookie });
       assert.strictEqual(finalOwner.status, 409);
       assert.strictEqual(JSON.parse(finalOwner.body).error, 'final_owner_required');
+    });
+
+    await testAsync('Cloud owner soft deletes only Team workspaces and queues durable purge', async () => {
+      const document = await post(BASE + '/api/cloud/v1/documents', {
+        project_id: cloudTeamProject.id, filename: 'workspace-delete.md',
+        markdown: '# Workspace deletion', idempotency_key: 'workspace-delete-http-document',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(document.status, 201);
+      const documentId = JSON.parse(document.body).document.id;
+      const personalDelete = await del(BASE + '/api/cloud/v1/workspaces/' + cloudWorkspace.id, {},
+        { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(personalDelete.status, 409);
+      assert.strictEqual(JSON.parse(personalDelete.body).error, 'personal_workspace_cannot_be_deleted');
+
+      const deleted = await del(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId, {},
+        { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(deleted.status, 200);
+      const workspace = JSON.parse(deleted.body).workspace;
+      assert.strictEqual(Date.parse(workspace.purge_after) - Date.parse(workspace.deleted_at), 60000);
+      const workspaces = JSON.parse((await get(BASE + '/api/cloud/v1/workspaces', {
+        Cookie: cloudCookie,
+      })).body).workspaces;
+      assert.strictEqual(workspaces.some((item) => item.id === cloudTeamWorkspace.workspaceId), false);
+      const projects = await get(BASE + '/api/cloud/v1/projects?workspace_id=' + cloudTeamWorkspace.workspaceId,
+        { Cookie: cloudCookie });
+      assert.strictEqual(projects.status, 404);
+      const hiddenDocument = await get(BASE + '/api/cloud/v1/documents/' + documentId,
+        { Cookie: cloudCookie });
+      assert.strictEqual(hiddenDocument.status, 404);
+
+      const Database = require('better-sqlite3');
+      const jobs = new Database(testCloudJobsDbPath, { readonly: true });
+      const job = jobs.prepare(`
+        SELECT type, payload_json, state, available_at_ms FROM cloud_jobs
+        WHERE type = 'workspace_purge' ORDER BY created_at_ms DESC LIMIT 1
+      `).get();
+      jobs.close();
+      assert.ok(job);
+      assert.strictEqual(JSON.parse(job.payload_json).workspaceId, cloudTeamWorkspace.workspaceId);
+      assert.strictEqual(job.state, 'queued');
+      assert.strictEqual(job.available_at_ms, Date.parse(workspace.purge_after));
     });
 
     await testAsync('CLI device authorization requires browser approval and issues Bearer tokens', async () => {
@@ -866,10 +950,44 @@ module.exports = function(harness) {
       cloudDocument = next;
     });
 
+    await testAsync('Cloud document cursors paginate deterministically and are filter-scoped', async () => {
+      for (let number = 1; number <= 2; number += 1) {
+        const created = await post(BASE + '/api/cloud/v1/documents', {
+          project_id: cloudProject.id,
+          filename: 'pagination-' + number + '.md',
+          markdown: '# Pagination ' + number,
+          idempotency_key: 'http-pagination-' + number,
+        }, { Origin: BASE, Cookie: cloudCookie });
+        assert.strictEqual(created.status, 201);
+      }
+      const first = await get(BASE + '/api/cloud/v1/documents?project_id=' +
+        encodeURIComponent(cloudProject.id) + '&limit=1', { Cookie: cloudCookie });
+      const firstBody = JSON.parse(first.body);
+      assert.strictEqual(firstBody.documents.length, 1);
+      assert.strictEqual(typeof firstBody.next_cursor, 'string');
+      const second = await get(BASE + '/api/cloud/v1/documents?project_id=' +
+        encodeURIComponent(cloudProject.id) + '&limit=1&cursor=' + encodeURIComponent(firstBody.next_cursor),
+      { Cookie: cloudCookie });
+      const secondBody = JSON.parse(second.body);
+      assert.strictEqual(secondBody.documents.length, 1);
+      assert.notStrictEqual(secondBody.documents[0].id, firstBody.documents[0].id);
+      const wrongScope = await get(BASE + '/api/cloud/v1/documents?limit=1&cursor=' +
+        encodeURIComponent(firstBody.next_cursor), { Cookie: cloudCookie });
+      assert.strictEqual(wrongScope.status, 400);
+      assert.strictEqual(JSON.parse(wrongScope.body).error, 'invalid_request');
+    });
+
     await testAsync('Cloud API restores an old revision as a new head', async () => {
-      const history = await get(BASE + '/api/cloud/v1/documents/' + cloudDocument.id + '/revisions',
+      const firstHistory = await get(BASE + '/api/cloud/v1/documents/' + cloudDocument.id +
+        '/revisions?limit=1',
         { Cookie: cloudCookie });
-      const revisions = JSON.parse(history.body).revisions;
+      const firstHistoryBody = JSON.parse(firstHistory.body);
+      assert.strictEqual(firstHistoryBody.revisions.length, 1);
+      assert.strictEqual(typeof firstHistoryBody.next_cursor, 'string');
+      const nextHistory = await get(BASE + '/api/cloud/v1/documents/' + cloudDocument.id +
+        '/revisions?limit=1&cursor=' + encodeURIComponent(firstHistoryBody.next_cursor),
+      { Cookie: cloudCookie });
+      const revisions = firstHistoryBody.revisions.concat(JSON.parse(nextHistory.body).revisions);
       assert.strictEqual(revisions.length, 2);
       const oldest = revisions.find((revision) => revision.revision_number === 1);
       const restored = await post(BASE + '/api/cloud/v1/documents/' + cloudDocument.id +
@@ -1025,5 +1143,8 @@ module.exports = function(harness) {
     try { fs.unlinkSync(testCloudBillingDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudBillingDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testCloudBillingDbPath + '-shm'); } catch (_) {}
+    try { fs.unlinkSync(testCloudJobsDbPath); } catch (_) {}
+    try { fs.unlinkSync(testCloudJobsDbPath + '-wal'); } catch (_) {}
+    try { fs.unlinkSync(testCloudJobsDbPath + '-shm'); } catch (_) {}
   };
 };

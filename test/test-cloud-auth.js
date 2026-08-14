@@ -159,8 +159,10 @@ module.exports = function(harness) {
       const issue = auth.issueEmailCode({
         email: 'new@example.com', purpose: 'link', sessionToken: session.token,
       });
-      assert.throws(() => auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code }),
-        (error) => error instanceof AuthError && error.code === 'identity_in_use');
+      const result = auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code });
+      assert.deepStrictEqual(result, { ok: false, reason: 'identity_in_use' });
+      assert.strictEqual(auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code }).reason,
+        'already_used');
       assert.strictEqual(auth.getUser(emailUser.id).identities[0].subject, 'new@example.com');
     });
 

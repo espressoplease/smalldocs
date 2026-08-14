@@ -62,11 +62,14 @@ module.exports = function(harness) {
           return { document: { id: 'doc-1', current_revision_id: 'rev-2', revision_number: 2,
             updated_at: '2026-08-14T00:01:00.000Z', tags: ['release'] } };
         }
-        if (endpoint === '/api/cloud/v1/documents/doc-1/revisions') {
-          return { revisions: [
+        if (endpoint.startsWith('/api/cloud/v1/documents/doc-1/revisions?')) {
+          const cursor = new URL(endpoint, 'https://cloud.test').searchParams.get('cursor');
+          if (!cursor) return { revisions: [
             { id: 'rev-2', parent_revision_id: 'rev-1', revision_number: 2,
               created_by_user_id: 'usr-1', created_by_credential_id: 'cli-1',
               created_at: '2026-08-14T00:01:00.000Z', compressed_size: 20, uncompressed_size: 30 },
+          ], next_cursor: 'history-cursor' };
+          if (cursor === 'history-cursor') return { revisions: [
             { id: 'rev-1', parent_revision_id: null, revision_number: 1,
               created_by_user_id: 'usr-1', created_by_credential_id: 'cli-1',
               created_at: '2026-08-14T00:00:00.000Z', compressed_size: 18, uncompressed_size: 28 },
@@ -159,6 +162,32 @@ module.exports = function(harness) {
       assert.strictEqual(result.next_cursor, null);
     });
 
+    await testAsync('cloud ls follows cursors until it returns the requested limit', async () => {
+      const pageCalls = [];
+      const pages = {
+        '': { documents: [{ id: 'doc-a', title: 'A', tags: [] }], next_cursor: 'cursor-1' },
+        'cursor-1': { documents: [{ id: 'doc-b', title: 'B', tags: [] }], next_cursor: 'cursor-2' },
+        'cursor-2': { documents: [{ id: 'doc-c', title: 'C', tags: [] }], next_cursor: 'cursor-3' },
+      };
+      const pagingClient = {
+        async authenticated(endpoint) {
+          const url = new URL(endpoint, 'https://cloud.test');
+          const cursor = url.searchParams.get('cursor') || '';
+          pageCalls.push({ cursor, limit: url.searchParams.get('limit') });
+          return pages[cursor];
+        },
+      };
+      const result = await capture(() => runCloudCommand({ file: 'ls', limitFlag: 3,
+        jsonFlag: true }, { client: pagingClient }));
+      assert.deepStrictEqual(result.documents.map((document) => document.id), ['doc-a', 'doc-b', 'doc-c']);
+      assert.strictEqual(result.next_cursor, 'cursor-3');
+      assert.deepStrictEqual(pageCalls, [
+        { cursor: '', limit: '3' },
+        { cursor: 'cursor-1', limit: '2' },
+        { cursor: 'cursor-2', limit: '1' },
+      ]);
+    });
+
     await testAsync('cloud restore reads the current head and sends an idempotent expected-head write', async () => {
       const callStart = calls.length;
       const result = await capture(() => runCloudCommand({ file: 'restore', extra: 'doc-1',
@@ -204,7 +233,7 @@ module.exports = function(harness) {
       assert.strictEqual(result.stdout, '');
       assert.strictEqual(result.exitCode, 4);
       assert.ok(result.stderr.includes('active SmallDocs Cloud subscription'));
-      assert.ok(result.stderr.includes('Subscribe: https://cloud.test/cloud/checkout'));
+      assert.ok(result.stderr.includes('Subscribe: https://cloud.test/cloud#pricing'));
     });
 
     await testAsync('cloud push emits one stable JSON error for a read-only subscription', async () => {

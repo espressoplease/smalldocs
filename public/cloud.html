@@ -204,7 +204,8 @@ sdoc cloud search "kubernetes" --project PROJECT_UUID
 sdoc cloud pull DOCUMENT_UUID --output migration.md
 # edit migration.md with normal file tools
 sdoc cloud push migration.md
-sdoc cloud history DOCUMENT_UUID</code></pre>
+sdoc cloud history DOCUMENT_UUID
+sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
     <p>Each Cloud document keeps a stable identity and revision history. Renaming a file does not break agent references. If someone else has changed a document, SmallDocs reports a conflict instead of overwriting their work.</p>
   </section>
 

@@ -3,6 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { createCursorCodec, normalizeLimit } = require('./lib/cloud-cursor');
 
 const PORT = process.env.PORT || 3000;
 const DEV_MODE = process.env.SDOCS_DEV === '1' || process.env.NODE_ENV === 'development';
@@ -154,6 +155,7 @@ if (cloudAuthCleanupTimer.unref) cloudAuthCleanupTimer.unref();
 // same interface through a managed key service before accepting customer data.
 let cloudStore = null;
 let cloudKeyProvider = null;
+let cloudCursor = null;
 if (process.env.CLOUD_KMS_CLIENT_MODULE && process.env.CLOUD_KMS_KEY_ID) {
   const kmsModulePath = path.resolve(process.env.CLOUD_KMS_CLIENT_MODULE);
   const kmsModule = require(kmsModulePath);
@@ -177,6 +179,9 @@ if (cloudKeyProvider) {
     dbPath: process.env.CLOUD_DB || path.join(__dirname, 'cloud.db'),
     keyProvider: cloudKeyProvider,
     idempotencySecret: process.env.CLOUD_IDEMPOTENCY_SECRET || CLOUD_AUTH_PEPPER,
+  });
+  cloudCursor = createCursorCodec({
+    secret: process.env.CLOUD_CURSOR_SECRET || process.env.CLOUD_IDEMPOTENCY_SECRET || CLOUD_AUTH_PEPPER,
   });
 }
 
@@ -227,6 +232,12 @@ function scheduleTeamSeatSync(workspaceId) {
 }
 
 async function processCloudJob(job) {
+  if (job.type === 'workspace_purge') {
+    if (cloudStore) cloudStore.purgeDeletedWorkspaces({
+      workspaceId: job.payload.workspaceId, beforeMs: Date.now(),
+    });
+    return;
+  }
   if (job.type === 'document_purge') {
     if (cloudStore) cloudStore.purgeDeletedDocuments({ beforeMs: Date.now(), actorUserId: 'system' });
     return;
@@ -719,6 +730,7 @@ function cloudApiError(res, error) {
     revision_conflict: 409,
     idempotency_mismatch: 409,
     final_owner_required: 409,
+    personal_workspace_cannot_be_deleted: 409,
     subscription_required: 402,
     subscription_read_only: 402,
     payment_grace_expired: 402,
@@ -957,6 +969,12 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     const workspaceInvitationsMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/invitations$/);
+    if (workspaceInvitationsMatch && req.method === 'GET') {
+      sendJson(res, 200, { ok: true, invitations: cloudStore.listWorkspaceInvitations({
+        userId: user.id, workspaceId: workspaceInvitationsMatch[1],
+      }) });
+      return;
+    }
     if (workspaceInvitationsMatch && req.method === 'POST') {
       const body = await cloudAuthHttp.readJson(req);
       requireCloudEntitlement(user.id, workspaceInvitationsMatch[1], 'manage');
@@ -984,6 +1002,16 @@ async function handleCloudApi(req, res, url) {
       } });
       return;
     }
+    const workspaceInvitationMatch = pathname.match(
+      /^\/api\/cloud\/v1\/workspaces\/([^/]+)\/invitations\/([^/]+)$/);
+    if (workspaceInvitationMatch && req.method === 'DELETE') {
+      const invitation = cloudStore.revokeWorkspaceInvitation({
+        userId: user.id, workspaceId: workspaceInvitationMatch[1],
+        invitationId: workspaceInvitationMatch[2],
+      });
+      sendJson(res, 200, { ok: true, invitation });
+      return;
+    }
     const workspaceMemberMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/members\/([^/]+)$/);
     if (workspaceMemberMatch && req.method === 'DELETE') {
       cloudStore.removeWorkspaceMember({ actorUserId: user.id,
@@ -994,6 +1022,31 @@ async function handleCloudApi(req, res, url) {
         console.error('[cloud-billing] seat synchronization queued');
       }
       sendJson(res, 200, { ok: true });
+      return;
+    }
+    const workspaceOwnersMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/owners$/);
+    if (workspaceOwnersMatch && req.method === 'POST') {
+      const body = await cloudAuthHttp.readJson(req);
+      const ownership = cloudStore.transferWorkspaceOwnership({
+        actorUserId: user.id, workspaceId: workspaceOwnersMatch[1], targetUserId: body.user_id,
+      });
+      sendJson(res, 200, { ok: true, ownership });
+      return;
+    }
+    const workspaceMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)$/);
+    if (workspaceMatch && req.method === 'DELETE') {
+      const configuredWindow = Number(process.env.CLOUD_WORKSPACE_RESTORE_WINDOW_MS);
+      const deleted = cloudStore.deleteWorkspace({
+        userId: user.id, workspaceId: workspaceMatch[1],
+        restoreWindowMs: Number.isSafeInteger(configuredWindow) && configuredWindow > 0
+          ? configuredWindow : undefined,
+      });
+      enqueueCloudJob({ type: 'workspace_purge',
+        idempotencyKey: deleted.id + ':' + deleted.purge_after,
+        payload: { workspaceId: deleted.id }, availableAtMs: deleted.purge_after_ms });
+      sendJson(res, 200, { ok: true, workspace: {
+        id: deleted.id, deleted_at: deleted.deleted_at, purge_after: deleted.purge_after,
+      } });
       return;
     }
     const invitationAcceptMatch = pathname.match(/^\/api\/cloud\/v1\/invitations\/([^/]+)\/accept$/);
@@ -1014,9 +1067,16 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (req.method === 'GET' && pathname === base + '/documents') {
+      const projectId = url.searchParams.get('project_id') || undefined;
+      const workspaceId = url.searchParams.get('workspace_id') || undefined;
+      const limit = normalizeLimit(url.searchParams.get('limit'));
+      const cursorScope = JSON.stringify({ endpoint: 'documents', user_id: user.id,
+        project_id: projectId || null, workspace_id: workspaceId || null });
+      const after = url.searchParams.get('cursor')
+        ? cloudCursor.decode(url.searchParams.get('cursor'), cursorScope)
+        : null;
       let documents = cloudStore.listDocuments({
-        userId: user.id, projectId: url.searchParams.get('project_id') || undefined,
-        workspaceId: url.searchParams.get('workspace_id') || undefined,
+        userId: user.id, projectId, workspaceId,
       });
       if (cloudBilling) documents = documents.filter((document) => {
         try {
@@ -1025,7 +1085,9 @@ async function handleCloudApi(req, res, url) {
           return true;
         } catch (_) { return false; }
       });
-      sendJson(res, 200, { ok: true, documents, next_cursor: null });
+      const page = cloudStore.pageDocuments(documents, { limit, after });
+      sendJson(res, 200, { ok: true, documents: page.documents,
+        next_cursor: page.nextPosition ? cloudCursor.encode(cursorScope, page.nextPosition) : null });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/tags') {
@@ -1124,9 +1186,16 @@ async function handleCloudApi(req, res, url) {
       const context = cloudStore.getDocumentContext({ userId: user.id, documentId: revisionsMatch[1],
         includeDeleted: true });
       requireCloudEntitlement(user.id, context.workspaceId, 'read');
-      sendJson(res, 200, { ok: true, revisions: cloudStore.listRevisions({
-        userId: user.id, documentId: revisionsMatch[1],
-      }), next_cursor: null });
+      const limit = normalizeLimit(url.searchParams.get('limit'));
+      const cursorScope = JSON.stringify({ endpoint: 'document-revisions', user_id: user.id,
+        document_id: revisionsMatch[1] });
+      const after = url.searchParams.get('cursor')
+        ? cloudCursor.decode(url.searchParams.get('cursor'), cursorScope)
+        : null;
+      const page = cloudStore.listRevisionsPage({ userId: user.id,
+        documentId: revisionsMatch[1], limit, after });
+      sendJson(res, 200, { ok: true, revisions: page.revisions,
+        next_cursor: page.nextPosition ? cloudCursor.encode(cursorScope, page.nextPosition) : null });
       return;
     }
     if (revisionsMatch && req.method === 'POST') {

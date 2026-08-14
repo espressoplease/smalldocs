@@ -235,6 +235,8 @@
 .sdoc-cloud-proto-btn:hover { background: var(--bg-hover); }
 .sdoc-cloud-proto-btn.primary { border-color: var(--accent); background: var(--accent); color: var(--text-inv); }
 .sdoc-cloud-proto-btn.primary:hover { filter: brightness(1.05); }
+.sdoc-cloud-proto-btn.danger { color: #b42318; border-color: color-mix(in srgb, #b42318 35%, var(--border)); }
+.sdoc-cloud-proto-btn.danger:hover { background: color-mix(in srgb, #b42318 8%, var(--bg-surface)); }
 .sdoc-cloud-proto-btn:disabled { opacity: .58; cursor: progress; }
 
 .sdoc-cloud-proto-note {

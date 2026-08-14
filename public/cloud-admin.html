@@ -96,6 +96,7 @@
   .create-project { display:none; grid-template-columns:minmax(180px,1fr) auto; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border-2); background:color-mix(in srgb,var(--blue-2) 58%,var(--surface)); }
   .create-project.open { display:grid; }
   .busy { opacity:.58; pointer-events:none; }
+  .row-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; }
   @media(max-width:750px) { .shell{grid-template-columns:1fr}.sidebar{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.nav{width:auto;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:repeat(2,1fr)}.project-grid{grid-template-columns:1fr}.invite.open,.create-project.open{grid-template-columns:1fr}.account{display:none} }
   @media(prefers-color-scheme:dark) { :root{--bg:#1C1A17;--surface:#211F1D;--surface-2:#252320;--text:#E7E5E2;--text-2:#A8A29E;--text-3:#77716B;--border:#3D3935;--border-2:#332F2B;--blue:#3B82F6;--blue-2:#17233A;--green:#4ADE80;--red:#FCA5A5}.notice{background:#17233A;border-color:#284B80;color:#BFDBFE} }
 </style>
@@ -122,6 +123,7 @@
       <div class="error" id="page-error" role="alert"></div>
       <div class="stats"><div class="stat"><strong id="member-count">-</strong><span>members</span></div><div class="stat"><strong id="project-count">-</strong><span>projects</span></div><div class="stat"><strong id="document-count">-</strong><span>documents</span></div><div class="stat"><strong id="credential-count">-</strong><span>your active credentials</span></div></div>
       <div class="card"><div class="card-head"><div><h2>Administration history</h2><p>Workspace and access changes, not document content.</p></div></div><div class="table-wrap"><table><tbody id="audit-rows"></tbody></table></div><p class="empty" id="audit-empty" hidden>No administration events have been recorded.</p></div>
+      <div class="card" id="workspace-lifecycle" hidden><div class="billing-row"><div><strong>Delete team workspace</strong><p>Access ends immediately. Encrypted documents and revisions are scheduled for permanent deletion after 30 days.</p></div><button class="btn small danger" id="delete-workspace" type="button">Delete workspace</button></div></div>
     </section>
 
     <section class="panel" id="panel-members" hidden>

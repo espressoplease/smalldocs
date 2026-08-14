@@ -6,6 +6,7 @@
     workspaces: [],
     workspace: null,
     members: [],
+    invitations: [],
     projects: [],
     documents: [],
     credentials: [],
@@ -54,6 +55,7 @@
       permission_denied: 'Your workspace role does not allow this action.',
       resource_unavailable: 'This item is no longer available.',
       final_owner_required: 'Assign another owner before removing the final owner.',
+      personal_workspace_cannot_be_deleted: 'Personal workspaces cannot be deleted here.',
       invalid_request: 'Check the submitted details and try again.',
       temporary_service_failure: 'Cloud is temporarily unavailable.',
     };
@@ -153,8 +155,24 @@
       var statusCell = document.createElement('td');
       statusCell.appendChild(element('span', member.status === 'active' ? 'status' : 'status pending', formatRole(member.status)));
       var actionCell = document.createElement('td');
+      var actions = element('div', 'row-actions');
       var isSelf = state.me && member.user_id === state.me.id;
       if (member.status === 'active' && !isSelf) {
+        if (state.workspace && state.workspace.role === 'owner' && member.role !== 'owner') {
+          var promote = element('button', 'btn small', 'Make owner');
+          promote.type = 'button';
+          promote.addEventListener('click', function () {
+            ask('Make ' + identityLabel + ' an owner?',
+              'They will be able to manage members, billing, ownership, and workspace deletion. You will remain an owner.',
+              async function () {
+                await mutation('POST', '/workspaces/' + encodeURIComponent(state.workspace.id) + '/owners', {
+                  user_id: member.user_id,
+                });
+                await loadWorkspace(state.workspace.id);
+              }, 'Make owner');
+          });
+          actions.appendChild(promote);
+        }
         var remove = element('button', 'btn small danger', 'Remove');
         remove.type = 'button';
         remove.addEventListener('click', function () {
@@ -163,8 +181,52 @@
             await loadWorkspace(state.workspace.id);
           });
         });
-        actionCell.appendChild(remove);
+        actions.appendChild(remove);
       }
+      actionCell.appendChild(actions);
+      row.append(personCell, roleCell, accessCell, statusCell, actionCell);
+      rows.appendChild(row);
+    });
+    state.invitations.forEach(function (invitation) {
+      var row = document.createElement('tr');
+      var personCell = document.createElement('td');
+      var person = element('div', 'person');
+      var identity = document.createElement('div');
+      identity.append(element('strong', '', invitation.email),
+        element('span', '', 'Invitation'));
+      person.append(element('span', 'avatar', initials(invitation.email)), identity);
+      personCell.appendChild(person);
+      var roleCell = element('td', '', formatRole(invitation.role));
+      var accessCell = document.createElement('td');
+      var grants = invitation.project_grants || [];
+      if (invitation.role === 'admin') {
+        accessCell.textContent = 'All projects';
+      } else if (!grants.length) {
+        accessCell.appendChild(element('span', 'muted', 'No project access'));
+      } else {
+        grants.forEach(function (grant) {
+          var project = state.projects.find(function (item) {
+            return item.id === (grant.projectId || grant.project_id);
+          });
+          accessCell.appendChild(element('span', 'tag',
+            (project ? project.name : 'Project') + ': ' + grant.role));
+        });
+      }
+      var statusCell = document.createElement('td');
+      statusCell.appendChild(element('span', 'status pending',
+        'Invited until ' + formatDate(invitation.expires_at)));
+      var actionCell = document.createElement('td');
+      var revoke = element('button', 'btn small danger', 'Revoke');
+      revoke.type = 'button';
+      revoke.addEventListener('click', function () {
+        ask('Revoke invite for ' + invitation.email + '?',
+          'The invitation link will stop working immediately.', async function () {
+            await mutation('DELETE', '/workspaces/' + encodeURIComponent(state.workspace.id) +
+              '/invitations/' + encodeURIComponent(invitation.id));
+            await loadWorkspace(state.workspace.id);
+          }, 'Revoke invite');
+      });
+      actionCell.appendChild(revoke);
       row.append(personCell, roleCell, accessCell, statusCell, actionCell);
       rows.appendChild(row);
     });
@@ -261,6 +323,8 @@
     var canAdminister = state.workspace && (state.workspace.role === 'owner' || state.workspace.role === 'admin');
     byId('invite-open').hidden = !canAdminister;
     byId('project-open').hidden = !canAdminister;
+    byId('workspace-lifecycle').hidden = !state.workspace || state.workspace.kind !== 'team' ||
+      state.workspace.role !== 'owner';
     var adminOption = byId('invite-role').querySelector('option[value="admin"]');
     adminOption.disabled = !state.workspace || state.workspace.role !== 'owner';
     if (adminOption.disabled && byId('invite-role').value === 'admin') byId('invite-role').value = 'member';
@@ -304,26 +368,29 @@
     var encoded = encodeURIComponent(workspace.id);
     var responses = await Promise.all([
       request('/workspaces/' + encoded + '/members'),
+      request('/workspaces/' + encoded + '/invitations'),
       request('/workspaces/' + encoded + '/projects'),
       request('/documents?workspace_id=' + encoded),
       request('/workspaces/' + encoded + '/audit'),
       request('/workspaces/' + encoded + '/billing'),
     ]);
     state.members = responses[0].members || [];
-    state.projects = responses[1].projects || [];
-    state.documents = responses[2].documents || [];
-    state.audit = responses[3].events || [];
-    state.billing = responses[4].billing || null;
+    state.invitations = responses[1].invitations || [];
+    state.projects = responses[2].projects || [];
+    state.documents = responses[3].documents || [];
+    state.audit = responses[4].events || [];
+    state.billing = responses[5].billing || null;
     var url = new URL(location.href);
     url.searchParams.set('workspace_id', workspace.id);
     history.replaceState(null, '', url.pathname + url.search);
     renderAll();
   }
 
-  function ask(title, copy, action) {
+  function ask(title, copy, action, confirmText) {
     state.pendingAction = action;
     byId('confirm-title').textContent = title;
     byId('confirm-copy').textContent = copy;
+    byId('confirm-action').textContent = confirmText || 'Confirm';
     byId('confirm').hidden = false;
   }
 
@@ -371,7 +438,7 @@
       });
       status.appendChild(copy);
       form.reset();
-      renderInviteProjects();
+      await loadWorkspace(state.workspace.id);
     } catch (error) {
       status.textContent = humanError(error);
     } finally {
@@ -426,6 +493,17 @@
       if (byId('project-form').classList.contains('open')) byId('project-name').focus();
     });
     byId('project-form').addEventListener('submit', submitProject);
+    byId('delete-workspace').addEventListener('click', function () {
+      var workspace = state.workspace;
+      ask('Delete ' + workspace.name + '?',
+        'Everyone will lose access immediately. Encrypted documents and revisions are scheduled for permanent deletion after 30 days. Local SmallDocs files are not affected.',
+        async function () {
+          await mutation('DELETE', '/workspaces/' + encodeURIComponent(workspace.id));
+          state.workspaces = state.workspaces.filter(function (item) { return item.id !== workspace.id; });
+          if (state.workspaces.length) await loadWorkspace(state.workspaces[0].id);
+          else location.assign('/library?scope=cloud');
+        }, 'Delete workspace');
+    });
     byId('confirm-cancel').addEventListener('click', closeConfirm);
     byId('confirm-action').addEventListener('click', async function () {
       var action = state.pendingAction;

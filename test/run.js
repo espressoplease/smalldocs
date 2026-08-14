@@ -56,6 +56,7 @@ require('./test-cloud-stripe')(harness);
 require('./test-cloud-kms')(harness);
 require('./test-cloud-jobs')(harness);
 require('./test-cloud-oauth')(harness);
+require('./test-cloud-cursor')(harness);
 const runCloudStore = require('./test-cloud-store')(harness);
 const runCloudCli = require('./test-cloud-cli')(harness);
 const runCloudCheckout = require('./test-cloud-checkout')(harness);
