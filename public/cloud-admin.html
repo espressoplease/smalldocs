@@ -21,7 +21,7 @@
   .crumb { color:var(--text-2); font-size:12px; }
   .workspace-switch { margin-left:4px; border:0; background:transparent; color:var(--text); font-weight:500; padding:4px 6px; border-radius:4px; }
   .workspace-switch:hover { background:var(--surface-2); }
-  .prototype { margin-left:auto; color:var(--text-3); font-size:11px; }
+  .account { margin-left:auto; color:var(--text-3); font-size:11px; }
   .open-library { margin-left:8px; padding:6px 9px; border:1px solid var(--border); border-radius:5px; color:var(--text); text-decoration:none; background:var(--surface); font-size:11.5px; }
   .shell { min-height:calc(100vh - 42px); display:grid; grid-template-columns:190px minmax(0,1fr); }
   .sidebar { padding:22px 12px; border-right:1px solid var(--border); }
@@ -87,16 +87,25 @@
   .confirm-box h2 { margin-bottom:8px; }
   .confirm-box p { margin:0 0 17px; color:var(--text-2); line-height:1.55; }
   .confirm-actions { display:flex; justify-content:flex-end; gap:8px; }
-  @media(max-width:750px) { .shell{grid-template-columns:1fr}.sidebar{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.nav{width:auto;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:repeat(2,1fr)}.project-grid{grid-template-columns:1fr}.invite.open{grid-template-columns:1fr}.prototype{display:none} }
+  .empty { padding:24px 16px; color:var(--text-3); line-height:1.55; text-align:center; }
+  .error { display:none; padding:11px 14px; border:1px solid color-mix(in srgb,var(--red) 42%,var(--border)); border-radius:6px; color:var(--red); background:color-mix(in srgb,var(--red) 7%,var(--surface)); margin-bottom:16px; line-height:1.5; }
+  .error.visible { display:block; }
+  .form-status { grid-column:1/-1; margin:0; color:var(--text-2); font-size:11.5px; line-height:1.45; }
+  .project-options { display:flex; flex-wrap:wrap; gap:7px 12px; grid-column:1/-1; }
+  .project-option { display:flex; align-items:center; gap:5px; color:var(--text-2); font-size:11.5px; }
+  .create-project { display:none; grid-template-columns:minmax(180px,1fr) auto; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border-2); background:color-mix(in srgb,var(--blue-2) 58%,var(--surface)); }
+  .create-project.open { display:grid; }
+  .busy { opacity:.58; pointer-events:none; }
+  @media(max-width:750px) { .shell{grid-template-columns:1fr}.sidebar{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.nav{width:auto;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:repeat(2,1fr)}.project-grid{grid-template-columns:1fr}.invite.open,.create-project.open{grid-template-columns:1fr}.account{display:none} }
   @media(prefers-color-scheme:dark) { :root{--bg:#1C1A17;--surface:#211F1D;--surface-2:#252320;--text:#E7E5E2;--text-2:#A8A29E;--text-3:#77716B;--border:#3D3935;--border-2:#332F2B;--blue:#3B82F6;--blue-2:#17233A;--green:#4ADE80;--red:#FCA5A5}.notice{background:#17233A;border-color:#284B80;color:#BFDBFE} }
 </style>
 </head>
 <body>
 <header class="header">
   <a class="brand" href="/">SmallDocs</a><span class="sep">/</span><span class="crumb">Cloud</span><span class="sep">/</span>
-  <button class="workspace-switch" type="button">Acme Engineering &#9662;</button>
-  <span class="prototype">Local interface sketch</span>
-  <a class="open-library" href="/library">Open library</a>
+  <select class="workspace-switch" id="workspace-switch" aria-label="Workspace"></select>
+  <span class="account" id="account-label">Loading account</span>
+  <a class="open-library" href="/library?scope=cloud">Open library</a>
 </header>
 <div class="shell">
   <aside class="sidebar">
@@ -109,92 +118,39 @@
   </aside>
   <main class="main">
     <section class="panel" id="panel-overview">
-      <div class="page-head"><div><h1>Acme Engineering</h1><p class="description">Workspace activity and access at a glance.</p></div></div>
-      <div class="stats"><div class="stat"><strong>8</strong><span>members</span></div><div class="stat"><strong>3</strong><span>projects</span></div><div class="stat"><strong>184</strong><span>documents</span></div><div class="stat"><strong>11</strong><span>active credentials</span></div></div>
-      <div class="card"><div class="card-head"><div><h2>Recent administration</h2><p>Workspace and access changes, not document content.</p></div></div><div class="table-wrap"><table><tbody><tr><td>Priya Shah invited Jamie Lee as Member</td><td class="muted">Today, 10:42</td></tr><tr><td>Josh Grant granted Webhooks editor access to Sam Wilson</td><td class="muted">Yesterday, 16:08</td></tr><tr><td>Priya Shah revoked a CLI credential owned by Alex Chen</td><td class="muted">12 Aug, 09:15</td></tr></tbody></table></div></div>
+      <div class="page-head"><div><h1 id="overview-name">Cloud workspace</h1><p class="description">Workspace documents, members, projects, and your active agent credentials.</p></div></div>
+      <div class="error" id="page-error" role="alert"></div>
+      <div class="stats"><div class="stat"><strong id="member-count">-</strong><span>members</span></div><div class="stat"><strong id="project-count">-</strong><span>projects</span></div><div class="stat"><strong id="document-count">-</strong><span>documents</span></div><div class="stat"><strong id="credential-count">-</strong><span>your active credentials</span></div></div>
+      <div class="card"><div class="card-head"><div><h2>Administration history</h2><p>Workspace and access changes, not document content.</p></div></div><p class="empty">Administration history is not available in this interface yet.</p></div>
     </section>
 
     <section class="panel" id="panel-members" hidden>
       <div class="page-head"><div><h1>Members</h1><p class="description">Owners and admins access every project. Members receive explicit project access.</p></div><button class="btn primary" id="invite-open">Invite member</button></div>
-      <div class="card"><form class="invite" id="invite-form"><input class="field" id="invite-email" type="email" placeholder="name@company.com" required><select class="field" aria-label="Workspace role"><option>Member</option><option>Admin</option></select><input class="field" placeholder="Projects, for example Platform, Webhooks"><button class="btn primary" type="submit">Send invite</button></form><div class="table-wrap"><table><thead><tr><th>Person</th><th>Workspace role</th><th>Project access</th><th>Status</th><th></th></tr></thead><tbody id="member-rows">
-        <tr><td><div class="person"><span class="avatar">PS</span><div><strong>Priya Shah</strong><span>priya@acme.dev</span></div></div></td><td><select class="role" disabled><option>Owner</option></select></td><td>All projects</td><td><span class="status">Active</span></td><td></td></tr>
-        <tr><td><div class="person"><span class="avatar">JG</span><div><strong>Josh Grant</strong><span>josh@acme.dev</span></div></div></td><td><select class="role"><option>Admin</option><option>Member</option></select></td><td>All projects</td><td><span class="status">Active</span></td><td><button class="btn small danger js-remove" data-name="Josh Grant">Remove</button></td></tr>
-        <tr><td><div class="person"><span class="avatar">SW</span><div><strong>Sam Wilson</strong><span>sam@acme.dev</span></div></div></td><td><select class="role"><option>Member</option><option>Admin</option></select></td><td><span class="tag">Platform: viewer</span><span class="tag">Webhooks: editor</span></td><td><span class="status">Active</span></td><td><button class="btn small danger js-remove" data-name="Sam Wilson">Remove</button></td></tr>
-        <tr><td><div class="person"><span class="avatar">JL</span><div><strong>Jamie Lee</strong><span>jamie@acme.dev</span></div></div></td><td>Member</td><td><span class="tag">Platform: editor</span></td><td><span class="status pending">Invited</span></td><td><button class="btn small">Resend</button></td></tr>
-      </tbody></table></div></div>
+      <div class="card"><form class="invite" id="invite-form"><input class="field" id="invite-email" type="email" placeholder="name@company.com" required><select class="field" id="invite-role" aria-label="Workspace role"><option value="member">Member</option><option value="admin">Admin</option></select><select class="field" id="invite-project-role" aria-label="Project role"><option value="viewer">Viewer access</option><option value="editor">Editor access</option></select><button class="btn primary" type="submit">Create invite</button><div class="project-options" id="invite-projects"></div><p class="form-status" id="invite-status" aria-live="polite">Choose the projects this member can access. Admins receive access to every project.</p></form><div class="table-wrap"><table><thead><tr><th>Person</th><th>Workspace role</th><th>Project access</th><th>Status</th><th></th></tr></thead><tbody id="member-rows"></tbody></table></div><p class="empty" id="members-empty" hidden>No workspace members were returned.</p></div>
     </section>
 
     <section class="panel" id="panel-projects" hidden>
-      <div class="page-head"><div><h1>Projects</h1><p class="description">Group documents that share the same access. Use tags for features and workstreams.</p></div><button class="btn primary">New project</button></div>
-      <div class="project-grid"><article class="project"><div class="project-top"><div><h2>Platform</h2><p>Core application documents.</p></div><button class="btn small">Manage</button></div><div class="project-meta"><span>126 documents</span><span>8 members</span><span>18 tags</span></div></article><article class="project"><div class="project-top"><div><h2>Webhooks</h2><p>Partner integrations and delivery operations.</p></div><button class="btn small">Manage</button></div><div class="project-meta"><span>41 documents</span><span>5 members</span><span>7 tags</span></div></article><article class="project"><div class="project-top"><div><h2>Security</h2><p>Restricted reviews and incident records.</p></div><button class="btn small">Manage</button></div><div class="project-meta"><span>17 documents</span><span>3 members</span><span>5 tags</span></div></article></div>
+      <div class="page-head"><div><h1>Projects</h1><p class="description">Group documents that share the same access. Use tags for features and workstreams.</p></div><button class="btn primary" id="project-open">New project</button></div>
+      <div class="card" id="project-create-card" hidden><form class="create-project" id="project-form"><input class="field" id="project-name" type="text" maxlength="512" placeholder="Project name" required><button class="btn primary" type="submit">Create project</button><p class="form-status" id="project-status" aria-live="polite">Owners and admins can create projects.</p></form></div>
+      <div class="project-grid" id="project-grid"></div><p class="empty" id="projects-empty" hidden>No projects are available in this workspace.</p>
     </section>
 
     <section class="panel" id="panel-agents" hidden>
       <div class="page-head"><div><h1>Agent access</h1><p class="description">Persistent CLI credentials created when a person signs in on a machine.</p></div></div>
-      <div class="notice">An agent uses the current project access of its owner. Removing a workspace member invalidates that member's credentials. A credential can also be revoked here without removing the person.</div>
-      <div class="card"><div class="table-wrap"><table><thead><tr><th>Credential</th><th>Owner</th><th>Created</th><th>Last used</th><th></th></tr></thead><tbody><tr><td><strong>MacBook Pro CLI</strong><br><span class="muted">CLI credential</span></td><td>Priya Shah</td><td>2 Aug 2026</td><td>4 minutes ago</td><td><button class="btn small danger js-revoke" data-name="MacBook Pro CLI">Revoke</button></td></tr><tr><td><strong>Production docs agent</strong><br><span class="muted">Headless CLI credential</span></td><td>Josh Grant</td><td>7 Aug 2026</td><td>2 hours ago</td><td><button class="btn small danger js-revoke" data-name="Production docs agent">Revoke</button></td></tr><tr><td><strong>Sam's laptop</strong><br><span class="muted">CLI credential</span></td><td>Sam Wilson</td><td>11 Aug 2026</td><td>Yesterday</td><td><button class="btn small danger js-revoke" data-name="Sam's laptop">Revoke</button></td></tr></tbody></table></div></div>
+      <div class="notice">This list contains credentials owned by your account. Each credential uses your current project access. Revoking one does not affect your other signed-in machines.</div>
+      <div class="card"><div class="table-wrap"><table><thead><tr><th>Credential</th><th>Created</th><th>Last used</th><th></th></tr></thead><tbody id="credential-rows"></tbody></table></div><p class="empty" id="credentials-empty" hidden>You have no active CLI credentials.</p></div>
     </section>
 
     <section class="panel" id="panel-billing" hidden>
-      <div class="page-head"><div><h1>Billing</h1><p class="description">Team Cloud is billed for human workspace members. Agent credentials do not add seats.</p></div><button class="btn">Manage payment</button></div>
-      <div class="card"><div class="billing-row"><div><strong>Team Cloud</strong><p>8 paid members at £8 each.</p></div><div class="price">£64 <span>/ month</span></div></div><div class="billing-row"><div><strong>Next payment</strong><p>13 September 2026. Taxes are calculated from the billing address.</p></div><button class="btn small">View invoices</button></div><div class="billing-row"><div><strong>Cancel subscription</strong><p>The workspace becomes read-only. Owners can export or delete its Cloud documents.</p></div><button class="btn small danger">Cancel subscription</button></div></div>
+      <div class="page-head"><div><h1>Billing</h1><p class="description">Team Cloud billing applies to human workspace members. Agent credentials do not add seats.</p></div></div>
+      <div class="card"><p class="empty">Billing management is not available in this interface yet.</p></div>
     </section>
   </main>
 </div>
 
 <div class="confirm" id="confirm" hidden><div class="confirm-box"><h2 id="confirm-title">Confirm action</h2><p id="confirm-copy"></p><div class="confirm-actions"><button class="btn" id="confirm-cancel">Cancel</button><button class="btn danger" id="confirm-action">Confirm</button></div></div></div>
 
-<script>
-(function () {
-  var nav = Array.from(document.querySelectorAll('.nav'));
-  var panels = Array.from(document.querySelectorAll('.panel'));
-  nav.forEach(function (button) {
-    button.addEventListener('click', function () {
-      nav.forEach(function (item) { item.classList.toggle('active', item === button); });
-      panels.forEach(function (panel) { panel.hidden = panel.id !== 'panel-' + button.dataset.panel; });
-    });
-  });
-
-  var inviteOpen = document.getElementById('invite-open');
-  var inviteForm = document.getElementById('invite-form');
-  inviteOpen.addEventListener('click', function () {
-    inviteForm.classList.toggle('open');
-    if (inviteForm.classList.contains('open')) document.getElementById('invite-email').focus();
-  });
-  inviteForm.addEventListener('submit', function (event) {
-    event.preventDefault();
-    var email = document.getElementById('invite-email').value.trim();
-    if (!email) return;
-    var row = document.createElement('tr');
-    row.innerHTML = '<td><div class="person"><span class="avatar">?</span><div><strong>' + escapeHtml(email.split('@')[0]) + '</strong><span>' + escapeHtml(email) + '</span></div></div></td><td>Member</td><td class="muted">Pending selection</td><td><span class="status pending">Invited</span></td><td><button class="btn small">Resend</button></td>';
-    document.getElementById('member-rows').appendChild(row);
-    inviteForm.reset();
-    inviteForm.classList.remove('open');
-  });
-
-  var confirmBox = document.getElementById('confirm');
-  var pendingButton = null;
-  function ask(button, title, copy) {
-    pendingButton = button;
-    document.getElementById('confirm-title').textContent = title;
-    document.getElementById('confirm-copy').textContent = copy;
-    confirmBox.hidden = false;
-  }
-  document.addEventListener('click', function (event) {
-    var remove = event.target.closest('.js-remove');
-    var revoke = event.target.closest('.js-revoke');
-    if (remove) ask(remove, 'Remove ' + remove.dataset.name + '?', 'They will lose workspace access immediately. Their browser sessions and CLI credentials for this workspace will stop working.');
-    if (revoke) ask(revoke, 'Revoke ' + revoke.dataset.name + '?', 'This credential will stop working immediately. Other credentials owned by the same person are not affected.');
-  });
-  document.getElementById('confirm-cancel').addEventListener('click', function () { confirmBox.hidden = true; pendingButton = null; });
-  document.getElementById('confirm-action').addEventListener('click', function () {
-    if (pendingButton) pendingButton.closest('tr').remove();
-    confirmBox.hidden = true;
-    pendingButton = null;
-  });
-  function escapeHtml(value) { return String(value).replace(/[&<>"']/g, function (c) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]; }); }
-})();
-</script>
+<script src="/public/cloud-admin.js" defer></script>
 <script src="/public/sdocs-trust-footer.js" defer></script>
 </body>
 </html>

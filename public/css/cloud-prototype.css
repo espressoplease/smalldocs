@@ -280,6 +280,19 @@
 .sdoc-cloud-proto-success h3 { margin: 0 0 6px; font-size: 16px; }
 .sdoc-cloud-proto-success p { margin: 0 0 18px; color: var(--text-2); font-size: 12.5px; line-height: 1.5; }
 
+.sdoc-cloud-revision-list { display: grid; gap: 8px; }
+.sdoc-cloud-revision-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+}
+.sdoc-cloud-revision-row strong { display: block; font-size: 12.5px; }
+.sdoc-cloud-revision-row span { display: block; margin-top: 3px; color: var(--text-3); font-size: 11px; }
+
 @media (max-width: 600px) {
   #_sd_sdocs-file-info .fic-row-cloud-auth {
     align-items: flex-start;

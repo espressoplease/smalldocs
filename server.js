@@ -582,6 +582,7 @@ function cloudApiError(res, error) {
     resource_unavailable: 404,
     revision_conflict: 409,
     idempotency_mismatch: 409,
+    final_owner_required: 409,
     rate_limited: 429,
     invalid_token: 401,
     token_reuse: 401,
@@ -693,6 +694,14 @@ async function handleCloudApi(req, res, url) {
         workspaces: cloudStore.listWorkspaces(user.id) });
       return;
     }
+    if (req.method === 'POST' && pathname === base + '/workspaces') {
+      const body = await cloudAuthHttp.readJson(req);
+      const workspace = cloudStore.createTeamWorkspace({
+        userId: user.id, name: body.name, projectName: body.project_name || 'Documents',
+      });
+      sendJson(res, 201, { ok: true, workspace });
+      return;
+    }
     if (req.method === 'GET' && pathname === base + '/me') {
       const identity = user.identities.find((item) => item.verifiedEmail) || null;
       sendJson(res, 200, { ok: true, user: { id: user.id,
@@ -702,6 +711,65 @@ async function handleCloudApi(req, res, url) {
     if (req.method === 'GET' && pathname === base + '/projects') {
       const workspaceId = url.searchParams.get('workspace_id');
       sendJson(res, 200, { ok: true, projects: cloudStore.listProjects(user.id, workspaceId) });
+      return;
+    }
+    const workspaceProjectsMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/projects$/);
+    if (workspaceProjectsMatch && req.method === 'GET') {
+      sendJson(res, 200, { ok: true,
+        projects: cloudStore.listProjects(user.id, workspaceProjectsMatch[1]) });
+      return;
+    }
+    if (workspaceProjectsMatch && req.method === 'POST') {
+      const body = await cloudAuthHttp.readJson(req);
+      const project = cloudStore.createProject({
+        userId: user.id, workspaceId: workspaceProjectsMatch[1], name: body.name,
+      });
+      sendJson(res, 201, { ok: true, project });
+      return;
+    }
+    const workspaceMembersMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/members$/);
+    if (workspaceMembersMatch && req.method === 'GET') {
+      const members = cloudStore.listWorkspaceMembers({
+        userId: user.id, workspaceId: workspaceMembersMatch[1],
+      }).map((member) => {
+        let account = null;
+        try { account = cloudAuth.getUser(member.user_id); } catch (_) {}
+        const identity = account && account.identities.find((item) => item.verifiedEmail);
+        return { ...member, email: identity ? identity.verifiedEmail : null };
+      });
+      sendJson(res, 200, { ok: true, members });
+      return;
+    }
+    const workspaceInvitationsMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/invitations$/);
+    if (workspaceInvitationsMatch && req.method === 'POST') {
+      const body = await cloudAuthHttp.readJson(req);
+      const invitation = cloudStore.createInvitation({
+        userId: user.id, workspaceId: workspaceInvitationsMatch[1], email: body.email,
+        role: body.role, projectGrants: Array.isArray(body.project_grants) ?
+          body.project_grants.map((grant) => ({ projectId: grant.project_id || grant.projectId,
+            role: grant.role })) : [],
+      });
+      sendJson(res, 201, { ok: true, invitation: {
+        id: invitation.id, email: invitation.email, role: invitation.role,
+        project_grants: invitation.projectGrants,
+        expires_at: new Date(invitation.expiresAtMs).toISOString(),
+        accept_url: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/invite?token=' + encodeURIComponent(invitation.token),
+      } });
+      return;
+    }
+    const workspaceMemberMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/members\/([^/]+)$/);
+    if (workspaceMemberMatch && req.method === 'DELETE') {
+      cloudStore.removeWorkspaceMember({ actorUserId: user.id,
+        workspaceId: workspaceMemberMatch[1], userId: workspaceMemberMatch[2] });
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+    const invitationAcceptMatch = pathname.match(/^\/api\/cloud\/v1\/invitations\/([^/]+)\/accept$/);
+    if (invitationAcceptMatch && req.method === 'POST') {
+      const result = cloudStore.acceptInvitation({ userId: user.id,
+        verifiedEmails: user.identities.filter((item) => item.verifiedEmail)
+          .map((item) => item.verifiedEmail), token: invitationAcceptMatch[1] });
+      sendJson(res, 200, { ok: true, workspace_id: result.workspaceId, role: result.role });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/documents') {
@@ -770,6 +838,17 @@ async function handleCloudApi(req, res, url) {
       const document = cloudStore.getDocument({ userId: user.id, documentId: revisionMatch[1],
         revisionId: revisionMatch[2], includeDeleted: true });
       sendJson(res, 200, { ok: true, document });
+      return;
+    }
+    const restoreMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/revisions\/([^/]+)\/restore$/);
+    if (restoreMatch && req.method === 'POST') {
+      const body = await cloudAuthHttp.readJson(req);
+      const document = cloudStore.restoreRevision({
+        userId: user.id, documentId: restoreMatch[1], revisionId: restoreMatch[2],
+        expectedHeadRevisionId: body.expected_head_revision_id,
+        idempotencyKey: body.idempotency_key, credentialId,
+      });
+      sendJson(res, 201, { ok: true, document });
       return;
     }
     sendJson(res, 404, { ok: false, error: 'resource_unavailable' });
@@ -1005,17 +1084,44 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/cloud/invite') {
+    const returnPath = pathname + url.search;
+    const authenticated = cloudAuthSession(req);
+    if (!authenticated.ok) {
+      res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent(returnPath),
+        'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-invite.html'), null, {
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+    });
+    return;
+  }
+
   if (pathname === '/api/cloud/auth/oauth/google' || pathname === '/api/cloud/auth/oauth/github') {
     sendJson(res, 503, { ok: false, error: 'provider_not_configured' });
     return;
   }
 
-  // Interactive local sketch of team workspace administration.
   if (pathname === '/cloud/admin') {
+    const authenticated = cloudAuthSession(req);
+    if (!authenticated.ok) {
+      res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent('/cloud/admin'),
+        'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-admin.html'), null, {
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
     });
     return;
   }

@@ -121,6 +121,71 @@ module.exports = function(harness) {
       assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length, 2);
     });
 
+    test('restoring an old revision creates a new immutable audited head', () => {
+      const revisions = store.listRevisions({ userId: member, documentId: document.id });
+      const source = revisions.find((revision) => revision.revision_number === 1);
+      const previousHead = document.current_revision_id;
+      clock += 1000;
+      const restored = store.restoreRevision({
+        userId: member, documentId: document.id, revisionId: source.id,
+        expectedHeadRevisionId: previousHead, idempotencyKey: 'restore-roadmap-1',
+      });
+      assert.strictEqual(restored.revision_number, 3);
+      assert.strictEqual(restored.restored_from_revision_id, source.id);
+      assert.notStrictEqual(restored.current_revision_id, source.id);
+      const opened = store.getDocument({ userId: member, documentId: document.id });
+      assert.ok(opened.markdown.includes('Move to Kubernetes'));
+      const restoredRow = store.db.prepare('SELECT * FROM cloud_document_revisions WHERE id = ?')
+        .get(restored.current_revision_id);
+      assert.strictEqual(restoredRow.parent_revision_id, previousHead);
+      const sourceRow = store.db.prepare('SELECT * FROM cloud_document_revisions WHERE id = ?').get(source.id);
+      assert.notDeepStrictEqual(restoredRow.body_ciphertext, sourceRow.body_ciphertext);
+      const audit = store.db.prepare(`
+        SELECT action FROM cloud_audit_events
+        WHERE resource_id = ? ORDER BY created_at_ms DESC, rowid DESC LIMIT 1
+      `).get(document.id);
+      assert.strictEqual(audit.action, 'document.revision.restore');
+      const retried = store.restoreRevision({
+        userId: member, documentId: document.id, revisionId: source.id,
+        expectedHeadRevisionId: previousHead, idempotencyKey: 'restore-roadmap-1',
+      });
+      assert.strictEqual(retried.current_revision_id, restored.current_revision_id);
+      assert.throws(() => store.restoreRevision({
+        userId: member, documentId: document.id, revisionId: source.id,
+        expectedHeadRevisionId: previousHead, idempotencyKey: 'stale-restore-roadmap',
+      }), (error) => error.code === 'revision_conflict'
+        && error.currentRevisionId === restored.current_revision_id);
+      assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length, 3);
+      document = restored;
+    });
+
+    test('revision pruning keeps the latest snapshots and never deletes the current head', () => {
+      let retainedDocument = store.createDocument({
+        userId: owner, projectId: personal.projectId, filename: 'retention.md',
+        markdown: '# Retention 1', idempotencyKey: 'create-retention',
+      });
+      for (let number = 2; number <= 4; number += 1) {
+        retainedDocument = store.saveRevision({
+          userId: owner, documentId: retainedDocument.id,
+          expectedHeadRevisionId: retainedDocument.current_revision_id,
+          markdown: '# Retention ' + number, filename: 'retention.md',
+          idempotencyKey: 'save-retention-' + number,
+        });
+      }
+      const before = store.listRevisions({ userId: owner, documentId: retainedDocument.id });
+      const olderHead = before.find((revision) => revision.revision_number === 2);
+      const latest = before.find((revision) => revision.revision_number === 4);
+      store.db.prepare('UPDATE cloud_documents SET current_revision_id = ? WHERE id = ?')
+        .run(olderHead.id, retainedDocument.id);
+      const result = store.pruneRevisions({ documentId: retainedDocument.id, keepLatest: 1 });
+      assert.strictEqual(result.deleted_count, 2);
+      assert.strictEqual(result.retained_count, 2);
+      assert.strictEqual(result.current_revision_id, olderHead.id);
+      const after = store.listRevisions({ userId: owner, documentId: retainedDocument.id });
+      assert.deepStrictEqual(after.map((revision) => revision.id).sort(), [latest.id, olderHead.id].sort());
+      assert.strictEqual(store.getDocument({ userId: owner, documentId: retainedDocument.id }).revision_number, 2);
+    });
+
     test('viewer access cannot create, update, or delete content', () => {
       store.grantProject({ actorUserId: owner, workspaceId: team.workspaceId,
         projectId: team.projectId, userId: member, role: 'viewer' });
@@ -136,6 +201,7 @@ module.exports = function(harness) {
       assert.strictEqual(store.listDocuments({ userId: member }).length, 1);
       assert.deepStrictEqual(store.listTags({ userId: member }), [
         { tag: 'kubernetes', count: 1 },
+        { tag: 'planning', count: 1 },
       ]);
       const found = store.search({ userId: member, query: 'kubernetes' });
       assert.strictEqual(found.length, 1);
@@ -150,7 +216,7 @@ module.exports = function(harness) {
         expectedHeadRevisionId: document.current_revision_id, restoreWindowMs: 60000 });
       assert.ok(deleted.deleted_at);
       assert.strictEqual(store.listDocuments({ userId: member }).length, 0);
-      assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length, 2);
+      assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length, 3);
     });
 
     test('ciphertext relocation fails authenticated decryption', () => {

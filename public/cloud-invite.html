@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Join a SmallDocs Cloud workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/css/cloud-invite.css">
+</head>
+<body>
+  <main class="invite-shell">
+    <a class="brand" href="/">SmallDocs</a>
+    <section class="invite-card" aria-labelledby="invite-title">
+      <svg class="invite-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v8"/><path d="m8 17 4 4 4-4"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/></svg>
+      <h1 id="invite-title">Join this Cloud workspace</h1>
+      <p id="invite-copy">Accept the invitation using the email address it was sent to.</p>
+      <button id="accept-invite" type="button">Accept invitation</button>
+      <p class="status" id="invite-status" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+  <script src="/public/cloud-invite.js" defer></script>
+</body>
+</html>

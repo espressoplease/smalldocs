@@ -1,0 +1,14 @@
+:root { color-scheme:light dark; --bg:#FAFAF9; --surface:#FFF; --text:#1C1917; --muted:#78716C; --border:#E7E5E4; --blue:#2563EB; --error:#B42318; }
+* { box-sizing:border-box; }
+body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:Inter,system-ui,sans-serif; }
+.invite-shell { width:min(440px,calc(100% - 32px)); margin:0 auto; padding:52px 0; }
+.brand { display:inline-block; margin-bottom:22px; color:var(--blue); font-weight:600; text-decoration:none; }
+.invite-card { padding:28px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
+.invite-icon { color:var(--blue); }
+h1 { margin:17px 0 9px; font-size:23px; letter-spacing:-.02em; }
+p { margin:0; color:var(--muted); font-size:14px; line-height:1.55; }
+button { width:100%; margin-top:23px; padding:10px 14px; border:1px solid var(--blue); border-radius:6px; background:var(--blue); color:#FFF; font:500 14px Inter,system-ui,sans-serif; cursor:pointer; }
+button:disabled { opacity:.55; cursor:default; }
+.status { min-height:22px; margin-top:12px; font-size:12px; }
+.status.error { color:var(--error); }
+@media(prefers-color-scheme:dark) { :root { --bg:#1C1A17; --surface:#211F1D; --text:#E7E5E2; --muted:#A8A29E; --border:#3D3935; --blue:#60A5FA; --error:#FCA5A5; } }

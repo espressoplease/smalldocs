@@ -60,6 +60,23 @@ module.exports = function(harness) {
     });
 
     const BASE = 'http://localhost:3099';
+    function del(url, body, headers) {
+      return new Promise((resolve, reject) => {
+        const target = new URL(url);
+        const payload = Buffer.from(JSON.stringify(body || {}));
+        const request = http.request({ method: 'DELETE', hostname: target.hostname,
+          port: target.port, path: target.pathname + target.search, agent: false,
+          headers: Object.assign({ 'Content-Type': 'application/json',
+            'Content-Length': payload.length }, headers || {}) }, response => {
+          let responseBody = '';
+          response.on('data', chunk => responseBody += chunk);
+          response.on('end', () => resolve({ status: response.statusCode,
+            body: responseBody, headers: response.headers }));
+        });
+        request.on('error', reject);
+        request.end(payload);
+      });
+    }
 
     await testAsync('GET / returns 200', async () => {
       const r = await get(BASE + '/');
@@ -442,17 +459,10 @@ module.exports = function(harness) {
       await assertEveryAssetVersioned('/cloud', v);
     });
 
-    await testAsync('GET /cloud/admin returns the workspace admin sketch', async () => {
+    await testAsync('GET /cloud/admin requires a Cloud session', async () => {
       const r = await get(BASE + '/cloud/admin');
-      assert.strictEqual(r.status, 200);
-      assert.ok(/text\/html/.test(r.headers['content-type']));
-      assert.ok(r.body.includes('Agent access'));
-      assert.ok(r.body.includes('Invite member'));
-    });
-
-    await testAsync('asset-versioning: /cloud/admin is versioned', async () => {
-      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
-      await assertEveryAssetVersioned('/cloud/admin', v);
+      assert.strictEqual(r.status, 303);
+      assert.ok(r.headers.location.startsWith('/cloud/sign-in?return='));
     });
 
     await testAsync('GET /cloud/sign-in returns the Cloud authentication page', async () => {
@@ -542,6 +552,10 @@ module.exports = function(harness) {
     let cloudWorkspace;
     let cloudProject;
     let cloudDocument;
+    let cloudTeamWorkspace;
+    let cloudTeamProject;
+    let cloudMemberCookie;
+    let cloudMemberUser;
 
     await testAsync('Cloud API requires an authenticated session', async () => {
       const r = await get(BASE + '/api/cloud/v1/workspaces');
@@ -567,6 +581,18 @@ module.exports = function(harness) {
       cloudWorkspace = parsed.workspaces[0];
     });
 
+    await testAsync('authenticated Cloud admin page is private and versioned', async () => {
+      const response = await get(BASE + '/cloud/admin', { Cookie: cloudCookie });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.headers['cache-control'], 'no-store');
+      assert.ok(response.body.includes('Agent access'));
+      assert.ok(response.body.includes('Invite member'));
+      const version = JSON.parse((await get(BASE + '/version-check')).body).version;
+      const assetUrls = [...response.body.matchAll(/(?:src|href)="(\/public\/[^"?#]+)\?v=([^"&]+)"/g)];
+      assert.ok(assetUrls.length > 0);
+      assetUrls.forEach((match) => assert.strictEqual(match[2], version));
+    });
+
     await testAsync('Cloud API lists the activated default project', async () => {
       const response = await get(BASE + '/api/cloud/v1/projects?workspace_id=' + cloudWorkspace.id,
         { Cookie: cloudCookie });
@@ -583,6 +609,77 @@ module.exports = function(harness) {
       const user = JSON.parse(response.body).user;
       assert.strictEqual(user.email, 'cloud-api@example.com');
       assert.strictEqual(Object.prototype.hasOwnProperty.call(user, 'identities'), false);
+    });
+
+    await testAsync('Cloud workspace owner can create a team workspace and project', async () => {
+      const created = await post(BASE + '/api/cloud/v1/workspaces', {
+        name: 'Test Team', project_name: 'Platform',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(created.status, 201);
+      cloudTeamWorkspace = JSON.parse(created.body).workspace;
+      cloudTeamProject = { id: cloudTeamWorkspace.projectId };
+
+      const project = await post(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/projects', {
+        name: 'Webhooks',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(project.status, 201);
+      assert.strictEqual(JSON.parse(project.body).project.name, 'Webhooks');
+    });
+
+    await testAsync('Cloud invitation is email-bound, grants projects, and is single-use', async () => {
+      const invited = await post(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/invitations', {
+        email: 'team-member@example.com', role: 'member',
+        project_grants: [{ projectId: cloudTeamProject.id, role: 'editor' }],
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(invited.status, 201);
+      const acceptUrl = JSON.parse(invited.body).invitation.accept_url;
+      const token = new URL(acceptUrl).searchParams.get('token');
+      assert.ok(token);
+
+      const requested = await post(BASE + '/api/cloud/auth/email/request', {
+        email: 'team-member@example.com',
+      }, { Origin: BASE });
+      const challenge = JSON.parse(requested.body).challenge_id;
+      const codeMatch = new RegExp('\\[cloud-auth-code\\] ' + challenge + ' (\\d{6})').exec(serverOutput);
+      const verified = await post(BASE + '/api/cloud/auth/email/verify', {
+        challenge_id: challenge, code: codeMatch[1], return_to: '/cloud/account',
+      }, { Origin: BASE });
+      cloudMemberCookie = verified.headers['set-cookie'][0].split(';')[0];
+      cloudMemberUser = JSON.parse((await get(BASE + '/api/cloud/v1/me', {
+        Cookie: cloudMemberCookie,
+      })).body).user;
+
+      const accepted = await post(BASE + '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {},
+        { Origin: BASE, Cookie: cloudMemberCookie });
+      assert.strictEqual(accepted.status, 200);
+      const projects = await get(BASE + '/api/cloud/v1/projects?workspace_id=' + cloudTeamWorkspace.workspaceId,
+        { Cookie: cloudMemberCookie });
+      assert.strictEqual(JSON.parse(projects.body).projects[0].role, 'editor');
+
+      const reused = await post(BASE + '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {},
+        { Origin: BASE, Cookie: cloudMemberCookie });
+      assert.strictEqual(reused.status, 404);
+    });
+
+    await testAsync('Cloud member removal revokes workspace access and preserves the final owner', async () => {
+      const members = await get(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/members',
+        { Cookie: cloudCookie });
+      assert.strictEqual(members.status, 200);
+      assert.ok(JSON.parse(members.body).members.some((member) => member.email === 'team-member@example.com'));
+
+      const removed = await del(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId +
+        '/members/' + cloudMemberUser.id, {}, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(removed.status, 200);
+      const projects = await get(BASE + '/api/cloud/v1/projects?workspace_id=' + cloudTeamWorkspace.workspaceId,
+        { Cookie: cloudMemberCookie });
+      assert.strictEqual(projects.status, 404);
+      assert.strictEqual(JSON.parse(projects.body).error, 'resource_unavailable');
+
+      const owner = JSON.parse((await get(BASE + '/api/cloud/v1/me', { Cookie: cloudCookie })).body).user;
+      const finalOwner = await del(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId +
+        '/members/' + owner.id, {}, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(finalOwner.status, 409);
+      assert.strictEqual(JSON.parse(finalOwner.body).error, 'final_owner_required');
     });
 
     await testAsync('CLI device authorization requires browser approval and issues Bearer tokens', async () => {
@@ -683,6 +780,23 @@ module.exports = function(harness) {
       assert.strictEqual(conflict.status, 409);
       assert.strictEqual(JSON.parse(conflict.body).current_revision_id, next.current_revision_id);
       cloudDocument = next;
+    });
+
+    await testAsync('Cloud API restores an old revision as a new head', async () => {
+      const history = await get(BASE + '/api/cloud/v1/documents/' + cloudDocument.id + '/revisions',
+        { Cookie: cloudCookie });
+      const revisions = JSON.parse(history.body).revisions;
+      assert.strictEqual(revisions.length, 2);
+      const oldest = revisions.find((revision) => revision.revision_number === 1);
+      const restored = await post(BASE + '/api/cloud/v1/documents/' + cloudDocument.id +
+        '/revisions/' + oldest.id + '/restore', {
+          expected_head_revision_id: cloudDocument.current_revision_id,
+          idempotency_key: 'http-restore-cluster-plan',
+        }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(restored.status, 201);
+      cloudDocument = JSON.parse(restored.body).document;
+      assert.strictEqual(cloudDocument.revision_number, 3);
+      assert.ok(cloudDocument.markdown.includes('Kubernetes'));
     });
 
     await testAsync('Cloud email verification is limited by source IP', async () => {

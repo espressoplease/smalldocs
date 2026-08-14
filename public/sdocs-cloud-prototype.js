@@ -331,10 +331,78 @@ function openDialog() {
     documentPreview() + '<div class="sdoc-cloud-proto-success"><div class="sdoc-cloud-proto-success-icon">' + CLOUD_CHECK_SVG + '</div>'
     + '<h3>Revision ' + escapeHtml(S.cloudDocument.revision_number) + '</h3><p>Save your current changes as a new immutable revision.</p>'
     + '<div class="sdoc-cloud-proto-actions"><a class="sdoc-cloud-proto-btn" href="/library?scope=cloud">Open library</a>'
+    + '<button class="sdoc-cloud-proto-btn" data-action="history" type="button">Revision history</button>'
     + '<button class="sdoc-cloud-proto-btn primary" data-action="save" type="button">Save to Cloud</button></div>'
     + '<p class="sdoc-cloud-proto-note" data-save-status></p></div>');
   wireClose(dialog);
+  dialog.querySelector('[data-action="history"]').addEventListener('click', openRevisionHistory);
   dialog.querySelector('[data-action="save"]').addEventListener('click', saveRevision);
+}
+
+async function openRevisionHistory() {
+  var backdrop = ensureDialog();
+  var dialog = backdrop.querySelector('.sdoc-cloud-proto-dialog');
+  dialog.innerHTML = shell('Revision history', currentFilename(),
+    '<p class="sdoc-cloud-proto-note" data-history-status>Loading revisions...</p>');
+  wireClose(dialog);
+  try {
+    var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id) + '/revisions');
+    var list = document.createElement('div');
+    list.className = 'sdoc-cloud-revision-list';
+    (data.revisions || []).forEach(function (revision) {
+      var row = document.createElement('div');
+      row.className = 'sdoc-cloud-revision-row';
+      var details = document.createElement('div');
+      var title = document.createElement('strong');
+      title.textContent = 'Revision ' + revision.revision_number;
+      var date = document.createElement('span');
+      date.textContent = new Date(revision.created_at).toLocaleString();
+      details.append(title, date);
+      row.appendChild(details);
+      if (revision.id !== S.cloudDocument.current_revision_id) {
+        var restore = document.createElement('button');
+        restore.type = 'button';
+        restore.className = 'sdoc-cloud-proto-btn';
+        restore.textContent = 'Restore';
+        restore.addEventListener('click', function () { restoreRevision(revision, restore); });
+        row.appendChild(restore);
+      } else {
+        var current = document.createElement('span');
+        current.className = 'sdoc-cloud-proto-note';
+        current.textContent = 'Current';
+        row.appendChild(current);
+      }
+      list.appendChild(row);
+    });
+    var body = dialog.querySelector('.sdoc-cloud-proto-body');
+    body.replaceChildren(list);
+  } catch (_) {
+    dialog.querySelector('[data-history-status]').textContent = 'Revision history is unavailable.';
+  }
+}
+
+async function restoreRevision(revision, button) {
+  button.disabled = true;
+  button.textContent = 'Restoring...';
+  try {
+    var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id)
+      + '/revisions/' + encodeURIComponent(revision.id) + '/restore', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expected_head_revision_id: S.cloudDocument.current_revision_id,
+        idempotency_key: crypto.randomUUID() }),
+    });
+    data.document.project = S.cloudDocument.project;
+    S.cloudDocument = data.document;
+    S._loadingDocument = true;
+    if (S.resetAllStyles) S.resetAllStyles();
+    S.loadText(data.document.markdown, data.document.filename);
+    S._loadingDocument = false;
+    refreshRow();
+    openRevisionHistory();
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = error.data && error.data.error === 'revision_conflict' ? 'Document changed' : 'Try again';
+  }
 }
 
 async function saveRevision(event) {
