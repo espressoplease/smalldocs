@@ -361,7 +361,7 @@ Use a transactional email provider rather than a personal Gmail mailbox. The cur
 
 - [ ] Activate and verify the Stripe business account.
 - [x] Create sandbox Personal Cloud and Team Cloud products with the intended multi-currency prices and SaaS tax codes.
-- [ ] Recreate the verified products and prices in live mode after the Stripe account is activated.
+- [x] Activate the isolated SmallDocs Stripe account and recreate and verify the products and prices in live mode.
 - [ ] Decide whether displayed prices include or exclude VAT. Make the Cloud page, Checkout, invoices, and accounting treatment agree.
 - [ ] Decide whether to use Stripe Tax. If yes, register the correct head-office address and tax registrations, set a SaaS product tax code, collect a valid billing address, and enable `automatic_tax` in every Checkout Session.
 - [ ] Configure the customer portal for payment-method updates and cancellation.
