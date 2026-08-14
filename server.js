@@ -155,14 +155,29 @@ if (cloudAuthCleanupTimer.unref) cloudAuthCleanupTimer.unref();
 // same interface through a managed key service before accepting customer data.
 let cloudStore = null;
 let cloudKeyProvider = null;
+let cloudManagedKmsClient = null;
 let cloudCursor = null;
-if (process.env.CLOUD_KMS_CLIENT_MODULE && process.env.CLOUD_KMS_KEY_ID) {
-  const kmsModulePath = path.resolve(process.env.CLOUD_KMS_CLIENT_MODULE);
-  const kmsModule = require(kmsModulePath);
-  const kmsClient = typeof kmsModule.createKmsClient === 'function'
-    ? kmsModule.createKmsClient({ environment: process.env.CLOUD_ENVIRONMENT || 'production' })
-    : kmsModule;
-  cloudKeyProvider = require('./lib/cloud-kms').createManagedKmsKeyProvider({ kmsClient,
+if (process.env.CLOUD_KMS_KEY_ID) {
+  if (process.env.CLOUD_KMS_CLIENT_MODULE) {
+    const kmsModulePath = path.resolve(process.env.CLOUD_KMS_CLIENT_MODULE);
+    const kmsModule = require(kmsModulePath);
+    cloudManagedKmsClient = typeof kmsModule.createKmsClient === 'function'
+      ? kmsModule.createKmsClient({ environment: process.env.CLOUD_ENVIRONMENT || 'production' })
+      : kmsModule;
+  } else {
+    cloudManagedKmsClient = require('./lib/cloud-aws-kms').createAwsKmsClient({
+      region: process.env.CLOUD_KMS_REGION || process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION,
+      maxAttempts: process.env.CLOUD_KMS_MAX_ATTEMPTS == null
+        ? undefined : Number(process.env.CLOUD_KMS_MAX_ATTEMPTS),
+      connectionTimeoutMs: process.env.CLOUD_KMS_CONNECTION_TIMEOUT_MS == null
+        ? undefined : Number(process.env.CLOUD_KMS_CONNECTION_TIMEOUT_MS),
+      requestTimeoutMs: process.env.CLOUD_KMS_REQUEST_TIMEOUT_MS == null
+        ? undefined : Number(process.env.CLOUD_KMS_REQUEST_TIMEOUT_MS),
+      operationTimeoutMs: process.env.CLOUD_KMS_OPERATION_TIMEOUT_MS == null
+        ? undefined : Number(process.env.CLOUD_KMS_OPERATION_TIMEOUT_MS),
+    });
+  }
+  cloudKeyProvider = require('./lib/cloud-kms').createManagedKmsKeyProvider({ kmsClient: cloudManagedKmsClient,
     keyId: process.env.CLOUD_KMS_KEY_ID,
     environment: process.env.CLOUD_ENVIRONMENT || 'production' });
 } else if (process.env.CLOUD_MASTER_KEY) {
@@ -721,7 +736,9 @@ function cloudAuthSession(req) {
 }
 
 function cloudApiError(res, error) {
-  const code = error && error.code ? error.code : 'temporary_service_failure';
+  const code = error && error.name === 'KmsKeyProviderError'
+    ? 'temporary_service_failure'
+    : error && error.code ? error.code : 'temporary_service_failure';
   const statuses = {
     invalid_request: 400,
     login_required: 401,
@@ -882,13 +899,13 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (req.method === 'GET' && pathname === base + '/workspaces') {
-      const personal = cloudStore.ensurePersonalWorkspace(user.id, 'Personal');
+      const personal = await cloudStore.ensurePersonalWorkspace(user.id, 'Personal');
       sendJson(res, 200, { ok: true, personal_workspace_id: personal.workspaceId,
-        workspaces: cloudStore.listWorkspaces(user.id) });
+        workspaces: await cloudStore.listWorkspaces(user.id) });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/workspaces/deleted') {
-      sendJson(res, 200, { ok: true, workspaces: cloudStore.listDeletedWorkspaces(user.id) });
+      sendJson(res, 200, { ok: true, workspaces: await cloudStore.listDeletedWorkspaces(user.id) });
       return;
     }
     if (req.method === 'POST' && pathname === base + '/workspaces') {
@@ -902,7 +919,7 @@ async function handleCloudApi(req, res, url) {
         throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
       }
       const body = await cloudAuthHttp.readJson(req);
-      const workspace = cloudStore.createTeamWorkspace({
+      const workspace = await cloudStore.createTeamWorkspace({
         userId: user.id, name: body.name, projectName: body.project_name || 'Documents',
       });
       sendJson(res, 201, { ok: true, workspace });
@@ -916,18 +933,18 @@ async function handleCloudApi(req, res, url) {
     }
     if (req.method === 'GET' && pathname === base + '/projects') {
       const workspaceId = url.searchParams.get('workspace_id');
-      sendJson(res, 200, { ok: true, projects: cloudStore.listProjects(user.id, workspaceId) });
+      sendJson(res, 200, { ok: true, projects: await cloudStore.listProjects(user.id, workspaceId) });
       return;
     }
     const workspaceProjectsMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/projects$/);
     if (workspaceProjectsMatch && req.method === 'GET') {
       sendJson(res, 200, { ok: true,
-        projects: cloudStore.listProjects(user.id, workspaceProjectsMatch[1]) });
+        projects: await cloudStore.listProjects(user.id, workspaceProjectsMatch[1]) });
       return;
     }
     const workspaceBillingMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/billing$/);
     if (workspaceBillingMatch && req.method === 'GET') {
-      const role = cloudStore.listWorkspaces(user.id).find((workspace) =>
+      const role = (await cloudStore.listWorkspaces(user.id)).find((workspace) =>
         workspace.id === workspaceBillingMatch[1]);
       if (!role) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
       const usage = cloudStore.getWorkspaceUsage({ userId: user.id,
@@ -941,7 +958,7 @@ async function handleCloudApi(req, res, url) {
       requireRecentBrowser(principal);
       if (!cloudStripe || !cloudBilling) throw Object.assign(new Error('billing_not_configured'),
         { code: 'billing_not_configured' });
-      const workspace = cloudStore.listWorkspaces(user.id).find((item) =>
+      const workspace = (await cloudStore.listWorkspaces(user.id)).find((item) =>
         item.id === workspaceBillingPortalMatch[1] && item.role === 'owner');
       const subscription = workspace && cloudBilling.getSubscription(workspace.id);
       if (!subscription || !subscription.providerCustomerId) {
@@ -958,7 +975,7 @@ async function handleCloudApi(req, res, url) {
     if (workspaceProjectsMatch && req.method === 'POST') {
       const body = await cloudAuthHttp.readJson(req);
       requireCloudEntitlement(user.id, workspaceProjectsMatch[1], 'create_project');
-      const project = cloudStore.createProject({
+      const project = await cloudStore.createProject({
         userId: user.id, workspaceId: workspaceProjectsMatch[1], name: body.name,
       });
       sendJson(res, 201, { ok: true, project });
@@ -988,7 +1005,7 @@ async function handleCloudApi(req, res, url) {
     if (workspaceExportMatch && req.method === 'POST') {
       requireRecentBrowser(principal);
       requireCloudEntitlement(user.id, workspaceExportMatch[1], 'read');
-      const exported = cloudStore.exportWorkspace({ userId: user.id,
+      const exported = await cloudStore.exportWorkspace({ userId: user.id,
         workspaceId: workspaceExportMatch[1], includeRevisions: true });
       sendJson(res, 200, { ok: true, export: exported }, {
         'Content-Disposition': 'attachment; filename="smalldocs-cloud-export.json"',
@@ -997,7 +1014,7 @@ async function handleCloudApi(req, res, url) {
     }
     const workspaceInvitationsMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/invitations$/);
     if (workspaceInvitationsMatch && req.method === 'GET') {
-      sendJson(res, 200, { ok: true, invitations: cloudStore.listWorkspaceInvitations({
+      sendJson(res, 200, { ok: true, invitations: await cloudStore.listWorkspaceInvitations({
         userId: user.id, workspaceId: workspaceInvitationsMatch[1],
       }) });
       return;
@@ -1016,7 +1033,7 @@ async function handleCloudApi(req, res, url) {
       }
       const body = await cloudAuthHttp.readJson(req);
       requireCloudEntitlement(user.id, workspaceInvitationsMatch[1], 'manage');
-      const invitation = cloudStore.createInvitation({
+      const invitation = await cloudStore.createInvitation({
         userId: user.id, workspaceId: workspaceInvitationsMatch[1], email: body.email,
         role: body.role, projectGrants: Array.isArray(body.project_grants) ?
           body.project_grants.map((grant) => ({ projectId: grant.project_id || grant.projectId,
@@ -1110,10 +1127,10 @@ async function handleCloudApi(req, res, url) {
     if (invitationAcceptMatch && req.method === 'POST') {
       const verifiedEmails = user.identities.filter((item) => item.verifiedEmail)
         .map((item) => item.verifiedEmail);
-      const invitationContext = cloudStore.getInvitationContext({ token: invitationAcceptMatch[1],
+      const invitationContext = await cloudStore.getInvitationContext({ token: invitationAcceptMatch[1],
         verifiedEmails });
       requireCloudEntitlement(user.id, invitationContext.workspaceId, 'add_member');
-      const result = cloudStore.acceptInvitation({ userId: user.id,
+      const result = await cloudStore.acceptInvitation({ userId: user.id,
         verifiedEmails, token: invitationAcceptMatch[1] });
       try { await syncTeamSeatQuantity(result.workspaceId); }
       catch (_) {
@@ -1132,7 +1149,7 @@ async function handleCloudApi(req, res, url) {
       const after = url.searchParams.get('cursor')
         ? cloudCursor.decode(url.searchParams.get('cursor'), cursorScope)
         : null;
-      let documents = cloudStore.listDocuments({
+      let documents = await cloudStore.listDocuments({
         userId: user.id, projectId, workspaceId,
       });
       if (cloudBilling) documents = documents.filter((document) => {
@@ -1149,7 +1166,7 @@ async function handleCloudApi(req, res, url) {
     }
     if (req.method === 'GET' && pathname === base + '/tags') {
       const projectId = url.searchParams.get('project_id') || undefined;
-      let documents = cloudStore.listDocuments({ userId: user.id, projectId });
+      let documents = await cloudStore.listDocuments({ userId: user.id, projectId });
       if (cloudBilling) documents = documents.filter((document) => {
         try {
           const context = cloudStore.getDocumentContext({ userId: user.id, documentId: document.id });
@@ -1172,7 +1189,7 @@ async function handleCloudApi(req, res, url) {
       requireCloudEntitlement(user.id, project.workspaceId, 'store_revision', {
         fileBytes: Buffer.byteLength(String(body.markdown || ''), 'utf8'),
       });
-      const document = cloudStore.createDocument({
+      const document = await cloudStore.createDocument({
         userId: user.id, projectId: body.project_id, filename: body.filename,
         markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId,
       });
@@ -1186,7 +1203,7 @@ async function handleCloudApi(req, res, url) {
         key: getClientIp(req), limit: Number(process.env.CLOUD_SEARCH_SOURCE_LIMIT) || 60,
         windowMs: Number(process.env.CLOUD_SEARCH_SOURCE_WINDOW_MS) || 60000 });
       if (!sourceRate.allowed) throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
-      const visibleWorkspaces = cloudStore.listWorkspaces(user.id);
+      const visibleWorkspaces = await cloudStore.listWorkspaces(user.id);
       let projectId = body.project_id || null;
       let workspaceIds;
       if (projectId) {
@@ -1220,14 +1237,14 @@ async function handleCloudApi(req, res, url) {
       if (!searchable.length && entitlementFailure) throw entitlementFailure;
       const requestedSearchLimit = Math.max(1, Math.min(Number(body.limit) || 50, 100));
       const documents = [];
-      searchable.forEach((workspaceId) => {
-        documents.push(...cloudStore.search({ userId: user.id, query: body.query,
+      for (const workspaceId of searchable) {
+        documents.push(...await cloudStore.search({ userId: user.id, query: body.query,
           projectId, workspaceId, tags: body.tags, limit: requestedSearchLimit,
           maxProjects: Number(process.env.CLOUD_SEARCH_MAX_PROJECTS) || undefined,
           maxDocuments: Number(process.env.CLOUD_SEARCH_MAX_DOCUMENTS) || undefined,
           maxBytes: Number(process.env.CLOUD_SEARCH_MAX_BYTES) || undefined,
           deadlineMs: Number(process.env.CLOUD_SEARCH_DEADLINE_MS) || undefined }));
-      });
+      }
       documents.sort((a, b) => b.updated_at.localeCompare(a.updated_at) || a.id.localeCompare(b.id));
       sendJson(res, 200, { ok: true, documents: documents.slice(0, requestedSearchLimit),
         next_cursor: null });
@@ -1235,7 +1252,7 @@ async function handleCloudApi(req, res, url) {
     }
 
     if (req.method === 'GET' && pathname === base + '/documents/deleted') {
-      sendJson(res, 200, { ok: true, documents: cloudStore.listDeletedDocuments({
+      sendJson(res, 200, { ok: true, documents: await cloudStore.listDeletedDocuments({
         userId: user.id, workspaceId: url.searchParams.get('workspace_id') || null,
       }) });
       return;
@@ -1245,7 +1262,7 @@ async function handleCloudApi(req, res, url) {
     if (documentMatch && req.method === 'GET') {
       const context = cloudStore.getDocumentContext({ userId: user.id, documentId: documentMatch[1] });
       requireCloudEntitlement(user.id, context.workspaceId, 'read');
-      const document = cloudStore.getDocument({ userId: user.id, documentId: documentMatch[1] });
+      const document = await cloudStore.getDocument({ userId: user.id, documentId: documentMatch[1] });
       sendJson(res, 200, { ok: true, document });
       return;
     }
@@ -1268,7 +1285,7 @@ async function handleCloudApi(req, res, url) {
       const context = cloudStore.getDocumentContext({ userId: user.id,
         documentId: documentRestoreMatch[1], requiredRole: 'editor', includeDeleted: true });
       requireCloudEntitlement(user.id, context.workspaceId, 'manage');
-      const restored = cloudStore.restoreDeletedDocument({ userId: user.id,
+      const restored = await cloudStore.restoreDeletedDocument({ userId: user.id,
         documentId: documentRestoreMatch[1],
         expectedHeadRevisionId: body.expected_head_revision_id });
       sendJson(res, 200, { ok: true, document: restored });
@@ -1298,7 +1315,7 @@ async function handleCloudApi(req, res, url) {
       requireCloudEntitlement(user.id, context.workspaceId, 'store_revision', {
         fileBytes: Buffer.byteLength(String(body.markdown || ''), 'utf8'),
       });
-      const document = cloudStore.saveRevision({
+      const document = await cloudStore.saveRevision({
         userId: user.id, documentId: revisionsMatch[1],
         expectedHeadRevisionId: body.expected_head_revision_id,
         markdown: body.markdown, filename: body.filename,
@@ -1313,7 +1330,7 @@ async function handleCloudApi(req, res, url) {
       const context = cloudStore.getDocumentContext({ userId: user.id,
         documentId: revisionMatch[1], includeDeleted: true });
       requireCloudEntitlement(user.id, context.workspaceId, 'read');
-      const document = cloudStore.getDocument({ userId: user.id, documentId: revisionMatch[1],
+      const document = await cloudStore.getDocument({ userId: user.id, documentId: revisionMatch[1],
         revisionId: revisionMatch[2], includeDeleted: true });
       sendJson(res, 200, { ok: true, document });
       return;
@@ -1324,7 +1341,7 @@ async function handleCloudApi(req, res, url) {
       const context = cloudStore.getDocumentContext({ userId: user.id,
         documentId: restoreMatch[1], requiredRole: 'editor' });
       requireCloudEntitlement(user.id, context.workspaceId, 'store_revision');
-      const document = cloudStore.restoreRevision({
+      const document = await cloudStore.restoreRevision({
         userId: user.id, documentId: restoreMatch[1], revisionId: restoreMatch[2],
         expectedHeadRevisionId: body.expected_head_revision_id,
         idempotencyKey: body.idempotency_key, credentialId,
@@ -1388,7 +1405,7 @@ async function handleCloudEmailVerify(req, res) {
     if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
     const result = cloudAuth.consumeEmailCode({ requestId: body.challenge_id, code: body.code });
     if (!result.ok) return sendJson(res, 400, { ok: false, error: 'invalid_or_expired_code' });
-    if (cloudStore) cloudStore.ensurePersonalWorkspace(result.user.id, 'Personal');
+    if (cloudStore) await cloudStore.ensurePersonalWorkspace(result.user.id, 'Personal');
     const session = cloudAuth.createBrowserSession(result.user.id);
     const returnTo = cloudAuthHttp.safeReturnPath(body.return_to);
     const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
@@ -1470,7 +1487,7 @@ async function finishCloudOAuth(req, res, url, provider) {
     }
     const completed = await adapter.callback({ state, code });
     const signedIn = cloudAuth.signInWithExternalIdentity(completed.identity);
-    if (cloudStore) cloudStore.ensurePersonalWorkspace(signedIn.user.id, 'Personal');
+    if (cloudStore) await cloudStore.ensurePersonalWorkspace(signedIn.user.id, 'Personal');
     const session = cloudAuth.createBrowserSession(signedIn.user.id);
     res.writeHead(303, { Location: cloudAuthHttp.safeReturnPath(completed.returnTo),
       'Set-Cookie': [cloudAuthHttp.sessionCookie(session.token, { secure,
@@ -1636,7 +1653,7 @@ const server = http.createServer((req, res) => {
     if (!principal || !cloudAuthPostAllowed(req, res)) return;
     cloudAuthHttp.readJson(req).then(async (body) => {
       requireRecentBrowser(principal);
-      const workspace = cloudStore.listWorkspaces(principal.user.id)
+      const workspace = (await cloudStore.listWorkspaces(principal.user.id))
         .find((item) => item.id === body.workspace_id && item.role === 'owner');
       if (!workspace) throw Object.assign(new Error('permission_denied'), { code: 'permission_denied' });
       const plan = body.plan === 'team' ? 'team' : body.plan === 'personal' ? 'personal' : null;
@@ -2102,6 +2119,13 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`sdocs-dev running at http://localhost:${PORT}`);
+});
+
+server.on('close', () => {
+  if (cloudKeyProvider && typeof cloudKeyProvider.clearCache === 'function') cloudKeyProvider.clearCache();
+  if (cloudManagedKmsClient && typeof cloudManagedKmsClient.destroy === 'function') {
+    cloudManagedKmsClient.destroy();
+  }
 });
 
 module.exports = server;

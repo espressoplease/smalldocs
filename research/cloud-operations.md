@@ -10,7 +10,7 @@ The current databases use `better-sqlite3` in WAL mode. The job queue has leases
 
 Do not run multiple application replicas against copied databases or a network filesystem. Do not use an ephemeral container filesystem for any Cloud database. Moving to multiple replicas requires a transactional shared database, an external worker, coordinated migrations, and provider webhook routing that preserves idempotency.
 
-The local `CLOUD_MASTER_KEY` provider is for development and tests. Production document storage requires the managed KMS provider.
+The local `CLOUD_MASTER_KEY` provider is for development and tests. Production document storage requires the built-in asynchronous AWS KMS provider. Run the server on Node.js 20 or later.
 
 ## 2. Configuration
 
@@ -77,12 +77,21 @@ The service refuses to issue an email login transaction when neither production 
 | `CLOUD_ENVIRONMENT` | Yes | Included in authenticated encryption context. Use a stable value for the lifetime of the data. Changing it makes existing ciphertext fail authentication. Defaults differ between managed and local providers, so set it explicitly. |
 | `CLOUD_IDEMPOTENCY_SECRET` | Yes | Stable HMAC secret for idempotency and invitation-token digests. It falls back to `CLOUD_AUTH_PEPPER`, but production should set a separate stable secret. Rotation invalidates outstanding invitation tokens and changes request digests. |
 | `CLOUD_CURSOR_SECRET` | Recommended | Stable HMAC secret for scoped pagination cursors. It falls back to `CLOUD_IDEMPOTENCY_SECRET`, then `CLOUD_AUTH_PEPPER`. Rotation invalidates outstanding cursors but does not change stored resources. |
-| `CLOUD_KMS_CLIENT_MODULE` | Yes in production | Absolute or working-directory-relative path to the trusted managed KMS adapter module. Must be set with `CLOUD_KMS_KEY_ID`. |
-| `CLOUD_KMS_KEY_ID` | Yes in production | Managed KMS key identifier used for wrapping workspace data keys and project keys. |
+| `CLOUD_KMS_KEY_ID` | Yes in production | AWS KMS key ARN, key ID, or alias used to wrap workspace data keys and project keys. |
+| `CLOUD_KMS_REGION` | Yes unless an AWS region variable is set | AWS region containing the key. Falls back to `AWS_REGION`, then `AWS_DEFAULT_REGION`. |
+| `CLOUD_KMS_MAX_ATTEMPTS` | Recommended | AWS SDK attempt count. Defaults to 3 and is capped at 5. |
+| `CLOUD_KMS_CONNECTION_TIMEOUT_MS` | Recommended | Per-connection timeout. Defaults to 3000 milliseconds. |
+| `CLOUD_KMS_REQUEST_TIMEOUT_MS` | Recommended | Per-request socket timeout. Defaults to 10000 milliseconds. |
+| `CLOUD_KMS_OPERATION_TIMEOUT_MS` | Recommended | Total deadline for one AWS KMS operation, including retries. Defaults to 15000 milliseconds. |
+| `CLOUD_KMS_CLIENT_MODULE` | No | Compatibility override for a trusted custom adapter. Leave unset to use the built-in AWS KMS adapter. |
 | `CLOUD_MASTER_KEY` | Development only | Base64 encoding of exactly 32 bytes for the local key provider. Do not use this provider for customer data. |
 | `CLOUD_KEY_REFERENCE` | Development only | Label stored with locally wrapped keys. Defaults to `local-development-key`. |
 
-The managed KMS module must export either a client object or `createKmsClient({ environment })`. The resulting client must provide synchronous methods:
+The built-in adapter uses the AWS SDK default credential chain. On the Hetzner host, supply a narrowly scoped workload credential that can call `kms:Encrypt` and `kms:Decrypt` on the SmallDocs key. Do not use an Identity Center administrator session or the management-account IAM user as the runtime identity.
+
+The adapter records the concrete key ARN returned by AWS with every wrapped key. Decryption uses that recorded reference, so changing an alias does not silently redirect old ciphertext to a new key. Keep old KMS key versions or key resources available until every dependent ciphertext has been rewrapped and verified.
+
+If `CLOUD_KMS_CLIENT_MODULE` is set, the module must export either a client object or `createKmsClient({ environment })`. The resulting client can provide synchronous or asynchronous methods:
 
 ```js
 encrypt({ keyId, plaintext, encryptionContext })
@@ -94,7 +103,7 @@ decrypt({ keyId, keyReference, ciphertext, encryptionContext })
 // plaintext must be exactly 32 bytes
 ```
 
-Both byte results must be a `Buffer` or `Uint8Array`. The KMS identity needs only the encrypt and decrypt permissions required for the configured key. Preserve and enforce the supplied encryption context. The current adapter rejects asynchronous KMS clients.
+Both byte results must be a `Buffer` or `Uint8Array`. Preserve and enforce the supplied encryption context. KMS calls have bounded retries and an abortable total deadline. Provider failures are returned to clients as `temporary_service_failure`; provider details are not included in HTTP responses.
 
 ### 2.5 Search safety limits
 
@@ -297,7 +306,7 @@ Run a scheduled reconciliation from Stripe to the local billing database. Webhoo
 
 ### Encryption
 
-- Use `CLOUD_KMS_CLIENT_MODULE` and `CLOUD_KMS_KEY_ID`; leave `CLOUD_MASTER_KEY` unset.
+- Use `CLOUD_KMS_KEY_ID` and `CLOUD_KMS_REGION`; leave `CLOUD_MASTER_KEY` and normally `CLOUD_KMS_CLIENT_MODULE` unset.
 - Pin `CLOUD_ENVIRONMENT` and test it against restored ciphertext.
 - Restrict the KMS runtime principal and backup operator separately.
 - Confirm old KMS references remain decryptable after rotation.

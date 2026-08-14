@@ -38,7 +38,7 @@ Create all new SmallDocs and SmallCRM KMS keys, backup buckets, workload roles, 
 
 ## Launch blockers at a glance
 
-- [ ] Finish the managed KMS integration. The current adapter requires synchronous `encrypt` and `decrypt` methods, while normal AWS, Google, and Azure KMS clients make asynchronous network calls. Refactor the key-unwrapping path to support an asynchronous KMS client, then integrate and test one real provider.
+- [ ] Complete a real AWS KMS smoke test. The application and CloudStore now support the built-in asynchronous AWS KMS client with bounded retries, timeouts, caching, and generic client-facing failures. Create the production key and verify a create, read, restart, and decrypt cycle with temporary workload credentials.
 - [ ] Add production configuration validation. Production startup should refuse partial Cloud configurations, local `CLOUD_MASTER_KEY`, an HTTP public origin, missing durable jobs, and missing billing or mail settings.
 - [ ] Make Stripe tax behavior match the Cloud page. The page says tax is calculated at checkout, but checkout does not currently enable Stripe automatic tax or collect the billing location it needs.
 - [ ] Decide and configure plan allowances, retention, failed-payment grace, and deletion windows.
@@ -465,8 +465,12 @@ CLOUD_DB=/var/lib/smalldocs/cloud/cloud.db
 CLOUD_BILLING_DB=/var/lib/smalldocs/cloud/cloud_billing.db
 CLOUD_JOBS_DB=/var/lib/smalldocs/cloud/cloud_jobs.db
 
-CLOUD_KMS_CLIENT_MODULE=...
-CLOUD_KMS_KEY_ID=...
+CLOUD_KMS_KEY_ID=alias/smalldocs-cloud-production
+CLOUD_KMS_REGION=eu-central-1
+CLOUD_KMS_MAX_ATTEMPTS=3
+CLOUD_KMS_CONNECTION_TIMEOUT_MS=3000
+CLOUD_KMS_REQUEST_TIMEOUT_MS=10000
+CLOUD_KMS_OPERATION_TIMEOUT_MS=15000
 
 GOOGLE_OAUTH_CLIENT_ID=...
 GOOGLE_OAUTH_CLIENT_SECRET=...

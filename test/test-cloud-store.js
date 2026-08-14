@@ -1,12 +1,41 @@
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-module.exports = function(harness) {
-  const { assert, test } = harness;
-  const { CloudError, createCloudStore, createLocalKeyProvider, deriveMetadata } = require('../lib/cloud-store');
+function createAsyncKms(rootKey) {
+  function contextBytes(context) {
+    return Buffer.from(JSON.stringify(context), 'utf8');
+  }
+  return {
+    async encrypt(input) {
+      const nonce = crypto.randomBytes(12);
+      const cipher = crypto.createCipheriv('aes-256-gcm', rootKey, nonce);
+      cipher.setAAD(contextBytes(input.encryptionContext));
+      const body = Buffer.concat([cipher.update(input.plaintext), cipher.final()]);
+      return {
+        ciphertext: Buffer.concat([nonce, body, cipher.getAuthTag()]),
+        keyId: 'kms://odd-solutions/smalldocs/7',
+      };
+    },
+    async decrypt(input) {
+      const value = input.ciphertext;
+      const nonce = value.subarray(0, 12);
+      const body = value.subarray(12, value.length - 16);
+      const decipher = crypto.createDecipheriv('aes-256-gcm', rootKey, nonce);
+      decipher.setAAD(contextBytes(input.encryptionContext));
+      decipher.setAuthTag(value.subarray(value.length - 16));
+      return { plaintext: Buffer.concat([decipher.update(body), decipher.final()]) };
+    },
+  };
+}
 
-  return function() {
+module.exports = function(harness) {
+  const { assert, testAsync } = harness;
+  const { CloudError, createCloudStore, createLocalKeyProvider, deriveMetadata } = require('../lib/cloud-store');
+  const { createManagedKmsKeyProvider } = require('../lib/cloud-kms');
+
+  return async function() {
     console.log('\n-- Cloud Store Tests ----------------------------------\n');
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-store-'));
     let clock = 1700000000000;
@@ -24,14 +53,14 @@ module.exports = function(harness) {
     let team;
     let document;
 
-    test('metadata comes from front matter with normalized tags', () => {
+    await testAsync('metadata comes from front matter with normalized tags', async () => {
       assert.deepStrictEqual(deriveMetadata('---\ntitle: Plan\ntags:\n  - Alpha\n  - beta\n  - alpha\n---\n# Ignored', 'plan.md'), {
         title: 'Plan', filename: 'plan.md', tags: ['alpha', 'beta'],
       });
       assert.strictEqual(deriveMetadata('# Heading\nBody', 'fallback.md').title, 'Heading');
     });
 
-    test('document and revision pages preserve keyset ordering', () => {
+    await testAsync('document and revision pages preserve keyset ordering', async () => {
       const documents = [
         { id: 'doc-a', updated_at: '2026-08-14T12:00:00.000Z' },
         { id: 'doc-b', updated_at: '2026-08-14T12:00:00.000Z' },
@@ -56,36 +85,36 @@ module.exports = function(harness) {
       ['rev-2', 'rev-1']);
     });
 
-    test('Cloud activation creates one personal workspace and default project', () => {
-      personal = store.ensurePersonalWorkspace(owner, 'Josh');
+    await testAsync('Cloud activation creates one personal workspace and default project', async () => {
+      personal = await store.ensurePersonalWorkspace(owner, 'Josh');
       assert.strictEqual(personal.created, true);
-      const again = store.ensurePersonalWorkspace(owner, 'Changed');
+      const again = await store.ensurePersonalWorkspace(owner, 'Changed');
       assert.strictEqual(again.created, false);
       assert.strictEqual(again.workspaceId, personal.workspaceId);
-      assert.deepStrictEqual(store.listWorkspaces(owner).map((row) => row.name), ['Josh']);
-      assert.deepStrictEqual(store.listProjects(owner, personal.workspaceId).map((row) => row.name), ['Documents']);
+      assert.deepStrictEqual((await store.listWorkspaces(owner)).map((row) => row.name), ['Josh']);
+      assert.deepStrictEqual((await store.listProjects(owner, personal.workspaceId)).map((row) => row.name), ['Documents']);
     });
 
-    test('workspace and project names are not stored as plaintext', () => {
+    await testAsync('workspace and project names are not stored as plaintext', async () => {
       const workspace = store.db.prepare('SELECT * FROM cloud_workspaces WHERE id = ?').get(personal.workspaceId);
       const project = store.db.prepare('SELECT * FROM cloud_projects WHERE id = ?').get(personal.projectId);
       assert.strictEqual(workspace.name_ciphertext.includes(Buffer.from('Josh')), false);
       assert.strictEqual(project.name_ciphertext.includes(Buffer.from('Documents')), false);
     });
 
-    test('team members need an explicit project grant', () => {
-      team = store.createTeamWorkspace({ userId: owner, name: 'Acme', projectName: 'Product' });
+    await testAsync('team members need an explicit project grant', async () => {
+      team = await store.createTeamWorkspace({ userId: owner, name: 'Acme', projectName: 'Product' });
       store.addWorkspaceMember({ actorUserId: owner, workspaceId: team.workspaceId, userId: member, role: 'member' });
-      assert.deepStrictEqual(store.listProjects(member, team.workspaceId), []);
+      assert.deepStrictEqual(await store.listProjects(member, team.workspaceId), []);
       store.grantProject({ actorUserId: owner, workspaceId: team.workspaceId,
         projectId: team.projectId, userId: member, role: 'viewer' });
-      assert.strictEqual(store.listProjects(member, team.workspaceId)[0].role, 'viewer');
+      assert.strictEqual((await store.listProjects(member, team.workspaceId))[0].role, 'viewer');
     });
 
-    test('an editor creates an encrypted document with an immutable first revision', () => {
+    await testAsync('an editor creates an encrypted document with an immutable first revision', async () => {
       store.grantProject({ actorUserId: owner, workspaceId: team.workspaceId,
         projectId: team.projectId, userId: member, role: 'editor' });
-      document = store.createDocument({
+      document = await store.createDocument({
         userId: member, projectId: team.projectId, filename: 'roadmap.md',
         markdown: '---\ntags:\n  - planning\n  - Kubernetes\n---\n# Roadmap\nMove to Kubernetes.',
         idempotencyKey: 'create-roadmap',
@@ -100,30 +129,30 @@ module.exports = function(harness) {
       assert.notDeepStrictEqual(revision.body_nonce, revision.metadata_nonce);
     });
 
-    test('create retries return the original result and mismatched retries fail', () => {
-      const retried = store.createDocument({
+    await testAsync('create retries return the original result and mismatched retries fail', async () => {
+      const retried = await store.createDocument({
         userId: member, projectId: team.projectId, filename: 'roadmap.md',
         markdown: '---\ntags:\n  - planning\n  - Kubernetes\n---\n# Roadmap\nMove to Kubernetes.',
         idempotencyKey: 'create-roadmap',
       });
       assert.strictEqual(retried.id, document.id);
-      assert.throws(() => store.createDocument({
+      await assert.rejects(() => store.createDocument({
         userId: member, projectId: team.projectId, filename: 'other.md', markdown: 'Other',
         idempotencyKey: 'create-roadmap',
       }), (error) => error instanceof CloudError && error.code === 'idempotency_mismatch');
     });
 
-    test('authorized reads authenticate, decrypt, and decompress a revision', () => {
-      const opened = store.getDocument({ userId: member, documentId: document.id });
+    await testAsync('authorized reads authenticate, decrypt, and decompress a revision', async () => {
+      const opened = await store.getDocument({ userId: member, documentId: document.id });
       assert.ok(opened.markdown.includes('Move to Kubernetes'));
       assert.strictEqual(opened.title, 'Roadmap');
-      assert.throws(() => store.getDocument({ userId: outsider, documentId: document.id }),
+      await assert.rejects(() => store.getDocument({ userId: outsider, documentId: document.id }),
         (error) => error.code === 'resource_unavailable');
     });
 
-    test('expected-head updates create immutable revisions', () => {
+    await testAsync('expected-head updates create immutable revisions', async () => {
       clock += 1000;
-      const second = store.saveRevision({
+      const second = await store.saveRevision({
         userId: member, documentId: document.id,
         expectedHeadRevisionId: document.current_revision_id,
         markdown: '---\ntags:\n  - kubernetes\n---\n# Roadmap\nKubernetes migration complete.', filename: 'roadmap.md',
@@ -131,34 +160,34 @@ module.exports = function(harness) {
       });
       assert.strictEqual(second.revision_number, 2);
       assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length, 2);
-      assert.ok(store.getDocument({ userId: member, documentId: document.id,
-        revisionId: document.current_revision_id }).markdown.includes('Move to Kubernetes'));
+      assert.ok((await store.getDocument({ userId: member, documentId: document.id,
+        revisionId: document.current_revision_id })).markdown.includes('Move to Kubernetes'));
       document = second;
     });
 
-    test('a stale expected head returns a conflict without advancing the document', () => {
+    await testAsync('a stale expected head returns a conflict without advancing the document', async () => {
       const before = document.current_revision_id;
-      assert.throws(() => store.saveRevision({
+      await assert.rejects(() => store.saveRevision({
         userId: member, documentId: document.id, expectedHeadRevisionId: 'stale-revision',
         markdown: '# Bad overwrite', filename: 'roadmap.md', idempotencyKey: 'stale-save',
       }), (error) => error.code === 'revision_conflict' && error.currentRevisionId === before);
-      assert.strictEqual(store.getDocument({ userId: member, documentId: document.id }).current_revision_id, before);
+      assert.strictEqual((await store.getDocument({ userId: member, documentId: document.id })).current_revision_id, before);
       assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length, 2);
     });
 
-    test('restoring an old revision creates a new immutable audited head', () => {
+    await testAsync('restoring an old revision creates a new immutable audited head', async () => {
       const revisions = store.listRevisions({ userId: member, documentId: document.id });
       const source = revisions.find((revision) => revision.revision_number === 1);
       const previousHead = document.current_revision_id;
       clock += 1000;
-      const restored = store.restoreRevision({
+      const restored = await store.restoreRevision({
         userId: member, documentId: document.id, revisionId: source.id,
         expectedHeadRevisionId: previousHead, idempotencyKey: 'restore-roadmap-1',
       });
       assert.strictEqual(restored.revision_number, 3);
       assert.strictEqual(restored.restored_from_revision_id, source.id);
       assert.notStrictEqual(restored.current_revision_id, source.id);
-      const opened = store.getDocument({ userId: member, documentId: document.id });
+      const opened = await store.getDocument({ userId: member, documentId: document.id });
       assert.ok(opened.markdown.includes('Move to Kubernetes'));
       const restoredRow = store.db.prepare('SELECT * FROM cloud_document_revisions WHERE id = ?')
         .get(restored.current_revision_id);
@@ -170,12 +199,12 @@ module.exports = function(harness) {
         WHERE resource_id = ? ORDER BY created_at_ms DESC, rowid DESC LIMIT 1
       `).get(document.id);
       assert.strictEqual(audit.action, 'document.revision.restore');
-      const retried = store.restoreRevision({
+      const retried = await store.restoreRevision({
         userId: member, documentId: document.id, revisionId: source.id,
         expectedHeadRevisionId: previousHead, idempotencyKey: 'restore-roadmap-1',
       });
       assert.strictEqual(retried.current_revision_id, restored.current_revision_id);
-      assert.throws(() => store.restoreRevision({
+      await assert.rejects(() => store.restoreRevision({
         userId: member, documentId: document.id, revisionId: source.id,
         expectedHeadRevisionId: previousHead, idempotencyKey: 'stale-restore-roadmap',
       }), (error) => error.code === 'revision_conflict'
@@ -184,13 +213,13 @@ module.exports = function(harness) {
       document = restored;
     });
 
-    test('revision pruning keeps the latest snapshots and never deletes the current head', () => {
-      let retainedDocument = store.createDocument({
+    await testAsync('revision pruning keeps the latest snapshots and never deletes the current head', async () => {
+      let retainedDocument = await store.createDocument({
         userId: owner, projectId: personal.projectId, filename: 'retention.md',
         markdown: '# Retention 1', idempotencyKey: 'create-retention',
       });
       for (let number = 2; number <= 4; number += 1) {
-        retainedDocument = store.saveRevision({
+        retainedDocument = await store.saveRevision({
           userId: owner, documentId: retainedDocument.id,
           expectedHeadRevisionId: retainedDocument.current_revision_id,
           markdown: '# Retention ' + number, filename: 'retention.md',
@@ -208,13 +237,14 @@ module.exports = function(harness) {
       assert.strictEqual(result.current_revision_id, olderHead.id);
       const after = store.listRevisions({ userId: owner, documentId: retainedDocument.id });
       assert.deepStrictEqual(after.map((revision) => revision.id).sort(), [latest.id, olderHead.id].sort());
-      assert.strictEqual(store.getDocument({ userId: owner, documentId: retainedDocument.id }).revision_number, 2);
+      assert.strictEqual((await store.getDocument({ userId: owner,
+        documentId: retainedDocument.id })).revision_number, 2);
     });
 
-    test('viewer access cannot create, update, or delete content', () => {
+    await testAsync('viewer access cannot create, update, or delete content', async () => {
       store.grantProject({ actorUserId: owner, workspaceId: team.workspaceId,
         projectId: team.projectId, userId: member, role: 'viewer' });
-      assert.throws(() => store.saveRevision({
+      await assert.rejects(() => store.saveRevision({
         userId: member, documentId: document.id, expectedHeadRevisionId: document.current_revision_id,
         markdown: 'Denied', filename: 'roadmap.md', idempotencyKey: 'denied-save',
       }), (error) => error.code === 'resource_unavailable');
@@ -222,26 +252,26 @@ module.exports = function(harness) {
         projectId: team.projectId, userId: member, role: 'editor' });
     });
 
-    test('list, tags, and in-memory search return only authorized current documents', () => {
-      assert.strictEqual(store.listDocuments({ userId: member }).length, 1);
-      assert.deepStrictEqual(store.listTags({ userId: member }), [
+    await testAsync('list, tags, and in-memory search return only authorized current documents', async () => {
+      assert.strictEqual((await store.listDocuments({ userId: member })).length, 1);
+      assert.deepStrictEqual(await store.listTags({ userId: member }), [
         { tag: 'kubernetes', count: 1 },
         { tag: 'planning', count: 1 },
       ]);
-      const found = store.search({ userId: member, query: 'kubernetes' });
+      const found = await store.search({ userId: member, query: 'kubernetes' });
       assert.strictEqual(found.length, 1);
       assert.strictEqual(found[0].id, document.id);
       assert.strictEqual(found[0].matches[0].line, 4);
-      assert.strictEqual(store.search({ userId: member, query: 'kubernetes',
-        tags: ['planning'], limit: 1 }).length, 1);
-      assert.strictEqual(store.search({ userId: member, query: 'kubernetes',
-        tags: ['another-tag'], limit: 1 }).length, 0);
-      assert.strictEqual(store.search({ userId: outsider, query: 'kubernetes' }).length, 0);
-      assert.throws(() => store.search({ userId: owner, query: 'missing', maxDocuments: 1 }),
+      assert.strictEqual((await store.search({ userId: member, query: 'kubernetes',
+        tags: ['planning'], limit: 1 })).length, 1);
+      assert.strictEqual((await store.search({ userId: member, query: 'kubernetes',
+        tags: ['another-tag'], limit: 1 })).length, 0);
+      assert.strictEqual((await store.search({ userId: outsider, query: 'kubernetes' })).length, 0);
+      await assert.rejects(() => store.search({ userId: owner, query: 'missing', maxDocuments: 1 }),
         (error) => error.code === 'search_limit_reached');
     });
 
-    test('delete requires the current head and preserves revisions for restore', () => {
+    await testAsync('delete requires the current head and preserves revisions for restore', async () => {
       assert.throws(() => store.deleteDocument({ userId: member, documentId: document.id,
         expectedHeadRevisionId: 'stale' }), (error) => error.code === 'revision_conflict');
       const deleted = store.deleteDocument({ userId: member, documentId: document.id,
@@ -249,25 +279,25 @@ module.exports = function(harness) {
       assert.ok(deleted.deleted_at);
       assert.deepStrictEqual(store.deleteDocument({ userId: member, documentId: document.id,
         expectedHeadRevisionId: document.current_revision_id }), deleted);
-      const recoverable = store.listDeletedDocuments({ userId: member });
+      const recoverable = await store.listDeletedDocuments({ userId: member });
       assert.strictEqual(recoverable.length, 1);
       assert.strictEqual(recoverable[0].id, document.id);
       assert.strictEqual(recoverable[0].project.name, 'Product');
-      assert.strictEqual(store.listDocuments({ userId: member }).length, 0);
+      assert.strictEqual((await store.listDocuments({ userId: member })).length, 0);
       assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length, 3);
     });
 
-    test('soft-deleted documents can be restored before purge and exported by the owner', () => {
-      const restored = store.restoreDeletedDocument({ userId: member, documentId: document.id,
+    await testAsync('soft-deleted documents can be restored before purge and exported by the owner', async () => {
+      const restored = await store.restoreDeletedDocument({ userId: member, documentId: document.id,
         expectedHeadRevisionId: document.current_revision_id });
       assert.strictEqual(restored.id, document.id);
-      assert.strictEqual(store.listDeletedDocuments({ userId: member }).length, 0);
-      assert.strictEqual(store.listDocuments({ userId: member }).length, 1);
-      const exported = store.exportWorkspace({ userId: owner, workspaceId: team.workspaceId });
+      assert.strictEqual((await store.listDeletedDocuments({ userId: member })).length, 0);
+      assert.strictEqual((await store.listDocuments({ userId: member })).length, 1);
+      const exported = await store.exportWorkspace({ userId: owner, workspaceId: team.workspaceId });
       assert.strictEqual(exported.documents.length, 1);
       assert.strictEqual(exported.documents[0].revisions.length, 3);
       assert.ok(exported.documents[0].markdown.includes('Kubernetes'));
-      assert.throws(() => store.exportWorkspace({ userId: member, workspaceId: team.workspaceId }),
+      await assert.rejects(() => store.exportWorkspace({ userId: member, workspaceId: team.workspaceId }),
         (error) => error.code === 'permission_denied');
       const events = store.listAuditEvents({ userId: owner, workspaceId: team.workspaceId });
       assert.ok(events.some((event) => event.action === 'workspace.export'));
@@ -275,12 +305,12 @@ module.exports = function(harness) {
         (error) => error.code === 'permission_denied');
     });
 
-    test('expired soft deletes are purged with their encrypted revisions', () => {
+    await testAsync('expired soft deletes are purged with their encrypted revisions', async () => {
       const deleted = store.deleteDocument({ userId: member, documentId: document.id,
         expectedHeadRevisionId: document.current_revision_id, restoreWindowMs: 1000 });
       assert.ok(deleted.purge_after);
       clock += 1001;
-      assert.throws(() => store.restoreDeletedDocument({ userId: member, documentId: document.id,
+      await assert.rejects(() => store.restoreDeletedDocument({ userId: member, documentId: document.id,
         expectedHeadRevisionId: document.current_revision_id }),
       (error) => error.code === 'resource_unavailable');
       const purged = store.purgeDeletedDocuments({ beforeMs: clock });
@@ -289,8 +319,8 @@ module.exports = function(harness) {
         .get(document.id).count, 0);
     });
 
-    test('ciphertext relocation fails authenticated decryption', () => {
-      const protectedDocument = store.createDocument({ userId: owner, projectId: personal.projectId,
+    await testAsync('ciphertext relocation fails authenticated decryption', async () => {
+      const protectedDocument = await store.createDocument({ userId: owner, projectId: personal.projectId,
         filename: 'protected.md', markdown: '# Protected', idempotencyKey: 'protected-document' });
       const first = store.db.prepare('SELECT * FROM cloud_document_revisions WHERE document_id = ? ORDER BY revision_number')
         .get(protectedDocument.id);
@@ -298,11 +328,11 @@ module.exports = function(harness) {
       corrupted[0] ^= 1;
       store.db.prepare('UPDATE cloud_document_revisions SET body_ciphertext = ? WHERE id = ?')
         .run(corrupted, first.id);
-      assert.throws(() => store.getDocument({ userId: owner, documentId: protectedDocument.id,
+      await assert.rejects(() => store.getDocument({ userId: owner, documentId: protectedDocument.id,
         revisionId: first.id, includeDeleted: true }), (error) => error.code === 'temporary_service_failure');
     });
 
-    test('an owner can promote an active workspace member without losing ownership', () => {
+    await testAsync('an owner can promote an active workspace member without losing ownership', async () => {
       const result = store.transferWorkspaceOwnership({ actorUserId: owner,
         workspaceId: team.workspaceId, targetUserId: member });
       assert.strictEqual(result.owner_user_id, member);
@@ -322,12 +352,12 @@ module.exports = function(harness) {
         event.resource_id === member));
     });
 
-    test('workspace admins can list and revoke only pending invitations in their workspace', () => {
-      const invitation = store.createInvitation({ userId: owner, workspaceId: team.workspaceId,
+    await testAsync('workspace admins can list and revoke only pending invitations in their workspace', async () => {
+      const invitation = await store.createInvitation({ userId: owner, workspaceId: team.workspaceId,
         email: 'pending@example.com', role: 'member', projectGrants: [] });
-      const pending = store.listWorkspaceInvitations({ userId: owner, workspaceId: team.workspaceId });
+      const pending = await store.listWorkspaceInvitations({ userId: owner, workspaceId: team.workspaceId });
       assert.ok(pending.some((item) => item.id === invitation.id && item.email === 'pending@example.com'));
-      assert.throws(() => store.listWorkspaceInvitations({ userId: outsider,
+      await assert.rejects(() => store.listWorkspaceInvitations({ userId: outsider,
         workspaceId: team.workspaceId }), (error) => error.code === 'permission_denied');
       assert.throws(() => store.revokeWorkspaceInvitation({ userId: owner,
         workspaceId: personal.workspaceId, invitationId: invitation.id }),
@@ -335,18 +365,18 @@ module.exports = function(harness) {
       const revoked = store.revokeWorkspaceInvitation({ userId: owner,
         workspaceId: team.workspaceId, invitationId: invitation.id });
       assert.strictEqual(revoked.id, invitation.id);
-      assert.strictEqual(store.listWorkspaceInvitations({ userId: owner,
-        workspaceId: team.workspaceId }).some((item) => item.id === invitation.id), false);
-      assert.throws(() => store.getInvitationContext({ token: invitation.token,
+      assert.strictEqual((await store.listWorkspaceInvitations({ userId: owner,
+        workspaceId: team.workspaceId })).some((item) => item.id === invitation.id), false);
+      await assert.rejects(() => store.getInvitationContext({ token: invitation.token,
         verifiedEmails: ['pending@example.com'] }), (error) => error.code === 'resource_unavailable');
     });
 
-    test('only an owner can soft delete a Team workspace and personal deletion is refused', () => {
-      const purgeDocument = store.createDocument({ userId: owner, projectId: team.projectId,
+    await testAsync('only an owner can soft delete a Team workspace and personal deletion is refused', async () => {
+      const purgeDocument = await store.createDocument({ userId: owner, projectId: team.projectId,
         filename: 'workspace-purge.md', markdown: '# Workspace purge',
         idempotencyKey: 'workspace-purge-document' });
       const purgeRevisionId = purgeDocument.current_revision_id;
-      const pendingInvitation = store.createInvitation({ userId: owner, workspaceId: team.workspaceId,
+      const pendingInvitation = await store.createInvitation({ userId: owner, workspaceId: team.workspaceId,
         email: 'deleted-workspace@example.com', role: 'member', projectGrants: [] });
       assert.throws(() => store.deleteWorkspace({ userId: owner,
         workspaceId: personal.workspaceId }),
@@ -358,30 +388,31 @@ module.exports = function(harness) {
         workspaceId: team.workspaceId, restoreWindowMs: 1000 });
       assert.strictEqual(Date.parse(deleted.deleted_at), clock);
       assert.strictEqual(Date.parse(deleted.purge_after), clock + 1000);
-      assert.strictEqual(store.listWorkspaces(owner).some((row) => row.id === team.workspaceId), false);
-      assert.strictEqual(store.listWorkspaces(member).some((row) => row.id === team.workspaceId), false);
-      assert.throws(() => store.listProjects(owner, team.workspaceId),
+      assert.strictEqual((await store.listWorkspaces(owner)).some((row) => row.id === team.workspaceId), false);
+      assert.strictEqual((await store.listWorkspaces(member)).some((row) => row.id === team.workspaceId), false);
+      await assert.rejects(() => store.listProjects(owner, team.workspaceId),
         (error) => error.code === 'resource_unavailable');
-      assert.strictEqual(store.listDocuments({ userId: owner, workspaceId: team.workspaceId }).length, 0);
-      assert.strictEqual(store.search({ userId: owner, workspaceId: team.workspaceId,
-        query: 'anything' }).length, 0);
-      assert.throws(() => store.getInvitationContext({ token: pendingInvitation.token,
+      assert.strictEqual((await store.listDocuments({ userId: owner,
+        workspaceId: team.workspaceId })).length, 0);
+      assert.strictEqual((await store.search({ userId: owner, workspaceId: team.workspaceId,
+        query: 'anything' })).length, 0);
+      await assert.rejects(() => store.getInvitationContext({ token: pendingInvitation.token,
         verifiedEmails: ['deleted-workspace@example.com'] }),
       (error) => error.code === 'resource_unavailable');
-      const recoverable = store.listDeletedWorkspaces(owner);
+      const recoverable = await store.listDeletedWorkspaces(owner);
       assert.strictEqual(recoverable.length, 1);
       assert.strictEqual(recoverable[0].id, team.workspaceId);
       assert.strictEqual(recoverable[0].name, 'Acme');
-      assert.strictEqual(store.listDeletedWorkspaces(outsider).length, 0);
+      assert.strictEqual((await store.listDeletedWorkspaces(outsider)).length, 0);
       assert.throws(() => store.restoreWorkspace({ userId: outsider,
         workspaceId: team.workspaceId }), (error) => error.code === 'resource_unavailable');
       const restored = store.restoreWorkspace({ userId: owner, workspaceId: team.workspaceId });
       assert.strictEqual(Date.parse(restored.restored_at), clock);
-      assert.strictEqual(store.listDeletedWorkspaces(owner).length, 0);
-      assert.strictEqual(store.listWorkspaces(owner).some((row) => row.id === team.workspaceId), true);
-      assert.strictEqual(store.listProjects(owner, team.workspaceId).length, 1);
-      assert.strictEqual(store.getInvitationContext({ token: pendingInvitation.token,
-        verifiedEmails: ['deleted-workspace@example.com'] }).workspaceId, team.workspaceId);
+      assert.strictEqual((await store.listDeletedWorkspaces(owner)).length, 0);
+      assert.strictEqual((await store.listWorkspaces(owner)).some((row) => row.id === team.workspaceId), true);
+      assert.strictEqual((await store.listProjects(owner, team.workspaceId)).length, 1);
+      assert.strictEqual((await store.getInvitationContext({ token: pendingInvitation.token,
+        verifiedEmails: ['deleted-workspace@example.com'] })).workspaceId, team.workspaceId);
       store.deleteWorkspace({ userId: owner, workspaceId: team.workspaceId, restoreWindowMs: 1000 });
       assert.strictEqual(store.purgeDeletedWorkspaces({ beforeMs: clock,
         workspaceId: team.workspaceId }).purged_count, 0);
@@ -400,6 +431,132 @@ module.exports = function(harness) {
         SELECT COUNT(*) AS count FROM cloud_idempotency_records
         WHERE resource_id = ? OR resource_id = ?
       `).get(team.projectId, purgeDocument.id).count, 0);
+    });
+
+    await testAsync('an asynchronous managed KMS provider round-trips store content', async () => {
+      const managedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-store-managed-'));
+      const workingKms = createAsyncKms(Buffer.alloc(32, 21));
+      let kmsUnavailable = false;
+      const managedProvider = createManagedKmsKeyProvider({
+        kmsClient: {
+          encrypt(input) {
+            if (kmsUnavailable) return Promise.reject(new Error('KMS unavailable'));
+            return workingKms.encrypt(input);
+          },
+          decrypt(input) {
+            if (kmsUnavailable) return Promise.reject(new Error('KMS unavailable'));
+            return workingKms.decrypt(input);
+          },
+        },
+        keyId: 'kms://odd-solutions/smalldocs', environment: 'test',
+      });
+      const managedStore = createCloudStore({
+        dbPath: path.join(managedDir, 'cloud.db'), keyProvider: managedProvider,
+        idempotencySecret: 'managed-idempotency-secret-32-bytes',
+      });
+      try {
+        const workspace = await managedStore.ensurePersonalWorkspace('managed-user', 'Managed');
+        const created = await managedStore.createDocument({
+          userId: 'managed-user', projectId: workspace.projectId,
+          filename: 'managed.md', markdown: '# Managed\n\nEncrypted asynchronously.',
+          idempotencyKey: 'managed-create',
+        });
+        const opened = await managedStore.getDocument({
+          userId: 'managed-user', documentId: created.id,
+        });
+        assert.strictEqual(opened.markdown, '# Managed\n\nEncrypted asynchronously.');
+        assert.deepStrictEqual((await managedStore.listProjects(
+          'managed-user', workspace.workspaceId)).map((project) => project.name), ['Documents']);
+        managedProvider.clearCache();
+        kmsUnavailable = true;
+        const replayed = await managedStore.createDocument({
+          userId: 'managed-user', projectId: workspace.projectId,
+          filename: 'managed.md', markdown: '# Managed\n\nEncrypted asynchronously.',
+          idempotencyKey: 'managed-create',
+        });
+        assert.strictEqual(replayed.id, created.id);
+        assert.strictEqual(replayed.current_revision_id, created.current_revision_id);
+        await assert.rejects(managedStore.createDocument({
+          userId: 'managed-user', projectId: workspace.projectId,
+          filename: 'changed.md', markdown: '# Changed', idempotencyKey: 'managed-create',
+        }), (error) => error.code === 'idempotency_mismatch');
+      } finally {
+        managedStore.close();
+        managedProvider.clearCache();
+        fs.rmSync(managedDir, { recursive: true, force: true });
+      }
+    });
+
+    await testAsync('KMS failure while preparing a restore leaves the document deleted', async () => {
+      const restoreDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-store-restore-'));
+      const workingKms = createAsyncKms(Buffer.alloc(32, 22));
+      let failDecrypt = false;
+      const restoreProvider = createManagedKmsKeyProvider({
+        kmsClient: {
+          encrypt: (input) => workingKms.encrypt(input),
+          decrypt(input) {
+            if (failDecrypt) return Promise.reject(new Error('KMS unavailable'));
+            return workingKms.decrypt(input);
+          },
+        },
+        keyId: 'kms://odd-solutions/smalldocs', environment: 'test',
+      });
+      const restoreStore = createCloudStore({
+        dbPath: path.join(restoreDir, 'cloud.db'), keyProvider: restoreProvider,
+        idempotencySecret: 'restore-idempotency-secret-32-bytes',
+      });
+      try {
+        const workspace = await restoreStore.ensurePersonalWorkspace('restore-user', 'Restore');
+        const created = await restoreStore.createDocument({
+          userId: 'restore-user', projectId: workspace.projectId,
+          filename: 'restore.md', markdown: '# Restore', idempotencyKey: 'restore-create',
+        });
+        restoreStore.deleteDocument({ userId: 'restore-user', documentId: created.id,
+          expectedHeadRevisionId: created.current_revision_id });
+        restoreProvider.clearCache();
+        failDecrypt = true;
+        await assert.rejects(restoreStore.restoreDeletedDocument({
+          userId: 'restore-user', documentId: created.id,
+          expectedHeadRevisionId: created.current_revision_id,
+        }), (error) => error.code === 'temporary_service_failure');
+        const row = restoreStore.db.prepare(
+          'SELECT deleted_at_ms FROM cloud_documents WHERE id = ?').get(created.id);
+        assert.notStrictEqual(row.deleted_at_ms, null);
+      } finally {
+        restoreStore.close();
+        restoreProvider.clearCache();
+        fs.rmSync(restoreDir, { recursive: true, force: true });
+      }
+    });
+
+    await testAsync('managed KMS failure leaves workspace creation atomic and hides provider codes', async () => {
+      const failedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-store-kms-failure-'));
+      const failedProvider = createManagedKmsKeyProvider({
+        kmsClient: {
+          async encrypt() { throw Object.assign(new Error('provider detail'), { code: 'provider_secret_code' }); },
+          async decrypt() { throw new Error('not reached'); },
+        },
+        keyId: 'kms://odd-solutions/smalldocs', environment: 'test',
+      });
+      const failedStore = createCloudStore({
+        dbPath: path.join(failedDir, 'cloud.db'), keyProvider: failedProvider,
+        idempotencySecret: 'failed-idempotency-secret-32-bytes',
+      });
+      try {
+        await assert.rejects(
+          failedStore.ensurePersonalWorkspace('failed-user', 'Failure'),
+          (error) => error instanceof CloudError && error.code === 'temporary_service_failure' &&
+            !String(error.message).includes('provider_secret_code') && error.cause === undefined,
+        );
+        assert.strictEqual(failedStore.db.prepare(
+          'SELECT COUNT(*) AS count FROM cloud_workspaces').get().count, 0);
+        assert.strictEqual(failedStore.db.prepare(
+          'SELECT COUNT(*) AS count FROM cloud_projects').get().count, 0);
+      } finally {
+        failedStore.close();
+        failedProvider.clearCache();
+        fs.rmSync(failedDir, { recursive: true, force: true });
+      }
     });
 
     store.close();

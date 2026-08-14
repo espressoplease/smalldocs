@@ -272,7 +272,7 @@ module.exports = function(harness) {
         (error) => error instanceof KmsKeyProviderError && error.code === 'kms_invalid_response');
     });
 
-    test('works through the existing CloudStore keyProvider interface', () => {
+    await testAsync('works through the existing CloudStore keyProvider interface', async () => {
       const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-kms-'));
       const storeProvider = createManagedKmsKeyProvider({
         kmsClient: createFakeKms(rootKey), keyId: 'kms://root', environment: 'test',
@@ -282,13 +282,13 @@ module.exports = function(harness) {
         idempotencySecret: 'test-idempotency-secret',
       });
       try {
-        const workspace = store.ensurePersonalWorkspace('user-1', 'Personal');
-        const document = store.createDocument({
+        const workspace = await store.ensurePersonalWorkspace('user-1', 'Personal');
+        const document = await store.createDocument({
           userId: 'user-1', projectId: workspace.projectId,
           filename: 'kms.md', markdown: '# Managed KMS\n\nEncrypted content.',
           idempotencyKey: 'create-kms-doc',
         });
-        assert.strictEqual(store.getDocument({ userId: 'user-1', documentId: document.id }).markdown,
+        assert.strictEqual((await store.getDocument({ userId: 'user-1', documentId: document.id })).markdown,
           '# Managed KMS\n\nEncrypted content.');
         const raw = store.db.prepare('SELECT body_ciphertext FROM cloud_document_revisions WHERE document_id = ?')
           .get(document.id).body_ciphertext;

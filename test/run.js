@@ -83,7 +83,7 @@ const runLibraryServer = require('./test-library-server')(harness);
 (async () => {
   await runCloudKms();
   await runCloudAwsKms();
-  runCloudStore();
+  await runCloudStore();
   await runCloudCli();
   await runCloudCheckout();
   await runBridge();
