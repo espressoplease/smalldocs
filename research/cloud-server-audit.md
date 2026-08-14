@@ -164,7 +164,7 @@ Recommended decision: migrate the Cloud implementation to PostgreSQL before the 
 
 ## Decisions needed from the owner
 
-- Approve a small dedicated production VM and the existing host as staging.
+- Approve a Hetzner CX33 production VM and the existing host as staging. At the current Germany and Finland price, the server, one IPv4 address, and Hetzner's seven-slot backup option total about €10.69 per month before VAT.
 - Approve PostgreSQL on the dedicated production VM for the beta.
 - Choose AWS KMS plus S3, or Google Cloud KMS plus a separate object store.
 - Choose a maintenance window for the server update and reboot.

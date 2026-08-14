@@ -57,7 +57,7 @@ That is enough capacity for a low-volume Cloud beta if search limits are conserv
 | --- | ---: | --- | --- |
 | Existing Hetzner host | About £2 to £5 incremental, plus the existing server bill | No hosting migration. Add one KMS key, small off-site backups, free email tier, and free monitoring | One host and one process remain the failure boundary |
 | Existing host plus full-time Hetzner staging | About £10 to £14 incremental | The production path above plus an isolated staging server | Staging needs its own updates, secrets, backups, and monitoring |
-| New small Hetzner production server | About £11 to £16, plus staging if kept running | Separates Cloud production from the current host at low cost | More server operations, and KMS is still cross-provider |
+| Hetzner CX33 production server | €10.69 before VAT with IPv4 and Hetzner backups, plus KMS and off-site database storage | 4 shared vCPUs, 8 GB RAM, 80 GB disk, and a separate production boundary | More server operations, and KMS is still cross-provider |
 | AWS Lightsail, 4 GB | About £20 to £25 | One AWS account for compute, KMS, snapshots, and object backups | Costs more, still a self-managed single server, and moving the live site adds work |
 | Railway Pro, estimated 2 GB service | About £22 to £30 | Managed deploys, secrets, logs, and a persistent volume | Usage pricing varies; SQLite still forces one replica and coordinated backups |
 | Existing app host plus Neon Postgres | About £11 typical, before app hosting | Managed Postgres with a 7-day restore window | Requires a real database migration; not usable by the current code as a configuration change |
@@ -76,19 +76,23 @@ These totals do not include the existing server bill, VAT, paid support, enginee
 
 ### My recommendation for the beta
 
-Use a small dedicated Hetzner VM for production and the existing shared host for staging. The server audit found that the shared `deploy` identity runs several applications and has broad administrative paths, so an exploit in a neighboring application would not be confined from Cloud customer data. Keep one SmallDocs process in each environment. Use a different provider for encrypted database backups so loss of the Hetzner account or region does not remove both the service and its recovery copy.
+Use a Hetzner CX33 in Germany for production and the existing shared host for staging. The server audit found that the shared `deploy` identity runs several applications and has broad administrative paths, so an exploit in a neighboring application would not be confined from Cloud customer data. Keep one SmallDocs process in each environment. Use a different provider for encrypted database backups so loss of the Hetzner account or region does not remove both the service and its recovery copy.
+
+The current CX33 price is €8.49 per month before VAT. One Primary IPv4 is €0.50. Hetzner's seven-slot server backup option costs 20 percent of the server price, about €1.70. The resulting Hetzner production invoice is about €10.69 per month before VAT. The server includes 4 shared vCPUs, 8 GB RAM, 80 GB local disk, and 20 TB of traffic in EU locations.
+
+A CX23 would reduce this to about €7.09 before VAT with IPv4 and backups, but it has 4 GB RAM and 40 GB disk. It can run a constrained beta, but the €3.60 monthly saving is not worth halving the memory available to Node, PostgreSQL, in-memory search, operating-system cache, and backup operations.
 
 Expected fixed incremental cost:
 
 | Item | Beta | After early growth |
 | --- | ---: | ---: |
 | Existing staging compute | £0 incremental | £0 until isolation requires a move |
-| Dedicated Hetzner production | About £7 to £9 | About £7 to £9 until capacity requires a move |
+| Dedicated Hetzner CX33 production, IPv4, and native backups | €10.69 before VAT | €10.69 until capacity requires a move |
 | Production and staging KMS keys | About £0.10 to £1.50 | Usually under £3 at this scale |
 | Off-site object backups | Under £1 for small archives | Roughly proportional to stored backup GB |
 | Transactional email | £0 | About £11 to £15 when a paid tier is needed |
 | Uptime and basic telemetry | £0 | £0 to about £22 depending on retention and alerting |
-| Expected total | About £8 to £12/month | About £20 to £45/month |
+| Expected total | About €12/month before VAT, plus small currency and request variation | About €20 to €45/month depending on email and monitoring choices |
 
 The existing Hetzner invoice still exists. The dedicated production server is the main new fixed cost.
 
