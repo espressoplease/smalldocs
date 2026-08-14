@@ -230,6 +230,14 @@ module.exports = function(harness) {
       assert.ok(appIdx > stateIdx, 'sdocs-app.js should come after sdocs-state.js');
     });
 
+    await testAsync('Cloud document source loads before the app source dispatcher', async () => {
+      const body = (await get(BASE + '/docs')).body;
+      const source = body.indexOf('/public/sdocs-source.js');
+      const cloud = body.indexOf('/public/sdocs-cloud-prototype.js');
+      const app = body.indexOf('/public/sdocs-app.js');
+      assert.ok(source >= 0 && cloud > source && app > cloud);
+    });
+
     await testAsync('GET /analytics returns 200 with HTML', async () => {
       const r = await get(BASE + '/analytics');
       assert.strictEqual(r.status, 200);
@@ -569,6 +577,14 @@ module.exports = function(harness) {
       cloudProject = parsed.projects[0];
     });
 
+    await testAsync('Cloud API returns the current account without exposing identities', async () => {
+      const response = await get(BASE + '/api/cloud/v1/me', { Cookie: cloudCookie });
+      assert.strictEqual(response.status, 200);
+      const user = JSON.parse(response.body).user;
+      assert.strictEqual(user.email, 'cloud-api@example.com');
+      assert.strictEqual(Object.prototype.hasOwnProperty.call(user, 'identities'), false);
+    });
+
     await testAsync('Cloud API creates, reads, lists, tags, and searches an encrypted document', async () => {
       const created = await post(BASE + '/api/cloud/v1/documents', {
         project_id: cloudProject.id,
@@ -635,6 +651,8 @@ module.exports = function(harness) {
                 '/library should serve the library shell');
       assert.ok(/connect-src[^;]*localhost/.test(r.headers['content-security-policy'] || ''),
                 'CSP must allow connect-src to localhost so the page can reach the local agent');
+      assert.ok(r.body.includes('href="/library?scope=cloud"'));
+      assert.ok(!r.body.includes('cloud-demo=1'));
     });
 
     await testAsync('asset-versioning: /library is versioned', async () => {

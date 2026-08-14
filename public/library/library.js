@@ -14,7 +14,7 @@
   // ?force=1 - used by tests. ?demo=1 - the public sample library
   // linked from /connect. Neither talks to the local agent so neither
   // needs the connect gate.
-  if (p.get('force') === '1' || p.get('demo') === '1' || p.get('cloud-demo') === '1') return;
+  if (p.get('force') === '1' || p.get('demo') === '1' || p.get('scope') === 'cloud') return;
   var ret = location.pathname + location.search + location.hash;
   location.replace('/connect?return=' + encodeURIComponent(ret));
 })();
@@ -637,8 +637,9 @@ function renderStarToggle() {
 }
 
 function renderStatus() {
-  if (isCloudDemoMode()) {
-    document.getElementById('status-line').textContent = 'Acme Engineering';
+  if (isCloudMode()) {
+    const cloud = window.SDocsCloudLibrary || {};
+    document.getElementById('status-line').textContent = cloud.workspaceName || 'Cloud';
     return;
   }
   const last = STATE.lastScanAt ? new Date(STATE.lastScanAt).toLocaleString() : 'never';
@@ -781,54 +782,54 @@ function isDemoMode() {
     new URLSearchParams(location.search).get('demo') === '1';
 }
 
-function isCloudDemoMode() {
+function isCloudMode() {
   if (typeof window === 'undefined') return false;
   const params = new URLSearchParams(location.search);
-  return params.get('cloud-demo') === '1' && params.get('scope') === 'cloud';
+  return params.get('scope') === 'cloud';
 }
 
-const CLOUD_DEMO_ENTRIES = [
-  {
-    id: 'cloud-1', title: 'Authentication rollout',
-    path: 'authentication-rollout.md',
-    tags: ['auth', 'planning', 'backend'],
-    gitProject: 'Product', agent: 'Josh',
-    bodyExcerpt: 'Roll out passkeys after the session migration. The Kubernetes deployment needs the new callback secret before staging can move...',
-    mtime: '2026-08-13T11:42:00Z', starred: true,
-  },
-  {
-    id: 'cloud-2', title: 'Webhook retry policy',
-    path: 'webhook-retry-policy.md',
-    tags: ['webhooks', 'api', 'reliability'],
-    gitProject: 'Product', agent: 'Codex',
-    bodyExcerpt: 'Use exponential backoff with a dead letter queue. Document the retry headers and delivery attempt identifier...',
-    mtime: '2026-08-13T09:18:00Z',
-  },
-  {
-    id: 'cloud-3', title: 'Production runbook',
-    path: 'production-runbook.md',
-    tags: ['operations', 'kubernetes', 'on-call'],
-    gitProject: 'Engineering', agent: 'Mina',
-    bodyExcerpt: 'Check Kubernetes pod health, recent deploys, and the queue depth before escalating. Record each mitigation in the incident document...',
-    mtime: '2026-08-12T16:07:00Z',
-  },
-  {
-    id: 'cloud-4', title: 'New starter guide',
-    path: 'new-starter-guide.md',
-    tags: ['onboarding', 'people'],
-    gitProject: 'Company', agent: 'Sam',
-    bodyExcerpt: 'Accounts, team introductions, development environment, and the first week checklist...',
-    mtime: '2026-08-11T14:25:00Z',
-  },
-  {
-    id: 'cloud-5', title: 'Q3 product decisions',
-    path: 'q3-product-decisions.md',
-    tags: ['product', 'decisions', 'planning'],
-    gitProject: 'Product', agent: 'Claude',
-    bodyExcerpt: 'A record of the decisions made during the Q3 planning sessions, with owners and follow-up dates...',
-    mtime: '2026-08-08T10:30:00Z',
-  },
-];
+function cloudEntry(document) {
+  const match = document.matches && document.matches[0];
+  return {
+    id: document.id,
+    title: document.title,
+    path: document.filename,
+    tags: document.tags || [],
+    gitProject: document.project && document.project.name,
+    bodyExcerpt: match && match.snippet ? match.snippet : '',
+    mtime: document.updated_at,
+    cloudRevisionId: document.current_revision_id,
+  };
+}
+
+async function loadCloudData(query) {
+  const workspaceId = window.SDocsCloudLibrary && window.SDocsCloudLibrary.workspaceId;
+  let response;
+  if (query && query.trim()) {
+    response = await fetch('/api/cloud/v1/search', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: query.trim(), workspace_id: workspaceId || undefined }),
+    });
+  } else {
+    const params = new URLSearchParams();
+    if (workspaceId) params.set('workspace_id', workspaceId);
+    response = await fetch('/api/cloud/v1/documents?' + params.toString(), { credentials: 'same-origin' });
+  }
+  if (response.status === 401) {
+    location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
+    return;
+  }
+  if (!response.ok) throw new Error('Cloud returned ' + response.status);
+  const data = await response.json();
+  STATE.entries = (data.documents || []).map(cloudEntry);
+  STATE.lastScanAt = Date.now();
+  STATE.enabled = true;
+  STATE.autostart = { supported: false, enabled: false, userDisabled: false };
+  hideBanner();
+  renderAll();
+}
 
 function showDemoBanner() {
   const b = document.getElementById('agent-banner');
@@ -847,15 +848,7 @@ function showDemoBanner() {
 }
 
 async function loadData() {
-  if (isCloudDemoMode()) {
-    STATE.entries = CLOUD_DEMO_ENTRIES.slice();
-    STATE.lastScanAt = Date.now();
-    STATE.enabled = true;
-    STATE.autostart = { supported: false, enabled: false, userDisabled: false };
-    hideBanner();
-    renderAll();
-    return;
-  }
+  if (isCloudMode()) return loadCloudData(STATE.q);
   if (isDemoMode()) {
     STATE.entries = DEMO_ENTRIES.slice();
     STATE.lastScanAt = Date.now();
@@ -907,6 +900,7 @@ async function loadData() {
 }
 
 async function toggleStar(id, starred) {
+  if (isCloudMode()) return;
   if (isDemoMode()) return; // local state already updated in the click handler
   try {
     await fetch(api('/api/library/star'), {
@@ -918,7 +912,7 @@ async function toggleStar(id, starred) {
 }
 
 async function rescan() {
-  if (isCloudDemoMode()) return;
+  if (isCloudMode()) return;
   if (isDemoMode()) {
     showDemoBanner();
     return;
@@ -944,9 +938,8 @@ async function rescan() {
 // (e.g. file missing, port exhaustion), fall back to the snapshot URL
 // so the user can still read the document.
 async function openEntry(id) {
-  if (isCloudDemoMode()) {
-    const entry = STATE.entries.find(x => x.id === id);
-    if (entry) location.href = '/?cloud-demo=1&cloud-document=' + encodeURIComponent(entry.id);
+  if (isCloudMode()) {
+    location.href = '/docs?cloud-document=' + encodeURIComponent(id);
     return;
   }
   if (isDemoMode()) {
@@ -1093,6 +1086,12 @@ input.addEventListener('input', (e) => {
     STATE.q = val;
   }
   renderAll();
+  if (isCloudMode()) {
+    clearTimeout(window.SDocsCloudSearchTimer);
+    window.SDocsCloudSearchTimer = setTimeout(() => loadCloudData(STATE.q).catch(function () {
+      showBanner({ kind: 'error', message: 'Cloud search is temporarily unavailable.' });
+    }), 220);
+  }
 });
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Backspace' && !input.value && STATE.chips.length) {
@@ -1103,6 +1102,7 @@ input.addEventListener('keydown', (e) => {
 document.getElementById('clear').addEventListener('click', () => {
   STATE.chips = []; STATE.q = ''; STATE.starredOnly = false;
   input.value = ''; renderAll();
+  if (isCloudMode()) loadCloudData('').catch(function () {});
 });
 
 // Hold the kick-off fetch until we know the user has been through
@@ -1116,15 +1116,24 @@ if (!window.SDocsConnect ||
     window.SDocsConnect.isConnected() ||
     search.get('force') === '1' ||
     search.get('demo')  === '1' ||
-    search.get('cloud-demo') === '1') {
+    search.get('scope') === 'cloud') {
   loadData();
 }
 
-if (isCloudDemoMode()) {
+if (isCloudMode()) {
   document.getElementById('rescan-btn').hidden = true;
+  document.getElementById('star-toggle').hidden = true;
   document.getElementById('q').placeholder = 'search titles, tags, and document text...';
   const pathButton = document.querySelector('[data-facet="path"]');
   if (pathButton) pathButton.hidden = true;
   const agentButton = document.querySelector('[data-facet="agent"]');
   if (agentButton) agentButton.childNodes[0].textContent = 'updated by ';
 }
+
+window.addEventListener('sdocs-cloud-workspace-change', function () {
+  STATE.q = '';
+  input.value = '';
+  loadCloudData('').catch(function () {
+    showBanner({ kind: 'error', message: 'Could not load this Cloud workspace.' });
+  });
+});

@@ -1382,6 +1382,9 @@ var SHORT_LINK_PATH_RE = /^\/s\/([A-Za-z0-9_-]{1,32})$/;
 function normalizedBasePath() {
   var p = window.location.pathname;
   if (p === '/new' || SHORT_LINK_PATH_RE.test(p)) return '/docs';
+  if (S.cloudDocument && S.cloudDocument.id) {
+    return p + '?cloud-document=' + encodeURIComponent(S.cloudDocument.id);
+  }
   return p;
 }
 
@@ -1389,7 +1392,7 @@ function normalizedBasePath() {
 // when updateHash rewrites the hash. Without this list, opening present mode
 // sets ?present=N but the next debounced updateHash wipes it out, collapsing
 // present mode via the hashchange listener.
-var PRESERVED_HASH_PARAMS = ['present', 'cloud-demo'];
+var PRESERVED_HASH_PARAMS = ['present'];
 
 function updateHash() {
   clearTimeout(S._hashTimer);
@@ -1414,7 +1417,7 @@ function updateHash() {
       return;
     }
     var params = new URLSearchParams();
-    if (!S._isDefaultState) {
+    if (!S._isDefaultState && !S.cloudDocument) {
       var compressed = await compressText(serializeCurrentDocument());
       params.set('md', compressed);
     }
@@ -2042,7 +2045,7 @@ async function loadFromHash() {
     setMode('read', true);
   }
 
-  if (!mdParam) {
+  if (!mdParam && !S.cloudDocument) {
     S._isDefaultState = true;
     loadText(DEFAULT_MD);
     if (stylesParam) {

@@ -624,6 +624,12 @@ async function handleCloudApi(req, res, url) {
         workspaces: cloudStore.listWorkspaces(user.id) });
       return;
     }
+    if (req.method === 'GET' && pathname === base + '/me') {
+      const identity = user.identities.find((item) => item.verifiedEmail) || null;
+      sendJson(res, 200, { ok: true, user: { id: user.id,
+        email: identity ? identity.verifiedEmail : null } });
+      return;
+    }
     if (req.method === 'GET' && pathname === base + '/projects') {
       const workspaceId = url.searchParams.get('workspace_id');
       sendJson(res, 200, { ok: true, projects: cloudStore.listProjects(user.id, workspaceId) });
@@ -632,6 +638,7 @@ async function handleCloudApi(req, res, url) {
     if (req.method === 'GET' && pathname === base + '/documents') {
       sendJson(res, 200, { ok: true, documents: cloudStore.listDocuments({
         userId: user.id, projectId: url.searchParams.get('project_id') || undefined,
+        workspaceId: url.searchParams.get('workspace_id') || undefined,
       }), next_cursor: null });
       return;
     }
@@ -653,7 +660,7 @@ async function handleCloudApi(req, res, url) {
     if (req.method === 'POST' && pathname === base + '/search') {
       const body = await cloudAuthHttp.readJson(req);
       const documents = cloudStore.search({ userId: user.id, query: body.query,
-        projectId: body.project_id, limit: body.limit });
+        projectId: body.project_id, workspaceId: body.workspace_id, limit: body.limit });
       sendJson(res, 200, { ok: true, documents, next_cursor: null });
       return;
     }
