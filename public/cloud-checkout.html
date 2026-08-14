@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Subscribe to SmallDocs Cloud</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/css/cloud-invite.css">
+</head>
+<body>
+  <main class="invite-shell">
+    <a class="brand" href="/cloud">SmallDocs Cloud</a>
+    <section class="invite-card" aria-labelledby="checkout-title">
+      <h1 id="checkout-title">Choose a workspace</h1>
+      <p id="checkout-copy">Payment is collected by Stripe. The subscription renews monthly until cancelled.</p>
+      <label for="checkout-workspace">Workspace</label>
+      <select id="checkout-workspace"></select>
+      <button id="checkout-button" type="button" disabled>Continue to payment</button>
+      <p class="status" id="checkout-status" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+  <script src="/public/cloud-checkout.js" defer></script>
+</body>
+</html>

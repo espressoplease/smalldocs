@@ -219,11 +219,45 @@ module.exports = function(harness) {
       assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length, 3);
     });
 
+    test('soft-deleted documents can be restored before purge and exported by the owner', () => {
+      const restored = store.restoreDeletedDocument({ userId: member, documentId: document.id,
+        expectedHeadRevisionId: document.current_revision_id });
+      assert.strictEqual(restored.id, document.id);
+      assert.strictEqual(store.listDocuments({ userId: member }).length, 1);
+      const exported = store.exportWorkspace({ userId: owner, workspaceId: team.workspaceId });
+      assert.strictEqual(exported.documents.length, 1);
+      assert.strictEqual(exported.documents[0].revisions.length, 3);
+      assert.ok(exported.documents[0].markdown.includes('Kubernetes'));
+      assert.throws(() => store.exportWorkspace({ userId: member, workspaceId: team.workspaceId }),
+        (error) => error.code === 'permission_denied');
+      const events = store.listAuditEvents({ userId: owner, workspaceId: team.workspaceId });
+      assert.ok(events.some((event) => event.action === 'workspace.export'));
+      assert.throws(() => store.listAuditEvents({ userId: member, workspaceId: team.workspaceId }),
+        (error) => error.code === 'permission_denied');
+    });
+
+    test('expired soft deletes are purged with their encrypted revisions', () => {
+      const deleted = store.deleteDocument({ userId: member, documentId: document.id,
+        expectedHeadRevisionId: document.current_revision_id, restoreWindowMs: 1000 });
+      assert.ok(deleted.purge_after);
+      clock += 1001;
+      assert.throws(() => store.restoreDeletedDocument({ userId: member, documentId: document.id,
+        expectedHeadRevisionId: document.current_revision_id }),
+      (error) => error.code === 'resource_unavailable');
+      const purged = store.purgeDeletedDocuments({ beforeMs: clock });
+      assert.strictEqual(purged.purged_count, 1);
+      assert.strictEqual(store.db.prepare('SELECT COUNT(*) AS count FROM cloud_document_revisions WHERE document_id = ?')
+        .get(document.id).count, 0);
+    });
+
     test('ciphertext relocation fails authenticated decryption', () => {
-      const first = store.db.prepare('SELECT * FROM cloud_document_revisions WHERE document_id = ? ORDER BY revision_number').get(document.id);
+      const protectedDocument = store.createDocument({ userId: owner, projectId: personal.projectId,
+        filename: 'protected.md', markdown: '# Protected', idempotencyKey: 'protected-document' });
+      const first = store.db.prepare('SELECT * FROM cloud_document_revisions WHERE document_id = ? ORDER BY revision_number')
+        .get(protectedDocument.id);
       store.db.prepare('UPDATE cloud_document_revisions SET body_ciphertext = ? WHERE id = ?')
         .run(Buffer.from(first.body_ciphertext).fill(0, 0, 1), first.id);
-      assert.throws(() => store.getDocument({ userId: member, documentId: document.id,
+      assert.throws(() => store.getDocument({ userId: owner, documentId: protectedDocument.id,
         revisionId: first.id, includeDeleted: true }), (error) => error.code === 'temporary_service_failure');
     });
 

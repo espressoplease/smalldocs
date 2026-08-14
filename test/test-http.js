@@ -18,11 +18,13 @@ module.exports = function(harness) {
     const testTeamsDbPath = path.join(os.tmpdir(), 'sdocs-test-teams-' + process.pid + '.db');
     const testCloudAuthDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-auth-' + process.pid + '.db');
     const testCloudDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-' + process.pid + '.db');
+    const testCloudBillingDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-billing-' + process.pid + '.db');
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
     try { fs.unlinkSync(testTeamsDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudDbPath); } catch (_) {}
+    try { fs.unlinkSync(testCloudBillingDbPath); } catch (_) {}
     let serverOutput = '';
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
       env: {
@@ -41,6 +43,7 @@ module.exports = function(harness) {
         CLOUD_MASTER_KEY: Buffer.alloc(32, 9).toString('base64'),
         CLOUD_ENVIRONMENT: 'test',
         CLOUD_IDEMPOTENCY_SECRET: 'http-test-idempotency-secret-32-bytes',
+        CLOUD_BILLING_DB: testCloudBillingDbPath,
         NODE_ENV: 'test',
       },
       stdio: 'pipe',
@@ -60,6 +63,9 @@ module.exports = function(harness) {
     });
 
     const BASE = 'http://localhost:3099';
+    const cloudBilling = require('../lib/cloud-billing').createBillingStore({
+      dbPath: testCloudBillingDbPath, planLimits: {},
+    });
     function del(url, body, headers) {
       return new Promise((resolve, reject) => {
         const target = new URL(url);
@@ -601,6 +607,15 @@ module.exports = function(harness) {
       assert.strictEqual(parsed.projects.length, 1);
       assert.strictEqual(parsed.projects[0].name, 'Documents');
       cloudProject = parsed.projects[0];
+      const blocked = await post(BASE + '/api/cloud/v1/documents', {
+        project_id: cloudProject.id, filename: 'unpaid.md', markdown: '# Unpaid',
+        idempotency_key: 'unpaid-document',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(blocked.status, 402);
+      assert.strictEqual(JSON.parse(blocked.body).error, 'subscription_required');
+      cloudBilling.upsertSubscription({ workspaceId: cloudWorkspace.id,
+        plan: 'personal', status: 'active', seatQuantity: 1,
+        provider: 'test', providerSubscriptionId: 'personal-http-test' });
     });
 
     await testAsync('Cloud API returns the current account without exposing identities', async () => {
@@ -618,6 +633,13 @@ module.exports = function(harness) {
       assert.strictEqual(created.status, 201);
       cloudTeamWorkspace = JSON.parse(created.body).workspace;
       cloudTeamProject = { id: cloudTeamWorkspace.projectId };
+      const blocked = await post(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/projects', {
+        name: 'Blocked project',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(blocked.status, 402);
+      cloudBilling.upsertSubscription({ workspaceId: cloudTeamWorkspace.workspaceId,
+        plan: 'team', status: 'active', seatQuantity: 2,
+        provider: 'test', providerSubscriptionId: 'team-http-test' });
 
       const project = await post(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/projects', {
         name: 'Webhooks',
@@ -921,6 +943,7 @@ module.exports = function(harness) {
       assert.strictEqual(rows[1].message, null);
     });
 
+    cloudBilling.close();
     server.kill();
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testDbPath + '-wal'); } catch (_) {}
@@ -937,5 +960,8 @@ module.exports = function(harness) {
     try { fs.unlinkSync(testCloudDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testCloudDbPath + '-shm'); } catch (_) {}
+    try { fs.unlinkSync(testCloudBillingDbPath); } catch (_) {}
+    try { fs.unlinkSync(testCloudBillingDbPath + '-wal'); } catch (_) {}
+    try { fs.unlinkSync(testCloudBillingDbPath + '-shm'); } catch (_) {}
   };
 };
