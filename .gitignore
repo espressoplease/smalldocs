@@ -5,6 +5,8 @@ AGENTS.local.md
 claude.local.todo.md
 .claude/
 .claude-personal/
+.agents/
+.smallcrm/
 .playwright-mcp/
 test-results/
 analytics.db*
@@ -14,4 +16,6 @@ teams_interest.db*
 cloud_auth.db*
 cloud.db*
 *.tgz
+smallcrm-home-desktop.png
+smallcrm-objects-wrap.png
 tmp/
