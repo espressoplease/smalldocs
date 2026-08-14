@@ -392,8 +392,8 @@ There is deliberately no document-count limit. Decide these values and put them 
 | Decision | Personal | Team |
 | --- | --- | --- |
 | Total stored bytes | Decide | Decide |
-| Maximum file bytes | Decide | Decide |
-| Revision retention days | Decide | Decide |
+| Maximum file bytes | 10 MB | 10 MB |
+| Revision retention days | 90 | 90 |
 | Maximum projects | Decide | Decide |
 | Maximum human members | `1` | Decide |
 | Search requests and window | Decide | Decide |
@@ -401,8 +401,8 @@ There is deliberately no document-count limit. Decide these values and put them 
 Also decide:
 
 - [ ] Failed-payment grace period, then read-only behavior.
-- [ ] Number of latest revisions retained by the pruning job.
-- [ ] Document and Team workspace restore window.
+- [x] Keep no more than three previous revisions per document and expire them after 90 days.
+- [x] Keep deleted documents and Team workspaces recoverable for 30 days.
 - [ ] Backup expiry after logical deletion.
 - [ ] Whether Team storage is a fixed workspace allowance or grows with paid seats. The current billing model supports a fixed workspace allowance.
 
@@ -466,9 +466,11 @@ STRIPE_PORTAL_CONFIGURATION_ID=bpc_...
 STRIPE_PERSONAL_PRICE_ID=price_...
 STRIPE_TEAM_PRICE_ID=price_...
 
-CLOUD_PLAN_LIMITS_JSON=...
+CLOUD_PLAN_LIMITS_JSON='{"personal":{"maxStoredBytes":null,"maxFileBytes":10485760,"revisionRetentionDays":90,"maxProjects":null,"maxMembers":null,"search":{"maxRequests":null,"windowMs":null}},"team":{"maxStoredBytes":null,"maxFileBytes":10485760,"revisionRetentionDays":90,"maxProjects":null,"maxMembers":null,"search":{"maxRequests":null,"windowMs":null}}}'
 CLOUD_PAYMENT_GRACE_MS=...
-CLOUD_REVISION_KEEP_LATEST=...
+CLOUD_REVISION_KEEP_PREVIOUS=3
+CLOUD_REVISION_RETENTION_DAYS=90
+CLOUD_DOCUMENT_RESTORE_WINDOW_MS=2592000000
 CLOUD_WORKSPACE_RESTORE_WINDOW_MS=...
 ```
 

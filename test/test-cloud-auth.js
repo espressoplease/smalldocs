@@ -129,6 +129,11 @@ module.exports = function(harness) {
       const rows = auth.db.prepare("SELECT * FROM cloud_auth_rate_events WHERE action = 'test_action'").all();
       assert.strictEqual(rows.length, 2);
       assert.strictEqual(rows.some((row) => row.subject_hash.includes('raw-subject')), false);
+      assert.strictEqual(auth.countRateLimit({ action: 'test_action', key: 'raw-subject',
+        windowMs: 1000 }), 2);
+      clock += 1001;
+      assert.strictEqual(auth.countRateLimit({ action: 'test_action', key: 'raw-subject',
+        windowMs: 1000 }), 0);
     });
 
     test('email issue limits apply to normalized email and IP', () => {

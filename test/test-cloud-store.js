@@ -219,12 +219,13 @@ module.exports = function(harness) {
       document = restored;
     });
 
-    await testAsync('revision pruning keeps the latest snapshots and never deletes the current head', async () => {
+    await testAsync('revision pruning keeps three recent restore points for at most 90 days', async () => {
       let retainedDocument = await store.createDocument({
         userId: owner, projectId: personal.projectId, filename: 'retention.md',
         markdown: '# Retention 1', idempotencyKey: 'create-retention',
       });
-      for (let number = 2; number <= 4; number += 1) {
+      for (let number = 2; number <= 5; number += 1) {
+        clock += 1000;
         retainedDocument = await store.saveRevision({
           userId: owner, documentId: retainedDocument.id,
           expectedHeadRevisionId: retainedDocument.current_revision_id,
@@ -232,19 +233,24 @@ module.exports = function(harness) {
           idempotencyKey: 'save-retention-' + number,
         });
       }
-      const before = store.listRevisions({ userId: owner, documentId: retainedDocument.id });
-      const olderHead = before.find((revision) => revision.revision_number === 2);
-      const latest = before.find((revision) => revision.revision_number === 4);
-      store.db.prepare('UPDATE cloud_documents SET current_revision_id = ? WHERE id = ?')
-        .run(olderHead.id, retainedDocument.id);
-      const result = store.pruneRevisions({ documentId: retainedDocument.id, keepLatest: 1 });
-      assert.strictEqual(result.deleted_count, 2);
-      assert.strictEqual(result.retained_count, 2);
-      assert.strictEqual(result.current_revision_id, olderHead.id);
-      const after = store.listRevisions({ userId: owner, documentId: retainedDocument.id });
-      assert.deepStrictEqual(after.map((revision) => revision.id).sort(), [latest.id, olderHead.id].sort());
+      const recent = store.pruneRevisions({ documentId: retainedDocument.id, keepPrevious: 3,
+        retainAfterMs: clock - 90 * 24 * 60 * 60 * 1000 });
+      assert.strictEqual(recent.deleted_count, 1);
+      assert.strictEqual(recent.retained_count, 4);
+      assert.strictEqual(recent.oldest_retained_previous_created_at_ms, clock - 3000);
+      assert.deepStrictEqual(store.listRevisions({ userId: owner, documentId: retainedDocument.id })
+        .map((revision) => revision.revision_number), [5, 4, 3, 2]);
+
+      clock += 90 * 24 * 60 * 60 * 1000 + 1;
+      const expired = store.pruneRevisions({ documentId: retainedDocument.id, keepPrevious: 3,
+        retainAfterMs: clock - 90 * 24 * 60 * 60 * 1000 });
+      assert.strictEqual(expired.deleted_count, 3);
+      assert.strictEqual(expired.retained_count, 1);
+      assert.strictEqual(expired.oldest_retained_previous_created_at_ms, null);
+      assert.deepStrictEqual(store.listRevisions({ userId: owner, documentId: retainedDocument.id })
+        .map((revision) => revision.revision_number), [5]);
       assert.strictEqual((await store.getDocument({ userId: owner,
-        documentId: retainedDocument.id })).revision_number, 2);
+        documentId: retainedDocument.id })).revision_number, 5);
     });
 
     await testAsync('viewer access cannot create, update, or delete content', async () => {

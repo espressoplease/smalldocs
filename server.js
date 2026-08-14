@@ -5,8 +5,26 @@ const path = require('path');
 const crypto = require('crypto');
 const { createCursorCodec, normalizeLimit } = require('./lib/cloud-cursor');
 
+function integerEnvironmentSetting(name, fallback, minimum) {
+  if (process.env[name] == null || process.env[name] === '') return fallback;
+  const value = Number(process.env[name]);
+  if (!Number.isSafeInteger(value) || value < minimum) {
+    throw new Error(name + ' must be an integer of at least ' + minimum);
+  }
+  return value;
+}
+
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
+const CLOUD_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
+const CLOUD_DOCUMENT_JSON_MAX_BYTES = 24 * 1024 * 1024;
+const CLOUD_REVISION_KEEP_PREVIOUS = integerEnvironmentSetting(
+  'CLOUD_REVISION_KEEP_PREVIOUS', 3, 0);
+const CLOUD_REVISION_RETENTION_DAYS = integerEnvironmentSetting(
+  'CLOUD_REVISION_RETENTION_DAYS', 90, 1);
+const CLOUD_REVISION_RETENTION_MS = CLOUD_REVISION_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+const CLOUD_DOCUMENT_RESTORE_WINDOW_MS = integerEnvironmentSetting(
+  'CLOUD_DOCUMENT_RESTORE_WINDOW_MS', 30 * 24 * 60 * 60 * 1000, 1);
 const CLOUD_DEPLOYMENT = require('./lib/cloud-deployment-config')
   .validateCloudDeploymentConfig(process.env);
 const DEV_MODE = process.env.SDOCS_DEV === '1' || process.env.NODE_ENV === 'development';
@@ -243,12 +261,16 @@ function enqueueCloudJob(input) {
   return cloudJobs.enqueue(input);
 }
 
-function scheduleRevisionPrune(document) {
-  const keepLatest = Number(process.env.CLOUD_REVISION_KEEP_LATEST);
-  if (!cloudJobs || !Number.isSafeInteger(keepLatest) || keepLatest < 1 || !document) return;
+function scheduleRevisionPrune(document, entitlements) {
+  if (!cloudJobs || !document) return;
+  const configuredDays = entitlements && entitlements.limits &&
+    entitlements.limits.revisionRetentionDays;
+  const retentionMs = configuredDays == null
+    ? CLOUD_REVISION_RETENTION_MS : configuredDays * 24 * 60 * 60 * 1000;
   enqueueCloudJob({ type: 'revision_prune',
     idempotencyKey: document.id + ':' + document.current_revision_id,
-    payload: { documentId: document.id, keepLatest } });
+    payload: { documentId: document.id, keepPrevious: CLOUD_REVISION_KEEP_PREVIOUS,
+      retentionMs } });
 }
 
 function scheduleTeamSeatSync(workspaceId) {
@@ -271,8 +293,18 @@ async function processCloudJob(job) {
     return;
   }
   if (job.type === 'revision_prune') {
-    if (cloudStore) cloudStore.pruneRevisions({ documentId: job.payload.documentId,
-      keepLatest: job.payload.keepLatest });
+    if (cloudStore) {
+      const result = cloudStore.pruneRevisions({ documentId: job.payload.documentId,
+        keepPrevious: job.payload.keepPrevious,
+        retainAfterMs: Date.now() - job.payload.retentionMs });
+      if (result.oldest_retained_previous_created_at_ms != null) {
+        const expiresAtMs = result.oldest_retained_previous_created_at_ms +
+          job.payload.retentionMs + 1;
+        enqueueCloudJob({ type: 'revision_prune',
+          idempotencyKey: result.document_id + ':' + result.current_revision_id + ':' + expiresAtMs,
+          payload: job.payload, availableAtMs: Math.max(Date.now(), expiresAtMs) });
+      }
+    }
     return;
   }
   if (job.type === 'team_seat_sync') {
@@ -819,10 +851,31 @@ function cloudApiMutationAllowed(req, res) {
 
 function requireCloudEntitlement(userId, workspaceId, operation, extra) {
   if (!cloudBilling) return null;
-  const usage = cloudStore.getWorkspaceUsage({ userId, workspaceId, skipAccess: true });
-  const result = cloudBilling.checkOperation(workspaceId, Object.assign({ operation, usage }, extra || {}));
+  const usage = cloudWorkspaceUsage(userId, workspaceId);
+  const result = cloudBilling.checkOperation(workspaceId,
+    Object.assign({ operation, usage }, extra || {}));
   if (!result.allowed) throw Object.assign(new Error(result.reason), { code: result.reason });
   return result.entitlements;
+}
+
+function cloudWorkspaceUsage(userId, workspaceId) {
+  const usage = cloudStore.getWorkspaceUsage({ userId, workspaceId, skipAccess: true });
+  if (!cloudBilling || !cloudAuth) return usage;
+  const entitlements = cloudBilling.computeEntitlements(workspaceId, usage);
+  const searchLimits = entitlements && entitlements.limits && entitlements.limits.search;
+  if (searchLimits && searchLimits.windowMs) {
+    usage.searchRequestsInWindow = cloudAuth.countRateLimit({ action: 'cloud_search_workspace',
+      key: userId + ':' + workspaceId, windowMs: searchLimits.windowMs });
+  }
+  return usage;
+}
+
+function cloudMarkdownBytes(markdown) {
+  const bytes = Buffer.byteLength(typeof markdown === 'string' ? markdown : '', 'utf8');
+  if (bytes > CLOUD_DOCUMENT_MAX_BYTES) {
+    throw Object.assign(new Error('file_too_large'), { code: 'file_too_large' });
+  }
+  return bytes;
 }
 
 async function syncTeamSeatQuantity(workspaceId) {
@@ -960,8 +1013,7 @@ async function handleCloudApi(req, res, url) {
       const role = (await cloudStore.listWorkspaces(user.id)).find((workspace) =>
         workspace.id === workspaceBillingMatch[1]);
       if (!role) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
-      const usage = cloudStore.getWorkspaceUsage({ userId: user.id,
-        workspaceId: workspaceBillingMatch[1] });
+      const usage = cloudWorkspaceUsage(user.id, workspaceBillingMatch[1]);
       const entitlements = cloudBilling ? cloudBilling.computeEntitlements(workspaceBillingMatch[1], usage) : null;
       sendJson(res, 200, { ok: true, billing: entitlements });
       return;
@@ -1197,17 +1249,17 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (req.method === 'POST' && pathname === base + '/documents') {
-      const body = await cloudAuthHttp.readJson(req, 2 * 1024 * 1024);
+      const body = await cloudAuthHttp.readJson(req, CLOUD_DOCUMENT_JSON_MAX_BYTES);
       const project = cloudStore.getProjectContext({ userId: user.id,
         projectId: body.project_id, requiredRole: 'editor' });
-      requireCloudEntitlement(user.id, project.workspaceId, 'store_revision', {
-        fileBytes: Buffer.byteLength(String(body.markdown || ''), 'utf8'),
+      const entitlements = requireCloudEntitlement(user.id, project.workspaceId, 'store_revision', {
+        fileBytes: cloudMarkdownBytes(body.markdown),
       });
       const document = await cloudStore.createDocument({
         userId: user.id, projectId: body.project_id, filename: body.filename,
         markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId,
       });
-      scheduleRevisionPrune(document);
+      scheduleRevisionPrune(document, entitlements);
       sendJson(res, 201, { ok: true, document });
       return;
     }
@@ -1286,7 +1338,8 @@ async function handleCloudApi(req, res, url) {
         documentId: documentMatch[1], requiredRole: 'editor', includeDeleted: true });
       requireCloudEntitlement(user.id, context.workspaceId, 'manage');
       const deleted = cloudStore.deleteDocument({ userId: user.id, documentId: documentMatch[1],
-        expectedHeadRevisionId: body.expected_head_revision_id });
+        expectedHeadRevisionId: body.expected_head_revision_id,
+        restoreWindowMs: CLOUD_DOCUMENT_RESTORE_WINDOW_MS });
       enqueueCloudJob({ type: 'document_purge',
         idempotencyKey: deleted.id + ':' + deleted.purge_after,
         payload: {}, availableAtMs: Date.parse(deleted.purge_after) });
@@ -1323,11 +1376,11 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (revisionsMatch && req.method === 'POST') {
-      const body = await cloudAuthHttp.readJson(req, 2 * 1024 * 1024);
+      const body = await cloudAuthHttp.readJson(req, CLOUD_DOCUMENT_JSON_MAX_BYTES);
       const context = cloudStore.getDocumentContext({ userId: user.id,
         documentId: revisionsMatch[1], requiredRole: 'editor' });
-      requireCloudEntitlement(user.id, context.workspaceId, 'store_revision', {
-        fileBytes: Buffer.byteLength(String(body.markdown || ''), 'utf8'),
+      const entitlements = requireCloudEntitlement(user.id, context.workspaceId, 'store_revision', {
+        fileBytes: cloudMarkdownBytes(body.markdown),
       });
       const document = await cloudStore.saveRevision({
         userId: user.id, documentId: revisionsMatch[1],
@@ -1335,7 +1388,7 @@ async function handleCloudApi(req, res, url) {
         markdown: body.markdown, filename: body.filename,
         idempotencyKey: body.idempotency_key, credentialId,
       });
-      scheduleRevisionPrune(document);
+      scheduleRevisionPrune(document, entitlements);
       sendJson(res, 201, { ok: true, document });
       return;
     }
@@ -1354,13 +1407,13 @@ async function handleCloudApi(req, res, url) {
       const body = await cloudAuthHttp.readJson(req);
       const context = cloudStore.getDocumentContext({ userId: user.id,
         documentId: restoreMatch[1], requiredRole: 'editor' });
-      requireCloudEntitlement(user.id, context.workspaceId, 'store_revision');
+      const entitlements = requireCloudEntitlement(user.id, context.workspaceId, 'store_revision');
       const document = await cloudStore.restoreRevision({
         userId: user.id, documentId: restoreMatch[1], revisionId: restoreMatch[2],
         expectedHeadRevisionId: body.expected_head_revision_id,
         idempotencyKey: body.idempotency_key, credentialId,
       });
-      scheduleRevisionPrune(document);
+      scheduleRevisionPrune(document, entitlements);
       sendJson(res, 201, { ok: true, document });
       return;
     }

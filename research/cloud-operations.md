@@ -162,22 +162,22 @@ Workspace creation and invitation delivery have additional abuse limits:
 | `STRIPE_PERSONAL_PRICE_ID` | For Personal checkout | Stripe recurring price ID used by Personal checkout. |
 | `STRIPE_TEAM_PRICE_ID` | For Team checkout | Stripe recurring per-seat price ID used by Team checkout. |
 
-Do not put prices or allowance numbers into `CLOUD_PLAN_LIMITS_JSON` until the product values have been approved. The JSON shape is:
+The initial plans use a 10 MB file limit and 90-day age limit for retained history. The JSON shape is:
 
 ```json
 {
   "personal": {
     "maxStoredBytes": null,
-    "maxFileBytes": null,
-    "revisionRetentionDays": null,
+    "maxFileBytes": 10485760,
+    "revisionRetentionDays": 90,
     "maxProjects": null,
     "maxMembers": null,
     "search": { "maxRequests": null, "windowMs": null }
   },
   "team": {
     "maxStoredBytes": null,
-    "maxFileBytes": null,
-    "revisionRetentionDays": null,
+    "maxFileBytes": 10485760,
+    "revisionRetentionDays": 90,
     "maxProjects": null,
     "maxMembers": null,
     "search": { "maxRequests": null, "windowMs": null }
@@ -193,14 +193,16 @@ If a search request limit is set, its window must also be set. Personal membersh
 | --- | --- | --- |
 | `CLOUD_JOBS_DB` | Recommended before customer use | Durable job SQLite path. Without it, revision pruning, delayed deletion purge, queued invitation email, and deferred seat reconciliation are not durable. |
 | `CLOUD_JOB_POLL_MS` | No | In-process worker polling interval. The implementation applies a lower bound and defaults to one second. |
-| `CLOUD_REVISION_KEEP_LATEST` | Before enabling pruning | Positive number of latest revisions to retain after a write or restore. When absent or invalid, revision-prune jobs are not enqueued. This operational setting must agree with the published retention entitlement. |
+| `CLOUD_REVISION_KEEP_PREVIOUS` | No | Defaults to three. Cloud keeps at most this many non-current revisions per document. The current document is retained separately. |
+| `CLOUD_REVISION_RETENTION_DAYS` | No | Defaults to 90 days. Non-current revisions expire at this age even when fewer than the count limit remain. |
+| `CLOUD_DOCUMENT_RESTORE_WINDOW_MS` | No | Defaults to 30 days. Deleted documents and their retained revisions remain recoverable for this period. |
 | `CLOUD_WORKSPACE_RESTORE_WINDOW_MS` | Before team-workspace deletion is enabled | Positive team-workspace restore window in milliseconds. During this window an owner can restore the workspace from the Cloud account page or API. The store has an implementation default when absent. Production must set and publish the intended retention period. Personal workspaces cannot be deleted through this operation. |
 
 Implemented job types are:
 
 - `document_purge`: remove documents whose restore window has elapsed
 - `workspace_purge`: remove a deleted Team workspace after its restore window
-- `revision_prune`: retain the configured latest revisions while preserving the current head
+- `revision_prune`: preserve the current head, retain up to three previous revisions, and schedule the next retained revision's 90-day expiry
 - `team_seat_sync`: reconcile Stripe quantity after membership changes
 - `auth_cleanup`: prune expired authentication and OAuth records
 - `invitation_email`: send a workspace invitation

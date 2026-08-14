@@ -48,7 +48,13 @@ module.exports = function(harness) {
         CLOUD_IDEMPOTENCY_SECRET: 'http-test-idempotency-secret-32-bytes',
         CLOUD_BILLING_DB: testCloudBillingDbPath,
         CLOUD_JOBS_DB: testCloudJobsDbPath,
+        CLOUD_PLAN_LIMITS_JSON: JSON.stringify({
+          personal: { maxFileBytes: 10 * 1024 * 1024, revisionRetentionDays: 90,
+            search: { maxRequests: 2, windowMs: 60000 } },
+          team: { maxFileBytes: 10 * 1024 * 1024, revisionRetentionDays: 90 },
+        }),
         CLOUD_WORKSPACE_RESTORE_WINDOW_MS: '60000',
+        CLOUD_DOCUMENT_RESTORE_WINDOW_MS: '60000',
         GOOGLE_OAUTH_CLIENT_ID: 'http-test-google-client',
         GOOGLE_OAUTH_CLIENT_SECRET: 'http-test-google-secret',
         GITHUB_OAUTH_CLIENT_ID: '',
@@ -953,6 +959,28 @@ module.exports = function(harness) {
       assert.strictEqual(JSON.parse(searched.body).documents[0].id, cloudDocument.id);
     });
 
+    await testAsync('Cloud enforces the search allowance and reports the consumed request count', async () => {
+      const second = await post(BASE + '/api/cloud/v1/search', { query: 'cluster' },
+        { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(second.status, 200);
+      const exhausted = await post(BASE + '/api/cloud/v1/search', { query: 'cluster' },
+        { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(exhausted.status, 429);
+      assert.strictEqual(JSON.parse(exhausted.body).error, 'search_limit_reached');
+      const billing = await get(BASE + '/api/cloud/v1/workspaces/' + cloudWorkspace.id + '/billing',
+        { Cookie: cloudCookie });
+      assert.strictEqual(JSON.parse(billing.body).billing.usage.searchRequestsInWindow, 2);
+    });
+
+    await testAsync('Cloud rejects Markdown larger than 10 MB before encryption', async () => {
+      const oversized = await post(BASE + '/api/cloud/v1/documents', {
+        project_id: cloudProject.id, filename: 'oversized.md',
+        markdown: 'x'.repeat(10 * 1024 * 1024 + 1), idempotency_key: 'oversized-http-document',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(oversized.status, 413);
+      assert.strictEqual(JSON.parse(oversized.body).error, 'file_too_large');
+    });
+
     await testAsync('Cloud API revision writes enforce expected-head conflicts', async () => {
       const saved = await post(BASE + '/api/cloud/v1/documents/' + cloudDocument.id + '/revisions', {
         expected_head_revision_id: cloudDocument.current_revision_id,
@@ -1022,6 +1050,24 @@ module.exports = function(harness) {
       cloudDocument = JSON.parse(restored.body).document;
       assert.strictEqual(cloudDocument.revision_number, 3);
       assert.ok(cloudDocument.markdown.includes('Kubernetes'));
+    });
+
+    await testAsync('Cloud document deletion uses the configured recovery window', async () => {
+      const created = await post(BASE + '/api/cloud/v1/documents', {
+        project_id: cloudProject.id, filename: 'recoverable.md', markdown: '# Recoverable',
+        idempotency_key: 'http-create-recoverable',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      const recoverable = JSON.parse(created.body).document;
+      const deleted = await del(BASE + '/api/cloud/v1/documents/' + recoverable.id, {
+        expected_head_revision_id: recoverable.current_revision_id,
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(deleted.status, 200);
+      const deletion = JSON.parse(deleted.body).document;
+      assert.strictEqual(Date.parse(deletion.purge_after) - Date.parse(deletion.deleted_at), 60000);
+      const restored = await post(BASE + '/api/cloud/v1/documents/' + recoverable.id + '/restore', {
+        expected_head_revision_id: recoverable.current_revision_id,
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(restored.status, 200);
     });
 
     await testAsync('Cloud email verification is limited by source IP', async () => {
