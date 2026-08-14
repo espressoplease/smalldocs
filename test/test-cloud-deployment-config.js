@@ -69,6 +69,26 @@ module.exports = function(harness) {
     assert.strictEqual(validateCloudDeploymentConfig(env).enabled, true);
   });
 
+  test('deployed Stripe accepts exactly one systemd credential path or environment secret', () => {
+    const fileEnv = deployedEnv('production');
+    fileEnv.CLOUD_KMS_KEY_ID = 'alias/smalldocs-cloud-production';
+    fileEnv.CLOUD_KMS_REGION = 'eu-central-1';
+    delete fileEnv.STRIPE_SECRET_KEY;
+    fileEnv.STRIPE_SECRET_KEY_FILE = '/run/credentials/smalldocs.service/stripe-api-key';
+    assert.strictEqual(validateCloudDeploymentConfig(fileEnv).enabled, true);
+
+    delete fileEnv.STRIPE_SECRET_KEY_FILE;
+    assert.throws(() => validateCloudDeploymentConfig(fileEnv), (error) =>
+      error.problems.includes(
+        'exactly one of STRIPE_SECRET_KEY or STRIPE_SECRET_KEY_FILE is required'));
+
+    fileEnv.STRIPE_SECRET_KEY = 'stripe-secret';
+    fileEnv.STRIPE_SECRET_KEY_FILE = '/run/credentials/smalldocs.service/stripe-api-key';
+    assert.throws(() => validateCloudDeploymentConfig(fileEnv), (error) =>
+      error.problems.includes(
+        'exactly one of STRIPE_SECRET_KEY or STRIPE_SECRET_KEY_FILE is required'));
+  });
+
   test('deployed modes reject unsafe origins, implicit paths, and development switches', () => {
     assert.throws(() => validateCloudDeploymentConfig({
       ...deployedEnv('staging'), CLOUD_MASTER_KEY: Buffer.alloc(32, 8).toString('base64'),

@@ -213,9 +213,14 @@ if (process.env.CLOUD_BILLING_DB) {
     catch (_) { throw new Error('CLOUD_PLAN_LIMITS_JSON must contain valid JSON'); }
   }
   cloudBilling = createBillingStore({ dbPath: process.env.CLOUD_BILLING_DB, planLimits });
-  if (process.env.STRIPE_SECRET_KEY) {
+  let stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
+  if (process.env.STRIPE_SECRET_KEY_FILE) {
+    stripeSecretKey = fs.readFileSync(process.env.STRIPE_SECRET_KEY_FILE, 'utf8').trim();
+    if (!stripeSecretKey) throw new Error('STRIPE_SECRET_KEY_FILE is empty');
+  }
+  if (stripeSecretKey) {
     cloudStripe = require('./lib/cloud-stripe').createStripeClient({
-      secretKey: process.env.STRIPE_SECRET_KEY,
+      secretKey: stripeSecretKey,
       webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
       apiVersion: process.env.STRIPE_API_VERSION || undefined,
     });

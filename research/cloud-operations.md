@@ -153,7 +153,8 @@ Workspace creation and invitation delivery have additional abuse limits:
 | `CLOUD_BILLING_DB` | Yes for Cloud billing | Billing subscriptions and processed webhook events. Billing is disabled when absent. |
 | `CLOUD_PLAN_LIMITS_JSON` | Before paid launch | JSON configuration for Personal and Team stored bytes, maximum file bytes, revision retention days, projects, members, and search workload. Values must be positive integers or `null`. There is no document-count limit. Invalid JSON stops startup. |
 | `CLOUD_PAYMENT_GRACE_MS` | Before paid launch | Length of a newly observed `past_due` grace period. The code has a default, but production must set and publish the intended policy. Repeated `past_due` webhooks preserve the existing grace end. |
-| `STRIPE_SECRET_KEY` | For Stripe | Stripe server secret. The Stripe adapter is disabled when absent. |
+| `STRIPE_SECRET_KEY` | For Stripe | Stripe server secret supplied directly. Use `STRIPE_SECRET_KEY_FILE` in production instead. |
+| `STRIPE_SECRET_KEY_FILE` | Alternative to `STRIPE_SECRET_KEY` | Read the Stripe server secret from a root-managed systemd credential. Production uses this path. |
 | `STRIPE_WEBHOOK_SECRET` | For Stripe webhooks | Verifies the raw request body and Stripe signature. The webhook endpoint returns unavailable when absent. |
 | `STRIPE_API_VERSION` | Recommended | Pins Stripe response semantics. If absent, the account default applies. Pin and test a version before launch. |
 | `STRIPE_PERSONAL_PRICE_ID` | For Personal checkout | Stripe recurring price ID used by Personal checkout. |
