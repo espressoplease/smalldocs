@@ -1852,7 +1852,12 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname === '/cloud/sign-in') {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-sign-in.html'), null, {
+    const hasCloudOAuth = Boolean(cloudGoogleOAuth || cloudGitHubOAuth);
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-sign-in.html'), {
+      '__OAUTH_PROVIDERS_HIDDEN__': hasCloudOAuth ? '' : ' hidden',
+      '__GOOGLE_OAUTH_HIDDEN__': cloudGoogleOAuth ? '' : ' hidden',
+      '__GITHUB_OAUTH_HIDDEN__': cloudGitHubOAuth ? '' : ' hidden',
+    }, {
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',

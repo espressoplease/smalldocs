@@ -65,6 +65,10 @@ Keep secrets in the deployment secret manager, not an environment file committed
 | `GITHUB_OAUTH_CLIENT_ID` | For GitHub sign-in | GitHub OAuth app client ID. GitHub remains unavailable unless both GitHub variables are set. |
 | `GITHUB_OAUTH_CLIENT_SECRET` | For GitHub sign-in | GitHub OAuth app client secret. |
 
+The sign-in page shows only providers whose client ID and secret are both
+configured. Email-only staging therefore does not display inactive Google or
+GitHub controls.
+
 Register these exact callback URLs with the providers:
 
 ```text

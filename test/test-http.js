@@ -494,8 +494,8 @@ module.exports = function(harness) {
       const r = await get(BASE + '/cloud/sign-in?return=%2Fcloud%2Faccount');
       assert.strictEqual(r.status, 200);
       assert.ok(r.body.includes('<h1 id="auth-title">Sign in</h1>'));
-      assert.ok(r.body.includes('Continue with Google'));
-      assert.ok(r.body.includes('Continue with GitHub'));
+      assert.ok(r.body.includes('<a class="provider-button provider-link" data-provider="google"'));
+      assert.ok(r.body.includes('<a hidden class="provider-button provider-link" data-provider="github"'));
       assert.ok(r.body.includes('class="provider-icon"'));
       assert.ok(r.body.includes('class="provider-icon provider-icon-github"'));
       assert.ok(r.body.includes('Email me a code'));
