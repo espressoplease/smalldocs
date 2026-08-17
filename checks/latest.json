@@ -1,9 +1,11 @@
 {
-  "checkedAt": "2026-08-17T16:15:40.701Z",
+  "checkedAt": "2026-08-17T16:47:06.189Z",
   "base": "https://smalldocs.org",
   "commit": "16d2ab1d65f0b7366518ad98be881b84633199b1",
   "commitShort": "16d2ab1",
-  "result": "error",
-  "error": "Could not fetch GitHub manifest: HTTP 502 for https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/16d2ab1d65f0b7366518ad98be881b84633199b1.json",
+  "result": "ok",
+  "totalFiles": 109,
+  "matched": 109,
+  "mismatches": [],
   "manifestUrl": "https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/16d2ab1d65f0b7366518ad98be881b84633199b1.json"
 }
