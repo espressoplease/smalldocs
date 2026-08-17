@@ -39,6 +39,7 @@ module.exports = function(harness) {
         SHORT_LINKS_DB: testShortLinksDbPath,
         TEAMS_DB: testTeamsDbPath,
         CLOUD_AUTH_DB: testCloudAuthDbPath,
+        CLOUD_PUBLIC_MODE: 'enabled',
         CLOUD_AUTH_PEPPER: 'http-test-cloud-auth-pepper-32-bytes',
         CLOUD_AUTH_PUBLIC_ORIGIN: 'http://localhost:3099',
         CLOUD_AUTH_DEV_LOG_CODES: '1',
@@ -1091,6 +1092,8 @@ module.exports = function(harness) {
       assert.ok(/connect-src[^;]*localhost/.test(r.headers['content-security-policy'] || ''),
                 'CSP must allow connect-src to localhost so the page can reach the local agent');
       assert.ok(r.body.includes('href="/library?scope=cloud"'));
+      assert.ok(r.body.includes('/public/library/cloud-library-prototype.css'));
+      assert.ok(r.body.includes('/public/library/cloud-library-prototype.js'));
       assert.ok(!r.body.includes('cloud-demo=1'));
     });
 
@@ -1201,6 +1204,83 @@ module.exports = function(harness) {
         new Promise((_, reject) => setTimeout(
           () => reject(new Error('server did not exit within two seconds')), 2000)),
       ]);
+    });
+
+    await testAsync('hidden Cloud public mode omits UI assets and returns 404 for Cloud routes', async () => {
+      const hiddenPort = 3100;
+      const hiddenBase = 'http://localhost:' + hiddenPort;
+      const hiddenServer = spawn('node', [path.join(__dirname, '..', 'server.js')], {
+        env: {
+          PATH: process.env.PATH,
+          HOME: process.env.HOME,
+          HOST: '127.0.0.1',
+          PORT: String(hiddenPort),
+          NODE_ENV: 'test',
+          CLOUD_MODE: 'off',
+          CLOUD_PUBLIC_MODE: 'hidden',
+          SHORT_LINKS_DB: testShortLinksDbPath,
+          TEAMS_DB: testTeamsDbPath,
+          FEEDBACK_DB: testDbPath,
+        },
+        stdio: 'pipe',
+      });
+      try {
+        await new Promise((resolve, reject) => {
+          let ready = false;
+          hiddenServer.stdout.on('data', data => {
+            if (!ready && data.toString().includes('running at')) {
+              ready = true;
+              resolve();
+            }
+          });
+          hiddenServer.stderr.on('data', data => {
+            if (!ready) reject(new Error('hidden server stderr: ' + data.toString()));
+          });
+          setTimeout(() => {
+            if (!ready) reject(new Error('hidden server did not start in time'));
+          }, 3000);
+        });
+
+        const docs = await get(hiddenBase + '/docs');
+        assert.strictEqual(docs.status, 200);
+        assert.ok(!docs.body.includes('/public/css/cloud-prototype.css'));
+        assert.ok(!docs.body.includes('/public/sdocs-cloud-prototype.js'));
+
+        const library = await get(hiddenBase + '/library');
+        assert.strictEqual(library.status, 200);
+        assert.ok(!library.body.includes('/public/library/cloud-library-prototype.css'));
+        assert.ok(!library.body.includes('/public/library/cloud-library-prototype.js'));
+        const cloudLibrary = await get(hiddenBase + '/library?scope=cloud');
+        assert.strictEqual(cloudLibrary.status, 302);
+        assert.strictEqual(cloudLibrary.headers.location, '/library');
+
+        const connect = await get(hiddenBase + '/connect');
+        assert.strictEqual(connect.status, 200);
+        assert.ok(!connect.body.includes('save to SmallDocs Cloud'));
+        assert.strictEqual((await get(hiddenBase + '/docs?cloud-document=hidden')).status, 404);
+
+        const page = await get(hiddenBase + '/cloud');
+        assert.strictEqual(page.status, 404);
+        assert.strictEqual(page.headers['cache-control'], 'no-store');
+        assert.strictEqual((await get(hiddenBase + '/cloud/sign-in')).status, 404);
+
+        const api = await get(hiddenBase + '/api/cloud/v1/workspaces');
+        assert.strictEqual(api.status, 404);
+        assert.deepStrictEqual(JSON.parse(api.body), { error: 'not_found' });
+        const auth = await post(hiddenBase + '/api/cloud/auth/email/request', {
+          email: 'person@example.com',
+        });
+        assert.strictEqual(auth.status, 404);
+        assert.deepStrictEqual(JSON.parse(auth.body), { error: 'not_found' });
+      } finally {
+        const stopped = new Promise((resolve) => hiddenServer.once('exit', resolve));
+        hiddenServer.kill('SIGTERM');
+        await Promise.race([
+          stopped,
+          new Promise((_, reject) => setTimeout(
+            () => reject(new Error('hidden server did not exit within two seconds')), 2000)),
+        ]);
+      }
     });
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testDbPath + '-wal'); } catch (_) {}

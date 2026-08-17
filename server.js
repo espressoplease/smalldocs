@@ -1679,6 +1679,17 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = url.pathname;
 
+  if (!CLOUD_DEPLOYMENT.publicEnabled &&
+      (pathname === '/cloud' || pathname.startsWith('/cloud/') ||
+       pathname.startsWith('/api/cloud/') || url.searchParams.has('cloud-document'))) {
+    if (pathname.startsWith('/api/')) sendJson(res, 404, { error: 'not_found' });
+    else {
+      res.writeHead(404, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' });
+      res.end('Not Found');
+    }
+    return;
+  }
+
   if (pathname.startsWith('/api/cloud/v1/')) {
     handleCloudApi(req, res, url);
     return;
@@ -2020,6 +2031,11 @@ const server = http.createServer((req, res) => {
   // from the query string and fetches everything from there; no data
   // crosses this server.
   if (pathname === '/library') {
+    if (!CLOUD_DEPLOYMENT.publicEnabled && url.searchParams.get('scope') === 'cloud') {
+      res.writeHead(302, { Location: '/library', 'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
     const csp = [
       "default-src 'self'",
       "script-src 'self' 'wasm-unsafe-eval'",
@@ -2033,7 +2049,12 @@ const server = http.createServer((req, res) => {
       "frame-src 'none'",
       "object-src 'none'",
     ].join('; ');
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'library.html'), null, {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'library.html'), {
+      '__CLOUD_LIBRARY_STYLES__': CLOUD_DEPLOYMENT.publicEnabled
+        ? '<link rel="stylesheet" href="/public/library/cloud-library-prototype.css">' : '',
+      '__CLOUD_LIBRARY_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled
+        ? '<script src="/public/library/cloud-library-prototype.js"></script>' : '',
+    }, {
       'Cache-Control': 'no-cache',
       'Content-Security-Policy': csp,
       'X-Content-Type-Options': 'nosniff',
@@ -2057,7 +2078,10 @@ const server = http.createServer((req, res) => {
       "frame-src 'none'",
       "object-src 'none'",
     ].join('; ');
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'connect.html'), null, {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'connect.html'), {
+      '__CLOUD_CONNECT_COPY__': CLOUD_DEPLOYMENT.publicEnabled
+        ? ' or save to SmallDocs Cloud from the editor' : '',
+    }, {
       'Cache-Control': 'no-cache',
       'Content-Security-Policy': csp,
       'X-Content-Type-Options': 'nosniff',
@@ -2161,6 +2185,10 @@ const server = http.createServer((req, res) => {
       '__SDOCS_DEV__': DEV_MODE ? '1' : '0',
       '__DEFAULT_MD_PATH__': defaultMdPath,
       '__CSP_NONCE__': nonce,
+      '__CLOUD_UI_STYLES__': CLOUD_DEPLOYMENT.publicEnabled
+        ? '<link rel="stylesheet" href="/public/css/cloud-prototype.css">' : '',
+      '__CLOUD_UI_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled
+        ? '<script src="/public/sdocs-cloud-prototype.js"></script>' : '',
     }, {
       'Cache-Control': 'no-cache',
       'Content-Security-Policy': csp,

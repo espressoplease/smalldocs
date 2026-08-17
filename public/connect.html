@@ -209,7 +209,7 @@
 
     <h2>How it works</h2>
     <p>SmallDocs ships a small CLI you install on your computer. Running <code>sdoc library</code> starts a small program in the background that reads the markdown files on your machine. Your browser asks that program for results over loopback (<code>127.0.0.1</code>), an address that only resolves to your own computer. The library page is rendered in your browser from that data, the same way every other SmallDocs page is. None of it reaches a SmallDocs server.</p>
-    <p>Your files stay 100% on your machine unless you explicitly run <code>sdoc share file.md</code> (which uploads an encrypted copy that only the recipient's browser can read) or save to the SmallDocs cloud from the editor.</p>
+    <p>Your files stay 100% on your machine unless you explicitly run <code>sdoc share file.md</code> (which uploads an encrypted copy that only the recipient's browser can read)__CLOUD_CONNECT_COPY__.</p>
     <p>Editing a file you opened with <code>sdoc file.md</code> already works without anything on this page - those edits flow through a different channel (a WebSocket bridge) that the browser allows by default. The setup below is only for the library and tag autocomplete.</p>
 
     <ol class="steps">

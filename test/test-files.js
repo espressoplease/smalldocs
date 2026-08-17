@@ -19,6 +19,7 @@ module.exports = function(harness) {
     const unit = fs.readFileSync(path.join(__dirname, '..', 'ops', 'systemd', 'smalldocs.service'), 'utf8');
     assert.ok(env.includes('HOST=127.0.0.1'));
     assert.ok(env.includes('CLOUD_MODE=off'));
+    assert.ok(env.includes('CLOUD_PUBLIC_MODE=hidden'));
     assert.ok(unit.includes('User=smalldocs'));
     assert.ok(unit.includes('LoadCredential=aws-credentials:'));
     assert.ok(unit.includes('LoadCredential=stripe-api-key:'));

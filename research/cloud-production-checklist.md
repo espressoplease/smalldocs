@@ -269,6 +269,7 @@ Initial staging configuration:
 ```text
 NODE_ENV=production
 CLOUD_MODE=staging
+CLOUD_PUBLIC_MODE=enabled
 CLOUD_AUTH_PUBLIC_ORIGIN=https://cloud-staging.smalldocs.org
 CLOUD_ENVIRONMENT=staging
 
@@ -425,6 +426,7 @@ Minimum production configuration:
 ```text
 NODE_ENV=production
 CLOUD_MODE=production
+CLOUD_PUBLIC_MODE=hidden
 PORT=3003
 TRUST_PROXY=1
 CLOUD_AUTH_PUBLIC_ORIGIN=https://smalldocs.org

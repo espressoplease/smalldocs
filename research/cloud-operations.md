@@ -18,6 +18,13 @@ The local `CLOUD_MASTER_KEY` provider is for development and disposable staging 
 - `staging` requires a complete isolated Cloud configuration but permits either a staging KMS key or a local test key.
 - `production` requires AWS KMS and rejects the local key provider.
 
+`CLOUD_PUBLIC_MODE` controls whether people can reach or discover Cloud through the
+served application. It defaults to `hidden`. In that state the editor omits the
+Cloud stylesheet and script, and Cloud pages and APIs return 404. Set it to
+`enabled` in isolated staging. Set it in production only when the public Cloud
+surface is ready to launch. This switch does not weaken the configuration
+checks selected by `CLOUD_MODE`.
+
 Staging and production each use their own `CLOUD_AUTH_PUBLIC_ORIGIN`. OAuth callbacks, invitation URLs, checkout returns, billing portal returns, and sign-in return paths are built from that origin, so a staging flow stays on the staging hostname. Do not reuse production databases, Stripe resources, OAuth clients, mail credentials, secrets, encryption context, or customer data in staging.
 
 ## 2. Configuration
@@ -29,6 +36,7 @@ Keep secrets in the deployment secret manager, not an environment file committed
 | Variable | Required | Current behavior |
 | --- | --- | --- |
 | `CLOUD_MODE` | Yes for deployed Cloud | `off`, `staging`, or `production`. Deployed modes validate their complete configuration before opening the HTTP listener. |
+| `CLOUD_PUBLIC_MODE` | Only to expose Cloud | `hidden` or `enabled`. Defaults to `hidden`. Hidden mode omits Cloud controls and returns 404 for Cloud pages and APIs. |
 | `PORT` | Platform dependent | HTTP listen port. Defaults to `3000`. |
 | `NODE_ENV` | Yes in production | Set to `production`. `development` and `test` are the only environments in which development code delivery can be enabled. |
 | `SDOCS_DEV` | No in production | Enables general development cache behavior. Leave unset in production. |

@@ -29,7 +29,16 @@ module.exports = function(harness) {
   }
 
   test('Cloud deployment mode defaults to off without changing the existing server', () => {
-    assert.deepStrictEqual(validateCloudDeploymentConfig({}), { mode: 'off', enabled: false });
+    assert.deepStrictEqual(validateCloudDeploymentConfig({}), {
+      mode: 'off', enabled: false, publicMode: 'hidden', publicEnabled: false,
+    });
+  });
+
+  test('Cloud public visibility defaults hidden and accepts an explicit enabled mode', () => {
+    assert.strictEqual(validateCloudDeploymentConfig({ CLOUD_PUBLIC_MODE: 'enabled' }).publicEnabled, true);
+    assert.throws(() => validateCloudDeploymentConfig({ CLOUD_PUBLIC_MODE: 'preview' }),
+      (error) => error instanceof CloudDeploymentConfigError &&
+        error.problems.includes('CLOUD_PUBLIC_MODE must be hidden or enabled'));
   });
 
   test('staging accepts isolated HTTPS links, databases, Stripe, mail, and a local test key', () => {
@@ -37,6 +46,7 @@ module.exports = function(harness) {
       ...deployedEnv('staging'), CLOUD_MASTER_KEY: Buffer.alloc(32, 9).toString('base64'),
     });
     assert.deepStrictEqual(config, { mode: 'staging', enabled: true,
+      publicMode: 'hidden', publicEnabled: false,
       origin: 'https://staging.smalldocs.example', keyProvider: 'local' });
   });
 
