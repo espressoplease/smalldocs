@@ -35,6 +35,28 @@ module.exports = function(harness) {
     assert.ok(unit.includes('LimitCORE=0'));
   });
 
+  test('staging uses a separate account, state path, port, and public origin', () => {
+    const env = fs.readFileSync(path.join(__dirname, '..', 'ops',
+      'smalldocs-staging.env.example'), 'utf8');
+    const unit = fs.readFileSync(path.join(__dirname, '..', 'ops', 'systemd',
+      'smalldocs-staging.service'), 'utf8');
+    const nginx = fs.readFileSync(path.join(__dirname, '..', 'ops', 'nginx',
+      'smalldocs-staging.conf'), 'utf8');
+    assert.ok(env.includes('CLOUD_MODE=staging'));
+    assert.ok(env.includes('CLOUD_PUBLIC_MODE=enabled'));
+    assert.ok(env.includes('HOST=127.0.0.1'));
+    assert.ok(env.includes('PORT=3004'));
+    assert.ok(env.includes('CLOUD_AUTH_PUBLIC_ORIGIN=https://cloud-staging.smalldocs.org'));
+    assert.ok(env.includes('/var/lib/smalldocs-staging/'));
+    assert.ok(unit.includes('User=smalldocs-staging'));
+    assert.ok(unit.includes('ReadWritePaths=/var/lib/smalldocs-staging'));
+    assert.ok(!unit.includes('/var/lib/smalldocs\n'));
+    assert.ok(nginx.includes('proxy_pass http://127.0.0.1:3004'));
+    assert.ok(nginx.includes('proxy_set_header X-Forwarded-For $remote_addr'));
+    assert.ok(!nginx.includes('$proxy_add_x_forwarded_for'));
+    assert.ok(nginx.includes('access_log off'));
+  });
+
   test('production backup uses a coordinated snapshot and systemd credentials', () => {
     const backup = fs.readFileSync(path.join(__dirname, '..', 'ops', 'backup-production.sh'), 'utf8');
     const unit = fs.readFileSync(path.join(__dirname, '..', 'ops', 'systemd',

@@ -27,6 +27,13 @@ checks selected by `CLOUD_MODE`.
 
 Staging and production each use their own `CLOUD_AUTH_PUBLIC_ORIGIN`. OAuth callbacks, invitation URLs, checkout returns, billing portal returns, and sign-in return paths are built from that origin, so a staging flow stays on the staging hostname. Do not reuse production databases, Stripe resources, OAuth clients, mail credentials, secrets, encryption context, or customer data in staging.
 
+The first staging process uses the same immutable application release as
+production but runs as `smalldocs-staging` on loopback port 3004. Its state is
+under `/var/lib/smalldocs-staging`, its root-managed configuration and
+credentials are under `/etc/smalldocs-staging`, and Nginx is the only public
+caller. The committed service, environment template, and virtual host live
+under `ops/`.
+
 ## 2. Configuration
 
 Keep secrets in the deployment secret manager, not an environment file committed to the repository. Set file permissions so only the service account and backup process can read Cloud databases.

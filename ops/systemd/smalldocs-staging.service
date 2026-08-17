@@ -1,0 +1,51 @@
+[Unit]
+Description=SmallDocs staging server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=smalldocs-staging
+Group=smalldocs-staging
+WorkingDirectory=/opt/smalldocs/current
+EnvironmentFile=/etc/smalldocs-staging/smalldocs.env
+LoadCredential=resend-api-key:/etc/smalldocs-staging/resend-api-key
+LoadCredential=stripe-api-key:/etc/smalldocs-staging/stripe-api-key
+LoadCredential=stripe-webhook-secret:/etc/smalldocs-staging/stripe-webhook-secret
+Environment=NOTIFY_SMTP_PASS_FILE=/run/credentials/smalldocs-staging.service/resend-api-key
+Environment=STRIPE_SECRET_KEY_FILE=/run/credentials/smalldocs-staging.service/stripe-api-key
+Environment=STRIPE_WEBHOOK_SECRET_FILE=/run/credentials/smalldocs-staging.service/stripe-webhook-secret
+ExecStartPre=/usr/bin/test -r /opt/smalldocs/current/server.js
+ExecStart=/usr/local/bin/node /opt/smalldocs/current/server.js
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=30s
+TimeoutStopSec=20s
+UMask=0077
+LimitCORE=0
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=invisible
+ProtectSystem=strict
+ProcSubset=pid
+RemoveIPC=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/var/lib/smalldocs-staging
+
+[Install]
+WantedBy=multi-user.target

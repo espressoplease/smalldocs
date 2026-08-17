@@ -249,9 +249,9 @@ Do not schedule deletion of an old KMS key. The current implementation does not 
 
 ## 3. Create staging before production
 
-- [ ] Create a hostname such as `cloud-staging.smalldocs.org`.
-- [ ] Point DNS to a staging instance or isolated staging process and persistent data directory.
-- [ ] Issue an HTTPS certificate.
+- [x] Create `cloud-staging.smalldocs.org`.
+- [x] Point DNS to the dedicated VM for an isolated staging process and persistent data directory.
+- [x] Issue an HTTPS certificate.
 - [ ] Use separate OAuth clients, Stripe test-mode resources, SMTP credentials, KMS key, secrets, and databases.
 - [ ] Put the staging site behind authentication or otherwise prevent accidental public use.
 - [ ] Never copy real customer data into staging.
