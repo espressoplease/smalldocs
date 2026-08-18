@@ -784,6 +784,87 @@ function cloudAuthSession(req) {
   return cloudAuth.authenticateSession(token);
 }
 
+const HOMEPAGE_NAV_ICONS = Object.freeze({
+  cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  library: '<path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>',
+  signIn: '<path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/>' +
+    '<path d="m16 19 2 2 4-4"/>',
+  account: '<path d="M17.925 20.056a6 6 0 0 0-11.851.001"/><circle cx="12" cy="11" r="4"/>' +
+    '<circle cx="12" cy="12" r="10"/>',
+  settings: '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 ' +
+    '2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 ' +
+    '2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 ' +
+    '2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051 ' +
+    '2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/>',
+  signOut: '<path d="m19 16-3 3"/><path d="M2 21a8 8 0 0 1 12.664-6.5"/>' +
+    '<path d="M22 19h-6l3 3"/><circle cx="10" cy="8" r="5"/>',
+});
+
+function homepageNavIcon(name) {
+  return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    HOMEPAGE_NAV_ICONS[name] + '</svg>';
+}
+
+function homepageNavLink(className, href, icon, label, attributes) {
+  return '<a' + (className ? ' class="' + className + '"' : '') + ' href="' + href + '"' +
+    (attributes || '') + '>' + homepageNavIcon(icon) + label + '</a>';
+}
+
+function homepageHasActiveCloud(userId) {
+  if (!cloudStore || !cloudBilling) return false;
+  try {
+    return cloudStore.listWorkspaceMemberships(userId).some((membership) =>
+      cloudBilling.computeEntitlements(membership.id).access.write);
+  } catch (_) {
+    return false;
+  }
+}
+
+function homepageNavigation(req) {
+  let authenticated = null;
+  if (CLOUD_DEPLOYMENT.publicEnabled) {
+    const session = cloudAuthSession(req);
+    if (session.ok) authenticated = session;
+  }
+
+  const actions = [];
+  let menuBefore = '';
+  let menuAfter = '';
+  if (authenticated) {
+    if (!homepageHasActiveCloud(authenticated.user.id)) {
+      actions.push(homepageNavLink('btn-gh nav-cloud', '/cloud', 'cloud', 'Cloud'));
+    }
+    actions.push(homepageNavLink('btn-gh', '/library?scope=cloud', 'library', 'Library'));
+    menuBefore = homepageNavLink('', '/cloud/account', 'account', 'Account settings', ' role="menuitem"') +
+      homepageNavLink('', '/cloud/admin', 'settings', 'Workspace &amp; billing', ' role="menuitem"') +
+      '<div class="nav-menu-separator" role="separator"></div>';
+    menuAfter = '<div class="nav-menu-separator" role="separator"></div>' +
+      '<form method="post" action="/api/cloud/auth/logout" role="none">' +
+      '<button type="submit" role="menuitem">' + homepageNavIcon('signOut') + 'Sign out</button></form>';
+  } else {
+    if (CLOUD_DEPLOYMENT.publicEnabled) {
+      actions.push(homepageNavLink('btn-gh nav-cloud', '/cloud', 'cloud', 'Cloud'));
+    }
+    actions.push(homepageNavLink('btn-gh nav-library-wide', '/library', 'library', 'Library'));
+    if (CLOUD_DEPLOYMENT.publicEnabled) {
+      actions.push(homepageNavLink('btn-gh',
+        '/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud', 'signIn', 'Sign in'));
+    }
+    menuBefore = homepageNavLink('nav-menu-mobile-only', '/library', 'library', 'Library',
+      ' role="menuitem"');
+  }
+
+  return {
+    authenticated: Boolean(authenticated),
+    substitutions: {
+      '<!--__HOME_NAV_ACTIONS__-->': actions.join(''),
+      '<!--__HOME_NAV_MENU_BEFORE__-->': menuBefore,
+      '<!--__HOME_NAV_MENU_AFTER__-->': menuAfter,
+    },
+  };
+}
+
 function cloudApiError(res, error) {
   const code = error && error.name === 'KmsKeyProviderError'
     ? 'temporary_service_failure'
@@ -1819,20 +1900,11 @@ const server = http.createServer((req, res) => {
   // root belong to the app at /docs; fragments never reach the server, so
   // an inline script in the page forwards them client-side.
   if (pathname === '/') {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'homepage.html'), {
-      '<!--__CLOUD_HOME_SIGN_IN__-->': CLOUD_DEPLOYMENT.publicEnabled
-        ? '<a class="btn-gh nav-cloud" href="/cloud">' +
-          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
-          'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-          '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>Cloud</a>' +
-          '<a class="btn-gh" href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud">' +
-          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
-          'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-          '<path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/>' +
-          '<path d="m16 19 2 2 4-4"/></svg>Sign in</a>'
-        : '',
-    }, {
-      'Cache-Control': 'no-cache',
+    const homepageNav = homepageNavigation(req);
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'homepage.html'),
+      homepageNav.substitutions, {
+      'Cache-Control': homepageNav.authenticated ? 'private, no-store' : 'no-cache',
+      'Vary': 'Cookie',
     });
     return;
   }

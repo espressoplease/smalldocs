@@ -120,6 +120,12 @@ module.exports = function(harness) {
         'Cloud-enabled root should expose the sign-in journey');
       assert.ok(r.body.includes('class="btn-gh nav-cloud" href="/cloud"'),
         'Cloud-enabled root should expose the Cloud product page beside sign-in');
+      assert.ok(r.body.includes('class="btn-gh nav-library-wide" href="/library"'),
+        'signed-out root should expose the local library on wide screens');
+      assert.ok(!r.body.includes('href="/cloud/account" role="menuitem"'),
+        'signed-out root should not expose account controls');
+      assert.ok(!r.body.includes('action="/api/cloud/auth/logout"'),
+        'signed-out root should not expose sign-out');
       assert.ok(!r.body.includes('discord.gg'),
         'root navigation should not expose Discord');
     });
@@ -671,6 +677,21 @@ module.exports = function(harness) {
       assert.strictEqual(parsed.workspaces.length, 1);
       assert.strictEqual(parsed.workspaces[0].kind, 'personal');
       cloudWorkspace = parsed.workspaces[0];
+
+      const homepage = await get(BASE + '/', { Cookie: cloudCookie });
+      assert.strictEqual(homepage.status, 200);
+      assert.strictEqual(homepage.headers['cache-control'], 'private, no-store');
+      assert.strictEqual(homepage.headers.vary, 'Cookie');
+      assert.ok(homepage.body.includes('class="btn-gh nav-cloud" href="/cloud"'),
+        'signed-in unpaid users should retain the Cloud purchase route');
+      assert.ok(homepage.body.includes('class="btn-gh" href="/library?scope=cloud"'),
+        'signed-in users should get Cloud library as a primary action');
+      assert.ok(!homepage.body.includes('href="/cloud/sign-in?return='));
+      assert.ok(homepage.body.includes('href="/cloud/account" role="menuitem"'));
+      assert.ok(homepage.body.includes('href="/cloud/admin" role="menuitem"'));
+      assert.ok(homepage.body.includes('action="/api/cloud/auth/logout"'));
+      assert.ok(homepage.body.includes('<path d="M22 19h-6l3 3"/>'),
+        'sign-out should use the user-round-arrow-left icon');
     });
 
     await testAsync('authenticated Cloud admin page is private and versioned', async () => {
@@ -702,6 +723,12 @@ module.exports = function(harness) {
       cloudBilling.upsertSubscription({ workspaceId: cloudWorkspace.id,
         plan: 'personal', status: 'active', seatQuantity: 1,
         provider: 'test', providerSubscriptionId: 'personal-http-test' });
+
+      const activeHomepage = await get(BASE + '/', { Cookie: cloudCookie });
+      assert.ok(!activeHomepage.body.includes('class="btn-gh nav-cloud" href="/cloud"'),
+        'active Cloud users should not get a purchase action');
+      assert.ok(activeHomepage.body.includes('class="btn-gh" href="/library?scope=cloud"'),
+        'active Cloud users should retain the primary Cloud library action');
     });
 
     await testAsync('Cloud API returns the current account without exposing identities', async () => {
@@ -1257,6 +1284,8 @@ module.exports = function(harness) {
         assert.ok(!home.body.includes('href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud"'));
         assert.ok(!home.body.includes('class="btn-gh nav-cloud" href="/cloud"'));
         assert.ok(home.body.includes('id="site-menu"'));
+        assert.ok(home.body.includes('class="btn-gh nav-library-wide" href="/library"'));
+        assert.ok(home.body.includes('class="nav-menu-mobile-only" href="/library"'));
 
         const library = await get(hiddenBase + '/library');
         assert.strictEqual(library.status, 200);

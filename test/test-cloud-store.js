@@ -98,6 +98,9 @@ module.exports = function(harness) {
       assert.strictEqual(again.created, false);
       assert.strictEqual(again.workspaceId, personal.workspaceId);
       assert.deepStrictEqual((await store.listWorkspaces(owner)).map((row) => row.name), ['Josh']);
+      assert.deepStrictEqual(store.listWorkspaceMemberships(owner), [
+        { id: personal.workspaceId, kind: 'personal', role: 'owner' },
+      ]);
       assert.deepStrictEqual((await store.listProjects(owner, personal.workspaceId)).map((row) => row.name), ['Documents']);
     });
 
