@@ -981,6 +981,50 @@ async function syncTeamSeatQuantity(workspaceId) {
     idempotencyKey: 'workspace-seats-' + workspaceId + '-' + usage.memberCount });
 }
 
+function cloudMemberProfile(member) {
+  let account = null;
+  try { account = cloudAuth.getUser(member.user_id); } catch (_) {}
+  const identity = account && account.identities.find((item) => item.verifiedEmail);
+  const email = identity ? identity.verifiedEmail : null;
+  const local = email ? email.split('@')[0] : 'Member';
+  const initials = local.split(/[._+\-\s]+/).filter(Boolean).slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase()).join('') || '?';
+  return Object.assign({}, member, { email, name: email || 'Member', initials });
+}
+
+async function cloudAccountContext(userId, requestedId) {
+  await cloudStore.ensurePersonalWorkspace(userId, 'Personal');
+  const workspaces = await cloudStore.listWorkspaces(userId);
+  const accounts = [];
+  for (const workspace of workspaces) {
+    const usage = cloudWorkspaceUsage(userId, workspace.id);
+    const billing = cloudBilling ? cloudBilling.computeEntitlements(workspace.id, usage) : null;
+    const projects = await cloudStore.listProjects(userId, workspace.id);
+    const defaultProject = projects.find((project) => project.role === 'editor') || null;
+    accounts.push({ workspace, billing, defaultProject });
+  }
+  let selected = requestedId ? accounts.find((item) => item.workspace.id === requestedId) : null;
+  if (requestedId && !selected) {
+    throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+  }
+  if (!selected) selected = accounts.find((item) => item.billing && item.billing.access.write && item.defaultProject)
+    || accounts.find((item) => item.workspace.kind === 'personal') || accounts[0];
+  if (!selected) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+  return {
+    selected,
+    accounts: accounts.map((item) => ({
+      id: item.workspace.id,
+      kind: item.workspace.kind,
+      name: item.workspace.name,
+      role: item.workspace.role,
+      plan: item.billing && item.billing.plan,
+      subscription_status: item.billing && item.billing.subscriptionStatus,
+      can_read: cloudBilling ? Boolean(item.billing && item.billing.access.read) : true,
+      can_write: Boolean(item.defaultProject && (!cloudBilling || (item.billing && item.billing.access.write))),
+    })),
+  };
+}
+
 async function handleCloudApi(req, res, url) {
   const pathname = url.pathname;
   const base = '/api/cloud/v1';
@@ -1082,6 +1126,90 @@ async function handleCloudApi(req, res, url) {
       const identity = user.identities.find((item) => item.verifiedEmail) || null;
       sendJson(res, 200, { ok: true, user: { id: user.id,
         email: identity ? identity.verifiedEmail : null } });
+      return;
+    }
+    if (req.method === 'GET' && pathname === base + '/account') {
+      const context = await cloudAccountContext(user.id, url.searchParams.get('account_id'));
+      const selected = context.selected;
+      const identity = user.identities.find((item) => item.verifiedEmail) || null;
+      sendJson(res, 200, { ok: true, account: {
+        id: selected.workspace.id,
+        kind: selected.workspace.kind,
+        name: selected.workspace.name,
+        role: selected.workspace.role,
+        plan: selected.billing && selected.billing.plan,
+        subscription_status: selected.billing && selected.billing.subscriptionStatus,
+        can_read: cloudBilling ? Boolean(selected.billing && selected.billing.access.read) : true,
+        can_write: Boolean(selected.defaultProject && (!cloudBilling ||
+          (selected.billing && selected.billing.access.write))),
+      }, accounts: context.accounts, user: { id: user.id,
+        email: identity ? identity.verifiedEmail : null } });
+      return;
+    }
+    if (req.method === 'GET' && pathname === base + '/account/members') {
+      const context = await cloudAccountContext(user.id, url.searchParams.get('account_id'));
+      const members = cloudStore.listAccountMembers({ userId: user.id,
+        workspaceId: context.selected.workspace.id }).map(cloudMemberProfile);
+      sendJson(res, 200, { ok: true, account_id: context.selected.workspace.id, members });
+      return;
+    }
+    if (req.method === 'GET' && pathname === base + '/account/tags') {
+      const context = await cloudAccountContext(user.id, url.searchParams.get('account_id'));
+      const tags = await cloudStore.listTags({ userId: user.id,
+        workspaceId: context.selected.workspace.id });
+      sendJson(res, 200, { ok: true, account_id: context.selected.workspace.id, tags });
+      return;
+    }
+    if (req.method === 'GET' && pathname === base + '/account/permission-groups') {
+      const context = await cloudAccountContext(user.id, url.searchParams.get('account_id'));
+      const groups = cloudStore.listPermissionGroups({ userId: user.id,
+        workspaceId: context.selected.workspace.id });
+      sendJson(res, 200, { ok: true, account_id: context.selected.workspace.id,
+        permission_groups: groups });
+      return;
+    }
+    if (req.method === 'POST' && pathname === base + '/account/documents') {
+      const body = await cloudAuthHttp.readJson(req, CLOUD_DOCUMENT_JSON_MAX_BYTES);
+      const context = await cloudAccountContext(user.id, body.account_id || null);
+      const selected = context.selected;
+      if (!selected.defaultProject) {
+        throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+      }
+      const entitlements = requireCloudEntitlement(user.id, selected.workspace.id, 'store_revision', {
+        fileBytes: cloudMarkdownBytes(body.markdown),
+      });
+      const document = await cloudStore.createDocument({
+        userId: user.id, projectId: selected.defaultProject.id, filename: body.filename,
+        markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId,
+        beforeCommit: () => requireCloudEntitlement(user.id, selected.workspace.id, 'store_revision', {
+          fileBytes: cloudMarkdownBytes(body.markdown),
+        }),
+      });
+      scheduleRevisionPrune(document, entitlements);
+      const permission = cloudStore.getDocumentPermission({ userId: user.id, documentId: document.id });
+      sendJson(res, 201, { ok: true, account: { id: selected.workspace.id,
+        kind: selected.workspace.kind, name: selected.workspace.name }, document, permission });
+      return;
+    }
+    if (req.method === 'POST' && pathname === base + '/account/invitations') {
+      requireRecentBrowser(principal);
+      const body = await cloudAuthHttp.readJson(req);
+      const context = await cloudAccountContext(user.id, body.account_id || null);
+      const selected = context.selected;
+      if (selected.workspace.kind !== 'team' || !selected.defaultProject) {
+        throw Object.assign(new Error('permission_denied'), { code: 'permission_denied' });
+      }
+      requireCloudEntitlement(user.id, selected.workspace.id, 'manage');
+      const invitation = await cloudStore.createInvitation({
+        userId: user.id, workspaceId: selected.workspace.id, email: body.email, role: 'member',
+        projectGrants: [{ projectId: selected.defaultProject.id, role: 'editor' }],
+        beforeCommit: () => requireCloudEntitlement(user.id, selected.workspace.id, 'manage'),
+      });
+      const acceptUrl = CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/invite?token=' + encodeURIComponent(invitation.token);
+      if (cloudJobs) enqueueCloudJob({ type: 'invitation_email', idempotencyKey: invitation.id,
+        payload: { email: invitation.email, acceptUrl } });
+      sendJson(res, 201, { ok: true, invitation: { id: invitation.id,
+        email: invitation.email, expires_at: new Date(invitation.expiresAtMs).toISOString() } });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/projects') {
@@ -1421,12 +1549,54 @@ async function handleCloudApi(req, res, url) {
       return;
     }
 
+    const documentPermissionMatch = pathname.match(
+      /^\/api\/cloud\/v1\/documents\/([^/]+)\/permission$/);
+    if (documentPermissionMatch && req.method === 'GET') {
+      const context = cloudStore.getDocumentContext({ userId: user.id,
+        documentId: documentPermissionMatch[1] });
+      requireCloudEntitlement(user.id, context.workspaceId, 'read');
+      sendJson(res, 200, { ok: true, permission: cloudStore.getDocumentPermission({
+        userId: user.id, documentId: documentPermissionMatch[1],
+      }) });
+      return;
+    }
+    if (documentPermissionMatch && req.method === 'PATCH') {
+      const body = await cloudAuthHttp.readJson(req);
+      const context = cloudStore.getDocumentContext({ userId: user.id,
+        documentId: documentPermissionMatch[1], requiredRole: 'editor' });
+      requireCloudEntitlement(user.id, context.workspaceId, 'manage');
+      const permission = cloudStore.setDocumentPermission({ userId: user.id,
+        documentId: documentPermissionMatch[1], mode: body.mode,
+        memberUserIds: body.member_user_ids,
+      });
+      sendJson(res, 200, { ok: true, permission });
+      return;
+    }
+    const documentTagsMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/tags$/);
+    if (documentTagsMatch && req.method === 'PATCH') {
+      const body = await cloudAuthHttp.readJson(req, CLOUD_DOCUMENT_JSON_MAX_BYTES);
+      const context = cloudStore.getDocumentContext({ userId: user.id,
+        documentId: documentTagsMatch[1], requiredRole: 'editor' });
+      const entitlements = requireCloudEntitlement(user.id, context.workspaceId, 'store_revision');
+      const document = await cloudStore.updateDocumentTags({ userId: user.id,
+        documentId: documentTagsMatch[1], tags: body.tags,
+        expectedHeadRevisionId: body.expected_head_revision_id,
+        idempotencyKey: body.idempotency_key, credentialId,
+        beforeCommit: () => requireCloudEntitlement(user.id, context.workspaceId, 'store_revision'),
+      });
+      scheduleRevisionPrune(document, entitlements);
+      sendJson(res, 200, { ok: true, document });
+      return;
+    }
+
     const documentMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)$/);
     if (documentMatch && req.method === 'GET') {
       const context = cloudStore.getDocumentContext({ userId: user.id, documentId: documentMatch[1] });
       requireCloudEntitlement(user.id, context.workspaceId, 'read');
       const document = await cloudStore.getDocument({ userId: user.id, documentId: documentMatch[1] });
-      sendJson(res, 200, { ok: true, document });
+      const permission = cloudStore.getDocumentPermission({ userId: user.id,
+        documentId: documentMatch[1] });
+      sendJson(res, 200, { ok: true, document, permission });
       return;
     }
     if (documentMatch && req.method === 'DELETE') {
@@ -2278,8 +2448,7 @@ const server = http.createServer((req, res) => {
       '__CSP_NONCE__': nonce,
       '__CLOUD_UI_STYLES__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<link rel="stylesheet" href="/public/css/cloud-prototype.css">'
-          + (CLOUD_UI_LAB_ENABLED
-            ? '<link rel="stylesheet" href="/public/css/cloud-ui-lab.css">' : '') : '',
+          + '<link rel="stylesheet" href="/public/css/cloud-ui-lab.css">' : '',
       '__CLOUD_UI_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<script src="/public/sdocs-cloud-prototype.js"></script>'
           + (CLOUD_UI_LAB_ENABLED

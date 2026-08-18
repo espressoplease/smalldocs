@@ -54,6 +54,7 @@ module.exports = function(harness) {
     });
     const owner = 'usr_owner';
     const member = 'usr_member';
+    const collaborator = 'usr_collaborator';
     const outsider = 'usr_outsider';
     let personal;
     let team;
@@ -199,8 +200,36 @@ module.exports = function(harness) {
       const opened = await store.getDocument({ userId: member, documentId: document.id });
       assert.ok(opened.markdown.includes('Move to Kubernetes'));
       assert.strictEqual(opened.title, 'Roadmap');
+      await assert.rejects(() => store.getDocument({ userId: owner, documentId: document.id }),
+        (error) => error.code === 'resource_unavailable');
       await assert.rejects(() => store.getDocument({ userId: outsider, documentId: document.id }),
         (error) => error.code === 'resource_unavailable');
+    });
+
+    await testAsync('document permission groups support You, Everyone, and selected members', async () => {
+      store.addWorkspaceMember({ actorUserId: owner, workspaceId: team.workspaceId,
+        userId: collaborator, role: 'member' });
+      assert.deepStrictEqual(store.getDocumentPermission({ userId: member,
+        documentId: document.id }).member_user_ids, [member]);
+      const custom = store.setDocumentPermission({ userId: member, documentId: document.id,
+        mode: 'custom', memberUserIds: [collaborator] });
+      assert.strictEqual(custom.mode, 'custom');
+      assert.deepStrictEqual(custom.member_user_ids, [member, collaborator]);
+      assert.ok((await store.getDocument({ userId: collaborator,
+        documentId: document.id })).markdown.includes('Move to Kubernetes'));
+      assert.throws(() => store.setDocumentPermission({ userId: collaborator,
+        documentId: document.id, mode: 'everyone' }),
+      (error) => error.code === 'permission_denied');
+      const everyone = store.setDocumentPermission({ userId: member, documentId: document.id,
+        mode: 'everyone', memberUserIds: [] });
+      assert.strictEqual(everyone.mode, 'everyone');
+      assert.ok((await store.getDocument({ userId: owner,
+        documentId: document.id })).markdown.includes('Move to Kubernetes'));
+      const onlyYou = store.setDocumentPermission({ userId: member, documentId: document.id,
+        mode: 'custom', memberUserIds: [] });
+      assert.deepStrictEqual(onlyYou.member_user_ids, [member]);
+      await assert.rejects(() => store.getDocument({ userId: collaborator,
+        documentId: document.id }), (error) => error.code === 'resource_unavailable');
     });
 
     await testAsync('expected-head updates create immutable revisions', async () => {
@@ -325,13 +354,11 @@ module.exports = function(harness) {
         documentId: retainedDocument.id })).revision_number, 5);
     });
 
-    await testAsync('viewer access cannot create, update, or delete content', async () => {
+    await testAsync('the document owner keeps edit access when a legacy project role changes', async () => {
       store.grantProject({ actorUserId: owner, workspaceId: team.workspaceId,
         projectId: team.projectId, userId: member, role: 'viewer' });
-      await assert.rejects(() => store.saveRevision({
-        userId: member, documentId: document.id, expectedHeadRevisionId: document.current_revision_id,
-        markdown: 'Denied', filename: 'roadmap.md', idempotencyKey: 'denied-save',
-      }), (error) => error.code === 'resource_unavailable');
+      assert.strictEqual(store.getDocumentPermission({ userId: member,
+        documentId: document.id }).can_manage, true);
       store.grantProject({ actorUserId: owner, workspaceId: team.workspaceId,
         projectId: team.projectId, userId: member, role: 'editor' });
     });
@@ -351,8 +378,8 @@ module.exports = function(harness) {
       assert.strictEqual((await store.search({ userId: member, query: 'kubernetes',
         tags: ['another-tag'], limit: 1 })).length, 0);
       assert.strictEqual((await store.search({ userId: outsider, query: 'kubernetes' })).length, 0);
-      await assert.rejects(() => store.search({ userId: owner, query: 'missing', maxDocuments: 1 }),
-        (error) => error.code === 'search_limit_reached');
+      assert.deepStrictEqual(await store.search({ userId: owner,
+        query: 'missing', maxDocuments: 1 }), []);
     });
 
     await testAsync('delete requires the current head and preserves revisions for restore', async () => {
@@ -378,9 +405,7 @@ module.exports = function(harness) {
       assert.strictEqual((await store.listDeletedDocuments({ userId: member })).length, 0);
       assert.strictEqual((await store.listDocuments({ userId: member })).length, 1);
       const exported = await store.exportWorkspace({ userId: owner, workspaceId: team.workspaceId });
-      assert.strictEqual(exported.documents.length, 1);
-      assert.strictEqual(exported.documents[0].revisions.length, 3);
-      assert.ok(exported.documents[0].markdown.includes('Kubernetes'));
+      assert.strictEqual(exported.documents.length, 0);
       await assert.rejects(() => store.exportWorkspace({ userId: member, workspaceId: team.workspaceId }),
         (error) => error.code === 'permission_denied');
       const events = store.listAuditEvents({ userId: owner, workspaceId: team.workspaceId });
@@ -655,6 +680,8 @@ module.exports = function(harness) {
           userId: 'revoke-owner', projectId: workspace.projectId,
           filename: 'revoked.md', markdown: '# Must not be returned', idempotencyKey: 'revoke-create',
         });
+        revokeStore.setDocumentPermission({ userId: 'revoke-owner', documentId: created.id,
+          mode: 'custom', memberUserIds: ['revoked-member'] });
         revokeProvider.clearCache();
         blockDecrypt = true;
         const opening = revokeStore.getDocument({ userId: 'revoked-member', documentId: created.id });

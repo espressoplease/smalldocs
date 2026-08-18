@@ -22,11 +22,14 @@ const CLOUD_HELP = `SmallDocs Cloud
   sdoc cloud login [--no-open]
   sdoc cloud logout
   sdoc cloud status
-  sdoc cloud projects
-  sdoc cloud tags [--project UUID]
-  sdoc cloud ls [--project UUID] [--tag TAG] [--limit N]
-  sdoc cloud search QUERY [--project UUID] [--tag TAG] [--limit N]
-  sdoc cloud create PATH --project UUID
+  sdoc cloud members [--account UUID]
+  sdoc cloud tags [--account UUID]
+  sdoc cloud permission-groups [--account UUID]
+  sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_UUID ...]
+  sdoc cloud tag DOCUMENT_UUID --tag TAG [--tag TAG ...]
+  sdoc cloud ls [--tag TAG] [--limit N]
+  sdoc cloud search QUERY [--tag TAG] [--limit N]
+  sdoc cloud create PATH [--account UUID]
   sdoc cloud pull DOCUMENT_UUID [--revision UUID] --output PATH [--no-bind]
   sdoc cloud push PATH [--document UUID --base-revision UUID]
   sdoc cloud history DOCUMENT_UUID
@@ -246,10 +249,59 @@ async function list(opts, client) {
 }
 
 async function tags(opts, client) {
-  const query = opts.projectFlag ? '?project_id=' + encodeURIComponent(opts.projectFlag) : '';
-  const response = await client.authenticated('/api/cloud/v1/tags' + query);
+  const query = opts.accountFlag ? '?account_id=' + encodeURIComponent(opts.accountFlag) : '';
+  const response = await client.authenticated('/api/cloud/v1/account/tags' + query);
   const values = (response.tags || []).map((item) => ({ tag: item.tag, document_count: item.count }));
   emit(opts, 'cloud.tags', { tags: values }, values.map((item) => item.tag + ' - ' + item.document_count).join('\n') || 'No Cloud tags.');
+}
+
+async function members(opts, client) {
+  const query = opts.accountFlag ? '?account_id=' + encodeURIComponent(opts.accountFlag) : '';
+  const response = await client.authenticated('/api/cloud/v1/account/members' + query);
+  const values = response.members || [];
+  emit(opts, 'cloud.members', { account_id: response.account_id, members: values }, values.map((member) =>
+    member.user_id + '  ' + (member.email || member.name) + (member.is_you ? '  You' : '')).join('\n') || 'No account members.');
+}
+
+async function permissionGroups(opts, client) {
+  const query = opts.accountFlag ? '?account_id=' + encodeURIComponent(opts.accountFlag) : '';
+  const response = await client.authenticated('/api/cloud/v1/account/permission-groups' + query);
+  const values = response.permission_groups || [];
+  emit(opts, 'cloud.permission-groups', { account_id: response.account_id,
+    permission_groups: values }, values.map((group) => group.document_id + '  '
+      + (group.mode === 'everyone' ? 'Everyone' : group.member_user_ids.join(', '))).join('\n') ||
+    'No Cloud permission groups.');
+}
+
+async function access(opts, client) {
+  const documentId = opts.extra;
+  if (!documentId) throw new CloudCommandError('invalid_request',
+    'usage: sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_UUID ...]');
+  const choices = Number(Boolean(opts.onlyYouFlag)) + Number(Boolean(opts.everyoneFlag))
+    + Number(Boolean(opts.memberFlags && opts.memberFlags.length));
+  if (choices !== 1) throw new CloudCommandError('invalid_request',
+    'choose one of --only-you, --everyone, or one or more --member values');
+  const mode = opts.everyoneFlag ? 'everyone' : 'custom';
+  const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
+    + '/permission', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, member_user_ids: opts.memberFlags || [] }) });
+  emit(opts, 'cloud.access', { document_id: documentId, permission: response.permission },
+    'Updated access for ' + documentId + '.');
+}
+
+async function setTags(opts, client) {
+  const documentId = opts.extra;
+  if (!documentId) throw new CloudCommandError('invalid_request',
+    'usage: sdoc cloud tag DOCUMENT_UUID --tag TAG [--tag TAG ...]');
+  const current = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(documentId));
+  const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
+    + '/tags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: opts.tagFilters || [],
+        expected_head_revision_id: current.document.current_revision_id,
+        idempotency_key: crypto.randomUUID() }) });
+  emit(opts, 'cloud.tag', { document_id: documentId,
+    revision_id: response.document.current_revision_id, tags: response.document.tags },
+  'Updated tags for ' + documentId + '.');
 }
 
 async function search(opts, client) {
@@ -282,19 +334,21 @@ function requireCredential(client) {
 
 async function create(opts, client) {
   const file = requireFile(opts.extra);
-  if (!opts.projectFlag) throw new CloudCommandError('invalid_request', '--project UUID is required');
   const content = fs.readFileSync(file, 'utf8');
   const digest = bindings.hash(content);
   const credential = requireCredential(client);
   let pending = bindings.getPending(credential.user_id, file);
-  if (!pending || pending.operation !== 'create' || pending.project_id !== opts.projectFlag || pending.sha256 !== digest) {
-    pending = { operation: 'create', project_id: opts.projectFlag, sha256: digest,
+  const destination = opts.projectFlag || opts.accountFlag || 'default-account';
+  if (!pending || pending.operation !== 'create' || pending.destination !== destination || pending.sha256 !== digest) {
+    pending = { operation: 'create', destination, sha256: digest,
       idempotency_key: crypto.randomUUID() };
     bindings.setPending(credential.user_id, file, pending);
   }
-  const response = await client.authenticated('/api/cloud/v1/documents', {
+  const response = await client.authenticated(opts.projectFlag
+    ? '/api/cloud/v1/documents' : '/api/cloud/v1/account/documents', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project_id: opts.projectFlag, filename: path.basename(file), markdown: content,
+    body: JSON.stringify({ project_id: opts.projectFlag, account_id: opts.accountFlag,
+      filename: path.basename(file), markdown: content,
       idempotency_key: pending.idempotency_key }),
   });
   const document = response.document;
@@ -304,7 +358,9 @@ async function create(opts, client) {
   bindings.clearPending(credential.user_id, file);
   const localChanged = bindings.hash(fs.readFileSync(file)) !== digest;
   emit(opts, 'cloud.create', { document_id: document.id, revision_id: document.current_revision_id,
-    revision_number: document.revision_number, project_id: opts.projectFlag, path: file,
+    revision_number: document.revision_number,
+    account_id: response.account && response.account.id || opts.accountFlag || null,
+    project_id: opts.projectFlag || null, path: file,
     tags: document.tags, sha256: digest, binding_created: true,
     local_changed_after_upload: localChanged }, 'Created ' + document.id + (localChanged ? '; the local file changed again during upload.' : '.'));
 }
@@ -512,10 +568,12 @@ async function undeleteDocument(opts, client) {
 }
 
 async function status(opts, client) {
-  const me = await client.authenticated('/api/cloud/v1/me');
+  const query = opts.accountFlag ? '?account_id=' + encodeURIComponent(opts.accountFlag) : '';
+  const me = await client.authenticated('/api/cloud/v1/account' + query);
   const credential = client.loadCredential();
-  emit(opts, 'cloud.status', { user: me.user, credential_id: credential.credential_id,
-    origin: client.origin }, 'Signed in as ' + (me.user.email || me.user.id) + '.');
+  emit(opts, 'cloud.status', { user: me.user, account: me.account, accounts: me.accounts,
+    credential_id: credential.credential_id, origin: client.origin },
+  'Signed in as ' + (me.user.email || me.user.id) + '. Account: ' + me.account.name + '.');
 }
 
 async function runCloudCommand(opts, dependencies) {
@@ -528,7 +586,11 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'logout') return await logout(opts, client);
     if (action === 'status') return await status(opts, client);
     if (action === 'projects') return await projects(opts, client);
+    if (action === 'members') return await members(opts, client);
     if (action === 'tags') return await tags(opts, client);
+    if (action === 'permission-groups') return await permissionGroups(opts, client);
+    if (action === 'access') return await access(opts, client);
+    if (action === 'tag') return await setTags(opts, client);
     if (action === 'ls') return await list(opts, client);
     if (action === 'search') return await search(opts, client);
     if (action === 'create') return await create(opts, client);

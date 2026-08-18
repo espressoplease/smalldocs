@@ -57,6 +57,7 @@ function parseArgs(argv) {
   let dryRunFlag = false;
   let sheetName = null;
   let projectFlag = null;
+  let accountFlag = null;
   let outputPath = null;
   let revisionFlag = null;
   let documentFlag = null;
@@ -65,6 +66,9 @@ function parseArgs(argv) {
   let noOpenFlag = false;
   let noBindFlag = false;
   let forceFlag = false;
+  let everyoneFlag = false;
+  let onlyYouFlag = false;
+  const memberFlags = [];
   const tagFilters = [];
   const addTags = [];
   const annotations = [];
@@ -127,6 +131,10 @@ function parseArgs(argv) {
     if (arg === '--dry-run')                         { dryRunFlag       = true; continue; }
     if (arg === '--sheet')                           { sheetName        = args[++i]; continue; }
     if (arg === '--project')                         { projectFlag      = args[++i]; continue; }
+    if (arg === '--account')                         { accountFlag      = args[++i]; continue; }
+    if (arg === '--member')                          { memberFlags.push(args[++i]); continue; }
+    if (arg === '--everyone')                        { everyoneFlag     = true; continue; }
+    if (arg === '--only-you')                        { onlyYouFlag      = true; continue; }
     if (arg === '--output' || arg === '-o')          { outputPath       = args[++i]; continue; }
     if (arg === '--revision')                        { revisionFlag     = args[++i]; continue; }
     if (arg === '--document')                        { documentFlag     = args[++i]; continue; }
@@ -186,9 +194,9 @@ function parseArgs(argv) {
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,
     tagsFlag, helpFlag, yesFlag, dryRunFlag, sheetName,
-    projectFlag, outputPath, revisionFlag, documentFlag, baseRevisionFlag,
+    projectFlag, accountFlag, outputPath, revisionFlag, documentFlag, baseRevisionFlag,
     limitFlag, noOpenFlag, noBindFlag, forceFlag, tagFilters,
-    addTags, annotations, files,
+    everyoneFlag, onlyYouFlag, memberFlags, addTags, annotations, files,
   };
 }
 

@@ -22,6 +22,13 @@ module.exports = function(harness) {
     assert.strictEqual(parsed.jsonFlag, true);
   });
 
+  test('cloud CLI parser captures account permission and member flags', () => {
+    const parsed = io.parseArgs(['cloud', 'access', 'doc-id', '--account', 'acct-id',
+      '--member', 'usr-a', '--member', 'usr-b', '--json']);
+    assert.strictEqual(parsed.accountFlag, 'acct-id');
+    assert.deepStrictEqual(parsed.memberFlags, ['usr-a', 'usr-b']);
+  });
+
   test('cloud CLI tag filters require every requested tag', () => {
     const documents = [{ id: 'a', tags: ['auth', 'api'] }, { id: 'b', tags: ['auth'] }];
     assert.deepStrictEqual(filterTags(documents, ['AUTH', 'api']).map((item) => item.id), ['a']);
@@ -57,6 +64,33 @@ module.exports = function(harness) {
         if (endpoint === '/api/cloud/v1/documents') {
           return { document: { id: 'doc-1', current_revision_id: 'rev-1', revision_number: 1,
             updated_at: '2026-08-14T00:00:00.000Z', tags: ['release'] } };
+        }
+        if (endpoint === '/api/cloud/v1/account/documents') {
+          return { account: { id: 'acct-1' }, document: { id: 'doc-1',
+            current_revision_id: 'rev-1', revision_number: 1,
+            updated_at: '2026-08-14T00:00:00.000Z', tags: ['release'] } };
+        }
+        if (endpoint === '/api/cloud/v1/account/members') {
+          return { account_id: 'acct-1', members: [
+            { user_id: 'usr-1', email: 'you@example.com', is_you: true },
+            { user_id: 'usr-2', email: 'tom@example.com', is_you: false },
+          ] };
+        }
+        if (endpoint === '/api/cloud/v1/account/tags') {
+          return { account_id: 'acct-1', tags: [{ tag: 'release', count: 2 }] };
+        }
+        if (endpoint === '/api/cloud/v1/account/permission-groups') {
+          return { account_id: 'acct-1', permission_groups: [
+            { document_id: 'doc-1', mode: 'custom', member_user_ids: ['usr-1'] },
+          ] };
+        }
+        if (endpoint === '/api/cloud/v1/documents/doc-1/permission') {
+          return { permission: { document_id: 'doc-1', mode: 'custom',
+            member_user_ids: ['usr-1', 'usr-2'] } };
+        }
+        if (endpoint === '/api/cloud/v1/documents/doc-1/tags') {
+          return { document: { id: 'doc-1', current_revision_id: 'rev-tags',
+            revision_number: 3, tags: ['release', 'planning'] } };
         }
         if (endpoint === '/api/cloud/v1/documents/doc-1/revisions' && options && options.method === 'POST') {
           return { document: { id: 'doc-1', current_revision_id: 'rev-2', revision_number: 2,
@@ -146,6 +180,37 @@ module.exports = function(harness) {
       assert.strictEqual(result.document_id, 'doc-1');
       assert.strictEqual(bindings.get('usr-1', source).revision_id, 'rev-1');
       assert.ok(fs.existsSync(path.join(dir, 'cloud', 'bases', 'usr-1', 'doc-1', 'rev-1.md')));
+    });
+
+    await testAsync('cloud create uses the default account without exposing projects', async () => {
+      const accountSource = path.join(dir, 'account-release.md');
+      fs.writeFileSync(accountSource, '# Account release');
+      const result = await capture(() => runCloudCommand({ file: 'create', extra: accountSource,
+        jsonFlag: true }, { client: fakeClient }));
+      assert.strictEqual(result.account_id, 'acct-1');
+      assert.strictEqual(result.project_id, null);
+      assert.ok(calls.some((call) => call.endpoint === '/api/cloud/v1/account/documents'));
+    });
+
+    await testAsync('cloud lists account members, tags, and document permission groups', async () => {
+      const memberResult = await capture(() => runCloudCommand({ file: 'members',
+        jsonFlag: true }, { client: fakeClient }));
+      const tagResult = await capture(() => runCloudCommand({ file: 'tags',
+        jsonFlag: true }, { client: fakeClient }));
+      const groupResult = await capture(() => runCloudCommand({ file: 'permission-groups',
+        jsonFlag: true }, { client: fakeClient }));
+      assert.strictEqual(memberResult.members[1].user_id, 'usr-2');
+      assert.strictEqual(tagResult.tags[0].tag, 'release');
+      assert.strictEqual(groupResult.permission_groups[0].document_id, 'doc-1');
+    });
+
+    await testAsync('cloud assigns document members and tags', async () => {
+      const accessResult = await capture(() => runCloudCommand({ file: 'access', extra: 'doc-1',
+        memberFlags: ['usr-2'], jsonFlag: true }, { client: fakeClient }));
+      const tagResult = await capture(() => runCloudCommand({ file: 'tag', extra: 'doc-1',
+        tagFilters: ['release', 'planning'], jsonFlag: true }, { client: fakeClient }));
+      assert.deepStrictEqual(accessResult.permission.member_user_ids, ['usr-1', 'usr-2']);
+      assert.deepStrictEqual(tagResult.tags, ['release', 'planning']);
     });
 
     await testAsync('cloud push uses the bound base revision and advances only after success', async () => {

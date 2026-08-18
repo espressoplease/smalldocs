@@ -99,6 +99,23 @@ module.exports = function(harness) {
         request.end(payload);
       });
     }
+    function patch(url, body, headers) {
+      return new Promise((resolve, reject) => {
+        const target = new URL(url);
+        const payload = Buffer.from(JSON.stringify(body || {}));
+        const request = http.request({ method: 'PATCH', hostname: target.hostname,
+          port: target.port, path: target.pathname + target.search, agent: false,
+          headers: Object.assign({ 'Content-Type': 'application/json',
+            'Content-Length': payload.length }, headers || {}) }, response => {
+          let responseBody = '';
+          response.on('data', chunk => responseBody += chunk);
+          response.on('end', () => resolve({ status: response.statusCode,
+            body: responseBody, headers: response.headers }));
+        });
+        request.on('error', reject);
+        request.end(payload);
+      });
+    }
 
     await testAsync('GET / returns 200', async () => {
       const r = await get(BASE + '/');
@@ -993,6 +1010,49 @@ module.exports = function(harness) {
       const searched = await post(BASE + '/api/cloud/v1/search', { query: 'kubernetes' },
         { Origin: BASE, Cookie: cloudCookie });
       assert.strictEqual(JSON.parse(searched.body).documents[0].id, cloudDocument.id);
+    });
+
+    await testAsync('Cloud account API hides projects and manages document access and tags', async () => {
+      const accountResponse = await get(BASE + '/api/cloud/v1/account', { Cookie: cloudCookie });
+      assert.strictEqual(accountResponse.status, 200);
+      const account = JSON.parse(accountResponse.body).account;
+      assert.strictEqual(account.id, cloudWorkspace.id);
+      assert.strictEqual(account.kind, 'personal');
+      assert.strictEqual(Object.hasOwn(account, 'project_id'), false);
+
+      const created = await post(BASE + '/api/cloud/v1/account/documents', {
+        account_id: account.id, filename: 'account-ui.md', markdown: '# Account UI',
+        idempotency_key: 'http-create-account-ui',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(created.status, 201);
+      const body = JSON.parse(created.body);
+      assert.strictEqual(body.account.id, account.id);
+      assert.strictEqual(body.permission.mode, 'custom');
+      assert.deepStrictEqual(body.permission.member_user_ids, [body.permission.owner_user_id]);
+
+      const members = await get(BASE + '/api/cloud/v1/account/members?account_id=' + account.id,
+        { Cookie: cloudCookie });
+      assert.strictEqual(JSON.parse(members.body).members[0].is_you, true);
+
+      const everyone = await patch(BASE + '/api/cloud/v1/documents/' + body.document.id + '/permission', {
+        mode: 'everyone', member_user_ids: [],
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(everyone.status, 200);
+      assert.strictEqual(JSON.parse(everyone.body).permission.mode, 'everyone');
+
+      const tagged = await patch(BASE + '/api/cloud/v1/documents/' + body.document.id + '/tags', {
+        tags: ['planning', 'cloud'], expected_head_revision_id: body.document.current_revision_id,
+        idempotency_key: 'http-tag-account-ui',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(tagged.status, 200);
+      assert.deepStrictEqual(JSON.parse(tagged.body).document.tags, ['planning', 'cloud']);
+      const tags = await get(BASE + '/api/cloud/v1/account/tags?account_id=' + account.id,
+        { Cookie: cloudCookie });
+      assert.ok(JSON.parse(tags.body).tags.some((item) => item.tag === 'planning'));
+      const groups = await get(BASE + '/api/cloud/v1/account/permission-groups?account_id=' + account.id,
+        { Cookie: cloudCookie });
+      assert.ok(JSON.parse(groups.body).permission_groups.some((group) =>
+        group.document_id === body.document.id && group.mode === 'everyone'));
     });
 
     await testAsync('Cloud enforces the search allowance and reports the consumed request count', async () => {

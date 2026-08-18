@@ -7,7 +7,14 @@ var CLOUD_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" str
 var CLOUD_UPLOAD_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v8"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/></svg>';
 var CLOUD_CHECK_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/></svg>';
 var FILE_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
+var USER_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>';
+var USERS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg>';
+var PLUS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg>';
+var CLOSE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 var pendingChallenge = null;
+var cloudState = { account: null, accounts: [], user: null, members: [], permission: null,
+  suggestedTags: [], panel: null, status: '', busy: false };
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, function (character) {
@@ -41,10 +48,32 @@ async function jsonRequest(url, options) {
   return data;
 }
 
+async function loadAccountData(accountId) {
+  var suffix = accountId ? '?account_id=' + encodeURIComponent(accountId) : '';
+  var data = await jsonRequest('/api/cloud/v1/account' + suffix);
+  cloudState.account = data.account;
+  cloudState.accounts = data.accounts || [];
+  cloudState.user = data.user;
+  var selectedSuffix = '?account_id=' + encodeURIComponent(data.account.id);
+  var details = await Promise.all([
+    jsonRequest('/api/cloud/v1/account/members' + selectedSuffix),
+    jsonRequest('/api/cloud/v1/account/tags' + selectedSuffix),
+  ]);
+  cloudState.members = details[0].members || [];
+  cloudState.suggestedTags = details[1].tags || [];
+  refreshRow();
+  return data;
+}
+
 async function loadCloudDocument(id) {
   try {
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(id));
     S.cloudDocument = data.document;
+    cloudState.permission = data.permission || null;
+    if (data.document.workspace_id) {
+      cloudState.account = { id: data.document.workspace_id };
+      loadAccountData(data.document.workspace_id).catch(function () {});
+    }
     S._isDefaultState = false;
     S._loadingDocument = true;
     if (S.resetAllStyles) S.resetAllStyles();
@@ -79,27 +108,78 @@ if (S.Sources) {
   });
 }
 
+function documentTags() {
+  if (S.cloudDocument && Array.isArray(S.cloudDocument.tags)) return S.cloudDocument.tags;
+  return S.currentMeta && Array.isArray(S.currentMeta.tags) ? S.currentMeta.tags.map(String) : [];
+}
+
+function selectedMembers() {
+  var ids = cloudState.permission && cloudState.permission.member_user_ids || [];
+  return cloudState.members.filter(function (member) { return ids.indexOf(member.user_id) !== -1; });
+}
+
+function permissionLabel() {
+  if (!cloudState.permission) return 'You';
+  if (cloudState.permission.mode === 'everyone') return 'Everyone';
+  var members = selectedMembers();
+  if (members.length <= 1) return 'You';
+  var labels = members.slice(0, 4).map(function (member) {
+    return member.is_you ? 'You' : member.initials;
+  });
+  if (members.length > 4) labels.push('+' + (members.length - 4));
+  return labels.join(', ');
+}
+
+function permissionNames() {
+  var members = cloudState.permission && cloudState.permission.mode === 'everyone'
+    ? cloudState.members : selectedMembers();
+  return members.map(function (member) {
+    return member.name + (member.is_you ? ' (you)' : '');
+  }).join(' · ');
+}
+
+function cloudTag(tag) {
+  return '<button class="sdoc-cloud-lab-tag" type="button" data-cloud-open="tags"'
+    + ' aria-label="Edit Cloud tag ' + escapeHtml(tag) + '">' + CLOUD_SVG
+    + '<span>#' + escapeHtml(tag) + '</span></button>';
+}
+
 function cloudRow() {
   var row = document.createElement('div');
-  row.className = 'fic-row fic-row-cloud fic-row-short-intro';
+  row.className = 'fic-row fic-row-cloud fic-row-cloud-lab';
   if (S.cloudDocument) {
-    var project = S.cloudDocument.project && S.cloudDocument.project.name
-      ? S.cloudDocument.project.name : 'Cloud';
+    var tags = documentTags().map(cloudTag).join('');
+    var many = cloudState.permission && (cloudState.permission.mode === 'everyone' ||
+      (cloudState.permission.member_user_ids || []).length > 1);
     row.innerHTML = '<span class="fic-label">Cloud</span>'
-      + '<button class="fic-shorten-button fic-cloud-add" type="button">' + escapeHtml(project) + '</button>'
-      + '<span class="fic-short-intro-text">Revision ' + escapeHtml(S.cloudDocument.revision_number) + '</span>'
-      + '<button class="fic-copy fic-cloud-icon fic-cloud-saved-icon" type="button" title="Open Cloud document details">' + CLOUD_CHECK_SVG + '</button>';
-    row.querySelector('.fic-cloud-add').addEventListener('click', openDialog);
-    row.querySelector('.fic-cloud-icon').addEventListener('click', openDialog);
+      + '<div class="sdoc-cloud-lab-row-main"><div class="sdoc-cloud-lab-pills">'
+      + '<button class="sdoc-cloud-lab-access" type="button" data-cloud-open="access"'
+      + ' title="' + escapeHtml(permissionNames()) + '">' + (many ? USERS_SVG : USER_SVG)
+      + '<span>' + escapeHtml(permissionLabel()) + '</span></button>'
+      + (tags || '<span class="sdoc-cloud-lab-no-tags">No tags</span>')
+      + '<button class="sdoc-cloud-lab-plus" type="button" data-cloud-open="tags" aria-label="Edit Cloud tags">'
+      + PLUS_SVG + '</button></div></div>'
+      + '<button class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-saved" type="button"'
+      + ' aria-label="Remove from Cloud" title="Remove from Cloud">' + CLOUD_CHECK_SVG + '</button>';
+    row.querySelectorAll('[data-cloud-open]').forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        openCloudPanel(button.getAttribute('data-cloud-open'));
+      });
+    });
+    row.querySelector('.sdoc-cloud-lab-saved').addEventListener('click', removeCloudDocument);
     return row;
   }
   row.innerHTML = '<span class="fic-label">Cloud</span>'
-    + '<button class="fic-shorten-button fic-cloud-add" type="button" title="Add this document to Cloud">Add to Cloud</button>'
-    + '<span class="fic-short-intro-text">Encrypted document on our server; paid feature '
-    + '(<a class="fic-short-intro-learn fic-cloud-learn" href="/cloud" target="_blank" rel="noopener">learn more</a>)</span>'
-    + '<button class="fic-copy fic-cloud-icon" type="button" title="Add this document to Cloud">' + CLOUD_UPLOAD_SVG + '</button>';
-  row.querySelector('.fic-cloud-add').addEventListener('click', beginAdd);
-  row.querySelector('.fic-cloud-icon').addEventListener('click', beginAdd);
+    + '<button class="sdoc-cloud-lab-add-link" type="button" title="Add this document to Cloud">Add to Cloud</button>'
+    + (!cloudState.account || !cloudState.account.can_write
+      ? '<span class="fic-short-intro-text">Encrypted document on our server; paid feature '
+        + '(<a class="fic-short-intro-learn fic-cloud-learn" href="/cloud" target="_blank" rel="noopener">learn more</a>)</span>' : '')
+    + '<button class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-upload" type="button" title="Add this document to Cloud">'
+    + CLOUD_UPLOAD_SVG + '</button>';
+  row.querySelector('.sdoc-cloud-lab-add-link').addEventListener('click', beginAdd);
+  row.querySelector('.sdoc-cloud-lab-upload').addEventListener('click', beginAdd);
   return row;
 }
 
@@ -179,7 +259,7 @@ function renderCodePrompt(row, email) {
       });
       pendingChallenge = null;
       refreshRow();
-      openProjectDialog();
+      beginAdd(event);
     } catch (_) {
       input.setCustomValidity('That code is invalid or has expired.');
       input.reportValidity();
@@ -194,19 +274,270 @@ function renderCodePrompt(row, email) {
 }
 
 async function beginAdd(event) {
-  event.preventDefault();
-  event.stopPropagation();
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if (cloudState.busy) return;
+  cloudState.busy = true;
   try {
-    await jsonRequest('/api/cloud/v1/workspaces');
-    openProjectDialog();
+    var accountData = await loadAccountData();
+    if (!accountData.account.can_write) {
+      var plan = accountData.account.kind === 'team' ? 'team' : 'personal';
+      location.href = '/cloud/checkout?plan=' + plan + '&return=' +
+        encodeURIComponent(location.pathname + location.search + location.hash);
+      return;
+    }
+    var data = await jsonRequest('/api/cloud/v1/account/documents', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_id: accountData.account.id, filename: currentFilename(),
+        markdown: currentMarkdown(), idempotency_key: crypto.randomUUID() }),
+    });
+    S.cloudDocument = data.document;
+    S.cloudDocument.workspace_id = data.account.id;
+    cloudState.account = Object.assign({}, accountData.account, data.account);
+    cloudState.permission = data.permission;
+    var url = new URL(location.href);
+    url.searchParams.set('cloud-document', data.document.id);
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    cloudState.status = 'Added to Cloud.';
+    refreshRow();
   } catch (error) {
     if (error.status === 401) {
       var row = document.querySelector('.fic-row-cloud');
       if (row) renderEmailPrompt(row);
       return;
     }
+    if (error.status === 402) {
+      var kind = cloudState.account && cloudState.account.kind === 'team' ? 'team' : 'personal';
+      location.href = '/cloud/checkout?plan=' + kind + '&return=' +
+        encodeURIComponent(location.pathname + location.search + location.hash);
+      return;
+    }
     openErrorDialog('Cloud is temporarily unavailable.');
+  } finally {
+    cloudState.busy = false;
   }
+}
+
+async function removeCloudDocument(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if (!S.cloudDocument || cloudState.busy) return;
+  cloudState.busy = true;
+  var rowButton = document.querySelector('.sdoc-cloud-lab-saved');
+  if (rowButton) rowButton.disabled = true;
+  try {
+    await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id), {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expected_head_revision_id: S.cloudDocument.current_revision_id }),
+    });
+    S.cloudDocument = null;
+    cloudState.permission = null;
+    closeCloudPanel();
+    var url = new URL(location.href);
+    url.searchParams.delete('cloud-document');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    refreshRow();
+  } catch (error) {
+    cloudState.status = error.data && error.data.error === 'revision_conflict'
+      ? 'The Cloud document changed. Reopen it before removing it.'
+      : 'The document was not removed from Cloud.';
+    if (rowButton) rowButton.disabled = false;
+  } finally {
+    cloudState.busy = false;
+  }
+}
+
+function ensureCloudPanel() {
+  var panel = document.getElementById('_sd_cloud-lab-panel');
+  if (panel) return panel;
+  panel = document.createElement('aside');
+  panel.id = '_sd_cloud-lab-panel';
+  panel.setAttribute('aria-label', 'Cloud document controls');
+  panel.innerHTML = '<header class="sdoc-cloud-lab-panel-head"><div>'
+    + '<span class="sdoc-cloud-lab-eyebrow">Cloud</span>'
+    + '<strong data-cloud-panel-title>Access</strong></div>'
+    + '<button class="sdoc-cloud-lab-close" type="button" aria-label="Close Cloud panel">'
+    + CLOSE_SVG + '</button></header><div class="sdoc-cloud-lab-panel-body"></div>';
+  var main = document.getElementById('_sd_main');
+  if (main) main.appendChild(panel);
+  else document.body.appendChild(panel);
+  panel.querySelector('.sdoc-cloud-lab-close').addEventListener('click', closeCloudPanel);
+  return panel;
+}
+
+function memberRow(member) {
+  var ids = cloudState.permission && cloudState.permission.member_user_ids || [];
+  var checked = cloudState.permission && (cloudState.permission.mode === 'everyone' ||
+    ids.indexOf(member.user_id) !== -1);
+  var locked = member.is_you || !cloudState.permission || !cloudState.permission.can_manage;
+  return '<label class="sdoc-cloud-lab-member' + (checked ? ' selected' : '') + '">'
+    + '<input type="checkbox" data-cloud-member="' + escapeHtml(member.user_id) + '"'
+    + (checked ? ' checked' : '') + (locked ? ' disabled' : '') + '>'
+    + '<span class="sdoc-cloud-lab-avatar">' + escapeHtml(member.initials) + '</span>'
+    + '<span class="sdoc-cloud-lab-member-copy"><strong>' + escapeHtml(member.name)
+    + (member.is_you ? ' <small>You</small>' : '') + '</strong><span>'
+    + escapeHtml(member.email || '') + '</span></span>'
+    + '<span class="sdoc-cloud-lab-check">' + CHECK_SVG + '</span></label>';
+}
+
+function accessPanelHtml() {
+  var canManage = cloudState.permission && cloudState.permission.can_manage;
+  var presets = '<button type="button" data-cloud-preset="only"' + (!canManage ? ' disabled' : '')
+    + '>' + USER_SVG + 'Only you</button>';
+  if (cloudState.account && cloudState.account.kind === 'team') {
+    presets += '<button type="button" data-cloud-preset="everyone"' + (!canManage ? ' disabled' : '')
+      + '>' + USERS_SVG + 'Everyone</button>';
+  }
+  var invite = cloudState.account && cloudState.account.kind === 'team'
+    ? '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Invite someone</div>'
+      + '<form class="sdoc-cloud-lab-invite"><input type="email" placeholder="person@example.com" aria-label="Email address" required>'
+      + '<button type="submit">Invite</button></form>'
+      + '<p class="sdoc-cloud-lab-help">Billing updates after the person accepts the invitation.</p></section>' : '';
+  return '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Quick choices</div>'
+    + '<div class="sdoc-cloud-lab-presets">' + presets + '</div></section>'
+    + '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">People with access</div>'
+    + '<div class="sdoc-cloud-lab-members">' + cloudState.members.map(memberRow).join('') + '</div>'
+    + '<p class="sdoc-cloud-lab-help">This selection applies to this document. The person who added it always keeps access.</p>'
+    + '</section>' + invite;
+}
+
+function tagChip(tag) {
+  return '<span class="sdoc-cloud-lab-tag-edit">' + CLOUD_SVG + '<span>#' + escapeHtml(tag) + '</span>'
+    + '<button type="button" data-cloud-remove-tag="' + escapeHtml(tag) + '" aria-label="Remove '
+    + escapeHtml(tag) + '">' + CLOSE_SVG + '</button></span>';
+}
+
+function tagsPanelHtml() {
+  var tags = documentTags();
+  var current = tags.length ? tags.map(tagChip).join('')
+    : '<span class="sdoc-cloud-lab-no-tags">No tags yet</span>';
+  var suggestions = cloudState.suggestedTags.filter(function (item) {
+    return tags.indexOf(item.tag) === -1;
+  }).slice(0, 8).map(function (item) {
+    return '<button class="sdoc-cloud-lab-suggestion" type="button" data-cloud-add-tag="'
+      + escapeHtml(item.tag) + '"><span>#' + escapeHtml(item.tag) + '</span><small>'
+      + item.count + ' docs</small></button>';
+  }).join('');
+  return '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Current Cloud tags</div>'
+    + '<div class="sdoc-cloud-lab-current-tags">' + current + '</div>'
+    + '<form class="sdoc-cloud-lab-tag-form"><input type="text" placeholder="Add a tag" aria-label="New Cloud tag">'
+    + '<button type="submit">Add</button></form>'
+    + '<p class="sdoc-cloud-lab-help">Cloud tags are stored in the Markdown front matter.</p></section>'
+    + (suggestions ? '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Used in your account</div>'
+      + '<div class="sdoc-cloud-lab-suggestions">' + suggestions + '</div></section>' : '');
+}
+
+function renderCloudPanel() {
+  var panel = ensureCloudPanel();
+  panel.querySelector('[data-cloud-panel-title]').textContent = cloudState.panel === 'tags' ? 'Tags' : 'Access';
+  var body = panel.querySelector('.sdoc-cloud-lab-panel-body');
+  body.innerHTML = (cloudState.panel === 'tags' ? tagsPanelHtml() : accessPanelHtml())
+    + (cloudState.status ? '<p class="sdoc-cloud-lab-status" aria-live="polite">'
+      + escapeHtml(cloudState.status) + '</p>' : '');
+  wireCloudPanel(body);
+}
+
+function wireCloudPanel(body) {
+  body.querySelectorAll('[data-cloud-preset]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var everyone = button.getAttribute('data-cloud-preset') === 'everyone';
+      savePermission(everyone ? 'everyone' : 'custom', []);
+    });
+  });
+  body.querySelectorAll('[data-cloud-member]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      var selected = Array.prototype.map.call(body.querySelectorAll('[data-cloud-member]:checked'),
+        function (checkbox) { return checkbox.getAttribute('data-cloud-member'); });
+      savePermission('custom', selected);
+    });
+  });
+  body.querySelectorAll('[data-cloud-remove-tag]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      saveTags(documentTags().filter(function (tag) {
+        return tag !== button.getAttribute('data-cloud-remove-tag');
+      }));
+    });
+  });
+  body.querySelectorAll('[data-cloud-add-tag]').forEach(function (button) {
+    button.addEventListener('click', function () { addCloudTag(button.getAttribute('data-cloud-add-tag')); });
+  });
+  var tagForm = body.querySelector('.sdoc-cloud-lab-tag-form');
+  if (tagForm) tagForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    addCloudTag(tagForm.querySelector('input').value);
+  });
+  var invite = body.querySelector('.sdoc-cloud-lab-invite');
+  if (invite) invite.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    var input = invite.querySelector('input');
+    try {
+      await jsonRequest('/api/cloud/v1/account/invitations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: cloudState.account.id, email: input.value.trim() }),
+      });
+      cloudState.status = 'Invitation sent to ' + input.value.trim() + '.';
+      input.value = '';
+    } catch (_) { cloudState.status = 'The invitation was not sent.'; }
+    renderCloudPanel();
+  });
+}
+
+async function savePermission(mode, memberIds) {
+  if (!S.cloudDocument || cloudState.busy) return;
+  cloudState.busy = true;
+  try {
+    var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id)
+      + '/permission', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: mode, member_user_ids: memberIds }) });
+    cloudState.permission = data.permission;
+    cloudState.status = 'Access updated.';
+  } catch (_) { cloudState.status = 'Access was not updated.'; }
+  cloudState.busy = false;
+  refreshRow();
+  renderCloudPanel();
+}
+
+function addCloudTag(raw) {
+  var tag = String(raw || '').trim().replace(/^#+/, '').toLowerCase();
+  if (!tag) return;
+  var tags = documentTags();
+  if (tags.indexOf(tag) === -1) tags = tags.concat(tag);
+  saveTags(tags);
+}
+
+async function saveTags(tags) {
+  if (!S.cloudDocument || cloudState.busy) return;
+  cloudState.busy = true;
+  try {
+    var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id)
+      + '/tags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: tags, expected_head_revision_id: S.cloudDocument.current_revision_id,
+          idempotency_key: crypto.randomUUID() }) });
+    S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
+    if (!S.currentMeta) S.currentMeta = {};
+    S.currentMeta.tags = data.document.tags.slice();
+    cloudState.status = 'Tags updated.';
+    await loadAccountData(cloudState.account.id);
+  } catch (_) { cloudState.status = 'Tags were not updated.'; }
+  cloudState.busy = false;
+  refreshRow();
+  renderCloudPanel();
+}
+
+function openCloudPanel(kind) {
+  cloudState.panel = kind === 'tags' ? 'tags' : 'access';
+  cloudState.status = '';
+  renderCloudPanel();
+  document.body.classList.add('cloud-lab-mode', 'mobile-cloud-lab-open');
+}
+
+function closeCloudPanel() {
+  cloudState.panel = null;
+  document.body.classList.remove('cloud-lab-mode', 'mobile-cloud-lab-open');
 }
 
 function ensureDialog() {
@@ -523,6 +854,10 @@ function start() {
     new MutationObserver(function () { insertRow(); }).observe(card, { childList: true, subtree: true });
   }
   insertRow();
+  loadAccountData().catch(function () {});
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && cloudState.panel) closeCloudPanel();
+  });
   var params = new URLSearchParams(location.search);
   if (params.get('checkout') === 'success' && params.get('workspace_id')) {
     var workspaceId = params.get('workspace_id');
@@ -538,7 +873,7 @@ function waitForSubscription(workspaceId, attempt) {
   jsonRequest('/api/cloud/v1/workspaces/' + encodeURIComponent(workspaceId) + '/billing')
     .then(function (data) {
       if (data.billing && data.billing.access && data.billing.access.write) {
-        openProjectDialog(workspaceId);
+        loadAccountData(workspaceId).then(function () { beginAdd(); });
         return;
       }
       if (attempt >= 9) throw new Error('subscription_pending');
