@@ -30,6 +30,8 @@ const CLOUD_OAUTH_PROVIDER_TIMEOUT_MS = integerEnvironmentSetting(
 const CLOUD_DEPLOYMENT = require('./lib/cloud-deployment-config')
   .validateCloudDeploymentConfig(process.env);
 const DEV_MODE = process.env.SDOCS_DEV === '1' || process.env.NODE_ENV === 'development';
+const CLOUD_UI_LAB_ENABLED = CLOUD_DEPLOYMENT.publicEnabled &&
+  CLOUD_DEPLOYMENT.mode !== 'production';
 const ANALYTICS_ENABLED = process.env.ANALYTICS_ENABLED === '1';
 const analytics = ANALYTICS_ENABLED ? require('./analytics/db') : null;
 
@@ -2275,9 +2277,13 @@ const server = http.createServer((req, res) => {
       '__DEFAULT_MD_PATH__': defaultMdPath,
       '__CSP_NONCE__': nonce,
       '__CLOUD_UI_STYLES__': CLOUD_DEPLOYMENT.publicEnabled
-        ? '<link rel="stylesheet" href="/public/css/cloud-prototype.css">' : '',
+        ? '<link rel="stylesheet" href="/public/css/cloud-prototype.css">'
+          + (CLOUD_UI_LAB_ENABLED
+            ? '<link rel="stylesheet" href="/public/css/cloud-ui-lab.css">' : '') : '',
       '__CLOUD_UI_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled
-        ? '<script src="/public/sdocs-cloud-prototype.js"></script>' : '',
+        ? '<script src="/public/sdocs-cloud-prototype.js"></script>'
+          + (CLOUD_UI_LAB_ENABLED
+            ? '<script src="/public/sdocs-cloud-ui-lab.js"></script>' : '') : '',
     }, {
       'Cache-Control': 'no-cache',
       'Content-Security-Policy': csp,

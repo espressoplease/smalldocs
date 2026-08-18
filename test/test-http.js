@@ -285,8 +285,10 @@ module.exports = function(harness) {
       const body = (await get(BASE + '/docs')).body;
       const source = body.indexOf('/public/sdocs-source.js');
       const cloud = body.indexOf('/public/sdocs-cloud-prototype.js');
+      const cloudLab = body.indexOf('/public/sdocs-cloud-ui-lab.js');
       const app = body.indexOf('/public/sdocs-app.js');
-      assert.ok(source >= 0 && cloud > source && app > cloud);
+      assert.ok(source >= 0 && cloud > source && cloudLab > cloud && app > cloudLab);
+      assert.ok(body.includes('/public/css/cloud-ui-lab.css'));
     });
 
     await testAsync('GET /analytics returns 200 with HTML', async () => {
@@ -1277,7 +1279,9 @@ module.exports = function(harness) {
         const docs = await get(hiddenBase + '/docs');
         assert.strictEqual(docs.status, 200);
         assert.ok(!docs.body.includes('/public/css/cloud-prototype.css'));
+        assert.ok(!docs.body.includes('/public/css/cloud-ui-lab.css'));
         assert.ok(!docs.body.includes('/public/sdocs-cloud-prototype.js'));
+        assert.ok(!docs.body.includes('/public/sdocs-cloud-ui-lab.js'));
 
         const home = await get(hiddenBase + '/');
         assert.strictEqual(home.status, 200);

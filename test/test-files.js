@@ -84,6 +84,19 @@ module.exports = function(harness) {
     assert.ok(fs.existsSync(htmlPath), 'public/index.html not found');
   });
 
+  test('Cloud UI lab assets exist and remain opt-in', () => {
+    const script = fs.readFileSync(path.join(__dirname, '..', 'public',
+      'sdocs-cloud-ui-lab.js'), 'utf-8');
+    const styles = fs.readFileSync(path.join(__dirname, '..', 'public', 'css',
+      'cloud-ui-lab.css'), 'utf-8');
+    assert.ok(script.includes("params.get('cloud-ui-prototype') !== '1'"));
+    assert.ok(script.includes('This is an interactive UI prototype'));
+    assert.ok(styles.includes('#_sd_cloud-lab-panel'));
+    assert.ok(styles.includes('mobile-cloud-lab-open'));
+    const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf-8');
+    assert.ok(server.includes("CLOUD_DEPLOYMENT.mode !== 'production'"));
+  });
+
   test('index.html contains required markup elements', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
     assert.ok(html.includes('id="_sd_rendered"'), 'missing #_sd_rendered');

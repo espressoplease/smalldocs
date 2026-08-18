@@ -1,0 +1,512 @@
+/* Interactive Cloud account, access, and tag prototype. */
+
+#_sd_sdocs-file-info .fic-row-cloud-lab {
+  align-items: center;
+  cursor: default;
+  padding: 8px 0;
+}
+
+.sdoc-cloud-lab-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.sdoc-cloud-lab-pills {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.sdoc-cloud-lab-access,
+.sdoc-cloud-lab-tag,
+.sdoc-cloud-lab-plus {
+  min-height: 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid color-mix(in srgb, var(--md-p-color) 15%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--md-pre-bg) 86%, transparent);
+  color: var(--md-p-color);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s, transform .12s;
+}
+
+.sdoc-cloud-lab-access { padding: 4px 9px 4px 7px; font-weight: 600; }
+.sdoc-cloud-lab-tag { padding: 4px 8px 4px 6px; font-family: var(--md-code-font); }
+.sdoc-cloud-lab-plus { width: 25px; padding: 4px; color: var(--fic-muted); }
+
+.sdoc-cloud-lab-access:hover,
+.sdoc-cloud-lab-tag:hover,
+.sdoc-cloud-lab-plus:hover {
+  background: var(--md-copy-btn-hover, rgba(0,0,0,.07));
+  border-color: color-mix(in srgb, var(--md-p-color) 28%, transparent);
+}
+
+.sdoc-cloud-lab-access:focus-visible,
+.sdoc-cloud-lab-tag:focus-visible,
+.sdoc-cloud-lab-plus:focus-visible,
+.sdoc-cloud-lab-save:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 66%, transparent);
+  outline-offset: 2px;
+}
+
+.sdoc-cloud-lab-access svg,
+.sdoc-cloud-lab-tag svg,
+.sdoc-cloud-lab-plus svg,
+.sdoc-cloud-lab-save svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sdoc-cloud-lab-tag svg { width: 12px; height: 12px; color: var(--accent-text); }
+
+.sdoc-cloud-lab-row-note {
+  color: var(--fic-muted);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.sdoc-cloud-lab-save {
+  min-height: 30px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--text-inv);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, filter .12s;
+}
+
+.sdoc-cloud-lab-save:hover { filter: brightness(1.06); }
+.sdoc-cloud-lab-save.saved {
+  border-color: color-mix(in srgb, #23834b 55%, var(--border));
+  background: color-mix(in srgb, #23834b 12%, var(--bg));
+  color: #23834b;
+}
+
+#_sd_cloud-lab-panel {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border-left: 0 solid transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  transition: width .32s cubic-bezier(.4,0,.2,1),
+              opacity .25s ease,
+              border-color .25s ease,
+              border-width .32s cubic-bezier(.4,0,.2,1);
+}
+
+body.cloud-lab-mode #_sd_cloud-lab-panel {
+  width: 360px;
+  opacity: 1;
+  overflow-y: auto;
+  border-left-width: 1px;
+  border-left-color: var(--border);
+}
+
+#_sd_cloud-lab-panel::-webkit-scrollbar { width: 5px; }
+#_sd_cloud-lab-panel::-webkit-scrollbar-track { background: transparent; }
+#_sd_cloud-lab-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+.sdoc-cloud-lab-panel-head {
+  min-height: 52px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.sdoc-cloud-lab-panel-head > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sdoc-cloud-lab-panel-head strong { color: var(--text); font-size: 13px; font-weight: 650; }
+.sdoc-cloud-lab-eyebrow {
+  color: var(--text-3);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.sdoc-cloud-lab-close {
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+
+.sdoc-cloud-lab-close:hover { background: var(--bg-hover); color: var(--text); }
+.sdoc-cloud-lab-close svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.sdoc-cloud-lab-panel-body {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px 24px;
+}
+
+.sdoc-cloud-lab-notice {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-panel));
+  color: var(--text-2);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.sdoc-cloud-lab-fixture {
+  margin-bottom: 4px;
+  padding: 11px;
+  border: 1px dashed color-mix(in srgb, var(--text-3) 40%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface) 72%, transparent);
+}
+
+.sdoc-cloud-lab-fixture-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sdoc-cloud-lab-fixture-head strong { color: var(--text-2); font-size: 11px; }
+.sdoc-cloud-lab-fixture-head span { color: var(--text-3); font-size: 9.5px; }
+
+.sdoc-cloud-lab-segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  margin-top: 5px;
+  padding: 3px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  background: var(--bg-panel-deep);
+}
+
+.sdoc-cloud-lab-segment button {
+  min-height: 27px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.sdoc-cloud-lab-segment button.active {
+  background: var(--bg-input);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+
+.sdoc-cloud-lab-section {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sdoc-cloud-lab-section:last-of-type { border-bottom: 0; }
+.sdoc-cloud-lab-section-title {
+  margin-bottom: 8px;
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.sdoc-cloud-lab-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.sdoc-cloud-lab-presets button {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-input);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+
+.sdoc-cloud-lab-presets button:hover { background: var(--bg-hover); border-color: var(--border-strong); color: var(--text); }
+.sdoc-cloud-lab-presets svg,
+.sdoc-cloud-lab-empty svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sdoc-cloud-lab-members { display: flex; flex-direction: column; gap: 5px; }
+.sdoc-cloud-lab-member {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+
+.sdoc-cloud-lab-member:hover { background: var(--bg-hover); }
+.sdoc-cloud-lab-member.selected {
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-panel));
+}
+
+.sdoc-cloud-lab-member input { position: absolute; opacity: 0; pointer-events: none; }
+.sdoc-cloud-lab-avatar {
+  width: 31px;
+  height: 31px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 9%, var(--bg-input));
+  color: var(--accent-text);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.sdoc-cloud-lab-avatar.pending { color: var(--text-3); background: var(--bg-surface); border-style: dashed; }
+.sdoc-cloud-lab-member-copy { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 2px; }
+.sdoc-cloud-lab-member-copy strong { color: var(--text); font-size: 11.5px; font-weight: 600; }
+.sdoc-cloud-lab-member-copy strong small {
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text-3);
+  font-size: 8.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.sdoc-cloud-lab-member-copy > span { overflow: hidden; color: var(--text-3); font-size: 9.5px; text-overflow: ellipsis; }
+.sdoc-cloud-lab-check {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: transparent;
+}
+.sdoc-cloud-lab-member.selected .sdoc-cloud-lab-check { border-color: var(--accent); background: var(--accent); color: var(--text-inv); }
+.sdoc-cloud-lab-check svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.5; }
+
+.sdoc-cloud-lab-help { margin: 8px 0 0; color: var(--text-3); font-size: 9.5px; line-height: 1.5; }
+.sdoc-cloud-lab-invite,
+.sdoc-cloud-lab-tag-form { display: flex; gap: 6px; }
+.sdoc-cloud-lab-invite input,
+.sdoc-cloud-lab-tag-form input {
+  min-width: 0;
+  min-height: 34px;
+  flex: 1;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+}
+.sdoc-cloud-lab-invite input:focus,
+.sdoc-cloud-lab-tag-form input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent); }
+.sdoc-cloud-lab-invite button,
+.sdoc-cloud-lab-tag-form button {
+  min-height: 34px;
+  padding: 6px 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sdoc-cloud-lab-pending { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.sdoc-cloud-lab-pending > div { display: flex; align-items: center; gap: 8px; padding: 6px 7px; border-radius: 7px; background: var(--bg-surface); }
+.sdoc-cloud-lab-pending > div > span:last-child { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sdoc-cloud-lab-pending strong { overflow: hidden; color: var(--text-2); font-size: 10.5px; font-weight: 550; text-overflow: ellipsis; }
+.sdoc-cloud-lab-pending small { color: var(--text-3); font-size: 9px; }
+
+.sdoc-cloud-lab-empty { display: flex; align-items: center; gap: 9px; color: var(--text-3); }
+.sdoc-cloud-lab-empty strong { color: var(--text-2); font-size: 11px; }
+.sdoc-cloud-lab-empty span { font-size: 9.5px; line-height: 1.4; }
+
+.sdoc-cloud-lab-current-tags { min-height: 29px; display: flex; flex-wrap: wrap; gap: 5px; }
+.sdoc-cloud-lab-tag-edit {
+  min-height: 27px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 4px 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-input);
+  color: var(--text-2);
+  font-family: var(--md-code-font);
+  font-size: 10.5px;
+}
+.sdoc-cloud-lab-tag-edit > svg { width: 12px; height: 12px; color: var(--accent-text); fill: none; stroke: currentColor; stroke-width: 2; }
+.sdoc-cloud-lab-tag-edit button {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.sdoc-cloud-lab-tag-edit button:hover { background: var(--bg-hover); color: var(--text); }
+.sdoc-cloud-lab-tag-edit button svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2; }
+.sdoc-cloud-lab-no-tags { color: var(--text-3); font-size: 10.5px; }
+.sdoc-cloud-lab-tag-form { margin-top: 10px; }
+
+.sdoc-cloud-lab-suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sdoc-cloud-lab-suggestion {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-input);
+  color: var(--text-2);
+  cursor: pointer;
+  text-align: left;
+}
+.sdoc-cloud-lab-suggestion:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+.sdoc-cloud-lab-suggestion span { overflow: hidden; width: 100%; font-family: var(--md-code-font); font-size: 10.5px; text-overflow: ellipsis; }
+.sdoc-cloud-lab-suggestion small { color: var(--text-3); font-size: 8.5px; }
+.sdoc-cloud-lab-status { margin: 12px 0 0; color: var(--accent-text); font-size: 10px; line-height: 1.45; }
+
+@media (max-width: 768px) {
+  #_sd_sdocs-file-info .fic-row-cloud-lab {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .sdoc-cloud-lab-row-main { flex: 1 1 calc(100% - 74px); }
+  .sdoc-cloud-lab-save { margin-left: 70px; }
+
+  #_sd_cloud-lab-panel {
+    position: fixed;
+    inset: auto 0 0;
+    width: 100% !important;
+    max-height: 0;
+    border: 0;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(28,25,23,.15), 0 -1px 4px rgba(28,25,23,.08);
+    z-index: 120;
+    transform: translateY(12px);
+    transition: max-height .32s cubic-bezier(.4,0,.2,1),
+                transform .32s cubic-bezier(.4,0,.2,1),
+                opacity .25s ease,
+                border-color .25s ease;
+  }
+  body.cloud-lab-mode #_sd_cloud-lab-panel {
+    width: 100%;
+    max-height: 54px;
+    opacity: 1;
+    overflow: hidden;
+    border-top: 1px solid var(--border);
+    transform: translateY(0);
+  }
+  body.cloud-lab-mode.mobile-cloud-lab-open #_sd_cloud-lab-panel {
+    max-height: 84dvh;
+    overflow-y: auto;
+  }
+  #_sd_cloud-lab-panel::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 7px auto -3px;
+    flex: 0 0 auto;
+    border-radius: 2px;
+    background: var(--border-strong);
+  }
+  .sdoc-cloud-lab-panel-head { min-height: 48px; padding-top: 5px; cursor: pointer; user-select: none; }
+  .sdoc-cloud-lab-panel-body { padding-bottom: max(28px, env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 420px) {
+  .sdoc-cloud-lab-tag:nth-of-type(n+3) { display: none; }
+  .sdoc-cloud-lab-suggestions { grid-template-columns: 1fr; }
+  .sdoc-cloud-lab-panel-body { padding-left: 12px; padding-right: 12px; }
+}
