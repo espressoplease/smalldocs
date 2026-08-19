@@ -118,8 +118,8 @@ module.exports = function(harness) {
         'root should show the canonical install command');
       assert.ok(r.body.includes('href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud"'),
         'Cloud-enabled root should expose the sign-in journey');
-      assert.ok(r.body.includes('href="/cloud" role="menuitem"'),
-        'Cloud-enabled root menu should expose the Cloud product page');
+      assert.ok(r.body.includes('class="btn-gh nav-cloud" href="/cloud"'),
+        'Cloud-enabled root should expose the Cloud product page beside sign-in');
       assert.ok(!r.body.includes('discord.gg'),
         'root navigation should not expose Discord');
     });
@@ -1255,7 +1255,7 @@ module.exports = function(harness) {
         const home = await get(hiddenBase + '/');
         assert.strictEqual(home.status, 200);
         assert.ok(!home.body.includes('href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud"'));
-        assert.ok(!home.body.includes('href="/cloud" role="menuitem"'));
+        assert.ok(!home.body.includes('class="btn-gh nav-cloud" href="/cloud"'));
         assert.ok(home.body.includes('id="site-menu"'));
 
         const library = await get(hiddenBase + '/library');
