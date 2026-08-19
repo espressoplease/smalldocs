@@ -138,6 +138,17 @@ const CLOUD_AUTH_DEV_LOG_CODES = cloudAuthHttp.canLogDevCodes({
   nodeEnv: process.env.NODE_ENV,
   publicOrigin: CLOUD_AUTH_PUBLIC_ORIGIN,
 });
+const CLOUD_TEST_LOGIN_ENABLED = CLOUD_DEPLOYMENT.mode === 'staging' &&
+  process.env.CLOUD_TEST_LOGIN_ENABLED === '1';
+const CLOUD_TEST_LOGIN_EMAILS = new Set(String(process.env.CLOUD_TEST_LOGIN_EMAILS || '')
+  .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
+let CLOUD_TEST_LOGIN_SECRET = '';
+if (CLOUD_TEST_LOGIN_ENABLED) {
+  CLOUD_TEST_LOGIN_SECRET = fs.readFileSync(process.env.CLOUD_TEST_LOGIN_SECRET_FILE, 'utf8').trim();
+  if (CLOUD_TEST_LOGIN_SECRET.length < 32) {
+    throw new Error('CLOUD_TEST_LOGIN_SECRET_FILE must contain at least 32 characters');
+  }
+}
 let cloudAuth = null;
 let cloudOAuthTransactions = null;
 let cloudGoogleOAuth = null;
@@ -875,6 +886,8 @@ function cloudApiError(res, error) {
     login_required: 401,
     permission_denied: 403,
     resource_unavailable: 404,
+    account_required: 404,
+    account_selection_required: 409,
     revision_conflict: 409,
     idempotency_mismatch: 409,
     final_owner_required: 409,
@@ -897,6 +910,9 @@ function cloudApiError(res, error) {
     temporary_service_failure: 503,
   };
   const body = { ok: false, error: code };
+  if (code === 'account_selection_required' && Array.isArray(error.accounts)) {
+    body.accounts = error.accounts;
+  }
   if (code === 'revision_conflict') {
     body.document_id = error.documentId;
     body.base_revision_id = error.baseRevisionId;
@@ -999,7 +1015,6 @@ function cloudUserProfile(user, email) {
 }
 
 async function cloudAccountContext(userId, requestedId) {
-  await cloudStore.ensurePersonalWorkspace(userId, 'Personal');
   const workspaces = await cloudStore.listWorkspaces(userId);
   const accounts = [];
   for (const workspace of workspaces) {
@@ -1013,9 +1028,19 @@ async function cloudAccountContext(userId, requestedId) {
   if (requestedId && !selected) {
     throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
   }
-  if (!selected) selected = accounts.find((item) => item.billing && item.billing.access.write && item.defaultProject)
-    || accounts.find((item) => item.workspace.kind === 'personal') || accounts[0];
-  if (!selected) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+  if (!selected && accounts.length === 1) selected = accounts[0];
+  if (!selected && accounts.length > 1) {
+    throw Object.assign(new Error('account_selection_required'), {
+      code: 'account_selection_required',
+      accounts: accounts.map((item) => ({
+        id: item.workspace.id,
+        name: item.workspace.name,
+        can_write: Boolean(item.defaultProject && (!cloudBilling ||
+          (item.billing && item.billing.access.write))),
+      })),
+    });
+  }
+  if (!selected) throw Object.assign(new Error('account_required'), { code: 'account_required' });
   return {
     selected,
     accounts: accounts.map((item) => ({
@@ -1102,9 +1127,7 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (req.method === 'GET' && pathname === base + '/workspaces') {
-      const personal = await cloudStore.ensurePersonalWorkspace(user.id, 'Personal');
-      sendJson(res, 200, { ok: true, personal_workspace_id: personal.workspaceId,
-        workspaces: await cloudStore.listWorkspaces(user.id),
+      sendJson(res, 200, { ok: true, workspaces: await cloudStore.listWorkspaces(user.id),
         user: cloudUserProfile(user) });
       return;
     }
@@ -1123,6 +1146,14 @@ async function handleCloudApi(req, res, url) {
         throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
       }
       const body = await cloudAuthHttp.readJson(req);
+      const kind = body.kind === 'personal' || body.kind === 'team' ? body.kind : null;
+      if (!kind) throw Object.assign(new Error('invalid_request'), { code: 'invalid_request' });
+      if (kind === 'personal') {
+        const profileName = [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Cloud';
+        const workspace = await cloudStore.ensurePersonalWorkspace(user.id, profileName);
+        sendJson(res, workspace.created ? 201 : 200, { ok: true, workspace });
+        return;
+      }
       const identity = user.identities.find((item) => item.verifiedEmail) || null;
       const { defaultInviteDomainFromEmail } = require('./lib/cloud-store');
       const inviteDomain = defaultInviteDomainFromEmail(
@@ -1305,7 +1336,11 @@ async function handleCloudApi(req, res, url) {
       if (!role) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
       const usage = cloudWorkspaceUsage(user.id, workspaceBillingMatch[1]);
       const entitlements = cloudBilling ? cloudBilling.computeEntitlements(workspaceBillingMatch[1], usage) : null;
-      sendJson(res, 200, { ok: true, billing: entitlements });
+      const subscription = cloudBilling && cloudBilling.getSubscription(workspaceBillingMatch[1]);
+      const billing = entitlements && Object.assign({}, entitlements, {
+        canManagePayment: Boolean(subscription && subscription.providerCustomerId),
+      });
+      sendJson(res, 200, { ok: true, billing });
       return;
     }
     const workspaceBillingPortalMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/billing\/portal$/);
@@ -1821,13 +1856,44 @@ async function handleCloudEmailVerify(req, res) {
     if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
     const result = cloudAuth.consumeEmailCode({ requestId: body.challenge_id, code: body.code });
     if (!result.ok) return sendJson(res, 400, { ok: false, error: 'invalid_or_expired_code' });
-    if (cloudStore) await cloudStore.ensurePersonalWorkspace(result.user.id, 'Personal');
     const session = cloudAuth.createBrowserSession(result.user.id);
     const returnTo = cloudAuthHttp.safeReturnPath(body.return_to);
     const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
     sendJson(res, 200, { ok: true, return_to: returnTo }, {
       'Set-Cookie': cloudAuthHttp.sessionCookie(session.token, {
         secure,
+        maxAge: Math.max(1, Math.floor((session.expiresAtMs - Date.now()) / 1000)),
+      }),
+    });
+  } catch (error) {
+    if (error.code === 'payload_too_large') return sendJson(res, 413, { ok: false, error: error.code });
+    if (error.code === 'invalid_json') return sendJson(res, 400, { ok: false, error: 'invalid_request' });
+    sendJson(res, 500, { ok: false, error: 'temporary_service_failure' });
+  }
+}
+
+async function handleCloudTestLogin(req, res) {
+  if (!CLOUD_TEST_LOGIN_ENABLED || !cloudAuth) {
+    sendJson(res, 404, { ok: false, error: 'not_found' });
+    return;
+  }
+  if (!cloudAuthPostAllowed(req, res)) return;
+  try {
+    const body = await cloudAuthHttp.readJson(req);
+    const rate = cloudAuth.consumeRateLimit({ action: 'staging_test_login', key: getClientIp(req),
+      limit: 10, windowMs: 60 * 60 * 1000 });
+    if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const secret = typeof body.secret === 'string' ? body.secret : '';
+    if (!CLOUD_TEST_LOGIN_EMAILS.has(email) ||
+        !cloudAuthHttp.timingSafeEqualString(secret, CLOUD_TEST_LOGIN_SECRET)) {
+      return sendJson(res, 403, { ok: false, error: 'permission_denied' });
+    }
+    const signedIn = cloudAuth.signInWithVerifiedEmail(email);
+    const session = cloudAuth.createBrowserSession(signedIn.user.id);
+    const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
+    sendJson(res, 200, { ok: true, return_to: cloudAuthHttp.safeReturnPath(body.return_to) }, {
+      'Set-Cookie': cloudAuthHttp.sessionCookie(session.token, { secure,
         maxAge: Math.max(1, Math.floor((session.expiresAtMs - Date.now()) / 1000)),
       }),
     });
@@ -1903,7 +1969,6 @@ async function finishCloudOAuth(req, res, url, provider) {
     }
     const completed = await adapter.callback({ state, code });
     const signedIn = cloudAuth.signInWithExternalIdentity(completed.identity);
-    if (cloudStore) await cloudStore.ensurePersonalWorkspace(signedIn.user.id, 'Personal');
     const session = cloudAuth.createBrowserSession(signedIn.user.id);
     res.writeHead(303, { Location: cloudAuthHttp.safeReturnPath(completed.returnTo),
       'Set-Cookie': [cloudAuthHttp.sessionCookie(session.token, { secure,
@@ -2051,6 +2116,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/api/cloud/auth/test-login') {
+    if (!CLOUD_TEST_LOGIN_ENABLED) {
+      sendJson(res, 404, { ok: false, error: 'not_found' });
+      return;
+    }
+    if (req.method === 'POST') handleCloudTestLogin(req, res);
+    else sendJson(res, 405, { ok: false, error: 'method_not_allowed' });
+    return;
+  }
+
   if (req.method === 'POST' && pathname === '/api/cloud/auth/logout') {
     handleCloudLogout(req, res);
     return;
@@ -2189,6 +2264,22 @@ const server = http.createServer((req, res) => {
       '__GOOGLE_OAUTH_HIDDEN__': cloudGoogleOAuth ? '' : ' hidden',
       '__GITHUB_OAUTH_HIDDEN__': cloudGitHubOAuth ? '' : ' hidden',
     }, {
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+    });
+    return;
+  }
+
+  if (pathname === '/cloud/test-login') {
+    if (!CLOUD_TEST_LOGIN_ENABLED) {
+      res.writeHead(404, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' });
+      res.end('Not Found');
+      return;
+    }
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-test-login.html'), null, {
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
@@ -2378,7 +2469,8 @@ const server = http.createServer((req, res) => {
       '__CLOUD_LIBRARY_STYLES__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<link rel="stylesheet" href="/public/library/cloud-library-prototype.css">' : '',
       '__CLOUD_LIBRARY_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled
-        ? '<script src="/public/library/cloud-library-prototype.js"></script>' : '',
+        ? '<script src="/public/sdocs-cloud-account-selection.js"></script>'
+          + '<script src="/public/library/cloud-library-prototype.js"></script>' : '',
     }, {
       'Cache-Control': 'no-cache',
       'Content-Security-Policy': csp,
@@ -2514,7 +2606,8 @@ const server = http.createServer((req, res) => {
         ? '<link rel="stylesheet" href="/public/css/cloud-prototype.css">'
           + '<link rel="stylesheet" href="/public/css/cloud-ui-lab.css">' : '',
       '__CLOUD_UI_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled
-        ? '<script src="/public/sdocs-cloud-prototype.js"></script>'
+        ? '<script src="/public/sdocs-cloud-account-selection.js"></script>'
+          + '<script src="/public/sdocs-cloud-prototype.js"></script>'
           + (CLOUD_UI_LAB_ENABLED
             ? '<script src="/public/sdocs-cloud-ui-lab.js"></script>' : '') : '',
     }, {

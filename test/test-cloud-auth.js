@@ -113,6 +113,14 @@ module.exports = function(harness) {
       assert.strictEqual(auth.consumeEmailCode({ requestId: emailIssue.requestId, code: emailIssue.code }).reason, 'already_used');
     });
 
+    test('a trusted verified email sign-in reuses the email identity', () => {
+      const result = auth.signInWithVerifiedEmail(' New@Example.com ');
+      assert.strictEqual(result.created, false);
+      assert.strictEqual(result.user.id, emailUser.id);
+      assert.throws(() => auth.signInWithVerifiedEmail('not-an-email'),
+        (error) => error instanceof AuthError && error.code === 'invalid_email');
+    });
+
     test('email codes expire at their expiry boundary', () => {
       clock += 31000;
       const issue = auth.issueEmailCode({ email: 'expired@example.com' });

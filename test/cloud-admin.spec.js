@@ -68,15 +68,15 @@ async function installAdminApi(page, options) {
   return calls;
 }
 
-test('Personal Cloud hides team and project concepts and uses a compact left sidebar', async ({ page }) => {
+test('an individual account hides account, team, and project controls', async ({ page }) => {
   await page.setViewportSize({ width: 760, height: 900 });
   const calls = await installAdminApi(page, {
     kind: 'personal',
     workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }],
   });
   await page.goto('/public/cloud-admin.html');
-  await expect(page.getByRole('heading', { name: 'Personal Cloud' })).toBeVisible();
-  await expect(page.locator('#workspace-picker')).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  await expect(page.locator('#account-switcher')).toBeHidden();
   await expect(page.getByRole('button', { name: 'People' })).toBeHidden();
   await expect(page.getByText('Projects', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Connected machines' })).toBeVisible();
@@ -162,7 +162,7 @@ test('Team Cloud keeps invitations and domains in People without project control
   await expect(page.getByRole('heading', { name: 'People' })).toBeVisible();
   await expect(page.getByText('Projects', { exact: true })).toHaveCount(0);
   await expect(page.getByText(/project access/i)).toHaveCount(0);
-  await expect(page.locator('#workspace-picker')).toBeHidden();
+  await expect(page.locator('#account-switcher')).toBeHidden();
 
   await page.getByRole('textbox', { name: 'Company email domain' }).fill('smalldocs.org');
   await page.getByRole('button', { name: 'Allow domain' }).click();
@@ -216,7 +216,7 @@ test('a team admin cannot delete the team', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Delete team' })).toBeHidden();
 });
 
-test('workspace picker appears only when there is something to switch to', async ({ page }) => {
+test('account switcher appears only when there is something to switch to', async ({ page }) => {
   await installAdminApi(page, {
     kind: 'personal',
     workspaces: [
@@ -225,11 +225,14 @@ test('workspace picker appears only when there is something to switch to', async
     ],
   });
   await page.goto('/public/cloud-admin.html?workspace_id=personal-1');
-  await expect(page.locator('#workspace-picker')).toBeVisible();
-  await expect(page.locator('#workspace-switch')).toHaveValue('personal-1');
+  await expect(page.locator('#account-switcher')).toBeVisible();
+  await expect(page.locator('#account-switcher-name')).toHaveText('Personal');
+  await page.locator('#account-switcher-button').click();
+  await expect(page.locator('#account-switcher-menu').getByRole('menuitem')).toHaveCount(2);
+  await expect(page.locator('#account-switcher-menu')).toContainText('SmallDocs');
 });
 
-test('Cloud library stays visible beside the account picker on mobile', async ({ page }) => {
+test('Cloud library and the account switcher stay visible on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installAdminApi(page, {
     kind: 'team',
@@ -240,7 +243,7 @@ test('Cloud library stays visible beside the account picker on mobile', async ({
   });
   await page.goto('/public/cloud-admin.html?workspace_id=team-1');
 
-  const picker = page.locator('#workspace-switch');
+  const picker = page.locator('#account-switcher-button');
   const library = page.getByRole('link', { name: 'Open Cloud library' });
   await expect(picker).toBeVisible();
   await expect(library).toBeVisible();
@@ -251,7 +254,8 @@ test('Cloud library stays visible beside the account picker on mobile', async ({
   const libraryBox = await library.boundingBox();
   expect(libraryBox.height).toBe(32);
   expect(libraryBox.x + libraryBox.width).toBeLessThanOrEqual(390);
-  expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(libraryBox.x);
+  expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(390);
+  expect(pickerBox.y).toBeGreaterThanOrEqual(libraryBox.y + libraryBox.height);
 });
 
 test('team members can invite an allowed company email without admin controls', async ({ page }) => {
@@ -290,7 +294,7 @@ test('an unpaid team can open settings and subscribe without loading paid data',
   await page.route('**/api/cloud/v1/account/invitations?**', route => route.fulfill({ status: 402,
     json: { ok: false, error: 'subscription_required' } }));
   await page.goto('/public/cloud-admin.html');
-  await expect(page.getByRole('heading', { name: 'SmallDocs Demo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
   await expect(page.locator('#page-error')).toBeHidden();
   await page.getByRole('button', { name: 'Billing' }).click();
   await expect(page.getByRole('link', { name: 'Subscribe' })).toBeVisible();

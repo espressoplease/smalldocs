@@ -536,6 +536,15 @@ module.exports = function(harness) {
       assert.ok(r.headers['content-security-policy'].includes("default-src 'none'"));
     });
 
+    await testAsync('staging test login routes do not exist without explicit staging configuration', async () => {
+      const page = await get(BASE + '/cloud/test-login');
+      assert.strictEqual(page.status, 404);
+      const api = await post(BASE + '/api/cloud/auth/test-login', {
+        email: 'personal-demo@smalldocs.org', secret: 'not-configured',
+      }, { Origin: BASE });
+      assert.strictEqual(api.status, 404);
+    });
+
     await testAsync('asset-versioning: /cloud/sign-in is versioned', async () => {
       const v = JSON.parse((await get(BASE + '/version-check')).body).version;
       await assertEveryAssetVersioned('/cloud/sign-in', v);
@@ -681,7 +690,7 @@ module.exports = function(harness) {
       assert.strictEqual(JSON.parse(r.body).error, 'login_required');
     });
 
-    await testAsync('email authentication activates a personal workspace', async () => {
+    await testAsync('email authentication creates identity without creating an account', async () => {
       const requested = await post(BASE + '/api/cloud/auth/email/request', {
         email: 'cloud-api@example.com',
       }, { Origin: BASE });
@@ -694,9 +703,10 @@ module.exports = function(harness) {
       const response = await get(BASE + '/api/cloud/v1/workspaces', { Cookie: cloudCookie });
       assert.strictEqual(response.status, 200);
       const parsed = JSON.parse(response.body);
-      assert.strictEqual(parsed.workspaces.length, 1);
-      assert.strictEqual(parsed.workspaces[0].kind, 'personal');
-      cloudWorkspace = parsed.workspaces[0];
+      assert.strictEqual(parsed.workspaces.length, 0);
+      const account = await get(BASE + '/api/cloud/v1/account', { Cookie: cloudCookie });
+      assert.strictEqual(account.status, 404);
+      assert.strictEqual(JSON.parse(account.body).error, 'account_required');
 
       const homepage = await get(BASE + '/', { Cookie: cloudCookie });
       assert.strictEqual(homepage.status, 200);
@@ -712,6 +722,25 @@ module.exports = function(harness) {
       assert.ok(homepage.body.includes('action="/api/cloud/auth/logout"'));
       assert.ok(homepage.body.includes('<path d="M22 19h-6l3 3"/>'),
         'sign-out should use the user-round-arrow-left icon');
+    });
+
+    await testAsync('Just me account creation is explicit and idempotent', async () => {
+      const created = await post(BASE + '/api/cloud/v1/workspaces', {
+        kind: 'personal', name: 'Cloud', project_name: 'Documents',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(created.status, 201);
+      const repeated = await post(BASE + '/api/cloud/v1/workspaces', {
+        kind: 'personal', name: 'Cloud', project_name: 'Documents',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(repeated.status, 200);
+      assert.strictEqual(JSON.parse(repeated.body).workspace.workspaceId,
+        JSON.parse(created.body).workspace.workspaceId);
+      const listed = JSON.parse((await get(BASE + '/api/cloud/v1/workspaces', {
+        Cookie: cloudCookie,
+      })).body).workspaces;
+      assert.strictEqual(listed.length, 1);
+      assert.strictEqual(listed[0].kind, 'personal');
+      cloudWorkspace = listed[0];
     });
 
     await testAsync('authenticated Cloud admin page is private and versioned', async () => {
@@ -780,7 +809,7 @@ module.exports = function(harness) {
 
     await testAsync('Cloud workspace owner can create a team workspace and project', async () => {
       const created = await post(BASE + '/api/cloud/v1/workspaces', {
-        name: 'Test Team', project_name: 'Platform',
+        kind: 'team', name: 'Test Team', project_name: 'Platform',
       }, { Origin: BASE, Cookie: cloudCookie });
       assert.strictEqual(created.status, 201);
       cloudTeamWorkspace = JSON.parse(created.body).workspace;
@@ -797,6 +826,11 @@ module.exports = function(harness) {
       cloudBilling.upsertSubscription({ workspaceId: cloudTeamWorkspace.workspaceId,
         plan: 'team', status: 'active', seatQuantity: 2,
         provider: 'test', providerSubscriptionId: 'team-http-test' });
+
+      const ambiguous = await get(BASE + '/api/cloud/v1/account', { Cookie: cloudCookie });
+      assert.strictEqual(ambiguous.status, 409);
+      assert.strictEqual(JSON.parse(ambiguous.body).error, 'account_selection_required');
+      assert.strictEqual(JSON.parse(ambiguous.body).accounts.length, 2);
 
       const document = await post(BASE + '/api/cloud/v1/documents', {
         project_id: cloudTeamProject.id, filename: 'team-plan.md',

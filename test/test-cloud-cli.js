@@ -61,10 +61,6 @@ module.exports = function(harness) {
       loadCredential() { return account; },
       async authenticated(endpoint, options) {
         calls.push({ endpoint, options });
-        if (endpoint === '/api/cloud/v1/documents') {
-          return { document: { id: 'doc-1', current_revision_id: 'rev-1', revision_number: 1,
-            updated_at: '2026-08-14T00:00:00.000Z', tags: ['release'] } };
-        }
         if (endpoint === '/api/cloud/v1/account/documents') {
           return { account: { id: 'acct-1' }, document: { id: 'doc-1',
             current_revision_id: 'rev-1', revision_number: 1,
@@ -174,7 +170,7 @@ module.exports = function(harness) {
     fs.writeFileSync(source, '# Release\nDraft');
     await testAsync('cloud create uploads headlessly and creates a persistent binding', async () => {
       const result = await capture(() => runCloudCommand({ file: 'create', extra: source,
-        projectFlag: 'project-1', jsonFlag: true }, { client: fakeClient }));
+        accountFlag: 'acct-1', jsonFlag: true }, { client: fakeClient }));
       assert.strictEqual(result.ok, true);
       assert.strictEqual(result.command, 'cloud.create');
       assert.strictEqual(result.document_id, 'doc-1');
@@ -188,7 +184,7 @@ module.exports = function(harness) {
       const result = await capture(() => runCloudCommand({ file: 'create', extra: accountSource,
         jsonFlag: true }, { client: fakeClient }));
       assert.strictEqual(result.account_id, 'acct-1');
-      assert.strictEqual(result.project_id, null);
+      assert.strictEqual(Object.hasOwn(result, 'project_id'), false);
       assert.ok(calls.some((call) => call.endpoint === '/api/cloud/v1/account/documents'));
     });
 
@@ -356,7 +352,7 @@ module.exports = function(harness) {
     await testAsync('local Cloud file commands report login_required before using account state', async () => {
       const noCredential = { loadCredential() { return null; } };
       const commands = [
-        { file: 'create', extra: source, projectFlag: 'project-1', jsonFlag: true },
+        { file: 'create', extra: source, accountFlag: 'acct-1', jsonFlag: true },
         { file: 'pull', extra: 'doc-1', outputPath: path.join(dir, 'signed-out.md'), jsonFlag: true },
         { file: 'push', extra: source, jsonFlag: true },
       ];
@@ -385,11 +381,31 @@ module.exports = function(harness) {
       assert.strictEqual(result.stderr, '');
     });
 
+    await testAsync('multi-account status requires an explicit account and lists the choices', async () => {
+      const client = new CloudClient({
+        origin: 'https://cloud.test',
+        credentials: { load() { return account; }, save() {}, remove() {} },
+        fetch: async () => ({ ok: false, status: 409, json: async () => ({
+          ok: false, error: 'account_selection_required', accounts: [
+            { id: 'acct-personal', name: 'Josh Summers' },
+            { id: 'acct-team', name: 'SmallDocs' },
+          ],
+        }) }),
+      });
+      const result = await captureStreams(() => runCloudCommand({ file: 'status', jsonFlag: true },
+        { client }));
+      const body = JSON.parse(result.stdout);
+      assert.strictEqual(body.error, 'account_selection_required');
+      assert.ok(body.message.includes('Choose an account with --account.'));
+      assert.ok(body.message.includes('SmallDocs (acct-team)'));
+      assert.strictEqual(result.exitCode, 4);
+    });
+
     await testAsync('cloud create explains a required subscription and exits nonzero', async () => {
       const fresh = path.join(dir, 'new-cloud-file.md');
       fs.writeFileSync(fresh, '# New document');
       const result = await captureStreams(() => runCloudCommand({ file: 'create', extra: fresh,
-        projectFlag: 'project-1' }, { client: entitlementClient('subscription_required') }));
+        accountFlag: 'acct-1' }, { client: entitlementClient('subscription_required') }));
       assert.strictEqual(result.stdout, '');
       assert.strictEqual(result.exitCode, 4);
       assert.ok(result.stderr.includes('active SmallDocs Cloud subscription'));
@@ -407,7 +423,7 @@ module.exports = function(harness) {
       assert.deepStrictEqual(JSON.parse(lines[0]), {
         ok: false,
         error: 'subscription_read_only',
-        message: 'This Cloud workspace is read-only because its subscription is not active. Ask a workspace owner to update billing.',
+        message: 'This Cloud account is read-only because its subscription is not active. Ask an account owner to update billing.',
         http_status: 402,
         action: 'manage_billing',
         billing_url: 'https://cloud.test/cloud/admin',

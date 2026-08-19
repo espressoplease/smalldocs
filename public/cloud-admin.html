@@ -20,16 +20,25 @@
   .brand { color:var(--blue); font-weight:600; text-decoration:none; }
   .sep { color:#A8A29E; }
   .crumb { color:var(--text-2); font-size:12px; }
-  .workspace-picker { display:flex; align-items:center; gap:10px; }
-  .workspace-picker[hidden] { display:none; }
-  .workspace-switch { border:0; background:transparent; color:var(--text); font-weight:500; padding:4px 6px; border-radius:4px; }
-  .workspace-switch:hover { background:var(--surface-2); }
   .account { margin-left:auto; color:var(--text-3); font-size:11px; }
   .open-library { height:32px; margin-left:8px; display:inline-flex; flex:0 0 auto; align-items:center; gap:5px; padding:0 10px; border:1px solid var(--border); border-radius:6px; color:var(--text); text-decoration:none; background:var(--surface-2); font-size:12px; font-weight:500; line-height:1; white-space:nowrap; }
   .open-library:hover { border-color:var(--text-3); background:var(--surface); }
   .open-library svg { display:block; flex:0 0 auto; }
   .shell { min-height:calc(100vh - 48px); display:grid; grid-template-columns:210px minmax(0,1fr); align-items:start; }
   .sidebar { position:sticky; top:48px; height:calc(100vh - 48px); padding:22px 12px; border-right:1px solid var(--border); }
+  .account-switcher { position:relative; margin:0 0 18px; }
+  .account-switcher-button { width:100%; min-height:46px; display:flex; align-items:center; gap:9px; padding:6px; border:1px solid var(--border); border-radius:7px; background:var(--surface); color:var(--text); text-align:left; }
+  .account-switcher-button:hover { border-color:var(--text-3); background:var(--surface-2); }
+  .account-switcher-mark { width:30px; height:30px; display:grid; flex:0 0 auto; place-items:center; border-radius:6px; background:var(--blue); color:#fff; font-size:10px; font-weight:600; }
+  .account-switcher-copy { min-width:0; flex:1; }
+  .account-switcher-copy span { display:block; color:var(--text-3); font-size:9px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; }
+  .account-switcher-copy strong { display:block; overflow:hidden; margin-top:2px; font-size:11.5px; font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
+  .account-switcher-button > svg { width:14px; height:14px; flex:0 0 auto; fill:none; stroke:currentColor; stroke-width:2; color:var(--text-3); }
+  .account-switcher-menu { position:absolute; z-index:12; top:calc(100% + 6px); left:0; width:260px; padding:7px; border:1px solid var(--border); border-radius:7px; background:var(--surface); box-shadow:0 16px 40px rgba(28,25,23,.16); }
+  .account-switcher-menu button { width:100%; display:flex; align-items:center; gap:9px; padding:7px; border:0; border-radius:5px; background:transparent; color:var(--text); text-align:left; }
+  .account-switcher-menu button:hover { background:var(--surface-2); }
+  .account-switcher-menu button strong { min-width:0; flex:1; overflow:hidden; font-size:11.5px; font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
+  .account-switcher-menu button svg { width:14px; height:14px; fill:none; stroke:var(--blue); stroke-width:2; }
   .side-label { padding:0 9px 8px; color:var(--text-3); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
   .nav { width:100%; min-height:36px; display:flex; flex:0 0 auto; align-items:center; gap:9px; border:0; border-radius:5px; padding:8px 9px; background:transparent; color:var(--text-2); text-align:left; }
   .nav[hidden] { display:none; }
@@ -119,19 +128,26 @@
   .recovery-row:last-child { border-bottom:0; }
   .recovery-row strong { display:block; font-size:12px; font-weight:500; }
   .recovery-row p { margin:3px 0 0; color:var(--text-3); font-size:11.5px; line-height:1.5; }
-  @media(max-width:600px) { .shell{grid-template-columns:1fr}.sidebar{position:static;top:auto;height:auto;display:flex;align-items:center;overflow:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.nav{width:auto;height:36px;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:1fr 1fr}.invite.open,.domain-controls{grid-template-columns:1fr}.account,.header-context-sep,.crumb,.workspace-picker .sep{display:none}.workspace-picker{min-width:0;flex:1}.workspace-switch{width:100%;min-width:0;max-width:100%}.open-library{margin-left:auto}.machine-row,.recovery-row{align-items:flex-start}.machine-row{flex-direction:column}.machine-row .btn{align-self:flex-start} }
+  @media(max-width:600px) { .shell{grid-template-columns:1fr}.sidebar{position:static;top:auto;height:auto;display:flex;align-items:center;overflow:visible;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.account-switcher{flex:0 0 170px;margin:0 8px 0 0}.account-switcher-button{min-height:36px}.account-switcher-mark{width:24px;height:24px}.account-switcher-copy span{display:none}.account-switcher-menu{width:240px}.nav{width:auto;height:36px;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:1fr 1fr}.invite.open,.domain-controls{grid-template-columns:1fr}.account,.header-context-sep,.crumb{display:none}.open-library{margin-left:auto}.machine-row,.recovery-row{align-items:flex-start}.machine-row{flex-direction:column}.machine-row .btn{align-self:flex-start} }
   @media(prefers-color-scheme:dark) { :root{--bg:#1C1A17;--surface:#211F1D;--surface-2:#252320;--text:#E7E5E2;--text-2:#A8A29E;--text-3:#77716B;--border:#3D3935;--border-2:#332F2B;--blue:#3B82F6;--blue-2:#17233A;--green:#4ADE80;--red:#FCA5A5}.notice{background:#17233A;border-color:#284B80;color:#BFDBFE} }
 </style>
 </head>
 <body>
 <header class="header">
   <a class="brand" href="/">SmallDocs</a><span class="sep header-context-sep">/</span><span class="crumb">Cloud settings</span>
-  <span class="workspace-picker" id="workspace-picker" hidden><span class="sep">/</span><select class="workspace-switch" id="workspace-switch" aria-label="Cloud account"></select></span>
   <span class="account" id="account-label">Loading account</span>
   <a class="open-library" href="/library?scope=cloud" aria-label="Open Cloud library"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg><span>Library</span></a>
 </header>
 <div class="shell">
   <aside class="sidebar">
+    <div class="account-switcher" id="account-switcher" hidden>
+      <button class="account-switcher-button" id="account-switcher-button" type="button" aria-expanded="false" aria-haspopup="menu">
+        <span class="account-switcher-mark" id="account-switcher-mark">C</span>
+        <span class="account-switcher-copy"><span>Account</span><strong id="account-switcher-name">Choose account</strong></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+      </button>
+      <div class="account-switcher-menu" id="account-switcher-menu" role="menu" hidden></div>
+    </div>
     <p class="side-label">Cloud</p>
     <button class="nav active" data-panel="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Overview</button>
     <button class="nav" data-panel="people" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>People</button>
@@ -154,12 +170,12 @@
 
     <section class="panel" id="panel-machines" hidden>
       <div class="page-head"><div><h1>Connected machines</h1><p class="description">Machines where you have signed in with <code>sdoc cloud login</code>.</p></div></div>
-      <div class="notice">These connections belong to you. They stay the same when you switch between Personal and Team Cloud.</div>
+      <div class="notice">These connections belong to your sign-in and work with every Cloud account you can access.</div>
       <div class="card"><div id="credential-rows"></div><p class="empty" id="credentials-empty" hidden>No machines are connected. Run <code>sdoc cloud login</code> on a machine to connect it.</p></div>
     </section>
 
     <section class="panel" id="panel-billing" hidden>
-      <div class="page-head"><div><h1>Billing</h1><p class="description">Team billing applies to people. CLI connections do not add seats.</p></div><button class="btn" id="manage-billing" type="button" hidden>Manage payment</button></div>
+      <div class="page-head"><div><h1>Billing</h1><p class="description">Manage the subscription for this Cloud account. CLI connections do not add seats.</p></div><button class="btn" id="manage-billing" type="button" hidden>Manage payment</button></div>
       <div class="card"><div class="billing-row"><div><strong id="billing-plan">Cloud subscription</strong><p id="billing-status">Loading billing state.</p></div><div class="price" id="billing-price"></div></div><div class="billing-row"><div><strong>Usage</strong><p id="billing-usage"></p></div></div><div class="billing-row" id="subscribe-row" hidden><div><strong>Subscribe to Cloud</strong><p>Payment is collected by Stripe. The subscription renews monthly until cancelled.</p></div><a class="btn primary" id="subscribe-link" href="/cloud">Subscribe</a></div></div>
       <div class="card" id="workspace-lifecycle" hidden><div class="billing-row"><div><strong>Delete team</strong><p>Access ends immediately. Encrypted documents and revisions are scheduled for permanent deletion after 30 days.</p></div><button class="btn small danger" id="delete-workspace" type="button">Delete team</button></div></div>
     </section>
@@ -168,6 +184,7 @@
 
 <div class="confirm" id="confirm" hidden><div class="confirm-box"><h2 id="confirm-title">Confirm action</h2><p id="confirm-copy"></p><div class="confirm-actions"><button class="btn" id="confirm-cancel">Cancel</button><button class="btn danger" id="confirm-action">Confirm</button></div></div></div>
 
+<script src="/public/sdocs-cloud-account-selection.js" defer></script>
 <script src="/public/cloud-admin.js" defer></script>
 <script src="/public/sdocs-trust-footer.js" defer></script>
 </body>

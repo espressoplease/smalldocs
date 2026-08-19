@@ -1116,6 +1116,8 @@ if (!window.SDocsConnect ||
 if (isCloudMode()) {
   document.getElementById('star-toggle').hidden = true;
   document.getElementById('q').placeholder = 'search titles, tags, and document text...';
+  const projectButton = document.querySelector('[data-facet="project"]');
+  if (projectButton) projectButton.hidden = true;
   const pathButton = document.querySelector('[data-facet="path"]');
   if (pathButton) pathButton.hidden = true;
   const agentButton = document.querySelector('[data-facet="agent"]');

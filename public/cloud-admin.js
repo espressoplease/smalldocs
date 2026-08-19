@@ -63,10 +63,10 @@
       resource_unavailable: 'This item is no longer available.',
       active_subscription_requires_cancellation: 'Cancel the team subscription in Billing before deleting it.',
       final_owner_required: 'Add another admin before removing the final admin.',
-      personal_workspace_cannot_be_deleted: 'Personal Cloud cannot be deleted here.',
+      personal_workspace_cannot_be_deleted: 'This account cannot be deleted here.',
       public_email_domain: 'Use a company domain rather than a public email provider.',
       email_delivery_unavailable: 'The invitation email was not sent. Try again.',
-      subscription_required: 'Subscribe to Team Cloud before inviting people.',
+      subscription_required: 'Subscribe to Cloud before inviting people.',
       invalid_request: 'Check the submitted details and try again.',
       temporary_service_failure: 'Cloud is temporarily unavailable.',
     };
@@ -108,16 +108,40 @@
   function setCount(id, value) { byId(id).textContent = String(value); }
   function isTeam() { return Boolean(state.workspace && state.workspace.kind === 'team'); }
 
-  function renderWorkspacePicker() {
-    var picker = byId('workspace-switch');
-    picker.replaceChildren();
+  function accountName(workspace) {
+    return window.SDocsCloudAccountSelection.label(workspace, state.me);
+  }
+
+  function renderAccountSwitcher() {
+    var menu = byId('account-switcher-menu');
+    menu.replaceChildren();
     state.workspaces.forEach(function (workspace) {
-      var option = element('option', '', workspace.name);
-      option.value = workspace.id;
-      option.selected = state.workspace && state.workspace.id === workspace.id;
-      picker.appendChild(option);
+      var button = element('button');
+      button.type = 'button';
+      button.setAttribute('role', 'menuitem');
+      button.append(element('span', 'account-switcher-mark',
+        window.SDocsCloudAccountSelection.initials(accountName(workspace))),
+      element('strong', '', accountName(workspace)));
+      if (state.workspace && state.workspace.id === workspace.id) {
+        var check = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        check.setAttribute('viewBox', '0 0 24 24');
+        var path = document.createElementNS(check.namespaceURI, 'path');
+        path.setAttribute('d', 'm20 6-11 11-5-5');
+        check.appendChild(path);
+        button.appendChild(check);
+      }
+      button.addEventListener('click', function () {
+        window.SDocsCloudAccountSelection.remember(localStorage, workspace.id);
+        menu.hidden = true;
+        byId('account-switcher-button').setAttribute('aria-expanded', 'false');
+        loadWorkspace(workspace.id).catch(showError);
+      });
+      menu.appendChild(button);
     });
-    byId('workspace-picker').hidden = state.workspaces.length <= 1;
+    byId('account-switcher').hidden = state.workspaces.length <= 1;
+    var name = state.workspace ? accountName(state.workspace) : 'Choose account';
+    byId('account-switcher-name').textContent = name;
+    byId('account-switcher-mark').textContent = window.SDocsCloudAccountSelection.initials(name);
   }
 
   function renderMembers() {
@@ -243,10 +267,8 @@
     state.deletedDocuments.forEach(function (documentItem) {
       var row = element('div', 'recovery-row');
       var details = document.createElement('div');
-      var context = documentItem.project && documentItem.project.name
-        ? documentItem.project.name + ' - ' : '';
       details.append(element('strong', '', documentItem.title || documentItem.filename),
-        element('p', '', context + 'available until ' + formatDateTime(documentItem.purge_after)));
+        element('p', '', 'Available until ' + formatDateTime(documentItem.purge_after)));
       var restore = element('button', 'btn small', 'Restore');
       restore.type = 'button';
       restore.addEventListener('click', async function () {
@@ -308,8 +330,7 @@
   function renderBilling() {
     var billing = state.billing;
     var plan = billing && billing.plan;
-    byId('billing-plan').textContent = plan ? (plan === 'team' ? 'Team Cloud' : 'Personal Cloud')
-      : 'No active subscription';
+    byId('billing-plan').textContent = plan ? 'Cloud subscription' : 'No active subscription';
     byId('billing-status').textContent = plan
       ? 'Status: ' + String(billing.effectiveStatus || billing.subscriptionStatus).replace(/_/g, ' ')
       : 'Subscribe before storing or searching Cloud documents.';
@@ -322,7 +343,8 @@
     else byId('billing-usage').textContent = usage.storedBytes + ' stored bytes';
     var hasSubscription = Boolean(plan);
     var canManageBilling = state.workspace && state.workspace.role === 'owner';
-    byId('manage-billing').hidden = !hasSubscription || !canManageBilling;
+    byId('manage-billing').hidden = !hasSubscription || !canManageBilling ||
+      !billing.canManagePayment;
     byId('subscribe-row').hidden = hasSubscription || !canManageBilling;
     byId('subscribe-link').href = '/cloud/checkout?plan=' + (isTeam() ? 'team' : 'personal');
   }
@@ -361,15 +383,14 @@
   function renderAll() {
     if (!state.workspace) return;
     var team = isTeam();
-    byId('overview-name').textContent = team ? state.workspace.name : 'Personal Cloud';
+    byId('overview-name').textContent = 'Overview';
     byId('overview-description').textContent = team
-      ? 'Team documents, people, and billing.'
-      : 'Your Cloud documents and billing.';
+      ? 'Documents, people, and billing.' : 'Your Cloud documents and billing.';
     byId('account-label').textContent = state.me && state.me.email
       ? 'Signed in as ' + state.me.email : 'Signed in';
     setCount('member-count', state.members.filter(function (member) { return member.status !== 'disabled'; }).length);
     setCount('document-count', state.documents.length);
-    renderWorkspacePicker();
+    renderAccountSwitcher();
     if (team) {
       renderMembers();
       renderInvitePolicy();
@@ -383,9 +404,10 @@
   async function loadWorkspace(workspaceId) {
     clearError();
     var workspace = state.workspaces.find(function (item) { return item.id === workspaceId; });
-    if (!workspace) workspace = state.workspaces[0];
+    if (!workspace && state.workspaces.length === 1) workspace = state.workspaces[0];
     if (!workspace) throw new Error('resource_unavailable');
     state.workspace = workspace;
+    window.SDocsCloudAccountSelection.remember(localStorage, workspace.id);
     var encoded = encodeURIComponent(workspace.id);
     var team = workspace.kind === 'team';
     var canAdminister = workspace.role === 'owner' || workspace.role === 'admin';
@@ -504,8 +526,23 @@
     Array.from(document.querySelectorAll('.nav')).forEach(function (button) {
       button.addEventListener('click', function () { activatePanel(button.dataset.panel); });
     });
-    byId('workspace-switch').addEventListener('change', function (event) {
-      loadWorkspace(event.target.value).catch(showError);
+    byId('account-switcher-button').addEventListener('click', function () {
+      var menu = byId('account-switcher-menu');
+      var open = menu.hidden;
+      menu.hidden = !open;
+      byId('account-switcher-button').setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', function (event) {
+      if (!event.target.closest('#account-switcher')) {
+        byId('account-switcher-menu').hidden = true;
+        byId('account-switcher-button').setAttribute('aria-expanded', 'false');
+      }
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        byId('account-switcher-menu').hidden = true;
+        byId('account-switcher-button').setAttribute('aria-expanded', 'false');
+      }
     });
     byId('invite-open').addEventListener('click', function () {
       byId('invite-form').classList.toggle('open');
@@ -564,7 +601,19 @@
       state.deletedWorkspaces = responses[3].workspaces || [];
       state.deletedDocuments = responses[4].documents || [];
       var params = new URLSearchParams(location.search);
-      await loadWorkspace(params.get('workspace_id'));
+      if (!state.workspaces.length) {
+        location.assign('/cloud/checkout');
+        return;
+      }
+      var selected = window.SDocsCloudAccountSelection.resolve(
+        state.workspaces, params.get('workspace_id'), localStorage);
+      if (!selected) {
+        renderAccountSwitcher();
+        byId('overview-name').textContent = 'Choose an account';
+        byId('overview-description').textContent = 'Select the Cloud account you want to manage.';
+        return;
+      }
+      await loadWorkspace(selected.id);
       var requestedPanel = params.get('panel');
       var panelExists = requestedPanel && byId('panel-' + requestedPanel);
       if (panelExists && !(requestedPanel === 'people' && !isTeam())) {

@@ -49,7 +49,18 @@ async function jsonRequest(url, options) {
 }
 
 async function loadAccountData(accountId) {
-  var suffix = accountId ? '?account_id=' + encodeURIComponent(accountId) : '';
+  if (!accountId) {
+    var workspaceData = await jsonRequest('/api/cloud/v1/workspaces');
+    cloudState.accounts = workspaceData.workspaces || [];
+    cloudState.user = workspaceData.user || null;
+    var selected = window.SDocsCloudAccountSelection.resolve(
+      cloudState.accounts, null, localStorage);
+    if (!selected) return { account: null, accounts: cloudState.accounts,
+      user: cloudState.user, needs_selection: cloudState.accounts.length > 1 };
+    accountId = selected.id;
+  }
+  window.SDocsCloudAccountSelection.remember(localStorage, accountId);
+  var suffix = '?account_id=' + encodeURIComponent(accountId);
   var data = await jsonRequest('/api/cloud/v1/account' + suffix);
   cloudState.account = data.account;
   cloudState.accounts = data.accounts || [];
@@ -275,7 +286,7 @@ function renderCodePrompt(row, email) {
   setTimeout(function () { input.focus(); }, 0);
 }
 
-async function beginAdd(event) {
+async function beginAdd(event, accountId) {
   if (event) {
     event.preventDefault();
     event.stopPropagation();
@@ -283,7 +294,16 @@ async function beginAdd(event) {
   if (cloudState.busy) return;
   cloudState.busy = true;
   try {
-    var accountData = await loadAccountData();
+    var accountData = await loadAccountData(accountId || null);
+    if (accountData.needs_selection) {
+      openAccountChoice(accountData.accounts, accountData.user);
+      return;
+    }
+    if (!accountData.account) {
+      location.href = '/cloud/checkout?return=' +
+        encodeURIComponent(location.pathname + location.search + location.hash);
+      return;
+    }
     if (!accountData.account.can_write) {
       location.href = '/cloud/checkout?return=' +
         encodeURIComponent(location.pathname + location.search + location.hash);
@@ -318,6 +338,32 @@ async function beginAdd(event) {
   } finally {
     cloudState.busy = false;
   }
+}
+
+function openAccountChoice(accounts, user) {
+  var backdrop = ensureDialog();
+  var dialog = backdrop.querySelector('.sdoc-cloud-proto-dialog');
+  backdrop.hidden = false;
+  document.body.style.overflow = 'hidden';
+  dialog.innerHTML = shell('Choose an account',
+    'This document will be added to the account you select.',
+    documentPreview() + '<div class="sdoc-cloud-proto-account-list"></div>'
+    + '<div class="sdoc-cloud-proto-actions"><button class="sdoc-cloud-proto-btn" data-action="cancel" type="button">Cancel</button></div>');
+  wireClose(dialog);
+  dialog.querySelector('[data-action="cancel"]').addEventListener('click', closeDialog);
+  var list = dialog.querySelector('.sdoc-cloud-proto-account-list');
+  accounts.forEach(function (account) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'sdoc-cloud-proto-btn';
+    button.textContent = window.SDocsCloudAccountSelection.label(account, user);
+    button.addEventListener('click', function () {
+      window.SDocsCloudAccountSelection.remember(localStorage, account.id);
+      closeDialog();
+      beginAdd(null, account.id);
+    });
+    list.appendChild(button);
+  });
 }
 
 async function removeCloudDocument(event) {
@@ -553,264 +599,6 @@ function documentPreview() {
 
 function wireClose(dialog) {
   dialog.querySelector('.sdoc-cloud-proto-close').addEventListener('click', closeDialog);
-}
-
-async function openProjectDialog(preferredWorkspaceId) {
-  var backdrop = ensureDialog();
-  var dialog = backdrop.querySelector('.sdoc-cloud-proto-dialog');
-  backdrop.hidden = false;
-  document.body.style.overflow = 'hidden';
-  dialog.innerHTML = shell('Choose where it belongs',
-    'The document will be added as the first Cloud revision. Your local file remains where it is.',
-    documentPreview() + '<label class="sdoc-cloud-proto-label" for="sdoc-cloud-project">Project</label>'
-    + '<select class="sdoc-cloud-proto-select" id="sdoc-cloud-project"><option>Loading projects...</option></select>'
-    + '<div class="sdoc-cloud-proto-actions"><button class="sdoc-cloud-proto-btn" data-action="cancel" type="button">Cancel</button>'
-    + '<button class="sdoc-cloud-proto-btn primary" data-action="add" type="button" disabled>Add document</button></div>'
-    + '<p class="sdoc-cloud-proto-note">Stored encrypted. SmallDocs decrypts it in memory after checking access when a person or agent opens or searches it.</p>');
-  wireClose(dialog);
-  dialog.querySelector('[data-action="cancel"]').addEventListener('click', closeDialog);
-  var select = dialog.querySelector('select');
-  var add = dialog.querySelector('[data-action="add"]');
-  try {
-    var workspaceData = await jsonRequest('/api/cloud/v1/workspaces');
-    var groups = await Promise.all(workspaceData.workspaces.map(async function (workspace) {
-      var projects = await jsonRequest('/api/cloud/v1/projects?workspace_id=' + encodeURIComponent(workspace.id));
-      return { workspace: workspace, projects: projects.projects || [] };
-    }));
-    select.replaceChildren();
-    groups.forEach(function (group) {
-      group.projects.forEach(function (project) {
-        if (project.role !== 'editor') return;
-        var option = document.createElement('option');
-        option.value = project.id;
-        option.textContent = group.workspace.name + ' / ' + project.name;
-        option.dataset.projectName = project.name;
-        option.dataset.workspaceId = group.workspace.id;
-        option.dataset.workspaceKind = group.workspace.kind;
-        select.appendChild(option);
-      });
-    });
-    if (preferredWorkspaceId) {
-      var preferred = Array.prototype.find.call(select.options, function (option) {
-        return option.dataset.workspaceId === preferredWorkspaceId;
-      });
-      if (preferred) select.value = preferred.value;
-    }
-    add.disabled = !select.options.length;
-  } catch (error) {
-    select.replaceChildren(Object.assign(document.createElement('option'), { textContent: 'Projects unavailable' }));
-  }
-  add.addEventListener('click', async function () {
-    if (!select.value) return;
-    add.disabled = true;
-    add.textContent = 'Adding...';
-    try {
-      var data = await jsonRequest('/api/cloud/v1/documents', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: select.value,
-          filename: currentFilename(),
-          markdown: currentMarkdown(),
-          idempotency_key: crypto.randomUUID(),
-        }),
-      });
-      data.document.project = { id: select.value,
-        name: select.options[select.selectedIndex].dataset.projectName || 'Cloud' };
-      S.cloudDocument = data.document;
-      var url = new URL(location.href);
-      url.searchParams.set('cloud-document', data.document.id);
-      history.replaceState(null, '', url.pathname + url.search + url.hash);
-      refreshRow();
-      renderSuccess(dialog);
-    } catch (error) {
-      if (error.status === 402 && (error.data.error === 'subscription_required' ||
-          error.data.error === 'subscription_read_only' || error.data.error === 'payment_grace_expired')) {
-        var selected = select.options[select.selectedIndex];
-        var plan = selected && selected.dataset.workspaceKind === 'team' ? 'team' : 'personal';
-        location.href = '/cloud/checkout?plan=' + plan + '&return=' +
-          encodeURIComponent(location.pathname + location.search + location.hash);
-        return;
-      }
-      add.disabled = false;
-      add.textContent = 'Try again';
-    }
-  });
-}
-
-function renderSuccess(dialog) {
-  dialog.innerHTML = shell('Document added to Cloud',
-    S.cloudDocument.project && S.cloudDocument.project.name || 'Cloud',
-    '<div class="sdoc-cloud-proto-success"><div class="sdoc-cloud-proto-success-icon">' + CLOUD_CHECK_SVG + '</div>'
-    + '<h3>' + escapeHtml(currentFilename()) + '</h3><p>Revision 1 is available to authorized people and agents in this project.</p>'
-    + '<div class="sdoc-cloud-proto-actions"><a class="sdoc-cloud-proto-btn" href="/library?scope=cloud">Open library</a>'
-    + '<button class="sdoc-cloud-proto-btn primary" data-action="done" type="button">Done</button></div></div>');
-  wireClose(dialog);
-  dialog.querySelector('[data-action="done"]').addEventListener('click', closeDialog);
-}
-
-function openDialog() {
-  if (!S.cloudDocument) return openProjectDialog();
-  var backdrop = ensureDialog();
-  var dialog = backdrop.querySelector('.sdoc-cloud-proto-dialog');
-  backdrop.hidden = false;
-  document.body.style.overflow = 'hidden';
-  dialog.innerHTML = shell('Cloud document',
-    (S.cloudDocument.project && S.cloudDocument.project.name) || 'Cloud',
-    documentPreview() + '<div class="sdoc-cloud-proto-success"><div class="sdoc-cloud-proto-success-icon">' + CLOUD_CHECK_SVG + '</div>'
-    + '<h3>Revision ' + escapeHtml(S.cloudDocument.revision_number) + '</h3><p>Save your current changes as a new immutable revision.</p>'
-    + '<div class="sdoc-cloud-proto-actions"><a class="sdoc-cloud-proto-btn" href="/library?scope=cloud">Open library</a>'
-    + '<button class="sdoc-cloud-proto-btn danger" data-action="delete" type="button">Delete from Cloud</button>'
-    + '<button class="sdoc-cloud-proto-btn" data-action="history" type="button">Revision history</button>'
-    + '<button class="sdoc-cloud-proto-btn primary" data-action="save" type="button">Save to Cloud</button></div>'
-    + '<p class="sdoc-cloud-proto-note" data-save-status></p></div>');
-  wireClose(dialog);
-  dialog.querySelector('[data-action="delete"]').addEventListener('click', confirmDeleteDocument);
-  dialog.querySelector('[data-action="history"]').addEventListener('click', openRevisionHistory);
-  dialog.querySelector('[data-action="save"]').addEventListener('click', saveRevision);
-}
-
-function confirmDeleteDocument() {
-  var dialog = ensureDialog().querySelector('.sdoc-cloud-proto-dialog');
-  dialog.innerHTML = shell('Delete from Cloud', currentFilename(),
-    '<p>This removes the document from Cloud now. It can be restored for 30 days before its encrypted revisions are purged.</p>'
-    + '<div class="sdoc-cloud-proto-actions"><button class="sdoc-cloud-proto-btn" data-action="cancel" type="button">Cancel</button>'
-    + '<button class="sdoc-cloud-proto-btn danger" data-action="confirm-delete" type="button">Delete from Cloud</button></div>'
-    + '<p class="sdoc-cloud-proto-note" data-delete-status></p>');
-  wireClose(dialog);
-  dialog.querySelector('[data-action="cancel"]').addEventListener('click', openDialog);
-  dialog.querySelector('[data-action="confirm-delete"]').addEventListener('click', deleteCloudDocument);
-}
-
-async function deleteCloudDocument(event) {
-  var button = event.currentTarget;
-  var dialog = button.closest('.sdoc-cloud-proto-dialog');
-  button.disabled = true;
-  button.textContent = 'Deleting...';
-  try {
-    await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id), {
-      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expected_head_revision_id: S.cloudDocument.current_revision_id }),
-    });
-    S.cloudDocument = null;
-    var url = new URL(location.href);
-    url.searchParams.delete('cloud-document');
-    history.replaceState(null, '', url.pathname + url.search + url.hash);
-    refreshRow();
-    dialog.innerHTML = shell('Deleted from Cloud', currentFilename(),
-      '<p>The current document remains open here. Cloud keeps its encrypted revisions for the 30-day restore window.</p>'
-      + '<div class="sdoc-cloud-proto-actions"><a class="sdoc-cloud-proto-btn" href="/library?scope=cloud">Open library</a>'
-      + '<button class="sdoc-cloud-proto-btn primary" data-action="done" type="button">Done</button></div>');
-    wireClose(dialog);
-    dialog.querySelector('[data-action="done"]').addEventListener('click', closeDialog);
-  } catch (error) {
-    button.disabled = false;
-    button.textContent = error.data && error.data.error === 'revision_conflict'
-      ? 'Document changed' : 'Try again';
-    dialog.querySelector('[data-delete-status]').textContent = 'The document was not deleted.';
-  }
-}
-
-async function openRevisionHistory() {
-  var backdrop = ensureDialog();
-  var dialog = backdrop.querySelector('.sdoc-cloud-proto-dialog');
-  dialog.innerHTML = shell('Revision history', currentFilename(),
-    '<p class="sdoc-cloud-proto-note" data-history-status>Loading revisions...</p>');
-  wireClose(dialog);
-  try {
-    var revisions = [];
-    var cursor = null;
-    do {
-      var endpoint = '/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id) +
-        '/revisions?limit=100' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
-      var page = await jsonRequest(endpoint);
-      revisions = revisions.concat(page.revisions || []);
-      cursor = page.next_cursor || null;
-    } while (cursor);
-    var list = document.createElement('div');
-    list.className = 'sdoc-cloud-revision-list';
-    revisions.forEach(function (revision) {
-      var row = document.createElement('div');
-      row.className = 'sdoc-cloud-revision-row';
-      var details = document.createElement('div');
-      var title = document.createElement('strong');
-      title.textContent = 'Revision ' + revision.revision_number;
-      var date = document.createElement('span');
-      date.textContent = new Date(revision.created_at).toLocaleString();
-      details.append(title, date);
-      row.appendChild(details);
-      if (revision.id !== S.cloudDocument.current_revision_id) {
-        var restore = document.createElement('button');
-        restore.type = 'button';
-        restore.className = 'sdoc-cloud-proto-btn';
-        restore.textContent = 'Restore';
-        restore.addEventListener('click', function () { restoreRevision(revision, restore); });
-        row.appendChild(restore);
-      } else {
-        var current = document.createElement('span');
-        current.className = 'sdoc-cloud-proto-note';
-        current.textContent = 'Current';
-        row.appendChild(current);
-      }
-      list.appendChild(row);
-    });
-    var body = dialog.querySelector('.sdoc-cloud-proto-body');
-    body.replaceChildren(list);
-  } catch (_) {
-    dialog.querySelector('[data-history-status]').textContent = 'Revision history is unavailable.';
-  }
-}
-
-async function restoreRevision(revision, button) {
-  button.disabled = true;
-  button.textContent = 'Restoring...';
-  try {
-    var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id)
-      + '/revisions/' + encodeURIComponent(revision.id) + '/restore', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expected_head_revision_id: S.cloudDocument.current_revision_id,
-        idempotency_key: crypto.randomUUID() }),
-    });
-    data.document.project = S.cloudDocument.project;
-    S.cloudDocument = data.document;
-    S._loadingDocument = true;
-    if (S.resetAllStyles) S.resetAllStyles();
-    S.loadText(data.document.markdown, data.document.filename);
-    S._loadingDocument = false;
-    refreshRow();
-    openRevisionHistory();
-  } catch (error) {
-    button.disabled = false;
-    button.textContent = error.data && error.data.error === 'revision_conflict' ? 'Document changed' : 'Try again';
-  }
-}
-
-async function saveRevision(event) {
-  var button = event.currentTarget;
-  var dialog = button.closest('.sdoc-cloud-proto-dialog');
-  var status = dialog.querySelector('[data-save-status]');
-  button.disabled = true;
-  button.textContent = 'Saving...';
-  try {
-    var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id) + '/revisions', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        expected_head_revision_id: S.cloudDocument.current_revision_id,
-        filename: currentFilename(), markdown: currentMarkdown(),
-        idempotency_key: crypto.randomUUID(),
-      }),
-    });
-    data.document.project = S.cloudDocument.project;
-    S.cloudDocument = data.document;
-    status.textContent = 'Revision ' + data.document.revision_number + ' saved.';
-    button.textContent = 'Saved';
-    refreshRow();
-  } catch (error) {
-    button.disabled = false;
-    button.textContent = 'Try again';
-    status.textContent = error.data && error.data.error === 'revision_conflict'
-      ? 'This document changed elsewhere. Reopen it before saving your changes.'
-      : 'The revision could not be saved.';
-  }
 }
 
 function openErrorDialog(message) {

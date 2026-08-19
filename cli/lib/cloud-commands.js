@@ -8,7 +8,8 @@ const credentialStore = require('./cloud-credentials');
 const bindings = require('./cloud-bindings');
 
 const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
-  resource_unavailable: 4, permission_denied: 4, revision_conflict: 5,
+  resource_unavailable: 4, account_required: 4, account_selection_required: 4,
+  permission_denied: 4, revision_conflict: 5,
   idempotency_mismatch: 5,
   unsafe_local_state: 6, base_revision_unavailable: 6, rate_limited: 7,
   search_limit_reached: 7, temporary_service_failure: 7, billing_not_configured: 7,
@@ -21,7 +22,7 @@ const CLOUD_HELP = `SmallDocs Cloud
 
   sdoc cloud login [--no-open]
   sdoc cloud logout
-  sdoc cloud status
+  sdoc cloud status [--account UUID]
   sdoc cloud members [--account UUID]
   sdoc cloud tags [--account UUID]
   sdoc cloud permission-groups [--account UUID]
@@ -63,7 +64,7 @@ function entitlementFailure(code, status, cloudOrigin) {
     return { code, message: 'An active SmallDocs Cloud subscription is required to change documents.',
       action: 'subscribe', billing_url: cloudOrigin + '/cloud#pricing' };
   }
-  return { code, message: 'This Cloud workspace is read-only because its subscription is not active. Ask a workspace owner to update billing.',
+  return { code, message: 'This Cloud account is read-only because its subscription is not active. Ask an account owner to update billing.',
     action: 'manage_billing', billing_url: cloudOrigin + '/cloud/admin' };
 }
 
@@ -129,8 +130,17 @@ class CloudClient {
           Object.assign({}, result.data, { http_status: result.response.status,
             action: entitlement.action, billing_url: entitlement.billing_url }));
       }
+      var message = result.data.message;
+      if (result.data.error === 'account_selection_required') {
+        var choices = (result.data.accounts || []).map(function (account) {
+          return account.name + ' (' + account.id + ')';
+        }).join(', ');
+        message = 'Choose an account with --account.' + (choices ? ' Available: ' + choices : '');
+      } else if (result.data.error === 'account_required') {
+        message = 'Set up SmallDocs Cloud before using this command.';
+      }
       throw new CloudCommandError(result.data.error || 'temporary_service_failure',
-        result.data.message, Object.assign({}, result.data, { http_status: result.response.status }));
+        message, Object.assign({}, result.data, { http_status: result.response.status }));
     }
     return result.data;
   }
@@ -201,18 +211,6 @@ async function logout(opts, client) {
   emit(opts, 'cloud.logout', { logged_out: true }, 'Signed out of SmallDocs Cloud.');
 }
 
-async function projects(opts, client) {
-  const workspaces = await client.authenticated('/api/cloud/v1/workspaces');
-  const values = [];
-  for (const workspace of workspaces.workspaces) {
-    const response = await client.authenticated('/api/cloud/v1/projects?workspace_id=' + encodeURIComponent(workspace.id));
-    response.projects.forEach((project) => values.push({ id: project.id, name: project.name,
-      workspace: { id: workspace.id, name: workspace.name }, role: project.role }));
-  }
-  emit(opts, 'cloud.projects', { projects: values }, values.map((project) =>
-    project.id + '  ' + project.workspace.name + ' / ' + project.name + '  ' + project.role).join('\n') || 'No projects.');
-}
-
 function filterTags(documents, tags) {
   const wanted = (tags || []).map((tag) => String(tag).toLowerCase());
   return documents.filter((document) => wanted.every((tag) => (document.tags || []).includes(tag)));
@@ -233,7 +231,6 @@ async function list(opts, client) {
   let cursor = null;
   do {
     const params = new URLSearchParams();
-    if (opts.projectFlag) params.set('project_id', opts.projectFlag);
     params.set('limit', String(Math.min(100, target - documents.length)));
     if (cursor) params.set('cursor', cursor);
     const response = await client.authenticated('/api/cloud/v1/documents?' + params.toString());
@@ -309,8 +306,7 @@ async function search(opts, client) {
   const limit = requestedLimit(opts.limitFlag, 50);
   const response = await client.authenticated('/api/cloud/v1/search', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: opts.extra, project_id: opts.projectFlag,
-      tags: opts.tagFilters, limit }),
+    body: JSON.stringify({ query: opts.extra, tags: opts.tagFilters, limit }),
   });
   const documents = response.documents || [];
   emit(opts, 'cloud.search', { documents, next_cursor: null }, documents.map((document) =>
@@ -338,16 +334,15 @@ async function create(opts, client) {
   const digest = bindings.hash(content);
   const credential = requireCredential(client);
   let pending = bindings.getPending(credential.user_id, file);
-  const destination = opts.projectFlag || opts.accountFlag || 'default-account';
+  const destination = opts.accountFlag || 'default-account';
   if (!pending || pending.operation !== 'create' || pending.destination !== destination || pending.sha256 !== digest) {
     pending = { operation: 'create', destination, sha256: digest,
       idempotency_key: crypto.randomUUID() };
     bindings.setPending(credential.user_id, file, pending);
   }
-  const response = await client.authenticated(opts.projectFlag
-    ? '/api/cloud/v1/documents' : '/api/cloud/v1/account/documents', {
+  const response = await client.authenticated('/api/cloud/v1/account/documents', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project_id: opts.projectFlag, account_id: opts.accountFlag,
+    body: JSON.stringify({ account_id: opts.accountFlag,
       filename: path.basename(file), markdown: content,
       idempotency_key: pending.idempotency_key }),
   });
@@ -359,8 +354,7 @@ async function create(opts, client) {
   const localChanged = bindings.hash(fs.readFileSync(file)) !== digest;
   emit(opts, 'cloud.create', { document_id: document.id, revision_id: document.current_revision_id,
     revision_number: document.revision_number,
-    account_id: response.account && response.account.id || opts.accountFlag || null,
-    project_id: opts.projectFlag || null, path: file,
+    account_id: response.account && response.account.id || opts.accountFlag || null, path: file,
     tags: document.tags, sha256: digest, binding_created: true,
     local_changed_after_upload: localChanged }, 'Created ' + document.id + (localChanged ? '; the local file changed again during upload.' : '.'));
 }
@@ -585,7 +579,6 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'login') return await login(opts, client);
     if (action === 'logout') return await logout(opts, client);
     if (action === 'status') return await status(opts, client);
-    if (action === 'projects') return await projects(opts, client);
     if (action === 'members') return await members(opts, client);
     if (action === 'tags') return await tags(opts, client);
     if (action === 'permission-groups') return await permissionGroups(opts, client);

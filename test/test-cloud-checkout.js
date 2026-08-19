@@ -98,7 +98,7 @@ module.exports = function(harness) {
     await testAsync('asks whether Cloud is for one person or a team when no plan is supplied', async () => {
       const page = checkoutPage([
         jsonResponse(200, { user: { first_name: 'Josh', last_name: 'Summers' },
-          workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }] }),
+          workspaces: [] }),
       ], '?return=%2Fdocs%23md%3Dexample');
       await settle();
 
@@ -135,8 +135,9 @@ module.exports = function(harness) {
     await testAsync('keeps the original document return path through personal Checkout', async () => {
       const page = checkoutPage([
         jsonResponse(200, { user: { first_name: 'Josh', last_name: 'Summers' },
-          workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }] }),
+          workspaces: [] }),
         jsonResponse(200, { user: { id: 'user-1', first_name: 'Josh', last_name: 'Summers' } }),
+        jsonResponse(201, { workspace: { workspaceId: 'personal-1', projectId: 'project-1' } }),
         jsonResponse(200, { checkout_url: 'https://checkout.stripe.com/personal-session' }),
       ], '?return=%2Fdocs%23md%3Dexample');
       await settle();
@@ -148,7 +149,11 @@ module.exports = function(harness) {
       assert.deepStrictEqual(JSON.parse(page.requests[1].options.body), {
         first_name: 'Josh', last_name: 'Summers',
       });
+      assert.strictEqual(page.requests[2].url, '/api/cloud/v1/workspaces');
       assert.deepStrictEqual(JSON.parse(page.requests[2].options.body), {
+        kind: 'personal', name: 'Josh Summers', project_name: 'Documents',
+      });
+      assert.deepStrictEqual(JSON.parse(page.requests[3].options.body), {
         workspace_id: 'personal-1', plan: 'personal', return_to: '/docs#md=example',
       });
       assert.strictEqual(page.assigned(), 'https://checkout.stripe.com/personal-session');
@@ -177,7 +182,7 @@ module.exports = function(harness) {
       assert.strictEqual(page.requests[2].url, '/api/cloud/v1/workspaces');
       assert.strictEqual(page.requests[2].options.method, 'POST');
       assert.deepStrictEqual(JSON.parse(page.requests[2].options.body), {
-        name: 'Acme Engineering', project_name: 'Documents',
+        kind: 'team', name: 'Acme Engineering', project_name: 'Documents',
       });
       assert.strictEqual(page.elements['checkout-workspace'].value, 'team-1');
       assert.strictEqual(page.elements['checkout-workspace'].children[0].textContent, 'Acme Engineering');

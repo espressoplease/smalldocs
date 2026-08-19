@@ -7,9 +7,7 @@ const CHECKOUT_PAGE = '/public/cloud-checkout.html';
 async function mockCheckout(page, options) {
   const calls = [];
   let checkoutAttempts = 0;
-  const workspaces = options && options.workspaces ? options.workspaces : [
-    { id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' },
-  ];
+  const workspaces = options && options.workspaces ? options.workspaces : [];
 
   await page.route('**/api/cloud/v1/workspaces', async route => {
     const request = route.request();
@@ -23,7 +21,8 @@ async function mockCheckout(page, options) {
     const body = request.postDataJSON();
     calls.push({ method: 'POST', path: '/api/cloud/v1/workspaces', body });
     return route.fulfill({ status: 201, json: { ok: true,
-      workspace: { workspaceId: 'team-1', projectId: 'project-1' } } });
+      workspace: { workspaceId: body.kind === 'team' ? 'team-1' : 'personal-1',
+        projectId: 'project-1' } } });
   });
 
   await page.route('**/api/cloud/v1/me', async route => {
@@ -78,6 +77,8 @@ test('chooses a personal account and preserves the document return path', async 
   });
   expect(calls.find(call => call.path === '/api/cloud/v1/me').body)
     .toEqual({ first_name: 'Josh', last_name: 'Summers' });
+  expect(calls.find(call => call.method === 'POST' && call.path === '/api/cloud/v1/workspaces').body)
+    .toEqual({ kind: 'personal', name: 'Josh Summers', project_name: 'Documents' });
 });
 
 test('requires both first and last name', async ({ page }) => {
@@ -102,13 +103,13 @@ test('creates a team before opening its checkout', async ({ page }) => {
   await expect(continueButton).toBeDisabled();
   await page.getByRole('textbox', { name: 'Team name' }).fill('Acme Engineering');
   await expect(page.locator('#checkout-team-note'))
-    .toHaveText('Shown in your account switcher and to people you invite.');
+    .toHaveText('Used in Cloud settings and invitations.');
   await expect(continueButton).toBeEnabled();
   await continueButton.click();
 
   await expect(page.getByRole('heading', { name: 'Stripe test handoff' })).toBeVisible();
   expect(calls.find(call => call.method === 'POST' && call.path === '/api/cloud/v1/workspaces').body)
-    .toEqual({ name: 'Acme Engineering', project_name: 'Documents' });
+    .toEqual({ kind: 'team', name: 'Acme Engineering', project_name: 'Documents' });
   expect(calls.find(call => call.path === '/api/cloud/billing/checkout').body).toEqual({
     workspace_id: 'team-1', plan: 'team', return_to: '/docs',
   });

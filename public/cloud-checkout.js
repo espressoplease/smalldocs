@@ -21,7 +21,7 @@
   var paymentNote = document.getElementById('checkout-payment-note');
   var workspaces = [];
   var workspacesLoaded = false;
-  var needsTeamWorkspace = false;
+  var needsWorkspace = false;
   var planReady = false;
   var planHistoryEntry = false;
 
@@ -46,7 +46,7 @@
 
   function showPlanChoices() {
     plan = null;
-    needsTeamWorkspace = false;
+    needsWorkspace = false;
     planReady = false;
     planField.hidden = false;
     back.hidden = true;
@@ -66,7 +66,7 @@
   function refreshContinueState() {
     button.disabled = !workspacesLoaded || !planReady || !profileFirstName.value.trim() ||
       !profileLastName.value.trim() ||
-      (needsTeamWorkspace && !teamName.value.trim());
+      (needsWorkspace && plan === 'team' && !teamName.value.trim());
   }
 
   function populateProfile(user) {
@@ -75,11 +75,11 @@
     profileLastName.value = user.last_name || '';
   }
 
-  function showTeamCreation() {
-    needsTeamWorkspace = true;
+  function showWorkspaceCreation() {
+    needsWorkspace = true;
     planReady = true;
     workspaceField.hidden = true;
-    teamField.hidden = false;
+    teamField.hidden = plan !== 'team';
     refreshContinueState();
     button.textContent = 'Continue to payment';
     status.textContent = '';
@@ -90,7 +90,7 @@
     var matching = workspaces.filter(function (workspace) {
       return workspace.role === 'owner' && workspace.kind === plan;
     });
-    needsTeamWorkspace = false;
+    needsWorkspace = false;
     planReady = false;
     select.replaceChildren();
     workspaceField.hidden = true;
@@ -99,14 +99,8 @@
     status.className = 'status';
     matching.forEach(addWorkspace);
     if (matching.length) select.value = matching[0].id;
-    if (!matching.length && plan === 'team') {
-      showTeamCreation();
-      return;
-    }
     if (!matching.length) {
-      button.disabled = true;
-      status.textContent = 'Your personal account is not available.';
-      status.className = 'status error';
+      showWorkspaceCreation();
       return;
     }
     planReady = true;
@@ -211,13 +205,14 @@
     });
   }
 
-  function createTeamWorkspace() {
-    var name = teamName.value.trim();
-    if (!name) return Promise.reject(new Error('team_name_required'));
-    status.textContent = 'Creating your team...';
+  function createWorkspace() {
+    var name = plan === 'team' ? teamName.value.trim()
+      : [profileFirstName.value.trim(), profileLastName.value.trim()].join(' ');
+    if (!name) return Promise.reject(new Error('account_name_required'));
+    status.textContent = plan === 'team' ? 'Creating your team...' : 'Creating your account...';
     return fetch('/api/cloud/v1/workspaces', {
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name, project_name: 'Documents' }),
+      body: JSON.stringify({ kind: plan, name: name, project_name: 'Documents' }),
     }).then(readResponse).then(handleLogin).then(function (result) {
       if (!result.response.ok) throw new Error(result.body.error || 'request_failed');
       var created = result.body.workspace || {};
@@ -226,7 +221,7 @@
       select.replaceChildren();
       addWorkspace({ id: workspaceId, name: name });
       select.value = workspaceId;
-      needsTeamWorkspace = false;
+      needsWorkspace = false;
       workspaceField.hidden = true;
       teamField.hidden = true;
       return workspaceId;
@@ -253,17 +248,19 @@
     if (!plan) return;
     button.disabled = true;
     status.className = 'status';
-    var creationRequired = needsTeamWorkspace;
-    button.textContent = creationRequired ? 'Creating your team...' : 'Opening payment...';
+    var creationRequired = needsWorkspace;
+    button.textContent = creationRequired
+      ? (plan === 'team' ? 'Creating your team...' : 'Creating your account...')
+      : 'Opening payment...';
     var workspace = updateProfile().then(function () {
-      return creationRequired ? createTeamWorkspace() : select.value;
+      return creationRequired ? createWorkspace() : select.value;
     });
     workspace.then(openCheckout).catch(function (error) {
       if (error.message === 'login_required') return;
       button.disabled = false;
       button.textContent = 'Continue to payment';
-      status.textContent = creationRequired && needsTeamWorkspace
-        ? 'Your team could not be created. Try again.'
+      status.textContent = creationRequired && needsWorkspace
+        ? 'Your account could not be created. Try again.'
         : 'Payment could not be opened. Try again.';
       status.className = 'status error';
     });

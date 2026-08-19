@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SmallDocs Cloud staging sign-in</title>
+<link rel="stylesheet" href="/public/css/cloud-sign-in.css">
+</head>
+<body>
+<header class="header">
+  <a class="brand" href="/"><span class="brand-full">SmallDocs</span><span class="brand-short">SDocs</span><span class="brand-tiny">SD</span></a>
+  <span class="nav-sep">/</span><span class="nav-label">Staging</span>
+</header>
+<main class="auth-shell">
+  <section class="auth-card" aria-labelledby="auth-title">
+    <div class="auth-heading"><div class="auth-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></div><div><h1 id="auth-title">Staging sign-in</h1><p>Open one of the configured test identities.</p></div></div>
+    <form id="test-login-form" novalidate>
+      <label for="test-email">Test email</label>
+      <input class="text-input" id="test-email" type="email" autocomplete="username" required>
+      <label for="test-secret">Staging secret</label>
+      <input class="text-input" id="test-secret" type="password" autocomplete="current-password" required>
+      <p class="field-error" id="test-error" role="alert"></p>
+      <button class="primary-button" type="submit">Sign in to staging</button>
+    </form>
+  </section>
+</main>
+<script src="/public/cloud-test-login.js"></script>
+</body>
+</html>

@@ -218,6 +218,16 @@
   gap: 8px;
   margin-top: 6px;
 }
+.sdoc-cloud-proto-account-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.sdoc-cloud-proto-account-list .sdoc-cloud-proto-btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
 
 .sdoc-cloud-proto-btn {
   min-height: 36px;

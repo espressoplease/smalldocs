@@ -58,6 +58,19 @@ module.exports = function(harness) {
     assert.strictEqual(config.keyProvider, 'kms');
   });
 
+  test('staging test login requires an exact allowlist and a credential file', () => {
+    const env = { ...deployedEnv('staging'),
+      CLOUD_MASTER_KEY: Buffer.alloc(32, 9).toString('base64'),
+      CLOUD_TEST_LOGIN_ENABLED: '1',
+      CLOUD_TEST_LOGIN_EMAILS: 'personal-demo@smalldocs.org,team-owner-demo@smalldocs.org',
+      CLOUD_TEST_LOGIN_SECRET_FILE: '/run/credentials/smalldocs-staging.service/cloud-test-login-secret',
+    };
+    assert.strictEqual(validateCloudDeploymentConfig(env).enabled, true);
+    delete env.CLOUD_TEST_LOGIN_EMAILS;
+    assert.throws(() => validateCloudDeploymentConfig(env), (error) =>
+      error.problems.includes('CLOUD_TEST_LOGIN_EMAILS is required for staging test login'));
+  });
+
   test('production requires managed KMS and refuses the local key provider', () => {
     assert.throws(() => validateCloudDeploymentConfig({
       ...deployedEnv('production'), CLOUD_MASTER_KEY: Buffer.alloc(32, 4).toString('base64'),
@@ -69,6 +82,13 @@ module.exports = function(harness) {
       CLOUD_KMS_REGION: 'eu-central-1',
     });
     assert.strictEqual(config.keyProvider, 'kms');
+    assert.throws(() => validateCloudDeploymentConfig({
+      ...deployedEnv('production'), CLOUD_KMS_KEY_ID: 'alias/smalldocs-cloud-production',
+      CLOUD_KMS_REGION: 'eu-central-1', CLOUD_TEST_LOGIN_ENABLED: '1',
+      CLOUD_TEST_LOGIN_EMAILS: 'demo@smalldocs.org',
+      CLOUD_TEST_LOGIN_SECRET_FILE: '/run/credentials/smalldocs.service/test-login',
+    }), (error) => error.problems.includes(
+      'staging test login settings must be unset in production'));
   });
 
   test('deployed email accepts a systemd credential path instead of an environment secret', () => {

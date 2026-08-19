@@ -7,16 +7,18 @@ Wants=network-online.target
 Type=simple
 User=smalldocs-staging
 Group=smalldocs-staging
-WorkingDirectory=/opt/smalldocs/current
+WorkingDirectory=/opt/smalldocs/staging-current
 EnvironmentFile=/etc/smalldocs-staging/smalldocs.env
 LoadCredential=resend-api-key:/etc/smalldocs-staging/resend-api-key
 LoadCredential=stripe-api-key:/etc/smalldocs-staging/stripe-api-key
 LoadCredential=stripe-webhook-secret:/etc/smalldocs-staging/stripe-webhook-secret
+LoadCredential=cloud-test-login-secret:/etc/smalldocs-staging/cloud-test-login-secret
 Environment=NOTIFY_SMTP_PASS_FILE=/run/credentials/smalldocs-staging.service/resend-api-key
 Environment=STRIPE_SECRET_KEY_FILE=/run/credentials/smalldocs-staging.service/stripe-api-key
 Environment=STRIPE_WEBHOOK_SECRET_FILE=/run/credentials/smalldocs-staging.service/stripe-webhook-secret
-ExecStartPre=/usr/bin/test -r /opt/smalldocs/current/server.js
-ExecStart=/usr/local/bin/node /opt/smalldocs/current/server.js
+Environment=CLOUD_TEST_LOGIN_SECRET_FILE=/run/credentials/smalldocs-staging.service/cloud-test-login-secret
+ExecStartPre=/usr/bin/test -r /opt/smalldocs/staging-current/server.js
+ExecStart=/usr/local/bin/node /opt/smalldocs/staging-current/server.js
 Restart=on-failure
 RestartSec=5s
 TimeoutStartSec=30s
