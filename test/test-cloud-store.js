@@ -532,6 +532,11 @@ module.exports = function(harness) {
       assert.throws(() => store.deleteWorkspace({ userId: outsider,
         workspaceId: team.workspaceId }),
       (error) => error.code === 'permission_denied');
+      store.addWorkspaceMember({ actorUserId: owner, workspaceId: team.workspaceId,
+        userId: collaborator, role: 'admin' });
+      assert.throws(() => store.deleteWorkspace({ userId: collaborator,
+        workspaceId: team.workspaceId }),
+      (error) => error.code === 'permission_denied');
       const deleted = store.deleteWorkspace({ userId: owner,
         workspaceId: team.workspaceId, restoreWindowMs: 1000 });
       assert.strictEqual(Date.parse(deleted.deleted_at), clock);

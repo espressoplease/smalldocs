@@ -107,6 +107,20 @@ test('Team Cloud keeps invitations and domains in People without project control
   const inviteCall = calls.find(call => call.method === 'POST'
     && call.path === '/api/cloud/v1/account/invitations');
   expect(inviteCall.body).toEqual({ account_id: 'team-1', email: 'ada@example.com' });
+
+  await page.getByRole('button', { name: 'Billing' }).click();
+  await expect(page.getByRole('button', { name: 'Delete team' })).toBeVisible();
+});
+
+test('a team admin cannot delete the team', async ({ page }) => {
+  await installAdminApi(page, {
+    kind: 'team',
+    workspaces: [{ id: 'team-1', name: 'SmallDocs', kind: 'team', role: 'admin' }],
+    members: [{ user_id: 'user-1', email: 'admin@smalldocs.org', role: 'admin', status: 'active' }],
+  });
+  await page.goto('/public/cloud-admin.html');
+  await page.getByRole('button', { name: 'Billing' }).click();
+  await expect(page.getByRole('button', { name: 'Delete team' })).toBeHidden();
 });
 
 test('workspace picker appears only when there is something to switch to', async ({ page }) => {
