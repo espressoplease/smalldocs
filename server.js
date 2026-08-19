@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { createCursorCodec, normalizeLimit } = require('./lib/cloud-cursor');
+const { syncTeamSeatQuantity: syncStripeTeamSeatQuantity } = require('./lib/cloud-seat-sync');
 
 function integerEnvironmentSetting(name, fallback, minimum) {
   if (process.env[name] == null || process.env[name] === '') return fallback;
@@ -966,19 +967,8 @@ function cloudMarkdownBytes(markdown) {
 }
 
 async function syncTeamSeatQuantity(workspaceId) {
-  if (!cloudBilling || !cloudStripe) return;
-  const subscription = cloudBilling.getSubscription(workspaceId);
-  if (!subscription || subscription.plan !== 'team' || subscription.provider !== 'stripe' ||
-      !subscription.providerSubscriptionId) return;
-  const usage = cloudStore.getWorkspaceUsage({ workspaceId, skipAccess: true });
-  const remote = await cloudStripe.retrieveSubscription({
-    subscriptionId: subscription.providerSubscriptionId,
-  });
-  const item = remote.items && remote.items.data && remote.items.data[0];
-  if (!item || item.quantity === usage.memberCount) return;
-  await cloudStripe.updateSubscriptionItemQuantity({ subscriptionItemId: item.id,
-    quantity: Math.max(1, usage.memberCount), prorationBehavior: 'create_prorations',
-    idempotencyKey: 'workspace-seats-' + workspaceId + '-' + usage.memberCount });
+  return syncStripeTeamSeatQuantity({ billing: cloudBilling, stripe: cloudStripe,
+    store: cloudStore, workspaceId });
 }
 
 function cloudMemberProfile(member) {

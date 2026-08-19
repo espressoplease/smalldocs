@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test.use({ serviceWorkers: 'block' });
 
-test('real Cloud controls save, share, tag, and remove through account APIs', async ({ page }) => {
+test('real Cloud admin controls save, invite, share, tag, and remove through account APIs', async ({ page }) => {
   const calls = [];
   let revision = 1;
   let tags = [];
@@ -15,7 +15,7 @@ test('real Cloud controls save, share, tag, and remove through account APIs', as
     const path = new URL(request.url()).pathname;
     calls.push({ method: request.method(), path });
     if (path === '/api/cloud/v1/account') return route.fulfill({ json: { ok: true,
-      account: { id: 'acct-1', kind: 'team', name: 'SmallDocs', role: 'owner', can_write: true },
+      account: { id: 'acct-1', kind: 'team', name: 'SmallDocs', role: 'admin', can_write: true },
       accounts: [], user: { id: 'usr-1', email: 'josh@example.com' } } });
     if (path === '/api/cloud/v1/account/members') return route.fulfill({ json: { ok: true,
       account_id: 'acct-1', members: [

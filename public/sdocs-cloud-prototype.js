@@ -59,7 +59,7 @@ async function loadAccountData(accountId) {
     jsonRequest('/api/cloud/v1/account/members' + selectedSuffix),
     jsonRequest('/api/cloud/v1/account/tags' + selectedSuffix),
   ];
-  if (data.account.kind === 'team' && data.account.role === 'owner') {
+  if (data.account.kind === 'team' && ['owner', 'admin'].indexOf(data.account.role) !== -1) {
     requests.push(jsonRequest('/api/cloud/v1/account/invitations' + selectedSuffix));
   }
   var details = await Promise.all(requests);
@@ -407,7 +407,8 @@ function accessPanelHtml() {
     presets += '<button type="button" data-cloud-preset="everyone"' + (!canManage ? ' disabled' : '')
       + '>' + USERS_SVG + 'Everyone</button>';
   }
-  var invite = cloudState.account && cloudState.account.kind === 'team' && cloudState.account.role === 'owner'
+  var invite = cloudState.account && cloudState.account.kind === 'team'
+    && ['owner', 'admin'].indexOf(cloudState.account.role) !== -1
     ? '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Invite someone</div>'
       + '<form class="sdoc-cloud-lab-invite"><input type="email" placeholder="person@example.com" aria-label="Email address" required>'
       + '<button type="submit">Invite</button></form>'

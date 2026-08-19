@@ -671,6 +671,7 @@ module.exports = function(harness) {
     let cloudDocument;
     let cloudTeamWorkspace;
     let cloudTeamProject;
+    let cloudTeamDocument;
     let cloudMemberCookie;
     let cloudMemberUser;
 
@@ -783,6 +784,18 @@ module.exports = function(harness) {
         plan: 'team', status: 'active', seatQuantity: 2,
         provider: 'test', providerSubscriptionId: 'team-http-test' });
 
+      const document = await post(BASE + '/api/cloud/v1/documents', {
+        project_id: cloudTeamProject.id, filename: 'team-plan.md',
+        markdown: '# Team plan\nShared with invited members.',
+        idempotency_key: 'team-document-for-invitation',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(document.status, 201);
+      cloudTeamDocument = JSON.parse(document.body).document;
+      const shared = await patch(BASE + '/api/cloud/v1/documents/' + cloudTeamDocument.id + '/permission', {
+        mode: 'everyone', member_user_ids: [],
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(shared.status, 200);
+
       const project = await post(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/projects', {
         name: 'Webhooks',
       }, { Origin: BASE, Cookie: cloudCookie });
@@ -842,6 +855,10 @@ module.exports = function(harness) {
       const projects = await get(BASE + '/api/cloud/v1/projects?workspace_id=' + cloudTeamWorkspace.workspaceId,
         { Cookie: cloudMemberCookie });
       assert.strictEqual(JSON.parse(projects.body).projects[0].role, 'editor');
+      const document = await get(BASE + '/api/cloud/v1/documents/' + cloudTeamDocument.id,
+        { Cookie: cloudMemberCookie });
+      assert.strictEqual(document.status, 200);
+      assert.ok(JSON.parse(document.body).document.markdown.includes('Shared with invited members.'));
 
       const reused = await post(BASE + '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {},
         { Origin: BASE, Cookie: cloudMemberCookie });
@@ -900,6 +917,10 @@ module.exports = function(harness) {
         { Cookie: cloudMemberCookie });
       assert.strictEqual(projects.status, 404);
       assert.strictEqual(JSON.parse(projects.body).error, 'resource_unavailable');
+      const document = await get(BASE + '/api/cloud/v1/documents/' + cloudTeamDocument.id,
+        { Cookie: cloudMemberCookie });
+      assert.strictEqual(document.status, 404);
+      assert.strictEqual(JSON.parse(document.body).error, 'resource_unavailable');
 
       const owner = JSON.parse((await get(BASE + '/api/cloud/v1/me', { Cookie: cloudCookie })).body).user;
       const finalOwner = await del(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId +
