@@ -592,7 +592,9 @@ function renderResults() {
   const c = document.getElementById('results');
   if (!shown.length) {
     if (!STATE.entries.length) {
-      c.innerHTML = '<div class="empty">Library is empty.<div class="tip">Open a markdown file with <code>sdoc file.md</code> to add it.</div></div>';
+      c.innerHTML = isCloudMode()
+        ? '<div class="empty">Cloud Library is empty.<div class="tip">Add a document to Cloud to see it here.</div></div>'
+        : '<div class="empty">Library is empty.<div class="tip">Open a markdown file with <code>sdoc file.md</code> to add it.</div></div>';
     } else {
       c.innerHTML = '<div class="empty">No matches. Try removing a chip or refining your search.</div>';
     }
@@ -640,8 +642,7 @@ function renderStarToggle() {
 
 function renderStatus() {
   if (isCloudMode()) {
-    const cloud = window.SDocsCloudLibrary || {};
-    document.getElementById('status-line').textContent = cloud.workspaceName || 'Cloud';
+    document.getElementById('status-line').textContent = 'Cloud';
     return;
   }
   const enabledTxt = STATE.enabled ? '' : ' (disabled)';

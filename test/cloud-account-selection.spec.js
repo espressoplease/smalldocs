@@ -35,6 +35,10 @@ test('one-account Library opens directly and hides the account switcher', async 
     window.SDocsCloudLibrary.workspaceId))
     .toBe('personal-1');
   await expect(page.locator('.cloud-access-note')).toContainText('Signed in as josh@smalldocs.org');
+  await expect(page.locator('#status-line')).toHaveText('Cloud');
+  await expect(page.locator('[data-facet="project"]')).toBeHidden();
+  await expect(page.locator('[data-facet="path"]')).toBeHidden();
+  await expect(page.locator('#results')).toContainText('Add a document to Cloud to see it here.');
 });
 
 test('multi-account Library asks once, uses account names, and remembers the choice', async ({ page }) => {

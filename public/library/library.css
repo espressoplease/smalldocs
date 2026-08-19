@@ -145,6 +145,7 @@ body {
   cursor: pointer; line-height: 1;
   transition: background .12s, border-color .12s, color .12s;
 }
+.facet-button[hidden], .strip-toggle[hidden] { display: none; }
 .facet-button:hover, .strip-toggle:hover {
   background: var(--bg-hover); color: var(--text);
 }
