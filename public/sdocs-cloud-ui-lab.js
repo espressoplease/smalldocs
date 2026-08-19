@@ -3,7 +3,15 @@
 'use strict';
 
 var params = new URLSearchParams(window.location.search);
-if (params.get('cloud-ui-prototype') !== '1') return;
+var hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+var prototypeRequested = params.get('cloud-ui-prototype') === '1'
+  || hashParams.get('cloud-ui-prototype') === '1';
+if (!prototypeRequested) return;
+if (hashParams.get('cloud-ui-prototype') !== '1') {
+  hashParams.set('cloud-ui-prototype', '1');
+  history.replaceState(null, '', window.location.pathname + window.location.search + '#'
+    + hashParams.toString());
+}
 
 var S = window.SDocs = window.SDocs || {};
 var USER_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>';

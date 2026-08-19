@@ -1392,7 +1392,7 @@ function normalizedBasePath() {
 // when updateHash rewrites the hash. Without this list, opening present mode
 // sets ?present=N but the next debounced updateHash wipes it out, collapsing
 // present mode via the hashchange listener.
-var PRESERVED_HASH_PARAMS = ['present'];
+var PRESERVED_HASH_PARAMS = ['present', 'cloud-ui-prototype'];
 
 function updateHash() {
   clearTimeout(S._hashTimer);

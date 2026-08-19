@@ -53,3 +53,12 @@ test('Cloud UI lab panel becomes a mobile bottom sheet', async ({ page }) => {
   expect(Math.round(box.width)).toBe(390);
   expect(Math.round(box.y + box.height)).toBe(844);
 });
+
+test('Cloud UI lab remains active after a refresh', async ({ page }) => {
+  await openPrototype(page);
+  await expect.poll(() => page.url()).toContain('cloud-ui-prototype=1');
+  await page.reload();
+  await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-ui-lab.js' });
+  await expect(page.locator('.fic-row-cloud-lab')).toBeVisible();
+});

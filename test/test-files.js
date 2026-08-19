@@ -89,7 +89,8 @@ module.exports = function(harness) {
       'sdocs-cloud-ui-lab.js'), 'utf-8');
     const styles = fs.readFileSync(path.join(__dirname, '..', 'public', 'css',
       'cloud-ui-lab.css'), 'utf-8');
-    assert.ok(script.includes("params.get('cloud-ui-prototype') !== '1'"));
+    assert.ok(script.includes("params.get('cloud-ui-prototype') === '1'"));
+    assert.ok(script.includes("hashParams.get('cloud-ui-prototype') === '1'"));
     assert.ok(script.includes('This is an interactive UI prototype'));
     assert.ok(styles.includes('#_sd_cloud-lab-panel'));
     assert.ok(styles.includes('mobile-cloud-lab-open'));
