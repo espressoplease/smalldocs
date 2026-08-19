@@ -66,7 +66,8 @@ function initialiseTags() {
 
 function permissionLabel() {
   var selected = selectedMembers();
-  if (selected.length <= 1) return 'Only you';
+  if (selected.length <= 1) return 'You';
+  if (selected.length === activeMembers().length) return 'Everyone';
   var labels = selected.slice(0, 4).map(function (member) { return member.short; });
   if (selected.length > 4) labels.push('+' + (selected.length - 4));
   return labels.join(', ');
@@ -116,8 +117,8 @@ function makeRow() {
     + '<button class="sdoc-cloud-lab-plus" type="button" data-cloud-lab-open="tags" aria-label="Edit Cloud tags">'
     + PLUS_SVG + '</button></div>'
     + '</div>'
-    + '<span class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-saved" aria-label="Saved to Cloud"'
-    + ' title="Saved to Cloud">' + CLOUD_CHECK_SVG + '</span>';
+    + '<button class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-saved" type="button"'
+    + ' aria-label="Remove from Cloud" title="Remove from Cloud">' + CLOUD_CHECK_SVG + '</button>';
 
   row.querySelectorAll('[data-cloud-lab-open]').forEach(function (button) {
     button.addEventListener('click', function (event) {
@@ -126,6 +127,7 @@ function makeRow() {
       openPanel(button.getAttribute('data-cloud-lab-open'));
     });
   });
+  row.querySelector('.sdoc-cloud-lab-saved').addEventListener('click', removeFromCloud);
   if (S.attachTooltips) S.attachTooltips(row);
   return row;
 }
@@ -139,6 +141,17 @@ function addToCloud(event) {
   state.saveMessage = 'Prototype saved. No document or account data changed.';
   refreshRow();
   if (state.panel) renderPanel();
+}
+
+function removeFromCloud(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  state.saved = false;
+  state.saveMessage = 'Removed from the prototype. No document or account data changed.';
+  closePanel();
+  refreshRow();
 }
 
 function insertRow() {

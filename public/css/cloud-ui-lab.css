@@ -112,16 +112,19 @@
   color: var(--fic-muted);
   transition: background .12s, color .12s;
 }
-.sdoc-cloud-lab-upload {
+.sdoc-cloud-lab-upload,
+.sdoc-cloud-lab-saved {
   cursor: pointer;
 }
-.sdoc-cloud-lab-upload:hover {
+.sdoc-cloud-lab-upload:hover,
+.sdoc-cloud-lab-saved:hover {
   color: var(--md-p-color);
   background: var(--md-copy-btn-hover, rgba(0,0,0,.07));
 }
 .sdoc-cloud-lab-saved {
   color: #23834b;
 }
+.sdoc-cloud-lab-saved:hover { color: #176b3a; }
 
 #_sd_cloud-lab-panel {
   width: 0;

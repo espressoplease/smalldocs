@@ -23,9 +23,13 @@ test('Cloud UI lab uses the file-info add and saved states', async ({ page }) =>
   const uploadBox = await upload.boundingBox();
   expect(Math.abs((rowBox.x + rowBox.width) - (uploadBox.x + uploadBox.width))).toBeLessThanOrEqual(1);
   await addToCloud(page);
-  await expect(row).toContainText('Only you');
+  await expect(row).toContainText('You');
   await expect(row).toContainText('No tags');
-  await expect(page.locator('.sdoc-cloud-lab-saved')).toHaveAttribute('aria-label', 'Saved to Cloud');
+  const saved = page.locator('.sdoc-cloud-lab-saved');
+  await expect(saved).toHaveAttribute('aria-label', 'Remove from Cloud');
+  await saved.click();
+  await expect(row).toHaveAttribute('data-prototype-saved', 'false');
+  await expect(row).toContainText('Add to Cloud');
 });
 
 test('Cloud UI lab changes access without contacting Cloud APIs', async ({ page }) => {
@@ -37,16 +41,18 @@ test('Cloud UI lab changes access without contacting Cloud APIs', async ({ page 
   await addToCloud(page);
 
   const access = page.locator('.sdoc-cloud-lab-access');
-  await expect(access).toContainText('Only you');
+  await expect(access).toContainText('You');
   await access.click();
   await expect(page.locator('#_sd_cloud-lab-panel')).toBeVisible();
   await expect(page.getByText('Tom Smith', { exact: true })).toBeVisible();
 
   await page.locator('#_sd_cloud-lab-panel').getByRole('button', { name: 'Only you' }).click();
-  await expect(access).toContainText('Only you');
+  await expect(access).toContainText('You');
 
   await page.getByRole('button', { name: 'Everyone' }).click();
-  await expect(access).toContainText('You, TS, LT, DS, +1');
+  await expect(access).toContainText('Everyone');
+  await page.getByText('Sara Mercer', { exact: true }).click();
+  await expect(access).toContainText('You, TS, LT, DS');
   expect(cloudRequests).toEqual([]);
 });
 
