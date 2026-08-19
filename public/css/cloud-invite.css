@@ -17,6 +17,7 @@ select, input { width:100%; margin-top:7px; padding:10px; border:1px solid var(-
 .checkout-shell { width:min(560px,calc(100% - 32px)); }
 .checkout-card { padding:32px; }
 .checkout-plans { display:grid; gap:12px; margin-top:24px; }
+.checkout-plans[hidden] { display:none; }
 .checkout-plan { display:grid; grid-template-columns:42px minmax(0,1fr) auto; gap:14px; align-items:center; width:100%; margin:0; padding:17px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); text-align:left; }
 .checkout-plan:hover, .checkout-plan:focus-visible { border-color:var(--blue); outline:none; }
 .checkout-plan-icon { display:grid; place-items:center; width:42px; height:42px; border-radius:9px; background:color-mix(in srgb,var(--blue) 9%,var(--surface)); color:var(--blue); }
