@@ -25,7 +25,9 @@
   .workspace-switch { border:0; background:transparent; color:var(--text); font-weight:500; padding:4px 6px; border-radius:4px; }
   .workspace-switch:hover { background:var(--surface-2); }
   .account { margin-left:auto; color:var(--text-3); font-size:11px; }
-  .open-library { margin-left:8px; padding:6px 9px; border:1px solid var(--border); border-radius:5px; color:var(--text); text-decoration:none; background:var(--surface); font-size:11.5px; }
+  .open-library { height:32px; margin-left:8px; display:inline-flex; flex:0 0 auto; align-items:center; gap:5px; padding:0 10px; border:1px solid var(--border); border-radius:6px; color:var(--text); text-decoration:none; background:var(--surface-2); font-size:12px; font-weight:500; line-height:1; white-space:nowrap; }
+  .open-library:hover { border-color:var(--text-3); background:var(--surface); }
+  .open-library svg { display:block; flex:0 0 auto; }
   .shell { min-height:calc(100vh - 48px); display:grid; grid-template-columns:210px minmax(0,1fr); align-items:start; }
   .sidebar { position:sticky; top:48px; height:calc(100vh - 48px); padding:22px 12px; border-right:1px solid var(--border); }
   .side-label { padding:0 9px 8px; color:var(--text-3); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
@@ -98,16 +100,16 @@
   .domain-pill button:hover { background:var(--surface); color:var(--text); }
   .busy { opacity:.58; pointer-events:none; }
   .row-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; }
-  @media(max-width:600px) { .shell{grid-template-columns:1fr}.sidebar{position:static;top:auto;height:auto;display:flex;align-items:center;overflow:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.nav{width:auto;height:36px;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:1fr 1fr}.invite.open,.domain-controls{grid-template-columns:1fr}.account{display:none} }
+  @media(max-width:600px) { .shell{grid-template-columns:1fr}.sidebar{position:static;top:auto;height:auto;display:flex;align-items:center;overflow:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.nav{width:auto;height:36px;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:1fr 1fr}.invite.open,.domain-controls{grid-template-columns:1fr}.account,.header-context-sep,.crumb,.workspace-picker .sep{display:none}.workspace-picker{min-width:0;flex:1}.workspace-switch{width:100%;min-width:0;max-width:100%}.open-library{margin-left:auto} }
   @media(prefers-color-scheme:dark) { :root{--bg:#1C1A17;--surface:#211F1D;--surface-2:#252320;--text:#E7E5E2;--text-2:#A8A29E;--text-3:#77716B;--border:#3D3935;--border-2:#332F2B;--blue:#3B82F6;--blue-2:#17233A;--green:#4ADE80;--red:#FCA5A5}.notice{background:#17233A;border-color:#284B80;color:#BFDBFE} }
 </style>
 </head>
 <body>
 <header class="header">
-  <a class="brand" href="/">SmallDocs</a><span class="sep">/</span><span class="crumb">Cloud settings</span>
+  <a class="brand" href="/">SmallDocs</a><span class="sep header-context-sep">/</span><span class="crumb">Cloud settings</span>
   <span class="workspace-picker" id="workspace-picker" hidden><span class="sep">/</span><select class="workspace-switch" id="workspace-switch" aria-label="Cloud account"></select></span>
   <span class="account" id="account-label">Loading account</span>
-  <a class="open-library" href="/library?scope=cloud">Open library</a>
+  <a class="open-library" href="/library?scope=cloud" aria-label="Open Cloud library"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg><span>Library</span></a>
 </header>
 <div class="shell">
   <aside class="sidebar">

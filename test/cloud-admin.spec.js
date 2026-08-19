@@ -66,6 +66,9 @@ test('Personal Cloud hides team and project concepts and uses a compact left sid
   await expect(page.getByRole('button', { name: 'People' })).toBeHidden();
   await expect(page.getByText('Projects', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Invite person' })).toBeHidden();
+  const library = page.getByRole('link', { name: 'Open Cloud library' });
+  await expect(library).toContainText('Library');
+  await expect(library.locator('svg')).toHaveCount(1);
   await expect.poll(() => calls.some(call => call.path.includes('/members'))).toBe(false);
   await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/account/invitations')).toBe(false);
 
@@ -75,6 +78,7 @@ test('Personal Cloud hides team and project concepts and uses a compact left sid
   expect(agents.height).toBeLessThanOrEqual(40);
   expect(Math.abs(overview.x - agents.x)).toBeLessThan(2);
   expect(agents.y).toBeGreaterThanOrEqual(overview.y + overview.height);
+  expect((await library.boundingBox()).height).toBe(32);
 });
 
 test('Team Cloud keeps invitations and domains in People without project controls', async ({ page }) => {
@@ -116,6 +120,31 @@ test('workspace picker appears only when there is something to switch to', async
   await page.goto('/public/cloud-admin.html?workspace_id=personal-1');
   await expect(page.locator('#workspace-picker')).toBeVisible();
   await expect(page.locator('#workspace-switch')).toHaveValue('personal-1');
+});
+
+test('Cloud library stays visible beside the account picker on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installAdminApi(page, {
+    kind: 'team',
+    workspaces: [
+      { id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' },
+      { id: 'team-1', name: 'SmallDocs Demo', kind: 'team', role: 'owner' },
+    ],
+  });
+  await page.goto('/public/cloud-admin.html?workspace_id=team-1');
+
+  const picker = page.locator('#workspace-switch');
+  const library = page.getByRole('link', { name: 'Open Cloud library' });
+  await expect(picker).toBeVisible();
+  await expect(library).toBeVisible();
+  await expect(library).toContainText('Library');
+  await expect(library.locator('svg')).toHaveCount(1);
+
+  const pickerBox = await picker.boundingBox();
+  const libraryBox = await library.boundingBox();
+  expect(libraryBox.height).toBe(32);
+  expect(libraryBox.x + libraryBox.width).toBeLessThanOrEqual(390);
+  expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(libraryBox.x);
 });
 
 test('team members can invite an allowed company email without admin controls', async ({ page }) => {
