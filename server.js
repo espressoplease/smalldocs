@@ -874,6 +874,7 @@ function cloudApiError(res, error) {
     : error && error.code ? error.code : 'temporary_service_failure';
   const statuses = {
     invalid_request: 400,
+    public_email_domain: 400,
     login_required: 401,
     permission_denied: 403,
     resource_unavailable: 404,
@@ -1165,6 +1166,32 @@ async function handleCloudApi(req, res, url) {
         permission_groups: groups });
       return;
     }
+    if (req.method === 'GET' && pathname === base + '/account/invite-policy') {
+      const context = await cloudAccountContext(user.id, url.searchParams.get('account_id'));
+      if (context.selected.workspace.kind !== 'team') {
+        throw Object.assign(new Error('permission_denied'), { code: 'permission_denied' });
+      }
+      const policy = cloudStore.getWorkspaceInvitePolicy({ userId: user.id,
+        workspaceId: context.selected.workspace.id });
+      sendJson(res, 200, { ok: true, account_id: context.selected.workspace.id, policy });
+      return;
+    }
+    if (req.method === 'PATCH' && pathname === base + '/account/invite-policy') {
+      requireRecentBrowser(principal);
+      const body = await cloudAuthHttp.readJson(req);
+      const context = await cloudAccountContext(user.id, body.account_id || null);
+      if (context.selected.workspace.kind !== 'team') {
+        throw Object.assign(new Error('permission_denied'), { code: 'permission_denied' });
+      }
+      requireCloudEntitlement(user.id, context.selected.workspace.id, 'manage');
+      const policy = cloudStore.setWorkspaceInviteDomains({ userId: user.id,
+        workspaceId: context.selected.workspace.id, domains: body.domains,
+        beforeCommit: () => requireCloudEntitlement(
+          user.id, context.selected.workspace.id, 'manage'),
+      });
+      sendJson(res, 200, { ok: true, account_id: context.selected.workspace.id, policy });
+      return;
+    }
     if (req.method === 'GET' && pathname === base + '/account/invitations') {
       const context = await cloudAccountContext(user.id, url.searchParams.get('account_id'));
       if (context.selected.workspace.kind !== 'team') {
@@ -1211,6 +1238,7 @@ async function handleCloudApi(req, res, url) {
       requireCloudEntitlement(user.id, selected.workspace.id, 'manage');
       const invitation = await cloudStore.createInvitation({
         userId: user.id, workspaceId: selected.workspace.id, email: body.email, role: 'member',
+        allowMemberInvite: true,
         projectGrants: [{ projectId: selected.defaultProject.id, role: 'editor' }],
         beforeCommit: () => requireCloudEntitlement(user.id, selected.workspace.id, 'manage'),
       });

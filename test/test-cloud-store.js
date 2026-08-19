@@ -121,6 +121,45 @@ module.exports = function(harness) {
       assert.strictEqual((await store.listProjects(member, team.workspaceId))[0].role, 'viewer');
     });
 
+    await testAsync('admins approve company domains and members invite only within them', async () => {
+      assert.deepStrictEqual(store.getWorkspaceInvitePolicy({ userId: member,
+        workspaceId: team.workspaceId }), {
+        domains: [], can_manage: false, can_invite: false,
+      });
+      assert.throws(() => store.setWorkspaceInviteDomains({ userId: owner,
+        workspaceId: team.workspaceId, domains: ['gmail.com'] }),
+      (error) => error.code === 'public_email_domain');
+      assert.throws(() => store.setWorkspaceInviteDomains({ userId: member,
+        workspaceId: team.workspaceId, domains: ['acme.com'] }),
+      (error) => error.code === 'permission_denied');
+
+      assert.deepStrictEqual(store.setWorkspaceInviteDomains({ userId: owner,
+        workspaceId: team.workspaceId, domains: ['@Acme.com', 'acme.com'] }), {
+        domains: ['acme.com'], can_manage: true, can_invite: true,
+      });
+      assert.deepStrictEqual(store.getWorkspaceInvitePolicy({ userId: member,
+        workspaceId: team.workspaceId }), {
+        domains: ['acme.com'], can_manage: false, can_invite: true,
+      });
+
+      const invitation = await store.createInvitation({ userId: member,
+        workspaceId: team.workspaceId, email: 'colleague@acme.com', role: 'member',
+        allowMemberInvite: true,
+        projectGrants: [{ projectId: team.projectId, role: 'viewer' }] });
+      assert.strictEqual(invitation.email, 'colleague@acme.com');
+      await assert.rejects(() => store.createInvitation({ userId: member,
+        workspaceId: team.workspaceId, email: 'friend@other.example', role: 'member',
+        allowMemberInvite: true,
+        projectGrants: [] }), (error) => error.code === 'permission_denied');
+      await assert.rejects(() => store.createInvitation({ userId: member,
+        workspaceId: team.workspaceId, email: 'admin@acme.com', role: 'admin',
+        allowMemberInvite: true,
+        projectGrants: [] }), (error) => error.code === 'permission_denied');
+      await assert.rejects(() => store.createInvitation({ userId: member,
+        workspaceId: team.workspaceId, email: 'other@acme.com', role: 'member',
+        projectGrants: [] }), (error) => error.code === 'permission_denied');
+    });
+
     await testAsync('commit authorization can stop encrypted writes at the transaction boundary', async () => {
       const deny = () => { throw new CloudError('subscription_read_only'); };
       const projectCount = store.db.prepare(

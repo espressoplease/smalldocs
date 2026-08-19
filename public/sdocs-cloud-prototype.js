@@ -14,6 +14,7 @@ var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 1
 var CLOSE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 var pendingChallenge = null;
 var cloudState = { account: null, accounts: [], user: null, members: [], invitations: [], permission: null,
+  invitePolicy: { domains: [], can_manage: false, can_invite: false },
   suggestedTags: [], panel: null, status: '', busy: false };
 
 function escapeHtml(value) {
@@ -55,17 +56,21 @@ async function loadAccountData(accountId) {
   cloudState.accounts = data.accounts || [];
   cloudState.user = data.user;
   var selectedSuffix = '?account_id=' + encodeURIComponent(data.account.id);
+  var isTeam = data.account.kind === 'team';
+  var isAdmin = ['owner', 'admin'].indexOf(data.account.role) !== -1;
   var requests = [
     jsonRequest('/api/cloud/v1/account/members' + selectedSuffix),
     jsonRequest('/api/cloud/v1/account/tags' + selectedSuffix),
+    isTeam ? jsonRequest('/api/cloud/v1/account/invite-policy' + selectedSuffix)
+      : Promise.resolve({ policy: { domains: [], can_manage: false, can_invite: false } }),
+    isTeam && isAdmin ? jsonRequest('/api/cloud/v1/account/invitations' + selectedSuffix)
+      : Promise.resolve({ invitations: [] }),
   ];
-  if (data.account.kind === 'team' && ['owner', 'admin'].indexOf(data.account.role) !== -1) {
-    requests.push(jsonRequest('/api/cloud/v1/account/invitations' + selectedSuffix));
-  }
   var details = await Promise.all(requests);
   cloudState.members = details[0].members || [];
   cloudState.suggestedTags = details[1].tags || [];
-  cloudState.invitations = details[2] ? details[2].invitations || [] : [];
+  cloudState.invitePolicy = details[2].policy || { domains: [], can_manage: false, can_invite: false };
+  cloudState.invitations = details[3].invitations || [];
   refreshRow();
   return data;
 }
@@ -399,6 +404,23 @@ function pendingInvitationsHtml() {
   }).join('') + '</div>';
 }
 
+function accountAdmin() {
+  return cloudState.account && ['owner', 'admin'].indexOf(cloudState.account.role) !== -1;
+}
+
+function inviteDomainsText() {
+  return (cloudState.invitePolicy.domains || []).map(function (domain) {
+    return '@' + domain;
+  }).join(', ');
+}
+
+function inviteDomainChip(domain) {
+  return '<span class="sdoc-cloud-lab-tag-edit"><span>@' + escapeHtml(domain) + '</span>'
+    + '<button type="button" data-cloud-remove-invite-domain="' + escapeHtml(domain)
+    + '" aria-label="Stop member invitations to ' + escapeHtml(domain) + '">' + CLOSE_SVG
+    + '</button></span>';
+}
+
 function accessPanelHtml() {
   var canManage = cloudState.permission && cloudState.permission.can_manage;
   var presets = '<button type="button" data-cloud-preset="only"' + (!canManage ? ' disabled' : '')
@@ -407,19 +429,35 @@ function accessPanelHtml() {
     presets += '<button type="button" data-cloud-preset="everyone"' + (!canManage ? ' disabled' : '')
       + '>' + USERS_SVG + 'Everyone</button>';
   }
-  var invite = cloudState.account && cloudState.account.kind === 'team'
-    && ['owner', 'admin'].indexOf(cloudState.account.role) !== -1
+  var isTeam = cloudState.account && cloudState.account.kind === 'team';
+  var domains = cloudState.invitePolicy.domains || [];
+  var inviteHelp = accountAdmin()
+    ? 'Admins can invite any email. Billing adds one team seat after the person accepts.'
+    : 'You can invite people at ' + inviteDomainsText()
+      + '. Billing adds one team seat after the person accepts.';
+  var invite = isTeam && cloudState.invitePolicy.can_invite
     ? '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Invite someone</div>'
-      + '<form class="sdoc-cloud-lab-invite"><input type="email" placeholder="person@example.com" aria-label="Email address" required>'
+      + '<form class="sdoc-cloud-lab-invite"><input type="email" placeholder="person@'
+      + escapeHtml(accountAdmin() ? 'example.com' : domains[0]) + '" aria-label="Email address" required>'
       + '<button type="submit">Invite</button></form>'
-      + '<p class="sdoc-cloud-lab-help">Billing adds one team seat after the person accepts.</p>'
-      + pendingInvitationsHtml() + '</section>' : '';
+      + '<p class="sdoc-cloud-lab-help">' + escapeHtml(inviteHelp) + '</p>'
+      + (accountAdmin() ? pendingInvitationsHtml() : '') + '</section>' : '';
+  var domainPolicy = isTeam && cloudState.invitePolicy.can_manage
+    ? '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Member invitations</div>'
+      + '<div class="sdoc-cloud-lab-current-tags">'
+      + (domains.length ? domains.map(inviteDomainChip).join('')
+        : '<span class="sdoc-cloud-lab-no-tags">Members cannot invite people yet</span>')
+      + '</div><form class="sdoc-cloud-lab-tag-form sdoc-cloud-lab-domain-form">'
+      + '<input type="text" placeholder="acme.com" aria-label="Company email domain" required>'
+      + '<button type="submit">Allow</button></form>'
+      + '<p class="sdoc-cloud-lab-help">Members can invite ordinary members at these domains. '
+      + 'Public email provider domains cannot be enabled.</p></section>' : '';
   return '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Quick choices</div>'
     + '<div class="sdoc-cloud-lab-presets">' + presets + '</div></section>'
     + '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">People with access</div>'
     + '<div class="sdoc-cloud-lab-members">' + cloudState.members.map(memberRow).join('') + '</div>'
     + '<p class="sdoc-cloud-lab-help">This selection applies to this document. The person who added it always keeps access.</p>'
-    + '</section>' + invite;
+    + '</section>' + invite + domainPolicy;
 }
 
 function tagChip(tag) {
@@ -482,7 +520,7 @@ function wireCloudPanel(body) {
   body.querySelectorAll('[data-cloud-add-tag]').forEach(function (button) {
     button.addEventListener('click', function () { addCloudTag(button.getAttribute('data-cloud-add-tag')); });
   });
-  var tagForm = body.querySelector('.sdoc-cloud-lab-tag-form');
+  var tagForm = body.querySelector('.sdoc-cloud-lab-tag-form:not(.sdoc-cloud-lab-domain-form)');
   if (tagForm) tagForm.addEventListener('submit', function (event) {
     event.preventDefault();
     addCloudTag(tagForm.querySelector('input').value);
@@ -501,10 +539,14 @@ function wireCloudPanel(body) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ account_id: cloudState.account.id, email: email }),
       });
-      cloudState.invitations.unshift(data.invitation);
+      if (accountAdmin()) cloudState.invitations.unshift(data.invitation);
       cloudState.status = 'Invitation sent to ' + email + '.';
       input.value = '';
-    } catch (_) { cloudState.status = 'The invitation was not sent.'; }
+    } catch (error) {
+      cloudState.status = !accountAdmin() && error.message === 'permission_denied'
+        ? 'Members can invite only ' + inviteDomainsText() + '.'
+        : 'The invitation was not sent.';
+    }
     cloudState.busy = false;
     renderCloudPanel();
   });
@@ -527,6 +569,41 @@ function wireCloudPanel(body) {
       renderCloudPanel();
     });
   });
+  var domainForm = body.querySelector('.sdoc-cloud-lab-domain-form');
+  if (domainForm) domainForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var input = domainForm.querySelector('input');
+    var domain = input.value.trim().replace(/^@+/, '').toLowerCase();
+    if (!domain || cloudState.busy || cloudState.invitePolicy.domains.indexOf(domain) !== -1) return;
+    saveInviteDomains(cloudState.invitePolicy.domains.concat(domain));
+  });
+  body.querySelectorAll('[data-cloud-remove-invite-domain]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var domain = button.getAttribute('data-cloud-remove-invite-domain');
+      saveInviteDomains(cloudState.invitePolicy.domains.filter(function (item) {
+        return item !== domain;
+      }));
+    });
+  });
+}
+
+async function saveInviteDomains(domains) {
+  if (!cloudState.account || cloudState.busy) return;
+  cloudState.busy = true;
+  try {
+    var data = await jsonRequest('/api/cloud/v1/account/invite-policy', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_id: cloudState.account.id, domains: domains }),
+    });
+    cloudState.invitePolicy = data.policy;
+    cloudState.status = 'Member invitation domains updated.';
+  } catch (error) {
+    cloudState.status = error.message === 'public_email_domain'
+      ? 'Use a company domain rather than a public email provider.'
+      : 'Member invitation domains were not updated.';
+  }
+  cloudState.busy = false;
+  renderCloudPanel();
 }
 
 async function savePermission(mode, memberIds) {

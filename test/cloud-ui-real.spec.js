@@ -7,6 +7,7 @@ test('real Cloud admin controls save, invite, share, tag, and remove through acc
   let revision = 1;
   let tags = [];
   let invitations = [];
+  let invitePolicy = { domains: [], can_manage: true, can_invite: true };
   let failInvitations = false;
   let permission = { id: 'group-1', account_id: 'acct-1', document_id: 'doc-1',
     mode: 'custom', member_user_ids: ['usr-1'], owner_user_id: 'usr-1', can_manage: true };
@@ -24,6 +25,17 @@ test('real Cloud admin controls save, invite, share, tag, and remove through acc
       ] } });
     if (path === '/api/cloud/v1/account/tags') return route.fulfill({ json: { ok: true,
       account_id: 'acct-1', tags: [{ tag: 'planning', count: 4 }] } });
+    if (path === '/api/cloud/v1/account/invite-policy' && request.method() === 'GET') {
+      return route.fulfill({ json: { ok: true, account_id: 'acct-1', policy: invitePolicy } });
+    }
+    if (path === '/api/cloud/v1/account/invite-policy' && request.method() === 'PATCH') {
+      const body = request.postDataJSON();
+      if (body.domains.includes('gmail.com')) {
+        return route.fulfill({ status: 400, json: { ok: false, error: 'public_email_domain' } });
+      }
+      invitePolicy = { domains: body.domains, can_manage: true, can_invite: true };
+      return route.fulfill({ json: { ok: true, account_id: 'acct-1', policy: invitePolicy } });
+    }
     if (path === '/api/cloud/v1/account/invitations' && request.method() === 'GET') {
       return route.fulfill({ json: { ok: true, account_id: 'acct-1', invitations } });
     }
@@ -76,6 +88,13 @@ test('real Cloud admin controls save, invite, share, tag, and remove through acc
     call.path === '/api/cloud/v1/account/documents')).toBe(true);
 
   await page.locator('.sdoc-cloud-lab-access').click();
+  await page.getByRole('textbox', { name: 'Company email domain' }).fill('smalldocs.org');
+  await page.getByRole('button', { name: 'Allow', exact: true }).click();
+  await expect(page.getByText('@smalldocs.org', { exact: true })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Company email domain' }).fill('gmail.com');
+  await page.getByRole('button', { name: 'Allow', exact: true }).click();
+  await expect(page.locator('.sdoc-cloud-lab-status')).toHaveText(
+    'Use a company domain rather than a public email provider.');
   await page.getByRole('textbox', { name: 'Email address' }).fill('ada@example.com');
   await page.getByRole('button', { name: 'Invite', exact: true }).click();
   await expect(page.getByText('ada@example.com', { exact: true })).toBeVisible();
@@ -104,4 +123,68 @@ test('real Cloud admin controls save, invite, share, tag, and remove through acc
   await expect(page.locator('.sdoc-cloud-lab-add-link')).toBeVisible();
   expect(calls.some(call => call.method === 'DELETE' &&
     call.path === '/api/cloud/v1/documents/doc-1')).toBe(true);
+});
+
+test('team members can invite coworkers only at approved domains', async ({ page }) => {
+  const calls = [];
+  let permission = { id: 'group-1', account_id: 'acct-1', document_id: 'doc-1',
+    mode: 'custom', member_user_ids: ['usr-1'], owner_user_id: 'usr-1', can_manage: true };
+  await page.route('**/api/cloud/v1/**', async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    calls.push({ method: request.method(), path });
+    if (path === '/api/cloud/v1/account') return route.fulfill({ json: { ok: true,
+      account: { id: 'acct-1', kind: 'team', name: 'SmallDocs', role: 'member', can_write: true },
+      accounts: [], user: { id: 'usr-1', email: 'josh@smalldocs.org' } } });
+    if (path === '/api/cloud/v1/account/members') return route.fulfill({ json: { ok: true,
+      account_id: 'acct-1', members: [
+        { user_id: 'usr-1', email: 'josh@smalldocs.org', name: 'Josh', initials: 'JS', is_you: true },
+      ] } });
+    if (path === '/api/cloud/v1/account/tags') return route.fulfill({ json: { ok: true,
+      account_id: 'acct-1', tags: [] } });
+    if (path === '/api/cloud/v1/account/invite-policy') return route.fulfill({ json: { ok: true,
+      account_id: 'acct-1', policy: { domains: ['smalldocs.org'],
+        can_manage: false, can_invite: true } } });
+    if (path === '/api/cloud/v1/account/documents') return route.fulfill({ status: 201, json: {
+      ok: true, account: { id: 'acct-1', kind: 'team', name: 'SmallDocs' },
+      document: { id: 'doc-1', filename: 'sdoc.md', title: 'SmallDocs', tags: [],
+        current_revision_id: 'rev-1', revision_number: 1, workspace_id: 'acct-1' }, permission } });
+    if (path === '/api/cloud/v1/account/invitations' && request.method() === 'POST') {
+      const email = request.postDataJSON().email;
+      if (!email.endsWith('@smalldocs.org')) {
+        return route.fulfill({ status: 403, json: { ok: false, error: 'permission_denied' } });
+      }
+      return route.fulfill({ status: 201, json: { ok: true,
+        invitation: { id: 'invite-member', email, role: 'member' } } });
+    }
+    if (path === '/api/cloud/v1/documents/doc-1/permission') {
+      permission = Object.assign({}, permission, request.postDataJSON());
+      return route.fulfill({ json: { ok: true, permission } });
+    }
+    return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
+  });
+
+  await page.goto('/docs');
+  await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
+  await page.evaluate(() => { window.SDocs._isDefaultState = false; });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
+  await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/account')).toBe(true);
+  await page.locator('.sdoc-cloud-lab-add-link').click();
+  await page.locator('.sdoc-cloud-lab-access').click();
+
+  await expect(page.getByText(/You can invite people at @smalldocs.org/)).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Company email domain' })).toHaveCount(0);
+  await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/account/invitations'
+    && call.method === 'GET')).toBe(false);
+
+  const email = page.getByRole('textbox', { name: 'Email address' });
+  await email.fill('tom@smalldocs.org');
+  await page.getByRole('button', { name: 'Invite', exact: true }).click();
+  await expect(page.locator('.sdoc-cloud-lab-status')).toHaveText(
+    'Invitation sent to tom@smalldocs.org.');
+
+  await email.fill('tom@example.com');
+  await page.getByRole('button', { name: 'Invite', exact: true }).click();
+  await expect(page.locator('.sdoc-cloud-lab-status')).toHaveText(
+    'Members can invite only @smalldocs.org.');
 });

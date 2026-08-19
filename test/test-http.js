@@ -865,6 +865,45 @@ module.exports = function(harness) {
       assert.strictEqual(reused.status, 404);
     });
 
+    await testAsync('Cloud admins approve domains and members invite matching coworkers', async () => {
+      const accountId = cloudTeamWorkspace.workspaceId;
+      const publicDomain = await patch(BASE + '/api/cloud/v1/account/invite-policy', {
+        account_id: accountId, domains: ['gmail.com'],
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(publicDomain.status, 400);
+      assert.strictEqual(JSON.parse(publicDomain.body).error, 'public_email_domain');
+
+      const updated = await patch(BASE + '/api/cloud/v1/account/invite-policy', {
+        account_id: accountId, domains: ['acme.example'],
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(updated.status, 200);
+      assert.deepStrictEqual(JSON.parse(updated.body).policy.domains, ['acme.example']);
+
+      const policy = await get(BASE + '/api/cloud/v1/account/invite-policy?account_id=' + accountId,
+        { Cookie: cloudMemberCookie });
+      assert.strictEqual(policy.status, 200);
+      assert.deepStrictEqual(JSON.parse(policy.body).policy, {
+        domains: ['acme.example'], can_manage: false, can_invite: true,
+      });
+
+      const memberCannotChange = await patch(BASE + '/api/cloud/v1/account/invite-policy', {
+        account_id: accountId, domains: ['other.example'],
+      }, { Origin: BASE, Cookie: cloudMemberCookie });
+      assert.strictEqual(memberCannotChange.status, 403);
+
+      const allowed = await post(BASE + '/api/cloud/v1/account/invitations', {
+        account_id: accountId, email: 'new-colleague@acme.example',
+      }, { Origin: BASE, Cookie: cloudMemberCookie });
+      assert.strictEqual(allowed.status, 201);
+      assert.strictEqual(JSON.parse(allowed.body).invitation.email, 'new-colleague@acme.example');
+
+      const denied = await post(BASE + '/api/cloud/v1/account/invitations', {
+        account_id: accountId, email: 'friend@other.example',
+      }, { Origin: BASE, Cookie: cloudMemberCookie });
+      assert.strictEqual(denied.status, 403);
+      assert.strictEqual(JSON.parse(denied.body).error, 'permission_denied');
+    });
+
     await testAsync('Cloud owner can add another active member as an owner and remains an owner', async () => {
       const promoted = await post(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/owners', {
         user_id: cloudMemberUser.id,
