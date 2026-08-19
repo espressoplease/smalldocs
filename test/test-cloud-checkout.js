@@ -35,7 +35,7 @@ function checkoutPage(responses, search) {
     'checkout-team-name', 'checkout-button', 'checkout-status', 'checkout-title',
     'checkout-copy', 'checkout-plan-field', 'checkout-detail', 'checkout-selection-name',
     'checkout-plan-note', 'checkout-payment-note', 'checkout-personal', 'checkout-team',
-    'checkout-back',
+    'checkout-back', 'checkout-profile-field', 'checkout-profile-name',
   ];
   const elements = Object.fromEntries(ids.map((id) => [id, element(id)]));
   elements['checkout-team-field'].hidden = true;
@@ -96,7 +96,8 @@ module.exports = function(harness) {
 
     await testAsync('asks whether Cloud is for one person or a team when no plan is supplied', async () => {
       const page = checkoutPage([
-        jsonResponse(200, { workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }] }),
+        jsonResponse(200, { user: { display_name: 'Josh Summers' },
+          workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }] }),
       ], '?return=%2Fdocs%23md%3Dexample');
       await settle();
 
@@ -109,6 +110,8 @@ module.exports = function(harness) {
       assert.strictEqual(page.elements['checkout-plan-field'].hidden, true);
       assert.strictEqual(page.elements['checkout-back'].hidden, false);
       assert.strictEqual(page.elements['checkout-detail'].hidden, false);
+      assert.strictEqual(page.elements['checkout-profile-field'].hidden, false);
+      assert.strictEqual(page.elements['checkout-profile-name'].value, 'Josh Summers');
       assert.strictEqual(page.elements['checkout-selection-name'].textContent, 'Just me');
       assert.strictEqual(page.elements['checkout-workspace-field'].hidden, true);
       assert.strictEqual(page.elements['checkout-button'].hidden, false);
@@ -129,7 +132,9 @@ module.exports = function(harness) {
 
     await testAsync('keeps the original document return path through personal Checkout', async () => {
       const page = checkoutPage([
-        jsonResponse(200, { workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }] }),
+        jsonResponse(200, { user: { display_name: 'Josh Summers' },
+          workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }] }),
+        jsonResponse(200, { user: { id: 'user-1', display_name: 'Josh Summers' } }),
         jsonResponse(200, { checkout_url: 'https://checkout.stripe.com/personal-session' }),
       ], '?return=%2Fdocs%23md%3Dexample');
       await settle();
@@ -137,7 +142,9 @@ module.exports = function(harness) {
       page.elements['checkout-button'].dispatch('click');
       await settle();
 
-      assert.deepStrictEqual(JSON.parse(page.requests[1].options.body), {
+      assert.strictEqual(page.requests[1].url, '/api/cloud/v1/me');
+      assert.deepStrictEqual(JSON.parse(page.requests[1].options.body), { display_name: 'Josh Summers' });
+      assert.deepStrictEqual(JSON.parse(page.requests[2].options.body), {
         workspace_id: 'personal-1', plan: 'personal', return_to: '/docs#md=example',
       });
       assert.strictEqual(page.assigned(), 'https://checkout.stripe.com/personal-session');
@@ -145,7 +152,9 @@ module.exports = function(harness) {
 
     await testAsync('creates and selects a team workspace before opening Checkout', async () => {
       const page = checkoutPage([
-        jsonResponse(200, { workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }] }),
+        jsonResponse(200, { user: { display_name: 'Josh Summers' },
+          workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }] }),
+        jsonResponse(200, { user: { id: 'user-1', display_name: 'Josh Summers' } }),
         jsonResponse(201, { workspace: { workspaceId: 'team-1', projectId: 'project-1' } }),
         jsonResponse(200, { checkout_url: 'https://checkout.stripe.com/team-session' }),
       ]);
@@ -160,15 +169,15 @@ module.exports = function(harness) {
       page.elements['checkout-button'].dispatch('click');
       await settle();
 
-      assert.strictEqual(page.requests.length, 3);
-      assert.strictEqual(page.requests[1].url, '/api/cloud/v1/workspaces');
-      assert.strictEqual(page.requests[1].options.method, 'POST');
-      assert.deepStrictEqual(JSON.parse(page.requests[1].options.body), {
+      assert.strictEqual(page.requests.length, 4);
+      assert.strictEqual(page.requests[2].url, '/api/cloud/v1/workspaces');
+      assert.strictEqual(page.requests[2].options.method, 'POST');
+      assert.deepStrictEqual(JSON.parse(page.requests[2].options.body), {
         name: 'Acme Engineering', project_name: 'Documents',
       });
       assert.strictEqual(page.elements['checkout-workspace'].value, 'team-1');
       assert.strictEqual(page.elements['checkout-workspace'].children[0].textContent, 'Acme Engineering');
-      assert.deepStrictEqual(JSON.parse(page.requests[2].options.body), {
+      assert.deepStrictEqual(JSON.parse(page.requests[3].options.body), {
         workspace_id: 'team-1', plan: 'team',
       });
       assert.strictEqual(page.assigned(), 'https://checkout.stripe.com/team-session');
@@ -176,7 +185,9 @@ module.exports = function(harness) {
 
     await testAsync('uses an existing owned team workspace without creating another one', async () => {
       const page = checkoutPage([
-        jsonResponse(200, { workspaces: [{ id: 'team-existing', name: 'Existing Team', kind: 'team', role: 'owner' }] }),
+        jsonResponse(200, { user: { display_name: 'Josh Summers' },
+          workspaces: [{ id: 'team-existing', name: 'Existing Team', kind: 'team', role: 'owner' }] }),
+        jsonResponse(200, { user: { id: 'user-1', display_name: 'Josh Summers' } }),
         jsonResponse(200, { checkout_url: 'https://checkout.stripe.com/existing-session' }),
       ]);
       await settle();
@@ -185,8 +196,8 @@ module.exports = function(harness) {
       page.elements['checkout-workspace'].value = 'team-existing';
       page.elements['checkout-button'].dispatch('click');
       await settle();
-      assert.strictEqual(page.requests.length, 2);
-      assert.strictEqual(page.requests[1].url, '/api/cloud/billing/checkout');
+      assert.strictEqual(page.requests.length, 3);
+      assert.strictEqual(page.requests[2].url, '/api/cloud/billing/checkout');
       assert.strictEqual(page.assigned(), 'https://checkout.stripe.com/existing-session');
     });
   };

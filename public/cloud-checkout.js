@@ -13,12 +13,15 @@
   var planField = document.getElementById('checkout-plan-field');
   var back = document.getElementById('checkout-back');
   var detail = document.getElementById('checkout-detail');
+  var profileField = document.getElementById('checkout-profile-field');
+  var profileName = document.getElementById('checkout-profile-name');
   var selectionName = document.getElementById('checkout-selection-name');
   var planNote = document.getElementById('checkout-plan-note');
   var paymentNote = document.getElementById('checkout-payment-note');
   var workspaces = [];
   var workspacesLoaded = false;
   var needsTeamWorkspace = false;
+  var planReady = false;
   var planHistoryEntry = false;
 
   function readResponse(response) {
@@ -43,9 +46,11 @@
   function showPlanChoices() {
     plan = null;
     needsTeamWorkspace = false;
+    planReady = false;
     planField.hidden = false;
     back.hidden = true;
     detail.hidden = true;
+    profileField.hidden = true;
     workspaceField.hidden = true;
     teamField.hidden = true;
     button.hidden = true;
@@ -57,11 +62,17 @@
       'Choose the account that matches how you want to share documents.';
   }
 
+  function refreshContinueState() {
+    button.disabled = !workspacesLoaded || !planReady || !profileName.value.trim() ||
+      (needsTeamWorkspace && !teamName.value.trim());
+  }
+
   function showTeamCreation() {
     needsTeamWorkspace = true;
+    planReady = true;
     workspaceField.hidden = true;
     teamField.hidden = false;
-    button.disabled = !teamName.value.trim();
+    refreshContinueState();
     button.textContent = 'Continue to payment';
     status.textContent = '';
   }
@@ -72,6 +83,7 @@
       return workspace.role === 'owner' && workspace.kind === plan;
     });
     needsTeamWorkspace = false;
+    planReady = false;
     select.replaceChildren();
     workspaceField.hidden = true;
     teamField.hidden = true;
@@ -89,8 +101,9 @@
       status.className = 'status error';
       return;
     }
+    planReady = true;
     workspaceField.hidden = matching.length < 2;
-    button.disabled = false;
+    refreshContinueState();
     button.textContent = 'Continue to payment';
   }
 
@@ -103,6 +116,7 @@
     planField.hidden = true;
     back.hidden = false;
     detail.hidden = false;
+    profileField.hidden = false;
     button.hidden = false;
     paymentNote.hidden = false;
     selectionName.textContent = plan === 'team' ? 'My team' : 'Just me';
@@ -112,7 +126,7 @@
     document.getElementById('checkout-title').textContent = 'Set up Cloud';
     document.getElementById('checkout-copy').textContent =
       'Review your choice, then continue to Stripe to pay.';
-    button.disabled = true;
+    refreshContinueState();
     status.className = 'status';
     status.textContent = workspacesLoaded ? '' : 'Checking your account...';
     configurePlan();
@@ -160,6 +174,9 @@
       if (!result.response.ok) throw new Error(result.body.error || 'request_failed');
       workspaces = result.body.workspaces || [];
       workspacesLoaded = true;
+      if (result.body.user && result.body.user.display_name) {
+        profileName.value = result.body.user.display_name;
+      }
       configurePlan();
     }).catch(function (error) {
       if (error.message !== 'login_required') {
@@ -169,8 +186,20 @@
     });
 
   teamName.addEventListener('input', function () {
-    if (needsTeamWorkspace) button.disabled = !teamName.value.trim();
+    refreshContinueState();
   });
+
+  profileName.addEventListener('input', refreshContinueState);
+
+  function updateProfile() {
+    status.textContent = 'Saving your details...';
+    return fetch('/api/cloud/v1/me', {
+      method: 'PATCH', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display_name: profileName.value.trim() }),
+    }).then(readResponse).then(handleLogin).then(function (result) {
+      if (!result.response.ok) throw new Error(result.body.error || 'profile_update_failed');
+    });
+  }
 
   function createTeamWorkspace() {
     var name = teamName.value.trim();
@@ -216,7 +245,9 @@
     status.className = 'status';
     var creationRequired = needsTeamWorkspace;
     button.textContent = creationRequired ? 'Creating your team...' : 'Opening payment...';
-    var workspace = creationRequired ? createTeamWorkspace() : Promise.resolve(select.value);
+    var workspace = updateProfile().then(function () {
+      return creationRequired ? createTeamWorkspace() : select.value;
+    });
     workspace.then(openCheckout).catch(function (error) {
       if (error.message === 'login_required') return;
       button.disabled = false;

@@ -986,10 +986,10 @@ function cloudMemberProfile(member) {
   try { account = cloudAuth.getUser(member.user_id); } catch (_) {}
   const identity = account && account.identities.find((item) => item.verifiedEmail);
   const email = identity ? identity.verifiedEmail : null;
-  const local = email ? email.split('@')[0] : 'Member';
-  const initials = local.split(/[._+\-\s]+/).filter(Boolean).slice(0, 2)
+  const name = account && account.displayName ? account.displayName : email || 'Member';
+  const initials = name.split(/[._+\-\s]+/).filter(Boolean).slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase()).join('') || '?';
-  return Object.assign({}, member, { email, name: email || 'Member', initials });
+  return Object.assign({}, member, { email, name, initials });
 }
 
 async function cloudAccountContext(userId, requestedId) {
@@ -1098,7 +1098,8 @@ async function handleCloudApi(req, res, url) {
     if (req.method === 'GET' && pathname === base + '/workspaces') {
       const personal = await cloudStore.ensurePersonalWorkspace(user.id, 'Personal');
       sendJson(res, 200, { ok: true, personal_workspace_id: personal.workspaceId,
-        workspaces: await cloudStore.listWorkspaces(user.id) });
+        workspaces: await cloudStore.listWorkspaces(user.id),
+        user: { id: user.id, display_name: user.displayName } });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/workspaces/deleted') {
@@ -1125,7 +1126,13 @@ async function handleCloudApi(req, res, url) {
     if (req.method === 'GET' && pathname === base + '/me') {
       const identity = user.identities.find((item) => item.verifiedEmail) || null;
       sendJson(res, 200, { ok: true, user: { id: user.id,
-        email: identity ? identity.verifiedEmail : null } });
+        email: identity ? identity.verifiedEmail : null, display_name: user.displayName } });
+      return;
+    }
+    if (req.method === 'PATCH' && pathname === base + '/me') {
+      const body = await cloudAuthHttp.readJson(req);
+      const updated = cloudAuth.updateUserProfile({ userId: user.id, displayName: body.display_name });
+      sendJson(res, 200, { ok: true, user: { id: updated.id, display_name: updated.displayName } });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/account') {
@@ -1143,7 +1150,7 @@ async function handleCloudApi(req, res, url) {
         can_write: Boolean(selected.defaultProject && (!cloudBilling ||
           (selected.billing && selected.billing.access.write))),
       }, accounts: context.accounts, user: { id: user.id,
-        email: identity ? identity.verifiedEmail : null } });
+        email: identity ? identity.verifiedEmail : null, display_name: user.displayName } });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/account/members') {

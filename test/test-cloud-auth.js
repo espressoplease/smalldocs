@@ -46,6 +46,15 @@ module.exports = function(harness) {
       assert.strictEqual(result.user.id, googleUser.id);
     });
 
+    test('a user can set a normalized display name for sharing', () => {
+      const updated = auth.updateUserProfile({ userId: googleUser.id,
+        displayName: '  Josh   Summers  ' });
+      assert.strictEqual(updated.displayName, 'Josh Summers');
+      assert.strictEqual(auth.getUser(googleUser.id).displayName, 'Josh Summers');
+      assert.throws(() => auth.updateUserProfile({ userId: googleUser.id, displayName: '   ' }),
+        (error) => error instanceof AuthError && error.code === 'invalid_request');
+    });
+
     test('matching email from another provider does not auto-link accounts', () => {
       const result = auth.signInWithExternalIdentity({
         provider: 'github', subject: 'github-456', verifiedEmail: 'person@example.com',

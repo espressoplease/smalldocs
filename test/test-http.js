@@ -758,6 +758,16 @@ module.exports = function(harness) {
       assert.strictEqual(Object.prototype.hasOwnProperty.call(user, 'identities'), false);
     });
 
+    await testAsync('Cloud API stores the display name used for sharing', async () => {
+      const response = await patch(BASE + '/api/cloud/v1/me', {
+        display_name: '  Ada   Lovelace  ',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(JSON.parse(response.body).user.display_name, 'Ada Lovelace');
+      const current = await get(BASE + '/api/cloud/v1/me', { Cookie: cloudCookie });
+      assert.strictEqual(JSON.parse(current.body).user.display_name, 'Ada Lovelace');
+    });
+
     await testAsync('Cloud workspace owner can create a team workspace and project', async () => {
       const created = await post(BASE + '/api/cloud/v1/workspaces', {
         name: 'Test Team', project_name: 'Platform',
