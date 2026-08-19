@@ -31,7 +31,8 @@ select, input { width:100%; margin-top:7px; padding:10px; border:1px solid var(-
 .checkout-selection { display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .checkout-selection > div { display:flex; flex-direction:column; gap:3px; }
 .checkout-kicker { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
-.checkout-change { width:auto; margin:0; padding:6px 9px; border-color:var(--border); background:transparent; color:var(--text); font-size:12px; }
+.checkout-back { display:inline-flex; align-items:center; gap:4px; width:auto; margin:0; padding:6px 9px; border-color:var(--border); background:transparent; color:var(--text); font-size:12px; }
+.checkout-back svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .checkout-plan-note { margin-top:9px; font-size:12px; }
 .checkout-payment-note { margin-top:2px; font-size:11px; text-align:center; }
 @media(max-width:520px) {

@@ -18,6 +18,7 @@
   var workspaces = [];
   var workspacesLoaded = false;
   var needsTeamWorkspace = false;
+  var planHistoryEntry = false;
 
   function readResponse(response) {
     return response.json().then(function (body) { return { response: response, body: body }; });
@@ -91,7 +92,11 @@
     button.textContent = 'Continue to payment';
   }
 
-  function selectPlan(nextPlan) {
+  function selectPlan(nextPlan, addHistory) {
+    if (addHistory && typeof history !== 'undefined' && history.pushState) {
+      history.pushState({ cloudCheckoutPlan: nextPlan }, '', location.pathname + location.search);
+      planHistoryEntry = true;
+    }
     plan = nextPlan;
     planField.hidden = true;
     detail.hidden = false;
@@ -111,14 +116,32 @@
   }
 
   document.getElementById('checkout-personal').addEventListener('click', function () {
-    selectPlan('personal');
+    selectPlan('personal', true);
   });
   document.getElementById('checkout-team').addEventListener('click', function () {
-    selectPlan('team');
+    selectPlan('team', true);
   });
-  document.getElementById('checkout-change').addEventListener('click', showPlanChoices);
+  document.getElementById('checkout-back').addEventListener('click', function () {
+    if (planHistoryEntry && typeof history !== 'undefined' && history.back) {
+      history.back();
+      return;
+    }
+    showPlanChoices();
+  });
 
-  if (plan) selectPlan(plan);
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('popstate', function (event) {
+      if (event.state && event.state.cloudCheckoutPlan) {
+        planHistoryEntry = true;
+        selectPlan(event.state.cloudCheckoutPlan, false);
+        return;
+      }
+      planHistoryEntry = false;
+      showPlanChoices();
+    });
+  }
+
+  if (plan) selectPlan(plan, false);
   else showPlanChoices();
 
   fetch('/api/cloud/v1/workspaces', { credentials: 'same-origin' }).then(readResponse).then(handleLogin)

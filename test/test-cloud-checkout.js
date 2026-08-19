@@ -35,11 +35,12 @@ function checkoutPage(responses, search) {
     'checkout-team-name', 'checkout-button', 'checkout-status', 'checkout-title',
     'checkout-copy', 'checkout-plan-field', 'checkout-detail', 'checkout-selection-name',
     'checkout-plan-note', 'checkout-payment-note', 'checkout-personal', 'checkout-team',
-    'checkout-change',
+    'checkout-back',
   ];
   const elements = Object.fromEntries(ids.map((id) => [id, element(id)]));
   elements['checkout-team-field'].hidden = true;
   const requests = [];
+  const windowListeners = {};
   let assigned = null;
   const context = {
     URLSearchParams,
@@ -53,6 +54,17 @@ function checkoutPage(responses, search) {
       href: '',
       assign(value) { assigned = value; },
     },
+    window: {
+      addEventListener(name, handler) { windowListeners[name] = handler; },
+    },
+    history: {
+      state: null,
+      pushState(state) { this.state = state; },
+      back() {
+        this.state = null;
+        if (windowListeners.popstate) windowListeners.popstate({ state: null });
+      },
+    },
     document: {
       getElementById(id) { return elements[id]; },
       createElement(tag) { return element(tag); },
@@ -65,7 +77,7 @@ function checkoutPage(responses, search) {
   };
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'cloud-checkout.js'), 'utf8');
   vm.runInNewContext(source, context, { filename: 'cloud-checkout.js' });
-  return { elements, requests, assigned: () => assigned };
+  return { elements, requests, assigned: () => assigned, browserBack: () => context.history.back() };
 }
 
 module.exports = function(harness) {
@@ -92,7 +104,7 @@ module.exports = function(harness) {
       assert.strictEqual(page.elements['checkout-button'].hidden, false);
       assert.strictEqual(page.elements['checkout-button'].disabled, false);
 
-      page.elements['checkout-change'].dispatch('click');
+      page.browserBack();
       assert.strictEqual(page.elements['checkout-plan-field'].hidden, false);
       assert.strictEqual(page.elements['checkout-button'].hidden, true);
 
@@ -100,6 +112,8 @@ module.exports = function(harness) {
       assert.strictEqual(page.elements['checkout-selection-name'].textContent, 'My team');
       assert.strictEqual(page.elements['checkout-team-field'].hidden, false);
       assert.strictEqual(page.elements['checkout-button'].disabled, true);
+      page.elements['checkout-back'].dispatch('click');
+      assert.strictEqual(page.elements['checkout-plan-field'].hidden, false);
     });
 
     await testAsync('keeps the original document return path through personal Checkout', async () => {
