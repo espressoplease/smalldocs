@@ -108,11 +108,17 @@
 }
 .cloud-access-note svg { color: var(--accent); }
 .cloud-onboarding {
+  width: 100%;
   max-width: 720px;
-  margin-top: 8px;
+  margin: 0 auto;
   color: var(--text);
   font-size: 14px;
   line-height: 1.65;
+}
+body.cloud-library-onboarding .cloud-library-nav {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto 10px;
 }
 .cloud-onboarding[hidden] { display: none; }
 .cloud-onboarding h1 { margin: 0 0 6px; font-size: 22px; line-height: 1.3; }
@@ -121,6 +127,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+  margin: 0 0 24px;
 }
 .cloud-feature-grid article {
   padding: 14px;
@@ -175,6 +182,55 @@
 .cloud-steps strong, .cloud-steps span { display: block; }
 .cloud-steps strong { margin-bottom: 4px; font-size: 13.5px; }
 .cloud-steps span { color: var(--text-2); font-size: 13px; }
+.cloud-section-heading {
+  margin: 32px 0 10px;
+  color: var(--text-2);
+  font-size: 14.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.cloud-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.cloud-pricing-grid article,
+.cloud-security-summary {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+}
+.cloud-pricing-grid h3 {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+}
+.cloud-pricing-grid p,
+.cloud-security-summary p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.cloud-plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.cloud-plan-price strong {
+  color: var(--text);
+  font-size: 24px;
+  line-height: 1.2;
+}
+.cloud-plan-currencies { margin: 2px 0 12px !important; }
+.cloud-billing-note {
+  margin: 10px 0 0;
+  color: var(--text-3);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.cloud-security-summary p + p { margin-top: 9px; }
 .cloud-onboarding-actions { display: flex; align-items: center; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
 .cloud-onboarding-actions a {
   padding: 8px 11px;
@@ -202,5 +258,6 @@ body.cloud-library-loading #results { display: none; }
   .cloud-library-actions { justify-content: space-between; }
   .workspace-button > span:nth-child(2),
   .cloud-access-note { display: none; }
-  .cloud-feature-grid { grid-template-columns: 1fr; }
+  .cloud-feature-grid,
+  .cloud-pricing-grid { grid-template-columns: 1fr; }
 }

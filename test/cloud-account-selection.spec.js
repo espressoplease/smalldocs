@@ -40,7 +40,9 @@ test('signed-out Cloud Library explains the feature without calling Cloud APIs',
 
   await expect(page.getByRole('heading', { name: 'Cloud Library' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Security and pricing' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Cloud features, pricing, and security' })).toBeVisible();
+  await expect(page.getByText('$5 USD or €5 EUR', { exact: true })).toBeVisible();
+  await expect(page.getByText('$9 USD or €8 EUR', { exact: true })).toBeVisible();
   await expect(page.getByText('Search and tags', { exact: true })).toBeVisible();
   await expect(page.locator('.input-block')).toBeHidden();
   expect(requests).toEqual([]);

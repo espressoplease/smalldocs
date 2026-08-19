@@ -2530,7 +2530,7 @@ const server = http.createServer((req, res) => {
     ].join('; ');
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'connect.html'), {
       '__CLOUD_CONNECT_LIBRARY_SWITCHER__': CLOUD_DEPLOYMENT.publicEnabled
-        ? '<nav class="library-scope connect-library-scope" aria-label="Library location">' +
+        ? '<div class="library-onboarding-nav"><nav class="library-scope connect-library-scope" aria-label="Library location">' +
           '<a class="library-scope-option active" href="/library" aria-current="page">' +
           '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 16h.01"/>' +
           '<path d="M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527' +
@@ -2538,7 +2538,7 @@ const server = http.createServer((req, res) => {
           '<path d="M21.946 12.013H2.054"/><path d="M6 16h.01"/></svg>Local</a>' +
           '<a class="library-scope-option" href="/library?scope=cloud">' +
           '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79' +
-          'a4.5 4.5 0 1 1 0 9Z"/></svg>Cloud</a></nav>'
+          'a4.5 4.5 0 1 1 0 9Z"/></svg>Cloud</a></nav></div>'
         : '',
       '__CLOUD_CONNECT_COPY__': CLOUD_DEPLOYMENT.publicEnabled
         ? ' or save to SmallDocs Cloud from the editor' : '',
