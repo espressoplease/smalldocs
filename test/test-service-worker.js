@@ -51,7 +51,12 @@ module.exports = function(harness) {
   });
 
   test('service worker cache version changes and removes older cache generations', () => {
-    assert.strictEqual(context.CACHE_NAME, 'sdocs-cache-v2');
+    assert.strictEqual(context.CACHE_NAME, 'sdocs-cache-v3');
     assert.ok(source.includes("name.indexOf(CACHE_PREFIX) === 0 && name !== CACHE_NAME"));
+  });
+
+  test('versioned assets require an exact cache match before the offline fallback', () => {
+    assert.ok(source.includes('return cache.match(e.request).then(function (cached)'));
+    assert.ok(source.includes('return cache.match(e.request, { ignoreSearch: true });'));
   });
 };

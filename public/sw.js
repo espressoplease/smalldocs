@@ -1,6 +1,6 @@
-// Service worker — stale-while-revalidate + version-gated cache bust
+// Service worker - stale-while-revalidate + version-gated cache bust
 var CACHE_PREFIX = 'sdocs-cache';
-var CACHE_NAME = CACHE_PREFIX + '-v2';
+var CACHE_NAME = CACHE_PREFIX + '-v3';
 
 var APP_SHELL = [
   '/docs',
@@ -37,7 +37,7 @@ var APP_SHELL = [
 ];
 
 // Fetch that bypasses the browser's HTTP cache. Needed because
-// static assets are served with Cache-Control: max-age=86400 — without
+// static assets are served with Cache-Control: max-age=86400 - without
 // this, the SW's "fresh" fetches can still be served from the browser
 // cache and match whatever stale copy it already had.
 function freshFetch(req) {
@@ -133,22 +133,22 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
-  // Same-origin: stale-while-revalidate
-  // Return cached immediately, fetch fresh (bypassing HTTP cache) in the
-  // background so the next page load has up-to-date assets. ignoreSearch so
-  // `?v=<app-version>` cache-busting query strings on script/css URLs still
-  // match the precached path.
+  // Same-origin: stale-while-revalidate. Match the complete URL, including the
+  // app-version query string. A new version must not resolve to an older cached
+  // asset. If the network is unavailable, fall back to the precached path so
+  // the app shell can still open offline.
   if (url.origin === self.location.origin) {
     e.respondWith(
       caches.open(CACHE_NAME).then(function (cache) {
-        return cache.match(e.request, { ignoreSearch: true }).then(function (cached) {
+        return cache.match(e.request).then(function (cached) {
           var networkFetch = freshFetch(e.request).then(function (response) {
             if (response.ok && responseCanBeCached(response)) {
               cache.put(e.request, response.clone());
             }
             return response;
           }).catch(function () {
-            return cached; // offline fallback
+            if (cached) return cached;
+            return cache.match(e.request, { ignoreSearch: true });
           });
 
           return cached || networkFetch;
