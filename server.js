@@ -1819,7 +1819,22 @@ const server = http.createServer((req, res) => {
   // root belong to the app at /docs; fragments never reach the server, so
   // an inline script in the page forwards them client-side.
   if (pathname === '/') {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'homepage.html'), null, {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'homepage.html'), {
+      '<!--__CLOUD_HOME_SIGN_IN__-->': CLOUD_DEPLOYMENT.publicEnabled
+        ? '<a class="btn-gh" href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+          'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+          '<path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/>' +
+          '<path d="m16 19 2 2 4-4"/></svg>Sign in</a>'
+        : '',
+      '<!--__CLOUD_HOME_MENU_ITEM__-->': CLOUD_DEPLOYMENT.publicEnabled
+        ? '<a href="/cloud" role="menuitem">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+          'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+          '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>Cloud</a>' +
+          '<div class="nav-menu-separator" role="separator"></div>'
+        : '',
+    }, {
       'Cache-Control': 'no-cache',
     });
     return;

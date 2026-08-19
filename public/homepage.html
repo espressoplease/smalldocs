@@ -145,7 +145,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
 }
 /* GitHub button: the app's standard .btn translated to the homepage
    palette - 12px label, hairline border, darken on hover. */
@@ -166,6 +166,54 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 }
 .btn-gh:hover { background: #E8E3DD; border-color: #D4CFC9; }
 .btn-gh svg, .btn-read svg, .btn-secondary svg { display: block; flex-shrink: 0; }
+.btn-gh:focus-visible, .nav-menu summary:focus-visible, .nav-menu-panel a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.nav-menu {
+  position: relative;
+}
+.nav-menu summary {
+  width: 32px;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  list-style: none;
+  cursor: pointer;
+}
+.nav-menu summary::-webkit-details-marker { display: none; }
+.nav-menu[open] summary { background: #E8E3DD; border-color: #C2BBB0; }
+.nav-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 164px;
+  padding: 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--white);
+  box-shadow: var(--sh-card);
+}
+.nav-menu-panel a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-decoration: none;
+}
+.nav-menu-panel a svg { display: block; flex: 0 0 auto; }
+.nav-menu-panel a:hover { background: var(--paper); }
+.nav-menu-panel .nav-menu-separator {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--line);
+}
 
 /* ── BUTTONS ─────────────────────────────────────────── */
 .btn {
@@ -911,9 +959,6 @@ footer {
   .praise-grid { grid-template-columns: 1fr; }
   /* A single column gets long fast; keep only the three strongest. */
   .praise-extra { display: none; }
-  /* Docs and Library overflow the nav on narrow screens; drop them so
-     GitHub and Discord fit without horizontal scroll. */
-  .nav-hide-mobile { display: none; }
 }
 </style>
 </head>
@@ -924,22 +969,27 @@ footer {
   <div class="wrap nav-in">
     <a class="brand" href="#top">SmallDocs</a>
     <div class="nav-links">
-      <a class="btn-gh" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
-        GitHub
-      </a>
-      <a class="btn-gh" href="https://discord.gg/txjATTsDaq" target="_blank" rel="noopener">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>
-        Discord
-      </a>
-      <a class="btn-gh nav-hide-mobile" href="/docs">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
-        Docs
-      </a>
-      <a class="btn-gh nav-hide-mobile" href="/library">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
-        Library
-      </a>
+      <!--__CLOUD_HOME_SIGN_IN__-->
+      <details class="nav-menu" id="site-menu">
+        <summary class="btn-gh" aria-label="Open menu" aria-haspopup="menu" aria-expanded="false">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg>
+        </summary>
+        <div class="nav-menu-panel" role="menu">
+          <!--__CLOUD_HOME_MENU_ITEM__-->
+          <a href="/docs" role="menuitem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
+            Docs
+          </a>
+          <a href="/library" role="menuitem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+            Library
+          </a>
+          <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" role="menuitem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
+            GitHub
+          </a>
+        </div>
+      </details>
     </div>
   </div>
 </nav>
@@ -1353,6 +1403,25 @@ const nav = document.getElementById('nav');
 const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 6);
 window.addEventListener('scroll', onScroll, { passive: true });
 onScroll();
+
+const siteMenu = document.getElementById('site-menu');
+if (siteMenu) {
+  const siteMenuButton = siteMenu.querySelector('summary');
+  siteMenu.addEventListener('toggle', () => {
+    siteMenuButton.setAttribute('aria-expanded', String(siteMenu.open));
+  });
+  siteMenu.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => { siteMenu.open = false; });
+  });
+  document.addEventListener('click', (event) => {
+    if (siteMenu.open && !siteMenu.contains(event.target)) siteMenu.open = false;
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !siteMenu.open) return;
+    siteMenu.open = false;
+    siteMenuButton.focus();
+  });
+}
 
 /* Platform-aware install / upgrade commands and the canonical agent prompt,
    all pulled from the shared SDocCliSetup module so they stay identical to the

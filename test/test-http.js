@@ -116,6 +116,12 @@ module.exports = function(harness) {
         'root should contain the landing install section');
       assert.ok(r.body.includes('curl -fsSL https://smalldocs.org/install | sh'),
         'root should show the canonical install command');
+      assert.ok(r.body.includes('href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud"'),
+        'Cloud-enabled root should expose the sign-in journey');
+      assert.ok(r.body.includes('href="/cloud" role="menuitem"'),
+        'Cloud-enabled root menu should expose the Cloud product page');
+      assert.ok(!r.body.includes('discord.gg'),
+        'root navigation should not expose Discord');
     });
 
     await testAsync('GET /docs serves the app shell rendering sdoc.md', async () => {
@@ -1245,6 +1251,12 @@ module.exports = function(harness) {
         assert.strictEqual(docs.status, 200);
         assert.ok(!docs.body.includes('/public/css/cloud-prototype.css'));
         assert.ok(!docs.body.includes('/public/sdocs-cloud-prototype.js'));
+
+        const home = await get(hiddenBase + '/');
+        assert.strictEqual(home.status, 200);
+        assert.ok(!home.body.includes('href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud"'));
+        assert.ok(!home.body.includes('href="/cloud" role="menuitem"'));
+        assert.ok(home.body.includes('id="site-menu"'));
 
         const library = await get(hiddenBase + '/library');
         assert.strictEqual(library.status, 200);
