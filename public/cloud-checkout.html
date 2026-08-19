@@ -46,8 +46,16 @@
       </div>
 
       <div id="checkout-profile-field" hidden>
-        <label for="checkout-profile-name">Your name</label>
-        <input id="checkout-profile-name" type="text" maxlength="128" autocomplete="name" placeholder="Your name" aria-describedby="checkout-profile-note">
+        <div class="checkout-profile-grid">
+          <div>
+            <label for="checkout-profile-first-name">First name</label>
+            <input id="checkout-profile-first-name" type="text" maxlength="128" autocomplete="given-name" placeholder="First name" aria-describedby="checkout-profile-note">
+          </div>
+          <div>
+            <label for="checkout-profile-last-name">Last name (optional)</label>
+            <input id="checkout-profile-last-name" type="text" maxlength="128" autocomplete="family-name" placeholder="Last name" aria-describedby="checkout-profile-note">
+          </div>
+        </div>
         <p class="field-note" id="checkout-profile-note">Shown to people you share documents with.</p>
       </div>
       <div id="checkout-workspace-field" hidden>
@@ -57,7 +65,7 @@
       <div id="checkout-team-field" hidden>
         <label for="checkout-team-name">Team name</label>
         <input id="checkout-team-name" type="text" maxlength="512" autocomplete="organization" placeholder="Your team" aria-describedby="checkout-team-note">
-        <p class="field-note" id="checkout-team-note">You can invite people after payment.</p>
+        <p class="field-note" id="checkout-team-note">Shown in your account switcher and to people you invite.</p>
       </div>
       <button id="checkout-button" type="button" disabled hidden>Continue to payment</button>
       <p class="status" id="checkout-status" role="status" aria-live="polite"></p>

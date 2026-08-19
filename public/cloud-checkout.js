@@ -14,7 +14,8 @@
   var back = document.getElementById('checkout-back');
   var detail = document.getElementById('checkout-detail');
   var profileField = document.getElementById('checkout-profile-field');
-  var profileName = document.getElementById('checkout-profile-name');
+  var profileFirstName = document.getElementById('checkout-profile-first-name');
+  var profileLastName = document.getElementById('checkout-profile-last-name');
   var selectionName = document.getElementById('checkout-selection-name');
   var planNote = document.getElementById('checkout-plan-note');
   var paymentNote = document.getElementById('checkout-payment-note');
@@ -63,8 +64,21 @@
   }
 
   function refreshContinueState() {
-    button.disabled = !workspacesLoaded || !planReady || !profileName.value.trim() ||
+    button.disabled = !workspacesLoaded || !planReady || !profileFirstName.value.trim() ||
       (needsTeamWorkspace && !teamName.value.trim());
+  }
+
+  function populateProfile(user) {
+    if (!user) return;
+    if (user.first_name) {
+      profileFirstName.value = user.first_name;
+      profileLastName.value = user.last_name || '';
+      return;
+    }
+    if (!user.display_name) return;
+    var parts = user.display_name.trim().split(/\s+/);
+    profileFirstName.value = parts.shift() || '';
+    profileLastName.value = parts.join(' ');
   }
 
   function showTeamCreation() {
@@ -174,9 +188,7 @@
       if (!result.response.ok) throw new Error(result.body.error || 'request_failed');
       workspaces = result.body.workspaces || [];
       workspacesLoaded = true;
-      if (result.body.user && result.body.user.display_name) {
-        profileName.value = result.body.user.display_name;
-      }
+      populateProfile(result.body.user);
       configurePlan();
     }).catch(function (error) {
       if (error.message !== 'login_required') {
@@ -189,13 +201,17 @@
     refreshContinueState();
   });
 
-  profileName.addEventListener('input', refreshContinueState);
+  profileFirstName.addEventListener('input', refreshContinueState);
+  profileLastName.addEventListener('input', refreshContinueState);
 
   function updateProfile() {
     status.textContent = 'Saving your details...';
     return fetch('/api/cloud/v1/me', {
       method: 'PATCH', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ display_name: profileName.value.trim() }),
+      body: JSON.stringify({
+        first_name: profileFirstName.value.trim(),
+        last_name: profileLastName.value.trim(),
+      }),
     }).then(readResponse).then(handleLogin).then(function (result) {
       if (!result.response.ok) throw new Error(result.body.error || 'profile_update_failed');
     });

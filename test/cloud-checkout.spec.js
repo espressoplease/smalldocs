@@ -15,9 +15,10 @@ async function mockCheckout(page, options) {
     const request = route.request();
     if (request.method() === 'GET') {
       calls.push({ method: 'GET', path: '/api/cloud/v1/workspaces' });
+      const hasNoName = options && options.displayName === null;
       return route.fulfill({ json: { ok: true, workspaces,
-        user: { id: 'user-1', display_name: options && options.displayName === null
-          ? null : 'Josh Summers' } } });
+        user: { id: 'user-1', display_name: hasNoName ? null : 'Josh Summers',
+          first_name: hasNoName ? null : 'Josh', last_name: hasNoName ? null : 'Summers' } } });
     }
     const body = request.postDataJSON();
     calls.push({ method: 'POST', path: '/api/cloud/v1/workspaces', body });
@@ -29,7 +30,8 @@ async function mockCheckout(page, options) {
     const body = route.request().postDataJSON();
     calls.push({ method: 'PATCH', path: '/api/cloud/v1/me', body });
     return route.fulfill({ json: { ok: true,
-      user: { id: 'user-1', display_name: body.display_name } } });
+      user: { id: 'user-1', display_name: [body.first_name, body.last_name].filter(Boolean).join(' '),
+        first_name: body.first_name, last_name: body.last_name || null } } });
   });
 
   await page.route('**/api/cloud/billing/checkout', async route => {
@@ -56,7 +58,8 @@ test('chooses a personal account and preserves the document return path', async 
   await expect(page.getByRole('heading', { name: 'Who is Cloud for?' })).toBeVisible();
   await page.getByRole('button', { name: /Just me/ }).click();
   await expect(page.getByRole('heading', { name: 'Set up Cloud' })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Your name' })).toHaveValue('Josh Summers');
+  await expect(page.getByRole('textbox', { name: 'First name' })).toHaveValue('Josh');
+  await expect(page.getByRole('textbox', { name: 'Last name (optional)' })).toHaveValue('Summers');
 
   const back = page.getByRole('button', { name: 'Back to account choice' });
   const detail = page.locator('#checkout-detail');
@@ -75,17 +78,17 @@ test('chooses a personal account and preserves the document return path', async 
     return_to: '/docs?cloud-document=document-1',
   });
   expect(calls.find(call => call.path === '/api/cloud/v1/me').body)
-    .toEqual({ display_name: 'Josh Summers' });
+    .toEqual({ first_name: 'Josh', last_name: 'Summers' });
 });
 
-test('requires a sharing name before continuing', async ({ page }) => {
+test('requires a first name and allows a missing last name', async ({ page }) => {
   await mockCheckout(page, { displayName: null });
   await page.goto(CHECKOUT_PAGE);
   await page.getByRole('button', { name: /Just me/ }).click();
 
   const continueButton = page.getByRole('button', { name: 'Continue to payment' });
   await expect(continueButton).toBeDisabled();
-  await page.getByRole('textbox', { name: 'Your name' }).fill('Ada Lovelace');
+  await page.getByRole('textbox', { name: 'First name' }).fill('Ada');
   await expect(continueButton).toBeEnabled();
 });
 
@@ -97,6 +100,8 @@ test('creates a team before opening its checkout', async ({ page }) => {
   const continueButton = page.getByRole('button', { name: 'Continue to payment' });
   await expect(continueButton).toBeDisabled();
   await page.getByRole('textbox', { name: 'Team name' }).fill('Acme Engineering');
+  await expect(page.locator('#checkout-team-note'))
+    .toHaveText('Shown in your account switcher and to people you invite.');
   await expect(continueButton).toBeEnabled();
   await continueButton.click();
 

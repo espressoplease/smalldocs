@@ -761,12 +761,14 @@ module.exports = function(harness) {
       assert.strictEqual(Object.prototype.hasOwnProperty.call(user, 'identities'), false);
     });
 
-    await testAsync('Cloud API stores the display name used for sharing', async () => {
+    await testAsync('Cloud API stores separate names used for sharing', async () => {
       const response = await patch(BASE + '/api/cloud/v1/me', {
-        display_name: '  Ada   Lovelace  ',
+        first_name: '  Ada  ', last_name: '  Lovelace  ',
       }, { Origin: BASE, Cookie: cloudCookie });
       assert.strictEqual(response.status, 200);
       assert.strictEqual(JSON.parse(response.body).user.display_name, 'Ada Lovelace');
+      assert.strictEqual(JSON.parse(response.body).user.first_name, 'Ada');
+      assert.strictEqual(JSON.parse(response.body).user.last_name, 'Lovelace');
       const current = await get(BASE + '/api/cloud/v1/me', { Cookie: cloudCookie });
       assert.strictEqual(JSON.parse(current.body).user.display_name, 'Ada Lovelace');
     });
@@ -1127,7 +1129,10 @@ module.exports = function(harness) {
 
       const members = await get(BASE + '/api/cloud/v1/account/members?account_id=' + account.id,
         { Cookie: cloudCookie });
-      assert.strictEqual(JSON.parse(members.body).members[0].is_you, true);
+      const currentMember = JSON.parse(members.body).members[0];
+      assert.strictEqual(currentMember.is_you, true);
+      assert.strictEqual(currentMember.name, 'Ada Lovelace');
+      assert.strictEqual(currentMember.initials, 'AL');
 
       const everyone = await patch(BASE + '/api/cloud/v1/documents/' + body.document.id + '/permission', {
         mode: 'everyone', member_user_ids: [],

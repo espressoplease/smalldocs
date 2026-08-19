@@ -978,9 +978,27 @@ function cloudMemberProfile(member) {
   const identity = account && account.identities.find((item) => item.verifiedEmail);
   const email = identity ? identity.verifiedEmail : null;
   const name = account && account.displayName ? account.displayName : email || 'Member';
-  const initials = name.split(/[._+\-\s]+/).filter(Boolean).slice(0, 2)
+  const nameParts = name.split(/[._+\-\s]+/).filter(Boolean);
+  const firstName = account && account.firstName ? account.firstName : nameParts[0];
+  const explicitLastParts = account && account.lastName
+    ? account.lastName.split(/\s+/).filter(Boolean) : [];
+  const lastName = explicitLastParts.length
+    ? explicitLastParts[explicitLastParts.length - 1]
+    : (account && account.firstName ? null : nameParts[1]);
+  const initials = [firstName, lastName].filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase()).join('') || '?';
   return Object.assign({}, member, { email, name, initials });
+}
+
+function cloudUserProfile(user, email) {
+  const profile = {
+    id: user.id,
+    display_name: user.displayName,
+    first_name: user.firstName,
+    last_name: user.lastName,
+  };
+  if (email !== undefined) profile.email = email;
+  return profile;
 }
 
 async function cloudAccountContext(userId, requestedId) {
@@ -1090,7 +1108,7 @@ async function handleCloudApi(req, res, url) {
       const personal = await cloudStore.ensurePersonalWorkspace(user.id, 'Personal');
       sendJson(res, 200, { ok: true, personal_workspace_id: personal.workspaceId,
         workspaces: await cloudStore.listWorkspaces(user.id),
-        user: { id: user.id, display_name: user.displayName } });
+        user: cloudUserProfile(user) });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/workspaces/deleted') {
@@ -1116,14 +1134,17 @@ async function handleCloudApi(req, res, url) {
     }
     if (req.method === 'GET' && pathname === base + '/me') {
       const identity = user.identities.find((item) => item.verifiedEmail) || null;
-      sendJson(res, 200, { ok: true, user: { id: user.id,
-        email: identity ? identity.verifiedEmail : null, display_name: user.displayName } });
+      sendJson(res, 200, { ok: true,
+        user: cloudUserProfile(user, identity ? identity.verifiedEmail : null) });
       return;
     }
     if (req.method === 'PATCH' && pathname === base + '/me') {
       const body = await cloudAuthHttp.readJson(req);
-      const updated = cloudAuth.updateUserProfile({ userId: user.id, displayName: body.display_name });
-      sendJson(res, 200, { ok: true, user: { id: updated.id, display_name: updated.displayName } });
+      const profileInput = body.first_name !== undefined || body.last_name !== undefined
+        ? { userId: user.id, firstName: body.first_name, lastName: body.last_name }
+        : { userId: user.id, displayName: body.display_name };
+      const updated = cloudAuth.updateUserProfile(profileInput);
+      sendJson(res, 200, { ok: true, user: cloudUserProfile(updated) });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/account') {
@@ -1141,7 +1162,8 @@ async function handleCloudApi(req, res, url) {
         can_write: Boolean(selected.defaultProject && (!cloudBilling ||
           (selected.billing && selected.billing.access.write))),
       }, accounts: context.accounts, user: { id: user.id,
-        email: identity ? identity.verifiedEmail : null, display_name: user.displayName } });
+        email: identity ? identity.verifiedEmail : null, display_name: user.displayName,
+        first_name: user.firstName, last_name: user.lastName } });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/account/members') {
