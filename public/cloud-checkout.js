@@ -1,7 +1,8 @@
 (function () {
   'use strict';
   var params = new URLSearchParams(location.search);
-  var plan = params.get('plan');
+  var requestedPlan = params.get('plan');
+  var plan = requestedPlan === 'personal' || requestedPlan === 'team' ? requestedPlan : null;
   var returnTo = params.get('return');
   var select = document.getElementById('checkout-workspace');
   var workspaceField = document.getElementById('checkout-workspace-field');
@@ -9,14 +10,14 @@
   var teamName = document.getElementById('checkout-team-name');
   var button = document.getElementById('checkout-button');
   var status = document.getElementById('checkout-status');
+  var planField = document.getElementById('checkout-plan-field');
+  var detail = document.getElementById('checkout-detail');
+  var selectionName = document.getElementById('checkout-selection-name');
+  var planNote = document.getElementById('checkout-plan-note');
+  var paymentNote = document.getElementById('checkout-payment-note');
+  var workspaces = [];
+  var workspacesLoaded = false;
   var needsTeamWorkspace = false;
-  if (plan !== 'personal' && plan !== 'team') {
-    status.textContent = 'Choose Personal or Team Cloud from the Cloud page.';
-    status.className = 'status error';
-    return;
-  }
-  document.getElementById('checkout-title').textContent =
-    plan === 'team' ? 'Subscribe to Team Cloud' : 'Subscribe to Personal Cloud';
 
   function readResponse(response) {
     return response.json().then(function (body) { return { response: response, body: body }; });
@@ -37,28 +38,101 @@
     select.appendChild(option);
   }
 
+  function showPlanChoices() {
+    plan = null;
+    needsTeamWorkspace = false;
+    planField.hidden = false;
+    detail.hidden = true;
+    workspaceField.hidden = true;
+    teamField.hidden = true;
+    button.hidden = true;
+    paymentNote.hidden = true;
+    status.textContent = '';
+    status.className = 'status';
+    document.getElementById('checkout-title').textContent = 'Who is Cloud for?';
+    document.getElementById('checkout-copy').textContent =
+      'Choose the account that matches how you want to share documents.';
+  }
+
   function showTeamCreation() {
     needsTeamWorkspace = true;
     workspaceField.hidden = true;
     teamField.hidden = false;
     button.disabled = !teamName.value.trim();
-    button.textContent = 'Create workspace and continue';
-    status.textContent = 'Enter a name for the team workspace you want to subscribe to.';
+    button.textContent = 'Continue to payment';
+    status.textContent = '';
   }
 
-  fetch('/api/cloud/v1/workspaces', { credentials: 'same-origin' }).then(readResponse).then(handleLogin).then(function (result) {
-    if (!result.response.ok) throw new Error(result.body.error || 'request_failed');
-    var workspaces = (result.body.workspaces || []).filter(function (workspace) {
+  function configurePlan() {
+    if (!plan || !workspacesLoaded) return;
+    var matching = workspaces.filter(function (workspace) {
       return workspace.role === 'owner' && workspace.kind === plan;
     });
+    needsTeamWorkspace = false;
     select.replaceChildren();
-    workspaces.forEach(addWorkspace);
-    button.disabled = !workspaces.length;
-    if (!workspaces.length && plan === 'team') showTeamCreation();
-    else if (!workspaces.length) status.textContent = 'Your personal workspace is not available.';
-  }).catch(function (error) {
-    if (error.message !== 'login_required') status.textContent = 'Billing is temporarily unavailable.';
+    workspaceField.hidden = true;
+    teamField.hidden = true;
+    status.textContent = '';
+    status.className = 'status';
+    matching.forEach(addWorkspace);
+    if (matching.length) select.value = matching[0].id;
+    if (!matching.length && plan === 'team') {
+      showTeamCreation();
+      return;
+    }
+    if (!matching.length) {
+      button.disabled = true;
+      status.textContent = 'Your personal account is not available.';
+      status.className = 'status error';
+      return;
+    }
+    workspaceField.hidden = matching.length < 2;
+    button.disabled = false;
+    button.textContent = 'Continue to payment';
+  }
+
+  function selectPlan(nextPlan) {
+    plan = nextPlan;
+    planField.hidden = true;
+    detail.hidden = false;
+    button.hidden = false;
+    paymentNote.hidden = false;
+    selectionName.textContent = plan === 'team' ? 'My team' : 'Just me';
+    planNote.textContent = plan === 'team'
+      ? '£7 per member each month. Invite people and set access after payment.'
+      : '£4 each month. Documents start with access for you only.';
+    document.getElementById('checkout-title').textContent = 'Set up Cloud';
+    document.getElementById('checkout-copy').textContent =
+      'Review your choice, then continue to Stripe to pay.';
+    button.disabled = true;
+    status.className = 'status';
+    status.textContent = workspacesLoaded ? '' : 'Checking your account...';
+    configurePlan();
+  }
+
+  document.getElementById('checkout-personal').addEventListener('click', function () {
+    selectPlan('personal');
   });
+  document.getElementById('checkout-team').addEventListener('click', function () {
+    selectPlan('team');
+  });
+  document.getElementById('checkout-change').addEventListener('click', showPlanChoices);
+
+  if (plan) selectPlan(plan);
+  else showPlanChoices();
+
+  fetch('/api/cloud/v1/workspaces', { credentials: 'same-origin' }).then(readResponse).then(handleLogin)
+    .then(function (result) {
+      if (!result.response.ok) throw new Error(result.body.error || 'request_failed');
+      workspaces = result.body.workspaces || [];
+      workspacesLoaded = true;
+      configurePlan();
+    }).catch(function (error) {
+      if (error.message !== 'login_required') {
+        status.textContent = 'Billing is temporarily unavailable.';
+        status.className = 'status error';
+      }
+    });
 
   teamName.addEventListener('input', function () {
     if (needsTeamWorkspace) button.disabled = !teamName.value.trim();
@@ -67,7 +141,7 @@
   function createTeamWorkspace() {
     var name = teamName.value.trim();
     if (!name) return Promise.reject(new Error('team_name_required'));
-    status.textContent = 'Creating team workspace...';
+    status.textContent = 'Creating your team...';
     return fetch('/api/cloud/v1/workspaces', {
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name, project_name: 'Documents' }),
@@ -80,7 +154,7 @@
       addWorkspace({ id: workspaceId, name: name });
       select.value = workspaceId;
       needsTeamWorkspace = false;
-      workspaceField.hidden = false;
+      workspaceField.hidden = true;
       teamField.hidden = true;
       return workspaceId;
     });
@@ -103,17 +177,18 @@
   }
 
   button.addEventListener('click', function () {
+    if (!plan) return;
     button.disabled = true;
     status.className = 'status';
     var creationRequired = needsTeamWorkspace;
-    button.textContent = creationRequired ? 'Creating workspace...' : 'Opening payment...';
+    button.textContent = creationRequired ? 'Creating your team...' : 'Opening payment...';
     var workspace = creationRequired ? createTeamWorkspace() : Promise.resolve(select.value);
     workspace.then(openCheckout).catch(function (error) {
       if (error.message === 'login_required') return;
       button.disabled = false;
-      button.textContent = needsTeamWorkspace ? 'Create workspace and continue' : 'Continue to payment';
+      button.textContent = 'Continue to payment';
       status.textContent = creationRequired && needsTeamWorkspace
-        ? 'The team workspace could not be created. Try again.'
+        ? 'Your team could not be created. Try again.'
         : 'Payment could not be opened. Try again.';
       status.className = 'status error';
     });

@@ -10,22 +10,49 @@
   <link rel="stylesheet" href="/public/css/cloud-invite.css">
 </head>
 <body>
-  <main class="invite-shell">
+  <main class="invite-shell checkout-shell">
     <a class="brand" href="/cloud">SmallDocs Cloud</a>
-    <section class="invite-card" aria-labelledby="checkout-title">
-      <h1 id="checkout-title">Choose a workspace</h1>
-      <p id="checkout-copy">Payment is collected by Stripe. The subscription renews monthly until cancelled.</p>
-      <div id="checkout-workspace-field">
-        <label for="checkout-workspace">Workspace</label>
+    <section class="invite-card checkout-card" aria-labelledby="checkout-title">
+      <h1 id="checkout-title">Who is Cloud for?</h1>
+      <p id="checkout-copy">Choose the account that matches how you want to share documents.</p>
+
+      <div class="checkout-plans" id="checkout-plan-field">
+        <button class="checkout-plan" id="checkout-personal" type="button" data-plan="personal">
+          <span class="checkout-plan-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M5 21a7 7 0 0 1 14 0"></path></svg>
+          </span>
+          <span class="checkout-plan-copy"><strong>Just me</strong><span>Documents start private to you.</span></span>
+          <span class="checkout-plan-price"><strong>£4</strong><span>per month</span></span>
+        </button>
+        <button class="checkout-plan" id="checkout-team" type="button" data-plan="team">
+          <span class="checkout-plan-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          </span>
+          <span class="checkout-plan-copy"><strong>My team</strong><span>Invite people and control document access.</span></span>
+          <span class="checkout-plan-price"><strong>£7</strong><span>per member / month</span></span>
+        </button>
+      </div>
+
+      <div class="checkout-detail" id="checkout-detail" hidden>
+        <div class="checkout-selection">
+          <div><span class="checkout-kicker">Selected</span><strong id="checkout-selection-name"></strong></div>
+          <button class="checkout-change" id="checkout-change" type="button">Change</button>
+        </div>
+        <p class="checkout-plan-note" id="checkout-plan-note"></p>
+      </div>
+
+      <div id="checkout-workspace-field" hidden>
+        <label for="checkout-workspace">Account</label>
         <select id="checkout-workspace"></select>
       </div>
       <div id="checkout-team-field" hidden>
         <label for="checkout-team-name">Team name</label>
         <input id="checkout-team-name" type="text" maxlength="512" autocomplete="organization" placeholder="Your team" aria-describedby="checkout-team-note">
-        <p class="field-note" id="checkout-team-note">This creates the workspace that holds your team's projects and documents.</p>
+        <p class="field-note" id="checkout-team-note">You can invite people after payment.</p>
       </div>
-      <button id="checkout-button" type="button" disabled>Continue to payment</button>
+      <button id="checkout-button" type="button" disabled hidden>Continue to payment</button>
       <p class="status" id="checkout-status" role="status" aria-live="polite"></p>
+      <p class="checkout-payment-note" id="checkout-payment-note" hidden>Stripe collects payment. The subscription renews monthly until cancelled.</p>
     </section>
   </main>
   <script src="/public/cloud-checkout.js" defer></script>

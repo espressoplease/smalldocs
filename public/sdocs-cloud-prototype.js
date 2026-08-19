@@ -81,7 +81,8 @@ async function loadCloudDocument(id) {
     if (S.setMode) S.setMode('read', true);
   } catch (error) {
     if (error.status === 401) {
-      location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
+      location.href = '/cloud/sign-in?return=' +
+        encodeURIComponent(location.pathname + location.search + location.hash);
       return;
     }
     var status = document.getElementById('_sd_status-text');
@@ -255,7 +256,7 @@ function renderCodePrompt(row, email) {
       await jsonRequest('/api/cloud/auth/email/verify', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ challenge_id: pendingChallenge, code: input.value,
-          return_to: location.pathname + location.search }),
+          return_to: location.pathname + location.search + location.hash }),
       });
       pendingChallenge = null;
       refreshRow();
@@ -283,8 +284,7 @@ async function beginAdd(event) {
   try {
     var accountData = await loadAccountData();
     if (!accountData.account.can_write) {
-      var plan = accountData.account.kind === 'team' ? 'team' : 'personal';
-      location.href = '/cloud/checkout?plan=' + plan + '&return=' +
+      location.href = '/cloud/checkout?return=' +
         encodeURIComponent(location.pathname + location.search + location.hash);
       return;
     }
@@ -309,8 +309,7 @@ async function beginAdd(event) {
       return;
     }
     if (error.status === 402) {
-      var kind = cloudState.account && cloudState.account.kind === 'team' ? 'team' : 'personal';
-      location.href = '/cloud/checkout?plan=' + kind + '&return=' +
+      location.href = '/cloud/checkout?return=' +
         encodeURIComponent(location.pathname + location.search + location.hash);
       return;
     }

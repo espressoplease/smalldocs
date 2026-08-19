@@ -29,10 +29,13 @@ async function settle() {
   }
 }
 
-function checkoutPage(responses) {
+function checkoutPage(responses, search) {
   const ids = [
     'checkout-workspace', 'checkout-workspace-field', 'checkout-team-field',
     'checkout-team-name', 'checkout-button', 'checkout-status', 'checkout-title',
+    'checkout-copy', 'checkout-plan-field', 'checkout-detail', 'checkout-selection-name',
+    'checkout-plan-note', 'checkout-payment-note', 'checkout-personal', 'checkout-team',
+    'checkout-change',
   ];
   const elements = Object.fromEntries(ids.map((id) => [id, element(id)]));
   elements['checkout-team-field'].hidden = true;
@@ -45,7 +48,7 @@ function checkoutPage(responses) {
     JSON,
     encodeURIComponent,
     location: {
-      search: '?plan=team',
+      search: search == null ? '?plan=team' : search,
       pathname: '/cloud/checkout',
       href: '',
       assign(value) { assigned = value; },
@@ -70,6 +73,50 @@ module.exports = function(harness) {
 
   return async function() {
     console.log('\n-- Cloud Checkout Tests -------------------------------\n');
+
+    await testAsync('asks whether Cloud is for one person or a team when no plan is supplied', async () => {
+      const page = checkoutPage([
+        jsonResponse(200, { workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }] }),
+      ], '?return=%2Fdocs%23md%3Dexample');
+      await settle();
+
+      assert.strictEqual(page.elements['checkout-title'].textContent, 'Who is Cloud for?');
+      assert.strictEqual(page.elements['checkout-plan-field'].hidden, false);
+      assert.strictEqual(page.elements['checkout-button'].hidden, true);
+
+      page.elements['checkout-personal'].dispatch('click');
+      assert.strictEqual(page.elements['checkout-plan-field'].hidden, true);
+      assert.strictEqual(page.elements['checkout-detail'].hidden, false);
+      assert.strictEqual(page.elements['checkout-selection-name'].textContent, 'Just me');
+      assert.strictEqual(page.elements['checkout-workspace-field'].hidden, true);
+      assert.strictEqual(page.elements['checkout-button'].hidden, false);
+      assert.strictEqual(page.elements['checkout-button'].disabled, false);
+
+      page.elements['checkout-change'].dispatch('click');
+      assert.strictEqual(page.elements['checkout-plan-field'].hidden, false);
+      assert.strictEqual(page.elements['checkout-button'].hidden, true);
+
+      page.elements['checkout-team'].dispatch('click');
+      assert.strictEqual(page.elements['checkout-selection-name'].textContent, 'My team');
+      assert.strictEqual(page.elements['checkout-team-field'].hidden, false);
+      assert.strictEqual(page.elements['checkout-button'].disabled, true);
+    });
+
+    await testAsync('keeps the original document return path through personal Checkout', async () => {
+      const page = checkoutPage([
+        jsonResponse(200, { workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }] }),
+        jsonResponse(200, { checkout_url: 'https://checkout.stripe.com/personal-session' }),
+      ], '?return=%2Fdocs%23md%3Dexample');
+      await settle();
+      page.elements['checkout-personal'].dispatch('click');
+      page.elements['checkout-button'].dispatch('click');
+      await settle();
+
+      assert.deepStrictEqual(JSON.parse(page.requests[1].options.body), {
+        workspace_id: 'personal-1', plan: 'personal', return_to: '/docs#md=example',
+      });
+      assert.strictEqual(page.assigned(), 'https://checkout.stripe.com/personal-session');
+    });
 
     await testAsync('creates and selects a team workspace before opening Checkout', async () => {
       const page = checkoutPage([
