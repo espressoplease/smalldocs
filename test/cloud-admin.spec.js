@@ -112,6 +112,21 @@ test('Team Cloud keeps invitations and domains in People without project control
   await expect(page.getByRole('button', { name: 'Delete team' })).toBeVisible();
 });
 
+test('a new team shows the company domain seeded from its owner email', async ({ page }) => {
+  const calls = await installAdminApi(page, {
+    kind: 'team',
+    workspaces: [{ id: 'team-1', name: 'SmallDocs', kind: 'team', role: 'owner' }],
+    members: [{ user_id: 'user-1', email: 'owner@smalldocs.org', role: 'owner', status: 'active' }],
+    domains: ['smalldocs.org'],
+  });
+  await page.goto('/public/cloud-admin.html');
+  await page.getByRole('button', { name: 'People' }).click();
+
+  await expect(page.locator('.domain-pill')).toContainText('@smalldocs.org');
+  expect(calls.some(call => call.method === 'PATCH'
+    && call.path === '/api/cloud/v1/account/invite-policy')).toBe(false);
+});
+
 test('a team admin cannot delete the team', async ({ page }) => {
   await installAdminApi(page, {
     kind: 'team',

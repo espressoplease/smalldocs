@@ -1126,8 +1126,13 @@ async function handleCloudApi(req, res, url) {
         throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
       }
       const body = await cloudAuthHttp.readJson(req);
+      const identity = user.identities.find((item) => item.verifiedEmail) || null;
+      const { defaultInviteDomainFromEmail } = require('./lib/cloud-store');
+      const inviteDomain = defaultInviteDomainFromEmail(
+        identity ? identity.verifiedEmail : null);
       const workspace = await cloudStore.createTeamWorkspace({
         userId: user.id, name: body.name, projectName: body.project_name || 'Documents',
+        inviteDomains: inviteDomain ? [inviteDomain] : [],
       });
       sendJson(res, 201, { ok: true, workspace });
       return;

@@ -38,7 +38,8 @@ function deferred() {
 
 module.exports = function(harness) {
   const { assert, testAsync } = harness;
-  const { CloudError, createCloudStore, createLocalKeyProvider, deriveMetadata } = require('../lib/cloud-store');
+  const { CloudError, createCloudStore, createLocalKeyProvider, deriveMetadata,
+    defaultInviteDomainFromEmail } = require('../lib/cloud-store');
   const { createManagedKmsKeyProvider } = require('../lib/cloud-kms');
 
   return async function() {
@@ -119,6 +120,18 @@ module.exports = function(harness) {
       store.grantProject({ actorUserId: owner, workspaceId: team.workspaceId,
         projectId: team.projectId, userId: member, role: 'viewer' });
       assert.strictEqual((await store.listProjects(member, team.workspaceId))[0].role, 'viewer');
+    });
+
+    await testAsync('team invite defaults use company email domains but not public providers', async () => {
+      assert.strictEqual(defaultInviteDomainFromEmail('Owner@Acme.com'), 'acme.com');
+      assert.strictEqual(defaultInviteDomainFromEmail('owner@gmail.com'), null);
+      assert.strictEqual(defaultInviteDomainFromEmail('not-an-email'), null);
+      const seeded = await store.createTeamWorkspace({
+        userId: owner, name: 'Seeded', inviteDomains: ['@Example.org'],
+      });
+      assert.deepStrictEqual(store.getWorkspaceInvitePolicy({
+        userId: owner, workspaceId: seeded.workspaceId,
+      }).domains, ['example.org']);
     });
 
     await testAsync('admins approve company domains and members invite only within them', async () => {

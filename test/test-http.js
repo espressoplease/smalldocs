@@ -783,6 +783,11 @@ module.exports = function(harness) {
       assert.strictEqual(created.status, 201);
       cloudTeamWorkspace = JSON.parse(created.body).workspace;
       cloudTeamProject = { id: cloudTeamWorkspace.projectId };
+      assert.deepStrictEqual(cloudTeamWorkspace.inviteDomains, ['example.com']);
+      const initialPolicy = await get(BASE + '/api/cloud/v1/account/invite-policy?account_id=' +
+        cloudTeamWorkspace.workspaceId, { Cookie: cloudCookie });
+      assert.strictEqual(initialPolicy.status, 200);
+      assert.deepStrictEqual(JSON.parse(initialPolicy.body).policy.domains, ['example.com']);
       const blocked = await post(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/projects', {
         name: 'Blocked project',
       }, { Origin: BASE, Cookie: cloudCookie });
