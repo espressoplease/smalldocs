@@ -15,10 +15,10 @@ async function mockCheckout(page, options) {
     const request = route.request();
     if (request.method() === 'GET') {
       calls.push({ method: 'GET', path: '/api/cloud/v1/workspaces' });
-      const hasNoName = options && options.displayName === null;
+      const hasNoName = options && options.hasNoName;
       return route.fulfill({ json: { ok: true, workspaces,
-        user: { id: 'user-1', display_name: hasNoName ? null : 'Josh Summers',
-          first_name: hasNoName ? null : 'Josh', last_name: hasNoName ? null : 'Summers' } } });
+        user: { id: 'user-1', first_name: hasNoName ? null : 'Josh',
+          last_name: hasNoName ? null : 'Summers' } } });
     }
     const body = request.postDataJSON();
     calls.push({ method: 'POST', path: '/api/cloud/v1/workspaces', body });
@@ -30,8 +30,7 @@ async function mockCheckout(page, options) {
     const body = route.request().postDataJSON();
     calls.push({ method: 'PATCH', path: '/api/cloud/v1/me', body });
     return route.fulfill({ json: { ok: true,
-      user: { id: 'user-1', display_name: [body.first_name, body.last_name].filter(Boolean).join(' '),
-        first_name: body.first_name, last_name: body.last_name || null } } });
+      user: { id: 'user-1', first_name: body.first_name, last_name: body.last_name } } });
   });
 
   await page.route('**/api/cloud/billing/checkout', async route => {
@@ -59,7 +58,7 @@ test('chooses a personal account and preserves the document return path', async 
   await page.getByRole('button', { name: /Just me/ }).click();
   await expect(page.getByRole('heading', { name: 'Set up Cloud' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'First name' })).toHaveValue('Josh');
-  await expect(page.getByRole('textbox', { name: 'Last name (optional)' })).toHaveValue('Summers');
+  await expect(page.getByRole('textbox', { name: 'Last name' })).toHaveValue('Summers');
 
   const back = page.getByRole('button', { name: 'Back to account choice' });
   const detail = page.locator('#checkout-detail');
@@ -81,14 +80,16 @@ test('chooses a personal account and preserves the document return path', async 
     .toEqual({ first_name: 'Josh', last_name: 'Summers' });
 });
 
-test('requires a first name and allows a missing last name', async ({ page }) => {
-  await mockCheckout(page, { displayName: null });
+test('requires both first and last name', async ({ page }) => {
+  await mockCheckout(page, { hasNoName: true });
   await page.goto(CHECKOUT_PAGE);
   await page.getByRole('button', { name: /Just me/ }).click();
 
   const continueButton = page.getByRole('button', { name: 'Continue to payment' });
   await expect(continueButton).toBeDisabled();
   await page.getByRole('textbox', { name: 'First name' }).fill('Ada');
+  await expect(continueButton).toBeDisabled();
+  await page.getByRole('textbox', { name: 'Last name' }).fill('Lovelace');
   await expect(continueButton).toBeEnabled();
 });
 

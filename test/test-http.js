@@ -761,16 +761,19 @@ module.exports = function(harness) {
       assert.strictEqual(Object.prototype.hasOwnProperty.call(user, 'identities'), false);
     });
 
-    await testAsync('Cloud API stores separate names used for sharing', async () => {
+    await testAsync('Cloud API requires and stores separate names', async () => {
+      const missingLastName = await patch(BASE + '/api/cloud/v1/me', {
+        first_name: 'Ada', last_name: '',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(missingLastName.status, 400);
       const response = await patch(BASE + '/api/cloud/v1/me', {
         first_name: '  Ada  ', last_name: '  Lovelace  ',
       }, { Origin: BASE, Cookie: cloudCookie });
       assert.strictEqual(response.status, 200);
-      assert.strictEqual(JSON.parse(response.body).user.display_name, 'Ada Lovelace');
       assert.strictEqual(JSON.parse(response.body).user.first_name, 'Ada');
       assert.strictEqual(JSON.parse(response.body).user.last_name, 'Lovelace');
       const current = await get(BASE + '/api/cloud/v1/me', { Cookie: cloudCookie });
-      assert.strictEqual(JSON.parse(current.body).user.display_name, 'Ada Lovelace');
+      assert.strictEqual(Object.hasOwn(JSON.parse(current.body).user, 'display_name'), false);
     });
 
     await testAsync('Cloud workspace owner can create a team workspace and project', async () => {

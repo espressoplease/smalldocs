@@ -977,7 +977,8 @@ function cloudMemberProfile(member) {
   try { account = cloudAuth.getUser(member.user_id); } catch (_) {}
   const identity = account && account.identities.find((item) => item.verifiedEmail);
   const email = identity ? identity.verifiedEmail : null;
-  const name = account && account.displayName ? account.displayName : email || 'Member';
+  const name = account && account.firstName && account.lastName
+    ? account.firstName + ' ' + account.lastName : email || 'Member';
   const nameParts = name.split(/[._+\-\s]+/).filter(Boolean);
   const firstName = account && account.firstName ? account.firstName : nameParts[0];
   const explicitLastParts = account && account.lastName
@@ -993,7 +994,6 @@ function cloudMemberProfile(member) {
 function cloudUserProfile(user, email) {
   const profile = {
     id: user.id,
-    display_name: user.displayName,
     first_name: user.firstName,
     last_name: user.lastName,
   };
@@ -1140,10 +1140,8 @@ async function handleCloudApi(req, res, url) {
     }
     if (req.method === 'PATCH' && pathname === base + '/me') {
       const body = await cloudAuthHttp.readJson(req);
-      const profileInput = body.first_name !== undefined || body.last_name !== undefined
-        ? { userId: user.id, firstName: body.first_name, lastName: body.last_name }
-        : { userId: user.id, displayName: body.display_name };
-      const updated = cloudAuth.updateUserProfile(profileInput);
+      const updated = cloudAuth.updateUserProfile({ userId: user.id,
+        firstName: body.first_name, lastName: body.last_name });
       sendJson(res, 200, { ok: true, user: cloudUserProfile(updated) });
       return;
     }
@@ -1161,9 +1159,8 @@ async function handleCloudApi(req, res, url) {
         can_read: cloudBilling ? Boolean(selected.billing && selected.billing.access.read) : true,
         can_write: Boolean(selected.defaultProject && (!cloudBilling ||
           (selected.billing && selected.billing.access.write))),
-      }, accounts: context.accounts, user: { id: user.id,
-        email: identity ? identity.verifiedEmail : null, display_name: user.displayName,
-        first_name: user.firstName, last_name: user.lastName } });
+      }, accounts: context.accounts,
+      user: cloudUserProfile(user, identity ? identity.verifiedEmail : null) });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/account/members') {

@@ -65,20 +65,14 @@
 
   function refreshContinueState() {
     button.disabled = !workspacesLoaded || !planReady || !profileFirstName.value.trim() ||
+      !profileLastName.value.trim() ||
       (needsTeamWorkspace && !teamName.value.trim());
   }
 
   function populateProfile(user) {
     if (!user) return;
-    if (user.first_name) {
-      profileFirstName.value = user.first_name;
-      profileLastName.value = user.last_name || '';
-      return;
-    }
-    if (!user.display_name) return;
-    var parts = user.display_name.trim().split(/\s+/);
-    profileFirstName.value = parts.shift() || '';
-    profileLastName.value = parts.join(' ');
+    profileFirstName.value = user.first_name || '';
+    profileLastName.value = user.last_name || '';
   }
 
   function showTeamCreation() {

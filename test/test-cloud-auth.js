@@ -46,34 +46,20 @@ module.exports = function(harness) {
       assert.strictEqual(result.user.id, googleUser.id);
     });
 
-    test('a user stores separate names and derives the sharing name', () => {
+    test('a user stores normalized required names', () => {
       const updated = auth.updateUserProfile({ userId: googleUser.id,
         firstName: '  Josh  ', lastName: '  Summers  ' });
-      assert.strictEqual(updated.displayName, 'Josh Summers');
       assert.strictEqual(updated.firstName, 'Josh');
       assert.strictEqual(updated.lastName, 'Summers');
-      assert.strictEqual(auth.getUser(googleUser.id).displayName, 'Josh Summers');
       assert.throws(() => auth.updateUserProfile({ userId: googleUser.id,
         firstName: '   ', lastName: '' }),
         (error) => error instanceof AuthError && error.code === 'invalid_request');
     });
 
-    test('legacy display-name updates populate the separate name fields', () => {
-      const updated = auth.updateUserProfile({ userId: googleUser.id,
-        displayName: 'Grace Hopper' });
-      assert.strictEqual(updated.firstName, 'Grace');
-      assert.strictEqual(updated.lastName, 'Hopper');
-      auth.updateUserProfile({ userId: googleUser.id, firstName: 'Josh', lastName: 'Summers' });
-    });
-
-    test('a legacy display name remains readable as separate fields', () => {
-      auth.db.prepare(`
-        UPDATE cloud_auth_users SET display_name = ?, first_name = NULL, last_name = NULL WHERE id = ?
-      `).run('Ada Lovelace', googleUser.id);
-      const profile = auth.getUser(googleUser.id);
-      assert.strictEqual(profile.firstName, 'Ada');
-      assert.strictEqual(profile.lastName, 'Lovelace');
-      auth.updateUserProfile({ userId: googleUser.id, firstName: 'Josh', lastName: 'Summers' });
+    test('user profiles do not retain a display-name column', () => {
+      const columns = auth.db.prepare('PRAGMA table_info(cloud_auth_users)').all()
+        .map((column) => column.name);
+      assert.strictEqual(columns.includes('display_name'), false);
     });
 
     test('matching email from another provider does not auto-link accounts', () => {
