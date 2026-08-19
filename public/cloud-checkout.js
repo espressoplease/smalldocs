@@ -11,6 +11,7 @@
   var button = document.getElementById('checkout-button');
   var status = document.getElementById('checkout-status');
   var planField = document.getElementById('checkout-plan-field');
+  var back = document.getElementById('checkout-back');
   var detail = document.getElementById('checkout-detail');
   var selectionName = document.getElementById('checkout-selection-name');
   var planNote = document.getElementById('checkout-plan-note');
@@ -43,6 +44,7 @@
     plan = null;
     needsTeamWorkspace = false;
     planField.hidden = false;
+    back.hidden = true;
     detail.hidden = true;
     workspaceField.hidden = true;
     teamField.hidden = true;
@@ -99,6 +101,7 @@
     }
     plan = nextPlan;
     planField.hidden = true;
+    back.hidden = false;
     detail.hidden = false;
     button.hidden = false;
     paymentNote.hidden = false;

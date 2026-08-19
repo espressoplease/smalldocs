@@ -107,6 +107,7 @@ module.exports = function(harness) {
 
       page.elements['checkout-personal'].dispatch('click');
       assert.strictEqual(page.elements['checkout-plan-field'].hidden, true);
+      assert.strictEqual(page.elements['checkout-back'].hidden, false);
       assert.strictEqual(page.elements['checkout-detail'].hidden, false);
       assert.strictEqual(page.elements['checkout-selection-name'].textContent, 'Just me');
       assert.strictEqual(page.elements['checkout-workspace-field'].hidden, true);
@@ -115,6 +116,7 @@ module.exports = function(harness) {
 
       page.browserBack();
       assert.strictEqual(page.elements['checkout-plan-field'].hidden, false);
+      assert.strictEqual(page.elements['checkout-back'].hidden, true);
       assert.strictEqual(page.elements['checkout-button'].hidden, true);
 
       page.elements['checkout-team'].dispatch('click');
