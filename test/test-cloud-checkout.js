@@ -41,6 +41,8 @@ function checkoutPage(responses, search) {
   elements['checkout-team-field'].hidden = true;
   const requests = [];
   const windowListeners = {};
+  const historyEntries = [{ cloudCheckoutPlan: 'stale' }];
+  let historyIndex = 0;
   let assigned = null;
   const context = {
     URLSearchParams,
@@ -58,11 +60,16 @@ function checkoutPage(responses, search) {
       addEventListener(name, handler) { windowListeners[name] = handler; },
     },
     history: {
-      state: null,
-      pushState(state) { this.state = state; },
+      get state() { return historyEntries[historyIndex]; },
+      pushState(state) {
+        historyEntries.splice(historyIndex + 1);
+        historyEntries.push(state);
+        historyIndex += 1;
+      },
+      replaceState(state) { historyEntries[historyIndex] = state; },
       back() {
-        this.state = null;
-        if (windowListeners.popstate) windowListeners.popstate({ state: null });
+        if (historyIndex > 0) historyIndex -= 1;
+        if (windowListeners.popstate) windowListeners.popstate({ state: historyEntries[historyIndex] });
       },
     },
     document: {
@@ -77,7 +84,8 @@ function checkoutPage(responses, search) {
   };
   const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'cloud-checkout.js'), 'utf8');
   vm.runInNewContext(source, context, { filename: 'cloud-checkout.js' });
-  return { elements, requests, assigned: () => assigned, browserBack: () => context.history.back() };
+  return { elements, requests, assigned: () => assigned, browserBack: () => context.history.back(),
+    historyState: () => context.history.state };
 }
 
 module.exports = function(harness) {
@@ -93,6 +101,7 @@ module.exports = function(harness) {
       await settle();
 
       assert.strictEqual(page.elements['checkout-title'].textContent, 'Who is Cloud for?');
+      assert.strictEqual(page.historyState().cloudCheckoutChoice, true);
       assert.strictEqual(page.elements['checkout-plan-field'].hidden, false);
       assert.strictEqual(page.elements['checkout-button'].hidden, true);
 

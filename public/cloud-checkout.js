@@ -127,6 +127,9 @@
       return;
     }
     showPlanChoices();
+    if (typeof history !== 'undefined' && history.replaceState) {
+      history.replaceState({ cloudCheckoutChoice: true }, '', location.pathname + location.search);
+    }
   });
 
   if (typeof window !== 'undefined' && window.addEventListener) {
@@ -142,7 +145,12 @@
   }
 
   if (plan) selectPlan(plan, false);
-  else showPlanChoices();
+  else {
+    if (typeof history !== 'undefined' && history.replaceState) {
+      history.replaceState({ cloudCheckoutChoice: true }, '', location.pathname + location.search);
+    }
+    showPlanChoices();
+  }
 
   fetch('/api/cloud/v1/workspaces', { credentials: 'same-origin' }).then(readResponse).then(handleLogin)
     .then(function (result) {
