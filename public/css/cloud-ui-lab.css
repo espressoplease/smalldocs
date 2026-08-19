@@ -3,7 +3,7 @@
 #_sd_sdocs-file-info .fic-row-cloud-lab {
   align-items: center;
   cursor: default;
-  padding: 8px 0;
+  padding: 5px 0;
 }
 
 .sdoc-cloud-lab-row-main {
@@ -21,6 +21,21 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 5px;
+}
+
+.sdoc-cloud-lab-add-link {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--md-p-color);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 
 .sdoc-cloud-lab-access,
@@ -56,7 +71,8 @@
 .sdoc-cloud-lab-access:focus-visible,
 .sdoc-cloud-lab-tag:focus-visible,
 .sdoc-cloud-lab-plus:focus-visible,
-.sdoc-cloud-lab-save:focus-visible {
+.sdoc-cloud-lab-add-link:focus-visible,
+.sdoc-cloud-lab-state-icon:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 66%, transparent);
   outline-offset: 2px;
 }
@@ -64,7 +80,7 @@
 .sdoc-cloud-lab-access svg,
 .sdoc-cloud-lab-tag svg,
 .sdoc-cloud-lab-plus svg,
-.sdoc-cloud-lab-save svg {
+.sdoc-cloud-lab-state-icon svg {
   width: 14px;
   height: 14px;
   flex: 0 0 auto;
@@ -77,34 +93,33 @@
 
 .sdoc-cloud-lab-tag svg { width: 12px; height: 12px; color: var(--accent-text); }
 
-.sdoc-cloud-lab-row-note {
+.sdoc-cloud-lab-no-tags {
   color: var(--fic-muted);
-  font-size: 10.5px;
-  line-height: 1.35;
+  font-size: 11px;
 }
 
-.sdoc-cloud-lab-save {
-  min-height: 30px;
+.sdoc-cloud-lab-state-icon {
+  width: 20px;
+  height: 20px;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--accent);
-  color: var(--text-inv);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 650;
-  cursor: pointer;
-  transition: background .12s, border-color .12s, filter .12s;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fic-muted);
+  transition: background .12s, color .12s;
 }
-
-.sdoc-cloud-lab-save:hover { filter: brightness(1.06); }
-.sdoc-cloud-lab-save.saved {
-  border-color: color-mix(in srgb, #23834b 55%, var(--border));
-  background: color-mix(in srgb, #23834b 12%, var(--bg));
+.sdoc-cloud-lab-upload {
+  cursor: pointer;
+}
+.sdoc-cloud-lab-upload:hover {
+  color: var(--md-p-color);
+  background: var(--md-copy-btn-hover, rgba(0,0,0,.07));
+}
+.sdoc-cloud-lab-saved {
   color: #23834b;
 }
 
@@ -458,11 +473,9 @@ body.cloud-lab-mode #_sd_cloud-lab-panel {
 
 @media (max-width: 768px) {
   #_sd_sdocs-file-info .fic-row-cloud-lab {
-    align-items: flex-start;
-    flex-wrap: wrap;
+    align-items: center;
   }
-  .sdoc-cloud-lab-row-main { flex: 1 1 calc(100% - 74px); }
-  .sdoc-cloud-lab-save { margin-left: 70px; }
+  .sdoc-cloud-lab-row-main { flex: 1; }
 
   #_sd_cloud-lab-panel {
     position: fixed;

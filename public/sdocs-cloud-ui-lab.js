@@ -19,6 +19,8 @@ var USERS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 21a8 8
 var CLOUD_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>';
 var PLUS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
 var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg>';
+var CLOUD_UPLOAD_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 13v8"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/></svg>';
+var CLOUD_CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/></svg>';
 var CLOSE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 
 var members = [
@@ -32,7 +34,7 @@ var members = [
 var state = {
   account: params.get('prototype-account') === 'personal' ? 'personal' : 'team',
   saved: params.get('prototype-saved') === '1',
-  selected: ['you', 'tom', 'lenny', 'dan'],
+  selected: ['you'],
   tags: [],
   tagsReady: false,
   panel: null,
@@ -58,7 +60,7 @@ function initialiseTags() {
   if (state.tagsReady || !S.currentBody) return;
   var current = S.currentMeta && Array.isArray(S.currentMeta.tags)
     ? S.currentMeta.tags.map(String).filter(Boolean) : [];
-  state.tags = current.length ? current.slice(0, 5) : ['cloud-test', 'staging'];
+  state.tags = current.slice(0, 5);
   state.tagsReady = true;
 }
 
@@ -92,6 +94,16 @@ function makeRow() {
   row.className = 'fic-row fic-row-cloud fic-row-cloud-lab';
   row.setAttribute('data-prototype-account', state.account);
   row.setAttribute('data-prototype-saved', String(state.saved));
+  if (!state.saved) {
+    row.innerHTML = '<span class="fic-label">Cloud</span>'
+      + '<button class="sdoc-cloud-lab-add-link" type="button">Add to Cloud</button>'
+      + '<button class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-upload" type="button"'
+      + ' aria-label="Upload to Cloud" title="Add to Cloud">' + CLOUD_UPLOAD_SVG + '</button>';
+    row.querySelectorAll('.sdoc-cloud-lab-add-link, .sdoc-cloud-lab-upload').forEach(function (button) {
+      button.addEventListener('click', addToCloud);
+    });
+    return row;
+  }
   var tags = state.tags.map(makeCloudTag).join('');
   row.innerHTML = '<span class="fic-label">Cloud</span>'
     + '<div class="sdoc-cloud-lab-row-main">'
@@ -100,14 +112,12 @@ function makeRow() {
     + ' data-tip="' + escapeHtml(permissionNames()).replace(/\n/g, ' · ') + '"'
     + ' title="' + escapeHtml(permissionNames()).replace(/\n/g, ' · ') + '">'
     + permissionIcon() + '<span>' + escapeHtml(permissionLabel()) + '</span></button>'
-    + tags
+    + (tags || '<span class="sdoc-cloud-lab-no-tags">No tags</span>')
     + '<button class="sdoc-cloud-lab-plus" type="button" data-cloud-lab-open="tags" aria-label="Edit Cloud tags">'
     + PLUS_SVG + '</button></div>'
-    + '<span class="sdoc-cloud-lab-row-note">'
-    + (state.saved ? 'Cloud revision 1' : 'Choose access and tags before adding') + '</span>'
     + '</div>'
-    + '<button class="sdoc-cloud-lab-save' + (state.saved ? ' saved' : '') + '" type="button">'
-    + (state.saved ? CHECK_SVG + '<span>Saved</span>' : CLOUD_SVG + '<span>Add to Cloud</span>') + '</button>';
+    + '<span class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-saved" aria-label="Saved to Cloud"'
+    + ' title="Saved to Cloud">' + CLOUD_CHECK_SVG + '</span>';
 
   row.querySelectorAll('[data-cloud-lab-open]').forEach(function (button) {
     button.addEventListener('click', function (event) {
@@ -116,16 +126,19 @@ function makeRow() {
       openPanel(button.getAttribute('data-cloud-lab-open'));
     });
   });
-  row.querySelector('.sdoc-cloud-lab-save').addEventListener('click', function (event) {
-    event.preventDefault();
-    event.stopPropagation();
-    state.saved = true;
-    state.saveMessage = 'Prototype saved. No document or account data changed.';
-    refreshRow();
-    if (state.panel) renderPanel();
-  });
   if (S.attachTooltips) S.attachTooltips(row);
   return row;
+}
+
+function addToCloud(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  state.saved = true;
+  state.saveMessage = 'Prototype saved. No document or account data changed.';
+  refreshRow();
+  if (state.panel) renderPanel();
 }
 
 function insertRow() {
