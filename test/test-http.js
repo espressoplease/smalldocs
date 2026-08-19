@@ -719,7 +719,9 @@ module.exports = function(harness) {
       assert.strictEqual(response.status, 200);
       assert.strictEqual(response.headers['cache-control'], 'no-store');
       assert.ok(response.body.includes('Agent access'));
-      assert.ok(response.body.includes('Invite member'));
+      assert.ok(response.body.includes('Cloud settings'));
+      assert.ok(response.body.includes('>People</button>'));
+      assert.ok(!response.body.includes('data-panel="projects"'));
       const version = JSON.parse((await get(BASE + '/version-check')).body).version;
       const assetUrls = [...response.body.matchAll(/(?:src|href)="(\/public\/[^"?#]+)\?v=([^"&]+)"/g)];
       assert.ok(assetUrls.length > 0);

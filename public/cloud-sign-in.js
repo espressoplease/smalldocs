@@ -19,7 +19,7 @@
   function returnLabel(path) {
     if (path.indexOf('/cloud/account') === 0) return 'your Cloud account';
     if (path.indexOf('/library') === 0) return 'Cloud library';
-    if (path.indexOf('/cloud/admin') === 0) return 'workspace settings';
+    if (path.indexOf('/cloud/admin') === 0) return 'Cloud settings';
     if (path.indexOf('/cloud/checkout') === 0) return 'checkout';
     if (path.indexOf('/cloud/authorize') === 0) return 'CLI authorization';
     if (path.indexOf('/cloud/document') === 0) return 'your document';

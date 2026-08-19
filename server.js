@@ -840,7 +840,7 @@ function homepageNavigation(req) {
     }
     actions.push(homepageNavLink('btn-gh', '/library?scope=cloud', 'library', 'Library'));
     menuBefore = homepageNavLink('', '/cloud/account', 'account', 'Account settings', ' role="menuitem"') +
-      homepageNavLink('', '/cloud/admin', 'settings', 'Workspace &amp; billing', ' role="menuitem"') +
+      homepageNavLink('', '/cloud/admin', 'settings', 'Cloud settings', ' role="menuitem"') +
       '<div class="nav-menu-separator" role="separator"></div>';
     menuAfter = '<div class="nav-menu-separator" role="separator"></div>' +
       '<form method="post" action="/api/cloud/auth/logout" role="none">' +

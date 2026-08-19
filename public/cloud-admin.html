@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SmallDocs Cloud Admin</title>
+<title>SmallDocs Cloud settings</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
   @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/public/fonts/inter-400.woff2') format('woff2'); }
@@ -11,22 +11,26 @@
   @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('/public/fonts/inter-600.woff2') format('woff2'); }
   :root { --bg:#F7F5F2; --surface:#FFF; --surface-2:#F1EDE8; --text:#1C1917; --text-2:#57534E; --text-3:#8B8680; --border:#D4CFC9; --border-2:#E7E2DB; --blue:#2563EB; --blue-2:#EFF6FF; --green:#15803D; --red:#B42318; }
   * { box-sizing: border-box; }
+  [hidden] { display:none !important; }
   body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:'Inter',system-ui,-apple-system,sans-serif; font-size:13px; }
   button, input, select { font:inherit; }
   button { cursor:pointer; }
   a { color:var(--blue); }
-  .header { height:42px; display:flex; align-items:center; gap:10px; padding:0 16px; border-bottom:1px solid var(--border); background:var(--bg); position:sticky; top:0; z-index:10; }
+  .header { height:48px; display:flex; align-items:center; gap:10px; padding:0 16px; border-bottom:1px solid var(--border); background:var(--bg); position:sticky; top:0; z-index:10; }
   .brand { color:var(--blue); font-weight:600; text-decoration:none; }
   .sep { color:#A8A29E; }
   .crumb { color:var(--text-2); font-size:12px; }
-  .workspace-switch { margin-left:4px; border:0; background:transparent; color:var(--text); font-weight:500; padding:4px 6px; border-radius:4px; }
+  .workspace-picker { display:flex; align-items:center; gap:10px; }
+  .workspace-picker[hidden] { display:none; }
+  .workspace-switch { border:0; background:transparent; color:var(--text); font-weight:500; padding:4px 6px; border-radius:4px; }
   .workspace-switch:hover { background:var(--surface-2); }
   .account { margin-left:auto; color:var(--text-3); font-size:11px; }
   .open-library { margin-left:8px; padding:6px 9px; border:1px solid var(--border); border-radius:5px; color:var(--text); text-decoration:none; background:var(--surface); font-size:11.5px; }
-  .shell { min-height:calc(100vh - 42px); display:grid; grid-template-columns:190px minmax(0,1fr); }
-  .sidebar { padding:22px 12px; border-right:1px solid var(--border); }
+  .shell { min-height:calc(100vh - 48px); display:grid; grid-template-columns:210px minmax(0,1fr); align-items:start; }
+  .sidebar { position:sticky; top:48px; height:calc(100vh - 48px); padding:22px 12px; border-right:1px solid var(--border); }
   .side-label { padding:0 9px 8px; color:var(--text-3); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
-  .nav { width:100%; display:flex; align-items:center; gap:9px; border:0; border-radius:5px; padding:8px 9px; background:transparent; color:var(--text-2); text-align:left; }
+  .nav { width:100%; min-height:36px; display:flex; flex:0 0 auto; align-items:center; gap:9px; border:0; border-radius:5px; padding:8px 9px; background:transparent; color:var(--text-2); text-align:left; }
+  .nav[hidden] { display:none; }
   .nav svg { flex:0 0 auto; }
   .nav:hover { background:var(--surface-2); color:var(--text); }
   .nav.active { background:var(--blue-2); color:var(--blue); font-weight:500; }
@@ -41,7 +45,8 @@
   .btn.primary { border-color:var(--blue); background:var(--blue); color:#fff; }
   .btn.danger { color:var(--red); }
   .btn.small { padding:5px 8px; font-size:11.5px; }
-  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:24px; }
+  .stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:24px; }
+  .stat[hidden] { display:none; }
   .stat { border:1px solid var(--border); border-radius:7px; background:var(--surface); padding:15px; }
   .stat strong { display:block; font-size:21px; margin-bottom:5px; }
   .stat span { color:var(--text-3); font-size:11.5px; }
@@ -64,14 +69,8 @@
   .status::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); }
   .status.pending::before { background:#D97706; }
   .muted { color:var(--text-3); }
-  .project-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-  .project { border:1px solid var(--border); border-radius:8px; background:var(--surface); padding:16px; }
-  .project-top { display:flex; justify-content:space-between; gap:12px; }
-  .project h2 { margin-bottom:5px; }
-  .project p { margin:0; color:var(--text-3); font-size:11.5px; line-height:1.5; }
-  .project-meta { display:flex; gap:14px; margin-top:18px; color:var(--text-2); font-size:11px; }
   .notice { padding:12px 14px; border:1px solid #BFDBFE; border-radius:6px; background:#EFF6FF; color:#1E40AF; line-height:1.55; margin-bottom:16px; }
-  .invite { display:none; grid-template-columns:minmax(180px,1.4fr) minmax(110px,.6fr) minmax(180px,1fr) auto; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border-2); background:color-mix(in srgb,var(--blue-2) 58%,var(--surface)); }
+  .invite { display:none; grid-template-columns:minmax(180px,1fr) auto; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border-2); background:color-mix(in srgb,var(--blue-2) 58%,var(--surface)); }
   .invite.open { display:grid; }
   .field { min-height:34px; border:1px solid var(--border); border-radius:5px; background:var(--surface); color:var(--text); padding:7px 9px; min-width:0; }
   .field:focus { outline:0; border-color:var(--blue); box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 10%,transparent); }
@@ -91,61 +90,56 @@
   .error { display:none; padding:11px 14px; border:1px solid color-mix(in srgb,var(--red) 42%,var(--border)); border-radius:6px; color:var(--red); background:color-mix(in srgb,var(--red) 7%,var(--surface)); margin-bottom:16px; line-height:1.5; }
   .error.visible { display:block; }
   .form-status { grid-column:1/-1; margin:0; color:var(--text-2); font-size:11.5px; line-height:1.45; }
-  .project-options { display:flex; flex-wrap:wrap; gap:7px 12px; grid-column:1/-1; }
-  .project-option { display:flex; align-items:center; gap:5px; color:var(--text-2); font-size:11.5px; }
-  .create-project { display:none; grid-template-columns:minmax(180px,1fr) auto; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border-2); background:color-mix(in srgb,var(--blue-2) 58%,var(--surface)); }
-  .create-project.open { display:grid; }
+  .domain-controls { display:grid; grid-template-columns:minmax(180px,1fr) auto; gap:8px; padding:14px 16px; }
+  .domain-list { display:flex; flex-wrap:wrap; gap:6px; padding:0 16px 14px; }
+  .domain-list:empty { display:none; }
+  .domain-pill { display:inline-flex; align-items:center; gap:5px; padding:4px 5px 4px 8px; border:1px solid var(--border); border-radius:999px; background:var(--surface-2); color:var(--text-2); font-size:11px; }
+  .domain-pill button { width:20px; height:20px; display:grid; place-items:center; border:0; border-radius:50%; background:transparent; color:var(--text-3); }
+  .domain-pill button:hover { background:var(--surface); color:var(--text); }
   .busy { opacity:.58; pointer-events:none; }
   .row-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; }
-  @media(max-width:750px) { .shell{grid-template-columns:1fr}.sidebar{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.nav{width:auto;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:repeat(2,1fr)}.project-grid{grid-template-columns:1fr}.invite.open,.create-project.open{grid-template-columns:1fr}.account{display:none} }
+  @media(max-width:600px) { .shell{grid-template-columns:1fr}.sidebar{position:static;top:auto;height:auto;display:flex;align-items:center;overflow:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.nav{width:auto;height:36px;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:1fr 1fr}.invite.open,.domain-controls{grid-template-columns:1fr}.account{display:none} }
   @media(prefers-color-scheme:dark) { :root{--bg:#1C1A17;--surface:#211F1D;--surface-2:#252320;--text:#E7E5E2;--text-2:#A8A29E;--text-3:#77716B;--border:#3D3935;--border-2:#332F2B;--blue:#3B82F6;--blue-2:#17233A;--green:#4ADE80;--red:#FCA5A5}.notice{background:#17233A;border-color:#284B80;color:#BFDBFE} }
 </style>
 </head>
 <body>
 <header class="header">
-  <a class="brand" href="/">SmallDocs</a><span class="sep">/</span><span class="crumb">Cloud</span><span class="sep">/</span>
-  <select class="workspace-switch" id="workspace-switch" aria-label="Workspace"></select>
+  <a class="brand" href="/">SmallDocs</a><span class="sep">/</span><span class="crumb">Cloud settings</span>
+  <span class="workspace-picker" id="workspace-picker" hidden><span class="sep">/</span><select class="workspace-switch" id="workspace-switch" aria-label="Cloud account"></select></span>
   <span class="account" id="account-label">Loading account</span>
   <a class="open-library" href="/library?scope=cloud">Open library</a>
 </header>
 <div class="shell">
   <aside class="sidebar">
-    <p class="side-label">Workspace</p>
+    <p class="side-label">Cloud</p>
     <button class="nav active" data-panel="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Overview</button>
-    <button class="nav" data-panel="members"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>Members</button>
-    <button class="nav" data-panel="projects"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2.5a1.5 1.5 0 0 1 1.2.6l.6.8a1.5 1.5 0 0 0 1.2.6z"/><path d="M3 8.268a2 2 0 0 0-1 1.738V19a2 2 0 0 0 2 2h11a2 2 0 0 0 1.732-1"/></svg>Projects</button>
+    <button class="nav" data-panel="people" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>People</button>
     <button class="nav" data-panel="agents"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>Agent access</button>
     <button class="nav" data-panel="billing"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Billing</button>
   </aside>
   <main class="main">
     <section class="panel" id="panel-overview">
-      <div class="page-head"><div><h1 id="overview-name">Cloud workspace</h1><p class="description">Workspace documents, members, projects, and your active agent credentials.</p></div></div>
+      <div class="page-head"><div><h1 id="overview-name">Cloud settings</h1><p class="description" id="overview-description">Your Cloud documents, billing, and connected agents.</p></div></div>
       <div class="error" id="page-error" role="alert"></div>
-      <div class="stats"><div class="stat"><strong id="member-count">-</strong><span>members</span></div><div class="stat"><strong id="project-count">-</strong><span>projects</span></div><div class="stat"><strong id="document-count">-</strong><span>documents</span></div><div class="stat"><strong id="credential-count">-</strong><span>your active credentials</span></div></div>
-      <div class="card"><div class="card-head"><div><h2>Administration history</h2><p>Workspace and access changes, not document content.</p></div></div><div class="table-wrap"><table><tbody id="audit-rows"></tbody></table></div><p class="empty" id="audit-empty" hidden>No administration events have been recorded.</p></div>
-      <div class="card" id="workspace-lifecycle" hidden><div class="billing-row"><div><strong>Delete team workspace</strong><p>Access ends immediately. Encrypted documents and revisions are scheduled for permanent deletion after 30 days.</p></div><button class="btn small danger" id="delete-workspace" type="button">Delete workspace</button></div></div>
+      <div class="stats"><div class="stat" id="people-stat" hidden><strong id="member-count">-</strong><span>people</span></div><div class="stat"><strong id="document-count">-</strong><span>documents</span></div><div class="stat"><strong id="credential-count">-</strong><span>connected agents</span></div></div>
     </section>
 
-    <section class="panel" id="panel-members" hidden>
-      <div class="page-head"><div><h1>Members</h1><p class="description">Owners and admins access every project. Members receive explicit project access.</p></div><button class="btn primary" id="invite-open">Invite member</button></div>
-      <div class="card"><form class="invite" id="invite-form"><input class="field" id="invite-email" type="email" placeholder="name@company.com" required><select class="field" id="invite-role" aria-label="Workspace role"><option value="member">Member</option><option value="admin">Admin</option></select><select class="field" id="invite-project-role" aria-label="Project role"><option value="viewer">Viewer access</option><option value="editor">Editor access</option></select><button class="btn primary" type="submit">Create invite</button><div class="project-options" id="invite-projects"></div><p class="form-status" id="invite-status" aria-live="polite">Choose the projects this member can access. Admins receive access to every project.</p></form><div class="table-wrap"><table><thead><tr><th>Person</th><th>Workspace role</th><th>Project access</th><th>Status</th><th></th></tr></thead><tbody id="member-rows"></tbody></table></div><p class="empty" id="members-empty" hidden>No workspace members were returned.</p></div>
-    </section>
-
-    <section class="panel" id="panel-projects" hidden>
-      <div class="page-head"><div><h1>Projects</h1><p class="description">Group documents that share the same access. Use tags for features and workstreams.</p></div><button class="btn primary" id="project-open">New project</button></div>
-      <div class="card" id="project-create-card" hidden><form class="create-project" id="project-form"><input class="field" id="project-name" type="text" maxlength="512" placeholder="Project name" required><button class="btn primary" type="submit">Create project</button><p class="form-status" id="project-status" aria-live="polite">Owners and admins can create projects.</p></form></div>
-      <div class="project-grid" id="project-grid"></div><p class="empty" id="projects-empty" hidden>No projects are available in this workspace.</p>
+    <section class="panel" id="panel-people" hidden>
+      <div class="page-head"><div><h1>People</h1><p class="description">Invite people and choose which company domains members can use.</p></div><button class="btn primary" id="invite-open">Invite person</button></div>
+      <div class="card"><div class="card-head"><div><h2>Member invitations</h2><p>Admins can invite any email. Members can invite people at the domains listed here.</p></div></div><form class="domain-controls" id="domain-form"><input class="field" id="domain-input" type="text" placeholder="company.com" aria-label="Company email domain" required><button class="btn" type="submit">Allow domain</button><p class="form-status" id="domain-status" aria-live="polite"></p></form><div class="domain-list" id="domain-list"></div></div>
+      <div class="card"><form class="invite" id="invite-form"><input class="field" id="invite-email" type="email" placeholder="name@company.com" required><button class="btn primary" type="submit">Send invitation</button><p class="form-status" id="invite-status" aria-live="polite">A billed seat is added after the person accepts.</p></form><div class="table-wrap"><table><thead><tr><th>Person</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="member-rows"></tbody></table></div><p class="empty" id="members-empty" hidden>No people have joined this team yet.</p></div>
     </section>
 
     <section class="panel" id="panel-agents" hidden>
       <div class="page-head"><div><h1>Agent access</h1><p class="description">Persistent CLI credentials created when a person signs in on a machine.</p></div></div>
-      <div class="notice">This list contains credentials owned by your account. Each credential uses your current project access. Revoking one does not affect your other signed-in machines.</div>
+      <div class="notice">This list contains credentials owned by your account. Each credential uses your current Cloud access. Revoking one does not affect your other signed-in machines.</div>
       <div class="card"><div class="table-wrap"><table><thead><tr><th>Credential</th><th>Created</th><th>Last used</th><th></th></tr></thead><tbody id="credential-rows"></tbody></table></div><p class="empty" id="credentials-empty" hidden>You have no active CLI credentials.</p></div>
     </section>
 
     <section class="panel" id="panel-billing" hidden>
-      <div class="page-head"><div><h1>Billing</h1><p class="description">Team Cloud billing applies to human workspace members. Agent credentials do not add seats.</p></div><button class="btn" id="manage-billing" type="button" hidden>Manage payment</button></div>
+      <div class="page-head"><div><h1>Billing</h1><p class="description">Team billing applies to people. Connected agents do not add seats.</p></div><button class="btn" id="manage-billing" type="button" hidden>Manage payment</button></div>
       <div class="card"><div class="billing-row"><div><strong id="billing-plan">Cloud subscription</strong><p id="billing-status">Loading billing state.</p></div><div class="price" id="billing-price"></div></div><div class="billing-row"><div><strong>Usage</strong><p id="billing-usage"></p></div></div><div class="billing-row" id="subscribe-row" hidden><div><strong>Subscribe to Cloud</strong><p>Payment is collected by Stripe. The subscription renews monthly until cancelled.</p></div><a class="btn primary" id="subscribe-link" href="/cloud">Subscribe</a></div></div>
+      <div class="card" id="workspace-lifecycle" hidden><div class="billing-row"><div><strong>Delete team</strong><p>Access ends immediately. Encrypted documents and revisions are scheduled for permanent deletion after 30 days.</p></div><button class="btn small danger" id="delete-workspace" type="button">Delete team</button></div></div>
     </section>
   </main>
 </div>
