@@ -46,6 +46,15 @@
     return request(path, options);
   }
 
+  async function requestWithoutSubscription(path, fallback) {
+    try {
+      return await request(path);
+    } catch (error) {
+      if (error.code === 'subscription_required') return fallback;
+      throw error;
+    }
+  }
+
   function humanError(error) {
     var messages = {
       permission_denied: 'Your account role does not allow this action.',
@@ -55,6 +64,7 @@
       personal_workspace_cannot_be_deleted: 'Personal Cloud cannot be deleted here.',
       public_email_domain: 'Use a company domain rather than a public email provider.',
       email_delivery_unavailable: 'The invitation email was not sent. Try again.',
+      subscription_required: 'Subscribe to Team Cloud before inviting people.',
       invalid_request: 'Check the submitted details and try again.',
       temporary_service_failure: 'Cloud is temporarily unavailable.',
     };
@@ -241,7 +251,7 @@
     var plan = billing && billing.plan;
     byId('billing-plan').textContent = plan ? (plan === 'team' ? 'Team Cloud' : 'Personal Cloud')
       : 'No active subscription';
-    byId('billing-status').textContent = billing
+    byId('billing-status').textContent = plan
       ? 'Status: ' + String(billing.effectiveStatus || billing.subscriptionStatus).replace(/_/g, ' ')
       : 'Subscribe before storing or searching Cloud documents.';
     byId('billing-price').textContent = plan === 'team' ? '\u00a37 / person / month'
@@ -251,9 +261,10 @@
     else if (isTeam()) byId('billing-usage').textContent = usage.memberCount
       + (usage.memberCount === 1 ? ' person, ' : ' people, ') + usage.storedBytes + ' stored bytes';
     else byId('billing-usage').textContent = usage.storedBytes + ' stored bytes';
+    var hasSubscription = Boolean(plan);
     var canManageBilling = state.workspace && state.workspace.role === 'owner';
-    byId('manage-billing').hidden = !billing || !canManageBilling;
-    byId('subscribe-row').hidden = Boolean(billing) || !canManageBilling;
+    byId('manage-billing').hidden = !hasSubscription || !canManageBilling;
+    byId('subscribe-row').hidden = hasSubscription || !canManageBilling;
     byId('subscribe-link').href = '/cloud/checkout?plan=' + (isTeam() ? 'team' : 'personal');
   }
 
@@ -268,10 +279,11 @@
 
   function renderPermissions() {
     var team = isTeam();
+    var teamActive = Boolean(state.billing && state.billing.plan);
     document.querySelector('[data-panel="people"]').hidden = !team;
     byId('people-stat').hidden = !team;
-    byId('invite-open').hidden = !team || !state.invitePolicy.can_invite;
-    byId('domain-form').hidden = !team || !state.invitePolicy.can_manage;
+    byId('invite-open').hidden = !team || !teamActive || !state.invitePolicy.can_invite;
+    byId('domain-form').hidden = !team || !teamActive || !state.invitePolicy.can_manage;
     byId('workspace-lifecycle').hidden = !team || state.workspace.role !== 'owner';
     if (!team && !byId('panel-people').hidden) activatePanel('overview');
   }
@@ -314,7 +326,8 @@
     var responses = await Promise.all([
       team ? request('/account/members?account_id=' + encoded) : Promise.resolve({ members: [] }),
       team && canAdminister
-        ? request('/account/invitations?account_id=' + encoded) : Promise.resolve({ invitations: [] }),
+        ? requestWithoutSubscription('/account/invitations?account_id=' + encoded, { invitations: [] })
+        : Promise.resolve({ invitations: [] }),
       requestAllDocuments(encoded),
       request('/workspaces/' + encoded + '/billing'),
       team ? request('/account/invite-policy?account_id=' + encoded)
@@ -336,7 +349,7 @@
     do {
       var query = '/documents?workspace_id=' + encodedWorkspaceId + '&limit=100';
       if (cursor) query += '&cursor=' + encodeURIComponent(cursor);
-      var page = await request(query);
+      var page = await requestWithoutSubscription(query, { documents: [], next_cursor: null });
       documents = documents.concat(page.documents || []);
       cursor = page.next_cursor || null;
     } while (cursor);

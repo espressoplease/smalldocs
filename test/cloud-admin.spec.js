@@ -20,8 +20,9 @@ async function installAdminApi(page, options) {
     if (path === '/api/cloud/v1/documents') return route.fulfill({ json: { ok: true,
       documents: options.documents || [], next_cursor: null } });
     if (/\/workspaces\/[^/]+\/billing$/.test(path)) return route.fulfill({ json: { ok: true,
-      billing: options.billing || { plan: options.kind, effectiveStatus: 'active',
-        usage: { memberCount: 1, projectCount: 1, storedBytes: 24 } } } });
+      billing: Object.prototype.hasOwnProperty.call(options, 'billing') ? options.billing
+        : { plan: options.kind, effectiveStatus: 'active',
+          usage: { memberCount: 1, projectCount: 1, storedBytes: 24 } } } });
     if (path === '/api/cloud/v1/account/members') return route.fulfill({ json: { ok: true,
       members: options.members || [] } });
     if (path === '/api/cloud/v1/account/invitations' && method === 'GET') {
@@ -134,4 +135,26 @@ test('team members can invite an allowed company email without admin controls', 
   await expect(page.locator('#invite-status')).toHaveText('Invitation sent to tom@smalldocs.org.');
   expect(calls.some(call => call.method === 'GET'
     && call.path === '/api/cloud/v1/account/invitations')).toBe(false);
+});
+
+test('an unpaid team can open settings and subscribe without loading paid data', async ({ page }) => {
+  const calls = await installAdminApi(page, {
+    kind: 'team',
+    workspaces: [{ id: 'team-new', name: 'SmallDocs Demo', kind: 'team', role: 'owner' }],
+    members: [{ user_id: 'user-1', email: 'owner@smalldocs.org', role: 'owner', is_you: true }],
+    billing: { plan: null, effectiveStatus: 'inactive',
+      usage: { memberCount: 1, projectCount: 1, storedBytes: 0 } },
+  });
+  await page.route('**/api/cloud/v1/documents?**', route => route.fulfill({ status: 402,
+    json: { ok: false, error: 'subscription_required' } }));
+  await page.route('**/api/cloud/v1/account/invitations?**', route => route.fulfill({ status: 402,
+    json: { ok: false, error: 'subscription_required' } }));
+  await page.goto('/public/cloud-admin.html');
+  await expect(page.getByRole('heading', { name: 'SmallDocs Demo' })).toBeVisible();
+  await expect(page.locator('#page-error')).toBeHidden();
+  await page.getByRole('button', { name: 'Billing' }).click();
+  await expect(page.getByRole('link', { name: 'Subscribe' })).toBeVisible();
+  await page.getByRole('button', { name: 'People' }).click();
+  await expect(page.getByRole('button', { name: 'Invite person' })).toBeHidden();
+  expect(calls.some(call => call.path.includes('/projects'))).toBe(false);
 });
