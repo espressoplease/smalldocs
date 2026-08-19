@@ -6,6 +6,8 @@ test('real Cloud controls save, share, tag, and remove through account APIs', as
   const calls = [];
   let revision = 1;
   let tags = [];
+  let invitations = [];
+  let failInvitations = false;
   let permission = { id: 'group-1', account_id: 'acct-1', document_id: 'doc-1',
     mode: 'custom', member_user_ids: ['usr-1'], owner_user_id: 'usr-1', can_manage: true };
   await page.route('**/api/cloud/v1/**', async route => {
@@ -13,7 +15,7 @@ test('real Cloud controls save, share, tag, and remove through account APIs', as
     const path = new URL(request.url()).pathname;
     calls.push({ method: request.method(), path });
     if (path === '/api/cloud/v1/account') return route.fulfill({ json: { ok: true,
-      account: { id: 'acct-1', kind: 'team', name: 'SmallDocs', can_write: true },
+      account: { id: 'acct-1', kind: 'team', name: 'SmallDocs', role: 'owner', can_write: true },
       accounts: [], user: { id: 'usr-1', email: 'josh@example.com' } } });
     if (path === '/api/cloud/v1/account/members') return route.fulfill({ json: { ok: true,
       account_id: 'acct-1', members: [
@@ -22,6 +24,23 @@ test('real Cloud controls save, share, tag, and remove through account APIs', as
       ] } });
     if (path === '/api/cloud/v1/account/tags') return route.fulfill({ json: { ok: true,
       account_id: 'acct-1', tags: [{ tag: 'planning', count: 4 }] } });
+    if (path === '/api/cloud/v1/account/invitations' && request.method() === 'GET') {
+      return route.fulfill({ json: { ok: true, account_id: 'acct-1', invitations } });
+    }
+    if (path === '/api/cloud/v1/account/invitations' && request.method() === 'POST') {
+      if (failInvitations) {
+        return route.fulfill({ status: 503, json: { ok: false, error: 'email_delivery_unavailable' } });
+      }
+      const body = request.postDataJSON();
+      const invitation = { id: 'invite-1', email: body.email, role: 'member',
+        expires_at: '2026-08-26T12:00:00.000Z' };
+      invitations.unshift(invitation);
+      return route.fulfill({ status: 201, json: { ok: true, invitation } });
+    }
+    if (path === '/api/cloud/v1/account/invitations/invite-1' && request.method() === 'DELETE') {
+      invitations = [];
+      return route.fulfill({ json: { ok: true, invitation: { id: 'invite-1' } } });
+    }
     if (path === '/api/cloud/v1/account/documents') return route.fulfill({ status: 201, json: {
       ok: true, account: { id: 'acct-1', kind: 'team', name: 'SmallDocs' },
       document: { id: 'doc-1', filename: 'sdoc.md', title: 'SmallDocs', tags,
@@ -57,6 +76,22 @@ test('real Cloud controls save, share, tag, and remove through account APIs', as
     call.path === '/api/cloud/v1/account/documents')).toBe(true);
 
   await page.locator('.sdoc-cloud-lab-access').click();
+  await page.getByRole('textbox', { name: 'Email address' }).fill('ada@example.com');
+  await page.getByRole('button', { name: 'Invite', exact: true }).click();
+  await expect(page.getByText('ada@example.com', { exact: true })).toBeVisible();
+  await expect(page.getByText('Invitation pending', { exact: true })).toBeVisible();
+  await expect(page.getByText('Billing adds one team seat after the person accepts.')).toBeVisible();
+  expect(calls.some(call => call.method === 'POST' &&
+    call.path === '/api/cloud/v1/account/invitations')).toBe(true);
+  await page.getByRole('button', { name: 'Cancel invitation for ada@example.com' }).click();
+  await expect(page.getByText('Invitation pending', { exact: true })).toHaveCount(0);
+  expect(calls.some(call => call.method === 'DELETE' &&
+    call.path === '/api/cloud/v1/account/invitations/invite-1')).toBe(true);
+  failInvitations = true;
+  await page.getByRole('textbox', { name: 'Email address' }).fill('blocked@example.com');
+  await page.getByRole('button', { name: 'Invite', exact: true }).click();
+  await expect(page.locator('.sdoc-cloud-lab-status')).toHaveText('The invitation was not sent.');
+
   await page.getByRole('button', { name: 'Everyone' }).click();
   await expect(page.locator('.sdoc-cloud-lab-access')).toContainText('Everyone');
 

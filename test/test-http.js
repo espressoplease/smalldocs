@@ -790,6 +790,29 @@ module.exports = function(harness) {
       assert.strictEqual(JSON.parse(project.body).project.name, 'Webhooks');
     });
 
+    await testAsync('Cloud account invitation API lists and cancels pending invitations', async () => {
+      const accountId = encodeURIComponent(cloudTeamWorkspace.workspaceId);
+      const created = await post(BASE + '/api/cloud/v1/account/invitations', {
+        account_id: cloudTeamWorkspace.workspaceId, email: 'pending-member@example.com',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(created.status, 201);
+      const invitation = JSON.parse(created.body).invitation;
+      assert.strictEqual(invitation.email, 'pending-member@example.com');
+
+      const listed = await get(BASE + '/api/cloud/v1/account/invitations?account_id=' + accountId,
+        { Cookie: cloudCookie });
+      assert.strictEqual(listed.status, 200);
+      assert.ok(JSON.parse(listed.body).invitations.some((item) => item.id === invitation.id));
+
+      const cancelled = await del(BASE + '/api/cloud/v1/account/invitations/' + invitation.id, {
+        account_id: cloudTeamWorkspace.workspaceId,
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(cancelled.status, 200);
+      const after = await get(BASE + '/api/cloud/v1/account/invitations?account_id=' + accountId,
+        { Cookie: cloudCookie });
+      assert.strictEqual(JSON.parse(after.body).invitations.some((item) => item.id === invitation.id), false);
+    });
+
     await testAsync('Cloud invitation is email-bound, grants projects, and is single-use', async () => {
       const invited = await post(BASE + '/api/cloud/v1/workspaces/' + cloudTeamWorkspace.workspaceId + '/invitations', {
         email: 'team-member@example.com', role: 'member',

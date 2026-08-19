@@ -1175,6 +1175,18 @@ async function handleCloudApi(req, res, url) {
         permission_groups: groups });
       return;
     }
+    if (req.method === 'GET' && pathname === base + '/account/invitations') {
+      const context = await cloudAccountContext(user.id, url.searchParams.get('account_id'));
+      if (context.selected.workspace.kind !== 'team') {
+        throw Object.assign(new Error('permission_denied'), { code: 'permission_denied' });
+      }
+      requireCloudEntitlement(user.id, context.selected.workspace.id, 'manage');
+      const invitations = await cloudStore.listWorkspaceInvitations({
+        userId: user.id, workspaceId: context.selected.workspace.id,
+      });
+      sendJson(res, 200, { ok: true, account_id: context.selected.workspace.id, invitations });
+      return;
+    }
     if (req.method === 'POST' && pathname === base + '/account/documents') {
       const body = await cloudAuthHttp.readJson(req, CLOUD_DOCUMENT_JSON_MAX_BYTES);
       const context = await cloudAccountContext(user.id, body.account_id || null);
@@ -1216,7 +1228,23 @@ async function handleCloudApi(req, res, url) {
       if (cloudJobs) enqueueCloudJob({ type: 'invitation_email', idempotencyKey: invitation.id,
         payload: { email: invitation.email, acceptUrl } });
       sendJson(res, 201, { ok: true, invitation: { id: invitation.id,
-        email: invitation.email, expires_at: new Date(invitation.expiresAtMs).toISOString() } });
+        email: invitation.email, role: invitation.role,
+        expires_at: new Date(invitation.expiresAtMs).toISOString() } });
+      return;
+    }
+    const accountInvitationMatch = pathname.match(
+      /^\/api\/cloud\/v1\/account\/invitations\/([^/]+)$/);
+    if (accountInvitationMatch && req.method === 'DELETE') {
+      requireRecentBrowser(principal);
+      const body = await cloudAuthHttp.readJson(req);
+      const context = await cloudAccountContext(user.id, body.account_id || null);
+      if (context.selected.workspace.kind !== 'team') {
+        throw Object.assign(new Error('permission_denied'), { code: 'permission_denied' });
+      }
+      requireCloudEntitlement(user.id, context.selected.workspace.id, 'manage');
+      const invitation = cloudStore.revokeWorkspaceInvitation({ userId: user.id,
+        workspaceId: context.selected.workspace.id, invitationId: accountInvitationMatch[1] });
+      sendJson(res, 200, { ok: true, invitation });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/projects') {

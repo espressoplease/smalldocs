@@ -13,7 +13,7 @@ var PLUS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/>
 var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg>';
 var CLOSE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 var pendingChallenge = null;
-var cloudState = { account: null, accounts: [], user: null, members: [], permission: null,
+var cloudState = { account: null, accounts: [], user: null, members: [], invitations: [], permission: null,
   suggestedTags: [], panel: null, status: '', busy: false };
 
 function escapeHtml(value) {
@@ -55,12 +55,17 @@ async function loadAccountData(accountId) {
   cloudState.accounts = data.accounts || [];
   cloudState.user = data.user;
   var selectedSuffix = '?account_id=' + encodeURIComponent(data.account.id);
-  var details = await Promise.all([
+  var requests = [
     jsonRequest('/api/cloud/v1/account/members' + selectedSuffix),
     jsonRequest('/api/cloud/v1/account/tags' + selectedSuffix),
-  ]);
+  ];
+  if (data.account.kind === 'team' && data.account.role === 'owner') {
+    requests.push(jsonRequest('/api/cloud/v1/account/invitations' + selectedSuffix));
+  }
+  var details = await Promise.all(requests);
   cloudState.members = details[0].members || [];
   cloudState.suggestedTags = details[1].tags || [];
+  cloudState.invitations = details[2] ? details[2].invitations || [] : [];
   refreshRow();
   return data;
 }
@@ -383,6 +388,17 @@ function memberRow(member) {
     + '<span class="sdoc-cloud-lab-check">' + CHECK_SVG + '</span></label>';
 }
 
+function pendingInvitationsHtml() {
+  if (!cloudState.invitations.length) return '';
+  return '<div class="sdoc-cloud-lab-pending">' + cloudState.invitations.map(function (invitation) {
+    return '<div><span class="sdoc-cloud-lab-avatar pending">?</span>'
+      + '<span><strong>' + escapeHtml(invitation.email) + '</strong><small>Invitation pending</small></span>'
+      + '<button type="button" data-cloud-revoke-invitation="' + escapeHtml(invitation.id)
+      + '" aria-label="Cancel invitation for ' + escapeHtml(invitation.email) + '">' + CLOSE_SVG
+      + '</button></div>';
+  }).join('') + '</div>';
+}
+
 function accessPanelHtml() {
   var canManage = cloudState.permission && cloudState.permission.can_manage;
   var presets = '<button type="button" data-cloud-preset="only"' + (!canManage ? ' disabled' : '')
@@ -391,11 +407,12 @@ function accessPanelHtml() {
     presets += '<button type="button" data-cloud-preset="everyone"' + (!canManage ? ' disabled' : '')
       + '>' + USERS_SVG + 'Everyone</button>';
   }
-  var invite = cloudState.account && cloudState.account.kind === 'team'
+  var invite = cloudState.account && cloudState.account.kind === 'team' && cloudState.account.role === 'owner'
     ? '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Invite someone</div>'
       + '<form class="sdoc-cloud-lab-invite"><input type="email" placeholder="person@example.com" aria-label="Email address" required>'
       + '<button type="submit">Invite</button></form>'
-      + '<p class="sdoc-cloud-lab-help">Billing updates after the person accepts the invitation.</p></section>' : '';
+      + '<p class="sdoc-cloud-lab-help">Billing adds one team seat after the person accepts.</p>'
+      + pendingInvitationsHtml() + '</section>' : '';
   return '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Quick choices</div>'
     + '<div class="sdoc-cloud-lab-presets">' + presets + '</div></section>'
     + '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">People with access</div>'
@@ -473,15 +490,41 @@ function wireCloudPanel(body) {
   if (invite) invite.addEventListener('submit', async function (event) {
     event.preventDefault();
     var input = invite.querySelector('input');
+    var submit = invite.querySelector('button');
+    var email = input.value.trim();
+    if (!email || cloudState.busy) return;
+    cloudState.busy = true;
+    submit.disabled = true;
     try {
-      await jsonRequest('/api/cloud/v1/account/invitations', {
+      var data = await jsonRequest('/api/cloud/v1/account/invitations', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account_id: cloudState.account.id, email: input.value.trim() }),
+        body: JSON.stringify({ account_id: cloudState.account.id, email: email }),
       });
-      cloudState.status = 'Invitation sent to ' + input.value.trim() + '.';
+      cloudState.invitations.unshift(data.invitation);
+      cloudState.status = 'Invitation sent to ' + email + '.';
       input.value = '';
     } catch (_) { cloudState.status = 'The invitation was not sent.'; }
+    cloudState.busy = false;
     renderCloudPanel();
+  });
+  body.querySelectorAll('[data-cloud-revoke-invitation]').forEach(function (button) {
+    button.addEventListener('click', async function () {
+      if (cloudState.busy) return;
+      cloudState.busy = true;
+      var invitationId = button.getAttribute('data-cloud-revoke-invitation');
+      try {
+        await jsonRequest('/api/cloud/v1/account/invitations/' + encodeURIComponent(invitationId), {
+          method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account_id: cloudState.account.id }),
+        });
+        cloudState.invitations = cloudState.invitations.filter(function (invitation) {
+          return invitation.id !== invitationId;
+        });
+        cloudState.status = 'Invitation cancelled.';
+      } catch (_) { cloudState.status = 'The invitation was not cancelled.'; }
+      cloudState.busy = false;
+      renderCloudPanel();
+    });
   });
 }
 
