@@ -47,13 +47,26 @@ async function main() {
       inviteDomains: [defaultInviteDomainFromEmail('team-owner-demo@smalldocs.org')].filter(Boolean) });
     team = { id: created.workspaceId };
   }
+  const demoMemberProfiles = [
+    ['tom.smith@smalldocs.org', 'Tom', 'Smith', 'admin'],
+    ['lenny.thompson@smalldocs.org', 'Lenny', 'Thompson', 'member'],
+    ['dan.stow@smalldocs.org', 'Dan', 'Stow', 'member'],
+    ['maya.chen@smalldocs.org', 'Maya', 'Chen', 'member'],
+  ];
+  const demoMembers = demoMemberProfiles.map(([email, firstName, lastName, role]) => {
+    const member = person(email, firstName, lastName);
+    cloud.addWorkspaceMember({ actorUserId: teamOwner.id, workspaceId: team.id,
+      userId: member.id, role });
+    return { email, user_id: member.id, role };
+  });
   billing.upsertSubscription({ workspaceId: team.id,
-    plan: 'team', status: 'active', seatQuantity: 1 });
+    plan: 'team', status: 'active', seatQuantity: 1 + demoMembers.length });
 
   const result = {
     individual: { email: 'personal-demo@smalldocs.org', user_id: individual.id,
       account_id: individualAccount.workspaceId },
-    team: { email: 'team-owner-demo@smalldocs.org', user_id: teamOwner.id, account_id: team.id },
+    team: { email: 'team-owner-demo@smalldocs.org', user_id: teamOwner.id,
+      account_id: team.id, members: demoMembers },
   };
   process.stdout.write(JSON.stringify(result, null, 2) + '\n');
 }

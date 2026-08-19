@@ -88,7 +88,7 @@
     return parts.slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join('') || '?';
   }
   function displayIdentity(member) {
-    return member.email || 'User ' + String(member.user_id || '').slice(0, 8);
+    return member.name || member.email || 'User ' + String(member.user_id || '').slice(0, 8);
   }
   function formatRole(role) { return role === 'owner' || role === 'admin' ? 'Admin' : 'Member'; }
   function formatStatus(status) {
@@ -154,16 +154,18 @@
       var personCell = document.createElement('td');
       var person = element('div', 'person');
       var identity = document.createElement('div');
+      identity.className = 'person-copy';
       var identityLabel = displayIdentity(member);
-      identity.append(element('strong', '', identityLabel),
-        element('span', '', member.user_id === (state.me && state.me.id) ? 'You' : 'Team member'));
-      person.append(element('span', 'avatar', initials(member.email)), identity);
+      var isSelf = state.me && member.user_id === state.me.id;
+      var memberDetail = member.email || 'Team member';
+      if (isSelf) memberDetail += ' - You';
+      identity.append(element('strong', '', identityLabel), element('span', '', memberDetail));
+      person.append(element('span', 'avatar', member.initials || initials(member.email)), identity);
       personCell.appendChild(person);
       var roleCell = element('td', '', formatRole(member.role));
       var statusCell = document.createElement('td');
       statusCell.appendChild(element('span', 'status', formatStatus(member.status)));
       var actionCell = document.createElement('td');
-      var isSelf = state.me && member.user_id === state.me.id;
       var canAdminister = state.workspace.role === 'owner' || state.workspace.role === 'admin';
       if (canAdminister && !isSelf && member.role === 'member') {
         var remove = element('button', 'btn small danger', 'Remove');
@@ -185,6 +187,7 @@
       var personCell = document.createElement('td');
       var person = element('div', 'person');
       var identity = document.createElement('div');
+      identity.className = 'person-copy';
       identity.append(element('strong', '', invitation.email), element('span', '', 'Invitation'));
       person.append(element('span', 'avatar', initials(invitation.email)), identity);
       personCell.appendChild(person);

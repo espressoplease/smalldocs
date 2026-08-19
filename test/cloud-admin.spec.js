@@ -155,7 +155,12 @@ test('Team Cloud keeps invitations and domains in People without project control
   const calls = await installAdminApi(page, {
     kind: 'team',
     workspaces: [{ id: 'team-1', name: 'SmallDocs', kind: 'team', role: 'owner' }],
-    members: [{ user_id: 'user-1', email: 'owner@smalldocs.org', role: 'owner', status: 'active' }],
+    members: [
+      { user_id: 'user-1', email: 'owner@smalldocs.org', name: 'Olivia Walker', initials: 'OW',
+        role: 'owner', status: 'active' },
+      { user_id: 'user-2', email: 'tom@smalldocs.org', name: 'Tom Smith', initials: 'TS',
+        role: 'member', status: 'active' },
+    ],
   });
   await page.goto('/public/cloud-admin.html');
   await page.getByRole('button', { name: 'People' }).click();
@@ -163,6 +168,14 @@ test('Team Cloud keeps invitations and domains in People without project control
   await expect(page.getByText('Projects', { exact: true })).toHaveCount(0);
   await expect(page.getByText(/project access/i)).toHaveCount(0);
   await expect(page.locator('#account-switcher')).toBeHidden();
+  await expect(page.getByText('Olivia Walker', { exact: true })).toBeVisible();
+  await expect(page.getByText('Tom Smith', { exact: true })).toBeVisible();
+  const avatar = page.locator('.avatar').first();
+  await expect(avatar).toHaveText('OW');
+  await expect(avatar).toHaveCSS('display', 'grid');
+  await expect(avatar).toHaveCSS('align-items', 'center');
+  await expect(avatar).toHaveCSS('justify-items', 'center');
+  await expect(avatar).toHaveCSS('margin-top', '0px');
 
   await page.getByRole('textbox', { name: 'Company email domain' }).fill('smalldocs.org');
   await page.getByRole('button', { name: 'Allow domain' }).click();

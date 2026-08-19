@@ -43,6 +43,15 @@ module.exports = function(harness) {
         assert.strictEqual(individualAccounts[0].kind, 'personal');
         assert.strictEqual(teamAccounts.length, 1);
         assert.strictEqual(teamAccounts[0].kind, 'team');
+        assert.strictEqual(seeded.team.members.length, 4);
+        const teamMembers = store.listAccountMembers({ userId: seeded.team.user_id,
+          workspaceId: seeded.team.account_id });
+        assert.strictEqual(teamMembers.length, 5);
+        for (const member of seeded.team.members) {
+          const accounts = await store.listWorkspaces(member.user_id);
+          assert.strictEqual(accounts.length, 1);
+          assert.strictEqual(accounts[0].id, seeded.team.account_id);
+        }
         store.db.close();
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
