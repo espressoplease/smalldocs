@@ -1,5 +1,6 @@
 // Service worker — stale-while-revalidate + version-gated cache bust
-var CACHE_NAME = 'sdocs-cache';
+var CACHE_PREFIX = 'sdocs-cache';
+var CACHE_NAME = CACHE_PREFIX + '-v2';
 
 var APP_SHELL = [
   '/docs',
@@ -44,6 +45,21 @@ function freshFetch(req) {
   return fetch(request, { cache: 'reload' });
 }
 
+function isNetworkOnlyRoute(url) {
+  var pathname = url.pathname;
+  return pathname === '/'
+    || pathname === '/library'
+    || pathname === '/cloud'
+    || pathname.indexOf('/cloud/') === 0
+    || pathname === '/api/cloud'
+    || pathname.indexOf('/api/cloud/') === 0;
+}
+
+function responseCanBeCached(response) {
+  var cacheControl = response.headers.get('cache-control') || '';
+  return !/(?:^|,)\s*(?:private|no-store)\b/i.test(cacheControl);
+}
+
 // Pre-cache app shell on install
 self.addEventListener('install', function (e) {
   e.waitUntil(
@@ -59,7 +75,14 @@ self.addEventListener('install', function (e) {
 
 // Claim clients on activate
 self.addEventListener('activate', function (e) {
-  e.waitUntil(self.clients.claim());
+  e.waitUntil(Promise.all([
+    self.clients.claim(),
+    caches.keys().then(function (names) {
+      return Promise.all(names.map(function (name) {
+        if (name.indexOf(CACHE_PREFIX) === 0 && name !== CACHE_NAME) return caches.delete(name);
+      }));
+    }),
+  ]));
 });
 
 // Stale-while-revalidate for same-origin, cache-first for fonts
@@ -88,6 +111,13 @@ self.addEventListener('fetch', function (e) {
   // Shape playground is a dev tool that iterates quickly; never cache it.
   if (url.pathname === '/shapes') return;
 
+  // Account-aware pages and Cloud APIs must always reach the server. This
+  // keeps authentication checks authoritative after sign-in and sign-out.
+  if (url.origin === self.location.origin && isNetworkOnlyRoute(url)) {
+    e.respondWith(freshFetch(e.request));
+    return;
+  }
+
   // Google Fonts: cache-first (they're immutable)
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
     e.respondWith(
@@ -113,7 +143,7 @@ self.addEventListener('fetch', function (e) {
       caches.open(CACHE_NAME).then(function (cache) {
         return cache.match(e.request, { ignoreSearch: true }).then(function (cached) {
           var networkFetch = freshFetch(e.request).then(function (response) {
-            if (response.ok) {
+            if (response.ok && responseCanBeCached(response)) {
               cache.put(e.request, response.clone());
             }
             return response;

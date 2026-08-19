@@ -23,6 +23,7 @@ require('./test-cli')(harness);
 require('./test-slugify')(harness);
 require('./test-base64')(harness);
 require('./test-files')(harness);
+require('./test-service-worker')(harness);
 require('./test-chart-replace')(harness);
 require('./test-mermaid')(harness);
 require('./test-marked-del')(harness);
