@@ -30,6 +30,7 @@ module.exports = function(harness) {
   test('service worker sends account-aware pages and Cloud APIs to the network', () => {
     [
       'https://smalldocs.org/',
+      'https://smalldocs.org/connect?return=%2Flibrary',
       'https://smalldocs.org/library?scope=cloud',
       'https://smalldocs.org/cloud/account',
       'https://smalldocs.org/cloud/admin',

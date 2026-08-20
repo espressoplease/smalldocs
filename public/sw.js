@@ -48,6 +48,7 @@ function freshFetch(req) {
 function isNetworkOnlyRoute(url) {
   var pathname = url.pathname;
   return pathname === '/'
+    || pathname === '/connect'
     || pathname === '/library'
     || pathname === '/cloud'
     || pathname.indexOf('/cloud/') === 0
