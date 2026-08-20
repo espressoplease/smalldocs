@@ -449,7 +449,6 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
     const baseURL = String(testInfo.project.use.baseURL).replace(/\/$/, '');
     const secret = configuredSecret();
     const owner = await login(browser, baseURL, TEST_IDENTITIES.owner, secret);
-    const selected = await login(browser, baseURL, TEST_IDENTITIES.selected, secret);
     const cliHome = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-cli-e2e-'));
     const cliEnv = Object.assign({}, process.env, {
       SDOCS_HOME: cliHome,
@@ -502,16 +501,20 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
         account_id: accountId, binding_created: true });
       documentId = created.document_id;
 
-      const selectedPrivate = await json(selected, baseURL, 'GET',
+      const privateDocument = await json(owner, baseURL, 'GET',
         '/api/cloud/v1/documents/' + documentId);
-      expect(selectedPrivate.response.status()).toBe(404);
+      expect(privateDocument.response.status()).toBe(200);
+      expect(privateDocument.body.permission.mode).toBe('custom');
+      expect(privateDocument.body.permission.member_user_ids).toEqual([
+        privateDocument.body.permission.owner_user_id,
+      ]);
       const tagged = await cliJson(['cloud', 'tag', documentId,
         '--tag', 'cli-acceptance', '--tag', 'release-candidate'], cliEnv);
       expect(tagged.tags).toEqual(['cli-acceptance', 'release-candidate']);
       const access = await cliJson(['cloud', 'access', documentId, '--everyone'], cliEnv);
       expect(access.permission.mode).toBe('everyone');
-      expect((await json(selected, baseURL, 'GET',
-        '/api/cloud/v1/documents/' + documentId)).response.status()).toBe(200);
+      expect((await json(owner, baseURL, 'GET',
+        '/api/cloud/v1/documents/' + documentId)).body.permission.mode).toBe('everyone');
 
       const members = await cliJson(['cloud', 'members', '--account', accountId], cliEnv);
       expect(members.members.length).toBeGreaterThanOrEqual(3);
@@ -533,7 +536,7 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
       fs.appendFileSync(pulledPath, '\nUpdated through the CLI.\n');
       const pushed = await cliJson(['cloud', 'push', pulledPath], cliEnv);
       expect(pushed).toMatchObject({ document_id: documentId, no_change: false });
-      expect((await json(selected, baseURL, 'GET',
+      expect((await json(owner, baseURL, 'GET',
         '/api/cloud/v1/documents/' + documentId)).body.document.markdown)
         .toContain('Updated through the CLI.');
       const history = await cliJson(['cloud', 'history', documentId], cliEnv);
@@ -569,7 +572,7 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
         }
       }
       if (loggedIn) await runCli(['cloud', 'logout', '--json'], cliEnv).completed;
-      await Promise.all([owner.close(), selected.close()]);
+      await owner.close();
       fs.rmSync(cliHome, { recursive: true, force: true });
     }
   });
