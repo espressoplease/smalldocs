@@ -722,6 +722,17 @@ module.exports = function(harness) {
       assert.ok(homepage.body.includes('action="/api/cloud/auth/logout"'));
       assert.ok(homepage.body.includes('<path d="M22 19h-6l3 3"/>'),
         'sign-out should use the user-round-arrow-left icon');
+
+      const library = await get(BASE + '/library?scope=cloud', { Cookie: cloudCookie });
+      assert.strictEqual(library.status, 200);
+      assert.strictEqual(library.headers['cache-control'], 'private, no-store');
+      assert.strictEqual(library.headers.vary, 'Cookie');
+      assert.ok(library.body.includes('<title>SmallDocs - Library</title>'));
+      assert.ok(library.body.includes('class="brand" href="/" aria-label="SmallDocs home"'));
+      assert.ok(library.body.includes('href="/cloud/admin" role="menuitem"'));
+      assert.ok(library.body.includes('href="/docs" role="menuitem"'));
+      assert.ok(library.body.includes('action="/api/cloud/auth/logout"'));
+      assert.ok(!library.body.includes('__LIBRARY_NAV_MENU_'));
     });
 
     await testAsync('Just me account creation is explicit and idempotent', async () => {
@@ -1327,7 +1338,7 @@ module.exports = function(harness) {
       const r = await get(BASE + '/library');
       assert.strictEqual(r.status, 200);
       assert.ok(/text\/html/.test(r.headers['content-type']));
-      assert.ok(r.body.includes('SDocs - Library'),
+      assert.ok(r.body.includes('SmallDocs - Library'),
                 '/library should serve the library shell');
       assert.ok(/connect-src[^;]*localhost/.test(r.headers['content-security-policy'] || ''),
                 'CSP must allow connect-src to localhost so the page can reach the local agent');

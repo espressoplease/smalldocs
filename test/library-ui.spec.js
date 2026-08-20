@@ -89,6 +89,42 @@ test('library UI: renders entries from the agent', async ({ page }) => {
   expect(titles).toContain('A11y audit findings');
 });
 
+test('library header: brand returns home and adapts to the available width', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(pageUrl);
+  const brand = page.locator('.topbar .brand');
+  await expect(brand).toHaveAttribute('href', '/');
+  await expect(page.locator('.brand-full')).toBeVisible();
+  await expect(page.locator('.brand-short')).toBeHidden();
+  await expect(page.locator('.brand-tiny')).toBeHidden();
+
+  await page.setViewportSize({ width: 500, height: 800 });
+  await expect(page.locator('.brand-full')).toBeHidden();
+  await expect(page.locator('.brand-short')).toBeVisible();
+  await expect(page.locator('.brand-tiny')).toBeHidden();
+
+  await page.setViewportSize({ width: 350, height: 800 });
+  await expect(page.locator('.brand-short')).toBeHidden();
+  await expect(page.locator('.brand-tiny')).toBeVisible();
+  await brand.click();
+  await page.waitForURL('http://localhost:3000/');
+  expect(page.url()).not.toContain('/connect');
+});
+
+test('library header: overflow menu exposes the shared site links', async ({ page }) => {
+  await page.goto(pageUrl);
+  const menu = page.locator('#library-menu');
+  const button = menu.locator('summary');
+  await button.click();
+  await expect(button).toHaveAttribute('aria-expanded', 'true');
+  await expect(menu.getByRole('menuitem', { name: 'Docs' })).toHaveAttribute('href', '/docs');
+  await expect(menu.getByRole('menuitem', { name: 'GitHub' })).toHaveAttribute(
+    'href', 'https://github.com/espressoplease/smalldocs');
+  await page.keyboard.press('Escape');
+  await expect(button).toHaveAttribute('aria-expanded', 'false');
+  await expect(button).toBeFocused();
+});
+
 test('library UI: shows error banner when agent is unreachable', async ({ page }) => {
   await page.goto(brokenPageUrl);
   await page.waitForSelector('#agent-banner:not([hidden])');

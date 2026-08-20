@@ -868,6 +868,8 @@ function homepageNavigation(req) {
 
   return {
     authenticated: Boolean(authenticated),
+    menuBefore,
+    menuAfter,
     substitutions: {
       '<!--__HOME_NAV_ACTIONS__-->': actions.join(''),
       '<!--__HOME_NAV_MENU_BEFORE__-->': menuBefore,
@@ -2465,14 +2467,20 @@ const server = http.createServer((req, res) => {
       "frame-src 'none'",
       "object-src 'none'",
     ].join('; ');
+    const libraryNavigation = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'library.html'), {
       '__CLOUD_LIBRARY_STYLES__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<link rel="stylesheet" href="/public/library/cloud-library-prototype.css">' : '',
       '__CLOUD_LIBRARY_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<script src="/public/sdocs-cloud-account-selection.js"></script>'
           + '<script src="/public/library/cloud-library-prototype.js"></script>' : '',
+      '<!--__LIBRARY_NAV_MENU_BEFORE__-->': libraryNavigation.authenticated
+        ? libraryNavigation.menuBefore : '',
+      '<!--__LIBRARY_NAV_MENU_AFTER__-->': libraryNavigation.authenticated
+        ? libraryNavigation.menuAfter : '',
     }, {
-      'Cache-Control': 'no-cache',
+      'Cache-Control': CLOUD_DEPLOYMENT.publicEnabled ? 'private, no-store' : 'no-cache',
+      ...(CLOUD_DEPLOYMENT.publicEnabled ? { Vary: 'Cookie' } : {}),
       'Content-Security-Policy': csp,
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
