@@ -171,6 +171,12 @@ module.exports = function(harness) {
       await assert.rejects(() => store.createInvitation({ userId: member,
         workspaceId: team.workspaceId, email: 'other@acme.com', role: 'member',
         projectGrants: [] }), (error) => error.code === 'permission_denied');
+      store.addWorkspaceMember({ actorUserId: owner, workspaceId: team.workspaceId,
+        userId: collaborator, role: 'admin' });
+      const adminInvitation = await store.createInvitation({ userId: collaborator,
+        workspaceId: team.workspaceId, email: 'new-admin@other.example', role: 'admin',
+        projectGrants: [] });
+      assert.strictEqual(adminInvitation.role, 'admin');
     });
 
     await testAsync('commit authorization can stop encrypted writes at the transaction boundary', async () => {

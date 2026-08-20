@@ -74,6 +74,14 @@
   .notice { padding:12px 14px; border:1px solid #BFDBFE; border-radius:6px; background:#EFF6FF; color:#1E40AF; line-height:1.55; margin-bottom:16px; }
   .invite { display:none; grid-template-columns:minmax(180px,1fr) auto; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border-2); background:color-mix(in srgb,var(--blue-2) 58%,var(--surface)); }
   .invite.open { display:grid; }
+  .invite-role { grid-column:1/-1; display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+  .invite-role-options { display:inline-flex; padding:2px; border:1px solid var(--border); border-radius:6px; background:var(--surface-2); }
+  .invite-role-option { position:relative; cursor:pointer; }
+  .invite-role-option input { position:absolute; inset:0; z-index:1; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; }
+  .invite-role-option span { min-width:76px; min-height:28px; display:grid; place-items:center; padding:5px 10px; border-radius:4px; color:var(--text-2); font-size:11.5px; font-weight:500; }
+  .invite-role-option input:checked + span { background:var(--surface); color:var(--text); box-shadow:0 1px 2px rgba(28,25,23,.12); }
+  .invite-role-option input:focus-visible + span { outline:2px solid var(--blue); outline-offset:2px; }
+  .invite-role-copy { margin:0; color:var(--text-2); font-size:11.5px; line-height:1.45; }
   .field { min-height:34px; border:1px solid var(--border); border-radius:5px; background:var(--surface); color:var(--text); padding:7px 9px; min-width:0; }
   .field:focus { outline:0; border-color:var(--blue); box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 10%,transparent); }
   .billing-row { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; padding:15px 16px; border-bottom:1px solid var(--border-2); }
@@ -129,7 +137,7 @@
     <section class="panel" id="panel-people" hidden>
       <div class="page-head"><div><h1>People</h1><p class="description">Invite people and choose which company domains members can use.</p></div><button class="btn primary" id="invite-open">Invite person</button></div>
       <div class="card"><div class="card-head"><div><h2>Member invitations</h2><p>Admins can invite any email. Members can invite people at the domains listed here.</p></div></div><form class="domain-controls" id="domain-form"><input class="field" id="domain-input" type="text" placeholder="company.com" aria-label="Company email domain" required><button class="btn" type="submit">Allow domain</button><p class="form-status" id="domain-status" aria-live="polite"></p></form><div class="domain-list" id="domain-list"></div></div>
-      <div class="card"><form class="invite" id="invite-form"><input class="field" id="invite-email" type="email" placeholder="name@company.com" required><button class="btn primary" type="submit">Send invitation</button><p class="form-status" id="invite-status" aria-live="polite">A billed seat is added after the person accepts.</p></form><div class="table-wrap"><table><thead><tr><th>Person</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="member-rows"></tbody></table></div><p class="empty" id="members-empty" hidden>No people have joined this team yet.</p></div>
+      <div class="card"><form class="invite" id="invite-form"><input class="field" id="invite-email" type="email" placeholder="name@company.com" aria-label="Email address" required><button class="btn primary" type="submit">Send invitation</button><div class="invite-role" id="invite-role-choice" role="radiogroup" aria-label="Invitation role"><div class="invite-role-options"><label class="invite-role-option"><input id="invite-role-member" type="radio" name="invite-role" value="member" checked><span>Member</span></label><label class="invite-role-option"><input id="invite-role-admin" type="radio" name="invite-role" value="admin"><span>Admin</span></label></div><p class="invite-role-copy" id="invite-role-copy"></p></div><p class="form-status" id="invite-status" aria-live="polite">A billed seat is added after the person accepts.</p></form><div class="table-wrap"><table><thead><tr><th>Person</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="member-rows"></tbody></table></div><p class="empty" id="members-empty" hidden>No people have joined this team yet.</p></div>
     </section>
 
     <section class="panel" id="panel-agents" hidden>

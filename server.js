@@ -1261,7 +1261,8 @@ async function handleCloudApi(req, res, url) {
       }
       requireCloudEntitlement(user.id, selected.workspace.id, 'manage');
       const invitation = await cloudStore.createInvitation({
-        userId: user.id, workspaceId: selected.workspace.id, email: body.email, role: 'member',
+        userId: user.id, workspaceId: selected.workspace.id, email: body.email,
+        role: body.role || 'member',
         allowMemberInvite: true,
         projectGrants: [{ projectId: selected.defaultProject.id, role: 'editor' }],
         beforeCommit: () => requireCloudEntitlement(user.id, selected.workspace.id, 'manage'),

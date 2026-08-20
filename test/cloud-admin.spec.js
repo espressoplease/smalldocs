@@ -30,7 +30,7 @@ async function installAdminApi(page, options) {
     }
     if (path === '/api/cloud/v1/account/invitations' && method === 'POST') {
       const body = request.postDataJSON();
-      const invitation = { id: 'invite-new', email: body.email, role: 'member',
+      const invitation = { id: 'invite-new', email: body.email, role: body.role || 'member',
         expires_at: '2026-08-26T12:00:00.000Z' };
       invitations = [invitation].concat(invitations);
       return route.fulfill({ status: 201, json: { ok: true, invitation } });
@@ -101,12 +101,17 @@ test('Team Cloud keeps invitations and domains in People without project control
     && call.path === '/api/cloud/v1/account/invite-policy')).toBe(true);
 
   await page.getByRole('button', { name: 'Invite person' }).click();
+  await expect(page.getByRole('radio', { name: 'Member' })).toBeChecked();
+  await page.getByRole('radio', { name: 'Admin' }).check();
+  await expect(page.locator('#invite-role-copy'))
+    .toHaveText('Can manage people and allowed domains, and invite any email.');
   await page.getByPlaceholder('name@company.com').fill('ada@example.com');
   await page.getByRole('button', { name: 'Send invitation' }).click();
   await expect(page.getByText('ada@example.com', { exact: true })).toBeVisible();
   const inviteCall = calls.find(call => call.method === 'POST'
     && call.path === '/api/cloud/v1/account/invitations');
-  expect(inviteCall.body).toEqual({ account_id: 'team-1', email: 'ada@example.com' });
+  expect(inviteCall.body).toEqual({ account_id: 'team-1', email: 'ada@example.com', role: 'admin' });
+  await expect(page.getByRole('radio', { name: 'Member' })).toBeChecked();
 
   await page.getByRole('button', { name: 'Billing' }).click();
   await expect(page.getByRole('button', { name: 'Delete team' })).toBeVisible();
@@ -134,6 +139,9 @@ test('a team admin cannot delete the team', async ({ page }) => {
     members: [{ user_id: 'user-1', email: 'admin@smalldocs.org', role: 'admin', status: 'active' }],
   });
   await page.goto('/public/cloud-admin.html');
+  await page.getByRole('button', { name: 'People' }).click();
+  await page.getByRole('button', { name: 'Invite person' }).click();
+  await expect(page.getByRole('radio', { name: 'Admin' })).toBeVisible();
   await page.getByRole('button', { name: 'Billing' }).click();
   await expect(page.getByRole('button', { name: 'Delete team' })).toBeHidden();
 });
@@ -188,11 +196,15 @@ test('team members can invite an allowed company email without admin controls', 
   await page.getByRole('button', { name: 'People' }).click();
   await expect(page.getByRole('textbox', { name: 'Company email domain' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Invite person' }).click();
+  await expect(page.getByRole('radiogroup', { name: 'Invitation role' })).toBeHidden();
   await page.getByPlaceholder('name@company.com').fill('tom@smalldocs.org');
   await page.getByRole('button', { name: 'Send invitation' }).click();
   await expect(page.locator('#invite-status')).toHaveText('Invitation sent to tom@smalldocs.org.');
   expect(calls.some(call => call.method === 'GET'
     && call.path === '/api/cloud/v1/account/invitations')).toBe(false);
+  const inviteCall = calls.find(call => call.method === 'POST'
+    && call.path === '/api/cloud/v1/account/invitations');
+  expect(inviteCall.body.role).toBe('member');
 });
 
 test('an unpaid team can open settings and subscribe without loading paid data', async ({ page }) => {

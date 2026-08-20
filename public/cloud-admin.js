@@ -280,9 +280,14 @@
   function renderPermissions() {
     var team = isTeam();
     var teamActive = Boolean(state.billing && state.billing.plan);
+    var canChooseInviteRole = team && state.workspace &&
+      (state.workspace.role === 'owner' || state.workspace.role === 'admin');
     document.querySelector('[data-panel="people"]').hidden = !team;
     byId('people-stat').hidden = !team;
     byId('invite-open').hidden = !team || !teamActive || !state.invitePolicy.can_invite;
+    byId('invite-role-choice').hidden = !canChooseInviteRole;
+    if (!canChooseInviteRole) byId('invite-role-member').checked = true;
+    updateInviteRoleCopy();
     byId('domain-form').hidden = !team || !teamActive || !state.invitePolicy.can_manage;
     byId('workspace-lifecycle').hidden = !team || state.workspace.role !== 'owner';
     if (!team && !byId('panel-people').hidden) activatePanel('overview');
@@ -372,15 +377,30 @@
     Array.from(form.elements).forEach(function (control) { control.disabled = busy; });
   }
 
+  function selectedInviteRole() {
+    var selected = document.querySelector('input[name="invite-role"]:checked');
+    return selected ? selected.value : 'member';
+  }
+
+  function updateInviteRoleCopy() {
+    byId('invite-role-copy').textContent = selectedInviteRole() === 'admin'
+      ? 'Can manage people and allowed domains, and invite any email.'
+      : 'Can access documents shared with them and invite people at allowed domains.';
+  }
+
   async function submitInvitation(event) {
     event.preventDefault();
     var form = event.currentTarget;
     var status = byId('invite-status');
     var email = byId('invite-email').value.trim();
+    var role = selectedInviteRole();
     setFormBusy(form, true);
     try {
-      await mutation('POST', '/account/invitations', { account_id: state.workspace.id, email: email });
+      await mutation('POST', '/account/invitations', {
+        account_id: state.workspace.id, email: email, role: role,
+      });
       form.reset();
+      updateInviteRoleCopy();
       status.textContent = 'Invitation sent to ' + email + '.';
       await loadWorkspace(state.workspace.id);
     } catch (error) {
@@ -418,6 +438,9 @@
       if (byId('invite-form').classList.contains('open')) byId('invite-email').focus();
     });
     byId('invite-form').addEventListener('submit', submitInvitation);
+    Array.from(document.querySelectorAll('input[name="invite-role"]')).forEach(function (input) {
+      input.addEventListener('change', updateInviteRoleCopy);
+    });
     byId('domain-form').addEventListener('submit', submitDomain);
     byId('delete-workspace').addEventListener('click', function () {
       var workspace = state.workspace;

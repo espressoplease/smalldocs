@@ -818,11 +818,12 @@ module.exports = function(harness) {
     await testAsync('Cloud account invitation API lists and cancels pending invitations', async () => {
       const accountId = encodeURIComponent(cloudTeamWorkspace.workspaceId);
       const created = await post(BASE + '/api/cloud/v1/account/invitations', {
-        account_id: cloudTeamWorkspace.workspaceId, email: 'pending-member@example.com',
+        account_id: cloudTeamWorkspace.workspaceId, email: 'pending-admin@example.com', role: 'admin',
       }, { Origin: BASE, Cookie: cloudCookie });
       assert.strictEqual(created.status, 201);
       const invitation = JSON.parse(created.body).invitation;
-      assert.strictEqual(invitation.email, 'pending-member@example.com');
+      assert.strictEqual(invitation.email, 'pending-admin@example.com');
+      assert.strictEqual(invitation.role, 'admin');
 
       const listed = await get(BASE + '/api/cloud/v1/account/invitations?account_id=' + accountId,
         { Cookie: cloudCookie });
