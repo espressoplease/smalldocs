@@ -416,8 +416,13 @@ function renderFacetButtons() {
 
 function renderFacetPanel() {
   const panel = document.getElementById('facet-panel');
-  if (!openFacet) { panel.classList.remove('open'); return; }
+  if (!openFacet) {
+    panel.classList.remove('open');
+    panel.setAttribute('aria-hidden', 'true');
+    return;
+  }
   panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
   const def = FACET_DEFS[openFacet];
   document.getElementById('facet-panel-title').textContent = def.title;
   const opts = def.getOptions();

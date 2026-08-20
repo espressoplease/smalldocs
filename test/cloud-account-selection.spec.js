@@ -38,6 +38,7 @@ test('one-account Library opens directly and hides the account switcher', async 
   await expect(page.locator('#status-line')).toHaveText('Cloud');
   await expect(page.locator('[data-facet="project"]')).toBeHidden();
   await expect(page.locator('[data-facet="path"]')).toBeHidden();
+  await expect(page.locator('#facet-panel')).toHaveAttribute('aria-hidden', 'true');
   await expect(page.locator('#results')).toContainText('Add a document to Cloud to see it here.');
 });
 
