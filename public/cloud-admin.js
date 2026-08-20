@@ -10,7 +10,6 @@
     invitations: [],
     invitePolicy: EMPTY_INVITE_POLICY,
     documents: [],
-    credentials: [],
     billing: null,
     pendingAction: null,
   };
@@ -98,7 +97,6 @@
     if (!Number.isFinite(date.getTime())) return 'Not recorded';
     return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
   }
-  function formatLastUsed(value) { return value == null ? 'Not used yet' : formatDate(value); }
   function setCount(id, value) { byId(id).textContent = String(value); }
   function isTeam() { return Boolean(state.workspace && state.workspace.kind === 'team'); }
 
@@ -215,37 +213,6 @@
     });
   }
 
-  function activeCredentials() {
-    return state.credentials.filter(function (credential) { return credential.revokedAtMs == null; });
-  }
-  function renderCredentials() {
-    var credentials = activeCredentials();
-    var rows = byId('credential-rows');
-    rows.replaceChildren();
-    byId('credentials-empty').hidden = credentials.length > 0;
-    credentials.forEach(function (credential) {
-      var row = document.createElement('tr');
-      var nameCell = document.createElement('td');
-      nameCell.append(element('strong', '', credential.displayName || 'SmallDocs CLI'),
-        document.createElement('br'), element('span', 'muted', 'CLI credential'));
-      var actionCell = document.createElement('td');
-      var revoke = element('button', 'btn small danger', 'Revoke');
-      revoke.type = 'button';
-      revoke.addEventListener('click', function () {
-        ask('Revoke ' + (credential.displayName || 'this credential') + '?',
-          'This credential will stop working immediately. Your other credentials are not affected.', async function () {
-            await mutation('DELETE', '/cli/credentials/' + encodeURIComponent(credential.id));
-            await loadCredentials();
-            renderAll();
-          });
-      });
-      actionCell.appendChild(revoke);
-      row.append(nameCell, element('td', '', formatDate(credential.createdAtMs)),
-        element('td', '', formatLastUsed(credential.lastUsedAtMs)), actionCell);
-      rows.appendChild(row);
-    });
-  }
-
   function renderBilling() {
     var billing = state.billing;
     var plan = billing && billing.plan;
@@ -298,27 +265,21 @@
     var team = isTeam();
     byId('overview-name').textContent = team ? state.workspace.name : 'Personal Cloud';
     byId('overview-description').textContent = team
-      ? 'Team documents, people, billing, and connected agents.'
-      : 'Your Cloud documents, billing, and connected agents.';
+      ? 'Team documents, people, and billing.'
+      : 'Your Cloud documents and billing.';
     byId('account-label').textContent = state.me && state.me.email
       ? 'Signed in as ' + state.me.email : 'Signed in';
     setCount('member-count', state.members.filter(function (member) { return member.status !== 'disabled'; }).length);
     setCount('document-count', state.documents.length);
-    setCount('credential-count', activeCredentials().length);
     renderWorkspacePicker();
     if (team) {
       renderMembers();
       renderInvitePolicy();
     }
-    renderCredentials();
     renderBilling();
     renderPermissions();
   }
 
-  async function loadCredentials() {
-    var data = await request('/cli/credentials');
-    state.credentials = data.credentials || [];
-  }
   async function loadWorkspace(workspaceId) {
     clearError();
     var workspace = state.workspaces.find(function (item) { return item.id === workspaceId; });
@@ -480,7 +441,7 @@
   async function initialize() {
     wireEvents();
     try {
-      var responses = await Promise.all([request('/me'), request('/workspaces'), loadCredentials()]);
+      var responses = await Promise.all([request('/me'), request('/workspaces')]);
       state.me = responses[0].user || null;
       state.workspaces = responses[1].workspaces || [];
       await loadWorkspace(new URLSearchParams(location.search).get('workspace_id'));

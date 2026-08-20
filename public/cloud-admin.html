@@ -47,7 +47,7 @@
   .btn.primary { border-color:var(--blue); background:var(--blue); color:#fff; }
   .btn.danger { color:var(--red); }
   .btn.small { padding:5px 8px; font-size:11.5px; }
-  .stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:24px; }
+  .stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:24px; }
   .stat[hidden] { display:none; }
   .stat { border:1px solid var(--border); border-radius:7px; background:var(--surface); padding:15px; }
   .stat strong { display:block; font-size:21px; margin-bottom:5px; }
@@ -124,14 +124,13 @@
     <p class="side-label">Cloud</p>
     <button class="nav active" data-panel="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Overview</button>
     <button class="nav" data-panel="people" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>People</button>
-    <button class="nav" data-panel="agents"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>Agent access</button>
     <button class="nav" data-panel="billing"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Billing</button>
   </aside>
   <main class="main">
     <section class="panel" id="panel-overview">
-      <div class="page-head"><div><h1 id="overview-name">Cloud settings</h1><p class="description" id="overview-description">Your Cloud documents, billing, and connected agents.</p></div></div>
+      <div class="page-head"><div><h1 id="overview-name">Cloud settings</h1><p class="description" id="overview-description">Your Cloud documents and billing.</p></div></div>
       <div class="error" id="page-error" role="alert"></div>
-      <div class="stats"><div class="stat" id="people-stat" hidden><strong id="member-count">-</strong><span>people</span></div><div class="stat"><strong id="document-count">-</strong><span>documents</span></div><div class="stat"><strong id="credential-count">-</strong><span>connected agents</span></div></div>
+      <div class="stats"><div class="stat" id="people-stat" hidden><strong id="member-count">-</strong><span>people</span></div><div class="stat"><strong id="document-count">-</strong><span>documents</span></div></div>
     </section>
 
     <section class="panel" id="panel-people" hidden>
@@ -140,14 +139,8 @@
       <div class="card"><form class="invite" id="invite-form"><input class="field" id="invite-email" type="email" placeholder="name@company.com" aria-label="Email address" required><button class="btn primary" type="submit">Send invitation</button><div class="invite-role" id="invite-role-choice" role="radiogroup" aria-label="Invitation role"><div class="invite-role-options"><label class="invite-role-option"><input id="invite-role-member" type="radio" name="invite-role" value="member" checked><span>Member</span></label><label class="invite-role-option"><input id="invite-role-admin" type="radio" name="invite-role" value="admin"><span>Admin</span></label></div><p class="invite-role-copy" id="invite-role-copy"></p></div><p class="form-status" id="invite-status" aria-live="polite">A billed seat is added after the person accepts.</p></form><div class="table-wrap"><table><thead><tr><th>Person</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="member-rows"></tbody></table></div><p class="empty" id="members-empty" hidden>No people have joined this team yet.</p></div>
     </section>
 
-    <section class="panel" id="panel-agents" hidden>
-      <div class="page-head"><div><h1>Agent access</h1><p class="description">Persistent CLI credentials created when a person signs in on a machine.</p></div></div>
-      <div class="notice">This list contains credentials owned by your account. Each credential uses your current Cloud access. Revoking one does not affect your other signed-in machines.</div>
-      <div class="card"><div class="table-wrap"><table><thead><tr><th>Credential</th><th>Created</th><th>Last used</th><th></th></tr></thead><tbody id="credential-rows"></tbody></table></div><p class="empty" id="credentials-empty" hidden>You have no active CLI credentials.</p></div>
-    </section>
-
     <section class="panel" id="panel-billing" hidden>
-      <div class="page-head"><div><h1>Billing</h1><p class="description">Team billing applies to people. Connected agents do not add seats.</p></div><button class="btn" id="manage-billing" type="button" hidden>Manage payment</button></div>
+      <div class="page-head"><div><h1>Billing</h1><p class="description">Team billing applies to people. CLI connections do not add seats.</p></div><button class="btn" id="manage-billing" type="button" hidden>Manage payment</button></div>
       <div class="card"><div class="billing-row"><div><strong id="billing-plan">Cloud subscription</strong><p id="billing-status">Loading billing state.</p></div><div class="price" id="billing-price"></div></div><div class="billing-row"><div><strong>Usage</strong><p id="billing-usage"></p></div></div><div class="billing-row" id="subscribe-row" hidden><div><strong>Subscribe to Cloud</strong><p>Payment is collected by Stripe. The subscription renews monthly until cancelled.</p></div><a class="btn primary" id="subscribe-link" href="/cloud">Subscribe</a></div></div>
       <div class="card" id="workspace-lifecycle" hidden><div class="billing-row"><div><strong>Delete team</strong><p>Access ends immediately. Encrypted documents and revisions are scheduled for permanent deletion after 30 days.</p></div><button class="btn small danger" id="delete-workspace" type="button">Delete team</button></div></div>
     </section>

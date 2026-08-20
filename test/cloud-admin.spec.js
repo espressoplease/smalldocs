@@ -16,7 +16,6 @@ async function installAdminApi(page, options) {
     if (path === '/api/cloud/v1/me') return route.fulfill({ json: { ok: true,
       user: { id: 'user-1', email: 'owner@smalldocs.org' } } });
     if (path === '/api/cloud/v1/workspaces') return route.fulfill({ json: { ok: true, workspaces } });
-    if (path === '/api/cloud/v1/cli/credentials') return route.fulfill({ json: { ok: true, credentials: [] } });
     if (path === '/api/cloud/v1/documents') return route.fulfill({ json: { ok: true,
       documents: options.documents || [], next_cursor: null } });
     if (/\/workspaces\/[^/]+\/billing$/.test(path)) return route.fulfill({ json: { ok: true,
@@ -65,19 +64,21 @@ test('Personal Cloud hides team and project concepts and uses a compact left sid
   await expect(page.locator('#workspace-picker')).toBeHidden();
   await expect(page.getByRole('button', { name: 'People' })).toBeHidden();
   await expect(page.getByText('Projects', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Agent access' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Invite person' })).toBeHidden();
   const library = page.getByRole('link', { name: 'Open Cloud library' });
   await expect(library).toContainText('Library');
   await expect(library.locator('svg')).toHaveCount(1);
   await expect.poll(() => calls.some(call => call.path.includes('/members'))).toBe(false);
   await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/account/invitations')).toBe(false);
+  await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/cli/credentials')).toBe(false);
 
   const overview = await page.getByRole('button', { name: 'Overview' }).boundingBox();
-  const agents = await page.getByRole('button', { name: 'Agent access' }).boundingBox();
+  const billing = await page.getByRole('button', { name: 'Billing' }).boundingBox();
   expect(overview.height).toBeLessThanOrEqual(40);
-  expect(agents.height).toBeLessThanOrEqual(40);
-  expect(Math.abs(overview.x - agents.x)).toBeLessThan(2);
-  expect(agents.y).toBeGreaterThanOrEqual(overview.y + overview.height);
+  expect(billing.height).toBeLessThanOrEqual(40);
+  expect(Math.abs(overview.x - billing.x)).toBeLessThan(2);
+  expect(billing.y).toBeGreaterThanOrEqual(overview.y + overview.height);
   expect((await library.boundingBox()).height).toBe(32);
 });
 

@@ -27,6 +27,13 @@
         <strong>Cloud account active</strong>
         <p>Open the Cloud library to search your documents, or open a local document and choose Add to Cloud from its file information.</p>
       </div>
+      <section id="connected-machines" class="account-empty connected-machines">
+        <strong>Connected machines</strong>
+        <p>Run <code>sdoc cloud login</code> on a machine, then approve its temporary code in a browser. The CLI uses your current Cloud access.</p>
+        <div id="connected-machine-list"></div>
+        <p id="connected-machines-empty" class="connected-machines-empty">No machines are connected.</p>
+        <p id="connected-machines-error" class="connected-machines-error" role="alert" hidden></p>
+      </section>
       <section id="deleted-workspaces" class="account-empty" hidden>
         <strong>Recently deleted team workspaces</strong>
         <p>Restore a workspace before its deletion date. Its projects, documents, and revision history will return.</p>

@@ -628,6 +628,7 @@ module.exports = function(harness) {
       assert.strictEqual(account.status, 200);
       assert.ok(account.body.includes('Your Cloud account'));
       assert.ok(account.body.includes('Cloud account active'));
+      assert.ok(account.body.includes('Connected machines'));
       assert.ok(account.body.includes('/public/cloud-account.js?v='));
       assert.ok(/script-src[^;]*'self'/.test(account.headers['content-security-policy'] || ''));
       assert.ok(/connect-src[^;]*'self'/.test(account.headers['content-security-policy'] || ''));
@@ -718,7 +719,8 @@ module.exports = function(harness) {
       const response = await get(BASE + '/cloud/admin', { Cookie: cloudCookie });
       assert.strictEqual(response.status, 200);
       assert.strictEqual(response.headers['cache-control'], 'no-store');
-      assert.ok(response.body.includes('Agent access'));
+      assert.ok(response.body.includes('Billing'));
+      assert.ok(!response.body.includes('Agent access'));
       assert.ok(response.body.includes('Cloud settings'));
       assert.ok(response.body.includes('>People</button>'));
       assert.ok(!response.body.includes('data-panel="projects"'));

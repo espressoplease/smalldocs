@@ -174,8 +174,19 @@ label { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 11.
 
 .prototype-status { min-height: 17px; margin-top: 12px; color: var(--text-3); font-size: 11px; line-height: 1.45; text-align: center; }
 .account-empty { padding: 20px; border: 1px solid var(--border-2); border-radius: 7px; background: var(--surface-2); text-align: center; }
+.cloud-account-card { width: min(620px, 100%); }
+.cloud-account-card .account-empty + .account-empty { margin-top: 12px; }
 .account-empty strong { font-size: 13px; font-weight: 600; }
 .account-empty p { margin-top: 6px; color: var(--text-2); font-size: 12px; line-height: 1.5; }
+.connected-machines code { padding: 1px 4px; border-radius: 3px; background: var(--surface); color: var(--text); font-size: 11px; }
+.connected-machine-row { display: flex; gap: 16px; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-2); text-align: left; }
+.connected-machine-row > div { min-width: 0; }
+.connected-machine-row strong { display: block; overflow-wrap: anywhere; }
+.connected-machine-row p { margin: 3px 0 0; }
+.connected-machine-row button { flex: none; padding: 7px 11px; border: 1px solid var(--border-2); border-radius: 5px; color: var(--red); background: var(--surface); cursor: pointer; }
+.connected-machine-row button:disabled { color: var(--text-3); cursor: default; }
+.connected-machines-empty, .connected-machines-error { padding-top: 10px; }
+.connected-machines-error { color: var(--red) !important; }
 .account-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; }
 .account-actions a, .account-actions button { color: var(--text-2); font-size: 11.5px; }
 .account-actions button { border: 0; background: transparent; text-decoration: underline; cursor: pointer; }
@@ -190,6 +201,7 @@ label { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 11.
   .brand-short { display: inline; }
   .auth-shell { min-height: auto; padding: 24px 14px 42px; }
   .auth-card { padding: 20px; }
+  .connected-machine-row { align-items: flex-start; }
 }
 
 @media (max-width: 366px) {
