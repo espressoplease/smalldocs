@@ -83,6 +83,7 @@ body {
 .library-sign-in svg { width: 15px; height: 15px; }
 
 .nav-menu { position: relative; }
+.nav-menu[hidden] { display: none; }
 .nav-menu summary { list-style: none; }
 .nav-menu summary::-webkit-details-marker { display: none; }
 .nav-menu-button {
@@ -135,15 +136,18 @@ body {
   background: var(--bg-panel);
 }
 .library-scope-option {
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
   min-width: 92px;
-  padding: 7px 12px;
+  padding: 0 12px;
   border-radius: var(--radius);
   color: var(--text-2);
   font-weight: 500;
+  font-size: 13px;
+  line-height: 1;
   text-decoration: none;
 }
 .library-scope-option:hover { color: var(--text); }
@@ -174,10 +178,13 @@ body {
 .btn.ghost { background: transparent; border-color: transparent; }
 .btn.ghost:hover { background: var(--bg-hover); border-color: var(--border); }
 
-.container {
+.container,
+.library-page-shell {
   flex: 1; width: 100%;
   max-width: 1040px; margin: 0 auto;
   padding: 28px 32px 60px;
+}
+.container {
   display: flex; flex-direction: column; gap: 14px;
 }
 
@@ -649,7 +656,7 @@ mark {
   .topbar { gap: 8px; padding: 0 12px; }
   .brand-full { display: none; }
   .brand-short { display: inline; }
-  .container { padding: 16px 12px 60px; }
+  .container, .library-page-shell { padding: 16px 12px 60px; }
   .input-row { padding: 12px 14px; }
   .input-row input { font-size: 15px; }
   .filter-strip {

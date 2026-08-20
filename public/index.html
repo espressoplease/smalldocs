@@ -103,13 +103,13 @@ __CLOUD_UI_STYLES__
         </button>
       </div>
       <nav class="doc-site-nav" aria-label="SmallDocs navigation">
-        <a id="_sd_btn-library" href="__DOCUMENT_LIBRARY_HREF__" data-tip="Browse your documents">
+        <a class="doc-site-action" id="_sd_btn-library" href="__DOCUMENT_LIBRARY_HREF__" data-tip="Browse your documents">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
           <span class="library-btn-label">Library</span>
         </a>
         <!--__DOCUMENT_NAV_SIGN_IN__-->
-        <details class="doc-site-menu" id="doc-site-menu">
-          <summary class="doc-site-menu-button" aria-label="Open site menu" aria-haspopup="menu" aria-expanded="false">
+        <details class="doc-site-menu" id="doc-site-menu" __DOCUMENT_NAV_MENU_HIDDEN__>
+          <summary class="doc-site-action doc-site-menu-button" aria-label="Open site menu" aria-haspopup="menu" aria-expanded="false">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg>
           </summary>
           <div class="doc-site-menu-panel" role="menu">

@@ -157,7 +157,7 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('<span class="library-btn-label">Library</span>'));
       assert.ok(!r.body.includes('Markdown Library'));
       assert.ok(r.body.includes('data-sdocs-sign-in-return'));
-      assert.ok(r.body.includes('id="doc-site-menu"'));
+      assert.ok(r.body.includes('id="doc-site-menu" hidden'));
       assert.ok(!r.body.includes('__DOCUMENT_NAV_'));
       assert.strictEqual(r.headers.vary, 'Cookie');
     });
@@ -168,7 +168,9 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('data-cloud-authenticated="false"'));
       assert.ok(r.body.includes('<h1>Cloud Library</h1>'));
       assert.ok(r.body.includes('class="library-sign-in"'));
-      assert.ok(r.body.includes('Learn about Cloud'));
+      assert.ok(r.body.includes('Subscribe to Cloud'));
+      assert.ok(r.body.includes('Search and tags'));
+      assert.ok(r.body.includes('id="library-menu" hidden'));
     });
 
     await testAsync('GET /new returns 200 with HTML', async () => {
@@ -755,6 +757,7 @@ module.exports = function(harness) {
       assert.ok(documentPage.body.includes('href="/library?scope=cloud"'));
       assert.ok(documentPage.body.includes('href="/cloud/admin" role="menuitem"'));
       assert.ok(documentPage.body.includes('action="/api/cloud/auth/logout"'));
+      assert.ok(documentPage.body.includes('id="doc-site-menu" >'));
       assert.ok(!documentPage.body.includes('data-sdocs-sign-in-return'));
       assert.ok(!documentPage.body.includes('__DOCUMENT_NAV_'));
     });

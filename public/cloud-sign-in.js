@@ -22,7 +22,9 @@
     if (path.indexOf('/cloud/checkout') === 0) return 'checkout';
     if (path.indexOf('/cloud/authorize') === 0) return 'CLI authorization';
     if (path.indexOf('/cloud/document') === 0) return 'your document';
-    return path;
+    if (path.indexOf('/docs') === 0 || path.indexOf('/s/') === 0 ||
+        path.indexOf('/new') === 0) return 'your document';
+    return 'the previous page';
   }
 
   var returnPath = safeReturnPath(params.get('return'));

@@ -881,7 +881,7 @@ function homepageNavigation(req) {
 function documentNavigation(req) {
   const navigation = homepageNavigation(req);
   const signIn = !navigation.authenticated && CLOUD_DEPLOYMENT.publicEnabled
-    ? homepageNavLink('doc-site-nav-link doc-site-sign-in',
+    ? homepageNavLink('doc-site-action doc-site-sign-in',
       '/cloud/sign-in?return=%2Fdocs', 'signIn', 'Sign in',
       ' data-sdocs-sign-in-return')
     : '';
@@ -889,6 +889,7 @@ function documentNavigation(req) {
     authenticated: navigation.authenticated,
     substitutions: {
       '__DOCUMENT_LIBRARY_HREF__': navigation.authenticated ? '/library?scope=cloud' : '/library',
+      '__DOCUMENT_NAV_MENU_HIDDEN__': navigation.authenticated ? '' : 'hidden',
       '<!--__DOCUMENT_NAV_SIGN_IN__-->': signIn,
       '<!--__DOCUMENT_NAV_MENU_BEFORE__-->': navigation.menuBefore,
       '<!--__DOCUMENT_NAV_MENU_AFTER__-->': navigation.menuAfter,
@@ -2501,6 +2502,7 @@ const server = http.createServer((req, res) => {
         ? homepageNavLink('library-sign-in',
           '/cloud/sign-in?return=' + encodeURIComponent(pathname + url.search), 'signIn', 'Sign in')
         : '',
+      '__LIBRARY_NAV_MENU_HIDDEN__': libraryNavigation.authenticated ? '' : 'hidden',
     }, {
       'Cache-Control': CLOUD_DEPLOYMENT.publicEnabled ? 'private, no-store' : 'no-cache',
       ...(CLOUD_DEPLOYMENT.publicEnabled ? { Vary: 'Cookie' } : {}),

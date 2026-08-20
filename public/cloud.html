@@ -179,14 +179,14 @@
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       </div>
       <h3>For people</h3>
-      <p>Read, search, edit, tag, and restore documents from a browser or phone. Organize files into personal or shared projects and remove access when a teammate leaves.</p>
+      <p>Read, search, edit, tag, and restore documents from a browser or phone. Keep a document private, share it with everyone in your account, or choose a permission group.</p>
     </section>
     <section class="audience">
       <div class="audience-icon">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
       </div>
       <h3>For agents</h3>
-      <p>List projects, search documents, pull a file, edit it with normal file tools, and push a new revision. The agent stays signed in on that machine, uses the current permissions of the person who signed it in, and can be revoked separately.</p>
+      <p>List tags and permission groups, search documents, pull a file, edit it with normal file tools, and push a new revision. The connected machine uses the current permissions of the person who signed it in. You can revoke that machine without signing out other devices.</p>
     </section>
   </div>
 
@@ -194,14 +194,14 @@
     <h2>How it works</h2>
     <div class="steps">
       <div class="step"><div><h3>Add a document</h3><p>Select <strong>Add to Cloud</strong> in the file information table, or create one directly with the CLI. The original local file remains where it is.</p></div></div>
-      <div class="step"><div><h3>Choose where it belongs</h3><p>Projects group documents that share the same access. Use tags for features and workstreams such as auth or webhooks.</p></div></div>
-      <div class="step"><div><h3>Open, search, and revise</h3><p>Each document has a stable UUID. Choosing Save to Cloud stores the current document as a new revision. Filenames can change without changing document identity.</p></div></div>
+      <div class="step"><div><h3>Choose tags and access</h3><p>Use tags to organize the document. Keep it available only to you, share it with everyone in your account, or choose a permission group.</p></div></div>
+      <div class="step"><div><h3>Open, search, and revise</h3><p>Each document has a stable UUID. Each time you save a Cloud document, SmallDocs stores a new revision. Filenames can change without changing document identity.</p></div></div>
     </div>
 
-    <pre><code>sdoc cloud projects
-sdoc cloud tags --project PROJECT_UUID
-sdoc cloud ls --project PROJECT_UUID --tag kubernetes
-sdoc cloud search "kubernetes" --project PROJECT_UUID
+    <pre><code>sdoc cloud tags
+sdoc cloud permission-groups
+sdoc cloud ls --tag kubernetes
+sdoc cloud search "kubernetes" --tag kubernetes
 sdoc cloud pull DOCUMENT_UUID --output migration.md
 # edit migration.md with normal file tools
 sdoc cloud push migration.md
@@ -218,7 +218,7 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
         <p class="price"><strong>£4</strong><span>per month</span></p>
         <p class="currency-prices">$5 USD or €5 EUR</p>
         <ul>
-          <li>Personal projects</li>
+          <li>Documents private to you</li>
           <li>Browser and mobile access</li>
           <li>CLI and agent access</li>
           <li>Search, tags, and three previous revisions for up to 90 days</li>
@@ -233,8 +233,8 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
         <p class="currency-prices">$9 USD or €8 EUR</p>
         <ul>
           <li>Everything in Personal</li>
-          <li>Shared workspace projects</li>
-          <li>Viewer and editor roles</li>
+          <li>Shared tags and permission groups</li>
+          <li>Member and admin roles</li>
           <li>Member invitations and removal</li>
           <li>No document-count limit</li>
         </ul>
@@ -250,7 +250,7 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
 
   <section id="security">
     <h2>Security and privacy</h2>
-    <p>You can search from a new device and remove a former teammate without exchanging project passwords. To provide that access, SmallDocs manages the encryption keys and can decrypt an authorized document. <strong>SmallDocs Cloud is not end-to-end encrypted.</strong></p>
+    <p>You can search from a new device and remove a former teammate without exchanging shared passwords. To provide that access, SmallDocs manages the encryption keys and can decrypt an authorized document. <strong>SmallDocs Cloud is not end-to-end encrypted.</strong></p>
 
     <div class="security-card">
       <h3>
@@ -259,7 +259,7 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
       </h3>
       <p>The service decrypts a document in application memory after checking access so that it can render, search, and update it. A compromise of the running application, key-management permissions, or a sufficiently privileged operator could expose plaintext.</p>
       <p>Encryption at rest protects database files and backups from being useful on their own. It does not remove SmallDocs from the trust boundary.</p>
-      <p>Membership is checked on every request. Removing a member revokes their browser and CLI access without requiring teammates to exchange a new project password. CLI credentials can be viewed and revoked separately.</p>
+      <p>Membership is checked on every request. Removing a member revokes their browser and CLI access without requiring teammates to exchange a new password. Connected machines can be viewed and revoked separately.</p>
     </div>
 
     <div class="security-card">
@@ -269,7 +269,7 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
       </h3>
       <ul>
         <li>Document bodies, titles, filenames, tags, and revision metadata are encrypted at rest.</li>
-        <li>Each project uses its own encryption key. SmallDocs stores that key separately through its key-management service, not in plaintext beside the document data.</li>
+        <li>SmallDocs uses separate encryption keys for sets of documents with different access rules. It stores those keys through its key-management service, not in plaintext beside the document data.</li>
         <li>Connections between clients and SmallDocs use TLS.</li>
         <li>Backups contain encrypted document data. Deleted ciphertext remains in backups until those backups expire.</li>
       </ul>
@@ -280,8 +280,8 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
         How search works
       </h3>
-      <p>After checking project access, SmallDocs decrypts authorized current documents in application memory for the duration of the search. It does not maintain a plaintext or keyword search index. Queries, document text, and result snippets are excluded from application logs.</p>
-      <p>The server still learns that a user searched, which projects were searched, document sizes, timestamps, and which documents were opened.</p>
+      <p>After checking document access, SmallDocs decrypts authorized current documents in application memory for the duration of the search. It does not maintain a plaintext or keyword search index. Queries, document text, and result snippets are excluded from application logs.</p>
+      <p>The server still learns that a user searched, which account was searched, document sizes, timestamps, and which documents were opened.</p>
     </div>
 
   </section>

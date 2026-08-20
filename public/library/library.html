@@ -23,7 +23,7 @@ __CLOUD_LIBRARY_STYLES__
     <span class="muted" id="status-line">loading...</span>
     <span class="topbar-spacer"></span>
     <!--__LIBRARY_NAV_ACTIONS__-->
-    <details class="nav-menu" id="library-menu">
+    <details class="nav-menu" id="library-menu" __LIBRARY_NAV_MENU_HIDDEN__>
       <summary class="nav-menu-button" aria-label="Open menu" aria-haspopup="menu" aria-expanded="false">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg>
       </summary>
@@ -75,15 +75,39 @@ __CLOUD_LIBRARY_STYLES__
       <span class="cloud-access-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/></svg> Loading Cloud account...</span>
     </div>
 
-    <section class="cloud-signed-out" id="cloud-signed-out" hidden>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
-      <div>
-        <h1>Cloud Library</h1>
-        <p>Find documents you have added to Cloud and documents other people have shared with you.</p>
-        <div class="cloud-signed-out-actions">
-          <a class="cloud-signed-out-primary" href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud">Sign in</a>
-          <a href="/cloud">Learn about Cloud</a>
-        </div>
+    <section class="cloud-onboarding" id="cloud-onboarding" hidden>
+      <h1>Cloud Library</h1>
+      <p class="cloud-onboarding-lede">Keep selected documents available across devices, find them by content or tag, and control who can open them.</p>
+
+      <div class="cloud-feature-grid">
+        <article>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="16" height="12" x="4" y="2" rx="2"/><path d="M8 22h8"/><path d="M12 18v4"/></svg>
+          <h2>Across devices</h2>
+          <p>Open the documents you add to Cloud from your computer or phone.</p>
+        </article>
+        <article>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <h2>Search and tags</h2>
+          <p>Search document text and titles, then filter with Cloud tags.</p>
+        </article>
+        <article>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <h2>Permission groups</h2>
+          <p>Keep a document private, share it with everyone in your account, or choose a group.</p>
+        </article>
+      </div>
+
+      <h2 class="cloud-steps-heading">How it works</h2>
+      <ol class="cloud-steps">
+        <li><div><strong>Choose your account</strong><span>Subscribe for yourself or create a team account with members and permission groups.</span></div></li>
+        <li><div><strong>Add selected documents</strong><span>Open a document in SmallDocs and choose Add to Cloud. Your local file remains where it is.</span></div></li>
+        <li><div><strong>Find, organize, and share</strong><span>Search content and tags, choose who can open a document, and keep its revisions together.</span></div></li>
+      </ol>
+
+      <div class="cloud-onboarding-actions">
+        <a class="cloud-onboarding-primary" href="/cloud/checkout?return=%2Flibrary%3Fscope%3Dcloud">Subscribe to Cloud</a>
+        <a data-cloud-sign-in href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud">Sign in</a>
+        <a href="/cloud">Security and pricing</a>
       </div>
     </section>
 

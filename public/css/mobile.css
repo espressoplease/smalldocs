@@ -55,10 +55,8 @@
   /* ── Write toolbar: sticky below left-toolbar ── */
   body.write-mode #_sd_write-toolbar { position: sticky; top: 36px; z-index: 98; justify-content: flex-start; }
 
-  /* Keep sign-in and the site menu visible. Library moves into the menu. */
-  #_sd_btn-library { display: none; }
+  /* Keep Library and the available account actions visible. */
   .doc-site-nav { margin-left: auto; }
-  .doc-site-menu-panel .nav-menu-mobile-only { display: flex; }
 
   /* ── Status bar: hidden on mobile ── */
   #_sd_statusbar { display: none; }

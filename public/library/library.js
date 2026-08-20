@@ -598,7 +598,7 @@ function renderResults() {
   if (!shown.length) {
     if (!STATE.entries.length) {
       c.innerHTML = isCloudMode()
-        ? '<div class="empty">Cloud Library is empty.<div class="tip">Add a document to Cloud to see it here.</div></div>'
+        ? '<div class="empty">No Cloud documents yet.<div class="tip">Open a document in SmallDocs and choose Add to Cloud. It will appear here.</div></div>'
         : '<div class="empty">Library is empty.<div class="tip">Open a markdown file with <code>sdoc file.md</code> to add it.</div></div>';
     } else {
       c.innerHTML = '<div class="empty">No matches. Try removing a chip or refining your search.</div>';
@@ -1118,8 +1118,7 @@ const search = new URLSearchParams(location.search);
 if (!isSignedOutCloudMode() && (!window.SDocsConnect ||
     window.SDocsConnect.isConnected() ||
     search.get('force') === '1' ||
-    search.get('demo')  === '1' ||
-    search.get('scope') === 'cloud')) {
+    search.get('demo')  === '1')) {
   loadData();
 }
 

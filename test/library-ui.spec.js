@@ -111,18 +111,10 @@ test('library header: brand returns home and adapts to the available width', asy
   expect(page.url()).not.toContain('/connect');
 });
 
-test('library header: overflow menu exposes the shared site links', async ({ page }) => {
+test('library header: signed-out local Library omits the overflow menu', async ({ page }) => {
   await page.goto(pageUrl);
   const menu = page.locator('#library-menu');
-  const button = menu.locator('summary');
-  await button.click();
-  await expect(button).toHaveAttribute('aria-expanded', 'true');
-  await expect(menu.getByRole('menuitem', { name: 'Docs' })).toHaveAttribute('href', '/docs');
-  await expect(menu.getByRole('menuitem', { name: 'GitHub' })).toHaveAttribute(
-    'href', 'https://github.com/espressoplease/smalldocs');
-  await page.keyboard.press('Escape');
-  await expect(button).toHaveAttribute('aria-expanded', 'false');
-  await expect(button).toBeFocused();
+  await expect(menu).toBeHidden();
 });
 
 test('library UI: shows error banner when agent is unreachable', async ({ page }) => {

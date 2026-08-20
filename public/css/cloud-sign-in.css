@@ -83,9 +83,10 @@ a:hover { text-decoration: none; }
   color: var(--text-2);
   font-size: 11.5px;
   line-height: 1.4;
+  min-width: 0;
 }
 .return-row svg { flex: 0 0 auto; color: var(--text-3); }
-.return-row strong { color: var(--text); font-weight: 500; }
+.return-row strong { min-width: 0; color: var(--text); font-weight: 500; overflow-wrap: anywhere; }
 
 .provider-list { display: grid; gap: 9px; }
 .provider-form { width: 100%; }

@@ -10,6 +10,7 @@
   const cloudLink = document.getElementById('cloud-scope-link');
   const workspaceButton = document.getElementById('workspace-button');
   const workspaceMenu = document.getElementById('workspace-menu');
+  const onboarding = document.getElementById('cloud-onboarding');
 
   window.SDocsCloudLibrary = window.SDocsCloudLibrary || {};
   nav.hidden = false;
@@ -20,11 +21,23 @@
   if (scope === 'local') localLink.setAttribute('aria-current', 'page');
   if (scope === 'cloud') cloudLink.setAttribute('aria-current', 'page');
   if (scope !== 'cloud') return;
+  document.body.classList.add('cloud-library-loading');
+
+  function showOnboarding(signedOut) {
+    document.body.classList.remove('cloud-library-loading');
+    document.body.classList.add('cloud-library-onboarding');
+    if (onboarding) onboarding.hidden = false;
+    var signIn = onboarding && onboarding.querySelector('[data-cloud-sign-in]');
+    if (signIn) signIn.hidden = !signedOut;
+  }
+
+  function showLibrary() {
+    document.body.classList.remove('cloud-library-loading', 'cloud-library-onboarding');
+    if (onboarding) onboarding.hidden = true;
+  }
 
   if (document.body.dataset.cloudAuthenticated !== 'true') {
-    document.body.classList.add('cloud-library-signed-out');
-    var signedOut = document.getElementById('cloud-signed-out');
-    if (signedOut) signedOut.hidden = false;
+    showOnboarding(true);
     return;
   }
 
@@ -37,7 +50,7 @@
     return mark;
   }
 
-  function selectWorkspace(workspace, user) {
+  async function selectWorkspace(workspace, user) {
     var accountName = window.SDocsCloudAccountSelection.label(workspace, user);
     window.SDocsCloudAccountSelection.remember(localStorage, workspace.id);
     window.SDocsCloudLibrary.workspaceId = workspace.id;
@@ -51,6 +64,19 @@
     workspaceMenu.hidden = true;
     renderMenu(window.SDocsCloudLibrary.workspaces || [], workspace.id,
       window.SDocsCloudLibrary.user || null);
+    const accountResponse = await fetch('/api/cloud/v1/account?account_id=' +
+      encodeURIComponent(workspace.id), { credentials: 'same-origin' });
+    if (accountResponse.status === 401) {
+      location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
+      return;
+    }
+    if (!accountResponse.ok) throw new Error('Cloud account unavailable');
+    const account = (await accountResponse.json()).account || {};
+    if (!account.can_read) {
+      showOnboarding(false);
+      return;
+    }
+    showLibrary();
     window.dispatchEvent(new CustomEvent('sdocs-cloud-workspace-change'));
   }
 
@@ -92,7 +118,9 @@
         check.appendChild(path);
         button.appendChild(check);
       }
-      button.addEventListener('click', function () { selectWorkspace(workspace, user); });
+      button.addEventListener('click', function () {
+        selectWorkspace(workspace, user).catch(showUnavailable);
+      });
       workspaceMenu.appendChild(button);
     });
     const selected = workspaces.find(function (workspace) { return workspace.id === selectedId; });
@@ -119,6 +147,12 @@
     }
   });
 
+  function showUnavailable() {
+    document.body.classList.remove('cloud-library-loading');
+    const note = heading.querySelector('.cloud-access-note');
+    if (note) note.textContent = 'Cloud is temporarily unavailable';
+  }
+
   Promise.all([
     fetch('/api/cloud/v1/workspaces', { credentials: 'same-origin' }),
     fetch('/api/cloud/v1/me', { credentials: 'same-origin' }),
@@ -137,12 +171,13 @@
     if (note) note.textContent = me.email ? 'Signed in as ' + me.email : 'Signed in';
     if (!workspaces.length) {
       if (note) note.textContent = 'Choose a Cloud plan to add documents';
+      showOnboarding(false);
       return;
     }
     var selectedWorkspace = window.SDocsCloudAccountSelection.resolve(
       workspaces, params.get('workspace'), localStorage);
     if (selectedWorkspace) {
-      selectWorkspace(selectedWorkspace, me);
+      selectWorkspace(selectedWorkspace, me).catch(showUnavailable);
     } else {
       workspaceButton.replaceChildren(
         workspaceMark('Cloud'),
@@ -152,8 +187,5 @@
       renderMenu(workspaces, null, me);
       if (note) note.textContent = 'Choose an account to view its documents';
     }
-  }).catch(function () {
-    const note = heading.querySelector('.cloud-access-note');
-    if (note) note.textContent = 'Cloud is temporarily unavailable';
-  });
+  }).catch(showUnavailable);
 })();

@@ -1816,12 +1816,43 @@ document.getElementById('_sd_toolbar-brand').addEventListener('click', function(
   setMode('read');
 });
 
+var CLOUD_SIGN_IN_RETURN_KEY = 'sdocs-cloud-sign-in-return-v1';
+
+function restoreDocumentAfterSignIn() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('sdocs_resume') !== '1') return;
+  var returnTo = '';
+  try {
+    returnTo = window.sessionStorage.getItem(CLOUD_SIGN_IN_RETURN_KEY) || '';
+    window.sessionStorage.removeItem(CLOUD_SIGN_IN_RETURN_KEY);
+  } catch (_) {}
+  if (!returnTo || returnTo.charAt(0) !== '/' || returnTo.slice(0, 2) === '//' ||
+      returnTo.indexOf('\\') !== -1 || /[\u0000-\u001f\u007f]/.test(returnTo)) {
+    window.history.replaceState(null, '', '/docs');
+    return;
+  }
+  try {
+    var parsed = new URL(returnTo, window.location.origin);
+    if (parsed.origin !== window.location.origin) throw new Error('invalid return origin');
+    window.history.replaceState(null, '', parsed.pathname + parsed.search + parsed.hash);
+  } catch (_) {
+    window.history.replaceState(null, '', '/docs');
+  }
+}
+
+restoreDocumentAfterSignIn();
+
 function wireDocumentSiteNavigation() {
   var signIn = document.querySelector('[data-sdocs-sign-in-return]');
   if (signIn) signIn.addEventListener('click', function (event) {
     event.preventDefault();
     var returnTo = window.location.pathname + window.location.search + window.location.hash;
-    window.location.href = '/cloud/sign-in?return=' + encodeURIComponent(returnTo);
+    try {
+      window.sessionStorage.setItem(CLOUD_SIGN_IN_RETURN_KEY, returnTo);
+      window.location.href = '/cloud/sign-in?return=' + encodeURIComponent('/docs?sdocs_resume=1');
+    } catch (_) {
+      window.location.href = '/cloud/sign-in?return=%2Fdocs';
+    }
   });
   var menu = document.getElementById('doc-site-menu');
   if (!menu) return;
@@ -1843,6 +1874,7 @@ function wireDocumentSiteNavigation() {
 }
 
 wireDocumentSiteNavigation();
+S.wireDocumentSiteNavigation = wireDocumentSiteNavigation;
 
 // ── Collapsible panels ──────────────────────────────
 
