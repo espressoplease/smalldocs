@@ -118,6 +118,7 @@ feedbackRateLimit.startCleanup();
 // and a common per-IP budget keeps spam cheap to refuse.
 const teamsInterest = require('./teams/db');
 const teamsNotify = require('./teams/notify');
+const emailTemplates = require('./lib/email-templates');
 teamsInterest.init();
 
 // Cloud authentication is enabled only when a stable server-side pepper is
@@ -337,8 +338,10 @@ async function processCloudJob(job) {
   if (job.type === 'invitation_email') {
     if (!teamsNotify.isConfigured()) throw Object.assign(new Error('email_delivery_not_configured'),
       { code: 'email_delivery_not_configured' });
-    const delivered = await teamsNotify.sendTo(job.payload.email, 'You have been invited to SmallDocs Cloud',
-      'You have been invited to a SmallDocs Cloud workspace.\n\nOpen the invitation:\n' + job.payload.acceptUrl);
+    const message = emailTemplates.workspaceInvitation({ acceptUrl: job.payload.acceptUrl,
+      inviter: job.payload.inviter, accountName: job.payload.accountName });
+    const delivered = await teamsNotify.sendTo(job.payload.email, message.subject,
+      message.text, message.html);
     if (!delivered.ok) throw Object.assign(new Error('email_delivery_failed'), { code: 'email_delivery_failed' });
     return;
   }
@@ -355,17 +358,12 @@ async function processCloudJob(job) {
     if (!teamsNotify.isConfigured()) throw Object.assign(new Error('email_delivery_not_configured'),
       { code: 'email_delivery_not_configured' });
     const actor = cloudActorLabel(delivery.actor_user_id);
-    const count = delivery.documents.length;
-    const subject = actor + ' sent ' + count + ' document link' + (count === 1 ? '' : 's') +
-      ' from SmallDocs Cloud';
-    const links = delivery.documents.map((document) => {
-      const title = String(document.title || 'Untitled').replace(/[\r\n]+/g, ' ');
-      return title + '\n' + CLOUD_AUTH_PUBLIC_ORIGIN + '/docs?cloud-document=' +
-        encodeURIComponent(document.id);
-    }).join('\n\n');
-    const delivered = await teamsNotify.sendTo(recipient, subject,
-      actor + ' sent you links to ' + count + ' document' + (count === 1 ? '' : 's') +
-      ' in SmallDocs Cloud.\n\n' + links);
+    const message = emailTemplates.documentNotification({ actor, note: delivery.note,
+      documents: delivery.documents.map((document) => ({ title: document.title,
+        url: CLOUD_AUTH_PUBLIC_ORIGIN + '/docs?cloud-document=' +
+          encodeURIComponent(document.id) })) });
+    const delivered = await teamsNotify.sendTo(recipient, message.subject,
+      message.text, message.html);
     if (!delivered.ok) throw Object.assign(new Error('email_delivery_failed'),
       { code: 'email_delivery_failed' });
     return;
@@ -1361,7 +1359,8 @@ async function handleCloudApi(req, res, url) {
       });
       const acceptUrl = CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/invite?token=' + encodeURIComponent(invitation.token);
       if (cloudJobs) enqueueCloudJob({ type: 'invitation_email', idempotencyKey: invitation.id,
-        payload: { email: invitation.email, acceptUrl } });
+        payload: { email: invitation.email, acceptUrl, inviter: cloudActorLabel(user.id),
+          accountName: selected.workspace.name } });
       sendJson(res, 201, { ok: true, invitation: { id: invitation.id,
         email: invitation.email, role: invitation.role,
         expires_at: new Date(invitation.expiresAtMs).toISOString() } });
@@ -1500,12 +1499,19 @@ async function handleCloudApi(req, res, url) {
       });
       const acceptUrl = CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/invite?token=' + encodeURIComponent(invitation.token);
       if (cloudJobs) {
+        const invitedWorkspace = (await cloudStore.listWorkspaces(user.id))
+          .find((workspace) => workspace.id === workspaceInvitationsMatch[1]);
         enqueueCloudJob({ type: 'invitation_email', idempotencyKey: invitation.id,
-          payload: { email: invitation.email, acceptUrl } });
+          payload: { email: invitation.email, acceptUrl, inviter: cloudActorLabel(user.id),
+            accountName: invitedWorkspace ? invitedWorkspace.name : 'a SmallDocs account' } });
       } else if (teamsNotify.isConfigured()) {
-        const delivered = await teamsNotify.sendTo(invitation.email,
-          'You have been invited to SmallDocs Cloud',
-          'You have been invited to a SmallDocs Cloud workspace.\n\nOpen the invitation:\n' + acceptUrl);
+        const invitedWorkspace = (await cloudStore.listWorkspaces(user.id))
+          .find((workspace) => workspace.id === workspaceInvitationsMatch[1]);
+        const message = emailTemplates.workspaceInvitation({ acceptUrl,
+          inviter: cloudActorLabel(user.id),
+          accountName: invitedWorkspace ? invitedWorkspace.name : 'a SmallDocs account' });
+        const delivered = await teamsNotify.sendTo(invitation.email, message.subject,
+          message.text, message.html);
         if (!delivered.ok) console.error('[cloud-invitation] email delivery failed');
       }
       sendJson(res, 201, { ok: true, invitation: {
@@ -1638,11 +1644,12 @@ async function handleCloudApi(req, res, url) {
       if (recipientUserIds.some((recipientUserId) => !verifiedCloudEmail(recipientUserId))) {
         throw Object.assign(new Error('invalid_request'), { code: 'invalid_request' });
       }
-      const notification = cloudStore.createDocumentNotification({
+      const notification = await cloudStore.createDocumentNotification({
         userId: user.id,
         credentialId,
         documentIds: body.document_ids,
         recipientUserIds,
+        note: body.note,
         idempotencyKey: body.idempotency_key,
       });
       notification.recipient_user_ids.forEach((recipientUserId) => {
@@ -1914,8 +1921,9 @@ async function handleCloudEmailRequest(req, res) {
     if (CLOUD_AUTH_DEV_LOG_CODES) {
       console.log('[cloud-auth-code] ' + issued.requestId + ' ' + issued.code);
     } else {
-      const delivered = await teamsNotify.sendTo(body.email, 'Your SmallDocs sign-in code',
-        'Your SmallDocs sign-in code is: ' + issued.code + '\n\nThe code expires in 10 minutes.');
+      const message = emailTemplates.signInCode({ code: issued.code, expiresMinutes: 10 });
+      const delivered = await teamsNotify.sendTo(body.email, message.subject,
+        message.text, message.html);
       if (!delivered.ok) {
         sendJson(res, 503, { ok: false, error: 'email_delivery_failed' });
         return;

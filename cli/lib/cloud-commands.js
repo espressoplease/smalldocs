@@ -27,7 +27,7 @@ const CLOUD_HELP = `SmallDocs Cloud
   sdoc cloud tags [--account UUID]
   sdoc cloud permission-groups [--account UUID]
   sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_UUID ...]
-  sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_UUID ...
+  sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_UUID ... [--note TEXT]
   sdoc cloud tag DOCUMENT_UUID --tag TAG [--tag TAG ...]
   sdoc cloud ls [--tag TAG] [--shared-with-me] [--limit N]
   sdoc cloud search QUERY [--tag TAG] [--limit N]
@@ -252,13 +252,15 @@ async function notify(opts, client) {
   const recipientUserIds = Array.from(new Set(opts.memberFlags || []));
   if (!documentIds.length || !recipientUserIds.length) {
     throw new CloudCommandError('invalid_request',
-      'usage: sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_UUID ...');
+      'usage: sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] ' +
+      '--member USER_UUID ... [--note TEXT]');
   }
   const response = await client.authenticated('/api/cloud/v1/notifications', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       document_ids: documentIds,
       recipient_user_ids: recipientUserIds,
+      note: opts.noteText || undefined,
       idempotency_key: crypto.randomUUID(),
     }),
   });

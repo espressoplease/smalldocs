@@ -80,6 +80,10 @@ The two never share a `package.json` again. See "Published npm tarball" below fo
   - `test/short-link.spec.js` - short-link load + staleness fix (edit clears the stale short URL)
   - `playwright.config.js` - Chromium only, auto-starts server on :3000
 
+Email testing and local rendered-message previews are documented in
+`maintainers/email-testing.md`. Read it when changing email templates, SMTP,
+authentication email, invitations, or notifications.
+
 ## Writing style (docs, copy, UI strings, commit messages)
 
 Calm, explicit, honest. Not salesy, not defensive, not cute.

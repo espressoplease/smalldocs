@@ -1,0 +1,9 @@
+services:
+  mailpit:
+    image: axllent/mailpit:v1.30.7
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+    environment:
+      MP_MAX_MESSAGES: "100"
+      MP_BLOCK_REMOTE_CSS_AND_FONTS: "true"

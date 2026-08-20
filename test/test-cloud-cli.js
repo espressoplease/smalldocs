@@ -31,10 +31,12 @@ module.exports = function(harness) {
 
   test('cloud CLI parser captures notification documents and shared filtering', () => {
     const parsed = io.parseArgs(['cloud', 'notify', 'doc-a', '--document', 'doc-b',
-      '--document', 'doc-c', '--member', 'usr-a', '--shared-with-me', '--json']);
+      '--document', 'doc-c', '--member', 'usr-a', '--note', 'Review these together.',
+      '--shared-with-me', '--json']);
     assert.strictEqual(parsed.extra, 'doc-a');
     assert.deepStrictEqual(parsed.documentFlags, ['doc-b', 'doc-c']);
     assert.deepStrictEqual(parsed.memberFlags, ['usr-a']);
+    assert.strictEqual(parsed.noteText, 'Review these together.');
     assert.strictEqual(parsed.sharedWithMeFlag, true);
   });
 
@@ -225,7 +227,8 @@ module.exports = function(harness) {
     await testAsync('cloud notifies existing members about one or more documents', async () => {
       const callStart = calls.length;
       const result = await capture(() => runCloudCommand({ file: 'notify', extra: 'doc-1',
-        documentFlags: ['doc-2'], memberFlags: ['usr-2'], jsonFlag: true },
+        documentFlags: ['doc-2'], memberFlags: ['usr-2'],
+        noteText: 'Review these together.', jsonFlag: true },
       { client: fakeClient }));
       assert.strictEqual(result.notification_id, 'notification-1');
       assert.deepStrictEqual(result.document_ids, ['doc-1', 'doc-2']);
@@ -234,6 +237,7 @@ module.exports = function(harness) {
       const body = JSON.parse(call.options.body);
       assert.deepStrictEqual(body.document_ids, ['doc-1', 'doc-2']);
       assert.deepStrictEqual(body.recipient_user_ids, ['usr-2']);
+      assert.strictEqual(body.note, 'Review these together.');
       assert.ok(body.idempotency_key);
     });
 

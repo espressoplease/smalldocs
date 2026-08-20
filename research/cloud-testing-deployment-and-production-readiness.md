@@ -160,6 +160,12 @@ The most recent focused Cloud and Library run completed with `70 passed`.
 
 Some browser tests mock provider edges so they can be fast and deterministic. A passing Playwright suite does not prove that Resend, Stripe, KMS, DNS, or a real mailbox is working.
 
+Email has an additional local test layer. `npm run email:preview` captures the
+real multipart messages in Mailpit and exposes the rendered HTML and plain-text
+versions at `http://127.0.0.1:8025`. The automated suite tests templates, MIME,
+escaping, SMTP capture, links, and narrow-screen rendering without contacting
+Resend. See `maintainers/email-testing.md` for the workflow.
+
 A separate `npm run test:cloud-e2e` suite starts an isolated staging-shaped
 service over local TLS. It seeds reusable identities, signs each required
 identity in once, and uses their real browser sessions for the permission and

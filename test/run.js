@@ -78,6 +78,7 @@ const runBridge = require('./test-bridge')(harness);
 // ── Async test groups (no server) ───────────────────
 const runSetupScenarios = require('./test-setup-scenarios')(harness);
 const runTeams = require('./test-teams')(harness);
+const runEmail = require('./test-email')(harness);
 const runCloudAuthHttp = require('./test-cloud-auth-http')(harness);
 
 // ── HTTP tests (async, starts server) ──────────────
@@ -98,6 +99,7 @@ const runLibraryServer = require('./test-library-server')(harness);
   await runBridge();
   await runSetupScenarios();
   await runTeams();
+  await runEmail();
   await runCloudAuthHttp();
   await runHttp();
   await runCacheBust();

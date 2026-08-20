@@ -61,6 +61,37 @@ module.exports = function(harness) {
     let team;
     let document;
 
+    await testAsync('existing notification batches gain encrypted note columns', async () => {
+      const migrationDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-note-migration-'));
+      const migrationPath = path.join(migrationDir, 'cloud.db');
+      const Database = require('better-sqlite3');
+      const legacy = new Database(migrationPath);
+      legacy.exec(`
+        CREATE TABLE cloud_notification_batches (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          actor_user_id TEXT NOT NULL,
+          actor_credential_id TEXT,
+          idempotency_key TEXT NOT NULL,
+          request_digest TEXT NOT NULL,
+          created_at_ms INTEGER NOT NULL,
+          UNIQUE(actor_user_id, idempotency_key)
+        )
+      `);
+      legacy.close();
+      const migrated = createCloudStore({ dbPath: migrationPath, keyProvider,
+        idempotencySecret: 'migration-idempotency-secret-32-bytes' });
+      try {
+        const columns = migrated.db.prepare(
+          'PRAGMA table_info(cloud_notification_batches)').all().map((column) => column.name);
+        assert.ok(columns.includes('note_ciphertext'));
+        assert.ok(columns.includes('note_nonce'));
+      } finally {
+        migrated.close();
+        fs.rmSync(migrationDir, { recursive: true, force: true });
+      }
+    });
+
     await testAsync('metadata comes from front matter with normalized tags', async () => {
       assert.deepStrictEqual(deriveMetadata('---\ntitle: Plan\ntags:\n  - Alpha\n  - beta\n  - alpha\n---\n# Ignored', 'plan.md'), {
         title: 'Plan', filename: 'plan.md', tags: ['alpha', 'beta'],
@@ -456,40 +487,66 @@ module.exports = function(harness) {
         filename: 'decisions.md', markdown: '# Decisions', idempotencyKey: 'create-decisions' });
       store.setDocumentPermission({ userId: member, documentId: second.id,
         mode: 'custom', memberUserIds: [collaborator] });
-      const notification = store.createDocumentNotification({
+      const notification = await store.createDocumentNotification({
         userId: member,
         credentialId: 'cli-build-server',
         documentIds: [document.id, second.id],
         recipientUserIds: [collaborator],
+        note: 'Review these before Monday.\nThe release note changed.',
         idempotencyKey: 'notify-release-documents',
       });
       assert.strictEqual(notification.created, true);
       assert.deepStrictEqual(notification.document_ids, [document.id, second.id]);
       assert.deepStrictEqual(notification.recipient_user_ids, [collaborator]);
-      const replay = store.createDocumentNotification({
+      const storedNote = store.db.prepare(`
+        SELECT note_ciphertext, note_nonce FROM cloud_notification_batches WHERE id = ?
+      `).get(notification.id);
+      assert.strictEqual(storedNote.note_ciphertext.includes(Buffer.from('Review these')), false);
+      assert.strictEqual(storedNote.note_nonce.length, 12);
+      const replay = await store.createDocumentNotification({
         userId: member,
         credentialId: 'cli-build-server',
         documentIds: [document.id, second.id],
         recipientUserIds: [collaborator],
+        note: 'Review these before Monday.\r\nThe release note changed.',
         idempotencyKey: 'notify-release-documents',
       });
       assert.strictEqual(replay.id, notification.id);
       assert.strictEqual(replay.created, false);
+      await assert.rejects(() => store.createDocumentNotification({
+        userId: member, documentIds: [document.id, second.id],
+        recipientUserIds: [collaborator], note: 'A different note.',
+        idempotencyKey: 'notify-release-documents',
+      }), (error) => error.code === 'idempotency_mismatch');
       const delivery = await store.getDocumentNotificationDelivery({
         batchId: notification.id, recipientUserId: collaborator,
       });
       assert.strictEqual(delivery.skipped, false);
+      assert.strictEqual(delivery.note, 'Review these before Monday.\nThe release note changed.');
       assert.deepStrictEqual(delivery.documents.map((item) => item.title), ['Roadmap', 'Decisions']);
       assert.strictEqual(delivery.actor_credential_id, 'cli-build-server');
-      assert.throws(() => store.createDocumentNotification({ userId: member,
+      await assert.rejects(() => store.createDocumentNotification({ userId: member,
         documentIds: [document.id], recipientUserIds: [outsider], idempotencyKey: 'notify-outsider' }),
       (error) => error.code === 'invalid_request');
-      assert.throws(() => store.createDocumentNotification({ userId: member,
+      await assert.rejects(() => store.createDocumentNotification({ userId: member,
         documentIds: [document.id], recipientUserIds: [owner], idempotencyKey: 'notify-admin' }),
       (error) => error.code === 'permission_denied');
-      assert.throws(() => store.createDocumentNotification({ userId: collaborator,
-        documentIds: [document.id], recipientUserIds: [member], idempotencyKey: 'notify-by-recipient' }),
-      (error) => error.code === 'permission_denied');
+      const editorNotification = await store.createDocumentNotification({
+        userId: collaborator, credentialId: 'cli-editor-machine',
+        documentIds: [document.id], recipientUserIds: [member],
+        note: 'I checked this version.', idempotencyKey: 'notify-by-editor',
+      });
+      assert.strictEqual(editorNotification.created, true);
+      const editorDelivery = await store.getDocumentNotificationDelivery({
+        batchId: editorNotification.id, recipientUserId: member,
+      });
+      assert.strictEqual(editorDelivery.actor_user_id, collaborator);
+      assert.strictEqual(editorDelivery.actor_credential_id, 'cli-editor-machine');
+      assert.strictEqual(editorDelivery.note, 'I checked this version.');
+      await assert.rejects(() => store.createDocumentNotification({
+        userId: member, documentIds: [document.id], recipientUserIds: [collaborator],
+        note: { text: 'not plain text' }, idempotencyKey: 'notify-invalid-note',
+      }), (error) => error.code === 'invalid_request');
 
       store.setDocumentPermission({ userId: member, documentId: second.id,
         mode: 'custom', memberUserIds: [] });
@@ -701,8 +758,41 @@ module.exports = function(harness) {
         assert.strictEqual(opened.markdown, '# Managed\n\nEncrypted asynchronously.');
         assert.deepStrictEqual((await managedStore.listProjects(
           'managed-user', workspace.workspaceId)).map((project) => project.name), ['Documents']);
+        const teamWorkspace = await managedStore.createTeamWorkspace({
+          userId: 'managed-user', name: 'Managed Team', projectName: 'Documents',
+        });
+        managedStore.addWorkspaceMember({ actorUserId: 'managed-user',
+          workspaceId: teamWorkspace.workspaceId, userId: 'managed-recipient', role: 'member' });
+        managedStore.grantProject({ actorUserId: 'managed-user',
+          workspaceId: teamWorkspace.workspaceId, projectId: teamWorkspace.projectId,
+          userId: 'managed-recipient', role: 'viewer' });
+        const sharedDocument = await managedStore.createDocument({
+          userId: 'managed-user', projectId: teamWorkspace.projectId,
+          filename: 'shared.md', markdown: '# Shared', idempotencyKey: 'managed-shared-create',
+        });
+        managedStore.setDocumentPermission({ userId: 'managed-user',
+          documentId: sharedDocument.id, mode: 'custom', memberUserIds: ['managed-recipient'] });
+        const notification = await managedStore.createDocumentNotification({
+          userId: 'managed-user', documentIds: [sharedDocument.id],
+          recipientUserIds: ['managed-recipient'], note: 'Encrypted by managed KMS.',
+          idempotencyKey: 'managed-notification',
+        });
+        const delivery = await managedStore.getDocumentNotificationDelivery({
+          batchId: notification.id, recipientUserId: 'managed-recipient',
+        });
+        assert.strictEqual(delivery.note, 'Encrypted by managed KMS.');
         managedProvider.clearCache();
         kmsUnavailable = true;
+        const notificationCount = managedStore.db.prepare(
+          'SELECT COUNT(*) AS count FROM cloud_notification_batches').get().count;
+        await assert.rejects(managedStore.createDocumentNotification({
+          userId: 'managed-user', documentIds: [sharedDocument.id],
+          recipientUserIds: ['managed-recipient'], note: 'This cannot be encrypted.',
+          idempotencyKey: 'managed-notification-kms-failure',
+        }), (error) => error.code === 'temporary_service_failure');
+        assert.strictEqual(managedStore.db.prepare(
+          'SELECT COUNT(*) AS count FROM cloud_notification_batches').get().count,
+        notificationCount);
         const replayed = await managedStore.createDocument({
           userId: 'managed-user', projectId: workspace.projectId,
           filename: 'managed.md', markdown: '# Managed\n\nEncrypted asynchronously.',

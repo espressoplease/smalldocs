@@ -69,6 +69,7 @@ function parseArgs(argv) {
   let everyoneFlag = false;
   let onlyYouFlag = false;
   let sharedWithMeFlag = false;
+  let noteText = null;
   const memberFlags = [];
   const documentFlags = [];
   const tagFilters = [];
@@ -138,6 +139,7 @@ function parseArgs(argv) {
     if (arg === '--everyone')                        { everyoneFlag     = true; continue; }
     if (arg === '--only-you')                        { onlyYouFlag      = true; continue; }
     if (arg === '--shared-with-me')                  { sharedWithMeFlag = true; continue; }
+    if (arg === '--note')                            { noteText = args[++i]; continue; }
     if (arg === '--output' || arg === '-o')          { outputPath       = args[++i]; continue; }
     if (arg === '--revision')                        { revisionFlag     = args[++i]; continue; }
     if (arg === '--document') {
@@ -203,7 +205,7 @@ function parseArgs(argv) {
     tagsFlag, helpFlag, yesFlag, dryRunFlag, sheetName,
     projectFlag, accountFlag, outputPath, revisionFlag, documentFlag, baseRevisionFlag,
     limitFlag, noOpenFlag, noBindFlag, forceFlag, tagFilters,
-    everyoneFlag, onlyYouFlag, sharedWithMeFlag, memberFlags, documentFlags,
+    everyoneFlag, onlyYouFlag, sharedWithMeFlag, noteText, memberFlags, documentFlags,
     addTags, annotations, files,
   };
 }

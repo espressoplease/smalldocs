@@ -967,6 +967,7 @@ module.exports = function(harness) {
       const notificationResponse = await post(BASE + '/api/cloud/v1/notifications', {
         document_ids: [cloudTeamDocument.id, second.id],
         recipient_user_ids: [cloudMemberUser.id],
+        note: 'Review these together before Monday.',
         idempotency_key: 'http-team-document-notification',
       }, { Origin: BASE, Cookie: cloudCookie });
       assert.strictEqual(notificationResponse.status, 202);
@@ -989,14 +990,23 @@ module.exports = function(harness) {
         idempotency_key: 'http-notification-unknown-recipient',
       }, { Origin: BASE, Cookie: cloudCookie });
       assert.strictEqual(unknownRecipient.status, 400);
-      const memberCannotNotify = await post(BASE + '/api/cloud/v1/notifications', {
+      const memberCanNotify = await post(BASE + '/api/cloud/v1/notifications', {
         document_ids: [cloudTeamDocument.id], recipient_user_ids: [JSON.parse((await get(
           BASE + '/api/cloud/v1/me', { Cookie: cloudCookie })).body).user.id],
+        note: 'I checked the shared copy.',
         idempotency_key: 'http-notification-by-non-owner',
       }, { Origin: BASE, Cookie: cloudMemberCookie });
-      assert.strictEqual(memberCannotNotify.status, 403);
+      assert.strictEqual(memberCanNotify.status, 202);
 
       const Database = require('better-sqlite3');
+      const cloud = new Database(testCloudDbPath, { readonly: true });
+      const storedNote = cloud.prepare(`
+        SELECT note_ciphertext, note_nonce FROM cloud_notification_batches WHERE id = ?
+      `).get(notification.id);
+      cloud.close();
+      assert.strictEqual(storedNote.note_ciphertext.includes(
+        Buffer.from('Review these together')), false);
+      assert.strictEqual(storedNote.note_nonce.length, 12);
       const jobs = new Database(testCloudJobsDbPath, { readonly: true });
       const queued = jobs.prepare(`
         SELECT payload_json FROM cloud_jobs
