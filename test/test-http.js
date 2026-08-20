@@ -49,6 +49,7 @@ module.exports = function(harness) {
         CLOUD_IDEMPOTENCY_SECRET: 'http-test-idempotency-secret-32-bytes',
         CLOUD_BILLING_DB: testCloudBillingDbPath,
         CLOUD_JOBS_DB: testCloudJobsDbPath,
+        CLOUD_JOB_POLL_MS: '60000',
         CLOUD_PLAN_LIMITS_JSON: JSON.stringify({
           personal: { maxFileBytes: 10 * 1024 * 1024, revisionRetentionDays: 90,
             search: { maxRequests: 2, windowMs: 60000 } },
@@ -56,6 +57,8 @@ module.exports = function(harness) {
         }),
         CLOUD_WORKSPACE_RESTORE_WINDOW_MS: '60000',
         CLOUD_DOCUMENT_RESTORE_WINDOW_MS: '60000',
+        STRIPE_SECRET_KEY: 'sk_test_http',
+        STRIPE_WEBHOOK_SECRET: 'whsec_http_test',
         GOOGLE_OAUTH_CLIENT_ID: 'http-test-google-client',
         GOOGLE_OAUTH_CLIENT_SECRET: 'http-test-google-secret',
         GITHUB_OAUTH_CLIENT_ID: '',
@@ -114,6 +117,26 @@ module.exports = function(harness) {
         });
         request.on('error', reject);
         request.end(payload);
+      });
+    }
+    function postStripeEvent(event) {
+      const crypto = require('crypto');
+      const raw = Buffer.from(JSON.stringify(event));
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signature = crypto.createHmac('sha256', 'whsec_http_test')
+        .update(Buffer.concat([Buffer.from(timestamp + '.'), raw])).digest('hex');
+      return new Promise((resolve, reject) => {
+        const request = http.request({ method: 'POST', hostname: 'localhost', port: 3099,
+          path: '/api/cloud/billing/stripe/webhook', agent: false,
+          headers: { 'Content-Type': 'application/json', 'Content-Length': raw.length,
+            'Stripe-Signature': 't=' + timestamp + ',v1=' + signature } }, response => {
+          let body = '';
+          response.on('data', chunk => body += chunk);
+          response.on('end', () => resolve({ status: response.statusCode, body,
+            headers: response.headers }));
+        });
+        request.on('error', reject);
+        request.end(raw);
       });
     }
 
@@ -820,6 +843,69 @@ module.exports = function(harness) {
         'active Cloud users should not get a purchase action');
       assert.ok(activeHomepage.body.includes('class="btn-gh" href="/library?scope=cloud"'),
         'active Cloud users should retain the primary Cloud library action');
+    });
+
+    await testAsync('Stripe lifecycle webhooks queue fixed billing notices and deletion work once', async () => {
+      const created = Math.floor(Date.now() / 1000);
+      const subscription = {
+        id: 'sub_http_lifecycle', customer: 'cus_http_lifecycle', created,
+        status: 'past_due', cancel_at_period_end: false,
+        current_period_end: created + 30 * 24 * 60 * 60,
+        metadata: { workspace_id: cloudWorkspace.id, plan: 'personal' },
+        items: { data: [{ quantity: 1 }] },
+      };
+      const event = { id: 'evt_http_payment_failed', type: 'customer.subscription.updated',
+        created, data: { object: subscription } };
+      assert.strictEqual((await postStripeEvent(event)).status, 200);
+      const failed = cloudBilling.getSubscription(cloudWorkspace.id);
+      assert.strictEqual(failed.status, 'past_due');
+      assert.strictEqual(failed.graceEndsAtMs, created * 1000 + 7 * 24 * 60 * 60 * 1000);
+      assert.strictEqual(failed.retentionEndsAtMs,
+        created * 1000 + 60 * 24 * 60 * 60 * 1000);
+
+      const Database = require('better-sqlite3');
+      let jobs = new Database(testCloudJobsDbPath, { readonly: true });
+      const queuedTypes = jobs.prepare(`
+        SELECT type, payload_json FROM cloud_jobs
+        WHERE type IN ('billing_state_email', 'billing_retention_expire')
+        ORDER BY type, available_at_ms
+      `).all();
+      jobs.close();
+      assert.ok(queuedTypes.some((job) => job.type === 'billing_state_email' &&
+        JSON.parse(job.payload_json).type === 'payment_failed'));
+      assert.ok(queuedTypes.some((job) => job.type === 'billing_state_email' &&
+        JSON.parse(job.payload_json).type === 'payment_read_only'));
+      assert.ok(queuedTypes.some((job) => job.type === 'billing_state_email' &&
+        JSON.parse(job.payload_json).type === 'deletion_warning'));
+      assert.ok(queuedTypes.some((job) => job.type === 'billing_retention_expire'));
+      assert.strictEqual(JSON.stringify(queuedTypes).includes('cloud-api@example.com'), false);
+
+      assert.strictEqual((await postStripeEvent(event)).status, 200);
+      jobs = new Database(testCloudJobsDbPath, { readonly: true });
+      const afterDuplicate = jobs.prepare(`
+        SELECT COUNT(*) AS count FROM cloud_jobs
+        WHERE type IN ('billing_state_email', 'billing_retention_expire')
+      `).get().count;
+      jobs.close();
+      assert.strictEqual(afterDuplicate, queuedTypes.length);
+
+      const recovery = { id: 'evt_http_payment_recovered',
+        type: 'customer.subscription.updated', created: created + 1,
+        data: { object: Object.assign({}, subscription, { status: 'active' }) } };
+      assert.strictEqual((await postStripeEvent(recovery)).status, 200);
+      const recovered = cloudBilling.getSubscription(cloudWorkspace.id);
+      assert.strictEqual(recovered.status, 'active');
+      assert.strictEqual(recovered.retentionEndsAtMs, null);
+      jobs = new Database(testCloudJobsDbPath, { readonly: true });
+      const recoveryJob = jobs.prepare(`
+        SELECT payload_json FROM cloud_jobs WHERE type = 'billing_state_email'
+        ORDER BY created_at_ms DESC
+      `).all().find((job) => JSON.parse(job.payload_json).type === 'payment_recovered');
+      jobs.close();
+      assert.ok(recoveryJob);
+      cloudBilling.upsertSubscription({ workspaceId: cloudWorkspace.id,
+        plan: 'personal', status: 'active', seatQuantity: 1,
+        provider: 'test', providerSubscriptionId: 'personal-http-test' });
     });
 
     await testAsync('Cloud API returns the current account without exposing identities', async () => {

@@ -244,7 +244,10 @@ Workspace creation and invitation delivery have additional abuse limits:
 | --- | --- | --- |
 | `CLOUD_BILLING_DB` | Yes for Cloud billing | Billing subscriptions and processed webhook events. Billing is disabled when absent. |
 | `CLOUD_PLAN_LIMITS_JSON` | Before paid launch | JSON configuration for Personal and Team stored bytes, maximum file bytes, revision retention days, projects, members, and search workload. Values must be positive integers or `null`. There is no document-count limit. Invalid JSON stops startup. |
-| `CLOUD_PAYMENT_GRACE_MS` | Before paid launch | Length of a newly observed `past_due` grace period. The code has a default, but production must set and publish the intended policy. Repeated `past_due` webhooks preserve the existing grace end. |
+| `CLOUD_PAYMENT_GRACE_MS` | Before paid launch | Editing grace after the first failed-payment event. Launch policy is seven days. Repeated events preserve the original end. |
+| `CLOUD_FAILED_PAYMENT_RETENTION_MS` | Before paid launch | Time from the first failed-payment event to permanent Cloud-data deletion. Launch policy is 60 days. Recovery clears the deletion clock. |
+| `CLOUD_CANCELLATION_RETENTION_MS` | Before paid launch | Time from the paid-through date to permanent Cloud-data deletion after cancellation. Launch policy is 30 days. Restarting clears the deletion clock. |
+| `CLOUD_BILLING_DELETION_WARNING_MS` | Before paid launch | How long before permanent deletion the owner warning email is queued. Launch policy is seven days. |
 | `STRIPE_SECRET_KEY` | For Stripe | Stripe server secret supplied directly. Use `STRIPE_SECRET_KEY_FILE` in production instead. |
 | `STRIPE_SECRET_KEY_FILE` | Alternative to `STRIPE_SECRET_KEY` | Read the Stripe server secret from a root-managed systemd credential. Production uses this path. |
 | `STRIPE_WEBHOOK_SECRET` | For Stripe webhooks | Verifies the raw request body and Stripe signature when supplied directly. Use `STRIPE_WEBHOOK_SECRET_FILE` in production instead. |
@@ -254,20 +257,20 @@ Workspace creation and invitation delivery have additional abuse limits:
 | `STRIPE_PERSONAL_PRICE_ID` | For Personal checkout | Stripe recurring price ID used by Personal checkout. |
 | `STRIPE_TEAM_PRICE_ID` | For Team checkout | Stripe recurring per-seat price ID used by Team checkout. |
 
-The initial plans use a 10 MB file limit and 90-day age limit for retained history. The JSON shape is:
+The initial plans use a 1 GB Personal allowance, a 5 GB shared Team allowance, a 10 MB file limit, and a 90-day age limit for retained history. The JSON shape is:
 
 ```json
 {
   "personal": {
-    "maxStoredBytes": null,
+    "maxStoredBytes": 1073741824,
     "maxFileBytes": 10485760,
     "revisionRetentionDays": 90,
     "maxProjects": null,
-    "maxMembers": null,
+    "maxMembers": 1,
     "search": { "maxRequests": null, "windowMs": null }
   },
   "team": {
-    "maxStoredBytes": null,
+    "maxStoredBytes": 5368709120,
     "maxFileBytes": 10485760,
     "revisionRetentionDays": 90,
     "maxProjects": null,
@@ -299,8 +302,10 @@ Implemented job types are:
 - `auth_cleanup`: prune expired authentication and OAuth records
 - `invitation_email`: send a workspace invitation
 - `document_notification_email`: send document links and an optional sender note to an existing account member
+- `billing_state_email`: send payment, cancellation, read-only, recovery, and deletion-warning messages to account owners
+- `billing_retention_expire`: recheck the current subscription state and permanently delete the Cloud workspace only when its unchanged retention deadline has arrived
 
-Jobs use an idempotency key, a lease, bounded retries, exponential backoff, and terminal `dead` state. Only error codes are stored as job errors. Job payloads can contain an invitation email address and acceptance URL, so the jobs database is sensitive.
+Jobs use an idempotency key, a lease, bounded retries, exponential backoff, and terminal `dead` state. Only error codes are stored as job errors. Billing jobs store user and workspace identifiers, deadlines, and state names, not email addresses or document content. Invitation jobs can contain an email address and acceptance URL, so the jobs database is sensitive.
 
 The current worker runs in the web process and handles one claimed job at a time. There is no scheduler that periodically enqueues `auth_cleanup`, and completed or dead job cleanup is not scheduled by `server.js`. Direct authentication cleanup runs once at startup and daily. Add monitoring and explicit recurring maintenance for dead jobs, completed-job retention, missing purges, and authentication cleanup before launch.
 

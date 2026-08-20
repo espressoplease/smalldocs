@@ -53,6 +53,7 @@ require('./test-update-check')(harness);
 require('./test-source')(harness);
 require('./test-cloud-auth')(harness);
 require('./test-cloud-billing')(harness);
+require('./test-cloud-billing-lifecycle')(harness);
 require('./test-cloud-account-selection')(harness);
 require('./test-cloud-collaboration-metrics')(harness);
 require('./test-cloud-stripe')(harness);

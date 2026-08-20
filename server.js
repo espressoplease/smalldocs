@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { createCursorCodec, normalizeLimit } = require('./lib/cloud-cursor');
 const { syncTeamSeatQuantity: syncStripeTeamSeatQuantity } = require('./lib/cloud-seat-sync');
+const cloudBillingLifecycle = require('./lib/cloud-billing-lifecycle');
 
 function integerEnvironmentSetting(name, fallback, minimum) {
   if (process.env[name] == null || process.env[name] === '') return fallback;
@@ -26,6 +27,14 @@ const CLOUD_REVISION_RETENTION_DAYS = integerEnvironmentSetting(
 const CLOUD_REVISION_RETENTION_MS = CLOUD_REVISION_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const CLOUD_DOCUMENT_RESTORE_WINDOW_MS = integerEnvironmentSetting(
   'CLOUD_DOCUMENT_RESTORE_WINDOW_MS', 30 * 24 * 60 * 60 * 1000, 1);
+const CLOUD_PAYMENT_GRACE_MS = integerEnvironmentSetting(
+  'CLOUD_PAYMENT_GRACE_MS', 7 * 24 * 60 * 60 * 1000, 1);
+const CLOUD_FAILED_PAYMENT_RETENTION_MS = integerEnvironmentSetting(
+  'CLOUD_FAILED_PAYMENT_RETENTION_MS', 60 * 24 * 60 * 60 * 1000, 1);
+const CLOUD_CANCELLATION_RETENTION_MS = integerEnvironmentSetting(
+  'CLOUD_CANCELLATION_RETENTION_MS', 30 * 24 * 60 * 60 * 1000, 1);
+const CLOUD_BILLING_DELETION_WARNING_MS = integerEnvironmentSetting(
+  'CLOUD_BILLING_DELETION_WARNING_MS', 7 * 24 * 60 * 60 * 1000, 1);
 const CLOUD_OAUTH_PROVIDER_TIMEOUT_MS = integerEnvironmentSetting(
   'CLOUD_OAUTH_PROVIDER_TIMEOUT_MS', 10 * 1000, 1000);
 const CLOUD_COLLABORATION_METRICS_INTERVAL_MS = integerEnvironmentSetting(
@@ -259,7 +268,7 @@ if (process.env.STRIPE_WEBHOOK_SECRET_FILE) {
 }
 if (process.env.CLOUD_BILLING_DB) {
   const { createBillingStore } = require('./lib/cloud-billing');
-  let planLimits = {};
+  let planLimits = cloudBillingLifecycle.DEFAULT_PLAN_LIMITS;
   if (process.env.CLOUD_PLAN_LIMITS_JSON) {
     try { planLimits = JSON.parse(process.env.CLOUD_PLAN_LIMITS_JSON); }
     catch (_) { throw new Error('CLOUD_PLAN_LIMITS_JSON must contain valid JSON'); }
@@ -308,6 +317,74 @@ function scheduleTeamSeatSync(workspaceId) {
   enqueueCloudJob({ type: 'team_seat_sync',
     idempotencyKey: workspaceId + ':' + usage.memberCount,
     payload: { workspaceId } });
+}
+
+const CLOUD_BILLING_POLICY = Object.freeze({
+  paymentGraceMs: CLOUD_PAYMENT_GRACE_MS,
+  failedPaymentRetentionMs: CLOUD_FAILED_PAYMENT_RETENTION_MS,
+  cancellationRetentionMs: CLOUD_CANCELLATION_RETENTION_MS,
+  deletionWarningMs: CLOUD_BILLING_DELETION_WARNING_MS,
+});
+
+function billingJobPayload(subscription, type, availableAtMs, recipientUserId) {
+  return {
+    workspaceId: subscription.workspaceId,
+    type,
+    recipientUserId: recipientUserId || null,
+    providerSubscriptionId: subscription.providerSubscriptionId,
+    currentPeriodEndMs: subscription.currentPeriodEndMs,
+    graceEndsAtMs: subscription.graceEndsAtMs,
+    retentionEndsAtMs: subscription.retentionEndsAtMs,
+    availableAtMs,
+  };
+}
+
+function billingJobAnchor(subscription, type, availableAtMs) {
+  return [subscription.workspaceId, subscription.providerSubscriptionId || 'subscription', type,
+    availableAtMs, subscription.retentionEndsAtMs, subscription.graceEndsAtMs].join(':');
+}
+
+function scheduleBillingLifecycleJobs(change) {
+  if (!cloudJobs || !cloudStore || !change || !change.after) return;
+  const subscription = change.after;
+  const owners = cloudStore.listWorkspaceOwnerUserIds(subscription.workspaceId);
+  const immediateAtMs = subscription.providerEventCreatedMs || subscription.updatedAtMs;
+  for (const type of cloudBillingLifecycle.transitionTypes(change.before, subscription)) {
+    for (const ownerUserId of owners) {
+      enqueueCloudJob({ type: 'billing_state_email',
+        idempotencyKey: billingJobAnchor(subscription, type, immediateAtMs) + ':' + ownerUserId,
+        payload: billingJobPayload(subscription, type, immediateAtMs, ownerUserId) });
+    }
+  }
+  for (const event of cloudBillingLifecycle.scheduledBillingEvents(
+    subscription, CLOUD_BILLING_POLICY)) {
+    const payload = billingJobPayload(subscription, event.type, event.availableAtMs, null);
+    if (event.type === 'retention_expire') {
+      enqueueCloudJob({ type: 'billing_retention_expire',
+        idempotencyKey: billingJobAnchor(subscription, event.type, event.availableAtMs),
+        payload, availableAtMs: event.availableAtMs });
+      continue;
+    }
+    for (const ownerUserId of owners) {
+      const ownerPayload = Object.assign({}, payload, { recipientUserId: ownerUserId });
+      enqueueCloudJob({ type: 'billing_state_email',
+        idempotencyKey: billingJobAnchor(subscription, event.type, event.availableAtMs) + ':' +
+          ownerUserId,
+        payload: ownerPayload, availableAtMs: event.availableAtMs });
+    }
+  }
+}
+
+function formatBillingDate(timestamp) {
+  if (!Number.isSafeInteger(timestamp)) return '';
+  const value = new Date(timestamp);
+  const date = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+  }).format(value);
+  const time = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC',
+  }).format(value);
+  return date + ' at ' + time + ' UTC';
 }
 
 async function processCloudJob(job) {
@@ -376,6 +453,43 @@ async function processCloudJob(job) {
       message.text, message.html);
     if (!delivered.ok) throw Object.assign(new Error('email_delivery_failed'),
       { code: 'email_delivery_failed' });
+    return;
+  }
+  if (job.type === 'billing_state_email') {
+    if (!cloudStore || !cloudAuth || !cloudBilling) {
+      throw Object.assign(new Error('temporary_service_failure'),
+        { code: 'temporary_service_failure' });
+    }
+    let subscription = cloudBilling.getSubscription(job.payload.workspaceId);
+    if (!cloudBillingLifecycle.billingEventApplies(subscription, job.payload, Date.now())) return;
+    const context = await cloudStore.getWorkspaceBillingContext(job.payload.workspaceId);
+    if (!context || !context.ownerUserIds.includes(job.payload.recipientUserId)) return;
+    const recipient = verifiedCloudEmail(job.payload.recipientUserId);
+    if (!recipient) return;
+    subscription = cloudBilling.getSubscription(job.payload.workspaceId);
+    if (!cloudBillingLifecycle.billingEventApplies(subscription, job.payload, Date.now())) return;
+    if (!teamsNotify.isConfigured()) throw Object.assign(new Error('email_delivery_not_configured'),
+      { code: 'email_delivery_not_configured' });
+    const message = emailTemplates.billingState({
+      type: job.payload.type,
+      accountName: context.name,
+      accessEndsAt: formatBillingDate(job.payload.type === 'payment_failed'
+        ? subscription.graceEndsAtMs : subscription.currentPeriodEndMs),
+      deletionDate: formatBillingDate(subscription.retentionEndsAtMs),
+      billingUrl: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/admin?panel=billing&workspace_id=' +
+        encodeURIComponent(subscription.workspaceId),
+    });
+    const delivered = await teamsNotify.sendTo(recipient, message.subject,
+      message.text, message.html);
+    if (!delivered.ok) throw Object.assign(new Error('email_delivery_failed'),
+      { code: 'email_delivery_failed' });
+    return;
+  }
+  if (job.type === 'billing_retention_expire') {
+    if (!cloudStore || !cloudBilling) return;
+    const subscription = cloudBilling.getSubscription(job.payload.workspaceId);
+    if (!cloudBillingLifecycle.billingEventApplies(subscription, job.payload, Date.now())) return;
+    cloudStore.purgeWorkspaceForBilling({ workspaceId: job.payload.workspaceId });
     return;
   }
   throw new Error('unknown_cloud_job_type');
@@ -2188,29 +2302,14 @@ function readRawBody(req, limit) {
   });
 }
 
-function stripeSubscriptionInput(subscription, eventCreatedMs) {
-  const metadata = subscription.metadata || {};
-  const statusMap = {
-    active: 'active', trialing: 'active', past_due: 'past_due', unpaid: 'read_only',
-    paused: 'read_only', canceled: 'canceled', incomplete: 'read_only',
-    incomplete_expired: 'canceled',
-  };
-  const item = subscription.items && subscription.items.data && subscription.items.data[0];
-  return {
-    workspaceId: metadata.workspace_id,
-    plan: metadata.plan,
-    status: statusMap[subscription.status] || 'read_only',
-    seatQuantity: Math.max(1, Number(item && item.quantity) || 1),
-    provider: 'stripe', providerCustomerId: subscription.customer,
-    providerSubscriptionId: subscription.id,
-    currentPeriodEndMs: subscription.current_period_end ? subscription.current_period_end * 1000 : null,
-    graceEndsAtMs: subscription.status === 'past_due' ? Date.now() +
-      Number(process.env.CLOUD_PAYMENT_GRACE_MS || 7 * 24 * 60 * 60 * 1000) : null,
-    canceledAtMs: subscription.canceled_at ? subscription.canceled_at * 1000 : null,
-    providerEventCreatedMs: eventCreatedMs,
-    providerSubscriptionCreatedMs: Number.isSafeInteger(subscription.created)
-      ? subscription.created * 1000 : null,
-  };
+function stripeSubscriptionInput(subscription, eventCreatedMs, existing) {
+  return cloudBillingLifecycle.buildStripeSubscriptionUpdate({
+    subscription,
+    existing,
+    eventCreatedMs,
+    now: Number.isSafeInteger(eventCreatedMs) ? eventCreatedMs : Date.now(),
+    policy: CLOUD_BILLING_POLICY,
+  });
 }
 
 async function handleStripeWebhook(req, res) {
@@ -2223,15 +2322,19 @@ async function handleStripeWebhook(req, res) {
     cloudBilling.processWebhookEvent({ provider: 'stripe', eventId: event.id,
       eventType: event.type, payload: rawBody }, (store) => {
       if (event.type.startsWith('customer.subscription.')) {
+        const metadata = event.data.object.metadata || {};
+        const existing = metadata.workspace_id
+          ? store.getSubscription(metadata.workspace_id) : null;
         const input = stripeSubscriptionInput(event.data.object,
-          Number.isSafeInteger(event.created) ? event.created * 1000 : null);
+          Number.isSafeInteger(event.created) ? event.created * 1000 : null, existing);
         if (input.workspaceId && input.plan) {
-          const existing = store.getSubscription(input.workspaceId);
-          if (input.status === 'past_due' && existing && existing.status === 'past_due' &&
-              existing.graceEndsAtMs != null) input.graceEndsAtMs = existing.graceEndsAtMs;
-          store.upsertSubscription(input);
+          const after = store.upsertSubscription(input);
+          const change = { before: existing, after };
+          scheduleBillingLifecycleJobs(change);
+          return change;
         }
       }
+      return null;
     });
     sendJson(res, 200, { received: true });
   } catch (error) {

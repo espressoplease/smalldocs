@@ -128,6 +128,7 @@ module.exports = function(harness) {
     });
 
     test('job status output is redacted and can fail on dead delivery work', () => {
+      assert.ok(jobStatus.EMAIL_JOB_TYPES.includes('billing_state_email'));
       const delivery = first.enqueue({ type: 'document_notification_email',
         idempotencyKey: 'private-recipient@example.com',
         payload: { recipient: 'private-recipient@example.com', documentTitle: 'Private plan' },

@@ -102,6 +102,28 @@ module.exports = function(harness) {
         'Tom Smith sent you a document link from SmallDocs Cloud');
       assert.ok(oneDocument.text.startsWith('Tom Smith sent you a document in SmallDocs Cloud.'));
       assert.ok(oneDocument.html.includes('>Document from Tom Smith</h1>'));
+
+      const paymentFailed = templates.billingState({ type: 'payment_failed',
+        accountName: 'SmallDocs Demo', accessEndsAt: '28 August 2026',
+        deletionDate: '20 October 2026',
+        billingUrl: 'https://cloud-staging.smalldocs.org/cloud/admin?panel=billing' });
+      assert.strictEqual(paymentFailed.subject, 'Payment failed for SmallDocs Demo');
+      assert.ok(paymentFailed.text.includes('keep editing until 28 August 2026'));
+      assert.ok(paymentFailed.text.includes('permanently deleted on 20 October 2026'));
+      assert.ok(paymentFailed.html.includes('Update billing'));
+
+      const canceled = templates.billingState({ type: 'cancellation_scheduled',
+        accountName: 'SmallDocs Demo', accessEndsAt: '1 September 2026',
+        deletionDate: '1 October 2026',
+        billingUrl: 'https://cloud-staging.smalldocs.org/cloud/admin?panel=billing' });
+      assert.ok(canceled.text.includes('remain active through the paid period'));
+      assert.ok(canceled.text.includes('still open and export documents'));
+
+      const warning = templates.billingState({ type: 'deletion_warning',
+        accountName: 'SmallDocs Demo', deletionDate: '1 October 2026',
+        billingUrl: 'https://cloud-staging.smalldocs.org/cloud/admin?panel=billing' });
+      assert.ok(warning.subject.includes('on 1 October 2026'));
+      assert.ok(warning.html.includes('Export any documents'));
     });
 
     test('email templates escape names and titles in HTML', () => {
@@ -116,6 +138,13 @@ module.exports = function(harness) {
       assert.ok(message.html.includes('id=one&amp;view=cloud'));
       assert.throws(() => templates.workspaceInvitation({ acceptUrl: 'javascript:alert(1)' }),
         /http or https/);
+      const billing = templates.billingState({ type: 'payment_recovered',
+        accountName: '<Team>', billingUrl: 'https://smalldocs.org/cloud?one=1&two=2' });
+      assert.ok(billing.html.includes('&lt;Team&gt;'));
+      assert.ok(!billing.html.includes('<Team>'));
+      assert.ok(billing.html.includes('one=1&amp;two=2'));
+      assert.throws(() => templates.billingState({ type: 'unknown',
+        billingUrl: 'https://smalldocs.org/cloud' }), /unsupported billing email type/);
     });
 
     test('multipart messages carry plain-text and HTML alternatives', () => {

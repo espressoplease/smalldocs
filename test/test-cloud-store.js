@@ -969,6 +969,29 @@ module.exports = function(harness) {
       `).get(team.projectId, purgeDocument.id).count, 0);
     });
 
+    await testAsync('billing retention can permanently remove a Personal workspace', async () => {
+      const billingOwner = 'usr_billing_owner';
+      const billingPersonal = await store.ensurePersonalWorkspace(billingOwner, 'Billing Owner');
+      const billingDocument = await store.createDocument({ userId: billingOwner,
+        projectId: billingPersonal.projectId, filename: 'billing-retention.md',
+        markdown: '# Billing retention', idempotencyKey: 'billing-retention-document' });
+      const context = await store.getWorkspaceBillingContext(billingPersonal.workspaceId);
+      assert.strictEqual(context.name, 'Billing Owner');
+      assert.deepStrictEqual(context.ownerUserIds, [billingOwner]);
+      assert.deepStrictEqual(store.listWorkspaceOwnerUserIds(billingPersonal.workspaceId),
+        [billingOwner]);
+      assert.strictEqual(store.purgeWorkspaceForBilling({
+        workspaceId: billingPersonal.workspaceId,
+      }).purged_count, 1);
+      assert.strictEqual(store.db.prepare('SELECT COUNT(*) AS count FROM cloud_workspaces WHERE id = ?')
+        .get(billingPersonal.workspaceId).count, 0);
+      assert.strictEqual(store.db.prepare('SELECT COUNT(*) AS count FROM cloud_documents WHERE id = ?')
+        .get(billingDocument.id).count, 0);
+      assert.strictEqual(store.purgeWorkspaceForBilling({
+        workspaceId: billingPersonal.workspaceId,
+      }).purged_count, 0);
+    });
+
     await testAsync('an asynchronous managed KMS provider round-trips store content', async () => {
       const managedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-store-managed-'));
       const workingKms = createAsyncKms(Buffer.alloc(32, 21));

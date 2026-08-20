@@ -387,26 +387,27 @@ https://smalldocs.org/api/cloud/billing/stripe/webhook
 - [ ] Confirm an older webhook cannot overwrite newer subscription state.
 - [ ] Confirm active-member count and billed-seat quantity reconcile after invitations and removals.
 
-### Product allowances to decide
+### Product allowances
 
-There is deliberately no document-count limit. Decide these values and put them in `CLOUD_PLAN_LIMITS_JSON`:
+There is no document-count limit. The approved launch values are:
 
 | Decision | Personal | Team |
 | --- | --- | --- |
-| Total stored bytes | Decide | Decide |
+| Total stored bytes | 1 GB | 5 GB shared per workspace |
 | Maximum file bytes | 10 MB | 10 MB |
 | Revision retention days | 90 | 90 |
-| Maximum projects | Decide | Decide |
-| Maximum human members | `1` | Decide |
-| Search requests and window | Decide | Decide |
+| Maximum projects | No plan cap | No plan cap |
+| Maximum human members | `1` | No plan cap beyond paid seats |
+| Search requests and window | Operational limits only | Operational limits only |
 
 Also decide:
 
-- [ ] Failed-payment grace period, then read-only behavior.
+- [x] Failed payment keeps editing available for seven days, then becomes read-only with export. Permanently delete Cloud data 60 days after the first failed-payment event unless payment recovers.
 - [x] Keep no more than three previous revisions per document and expire them after 90 days.
 - [x] Keep deleted documents and Team workspaces recoverable for 30 days.
-- [ ] Backup expiry after logical deletion.
-- [ ] Whether Team storage is a fixed workspace allowance or grows with paid seats. The current billing model supports a fixed workspace allowance.
+- [x] Backups age out through the normal backup-retention cycle after logical deletion.
+- [x] Team storage is a fixed 5 GB shared workspace allowance and does not grow with paid seats.
+- [x] Cancellation keeps normal access through the paid period, then becomes read-only with export. Permanently delete Cloud data 30 days after the paid period ends unless the subscription restarts.
 
 Publish the chosen limits on `/cloud` before taking payment. The current page lists prices but not storage, file-size, project, or retention allowances.
 
@@ -469,8 +470,11 @@ STRIPE_PORTAL_CONFIGURATION_ID=bpc_...
 STRIPE_PERSONAL_PRICE_ID=price_...
 STRIPE_TEAM_PRICE_ID=price_...
 
-CLOUD_PLAN_LIMITS_JSON='{"personal":{"maxStoredBytes":null,"maxFileBytes":10485760,"revisionRetentionDays":90,"maxProjects":null,"maxMembers":null,"search":{"maxRequests":null,"windowMs":null}},"team":{"maxStoredBytes":null,"maxFileBytes":10485760,"revisionRetentionDays":90,"maxProjects":null,"maxMembers":null,"search":{"maxRequests":null,"windowMs":null}}}'
-CLOUD_PAYMENT_GRACE_MS=...
+CLOUD_PLAN_LIMITS_JSON='{"personal":{"maxStoredBytes":1073741824,"maxFileBytes":10485760,"revisionRetentionDays":90,"maxProjects":null,"maxMembers":1,"search":{"maxRequests":null,"windowMs":null}},"team":{"maxStoredBytes":5368709120,"maxFileBytes":10485760,"revisionRetentionDays":90,"maxProjects":null,"maxMembers":null,"search":{"maxRequests":null,"windowMs":null}}}'
+CLOUD_PAYMENT_GRACE_MS=604800000
+CLOUD_FAILED_PAYMENT_RETENTION_MS=5184000000
+CLOUD_CANCELLATION_RETENTION_MS=2592000000
+CLOUD_BILLING_DELETION_WARNING_MS=604800000
 CLOUD_REVISION_KEEP_PREVIOUS=3
 CLOUD_REVISION_RETENTION_DAYS=90
 CLOUD_DOCUMENT_RESTORE_WINDOW_MS=2592000000

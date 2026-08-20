@@ -4,14 +4,14 @@
 const path = require('path');
 const { createCloudJobs } = require('../lib/cloud-jobs');
 
-const EMAIL_JOB_TYPES = ['invitation_email', 'document_notification_email'];
+const EMAIL_JOB_TYPES = ['invitation_email', 'document_notification_email', 'billing_state_email'];
 
 function usage() {
   return [
     'Usage: node scripts/cloud-job-status.js [--db PATH] [--email] [--json] [--fail-on-dead]',
     '',
     'Reads Cloud job state without printing job payloads, recipient addresses, or document data.',
-    'Use --email to show only invitation and document-notification delivery jobs.',
+    'Use --email to show only invitation, document-notification, and billing-state delivery jobs.',
   ].join('\n');
 }
 

@@ -1,7 +1,7 @@
 # Testing SmallDocs email
 
 Read this guide when changing authentication email, account invitations,
-document notifications, SMTP delivery, or email templates.
+document notifications, billing-state notifications, SMTP delivery, or email templates.
 
 ## What runs where
 
@@ -30,7 +30,10 @@ running, then sends previews for:
 
 - a sign-in code;
 - an account invitation;
-- a document notification containing three document links and a sender note.
+- a document notification containing three document links and a sender note;
+- payment failure, payment received, and payment read-only states;
+- cancellation scheduled, cancellation removed, and cancellation effective states;
+- the final deletion warning.
 
 Open [http://127.0.0.1:8025](http://127.0.0.1:8025). Mailpit shows the rendered
 HTML, plain text, headers, raw MIME, link checks, and phone-sized previews.
@@ -122,10 +125,10 @@ On a host with read access to the staging jobs database, run:
 npm run cloud:jobs -- --email
 ```
 
-The command opens `CLOUD_JOBS_DB` read-only and reports counts for invitation
-and document-notification jobs. It does not print job IDs, payloads, recipient
-addresses, document titles, or notes. Use `--db PATH` when inspecting a copied
-database rather than the configured service database.
+The command opens `CLOUD_JOBS_DB` read-only and reports counts for invitation,
+document-notification, and billing-state email jobs. It does not print job IDs,
+payloads, recipient addresses, document titles, or notes. Use `--db PATH` when
+inspecting a copied database rather than the configured service database.
 
 For monitoring or a deployment check, use:
 
@@ -140,7 +143,7 @@ waiting for its scheduled retry. The output includes the oldest pending age
 so the operator can apply the environment's alert threshold.
 
 During a staging check, capture the status before sending, trigger one sign-in
-code, one invitation, and one document notification, then run the command
-again. Confirm the new delivery work reaches `complete`. Compare the result
-with the Resend activity view when diagnosing provider delivery after SMTP
-acceptance.
+code, one invitation, one document notification, and the relevant Stripe test
+state, then run the command again. Confirm the new delivery work reaches
+`complete`. Compare the result with the Resend activity view when diagnosing
+provider delivery after SMTP acceptance.

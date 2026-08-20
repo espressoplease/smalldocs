@@ -48,6 +48,8 @@ module.exports = function (harness) {
       assert.strictEqual(subscription.workspaceId, 'wrk_personal');
       assert.strictEqual(subscription.provider, 'testpay');
       assert.strictEqual(subscription.providerSubscriptionId, 'subscription_1');
+      assert.strictEqual(subscription.cancelAtPeriodEnd, false);
+      assert.strictEqual(subscription.retentionEndsAtMs, null);
       assert.strictEqual(subscription.createdAtMs, clock);
     });
 
@@ -105,6 +107,20 @@ module.exports = function (harness) {
       assert.strictEqual(expired.access.read, true);
       assert.strictEqual(expired.access.write, false);
       assert.ok(expired.blockedBy.includes('payment_grace_expired'));
+    });
+
+    test('scheduled cancellation becomes read only at the paid-through time', () => {
+      billing.upsertSubscription({
+        workspaceId: 'wrk_scheduled_cancel', plan: 'team', status: 'active', seatQuantity: 2,
+        cancelAtPeriodEnd: true, currentPeriodEndMs: clock + 1000,
+        retentionEndsAtMs: clock + 2000,
+      });
+      assert.strictEqual(billing.computeEntitlements('wrk_scheduled_cancel').access.write, true);
+      clock += 1000;
+      const ended = billing.computeEntitlements('wrk_scheduled_cancel');
+      assert.strictEqual(ended.effectiveStatus, 'canceled');
+      assert.strictEqual(ended.access.read, true);
+      assert.strictEqual(ended.access.write, false);
     });
 
     test('canceled and explicit read only subscriptions retain read access only', () => {

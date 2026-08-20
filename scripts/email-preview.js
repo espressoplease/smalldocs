@@ -78,7 +78,27 @@ async function main() {
         url: 'https://cloud-staging.smalldocs.org/docs?cloud-document=security-review' },
     ],
   }));
-  process.stdout.write('\nCaptured three preview messages.\nOpen ' + uiOrigin + '\n');
+  const billingUrl = 'https://cloud-staging.smalldocs.org/cloud/admin?panel=billing';
+  const billingPreviews = [
+    ['payment-failed', { type: 'payment_failed', accountName: 'SmallDocs Demo',
+      accessEndsAt: '28 August 2026', deletionDate: '20 October 2026', billingUrl }],
+    ['payment-recovered', { type: 'payment_recovered', accountName: 'SmallDocs Demo', billingUrl }],
+    ['payment-read-only', { type: 'payment_read_only', accountName: 'SmallDocs Demo',
+      deletionDate: '20 October 2026', billingUrl }],
+    ['cancellation-scheduled', { type: 'cancellation_scheduled', accountName: 'SmallDocs Demo',
+      accessEndsAt: '1 September 2026', deletionDate: '1 October 2026', billingUrl }],
+    ['cancellation-reversed', { type: 'cancellation_reversed', accountName: 'SmallDocs Demo',
+      billingUrl }],
+    ['cancellation-effective', { type: 'cancellation_effective', accountName: 'SmallDocs Demo',
+      deletionDate: '1 October 2026', billingUrl }],
+    ['deletion-warning', { type: 'deletion_warning', accountName: 'SmallDocs Demo',
+      deletionDate: '1 October 2026', billingUrl }],
+  ];
+  for (const [recipient, input] of billingPreviews) {
+    await sendPreview(recipient + '@preview.smalldocs.test', templates.billingState(input));
+  }
+  process.stdout.write('\nCaptured ' + (3 + billingPreviews.length) +
+    ' preview messages.\nOpen ' + uiOrigin + '\n');
 }
 
 main().catch((error) => {
