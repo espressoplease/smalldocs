@@ -65,6 +65,23 @@ body {
 .muted { color: var(--text-3); }
 .topbar-spacer { flex: 1; }
 
+.library-sign-in {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.library-sign-in:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+.library-sign-in svg { width: 15px; height: 15px; }
+
 .nav-menu { position: relative; }
 .nav-menu summary { list-style: none; }
 .nav-menu summary::-webkit-details-marker { display: none; }

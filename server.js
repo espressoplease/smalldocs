@@ -878,6 +878,24 @@ function homepageNavigation(req) {
   };
 }
 
+function documentNavigation(req) {
+  const navigation = homepageNavigation(req);
+  const signIn = !navigation.authenticated && CLOUD_DEPLOYMENT.publicEnabled
+    ? homepageNavLink('doc-site-nav-link doc-site-sign-in',
+      '/cloud/sign-in?return=%2Fdocs', 'signIn', 'Sign in',
+      ' data-sdocs-sign-in-return')
+    : '';
+  return {
+    authenticated: navigation.authenticated,
+    substitutions: {
+      '__DOCUMENT_LIBRARY_HREF__': navigation.authenticated ? '/library?scope=cloud' : '/library',
+      '<!--__DOCUMENT_NAV_SIGN_IN__-->': signIn,
+      '<!--__DOCUMENT_NAV_MENU_BEFORE__-->': navigation.menuBefore,
+      '<!--__DOCUMENT_NAV_MENU_AFTER__-->': navigation.menuAfter,
+    },
+  };
+}
+
 function cloudApiError(res, error) {
   const code = error && error.name === 'KmsKeyProviderError'
     ? 'temporary_service_failure'
@@ -2469,6 +2487,7 @@ const server = http.createServer((req, res) => {
     ].join('; ');
     const libraryNavigation = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'library.html'), {
+      '__CLOUD_AUTHENTICATED__': libraryNavigation.authenticated ? 'true' : 'false',
       '__CLOUD_LIBRARY_STYLES__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<link rel="stylesheet" href="/public/library/cloud-library-prototype.css">' : '',
       '__CLOUD_LIBRARY_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled
@@ -2478,6 +2497,10 @@ const server = http.createServer((req, res) => {
         ? libraryNavigation.menuBefore : '',
       '<!--__LIBRARY_NAV_MENU_AFTER__-->': libraryNavigation.authenticated
         ? libraryNavigation.menuAfter : '',
+      '<!--__LIBRARY_NAV_ACTIONS__-->': !libraryNavigation.authenticated && CLOUD_DEPLOYMENT.publicEnabled
+        ? homepageNavLink('library-sign-in',
+          '/cloud/sign-in?return=' + encodeURIComponent(pathname + url.search), 'signIn', 'Sign in')
+        : '',
     }, {
       'Cache-Control': CLOUD_DEPLOYMENT.publicEnabled ? 'private, no-store' : 'no-cache',
       ...(CLOUD_DEPLOYMENT.publicEnabled ? { Vary: 'Cookie' } : {}),
@@ -2585,6 +2608,7 @@ const server = http.createServer((req, res) => {
   // The /s/<id> id range stays {1,32} so links minted before the id-length
   // bump (8 chars) and after it (22 chars) both serve the app shell.
   if (pathname === '/docs' || pathname === '/new' || pathname === '/legal' || pathname === '/privacy' || pathname === '/agent-changes' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+    const documentNav = documentNavigation(req);
     const nonce = crypto.randomBytes(16).toString('base64');
     const defaultMdPath = pathname === '/legal'
       ? '/public/legal.md'
@@ -2629,8 +2653,10 @@ const server = http.createServer((req, res) => {
           + '<script src="/public/sdocs-cloud-prototype.js"></script>'
           + (CLOUD_UI_LAB_ENABLED
             ? '<script src="/public/sdocs-cloud-ui-lab.js"></script>' : '') : '',
+      ...documentNav.substitutions,
     }, {
-      'Cache-Control': 'no-cache',
+      'Cache-Control': documentNav.authenticated ? 'private, no-store' : 'no-cache',
+      'Vary': 'Cookie',
       'Content-Security-Policy': csp,
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',

@@ -107,9 +107,53 @@
   white-space: nowrap;
 }
 .cloud-access-note svg { color: var(--accent); }
+.cloud-signed-out {
+  max-width: 660px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 26px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-input);
+}
+.cloud-signed-out[hidden] { display: none; }
+.cloud-signed-out > svg {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cloud-signed-out h1 { margin: 0 0 7px; font-size: 20px; line-height: 1.2; }
+.cloud-signed-out p { max-width: 520px; color: var(--text-2); line-height: 1.55; }
+.cloud-signed-out-actions { display: flex; align-items: center; gap: 12px; margin-top: 18px; }
+.cloud-signed-out-actions a {
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+}
+.cloud-signed-out-actions a:hover { background: var(--bg-hover); }
+.cloud-signed-out-actions .cloud-signed-out-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-inv);
+}
+body.cloud-library-signed-out .input-block,
+body.cloud-library-signed-out .results-meta,
+body.cloud-library-signed-out #results,
+body.cloud-library-signed-out #cloud-library-heading { display: none; }
 @media (max-width: 700px) {
   .cloud-library-nav { align-items: stretch; flex-direction: column; }
   .cloud-library-actions { justify-content: space-between; }
   .workspace-button > span:nth-child(2),
   .cloud-access-note { display: none; }
+  .cloud-signed-out { margin-top: 18px; padding: 20px; }
 }

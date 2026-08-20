@@ -19,10 +19,28 @@ async function installCloudLibraryApi(page, workspaces) {
 
 async function openCloudLibrary(page) {
   await page.goto('/public/library/library.html?scope=cloud');
+  await page.evaluate(() => { document.body.dataset.cloudAuthenticated = 'true'; });
   await page.addStyleTag({ url: '/public/library/cloud-library-prototype.css' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
   await page.addScriptTag({ url: '/public/library/cloud-library-prototype.js' });
 }
+
+test('signed-out Cloud Library explains the feature without calling Cloud APIs', async ({ page }) => {
+  const requests = [];
+  page.on('request', request => {
+    if (request.url().includes('/api/cloud/')) requests.push(request.url());
+  });
+  await page.goto('/public/library/library.html?scope=cloud');
+  await page.addStyleTag({ url: '/public/library/cloud-library-prototype.css' });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
+  await page.addScriptTag({ url: '/public/library/cloud-library-prototype.js' });
+
+  await expect(page.getByRole('heading', { name: 'Cloud Library' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Learn about Cloud' })).toBeVisible();
+  await expect(page.locator('.input-block')).toBeHidden();
+  expect(requests).toEqual([]);
+});
 
 test('one-account Library opens directly and hides the account switcher', async ({ page }) => {
   await installCloudLibraryApi(page, [

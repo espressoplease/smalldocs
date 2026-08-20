@@ -795,6 +795,10 @@ function isCloudMode() {
   return params.get('scope') === 'cloud';
 }
 
+function isSignedOutCloudMode() {
+  return isCloudMode() && document.body.dataset.cloudAuthenticated !== 'true';
+}
+
 function cloudEntry(document) {
   const match = document.matches && document.matches[0];
   return {
@@ -1111,11 +1115,11 @@ document.getElementById('clear').addEventListener('click', () => {
 // gate, but only the connected / force paths actually hit the agent
 // (loadData() short-circuits to baked entries when demo=1).
 const search = new URLSearchParams(location.search);
-if (!window.SDocsConnect ||
+if (!isSignedOutCloudMode() && (!window.SDocsConnect ||
     window.SDocsConnect.isConnected() ||
     search.get('force') === '1' ||
     search.get('demo')  === '1' ||
-    search.get('scope') === 'cloud') {
+    search.get('scope') === 'cloud')) {
   loadData();
 }
 

@@ -11,13 +11,15 @@ test('real Cloud document controls save, share, tag, and remove through account 
   await page.route('**/api/cloud/v1/**', async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
-    calls.push({ method: request.method(), path });
+    calls.push({ method: request.method(), path,
+      body: request.method() === 'GET' ? null : request.postDataJSON() });
     if (path === '/api/cloud/v1/workspaces') return route.fulfill({ json: { ok: true,
       workspaces: [{ id: 'acct-1', kind: 'team', name: 'SmallDocs', role: 'admin' }],
       user: { id: 'usr-1', first_name: 'Josh', last_name: 'Summers' } } });
     if (path === '/api/cloud/v1/account') return route.fulfill({ json: { ok: true,
       account: { id: 'acct-1', kind: 'team', name: 'SmallDocs', role: 'admin', can_write: true },
-      accounts: [], user: { id: 'usr-1', email: 'josh@example.com' } } });
+      accounts: [], user: { id: 'usr-1', email: 'josh@example.com',
+        first_name: 'Josh', last_name: 'Summers' } } });
     if (path === '/api/cloud/v1/account/members') return route.fulfill({ json: { ok: true,
       account_id: 'acct-1', members: [
         { user_id: 'usr-1', email: 'josh@example.com', name: 'Josh', initials: 'JS', is_you: true },
@@ -41,6 +43,13 @@ test('real Cloud document controls save, share, tag, and remove through account 
       return route.fulfill({ json: { ok: true, document: { id: 'doc-1', filename: 'sdoc.md',
         title: 'SmallDocs', tags, current_revision_id: 'rev-' + revision, revision_number: revision } } });
     }
+    if (path === '/api/cloud/v1/documents/doc-1/revisions') {
+      revision += 1;
+      return route.fulfill({ status: 201, json: { ok: true, document: {
+        id: 'doc-1', filename: 'sdoc.md', title: 'SmallDocs', tags,
+        current_revision_id: 'rev-' + revision, revision_number: revision,
+        workspace_id: 'acct-1' } } });
+    }
     if (path === '/api/cloud/v1/documents/doc-1' && request.method() === 'DELETE') {
       return route.fulfill({ json: { ok: true, document: { id: 'doc-1' } } });
     }
@@ -59,6 +68,41 @@ test('real Cloud document controls save, share, tag, and remove through account 
   await expect(page.locator('.sdoc-cloud-lab-access')).toContainText('You');
   expect(calls.some(call => call.method === 'POST' &&
     call.path === '/api/cloud/v1/account/documents')).toBe(true);
+
+  await page.getByRole('button', { name: 'Comment mode' }).click();
+  await expect(page.locator('#_sd_comment-pref-author')).toHaveValue('Josh Summers');
+  await expect(page.locator('#_sd_comment-pref-author')).toHaveAttribute('readonly', '');
+  await page.evaluate(() => {
+    var prefs = window.SDocs.commentsUi.readPrefs();
+    var result = window.SDocComments.addBlockComment(window.SDocs.currentMeta || {},
+      { block: 'p:0', block_text: 'SmallDocs' },
+      { text: 'Cloud comment', author: prefs.author, color: prefs.color,
+        at: '2026-08-20T15:30:00.000Z' });
+    window.SDocs.currentMeta = result.meta;
+    window.SDocs.syncAll('comment');
+  });
+  await expect.poll(() => calls.filter(call =>
+    call.path === '/api/cloud/v1/documents/doc-1/revisions').length).toBe(1);
+  const savedComment = calls.find(call =>
+    call.path === '/api/cloud/v1/documents/doc-1/revisions').body.markdown;
+  expect(savedComment).toContain('author: "Josh Summers"');
+  expect(savedComment).toContain('at: "2026-08-20T15:30:00.000Z"');
+  expect(savedComment).toContain('text: "Cloud comment"');
+  const savedFrontMatter = savedComment.slice(0, savedComment.indexOf('\n---\n', 4));
+  expect(savedFrontMatter).not.toContain('baseFontSize: 16');
+
+  await page.evaluate(() => {
+    window.SDocs.currentBody += '\n\nCloud body edit.';
+    window.SDocs.syncAll('write');
+  });
+  await expect.poll(() => calls.filter(call =>
+    call.path === '/api/cloud/v1/documents/doc-1/revisions').length).toBe(2);
+  const savedBody = calls.filter(call =>
+    call.path === '/api/cloud/v1/documents/doc-1/revisions')[1].body.markdown;
+  expect(savedBody).toContain('Cloud body edit.');
+  expect(calls.filter(call =>
+    call.path === '/api/cloud/v1/documents/doc-1/revisions')[1]
+    .body.expected_head_revision_id).toBe('rev-2');
 
   await page.locator('.sdoc-cloud-lab-access').click();
   await expect(page.getByRole('textbox', { name: 'Company email domain' })).toHaveCount(0);
@@ -124,4 +168,65 @@ test('Add to Cloud asks before uploading when several accounts have no saved cho
   expect(calls.some(call => call.path === '/api/cloud/v1/account'
     && call.query === '?account_id=team-1')).toBe(true);
   expect(calls.some(call => call.path === '/api/cloud/v1/account/documents')).toBe(true);
+});
+
+test('a revision conflict preserves the local edit and blocks further overwrites', async ({ page }) => {
+  const revisionCalls = [];
+  await page.route('**/api/cloud/v1/**', async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path === '/api/cloud/v1/documents/doc-conflict/revisions') {
+      revisionCalls.push(request.postDataJSON());
+      return route.fulfill({ status: 409, json: { ok: false, error: 'revision_conflict',
+        document_id: 'doc-conflict', base_revision_id: 'rev-1', current_revision_id: 'rev-remote' } });
+    }
+    return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
+  });
+
+  await page.goto('/docs');
+  await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
+  await page.evaluate(() => {
+    window.SDocs.cloudDocument = { id: 'doc-conflict', filename: 'draft.md',
+      current_revision_id: 'rev-1', revision_number: 1 };
+    window.SDocs._loadingDocument = false;
+    window.SDocs.currentBody = '# Draft\n\nMy unsaved edit.';
+    window.SDocs.syncAll('write');
+  });
+
+  await expect.poll(() => revisionCalls.length).toBe(1);
+  await expect(page.locator('#_sd_status-text')).toContainText('changed in Cloud');
+  expect(await page.evaluate(() => window.SDocs.currentBody)).toContain('My unsaved edit.');
+
+  await page.evaluate(() => {
+    window.SDocs.currentBody += '\n\nA second local edit.';
+    window.SDocs.syncAll('write');
+  });
+  await page.waitForTimeout(1000);
+  expect(revisionCalls).toHaveLength(1);
+  expect(await page.evaluate(() => window.SDocs.currentBody)).toContain('A second local edit.');
+});
+
+test('local comments do not create Cloud documents or revisions', async ({ page }) => {
+  const mutationCalls = [];
+  await page.route('**/api/cloud/v1/**', async route => {
+    if (route.request().method() !== 'GET') mutationCalls.push({
+      method: route.request().method(), path: new URL(route.request().url()).pathname });
+    return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
+  });
+
+  await page.goto('/docs');
+  await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
+  await page.evaluate(() => {
+    var result = window.SDocComments.addBlockComment(window.SDocs.currentMeta || {},
+      { block: 'p:0', block_text: 'SmallDocs' },
+      { text: 'Local only', author: 'Local reader', color: '#ffbb00' });
+    window.SDocs.currentMeta = result.meta;
+    window.SDocs.syncAll('comment');
+  });
+  await page.waitForTimeout(250);
+  expect(mutationCalls).toEqual([]);
 });

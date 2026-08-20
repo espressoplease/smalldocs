@@ -35,7 +35,7 @@
   #_sd_left-toolbar > * { flex-shrink: 0; }
   #_sd_left-toolbar > #_sd_toolbar-brand,
   #_sd_left-toolbar > .toggle-group,
-  #_sd_left-toolbar > #_sd_btn-library { justify-self: auto; }
+  #_sd_left-toolbar > .doc-site-nav { justify-self: auto; }
   #_sd_toolbar-brand { margin-right: 0; }
 
   /* ── Stack layout instead of side-by-side ── */
@@ -55,8 +55,10 @@
   /* ── Write toolbar: sticky below left-toolbar ── */
   body.write-mode #_sd_write-toolbar { position: sticky; top: 36px; z-index: 98; justify-content: flex-start; }
 
-  /* ── Left toolbar: hide library button (desktop-only) ── */
+  /* Keep sign-in and the site menu visible. Library moves into the menu. */
   #_sd_btn-library { display: none; }
+  .doc-site-nav { margin-left: auto; }
+  .doc-site-menu-panel .nav-menu-mobile-only { display: flex; }
 
   /* ── Status bar: hidden on mobile ── */
   #_sd_statusbar { display: none; }

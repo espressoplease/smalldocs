@@ -140,6 +140,12 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 .sdoc-comment-pref-author:focus {
   border-color: var(--text-3);
 }
+.sdoc-comment-pref-author.cloud-comment-author {
+  cursor: default;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
 .sdoc-comment-pref-color {
   width: 22px;
   height: 22px;

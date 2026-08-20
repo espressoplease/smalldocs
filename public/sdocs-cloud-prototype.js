@@ -15,6 +15,11 @@ var CLOSE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18
 var pendingChallenge = null;
 var cloudState = { account: null, accounts: [], user: null, members: [], permission: null,
   suggestedTags: [], panel: null, status: '', busy: false };
+var cloudSaveTimer = null;
+var cloudSavePromise = null;
+var cloudSaveQueued = false;
+var cloudSaveBlocked = false;
+var cloudLastSavedMarkdown = null;
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, function (character) {
@@ -33,7 +38,97 @@ function currentFilename() {
 
 function currentMarkdown() {
   var meta = Object.assign({}, S.currentMeta || {});
+  if (typeof SDocStyles !== 'undefined' && typeof S.collectStyles === 'function') {
+    var styles = SDocStyles.stripStyleDefaults(S.collectStyles());
+    if (styles && Object.keys(styles).length) meta.styles = styles;
+    else delete meta.styles;
+  }
   return SDocYaml.serializeFrontMatter(meta) + '\n' + (S.currentBody || '');
+}
+
+function cloudCommentIdentity() {
+  if (!S.cloudDocument || !cloudState.user) return null;
+  var parts = [cloudState.user.first_name, cloudState.user.last_name].filter(Boolean);
+  return parts.length ? parts.join(' ') : cloudState.user.email || null;
+}
+
+S.cloudCommentIdentity = cloudCommentIdentity;
+
+function setCloudSaveStatus(message, kind) {
+  cloudState.status = message;
+  if (S.setStatus) S.setStatus(message, kind);
+  if (cloudState.panel) renderCloudPanel();
+}
+
+async function saveCloudRevision() {
+  if (!S.cloudDocument || cloudSaveBlocked) return null;
+  if (cloudSavePromise) {
+    cloudSaveQueued = true;
+    return cloudSavePromise;
+  }
+  var markdown = currentMarkdown();
+  if (markdown === cloudLastSavedMarkdown) return S.cloudDocument;
+  var documentId = S.cloudDocument.id;
+  var expectedHead = S.cloudDocument.current_revision_id;
+  setCloudSaveStatus('Saving to Cloud...');
+  cloudSavePromise = jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
+    + '/revisions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ markdown: markdown, filename: currentFilename(),
+        expected_head_revision_id: expectedHead, idempotency_key: crypto.randomUUID() }) })
+    .then(function (data) {
+      S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
+      cloudLastSavedMarkdown = markdown;
+      setCloudSaveStatus('Saved to Cloud.');
+      return S.cloudDocument;
+    })
+    .catch(function (error) {
+      if (error.data && error.data.error === 'revision_conflict') {
+        cloudSaveBlocked = true;
+        setCloudSaveStatus('This document changed in Cloud. Reopen it before saving again.', 'error');
+      } else {
+        setCloudSaveStatus('Changes were not saved to Cloud.', 'error');
+      }
+      throw error;
+    })
+    .finally(function () {
+      cloudSavePromise = null;
+      if (cloudSaveQueued && !cloudSaveBlocked && S.cloudDocument) {
+        cloudSaveQueued = false;
+        if (currentMarkdown() !== cloudLastSavedMarkdown) queueCloudSave('queued');
+      } else {
+        cloudSaveQueued = false;
+      }
+    });
+  return cloudSavePromise;
+}
+
+function queueCloudSave(source) {
+  if (!S.cloudDocument || S._loadingDocument || cloudSaveBlocked) return;
+  if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(function () {
+    cloudSaveTimer = null;
+    saveCloudRevision().catch(function () {});
+  }, source === 'comment' ? 0 : 800);
+}
+
+function flushCloudSave() {
+  if (cloudSaveTimer) {
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = null;
+  }
+  return saveCloudRevision();
+}
+
+function installCloudSaveHook() {
+  if (S._cloudSaveHooked || typeof S.syncAll !== 'function') return;
+  var original = S.syncAll;
+  S.syncAll = function (source) {
+    var result = original.apply(this, arguments);
+    if (source !== 'load' && source !== 'theme') queueCloudSave(source);
+    return result;
+  };
+  S._cloudSaveHooked = true;
+  S.saveCloudNow = flushCloudSave;
 }
 
 async function jsonRequest(url, options) {
@@ -73,6 +168,7 @@ async function loadAccountData(accountId) {
   var details = await Promise.all(requests);
   cloudState.members = details[0].members || [];
   cloudState.suggestedTags = details[1].tags || [];
+  if (S.refreshCommentIdentity) S.refreshCommentIdentity();
   refreshRow();
   return data;
 }
@@ -84,12 +180,15 @@ async function loadCloudDocument(id) {
     cloudState.permission = data.permission || null;
     if (data.document.workspace_id) {
       cloudState.account = { id: data.document.workspace_id };
-      loadAccountData(data.document.workspace_id).catch(function () {});
+      await loadAccountData(data.document.workspace_id).catch(function () {});
     }
     S._isDefaultState = false;
     S._loadingDocument = true;
     if (S.resetAllStyles) S.resetAllStyles();
     S.loadText(data.document.markdown, data.document.filename);
+    cloudLastSavedMarkdown = currentMarkdown();
+    cloudSaveBlocked = false;
+    if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     if (S.setMode) S.setMode('read', true);
   } catch (error) {
     if (error.status === 401) {
@@ -318,6 +417,9 @@ async function beginAdd(event, accountId) {
     S.cloudDocument.workspace_id = data.account.id;
     cloudState.account = Object.assign({}, accountData.account, data.account);
     cloudState.permission = data.permission;
+    cloudLastSavedMarkdown = currentMarkdown();
+    cloudSaveBlocked = false;
+    if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     var url = new URL(location.href);
     url.searchParams.set('cloud-document', data.document.id);
     history.replaceState(null, '', url.pathname + url.search + url.hash);
@@ -381,7 +483,10 @@ async function removeCloudDocument(event) {
       body: JSON.stringify({ expected_head_revision_id: S.cloudDocument.current_revision_id }),
     });
     S.cloudDocument = null;
+    cloudLastSavedMarkdown = null;
+    cloudSaveBlocked = false;
     cloudState.permission = null;
+    if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     closeCloudPanel();
     var url = new URL(location.href);
     url.searchParams.delete('cloud-document');
@@ -540,6 +645,7 @@ async function saveTags(tags) {
   if (!S.cloudDocument || cloudState.busy) return;
   cloudState.busy = true;
   try {
+    await flushCloudSave();
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id)
       + '/tags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tags: tags, expected_head_revision_id: S.cloudDocument.current_revision_id,
@@ -547,6 +653,7 @@ async function saveTags(tags) {
     S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
     if (!S.currentMeta) S.currentMeta = {};
     S.currentMeta.tags = data.document.tags.slice();
+    cloudLastSavedMarkdown = currentMarkdown();
     cloudState.status = 'Tags updated.';
     await loadAccountData(cloudState.account.id);
   } catch (_) { cloudState.status = 'Tags were not updated.'; }
@@ -618,6 +725,7 @@ function closeDialog() {
 }
 
 function start() {
+  installCloudSaveHook();
   var card = document.getElementById('_sd_sdocs-file-info');
   if (card) {
     new MutationObserver(function () { insertRow(); }).observe(card, { childList: true, subtree: true });

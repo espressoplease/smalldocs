@@ -154,6 +154,21 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('SDocs'));
       assert.ok(r.body.includes('/public/sdoc.md'),
         '/docs should default to sdoc.md');
+      assert.ok(r.body.includes('<span class="library-btn-label">Library</span>'));
+      assert.ok(!r.body.includes('Markdown Library'));
+      assert.ok(r.body.includes('data-sdocs-sign-in-return'));
+      assert.ok(r.body.includes('id="doc-site-menu"'));
+      assert.ok(!r.body.includes('__DOCUMENT_NAV_'));
+      assert.strictEqual(r.headers.vary, 'Cookie');
+    });
+
+    await testAsync('signed-out Cloud Library explains Cloud before authentication', async () => {
+      const r = await get(BASE + '/library?scope=cloud');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.body.includes('data-cloud-authenticated="false"'));
+      assert.ok(r.body.includes('<h1>Cloud Library</h1>'));
+      assert.ok(r.body.includes('class="library-sign-in"'));
+      assert.ok(r.body.includes('Learn about Cloud'));
     });
 
     await testAsync('GET /new returns 200 with HTML', async () => {
@@ -733,6 +748,15 @@ module.exports = function(harness) {
       assert.ok(library.body.includes('href="/docs" role="menuitem"'));
       assert.ok(library.body.includes('action="/api/cloud/auth/logout"'));
       assert.ok(!library.body.includes('__LIBRARY_NAV_MENU_'));
+
+      const documentPage = await get(BASE + '/docs', { Cookie: cloudCookie });
+      assert.strictEqual(documentPage.headers['cache-control'], 'private, no-store');
+      assert.strictEqual(documentPage.headers.vary, 'Cookie');
+      assert.ok(documentPage.body.includes('href="/library?scope=cloud"'));
+      assert.ok(documentPage.body.includes('href="/cloud/admin" role="menuitem"'));
+      assert.ok(documentPage.body.includes('action="/api/cloud/auth/logout"'));
+      assert.ok(!documentPage.body.includes('data-sdocs-sign-in-return'));
+      assert.ok(!documentPage.body.includes('__DOCUMENT_NAV_'));
     });
 
     await testAsync('Just me account creation is explicit and idempotent', async () => {

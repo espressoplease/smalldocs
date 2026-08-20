@@ -30,11 +30,15 @@ var composerEl = null;
 // ── Prefs ───────────────────────────────────────────────────────────────
 
 function readPrefs() {
+  var cloudAuthor = typeof S.cloudCommentIdentity === 'function'
+    ? S.cloudCommentIdentity() : null;
   try {
     var raw = localStorage.getItem(PREFS_KEY);
     var v = raw ? JSON.parse(raw) : {};
-    return { author: v.author || 'user', color: SDC.sanitizeColor(v.color) };
-  } catch (_) { return { author: 'user', color: SDC.sanitizeColor() }; }
+    return { author: cloudAuthor || v.author || 'user', color: SDC.sanitizeColor(v.color),
+      lockedAuthor: Boolean(cloudAuthor) };
+  } catch (_) { return { author: cloudAuthor || 'user', color: SDC.sanitizeColor(),
+    lockedAuthor: Boolean(cloudAuthor) }; }
 }
 
 function writePrefs(p) {
@@ -1452,8 +1456,11 @@ function wirePrefsInputs() {
   if (!nameInput || !colorInput) return;
   var prefs = readPrefs();
   nameInput.value  = prefs.author;
+  nameInput.readOnly = prefs.lockedAuthor;
+  nameInput.classList.toggle('cloud-comment-author', prefs.lockedAuthor);
   colorInput.value = prefs.color;
   nameInput.addEventListener('input', function () {
+    if (nameInput.readOnly) return;
     writePrefs({ author: nameInput.value || 'user', color: colorInput.value });
   });
   colorInput.addEventListener('input', function () {
@@ -1461,6 +1468,18 @@ function wirePrefsInputs() {
     if (document.body.classList.contains('comment-mode')) applyPrefColorToBody();
   });
 }
+
+function refreshCommentIdentity() {
+  var nameInput = document.getElementById('_sd_comment-pref-author');
+  var colorInput = document.getElementById('_sd_comment-pref-color');
+  if (!nameInput || !colorInput) return;
+  var prefs = readPrefs();
+  nameInput.value = prefs.author;
+  nameInput.readOnly = prefs.lockedAuthor;
+  nameInput.classList.toggle('cloud-comment-author', prefs.lockedAuthor);
+}
+
+S.refreshCommentIdentity = refreshCommentIdentity;
 
 function onHostRender() {
   if (document.body.classList.contains('comment-mode')) render();

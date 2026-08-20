@@ -21,6 +21,13 @@
   if (scope === 'cloud') cloudLink.setAttribute('aria-current', 'page');
   if (scope !== 'cloud') return;
 
+  if (document.body.dataset.cloudAuthenticated !== 'true') {
+    document.body.classList.add('cloud-library-signed-out');
+    var signedOut = document.getElementById('cloud-signed-out');
+    if (signedOut) signedOut.hidden = false;
+    return;
+  }
+
   heading.hidden = false;
 
   function workspaceMark(name) {
