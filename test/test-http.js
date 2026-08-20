@@ -522,7 +522,7 @@ module.exports = function(harness) {
     });
 
     await testAsync('GET /cloud/sign-in returns the Cloud authentication page', async () => {
-      const r = await get(BASE + '/cloud/sign-in?return=%2Fcloud%2Faccount');
+      const r = await get(BASE + '/cloud/sign-in?return=%2Fcloud%2Fadmin');
       assert.strictEqual(r.status, 200);
       assert.ok(r.body.includes('<h1 id="auth-title">Sign in</h1>'));
       assert.ok(r.body.includes('<a class="provider-button provider-link" data-provider="google"'));
@@ -545,7 +545,7 @@ module.exports = function(harness) {
     let googleOAuthCookie;
     await testAsync('configured Google OAuth start redirects with state, nonce, and PKCE', async () => {
       const r = await get(BASE + '/api/cloud/auth/oauth/google?return_to=' +
-        encodeURIComponent('/cloud/account'));
+        encodeURIComponent('/cloud/admin'));
       assert.strictEqual(r.status, 303);
       assert.strictEqual(r.headers['cache-control'], 'no-store');
       assert.strictEqual(r.headers['referrer-policy'], 'no-referrer');
@@ -607,7 +607,7 @@ module.exports = function(harness) {
 
     await testAsync('Cloud email code request and verification create a browser session', async () => {
       const requested = await post(BASE + '/api/cloud/auth/email/request', {
-        email: 'person@example.com', return_to: '/cloud/account',
+        email: 'person@example.com', return_to: '/cloud/admin',
       }, { Origin: BASE });
       assert.strictEqual(requested.status, 202);
       const challenge = JSON.parse(requested.body).challenge_id;
@@ -617,21 +617,20 @@ module.exports = function(harness) {
       const verified = await post(BASE + '/api/cloud/auth/email/verify', {
         challenge_id: challenge,
         code: codeMatch[1],
-        return_to: '/cloud/account',
+        return_to: '/cloud/admin',
       }, { Origin: BASE });
       assert.strictEqual(verified.status, 200);
-      assert.strictEqual(JSON.parse(verified.body).return_to, '/cloud/account');
+      assert.strictEqual(JSON.parse(verified.body).return_to, '/cloud/admin');
       assert.ok(verified.headers['set-cookie'][0].startsWith('sdocs_cloud='));
       assert.ok(verified.headers['set-cookie'][0].includes('HttpOnly'));
       assert.ok(verified.headers['set-cookie'][0].includes('SameSite=Lax'));
-      const account = await get(BASE + '/cloud/account', { Cookie: verified.headers['set-cookie'][0].split(';')[0] });
-      assert.strictEqual(account.status, 200);
-      assert.ok(account.body.includes('Your Cloud account'));
-      assert.ok(account.body.includes('Cloud account active'));
-      assert.ok(account.body.includes('Connected machines'));
-      assert.ok(account.body.includes('/public/cloud-account.js?v='));
-      assert.ok(/script-src[^;]*'self'/.test(account.headers['content-security-policy'] || ''));
-      assert.ok(/connect-src[^;]*'self'/.test(account.headers['content-security-policy'] || ''));
+      const settings = await get(BASE + '/cloud/admin', { Cookie: verified.headers['set-cookie'][0].split(';')[0] });
+      assert.strictEqual(settings.status, 200);
+      assert.ok(settings.body.includes('Cloud settings'));
+      assert.ok(settings.body.includes('Connected machines'));
+      assert.ok(settings.body.includes('/public/cloud-admin.js?v='));
+      assert.ok(/script-src[^;]*'self'/.test(settings.headers['content-security-policy'] || ''));
+      assert.ok(/connect-src[^;]*'self'/.test(settings.headers['content-security-policy'] || ''));
 
       const loggedOut = await post(BASE + '/api/cloud/auth/logout', '', {
         Origin: BASE,
@@ -641,7 +640,7 @@ module.exports = function(harness) {
       assert.strictEqual(loggedOut.status, 303);
       assert.strictEqual(loggedOut.headers.location, '/cloud/sign-in');
       assert.ok(loggedOut.headers['set-cookie'][0].includes('Max-Age=0'));
-      const afterLogout = await get(BASE + '/cloud/account', { Cookie: verified.headers['set-cookie'][0].split(';')[0] });
+      const afterLogout = await get(BASE + '/cloud/admin', { Cookie: verified.headers['set-cookie'][0].split(';')[0] });
       assert.strictEqual(afterLogout.status, 303);
     });
 
@@ -657,13 +656,13 @@ module.exports = function(harness) {
         return_to: 'https://evil.example/steal',
       }, { Origin: BASE });
       assert.strictEqual(verified.status, 200);
-      assert.strictEqual(JSON.parse(verified.body).return_to, '/cloud/account');
+      assert.strictEqual(JSON.parse(verified.body).return_to, '/cloud/admin');
     });
 
-    await testAsync('Cloud account redirects to sign-in without a session', async () => {
+    await testAsync('legacy Cloud account URL redirects to Connected machines', async () => {
       const r = await get(BASE + '/cloud/account');
       assert.strictEqual(r.status, 303);
-      assert.ok(r.headers.location.startsWith('/cloud/sign-in?return='));
+      assert.strictEqual(r.headers.location, '/cloud/admin?panel=machines');
     });
 
     let cloudCookie;
@@ -689,7 +688,7 @@ module.exports = function(harness) {
       const challenge = JSON.parse(requested.body).challenge_id;
       const codeMatch = new RegExp('\\[cloud-auth-code\\] ' + challenge + ' (\\d{6})').exec(serverOutput);
       const verified = await post(BASE + '/api/cloud/auth/email/verify', {
-        challenge_id: challenge, code: codeMatch[1], return_to: '/cloud/account',
+        challenge_id: challenge, code: codeMatch[1], return_to: '/cloud/admin',
       }, { Origin: BASE });
       cloudCookie = verified.headers['set-cookie'][0].split(';')[0];
       const response = await get(BASE + '/api/cloud/v1/workspaces', { Cookie: cloudCookie });
@@ -708,8 +707,8 @@ module.exports = function(harness) {
       assert.ok(homepage.body.includes('class="btn-gh" href="/library?scope=cloud"'),
         'signed-in users should get Cloud library as a primary action');
       assert.ok(!homepage.body.includes('href="/cloud/sign-in?return='));
-      assert.ok(homepage.body.includes('href="/cloud/account" role="menuitem"'));
       assert.ok(homepage.body.includes('href="/cloud/admin" role="menuitem"'));
+      assert.ok(!homepage.body.includes('href="/cloud/account" role="menuitem"'));
       assert.ok(homepage.body.includes('action="/api/cloud/auth/logout"'));
       assert.ok(homepage.body.includes('<path d="M22 19h-6l3 3"/>'),
         'sign-out should use the user-round-arrow-left icon');
@@ -721,6 +720,7 @@ module.exports = function(harness) {
       assert.strictEqual(response.headers['cache-control'], 'no-store');
       assert.ok(response.body.includes('Billing'));
       assert.ok(!response.body.includes('Agent access'));
+      assert.ok(response.body.includes('Connected machines'));
       assert.ok(response.body.includes('Cloud settings'));
       assert.ok(response.body.includes('>People</button>'));
       assert.ok(!response.body.includes('data-panel="projects"'));
@@ -857,7 +857,7 @@ module.exports = function(harness) {
       const challenge = JSON.parse(requested.body).challenge_id;
       const codeMatch = new RegExp('\\[cloud-auth-code\\] ' + challenge + ' (\\d{6})').exec(serverOutput);
       const verified = await post(BASE + '/api/cloud/auth/email/verify', {
-        challenge_id: challenge, code: codeMatch[1], return_to: '/cloud/account',
+        challenge_id: challenge, code: codeMatch[1], return_to: '/cloud/admin',
       }, { Origin: BASE });
       cloudMemberCookie = verified.headers['set-cookie'][0].split(';')[0];
       cloudMemberUser = JSON.parse((await get(BASE + '/api/cloud/v1/me', {

@@ -55,6 +55,8 @@
   .card { border:1px solid var(--border); border-radius:8px; background:var(--surface); overflow:hidden; margin-bottom:16px; }
   .card-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--border-2); }
   .card-head p { margin:3px 0 0; color:var(--text-3); font-size:11.5px; }
+  .section-head { margin:28px 0 12px; }
+  .section-head p { margin:4px 0 0; color:var(--text-2); font-size:11.5px; line-height:1.5; }
   .table-wrap { overflow-x:auto; }
   table { width:100%; border-collapse:collapse; }
   th, td { padding:11px 14px; border-bottom:1px solid var(--border-2); text-align:left; vertical-align:middle; }
@@ -96,7 +98,7 @@
   .confirm-box h2 { margin-bottom:8px; }
   .confirm-box p { margin:0 0 17px; color:var(--text-2); line-height:1.55; }
   .confirm-actions { display:flex; justify-content:flex-end; gap:8px; }
-  .empty { padding:24px 16px; color:var(--text-3); line-height:1.55; text-align:center; }
+  .empty { padding:24px 16px; color:var(--text-3); line-height:1.55; text-align:left; }
   .error { display:none; padding:11px 14px; border:1px solid color-mix(in srgb,var(--red) 42%,var(--border)); border-radius:6px; color:var(--red); background:color-mix(in srgb,var(--red) 7%,var(--surface)); margin-bottom:16px; line-height:1.5; }
   .error.visible { display:block; }
   .form-status { grid-column:1/-1; margin:0; color:var(--text-2); font-size:11.5px; line-height:1.45; }
@@ -108,7 +110,16 @@
   .domain-pill button:hover { background:var(--surface); color:var(--text); }
   .busy { opacity:.58; pointer-events:none; }
   .row-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; }
-  @media(max-width:600px) { .shell{grid-template-columns:1fr}.sidebar{position:static;top:auto;height:auto;display:flex;align-items:center;overflow:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.nav{width:auto;height:36px;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:1fr 1fr}.invite.open,.domain-controls{grid-template-columns:1fr}.account,.header-context-sep,.crumb,.workspace-picker .sep{display:none}.workspace-picker{min-width:0;flex:1}.workspace-switch{width:100%;min-width:0;max-width:100%}.open-library{margin-left:auto} }
+  .machine-name { overflow-wrap:anywhere; }
+  .machine-row { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:14px 16px; border-bottom:1px solid var(--border-2); }
+  .machine-row:last-child { border-bottom:0; }
+  .machine-row > div { min-width:0; }
+  .machine-row p { margin:3px 0 0; color:var(--text-3); font-size:11.5px; line-height:1.5; }
+  .recovery-row { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:14px 16px; border-bottom:1px solid var(--border-2); }
+  .recovery-row:last-child { border-bottom:0; }
+  .recovery-row strong { display:block; font-size:12px; font-weight:500; }
+  .recovery-row p { margin:3px 0 0; color:var(--text-3); font-size:11.5px; line-height:1.5; }
+  @media(max-width:600px) { .shell{grid-template-columns:1fr}.sidebar{position:static;top:auto;height:auto;display:flex;align-items:center;overflow:auto;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.nav{width:auto;height:36px;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:1fr 1fr}.invite.open,.domain-controls{grid-template-columns:1fr}.account,.header-context-sep,.crumb,.workspace-picker .sep{display:none}.workspace-picker{min-width:0;flex:1}.workspace-switch{width:100%;min-width:0;max-width:100%}.open-library{margin-left:auto}.machine-row,.recovery-row{align-items:flex-start}.machine-row{flex-direction:column}.machine-row .btn{align-self:flex-start} }
   @media(prefers-color-scheme:dark) { :root{--bg:#1C1A17;--surface:#211F1D;--surface-2:#252320;--text:#E7E5E2;--text-2:#A8A29E;--text-3:#77716B;--border:#3D3935;--border-2:#332F2B;--blue:#3B82F6;--blue-2:#17233A;--green:#4ADE80;--red:#FCA5A5}.notice{background:#17233A;border-color:#284B80;color:#BFDBFE} }
 </style>
 </head>
@@ -124,6 +135,7 @@
     <p class="side-label">Cloud</p>
     <button class="nav active" data-panel="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Overview</button>
     <button class="nav" data-panel="people" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>People</button>
+    <button class="nav" data-panel="machines"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>Connected machines</button>
     <button class="nav" data-panel="billing"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Billing</button>
   </aside>
   <main class="main">
@@ -131,12 +143,19 @@
       <div class="page-head"><div><h1 id="overview-name">Cloud settings</h1><p class="description" id="overview-description">Your Cloud documents and billing.</p></div></div>
       <div class="error" id="page-error" role="alert"></div>
       <div class="stats"><div class="stat" id="people-stat" hidden><strong id="member-count">-</strong><span>people</span></div><div class="stat"><strong id="document-count">-</strong><span>documents</span></div></div>
+      <section id="recovery-section" hidden><div class="section-head"><h2>Recently deleted</h2><p>Restore deleted documents or teams before they are permanently removed.</p></div><div class="card" id="recovery-list"></div></section>
     </section>
 
     <section class="panel" id="panel-people" hidden>
       <div class="page-head"><div><h1>People</h1><p class="description">Invite people and choose which company domains members can use.</p></div><button class="btn primary" id="invite-open">Invite person</button></div>
       <div class="card"><div class="card-head"><div><h2>Member invitations</h2><p>Admins can invite any email. Members can invite people at the domains listed here.</p></div></div><form class="domain-controls" id="domain-form"><input class="field" id="domain-input" type="text" placeholder="company.com" aria-label="Company email domain" required><button class="btn" type="submit">Allow domain</button><p class="form-status" id="domain-status" aria-live="polite"></p></form><div class="domain-list" id="domain-list"></div></div>
       <div class="card"><form class="invite" id="invite-form"><input class="field" id="invite-email" type="email" placeholder="name@company.com" aria-label="Email address" required><button class="btn primary" type="submit">Send invitation</button><div class="invite-role" id="invite-role-choice" role="radiogroup" aria-label="Invitation role"><div class="invite-role-options"><label class="invite-role-option"><input id="invite-role-member" type="radio" name="invite-role" value="member" checked><span>Member</span></label><label class="invite-role-option"><input id="invite-role-admin" type="radio" name="invite-role" value="admin"><span>Admin</span></label></div><p class="invite-role-copy" id="invite-role-copy"></p></div><p class="form-status" id="invite-status" aria-live="polite">A billed seat is added after the person accepts.</p></form><div class="table-wrap"><table><thead><tr><th>Person</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="member-rows"></tbody></table></div><p class="empty" id="members-empty" hidden>No people have joined this team yet.</p></div>
+    </section>
+
+    <section class="panel" id="panel-machines" hidden>
+      <div class="page-head"><div><h1>Connected machines</h1><p class="description">Machines where you have signed in with <code>sdoc cloud login</code>.</p></div></div>
+      <div class="notice">These connections belong to you. They stay the same when you switch between Personal and Team Cloud.</div>
+      <div class="card"><div id="credential-rows"></div><p class="empty" id="credentials-empty" hidden>No machines are connected. Run <code>sdoc cloud login</code> on a machine to connect it.</p></div>
     </section>
 
     <section class="panel" id="panel-billing" hidden>

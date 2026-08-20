@@ -6,8 +6,8 @@ module.exports = function (harness) {
 
   test('cloud auth: safe return accepts a relative Cloud path', () => {
     assert.strictEqual(
-      AuthHttp.safeReturnPath('/cloud/account?from=document#status'),
-      '/cloud/account?from=document#status'
+      AuthHttp.safeReturnPath('/cloud/admin?panel=machines#status'),
+      '/cloud/admin?panel=machines#status'
     );
   });
 
@@ -34,9 +34,9 @@ module.exports = function (harness) {
   });
 
   test('cloud auth: safe return rejects absolute and protocol-relative URLs', () => {
-    assert.strictEqual(AuthHttp.safeReturnPath('https://evil.example'), '/cloud/account');
-    assert.strictEqual(AuthHttp.safeReturnPath('//evil.example/path'), '/cloud/account');
-    assert.strictEqual(AuthHttp.safeReturnPath('/\\evil.example/path'), '/cloud/account');
+    assert.strictEqual(AuthHttp.safeReturnPath('https://evil.example'), '/cloud/admin');
+    assert.strictEqual(AuthHttp.safeReturnPath('//evil.example/path'), '/cloud/admin');
+    assert.strictEqual(AuthHttp.safeReturnPath('/\\evil.example/path'), '/cloud/admin');
   });
 
   test('cloud auth: cookie parser decodes values and keeps the first duplicate', () => {

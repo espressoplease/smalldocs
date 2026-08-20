@@ -792,8 +792,6 @@ const HOMEPAGE_NAV_ICONS = Object.freeze({
   library: '<path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>',
   signIn: '<path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/>' +
     '<path d="m16 19 2 2 4-4"/>',
-  account: '<path d="M17.925 20.056a6 6 0 0 0-11.851.001"/><circle cx="12" cy="11" r="4"/>' +
-    '<circle cx="12" cy="12" r="10"/>',
   settings: '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 ' +
     '2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 ' +
     '2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 ' +
@@ -839,8 +837,7 @@ function homepageNavigation(req) {
       actions.push(homepageNavLink('btn-gh nav-cloud', '/cloud', 'cloud', 'Cloud'));
     }
     actions.push(homepageNavLink('btn-gh', '/library?scope=cloud', 'library', 'Library'));
-    menuBefore = homepageNavLink('', '/cloud/account', 'account', 'Account settings', ' role="menuitem"') +
-      homepageNavLink('', '/cloud/admin', 'settings', 'Cloud settings', ' role="menuitem"') +
+    menuBefore = homepageNavLink('', '/cloud/admin', 'settings', 'Cloud settings', ' role="menuitem"') +
       '<div class="nav-menu-separator" role="separator"></div>';
     menuAfter = '<div class="nav-menu-separator" role="separator"></div>' +
       '<form method="post" action="/api/cloud/auth/logout" role="none">' +
@@ -2219,19 +2216,8 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname === '/cloud/account') {
-    const authenticated = cloudAuthSession(req);
-    if (!authenticated.ok) {
-      res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent('/cloud/account'), 'Cache-Control': 'no-store' });
-      res.end();
-      return;
-    }
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-account.html'), null, {
-      'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'Referrer-Policy': 'no-referrer',
-      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
-    });
+    res.writeHead(303, { Location: '/cloud/admin?panel=machines', 'Cache-Control': 'no-store' });
+    res.end();
     return;
   }
 

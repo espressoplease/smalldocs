@@ -30,7 +30,7 @@ function getClientIp(req, trustProxy) {
 }
 
 function safeReturnPath(value, fallback) {
-  const defaultPath = fallback || '/cloud/account';
+  const defaultPath = fallback || '/cloud/admin';
   if (typeof value !== 'string' || !value.length) return defaultPath;
   if (!value.startsWith('/') || value.startsWith('//')) return defaultPath;
   if (/^[\\/]+/.test(value.slice(1))) return defaultPath;

@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var DEFAULT_RETURN = '/cloud/account';
+  var DEFAULT_RETURN = '/cloud/admin';
   var params = new URLSearchParams(window.location.search);
 
   function safeReturnPath(value) {
@@ -17,7 +17,6 @@
   }
 
   function returnLabel(path) {
-    if (path.indexOf('/cloud/account') === 0) return 'your Cloud account';
     if (path.indexOf('/library') === 0) return 'Cloud library';
     if (path.indexOf('/cloud/admin') === 0) return 'Cloud settings';
     if (path.indexOf('/cloud/checkout') === 0) return 'checkout';

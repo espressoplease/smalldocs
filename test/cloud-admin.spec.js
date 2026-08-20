@@ -7,6 +7,7 @@ async function installAdminApi(page, options) {
   const workspaces = options.workspaces;
   let domains = options.domains || [];
   let invitations = options.invitations || [];
+  let credentials = options.credentials || [];
   await page.route('**/api/cloud/v1/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -16,6 +17,20 @@ async function installAdminApi(page, options) {
     if (path === '/api/cloud/v1/me') return route.fulfill({ json: { ok: true,
       user: { id: 'user-1', email: 'owner@smalldocs.org' } } });
     if (path === '/api/cloud/v1/workspaces') return route.fulfill({ json: { ok: true, workspaces } });
+    if (path === '/api/cloud/v1/cli/credentials' && method === 'GET') {
+      return route.fulfill({ json: { ok: true, credentials } });
+    }
+    if (/\/api\/cloud\/v1\/cli\/credentials\/[^/]+$/.test(path) && method === 'DELETE') {
+      const credentialId = path.split('/').pop();
+      credentials = credentials.filter(credential => credential.id !== credentialId);
+      return route.fulfill({ json: { ok: true } });
+    }
+    if (path === '/api/cloud/v1/workspaces/deleted') {
+      return route.fulfill({ json: { ok: true, workspaces: options.deletedWorkspaces || [] } });
+    }
+    if (path === '/api/cloud/v1/documents/deleted') {
+      return route.fulfill({ json: { ok: true, documents: options.deletedDocuments || [] } });
+    }
     if (path === '/api/cloud/v1/documents') return route.fulfill({ json: { ok: true,
       documents: options.documents || [], next_cursor: null } });
     if (/\/workspaces\/[^/]+\/billing$/.test(path)) return route.fulfill({ json: { ok: true,
@@ -64,22 +79,76 @@ test('Personal Cloud hides team and project concepts and uses a compact left sid
   await expect(page.locator('#workspace-picker')).toBeHidden();
   await expect(page.getByRole('button', { name: 'People' })).toBeHidden();
   await expect(page.getByText('Projects', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Agent access' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Connected machines' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Invite person' })).toBeHidden();
   const library = page.getByRole('link', { name: 'Open Cloud library' });
   await expect(library).toContainText('Library');
   await expect(library.locator('svg')).toHaveCount(1);
   await expect.poll(() => calls.some(call => call.path.includes('/members'))).toBe(false);
   await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/account/invitations')).toBe(false);
-  await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/cli/credentials')).toBe(false);
+  await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/cli/credentials')).toBe(true);
 
   const overview = await page.getByRole('button', { name: 'Overview' }).boundingBox();
+  const machines = await page.getByRole('button', { name: 'Connected machines' }).boundingBox();
   const billing = await page.getByRole('button', { name: 'Billing' }).boundingBox();
   expect(overview.height).toBeLessThanOrEqual(40);
+  expect(machines.height).toBeLessThanOrEqual(40);
   expect(billing.height).toBeLessThanOrEqual(40);
-  expect(Math.abs(overview.x - billing.x)).toBeLessThan(2);
-  expect(billing.y).toBeGreaterThanOrEqual(overview.y + overview.height);
+  expect(Math.abs(overview.x - machines.x)).toBeLessThan(2);
+  expect(machines.y).toBeGreaterThanOrEqual(overview.y + overview.height);
+  expect(billing.y).toBeGreaterThanOrEqual(machines.y + machines.height);
   expect((await library.boundingBox()).height).toBe(32);
+});
+
+test('Connected machines is a dedicated left-menu panel and revokes a personal credential', async ({ page }) => {
+  const calls = await installAdminApi(page, {
+    kind: 'personal',
+    workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }],
+    credentials: [
+      {
+        id: 'cli-1', displayName: 'build-server', createdAtMs: Date.UTC(2026, 7, 20, 9),
+        lastUsedAtMs: Date.UTC(2026, 7, 20, 10), revokedAtMs: null,
+      },
+      {
+        id: 'cli-old', displayName: 'old-machine', createdAtMs: Date.UTC(2026, 7, 1),
+        lastUsedAtMs: Date.UTC(2026, 7, 1), revokedAtMs: Date.UTC(2026, 7, 2),
+      },
+    ],
+  });
+  await page.goto('/public/cloud-admin.html?panel=machines');
+
+  await expect(page.getByRole('heading', { name: 'Connected machines' })).toBeVisible();
+  await expect(page.getByText('build-server', { exact: true })).toBeVisible();
+  await expect(page.getByText('old-machine', { exact: true })).toHaveCount(0);
+  await expect(page.locator('#panel-machines')).toHaveCSS('text-align', 'start');
+  await page.getByRole('button', { name: 'Revoke build-server' }).click();
+  await page.getByRole('button', { name: 'Revoke machine' }).click();
+  await expect(page.getByText('build-server', { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/No machines are connected/)).toBeVisible();
+  expect(calls.some(call => call.method === 'DELETE'
+    && call.path === '/api/cloud/v1/cli/credentials/cli-1')).toBe(true);
+});
+
+test('Connected machines stays left aligned and usable on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installAdminApi(page, {
+    kind: 'personal',
+    workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }],
+    credentials: [{
+      id: 'cli-1', displayName: 'remote-analysis-server-with-a-long-hostname',
+      createdAtMs: Date.UTC(2026, 7, 20, 9), lastUsedAtMs: Date.UTC(2026, 7, 20, 10),
+      revokedAtMs: null,
+    }],
+  });
+  await page.goto('/public/cloud-admin.html?panel=machines');
+
+  const mainBox = await page.locator('.main').boundingBox();
+  const rowBox = await page.locator('.machine-row').boundingBox();
+  expect(rowBox.x).toBeGreaterThanOrEqual(mainBox.x);
+  expect(rowBox.x + rowBox.width).toBeLessThanOrEqual(mainBox.x + mainBox.width);
+  await expect(page.locator('.machine-row')).toHaveCSS('text-align', 'start');
+  await expect(page.getByRole('button', { name: 'Revoke remote-analysis-server-with-a-long-hostname' }))
+    .toBeVisible();
 });
 
 test('Team Cloud keeps invitations and domains in People without project controls', async ({ page }) => {

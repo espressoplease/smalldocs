@@ -59,7 +59,7 @@
       <div__OAUTH_PROVIDERS_HIDDEN__ class="divider"><span>or</span></div>
 
       <form id="email-form" method="post" action="/api/cloud/auth/email/request" novalidate>
-          <input class="return-input" type="hidden" name="return_to" value="/cloud/account">
+          <input class="return-input" type="hidden" name="return_to" value="/cloud/admin">
         <label for="email">Email address</label>
         <input class="text-input" id="email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
         <p class="field-error" id="email-error" role="alert"></p>
@@ -83,7 +83,7 @@
         <p>We sent a six-digit code to <strong id="sent-email"></strong>.</p>
       </div>
       <form id="code-form" method="post" action="/api/cloud/auth/email/verify" novalidate>
-        <input class="return-input" type="hidden" name="return_to" value="/cloud/account">
+        <input class="return-input" type="hidden" name="return_to" value="/cloud/admin">
         <input id="email-challenge" type="hidden" name="challenge_id">
         <label for="code">Six-digit code</label>
         <input class="text-input code-input" id="code" name="code" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required>

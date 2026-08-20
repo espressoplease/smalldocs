@@ -10,6 +10,9 @@
     invitations: [],
     invitePolicy: EMPTY_INVITE_POLICY,
     documents: [],
+    credentials: [],
+    deletedWorkspaces: [],
+    deletedDocuments: [],
     billing: null,
     pendingAction: null,
   };
@@ -97,6 +100,11 @@
     if (!Number.isFinite(date.getTime())) return 'Not recorded';
     return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
   }
+  function formatDateTime(value) {
+    var date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return 'Not recorded';
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  }
   function setCount(id, value) { byId(id).textContent = String(value); }
   function isTeam() { return Boolean(state.workspace && state.workspace.kind === 'team'); }
 
@@ -176,6 +184,90 @@
     });
   }
 
+  function activeCredentials() {
+    return state.credentials.filter(function (credential) { return credential.revokedAtMs == null; });
+  }
+
+  function renderCredentials() {
+    var rows = byId('credential-rows');
+    var credentials = activeCredentials();
+    rows.replaceChildren();
+    byId('credentials-empty').hidden = credentials.length > 0;
+    credentials.forEach(function (credential) {
+      var row = element('div', 'machine-row');
+      var name = element('strong', 'machine-name', credential.displayName || 'SmallDocs CLI');
+      var details = document.createElement('div');
+      details.append(name,
+        element('p', '', 'Connected ' + formatDateTime(credential.createdAtMs)),
+        element('p', '', 'Last authenticated ' + (credential.lastUsedAtMs == null ? 'not yet'
+          : formatDateTime(credential.lastUsedAtMs))));
+      var revoke = element('button', 'btn small danger', 'Revoke');
+      revoke.type = 'button';
+      revoke.setAttribute('aria-label', 'Revoke ' + name.textContent);
+      revoke.addEventListener('click', function () {
+        ask('Revoke ' + name.textContent + '?',
+          'This machine will lose Cloud access immediately. Your other machines are not affected.',
+          async function () {
+            await mutation('DELETE', '/cli/credentials/' + encodeURIComponent(credential.id), {});
+            await loadCredentials();
+          }, 'Revoke machine');
+      });
+      row.append(details, revoke);
+      rows.appendChild(row);
+    });
+  }
+
+  function renderRecovery() {
+    var recovery = byId('recovery-list');
+    recovery.replaceChildren();
+    state.deletedWorkspaces.forEach(function (workspace) {
+      var row = element('div', 'recovery-row');
+      var details = document.createElement('div');
+      details.append(element('strong', '', workspace.name),
+        element('p', '', 'Team available until ' + formatDateTime(workspace.purge_after)));
+      var restore = element('button', 'btn small', 'Restore');
+      restore.type = 'button';
+      restore.addEventListener('click', async function () {
+        restore.disabled = true;
+        try {
+          await mutation('POST', '/workspaces/' + encodeURIComponent(workspace.id) + '/restore', {});
+          await loadDeletedItems();
+        } catch (error) {
+          restore.disabled = false;
+          showError(error);
+        }
+      });
+      row.append(details, restore);
+      recovery.appendChild(row);
+    });
+    state.deletedDocuments.forEach(function (documentItem) {
+      var row = element('div', 'recovery-row');
+      var details = document.createElement('div');
+      var context = documentItem.project && documentItem.project.name
+        ? documentItem.project.name + ' - ' : '';
+      details.append(element('strong', '', documentItem.title || documentItem.filename),
+        element('p', '', context + 'available until ' + formatDateTime(documentItem.purge_after)));
+      var restore = element('button', 'btn small', 'Restore');
+      restore.type = 'button';
+      restore.addEventListener('click', async function () {
+        restore.disabled = true;
+        try {
+          await mutation('POST', '/documents/' + encodeURIComponent(documentItem.id) + '/restore', {
+            expected_head_revision_id: documentItem.current_revision_id,
+          });
+          await loadDeletedItems();
+          await loadWorkspace(state.workspace.id);
+        } catch (error) {
+          restore.disabled = false;
+          showError(error);
+        }
+      });
+      row.append(details, restore);
+      recovery.appendChild(row);
+    });
+    byId('recovery-section').hidden = recovery.children.length === 0;
+  }
+
   async function saveInviteDomains(domains) {
     var data = await mutation('PATCH', '/account/invite-policy', {
       account_id: state.workspace.id,
@@ -235,13 +327,19 @@
     byId('subscribe-link').href = '/cloud/checkout?plan=' + (isTeam() ? 'team' : 'personal');
   }
 
-  function activatePanel(name) {
+  function activatePanel(name, updateLocation) {
     Array.from(document.querySelectorAll('.nav')).forEach(function (button) {
       button.classList.toggle('active', button.dataset.panel === name);
     });
     Array.from(document.querySelectorAll('.panel')).forEach(function (panel) {
       panel.hidden = panel.id !== 'panel-' + name;
     });
+    if (updateLocation !== false) {
+      var url = new URL(location.href);
+      if (name === 'overview') url.searchParams.delete('panel');
+      else url.searchParams.set('panel', name);
+      history.replaceState(null, '', url.pathname + url.search);
+    }
   }
 
   function renderPermissions() {
@@ -276,6 +374,8 @@
       renderMembers();
       renderInvitePolicy();
     }
+    renderCredentials();
+    renderRecovery();
     renderBilling();
     renderPermissions();
   }
@@ -320,6 +420,19 @@
       cursor = page.next_cursor || null;
     } while (cursor);
     return documents;
+  }
+
+  async function loadCredentials() {
+    var response = await request('/cli/credentials');
+    state.credentials = response.credentials || [];
+    renderCredentials();
+  }
+
+  async function loadDeletedItems() {
+    var responses = await Promise.all([request('/workspaces/deleted'), request('/documents/deleted')]);
+    state.deletedWorkspaces = responses[0].workspaces || [];
+    state.deletedDocuments = responses[1].documents || [];
+    renderRecovery();
   }
 
   function ask(title, copy, action, confirmText) {
@@ -441,10 +554,22 @@
   async function initialize() {
     wireEvents();
     try {
-      var responses = await Promise.all([request('/me'), request('/workspaces')]);
+      var responses = await Promise.all([
+        request('/me'), request('/workspaces'), request('/cli/credentials'),
+        request('/workspaces/deleted'), request('/documents/deleted'),
+      ]);
       state.me = responses[0].user || null;
       state.workspaces = responses[1].workspaces || [];
-      await loadWorkspace(new URLSearchParams(location.search).get('workspace_id'));
+      state.credentials = responses[2].credentials || [];
+      state.deletedWorkspaces = responses[3].workspaces || [];
+      state.deletedDocuments = responses[4].documents || [];
+      var params = new URLSearchParams(location.search);
+      await loadWorkspace(params.get('workspace_id'));
+      var requestedPanel = params.get('panel');
+      var panelExists = requestedPanel && byId('panel-' + requestedPanel);
+      if (panelExists && !(requestedPanel === 'people' && !isTeam())) {
+        activatePanel(requestedPanel, false);
+      }
     } catch (error) {
       showError(error);
     }
