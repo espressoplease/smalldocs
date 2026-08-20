@@ -79,6 +79,20 @@ module.exports = function(harness) {
     assert.ok(deploy.includes('rollback_release'));
   });
 
+  test('staging deploy publishes one exact commit and cannot switch production', () => {
+    const deploy = fs.readFileSync(path.join(__dirname, '..', 'ops',
+      'deploy-staging.sh'), 'utf8');
+    assert.ok(deploy.includes('refs/heads/feature/cloud-foundation'));
+    assert.ok(deploy.includes('/opt/smalldocs/staging-current'));
+    assert.ok(deploy.includes('systemctl restart smalldocs-staging'));
+    assert.ok(deploy.includes('http://127.0.0.1:3004/version-check'));
+    assert.ok(deploy.includes('https://cloud-staging.smalldocs.org'));
+    assert.ok(deploy.includes('rollback_staging'));
+    assert.ok(deploy.includes('Xx]-[Ss]docs-[Cc]ommit'));
+    assert.ok(!deploy.includes('/opt/smalldocs/current'));
+    assert.ok(!/systemctl restart smalldocs(?:\s|$)/.test(deploy));
+  });
+
   test('public/index.html exists', () => {
     const htmlPath = path.join(__dirname, '..', 'public', 'index.html');
     assert.ok(fs.existsSync(htmlPath), 'public/index.html not found');

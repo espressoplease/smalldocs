@@ -4,25 +4,14 @@ Last checked: 21 August 2026
 
 ## Short answer
 
-The Cloud work is on the `feature/cloud-foundation` branch.
+The Cloud work is on the `feature/cloud-foundation` branch. Publish the exact
+tested commit there before deploying it. The staging deploy command refuses a
+commit that is not the published branch tip.
 
-That branch is pushed to `origin`. The local branch and `origin/feature/cloud-foundation` currently point to the same commit:
-
-```text
-59fd78d Align Cloud and local onboarding
-```
-
-The same commit is active at [cloud-staging.smalldocs.org](https://cloud-staging.smalldocs.org). It is installed as an immutable release at:
-
-```text
-/opt/smalldocs/releases/59fd78d
-```
-
-The staging service reaches it through this symlink:
-
-```text
-/opt/smalldocs/staging-current -> /opt/smalldocs/releases/59fd78d
-```
+The same commit is then installed as an immutable release and served at
+[cloud-staging.smalldocs.org](https://cloud-staging.smalldocs.org). Check the
+`X-Sdocs-Commit` response header on a public asset to identify the active full
+commit. The staging service reaches it through `/opt/smalldocs/staging-current`.
 
 Production still runs separately. Cloud remains hidden there. Shipping work to Cloud staging does not turn Cloud on for normal production users.
 
@@ -44,11 +33,15 @@ The configured Git remote is:
 origin  https://github.com/espressoplease/SDocs.git
 ```
 
-The local and remote Cloud branches have no commits ahead or behind each other. This means the code on the laptop can be recovered from GitHub, reviewed there, and checked out on another machine.
+The local and remote Cloud branch tips must match before deployment. This means
+the code can be recovered from GitHub, reviewed there, and checked out on
+another machine.
 
 ### What is and is not deployed
 
-The whole repository at commit `59fd78d` is deployed to Cloud staging. Staging then enables the Cloud routes and UI through its own environment configuration.
+The whole repository at the published branch tip is deployed to Cloud staging.
+Staging then enables the Cloud routes and UI through its own environment
+configuration.
 
 The production service has a separate release symlink, environment, runtime user, databases, credentials, and public-mode setting. Its Cloud public mode remains hidden. The feature flag is the final UI and route boundary, but it is not being used to mix staging and production data.
 
@@ -60,14 +53,11 @@ The current deployment process is:
 2. Run the relevant Node and Playwright tests locally.
 3. Commit the change.
 4. Push `feature/cloud-foundation` to `origin`.
-5. Build a `git archive` from the exact commit. Untracked files and local-only configuration are not included.
-6. Copy the archive to the SmallDocs production VM over SSH.
-7. Extract it into `/opt/smalldocs/releases/<commit>`.
-8. Install server runtime dependencies in that release with `npm ci --omit=dev`.
-9. Change `/opt/smalldocs/staging-current` to point to the new release.
-10. Restart `smalldocs-staging.service`.
-11. Confirm the service is active and responds on its loopback port.
-12. Smoke test the public HTTPS site, including the changed user flow and `/version-check`.
+5. Run `ops/deploy-staging.sh SSH_TARGET` from that exact commit with no
+   uncommitted tracked changes. The command builds and copies the archive,
+   installs dependencies, verifies the staging unit, switches only the staging
+   release, checks the loopback service and public hostname, and rolls back the
+   staging pointer if activation fails.
 
 The public request path is:
 
@@ -76,7 +66,7 @@ flowchart LR
     Browser["Browser"] --> HTTPS["Nginx and TLS<br/>cloud-staging.smalldocs.org"]
     HTTPS --> App["smalldocs-staging.service<br/>127.0.0.1:3004"]
     App --> Release["/opt/smalldocs/staging-current"]
-    Release --> Commit["/opt/smalldocs/releases/59fd78d"]
+    Release --> Commit["/opt/smalldocs/releases/<full commit>"]
     App --> State["/var/lib/smalldocs-staging"]
     App --> Config["/etc/smalldocs-staging"]
 ```
@@ -98,20 +88,14 @@ Staging has its own:
 
 It must not receive production customer data or use production payment webhooks.
 
-### One deployment weakness to remove
+### Staging deployment boundary
 
-Production has a checked-in deployment script with health checks and rollback. The current staging deployment follows the same immutable-release pattern, but the staging-specific activation is still an operator-run sequence.
-
-Before launch, we should add a checked-in `ops/deploy-staging.sh` or a small CI workflow that:
-
-- refuses an uncommitted or unpushed commit;
-- deploys the named commit, not an implied working tree;
-- runs a health check before reporting success;
-- restores the prior `staging-current` link if startup fails;
-- records the deployed commit;
-- never prints credentials.
-
-This would make staging deployments repeatable and leave less room for a missed step.
+`ops/deploy-staging.sh` refuses uncommitted tracked changes and a commit that is
+not the published `feature/cloud-foundation` tip. It modifies only the staging
+release symlink and `smalldocs-staging.service`. It records the full commit in
+the release, verifies that commit over loopback and public HTTPS, and restores
+the prior staging release if activation fails. It does not read or print Cloud,
+Stripe, OAuth, KMS, or email credentials.
 
 ## How we test the Cloud work
 
@@ -225,19 +209,21 @@ The list below is intentionally stricter than a demo checklist. A paid Cloud pro
 
 ### B. Prove tags and permission groups end to end
 
-The first three flows below now pass in the isolated automated acceptance
-suite. They still need a run against the deployed staging hostname before
-being marked complete for production.
+The first three flows below pass in the isolated automated acceptance suite and
+in the deployed staging two-account test. This is staging evidence. Production
+remains separate and Cloud is not enabled there.
 
-- [ ] Add a document with Only you access and prove another account cannot discover or open it.
-- [ ] Change the same document to Everyone and prove all active account members can discover and open it.
-- [ ] Create a custom permission group, add and remove people, and prove access changes immediately.
+- [x] Add a document with Only you access and prove another account cannot discover or open it.
+- [x] Change the same document to Everyone and prove all active account members can discover and open it.
+- [x] Create a custom permission group, add and remove people, and prove access changes immediately.
 - [ ] Confirm the owner, selected member, unselected member, removed member, and signed-out cases for read, search, edit, history, restore, delete, and undelete.
 - [ ] Confirm changing tags never changes permissions, and changing permissions never drops tags.
 - [ ] Confirm local tags become Cloud tags on first upload using the agreed merge behavior.
 - [ ] Confirm Cloud tag edits remain consistent in the document view, Library, search, and CLI.
 - [ ] Confirm stable document identity when a local document is pushed more than once.
-- [ ] Confirm two clients creating a revision conflict preserve both edits and give the user a recoverable path.
+- [x] Confirm two clients creating a revision conflict preserve both edits. The
+  automatic recent-target path is covered; recovery for an expired target is a
+  separate remaining UI task.
 
 ### C. Prove account and invitation behavior
 
@@ -257,7 +243,9 @@ being marked complete for production.
 - [ ] Test OAuth success, denial, replay, expired state, private-email accounts, and accounts without a usable verified email.
 - [ ] Deliver login codes and invitations to Gmail, Outlook, iCloud, and a custom-domain mailbox.
 - [ ] Check latency, spam placement, expiry, resend invalidation, bounce handling, and provider outage behavior.
-- [ ] Inspect the staging delivery queue with `npm run cloud:jobs -- --email`; confirm the diagnostic output contains no recipients, document data, notes, or tokens.
+- [x] Inspect the staging delivery queue with `npm run cloud:jobs -- --email`;
+  confirm the diagnostic output contains no recipients, document data, notes,
+  or tokens.
 - [ ] Publish DMARC reporting, review it, and decide when to move to a stricter policy.
 - [ ] Confirm codes, invitation tokens, OAuth values, cookies, and customer email never appear in application or proxy logs.
 - [ ] Confirm auth abuse limits are understandable to a legitimate user and effective against repeated attempts.
