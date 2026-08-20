@@ -1,6 +1,7 @@
 const fs = require('fs');
 const { test, expect } = require('@playwright/test');
 const { LOCAL_TEST_LOGIN_SECRET, TEST_IDENTITIES } = require('./cloud-e2e-constants');
+const SDocYaml = require('../cli/shared/sdocs-yaml.js');
 
 function configuredSecret() {
   if (!process.env.CLOUD_E2E_BASE_URL) return LOCAL_TEST_LOGIN_SECRET;
@@ -53,6 +54,14 @@ async function searchDocumentIds(context, baseURL, accountId, query, tags) {
   });
   expect(result.response.status()).toBe(200);
   return result.body.documents.map(document => document.id);
+}
+
+function withComments(markdown, comments) {
+  const parsed = SDocYaml.parseFrontMatter(markdown);
+  const meta = Object.assign({}, parsed.meta || {});
+  if (comments.length) meta.comments = comments;
+  else delete meta.comments;
+  return SDocYaml.serializeFrontMatter(meta) + '\n' + parsed.body;
 }
 
 test('reusable staging identities enforce access and merge two-account edits', async ({ browser }, testInfo) => {
@@ -230,6 +239,89 @@ test('reusable staging identities enforce access and merge two-account edits', a
     expect(document.markdown).toContain('Owner edit after the recovery base.');
     expect(document.markdown).toContain('Selected edit from a pruned target.');
 
+    const selectedWorkspaces = await json(contexts.selected, baseURL, 'GET',
+      '/api/cloud/v1/workspaces');
+    expect(selectedWorkspaces.response.status()).toBe(200);
+    const ownerName = [workspaces.body.user.first_name, workspaces.body.user.last_name]
+      .filter(Boolean).join(' ');
+    const selectedName = [selectedWorkspaces.body.user.first_name,
+      selectedWorkspaces.body.user.last_name].filter(Boolean).join(' ');
+    const commentTarget = document.current_revision_id;
+    const commentBase = document.markdown;
+    const ownerCommentMarkdown = withComments(commentBase, [{
+      id: 'c1', kind: 'block', block: 'p:0', block_text: 'Cloud access matrix',
+      author: ownerName, color: '#2f6feb', at: '2026-08-21T15:00:00.000Z',
+      text: 'Owner acceptance note',
+    }]);
+    const selectedCommentMarkdown = withComments(commentBase, [{
+      id: 'c1', kind: 'block', block: 'p:0', block_text: 'Cloud access matrix',
+      author: selectedName, color: '#0a8f45', at: '2026-08-21T15:00:01.000Z',
+      text: 'Selected acceptance note',
+    }]);
+    const ownerComment = await json(owner, baseURL, 'POST',
+      '/api/cloud/v1/documents/' + document.id + '/revisions', {
+        target_revision_id: commentTarget,
+        target_markdown: commentBase,
+        filename: document.filename,
+        markdown: ownerCommentMarkdown,
+        idempotency_key: 'cloud-comment-owner-' + runId,
+      });
+    expect(ownerComment.response.status()).toBe(201);
+    const selectedComment = await json(contexts.selected, baseURL, 'POST',
+      '/api/cloud/v1/documents/' + document.id + '/revisions', {
+        target_revision_id: commentTarget,
+        target_markdown: commentBase,
+        filename: document.filename,
+        markdown: selectedCommentMarkdown,
+        idempotency_key: 'cloud-comment-selected-' + runId,
+      });
+    expect(selectedComment.response.status()).toBe(201);
+    document = selectedComment.body.document;
+    let comments = SDocYaml.parseFrontMatter(document.markdown).meta.comments;
+    expect(comments.map(comment => comment.author).sort()).toEqual([ownerName, selectedName].sort());
+    expect(new Set(comments.map(comment => comment.id)).size).toBe(2);
+    expect(document.comment_id_remaps).toHaveLength(1);
+
+    comments = comments.map(comment => comment.author === ownerName
+      ? Object.assign({}, comment, { text: 'Owner acceptance note edited' }) : comment);
+    const editedComment = await json(owner, baseURL, 'POST',
+      '/api/cloud/v1/documents/' + document.id + '/revisions', {
+        target_revision_id: document.current_revision_id,
+        target_markdown: document.markdown,
+        filename: document.filename,
+        markdown: withComments(document.markdown, comments),
+        idempotency_key: 'cloud-comment-edit-' + runId,
+      });
+    expect(editedComment.response.status()).toBe(201);
+    document = editedComment.body.document;
+    const selectedReopen = await json(contexts.selected, baseURL, 'GET',
+      '/api/cloud/v1/documents/' + document.id);
+    expect(selectedReopen.response.status()).toBe(200);
+    expect(SDocYaml.parseFrontMatter(selectedReopen.body.document.markdown).meta.comments)
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ author: ownerName, text: 'Owner acceptance note edited' }),
+      ]));
+
+    comments = SDocYaml.parseFrontMatter(document.markdown).meta.comments
+      .filter(comment => comment.author !== selectedName);
+    const deletedComment = await json(contexts.selected, baseURL, 'POST',
+      '/api/cloud/v1/documents/' + document.id + '/revisions', {
+        target_revision_id: document.current_revision_id,
+        target_markdown: document.markdown,
+        filename: document.filename,
+        markdown: withComments(document.markdown, comments),
+        idempotency_key: 'cloud-comment-delete-' + runId,
+      });
+    expect(deletedComment.response.status()).toBe(201);
+    document = deletedComment.body.document;
+    const ownerReopen = await json(owner, baseURL, 'GET',
+      '/api/cloud/v1/documents/' + document.id);
+    expect(ownerReopen.response.status()).toBe(200);
+    expect(SDocYaml.parseFrontMatter(ownerReopen.body.document.markdown).meta.comments)
+      .toEqual([expect.objectContaining({
+        author: ownerName, text: 'Owner acceptance note edited',
+      })]);
+
     const removedResponse = await json(owner, baseURL, 'DELETE',
       '/api/cloud/v1/workspaces/' + accountId + '/members/' + removedUserId, {});
     expect(removedResponse.response.status()).toBe(200);
@@ -240,6 +332,25 @@ test('reusable staging identities enforce access and merge two-account edits', a
       workspace_id: accountId, query: runId,
     });
     expect(removedSearch.response.status()).toBe(404);
+
+    const deniedComments = SDocYaml.parseFrontMatter(document.markdown).meta.comments.concat([{
+      id: 'c99', kind: 'block', block: 'p:0', block_text: 'Cloud access matrix',
+      author: 'Removed member', color: '#888888', text: 'This must not be saved',
+    }]);
+    const removedCommentSave = await json(removed, baseURL, 'POST',
+      '/api/cloud/v1/documents/' + document.id + '/revisions', {
+        target_revision_id: document.current_revision_id,
+        target_markdown: document.markdown,
+        filename: document.filename,
+        markdown: withComments(document.markdown, deniedComments),
+        idempotency_key: 'cloud-comment-removed-' + runId,
+      });
+    expect(removedCommentSave.response.status()).toBe(404);
+    const afterDeniedComment = await json(owner, baseURL, 'GET',
+      '/api/cloud/v1/documents/' + document.id);
+    expect(afterDeniedComment.response.status()).toBe(200);
+    expect(afterDeniedComment.body.document.markdown).not.toContain('This must not be saved');
+    document = afterDeniedComment.body.document;
 
     const ownerPage = await owner.newPage();
     await ownerPage.goto('/library?scope=cloud&account_id=' + encodeURIComponent(accountId));

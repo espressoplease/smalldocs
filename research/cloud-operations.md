@@ -91,8 +91,8 @@ The endpoint is same-origin protected, rate-limited, returns no token in its
 body, and creates the normal HttpOnly Secure browser cookie. Do not place the
 secret in a URL, repository file, Playwright report, or command-line argument.
 
-Run the complete permission, tag, and two-account merge matrix against an isolated local
-staging-shaped process with:
+Run the complete permission, tag, two-account merge, Cloud comment, and
+access-revocation matrix against an isolated local staging-shaped process with:
 
 ```text
 npm run test:cloud-e2e
