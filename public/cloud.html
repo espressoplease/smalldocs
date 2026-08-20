@@ -207,7 +207,7 @@ sdoc cloud pull DOCUMENT_UUID --output migration.md
 sdoc cloud push migration.md
 sdoc cloud history DOCUMENT_UUID
 sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
-    <p>Each Cloud document keeps a stable identity and revision history. Renaming a file does not break agent references. If someone else has changed a document, SmallDocs reports a conflict instead of overwriting their work.</p>
+    <p>Each Cloud document keeps a stable identity and revision history. Renaming a file does not break agent references. A save names the revision it started from, so changes made since then can be combined. Separate edits are retained. Overlapping replacements may both appear in the document.</p>
   </section>
 
   <section id="pricing">

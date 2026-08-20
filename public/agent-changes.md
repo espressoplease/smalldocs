@@ -13,6 +13,17 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v17 (unreleased)
+
+**Reason:** Cloud push now merges against the revision an agent edited and
+returns the combined document to the local file.
+
+The Cloud editing entry now reads:
+
+```markdown
+- Edit an existing document with `sdoc cloud pull DOCUMENT_UUID --output FILE.md`, normal file tools, then `sdoc cloud push FILE.md --json`. The local binding supplies the revision the agent edited. Cloud keeps separate changes from other writers; overlapping replacements may both remain. If the server combines content and the file did not change during upload, push writes the combined Markdown back to the local file. Inspect `merge_classification`, `combined`, and `local_updated_from_cloud` in the JSON result.
+```
+
 ## v16 (unreleased)
 
 **Reason:** Agents can now discover and use persistent SmallDocs Cloud commands

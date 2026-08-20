@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const SDocYaml = require('../cli/shared/sdocs-yaml');
+const { mergeTargetRevision } = require('../lib/cloud-merge');
 
 function createAsyncKms(rootKey) {
   function contextBytes(context) {
@@ -53,6 +55,11 @@ module.exports = function(harness) {
       dbPath: path.join(dir, 'cloud.db'), keyProvider,
       idempotencySecret: 'test-idempotency-secret-32-bytes', now: () => clock,
     });
+    const mergeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-merge-store-'));
+    const mergeStore = createCloudStore({
+      dbPath: path.join(mergeDir, 'cloud.db'), keyProvider,
+      idempotencySecret: 'merge-idempotency-secret-32-bytes', now: () => clock,
+    });
     const owner = 'usr_owner';
     const member = 'usr_member';
     const collaborator = 'usr_collaborator';
@@ -60,6 +67,65 @@ module.exports = function(harness) {
     let personal;
     let team;
     let document;
+    let mergePersonal;
+    let targetDocument;
+
+    await testAsync('target merge applies a proposal unchanged when its target is current', async () => {
+      const merged = mergeTargetRevision('# Plan\n\nOriginal.\n', '# Plan\n\nOriginal.\n',
+        '# Plan\n\nUpdated.\n');
+      assert.strictEqual(merged.markdown, '# Plan\n\nUpdated.\n');
+      assert.strictEqual(merged.classification, 'clean');
+      assert.strictEqual(merged.combined, false);
+    });
+
+    await testAsync('target merge combines edits to separate Markdown lines', async () => {
+      const base = '# Plan\n\nOwner: Ana\n\nStatus: Draft\n';
+      const current = '# Plan\n\nOwner: Josh\n\nStatus: Draft\n';
+      const proposed = '# Plan\n\nOwner: Ana\n\nStatus: Ready\n';
+      const merged = mergeTargetRevision(base, current, proposed);
+      assert.strictEqual(merged.markdown, '# Plan\n\nOwner: Josh\n\nStatus: Ready\n');
+      assert.strictEqual(merged.classification, 'rebased');
+      assert.strictEqual(merged.combined, false);
+    });
+
+    await testAsync('target merge preserves both overlapping paragraph replacements', async () => {
+      const base = '# Plan\n\nThe launch is on Monday.\n';
+      const current = '# Plan\n\nThe launch is on Tuesday.\n';
+      const proposed = '# Plan\n\nThe launch is after legal review.\n';
+      const merged = mergeTargetRevision(base, current, proposed);
+      assert.ok(merged.markdown.includes('The launch is on Tuesday.'));
+      assert.ok(merged.markdown.includes('The launch is after legal review.'));
+      assert.strictEqual(merged.classification, 'combined');
+      assert.strictEqual(merged.combined, true);
+    });
+
+    await testAsync('target merge keeps an insertion made inside a concurrently deleted range', async () => {
+      const base = '# Plan\n\nKeep this section.\n\nDelete this section.\n\nEnd.\n';
+      const current = '# Plan\n\nEnd.\n';
+      const proposed = '# Plan\n\nKeep this section.\n\nNew collaborator text.\n\nDelete this section.\n\nEnd.\n';
+      const merged = mergeTargetRevision(base, current, proposed);
+      assert.ok(merged.markdown.includes('New collaborator text.'));
+      assert.strictEqual(merged.classification, 'combined');
+    });
+
+    await testAsync('target merge keeps concurrent Cloud comments with unique ids and names', async () => {
+      const body = '# Review\n\nShared paragraph.\n';
+      const base = body;
+      const current = SDocYaml.serializeFrontMatter({ comments: [{
+        id: 'c1', kind: 'block', block: 'p:0', author: 'Ana Bell', text: 'Ana note',
+      }] }) + '\n' + body;
+      const proposed = SDocYaml.serializeFrontMatter({ comments: [{
+        id: 'c1', kind: 'block', block: 'p:0', author: 'Josh Summers', text: 'Josh note',
+      }] }) + '\n' + body;
+      const merged = mergeTargetRevision(base, current, proposed);
+      const parsed = SDocYaml.parseFrontMatter(merged.markdown);
+      assert.strictEqual(parsed.body, body);
+      assert.strictEqual(parsed.meta.comments.length, 2);
+      assert.deepStrictEqual(parsed.meta.comments.map((comment) => comment.author).sort(),
+        ['Ana Bell', 'Josh Summers']);
+      assert.strictEqual(new Set(parsed.meta.comments.map((comment) => comment.id)).size, 2);
+      assert.strictEqual(merged.classification, 'combined');
+    });
 
     await testAsync('existing notification batches gain encrypted note columns', async () => {
       const migrationDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-note-migration-'));
@@ -344,6 +410,108 @@ module.exports = function(harness) {
       }), (error) => error.code === 'revision_conflict' && error.currentRevisionId === before);
       assert.strictEqual((await store.getDocument({ userId: member, documentId: document.id })).current_revision_id, before);
       assert.strictEqual(store.listRevisions({ userId: member, documentId: document.id }).length, 2);
+    });
+
+    await testAsync('a target revision merges a stale writer with the current document', async () => {
+      mergePersonal = await mergeStore.ensurePersonalWorkspace(owner, 'Merge tests');
+      targetDocument = await mergeStore.createDocument({
+        userId: owner, projectId: mergePersonal.projectId, filename: 'target-merge.md',
+        markdown: '# Roadmap\nOwner: Team\n\nStatus: Planned.',
+        idempotencyKey: 'target-merge-base',
+      });
+      const targetRevisionId = targetDocument.current_revision_id;
+      clock += 1000;
+      const remote = await mergeStore.saveRevision({
+        userId: owner, documentId: targetDocument.id, expectedHeadRevisionId: targetRevisionId,
+        markdown: '# Roadmap\nOwner: Ana\n\nStatus: Planned.',
+        filename: 'target-merge.md', idempotencyKey: 'target-remote-save',
+      });
+      clock += 1000;
+      const merged = await mergeStore.saveTargetRevision({
+        userId: owner, documentId: targetDocument.id, targetRevisionId,
+        markdown: '# Roadmap\nOwner: Team\n\nStatus: Complete.',
+        filename: 'target-merge.md', idempotencyKey: 'target-merge-save',
+      });
+      assert.strictEqual(merged.revision_number, remote.revision_number + 1);
+      assert.strictEqual(merged.target_revision_id, targetRevisionId);
+      assert.strictEqual(merged.merged_from_revision_id, remote.current_revision_id);
+      assert.strictEqual(merged.merge_classification, 'rebased');
+      assert.ok(merged.markdown.includes('Owner: Ana'));
+      assert.ok(merged.markdown.includes('Status: Complete.'));
+      const opened = await mergeStore.getDocument({ userId: owner, documentId: targetDocument.id });
+      assert.strictEqual(opened.markdown, merged.markdown);
+      targetDocument = merged;
+    });
+
+    await testAsync('target revision retries are idempotent and missing targets do not write', async () => {
+      const target = mergeStore.listRevisions({ userId: owner, documentId: targetDocument.id })
+        .find((revision) => revision.revision_number === 2);
+      const input = {
+        userId: owner, documentId: targetDocument.id, targetRevisionId: target.id,
+        markdown: '# Roadmap\n\nAgent follow-up.', filename: 'target-merge.md',
+        idempotencyKey: 'target-idempotent-save',
+      };
+      const first = await mergeStore.saveTargetRevision(input);
+      const replay = await mergeStore.saveTargetRevision(input);
+      assert.deepStrictEqual(replay, first);
+      const before = mergeStore.listRevisions({ userId: owner,
+        documentId: targetDocument.id }).length;
+      await assert.rejects(() => mergeStore.saveTargetRevision(Object.assign({}, input, {
+        targetRevisionId: 'missing-target', idempotencyKey: 'missing-target-save',
+      })), (error) => error.code === 'target_too_old' &&
+        error.currentRevisionId === first.current_revision_id);
+      assert.strictEqual(mergeStore.listRevisions({ userId: owner,
+        documentId: targetDocument.id }).length,
+        before);
+      targetDocument = first;
+    });
+
+    await testAsync('simultaneous target saves retry and preserve both writers', async () => {
+      const base = await mergeStore.createDocument({
+        userId: owner, projectId: mergePersonal.projectId, filename: 'parallel.md',
+        markdown: '# Parallel\n', idempotencyKey: 'parallel-base',
+      });
+      const writes = await Promise.all([
+        mergeStore.saveTargetRevision({ userId: owner, documentId: base.id,
+          targetRevisionId: base.current_revision_id,
+          markdown: '# Parallel\n\nWriter A.\n', filename: 'parallel.md',
+          idempotencyKey: 'parallel-a' }),
+        mergeStore.saveTargetRevision({ userId: owner, documentId: base.id,
+          targetRevisionId: base.current_revision_id,
+          markdown: '# Parallel\n\nWriter B.\n', filename: 'parallel.md',
+          idempotencyKey: 'parallel-b' }),
+      ]);
+      assert.deepStrictEqual(writes.map((item) => item.revision_number).sort(), [2, 3]);
+      const opened = await mergeStore.getDocument({ userId: owner, documentId: base.id });
+      assert.ok(opened.markdown.includes('Writer A.'));
+      assert.ok(opened.markdown.includes('Writer B.'));
+      assert.strictEqual(opened.revision_number, 3);
+      assert.strictEqual(writes.some((item) => item.combined), true);
+    });
+
+    await testAsync('target revision preserves concurrent named Cloud comments', async () => {
+      const base = await mergeStore.createDocument({
+        userId: owner, projectId: mergePersonal.projectId, filename: 'comments.md',
+        markdown: '# Review\n\nShared paragraph.\n', idempotencyKey: 'comments-base',
+      });
+      const anaMarkdown = SDocYaml.serializeFrontMatter({ comments: [{
+        id: 'c1', kind: 'block', block: 'p:0', author: 'Ana Bell', text: 'Ana note',
+      }] }) + '\n# Review\n\nShared paragraph.\n';
+      const joshMarkdown = SDocYaml.serializeFrontMatter({ comments: [{
+        id: 'c1', kind: 'block', block: 'p:0', author: 'Josh Summers', text: 'Josh note',
+      }] }) + '\n# Review\n\nShared paragraph.\n';
+      const ana = await mergeStore.saveRevision({ userId: owner, documentId: base.id,
+        expectedHeadRevisionId: base.current_revision_id, markdown: anaMarkdown,
+        filename: 'comments.md', idempotencyKey: 'comments-ana' });
+      const merged = await mergeStore.saveTargetRevision({ userId: owner, documentId: base.id,
+        targetRevisionId: base.current_revision_id, markdown: joshMarkdown,
+        filename: 'comments.md', idempotencyKey: 'comments-josh' });
+      const parsed = SDocYaml.parseFrontMatter(merged.markdown);
+      assert.deepStrictEqual(parsed.meta.comments.map((comment) => comment.author).sort(),
+        ['Ana Bell', 'Josh Summers']);
+      assert.strictEqual(new Set(parsed.meta.comments.map((comment) => comment.id)).size, 2);
+      assert.strictEqual(merged.merged_from_revision_id, ana.current_revision_id);
+      assert.strictEqual(merged.comment_id_remaps.length, 1);
     });
 
     await testAsync('commit authorization blocks revision writes after encryption', async () => {
@@ -943,6 +1111,8 @@ module.exports = function(harness) {
       }
     });
 
+    mergeStore.close();
+    fs.rmSync(mergeDir, { recursive: true, force: true });
     store.close();
     fs.rmSync(dir, { recursive: true, force: true });
   };

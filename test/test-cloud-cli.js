@@ -104,8 +104,11 @@ module.exports = function(harness) {
             document_ids: ['doc-1', 'doc-2'], recipient_user_ids: ['usr-2'] } };
         }
         if (endpoint === '/api/cloud/v1/documents/doc-1/revisions' && options && options.method === 'POST') {
+          const request = JSON.parse(options.body);
           return { document: { id: 'doc-1', current_revision_id: 'rev-2', revision_number: 2,
-            updated_at: '2026-08-14T00:01:00.000Z', tags: ['release'] } };
+            updated_at: '2026-08-14T00:01:00.000Z', tags: ['release'],
+            markdown: request.markdown, merge_classification: 'clean', combined: false,
+            comment_id_remaps: [] } };
         }
         if (endpoint.startsWith('/api/cloud/v1/documents/doc-1/revisions?')) {
           const cursor = new URL(endpoint, 'https://cloud.test').searchParams.get('cursor');
@@ -247,7 +250,7 @@ module.exports = function(harness) {
         jsonFlag: true }, { client: fakeClient }));
       assert.strictEqual(result.revision_id, 'rev-2');
       const request = JSON.parse(calls.find((call) => call.endpoint.endsWith('/revisions')).options.body);
-      assert.strictEqual(request.expected_head_revision_id, 'rev-1');
+      assert.strictEqual(request.target_revision_id, 'rev-1');
       assert.strictEqual(bindings.get('usr-1', source).revision_id, 'rev-2');
     });
 
@@ -258,8 +261,61 @@ module.exports = function(harness) {
         documentFlag: 'doc-1', baseRevisionFlag: 'rev-current', jsonFlag: true },
       { client: fakeClient }));
       const request = JSON.parse(calls.slice(callStart)[0].options.body);
-      assert.strictEqual(request.expected_head_revision_id, 'rev-current');
+      assert.strictEqual(request.target_revision_id, 'rev-current');
       assert.strictEqual(result.base_revision_id, 'rev-current');
+    });
+
+    await testAsync('cloud push writes combined Cloud content back to an unchanged agent file', async () => {
+      const mergedSource = path.join(dir, 'merged.md');
+      const local = '# Plan\n\nAgent edit.';
+      const merged = '# Plan\n\nHuman edit.\n\nAgent edit.';
+      fs.writeFileSync(mergedSource, local);
+      bindings.set('usr-1', mergedSource, { document_id: 'doc-merge', revision_id: 'rev-base',
+        content_sha256: bindings.hash('# Plan\n\nBase.'), updated_at: '2026-08-14T00:00:00.000Z' });
+      let request;
+      const mergedClient = {
+        loadCredential() { return account; },
+        async authenticated(endpoint, options) {
+          request = JSON.parse(options.body);
+          return { document: { id: 'doc-merge', current_revision_id: 'rev-merged',
+            revision_number: 3, updated_at: '2026-08-14T00:02:00.000Z', tags: [],
+            markdown: merged, merge_classification: 'combined', combined: true,
+            comment_id_remaps: [] } };
+        },
+      };
+      const result = await capture(() => runCloudCommand({ file: 'push', extra: mergedSource,
+        jsonFlag: true }, { client: mergedClient }));
+      assert.strictEqual(request.target_revision_id, 'rev-base');
+      assert.strictEqual(fs.readFileSync(mergedSource, 'utf8'), merged);
+      assert.strictEqual(bindings.get('usr-1', mergedSource).revision_id, 'rev-merged');
+      assert.strictEqual(bindings.get('usr-1', mergedSource).content_sha256,
+        bindings.hash(merged));
+      assert.strictEqual(result.combined, true);
+      assert.strictEqual(result.local_updated_from_cloud, true);
+    });
+
+    await testAsync('cloud push does not overwrite edits made while an upload is in flight', async () => {
+      const changingSource = path.join(dir, 'changing.md');
+      fs.writeFileSync(changingSource, '# Plan\n\nFirst agent edit.');
+      bindings.set('usr-1', changingSource, { document_id: 'doc-changing',
+        revision_id: 'rev-base', content_sha256: bindings.hash('# Plan\n\nBase.'),
+        updated_at: '2026-08-14T00:00:00.000Z' });
+      const changingClient = {
+        loadCredential() { return account; },
+        async authenticated() {
+          fs.writeFileSync(changingSource, '# Plan\n\nSecond agent edit.');
+          return { document: { id: 'doc-changing', current_revision_id: 'rev-cloud',
+            revision_number: 2, updated_at: '2026-08-14T00:01:00.000Z', tags: [],
+            markdown: '# Plan\n\nHuman edit.\n\nFirst agent edit.',
+            merge_classification: 'combined', combined: true, comment_id_remaps: [] } };
+        },
+      };
+      const result = await capture(() => runCloudCommand({ file: 'push', extra: changingSource,
+        jsonFlag: true }, { client: changingClient }));
+      assert.strictEqual(fs.readFileSync(changingSource, 'utf8'), '# Plan\n\nSecond agent edit.');
+      assert.strictEqual(bindings.get('usr-1', changingSource).revision_id, 'rev-base');
+      assert.strictEqual(result.local_changed_after_upload, true);
+      assert.strictEqual(result.local_updated_from_cloud, false);
     });
 
     await testAsync('cloud history returns stable revision JSON', async () => {

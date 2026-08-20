@@ -1346,6 +1346,60 @@ module.exports = function(harness) {
       cloudDocument = next;
     });
 
+    await testAsync('Cloud API target revisions merge stale writers without a conflict', async () => {
+      const created = await post(BASE + '/api/cloud/v1/documents', {
+        project_id: cloudProject.id,
+        filename: 'target-merge.md',
+        markdown: '# Merge plan\n\nOwner: Unassigned\n\nStatus: Draft.',
+        idempotency_key: 'http-target-base',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(created.status, 201);
+      const targetDocument = JSON.parse(created.body).document;
+      const targetRevisionId = targetDocument.current_revision_id;
+      const remote = await post(BASE + '/api/cloud/v1/documents/' + targetDocument.id + '/revisions', {
+        expected_head_revision_id: targetRevisionId,
+        filename: 'target-merge.md',
+        markdown: '# Merge plan\n\nOwner: Ada\n\nStatus: Draft.',
+        idempotency_key: 'http-target-remote',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(remote.status, 201);
+      const remoteDocument = JSON.parse(remote.body).document;
+
+      const merged = await post(BASE + '/api/cloud/v1/documents/' + targetDocument.id + '/revisions', {
+        target_revision_id: targetRevisionId,
+        filename: 'target-merge.md',
+        markdown: '# Merge plan\n\nOwner: Unassigned\n\nStatus: Ready.',
+        idempotency_key: 'http-target-merge',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(merged.status, 201);
+      const mergedDocument = JSON.parse(merged.body).document;
+      assert.strictEqual(mergedDocument.target_revision_id, targetRevisionId);
+      assert.strictEqual(mergedDocument.merged_from_revision_id,
+        remoteDocument.current_revision_id);
+      assert.strictEqual(mergedDocument.merge_classification, 'rebased');
+      assert.ok(mergedDocument.markdown.includes('Owner: Ada'));
+      assert.ok(mergedDocument.markdown.includes('Status: Ready.'));
+      const head = await get(BASE + '/api/cloud/v1/documents/' + targetDocument.id + '/head',
+        { Cookie: cloudCookie });
+      assert.strictEqual(head.status, 200);
+      assert.deepStrictEqual(JSON.parse(head.body).document, {
+        id: targetDocument.id,
+        current_revision_id: mergedDocument.current_revision_id,
+        revision_number: mergedDocument.revision_number,
+        updated_at: mergedDocument.updated_at,
+      });
+
+      const ambiguous = await post(BASE + '/api/cloud/v1/documents/' + targetDocument.id +
+        '/revisions', {
+        expected_head_revision_id: mergedDocument.current_revision_id,
+        target_revision_id: targetRevisionId,
+        filename: 'cluster-plan.md', markdown: '# Ambiguous',
+        idempotency_key: 'http-ambiguous-revision-save',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(ambiguous.status, 400);
+      assert.strictEqual(JSON.parse(ambiguous.body).error, 'invalid_request');
+    });
+
     await testAsync('Cloud document cursors paginate deterministically and are filter-scoped', async () => {
       for (let number = 1; number <= 2; number += 1) {
         const created = await post(BASE + '/api/cloud/v1/documents', {

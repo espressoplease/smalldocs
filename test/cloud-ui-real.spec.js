@@ -127,7 +127,7 @@ test('real Cloud document controls save, share, tag, and remove through account 
   expect(savedBody).toContain('Cloud body edit.');
   expect(calls.filter(call =>
     call.path === '/api/cloud/v1/documents/doc-1/revisions')[1]
-    .body.expected_head_revision_id).toBe('rev-2');
+    .body.target_revision_id).toBe('rev-2');
 
   await page.locator('.sdoc-cloud-lab-access').click();
   await expect(page.getByRole('textbox', { name: 'Company email domain' })).toHaveCount(0);
@@ -285,15 +285,104 @@ test('Add to Cloud releases a live bridge before later Cloud autosaves', async (
   expect(await page.evaluate(() => window._testBridge._ws.sent.length)).toBe(0);
 });
 
-test('a revision conflict preserves the local edit and blocks further overwrites', async ({ page }) => {
+test('Cloud checks apply remote updates when clean and merge them with local edits', async ({ page }) => {
+  const revisionCalls = [];
+  let serverDocument = { id: 'doc-shared', filename: 'shared.md', title: 'Shared', tags: [],
+    current_revision_id: 'rev-1', revision_number: 1, workspace_id: 'acct-1',
+    markdown: '# Shared\n\nInitial.' };
+  await page.route('**/api/cloud/v1/**', async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path === '/api/cloud/v1/workspaces') return route.fulfill({ json: { ok: true,
+      workspaces: [{ id: 'acct-1', kind: 'personal', name: 'Personal', role: 'owner' }],
+      user: { id: 'usr-1', first_name: 'Josh', last_name: 'Summers' } } });
+    if (path === '/api/cloud/v1/account') return route.fulfill({ json: { ok: true,
+      account: { id: 'acct-1', kind: 'personal', name: 'Personal', role: 'owner', can_write: true },
+      accounts: [], user: { id: 'usr-1', first_name: 'Josh', last_name: 'Summers' } } });
+    if (path === '/api/cloud/v1/account/members') {
+      return route.fulfill({ json: { ok: true, members: [] } });
+    }
+    if (path === '/api/cloud/v1/account/tags') {
+      return route.fulfill({ json: { ok: true, tags: [] } });
+    }
+    if (path === '/api/cloud/v1/documents/doc-shared/head') {
+      return route.fulfill({ json: { ok: true, document: {
+        id: serverDocument.id, current_revision_id: serverDocument.current_revision_id,
+        revision_number: serverDocument.revision_number, updated_at: '2026-08-21T12:00:00.000Z',
+      } } });
+    }
+    if (path === '/api/cloud/v1/documents/doc-shared' && request.method() === 'GET') {
+      return route.fulfill({ json: { ok: true, document: serverDocument,
+        permission: { mode: 'custom', member_user_ids: ['usr-1'] } } });
+    }
+    if (path === '/api/cloud/v1/documents/doc-shared/revisions') {
+      const body = request.postDataJSON();
+      revisionCalls.push(body);
+      if (revisionCalls.length === 1) {
+        serverDocument = Object.assign({}, serverDocument, {
+          current_revision_id: 'rev-2', revision_number: 2, markdown: body.markdown,
+        });
+      } else {
+        serverDocument = Object.assign({}, serverDocument, {
+          current_revision_id: 'rev-5', revision_number: 5,
+          markdown: '# Shared\n\nInitial local.\n\nRemote while editing.\n\nLocal dirty edit.',
+          combined: true,
+        });
+      }
+      return route.fulfill({ status: 201, json: { ok: true, document: serverDocument } });
+    }
+    return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
+  });
+
+  await page.goto('/docs');
+  await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
+  await page.evaluate(() => {
+    window.SDocs.cloudDocument = { id: 'doc-shared', filename: 'shared.md',
+      current_revision_id: 'rev-1', revision_number: 1, workspace_id: 'acct-1' };
+    window.SDocs._loadingDocument = false;
+    window.SDocs.currentBody = '# Shared\n\nInitial local.';
+    window.SDocs.syncAll('write');
+  });
+  await expect.poll(() => revisionCalls.length).toBe(1);
+  expect(revisionCalls[0].target_revision_id).toBe('rev-1');
+
+  serverDocument = Object.assign({}, serverDocument, {
+    current_revision_id: 'rev-3', revision_number: 3,
+    markdown: '# Shared\n\nInitial local.\n\nRemote clean update.',
+  });
+  await page.evaluate(() => window.SDocs.checkCloudNow());
+  await expect.poll(() => page.evaluate(() => window.SDocs.currentBody))
+    .toContain('Remote clean update.');
+
+  await page.evaluate(() => {
+    window.SDocs.currentBody += '\n\nLocal dirty edit.';
+    window.SDocs.syncAll('write');
+  });
+  serverDocument = Object.assign({}, serverDocument, {
+    current_revision_id: 'rev-4', revision_number: 4,
+    markdown: '# Shared\n\nInitial local.\n\nRemote while editing.',
+  });
+  await page.evaluate(() => window.SDocs.checkCloudNow());
+  await expect.poll(() => revisionCalls.length).toBe(2);
+  expect(revisionCalls[1].target_revision_id).toBe('rev-3');
+  await expect.poll(() => page.evaluate(() => window.SDocs.currentBody))
+    .toContain('Remote while editing.');
+  expect(await page.evaluate(() => window.SDocs.currentBody)).toContain('Local dirty edit.');
+  await expect(page.locator('#_sd_status-text')).toContainText('combined');
+});
+
+test('an expired target preserves the local edit and blocks further overwrites', async ({ page }) => {
   const revisionCalls = [];
   await page.route('**/api/cloud/v1/**', async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (path === '/api/cloud/v1/documents/doc-conflict/revisions') {
       revisionCalls.push(request.postDataJSON());
-      return route.fulfill({ status: 409, json: { ok: false, error: 'revision_conflict',
-        document_id: 'doc-conflict', base_revision_id: 'rev-1', current_revision_id: 'rev-remote' } });
+      return route.fulfill({ status: 409, json: { ok: false, error: 'target_too_old',
+        document_id: 'doc-conflict', target_revision_id: 'rev-1',
+        current_revision_id: 'rev-remote' } });
     }
     return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
   });
@@ -311,7 +400,8 @@ test('a revision conflict preserves the local edit and blocks further overwrites
   });
 
   await expect.poll(() => revisionCalls.length).toBe(1);
-  await expect(page.locator('#_sd_status-text')).toContainText('changed in Cloud');
+  expect(revisionCalls[0].target_revision_id).toBe('rev-1');
+  await expect(page.locator('#_sd_status-text')).toContainText('too old');
   expect(await page.evaluate(() => window.SDocs.currentBody)).toContain('My unsaved edit.');
 
   await page.evaluate(() => {

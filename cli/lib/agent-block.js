@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 16;
-const SKILL_REASON  = 'Agents can now discover and use persistent SmallDocs Cloud commands for projects, search, revisions, and headless document updates.';
+const SKILL_VERSION = 17;
+const SKILL_REASON  = 'Cloud push now merges against the revision an agent edited and returns the combined document to the local file.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -63,7 +63,7 @@ Cloud is the paid, authenticated document store. Local SmallDocs remains free. R
 - Discover destinations and vocabulary with \`sdoc cloud projects\` and \`sdoc cloud tags --project PROJECT_UUID\`.
 - Find documents by UUID with \`sdoc cloud ls\` or content search with \`sdoc cloud search "QUERY"\`. Both accept project and tag filters.
 - Upload a new local file without opening a browser with \`sdoc cloud create FILE.md --project PROJECT_UUID --json\`.
-- Edit an existing document with \`sdoc cloud pull DOCUMENT_UUID --output FILE.md\`, normal file tools, then \`sdoc cloud push FILE.md --json\`. The local binding supplies the expected base revision and prevents silent overwrite conflicts.
+- Edit an existing document with \`sdoc cloud pull DOCUMENT_UUID --output FILE.md\`, normal file tools, then \`sdoc cloud push FILE.md --json\`. The local binding supplies the revision the agent edited. Cloud keeps separate changes from other writers; overlapping replacements may both remain. If the server combines content and the file did not change during upload, push writes the combined Markdown back to the local file. Inspect \`merge_classification\`, \`combined\`, and \`local_updated_from_cloud\` in the JSON result.
 - Inspect or recover history with \`sdoc cloud history DOCUMENT_UUID\` and \`sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID\`.
 
 Cloud documents are identified by UUID, not filename. A project is the access boundary; tags organize workstreams inside it. Cloud commands other than login are noninteractive. Do not use \`sdoc share\` as a substitute for Cloud: share creates an encrypted snapshot link, while Cloud provides revisions, search, membership, and persistent agent access.

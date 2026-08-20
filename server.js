@@ -936,6 +936,7 @@ function cloudApiError(res, error) {
     account_required: 404,
     account_selection_required: 409,
     revision_conflict: 409,
+    target_too_old: 409,
     idempotency_mismatch: 409,
     final_owner_required: 409,
     personal_workspace_cannot_be_deleted: 409,
@@ -964,6 +965,11 @@ function cloudApiError(res, error) {
   if (code === 'revision_conflict') {
     body.document_id = error.documentId;
     body.base_revision_id = error.baseRevisionId;
+    body.current_revision_id = error.currentRevisionId;
+  }
+  if (code === 'target_too_old') {
+    body.document_id = error.documentId;
+    body.target_revision_id = error.targetRevisionId;
     body.current_revision_id = error.currentRevisionId;
   }
   sendJson(res, statuses[code] || 500, body);
@@ -1799,6 +1805,17 @@ async function handleCloudApi(req, res, url) {
       return;
     }
 
+    const documentHeadMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/head$/);
+    if (documentHeadMatch && req.method === 'GET') {
+      const context = cloudStore.getDocumentContext({ userId: user.id,
+        documentId: documentHeadMatch[1] });
+      requireCloudEntitlement(user.id, context.workspaceId, 'read');
+      const document = cloudStore.getDocumentHead({ userId: user.id,
+        documentId: documentHeadMatch[1] });
+      sendJson(res, 200, { ok: true, document });
+      return;
+    }
+
     const documentMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)$/);
     if (documentMatch && req.method === 'GET') {
       const context = cloudStore.getDocumentContext({ userId: user.id, documentId: documentMatch[1] });
@@ -1856,20 +1873,46 @@ async function handleCloudApi(req, res, url) {
     }
     if (revisionsMatch && req.method === 'POST') {
       const body = await cloudAuthHttp.readJson(req, CLOUD_DOCUMENT_JSON_MAX_BYTES);
+      const hasExpectedHead = typeof body.expected_head_revision_id === 'string' &&
+        body.expected_head_revision_id.length > 0;
+      const hasTarget = typeof body.target_revision_id === 'string' &&
+        body.target_revision_id.length > 0;
+      if (hasExpectedHead === hasTarget) {
+        const error = new Error('choose one revision base');
+        error.code = 'invalid_request';
+        throw error;
+      }
       const context = cloudStore.getDocumentContext({ userId: user.id,
         documentId: revisionsMatch[1], requiredRole: 'editor' });
       const entitlements = requireCloudEntitlement(user.id, context.workspaceId, 'store_revision', {
         fileBytes: cloudMarkdownBytes(body.markdown),
       });
-      const document = await cloudStore.saveRevision({
+      const saveInput = {
         userId: user.id, documentId: revisionsMatch[1],
-        expectedHeadRevisionId: body.expected_head_revision_id,
         markdown: body.markdown, filename: body.filename,
         idempotencyKey: body.idempotency_key, credentialId,
-        beforeCommit: () => requireCloudEntitlement(user.id, context.workspaceId, 'store_revision', {
-          fileBytes: cloudMarkdownBytes(body.markdown),
-        }),
-      });
+      };
+      let document;
+      if (hasTarget) {
+        document = await cloudStore.saveTargetRevision({
+          ...saveInput,
+          targetRevisionId: body.target_revision_id,
+          maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
+          beforeCommit: (detail) => requireCloudEntitlement(
+            user.id, context.workspaceId, 'store_revision', {
+              fileBytes: detail.markdownBytes,
+            }),
+        });
+      } else {
+        document = await cloudStore.saveRevision({
+          ...saveInput,
+          expectedHeadRevisionId: body.expected_head_revision_id,
+          beforeCommit: () => requireCloudEntitlement(
+            user.id, context.workspaceId, 'store_revision', {
+              fileBytes: cloudMarkdownBytes(body.markdown),
+            }),
+        });
+      }
       scheduleRevisionPrune(document, entitlements);
       sendJson(res, 201, { ok: true, document });
       return;

@@ -11,7 +11,7 @@ const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
   resource_unavailable: 4, account_required: 4, account_selection_required: 4,
   permission_denied: 4, revision_conflict: 5,
   idempotency_mismatch: 5,
-  unsafe_local_state: 6, base_revision_unavailable: 6, rate_limited: 7,
+  unsafe_local_state: 6, base_revision_unavailable: 6, target_too_old: 6, rate_limited: 7,
   search_limit_reached: 7, temporary_service_failure: 7, billing_not_configured: 7,
   authentication_not_configured: 7, cloud_storage_not_configured: 7,
   subscription_required: 4, subscription_read_only: 4, payment_grace_expired: 4,
@@ -469,20 +469,32 @@ async function push(opts, client) {
   }
   const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(binding.document_id) + '/revisions', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ expected_head_revision_id: binding.revision_id,
+    body: JSON.stringify({ target_revision_id: binding.revision_id,
       filename: path.basename(file), markdown: content, idempotency_key: pending.idempotency_key }),
   });
   const document = response.document;
-  bindings.set(credential.user_id, file, { document_id: document.id,
-    revision_id: document.current_revision_id, content_sha256: digest, updated_at: document.updated_at });
-  bindings.cacheBase(credential.user_id, document.id, document.current_revision_id, content);
-  bindings.clearPending(credential.user_id, file);
   const localChanged = bindings.hash(fs.readFileSync(file)) !== digest;
+  const savedContent = typeof document.markdown === 'string' ? document.markdown : content;
+  const savedDigest = bindings.hash(savedContent);
+  const localUpdated = !localChanged && savedContent !== content;
+  if (!localChanged) {
+    if (localUpdated) atomicFileWrite(file, savedContent);
+    bindings.set(credential.user_id, file, { document_id: document.id,
+      revision_id: document.current_revision_id, content_sha256: savedDigest,
+      updated_at: document.updated_at });
+  }
+  bindings.cacheBase(credential.user_id, document.id, document.current_revision_id, savedContent);
+  bindings.clearPending(credential.user_id, file);
   emit(opts, 'cloud.push', { document_id: document.id, base_revision_id: binding.revision_id,
     revision_id: document.current_revision_id, revision_number: document.revision_number,
-    tags: document.tags, sha256: digest, no_change: false,
+    tags: document.tags, sha256: savedDigest, no_change: false,
+    merge_classification: document.merge_classification || 'clean',
+    combined: Boolean(document.combined),
+    comment_id_remaps: document.comment_id_remaps || [],
+    local_updated_from_cloud: localUpdated,
     local_changed_after_upload: localChanged }, 'Pushed revision ' + document.revision_number
-      + (localChanged ? '; the local file changed again during upload.' : '.'));
+      + (localChanged ? '; the local file changed again during upload.'
+        : localUpdated ? ' and updated the local file with Cloud changes.' : '.'));
 }
 
 async function history(opts, client) {
