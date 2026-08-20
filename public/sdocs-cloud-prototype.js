@@ -21,6 +21,8 @@ var cloudSaveQueued = false;
 var cloudSaveBlocked = false;
 var cloudLastSavedMarkdown = null;
 var cloudTargetRevisionId = null;
+var cloudTargetMarkdown = null;
+var cloudRecoveryMarkdown = null;
 var cloudPollTimer = null;
 
 function escapeHtml(value) {
@@ -100,7 +102,8 @@ async function saveCloudRevision() {
   cloudSavePromise = jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
     + '/revisions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ markdown: markdown, filename: currentFilename(),
-        target_revision_id: targetRevisionId, idempotency_key: crypto.randomUUID() }) })
+        target_revision_id: targetRevisionId, target_markdown: cloudTargetMarkdown,
+        idempotency_key: crypto.randomUUID() }) })
     .then(function (data) {
       var current = currentMarkdown();
       var savedMarkdown = typeof data.document.markdown === 'string'
@@ -110,6 +113,7 @@ async function saveCloudRevision() {
         applyCloudMarkdown(savedMarkdown, data.document.filename || currentFilename());
         cloudLastSavedMarkdown = currentMarkdown();
         cloudTargetRevisionId = data.document.current_revision_id;
+        cloudTargetMarkdown = cloudLastSavedMarkdown;
       } else {
         cloudLastSavedMarkdown = markdown;
       }
@@ -121,8 +125,10 @@ async function saveCloudRevision() {
       if (error.data && (error.data.error === 'target_too_old' ||
           error.data.error === 'revision_conflict')) {
         cloudSaveBlocked = true;
-        setCloudSaveStatus('This editing copy is too old. Reopen the Cloud document before saving again.',
+        cloudRecoveryMarkdown = currentMarkdown();
+        setCloudSaveStatus('Your edits were not saved to Cloud. They are still open here.',
           'error');
+        openRecoveryDialog();
       } else {
         setCloudSaveStatus('Changes were not saved to Cloud.', 'error');
       }
@@ -230,6 +236,8 @@ async function loadCloudDocument(id) {
     S.loadText(data.document.markdown, data.document.filename);
     cloudLastSavedMarkdown = currentMarkdown();
     cloudTargetRevisionId = data.document.current_revision_id;
+    cloudTargetMarkdown = cloudLastSavedMarkdown;
+    cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     if (S.setMode) S.setMode('read', true);
@@ -267,6 +275,7 @@ async function checkCloudDocument() {
     applyCloudMarkdown(data.document.markdown, data.document.filename);
     cloudLastSavedMarkdown = currentMarkdown();
     cloudTargetRevisionId = data.document.current_revision_id;
+    cloudTargetMarkdown = cloudLastSavedMarkdown;
     setCloudSaveStatus('Updated from Cloud.');
     refreshRow();
     return data.document;
@@ -491,6 +500,8 @@ async function beginAdd(event, accountId) {
     cloudState.permission = data.permission;
     cloudLastSavedMarkdown = currentMarkdown();
     cloudTargetRevisionId = data.document.current_revision_id;
+    cloudTargetMarkdown = cloudLastSavedMarkdown;
+    cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     clearLocalDocumentContext();
@@ -566,6 +577,8 @@ async function removeCloudDocument(event) {
     S.cloudDocument = null;
     cloudLastSavedMarkdown = null;
     cloudTargetRevisionId = null;
+    cloudTargetMarkdown = null;
+    cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
     cloudState.permission = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
@@ -734,7 +747,8 @@ async function saveTags(tags) {
     var targetRevisionId = cloudTargetRevisionId || S.cloudDocument.current_revision_id;
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id)
       + '/tags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags: tags, target_revision_id: targetRevisionId,
+        body: JSON.stringify({ tags: tags, filename: currentFilename(),
+          target_revision_id: targetRevisionId, target_markdown: cloudTargetMarkdown,
           idempotency_key: crypto.randomUUID() }) });
     S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
     var savedMarkdown = typeof data.document.markdown === 'string'
@@ -742,6 +756,7 @@ async function saveTags(tags) {
     if (currentMarkdown() === markdownBeforeTags && savedMarkdown) {
       applyCloudMarkdown(savedMarkdown, data.document.filename || currentFilename());
       cloudLastSavedMarkdown = currentMarkdown();
+      cloudTargetMarkdown = cloudLastSavedMarkdown;
     } else {
       if (!S.currentMeta) S.currentMeta = {};
       S.currentMeta.tags = data.document.tags.slice();
@@ -812,6 +827,66 @@ function openErrorDialog(message) {
     '<div class="sdoc-cloud-proto-actions"><button class="sdoc-cloud-proto-btn primary" data-action="done" type="button">Close</button></div>');
   wireClose(dialog);
   dialog.querySelector('[data-action="done"]').addEventListener('click', closeDialog);
+}
+
+function recoveryFilename() {
+  var filename = currentFilename().replace(/[\\/]/g, '_');
+  var extensionAt = filename.lastIndexOf('.');
+  if (extensionAt <= 0) return filename + '-recovered.md';
+  return filename.slice(0, extensionAt) + '-recovered' + filename.slice(extensionAt);
+}
+
+function downloadRecovery(markdown) {
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([markdown], { type: 'text/markdown' }));
+  link.download = recoveryFilename();
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function openRecoveryDialog() {
+  var backdrop = ensureDialog();
+  var dialog = backdrop.querySelector('.sdoc-cloud-proto-dialog');
+  backdrop.hidden = false;
+  document.body.style.overflow = 'hidden';
+  dialog.innerHTML = shell('Cloud could not combine your edits',
+    'The earlier version needed to combine your edits with the latest Cloud copy is no longer available.',
+    documentPreview()
+    + '<p class="sdoc-cloud-proto-recovery">Your edits have not been saved to Cloud. They are still open here, but opening the latest Cloud copy will replace them. Copy or download them first.</p>'
+    + '<div class="sdoc-cloud-proto-actions sdoc-cloud-proto-recovery-actions">'
+    + '<button class="sdoc-cloud-proto-btn" data-action="copy-recovery" type="button">Copy my edits</button>'
+    + '<button class="sdoc-cloud-proto-btn" data-action="download-recovery" type="button">Download my edits</button>'
+    + '<button class="sdoc-cloud-proto-btn primary" data-action="open-latest" type="button">Replace with latest Cloud copy</button>'
+    + '</div>');
+  wireClose(dialog);
+  dialog.querySelector('[data-action="copy-recovery"]').addEventListener('click', function () {
+    var button = this;
+    cloudRecoveryMarkdown = currentMarkdown();
+    navigator.clipboard.writeText(cloudRecoveryMarkdown).then(function () {
+      button.textContent = 'Copied';
+    }).catch(function () {
+      setCloudSaveStatus('Could not copy your edits. Download them instead.', 'error');
+    });
+  });
+  dialog.querySelector('[data-action="download-recovery"]').addEventListener('click', function () {
+    cloudRecoveryMarkdown = currentMarkdown();
+    downloadRecovery(cloudRecoveryMarkdown);
+    this.textContent = 'Download started';
+  });
+  dialog.querySelector('[data-action="open-latest"]').addEventListener('click', async function () {
+    var documentId = S.cloudDocument && S.cloudDocument.id;
+    if (!documentId) return;
+    this.disabled = true;
+    this.textContent = 'Replacing...';
+    await loadCloudDocument(documentId);
+    if (!cloudSaveBlocked) {
+      closeDialog();
+      setCloudSaveStatus('Opened the latest Cloud copy.');
+    } else {
+      this.disabled = false;
+      this.textContent = 'Try replacing again';
+    }
+  });
 }
 
 function closeDialog() {

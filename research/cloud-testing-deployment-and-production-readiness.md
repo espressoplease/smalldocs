@@ -222,8 +222,10 @@ remains separate and Cloud is not enabled there.
 - [ ] Confirm Cloud tag edits remain consistent in the document view, Library, search, and CLI.
 - [ ] Confirm stable document identity when a local document is pushed more than once.
 - [x] Confirm two clients creating a revision conflict preserve both edits. The
-  automatic recent-target path is covered; recovery for an expired target is a
-  separate remaining UI task.
+  automatic recent-target path and client-base recovery after revision pruning
+  are covered. If neither merge base is available, the browser preserves the
+  editor contents and offers copy and download before opening the latest Cloud
+  copy.
 
 ### C. Prove account and invitation behavior
 

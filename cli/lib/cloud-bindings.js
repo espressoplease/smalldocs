@@ -57,14 +57,29 @@ function clearOperationPending(accountId, operation, resourceId) {
 
 function hash(content) { return crypto.createHash('sha256').update(content).digest('hex'); }
 
+function baseFile(accountId, documentId, revisionId) {
+  const root = path.resolve(basesDir());
+  const file = path.resolve(root, String(accountId), String(documentId), String(revisionId) + '.md');
+  if (file !== root && !file.startsWith(root + path.sep)) return null;
+  return file;
+}
+
 function cacheBase(accountId, documentId, revisionId, content) {
-  const dir = path.join(basesDir(), accountId, documentId);
+  const file = baseFile(accountId, documentId, revisionId);
+  if (!file) throw new Error('Cloud base path is invalid');
+  const dir = path.dirname(file);
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const file = path.join(dir, revisionId + '.md');
   fs.writeFileSync(file, content, { mode: 0o600 });
   fs.chmodSync(file, 0o600);
   return file;
 }
 
+function readBase(accountId, documentId, revisionId) {
+  const file = baseFile(accountId, documentId, revisionId);
+  if (!file) return null;
+  try { return fs.readFileSync(file, 'utf8'); } catch (_) { return null; }
+}
+
 module.exports = { bindingsFile, pendingFile, canonical, get, set, getPending, setPending,
-  clearPending, getOperationPending, setOperationPending, clearOperationPending, hash, cacheBase };
+  clearPending, getOperationPending, setOperationPending, clearOperationPending, hash, cacheBase,
+  readBase };

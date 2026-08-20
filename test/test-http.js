@@ -1402,6 +1402,21 @@ module.exports = function(harness) {
       assert.ok(taggedDocument.markdown.includes('Status: Ready.'));
       assert.deepStrictEqual(taggedDocument.tags, ['collaboration']);
 
+      const recovered = await post(BASE + '/api/cloud/v1/documents/' + targetDocument.id +
+        '/revisions', {
+        target_revision_id: 'pruned-http-target',
+        target_markdown: taggedDocument.markdown,
+        filename: 'target-merge.md',
+        markdown: taggedDocument.markdown + '\nRecovered browser edit.\n',
+        idempotency_key: 'http-pruned-target-recovery',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(recovered.status, 201);
+      const recoveredDocument = JSON.parse(recovered.body).document;
+      assert.strictEqual(recoveredDocument.target_recovered, true);
+      assert.strictEqual(recoveredDocument.target_revision_id, 'pruned-http-target');
+      assert.ok(recoveredDocument.markdown.includes('Owner: Ada'));
+      assert.ok(recoveredDocument.markdown.includes('Recovered browser edit.'));
+
       const ambiguous = await post(BASE + '/api/cloud/v1/documents/' + targetDocument.id +
         '/revisions', {
         expected_head_revision_id: mergedDocument.current_revision_id,

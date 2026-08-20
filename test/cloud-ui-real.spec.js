@@ -115,8 +115,11 @@ test('real Cloud document controls save, share, tag, and remove through account 
   });
   await expect.poll(() => calls.filter(call =>
     call.path === '/api/cloud/v1/documents/doc-1/revisions').length).toBe(1);
-  const savedComment = calls.find(call =>
-    call.path === '/api/cloud/v1/documents/doc-1/revisions').body.markdown;
+  const createCall = calls.find(call => call.path === '/api/cloud/v1/account/documents');
+  const commentCall = calls.find(call =>
+    call.path === '/api/cloud/v1/documents/doc-1/revisions');
+  const savedComment = commentCall.body.markdown;
+  expect(commentCall.body.target_markdown).toBe(createCall.body.markdown);
   expect(savedComment).toContain('author: "Josh Summers"');
   expect(savedComment).toContain('at: "2026-08-20T15:30:00.000Z"');
   expect(savedComment).toContain('text: "Cloud comment"');
@@ -135,6 +138,9 @@ test('real Cloud document controls save, share, tag, and remove through account 
   expect(calls.filter(call =>
     call.path === '/api/cloud/v1/documents/doc-1/revisions')[1]
     .body.target_revision_id).toBe('rev-2');
+  expect(calls.filter(call =>
+    call.path === '/api/cloud/v1/documents/doc-1/revisions')[1]
+    .body.target_markdown).toBe(savedComment);
 
   await page.locator('.sdoc-cloud-lab-access').click();
   await expect(page.getByRole('textbox', { name: 'Company email domain' })).toHaveCount(0);
@@ -149,6 +155,7 @@ test('real Cloud document controls save, share, tag, and remove through account 
   await expect(page.locator('.fic-row-cloud')).toContainText('#release');
   const tagCall = calls.find(call => call.path === '/api/cloud/v1/documents/doc-1/tags');
   expect(tagCall.body.target_revision_id).toBe('rev-3');
+  expect(tagCall.body.target_markdown).toBe(savedBody);
   expect(tagCall.body.expected_head_revision_id).toBeUndefined();
 
   await page.evaluate(() => {
@@ -402,7 +409,8 @@ test('Cloud checks apply remote updates when clean and merge them with local edi
   await expect(page.locator('#_sd_status-text')).toContainText('combined');
 });
 
-test('an expired target preserves the local edit and blocks further overwrites', async ({ page }) => {
+test('an expired target preserves the local edit and offers copy recovery', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   const revisionCalls = [];
   await page.route('**/api/cloud/v1/**', async route => {
     const request = route.request();
@@ -430,7 +438,8 @@ test('an expired target preserves the local edit and blocks further overwrites',
 
   await expect.poll(() => revisionCalls.length).toBe(1);
   expect(revisionCalls[0].target_revision_id).toBe('rev-1');
-  await expect(page.locator('#_sd_status-text')).toContainText('too old');
+  await expect(page.locator('#_sd_status-text')).toContainText('not saved to Cloud');
+  await expect(page.getByRole('heading', { name: 'Cloud could not combine your edits' })).toBeVisible();
   expect(await page.evaluate(() => window.SDocs.currentBody)).toContain('My unsaved edit.');
 
   await page.evaluate(() => {
@@ -440,6 +449,9 @@ test('an expired target preserves the local edit and blocks further overwrites',
   await page.waitForTimeout(1000);
   expect(revisionCalls).toHaveLength(1);
   expect(await page.evaluate(() => window.SDocs.currentBody)).toContain('A second local edit.');
+  await page.getByRole('button', { name: 'Copy my edits' }).click();
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('A second local edit.');
 });
 
 test('local comments do not create Cloud documents or revisions', async ({ page }) => {

@@ -1818,6 +1818,8 @@ async function handleCloudApi(req, res, url) {
         documentId: documentTagsMatch[1], tags: body.tags,
         expectedHeadRevisionId: body.expected_head_revision_id,
         targetRevisionId: body.target_revision_id,
+        targetMarkdown: body.target_markdown,
+        filename: body.filename,
         maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
         idempotencyKey: body.idempotency_key, credentialId,
         beforeCommit: (detail) => requireCloudEntitlement(
@@ -1929,6 +1931,7 @@ async function handleCloudApi(req, res, url) {
         document = await cloudStore.saveTargetRevision({
           ...saveInput,
           targetRevisionId: body.target_revision_id,
+          targetMarkdown: body.target_markdown,
           maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
           beforeCommit: (detail) => requireCloudEntitlement(
             user.id, context.workspaceId, 'store_revision', {

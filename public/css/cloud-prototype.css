@@ -257,6 +257,17 @@
   text-align: center;
 }
 
+.sdoc-cloud-proto-recovery {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.sdoc-cloud-proto-recovery-actions {
+  flex-wrap: wrap;
+}
+
 .sdoc-cloud-proto-doc {
   display: flex;
   align-items: center;

@@ -116,9 +116,26 @@ member removed by the access-revocation check.
 The server writes one aggregate `cloud_collaboration_metrics` JSON record per
 active minute. It includes lightweight head-check totals and change counts,
 target-save merge classifications, merge retry counts and latency, and expired
-target counts. The record contains no document ids, account ids, Markdown, or
-search terms. Set `CLOUD_COLLABORATION_METRICS_INTERVAL_MS` to shorten the
-aggregation window during a focused staging check.
+target counts. It also counts saves recovered from a client-provided merge base
+after the server revision was pruned. The record contains no document ids,
+account ids, Markdown, or search terms. Set
+`CLOUD_COLLABORATION_METRICS_INTERVAL_MS` to shorten the aggregation window
+during a focused staging check.
+
+Browser and CLI target saves include the exact Markdown base that the writer
+opened. The browser keeps that base in memory. The CLI reads it from the
+owner-only cache under `~/.sdocs/cloud/bases/`. The server uses its encrypted
+revision when it is still retained. If pruning has removed that revision, an
+authorized editor's supplied base is used for the same three-way merge. The
+request base is bounded by the document request limit, is not logged, and is
+not stored in idempotency records. Only the resulting encrypted revision is
+persisted.
+
+If neither the server revision nor the client base is available, the server
+returns `target_too_old`. The browser then blocks further Cloud autosaves while
+keeping the live editor contents and offers copy, download, or replacement with
+the latest Cloud copy. The CLI returns the error without changing its binding
+or local file.
 
 Register these exact callback URLs with the providers:
 

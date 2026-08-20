@@ -467,9 +467,12 @@ async function push(opts, client) {
       sha256: digest, idempotency_key: crypto.randomUUID() };
     bindings.setPending(credential.user_id, file, pending);
   }
+  const targetMarkdown = bindings.readBase(credential.user_id, binding.document_id,
+    binding.revision_id);
   const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(binding.document_id) + '/revisions', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ target_revision_id: binding.revision_id,
+      target_markdown: targetMarkdown == null ? undefined : targetMarkdown,
       filename: path.basename(file), markdown: content, idempotency_key: pending.idempotency_key }),
   });
   const document = response.document;

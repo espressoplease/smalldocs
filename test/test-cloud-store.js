@@ -466,6 +466,60 @@ module.exports = function(harness) {
       targetDocument = first;
     });
 
+    await testAsync('a client merge base recovers a target after its server revision is pruned', async () => {
+      const baseMarkdown = '# Pruned base\n\nOwner: Team\n\nStatus: Draft.\n';
+      const base = await mergeStore.createDocument({
+        userId: owner, projectId: mergePersonal.projectId, filename: 'pruned-base.md',
+        markdown: baseMarkdown, idempotencyKey: 'pruned-base-create',
+      });
+      clock += 1000;
+      const remote = await mergeStore.saveRevision({
+        userId: owner, documentId: base.id,
+        expectedHeadRevisionId: base.current_revision_id,
+        markdown: '# Pruned base\n\nOwner: Ana\n\nStatus: Draft.\n',
+        filename: 'pruned-base.md', idempotencyKey: 'pruned-base-remote',
+      });
+      const pruned = mergeStore.pruneRevisions({ documentId: base.id, keepPrevious: 0,
+        retainAfterMs: clock + 1 });
+      assert.strictEqual(pruned.deleted_count, 1);
+      const recovered = await mergeStore.saveTargetRevision({
+        userId: owner, documentId: base.id, targetRevisionId: base.current_revision_id,
+        targetMarkdown: baseMarkdown,
+        markdown: '# Pruned base\n\nOwner: Team\n\nStatus: Ready.\n',
+        filename: 'pruned-base.md', idempotencyKey: 'pruned-base-recovered',
+      });
+      assert.strictEqual(recovered.target_recovered, true);
+      assert.strictEqual(recovered.merged_from_revision_id, remote.current_revision_id);
+      assert.ok(recovered.markdown.includes('Owner: Ana'));
+      assert.ok(recovered.markdown.includes('Status: Ready.'));
+    });
+
+    await testAsync('a client merge base recovers a tag update after pruning', async () => {
+      const baseMarkdown = '---\ntags:\n  - draft\n---\n# Pruned tags\n\nStatus: Draft.\n';
+      const base = await mergeStore.createDocument({
+        userId: owner, projectId: mergePersonal.projectId, filename: 'pruned-tags.md',
+        markdown: baseMarkdown, idempotencyKey: 'pruned-tags-create',
+      });
+      clock += 1000;
+      const remote = await mergeStore.saveRevision({
+        userId: owner, documentId: base.id,
+        expectedHeadRevisionId: base.current_revision_id,
+        markdown: '---\ntags:\n  - draft\n---\n# Pruned tags\n\nStatus: Reviewed.\n',
+        filename: 'pruned-tags.md', idempotencyKey: 'pruned-tags-remote',
+      });
+      mergeStore.pruneRevisions({ documentId: base.id, keepPrevious: 0,
+        retainAfterMs: clock + 1 });
+      const recovered = await mergeStore.updateDocumentTags({
+        userId: owner, documentId: base.id, targetRevisionId: base.current_revision_id,
+        targetMarkdown: baseMarkdown, filename: 'pruned-tags.md', tags: ['release'],
+        idempotencyKey: 'pruned-tags-recovered',
+      });
+      assert.strictEqual(recovered.target_recovered, true);
+      assert.strictEqual(recovered.merged_from_revision_id, remote.current_revision_id);
+      assert.ok(recovered.markdown.includes('Status: Reviewed.'));
+      assert.deepStrictEqual(SDocYaml.parseFrontMatter(recovered.markdown).meta.tags, ['release']);
+    });
+
     await testAsync('target-based tag updates preserve a concurrent body edit', async () => {
       const taggedBase = await mergeStore.createDocument({
         userId: owner, projectId: mergePersonal.projectId, filename: 'tag-merge.md',

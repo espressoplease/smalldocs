@@ -193,7 +193,11 @@ module.exports = function(harness) {
       assert.strictEqual(result.command, 'cloud.create');
       assert.strictEqual(result.document_id, 'doc-1');
       assert.strictEqual(bindings.get('usr-1', source).revision_id, 'rev-1');
-      assert.ok(fs.existsSync(path.join(dir, 'cloud', 'bases', 'usr-1', 'doc-1', 'rev-1.md')));
+      const baseFile = path.join(dir, 'cloud', 'bases', 'usr-1', 'doc-1', 'rev-1.md');
+      assert.ok(fs.existsSync(baseFile));
+      assert.strictEqual(fs.statSync(baseFile).mode & 0o777, 0o600);
+      assert.strictEqual(bindings.readBase('usr-1', 'doc-1', 'rev-1'), '# Release\nDraft');
+      assert.strictEqual(bindings.readBase('usr-1', '../../outside', 'rev-1'), null);
     });
 
     await testAsync('cloud create uses the default account without exposing projects', async () => {
@@ -251,6 +255,8 @@ module.exports = function(harness) {
       assert.strictEqual(result.revision_id, 'rev-2');
       const request = JSON.parse(calls.find((call) => call.endpoint.endsWith('/revisions')).options.body);
       assert.strictEqual(request.target_revision_id, 'rev-1');
+      assert.strictEqual(request.target_markdown,
+        bindings.readBase('usr-1', 'doc-1', 'rev-1'));
       assert.strictEqual(bindings.get('usr-1', source).revision_id, 'rev-2');
     });
 
@@ -262,6 +268,7 @@ module.exports = function(harness) {
       { client: fakeClient }));
       const request = JSON.parse(calls.slice(callStart)[0].options.body);
       assert.strictEqual(request.target_revision_id, 'rev-current');
+      assert.strictEqual(request.target_markdown, undefined);
       assert.strictEqual(result.base_revision_id, 'rev-current');
     });
 
@@ -272,6 +279,7 @@ module.exports = function(harness) {
       fs.writeFileSync(mergedSource, local);
       bindings.set('usr-1', mergedSource, { document_id: 'doc-merge', revision_id: 'rev-base',
         content_sha256: bindings.hash('# Plan\n\nBase.'), updated_at: '2026-08-14T00:00:00.000Z' });
+      bindings.cacheBase('usr-1', 'doc-merge', 'rev-base', '# Plan\n\nBase.');
       let request;
       const mergedClient = {
         loadCredential() { return account; },
@@ -286,6 +294,7 @@ module.exports = function(harness) {
       const result = await capture(() => runCloudCommand({ file: 'push', extra: mergedSource,
         jsonFlag: true }, { client: mergedClient }));
       assert.strictEqual(request.target_revision_id, 'rev-base');
+      assert.strictEqual(request.target_markdown, '# Plan\n\nBase.');
       assert.strictEqual(fs.readFileSync(mergedSource, 'utf8'), merged);
       assert.strictEqual(bindings.get('usr-1', mergedSource).revision_id, 'rev-merged');
       assert.strictEqual(bindings.get('usr-1', mergedSource).content_sha256,
