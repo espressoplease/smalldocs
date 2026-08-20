@@ -8,6 +8,7 @@ Type=oneshot
 User=root
 Group=root
 EnvironmentFile=/etc/smalldocs/backup.env
+EnvironmentFile=-/etc/smalldocs/backup-monitor.env
 LoadCredential=aws-credentials:/etc/smalldocs/backup-aws-credentials
 Environment=AWS_SHARED_CREDENTIALS_FILE=/run/credentials/smalldocs-backup.service/aws-credentials
 Environment=AWS_EC2_METADATA_DISABLED=true

@@ -66,7 +66,9 @@ module.exports = function(harness) {
     assert.ok(backup.includes('systemctl stop smalldocs'));
     assert.ok(backup.includes('restart_service'));
     assert.ok(backup.includes('checksum-algorithm SHA256'));
+    assert.ok(backup.includes('backup-heartbeat.js'));
     assert.ok(unit.includes('LoadCredential=aws-credentials:'));
+    assert.ok(unit.includes('EnvironmentFile=-/etc/smalldocs/backup-monitor.env'));
     assert.ok(timer.includes('Persistent=true'));
   });
 

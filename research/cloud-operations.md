@@ -335,6 +335,21 @@ Each SQLite database may have `-wal` and `-shm` sidecars while the process is ru
 
 Cross-database consistency matters. A restore can otherwise contain a document without its current billing state, or a job referring to state from another point in time. A stopped-process snapshot of all databases is the supported recovery source for this implementation.
 
+The backup process can send a success heartbeat only after both the archive and
+its checksum have uploaded. Put the monitor URL in a root-owned file rather
+than an environment variable or command-line argument. Configure its path in
+the optional `/etc/smalldocs/backup-monitor.env` file:
+
+```text
+SDOCS_BACKUP_HEARTBEAT_URL_FILE=/etc/smalldocs/backup-heartbeat-url
+```
+
+The credential file must contain one HTTPS URL. Configure the external monitor
+to alert when the nightly heartbeat is more than 26 hours old. A backup or
+heartbeat failure leaves `smalldocs-backup.service` failed and omits the remote
+success signal. The heartbeat does not grant S3 list, read, delete, or KMS
+decrypt access.
+
 ### 4.2 Restore procedure
 
 1. Restore into an isolated environment with outbound email, Stripe writes, and the job worker disabled. Leave `CLOUD_JOBS_DB` unset until inspection is complete.

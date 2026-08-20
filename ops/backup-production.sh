@@ -73,4 +73,6 @@ backup_sha256=$(awk '{print $1}' "$backup_checksum")
   --checksum-algorithm SHA256 \
   --expected-bucket-owner "$SDOCS_BACKUP_ACCOUNT_ID"
 
+node /opt/smalldocs/current/ops/backup-heartbeat.js
+
 echo "Uploaded s3://$SDOCS_BACKUP_BUCKET/$backup_key"

@@ -512,7 +512,7 @@ The existing production deployment is `smalldocs.service` on port `3003` behind 
 - [x] Encrypt the archive with a separate AWS KMS key and store it outside Hetzner.
 - [x] Record a portable SHA-256 checksum, deployed commit, state paths, configuration, KMS encryption metadata, and object version.
 - [x] Include the root-managed application environment in the KMS-encrypted archive. The put-only backup identity cannot read or decrypt the archive.
-- [ ] Alert when the latest successful backup is too old.
+- [ ] Alert when the latest successful backup is too old. The deployment now supports a provider-neutral success heartbeat after both uploads complete. Configure its root-owned URL and prove the external 26-hour alert before launch.
 
 Complete this drill before launch:
 
