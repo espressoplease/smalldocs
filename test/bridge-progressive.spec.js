@@ -99,4 +99,30 @@ test.describe('progressive-enhancement bridge', () => {
     // can't write into a dead socket either.
     expect(await page.evaluate(() => window.SDocs.bridge.capabilities.canSave)).toBe(false);
   });
+
+  test('release to Cloud flushes once and stops later disk autosaves', async ({ page }) => {
+    tmpFile = path.join(os.tmpdir(), 'sdoc-cloud-release-' + process.pid + '.md');
+    fs.writeFileSync(tmpFile, '# Disk copy\n\nBefore Cloud.\n');
+
+    bridge = await startBridge({ files: [tmpFile], mode: 'open' });
+    const md = stripAndCompress(fs.readFileSync(tmpFile, 'utf-8'));
+    const url = `${BASE}/#bridge=127.0.0.1:${bridge.port}&token=${encodeURIComponent(bridge.token)}`
+      + `&file=${encodeURIComponent(path.basename(tmpFile))}&md=${md}`;
+    await page.goto(url);
+    await expect(page.locator('#_sd_rendered')).toContainText('Before Cloud.', { timeout: 10000 });
+
+    await page.evaluate(() => {
+      window.SDocs.currentBody += '\n\nFlushed at handoff.';
+      window.SDocs.syncAll('write');
+      window.SDocs.bridge.releaseToCloud();
+    });
+    await expect.poll(() => fs.readFileSync(tmpFile, 'utf-8')).toContain('Flushed at handoff.');
+
+    await page.evaluate(() => {
+      window.SDocs.currentBody += '\n\nCloud only.';
+      window.SDocs.syncAll('write');
+    });
+    await page.waitForTimeout(700);
+    expect(fs.readFileSync(tmpFile, 'utf-8')).not.toContain('Cloud only.');
+  });
 });

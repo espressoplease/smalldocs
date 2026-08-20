@@ -2,6 +2,24 @@ const { test, expect } = require('@playwright/test');
 
 test.use({ serviceWorkers: 'block' });
 
+test('Cloud identity canonicalizes a new-document URL without carrying its snapshot', async ({ page }) => {
+  await page.goto('/new');
+  await page.evaluate(async () => {
+    window.SDocs._isDefaultState = false;
+    window.SDocs.currentBody = '# New Cloud document';
+    window.SDocs.currentMode = 'write';
+    history.replaceState(null, '', '/new#md=stale-local-snapshot&present=0');
+    window.SDocs.cloudDocument = { id: 'doc canonical' };
+    await window.SDocs.updateDocumentLocationNow();
+  });
+  const url = new URL(page.url());
+  expect(url.pathname).toBe('/docs');
+  expect(url.searchParams.get('cloud-document')).toBe('doc canonical');
+  expect(url.hash).not.toContain('md=');
+  expect(new URLSearchParams(url.hash.slice(1)).get('mode')).toBe('write');
+  expect(new URLSearchParams(url.hash.slice(1)).get('present')).toBe('0');
+});
+
 test('real Cloud document controls save, share, tag, and remove through account APIs', async ({ page }) => {
   const calls = [];
   let revision = 1;
@@ -58,7 +76,12 @@ test('real Cloud document controls save, share, tag, and remove through account 
 
   await page.goto('/docs');
   await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
-  await page.evaluate(() => { window.SDocs._isDefaultState = false; });
+  await page.evaluate(() => {
+    window.SDocs._isDefaultState = false;
+    window.SDocs.currentBody += '\n\nLocal upload marker.';
+    window.SDocs.syncAll('write');
+  });
+  await expect.poll(() => new URL(page.url()).hash).toContain('md=');
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
   await expect(page.locator('.sdoc-cloud-lab-add-link')).toBeVisible();
@@ -68,6 +91,8 @@ test('real Cloud document controls save, share, tag, and remove through account 
   await expect(page.locator('.sdoc-cloud-lab-access')).toContainText('You');
   expect(calls.some(call => call.method === 'POST' &&
     call.path === '/api/cloud/v1/account/documents')).toBe(true);
+  await expect.poll(() => page.url()).toContain('/docs?cloud-document=doc-1');
+  expect(new URL(page.url()).hash).not.toContain('md=');
 
   await page.getByRole('button', { name: 'Comment mode' }).click();
   await expect(page.locator('#_sd_comment-pref-author')).toHaveValue('Josh Summers');
@@ -120,6 +145,11 @@ test('real Cloud document controls save, share, tag, and remove through account 
   await expect(page.locator('.sdoc-cloud-lab-add-link')).toBeVisible();
   expect(calls.some(call => call.method === 'DELETE' &&
     call.path === '/api/cloud/v1/documents/doc-1')).toBe(true);
+  const localUrl = new URL(page.url());
+  expect(localUrl.searchParams.has('cloud-document')).toBe(false);
+  expect(localUrl.hash).toContain('md=');
+  await page.reload();
+  await expect(page.locator('#_sd_rendered')).toContainText('Cloud body edit.');
 });
 
 test('Add to Cloud asks before uploading when several accounts have no saved choice', async ({ page }) => {
@@ -168,6 +198,91 @@ test('Add to Cloud asks before uploading when several accounts have no saved cho
   expect(calls.some(call => call.path === '/api/cloud/v1/account'
     && call.query === '?account_id=team-1')).toBe(true);
   expect(calls.some(call => call.path === '/api/cloud/v1/account/documents')).toBe(true);
+});
+
+test('Add to Cloud releases a live bridge before later Cloud autosaves', async ({ page }) => {
+  const calls = [];
+  await page.route('**/api/cloud/v1/**', async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    calls.push({ method: request.method(), path });
+    if (path === '/api/cloud/v1/workspaces') return route.fulfill({ json: { ok: true,
+      workspaces: [{ id: 'acct-1', kind: 'personal', name: 'Personal', role: 'owner' }],
+      user: { id: 'usr-1', first_name: 'Josh', last_name: 'Summers' } } });
+    if (path === '/api/cloud/v1/account') return route.fulfill({ json: { ok: true,
+      account: { id: 'acct-1', kind: 'personal', name: 'Personal', role: 'owner', can_write: true },
+      accounts: [], user: { id: 'usr-1', first_name: 'Josh', last_name: 'Summers' } } });
+    if (path === '/api/cloud/v1/account/members') {
+      return route.fulfill({ json: { ok: true, members: [] } });
+    }
+    if (path === '/api/cloud/v1/account/tags') {
+      return route.fulfill({ json: { ok: true, tags: [] } });
+    }
+    if (path === '/api/cloud/v1/account/documents') return route.fulfill({ status: 201,
+      json: { ok: true, account: { id: 'acct-1', kind: 'personal', name: 'Personal' },
+        document: { id: 'doc-bridge', filename: 'bridge.md', title: 'Bridge', tags: [],
+          current_revision_id: 'rev-1', revision_number: 1, workspace_id: 'acct-1' },
+        permission: { mode: 'custom', member_user_ids: [] } } });
+    if (path === '/api/cloud/v1/documents/doc-bridge/revisions') {
+      return route.fulfill({ status: 201, json: { ok: true, document: {
+        id: 'doc-bridge', filename: 'bridge.md', title: 'Bridge', tags: [],
+        current_revision_id: 'rev-2', revision_number: 2, workspace_id: 'acct-1' } } });
+    }
+    return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
+  });
+
+  await page.goto('/docs');
+  await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
+  await page.evaluate(() => {
+    window.SDocs._isDefaultState = false;
+    window.SDocs.currentBody = '# Bridge document\n\nBefore Cloud.';
+    window.SDocs.localMeta = { fullPath: '/tmp/bridge.md', path: './bridge.md' };
+    sessionStorage.setItem('sdocs.localMeta', JSON.stringify(window.SDocs.localMeta));
+    window.SDocs.syncAll('write');
+  });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
+  await page.evaluate(() => {
+    const bridge = new window.SDocs.bridgeInternals.BridgeSource({
+      addr: '127.0.0.1:1', token: 'test', file: 'bridge.md', md: null,
+    });
+    bridge._connected = true;
+    bridge._helloed = true;
+    bridge._ws = {
+      readyState: 1,
+      sent: [],
+      closed: false,
+      send(value) { this.sent.push(value); },
+      close() { this.closed = true; },
+    };
+    bridge._lastWritten = bridge._currentDocument();
+    bridge._installAutoSaveHook();
+    window._testBridge = bridge;
+  });
+
+  await page.locator('.sdoc-cloud-lab-add-link').click();
+  await expect.poll(() => page.url()).toContain('cloud-document=doc-bridge');
+  const released = await page.evaluate(() => ({
+    released: window._testBridge._releasedToCloud,
+    canSave: window._testBridge.capabilities.canSave,
+    closed: window._testBridge._ws.closed,
+    sent: window._testBridge._ws.sent.length,
+    activeBridge: window.SDocs.bridge,
+    localMeta: window.SDocs.localMeta,
+    storedLocalMeta: sessionStorage.getItem('sdocs.localMeta'),
+  }));
+  expect(released).toEqual({ released: true, canSave: false, closed: true, sent: 0,
+    activeBridge: null, localMeta: {}, storedLocalMeta: null });
+  await expect(page.locator('.fic-row-bridge')).toHaveCount(0);
+
+  await page.evaluate(() => {
+    window.SDocs.currentBody += '\n\nCloud-only edit.';
+    window.SDocs.syncAll('write');
+  });
+  await expect.poll(() => calls.filter(call =>
+    call.path === '/api/cloud/v1/documents/doc-bridge/revisions').length).toBe(1);
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window._testBridge._ws.sent.length)).toBe(0);
 });
 
 test('a revision conflict preserves the local edit and blocks further overwrites', async ({ page }) => {

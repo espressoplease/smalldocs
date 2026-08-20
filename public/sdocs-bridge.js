@@ -204,6 +204,7 @@
     this._saveTimer = null;
     this._pingTimer = null;
     this._submitted = false;
+    this._releasedToCloud = false;
     this._fileReqs = {};          // pending readFile() promises, keyed by id
     this._fileReqSeq = 0;
     this._loadResolve = null;
@@ -370,6 +371,23 @@
     this._saveNow('submit');
   };
 
+  // Add to Cloud changes the authoritative source for this tab. Flush the
+  // latest visible document to disk once, then disable this wrapper and close
+  // the loopback session so later edits are written only to Cloud.
+  BridgeSource.prototype.releaseToCloud = function () {
+    if (this._releasedToCloud) return;
+    if (this.capabilities.canSave && this._connected) this._saveNow('write');
+    if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
+    this._releasedToCloud = true;
+    this.capabilities = { canSave: false, canWatch: false, canSubmit: false };
+    clearStash();
+    this._stopHeartbeat();
+    if (this._ws && (this._ws.readyState === 0 || this._ws.readyState === 1)) {
+      try { this._ws.close(1000, 'Moved to Cloud'); } catch (_) {}
+    }
+    this._connected = false;
+  };
+
   // ── WebSocket ────────────────────────────────────────────
 
   BridgeSource.prototype._connect = function () {
@@ -399,6 +417,7 @@
       var wasConnected = self._connected;
       self._connected = false;
       self._stopHeartbeat();
+      if (self._releasedToCloud) return;
       if (!self._helloed) {
         self._fail('Could not connect to the local bridge. Is the sdoc command still running?');
         return;

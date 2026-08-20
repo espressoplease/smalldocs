@@ -46,6 +46,16 @@ function currentMarkdown() {
   return SDocYaml.serializeFrontMatter(meta) + '\n' + (S.currentBody || '');
 }
 
+function clearLocalDocumentContext() {
+  var bridge = S.bridge || null;
+  if (bridge && typeof bridge.releaseToCloud === 'function') {
+    bridge.releaseToCloud();
+  }
+  if (S.bridge === bridge) S.bridge = null;
+  S.localMeta = {};
+  try { sessionStorage.removeItem('sdocs.localMeta'); } catch (_) {}
+}
+
 function cloudCommentIdentity() {
   if (!S.cloudDocument || !cloudState.user) return null;
   var parts = [cloudState.user.first_name, cloudState.user.last_name].filter(Boolean);
@@ -420,9 +430,14 @@ async function beginAdd(event, accountId) {
     cloudLastSavedMarkdown = currentMarkdown();
     cloudSaveBlocked = false;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
-    var url = new URL(location.href);
-    url.searchParams.set('cloud-document', data.document.id);
-    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    clearLocalDocumentContext();
+    try {
+      if (S.updateDocumentLocationNow) await S.updateDocumentLocationNow();
+    } catch (_) {
+      cloudState.status = 'Added to Cloud, but the address bar could not be updated. Reopen this document from Cloud Library.';
+      refreshRow();
+      return;
+    }
     cloudState.status = 'Added to Cloud.';
     refreshRow();
   } catch (error) {
@@ -477,25 +492,29 @@ async function removeCloudDocument(event) {
   cloudState.busy = true;
   var rowButton = document.querySelector('.sdoc-cloud-lab-saved');
   if (rowButton) rowButton.disabled = true;
+  var removed = false;
   try {
     await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id), {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expected_head_revision_id: S.cloudDocument.current_revision_id }),
     });
+    removed = true;
     S.cloudDocument = null;
     cloudLastSavedMarkdown = null;
     cloudSaveBlocked = false;
     cloudState.permission = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     closeCloudPanel();
-    var url = new URL(location.href);
-    url.searchParams.delete('cloud-document');
-    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    if (S.updateDocumentLocationNow) await S.updateDocumentLocationNow();
+    cloudState.status = 'Removed from Cloud. This copy is now local.';
     refreshRow();
   } catch (error) {
-    cloudState.status = error.data && error.data.error === 'revision_conflict'
-      ? 'The Cloud document changed. Reopen it before removing it.'
-      : 'The document was not removed from Cloud.';
+    cloudState.status = removed
+      ? 'Removed from Cloud, but the local URL could not be updated. Export this document before reloading.'
+      : error.data && error.data.error === 'revision_conflict'
+        ? 'The Cloud document changed. Reopen it before removing it.'
+        : 'The document was not removed from Cloud.';
+    if (removed) refreshRow();
     if (rowButton) rowButton.disabled = false;
   } finally {
     cloudState.busy = false;

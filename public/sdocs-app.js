@@ -1381,10 +1381,10 @@ var SHORT_LINK_PATH_RE = /^\/s\/([A-Za-z0-9_-]{1,32})$/;
 
 function normalizedBasePath() {
   var p = window.location.pathname;
-  if (p === '/new' || SHORT_LINK_PATH_RE.test(p)) return '/docs';
   if (S.cloudDocument && S.cloudDocument.id) {
-    return p + '?cloud-document=' + encodeURIComponent(S.cloudDocument.id);
+    return '/docs?cloud-document=' + encodeURIComponent(S.cloudDocument.id);
   }
+  if (p === '/new' || SHORT_LINK_PATH_RE.test(p)) return '/docs';
   return p;
 }
 
@@ -1393,39 +1393,49 @@ function normalizedBasePath() {
 // sets ?present=N but the next debounced updateHash wipes it out, collapsing
 // present mode via the hashchange listener.
 var PRESERVED_HASH_PARAMS = ['present', 'cloud-ui-prototype'];
+var locationWriteVersion = 0;
+
+async function writeCurrentLocation(version) {
+  var existing = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  var preserved = {};
+  for (var i = 0; i < PRESERVED_HASH_PARAMS.length; i++) {
+    var key = PRESERVED_HASH_PARAMS[i];
+    if (existing.has(key)) preserved[key] = existing.get(key);
+  }
+  var writePreserved = function (params) {
+    for (var name in preserved) params.set(name, preserved[name]);
+  };
+  if (S._isDefaultState && S.currentMode === 'read') {
+    if (version !== locationWriteVersion) return;
+    if (Object.keys(preserved).length === 0) {
+      history.replaceState(null, '', normalizedBasePath());
+    } else {
+      var defaultParams = new URLSearchParams();
+      writePreserved(defaultParams);
+      history.replaceState(null, '', normalizedBasePath() + '#' + defaultParams.toString());
+    }
+    return;
+  }
+  var params = new URLSearchParams();
+  if (!S._isDefaultState && !S.cloudDocument) {
+    var compressed = await compressText(serializeCurrentDocument());
+    if (version !== locationWriteVersion) return;
+    params.set('md', compressed);
+  }
+  if (version !== locationWriteVersion) return;
+  if (S.currentMode !== 'read') {
+    params.set('mode', S.currentMode);
+  }
+  writePreserved(params);
+  var hash = params.toString();
+  history.replaceState(null, '', normalizedBasePath() + (hash ? '#' + hash : ''));
+}
 
 function updateHash() {
   clearTimeout(S._hashTimer);
-  S._hashTimer = setTimeout(async function() {
-    var existing = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    var preserved = {};
-    for (var i = 0; i < PRESERVED_HASH_PARAMS.length; i++) {
-      var k = PRESERVED_HASH_PARAMS[i];
-      if (existing.has(k)) preserved[k] = existing.get(k);
-    }
-    var writePreserved = function (p) {
-      for (var k in preserved) p.set(k, preserved[k]);
-    };
-    if (S._isDefaultState && S.currentMode === 'read') {
-      if (Object.keys(preserved).length === 0) {
-        history.replaceState(null, '', normalizedBasePath());
-      } else {
-        var p0 = new URLSearchParams();
-        writePreserved(p0);
-        history.replaceState(null, '', normalizedBasePath() + '#' + p0.toString());
-      }
-      return;
-    }
-    var params = new URLSearchParams();
-    if (!S._isDefaultState && !S.cloudDocument) {
-      var compressed = await compressText(serializeCurrentDocument());
-      params.set('md', compressed);
-    }
-    if (S.currentMode !== 'read') {
-      params.set('mode', S.currentMode);
-    }
-    writePreserved(params);
-    history.replaceState(null, '', normalizedBasePath() + '#' + params.toString());
+  var version = ++locationWriteVersion;
+  S._hashTimer = setTimeout(function() {
+    writeCurrentLocation(version);
   }, 400);
 }
 
@@ -1951,6 +1961,14 @@ S.SHORT_LINKS_LEARN_URL = SHORT_LINKS_LEARN_URL;
 // path, not two that can drift.
 S.decompressText = decompressText;
 S.renderFileInfoCard = renderFileInfoCard;
+// Cloud transitions need the same canonical URL writer as ordinary edits, but
+// they cannot wait for the 400 ms debounce: Add / Remove followed immediately
+// by reload must already point at the new authoritative source.
+S.updateDocumentLocationNow = function() {
+  clearTimeout(S._hashTimer);
+  var version = ++locationWriteVersion;
+  return writeCurrentLocation(version);
+};
 
 // The short-link mechanism as one internal interface. Chunk 7's commercial
 // "sealed mode" reuses the crypto primitives (generateKey / seal / unseal /
