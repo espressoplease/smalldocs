@@ -31,6 +31,20 @@ async function login(browser, baseURL, email, secret) {
   return context;
 }
 
+let ownerStorageState;
+
+test.beforeAll(async ({ browser }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL).replace(/\/$/, '');
+  const owner = await login(browser, baseURL, TEST_IDENTITIES.owner, configuredSecret());
+  ownerStorageState = await owner.storageState();
+  await owner.close();
+});
+
+function ownerContext(browser, baseURL) {
+  return browser.newContext({ baseURL, ignoreHTTPSErrors: true,
+    serviceWorkers: 'block', storageState: ownerStorageState });
+}
+
 async function json(context, baseURL, method, pathname, data) {
   const response = await context.request.fetch(baseURL + pathname, {
     method,
@@ -101,7 +115,8 @@ test('reusable staging identities enforce access and merge two-account edits', a
   let removedUserId;
 
   try {
-    for (const name of ['owner', 'selected', 'removed']) {
+    contexts.owner = await ownerContext(browser, baseURL);
+    for (const name of ['selected', 'removed']) {
       const email = TEST_IDENTITIES[name];
       contexts[name] = await login(browser, baseURL, email, secret);
     }
@@ -447,8 +462,7 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
   async ({ browser }, testInfo) => {
     test.setTimeout(120000);
     const baseURL = String(testInfo.project.use.baseURL).replace(/\/$/, '');
-    const secret = configuredSecret();
-    const owner = await login(browser, baseURL, TEST_IDENTITIES.owner, secret);
+    const owner = await ownerContext(browser, baseURL);
     const cliHome = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-cli-e2e-'));
     const cliEnv = Object.assign({}, process.env, {
       SDOCS_HOME: cliHome,
