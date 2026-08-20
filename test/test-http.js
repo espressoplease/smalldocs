@@ -1348,6 +1348,15 @@ module.exports = function(harness) {
       assert.ok(!r.body.includes('cloud-demo=1'));
     });
 
+    await testAsync('GET /connect links back to Cloud Library when Cloud is public', async () => {
+      const r = await get(BASE + '/connect');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.body.includes('class="library-scope connect-library-scope"'));
+      assert.ok(r.body.includes('href="/library" aria-current="page"'));
+      assert.ok(r.body.includes('href="/library?scope=cloud"'));
+      assert.ok(!r.body.includes('__CLOUD_CONNECT_LIBRARY_SWITCHER__'));
+    });
+
     await testAsync('asset-versioning: /library is versioned', async () => {
       const v = JSON.parse((await get(BASE + '/version-check')).body).version;
       await assertEveryAssetVersioned('/library', v);
@@ -1518,6 +1527,8 @@ module.exports = function(harness) {
         const connect = await get(hiddenBase + '/connect');
         assert.strictEqual(connect.status, 200);
         assert.ok(!connect.body.includes('save to SmallDocs Cloud'));
+        assert.ok(!connect.body.includes('<nav class="library-scope connect-library-scope"'));
+        assert.ok(!connect.body.includes('href="/library?scope=cloud"'));
         assert.strictEqual((await get(hiddenBase + '/docs?cloud-document=hidden')).status, 404);
 
         const page = await get(hiddenBase + '/cloud');

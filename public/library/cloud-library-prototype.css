@@ -8,34 +8,6 @@
 .cloud-library-actions[hidden],
 .cloud-library-heading[hidden],
 .workspace-menu[hidden] { display: none; }
-.library-scope {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-panel);
-}
-.library-scope-option {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-width: 92px;
-  padding: 7px 12px;
-  border-radius: var(--radius);
-  color: var(--text-2);
-  font-weight: 500;
-  text-decoration: none;
-}
-.library-scope-option:hover { color: var(--text); }
-.library-scope-option.active {
-  color: var(--text);
-  background: var(--bg-input);
-  box-shadow: var(--shadow-sm);
-}
-.library-scope-option svg,
 .cloud-library-actions svg,
 .cloud-access-note svg {
   width: 15px;

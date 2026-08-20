@@ -108,6 +108,43 @@ body {
   height: 1px; margin: 5px 4px; background: var(--border-subtle);
 }
 
+.library-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+.library-scope-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 92px;
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-weight: 500;
+  text-decoration: none;
+}
+.library-scope-option:hover { color: var(--text); }
+.library-scope-option.active {
+  color: var(--text);
+  background: var(--bg-input);
+  box-shadow: var(--shadow-sm);
+}
+.library-scope-option svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .btn {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 5px 11px; border-radius: var(--radius);
