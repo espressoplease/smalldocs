@@ -178,6 +178,7 @@ test('reusable staging identities enforce access and merge two-account edits', a
     const ownerEdit = await json(owner, baseURL, 'POST',
       '/api/cloud/v1/documents/' + document.id + '/revisions', {
         target_revision_id: sharedTarget,
+        target_markdown: document.markdown,
         filename: document.filename,
         markdown: document.markdown.replace('A unique permission test document.',
           'A unique permission test document.\n\nOwner contribution.'),
@@ -187,6 +188,7 @@ test('reusable staging identities enforce access and merge two-account edits', a
     const selectedEdit = await json(contexts.selected, baseURL, 'POST',
       '/api/cloud/v1/documents/' + document.id + '/revisions', {
         target_revision_id: sharedTarget,
+        target_markdown: document.markdown,
         filename: document.filename,
         markdown: document.markdown.replace('# Cloud access matrix ' + runId,
           '# Cloud access matrix ' + runId + '\n\nSelected account contribution.'),
@@ -201,6 +203,32 @@ test('reusable staging identities enforce access and merge two-account edits', a
     const ownerFinal = await json(owner, baseURL, 'GET',
       '/api/cloud/v1/documents/' + document.id);
     expect(ownerFinal.body.document.markdown).toBe(document.markdown);
+
+    const recoveryBase = document.markdown;
+    const recoveryRemote = await json(owner, baseURL, 'POST',
+      '/api/cloud/v1/documents/' + document.id + '/revisions', {
+        target_revision_id: document.current_revision_id,
+        target_markdown: recoveryBase,
+        filename: document.filename,
+        markdown: recoveryBase + '\n\nOwner edit after the recovery base.\n',
+        idempotency_key: 'cloud-pruned-target-owner-' + runId,
+      });
+    expect(recoveryRemote.response.status()).toBe(201);
+    const recovered = await json(contexts.selected, baseURL, 'POST',
+      '/api/cloud/v1/documents/' + document.id + '/revisions', {
+        target_revision_id: 'pruned-target-' + runId,
+        target_markdown: recoveryBase,
+        filename: document.filename,
+        markdown: recoveryBase + '\n\nSelected edit from a pruned target.\n',
+        idempotency_key: 'cloud-pruned-target-selected-' + runId,
+      });
+    expect(recovered.response.status()).toBe(201);
+    document = recovered.body.document;
+    expect(document.target_recovered).toBe(true);
+    expect(document.merged_from_revision_id)
+      .toBe(recoveryRemote.body.document.current_revision_id);
+    expect(document.markdown).toContain('Owner edit after the recovery base.');
+    expect(document.markdown).toContain('Selected edit from a pruned target.');
 
     const removedResponse = await json(owner, baseURL, 'DELETE',
       '/api/cloud/v1/workspaces/' + accountId + '/members/' + removedUserId, {});
