@@ -121,6 +121,7 @@ const STATE = {
   q: '',
   selected: 0,
   starredOnly: false,
+  sharedOnly: false,
   entries: [],
   lastScanAt: 0,
   enabled: true,
@@ -277,6 +278,7 @@ function applyFilters() {
   const q = STATE.q.toLowerCase();
   return STATE.entries.filter(e => {
     if (STATE.starredOnly && !e.starred) return false;
+    if (STATE.sharedOnly && !e.sharedWithMe) return false;
     for (const c of STATE.chips) {
       const def = FACET_DEFS[c.key];
       if (!def) continue;
@@ -645,6 +647,12 @@ function renderStarToggle() {
   btn.setAttribute('aria-pressed', STATE.starredOnly ? 'true' : 'false');
 }
 
+function renderSharedToggle() {
+  const btn = document.getElementById('shared-toggle');
+  btn.classList.toggle('on', STATE.sharedOnly);
+  btn.setAttribute('aria-pressed', STATE.sharedOnly ? 'true' : 'false');
+}
+
 function renderStatus() {
   if (isCloudMode()) {
     document.getElementById('status-line').textContent = 'Cloud';
@@ -660,10 +668,12 @@ function renderAll() {
   renderFacetButtons();
   renderFacetPanel();
   renderStarToggle();
+  renderSharedToggle();
   renderResults();
   renderStatus();
   const clearBtn = document.getElementById('clear');
-  const hasFilters = STATE.chips.length > 0 || STATE.q.trim().length > 0 || STATE.starredOnly;
+  const hasFilters = STATE.chips.length > 0 || STATE.q.trim().length > 0 ||
+    STATE.starredOnly || STATE.sharedOnly;
   if (hasFilters) clearBtn.removeAttribute('hidden');
   else clearBtn.setAttribute('hidden', '');
 }
@@ -810,6 +820,7 @@ function cloudEntry(document) {
     bodyExcerpt: match && match.snippet ? match.snippet : '',
     mtime: document.updated_at,
     cloudRevisionId: document.current_revision_id,
+    sharedWithMe: document.shared_with_me === true,
   };
 }
 
@@ -1050,6 +1061,11 @@ document.getElementById('star-toggle').addEventListener('click', () => {
   renderAll();
 });
 
+document.getElementById('shared-toggle').addEventListener('click', () => {
+  STATE.sharedOnly = !STATE.sharedOnly;
+  renderAll();
+});
+
 document.getElementById('results').addEventListener('click', (e) => {
   const starBtn = e.target.closest('[data-star]');
   if (starBtn) {
@@ -1103,7 +1119,7 @@ input.addEventListener('keydown', (e) => {
 });
 
 document.getElementById('clear').addEventListener('click', () => {
-  STATE.chips = []; STATE.q = ''; STATE.starredOnly = false;
+  STATE.chips = []; STATE.q = ''; STATE.starredOnly = false; STATE.sharedOnly = false;
   input.value = ''; renderAll();
   if (isCloudMode()) loadCloudData('').catch(function () {});
 });
@@ -1124,6 +1140,7 @@ if (!isSignedOutCloudMode() && (!window.SDocsConnect ||
 
 if (isCloudMode()) {
   document.getElementById('star-toggle').hidden = true;
+  document.getElementById('shared-toggle').hidden = false;
   document.getElementById('q').placeholder = 'search titles, tags, and document text...';
   const projectButton = document.querySelector('[data-facet="project"]');
   if (projectButton) projectButton.hidden = true;

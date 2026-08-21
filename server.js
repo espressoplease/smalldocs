@@ -342,6 +342,34 @@ async function processCloudJob(job) {
     if (!delivered.ok) throw Object.assign(new Error('email_delivery_failed'), { code: 'email_delivery_failed' });
     return;
   }
+  if (job.type === 'document_notification_email') {
+    if (!cloudStore || !cloudAuth) throw Object.assign(new Error('temporary_service_failure'),
+      { code: 'temporary_service_failure' });
+    const delivery = await cloudStore.getDocumentNotificationDelivery({
+      batchId: job.payload.batchId,
+      recipientUserId: job.payload.recipientUserId,
+    });
+    if (delivery.skipped) return;
+    const recipient = verifiedCloudEmail(delivery.recipient_user_id);
+    if (!recipient) return;
+    if (!teamsNotify.isConfigured()) throw Object.assign(new Error('email_delivery_not_configured'),
+      { code: 'email_delivery_not_configured' });
+    const actor = cloudActorLabel(delivery.actor_user_id);
+    const count = delivery.documents.length;
+    const subject = actor + ' sent ' + count + ' document link' + (count === 1 ? '' : 's') +
+      ' from SmallDocs Cloud';
+    const links = delivery.documents.map((document) => {
+      const title = String(document.title || 'Untitled').replace(/[\r\n]+/g, ' ');
+      return title + '\n' + CLOUD_AUTH_PUBLIC_ORIGIN + '/docs?cloud-document=' +
+        encodeURIComponent(document.id);
+    }).join('\n\n');
+    const delivered = await teamsNotify.sendTo(recipient, subject,
+      actor + ' sent you links to ' + count + ' document' + (count === 1 ? '' : 's') +
+      ' in SmallDocs Cloud.\n\n' + links);
+    if (!delivered.ok) throw Object.assign(new Error('email_delivery_failed'),
+      { code: 'email_delivery_failed' });
+    return;
+  }
   throw new Error('unknown_cloud_job_type');
 }
 
@@ -922,6 +950,7 @@ function cloudApiError(res, error) {
     member_limit_reached: 409,
     search_limit_reached: 429,
     billing_not_configured: 503,
+    notification_delivery_not_configured: 503,
     subscription_exists: 409,
     active_subscription_requires_cancellation: 409,
     rate_limited: 429,
@@ -1033,6 +1062,20 @@ function cloudUserProfile(user, email) {
   };
   if (email !== undefined) profile.email = email;
   return profile;
+}
+
+function verifiedCloudEmail(userId) {
+  let user = null;
+  try { user = cloudAuth.getUser(userId); } catch (_) {}
+  const identity = user && user.identities.find((item) => item.verifiedEmail);
+  return identity ? identity.verifiedEmail : null;
+}
+
+function cloudActorLabel(userId) {
+  let user = null;
+  try { user = cloudAuth.getUser(userId); } catch (_) {}
+  if (user && user.firstName && user.lastName) return user.firstName + ' ' + user.lastName;
+  return verifiedCloudEmail(userId) || 'A SmallDocs account member';
 }
 
 async function cloudAccountContext(userId, requestedId) {
@@ -1562,15 +1605,18 @@ async function handleCloudApi(req, res, url) {
     if (req.method === 'GET' && pathname === base + '/documents') {
       const projectId = url.searchParams.get('project_id') || undefined;
       const workspaceId = url.searchParams.get('workspace_id') || undefined;
+      const sharedWithMe = url.searchParams.get('shared_with_me') === '1';
       const limit = normalizeLimit(url.searchParams.get('limit'));
       const cursorScope = JSON.stringify({ endpoint: 'documents', user_id: user.id,
-        project_id: projectId || null, workspace_id: workspaceId || null });
+        project_id: projectId || null, workspace_id: workspaceId || null,
+        shared_with_me: sharedWithMe });
       const after = url.searchParams.get('cursor')
         ? cloudCursor.decode(url.searchParams.get('cursor'), cursorScope)
         : null;
       let documents = await cloudStore.listDocuments({
         userId: user.id, projectId, workspaceId,
       });
+      if (sharedWithMe) documents = documents.filter((document) => document.shared_with_me);
       if (cloudBilling) documents = documents.filter((document) => {
         try {
           const context = cloudStore.getDocumentContext({ userId: user.id, documentId: document.id });
@@ -1581,6 +1627,32 @@ async function handleCloudApi(req, res, url) {
       const page = cloudStore.pageDocuments(documents, { limit, after });
       sendJson(res, 200, { ok: true, documents: page.documents,
         next_cursor: page.nextPosition ? cloudCursor.encode(cursorScope, page.nextPosition) : null });
+      return;
+    }
+    if (req.method === 'POST' && pathname === base + '/notifications') {
+      if (!cloudJobs) throw Object.assign(new Error('notification_delivery_not_configured'),
+        { code: 'notification_delivery_not_configured' });
+      const body = await cloudAuthHttp.readJson(req);
+      const recipientUserIds = Array.isArray(body.recipient_user_ids)
+        ? body.recipient_user_ids : [];
+      if (recipientUserIds.some((recipientUserId) => !verifiedCloudEmail(recipientUserId))) {
+        throw Object.assign(new Error('invalid_request'), { code: 'invalid_request' });
+      }
+      const notification = cloudStore.createDocumentNotification({
+        userId: user.id,
+        credentialId,
+        documentIds: body.document_ids,
+        recipientUserIds,
+        idempotencyKey: body.idempotency_key,
+      });
+      notification.recipient_user_ids.forEach((recipientUserId) => {
+        enqueueCloudJob({
+          type: 'document_notification_email',
+          idempotencyKey: notification.id + ':' + recipientUserId,
+          payload: { batchId: notification.id, recipientUserId },
+        });
+      });
+      sendJson(res, 202, { ok: true, notification });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/tags') {

@@ -285,6 +285,15 @@ body {
   color: var(--text);
 }
 .strip-toggle.on .star-ico { color: var(--star); }
+#shared-toggle svg {
+  width: 13px; height: 13px; fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+#shared-toggle.on {
+  background: var(--accent-light);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--accent-text);
+}
 
 .facet-panel {
   max-height: 0; overflow: hidden;

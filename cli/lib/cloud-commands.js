@@ -27,8 +27,9 @@ const CLOUD_HELP = `SmallDocs Cloud
   sdoc cloud tags [--account UUID]
   sdoc cloud permission-groups [--account UUID]
   sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_UUID ...]
+  sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_UUID ...
   sdoc cloud tag DOCUMENT_UUID --tag TAG [--tag TAG ...]
-  sdoc cloud ls [--tag TAG] [--limit N]
+  sdoc cloud ls [--tag TAG] [--shared-with-me] [--limit N]
   sdoc cloud search QUERY [--tag TAG] [--limit N]
   sdoc cloud create PATH [--account UUID]
   sdoc cloud pull DOCUMENT_UUID [--revision UUID] --output PATH [--no-bind]
@@ -232,6 +233,7 @@ async function list(opts, client) {
   do {
     const params = new URLSearchParams();
     params.set('limit', String(Math.min(100, target - documents.length)));
+    if (opts.sharedWithMeFlag) params.set('shared_with_me', '1');
     if (cursor) params.set('cursor', cursor);
     const response = await client.authenticated('/api/cloud/v1/documents?' + params.toString());
     documents.push(...filterTags(response.documents || [], opts.tagFilters)
@@ -243,6 +245,31 @@ async function list(opts, client) {
   } while (documents.length < target && cursor);
   emit(opts, 'cloud.ls', { documents, next_cursor: cursor }, documents.map((document) =>
     document.id + '  ' + document.title + '  [' + (document.tags || []).join(', ') + ']').join('\n') || 'No Cloud documents.');
+}
+
+async function notify(opts, client) {
+  const documentIds = Array.from(new Set([opts.extra].concat(opts.documentFlags || []).filter(Boolean)));
+  const recipientUserIds = Array.from(new Set(opts.memberFlags || []));
+  if (!documentIds.length || !recipientUserIds.length) {
+    throw new CloudCommandError('invalid_request',
+      'usage: sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_UUID ...');
+  }
+  const response = await client.authenticated('/api/cloud/v1/notifications', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      document_ids: documentIds,
+      recipient_user_ids: recipientUserIds,
+      idempotency_key: crypto.randomUUID(),
+    }),
+  });
+  const notification = response.notification;
+  emit(opts, 'cloud.notify', { notification_id: notification.id,
+    document_ids: notification.document_ids,
+    recipient_user_ids: notification.recipient_user_ids },
+  notification.recipient_user_ids.length === 1
+    ? 'Queued 1 notification email.'
+    : 'Queued ' + notification.recipient_user_ids.length +
+      ' notification emails, one for each recipient.');
 }
 
 async function tags(opts, client) {
@@ -583,6 +610,7 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'tags') return await tags(opts, client);
     if (action === 'permission-groups') return await permissionGroups(opts, client);
     if (action === 'access') return await access(opts, client);
+    if (action === 'notify') return await notify(opts, client);
     if (action === 'tag') return await setTags(opts, client);
     if (action === 'ls') return await list(opts, client);
     if (action === 'search') return await search(opts, client);

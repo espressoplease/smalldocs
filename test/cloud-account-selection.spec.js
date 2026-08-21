@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test.use({ serviceWorkers: 'block' });
 
-async function installCloudLibraryApi(page, workspaces, canRead = true) {
+async function installCloudLibraryApi(page, workspaces, canRead = true, documents = []) {
   await page.route('**/api/cloud/v1/**', async route => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/api/cloud/v1/workspaces') return route.fulfill({ json: {
@@ -15,7 +15,7 @@ async function installCloudLibraryApi(page, workspaces, canRead = true) {
       account: { id: new URL(route.request().url()).searchParams.get('account_id'), can_read: canRead,
         can_write: canRead } } });
     if (path === '/api/cloud/v1/documents') return route.fulfill({ json: { ok: true,
-      documents: [], next_cursor: null } });
+      documents, next_cursor: null } });
     return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
   });
 }
@@ -74,6 +74,27 @@ test('one-account Library opens directly and hides the account switcher', async 
   await expect(page.locator('[data-facet="path"]')).toBeHidden();
   await expect(page.locator('#facet-panel')).toHaveAttribute('aria-hidden', 'true');
   await expect(page.locator('#results')).toContainText('Open a document in SmallDocs and choose Add to Cloud.');
+});
+
+test('Cloud Library filters documents shared with the signed-in user', async ({ page }) => {
+  await installCloudLibraryApi(page, [
+    { id: 'team-1', name: 'SmallDocs', kind: 'team', role: 'member' },
+  ], true, [
+    { id: 'owned-1', title: 'My draft', filename: 'mine.md', tags: [],
+      current_revision_id: 'rev-1', updated_at: '2026-08-20T12:00:00.000Z',
+      created_by_user_id: 'user-1', shared_with_me: false },
+    { id: 'shared-1', title: 'Shared plan', filename: 'shared.md', tags: [],
+      current_revision_id: 'rev-2', updated_at: '2026-08-20T11:00:00.000Z',
+      created_by_user_id: 'user-2', shared_with_me: true },
+  ]);
+  await openCloudLibrary(page);
+
+  await expect(page.locator('#results')).toContainText('My draft');
+  await expect(page.locator('#results')).toContainText('Shared plan');
+  await page.locator('#shared-toggle').click();
+  await expect(page.locator('#shared-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#results')).not.toContainText('My draft');
+  await expect(page.locator('#results')).toContainText('Shared plan');
 });
 
 test('an account without an active subscription sees subscription onboarding', async ({ page }) => {

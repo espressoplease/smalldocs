@@ -952,6 +952,62 @@ module.exports = function(harness) {
       assert.strictEqual(reused.status, 404);
     });
 
+    await testAsync('Cloud notifications batch documents without granting or inviting access', async () => {
+      const secondResponse = await post(BASE + '/api/cloud/v1/documents', {
+        project_id: cloudTeamProject.id, filename: 'team-decisions.md',
+        markdown: '# Team decisions', idempotency_key: 'team-notification-second-document',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(secondResponse.status, 201);
+      const second = JSON.parse(secondResponse.body).document;
+      const shared = await patch(BASE + '/api/cloud/v1/documents/' + second.id + '/permission', {
+        mode: 'everyone', member_user_ids: [],
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(shared.status, 200);
+
+      const notificationResponse = await post(BASE + '/api/cloud/v1/notifications', {
+        document_ids: [cloudTeamDocument.id, second.id],
+        recipient_user_ids: [cloudMemberUser.id],
+        idempotency_key: 'http-team-document-notification',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(notificationResponse.status, 202);
+      const notification = JSON.parse(notificationResponse.body).notification;
+      assert.deepStrictEqual(notification.document_ids, [cloudTeamDocument.id, second.id]);
+      assert.deepStrictEqual(notification.recipient_user_ids, [cloudMemberUser.id]);
+
+      const memberDocuments = JSON.parse((await get(BASE +
+        '/api/cloud/v1/documents?workspace_id=' + cloudTeamWorkspace.workspaceId +
+        '&shared_with_me=1', { Cookie: cloudMemberCookie })).body).documents;
+      assert.ok(memberDocuments.some((item) => item.id === cloudTeamDocument.id &&
+        item.shared_with_me === true));
+      const ownerDocuments = JSON.parse((await get(BASE +
+        '/api/cloud/v1/documents?workspace_id=' + cloudTeamWorkspace.workspaceId +
+        '&shared_with_me=1', { Cookie: cloudCookie })).body).documents;
+      assert.deepStrictEqual(ownerDocuments, []);
+
+      const unknownRecipient = await post(BASE + '/api/cloud/v1/notifications', {
+        document_ids: [cloudTeamDocument.id], recipient_user_ids: ['usr_not_a_member'],
+        idempotency_key: 'http-notification-unknown-recipient',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(unknownRecipient.status, 400);
+      const memberCannotNotify = await post(BASE + '/api/cloud/v1/notifications', {
+        document_ids: [cloudTeamDocument.id], recipient_user_ids: [JSON.parse((await get(
+          BASE + '/api/cloud/v1/me', { Cookie: cloudCookie })).body).user.id],
+        idempotency_key: 'http-notification-by-non-owner',
+      }, { Origin: BASE, Cookie: cloudMemberCookie });
+      assert.strictEqual(memberCannotNotify.status, 403);
+
+      const Database = require('better-sqlite3');
+      const jobs = new Database(testCloudJobsDbPath, { readonly: true });
+      const queued = jobs.prepare(`
+        SELECT payload_json FROM cloud_jobs
+        WHERE type = 'document_notification_email' AND idempotency_key = ?
+      `).get(notification.id + ':' + cloudMemberUser.id);
+      jobs.close();
+      assert.deepStrictEqual(JSON.parse(queued.payload_json), {
+        batchId: notification.id, recipientUserId: cloudMemberUser.id,
+      });
+    });
+
     await testAsync('Cloud admins approve domains and members invite matching coworkers', async () => {
       const accountId = cloudTeamWorkspace.workspaceId;
       const publicDomain = await patch(BASE + '/api/cloud/v1/account/invite-policy', {

@@ -29,6 +29,15 @@ module.exports = function(harness) {
     assert.deepStrictEqual(parsed.memberFlags, ['usr-a', 'usr-b']);
   });
 
+  test('cloud CLI parser captures notification documents and shared filtering', () => {
+    const parsed = io.parseArgs(['cloud', 'notify', 'doc-a', '--document', 'doc-b',
+      '--document', 'doc-c', '--member', 'usr-a', '--shared-with-me', '--json']);
+    assert.strictEqual(parsed.extra, 'doc-a');
+    assert.deepStrictEqual(parsed.documentFlags, ['doc-b', 'doc-c']);
+    assert.deepStrictEqual(parsed.memberFlags, ['usr-a']);
+    assert.strictEqual(parsed.sharedWithMeFlag, true);
+  });
+
   test('cloud CLI tag filters require every requested tag', () => {
     const documents = [{ id: 'a', tags: ['auth', 'api'] }, { id: 'b', tags: ['auth'] }];
     assert.deepStrictEqual(filterTags(documents, ['AUTH', 'api']).map((item) => item.id), ['a']);
@@ -87,6 +96,10 @@ module.exports = function(harness) {
         if (endpoint === '/api/cloud/v1/documents/doc-1/tags') {
           return { document: { id: 'doc-1', current_revision_id: 'rev-tags',
             revision_number: 3, tags: ['release', 'planning'] } };
+        }
+        if (endpoint === '/api/cloud/v1/notifications') {
+          return { notification: { id: 'notification-1',
+            document_ids: ['doc-1', 'doc-2'], recipient_user_ids: ['usr-2'] } };
         }
         if (endpoint === '/api/cloud/v1/documents/doc-1/revisions' && options && options.method === 'POST') {
           return { document: { id: 'doc-1', current_revision_id: 'rev-2', revision_number: 2,
@@ -207,6 +220,21 @@ module.exports = function(harness) {
         tagFilters: ['release', 'planning'], jsonFlag: true }, { client: fakeClient }));
       assert.deepStrictEqual(accessResult.permission.member_user_ids, ['usr-1', 'usr-2']);
       assert.deepStrictEqual(tagResult.tags, ['release', 'planning']);
+    });
+
+    await testAsync('cloud notifies existing members about one or more documents', async () => {
+      const callStart = calls.length;
+      const result = await capture(() => runCloudCommand({ file: 'notify', extra: 'doc-1',
+        documentFlags: ['doc-2'], memberFlags: ['usr-2'], jsonFlag: true },
+      { client: fakeClient }));
+      assert.strictEqual(result.notification_id, 'notification-1');
+      assert.deepStrictEqual(result.document_ids, ['doc-1', 'doc-2']);
+      const call = calls.slice(callStart).find((item) =>
+        item.endpoint === '/api/cloud/v1/notifications');
+      const body = JSON.parse(call.options.body);
+      assert.deepStrictEqual(body.document_ids, ['doc-1', 'doc-2']);
+      assert.deepStrictEqual(body.recipient_user_ids, ['usr-2']);
+      assert.ok(body.idempotency_key);
     });
 
     await testAsync('cloud push uses the bound base revision and advances only after success', async () => {

@@ -440,6 +440,68 @@ module.exports = function(harness) {
         query: 'missing', maxDocuments: 1 }), []);
     });
 
+    await testAsync('shared documents are classified without creating notification state', async () => {
+      store.setDocumentPermission({ userId: member, documentId: document.id,
+        mode: 'custom', memberUserIds: [collaborator] });
+      const owned = (await store.listDocuments({ userId: member }))[0];
+      const shared = (await store.listDocuments({ userId: collaborator }))[0];
+      assert.strictEqual(owned.shared_with_me, false);
+      assert.strictEqual(owned.created_by_user_id, member);
+      assert.strictEqual(shared.shared_with_me, true);
+      assert.strictEqual(shared.created_by_user_id, member);
+    });
+
+    await testAsync('one notification batches multiple accessible documents for existing members', async () => {
+      const second = await store.createDocument({ userId: member, projectId: team.projectId,
+        filename: 'decisions.md', markdown: '# Decisions', idempotencyKey: 'create-decisions' });
+      store.setDocumentPermission({ userId: member, documentId: second.id,
+        mode: 'custom', memberUserIds: [collaborator] });
+      const notification = store.createDocumentNotification({
+        userId: member,
+        credentialId: 'cli-build-server',
+        documentIds: [document.id, second.id],
+        recipientUserIds: [collaborator],
+        idempotencyKey: 'notify-release-documents',
+      });
+      assert.strictEqual(notification.created, true);
+      assert.deepStrictEqual(notification.document_ids, [document.id, second.id]);
+      assert.deepStrictEqual(notification.recipient_user_ids, [collaborator]);
+      const replay = store.createDocumentNotification({
+        userId: member,
+        credentialId: 'cli-build-server',
+        documentIds: [document.id, second.id],
+        recipientUserIds: [collaborator],
+        idempotencyKey: 'notify-release-documents',
+      });
+      assert.strictEqual(replay.id, notification.id);
+      assert.strictEqual(replay.created, false);
+      const delivery = await store.getDocumentNotificationDelivery({
+        batchId: notification.id, recipientUserId: collaborator,
+      });
+      assert.strictEqual(delivery.skipped, false);
+      assert.deepStrictEqual(delivery.documents.map((item) => item.title), ['Roadmap', 'Decisions']);
+      assert.strictEqual(delivery.actor_credential_id, 'cli-build-server');
+      assert.throws(() => store.createDocumentNotification({ userId: member,
+        documentIds: [document.id], recipientUserIds: [outsider], idempotencyKey: 'notify-outsider' }),
+      (error) => error.code === 'invalid_request');
+      assert.throws(() => store.createDocumentNotification({ userId: member,
+        documentIds: [document.id], recipientUserIds: [owner], idempotencyKey: 'notify-admin' }),
+      (error) => error.code === 'permission_denied');
+      assert.throws(() => store.createDocumentNotification({ userId: collaborator,
+        documentIds: [document.id], recipientUserIds: [member], idempotencyKey: 'notify-by-recipient' }),
+      (error) => error.code === 'permission_denied');
+
+      store.setDocumentPermission({ userId: member, documentId: second.id,
+        mode: 'custom', memberUserIds: [] });
+      const afterRemoval = await store.getDocumentNotificationDelivery({
+        batchId: notification.id, recipientUserId: collaborator,
+      });
+      assert.deepStrictEqual(afterRemoval.documents.map((item) => item.id), [document.id]);
+      store.db.prepare('DELETE FROM cloud_documents WHERE id = ?').run(second.id);
+      store.setDocumentPermission({ userId: member, documentId: document.id,
+        mode: 'custom', memberUserIds: [] });
+    });
+
     await testAsync('delete requires the current head and preserves revisions for restore', async () => {
       assert.throws(() => store.deleteDocument({ userId: member, documentId: document.id,
         expectedHeadRevisionId: 'stale' }), (error) => error.code === 'revision_conflict');
