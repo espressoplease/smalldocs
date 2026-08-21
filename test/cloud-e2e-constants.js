@@ -1,18 +1,20 @@
 'use strict';
 
 const TEST_IDENTITIES = Object.freeze({
-  owner: 'team-owner-demo@smalldocs.org',
-  selected: 'tom.smith@smalldocs.org',
-  unselected: 'lenny.thompson@smalldocs.org',
-  removed: 'dan.stow@smalldocs.org',
+  owner: 'access-owner@smalldocs.org',
+  selected: 'access-selected@smalldocs.org',
+  removed: 'access-removed@smalldocs.org',
 });
 
 const TEST_LOGIN_EMAILS = Object.freeze([
   'personal-demo@smalldocs.org',
   TEST_IDENTITIES.owner,
   TEST_IDENTITIES.selected,
-  TEST_IDENTITIES.unselected,
   TEST_IDENTITIES.removed,
+  'team-owner-demo@smalldocs.org',
+  'tom.smith@smalldocs.org',
+  'lenny.thompson@smalldocs.org',
+  'dan.stow@smalldocs.org',
   'maya.chen@smalldocs.org',
 ]);
 

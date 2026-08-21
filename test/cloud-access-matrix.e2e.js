@@ -84,7 +84,7 @@ test('reusable staging identities enforce permissions and tags across real sessi
     const workspaces = await json(owner, baseURL, 'GET', '/api/cloud/v1/workspaces');
     expect(workspaces.response.status()).toBe(200);
     const team = workspaces.body.workspaces.find(workspace =>
-      workspace.kind === 'team' && workspace.name === 'SmallDocs Demo');
+      workspace.kind === 'team' && workspace.name === 'SmallDocs Acceptance');
     expect(team).toBeTruthy();
     accountId = team.id;
 

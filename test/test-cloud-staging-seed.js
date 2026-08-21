@@ -31,6 +31,8 @@ module.exports = function(harness) {
         const seeded = JSON.parse(output);
         assert.notStrictEqual(seeded.individual.user_id, seeded.team.user_id);
         assert.notStrictEqual(seeded.individual.account_id, seeded.team.account_id);
+        assert.notStrictEqual(seeded.acceptance.user_id, seeded.team.user_id);
+        assert.notStrictEqual(seeded.acceptance.account_id, seeded.team.account_id);
 
         const { createLocalKeyProvider, createCloudStore } = require('../lib/cloud-store');
         const store = createCloudStore({ dbPath: env.CLOUD_DB,
@@ -51,6 +53,18 @@ module.exports = function(harness) {
           const accounts = await store.listWorkspaces(member.user_id);
           assert.strictEqual(accounts.length, 1);
           assert.strictEqual(accounts[0].id, seeded.team.account_id);
+        }
+        const acceptanceAccounts = await store.listWorkspaces(seeded.acceptance.user_id);
+        assert.strictEqual(acceptanceAccounts.length, 1);
+        assert.strictEqual(acceptanceAccounts[0].id, seeded.acceptance.account_id);
+        assert.strictEqual(acceptanceAccounts[0].name, 'SmallDocs Acceptance');
+        const acceptanceMembers = store.listAccountMembers({ userId: seeded.acceptance.user_id,
+          workspaceId: seeded.acceptance.account_id });
+        assert.strictEqual(acceptanceMembers.length, 3);
+        for (const member of seeded.acceptance.members) {
+          const accounts = await store.listWorkspaces(member.user_id);
+          assert.strictEqual(accounts.length, 1);
+          assert.strictEqual(accounts[0].id, seeded.acceptance.account_id);
         }
         store.db.close();
       } finally {

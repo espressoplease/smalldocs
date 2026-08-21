@@ -72,9 +72,11 @@ GitHub controls.
 ### 2.2.1 Reusable staging acceptance identities
 
 `ops/seed-cloud-staging.js` creates or reuses a fixed Personal identity, a
-fixed Team owner, and four fixed Team members. Re-running it does not create a
-second account for the same email. It also restores a seeded member whose
-membership was disabled by an earlier acceptance test.
+fixed demo Team, and a separate fixed `SmallDocs Acceptance` Team used only by
+automated access tests. Re-running it does not create a second account for the
+same email. It also restores an acceptance member whose membership was
+disabled by an earlier access-revocation check. Automated tests do not remove
+people from the demo Team used for visual review.
 
 The optional `/api/cloud/auth/test-login` route exists only when all of these
 conditions are true:
