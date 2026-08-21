@@ -28,6 +28,8 @@ const CLOUD_DOCUMENT_RESTORE_WINDOW_MS = integerEnvironmentSetting(
   'CLOUD_DOCUMENT_RESTORE_WINDOW_MS', 30 * 24 * 60 * 60 * 1000, 1);
 const CLOUD_OAUTH_PROVIDER_TIMEOUT_MS = integerEnvironmentSetting(
   'CLOUD_OAUTH_PROVIDER_TIMEOUT_MS', 10 * 1000, 1000);
+const CLOUD_COLLABORATION_METRICS_INTERVAL_MS = integerEnvironmentSetting(
+  'CLOUD_COLLABORATION_METRICS_INTERVAL_MS', 60 * 1000, 1000);
 const CLOUD_DEPLOYMENT = require('./lib/cloud-deployment-config')
   .validateCloudDeploymentConfig(process.env);
 const DEV_MODE = process.env.SDOCS_DEV === '1' || process.env.NODE_ENV === 'development';
@@ -35,6 +37,14 @@ const CLOUD_UI_LAB_ENABLED = CLOUD_DEPLOYMENT.publicEnabled &&
   CLOUD_DEPLOYMENT.mode !== 'production';
 const ANALYTICS_ENABLED = process.env.ANALYTICS_ENABLED === '1';
 const analytics = ANALYTICS_ENABLED ? require('./analytics/db') : null;
+const cloudCollaborationMetrics = require('./lib/cloud-collaboration-metrics')
+  .createCloudCollaborationMetrics();
+const cloudCollaborationMetricsTimer = setInterval(() => {
+  cloudCollaborationMetrics.flush((snapshot) => {
+    console.log('[cloud-collaboration] ' + JSON.stringify(snapshot));
+  });
+}, CLOUD_COLLABORATION_METRICS_INTERVAL_MS);
+if (cloudCollaborationMetricsTimer.unref) cloudCollaborationMetricsTimer.unref();
 
 const shortLinks = require('./short-links/db');
 const shortLinksRateLimit = require('./short-links/rate-limit');
@@ -1791,15 +1801,33 @@ async function handleCloudApi(req, res, url) {
     const documentTagsMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/tags$/);
     if (documentTagsMatch && req.method === 'PATCH') {
       const body = await cloudAuthHttp.readJson(req, CLOUD_DOCUMENT_JSON_MAX_BYTES);
+      const hasExpectedHead = typeof body.expected_head_revision_id === 'string' &&
+        body.expected_head_revision_id.length > 0;
+      const hasTarget = typeof body.target_revision_id === 'string' &&
+        body.target_revision_id.length > 0;
+      if (hasExpectedHead === hasTarget) {
+        const error = new Error('choose one revision base');
+        error.code = 'invalid_request';
+        throw error;
+      }
       const context = cloudStore.getDocumentContext({ userId: user.id,
         documentId: documentTagsMatch[1], requiredRole: 'editor' });
       const entitlements = requireCloudEntitlement(user.id, context.workspaceId, 'store_revision');
+      const mergeStartedAt = Date.now();
       const document = await cloudStore.updateDocumentTags({ userId: user.id,
         documentId: documentTagsMatch[1], tags: body.tags,
         expectedHeadRevisionId: body.expected_head_revision_id,
+        targetRevisionId: body.target_revision_id,
+        maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
         idempotencyKey: body.idempotency_key, credentialId,
-        beforeCommit: () => requireCloudEntitlement(user.id, context.workspaceId, 'store_revision'),
+        beforeCommit: (detail) => requireCloudEntitlement(
+          user.id, context.workspaceId, 'store_revision', detail && {
+            fileBytes: detail.markdownBytes,
+          }),
       });
+      if (hasTarget) {
+        cloudCollaborationMetrics.recordTargetSave(document, Date.now() - mergeStartedAt);
+      }
       scheduleRevisionPrune(document, entitlements);
       sendJson(res, 200, { ok: true, document });
       return;
@@ -1812,6 +1840,9 @@ async function handleCloudApi(req, res, url) {
       requireCloudEntitlement(user.id, context.workspaceId, 'read');
       const document = cloudStore.getDocumentHead({ userId: user.id,
         documentId: documentHeadMatch[1] });
+      const knownRevisionId = url.searchParams.get('known_revision_id');
+      cloudCollaborationMetrics.recordHeadCheck(knownRevisionId == null
+        ? null : knownRevisionId !== document.current_revision_id);
       sendJson(res, 200, { ok: true, document });
       return;
     }
@@ -1894,6 +1925,7 @@ async function handleCloudApi(req, res, url) {
       };
       let document;
       if (hasTarget) {
+        const mergeStartedAt = Date.now();
         document = await cloudStore.saveTargetRevision({
           ...saveInput,
           targetRevisionId: body.target_revision_id,
@@ -1903,6 +1935,7 @@ async function handleCloudApi(req, res, url) {
               fileBytes: detail.markdownBytes,
             }),
         });
+        cloudCollaborationMetrics.recordTargetSave(document, Date.now() - mergeStartedAt);
       } else {
         document = await cloudStore.saveRevision({
           ...saveInput,
@@ -1946,6 +1979,9 @@ async function handleCloudApi(req, res, url) {
     }
     sendJson(res, 404, { ok: false, error: 'resource_unavailable' });
   } catch (error) {
+    if (error && error.code === 'target_too_old') {
+      cloudCollaborationMetrics.recordTargetTooOld();
+    }
     if (error.code === 'payload_too_large') return sendJson(res, 413, { ok: false, error: 'invalid_request' });
     if (error.code === 'invalid_json') return sendJson(res, 400, { ok: false, error: 'invalid_request' });
     cloudApiError(res, error);
@@ -2851,6 +2887,7 @@ function closeResources() {
   resourcesClosed = true;
   clearInterval(_shortLinksCleanupTimer);
   clearInterval(cloudAuthCleanupTimer);
+  clearInterval(cloudCollaborationMetricsTimer);
   clearInterval(cloudJobTimer);
   shortLinksRateLimit.stopCleanup();
   feedbackRateLimit.stopCleanup();

@@ -149,12 +149,16 @@ function queueCloudSave(source) {
   }, source === 'comment' || source === 'remote' ? 0 : 800);
 }
 
-function flushCloudSave() {
-  if (cloudSaveTimer) {
-    clearTimeout(cloudSaveTimer);
-    cloudSaveTimer = null;
-  }
-  return saveCloudRevision();
+async function flushCloudSave() {
+  do {
+    if (cloudSaveTimer) {
+      clearTimeout(cloudSaveTimer);
+      cloudSaveTimer = null;
+    }
+    await saveCloudRevision();
+  } while (S.cloudDocument && !cloudSaveBlocked &&
+    currentMarkdown() !== cloudLastSavedMarkdown);
+  return S.cloudDocument;
 }
 
 function installCloudSaveHook() {
@@ -247,7 +251,7 @@ async function checkCloudDocument() {
   var documentId = S.cloudDocument.id;
   try {
     var headData = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
-      + '/head');
+      + '/head?known_revision_id=' + encodeURIComponent(S.cloudDocument.current_revision_id));
     if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
     if (headData.document.current_revision_id === S.cloudDocument.current_revision_id) {
       return headData.document;
@@ -553,6 +557,7 @@ async function removeCloudDocument(event) {
   if (rowButton) rowButton.disabled = true;
   var removed = false;
   try {
+    await flushCloudSave();
     await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id), {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expected_head_revision_id: S.cloudDocument.current_revision_id }),
@@ -725,15 +730,27 @@ async function saveTags(tags) {
   cloudState.busy = true;
   try {
     await flushCloudSave();
+    var markdownBeforeTags = currentMarkdown();
+    var targetRevisionId = cloudTargetRevisionId || S.cloudDocument.current_revision_id;
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id)
       + '/tags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags: tags, expected_head_revision_id: S.cloudDocument.current_revision_id,
+        body: JSON.stringify({ tags: tags, target_revision_id: targetRevisionId,
           idempotency_key: crypto.randomUUID() }) });
     S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
-    if (!S.currentMeta) S.currentMeta = {};
-    S.currentMeta.tags = data.document.tags.slice();
-    cloudLastSavedMarkdown = currentMarkdown();
-    cloudState.status = 'Tags updated.';
+    var savedMarkdown = typeof data.document.markdown === 'string'
+      ? data.document.markdown : null;
+    if (currentMarkdown() === markdownBeforeTags && savedMarkdown) {
+      applyCloudMarkdown(savedMarkdown, data.document.filename || currentFilename());
+      cloudLastSavedMarkdown = currentMarkdown();
+    } else {
+      if (!S.currentMeta) S.currentMeta = {};
+      S.currentMeta.tags = data.document.tags.slice();
+      cloudLastSavedMarkdown = savedMarkdown || currentMarkdown();
+      if (savedMarkdown && currentMarkdown() !== savedMarkdown) queueCloudSave('remote');
+    }
+    cloudTargetRevisionId = data.document.current_revision_id;
+    cloudState.status = data.document.combined
+      ? 'Tags updated and combined with Cloud changes.' : 'Tags updated.';
     await loadAccountData(cloudState.account.id);
   } catch (_) { cloudState.status = 'Tags were not updated.'; }
   cloudState.busy = false;

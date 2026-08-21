@@ -1377,6 +1377,7 @@ module.exports = function(harness) {
       assert.strictEqual(mergedDocument.merged_from_revision_id,
         remoteDocument.current_revision_id);
       assert.strictEqual(mergedDocument.merge_classification, 'rebased');
+      assert.strictEqual(mergedDocument.merge_retry_count, 0);
       assert.ok(mergedDocument.markdown.includes('Owner: Ada'));
       assert.ok(mergedDocument.markdown.includes('Status: Ready.'));
       const head = await get(BASE + '/api/cloud/v1/documents/' + targetDocument.id + '/head',
@@ -1389,6 +1390,18 @@ module.exports = function(harness) {
         updated_at: mergedDocument.updated_at,
       });
 
+      const tagged = await patch(BASE + '/api/cloud/v1/documents/' + targetDocument.id + '/tags', {
+        target_revision_id: targetRevisionId,
+        tags: ['collaboration'],
+        idempotency_key: 'http-target-tags',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(tagged.status, 200);
+      const taggedDocument = JSON.parse(tagged.body).document;
+      assert.strictEqual(taggedDocument.target_revision_id, targetRevisionId);
+      assert.ok(taggedDocument.markdown.includes('Owner: Ada'));
+      assert.ok(taggedDocument.markdown.includes('Status: Ready.'));
+      assert.deepStrictEqual(taggedDocument.tags, ['collaboration']);
+
       const ambiguous = await post(BASE + '/api/cloud/v1/documents/' + targetDocument.id +
         '/revisions', {
         expected_head_revision_id: mergedDocument.current_revision_id,
@@ -1398,6 +1411,15 @@ module.exports = function(harness) {
       }, { Origin: BASE, Cookie: cloudCookie });
       assert.strictEqual(ambiguous.status, 400);
       assert.strictEqual(JSON.parse(ambiguous.body).error, 'invalid_request');
+
+      const ambiguousTags = await patch(BASE + '/api/cloud/v1/documents/' + targetDocument.id +
+        '/tags', {
+        expected_head_revision_id: taggedDocument.current_revision_id,
+        target_revision_id: targetRevisionId,
+        tags: ['ambiguous'], idempotency_key: 'http-ambiguous-tag-save',
+      }, { Origin: BASE, Cookie: cloudCookie });
+      assert.strictEqual(ambiguousTags.status, 400);
+      assert.strictEqual(JSON.parse(ambiguousTags.body).error, 'invalid_request');
     });
 
     await testAsync('Cloud document cursors paginate deterministically and are filter-scoped', async () => {

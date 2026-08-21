@@ -54,6 +54,7 @@ require('./test-source')(harness);
 require('./test-cloud-auth')(harness);
 require('./test-cloud-billing')(harness);
 require('./test-cloud-account-selection')(harness);
+require('./test-cloud-collaboration-metrics')(harness);
 require('./test-cloud-stripe')(harness);
 const runCloudSeatSync = require('./test-cloud-seat-sync')(harness);
 const runCloudKms = require('./test-cloud-kms')(harness);

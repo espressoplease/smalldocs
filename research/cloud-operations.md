@@ -91,7 +91,7 @@ The endpoint is same-origin protected, rate-limited, returns no token in its
 body, and creates the normal HttpOnly Secure browser cookie. Do not place the
 secret in a URL, repository file, Playwright report, or command-line argument.
 
-Run the complete permission and tag matrix against an isolated local
+Run the complete permission, tag, and two-account merge matrix against an isolated local
 staging-shaped process with:
 
 ```text
@@ -112,6 +112,13 @@ or hostile URL cannot receive the staging secret. Playwright creates one
 browser context and one normal session per required identity, uses those
 sessions for the complete run, removes its test document, and restores the
 member removed by the access-revocation check.
+
+The server writes one aggregate `cloud_collaboration_metrics` JSON record per
+active minute. It includes lightweight head-check totals and change counts,
+target-save merge classifications, merge retry counts and latency, and expired
+target counts. The record contains no document ids, account ids, Markdown, or
+search terms. Set `CLOUD_COLLABORATION_METRICS_INTERVAL_MS` to shorten the
+aggregation window during a focused staging check.
 
 Register these exact callback URLs with the providers:
 

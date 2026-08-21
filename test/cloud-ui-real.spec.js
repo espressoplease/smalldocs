@@ -23,6 +23,8 @@ test('Cloud identity canonicalizes a new-document URL without carrying its snaps
 test('real Cloud document controls save, share, tag, and remove through account APIs', async ({ page }) => {
   const calls = [];
   let revision = 1;
+  let releaseRemovalSave = null;
+  let heldRemovalSave = false;
   let tags = [];
   let permission = { id: 'group-1', account_id: 'acct-1', document_id: 'doc-1',
     mode: 'custom', member_user_ids: ['usr-1'], owner_user_id: 'usr-1', can_manage: true };
@@ -62,6 +64,11 @@ test('real Cloud document controls save, share, tag, and remove through account 
         title: 'SmallDocs', tags, current_revision_id: 'rev-' + revision, revision_number: revision } } });
     }
     if (path === '/api/cloud/v1/documents/doc-1/revisions') {
+      const body = request.postDataJSON();
+      if (!heldRemovalSave && body.markdown.includes('First edit before removal.')) {
+        heldRemovalSave = true;
+        await new Promise(resolve => { releaseRemovalSave = resolve; });
+      }
       revision += 1;
       return route.fulfill({ status: 201, json: { ok: true, document: {
         id: 'doc-1', filename: 'sdoc.md', title: 'SmallDocs', tags,
@@ -140,16 +147,38 @@ test('real Cloud document controls save, share, tag, and remove through account 
   await page.getByRole('textbox', { name: 'New Cloud tag' }).fill('release');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.locator('.fic-row-cloud')).toContainText('#release');
+  const tagCall = calls.find(call => call.path === '/api/cloud/v1/documents/doc-1/tags');
+  expect(tagCall.body.target_revision_id).toBe('rev-3');
+  expect(tagCall.body.expected_head_revision_id).toBeUndefined();
 
+  await page.evaluate(() => {
+    window.SDocs.currentBody += '\n\nFirst edit before removal.';
+    window.SDocs.syncAll('write');
+  });
+  await expect.poll(() => typeof releaseRemovalSave).toBe('function');
+  await page.evaluate(() => {
+    window.SDocs.currentBody += '\n\nSecond edit while the first save is in flight.';
+    window.SDocs.syncAll('write');
+  });
   await page.locator('.sdoc-cloud-lab-saved').click();
+  releaseRemovalSave();
   await expect(page.locator('.sdoc-cloud-lab-add-link')).toBeVisible();
-  expect(calls.some(call => call.method === 'DELETE' &&
-    call.path === '/api/cloud/v1/documents/doc-1')).toBe(true);
+  const finalRevisionIndex = calls.findLastIndex(call =>
+    call.path === '/api/cloud/v1/documents/doc-1/revisions');
+  const deleteIndex = calls.findIndex(call => call.method === 'DELETE' &&
+    call.path === '/api/cloud/v1/documents/doc-1');
+  expect(finalRevisionIndex).toBeGreaterThan(-1);
+  expect(deleteIndex).toBeGreaterThan(finalRevisionIndex);
+  expect(calls[finalRevisionIndex].body.markdown)
+    .toContain('Second edit while the first save is in flight.');
+  expect(calls[deleteIndex].body.expected_head_revision_id).toBe('rev-6');
   const localUrl = new URL(page.url());
   expect(localUrl.searchParams.has('cloud-document')).toBe(false);
   expect(localUrl.hash).toContain('md=');
   await page.reload();
   await expect(page.locator('#_sd_rendered')).toContainText('Cloud body edit.');
+  await expect(page.locator('#_sd_rendered'))
+    .toContainText('Second edit while the first save is in flight.');
 });
 
 test('Add to Cloud asks before uploading when several accounts have no saved choice', async ({ page }) => {

@@ -55,7 +55,7 @@ async function searchDocumentIds(context, baseURL, accountId, query, tags) {
   return result.body.documents.map(document => document.id);
 }
 
-test('reusable staging identities enforce permissions and tags across real sessions', async ({ browser }, testInfo) => {
+test('reusable staging identities enforce access and merge two-account edits', async ({ browser }, testInfo) => {
   const baseURL = String(testInfo.project.use.baseURL).replace(/\/$/, '');
   const secret = configuredSecret();
   const contexts = {};
@@ -169,6 +169,38 @@ test('reusable staging identities enforce permissions and tags across real sessi
       expect(opened.body.document.tags).toEqual(['permission-matrix', 'shared-test']);
       expect(await visibleDocumentIds(contexts[name], baseURL, accountId)).toContain(document.id);
     }
+
+    const sharedOpened = await json(owner, baseURL, 'GET',
+      '/api/cloud/v1/documents/' + document.id);
+    expect(sharedOpened.response.status()).toBe(200);
+    document = sharedOpened.body.document;
+    const sharedTarget = document.current_revision_id;
+    const ownerEdit = await json(owner, baseURL, 'POST',
+      '/api/cloud/v1/documents/' + document.id + '/revisions', {
+        target_revision_id: sharedTarget,
+        filename: document.filename,
+        markdown: document.markdown.replace('A unique permission test document.',
+          'A unique permission test document.\n\nOwner contribution.'),
+        idempotency_key: 'cloud-two-account-owner-' + runId,
+      });
+    expect(ownerEdit.response.status()).toBe(201);
+    const selectedEdit = await json(contexts.selected, baseURL, 'POST',
+      '/api/cloud/v1/documents/' + document.id + '/revisions', {
+        target_revision_id: sharedTarget,
+        filename: document.filename,
+        markdown: document.markdown.replace('# Cloud access matrix ' + runId,
+          '# Cloud access matrix ' + runId + '\n\nSelected account contribution.'),
+        idempotency_key: 'cloud-two-account-selected-' + runId,
+      });
+    expect(selectedEdit.response.status()).toBe(201);
+    document = selectedEdit.body.document;
+    expect(document.merged_from_revision_id)
+      .toBe(ownerEdit.body.document.current_revision_id);
+    expect(document.markdown).toContain('Owner contribution.');
+    expect(document.markdown).toContain('Selected account contribution.');
+    const ownerFinal = await json(owner, baseURL, 'GET',
+      '/api/cloud/v1/documents/' + document.id);
+    expect(ownerFinal.body.document.markdown).toBe(document.markdown);
 
     const removedResponse = await json(owner, baseURL, 'DELETE',
       '/api/cloud/v1/workspaces/' + accountId + '/members/' + removedUserId, {});

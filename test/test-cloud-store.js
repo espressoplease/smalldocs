@@ -466,6 +466,29 @@ module.exports = function(harness) {
       targetDocument = first;
     });
 
+    await testAsync('target-based tag updates preserve a concurrent body edit', async () => {
+      const taggedBase = await mergeStore.createDocument({
+        userId: owner, projectId: mergePersonal.projectId, filename: 'tag-merge.md',
+        markdown: '---\ntags:\n  - draft\n---\n# Tag merge\n\nStatus: Draft.\n',
+        idempotencyKey: 'tag-merge-base',
+      });
+      const targetRevisionId = taggedBase.current_revision_id;
+      const remote = await mergeStore.saveRevision({
+        userId: owner, documentId: taggedBase.id,
+        expectedHeadRevisionId: targetRevisionId,
+        markdown: '---\ntags:\n  - draft\n---\n# Tag merge\n\nStatus: Reviewed.\n',
+        filename: 'tag-merge.md', idempotencyKey: 'tag-merge-remote',
+      });
+      const tagged = await mergeStore.updateDocumentTags({
+        userId: owner, documentId: taggedBase.id, targetRevisionId,
+        tags: ['release'], idempotencyKey: 'tag-merge-target',
+      });
+      assert.strictEqual(tagged.merged_from_revision_id, remote.current_revision_id);
+      assert.strictEqual(tagged.target_revision_id, targetRevisionId);
+      assert.ok(tagged.markdown.includes('Status: Reviewed.'));
+      assert.deepStrictEqual(SDocYaml.parseFrontMatter(tagged.markdown).meta.tags, ['release']);
+    });
+
     await testAsync('simultaneous target saves retry and preserve both writers', async () => {
       const base = await mergeStore.createDocument({
         userId: owner, projectId: mergePersonal.projectId, filename: 'parallel.md',
