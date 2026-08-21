@@ -203,7 +203,7 @@ The list below is intentionally stricter than a demo checklist. A paid Cloud pro
 - [ ] Confirm deleted-document and deleted-team recovery. The current design uses a 30-day recovery window.
 - [ ] Confirm the failed-payment grace period and exactly what becomes read-only.
 - [ ] Confirm cancellation behavior at period end, including document access, export, deletion, and recovery.
-- [ ] Confirm whether Cloud comments remain local or become persisted collaborative data. Current tests deliberately ensure a local comment does not create a Cloud revision.
+- [x] Cloud comments are persisted collaborative data inside Cloud document revisions. Local comments remain local until the document is added to Cloud. Browser and store tests cover named comment persistence, concurrent comment ID reconciliation, reopen, edit, deletion, and access removal.
 - [ ] Confirm the one-account default and the account switcher behavior for the uncommon person who belongs to more than one account.
 - [ ] Confirm that the single-host availability model is acceptable for the first paid release. PostgreSQL and multiple replicas are not required for a small private beta if we accept and document that limitation.
 
@@ -326,7 +326,7 @@ remains separate and Cloud is not enabled there.
 
 The application is past the proof-of-concept stage. The main blockers are now cross-system proof and policy, not the existence of the basic UI.
 
-1. **Product policy:** decide plan allowances, failed-payment behavior, cancellation, retention, and whether comments become Cloud data.
+1. **Product policy:** decide plan allowances, failed-payment behavior, cancellation, and retention.
 2. **Full authorization proof:** complete the Only you, Everyone, custom group, removed-member, search, history, restore, and CLI matrix with separate real accounts.
 3. **Real provider lifecycle tests:** finish production OAuth choices, mailbox coverage, Stripe failure and seat reconciliation, and KMS failure drills.
 4. **Monitoring and incident readiness:** add alerts, operator procedures, and a final-config restore drill.

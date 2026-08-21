@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const SDocYaml = require('../cli/shared/sdocs-yaml.js');
+const { mergeTargetRevision } = require('../lib/cloud-merge.js');
 
 test.use({ serviceWorkers: 'block' });
 
@@ -443,6 +445,198 @@ test('Cloud checks apply remote updates when clean and merge them with local edi
   expect(await page.evaluate(() => window.SDocs.currentBody)).toContain('Local dirty edit.');
   await expect(page.locator('#_sd_status-text')).toContainText('combined');
 });
+
+test('Cloud comments sync across people, reopen cleanly, and stop after access removal',
+  async ({ browser }) => {
+    test.setTimeout(30000);
+    const initialMarkdown = '# Review\n\nShared paragraph.\n';
+    const shared = {
+      markdown: initialMarkdown,
+      revisionNumber: 1,
+      revisionId: 'rev-1',
+      revisions: new Map([['rev-1', initialMarkdown]]),
+      deniedUsers: new Set(),
+      writes: [],
+    };
+    const people = [
+      { id: 'usr-ana', first_name: 'Ana', last_name: 'Bell', email: 'ana@example.com' },
+      { id: 'usr-josh', first_name: 'Josh', last_name: 'Summers', email: 'josh@example.com' },
+    ];
+
+    async function createSession(user) {
+      const context = await browser.newContext({ baseURL: 'http://localhost:3000',
+        serviceWorkers: 'block' });
+      await context.route('**/api/cloud/v1/**', async route => {
+        const request = route.request();
+        const url = new URL(request.url());
+        const path = url.pathname;
+        const denied = shared.deniedUsers.has(user.id);
+        if (path === '/api/cloud/v1/workspaces') return route.fulfill({ json: { ok: true,
+          workspaces: [{ id: 'acct-1', kind: 'team', name: 'Review team', role: 'member' }],
+          user } });
+        if (path === '/api/cloud/v1/account') return route.fulfill({ json: { ok: true,
+          account: { id: 'acct-1', kind: 'team', name: 'Review team', role: 'member',
+            can_write: !denied }, accounts: [], user } });
+        if (path === '/api/cloud/v1/account/members') return route.fulfill({ json: { ok: true,
+          account_id: 'acct-1', members: people.map(person => ({
+            user_id: person.id, email: person.email,
+            name: person.first_name + ' ' + person.last_name,
+            initials: person.first_name[0] + person.last_name[0],
+            is_you: person.id === user.id,
+          })) } });
+        if (path === '/api/cloud/v1/account/tags') return route.fulfill({ json: { ok: true,
+          account_id: 'acct-1', tags: [] } });
+        if (path === '/api/cloud/v1/documents/doc-comments/head') {
+          if (denied) return route.fulfill({ status: 404,
+            json: { ok: false, error: 'resource_unavailable' } });
+          return route.fulfill({ json: { ok: true, document: {
+            id: 'doc-comments', current_revision_id: shared.revisionId,
+            revision_number: shared.revisionNumber,
+            updated_at: '2026-08-21T14:00:00.000Z',
+          } } });
+        }
+        if (path === '/api/cloud/v1/documents/doc-comments' && request.method() === 'GET') {
+          if (denied) return route.fulfill({ status: 404,
+            json: { ok: false, error: 'resource_unavailable' } });
+          return route.fulfill({ json: { ok: true, document: {
+            id: 'doc-comments', filename: 'review.md', title: 'Review', tags: [],
+            current_revision_id: shared.revisionId, revision_number: shared.revisionNumber,
+            workspace_id: 'acct-1', markdown: shared.markdown,
+          }, permission: { mode: 'everyone', member_user_ids: people.map(person => person.id) } } });
+        }
+        if (path === '/api/cloud/v1/documents/doc-comments/revisions') {
+          if (denied) return route.fulfill({ status: 404,
+            json: { ok: false, error: 'resource_unavailable' } });
+          const body = request.postDataJSON();
+          const target = shared.revisions.get(body.target_revision_id) || body.target_markdown;
+          const merged = mergeTargetRevision(target, shared.markdown, body.markdown);
+          shared.revisionNumber += 1;
+          shared.revisionId = 'rev-' + shared.revisionNumber;
+          shared.markdown = merged.markdown;
+          shared.revisions.set(shared.revisionId, shared.markdown);
+          shared.writes.push({ user_id: user.id, body, merged });
+          return route.fulfill({ status: 201, json: { ok: true, document: {
+            id: 'doc-comments', filename: 'review.md', title: 'Review', tags: [],
+            current_revision_id: shared.revisionId, revision_number: shared.revisionNumber,
+            workspace_id: 'acct-1', markdown: shared.markdown,
+            combined: merged.combined, comment_id_remaps: merged.comment_id_remaps,
+          } } });
+        }
+        return route.fulfill({ status: 404,
+          json: { ok: false, error: 'resource_unavailable' } });
+      });
+      const page = await context.newPage();
+      return { context, page };
+    }
+
+    async function openDocument(page, accessible = true) {
+      await page.goto('/docs');
+      await page.evaluate(() => {
+        window.SDocs.Sources._reset();
+        history.replaceState(null, '', '/docs?cloud-document=doc-comments');
+      });
+      await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
+      await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
+      await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
+      await page.evaluate(() => window.SDocs.Sources.select().load());
+      if (!accessible) return;
+      await expect.poll(() => page.evaluate(() => window.SDocs.cloudDocument &&
+        window.SDocs.cloudDocument.current_revision_id)).toBe(shared.revisionId);
+      await expect.poll(() => page.evaluate(() => window.SDocs.cloudCommentIdentity()))
+        .not.toBeNull();
+    }
+
+    const anaSession = await createSession(people[0]);
+    const joshSession = await createSession(people[1]);
+    try {
+      await Promise.all([openDocument(anaSession.page), openDocument(joshSession.page)]);
+      await expect.poll(() => anaSession.page.evaluate(() => window.SDocs.cloudCommentIdentity()))
+        .toBe('Ana Bell');
+      await expect.poll(() => joshSession.page.evaluate(() => window.SDocs.cloudCommentIdentity()))
+        .toBe('Josh Summers');
+
+      await Promise.all([
+        anaSession.page.evaluate(() => {
+          const result = window.SDocComments.addBlockComment(window.SDocs.currentMeta || {},
+            { block: 'p:0', block_text: 'Shared paragraph.' },
+            { text: 'Ana note', author: window.SDocs.cloudCommentIdentity(), color: '#2f6feb',
+              at: '2026-08-21T14:01:00.000Z' });
+          window.SDocs.currentMeta = result.meta;
+          window.SDocs.syncAll('comment');
+        }),
+        joshSession.page.evaluate(() => {
+          const result = window.SDocComments.addBlockComment(window.SDocs.currentMeta || {},
+            { block: 'p:0', block_text: 'Shared paragraph.' },
+            { text: 'Josh note', author: window.SDocs.cloudCommentIdentity(), color: '#0a8f45',
+              at: '2026-08-21T14:01:01.000Z' });
+          window.SDocs.currentMeta = result.meta;
+          window.SDocs.syncAll('comment');
+        }),
+      ]);
+      await expect.poll(() => shared.writes.length).toBe(2);
+      let savedComments = SDocYaml.parseFrontMatter(shared.markdown).meta.comments;
+      expect(savedComments.map(comment => comment.author).sort()).toEqual(['Ana Bell', 'Josh Summers']);
+      expect(new Set(savedComments.map(comment => comment.id)).size).toBe(2);
+
+      await Promise.all([
+        anaSession.page.evaluate(() => window.SDocs.checkCloudNow()),
+        joshSession.page.evaluate(() => window.SDocs.checkCloudNow()),
+      ]);
+      await expect.poll(() => anaSession.page.evaluate(() => window.SDocs.currentMeta.comments.length))
+        .toBe(2);
+      await expect.poll(() => joshSession.page.evaluate(() => window.SDocs.currentMeta.comments.length))
+        .toBe(2);
+
+      await anaSession.page.evaluate(() => {
+        const comment = window.SDocs.currentMeta.comments.find(item => item.author === 'Ana Bell');
+        window.SDocs.currentMeta = window.SDocComments.updateComment(window.SDocs.currentMeta,
+          comment.id, { text: 'Ana note edited' });
+        window.SDocs.syncAll('comment');
+      });
+      await expect.poll(() => shared.writes.length).toBe(3);
+      await joshSession.page.evaluate(() => window.SDocs.checkCloudNow());
+      await expect.poll(() => joshSession.page.evaluate(() =>
+        window.SDocs.currentMeta.comments.some(comment => comment.text === 'Ana note edited')))
+        .toBe(true);
+
+      await joshSession.page.evaluate(() => {
+        const comment = window.SDocs.currentMeta.comments.find(item => item.author === 'Josh Summers');
+        window.SDocs.currentMeta = window.SDocComments.removeComment(window.SDocs.currentMeta,
+          comment.id);
+        window.SDocs.syncAll('comment');
+      });
+      await expect.poll(() => shared.writes.length).toBe(4);
+      await anaSession.page.evaluate(() => window.SDocs.checkCloudNow());
+      savedComments = SDocYaml.parseFrontMatter(shared.markdown).meta.comments;
+      expect(savedComments).toHaveLength(1);
+      expect(savedComments[0]).toMatchObject({ author: 'Ana Bell', text: 'Ana note edited' });
+
+      await openDocument(anaSession.page);
+      await expect.poll(() => anaSession.page.evaluate(() => window.SDocs.currentMeta.comments))
+        .toEqual([expect.objectContaining({ author: 'Ana Bell', text: 'Ana note edited' })]);
+
+      shared.deniedUsers.add('usr-josh');
+      const markdownBeforeDeniedSave = shared.markdown;
+      await joshSession.page.evaluate(() => {
+        const result = window.SDocComments.addBlockComment(window.SDocs.currentMeta || {},
+          { block: 'p:0', block_text: 'Shared paragraph.' },
+          { text: 'Denied note', author: 'Josh Summers', color: '#0a8f45' });
+        window.SDocs.currentMeta = result.meta;
+        window.SDocs.syncAll('comment');
+      });
+      await expect(joshSession.page.locator('#_sd_status-text'))
+        .toContainText('Changes were not saved to Cloud.');
+      expect(shared.markdown).toBe(markdownBeforeDeniedSave);
+
+      const deniedPage = await joshSession.context.newPage();
+      await openDocument(deniedPage, false);
+      await expect(deniedPage.locator('#_sd_status-text'))
+        .toHaveText('Could not open this Cloud document.');
+      await expect(deniedPage.locator('body')).not.toContainText('Ana note edited');
+    } finally {
+      await Promise.all([anaSession.context.close(), joshSession.context.close()]);
+    }
+  });
 
 test('an expired target preserves the local edit and offers copy recovery', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
