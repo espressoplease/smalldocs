@@ -13,23 +13,23 @@
     <span class="nav-label">Cloud</span>
   </header>
   <main class="auth-shell">
-    <section class="auth-card" aria-labelledby="authorize-title">
+    <section class="auth-card authorize-card" aria-labelledby="authorize-title">
       <div class="auth-heading">
         <div class="auth-mark" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 7.5 19 4"/><path d="m21 2-2 2"/><path d="M5 17a4 4 0 1 0 8 0c0-1.1-.4-2.1-1.1-2.8L19 7l-2-2-7.2 7.1A4 4 0 0 0 5 17Z"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>
         </div>
         <div>
           <h1 id="authorize-title">Authorize this CLI</h1>
           <p>Confirm the code shown by the machine running <code>sdoc cloud login</code>.</p>
         </div>
       </div>
-      <form id="authorize-form" class="email-form">
+      <form id="authorize-form" class="authorize-form">
         <label for="user-code">Authorization code</label>
-        <input id="user-code" name="user_code" type="text" autocomplete="one-time-code" maxlength="9" placeholder="ABCD-EFGH" required>
-        <div class="auth-message" id="authorization-detail" aria-live="polite"></div>
+        <input class="text-input authorize-code-input" id="user-code" name="user_code" type="text" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="9" placeholder="ABCD-EFGH" required>
+        <div class="auth-message authorization-detail" id="authorization-detail" aria-live="polite"></div>
         <button class="primary-button" id="authorize-button" type="submit">Authorize CLI</button>
       </form>
-      <div class="auth-message" id="authorization-result" aria-live="polite"></div>
+      <div class="auth-message authorization-result" id="authorization-result" aria-live="polite"></div>
     </section>
   </main>
   <script src="/public/cloud-authorize.js"></script>

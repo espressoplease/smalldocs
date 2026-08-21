@@ -1,7 +1,22 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const { execFileSync, spawnSync } = require('child_process');
+
+const KEYCHAIN_SERVICE = 'org.smalldocs.cloud';
+const KEYCHAIN_EXPECT = [
+  'log_user 0',
+  'set timeout 15',
+  'set secret [gets stdin]',
+  'spawn security add-generic-password -U -s "' + KEYCHAIN_SERVICE + '" -a "$env(SDOCS_KEYCHAIN_ACCOUNT)" -w',
+  'expect -re {password.*item.*:}',
+  'send -- "$secret\\r"',
+  'expect -re {retype.*item.*:}',
+  'send -- "$secret\\r"',
+  'expect eof',
+  'catch wait result',
+  'exit [lindex $result 3]',
+].join('\n');
 
 function cloudDir() {
   return path.join(process.env.SDOCS_HOME || path.join(os.homedir(), '.sdocs'), 'cloud');
@@ -27,20 +42,29 @@ function keychainAccount(origin) {
 
 function keychainLoad(origin) {
   try {
-    const value = execFileSync('security', ['find-generic-password', '-s', 'org.smalldocs.cloud',
+    const value = execFileSync('security', ['find-generic-password', '-s', KEYCHAIN_SERVICE,
       '-a', keychainAccount(origin), '-w'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     return value ? JSON.parse(value) : null;
   } catch (_) { return null; }
 }
 
-function keychainSave(origin, credential) {
-  execFileSync('security', ['add-generic-password', '-U', '-s', 'org.smalldocs.cloud',
-    '-a', keychainAccount(origin), '-w'], { input: JSON.stringify(credential) + '\n', stdio: ['pipe', 'ignore', 'ignore'] });
+function keychainSave(origin, credential, execute) {
+  const run = execute || spawnSync;
+  const result = run('/usr/bin/expect', ['-c', KEYCHAIN_EXPECT], {
+    input: JSON.stringify(credential) + '\n',
+    encoding: 'utf8',
+    env: Object.assign({}, process.env, { SDOCS_KEYCHAIN_ACCOUNT: keychainAccount(origin) }),
+    stdio: ['pipe', 'ignore', 'ignore'],
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error('Could not save the Cloud credential to macOS Keychain.');
+  }
 }
 
 function keychainDelete(origin) {
   try {
-    execFileSync('security', ['delete-generic-password', '-s', 'org.smalldocs.cloud',
+    execFileSync('security', ['delete-generic-password', '-s', KEYCHAIN_SERVICE,
       '-a', keychainAccount(origin)], { stdio: 'ignore' });
   } catch (_) {}
 }
@@ -68,4 +92,5 @@ function remove(origin) {
   atomicWrite(credentialFile(), values);
 }
 
-module.exports = { cloudDir, credentialFile, atomicWrite, load, save, remove, useKeychain };
+module.exports = { cloudDir, credentialFile, atomicWrite, load, save, remove, useKeychain,
+  keychainSave };

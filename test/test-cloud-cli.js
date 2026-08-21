@@ -45,6 +45,22 @@ module.exports = function(harness) {
     assert.deepStrictEqual(filterTags(documents, ['AUTH', 'api']).map((item) => item.id), ['a']);
   });
 
+  test('macOS Keychain save answers both secure prompts without putting the credential in arguments', () => {
+    const credential = { refresh_token: 'test-refresh-token' };
+    let invocation;
+    credentials.keychainSave('https://cloud.example', credential, (command, args, options) => {
+      invocation = { command, args, options };
+      return { status: 0 };
+    });
+    assert.strictEqual(invocation.command, '/usr/bin/expect');
+    assert.strictEqual(invocation.args[0], '-c');
+    assert.ok(invocation.args[1].includes('retype.*item'));
+    assert.strictEqual(invocation.options.input, JSON.stringify(credential) + '\n');
+    assert.ok(!invocation.args.join(' ').includes(credential.refresh_token));
+    assert.strictEqual(invocation.options.env.SDOCS_KEYCHAIN_ACCOUNT,
+      Buffer.from('https://cloud.example').toString('base64url'));
+  });
+
   return async function() {
     console.log('\n-- Cloud CLI Tests ------------------------------------\n');
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-cli-'));

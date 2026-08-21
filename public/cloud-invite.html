@@ -16,7 +16,18 @@
       <svg class="invite-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v8"/><path d="m8 17 4 4 4-4"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/></svg>
       <h1 id="invite-title">Join this Cloud workspace</h1>
       <p id="invite-copy">Accept the invitation using the email address it was sent to.</p>
-      <button id="accept-invite" type="button">Accept invitation</button>
+      <div class="invite-profile-grid">
+        <div>
+          <label for="invite-first-name">First name</label>
+          <input id="invite-first-name" type="text" maxlength="128" autocomplete="given-name" placeholder="First name" required>
+        </div>
+        <div>
+          <label for="invite-last-name">Last name</label>
+          <input id="invite-last-name" type="text" maxlength="128" autocomplete="family-name" placeholder="Last name" required>
+        </div>
+      </div>
+      <p class="field-note">Shown to people you share documents with.</p>
+      <button id="accept-invite" type="button" disabled>Accept invitation</button>
       <p class="status" id="invite-status" role="status" aria-live="polite"></p>
     </section>
   </main>

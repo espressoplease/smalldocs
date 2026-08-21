@@ -936,6 +936,16 @@ module.exports = function(harness) {
         Cookie: cloudMemberCookie,
       })).body).user;
 
+      const missingProfile = await post(BASE + '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {},
+        { Origin: BASE, Cookie: cloudMemberCookie });
+      assert.strictEqual(missingProfile.status, 409);
+      assert.strictEqual(JSON.parse(missingProfile.body).error, 'profile_required');
+      const profile = await patch(BASE + '/api/cloud/v1/me', {
+        first_name: 'Team', last_name: 'Member',
+      }, { Origin: BASE, Cookie: cloudMemberCookie });
+      assert.strictEqual(profile.status, 200);
+      cloudMemberUser = JSON.parse(profile.body).user;
+
       const accepted = await post(BASE + '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {},
         { Origin: BASE, Cookie: cloudMemberCookie });
       assert.strictEqual(accepted.status, 200);

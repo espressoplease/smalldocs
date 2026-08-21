@@ -2,6 +2,41 @@ const { test, expect } = require('@playwright/test');
 
 test.use({ serviceWorkers: 'block' });
 
+test('signed-out Cloud document links preserve the document while redirecting to sign in', async ({ page }) => {
+  await page.route('**/api/cloud/v1/documents/restricted-document', route => route.fulfill({
+    status: 401, json: { ok: false, error: 'login_required' },
+  }));
+
+  await page.goto('/docs');
+  await page.evaluate(() => {
+    window.SDocs.Sources._reset();
+    history.replaceState(null, '', '/docs?cloud-document=restricted-document');
+  });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
+  await page.evaluate(() => window.SDocs.Sources.select().load());
+  await expect.poll(() => page.url()).toContain('/cloud/sign-in?return=');
+  const returnTo = new URL(page.url()).searchParams.get('return');
+  expect(returnTo).toBe('/docs?cloud-document=restricted-document');
+});
+
+test('signed-in users without access stay on a generic unavailable document page', async ({ page }) => {
+  await page.route('**/api/cloud/v1/documents/restricted-document', route => route.fulfill({
+    status: 404, json: { ok: false, error: 'resource_unavailable' },
+  }));
+
+  await page.goto('/docs');
+  await page.evaluate(() => {
+    window.SDocs.Sources._reset();
+    history.replaceState(null, '', '/docs?cloud-document=restricted-document');
+  });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
+  await page.evaluate(() => window.SDocs.Sources.select().load());
+  await expect(page.locator('#_sd_status-text')).toHaveText('Could not open this Cloud document.');
+  expect(new URL(page.url()).pathname).toBe('/docs');
+  expect(new URL(page.url()).searchParams.get('cloud-document')).toBe('restricted-document');
+  await expect(page.locator('body')).not.toContainText('permission_denied');
+});
+
 test('Cloud identity canonicalizes a new-document URL without carrying its snapshot', async ({ page }) => {
   await page.goto('/new');
   await page.evaluate(async () => {

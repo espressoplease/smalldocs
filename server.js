@@ -939,6 +939,7 @@ function cloudApiError(res, error) {
     : error && error.code ? error.code : 'temporary_service_failure';
   const statuses = {
     invalid_request: 400,
+    profile_required: 409,
     public_email_domain: 400,
     login_required: 401,
     permission_denied: 403,
@@ -1610,6 +1611,9 @@ async function handleCloudApi(req, res, url) {
         .map((item) => item.verifiedEmail);
       const invitationContext = await cloudStore.getInvitationContext({ token: invitationAcceptMatch[1],
         verifiedEmails });
+      if (!user.firstName || !user.lastName) {
+        throw Object.assign(new Error('profile_required'), { code: 'profile_required' });
+      }
       requireCloudEntitlement(user.id, invitationContext.workspaceId, 'add_member');
       const result = await cloudStore.acceptInvitation({ userId: user.id,
         verifiedEmails, token: invitationAcceptMatch[1],
