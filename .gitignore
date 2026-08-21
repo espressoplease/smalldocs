@@ -6,6 +6,7 @@ claude.local.todo.md
 .claude/
 .claude-personal/
 .agents/
+.githooks/
 .smallcrm/
 .playwright-mcp/
 test-results/
