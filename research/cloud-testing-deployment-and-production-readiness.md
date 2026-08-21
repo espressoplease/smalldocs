@@ -315,6 +315,10 @@ remains separate and Cloud is not enabled there.
 
 ### J. Acceptance, private beta, and release
 
+- [x] The repeatable staging-shaped suite opens the signed-in Cloud Library at
+  phone size, keeps the Local and Cloud controls available, hides the account
+  selector for the normal one-account case, and opens the collaborative Cloud
+  document with its tags and saved comments.
 - [ ] Run the full staging matrix with two human accounts, two browser profiles, one phone-sized browser, and two CLI credentials.
 - [ ] Run the full Node suite and the complete Playwright suite against the exact release commit.
 - [ ] Invite 5 to 10 known private-beta users and define the beta period and support channel.

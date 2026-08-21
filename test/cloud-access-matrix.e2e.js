@@ -378,10 +378,22 @@ test('reusable staging identities enforce access and merge two-account edits', a
     document = afterDeniedComment.body.document;
 
     const ownerPage = await owner.newPage();
+    await ownerPage.setViewportSize({ width: 390, height: 844 });
     await ownerPage.goto('/library?scope=cloud&account_id=' + encodeURIComponent(accountId));
+    await expect(ownerPage.getByRole('link', { name: 'Local' })).toBeVisible();
+    await expect(ownerPage.getByRole('link', { name: 'Cloud' })).toBeVisible();
+    await expect(ownerPage.locator('#workspace-button')).toBeHidden();
     const libraryRow = ownerPage.locator('.res[data-id="' + document.id + '"]');
     await expect(libraryRow.locator('.res-title')).toHaveText(document.title);
     await expect(libraryRow.locator('.tag')).toHaveText(['#permission-matrix', '#shared-test']);
+    await libraryRow.click();
+    await expect.poll(() => new URL(ownerPage.url()).searchParams.get('cloud-document'))
+      .toBe(document.id);
+    await expect(ownerPage.locator('#_sd_rendered')).toContainText('Selected edit from a pruned target.');
+    await expect.poll(() => ownerPage.evaluate(() => window.SDocs.currentMeta.comments))
+      .toEqual([expect.objectContaining({
+        author: ownerName, text: 'Owner acceptance note edited',
+      })]);
   } finally {
     const cleanupErrors = [];
     if (owner && document) {
