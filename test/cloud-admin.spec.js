@@ -265,10 +265,70 @@ test('Cloud library and the account switcher stay visible on mobile', async ({ p
 
   const pickerBox = await picker.boundingBox();
   const libraryBox = await library.boundingBox();
-  expect(libraryBox.height).toBe(32);
+  expect(libraryBox.height).toBe(36);
   expect(libraryBox.x + libraryBox.width).toBeLessThanOrEqual(390);
   expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(390);
   expect(pickerBox.y).toBeGreaterThanOrEqual(libraryBox.y + libraryBox.height);
+});
+
+test('Cloud settings navigation and panels fit a phone viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installAdminApi(page, {
+    kind: 'team',
+    workspaces: [
+      { id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' },
+      { id: 'team-1', name: 'SmallDocs Demo', kind: 'team', role: 'owner' },
+    ],
+    members: [{ user_id: 'user-1', email: 'owner@smalldocs.org', role: 'owner', is_you: true }],
+  });
+  await page.goto('/public/cloud-admin.html?workspace_id=team-1');
+
+  const pickerBox = await page.locator('#account-switcher-button').boundingBox();
+  const tabsBox = await page.locator('.settings-nav').boundingBox();
+  const sidebarBox = await page.locator('.sidebar').boundingBox();
+  const initialMainBox = await page.locator('.main').boundingBox();
+  expect(pickerBox.y + pickerBox.height).toBeLessThanOrEqual(tabsBox.y);
+  expect(tabsBox.x).toBeGreaterThanOrEqual(0);
+  expect(tabsBox.x + tabsBox.width).toBeLessThanOrEqual(390);
+  expect(Math.abs(initialMainBox.y - sidebarBox.y - sidebarBox.height)).toBeLessThanOrEqual(1);
+  await expect(page.getByRole('button', { name: 'Connected machines' })).toContainText('Machines');
+  const tabWidths = await page.locator('.settings-nav').evaluate(element => ({
+    client: element.clientWidth, scroll: element.scrollWidth,
+  }));
+  expect(tabWidths.scroll).toBeLessThanOrEqual(tabWidths.client);
+
+  for (const panelName of ['Overview', 'People', 'Connected machines', 'Billing']) {
+    await page.getByRole('button', { name: panelName }).click();
+    const geometry = await page.evaluate(() => ({
+      viewportWidth: window.innerWidth,
+      bodyWidth: document.body.scrollWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      main: document.querySelector('.main').getBoundingClientRect().toJSON(),
+    }));
+    expect(geometry.bodyWidth).toBeLessThanOrEqual(geometry.viewportWidth);
+    expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
+    expect(geometry.main.x).toBeGreaterThanOrEqual(0);
+    expect(geometry.main.right).toBeLessThanOrEqual(geometry.viewportWidth);
+  }
+
+  await page.getByRole('button', { name: 'People' }).click();
+  const field = page.getByRole('textbox', { name: 'Company email domain' });
+  await expect(field).toHaveCSS('font-size', '16px');
+  await page.getByRole('button', { name: 'Invite person' }).click();
+  const inviteButton = await page.getByRole('button', { name: 'Invite person' }).boundingBox();
+  const mainBox = await page.locator('.main').boundingBox();
+  expect(inviteButton.x).toBeGreaterThanOrEqual(mainBox.x);
+  expect(inviteButton.x + inviteButton.width).toBeLessThanOrEqual(mainBox.x + mainBox.width);
+
+  await page.setViewportSize({ width: 320, height: 700 });
+  const narrowGeometry = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    bodyWidth: document.body.scrollWidth,
+    tabClientWidth: document.querySelector('.settings-nav').clientWidth,
+    tabScrollWidth: document.querySelector('.settings-nav').scrollWidth,
+  }));
+  expect(narrowGeometry.bodyWidth).toBeLessThanOrEqual(narrowGeometry.viewportWidth);
+  expect(narrowGeometry.tabScrollWidth).toBeLessThanOrEqual(narrowGeometry.tabClientWidth);
 });
 
 test('team members can invite an allowed company email without admin controls', async ({ page }) => {

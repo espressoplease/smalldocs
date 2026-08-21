@@ -39,6 +39,8 @@
   .account-switcher-menu button:hover { background:var(--surface-2); }
   .account-switcher-menu button strong { min-width:0; flex:1; overflow:hidden; font-size:11.5px; font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
   .account-switcher-menu button svg { width:14px; height:14px; fill:none; stroke:var(--blue); stroke-width:2; }
+  .settings-nav { width:100%; }
+  .nav-label-short { display:none; }
   .side-label { padding:0 9px 8px; color:var(--text-3); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
   .nav { width:100%; min-height:36px; display:flex; flex:0 0 auto; align-items:center; gap:9px; border:0; border-radius:5px; padding:8px 9px; background:transparent; color:var(--text-2); text-align:left; }
   .nav[hidden] { display:none; }
@@ -128,7 +130,49 @@
   .recovery-row:last-child { border-bottom:0; }
   .recovery-row strong { display:block; font-size:12px; font-weight:500; }
   .recovery-row p { margin:3px 0 0; color:var(--text-3); font-size:11.5px; line-height:1.5; }
-  @media(max-width:600px) { .shell{grid-template-columns:1fr}.sidebar{position:static;top:auto;height:auto;display:flex;align-items:center;overflow:visible;border-right:0;border-bottom:1px solid var(--border);padding:8px}.side-label{display:none}.account-switcher{flex:0 0 170px;margin:0 8px 0 0}.account-switcher-button{min-height:36px}.account-switcher-mark{width:24px;height:24px}.account-switcher-copy span{display:none}.account-switcher-menu{width:240px}.nav{width:auto;height:36px;white-space:nowrap}.main{padding:26px 18px 60px}.stats{grid-template-columns:1fr 1fr}.invite.open,.domain-controls{grid-template-columns:1fr}.field{font-size:16px}.account,.header-context-sep,.crumb{display:none}.open-library{margin-left:auto}.machine-row,.recovery-row{align-items:flex-start}.machine-row{flex-direction:column}.machine-row .btn{align-self:flex-start} }
+  @media(max-width:600px) {
+    body { overflow-x:hidden; }
+    input, select, textarea { font-size:16px; }
+    .header { height:52px; padding:0 12px; }
+    .account, .header-context-sep, .crumb { display:none; }
+    .open-library { height:36px; margin-left:auto; }
+    .shell { min-height:calc(100vh - 52px); grid-template-columns:minmax(0,1fr); align-content:start; }
+    .sidebar { position:sticky; top:52px; z-index:9; width:100%; height:auto; display:grid; gap:8px; overflow:visible; padding:10px 12px 8px; border-right:0; border-bottom:1px solid var(--border); background:var(--bg); }
+    .account-switcher { width:100%; margin:0; }
+    .account-switcher-button { min-height:44px; padding:6px 8px; }
+    .account-switcher-mark { width:30px; height:30px; }
+    .account-switcher-copy strong { font-size:13px; }
+    .account-switcher-menu { right:0; width:auto; max-height:min(320px,55vh); overflow-y:auto; }
+    .account-switcher-menu button { min-height:44px; }
+    .settings-nav { display:flex; gap:4px; min-width:0; margin:0; overflow-x:auto; overscroll-behavior-inline:contain; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+    .settings-nav::-webkit-scrollbar { display:none; }
+    .side-label { display:none; }
+    .nav { width:auto; min-width:0; min-height:40px; flex:1 1 0; justify-content:center; gap:0; padding:8px; white-space:nowrap; }
+    .nav svg { display:none; }
+    .nav-label-full { display:none; }
+    .nav-label-short { display:inline; }
+    .main { min-width:0; padding:24px 14px 60px; }
+    .page-head { flex-direction:column; gap:14px; margin-bottom:20px; }
+    .page-head .btn { width:100%; }
+    .stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .card-head { align-items:flex-start; padding:14px; }
+    .invite.open, .domain-controls { grid-template-columns:minmax(0,1fr); }
+    .invite-role-options { width:100%; }
+    .invite-role-option { flex:1; }
+    .invite-role-option span { min-width:0; }
+    .domain-controls .btn, .invite > .btn { width:100%; min-height:42px; }
+    .billing-row { flex-direction:column; gap:8px; padding:14px; }
+    .price { white-space:normal; }
+    .btn { min-height:40px; }
+    .btn.small { min-height:36px; }
+    .machine-row, .recovery-row { align-items:flex-start; }
+    .machine-row { flex-direction:column; padding:14px; }
+    .machine-row .btn { width:100%; align-self:stretch; }
+    .recovery-row { flex-direction:column; padding:14px; }
+    .row-actions { width:100%; justify-content:flex-start; flex-wrap:wrap; }
+    .confirm { padding:14px; }
+    .confirm-actions .btn { flex:1; }
+  }
   @media(prefers-color-scheme:dark) { :root{--bg:#1C1A17;--surface:#211F1D;--surface-2:#252320;--text:#E7E5E2;--text-2:#A8A29E;--text-3:#77716B;--border:#3D3935;--border-2:#332F2B;--blue:#3B82F6;--blue-2:#17233A;--green:#4ADE80;--red:#FCA5A5}.notice{background:#17233A;border-color:#284B80;color:#BFDBFE} }
 </style>
 </head>
@@ -148,11 +192,13 @@
       </button>
       <div class="account-switcher-menu" id="account-switcher-menu" role="menu" hidden></div>
     </div>
-    <p class="side-label">Cloud</p>
-    <button class="nav active" data-panel="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Overview</button>
-    <button class="nav" data-panel="people" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>People</button>
-    <button class="nav" data-panel="machines"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>Connected machines</button>
-    <button class="nav" data-panel="billing"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Billing</button>
+    <nav class="settings-nav" aria-label="Cloud settings sections">
+      <p class="side-label">Cloud</p>
+      <button class="nav active" data-panel="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Overview</button>
+      <button class="nav" data-panel="people" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>People</button>
+      <button class="nav" data-panel="machines" aria-label="Connected machines"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg><span class="nav-label-full">Connected machines</span><span class="nav-label-short">Machines</span></button>
+      <button class="nav" data-panel="billing"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Billing</button>
+    </nav>
   </aside>
   <main class="main">
     <section class="panel" id="panel-overview">
