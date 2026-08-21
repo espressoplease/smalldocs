@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node test/run.js"
+    "test": "node test/run.js",
+    "test:cloud-e2e": "playwright test --config=playwright.cloud.config.js"
   },
   "author": "Josh Summers",
   "license": "Elastic-2.0",

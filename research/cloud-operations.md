@@ -69,6 +69,48 @@ The sign-in page shows only providers whose client ID and secret are both
 configured. Email-only staging therefore does not display inactive Google or
 GitHub controls.
 
+### 2.2.1 Reusable staging acceptance identities
+
+`ops/seed-cloud-staging.js` creates or reuses a fixed Personal identity, a
+fixed Team owner, and four fixed Team members. Re-running it does not create a
+second account for the same email. It also restores a seeded member whose
+membership was disabled by an earlier acceptance test.
+
+The optional `/api/cloud/auth/test-login` route exists only when all of these
+conditions are true:
+
+- `CLOUD_MODE=staging`;
+- `CLOUD_TEST_LOGIN_ENABLED=1`;
+- the requested email is in the exact `CLOUD_TEST_LOGIN_EMAILS` allowlist;
+- the request supplies the secret held in the root-managed systemd credential.
+
+Production configuration rejects every staging test-login setting at startup.
+The endpoint is same-origin protected, rate-limited, returns no token in its
+body, and creates the normal HttpOnly Secure browser cookie. Do not place the
+secret in a URL, repository file, Playwright report, or command-line argument.
+
+Run the complete permission and tag matrix against an isolated local
+staging-shaped process with:
+
+```text
+npm run test:cloud-e2e
+```
+
+For the live staging site, put a copy of the staging test-login secret in an
+owner-only file, then run:
+
+```text
+CLOUD_E2E_BASE_URL=https://cloud-staging.smalldocs.org \
+CLOUD_E2E_TEST_SECRET_FILE=/absolute/path/to/owner-only-secret \
+npm run test:cloud-e2e
+```
+
+The live test target is pinned to `cloud-staging.smalldocs.org` so a mistyped
+or hostile URL cannot receive the staging secret. Playwright creates one
+browser context and one normal session per required identity, uses those
+sessions for the complete run, removes its test document, and restores the
+member removed by the access-revocation check.
+
 Register these exact callback URLs with the providers:
 
 ```text
