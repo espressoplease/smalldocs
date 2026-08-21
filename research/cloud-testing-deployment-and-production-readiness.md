@@ -159,7 +159,13 @@ and the Library UI. It cleans up its document and restores the removed member.
 
 The same suite can target only `https://cloud-staging.smalldocs.org`. A live
 run requires the exact-email staging allowlist and an owner-only secret file.
-Production startup rejects the complete test-login configuration.
+Production startup rejects the complete test-login configuration. On 21
+August 2026, both acceptance tests passed against deployed commit
+`5da34bcb97b0ac18da699c0f459702b2d724a854`. The live run covered two-account
+permissions, concurrent revisions and comments, tag and search visibility,
+phone-sized Library use, access removal, and a fresh CLI authorization and
+document lifecycle. The temporary staging credential file was removed after
+the run.
 
 ### 3. Live staging flows
 
@@ -263,9 +269,9 @@ remains separate and Cloud is not enabled there.
 - [ ] Confirm the credential survives a shell restart and uses the intended secure store or restricted file fallback.
 - [ ] Confirm Connected machines shows the correct person and device, not a workspace-wide mixture.
 - [ ] Revoke a credential in the UI and confirm its next CLI request fails.
-- [ ] Exercise `status`, `members`, `tags`, `permission-groups`, `ls`, `search`, `create`, `pull`, `push`, `history`, `restore`, `delete`, `deleted`, and `undelete`.
+- [x] Exercise `status`, `members`, `tags`, `permission-groups`, `ls`, `search`, `create`, `pull`, `push`, `history`, `restore`, `delete`, `deleted`, and `undelete` against the deployed staging service in stable `--json` mode.
 - [ ] Test both human output and stable `--json` output.
-- [ ] Confirm the CLI defaults a new document to Only you unless the user or agent explicitly selects a broader group.
+- [x] Confirm the CLI defaults a new document to Only you unless the user or agent explicitly selects a broader group.
 - [ ] Confirm the CLI can list and select tags and permission groups without guessing names or IDs.
 
 ### F. Finish billing and tax proof
