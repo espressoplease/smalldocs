@@ -2660,6 +2660,8 @@ const server = http.createServer((req, res) => {
       '__CLOUD_LIBRARY_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<script src="/public/sdocs-cloud-account-selection.js"></script>'
           + '<script src="/public/library/cloud-library-prototype.js"></script>' : '',
+      '<!--__CLOUD_LIBRARY_MOBILE_SCRIPT__-->': CLOUD_DEPLOYMENT.publicEnabled
+        ? '<script src="/public/library/library-mobile.js"></script>' : '',
       '<!--__LIBRARY_NAV_MENU_BEFORE__-->': libraryNavigation.authenticated
         ? libraryNavigation.menuBefore : '',
       '<!--__LIBRARY_NAV_MENU_AFTER__-->': libraryNavigation.authenticated

@@ -216,6 +216,8 @@
       input.style.width = Math.max(rect.width, 60) + 'px';
       input.style.height = rect.height + 'px';
       input.style.font = cs.font;
+      if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches &&
+          parseFloat(cs.fontSize) < 16) input.style.fontSize = '16px';
       input.style.textAlign = cs.justifyContent === 'flex-end' ? 'right' : 'left';
       document.body.appendChild(input);
       editing = { input: input, r: r, c: c };

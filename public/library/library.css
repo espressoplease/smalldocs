@@ -661,26 +661,84 @@ mark {
 .agent-banner-dismiss:hover { color: var(--text); }
 .agent-banner[hidden] { display: none; }
 
-@media (max-width: 560px) {
-  .topbar { gap: 8px; padding: 0 12px; }
+@media (max-width: 700px) {
+  body { font-size: 15px; }
+  .topbar { height: 52px; gap: 8px; padding: 0 14px; }
   .brand-full { display: none; }
   .brand-short { display: inline; }
-  .container, .library-page-shell { padding: 16px 12px 60px; }
-  .input-row { padding: 12px 14px; }
-  .input-row input { font-size: 15px; }
+  #status-line, .status-sep { display: none; }
+  .library-sign-in {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  .nav-menu-button { width: 40px; height: 40px; }
+  .nav-menu-panel { min-width: 190px; }
+  .nav-menu-panel a, .nav-menu-panel button {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .container, .library-page-shell { padding: 20px 14px 60px; }
+  .container { gap: 16px; }
+  .input-row { min-height: 58px; padding: 12px 14px; }
+  .input-row input { min-width: 120px; font-size: 16px; }
   .filter-strip {
     flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
-    scrollbar-width: none; padding: 8px 12px 10px;
+    scrollbar-width: none; padding: 9px 12px 11px;
   }
   .filter-strip::-webkit-scrollbar { display: none; }
   .filter-strip .label { display: none; }
-  .res-meta .path { max-width: 220px; }
-  .res-star { opacity: .4; }
+  .facet-button, .strip-toggle {
+    min-height: 40px;
+    padding: 8px 11px;
+    font-size: 14px;
+    flex: 0 0 auto;
+  }
+  .facet-panel { padding-inline: 14px; }
+  .facet-panel.open { padding: 14px 14px 16px; }
+  .syntax-hint { display: none; }
+  .facet-panel-head h3 { font-size: 12px; }
+  .facet-option .opt-label { min-height: 38px; padding: 9px 4px 9px 12px; }
+  .facet-option .opt-btn { width: 28px; height: 28px; }
+  .date-range-input { min-height: 40px; font-size: 16px; }
+  .date-range-apply,
+  .date-range-clear { min-height: 40px; font-size: 14px; }
+  .results-meta { padding: 4px 4px 8px; }
+  .results-count { font-size: 14px; }
+  .day-group { margin-bottom: 24px; }
+  .day-header { padding: 0 4px 9px; }
+  .day-label { font-size: 14px; }
+  .day-count { font-size: 12px; }
+  .res {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 14px 12px;
+  }
+  .res-title { margin-bottom: 5px; font-size: 16px; line-height: 1.35; }
+  .res-meta { gap: 6px 8px; font-size: 13px; line-height: 1.4; }
+  .res-meta code { font-size: 12.5px; }
+  .res-meta .path { max-width: 100%; font-size: 12px; }
+  .res-meta .tag { font-size: 12px; }
+  .res-side { align-self: start; gap: 3px; }
+  .res-when { font-size: 12px; }
+  .res-star {
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    margin: 0 -8px -8px 0;
+    opacity: .55;
+  }
   .res-star.on { opacity: 1; }
+  .res-snippet { margin-top: 7px; font-size: 14px; line-height: 1.5; }
+  .empty { padding: 42px 20px; font-size: 15px; line-height: 1.5; }
+  .empty .tip { font-size: 13px; }
+  .agent-banner { padding: 12px 14px; font-size: 14px; line-height: 1.45; }
+  .agent-banner-cmd { font-size: 13px; overflow-wrap: anywhere; }
 }
 
 @media (max-width: 366px) {
   .brand-short { display: none; }
   .brand-tiny { display: inline; }
-  #status-line, .status-sep { display: none; }
 }

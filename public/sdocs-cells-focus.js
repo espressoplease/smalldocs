@@ -171,6 +171,8 @@
     '    flex-shrink: 1; min-width: 0; overflow-x: auto; scrollbar-width: none;',
     '  }',
     '  .sdoc-cells-focus-stats::-webkit-scrollbar { display: none; }',
+    '  .sdoc-cells-focus-bar { height: 38px; }',
+    '  .sdoc-cells-focus-value { font-size: 16px; }',
     '}',
   ].join('\n');
 

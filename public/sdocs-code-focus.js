@@ -756,7 +756,11 @@
     '  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px;',
     '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 45%, transparent);',
     '}',
-    '.sdoc-cc-orphans .sdoc-cc-thread { padding-left: 0; }'
+    '.sdoc-cc-orphans .sdoc-cc-thread { padding-left: 0; }',
+    '@media (max-width: 660px) {',
+    '  .sdoc-cc-pref-author, .sdoc-cc-input { font-size: 16px; }',
+    '  .sdoc-cc-pref-author { width: 96px; height: 32px; }',
+    '}'
   ].join('\n');
 
   function injectCSS() {

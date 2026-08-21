@@ -90,3 +90,40 @@ test('signed-out Cloud Library provides the full onboarding flow', async ({ page
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   await expect(page.locator('#library-menu')).toBeHidden();
 });
+
+test('mobile Library opens Cloud directly and uses phone-sized layout', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const loopbackRequests = [];
+  page.on('request', request => {
+    if (/127\.0\.0\.1|localhost:47843/.test(request.url())) loopbackRequests.push(request.url());
+  });
+
+  await page.goto('/public/library/library.html?demo=1');
+  await page.addScriptTag({ url: '/public/library/library-mobile.js' });
+  await page.addStyleTag({ url: '/public/library/cloud-library-prototype.css' });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
+  await page.addScriptTag({ url: '/public/library/cloud-library-prototype.js' });
+
+  await expect(page).toHaveURL(/demo=1&scope=cloud$/);
+  await expect(page.getByRole('heading', { name: 'Cloud Library' })).toBeVisible();
+  await expect(page.locator('#local-scope-link')).toBeHidden();
+  await expect(page.locator('#cloud-scope-link')).toBeHidden();
+  await expect(page.locator('.cloud-onboarding-primary')).toBeVisible();
+
+  const layout = await page.evaluate(() => {
+    const heading = getComputedStyle(document.querySelector('.cloud-onboarding h1'));
+    const action = document.querySelector('.cloud-onboarding-primary').getBoundingClientRect();
+    return {
+      viewport: document.querySelector('meta[name="viewport"]').content,
+      bodyWidth: document.body.scrollWidth,
+      windowWidth: window.innerWidth,
+      headingSize: parseFloat(heading.fontSize),
+      actionHeight: action.height,
+    };
+  });
+  expect(layout.viewport).toContain('width=device-width');
+  expect(layout.bodyWidth).toBeLessThanOrEqual(layout.windowWidth);
+  expect(layout.headingSize).toBeGreaterThanOrEqual(28);
+  expect(layout.actionHeight).toBeGreaterThanOrEqual(44);
+  expect(loopbackRequests).toEqual([]);
+});

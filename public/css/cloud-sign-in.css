@@ -195,6 +195,8 @@ label { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 11.
   .brand-short { display: inline; }
   .auth-shell { min-height: auto; padding: 24px 14px 42px; }
   .auth-card { padding: 20px; }
+  .text-input { font-size: 16px; }
+  .text-input.code-input { font-size: 20px; }
 }
 
 @media (max-width: 366px) {

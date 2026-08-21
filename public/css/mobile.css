@@ -18,6 +18,15 @@
   #_sd_content-area { overflow: visible; }
   html { scroll-padding-top: 44px; }
 
+  /* iOS Safari zooms the page when a focused text control is below 16px. */
+  textarea,
+  select,
+  input:not([type]),
+  input:is([type="text"], [type="email"], [type="password"], [type="search"],
+    [type="tel"], [type="url"], [type="number"], [type="date"]) {
+    font-size: 16px !important;
+  }
+
   /* ── Show short brand text on mobile ── */
   .toolbar-brand-full { display: none; }
   .toolbar-brand-short { display: inline; font-size: 13px; font-weight: 600; }

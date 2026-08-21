@@ -107,6 +107,9 @@
   }
   /* Playground-specific overrides on the shared shape CSS */
   #stage .shape-rect { background: var(--shape-fill); box-shadow: var(--shape-shadow); color: var(--shape-text); font-size: 14px; }
+  @media (max-width: 768px) {
+    header select, #dsl { font-size: 16px; }
+  }
   #stage .shape-text { color: var(--shape-text); }
 </style>
 </head>

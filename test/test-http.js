@@ -1539,6 +1539,7 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('href="/library?scope=cloud"'));
       assert.ok(r.body.includes('/public/library/cloud-library-prototype.css'));
       assert.ok(r.body.includes('/public/library/cloud-library-prototype.js'));
+      assert.ok(r.body.includes('/public/library/library-mobile.js'));
       assert.ok(!r.body.includes('cloud-demo=1'));
     });
 

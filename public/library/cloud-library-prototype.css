@@ -254,10 +254,52 @@ body.cloud-library-loading .input-block,
 body.cloud-library-loading .results-meta,
 body.cloud-library-loading #results { display: none; }
 @media (max-width: 700px) {
-  .cloud-library-nav { align-items: stretch; flex-direction: column; }
-  .cloud-library-actions { justify-content: space-between; }
-  .workspace-button > span:nth-child(2),
-  .cloud-access-note { display: none; }
+  .cloud-library-nav { justify-content: flex-end; }
+  .cloud-library-nav > .library-scope { display: none; }
+  body.cloud-library-onboarding .cloud-library-nav { display: none; }
+  .cloud-library-actions { width: 100%; justify-content: flex-end; }
+  .workspace-button { min-height: 42px; padding: 5px 10px 5px 5px; font-size: 14px; }
+  .workspace-mark { width: 30px; height: 30px; font-size: 13px; }
+  .workspace-menu {
+    position: fixed;
+    top: 60px;
+    right: 14px;
+    left: 14px;
+    width: auto;
+    padding: 8px;
+  }
+  .workspace-menu-item,
+  .workspace-menu-link { min-height: 48px; padding: 9px; font-size: 14px; }
+  .workspace-menu-item small { font-size: 12px; }
+  .cloud-access-note { font-size: 13px; white-space: normal; }
+  .cloud-onboarding { font-size: 16px; line-height: 1.65; }
+  .cloud-onboarding h1 { margin-bottom: 8px; font-size: 28px; }
+  .cloud-onboarding-lede { margin-bottom: 24px; font-size: 16px; }
   .cloud-feature-grid,
   .cloud-pricing-grid { grid-template-columns: 1fr; }
+  .cloud-feature-grid { gap: 10px; }
+  .cloud-feature-grid article { padding: 17px; }
+  .cloud-feature-grid svg { width: 20px; height: 20px; margin-bottom: 10px; }
+  .cloud-feature-grid h2,
+  .cloud-pricing-grid h3,
+  .cloud-steps strong { font-size: 15.5px; }
+  .cloud-feature-grid p,
+  .cloud-pricing-grid p,
+  .cloud-security-summary p,
+  .cloud-steps span { font-size: 14px; }
+  .cloud-steps-heading,
+  .cloud-section-heading { margin-top: 30px; font-size: 14px; }
+  .cloud-steps li,
+  .cloud-pricing-grid article,
+  .cloud-security-summary { padding: 18px; }
+  .cloud-onboarding-actions { align-items: stretch; flex-direction: column; }
+  .cloud-onboarding-actions a {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 13px;
+    font-size: 14px;
+    text-align: center;
+  }
 }
