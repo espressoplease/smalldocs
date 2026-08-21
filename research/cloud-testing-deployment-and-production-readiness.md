@@ -254,6 +254,11 @@ remains separate and Cloud is not enabled there.
 
 ### E. Prove CLI and connected-machine behavior
 
+- [x] The repeatable staging-shaped acceptance suite authorizes a fresh CLI
+  through the browser, preserves its owner-only file credential across command
+  processes, exercises the main document lifecycle in `--json` mode, logs out,
+  and confirms the next request is rejected. The same suite can target the
+  deployed staging hostname.
 - [ ] Run CLI sign-in on macOS, Linux, and a headless remote server.
 - [ ] Confirm the credential survives a shell restart and uses the intended secure store or restricted file fallback.
 - [ ] Confirm Connected machines shows the correct person and device, not a workspace-wide mixture.

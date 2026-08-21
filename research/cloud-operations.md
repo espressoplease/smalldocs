@@ -111,7 +111,11 @@ The live test target is pinned to `cloud-staging.smalldocs.org` so a mistyped
 or hostile URL cannot receive the staging secret. Playwright creates one
 browser context and one normal session per required identity, uses those
 sessions for the complete run, removes its test document, and restores the
-member removed by the access-revocation check.
+member removed by the access-revocation check. It also starts a fresh CLI with
+an isolated owner-only credential store, authorizes that machine through the
+normal browser page, and exercises status, members, tags, permission groups,
+list, search, create, access, pull, push, history, delete, undelete, logout, and
+post-logout rejection. The CLI document is removed during cleanup.
 
 The server writes one aggregate `cloud_collaboration_metrics` JSON record per
 active minute. It includes lightweight head-check totals and change counts,

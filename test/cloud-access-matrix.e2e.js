@@ -1,4 +1,7 @@
 const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { spawn } = require('child_process');
 const { test, expect } = require('@playwright/test');
 const { LOCAL_TEST_LOGIN_SECRET, TEST_IDENTITIES } = require('./cloud-e2e-constants');
 const SDocYaml = require('../cli/shared/sdocs-yaml.js');
@@ -62,6 +65,28 @@ function withComments(markdown, comments) {
   if (comments.length) meta.comments = comments;
   else delete meta.comments;
   return SDocYaml.serializeFrontMatter(meta) + '\n' + parsed.body;
+}
+
+function runCli(args, env) {
+  const cli = path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js');
+  const child = spawn(process.execPath, [cli].concat(args), {
+    cwd: path.join(__dirname, '..'), env, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', chunk => { stdout += chunk; });
+  child.stderr.on('data', chunk => { stderr += chunk; });
+  const completed = new Promise((resolve, reject) => {
+    child.on('error', reject);
+    child.on('close', code => resolve({ code, stdout, stderr }));
+  });
+  return { child, completed, stdout: () => stdout, stderr: () => stderr };
+}
+
+async function cliJson(args, env) {
+  const result = await runCli(args.concat('--json'), env).completed;
+  expect(result.code, result.stderr || result.stdout).toBe(0);
+  return JSON.parse(result.stdout.trim());
 }
 
 test('reusable staging identities enforce access and merge two-account edits', async ({ browser }, testInfo) => {
@@ -405,3 +430,134 @@ test('reusable staging identities enforce access and merge two-account edits', a
     if (cleanupErrors.length) throw new Error(cleanupErrors.join('; '));
   }
 });
+
+test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes its credential',
+  async ({ browser }, testInfo) => {
+    test.setTimeout(120000);
+    const baseURL = String(testInfo.project.use.baseURL).replace(/\/$/, '');
+    const secret = configuredSecret();
+    const owner = await login(browser, baseURL, TEST_IDENTITIES.owner, secret);
+    const selected = await login(browser, baseURL, TEST_IDENTITIES.selected, secret);
+    const cliHome = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-cli-e2e-'));
+    const cliEnv = Object.assign({}, process.env, {
+      SDOCS_HOME: cliHome,
+      SDOCS_CLOUD_FILE_CREDENTIALS: '1',
+      SDOCS_CLOUD_URL: baseURL,
+    });
+    if (!process.env.CLOUD_E2E_BASE_URL) cliEnv.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    let documentId = null;
+    let loggedIn = false;
+
+    try {
+      const workspaces = await json(owner, baseURL, 'GET', '/api/cloud/v1/workspaces');
+      expect(workspaces.response.status()).toBe(200);
+      const team = workspaces.body.workspaces.find(workspace =>
+        workspace.kind === 'team' && workspace.name === 'SmallDocs Acceptance');
+      expect(team).toBeTruthy();
+      const accountId = team.id;
+
+      const loginProcess = runCli(['cloud', 'login', '--no-open', '--json'], cliEnv);
+      await expect.poll(loginProcess.stderr, { timeout: 10000 })
+        .toContain('Authorize this CLI at:');
+      const verificationUrl = loginProcess.stderr().split('\n')
+        .find(line => line.startsWith(baseURL + '/cloud/authorize?'));
+      expect(verificationUrl).toBeTruthy();
+      const authorizePage = await owner.newPage();
+      await authorizePage.goto(verificationUrl);
+      await expect(authorizePage.getByText(/Request from/)).toBeVisible();
+      await authorizePage.getByRole('button', { name: 'Authorize CLI' }).click();
+      await expect(authorizePage.getByText('CLI authorized. You can return to the terminal.'))
+        .toBeVisible();
+      const loginResult = await loginProcess.completed;
+      expect(loginResult.code, loginResult.stderr || loginResult.stdout).toBe(0);
+      expect(JSON.parse(loginResult.stdout.trim())).toMatchObject({
+        ok: true, command: 'cloud.login',
+      });
+      loggedIn = true;
+
+      const status = await cliJson(['cloud', 'status', '--account', accountId], cliEnv);
+      expect(status).toMatchObject({ ok: true, command: 'cloud.status',
+        account: { id: accountId } });
+      expect(status.credential_id).toBeTruthy();
+      const credentialPath = path.join(cliHome, 'cloud', 'credentials.json');
+      expect(fs.statSync(credentialPath).mode & 0o777).toBe(0o600);
+
+      const runId = Date.now() + '-' + Math.random().toString(16).slice(2);
+      const source = path.join(cliHome, 'cli-acceptance-' + runId + '.md');
+      fs.writeFileSync(source, '# CLI acceptance ' + runId + '\n\nCreated from a fresh machine.\n');
+      const created = await cliJson(['cloud', 'create', source, '--account', accountId], cliEnv);
+      expect(created).toMatchObject({ ok: true, command: 'cloud.create',
+        account_id: accountId, binding_created: true });
+      documentId = created.document_id;
+
+      const selectedPrivate = await json(selected, baseURL, 'GET',
+        '/api/cloud/v1/documents/' + documentId);
+      expect(selectedPrivate.response.status()).toBe(404);
+      const tagged = await cliJson(['cloud', 'tag', documentId,
+        '--tag', 'cli-acceptance', '--tag', 'release-candidate'], cliEnv);
+      expect(tagged.tags).toEqual(['cli-acceptance', 'release-candidate']);
+      const access = await cliJson(['cloud', 'access', documentId, '--everyone'], cliEnv);
+      expect(access.permission.mode).toBe('everyone');
+      expect((await json(selected, baseURL, 'GET',
+        '/api/cloud/v1/documents/' + documentId)).response.status()).toBe(200);
+
+      const members = await cliJson(['cloud', 'members', '--account', accountId], cliEnv);
+      expect(members.members.length).toBeGreaterThanOrEqual(3);
+      const tags = await cliJson(['cloud', 'tags', '--account', accountId], cliEnv);
+      expect(tags.tags.map(item => item.tag)).toContain('cli-acceptance');
+      const groups = await cliJson(['cloud', 'permission-groups', '--account', accountId], cliEnv);
+      expect(groups.permission_groups).toEqual(expect.arrayContaining([
+        expect.objectContaining({ document_id: documentId, mode: 'everyone' }),
+      ]));
+      const listed = await cliJson(['cloud', 'ls', '--tag', 'cli-acceptance'], cliEnv);
+      expect(listed.documents.map(item => item.id)).toContain(documentId);
+      const searched = await cliJson(['cloud', 'search', runId], cliEnv);
+      expect(searched.documents.map(item => item.id)).toContain(documentId);
+
+      const pulledPath = path.join(cliHome, 'pulled-' + runId + '.md');
+      const pulled = await cliJson(['cloud', 'pull', documentId, '--output', pulledPath], cliEnv);
+      expect(pulled).toMatchObject({ document_id: documentId, binding_created: true });
+      expect(fs.readFileSync(pulledPath, 'utf8')).toContain('Created from a fresh machine.');
+      fs.appendFileSync(pulledPath, '\nUpdated through the CLI.\n');
+      const pushed = await cliJson(['cloud', 'push', pulledPath], cliEnv);
+      expect(pushed).toMatchObject({ document_id: documentId, no_change: false });
+      expect((await json(selected, baseURL, 'GET',
+        '/api/cloud/v1/documents/' + documentId)).body.document.markdown)
+        .toContain('Updated through the CLI.');
+      const history = await cliJson(['cloud', 'history', documentId], cliEnv);
+      expect(history.revisions.length).toBeGreaterThanOrEqual(2);
+
+      const deleted = await cliJson(['cloud', 'delete', documentId,
+        '--base-revision', pushed.revision_id], cliEnv);
+      expect(deleted.document_id).toBe(documentId);
+      const deletedList = await cliJson(['cloud', 'deleted'], cliEnv);
+      expect(deletedList.documents.map(item => item.id)).toContain(documentId);
+      const restored = await cliJson(['cloud', 'undelete', documentId,
+        '--base-revision', pushed.revision_id], cliEnv);
+      expect(restored.document_id).toBe(documentId);
+
+      const logout = await cliJson(['cloud', 'logout'], cliEnv);
+      expect(logout).toMatchObject({ ok: true, command: 'cloud.logout', logged_out: true });
+      loggedIn = false;
+      expect(JSON.parse(fs.readFileSync(credentialPath, 'utf8'))).toEqual({});
+      expect(fs.statSync(credentialPath).mode & 0o777).toBe(0o600);
+      const signedOut = await runCli(['cloud', 'status', '--account', accountId, '--json'], cliEnv)
+        .completed;
+      expect(signedOut.code).toBe(3);
+      expect(JSON.parse(signedOut.stdout.trim())).toMatchObject({
+        ok: false, command: 'cloud.status', error: 'login_required',
+      });
+    } finally {
+      if (documentId) {
+        const opened = await json(owner, baseURL, 'GET', '/api/cloud/v1/documents/' + documentId);
+        if (opened.response.status() === 200) {
+          await json(owner, baseURL, 'DELETE', '/api/cloud/v1/documents/' + documentId, {
+            expected_head_revision_id: opened.body.document.current_revision_id,
+          });
+        }
+      }
+      if (loggedIn) await runCli(['cloud', 'logout', '--json'], cliEnv).completed;
+      await Promise.all([owner.close(), selected.close()]);
+      fs.rmSync(cliHome, { recursive: true, force: true });
+    }
+  });
