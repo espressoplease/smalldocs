@@ -347,6 +347,7 @@ Use a transactional email provider rather than a personal Gmail mailbox. The cur
 - [x] Send a production-path message from the restricted service sandbox and confirm delivery to Gmail.
 - [ ] Send test codes and invitations to Gmail, Outlook, iCloud, and a custom-domain mailbox.
 - [ ] Check delivery latency, spam placement, expiry, resend invalidation, bounce behavior, and provider outage behavior.
+- [ ] Run `npm run cloud:jobs -- --email --fail-on-dead` during the staging delivery check and confirm each new job reaches `complete`.
 - [ ] Confirm neither login codes nor invitation tokens appear in application or proxy logs.
 
 ## 5. Configure Stripe and decide the commercial rules

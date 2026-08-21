@@ -257,6 +257,7 @@ being marked complete for production.
 - [ ] Test OAuth success, denial, replay, expired state, private-email accounts, and accounts without a usable verified email.
 - [ ] Deliver login codes and invitations to Gmail, Outlook, iCloud, and a custom-domain mailbox.
 - [ ] Check latency, spam placement, expiry, resend invalidation, bounce handling, and provider outage behavior.
+- [ ] Inspect the staging delivery queue with `npm run cloud:jobs -- --email`; confirm the diagnostic output contains no recipients, document data, notes, or tokens.
 - [ ] Publish DMARC reporting, review it, and decide when to move to a stricter policy.
 - [ ] Confirm codes, invitation tokens, OAuth values, cookies, and customer email never appear in application or proxy logs.
 - [ ] Confirm auth abuse limits are understandable to a legitimate user and effective against repeated attempts.

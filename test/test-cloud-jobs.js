@@ -5,6 +5,7 @@ const path = require('path');
 module.exports = function(harness) {
   const { assert, test } = harness;
   const { CloudJobsError, createCloudJobs } = require('../lib/cloud-jobs');
+  const jobStatus = require('../scripts/cloud-job-status');
 
   return function() {
     console.log('\n-- Cloud Jobs Tests -----------------------------------\n');
@@ -108,6 +109,79 @@ module.exports = function(harness) {
       clock += 50;
       assert.strictEqual(first.claim({ workerId: 'worker-c', types: ['webhook'] }), null);
       assert.strictEqual(first.get(reclaimable.id).state, 'dead');
+    });
+
+    test('summary exposes counts and error codes without payloads or identifiers', () => {
+      const summary = first.summary({ types: ['email.send', 'webhook'] });
+      assert.strictEqual(summary.states.dead, 2);
+      assert.strictEqual(summary.states.complete, 0);
+      assert.strictEqual(summary.expiredLeaseCount, 0);
+      assert(summary.types.some((item) => item.type === 'email.send' && item.dead === 1));
+      assert(summary.types.some((item) => item.type === 'webhook' && item.dead === 1));
+      assert.deepStrictEqual(summary.errors, [
+        { type: 'email.send', code: 'unknown', count: 1 },
+      ]);
+      const serialized = JSON.stringify(summary);
+      assert(!serialized.includes('email-1'));
+      assert(!serialized.includes('webhook-1'));
+      assert(!serialized.includes('payload'));
+    });
+
+    test('job status output is redacted and can fail on dead delivery work', () => {
+      const delivery = first.enqueue({ type: 'document_notification_email',
+        idempotencyKey: 'private-recipient@example.com',
+        payload: { recipient: 'private-recipient@example.com', documentTitle: 'Private plan' },
+        maxAttempts: 1 });
+      const claimed = first.claim({ workerId: 'email-diagnostic',
+        types: ['document_notification_email'] });
+      first.retry({ jobId: claimed.id, workerId: 'email-diagnostic',
+        error: { code: 'email_delivery_failed', detail: 'private-recipient@example.com' } });
+      const output = [];
+      const errors = [];
+      const exitCode = jobStatus.run(['--db', dbPath, '--email', '--fail-on-dead'], {
+        log: (line) => output.push(line), error: (line) => errors.push(line),
+      });
+      assert.strictEqual(exitCode, 2);
+      assert.strictEqual(errors.length, 0);
+      assert(output[0].includes('document_notification_email'));
+      assert(output[0].includes('email_delivery_failed'));
+      assert(!output[0].includes(delivery.id));
+      assert(!output[0].includes('private-recipient@example.com'));
+      assert(!output[0].includes('Private plan'));
+    });
+
+    test('job status refuses a missing database instead of creating an empty one', () => {
+      const missingPath = path.join(dir, 'missing.db');
+      const output = [];
+      const errors = [];
+      assert.strictEqual(jobStatus.run(['--db', missingPath], {
+        log: (line) => output.push(line), error: (line) => errors.push(line),
+      }), 1);
+      assert.strictEqual(output.length, 0);
+      assert.strictEqual(errors[0],
+        'Could not open the Cloud jobs database. Check CLOUD_JOBS_DB or --db.');
+      assert.strictEqual(fs.existsSync(missingPath), false);
+    });
+
+    test('job status rejects a non-jobs database and a missing db argument cleanly', () => {
+      const unrelatedPath = path.join(dir, 'unrelated.db');
+      const Database = require('better-sqlite3');
+      const unrelated = new Database(unrelatedPath);
+      unrelated.exec('CREATE TABLE unrelated (id INTEGER PRIMARY KEY)');
+      unrelated.close();
+      const output = [];
+      const errors = [];
+      assert.strictEqual(jobStatus.run(['--db', unrelatedPath], {
+        log: (line) => output.push(line), error: (line) => errors.push(line),
+      }), 1);
+      assert.strictEqual(output.length, 0);
+      assert.strictEqual(errors[0],
+        'Could not read Cloud job status. Check that this is a Cloud jobs database.');
+      errors.length = 0;
+      assert.strictEqual(jobStatus.run(['--db', '--email'], {
+        log: (line) => output.push(line), error: (line) => errors.push(line),
+      }), 1);
+      assert(errors[0].startsWith('--db requires a path'));
     });
 
     test('cleanup removes only old terminal jobs up to the requested limit', () => {

@@ -113,3 +113,34 @@ Use Resend only for an occasional staging integration check. Resend test
 addresses can exercise delivered, bounced, complained, and suppressed events.
 Do not make the normal test suite depend on Resend availability or a real
 mailbox.
+
+## Inspect staging delivery jobs
+
+On a host with read access to the staging jobs database, run:
+
+```bash
+npm run cloud:jobs -- --email
+```
+
+The command opens `CLOUD_JOBS_DB` read-only and reports counts for invitation
+and document-notification jobs. It does not print job IDs, payloads, recipient
+addresses, document titles, or notes. Use `--db PATH` when inspecting a copied
+database rather than the configured service database.
+
+For monitoring or a deployment check, use:
+
+```bash
+npm run cloud:jobs -- --email --json
+npm run cloud:jobs -- --email --fail-on-dead
+```
+
+`--fail-on-dead` exits with status 2 when matching jobs are dead or have an
+expired worker lease. A queued job is not treated as failed because it may be
+waiting for its scheduled retry. The output includes the oldest pending age
+so the operator can apply the environment's alert threshold.
+
+During a staging check, capture the status before sending, trigger one sign-in
+code, one invitation, and one document notification, then run the command
+again. Confirm the new delivery work reaches `complete`. Compare the result
+with the Resend activity view when diagnosing provider delivery after SMTP
+acceptance.
