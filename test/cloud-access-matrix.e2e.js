@@ -187,31 +187,50 @@ test('reusable staging identities enforce permissions and tags across real sessi
     await expect(libraryRow.locator('.res-title')).toHaveText(document.title);
     await expect(libraryRow.locator('.tag')).toHaveText(['#permission-matrix', '#shared-test']);
   } finally {
+    const cleanupErrors = [];
     if (owner && document) {
-      await json(owner, baseURL, 'DELETE', '/api/cloud/v1/documents/' + document.id, {
-        expected_head_revision_id: document.current_revision_id,
-      }).catch(() => null);
+      try {
+        const deleted = await json(owner, baseURL, 'DELETE',
+          '/api/cloud/v1/documents/' + document.id, {
+            expected_head_revision_id: document.current_revision_id,
+          });
+        if (deleted.response.status() !== 200) {
+          cleanupErrors.push('test document cleanup returned ' + deleted.response.status());
+        }
+      } catch (error) {
+        cleanupErrors.push('test document cleanup failed: ' + error.message);
+      }
     }
     if (owner && removed && accountId && projectId && removedUserId) {
-      const currentMembers = await json(owner, baseURL, 'GET',
-        '/api/cloud/v1/account/members?account_id=' + encodeURIComponent(accountId)).catch(() => null);
-      const stillActive = currentMembers && currentMembers.body && currentMembers.body.members.some(member =>
-        member.user_id === removedUserId);
-      if (!stillActive) {
-        const invited = await json(owner, baseURL, 'POST',
-          '/api/cloud/v1/workspaces/' + accountId + '/invitations', {
-            email: TEST_IDENTITIES.removed,
-            role: 'member',
-            project_grants: [{ project_id: projectId, role: 'editor' }],
-          }).catch(() => null);
-        const acceptUrl = invited && invited.body && invited.body.invitation && invited.body.invitation.accept_url;
-        if (acceptUrl) {
-          const token = new URL(acceptUrl).searchParams.get('token');
-          await json(removed, baseURL, 'POST',
-            '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {}).catch(() => null);
+      try {
+        const currentMembers = await json(owner, baseURL, 'GET',
+          '/api/cloud/v1/account/members?account_id=' + encodeURIComponent(accountId));
+        const stillActive = currentMembers.body && currentMembers.body.members.some(member =>
+          member.user_id === removedUserId);
+        if (!stillActive) {
+          const invited = await json(owner, baseURL, 'POST',
+            '/api/cloud/v1/workspaces/' + accountId + '/invitations', {
+              email: TEST_IDENTITIES.removed,
+              role: 'member',
+              project_grants: [{ project_id: projectId, role: 'editor' }],
+            });
+          const acceptUrl = invited.body && invited.body.invitation && invited.body.invitation.accept_url;
+          if (invited.response.status() !== 201 || !acceptUrl) {
+            cleanupErrors.push('removed member reinvitation failed');
+          } else {
+            const token = new URL(acceptUrl).searchParams.get('token');
+            const accepted = await json(removed, baseURL, 'POST',
+              '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {});
+            if (accepted.response.status() !== 200) {
+              cleanupErrors.push('removed member restore returned ' + accepted.response.status());
+            }
+          }
         }
+      } catch (error) {
+        cleanupErrors.push('removed member restore failed: ' + error.message);
       }
     }
     await Promise.all(Object.values(contexts).map(context => context.close()));
+    if (cleanupErrors.length) throw new Error(cleanupErrors.join('; '));
   }
 });
