@@ -1,11 +1,20 @@
 {
-  "checkedAt": "2026-08-21T05:50:28.263Z",
+  "checkedAt": "2026-08-21T06:29:14.062Z",
   "base": "https://smalldocs.org",
   "commit": "16d2ab1d65f0b7366518ad98be881b84633199b1",
   "commitShort": "16d2ab1",
-  "result": "ok",
+  "result": "mismatch",
   "totalFiles": 109,
-  "matched": 109,
-  "mismatches": [],
+  "matched": 107,
+  "mismatches": [
+    {
+      "path": "/connect.js",
+      "error": "fetch failed"
+    },
+    {
+      "path": "/connect.html",
+      "error": "fetch failed"
+    }
+  ],
   "manifestUrl": "https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/16d2ab1d65f0b7366518ad98be881b84633199b1.json"
 }
