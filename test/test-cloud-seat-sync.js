@@ -10,6 +10,7 @@ module.exports = function (harness) {
       const calls = [];
       const result = await syncTeamSeatQuantity({
         workspaceId: 'workspace-123',
+        idempotencyKey: 'workspace-seats-workspace-123-change-1',
         billing: { getSubscription: () => ({ plan: 'team', provider: 'stripe',
           providerSubscriptionId: 'sub_123' }) },
         store: { getWorkspaceUsage: (input) => {
@@ -32,7 +33,7 @@ module.exports = function (harness) {
         { type: 'retrieve', input: { subscriptionId: 'sub_123' } },
         { type: 'update', input: { subscriptionItemId: 'si_123', quantity: 4,
           prorationBehavior: 'create_prorations',
-          idempotencyKey: 'workspace-seats-workspace-123-4' } },
+          idempotencyKey: 'workspace-seats-workspace-123-change-1' } },
       ]);
     });
 
@@ -40,6 +41,7 @@ module.exports = function (harness) {
       let updates = 0;
       const result = await syncTeamSeatQuantity({
         workspaceId: 'workspace-123',
+        idempotencyKey: 'workspace-seats-workspace-123-change-2',
         billing: { getSubscription: () => ({ plan: 'team', provider: 'stripe',
           providerSubscriptionId: 'sub_123' }) },
         store: { getWorkspaceUsage: () => ({ memberCount: 2 }) },
@@ -56,6 +58,7 @@ module.exports = function (harness) {
       let usageReads = 0;
       const result = await syncTeamSeatQuantity({
         workspaceId: 'workspace-123',
+        idempotencyKey: 'workspace-seats-workspace-123-change-3',
         billing: { getSubscription: () => ({ plan: 'personal', provider: 'stripe',
           providerSubscriptionId: 'sub_123' }) },
         store: { getWorkspaceUsage: () => { usageReads += 1; } },
@@ -68,6 +71,7 @@ module.exports = function (harness) {
     await testAsync('surfaces Stripe failures so the caller can queue a retry', async () => {
       await assert.rejects(() => syncTeamSeatQuantity({
         workspaceId: 'workspace-123',
+        idempotencyKey: 'workspace-seats-workspace-123-change-4',
         billing: { getSubscription: () => ({ plan: 'team', provider: 'stripe',
           providerSubscriptionId: 'sub_123' }) },
         store: { getWorkspaceUsage: () => ({ memberCount: 3 }) },
@@ -76,6 +80,45 @@ module.exports = function (harness) {
           updateSubscriptionItemQuantity: async () => { throw new Error('stripe unavailable'); },
         },
       }), /stripe unavailable/);
+    });
+
+    await testAsync('allows a later membership change to return to an earlier seat count', async () => {
+      let remoteQuantity = 4;
+      const keys = [];
+      const stripe = {
+        retrieveSubscription: async () => ({
+          items: { data: [{ id: 'si_123', quantity: remoteQuantity }] },
+        }),
+        updateSubscriptionItemQuantity: async (input) => {
+          keys.push(input.idempotencyKey);
+          remoteQuantity = input.quantity;
+        },
+      };
+      let memberCount = 3;
+      const base = {
+        workspaceId: 'workspace-123',
+        billing: { getSubscription: () => ({ plan: 'team', provider: 'stripe',
+          providerSubscriptionId: 'sub_123' }) },
+        store: { getWorkspaceUsage: () => ({ memberCount }) },
+        stripe,
+      };
+      await syncTeamSeatQuantity(Object.assign({}, base, {
+        idempotencyKey: 'workspace-seats-workspace-123-change-a',
+      }));
+      memberCount = 4;
+      await syncTeamSeatQuantity(Object.assign({}, base, {
+        idempotencyKey: 'workspace-seats-workspace-123-change-b',
+      }));
+      memberCount = 3;
+      await syncTeamSeatQuantity(Object.assign({}, base, {
+        idempotencyKey: 'workspace-seats-workspace-123-change-c',
+      }));
+      assert.strictEqual(remoteQuantity, 3);
+      assert.deepStrictEqual(keys, [
+        'workspace-seats-workspace-123-change-a',
+        'workspace-seats-workspace-123-change-b',
+        'workspace-seats-workspace-123-change-c',
+      ]);
     });
   };
 };

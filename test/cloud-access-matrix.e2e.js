@@ -97,6 +97,70 @@ function runCli(args, env) {
   return { child, completed, stdout: () => stdout, stderr: () => stderr };
 }
 
+function configuredStripeSubscriptionId() {
+  const subscriptionId = String(process.env.CLOUD_E2E_STRIPE_SUBSCRIPTION_ID || '').trim();
+  if (!subscriptionId) return null;
+  if (!/^sub_[A-Za-z0-9]+$/.test(subscriptionId)) {
+    throw new Error('CLOUD_E2E_STRIPE_SUBSCRIPTION_ID must be a Stripe subscription ID');
+  }
+  if (!process.env.CLOUD_E2E_BASE_URL) {
+    throw new Error('CLOUD_E2E_STRIPE_SUBSCRIPTION_ID is only valid for a live staging run');
+  }
+  return subscriptionId;
+}
+
+function stripeSubscription(subscriptionId) {
+  const child = spawn('stripe', ['subscriptions', 'retrieve', subscriptionId], {
+    cwd: path.join(__dirname, '..'), env: process.env, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', chunk => { stdout += chunk; });
+  child.stderr.on('data', chunk => { stderr += chunk; });
+  return new Promise((resolve, reject) => {
+    child.on('error', reject);
+    child.on('close', code => {
+      if (code !== 0) {
+        reject(new Error('Stripe CLI failed: ' + (stderr || stdout).trim()));
+        return;
+      }
+      try { resolve(JSON.parse(stdout)); }
+      catch (error) { reject(new Error('Stripe CLI returned invalid JSON: ' + error.message)); }
+    });
+  });
+}
+
+async function stripeSeatQuantity(subscriptionId) {
+  const subscription = await stripeSubscription(subscriptionId);
+  const item = subscription.items && subscription.items.data && subscription.items.data[0];
+  if (!item || !Number.isSafeInteger(item.quantity)) {
+    throw new Error('Stripe subscription does not contain one licensed item');
+  }
+  return item.quantity;
+}
+
+async function expectStripeSeats(subscriptionId, quantity) {
+  if (!subscriptionId) return;
+  await expect.poll(() => stripeSeatQuantity(subscriptionId), {
+    timeout: 30000,
+    intervals: [500, 1000, 2000],
+    message: 'Stripe subscription seat quantity',
+  }).toBe(quantity);
+}
+
+async function expectLocalBilledSeats(context, baseURL, accountId, quantity) {
+  await expect.poll(async () => {
+    const result = await json(context, baseURL, 'GET',
+      '/api/cloud/v1/workspaces/' + encodeURIComponent(accountId) + '/billing');
+    if (result.response.status() !== 200 || !result.body || !result.body.billing) return null;
+    return result.body.billing.limits.billedSeats;
+  }, {
+    timeout: 30000,
+    intervals: [500, 1000, 2000],
+    message: 'SmallDocs billed seat quantity',
+  }).toBe(quantity);
+}
+
 async function cliJson(args, env) {
   const result = await runCli(args.concat('--json'), env).completed;
   expect(result.code, result.stderr || result.stdout).toBe(0);
@@ -113,6 +177,8 @@ test('reusable staging identities enforce access and merge two-account edits', a
   let projectId;
   let document;
   let removedUserId;
+  let initialMemberCount;
+  const stripeSubscriptionId = configuredStripeSubscriptionId();
 
   try {
     contexts.owner = await ownerContext(browser, baseURL);
@@ -148,6 +214,11 @@ test('reusable staging identities enforce access and merge two-account edits', a
     expect(selectedMember).toBeTruthy();
     expect(removedMember).toBeTruthy();
     removedUserId = removedMember.user_id;
+    initialMemberCount = members.body.members.length;
+    await expectStripeSeats(stripeSubscriptionId, initialMemberCount);
+    if (stripeSubscriptionId) {
+      await expectLocalBilledSeats(owner, baseURL, accountId, initialMemberCount);
+    }
 
     const projects = await json(owner, baseURL, 'GET',
       '/api/cloud/v1/projects?workspace_id=' + encodeURIComponent(accountId));
@@ -365,6 +436,10 @@ test('reusable staging identities enforce access and merge two-account edits', a
     const removedResponse = await json(owner, baseURL, 'DELETE',
       '/api/cloud/v1/workspaces/' + accountId + '/members/' + removedUserId, {});
     expect(removedResponse.response.status()).toBe(200);
+    await expectStripeSeats(stripeSubscriptionId, initialMemberCount - 1);
+    if (stripeSubscriptionId) {
+      await expectLocalBilledSeats(owner, baseURL, accountId, initialMemberCount - 1);
+    }
     expect((await json(removed, baseURL, 'GET',
       '/api/cloud/v1/documents/' + document.id)).response.status()).toBe(404);
     expect(await visibleDocumentIds(removed, baseURL, accountId)).not.toContain(document.id);
@@ -441,11 +516,17 @@ test('reusable staging identities enforce access and merge two-account edits', a
           if (invited.response.status() !== 201 || !acceptUrl) {
             cleanupErrors.push('removed member reinvitation failed');
           } else {
+            await expectStripeSeats(stripeSubscriptionId, initialMemberCount - 1);
             const token = new URL(acceptUrl).searchParams.get('token');
             const accepted = await json(removed, baseURL, 'POST',
               '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {});
             if (accepted.response.status() !== 200) {
               cleanupErrors.push('removed member restore returned ' + accepted.response.status());
+            } else {
+              await expectStripeSeats(stripeSubscriptionId, initialMemberCount);
+              if (stripeSubscriptionId) {
+                await expectLocalBilledSeats(owner, baseURL, accountId, initialMemberCount);
+              }
             }
           }
         }
@@ -457,6 +538,49 @@ test('reusable staging identities enforce access and merge two-account edits', a
     if (cleanupErrors.length) throw new Error(cleanupErrors.join('; '));
   }
 });
+
+test('live Team billing opens the reviewed Stripe portal and returns to the account',
+  async ({ browser }, testInfo) => {
+    test.skip(!process.env.CLOUD_E2E_STRIPE_SUBSCRIPTION_ID,
+      'requires an opt-in live Stripe subscription');
+    const subscriptionId = configuredStripeSubscriptionId();
+    const baseURL = String(testInfo.project.use.baseURL).replace(/\/$/, '');
+    const owner = await ownerContext(browser, baseURL);
+    try {
+      const workspaces = await json(owner, baseURL, 'GET', '/api/cloud/v1/workspaces');
+      expect(workspaces.response.status()).toBe(200);
+      const team = workspaces.body.workspaces.find(workspace =>
+        workspace.kind === 'team' && workspace.name === 'SmallDocs Acceptance');
+      expect(team).toBeTruthy();
+      const members = await json(owner, baseURL, 'GET',
+        '/api/cloud/v1/account/members?account_id=' + encodeURIComponent(team.id));
+      expect(members.response.status()).toBe(200);
+      await expectStripeSeats(subscriptionId, members.body.members.length);
+
+      const portal = await json(owner, baseURL, 'POST',
+        '/api/cloud/v1/workspaces/' + encodeURIComponent(team.id) + '/billing/portal', {});
+      expect(portal.response.status()).toBe(200);
+      const portalUrl = new URL(portal.body.portal_url);
+      expect(portalUrl.protocol).toBe('https:');
+      expect(portalUrl.hostname).toBe('billing.stripe.com');
+
+      const page = await owner.newPage();
+      await page.goto(portalUrl.toString());
+      await expect(page.getByText('Team Cloud', { exact: false })).toBeVisible();
+      await expect(page.getByText('Cancel subscription', { exact: true })).toBeVisible();
+      await expect(page.getByText('Add payment method', { exact: true })).toBeVisible();
+      await expect(page.getByText('Invoice history', { exact: false })).toBeVisible();
+      const returnLink = page.getByRole('link', { name: /Return to SmallDocs sandbox/ });
+      await expect(returnLink).toBeVisible();
+      await returnLink.click();
+      await expect.poll(() => {
+        const returned = new URL(page.url());
+        return returned.origin + returned.pathname + '?' + returned.searchParams.toString();
+      }).toBe(baseURL + '/cloud/admin?workspace_id=' + encodeURIComponent(team.id));
+    } finally {
+      await owner.close();
+    }
+  });
 
 test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes its credential',
   async ({ browser }, testInfo) => {

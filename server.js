@@ -311,12 +311,11 @@ function scheduleRevisionPrune(document, entitlements) {
       retentionMs } });
 }
 
-function scheduleTeamSeatSync(workspaceId) {
+function scheduleTeamSeatSync(workspaceId, seatChangeId) {
   if (!cloudJobs) return;
-  const usage = cloudStore.getWorkspaceUsage({ workspaceId, skipAccess: true });
   enqueueCloudJob({ type: 'team_seat_sync',
-    idempotencyKey: workspaceId + ':' + usage.memberCount,
-    payload: { workspaceId } });
+    idempotencyKey: workspaceId + ':' + seatChangeId,
+    payload: { workspaceId, seatChangeId } });
 }
 
 const CLOUD_BILLING_POLICY = Object.freeze({
@@ -414,7 +413,7 @@ async function processCloudJob(job) {
     return;
   }
   if (job.type === 'team_seat_sync') {
-    await syncTeamSeatQuantity(job.payload.workspaceId);
+    await syncTeamSeatQuantity(job.payload.workspaceId, job.id);
     return;
   }
   if (job.type === 'auth_cleanup') {
@@ -1159,9 +1158,12 @@ function cloudMarkdownBytes(markdown) {
   return bytes;
 }
 
-async function syncTeamSeatQuantity(workspaceId) {
+async function syncTeamSeatQuantity(workspaceId, seatChangeId) {
+  const changeId = String(seatChangeId || '').trim();
+  if (!changeId) throw new Error('seat synchronization change ID is required');
   return syncStripeTeamSeatQuantity({ billing: cloudBilling, stripe: cloudStripe,
-    store: cloudStore, workspaceId });
+    store: cloudStore, workspaceId,
+    idempotencyKey: 'workspace-seats-' + workspaceId + '-' + changeId });
 }
 
 function cloudMemberProfile(member) {
@@ -1669,11 +1671,12 @@ async function handleCloudApi(req, res, url) {
       requireRecentBrowser(principal);
       cloudStore.removeWorkspaceMember({ actorUserId: user.id,
         workspaceId: workspaceMemberMatch[1], userId: workspaceMemberMatch[2] });
-      try { await syncTeamSeatQuantity(workspaceMemberMatch[1]); }
+      const seatChangeId = crypto.randomUUID();
+      try { await syncTeamSeatQuantity(workspaceMemberMatch[1], seatChangeId); }
       catch (_) {
-        scheduleTeamSeatSync(workspaceMemberMatch[1]);
         console.error('[cloud-billing] seat synchronization queued');
       }
+      scheduleTeamSeatSync(workspaceMemberMatch[1], seatChangeId);
       sendJson(res, 200, { ok: true });
       return;
     }
@@ -1734,11 +1737,12 @@ async function handleCloudApi(req, res, url) {
         beforeCommit: () => requireCloudEntitlement(
           user.id, invitationContext.workspaceId, 'add_member'),
       });
-      try { await syncTeamSeatQuantity(result.workspaceId); }
+      const seatChangeId = crypto.randomUUID();
+      try { await syncTeamSeatQuantity(result.workspaceId, seatChangeId); }
       catch (_) {
-        scheduleTeamSeatSync(result.workspaceId);
         console.error('[cloud-billing] seat synchronization queued');
       }
+      scheduleTeamSeatSync(result.workspaceId, seatChangeId);
       sendJson(res, 200, { ok: true, workspace_id: result.workspaceId, role: result.role });
       return;
     }
