@@ -315,7 +315,7 @@ function scheduleTeamSeatSync(workspaceId, seatChangeId) {
   if (!cloudJobs) return;
   enqueueCloudJob({ type: 'team_seat_sync',
     idempotencyKey: workspaceId + ':' + seatChangeId,
-    payload: { workspaceId, seatChangeId } });
+    payload: { workspaceId, seatChangeId }, maxAttempts: 20 });
 }
 
 const CLOUD_BILLING_POLICY = Object.freeze({

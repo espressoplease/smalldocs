@@ -320,11 +320,23 @@ Implemented job types are:
 - `billing_state_email`: send payment, cancellation, read-only, recovery, and deletion-warning messages to account owners
 - `billing_retention_expire`: recheck the current subscription state and permanently delete the Cloud workspace only when its unchanged retention deadline has arrived
 
-Jobs use an idempotency key, a lease, bounded retries, exponential backoff, and terminal `dead` state. Only error codes are stored as job errors. Billing jobs store user and workspace identifiers, deadlines, and state names, not email addresses or document content. Invitation jobs can contain an email address and acceptance URL, so the jobs database is sensitive.
+Jobs use an idempotency key, a lease, bounded retries, exponential backoff, and terminal `dead` state. Team seat reconciliation uses 20 attempts, which spans about eight hours with the default one-hour backoff cap. Only error codes are stored as job errors. Billing jobs store user and workspace identifiers, deadlines, and state names, not email addresses or document content. Invitation jobs can contain an email address and acceptance URL, so the jobs database is sensitive.
 
 The current worker runs in the web process and handles one claimed job at a time. There is no scheduler that periodically enqueues `auth_cleanup`, and completed or dead job cleanup is not scheduled by `server.js`. Direct authentication cleanup runs once at startup and daily. Add monitoring and explicit recurring maintenance for dead jobs, completed-job retention, missing purges, and authentication cleanup before launch.
 
 `npm run cloud:jobs -- --email` opens `CLOUD_JOBS_DB` read-only and summarizes email delivery state without printing payloads, recipient addresses, document data, or job identifiers. Add `--json` for monitoring input. Add `--fail-on-dead` to return status 2 for dead jobs or expired leases. Queue age remains visible in the output and should use an explicit environment-specific alert threshold.
+
+After fixing the provider or configuration problem that caused a dead Team seat
+job, requeue that bounded job type with:
+
+```text
+npm run cloud:jobs:retry -- --type team_seat_sync --confirm
+```
+
+The command uses `CLOUD_JOBS_DB`, accepts an optional `--db` path and `--limit`,
+prints only the number requeued, and cannot retry email or deletion jobs. The
+worker recalculates the current active-member count rather than replaying the
+quantity present when the job first failed.
 
 ## 3. Database inventory
 

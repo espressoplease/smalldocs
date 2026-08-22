@@ -6,6 +6,7 @@ module.exports = function(harness) {
   const { assert, test } = harness;
   const { CloudJobsError, createCloudJobs } = require('../lib/cloud-jobs');
   const jobStatus = require('../scripts/cloud-job-status');
+  const jobRetry = require('../scripts/cloud-job-retry');
 
   return function() {
     console.log('\n-- Cloud Jobs Tests -----------------------------------\n');
@@ -125,6 +126,36 @@ module.exports = function(harness) {
       assert(!serialized.includes('email-1'));
       assert(!serialized.includes('webhook-1'));
       assert(!serialized.includes('payload'));
+    });
+
+    test('operator command requeues only confirmed dead Team seat jobs', () => {
+      const seatJob = first.enqueue({ type: 'team_seat_sync', idempotencyKey: 'seat-dead',
+        payload: { workspaceId: 'workspace-private' }, maxAttempts: 1 });
+      const claimed = first.claim({ workerId: 'seat-worker', types: ['team_seat_sync'] });
+      first.retry({ jobId: claimed.id, workerId: 'seat-worker',
+        error: { code: 'stripe_api_error' } });
+      assert.strictEqual(first.get(seatJob.id).state, 'dead');
+
+      const refused = [];
+      assert.strictEqual(jobRetry.run(['--db', dbPath, '--type', 'team_seat_sync'], {
+        log: () => {}, error: line => refused.push(line),
+      }), 1);
+      assert(refused[0].startsWith('--confirm is required'));
+      assert.strictEqual(first.get(seatJob.id).state, 'dead');
+
+      const output = [];
+      assert.strictEqual(jobRetry.run(['--db', dbPath, '--type', 'team_seat_sync',
+        '--confirm'], { log: line => output.push(line), error: () => {} }), 0);
+      assert.deepStrictEqual(output, ['Requeued 1 dead team_seat_sync job.']);
+      const requeued = first.get(seatJob.id);
+      assert.strictEqual(requeued.state, 'queued');
+      assert.strictEqual(requeued.attempts, 0);
+      assert.deepStrictEqual(requeued.lastError, { code: 'stripe_api_error' });
+      clock = Date.now() + 1000;
+      const retried = first.claim({ workerId: 'seat-worker', types: ['team_seat_sync'] });
+      const completed = first.complete({ jobId: retried.id, workerId: 'seat-worker' });
+      assert.strictEqual(completed.state, 'complete');
+      assert.strictEqual(completed.lastError, null);
     });
 
     test('job status output is redacted and can fail on dead delivery work', () => {
