@@ -100,7 +100,14 @@ module.exports = function (harness) {
       const canceled = update({ status: 'canceled', canceled_at: Math.floor(
         scheduled.currentPeriodEndMs / 1000) }, scheduled, scheduled.currentPeriodEndMs);
       assert.strictEqual(canceled.retentionEndsAtMs, scheduled.retentionEndsAtMs);
-      assert.deepStrictEqual(lifecycle.transitionTypes(scheduled, canceled),
+      assert.deepStrictEqual(lifecycle.transitionTypes(scheduled, canceled), []);
+    });
+
+    test('an immediate cancellation still sends one ended notice', () => {
+      const active = update({ status: 'active', cancel_at_period_end: false });
+      const canceled = update({ status: 'canceled', canceled_at: Math.floor(now / 1000) },
+        active, now);
+      assert.deepStrictEqual(lifecycle.transitionTypes(active, canceled),
         ['cancellation_effective']);
     });
 

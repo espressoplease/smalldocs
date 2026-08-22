@@ -850,9 +850,9 @@ module.exports = function(harness) {
       const subscription = {
         id: 'sub_http_lifecycle', customer: 'cus_http_lifecycle', created,
         status: 'past_due', cancel_at_period_end: false,
-        current_period_end: created + 30 * 24 * 60 * 60,
         metadata: { workspace_id: cloudWorkspace.id, plan: 'personal' },
-        items: { data: [{ quantity: 1 }] },
+        items: { data: [{ quantity: 1,
+          current_period_end: created + 30 * 24 * 60 * 60 }] },
       };
       const event = { id: 'evt_http_payment_failed', type: 'customer.subscription.updated',
         created, data: { object: subscription } };
@@ -903,6 +903,25 @@ module.exports = function(harness) {
       `).all().find((job) => JSON.parse(job.payload_json).type === 'payment_recovered');
       jobs.close();
       assert.ok(recoveryJob);
+
+      const scheduled = { id: 'evt_http_cancellation_scheduled',
+        type: 'customer.subscription.updated', created: created + 2,
+        data: { object: Object.assign({}, subscription, { status: 'active',
+          cancel_at_period_end: true }) } };
+      assert.strictEqual((await postStripeEvent(scheduled)).status, 200);
+      const canceled = { id: 'evt_http_cancellation_effective',
+        type: 'customer.subscription.deleted', created: created + 3,
+        data: { object: Object.assign({}, subscription, { status: 'canceled',
+          cancel_at_period_end: true, canceled_at: created + 2 }) } };
+      assert.strictEqual((await postStripeEvent(canceled)).status, 200);
+      jobs = new Database(testCloudJobsDbPath, { readonly: true });
+      const cancellationNotices = jobs.prepare(`
+        SELECT payload_json FROM cloud_jobs WHERE type = 'billing_state_email'
+      `).all().map((job) => JSON.parse(job.payload_json)).filter((payload) =>
+        payload.providerSubscriptionId === subscription.id &&
+        payload.type === 'cancellation_effective');
+      jobs.close();
+      assert.strictEqual(cancellationNotices.length, 1);
       cloudBilling.upsertSubscription({ workspaceId: cloudWorkspace.id,
         plan: 'personal', status: 'active', seatQuantity: 1,
         provider: 'test', providerSubscriptionId: 'personal-http-test' });
