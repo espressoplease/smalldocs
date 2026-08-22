@@ -589,7 +589,7 @@ Run this with two human accounts, two browsers, one phone-sized browser, and two
 - [ ] Revoke a CLI credential and confirm its next request fails.
 - [ ] Test an invitation expiry and resend.
 - [ ] Test payment failure, grace, read-only mode, payment recovery, cancellation, export, and workspace deletion.
-- [ ] Confirm adding and removing Team members updates Stripe seats.
+- [x] Confirm adding and removing Team members updates Stripe seats.
 - [ ] Restore the deleted Team during its window and permanently purge it after the window in an accelerated staging configuration.
 - [ ] Search from a new browser and phone without downloading the workspace first.
 - [ ] Review proxy, app, provider, and error logs for leaked content, queries, codes, tokens, or customer email.

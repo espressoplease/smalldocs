@@ -196,6 +196,17 @@ legitimate return to the same quantity. Commit
 durable reconciliation separate keys. The three live provider acceptance tests
 then passed against that deployed commit.
 
+The same disposable Team subscription was used for a forced Stripe failure
+drill. Staging committed a member removal while its provider subscription
+mapping was deliberately unavailable. The first durable reconciliation attempt
+failed with only an error code recorded. After the mapping was restored, the
+second attempt recalculated the current member count, changed Stripe from four
+seats to three, completed, and cleared its stored error. A separate operator
+drill recovered a deliberately dead job after the provider fault was fixed.
+Commit `98d45b8761f34b931d388ae1511c162c03db53d8` extends Team seat jobs to 20
+attempts and adds the bounded `cloud:jobs:retry` command. The acceptance member
+and four-seat baseline were restored after both drills.
+
 ### 3. Live staging flows
 
 We also test the deployed site with real staging boundaries:
@@ -323,7 +334,7 @@ remains separate and Cloud is not enabled there.
 - [ ] Confirm an older Stripe event cannot overwrite newer subscription state.
 - [x] Confirm a Team invitation adds a billed seat only when accepted.
 - [x] Confirm member removal changes the billed quantity.
-- [ ] Force a seat update failure and confirm the durable reconciliation job repairs it.
+- [x] Force a seat update failure and confirm the durable reconciliation job repairs it.
 - [x] Confirm the customer portal supports the exact promised actions and returns to the correct account.
 - [ ] Confirm refund and cancellation policy, then make the UI and legal copy match it.
 
