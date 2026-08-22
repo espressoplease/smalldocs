@@ -24,10 +24,11 @@ module.exports = function(harness) {
         }),
       });
       try {
-        const output = await new Promise((resolve, reject) => {
+        const runSeed = () => new Promise((resolve, reject) => {
           execFile(process.execPath, [path.join(__dirname, '..', 'ops', 'seed-cloud-staging.js')],
             { env }, (error, stdout) => error ? reject(error) : resolve(stdout));
         });
+        const output = await runSeed();
         const seeded = JSON.parse(output);
         assert.notStrictEqual(seeded.individual.user_id, seeded.team.user_id);
         assert.notStrictEqual(seeded.individual.account_id, seeded.team.account_id);
@@ -66,7 +67,20 @@ module.exports = function(harness) {
           assert.strictEqual(accounts.length, 1);
           assert.strictEqual(accounts[0].id, seeded.acceptance.account_id);
         }
+        store.addWorkspaceMember({ actorUserId: seeded.team.user_id,
+          workspaceId: seeded.team.account_id, userId: 'extra-team-user', role: 'member' });
+        store.addWorkspaceMember({ actorUserId: seeded.acceptance.user_id,
+          workspaceId: seeded.acceptance.account_id,
+          userId: 'extra-acceptance-user', role: 'member' });
         store.db.close();
+
+        await runSeed();
+        const { createBillingStore } = require('../lib/cloud-billing');
+        const billing = createBillingStore({ dbPath: env.CLOUD_BILLING_DB,
+          planLimits: JSON.parse(env.CLOUD_PLAN_LIMITS_JSON) });
+        assert.strictEqual(billing.getSubscription(seeded.team.account_id).seatQuantity, 6);
+        assert.strictEqual(billing.getSubscription(seeded.acceptance.account_id).seatQuantity, 4);
+        billing.db.close();
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
       }

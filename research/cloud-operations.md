@@ -107,6 +107,21 @@ CLOUD_E2E_TEST_SECRET_FILE=/absolute/path/to/owner-only-secret \
 npm run test:cloud-e2e
 ```
 
+To include the opt-in Stripe seat and Customer Portal assertions, first map a
+disposable Stripe sandbox Team subscription to the seeded `SmallDocs
+Acceptance` account. Set its quantity to the current active-member count, log
+the Stripe CLI into the same sandbox account, and add:
+
+```text
+CLOUD_E2E_STRIPE_SUBSCRIPTION_ID=sub_...
+```
+
+The provider assertions confirm that a pending invitation does not change the
+quantity, acceptance increases it, removal decreases it, SmallDocs receives the
+matching webhook quantities, and the reviewed Customer Portal returns to the
+selected account. Delete the disposable Stripe objects and restore the seeded
+billing record when the run finishes.
+
 The live test target is pinned to `cloud-staging.smalldocs.org` so a mistyped
 or hostile URL cannot receive the staging secret. Playwright creates one
 browser context and one normal session per required identity, uses those

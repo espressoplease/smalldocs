@@ -116,7 +116,7 @@ We use four layers. Each catches a different class of problem.
 - security headers and route boundaries.
 
 The most recent full local run against the staged release commit completed with
-`1305 passed`.
+`1306 passed`.
 
 ### 2. Playwright browser tests
 
@@ -182,6 +182,19 @@ Stripe objects were deleted and the seeded Personal demo account was restored.
 The 7-day grace transition, 60-day retention expiry, and destructive deletion
 remain deterministic time-driven test cases rather than wall-clock staging
 drills.
+
+A separate live Team billing run on 22 August 2026 mapped the seeded acceptance
+account to a disposable Stripe sandbox subscription. A pending invitation left
+the quantity unchanged, acceptance increased it from three to four, removal
+reduced it to three, and restoration returned it to four. Stripe's invoice
+preview included the accepted seat's prorated charge. The Customer Portal
+showed the four-seat Team total, payment-method management, invoice history,
+scheduled cancellation, and returned to the selected SmallDocs account. A
+repeat run found that a seat-count-based Stripe idempotency key blocked a later
+legitimate return to the same quantity. Commit
+`ea5eb941d5f8f222e917d2edca99f46db97254b8` gives each membership change and
+durable reconciliation separate keys. The three live provider acceptance tests
+then passed against that deployed commit.
 
 ### 3. Live staging flows
 
@@ -308,9 +321,10 @@ remains separate and Cloud is not enabled there.
 - [ ] Confirm required tax registrations before enabling collection in a jurisdiction.
 - [ ] Use Stripe test clocks or test events for subscribe, renew, payment failure, grace, recovery, cancellation, duplicate webhook, delayed webhook, and replay.
 - [ ] Confirm an older Stripe event cannot overwrite newer subscription state.
-- [ ] Confirm a Team invitation adds a billed seat only when accepted.
-- [ ] Confirm member removal changes the billed quantity and failed seat updates reconcile through the job queue.
-- [ ] Confirm the customer portal supports the exact promised actions and returns to the correct account.
+- [x] Confirm a Team invitation adds a billed seat only when accepted.
+- [x] Confirm member removal changes the billed quantity.
+- [ ] Force a seat update failure and confirm the durable reconciliation job repairs it.
+- [x] Confirm the customer portal supports the exact promised actions and returns to the correct account.
 - [ ] Confirm refund and cancellation policy, then make the UI and legal copy match it.
 
 ### G. Security and data handling

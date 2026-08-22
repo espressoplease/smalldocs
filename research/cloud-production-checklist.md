@@ -366,11 +366,12 @@ Use a transactional email provider rather than a personal Gmail mailbox. The cur
 - [x] Activate the isolated SmallDocs Stripe account and recreate and verify the products and prices in live mode.
 - [ ] Decide whether displayed prices include or exclude VAT. Make the Cloud page, Checkout, invoices, and accounting treatment agree.
 - [ ] Decide whether to use Stripe Tax. If yes, register the correct head-office address and tax registrations, set a SaaS product tax code, collect a valid billing address, and enable `automatic_tax` in every Checkout Session.
-- [ ] Configure the customer portal for payment-method updates and cancellation.
+- [x] Configure and test the sandbox customer portal for payment-method updates, invoice history, and scheduled cancellation.
+- [ ] Mirror the reviewed customer portal configuration into live mode.
 - [ ] Copy the live secret key and both live price IDs to the production secret store.
 - [ ] Pin `STRIPE_API_VERSION` to the version tested in staging.
 
-The current Cloud page says taxes are calculated at checkout, but the code does not send `automatic_tax[enabled]=true`. Either implement it and collect the required customer location, or change the copy and use a different approved tax process before launch.
+Checkout currently requires a billing address, accepts business tax IDs, and sends `automatic_tax[enabled]=true`. Confirm the legal entity, registrations, displayed-price treatment, and accounting process before launch.
 
 ### Webhook
 
@@ -385,7 +386,7 @@ https://smalldocs.org/api/cloud/billing/stripe/webhook
 - [ ] Ensure Nginx passes the raw request body unchanged.
 - [ ] Test with Stripe test clocks or test-mode events: subscribe, renew, upgrade seats, failed payment, grace, recovery, cancel, delayed event, duplicate event, and event replay.
 - [ ] Confirm an older webhook cannot overwrite newer subscription state.
-- [ ] Confirm active-member count and billed-seat quantity reconcile after invitations and removals.
+- [x] Confirm active-member count and billed-seat quantity reconcile after invitation acceptance and member removal.
 
 ### Product allowances
 

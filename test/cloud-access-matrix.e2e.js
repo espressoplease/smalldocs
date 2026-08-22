@@ -516,7 +516,8 @@ test('reusable staging identities enforce access and merge two-account edits', a
           if (invited.response.status() !== 201 || !acceptUrl) {
             cleanupErrors.push('removed member reinvitation failed');
           } else {
-            await expectStripeSeats(stripeSubscriptionId, initialMemberCount - 1);
+            try { await expectStripeSeats(stripeSubscriptionId, initialMemberCount - 1); }
+            catch (error) { cleanupErrors.push('pending invitation changed seats: ' + error.message); }
             const token = new URL(acceptUrl).searchParams.get('token');
             const accepted = await json(removed, baseURL, 'POST',
               '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {});
@@ -566,7 +567,7 @@ test('live Team billing opens the reviewed Stripe portal and returns to the acco
 
       const page = await owner.newPage();
       await page.goto(portalUrl.toString());
-      await expect(page.getByText('Team Cloud', { exact: false })).toBeVisible();
+      await expect(page.getByText('Team Cloud', { exact: true }).first()).toBeVisible();
       await expect(page.getByText('Cancel subscription', { exact: true })).toBeVisible();
       await expect(page.getByText('Add payment method', { exact: true })).toBeVisible();
       await expect(page.getByText('Invoice history', { exact: false })).toBeVisible();

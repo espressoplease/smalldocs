@@ -59,8 +59,9 @@ async function main() {
       userId: member.id, role });
     return { email, user_id: member.id, role };
   });
+  const teamUsage = cloud.getWorkspaceUsage({ workspaceId: team.id, skipAccess: true });
   billing.upsertSubscription({ workspaceId: team.id,
-    plan: 'team', status: 'active', seatQuantity: 1 + demoMembers.length });
+    plan: 'team', status: 'active', seatQuantity: teamUsage.memberCount });
 
   const accessOwner = person('access-owner@smalldocs.org', 'Access', 'Owner');
   let accessTeam = (await cloud.listWorkspaces(accessOwner.id)).find((workspace) =>
@@ -80,8 +81,9 @@ async function main() {
       userId: member.id, role: 'member' });
     return { email, user_id: member.id, role: 'member' };
   });
+  const acceptanceUsage = cloud.getWorkspaceUsage({ workspaceId: accessTeam.id, skipAccess: true });
   billing.upsertSubscription({ workspaceId: accessTeam.id,
-    plan: 'team', status: 'active', seatQuantity: 1 + accessMembers.length });
+    plan: 'team', status: 'active', seatQuantity: acceptanceUsage.memberCount });
 
   const result = {
     individual: { email: 'personal-demo@smalldocs.org', user_id: individual.id,
