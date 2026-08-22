@@ -162,11 +162,26 @@ The same suite can target only `https://cloud-staging.smalldocs.org`. A live
 run requires the exact-email staging allowlist and an owner-only secret file.
 Production startup rejects the complete test-login configuration. On 22
 August 2026, both acceptance tests passed against deployed commit
-`b01c614fa108911bce2e117622a84ec058ccfea4`. The live run covered two-account
+`650f8a195ec12a871cc02fa6af0ed9d002e7c4e6`. The live run covered two-account
 permissions, concurrent revisions and comments, tag and search visibility,
 phone-sized Library use, access removal, and a fresh CLI authorization and
 document lifecycle. The temporary staging credential file was removed after
 the run.
+
+The billing lifecycle was also exercised on 22 August 2026 with a real Stripe
+sandbox subscription and test clock. The run covered subscription activation,
+scheduled cancellation, cancellation reversal, renewal failure, payment
+recovery, effective cancellation, and duplicate event replay. Staging received
+signed Stripe webhooks, updated access clocks, ran durable notification jobs,
+and delivered the matching messages through Resend. The run found and fixed
+two integration defects: the pinned Stripe API version reports the current
+period on subscription items, and a scheduled cancellation could queue a
+second effective-cancellation message when Stripe later ended the subscription.
+Both paths now have deterministic Node and HTTP regression tests. The temporary
+Stripe objects were deleted and the seeded Personal demo account was restored.
+The 7-day grace transition, 60-day retention expiry, and destructive deletion
+remain deterministic time-driven test cases rather than wall-clock staging
+drills.
 
 ### 3. Live staging flows
 
