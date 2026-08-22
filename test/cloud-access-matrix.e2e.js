@@ -395,8 +395,8 @@ test('reusable staging identities enforce access and merge two-account edits', a
     const ownerPage = await owner.newPage();
     await ownerPage.setViewportSize({ width: 390, height: 844 });
     await ownerPage.goto('/library?scope=cloud&account_id=' + encodeURIComponent(accountId));
-    await expect(ownerPage.getByRole('link', { name: 'Local' })).toBeVisible();
-    await expect(ownerPage.getByRole('link', { name: 'Cloud' })).toBeVisible();
+    await expect(ownerPage.getByRole('link', { name: 'Local' })).toBeHidden();
+    await expect(ownerPage.getByRole('link', { name: 'Cloud' })).toBeHidden();
     await expect(ownerPage.locator('#workspace-button')).toBeHidden();
     const libraryRow = ownerPage.locator('.res[data-id="' + document.id + '"]');
     await expect(libraryRow.locator('.res-title')).toHaveText(document.title);

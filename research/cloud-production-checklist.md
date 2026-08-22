@@ -45,7 +45,7 @@ Create all new SmallDocs and SmallCRM KMS keys, backup buckets, workload roles, 
 - [x] Complete real AWS KMS smoke tests through both an administrator session and the restricted production workload identity.
 - [x] Add production configuration validation. Production startup refuses partial Cloud configurations, local `CLOUD_MASTER_KEY`, an HTTP public origin, missing durable jobs, and missing billing or mail settings.
 - [x] Make Stripe tax behavior match the Cloud page. Checkout enables automatic tax, requires a billing address, and accepts business tax IDs. Add tax registrations only after the business is registered in that jurisdiction.
-- [ ] Decide and configure plan allowances, retention, failed-payment grace, and deletion windows.
+- [x] Decide and configure plan allowances, retention, failed-payment grace, and deletion windows.
 - [ ] Set up production authentication, email, and Stripe resources.
 - [x] Create coordinated nightly backups and complete a real restore drill. The downloaded archive hash matched and every retained SQLite database passed integrity checking.
 - [ ] Add monitoring for the process, disk, databases, KMS, mail, Stripe webhooks, and dead jobs.

@@ -1,6 +1,6 @@
 # SmallDocs Cloud: testing, staging deployment, and production readiness
 
-Last checked: 21 August 2026
+Last checked: 22 August 2026
 
 ## Short answer
 
@@ -115,7 +115,8 @@ We use four layers. Each catches a different class of problem.
 - cache busting and service-worker update behavior;
 - security headers and route boundaries.
 
-The most recent full run against the staged release commit completed with `1269 passed`.
+The most recent full local run against the staged release commit completed with
+`1305 passed`.
 
 ### 2. Playwright browser tests
 
@@ -140,7 +141,7 @@ Playwright opens the real UI in Chromium and checks behavior and layout. The foc
 - Cloud document updates and removal;
 - desktop and phone-sized layouts.
 
-The most recent focused Cloud and Library run completed with `70 passed`.
+The most recent focused Cloud, email, and Library run completed with `83 passed`.
 
 Some browser tests mock provider edges so they can be fast and deterministic. A passing Playwright suite does not prove that Resend, Stripe, KMS, DNS, or a real mailbox is working.
 
@@ -159,9 +160,9 @@ and the Library UI. It cleans up its document and restores the removed member.
 
 The same suite can target only `https://cloud-staging.smalldocs.org`. A live
 run requires the exact-email staging allowlist and an owner-only secret file.
-Production startup rejects the complete test-login configuration. On 21
+Production startup rejects the complete test-login configuration. On 22
 August 2026, both acceptance tests passed against deployed commit
-`5da34bcb97b0ac18da699c0f459702b2d724a854`. The live run covered two-account
+`b01c614fa108911bce2e117622a84ec058ccfea4`. The live run covered two-account
 permissions, concurrent revisions and comments, tag and search visibility,
 phone-sized Library use, access removal, and a fresh CLI authorization and
 document lifecycle. The temporary staging credential file was removed after
@@ -204,14 +205,25 @@ The list below is intentionally stricter than a demo checklist. A paid Cloud pro
 
 ### A. Confirm the product rules
 
-- [ ] Freeze the Personal and Team plan allowances: stored bytes, maximum file size, search workload, members, and any seat-based differences.
-- [ ] Confirm revision retention. The implementation currently keeps up to three previous revisions and expires them after 90 days.
-- [ ] Confirm deleted-document and deleted-team recovery. The current design uses a 30-day recovery window.
-- [ ] Confirm the failed-payment grace period and exactly what becomes read-only.
-- [ ] Confirm cancellation behavior at period end, including document access, export, deletion, and recovery.
+- [x] Freeze the Personal and Team plan allowances: Personal includes 1 GB,
+  Team includes 5 GB, each document is limited to 10 MB, and there is no
+  document-count cap. Search remains bounded by operational hard limits rather
+  than a marketed request allowance.
+- [x] Confirm revision retention. The implementation keeps up to three previous
+  revisions and expires them after 90 days.
+- [x] Confirm deleted-document and deleted-team recovery. The design uses a
+  30-day recovery window.
+- [x] Confirm failed-payment behavior. Editing continues for seven days, then
+  the account becomes read-only. Documents are retained for 60 days from the
+  first failed-payment state before permanent deletion.
+- [x] Confirm cancellation behavior. Paid access continues until the current
+  period ends, then the account becomes read-only. Export remains available and
+  documents are retained for 30 days before permanent deletion.
 - [x] Cloud comments are persisted collaborative data inside Cloud document revisions. Local comments remain local until the document is added to Cloud. Browser and store tests cover named comment persistence, concurrent comment ID reconciliation, reopen, edit, deletion, and access removal.
-- [ ] Confirm the one-account default and the account switcher behavior for the uncommon person who belongs to more than one account.
-- [ ] Confirm that the single-host availability model is acceptable for the first paid release. PostgreSQL and multiple replicas are not required for a small private beta if we accept and document that limitation.
+- [x] Confirm the one-account default and the account switcher behavior for the
+  uncommon person who belongs to more than one account.
+- [x] Confirm that the single-host availability model is acceptable for the
+  private beta. PostgreSQL and multiple replicas remain a scale milestone.
 
 ### B. Prove tags and permission groups end to end
 
@@ -322,9 +334,9 @@ remains separate and Cloud is not enabled there.
 ### J. Acceptance, private beta, and release
 
 - [x] The repeatable staging-shaped suite opens the signed-in Cloud Library at
-  phone size, keeps the Local and Cloud controls available, hides the account
-  selector for the normal one-account case, and opens the collaborative Cloud
-  document with its tags and saved comments.
+  phone size, keeps the phone view focused on Cloud, hides the account selector
+  for the normal one-account case, and opens the collaborative Cloud document
+  with its tags and saved comments.
 - [ ] Run the full staging matrix with two human accounts, two browser profiles, one phone-sized browser, and two CLI credentials.
 - [ ] Run the full Node suite and the complete Playwright suite against the exact release commit.
 - [ ] Invite 5 to 10 known private-beta users and define the beta period and support channel.

@@ -70,6 +70,22 @@ module.exports = function (harness) {
         event.availableAtMs === scheduled.retentionEndsAtMs - 7 * day));
     });
 
+    test('current Stripe subscription items supply the billing period end', () => {
+      const periodEnd = Math.floor((now + 24 * day) / 1000);
+      const scheduled = update({
+        status: 'active',
+        current_period_end: undefined,
+        cancel_at_period_end: true,
+        items: { data: [{ quantity: 3, current_period_end: periodEnd }] },
+      });
+      assert.strictEqual(scheduled.currentPeriodEndMs, periodEnd * 1000);
+      assert.strictEqual(scheduled.retentionEndsAtMs, periodEnd * 1000 + 30 * day);
+      assert.deepStrictEqual(lifecycle.scheduledBillingEvents(scheduled).map(
+        (event) => event.type), [
+        'cancellation_effective', 'deletion_warning', 'retention_expire',
+      ]);
+    });
+
     test('reversing cancellation clears its deletion clock', () => {
       const scheduled = update({ status: 'active', cancel_at_period_end: true });
       const continued = update({ status: 'active', cancel_at_period_end: false }, scheduled,
