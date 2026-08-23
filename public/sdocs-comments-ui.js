@@ -75,7 +75,10 @@ function strip() {
       el.classList.remove('sdoc-table-commentable', 'sdoc-table-all-commented',
         'sdoc-table-row-commented', 'sdoc-table-column-commented',
         'sdoc-table-cell-commented');
-      el.style.removeProperty('--sdoc-table-comment-color');
+      el.style.removeProperty('--sdoc-table-all-color');
+      el.style.removeProperty('--sdoc-table-row-color');
+      el.style.removeProperty('--sdoc-table-column-color');
+      el.style.removeProperty('--sdoc-table-cell-color');
     });
   // Restore list items to the DOM shape produced by marked.
   S.renderedEl.querySelectorAll('.sdoc-element-host').forEach(function (host) {
@@ -745,15 +748,15 @@ function markTableTarget(target, color) {
     var host = table.closest('.sdoc-table-host');
     if (host) {
       host.classList.add('sdoc-table-all-commented');
-      host.style.setProperty('--sdoc-table-comment-color', color);
+      host.style.setProperty('--sdoc-table-all-color', color);
     }
     table.classList.add('sdoc-table-all-commented');
-    table.style.setProperty('--sdoc-table-comment-color', color);
+    table.style.setProperty('--sdoc-table-all-color', color);
     return;
   }
   if (target.scope === 'row' && target.row) {
     target.row.classList.add('sdoc-table-row-commented');
-    target.row.style.setProperty('--sdoc-table-comment-color', color);
+    target.row.style.setProperty('--sdoc-table-row-color', color);
     return;
   }
   if (target.scope === 'column' && target.column) {
@@ -763,13 +766,13 @@ function markTableTarget(target, color) {
     })).forEach(function (cell) {
       if (!cell) return;
       cell.classList.add('sdoc-table-column-commented');
-      cell.style.setProperty('--sdoc-table-comment-color', color);
+      cell.style.setProperty('--sdoc-table-column-color', color);
     });
     return;
   }
   if (target.scope === 'cell' && target.cell) {
     target.cell.classList.add('sdoc-table-cell-commented');
-    target.cell.style.setProperty('--sdoc-table-comment-color', color);
+    target.cell.style.setProperty('--sdoc-table-cell-color', color);
   }
 }
 
@@ -1287,15 +1290,15 @@ function clearTableTargetMark(target) {
     var host = target.table.closest('.sdoc-table-host');
     if (host) {
       host.classList.remove('sdoc-table-all-commented');
-      host.style.removeProperty('--sdoc-table-comment-color');
+      host.style.removeProperty('--sdoc-table-all-color');
     }
     target.table.classList.remove('sdoc-table-all-commented');
-    target.table.style.removeProperty('--sdoc-table-comment-color');
+    target.table.style.removeProperty('--sdoc-table-all-color');
     return;
   }
   if (target.scope === 'row' && target.row) {
     target.row.classList.remove('sdoc-table-row-commented');
-    target.row.style.removeProperty('--sdoc-table-comment-color');
+    target.row.style.removeProperty('--sdoc-table-row-color');
     return;
   }
   if (target.scope === 'column' && target.column) {
@@ -1305,13 +1308,13 @@ function clearTableTargetMark(target) {
     })).forEach(function (cell) {
       if (!cell) return;
       cell.classList.remove('sdoc-table-column-commented');
-      cell.style.removeProperty('--sdoc-table-comment-color');
+      cell.style.removeProperty('--sdoc-table-column-color');
     });
     return;
   }
   if (target.scope === 'cell' && target.cell) {
     target.cell.classList.remove('sdoc-table-cell-commented');
-    target.cell.style.removeProperty('--sdoc-table-comment-color');
+    target.cell.style.removeProperty('--sdoc-table-cell-color');
   }
 }
 

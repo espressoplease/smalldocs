@@ -549,17 +549,23 @@ body.comment-mode .sdoc-table-host tbody td:first-child::before {
   bottom: 0;
   width: 32px;
 }
+body.comment-mode .sdoc-table-host th:first-child::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: -32px;
+  top: -28px;
+  width: 32px;
+  height: 28px;
+  pointer-events: auto;
+}
 
-body.comment-mode .sdoc-table-host:hover .sdoc-table-table-add,
+body.comment-mode .sdoc-table-host th:first-child:hover > .sdoc-table-table-add,
 body.comment-mode .sdoc-table-host th:hover > .sdoc-table-column-add,
 body.comment-mode .sdoc-table-host tr:hover > td:first-child > .sdoc-table-row-add,
 body.comment-mode .sdoc-table-host td:hover > .sdoc-table-cell-add,
 body.comment-mode .sdoc-table-add:hover,
-body.comment-mode .sdoc-table-add:focus-visible,
-body.comment-mode .sdoc-table-all-commented .sdoc-table-table-add,
-body.comment-mode th.sdoc-table-column-commented > .sdoc-table-column-add,
-body.comment-mode tr.sdoc-table-row-commented > td:first-child > .sdoc-table-row-add,
-body.comment-mode td.sdoc-table-cell-commented > .sdoc-table-cell-add {
+body.comment-mode .sdoc-table-add:focus-visible {
   opacity: 1;
   pointer-events: auto;
 }
@@ -575,28 +581,40 @@ body.comment-mode .sdoc-table-add:focus-visible {
   outline-offset: 1px;
 }
 
-body.comment-mode .sdoc-table-all-commented .sdoc-table-table-add,
-body.comment-mode th.sdoc-table-column-commented > .sdoc-table-column-add,
-body.comment-mode tr.sdoc-table-row-commented > td:first-child > .sdoc-table-row-add,
+body.comment-mode .sdoc-table-all-commented .sdoc-table-table-add {
+  background: color-mix(in srgb, var(--sdoc-table-all-color, var(--sdoc-anchor-color)) 32%, var(--bg-surface));
+}
+body.comment-mode th.sdoc-table-column-commented > .sdoc-table-column-add {
+  background: color-mix(in srgb, var(--sdoc-table-column-color, var(--sdoc-anchor-color)) 32%, var(--bg-surface));
+}
+body.comment-mode tr.sdoc-table-row-commented > td:first-child > .sdoc-table-row-add {
+  background: color-mix(in srgb, var(--sdoc-table-row-color, var(--sdoc-anchor-color)) 32%, var(--bg-surface));
+}
 body.comment-mode td.sdoc-table-cell-commented > .sdoc-table-cell-add {
-  background: color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 32%, var(--bg-surface));
+  background: color-mix(in srgb, var(--sdoc-table-cell-color, var(--sdoc-anchor-color)) 32%, var(--bg-surface));
+}
+
+/* Each scope contributes one transparent layer. A cell at the intersection
+   of several comments receives every layer, so overlap is visible without
+   adding borders, badges, or another persistent control. */
+body.comment-mode #_sd_rendered .sdoc-table-host :is(th, td) {
+  background-image:
+    linear-gradient(var(--sdoc-table-cell-overlay, transparent), var(--sdoc-table-cell-overlay, transparent)),
+    linear-gradient(var(--sdoc-table-column-overlay, transparent), var(--sdoc-table-column-overlay, transparent)),
+    linear-gradient(var(--sdoc-table-row-overlay, transparent), var(--sdoc-table-row-overlay, transparent)),
+    linear-gradient(var(--sdoc-table-all-overlay, transparent), var(--sdoc-table-all-overlay, transparent));
 }
 body.comment-mode table.sdoc-table-all-commented {
-  outline: 2px solid color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 65%, transparent);
-  outline-offset: -2px;
+  --sdoc-table-all-overlay: color-mix(in srgb, var(--sdoc-table-all-color, var(--sdoc-anchor-color)) 8%, transparent);
 }
-body.comment-mode tr.sdoc-table-row-commented:nth-child(odd) > td {
-  background: color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 10%, var(--md-table-odd-bg));
-}
-body.comment-mode tr.sdoc-table-row-commented:nth-child(even) > td {
-  background: color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 10%, var(--md-table-even-bg));
+body.comment-mode tr.sdoc-table-row-commented > td {
+  --sdoc-table-row-overlay: color-mix(in srgb, var(--sdoc-table-row-color, var(--sdoc-anchor-color)) 10%, transparent);
 }
 body.comment-mode :is(th, td).sdoc-table-column-commented {
-  box-shadow: inset 0 3px 0 color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 75%, transparent);
+  --sdoc-table-column-overlay: color-mix(in srgb, var(--sdoc-table-column-color, var(--sdoc-anchor-color)) 10%, transparent);
 }
 body.comment-mode td.sdoc-table-cell-commented {
-  outline: 2px solid color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 80%, transparent);
-  outline-offset: -2px;
+  --sdoc-table-cell-overlay: color-mix(in srgb, var(--sdoc-table-cell-color, var(--sdoc-anchor-color)) 14%, transparent);
 }
 
 .sdoc-table-host > .sdoc-card { margin-top: 6px; margin-bottom: 0; }

@@ -949,6 +949,66 @@ test.describe('edge-case content', () => {
     expect(state.cardsInHost).toBe(4);
   });
 
+  test('saved table targets use stacked fills without persistent controls', async ({ page }) => {
+    await setBody(page,
+      '| Feature | Owner | Status |\n|---|---|---|\n| Alpha | Maya | Ready |\n| Beta | Sam | Draft |\n');
+    await page.evaluate(() => {
+      const SDC = window.SDocComments;
+      let meta = {};
+      meta = SDC.addTableComment(meta, {
+        block: 'table:0', table_scope: 'table',
+      }, { text: 'table', color: '#ffbb00' }).meta;
+      meta = SDC.addTableComment(meta, {
+        block: 'table:0', table_scope: 'row', table_row: 0, row_text: 'Alpha',
+      }, { text: 'row', color: '#ff7700' }).meta;
+      meta = SDC.addTableComment(meta, {
+        block: 'table:0', table_scope: 'column', table_column: 2,
+        column_text: 'Status',
+      }, { text: 'column', color: '#00aaff' }).meta;
+      meta = SDC.addTableComment(meta, {
+        block: 'table:0', table_scope: 'cell', table_row: 0, table_column: 2,
+        row_text: 'Alpha', column_text: 'Status', cell_text: 'Ready',
+      }, { text: 'cell', color: '#aa55ff' }).meta;
+      window.SDocs.currentMeta = meta;
+      window.SDocs.render();
+      window.SDocs.commentsUi.onHostRender();
+    });
+    await page.mouse.move(1, 1);
+
+    const state = await page.evaluate(() => {
+      const overlap = getComputedStyle(document.querySelector('tbody tr:first-child td:nth-child(3)'));
+      const tableOnly = getComputedStyle(document.querySelector('tbody tr:nth-child(2) td:first-child'));
+      const buttons = Array.from(document.querySelectorAll('.sdoc-table-add'))
+        .map(button => getComputedStyle(button));
+      return {
+        overlapLayers: {
+          table: overlap.getPropertyValue('--sdoc-table-all-overlay').trim(),
+          row: overlap.getPropertyValue('--sdoc-table-row-overlay').trim(),
+          column: overlap.getPropertyValue('--sdoc-table-column-overlay').trim(),
+          cell: overlap.getPropertyValue('--sdoc-table-cell-overlay').trim(),
+        },
+        tableOnlyLayers: {
+          table: tableOnly.getPropertyValue('--sdoc-table-all-overlay').trim(),
+          row: tableOnly.getPropertyValue('--sdoc-table-row-overlay').trim(),
+          column: tableOnly.getPropertyValue('--sdoc-table-column-overlay').trim(),
+          cell: tableOnly.getPropertyValue('--sdoc-table-cell-overlay').trim(),
+        },
+        backgroundLayers: (overlap.backgroundImage.match(/linear-gradient/g) || []).length,
+        outline: overlap.outlineStyle,
+        controlsHidden: buttons.every(style =>
+          style.opacity === '0' && style.pointerEvents === 'none'),
+      };
+    });
+    expect(Object.values(state.overlapLayers).every(Boolean)).toBe(true);
+    expect(state.tableOnlyLayers.table).not.toBe('');
+    expect(state.tableOnlyLayers.row).toBe('');
+    expect(state.tableOnlyLayers.column).toBe('');
+    expect(state.tableOnlyLayers.cell).toBe('');
+    expect(state.backgroundLayers).toBe(4);
+    expect(state.outline).toBe('none');
+    expect(state.controlsHidden).toBe(true);
+  });
+
   test('table targets follow reordered rows and columns by their text hints', async ({ page }) => {
     await setBody(page,
       '| Feature | Owner | Status |\n|---|---|---|\n| Alpha | Maya | Ready |\n| Beta | Sam | Draft |\n');
