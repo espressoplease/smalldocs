@@ -13,7 +13,8 @@
     "email:preview": "node scripts/email-preview.js",
     "email:preview:stop": "docker compose -p smalldocs-email-preview -f test/mailpit.compose.yml down",
     "cloud:jobs": "node scripts/cloud-job-status.js",
-    "cloud:jobs:retry": "node scripts/cloud-job-retry.js"
+    "cloud:jobs:retry": "node scripts/cloud-job-retry.js",
+    "cloud:kms:smoke": "node ops/kms-failure-smoke.js"
   },
   "author": "Josh Summers",
   "license": "Elastic-2.0",

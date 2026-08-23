@@ -1702,6 +1702,14 @@ async function handleCloudApi(req, res, url) {
     const workspaceMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)$/);
     if (workspaceMatch && req.method === 'DELETE') {
       requireRecentBrowser(principal);
+      const visibleWorkspace = (await cloudStore.listWorkspaces(user.id)).find((workspace) =>
+        workspace.id === workspaceMatch[1]);
+      if (!visibleWorkspace) {
+        throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+      }
+      if (visibleWorkspace.role !== 'owner') {
+        throw Object.assign(new Error('permission_denied'), { code: 'permission_denied' });
+      }
       const subscription = cloudBilling && cloudBilling.getSubscription(workspaceMatch[1]);
       if (subscription && subscription.provider === 'stripe' &&
           ['active', 'past_due'].includes(subscription.status)) {

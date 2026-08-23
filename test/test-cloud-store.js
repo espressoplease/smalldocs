@@ -219,6 +219,47 @@ module.exports = function(harness) {
       assert.strictEqual((await store.listProjects(member, team.workspaceId))[0].role, 'viewer');
     });
 
+    await testAsync('workspace administration stays opaque outside the account', async () => {
+      const unavailable = (error) => error.code === 'resource_unavailable';
+      const denied = (error) => error.code === 'permission_denied';
+
+      await assert.rejects(store.createProject({ userId: outsider,
+        workspaceId: team.workspaceId, name: 'Outside project' }), unavailable);
+      assert.throws(() => store.listWorkspaceMembers({ userId: outsider,
+        workspaceId: team.workspaceId }), unavailable);
+      assert.throws(() => store.setWorkspaceInviteDomains({ userId: outsider,
+        workspaceId: team.workspaceId, domains: ['outside.example'] }), unavailable);
+      await assert.rejects(store.createInvitation({ userId: outsider,
+        workspaceId: team.workspaceId, email: 'outside@example.com', role: 'member',
+        projectGrants: [] }), unavailable);
+      await assert.rejects(store.listWorkspaceInvitations({ userId: outsider,
+        workspaceId: team.workspaceId }), unavailable);
+      assert.throws(() => store.revokeWorkspaceInvitation({ userId: outsider,
+        workspaceId: team.workspaceId, invitationId: 'missing' }), unavailable);
+      assert.throws(() => store.removeWorkspaceMember({ actorUserId: outsider,
+        workspaceId: team.workspaceId, userId: member }), unavailable);
+      assert.throws(() => store.grantProject({ actorUserId: outsider,
+        workspaceId: team.workspaceId, projectId: team.projectId,
+        userId: member, role: 'viewer' }), unavailable);
+      assert.throws(() => store.transferWorkspaceOwnership({ actorUserId: outsider,
+        workspaceId: team.workspaceId, targetUserId: member }), unavailable);
+      assert.throws(() => store.deleteWorkspace({ userId: outsider,
+        workspaceId: team.workspaceId }), unavailable);
+      await assert.rejects(store.exportWorkspace({ userId: outsider,
+        workspaceId: team.workspaceId }), unavailable);
+      assert.throws(() => store.listAuditEvents({ userId: outsider,
+        workspaceId: team.workspaceId }), unavailable);
+
+      await assert.rejects(store.createProject({ userId: member,
+        workspaceId: team.workspaceId, name: 'Member project' }), denied);
+      assert.throws(() => store.listWorkspaceMembers({ userId: member,
+        workspaceId: team.workspaceId }), denied);
+      await assert.rejects(store.exportWorkspace({ userId: member,
+        workspaceId: team.workspaceId }), denied);
+      assert.throws(() => store.listAuditEvents({ userId: member,
+        workspaceId: team.workspaceId }), denied);
+    });
+
     await testAsync('team invite defaults use company email domains but not public providers', async () => {
       assert.strictEqual(defaultInviteDomainFromEmail('Owner@Acme.com'), 'acme.com');
       assert.strictEqual(defaultInviteDomainFromEmail('owner@gmail.com'), null);
@@ -874,7 +915,7 @@ module.exports = function(harness) {
       assert.deepStrictEqual(roles, ['owner', 'owner']);
       assert.throws(() => store.transferWorkspaceOwnership({ actorUserId: outsider,
         workspaceId: team.workspaceId, targetUserId: owner }),
-      (error) => error.code === 'permission_denied');
+      (error) => error.code === 'resource_unavailable');
       assert.throws(() => store.transferWorkspaceOwnership({ actorUserId: owner,
         workspaceId: team.workspaceId, targetUserId: outsider }),
       (error) => error.code === 'resource_unavailable');
@@ -889,7 +930,7 @@ module.exports = function(harness) {
       const pending = await store.listWorkspaceInvitations({ userId: owner, workspaceId: team.workspaceId });
       assert.ok(pending.some((item) => item.id === invitation.id && item.email === 'pending@example.com'));
       await assert.rejects(() => store.listWorkspaceInvitations({ userId: outsider,
-        workspaceId: team.workspaceId }), (error) => error.code === 'permission_denied');
+        workspaceId: team.workspaceId }), (error) => error.code === 'resource_unavailable');
       assert.throws(() => store.revokeWorkspaceInvitation({ userId: owner,
         workspaceId: personal.workspaceId, invitationId: invitation.id }),
       (error) => error.code === 'resource_unavailable');
@@ -914,7 +955,7 @@ module.exports = function(harness) {
       (error) => error.code === 'personal_workspace_cannot_be_deleted');
       assert.throws(() => store.deleteWorkspace({ userId: outsider,
         workspaceId: team.workspaceId }),
-      (error) => error.code === 'permission_denied');
+      (error) => error.code === 'resource_unavailable');
       store.addWorkspaceMember({ actorUserId: owner, workspaceId: team.workspaceId,
         userId: collaborator, role: 'admin' });
       assert.throws(() => store.deleteWorkspace({ userId: collaborator,

@@ -56,6 +56,98 @@ async function json(context, baseURL, method, pathname, data) {
   return { response, body };
 }
 
+async function expectOpaqueDenials(context, baseURL, requests, expectedStatus, expectedError,
+  forbiddenValues) {
+  for (const request of requests) {
+    const result = await json(context, baseURL, request.method, request.pathname, request.data);
+    expect(result.response.status(), request.name).toBe(expectedStatus);
+    expect(result.body, request.name).toEqual({ ok: false, error: expectedError });
+    const serialized = JSON.stringify(result.body);
+    for (const value of forbiddenValues) {
+      expect(serialized, request.name + ' does not disclose protected data').not.toContain(value);
+    }
+  }
+}
+
+function protectedResourceRequests({ accountId, projectId, document, selectedUserId, runId }) {
+  const documentPath = '/api/cloud/v1/documents/' + document.id;
+  const revisionPath = documentPath + '/revisions/' + document.current_revision_id;
+  return [
+    { name: 'account selection', method: 'GET',
+      pathname: '/api/cloud/v1/account?account_id=' + encodeURIComponent(accountId) },
+    { name: 'project listing', method: 'GET',
+      pathname: '/api/cloud/v1/projects?workspace_id=' + encodeURIComponent(accountId) },
+    { name: 'workspace member listing', method: 'GET',
+      pathname: '/api/cloud/v1/workspaces/' + accountId + '/members' },
+    { name: 'workspace audit listing', method: 'GET',
+      pathname: '/api/cloud/v1/workspaces/' + accountId + '/audit' },
+    { name: 'workspace billing read', method: 'GET',
+      pathname: '/api/cloud/v1/workspaces/' + accountId + '/billing' },
+    { name: 'workspace invite policy read', method: 'GET',
+      pathname: '/api/cloud/v1/account/invite-policy?account_id=' +
+        encodeURIComponent(accountId) },
+    { name: 'workspace invitation listing', method: 'GET',
+      pathname: '/api/cloud/v1/workspaces/' + accountId + '/invitations' },
+    { name: 'workspace export', method: 'POST',
+      pathname: '/api/cloud/v1/workspaces/' + accountId + '/export', data: {} },
+    { name: 'workspace invite policy update', method: 'PATCH',
+      pathname: '/api/cloud/v1/account/invite-policy',
+      data: { account_id: accountId, domains: ['unauthorized.example'] } },
+    { name: 'workspace invitation create', method: 'POST',
+      pathname: '/api/cloud/v1/workspaces/' + accountId + '/invitations',
+      data: { email: TEST_IDENTITIES.owner, role: 'member',
+        project_grants: [{ project_id: projectId, role: 'editor' }] } },
+    { name: 'workspace invitation revoke', method: 'DELETE',
+      pathname: '/api/cloud/v1/workspaces/' + accountId + '/invitations/not-an-invitation',
+      data: {} },
+    { name: 'workspace member remove', method: 'DELETE',
+      pathname: '/api/cloud/v1/workspaces/' + accountId + '/members/' + selectedUserId,
+      data: {} },
+    { name: 'workspace owner add', method: 'POST',
+      pathname: '/api/cloud/v1/workspaces/' + accountId + '/owners',
+      data: { user_id: selectedUserId } },
+    { name: 'workspace delete', method: 'DELETE',
+      pathname: '/api/cloud/v1/workspaces/' + accountId, data: {} },
+    { name: 'workspace restore', method: 'POST',
+      pathname: '/api/cloud/v1/workspaces/' + accountId + '/restore', data: {} },
+    { name: 'document read', method: 'GET', pathname: documentPath },
+    { name: 'document head read', method: 'GET', pathname: documentPath + '/head' },
+    { name: 'document permission read', method: 'GET', pathname: documentPath + '/permission' },
+    { name: 'document history listing', method: 'GET', pathname: documentPath + '/revisions' },
+    { name: 'historical revision read', method: 'GET', pathname: revisionPath },
+    { name: 'document permission update', method: 'PATCH',
+      pathname: documentPath + '/permission',
+      data: { mode: 'everyone', member_user_ids: [] } },
+    { name: 'document tag update', method: 'PATCH', pathname: documentPath + '/tags',
+      data: { tags: ['unauthorized-' + runId],
+        expected_head_revision_id: document.current_revision_id,
+        idempotency_key: 'unauthorized-tags-' + runId } },
+    { name: 'document revision create', method: 'POST', pathname: documentPath + '/revisions',
+      data: { expected_head_revision_id: document.current_revision_id,
+        filename: 'unauthorized-' + runId + '.md', markdown: '# Unauthorized ' + runId,
+        idempotency_key: 'unauthorized-revision-' + runId } },
+    { name: 'historical revision restore', method: 'POST', pathname: revisionPath + '/restore',
+      data: { expected_head_revision_id: document.current_revision_id,
+        idempotency_key: 'unauthorized-history-restore-' + runId } },
+    { name: 'document delete', method: 'DELETE', pathname: documentPath,
+      data: { expected_head_revision_id: document.current_revision_id } },
+    { name: 'deleted document restore', method: 'POST', pathname: documentPath + '/restore',
+      data: { expected_head_revision_id: document.current_revision_id } },
+    { name: 'document notification', method: 'POST', pathname: '/api/cloud/v1/notifications',
+      data: { document_ids: [document.id], recipient_user_ids: [selectedUserId],
+        note: 'Unauthorized notification ' + runId,
+        idempotency_key: 'unauthorized-notification-' + runId } },
+    { name: 'workspace project create', method: 'POST',
+      pathname: '/api/cloud/v1/workspaces/' + accountId + '/projects',
+      data: { name: 'Unauthorized ' + runId } },
+    { name: 'document create in protected project', method: 'POST',
+      pathname: '/api/cloud/v1/documents',
+      data: { project_id: projectId, filename: 'unauthorized-' + runId + '.md',
+        markdown: '# Unauthorized ' + runId,
+        idempotency_key: 'unauthorized-create-' + runId } },
+  ];
+}
+
 async function visibleDocumentIds(context, baseURL, accountId) {
   const result = await json(context, baseURL, 'GET',
     '/api/cloud/v1/documents?workspace_id=' + encodeURIComponent(accountId));
@@ -107,6 +199,14 @@ function configuredStripeSubscriptionId() {
     throw new Error('CLOUD_E2E_STRIPE_SUBSCRIPTION_ID is only valid for a live staging run');
   }
   return subscriptionId;
+}
+
+function acceptanceRunId() {
+  const marker = String(process.env.CLOUD_E2E_AUDIT_MARKER || '').trim();
+  if (marker && !/^leak-audit-[a-z0-9-]{12,80}$/.test(marker)) {
+    throw new Error('CLOUD_E2E_AUDIT_MARKER must be a safe leak-audit marker');
+  }
+  return marker || Date.now() + '-' + Math.random().toString(16).slice(2);
 }
 
 function stripeSubscription(subscriptionId) {
@@ -182,10 +282,12 @@ test('reusable staging identities enforce access and merge two-account edits', a
 
   try {
     contexts.owner = await ownerContext(browser, baseURL);
-    for (const name of ['selected', 'removed']) {
+    for (const name of ['selected', 'removed', 'outsider']) {
       const email = TEST_IDENTITIES[name];
       contexts[name] = await login(browser, baseURL, email, secret);
     }
+    contexts.signedOut = await browser.newContext({ baseURL, ignoreHTTPSErrors: true,
+      serviceWorkers: 'block' });
     owner = contexts.owner;
     removed = contexts.removed;
 
@@ -225,7 +327,7 @@ test('reusable staging identities enforce access and merge two-account edits', a
     expect(projects.response.status()).toBe(200);
     projectId = projects.body.projects.find(project => project.role === 'editor').id;
 
-    const runId = Date.now() + '-' + Math.random().toString(16).slice(2);
+    const runId = acceptanceRunId();
     const created = await json(owner, baseURL, 'POST', '/api/cloud/v1/account/documents', {
       account_id: accountId,
       filename: 'cloud-access-matrix-' + runId + '.md',
@@ -237,6 +339,33 @@ test('reusable staging identities enforce access and merge two-account edits', a
     document = created.body.document;
     expect(created.body.permission.mode).toBe('custom');
     expect(created.body.permission.member_user_ids).toEqual([ownerMember.user_id]);
+
+    const protectedRequests = protectedResourceRequests({ accountId, projectId, document,
+      selectedUserId: selectedMember.user_id, runId });
+    const forbiddenValues = [accountId, projectId, document.id, document.current_revision_id,
+      runId, 'A unique permission test document.'];
+    await expectOpaqueDenials(contexts.outsider, baseURL, protectedRequests, 404,
+      'resource_unavailable', forbiddenValues);
+    await expectOpaqueDenials(contexts.signedOut, baseURL, protectedRequests, 401,
+      'login_required', forbiddenValues);
+
+    const outsiderDeleted = await json(contexts.outsider, baseURL, 'GET',
+      '/api/cloud/v1/documents/deleted?workspace_id=' + encodeURIComponent(accountId));
+    expect(outsiderDeleted.response.status()).toBe(200);
+    expect(outsiderDeleted.body).toEqual({ ok: true, documents: [] });
+    const signedOutDeleted = await json(contexts.signedOut, baseURL, 'GET',
+      '/api/cloud/v1/documents/deleted?workspace_id=' + encodeURIComponent(accountId));
+    expect(signedOutDeleted.response.status()).toBe(401);
+    expect(signedOutDeleted.body).toEqual({ ok: false, error: 'login_required' });
+
+    const afterDirectDenials = await json(owner, baseURL, 'GET',
+      '/api/cloud/v1/documents/' + document.id);
+    expect(afterDirectDenials.response.status()).toBe(200);
+    expect(afterDirectDenials.body.document.markdown)
+      .toContain('A unique permission test document.');
+    expect(afterDirectDenials.body.document.tags).toEqual(['seeded-local-tag']);
+    expect(afterDirectDenials.body.permission.mode).toBe('custom');
+    expect(afterDirectDenials.body.permission.member_user_ids).toEqual([ownerMember.user_id]);
 
     for (const name of ['selected', 'removed']) {
       const opened = await json(contexts[name], baseURL, 'GET',
