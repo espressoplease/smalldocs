@@ -736,7 +736,7 @@
             if (fxCell.kind === 'error') {
               el.textContent = fxCell.code;
             } else if (fxCell.kind === 'number') {
-              var fcell = { value: fxCell.value, raw: String(fxCell.value), type: 'number' };
+              var fcell = { value: fxCell.value, raw: String(fxCell.value), type: 'number', computed: true };
               el.textContent = CELLS.formatValue(fcell, fmt);
             } else if (fxCell.kind === 'boolean') {
               el.textContent = fxCell.value ? 'TRUE' : 'FALSE';

@@ -423,6 +423,13 @@ test('malformed format targets never apply a valid-looking substring', async ({ 
   }
 });
 
+test('high fixed precision on formulas does not expose binary residue', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'format: A=.30', '=0.1+0.2', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-cell[data-r="0"][data-c="0"]').innerText())
+    .toBe('0.300000000000000000000000000000');
+});
+
 test('clicking a column header selects the whole column; a row header the whole row', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'a,b,c', '1,2,3', '4,5,6', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');

@@ -311,6 +311,9 @@ module.exports = function(harness) {
   test('formatValue: high fixed precision does not expose binary residue', () => {
     assert.strictEqual(formatValue(classify('1.2'), { kind: 'number', decimals: 30 }),
       '1.200000000000000000000000000000');
+    assert.strictEqual(formatValue({
+      raw: String(0.1 + 0.2), value: 0.1 + 0.2, type: 'number', computed: true,
+    }, { kind: 'number', decimals: 30 }), '0.300000000000000000000000000000');
   });
 
   test('formatValue: fixed currency and percent normalize negative zero', () => {

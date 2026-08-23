@@ -495,28 +495,37 @@
     return (parts.negative ? '-' : '') + out;
   }
 
+  // Excel calculates to 15 significant decimal digits. Formula results arrive
+  // here as IEEE Numbers, whose shortest JS string can expose a 16th or 17th
+  // binary-conversion digit when a user requests a high-precision format.
+  function displayRaw(cell) {
+    if (!cell.computed || !isFinite(cell.value) || cell.value === 0) return cell.raw;
+    return Number(cell.value).toPrecision(15);
+  }
+
   // Format a numeric cell's display per a column format. Returns null for
   // non-number cells (the caller falls back to text rendering). Display only -
   // the model's raw is untouched, so copy / export emit the original.
   function formatValue(cell, fmt) {
     if (!cell || cell.type !== 'number') return null;
+    var raw = displayRaw(cell);
     if (!fmt || fmt.kind === 'number') {
       var decimals = !fmt ? 2 : fmt.decimals;
       var numberText = decimals != null
-        ? roundDecimalString(cell.raw, decimals, !fmt || fmt.trim)
-        : cell.raw;
+        ? roundDecimalString(raw, decimals, !fmt || fmt.trim)
+        : raw;
       return formatNumber(numberText);
     }
     if (fmt.kind === 'plain') return cell.raw;
     if (fmt.kind === 'currency') {
       var d = fmt.decimals == null ? 2 : fmt.decimals;
-      var money = roundDecimalString(cell.raw, d, false);
+      var money = roundDecimalString(raw, d, false);
       var moneyNegative = money && money.charAt(0) === '-';
       if (moneyNegative) money = money.slice(1);
       return (moneyNegative ? '-' : '') + fmt.symbol + formatNumber(money);
     }
     if (fmt.kind === 'percent') {
-      var shifted = shiftDecimalString(cell.raw, 2);
+      var shifted = shiftDecimalString(raw, 2);
       var str = roundDecimalString(shifted, fmt.decimals == null ? 2 : fmt.decimals,
         fmt.decimals == null);
       return formatNumber(str) + '%';
