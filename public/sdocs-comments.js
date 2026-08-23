@@ -15,6 +15,10 @@
  *   Block-anchored:
  *     { id, kind: 'block', block, author, color, at, text }
  *
+ *   Nested-element-anchored:
+ *     { id, kind: 'element', block, element, element_text, element_scope,
+ *       author, color, at, text }
+ *
  *   Slide-anchored (a ```slide block, optionally a single shape within it):
  *     { id, kind: 'slide', slide, shape?, slide_text?, author, color, at, text }
  *
@@ -24,6 +28,12 @@
  * - `block` is a "tagname:index-among-siblings-of-that-tagname" hint, e.g.
  *   "p:3" = 4th <p> in render order. Per-type indexing is more resilient to
  *   block reordering than a single global ordinal.
+ * - `element` is a structural path below `block`, e.g.
+ *   "li:1/ul:0/li:0". Each segment is the tag plus its index among direct
+ *   siblings of the same tag. `element_text` is the element's leading text
+ *   and lets the renderer recover when an item is inserted before it.
+ *   `element_scope` is "self" for one item or "branch" for the item and its
+ *   nested descendants.
  * - `slide` is the 0-based index of the ```slide block in document order.
  *   `shape` (optional) is the 0-based index of a shape within that slide's
  *   resolved DSL - it matches the `data-shape-idx` the renderer stamps on
@@ -47,6 +57,7 @@
 var DEFAULT_COLOR = '#ffbb00';
 var HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 var ID_FORMAT = /^c\d+$/;
+var ELEMENT_PATH = /^(?:li|ul|ol):\d+(?:\/(?:li|ul|ol):\d+)*$/;
 
 // Comment ids are written into a CSS selector
 // (`.sdoc-card[data-c="..."]`). Crafted ids with quotes or brackets
@@ -132,6 +143,14 @@ function normalizeComment(c) {
     if (c.prefix) out.prefix = c.prefix;
     if (c.suffix) out.suffix = c.suffix;
   }
+  if (out.kind === 'element') {
+    if (!c.block || typeof c.element !== 'string' || !ELEMENT_PATH.test(c.element)) {
+      return null;
+    }
+    out.element = c.element;
+    if (c.element_text) out.element_text = c.element_text;
+    out.element_scope = c.element_scope === 'branch' ? 'branch' : 'self';
+  }
   if (out.kind === 'slide') {
     // A slide comment without a resolvable slide index is meaningless;
     // default to slide 0 rather than dropping the note entirely.
@@ -204,6 +223,32 @@ function addBlockComment(meta, anchor, noteMeta) {
     kind: 'block',
     block: anchor.block,
     block_text: anchor.block_text || '',
+    author: (noteMeta || {}).author,
+    color: (noteMeta || {}).color,
+    at: (noteMeta || {}).at,
+    text: (noteMeta || {}).text,
+  });
+  var list = getComments(meta);
+  list.push(c);
+  return { meta: setComments(meta, list), id: id };
+}
+
+// anchor: { block, element, element_text?, element_scope? }.
+// `element` is a direct-descendant path below the named top-level block.
+function addElementComment(meta, anchor, noteMeta) {
+  if (!anchor || typeof anchor.block !== 'string' || !anchor.block ||
+      typeof anchor.element !== 'string' || !ELEMENT_PATH.test(anchor.element)) {
+    throw new Error('addElementComment requires a block id and valid element path');
+  }
+  var id = nextId(meta);
+  var c = normalizeComment({
+    id: id,
+    kind: 'element',
+    block: anchor.block,
+    block_text: anchor.block_text || '',
+    element: anchor.element,
+    element_text: anchor.element_text || '',
+    element_scope: anchor.element_scope,
     author: (noteMeta || {}).author,
     color: (noteMeta || {}).color,
     at: (noteMeta || {}).at,
@@ -394,6 +439,12 @@ function serializeFootnotes(meta, body) {
       if (c.block_text) blockTag += ' "' + sanitizeText(c.block_text) + '..."';
       label += ' (block ' + blockTag + ')';
     }
+    if (c.kind === 'element' && c.block && c.element) {
+      var elementTag = c.block + ' > ' + c.element;
+      if (c.element_scope === 'branch') elementTag += ' branch';
+      if (c.element_text) elementTag += ' "' + sanitizeText(c.element_text) + '..."';
+      label += ' (element ' + elementTag + ')';
+    }
     if (c.kind === 'slide') {
       // Slides don't anchor into body text (their source is the fenced DSL,
       // which we never rewrite), so the location rides entirely in the
@@ -511,6 +562,18 @@ function parseFootnotes(body) {
       out.block = tag[1];
       out.text = out.text.replace(/\s*\(block\s+\w+:\d+\)\s*$/, '');
     }
+    // Trailing nested-element hint emitted for list-item comments.
+    var eTag = (out.text || '').match(
+      /\s*\(element\s+(\w+:\d+)\s+>\s+((?:li|ul|ol):\d+(?:\/(?:li|ul|ol):\d+)*)(\s+branch)?(?:\s+"([^"]*)\.\.\.")?\)\s*$/);
+    if (eTag) {
+      out.block = eTag[1];
+      out.element = eTag[2];
+      out.element_scope = eTag[3] ? 'branch' : 'self';
+      if (eTag[4]) out.element_text = eTag[4];
+      out.text = out.text.replace(
+        /\s*\(element\s+\w+:\d+\s+>\s+(?:li|ul|ol):\d+(?:\/(?:li|ul|ol):\d+)*(?:\s+branch)?(?:\s+"[^"]*\.\.\.")?\)\s*$/,
+        '');
+    }
     // Trailing "(slide N[, element M][ "text"])" hint - the inverse of the
     // slide label serializeFootnotes emits. Slide number is 1-based on disk;
     // store it 0-based to match the in-memory anchor.
@@ -578,7 +641,13 @@ function parseFootnotes(body) {
     seen[id] = true;
     var d3 = decodeDef(defs[id]);
     var c3;
-    if (typeof d3.slide === 'number') {
+    if (d3.element) {
+      c3 = {
+        id: id, kind: 'element', block: d3.block, element: d3.element,
+        element_scope: d3.element_scope, text: d3.text,
+      };
+      if (d3.element_text) c3.element_text = d3.element_text;
+    } else if (typeof d3.slide === 'number') {
       // Slide notes carry a "(slide N ...)" hint and no body marker, so they
       // land here as orphan definitions. Rebuild the slide anchor.
       c3 = { id: id, kind: 'slide', slide: d3.slide, text: d3.text };
@@ -614,6 +683,7 @@ exports.nextId              = nextId;
 exports.normalizeComment    = normalizeComment;
 exports.addSelectionComment = addSelectionComment;
 exports.addBlockComment     = addBlockComment;
+exports.addElementComment   = addElementComment;
 exports.addSlideComment     = addSlideComment;
 exports.removeComment       = removeComment;
 exports.updateComment       = updateComment;

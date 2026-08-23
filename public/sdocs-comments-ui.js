@@ -53,13 +53,19 @@ function strip() {
     parent.normalize();
   });
   // Remove injected cards + gutter buttons + heading-copy-with-comments buttons
-  S.renderedEl.querySelectorAll('.sdoc-card, .sdoc-gutter-add, .sdoc-head-copy-c')
+  S.renderedEl.querySelectorAll('.sdoc-card, .sdoc-gutter-add, .sdoc-element-add, .sdoc-head-copy-c')
     .forEach(function (el) { el.remove(); });
   // Clear block-comment indicator class + its CSS var.
   S.renderedEl.querySelectorAll('.sdoc-block-commented').forEach(function (el) {
     el.classList.remove('sdoc-block-commented');
     el.style.removeProperty('--sdoc-block-comment-color');
   });
+  S.renderedEl.querySelectorAll('.sdoc-element-commentable, .sdoc-element-commented')
+    .forEach(function (el) {
+      el.classList.remove('sdoc-element-commentable', 'sdoc-element-commented',
+        'sdoc-element-branch-commented');
+      el.style.removeProperty('--sdoc-element-comment-color');
+    });
   // Unwrap block-hosts (gutter button already removed above)
   S.renderedEl.querySelectorAll('.sdoc-block-host').forEach(function (host) {
     var parent = host.parentNode;
@@ -113,6 +119,16 @@ function computeBlockId(block, root) {
   return pos === -1 ? '' : t + ':' + pos;
 }
 
+function containingTopBlock(node, root) {
+  if (!node || !root) return null;
+  var el = node.nodeType === 1 ? node : node.parentNode;
+  var blocks = listTopBlocks(root).blocks;
+  for (var i = 0; i < blocks.length; i++) {
+    if (blocks[i].el === el || blocks[i].el.contains(el)) return blocks[i].el;
+  }
+  return null;
+}
+
 function findBlockById(id, root, blockText) {
   if (!root) return null;
   var idx = listTopBlocks(root);
@@ -137,6 +153,99 @@ function findBlockById(id, root, blockText) {
       var b = idx.blocks[i].el;
       if ((b.textContent || '').trim().indexOf(blockText) === 0) return b;
     }
+  }
+  return null;
+}
+
+var ELEMENT_SEGMENT = /^(li|ul|ol):(\d+)$/;
+
+// Build a direct-descendant path below a top-level block. Including nested
+// list containers keeps ordered and unordered branches distinct.
+function computeElementPath(element, block) {
+  if (!element || !block || element === block || !block.contains(element)) return '';
+  var parts = [];
+  var node = element;
+  while (node && node !== block) {
+    var tag = node.tagName && node.tagName.toLowerCase();
+    if (!tag || !/^(?:li|ul|ol)$/.test(tag) || !node.parentElement) return '';
+    var same = Array.prototype.filter.call(node.parentElement.children, function (child) {
+      return child.tagName && child.tagName.toLowerCase() === tag;
+    });
+    var pos = same.indexOf(node);
+    if (pos < 0) return '';
+    parts.unshift(tag + ':' + pos);
+    node = node.parentElement;
+  }
+  return node === block ? parts.join('/') : '';
+}
+
+// Text belonging to one list item, excluding nested list branches and comment
+// UI. This is the drift-recovery fingerprint stored with the structural path.
+function elementOwnText(element) {
+  if (!element) return '';
+  var clone = element.cloneNode(true);
+  clone.querySelectorAll('ul, ol, .sdoc-card, .sdoc-element-add')
+    .forEach(function (child) { child.remove(); });
+  return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function walkElementPath(block, path) {
+  if (!block || !path) return null;
+  var current = block;
+  var parts = path.split('/');
+  for (var i = 0; i < parts.length; i++) {
+    var match = ELEMENT_SEGMENT.exec(parts[i]);
+    if (!match) return null;
+    var tag = match[1];
+    var wanted = parseInt(match[2], 10);
+    var children = Array.prototype.filter.call(current.children, function (child) {
+      return child.tagName && child.tagName.toLowerCase() === tag;
+    });
+    current = children[wanted] || null;
+    if (!current) return null;
+  }
+  return current;
+}
+
+function findElementTarget(c, root) {
+  if (!c || !c.block || !c.element) return null;
+  // Prefer the current block ordinal without requiring its full text to stay
+  // unchanged. Inserting an item into a list changes the list's text but should
+  // not invalidate a comment on an existing item.
+  var block = findBlockById(c.block, root, null);
+  var found = findElementInBlock(c, block);
+  if (found) return found;
+
+  // If the top-level block itself moved, use its text hint, then scan sibling
+  // blocks of the same type for the element fingerprint.
+  var hinted = findBlockById(c.block, root, c.block_text);
+  if (hinted && hinted !== block) {
+    found = findElementInBlock(c, hinted);
+    if (found) return found;
+  }
+  var type = c.block.split(':')[0];
+  var candidates = listTopBlocks(root).byType[type] || [];
+  for (var i = 0; i < candidates.length; i++) {
+    if (candidates[i] === block || candidates[i] === hinted) continue;
+    found = findElementInBlock(c, candidates[i]);
+    if (found) return found;
+  }
+  return null;
+}
+
+function findElementInBlock(c, block) {
+  if (!block) return null;
+  var exact = walkElementPath(block, c.element);
+  if (exact && (!c.element_text || elementOwnText(exact).indexOf(c.element_text) === 0)) {
+    return exact;
+  }
+  if (!c.element_text) return exact;
+  var last = c.element.split('/').pop();
+  var match = ELEMENT_SEGMENT.exec(last);
+  if (!match) return null;
+  var elements = block.querySelectorAll(match[1]);
+  for (var i = 0; i < elements.length; i++) {
+    if (elementOwnText(elements[i]).indexOf(c.element_text) === 0) return elements[i];
   }
   return null;
 }
@@ -490,6 +599,19 @@ function renderComment(c) {
     S.renderedEl.appendChild(orphan);
     return true;
   }
+  if (c.kind === 'element') {
+    var element = findElementTarget(c, S.renderedEl);
+    if (element) {
+      markElementCommented(element, c.color, c.element_scope);
+      var elementCard = makeCardElement(c, { shape: 'sidecar', mode: 'view' });
+      elementCard.classList.add('sdoc-element-card');
+      insertElementCard(element, elementCard, c.element_scope);
+      return false;
+    }
+    var orphanElement = makeCardElement(c, { shape: 'sidecar', mode: 'view', orphaned: true });
+    S.renderedEl.appendChild(orphanElement);
+    return true;
+  }
   // kind === 'block'
   var block = findBlockById(c.block, S.renderedEl, c.block_text);
   if (block) {
@@ -593,6 +715,30 @@ function injectGutterButtons() {
     host.appendChild(block);
     host.appendChild(makeGutterBtn(block));
   });
+  injectElementButtons();
+}
+
+function makeElementBtn(targetElement, scope) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sdoc-element-add';
+  btn.setAttribute('aria-label', 'Add comment on this list item only. Shift-click to include nested items.');
+  btn.title = 'Comment on this list item only. Shift-click to include nested items.';
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    openElementComposer(targetElement, e.shiftKey ? 'branch' : (scope || 'self'));
+  });
+  return btn;
+}
+
+function injectElementButtons() {
+  S.renderedEl.querySelectorAll('ul li, ol li').forEach(function (item) {
+    if (item.closest('.sdoc-card') || item.querySelector(':scope > .sdoc-element-add')) return;
+    item.classList.add('sdoc-element-commentable');
+    item.appendChild(makeElementBtn(item, 'self'));
+  });
 }
 
 // ── Selection popover ───────────────────────────────────────────────────
@@ -634,12 +780,12 @@ function handleSelectionChange() {
     return hideSelectionPopover();
   }
 
-  // Reject multi-block selections. This guard is what prevents a user from
-  // commenting across paragraphs, which in the sidecar model would also be
-  // meaningless (the quote wouldn't live in a single block).
-  var startBlock = nearestTopBlock(range.startContainer);
-  var endBlock   = nearestTopBlock(range.endContainer);
-  if (!startBlock || startBlock !== endBlock) return hideSelectionPopover();
+  // Reject selections that cross the smallest structural text container.
+  // Two list items share one outer <ul>, so checking only the top block would
+  // allow an anchor that the per-item resolver can never reconstruct.
+  var startScope = nearestSelectionScope(range.startContainer);
+  var endScope   = nearestSelectionScope(range.endContainer);
+  if (!startScope || startScope !== endScope) return hideSelectionPopover();
 
   // Reject selections inside .katex (rendered text differs from source).
   // Inline <code> and <pre><code> ARE allowed - the sidecar model anchors
@@ -667,6 +813,16 @@ function handleSelectionChange() {
     pop.style.top  = (rect.top - 42) + 'px';
   }
   pop.style.left = (rect.right - 15) + 'px';
+}
+
+function nearestSelectionScope(node) {
+  var el = node.nodeType === 1 ? node : node.parentNode;
+  while (el && el !== S.renderedEl && el !== document.body) {
+    if (el.matches && el.matches('li, td, th')) return el;
+    if (el.matches && el.matches(TOP_BLOCK_SEL)) return el;
+    el = el.parentNode;
+  }
+  return null;
 }
 
 // ── Composer ────────────────────────────────────────────────────────────
@@ -731,6 +887,76 @@ function openBlockComposer(block) {
   (host || block.parentNode).appendChild(composer);
 }
 
+function markElementCommented(element, color, scope) {
+  element.classList.add('sdoc-element-commented');
+  if (scope === 'branch') element.classList.add('sdoc-element-branch-commented');
+  element.style.setProperty('--sdoc-element-comment-color', color);
+}
+
+function insertElementCard(element, card, scope) {
+  if (scope === 'branch') {
+    element.appendChild(card);
+    return;
+  }
+  var nested = Array.prototype.find.call(element.children, function (child) {
+    return child.tagName === 'UL' || child.tagName === 'OL';
+  });
+  element.insertBefore(card, nested || null);
+}
+
+function openElementComposer(element, scope) {
+  hideComposer();
+  var prefs = readPrefs();
+  var block = containingTopBlock(element, S.renderedEl);
+  var blockId = computeBlockId(block, S.renderedEl);
+  var elementPath = computeElementPath(element, block);
+  if (!blockId || !elementPath) return;
+  var blockText = (block.textContent || '').slice(0, 60).trim();
+  var elementText = elementOwnText(element).slice(0, 60);
+  markElementCommented(element, prefs.color, scope);
+
+  var draft = { color: prefs.color, author: prefs.author };
+  var composer = makeCardElement(draft, {
+    shape: 'sidecar',
+    mode: 'compose',
+    onSave: function (text) {
+      var res = SDC.addElementComment(S.currentMeta || {}, {
+        block: blockId,
+        block_text: blockText,
+        element: elementPath,
+        element_text: elementText,
+        element_scope: scope,
+      }, {
+        author: prefs.author, color: prefs.color,
+        at: new Date().toISOString(), text: text,
+      });
+      S.currentMeta = res.meta;
+      hideComposer();
+      if (S.syncAll) S.syncAll('comment');
+      setTimeout(function () { focusComment(res.id); }, 30);
+    },
+    onCancel: function () {
+      hideComposer();
+      if (!hasElementComment(blockId, elementPath)) {
+        element.classList.remove('sdoc-element-commented', 'sdoc-element-branch-commented');
+        element.style.removeProperty('--sdoc-element-comment-color');
+      }
+    },
+  });
+  composer.classList.add('sdoc-element-card');
+  composerEl = composer;
+  insertElementCard(element, composer, scope);
+}
+
+function hasElementComment(blockId, elementPath) {
+  var list = SDC.getComments(S.currentMeta || {});
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].kind === 'element' && list[i].block === blockId &&
+        list[i].element === elementPath) return true;
+  }
+  return false;
+}
+
 function hasBlockComment(blockId) {
   var list = SDC.getComments(S.currentMeta || {});
   for (var i = 0; i < list.length; i++) {
@@ -760,7 +986,7 @@ function openSelectionComposerFromSelection(range) {
   var prefs = readPrefs();
   var quote = range.toString();
   if (!quote) return;
-  var block = nearestTopBlock(range.startContainer);
+  var block = containingTopBlock(range.startContainer, S.renderedEl);
   if (!block) return;
   var ctx = captureContext(range, block);
   var blockId = computeBlockId(block, S.renderedEl);
@@ -1137,6 +1363,10 @@ function extractSectionSource(headingEl) {
       var bEl = findBlockById(c.block, S.renderedEl, c.block_text);
       return bEl && blocksInSection.indexOf(bEl) !== -1;
     }
+    if (c.kind === 'element' && c.block && c.element) {
+      var eEl = findElementTarget(c, S.renderedEl);
+      return eEl && inBlocks(eEl);
+    }
     if (c.kind === 'slide' && typeof c.slide === 'number') {
       // A slide note is in-section when its rendered .sdoc-slide sits inside
       // the heading's section. .sdoc-slide isn't a TOP_BLOCK_SEL block, so it
@@ -1381,6 +1611,11 @@ function copyWithComments(headingEl, docWide, mods) {
 function render() {
   if (!S.renderedEl) return;
   if (!document.body.classList.contains('comment-mode')) return;
+  // Lazy syntax highlighting asks comment mode to repaint after it settles.
+  // Keep an active composer in place during that repaint; its target DOM is
+  // still connected, and stripping it would discard text while the user types.
+  if ((composerEl && composerEl.isConnected) ||
+      S.renderedEl.querySelector('.sdoc-card-edit')) return;
   strip();
   // Inject hosts BEFORE rendering comments so block-level renders can
   // attach the sidecar inside the host (and apply .sdoc-host-commented).
@@ -1504,6 +1739,8 @@ S.commentsUi = {
   // Exposed for tests.
   _computeBlockId: computeBlockId,
   _findBlockById: findBlockById,
+  _computeElementPath: computeElementPath,
+  _findElementTarget: findElementTarget,
   _resolveAnchor: resolveAnchor,
 };
 
