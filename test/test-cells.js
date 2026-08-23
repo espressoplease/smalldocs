@@ -270,6 +270,12 @@ module.exports = function(harness) {
     assert.strictEqual(f[3].decimals, 2);
   });
 
+  test('parseFormats: decimal precision is capped to an Excel-compatible size', () => {
+    const f = parseFormats('A=$.1000000000 B=%.999999');
+    assert.strictEqual(f[0].decimals, 30);
+    assert.strictEqual(f[1].decimals, 30);
+  });
+
   test('formatValue: currency', () => {
     assert.strictEqual(formatValue(classify('12000'), { kind: 'currency', symbol: '$', decimals: 2 }), '$12,000.00');
     assert.strictEqual(formatValue(classify('-1200'), { kind: 'currency', symbol: '$', decimals: 2 }), '-$1,200.00');

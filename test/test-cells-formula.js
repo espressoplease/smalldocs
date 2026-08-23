@@ -66,6 +66,14 @@ module.exports = function (harness) {
     assert.strictEqual(evalIn([], '=1+'), '#VALUE!');
   });
 
+  test('formula: a literal #REF! is parsed as an expression value, not an early tokenizer exit', () => {
+    // The unchosen IF branch must not poison the whole formula. More
+    // importantly for export validation, the parser must still inspect every
+    // token after an error literal rather than throwing as soon as it sees #.
+    assert.strictEqual(evalIn([], '=IF(1,1,#REF!)'), 1);
+    assert.strictEqual(evalIn([], '=IF(0,1,#REF!)'), '#REF!');
+  });
+
   test('formula: chained references recalc', () => {
     const m = model([['2'], ['=A1*3'], ['=A2+1']]);
     const res = F.recalc(m);
@@ -231,5 +239,108 @@ module.exports = function (harness) {
     assert.strictEqual(F.shiftFormula('=SUM(A1:B2)*3', 0, 0), '=SUM(A1:B2)*3');
     assert.strictEqual(F.shiftFormula('plain text', 1, 1), 'plain text');
     assert.strictEqual(F.shiftFormula('123', 1, 1), '123');
+  });
+
+  test('formula: string, boolean, concatenation, and error handling return typed values', () => {
+    const text = F.evaluate('=UPPER("small")&" docs"', { cell: () => ({ kind: 'empty' }) });
+    assert.deepStrictEqual(text, { value: 'SMALL docs', kind: 'text', safe: true });
+    const bool = F.evaluate('=AND(TRUE,NOT(FALSE))', { cell: () => ({ kind: 'empty' }) });
+    assert.deepStrictEqual(bool, { value: true, kind: 'boolean', safe: true });
+    assert.deepStrictEqual(F.evaluate('=2>1', { cell: () => ({ kind: 'empty' }) }),
+      { value: true, kind: 'boolean', safe: true });
+    assert.strictEqual(F.evaluate('=IFERROR(1/0,"fallback")', { cell: () => ({ kind: 'empty' }) }).value, 'fallback');
+  });
+
+  test('formula: common math, conditional aggregate, lookup, date, and finance functions', () => {
+    const m = model([
+      ['Key', 'Value'],
+      ['a', '10'],
+      ['b', '20'],
+      ['c', '30'],
+      ['sum b+', '=SUMIF(B2:B4,">=20")'],
+      ['lookup', '=XLOOKUP("b",A2:A4,B2:B4)'],
+      ['vlookup', '=VLOOKUP("c",A2:B4,2,FALSE)'],
+      ['index', '=INDEX(B2:B4,MATCH("a",A2:A4,0))'],
+      ['date', '=YEAR(DATE(2026,8,23))'],
+      ['npv', '=ROUND(NPV(0.1,100,100),2)'],
+    ]);
+    const fx = F.recalc(m);
+    assert.strictEqual(fx[4][1].value, 50);
+    assert.strictEqual(fx[5][1].value, 20);
+    assert.strictEqual(fx[6][1].value, 30);
+    assert.strictEqual(fx[7][1].value, 10);
+    assert.strictEqual(fx[8][1].value, 2026);
+    assert.strictEqual(fx[9][1].value, 173.55);
+    assert.strictEqual(F.evaluate('=ROUND(-1.5,0)', { cell: () => ({ kind: 'empty' }) }).value, -2);
+    assert.strictEqual(F.evaluate('=ROUND(1.005,2)', { cell: () => ({ kind: 'empty' }) }).value, 1.01);
+  });
+
+  test('formula: quoted and punctuation sheet names resolve case-insensitively', () => {
+    const wb = workbook({
+      'Rev by Region': [['Key', 'Value'], ['x', '42']],
+      'A_B.2026': [['=\'Rev by Region\'!$B$2']],
+      Summary: [['=A_B.2026!A1']],
+    });
+    assert.strictEqual(wb['A_B.2026'][0][0].value, 42);
+    assert.strictEqual(wb.Summary[0][0].value, 42);
+  });
+
+  test('shiftFormula: mixed and absolute references keep anchored axes', () => {
+    assert.strictEqual(F.shiftFormula('=$A1+A$1+$A$1+A1', 1, 1), '=$A2+B$1+$A$1+B2');
+    assert.strictEqual(F.shiftFormula('=\'Rev by Region\'!$A1+Sheet1!B$2', 1, 1),
+      '=\'Rev by Region\'!$A2+Sheet1!C$2');
+    assert.strictEqual(F.shiftFormula('="A1"&A1', 1, 1), '="A1"&B2');
+  });
+
+  test('formula: full Excel-sized sparse ranges only visit populated cells', () => {
+    const m = model([['1'], ['2'], ['=SUM(A1:XFD2)']]);
+    assert.strictEqual(F.recalc(m)[2][0].value, 3);
+    assert.strictEqual(F.evaluate('=SUM(A1:XFE1)', { cell: () => ({ kind: 'empty' }) }).error, '#REF!');
+  });
+
+  test('formula: malformed numeric lexemes fail closed for export safety', () => {
+    const ctx = { cell: () => ({ kind: 'empty' }) };
+    ['=1.2.3', '=1e', '=1e+'].forEach((formula) => {
+      const out = F.evaluate(formula, ctx);
+      assert.strictEqual(out.error, '#VALUE!');
+      assert.strictEqual(out.safe, false);
+    });
+  });
+
+  test('formula: export safety propagates through referenced formulas', () => {
+    const m = model([['=IF(TRUE,1,WEBSERVICE(B1))', '=A1+1']]);
+    const fx = F.recalc(m);
+    assert.strictEqual(fx[0][0].value, 1);
+    assert.strictEqual(fx[0][0].safe, false);
+    assert.strictEqual(fx[0][1].value, 2);
+    assert.strictEqual(fx[0][1].safe, false);
+  });
+
+  test('formula: missing-sheet ranges return #REF even in COUNT', () => {
+    const wb = workbook({ Summary: [['=COUNT(Nope!A1:A2)']] });
+    assert.strictEqual(wb.Summary[0][0].code, '#REF!');
+  });
+
+  test('formula: positional and criteria ranges preserve implicit blanks', () => {
+    const m = model([['x', '', '', '=INDEX(A1:C1,1,3)', '=COUNTIF(A1:A10,"")']]);
+    const fx = F.recalc(m);
+    assert.strictEqual(fx[0][3].value, '');
+    assert.strictEqual(fx[0][4].value, 9);
+  });
+
+  test('formula: reviewed functions follow Excel edge semantics', () => {
+    const m = model([
+      ['1', '10', '=AVERAGEIF(A1:A2,">0",B1:B2)'],
+      ['2', 'x', '=XLOOKUP("A",D2:D2,E2:E2)', 'a', '7'],
+    ]);
+    const fx = F.recalc(m);
+    assert.strictEqual(fx[0][2].value, 10);
+    assert.strictEqual(fx[1][2].value, 7);
+    assert.strictEqual(F.evaluate('=DATE(1900,1,1)', { cell: () => ({ kind: 'empty' }) }).value, 1);
+    assert.strictEqual(F.evaluate('=AND(FALSE,1/0)', { cell: () => ({ kind: 'empty' }) }).error, '#DIV/0!');
+    assert.strictEqual(F.evaluate('=OR(TRUE,1/0)', { cell: () => ({ kind: 'empty' }) }).error, '#DIV/0!');
+    assert.strictEqual(F.evaluate('=LEFT("abc",-1)', { cell: () => ({ kind: 'empty' }) }).error, '#VALUE!');
+    assert.strictEqual(F.evaluate('=RIGHT("abc",-1)', { cell: () => ({ kind: 'empty' }) }).error, '#VALUE!');
+    assert.strictEqual(F.evaluate('=MID("abc",0,2)', { cell: () => ({ kind: 'empty' }) }).error, '#VALUE!');
   });
 };

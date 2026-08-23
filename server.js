@@ -770,7 +770,7 @@ const server = http.createServer((req, res) => {
     : null;
   // The /s/<id> id range stays {1,32} so links minted before the id-length
   // bump (8 chars) and after it (22 chars) both serve the app shell.
-  if (pathname === '/docs' || pathname === '/new' || pathname === '/legal' || pathname === '/privacy' || pathname === '/agent-changes' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  if (pathname === '/docs' || pathname === '/new' || pathname === '/legal' || pathname === '/privacy' || pathname === '/agent-changes' || pathname === '/advanced-spreadsheets' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     const nonce = crypto.randomBytes(16).toString('base64');
     const defaultMdPath = pathname === '/legal'
       ? '/public/legal.md'
@@ -778,6 +778,8 @@ const server = http.createServer((req, res) => {
         ? '/public/privacy.md'
         : pathname === '/agent-changes'
           ? '/public/agent-changes.md'
+          : pathname === '/advanced-spreadsheets'
+            ? '/public/advanced-spreadsheets.md'
           : pathname === '/upgrade'
             ? '/public/upgrade.md'
             : blogSlug

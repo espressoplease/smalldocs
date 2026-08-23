@@ -261,6 +261,9 @@
   function sortKey(cell, fxCell) {
     if (fxCell && fxCell.kind === 'number') return { rank: 0, v: fxCell.value };
     if (fxCell && fxCell.kind === 'error') return { rank: 1, v: String(fxCell.code || '').toLowerCase() };
+    if (fxCell && (fxCell.kind === 'text' || fxCell.kind === 'boolean')) {
+      return { rank: 1, v: String(fxCell.value).toLowerCase() };
+    }
     if (!cell || cell.type === 'empty') return { rank: 2, v: 0 };
     if (cell.type === 'number') return { rank: 0, v: cell.value };
     return { rank: 1, v: String(cell.value).toLowerCase() };
@@ -341,7 +344,10 @@
     var t = String(tok).trim();
     var decimals = null;
     var dm = t.match(/\.(\d+)$/);
-    if (dm) { decimals = parseInt(dm[1], 10); t = t.slice(0, t.length - dm[0].length); }
+    if (dm) {
+      decimals = Math.min(30, parseInt(dm[1], 10));
+      t = t.slice(0, t.length - dm[0].length);
+    }
     var lc = t.toLowerCase();
     if (t === '$' || lc === 'usd' || lc === 'currency') return { kind: 'currency', symbol: '$', decimals: decimals == null ? 2 : decimals };
     if (t === '£' || lc === 'gbp') return { kind: 'currency', symbol: '£', decimals: decimals == null ? 2 : decimals };

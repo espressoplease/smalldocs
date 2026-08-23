@@ -80,6 +80,14 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('SDocs'));
     });
 
+    await testAsync('GET /advanced-spreadsheets serves the product update workbook', async () => {
+      const r = await get(BASE + '/advanced-spreadsheets');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'));
+      assert.ok(r.body.includes('/public/advanced-spreadsheets.md'),
+        'advanced spreadsheet route should preload its markdown');
+    });
+
     await testAsync('GET /nonexistent returns 404', async () => {
       const r = await get(BASE + '/nonexistent-path-xyz');
       assert.strictEqual(r.status, 404);
@@ -213,6 +221,16 @@ module.exports = function(harness) {
       assert.ok(yamlIdx > 0, 'missing sdocs-yaml.js');
       assert.ok(stateIdx > yamlIdx, 'sdocs-state.js should come after sdocs-yaml.js');
       assert.ok(appIdx > stateIdx, 'sdocs-app.js should come after sdocs-state.js');
+    });
+
+    await testAsync('GET /docs keeps heavy spreadsheet features out of the initial scripts', async () => {
+      const r = await get(BASE + '/docs');
+      assert.ok(/<script src="\/public\/sdocs-cells-ui\.js\?v=[a-f0-9]+"><\/script>/.test(r.body),
+        'cells UI should remain versioned and eager');
+      for (const file of ['sdocs-cells-xlsx.js', 'sdocs-cells-focus.js', 'sdocs-cells-edit.js']) {
+        assert.ok(!r.body.includes('<script src="/public/' + file),
+          file + ' should load only when its feature is requested');
+      }
     });
 
     await testAsync('GET /analytics returns 200 with HTML', async () => {
@@ -419,6 +437,11 @@ module.exports = function(harness) {
     await testAsync('asset-versioning: /agent-changes is versioned', async () => {
       const v = JSON.parse((await get(BASE + '/version-check')).body).version;
       await assertEveryAssetVersioned('/agent-changes', v);
+    });
+
+    await testAsync('asset-versioning: /advanced-spreadsheets is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/advanced-spreadsheets', v);
     });
 
     await testAsync('/agent-changes serves the index shell with the changelog md path', async () => {

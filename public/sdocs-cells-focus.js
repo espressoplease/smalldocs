@@ -311,7 +311,7 @@
     // Download the WHOLE workbook (every sheet of this group) as one .xlsx with
     // its cross-sheet formulas intact. Shown only for a real multi-sheet
     // workbook; the per-sheet download stays on each grid's own toolbar.
-    if (tabbed && window.SDocCellsXlsx) {
+    if (tabbed) {
       var wbBtn = document.createElement('button');
       wbBtn.type = 'button';
       wbBtn.className = 'sdoc-cells-fx-toggle sdoc-cells-focus-dl';
@@ -319,7 +319,13 @@
       wbBtn.setAttribute('aria-label', 'Download workbook (.xlsx)');
       wbBtn.innerHTML = DL_ICON + '<span class="sdoc-cells-focus-dl-label">Workbook</span>';
       wbBtn.addEventListener('click', function () {
-        var XL = window.SDocCellsXlsx, FXm = window.SDocCellsFormula;
+        wbBtn.disabled = true;
+        wbBtn.setAttribute('aria-busy', 'true');
+        var ready = window.SDocCellsXlsx
+          ? Promise.resolve(window.SDocCellsXlsx)
+          : S.loadCellsFeature('xlsx');
+        ready.then(function (XL) {
+        var FXm = window.SDocCellsFormula;
         // Use each sheet's effective (possibly edited) source model, in tab
         // order; recompute so cached values match the formulas Excel reopens.
         var book = entries.map(function (e) {
@@ -338,6 +344,13 @@
         a.download = base + '.xlsx';
         a.click();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+        }).catch(function (err) {
+          wbBtn.title = 'Could not load Excel export. Try again.';
+          if (window.console && console.error) console.error(err);
+        }).then(function () {
+          wbBtn.disabled = false;
+          wbBtn.removeAttribute('aria-busy');
+        });
       });
       topbar.appendChild(wbBtn);
     }

@@ -19,9 +19,9 @@
 // keeps the writer ~100 lines and makes the output inspectable - the XML is
 // readable in the raw bytes, which the tests rely on.
 //
-// Our formula grammar is a subset of Excel's: SUM MIN MAX COUNT COUNTA
-// PRODUCT ROUND ABS IF and the operators all carry over verbatim. The one
-// exception is AVG, our alias for AVERAGE, which is renamed on the way out.
+// Our formula grammar is a subset of Excel's and its computational functions
+// carry over. AVG is renamed to AVERAGE and newer functions receive Excel's
+// OOXML future-function prefix.
 //
 // UMD: window.SDocCellsXlsx in the browser, module.exports in Node tests.
 (function (exports) {
@@ -31,6 +31,10 @@
 
   function escapeXml(s) {
     return String(s)
+      // XML 1.0 rejects most C0 controls even when numeric-escaped. Replace
+      // them before writing any workbook part so one bad cell cannot corrupt
+      // the complete .xlsx file.
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '\uFFFD')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
@@ -60,6 +64,95 @@
     return bare ? s : "'" + s.replace(/'/g, "''") + "'";
   }
 
+  // Walk sheet-qualified references without touching string literals. This
+  // accepts bare identifiers and Excel's quoted names with doubled quotes.
+  // callback(name) returns the rewritten name, already Excel-quoted if needed.
+  function rewriteSheetRefs(raw, callback) {
+    var src = String(raw), out = '', i = 0;
+    function isStart(ch) { return /[A-Za-z_]/.test(ch || ''); }
+    function isPart(ch) { return /[A-Za-z0-9_.]/.test(ch || ''); }
+    function hasCellRef(at) { return /^\$?[A-Za-z]+\$?[1-9][0-9]*/.test(src.slice(at)); }
+    while (i < src.length) {
+      if (src[i] === '"') {
+        var ds = i++;
+        while (i < src.length) {
+          if (src[i] === '"') {
+            i++;
+            if (src[i] === '"') { i++; continue; }
+            break;
+          }
+          i++;
+        }
+        out += src.slice(ds, i);
+        continue;
+      }
+      if (src[i] === "'") {
+        var qs = i++, name = '';
+        while (i < src.length) {
+          if (src[i] === "'") {
+            if (src[i + 1] === "'") { name += "'"; i += 2; continue; }
+            i++;
+            break;
+          }
+          name += src[i++];
+        }
+        if (src[i] === '!' && hasCellRef(i + 1)) {
+          out += callback(name) + '!';
+          i++;
+        } else {
+          out += src.slice(qs, i);
+        }
+        continue;
+      }
+      if (isStart(src[i])) {
+        var bs = i++;
+        while (i < src.length && isPart(src[i])) i++;
+        var bare = src.slice(bs, i);
+        if (src[i] === '!' && hasCellRef(i + 1)) {
+          out += callback(bare) + '!';
+          i++;
+        } else {
+          out += bare;
+        }
+        continue;
+      }
+      out += src[i++];
+    }
+    return out;
+  }
+
+  function rewriteFunctionNames(raw) {
+    var src = String(raw), out = '', i = 0;
+    var mapped = { AVG: 'AVERAGE', XLOOKUP: '_xlfn.XLOOKUP', CONCAT: '_xlfn.CONCAT' };
+    function isStart(ch) { return /[A-Za-z_]/.test(ch || ''); }
+    function isPart(ch) { return /[A-Za-z0-9_.]/.test(ch || ''); }
+    while (i < src.length) {
+      if (src[i] === '"') {
+        var start = i++;
+        while (i < src.length) {
+          if (src[i] === '"') {
+            i++;
+            if (src[i] === '"') { i++; continue; }
+            break;
+          }
+          i++;
+        }
+        out += src.slice(start, i);
+        continue;
+      }
+      if (isStart(src[i])) {
+        var ns = i++;
+        while (i < src.length && isPart(src[i])) i++;
+        var name = src.slice(ns, i), look = i;
+        while (look < src.length && /[ \t]/.test(src[look])) look++;
+        out += src[look] === '(' && mapped[name.toUpperCase()] ? mapped[name.toUpperCase()] : name;
+        continue;
+      }
+      out += src[i++];
+    }
+    return out;
+  }
+
   // Our formula text minus the leading '=', with our AVG alias renamed to
   // Excel's AVERAGE. Everything else in our grammar is already Excel syntax.
   // When a nameMap (in-doc sheet name -> Excel sheet name, both lower-cased
@@ -70,12 +163,12 @@
   // a [letter][word]! token is enough.
   function excelFormula(raw, nameMap) {
     var body = String(raw).replace(/^=/, '');
-    // Rename AVG( -> AVERAGE( as a word: AVERAGE( itself must not match.
-    body = body.replace(/\bAVG\s*\(/gi, 'AVERAGE(');
+    // Rename functions token-by-token so formula text literals stay intact.
+    body = rewriteFunctionNames(body);
     if (nameMap) {
-      body = body.replace(/([A-Za-z][A-Za-z0-9]*)!/g, function (full, word) {
-        var ex = nameMap[word.toLowerCase()];
-        return (ex != null ? quoteSheetRef(ex) : word) + '!';
+      body = rewriteSheetRefs(body, function (name) {
+        var ex = nameMap[name.toLowerCase()];
+        return ex != null ? quoteSheetRef(ex) : quoteSheetRef(name);
       });
     }
     return body;
@@ -89,11 +182,12 @@
   // link in Excel, so the writer degrades it to its computed value instead.
   function formulaSelfContained(raw, known) {
     if (!known) return true;
-    var re = /([A-Za-z][A-Za-z0-9]*)!/g, m;
-    while ((m = re.exec(raw))) {
-      if (!known[m[1].toLowerCase()]) return false;
-    }
-    return true;
+    var ok = true;
+    rewriteSheetRefs(raw, function (name) {
+      if (!known[name.toLowerCase()]) ok = false;
+      return name;
+    });
+    return ok;
   }
 
   // ── Number formats (styles) ─────────────────────────────
@@ -102,16 +196,17 @@
   function formatCode(fmt) {
     if (!fmt) return null;
     var d = fmt.decimals;
+    if (d != null) d = Math.max(0, Math.min(30, d));
     if (fmt.kind === 'currency') {
       var dec = d == null ? 2 : d;
-      return '$#,##0' + (dec > 0 ? '.' + new Array(dec + 1).join('0') : '');
+      return (fmt.symbol || '$') + '#,##0' + (dec > 0 ? '.' + new Array(dec + 1).join('0') : '');
     }
     if (fmt.kind === 'percent') {
       var pd = d == null ? 1 : d;
       return '0' + (pd > 0 ? '.' + new Array(pd + 1).join('0') : '') + '%';
     }
     if (fmt.kind === 'number') {
-      return '#,##0' + (d > 0 ? '.' + new Array(d + 1).join('0') : '');
+      return '#,##0' + (d == null ? '.###############' : (d > 0 ? '.' + new Array(d + 1).join('0') : ''));
     }
     return null;
   }
@@ -185,19 +280,12 @@
 
   // ── Worksheet XML ───────────────────────────────────────
 
-  // Error codes that prove a formula PARSED AND RAN inside our grammar - it
-  // just hit a legitimate computational error. These may still export as live
-  // formulas. #NAME? (unknown function) and #VALUE! (syntax we don't have)
-  // are deliberately absent: those are exactly the cases where the formula
-  // contains things our engine never vetted.
-  var COMPUTED_ERROR_CODES = { '#DIV/0!': 1, '#CIRC!': 1, '#REF!': 1 };
-
   // xl/worksheets/sheet1.xml from a cell model. fx is the formula engine's
   // recalc() output, indexed [row][col].
   //
-  // SECURITY: a formula exports as a live Excel formula ONLY when fx shows our
-  // engine evaluated it - proof it stays inside our purely computational
-  // grammar (no WEBSERVICE, no HYPERLINK, no DDE, no functions we don't know).
+  // SECURITY: a formula exports as live Excel code only when the engine marked
+  // its complete parsed AST safe. This is independent of evaluation so a lazy,
+  // unchosen branch cannot hide WEBSERVICE, HYPERLINK, DDE, or an unknown call.
   // Anything else - including all formulas when fx is null - exports as inert
   // inline text. Without this, a shared document could smuggle an Excel
   // data-exfiltration or phishing formula into a trusted .xlsx download
@@ -219,26 +307,46 @@
         if (!cell || cell.type === 'empty') continue;
         var ref = colLetter(c) + (r + 1);
         var style = styleForCol[c] ? ' s="' + styleForCol[c] + '"' : '';
+        var columnFormat = model.formats && model.formats[c];
         var isFormula = cell.raw && cell.raw.charAt(0) === '=' && cell.raw.length > 1;
         var fxCell = (isFormula && fx && fx[r]) ? fx[r][c] : null;
-        var vetted = fxCell && (fxCell.kind === 'number' ||
-          (fxCell.kind === 'error' && COMPUTED_ERROR_CODES[fxCell.code]));
+        // `safe` comes from a complete AST allowlist traversal. A cached value
+        // or runtime error is not proof because lazy functions may leave an
+        // unsafe branch unevaluated.
+        var vetted = fxCell && fxCell.safe === true;
         // A formula whose cross-sheet target is not in this export would become
         // a broken external link in Excel (#REF! + an "unsafe external source"
         // prompt). Only keep it live when every referenced sheet is present.
         var selfContained = formulaSelfContained(cell.raw, known);
         if (isFormula && vetted && selfContained) {
-          var cached = (fxCell.kind === 'number' && isFinite(fxCell.value))
-            ? '<v>' + fxCell.value + '</v>' : '';
-          cellsXml.push('<c r="' + ref + '"' + style + '><f>' +
+          var formulaType = '';
+          var cached = '';
+          if (fxCell.kind === 'number' && isFinite(fxCell.value)) cached = '<v>' + fxCell.value + '</v>';
+          else if (fxCell.kind === 'text') {
+            formulaType = ' t="str"';
+            cached = '<v>' + escapeXml(fxCell.value) + '</v>';
+          } else if (fxCell.kind === 'boolean') {
+            formulaType = ' t="b"';
+            cached = '<v>' + (fxCell.value ? '1' : '0') + '</v>';
+          } else if (fxCell.kind === 'error' && {
+            '#DIV/0!': 1, '#REF!': 1, '#VALUE!': 1, '#NAME?': 1,
+            '#N/A': 1, '#NUM!': 1, '#NULL!': 1,
+          }[fxCell.code]) {
+            formulaType = ' t="e"';
+            cached = '<v>' + escapeXml(fxCell.code) + '</v>';
+          }
+          cellsXml.push('<c r="' + ref + '"' + style + formulaType + '><f>' +
             escapeXml(excelFormula(cell.raw, nameMap)) + '</f>' + cached + '</c>');
-        } else if (isFormula && fxCell && fxCell.kind === 'number' && isFinite(fxCell.value)) {
+        } else if (isFormula && !selfContained && fxCell && fxCell.kind === 'number' && isFinite(fxCell.value)) {
           // Cross-sheet reference into a sheet this file does not contain:
           // export the engine's computed value so the cell is correct and inert
           // (no dangling external link). Carries the column's number format.
           cellsXml.push('<c r="' + ref + '"' + style + '><v>' + fxCell.value + '</v></c>');
         } else if (isFormula) {
           // Unvetted or non-numeric formula: visible, copyable, but inert.
+          cellsXml.push('<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' +
+            escapeXml(cell.raw) + '</t></is></c>');
+        } else if (cell.type === 'number' && columnFormat && columnFormat.kind === 'plain') {
           cellsXml.push('<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' +
             escapeXml(cell.raw) + '</t></is></c>');
         } else if (cell.type === 'number') {
@@ -285,7 +393,7 @@
     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
     'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
     '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>' +
-    '<calcPr fullCalcOnLoad="1"/>' +
+    '<calcPr calcMode="auto" forceFullCalc="1" fullCalcOnLoad="1"/>' +
     '</workbook>';
 
   var WORKBOOK_RELS =
@@ -392,6 +500,9 @@
   // (SDocCells.parseCells); fx is the formula engine's recalc() output or
   // null (formulas still export, Excel computes them on open).
   function buildXlsx(model, fx) {
+    if (model && model.name) {
+      return buildXlsxWorkbook([{ name: model.name, model: model }], [fx]);
+    }
     // The lone sheet is the only one present, so any cross-sheet reference is
     // unresolvable here and degrades to its value. A self-reference by name
     // (rare) still resolves, so seed the set with this sheet's own name.
@@ -414,7 +525,8 @@
   // hand back an empty string.
   function sanitizeSheetName(name) {
     var s = String(name == null ? '' : name).replace(/[\[\]:*?\/\\]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (s.length > 31) s = s.slice(0, 31).trim();
+    s = s.replace(/^'+|'+$/g, '').trim();
+    if (Array.from(s).length > 31) s = Array.from(s).slice(0, 31).join('').trim();
     return s || 'Sheet';
   }
 
@@ -428,7 +540,7 @@
       var name = base, n = 2;
       while (used[name.toLowerCase()]) {
         var suffix = '~' + (n++);
-        name = base.slice(0, 31 - suffix.length) + suffix;
+        name = Array.from(base).slice(0, 31 - Array.from(suffix).length).join('') + suffix;
       }
       used[name.toLowerCase()] = 1;
       return name;
@@ -463,7 +575,7 @@
       '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
       'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
       '<sheets>' + tags + '</sheets>' +
-      '<calcPr fullCalcOnLoad="1"/>' +
+      '<calcPr calcMode="auto" forceFullCalc="1" fullCalcOnLoad="1"/>' +
       '</workbook>';
   }
 
@@ -498,8 +610,11 @@
     var known = {};
     sheets.forEach(function (s, i) {
       if (s.name) {
-        nameMap[String(s.name).toLowerCase()] = excelNames[i];
-        known[String(s.name).toLowerCase()] = 1;
+        var key = String(s.name).toLowerCase();
+        // Calculation resolves the first duplicate logical name. Export must
+        // point at the same sheet, even though later tabs are de-duplicated.
+        if (!(key in nameMap)) nameMap[key] = excelNames[i];
+        known[key] = 1;
       }
     });
     var fmt = collectFormatsShared(sheets);

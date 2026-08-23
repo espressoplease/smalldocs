@@ -86,6 +86,7 @@ function valuesFor(model, fxGrid) {
         if (fx.kind === 'number') row.push(String(fx.value));
         else if (fx.kind === 'error') row.push(fx.code);
         else if (fx.kind === 'text') row.push(String(fx.value));
+        else if (fx.kind === 'boolean') row.push(fx.value ? 'TRUE' : 'FALSE');
         else row.push('');
       } else {
         row.push(cell.raw);
