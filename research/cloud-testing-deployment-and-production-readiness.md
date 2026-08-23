@@ -356,8 +356,8 @@ remains separate and Cloud is not enabled there.
 - [ ] Monitor HTTPS availability, latency, CPU, memory, open files, disk space, disk latency, database sizes, WAL growth, and filesystem errors.
 - [ ] Alert on old backups, database corruption, KMS failures, email failures, Stripe webhook failures, subscription drift, seat drift, stuck jobs, and search timeouts.
 - [x] Run a coordinated backup using the hidden production configuration and exact release, upload it to KMS-encrypted Object Lock storage, restore the local archive into isolation, and pass checksum and integrity checks for all eight databases.
-- [ ] Download the current archive from off-site storage, restore the application secrets and KMS permissions in isolation, and decrypt a synthetic current and historical Cloud document. There are no production Cloud customers or historical Cloud documents yet.
-- [ ] Restore a known Cloud document and more than one revision after a process restart with an empty KMS cache.
+- [ ] Download the current archive from off-site storage and restore the application secrets and KMS permissions in isolation. Off-site retrieval remains separate because the production backup identity is intentionally put-only.
+- [x] Copy a temporary two-revision Cloud database, reopen it with a new KMS client and empty cache under the production workload identity, and decrypt both current and historical content. There are no production Cloud customers or historical Cloud documents yet.
 - [ ] Drill KMS outage, email outage, Stripe outage, disk full, database corruption, lost webhook, and compromised session responses.
 - [ ] Confirm certificate renewal and the operating-system and Node patch process.
 - [ ] Write a rollback procedure that preserves Cloud writes created after launch. Code rollback must not mean database rollback.

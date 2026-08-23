@@ -243,6 +243,7 @@ AWS KMS and Google Cloud KMS are both credible choices. The cost comparison abov
 - [x] Cache unwrapped data keys for a short, bounded period and clear them on eviction, normal server close, SIGTERM, and SIGINT.
 - [x] Fail closed when KMS is unavailable. Reads, search, and writes return a temporary service failure without falling back to a local key.
 - [x] Run a real production-workload policy smoke that passes the allowed context, denies an invalid environment context, and passes the allowed context again without changing IAM or restarting the service.
+- [x] Run a synthetic document recovery smoke under the production workload identity. A copied temporary database reopened with a new KMS client and empty key cache, then decrypted both current and historical revisions.
 - [ ] Add integration tests against a real staging key for encrypt, decrypt, wrong context, disabled key, timeout, and rotated key reference.
 - [ ] Leave `CLOUD_MASTER_KEY` unset in production.
 
@@ -519,6 +520,7 @@ The existing production deployment is `smalldocs.service` on port `3003` behind 
 - [x] Record a portable SHA-256 checksum, deployed commit, state paths, configuration, KMS encryption metadata, and object version.
 - [x] Include the root-managed application environment in the KMS-encrypted archive. The put-only backup identity cannot read or decrypt the archive.
 - [x] Create a coordinated archive from the hidden production configuration, upload it to KMS-encrypted Object Lock storage, and restore the local copy into an isolated directory. The checksum and `PRAGMA integrity_check` passed for all eight databases, including the five empty Cloud databases. This proves the coordinated archive, but not off-site retrieval or document decryption.
+- [x] Separately copy and reopen a temporary two-revision Cloud database with a new KMS client and empty cache under the production workload identity. Both current and historical document revisions decrypted. This proves the document envelope and production key policy, but not off-site archive retrieval.
 - [ ] Alert when the latest successful backup is too old. The deployment now supports a provider-neutral success heartbeat after both uploads complete. Configure its root-owned URL and prove the external 26-hour alert before launch.
 
 Complete this drill before launch:

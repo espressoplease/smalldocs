@@ -405,6 +405,14 @@ environment context is deliberately changed, then repeats the allowed round
 trip. It prints only the three outcomes and no key reference, resource ID, or
 provider error. This does not replace restoring real ciphertext from a backup.
 
+`npm run cloud:kms:recovery-smoke` exercises the document envelope as well as
+the key policy. It creates a temporary account, document, and second revision,
+closes the source database, copies it as a recovery artifact, and reopens the
+copy with a new KMS client and an empty plaintext-key cache. It verifies both
+the current and historical revision, prints only pass or fail fields, then
+removes the temporary databases. Run it under the production workload identity
+without pointing any Cloud database variable at customer state.
+
 On 24 August 2026 the smoke passed from the production VM through the
 root-managed application credential. The allowed production context passed,
 the invalid environment context was denied, and the allowed context passed
@@ -416,8 +424,10 @@ managed KMS readiness round trip before binding the loopback listener. The
 normal site returned 200 while the hidden Cloud page and API returned 404.
 A coordinated backup then uploaded to KMS-encrypted Object Lock storage. Its
 local copy restored into an isolated directory, where the checksum and all
-eight SQLite integrity checks passed. The five Cloud databases were empty, so
-the synthetic document decryption part of the recovery drill remains open.
+eight SQLite integrity checks passed. The five Cloud databases were empty. A
+separate temporary recovery smoke then copied a two-revision synthetic database
+and decrypted both revisions with a new KMS client and an empty cache through
+the production workload identity.
 
 Run this drill on a schedule and after KMS policy or key changes:
 
