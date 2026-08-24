@@ -82,6 +82,12 @@ Some providers operate internationally. Where UK personal data is transferred ou
 
 When an active database row is deleted, copies may remain as encrypted ciphertext in retained backups. Backup access requires separate credentials and encryption keys. Backup expiry is not an immediate deletion mechanism for provider records that the provider must retain independently, such as Stripe transaction records.
 
+## Service closure or transfer
+
+If SmallDocs Cloud closes or Odd Solutions Ltd ceases trading, data-protection duties continue to apply. Where reasonably within our control, we will provide notice and an authenticated export window before active Cloud data is deleted. An administrator or liquidator may take control of decisions about company data during a formal insolvency process.
+
+A reorganisation, sale, administration, or transfer of the service may involve personal data moving to a successor. Any transfer must have a lawful basis. Where reasonably practicable, we will give affected customers notice and an opportunity to export or delete retained Cloud content before a material transfer. The [Service Closure and Data Portability Policy](/service-closure) describes the operational process and its limits.
+
 ## Security
 
 Cloud database values and backups are encrypted at rest. Document encryption keys are protected by AWS KMS and are not stored in plaintext beside document data. Connections use TLS. Production workload, backup, and provider credentials have separate permissions. Connected machines can be viewed and revoked.

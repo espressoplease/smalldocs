@@ -69,6 +69,8 @@ The responsibility and liability terms in section 8 apply to these events. They 
 
 We may change, suspend, or discontinue a feature. Where a material change affects paid Cloud use, we will give reasonable notice when practicable and preserve an export path where practicable.
 
+If SmallDocs Cloud closes permanently or Odd Solutions Ltd ceases trading, the [Service Closure and Data Portability Policy](/service-closure) forms part of these terms. For a planned closure that remains reasonably within our control, we will normally give at least 30 days' notice, stop future renewals, provide read-only access, and keep authenticated document and workspace export available during the notice period. Insolvency, a legal restriction, provider failure, a security incident, or another event outside our reasonable control may shorten or prevent that process.
+
 Local SmallDocs and the command line tool are open source. The licence in the source repository applies to use of that code. It does not grant a right to our trademarks, hosted service, customer data, or provider accounts.
 
 ## 7. Suspension and termination

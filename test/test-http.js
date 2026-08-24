@@ -560,6 +560,7 @@ module.exports = function(harness) {
         ['/privacy', '/public/privacy.md'],
         ['/acceptable-use', '/public/acceptable-use.md'],
         ['/cancellation', '/public/cancellation.md'],
+        ['/service-closure', '/public/service-closure.md'],
         ['/subprocessors', '/public/subprocessors.md'],
       ];
       for (const [route, documentPath] of routes) {
