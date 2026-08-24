@@ -39,11 +39,44 @@ test('markdown tables expose one persistent copy control above the table', async
   await expect(copy).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 });
 
-test('table copy chrome stays transparent in dark mode', async ({ page }) => {
+test('table colors and copy chrome switch between light and dark defaults', async ({ page }) => {
   await loadTable(page);
-  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.evaluate(() => window.SDocs.switchThemeAndUpdate('light'));
+  await page.locator('#_sd_btn-theme').click();
+  await expect(page.locator('#_sd_rendered thead th').first()).toHaveCSS('background-color', 'rgb(44, 41, 38)');
+  await expect(page.locator('#_sd_rendered tbody tr').first().locator('td').first()).toHaveCSS('background-color', 'rgb(44, 42, 38)');
+  await expect(page.locator('#_sd_rendered tbody tr').nth(1).locator('td').first()).toHaveCSS('background-color', 'rgb(36, 34, 32)');
+  await expect(page.locator('#_sd_rendered tbody td').first()).toHaveCSS('color', 'rgb(231, 229, 226)');
   await expect(page.locator('.md-table-toolbar')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('.table-copy-btn')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
+  await page.locator('#_sd_btn-theme').click();
+  await expect(page.locator('#_sd_rendered thead th').first()).toHaveCSS('background-color', 'rgb(244, 241, 237)');
+  await expect(page.locator('#_sd_rendered tbody tr').first().locator('td').first()).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(page.locator('#_sd_rendered tbody tr').nth(1).locator('td').first()).toHaveCSS('background-color', 'rgb(250, 250, 248)');
+  await expect(page.locator('#_sd_rendered tbody td').first()).toHaveCSS('color', 'rgb(28, 25, 23)');
+});
+
+test('table colors retain separate light and dark overrides', async ({ page }) => {
+  await loadTable(page);
+  await page.evaluate(() => {
+    window.SDocs.switchThemeAndUpdate('light');
+    const header = document.getElementById('_sd_ctrl-table-header-bg');
+    header.value = '#123456';
+    header.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  await page.locator('#_sd_btn-theme').click();
+  await page.evaluate(() => {
+    const header = document.getElementById('_sd_ctrl-table-header-bg');
+    header.value = '#abcdef';
+    header.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  await page.locator('#_sd_btn-theme').click();
+  await expect(page.locator('#_sd_rendered thead th').first()).toHaveCSS('background-color', 'rgb(18, 52, 86)');
+  await page.locator('#_sd_btn-theme').click();
+  await expect(page.locator('#_sd_rendered thead th').first()).toHaveCSS('background-color', 'rgb(171, 205, 239)');
 });
 
 test('table copy writes CSV and uses tick feedback', async ({ page }) => {

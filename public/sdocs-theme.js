@@ -160,6 +160,11 @@ function loadThemeColors(theme) {
     '_sd_ctrl-bg-color':        defaults.bgColor,
     '_sd_ctrl-link-color':      defaults.linkColor,
     '_sd_ctrl-bq-border-color': defaults.bqBorderColor,
+    '_sd_ctrl-table-border':    defaults.tableBorder,
+    '_sd_ctrl-table-header-bg': defaults.tableHeaderBg,
+    '_sd_ctrl-table-even-bg':   defaults.tableEvenBg,
+    '_sd_ctrl-table-odd-bg':    defaults.tableOddBg,
+    '_sd_ctrl-table-text':      defaults.tableText,
   };
   for (var ctrlId in standaloneMap) {
     var el = document.getElementById(ctrlId);
