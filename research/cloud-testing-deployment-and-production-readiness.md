@@ -340,13 +340,15 @@ remains separate and Cloud is not enabled there.
 
 ### G. Security and data handling
 
-- [ ] Run tenant-isolation tests against the real staging service, including direct requests with IDs copied from another account.
+- [x] Run tenant-isolation tests against the real staging service, including direct requests with IDs copied from another account. The deployed test replays foreign account, project, document, revision, member, invitation, billing, audit, export, notification, deletion, and restore identifiers from both an unrelated account and a signed-out browser. Unrelated accounts receive opaque `resource_unavailable` responses and the protected state remains unchanged.
+- [x] Run a bounded real KMS context-denial and recovery smoke through the production workload identity. The allowed production context passed, a deliberately invalid environment context was denied, and the allowed context passed again without restarting either service.
 - [ ] Run real KMS staging tests for encrypt, decrypt, wrong context, denial, timeout, disabled key, restart with an empty cache, and an old key reference.
 - [ ] Confirm production cannot start with `CLOUD_MASTER_KEY`, development code logging, partial billing, partial mail, or an insecure public origin.
 - [ ] Confirm request size limits match the published file limit plus encryption overhead.
 - [ ] Review cookies, CSRF and same-origin checks, CSP, redirect validation, and proxy trust with the final hostname configuration.
 - [ ] Review dependencies and run the security test suite against the exact release commit.
-- [ ] Inspect application, Nginx, Stripe, email, KMS, job, and error logs for document text, filenames, titles, tags, searches, email addresses, credentials, and raw webhooks.
+- [x] Inspect staging application and Nginx logs after a marker-based acceptance run. The journal and Nginx logs contained none of the document marker, document phrase, fixture emails, authorization-code lines, query tokens, credential-shaped values, or test-login secret. The one collaboration metric record contained aggregate counts only, and staging access logging was disabled.
+- [ ] Inspect Stripe, email, KMS, job, and final production logs for document text, filenames, titles, tags, searches, email addresses, credentials, and raw webhooks.
 - [ ] Document who can access the host, databases, backups, KMS administration, Stripe, DNS, and email provider. Require MFA and individual operator accounts.
 
 ### H. Monitoring, backup, and failure drills

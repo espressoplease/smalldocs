@@ -242,6 +242,7 @@ AWS KMS and Google Cloud KMS are both credible choices. The cost comparison abov
 - [x] Preserve the current authenticated encryption context: application, environment, purpose, resource ID, and key version.
 - [x] Cache unwrapped data keys for a short, bounded period and clear them on eviction, normal server close, SIGTERM, and SIGINT.
 - [x] Fail closed when KMS is unavailable. Reads, search, and writes return a temporary service failure without falling back to a local key.
+- [x] Run a real production-workload policy smoke that passes the allowed context, denies an invalid environment context, and passes the allowed context again without changing IAM or restarting the service.
 - [ ] Add integration tests against a real staging key for encrypt, decrypt, wrong context, disabled key, timeout, and rotated key reference.
 - [ ] Leave `CLOUD_MASTER_KEY` unset in production.
 
@@ -592,7 +593,8 @@ Run this with two human accounts, two browsers, one phone-sized browser, and two
 - [x] Confirm adding and removing Team members updates Stripe seats.
 - [ ] Restore the deleted Team during its window and permanently purge it after the window in an accelerated staging configuration.
 - [ ] Search from a new browser and phone without downloading the workspace first.
-- [ ] Review proxy, app, provider, and error logs for leaked content, queries, codes, tokens, or customer email.
+- [x] Review staging application and Nginx logs after a marker-based acceptance run. No document marker, document text, fixture email, authorization code, query token, credential-shaped value, or test-login secret appeared.
+- [ ] Review Stripe, email, KMS, job, and final production logs for leaked content, queries, codes, tokens, or customer email.
 - [ ] Stop KMS, SMTP, Stripe access, and disk writes in turn and confirm each failure is bounded and understandable.
 - [ ] Run `node test/run.js` against the release commit.
 

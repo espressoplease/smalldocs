@@ -397,6 +397,19 @@ decrypt access.
 
 ### 4.3 KMS key usability drill
 
+`npm run cloud:kms:smoke` provides a bounded policy smoke before the full
+restore drill. Run it under the production workload identity with the intended
+key ID, region, and `CLOUD_ENVIRONMENT`. It performs a readiness round trip
+with the allowed context, confirms that the same identity is denied when the
+environment context is deliberately changed, then repeats the allowed round
+trip. It prints only the three outcomes and no key reference, resource ID, or
+provider error. This does not replace restoring real ciphertext from a backup.
+
+On 24 August 2026 the smoke passed from the production VM through the
+root-managed application credential. The allowed production context passed,
+the invalid environment context was denied, and the allowed context passed
+again. Neither the production nor staging service was restarted.
+
 Run this drill on a schedule and after KMS policy or key changes:
 
 1. Create a recovery workspace, project, document, and more than one revision through the normal service path.
