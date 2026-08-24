@@ -182,7 +182,7 @@ function buildExportHTML(mermaidImages) {
   inlineCells(clone);
   inlineImages(clone);
   clone.querySelectorAll('.section-toggle').forEach(function(el) { el.remove(); });
-  clone.querySelectorAll('.quote-copy-btn, .sdoc-mermaid-tools, .table-copy-btn').forEach(function(el) { el.remove(); });
+  clone.querySelectorAll('.quote-copy-btn, .sdoc-mermaid-tools, .md-table-toolbar').forEach(function(el) { el.remove(); });
   clone.querySelectorAll('.md-section-body').forEach(function(el) {
     while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
     el.remove();

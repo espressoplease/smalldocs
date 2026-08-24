@@ -358,88 +358,27 @@ function tableRows(table) {
   });
 }
 
-var tableCopyPreviewCells = [];
-
-function clearTableCopyPreview() {
-  tableCopyPreviewCells.forEach(function(cell) {
-    cell.classList.remove('table-copy-preview');
-  });
-  tableCopyPreviewCells = [];
-}
-
-function setTableCopyPreview(cells) {
-  clearTableCopyPreview();
-  tableCopyPreviewCells = cells().filter(Boolean);
-  tableCopyPreviewCells.forEach(function(cell) {
-    cell.classList.add('table-copy-preview');
-  });
-}
-
-function tableCopyButton(className, title, rows, previewCells) {
+function tableCopyButton(table) {
   var btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'table-copy-btn ' + className;
+  btn.className = 'table-copy-btn';
   btn.innerHTML = COPY_SVG;
-  btn.title = title;
-  btn.setAttribute('aria-label', title);
-  btn.addEventListener('pointerenter', function() { setTableCopyPreview(previewCells); });
-  btn.addEventListener('pointerleave', function() {
-    if (document.activeElement !== btn) clearTableCopyPreview();
-  });
-  btn.addEventListener('focus', function() { setTableCopyPreview(previewCells); });
-  btn.addEventListener('blur', clearTableCopyPreview);
+  btn.title = 'Copy table as CSV';
+  btn.setAttribute('aria-label', 'Copy table as CSV');
   btn.addEventListener('click', function(e) {
     e.preventDefault();
     e.stopPropagation();
-    copyWithIconFeedback(serializeTableCsv(rows()), btn);
+    copyWithIconFeedback(serializeTableCsv(tableRows(table)), btn);
   });
   return btn;
 }
 
-function attachTableCopyButtons(table) {
-  var headerRow = table.tHead && table.tHead.rows.length ? table.tHead.rows[0] : table.rows[0];
-  if (!headerRow || !headerRow.cells.length) return;
-
-  headerRow.cells[0].appendChild(tableCopyButton(
-    'table-copy-all', 'Copy table as CSV',
-    function() { return tableRows(table); },
-    function() { return Array.prototype.slice.call(table.querySelectorAll('th, td')); }
-  ));
-
-  Array.prototype.forEach.call(headerRow.cells, function(header, columnIndex) {
-    var label = tableCellCopyText(header);
-    var title = label
-      ? 'Copy ' + label + ' column as CSV'
-      : 'Copy column ' + (columnIndex + 1) + ' as CSV';
-    header.appendChild(tableCopyButton(
-      'table-copy-column', title, function() {
-        return Array.prototype.map.call(table.rows, function(row) {
-          return [tableCellCopyText(row.cells[columnIndex])];
-        });
-      }, function() {
-        return Array.prototype.map.call(table.rows, function(row) {
-          return row.cells[columnIndex];
-        });
-      }
-    ));
-  });
-
-  var bodyRows = table.tBodies.length
-    ? Array.prototype.reduce.call(table.tBodies, function(rows, body) {
-        return rows.concat(Array.prototype.slice.call(body.rows));
-      }, [])
-    : Array.prototype.slice.call(table.rows, 1);
-  bodyRows = bodyRows.filter(function(row) { return row !== headerRow; });
-  bodyRows.forEach(function(row, rowIndex) {
-    if (!row.cells.length) return;
-    row.cells[0].appendChild(tableCopyButton(
-      'table-copy-row', 'Copy row ' + (rowIndex + 1) + ' as CSV', function() {
-        return [Array.prototype.map.call(row.cells, tableCellCopyText)];
-      }, function() {
-        return Array.prototype.slice.call(row.cells);
-      }
-    ));
-  });
+function attachTableCopyButton(table, wrap) {
+  if (!table.rows.length) return;
+  var toolbar = document.createElement('div');
+  toolbar.className = 'md-table-toolbar';
+  toolbar.appendChild(tableCopyButton(table));
+  wrap.insertBefore(toolbar, table);
 }
 
 // Wrap each rendered markdown table in a horizontal-scroll container so a wide
@@ -457,7 +396,7 @@ function wrapTables(container) {
     wrap.className = 'md-table-scroll';
     p.insertBefore(wrap, t);
     wrap.appendChild(t);
-    attachTableCopyButtons(t);
+    attachTableCopyButton(t, wrap);
   }
 }
 
