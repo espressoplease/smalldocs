@@ -56,11 +56,14 @@ test('inline Mermaid source copy copies the underlying text', async ({ page }) =
   const source = 'graph TD\n  API --> Worker';
   await loadDoc(page, '```mermaid\n' + source + '\n```');
   const copy = page.locator('.sdoc-mermaid-copy-btn');
+  await expect(copy.locator('.sdoc-mermaid-tool-action-label')).toHaveText('Source');
   await copy.click();
   await expect.poll(() => page.evaluate(() => window.__copiedText)).toBe(source);
   await expect(copy.locator('polyline')).toHaveCount(1);
+  await expect(copy.locator('.sdoc-mermaid-tool-action-label')).toHaveText('Source');
   await page.waitForTimeout(1600);
   await expect(copy.locator('polyline')).toHaveCount(0);
+  await expect(copy.locator('.sdoc-mermaid-tool-action-label')).toHaveText('Source');
 });
 
 test('fullscreen Source action copies the Mermaid source', async ({ page }) => {

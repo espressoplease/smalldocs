@@ -258,13 +258,13 @@
   function buildCopyButton(wrapper) {
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'sdoc-mermaid-tool-btn sdoc-mermaid-copy-btn';
+    btn.className = 'sdoc-mermaid-tool-btn sdoc-mermaid-tool-action sdoc-mermaid-copy-btn';
     btn.setAttribute('aria-label', 'Copy Mermaid source');
     btn.title = 'Copy Mermaid source';
-    btn.innerHTML = COPY_ICON_SVG;
+    btn.innerHTML = COPY_ICON_SVG + '<span class="sdoc-mermaid-tool-action-label">Source</span>';
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
-      copySource(wrapper, btn, false);
+      copySource(wrapper, btn, true);
     });
     return btn;
   }
