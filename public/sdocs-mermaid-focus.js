@@ -142,6 +142,7 @@
     '  color: var(--sdoc-focus-fg, #1c1917);',
     '  border-color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 32%, transparent);',
     '}',
+    '.sdoc-mermaid-focus-action.copied { color: #16a34a; border-color: #86efac; }',
     '.sdoc-mermaid-focus-action:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
     '.sdoc-mermaid-focus-action svg { flex-shrink: 0; }',
     '.sdoc-mermaid-focus-action-label { white-space: nowrap; }',
@@ -229,12 +230,14 @@
   var CHECK_ICON_SVG = lucide('<polyline points="20 6 9 17 4 12"/>', 13);
 
   function flashCopyTick(btn) {
-    var previous = btn.innerHTML;
-    var label = btn.querySelector('.sdoc-mermaid-focus-action-label');
-    btn.innerHTML = CHECK_ICON_SVG + (label ? label.outerHTML : '');
+    var svg = btn && btn.querySelector('svg');
+    if (!svg) return;
+    var previous = svg.outerHTML;
+    svg.outerHTML = CHECK_ICON_SVG;
     btn.classList.add('copied');
     setTimeout(function () {
-      btn.innerHTML = previous;
+      var current = btn.querySelector('svg');
+      if (current) current.outerHTML = previous;
       btn.classList.remove('copied');
     }, 1500);
   }
@@ -673,7 +676,7 @@
     svgToPngBlob(2).then(function (blob) {
       return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     }).then(function () {
-      flashLabel(btn, 'Copied');
+      flashCopyTick(btn);
     }).catch(function () {
       flashLabel(btn, 'Failed');
     });

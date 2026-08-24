@@ -17,6 +17,17 @@ async function stubTextClipboard(page) {
   });
 }
 
+async function stubPngClipboard(page) {
+  await page.addInitScript(() => {
+    window.__copiedPng = false;
+    window.ClipboardItem = function (parts) { this.parts = parts; };
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { write: () => { window.__copiedPng = true; return Promise.resolve(); } },
+      configurable: true
+    });
+  });
+}
+
 test('inline Mermaid source copy copies the underlying text', async ({ page }) => {
   await stubTextClipboard(page);
   const source = 'graph TD\n  API --> Worker';
@@ -42,4 +53,20 @@ test('fullscreen Source action copies the Mermaid source', async ({ page }) => {
   await page.waitForTimeout(1600);
   await expect(copy.locator('polyline')).toHaveCount(0);
   await expect(copy.locator('.sdoc-mermaid-focus-action-label')).toHaveText('Source');
+});
+
+test('fullscreen PNG action uses tick feedback and restores its copy icon', async ({ page }) => {
+  await stubPngClipboard(page);
+  await loadDoc(page, '```mermaid\ngraph TD\n  API --> Worker\n```');
+  await page.locator('.sdoc-mermaid-zoom-btn').click();
+  const copy = page.locator('[data-act="copy-png"]');
+  await copy.click();
+  await expect.poll(() => page.evaluate(() => window.__copiedPng)).toBe(true);
+  await expect(copy.locator('polyline')).toHaveCount(1);
+  await expect(copy).toHaveClass(/copied/);
+  await expect(copy.locator('.sdoc-mermaid-focus-action-label')).toHaveText('PNG');
+  await page.waitForTimeout(1600);
+  await expect(copy.locator('polyline')).toHaveCount(0);
+  await expect(copy).not.toHaveClass(/copied/);
+  await expect(copy.locator('.sdoc-mermaid-focus-action-label')).toHaveText('PNG');
 });
