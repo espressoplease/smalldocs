@@ -379,40 +379,37 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   color: color-mix(in srgb, var(--text) 35%, transparent);
 }
 
-/* Nested list-item comments. Each item gets its own compact add control.
-   A self comment marks the item's first line; a branch comment carries the
-   stripe through the nested descendants. */
-body.comment-mode #_sd_rendered li.sdoc-element-commentable {
-  position: relative;
-  padding-right: 24px;
-}
+/* List-item comments reuse the block gutter tab. The host contains only the
+   item's own content and card, leaving a nested list outside its visual scope. */
+.sdoc-element-host { position: relative; }
 .sdoc-element-add {
   position: absolute;
-  z-index: 2;
-  top: .1em;
-  right: 0;
+  z-index: 1;
+  left: calc(-32px - var(--md-list-indent));
+  top: 0;
+  bottom: 0;
   width: 20px;
-  height: 20px;
-  padding: 2px;
-  display: inline-flex;
-  align-items: center;
+  padding: 6px 0 0;
+  display: flex;
+  align-items: flex-start;
   justify-content: center;
   color: var(--text-2);
   background: var(--bg-surface);
-  border: 0;
-  border-radius: 5px;
+  border: none;
+  border-radius: 8px 3px 3px 8px;
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
-  transition: opacity .2s cubic-bezier(.4,0,.2,1),
-              background .15s ease,
-              color .15s ease;
+  transition: background .2s ease,
+              color .2s ease,
+              opacity .2s cubic-bezier(.4,0,.2,1),
+              box-shadow .15s ease;
 }
 .sdoc-element-add svg { display: block; width: 14px; height: 14px; }
-body.comment-mode li.sdoc-element-commentable:hover > .sdoc-element-add,
+body.comment-mode .sdoc-element-host:hover > .sdoc-element-add,
 body.comment-mode .sdoc-element-add:hover,
 body.comment-mode .sdoc-element-add:focus-visible,
-body.comment-mode li.sdoc-element-commented > .sdoc-element-add {
+body.comment-mode li.sdoc-element-commented > .sdoc-element-host > .sdoc-element-add {
   opacity: 1;
   pointer-events: auto;
 }
@@ -420,29 +417,35 @@ body.comment-mode .sdoc-element-add:hover,
 body.comment-mode .sdoc-element-add:focus-visible {
   color: var(--text);
   background: var(--bg-hover);
+  box-shadow: 1px 0 4px rgba(0,0,0,.06);
 }
 body.comment-mode .sdoc-element-add:focus { outline: none; }
 body.comment-mode .sdoc-element-add:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--md-link-color, #2563eb) 55%, transparent);
   outline-offset: 1px;
 }
-body.comment-mode li.sdoc-element-commented {
-  --sdoc-element-stripe-bottom: calc(100% - 1.55em);
+body.comment-mode li.sdoc-element-commented > .sdoc-element-host > .sdoc-element-add {
+  background: color-mix(in srgb, var(--sdoc-element-comment-color, var(--sdoc-anchor-color)) 32%, var(--bg-surface));
+  color: var(--text-2);
 }
-body.comment-mode li.sdoc-element-commented.sdoc-element-branch-commented {
-  --sdoc-element-stripe-bottom: 2px;
+body.comment-mode li.sdoc-element-commented > .sdoc-element-host:hover > .sdoc-element-add {
+  background: color-mix(in srgb, var(--sdoc-element-comment-color, var(--sdoc-anchor-color)) 42%, var(--bg-surface));
 }
-body.comment-mode li.sdoc-element-commented::before {
+body.comment-mode li.sdoc-element-commented > .sdoc-element-host > .sdoc-element-add:hover,
+body.comment-mode li.sdoc-element-commented > .sdoc-element-host > .sdoc-element-add:focus-visible {
+  background: color-mix(in srgb, var(--sdoc-element-comment-color, var(--sdoc-anchor-color)) 55%, var(--bg-surface));
+  color: var(--text);
+}
+body.comment-mode .sdoc-element-host::before {
   content: '';
   position: absolute;
-  left: -17px;
-  top: 2px;
-  bottom: var(--sdoc-element-stripe-bottom);
-  width: 3px;
-  border-radius: 2px;
-  background: var(--sdoc-element-comment-color, var(--sdoc-anchor-color));
+  top: 0;
+  bottom: 0;
+  left: calc(-64px - var(--md-list-indent));
+  width: calc(64px + var(--md-list-indent));
+  pointer-events: auto;
 }
-#_sd_rendered li > .sdoc-element-card {
+#_sd_rendered li > .sdoc-element-host > .sdoc-element-card {
   margin: 5px 0 8px;
   max-width: min(60ch, 100%);
 }

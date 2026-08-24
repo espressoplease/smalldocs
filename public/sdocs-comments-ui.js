@@ -66,6 +66,12 @@ function strip() {
         'sdoc-element-branch-commented');
       el.style.removeProperty('--sdoc-element-comment-color');
     });
+  // Restore list items to the DOM shape produced by marked.
+  S.renderedEl.querySelectorAll('.sdoc-element-host').forEach(function (host) {
+    var parent = host.parentNode;
+    while (host.firstChild) parent.insertBefore(host.firstChild, host);
+    parent.removeChild(host);
+  });
   // Unwrap block-hosts (gutter button already removed above)
   S.renderedEl.querySelectorAll('.sdoc-block-host').forEach(function (host) {
     var parent = host.parentNode;
@@ -629,9 +635,11 @@ function renderComment(c) {
       block.style.setProperty('--sdoc-block-comment-color', c.color);
     }
     var sidecar = makeCardElement(c, { shape: 'sidecar', mode: 'view' });
-    // Append the card INSIDE the host (after the block) so the host's
-    // left stripe spans block + card without a gap.
-    (host || block.parentNode).appendChild(sidecar);
+    // Hosts keep the stripe continuous through the card. Lists no longer get
+    // hosts because their visible affordances belong to individual items, but
+    // an older whole-list comment still renders directly after its list.
+    if (host) host.appendChild(sidecar);
+    else block.parentNode.insertBefore(sidecar, block.nextSibling);
     return false;
   }
   var orphanBlock = makeCardElement(c, { shape: 'sidecar', mode: 'view', orphaned: true });
@@ -702,6 +710,9 @@ function makeGutterBtn(targetBlock) {
 function injectGutterButtons() {
   S.renderedEl.querySelectorAll(TOP_BLOCK_SEL).forEach(function (block) {
     if (block.closest('.sdoc-card')) return;
+    // Lists use per-item controls. A second control for the whole list makes
+    // the target ambiguous and adds a choice that comment mode does not need.
+    if (block.tagName === 'UL' || block.tagName === 'OL') return;
     if (block.parentNode && block.parentNode.classList &&
         block.parentNode.classList.contains('sdoc-block-host')) return;
     var ancestor = block.parentElement;
@@ -718,26 +729,36 @@ function injectGutterButtons() {
   injectElementButtons();
 }
 
-function makeElementBtn(targetElement, scope) {
+function makeElementBtn(targetElement) {
   var btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'sdoc-element-add';
-  btn.setAttribute('aria-label', 'Add comment on this list item only. Shift-click to include nested items.');
-  btn.title = 'Comment on this list item only. Shift-click to include nested items.';
+  btn.setAttribute('aria-label', 'Add comment on this list item');
+  btn.title = 'Add comment';
   btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
   btn.addEventListener('click', function (e) {
     e.preventDefault();
     e.stopPropagation();
-    openElementComposer(targetElement, e.shiftKey ? 'branch' : (scope || 'self'));
+    openElementComposer(targetElement);
   });
   return btn;
 }
 
 function injectElementButtons() {
   S.renderedEl.querySelectorAll('ul li, ol li').forEach(function (item) {
-    if (item.closest('.sdoc-card') || item.querySelector(':scope > .sdoc-element-add')) return;
+    if (item.closest('.sdoc-card') || item.querySelector(':scope > .sdoc-element-host')) return;
+    var host = document.createElement('div');
+    host.className = 'sdoc-element-host';
+    item.insertBefore(host, item.firstChild);
+    // Keep a nested list outside the host. The tab and comment card then span
+    // this item's own content without visually claiming its descendants.
+    while (host.nextSibling &&
+           !(host.nextSibling.nodeType === 1 &&
+             (host.nextSibling.tagName === 'UL' || host.nextSibling.tagName === 'OL'))) {
+      host.appendChild(host.nextSibling);
+    }
     item.classList.add('sdoc-element-commentable');
-    item.appendChild(makeElementBtn(item, 'self'));
+    host.appendChild(makeElementBtn(item));
   });
 }
 
@@ -898,13 +919,18 @@ function insertElementCard(element, card, scope) {
     element.appendChild(card);
     return;
   }
+  var host = element.querySelector(':scope > .sdoc-element-host');
+  if (host) {
+    host.appendChild(card);
+    return;
+  }
   var nested = Array.prototype.find.call(element.children, function (child) {
     return child.tagName === 'UL' || child.tagName === 'OL';
   });
   element.insertBefore(card, nested || null);
 }
 
-function openElementComposer(element, scope) {
+function openElementComposer(element) {
   hideComposer();
   var prefs = readPrefs();
   var block = containingTopBlock(element, S.renderedEl);
@@ -913,7 +939,7 @@ function openElementComposer(element, scope) {
   if (!blockId || !elementPath) return;
   var blockText = (block.textContent || '').slice(0, 60).trim();
   var elementText = elementOwnText(element).slice(0, 60);
-  markElementCommented(element, prefs.color, scope);
+  markElementCommented(element, prefs.color, 'self');
 
   var draft = { color: prefs.color, author: prefs.author };
   var composer = makeCardElement(draft, {
@@ -925,7 +951,7 @@ function openElementComposer(element, scope) {
         block_text: blockText,
         element: elementPath,
         element_text: elementText,
-        element_scope: scope,
+        element_scope: 'self',
       }, {
         author: prefs.author, color: prefs.color,
         at: new Date().toISOString(), text: text,
@@ -945,7 +971,7 @@ function openElementComposer(element, scope) {
   });
   composer.classList.add('sdoc-element-card');
   composerEl = composer;
-  insertElementCard(element, composer, scope);
+  insertElementCard(element, composer, 'self');
 }
 
 function hasElementComment(blockId, elementPath) {

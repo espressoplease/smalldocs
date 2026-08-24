@@ -88,11 +88,13 @@ test.beforeEach(async ({ page }) => {
 // ── Lifecycle ────────────────────────────────────────────────────────────
 
 test.describe('comment mode lifecycle', () => {
-  test('entering adds gutter hosts to all top-level blocks', async ({ page }) => {
+  test('entering adds block hosts and a separate list-item host', async ({ page }) => {
     await setBody(page, '# H1\n\nParagraph one.\n\n> Quote.\n\n- item\n');
-    const hostCount = await page.evaluate(() =>
-      document.querySelectorAll('.sdoc-block-host').length);
-    expect(hostCount).toBe(4);
+    const counts = await page.evaluate(() => ({
+      blocks: document.querySelectorAll('.sdoc-block-host').length,
+      items: document.querySelectorAll('.sdoc-element-host').length,
+    }));
+    expect(counts).toEqual({ blocks: 3, items: 1 });
   });
 
   test('exiting strips all gutter + card + anchor UI', async ({ page }) => {
@@ -706,15 +708,33 @@ test.describe('edge-case content', () => {
     expect(state).toEqual({ found: true, text: 'banana', inLi: true });
   });
 
-  test('each list item has its own structural comment control', async ({ page }) => {
-    await setBody(page, '- apple\n- banana\n- cherry\n');
-    await expect(page.locator('#_sd_rendered li > .sdoc-element-add')).toHaveCount(3);
+  test('list items replace the whole-list comment control', async ({ page }) => {
+    await setBody(page, 'Paragraph.\n\n- apple\n- banana\n- cherry\n');
+    await expect(page.locator('#_sd_rendered li > .sdoc-element-host > .sdoc-element-add')).toHaveCount(3);
+    await expect(page.locator('#_sd_rendered .sdoc-gutter-add')).toHaveCount(1);
+    await expect(page.locator('#_sd_rendered .sdoc-block-host > ul, #_sd_rendered .sdoc-block-host > ol'))
+      .toHaveCount(0);
+    await expect(page.locator('#_sd_rendered li > .sdoc-element-host > .sdoc-element-add').first())
+      .toHaveAttribute('aria-label', 'Add comment on this list item');
+
+    const placement = await page.evaluate(() => {
+      const blockTab = document.querySelector('#_sd_rendered .sdoc-gutter-add').getBoundingClientRect();
+      const itemHost = document.querySelector('#_sd_rendered .sdoc-element-host').getBoundingClientRect();
+      const itemTab = document.querySelector('#_sd_rendered .sdoc-element-add').getBoundingClientRect();
+      return {
+        gutterDelta: Math.abs(blockTab.left - itemTab.left),
+        itemTabRight: itemTab.right,
+        itemTextLeft: itemHost.left,
+      };
+    });
+    expect(placement.gutterDelta).toBeLessThan(6);
+    expect(placement.itemTabRight).toBeLessThan(placement.itemTextLeft);
   });
 
   test('commenting a list item stores its path and keeps the card on that item', async ({ page }) => {
     await setBody(page, '- apple\n- banana\n- cherry\n');
-    await page.locator('#_sd_rendered li').nth(1).locator(':scope > .sdoc-element-add').click({ force: true });
-    const composer = page.locator('#_sd_rendered li').nth(1).locator(':scope > .sdoc-element-card');
+    await page.locator('#_sd_rendered li').nth(1).locator(':scope > .sdoc-element-host > .sdoc-element-add').click({ force: true });
+    const composer = page.locator('#_sd_rendered li').nth(1).locator(':scope > .sdoc-element-host > .sdoc-element-card');
     await composer.locator('.sdoc-card-input').fill('use a more specific fruit');
     await composer.locator('.sdoc-card-save').click();
 
@@ -727,7 +747,7 @@ test.describe('edge-case content', () => {
         block: c && c.block,
         element: c && c.element,
         elementText: c && c.element_text,
-        itemText: item && item.cloneNode(true).firstChild.textContent.trim(),
+        itemText: item && item.querySelector('.sdoc-element-host').firstChild.textContent.trim(),
       };
     });
     expect(state).toEqual({
@@ -739,32 +759,44 @@ test.describe('edge-case content', () => {
   test('nested list item paths include their containing branch', async ({ page }) => {
     await setBody(page, '- parent\n    - first child\n    - second child\n- sibling\n');
     const nested = page.locator('#_sd_rendered li li').nth(1);
-    await nested.locator(':scope > .sdoc-element-add').click({ force: true });
+    await nested.locator(':scope > .sdoc-element-host > .sdoc-element-add').click({ force: true });
     const composer = page.locator('.sdoc-element-card.sdoc-card-edit');
     await composer.locator('.sdoc-card-input').fill('nested note');
     await composer.locator('.sdoc-card-save').click({ force: true });
-    const target = await page.evaluate(() => (window.SDocs.currentMeta.comments || [])[0].element);
-    expect(target).toBe('li:0/ul:0/li:1');
+    const state = await page.evaluate(() => {
+      const card = document.querySelector('.sdoc-element-card');
+      const host = card.closest('.sdoc-element-host');
+      const tab = host.querySelector(':scope > .sdoc-element-add');
+      return {
+        target: (window.SDocs.currentMeta.comments || [])[0].element,
+        tabHeight: tab.getBoundingClientRect().height,
+        hostHeight: host.getBoundingClientRect().height,
+        nestedListInsideHost: !!host.querySelector('ul, ol'),
+      };
+    });
+    expect(state.target).toBe('li:0/ul:0/li:1');
+    expect(Math.abs(state.tabHeight - state.hostHeight)).toBeLessThan(1);
+    expect(state.nestedListInsideHost).toBe(false);
   });
 
-  test('shift-click creates a list-branch comment', async ({ page }) => {
+  test('list item comments do not expand to nested items', async ({ page }) => {
     await setBody(page, '- parent\n    - child\n');
-    const parent = page.locator('#_sd_rendered > .sdoc-block-host li').first();
-    await parent.locator(':scope > .sdoc-element-add').click({ force: true, modifiers: ['Shift'] });
+    const parent = page.locator('#_sd_rendered li').first();
+    await parent.locator(':scope > .sdoc-element-host > .sdoc-element-add').click({ force: true, modifiers: ['Shift'] });
     const composer = page.locator('.sdoc-element-card.sdoc-card-edit');
-    await composer.locator('.sdoc-card-input').fill('branch note');
+    await composer.locator('.sdoc-card-input').fill('item note');
     await composer.locator('.sdoc-card-save').click({ force: true });
     const state = await page.evaluate(() => {
       const c = (window.SDocs.currentMeta.comments || [])[0];
       const li = document.querySelector('#_sd_rendered li');
       return { scope: c.element_scope, branchClass: li.classList.contains('sdoc-element-branch-commented') };
     });
-    expect(state).toEqual({ scope: 'branch', branchClass: true });
+    expect(state).toEqual({ scope: 'self', branchClass: false });
   });
 
   test('list item target recovers after an item is inserted before it', async ({ page }) => {
     await setBody(page, '- apple\n- banana\n- cherry\n');
-    await page.locator('#_sd_rendered li').nth(1).locator(':scope > .sdoc-element-add').click({ force: true });
+    await page.locator('#_sd_rendered li').nth(1).locator(':scope > .sdoc-element-host > .sdoc-element-add').click({ force: true });
     const composer = page.locator('.sdoc-element-card.sdoc-card-edit');
     await composer.locator('.sdoc-card-input').fill('keep on banana');
     await composer.locator('.sdoc-card-save').click({ force: true });
@@ -782,9 +814,11 @@ test.describe('edge-case content', () => {
     await setBody(page, '- apple\n- banana\n');
     await page.evaluate(() => {
       const items = document.querySelectorAll('#_sd_rendered li');
+      const firstText = items[0].querySelector('.sdoc-element-host').firstChild;
+      const secondText = items[1].querySelector('.sdoc-element-host').firstChild;
       const range = document.createRange();
-      range.setStart(items[0].firstChild, 0);
-      range.setEnd(items[1].firstChild, items[1].firstChild.nodeValue.length);
+      range.setStart(firstText, 0);
+      range.setEnd(secondText, secondText.nodeValue.length);
       const sel = window.getSelection();
       sel.removeAllRanges();
       sel.addRange(range);
