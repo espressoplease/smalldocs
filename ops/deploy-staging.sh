@@ -102,6 +102,7 @@ if [ "$running_commit" != "$release_commit" ]; then
   exit 1
 fi
 public_commit=$(curl -fsSI --max-time 10 \
+  --resolve cloud-staging.smalldocs.org:443:127.0.0.1 \
   "$public_origin/public/sdocs-cloud-prototype.js" |
   sed -n 's/^[Xx]-[Ss]docs-[Cc]ommit:[[:space:]]*//p' | tr -d '\r')
 if [ "$public_commit" != "$release_commit" ]; then
@@ -109,7 +110,9 @@ if [ "$public_commit" != "$release_commit" ]; then
   rollback_staging
   exit 1
 fi
-if ! curl -fsS --max-time 10 "$public_origin/version-check" >/dev/null; then
+if ! curl -fsS --max-time 10 \
+  --resolve cloud-staging.smalldocs.org:443:127.0.0.1 \
+  "$public_origin/version-check" >/dev/null; then
   rollback_staging
   exit 1
 fi
