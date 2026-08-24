@@ -1,7 +1,7 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.SDOCS_TEST_BASE_URL || 'http://localhost:3000';
 
 /**
  * Comment mode end-to-end tests - sidecar storage model.
@@ -869,6 +869,178 @@ test.describe('edge-case content', () => {
       return !!(a && a.closest('td'));
     });
     expect(inTd).toBe(true);
+  });
+
+  test('table comments expose table, column, row, and cell controls', async ({ page }) => {
+    await setBody(page,
+      '| Feature | Owner | Status |\n|---|---|---|\n| Alpha | Maya | Ready |\n| Beta | Sam | Draft |\n');
+    await expect(page.locator('#_sd_rendered .sdoc-table-host')).toHaveCount(1);
+    await expect(page.locator('#_sd_rendered .sdoc-table-table-add')).toHaveCount(1);
+    await expect(page.locator('#_sd_rendered .sdoc-table-column-add')).toHaveCount(3);
+    await expect(page.locator('#_sd_rendered .sdoc-table-row-add')).toHaveCount(2);
+    await expect(page.locator('#_sd_rendered .sdoc-table-cell-add')).toHaveCount(6);
+    await expect(page.locator('#_sd_rendered .sdoc-table-host .sdoc-gutter-add')).toHaveCount(0);
+    await expect(page.locator('#_sd_rendered .sdoc-table-host > .md-table-scroll')).toHaveCount(1);
+
+    const geometry = await page.evaluate(() => {
+      const table = document.querySelector('#_sd_rendered table').getBoundingClientRect();
+      const firstHeader = document.querySelector('#_sd_rendered th').getBoundingClientRect();
+      const firstCell = document.querySelector('#_sd_rendered td').getBoundingClientRect();
+      const row = document.querySelector('.sdoc-table-row-add').getBoundingClientRect();
+      const column = document.querySelector('.sdoc-table-column-add').getBoundingClientRect();
+      const cell = document.querySelector('.sdoc-table-cell-add').getBoundingClientRect();
+      return {
+        rowRight: row.right,
+        tableLeft: table.left,
+        columnBottom: column.bottom,
+        headerTop: firstHeader.top,
+        cellInside: cell.left >= firstCell.left && cell.right <= firstCell.right,
+      };
+    });
+    expect(geometry.rowRight).toBeLessThanOrEqual(geometry.tableLeft);
+    expect(geometry.columnBottom).toBeLessThanOrEqual(geometry.headerTop + 4);
+    expect(geometry.cellInside).toBe(true);
+  });
+
+  test('table target controls save precise anchors and label their cards', async ({ page }) => {
+    await setBody(page,
+      '| Feature | Owner | Status |\n|---|---|---|\n| Alpha | Maya | Ready |\n| Beta | Sam | Draft |\n');
+
+    await page.locator('.sdoc-table-table-add').click({ force: true });
+    await page.locator('.sdoc-table-card.sdoc-card-edit .sdoc-card-input').fill('whole table');
+    await page.locator('.sdoc-table-card.sdoc-card-edit .sdoc-card-save').click();
+
+    await page.locator('.sdoc-table-row-add').nth(1).click({ force: true });
+    await page.locator('.sdoc-table-card.sdoc-card-edit .sdoc-card-input').fill('beta row');
+    await page.locator('.sdoc-table-card.sdoc-card-edit .sdoc-card-save').click();
+
+    await page.locator('.sdoc-table-column-add').nth(2).click({ force: true });
+    await page.locator('.sdoc-table-card.sdoc-card-edit .sdoc-card-input').fill('status column');
+    await page.locator('.sdoc-table-card.sdoc-card-edit .sdoc-card-save').click();
+
+    await page.locator('tbody tr').nth(0).locator('td').nth(2)
+      .locator('.sdoc-table-cell-add').click({ force: true });
+    await page.locator('.sdoc-table-card.sdoc-card-edit .sdoc-card-input').fill('ready cell');
+    await page.locator('.sdoc-table-card.sdoc-card-edit .sdoc-card-save').click();
+
+    const state = await page.evaluate(() => ({
+      comments: window.SDocs.currentMeta.comments.map(c => ({
+        kind: c.kind, scope: c.table_scope, row: c.table_row,
+        column: c.table_column, rowText: c.row_text,
+        columnText: c.column_text, cellText: c.cell_text,
+      })),
+      labels: Array.from(document.querySelectorAll('.sdoc-table-target-label'))
+        .map(el => el.textContent),
+      cardsInHost: document.querySelectorAll('.sdoc-table-host > .sdoc-card').length,
+    }));
+    expect(state.comments).toEqual([
+      { kind: 'table', scope: 'table', row: undefined, column: undefined,
+        rowText: undefined, columnText: undefined, cellText: undefined },
+      { kind: 'table', scope: 'row', row: 1, column: undefined,
+        rowText: 'Beta', columnText: undefined, cellText: undefined },
+      { kind: 'table', scope: 'column', row: undefined, column: 2,
+        rowText: undefined, columnText: 'Status', cellText: undefined },
+      { kind: 'table', scope: 'cell', row: 0, column: 2,
+        rowText: 'Alpha', columnText: 'Status', cellText: 'Ready' },
+    ]);
+    expect(state.labels).toEqual([
+      'Table', 'Row: Beta', 'Column: Status', 'Cell: Alpha / Status',
+    ]);
+    expect(state.cardsInHost).toBe(4);
+  });
+
+  test('table targets follow reordered rows and columns by their text hints', async ({ page }) => {
+    await setBody(page,
+      '| Feature | Owner | Status |\n|---|---|---|\n| Alpha | Maya | Ready |\n| Beta | Sam | Draft |\n');
+    await page.evaluate(() => {
+      const SDC = window.SDocComments;
+      let meta = {};
+      meta = SDC.addTableComment(meta, {
+        block: 'table:0', table_scope: 'row', table_row: 1, row_text: 'Beta',
+      }, { text: 'row', color: '#ffbb00' }).meta;
+      meta = SDC.addTableComment(meta, {
+        block: 'table:0', table_scope: 'column', table_column: 1, column_text: 'Owner',
+      }, { text: 'column', color: '#ffbb00' }).meta;
+      meta = SDC.addTableComment(meta, {
+        block: 'table:0', table_scope: 'cell', table_row: 0, table_column: 2,
+        row_text: 'Alpha', column_text: 'Status', cell_text: 'Ready',
+      }, { text: 'cell', color: '#ffbb00' }).meta;
+      window.SDocs.currentMeta = meta;
+      window.SDocs.currentBody =
+        '| Status | Feature | Owner |\n|---|---|---|\n' +
+        '| New | Gamma | Lee |\n| Draft | Beta | Sam |\n| Approved | Alpha | Maya |\n';
+      window.SDocs.render();
+      window.SDocs.commentsUi.onHostRender();
+    });
+
+    const state = await page.evaluate(() => ({
+      row: document.querySelector('tr.sdoc-table-row-commented td')?.textContent.trim(),
+      column: document.querySelector('th.sdoc-table-column-commented')?.textContent.trim(),
+      cell: document.querySelector('td.sdoc-table-cell-commented')?.textContent.trim(),
+      cellRow: document.querySelector('td.sdoc-table-cell-commented')
+        ?.parentElement.querySelectorAll('td')[1].textContent.trim(),
+      orphans: document.querySelectorAll('.sdoc-card-orphaned').length,
+    }));
+    expect(state.row).toContain('Draft');
+    expect(state.column).toContain('Owner');
+    expect(state.cell).toContain('Approved');
+    expect(state.cellRow).toContain('Alpha');
+    expect(state.orphans).toBe(0);
+  });
+
+  test('switching table drafts clears the previous provisional target', async ({ page }) => {
+    await setBody(page,
+      '| Feature | Status |\n|---|---|\n| Alpha | Ready |\n| Beta | Draft |\n');
+    const rows = page.locator('tbody tr');
+    await rows.nth(0).locator('.sdoc-table-row-add').click({ force: true });
+    await expect(rows.nth(0)).toHaveClass(/sdoc-table-row-commented/);
+    await rows.nth(1).locator('td').nth(1).locator('.sdoc-table-cell-add').click({ force: true });
+    await expect(rows.nth(0)).not.toHaveClass(/sdoc-table-row-commented/);
+    await expect(rows.nth(1).locator('td').nth(1)).toHaveClass(/sdoc-table-cell-commented/);
+    await expect(page.locator('.sdoc-card-edit')).toHaveCount(1);
+  });
+
+  test('selection spanning two table cells does not offer an inline comment', async ({ page }) => {
+    await setBody(page, '| A | B |\n|---|---|\n| apple | banana |\n');
+    await page.evaluate(() => {
+      const cells = document.querySelectorAll('#_sd_rendered td');
+      const range = document.createRange();
+      range.setStart(cells[0].firstChild, 0);
+      range.setEnd(cells[1].firstChild, cells[1].firstChild.nodeValue.length);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await expect(page.locator('.sdoc-selection-add')).toBeHidden();
+  });
+
+  test('table comment rails stay usable in a narrow viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await setBody(page,
+      '| Feature name | Responsible owner | Delivery status | Review date |\n' +
+      '|---|---|---|---|\n' +
+      '| A deliberately long feature name | Alexandra | In progress | 2026-09-01 |\n');
+    const state = await page.evaluate(() => {
+      const scroll = document.querySelector('.sdoc-table-host > .md-table-scroll');
+      const rowButton = document.querySelector('.sdoc-table-row-add');
+      const columnButton = document.querySelector('.sdoc-table-column-add');
+      const scrollBox = scroll.getBoundingClientRect();
+      const rowBox = rowButton.getBoundingClientRect();
+      const columnBox = columnButton.getBoundingClientRect();
+      return {
+        pageFits: document.documentElement.scrollWidth <= window.innerWidth,
+        tableScrolls: scroll.scrollWidth > scroll.clientWidth,
+        railInsideViewport: rowBox.left >= 0 && columnBox.top >= 0,
+        scrollInsideViewport: scrollBox.left >= 0 && scrollBox.right <= window.innerWidth,
+      };
+    });
+    expect(state).toEqual({
+      pageFits: true,
+      tableScrolls: true,
+      railInsideViewport: true,
+      scrollInsideViewport: true,
+    });
   });
 
   test('card for table-cell anchor renders OUTSIDE the table (not inside a td)', async ({ page }) => {

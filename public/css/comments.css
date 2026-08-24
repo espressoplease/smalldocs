@@ -456,6 +456,172 @@ body.comment-mode .sdoc-element-host::before {
   }
 }
 
+/* Table comments use spreadsheet-style target rails. The app already wraps
+   tables in .md-table-scroll, so the comment host reserves space inside that
+   scrolling plane. The table keeps its original content width while the row
+   and column controls stay aligned with their cells. */
+.sdoc-table-host {
+  position: relative;
+  margin: 1.2em 0;
+}
+#_sd_rendered .sdoc-table-host > .md-table-scroll {
+  width: calc(100% + 32px);
+  max-width: none;
+  margin: 0 0 0 -32px;
+  padding: 28px 0 0 32px;
+  box-sizing: border-box;
+}
+#_sd_rendered .sdoc-table-host > .md-table-scroll > table {
+  width: 100%;
+  margin: 0;
+}
+#_sd_rendered .sdoc-table-host th,
+#_sd_rendered .sdoc-table-host td {
+  position: relative;
+}
+
+.sdoc-table-add {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--text-2);
+  background: var(--bg-surface);
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: background .2s ease,
+              color .2s ease,
+              opacity .2s cubic-bezier(.4,0,.2,1),
+              box-shadow .15s ease;
+}
+.sdoc-table-add svg { display: block; width: 13px; height: 13px; }
+.sdoc-table-table-add {
+  left: -32px;
+  top: -28px;
+  width: 20px;
+  height: 28px;
+  border-radius: 8px 3px 3px 8px;
+}
+.sdoc-table-column-add {
+  left: 50%;
+  top: -25px;
+  width: 22px;
+  height: 22px;
+  transform: translateX(-50%);
+  border-radius: 8px 8px 3px 3px;
+}
+.sdoc-table-row-add {
+  left: -32px;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  border-radius: 8px 3px 3px 8px;
+}
+.sdoc-table-cell-add {
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+body.comment-mode .sdoc-table-host th::before,
+body.comment-mode .sdoc-table-host tbody td:first-child::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  pointer-events: auto;
+}
+body.comment-mode .sdoc-table-host th::before {
+  left: 0;
+  right: 0;
+  top: -28px;
+  height: 28px;
+}
+body.comment-mode .sdoc-table-host tbody td:first-child::before {
+  left: -32px;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+}
+
+body.comment-mode .sdoc-table-host:hover .sdoc-table-table-add,
+body.comment-mode .sdoc-table-host th:hover > .sdoc-table-column-add,
+body.comment-mode .sdoc-table-host tr:hover > td:first-child > .sdoc-table-row-add,
+body.comment-mode .sdoc-table-host td:hover > .sdoc-table-cell-add,
+body.comment-mode .sdoc-table-add:hover,
+body.comment-mode .sdoc-table-add:focus-visible,
+body.comment-mode .sdoc-table-all-commented .sdoc-table-table-add,
+body.comment-mode th.sdoc-table-column-commented > .sdoc-table-column-add,
+body.comment-mode tr.sdoc-table-row-commented > td:first-child > .sdoc-table-row-add,
+body.comment-mode td.sdoc-table-cell-commented > .sdoc-table-cell-add {
+  opacity: 1;
+  pointer-events: auto;
+}
+body.comment-mode .sdoc-table-add:hover,
+body.comment-mode .sdoc-table-add:focus-visible {
+  color: var(--text);
+  background: var(--bg-hover);
+  box-shadow: 0 1px 4px rgba(0,0,0,.12);
+}
+body.comment-mode .sdoc-table-add:focus { outline: none; }
+body.comment-mode .sdoc-table-add:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--md-link-color, #2563eb) 55%, transparent);
+  outline-offset: 1px;
+}
+
+body.comment-mode .sdoc-table-all-commented .sdoc-table-table-add,
+body.comment-mode th.sdoc-table-column-commented > .sdoc-table-column-add,
+body.comment-mode tr.sdoc-table-row-commented > td:first-child > .sdoc-table-row-add,
+body.comment-mode td.sdoc-table-cell-commented > .sdoc-table-cell-add {
+  background: color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 32%, var(--bg-surface));
+}
+body.comment-mode table.sdoc-table-all-commented {
+  outline: 2px solid color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 65%, transparent);
+  outline-offset: -2px;
+}
+body.comment-mode tr.sdoc-table-row-commented:nth-child(odd) > td {
+  background: color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 10%, var(--md-table-odd-bg));
+}
+body.comment-mode tr.sdoc-table-row-commented:nth-child(even) > td {
+  background: color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 10%, var(--md-table-even-bg));
+}
+body.comment-mode :is(th, td).sdoc-table-column-commented {
+  box-shadow: inset 0 3px 0 color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 75%, transparent);
+}
+body.comment-mode td.sdoc-table-cell-commented {
+  outline: 2px solid color-mix(in srgb, var(--sdoc-table-comment-color, var(--sdoc-anchor-color)) 80%, transparent);
+  outline-offset: -2px;
+}
+
+.sdoc-table-host > .sdoc-card { margin-top: 6px; margin-bottom: 0; }
+.sdoc-table-target-label {
+  display: inline-block;
+  margin-right: 7px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--text-2);
+  background: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-anchor-color)) 13%, transparent);
+  font-size: .82em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.sdoc-card-edit > .sdoc-table-target-label {
+  margin-bottom: 3px;
+}
+
+@media (hover: none) {
+  body.comment-mode .sdoc-table-add {
+    opacity: .82;
+    pointer-events: auto;
+  }
+}
+
 /* ── Orphan badge ───────────────────────────────────────────────
    Subtle outline-style badge that matches the "n orphaned" toolbar
    pill (no heavy fill). */

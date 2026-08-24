@@ -19,6 +19,10 @@
  *     { id, kind: 'element', block, element, element_text, element_scope,
  *       author, color, at, text }
  *
+ *   Table-anchored:
+ *     { id, kind: 'table', block, table_scope, table_row?, table_column?,
+ *       row_text?, column_text?, cell_text?, author, color, at, text }
+ *
  *   Slide-anchored (a ```slide block, optionally a single shape within it):
  *     { id, kind: 'slide', slide, shape?, slide_text?, author, color, at, text }
  *
@@ -34,6 +38,9 @@
  *   and lets the renderer recover when an item is inserted before it.
  *   `element_scope` is "self" for one item or "branch" for the item and its
  *   nested descendants.
+ * - `table_scope` is "table", "row", "column", or "cell". Row and column
+ *   indices are 0-based. The text fields let comments follow table content
+ *   when rows or columns move.
  * - `slide` is the 0-based index of the ```slide block in document order.
  *   `shape` (optional) is the 0-based index of a shape within that slide's
  *   resolved DSL - it matches the `data-shape-idx` the renderer stamps on
@@ -58,6 +65,7 @@ var DEFAULT_COLOR = '#ffbb00';
 var HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 var ID_FORMAT = /^c\d+$/;
 var ELEMENT_PATH = /^(?:li|ul|ol):\d+(?:\/(?:li|ul|ol):\d+)*$/;
+var TABLE_BLOCK = /^table:\d+$/;
 
 // Comment ids are written into a CSS selector
 // (`.sdoc-card[data-c="..."]`). Crafted ids with quotes or brackets
@@ -150,6 +158,21 @@ function normalizeComment(c) {
     out.element = c.element;
     if (c.element_text) out.element_text = c.element_text;
     out.element_scope = c.element_scope === 'branch' ? 'branch' : 'self';
+  }
+  if (out.kind === 'table') {
+    if (!c.block || !TABLE_BLOCK.test(c.block)) return null;
+    var scope = /^(?:table|row|column|cell)$/.test(c.table_scope)
+      ? c.table_scope : 'table';
+    var row = toIndex(c.table_row);
+    var column = toIndex(c.table_column);
+    if ((scope === 'row' || scope === 'cell') && row == null) return null;
+    if ((scope === 'column' || scope === 'cell') && column == null) return null;
+    out.table_scope = scope;
+    if (row != null) out.table_row = row;
+    if (column != null) out.table_column = column;
+    if (c.row_text) out.row_text = c.row_text;
+    if (c.column_text) out.column_text = c.column_text;
+    if (c.cell_text) out.cell_text = c.cell_text;
   }
   if (out.kind === 'slide') {
     // A slide comment without a resolvable slide index is meaningless;
@@ -254,6 +277,36 @@ function addElementComment(meta, anchor, noteMeta) {
     at: (noteMeta || {}).at,
     text: (noteMeta || {}).text,
   });
+  var list = getComments(meta);
+  list.push(c);
+  return { meta: setComments(meta, list), id: id };
+}
+
+// anchor: { block, table_scope, table_row?, table_column?, row_text?,
+//           column_text?, cell_text?, block_text? }.
+function addTableComment(meta, anchor, noteMeta) {
+  if (!anchor || typeof anchor.block !== 'string' ||
+      !TABLE_BLOCK.test(anchor.block)) {
+    throw new Error('addTableComment requires a table block id');
+  }
+  var id = nextId(meta);
+  var c = normalizeComment({
+    id: id,
+    kind: 'table',
+    block: anchor.block,
+    block_text: anchor.block_text || '',
+    table_scope: anchor.table_scope,
+    table_row: anchor.table_row,
+    table_column: anchor.table_column,
+    row_text: anchor.row_text || '',
+    column_text: anchor.column_text || '',
+    cell_text: anchor.cell_text || '',
+    author: (noteMeta || {}).author,
+    color: (noteMeta || {}).color,
+    at: (noteMeta || {}).at,
+    text: (noteMeta || {}).text,
+  });
+  if (!c) throw new Error('addTableComment requires a valid table target');
   var list = getComments(meta);
   list.push(c);
   return { meta: setComments(meta, list), id: id };
@@ -445,6 +498,21 @@ function serializeFootnotes(meta, body) {
       if (c.element_text) elementTag += ' "' + sanitizeText(c.element_text) + '..."';
       label += ' (element ' + elementTag + ')';
     }
+    if (c.kind === 'table' && c.block) {
+      var tableTag = c.block;
+      if (c.table_scope === 'row' || c.table_scope === 'cell') {
+        tableTag += ', row ' + (c.table_row + 1);
+        if (c.row_text) tableTag += ' "' + sanitizeText(c.row_text) + '"';
+      }
+      if (c.table_scope === 'column' || c.table_scope === 'cell') {
+        tableTag += ', column ' + (c.table_column + 1);
+        if (c.column_text) tableTag += ' "' + sanitizeText(c.column_text) + '"';
+      }
+      if (c.table_scope === 'cell' && c.cell_text) {
+        tableTag += ', cell "' + sanitizeText(c.cell_text) + '"';
+      }
+      label += ' (table ' + tableTag + ')';
+    }
     if (c.kind === 'slide') {
       // Slides don't anchor into body text (their source is the fenced DSL,
       // which we never rewrite), so the location rides entirely in the
@@ -574,6 +642,24 @@ function parseFootnotes(body) {
         /\s*\(element\s+\w+:\d+\s+>\s+(?:li|ul|ol):\d+(?:\/(?:li|ul|ol):\d+)*(?:\s+branch)?(?:\s+"[^"]*\.\.\.")?\)\s*$/,
         '');
     }
+    // Trailing table target hint. Row and column numbers are 1-based in the
+    // copied footnote so they match what the reader sees, then return to
+    // 0-based indices in the in-memory model.
+    var tTag = (out.text || '').match(
+      /\s*\(table\s+(table:\d+)(?:,\s*row\s+(\d+)(?:\s+"([^"]*)")?)?(?:,\s*column\s+(\d+)(?:\s+"([^"]*)")?)?(?:,\s*cell\s+"([^"]*)")?\)\s*$/);
+    if (tTag) {
+      out.block = tTag[1];
+      if (tTag[2] != null) out.table_row = parseInt(tTag[2], 10) - 1;
+      if (tTag[3]) out.row_text = tTag[3];
+      if (tTag[4] != null) out.table_column = parseInt(tTag[4], 10) - 1;
+      if (tTag[5]) out.column_text = tTag[5];
+      if (tTag[6]) out.cell_text = tTag[6];
+      out.table_scope = tTag[6] != null ? 'cell'
+        : (tTag[4] != null ? 'column' : (tTag[2] != null ? 'row' : 'table'));
+      out.text = out.text.replace(
+        /\s*\(table\s+table:\d+(?:,\s*row\s+\d+(?:\s+"[^"]*")?)?(?:,\s*column\s+\d+(?:\s+"[^"]*")?)?(?:,\s*cell\s+"[^"]*")?\)\s*$/,
+        '');
+    }
     // Trailing "(slide N[, element M][ "text"])" hint - the inverse of the
     // slide label serializeFootnotes emits. Slide number is 1-based on disk;
     // store it 0-based to match the in-memory anchor.
@@ -641,7 +727,17 @@ function parseFootnotes(body) {
     seen[id] = true;
     var d3 = decodeDef(defs[id]);
     var c3;
-    if (d3.element) {
+    if (d3.table_scope) {
+      c3 = {
+        id: id, kind: 'table', block: d3.block,
+        table_scope: d3.table_scope, text: d3.text,
+      };
+      if (d3.table_row != null) c3.table_row = d3.table_row;
+      if (d3.table_column != null) c3.table_column = d3.table_column;
+      if (d3.row_text) c3.row_text = d3.row_text;
+      if (d3.column_text) c3.column_text = d3.column_text;
+      if (d3.cell_text) c3.cell_text = d3.cell_text;
+    } else if (d3.element) {
       c3 = {
         id: id, kind: 'element', block: d3.block, element: d3.element,
         element_scope: d3.element_scope, text: d3.text,
@@ -684,6 +780,7 @@ exports.normalizeComment    = normalizeComment;
 exports.addSelectionComment = addSelectionComment;
 exports.addBlockComment     = addBlockComment;
 exports.addElementComment   = addElementComment;
+exports.addTableComment     = addTableComment;
 exports.addSlideComment     = addSlideComment;
 exports.removeComment       = removeComment;
 exports.updateComment       = updateComment;
