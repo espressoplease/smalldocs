@@ -31,7 +31,7 @@
     '  width: 26px; height: 26px;',
     '  display: inline-flex; align-items: center; justify-content: center;',
     '  background: transparent;',
-    '  color: var(--md-color, #1c1917);',
+    '  color: var(--md-code-color, #6B21A8);',
     '  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));',
     '  border-radius: 4px;',
     '  cursor: pointer; opacity: 0.7; transition: opacity .15s, background .12s;',
@@ -41,7 +41,6 @@
     '.sdoc-mermaid-tool-btn:hover {',
     '  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));',
     '}',
-    '.sdoc-mermaid-tool-btn.copied { color: #16a34a; opacity: 1; }',
     /* Focus modal inherits the block colour cascade from the page so it */
     /* feels like a magnified version of the diagram, not a separate */
     /* (presentation-style) hard-dark surface. The bg / fg vars are set */
@@ -132,17 +131,15 @@
     '  display: inline-flex; align-items: center; gap: 5px;',
     '  padding: 4px 9px; border-radius: 4px;',
     '  background: transparent;',
-    '  border: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 18%, transparent);',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 75%, transparent);',
+    '  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));',
+    '  color: var(--sdoc-copy-color, #6B21A8);',
     '  font-size: 11.5px; font-weight: 500; font-family: inherit;',
     '  transition: background .12s, color .12s, border-color .12s;',
     '}',
     '.sdoc-mermaid-focus-action:hover {',
-    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 8%, transparent);',
-    '  color: var(--sdoc-focus-fg, #1c1917);',
-    '  border-color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 32%, transparent);',
+    '  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));',
+    '  color: var(--sdoc-copy-color, #6B21A8);',
     '}',
-    '.sdoc-mermaid-focus-action.copied { color: #16a34a; border-color: #86efac; }',
     '.sdoc-mermaid-focus-action:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
     '.sdoc-mermaid-focus-action svg { flex-shrink: 0; }',
     '.sdoc-mermaid-focus-action-label { white-space: nowrap; }',
@@ -234,11 +231,9 @@
     if (!svg) return;
     var previous = svg.outerHTML;
     svg.outerHTML = CHECK_ICON_SVG;
-    btn.classList.add('copied');
     setTimeout(function () {
       var current = btn.querySelector('svg');
       if (current) current.outerHTML = previous;
-      btn.classList.remove('copied');
     }, 1500);
   }
 
@@ -426,12 +421,15 @@
       blockBg = isTransparentColor(rendBg) ? '' : rendBg;
     }
     var fg = '';
+    var copyColor = '';
     if (rendered) {
       var rcs = getComputedStyle(rendered);
       fg = rcs.getPropertyValue('--md-color').trim() || rcs.color;
+      copyColor = rcs.getPropertyValue('--md-code-color').trim();
     }
     if (blockBg) modal.style.setProperty('--sdoc-focus-bg', blockBg);
     if (fg)      modal.style.setProperty('--sdoc-focus-fg', fg);
+    if (copyColor) modal.style.setProperty('--sdoc-copy-color', copyColor);
     // Mirror --md-block-bg onto the modal so CSS rules in rendered.css that
     // reference it (edge label fills etc.) resolve correctly inside the
     // modal too - the modal is appended to <body>, not inside #_sd_rendered,

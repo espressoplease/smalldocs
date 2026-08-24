@@ -679,7 +679,7 @@ foreignObject span { line-height: normal; }
   background: var(--md-bq-bg, var(--md-block-bg));
   border: 1px solid var(--md-copy-btn-border);
   border-radius: 4px;
-  color: var(--md-bq-color);
+  color: var(--md-code-color, #6B21A8);
   cursor: pointer;
   opacity: 0.7;
   transition: opacity .15s, background .12s;

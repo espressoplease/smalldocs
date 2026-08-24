@@ -63,10 +63,44 @@ test('fullscreen PNG action uses tick feedback and restores its copy icon', asyn
   await copy.click();
   await expect.poll(() => page.evaluate(() => window.__copiedPng)).toBe(true);
   await expect(copy.locator('polyline')).toHaveCount(1);
-  await expect(copy).toHaveClass(/copied/);
   await expect(copy.locator('.sdoc-mermaid-focus-action-label')).toHaveText('PNG');
   await page.waitForTimeout(1600);
   await expect(copy.locator('polyline')).toHaveCount(0);
-  await expect(copy).not.toHaveClass(/copied/);
   await expect(copy.locator('.sdoc-mermaid-focus-action-label')).toHaveText('PNG');
+});
+
+test('code, quote, and Mermaid copy controls use the same color', async ({ page }) => {
+  await loadDoc(page, [
+    '```js',
+    'const ready = true;',
+    '```',
+    '',
+    '> A quoted architecture note.',
+    '',
+    '```mermaid',
+    'graph TD',
+    '  API --> Worker',
+    '```'
+  ].join('\n'));
+
+  const styles = await page.evaluate(() => {
+    const values = (selector) => {
+      const style = getComputedStyle(document.querySelector(selector));
+      return { color: style.color, borderColor: style.borderColor };
+    };
+    return {
+      code: values('.pre-wrapper .copy-btn'),
+      quote: values('.quote-copy-btn'),
+      mermaid: values('.sdoc-mermaid-copy-btn')
+    };
+  });
+  expect(styles.quote).toEqual(styles.code);
+  expect(styles.mermaid).toEqual(styles.code);
+
+  await page.locator('.sdoc-mermaid-zoom-btn').click();
+  const fullscreen = await page.locator('[data-act="copy-text"]').evaluate((btn) => {
+    const style = getComputedStyle(btn);
+    return { color: style.color, borderColor: style.borderColor };
+  });
+  expect(fullscreen).toEqual(styles.code);
 });
