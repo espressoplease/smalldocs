@@ -24,7 +24,11 @@ test('blockquote copy preserves paragraph breaks without button text', async ({ 
     });
   });
   await loadDoc(page, '> First paragraph.\n>\n> Second paragraph.');
-  await page.locator('.quote-copy-btn').click();
+  const copy = page.locator('.quote-copy-btn');
+  await copy.click();
   await expect.poll(() => page.evaluate(() => window.__copiedText))
     .toBe('First paragraph.\n\nSecond paragraph.');
+  await expect(copy.locator('polyline')).toHaveCount(1);
+  await page.waitForTimeout(1600);
+  await expect(copy.locator('polyline')).toHaveCount(0);
 });

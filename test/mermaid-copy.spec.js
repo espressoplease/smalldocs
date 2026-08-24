@@ -21,8 +21,12 @@ test('inline Mermaid source copy copies the underlying text', async ({ page }) =
   await stubTextClipboard(page);
   const source = 'graph TD\n  API --> Worker';
   await loadDoc(page, '```mermaid\n' + source + '\n```');
-  await page.locator('.sdoc-mermaid-copy-btn').click();
+  const copy = page.locator('.sdoc-mermaid-copy-btn');
+  await copy.click();
   await expect.poll(() => page.evaluate(() => window.__copiedText)).toBe(source);
+  await expect(copy.locator('polyline')).toHaveCount(1);
+  await page.waitForTimeout(1600);
+  await expect(copy.locator('polyline')).toHaveCount(0);
 });
 
 test('fullscreen Source action copies the Mermaid source', async ({ page }) => {
@@ -30,7 +34,12 @@ test('fullscreen Source action copies the Mermaid source', async ({ page }) => {
   const source = 'sequenceDiagram\n  User->>Agent: discuss architecture';
   await loadDoc(page, '```mermaid\n' + source + '\n```');
   await page.locator('.sdoc-mermaid-zoom-btn').click();
-  await page.locator('[data-act="copy-text"]').click();
+  const copy = page.locator('[data-act="copy-text"]');
+  await copy.click();
   await expect.poll(() => page.evaluate(() => window.__copiedText)).toBe(source);
-  await expect(page.locator('[data-act="copy-text"]')).toHaveText('Copied');
+  await expect(copy.locator('polyline')).toHaveCount(1);
+  await expect(copy.locator('.sdoc-mermaid-focus-action-label')).toHaveText('Source');
+  await page.waitForTimeout(1600);
+  await expect(copy.locator('polyline')).toHaveCount(0);
+  await expect(copy.locator('.sdoc-mermaid-focus-action-label')).toHaveText('Source');
 });

@@ -228,6 +228,17 @@
   var X_ICON_SVG = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
   var CHECK_ICON_SVG = lucide('<polyline points="20 6 9 17 4 12"/>', 13);
 
+  function flashCopyTick(btn) {
+    var previous = btn.innerHTML;
+    var label = btn.querySelector('.sdoc-mermaid-focus-action-label');
+    btn.innerHTML = CHECK_ICON_SVG + (label ? label.outerHTML : '');
+    btn.classList.add('copied');
+    setTimeout(function () {
+      btn.innerHTML = previous;
+      btn.classList.remove('copied');
+    }, 1500);
+  }
+
   function copySource(wrapper, btn, useLabel) {
     var source = wrapper && wrapper._sdMermaidSource;
     if (typeof source !== 'string' || !navigator.clipboard || !navigator.clipboard.writeText) {
@@ -235,17 +246,7 @@
       return;
     }
     navigator.clipboard.writeText(source.replace(/\r?\n$/, '')).then(function () {
-      if (useLabel) {
-        flashLabel(btn, 'Copied');
-        return;
-      }
-      var previous = btn.innerHTML;
-      btn.innerHTML = CHECK_ICON_SVG;
-      btn.classList.add('copied');
-      setTimeout(function () {
-        btn.innerHTML = previous;
-        btn.classList.remove('copied');
-      }, 1500);
+      flashCopyTick(btn);
     }).catch(function () {
       if (useLabel) flashLabel(btn, 'Failed');
     });
