@@ -397,11 +397,13 @@ test('numbers display with thousands separators; negatives get a red class', asy
 });
 
 test('default numeric display caps long decimal results at two places', async ({ page }) => {
-  await loadDoc(page, [FENCE + 'cells', 'Metric,Value', 'Forecast,573195.15000000003', 'Margin,0.5931673052362707', 'Units,950', FENCE].join('\n'));
+  await loadDoc(page, [FENCE + 'cells', 'Metric,Value', 'Forecast,573195.15000000003', 'Margin,0.5931673052362707', 'Half,1.005', 'Large ID,9007199254740993', 'Units,950', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
   expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').innerText()).toBe('573,195.15');
   expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').innerText()).toBe('0.59');
-  expect(await page.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').innerText()).toBe('950');
+  expect(await page.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').innerText()).toBe('1.01');
+  expect(await page.locator('.sdoc-cells-cell[data-r="4"][data-c="1"]').innerText()).toBe('9,007,199,254,740,993');
+  expect(await page.locator('.sdoc-cells-cell[data-r="5"][data-c="1"]').innerText()).toBe('950');
 });
 
 test('format directive targets columns, rows, and individual cells', async ({ page }) => {
@@ -411,6 +413,14 @@ test('format directive targets columns, rows, and individual cells', async ({ pa
   expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="0"]').innerText()).toBe('Margin');
   expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').innerText()).toBe('£0');
   expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="2"]').innerText()).toBe('40%');
+});
+
+test('malformed format targets never apply a valid-looking substring', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'format: A-2=% C1x=£ D1.2=$ E=%,.2', 'A,B,C,D,E', '0.23,0.23,0.23,0.23,0.23', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  for (let c = 0; c < 5; c++) {
+    expect(await page.locator(`.sdoc-cells-cell[data-r="1"][data-c="${c}"]`).innerText()).toBe('0.23');
+  }
 });
 
 test('clicking a column header selects the whole column; a row header the whole row', async ({ page }) => {

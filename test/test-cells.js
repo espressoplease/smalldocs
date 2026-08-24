@@ -294,6 +294,38 @@ module.exports = function(harness) {
     assert.strictEqual(formatValue(classify('950'), fmt), '950');
   });
 
+  test('formatValue: default formatting preserves integers beyond Number precision', () => {
+    const fmt = resolveFormat(parseCells('1'), 0, 0);
+    assert.strictEqual(formatValue(classify('9007199254740993'), fmt), '9,007,199,254,740,993');
+    assert.strictEqual(formatValue(classify('12345678901234567890'), fmt), '12,345,678,901,234,567,890');
+  });
+
+  test('formatValue: decimal-string rounding handles common halfway values', () => {
+    const fmt = resolveFormat(parseCells('1'), 0, 0);
+    assert.strictEqual(formatValue(classify('1.005'), fmt), '1.01');
+    assert.strictEqual(formatValue(classify('2.675'), fmt), '2.68');
+    assert.strictEqual(formatValue(classify('-1.005'), fmt), '-1.01');
+    assert.strictEqual(formatValue(classify('0.01005'), { kind: 'percent' }), '1.01%');
+  });
+
+  test('formatValue: high fixed precision does not expose binary residue', () => {
+    assert.strictEqual(formatValue(classify('1.2'), { kind: 'number', decimals: 30 }),
+      '1.200000000000000000000000000000');
+  });
+
+  test('formatValue: fixed currency and percent normalize negative zero', () => {
+    assert.strictEqual(formatValue(classify('-0.001'), { kind: 'currency', symbol: '$', decimals: 2 }), '$0.00');
+    assert.strictEqual(formatValue(classify('-0.00001'), { kind: 'percent', decimals: 2 }), '0.00%');
+  });
+
+  test('parseFormatRules: malformed targets are ignored as complete tokens', () => {
+    const f = parseFormatRules('A-2=% C1x=£ D1.2=$ E=%,.2');
+    assert.deepStrictEqual(f.columns, {});
+    assert.deepStrictEqual(f.rows, {});
+    assert.deepStrictEqual(f.cells, {});
+    assert.strictEqual(f.defaultFormat, null);
+  });
+
   test('parseFormats: decimal precision is capped to an Excel-compatible size', () => {
     const f = parseFormats('A=$.1000000000 B=%.999999');
     assert.strictEqual(f[0].decimals, 30);

@@ -1019,8 +1019,8 @@ WRAPPING
 
 FORMATTING
   Numbers display with thousands separators and up to two decimal places by
-  default. Negatives are red. An optional first line controls a sheet, column,
-  row, or individual cell:
+  default. Negatives are red. One or more leading format: lines can control a
+  sheet, column, row, or individual cell:
 
   \`\`\`cells
   format: A=plain B=$ C=% C4=%.1
@@ -1045,7 +1045,10 @@ FORMATTING
     %              percent - multiplies by 100, e.g. 0.23 -> 23%
     , / number     thousands separators
     plain / text   no number formatting (good for years, ids, codes)
-    .N suffix      fixed decimals, e.g. $.0 (no cents), %.1, .2
+    .N suffix      fixed decimals, attached directly: $.0, %.1, .2
+
+  Each target accepts one format token. Use C=%.2, not C=%,.2. Unknown or
+  malformed rules are ignored without changing the sheet's data.
 
   Formatting changes appearance, not the underlying values. Copy preserves
   the source values; Excel export preserves both the values and number formats.

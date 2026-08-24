@@ -389,11 +389,13 @@
     var rows = {};
     var cells = {};
     var defaultFormat = null;
-    var re = /(\*|[A-Za-z]+[1-9]\d*|[A-Za-z]+|[1-9]\d*)\s*=\s*(\S+)/g;
+    // Both sides must end at whitespace boundaries. Without these anchors a
+    // typo such as A-2=% could be recovered as the unrelated valid rule 2=%.
+    var re = /(^|\s)(\*|[A-Za-z]+[1-9]\d*|[A-Za-z]+|[1-9]\d*)\s*=\s*(\S+)(?=\s|$)/g;
     var m;
-    while ((m = re.exec(spec))) {
-      var target = m[1];
-      var fmt = parseFmtToken(m[2]);
+    while ((m = re.exec(String(spec)))) {
+      var target = m[2];
+      var fmt = parseFmtToken(m[3]);
       if (!fmt) continue;
       if (target === '*') { defaultFormat = fmt; continue; }
       if (/^[1-9]\d*$/.test(target)) { rows[parseInt(target, 10) - 1] = fmt; continue; }
@@ -420,9 +422,77 @@
     return fmt;
   }
 
-  function trimFixed(s) {
-    var out = String(s).replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1');
-    return out === '-0' ? '0' : out;
+  // Parse a decimal string without passing through binary floating point.
+  // Formula values may arrive in exponent form; literal cells never do.
+  function decimalParts(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    var negative = s.charAt(0) === '-';
+    if (negative || s.charAt(0) === '+') s = s.slice(1);
+    var m = s.match(/^(\d+)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/);
+    if (!m) return null;
+    var integer = m[1];
+    var fraction = m[2] || '';
+    var exponent = m[3] ? parseInt(m[3], 10) : 0;
+    if (exponent) {
+      var digits = integer + fraction;
+      var point = integer.length + exponent;
+      if (point <= 0) {
+        integer = '0';
+        fraction = new Array(-point + 1).join('0') + digits;
+      } else if (point >= digits.length) {
+        integer = digits + new Array(point - digits.length + 1).join('0');
+        fraction = '';
+      } else {
+        integer = digits.slice(0, point);
+        fraction = digits.slice(point);
+      }
+    }
+    integer = integer.replace(/^0+(?=\d)/, '');
+    return { negative: negative, integer: integer || '0', fraction: fraction };
+  }
+
+  function incrementDigits(digits) {
+    var chars = digits.split('');
+    for (var i = chars.length - 1; i >= 0; i--) {
+      if (chars[i] !== '9') {
+        chars[i] = String.fromCharCode(chars[i].charCodeAt(0) + 1);
+        return chars.join('');
+      }
+      chars[i] = '0';
+    }
+    return '1' + chars.join('');
+  }
+
+  // Round half away from zero, matching spreadsheet display semantics. The
+  // returned string is exact even for integers beyond Number.MAX_SAFE_INTEGER.
+  function roundDecimalString(raw, decimals, trim) {
+    var parts = decimalParts(raw);
+    if (!parts) return null;
+    var d = Math.max(0, Math.min(30, decimals));
+    var fraction = parts.fraction.slice(0, d);
+    while (fraction.length < d) fraction += '0';
+    var digits = parts.integer + fraction;
+    if ((parts.fraction.charAt(d) || '0') >= '5') digits = incrementDigits(digits);
+    if (digits.length <= d) digits = new Array(d - digits.length + 2).join('0') + digits;
+    var split = digits.length - d;
+    var integer = d ? digits.slice(0, split) : digits;
+    fraction = d ? digits.slice(split) : '';
+    integer = integer.replace(/^0+(?=\d)/, '') || '0';
+    if (trim) fraction = fraction.replace(/0+$/, '');
+    var zero = /^0+$/.test(integer) && (!fraction || /^0+$/.test(fraction));
+    return (parts.negative && !zero ? '-' : '') + integer + (fraction ? '.' + fraction : '');
+  }
+
+  function shiftDecimalString(raw, places) {
+    var parts = decimalParts(raw);
+    if (!parts) return null;
+    var digits = parts.integer + parts.fraction;
+    var point = parts.integer.length + places;
+    var out;
+    if (point <= 0) out = '0.' + new Array(-point + 1).join('0') + digits;
+    else if (point >= digits.length) out = digits + new Array(point - digits.length + 1).join('0');
+    else out = digits.slice(0, point) + '.' + digits.slice(point);
+    return (parts.negative ? '-' : '') + out;
   }
 
   // Format a numeric cell's display per a column format. Returns null for
@@ -430,21 +500,25 @@
   // the model's raw is untouched, so copy / export emit the original.
   function formatValue(cell, fmt) {
     if (!cell || cell.type !== 'number') return null;
-    var v = cell.value;
     if (!fmt || fmt.kind === 'number') {
       var decimals = !fmt ? 2 : fmt.decimals;
-      var numberText = decimals != null ? v.toFixed(decimals) : cell.raw;
-      if ((!fmt || fmt.trim) && decimals != null) numberText = trimFixed(numberText);
+      var numberText = decimals != null
+        ? roundDecimalString(cell.raw, decimals, !fmt || fmt.trim)
+        : cell.raw;
       return formatNumber(numberText);
     }
     if (fmt.kind === 'plain') return cell.raw;
     if (fmt.kind === 'currency') {
       var d = fmt.decimals == null ? 2 : fmt.decimals;
-      return (v < 0 ? '-' : '') + fmt.symbol + formatNumber(Math.abs(v).toFixed(d));
+      var money = roundDecimalString(cell.raw, d, false);
+      var moneyNegative = money && money.charAt(0) === '-';
+      if (moneyNegative) money = money.slice(1);
+      return (moneyNegative ? '-' : '') + fmt.symbol + formatNumber(money);
     }
     if (fmt.kind === 'percent') {
-      var p = v * 100;
-      var str = fmt.decimals != null ? p.toFixed(fmt.decimals) : trimFixed(p.toFixed(2));
+      var shifted = shiftDecimalString(cell.raw, 2);
+      var str = roundDecimalString(shifted, fmt.decimals == null ? 2 : fmt.decimals,
+        fmt.decimals == null);
       return formatNumber(str) + '%';
     }
     return formatNumber(cell.raw);
