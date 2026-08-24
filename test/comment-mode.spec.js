@@ -794,6 +794,30 @@ test.describe('edge-case content', () => {
     expect(state).toEqual({ scope: 'self', branchClass: false });
   });
 
+  test('opening another list-item draft clears the first provisional tab', async ({ page }) => {
+    await setBody(page, '- first\n- second\n');
+    const items = page.locator('#_sd_rendered li');
+    await items.nth(0).locator(':scope > .sdoc-element-host > .sdoc-element-add').click({ force: true });
+    await expect(items.nth(0)).toHaveClass(/sdoc-element-commented/);
+    await items.nth(1).locator(':scope > .sdoc-element-host > .sdoc-element-add').click({ force: true });
+
+    await expect(items.nth(0)).not.toHaveClass(/sdoc-element-commented/);
+    await expect(items.nth(1)).toHaveClass(/sdoc-element-commented/);
+    await expect(page.locator('.sdoc-card-edit')).toHaveCount(1);
+  });
+
+  test('opening another block draft clears the first provisional tab', async ({ page }) => {
+    await setBody(page, 'First paragraph.\n\nSecond paragraph.\n');
+    const hosts = page.locator('#_sd_rendered .sdoc-block-host');
+    await hosts.nth(0).locator(':scope > .sdoc-gutter-add').click({ force: true });
+    await expect(hosts.nth(0)).toHaveClass(/sdoc-host-commented/);
+    await hosts.nth(1).locator(':scope > .sdoc-gutter-add').click({ force: true });
+
+    await expect(hosts.nth(0)).not.toHaveClass(/sdoc-host-commented/);
+    await expect(hosts.nth(1)).toHaveClass(/sdoc-host-commented/);
+    await expect(page.locator('.sdoc-card-edit')).toHaveCount(1);
+  });
+
   test('list item target recovers after an item is inserted before it', async ({ page }) => {
     await setBody(page, '- apple\n- banana\n- cherry\n');
     await page.locator('#_sd_rendered li').nth(1).locator(':scope > .sdoc-element-host > .sdoc-element-add').click({ force: true });

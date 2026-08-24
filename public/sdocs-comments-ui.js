@@ -26,6 +26,7 @@ var CONTEXT_LEN = 40; // chars of before/after captured for disambiguation
 var focusedId = null;
 var selectionPopoverEl = null;
 var composerEl = null;
+var composerCleanup = null;
 
 // ── Prefs ───────────────────────────────────────────────────────────────
 
@@ -853,6 +854,9 @@ function nearestSelectionScope(node) {
 // the user types in is exactly where the saved comment will live.
 
 function hideComposer() {
+  var cleanup = composerCleanup;
+  composerCleanup = null;
+  if (cleanup) cleanup();
   if (composerEl && composerEl.parentNode) {
     composerEl.parentNode.removeChild(composerEl);
   }
@@ -895,14 +899,14 @@ function openBlockComposer(block) {
       if (S.syncAll) S.syncAll('comment');
       setTimeout(function () { focusComment(res.id); }, 30);
     },
-    onCancel: function () {
-      hideComposer();
-      if (!hasBlockComment(blockId) && host) {
-        host.classList.remove('sdoc-host-commented');
-        host.style.removeProperty('--sdoc-block-comment-color');
-      }
-    },
+    onCancel: hideComposer,
   });
+  composerCleanup = function () {
+    if (!hasBlockComment(blockId) && host) {
+      host.classList.remove('sdoc-host-commented');
+      host.style.removeProperty('--sdoc-block-comment-color');
+    }
+  };
   composerEl = composer;
   // Place inside the host so the left stripe spans block + composer.
   (host || block.parentNode).appendChild(composer);
@@ -961,14 +965,14 @@ function openElementComposer(element) {
       if (S.syncAll) S.syncAll('comment');
       setTimeout(function () { focusComment(res.id); }, 30);
     },
-    onCancel: function () {
-      hideComposer();
-      if (!hasElementComment(blockId, elementPath)) {
-        element.classList.remove('sdoc-element-commented', 'sdoc-element-branch-commented');
-        element.style.removeProperty('--sdoc-element-comment-color');
-      }
-    },
+    onCancel: hideComposer,
   });
+  composerCleanup = function () {
+    if (!hasElementComment(blockId, elementPath)) {
+      element.classList.remove('sdoc-element-commented', 'sdoc-element-branch-commented');
+      element.style.removeProperty('--sdoc-element-comment-color');
+    }
+  };
   composer.classList.add('sdoc-element-card');
   composerEl = composer;
   insertElementCard(element, composer, 'self');
@@ -1044,7 +1048,6 @@ function openSelectionComposerFromSelection(range) {
     shape: 'pill',
     mode: 'compose',
     onSave: function (text) {
-      clearPending();
       hideComposer();
       // openSelectionComposerFromSelection guards `if (!quote) return;`
       // upstream, so SDC.addSelectionComment cannot throw the empty-quote
@@ -1059,8 +1062,9 @@ function openSelectionComposerFromSelection(range) {
       if (S.syncAll) S.syncAll('comment');
       setTimeout(function () { focusComment(res.id); }, 30);
     },
-    onCancel: function () { clearPending(); hideComposer(); },
+    onCancel: hideComposer,
   });
+  composerCleanup = clearPending;
   composerEl = composer;
   // Place the inline composer pill right after the pending anchor - same
   // physical spot the saved pill will land in. Tables and links get
