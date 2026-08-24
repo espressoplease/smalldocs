@@ -732,9 +732,10 @@ foreignObject span { line-height: normal; }
   align-items: center;
   justify-content: flex-end;
   padding: 4px 6px;
-  background: var(--md-table-header-bg);
+  background: transparent;
   border: 1px solid var(--md-table-border);
   border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
   opacity: 1;
   overflow: hidden;
   transition: height .3s cubic-bezier(.4,0,.2,1),
@@ -763,7 +764,7 @@ foreignObject span { line-height: normal; }
   align-items: center;
   justify-content: center;
   padding: 4px;
-  background: var(--md-table-header-bg, var(--md-block-bg));
+  background: transparent;
   border: 1px solid var(--md-copy-btn-border);
   border-radius: 4px;
   color: var(--md-code-color, #6B21A8);

@@ -33,6 +33,17 @@ test('markdown tables expose one persistent copy control above the table', async
   await expect(copy).toHaveCount(1);
   await expect(copy).toHaveAttribute('aria-label', 'Copy table as CSV');
   await expect(copy).toHaveCSS('opacity', '0.7');
+  await expect(toolbar).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(toolbar).toHaveCSS('border-top-left-radius', '6px');
+  await expect(toolbar).toHaveCSS('border-top-right-radius', '6px');
+  await expect(copy).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+});
+
+test('table copy chrome stays transparent in dark mode', async ({ page }) => {
+  await loadTable(page);
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await expect(page.locator('.md-table-toolbar')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(page.locator('.table-copy-btn')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 });
 
 test('table copy writes CSV and uses tick feedback', async ({ page }) => {
