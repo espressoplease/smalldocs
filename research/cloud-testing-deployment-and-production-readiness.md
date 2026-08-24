@@ -355,7 +355,8 @@ remains separate and Cloud is not enabled there.
 
 - [ ] Monitor HTTPS availability, latency, CPU, memory, open files, disk space, disk latency, database sizes, WAL growth, and filesystem errors.
 - [ ] Alert on old backups, database corruption, KMS failures, email failures, Stripe webhook failures, subscription drift, seat drift, stuck jobs, and search timeouts.
-- [ ] Run a coordinated backup and full restore using the final production configuration and exact release.
+- [x] Run a coordinated backup using the hidden production configuration and exact release, upload it to KMS-encrypted Object Lock storage, restore the local archive into isolation, and pass checksum and integrity checks for all eight databases.
+- [ ] Download the current archive from off-site storage, restore the application secrets and KMS permissions in isolation, and decrypt a synthetic current and historical Cloud document. There are no production Cloud customers or historical Cloud documents yet.
 - [ ] Restore a known Cloud document and more than one revision after a process restart with an empty KMS cache.
 - [ ] Drill KMS outage, email outage, Stripe outage, disk full, database corruption, lost webhook, and compromised session responses.
 - [ ] Confirm certificate renewal and the operating-system and Node patch process.
@@ -386,7 +387,7 @@ remains separate and Cloud is not enabled there.
 - [ ] Complete at least one restore drill during beta.
 - [ ] Merge the accepted branch into `main` and tag the exact release.
 - [ ] Back up the existing production service and take the final short-link database snapshot immediately before cutover.
-- [ ] Deploy the exact tested commit with Cloud still hidden, then run production preflight.
+- [x] Deploy the exact tested commit to the new production VM with Cloud in production mode but publicly hidden. The KMS readiness check passed, the normal loopback site returned 200, hidden Cloud UI and API routes returned 404, all Cloud databases were owner-only, and the service reported zero restarts after verification.
 - [ ] Enable the public Cloud mode only after preflight passes.
 - [ ] Smoke test sign-in, Checkout, webhook, create, read, search, update, permissions, tags, CLI, invitation, portal, cancellation, Local mode, and encrypted short links.
 - [ ] Watch the service, Stripe, Resend, KMS, jobs, disk, and backups through the first real payments.

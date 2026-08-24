@@ -410,6 +410,15 @@ root-managed application credential. The allowed production context passed,
 the invalid environment context was denied, and the allowed context passed
 again. Neither the production nor staging service was restarted.
 
+Later that day the exact release started on the new production VM with
+`CLOUD_MODE=production` and `CLOUD_PUBLIC_MODE=hidden`. Startup completed the
+managed KMS readiness round trip before binding the loopback listener. The
+normal site returned 200 while the hidden Cloud page and API returned 404.
+A coordinated backup then uploaded to KMS-encrypted Object Lock storage. Its
+local copy restored into an isolated directory, where the checksum and all
+eight SQLite integrity checks passed. The five Cloud databases were empty, so
+the synthetic document decryption part of the recovery drill remains open.
+
 Run this drill on a schedule and after KMS policy or key changes:
 
 1. Create a recovery workspace, project, document, and more than one revision through the normal service path.

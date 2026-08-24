@@ -485,11 +485,11 @@ CLOUD_WORKSPACE_RESTORE_WINDOW_MS=...
 
 Add explicit search, workspace-creation, and invitation limits after load testing. Their complete names and behavior are in [the Cloud operations reference](./cloud-operations.md).
 
-- [ ] Confirm `CLOUD_AUTH_DEV_LOG_CODES` is absent.
-- [ ] Confirm `CLOUD_MASTER_KEY` is absent.
-- [ ] Set `TRUST_PROXY=1` only if Nginx overwrites, rather than appends untrusted values to, the client-address header.
-- [ ] Check the systemd unit uses the intended environment file and service account.
-- [ ] Restart the service and inspect startup logs without printing the environment.
+- [x] Confirm `CLOUD_AUTH_DEV_LOG_CODES` is absent.
+- [x] Confirm `CLOUD_MASTER_KEY` is absent.
+- [x] Set `TRUST_PROXY=1` only after confirming that the Nginx configuration overwrites the client-address header with `$remote_addr` and does not append an incoming value.
+- [x] Check the systemd unit uses `/etc/smalldocs/smalldocs.env`, the `smalldocs` service account, and root-managed read-only credentials.
+- [x] Restart the service and inspect startup logs without printing the environment. Production mode completed its managed KMS readiness check, the normal site returned 200 over loopback, and hidden Cloud UI and API routes returned 404.
 
 ## 7. Configure Nginx and the host
 
@@ -518,6 +518,7 @@ The existing production deployment is `smalldocs.service` on port `3003` behind 
 - [x] Encrypt the archive with a separate AWS KMS key and store it outside Hetzner.
 - [x] Record a portable SHA-256 checksum, deployed commit, state paths, configuration, KMS encryption metadata, and object version.
 - [x] Include the root-managed application environment in the KMS-encrypted archive. The put-only backup identity cannot read or decrypt the archive.
+- [x] Create a coordinated archive from the hidden production configuration, upload it to KMS-encrypted Object Lock storage, and restore the local copy into an isolated directory. The checksum and `PRAGMA integrity_check` passed for all eight databases, including the five empty Cloud databases. This proves the coordinated archive, but not off-site retrieval or document decryption.
 - [ ] Alert when the latest successful backup is too old. The deployment now supports a provider-neutral success heartbeat after both uploads complete. Configure its root-owned URL and prove the external 26-hour alert before launch.
 
 Complete this drill before launch:
@@ -596,7 +597,7 @@ Run this with two human accounts, two browsers, one phone-sized browser, and two
 - [x] Review staging application and Nginx logs after a marker-based acceptance run. No document marker, document text, fixture email, authorization code, query token, credential-shaped value, or test-login secret appeared.
 - [ ] Review Stripe, email, KMS, job, and final production logs for leaked content, queries, codes, tokens, or customer email.
 - [ ] Stop KMS, SMTP, Stripe access, and disk writes in turn and confirm each failure is bounded and understandable.
-- [ ] Run `node test/run.js` against the release commit.
+- [x] Run `node test/run.js` against the release source. All 1,307 Node tests passed before the documentation-only evidence commit.
 
 ## 12. Private beta and public launch
 
