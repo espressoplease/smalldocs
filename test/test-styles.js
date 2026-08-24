@@ -402,7 +402,7 @@ module.exports = function(harness) {
       p: { lineHeight: 1.75, marginBottom: 1.1 },
       link: { decoration: 'underline' },
       code: { font: 'JetBrains Mono' },
-      blockquote: { borderWidth: 3, fontSize: 1.0 },
+      blockquote: { borderWidth: 3, fontSize: 1.05 },
       list: { spacing: 0.3, indent: 1.6 },
     };
     const result = S.stripStyleDefaults(allDefaults);
@@ -501,7 +501,7 @@ module.exports = function(harness) {
     assert.strictEqual(d.link.decoration, 'underline');
     assert.strictEqual(d.code.font, 'JetBrains Mono');
     assert.strictEqual(d.blockquote.borderWidth, 3);
-    assert.strictEqual(d.blockquote.fontSize, 1.0);
+    assert.strictEqual(d.blockquote.fontSize, 1.05);
     assert.strictEqual(d.list.spacing, 0.3);
     assert.strictEqual(d.list.indent, 1.6);
   });

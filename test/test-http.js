@@ -4,6 +4,18 @@
 const path = require('path');
 const http = require('http');
 
+function availableLoopbackPort() {
+  return new Promise((resolve, reject) => {
+    const probe = http.createServer();
+    probe.unref();
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', () => {
+      const address = probe.address();
+      probe.close(error => error ? reject(error) : resolve(address.port));
+    });
+  });
+}
+
 module.exports = function(harness) {
   const { assert, testAsync, get, post } = harness;
 
@@ -168,8 +180,6 @@ module.exports = function(harness) {
         'signed-out root should not expose sign-out');
       assert.ok(!r.body.includes('discord.gg'),
         'root navigation should not expose Discord');
-      assert.ok(r.body.includes('href="/developers"'),
-        'root should link to the developer documentation');
     });
 
     await testAsync('GET /docs serves the app shell rendering sdoc.md', async () => {
@@ -185,101 +195,6 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('id="doc-site-menu" hidden'));
       assert.ok(!r.body.includes('__DOCUMENT_NAV_'));
       assert.strictEqual(r.headers.vary, 'Cookie');
-    });
-
-    await testAsync('versioned SDK module is cross-origin cacheable JavaScript', async () => {
-      const r = await get(BASE + '/sdk/0.1.0/smalldocs.js');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.headers['content-type'].includes('application/javascript'));
-      assert.strictEqual(r.headers['access-control-allow-origin'], '*');
-      assert.strictEqual(r.headers['cross-origin-resource-policy'], 'cross-origin');
-      assert.strictEqual(r.headers['x-content-type-options'], 'nosniff');
-      assert.ok(r.headers['cache-control'].includes('max-age=31536000'));
-      assert.ok(r.headers['cache-control'].includes('immutable'));
-      assert.ok(r.body.includes('export async function render'));
-    });
-
-    await testAsync('GET /developers serves the renderer quickstart and agent entry point', async () => {
-      const r = await get(BASE + '/developers');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.headers['content-type'].includes('text/html'));
-      assert.ok(r.body.includes("https://smalldocs.org/sdk/0.1.0/smalldocs.js"));
-      assert.ok(r.body.includes('npx skills add https://smalldocs.org --skill smalldocs-renderer'));
-      assert.ok(r.body.includes('id="sdk-demo"'));
-      assert.ok(r.body.includes('/public/css/developers.css?v='));
-      assert.ok(r.body.includes('/public/developers.js?v='));
-      assert.ok(!r.body.includes('__SDOCS_'));
-      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
-    });
-
-    await testAsync('developer Markdown resources expose the current renderer contract', async () => {
-      const index = await get(BASE + '/developers/llms.txt');
-      assert.strictEqual(index.status, 200);
-      assert.ok(index.headers['content-type'].includes('text/plain'));
-      assert.ok(index.body.includes('/developers/integration.md'));
-
-      const guide = await get(BASE + '/developers/integration.md');
-      assert.strictEqual(guide.status, 200);
-      assert.ok(guide.headers['content-type'].includes('text/plain'));
-      assert.ok(guide.body.includes("import { render } from 'https://smalldocs.org/sdk/0.1.0/smalldocs.js'"));
-      assert.ok(guide.body.includes('SmallDocs owns Markdown parsing'));
-
-      const full = await get(BASE + '/developers/llms-full.txt');
-      assert.strictEqual(full.status, 200);
-      assert.strictEqual(full.body, guide.body);
-    });
-
-    await testAsync('well-known catalog publishes the canonical renderer skill and reference', async () => {
-      const catalog = await get(BASE + '/.well-known/agent-skills/index.json');
-      assert.strictEqual(catalog.status, 200);
-      assert.ok(catalog.headers['content-type'].includes('application/json'));
-      assert.strictEqual(catalog.headers['access-control-allow-origin'], '*');
-      const parsed = JSON.parse(catalog.body);
-      assert.strictEqual(parsed.skills.length, 1);
-      assert.strictEqual(parsed.skills[0].name, 'smalldocs-renderer');
-      assert.deepStrictEqual(parsed.skills[0].files, ['SKILL.md', 'references/api.md']);
-
-      const legacy = await get(BASE + '/.well-known/skills/index.json');
-      assert.strictEqual(legacy.status, 200);
-      assert.deepStrictEqual(JSON.parse(legacy.body), parsed);
-
-      const skill = await get(BASE + '/.well-known/agent-skills/smalldocs-renderer/SKILL.md');
-      assert.strictEqual(skill.status, 200);
-      assert.strictEqual(skill.body, fs.readFileSync(path.join(__dirname, '..', '.agents', 'skills',
-        'smalldocs-renderer', 'SKILL.md'), 'utf8'));
-      assert.ok(skill.body.includes('description: ' + parsed.skills[0].description),
-        'catalog description should match the canonical skill front matter');
-
-      const reference = await get(BASE + '/.well-known/agent-skills/smalldocs-renderer/references/api.md');
-      assert.strictEqual(reference.status, 200);
-      assert.ok(reference.body.includes('## Security and data flow'));
-    });
-
-    await testAsync('embed shell allows only its declared customer origin to frame it', async () => {
-      const parentOrigin = 'https://customer.example';
-      const r = await get(BASE + '/embed?parentOrigin=' + encodeURIComponent(parentOrigin)
-        + '&channel=test-channel');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.headers['content-type'].includes('text/html'));
-      assert.ok(r.headers['content-security-policy'].includes('frame-ancestors ' + parentOrigin));
-      assert.strictEqual(r.headers['x-frame-options'], undefined);
-      assert.strictEqual(r.headers['cross-origin-resource-policy'], 'cross-origin');
-      assert.ok(r.body.includes('/public/css/embed.css'));
-      assert.ok(r.body.includes('/public/sdocs-embed.js'));
-      assert.ok(!r.body.includes('__CLOUD_UI_'));
-    });
-
-    await testAsync('embed shell rejects missing or malformed customer origins', async () => {
-      const missing = await get(BASE + '/embed?channel=test-channel');
-      assert.strictEqual(missing.status, 400);
-      const malformed = await get(BASE + '/embed?parentOrigin=javascript%3Aalert(1)&channel=test-channel');
-      assert.strictEqual(malformed.status, 400);
-    });
-
-    await testAsync('ordinary document pages remain unavailable to frames', async () => {
-      const r = await get(BASE + '/docs');
-      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
-      assert.ok(!r.headers['content-security-policy'].includes('frame-ancestors https://customer.example'));
     });
 
     await testAsync('signed-out Cloud Library explains Cloud before authentication', async () => {
@@ -298,6 +213,14 @@ module.exports = function(harness) {
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].includes('text/html'));
       assert.ok(r.body.includes('SDocs'));
+    });
+
+    await testAsync('GET /advanced-spreadsheets serves the product update workbook', async () => {
+      const r = await get(BASE + '/advanced-spreadsheets');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'));
+      assert.ok(r.body.includes('/public/advanced-spreadsheets.md'),
+        'advanced spreadsheet route should preload its markdown');
     });
 
     await testAsync('GET /nonexistent returns 404', async () => {
@@ -443,6 +366,16 @@ module.exports = function(harness) {
       const app = body.indexOf('/public/sdocs-app.js');
       assert.ok(source >= 0 && cloud > source && cloudLab > cloud && app > cloudLab);
       assert.ok(body.includes('/public/css/cloud-ui-lab.css'));
+    });
+
+    await testAsync('GET /docs keeps heavy spreadsheet features out of the initial scripts', async () => {
+      const r = await get(BASE + '/docs');
+      assert.ok(/<script src="\/public\/sdocs-cells-ui\.js\?v=[a-f0-9]+"><\/script>/.test(r.body),
+        'cells UI should remain versioned and eager');
+      for (const file of ['sdocs-cells-xlsx.js', 'sdocs-cells-focus.js', 'sdocs-cells-edit.js']) {
+        assert.ok(!r.body.includes('<script src="/public/' + file),
+          file + ' should load only when its feature is requested');
+      }
     });
 
     await testAsync('GET /analytics returns 200 with HTML', async () => {
@@ -1779,6 +1712,11 @@ module.exports = function(harness) {
       await assertEveryAssetVersioned('/agent-changes', v);
     });
 
+    await testAsync('asset-versioning: /advanced-spreadsheets is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/advanced-spreadsheets', v);
+    });
+
     await testAsync('/agent-changes serves the index shell with the changelog md path', async () => {
       const r = await get(BASE + '/agent-changes');
       assert.strictEqual(r.status, 200);
@@ -1879,7 +1817,7 @@ module.exports = function(harness) {
     });
 
     await testAsync('hidden Cloud public mode omits UI assets and returns 404 for Cloud routes', async () => {
-      const hiddenPort = 3100;
+      const hiddenPort = await availableLoopbackPort();
       const hiddenBase = 'http://localhost:' + hiddenPort;
       const hiddenServer = spawn('node', [path.join(__dirname, '..', 'server.js')], {
         env: {

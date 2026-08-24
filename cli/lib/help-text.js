@@ -1022,27 +1022,40 @@ WRAPPING
   text - markup never renders.
 
 FORMATTING
-  Numbers display with thousands separators and negatives in red by default.
-  An optional first line sets per-column formats by column letter:
+  Numbers display with thousands separators and up to two decimal places by
+  default. Negatives are red. One or more leading format: lines can control a
+  sheet, column, row, or individual cell:
 
   \`\`\`cells
-  format: A=plain B=$ C=%
+  format: A=plain B=$ C=% C4=%.1
   Year,Revenue,Margin
   2024,12000,0.23
   \`\`\`
 
   Renders 2024 (plain - no comma), $12,000.00, 23%.
 
-  Format tokens (keyed by column letter):
+  Targets use familiar sheet addresses:
+    *              whole sheet
+    A              column A
+    4              row 4
+    C4             cell C4
+
+  A cell overrides its row, a row overrides its column, and a column overrides
+  the whole sheet. This makes \`format: B=$ B4=%\` a currency column with one
+  percentage cell.
+
+  Format tokens:
     $ / usd        currency, e.g. $12,000.00   (also £ / gbp, € / eur)
     %              percent - multiplies by 100, e.g. 0.23 -> 23%
-    , / number     thousands separators (the default)
+    , / number     thousands separators
     plain / text   no number formatting (good for years, ids, codes)
-    .N suffix      fixed decimals, e.g. $.0 (no cents), %.1, .2
+    .N suffix      fixed decimals, attached directly: $.0, %.1, .2
 
-  Formatting is display only - copy and export always emit the original
-  values. This is what makes a cells block more than a CSV: the author
-  chooses how each column reads.
+  Each target accepts one format token. Use C=%.2, not C=%,.2. Unknown or
+  malformed rules are ignored without changing the sheet's data.
+
+  Formatting changes appearance, not the underlying values. Copy preserves
+  the source values; Excel export preserves both the values and number formats.
 
 FORMULAS
   A cell whose value starts with = is a formula, evaluated in the browser.
@@ -1291,7 +1304,8 @@ EXPORT
   formulas and recalculate when the file opens; the format: directive's
   currency / percent / comma columns carry over as Excel number formats.
   The export uses the document's row order (plus any fullscreen edits),
-  never the sorted view, so formula references stay correct.
+  never the sorted view, so formula references stay correct. Sheet, column,
+  row, and cell number formats carry over to Excel.
 `;
 
 const SLIDES_HELP = `

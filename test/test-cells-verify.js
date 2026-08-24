@@ -81,6 +81,25 @@ module.exports = function (harness) {
     assert.deepStrictEqual(summary[summary.length - 1], ['Grand Total', '4730']);
   });
 
+  test('verify: typed text and boolean formula results stay visible', () => {
+    const doc = [
+      '```cells Results',
+      'Kind,Value',
+      'Text,"=UPPER(""ready"")"',
+      'Boolean,"=AND(TRUE,1<2)"',
+      '```',
+      '',
+    ].join('\n');
+    const f = write('typed.md', doc);
+    const r = run([f, '--json']);
+    assert.strictEqual(r.code, 0);
+    const data = JSON.parse(r.out);
+    assert.deepStrictEqual(data.sheets[0].values.slice(1), [
+      ['Text', 'READY'],
+      ['Boolean', 'TRUE'],
+    ]);
+  });
+
   test('verify: exit 1 when any cell errors, with the cell located', () => {
     const f = write('bad.md', '```cells A\nx,=Nope!A1\n```\n');
     const r = run([f, '--json']);

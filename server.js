@@ -563,7 +563,6 @@ const MIME = {
   '.css':  'text/css',
   '.js':   'application/javascript',
   '.json': 'application/json',
-  '.txt':  'text/plain; charset=utf-8',
   '.md':   'text/plain',
   '.smd':  'text/plain',
   '.sh':   'text/x-shellscript; charset=utf-8',
@@ -1047,35 +1046,6 @@ function documentNavigation(req) {
       '<!--__DOCUMENT_NAV_MENU_AFTER__-->': navigation.menuAfter,
     },
   };
-}
-
-function documentCsp(nonce, frameAncestors) {
-  const policy = [
-    "default-src 'self'",
-    "script-src 'self' 'nonce-" + nonce + "' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-    "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
-    "img-src 'self' data: https:",
-    // These loopback origins support the local Bridge and Library agents.
-    // Their session and connection checks remain active in the embedded shell.
-    "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*",
-    "frame-src https://www.youtube-nocookie.com",
-    "object-src 'none'",
-  ];
-  if (frameAncestors) policy.push('frame-ancestors ' + frameAncestors);
-  return policy.join('; ');
-}
-
-function parseEmbedParentOrigin(value) {
-  if (!value) return null;
-  try {
-    const parsed = new URL(value);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-    if (parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) return null;
-    return parsed.origin;
-  } catch (_) {
-    return null;
-  }
 }
 
 function cloudApiError(res, error) {
@@ -2932,123 +2902,39 @@ const server = http.createServer((req, res) => {
     '/subprocessors': '/public/subprocessors.md',
   };
 
-  if (pathname === '/developers') {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers.html'), null, {
-      'Cache-Control': 'no-cache',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; frame-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-    });
-    return;
-  }
-
-  if (pathname === '/developers/llms.txt') {
-    serveFile(req, res, path.join(__dirname, 'public', 'developers', 'llms.txt'), {
-      'Cache-Control': 'public, max-age=3600',
-      'Access-Control-Allow-Origin': '*',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  if (pathname === '/developers/integration.md' || pathname === '/developers/llms-full.txt') {
-    serveFile(req, res, path.join(__dirname, 'public', 'developers', 'integration.md'), {
-      'Cache-Control': 'public, max-age=3600',
-      'Access-Control-Allow-Origin': '*',
-      'Content-Type': 'text/plain; charset=utf-8',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  const skillCatalogPath = pathname === '/.well-known/agent-skills/index.json'
-    || pathname === '/.well-known/skills/index.json';
-  if (skillCatalogPath) {
-    res.writeHead(200, {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
-      'Access-Control-Allow-Origin': '*',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    res.end(JSON.stringify({
-      skills: [{
-        name: 'smalldocs-renderer',
-        description: 'Integrate the SmallDocs browser renderer into a web application. Use when an application needs to display agent-authored Markdown or SmallDocs rich document features, when adding render, update, and destroy lifecycle wiring, or when debugging a SmallDocs renderer integration.',
-        files: ['SKILL.md', 'references/api.md'],
-      }],
-    }));
-    return;
-  }
-
-  const skillFileMatch = /^\/\.well-known\/(?:agent-skills|skills)\/smalldocs-renderer\/(SKILL\.md|references\/api\.md)$/.exec(pathname);
-  if (skillFileMatch) {
-    serveFile(req, res, path.join(__dirname, '.agents', 'skills', 'smalldocs-renderer', skillFileMatch[1]), {
-      'Cache-Control': 'public, max-age=3600',
-      'Access-Control-Allow-Origin': '*',
-      'Content-Type': 'text/plain; charset=utf-8',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  if (pathname === '/sdk/0.1.0/smalldocs.js') {
-    serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'smalldocs.js'), {
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      'Access-Control-Allow-Origin': '*',
-      'Cross-Origin-Resource-Policy': 'cross-origin',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  if (pathname === '/embed') {
-    const parentOrigin = parseEmbedParentOrigin(url.searchParams.get('parentOrigin'));
-    const channel = url.searchParams.get('channel');
-    if (!parentOrigin || !channel || channel.length > 128) {
-      res.writeHead(400, {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-store',
-        'X-Content-Type-Options': 'nosniff',
-      });
-      res.end('Invalid SmallDocs embed request');
-      return;
-    }
-
-    const nonce = crypto.randomBytes(16).toString('base64');
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'index.html'), {
-      '__APP_VERSION__': APP_VERSION,
-      '__SDOCS_DEV__': DEV_MODE ? '1' : '0',
-      '__DEFAULT_MD_PATH__': '/public/sdoc.md',
-      '__CSP_NONCE__': nonce,
-      '__CLOUD_UI_STYLES__': '',
-      '__CLOUD_UI_SCRIPT__': '',
-      '__DOCUMENT_LIBRARY_HREF__': '/library',
-      '__DOCUMENT_NAV_MENU_HIDDEN__': 'hidden',
-      '<!--__DOCUMENT_NAV_SIGN_IN__-->': '',
-      '<!--__DOCUMENT_NAV_MENU_BEFORE__-->': '',
-      '<!--__DOCUMENT_NAV_MENU_AFTER__-->': '',
-    }, {
-      'Cache-Control': 'no-cache',
-      'Content-Security-Policy': documentCsp(nonce, parentOrigin),
-      'Cross-Origin-Resource-Policy': 'cross-origin',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  if (pathname === '/docs' || pathname === '/new' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  if (pathname === '/docs' || pathname === '/new' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/advanced-spreadsheets' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     const documentNav = documentNavigation(req);
     const nonce = crypto.randomBytes(16).toString('base64');
     const defaultMdPath = policyDocuments[pathname]
       ? policyDocuments[pathname]
       : pathname === '/agent-changes'
           ? '/public/agent-changes.md'
+          : pathname === '/advanced-spreadsheets'
+            ? '/public/advanced-spreadsheets.md'
           : pathname === '/upgrade'
             ? '/public/upgrade.md'
             : blogSlug
               ? '/public/blogs/' + blogSlug + '.md'
               : '/public/sdoc.md';
-    const csp = documentCsp(nonce);
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'nonce-" + nonce + "' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+      "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+      "img-src 'self' data: https:",
+      // ws://127.0.0.1:* and ws://localhost:* let the page reach a local
+      // Bridge process the `sdoc edit|watch|compose --wait` CLI spawns. The
+      // Bridge binds to loopback only and gates the upgrade on a per-session
+      // token, so the policy still excludes arbitrary internal IPs.
+      // http://127.0.0.1:* and http://localhost:* are the equivalent for
+      // the local library agent (`sdoc library`) - same trust boundary.
+      "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*",
+      // YouTube embeds (```video blocks) load only from the no-cookie host -
+      // the exact origin sdocs-video.js builds its iframe src from. The
+      // renderer never emits standard youtube.com, so it is not allowed here.
+      "frame-src https://www.youtube-nocookie.com",
+      "object-src 'none'",
+    ].join('; ');
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'index.html'), {
       '__APP_VERSION__': APP_VERSION,
       '__SDOCS_DEV__': DEV_MODE ? '1' : '0',

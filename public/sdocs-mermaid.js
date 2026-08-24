@@ -623,11 +623,12 @@
           try { applyClusterTints(svgEl, themeVars.background); } catch (_) {}
           try { fixClusterTitleOverlap(svgEl); } catch (_) {}
         }
-        // Per-diagram fullscreen button (sdocs-mermaid-focus.js). Optional,
-        // and guarded so a theme re-render doesn't stack duplicate buttons.
-        if (S.SDocMermaidFocus && S.SDocMermaidFocus.buildZoomButton &&
-            !wrapper.querySelector('.sdoc-mermaid-zoom-btn')) {
-          wrapper.appendChild(S.SDocMermaidFocus.buildZoomButton(wrapper));
+        // Per-diagram source-copy and fullscreen buttons
+        // (sdocs-mermaid-focus.js). Optional, and guarded so a theme
+        // re-render does not stack duplicate controls.
+        if (S.SDocMermaidFocus && S.SDocMermaidFocus.buildTools &&
+            !wrapper.querySelector('.sdoc-mermaid-tools')) {
+          wrapper.appendChild(S.SDocMermaidFocus.buildTools(wrapper));
         }
       })
       .catch(function (err) {

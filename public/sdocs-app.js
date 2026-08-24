@@ -335,6 +335,52 @@ function getSectionMarkdown(headingIndex) {
 
 // ── Render sub-functions ──────────────────────────────────
 
+function tableCellCopyText(cell) {
+  if (!cell) return '';
+  var clone = cell.cloneNode(true);
+  clone.querySelectorAll('.table-copy-btn, .sdoc-card, .sdoc-table-add')
+    .forEach(function(el) { el.remove(); });
+  return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function serializeTableCsv(rows) {
+  return rows.map(function(row) {
+    return row.map(function(value) {
+      var text = String(value == null ? '' : value);
+      return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+    }).join(',');
+  }).join('\n');
+}
+
+function tableRows(table) {
+  return Array.prototype.map.call(table.rows, function(row) {
+    return Array.prototype.map.call(row.cells, tableCellCopyText);
+  });
+}
+
+function tableCopyButton(table) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'table-copy-btn';
+  btn.innerHTML = COPY_SVG;
+  btn.title = 'Copy table as CSV';
+  btn.setAttribute('aria-label', 'Copy table as CSV');
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    copyWithIconFeedback(serializeTableCsv(tableRows(table)), btn);
+  });
+  return btn;
+}
+
+function attachTableCopyButton(table, wrap) {
+  if (!table.rows.length) return;
+  var toolbar = document.createElement('div');
+  toolbar.className = 'md-table-toolbar';
+  toolbar.appendChild(tableCopyButton(table));
+  wrap.insertBefore(toolbar, table);
+}
+
 // Wrap each rendered markdown table in a horizontal-scroll container so a wide
 // table scrolls on its own on a narrow screen instead of widening the page.
 // Runs on the freshly parsed output, before sections/anchors, so the wrapper
@@ -350,6 +396,7 @@ function wrapTables(container) {
     wrap.className = 'md-table-scroll';
     p.insertBefore(wrap, t);
     wrap.appendChild(t);
+    attachTableCopyButton(t, wrap);
   }
 }
 
@@ -395,6 +442,38 @@ function attachHeadingAnchors(container) {
       });
     });
     h.appendChild(copyBtn);
+  });
+}
+
+function attachBlockquoteCopyButtons(container) {
+  container.querySelectorAll('blockquote').forEach(function(quote) {
+    quote.classList.add('sdoc-copyable-quote');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'quote-copy-btn';
+    btn.innerHTML = COPY_SVG;
+    btn.title = 'Copy quote';
+    btn.setAttribute('aria-label', 'Copy quote');
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var clone = quote.cloneNode(true);
+      clone.querySelectorAll('.quote-copy-btn, .sdoc-card, .sdoc-gutter-add')
+        .forEach(function(el) { el.remove(); });
+      var parts = [];
+      Array.prototype.forEach.call(clone.childNodes, function(node) {
+        var value = node.nodeType === 1
+          ? (node.innerText || node.textContent || '')
+          : (node.textContent || '');
+        value = value.trim();
+        if (value) parts.push(value);
+      });
+      var text = parts.join('\n\n');
+      navigator.clipboard.writeText(text).then(function() {
+        btn.innerHTML = CHECK_SVG;
+        setTimeout(function() { btn.innerHTML = COPY_SVG; }, COPY_FEEDBACK_MS);
+      });
+    });
+    quote.appendChild(btn);
   });
 }
 
@@ -676,6 +755,7 @@ function render() {
 
   wrapTables(S.renderedEl);
   attachHeadingAnchors(S.renderedEl);
+  attachBlockquoteCopyButtons(S.renderedEl);
   attachCodeCopyButtons(S.renderedEl);
   buildCollapsibleSections(S.renderedEl);
   // The toolbar is available before async document sources (notably short

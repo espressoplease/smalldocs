@@ -18,6 +18,15 @@ async function dotState(page) {
 }
 
 test.describe('Info notification dot', () => {
+  test('advanced spreadsheets update links to the demonstration document', async ({ page }) => {
+    await page.goto(BASE + '/docs');
+    await waitForFeed(page);
+    await page.click('#_sd_btn-info');
+    const update = page.locator('#_sd_info-features .info-feature-item').first();
+    await expect(update.locator('.info-feature-title')).toHaveText('Multi-tab spreadsheets and Excel exports');
+    await expect(update.locator('.info-feature-link')).toHaveAttribute('href', '/advanced-spreadsheets');
+  });
+
   test('fresh visitor lands caught up: no dot, seen-id seeded to maxId', async ({ page }) => {
     await page.goto(BASE + '/docs');
     await waitForFeed(page);
