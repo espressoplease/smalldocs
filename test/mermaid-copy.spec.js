@@ -20,11 +20,34 @@ async function stubTextClipboard(page) {
 async function stubPngClipboard(page) {
   await page.addInitScript(() => {
     window.__copiedPng = false;
+    window.__copiedPngPart = null;
     window.ClipboardItem = function (parts) { this.parts = parts; };
     Object.defineProperty(navigator, 'clipboard', {
-      value: { write: () => { window.__copiedPng = true; return Promise.resolve(); } },
+      value: { write: (items) => {
+        window.__copiedPng = true;
+        window.__copiedPngPart = items[0].parts['image/png'];
+        return Promise.resolve();
+      } },
       configurable: true
     });
+  });
+}
+
+async function copiedPngInfo(page) {
+  return page.evaluate(async () => {
+    const bitmap = await createImageBitmap(window.__copiedPngPart);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0);
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const colors = new Set();
+    for (let i = 0; i < pixels.length; i += Math.max(4, Math.floor(pixels.length / 400 / 4) * 4)) {
+      colors.add(`${pixels[i]},${pixels[i + 1]},${pixels[i + 2]},${pixels[i + 3]}`);
+    }
+    bitmap.close();
+    return { width: canvas.width, height: canvas.height, colors: colors.size };
   });
 }
 
@@ -67,6 +90,30 @@ test('fullscreen PNG action uses tick feedback and restores its copy icon', asyn
   await page.waitForTimeout(1600);
   await expect(copy.locator('polyline')).toHaveCount(0);
   await expect(copy.locator('.sdoc-mermaid-focus-action-label')).toHaveText('PNG');
+});
+
+test('inline PNG action copies the rendered diagram and restores its copy icon', async ({ page }) => {
+  await stubPngClipboard(page);
+  await loadDoc(page, '```mermaid\ngraph TD\n  API --> Worker\n```');
+  const copy = page.locator('.sdoc-mermaid-png-btn');
+  await expect(copy).toHaveAttribute('aria-label', 'Copy diagram as PNG');
+  await expect(copy.locator('.sdoc-mermaid-tool-action-label')).toHaveText('PNG');
+  await copy.click();
+  await expect.poll(() => page.evaluate(() => ({
+    copied: window.__copiedPng,
+    type: window.__copiedPngPart && window.__copiedPngPart.type,
+    size: window.__copiedPngPart && window.__copiedPngPart.size
+  }))).toEqual({ copied: true, type: 'image/png', size: expect.any(Number) });
+  expect(await page.evaluate(() => window.__copiedPngPart.size)).toBeGreaterThan(0);
+  const image = await copiedPngInfo(page);
+  expect(image.width).toBeGreaterThan(100);
+  expect(image.height).toBeGreaterThan(50);
+  expect(image.colors).toBeGreaterThan(2);
+  await expect(copy.locator('polyline')).toHaveCount(1);
+  await expect(copy.locator('.sdoc-mermaid-tool-action-label')).toHaveText('PNG');
+  await page.waitForTimeout(1600);
+  await expect(copy.locator('polyline')).toHaveCount(0);
+  await expect(copy.locator('.sdoc-mermaid-tool-action-label')).toHaveText('PNG');
 });
 
 test('code, quote, and Mermaid copy controls use the same color', async ({ page }) => {

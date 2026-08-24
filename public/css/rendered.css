@@ -731,6 +731,7 @@ foreignObject span { line-height: normal; }
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 4px;
   padding: 4px 6px;
   background: transparent;
   border: 1px solid var(--md-table-border);
@@ -758,17 +759,19 @@ foreignObject span { line-height: normal; }
 :is(#_sd_rendered, #_sd_write) tr:nth-child(even) td { background: var(--md-table-even-bg); }
 :is(#_sd_rendered, #_sd_write) tr:nth-child(odd) td { background: var(--md-table-odd-bg); }
 #_sd_rendered .table-copy-btn {
-  width: 26px;
+  width: auto;
   height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  gap: 4px;
+  padding: 4px 7px;
   background: transparent;
   border: 1px solid var(--md-copy-btn-border);
   border-radius: 4px;
   color: var(--md-code-color, #6B21A8);
   cursor: pointer;
+  font: 500 11px/1 var(--font-ui);
   opacity: .7;
   pointer-events: auto;
   transition: opacity .15s, background .12s;
