@@ -140,11 +140,11 @@
 
     // Peel leading directive lines (in any order, machine or author):
     //   sdoc-cells: source=... range=... error=... name=...  (baked metadata)
-    //   format: A=$ B=% C=plain                        (author column formats)
+    //   format: A=$ 2=% C3=plain                  (column, row, cell formats)
     // `name` is the tab name. Authored as the fence info string (```cells
     // Sales); the renderer + CLI normalise that into this directive so the
     // name has one home in the model.
-    var source, range, formats, name, workbook;
+    var source, range, formats, rowFormats, cellFormats, defaultFormat, name, workbook;
     var lines = trimmed.split('\n');
     var idx = 0;
     var FORMAT_RE = /^format:\s*(.*)$/i;
@@ -159,15 +159,22 @@
         if (meta.error) return { empty: false, error: meta.error, source: source, name: name, workbook: workbook };
         idx++; continue;
       }
-      if (fm) { formats = parseFormats(fm[1]); idx++; continue; }
+      if (fm) {
+        var rules = parseFormatRules(fm[1]);
+        formats = mergeFormats(formats, rules.columns);
+        rowFormats = mergeFormats(rowFormats, rules.rows);
+        cellFormats = mergeFormats(cellFormats, rules.cells);
+        if (rules.defaultFormat) defaultFormat = rules.defaultFormat;
+        idx++; continue;
+      }
       break;
     }
     var body = lines.slice(idx).join('\n').replace(/\s+$/, '');
 
     // Unresolved reference (after directives): the CLI never baked it.
     var ref = body.match(REFERENCE_RE);
-    if (ref) return { empty: false, unresolved: ref[1], formats: formats, name: name, workbook: workbook };
-    if (body === '') return { rows: 0, cols: 0, cells: [], empty: true, source: source, range: range, formats: formats, name: name, workbook: workbook };
+    if (ref) return { empty: false, unresolved: ref[1], formats: formats, rowFormats: rowFormats, cellFormats: cellFormats, defaultFormat: defaultFormat, name: name, workbook: workbook };
+    if (body === '') return { rows: 0, cols: 0, cells: [], empty: true, source: source, range: range, formats: formats, rowFormats: rowFormats, cellFormats: cellFormats, defaultFormat: defaultFormat, name: name, workbook: workbook };
 
     var raw = parseCsv(body);
     var cols = 0;
@@ -183,7 +190,7 @@
       }
       cells.push(out);
     }
-    return { rows: raw.length, cols: cols, cells: cells, empty: false, source: source, range: range, formats: formats, name: name, workbook: workbook };
+    return { rows: raw.length, cols: cols, cells: cells, empty: false, source: source, range: range, formats: formats, rowFormats: rowFormats, cellFormats: cellFormats, defaultFormat: defaultFormat, name: name, workbook: workbook };
   }
 
   // Serialize a 2D array of raw cell strings back to CSV (RFC 4180 quoting:
@@ -362,15 +369,60 @@
   // Parse a per-column format spec like "A=plain B=$ C=%.1" into a map
   // { colIndex: fmt }. Keys are column letters; unknown tokens are skipped.
   function parseFormats(spec) {
+    return parseFormatRules(spec).columns;
+  }
+
+  function mergeFormats(base, extra) {
+    var out = base || {};
+    Object.keys(extra || {}).forEach(function (key) { out[key] = extra[key]; });
+    return out;
+  }
+
+  // Parse one compact format directive. Targets mirror spreadsheet addresses:
+  //   *=.2       whole sheet
+  //   B=$        column B
+  //   4=%        row 4
+  //   C7=plain   cell C7
+  // Specific targets override broader ones when resolveFormat() is called.
+  function parseFormatRules(spec) {
     var out = {};
-    var re = /([A-Za-z]+)\s*=\s*(\S+)/g;
+    var rows = {};
+    var cells = {};
+    var defaultFormat = null;
+    var re = /(\*|[A-Za-z]+[1-9]\d*|[A-Za-z]+|[1-9]\d*)\s*=\s*(\S+)/g;
     var m;
     while ((m = re.exec(spec))) {
-      var col = colIndex(m[1]);
+      var target = m[1];
       var fmt = parseFmtToken(m[2]);
-      if (col >= 0 && fmt) out[col] = fmt;
+      if (!fmt) continue;
+      if (target === '*') { defaultFormat = fmt; continue; }
+      if (/^[1-9]\d*$/.test(target)) { rows[parseInt(target, 10) - 1] = fmt; continue; }
+      var cell = target.match(/^([A-Za-z]+)([1-9]\d*)$/);
+      if (cell) {
+        var cellCol = colIndex(cell[1]);
+        if (cellCol >= 0) cells[(parseInt(cell[2], 10) - 1) + ':' + cellCol] = fmt;
+        continue;
+      }
+      var col = colIndex(target);
+      if (col >= 0) out[col] = fmt;
     }
-    return out;
+    return { columns: out, rows: rows, cells: cells, defaultFormat: defaultFormat };
+  }
+
+  // Resolve display/export formatting with predictable spreadsheet precedence:
+  // built-in two-decimal maximum < whole sheet < column < row < cell.
+  function resolveFormat(model, row, col) {
+    var fmt = { kind: 'number', decimals: 2, trim: true };
+    if (model && model.defaultFormat) fmt = model.defaultFormat;
+    if (model && model.formats && model.formats[col]) fmt = model.formats[col];
+    if (model && model.rowFormats && model.rowFormats[row]) fmt = model.rowFormats[row];
+    if (model && model.cellFormats && model.cellFormats[row + ':' + col]) fmt = model.cellFormats[row + ':' + col];
+    return fmt;
+  }
+
+  function trimFixed(s) {
+    var out = String(s).replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1');
+    return out === '-0' ? '0' : out;
   }
 
   // Format a numeric cell's display per a column format. Returns null for
@@ -380,7 +432,10 @@
     if (!cell || cell.type !== 'number') return null;
     var v = cell.value;
     if (!fmt || fmt.kind === 'number') {
-      return (fmt && fmt.decimals != null) ? formatNumber(v.toFixed(fmt.decimals)) : formatNumber(cell.raw);
+      var decimals = !fmt ? 2 : fmt.decimals;
+      var numberText = decimals != null ? v.toFixed(decimals) : cell.raw;
+      if ((!fmt || fmt.trim) && decimals != null) numberText = trimFixed(numberText);
+      return formatNumber(numberText);
     }
     if (fmt.kind === 'plain') return cell.raw;
     if (fmt.kind === 'currency') {
@@ -389,7 +444,7 @@
     }
     if (fmt.kind === 'percent') {
       var p = v * 100;
-      var str = fmt.decimals != null ? p.toFixed(fmt.decimals) : String(Math.round(p * 1e6) / 1e6);
+      var str = fmt.decimals != null ? p.toFixed(fmt.decimals) : trimFixed(p.toFixed(2));
       return formatNumber(str) + '%';
     }
     return formatNumber(cell.raw);
@@ -405,6 +460,8 @@
   exports.formatNumber = formatNumber;
   exports.colIndex = colIndex;
   exports.parseFormats = parseFormats;
+  exports.parseFormatRules = parseFormatRules;
+  exports.resolveFormat = resolveFormat;
   exports.formatValue = formatValue;
   exports.looksLikeHeader = looksLikeHeader;
   exports.sortRows = sortRows;

@@ -628,6 +628,8 @@
         // fx makes formula cells sort by their computed value, not "=..." text.
         order = CELLS.sortRows(model, sort.col, sort.dir, hasHeader, fx);
         vm = { rows: model.rows, cols: model.cols, formats: model.formats,
+               rowFormats: model.rowFormats, cellFormats: model.cellFormats,
+               defaultFormat: model.defaultFormat,
                source: model.source, cells: order.map(function (ri) { return model.cells[ri]; }) };
       }
       wrapper._cellsModel = vm;
@@ -697,7 +699,9 @@
         for (var c2 = 0; c2 < renderCols; c2++) {
           var cell = (line && line[c2]) || EMPTY_CELL;   // pad past the data
           var el = document.createElement('div');
-          var fmt = vm.formats && vm.formats[c2];
+          // Formatting is attached to source addresses, so it follows the
+          // underlying cell when a sorted view paints that row elsewhere.
+          var fmt = CELLS.resolveFormat(model, srcR, c2);
           // A formula cell (raw starts with '=') shows its computed result and
           // behaves like a number for alignment / formatting; its raw is kept.
           var fxCell = (fx && FX.isFormula(cell.raw) && fx[srcR]) ? fx[srcR][c2] : null;
@@ -733,7 +737,7 @@
               el.textContent = fxCell.code;
             } else if (fxCell.kind === 'number') {
               var fcell = { value: fxCell.value, raw: String(fxCell.value), type: 'number' };
-              el.textContent = fmt ? CELLS.formatValue(fcell, fmt) : CELLS.formatNumber(fcell.raw);
+              el.textContent = CELLS.formatValue(fcell, fmt);
             } else if (fxCell.kind === 'boolean') {
               el.textContent = fxCell.value ? 'TRUE' : 'FALSE';
             } else {
@@ -741,7 +745,7 @@
             }
             el.title = cell.raw;                              // hover shows the formula
           } else if (cell.type === 'number') {
-            el.textContent = fmt ? CELLS.formatValue(cell, fmt) : CELLS.formatNumber(cell.raw);
+            el.textContent = CELLS.formatValue(cell, fmt);
           } else {
             el.textContent = cell.raw.replace(/<br\s*\/?>/gi, '\n');
           }

@@ -13,7 +13,7 @@
 //   - =formula cells as live Excel formulas (<f>), with their computed value
 //     cached alongside (<v>) and fullCalcOnLoad set so Excel recalculates on
 //     open - the formulas keep working in Excel
-//   - format: directive columns ($ / % / ,) as Excel number formats
+//   - format: directive sheet / column / row / cell rules as Excel formats
 //
 // The ZIP is STORED (no compression). Sheets are small; skipping deflate
 // keeps the writer ~100 lines and makes the output inspectable - the XML is
@@ -202,48 +202,65 @@
       return (fmt.symbol || '$') + '#,##0' + (dec > 0 ? '.' + new Array(dec + 1).join('0') : '');
     }
     if (fmt.kind === 'percent') {
-      var pd = d == null ? 1 : d;
-      return '0' + (pd > 0 ? '.' + new Array(pd + 1).join('0') : '') + '%';
+      if (d == null) return '0.##%';
+      return '0' + (d > 0 ? '.' + new Array(d + 1).join('0') : '') + '%';
     }
     if (fmt.kind === 'number') {
-      return '#,##0' + (d == null ? '.###############' : (d > 0 ? '.' + new Array(d + 1).join('0') : ''));
+      return '#,##0' + (d == null ? '.###############' : (d > 0 ? '.' + new Array(d + 1).join(fmt.trim ? '#' : '0') : ''));
     }
     return null;
   }
 
-  // The distinct format codes a model needs, in column order. Returns
-  // { codes: [...], styleForCol: { colIndex: cellXfs index } }. Style index 0
-  // is the default (no format); custom formats start at 1.
+  function resolveModelFormat(model, row, col) {
+    var fmt = { kind: 'number', decimals: 2, trim: true };
+    if (model && model.defaultFormat) fmt = model.defaultFormat;
+    if (model && model.formats && model.formats[col]) fmt = model.formats[col];
+    if (model && model.rowFormats && model.rowFormats[row]) fmt = model.rowFormats[row];
+    if (model && model.cellFormats && model.cellFormats[row + ':' + col]) fmt = model.cellFormats[row + ':' + col];
+    return fmt;
+  }
+
+  // The distinct format codes a model needs, in cell order. Style index 0 is
+  // Excel's General format; SmallDocs number formats start at 1.
   function collectFormats(model) {
     var codes = [];
-    var styleForCol = {};
-    var formats = model.formats || {};
-    for (var c = 0; c < (model.cols || 0); c++) {
-      var code = formatCode(formats[c]);
-      if (!code) continue;
-      var idx = codes.indexOf(code);
-      if (idx < 0) { codes.push(code); idx = codes.length - 1; }
-      styleForCol[c] = idx + 1;                       // cellXfs[0] is default
+    var styleForCell = {};
+    for (var r = 0; r < (model.rows || 0); r++) {
+      for (var c = 0; c < (model.cols || 0); c++) {
+        var cell = model.cells[r] && model.cells[r][c];
+        var isFormula = cell && cell.raw && cell.raw.charAt(0) === '=';
+        if (!cell || (cell.type !== 'number' && !isFormula)) continue;
+        var code = formatCode(resolveModelFormat(model, r, c));
+        if (!code) continue;
+        var idx = codes.indexOf(code);
+        if (idx < 0) { codes.push(code); idx = codes.length - 1; }
+        styleForCell[r + ':' + c] = idx + 1;          // cellXfs[0] is General
+      }
     }
-    return { codes: codes, styleForCol: styleForCol };
+    return { codes: codes, styleForCell: styleForCell };
   }
 
   // The distinct format codes across a whole workbook, with a per-sheet
-  // column->style-index map into that one shared style table. So one styles.xml
+  // cell->style-index map into that one shared style table. So one styles.xml
   // serves every worksheet and each sheet's s="" indices line up.
   function collectFormatsShared(sheets) {
     var codes = [];
     var perSheet = sheets.map(function (s) {
-      var styleForCol = {};
-      var formats = (s.model && s.model.formats) || {};
-      for (var c = 0; c < ((s.model && s.model.cols) || 0); c++) {
-        var code = formatCode(formats[c]);
-        if (!code) continue;
-        var idx = codes.indexOf(code);
-        if (idx < 0) { codes.push(code); idx = codes.length - 1; }
-        styleForCol[c] = idx + 1;                      // cellXfs[0] is default
+      var model = s.model || {};
+      var styleForCell = {};
+      for (var r = 0; r < (model.rows || 0); r++) {
+        for (var c = 0; c < (model.cols || 0); c++) {
+          var cell = model.cells[r] && model.cells[r][c];
+          var isFormula = cell && cell.raw && cell.raw.charAt(0) === '=';
+          if (!cell || (cell.type !== 'number' && !isFormula)) continue;
+          var code = formatCode(resolveModelFormat(model, r, c));
+          if (!code) continue;
+          var idx = codes.indexOf(code);
+          if (idx < 0) { codes.push(code); idx = codes.length - 1; }
+          styleForCell[r + ':' + c] = idx + 1;         // cellXfs[0] is General
+        }
       }
-      return styleForCol;
+      return styleForCell;
     });
     return { codes: codes, perSheet: perSheet };
   }
@@ -292,10 +309,10 @@
   // (the CSV-injection attack class).
   function sheetXml(model, fx, opts) {
     opts = opts || {};
-    // styleForCol comes from the shared workbook table when exporting a
-    // multi-sheet book; otherwise from this model alone (single-sheet path,
-    // byte-identical to before). nameMap rewrites cross-sheet qualifiers.
-    var styleForCol = opts.styleForCol || collectFormats(model).styleForCol;
+    // styleForCell comes from the shared workbook table when exporting a
+    // multi-sheet book; otherwise it is collected from this model. nameMap
+    // rewrites cross-sheet qualifiers.
+    var styleForCell = opts.styleForCell || collectFormats(model).styleForCell;
     var nameMap = opts.nameMap || null;
     var known = opts.knownNames || null;     // sheet names present in this export
     var rowsXml = [];
@@ -306,9 +323,10 @@
         var cell = line[c];
         if (!cell || cell.type === 'empty') continue;
         var ref = colLetter(c) + (r + 1);
-        var style = styleForCol[c] ? ' s="' + styleForCol[c] + '"' : '';
-        var columnFormat = model.formats && model.formats[c];
         var isFormula = cell.raw && cell.raw.charAt(0) === '=' && cell.raw.length > 1;
+        var styleIndex = styleForCell[r + ':' + c];
+        var style = styleIndex ? ' s="' + styleIndex + '"' : '';
+        var cellFormat = resolveModelFormat(model, r, c);
         var fxCell = (isFormula && fx && fx[r]) ? fx[r][c] : null;
         // `safe` comes from a complete AST allowlist traversal. A cached value
         // or runtime error is not proof because lazy functions may leave an
@@ -346,7 +364,7 @@
           // Unvetted or non-numeric formula: visible, copyable, but inert.
           cellsXml.push('<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' +
             escapeXml(cell.raw) + '</t></is></c>');
-        } else if (cell.type === 'number' && columnFormat && columnFormat.kind === 'plain') {
+        } else if (cell.type === 'number' && cellFormat && cellFormat.kind === 'plain') {
           cellsXml.push('<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' +
             escapeXml(cell.raw) + '</t></is></c>');
         } else if (cell.type === 'number') {
@@ -629,7 +647,7 @@
     sheets.forEach(function (s, i) {
       parts.push({
         name: 'xl/worksheets/sheet' + (i + 1) + '.xml',
-        data: strToBytes(sheetXml(s.model, fxGrids[i] || null, { styleForCol: fmt.perSheet[i], nameMap: nameMap, knownNames: known })),
+        data: strToBytes(sheetXml(s.model, fxGrids[i] || null, { styleForCell: fmt.perSheet[i], nameMap: nameMap, knownNames: known })),
       });
     });
     return zipStore(parts);

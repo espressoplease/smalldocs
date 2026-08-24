@@ -396,6 +396,23 @@ test('numbers display with thousands separators; negatives get a red class', asy
   expect(html).not.toContain('12,000');
 });
 
+test('default numeric display caps long decimal results at two places', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Metric,Value', 'Forecast,573195.15000000003', 'Margin,0.5931673052362707', 'Units,950', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').innerText()).toBe('573,195.15');
+  expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').innerText()).toBe('0.59');
+  expect(await page.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').innerText()).toBe('950');
+});
+
+test('format directive targets columns, rows, and individual cells', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'format: B=$ 3=% B3=£.0', 'Metric,Value,Other', 'Revenue,12000,2', 'Margin,0.23,0.4', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').innerText()).toBe('$12,000.00');
+  expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="0"]').innerText()).toBe('Margin');
+  expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').innerText()).toBe('£0');
+  expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="2"]').innerText()).toBe('40%');
+});
+
 test('clicking a column header selects the whole column; a row header the whole row', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'a,b,c', '1,2,3', '4,5,6', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');

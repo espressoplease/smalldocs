@@ -69,7 +69,7 @@ module.exports = (h) => {
     const fx = FX.recalc(model);
     const xml = XLSX.sheetXml(model, fx);
     assert.ok(xml.indexOf('<is><t xml:space="preserve">Item</t></is>') >= 0, 'text as inline string');
-    assert.ok(xml.indexOf('<c r="B2"><v>12</v></c>') >= 0, 'number as value');
+    assert.ok(/<c r="B2" s="\d+"><v>12<\/v><\/c>/.test(xml), 'number as styled value');
     assert.ok(xml.indexOf('<f>SUM(B2:B2)</f>') >= 0, 'formula with = stripped');
     assert.ok(xml.indexOf('<f>SUM(B2:B2)</f><v>12</v>') >= 0, 'cached formula result');
   });
@@ -230,6 +230,28 @@ module.exports = (h) => {
     const eur = XLSX.stylesXml(CELLS.parseCells('format: A=€\nvalue\n1.25'));
     assert.ok(gbp.indexOf('£#,##0.00') >= 0, 'GBP does not become dollars');
     assert.ok(eur.indexOf('€#,##0.00') >= 0, 'EUR does not become dollars');
+  });
+
+  test('xlsx: default numbers display with no more than two decimals', () => {
+    const styles = XLSX.stylesXml(CELLS.parseCells('value\n573195.15000000003'));
+    assert.ok(styles.indexOf('#,##0.##') >= 0, 'default Excel style caps display precision');
+  });
+
+  test('xlsx: row and cell formats override broader rules', () => {
+    const model = CELLS.parseCells('format: A=$ 2=% B2=£.0\nA,B,C\n1,2,3\n4,5,6');
+    const xml = XLSX.sheetXml(model, null);
+    const styles = XLSX.stylesXml(model);
+    const a2 = xml.match(/<c r="A2" s="(\d+)"/);
+    const b2 = xml.match(/<c r="B2" s="(\d+)"/);
+    const c2 = xml.match(/<c r="C2" s="(\d+)"/);
+    const a3 = xml.match(/<c r="A3" s="(\d+)"/);
+    assert.ok(a2 && b2 && c2 && a3, xml);
+    assert.strictEqual(a2[1], c2[1], 'row format applies across row 2');
+    assert.notStrictEqual(b2[1], a2[1], 'B2 cell format overrides row 2');
+    assert.notStrictEqual(a3[1], a2[1], 'column A format resumes on row 3');
+    assert.ok(styles.indexOf('0.##%') >= 0, 'row percent style is included');
+    assert.ok(styles.indexOf('£#,##0') >= 0, 'cell currency style is included');
+    assert.ok(styles.indexOf('$#,##0.00') >= 0, 'column currency style is included');
   });
 
   // ── The full workbook (ZIP) ─────────────────────────────

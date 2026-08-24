@@ -43,6 +43,7 @@ Total,,,,=SUM(E2:E7),,=SUM(G2:G7),=SUM(H2:H7)
 ```
 
 ```cells forecast/Model
+format: 1=plain 5=% 6=%
 Metric,2026,2027,2028,2029,2030
 Revenue,=Sales!E8,=B2*(1+$B$6),=C2*(1+$B$6),=D2*(1+$B$6),=E2*(1+$B$6)
 Cost,=Sales!G8,=B3*(1+$B$6*0.65),=C3*(1+$B$6*0.65),=D3*(1+$B$6*0.65),=E3*(1+$B$6*0.65)
@@ -56,6 +57,7 @@ Present value,=B8*B9,=C8*C9,=D8*D9,=E8*E9,=F8*F9
 ```
 
 ```cells forecast/Dashboard
+format: B=$ B4=%
 Metric,Value,Status
 Base revenue,=Model!B2,"=IF(B2=Sales!E8,""Linked"",""Review"")"
 2030 revenue,=Model!F2,"=IF(B3>B2,""Growing"",""Review"")"
@@ -68,6 +70,8 @@ North revenue,"=SUMIF(Sales!A2:A7,""North"",Sales!E2:E7)",
 Platform unit price,"=XLOOKUP(""Platform"",Sales!B2:B7,Sales!D2:D7)",
 Summary label,"=CONCAT(""2030 revenue: "",ROUND(B3,0))",
 ```
+
+Numbers now show up to two decimal places by default. Agents can apply currency, percent, plain, or fixed-decimal formats to a sheet, column, row, or cell. The formats carry into Excel.
 
 Verified values before you edit:
 

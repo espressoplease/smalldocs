@@ -42,8 +42,9 @@ test('advanced spreadsheet product update renders the linked, formula, and editi
   ]);
 
   await panes.nth(0).locator('.sdoc-cells-pane-tab', { hasText: 'Dashboard' }).click();
-  await expect(panes.nth(0).locator('.sdoc-cells-pane-body')).toContainText('391,500');
-  await expect(panes.nth(0).locator('.sdoc-cells-pane-body')).toContainText('147,750');
+  await expect(panes.nth(0).locator('.sdoc-cells-pane-body')).toContainText('$391,500.00');
+  await expect(panes.nth(0).locator('.sdoc-cells-pane-body')).toContainText('59.32%');
+  await expect(panes.nth(0).locator('.sdoc-cells-pane-body')).toContainText('$147,750.00');
   await expect(panes.nth(0).locator('.sdoc-cells-pane-body')).toContainText('2030 revenue: 573195');
 
   await panes.nth(1).locator('.sdoc-cells-pane-tab', { hasText: 'Formula Lab' }).click();
