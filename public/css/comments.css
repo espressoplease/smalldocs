@@ -551,6 +551,8 @@ body.comment-mode .sdoc-table-host tbody td:first-child::before {
 body.comment-mode .sdoc-table-host th:hover > .sdoc-table-column-add,
 body.comment-mode .sdoc-table-host tr:hover > td:first-child > .sdoc-table-row-add,
 body.comment-mode .sdoc-table-host td:hover > .sdoc-table-cell-add,
+body.comment-mode th.sdoc-table-column-commented > .sdoc-table-column-add,
+body.comment-mode tr.sdoc-table-row-commented > td:first-child > .sdoc-table-row-add,
 body.comment-mode .sdoc-table-add:hover,
 body.comment-mode .sdoc-table-add:focus-visible {
   opacity: 1;

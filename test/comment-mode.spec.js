@@ -1009,7 +1009,7 @@ test.describe('edge-case content', () => {
     expect(state.cardsInHost).toBe(4);
   });
 
-  test('saved table targets use stacked fills without persistent controls', async ({ page }) => {
+  test('saved table targets stack fills and retain row and column rails', async ({ page }) => {
     await setBody(page,
       '| Feature | Owner | Status |\n|---|---|---|\n| Alpha | Maya | Ready |\n| Beta | Sam | Draft |\n');
     await page.evaluate(() => {
@@ -1038,8 +1038,10 @@ test.describe('edge-case content', () => {
     const state = await page.evaluate(() => {
       const overlap = getComputedStyle(document.querySelector('tbody tr:first-child td:nth-child(3)'));
       const tableOnly = getComputedStyle(document.querySelector('tbody tr:nth-child(2) td:first-child'));
-      const buttons = Array.from(document.querySelectorAll('.sdoc-table-add'))
-        .map(button => getComputedStyle(button));
+      const controlStyle = selector => {
+        const style = getComputedStyle(document.querySelector(selector));
+        return { opacity: style.opacity, pointerEvents: style.pointerEvents };
+      };
       return {
         overlapLayers: {
           table: overlap.getPropertyValue('--sdoc-table-all-overlay').trim(),
@@ -1055,7 +1057,14 @@ test.describe('edge-case content', () => {
         },
         backgroundLayers: (overlap.backgroundImage.match(/linear-gradient/g) || []).length,
         outline: overlap.outlineStyle,
-        controlsHidden: buttons.every(style => style.opacity === '0'),
+        controls: {
+          table: controlStyle('.sdoc-table-table-add'),
+          savedRow: controlStyle('tbody tr:first-child .sdoc-table-row-add'),
+          otherRow: controlStyle('tbody tr:nth-child(2) .sdoc-table-row-add'),
+          savedColumn: controlStyle('th:nth-child(3) .sdoc-table-column-add'),
+          otherColumn: controlStyle('th:nth-child(2) .sdoc-table-column-add'),
+          savedCell: controlStyle('tbody tr:first-child td:nth-child(3) .sdoc-table-cell-add'),
+        },
       };
     });
     expect(Object.values(state.overlapLayers).every(Boolean)).toBe(true);
@@ -1065,7 +1074,12 @@ test.describe('edge-case content', () => {
     expect(state.tableOnlyLayers.cell).toBe('');
     expect(state.backgroundLayers).toBe(5);
     expect(state.outline).toBe('none');
-    expect(state.controlsHidden).toBe(true);
+    expect(state.controls.savedRow).toEqual({ opacity: '1', pointerEvents: 'auto' });
+    expect(state.controls.savedColumn).toEqual({ opacity: '1', pointerEvents: 'auto' });
+    expect(state.controls.table.opacity).toBe('0');
+    expect(state.controls.otherRow.opacity).toBe('0');
+    expect(state.controls.otherColumn.opacity).toBe('0');
+    expect(state.controls.savedCell.opacity).toBe('0');
   });
 
   test('table targets follow reordered rows and columns by their text hints', async ({ page }) => {
