@@ -1,0 +1,41 @@
+# SmallDocs developer documentation
+
+SmallDocs renders agent-authored Markdown and rich documents inside web applications.
+
+## SDK integration
+
+- [Complete integration guide](https://smalldocs.org/developers/integration.md): Single-page SDK contract.
+- [Overview](https://smalldocs.org/developers/overview.md): Renderer boundary and data flow.
+- [Quickstart](https://smalldocs.org/developers/quickstart.md): Smallest browser integration.
+- [Document content](https://smalldocs.org/developers/content.md): Feature discovery and mixed documents.
+- [Lifecycle](https://smalldocs.org/developers/lifecycle.md): Render, update, destroy, and multiple instances.
+- [Security](https://smalldocs.org/developers/security.md): Browser, network, and CSP boundaries.
+- [Loading](https://smalldocs.org/developers/loading.md): Caching and content-driven dependencies.
+- [Browser API](https://smalldocs.org/developers/api.md): Experimental 0.1.0 contract.
+
+## Authoring SmallDocs Markdown
+
+- [Markdown and navigation](https://smalldocs.org/developers/authoring/markdown.md)
+- [Code](https://smalldocs.org/developers/authoring/code.md)
+- [Math](https://smalldocs.org/developers/authoring/math.md)
+- [Mermaid diagrams](https://smalldocs.org/developers/authoring/diagrams.md)
+- [Charts](https://smalldocs.org/developers/authoring/charts.md)
+- [Computed cells](https://smalldocs.org/developers/authoring/cells.md)
+- [Slides](https://smalldocs.org/developers/authoring/slides.md)
+- [Custom slide shapes](https://smalldocs.org/developers/authoring/slide-shapes.md)
+- [Video](https://smalldocs.org/developers/authoring/video.md)
+- [Styles](https://smalldocs.org/developers/authoring/styles.md)
+
+## Agent resources
+
+- [Agent integration](https://smalldocs.org/developers/agents.md)
+- [Full SDK and authoring reference](https://smalldocs.org/developers/llms-full.txt)
+- [Skill catalog](https://smalldocs.org/.well-known/agent-skills/index.json)
+- [Renderer integration skill](https://smalldocs.org/.well-known/agent-skills/smalldocs-renderer/SKILL.md)
+- [Document authoring skill](https://smalldocs.org/.well-known/agent-skills/smalldocs-author/SKILL.md)
+
+## Install
+
+`npx skills add https://smalldocs.org --skill smalldocs-renderer`
+
+`npx skills add https://smalldocs.org --skill smalldocs-author`

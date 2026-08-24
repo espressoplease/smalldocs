@@ -1432,6 +1432,7 @@ async function writeCurrentLocation(version) {
 }
 
 function updateHash() {
+  if (document.documentElement.classList.contains('sdocs-embed')) return;
   clearTimeout(S._hashTimer);
   var version = ++locationWriteVersion;
   S._hashTimer = setTimeout(function() {
@@ -2270,10 +2271,14 @@ S.Sources.register({
 
 (async function () {
   await _defaultReady;
-  var source = S.Sources.select();
-  if (source) {
-    await source.load();
+  if (!document.documentElement.classList.contains('sdocs-embed')) {
+    var source = S.Sources.select();
+    if (source) {
+      await source.load();
+    }
   }
+  S._appReady = true;
+  document.dispatchEvent(new CustomEvent('sdocs-app-ready'));
 }());
 
 window.addEventListener('hashchange', function () {

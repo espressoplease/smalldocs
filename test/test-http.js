@@ -199,24 +199,26 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('export async function render'));
     });
 
-    await testAsync('GET /developers serves the renderer quickstart and agent entry point', async () => {
+    await testAsync('GET /developers serves the Markdown-driven SDK documentation shell', async () => {
       const r = await get(BASE + '/developers');
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].includes('text/html'));
-      assert.ok(r.body.includes("https://smalldocs.org/sdk/0.1.0/smalldocs.js"));
-      assert.ok(r.body.includes('npx skills add https://smalldocs.org --skill smalldocs-renderer'));
-      assert.ok(r.body.includes('id="sdk-demo"'));
+      assert.ok(r.body.includes('id="developer-document"'));
+      assert.ok(r.body.includes('/developers/authoring/slides'));
+      assert.ok(r.body.includes('/developers/authoring/slide-shapes'));
       assert.ok(r.body.includes('/public/css/developers.css?v='));
       assert.ok(r.body.includes('/public/developers.js?v='));
       assert.ok(!r.body.includes('__SDOCS_'));
       assert.strictEqual(r.headers['x-frame-options'], 'DENY');
     });
 
-    await testAsync('developer Markdown resources expose the current renderer contract', async () => {
+    await testAsync('developer Markdown resources expose integration and authoring references', async () => {
       const index = await get(BASE + '/developers/llms.txt');
       assert.strictEqual(index.status, 200);
       assert.ok(index.headers['content-type'].includes('text/plain'));
       assert.ok(index.body.includes('/developers/integration.md'));
+      assert.ok(index.body.includes('/developers/authoring/slides.md'));
+      assert.ok(index.body.includes('/developers/authoring/slide-shapes.md'));
 
       const guide = await get(BASE + '/developers/integration.md');
       assert.strictEqual(guide.status, 200);
@@ -226,18 +228,37 @@ module.exports = function(harness) {
 
       const full = await get(BASE + '/developers/llms-full.txt');
       assert.strictEqual(full.status, 200);
-      assert.strictEqual(full.body, guide.body);
+      assert.ok(full.body.includes(guide.body.trim()));
+      assert.ok(full.body.includes('# Custom slide shapes'));
+      assert.ok(full.body.includes('# Computed cells'));
+
+      const authoringSlugs = [
+        'markdown', 'code', 'math', 'diagrams', 'charts', 'cells',
+        'slides', 'slide-shapes', 'video', 'styles',
+      ];
+      for (const slug of authoringSlugs) {
+        const page = await get(BASE + '/developers/authoring/' + slug);
+        assert.strictEqual(page.status, 200, 'human authoring route: ' + slug);
+        assert.ok(page.body.includes('id="developer-document"'));
+        const markdown = await get(BASE + '/developers/authoring/' + slug + '.md');
+        assert.strictEqual(markdown.status, 200, 'raw authoring route: ' + slug);
+        assert.ok(markdown.headers['content-type'].includes('text/plain'));
+        assert.strictEqual(markdown.headers['access-control-allow-origin'], '*');
+      }
     });
 
-    await testAsync('well-known catalog publishes the canonical renderer skill and reference', async () => {
+    await testAsync('well-known catalog publishes renderer and authoring skills', async () => {
       const catalog = await get(BASE + '/.well-known/agent-skills/index.json');
       assert.strictEqual(catalog.status, 200);
       assert.ok(catalog.headers['content-type'].includes('application/json'));
       assert.strictEqual(catalog.headers['access-control-allow-origin'], '*');
       const parsed = JSON.parse(catalog.body);
-      assert.strictEqual(parsed.skills.length, 1);
+      assert.strictEqual(parsed.skills.length, 2);
       assert.strictEqual(parsed.skills[0].name, 'smalldocs-renderer');
       assert.deepStrictEqual(parsed.skills[0].files, ['SKILL.md', 'references/api.md']);
+      assert.strictEqual(parsed.skills[1].name, 'smalldocs-author');
+      assert.ok(parsed.skills[1].files.includes('references/slides.md'));
+      assert.ok(parsed.skills[1].files.includes('references/slide-shapes.md'));
 
       const legacy = await get(BASE + '/.well-known/skills/index.json');
       assert.strictEqual(legacy.status, 200);
@@ -253,6 +274,17 @@ module.exports = function(harness) {
       const reference = await get(BASE + '/.well-known/agent-skills/smalldocs-renderer/references/api.md');
       assert.strictEqual(reference.status, 200);
       assert.ok(reference.body.includes('## Security and data flow'));
+
+      const authorSkill = await get(BASE + '/.well-known/agent-skills/smalldocs-author/SKILL.md');
+      assert.strictEqual(authorSkill.status, 200);
+      assert.ok(authorSkill.body.includes('internal status is not a reason'));
+      assert.ok(authorSkill.body.includes('references/slide-shapes.md'));
+
+      const slideReference = await get(
+        BASE + '/.well-known/agent-skills/smalldocs-author/references/slides.md'
+      );
+      assert.strictEqual(slideReference.status, 200);
+      assert.ok(slideReference.body.includes('Visual explanation is part of normal slide authoring'));
     });
 
     await testAsync('embed shell allows only its declared customer origin to frame it', async () => {
@@ -274,6 +306,15 @@ module.exports = function(harness) {
       assert.strictEqual(missing.status, 400);
       const malformed = await get(BASE + '/embed?parentOrigin=javascript%3Aalert(1)&channel=test-channel');
       assert.strictEqual(malformed.status, 400);
+    });
+
+    await testAsync('normal document reader does not load embed-only assets', async () => {
+      const r = await get(BASE + '/docs');
+      assert.strictEqual(r.status, 200);
+      assert.ok(!r.body.includes('/public/css/embed.css'));
+      assert.ok(!r.body.includes('/public/sdocs-embed.js'));
+      assert.ok(!r.body.includes('__EMBED_STYLES__'));
+      assert.ok(!r.body.includes('__EMBED_SCRIPT__'));
     });
 
     await testAsync('ordinary document pages remain unavailable to frames', async () => {

@@ -17,7 +17,7 @@ The two never share a `package.json` again. See "Published npm tarball" below fo
 - **CLI**: lives entirely under `cli/`:
   - `cli/bin/sdocs-dev.js` - the `sdoc` command (UMD-shared modules under `cli/shared/`)
   - `cli/bin/sdocs-postinstall.js` - global-install hint, no-op otherwise
-  - `cli/shared/sdocs-yaml.js`, `sdocs-styles.js`, `sdocs-slugify.js` - real files (symlinked back into `public/` for the browser)
+  - `cli/shared/sdocs-yaml.js`, `sdocs-styles.js`, `sdocs-slugify.js`, `sdocs-slide-stdlib.js` - real files (symlinked back into `public/` for the browser)
 - **Frontend**: split across `public/`:
   - `index.html` - markup only
   - `css/tokens.css` - CSS custom properties, dark theme, theme transitions
@@ -170,9 +170,9 @@ The CLI detects which way it was installed (`isUrlInstall()` in `cli/lib/update-
 
 ## Published npm tarball
 
-`sdocs-dev` on npm is published from `cli/`. Its `files` array is `["bin/", "lib/", "shared/"]`, so the tarball contains `cli/bin/sdocs-dev.js`, `cli/bin/sdocs-postinstall.js`, every runtime module under `cli/lib/`, and the three browser-shared modules under `cli/shared/`. `lib/` is mandatory: the thin `bin/sdocs-dev.js` entrypoint `require`s `../lib/*` at startup, so a tarball without it installs a CLI that crashes on first run. Everything else - `server.js`, `short-links/`, `feedback/`, `analytics/`, all of `public/` (including the symlinks to `cli/shared/`), and the tests - belongs to the server and never reaches a user via `npm i -g`. (`install.sh` smoke-checks both `bin/sdocs-dev.js` and `lib/constants.js` after unpacking, so a future `files` regression fails the install instead of shipping a broken CLI.)
+`sdocs-dev` on npm is published from `cli/`. Its `files` array is `["bin/", "lib/", "shared/"]`, so the tarball contains `cli/bin/sdocs-dev.js`, `cli/bin/sdocs-postinstall.js`, every runtime module under `cli/lib/`, and the four browser-shared modules under `cli/shared/`. `lib/` is mandatory: the thin `bin/sdocs-dev.js` entrypoint `require`s `../lib/*` at startup, so a tarball without it installs a CLI that crashes on first run. Everything else - `server.js`, `short-links/`, `feedback/`, `analytics/`, all of `public/` (including the symlinks to `cli/shared/`), and the tests - belongs to the server and never reaches a user via `npm i -g`. (`install.sh` smoke-checks both `bin/sdocs-dev.js` and `lib/constants.js` after unpacking, so a future `files` regression fails the install instead of shipping a broken CLI.)
 
-The symlinks under `public/` resolve into `cli/`, but `npm pack` only follows files that already live under the package root, so the published tarball contains the three shared modules as real files and no symlinks.
+The symlinks under `public/` resolve into `cli/`, but `npm pack` only follows files that already live under the package root, so the published tarball contains the four shared modules as real files and no symlinks.
 
 **Why the split exists:**
 
@@ -182,7 +182,7 @@ Before the split, both programs shared a single root `package.json`. `better-sql
 
 - **Root `package.json` (`sdocs-server`, `"private": true`)**: `dependencies` for everything `server.js` and the server-side libraries load at runtime (`better-sqlite3`, `marked`, `brotli`...). `devDependencies` for tests (`@playwright/test`). `npm install` at root is now safe under any flag.
 - **`cli/package.json` (`sdocs-dev`)**: no `dependencies`, no `devDependencies`. The CLI is plain Node standard library only, so `npm i -g sdocs-dev` pulls nothing and compiles nothing. Before adding any runtime dep here, audit standard-library options first. The supply-chain story in `public/agent-evaluation.md` (and the byte-comparison fallback for pre-provenance versions) leans on the CLI being auditable code with no third-party runtime surface.
-- The CLI's three shared modules are the only files that span the boundary. They live in `cli/shared/` (so `npm pack` ships them) and the browser sees them via symlinks under `public/` (so the trust manifest and cache-busting hash keep covering them automatically).
+- The CLI's four shared modules are the only files that span the boundary. They live in `cli/shared/` (so `npm pack` ships them) and the browser sees them via symlinks under `public/` (so the trust manifest and cache-busting hash keep covering them automatically).
 
 When in doubt: if a runtime require lives in `cli/bin/`, its dep goes in `cli/package.json`. Everything else goes in the root.
 
@@ -212,9 +212,9 @@ There is no build step, so we **cannot use ES modules** (`import`/`export`). Cod
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.MyLib = {}));
 ```
 
-In the browser the IIFE writes to `window.MyLib`; in Node tests it writes to `module.exports`. Three modules use this pattern: `sdocs-yaml.js` (`window.SDocYaml`), `sdocs-slugify.js` (`window.SDocSlugify`), and `sdocs-styles.js` (`window.SDocStyles`).
+In the browser the IIFE writes to `window.MyLib`; in Node tests it writes to `module.exports`. Four browser and CLI modules use this pattern: `sdocs-yaml.js` (`window.SDocYaml`), `sdocs-slugify.js` (`window.SDocSlugify`), `sdocs-styles.js` (`window.SDocStyles`), and `sdocs-slide-stdlib.js` (`window.SDocSlideStdlib`).
 
-**Where the real files live**: under `cli/shared/`. `public/` only holds symlinks to them. The browser, the trust manifest, and the cache-busting hash all walk `public/` and follow the symlinks transparently. The npm tarball ships them as real files because they sit inside `cli/`. If you edit one of the three, edit it under `cli/shared/` (the symlink target). Reading or requiring it via `public/` works either way.
+**Where the real files live**: under `cli/shared/`. `public/` only holds symlinks to them. The browser, the trust manifest, and the cache-busting hash all walk `public/` and follow the symlinks transparently. The npm tarball ships them as real files because they sit inside `cli/`. If you edit one of the four, edit it under `cli/shared/` (the symlink target). Reading or requiring it via `public/` works either way.
 
 ## File format
 

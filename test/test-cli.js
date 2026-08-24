@@ -3,11 +3,28 @@
  */
 const path = require('path');
 const cli = require(path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js'));
+const commands = require(path.join(__dirname, '..', 'cli', 'lib', 'commands.js'));
 const SDocYaml = require(path.join(__dirname, '..', 'cli', 'shared', 'sdocs-yaml.js'));
 const S = require(path.join(__dirname, '..', 'cli', 'shared', 'sdocs-styles.js'));
 
 module.exports = function(harness) {
   const { assert, test } = harness;
+
+  console.log('\n── CLI Reference Tests ─────────────────────\n');
+
+  test('slides list reads the registry from the published CLI package', () => {
+    const lines = [];
+    const originalLog = console.log;
+    console.log = (...parts) => lines.push(parts.join(' '));
+    try {
+      commands.slidesCommand({ file: 'list' });
+    } finally {
+      console.log = originalLog;
+    }
+    assert.ok(lines.includes('Built-in slide templates'));
+    assert.ok(lines.some(line => line.includes('@extends cover')));
+    assert.ok(lines.some(line => line.includes('@extends three-column')));
+  });
 
   console.log('\n── Style Merging Tests ────────────────────────\n');
 

@@ -1,0 +1,3 @@
+interface:
+  display_name: "SmallDocs Author"
+  short_description: "Create Markdown for the SmallDocs renderer"

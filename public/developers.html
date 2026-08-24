@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SmallDocs developer documentation</title>
+<meta name="description" content="Integrate the SmallDocs renderer into an application and display agent-authored documents.">
+<link rel="canonical" href="https://smalldocs.org/developers">
+<link rel="stylesheet" href="/public/css/developers.css">
+</head>
+<body>
+<header class="docs-header">
+  <div class="header-brand">
+    <a href="/" class="brand">SmallDocs</a>
+    <span class="header-separator" aria-hidden="true"></span>
+    <a href="/developers" class="developer-label">Developers</a>
+  </div>
+  <nav class="header-links" aria-label="Site navigation">
+    <a href="/docs">Open SmallDocs</a>
+    <a href="https://github.com/espressoplease/SDocs">GitHub</a>
+  </nav>
+  <button class="mobile-menu" type="button" aria-controls="developer-sidebar" aria-expanded="false">Menu</button>
+</header>
+
+<div class="docs-frame">
+  <aside class="docs-sidebar" id="developer-sidebar">
+    <nav aria-label="Developer documentation">
+      <div class="nav-group">
+        <p>Start</p>
+        <a href="/developers" data-doc="overview">Overview</a>
+        <a href="/developers/quickstart" data-doc="quickstart">Quickstart</a>
+        <a href="/developers/content" data-doc="content">Document content</a>
+      </div>
+      <div class="nav-group">
+        <p>Integration</p>
+        <a href="/developers/lifecycle" data-doc="lifecycle">Lifecycle</a>
+        <a href="/developers/security" data-doc="security">Security and data flow</a>
+        <a href="/developers/loading" data-doc="loading">Loading and caching</a>
+      </div>
+      <div class="nav-group">
+        <p>Authoring</p>
+        <a href="/developers/authoring/markdown" data-doc="authoring/markdown">Markdown</a>
+        <a href="/developers/authoring/code" data-doc="authoring/code">Code</a>
+        <a href="/developers/authoring/math" data-doc="authoring/math">Math</a>
+        <a href="/developers/authoring/diagrams" data-doc="authoring/diagrams">Diagrams</a>
+        <a href="/developers/authoring/charts" data-doc="authoring/charts">Charts</a>
+        <a href="/developers/authoring/cells" data-doc="authoring/cells">Computed cells</a>
+        <a href="/developers/authoring/slides" data-doc="authoring/slides">Slides</a>
+        <a href="/developers/authoring/slide-shapes" data-doc="authoring/slide-shapes">Custom slide shapes</a>
+        <a href="/developers/authoring/video" data-doc="authoring/video">Video</a>
+        <a href="/developers/authoring/styles" data-doc="authoring/styles">Styles</a>
+      </div>
+      <div class="nav-group">
+        <p>Agents</p>
+        <a href="/developers/agents" data-doc="agents">Agent integration</a>
+      </div>
+      <div class="nav-group">
+        <p>Reference</p>
+        <a href="/developers/api" data-doc="api">Browser API</a>
+        <a href="/developers/llms.txt">llms.txt</a>
+        <a href="/.well-known/agent-skills/smalldocs-author/SKILL.md">Authoring skill</a>
+        <a href="/.well-known/agent-skills/index.json">Skill catalog</a>
+      </div>
+    </nav>
+    <div class="sidebar-status">
+      <span>Renderer SDK</span>
+      <strong>Experimental 0.1.0</strong>
+    </div>
+  </aside>
+
+  <main class="docs-main">
+    <div class="document-meta">
+      <span id="document-path">Developers / Overview</span>
+      <a id="markdown-link" href="/developers/overview.md">View Markdown</a>
+    </div>
+    <div id="developer-document" aria-live="polite">
+      <p class="loading-message">Loading documentation</p>
+    </div>
+  </main>
+</div>
+
+<script type="module" src="/public/developers.js"></script>
+</body>
+</html>

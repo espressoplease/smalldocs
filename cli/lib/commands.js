@@ -255,9 +255,11 @@ function presentCommand(opts) {
 }
 
 function printSlideStdlib() {
-  // Require lazily so the browser-side slide stdlib (which uses window
-  // globals) is only loaded when this command actually runs.
-  const SDocSlideStdlib = require('../../public/sdocs-slide-stdlib.js');
+  // The registry lives inside the published CLI package and is symlinked
+  // into public/ for the browser. Reaching through ../../public works from
+  // a repository checkout but fails after npm or URL installation because
+  // the server-side public/ directory is not part of the CLI tarball.
+  const SDocSlideStdlib = require('../shared/sdocs-slide-stdlib.js');
   const names = SDocSlideStdlib.names || Object.keys(SDocSlideStdlib.templates || {});
   const slots = SDocSlideStdlib.slots || {};
   console.log('Built-in slide templates');

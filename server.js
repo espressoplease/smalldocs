@@ -2932,12 +2932,50 @@ const server = http.createServer((req, res) => {
     '/subprocessors': '/public/subprocessors.md',
   };
 
-  if (pathname === '/developers') {
+  const developerDocs = {
+    overview: path.join(__dirname, 'public', 'developers', 'overview.md'),
+    quickstart: path.join(__dirname, 'public', 'developers', 'quickstart.md'),
+    content: path.join(__dirname, 'public', 'developers', 'content.md'),
+    lifecycle: path.join(__dirname, 'public', 'developers', 'lifecycle.md'),
+    security: path.join(__dirname, 'public', 'developers', 'security.md'),
+    loading: path.join(__dirname, 'public', 'developers', 'loading.md'),
+    agents: path.join(__dirname, 'public', 'developers', 'agents.md'),
+    api: path.join(__dirname, 'public', 'developers', 'api.md'),
+    'authoring/markdown': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'markdown.md'),
+    'authoring/code': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'code.md'),
+    'authoring/math': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'math.md'),
+    'authoring/diagrams': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'diagrams.md'),
+    'authoring/charts': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'charts.md'),
+    'authoring/cells': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'cells.md'),
+    'authoring/slides': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'slides.md'),
+    'authoring/slide-shapes': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'slide-shapes.md'),
+    'authoring/video': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'video.md'),
+    'authoring/styles': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'styles.md'),
+  };
+  const developerPageMatch = /^\/developers\/((?:authoring\/)?[a-z-]+)\/?$/.exec(pathname);
+  const developerPageSlug = pathname === '/developers' || pathname === '/developers/'
+    ? 'overview'
+    : developerPageMatch && developerDocs[developerPageMatch[1]]
+      ? developerPageMatch[1]
+      : null;
+
+  if (developerPageSlug) {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers.html'), null, {
       'Cache-Control': 'no-cache',
       'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; frame-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
+    });
+    return;
+  }
+
+  const developerMarkdownMatch = /^\/developers\/((?:authoring\/)?[a-z-]+)\.md$/.exec(pathname);
+  if (developerMarkdownMatch && developerDocs[developerMarkdownMatch[1]]) {
+    serveFile(req, res, developerDocs[developerMarkdownMatch[1]], {
+      'Cache-Control': 'public, max-age=3600',
+      'Access-Control-Allow-Origin': '*',
+      'Content-Type': 'text/plain; charset=utf-8',
+      'X-Content-Type-Options': 'nosniff',
     });
     return;
   }
@@ -2951,13 +2989,33 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/developers/integration.md' || pathname === '/developers/llms-full.txt') {
+  if (pathname === '/developers/integration.md') {
     serveFile(req, res, path.join(__dirname, 'public', 'developers', 'integration.md'), {
       'Cache-Control': 'public, max-age=3600',
       'Access-Control-Allow-Origin': '*',
       'Content-Type': 'text/plain; charset=utf-8',
       'X-Content-Type-Options': 'nosniff',
     });
+    return;
+  }
+
+  if (pathname === '/developers/llms-full.txt') {
+    const fullReferencePaths = [
+      path.join(__dirname, 'public', 'developers', 'integration.md'),
+      ...Object.keys(developerDocs)
+        .filter(slug => slug.startsWith('authoring/'))
+        .map(slug => developerDocs[slug]),
+    ];
+    const fullReference = fullReferencePaths
+      .map(filename => fs.readFileSync(filename, 'utf8').trim())
+      .join('\n\n---\n\n') + '\n';
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600',
+      'Access-Control-Allow-Origin': '*',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(fullReference);
     return;
   }
 
@@ -2970,19 +3028,51 @@ const server = http.createServer((req, res) => {
       'Access-Control-Allow-Origin': '*',
       'X-Content-Type-Options': 'nosniff',
     });
-    res.end(JSON.stringify({
-      skills: [{
+    res.end(JSON.stringify({ skills: [
+      {
         name: 'smalldocs-renderer',
         description: 'Integrate the SmallDocs browser renderer into a web application. Use when an application needs to display agent-authored Markdown or SmallDocs rich document features, when adding render, update, and destroy lifecycle wiring, or when debugging a SmallDocs renderer integration.',
         files: ['SKILL.md', 'references/api.md'],
-      }],
-    }));
+      },
+      {
+        name: 'smalldocs-author',
+        description: 'Create finished SmallDocs Markdown for an application using the SmallDocs renderer. Use when an agent must produce a readable report or rich document containing diagrams, charts, computed cells, slides, math, code, video, navigation, or document styling. Do not use for integrating the renderer SDK itself.',
+        files: [
+          'SKILL.md',
+          'references/markdown.md',
+          'references/code.md',
+          'references/math.md',
+          'references/diagrams.md',
+          'references/charts.md',
+          'references/cells.md',
+          'references/slides.md',
+          'references/slide-shapes.md',
+          'references/video.md',
+          'references/styles.md',
+        ],
+      },
+    ] }));
     return;
   }
 
-  const skillFileMatch = /^\/\.well-known\/(?:agent-skills|skills)\/smalldocs-renderer\/(SKILL\.md|references\/api\.md)$/.exec(pathname);
+  const skillFileMatch = /^\/\.well-known\/(?:agent-skills|skills)\/(smalldocs-renderer|smalldocs-author)\/(SKILL\.md|references\/[a-z-]+\.md)$/.exec(pathname);
   if (skillFileMatch) {
-    serveFile(req, res, path.join(__dirname, '.agents', 'skills', 'smalldocs-renderer', skillFileMatch[1]), {
+    const skillName = skillFileMatch[1];
+    const skillRelativePath = skillFileMatch[2];
+    const allowedSkillFiles = skillName === 'smalldocs-renderer'
+      ? new Set(['SKILL.md', 'references/api.md'])
+      : new Set([
+        'SKILL.md', 'references/markdown.md', 'references/code.md', 'references/math.md',
+        'references/diagrams.md', 'references/charts.md', 'references/cells.md',
+        'references/slides.md', 'references/slide-shapes.md', 'references/video.md',
+        'references/styles.md',
+      ]);
+    if (!allowedSkillFiles.has(skillRelativePath)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Not Found');
+      return;
+    }
+    serveFile(req, res, path.join(__dirname, '.agents', 'skills', skillName, skillRelativePath), {
       'Cache-Control': 'public, max-age=3600',
       'Access-Control-Allow-Origin': '*',
       'Content-Type': 'text/plain; charset=utf-8',
@@ -3022,6 +3112,8 @@ const server = http.createServer((req, res) => {
       '__CSP_NONCE__': nonce,
       '__CLOUD_UI_STYLES__': '',
       '__CLOUD_UI_SCRIPT__': '',
+      '__EMBED_STYLES__': '<link rel="stylesheet" href="/public/css/embed.css">',
+      '__EMBED_SCRIPT__': '<script src="/public/sdocs-embed.js"></script>',
       '__DOCUMENT_LIBRARY_HREF__': '/library',
       '__DOCUMENT_NAV_MENU_HIDDEN__': 'hidden',
       '<!--__DOCUMENT_NAV_SIGN_IN__-->': '',
@@ -3062,6 +3154,8 @@ const server = http.createServer((req, res) => {
           + '<script src="/public/sdocs-cloud-prototype.js"></script>'
           + (CLOUD_UI_LAB_ENABLED
             ? '<script src="/public/sdocs-cloud-ui-lab.js"></script>' : '') : '',
+      '__EMBED_STYLES__': '',
+      '__EMBED_SCRIPT__': '',
       ...documentNav.substitutions,
     }, {
       'Cache-Control': documentNav.authenticated ? 'private, no-store' : 'no-cache',

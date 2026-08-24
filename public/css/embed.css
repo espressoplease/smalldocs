@@ -1,0 +1,55 @@
+html.sdocs-embed,
+html.sdocs-embed body {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+html.sdocs-embed body {
+  display: block;
+  background: #fff;
+}
+
+html.sdocs-embed #_sd_safari-banner,
+html.sdocs-embed #_sd_left-toolbar,
+html.sdocs-embed #_sd_write-toolbar,
+html.sdocs-embed #_sd_comment-toolbar,
+html.sdocs-embed #_sd_sdocs-file-info,
+html.sdocs-embed #_sd_write,
+html.sdocs-embed #_sd_raw,
+html.sdocs-embed #_sd_divider,
+html.sdocs-embed #_sd_right,
+html.sdocs-embed #_sd_export-panel,
+html.sdocs-embed #_sd_info-panel,
+html.sdocs-embed #_sd_tooltip,
+html.sdocs-embed #_sd_statusbar,
+html.sdocs-embed #_sd_comments-gutter {
+  display: none !important;
+}
+
+html.sdocs-embed #_sd_main,
+html.sdocs-embed #_sd_left,
+html.sdocs-embed #_sd_content-area {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+html.sdocs-embed #_sd_left,
+html.sdocs-embed #_sd_content-area {
+  background: var(--md-bg, #fff);
+}
+
+html.sdocs-embed #_sd_rendered {
+  min-height: 0;
+}
+
+@media (max-width: 600px) {
+  html.sdocs-embed #_sd_rendered {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}

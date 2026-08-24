@@ -1304,9 +1304,9 @@ Text inside a slide thumbnail is selectable. Esc to exit, arrows to
 navigate.
 
 \u2500\u2500 START HERE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-  Building a quick or internal deck - a draft, a review, notes you
-  will talk over? \`@extends\` a built-in template. Fill named slots
-  and the template handles layout, spacing, and alignment for you:
+  Use \`@extends\` for covers, section breaks, quotations, simple
+  text, and layouts that repeat. Fill named slots and the template
+  handles layout, spacing, and alignment for you:
 
     ~~~slide
     @extends title-body
@@ -1318,14 +1318,15 @@ navigate.
 
   Run \`sdoc slides list\` for the template + slot names (cover,
   title-body, two-column, three-column, exhibit, quote, metric,
-  section, closing). This is the default path - it is faster and it
-  avoids the overlap, contrast, and floating-text faults that are
-  invisible in the source of a hand-placed deck.
+  section, closing).
 
-  Only hand-place raw shapes (\`r x y w h\`) when the deck is
-  external-facing and needs a designed look a template cannot give -
-  a client, a launch, a conference. It is slower and easy to get
-  wrong; the DESIGN GUIDELINES below are what keep it legible.
+  Use custom shapes when geometry explains the idea: a process,
+  architecture, hierarchy, comparison, feedback loop, market
+  structure, or causal model. This applies to internal presentations
+  too. An internal audience should be able to see the model instead
+  of reconstructing it from title-and-bullet slides. Mix templates
+  and custom slides in the same deck. Read DESIGN GUIDELINES and
+  \`sdoc slides custom-shapes\` before hand-placing shapes.
 
 \u2500\u2500 COMMANDS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   sdoc present <file>              Open file directly in fullscreen slide view
@@ -1334,9 +1335,8 @@ navigate.
   sdoc slides list                 List built-in templates + slot names
   sdoc slides icons [query]        List the Lucide icons available to the
                                    \`icon\` shape kind. Optional substring filter.
-  sdoc slides custom-shapes        Long-tail notes for raw-shape custom slides
-                                   (polygon text, composite patterns, layering).
-                                   Most decks use \`@extends\` and never need this.
+  sdoc slides custom-shapes        Shape syntax and design guidance for visual
+                                   explanations, diagrams, and custom layouts.
 
 ── DESIGN GUIDELINES ────────────────────────────────────
   The built-in templates encode a few rules that separate professional
@@ -1344,18 +1344,12 @@ navigate.
   template), keep these in mind - they're the difference between a
   deck that lands and one that doesn't.
 
-  Templates for scratch, custom layout for anything seen. The
-  built-in templates are the fast path: legible, consistent, and
-  well suited to fast information transfer - an internal review, a
-  working draft, a deck you will talk over. They are not built for
-  an audience that cares about feel, so a deck made only from them
-  reads as functional rather than designed. For anything
-  external-facing - a client, a conference, a launch, anything with
-  your name on it that you will not be in the room to narrate -
-  compose the deck from raw shapes instead. If you are not sure which
-  setting you are in, ask your user, explaining the trade-off:
-  templates are faster and uniform, raw shapes take longer but let
-  the deck carry a designed look. See \`sdoc slides custom-shapes\`
+  Match the layout to the information. Templates are the fast path
+  for covers, section breaks, simple text, and repeated structures.
+  Raw shapes are the explanatory path when position, direction,
+  grouping, size, or sequence carries meaning. Audience type does
+  not decide this: internal architecture and process decks often
+  benefit most from a visual model. See \`sdoc slides custom-shapes\`
   for the shape vocabulary and the design principles that go with it.
 
   Margins. Keep all content inside a 1-unit safe area on every side
@@ -1412,15 +1406,11 @@ navigate.
   A bulleted paragraph is hiding the fact that you haven't decided
   what you're claiming.
 
-  When the deck is internal or you only need it to read clearly,
-  \`@extends\` a built-in template instead of composing from raw
-  shapes - run \`sdoc slides list\` to see the registry. Reach for
-  raw shapes when the deck will be seen by an audience and the
-  default beat is not enough; the guidelines above are what keep
-  that hand-built deck on the professional side of the line. If a
-  custom layout repeats across slides, define it once as your own
-  \`@template\` and \`@extends\` it - the consistency of a template
-  with a look you designed.
+  Do not default an internal deck to title-and-bullet templates.
+  If the slide explains relationships, stages, or movement, compose
+  those relationships with shapes. If a custom layout repeats across
+  slides, define it once as your own \`@template\` and \`@extends\` it -
+  the consistency of a template with a look you designed.
 
 \u2500\u2500 VERIFYING A DECK (OPTIONAL, BUT IT IS WHAT SEPARATES CLEAN FROM BROKEN) \u2500\u2500
   You are authoring slides you cannot see. You place coordinates and
@@ -2004,10 +1994,10 @@ navigate.
 const SLIDES_CUSTOM_SHAPES_HELP = `
 SmallDocs — Slides (raw shapes)
 ===========================
-Reference + design notes for slides built from raw shapes rather than
-the stdlib templates. Most decks won't need any of this - if you can
-express the slide via \`@extends\` on a built-in (cover, title-body,
-two-column, exhibit, etc.), do that.
+Reference + design notes for slides built from raw shapes. Use templates
+for simple or repeated layouts. Use these shapes when geometry explains
+a process, architecture, hierarchy, comparison, or causal model, including
+in internal presentations.
 
 Read DESIGN PRINCIPLES first. The syntax reference below assumes you've
 made the visual choices the principles describe. Without them, raw
