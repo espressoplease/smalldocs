@@ -57,9 +57,15 @@ If a payment fails, editing remains available for 7 days. The account then becom
 
 The [Cancellation and Refund Policy](/cancellation) explains the steps and data windows.
 
-## 6. Service changes and availability
+## 6. Service availability, security, and data loss
 
 We operate Cloud on a single production host during the private beta. We do not promise uninterrupted availability or a service-level agreement. We use backups and recovery procedures, but no system can guarantee that data will never be lost.
+
+We use reasonable technical and organisational measures designed to protect Cloud content, including encryption in transit and at rest, access controls, operational monitoring, and encrypted off-site backups. We keep backup credentials and encryption keys separate from the running service and test recovery procedures. The [Privacy Notice](/privacy) explains the security boundary and the limits of these measures.
+
+These measures reduce risk but do not eliminate it. Documents may still be lost, corrupted, deleted, changed, disclosed, or made unavailable because of a software defect, malicious attack, compromised account or machine, provider or hardware failure, operator error, or database or storage failure. Keep an independent copy or export of any document whose loss would cause serious harm.
+
+The responsibility and liability terms in section 8 apply to these events. They do not exclude our duty to use reasonable care and skill, any remedy available because we failed to do so, or another right or liability that cannot lawfully be excluded.
 
 We may change, suspend, or discontinue a feature. Where a material change affects paid Cloud use, we will give reasonable notice when practicable and preserve an export path where practicable.
 
