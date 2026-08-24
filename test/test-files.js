@@ -67,9 +67,29 @@ module.exports = function(harness) {
     assert.ok(backup.includes('restart_service'));
     assert.ok(backup.includes('checksum-algorithm SHA256'));
     assert.ok(backup.includes('backup-heartbeat.js'));
+    assert.ok(backup.includes('SDOCS_BACKUP_LOCAL_RETENTION_DAYS'));
+    assert.ok(backup.includes("-name 'smalldocs-*.tar.gz'"));
+    assert.ok(backup.includes('-delete'));
     assert.ok(unit.includes('LoadCredential=aws-credentials:'));
     assert.ok(unit.includes('EnvironmentFile=-/etc/smalldocs/backup-monitor.env'));
     assert.ok(timer.includes('Persistent=true'));
+  });
+
+  test('production monitoring is scheduled and reads job state without payloads', () => {
+    const monitor = fs.readFileSync(path.join(__dirname, '..', 'ops', 'production-monitor.js'), 'utf8');
+    const unit = fs.readFileSync(path.join(__dirname, '..', 'ops', 'systemd',
+      'smalldocs-monitor.service'), 'utf8');
+    const timer = fs.readFileSync(path.join(__dirname, '..', 'ops', 'systemd',
+      'smalldocs-monitor.timer'), 'utf8');
+    assert.ok(monitor.includes('createCloudJobs({ dbPath, readonly: true })'));
+    assert.ok(monitor.includes('operational counts and status only'));
+    assert.ok(unit.includes('LoadCredential=resend-api-key:'));
+    assert.ok(timer.includes('OnUnitActiveSec=5min'));
+    assert.ok(fs.readFileSync(path.join(__dirname, '..', 'ops', 'systemd',
+      '60-smalldocs-journal-retention.conf'), 'utf8').includes('MaxRetentionSec=90day'));
+    assert.ok(fs.readFileSync(path.join(__dirname, '..', 'ops',
+      'install-production-monitor.sh'), 'utf8').includes(
+      'systemctl enable --now smalldocs-monitor.timer'));
   });
 
   test('production deploy verifies, installs, and can roll back systemd unit changes', () => {
@@ -78,6 +98,7 @@ module.exports = function(harness) {
     assert.ok(deploy.includes('systemd-analyze verify "$unit_source"'));
     assert.ok(deploy.includes('install -o root -g root -m 0644 "$unit_source" "$unit_target"'));
     assert.ok(deploy.includes('systemctl daemon-reload'));
+    assert.ok(deploy.includes('install-production-monitor.sh'));
     assert.ok(deploy.includes('rollback_release'));
   });
 

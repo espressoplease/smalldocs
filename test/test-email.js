@@ -112,6 +112,16 @@ module.exports = function(harness) {
       assert.ok(paymentFailed.text.includes('permanently deleted on 20 October 2026'));
       assert.ok(paymentFailed.html.includes('Update billing'));
 
+      const started = templates.billingState({ type: 'subscription_started',
+        accountName: 'SmallDocs Demo', accessEndsAt: '24 September 2026',
+        billingUrl: 'https://smalldocs.org/cloud/admin?panel=billing',
+        termsUrl: 'https://smalldocs.org/legal',
+        cancellationUrl: 'https://smalldocs.org/cancellation' });
+      assert.strictEqual(started.subject, 'SmallDocs Cloud is active for SmallDocs Demo');
+      assert.ok(started.text.includes('renews monthly'));
+      assert.ok(started.text.includes('https://smalldocs.org/legal'));
+      assert.ok(started.html.includes('Cancellation and refunds'));
+
       const canceled = templates.billingState({ type: 'cancellation_scheduled',
         accountName: 'SmallDocs Demo', accessEndsAt: '1 September 2026',
         deletionDate: '1 October 2026',

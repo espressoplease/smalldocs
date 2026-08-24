@@ -32,6 +32,12 @@ module.exports = function (harness) {
       });
     }
 
+    test('a new active subscription schedules one contract confirmation', () => {
+      const active = update({ status: 'active' });
+      assert.deepStrictEqual(lifecycle.transitionTypes(null, active), ['subscription_started']);
+      assert.ok(!lifecycle.transitionTypes(active, active).includes('subscription_started'));
+    });
+
     test('first failed payment creates fixed grace and deletion clocks', () => {
       const failed = update({ status: 'past_due' });
       assert.strictEqual(failed.graceEndsAtMs, now + 7 * day);

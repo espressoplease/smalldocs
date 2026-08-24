@@ -31,6 +31,7 @@ running, then sends previews for:
 - a sign-in code;
 - an account invitation;
 - a document notification containing three document links and a sender note;
+- a subscription confirmation with renewal, terms, cancellation, and refund information;
 - payment failure, payment received, and payment read-only states;
 - cancellation scheduled, cancellation removed, and cancellation effective states;
 - the final deletion warning.

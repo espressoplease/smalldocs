@@ -5,6 +5,11 @@ set -eu
 : "${SDOCS_BACKUP_REGION:?SDOCS_BACKUP_REGION is required}"
 : "${SDOCS_BACKUP_ACCOUNT_ID:?SDOCS_BACKUP_ACCOUNT_ID is required}"
 
+local_retention_days=${SDOCS_BACKUP_LOCAL_RETENTION_DAYS:-7}
+case "$local_retention_days" in
+  ''|*[!0-9]*|0) echo "SDOCS_BACKUP_LOCAL_RETENTION_DAYS must be a positive integer" >&2; exit 1 ;;
+esac
+
 backup_timestamp=$(date -u +%Y%m%dT%H%M%SZ)
 backup_day=$(date -u +%Y/%m/%d)
 backup_host=$(hostname)
@@ -74,5 +79,13 @@ backup_sha256=$(awk '{print $1}' "$backup_checksum")
   --expected-bucket-owner "$SDOCS_BACKUP_ACCOUNT_ID"
 
 node /opt/smalldocs/current/ops/backup-heartbeat.js
+
+# The off-site copy is the recovery boundary. Keep a short local window for
+# fast restores, but do not let archives accumulate indefinitely on the same
+# disk as the service. Cleanup runs only after both S3 uploads have succeeded.
+local_retention_minutes=$((local_retention_days * 24 * 60))
+find /var/backups/smalldocs -maxdepth 1 -type f \
+  \( -name 'smalldocs-*.tar.gz' -o -name 'smalldocs-*.tar.gz.sha256' \) \
+  -mmin "+$local_retention_minutes" -delete
 
 echo "Uploaded s3://$SDOCS_BACKUP_BUCKET/$backup_key"

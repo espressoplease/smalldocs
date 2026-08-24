@@ -1,0 +1,37 @@
+[Unit]
+Description=Check SmallDocs production health and alert by email
+After=network-online.target smalldocs.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/smalldocs/current
+EnvironmentFile=/etc/smalldocs/smalldocs.env
+EnvironmentFile=/etc/smalldocs/monitor.env
+LoadCredential=resend-api-key:/etc/smalldocs/resend-api-key
+Environment=NOTIFY_SMTP_PASS_FILE=/run/credentials/smalldocs-monitor.service/resend-api-key
+ExecStart=/usr/local/bin/node /opt/smalldocs/current/ops/production-monitor.js
+UMask=0077
+LimitCORE=0
+TimeoutStartSec=30s
+StateDirectory=smalldocs-monitor
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadOnlyPaths=/var/backups/smalldocs /var/lib/smalldocs

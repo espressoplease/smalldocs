@@ -80,6 +80,10 @@ async function main() {
   }));
   const billingUrl = 'https://cloud-staging.smalldocs.org/cloud/admin?panel=billing';
   const billingPreviews = [
+    ['subscription-started', { type: 'subscription_started', accountName: 'SmallDocs Demo',
+      accessEndsAt: '24 September 2026', billingUrl,
+      termsUrl: 'https://cloud-staging.smalldocs.org/legal',
+      cancellationUrl: 'https://cloud-staging.smalldocs.org/cancellation' }],
     ['payment-failed', { type: 'payment_failed', accountName: 'SmallDocs Demo',
       accessEndsAt: '28 August 2026', deletionDate: '20 October 2026', billingUrl }],
     ['payment-recovered', { type: 'payment_recovered', accountName: 'SmallDocs Demo', billingUrl }],

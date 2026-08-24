@@ -1,171 +1,94 @@
 ---
-title: "SmallDocs - Privacy & Terms"
-styles:
-  fontFamily: "Inter"
-  baseFontSize: 15
-  lineHeight: 1.65
-  headers: { scale: 1.0, marginBottom: 0.45 }
-  h1: { fontSize: 2.0, fontWeight: 700 }
-  h2: { fontSize: 1.3, fontWeight: 600 }
-  h3: { fontSize: 1.05, fontWeight: 600 }
-  p: { marginBottom: 0.95 }
-  link: { decoration: "underline" }
----
-
-# Privacy Policy
-
-**Last updated:** 15 April 2026
-
-SmallDocs (smalldocs.org) is operated by **Odd Solutions Ltd**, a company registered in England & Wales (company number 16186575). References to "we", "us", or "our" in this policy mean Odd Solutions Ltd. References to "you" mean the individual using SmallDocs.
-
-Contact: [hi@sdocs.dev](mailto:hi@sdocs.dev).
-
-## Summary
-
-- Your document content never reaches our servers. It lives in your browser and in URL hash fragments that browsers never transmit.
-- We do not use any third-party analytics provider.
-- We do not store anything that identifies you individually — no IP address, no cookie, no login, no device fingerprint.
-- We do store a small amount of coarse, aggregate data per visit — the week you first arrived, the current week, and bucketed values for device (desktop / mobile / tablet), browser family, and referrer category. None of these single you out; millions of visitors share the same values.
-
-## 1. What we do not collect
-
-When you use SmallDocs, we do not collect, store, or transmit:
-
-- The content of the markdown documents you open, edit, share, or export.
-- Your name, email, or any other identifying information (you never create an account).
-- Your IP address (it reaches our web server in transit as part of standard HTTP but is never written to disk).
-- Any persistent tracking identifier (cookie, fingerprint, or advertising ID).
-
-## 2. What we do collect
-
-On each page load, your browser makes a single background request to our `/version-check` endpoint. This request is used to detect whether the cached version of the app is out of date and to record an anonymous visit. We store, in a local SQLite database:
-
-- **Cohort week** — the ISO week you first visited (e.g. `2026-W15`), read from a single value stored in your browser's localStorage under the key `sdocs_cohort`. This is not a unique identifier; everyone who first arrived in the same week shares the same value.
-- **Current week** — the ISO week of the visit.
-- **Coarse device label** — desktop / mobile / tablet, parsed from your user-agent header.
-- **Browser family** — Chrome / Safari / Firefox / Edge / Opera / other.
-- **Coarse referrer** — the referring domain, collapsed into categories (search, github, npm, direct, or the referring host).
-
-No row in this database identifies you. A power user reloading the page fifty times appears as fifty rows.
-
-The aggregated results are published at [smalldocs.org/analytics](https://smalldocs.org/analytics).
-
-## 3. How we use this data
-
-We use the aggregated visit counts as a rough proxy for retention — whether people who discover SmallDocs keep using it in subsequent weeks. This is the only product signal we rely on. We do not profile, segment, personalise, or sell any of this data.
-
-## 4. Third parties
-
-SmallDocs loads a small number of assets from third-party content delivery networks. These third parties may receive your IP address and user-agent as part of the standard HTTP request for the asset. They do not receive your document content.
-
-- **Google Fonts** (`fonts.googleapis.com`, `fonts.gstatic.com`) — loads the web font you select for rendering.
-- **jsDelivr** (`cdn.jsdelivr.net`) — loads the Chart.js library when a document contains a chart.
-
-If you embed images, links, or other external resources in your markdown, your browser will load them directly from the hosts you reference. We have no visibility into and no control over those requests.
-
-## 5. Cookies and local storage
-
-SmallDocs does not set cookies.
-
-SmallDocs writes a single value to your browser's localStorage under the key `sdocs_cohort` (see section 2). You can clear it from your browser's developer tools, use a private browsing window to avoid it being written, or opt out via the button on [smalldocs.org/analytics](https://smalldocs.org/analytics).
-
-## 6. Opting out
-
-To stop being counted in cohort visits: visit [smalldocs.org/analytics](https://smalldocs.org/analytics) and click the opt-out button. Your `sdocs_cohort` value is set to `opt-out`, and all subsequent visits are counted as "Unattributed" with no cohort attribution.
-
-## 7. Your rights under UK GDPR
-
-Because we do not store data that identifies you, there is typically nothing to access, correct, or delete under UK GDPR data-subject rights. If you believe we hold personal data about you, contact [hi@sdocs.dev](mailto:hi@sdocs.dev) and we will respond within 30 days.
-
-You have the right to lodge a complaint with the UK Information Commissioner's Office (ICO) at [ico.org.uk](https://ico.org.uk).
-
-## 8. Open source
-
-SmallDocs is open source. Its source code is published at [github.com/espressoplease/smalldocs](https://github.com/espressoplease/smalldocs). You are welcome and encouraged to audit the code to verify the claims in this policy.
-
-## 9. Changes
-
-We may update this policy from time to time. The "Last updated" date above reflects the most recent change. Material changes will be noted in the repository commit history, which is part of the public record.
-
+title: SmallDocs Terms of Service
+description: The terms that apply to SmallDocs, encrypted short links, and SmallDocs Cloud.
 ---
 
 # Terms of Service
 
-**Last updated:** 15 April 2026
+**Last updated: 24 August 2026**
 
-These Terms of Service ("Terms") govern your use of the SmallDocs website, CLI, and related services (together, the "Service") operated by **Odd Solutions Ltd** (company number 16186575, registered in England & Wales).
+These terms are an agreement between you and **Odd Solutions Ltd**, a private limited company registered in England and Wales under company number 16186575. Odd Solutions Ltd operates SmallDocs. In these terms, "SmallDocs", "we", "us", and "our" mean Odd Solutions Ltd.
 
-By using the Service you agree to these Terms. If you do not agree, do not use the Service.
+Contact: [hi@smalldocs.org](mailto:hi@smalldocs.org).
 
-## 1. The Service is provided "as is"
+Registered office: 98 Downhills Park Road, London, United Kingdom, N17 6PA.
 
-The Service is provided on an **"as is"** and **"as available"** basis, without warranties of any kind, whether express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement.
+These terms cover the SmallDocs website and reader, the `sdoc` command line tool, encrypted short links, and the paid SmallDocs Cloud service. By using a paid service, creating a Cloud account, or continuing to use the service after being shown these terms, you agree to them.
 
-We do not warrant that the Service will be uninterrupted, error-free, secure, or free of harmful components.
+## 1. What SmallDocs provides
 
-The Service is open source (see the Privacy Policy, section 8). You are welcome to inspect, fork, or self-host the code.
+Local SmallDocs reads and renders Markdown in your browser. Document content placed after the `#` in a SmallDocs URL is not sent to our server.
 
-## 2. Your content
+An encrypted short link uploads ciphertext to our server. Its decryption key remains in the URL fragment and is not sent to our server.
 
-You retain all rights to any markdown content you create, open, edit, share, or export using SmallDocs. We have no access to that content (see Privacy Policy, section 1).
+SmallDocs Cloud stores selected documents so authorised people and connected machines can open, search, edit, organise, and share them. SmallDocs manages the Cloud encryption keys and can decrypt an authorised document in application memory. Cloud is encrypted at rest, but it is not end-to-end encrypted or zero knowledge.
 
-You are solely responsible for:
+The [Privacy Notice](/privacy) explains these data flows in more detail.
 
-- The content of any document you create, share, export, or distribute using the Service.
-- Ensuring that your content does not violate any applicable law, any third party's rights (including copyright, trademark, privacy, or publicity rights), or any other person's reasonable expectations.
-- The consequences of sharing any URL generated by the Service, including any URL containing content in its hash fragment.
+## 2. Accounts and security
 
-## 3. Shared links and third-party content
+You must give accurate account information and keep access to your email account and connected machines secure. You are responsible for activity performed through credentials you control until you revoke them or tell us that they may be compromised.
 
-Because document content in SmallDocs is embedded in the URL hash fragment, anyone you share a URL with will receive whatever content was present when you generated that URL. We have no ability to moderate, review, recall, or take down content that exists only in a URL.
+Team owners and administrators control membership and access within their account. A Team customer is responsible for choosing administrators, managing membership, and ensuring that it has authority to upload and share its documents.
 
-Similarly, any image, link, or other external resource referenced in a document is loaded directly from a third-party host. We do not review, endorse, or accept responsibility for third-party resources, whether embedded in a document by you, by someone sharing a link with you, or by anyone else.
+You must be at least 18 years old to buy a subscription. If you use SmallDocs for an organisation, you confirm that you have authority to agree to these terms for that organisation.
 
-**If you open a shared SmallDocs link, you are loading content authored by the person who produced that link.** Exercise the same judgement you would with any other external URL.
+## 3. Your content
 
-## 4. Acceptable use
+You retain ownership of content you upload or create. You give us a limited licence to host, copy, encrypt, decrypt, process, transmit, and back up that content only as needed to provide, secure, support, and recover the service or comply with law.
 
-You agree not to use the Service:
+You are responsible for your content and for having the rights and permissions needed to store and share it. The [Acceptable Use Policy](/acceptable-use) forms part of these terms.
 
-- To upload, render, share, or export content that is unlawful, defamatory, obscene, fraudulent, or that infringes anyone's rights.
-- To attempt to exploit, probe, or damage the Service or any related infrastructure.
-- To distribute malware, phishing content, or any content intended to harm readers.
-- To reverse-engineer the Service for the purpose of building a competing commercial product (this does not restrict fair use of the open-source code under its licence).
+## 4. Subscriptions, prices, and tax
 
-## 5. Limitation of liability
+SmallDocs Cloud subscriptions are billed monthly in advance and renew automatically until cancelled. The price, currency, included storage, billing unit, and applicable tax are shown before payment. Team subscriptions are billed for active human members. Connected machines and agents acting under a human account are not separate paid seats.
 
-To the fullest extent permitted by applicable law, Odd Solutions Ltd, its directors, employees, and contractors will not be liable for any indirect, incidental, consequential, special, exemplary, or punitive damages, or any loss of profits, revenue, data, goodwill, or other intangible losses, arising out of or relating to your use of or inability to use the Service — even if we have been advised of the possibility of such damages.
+Stripe processes payment details. We do not receive or store full card numbers. You authorise us and Stripe to collect each recurring payment until cancellation.
 
-In any case, our total aggregate liability to you in connection with the Service, in contract, tort, or otherwise, will not exceed **zero pounds sterling (£0)**. The Service is provided to you free of charge and we accept no monetary liability for any loss or damage arising from its use.
+We may change prices or included allowances for a future billing period. We will give reasonable notice before a change affects an existing subscription. You can cancel before the new price takes effect.
 
-Nothing in these Terms excludes or limits liability that cannot be excluded or limited under applicable law, including liability for death or personal injury caused by our negligence, for fraud, or for fraudulent misrepresentation.
+## 5. Cancellation, refunds, and failed payments
 
-## 6. Indemnification
+You can cancel through Cloud settings. Cancellation stops future renewal. Editing remains available until the end of the period already paid for. The account then becomes read-only so documents can still be opened and exported. Cloud documents are scheduled for permanent deletion 30 days after the paid period ends unless the subscription is restored.
 
-You agree to indemnify and hold harmless Odd Solutions Ltd, its directors, employees, and contractors from any claim, demand, loss, liability, damages, or expenses (including reasonable legal fees) arising out of:
+For a first Personal subscription bought as a consumer, you may request a full refund within 14 days of purchase by emailing [hi@smalldocs.org](mailto:hi@smalldocs.org). Other statutory refund rights are not affected.
 
-- Your content, including anything you share, export, or render using the Service.
-- Your violation of these Terms.
-- Your violation of any right of any third party, including intellectual property, privacy, and publicity rights.
+If a payment fails, editing remains available for 7 days. The account then becomes read-only. Cloud documents are scheduled for permanent deletion 60 days after the failed payment unless payment is recovered.
 
-## 7. Changes to the Service
+The [Cancellation and Refund Policy](/cancellation) explains the steps and data windows.
 
-We may modify, suspend, or discontinue the Service (or any part of it) at any time, with or without notice. We will not be liable to you or any third party for any such modification, suspension, or discontinuation.
+## 6. Service changes and availability
 
-Because the Service is open source, a discontinued version remains available in the public repository.
+We operate Cloud on a single production host during the private beta. We do not promise uninterrupted availability or a service-level agreement. We use backups and recovery procedures, but no system can guarantee that data will never be lost.
 
-## 8. Changes to these Terms
+We may change, suspend, or discontinue a feature. Where a material change affects paid Cloud use, we will give reasonable notice when practicable and preserve an export path where practicable.
 
-We may update these Terms from time to time. The "Last updated" date above reflects the most recent change. Continued use of the Service after changes constitutes acceptance of the revised Terms.
+Local SmallDocs and the command line tool are open source. The licence in the source repository applies to use of that code. It does not grant a right to our trademarks, hosted service, customer data, or provider accounts.
 
-## 9. Governing law
+## 7. Suspension and termination
 
-These Terms are governed by the laws of England and Wales. Any dispute arising out of or in connection with these Terms or the Service will be subject to the exclusive jurisdiction of the courts of England and Wales.
+We may limit or suspend access when reasonably necessary to protect the service or another person, investigate abuse, comply with law, address non-payment, or enforce these terms. We may act immediately for a security or legal risk. In other cases, we will normally explain the issue and give a reasonable opportunity to correct it.
 
-## 10. Contact
+You may stop using the free service at any time. A paid subscription must be cancelled to stop renewal. Account deletion and subscription cancellation are separate actions.
 
-Questions about these Terms may be directed to [hi@sdocs.dev](mailto:hi@sdocs.dev).
+## 8. Warranties and responsibility
 
----
+We provide the service with reasonable care and skill. Except for rights and promises that cannot lawfully be excluded, the service is provided as available and without a promise that every feature will be uninterrupted, error-free, or suitable for a particular purpose.
 
-Odd Solutions Ltd — registered in England & Wales, company number 16186575.
+Nothing in these terms excludes liability for death or personal injury caused by negligence, fraud, fraudulent misrepresentation, or another liability that cannot lawfully be excluded. Nothing in these terms limits statutory rights that apply to a consumer.
+
+Subject to that paragraph, neither party is liable to the other for an indirect or unforeseeable loss. If you use SmallDocs for business purposes, our total liability arising from the hosted service in any 12-month period is limited to the fees you paid for that service during that period.
+
+## 9. Changes to these terms
+
+We may update these terms to reflect a service, legal, security, or commercial change. We will show the updated date. For a material change affecting a paid subscription, we will provide notice before it takes effect where required and give you a reasonable opportunity to cancel.
+
+## 10. Governing law
+
+The laws of England and Wales govern these terms. If you are a consumer, you keep any mandatory protections and right to bring proceedings available under the law where you live. If you use SmallDocs for business, the courts of England and Wales have exclusive jurisdiction.
+
+## 11. Contact and company information
+
+Questions, complaints, cancellation requests, and legal notices can be sent to [hi@smalldocs.org](mailto:hi@smalldocs.org).
+
+Odd Solutions Ltd is registered in England and Wales under company number 16186575. Its registered office is 98 Downhills Park Road, London, United Kingdom, N17 6PA.

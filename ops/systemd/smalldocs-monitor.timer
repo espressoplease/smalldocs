@@ -1,0 +1,11 @@
+[Unit]
+Description=Check SmallDocs production every five minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

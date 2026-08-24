@@ -1,98 +1,110 @@
 ---
-title: Privacy & security
-description: How data flows when you use SmallDocs, and what reaches our server.
+title: SmallDocs Privacy Notice
+description: What SmallDocs receives, why it is processed, where it is stored, and your choices.
 ---
 
-# Privacy and security
+# Privacy Notice
 
-This page describes what reaches our server when you use SmallDocs, and what does not. The summary: by default, nothing.
+**Last updated: 24 August 2026**
 
-## The default url format never reaches our server
+This notice explains how **Odd Solutions Ltd**, company number 16186575, handles personal data when it operates SmallDocs. Odd Solutions Ltd is the controller for account, service, support, security, and billing records. For document content uploaded by a Team customer, the customer may be the controller and Odd Solutions Ltd may act as its processor.
 
-When you run `sdoc some-file.md`, the CLI does two things:
+Contact: [hi@smalldocs.org](mailto:hi@smalldocs.org).
 
-1. Reads the file from your disk.
-2. Compresses the file content and encodes it into a single string, then opens a URL of this shape in your browser:
+Registered office: 98 Downhills Park Road, London, United Kingdom, N17 6PA.
 
-```
-https://smalldocs.org/#md={compressed file content}
-```
+## The three document modes
 
-That `{compressed file content}` sits in the URL's **hash fragment** (everything after the `#`). The styled rendering happens entirely in your browser, using JavaScript loaded from smalldocs.org.
+SmallDocs handles documents differently depending on the feature you choose.
 
-Browsers never send hash fragments to the server. This is part of how HTTP works:
+### Local documents
 
-> The fragment is not sent to the server when the URI is requested; it is processed by the client.
-> - [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Fragment)
+When you run `sdoc file.md`, the command line tool reads the file, compresses it, and puts it after the `#` in a SmallDocs URL. Browsers do not send that URL fragment to the web server. Rendering happens in the browser. We receive the normal request for the application files, but not the document content in the fragment.
 
-So when you open a SmallDocs URL, our server receives a request for the page HTML and JavaScript. It does not receive the `#md=...` part. That stays in your browser.
+Bridge mode connects the browser to a process bound to your computer's loopback address. The bridge can access only the files explicitly opened for that session. The SmallDocs page is trusted by the bridge, so a compromise of the served application could affect an open Bridge file.
 
-You can verify this. Open DevTools, switch to the Network tab, and load a SmallDocs URL. The hash fragment is not in the request.
+### Encrypted short links
 
-## Bridge mode
+An encrypted short link uploads encrypted document bytes to SmallDocs. The server stores the ciphertext and short identifier. The decryption key remains after the `#` in the shared URL and is not sent to our server. A short link is deleted after 365 days without a successful access. Encrypted copies may remain in backup archives until the backup retention cycle completes.
 
-Some CLI commands (for example `sdoc edit`) need two-way communication between the browser page and your machine. For those, the CLI spawns a small local "bridge" process. The bridge:
+### SmallDocs Cloud
 
-- Binds to a loopback address (`127.0.0.1`), not the public internet.
-- Accepts WebSocket connections only from pages served by `smalldocs.org`.
-- Requires a per-session token the CLI minted.
-- Refuses requests whose Host header doesn't match the loopback it bound to.
+Cloud stores selected documents for access across authorised people and connected machines. Document bodies, titles, filenames, tags, and revision metadata are encrypted at rest. SmallDocs manages the encryption keys and can decrypt an authorised document in application memory to render, search, edit, merge, export, and notify about it. Cloud is not end-to-end encrypted or zero knowledge.
 
-That stops other websites and other processes on your machine from talking to the bridge.
+Access checks run before a Cloud document is decrypted. Search decrypts authorised current documents in memory for that request. We do not keep a plaintext keyword index. Search text, document text, and result snippets are excluded from application logs.
 
-It does not protect you from the smalldocs.org page itself. The bridge trusts whatever JavaScript that page is currently running. If the page were ever compromised, that JavaScript could ask the bridge to modify a file you opened with `sdoc edit`. The bridge would oblige.
+## Personal data we process
 
-The mitigations that exist:
+| Data | Why it is used | Lawful basis |
+| --- | --- | --- |
+| Email address, first name, last name, identity-provider identifier, and sign-in history | Create and secure an account, sign a person in, display identity, and recover access | Contract and legitimate interests in service security |
+| Session and connected-machine records, hashed credentials, issue times, expiry times, and revocation state | Authenticate browsers and command line clients and allow credentials to be revoked | Contract and legitimate interests in preventing unauthorised access |
+| Account name, membership, roles, invitation address, approved email domains, permission groups, and audit events | Provide Team access controls and show administrative history | Contract and legitimate interests in account security and dispute handling |
+| Encrypted document data and operational metadata such as identifiers, sizes, revision times, and access events | Store, retrieve, search, edit, merge, back up, and recover Cloud documents | Contract. For Team content, the customer may determine the lawful basis |
+| Billing contact, Stripe customer and subscription identifiers, plan, seat quantity, invoice and payment status, tax state, and retention dates | Take payment, calculate entitlement, manage cancellation, and keep accounting records | Contract and legal obligation |
+| Recipient address, notification choice, subject, delivery state, and optional note | Send sign-in, invitation, sharing, billing, and deletion messages | Contract and legitimate interests in delivering and securing the service |
+| Support requests, business enquiries, and correspondence | Respond to a request and keep a record of the response | Contract or steps requested before a contract, and legitimate interests in support |
+| Coarse visit information described below | Understand whether the public reader is used and detect a stale application version | Legitimate interests in operating and improving the service |
+| Security and operational events, provider request identifiers, counts, latency, disk use, job age, and failure codes | Detect abuse, diagnose incidents, reconcile providers, and recover the service | Legitimate interests in security and reliability |
 
-- The bridge can only touch files you explicitly passed on the CLI command line. Files outside that list are unreachable.
-- The bridge holds files by inode at session start; replacing a file underneath the session is refused.
-- The session token in the URL fragment never reaches our server.
+The web server receives an IP address and user-agent as part of an HTTP connection. Nginx access logging is disabled in the Cloud production configuration. IP addresses used for rate limiting are transformed with a keyed hash before a rate-limit event is stored. We do not use advertising cookies or sell personal data.
 
-Treat the bridge as having the same trust level as smalldocs.org itself.
+## Public reader analytics and local storage
 
-## Shared short links
+The public application records a cohort week, current week, coarse device category, browser family, coarse referrer category, local hour, and load type when analytics are enabled. A cohort week is shared by everyone whose first visit occurred that week; it is not a unique identifier. Aggregate counts are published at [smalldocs.org/analytics](/analytics).
 
-Generating a short link (either manually on the site or via `sdoc share file.md`) is the one feature that uploads something to our server. We made it end-to-end encrypted.
+The public reader stores the cohort value and application preferences in browser storage. Cloud uses a Secure, HttpOnly, SameSite session cookie after sign-in. The cookie contains an opaque credential, not a document.
 
-The flow:
+You can opt out of cohort attribution on the analytics page or clear site data in your browser. Necessary authentication storage cannot be disabled while remaining signed in.
 
-1. Your browser generates a random 256-bit encryption key.
-2. Your browser encrypts the document with that key using AES-GCM, the same algorithm HTTPS uses.
-3. Your browser uploads only the encrypted blob to our server.
-4. The server stores the blob under a short random ID and sends the ID back.
-5. Your browser assembles the final link:
+## Who receives data
 
-```
-  https://smalldocs.org/s/{short id}#k={encryption key}
-                      └────┬───┘   └───────┬──────┘
-                           │               │
-                      sent to           never leaves
-                       server           your browser
-```
+We use Hetzner for the production server, AWS KMS for document-key protection, Amazon S3 for encrypted backups, Stripe for billing and tax, and Resend for transactional email. Their purposes, locations, and the data involved are listed on the [Service Providers and Subprocessors](/subprocessors) page.
 
-The short ID lives in the URL path, so our server sees it. The encryption key lives in the URL hash fragment, so our server never sees it (see the section above).
+Google or GitHub receives identity requests only if that provider is configured, shown on the sign-in page, and selected by you. The public reader may request a selected font from Google Fonts or a chart library from jsDelivr. If a document refers to an external image or other resource, your browser contacts that resource's host directly.
 
-When someone opens the link, their browser fetches the encrypted blob from our server using the short ID, reads the key from the URL hash, and decrypts the blob locally. Our server only ever handles ciphertext.
+Some providers operate internationally. Where UK personal data is transferred outside the UK, we rely on an applicable adequacy regulation, the UK International Data Transfer Agreement or UK Addendum to standard contractual clauses, or another lawful transfer mechanism. Stripe may act as an independent controller for regulated payment and fraud-prevention activity.
 
-To verify: open DevTools, go to the Network tab, click **Generate** on a sdoc, and inspect the request body. You will see a base64 blob of random bytes, not your document.
+## Retention
 
-## The install script
+- Sign-in codes are valid for 10 minutes and allow no more than 5 attempts. Only a keyed hash of a code is stored.
+- Browser sessions expire after 30 days unless revoked earlier. Command line access tokens expire after 15 minutes; the longer-lived connected-machine credential remains until revoked or the account is deleted.
+- Active Cloud account and membership records are kept while needed to provide the account. A verified identity can remain after the last subscription ends so the person can sign in, export retained data, recover a subscription, or exercise data rights.
+- Cloud keeps the current revision and up to 3 previous revisions. Previous revisions are retained for no more than 90 days.
+- A deleted Cloud document can normally be restored for 30 days before permanent deletion from the active database.
+- After cancellation, Cloud data is scheduled for deletion 30 days after the paid period ends. After a failed payment, it is scheduled for deletion 60 days after the failed payment.
+- Team administrative events are kept with the account and removed when the account is permanently purged, unless a record must be retained for a legal claim or security investigation.
+- Encrypted production backups are created nightly. Local archives are kept for 7 days. Off-site archives are protected from early deletion for 30 days by S3 Object Lock, then removed through an asynchronous lifecycle process. An archive can remain for slightly longer than 31 days. Deleted ciphertext can remain until the applicable backup archive expires.
+- Encrypted short links expire after 365 days without a successful access.
+- Billing, invoice, tax, refund, and transaction records may be retained for 6 years after the financial year to which they relate, or longer when law or an active enquiry requires it.
+- Operational logs are normally retained for no more than 90 days, unless a specific security incident or legal claim requires a relevant record to be preserved for longer.
+- Support correspondence is normally retained for 2 years after the request closes, unless it becomes part of a transaction, security incident, or legal claim.
 
-`curl -fsSL https://smalldocs.org/install | sh` downloads a shell script from us and runs it. Reading what a script does before running it is a reasonable habit. The sources:
+When an active database row is deleted, copies may remain as encrypted ciphertext in retained backups. Backup access requires separate credentials and encryption keys. Backup expiry is not an immediate deletion mechanism for provider records that the provider must retain independently, such as Stripe transaction records.
 
-- The install script itself: [smalldocs.org/install](https://smalldocs.org/install)
-- The CLI it installs: [npmjs.com/package/sdocs-dev](https://www.npmjs.com/package/sdocs-dev)
-- The full source: [github.com/espressoplease/SDocs](https://github.com/espressoplease/SDocs)
+## Security
 
-The installer puts everything in `~/.sdocs/`, a folder you own. It does not ask for `sudo`, does not touch system directories, and does not run anything as root.
+Cloud database values and backups are encrypted at rest. Document encryption keys are protected by AWS KMS and are not stored in plaintext beside document data. Connections use TLS. Production workload, backup, and provider credentials have separate permissions. Connected machines can be viewed and revoked.
 
-## Supply-chain trust
+Encryption at rest protects a copied database or backup from being useful on its own. It does not protect against a compromise of the running application, its KMS permissions, an authorised user session, or a sufficiently privileged operator.
 
-The privacy story above relies on smalldocs.org running the JavaScript we publicly published. We back that up with a public per-deploy manifest of file hashes, checked against the live site on a schedule. The mechanism, and how to verify it yourself, is documented at [smalldocs.org/trust](/trust).
+The source code and a per-deploy file manifest are public. Verification steps are at [smalldocs.org/trust](/trust).
 
-## Source and reporting
+## Your rights
 
-Everything is open source. If something here does not match what the code does, that is a bug. Please report it.
+Depending on the circumstances, UK data-protection law gives you rights to:
 
-- Code: [github.com/espressoplease/SDocs](https://github.com/espressoplease/SDocs)
-- Issues: [github.com/espressoplease/SDocs/issues](https://github.com/espressoplease/SDocs/issues)
+- ask for a copy of personal data;
+- correct inaccurate or incomplete data;
+- ask for deletion or restriction;
+- object to processing based on legitimate interests;
+- receive data you provided in a portable form; and
+- withdraw consent where consent is the basis for processing.
+
+Email [hi@smalldocs.org](mailto:hi@smalldocs.org) from the address associated with the account. We may need to verify the request. If a Team controls the document content, we may refer a content request to that Team.
+
+You can complain to the UK Information Commissioner's Office at [ico.org.uk](https://ico.org.uk). Please contact us first if you want us to investigate a concern.
+
+## Changes
+
+We will update this notice when a data flow, provider, retention period, or legal requirement changes. For a material change affecting a paid account, we will provide notice where required.

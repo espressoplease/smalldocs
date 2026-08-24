@@ -82,5 +82,7 @@ if [ "$healthy" -ne 1 ]; then
   exit 1
 fi
 
+sudo sh /opt/smalldocs/current/ops/install-production-monitor.sh /opt/smalldocs/current
+
 echo "Deployed $release_commit"
 REMOTE

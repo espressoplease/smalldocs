@@ -91,7 +91,7 @@ Nginx
 - [x] Use a hardened systemd unit with an explicit writable state path and no core dumps.
 - [x] Bind Node to loopback and expose only SSH, HTTP, and HTTPS through the host and cloud firewalls.
 - [x] Keep document KMS and backup KMS permissions in separate workload identities.
-- [ ] Monitor CPU, RSS, event-loop delay, disk, backup duration, and request latency by service.
+- [ ] Monitor CPU, RSS, event-loop delay, disk, backup duration, and request latency by service. The first on-host monitor covers loopback availability, disk, backup age, and job health; resource and latency history remain before public launch.
 
 ### KMS comparison
 
@@ -515,13 +515,14 @@ The existing production deployment is `smalldocs.service` on port `3003` behind 
 - [x] Compare the 447-row rehearsal count and verify a representative stored ciphertext through the new host's HTTP API without printing its identifier or value.
 - [x] Include `SHORT_LINKS_DB` in encrypted off-site backups. The rehearsal snapshot is present in the locked archive.
 - [x] Run the coordinated backup nightly with 30-day governance retention in versioned storage.
+- [x] Verify the live S3 configuration and add lifecycle expiry for current versions after 30 days, noncurrent versions after 1 further day, and expired delete markers. The 24 August 2026 check also confirmed KMS encryption, public-access blocking, individual Object Lock retention, and successful nightly uploads.
 - [x] Stop the new application briefly so all local databases and sidecars are archived together, then restart it before upload.
 - [x] Encrypt the archive with a separate AWS KMS key and store it outside Hetzner.
 - [x] Record a portable SHA-256 checksum, deployed commit, state paths, configuration, KMS encryption metadata, and object version.
 - [x] Include the root-managed application environment in the KMS-encrypted archive. The put-only backup identity cannot read or decrypt the archive.
 - [x] Create a coordinated archive from the hidden production configuration, upload it to KMS-encrypted Object Lock storage, and restore the local copy into an isolated directory. The checksum and `PRAGMA integrity_check` passed for all eight databases, including the five empty Cloud databases. This proves the coordinated archive, but not off-site retrieval or document decryption.
 - [x] Separately copy and reopen a temporary two-revision Cloud database with a new KMS client and empty cache under the production workload identity. Both current and historical document revisions decrypted. This proves the document envelope and production key policy, but not off-site archive retrieval.
-- [ ] Alert when the latest successful backup is too old. The deployment now supports a provider-neutral success heartbeat after both uploads complete. Configure its root-owned URL and prove the external 26-hour alert before launch.
+- [ ] Alert when the latest successful backup is too old. The chosen private-beta design is the on-host five-minute monitor with a 26-hour threshold and Resend delivery. Configure the alert recipient, deploy its timer, and prove alert and recovery delivery before launch. There is no external host-down alert at launch.
 
 Complete this drill before launch:
 
@@ -541,15 +542,16 @@ A backup that has not passed the KMS decryption drill is not a known-good Cloud 
 
 ### Monitor
 
-- [ ] Process availability and HTTPS response time.
+- [ ] Process availability and HTTPS response time. Loopback availability is implemented; external HTTPS monitoring is consciously deferred for the private beta.
 - [ ] CPU, memory, open files, disk use, and disk latency.
 - [ ] Each database size, WAL size, corruption errors, locks, and disk-full errors.
 - [ ] KMS latency, denials, timeouts, and decrypt failures.
 - [ ] OAuth callback failures and email delivery failures without logging tokens or codes.
 - [ ] Stripe signature failures, old events, webhook retries, subscription drift, and seat drift.
-- [ ] Job queue age, retries, expired leases, and dead jobs by type.
+- [x] Job queue age, expired leases, and dead jobs. Retry trends remain visible in the job diagnostic command and journal.
 - [ ] Search timeouts, corpus-limit failures, and rate-limit volume without logging search text.
-- [ ] Backup age and restore-drill date.
+- [x] Backup age. Restore-drill date remains an operator review item.
+- [x] Persistent service journal retention is capped at 90 days. A seven-day production sample checked on 24 August 2026 contained no matched email address, authentication code, bearer or cookie value, provider key, document or search payload field, or payload-bearing URL. Repeat after public Cloud is enabled.
 
 ### Decide how incidents work
 
@@ -568,9 +570,9 @@ This section needs review for the business and jurisdictions involved. It is not
 - [ICO guidance on privacy information](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/the-right-to-be-informed/)
 - [ICO personal-data breach guidance](https://ico.org.uk/for-organisations/report-a-breach/personal-data-breach/)
 
-- [ ] Confirm the legal entity selling the subscription and the business contact address.
+- [x] Confirm Odd Solutions Ltd as the legal entity selling the subscription and publish its Companies House registered office and company number.
 - [ ] Complete the ICO fee self-assessment and register if required.
-- [ ] Publish Terms, Privacy, acceptable-use, cancellation/refund, and subprocessors pages.
+- [ ] Deploy Terms, Privacy, acceptable-use, cancellation/refund, and subprocessors pages. The pages are implemented, tested, and include the approved Companies House registered office and company number.
 - [ ] Explain the actual Cloud trust boundary: SmallDocs can decrypt an authorized document to provide browser access and search. Cloud is encrypted at rest, not end-to-end encrypted or zero knowledge.
 - [ ] List the personal data stored in plaintext, including verified email addresses and provider/customer identifiers.
 - [ ] State purposes, lawful bases, retention, deletion, backups, international transfers, and how a person exercises data rights.
