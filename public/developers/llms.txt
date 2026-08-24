@@ -2,16 +2,13 @@
 
 SmallDocs renders agent-authored Markdown and rich documents inside web applications.
 
-## SDK integration
+## Use the SDK
 
-- [Complete integration guide](https://smalldocs.org/developers/integration.md): Single-page SDK contract.
-- [Overview](https://smalldocs.org/developers/overview.md): Renderer boundary and data flow.
-- [Quickstart](https://smalldocs.org/developers/quickstart.md): Smallest browser integration.
-- [Document content](https://smalldocs.org/developers/content.md): Feature discovery and mixed documents.
-- [Lifecycle](https://smalldocs.org/developers/lifecycle.md): Render, update, destroy, and multiple instances.
-- [Security](https://smalldocs.org/developers/security.md): Browser, network, and CSP boundaries.
-- [Loading](https://smalldocs.org/developers/loading.md): Caching and content-driven dependencies.
-- [Browser API](https://smalldocs.org/developers/api.md): Experimental 0.1.0 contract.
+- [SDK integration guide](https://smalldocs.org/developers/integration.md): Install, render, update, destroy, security, and loading.
+
+## Create SDoc Markdown with an agent
+
+- [Agent authoring guide](https://smalldocs.org/developers/agents.md): Give an agent the SmallDocs authoring skill or fetch the references directly.
 
 ## Authoring SmallDocs Markdown
 
@@ -26,9 +23,8 @@ SmallDocs renders agent-authored Markdown and rich documents inside web applicat
 - [Video](https://smalldocs.org/developers/authoring/video.md)
 - [Styles](https://smalldocs.org/developers/authoring/styles.md)
 
-## Agent resources
+## Complete agent resources
 
-- [Agent integration](https://smalldocs.org/developers/agents.md)
 - [Full SDK and authoring reference](https://smalldocs.org/developers/llms-full.txt)
 - [Skill catalog](https://smalldocs.org/.well-known/agent-skills/index.json)
 - [Renderer integration skill](https://smalldocs.org/.well-known/agent-skills/smalldocs-renderer/SKILL.md)

@@ -1,38 +1,43 @@
-# Agent integration
+# Create SDoc Markdown with an agent
 
-Install the renderer integration skill in the application project:
-
-```sh
-npx skills add https://smalldocs.org --skill smalldocs-renderer
-```
-
-Then ask the coding agent:
-
-```text
-Use the smalldocs-renderer skill to add the report view to this route.
-```
-
-## What the skill teaches
-
-The skill contains the exact versioned API, lifecycle, data boundary, supported content model, and verification checklist. It tells the agent not to build a host-side fence parser or declare capabilities before analysis.
-
-The renderer skill is separate from the SmallDocs authoring skill installed by `sdoc setup`. The authoring skill helps an agent create SmallDocs files. The renderer skill helps an agent integrate the read surface into an application.
-
-For an agent that produces documents inside the application, install the SDK authoring skill:
+Give the agent that produces your document the SmallDocs authoring skill:
 
 ```sh
 npx skills add https://smalldocs.org --skill smalldocs-author
 ```
 
-Then tell the runtime agent to return finished SmallDocs Markdown. The authoring skill routes it to exact references for Markdown, code, math, diagrams, charts, cells, slides, video, and styles. Slide-producing agents are directed to custom shapes when a visual model explains the concept, including for internal presentations.
+Then ask it for finished SmallDocs Markdown:
 
-## Machine-readable documentation
+```text
+Use the smalldocs-author skill to produce a SmallDocs report from this analysis.
+Return the finished Markdown.
+```
 
-- `/developers/llms.txt` indexes the developer documentation.
-- `/developers/llms-full.txt` contains the complete integration and authoring reference.
-- `/.well-known/agent-skills/index.json` publishes the installable skill catalog.
-- Every human documentation route has a `.md` version.
+Pass that Markdown to `render()`. The agent does not initialise the SDK, announce which features it intends to use, or return a capability envelope.
 
-## Verification expected from an agent
+## What the agent can produce
 
-Test ordinary Markdown, multiple rich feature types, unsafe HTML sanitisation, independent instances, update, destroy, and the absence of unrelated rich dependency requests for a plain document.
+The skill routes the agent to exact references for ordinary Markdown, code, math, diagrams, charts, computed cells, slides, video, and document styles. One document can mix any of these.
+
+Slide-producing agents are directed to use custom shapes when geometry explains a concept, including in internal presentations.
+
+## Let the agent read the documentation directly
+
+An agent can fetch the documentation without installing a skill:
+
+- `/developers/llms.txt` is the short index.
+- `/developers/llms-full.txt` contains the complete authoring reference.
+- Every reference in the developer menu has a directly fetchable `.md` URL.
+- `/.well-known/agent-skills/index.json` publishes the skill catalog.
+
+Use the short index when the agent can fetch additional pages itself. Use the complete reference when the environment only accepts one documentation URL.
+
+## If a coding agent is integrating the SDK
+
+Install the separate renderer skill in the application project:
+
+```sh
+npx skills add https://smalldocs.org --skill smalldocs-renderer
+```
+
+The renderer skill teaches the coding agent how to mount, update, destroy, and test the SDK integration. It does not teach the runtime agent how to write the document.

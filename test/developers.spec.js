@@ -54,26 +54,25 @@ test.afterAll(async () => {
 test('developer documentation uses one SDK view to navigate Markdown pages', async ({ page }) => {
   await page.goto(origin + '/developers');
 
-  await expect(page.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('link', { name: 'Use the SDK', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.docs-header')).toHaveCount(0);
+  await expect(page.locator('.document-meta')).toHaveCount(0);
+  await expect(page.locator('#developer-document')).toHaveCSS('border-top-width', '0px');
+  await expect(page.locator('#developer-document')).toHaveCSS('border-radius', '0px');
+  expect(await page.evaluate(() => document.body.scrollWidth <= document.body.clientWidth)).toBe(true);
   const frameElement = page.locator('#developer-document iframe.smalldocs-renderer');
   await expect(frameElement).toHaveCount(1);
   const initialFrameSrc = await frameElement.getAttribute('src');
   const documentView = page.frameLocator('#developer-document iframe');
-  await expect(documentView.getByRole('heading', { name: 'Renderer SDK' })).toBeVisible();
+  await expect(documentView.getByRole('heading', { name: 'Use the SmallDocs SDK' })).toBeVisible();
   await expect(documentView.locator('#_sd_left-toolbar')).toBeHidden();
 
-  await page.getByRole('link', { name: 'Quickstart', exact: true }).click();
-  await expect(page).toHaveURL(origin + '/developers/quickstart');
-  await expect(page.getByRole('link', { name: 'Quickstart', exact: true })).toHaveAttribute('aria-current', 'page');
-  await expect(documentView.getByRole('heading', { name: 'Quickstart' })).toBeVisible();
-  await expect(documentView.locator('#_sd_rendered pre')).toContainText('import { render }');
+  await page.getByRole('link', { name: 'Create SDoc Markdown with an agent', exact: true }).click();
+  await expect(page).toHaveURL(origin + '/developers/agents');
+  await expect(page.getByRole('link', { name: 'Create SDoc Markdown with an agent', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(documentView.getByRole('heading', { name: 'Create SDoc Markdown with an agent' })).toBeVisible();
+  await expect(documentView.locator('#_sd_rendered')).toContainText('smalldocs-author');
   await expect(frameElement).toHaveAttribute('src', initialFrameSrc);
-  await expect(page.locator('#markdown-link')).toHaveAttribute('href', '/developers/quickstart.md');
-
-  await page.getByRole('link', { name: 'Lifecycle', exact: true }).click();
-  await expect(documentView.getByRole('heading', { name: 'Lifecycle' })).toBeVisible();
-  await expect(documentView.locator('#_sd_rendered')).toContainText('view.destroy()');
-  await expect(frameElement).toHaveCount(1);
 
   await page.getByRole('link', { name: 'Slides', exact: true }).click();
   await expect(page).toHaveURL(origin + '/developers/authoring/slides');
@@ -83,13 +82,26 @@ test('developer documentation uses one SDK view to navigate Markdown pages', asy
   );
   await expect(frameElement).toHaveAttribute('src', initialFrameSrc);
 
-  await page.getByRole('link', { name: 'Custom slide shapes', exact: true }).click();
+  await expect(page.locator('.nav-children .nav-nested')).toHaveText('Custom shapes');
+  await page.getByRole('link', { name: 'Custom shapes', exact: true }).click();
   await expect(page).toHaveURL(origin + '/developers/authoring/slide-shapes');
   await expect(documentView.getByRole('heading', { name: 'Custom slide shapes' })).toBeVisible();
   await expect(documentView.locator('#_sd_rendered pre').filter({ hasText: 'chev x y w h' }))
     .toContainText('chev x y w h');
-  await expect(page.locator('#markdown-link')).toHaveAttribute(
-    'href', '/developers/authoring/slide-shapes.md'
-  );
   await expect(frameElement).toHaveCount(1);
+});
+
+test('developer documentation uses a mobile menu without containing the document in a card', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(origin + '/developers');
+
+  const sidebar = page.locator('#developer-sidebar');
+  await expect(page.frameLocator('#developer-document iframe').getByRole('heading', { name: 'Use the SmallDocs SDK' })).toBeVisible();
+  await expect(sidebar).not.toHaveClass(/open/);
+  await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await expect(sidebar).toHaveClass(/open/);
+  await expect(page.getByRole('link', { name: 'Use the SDK', exact: true })).toBeVisible();
+  await expect(page.locator('#developer-document')).toHaveCSS('border-radius', '0px');
+  expect(await page.evaluate(() => document.body.scrollWidth <= document.body.clientWidth)).toBe(true);
 });

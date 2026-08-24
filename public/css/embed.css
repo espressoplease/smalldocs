@@ -3,7 +3,7 @@ html.sdocs-embed body {
   width: 100%;
   height: auto;
   min-height: 0;
-  overflow: visible;
+  overflow: clip;
 }
 
 html.sdocs-embed body {
@@ -35,7 +35,7 @@ html.sdocs-embed #_sd_content-area {
   width: 100%;
   height: auto;
   min-height: 0;
-  overflow: visible;
+  overflow: clip;
 }
 
 html.sdocs-embed #_sd_left,

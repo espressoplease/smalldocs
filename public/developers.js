@@ -1,12 +1,8 @@
 import { render } from '/sdk/0.1.0/smalldocs.js';
 
 const pages = Object.freeze({
-  overview: { path: '/developers', label: 'Overview', markdown: '/developers/overview.md' },
-  quickstart: { path: '/developers/quickstart', label: 'Quickstart', markdown: '/developers/quickstart.md' },
-  content: { path: '/developers/content', label: 'Document content', markdown: '/developers/content.md' },
-  lifecycle: { path: '/developers/lifecycle', label: 'Lifecycle', markdown: '/developers/lifecycle.md' },
-  security: { path: '/developers/security', label: 'Security and data flow', markdown: '/developers/security.md' },
-  loading: { path: '/developers/loading', label: 'Loading and caching', markdown: '/developers/loading.md' },
+  sdk: { path: '/developers', label: 'Use the SDK', markdown: '/developers/integration.md' },
+  agents: { path: '/developers/agents', label: 'Create SDoc Markdown with an agent', markdown: '/developers/agents.md' },
   'authoring/markdown': { path: '/developers/authoring/markdown', label: 'Authoring / Markdown', markdown: '/developers/authoring/markdown.md' },
   'authoring/code': { path: '/developers/authoring/code', label: 'Authoring / Code', markdown: '/developers/authoring/code.md' },
   'authoring/math': { path: '/developers/authoring/math', label: 'Authoring / Math', markdown: '/developers/authoring/math.md' },
@@ -17,22 +13,21 @@ const pages = Object.freeze({
   'authoring/slide-shapes': { path: '/developers/authoring/slide-shapes', label: 'Authoring / Custom slide shapes', markdown: '/developers/authoring/slide-shapes.md' },
   'authoring/video': { path: '/developers/authoring/video', label: 'Authoring / Video', markdown: '/developers/authoring/video.md' },
   'authoring/styles': { path: '/developers/authoring/styles', label: 'Authoring / Styles', markdown: '/developers/authoring/styles.md' },
-  agents: { path: '/developers/agents', label: 'Agent integration', markdown: '/developers/agents.md' },
-  api: { path: '/developers/api', label: 'Browser API', markdown: '/developers/api.md' },
 });
 
 const mount = document.getElementById('developer-document');
-const pathLabel = document.getElementById('document-path');
-const markdownLink = document.getElementById('markdown-link');
 const sidebar = document.getElementById('developer-sidebar');
 const menuButton = document.querySelector('.mobile-menu');
 let view;
 let requestGeneration = 0;
 
 function slugFromPath(pathname) {
-  if (pathname === '/developers' || pathname === '/developers/') return 'overview';
+  if (pathname === '/developers' || pathname === '/developers/') return 'sdk';
   const match = /^\/developers\/((?:authoring\/)?[a-z-]+)\/?$/.exec(pathname);
-  return match && pages[match[1]] ? match[1] : null;
+  if (!match) return null;
+  if (pages[match[1]]) return match[1];
+  if (/^(overview|quickstart|content|lifecycle|security|loading|api)$/.test(match[1])) return 'sdk';
+  return null;
 }
 
 function setActive(slug) {
@@ -41,8 +36,6 @@ function setActive(slug) {
     else link.removeAttribute('aria-current');
   });
   const page = pages[slug];
-  pathLabel.textContent = 'Developers / ' + page.label;
-  markdownLink.href = page.markdown;
   document.title = page.label + ' - SmallDocs developers';
 }
 
@@ -88,7 +81,7 @@ document.addEventListener('click', function (event) {
 });
 
 window.addEventListener('popstate', function () {
-  loadPage(slugFromPath(location.pathname) || 'overview', false);
+  loadPage(slugFromPath(location.pathname) || 'sdk', false);
 });
 
 menuButton.addEventListener('click', function () {
@@ -100,4 +93,4 @@ window.addEventListener('pagehide', function () {
   if (view) view.destroy();
 }, { once: true });
 
-loadPage(slugFromPath(location.pathname) || 'overview', false);
+loadPage(slugFromPath(location.pathname) || 'sdk', false);

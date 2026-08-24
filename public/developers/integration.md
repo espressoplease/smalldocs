@@ -1,4 +1,4 @@
-# SmallDocs renderer SDK
+# Use the SmallDocs SDK
 
 Render agent-authored Markdown and rich SmallDocs documents inside a web application.
 
@@ -73,7 +73,7 @@ The versioned module is served with immutable one-year browser caching. Applicat
 
 `render()` and `update()` resolve after the document is mounted. Rich processors that load external browser dependencies can finish and resize afterward.
 
-## Agent installation
+## Let a coding agent integrate it
 
 Install the project-scoped integration skill:
 

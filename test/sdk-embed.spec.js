@@ -95,11 +95,17 @@ test('an independent customer renders and updates a full SmallDocs document', as
   ));
 
   const documentFrame = page.frameLocator('#report iframe');
+  await expect(documentFrame.locator('html')).toHaveCSS('overflow-y', 'clip');
+  await expect(documentFrame.locator('body')).toHaveCSS('overflow-y', 'clip');
   await expect(documentFrame.locator('#_sd_rendered h1')).toHaveText('Agent research');
   await expect(documentFrame.locator('#_sd_rendered table')).toContainText('Support requests');
+  const collapsedHeight = await frameElement.evaluate(element => parseInt(element.style.height, 10));
   await documentFrame.getByRole('heading', { name: 'Working model' }).click();
   await expect(documentFrame.locator('#_sd_rendered .sdoc-cells')).toBeVisible();
   await expect(documentFrame.locator('#_sd_rendered .sdoc-cells')).toContainText('125');
+  await expect.poll(() => frameElement.evaluate(element => parseInt(element.style.height, 10)))
+    .toBeGreaterThan(collapsedHeight);
+  await expect(documentFrame.locator('html')).toHaveCSS('overflow-y', 'clip');
   await expect(documentFrame.locator('#_sd_left-toolbar')).toBeHidden();
   await expect(documentFrame.locator('#_sd_right')).toBeHidden();
   await expect(documentFrame.getByRole('button', { name: 'Unsafe input' })).not.toHaveAttribute('onclick');

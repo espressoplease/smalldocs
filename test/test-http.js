@@ -216,6 +216,7 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('id="developer-document"'));
       assert.ok(r.body.includes('/developers/authoring/slides'));
       assert.ok(r.body.includes('/developers/authoring/slide-shapes'));
+      assert.ok(r.body.includes('rel="alternate" type="text/plain" href="/developers/llms.txt"'));
       assert.ok(r.body.includes('/public/css/developers.css?v='));
       assert.ok(r.body.includes('/public/developers.js?v='));
       assert.ok(!r.body.includes('__SDOCS_'));
