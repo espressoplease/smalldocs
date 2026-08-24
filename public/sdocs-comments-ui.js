@@ -27,6 +27,8 @@ var focusedId = null;
 var selectionPopoverEl = null;
 var composerEl = null;
 var composerCleanup = null;
+var tablePreviewElements = [];
+var tablePreviewOwner = null;
 
 // ── Prefs ───────────────────────────────────────────────────────────────
 
@@ -70,16 +72,20 @@ function strip() {
     });
   S.renderedEl.querySelectorAll(
     '.sdoc-table-commentable, .sdoc-table-all-commented, .sdoc-table-row-commented, ' +
-    '.sdoc-table-column-commented, .sdoc-table-cell-commented')
+    '.sdoc-table-column-commented, .sdoc-table-cell-commented, ' +
+    '.sdoc-table-target-preview')
     .forEach(function (el) {
       el.classList.remove('sdoc-table-commentable', 'sdoc-table-all-commented',
         'sdoc-table-row-commented', 'sdoc-table-column-commented',
-        'sdoc-table-cell-commented');
+        'sdoc-table-cell-commented', 'sdoc-table-target-preview');
       el.style.removeProperty('--sdoc-table-all-color');
       el.style.removeProperty('--sdoc-table-row-color');
       el.style.removeProperty('--sdoc-table-column-color');
       el.style.removeProperty('--sdoc-table-cell-color');
+      el.style.removeProperty('--sdoc-table-preview-color');
     });
+  tablePreviewElements = [];
+  tablePreviewOwner = null;
   // Restore list items to the DOM shape produced by marked.
   S.renderedEl.querySelectorAll('.sdoc-element-host').forEach(function (host) {
     var parent = host.parentNode;
@@ -996,12 +1002,64 @@ function tableAddButton(scope, target) {
   btn.setAttribute('aria-label', labels[scope]);
   btn.title = 'Add comment';
   btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
+  function showPreview() {
+    setTableTargetPreview(target, btn);
+  }
+  function clearPreviewWhenIdle() {
+    requestAnimationFrame(function () {
+      if (tablePreviewOwner === btn && !btn.matches(':hover, :focus')) {
+        clearTableTargetPreview();
+      }
+    });
+  }
+  btn.addEventListener('pointerenter', showPreview);
+  btn.addEventListener('pointerleave', clearPreviewWhenIdle);
+  btn.addEventListener('focus', showPreview);
+  btn.addEventListener('blur', clearPreviewWhenIdle);
   btn.addEventListener('click', function (e) {
     e.preventDefault();
     e.stopPropagation();
     openTableComposer(target);
   });
   return btn;
+}
+
+function tableTargetPreviewElements(target) {
+  if (!target || !target.table) return [];
+  if (target.scope === 'table') {
+    return Array.prototype.slice.call(target.table.querySelectorAll('th, td'));
+  }
+  if (target.scope === 'row' && target.row) {
+    return Array.prototype.slice.call(target.row.children);
+  }
+  if (target.scope === 'column' && target.column) {
+    var columnIndex = tableHeaders(target.table).indexOf(target.column);
+    return [target.column].concat(tableBodyRows(target.table).map(function (row) {
+      return row.children[columnIndex] || null;
+    })).filter(Boolean);
+  }
+  if (target.scope === 'cell' && target.cell) return [target.cell];
+  return [];
+}
+
+function clearTableTargetPreview() {
+  tablePreviewElements.forEach(function (element) {
+    element.classList.remove('sdoc-table-target-preview');
+    element.style.removeProperty('--sdoc-table-preview-color');
+  });
+  tablePreviewElements = [];
+  tablePreviewOwner = null;
+}
+
+function setTableTargetPreview(target, owner) {
+  clearTableTargetPreview();
+  var color = readPrefs().color;
+  tablePreviewElements = tableTargetPreviewElements(target);
+  tablePreviewOwner = owner || null;
+  tablePreviewElements.forEach(function (element) {
+    element.classList.add('sdoc-table-target-preview');
+    element.style.setProperty('--sdoc-table-preview-color', color);
+  });
 }
 
 function injectTableButtons() {

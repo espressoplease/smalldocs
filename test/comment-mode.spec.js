@@ -888,18 +888,78 @@ test.describe('edge-case content', () => {
       const firstCell = document.querySelector('#_sd_rendered td').getBoundingClientRect();
       const row = document.querySelector('.sdoc-table-row-add').getBoundingClientRect();
       const column = document.querySelector('.sdoc-table-column-add').getBoundingClientRect();
+      const tableButton = document.querySelector('.sdoc-table-table-add').getBoundingClientRect();
       const cell = document.querySelector('.sdoc-table-cell-add').getBoundingClientRect();
       return {
         rowRight: row.right,
         tableLeft: table.left,
+        rowTopDelta: Math.abs(row.top - firstCell.top),
+        rowBottomDelta: Math.abs(row.bottom - firstCell.bottom),
+        rowWidth: row.width,
         columnBottom: column.bottom,
         headerTop: firstHeader.top,
+        columnLeftDelta: Math.abs(column.left - firstHeader.left),
+        columnRightDelta: Math.abs(column.right - firstHeader.right),
+        tableButtonWidth: tableButton.width,
         cellInside: cell.left >= firstCell.left && cell.right <= firstCell.right,
       };
     });
-    expect(geometry.rowRight).toBeLessThanOrEqual(geometry.tableLeft);
+    expect(geometry.rowRight).toBeLessThanOrEqual(geometry.tableLeft + 1);
+    expect(geometry.rowTopDelta).toBeLessThanOrEqual(1);
+    expect(geometry.rowBottomDelta).toBeLessThanOrEqual(1);
+    expect(geometry.rowWidth).toBe(32);
     expect(geometry.columnBottom).toBeLessThanOrEqual(geometry.headerTop + 4);
+    expect(geometry.columnLeftDelta).toBeLessThanOrEqual(1);
+    expect(geometry.columnRightDelta).toBeLessThanOrEqual(1);
+    expect(geometry.tableButtonWidth).toBe(32);
     expect(geometry.cellInside).toBe(true);
+  });
+
+  test('table controls preview the complete target before commenting', async ({ page }) => {
+    await setBody(page,
+      '| Feature | Owner | Status |\n|---|---|---|\n| Alpha | Maya | Ready |\n| Beta | Sam | Draft |\n');
+
+    const previewCount = () => page.locator('.sdoc-table-target-preview').count();
+    const tableButton = page.locator('.sdoc-table-table-add');
+    const columnButton = page.locator('.sdoc-table-column-add').nth(1);
+    const rowButton = page.locator('.sdoc-table-row-add').nth(1);
+    const cellButton = page.locator('tbody tr').nth(0).locator('td').nth(2)
+      .locator('.sdoc-table-cell-add');
+
+    await tableButton.hover();
+    expect(await previewCount()).toBe(9);
+    await expect(tableButton).toHaveCSS('opacity', '1');
+    await expect(page.locator('.sdoc-table-column-add').nth(0)).toHaveCSS('opacity', '0');
+
+    await page.locator('th').nth(1).hover();
+    await columnButton.hover();
+    expect(await previewCount()).toBe(3);
+
+    await page.locator('tbody tr').nth(1).locator('td').nth(0).hover();
+    await rowButton.hover();
+    expect(await previewCount()).toBe(3);
+
+    await page.locator('tbody tr').nth(0).locator('td').nth(2).hover();
+    await cellButton.hover();
+    expect(await previewCount()).toBe(1);
+    const cellPreview = await page.locator('tbody tr').nth(0).locator('td').nth(2)
+      .evaluate(cell => {
+        const style = getComputedStyle(cell);
+        return {
+          color: style.getPropertyValue('--sdoc-table-preview-color').trim(),
+          backgroundLayers: (style.backgroundImage.match(/linear-gradient/g) || []).length,
+        };
+      });
+    expect(cellPreview.color).not.toBe('');
+    expect(cellPreview.backgroundLayers).toBe(5);
+    await page.getByRole('textbox', { name: 'Comment author' }).focus();
+    await page.mouse.move(1, 1);
+    await expect.poll(previewCount).toBe(0);
+
+    await tableButton.click();
+    await expect(page.locator('.sdoc-table-card.sdoc-card-edit .sdoc-table-target-label'))
+      .toHaveText('Table');
+    await page.locator('.sdoc-table-card.sdoc-card-edit .sdoc-card-cancel').click();
   });
 
   test('table target controls save precise anchors and label their cards', async ({ page }) => {
@@ -995,8 +1055,7 @@ test.describe('edge-case content', () => {
         },
         backgroundLayers: (overlap.backgroundImage.match(/linear-gradient/g) || []).length,
         outline: overlap.outlineStyle,
-        controlsHidden: buttons.every(style =>
-          style.opacity === '0' && style.pointerEvents === 'none'),
+        controlsHidden: buttons.every(style => style.opacity === '0'),
       };
     });
     expect(Object.values(state.overlapLayers).every(Boolean)).toBe(true);
@@ -1004,7 +1063,7 @@ test.describe('edge-case content', () => {
     expect(state.tableOnlyLayers.row).toBe('');
     expect(state.tableOnlyLayers.column).toBe('');
     expect(state.tableOnlyLayers.cell).toBe('');
-    expect(state.backgroundLayers).toBe(4);
+    expect(state.backgroundLayers).toBe(5);
     expect(state.outline).toBe('none');
     expect(state.controlsHidden).toBe(true);
   });
