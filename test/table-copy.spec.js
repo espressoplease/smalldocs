@@ -64,6 +64,28 @@ test('column and row controls copy only their target', async ({ page }) => {
   await expect.poll(() => copiedText(page)).toBe('Grace,"Said ""yes"""');
 });
 
+test('hover and focus preview the complete copy target', async ({ page }) => {
+  await loadTable(page);
+  const preview = page.locator('#_sd_rendered .table-copy-preview');
+
+  await page.locator('.table-copy-all').hover();
+  await expect(preview).toHaveCount(6);
+  await expect(page.locator('.table-copy-column').first()).toHaveCSS('opacity', '0');
+
+  await page.locator('.table-copy-column').nth(1).hover();
+  await expect(preview).toHaveCount(3);
+  await expect(page.locator('.table-copy-all')).toHaveCSS('opacity', '0');
+
+  await page.locator('.table-copy-row').nth(1).hover();
+  await expect(preview).toHaveCount(2);
+  await expect(page.locator('.table-copy-all')).toHaveCSS('opacity', '0');
+
+  await page.locator('.table-copy-column').first().focus();
+  await expect(preview).toHaveCount(3);
+  await page.evaluate(() => document.activeElement.blur());
+  await expect(preview).toHaveCount(0);
+});
+
 test('table copy controls yield to table comment controls in comment mode', async ({ page }) => {
   await loadTable(page);
   await page.evaluate(() => window.SDocs.setMode('comment'));

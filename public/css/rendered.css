@@ -775,12 +775,23 @@ foreignObject span { line-height: normal; }
   opacity: 1;
   background: var(--md-copy-btn-hover);
 }
+#_sd_rendered table:has(.table-copy-column:is(:hover, :focus-visible), .table-copy-row:is(:hover, :focus-visible)) .table-copy-all,
+#_sd_rendered th:first-child:has(> .table-copy-all:is(:hover, :focus-visible)) > .table-copy-column {
+  opacity: 0;
+  pointer-events: none;
+}
 #_sd_rendered .table-copy-btn:focus-visible {
   outline: 1px solid var(--md-link-color, #2563eb);
   outline-offset: 1px;
 }
 #_sd_rendered tbody tr:nth-child(odd) .table-copy-row { background: var(--md-table-odd-bg); }
 #_sd_rendered tbody tr:nth-child(even) .table-copy-row { background: var(--md-table-even-bg); }
+body:not(.comment-mode) #_sd_rendered .table-copy-preview {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--md-code-color, #6B21A8) 14%, transparent),
+    color-mix(in srgb, var(--md-code-color, #6B21A8) 14%, transparent)
+  );
+}
 body.comment-mode #_sd_rendered .table-copy-btn {
   opacity: 0;
   pointer-events: none;

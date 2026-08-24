@@ -358,13 +358,36 @@ function tableRows(table) {
   });
 }
 
-function tableCopyButton(className, title, rows) {
+var tableCopyPreviewCells = [];
+
+function clearTableCopyPreview() {
+  tableCopyPreviewCells.forEach(function(cell) {
+    cell.classList.remove('table-copy-preview');
+  });
+  tableCopyPreviewCells = [];
+}
+
+function setTableCopyPreview(cells) {
+  clearTableCopyPreview();
+  tableCopyPreviewCells = cells().filter(Boolean);
+  tableCopyPreviewCells.forEach(function(cell) {
+    cell.classList.add('table-copy-preview');
+  });
+}
+
+function tableCopyButton(className, title, rows, previewCells) {
   var btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'table-copy-btn ' + className;
   btn.innerHTML = COPY_SVG;
   btn.title = title;
   btn.setAttribute('aria-label', title);
+  btn.addEventListener('pointerenter', function() { setTableCopyPreview(previewCells); });
+  btn.addEventListener('pointerleave', function() {
+    if (document.activeElement !== btn) clearTableCopyPreview();
+  });
+  btn.addEventListener('focus', function() { setTableCopyPreview(previewCells); });
+  btn.addEventListener('blur', clearTableCopyPreview);
   btn.addEventListener('click', function(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -378,7 +401,9 @@ function attachTableCopyButtons(table) {
   if (!headerRow || !headerRow.cells.length) return;
 
   headerRow.cells[0].appendChild(tableCopyButton(
-    'table-copy-all', 'Copy table as CSV', function() { return tableRows(table); }
+    'table-copy-all', 'Copy table as CSV',
+    function() { return tableRows(table); },
+    function() { return Array.prototype.slice.call(table.querySelectorAll('th, td')); }
   ));
 
   Array.prototype.forEach.call(headerRow.cells, function(header, columnIndex) {
@@ -390,6 +415,10 @@ function attachTableCopyButtons(table) {
       'table-copy-column', title, function() {
         return Array.prototype.map.call(table.rows, function(row) {
           return [tableCellCopyText(row.cells[columnIndex])];
+        });
+      }, function() {
+        return Array.prototype.map.call(table.rows, function(row) {
+          return row.cells[columnIndex];
         });
       }
     ));
@@ -406,6 +435,8 @@ function attachTableCopyButtons(table) {
     row.cells[0].appendChild(tableCopyButton(
       'table-copy-row', 'Copy row ' + (rowIndex + 1) + ' as CSV', function() {
         return [Array.prototype.map.call(row.cells, tableCellCopyText)];
+      }, function() {
+        return Array.prototype.slice.call(row.cells);
       }
     ));
   });
