@@ -104,6 +104,73 @@ test('developer documentation uses one SDK view to navigate Markdown pages', asy
   await expect(frameElement).toHaveCount(1);
 });
 
+test('developer chrome reuses the reader toolbar and side-panel design', async ({ page, context }) => {
+  await page.goto(origin + '/developers');
+  const reader = await context.newPage();
+  await reader.goto(origin + '/docs');
+  await reader.evaluate(() => document.body.classList.add('style-mode'));
+  await reader.waitForTimeout(400);
+
+  const developer = await page.evaluate(() => {
+    const toolbar = document.querySelector('.docs-topbar');
+    const sidebar = document.querySelector('.docs-sidebar');
+    const sidebarHeader = document.querySelector('.docs-sidebar-header');
+    const style = element => getComputedStyle(element);
+    return {
+      toolbar: {
+        height: toolbar.getBoundingClientRect().height,
+        x: toolbar.getBoundingClientRect().x,
+        background: style(toolbar).backgroundColor,
+        border: style(toolbar).borderBottomColor,
+        padding: style(toolbar).padding,
+      },
+      sidebar: {
+        width: sidebar.getBoundingClientRect().width,
+        background: style(sidebar).backgroundColor,
+      },
+      sidebarHeader: {
+        height: sidebarHeader.getBoundingClientRect().height,
+        background: style(sidebarHeader).backgroundColor,
+        color: style(sidebarHeader).color,
+        font: style(sidebarHeader).font,
+      },
+    };
+  });
+  const standard = await reader.evaluate(() => {
+    const toolbar = document.querySelector('#_sd_left-toolbar');
+    const sidebar = document.querySelector('#_sd_right');
+    const sidebarHeader = document.querySelector('#_sd_right-header');
+    const style = element => getComputedStyle(element);
+    return {
+      toolbar: {
+        height: toolbar.getBoundingClientRect().height,
+        background: style(toolbar).backgroundColor,
+        border: style(toolbar).borderBottomColor,
+        padding: style(toolbar).padding,
+      },
+      sidebar: {
+        width: sidebar.getBoundingClientRect().width,
+        background: style(sidebar).backgroundColor,
+      },
+      sidebarHeader: {
+        height: sidebarHeader.getBoundingClientRect().height,
+        background: style(sidebarHeader).backgroundColor,
+        color: style(sidebarHeader).color,
+        font: style(sidebarHeader).font,
+      },
+    };
+  });
+
+  expect(developer.toolbar.height).toBe(standard.toolbar.height);
+  expect(developer.toolbar.background).toBe(standard.toolbar.background);
+  expect(developer.toolbar.border).toBe(standard.toolbar.border);
+  expect(developer.toolbar.padding).toBe(standard.toolbar.padding);
+  expect(developer.sidebar).toEqual(standard.sidebar);
+  expect(developer.sidebarHeader).toEqual(standard.sidebarHeader);
+  expect(developer.toolbar.x).toBe(developer.sidebar.width);
+  await reader.close();
+});
+
 test('customer example swaps a multi-format analysis through one SDK view', async ({ page }) => {
   await page.goto(origin + '/developers/example');
 

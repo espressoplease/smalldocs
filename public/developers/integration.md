@@ -70,6 +70,8 @@ When a reader expands slides, a diagram, code, or computed cells, the renderer f
 
 Send one Markdown string. SmallDocs owns Markdown parsing, sanitisation, rich-feature discovery, rendering, and content-driven dependency loading.
 
+The SDK uses the same SmallDocs read surface as a document opened directly in SmallDocs. It does not maintain a separate set of SDK renderers or document styles.
+
 The experimental renderer supports:
 
 - ordinary Markdown, heading navigation, tables, links, and code

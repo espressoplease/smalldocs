@@ -155,6 +155,20 @@ module.exports = function(harness) {
     assert.ok(css.includes('[data-theme="dark"]'), 'missing dark theme selector');
   });
 
+  test('reader and developer shells share toolbar and panel dimensions', () => {
+    const cssDir = path.join(__dirname, '..', 'public', 'css');
+    const tokens = fs.readFileSync(path.join(cssDir, 'tokens.css'), 'utf-8');
+    const layout = fs.readFileSync(path.join(cssDir, 'layout.css'), 'utf-8');
+    const panel = fs.readFileSync(path.join(cssDir, 'panel.css'), 'utf-8');
+    const developers = fs.readFileSync(path.join(cssDir, 'developers.css'), 'utf-8');
+    assert.ok(tokens.includes('--ui-toolbar-height: 40px'));
+    assert.ok(tokens.includes('--ui-panel-width:    335px'));
+    assert.ok(layout.includes('height: var(--ui-toolbar-height)'));
+    assert.ok(panel.includes('width: var(--ui-panel-width)'));
+    assert.ok(developers.includes('height: var(--ui-toolbar-height)'));
+    assert.ok(developers.includes('width: var(--ui-panel-width)'));
+  });
+
   test('index.html contains theme toggle button', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
     assert.ok(html.includes('id="_sd_btn-theme"'), 'missing theme toggle button');

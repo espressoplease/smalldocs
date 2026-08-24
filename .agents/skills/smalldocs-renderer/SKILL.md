@@ -19,6 +19,8 @@ Read [references/api.md](references/api.md) before changing integration code. It
 
 Pass the finished Markdown through unchanged. Do not parse rich fences in host code, declare capabilities before inference, or choose feature modules. A document can contain any supported combination of Markdown, navigation, code, math, diagrams, charts, cells, slides, and video. SmallDocs discovers what the document uses.
 
+Place the renderer inside the host application's existing route and layout patterns. Reuse its established loading, error, navigation, spacing, and responsive components. Add SDK-specific application chrome only when the integration has a genuinely different interaction requirement.
+
 The SDK manages expanded slides, diagrams, code, and cells by temporarily filling the browser viewport and restoring host scrolling when the reader closes the view. Do not add a second fullscreen wrapper in the host application.
 
 If the application also needs an agent to produce this Markdown, install the separate `smalldocs-author` skill for that agent. The renderer skill defines application integration; the authoring skill defines document syntax and content choices.

@@ -34,6 +34,8 @@
   --shadow-md:     0 4px 12px rgba(28,25,23,.10), 0 2px 4px rgba(28,25,23,.06);
 
   --font-ui:       'Inter', system-ui, -apple-system, sans-serif;
+  --ui-toolbar-height: 40px;
+  --ui-panel-width:    335px;
 
   --md-h2-border:       #EDE8E2;
   --md-toc-border:      #E7E2DB;

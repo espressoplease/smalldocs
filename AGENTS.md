@@ -98,6 +98,12 @@ Calm, explicit, honest. Not salesy, not defensive, not cute.
 
 When you catch yourself writing a sentence that tries to *make the reader feel good about a choice*, delete it and write the one that explains what actually happens.
 
+## Product design reuse
+
+Reuse existing SmallDocs interface patterns before creating a new component, token set, layout rule, or interaction. If two surfaces perform the same job, they should use the same dimensions, colours, typography, spacing, states, and responsive behaviour. Reposition an existing pattern when the information architecture requires it, such as moving a side panel from right to left, without redesigning the pattern itself.
+
+Create a new pattern only when the user need or interaction is materially different. Before doing that, identify the existing pattern that comes closest and state why extending or reusing it would not serve the new requirement.
+
 ### Public-facing copy: write to the reader, not about the product
 
 The rules above are about *what to avoid*. The deeper failure mode is *who you are writing to*.

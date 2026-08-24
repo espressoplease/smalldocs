@@ -231,6 +231,7 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('href="/developers/example"'));
       assert.ok(r.body.includes('class="topbar-open" href="/"'));
       assert.ok(r.body.includes('rel="alternate" type="text/plain" href="/developers/llms.txt"'));
+      assert.ok(r.body.includes('/public/css/tokens.css?v='));
       assert.ok(r.body.includes('/public/css/developers.css?v='));
       assert.ok(r.body.includes('/public/developers.js?v='));
       assert.ok(!r.body.includes('__SDOCS_'));

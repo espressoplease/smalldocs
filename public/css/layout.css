@@ -150,7 +150,7 @@ body {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 6px;
-  height: 40px;
+  height: var(--ui-toolbar-height);
   padding: 0 12px;
   background: var(--bg);
   border-bottom: 1px solid var(--border-subtle);

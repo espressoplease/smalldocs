@@ -15,7 +15,7 @@
               opacity .25s ease;
 }
 body.style-mode #_sd_right {
-  width: 335px;
+  width: var(--ui-panel-width);
   opacity: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -27,7 +27,7 @@ body.style-mode #_sd_right {
 #_sd_right-header {
   display: flex;
   align-items: center;
-  min-height: 40px;
+  min-height: var(--ui-toolbar-height);
   padding: 0 12px;
   font-size: 12px;
   font-weight: 600;
@@ -314,7 +314,7 @@ body.style-mode #_sd_right {
               opacity .25s ease;
 }
 body.export-mode #_sd_export-panel {
-  width: 335px;
+  width: var(--ui-panel-width);
   opacity: 1;
   overflow-y: auto;
 }
@@ -322,7 +322,7 @@ body.export-mode #_sd_export-panel {
 #_sd_export-panel-header {
   display: flex;
   align-items: center;
-  min-height: 40px;
+  min-height: var(--ui-toolbar-height);
   padding: 0 12px;
   font-size: 12px;
   font-weight: 600;
@@ -383,7 +383,7 @@ body.export-mode #_sd_export-panel {
               opacity .25s ease;
 }
 body.info-mode #_sd_info-panel {
-  width: 335px;
+  width: var(--ui-panel-width);
   opacity: 1;
   overflow-y: auto;
 }
@@ -391,7 +391,7 @@ body.info-mode #_sd_info-panel {
 #_sd_info-panel-header {
   display: flex;
   align-items: center;
-  min-height: 40px;
+  min-height: var(--ui-toolbar-height);
   padding: 0 12px;
   font-size: 12px;
   font-weight: 600;
