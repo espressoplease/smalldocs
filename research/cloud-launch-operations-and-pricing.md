@@ -29,7 +29,7 @@ Provider consoles remain separate evidence sources:
 - Hetzner: host state, firewall, and rescue access.
 - systemd journal: application, monitor, backup, and timer failures.
 
-The first operator is the company director. The final alert recipient and access-recovery inventory must be recorded outside the repository before enabling the timer. Put `SDOCS_ALERT_EMAIL_TO` in `/etc/smalldocs/monitor.env`, then run `ops/install-production-monitor.sh` as root. Production deployments also run that installer. It always installs the journal policy, but it leaves the monitor timer disabled when the private alert configuration is absent.
+The first operator is the company director. The alert recipient is stored outside the repository in root-owned `/etc/smalldocs/monitor.env`. Production deployments run `ops/install-production-monitor.sh`; it installs the journal policy and enables the timer only when that private configuration is present. On 24 August 2026, a controlled stale-backup drill sent an alert, restoring the 26-hour threshold sent a recovery message, and the timer returned to its normal five-minute schedule.
 
 ## Backup locations and retention
 

@@ -522,7 +522,7 @@ The existing production deployment is `smalldocs.service` on port `3003` behind 
 - [x] Include the root-managed application environment in the KMS-encrypted archive. The put-only backup identity cannot read or decrypt the archive.
 - [x] Create a coordinated archive from the hidden production configuration, upload it to KMS-encrypted Object Lock storage, and restore the local copy into an isolated directory. The checksum and `PRAGMA integrity_check` passed for all eight databases, including the five empty Cloud databases. This proves the coordinated archive, but not off-site retrieval or document decryption.
 - [x] Separately copy and reopen a temporary two-revision Cloud database with a new KMS client and empty cache under the production workload identity. Both current and historical document revisions decrypted. This proves the document envelope and production key policy, but not off-site archive retrieval.
-- [ ] Alert when the latest successful backup is too old. The chosen private-beta design is the on-host five-minute monitor with a 26-hour threshold and Resend delivery. Configure the alert recipient, deploy its timer, and prove alert and recovery delivery before launch. There is no external host-down alert at launch.
+- [x] Alert when the latest successful backup is too old. The on-host monitor runs every five minutes with a 26-hour threshold and Resend delivery. A controlled stale-backup alert and subsequent recovery message both delivered on 24 August 2026. There is no external host-down alert at private-beta launch.
 
 Complete this drill before launch:
 
@@ -542,7 +542,7 @@ A backup that has not passed the KMS decryption drill is not a known-good Cloud 
 
 ### Monitor
 
-- [ ] Process availability and HTTPS response time. Loopback availability is implemented; external HTTPS monitoring is consciously deferred for the private beta.
+- [x] Check loopback process availability every five minutes. External HTTPS monitoring and response-time history are consciously deferred for the private beta.
 - [ ] CPU, memory, open files, disk use, and disk latency.
 - [ ] Each database size, WAL size, corruption errors, locks, and disk-full errors.
 - [ ] KMS latency, denials, timeouts, and decrypt failures.
