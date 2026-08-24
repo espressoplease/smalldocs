@@ -42,7 +42,7 @@ const STYLE_DEFAULTS = {
   p: { lineHeight: 1.75, marginBottom: 1.1 },
   link: { decoration: 'underline' },
   code: { font: 'JetBrains Mono' },
-  blockquote: { borderWidth: 3, fontSize: 1.0 },
+  blockquote: { borderWidth: 3, fontSize: 1.05 },
   list: { spacing: 0.3, indent: 1.6 },
 };
 
@@ -218,7 +218,7 @@ styles:
   p: { lineHeight: 1.75, marginBottom: 1.1 }
   link: { decoration: "underline" }
   code: { font: "JetBrains Mono" }
-  blockquote: { borderWidth: 3, fontSize: 1.0 }
+  blockquote: { borderWidth: 3, fontSize: 1.05 }
   list: { spacing: 0.3, indent: 1.6 }
 ---
 # Document With All Default Styles

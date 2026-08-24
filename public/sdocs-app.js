@@ -398,6 +398,38 @@ function attachHeadingAnchors(container) {
   });
 }
 
+function attachBlockquoteCopyButtons(container) {
+  container.querySelectorAll('blockquote').forEach(function(quote) {
+    quote.classList.add('sdoc-copyable-quote');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'quote-copy-btn';
+    btn.innerHTML = COPY_SVG;
+    btn.title = 'Copy quote';
+    btn.setAttribute('aria-label', 'Copy quote');
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var clone = quote.cloneNode(true);
+      clone.querySelectorAll('.quote-copy-btn, .sdoc-card, .sdoc-gutter-add')
+        .forEach(function(el) { el.remove(); });
+      var parts = [];
+      Array.prototype.forEach.call(clone.childNodes, function(node) {
+        var value = node.nodeType === 1
+          ? (node.innerText || node.textContent || '')
+          : (node.textContent || '');
+        value = value.trim();
+        if (value) parts.push(value);
+      });
+      var text = parts.join('\n\n');
+      navigator.clipboard.writeText(text).then(function() {
+        btn.innerHTML = CHECK_SVG;
+        setTimeout(function() { btn.innerHTML = COPY_SVG; }, COPY_FEEDBACK_MS);
+      });
+    });
+    quote.appendChild(btn);
+  });
+}
+
 function attachCodeCopyButtons(container) {
   // Agent annotations are line-numbered and not block-tagged, so the indicator
   // goes on the first code block (the common single-file case has exactly one).
@@ -676,6 +708,7 @@ function render() {
 
   wrapTables(S.renderedEl);
   attachHeadingAnchors(S.renderedEl);
+  attachBlockquoteCopyButtons(S.renderedEl);
   attachCodeCopyButtons(S.renderedEl);
   buildCollapsibleSections(S.renderedEl);
   // The toolbar is available before async document sources (notably short

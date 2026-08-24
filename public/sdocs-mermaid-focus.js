@@ -1,13 +1,13 @@
 // sdocs-mermaid-focus.js - Fullscreen pan/zoom modal for Mermaid diagrams.
 //
-// Each rendered .sdoc-mermaid wrapper carries a small top-right icon button
-// (added by sdocs-mermaid.js after render). Clicking the button clones the
+// Each rendered .sdoc-mermaid wrapper carries source-copy and fullscreen
+// controls (added by sdocs-mermaid.js after render). Fullscreen clones the
 // already-rendered SVG into a centered stage with:
 //   - drag to pan (one finger on touch)
 //   - wheel to zoom toward cursor
 //   - two-finger pinch to zoom + pan, anchored at the finger midpoint (maps)
 //   - + / - keys to zoom; 0 to fit; arrows for pan; ESC to close
-//   - Copy PNG / Save PNG / Fit / Zoom -/+ buttons in the topbar
+//   - Copy text / Copy PNG / Save PNG / Fit / Zoom -/+ buttons in the topbar
 //
 // Modal chrome is modelled on sdocs-present.js (the slides-framework branch)
 // but stripped down for a single-stage diagram view. When both this and the
@@ -22,8 +22,12 @@
 
   var CSS_ID = 'sdocs-mermaid-focus-css';
   var CSS = [
-    '.sdoc-mermaid-zoom-btn {',
+    '.sdoc-mermaid-tools {',
     '  position: absolute; top: 6px; right: 6px;',
+    '  display: flex; align-items: center; gap: 4px;',
+    '  z-index: 2;',
+    '}',
+    '.sdoc-mermaid-tool-btn {',
     '  width: 26px; height: 26px;',
     '  display: inline-flex; align-items: center; justify-content: center;',
     '  background: transparent;',
@@ -31,13 +35,13 @@
     '  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));',
     '  border-radius: 4px;',
     '  cursor: pointer; opacity: 0.7; transition: opacity .15s, background .12s;',
-    '  z-index: 2;',
     '}',
-    '.sdoc-mermaid-zoom-btn:focus,',
-    '.sdoc-mermaid-zoom-btn:hover { opacity: 1; }',
-    '.sdoc-mermaid-zoom-btn:hover {',
+    '.sdoc-mermaid-tool-btn:focus,',
+    '.sdoc-mermaid-tool-btn:hover { opacity: 1; }',
+    '.sdoc-mermaid-tool-btn:hover {',
     '  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));',
     '}',
+    '.sdoc-mermaid-tool-btn.copied { color: #16a34a; opacity: 1; }',
     /* Focus modal inherits the block colour cascade from the page so it */
     /* feels like a magnified version of the diagram, not a separate */
     /* (presentation-style) hard-dark surface. The bg / fg vars are set */
@@ -222,11 +226,49 @@
     + '<line x1="8" y1="11" x2="14" y2="11"/>'
   );
   var X_ICON_SVG = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
+  var CHECK_ICON_SVG = lucide('<polyline points="20 6 9 17 4 12"/>', 13);
+
+  function copySource(wrapper, btn, useLabel) {
+    var source = wrapper && wrapper._sdMermaidSource;
+    if (typeof source !== 'string' || !navigator.clipboard || !navigator.clipboard.writeText) {
+      if (useLabel) flashLabel(btn, 'Not supported');
+      return;
+    }
+    navigator.clipboard.writeText(source.replace(/\r?\n$/, '')).then(function () {
+      if (useLabel) {
+        flashLabel(btn, 'Copied');
+        return;
+      }
+      var previous = btn.innerHTML;
+      btn.innerHTML = CHECK_ICON_SVG;
+      btn.classList.add('copied');
+      setTimeout(function () {
+        btn.innerHTML = previous;
+        btn.classList.remove('copied');
+      }, 1500);
+    }).catch(function () {
+      if (useLabel) flashLabel(btn, 'Failed');
+    });
+  }
+
+  function buildCopyButton(wrapper) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sdoc-mermaid-tool-btn sdoc-mermaid-copy-btn';
+    btn.setAttribute('aria-label', 'Copy Mermaid source');
+    btn.title = 'Copy Mermaid source';
+    btn.innerHTML = COPY_ICON_SVG;
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      copySource(wrapper, btn, false);
+    });
+    return btn;
+  }
 
   function buildZoomButton(wrapper) {
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'sdoc-mermaid-zoom-btn';
+    btn.className = 'sdoc-mermaid-tool-btn sdoc-mermaid-zoom-btn';
     btn.setAttribute('aria-label', 'Open diagram in fullscreen');
     btn.title = 'Fullscreen (zoom & pan)';
     btn.innerHTML = EXPAND_ICON_SVG;
@@ -235,6 +277,14 @@
       open(wrapper);
     });
     return btn;
+  }
+
+  function buildTools(wrapper) {
+    var tools = document.createElement('div');
+    tools.className = 'sdoc-mermaid-tools';
+    tools.appendChild(buildCopyButton(wrapper));
+    tools.appendChild(buildZoomButton(wrapper));
+    return tools;
   }
 
   // Treat unset, "transparent", and "rgba(0, 0, 0, 0)" as no-fill so we
@@ -254,6 +304,7 @@
   var prevFocus = null;
   var keyHandler = null;
   var resizeHandler = null;
+  var activeSourceWrapper = null;
 
   var tx = 0, ty = 0, scale = 1;
   var isDragging = false;
@@ -345,6 +396,7 @@
     if (!srcSvg) return;
 
     prevFocus = document.activeElement;
+    activeSourceWrapper = sourceWrapper;
 
     modal = document.createElement('div');
     modal.className = 'sdoc-mermaid-focus';
@@ -400,6 +452,9 @@
       +   '<button type="button" class="sdoc-mermaid-focus-btn" data-act="zoomout" title="Zoom out (−)" aria-label="Zoom out">' + ZOOM_OUT_ICON_SVG + '</button>'
       +   '<button type="button" class="sdoc-mermaid-focus-btn" data-act="fit" title="Fit to view (0)" aria-label="Fit to view">' + SCAN_ICON_SVG + '</button>'
       +   '<span class="sdoc-mermaid-focus-sep" aria-hidden="true"></span>'
+      +   '<button type="button" class="sdoc-mermaid-focus-action" data-act="copy-text" title="Copy Mermaid source" aria-label="Copy Mermaid source">'
+      +     COPY_ICON_SVG + '<span class="sdoc-mermaid-focus-action-label">Source</span>'
+      +   '</button>'
       +   '<button type="button" class="sdoc-mermaid-focus-action" data-act="copy-png" title="Copy PNG to clipboard" aria-label="Copy PNG to clipboard">'
       +     COPY_ICON_SVG + '<span class="sdoc-mermaid-focus-action-label">PNG</span>'
       +   '</button>'
@@ -484,6 +539,7 @@
     resizeHandler = null;
     modal.remove();
     modal = null; stageEl = null; svgWrap = null; topbarEl = null;
+    activeSourceWrapper = null;
     document.body.classList.remove('sdoc-mermaid-focus-open');
     tx = 0; ty = 0; scale = 1; isDragging = false; dragStart = null;
     // Clear gesture state so a pinch interrupted by close() can't leak into
@@ -645,6 +701,7 @@
     var act = btn.dataset.act;
     if (act === 'fit')      fit();
     else if (act === 'close') close();
+    else if (act === 'copy-text') copySource(activeSourceWrapper, btn, true);
     else if (act === 'copy-png') copyPng(btn);
     else if (act === 'save-png') savePng(btn);
     else if (act === 'zoomin' || act === 'zoomout') {
@@ -798,6 +855,7 @@
   S.SDocMermaidFocus = {
     open: open,
     close: close,
+    buildTools: buildTools,
     buildZoomButton: buildZoomButton
   };
 })();
