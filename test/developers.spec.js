@@ -65,6 +65,8 @@ test('developer documentation uses one SDK view to navigate Markdown pages', asy
   const initialFrameSrc = await frameElement.getAttribute('src');
   const documentView = page.frameLocator('#developer-document iframe');
   await expect(documentView.getByRole('heading', { name: 'Use the SmallDocs SDK' })).toBeVisible();
+  await expect(page.locator('.loading-message')).toBeHidden();
+  await expect(page.locator('#developer-document')).toHaveAttribute('aria-busy', 'false');
   await expect(documentView.locator('#_sd_left-toolbar')).toBeHidden();
 
   await page.getByRole('link', { name: 'Create SDoc Markdown with an agent', exact: true }).click();

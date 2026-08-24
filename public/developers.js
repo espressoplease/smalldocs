@@ -15,11 +15,18 @@ const pages = Object.freeze({
   'authoring/styles': { path: '/developers/authoring/styles', label: 'Authoring / Styles', markdown: '/developers/authoring/styles.md' },
 });
 
-const mount = document.getElementById('developer-document');
+const documentShell = document.getElementById('developer-document');
+const mount = document.getElementById('developer-renderer');
+const loadingMessage = document.querySelector('.loading-message');
 const sidebar = document.getElementById('developer-sidebar');
 const menuButton = document.querySelector('.mobile-menu');
 let view;
 let requestGeneration = 0;
+
+function setLoading(loading) {
+  loadingMessage.hidden = !loading;
+  documentShell.setAttribute('aria-busy', String(loading));
+}
 
 function slugFromPath(pathname) {
   if (pathname === '/developers' || pathname === '/developers/') return 'sdk';
@@ -44,6 +51,7 @@ async function loadPage(slug, push) {
   if (!page) return;
   const generation = ++requestGeneration;
   setActive(slug);
+  setLoading(true);
   if (push) history.pushState({ slug: slug }, '', page.path);
 
   let markdown;
@@ -55,6 +63,7 @@ async function loadPage(slug, push) {
     if (view) await view.update(markdown);
     else view = await render(mount, markdown);
     if (generation !== requestGeneration) return;
+    setLoading(false);
     window.scrollTo({ top: 0, behavior: push ? 'smooth' : 'auto' });
   } catch (error) {
     if (generation !== requestGeneration) return;
@@ -67,6 +76,7 @@ async function loadPage(slug, push) {
     fallback.className = 'document-error';
     fallback.textContent = markdown || ('Could not load this documentation page.\n\n' + error.message);
     mount.appendChild(fallback);
+    setLoading(false);
   }
 
   sidebar.classList.remove('open');
