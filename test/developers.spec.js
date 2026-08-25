@@ -204,6 +204,25 @@ test('customer example swaps a multi-format analysis through one SDK view', asyn
   expect(await page.evaluate(() => document.body.scrollWidth <= document.body.clientWidth)).toBe(true);
 });
 
+test('styled SDK example keeps every document section open and accepts host typography', async ({ page }) => {
+  await page.goto(origin + '/developers/example/non-collapsible');
+
+  await expect(page.locator('body')).toHaveAttribute('data-demo-ready', 'true');
+  const report = page.locator('#field-report');
+  await expect(report.getByRole('heading', { name: 'Streets that stay useful in the heat' })).toBeVisible();
+  await expect(report.getByRole('heading', { name: 'What the evidence says' })).toBeVisible();
+  await expect(report.getByRole('heading', { name: 'Recommendation' })).toBeVisible();
+  await expect(report.locator('.section-toggle')).toHaveCount(0);
+  await expect(report.locator('.md-section')).toHaveCount(0);
+  await expect(report.locator('.smalldocs-navigation')).toBeVisible();
+  await expect(report.locator('.smalldocs-document')).toHaveCSS('font-family', /Georgia/);
+  await expect(report.getByRole('heading', { name: 'What the evidence says' })).toHaveCSS('border-top-width', '3px');
+  await expect(report.locator('blockquote')).toContainText('fund three connected cool corridors');
+  await expect(report.locator('table')).toContainText('Continuous shaded route');
+  await expect(report.getByRole('button', { name: 'Open code in fullscreen' })).toBeVisible();
+  expect(await page.evaluate(() => document.body.scrollWidth <= document.body.clientWidth)).toBe(true);
+});
+
 test('developer documentation uses a mobile menu without containing the document in a card', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(origin + '/developers');

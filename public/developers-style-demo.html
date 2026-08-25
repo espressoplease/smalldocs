@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fieldwork - SmallDocs SDK style demo</title>
+<meta name="description" content="A styled SmallDocs SDK example with always-open document sections.">
+<link rel="stylesheet" href="/public/css/developers-style-demo.css">
+</head>
+<body>
+<header class="field-topbar">
+  <a class="field-brand" href="/developers/example/non-collapsible">
+    <span class="field-mark" aria-hidden="true">F</span>
+    <span>Fieldwork</span>
+  </a>
+  <div class="field-topbar-meta">
+    <span>Research desk / 026</span>
+    <a href="/developers/example">Other SDK examples</a>
+  </div>
+</header>
+
+<main class="field-layout">
+  <aside class="field-index" aria-label="Report context">
+    <p class="field-label">Live brief</p>
+    <h1>Heat-ready neighbourhoods</h1>
+    <p class="field-summary">A public-space adaptation brief produced by an analysis agent and rendered by the SmallDocs SDK.</p>
+
+    <dl class="field-facts">
+      <div><dt>Document</dt><dd>026</dd></div>
+      <div><dt>Status</dt><dd><span class="status-dot"></span>Ready</dd></div>
+      <div><dt>Sections</dt><dd>Always open</dd></div>
+    </dl>
+
+    <div class="field-palette" aria-label="Document palette">
+      <span style="--swatch:#18372f"></span>
+      <span style="--swatch:#d95738"></span>
+      <span style="--swatch:#e3bc65"></span>
+      <span style="--swatch:#fffaf0"></span>
+    </div>
+
+    <div class="field-config">
+      <span>Renderer setting</span>
+      <code>sections: { collapsible: false }</code>
+    </div>
+  </aside>
+
+  <section class="field-stage" aria-label="Rendered report">
+    <div class="field-stage-heading">
+      <span>Agent output</span>
+      <span>SmallDocs Markdown</span>
+    </div>
+    <div class="field-paper" aria-busy="true">
+      <p class="field-loading" role="status">Opening field report</p>
+      <div id="field-report"></div>
+    </div>
+  </section>
+</main>
+
+<script type="module" src="/public/developers-style-demo.js"></script>
+</body>
+</html>

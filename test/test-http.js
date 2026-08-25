@@ -306,6 +306,23 @@ module.exports = function(harness) {
       }
     });
 
+    await testAsync('GET /developers/example/non-collapsible serves the styled SDK example', async () => {
+      const r = await get(BASE + '/developers/example/non-collapsible');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'));
+      assert.ok(r.body.includes('Fieldwork'));
+      assert.ok(r.body.includes('id="field-report"'));
+      assert.ok(r.body.includes('/public/css/developers-style-demo.css?v='));
+      assert.ok(r.body.includes('/public/developers-style-demo.js?v='));
+      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
+
+      const markdown = await get(BASE + '/public/developers/example/field-report.md');
+      assert.strictEqual(markdown.status, 200);
+      assert.ok(markdown.body.includes('# Streets that stay useful in the heat'));
+      assert.ok(markdown.body.includes('~~~mermaid'));
+      assert.ok(markdown.body.includes('~~~javascript'));
+    });
+
     await testAsync('developer Markdown resources expose integration and authoring references', async () => {
       const index = await get(BASE + '/developers/llms.txt');
       assert.strictEqual(index.status, 200);
