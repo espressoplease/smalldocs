@@ -36,11 +36,13 @@ Destroy is idempotent. Update is unavailable after destruction.
 
 The renderer iframe. Use this only for host layout or observation. Do not mutate the document inside the frame.
 
+Fullscreen tools temporarily apply viewport-filling layout to this element and lock host-page scrolling. Closing fullscreen restores its prior layout and host scroll position.
+
 ## Module exports
 
 ```js
 import SmallDocs, { SmallDocs, render } from
-  'https://smalldocs.org/sdk/0.1.1/smalldocs.js';
+  'https://smalldocs.org/sdk/0.1.2/smalldocs.js';
 ```
 
 The named `render` function and `SmallDocs.render` are the same function.

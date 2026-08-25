@@ -515,6 +515,7 @@
     modal.appendChild(stageEl);
     document.body.appendChild(modal);
     document.body.classList.add('sdoc-mermaid-focus-open');
+    if (window.SDocs && window.SDocs.syncEmbedFocus) window.SDocs.syncEmbedFocus();
 
     // When opened from within presentation mode, hide the present modal
     // entirely. Otherwise its topbar (z-index 10001) and rail show
@@ -548,7 +549,7 @@
     requestAnimationFrame(function () { fit(); updateTopbarOverflow(); });
 
     var firstBtn = topbar.querySelector('[data-act="fit"]');
-    if (firstBtn) firstBtn.focus();
+    if (firstBtn && !(window.SDocs && window.SDocs.embedMode)) firstBtn.focus();
   }
 
   function close() {
@@ -563,12 +564,14 @@
     modal = null; stageEl = null; svgWrap = null; topbarEl = null;
     activeSourceWrapper = null;
     document.body.classList.remove('sdoc-mermaid-focus-open');
+    if (window.SDocs && window.SDocs.syncEmbedFocus) window.SDocs.syncEmbedFocus();
     tx = 0; ty = 0; scale = 1; isDragging = false; dragStart = null;
     // Clear gesture state so a pinch interrupted by close() can't leak into
     // the next time the modal opens.
     lastTouch = null; pinch = null; stageRect = null; rafPending = false;
     restorePresentModal();
-    if (prevFocus && prevFocus.focus) try { prevFocus.focus(); } catch (_) {}
+    if (!(window.SDocs && window.SDocs.embedMode)
+        && prevFocus && prevFocus.focus) try { prevFocus.focus(); } catch (_) {}
     prevFocus = null;
   }
 

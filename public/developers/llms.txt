@@ -5,8 +5,9 @@ SmallDocs renders agent-authored Markdown and rich documents inside web applicat
 ## Use the SDK
 
 - [SDK integration guide](https://smalldocs.org/developers/integration.md): Install, render, update, destroy, security, and loading.
+- Current browser module: `https://smalldocs.org/sdk/0.1.2/smalldocs.js`
 
-## Create SDoc Markdown with an agent
+## Author with an agent
 
 - [Agent authoring guide](https://smalldocs.org/developers/agents.md): Give an agent the SmallDocs authoring skill or fetch the references directly.
 

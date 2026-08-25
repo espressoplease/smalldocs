@@ -1502,6 +1502,7 @@
     modal.appendChild(stage);
     document.body.appendChild(modal);
     document.body.classList.add('sdoc-code-focus-open');
+    if (S.syncEmbedFocus) S.syncEmbedFocus();
     setGrain(grain);          // sync the granularity control to the saved choice
     wireCommentPrefs();       // fill the author/colour inputs and apply the accent
     initFocusTheme();         // apply the viewer-local light/dark choice (or follow doc)
@@ -1582,7 +1583,7 @@
     buildModalChrome();
     mountFile(sourcePre, opts);
     var closeBtn = modal.querySelector('[data-act="close"]');
-    if (closeBtn) closeBtn.focus();
+    if (closeBtn && !S.embedMode) closeBtn.focus();
   }
 
   // ── Multi-file walkthrough ────────────────────────────────────────────────
@@ -1632,7 +1633,7 @@
     if (walk.stepIndex >= 0) scrollActiveStepIntoView();
 
     var closeBtn = modal.querySelector('[data-act="close"]');
-    if (closeBtn) closeBtn.focus();
+    if (closeBtn && !S.embedMode) closeBtn.focus();
   }
 
   function buildTabStrip(files) {
@@ -1921,8 +1922,9 @@
     comments = []; commenting = false; blockId = ''; navId = null; methodTab = null; hoverLn = -1;
     currentPre = null; walk = null;
     document.body.classList.remove('sdoc-code-focus-open');
+    if (S.syncEmbedFocus) S.syncEmbedFocus();
     if (wasCommenting && S.setMode && !document.body.classList.contains('comment-mode')) S.setMode('comment');
-    if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (_) {} }
+    if (!S.embedMode && prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (_) {} }
     prevFocus = null;
   }
 

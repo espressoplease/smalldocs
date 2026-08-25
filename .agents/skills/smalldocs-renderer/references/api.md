@@ -3,7 +3,7 @@
 ## Current browser module
 
 ```js
-import { render } from 'https://smalldocs.org/sdk/0.1.1/smalldocs.js';
+import { render } from 'https://smalldocs.org/sdk/0.1.2/smalldocs.js';
 
 const view = await render('#report', markdown);
 ```
@@ -24,6 +24,8 @@ view.destroy();
 - `render()` and `update()` resolve after the document is mounted. Rich processors that load external browser dependencies can finish and resize afterward.
 
 Keep the view in the host framework's component or route lifecycle. Destroy it on unmount. Do not call `render()` again for ordinary content changes.
+
+When a reader expands slides, a diagram, code, or computed cells, the renderer iframe temporarily covers the browser viewport and locks host-page scrolling. Closing the expanded view restores the frame and previous host scroll position. Do not add host fullscreen event handlers.
 
 ## Content contract
 

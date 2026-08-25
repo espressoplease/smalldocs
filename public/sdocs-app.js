@@ -1801,7 +1801,7 @@ function setMode(mode, skipHash) {
     S.enterWriteMode();
   }
 
-  if (mode === 'read') {
+  if (mode === 'read' && !document.documentElement.classList.contains('sdocs-embed')) {
     document.getElementById('_sd_content-area').focus();
   }
 

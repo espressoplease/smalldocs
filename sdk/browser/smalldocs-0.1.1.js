@@ -55,9 +55,6 @@ export async function render(target, markdown) {
   var pending = new Map();
   var generation = 0;
   var destroyed = false;
-  var focusOpen = false;
-  var documentHeight = 1;
-  var savedHostState = null;
 
   frame.className = 'smalldocs-renderer';
   frame.title = 'SmallDocs document';
@@ -71,50 +68,7 @@ export async function render(target, markdown) {
 
   function setHeight(value) {
     var height = Math.max(1, Number(value) || 1);
-    documentHeight = height;
-    if (focusOpen) return;
     frame.style.height = Math.ceil(height) + 'px';
-  }
-
-  function setFocusOpen(open) {
-    open = !!open;
-    if (open === focusOpen) return;
-    focusOpen = open;
-    if (open) {
-      savedHostState = {
-        scrollX: window.scrollX,
-        scrollY: window.scrollY,
-        htmlOverflow: document.documentElement.style.overflow,
-        bodyOverflow: document.body.style.overflow,
-      };
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.overflow = 'hidden';
-      frame.style.position = 'fixed';
-      frame.style.inset = '0';
-      frame.style.zIndex = '2147483647';
-      frame.style.width = '100vw';
-      frame.style.height = '100vh';
-      frame.style.background = '#fff';
-      window.scrollTo(savedHostState.scrollX, savedHostState.scrollY);
-      return;
-    }
-    var restoreState = savedHostState;
-    frame.blur();
-    frame.style.position = '';
-    frame.style.inset = '';
-    frame.style.zIndex = '';
-    frame.style.width = '100%';
-    frame.style.height = Math.ceil(documentHeight) + 'px';
-    frame.style.background = '';
-    if (restoreState) {
-      document.documentElement.style.overflow = restoreState.htmlOverflow;
-      document.body.style.overflow = restoreState.bodyOverflow;
-      window.scrollTo(restoreState.scrollX, restoreState.scrollY);
-      requestAnimationFrame(function () {
-        window.scrollTo(restoreState.scrollX, restoreState.scrollY);
-      });
-      savedHostState = null;
-    }
   }
 
   function settleGeneration(current, method, value) {
@@ -134,10 +88,6 @@ export async function render(target, markdown) {
     }
     if (message.type === 'sdocs:resize') {
       setHeight(message.height);
-      return;
-    }
-    if (message.type === 'sdocs:focus') {
-      setFocusOpen(message.open);
       return;
     }
     if (message.type === 'sdocs:rendered') {
@@ -182,7 +132,6 @@ export async function render(target, markdown) {
     destroy: function () {
       if (destroyed) return;
       destroyed = true;
-      if (focusOpen) setFocusOpen(false);
       window.removeEventListener('message', onMessage);
       ready.reject(new Error('SmallDocs renderer was destroyed before it became ready'));
       pending.forEach(function (operation) {

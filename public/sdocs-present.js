@@ -667,6 +667,7 @@ function open(startIndex) {
   modal.appendChild(wrap);
   document.body.appendChild(modal);
   document.body.classList.add('sdoc-present-open');
+  if (window.SDocs && window.SDocs.syncEmbedFocus) window.SDocs.syncEmbedFocus();
 
   var expPanel = buildExportPanel();
   document.body.appendChild(expPanel);
@@ -695,7 +696,9 @@ function open(startIndex) {
 
   // Focus the stage so keyboard events land on the document body.
   modal.tabIndex = -1;
-  setTimeout(function () { modal.focus(); }, 0);
+  if (!(window.SDocs && window.SDocs.embedMode)) {
+    setTimeout(function () { modal.focus(); }, 0);
+  }
 }
 
 function closePresent() { close(); }
@@ -722,9 +725,11 @@ function close() {
   state.copyBtn = null;
   state.open = false;
   document.body.classList.remove('sdoc-present-open');
+  if (window.SDocs && window.SDocs.syncEmbedFocus) window.SDocs.syncEmbedFocus();
   updateHashPresent(null);
   window.scrollTo(0, state.savedScrollY);
-  if (state.savedActive && typeof state.savedActive.focus === 'function') {
+  if (!(window.SDocs && window.SDocs.embedMode)
+      && state.savedActive && typeof state.savedActive.focus === 'function') {
     try { state.savedActive.focus(); } catch (_) {}
   }
   state.savedActive = null;

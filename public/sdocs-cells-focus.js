@@ -247,9 +247,10 @@
     state.modal.remove();
     state.modal = null;
     document.body.classList.remove('sdoc-cells-focus-open');
+    if (S.syncEmbedFocus) S.syncEmbedFocus();
     repaintEdited();
     state.editApi = null; state.entries = null; state.edited = null; state.activeIndex = -1;
-    if (state.prevFocus && state.prevFocus.focus) { try { state.prevFocus.focus(); } catch (_) {} }
+    if (!S.embedMode && state.prevFocus && state.prevFocus.focus) { try { state.prevFocus.focus(); } catch (_) {} }
     state.prevFocus = null;
   }
 
@@ -500,7 +501,7 @@
       });
 
       var gridEl = gridWrap.querySelector('.sdoc-cells-grid');
-      if (gridEl) { try { gridEl.focus(); } catch (_) {} }
+      if (gridEl && !S.embedMode) { try { gridEl.focus(); } catch (_) {} }
     }
 
     modal.appendChild(topbar);
@@ -509,6 +510,7 @@
     if (tabStrip) modal.appendChild(tabStrip);
     document.body.appendChild(modal);
     document.body.classList.add('sdoc-cells-focus-open');
+    if (S.syncEmbedFocus) S.syncEmbedFocus();
     state.modal = modal;
 
     state.keyHandler = function (e) { if (e.key === 'Escape') { e.preventDefault(); close(); } };

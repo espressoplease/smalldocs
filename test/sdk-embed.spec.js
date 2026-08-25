@@ -81,10 +81,11 @@ test.afterAll(async () => {
 test('an independent customer renders and updates a full SmallDocs document', async ({ page }) => {
   await page.goto(sdocsOrigin + '/embed?parentOrigin=' + encodeURIComponent(customerOrigin)
     + '&channel=cache-prime');
-  await page.goto(sdocsOrigin + '/sdk/0.1.1/smalldocs.js');
+  await page.goto(sdocsOrigin + '/sdk/0.1.2/smalldocs.js');
   await page.goto(customerOrigin);
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await expect(page.locator('body')).not.toHaveAttribute('data-error', /.+/);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
   const frameElement = page.locator('#report iframe.smalldocs-renderer');
   await expect(frameElement).toHaveCount(1);
@@ -109,6 +110,17 @@ test('an independent customer renders and updates a full SmallDocs document', as
   await expect.poll(() => frameElement.evaluate(element => parseInt(element.style.height, 10)))
     .toBeGreaterThan(collapsedHeight);
   await expect(documentFrame.locator('html')).toHaveCSS('overflow-y', 'clip');
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+  await documentFrame.getByRole('button', { name: 'Open fullscreen' }).click();
+  await expect(frameElement).toHaveCSS('position', 'fixed');
+  await expect(frameElement).toHaveCSS('height', '720px');
+  await expect(page.locator('html')).toHaveCSS('overflow-y', 'hidden');
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await documentFrame.getByRole('button', { name: 'Close' }).click();
+  await expect(frameElement).toHaveCSS('position', 'static');
+  await expect(page.locator('html')).not.toHaveCSS('overflow-y', 'hidden');
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await expect(documentFrame.locator('#_sd_left-toolbar')).toBeHidden();
   await expect(documentFrame.locator('#_sd_right')).toBeHidden();
   await expect(documentFrame.getByRole('button', { name: 'Unsafe input' })).not.toHaveAttribute('onclick');

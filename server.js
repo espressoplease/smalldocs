@@ -2960,6 +2960,16 @@ const server = http.createServer((req, res) => {
       ? developerPageMatch[1]
       : null;
 
+  if (pathname === '/developers/example' || pathname === '/developers/example/') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers-example.html'), null, {
+      'Cache-Control': 'no-cache',
+      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; frame-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+    });
+    return;
+  }
+
   if (developerPageSlug) {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers.html'), null, {
       'Cache-Control': 'no-cache',
@@ -3083,6 +3093,16 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname === '/sdk/0.1.0/smalldocs.js' || pathname === '/sdk/0.1.1/smalldocs.js') {
+    serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'smalldocs-0.1.1.js'), {
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Access-Control-Allow-Origin': '*',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return;
+  }
+
+  if (pathname === '/sdk/0.1.2/smalldocs.js') {
     serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'smalldocs.js'), {
       'Cache-Control': 'public, max-age=31536000, immutable',
       'Access-Control-Allow-Origin': '*',

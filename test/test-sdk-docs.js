@@ -36,6 +36,12 @@ module.exports = function (harness) {
     return Array.from(markdown.matchAll(/^~~~slide(?:[ \t]+[^\n]*)?\n([\s\S]*?)^~~~[ \t]*$/gm), match => match[1]);
   }
 
+  function tildeBodies(markdown, language) {
+    const escaped = language.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp('^~~~' + escaped + '(?:[ \\t]+[^\\n]*)?\\n([\\s\\S]*?)^~~~[ \\t]*$', 'gm');
+    return Array.from(markdown.matchAll(pattern), match => match[1]);
+  }
+
   test('author skill links only to references that exist', () => {
     const skill = fs.readFileSync(path.join(skillRoot, 'SKILL.md'), 'utf8');
     const links = Array.from(skill.matchAll(/\]\((references\/[a-z-]+\.md)\)/g), match => match[1]);
@@ -159,9 +165,52 @@ module.exports = function (harness) {
   test('agent index points to both SDK skills and the complete reference', () => {
     const index = fs.readFileSync(path.join(root, 'public', 'developers', 'llms.txt'), 'utf8');
     assert.ok(index.includes('/developers/llms-full.txt'));
+    assert.ok(index.includes('/sdk/0.1.2/smalldocs.js'));
     assert.ok(index.includes('/.well-known/agent-skills/smalldocs-renderer/SKILL.md'));
     assert.ok(index.includes('/.well-known/agent-skills/smalldocs-author/SKILL.md'));
     ['markdown', 'code', 'math', 'diagrams', 'charts', 'cells', 'slides', 'slide-shapes', 'video', 'styles']
       .forEach(slug => assert.ok(index.includes('/developers/authoring/' + slug + '.md')));
+  });
+
+  test('renderer documentation describes SDK-owned fullscreen behavior', () => {
+    const integration = fs.readFileSync(path.join(root, 'public', 'developers', 'integration.md'), 'utf8');
+    const lifecycle = fs.readFileSync(path.join(root, 'public', 'developers', 'lifecycle.md'), 'utf8');
+    const api = fs.readFileSync(
+      path.join(root, '.agents', 'skills', 'smalldocs-renderer', 'references', 'api.md'),
+      'utf8'
+    );
+    [integration, lifecycle, api].forEach(document => {
+      assert.ok(document.includes('browser viewport'));
+      assert.ok(document.includes('scroll'));
+    });
+  });
+
+  test('customer SDK example uses valid slides, charts, and computed cells', () => {
+    const exampleRoot = path.join(root, 'public', 'developers', 'example');
+    const slideSources = slideBodies(fs.readFileSync(path.join(exampleRoot, 'briefing.md'), 'utf8'));
+    assert.strictEqual(slideSources.length, 4);
+    const resolvedSlides = slideResolve.resolveSlides(slideSources, shapes, { stdlib: slideStdlib.templates });
+    resolvedSlides.forEach(result => {
+      assert.deepStrictEqual(result.errors, []);
+      if (result.skip) return;
+      assert.deepStrictEqual(shapes.parse(result.dsl).errors, []);
+    });
+
+    const chartSources = tildeBodies(fs.readFileSync(path.join(exampleRoot, 'charts.md'), 'utf8'), 'chart');
+    assert.strictEqual(chartSources.length, 2);
+    chartSources.forEach(source => {
+      const chart = JSON.parse(source);
+      assert.ok(['bar', 'line'].includes(chart.type));
+      assert.ok(Array.isArray(chart.labels));
+      assert.ok(Array.isArray(chart.values) || Array.isArray(chart.datasets));
+    });
+
+    const cellSources = tildeBodies(fs.readFileSync(path.join(exampleRoot, 'model.md'), 'utf8'), 'cells');
+    assert.strictEqual(cellSources.length, 1);
+    const model = cells.parseCells(cellSources[0]);
+    assert.strictEqual(model.error, undefined);
+    const results = formulas.recalc(model);
+    assert.strictEqual(results[7][3].value, 37000);
+    assert.strictEqual(results[7][4].value, 130000);
   });
 };

@@ -4,7 +4,7 @@ Applications can import the SDK on every route that renders a document. Normal b
 
 ## Versioned module
 
-`https://smalldocs.org/sdk/0.1.1/smalldocs.js` is served with an immutable one-year browser cache policy. A new contract uses a new versioned URL.
+`https://smalldocs.org/sdk/0.1.2/smalldocs.js` is served with an immutable one-year browser cache policy. A new contract uses a new versioned URL.
 
 ## Reader shell
 

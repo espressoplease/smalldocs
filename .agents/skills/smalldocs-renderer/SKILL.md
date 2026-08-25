@@ -19,11 +19,13 @@ Read [references/api.md](references/api.md) before changing integration code. It
 
 Pass the finished Markdown through unchanged. Do not parse rich fences in host code, declare capabilities before inference, or choose feature modules. A document can contain any supported combination of Markdown, navigation, code, math, diagrams, charts, cells, slides, and video. SmallDocs discovers what the document uses.
 
+The SDK manages expanded slides, diagrams, code, and cells by temporarily filling the browser viewport and restoring host scrolling when the reader closes the view. Do not add a second fullscreen wrapper in the host application.
+
 If the application also needs an agent to produce this Markdown, install the separate `smalldocs-author` skill for that agent. The renderer skill defines application integration; the authoring skill defines document syntax and content choices.
 
 ## Boundaries
 
-- Treat `0.1.1` as an experimental rendering-only contract.
+- Treat `0.1.2` as an experimental rendering-only contract.
 - Do not add comments, editing, export, Cloud storage, or application chrome to an SDK integration.
 - Do not invent options, publishable keys, npm packages, React wrappers, or readiness events that are not in the API reference.
 - Do not add image upload, proxying, or hosting. Ordinary HTTPS image references remain references to their original hosts. Discuss a first-party image pipeline with the user before designing one.

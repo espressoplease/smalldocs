@@ -1,8 +1,8 @@
-import { render } from '/sdk/0.1.1/smalldocs.js';
+import { render } from '/sdk/0.1.2/smalldocs.js';
 
 const pages = Object.freeze({
-  sdk: { path: '/developers', label: 'Use the SDK', markdown: '/developers/integration.md' },
-  agents: { path: '/developers/agents', label: 'Create SDoc Markdown with an agent', markdown: '/developers/agents.md' },
+  sdk: { path: '/developers', label: 'Render in your app', markdown: '/developers/integration.md' },
+  agents: { path: '/developers/agents', label: 'Author with an agent', markdown: '/developers/agents.md' },
   'authoring/markdown': { path: '/developers/authoring/markdown', label: 'Authoring / Markdown', markdown: '/developers/authoring/markdown.md' },
   'authoring/code': { path: '/developers/authoring/code', label: 'Authoring / Code', markdown: '/developers/authoring/code.md' },
   'authoring/math': { path: '/developers/authoring/math', label: 'Authoring / Math', markdown: '/developers/authoring/math.md' },
@@ -20,6 +20,7 @@ const mount = document.getElementById('developer-renderer');
 const loadingMessage = document.querySelector('.loading-message');
 const sidebar = document.getElementById('developer-sidebar');
 const menuButton = document.querySelector('.mobile-menu');
+const referenceGroup = document.getElementById('agent-references');
 let view;
 let requestGeneration = 0;
 
@@ -42,6 +43,7 @@ function setActive(slug) {
     if (link.dataset.doc === slug) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });
+  if (slug.startsWith('authoring/')) referenceGroup.open = true;
   const page = pages[slug];
   document.title = page.label + ' - SmallDocs developers';
 }

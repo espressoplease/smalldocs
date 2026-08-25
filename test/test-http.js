@@ -198,7 +198,7 @@ module.exports = function(harness) {
     });
 
     await testAsync('versioned SDK module is cross-origin cacheable JavaScript', async () => {
-      const r = await get(BASE + '/sdk/0.1.1/smalldocs.js');
+      const r = await get(BASE + '/sdk/0.1.2/smalldocs.js');
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].includes('application/javascript'));
       assert.strictEqual(r.headers['access-control-allow-origin'], '*');
@@ -207,6 +207,7 @@ module.exports = function(harness) {
       assert.ok(r.headers['cache-control'].includes('max-age=31536000'));
       assert.ok(r.headers['cache-control'].includes('immutable'));
       assert.ok(r.body.includes('export async function render'));
+      assert.ok(r.body.includes("message.type === 'sdocs:focus'"));
       assert.ok(
         r.body.indexOf("window.addEventListener('message', onMessage)")
           < r.body.indexOf('frame.src = embedUrl.href'),
@@ -214,6 +215,9 @@ module.exports = function(harness) {
       );
       const previous = await get(BASE + '/sdk/0.1.0/smalldocs.js');
       assert.strictEqual(previous.status, 200);
+      const frozen = await get(BASE + '/sdk/0.1.1/smalldocs.js');
+      assert.strictEqual(frozen.status, 200);
+      assert.ok(!frozen.body.includes("message.type === 'sdocs:focus'"));
     });
 
     await testAsync('GET /developers serves the Markdown-driven SDK documentation shell', async () => {
@@ -223,11 +227,31 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('id="developer-document"'));
       assert.ok(r.body.includes('/developers/authoring/slides'));
       assert.ok(r.body.includes('/developers/authoring/slide-shapes'));
+      assert.ok(r.body.includes('id="agent-references"'));
+      assert.ok(r.body.includes('href="/developers/example"'));
+      assert.ok(r.body.includes('class="topbar-open" href="/"'));
       assert.ok(r.body.includes('rel="alternate" type="text/plain" href="/developers/llms.txt"'));
       assert.ok(r.body.includes('/public/css/developers.css?v='));
       assert.ok(r.body.includes('/public/developers.js?v='));
       assert.ok(!r.body.includes('__SDOCS_'));
       assert.strictEqual(r.headers['x-frame-options'], 'DENY');
+    });
+
+    await testAsync('GET /developers/example serves the customer SDK example', async () => {
+      const r = await get(BASE + '/developers/example');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'));
+      assert.ok(r.body.includes('Meridian Research'));
+      assert.ok(r.body.includes('id="analysis-document"'));
+      assert.ok(r.body.includes('/public/css/developers-example.css?v='));
+      assert.ok(r.body.includes('/public/developers-example.js?v='));
+      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
+
+      for (const slug of ['executive-summary', 'briefing', 'charts', 'model']) {
+        const markdown = await get(BASE + '/public/developers/example/' + slug + '.md');
+        assert.strictEqual(markdown.status, 200, 'example document: ' + slug);
+        assert.ok(markdown.body.includes('# Project Meridian'));
+      }
     });
 
     await testAsync('developer Markdown resources expose integration and authoring references', async () => {
@@ -241,8 +265,10 @@ module.exports = function(harness) {
       const guide = await get(BASE + '/developers/integration.md');
       assert.strictEqual(guide.status, 200);
       assert.ok(guide.headers['content-type'].includes('text/plain'));
-      assert.ok(guide.body.includes("import { render } from 'https://smalldocs.org/sdk/0.1.1/smalldocs.js'"));
+      assert.ok(guide.body.includes("import { render } from 'https://smalldocs.org/sdk/0.1.2/smalldocs.js'"));
       assert.ok(guide.body.includes('SmallDocs owns Markdown parsing'));
+      assert.ok(guide.body.includes('smalldocs-renderer'));
+      assert.ok(guide.body.includes('/developers/example'));
 
       const full = await get(BASE + '/developers/llms-full.txt');
       assert.strictEqual(full.status, 200);

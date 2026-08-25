@@ -1,43 +1,56 @@
-# Create SDoc Markdown with an agent
+# Teach your agent to write SmallDocs
 
-Give the agent that produces your document the SmallDocs authoring skill:
+This guide is for the agent that produces documents. The separate [renderer guide](/developers) is for the coding agent that embeds those documents in your application.
+
+Give your analysis agent the SmallDocs authoring skill so it can express a result as a readable document, diagram, chart, computed sheet, or presentation.
+
+Install the authoring skill in the environment where the document-producing agent works:
 
 ```sh
 npx skills add https://smalldocs.org --skill smalldocs-author
 ```
 
-Then ask it for finished SmallDocs Markdown:
+Then include this instruction in the task prompt:
 
 ```text
-Use the smalldocs-author skill to produce a SmallDocs report from this analysis.
+Use the smalldocs-author skill to produce a finished SmallDocs report from this analysis.
+Choose the clearest mix of prose, diagrams, charts, computed cells, or slides for the result.
 Return the finished Markdown.
 ```
 
-Pass that Markdown to `render()`. The agent does not initialise the SDK, announce which features it intends to use, or return a capability envelope.
+Have the agent return Markdown. Your application passes that Markdown to the renderer.
 
-## What the agent can produce
+## Set up the two parts
 
-The skill routes the agent to exact references for ordinary Markdown, code, math, diagrams, charts, computed cells, slides, video, and document styles. One document can mix any of these.
+### 1. Configure the analysis task
 
-Slide-producing agents are directed to use custom shapes when geometry explains a concept, including in internal presentations.
+Tell the agent what to investigate, which sources or data it can use, who will read the result, and what decision the document should support. This is your application-specific instruction.
 
-## Let the agent read the documentation directly
+For example:
 
-An agent can fetch the documentation without installing a skill:
-
-- `/developers/llms.txt` is the short index.
-- `/developers/llms-full.txt` contains the complete authoring reference.
-- Every reference in the developer menu has a directly fetchable `.md` URL.
-- `/.well-known/agent-skills/index.json` publishes the skill catalog.
-
-Use the short index when the agent can fetch additional pages itself. Use the complete reference when the environment only accepts one documentation URL.
-
-## If a coding agent is integrating the SDK
-
-Install the separate renderer skill in the application project:
-
-```sh
-npx skills add https://smalldocs.org --skill smalldocs-renderer
+```text
+Analyse weekly customer feedback for the product team.
+Identify repeated problems, quantify the strongest patterns, and recommend the next three actions.
+Write for a product manager who needs to decide what enters the next sprint.
 ```
 
-The renderer skill teaches the coding agent how to mount, update, destroy, and test the SDK integration. It does not teach the runtime agent how to write the document.
+### 2. Teach the agent the output format
+
+Install `smalldocs-author` and add the SmallDocs instruction shown above. The skill routes the agent to exact references for ordinary Markdown, code, math, diagrams, charts, computed cells, slides, video, and document styles.
+
+One result can mix any of these formats. Use slides when the requested output is a presentation; the slide reference includes custom shapes for explaining concepts visually.
+
+### 3. Render the returned Markdown
+
+[Read the renderer guide](/developers) for the install command and coding-agent prompt, or [open the working SDK example](/developers/example).
+
+## Agent documentation endpoints
+
+An agent can fetch the documentation directly when skill installation is not available:
+
+- `https://smalldocs.org/developers/llms.txt` is a short index with links to the other references.
+- `https://smalldocs.org/developers/llms-full.txt` contains the complete authoring reference in one response.
+- `https://smalldocs.org/.well-known/agent-skills/index.json` lists the installable skills and their files.
+- Each item under Authoring reference in the developer menu has a directly fetchable `.md` URL.
+
+Use the short index when the agent can follow links. Use the complete reference when its environment accepts only one documentation URL.

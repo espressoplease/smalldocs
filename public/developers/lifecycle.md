@@ -3,7 +3,7 @@
 `render()` creates one view. Keep that view for the lifetime of the surrounding route or component.
 
 ```js
-import { render } from 'https://smalldocs.org/sdk/0.1.1/smalldocs.js';
+import { render } from 'https://smalldocs.org/sdk/0.1.2/smalldocs.js';
 
 let view;
 
@@ -37,3 +37,7 @@ Calling `destroy()` more than once has no additional effect. Calling `update()` 
 ## Multiple documents
 
 Call `render()` once for each independent mount element. Each renderer instance has its own random message channel and lifecycle.
+
+## Fullscreen views
+
+When a reader expands slides, a diagram, code, or computed cells, the renderer iframe temporarily covers the browser viewport and the host page stops scrolling. Closing the expanded view restores the iframe and the previous host scroll position. The SDK handles this without host event wiring.
