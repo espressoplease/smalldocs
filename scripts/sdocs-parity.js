@@ -269,7 +269,7 @@ async function contractFailures(page, contracts, config) {
       failures.push(contract.message + ' (expected at most ' + contract.maxCount + ', found ' + count + ')');
       continue;
     }
-    if (!count && [contract.text, contract.attribute, contract.visible, contract.focused, contract.focusVisible, contract.hovered]
+    if (!count && [contract.text, contract.inputValue, contract.attribute, contract.visible, contract.focused, contract.focusVisible, contract.hovered]
       .some((value) => value != null)) {
       failures.push(contract.message + ' (target not found)');
       continue;
@@ -277,6 +277,10 @@ async function contractFailures(page, contracts, config) {
     if (contract.text != null) {
       const text = count ? String(await locator.first().textContent()).replace(/\s+/g, ' ').trim() : '';
       if (text !== contract.text) failures.push(contract.message + ' (expected "' + contract.text + '", found "' + text + '")');
+    }
+    if (contract.inputValue != null && count) {
+      const value = await locator.first().inputValue();
+      if (value !== contract.inputValue) failures.push(contract.message + ' (expected input value "' + contract.inputValue + '", found "' + value + '")');
     }
     if (contract.attribute != null && count) {
       const value = await locator.first().getAttribute(contract.attribute);
@@ -323,6 +327,7 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
         tag: node.tagName.toLowerCase(),
         classes: Array.from(node.classList).sort(),
       };
+      if (/^(input|textarea|select)$/i.test(node.tagName)) result.value = node.value;
       const text = directText(node);
       if (text) result.text = text;
       ['role', 'aria-label', 'aria-selected', 'aria-expanded', 'title'].forEach((name) => {

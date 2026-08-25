@@ -130,6 +130,17 @@ An attribute contract checks observable state that is not text:
 }
 ```
 
+Use `inputValue` for the live value of an input, textarea, or select. Reading
+the `value` attribute is not equivalent after a user edits the control.
+
+```js
+{
+  selector: '.sdoc-cells-editor',
+  inputValue: '=SUM(B2:B4)',
+  message: 'The editor preserves the live formula source',
+}
+```
+
 Captures record the active element, whether it matches `:focus-visible`, the hover path inside the captured root, and computed cursor, visibility, outline, shadow, and pointer-event styles. Screenshots are taken without moving the pointer after the declared interactions.
 
 ## Reading the report

@@ -42,6 +42,13 @@ module.exports = function ({ assert, test, testAsync }) {
     assert.ok(differences.some((difference) => difference.location === 'interaction.active'));
   });
 
+  test('parity capture comparison reports live input value drift', () => {
+    const reference = { semantic: { tag: 'input', classes: [], value: '=A1' }, controls: [], styles: {} };
+    const candidate = { semantic: { tag: 'input', classes: [], value: '=B1' }, controls: [], styles: {} };
+    const differences = parity.compareCapture(reference, candidate);
+    assert.ok(differences.some((difference) => difference.location === 'semantic.value'));
+  });
+
   testAsync('parity hover keeps the pointer on its target', async () => {
     const calls = [];
     const target = {
