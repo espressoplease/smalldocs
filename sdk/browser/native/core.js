@@ -389,8 +389,8 @@ function createContext(mount, options) {
   };
 }
 
-function runCleanups(context) {
-  closeActiveOverlay(context);
+function runCleanups(context, reason) {
+  closeActiveOverlay(context, reason, { restoreFocus: false });
   const cleanups = context.cleanups.splice(0).reverse();
   cleanups.forEach((cleanup) => {
     try { cleanup(); } catch (_) {}
@@ -400,7 +400,7 @@ function runCleanups(context) {
 async function updateContext(context, markdown) {
   if (context.active) {
     context.active.controller.abort();
-    runCleanups(context.active);
+    runCleanups(context.active, 'update');
   }
   const generation = ++context.generation;
   const controller = new AbortController();
@@ -466,7 +466,7 @@ export async function createRenderer(target, markdown, rawOptions) {
       destroyed = true;
       if (context.active) {
         context.active.controller.abort();
-        runCleanups(context.active);
+        runCleanups(context.active, 'destroy');
       }
       context.shell.remove();
     },
