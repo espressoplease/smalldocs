@@ -27,6 +27,22 @@
     "source": "public/sdocs-zoom-math.js",
     "sha256": "1999018bde61702451332b24d91fdd465921fcaf639b0848eaff6dbc6eb3c40d"
   },
+  "sdocs-cells.js": {
+    "source": "public/sdocs-cells.js",
+    "sha256": "da54c59443711b80663ff4fb1f0abeba115afecf3b034031a7302b6f252abdd8"
+  },
+  "sdocs-cells-formula.js": {
+    "source": "public/sdocs-cells-formula.js",
+    "sha256": "95268993ab4c13f20f3e70db135197d82023737723d4b9d62c1ffae37310d56b"
+  },
+  "sdocs-cells-xlsx.js": {
+    "source": "public/sdocs-cells-xlsx.js",
+    "sha256": "0a1ce014656cd04427439f7850d7dbb004525d251234bd054c8d8abc1b16453e"
+  },
+  "sdocs-cells-controller.js": {
+    "source": "public/sdocs-cells-controller.js",
+    "sha256": "612e7571baec6e990ba446ed28ec8ad99140dafebf7b6d35245a1b572a0e03b2"
+  },
   "fonts/inter-400.woff2": {
     "source": "public/fonts/inter-400.woff2",
     "sha256": "dd05e326cf8eac3b55acecf29c842ed73e6e6dd06491cf47f7e8800680ab3e33"

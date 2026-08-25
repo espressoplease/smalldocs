@@ -26,6 +26,8 @@
   if (!S) return;
   var CELLS = window.SDocCells;
   if (!CELLS) return; // model must load first; fall through quietly otherwise
+  var CELLS_CONTROLLER = window.SDocCellsController;
+  if (!CELLS_CONTROLLER) return; // workbook controller must load before the view adapter
 
   // Fullscreen editing and Excel export are heavier, optional capabilities.
   // Keep the inline grid small, then load each feature on first use. Reuse this
@@ -151,6 +153,12 @@
   var MAX_CELLS = 5000;             // total painted cells (rows * cols)
   var MAX_COLS_FULL = 1000;         // fullscreen: room for the whole sheet
   var MAX_CELLS_FULL = 60000;       // fullscreen cap (true virtualization is later)
+  var cellsController = CELLS_CONTROLLER.createController({
+    cells: CELLS,
+    formula: window.SDocCellsFormula,
+    limits: { sourceCharacters: SOURCE_BYTE_CAP, blocks: DOC_BLOCK_CAP },
+  });
+  S.cellsController = cellsController;
 
   // ── Top toolbar ─────────────────────────────────────────
   // A permanent white bar above the grid (white so only the axis stays
@@ -937,73 +945,41 @@
     var scope = container || document.getElementById('_sd_rendered');
     if (!scope) return;
     var nodes = scope.querySelectorAll('code.language-cells');
-    var capped = Array.prototype.slice.call(nodes, 0, DOC_BLOCK_CAP);
-
-    // Pass 1: parse every block and bucket it by workbook id, preserving the
-    // order workbooks first appear in. Non-grid blocks (unresolved / error /
-    // empty) are handled inline and never become sheets. A block with no
-    // workbook id falls in the default workbook "" - so a doc that uses no
-    // "/" reads exactly as it did before workbooks existed.
-    var order = [];        // workbook ids, first-seen order
-    var byWb = {};         // workbook id -> [{ target, model, rawSrc, workbook }]
-    for (var i = 0; i < capped.length; i++) {
-      var codeEl = capped[i];
+    var inputs = Array.prototype.map.call(nodes, function (codeEl) {
       var pre = codeEl.closest('pre');
-      if (!pre) continue;
-      var target = pre.closest('.pre-wrapper') || pre;
-      var rawSrc = codeEl.textContent || '';
-      if (rawSrc.length > SOURCE_BYTE_CAP) {
-        renderError(target, 'Cells source exceeds ' + (SOURCE_BYTE_CAP / 1024) + ' KB cap');
-        continue;
-      }
-      var model;
-      try { model = CELLS.parseCells(rawSrc); }
-      catch (e) { renderError(target, (e && e.message) || 'Parse error'); continue; }
-      if (model.unresolved) { resolveReference(target, model.unresolved); continue; }
-      if (model.error) { renderError(target, model.error); continue; }
-      if (model.empty) { renderError(target, 'Empty cells block'); continue; }
-      var wbId = model.workbook != null ? String(model.workbook) : '';
-      if (!byWb[wbId]) { byWb[wbId] = []; order.push(wbId); }
-      byWb[wbId].push({ target: target, model: model, rawSrc: rawSrc, workbook: wbId });
-    }
-    if (!order.length) return;
+      return {
+        source: codeEl.textContent || '',
+        context: { target: pre && (pre.closest('.pre-wrapper') || pre) },
+        skip: !pre,
+      };
+    });
+    var plan = cellsController.plan(inputs);
 
-    // Pass 2: name + recalc each workbook in isolation. Auto Sheet1/Sheet2
-    // numbering and duplicate-name detection reset per workbook, so two
-    // workbooks may reuse a name without colliding. recalcWorkbook resolves
-    // cross-sheet references only within the array it is handed, so a Sheet!A1
-    // reference into another workbook reads #REF! - the isolation is total.
-    // S.cellsWorkbook keeps every sheet, tagged with its workbook id, so the
-    // fullscreen overlay and post-edit repaints can filter back to a sheet's
-    // own workbook (see cellsWorkbookFx / entriesFor).
-    var FX = window.SDocCellsFormula;
-    var all = [];
-    var fxByWb = {};
-    for (var o = 0; o < order.length; o++) {
-      var wid = order[o];
-      var entries = byWb[wid];
-      var autoIdx = 0, seenNames = {};
-      for (var e = 0; e < entries.length; e++) {
-        var en = entries[e];
-        var explicit = en.model.name && String(en.model.name).trim();
-        var sheetName = explicit ? String(en.model.name).trim() : 'Sheet' + (++autoIdx);
-        var key = sheetName.toLowerCase();
-        en.name = sheetName;
-        en.duplicate = !!seenNames[key];
-        seenNames[key] = true;
-        all.push(en);
+    // The controller is view-free. This adapter handles the three outcomes
+    // that need production DOM work, then adds the legacy view fields used by
+    // fullscreen, download, and editing code while those components migrate.
+    for (var i = 0; i < plan.items.length; i++) {
+      var item = plan.items[i];
+      var target = item.context && item.context.target;
+      if (!target) continue;
+      if (item.kind === 'error') renderError(target, item.message);
+      else if (item.kind === 'reference') resolveReference(target, item.reference);
+      else if (item.kind === 'sheet') {
+        item.target = target;
+        item.rawSrc = item.source;
       }
-      fxByWb[wid] = FX ? FX.recalcWorkbook(workbookSheets(entries)) : [];
     }
-    S.cellsWorkbook = all;   // entries: { target, model, rawSrc, name, duplicate, workbook, wrapper }
+    S.cellsWorkbook = plan.entries;
+    if (!plan.groups.length) return;
 
-    // Pass 3: render each workbook. With `cells-tabs: tabbed` a workbook of
+    // Render each workbook. With `cells-tabs: tabbed` a workbook of
     // more than one sheet collapses into its own inline tab strip, placed
     // where that workbook's first block sat; otherwise sheets render stacked
     // in place. Two tabbed workbooks therefore become two independent panes.
-    for (var o2 = 0; o2 < order.length; o2++) {
-      var gsheets = byWb[order[o2]];
-      var gfx = fxByWb[order[o2]];
+    for (var o = 0; o < plan.groups.length; o++) {
+      var group = plan.groups[o];
+      var gsheets = group.entries;
+      var gfx = group.fx;
       var multi = gsheets.length > 1;
       if (multi && isTabbedDoc()) { mountTabbedPane(gsheets, gfx); continue; }
       for (var k = 0; k < gsheets.length; k++) {
@@ -1098,12 +1074,6 @@
     show(0);
   }
 
-  // The {name, model} pairs recalcWorkbook expects, projected from the richer
-  // workbook entries (which also carry target / wrapper / rawSrc).
-  function workbookSheets(entries) {
-    return entries.map(function (s) { return { name: s.name, model: s.model }; });
-  }
-
   // Recompute the whole workbook and return THIS model's result grid, found by
   // object identity in the registered workbook. Used by the fullscreen view and
   // post-edit repaints so a cross-tab reference resolves against the live state
@@ -1111,19 +1081,7 @@
   // when the model is not part of a registered workbook (a standalone grid), so
   // the caller falls back to a single-sheet recalc.
   function cellsWorkbookFx(model) {
-    var FX = window.SDocCellsFormula;
-    var wb = S.cellsWorkbook;
-    if (!FX || !wb || !wb.length) return null;
-    var entry = null;
-    for (var i = 0; i < wb.length; i++) { if (wb[i].model === model) { entry = wb[i]; break; } }
-    if (!entry) return null;
-    // Recompute only the model's own workbook, so a cross-workbook reference
-    // resolves to #REF! rather than leaking a value from a neighbour.
-    var wid = entry.workbook || '';
-    var slice = wb.filter(function (s) { return (s.workbook || '') === wid; });
-    var idx = slice.indexOf(entry);
-    if (idx < 0) return null;
-    return FX.recalcWorkbook(workbookSheets(slice))[idx] || null;
+    return cellsController.recalculateFor(model);
   }
   S.cellsWorkbookFx = cellsWorkbookFx;
 
@@ -1133,18 +1091,9 @@
   // workbook). Callers use sheets.length > 1 to decide between a one-sheet and
   // a whole-workbook .xlsx export so cross-sheet formulas always resolve.
   function cellsWorkbookGroupFor(model) {
-    var wb = S.cellsWorkbook;
-    if (!wb || !wb.length) return null;
-    var entry = null;
-    for (var i = 0; i < wb.length; i++) { if (wb[i].model === model) { entry = wb[i]; break; } }
-    if (!entry) return null;
-    var wid = entry.workbook || '';
-    var sheets = wb.filter(function (s) { return (s.workbook || '') === wid; })
-      .map(function (s) {
-        var eff = (s.wrapper && s.wrapper._cellsSource) || s.model;
-        return { name: s.name, model: eff };
-      });
-    return { id: wid, sheets: sheets };
+    return cellsController.groupFor(model, function (entry) {
+      return (entry.wrapper && entry.wrapper._cellsSource) || entry.model;
+    });
   }
   S.cellsWorkbookGroupFor = cellsWorkbookGroupFor;
 
