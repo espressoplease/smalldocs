@@ -91,6 +91,40 @@ module.exports = {
       ],
     },
     {
+      name: 'inline-sort-hover',
+      label: 'Inline column sort preview on hover',
+      mode: 'inline',
+      beforeBySurface: {
+        production: [{ action: 'hover', within: 'inline', selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-colhead[data-c="1"]' }],
+        sdk: [{ action: 'hover', within: 'inline', selector: '.smalldocs-cells-panel:not([hidden]) th:nth-child(3)' }],
+      },
+      probes: {
+        hoveredColumn: '.sdoc-cells-colhead[data-c="1"]:hover',
+        sortPreview: '.sdoc-cells-colhead[data-c="1"]:hover .sdoc-cells-sort-next',
+      },
+      contracts: [
+        { selector: '.sdoc-cells-colhead[data-c="1"]:hover', count: 1, hovered: true, message: 'One canonical column header owns the pointer state' },
+        { selector: '.sdoc-cells-colhead[data-c="1"]:hover .sdoc-cells-sort-next', count: 1, visible: true, message: 'Hover reveals the next canonical sort action' },
+      ],
+    },
+    {
+      name: 'inline-grid-keyboard-focus',
+      label: 'Inline grid reached through keyboard navigation',
+      mode: 'inline',
+      beforeBySurface: {
+        production: [{ action: 'focus', via: 'keyboard', within: 'inline', selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-grid' }],
+        sdk: [{ action: 'focus', within: 'inline', selector: '.smalldocs-cells-panel:not([hidden]) td[data-address="A1"]' }],
+      },
+      probes: {
+        focusedGrid: '.sdoc-cells-grid:focus-visible',
+        activeCell: '.sdoc-cells-cell.is-active',
+      },
+      contracts: [
+        { selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-grid', count: 1, focused: true, focusVisible: true, message: 'The canonical grid is keyboard focusable' },
+        { selector: '.sdoc-cells-cell.is-active[data-r="0"][data-c="0"]', count: 1, message: 'Tabbing into a grid selects A1' },
+      ],
+    },
+    {
       name: 'inline-single-selection',
       label: 'Inline selected formula cell',
       mode: 'inline',
