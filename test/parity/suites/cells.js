@@ -113,7 +113,7 @@ module.exports = {
       mode: 'inline',
       beforeBySurface: {
         production: [{ action: 'focus', via: 'keyboard', within: 'inline', selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-grid' }],
-        sdk: [],
+        sdk: [{ action: 'focus', via: 'keyboard', within: 'inline', selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-grid' }],
       },
       probes: {
         focusedGrid: '.sdoc-cells-grid:focus-visible',
@@ -130,7 +130,7 @@ module.exports = {
       mode: 'inline',
       beforeBySurface: {
         production: [{ action: 'click', within: 'inline', selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-cell[data-r="1"][data-c="1"]' }],
-        sdk: [],
+        sdk: [{ action: 'click', within: 'inline', selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-cell[data-r="1"][data-c="1"]' }],
       },
       probes: {
         selectedCell: '.sdoc-cells-cell.is-active',
@@ -152,7 +152,11 @@ module.exports = {
           selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-cell[data-r="1"][data-c="0"]',
           to: { selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-cell[data-r="3"][data-c="1"]' },
         }],
-        sdk: [],
+        sdk: [{
+          action: 'drag', within: 'inline',
+          selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-cell[data-r="1"][data-c="0"]',
+          to: { selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-cell[data-r="3"][data-c="1"]' },
+        }],
       },
       probes: {
         range: '.sdoc-cells-cell.in-range',
