@@ -24,6 +24,13 @@
 
 var S = SDocs;
 
+if (window.SDocCodeFocus && window.SDocCodeFocus.create) {
+  S.codeFocus = window.SDocCodeFocus.create(S, {
+    root: function () { return S.renderedEl; },
+    comments: true
+  });
+}
+
 // ── SVG icons ──────────────────────────────────
 
 var LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
@@ -585,134 +592,31 @@ function attachBlockquoteCopyButtons(container) {
   });
 }
 
+var codeReaderControls = null;
 function attachCodeCopyButtons(container) {
-  // Agent annotations are line-numbered and not block-tagged, so the indicator
-  // goes on the first code block (the common single-file case has exactly one).
-  // In a walkthrough each block carries data-file, so the indicator instead goes
-  // on every file block, scoped to that file's own annotations.
-  var agentShown = false;
-  var agentTotal = agentAnnotationCount();
-  var isWalk = !!(window.SDocCodewalk && window.SDocCodewalk.isCodewalk(SDocs.currentMeta));
-  container.querySelectorAll('pre').forEach(function(pre, idx) {
-    var wrapper = document.createElement('div');
-    wrapper.className = 'pre-wrapper';
-    pre.parentNode.insertBefore(wrapper, pre);
-    wrapper.appendChild(pre);
-
-    // All corner buttons live in one flex cluster so they always pack together
-    // with no gaps, whatever subset is present (e.g. when the wrap toggle hides).
-    var tools = document.createElement('div');
-    tools.className = 'pre-tools';
-    wrapper.appendChild(tools);
-
-    // Wrap toggle — only visible when the <pre> overflows horizontally,
-    // or when the user has already turned wrapping on.
-    var wrapBtn = document.createElement('button');
-    wrapBtn.className = 'wrap-btn';
-    wrapBtn.innerHTML = WRAP_SVG;
-    wrapBtn.title = 'Toggle text wrap';
-    wrapBtn.addEventListener('click', function() {
-      pre.classList.toggle('wrapped');
-      wrapBtn.classList.toggle('active', pre.classList.contains('wrapped'));
-      refreshWrapButton(pre, wrapBtn);
-    });
-    tools.appendChild(wrapBtn);
-
-    var btn = document.createElement('button');
-    btn.className = 'copy-btn';
-    btn.innerHTML = COPY_SVG;
-    btn.title = 'Copy code';
-    btn.addEventListener('click', function() {
-      var code = pre.querySelector('code');
-      navigator.clipboard.writeText(code ? code.textContent : pre.textContent).then(function() {
-        btn.innerHTML = CHECK_SVG;
-        setTimeout(function() { btn.innerHTML = COPY_SVG; }, COPY_FEEDBACK_MS);
-      });
-    });
-    tools.appendChild(btn);
-
-    // Expand-to-fullscreen, mirroring diagrams / sheets. Skip blocks claimed
-    // by another renderer (chart / mermaid / cells ...): those <pre>s are about
-    // to be replaced by their widget, which carries its own expand affordance.
-    var codeEl = pre.querySelector('code');
-    var lang = codeEl ? langClassOf(codeEl) : '';
-    if (S.codeFocus && !CODE_FILE_RESERVED[lang]) {
-      var expandBtn = document.createElement('button');
-      expandBtn.className = 'expand-btn';
-      expandBtn.innerHTML = EXPAND_SVG;
-      expandBtn.title = 'Open in fullscreen';
-      expandBtn.setAttribute('aria-label', 'Open code in fullscreen');
-      expandBtn.addEventListener('click', function() { S.codeFocus.open(pre, { comment: document.body.classList.contains('comment-mode') }); });
-      tools.appendChild(expandBtn);
-
-      // Indicator: this block carries code-viewer comments, which are read and
-      // edited in the fullscreen view. Surface a dot here so they are findable
-      // from the reader; clicking opens the viewer straight into comment mode.
-      // The icon is the standard colour; only the dot carries the comment colour.
-      var noteCount = codeCommentCountFor('pre:' + idx);
-      if (noteCount > 0) {
-        var commentBtn = document.createElement('button');
-        commentBtn.className = 'code-comment-btn';
-        commentBtn.innerHTML = COMMENT_SVG;
-        commentBtn.title = noteCount + (noteCount === 1 ? ' comment' : ' comments');
-        commentBtn.setAttribute('aria-label', commentBtn.title);
-        var dot = codeCommentColorFor('pre:' + idx);
-        if (dot) commentBtn.style.setProperty('--dot', dot);
-        commentBtn.addEventListener('click', function() { S.codeFocus.open(pre, { comment: true }); });
-        tools.appendChild(commentBtn);
+  if (!window.SDocCodeReader || !window.SDocCodeReader.create) return;
+  if (!codeReaderControls) {
+    codeReaderControls = window.SDocCodeReader.create({
+      root: function () { return S.renderedEl; },
+      focus: function () { return S.codeFocus; },
+      comments: true,
+      annotations: true,
+      isCommentMode: function () { return document.body.classList.contains('comment-mode'); },
+      codeCommentCount: codeCommentCountFor,
+      codeCommentColor: codeCommentColorFor,
+      agentAnnotationCount: agentAnnotationCount,
+      agentAnnotationCountFor: agentAnnotationCountFor,
+      isWalkthrough: function () {
+        return !!(window.SDocCodewalk && window.SDocCodewalk.isCodewalk(S.currentMeta));
       }
-
-      // Indicator: this block carries agent comments (read-only annotations).
-      // Same glyph as user comments; the dot is the agent (periwinkle) colour.
-      // Walkthrough: one per file block, scoped + opens the tour. Single file:
-      // the whole-doc total, once, on the first block.
-      var walkFile = isWalk ? pre.getAttribute('data-file') : '';
-      var agentHere = isWalk ? (walkFile ? agentAnnotationCountFor(walkFile) : 0) : agentTotal;
-      if (agentHere > 0 && (isWalk || !agentShown)) {
-        agentShown = true;
-        var agentBtn = document.createElement('button');
-        agentBtn.className = 'agent-comment-btn';
-        agentBtn.innerHTML = AGENT_SVG;
-        agentBtn.title = agentHere + (agentHere === 1 ? ' agent comment' : ' agent comments');
-        agentBtn.setAttribute('aria-label', agentBtn.title);
-        agentBtn.style.setProperty('--dot', '#7c84d8');
-        agentBtn.addEventListener('click', function() {
-          if (isWalk && S.codeFocus.openWalkthrough) S.codeFocus.openWalkthrough();
-          else S.codeFocus.open(pre);
-        });
-        tools.appendChild(agentBtn);
-      }
-    }
-
-    refreshWrapButton(pre, wrapBtn);
-  });
+    });
+  }
+  codeReaderControls.attach(container);
 }
-
-// Pull the language token off a <code class="language-xxx"> element.
-function langClassOf(codeEl) {
-  var m = (codeEl.className || '').match(/(?:^|\s)language-([\w+#-]+)/i);
-  return m ? m[1].toLowerCase() : '';
-}
-
-function refreshWrapButton(pre, btn) {
-  if (pre.classList.contains('wrapped')) { btn.style.display = ''; return; }
-  btn.style.display = (pre.scrollWidth > pre.clientWidth + 1) ? '' : 'none';
-}
-
-// One window-level listener: re-evaluate wrap-button visibility on resize.
-// scrollWidth depends on container width, so blocks can move in/out of
-// overflow as the viewport changes.
-window.addEventListener('resize', function () {
-  S.renderedEl && S.renderedEl.querySelectorAll('.pre-wrapper').forEach(function (w) {
-    var pre = w.querySelector(':scope > pre');
-    var btn = w.querySelector(':scope > .wrap-btn');
-    if (pre && btn) refreshWrapButton(pre, btn);
-  });
-});
 
 // Block types owned by other renderers - a doc that is only one of these is
 // NOT a code file (e.g. `sdoc graph.mmd` is a single ```mermaid block).
-var CODE_FILE_RESERVED = { chart: 1, mermaid: 1, cells: 1, form: 1, math: 1, slide: 1, slides: 1 };
+var CODE_FILE_RESERVED = window.SDocCodeReader ? window.SDocCodeReader.RESERVED : { chart: 1, mermaid: 1, cells: 1, form: 1, math: 1, slide: 1, slides: 1 };
 
 // When the ENTIRE document is a single fenced code block - i.e. an opened
 // source file (`sdoc app.rb`) rather than prose with a snippet in it - return

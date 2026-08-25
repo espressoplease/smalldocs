@@ -1,15 +1,12 @@
 import { ensureCoreAssets } from './assets.js';
-import { closeActiveOverlay, openOverlay } from './overlay.js';
-import { downloadText, safeFilename } from './download.js';
+import { closeActiveOverlay } from './overlay.js';
 import { createRenderer as createMarkedRenderer, parseMarkdown, sanitizeHTML, setKnownHTML } from './runtime.js';
 
 const RESERVED_LANGUAGES = new Set([
-  'chart', 'mermaid', 'cells', 'slide', 'slides', 'video', 'form', 'sdoc-app',
+  'chart', 'mermaid', 'cells', 'slide', 'slides', 'video', 'form', 'math', 'sdoc-app',
 ]);
 
 const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-const EXPAND_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>';
-const DOWNLOAD_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>';
 const LINK_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
 const CHEVRON_ICON = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 2l4 3-4 3"/></svg>';
 
@@ -311,73 +308,6 @@ function codeLanguage(code) {
   return match ? match[1].toLowerCase() : '';
 }
 
-function codeExtension(language) {
-  const extensions = {
-    javascript: 'js',
-    typescript: 'ts',
-    shell: 'sh',
-    bash: 'sh',
-    plaintext: 'txt',
-    text: 'txt',
-  };
-  return extensions[language] || language || 'txt';
-}
-
-function decorateCode(context) {
-  context.root.querySelectorAll('pre').forEach((pre, index) => {
-    if (pre.closest('.smalldocs-code-wrap')) return;
-    const code = pre.querySelector(':scope > code');
-    if (!code) return;
-    const language = codeLanguage(code);
-    if (RESERVED_LANGUAGES.has(language)) return;
-    const source = code.textContent;
-    const wrap = document.createElement('div');
-    wrap.className = 'smalldocs-code-wrap pre-wrapper';
-    const tools = document.createElement('div');
-    tools.className = 'smalldocs-code-tools';
-    pre.parentNode.insertBefore(wrap, pre);
-    wrap.append(pre, tools);
-
-    if (context.options.controls.copy) {
-      const copy = iconButton('smalldocs-code-copy', 'Copy code', COPY_ICON);
-      copy.addEventListener('click', () => copyText(source, copy));
-      tools.appendChild(copy);
-    }
-    if (context.options.controls.fullscreen) {
-      const expand = iconButton('smalldocs-code-expand', 'Open code in fullscreen', EXPAND_ICON);
-      expand.addEventListener('click', () => {
-        const overlay = openOverlay(context, {
-          label: 'Code viewer',
-          title: language ? language.toUpperCase() + ' code' : 'Code',
-          actions(actions) {
-            if (!context.options.controls.download) return;
-            const download = iconButton('smalldocs-code-download', 'Download code', DOWNLOAD_ICON);
-            download.addEventListener('click', () => downloadText(
-              source,
-              safeFilename(context.meta.title || 'small-doc-code-' + (index + 1), 'small-doc-code')
-                + '.' + codeExtension(language)
-            ));
-            actions.appendChild(download);
-          },
-        });
-        const clone = pre.cloneNode(true);
-        clone.classList.add('smalldocs-code-focus');
-        overlay.stage.appendChild(clone);
-      });
-      tools.appendChild(expand);
-    }
-    if (context.options.controls.download) {
-      const download = iconButton('smalldocs-code-download', 'Download code', DOWNLOAD_ICON);
-      download.addEventListener('click', () => downloadText(
-        source,
-        safeFilename(context.meta.title || 'small-doc-code-' + (index + 1), 'small-doc-code')
-          + '.' + codeExtension(language)
-      ));
-      tools.appendChild(download);
-    }
-  });
-}
-
 function decorateBlockquotes(context) {
   if (!context.options.controls.copy) return;
   context.root.querySelectorAll('blockquote').forEach((quote) => {
@@ -389,6 +319,7 @@ function decorateBlockquotes(context) {
 }
 
 const featureDefinitions = [
+  { name: 'code', detect: (root) => Array.from(root.querySelectorAll('pre code')).some((code) => !RESERVED_LANGUAGES.has(codeLanguage(code))) },
   { name: 'math', detect: (root) => root.querySelector('.sdocs-math-display, .sdocs-math-inline') },
   { name: 'video', detect: (root) => root.querySelector('code.language-video') },
   { name: 'charts', detect: (root) => root.querySelector('code.language-chart') },
@@ -476,7 +407,7 @@ async function updateContext(context, markdown) {
   navigation.className = 'smalldocs-navigation';
   navigation.setAttribute('aria-label', 'Document navigation');
   const root = document.createElement('article');
-  root.className = 'smalldocs-document';
+  root.className = 'smalldocs-document sdoc-reader';
   root.dataset.smalldocsInstance = context.id;
   root.innerHTML = parsed.html;
   const state = {
@@ -505,7 +436,6 @@ async function updateContext(context, markdown) {
   buildNavigation(state);
   await mountFeatures(state);
   if (state.signal.aborted || context.active !== state || generation !== context.generation) throw abortError();
-  decorateCode(state);
   state.root.dispatchEvent(new CustomEvent('smalldocs:rendered', {
     bubbles: true,
     detail: { instanceId: state.id, features: state.features.slice() },

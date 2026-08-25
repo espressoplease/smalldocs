@@ -45,7 +45,7 @@ const activeNext = '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn[data-cw="next"
 const activePrev = '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn[data-cw="prev"]';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs');
   await page.waitForFunction(() =>
     window.SDocs && window.SDocs.codeFocus && window.SDocs.codeFocus.openWalkthrough && window.SDocs.render);
 });

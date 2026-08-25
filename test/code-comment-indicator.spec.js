@@ -22,7 +22,7 @@ async function renderDoc(page, body, meta) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs');
   await page.waitForFunction(() => window.SDocs && window.SDocs.render && window.SDocs.codeFocus);
 });
 

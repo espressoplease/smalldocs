@@ -1,0 +1,54 @@
+{
+  "sdocs-code-reader.js": {
+    "source": "public/sdocs-code-reader.js",
+    "sha256": "d91ee4c30facdf149f8c42e94536281455ed86e533930e32716951c8d84109f6"
+  },
+  "sdocs-code-focus.js": {
+    "source": "public/sdocs-code-focus.js",
+    "sha256": "5f15ba05f529db0b0d2fb7cf63913c9577d1596db3cd41c18d44f73b7a9a256d"
+  },
+  "sdocs-code-reader.css": {
+    "source": "public/css/code-reader.css",
+    "sha256": "3e76675d3230fe8ec55a4ed65c24e43038fae37a274039c37812e3559d010b10"
+  },
+  "sdocs-code-lang/csharp.js": {
+    "source": "public/sdocs-code-lang/csharp.js",
+    "sha256": "1e52d89de098e557e99681fe94c81ab95a43f6c384360ec3f183609fe12a38eb"
+  },
+  "sdocs-code-lang/elixir.js": {
+    "source": "public/sdocs-code-lang/elixir.js",
+    "sha256": "1426b561efb018325cad179aaf2d42fe2987d2ce0f0700caa91d4d4603b30c9c"
+  },
+  "sdocs-code-lang/go.js": {
+    "source": "public/sdocs-code-lang/go.js",
+    "sha256": "0435445860ea6fb603bb4cc838383e9585e98fda8d106abcfcfa279565301a72"
+  },
+  "sdocs-code-lang/java.js": {
+    "source": "public/sdocs-code-lang/java.js",
+    "sha256": "d3ba1e068a44f31caefecbdf8177237e7012b94a512fddbcded24118aac4df68"
+  },
+  "sdocs-code-lang/javascript.js": {
+    "source": "public/sdocs-code-lang/javascript.js",
+    "sha256": "897c6e023c99b43b53e2f0c4b54526c2b12a11dd6dbb2409799103bde3e69661"
+  },
+  "sdocs-code-lang/php.js": {
+    "source": "public/sdocs-code-lang/php.js",
+    "sha256": "8b4a55095841ffa79ae139cc02e9195b57bec6c3caa9e077a5dd9682d98039c4"
+  },
+  "sdocs-code-lang/python.js": {
+    "source": "public/sdocs-code-lang/python.js",
+    "sha256": "a88f25d81f4aec4c649b95a4c743206ae05591d6c4a241ee63ebc3ea8a97ddcb"
+  },
+  "sdocs-code-lang/ruby.js": {
+    "source": "public/sdocs-code-lang/ruby.js",
+    "sha256": "4cb78a324923eb45088914f2e794854d8b1a91c56294bf874b6ed418ab469395"
+  },
+  "sdocs-code-lang/rust.js": {
+    "source": "public/sdocs-code-lang/rust.js",
+    "sha256": "089846a91640b19f3de7f15e151d2c896e7ef3a46cf0b801163ac000a4ba060d"
+  },
+  "sdocs-code-lang/typescript.js": {
+    "source": "public/sdocs-code-lang/typescript.js",
+    "sha256": "69d60ca32fd6f221e5a18e4e6dd5bf4eb15fefa75a57c7a5a60a9a2477a88f5a"
+  }
+}

@@ -81,7 +81,7 @@ async function addNote(page, ln, text, grain) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs');
   await page.waitForFunction(() => window.SDocs && window.SDocs.codeFocus && window.SDocs.render);
 });
 

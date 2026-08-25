@@ -12,7 +12,7 @@ const { test, expect } = require('@playwright/test');
 const DOC = '```ruby\nclass A\n  def run\n    1\n  end\nend\n```\n';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs');
   await page.waitForFunction(() => window.SDocs && window.SDocs.codeFocus && window.SDocs.setMode);
   await page.evaluate((body) => {
     window.SDocs.currentBody = body;

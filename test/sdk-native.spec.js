@@ -93,6 +93,12 @@ document.body.dataset.ready = 'true';
 
 Inline math: $\\frac{x^2}{y+1}$
 
+~~~javascript
+export function trustedCode() {
+  return 42;
+}
+~~~
+
 ~~~mermaid
 flowchart LR
   A[Input] --> B[Result]
@@ -191,7 +197,94 @@ test('private sanitizer ignores host globals and works with Trusted Types enforc
   await expect(page.locator('.smalldocs-slide')).toHaveCount(1);
   await expect(page.locator('.sdoc-mermaid-error')).toHaveCount(0);
   await expect(page.locator('iframe')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open code in fullscreen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Code fullscreen view' })).toBeVisible();
+  await expect(page.locator('.sdoc-code-focus [data-act="comment"]')).toHaveCount(0);
+  await expect(page.locator('.sdoc-code-focus-lines')).toContainText('trustedCode');
+  await page.keyboard.press('Escape');
   expect(await page.evaluate(() => window.compromised)).toBeUndefined();
+});
+
+test('SDK code blocks use the canonical production controls and fullscreen viewer', async ({ page }) => {
+  const markdown = `# Code parity
+
+~~~javascript
+export function calculateForecast(revenue, margin) {
+  const result = revenue * margin;
+  return { result, explanation: 'A deliberately long source line that exercises the canonical overflow and wrapping control.' };
+}
+~~~`;
+
+  await page.goto(customerOrigin + '/plain');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.evaluate(source => window.view.update(source), markdown);
+  await expect(page.locator('.pre-wrapper .pre-tools')).toHaveCount(1);
+  await expect(page.locator('.smalldocs-code-tools, .smalldocs-code-download')).toHaveCount(0);
+
+  const sdkInline = await page.locator('.pre-wrapper').evaluate(wrapper => {
+    const pre = wrapper.querySelector(':scope > pre');
+    const button = wrapper.querySelector('.pre-tools button');
+    const preStyle = getComputedStyle(pre);
+    const buttonStyle = getComputedStyle(button);
+    return {
+      buttons: Array.from(wrapper.querySelectorAll('.pre-tools > button')).map(node => node.className),
+      pre: {
+        background: preStyle.backgroundColor,
+        color: preStyle.color,
+        paddingTop: preStyle.paddingTop,
+        borderRadius: preStyle.borderRadius,
+      },
+      button: {
+        color: buttonStyle.color,
+        padding: buttonStyle.padding,
+        borderRadius: buttonStyle.borderRadius,
+      },
+    };
+  });
+  expect(sdkInline.buttons).toEqual(['wrap-btn', 'copy-btn', 'expand-btn']);
+
+  await page.getByRole('button', { name: 'Open code in fullscreen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Code fullscreen view' })).toBeVisible();
+  const sdkActions = await page.locator('.sdoc-code-focus-topbar [data-act]').evaluateAll(nodes => nodes.map(node => node.dataset.act));
+  expect(sdkActions).toEqual(['wrap', 'foldall', 'copy', 'download', 'theme', 'close']);
+  await expect(page.locator('.sdoc-cl-num').first()).toHaveText('1');
+  await expect(page.locator('.sdoc-cl-fold')).not.toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  await page.goto(sdocsOrigin + '/docs');
+  await page.waitForFunction(() => window.SDocs && window.SDocs.codeFocus && window.SDocs.render);
+  await page.evaluate(source => {
+    window.SDocs.resetAllStyles();
+    window.SDocs.currentBody = source;
+    window.SDocs.currentMeta = {};
+    window.SDocs.render();
+  }, markdown);
+  const productionInline = await page.locator('#_sd_rendered .pre-wrapper').evaluate(wrapper => {
+    const pre = wrapper.querySelector(':scope > pre');
+    const button = wrapper.querySelector('.pre-tools button');
+    const preStyle = getComputedStyle(pre);
+    const buttonStyle = getComputedStyle(button);
+    return {
+      buttons: Array.from(wrapper.querySelectorAll('.pre-tools > button')).map(node => node.className),
+      pre: {
+        background: preStyle.backgroundColor,
+        color: preStyle.color,
+        paddingTop: preStyle.paddingTop,
+        borderRadius: preStyle.borderRadius,
+      },
+      button: {
+        color: buttonStyle.color,
+        padding: buttonStyle.padding,
+        borderRadius: buttonStyle.borderRadius,
+      },
+    };
+  });
+  expect(productionInline).toEqual(sdkInline);
+
+  await page.getByRole('button', { name: 'Open code in fullscreen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Code fullscreen view' })).toBeVisible();
+  const productionActions = await page.locator('.sdoc-code-focus-topbar [data-act]').evaluateAll(nodes => nodes.map(node => node.dataset.act));
+  expect(productionActions.filter(action => action !== 'comment')).toEqual(sdkActions);
 });
 
 test('a superseded slow rich update cannot mutate the next document', async ({ page }) => {
@@ -283,10 +376,11 @@ test('editorial customer controls styles, collapse behavior and sanitisation', a
 
   await page.evaluate(() => window.restoreEditorialDocument());
   await page.getByRole('button', { name: 'Toggle Model' }).click();
+  await page.getByRole('button', { name: 'Open code in fullscreen' }).click();
   const codeDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download code' }).click();
+  await page.getByRole('button', { name: 'Download file' }).click();
   const codeFile = await codeDownload;
-  expect(codeFile.suggestedFilename()).toMatch(/\.js$/);
+  expect(codeFile.suggestedFilename()).toBe('code.txt');
   expect((await downloadBytes(codeFile)).toString('utf8')).toContain('expectedValue');
 });
 

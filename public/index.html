@@ -33,6 +33,7 @@
 <link rel="stylesheet" href="/public/css/tokens.css">
 <link rel="stylesheet" href="/public/css/layout.css">
 <link rel="stylesheet" href="/public/css/rendered.css">
+<link rel="stylesheet" href="/public/css/code-reader.css">
 <link rel="stylesheet" href="/public/css/panel.css">
 <link rel="stylesheet" href="/public/css/write.css">
 <link rel="stylesheet" href="/public/css/comments.css">
@@ -200,7 +201,7 @@ __EMBED_STYLES__
         <div class="fic-rows"></div>
         <span class="fic-privacy-note" hidden>Local only rows aren't included in shared sdocs</span>
       </div>
-      <div id="_sd_rendered"></div>
+      <div id="_sd_rendered" class="sdoc-reader"></div>
       <div id="_sd_write" contenteditable="true" spellcheck="true"></div>
       <textarea id="_sd_raw" spellcheck="false"></textarea>
     </div>
@@ -1001,6 +1002,7 @@ __EMBED_STYLES__
 <script src="/public/sdocs-codewalk.js"></script>
 <script src="/public/sdocs-codewalk-ui.js"></script>
 <script src="/public/sdocs-code-comments.js"></script>
+<script src="/public/sdocs-code-reader.js"></script>
 <script src="/public/sdocs-code-focus.js"></script>
 <script src="/public/sdocs-shapes.js"></script>
 <script src="/public/sdocs-shape-render.js"></script>

@@ -314,4 +314,15 @@ module.exports = function(harness) {
     assert.ok(chartAccent > blocksStart && chartAccent < colorsEnd, 'chart accent should be inside Blocks sub-section');
     assert.ok(chartPalette > blocksStart && chartPalette < colorsEnd, 'chart palette should be inside Blocks sub-section');
   });
+
+  test('versioned SDK reader snapshot matches canonical production sources', () => {
+    const repo = path.join(__dirname, '..');
+    const manifestPath = path.join(repo, 'sdk', 'browser', 'native', 'vendor', 'reader-manifest.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    Object.keys(manifest).forEach((targetName) => {
+      const source = fs.readFileSync(path.join(repo, manifest[targetName].source));
+      const target = fs.readFileSync(path.join(repo, 'sdk', 'browser', 'native', 'vendor', targetName));
+      assert.deepStrictEqual(target, source, targetName + ' must be regenerated from its canonical source');
+    });
+  });
 };

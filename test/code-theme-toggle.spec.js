@@ -45,7 +45,7 @@ async function surfaceIsDark(page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/docs');
   await page.waitForFunction(() => window.SDocs && window.SDocs.codeFocus && window.SDocs.render);
   // Start each test from a clean, light document with no remembered viewer theme.
   await page.evaluate(() => {
