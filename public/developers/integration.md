@@ -89,7 +89,7 @@ The SDK creates a sandboxed iframe from `https://smalldocs.org` and sends the Ma
 
 The current integration does not upload the Markdown through an API request. JavaScript served by SmallDocs executes inside the frame and can access the displayed document in the browser. A self-hosted renderer is not currently offered.
 
-The frame accepts messages only from the declared host origin and a random per-instance channel. Pin the versioned module URL and treat its origin as third-party executable code.
+The SDK derives the host origin from the page's `location.origin`; there is no origin option to configure. The frame accepts messages only from that host origin and a random per-instance channel. Pin the versioned module URL and treat its origin as third-party executable code.
 
 For a host Content Security Policy, merge these sources into the existing policy:
 
