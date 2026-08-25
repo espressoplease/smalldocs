@@ -322,7 +322,18 @@ module.exports = function(harness) {
     Object.keys(manifest).forEach((targetName) => {
       const source = fs.readFileSync(path.join(repo, manifest[targetName].source));
       const target = fs.readFileSync(path.join(repo, 'sdk', 'browser', 'native', 'vendor', targetName));
-      assert.deepStrictEqual(target, source, targetName + ' must be regenerated from its canonical source');
+      if (!manifest[targetName].transform) {
+        assert.deepStrictEqual(target, source, targetName + ' must be regenerated from its canonical source');
+        return;
+      }
+      const crypto = require('crypto');
+      const hash = value => crypto.createHash('sha256').update(value).digest('hex');
+      assert.strictEqual(hash(source), manifest[targetName].sourceSha256,
+        targetName + ' canonical transform source has drifted');
+      assert.strictEqual(hash(target), manifest[targetName].sha256,
+        targetName + ' transformed SDK snapshot has drifted');
+      assert.ok(target.toString('utf8').startsWith('@layer smalldocs {\n@scope (.smalldocs-sdk-view) {\n'),
+        targetName + ' must remain layered and SDK-scoped');
     });
   });
 };

@@ -43,6 +43,16 @@
     "source": "public/sdocs-cells-controller.js",
     "sha256": "612e7571baec6e990ba446ed28ec8ad99140dafebf7b6d35245a1b572a0e03b2"
   },
+  "sdocs-cells-ui.js": {
+    "source": "public/sdocs-cells-ui.js",
+    "sha256": "3f3c6c936babaad55315d19d4dd1c56b8035ed4198c5e1b28e98c47a6b7786ac"
+  },
+  "sdocs-cells.css": {
+    "source": "public/css/cells.css",
+    "sha256": "e0de08726f363f6dc4ddb29c6c6784435a7a60b0c4032b1970dcba254aeec3d1",
+    "sourceSha256": "0da1cb31921ac016c5ec4e320a69b7abb8488c191f3ead8e1bf35cb381aad376",
+    "transform": "sdk-scoped-css"
+  },
   "fonts/inter-400.woff2": {
     "source": "public/fonts/inter-400.woff2",
     "sha256": "dd05e326cf8eac3b55acecf29c842ed73e6e6dd06491cf47f7e8800680ab3e33"

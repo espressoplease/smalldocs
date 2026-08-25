@@ -19,6 +19,8 @@ const files = [
   ['public/sdocs-cells-formula.js', 'sdocs-cells-formula.js'],
   ['public/sdocs-cells-xlsx.js', 'sdocs-cells-xlsx.js'],
   ['public/sdocs-cells-controller.js', 'sdocs-cells-controller.js'],
+  ['public/sdocs-cells-ui.js', 'sdocs-cells-ui.js'],
+  ['public/css/cells.css', 'sdocs-cells.css', 'sdk-scoped-css'],
   ['public/fonts/inter-400.woff2', 'fonts/inter-400.woff2'],
   ['public/fonts/inter-500.woff2', 'fonts/inter-500.woff2'],
   ['public/fonts/inter-600.woff2', 'fonts/inter-600.woff2'],
@@ -37,25 +39,41 @@ function digest(buffer) {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 }
 
-function different(source, target) {
+function transformContents(contents, transform) {
+  if (!transform) return contents;
+  if (transform === 'sdk-scoped-css') {
+    const css = contents.toString('utf8')
+      .replace(/body\.sdoc-cells-resizing/g, ':scope.sdoc-cells-resizing');
+    return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view) {\n'
+      + css + '\n}\n}\n');
+  }
+  throw new Error('Unknown SDK snapshot transform: ' + transform);
+}
+
+function different(contents, target) {
   if (!fs.existsSync(target)) return true;
-  return !fs.readFileSync(source).equals(fs.readFileSync(target));
+  return !contents.equals(fs.readFileSync(target));
 }
 
 const check = process.argv.includes('--check');
 const changed = [];
 const manifest = {};
 
-files.forEach(([sourceName, targetName]) => {
+files.forEach(([sourceName, targetName, transform]) => {
   const source = path.join(repo, sourceName);
   const target = path.join(output, targetName);
-  const contents = fs.readFileSync(source);
+  const sourceContents = fs.readFileSync(source);
+  const contents = transformContents(sourceContents, transform);
   manifest[targetName] = { source: sourceName, sha256: digest(contents) };
-  if (!different(source, target)) return;
+  if (transform) {
+    manifest[targetName].sourceSha256 = digest(sourceContents);
+    manifest[targetName].transform = transform;
+  }
+  if (!different(contents, target)) return;
   changed.push(targetName);
   if (check) return;
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.copyFileSync(source, target);
+  fs.writeFileSync(target, contents);
 });
 
 const manifestPath = path.join(output, 'reader-manifest.json');

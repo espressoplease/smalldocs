@@ -1,4 +1,7 @@
-export const capacityMarkdown = String.raw`# Summary
+export const capacityMarkdown = String.raw`---
+cells-tabs: tabbed
+---
+# Summary
 
 The capacity agent converts workflow telemetry into a compact operating view. The base case has room for another 22 weekly jobs before the current service target is at risk.
 

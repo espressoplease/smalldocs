@@ -76,6 +76,24 @@ document.body.dataset.ready = 'true';
 </script></body></html>`);
       return;
     }
+    if (requested === '/cells-isolation') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      const left = `---\ncells-tabs: tabbed\n---\n# Left\n\n~~~cells plan/Inputs\nMetric,Value\nUnits,12\nRate,25\n~~~\n\n~~~cells plan/Summary\nformat: B=$\nMetric,Value\nRevenue,=Inputs!B2*Inputs!B3\n~~~`;
+      const right = `# Right\n\n~~~cells plan/Inputs\nMetric,Value\nUnits,4\nRate,10\n~~~\n\n~~~cells plan/Summary\nMetric,Value\nRevenue,=Inputs!B2*Inputs!B3\n~~~`;
+      const update = `# Left updated\n\n~~~cells\nMetric,Value\nUnits,9\n~~~`;
+      res.end(`<!doctype html><html><head><style>#left{--sdocs-text-color:#123456;--sdocs-background:#fef3c7}#right .sdoc-cells-cell{color:#7c2d12;background:#dbeafe}</style></head><body><div id="outside" class="sdoc-cells-cell">Host content</div><div id="left"></div><div id="right"></div>
+<script>window.sdocsActiveResizeObservers=0;const NativeResizeObserver=window.ResizeObserver;window.ResizeObserver=class{constructor(callback){this.inner=new NativeResizeObserver(callback);this.active=true;window.sdocsActiveResizeObservers+=1}observe(target){this.inner.observe(target)}unobserve(target){this.inner.unobserve(target)}disconnect(){if(this.active){this.active=false;window.sdocsActiveResizeObservers-=1}this.inner.disconnect()}};</script>
+<script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+const [leftView, rightView] = await Promise.all([
+  render('#left', ${JSON.stringify(left)}), render('#right', ${JSON.stringify(right)})
+]);
+window.updateLeft = () => leftView.update(${JSON.stringify(update)});
+window.oversizeRight = () => rightView.update('# Oversized\\n\\n~~~cells\\n' + 'x'.repeat(256 * 1024 + 1) + '\\n~~~');
+window.destroyLeft = () => leftView.destroy();
+window.destroyRight = () => rightView.destroy();
+document.body.dataset.ready = 'true';</script></body></html>`);
+      return;
+    }
     if (requested === '/trusted-types') {
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
@@ -102,6 +120,11 @@ export function trustedCode() {
 ~~~mermaid
 flowchart LR
   A[Input] --> B[Result]
+~~~
+
+~~~cells trusted/Summary
+Metric,Value
+Result,=20+22
 ~~~
 
 ~~~~slide
@@ -176,6 +199,49 @@ test('plain Markdown does not request rich feature modules or CDN dependencies',
   expect(requests.some(url => url.startsWith('https://cdn.jsdelivr.net/'))).toBe(false);
 });
 
+test('canonical spreadsheet instances keep workbook state and lifecycle isolated', async ({ page }) => {
+  await page.goto(customerOrigin + '/cells-isolation');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.sdoc-cells-grid')).toHaveCount(4);
+  await expect(page.locator('.smalldocs-cells-table')).toHaveCount(0);
+  await expect(page.locator('#smalldocs-sdk-cells-styles')).toHaveCount(1);
+  await expect(page.locator('#left .sdoc-cells-cell').first()).toHaveCSS('color', 'rgb(18, 52, 86)');
+  await expect(page.locator('#left .sdoc-cells-cell').first()).toHaveCSS('background-color', 'rgb(254, 243, 199)');
+  await expect(page.locator('#right .sdoc-cells-cell').first()).toHaveCSS('color', 'rgb(124, 45, 18)');
+  await expect(page.locator('#right .sdoc-cells-cell').first()).toHaveCSS('background-color', 'rgb(219, 234, 254)');
+  await expect(page.locator('#outside')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(page.locator('#outside')).toHaveCSS('display', 'block');
+  const initialObservers = await page.evaluate(() => window.sdocsActiveResizeObservers);
+  expect(initialObservers).toBeGreaterThan(0);
+
+  const resizeHandle = page.locator('#left .sdoc-cells-resize').first();
+  await resizeHandle.hover();
+  await page.mouse.down();
+  await expect(page.locator('body')).not.toHaveClass(/sdoc-cells-resizing/);
+  await expect(page.locator('#left .smalldocs-sdk-view')).toHaveClass(/sdoc-cells-resizing/);
+  await page.mouse.up();
+
+  await page.locator('#left').getByRole('tab', { name: 'Summary' }).click();
+  await expect(page.locator('#left .sdoc-cells:visible .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('$300.00');
+  await expect(page.locator('#right .sdoc-cells').nth(1).locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('40');
+
+  await page.evaluate(() => window.updateLeft());
+  await expect(page.locator('#left h1')).toHaveText('Left updated');
+  await expect(page.locator('#left .sdoc-cells-grid')).toHaveCount(1);
+  await expect(page.locator('#right .sdoc-cells-grid')).toHaveCount(2);
+  await expect(page.locator('#right .sdoc-cells').nth(1).locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('40');
+  const afterUpdateObservers = await page.evaluate(() => window.sdocsActiveResizeObservers);
+  expect(afterUpdateObservers).toBeLessThan(initialObservers);
+
+  await page.evaluate(() => window.destroyLeft());
+  await expect(page.locator('#left .smalldocs-document')).toHaveCount(0);
+  await expect(page.locator('#right .sdoc-cells-grid')).toHaveCount(2);
+  expect(await page.evaluate(() => window.sdocsActiveResizeObservers)).toBeLessThan(afterUpdateObservers);
+
+  await page.evaluate(() => window.oversizeRight());
+  await expect(page.locator('#right .sdoc-cells-error')).toContainText('Cells source exceeds 256 KB cap');
+});
+
 test('private sanitizer ignores host globals and works with Trusted Types enforcement', async ({ page }) => {
   await page.goto(customerOrigin + '/host-globals');
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
@@ -194,6 +260,8 @@ test('private sanitizer ignores host globals and works with Trusted Types enforc
     return box.width > 0 && box.height > 0;
   })).toBe(true);
   await expect(page.locator('.smalldocs-mermaid-stage > svg')).toHaveCount(2);
+  await expect(page.locator('.sdoc-cells-grid')).toHaveCount(1);
+  await expect(page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('42');
   await expect(page.locator('.sdoc-slide')).toHaveCount(1);
   await expect(page.locator('.sdoc-mermaid-error')).toHaveCount(0);
   await expect(page.locator('iframe')).toHaveCount(0);
@@ -428,20 +496,17 @@ test('operations customer keeps two rich documents isolated', async ({ page }) =
   expect((await downloadBytes(diagramSvg)).toString('utf8')).toContain('<svg');
 
   await page.getByRole('tab', { name: 'Summary' }).click();
-  await expect(page.locator('#capacity-report .smalldocs-cells-panel:not([hidden])')).toContainText('3000');
-  await expect(page.locator('#capacity-report .smalldocs-cells-panel:not([hidden])')).toContainText('2550');
+  await expect(page.locator('#capacity-report .sdoc-cells-pane-body > .sdoc-cells:visible')).toContainText('$3,000');
+  await expect(page.locator('#capacity-report .sdoc-cells-pane-body > .sdoc-cells:visible')).toContainText('$2,550');
 
   const xlsxDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download spreadsheet XLSX' }).click();
+  await page.getByRole('button', { name: 'Download workbook (.xlsx)' }).first().click();
   const xlsx = await xlsxDownload;
   const xlsxBytes = await downloadBytes(xlsx);
   expect(xlsx.suggestedFilename()).toMatch(/\.xlsx$/);
   expect(xlsxBytes.subarray(0, 2).toString('ascii')).toBe('PK');
 
-  await page.getByRole('button', { name: 'Open spreadsheet in fullscreen' }).click();
-  await expect(page.getByRole('dialog', { name: 'Spreadsheet' })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.smalldocs-overlay')).toHaveCount(0);
+  await expect(page.locator('#capacity-report .sdoc-cells-expand')).toHaveCount(0);
 
   await page.evaluate(() => window.updateCapacityDocument());
   await expect(page.locator('#capacity-report h1')).toHaveText('Summary');
