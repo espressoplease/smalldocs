@@ -1,48 +1,50 @@
 # Browser API
 
-## `render(target, markdown)`
-
-Mount a SmallDocs document and return its view.
+## `render(target, markdown, options)`
 
 ```js
-const view = await render('#report', markdown);
+const view = await render('#report', markdown, {
+  navigation: true,
+  sections: { collapsible: true, defaultOpen: true },
+  controls: { copy: true, fullscreen: true, download: true },
+});
 ```
 
-`target` is a CSS selector or an `Element`. `markdown` is converted to a string. Rendering replaces the target's existing children.
+`target` is a selector or an `Element`. Rendering replaces its children with an instance-scoped SmallDocs reading surface. The promise resolves after required rich features settle.
 
-The returned promise rejects if the target does not exist, the host page is not HTTP or HTTPS, or the renderer cannot load.
+Every option is enabled unless its value is exactly `false`.
 
 ## `view.update(markdown)`
 
-Replace the content in the same renderer instance.
-
-```js
-await view.update(nextMarkdown);
-```
-
-The promise resolves after the replacement document is mounted. A newer update rejects an older unfinished update with an `AbortError`.
+Replace the content in the same instance. A newer update rejects an older unfinished update with an `AbortError`.
 
 ## `view.destroy()`
 
-Remove the frame and the host-side listener.
-
-```js
-view.destroy();
-```
-
-Destroy is idempotent. Update is unavailable after destruction.
+Remove the view, release feature instances, and close any fullscreen surface it owns. Destroy is idempotent.
 
 ## `view.element`
 
-The renderer iframe. Use this only for host layout or observation. Do not mutate the document inside the frame.
+The rendered `.smalldocs-document` article. Use it for layout, observation, or scoped CSS.
 
-Fullscreen tools temporarily apply viewport-filling layout to this element and lock host-page scrolling. Closing fullscreen restores its prior layout and host scroll position.
+## `view.features`
+
+An array of feature modules used by the current document, such as `math`, `mermaid`, `charts`, `cells`, or `slides`.
+
+## `smalldocs:rendered`
+
+After a successful render or update, the article dispatches a bubbling event with its instance ID and current feature list:
+
+```js
+document.querySelector('#report').addEventListener('smalldocs:rendered', event => {
+  console.log(event.detail.instanceId, event.detail.features);
+});
+```
 
 ## Module exports
 
 ```js
 import SmallDocs, { SmallDocs, render } from
-  'https://smalldocs.org/sdk/0.1.2/smalldocs.js';
+  'https://smalldocs.org/sdk/0.2.0/smalldocs.js';
 ```
 
 The named `render` function and `SmallDocs.render` are the same function.

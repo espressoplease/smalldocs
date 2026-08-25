@@ -55,8 +55,9 @@ test('developer documentation uses one SDK view to navigate Markdown pages', asy
   await page.goto(origin + '/developers');
 
   await expect(page.locator('.docs-topbar')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open SmallDocs', exact: true })).toHaveAttribute('href', '/');
-  await expect(page.getByRole('link', { name: 'Sample docs', exact: true })).toHaveAttribute('href', '/#learn');
+  await expect(page.getByRole('link', { name: 'SmallDocs', exact: true })).toHaveAttribute('href', '/');
+  await expect(page.locator('.topbar-actions')).toHaveCount(0);
+  await expect(page.getByText('Developer documentation', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Working example', exact: true }))
     .toHaveAttribute('href', '/developers/example');
   await expect(page.getByRole('link', { name: 'Render in your app', exact: true })).toHaveAttribute('aria-current', 'page');
@@ -67,41 +68,44 @@ test('developer documentation uses one SDK view to navigate Markdown pages', asy
   await expect(page.locator('#developer-document')).toHaveCSS('border-top-width', '0px');
   await expect(page.locator('#developer-document')).toHaveCSS('border-radius', '0px');
   expect(await page.evaluate(() => document.body.scrollWidth <= document.body.clientWidth)).toBe(true);
-  const frameElement = page.locator('#developer-document iframe.smalldocs-renderer');
-  await expect(frameElement).toHaveCount(1);
-  const initialFrameSrc = await frameElement.getAttribute('src');
-  const documentView = page.frameLocator('#developer-document iframe');
+  await expect(page.locator('#developer-document iframe.smalldocs-renderer')).toHaveCount(0);
+  const documentView = page.locator('#developer-renderer');
+  await expect(documentView.locator('.smalldocs-document')).toHaveCount(1);
+  const instanceId = await documentView.locator('.smalldocs-document').getAttribute('data-smalldocs-instance');
   await expect(documentView.getByRole('heading', { name: 'Put agent analysis inside your application' })).toBeVisible();
-  await expect(documentView.locator('#_sd_rendered')).toContainText('Quick start with your coding agent');
-  await expect(documentView.locator('#_sd_rendered')).toContainText('temporarily covers the browser viewport');
+  await expect(documentView).toContainText('Hand this to your coding agent');
+  await expect(documentView).toContainText('renders into the host DOM');
   await expect(page.locator('.loading-message')).toBeHidden();
   await expect(page.locator('#developer-document')).toHaveAttribute('aria-busy', 'false');
-  await expect(documentView.locator('#_sd_left-toolbar')).toBeHidden();
+  await expect(documentView.locator('.smalldocs-navigation')).toBeHidden();
 
-  await page.getByRole('link', { name: 'Author with an agent', exact: true }).click();
+  await documentView.getByRole('link', {
+    name: 'Teach the analysis agent to author SmallDocs Markdown',
+    exact: true,
+  }).click();
   await expect(page).toHaveURL(origin + '/developers/agents');
   await expect(page.getByRole('link', { name: 'Author with an agent', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(documentView.getByRole('heading', { name: 'Teach your agent to write SmallDocs' })).toBeVisible();
-  await expect(documentView.locator('#_sd_rendered')).toContainText('smalldocs-author');
-  await expect(frameElement).toHaveAttribute('src', initialFrameSrc);
+  await expect(documentView).toContainText('smalldocs-author');
+  await expect(documentView.locator('.smalldocs-document')).toHaveAttribute('data-smalldocs-instance', instanceId);
 
   await page.getByText('Authoring reference', { exact: true }).click();
   await expect(page.getByRole('link', { name: 'Slides', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Slides', exact: true }).click();
   await expect(page).toHaveURL(origin + '/developers/authoring/slides');
   await expect(documentView.getByRole('heading', { name: 'Slides' })).toBeVisible();
-  await expect(documentView.locator('#_sd_rendered')).toContainText(
+  await expect(documentView).toContainText(
     'Visual explanation is part of normal slide authoring'
   );
-  await expect(frameElement).toHaveAttribute('src', initialFrameSrc);
+  await expect(documentView.locator('.smalldocs-document')).toHaveAttribute('data-smalldocs-instance', instanceId);
 
   await expect(page.locator('.nav-children .nav-nested')).toHaveText('Custom shapes');
   await page.getByRole('link', { name: 'Custom shapes', exact: true }).click();
   await expect(page).toHaveURL(origin + '/developers/authoring/slide-shapes');
   await expect(documentView.getByRole('heading', { name: 'Custom slide shapes' })).toBeVisible();
-  await expect(documentView.locator('#_sd_rendered pre').filter({ hasText: 'chev x y w h' }))
+  await expect(documentView.locator('pre').filter({ hasText: 'chev x y w h' }))
     .toContainText('chev x y w h');
-  await expect(frameElement).toHaveCount(1);
+  await expect(documentView.locator('.smalldocs-document')).toHaveCount(1);
 });
 
 test('developer chrome reuses the reader toolbar and side-panel design', async ({ page, context }) => {
@@ -114,7 +118,6 @@ test('developer chrome reuses the reader toolbar and side-panel design', async (
   const developer = await page.evaluate(() => {
     const toolbar = document.querySelector('.docs-topbar');
     const sidebar = document.querySelector('.docs-sidebar');
-    const sidebarHeader = document.querySelector('.docs-sidebar-header');
     const style = element => getComputedStyle(element);
     return {
       toolbar: {
@@ -125,14 +128,9 @@ test('developer chrome reuses the reader toolbar and side-panel design', async (
         padding: style(toolbar).padding,
       },
       sidebar: {
+        y: sidebar.getBoundingClientRect().y,
         width: sidebar.getBoundingClientRect().width,
         background: style(sidebar).backgroundColor,
-      },
-      sidebarHeader: {
-        height: sidebarHeader.getBoundingClientRect().height,
-        background: style(sidebarHeader).backgroundColor,
-        color: style(sidebarHeader).color,
-        font: style(sidebarHeader).font,
       },
     };
   });
@@ -152,12 +150,6 @@ test('developer chrome reuses the reader toolbar and side-panel design', async (
         width: sidebar.getBoundingClientRect().width,
         background: style(sidebar).backgroundColor,
       },
-      sidebarHeader: {
-        height: sidebarHeader.getBoundingClientRect().height,
-        background: style(sidebarHeader).backgroundColor,
-        color: style(sidebarHeader).color,
-        font: style(sidebarHeader).font,
-      },
     };
   });
 
@@ -165,9 +157,10 @@ test('developer chrome reuses the reader toolbar and side-panel design', async (
   expect(developer.toolbar.background).toBe(standard.toolbar.background);
   expect(developer.toolbar.border).toBe(standard.toolbar.border);
   expect(developer.toolbar.padding).toBe(standard.toolbar.padding);
-  expect(developer.sidebar).toEqual(standard.sidebar);
-  expect(developer.sidebarHeader).toEqual(standard.sidebarHeader);
-  expect(developer.toolbar.x).toBe(developer.sidebar.width);
+  expect(developer.sidebar.width).toBe(standard.sidebar.width);
+  expect(developer.sidebar.background).toBe(standard.sidebar.background);
+  expect(developer.toolbar.x).toBe(0);
+  expect(developer.sidebar.y).toBe(developer.toolbar.height);
   await reader.close();
 });
 
@@ -176,10 +169,10 @@ test('customer example swaps a multi-format analysis through one SDK view', asyn
 
   await expect(page.getByRole('heading', { name: 'European market entry' })).toBeVisible();
   await expect(page.getByText('This example shows four agent-produced Markdown documents rendered inside an application.')).toBeVisible();
-  const frameElement = page.locator('#analysis-document iframe.smalldocs-renderer');
-  await expect(frameElement).toHaveCount(1);
-  const initialFrameSrc = await frameElement.getAttribute('src');
-  const documentView = page.frameLocator('#analysis-document iframe');
+  await expect(page.locator('#analysis-document iframe.smalldocs-renderer')).toHaveCount(0);
+  const documentView = page.locator('#analysis-document');
+  await expect(documentView.locator('.smalldocs-document')).toHaveCount(1);
+  const instanceId = await documentView.locator('.smalldocs-document').getAttribute('data-smalldocs-instance');
   await expect(documentView.getByRole('heading', { name: 'Project Meridian: executive summary' })).toBeVisible();
   await expect(page.locator('.analysis-surface')).toHaveAttribute('aria-busy', 'false');
 
@@ -187,27 +180,27 @@ test('customer example swaps a multi-format analysis through one SDK view', asyn
   await expect(documentView.getByRole('heading', { name: 'Project Meridian: briefing' })).toBeVisible();
   await expect(documentView.locator('.sdoc-slide')).toHaveCount(4);
   await expect(documentView.locator('.sdoc-slide-error')).toHaveCount(0);
-  await expect(frameElement).toHaveAttribute('src', initialFrameSrc);
-  const presentButton = documentView.getByRole('button', { name: 'Open slide 2 in presentation mode' });
+  await expect(documentView.locator('.smalldocs-document')).toHaveAttribute('data-smalldocs-instance', instanceId);
+  const presentButton = documentView.getByRole('button', { name: 'Present slides' }).nth(1);
   await presentButton.scrollIntoViewIfNeeded();
   const returnScrollY = await page.evaluate(() => window.scrollY);
   await presentButton.click();
-  await expect(frameElement).toHaveCSS('position', 'fixed');
+  await expect(page.getByRole('dialog', { name: 'Slide presentation' })).toBeVisible();
   await expect(page.locator('html')).toHaveCSS('overflow-y', 'hidden');
-  await documentView.getByRole('button', { name: 'Exit presentation (Esc)' }).click();
-  await expect(frameElement).toHaveCSS('position', 'static');
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(page.locator('.smalldocs-overlay')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(returnScrollY);
 
   await page.getByRole('button', { name: 'Financial model' }).click();
   await expect(documentView.getByRole('heading', { name: 'Project Meridian: pilot model' })).toBeVisible();
   await expect(documentView.locator('.sdoc-cells')).toHaveCount(1);
   await expect(documentView.locator('.sdoc-cells')).toContainText('Cumulative contribution');
-  await expect(frameElement).toHaveAttribute('src', initialFrameSrc);
+  await expect(documentView.locator('.smalldocs-document')).toHaveAttribute('data-smalldocs-instance', instanceId);
 
   await page.getByRole('button', { name: 'Market charts' }).click();
   await expect(documentView.getByRole('heading', { name: 'Project Meridian: market evidence' })).toBeVisible();
   await expect(documentView.locator('.sdoc-chart')).toHaveCount(2);
-  await expect(frameElement).toHaveAttribute('src', initialFrameSrc);
+  await expect(documentView.locator('.smalldocs-document')).toHaveAttribute('data-smalldocs-instance', instanceId);
   expect(await page.evaluate(() => document.body.scrollWidth <= document.body.clientWidth)).toBe(true);
 });
 
@@ -216,7 +209,7 @@ test('developer documentation uses a mobile menu without containing the document
   await page.goto(origin + '/developers');
 
   const sidebar = page.locator('#developer-sidebar');
-  await expect(page.frameLocator('#developer-document iframe').getByRole('heading', { name: 'Put agent analysis inside your application' })).toBeVisible();
+  await expect(page.locator('#developer-renderer').getByRole('heading', { name: 'Put agent analysis inside your application' })).toBeVisible();
   await expect(sidebar).not.toHaveClass(/open/);
   await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
   await page.getByRole('button', { name: 'Menu' }).click();

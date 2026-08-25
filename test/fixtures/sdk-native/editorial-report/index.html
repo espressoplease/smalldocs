@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Northstar Research</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="wordmark" href="#">Northstar Research</a>
+    <nav aria-label="Workspace">
+      <a href="#archive">Archive</a>
+      <a href="#methodology">Methodology</a>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <aside class="report-meta" aria-label="Report information">
+      <p class="eyebrow">Customer intelligence</p>
+      <h2 id="host-heading">Renewal study</h2>
+      <p>Agent analysis prepared for the product and finance teams.</p>
+      <button id="host-button" type="button">Refresh source data</button>
+      <table id="host-table">
+        <tbody>
+          <tr><th scope="row">Interviews</th><td>34</td></tr>
+          <tr><th scope="row">Period</th><td>Q2 2026</td></tr>
+        </tbody>
+      </table>
+    </aside>
+
+    <article class="report-card" aria-label="Agent report">
+      <div id="report" aria-live="polite"></div>
+    </article>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

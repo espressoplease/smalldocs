@@ -165,24 +165,26 @@ module.exports = function (harness) {
   test('agent index points to both SDK skills and the complete reference', () => {
     const index = fs.readFileSync(path.join(root, 'public', 'developers', 'llms.txt'), 'utf8');
     assert.ok(index.includes('/developers/llms-full.txt'));
-    assert.ok(index.includes('/sdk/0.1.2/smalldocs.js'));
+    assert.ok(index.includes('/sdk/0.2.0/smalldocs.js'));
     assert.ok(index.includes('/.well-known/agent-skills/smalldocs-renderer/SKILL.md'));
     assert.ok(index.includes('/.well-known/agent-skills/smalldocs-author/SKILL.md'));
     ['markdown', 'code', 'math', 'diagrams', 'charts', 'cells', 'slides', 'slide-shapes', 'video', 'styles']
       .forEach(slug => assert.ok(index.includes('/developers/authoring/' + slug + '.md')));
   });
 
-  test('renderer documentation describes SDK-owned fullscreen behavior', () => {
+  test('renderer documentation describes direct DOM styling and lifecycle', () => {
     const integration = fs.readFileSync(path.join(root, 'public', 'developers', 'integration.md'), 'utf8');
     const lifecycle = fs.readFileSync(path.join(root, 'public', 'developers', 'lifecycle.md'), 'utf8');
     const api = fs.readFileSync(
       path.join(root, '.agents', 'skills', 'smalldocs-renderer', 'references', 'api.md'),
       'utf8'
     );
-    [integration, lifecycle, api].forEach(document => {
-      assert.ok(document.includes('browser viewport'));
-      assert.ok(document.includes('scroll'));
-    });
+    assert.ok(integration.includes('renders into the host DOM'));
+    assert.ok(integration.includes('--sdocs-accent'));
+    assert.ok(integration.includes('sanitises the resulting HTML'));
+    assert.ok(lifecycle.includes('fullscreen ownership'));
+    assert.ok(api.includes('direct-DOM SmallDocs reading surface'));
+    assert.ok(api.includes('controls: { copy: true, fullscreen: true, download: true }'));
   });
 
   test('customer SDK example uses valid slides, charts, and computed cells', () => {

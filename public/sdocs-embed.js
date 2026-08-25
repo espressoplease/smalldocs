@@ -47,6 +47,19 @@
   }
   S.syncEmbedFocus = sendFocusState;
 
+  function relayDocumentLink(event) {
+    if (!event.isTrusted || event.defaultPrevented || event.button !== 0) return;
+    var target = event.target;
+    if (target && !target.closest) target = target.parentElement;
+    var link = target && target.closest ? target.closest('a[href]') : null;
+    var root = document.getElementById('_sd_rendered');
+    if (!link || !root || !root.contains(link) || link.hasAttribute('download')) return;
+    var href = link.getAttribute('href') || '';
+    if (!href || href.charAt(0) === '#') return;
+    event.preventDefault();
+    send('sdocs:navigate', { href: href });
+  }
+
   function afterLayout() {
     return new Promise(function (resolve) {
       requestAnimationFrame(function () {
@@ -101,10 +114,12 @@
 
   if (S._appReady) ready();
   else document.addEventListener('sdocs-app-ready', ready, { once: true });
+  document.addEventListener('click', relayDocumentLink);
 
   window.addEventListener('pagehide', function () {
     if (resizeObserver) resizeObserver.disconnect();
     if (focusObserver) focusObserver.disconnect();
+    document.removeEventListener('click', relayDocumentLink);
     cancelAnimationFrame(resizeFrame);
   }, { once: true });
 }());

@@ -1,0 +1,199 @@
+:root {
+  color-scheme: light;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #101828;
+  background: #e8ebf1;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(#cdd3df 1px, transparent 1px) 0 0 / 100% 28px,
+    #e8ebf1;
+}
+
+.topbar {
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 28px;
+  color: #ffffff;
+  background: #1646d8;
+  border-bottom: 7px solid #d9ff43;
+}
+
+.brand {
+  color: inherit;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  text-decoration: none;
+}
+
+.meeting-meta {
+  display: flex;
+  gap: 24px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.board-shell {
+  width: min(1320px, calc(100% - 36px));
+  margin: 34px auto 72px;
+}
+
+.briefing-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 18px;
+}
+
+.section-code {
+  display: inline-block;
+  margin: 0 0 9px;
+  padding: 5px 8px;
+  color: #101828;
+  background: #d9ff43;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+#host-heading {
+  margin: 0;
+  color: #101828;
+  font-size: clamp(42px, 8vw, 94px);
+  line-height: 0.82;
+  letter-spacing: -0.075em;
+  text-transform: uppercase;
+}
+
+#host-button {
+  padding: 12px 16px;
+  border: 2px solid #101828;
+  border-radius: 0;
+  color: #101828;
+  background: #ffffff;
+  box-shadow: 4px 4px 0 #101828;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+#host-table {
+  width: 100%;
+  margin: 24px 0;
+  border-collapse: collapse;
+  color: #101828;
+  background: #d9ff43;
+  font-size: 12px;
+}
+
+#host-table th,
+#host-table td {
+  padding: 10px 13px;
+  border: 2px solid #101828;
+  text-align: left;
+}
+
+#host-table th {
+  width: 12%;
+  text-transform: uppercase;
+}
+
+.briefing-frame {
+  padding: clamp(24px, 5vw, 66px);
+  background: #ffffff;
+  border: 2px solid #101828;
+  box-shadow: 10px 10px 0 #1646d8;
+}
+
+#briefing-report {
+  --sdocs-font-family: Arial, Helvetica, sans-serif;
+  --sdocs-text-color: #101828;
+  --sdocs-accent: #1646d8;
+  --sdocs-background: #ffffff;
+  --sdocs-code-background: #f1f4fa;
+  --sdocs-border-color: #101828;
+  --sdocs-max-width: 1180px;
+}
+
+#briefing-report .smalldocs-document {
+  margin: 0 auto;
+  color: #101828;
+  background: transparent;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+#briefing-report .smalldocs-document h1 {
+  color: #1646d8;
+  font-size: clamp(42px, 6vw, 74px);
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+  text-transform: uppercase;
+}
+
+#briefing-report .smalldocs-document h2 {
+  margin-top: 2.3em;
+  color: #101828;
+  font-size: clamp(28px, 3.5vw, 44px);
+  letter-spacing: -0.04em;
+}
+
+#briefing-report .smalldocs-document blockquote {
+  border: 2px solid #101828;
+  border-left: 10px solid #d9ff43;
+  color: #101828;
+  background: #ffffff;
+  box-shadow: 5px 5px 0 #1646d8;
+}
+
+#briefing-report .smalldocs-document table {
+  border: 2px solid #101828;
+  font-size: 13px;
+}
+
+#briefing-report .sdoc-slide,
+#briefing-report .sdoc-mermaid,
+#briefing-report .sdoc-chart {
+  border: 2px solid #101828;
+  border-radius: 0;
+  box-shadow: 8px 8px 0 #d9ff43;
+}
+
+#briefing-report .sdoc-chart { background: #f6f7fb; }
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 28px;
+  color: #657086;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .topbar { height: 54px; padding-inline: 14px; }
+  .meeting-meta span:first-child { display: none; }
+  .board-shell { width: min(100% - 20px, 680px); margin-top: 24px; }
+  .briefing-header { align-items: start; flex-direction: column; }
+  #host-button { width: 100%; }
+  #host-table th, #host-table td { display: block; width: 100%; }
+  #host-table th { border-bottom: 0; }
+  .briefing-frame { padding: 24px 14px; box-shadow: 6px 6px 0 #1646d8; }
+  #briefing-report .sdoc-slide,
+  #briefing-report .sdoc-chart { box-shadow: 4px 4px 0 #d9ff43; }
+  footer { padding-inline: 14px; flex-direction: column; }
+}

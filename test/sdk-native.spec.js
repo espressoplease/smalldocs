@@ -1,0 +1,429 @@
+// @ts-check
+const { test, expect } = require('@playwright/test');
+const http = require('http');
+const net = require('net');
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+
+let customerServer;
+let customerOrigin;
+let sdocsServer;
+let sdocsOrigin;
+
+function availablePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      server.close(() => resolve(address.port));
+    });
+  });
+}
+
+function contentType(filename) {
+  if (filename.endsWith('.html')) return 'text/html; charset=utf-8';
+  if (filename.endsWith('.js')) return 'application/javascript; charset=utf-8';
+  if (filename.endsWith('.css')) return 'text/css; charset=utf-8';
+  return 'text/plain; charset=utf-8';
+}
+
+async function downloadBytes(download) {
+  const stream = await download.createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}
+
+test.beforeAll(async () => {
+  const sdocsPort = await availablePort();
+  sdocsOrigin = 'http://127.0.0.1:' + sdocsPort;
+  sdocsServer = spawn('node', [path.join(__dirname, '..', 'server.js')], {
+    cwd: path.join(__dirname, '..'),
+    env: Object.assign({}, process.env, {
+      HOST: '127.0.0.1',
+      PORT: String(sdocsPort),
+      NODE_ENV: 'test',
+      ANALYTICS_ENABLED: '0',
+      CLOUD_PUBLIC_MODE: 'hidden',
+    }),
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  await new Promise((resolve, reject) => {
+    let output = '';
+    const timer = setTimeout(() => reject(new Error('SmallDocs test server did not start: ' + output)), 5000);
+    sdocsServer.once('error', reject);
+    sdocsServer.stdout.on('data', chunk => {
+      output += chunk.toString();
+      if (!output.includes('running at')) return;
+      clearTimeout(timer);
+      resolve();
+    });
+    sdocsServer.stderr.on('data', chunk => { output += chunk.toString(); });
+  });
+
+  const fixtureRoot = path.join(__dirname, 'fixtures', 'sdk-native');
+  customerServer = http.createServer((req, res) => {
+    const requested = decodeURIComponent((req.url || '/').split('?')[0]);
+    if (requested === '/plain') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(`<!doctype html>
+<html><body><div id="report"></div><script type="module">
+import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+window.view = await render('#report', '# Plain report\\n\\nThis document uses ordinary Markdown only.');
+document.body.dataset.ready = 'true';
+</script></body></html>`);
+      return;
+    }
+    if (requested === '/trusted-types') {
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Content-Security-Policy': `default-src 'self'; script-src 'self' ${sdocsOrigin} https://cdn.jsdelivr.net; style-src ${sdocsOrigin} https://cdn.jsdelivr.net 'unsafe-inline'; font-src https://cdn.jsdelivr.net; frame-src ${sdocsOrigin}; img-src https: data: blob:; trusted-types smalldocs-sdk-0.2.0 dompurify; require-trusted-types-for 'script'`,
+      });
+      res.end('<!doctype html><html><body><div id="report"></div><script type="module" src="/trusted-types.js"></script></body></html>');
+      return;
+    }
+    if (requested === '/trusted-types.js') {
+      res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
+      const trustedMarkdown = `# Trusted rich document
+
+<button id="probe" onclick="window.compromised=true">Safe</button><script>window.compromised=true</script>
+
+Inline math: $\\frac{x^2}{y+1}$
+
+~~~mermaid
+flowchart LR
+  A[Input] --> B[Result]
+~~~
+
+~~~~slide
+grid 16 9 bg=#ffffff
+r 0.8 0.8 6.6 2.2 fill=#eef2ff color=#111827 |
+  Nested math: $z^2$
+r 0.8 3.5 14.4 4.5 fill=#ffffff stroke=#cbd5e1 |
+  ~~~mermaid
+  flowchart LR
+    C[Question] --> D[Answer]
+  ~~~
+~~~~`;
+      res.end(`import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+await render('#report', ${JSON.stringify(trustedMarkdown)});
+document.body.dataset.ready = 'true';`);
+      return;
+    }
+    if (requested === '/host-globals') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(`<!doctype html><html><body><div id="report"></div>
+<script>window.DOMPurify={sanitize:value=>value,setConfig:()=>{}};window.marked={parse:value=>value};</script>
+<script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+await render('#report', '# Private runtime\\n\\n<button id="probe" onclick="window.compromised=true">Safe</button><script>window.compromised=true<\\/script>');
+document.body.dataset.ready = 'true';</script></body></html>`);
+      return;
+    }
+    const match = /^\/(editorial-report|operations-console|board-brief)(\/.*)?$/.exec(requested);
+    if (!match) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not Found');
+      return;
+    }
+    const relative = !match[2] || match[2] === '/' ? 'index.html' : match[2].slice(1);
+    const filename = path.resolve(fixtureRoot, match[1], relative);
+    if (!filename.startsWith(path.resolve(fixtureRoot, match[1]) + path.sep)) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      res.end('Forbidden');
+      return;
+    }
+    fs.readFile(filename, 'utf8', (error, source) => {
+      if (error) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': contentType(filename), 'Cache-Control': 'no-store' });
+      res.end(source.replaceAll('__SDOCS_ORIGIN__', sdocsOrigin));
+    });
+  });
+  await new Promise((resolve, reject) => {
+    customerServer.once('error', reject);
+    customerServer.listen(0, '127.0.0.1', resolve);
+  });
+  customerOrigin = 'http://127.0.0.1:' + customerServer.address().port;
+});
+
+test.afterAll(async () => {
+  if (customerServer) await new Promise(resolve => customerServer.close(resolve));
+  if (sdocsServer && sdocsServer.exitCode == null) {
+    sdocsServer.kill('SIGTERM');
+    await new Promise(resolve => sdocsServer.once('exit', resolve));
+  }
+});
+
+test('plain Markdown does not request rich feature modules or CDN dependencies', async ({ page }) => {
+  const requests = [];
+  page.on('request', request => requests.push(request.url()));
+  await page.goto(customerOrigin + '/plain');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.smalldocs-document')).toContainText('ordinary Markdown only');
+  expect(requests.some(url => url.includes('/sdk/0.2.0/features/'))).toBe(false);
+  expect(requests.some(url => url.startsWith('https://cdn.jsdelivr.net/'))).toBe(false);
+});
+
+test('private sanitizer ignores host globals and works with Trusted Types enforcement', async ({ page }) => {
+  await page.goto(customerOrigin + '/host-globals');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('[id$="probe"]')).not.toHaveAttribute('onclick');
+  expect(await page.evaluate(() => window.compromised)).toBeUndefined();
+
+  await page.goto(customerOrigin + '/trusted-types');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.smalldocs-document')).toContainText('Trusted rich document');
+  await expect(page.locator('[id$="probe"]')).not.toHaveAttribute('onclick');
+  await expect(page.locator('.katex')).toHaveCount(2);
+  await expect(page.locator('.katex .mfrac')).toHaveCount(1);
+  expect(await page.locator('.katex [style]').count()).toBeGreaterThan(0);
+  expect(await page.locator('.katex .mfrac').evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return box.width > 0 && box.height > 0;
+  })).toBe(true);
+  await expect(page.locator('.smalldocs-mermaid-stage > svg')).toHaveCount(2);
+  await expect(page.locator('.smalldocs-slide')).toHaveCount(1);
+  await expect(page.locator('.sdoc-mermaid-error')).toHaveCount(0);
+  await expect(page.locator('iframe')).toHaveCount(0);
+  expect(await page.evaluate(() => window.compromised)).toBeUndefined();
+});
+
+test('a superseded slow rich update cannot mutate the next document', async ({ page }) => {
+  test.setTimeout(30000);
+  let intercepted = 0;
+  await page.route('**/features/mermaid.js', async route => {
+    intercepted += 1;
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await route.continue();
+  });
+  await page.goto(customerOrigin + '/plain');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.evaluate(() => {
+    window.slowUpdate = window.view.update(`# Slow
+
+~~~mermaid
+flowchart LR
+ A --> B
+~~~`)
+      .then(() => 'resolved', error => error.name);
+    setTimeout(() => {
+      window.fastUpdate = window.view.update(`# Current
+
+The newer document wins.`)
+        .then(() => 'resolved', error => error.name);
+    }, 10);
+  });
+  await expect.poll(() => intercepted).toBe(1);
+  await expect.poll(() => page.evaluate(() => window.fastUpdate)).toBe('resolved');
+  await expect.poll(() => page.evaluate(() => window.slowUpdate)).toBe('AbortError');
+  await expect(page.locator('.smalldocs-document h1')).toHaveText('Current');
+  await expect(page.locator('.smalldocs-document')).toContainText('The newer document wins.');
+  await expect(page.locator('.smalldocs-mermaid')).toHaveCount(0);
+  expect(await page.evaluate(() => window.view.features)).toEqual([]);
+});
+
+test('sanitized IDs cannot impersonate SDK assets or browser globals', async ({ page }) => {
+  await page.goto(customerOrigin + '/plain');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.evaluate(() => window.view.update(`# Clobber check
+
+<div id="Chart"></div><div id="smalldocs-sdk-katex-css"></div>
+
+$x^2$
+
+~~~chart
+{"type":"bar","labels":["A"],"values":[1]}
+~~~`));
+  await expect(page.locator('[id="user-content-Chart"]')).toHaveCount(1);
+  await expect(page.locator('[id="user-content-smalldocs-sdk-katex-css"]')).toHaveCount(1);
+  await expect(page.locator('.katex')).toHaveCount(1);
+  await expect(page.locator('.smalldocs-chart canvas')).toHaveCount(1);
+
+  await page.evaluate(() => window.view.update(`# Video check
+
+~~~video
+https://www.youtube.com/watch?v=dQw4w9WgXcQ
+title: Product walkthrough
+start: 75
+~~~`));
+  const video = page.locator('.smalldocs-video iframe');
+  await expect(video).toHaveCount(1);
+  await expect(video).toHaveAttribute('src', /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?.*start=75/);
+  await expect(video).toHaveAttribute('title', 'Product walkthrough');
+});
+
+test('editorial customer controls styles, collapse behavior and sanitisation', async ({ page }) => {
+  test.setTimeout(60000);
+  await page.goto(customerOrigin + '/editorial-report/');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true', { timeout: 30000 });
+  await expect(page.locator('.smalldocs-document')).toHaveCount(1);
+  await expect(page.locator('iframe')).toHaveCount(0);
+  await expect(page.locator('#smalldocs-sdk-styles')).toHaveCount(1);
+  await expect(page.locator('.smalldocs-navigation')).toContainText('Evidence');
+  await expect(page.locator('.smalldocs-section-toggle').first()).toHaveAttribute('aria-expanded', 'false');
+  await page.locator('.smalldocs-section-toggle').first().click();
+  await expect(page.locator('.smalldocs-section-toggle').first()).toHaveAttribute('aria-expanded', 'true');
+
+  await expect(page.locator('#report .smalldocs-document h1')).toHaveCSS('color', 'rgb(119, 29, 41)');
+  await expect(page.locator('#report .smalldocs-document')).toHaveCSS('font-family', /Georgia/);
+  expect(await page.evaluate(() => JSON.stringify(window.hostProbeBefore) === JSON.stringify(window.hostProbeAfter))).toBe(true);
+
+  await page.evaluate(() => window.renderUnsafeFixture());
+  await expect(page.locator('#report h1')).toHaveText('Sanitisation check');
+  expect(await page.evaluate(() => window.hostCompromised)).toBeUndefined();
+  await expect(page.locator('#report script, #report iframe, #report style')).toHaveCount(0);
+  await expect(page.locator('[id$="unsafe-button"]')).not.toHaveAttribute('onclick');
+  await expect(page.locator('[id$="unsafe-link"]')).not.toHaveAttribute('href', /^javascript:/);
+
+  await page.evaluate(() => window.restoreEditorialDocument());
+  await page.getByRole('button', { name: 'Toggle Model' }).click();
+  const codeDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download code' }).click();
+  const codeFile = await codeDownload;
+  expect(codeFile.suggestedFilename()).toMatch(/\.js$/);
+  expect((await downloadBytes(codeFile)).toString('utf8')).toContain('expectedValue');
+});
+
+test('operations customer keeps two rich documents isolated', async ({ page }) => {
+  await page.goto(customerOrigin + '/operations-console/');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true', { timeout: 30000 });
+  await expect(page.locator('.smalldocs-document')).toHaveCount(2);
+  await expect(page.locator('iframe')).toHaveCount(0);
+  await expect(page.locator('#smalldocs-sdk-styles')).toHaveCount(1);
+  const ids = await page.locator('.smalldocs-document').evaluateAll(elements => elements.map(element => element.dataset.smalldocsInstance));
+  expect(new Set(ids).size).toBe(2);
+  const headingIds = await page.locator('.smalldocs-document h1').evaluateAll(elements => elements.map(element => element.id));
+  expect(new Set(headingIds).size).toBe(2);
+
+  await expect(page.locator('#capacity-report canvas')).toHaveCount(1);
+  await expect(page.locator('#risk-report .smalldocs-mermaid-stage > svg')).toHaveCount(1);
+  await expect(page.locator('#risk-report .katex')).not.toHaveCount(0);
+
+  const chartDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download chart PNG' }).first().click();
+  const chartPng = await chartDownload;
+  const chartBytes = await downloadBytes(chartPng);
+  expect(chartPng.suggestedFilename()).toMatch(/\.png$/);
+  expect(chartBytes.subarray(1, 4).toString('ascii')).toBe('PNG');
+
+  const diagramDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download diagram SVG' }).click();
+  const diagramSvg = await diagramDownload;
+  expect(diagramSvg.suggestedFilename()).toMatch(/\.svg$/);
+  expect((await downloadBytes(diagramSvg)).toString('utf8')).toContain('<svg');
+
+  await page.getByRole('tab', { name: 'Summary' }).click();
+  await expect(page.locator('#capacity-report .smalldocs-cells-panel:not([hidden])')).toContainText('3000');
+  await expect(page.locator('#capacity-report .smalldocs-cells-panel:not([hidden])')).toContainText('2550');
+
+  const xlsxDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download spreadsheet XLSX' }).click();
+  const xlsx = await xlsxDownload;
+  const xlsxBytes = await downloadBytes(xlsx);
+  expect(xlsx.suggestedFilename()).toMatch(/\.xlsx$/);
+  expect(xlsxBytes.subarray(0, 2).toString('ascii')).toBe('PK');
+
+  await page.getByRole('button', { name: 'Open spreadsheet in fullscreen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Spreadsheet' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.smalldocs-overlay')).toHaveCount(0);
+
+  await page.evaluate(() => window.updateCapacityDocument());
+  await expect(page.locator('#capacity-report h1')).toHaveText('Summary');
+  await expect(page.locator('#capacity-report')).toContainText('Available reserve');
+  await expect(page.locator('#risk-report .smalldocs-mermaid-stage > svg')).toHaveCount(1);
+  expect(await page.evaluate(() => JSON.stringify(window.hostProbeBefore) === JSON.stringify(window.hostProbeAfter))).toBe(true);
+
+  await page.evaluate(() => window.destroyCapacityDocument());
+  await expect(page.locator('#capacity-report .smalldocs-document')).toHaveCount(0);
+  await expect(page.locator('#risk-report .smalldocs-document')).toHaveCount(1);
+});
+
+test('board customer presents custom slides and exports deck files', async ({ page }) => {
+  test.setTimeout(90000);
+  await page.goto(customerOrigin + '/board-brief/');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true', { timeout: 30000 });
+  await expect(page.locator('.smalldocs-slide')).toHaveCount(3);
+  await expect(page.locator('.sdoc-slide-error')).toHaveCount(0);
+  await expect(page.locator('#briefing-report .smalldocs-document h1')).toHaveCSS('text-transform', 'uppercase');
+  expect(await page.evaluate(() => JSON.stringify(window.hostProbeBefore) === JSON.stringify(window.hostProbeAfter))).toBe(true);
+
+  await page.getByRole('button', { name: 'Present slides' }).first().click();
+  await expect(page.getByRole('dialog', { name: 'Slide presentation' })).toBeVisible();
+  await expect(page.locator('.smalldocs-slide-counter')).toHaveText('1 / 3');
+  await page.getByRole('button', { name: 'Next slide' }).click();
+  await expect(page.locator('.smalldocs-slide-counter')).toHaveText('2 / 3');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.smalldocs-overlay')).toHaveCount(0);
+
+  const pdfDownload = page.waitForEvent('download', { timeout: 30000 });
+  await page.getByRole('button', { name: 'Download slides as PDF' }).click();
+  const pdf = await pdfDownload;
+  const pdfBytes = await downloadBytes(pdf);
+  expect(pdf.suggestedFilename()).toMatch(/\.pdf$/);
+  expect(pdfBytes.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+  expect(pdfBytes.length).toBeGreaterThan(1000);
+
+  const pptxDownload = page.waitForEvent('download', { timeout: 30000 });
+  await page.getByRole('button', { name: 'Download slides as PowerPoint' }).click();
+  const pptx = await pptxDownload;
+  const pptxBytes = await downloadBytes(pptx);
+  expect(pptx.suggestedFilename()).toMatch(/\.pptx$/);
+  expect(pptxBytes.subarray(0, 2).toString('ascii')).toBe('PK');
+  expect(pptxBytes.length).toBeGreaterThan(1000);
+});
+
+test('slide shapes use SDK-owned icons and nested rich renderers', async ({ page }) => {
+  test.setTimeout(60000);
+  await page.goto(customerOrigin + '/board-brief/');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true', { timeout: 30000 });
+  await page.evaluate(() => {
+    window.SDocShapes = { parse() { throw new Error('ambient shapes used'); } };
+    window.SDocStyles = { resolveStyleRef() { throw new Error('ambient styles used'); } };
+    window.SDocIcons = {};
+    return window.boardView.update(`# Nested slide
+
+~~~~slide
+grid 16 9 bg=#f8fafc
+icon 0.7 0.7 1.2 1.2 name=workflow color=#1646d8
+r 2.2 0.6 4.0 2.2 fill=#eef2ff color=#101828 align=left |
+  $x^2 + y^2$
+r 0.7 3.2 7.0 4.8 fill=#ffffff stroke=#cbd5e1 |
+  ~~~chart
+  {"type":"bar","labels":["A","B"],"values":[2,5]}
+  ~~~
+r 8.3 3.2 7.0 4.8 fill=#ffffff stroke=#cbd5e1 |
+  ~~~mermaid
+  flowchart LR
+    A[Input] --> B[Result]
+  ~~~
+~~~~`);
+  });
+  await expect(page.locator('.smalldocs-slide .katex')).toHaveCount(1, { timeout: 30000 });
+  await expect(page.locator('.smalldocs-slide canvas')).toHaveCount(1);
+  await expect(page.locator('.smalldocs-slide .smalldocs-mermaid-stage > svg')).toHaveCount(1);
+  await expect(page.locator('.smalldocs-slide .shape-svg svg')).not.toHaveCount(0);
+  const sdkAssetRequests = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => entry.name));
+  expect(sdkAssetRequests.some(url => url.includes('/sdk/0.2.0/vendor/sdocs-icons-data.js'))).toBe(true);
+  expect(sdkAssetRequests.some(url => new URL(url).pathname === '/public/sdocs-icons-data.js')).toBe(false);
+
+  await page.evaluate(() => {
+    const renderer = window.SDocShapeRender;
+    const original = renderer.setRuntime;
+    window.exportRuntimeResets = 0;
+    renderer.setRuntime = function (runtime) {
+      window.exportRuntimeResets += 1;
+      return original.call(renderer, runtime);
+    };
+  });
+  const pdfDownload = page.waitForEvent('download', { timeout: 30000 });
+  await page.getByRole('button', { name: 'Download slides as PDF' }).click();
+  await pdfDownload;
+  expect(await page.evaluate(() => window.exportRuntimeResets)).toBeGreaterThan(0);
+});

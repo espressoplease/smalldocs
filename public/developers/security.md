@@ -1,33 +1,48 @@
-# Security and data flow
+# Security
 
-The SDK treats agent-authored Markdown as untrusted input.
+The SDK renders into the host DOM. It does not place the whole document in an iframe.
 
-## Browser boundary
+## Markdown and HTML
 
-The SDK creates a sandboxed iframe from `https://smalldocs.org`, then sends the Markdown to that frame with `postMessage`. SmallDocs sanitises the resulting document HTML before display.
+SmallDocs parses Markdown, sanitises the resulting HTML, then mounts the cleaned DOM. Script tags, event handlers, embedded frames, unsafe URLs, and similar executable markup are removed.
 
-The frame accepts messages only from the declared host origin and a random per-instance channel. Host styles do not enter the document, and renderer styles do not change the host page.
+Mermaid diagrams use a hidden renderer frame while the diagram is being built. SmallDocs removes that frame before `render()` settles, sanitises the resulting SVG, and mounts the SVG in the host DOM. The document itself is never placed in the frame.
 
-## Network boundary
+Raw HTML is treated as document content, not trusted application code. An `html` fence remains a code listing.
 
-The current renderer does not upload the Markdown through an API request. JavaScript served by SmallDocs executes inside the frame and can access the displayed document in the browser. Treat the SmallDocs origin as third-party executable code and pin the versioned module URL.
+## SDK code
 
-A self-hosted renderer is not currently offered.
+JavaScript loaded from `smalldocs.org` runs with the privileges of the host page, as it does for other third-party browser SDKs. Pin the versioned URL and include SmallDocs in the application's dependency review.
+
+## Future executable blocks
+
+Executable `sdoc-app` blocks are not enabled in `0.2.0`. The planned contract keeps ordinary documents in the host DOM while isolating only an explicitly executable block. The customer will choose whether executable content is disabled, sandboxed, or trusted.
 
 ## Content Security Policy
 
-Merge the following sources into the host application's existing policy:
+The current experimental build loads rich dependencies from jsDelivr. Merge these origins into the application's existing policy when the corresponding directives are present:
 
 ```text
-script-src https://smalldocs.org
-frame-src https://smalldocs.org
+script-src https://smalldocs.org https://cdn.jsdelivr.net
+style-src https://smalldocs.org https://cdn.jsdelivr.net 'unsafe-inline'
+font-src https://cdn.jsdelivr.net
+frame-src https://smalldocs.org https://www.youtube-nocookie.com
 ```
 
-Do not replace the application's full policy with this fragment.
+The SmallDocs origin in `frame-src` is needed for Mermaid rendering. The YouTube origin is needed only for supported video fences. Remote images require the image host in the application's `img-src` directive. Some rich-feature and export dependencies run in the page and create globals such as `hljs`, `PDFLib`, and `PptxGenJS`.
 
-## Host responsibilities
+For an application that enforces Trusted Types, allow the SDK policy name:
 
-- Do not insert the Markdown into the host DOM.
-- Do not weaken the iframe sandbox added by the SDK.
-- Keep the original Markdown available for a readable failure path.
-- Test unsafe tags, event attributes, and `javascript:` links in the customer application.
+```text
+trusted-types smalldocs-sdk-0.2.0 dompurify
+require-trusted-types-for 'script'
+```
+
+The SDK owns a version-private Markdown parser and sanitizer. It does not use a host page's `window.marked` or `window.DOMPurify` as its security boundary.
+
+## Host responsibility
+
+- Keep the original Markdown available for fallback.
+- Treat links and external media references as document-provided destinations.
+- Test unsafe Markdown payloads in the customer application.
+- Do not enable agent-authored JavaScript outside a separate executable-content policy.

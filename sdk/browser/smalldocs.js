@@ -124,6 +124,17 @@ export async function render(target, markdown) {
     operation[method](value);
   }
 
+  function navigateHost(rawHref) {
+    var destination;
+    try {
+      destination = new URL(String(rawHref || ''), location.href);
+    } catch (_) {
+      return;
+    }
+    if (!['http:', 'https:', 'mailto:', 'tel:'].includes(destination.protocol)) return;
+    location.assign(destination.href);
+  }
+
   function onMessage(event) {
     if (event.source !== frame.contentWindow || event.origin !== rendererOrigin) return;
     var message = event.data;
@@ -138,6 +149,10 @@ export async function render(target, markdown) {
     }
     if (message.type === 'sdocs:focus') {
       setFocusOpen(message.open);
+      return;
+    }
+    if (message.type === 'sdocs:navigate') {
+      navigateHost(message.href);
       return;
     }
     if (message.type === 'sdocs:rendered') {

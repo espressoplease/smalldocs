@@ -1,21 +1,17 @@
 # Loading and caching
 
-Applications can import the SDK on every route that renders a document. Normal browser caching prevents the versioned module from being downloaded on every page.
+Applications can import the SDK on every route that renders a document. Normal browser caching prevents a repeated download.
 
-## Versioned module
+## Versioned assets
 
-`https://smalldocs.org/sdk/0.1.2/smalldocs.js` is served with an immutable one-year browser cache policy. A new contract uses a new versioned URL.
+`https://smalldocs.org/sdk/0.2.0/smalldocs.js` and its sibling modules and CSS use an immutable one-year cache policy. A new contract uses a new versioned URL.
 
-## Reader shell
+## Content-driven loading
 
-Each document view creates a renderer frame. The frame loads the SmallDocs read shell, while its static assets use normal HTTP caching across routes and later visits.
+The core loads Markdown parsing, sanitisation, and base CSS. Rich modules are requested only when their content appears in the document.
 
-## Rich dependencies
-
-The reader discovers features from the Markdown. Rich browser dependencies are requested when corresponding content is present, not because the agent declared them before inference.
-
-A plain Markdown document should not request unrelated chart, diagram, spreadsheet, or slide dependencies.
+A plain Markdown document does not request chart, Mermaid, spreadsheet, slide, math, or syntax-highlighting dependencies.
 
 ## Readiness
 
-`render()` and `update()` resolve after the document is mounted. Rich processors that load external browser dependencies can finish and resize afterward.
+`render()` and `update()` resolve after detected rich features have rendered or produced a readable fallback. Failure to load a core SDK asset rejects the call. A superseded render rejects with an `AbortError`.

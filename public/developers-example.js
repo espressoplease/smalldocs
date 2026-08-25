@@ -1,4 +1,4 @@
-import { render } from '/sdk/0.1.2/smalldocs.js';
+import { render } from '/sdk/0.2.0/smalldocs.js';
 
 const documents = Object.freeze({
   summary: {

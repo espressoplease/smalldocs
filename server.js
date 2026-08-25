@@ -562,6 +562,7 @@ const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css':  'text/css',
   '.js':   'application/javascript',
+  '.mjs':  'application/javascript',
   '.json': 'application/json',
   '.txt':  'text/plain; charset=utf-8',
   '.md':   'text/plain',
@@ -2963,7 +2964,7 @@ const server = http.createServer((req, res) => {
   if (pathname === '/developers/example' || pathname === '/developers/example/') {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers-example.html'), null, {
       'Cache-Control': 'no-cache',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; frame-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src https://cdn.jsdelivr.net; frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
     });
@@ -2973,7 +2974,7 @@ const server = http.createServer((req, res) => {
   if (developerPageSlug) {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers.html'), null, {
       'Cache-Control': 'no-cache',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; frame-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src https://cdn.jsdelivr.net; frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
     });
@@ -3103,7 +3104,38 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname === '/sdk/0.1.2/smalldocs.js') {
+    serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'smalldocs-0.1.2.js'), {
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Access-Control-Allow-Origin': '*',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return;
+  }
+
+  if (pathname === '/sdk/0.1.3/smalldocs.js') {
     serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'smalldocs.js'), {
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Access-Control-Allow-Origin': '*',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return;
+  }
+
+  if (pathname === '/sdk/0.2.0/mermaid-renderer.html') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'sdk', 'browser', 'native', 'mermaid-renderer.html'), null, {
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src https: data: blob:; font-src https://cdn.jsdelivr.net; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors *",
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return;
+  }
+
+  const nativeSdkMatch = /^\/sdk\/0\.2\.0\/(smalldocs\.js|smalldocs\.css|core\.js|assets\.js|runtime\.js|overlay\.js|download\.js|mermaid-renderer\.js|features\/(?:math|video|charts|mermaid|cells|slides|highlight)\.js|vendor\/(?:marked\.esm\.js|purify\.es\.mjs|sdocs-(?:yaml|styles|slugify|cells|cells-formula|cells-xlsx|shapes|slide-stdlib|slide-resolve|shape-render|slide-pdf|slide-pptx|video|icons-data)\.js))$/.exec(pathname);
+  if (nativeSdkMatch) {
+    serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'native', nativeSdkMatch[1]), {
       'Cache-Control': 'public, max-age=31536000, immutable',
       'Access-Control-Allow-Origin': '*',
       'Cross-Origin-Resource-Policy': 'cross-origin',

@@ -72,7 +72,7 @@ function createStage(gridW, gridH) {
   var stage = document.createElement('div');
   stage.style.cssText = 'width: 100%; height: 100%;';
   wrap.appendChild(stage);
-  var host = document.getElementById('_sd_rendered') || document.body;
+  var host = window.__SDocsExportRoot || document.getElementById('_sd_rendered') || document.body;
   host.appendChild(wrap);
   return { wrap: wrap, stage: stage, w: stageW, h: stageH };
 }

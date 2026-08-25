@@ -2,7 +2,7 @@
 
 Render agent-written Markdown as a SmallDocs reading surface inside your application.
 
-> **Status:** Experimental `0.1.2`. No account or key is required. Production pricing and terms are not set.
+> **Status:** Experimental `0.2.0`. No account or key is required. Production pricing and terms are not set.
 
 ## The integration contract
 

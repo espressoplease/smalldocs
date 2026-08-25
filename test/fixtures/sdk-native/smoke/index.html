@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmallDocs native SDK smoke test</title>
+  <style>
+    body { margin: 0; background: #e7e5e4; }
+    #report { --sdocs-accent: #9f1239; --sdocs-max-width: 980px; }
+  </style>
+</head>
+<body>
+  <main id="report"></main>
+  <script type="module">
+    import { render } from 'http://127.0.0.1:3219/sdk/0.2.0/smalldocs.js';
+    const markdown = String.raw`# Native SDK smoke test
+
+## Mermaid
+
+~~~mermaid
+flowchart LR
+  A[Agent] --> B[SmallDocs]
+  B --> C[Application]
+~~~
+
+## Spreadsheet
+
+~~~cells finance/Inputs
+Metric,Value
+Units,120
+Price,25
+~~~
+
+~~~cells finance/Summary
+Metric,Value
+Revenue,=Inputs!B2*Inputs!B3
+Reserve,=B2*0.15
+Available,=B2-B3
+~~~
+
+## Slides
+
+~~~slide
+grid 16 9 bg=#07111f
+r 1 0.7 14 0.8 text=caption align=left color=#d9ff43 | OPERATING MODEL
+r 1 2 6 1.4 text=title align=left color=#ffffff | Analysis becomes action
+r 1 4.2 3.2 1.4 fill=#1646d8 color=#ffffff radius=0.15 | Agent analysis
+a 4.4 4.9 6.1 4.9 color=#d9ff43
+r 6.3 4.2 3.2 1.4 fill=#ffffff color=#07111f radius=0.15 | SmallDocs
+a 9.7 4.9 11.4 4.9 color=#d9ff43
+chev 11.6 4.2 3.2 1.4 fill=#d9ff43 color=#07111f | Decision
+~~~
+
+## Chart
+
+~~~chart
+{"type":"bar","title":"Output","labels":["A","B","C"],"values":[10,18,24]}
+~~~
+
+## Code and math
+
+The threshold is $p < 0.05$.
+
+~~~javascript
+export const answer = 42;
+~~~`;
+    window.view = await render('#report', markdown, { sections: { collapsible: true, defaultOpen: true } });
+    document.documentElement.dataset.ready = 'true';
+  </script>
+</body>
+</html>

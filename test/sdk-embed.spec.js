@@ -54,6 +54,11 @@ test.beforeAll(async () => {
     'utf8'
   ).replaceAll('__SDOCS_ORIGIN__', sdocsOrigin);
   customerServer = http.createServer((req, res) => {
+    if (req.url === '/next-report') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<!doctype html><title>Next report</title><h1>Next report</h1>');
+      return;
+    }
     if (req.url !== '/') {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('Not Found');
@@ -81,7 +86,7 @@ test.afterAll(async () => {
 test('an independent customer renders and updates a full SmallDocs document', async ({ page }) => {
   await page.goto(sdocsOrigin + '/embed?parentOrigin=' + encodeURIComponent(customerOrigin)
     + '&channel=cache-prime');
-  await page.goto(sdocsOrigin + '/sdk/0.1.2/smalldocs.js');
+  await page.goto(sdocsOrigin + '/sdk/0.1.3/smalldocs.js');
   await page.goto(customerOrigin);
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await expect(page.locator('body')).not.toHaveAttribute('data-error', /.+/);
@@ -151,4 +156,13 @@ test('an independent customer renders and updates a full SmallDocs document', as
   await page.evaluate(() => window.destroySdkDocument());
   await expect(page.locator('body')).toHaveAttribute('data-destroyed', 'true');
   await expect(frameElement).toHaveCount(0);
+});
+
+test('document links navigate the customer application instead of the renderer frame', async ({ page }) => {
+  await page.goto(customerOrigin);
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  const documentFrame = page.frameLocator('#report iframe');
+  await documentFrame.getByRole('link', { name: 'Open the next report' }).click();
+  await expect(page).toHaveURL(customerOrigin + '/next-report');
+  await expect(page.getByRole('heading', { name: 'Next report' })).toBeVisible();
 });

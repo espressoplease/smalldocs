@@ -1,14 +1,27 @@
 # SmallDocs renderer API
 
-## Current browser module
+## Current module
 
 ```js
-import { render } from 'https://smalldocs.org/sdk/0.1.2/smalldocs.js';
+import { render } from 'https://smalldocs.org/sdk/0.2.0/smalldocs.js';
 
 const view = await render('#report', markdown);
 ```
 
-The host page must use HTTP or HTTPS. `target` can be a CSS selector or an `Element`. Rendering replaces the target's existing children with one isolated SmallDocs frame.
+The host page must use HTTP or HTTPS. `target` can be a selector or an `Element`. Rendering replaces the target's children with a direct-DOM SmallDocs reading surface.
+
+## Options
+
+```js
+const view = await render('#report', markdown, {
+  navigation: true,
+  sections: { collapsible: true, defaultOpen: true },
+  controls: { copy: true, fullscreen: true, download: true },
+});
+```
+
+Every option shown above defaults to `true`.
+Set an option to exactly `false` to disable it.
 
 ## Returned view
 
@@ -17,42 +30,59 @@ await view.update(nextMarkdown);
 view.destroy();
 ```
 
-- `view.element` is the renderer iframe.
-- `update(markdown)` replaces the document in the same view.
-- `destroy()` removes the frame and releases the host-side message listener.
+- `view.element` is the `.smalldocs-document` article.
+- `view.features` lists rich feature modules used by the current document.
+- `update(markdown)` replaces content in the same instance.
+- `destroy()` removes the view and closes fullscreen it owns.
 - A newer update rejects an older unfinished update with an `AbortError`.
-- `render()` and `update()` resolve after the document is mounted. Rich processors that load external browser dependencies can finish and resize afterward.
+- Render and update resolve after detected rich features settle or fall back.
 
-Keep the view in the host framework's component or route lifecycle. Destroy it on unmount. Do not call `render()` again for ordinary content changes.
+## Styling
 
-When a reader expands slides, a diagram, code, or computed cells, the renderer iframe temporarily covers the browser viewport and locks host-page scrolling. Closing the expanded view restores the frame and previous host scroll position. Do not add host fullscreen event handlers.
+The SDK installs version-matched CSS automatically in a low-priority CSS layer. Use custom properties on the mount:
+
+```css
+#report {
+  --sdocs-font-family: Georgia, serif;
+  --sdocs-accent: #7a1f2b;
+  --sdocs-background: #fffaf0;
+  --sdocs-text-color: #2b2521;
+  --sdocs-border-color: #d6c8b8;
+  --sdocs-code-background: #f1ece4;
+  --sdocs-max-width: 860px;
+  --sdocs-radius: 0;
+  --sdocs-padding: 40px 48px 60px;
+}
+```
+
+Ordinary unlayered CSS scoped under the mount can override specific document or feature selectors.
 
 ## Content contract
 
-Send one Markdown string after inference or analysis has completed. No envelope or capability declaration is required.
+Send one Markdown string after inference. No envelope or capability declaration is required.
 
-The experimental renderer uses the current SmallDocs read surface, including ordinary Markdown, heading navigation, code blocks, math, Mermaid diagrams, charts, cells, slides, and supported video fences. Feature discovery and dependency loading happen inside SmallDocs based on the document content. Unknown fences remain readable source.
+The renderer supports ordinary Markdown, navigation, code, math, Mermaid, charts, cells and workbooks, custom-shape slides, and supported video fences. Feature discovery and loading are content-driven. Unknown fences remain readable source.
 
-Comments, writing tools, export controls, SmallDocs Cloud, and the surrounding reader application are outside this contract.
+Comments, editing, Cloud storage, application chrome, and a first-party image pipeline are outside this release.
 
-## Security and data flow
+## Security
 
-The SDK creates a sandboxed iframe from `https://smalldocs.org` and sends the Markdown to it with `postMessage`. The renderer sanitises document HTML before display. The current integration does not upload the Markdown through an API request, but JavaScript served by SmallDocs executes inside the frame and can access the document in the browser. A self-hosted renderer is not currently offered.
+The SDK parses Markdown, sanitises the resulting HTML, and mounts the cleaned document into the host DOM. It removes script tags, event handlers, embedded frames, unsafe URLs, and similar executable content.
 
-The SDK derives the host origin from the page's `location.origin`; there is no origin option to configure. The frame accepts messages only from that host origin and a random per-instance channel. The host should still treat the SDK origin as third-party executable code and pin the versioned module URL.
+SmallDocs JavaScript has the privileges of the host page, like other third-party browser SDKs. Pin the versioned URL and include it in dependency review. Agent-authored executable blocks are disabled in `0.2.0`.
 
-If the host has a Content Security Policy, allow at least:
+The experimental build loads rich dependencies from jsDelivr. Merge these origins into an existing Content Security Policy when needed:
 
 ```text
-script-src https://smalldocs.org
-frame-src https://smalldocs.org
+script-src https://smalldocs.org https://cdn.jsdelivr.net
+style-src https://smalldocs.org https://cdn.jsdelivr.net 'unsafe-inline'
+font-src https://cdn.jsdelivr.net
+frame-src https://smalldocs.org https://www.youtube-nocookie.com
 ```
 
-Merge these sources into the existing policy rather than replacing it.
+The SmallDocs frame origin is needed for Mermaid rendering. The YouTube origin is needed only for supported video fences. Remote document images require their host in the application's `img-src` directive.
 
-## Loading and caching
-
-The versioned module is served with immutable one-year browser caching. Browsers normally reuse it across routes and later page visits. Each document frame loads the SmallDocs reader shell; normal HTTP caching reuses its static assets. Rich browser dependencies are requested by the reader only when corresponding document content is present.
+If the application enforces Trusted Types, allow the `smalldocs-sdk-0.2.0` and `dompurify` policy names.
 
 ## Framework-neutral lifecycle
 
@@ -60,10 +90,7 @@ The versioned module is served with immutable one-year browser caching. Browsers
 let view;
 
 export async function showReport(markdown) {
-  if (view) {
-    await view.update(markdown);
-    return;
-  }
+  if (view) return view.update(markdown);
   view = await render('#report', markdown);
 }
 
@@ -73,4 +100,4 @@ export function removeReport() {
 }
 ```
 
-Handle rejected promises using the host application's normal error surface. Keep the original Markdown available so a rendering failure does not make the agent output inaccessible.
+Keep the original Markdown available so a rendering failure does not make the agent output inaccessible.

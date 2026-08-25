@@ -1,52 +1,89 @@
 # Put agent analysis inside your application
 
-Turn an agent's analysis into a readable document inside your product. The agent can use prose, diagrams, charts, computed sheets, or slides when each format helps. Markdown is the handoff between the agent and the SmallDocs browser renderer.
+Render finished agent work as a readable document inside your product. The agent returns Markdown. SmallDocs turns that Markdown into prose, diagrams, charts, computed sheets, slides, math, code, and video where the document uses them.
 
-[Open a working multi-document SDK example](/developers/example), or [see sample SmallDocs on the homepage](/#learn).
+[Open a working SDK example](/developers/example), or [see sample documents on the homepage](/#learn).
 
-**Quick start with your coding agent**
+**Hand this to your coding agent**
 
-1. Install the renderer skill in your application project:
+1. Install the renderer skill in the application project:
 
 ```sh
 npx skills add https://smalldocs.org --skill smalldocs-renderer
 ```
 
-2. Copy this prompt into the coding agent working on your application:
+2. Give the coding agent this prompt:
 
 ```text
 Use the smalldocs-renderer skill to add a SmallDocs report view to this application.
 The report Markdown will be returned by our analysis agent.
+Match the renderer to the application's existing visual language with CSS overrides.
 Keep one renderer view, update it when the Markdown changes, and destroy it when the route unmounts.
 Add a test with ordinary Markdown and a document containing rich SmallDocs blocks.
 ```
 
-3. [Teach your analysis agent to author SmallDocs Markdown](/developers/agents). It returns the finished Markdown and your application passes that string to `render()`.
+3. [Teach the analysis agent to author SmallDocs Markdown](/developers/agents). It returns the finished Markdown and the application passes that string to `render()`.
 
-The coding agent and analysis agent can be the same model in different steps. Their roles stay separate: one integrates the renderer, while the other produces documents.
+Current status: experimental `0.2.0`. No account or key is required. Production pricing and terms are not set.
 
-Current status: experimental `0.1.2`. No account or key is required. Production pricing and terms are not set.
-
-## Integrate it yourself
-
-### One mount element and one render call
+## Render a document
 
 ```html
 <div id="report"></div>
 
 <script type="module">
-  import { render } from 'https://smalldocs.org/sdk/0.1.2/smalldocs.js';
+  import { render } from 'https://smalldocs.org/sdk/0.2.0/smalldocs.js';
 
   const markdown = await runYourAgent();
   const view = await render('#report', markdown);
 </script>
 ```
 
-`#report` is a CSS selector for the element where the document should appear. You can also pass an `Element`.
+`#report` selects the element where the document should appear. You can pass an `Element` instead.
 
-Call `render` after inference or analysis has produced the Markdown. The agent does not initialise SmallDocs, declare features, or parse rich blocks. SmallDocs inspects the finished document and loads the renderers it needs.
+Call `render()` after the agent has produced the Markdown. The host does not parse fences or declare capabilities. SmallDocs discovers the document features and loads their renderers.
 
-### Update and remove the view
+## Match your application
+
+The SDK installs its base CSS automatically. It renders into the host DOM, so your application can override the documented variables or ordinary SmallDocs selectors.
+
+```css
+#report {
+  --sdocs-font-family: Georgia, serif;
+  --sdocs-accent: #7a1f2b;
+  --sdocs-background: #fffaf0;
+  --sdocs-text-color: #2b2521;
+  --sdocs-max-width: 820px;
+  --sdocs-radius: 0;
+}
+
+#report .smalldocs-document h1 {
+  letter-spacing: -0.04em;
+}
+```
+
+SmallDocs base rules live in a low-priority CSS layer. Normal unlayered application CSS can override them. SDK selectors are scoped so they do not restyle headings, tables, or buttons outside the renderer.
+
+## Configure reading behavior
+
+```js
+const view = await render('#report', markdown, {
+  navigation: true,
+  sections: {
+    collapsible: true,
+    defaultOpen: false,
+  },
+  controls: {
+    copy: true,
+    fullscreen: true,
+    download: true,
+  },
+});
+```
+
+All options are optional. Navigation, collapsible sections, open sections, and controls are enabled by default.
+
+## Update and remove the view
 
 ```js
 const view = await render('#report', firstMarkdown);
@@ -55,62 +92,54 @@ await view.update(nextMarkdown);
 view.destroy();
 ```
 
-- `view.element` is the renderer iframe.
-- `update(markdown)` replaces the document in the same view.
-- `destroy()` removes the frame and releases the host-side message listener.
+- `view.element` is the rendered `<article class="smalldocs-document">`.
+- `view.features` lists the rich renderers used by the current document.
+- `update(markdown)` replaces the document in the same instance.
+- `destroy()` removes the document and closes any fullscreen surface it owns.
 - A newer update rejects an older unfinished update with an `AbortError`.
 
-Keep the view in the host component or route lifecycle. Destroy it on unmount. Use `update()` for ordinary content changes instead of calling `render()` again.
+## Supported content
 
-### Fullscreen views
+One Markdown string can mix ordinary Markdown, navigation, code, math, Mermaid, charts, computed cells and workbooks, custom-shape slides, and supported video fences. Feature controls include copying, fullscreen reading, and relevant file downloads such as SVG, PNG, XLSX, PDF, and PowerPoint.
 
-When a reader expands slides, a diagram, code, or computed cells, the renderer frame temporarily covers the browser viewport and locks scrolling on the host page. Closing the expanded view restores the frame and the reader's previous page position. The host application does not need fullscreen event handlers.
-
-### What the Markdown can contain
-
-Send one Markdown string. SmallDocs owns Markdown parsing, sanitisation, rich-feature discovery, rendering, and content-driven dependency loading.
-
-The SDK uses the same SmallDocs read surface as a document opened directly in SmallDocs. It does not maintain a separate set of SDK renderers or document styles.
-
-The experimental renderer supports:
-
-- ordinary Markdown, heading navigation, tables, links, and code
-- math and Mermaid diagrams
-- charts and computed cells
-- inline slides and supported video fences
-
-One document can mix these formats. Unknown fences remain readable as source. Comments, editing, export, Cloud storage, and surrounding application chrome are not exposed by this SDK.
+Unknown fences remain readable as source. Comments, editing, Cloud storage, and surrounding application chrome are outside this SDK release.
 
 Image upload, proxying, and hosting are not included. An HTTPS image reference remains a request to its original host.
 
-## Operational reference
+## Security and data flow
 
-### Security and data flow
+Markdown stays in the browser. The SDK parses it, sanitises the resulting HTML, and mounts the cleaned document into the selected host element. Script tags, event-handler attributes, embedded frames, unsafe URLs, and similar executable markup are removed.
 
-The SDK creates a sandboxed iframe from `https://smalldocs.org` and sends the Markdown to it with `postMessage`. The renderer sanitises document HTML before display. Host styles and renderer styles remain isolated.
+The document is not isolated from the application by an iframe. SmallDocs code runs with the same page privileges as other third-party browser SDKs, so pin the versioned module URL and include it in the application's dependency review.
 
-The current integration does not upload the Markdown through an API request. JavaScript served by SmallDocs executes inside the frame and can access the displayed document in the browser. A self-hosted renderer is not currently offered.
+Executable `sdoc-app` blocks are not part of `0.2.0`. Ordinary `html` fences remain code listings. A later executable-content contract can add a separately configured sandbox without moving the whole document back into an iframe.
 
-The SDK derives the host origin from the page's `location.origin`; there is no origin option to configure. The frame accepts messages only from that host origin and a random per-instance channel. Pin the versioned module URL and treat its origin as third-party executable code.
-
-For a host Content Security Policy, merge these sources into the existing policy:
+If the application has a Content Security Policy, merge the required origins into its existing policy. The current experimental build loads rich dependencies from jsDelivr:
 
 ```text
-script-src https://smalldocs.org
-frame-src https://smalldocs.org
+script-src https://smalldocs.org https://cdn.jsdelivr.net
+style-src https://smalldocs.org https://cdn.jsdelivr.net 'unsafe-inline'
+font-src https://cdn.jsdelivr.net
+frame-src https://smalldocs.org https://www.youtube-nocookie.com
 ```
 
-### Loading and caching
+The SmallDocs origin in `frame-src` is needed for Mermaid rendering. The YouTube origin is needed only for supported video fences. An external image URL also needs its host in the application's `img-src` directive.
 
-The versioned module is served with immutable one-year browser caching. Applications can import it on every route that renders a document; the browser normally downloads it once. Each frame loads the reader shell, whose static assets use normal HTTP caching. Rich browser dependencies are requested according to document content.
+Applications that enforce Trusted Types should also allow `smalldocs-sdk-0.2.0` and `dompurify` in the `trusted-types` directive.
 
-`render()` and `update()` resolve after the document is mounted. Rich processors that load external browser dependencies can finish and resize afterward.
+## Loading and caching
 
-### Verification
+The versioned SDK modules and stylesheet use immutable one-year browser caching. Importing the same URL on another route normally reuses the cached files.
 
-Test the integration from a clean customer application. Cover ordinary Markdown, a multi-format document, unsafe HTML sanitisation, update and destroy, and two independent renderer instances. Keep the original Markdown available so a renderer failure does not make the agent output inaccessible.
+Plain Markdown does not load chart, diagram, spreadsheet, or slide modules. Rich modules and browser dependencies are loaded from the content the document actually contains.
 
-### Direct documentation for agents
+`render()` and `update()` resolve after the requested rich features have settled or fallen back to readable source.
+
+## Verify an integration
+
+Test from a customer application, not SmallDocs application globals. Cover ordinary Markdown, a multi-format document, unsafe HTML, CSS overrides, two independent instances, update, destroy, fullscreen, and file downloads. Keep the original Markdown available so a renderer failure does not hide the agent output.
+
+## Direct documentation for agents
 
 - Agent index: https://smalldocs.org/developers/llms.txt
 - Complete reference: https://smalldocs.org/developers/llms-full.txt

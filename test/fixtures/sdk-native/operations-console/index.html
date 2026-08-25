@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relay Operations</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-lockup">
+      <span class="brand-mark" aria-hidden="true">R</span>
+      <div>
+        <strong>Relay Operations</strong>
+        <span>Agent analysis console</span>
+      </div>
+    </div>
+    <div class="header-status">
+      <span class="live-dot" aria-hidden="true"></span>
+      Analysis current
+    </div>
+  </header>
+
+  <main class="console-shell">
+    <section class="console-intro">
+      <div>
+        <p class="kicker">Live workspace</p>
+        <h1 id="host-heading">Fulfilment control room</h1>
+        <p>Two independent agent reports use the same SDK without sharing state or styles.</p>
+      </div>
+      <button id="host-button" type="button">Run agents again</button>
+    </section>
+
+    <table id="host-table" aria-label="Host application status">
+      <thead>
+        <tr><th>Agent</th><th>Last run</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Capacity</td><td>2 min ago</td><td>Current</td></tr>
+        <tr><td>Risk</td><td>5 min ago</td><td>Current</td></tr>
+      </tbody>
+    </table>
+
+    <div class="report-grid">
+      <section id="capacity" class="report-panel report-panel-capacity" aria-label="Capacity analysis">
+        <div class="panel-label"><span>01</span> Capacity analysis</div>
+        <div id="capacity-report"></div>
+      </section>
+
+      <section id="risk" class="report-panel report-panel-risk" aria-label="Risk analysis">
+        <div class="panel-label"><span>02</span> Risk analysis</div>
+        <div id="risk-report"></div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

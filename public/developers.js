@@ -1,4 +1,4 @@
-import { render } from '/sdk/0.1.2/smalldocs.js';
+import { render } from '/sdk/0.2.0/smalldocs.js';
 
 const pages = Object.freeze({
   sdk: { path: '/developers', label: 'Render in your app', markdown: '/developers/integration.md' },
@@ -63,7 +63,10 @@ async function loadPage(slug, push) {
     markdown = await response.text();
     if (generation !== requestGeneration) return;
     if (view) await view.update(markdown);
-    else view = await render(mount, markdown);
+    else view = await render(mount, markdown, {
+      navigation: false,
+      sections: { collapsible: false },
+    });
     if (generation !== requestGeneration) return;
     setLoading(false);
     window.scrollTo({ top: 0, behavior: push ? 'smooth' : 'auto' });
@@ -86,10 +89,14 @@ async function loadPage(slug, push) {
 }
 
 document.addEventListener('click', function (event) {
-  const link = event.target.closest('[data-doc]');
+  const link = event.target.closest('a[href]');
   if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const directSlug = link.dataset.doc || (
+    mount.contains(link) ? slugFromPath(new URL(link.href, location.href).pathname) : null
+  );
+  if (!directSlug) return;
   event.preventDefault();
-  loadPage(link.dataset.doc, true);
+  loadPage(directSlug, true);
 });
 
 window.addEventListener('popstate', function () {
