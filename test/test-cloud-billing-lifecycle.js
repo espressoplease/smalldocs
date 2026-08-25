@@ -36,6 +36,11 @@ module.exports = function (harness) {
       const active = update({ status: 'active' });
       assert.deepStrictEqual(lifecycle.transitionTypes(null, active), ['subscription_started']);
       assert.ok(!lifecycle.transitionTypes(active, active).includes('subscription_started'));
+      const confirmation = { type: 'subscription_started', providerSubscriptionId: 'sub_1',
+        availableAtMs: now };
+      assert.strictEqual(lifecycle.billingEventApplies(active, confirmation, now), true);
+      assert.strictEqual(lifecycle.billingEventApplies(
+        update({ status: 'past_due' }), confirmation, now), false);
     });
 
     test('first failed payment creates fixed grace and deletion clocks', () => {
