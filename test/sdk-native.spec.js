@@ -76,6 +76,43 @@ document.body.dataset.ready = 'true';
 </script></body></html>`);
       return;
     }
+    if (requested === '/prose') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      const proseMarkdown = [
+        '| Name | Notes |',
+        '|---|---|',
+        '| Ada | Hello, world |',
+        '| Grace | Said "yes" |',
+        '',
+        '> First paragraph.',
+        '>',
+        '> Second paragraph.',
+      ].join('\n');
+      res.end(`<!doctype html><html><head><style>
+#left .sdoc-reader{--md-table-header-bg:#dbeafe;--md-bq-bg:#fef3c7}
+#left .table-copy-btn{border-radius:11px;background:rgb(236,253,245)}
+</style></head><body>
+<div id="outside"><table><tbody><tr><td>Host table</td></tr></tbody></table><blockquote class="sdoc-copyable-quote">Host quote<button class="quote-copy-btn">Host</button></blockquote></div>
+<div id="left"></div><div id="right"></div>
+<script>
+window.sdocsCopiedText='';window.sdocsCopiedPng=null;
+window.ClipboardItem=function(parts){this.parts=parts};
+Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+  writeText:async value=>{window.sdocsCopiedText=String(value)},
+  write:async items=>{window.sdocsCopiedPng=items[0].parts['image/png']}
+}});
+</script>
+<script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+const [leftView,rightView]=await Promise.all([
+  render('#left',${JSON.stringify(proseMarkdown)}),
+  render('#right',${JSON.stringify(proseMarkdown)},{controls:{copy:false}})
+]);
+window.updateProse=()=>leftView.update('| Updated | Value |\\n|---|---|\\n| Yes | 2 |\\n\\n> Updated quote');
+window.destroyProse=()=>leftView.destroy();
+window.proseViews={leftView,rightView};
+document.body.dataset.ready='true';</script></body></html>`);
+      return;
+    }
     if (requested === '/cells-isolation') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       const left = `---\ncells-tabs: tabbed\n---\n# Left\n\n~~~cells plan/Inputs\nMetric,Value\nUnits,12\nRate,25\n~~~\n\n~~~cells plan/Summary\nformat: B=$\nMetric,Value\nRevenue,=Inputs!B2*Inputs!B3\n~~~`;
@@ -130,6 +167,12 @@ document.body.dataset.ready = 'true';</script></body></html>`);
 <button id="probe" onclick="window.compromised=true">Safe</button><script>window.compromised=true</script>
 
 Inline math: $\\frac{x^2}{y+1}$
+
+| Trusted | Table |
+|---|---|
+| Safe | 42 |
+
+> Trusted quote
 
 ~~~javascript
 export function trustedCode() {
@@ -217,6 +260,64 @@ test('plain Markdown does not request rich feature modules or CDN dependencies',
   await expect(page.locator('.smalldocs-document')).toContainText('ordinary Markdown only');
   expect(requests.some(url => url.includes('/sdk/0.2.0/features/'))).toBe(false);
   expect(requests.some(url => url.startsWith('https://cdn.jsdelivr.net/'))).toBe(false);
+});
+
+test('canonical tables and blockquotes render in a clean customer page', async ({ page }) => {
+  await page.goto(customerOrigin + '/prose');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('#left .md-table-scroll')).toHaveCount(1);
+  await expect(page.locator('#left .md-table-toolbar')).toHaveCount(1);
+  await expect(page.locator('#left .table-copy-btn')).toHaveCount(2);
+  await expect(page.locator('#left .table-copy-csv-btn')).toHaveAttribute('aria-label', 'Copy table as CSV');
+  await expect(page.locator('#left .table-copy-png-btn')).toHaveAttribute('aria-label', 'Copy table as PNG');
+  await expect(page.locator('#left blockquote.sdoc-copyable-quote .quote-copy-btn')).toHaveCount(1);
+  await expect(page.locator('#left th').first()).toHaveCSS('background-color', 'rgb(219, 234, 254)');
+  await expect(page.locator('#left blockquote')).toHaveCSS('background-color', 'rgb(254, 243, 199)');
+  await expect(page.locator('#left .table-copy-csv-btn')).toHaveCSS('border-radius', '11px');
+  await expect(page.locator('#left .table-copy-csv-btn')).toHaveCSS('background-color', 'rgb(236, 253, 245)');
+
+  await expect(page.locator('#right .md-table-scroll')).toHaveCount(1);
+  await expect(page.locator('#right .md-table-toolbar')).toHaveCount(0);
+  await expect(page.locator('#right .quote-copy-btn')).toHaveCount(0);
+  await expect(page.locator('#outside .md-table-scroll')).toHaveCount(0);
+  await expect(page.locator('#outside .quote-copy-btn')).toHaveCSS('position', 'static');
+});
+
+test('canonical prose copy actions preserve text and produce a rendered PNG', async ({ page }) => {
+  await page.goto(customerOrigin + '/prose');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+
+  await page.locator('#left .table-copy-csv-btn').click();
+  await expect.poll(() => page.evaluate(() => window.sdocsCopiedText)).toBe(
+    'Name,Notes\nAda,"Hello, world"\nGrace,"Said ""yes"""'
+  );
+  await expect(page.locator('#left .table-copy-csv-btn polyline')).toHaveCount(1);
+
+  await page.locator('#left .quote-copy-btn').click();
+  await expect.poll(() => page.evaluate(() => window.sdocsCopiedText))
+    .toBe('First paragraph.\n\nSecond paragraph.');
+  await expect(page.locator('#left .quote-copy-btn polyline')).toHaveCount(1);
+
+  await page.locator('#left .table-copy-png-btn').click();
+  await expect.poll(() => page.evaluate(() => ({
+    type: window.sdocsCopiedPng && window.sdocsCopiedPng.type,
+    size: window.sdocsCopiedPng && window.sdocsCopiedPng.size,
+  }))).toEqual({ type: 'image/png', size: expect.any(Number) });
+  expect(await page.evaluate(() => window.sdocsCopiedPng.size)).toBeGreaterThan(0);
+});
+
+test('canonical prose lifecycle replaces and destroys only its own instance', async ({ page }) => {
+  await page.goto(customerOrigin + '/prose');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.evaluate(() => window.updateProse());
+  await expect(page.locator('#left table')).toContainText('Updated');
+  await expect(page.locator('#left .md-table-scroll')).toHaveCount(1);
+  await expect(page.locator('#left .md-table-toolbar')).toHaveCount(1);
+  await expect(page.locator('#right table')).toContainText('Ada');
+  await expect(page.locator('#right .md-table-scroll')).toHaveCount(1);
+  await page.evaluate(() => window.destroyProse());
+  await expect(page.locator('#left .smalldocs-sdk-view')).toHaveCount(0);
+  await expect(page.locator('#right .smalldocs-sdk-view')).toHaveCount(1);
 });
 
 test('canonical spreadsheet instances keep workbook state and lifecycle isolated', async ({ page }) => {
@@ -422,6 +523,8 @@ test('private sanitizer ignores host globals and works with Trusted Types enforc
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await expect(page.locator('.smalldocs-document')).toContainText('Trusted rich document');
   await expect(page.locator('[id$="probe"]')).not.toHaveAttribute('onclick');
+  await expect(page.locator('.md-table-toolbar .table-copy-btn')).toHaveCount(2);
+  await expect(page.locator('blockquote.sdoc-copyable-quote .quote-copy-btn')).toHaveCount(1);
   await expect(page.locator('.katex')).toHaveCount(2);
   await expect(page.locator('.katex .mfrac')).toHaveCount(1);
   expect(await page.locator('.katex [style]').count()).toBeGreaterThan(0);

@@ -87,13 +87,16 @@ export function ensureCoreAssets() {
   if (coreAssetsPromise) return coreAssetsPromise;
   coreAssetsPromise = Promise.all([
     loadStyle(sdkAsset('smalldocs.css'), 'smalldocs-sdk-styles'),
+    loadStyle(sdkAsset('prose-reader.css'), 'smalldocs-sdk-prose-reader-styles'),
     loadScript(vendorAsset('sdocs-yaml.js'), () => window.SDocYaml),
     loadScript(vendorAsset('sdocs-styles.js'), () => window.SDocStyles),
     loadScript(vendorAsset('sdocs-slugify.js'), () => window.SDocSlugify),
+    loadScript(vendorAsset('sdocs-prose-reader.js'), () => window.SDocProseReader),
   ]).then((values) => Object.freeze({
-    yaml: values[1],
-    styles: values[2],
-    slugify: values[3],
+    yaml: values[2],
+    styles: values[3],
+    slugify: values[4],
+    prose: values[5],
   })).catch((error) => {
     coreAssetsPromise = null;
     throw error;

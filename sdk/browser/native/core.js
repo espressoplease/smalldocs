@@ -270,53 +270,9 @@ function buildNavigation(context) {
   context.navigation.append(title, list);
 }
 
-function tableRows(table) {
-  return Array.from(table.rows).map((row) => Array.from(row.cells).map((cell) => {
-    const clone = cell.cloneNode(true);
-    clone.querySelectorAll('.smalldocs-table-tools').forEach((node) => node.remove());
-    return clone.textContent.trim();
-  }));
-}
-
-function csvValue(value) {
-  return /[",\n\r]/.test(value) ? '"' + value.replace(/"/g, '""') + '"' : value;
-}
-
-function decorateTables(context) {
-  context.root.querySelectorAll('table').forEach((table) => {
-    const scroller = document.createElement('div');
-    scroller.className = 'smalldocs-table-scroll';
-    table.parentNode.insertBefore(scroller, table);
-    scroller.appendChild(table);
-    if (!context.options.controls.copy) return;
-    const tools = document.createElement('div');
-    tools.className = 'smalldocs-table-tools';
-    const copy = iconButton('smalldocs-table-copy', 'Copy table as CSV', COPY_ICON);
-    const label = document.createElement('span');
-    label.textContent = 'CSV';
-    copy.appendChild(label);
-    copy.addEventListener('click', () => {
-      const csv = tableRows(table).map((row) => row.map(csvValue).join(',')).join('\n');
-      copyText(csv, copy);
-    });
-    tools.appendChild(copy);
-    scroller.insertBefore(tools, table);
-  });
-}
-
 function codeLanguage(code) {
   const match = (code.className || '').match(/(?:^|\s)language-([\w+#-]+)/i);
   return match ? match[1].toLowerCase() : '';
-}
-
-function decorateBlockquotes(context) {
-  if (!context.options.controls.copy) return;
-  context.root.querySelectorAll('blockquote').forEach((quote) => {
-    quote.classList.add('smalldocs-copyable-quote');
-    const copy = iconButton('smalldocs-quote-copy', 'Copy quote', COPY_ICON);
-    copy.addEventListener('click', () => copyText(quote.innerText.trim(), copy));
-    quote.appendChild(copy);
-  });
 }
 
 const featureDefinitions = [
@@ -431,10 +387,16 @@ async function updateContext(context, markdown) {
   context.active = state;
   context.shell.replaceChildren(navigation, root);
   applyDocumentStyles(state);
+  const prose = state.assets.prose.create({
+    root: state.root,
+    controls: state.options.controls,
+    setHTML: setKnownHTML,
+    isActive: () => !state.signal.aborted && context.active === state,
+  });
+  prose.attach(state.root);
+  state.cleanups.push(() => prose.destroy());
   decorateHeadings(state);
   buildSections(state);
-  decorateTables(state);
-  decorateBlockquotes(state);
   buildNavigation(state);
   await mountFeatures(state);
   if (state.signal.aborted || context.active !== state || generation !== context.generation) throw abortError();

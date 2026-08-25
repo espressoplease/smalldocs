@@ -1,4 +1,14 @@
 {
+  "sdocs-prose-reader.js": {
+    "source": "public/sdocs-prose-reader.js",
+    "sha256": "f95f4addbfb0caadcb73567936c57148d4cdafe32c2b6688bc2b1a9e7cf5cf03"
+  },
+  "sdocs-prose-reader.css": {
+    "source": "public/css/prose-reader.css",
+    "sha256": "2333bc57d55bb73e45cc9834b824fdefd2731c2a513038bda712e4ec3946bed7",
+    "sourceSha256": "944d70299ebcc990bba3120d97560901184955e1d8f2e503dd8df856302c3479",
+    "transform": "sdk-layered-css"
+  },
   "sdocs-code-reader.js": {
     "source": "public/sdocs-code-reader.js",
     "sha256": "d91ee4c30facdf149f8c42e94536281455ed86e533930e32716951c8d84109f6"

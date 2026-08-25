@@ -176,6 +176,24 @@ module.exports = function ({ assert, test, testAsync }) {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  test('parity image tolerance accepts one-pixel capture rounding only with a clean perceptual diff', () => {
+    assert.equal(parity.imageWithinTolerance({
+      ratio: 0.002,
+      referenceSize: { width: 864, height: 76 },
+      candidateSize: { width: 864, height: 77 },
+    }), true);
+    assert.equal(parity.imageWithinTolerance({
+      ratio: 0.002,
+      referenceSize: { width: 864, height: 76 },
+      candidateSize: { width: 864, height: 78 },
+    }), false);
+    assert.equal(parity.imageWithinTolerance({
+      ratio: 0.004,
+      referenceSize: { width: 864, height: 76 },
+      candidateSize: { width: 864, height: 77 },
+    }), false);
+  });
+
   test('parity HTML report names failed states and evidence', () => {
     const html = parity.reportHtml({
       suite: 'slides', baseline: 'main', createdAt: 'now', pass: false,

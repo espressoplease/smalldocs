@@ -8,6 +8,8 @@ const path = require('path');
 const repo = path.resolve(__dirname, '..');
 const output = path.join(repo, 'sdk', 'browser', 'native', 'vendor');
 const files = [
+  ['public/sdocs-prose-reader.js', 'sdocs-prose-reader.js'],
+  ['public/css/prose-reader.css', 'sdocs-prose-reader.css', 'sdk-layered-css'],
   ['public/sdocs-code-reader.js', 'sdocs-code-reader.js'],
   ['public/sdocs-code-focus.js', 'sdocs-code-focus.js'],
   ['public/css/code-reader.css', 'sdocs-code-reader.css'],
@@ -44,6 +46,10 @@ function digest(buffer) {
 
 function transformContents(contents, transform) {
   if (!transform) return contents;
+  if (transform === 'sdk-layered-css') {
+    return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
+      + contents.toString('utf8') + '\n}\n}\n');
+  }
   if (transform === 'sdk-scoped-css') {
     const css = contents.toString('utf8');
     const focusMarker = '/* Canonical spreadsheet fullscreen surface. */';

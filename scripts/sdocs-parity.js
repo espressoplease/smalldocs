@@ -11,6 +11,7 @@ const { chromium } = require('playwright');
 const {
   compareCapture,
   diffPng,
+  imageWithinTolerance,
   parseArgs,
   reportHtml,
   safeName,
@@ -136,7 +137,7 @@ async function startCustomerHost(candidateOrigin, markdown) {
     ].join('; ');
     const html = '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1"><title>Clean SDK customer</title>' +
-      '<style>html,body{margin:0;background:#f7f7f7}#report{box-sizing:border-box;width:1160px;margin:40px auto;background:#fff;--sdocs-max-width:960px}</style></head>' +
+      '<style>html,body{margin:0;background:#f7f7f7}#report{box-sizing:border-box;width:min(1160px,100%);margin:40px auto;background:#fff;--sdocs-max-width:960px}</style></head>' +
       '<body><main id="report"></main><script type="module" src="/app.js"></script></body></html>';
     response.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
@@ -198,6 +199,18 @@ async function settle(page) {
 async function initialiseSurface(browser, surface, kind, suite, markdown) {
   const page = await browser.newPage({ viewport: suite.viewport, deviceScaleFactor: 1 });
   const diagnostics = pageDiagnostics(page);
+  await page.addInitScript(() => {
+    window.__sdocsParityCopiedText = '';
+    window.__sdocsParityCopiedPng = null;
+    window.ClipboardItem = function (parts) { this.parts = parts; };
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (value) => { window.__sdocsParityCopiedText = String(value); },
+        write: async (items) => { window.__sdocsParityCopiedPng = items[0].parts['image/png']; },
+      },
+    });
+  });
   await page.goto(surface.origin + (kind === 'production' ? '/new' : '/'), { waitUntil: 'domcontentloaded' });
   if (kind === 'production') {
     try {
@@ -219,7 +232,7 @@ async function initialiseSurface(browser, surface, kind, suite, markdown) {
       document.querySelectorAll('.section-toggle').forEach((toggle) => toggle.classList.add('open'));
       const style = document.createElement('style');
       style.dataset.parityHarness = 'true';
-      style.textContent = '#_sd_rendered{width:960px!important;max-width:960px!important}';
+      style.textContent = '#_sd_rendered{width:min(960px,100%)!important;max-width:960px!important}';
       document.head.appendChild(style);
     }, { source: markdown });
   } else {
@@ -514,7 +527,7 @@ function compareSurfaces(label, reference, candidate, suite, outputDir) {
       .concat(left.diagnostics.map((entry) => 'Reference ' + entry.type + ': ' + entry.message))
       .concat(right.contractFailures.map((failure) => 'Candidate: ' + failure))
       .concat(right.diagnostics.map((entry) => 'Candidate ' + entry.type + ': ' + entry.message));
-    const imagePass = image.sameSize && image.ratio <= 0.003;
+    const imagePass = imageWithinTolerance(image);
     return {
       name: state.name,
       label: state.label,

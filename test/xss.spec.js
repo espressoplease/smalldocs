@@ -1,7 +1,7 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = 'http://localhost:3000/docs';
 
 /**
  * Load markdown into the app via SDocs.loadText() and return the
@@ -136,7 +136,7 @@ test('preserves images with safe src', async ({ page }) => {
 // ── Write mode sanitization ──────────────────────────────
 
 test('write mode also sanitizes content', async ({ page }) => {
-  await page.goto(BASE + '/docs#mode=write');
+  await page.goto(BASE + '#mode=write');
   await page.waitForSelector('#_sd_write[contenteditable="true"]');
 
   await page.evaluate((md) => {

@@ -108,6 +108,15 @@ function diffPng(referencePath, candidatePath, outputPath, threshold) {
   };
 }
 
+function imageWithinTolerance(image, options) {
+  const config = options || {};
+  const sizeTolerance = config.sizeTolerance == null ? 1 : config.sizeTolerance;
+  const maxRatio = config.maxRatio == null ? 0.003 : config.maxRatio;
+  return Math.abs(image.referenceSize.width - image.candidateSize.width) <= sizeTolerance
+    && Math.abs(image.referenceSize.height - image.candidateSize.height) <= sizeTolerance
+    && image.ratio <= maxRatio;
+}
+
 function escapeHtml(value) {
   return String(value == null ? '' : value)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -143,6 +152,7 @@ module.exports = {
   compareCapture,
   diffPng,
   escapeHtml,
+  imageWithinTolerance,
   normalizeText,
   parseArgs,
   reportHtml,
