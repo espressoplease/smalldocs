@@ -182,9 +182,12 @@
       }).then(function () { return window.SDocCellsXlsx; });
     } else if (name === 'focus') {
       lazyFeatures[name] = Promise.all([
-        loadLazyScript('sdocs-cells-edit.js', function () { return !!S.cellsEdit; }),
-        loadLazyScript('sdocs-cells-focus.js', function () { return !!S.cellsFocus; }),
-      ]).then(function () { return S.cellsFocus; });
+        loadLazyScript('sdocs-cells-edit.js', function () { return !!window.SDocCellsEdit; }),
+        loadLazyScript('sdocs-cells-focus.js', function () { return !!window.SDocCellsFocus; }),
+      ]).then(function () {
+        window.SDocCellsEdit.installProduction(window);
+        return window.SDocCellsFocus.installProduction(window);
+      });
     } else {
       return Promise.reject(new Error('Unknown cells feature: ' + name));
     }

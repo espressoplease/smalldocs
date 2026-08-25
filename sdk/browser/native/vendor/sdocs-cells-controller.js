@@ -159,6 +159,12 @@
       });
     }
 
+    function entriesForModel(model) {
+      ensureActive();
+      var entry = find(model);
+      return entry ? entriesFor(entry) : [];
+    }
+
     function plan(inputs) {
       ensureActive();
       current = planWorkbooks(inputs, cells, formula, limits);
@@ -189,6 +195,7 @@
 
     return {
       plan: plan,
+      entriesFor: entriesForModel,
       recalculateFor: recalculateFor,
       groupFor: groupFor,
       getPlan: function () { return current; },

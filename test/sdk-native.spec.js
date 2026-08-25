@@ -81,7 +81,7 @@ document.body.dataset.ready = 'true';
       const left = `---\ncells-tabs: tabbed\n---\n# Left\n\n~~~cells plan/Inputs\nMetric,Value\nUnits,12\nRate,25\n~~~\n\n~~~cells plan/Summary\nformat: B=$\nMetric,Value\nRevenue,=Inputs!B2*Inputs!B3\n~~~`;
       const right = `# Right\n\n~~~cells plan/Inputs\nMetric,Value\nUnits,4\nRate,10\n~~~\n\n~~~cells plan/Summary\nMetric,Value\nRevenue,=Inputs!B2*Inputs!B3\n~~~`;
       const update = `# Left updated\n\n~~~cells\nMetric,Value\nUnits,9\n~~~`;
-      res.end(`<!doctype html><html><head><style>#left{--sdocs-text-color:#123456;--sdocs-background:#fef3c7}#right .sdoc-cells-cell{color:#7c2d12;background:#dbeafe}</style></head><body><div id="outside" class="sdoc-cells-cell">Host content</div><div id="future-sdk" class="smalldocs-sdk-view" data-smalldocs-sdk-version="9.9.9"><div class="sdoc-cells-cell">Future SDK content</div></div><div id="left"></div><div id="right"></div>
+      res.end(`<!doctype html><html><head><style>#left{--sdocs-text-color:#123456;--sdocs-background:#fef3c7}#right .sdoc-cells-cell{color:#7c2d12;background:#dbeafe}</style></head><body><div id="outside" class="sdoc-cells-cell">Host content</div><button id="outside-fx" class="sdoc-cells-fx-toggle">Host button</button><div id="future-sdk" class="smalldocs-sdk-view" data-smalldocs-sdk-version="9.9.9"><div class="sdoc-cells-cell">Future SDK content</div></div><div id="left"></div><div id="right"></div>
 <script>window.sdocsCopiedText='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>{window.sdocsCopiedText=String(value)}}});window.sdocsActiveResizeObservers=0;const NativeResizeObserver=window.ResizeObserver;window.ResizeObserver=class{constructor(callback){this.inner=new NativeResizeObserver(callback);this.active=true;window.sdocsActiveResizeObservers+=1}observe(target){this.inner.observe(target)}unobserve(target){this.inner.unobserve(target)}disconnect(){if(this.active){this.active=false;window.sdocsActiveResizeObservers-=1}this.inner.disconnect()}};</script>
 <script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
 const [leftView, rightView] = await Promise.all([
@@ -91,6 +91,15 @@ window.updateLeft = () => leftView.update(${JSON.stringify(update)});
 window.oversizeRight = () => rightView.update('# Oversized\\n\\n~~~cells\\n' + 'x'.repeat(256 * 1024 + 1) + '\\n~~~');
 window.destroyLeft = () => leftView.destroy();
 window.destroyRight = () => rightView.destroy();
+document.body.dataset.ready = 'true';</script></body></html>`);
+      return;
+    }
+    if (requested === '/cells-disabled') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      const disabledMarkdown = '# No fullscreen\n\n~~~cells\nMetric,Value\nUnits,9\n~~~';
+      res.end(`<!doctype html><html><body><div id="report"></div><script type="module">
+import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+window.disabledView = await render('#report', ${JSON.stringify(disabledMarkdown)}, { controls: { fullscreen: false } });
 document.body.dataset.ready = 'true';</script></body></html>`);
       return;
     }
@@ -211,6 +220,7 @@ test('canonical spreadsheet instances keep workbook state and lifecycle isolated
   await expect(page.locator('#right .sdoc-cells-cell').first()).toHaveCSS('background-color', 'rgb(219, 234, 254)');
   await expect(page.locator('#outside')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('#outside')).toHaveCSS('display', 'block');
+  await expect(page.locator('#outside-fx')).toHaveCSS('display', 'inline-block');
   await expect(page.locator('#left .smalldocs-sdk-view')).toHaveAttribute('data-smalldocs-sdk-version', '0.2.0');
   await expect(page.locator('#right .smalldocs-sdk-view')).toHaveAttribute('data-smalldocs-sdk-version', '0.2.0');
   await expect(page.locator('#future-sdk .sdoc-cells-cell')).toHaveCSS('display', 'block');
@@ -246,6 +256,81 @@ test('canonical spreadsheet instances keep workbook state and lifecycle isolated
   await expect(page.locator('#right .sdoc-cells-error')).toContainText('Cells source exceeds 256 KB cap');
 });
 
+test('canonical spreadsheet fullscreen loads on demand and keeps edit lifecycle instance-owned', async ({ page }) => {
+  const requests = [];
+  page.on('request', request => requests.push(request.url()));
+  await page.goto(customerOrigin + '/cells-isolation');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  expect(requests.some(url => url.includes('sdocs-cells-edit.js'))).toBe(false);
+  expect(requests.some(url => url.includes('sdocs-cells-focus.js'))).toBe(false);
+
+  await page.locator('#left .sdoc-cells:visible').getByRole('button', { name: 'Open fullscreen' }).click();
+  const focus = page.locator('.sdoc-cells-focus');
+  await expect(focus).toBeVisible();
+  await expect(focus).toHaveAttribute('data-smalldocs-sdk-version', '0.2.0');
+  await expect(focus).toHaveAttribute('role', 'dialog');
+  await expect(focus.locator('.sdoc-cells-focus-topbar')).toBeVisible();
+  await expect(focus.locator('.sdoc-cells-focus-topbar')).toHaveCSS('display', 'flex');
+  await expect(focus.locator('.sdoc-cells-focus-tab')).toHaveText(['Inputs', 'Summary']);
+  expect(requests.some(url => url.includes('sdocs-cells-edit.js'))).toBe(true);
+  expect(requests.some(url => url.includes('sdocs-cells-focus.js'))).toBe(true);
+
+  // A second reader supersedes the first through the shared overlay lease,
+  // while retaining its own workbook and editor instance.
+  await page.evaluate(() => document.querySelector('#right .sdoc-cells-expand').click());
+  await expect(page.locator('.sdoc-cells-focus')).toHaveCount(1);
+  await expect(focus.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('4');
+  await focus.locator('.sdoc-cells-focus-close').click();
+
+  await page.locator('#left .sdoc-cells:visible').getByRole('button', { name: 'Open fullscreen' }).click();
+  await focus.getByRole('tab', { name: 'Summary' }).click();
+  await expect(focus.getByRole('button', { name: 'Show formulas' })).toBeVisible();
+  await focus.getByRole('button', { name: 'Show formulas' }).click();
+  await expect(focus.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toContainText('=Inputs!B2*Inputs!B3');
+  await focus.locator('.sdoc-cells-fx-toggle').filter({ hasText: '=fx' }).click();
+
+  const cell = focus.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]');
+  await cell.dblclick();
+  await page.locator('.sdoc-cells-editor').fill('999');
+  await page.locator('.sdoc-cells-editor').press('Escape');
+  await expect(cell).toHaveText('$300.00');
+
+  await cell.click();
+  await focus.locator('.sdoc-cells-focus-value').fill('=6*7');
+  await focus.locator('.sdoc-cells-focus-value').press('Enter');
+  await expect(cell).toHaveText('$42.00');
+  await focus.locator('.sdoc-cells-focus-close').click();
+  await page.locator('#left').getByRole('tab', { name: 'Summary' }).click();
+  await expect(page.locator('#left .sdoc-cells:visible .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('$42.00');
+
+  await page.locator('#left .sdoc-cells:visible').getByRole('button', { name: 'Open fullscreen' }).click();
+  await focus.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').dblclick();
+  await page.locator('.sdoc-cells-editor').fill('777');
+  await page.evaluate(() => window.updateLeft());
+  await expect(focus).toHaveCount(0);
+  await expect(page.locator('#left .sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('9');
+  await expect(page.locator('#right .sdoc-cells-grid')).toHaveCount(2);
+
+  await page.locator('#right .sdoc-cells').first().getByRole('button', { name: 'Open fullscreen' }).click();
+  await focus.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').dblclick();
+  await page.locator('.sdoc-cells-editor').fill('888');
+  await page.evaluate(() => window.destroyRight());
+  await expect(focus).toHaveCount(0);
+  await expect(page.locator('#right .smalldocs-document')).toHaveCount(0);
+  await expect(page.locator('#left .sdoc-cells-grid')).toHaveCount(1);
+});
+
+test('disabled spreadsheet fullscreen never loads focus or editor assets', async ({ page }) => {
+  const requests = [];
+  page.on('request', request => requests.push(request.url()));
+  await page.goto(customerOrigin + '/cells-disabled');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.sdoc-cells-grid')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Open fullscreen' })).toHaveCount(0);
+  expect(requests.some(url => url.includes('sdocs-cells-edit.js'))).toBe(false);
+  expect(requests.some(url => url.includes('sdocs-cells-focus.js'))).toBe(false);
+});
+
 test('canonical spreadsheet selection, keyboard, copy and drag lifecycle stay instance-owned', async ({ page }) => {
   await page.goto(customerOrigin + '/cells-isolation');
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
@@ -272,6 +357,7 @@ test('canonical spreadsheet selection, keyboard, copy and drag lifecycle stay in
 
   const wholeCopy = leftSheet.getByRole('button', { name: 'Copy whole sheet as CSV' });
   await wholeCopy.focus();
+  await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
   await expect(leftGrid).toBeFocused();
@@ -304,6 +390,8 @@ test('canonical spreadsheet selection, keyboard, copy and drag lifecycle stay in
 });
 
 test('private sanitizer ignores host globals and works with Trusted Types enforcement', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
   await page.goto(customerOrigin + '/host-globals');
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await expect(page.locator('[id$="probe"]')).not.toHaveAttribute('onclick');
@@ -323,6 +411,11 @@ test('private sanitizer ignores host globals and works with Trusted Types enforc
   await expect(page.locator('.smalldocs-mermaid-stage > svg')).toHaveCount(2);
   await expect(page.locator('.sdoc-cells-grid')).toHaveCount(1);
   await expect(page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('42');
+  await page.getByRole('button', { name: 'Open fullscreen' }).click();
+  await expect(page.locator('.sdoc-cells-focus')).toBeVisible();
+  await expect(page.locator('.sdoc-cells-focus-topbar')).toBeVisible();
+  await page.locator('.sdoc-cells-focus-close').click();
+  expect(pageErrors).toEqual([]);
   await expect(page.locator('.sdoc-slide')).toHaveCount(1);
   await expect(page.locator('.sdoc-mermaid-error')).toHaveCount(0);
   await expect(page.locator('iframe')).toHaveCount(0);
@@ -567,7 +660,7 @@ test('operations customer keeps two rich documents isolated', async ({ page }) =
   expect(xlsx.suggestedFilename()).toMatch(/\.xlsx$/);
   expect(xlsxBytes.subarray(0, 2).toString('ascii')).toBe('PK');
 
-  await expect(page.locator('#capacity-report .sdoc-cells-expand')).toHaveCount(0);
+  await expect(page.locator('#capacity-report .sdoc-cells-expand')).toHaveCount(2);
 
   await page.evaluate(() => window.updateCapacityDocument());
   await expect(page.locator('#capacity-report h1')).toHaveText('Summary');

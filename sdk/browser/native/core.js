@@ -393,7 +393,7 @@ function runCleanups(context, reason) {
   closeActiveOverlay(context, reason, { restoreFocus: false });
   const cleanups = context.cleanups.splice(0).reverse();
   cleanups.forEach((cleanup) => {
-    try { cleanup(); } catch (_) {}
+    try { cleanup(reason); } catch (_) {}
   });
 }
 

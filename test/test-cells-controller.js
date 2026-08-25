@@ -109,6 +109,18 @@ module.exports = function (harness) {
     assert.strictEqual(ctl.groupFor(plan.entries[0].model, resolve).sheets[0].model, edited);
   });
 
+  test('entriesFor returns only the model workbook in tab order', () => {
+    const ctl = controller();
+    const plan = ctl.plan([
+      { source: 'sdoc-cells: name="A" workbook="one"\nValue\n1' },
+      { source: 'sdoc-cells: name="B" workbook="one"\nValue\n2' },
+      { source: 'sdoc-cells: name="C" workbook="two"\nValue\n3' },
+    ]);
+    assert.deepStrictEqual(ctl.entriesFor(plan.entries[1].model).map(entry => entry.name), ['A', 'B']);
+    assert.deepStrictEqual(ctl.entriesFor(plan.entries[2].model).map(entry => entry.name), ['C']);
+    assert.deepStrictEqual(ctl.entriesFor({}), []);
+  });
+
   test('destroy is idempotent and closes controller planning', () => {
     const ctl = controller();
     ctl.destroy();

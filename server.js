@@ -3133,7 +3133,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const nativeSdkMatch = /^\/sdk\/0\.2\.0\/(smalldocs\.js|smalldocs\.css|code-reader\.css|slide-reader\.css|core\.js|assets\.js|runtime\.js|overlay\.js|download\.js|mermaid-renderer\.js|features\/(?:code|math|video|charts|mermaid|cells|slides|highlight)\.js|vendor\/(?:marked\.esm\.js|purify\.es\.mjs|fonts\/inter-(?:400|500|600)\.woff2|sdocs-(?:code-reader|slide-reader|cells)\.css|sdocs-code-lang\/[\w-]+\.js|sdocs-(?:yaml|styles|slugify|code-reader|code-focus|slide-reader|present|present-mobile|zoom-math|cells|cells-formula|cells-xlsx|cells-controller|cells-select|cells-ui|shapes|slide-stdlib|slide-resolve|shape-render|slide-pdf|slide-pptx|video|icons-data)\.js))$/.exec(pathname);
+  const nativeSdkMatch = /^\/sdk\/0\.2\.0\/(smalldocs\.js|smalldocs\.css|code-reader\.css|slide-reader\.css|core\.js|assets\.js|runtime\.js|overlay\.js|download\.js|mermaid-renderer\.js|features\/(?:code|math|video|charts|mermaid|cells|slides|highlight)\.js|vendor\/(?:marked\.esm\.js|purify\.es\.mjs|fonts\/inter-(?:400|500|600)\.woff2|sdocs-(?:code-reader|slide-reader|cells)\.css|sdocs-code-lang\/[\w-]+\.js|sdocs-(?:yaml|styles|slugify|code-reader|code-focus|slide-reader|present|present-mobile|zoom-math|cells|cells-formula|cells-xlsx|cells-controller|cells-select|cells-edit|cells-focus|cells-ui|shapes|slide-stdlib|slide-resolve|shape-render|slide-pdf|slide-pptx|video|icons-data)\.js))$/.exec(pathname);
   if (nativeSdkMatch) {
     serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'native', nativeSdkMatch[1]), {
       'Cache-Control': 'public, max-age=31536000, immutable',

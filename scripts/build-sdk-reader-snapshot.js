@@ -21,6 +21,7 @@ const files = [
   ['public/sdocs-cells-controller.js', 'sdocs-cells-controller.js'],
   ['public/sdocs-cells-select.js', 'sdocs-cells-select.js'],
   ['public/sdocs-cells-edit.js', 'sdocs-cells-edit.js'],
+  ['public/sdocs-cells-focus.js', 'sdocs-cells-focus.js'],
   ['public/sdocs-cells-ui.js', 'sdocs-cells-ui.js'],
   ['public/css/cells.css', 'sdocs-cells.css', 'sdk-scoped-css'],
   ['public/fonts/inter-400.woff2', 'fonts/inter-400.woff2'],
@@ -44,10 +45,18 @@ function digest(buffer) {
 function transformContents(contents, transform) {
   if (!transform) return contents;
   if (transform === 'sdk-scoped-css') {
-    const css = contents.toString('utf8')
+    const css = contents.toString('utf8');
+    const focusMarker = '/* Canonical spreadsheet fullscreen surface. */';
+    const markerIndex = css.indexOf(focusMarker);
+    const inline = (markerIndex < 0 ? css : css.slice(0, markerIndex))
       .replace(/body\.sdoc-cells-resizing/g, ':scope.sdoc-cells-resizing');
+    const focus = markerIndex < 0 ? '' : css.slice(markerIndex)
+      .replace(/body\.sdoc-cells-focus-open\s*\{[^}]*\}/g, '')
+      .replace(/\.sdoc-cells-focus(?![-\w])/g,
+        ':scope');
     return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
-      + css + '\n}\n}\n');
+      + inline + '\n}\n@scope (.sdoc-cells-focus[data-smalldocs-sdk-version="0.2.0"]) {\n'
+      + focus + '\n}\n}\n');
   }
   throw new Error('Unknown SDK snapshot transform: ' + transform);
 }

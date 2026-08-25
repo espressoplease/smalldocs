@@ -1,4 +1,6 @@
 import { loadScript, loadStyle, vendorAsset } from '../assets.js';
+import { downloadBlob } from '../download.js';
+import { openOverlayLease } from '../overlay.js';
 import { setKnownHTML } from '../runtime.js';
 
 async function ensureCells() {
@@ -32,6 +34,60 @@ export async function mount(context) {
 
   const state = { currentMeta: context.meta };
   const selection = api.selection.create({ window, document });
+  let focus = null;
+  let editor = null;
+  let focusPromise = null;
+  function ensureFocus() {
+    if (focus) return Promise.resolve(focus);
+    if (focusPromise) return focusPromise;
+    focusPromise = Promise.all([
+      loadScript(vendorAsset('sdocs-cells-edit.js'), () => window.SDocCellsEdit),
+      loadScript(vendorAsset('sdocs-cells-focus.js'), () => window.SDocCellsFocus),
+    ]).then(([editorApi, focusApi]) => {
+      if (context.signal.aborted) return null;
+      editor = editorApi.create({
+        window,
+        document,
+        cells: api.cells,
+        formula: api.formula,
+        isActive() { return !context.signal.aborted; },
+      });
+      focus = focusApi.create({
+        window,
+        document,
+        cells: api.cells,
+        formula: api.formula,
+        controller: renderer.controller,
+        editor,
+        buildGrid: renderer.buildGrid,
+        buildCopyControls: renderer.buildCopyControls,
+        formatStats: renderer.formatStats,
+        setKnownHTML,
+        sdkVersion: '0.2.0',
+        controls: context.options.controls,
+        owner: context,
+        themeSource: context.root,
+        openOverlayLease,
+        downloadBlob,
+        isActive() { return !context.signal.aborted; },
+        onEdited(model, wrapper) {
+          if (wrapper && wrapper._cellsMarkEdited) wrapper._cellsMarkEdited();
+        },
+        loadFeature(name) {
+          if (name !== 'xlsx') return Promise.reject(new Error('Spreadsheet feature is unavailable: ' + name));
+          return loadScript(vendorAsset('sdocs-cells-xlsx.js'), () => window.SDocCellsXlsx);
+        },
+        onError(error) {
+          if (window.console && window.console.error) window.console.error(error);
+        },
+      });
+      return focus;
+    }).catch((error) => {
+      focusPromise = null;
+      throw error;
+    });
+    return focusPromise;
+  }
   const renderer = api.ui.create({
     window,
     document,
@@ -45,16 +101,16 @@ export async function mount(context) {
     resizeClassTarget: context.shell,
     isActive() { return !context.signal.aborted; },
     setKnownHTML,
-    // Fullscreen depends on the production focus and edit adapters. Until
-    // those are instance-capable, omit the canonical button rather than
-    // replacing it with a second spreadsheet experience.
-    capabilities: { fullscreen: false },
+    capabilities: { fullscreen: context.options.controls.fullscreen },
     sourceForCode(code, pre, source) {
       return sourceForCode(api.cells, pre, source);
     },
     loadFeature(name) {
-      if (name !== 'xlsx') return Promise.reject(new Error('Spreadsheet feature is unavailable: ' + name));
-      return loadScript(vendorAsset('sdocs-cells-xlsx.js'), () => window.SDocCellsXlsx);
+      if (name === 'focus') return ensureFocus();
+      if (name === 'xlsx') {
+        return loadScript(vendorAsset('sdocs-cells-xlsx.js'), () => window.SDocCellsXlsx);
+      }
+      return Promise.reject(new Error('Spreadsheet feature is unavailable: ' + name));
     },
   });
   try {
@@ -65,11 +121,13 @@ export async function mount(context) {
     throw error;
   }
   if (context.signal.aborted) {
+    if (focus) focus.destroy('update');
     renderer.destroy();
     selection.destroy();
     return;
   }
-  return () => {
+  return (reason) => {
+    if (focus) focus.destroy(reason);
     renderer.destroy();
     selection.destroy();
   };

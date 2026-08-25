@@ -241,6 +241,12 @@ module.exports = function(harness) {
       const codeFocus = await get(BASE + '/sdk/0.2.0/vendor/sdocs-code-focus.js');
       assert.strictEqual(codeFocus.status, 200);
       assert.ok(codeFocus.body.includes('createCodeFocus'));
+      const cellsEdit = await get(BASE + '/sdk/0.2.0/vendor/sdocs-cells-edit.js');
+      assert.strictEqual(cellsEdit.status, 200);
+      assert.ok(cellsEdit.body.includes('SDocCellsEdit'));
+      const cellsFocus = await get(BASE + '/sdk/0.2.0/vendor/sdocs-cells-focus.js');
+      assert.strictEqual(cellsFocus.status, 200);
+      assert.ok(cellsFocus.body.includes('SDocCellsFocus'));
       const codeCss = await get(BASE + '/sdk/0.2.0/code-reader.css');
       assert.strictEqual(codeCss.status, 200);
       assert.ok(codeCss.body.includes("layer(smalldocs)"));

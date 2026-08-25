@@ -334,6 +334,13 @@ module.exports = function(harness) {
         targetName + ' transformed SDK snapshot has drifted');
       assert.ok(target.toString('utf8').startsWith('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'),
         targetName + ' must remain layered and scoped to the exact SDK version');
+      if (targetName === 'sdocs-cells.css') {
+        const css = target.toString('utf8');
+        assert.ok(css.includes('.sdoc-cells-focus-topbar'),
+          'cells focus descendant class names must survive the SDK scope transform');
+        assert.ok(!css.includes('data-smalldocs-sdk-version="0.2.0"]-topbar'),
+          'the SDK scope transform must not splice the version marker into class names');
+      }
     });
   });
 };
