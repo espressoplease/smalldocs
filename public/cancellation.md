@@ -36,3 +36,7 @@ Export important documents before a deletion date. Subscription cancellation doe
 A Team owner can request Team deletion in Cloud settings. For a full account or personal-data deletion request, email [hi@smalldocs.org](mailto:hi@smalldocs.org). We may retain billing and transaction records where required for tax, accounting, fraud prevention, or legal claims.
 
 Deleted Cloud data may remain as encrypted ciphertext in backup archives until the backup retention cycle completes. Backup encryption keys and access are kept separate from the archive.
+
+## If SmallDocs Cloud closes
+
+For a planned closure that remains reasonably within our control, we will normally give at least 30 days' notice, stop future renewals, provide read-only access, and keep authenticated export available during the notice period. The [Service Closure and Data Portability Policy](/service-closure) explains refunds, export contents, deletion, insolvency, and a possible transfer to a successor.

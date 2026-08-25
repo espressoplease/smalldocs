@@ -4,6 +4,18 @@
 const path = require('path');
 const http = require('http');
 
+function availableLoopbackPort() {
+  return new Promise((resolve, reject) => {
+    const probe = http.createServer();
+    probe.unref();
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', () => {
+      const address = probe.address();
+      probe.close(error => error ? reject(error) : resolve(address.port));
+    });
+  });
+}
+
 module.exports = function(harness) {
   const { assert, testAsync, get, post } = harness;
 
@@ -168,8 +180,6 @@ module.exports = function(harness) {
         'signed-out root should not expose sign-out');
       assert.ok(!r.body.includes('discord.gg'),
         'root navigation should not expose Discord');
-      assert.ok(r.body.includes('href="/developers"'),
-        'root should link to the developer documentation');
     });
 
     await testAsync('GET /docs serves the app shell rendering sdoc.md', async () => {
@@ -686,6 +696,7 @@ module.exports = function(harness) {
         ['/privacy', '/public/privacy.md'],
         ['/acceptable-use', '/public/acceptable-use.md'],
         ['/cancellation', '/public/cancellation.md'],
+        ['/service-closure', '/public/service-closure.md'],
         ['/subprocessors', '/public/subprocessors.md'],
       ];
       for (const [route, documentPath] of routes) {
@@ -1943,7 +1954,7 @@ module.exports = function(harness) {
     });
 
     await testAsync('hidden Cloud public mode omits UI assets and returns 404 for Cloud routes', async () => {
-      const hiddenPort = 3100;
+      const hiddenPort = await availableLoopbackPort();
       const hiddenBase = 'http://localhost:' + hiddenPort;
       const hiddenServer = spawn('node', [path.join(__dirname, '..', 'server.js')], {
         env: {

@@ -2929,6 +2929,7 @@ const server = http.createServer((req, res) => {
     '/privacy': '/public/privacy.md',
     '/acceptable-use': '/public/acceptable-use.md',
     '/cancellation': '/public/cancellation.md',
+    '/service-closure': '/public/service-closure.md',
     '/subprocessors': '/public/subprocessors.md',
   };
 
