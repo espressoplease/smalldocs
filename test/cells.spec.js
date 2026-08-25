@@ -8,7 +8,7 @@
 // SDOCS_TEST_BASE to run against a server on another port.
 const { test, expect } = require('@playwright/test');
 
-const BASE = process.env.SDOCS_TEST_BASE || 'http://localhost:3000';
+const BASE = process.env.SDOCS_TEST_BASE || 'http://localhost:3000/docs';
 
 async function loadDoc(page, markdown) {
   await page.goto(BASE);
@@ -396,6 +396,40 @@ test('numbers display with thousands separators; negatives get a red class', asy
   expect(html).not.toContain('12,000');
 });
 
+test('default numeric display caps long decimal results at two places', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'Metric,Value', 'Forecast,573195.15000000003', 'Margin,0.5931673052362707', 'Half,1.005', 'Large ID,9007199254740993', 'Units,950', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').innerText()).toBe('573,195.15');
+  expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').innerText()).toBe('0.59');
+  expect(await page.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]').innerText()).toBe('1.01');
+  expect(await page.locator('.sdoc-cells-cell[data-r="4"][data-c="1"]').innerText()).toBe('9,007,199,254,740,993');
+  expect(await page.locator('.sdoc-cells-cell[data-r="5"][data-c="1"]').innerText()).toBe('950');
+});
+
+test('format directive targets columns, rows, and individual cells', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'format: B=$ 3=% B3=£.0', 'Metric,Value,Other', 'Revenue,12000,2', 'Margin,0.23,0.4', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').innerText()).toBe('$12,000.00');
+  expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="0"]').innerText()).toBe('Margin');
+  expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').innerText()).toBe('£0');
+  expect(await page.locator('.sdoc-cells-cell[data-r="2"][data-c="2"]').innerText()).toBe('40%');
+});
+
+test('malformed format targets never apply a valid-looking substring', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'format: A-2=% C1x=£ D1.2=$ E=%,.2', 'A,B,C,D,E', '0.23,0.23,0.23,0.23,0.23', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  for (let c = 0; c < 5; c++) {
+    expect(await page.locator(`.sdoc-cells-cell[data-r="1"][data-c="${c}"]`).innerText()).toBe('0.23');
+  }
+});
+
+test('high fixed precision on formulas does not expose binary residue', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells', 'format: A=.30', '=0.1+0.2', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  expect(await page.locator('.sdoc-cells-cell[data-r="0"][data-c="0"]').innerText())
+    .toBe('0.300000000000000000000000000000');
+});
+
 test('clicking a column header selects the whole column; a row header the whole row', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'a,b,c', '1,2,3', '4,5,6', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
@@ -621,6 +655,18 @@ test('a =formula cell renders its computed value', async ({ page }) => {
   })).toBe('=SUM(B2:B3)');
 });
 
+test('typed text and boolean formulas render their values', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells',
+    'Kind,Result',
+    'Text,"=UPPER(""small"")&"" docs"""',
+    'Bool,"=AND(TRUE,NOT(FALSE))"',
+    FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  await expect(page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('SMALL docs');
+  await expect(page.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]')).toHaveText('TRUE');
+  await expect(page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveClass(/is-text/);
+});
+
 test('a broken formula shows an error code, not a crash', async ({ page }) => {
   await loadDoc(page, [FENCE + 'cells', 'x,y', 'a,=1/0', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-grid');
@@ -833,6 +879,98 @@ test('pasting external (non-copied) text still works as plain values', async ({ 
   await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('8');
   await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="0"]')).toHaveText('9');
   await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]')).toHaveText('10');
+});
+
+test('external paste accepts a scalar, one-column rows, CSV, and a formula containing a comma', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b,c', '1,2,', FENCE]);
+
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  await pasteText(page, 'hello');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]')).toHaveText('hello');
+
+  await fs.locator('.sdoc-cells-cell[data-r="2"][data-c="0"]').click();
+  await pasteText(page, '9\n10');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="0"]')).toHaveText('9');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="0"]')).toHaveText('10');
+
+  await fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]').click();
+  await pasteText(page, '7,8\n11,12');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]')).toHaveText('7');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="2"]')).toHaveText('8');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="1"]')).toHaveText('11');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="3"][data-c="2"]')).toHaveText('12');
+
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="2"]').click();
+  await pasteText(page, '=ROUND(1.25,1)');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="2"]')).toHaveText('1.3');
+});
+
+test('external TSV paste preserves quoted line breaks, tabs, and quotes', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b', '1,2', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]').click();
+  await pasteText(page, '"alpha\nbeta"\t2\r\n"x\tq"\t"say ""hi"""\n');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]')).toHaveText('alpha\nbeta');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('2');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="0"]')).toHaveText('x\tq');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]')).toHaveText('say "hi"');
+});
+
+test('fullscreen keyboard selection supports used range, rows, columns, Home, and End', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b,c', '1,2,3', '4,5,6', FENCE]);
+  const selection = () => fs.locator('.sdoc-cells').evaluate((el) => el._cellsSelection);
+
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await page.keyboard.press('Control+a');
+  expect(await selection()).toMatchObject({ r0: 0, c0: 0, r1: 2, c1: 2 });
+
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await page.keyboard.press('Shift+Space');
+  const rowSelection = await selection();
+  expect(rowSelection.r0).toBe(1);
+  expect(rowSelection.r1).toBe(1);
+  expect(rowSelection.c0).toBe(0);
+  expect(rowSelection.c1).toBeGreaterThan(2);
+
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await page.keyboard.press('Control+Space');
+  const colSelection = await selection();
+  expect(colSelection.c0).toBe(1);
+  expect(colSelection.c1).toBe(1);
+  expect(colSelection.r0).toBe(0);
+  expect(colSelection.r1).toBeGreaterThan(2);
+
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await page.keyboard.press('Home');
+  expect(await selection()).toMatchObject({ r0: 1, c0: 0, r1: 1, c1: 0 });
+  await page.keyboard.press('End');
+  expect(await selection()).toMatchObject({ r0: 1, c0: 2, r1: 1, c1: 2 });
+  await page.keyboard.press('Control+Home');
+  expect(await selection()).toMatchObject({ r0: 0, c0: 0, r1: 0, c1: 0 });
+  await page.keyboard.press('Control+End');
+  expect(await selection()).toMatchObject({ r0: 2, c0: 2, r1: 2, c1: 2 });
+});
+
+test('fullscreen Ctrl+D and Ctrl+R fill formulas and remain undoable', async ({ page }) => {
+  const fs = await openFullscreen(page, [
+    FENCE + 'cells',
+    'a,b,total,right',
+    '2,3,=A2+B2,',
+    '4,6,,',
+    FENCE,
+  ]);
+
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="2"]').click();
+  await fs.locator('.sdoc-cells-cell[data-r="2"][data-c="2"]').click({ modifiers: ['Shift'] });
+  await page.keyboard.press('Control+d');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="2"][data-c="2"]')).toHaveText('10');
+
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="2"]').click();
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="3"]').click({ modifiers: ['Shift'] });
+  await page.keyboard.press('Control+r');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="3"]')).toHaveText('8');
+
+  await page.keyboard.press('Control+z');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="3"]')).toHaveText('');
 });
 
 // ── Formula view toggle ────────────────────────────────────
@@ -1354,6 +1492,18 @@ test('xlsx export: a sorted view still exports in document order', async ({ page
   ]);
   const s = fsMod.readFileSync(await download.path()).toString('latin1');
   expect(s.indexOf('Zebra')).toBeLessThan(s.indexOf('Apple'));
+});
+
+test('xlsx export: a named standalone sheet keeps its self-reference and cache', async ({ page }) => {
+  await loadDoc(page, [FENCE + 'cells Sales', 'Value,Formula', '5,=Sales!A2*2', FENCE].join('\n'));
+  await page.waitForSelector('.sdoc-cells-grid');
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('.sdoc-cells-xlsx').click(),
+  ]);
+  const s = fsMod.readFileSync(await download.path()).toString('latin1');
+  expect(s).toContain('<sheet name="Sales"');
+  expect(s).toContain('<f>Sales!A2*2</f><v>10</v>');
 });
 
 // ── Multiple tabs (deeper sheets) ─────────────────────────

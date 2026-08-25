@@ -1,5 +1,12 @@
 [
   {
+    "id": 8,
+    "date": "2026-08-23",
+    "title": "Multi-tab spreadsheets and Excel exports",
+    "body": "Open two example workbooks, edit linked sheets, then download complete Excel files to test formulas and recalculation.",
+    "link": "/advanced-spreadsheets"
+  },
+  {
     "id": 7,
     "date": "2026-06-30",
     "title": "Code walkthroughs are here",

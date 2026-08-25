@@ -131,6 +131,80 @@ module.exports = function (harness) {
     assert.strictEqual(c.block_text, undefined);
   });
 
+  test('addElementComment: stores a nested list-item target', () => {
+    const { meta, id } = SDC.addElementComment(
+      {},
+      {
+        block: 'ul:0',
+        element: 'li:1/ul:0/li:0',
+        element_text: 'Nested item',
+        element_scope: 'self',
+      },
+      { author: 'u', text: 'tighten this' }
+    );
+    assert.strictEqual(id, 'c1');
+    const c = SDC.getComments(meta)[0];
+    assert.strictEqual(c.kind, 'element');
+    assert.strictEqual(c.block, 'ul:0');
+    assert.strictEqual(c.element, 'li:1/ul:0/li:0');
+    assert.strictEqual(c.element_text, 'Nested item');
+    assert.strictEqual(c.element_scope, 'self');
+  });
+
+  test('addElementComment: branch scope survives normalization', () => {
+    const { meta } = SDC.addElementComment(
+      {},
+      { block: 'ol:0', element: 'li:2', element_scope: 'branch' },
+      { text: 'review this branch' }
+    );
+    assert.strictEqual(SDC.getComments(meta)[0].element_scope, 'branch');
+  });
+
+  test('addElementComment: rejects malformed element paths', () => {
+    assert.throws(
+      () => SDC.addElementComment({}, { block: 'ul:0', element: 'li:0 > script:0' }, {}),
+      /valid element path/
+    );
+  });
+
+  test('addTableComment: stores row, column, and cell recovery hints', () => {
+    const { meta, id } = SDC.addTableComment(
+      {},
+      {
+        block: 'table:0', table_scope: 'cell', table_row: 1, table_column: 2,
+        row_text: 'Table comments | Sam | Current behavior',
+        column_text: 'Status', cell_text: 'Current behavior',
+      },
+      { author: 'u', text: 'make this clearer' }
+    );
+    assert.strictEqual(id, 'c1');
+    const c = SDC.getComments(meta)[0];
+    assert.strictEqual(c.kind, 'table');
+    assert.strictEqual(c.table_scope, 'cell');
+    assert.strictEqual(c.table_row, 1);
+    assert.strictEqual(c.table_column, 2);
+    assert.strictEqual(c.row_text, 'Table comments | Sam | Current behavior');
+    assert.strictEqual(c.column_text, 'Status');
+    assert.strictEqual(c.cell_text, 'Current behavior');
+  });
+
+  test('addTableComment: validates the target indices required by each scope', () => {
+    assert.throws(
+      () => SDC.addTableComment({}, { block: 'table:0', table_scope: 'row' }, {}),
+      /valid table target/
+    );
+    assert.throws(
+      () => SDC.addTableComment({}, {
+        block: 'table:0', table_scope: 'cell', table_row: 0,
+      }, {}),
+      /valid table target/
+    );
+    assert.throws(
+      () => SDC.addTableComment({}, { block: 'p:0', table_scope: 'table' }, {}),
+      /table block id/
+    );
+  });
+
   test('normalizeComment: preserves resolved as boolean', () => {
     const c = SDC.normalizeComment({
       id: 'c1', kind: 'block', block: 'p:0', text: 'x', resolved: true,
@@ -322,6 +396,43 @@ module.exports = function (harness) {
     const body = '> some quote\n';
     const out = SDC.serializeFootnotes(meta, body);
     assert.ok(out.indexOf('[^c1]: j - on the quote (block blockquote:0)') !== -1);
+  });
+
+  test('serializeFootnotes: element comment carries its structural target', () => {
+    const meta = { comments: [
+      { id: 'c1', kind: 'element', block: 'ul:0', element: 'li:1',
+        element_text: 'banana', element_scope: 'self', author: 'j', text: 'replace this' },
+    ] };
+    const out = SDC.serializeFootnotes(meta, '- apple\n- banana\n');
+    assert.ok(out.indexOf(
+      '[^c1]: j - replace this (element ul:0 > li:1 "banana...")') !== -1);
+    const parsed = SDC.parseFootnotes(out);
+    assert.strictEqual(parsed.comments[0].kind, 'element');
+    assert.strictEqual(parsed.comments[0].element, 'li:1');
+    assert.strictEqual(parsed.comments[0].element_text, 'banana');
+  });
+
+  test('serializeFootnotes: table cell target survives the footnote round-trip', () => {
+    const meta = { comments: [
+      { id: 'c1', kind: 'table', block: 'table:0', table_scope: 'cell',
+        table_row: 1, table_column: 2,
+        row_text: 'Table comments | Sam | Current behavior',
+        column_text: 'Status', cell_text: 'Current behavior',
+        author: 'j', text: 'clarify this value' },
+    ] };
+    const out = SDC.serializeFootnotes(meta, '| A | B |\n|---|---|\n| x | y |\n');
+    assert.ok(out.indexOf(
+      '(table table:0, row 2 "Table comments | Sam | Current behavior", ' +
+      'column 3 "Status", cell "Current behavior")') !== -1);
+    const parsed = SDC.parseFootnotes(out);
+    assert.strictEqual(parsed.comments[0].kind, 'table');
+    assert.strictEqual(parsed.comments[0].table_scope, 'cell');
+    assert.strictEqual(parsed.comments[0].table_row, 1);
+    assert.strictEqual(parsed.comments[0].table_column, 2);
+    assert.strictEqual(parsed.comments[0].row_text,
+      'Table comments | Sam | Current behavior');
+    assert.strictEqual(parsed.comments[0].column_text, 'Status');
+    assert.strictEqual(parsed.comments[0].cell_text, 'Current behavior');
   });
 
   test('serializeFootnotes: body with no comments returned unchanged', () => {

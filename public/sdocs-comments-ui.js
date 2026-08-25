@@ -26,6 +26,9 @@ var CONTEXT_LEN = 40; // chars of before/after captured for disambiguation
 var focusedId = null;
 var selectionPopoverEl = null;
 var composerEl = null;
+var composerCleanup = null;
+var tablePreviewElements = [];
+var tablePreviewOwner = null;
 
 // ── Prefs ───────────────────────────────────────────────────────────────
 
@@ -57,12 +60,47 @@ function strip() {
     parent.normalize();
   });
   // Remove injected cards + gutter buttons + heading-copy-with-comments buttons
-  S.renderedEl.querySelectorAll('.sdoc-card, .sdoc-gutter-add, .sdoc-head-copy-c')
+  S.renderedEl.querySelectorAll(
+    '.sdoc-card, .sdoc-gutter-add, .sdoc-element-add, .sdoc-table-add, .sdoc-head-copy-c')
     .forEach(function (el) { el.remove(); });
   // Clear block-comment indicator class + its CSS var.
   S.renderedEl.querySelectorAll('.sdoc-block-commented').forEach(function (el) {
     el.classList.remove('sdoc-block-commented');
     el.style.removeProperty('--sdoc-block-comment-color');
+  });
+  S.renderedEl.querySelectorAll('.sdoc-element-commentable, .sdoc-element-commented')
+    .forEach(function (el) {
+      el.classList.remove('sdoc-element-commentable', 'sdoc-element-commented',
+        'sdoc-element-branch-commented');
+      el.style.removeProperty('--sdoc-element-comment-color');
+    });
+  S.renderedEl.querySelectorAll(
+    '.sdoc-table-commentable, .sdoc-table-all-commented, .sdoc-table-row-commented, ' +
+    '.sdoc-table-column-commented, .sdoc-table-cell-commented, ' +
+    '.sdoc-table-target-preview')
+    .forEach(function (el) {
+      el.classList.remove('sdoc-table-commentable', 'sdoc-table-all-commented',
+        'sdoc-table-row-commented', 'sdoc-table-column-commented',
+        'sdoc-table-cell-commented', 'sdoc-table-target-preview');
+      el.style.removeProperty('--sdoc-table-all-color');
+      el.style.removeProperty('--sdoc-table-row-color');
+      el.style.removeProperty('--sdoc-table-column-color');
+      el.style.removeProperty('--sdoc-table-cell-color');
+      el.style.removeProperty('--sdoc-table-preview-color');
+    });
+  tablePreviewElements = [];
+  tablePreviewOwner = null;
+  // Restore list items to the DOM shape produced by marked.
+  S.renderedEl.querySelectorAll('.sdoc-element-host').forEach(function (host) {
+    var parent = host.parentNode;
+    while (host.firstChild) parent.insertBefore(host.firstChild, host);
+    parent.removeChild(host);
+  });
+  // Restore the app's .md-table-scroll wrapper to its pre-comment shape.
+  S.renderedEl.querySelectorAll('.sdoc-table-host').forEach(function (host) {
+    var parent = host.parentNode;
+    while (host.firstChild) parent.insertBefore(host.firstChild, host);
+    parent.removeChild(host);
   });
   // Unwrap block-hosts (gutter button already removed above)
   S.renderedEl.querySelectorAll('.sdoc-block-host').forEach(function (host) {
@@ -117,6 +155,16 @@ function computeBlockId(block, root) {
   return pos === -1 ? '' : t + ':' + pos;
 }
 
+function containingTopBlock(node, root) {
+  if (!node || !root) return null;
+  var el = node.nodeType === 1 ? node : node.parentNode;
+  var blocks = listTopBlocks(root).blocks;
+  for (var i = 0; i < blocks.length; i++) {
+    if (blocks[i].el === el || blocks[i].el.contains(el)) return blocks[i].el;
+  }
+  return null;
+}
+
 function findBlockById(id, root, blockText) {
   if (!root) return null;
   var idx = listTopBlocks(root);
@@ -141,6 +189,204 @@ function findBlockById(id, root, blockText) {
       var b = idx.blocks[i].el;
       if ((b.textContent || '').trim().indexOf(blockText) === 0) return b;
     }
+  }
+  return null;
+}
+
+var ELEMENT_SEGMENT = /^(li|ul|ol):(\d+)$/;
+
+// Build a direct-descendant path below a top-level block. Including nested
+// list containers keeps ordered and unordered branches distinct.
+function computeElementPath(element, block) {
+  if (!element || !block || element === block || !block.contains(element)) return '';
+  var parts = [];
+  var node = element;
+  while (node && node !== block) {
+    var tag = node.tagName && node.tagName.toLowerCase();
+    if (!tag || !/^(?:li|ul|ol)$/.test(tag) || !node.parentElement) return '';
+    var same = Array.prototype.filter.call(node.parentElement.children, function (child) {
+      return child.tagName && child.tagName.toLowerCase() === tag;
+    });
+    var pos = same.indexOf(node);
+    if (pos < 0) return '';
+    parts.unshift(tag + ':' + pos);
+    node = node.parentElement;
+  }
+  return node === block ? parts.join('/') : '';
+}
+
+// Text belonging to one list item, excluding nested list branches and comment
+// UI. This is the drift-recovery fingerprint stored with the structural path.
+function elementOwnText(element) {
+  if (!element) return '';
+  var clone = element.cloneNode(true);
+  clone.querySelectorAll('ul, ol, .sdoc-card, .sdoc-element-add')
+    .forEach(function (child) { child.remove(); });
+  return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function walkElementPath(block, path) {
+  if (!block || !path) return null;
+  var current = block;
+  var parts = path.split('/');
+  for (var i = 0; i < parts.length; i++) {
+    var match = ELEMENT_SEGMENT.exec(parts[i]);
+    if (!match) return null;
+    var tag = match[1];
+    var wanted = parseInt(match[2], 10);
+    var children = Array.prototype.filter.call(current.children, function (child) {
+      return child.tagName && child.tagName.toLowerCase() === tag;
+    });
+    current = children[wanted] || null;
+    if (!current) return null;
+  }
+  return current;
+}
+
+function findElementTarget(c, root) {
+  if (!c || !c.block || !c.element) return null;
+  // Prefer the current block ordinal without requiring its full text to stay
+  // unchanged. Inserting an item into a list changes the list's text but should
+  // not invalidate a comment on an existing item.
+  var block = findBlockById(c.block, root, null);
+  var found = findElementInBlock(c, block);
+  if (found) return found;
+
+  // If the top-level block itself moved, use its text hint, then scan sibling
+  // blocks of the same type for the element fingerprint.
+  var hinted = findBlockById(c.block, root, c.block_text);
+  if (hinted && hinted !== block) {
+    found = findElementInBlock(c, hinted);
+    if (found) return found;
+  }
+  var type = c.block.split(':')[0];
+  var candidates = listTopBlocks(root).byType[type] || [];
+  for (var i = 0; i < candidates.length; i++) {
+    if (candidates[i] === block || candidates[i] === hinted) continue;
+    found = findElementInBlock(c, candidates[i]);
+    if (found) return found;
+  }
+  return null;
+}
+
+function findElementInBlock(c, block) {
+  if (!block) return null;
+  var exact = walkElementPath(block, c.element);
+  if (exact && (!c.element_text || elementOwnText(exact).indexOf(c.element_text) === 0)) {
+    return exact;
+  }
+  if (!c.element_text) return exact;
+  var last = c.element.split('/').pop();
+  var match = ELEMENT_SEGMENT.exec(last);
+  if (!match) return null;
+  var elements = block.querySelectorAll(match[1]);
+  for (var i = 0; i < elements.length; i++) {
+    if (elementOwnText(elements[i]).indexOf(c.element_text) === 0) return elements[i];
+  }
+  return null;
+}
+
+function cleanTableText(element) {
+  if (!element) return '';
+  var clone = element.cloneNode(true);
+  clone.querySelectorAll('.sdoc-card, .sdoc-table-add')
+    .forEach(function (child) { child.remove(); });
+  return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function tableHeaders(table) {
+  if (!table) return [];
+  var headRow = table.querySelector(':scope > thead > tr');
+  if (headRow) return Array.prototype.slice.call(headRow.children);
+  var first = table.querySelector(':scope > tr');
+  return first ? Array.prototype.slice.call(first.children) : [];
+}
+
+function tableBodyRows(table) {
+  if (!table) return [];
+  var rows = table.querySelectorAll(':scope > tbody > tr');
+  if (rows.length) return Array.prototype.slice.call(rows);
+  return Array.prototype.filter.call(table.querySelectorAll(':scope > tr'), function (row) {
+    return !row.querySelector('th');
+  });
+}
+
+function tableRowText(row) {
+  if (!row) return '';
+  return Array.prototype.map.call(row.children, cleanTableText).join(' | ').trim();
+}
+
+function tableRowMatches(row, hint) {
+  if (!row || !hint) return false;
+  if (tableRowText(row).indexOf(hint) === 0) return true;
+  return Array.prototype.some.call(row.children, function (cell) {
+    return cleanTableText(cell).indexOf(hint) === 0;
+  });
+}
+
+function findTableRow(c, table) {
+  var rows = tableBodyRows(table);
+  var exact = rows[c.table_row] || null;
+  if (exact && (!c.row_text || tableRowMatches(exact, c.row_text))) {
+    return exact;
+  }
+  if (c.row_text) {
+    for (var i = 0; i < rows.length; i++) {
+      if (tableRowMatches(rows[i], c.row_text)) return rows[i];
+    }
+  }
+  return c.row_text ? null : exact;
+}
+
+function findTableColumn(c, table) {
+  var headers = tableHeaders(table);
+  var exact = headers[c.table_column] || null;
+  if (exact && (!c.column_text || cleanTableText(exact).indexOf(c.column_text) === 0)) {
+    return exact;
+  }
+  if (c.column_text) {
+    for (var i = 0; i < headers.length; i++) {
+      if (cleanTableText(headers[i]).indexOf(c.column_text) === 0) return headers[i];
+    }
+  }
+  return c.column_text ? null : exact;
+}
+
+function findTableTargetInBlock(c, table) {
+  if (!table || table.tagName !== 'TABLE') return null;
+  var target = { scope: c.table_scope, table: table, row: null, column: null, cell: null };
+  if (c.table_scope === 'table') return target;
+  if (c.table_scope === 'row' || c.table_scope === 'cell') {
+    target.row = findTableRow(c, table);
+    if (!target.row) return null;
+  }
+  if (c.table_scope === 'column' || c.table_scope === 'cell') {
+    target.column = findTableColumn(c, table);
+    if (!target.column) return null;
+  }
+  if (c.table_scope === 'cell') {
+    var columnIndex = tableHeaders(table).indexOf(target.column);
+    target.cell = target.row.children[columnIndex] || null;
+    if (!target.cell) return null;
+  }
+  return target;
+}
+
+function findTableTarget(c, root) {
+  if (!c || c.kind !== 'table' || !c.block) return null;
+  var block = findBlockById(c.block, root, null);
+  var target = findTableTargetInBlock(c, block);
+  if (target) return target;
+  var hinted = findBlockById(c.block, root, c.block_text);
+  if (hinted && hinted !== block) {
+    target = findTableTargetInBlock(c, hinted);
+    if (target) return target;
+  }
+  var candidates = listTopBlocks(root).byType.table || [];
+  for (var i = 0; i < candidates.length; i++) {
+    if (candidates[i] === block || candidates[i] === hinted) continue;
+    target = findTableTargetInBlock(c, candidates[i]);
+    if (target) return target;
   }
   return null;
 }
@@ -330,6 +576,23 @@ function iconBtn(svg, label, onClick) {
   return b;
 }
 
+function shortTableHint(text, fallback) {
+  var value = (text || '').split(' | ')[0].trim() || fallback;
+  return value.length > 32 ? value.slice(0, 29) + '...' : value;
+}
+
+function tableTargetLabel(c) {
+  if (!c || c.kind !== 'table') return '';
+  if (c.table_scope === 'table') return 'Table';
+  var row = c.row_text
+    ? shortTableHint(c.row_text, '') : 'Row ' + ((c.table_row || 0) + 1);
+  var column = c.column_text
+    ? shortTableHint(c.column_text, '') : 'Column ' + ((c.table_column || 0) + 1);
+  if (c.table_scope === 'row') return c.row_text ? 'Row: ' + row : row;
+  if (c.table_scope === 'column') return c.column_text ? 'Column: ' + column : column;
+  return 'Cell: ' + row + ' / ' + column;
+}
+
 // Build a card element. `opts.shape` = 'pill' | 'sidecar'.
 // `opts.mode` = 'view' | 'edit' | 'compose'. For edit/compose, `opts.onSave`
 // receives the trimmed text and `opts.onCancel` is invoked to revert.
@@ -344,6 +607,13 @@ function makeCardElement(c, opts) {
   if (c && c.id) card.setAttribute('data-c', c.id);
   var color = (c && c.color) || readPrefs().color;
   card.style.setProperty('--sdoc-card-color', color);
+
+  if (opts.targetLabel) {
+    var targetLabel = document.createElement('span');
+    targetLabel.className = 'sdoc-table-target-label';
+    targetLabel.textContent = opts.targetLabel;
+    card.appendChild(targetLabel);
+  }
 
   if (mode === 'view') {
     var who = document.createElement('span');
@@ -439,6 +709,7 @@ function replaceWithEdit(viewCard, c, shape) {
   var editCard = makeCardElement(c, {
     shape: shape,
     mode: 'edit',
+    targetLabel: tableTargetLabel(c),
     onSave: function (text) {
       if (text === (c.text || '')) { revert(); return; }
       S.currentMeta = SDC.updateComment(S.currentMeta || {}, c.id, { text: text });
@@ -465,8 +736,10 @@ function replaceWithEdit(viewCard, c, shape) {
 function inlineCardInsertPoint(span) {
   if (!span) return null;
   var table = span.closest('table');
-  if (table && table.parentNode) {
-    return { parent: table.parentNode, before: table.nextSibling };
+  if (table) {
+    var tableHost = table.closest('.sdoc-table-host');
+    if (tableHost) return { parent: tableHost, before: null };
+    if (table.parentNode) return { parent: table.parentNode, before: table.nextSibling };
   }
   var link = span.closest('a');
   if (link && link.parentNode) {
@@ -476,6 +749,47 @@ function inlineCardInsertPoint(span) {
     return { parent: span.parentNode, before: span.nextSibling };
   }
   return null;
+}
+
+function markTableTarget(target, color) {
+  if (!target || !target.table) return;
+  var table = target.table;
+  if (target.scope === 'table') {
+    var host = table.closest('.sdoc-table-host');
+    if (host) {
+      host.classList.add('sdoc-table-all-commented');
+      host.style.setProperty('--sdoc-table-all-color', color);
+    }
+    table.classList.add('sdoc-table-all-commented');
+    table.style.setProperty('--sdoc-table-all-color', color);
+    return;
+  }
+  if (target.scope === 'row' && target.row) {
+    target.row.classList.add('sdoc-table-row-commented');
+    target.row.style.setProperty('--sdoc-table-row-color', color);
+    return;
+  }
+  if (target.scope === 'column' && target.column) {
+    var columnIndex = tableHeaders(table).indexOf(target.column);
+    [target.column].concat(tableBodyRows(table).map(function (row) {
+      return row.children[columnIndex] || null;
+    })).forEach(function (cell) {
+      if (!cell) return;
+      cell.classList.add('sdoc-table-column-commented');
+      cell.style.setProperty('--sdoc-table-column-color', color);
+    });
+    return;
+  }
+  if (target.scope === 'cell' && target.cell) {
+    target.cell.classList.add('sdoc-table-cell-commented');
+    target.cell.style.setProperty('--sdoc-table-cell-color', color);
+  }
+}
+
+function insertTableCard(table, card) {
+  var host = table && table.closest('.sdoc-table-host');
+  if (host) host.appendChild(card);
+  else if (table && table.parentNode) table.parentNode.insertBefore(card, table.nextSibling);
 }
 
 function renderComment(c) {
@@ -494,9 +808,49 @@ function renderComment(c) {
     S.renderedEl.appendChild(orphan);
     return true;
   }
+  if (c.kind === 'element') {
+    var element = findElementTarget(c, S.renderedEl);
+    if (element) {
+      markElementCommented(element, c.color, c.element_scope);
+      var elementCard = makeCardElement(c, { shape: 'sidecar', mode: 'view' });
+      elementCard.classList.add('sdoc-element-card');
+      insertElementCard(element, elementCard, c.element_scope);
+      return false;
+    }
+    var orphanElement = makeCardElement(c, { shape: 'sidecar', mode: 'view', orphaned: true });
+    S.renderedEl.appendChild(orphanElement);
+    return true;
+  }
+  if (c.kind === 'table') {
+    var tableTarget = findTableTarget(c, S.renderedEl);
+    if (tableTarget) {
+      markTableTarget(tableTarget, c.color);
+      var tableCard = makeCardElement(c, {
+        shape: 'sidecar', mode: 'view', targetLabel: tableTargetLabel(c),
+      });
+      tableCard.classList.add('sdoc-table-card');
+      insertTableCard(tableTarget.table, tableCard);
+      return false;
+    }
+    var orphanTable = makeCardElement(c, {
+      shape: 'sidecar', mode: 'view', orphaned: true,
+      targetLabel: tableTargetLabel(c),
+    });
+    S.renderedEl.appendChild(orphanTable);
+    return true;
+  }
   // kind === 'block'
   var block = findBlockById(c.block, S.renderedEl, c.block_text);
   if (block) {
+    // Whole-table block comments from older documents now use the table's
+    // top-left control and card stack.
+    if (block.tagName === 'TABLE' && block.closest('.sdoc-table-host')) {
+      markTableTarget({ scope: 'table', table: block }, c.color);
+      var legacyTableCard = makeCardElement(c, { shape: 'sidecar', mode: 'view' });
+      legacyTableCard.classList.add('sdoc-table-card');
+      insertTableCard(block, legacyTableCard);
+      return false;
+    }
     var host = block.parentNode && block.parentNode.classList &&
                block.parentNode.classList.contains('sdoc-block-host')
       ? block.parentNode
@@ -511,9 +865,11 @@ function renderComment(c) {
       block.style.setProperty('--sdoc-block-comment-color', c.color);
     }
     var sidecar = makeCardElement(c, { shape: 'sidecar', mode: 'view' });
-    // Append the card INSIDE the host (after the block) so the host's
-    // left stripe spans block + card without a gap.
-    (host || block.parentNode).appendChild(sidecar);
+    // Hosts keep the stripe continuous through the card. Lists no longer get
+    // hosts because their visible affordances belong to individual items, but
+    // an older whole-list comment still renders directly after its list.
+    if (host) host.appendChild(sidecar);
+    else block.parentNode.insertBefore(sidecar, block.nextSibling);
     return false;
   }
   var orphanBlock = makeCardElement(c, { shape: 'sidecar', mode: 'view', orphaned: true });
@@ -584,6 +940,9 @@ function makeGutterBtn(targetBlock) {
 function injectGutterButtons() {
   S.renderedEl.querySelectorAll(TOP_BLOCK_SEL).forEach(function (block) {
     if (block.closest('.sdoc-card')) return;
+    // Lists use per-item controls. A second control for the whole list makes
+    // the target ambiguous and adds a choice that comment mode does not need.
+    if (block.tagName === 'UL' || block.tagName === 'OL' || block.tagName === 'TABLE') return;
     if (block.parentNode && block.parentNode.classList &&
         block.parentNode.classList.contains('sdoc-block-host')) return;
     var ancestor = block.parentElement;
@@ -596,6 +955,152 @@ function injectGutterButtons() {
     block.parentNode.insertBefore(host, block);
     host.appendChild(block);
     host.appendChild(makeGutterBtn(block));
+  });
+  injectTableButtons();
+  injectElementButtons();
+}
+
+function makeElementBtn(targetElement) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sdoc-element-add';
+  btn.setAttribute('aria-label', 'Add comment on this list item');
+  btn.title = 'Add comment';
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    openElementComposer(targetElement);
+  });
+  return btn;
+}
+
+function injectElementButtons() {
+  S.renderedEl.querySelectorAll('ul li, ol li').forEach(function (item) {
+    if (item.closest('.sdoc-card') || item.querySelector(':scope > .sdoc-element-host')) return;
+    var host = document.createElement('div');
+    host.className = 'sdoc-element-host';
+    item.insertBefore(host, item.firstChild);
+    // Keep a nested list outside the host. The tab and comment card then span
+    // this item's own content without visually claiming its descendants.
+    while (host.nextSibling &&
+           !(host.nextSibling.nodeType === 1 &&
+             (host.nextSibling.tagName === 'UL' || host.nextSibling.tagName === 'OL'))) {
+      host.appendChild(host.nextSibling);
+    }
+    item.classList.add('sdoc-element-commentable');
+    host.appendChild(makeElementBtn(item));
+  });
+}
+
+function tableAddButton(scope, target) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sdoc-table-add sdoc-table-' + scope + '-add';
+  var labels = {
+    table: 'Add comment on this table',
+    row: 'Add comment on this row',
+    column: 'Add comment on this column',
+    cell: 'Add comment on this cell',
+  };
+  btn.setAttribute('aria-label', labels[scope]);
+  btn.title = 'Add comment';
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
+  function showPreview() {
+    setTableTargetPreview(target, btn);
+  }
+  function clearPreviewWhenIdle() {
+    requestAnimationFrame(function () {
+      if (tablePreviewOwner === btn && !btn.matches(':hover, :focus')) {
+        clearTableTargetPreview();
+      }
+    });
+  }
+  btn.addEventListener('pointerenter', showPreview);
+  btn.addEventListener('pointerleave', clearPreviewWhenIdle);
+  btn.addEventListener('focus', showPreview);
+  btn.addEventListener('blur', clearPreviewWhenIdle);
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    openTableComposer(target);
+  });
+  return btn;
+}
+
+function tableTargetPreviewElements(target) {
+  if (!target || !target.table) return [];
+  if (target.scope === 'table') {
+    return Array.prototype.slice.call(target.table.querySelectorAll('th, td'));
+  }
+  if (target.scope === 'row' && target.row) {
+    return Array.prototype.slice.call(target.row.children);
+  }
+  if (target.scope === 'column' && target.column) {
+    var columnIndex = tableHeaders(target.table).indexOf(target.column);
+    return [target.column].concat(tableBodyRows(target.table).map(function (row) {
+      return row.children[columnIndex] || null;
+    })).filter(Boolean);
+  }
+  if (target.scope === 'cell' && target.cell) return [target.cell];
+  return [];
+}
+
+function clearTableTargetPreview() {
+  tablePreviewElements.forEach(function (element) {
+    element.classList.remove('sdoc-table-target-preview');
+    element.style.removeProperty('--sdoc-table-preview-color');
+  });
+  tablePreviewElements = [];
+  tablePreviewOwner = null;
+}
+
+function setTableTargetPreview(target, owner) {
+  clearTableTargetPreview();
+  var color = readPrefs().color;
+  tablePreviewElements = tableTargetPreviewElements(target);
+  tablePreviewOwner = owner || null;
+  tablePreviewElements.forEach(function (element) {
+    element.classList.add('sdoc-table-target-preview');
+    element.style.setProperty('--sdoc-table-preview-color', color);
+  });
+}
+
+function injectTableButtons() {
+  S.renderedEl.querySelectorAll('table').forEach(function (table) {
+    if (table.closest('.sdoc-card') || table.closest('.sdoc-table-host')) return;
+    var scroll = table.parentElement && table.parentElement.classList.contains('md-table-scroll')
+      ? table.parentElement : table;
+    var host = document.createElement('div');
+    host.className = 'sdoc-table-host';
+    scroll.parentNode.insertBefore(host, scroll);
+    host.appendChild(scroll);
+    table.classList.add('sdoc-table-commentable');
+
+    var headers = tableHeaders(table);
+    if (headers.length) {
+      headers[0].appendChild(tableAddButton('table', {
+        scope: 'table', table: table,
+      }));
+    }
+    headers.forEach(function (header) {
+      header.appendChild(tableAddButton('column', {
+        scope: 'column', table: table, column: header,
+      }));
+    });
+    tableBodyRows(table).forEach(function (row) {
+      var cells = Array.prototype.slice.call(row.children);
+      if (!cells.length) return;
+      cells[0].appendChild(tableAddButton('row', {
+        scope: 'row', table: table, row: row,
+      }));
+      cells.forEach(function (cell) {
+        cell.appendChild(tableAddButton('cell', {
+          scope: 'cell', table: table, row: row, cell: cell,
+          column: headers[cell.cellIndex] || headers[cells.indexOf(cell)] || null,
+        }));
+      });
+    });
   });
 }
 
@@ -638,12 +1143,12 @@ function handleSelectionChange() {
     return hideSelectionPopover();
   }
 
-  // Reject multi-block selections. This guard is what prevents a user from
-  // commenting across paragraphs, which in the sidecar model would also be
-  // meaningless (the quote wouldn't live in a single block).
-  var startBlock = nearestTopBlock(range.startContainer);
-  var endBlock   = nearestTopBlock(range.endContainer);
-  if (!startBlock || startBlock !== endBlock) return hideSelectionPopover();
+  // Reject selections that cross the smallest structural text container.
+  // Two list items share one outer <ul>, so checking only the top block would
+  // allow an anchor that the per-item resolver can never reconstruct.
+  var startScope = nearestSelectionScope(range.startContainer);
+  var endScope   = nearestSelectionScope(range.endContainer);
+  if (!startScope || startScope !== endScope) return hideSelectionPopover();
 
   // Reject selections inside .katex (rendered text differs from source).
   // Inline <code> and <pre><code> ARE allowed - the sidecar model anchors
@@ -673,6 +1178,16 @@ function handleSelectionChange() {
   pop.style.left = (rect.right - 15) + 'px';
 }
 
+function nearestSelectionScope(node) {
+  var el = node.nodeType === 1 ? node : node.parentNode;
+  while (el && el !== S.renderedEl && el !== document.body) {
+    if (el.matches && el.matches('li, td, th')) return el;
+    if (el.matches && el.matches(TOP_BLOCK_SEL)) return el;
+    el = el.parentNode;
+  }
+  return null;
+}
+
 // ── Composer ────────────────────────────────────────────────────────────
 //
 // Composing a new comment uses the SAME card shape as the saved comment:
@@ -680,6 +1195,9 @@ function handleSelectionChange() {
 // the user types in is exactly where the saved comment will live.
 
 function hideComposer() {
+  var cleanup = composerCleanup;
+  composerCleanup = null;
+  if (cleanup) cleanup();
   if (composerEl && composerEl.parentNode) {
     composerEl.parentNode.removeChild(composerEl);
   }
@@ -722,17 +1240,204 @@ function openBlockComposer(block) {
       if (S.syncAll) S.syncAll('comment');
       setTimeout(function () { focusComment(res.id); }, 30);
     },
-    onCancel: function () {
-      hideComposer();
-      if (!hasBlockComment(blockId) && host) {
-        host.classList.remove('sdoc-host-commented');
-        host.style.removeProperty('--sdoc-block-comment-color');
-      }
-    },
+    onCancel: hideComposer,
   });
+  composerCleanup = function () {
+    if (!hasBlockComment(blockId) && host) {
+      host.classList.remove('sdoc-host-commented');
+      host.style.removeProperty('--sdoc-block-comment-color');
+    }
+  };
   composerEl = composer;
   // Place inside the host so the left stripe spans block + composer.
   (host || block.parentNode).appendChild(composer);
+}
+
+function markElementCommented(element, color, scope) {
+  element.classList.add('sdoc-element-commented');
+  if (scope === 'branch') element.classList.add('sdoc-element-branch-commented');
+  element.style.setProperty('--sdoc-element-comment-color', color);
+}
+
+function insertElementCard(element, card, scope) {
+  if (scope === 'branch') {
+    element.appendChild(card);
+    return;
+  }
+  var host = element.querySelector(':scope > .sdoc-element-host');
+  if (host) {
+    host.appendChild(card);
+    return;
+  }
+  var nested = Array.prototype.find.call(element.children, function (child) {
+    return child.tagName === 'UL' || child.tagName === 'OL';
+  });
+  element.insertBefore(card, nested || null);
+}
+
+function openElementComposer(element) {
+  hideComposer();
+  var prefs = readPrefs();
+  var block = containingTopBlock(element, S.renderedEl);
+  var blockId = computeBlockId(block, S.renderedEl);
+  var elementPath = computeElementPath(element, block);
+  if (!blockId || !elementPath) return;
+  var blockText = (block.textContent || '').slice(0, 60).trim();
+  var elementText = elementOwnText(element).slice(0, 60);
+  markElementCommented(element, prefs.color, 'self');
+
+  var draft = { color: prefs.color, author: prefs.author };
+  var composer = makeCardElement(draft, {
+    shape: 'sidecar',
+    mode: 'compose',
+    onSave: function (text) {
+      var res = SDC.addElementComment(S.currentMeta || {}, {
+        block: blockId,
+        block_text: blockText,
+        element: elementPath,
+        element_text: elementText,
+        element_scope: 'self',
+      }, {
+        author: prefs.author, color: prefs.color,
+        at: new Date().toISOString(), text: text,
+      });
+      S.currentMeta = res.meta;
+      hideComposer();
+      if (S.syncAll) S.syncAll('comment');
+      setTimeout(function () { focusComment(res.id); }, 30);
+    },
+    onCancel: hideComposer,
+  });
+  composerCleanup = function () {
+    if (!hasElementComment(blockId, elementPath)) {
+      element.classList.remove('sdoc-element-commented', 'sdoc-element-branch-commented');
+      element.style.removeProperty('--sdoc-element-comment-color');
+    }
+  };
+  composer.classList.add('sdoc-element-card');
+  composerEl = composer;
+  insertElementCard(element, composer, 'self');
+}
+
+function tableAnchorFromTarget(target) {
+  if (!target || !target.table || !target.scope) return null;
+  var table = target.table;
+  var headers = tableHeaders(table);
+  var rows = tableBodyRows(table);
+  var anchor = {
+    block: computeBlockId(table, S.renderedEl),
+    block_text: cleanTableText(table).slice(0, 60),
+    table_scope: target.scope,
+  };
+  if (!anchor.block) return null;
+  if (target.scope === 'row' || target.scope === 'cell') {
+    anchor.table_row = rows.indexOf(target.row);
+    if (anchor.table_row < 0) return null;
+    anchor.row_text = cleanTableText(target.row.children[0]).slice(0, 60);
+  }
+  if (target.scope === 'column' || target.scope === 'cell') {
+    anchor.table_column = headers.indexOf(target.column);
+    if (anchor.table_column < 0) return null;
+    anchor.column_text = cleanTableText(target.column).slice(0, 60);
+  }
+  if (target.scope === 'cell') {
+    anchor.cell_text = cleanTableText(target.cell).slice(0, 60);
+  }
+  return anchor;
+}
+
+function clearTableTargetMark(target) {
+  if (!target || !target.table) return;
+  if (target.scope === 'table') {
+    var host = target.table.closest('.sdoc-table-host');
+    if (host) {
+      host.classList.remove('sdoc-table-all-commented');
+      host.style.removeProperty('--sdoc-table-all-color');
+    }
+    target.table.classList.remove('sdoc-table-all-commented');
+    target.table.style.removeProperty('--sdoc-table-all-color');
+    return;
+  }
+  if (target.scope === 'row' && target.row) {
+    target.row.classList.remove('sdoc-table-row-commented');
+    target.row.style.removeProperty('--sdoc-table-row-color');
+    return;
+  }
+  if (target.scope === 'column' && target.column) {
+    var columnIndex = tableHeaders(target.table).indexOf(target.column);
+    [target.column].concat(tableBodyRows(target.table).map(function (row) {
+      return row.children[columnIndex] || null;
+    })).forEach(function (cell) {
+      if (!cell) return;
+      cell.classList.remove('sdoc-table-column-commented');
+      cell.style.removeProperty('--sdoc-table-column-color');
+    });
+    return;
+  }
+  if (target.scope === 'cell' && target.cell) {
+    target.cell.classList.remove('sdoc-table-cell-commented');
+    target.cell.style.removeProperty('--sdoc-table-cell-color');
+  }
+}
+
+function hasTableComment(anchor) {
+  var list = SDC.getComments(S.currentMeta || {});
+  for (var i = 0; i < list.length; i++) {
+    var c = list[i];
+    if (anchor.table_scope === 'table' && c.kind === 'block' && c.block === anchor.block) {
+      return true;
+    }
+    if (c.kind !== 'table' || c.block !== anchor.block ||
+        c.table_scope !== anchor.table_scope) continue;
+    if ((anchor.table_scope === 'row' || anchor.table_scope === 'cell') &&
+        c.table_row !== anchor.table_row) continue;
+    if ((anchor.table_scope === 'column' || anchor.table_scope === 'cell') &&
+        c.table_column !== anchor.table_column) continue;
+    return true;
+  }
+  return false;
+}
+
+function openTableComposer(target) {
+  hideComposer();
+  var prefs = readPrefs();
+  var anchor = tableAnchorFromTarget(target);
+  if (!anchor) return;
+  markTableTarget(target, prefs.color);
+  var draft = Object.assign({
+    kind: 'table', color: prefs.color, author: prefs.author,
+  }, anchor);
+  var composer = makeCardElement(draft, {
+    shape: 'sidecar',
+    mode: 'compose',
+    targetLabel: tableTargetLabel(draft),
+    onSave: function (text) {
+      var res = SDC.addTableComment(S.currentMeta || {}, anchor, {
+        author: prefs.author, color: prefs.color,
+        at: new Date().toISOString(), text: text,
+      });
+      S.currentMeta = res.meta;
+      hideComposer();
+      if (S.syncAll) S.syncAll('comment');
+      setTimeout(function () { focusComment(res.id); }, 30);
+    },
+    onCancel: hideComposer,
+  });
+  composerCleanup = function () {
+    if (!hasTableComment(anchor)) clearTableTargetMark(target);
+  };
+  composer.classList.add('sdoc-table-card');
+  composerEl = composer;
+  insertTableCard(target.table, composer);
+}
+
+function hasElementComment(blockId, elementPath) {
+  var list = SDC.getComments(S.currentMeta || {});
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].kind === 'element' && list[i].block === blockId &&
+        list[i].element === elementPath) return true;
+  }
+  return false;
 }
 
 function hasBlockComment(blockId) {
@@ -764,7 +1469,7 @@ function openSelectionComposerFromSelection(range) {
   var prefs = readPrefs();
   var quote = range.toString();
   if (!quote) return;
-  var block = nearestTopBlock(range.startContainer);
+  var block = containingTopBlock(range.startContainer, S.renderedEl);
   if (!block) return;
   var ctx = captureContext(range, block);
   var blockId = computeBlockId(block, S.renderedEl);
@@ -796,7 +1501,6 @@ function openSelectionComposerFromSelection(range) {
     shape: 'pill',
     mode: 'compose',
     onSave: function (text) {
-      clearPending();
       hideComposer();
       // openSelectionComposerFromSelection guards `if (!quote) return;`
       // upstream, so SDC.addSelectionComment cannot throw the empty-quote
@@ -811,8 +1515,9 @@ function openSelectionComposerFromSelection(range) {
       if (S.syncAll) S.syncAll('comment');
       setTimeout(function () { focusComment(res.id); }, 30);
     },
-    onCancel: function () { clearPending(); hideComposer(); },
+    onCancel: hideComposer,
   });
+  composerCleanup = clearPending;
   composerEl = composer;
   // Place the inline composer pill right after the pending anchor - same
   // physical spot the saved pill will land in. Tables and links get
@@ -1141,6 +1846,14 @@ function extractSectionSource(headingEl) {
       var bEl = findBlockById(c.block, S.renderedEl, c.block_text);
       return bEl && blocksInSection.indexOf(bEl) !== -1;
     }
+    if (c.kind === 'element' && c.block && c.element) {
+      var eEl = findElementTarget(c, S.renderedEl);
+      return eEl && inBlocks(eEl);
+    }
+    if (c.kind === 'table' && c.block) {
+      var tTarget = findTableTarget(c, S.renderedEl);
+      return tTarget && inBlocks(tTarget.table);
+    }
     if (c.kind === 'slide' && typeof c.slide === 'number') {
       // A slide note is in-section when its rendered .sdoc-slide sits inside
       // the heading's section. .sdoc-slide isn't a TOP_BLOCK_SEL block, so it
@@ -1385,6 +2098,11 @@ function copyWithComments(headingEl, docWide, mods) {
 function render() {
   if (!S.renderedEl) return;
   if (!document.body.classList.contains('comment-mode')) return;
+  // Lazy syntax highlighting asks comment mode to repaint after it settles.
+  // Keep an active composer in place during that repaint; its target DOM is
+  // still connected, and stripping it would discard text while the user types.
+  if ((composerEl && composerEl.isConnected) ||
+      S.renderedEl.querySelector('.sdoc-card-edit')) return;
   strip();
   // Inject hosts BEFORE rendering comments so block-level renders can
   // attach the sidecar inside the host (and apply .sdoc-host-commented).
@@ -1523,6 +2241,8 @@ S.commentsUi = {
   // Exposed for tests.
   _computeBlockId: computeBlockId,
   _findBlockById: findBlockById,
+  _computeElementPath: computeElementPath,
+  _findElementTarget: findElementTarget,
   _resolveAnchor: resolveAnchor,
 };
 

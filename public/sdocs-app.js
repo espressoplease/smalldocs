@@ -335,6 +335,160 @@ function getSectionMarkdown(headingIndex) {
 
 // ── Render sub-functions ──────────────────────────────────
 
+function tableCellCopyText(cell) {
+  if (!cell) return '';
+  var clone = cell.cloneNode(true);
+  clone.querySelectorAll('.table-copy-btn, .sdoc-card, .sdoc-table-add')
+    .forEach(function(el) { el.remove(); });
+  return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function serializeTableCsv(rows) {
+  return rows.map(function(row) {
+    return row.map(function(value) {
+      var text = String(value == null ? '' : value);
+      return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+    }).join(',');
+  }).join('\n');
+}
+
+function tableRows(table) {
+  return Array.prototype.map.call(table.rows, function(row) {
+    return Array.prototype.map.call(row.cells, tableCellCopyText);
+  });
+}
+
+function tableCsvCopyButton(table) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'table-copy-btn table-copy-csv-btn';
+  btn.innerHTML = COPY_SVG + '<span class="table-copy-label">CSV</span>';
+  btn.title = 'Copy table as CSV';
+  btn.setAttribute('aria-label', 'Copy table as CSV');
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    copyWithIconFeedback(serializeTableCsv(tableRows(table)), btn);
+  });
+  return btn;
+}
+
+var TABLE_IMAGE_STYLE_PROPS = [
+  'display', 'box-sizing', 'width', 'height', 'min-width', 'max-width',
+  'border-collapse', 'border-spacing',
+  'border-top-width', 'border-top-style', 'border-top-color',
+  'border-right-width', 'border-right-style', 'border-right-color',
+  'border-bottom-width', 'border-bottom-style', 'border-bottom-color',
+  'border-left-width', 'border-left-style', 'border-left-color',
+  'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+  'background-color', 'color', 'font-family', 'font-size', 'font-style',
+  'font-weight', 'line-height', 'letter-spacing', 'text-align',
+  'text-decoration', 'text-transform', 'vertical-align', 'white-space',
+  'word-break', 'overflow-wrap'
+];
+
+function inlineTableImageStyles(table, clone) {
+  var originals = [table].concat(Array.prototype.slice.call(table.querySelectorAll('*')));
+  var copies = [clone].concat(Array.prototype.slice.call(clone.querySelectorAll('*')));
+  for (var i = 0; i < originals.length; i++) {
+    var computed = getComputedStyle(originals[i]);
+    for (var j = 0; j < TABLE_IMAGE_STYLE_PROPS.length; j++) {
+      var prop = TABLE_IMAGE_STYLE_PROPS[j];
+      copies[i].style.setProperty(prop, computed.getPropertyValue(prop));
+    }
+  }
+}
+
+function tableToPngBlob(table, scale) {
+  return new Promise(function(resolve, reject) {
+    var rect = table.getBoundingClientRect();
+    var width = Math.max(1, Math.ceil(rect.width));
+    var height = Math.max(1, Math.ceil(rect.height));
+    var clone = table.cloneNode(true);
+    inlineTableImageStyles(table, clone);
+    clone.querySelectorAll('.table-copy-btn, .sdoc-card, .sdoc-table-add')
+      .forEach(function(el) { el.remove(); });
+    clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    clone.style.setProperty('margin', '0');
+    clone.style.setProperty('width', width + 'px');
+    var html = new XMLSerializer().serializeToString(clone);
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '">'
+      + '<foreignObject width="100%" height="100%">' + html + '</foreignObject></svg>';
+    var url;
+    try {
+      url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+    } catch (err) {
+      reject(err);
+      return;
+    }
+
+    var img = new Image();
+    img.onload = function() {
+      try {
+        var imageScale = scale || 2;
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(width * imageScale));
+        canvas.height = Math.max(1, Math.round(height * imageScale));
+        var ctx = canvas.getContext('2d');
+        var rendered = document.getElementById('_sd_rendered');
+        ctx.fillStyle = rendered ? getComputedStyle(rendered).backgroundColor : '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(function(blob) {
+          if (blob) resolve(blob);
+          else reject(new Error('Table PNG creation failed'));
+        }, 'image/png');
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.onerror = function() { reject(new Error('Table PNG rendering failed')); };
+    img.src = url;
+  });
+}
+
+function flashTableCopyLabel(btn, text) {
+  var label = btn.querySelector('.table-copy-label');
+  if (!label) return;
+  var previous = label.textContent;
+  label.textContent = text;
+  setTimeout(function() { label.textContent = previous; }, COPY_FEEDBACK_MS);
+}
+
+function tablePngCopyButton(table) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'table-copy-btn table-copy-png-btn';
+  btn.innerHTML = COPY_SVG + '<span class="table-copy-label">PNG</span>';
+  btn.title = 'Copy table as PNG';
+  btn.setAttribute('aria-label', 'Copy table as PNG');
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) {
+      flashTableCopyLabel(btn, 'Not supported');
+      return;
+    }
+    tableToPngBlob(table, 2).then(function(blob) {
+      return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    }).then(function() {
+      flashCopyIcon(btn);
+    }).catch(function() {
+      flashTableCopyLabel(btn, 'Failed');
+    });
+  });
+  return btn;
+}
+
+function attachTableCopyButton(table, wrap) {
+  if (!table.rows.length) return;
+  var toolbar = document.createElement('div');
+  toolbar.className = 'md-table-toolbar';
+  toolbar.appendChild(tableCsvCopyButton(table));
+  toolbar.appendChild(tablePngCopyButton(table));
+  wrap.insertBefore(toolbar, table);
+}
+
 // Wrap each rendered markdown table in a horizontal-scroll container so a wide
 // table scrolls on its own on a narrow screen instead of widening the page.
 // Runs on the freshly parsed output, before sections/anchors, so the wrapper
@@ -350,6 +504,7 @@ function wrapTables(container) {
     wrap.className = 'md-table-scroll';
     p.insertBefore(wrap, t);
     wrap.appendChild(t);
+    attachTableCopyButton(t, wrap);
   }
 }
 
@@ -395,6 +550,38 @@ function attachHeadingAnchors(container) {
       });
     });
     h.appendChild(copyBtn);
+  });
+}
+
+function attachBlockquoteCopyButtons(container) {
+  container.querySelectorAll('blockquote').forEach(function(quote) {
+    quote.classList.add('sdoc-copyable-quote');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'quote-copy-btn';
+    btn.innerHTML = COPY_SVG;
+    btn.title = 'Copy quote';
+    btn.setAttribute('aria-label', 'Copy quote');
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var clone = quote.cloneNode(true);
+      clone.querySelectorAll('.quote-copy-btn, .sdoc-card, .sdoc-gutter-add')
+        .forEach(function(el) { el.remove(); });
+      var parts = [];
+      Array.prototype.forEach.call(clone.childNodes, function(node) {
+        var value = node.nodeType === 1
+          ? (node.innerText || node.textContent || '')
+          : (node.textContent || '');
+        value = value.trim();
+        if (value) parts.push(value);
+      });
+      var text = parts.join('\n\n');
+      navigator.clipboard.writeText(text).then(function() {
+        btn.innerHTML = CHECK_SVG;
+        setTimeout(function() { btn.innerHTML = COPY_SVG; }, COPY_FEEDBACK_MS);
+      });
+    });
+    quote.appendChild(btn);
   });
 }
 
@@ -676,6 +863,7 @@ function render() {
 
   wrapTables(S.renderedEl);
   attachHeadingAnchors(S.renderedEl);
+  attachBlockquoteCopyButtons(S.renderedEl);
   attachCodeCopyButtons(S.renderedEl);
   buildCollapsibleSections(S.renderedEl);
   // The toolbar is available before async document sources (notably short
@@ -1085,19 +1273,22 @@ function escapeHtml(s) {
   });
 }
 
+function flashCopyIcon(btn) {
+  if (!btn) return;
+  var svg = btn.querySelector('svg');
+  if (!svg) return;
+  svg.outerHTML = CHECK_SVG;
+  setTimeout(function() {
+    var current = btn.querySelector('svg');
+    if (current) current.outerHTML = COPY_SVG;
+  }, COPY_FEEDBACK_MS);
+}
+
 // Swap the button's <svg> to a check, restore after COPY_FEEDBACK_MS.
 // Works for both icon-only and icon+label buttons.
 function copyWithIconFeedback(text, btn) {
   navigator.clipboard.writeText(text).then(function() {
-    if (!btn) return;
-    var svg = btn.querySelector('svg');
-    if (svg) {
-      svg.outerHTML = CHECK_SVG;
-      setTimeout(function() {
-        var current = btn.querySelector('svg');
-        if (current) current.outerHTML = COPY_SVG;
-      }, COPY_FEEDBACK_MS);
-    }
+    flashCopyIcon(btn);
   });
 }
 

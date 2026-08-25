@@ -1,13 +1,13 @@
 // sdocs-mermaid-focus.js - Fullscreen pan/zoom modal for Mermaid diagrams.
 //
-// Each rendered .sdoc-mermaid wrapper carries a small top-right icon button
-// (added by sdocs-mermaid.js after render). Clicking the button clones the
+// Each rendered .sdoc-mermaid wrapper carries source-copy and fullscreen
+// controls (added by sdocs-mermaid.js after render). Fullscreen clones the
 // already-rendered SVG into a centered stage with:
 //   - drag to pan (one finger on touch)
 //   - wheel to zoom toward cursor
 //   - two-finger pinch to zoom + pan, anchored at the finger midpoint (maps)
 //   - + / - keys to zoom; 0 to fit; arrows for pan; ESC to close
-//   - Copy PNG / Save PNG / Fit / Zoom -/+ buttons in the topbar
+//   - Copy text / Copy PNG / Save PNG / Fit / Zoom -/+ buttons in the topbar
 //
 // Modal chrome is modelled on sdocs-present.js (the slides-framework branch)
 // but stripped down for a single-stage diagram view. When both this and the
@@ -22,22 +22,30 @@
 
   var CSS_ID = 'sdocs-mermaid-focus-css';
   var CSS = [
-    '.sdoc-mermaid-zoom-btn {',
+    '.sdoc-mermaid-tools {',
     '  position: absolute; top: 6px; right: 6px;',
+    '  display: flex; align-items: center; gap: 4px;',
+    '  z-index: 2;',
+    '}',
+    '.sdoc-mermaid-tool-btn {',
     '  width: 26px; height: 26px;',
     '  display: inline-flex; align-items: center; justify-content: center;',
     '  background: transparent;',
-    '  color: var(--md-color, #1c1917);',
+    '  color: var(--md-code-color, #6B21A8);',
     '  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));',
     '  border-radius: 4px;',
     '  cursor: pointer; opacity: 0.7; transition: opacity .15s, background .12s;',
-    '  z-index: 2;',
     '}',
-    '.sdoc-mermaid-zoom-btn:focus,',
-    '.sdoc-mermaid-zoom-btn:hover { opacity: 1; }',
-    '.sdoc-mermaid-zoom-btn:hover {',
+    '.sdoc-mermaid-tool-btn:focus,',
+    '.sdoc-mermaid-tool-btn:hover { opacity: 1; }',
+    '.sdoc-mermaid-tool-btn:hover {',
     '  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));',
     '}',
+    '.sdoc-mermaid-tool-action {',
+    '  width: auto; padding: 0 7px; gap: 4px;',
+    '  font: 500 11px/1 ui-sans-serif, system-ui, sans-serif;',
+    '}',
+    '.sdoc-mermaid-tool-action-label { white-space: nowrap; }',
     /* Focus modal inherits the block colour cascade from the page so it */
     /* feels like a magnified version of the diagram, not a separate */
     /* (presentation-style) hard-dark surface. The bg / fg vars are set */
@@ -128,15 +136,14 @@
     '  display: inline-flex; align-items: center; gap: 5px;',
     '  padding: 4px 9px; border-radius: 4px;',
     '  background: transparent;',
-    '  border: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 18%, transparent);',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 75%, transparent);',
+    '  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));',
+    '  color: var(--sdoc-copy-color, #6B21A8);',
     '  font-size: 11.5px; font-weight: 500; font-family: inherit;',
     '  transition: background .12s, color .12s, border-color .12s;',
     '}',
     '.sdoc-mermaid-focus-action:hover {',
-    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 8%, transparent);',
-    '  color: var(--sdoc-focus-fg, #1c1917);',
-    '  border-color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 32%, transparent);',
+    '  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));',
+    '  color: var(--sdoc-copy-color, #6B21A8);',
     '}',
     '.sdoc-mermaid-focus-action:focus-visible { outline: 1px solid #3B82F6; outline-offset: 1px; }',
     '.sdoc-mermaid-focus-action svg { flex-shrink: 0; }',
@@ -222,11 +229,64 @@
     + '<line x1="8" y1="11" x2="14" y2="11"/>'
   );
   var X_ICON_SVG = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
+  var CHECK_ICON_SVG = lucide('<polyline points="20 6 9 17 4 12"/>', 13);
+
+  function flashCopyTick(btn) {
+    var svg = btn && btn.querySelector('svg');
+    if (!svg) return;
+    var previous = svg.outerHTML;
+    svg.outerHTML = CHECK_ICON_SVG;
+    setTimeout(function () {
+      var current = btn.querySelector('svg');
+      if (current) current.outerHTML = previous;
+    }, 1500);
+  }
+
+  function copySource(wrapper, btn, useLabel) {
+    var source = wrapper && wrapper._sdMermaidSource;
+    if (typeof source !== 'string' || !navigator.clipboard || !navigator.clipboard.writeText) {
+      if (useLabel) flashLabel(btn, 'Not supported');
+      return;
+    }
+    navigator.clipboard.writeText(source.replace(/\r?\n$/, '')).then(function () {
+      flashCopyTick(btn);
+    }).catch(function () {
+      if (useLabel) flashLabel(btn, 'Failed');
+    });
+  }
+
+  function buildCopyButton(wrapper) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sdoc-mermaid-tool-btn sdoc-mermaid-copy-btn';
+    btn.setAttribute('aria-label', 'Copy Mermaid source');
+    btn.title = 'Copy Mermaid source';
+    btn.innerHTML = COPY_ICON_SVG;
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      copySource(wrapper, btn, false);
+    });
+    return btn;
+  }
+
+  function buildPngButton(wrapper) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sdoc-mermaid-tool-btn sdoc-mermaid-tool-action sdoc-mermaid-png-btn';
+    btn.setAttribute('aria-label', 'Copy diagram as PNG');
+    btn.title = 'Copy diagram as PNG';
+    btn.innerHTML = COPY_ICON_SVG + '<span class="sdoc-mermaid-tool-action-label">PNG</span>';
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      copyWrapperPng(wrapper, btn);
+    });
+    return btn;
+  }
 
   function buildZoomButton(wrapper) {
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'sdoc-mermaid-zoom-btn';
+    btn.className = 'sdoc-mermaid-tool-btn sdoc-mermaid-zoom-btn';
     btn.setAttribute('aria-label', 'Open diagram in fullscreen');
     btn.title = 'Fullscreen (zoom & pan)';
     btn.innerHTML = EXPAND_ICON_SVG;
@@ -235,6 +295,15 @@
       open(wrapper);
     });
     return btn;
+  }
+
+  function buildTools(wrapper) {
+    var tools = document.createElement('div');
+    tools.className = 'sdoc-mermaid-tools';
+    tools.appendChild(buildCopyButton(wrapper));
+    tools.appendChild(buildPngButton(wrapper));
+    tools.appendChild(buildZoomButton(wrapper));
+    return tools;
   }
 
   // Treat unset, "transparent", and "rgba(0, 0, 0, 0)" as no-fill so we
@@ -254,6 +323,7 @@
   var prevFocus = null;
   var keyHandler = null;
   var resizeHandler = null;
+  var activeSourceWrapper = null;
 
   var tx = 0, ty = 0, scale = 1;
   var isDragging = false;
@@ -345,6 +415,7 @@
     if (!srcSvg) return;
 
     prevFocus = document.activeElement;
+    activeSourceWrapper = sourceWrapper;
 
     modal = document.createElement('div');
     modal.className = 'sdoc-mermaid-focus';
@@ -370,12 +441,15 @@
       blockBg = isTransparentColor(rendBg) ? '' : rendBg;
     }
     var fg = '';
+    var copyColor = '';
     if (rendered) {
       var rcs = getComputedStyle(rendered);
       fg = rcs.getPropertyValue('--md-color').trim() || rcs.color;
+      copyColor = rcs.getPropertyValue('--md-code-color').trim();
     }
     if (blockBg) modal.style.setProperty('--sdoc-focus-bg', blockBg);
     if (fg)      modal.style.setProperty('--sdoc-focus-fg', fg);
+    if (copyColor) modal.style.setProperty('--sdoc-copy-color', copyColor);
     // Mirror --md-block-bg onto the modal so CSS rules in rendered.css that
     // reference it (edge label fills etc.) resolve correctly inside the
     // modal too - the modal is appended to <body>, not inside #_sd_rendered,
@@ -400,6 +474,9 @@
       +   '<button type="button" class="sdoc-mermaid-focus-btn" data-act="zoomout" title="Zoom out (−)" aria-label="Zoom out">' + ZOOM_OUT_ICON_SVG + '</button>'
       +   '<button type="button" class="sdoc-mermaid-focus-btn" data-act="fit" title="Fit to view (0)" aria-label="Fit to view">' + SCAN_ICON_SVG + '</button>'
       +   '<span class="sdoc-mermaid-focus-sep" aria-hidden="true"></span>'
+      +   '<button type="button" class="sdoc-mermaid-focus-action" data-act="copy-text" title="Copy Mermaid source" aria-label="Copy Mermaid source">'
+      +     COPY_ICON_SVG + '<span class="sdoc-mermaid-focus-action-label">Source</span>'
+      +   '</button>'
       +   '<button type="button" class="sdoc-mermaid-focus-action" data-act="copy-png" title="Copy PNG to clipboard" aria-label="Copy PNG to clipboard">'
       +     COPY_ICON_SVG + '<span class="sdoc-mermaid-focus-action-label">PNG</span>'
       +   '</button>'
@@ -484,6 +561,7 @@
     resizeHandler = null;
     modal.remove();
     modal = null; stageEl = null; svgWrap = null; topbarEl = null;
+    activeSourceWrapper = null;
     document.body.classList.remove('sdoc-mermaid-focus-open');
     tx = 0; ty = 0; scale = 1; isDragging = false; dragStart = null;
     // Clear gesture state so a pinch interrupted by close() can't leak into
@@ -550,13 +628,11 @@
     return new XMLSerializer().serializeToString(clone);
   }
 
-  // Render the focus stage's SVG to a PNG blob at 2x device scale, with
-  // the focus-modal background painted underneath so the image isn't
-  // transparent. Returns a Promise<Blob>.
-  function svgToPngBlob(scale) {
+  // Render one SVG to a PNG blob at 2x device scale, painting the surface
+  // behind it so an image pasted into another app keeps the theme it had in
+  // SmallDocs. Used by both the inline and fullscreen copy controls.
+  function svgElementToPngBlob(svg, background, scale) {
     return new Promise(function (resolve, reject) {
-      if (!svgWrap) return reject(new Error('no svg'));
-      var svg = svgWrap.querySelector('svg');
       if (!svg) return reject(new Error('no svg element'));
       var rect = svg.getBoundingClientRect();
       var s = scale || 2;
@@ -579,11 +655,7 @@
           var canvas = document.createElement('canvas');
           canvas.width = w; canvas.height = h;
           var ctx = canvas.getContext('2d');
-          // Paint the modal background so the PNG has the same surface
-          // colour the diagram is being read against - transparent PNG
-          // dropped onto Slack/email looks wrong against arbitrary themes.
-          var modalBg = modal ? getComputedStyle(modal).backgroundColor : '#ffffff';
-          ctx.fillStyle = modalBg;
+          ctx.fillStyle = background || '#ffffff';
           ctx.fillRect(0, 0, w, h);
           ctx.drawImage(img, 0, 0, w, h);
           canvas.toBlob(function (b) {
@@ -598,10 +670,25 @@
     });
   }
 
+  function svgToPngBlob(scale) {
+    if (!svgWrap) return Promise.reject(new Error('no svg'));
+    var svg = svgWrap.querySelector('svg');
+    var background = modal ? getComputedStyle(modal).backgroundColor : '#ffffff';
+    return svgElementToPngBlob(svg, background, scale);
+  }
+
+  function wrapperBackground(wrapper) {
+    var background = wrapper ? getComputedStyle(wrapper).backgroundColor : '';
+    if (!isTransparentColor(background)) return background;
+    var rendered = document.getElementById('_sd_rendered');
+    background = rendered ? getComputedStyle(rendered).backgroundColor : '';
+    return isTransparentColor(background) ? '#ffffff' : background;
+  }
+
   // Swap just the qualifier label so the leading icon survives.
   // Falls back to whole-button textContent for any caller without a label span.
   function flashLabel(btn, text) {
-    var labelEl = btn.querySelector('.sdoc-mermaid-focus-action-label');
+    var labelEl = btn.querySelector('.sdoc-mermaid-focus-action-label, .sdoc-mermaid-tool-action-label');
     var target = labelEl || btn;
     var prev = target.textContent;
     target.textContent = text;
@@ -616,7 +703,22 @@
     svgToPngBlob(2).then(function (blob) {
       return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     }).then(function () {
-      flashLabel(btn, 'Copied');
+      flashCopyTick(btn);
+    }).catch(function () {
+      flashLabel(btn, 'Failed');
+    });
+  }
+
+  function copyWrapperPng(wrapper, btn) {
+    if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) {
+      flashLabel(btn, 'Not supported');
+      return;
+    }
+    var svg = wrapper && wrapper.querySelector('svg');
+    svgElementToPngBlob(svg, wrapperBackground(wrapper), 2).then(function (blob) {
+      return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    }).then(function () {
+      flashCopyTick(btn);
     }).catch(function () {
       flashLabel(btn, 'Failed');
     });
@@ -645,6 +747,7 @@
     var act = btn.dataset.act;
     if (act === 'fit')      fit();
     else if (act === 'close') close();
+    else if (act === 'copy-text') copySource(activeSourceWrapper, btn, true);
     else if (act === 'copy-png') copyPng(btn);
     else if (act === 'save-png') savePng(btn);
     else if (act === 'zoomin' || act === 'zoomout') {
@@ -798,6 +901,7 @@
   S.SDocMermaidFocus = {
     open: open,
     close: close,
+    buildTools: buildTools,
     buildZoomButton: buildZoomButton
   };
 })();

@@ -56,6 +56,45 @@
     return cell ? cell.raw : '';
   }
 
+  // Parse clipboard text into a rectangular-ish raw value matrix. Spreadsheet
+  // apps place tab-separated text on the clipboard, with CSV-style quoting for
+  // fields that contain tabs, quotes, or line breaks. CSV files use the same
+  // rules with commas. Parse the whole payload so a quoted line break stays in
+  // one cell. A one-line formula containing commas is a scalar, not a CSV row.
+  function parseDelimited(text, delimiter) {
+    text = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+    if (!text) return [];
+    var rows = [], row = [], field = '', quoted = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text.charAt(i);
+      if (quoted) {
+        if (ch === '"' && text.charAt(i + 1) === '"') { field += '"'; i++; }
+        else if (ch === '"') quoted = false;
+        else field += ch;
+        continue;
+      }
+      if (ch === '"' && field === '') { quoted = true; continue; }
+      if (ch === delimiter) { row.push(field); field = ''; continue; }
+      if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; continue; }
+      field += ch;
+    }
+    // Spreadsheet clipboards commonly include one terminal newline. It ends
+    // the last row; it does not mean there is another blank row to paste.
+    if (field !== '' || row.length || text.charAt(text.length - 1) !== '\n') {
+      row.push(field);
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function parseClipboard(text) {
+    text = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+    if (!text) return [];
+    if (text.indexOf('\t') !== -1) return parseDelimited(text, '\t');
+    if (text.indexOf('\n') === -1 && /^\s*=/.test(text)) return [[text]];
+    return CELLS.parseCsv(text);
+  }
+
   // Attach editing to a fullscreen grid wrapper. opts.onChange() fires after a
   // committed edit; opts.valueInput is the formula bar (kept in sync).
   function attach(wrapper, opts) {
@@ -312,9 +351,77 @@
       repaint(); changed();
     }
 
+    function selectRect(r0, c0, r1, c1) {
+      if (grid._moveTo) grid._moveTo(r0, c0, false);
+      if (grid._extendTo) grid._extendTo(r1, c1, false);
+    }
+
+    // Keyboard Fill Down / Fill Right. Unlike drag-fill, these commands copy
+    // the selection's top row or left column; formulas still move by their
+    // source-to-target offset. The whole operation is one undo step.
+    function fillSelection(dir) {
+      var rect = grid._selectionRect && grid._selectionRect();
+      if (!rect) return false;
+      if (dir === 'down' && rect.r0 === rect.r1) return false;
+      if (dir === 'right' && rect.c0 === rect.c1) return false;
+      var FX = window.SDocCellsFormula;
+      var writes = [], r, c, sr, sc, srcMr, dstMr, raw;
+      for (r = rect.r0; r <= rect.r1; r++) {
+        for (c = rect.c0; c <= rect.c1; c++) {
+          if (dir === 'down' && r === rect.r0) continue;
+          if (dir === 'right' && c === rect.c0) continue;
+          sr = dir === 'down' ? rect.r0 : r;
+          sc = dir === 'right' ? rect.c0 : c;
+          srcMr = dispToModelRow(sr);
+          dstMr = dispToModelRow(r);
+          raw = rawAt(model, srcMr, sc);
+          if (FX && FX.isFormula(raw)) raw = FX.shiftFormula(raw, dstMr - srcMr, c - sc);
+          if (raw !== rawAt(model, dstMr, c)) writes.push({ r: dstMr, c: c, raw: raw });
+        }
+      }
+      if (!writes.length) return false;
+      pushUndo();
+      for (var i = 0; i < writes.length; i++) setRaw(model, writes[i].r, writes[i].c, writes[i].raw);
+      repaint(); changed();
+      selectRect(rect.r0, rect.c0, rect.r1, rect.c1);
+      return true;
+    }
+
     function onGridKey(e) {
       if (editing) return;
       var mod = e.metaKey || e.ctrlKey;
+      var rect = grid._selectionRect && grid._selectionRect();
+      var ext = extent();
+      var key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+
+      if (mod && key === 'a') {
+        e.preventDefault();
+        selectRect(0, 0, Math.max(0, model.rows - 1), Math.max(0, model.cols - 1));
+        return;
+      }
+      if (e.shiftKey && !mod && e.key === ' ') {
+        e.preventDefault();
+        var row = rect ? rect.r0 : 0;
+        selectRect(row, 0, row, Math.max(0, ext.cols - 1));
+        return;
+      }
+      if (mod && !e.shiftKey && e.key === ' ') {
+        e.preventDefault();
+        var col = rect ? rect.c0 : 0;
+        selectRect(0, col, Math.max(0, ext.rows - 1), col);
+        return;
+      }
+      if (mod && key === 'd') { e.preventDefault(); fillSelection('down'); return; }
+      if (mod && key === 'r') { e.preventDefault(); fillSelection('right'); return; }
+      if (e.key === 'Home' || e.key === 'End') {
+        e.preventDefault();
+        var tr = rect ? rect.r0 : 0;
+        var tc = e.key === 'Home' ? 0 : Math.max(0, model.cols - 1);
+        if (mod) tr = e.key === 'Home' ? 0 : Math.max(0, model.rows - 1);
+        if (e.shiftKey && grid._extendTo) grid._extendTo(tr, tc, true);
+        else if (grid._moveTo) grid._moveTo(tr, tc, true);
+        return;
+      }
       if (mod && (e.key === 'z' || e.key === 'Z')) {
         e.preventDefault();
         if (e.shiftKey) doRedo(); else doUndo();
@@ -378,17 +485,6 @@
     }
 
     // ── Paste (TSV/CSV) ─────────────────────────────────────
-    function parseClip(text) {
-      text = text.replace(/\r\n?/g, '\n').replace(/\n$/, '');
-      var lines = text.split('\n');
-      var tab = text.indexOf('\t') !== -1;
-      return lines.map(function (ln) {
-        if (tab) return ln.split('\t');
-        var parsed = CELLS.parseCsv(ln);
-        var row = parsed.cells[0] || [];
-        return row.map(function (cell) { return cell.raw; });
-      });
-    }
     function onPaste(e) {
       if (editing) return;
       // Only when the grid (or a cell in it) has focus, so we don't hijack
@@ -433,7 +529,7 @@
       }
 
       // Plain TSV/CSV paste (external clipboard content).
-      var rows = parseClip(text);
+      var rows = parseClipboard(text);
       if (!rows.length) return;
       pushUndo();
       for (var i = 0; i < rows.length; i++) {
@@ -548,6 +644,15 @@
       var s = fillDrag.src, dir = fillDrag.dir;
       var FX = window.SDocCellsFormula;
       var srcRows = s.r1 - s.r0 + 1, srcCols = s.c1 - s.c0 + 1;
+      var seriesByLine = {};
+      function seriesFor(lineIndex) {
+        var key = String(lineIndex);
+        if (!Object.prototype.hasOwnProperty.call(seriesByLine, key)) {
+          var values = axisValues(s, dir, lineIndex);
+          seriesByLine[key] = { values: values, step: values ? seriesStep(values) : null };
+        }
+        return seriesByLine[key];
+      }
       pushUndo();
       for (var r = t.r0; r <= t.r1; r++) {
         for (var c = t.c0; c <= t.c1; c++) {
@@ -567,8 +672,9 @@
           if (FX && FX.isFormula(raw)) {
             raw = FX.shiftFormula(raw, dispToModelRow(r) - srcModelR, c - sC);
           } else {
-            var vals = axisValues(s, dir, dir === 'v' ? c : r);
-            var step = vals ? seriesStep(vals) : null;
+            var series = seriesFor(dir === 'v' ? c : r);
+            var vals = series.values;
+            var step = series.step;
             if (step !== null) {
               var base = dist > 0 ? vals[vals.length - 1] : vals[0];
               raw = String(base + step * dist);
@@ -656,5 +762,5 @@
     return api;
   }
 
-  S.cellsEdit = { attach: attach, setRaw: setRaw };
+  S.cellsEdit = { attach: attach, setRaw: setRaw, parseClipboard: parseClipboard };
 })();

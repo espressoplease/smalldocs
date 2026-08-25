@@ -182,6 +182,7 @@ function buildExportHTML(mermaidImages) {
   inlineCells(clone);
   inlineImages(clone);
   clone.querySelectorAll('.section-toggle').forEach(function(el) { el.remove(); });
+  clone.querySelectorAll('.quote-copy-btn, .sdoc-mermaid-tools, .md-table-toolbar').forEach(function(el) { el.remove(); });
   clone.querySelectorAll('.md-section-body').forEach(function(el) {
     while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
     el.remove();
@@ -1007,7 +1008,8 @@ async function renderPdf(rendered, st, chartImages, mermaidImages, mathImages) {
       var tag = el.tagName.toLowerCase();
 
       if (el.classList.contains('section-toggle') || el.classList.contains('copy-btn') ||
-          el.classList.contains('header-copy-btn') || el.classList.contains('header-anchor')) continue;
+          el.classList.contains('quote-copy-btn') || el.classList.contains('header-copy-btn') ||
+          el.classList.contains('header-anchor')) continue;
       if (el.classList.contains('md-section') || el.classList.contains('md-section-body')) { await walk(el); continue; }
       if (el.classList.contains('md-table-scroll')) { await walk(el); continue; }
       if (el.classList.contains('pre-wrapper')) {

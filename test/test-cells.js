@@ -8,7 +8,7 @@ module.exports = function(harness) {
 
   console.log('\n── Cells Model Tests ──────────────────────────\n');
 
-  const { colName, classify, parseCsv, parseCells, serializeCsv, selectionStats, formatNumber, parseFormats, formatValue, colIndex, sortRows, looksLikeHeader } = require('../public/sdocs-cells');
+  const { colName, classify, parseCsv, parseCells, serializeCsv, selectionStats, formatNumber, parseFormats, parseFormatRules, resolveFormat, formatValue, colIndex, sortRows, looksLikeHeader } = require('../public/sdocs-cells');
 
   // ── Column names (bijective base-26) ──
   test('colName: first columns', () => {
@@ -270,6 +270,71 @@ module.exports = function(harness) {
     assert.strictEqual(f[3].decimals, 2);
   });
 
+  test('parseFormatRules: supports sheet, column, row, and cell targets', () => {
+    const f = parseFormatRules('*=.1 B=$ 4=% C7=£.0');
+    assert.strictEqual(f.defaultFormat.decimals, 1);
+    assert.strictEqual(f.columns[1].symbol, '$');
+    assert.strictEqual(f.rows[3].kind, 'percent');
+    assert.strictEqual(f.cells['6:2'].symbol, '£');
+    assert.strictEqual(f.cells['6:2'].decimals, 0);
+  });
+
+  test('resolveFormat: cell overrides row, row overrides column, column overrides sheet', () => {
+    const m = parseCells('format: *=.1 B=$ 2=% B2=£.0\n1,2\n3,4');
+    assert.strictEqual(resolveFormat(m, 0, 0).decimals, 1);
+    assert.strictEqual(resolveFormat(m, 0, 1).symbol, '$');
+    assert.strictEqual(resolveFormat(m, 1, 0).kind, 'percent');
+    assert.strictEqual(resolveFormat(m, 1, 1).symbol, '£');
+  });
+
+  test('resolveFormat: default numbers show no more than two decimal places', () => {
+    const fmt = resolveFormat(parseCells('1'), 0, 0);
+    assert.strictEqual(formatValue(classify('573195.15000000003'), fmt), '573,195.15');
+    assert.strictEqual(formatValue(classify('0.5931673052362707'), fmt), '0.59');
+    assert.strictEqual(formatValue(classify('950'), fmt), '950');
+  });
+
+  test('formatValue: default formatting preserves integers beyond Number precision', () => {
+    const fmt = resolveFormat(parseCells('1'), 0, 0);
+    assert.strictEqual(formatValue(classify('9007199254740993'), fmt), '9,007,199,254,740,993');
+    assert.strictEqual(formatValue(classify('12345678901234567890'), fmt), '12,345,678,901,234,567,890');
+  });
+
+  test('formatValue: decimal-string rounding handles common halfway values', () => {
+    const fmt = resolveFormat(parseCells('1'), 0, 0);
+    assert.strictEqual(formatValue(classify('1.005'), fmt), '1.01');
+    assert.strictEqual(formatValue(classify('2.675'), fmt), '2.68');
+    assert.strictEqual(formatValue(classify('-1.005'), fmt), '-1.01');
+    assert.strictEqual(formatValue(classify('0.01005'), { kind: 'percent' }), '1.01%');
+  });
+
+  test('formatValue: high fixed precision does not expose binary residue', () => {
+    assert.strictEqual(formatValue(classify('1.2'), { kind: 'number', decimals: 30 }),
+      '1.200000000000000000000000000000');
+    assert.strictEqual(formatValue({
+      raw: String(0.1 + 0.2), value: 0.1 + 0.2, type: 'number', computed: true,
+    }, { kind: 'number', decimals: 30 }), '0.300000000000000000000000000000');
+  });
+
+  test('formatValue: fixed currency and percent normalize negative zero', () => {
+    assert.strictEqual(formatValue(classify('-0.001'), { kind: 'currency', symbol: '$', decimals: 2 }), '$0.00');
+    assert.strictEqual(formatValue(classify('-0.00001'), { kind: 'percent', decimals: 2 }), '0.00%');
+  });
+
+  test('parseFormatRules: malformed targets are ignored as complete tokens', () => {
+    const f = parseFormatRules('A-2=% C1x=£ D1.2=$ E=%,.2');
+    assert.deepStrictEqual(f.columns, {});
+    assert.deepStrictEqual(f.rows, {});
+    assert.deepStrictEqual(f.cells, {});
+    assert.strictEqual(f.defaultFormat, null);
+  });
+
+  test('parseFormats: decimal precision is capped to an Excel-compatible size', () => {
+    const f = parseFormats('A=$.1000000000 B=%.999999');
+    assert.strictEqual(f[0].decimals, 30);
+    assert.strictEqual(f[1].decimals, 30);
+  });
+
   test('formatValue: currency', () => {
     assert.strictEqual(formatValue(classify('12000'), { kind: 'currency', symbol: '$', decimals: 2 }), '$12,000.00');
     assert.strictEqual(formatValue(classify('-1200'), { kind: 'currency', symbol: '$', decimals: 2 }), '-$1,200.00');
@@ -278,6 +343,7 @@ module.exports = function(harness) {
 
   test('formatValue: percent multiplies by 100', () => {
     assert.strictEqual(formatValue(classify('0.23'), { kind: 'percent' }), '23%');
+    assert.strictEqual(formatValue(classify('0.5931673052362707'), { kind: 'percent' }), '59.32%');
     assert.strictEqual(formatValue(classify('0.2356'), { kind: 'percent', decimals: 1 }), '23.6%');
   });
 
@@ -301,6 +367,13 @@ module.exports = function(harness) {
     assert.strictEqual(m.formats[1].kind, 'currency');
     assert.strictEqual(m.rows, 2);
     assert.strictEqual(m.cells[0][0].value, 2024);   // the directive line is stripped
+  });
+
+  test('parseCells: stores row and cell format directives outside the data', () => {
+    const m = parseCells('format: 2=% B2=$\nMetric,Value\nMargin,0.23');
+    assert.strictEqual(m.rowFormats[1].kind, 'percent');
+    assert.strictEqual(m.cellFormats['1:1'].kind, 'currency');
+    assert.strictEqual(m.rows, 2);
   });
 
   // ── Number formatting (display only - raw is preserved) ──

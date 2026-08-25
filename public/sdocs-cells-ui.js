@@ -27,6 +27,81 @@
   var CELLS = window.SDocCells;
   if (!CELLS) return; // model must load first; fall through quietly otherwise
 
+  // Fullscreen editing and Excel export are heavier, optional capabilities.
+  // Keep the inline grid small, then load each feature on first use. Reuse this
+  // file's cache-busting query so a deploy cannot combine old lazy modules with
+  // a new cells UI. Both layers are single-flight: repeated clicks share one
+  // request, while a failed request can be retried.
+  var SELF_V = (document.currentScript && (document.currentScript.src.split('?')[1] || '')) || '';
+  var lazyScripts = {};
+  var lazyFeatures = {};
+
+  function loadLazyScript(file, ready) {
+    if (ready()) return Promise.resolve();
+    if (lazyScripts[file]) return lazyScripts[file];
+    lazyScripts[file] = new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      script.src = '/public/' + file + (SELF_V ? '?' + SELF_V : '');
+      script.async = true;
+      script.onload = function () {
+        if (ready()) resolve();
+        else {
+          script.remove();
+          reject(new Error(file + ' loaded without registering its feature'));
+        }
+      };
+      script.onerror = function () {
+        script.remove();
+        reject(new Error('Could not load ' + file));
+      };
+      document.head.appendChild(script);
+    }).catch(function (err) {
+      delete lazyScripts[file];
+      throw err;
+    });
+    return lazyScripts[file];
+  }
+
+  function loadCellsFeature(name) {
+    if (name === 'xlsx' && window.SDocCellsXlsx) return Promise.resolve(window.SDocCellsXlsx);
+    if (name === 'focus' && S.cellsFocus && S.cellsEdit) return Promise.resolve(S.cellsFocus);
+    if (lazyFeatures[name]) return lazyFeatures[name];
+    if (name === 'xlsx') {
+      lazyFeatures[name] = loadLazyScript('sdocs-cells-xlsx.js', function () {
+        return !!window.SDocCellsXlsx;
+      }).then(function () { return window.SDocCellsXlsx; });
+    } else if (name === 'focus') {
+      lazyFeatures[name] = Promise.all([
+        loadLazyScript('sdocs-cells-edit.js', function () { return !!S.cellsEdit; }),
+        loadLazyScript('sdocs-cells-focus.js', function () { return !!S.cellsFocus; }),
+      ]).then(function () { return S.cellsFocus; });
+    } else {
+      return Promise.reject(new Error('Unknown cells feature: ' + name));
+    }
+    lazyFeatures[name] = lazyFeatures[name].catch(function (err) {
+      delete lazyFeatures[name];
+      throw err;
+    });
+    return lazyFeatures[name];
+  }
+  S.loadCellsFeature = loadCellsFeature;
+
+  function runLazyAction(button, feature, action) {
+    var title = button.title;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    loadCellsFeature(feature).then(action).catch(function (err) {
+      button.title = 'Could not load this spreadsheet feature. Try again.';
+      if (window.console && console.error) console.error(err);
+    }).then(function () {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+      if (button.title !== title) {
+        setTimeout(function () { button.title = title; }, 2500);
+      }
+    });
+  }
+
   // A tab name lives in the fence info string: ```cells Sales. marked keeps
   // only the first word ("cells") as the language class and drops the rest,
   // so normalise the name into the block body as a `sdoc-cells: name=...`
@@ -182,7 +257,9 @@
       var fxView = src._cellsFxView;
       var fxCell = (FX && FX.isFormula(cell.raw) && fxView && fxView[r]) ? fxView[r][c] : null;
       if (!fxCell) return cell.raw;
-      return fxCell.kind === 'error' ? fxCell.code : String(fxCell.value);
+      if (fxCell.kind === 'error') return fxCell.code;
+      if (fxCell.kind === 'boolean') return fxCell.value ? 'TRUE' : 'FALSE';
+      return String(fxCell.value);
     }
 
     var selBtn = copyButton('sdoc-cells-copy-sel', 'selection');
@@ -244,21 +321,19 @@
     // broken external link. A standalone grid downloads just itself. Formulas
     // export live (Excel recalculates on open); the data is the SOURCE model -
     // document order plus any fullscreen edits - never the sorted view.
-    var xlsxBtn = null;
-    if (window.SDocCellsXlsx) {
-      var partOfWorkbook = (function () {
-        var g = S.cellsWorkbookGroupFor && S.cellsWorkbookGroupFor(model);
-        return !!(g && g.sheets.length > 1);
-      })();
-      var dlLabel = partOfWorkbook ? 'Download workbook (.xlsx)' : 'Download as Excel (.xlsx)';
-      xlsxBtn = document.createElement('button');
-      xlsxBtn.type = 'button';
-      xlsxBtn.className = 'sdoc-cells-copy-icon sdoc-cells-xlsx';
-      xlsxBtn.title = dlLabel;
-      xlsxBtn.setAttribute('aria-label', dlLabel);
-      xlsxBtn.innerHTML = downloadIcon(14);
-      xlsxBtn.addEventListener('click', function () {
-        var XL = window.SDocCellsXlsx;
+    var partOfWorkbook = (function () {
+      var g = S.cellsWorkbookGroupFor && S.cellsWorkbookGroupFor(model);
+      return !!(g && g.sheets.length > 1);
+    })();
+    var dlLabel = partOfWorkbook ? 'Download workbook (.xlsx)' : 'Download as Excel (.xlsx)';
+    var xlsxBtn = document.createElement('button');
+    xlsxBtn.type = 'button';
+    xlsxBtn.className = 'sdoc-cells-copy-icon sdoc-cells-xlsx';
+    xlsxBtn.title = dlLabel;
+    xlsxBtn.setAttribute('aria-label', dlLabel);
+    xlsxBtn.innerHTML = downloadIcon(14);
+    xlsxBtn.addEventListener('click', function () {
+      runLazyAction(xlsxBtn, 'xlsx', function (XL) {
         var FX = window.SDocCellsFormula;
         var group = S.cellsWorkbookGroupFor && S.cellsWorkbookGroupFor(model);
         var bytes, base;
@@ -268,7 +343,11 @@
           base = group.id || ((group.sheets[0].model.source || 'workbook'));
         } else {
           var m = src._cellsSource || model;
-          bytes = XL.buildXlsx(m, FX ? FX.recalc(m) : null);
+          var singleFx = null;
+          if (FX) singleFx = m.name
+            ? FX.recalcWorkbook([{ name: m.name, model: m }])[0]
+            : FX.recalc(m);
+          bytes = XL.buildXlsx(m, singleFx);
           base = (m.source || 'sheet');
         }
         var blob = new Blob([bytes],
@@ -280,8 +359,8 @@
         a.click();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
       });
-      box.appendChild(xlsxBtn);
-    }
+    });
+    box.appendChild(xlsxBtn);
 
     src.addEventListener('cells-selection', function (e) {
       var s = e.detail;
@@ -386,10 +465,15 @@
     expandBtn.setAttribute('aria-label', 'Open fullscreen');
     expandBtn.innerHTML = EXPAND_SVG;
     expandBtn.addEventListener('click', function () {
-      // Editing always resumes from the edited data: if the grid is showing
-      // the original, flip back first so what you expand is what you edit.
-      if (wrapper._cellsViewEdited) wrapper._cellsViewEdited();
-      if (S.cellsFocus) S.cellsFocus.open(model, wrapper);
+      runLazyAction(expandBtn, 'focus', function (focus) {
+        // The document may have rerendered while the modules were in flight.
+        // Do not open a stale model that is no longer part of the page.
+        if (!wrapper.isConnected) return;
+        // Editing always resumes from the edited data: if the grid is showing
+        // the original, flip back only after fullscreen is ready to open.
+        if (wrapper._cellsViewEdited) wrapper._cellsViewEdited();
+        focus.open(model, wrapper);
+      });
     });
     controls.box.appendChild(expandBtn);
 
@@ -544,6 +628,8 @@
         // fx makes formula cells sort by their computed value, not "=..." text.
         order = CELLS.sortRows(model, sort.col, sort.dir, hasHeader, fx);
         vm = { rows: model.rows, cols: model.cols, formats: model.formats,
+               rowFormats: model.rowFormats, cellFormats: model.cellFormats,
+               defaultFormat: model.defaultFormat,
                source: model.source, cells: order.map(function (ri) { return model.cells[ri]; }) };
       }
       wrapper._cellsModel = vm;
@@ -613,7 +699,9 @@
         for (var c2 = 0; c2 < renderCols; c2++) {
           var cell = (line && line[c2]) || EMPTY_CELL;   // pad past the data
           var el = document.createElement('div');
-          var fmt = vm.formats && vm.formats[c2];
+          // Formatting is attached to source addresses, so it follows the
+          // underlying cell when a sorted view paints that row elsewhere.
+          var fmt = CELLS.resolveFormat(model, srcR, c2);
           // A formula cell (raw starts with '=') shows its computed result and
           // behaves like a number for alignment / formatting; its raw is kept.
           var fxCell = (fx && FX.isFormula(cell.raw) && fx[srcR]) ? fx[srcR][c2] : null;
@@ -626,7 +714,8 @@
             typeCls = ' is-text is-formula-src';
           } else if (fxCell) {
             if (fxCell.kind === 'error') typeCls = ' is-text is-formula-error';
-            else typeCls = ' is-number is-formula' + (fxCell.value < 0 ? ' is-negative' : '');
+            else if (fxCell.kind === 'number') typeCls = ' is-number is-formula' + (fxCell.value < 0 ? ' is-negative' : '');
+            else typeCls = ' is-text is-formula';
           } else {
             typeCls = cell.type === 'number' ? ' is-number'
               : cell.type === 'empty' ? ' is-empty' : ' is-text';
@@ -646,13 +735,17 @@
           } else if (fxCell) {
             if (fxCell.kind === 'error') {
               el.textContent = fxCell.code;
+            } else if (fxCell.kind === 'number') {
+              var fcell = { value: fxCell.value, raw: String(fxCell.value), type: 'number', computed: true };
+              el.textContent = CELLS.formatValue(fcell, fmt);
+            } else if (fxCell.kind === 'boolean') {
+              el.textContent = fxCell.value ? 'TRUE' : 'FALSE';
             } else {
-              var fcell = { value: fxCell.value, raw: String(fxCell.value), type: 'number' };
-              el.textContent = fmt ? CELLS.formatValue(fcell, fmt) : CELLS.formatNumber(fcell.raw);
+              el.textContent = String(fxCell.value);
             }
             el.title = cell.raw;                              // hover shows the formula
           } else if (cell.type === 'number') {
-            el.textContent = fmt ? CELLS.formatValue(cell, fmt) : CELLS.formatNumber(cell.raw);
+            el.textContent = CELLS.formatValue(cell, fmt);
           } else {
             el.textContent = cell.raw.replace(/<br\s*\/?>/gi, '\n');
           }
