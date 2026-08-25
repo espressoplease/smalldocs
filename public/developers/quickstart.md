@@ -6,7 +6,7 @@ Add one mount element and import the versioned browser module.
 <div id="report"></div>
 
 <script type="module">
-  import { render } from 'https://smalldocs.org/sdk/0.1.0/smalldocs.js';
+  import { render } from 'https://smalldocs.org/sdk/0.1.1/smalldocs.js';
 
   const markdown = await runYourAgent();
   const view = await render('#report', markdown);

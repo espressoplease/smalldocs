@@ -3082,7 +3082,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/sdk/0.1.0/smalldocs.js') {
+  if (pathname === '/sdk/0.1.0/smalldocs.js' || pathname === '/sdk/0.1.1/smalldocs.js') {
     serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'smalldocs.js'), {
       'Cache-Control': 'public, max-age=31536000, immutable',
       'Access-Control-Allow-Origin': '*',

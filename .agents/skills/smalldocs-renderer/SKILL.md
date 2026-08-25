@@ -23,7 +23,7 @@ If the application also needs an agent to produce this Markdown, install the sep
 
 ## Boundaries
 
-- Treat `0.1.0` as an experimental rendering-only contract.
+- Treat `0.1.1` as an experimental rendering-only contract.
 - Do not add comments, editing, export, Cloud storage, or application chrome to an SDK integration.
 - Do not invent options, publishable keys, npm packages, React wrappers, or readiness events that are not in the API reference.
 - Do not add image upload, proxying, or hosting. Ordinary HTTPS image references remain references to their original hosts. Discuss a first-party image pipeline with the user before designing one.

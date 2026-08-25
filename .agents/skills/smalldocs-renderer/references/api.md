@@ -3,7 +3,7 @@
 ## Current browser module
 
 ```js
-import { render } from 'https://smalldocs.org/sdk/0.1.0/smalldocs.js';
+import { render } from 'https://smalldocs.org/sdk/0.1.1/smalldocs.js';
 
 const view = await render('#report', markdown);
 ```

@@ -3,7 +3,7 @@
 `render()` creates one view. Keep that view for the lifetime of the surrounding route or component.
 
 ```js
-import { render } from 'https://smalldocs.org/sdk/0.1.0/smalldocs.js';
+import { render } from 'https://smalldocs.org/sdk/0.1.1/smalldocs.js';
 
 let view;
 

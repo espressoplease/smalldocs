@@ -40,7 +40,7 @@ The renderer iframe. Use this only for host layout or observation. Do not mutate
 
 ```js
 import SmallDocs, { SmallDocs, render } from
-  'https://smalldocs.org/sdk/0.1.0/smalldocs.js';
+  'https://smalldocs.org/sdk/0.1.1/smalldocs.js';
 ```
 
 The named `render` function and `SmallDocs.render` are the same function.

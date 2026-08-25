@@ -1,4 +1,4 @@
-import { render } from '/sdk/0.1.0/smalldocs.js';
+import { render } from '/sdk/0.1.1/smalldocs.js';
 
 const pages = Object.freeze({
   sdk: { path: '/developers', label: 'Use the SDK', markdown: '/developers/integration.md' },

@@ -198,7 +198,7 @@ module.exports = function(harness) {
     });
 
     await testAsync('versioned SDK module is cross-origin cacheable JavaScript', async () => {
-      const r = await get(BASE + '/sdk/0.1.0/smalldocs.js');
+      const r = await get(BASE + '/sdk/0.1.1/smalldocs.js');
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].includes('application/javascript'));
       assert.strictEqual(r.headers['access-control-allow-origin'], '*');
@@ -207,6 +207,13 @@ module.exports = function(harness) {
       assert.ok(r.headers['cache-control'].includes('max-age=31536000'));
       assert.ok(r.headers['cache-control'].includes('immutable'));
       assert.ok(r.body.includes('export async function render'));
+      assert.ok(
+        r.body.indexOf("window.addEventListener('message', onMessage)")
+          < r.body.indexOf('frame.src = embedUrl.href'),
+        'the message listener must exist before a cached frame can announce readiness'
+      );
+      const previous = await get(BASE + '/sdk/0.1.0/smalldocs.js');
+      assert.strictEqual(previous.status, 200);
     });
 
     await testAsync('GET /developers serves the Markdown-driven SDK documentation shell', async () => {
@@ -234,7 +241,7 @@ module.exports = function(harness) {
       const guide = await get(BASE + '/developers/integration.md');
       assert.strictEqual(guide.status, 200);
       assert.ok(guide.headers['content-type'].includes('text/plain'));
-      assert.ok(guide.body.includes("import { render } from 'https://smalldocs.org/sdk/0.1.0/smalldocs.js'"));
+      assert.ok(guide.body.includes("import { render } from 'https://smalldocs.org/sdk/0.1.1/smalldocs.js'"));
       assert.ok(guide.body.includes('SmallDocs owns Markdown parsing'));
 
       const full = await get(BASE + '/developers/llms-full.txt');

@@ -2,7 +2,7 @@
 
 Render agent-authored Markdown and rich SmallDocs documents inside a web application.
 
-Current status: experimental `0.1.0`. No account or key is required. Production pricing and terms are not set.
+Current status: experimental `0.1.1`. No account or key is required. Production pricing and terms are not set.
 
 ## Quickstart
 
@@ -10,7 +10,7 @@ Current status: experimental `0.1.0`. No account or key is required. Production 
 <div id="report"></div>
 
 <script type="module">
-  import { render } from 'https://smalldocs.org/sdk/0.1.0/smalldocs.js';
+  import { render } from 'https://smalldocs.org/sdk/0.1.1/smalldocs.js';
 
   const markdown = await runYourAgent();
   const view = await render('#report', markdown);

@@ -66,11 +66,6 @@ export async function render(target, markdown) {
   frame.style.height = '1px';
   frame.style.border = '0';
 
-  var embedUrl = new URL(rendererPath, rendererOrigin);
-  embedUrl.searchParams.set('parentOrigin', location.origin);
-  embedUrl.searchParams.set('channel', channel);
-  frame.src = embedUrl.href;
-
   function setHeight(value) {
     var height = Math.max(1, Number(value) || 1);
     frame.style.height = Math.ceil(height) + 'px';
@@ -110,6 +105,10 @@ export async function render(target, markdown) {
     ready.reject(new Error('SmallDocs renderer could not be loaded'));
   }, { once: true });
 
+  var embedUrl = new URL(rendererPath, rendererOrigin);
+  embedUrl.searchParams.set('parentOrigin', location.origin);
+  embedUrl.searchParams.set('channel', channel);
+  frame.src = embedUrl.href;
   mount.replaceChildren(frame);
 
   var view = {

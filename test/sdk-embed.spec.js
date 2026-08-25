@@ -79,6 +79,9 @@ test.afterAll(async () => {
 });
 
 test('an independent customer renders and updates a full SmallDocs document', async ({ page }) => {
+  await page.goto(sdocsOrigin + '/embed?parentOrigin=' + encodeURIComponent(customerOrigin)
+    + '&channel=cache-prime');
+  await page.goto(sdocsOrigin + '/sdk/0.1.1/smalldocs.js');
   await page.goto(customerOrigin);
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await expect(page.locator('body')).not.toHaveAttribute('data-error', /.+/);
