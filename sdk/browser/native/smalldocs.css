@@ -78,6 +78,9 @@
     --md-p-color: var(--sdocs-text-color, #1c1917);
     --md-list-color: var(--sdocs-text-color, #1c1917);
     --md-link-color: var(--sdocs-accent, #2563eb);
+    --md-block-bg: var(--sdocs-code-background, #f4f1ed);
+    --md-chart-bg: var(--sdocs-chart-background, var(--md-block-bg));
+    --md-chart-text: var(--sdocs-chart-text, #6b6560);
     --md-code-bg: var(--sdocs-code-background, #f4f1ed);
     --md-pre-bg: var(--sdocs-code-background, #f4f1ed);
     --md-bq-border: 3px solid var(--sdocs-accent, #2563eb);
@@ -95,6 +98,8 @@
     --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
     --border: #d4cfc9;
     --border-strong: #c5bfb8;
+    --bg-surface: #f1ede8;
+    --bg-input: #ffffff;
     --bg-hover: #e8e3dd;
     --text: #1c1917;
     --text-2: #57534e;
@@ -185,7 +190,6 @@
     stroke-linejoin: round;
   }
 
-  .smalldocs-chart,
   .smalldocs-cells-card {
     position: relative;
     min-width: 0;
@@ -203,9 +207,6 @@
     display: flex;
     gap: 4px;
   }
-  .smalldocs-chart { padding: 32px 18px 14px; }
-  .smalldocs-chart canvas { max-width: 100%; }
-  .smalldocs-chart-focus { max-width: min(1200px, 100%); max-height: 100%; object-fit: contain; }
   .smalldocs-cells-card { padding-top: 36px; }
   .smalldocs-cells { min-width: 0; color: var(--sdocs-text-color, #1c1917); font-family: var(--sdocs-font-family, Inter, ui-sans-serif, system-ui, sans-serif); }
   .smalldocs-cells-tabs { display: flex; gap: 1px; padding: 0 8px; overflow-x: auto; border-bottom: 1px solid var(--sdocs-border-color, #dedad5); }

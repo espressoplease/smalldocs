@@ -1,7 +1,7 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = 'http://localhost:3000/new';
 
 const SIMPLE_CHART = '# Test\n\n```chart\n{"type":"bar","title":"Revenue","labels":["Q1","Q2","Q3","Q4"],"values":[12,18,15,22],"format":"currency"}\n```';
 
@@ -9,11 +9,16 @@ const TWO_CHARTS = '# Test\n\n```chart\n{"type":"bar","title":"First","labels":[
 
 async function loadDoc(page, md) {
   await page.goto(BASE);
-  await page.waitForTimeout(1000);
+  await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
   await page.evaluate((content) => {
+    window.SDocs.setMode('read', true);
     window.SDocs.loadText(content, 'test.md');
   }, md);
-  await page.waitForTimeout(3000); // wait for Chart.js CDN + render
+  await page.waitForSelector('.chart-menu-btn', { timeout: 15000 });
+  await page.evaluate(() => {
+    document.querySelectorAll('.md-section-body').forEach((section) => section.classList.add('open'));
+    document.querySelectorAll('.section-toggle').forEach((toggle) => toggle.classList.add('open'));
+  });
 }
 
 async function getRawText(page) {
@@ -48,7 +53,7 @@ test.describe('Chart menu rendering', () => {
     await loadDoc(page, SIMPLE_CHART);
     await page.locator('.chart-menu-btn').click();
     await expect(page.locator('.chart-menu')).toHaveClass(/open/);
-    await page.locator('h1').click();
+    await page.locator('#_sd_rendered h1').click();
     await expect(page.locator('.chart-menu')).not.toHaveClass(/open/);
   });
 

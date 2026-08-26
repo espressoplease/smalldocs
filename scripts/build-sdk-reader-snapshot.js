@@ -35,6 +35,8 @@ const files = [
   ['public/sdocs-mermaid-focus.js', 'sdocs-mermaid-focus.js'],
   ['public/css/mermaid-reader.css', 'sdocs-mermaid-reader.css', 'sdk-layered-css'],
   ['public/css/mermaid-reader.css', 'sdocs-mermaid-worker.css'],
+  ['public/sdocs-charts.js', 'sdocs-charts.js'],
+  ['public/css/chart-reader.css', 'sdocs-chart-reader.css', 'sdk-layered-css'],
   ['public/css/cells.css', 'sdocs-cells.css', 'sdk-scoped-css'],
   ['public/fonts/inter-400.woff2', 'fonts/inter-400.woff2'],
   ['public/fonts/inter-500.woff2', 'fonts/inter-500.woff2'],

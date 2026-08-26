@@ -846,7 +846,7 @@ $x^2$
   await expect(page.locator('[id="user-content-Chart"]')).toHaveCount(1);
   await expect(page.locator('[id="user-content-smalldocs-sdk-katex-css"]')).toHaveCount(1);
   await expect(page.locator('.katex')).toHaveCount(1);
-  await expect(page.locator('.smalldocs-chart canvas')).toHaveCount(1);
+  await expect(page.locator('.sdoc-chart canvas')).toHaveCount(1);
 
   await page.evaluate(() => window.view.update(`# Video check
 
@@ -909,8 +909,13 @@ test('operations customer keeps two rich documents isolated', async ({ page }) =
   await expect(page.locator('#risk-report .sdoc-mermaid-stage > svg')).toHaveCount(1);
   await expect(page.locator('#risk-report .katex')).not.toHaveCount(0);
 
+  const chartMenu = page.locator('#capacity-report .chart-menu');
+  await expect(chartMenu).toHaveCount(1);
+  await page.locator('#capacity-report').getByRole('button', { name: 'Chart options' }).click();
+  await expect(chartMenu).toHaveClass(/open/);
+  await expect(chartMenu.getByRole('button', { name: 'Download as PNG' })).toHaveCount(1);
   const chartDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download chart PNG' }).first().click();
+  await chartMenu.getByRole('button', { name: 'Download as PNG' }).click();
   const chartPng = await chartDownload;
   const chartBytes = await downloadBytes(chartPng);
   expect(chartPng.suggestedFilename()).toMatch(/\.png$/);
@@ -1026,9 +1031,12 @@ r 8.3 3.2 7.0 4.8 fill=#ffffff stroke=#cbd5e1 |
   await expect(page.locator('.sdoc-slide canvas')).toHaveCount(1);
   await expect(page.locator('.sdoc-slide .sdoc-mermaid-stage > svg')).toHaveCount(1);
   await expect(page.locator('.sdoc-slide .shape-svg svg')).not.toHaveCount(0);
+  await expect(page.locator('#briefing-report .smalldocs-document')).not.toHaveAttribute('data-sdocs-slide-error');
   const sdkAssetRequests = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => entry.name));
   expect(sdkAssetRequests.some(url => url.includes('/sdk/0.2.0/vendor/sdocs-icons-data.js'))).toBe(true);
   expect(sdkAssetRequests.some(url => new URL(url).pathname === '/public/sdocs-icons-data.js')).toBe(false);
+  await expect(page.locator('.smalldocs-slide-downloads')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Download slides as PDF' })).toBeVisible();
 
   await page.evaluate(() => {
     const renderer = window.SDocShapeRender;

@@ -1,7 +1,7 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = 'http://localhost:3000/new';
 
 const CHART_DOC = '# Export Test\n\nSome text.\n\n```chart\n{"type":"bar","title":"Revenue","labels":["Q1","Q2","Q3","Q4"],"values":[12,18,15,22]}\n```\n\nMore text after chart.';
 
@@ -12,8 +12,9 @@ const CHART_AND_IMAGE = '# Full Test\n\n![Logo](/public/images/test.png)\n\n```c
 
 async function loadDoc(page, md) {
   await page.goto(BASE);
-  await page.waitForTimeout(1000);
+  await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
   await page.evaluate((content) => {
+    window.SDocs.setMode('read', true);
     window.SDocs.loadText(content, 'test.md');
   }, md);
   await page.waitForTimeout(3000); // wait for Chart.js CDN + render

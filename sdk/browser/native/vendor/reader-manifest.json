@@ -115,6 +115,16 @@
     "source": "public/css/mermaid-reader.css",
     "sha256": "9d94c6137c0acf17e1bce6b0992183d9d606c3d153407eb395d41de478ae2f2c"
   },
+  "sdocs-charts.js": {
+    "source": "public/sdocs-charts.js",
+    "sha256": "cdab290d88b4c7f23d321da391f83832fa8542fdb661e329883fecaf194f53a2"
+  },
+  "sdocs-chart-reader.css": {
+    "source": "public/css/chart-reader.css",
+    "sha256": "c7eabb1eaa817c0f95c49353c42e6a93e45997c54edbab19fe97a26077961b22",
+    "sourceSha256": "20752e819116798163ad02dacd5f1a956bb8a301829b9e797a3581041b266d99",
+    "transform": "sdk-layered-css"
+  },
   "sdocs-cells.css": {
     "source": "public/css/cells.css",
     "sha256": "4a7748846531ed12faa273c098c184af44abf3aab1520866cc8ba6ffed062f37",

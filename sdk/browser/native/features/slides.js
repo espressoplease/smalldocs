@@ -14,11 +14,12 @@ function button(label, icon, text) {
   return control;
 }
 
-function nestedContext(context, root, signal) {
+function nestedContext(context, root, signal, featureOptions) {
   return Object.assign({}, context, {
     root,
     signal: signal || context.signal,
     allowDetached: true,
+    chartOptions: featureOptions,
     cleanups: [],
     options: {
       navigation: false,
@@ -28,12 +29,12 @@ function nestedContext(context, root, signal) {
   });
 }
 
-async function mountNested(feature, root, context, signal) {
+async function mountNested(feature, root, context, signal, featureOptions) {
   const activeSignal = signal || context.signal;
   if (activeSignal.aborted) return;
   const module = await import('./' + feature + '.js');
   if (activeSignal.aborted) return;
-  const nested = nestedContext(context, root, activeSignal);
+  const nested = nestedContext(context, root, activeSignal, featureOptions);
   const cleanup = await module.mount(nested);
   const cleanups = nested.cleanups.slice();
   if (typeof cleanup === 'function') cleanups.push(cleanup);
@@ -69,7 +70,7 @@ async function ensureSlides(context) {
     shapes,
     styles: context.assets.styles,
     icons: null,
-    processCharts(root, options, signal) { return mountNested('charts', root, context, signal); },
+    processCharts(root, options, signal) { return mountNested('charts', root, context, signal, options); },
     processMath(root, options, signal) { return mountNested('math', root, context, signal); },
     processMermaid(root, options, signal) { return mountNested('mermaid', root, context, signal); },
   };
@@ -238,7 +239,12 @@ export async function mount(context) {
   });
   const rendered = controller.process(context.root);
   slides = rendered.slides;
-  await rendered.ready;
+  try {
+    await rendered.ready;
+  } catch (error) {
+    context.root.dataset.sdocsSlideError = error instanceof Error ? error.message : String(error);
+    throw error;
+  }
   if (context.signal.aborted) return;
   const cleanup = () => {
     if (presenter) presenter.close();
@@ -253,6 +259,6 @@ export async function mount(context) {
   pptx.addEventListener('click', () => exportPptx(context, slides, api).catch((error) => { pptx.dataset.error = error.message; }));
   downloads.append(pdf, pptx);
   const firstSlide = context.root.querySelector('.sdoc-slide');
-  if (slides[0].dsl && firstSlide) firstSlide.before(downloads);
+  if (firstSlide) firstSlide.before(downloads);
   return cleanup;
 }
