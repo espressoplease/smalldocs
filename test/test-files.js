@@ -107,6 +107,7 @@ module.exports = function(harness) {
     assert.ok(deploy.includes('systemctl daemon-reload'));
     assert.ok(deploy.includes('install-production-monitor.sh'));
     assert.ok(deploy.includes('rollback_release'));
+    assert.ok(deploy.includes('"$release_dir/.git/HEAD"'));
   });
 
   test('staging deploy publishes one exact commit and cannot switch production', () => {

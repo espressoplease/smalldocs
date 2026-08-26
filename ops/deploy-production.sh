@@ -48,6 +48,8 @@ rollback_release() {
 sudo mkdir -p "$release_dir"
 sudo tar -xzf "$remote_archive" -C "$release_dir"
 sudo rm -f "$remote_archive"
+sudo mkdir -p "$release_dir/.git"
+printf '%s\n' "$release_commit" | sudo tee "$release_dir/.git/HEAD" >/dev/null
 sudo env PATH=/usr/local/bin:/usr/bin:/bin npm --prefix "$release_dir" ci --omit=dev
 sudo chown -R root:root "$release_dir"
 sudo chmod -R go-w "$release_dir"
