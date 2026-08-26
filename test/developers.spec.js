@@ -58,8 +58,8 @@ test('developer documentation uses one SDK view to navigate Markdown pages', asy
   await expect(page.getByRole('link', { name: 'SmallDocs', exact: true })).toHaveAttribute('href', '/');
   await expect(page.locator('.topbar-actions')).toHaveCount(0);
   await expect(page.getByText('Developer documentation', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Working example', exact: true }))
-    .toHaveAttribute('href', '/developers/example');
+  await expect(page.getByRole('link', { name: 'Example gallery', exact: true }))
+    .toHaveAttribute('href', '/developers/examples');
   await expect(page.getByRole('link', { name: 'Render in your app', exact: true })).toHaveAttribute('aria-current', 'page');
   expect(await page.locator('#agent-references').evaluate(element => element.open)).toBe(false);
   await expect(page.getByRole('link', { name: 'Slides', exact: true })).toBeHidden();
@@ -181,13 +181,13 @@ test('customer example swaps a multi-format analysis through one SDK view', asyn
   await expect(documentView.locator('.sdoc-slide')).toHaveCount(4);
   await expect(documentView.locator('.sdoc-slide-error')).toHaveCount(0);
   await expect(documentView.locator('.smalldocs-document')).toHaveAttribute('data-smalldocs-instance', instanceId);
-  const presentButton = documentView.getByRole('button', { name: 'Present slides' }).nth(1);
+  const presentButton = documentView.getByRole('button', { name: 'Open slide 1 in presentation mode' });
   await presentButton.scrollIntoViewIfNeeded();
   const returnScrollY = await page.evaluate(() => window.scrollY);
   await presentButton.click();
   await expect(page.getByRole('dialog', { name: 'Slide presentation' })).toBeVisible();
-  await expect(page.locator('html')).toHaveCSS('overflow-y', 'hidden');
-  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(page.locator('body')).toHaveCSS('overflow-y', 'hidden');
+  await page.getByRole('button', { name: 'Exit presentation (Esc)' }).click();
   await expect(page.locator('.smalldocs-overlay')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(returnScrollY);
 
@@ -220,6 +220,66 @@ test('styled SDK example keeps every document section open and accepts host typo
   await expect(report.locator('blockquote')).toContainText('fund three connected cool corridors');
   await expect(report.locator('table')).toContainText('Continuous shaded route');
   await expect(report.getByRole('button', { name: 'Open code in fullscreen' })).toBeVisible();
+  expect(await page.evaluate(() => document.body.scrollWidth <= document.body.clientWidth)).toBe(true);
+});
+
+test('SDK gallery shows all features and recreates views for configuration changes', async ({ page }) => {
+  await page.goto(origin + '/developers/examples');
+
+  await expect(page.locator('body')).toHaveAttribute('data-demo-ready', 'true');
+  await expect(page.getByRole('heading', { name: 'Investment decision room' })).toBeVisible();
+  await expect(page.getByText('The top bar and this menu belong to the customer application.')).toBeVisible();
+  const documentView = page.locator('#showcase-document');
+  await expect(documentView.getByRole('heading', { name: 'Northline: investment decision' })).toBeVisible();
+  await expect(documentView.locator('.smalldocs-navigation')).toBeVisible();
+  await expect(documentView.locator('.sdoc-mermaid')).toHaveCount(1);
+  const mermaidWidth = await documentView.locator('svg.sdoc-mermaid-svg').evaluate(element =>
+    element.getBoundingClientRect().width
+  );
+  expect(mermaidWidth).toBeGreaterThan(300);
+  await expect(documentView.locator('.sdoc-chart')).toHaveCount(1);
+  await expect(documentView.locator('.sdoc-cells')).toHaveCount(2);
+  await expect(documentView.locator('.sdoc-cells-pane-tabs')).toHaveCount(1);
+  await expect(documentView.locator('.sdoc-slide')).toHaveCount(3);
+  await expect(documentView.locator('.sdoc-video')).toHaveCount(1);
+  await expect(documentView.locator('.katex')).not.toHaveCount(0);
+  await expect(documentView.locator('pre code')).not.toHaveCount(0);
+  const completeInstance = await documentView.locator('.smalldocs-document').getAttribute('data-smalldocs-instance');
+
+  await page.getByRole('button', { name: /Editorial report/ }).click();
+  await expect(documentView.getByRole('heading', { name: 'Streets that stay useful in the heat' })).toBeVisible();
+  await expect(documentView.locator('.section-toggle')).toHaveCount(0);
+  await expect(documentView.locator('.smalldocs-document')).toHaveCSS('font-family', /Georgia/);
+  const editorialInstance = await documentView.locator('.smalldocs-document').getAttribute('data-smalldocs-instance');
+  expect(editorialInstance).not.toBe(completeInstance);
+
+  await page.getByRole('button', { name: /Compact answer/ }).click();
+  await expect(documentView.getByRole('heading', { name: 'Shift risk summary' })).toBeVisible();
+  await expect(documentView.locator('.smalldocs-navigation')).toBeHidden();
+  await expect(documentView.locator('.section-toggle')).toHaveCount(0);
+  await expect(documentView.getByRole('button', { name: /Copy/ })).toHaveCount(0);
+  await expect(documentView.getByRole('button', { name: 'Open diagram in fullscreen' })).toBeVisible();
+  await expect(page.locator('#showcase-config')).toContainText('"download": false');
+
+  await page.getByRole('button', { name: /Long reference/ }).click();
+  await expect(documentView.getByRole('heading', { name: 'Launch operations reference' })).toBeVisible();
+  await expect(documentView.locator('.smalldocs-navigation')).toBeVisible();
+  await expect(documentView.locator('.md-section-body:not(.open)')).not.toHaveCount(0);
+  await expect(documentView.locator('code.language-future-control')).toContainText('threshold: pending');
+  expect(await page.evaluate(() => document.body.scrollWidth <= document.body.clientWidth)).toBe(true);
+});
+
+test('SDK gallery keeps configuration switching usable on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(origin + '/developers/examples');
+
+  await expect(page.locator('body')).toHaveAttribute('data-demo-ready', 'true');
+  await expect(page.locator('.showcase-sidebar')).toBeHidden();
+  await expect(page.getByLabel('Example')).toBeVisible();
+  await page.getByLabel('Example').selectOption('compact');
+  await expect(page.getByRole('heading', { name: 'Shift risk summary' })).toBeVisible();
+  await expect(page.locator('#showcase-document .smalldocs-navigation')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Open diagram in fullscreen' })).toBeVisible();
   expect(await page.evaluate(() => document.body.scrollWidth <= document.body.clientWidth)).toBe(true);
 });
 

@@ -2971,6 +2971,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/developers/examples' || pathname === '/developers/examples/') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers-showcase.html'), null, {
+      'Cache-Control': 'no-cache',
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src https://cdn.jsdelivr.net; frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+    });
+    return;
+  }
+
   if (pathname === '/developers/example' || pathname === '/developers/example/') {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers-example.html'), null, {
       'Cache-Control': 'no-cache',

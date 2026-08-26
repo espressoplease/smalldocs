@@ -19,7 +19,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; }
-svg {
+.example-topbar svg,
+.project-sidebar svg,
+.document-tabs svg {
   width: 17px;
   height: 17px;
   fill: none;

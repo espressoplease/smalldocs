@@ -84,6 +84,8 @@ Controls are cross-feature policies. For example, `download: false` removes supp
 
 Options stay fixed for the lifetime of the returned view. `view.update(markdown)` accepts Markdown only. Destroy the view and call `render()` again to change behavior options.
 
+The SDK does not add a page-level top menu. The host application owns global navigation, account actions, route controls, and agent workflow actions. SmallDocs owns the document navigation, inline feature controls, and fullscreen surfaces. Do not recreate the SmallDocs application toolbar inside a customer application.
+
 ## Returned view
 
 ```js
@@ -209,3 +211,5 @@ export function removeReport() {
 ```
 
 Keep the original Markdown available so a rendering failure does not make the agent output inaccessible.
+
+The example gallery at `https://smalldocs.org/developers/examples` shows the complete feature surface, an always-open styled report, a compact answer, and a long reference with initially closed sections.

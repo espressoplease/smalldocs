@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SmallDocs SDK gallery</title>
+<meta name="description" content="Four customer-style applications showing SmallDocs SDK features and configuration.">
+<link rel="stylesheet" href="/public/css/developers-example.css">
+<link rel="stylesheet" href="/public/css/developers-showcase.css">
+</head>
+<body data-showcase="complete">
+<header class="example-topbar">
+  <a class="example-product" href="/developers/examples">
+    <span class="product-mark">N</span>
+    <span>Northline Intelligence</span>
+  </a>
+  <nav aria-label="Application links">
+    <a href="/developers">Integration guide</a>
+    <a class="back-link" href="/">
+      SmallDocs
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></svg>
+    </a>
+  </nav>
+</header>
+
+<div class="example-layout showcase-layout">
+  <aside class="project-sidebar showcase-sidebar">
+    <p class="sidebar-label">Renderer examples</p>
+    <div class="showcase-choices" role="list">
+      <button class="showcase-choice" type="button" data-showcase-choice="complete" aria-pressed="true">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+        <span><strong>Complete analysis</strong><small>Every supported content type</small></span>
+      </button>
+      <button class="showcase-choice" type="button" data-showcase-choice="editorial" aria-pressed="false">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V5H6.5A2.5 2.5 0 0 0 4 7.5v12Z"/><path d="M6.5 17H20"/></svg>
+        <span><strong>Editorial report</strong><small>Always open and restyled</small></span>
+      </button>
+      <button class="showcase-choice" type="button" data-showcase-choice="compact" aria-pressed="false">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18"/></svg>
+        <span><strong>Compact answer</strong><small>No document navigation</small></span>
+      </button>
+      <button class="showcase-choice" type="button" data-showcase-choice="reference" aria-pressed="false">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m8 6 4-4 4 4M12 2v9M8 18l4 4 4-4M12 13v9"/></svg>
+        <span><strong>Long reference</strong><small>Sections closed at first</small></span>
+      </button>
+    </div>
+
+    <div class="showcase-config" aria-live="polite">
+      <span>Renderer configuration</span>
+      <pre id="showcase-config"></pre>
+    </div>
+
+    <div class="example-note showcase-boundary">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><rect width="18" height="14" x="3" y="5" rx="2"/><path d="M3 9h18"/></svg>
+      <p>The top bar and this menu belong to the customer application. SmallDocs begins inside the document surface.</p>
+    </div>
+  </aside>
+
+  <main class="project-main showcase-main">
+    <div class="project-heading">
+      <div>
+        <p class="eyebrow" id="showcase-eyebrow">Full feature surface</p>
+        <h1 id="showcase-title">Investment decision room</h1>
+        <p id="showcase-summary">One agent document using every supported renderer feature.</p>
+      </div>
+      <span class="analysis-status"><span></span> SDK 0.2.0</span>
+    </div>
+
+    <div class="showcase-mobile-picker">
+      <label for="showcase-select">Example</label>
+      <select id="showcase-select">
+        <option value="complete">Complete analysis</option>
+        <option value="editorial">Editorial report</option>
+        <option value="compact">Compact answer</option>
+        <option value="reference">Long reference</option>
+      </select>
+    </div>
+
+    <section class="analysis-surface showcase-surface" aria-live="polite" aria-busy="true">
+      <p class="example-loading" role="status">Loading complete analysis</p>
+      <div id="showcase-document"></div>
+    </section>
+  </main>
+</div>
+
+<script type="module" src="/public/developers-showcase.js"></script>
+</body>
+</html>

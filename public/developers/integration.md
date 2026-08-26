@@ -2,7 +2,7 @@
 
 Render finished agent work as a readable document inside your product. The agent returns Markdown. SmallDocs turns that Markdown into prose, diagrams, charts, computed sheets, slides, math, code, and video where the document uses them.
 
-[Open a working SDK example](/developers/example), or [see sample documents on the homepage](/#learn).
+[Open the SDK example gallery](/developers/examples), [inspect one working integration](/developers/example), or [see sample documents on the homepage](/#learn).
 
 **Hand this to your coding agent**
 
@@ -67,6 +67,8 @@ The SDK installs its base CSS automatically. It renders into the host DOM, so yo
 ```
 
 SmallDocs base rules live in a low-priority CSS layer. Normal unlayered application CSS can override them. SDK selectors are scoped so they do not restyle headings, tables, or buttons outside the renderer.
+
+The application owns surrounding chrome such as its top menu, breadcrumbs, account controls, and route navigation. SmallDocs owns the reading surface, document navigation, feature controls, and fullscreen views. The [example gallery](/developers/examples) shows that boundary across several host designs.
 
 ## Configure reading behavior
 

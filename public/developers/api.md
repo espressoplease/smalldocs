@@ -54,9 +54,13 @@ const view = await render('#reference', markdown, {
 });
 ```
 
-[Open the styled always-open example](/developers/example/non-collapsible).
+[Open the example gallery](/developers/examples) to compare all four configurations, or open the [standalone styled report](/developers/example/non-collapsible).
 
 Options stay fixed for the lifetime of the returned view. `view.update(markdown)` replaces content only. Destroy the view and call `render()` again to change behavior options.
+
+## Surrounding application menu
+
+The SDK does not add a page-level top menu. The host application owns global navigation, account actions, route controls, and agent workflow actions. SmallDocs owns the document navigation, inline feature controls, and fullscreen surfaces inside that application.
 
 ## Typography and document styling
 

@@ -282,7 +282,7 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('/developers/authoring/slides'));
       assert.ok(r.body.includes('/developers/authoring/slide-shapes'));
       assert.ok(r.body.includes('id="agent-references"'));
-      assert.ok(r.body.includes('href="/developers/example"'));
+      assert.ok(r.body.includes('href="/developers/examples"'));
       assert.ok(r.body.includes('class="topbar-brand">SmallDocs</a>'));
       assert.ok(!r.body.includes('class="topbar-actions"'));
       assert.ok(!r.body.includes('Developer documentation</div>'));
@@ -308,6 +308,24 @@ module.exports = function(harness) {
         const markdown = await get(BASE + '/public/developers/example/' + slug + '.md');
         assert.strictEqual(markdown.status, 200, 'example document: ' + slug);
         assert.ok(markdown.body.includes('# Project Meridian'));
+      }
+    });
+
+    await testAsync('GET /developers/examples serves the SDK configuration gallery', async () => {
+      const r = await get(BASE + '/developers/examples');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'));
+      assert.ok(r.body.includes('Northline Intelligence'));
+      assert.ok(r.body.includes('id="showcase-document"'));
+      assert.ok(r.body.includes('/public/css/developers-example.css?v='));
+      assert.ok(r.body.includes('/public/css/developers-showcase.css?v='));
+      assert.ok(r.body.includes('/public/developers-showcase.js?v='));
+      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
+
+      for (const slug of ['complete-analysis', 'compact-answer', 'long-reference']) {
+        const markdown = await get(BASE + '/public/developers/showcase/' + slug + '.md');
+        assert.strictEqual(markdown.status, 200, 'showcase document: ' + slug);
+        assert.ok(/^# /m.test(markdown.body));
       }
     });
 
