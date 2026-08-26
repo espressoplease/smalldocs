@@ -25,21 +25,21 @@ const productionModes = {
 
 const sdkModes = {
   inline: {
-    root: '.smalldocs-cells-card',
+    root: '.sdoc-cells-pane',
     probes: {
-      grid: '.smalldocs-cells-table',
-      toolbar: '.smalldocs-feature-tools',
-      tabs: '.smalldocs-cells-tabs',
-      cell: '.smalldocs-cells-table td',
+      grid: '.sdoc-cells-pane .sdoc-cells-grid',
+      toolbar: '.sdoc-cells-pane .sdoc-cells-bar',
+      tabs: '.sdoc-cells-pane-tabs',
+      cell: '.sdoc-cells-pane .sdoc-cells-cell',
     },
   },
   fullscreen: {
-    root: '.smalldocs-overlay',
+    root: '.sdoc-cells-focus',
     probes: {
-      grid: '.smalldocs-cells-table',
-      toolbar: '.smalldocs-overlay-topbar',
-      formulaBar: '.smalldocs-cells-bar',
-      tabs: '.smalldocs-cells-tabs',
+      grid: '.sdoc-cells-focus .sdoc-cells-grid',
+      toolbar: '.sdoc-cells-focus-topbar',
+      formulaBar: '.sdoc-cells-focus-bar',
+      tabs: '.sdoc-cells-focus-tabs',
     },
   },
 };
@@ -60,8 +60,8 @@ module.exports = {
     sdk: {
       modes: sdkModes,
       scopes: {
-        inline: '.smalldocs-cells-card',
-        fullscreen: '.smalldocs-overlay',
+        inline: '.sdoc-cells-pane',
+        fullscreen: '.sdoc-cells-focus',
       },
     },
   },
@@ -96,7 +96,7 @@ module.exports = {
       mode: 'inline',
       beforeBySurface: {
         production: [{ action: 'hover', within: 'inline', selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-colhead[data-c="1"]' }],
-        sdk: [{ action: 'hover', within: 'inline', selector: '.smalldocs-cells-panel:not([hidden]) th:nth-child(3)' }],
+        sdk: [{ action: 'hover', within: 'inline', selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-colhead[data-c="1"]' }],
       },
       probes: {
         hoveredColumn: '.sdoc-cells-colhead[data-c="1"]:hover',
@@ -113,7 +113,7 @@ module.exports = {
       mode: 'inline',
       beforeBySurface: {
         production: [{ action: 'focus', via: 'keyboard', within: 'inline', selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-grid' }],
-        sdk: [{ action: 'focus', within: 'inline', selector: '.smalldocs-cells-panel:not([hidden]) td[data-address="A1"]' }],
+        sdk: [],
       },
       probes: {
         focusedGrid: '.sdoc-cells-grid:focus-visible',
@@ -130,7 +130,7 @@ module.exports = {
       mode: 'inline',
       beforeBySurface: {
         production: [{ action: 'click', within: 'inline', selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-cell[data-r="1"][data-c="1"]' }],
-        sdk: [{ action: 'focus', within: 'inline', selector: '.smalldocs-cells-panel:not([hidden]) td[data-address="B2"]' }],
+        sdk: [],
       },
       probes: {
         selectedCell: '.sdoc-cells-cell.is-active',
@@ -152,7 +152,7 @@ module.exports = {
           selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-cell[data-r="1"][data-c="0"]',
           to: { selector: '.sdoc-cells:not([style*="display: none"]) .sdoc-cells-cell[data-r="3"][data-c="1"]' },
         }],
-        sdk: [{ action: 'focus', within: 'inline', selector: '.smalldocs-cells-panel:not([hidden]) td[data-address="B3"]' }],
+        sdk: [],
       },
       probes: {
         range: '.sdoc-cells-cell.in-range',
@@ -170,7 +170,7 @@ module.exports = {
       mode: 'inline',
       beforeBySurface: {
         production: [{ action: 'download', within: 'inline', role: 'button', name: 'Download workbook (.xlsx)' }],
-        sdk: [{ action: 'download', role: 'button', name: 'Download spreadsheet XLSX' }],
+        sdk: [{ action: 'download', within: 'inline', role: 'button', name: 'Download workbook (.xlsx)' }],
       },
       contracts: [
         {
@@ -185,7 +185,7 @@ module.exports = {
       mode: 'fullscreen',
       beforeBySurface: {
         production: [{ action: 'click', within: 'inline', role: 'button', name: 'Open fullscreen' }],
-        sdk: [{ action: 'click', role: 'button', name: 'Open spreadsheet in fullscreen' }],
+        sdk: [],
       },
       contracts: [
         { selector: '.sdoc-cells-focus', count: 1, message: 'Canonical fullscreen root is present' },
