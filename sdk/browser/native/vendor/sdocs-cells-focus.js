@@ -328,7 +328,7 @@
           return cl && cl.raw && cl.raw.charAt(0) === '=' && cl.raw.length > 1;
         });
       });
-      var actions = enabled('copy') && buildCopyControls
+      var actions = buildCopyControls
         ? buildCopyControls(gridWrap, m, { rawButton: hasFormulas }).box
         : document.createElement('div');
       actions.classList.add('sdoc-cells-focus-actions');
@@ -385,8 +385,7 @@
     state.modal = modal;
     var leaseOptions = {
       surface: modal,
-      returnFocus: inlineWrapper && inlineWrapper.querySelector
-        ? inlineWrapper.querySelector('.sdoc-cells-expand') : document.activeElement,
+      returnFocus: document.activeElement,
       beforeClose: beforeClose,
       onClose: afterClose,
       restoreFocus: !embedMode(),

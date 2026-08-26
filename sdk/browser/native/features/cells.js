@@ -50,6 +50,7 @@ export async function mount(context) {
         document,
         cells: api.cells,
         formula: api.formula,
+        sdkVersion: '0.2.0',
         isActive() { return !context.signal.aborted; },
       });
       focus = focusApi.create({

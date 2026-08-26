@@ -49,11 +49,11 @@
   },
   "sdocs-cells-edit.js": {
     "source": "public/sdocs-cells-edit.js",
-    "sha256": "5889b701172f41e94772a82f85dfb1cecf0f2fb262afa2b9542577957c85fb7b"
+    "sha256": "d7828bd3060e583409b5a804f2a32bc8a462c546a75c454378b36e4df71e8dcc"
   },
   "sdocs-cells-focus.js": {
     "source": "public/sdocs-cells-focus.js",
-    "sha256": "f0c846a45f58b84b483ed7a3d24a806f3fb13f0f065b1f5eb6e1ab4c4b35a696"
+    "sha256": "ab0125f3e85233f0d2749f59affc7382c3806e061d476ad4bff7646cee449549"
   },
   "sdocs-cells-ui.js": {
     "source": "public/sdocs-cells-ui.js",
@@ -61,8 +61,8 @@
   },
   "sdocs-cells.css": {
     "source": "public/css/cells.css",
-    "sha256": "98c8be4566c43e7f909eb8afb8b086d54b9726ac96fdeb85980416300452bb97",
-    "sourceSha256": "669fcc220050d23620aa5bd24124efefd512e919ac79db984a434dc7469144bd",
+    "sha256": "4a7748846531ed12faa273c098c184af44abf3aab1520866cc8ba6ffed062f37",
+    "sourceSha256": "152731396b3082353876b44dd99cd34f2b23e8932e68266838d47e66530bb0d7",
     "transform": "sdk-scoped-css"
   },
   "fonts/inter-400.woff2": {

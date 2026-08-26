@@ -50,13 +50,19 @@ function transformContents(contents, transform) {
     const markerIndex = css.indexOf(focusMarker);
     const inline = (markerIndex < 0 ? css : css.slice(0, markerIndex))
       .replace(/body\.sdoc-cells-resizing/g, ':scope.sdoc-cells-resizing');
+    const focusBase = inline.replace(/\.sdoc-cells-focus(?![-\w])/g, ':scope');
     const focus = markerIndex < 0 ? '' : css.slice(markerIndex)
       .replace(/body\.sdoc-cells-focus-open\s*\{[^}]*\}/g, '')
       .replace(/\.sdoc-cells-focus(?![-\w])/g,
         ':scope');
+    const editorStart = css.indexOf('.sdoc-cells-editor {');
+    const editorEnd = editorStart < 0 ? -1 : css.indexOf('\n}', editorStart);
+    const editor = editorStart < 0 || editorEnd < 0 ? '' : css.slice(editorStart, editorEnd + 2)
+      .replace(/\.sdoc-cells-editor(?![-\w])/g, ':scope');
     return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
       + inline + '\n}\n@scope (.sdoc-cells-focus[data-smalldocs-sdk-version="0.2.0"]) {\n'
-      + focus + '\n}\n}\n');
+      + focusBase + '\n' + focus + '\n}\n@scope (.sdoc-cells-editor[data-smalldocs-sdk-version="0.2.0"]) {\n'
+      + editor + '\n}\n}\n');
   }
   throw new Error('Unknown SDK snapshot transform: ' + transform);
 }

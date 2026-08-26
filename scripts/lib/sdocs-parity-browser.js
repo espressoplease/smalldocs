@@ -56,6 +56,10 @@ async function replayStep(page, step, config) {
     return;
   }
   const locator = locatorFor(page, config, step);
+  if (step.action === 'waitFor') {
+    await locator.first().waitFor({ state: step.state || 'visible', timeout: step.timeout || 15000 });
+    return;
+  }
   if (step.action === 'focus' && step.via === 'keyboard') {
     await focusWithKeyboard(page, locator, step);
     return;

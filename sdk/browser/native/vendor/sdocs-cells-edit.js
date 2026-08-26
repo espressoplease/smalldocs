@@ -275,6 +275,9 @@
       var input = document.createElement('input');
       input.type = 'text';
       input.className = 'sdoc-cells-editor';
+      if (options.sdkVersion) {
+        input.setAttribute('data-smalldocs-sdk-version', String(options.sdkVersion));
+      }
       input.value = initial != null ? initial : rawAt(model, dispToModelRow(r), c);
       input.style.left = rect.left + 'px';
       input.style.top = rect.top + 'px';

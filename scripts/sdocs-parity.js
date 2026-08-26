@@ -269,7 +269,8 @@ async function contractFailures(page, contracts, config) {
       failures.push(contract.message + ' (expected at most ' + contract.maxCount + ', found ' + count + ')');
       continue;
     }
-    if (!count && [contract.text, contract.inputValue, contract.attribute, contract.visible, contract.focused, contract.focusVisible, contract.hovered]
+    if (!count && [contract.text, contract.inputValue, contract.attribute, contract.visible, contract.focused, contract.focusVisible,
+      contract.hovered, contract.nonEmpty, contract.insideViewport]
       .some((value) => value != null)) {
       failures.push(contract.message + ' (target not found)');
       continue;
@@ -302,8 +303,64 @@ async function contractFailures(page, contracts, config) {
       const hovered = await locator.first().evaluate((node) => node.matches(':hover'));
       if (hovered !== contract.hovered) failures.push(contract.message + ' (expected hovered ' + contract.hovered + ', found ' + hovered + ')');
     }
+    if (contract.nonEmpty != null && count) {
+      const text = String(await locator.first().textContent()).replace(/\s+/g, ' ').trim();
+      const nonEmpty = text.length > 0;
+      if (nonEmpty !== contract.nonEmpty) failures.push(contract.message + ' (expected non-empty ' + contract.nonEmpty + ', found ' + nonEmpty + ')');
+    }
+    if (contract.insideViewport != null && count) {
+      const box = await locator.first().boundingBox();
+      const viewport = page.viewportSize();
+      const tolerance = 0.5;
+      const inside = Boolean(box && viewport && box.x >= -tolerance && box.y >= -tolerance
+        && box.x + box.width <= viewport.width + tolerance
+        && box.y + box.height <= viewport.height + tolerance);
+      if (inside !== contract.insideViewport) failures.push(contract.message + ' (expected inside viewport ' + contract.insideViewport + ', found ' + inside + ')');
+    }
   }
   return failures;
+}
+
+async function screenshotAligned(locator, options) {
+  const prior = await locator.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const computed = getComputedStyle(node);
+    const state = {
+      position: node.style.getPropertyValue('position'),
+      positionPriority: node.style.getPropertyPriority('position'),
+      left: node.style.getPropertyValue('left'),
+      leftPriority: node.style.getPropertyPriority('left'),
+      top: node.style.getPropertyValue('top'),
+      topPriority: node.style.getPropertyPriority('top'),
+      changed: false,
+    };
+    if (computed.position !== 'static') return state;
+    const dx = Math.round(rect.x) - rect.x;
+    const dy = Math.round(rect.y) - rect.y;
+    if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return state;
+    node.style.setProperty('position', 'relative', 'important');
+    node.style.setProperty('left', dx + 'px', 'important');
+    node.style.setProperty('top', dy + 'px', 'important');
+    state.changed = true;
+    return state;
+  });
+  if (prior.changed) {
+    await locator.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  }
+  try {
+    await locator.screenshot(options);
+  } finally {
+    if (prior.changed) {
+      await locator.evaluate((node, state) => {
+        [['position', state.position, state.positionPriority],
+          ['left', state.left, state.leftPriority],
+          ['top', state.top, state.topPriority]].forEach(([name, value, priority]) => {
+          if (value) node.style.setProperty(name, value, priority);
+          else node.style.removeProperty(name);
+        });
+      }, prior);
+    }
+  }
 }
 
 async function captureState(page, surfaceName, config, state, outputDir, diagnostics, stepFailures) {
@@ -313,7 +370,7 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
   const fileBase = safeName(surfaceName) + '-' + safeName(state.name);
   const imagePath = path.join(outputDir, 'screenshots', fileBase + '.png');
   fs.mkdirSync(path.dirname(imagePath), { recursive: true });
-  if (rootFound) await root.screenshot({ path: imagePath, animations: 'disabled' });
+  if (rootFound) await screenshotAligned(root, { path: imagePath, animations: 'disabled' });
   else await page.screenshot({ path: imagePath, fullPage: false, animations: 'disabled' });
   const data = await page.evaluate(({ rootSelector, probes }) => {
     function directText(node) {
@@ -409,12 +466,17 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
 }
 
 async function captureSurface(browser, surface, kind, suite, markdown, outputDir) {
-  const session = await initialiseSurface(browser, surface, kind, suite, markdown);
   const captures = [];
   const config = suite.surfaces[kind];
   const stepFailures = [];
+  let session = null;
   try {
     for (const state of suite.states) {
+      if (!session || state.fresh === true) {
+        if (session) await session.page.close();
+        session = await initialiseSurface(browser, surface, kind, suite, markdown);
+      }
+      if (state.viewport) await session.page.setViewportSize(state.viewport);
       if (state.resetInteraction !== false) await resetInteractionState(session.page);
       const steps = state.beforeBySurface && state.beforeBySurface[kind]
         ? state.beforeBySurface[kind]
@@ -432,7 +494,7 @@ async function captureSurface(browser, surface, kind, suite, markdown, outputDir
       ));
     }
   } finally {
-    await session.page.close();
+    if (session) await session.page.close();
   }
   return { name: surface.label, kind, captures };
 }
@@ -448,9 +510,10 @@ function compareSurfaces(label, reference, candidate, suite, outputDir) {
     const differences = compareCapture(left, right);
     const diffImagePath = path.join(outputDir, 'diffs', safeName(label) + '-' + safeName(state.name) + '.png');
     const image = diffPng(left.imagePath, right.imagePath, diffImagePath, 0.2);
-    const contractFailures = right.contractFailures.concat(
-      right.diagnostics.map((entry) => entry.type + ': ' + entry.message),
-    );
+    const contractFailures = left.contractFailures.map((failure) => 'Reference: ' + failure)
+      .concat(left.diagnostics.map((entry) => 'Reference ' + entry.type + ': ' + entry.message))
+      .concat(right.contractFailures.map((failure) => 'Candidate: ' + failure))
+      .concat(right.diagnostics.map((entry) => 'Candidate ' + entry.type + ': ' + entry.message));
     const imagePass = image.sameSize && image.ratio <= 0.003;
     return {
       name: state.name,

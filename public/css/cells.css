@@ -12,6 +12,19 @@
  * the cells, just tinted, so the gridlines still read and it carries a
  * familiar spreadsheet feel. Override --sdoc-cells-accent to retint. */
 
+/* The SDK portals the fullscreen sheet outside its normal document root.
+ * Keep the same reset the production app applies before the grid rules. */
+.sdoc-cells-focus,
+.sdoc-cells-focus *,
+.sdoc-cells-focus *::before,
+.sdoc-cells-focus *::after {
+  box-sizing: border-box;
+}
+.sdoc-cells-focus * {
+  margin: 0;
+  padding: 0;
+}
+
 .sdoc-cells {
   --sdoc-cells-accent: #1e8e3e;                                           /* Sheets/Excel green nod */
   --sdoc-cells-col-min: 64px;                                             /* min column width (Excel's default) */
@@ -355,6 +368,7 @@ body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
   background: var(--md-bg, #fff);
   color: var(--md-color, #1c1917);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ── Selection (sdocs-cells-select.js) ──────────────────── */
@@ -541,6 +555,7 @@ body.sdoc-cells-resizing { cursor: col-resize; user-select: none; }
   color: var(--sdoc-focus-fg, #1c1917);
   display: grid; grid-template-rows: 40px 31px 1fr; grid-template-columns: minmax(0, 1fr);
   font-family: var(--md-font-family, ui-sans-serif, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
   animation: sdoc-cells-focus-fade .15s ease-out;
 }
 @keyframes sdoc-cells-focus-fade { from { opacity: 0 } to { opacity: 1 } }

@@ -20,6 +20,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     color: var(--sdocs-text-color, #1c1917);
+    -webkit-font-smoothing: antialiased;
   }
 
   .smalldocs-sdk-view:has(> .smalldocs-navigation:not([hidden])) {
@@ -79,6 +80,14 @@
     --md-link-color: var(--sdocs-accent, #2563eb);
     --md-code-bg: var(--sdocs-code-background, #f4f1ed);
     --md-pre-bg: var(--sdocs-code-background, #f4f1ed);
+    --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+    --border: #d4cfc9;
+    --border-strong: #c5bfb8;
+    --bg-hover: #e8e3dd;
+    --text: #1c1917;
+    --text-2: #57534e;
+    --radius-sm: 4px;
+    --md-copy-btn-hover: rgba(0, 0, 0, 0.05);
     width: min(100%, var(--sdocs-max-width, 760px));
     min-width: 0;
     margin: 0 auto;

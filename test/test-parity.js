@@ -141,6 +141,23 @@ module.exports = function ({ assert, test, testAsync }) {
     assert.equal(tabs, 3);
   });
 
+  testAsync('parity can wait for a lazy interaction surface', async () => {
+    const calls = [];
+    const target = {
+      waitFor: async (options) => calls.push(options),
+    };
+    const locator = {
+      first: () => target,
+    };
+    const page = {
+      locator: () => locator,
+    };
+    await parityBrowser.replayStep(page, {
+      action: 'waitFor', selector: '.lazy-surface', timeout: 3200,
+    }, {});
+    assert.deepEqual(calls, [{ state: 'visible', timeout: 3200 }]);
+  });
+
   test('parity image diff writes a visible difference image', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-parity-test-'));
     const firstPath = path.join(dir, 'first.png');

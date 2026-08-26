@@ -103,6 +103,17 @@ window.disabledView = await render('#report', ${JSON.stringify(disabledMarkdown)
 document.body.dataset.ready = 'true';</script></body></html>`);
       return;
     }
+    if (requested === '/cells-download-only') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      const downloadOnlyMarkdown = '# Download only\n\n~~~cells report.csv\nMetric,Value\nUnits,9\n~~~';
+      res.end(`<!doctype html><html><body><div id="report"></div><script type="module">
+import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+window.downloadOnlyView = await render('#report', ${JSON.stringify(downloadOnlyMarkdown)}, {
+  controls: { copy: false, download: true, fullscreen: true }
+});
+document.body.dataset.ready = 'true';</script></body></html>`);
+      return;
+    }
     if (requested === '/trusted-types') {
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
@@ -329,6 +340,16 @@ test('disabled spreadsheet fullscreen never loads focus or editor assets', async
   await expect(page.getByRole('button', { name: 'Open fullscreen' })).toHaveCount(0);
   expect(requests.some(url => url.includes('sdocs-cells-edit.js'))).toBe(false);
   expect(requests.some(url => url.includes('sdocs-cells-focus.js'))).toBe(false);
+});
+
+test('fullscreen spreadsheet download remains available when copy is disabled', async ({ page }) => {
+  await page.goto(customerOrigin + '/cells-download-only');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.getByRole('button', { name: 'Open fullscreen' }).click();
+  const focus = page.locator('.sdoc-cells-focus');
+  await expect(focus).toBeVisible();
+  await expect(focus.getByRole('button', { name: 'Download as Excel (.xlsx)' })).toBeVisible();
+  await expect(focus.getByRole('button', { name: /Copy/ })).toHaveCount(0);
 });
 
 test('canonical spreadsheet selection, keyboard, copy and drag lifecycle stay instance-owned', async ({ page }) => {
