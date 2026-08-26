@@ -103,7 +103,7 @@
   },
   "sdocs-mermaid-focus.js": {
     "source": "public/sdocs-mermaid-focus.js",
-    "sha256": "92aae17a592ebc75185e9961f1690584d0b58c2bb8acd9e3254d923dfa944529"
+    "sha256": "f24fa6d083151311744f8d510f4e920930a4b1de83acc623cc6be5abcdf96d22"
   },
   "sdocs-mermaid-reader.css": {
     "source": "public/css/mermaid-reader.css",

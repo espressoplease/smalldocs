@@ -29,6 +29,7 @@
     : function (element, source) { element.innerHTML = source; };
   var controls = env.controls || { copy: true, fullscreen: true, download: true };
   var mountSurface = typeof env.mountSurface === 'function' ? env.mountSurface : null;
+  var themeSource = env.themeSource;
   var managedLease = null;
 
   var MIN_SCALE = 0.1, MAX_SCALE = 16;
@@ -453,7 +454,9 @@
     // Pull the bg/fg colours from the source wrapper (computed style) so the
     // modal feels like a magnified version of the block. Falls back to
     // theme-aware defaults if the cascade isn't reachable.
-    var rendered = document.getElementById('_sd_rendered');
+    var rendered = typeof themeSource === 'function'
+      ? themeSource()
+      : themeSource || document.getElementById('_sd_rendered');
     var probe = sourceWrapper || rendered;
     var cs = probe ? getComputedStyle(probe) : null;
     var blockBg = (cs && cs.backgroundColor) || '';

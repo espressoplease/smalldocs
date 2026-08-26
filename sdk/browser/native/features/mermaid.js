@@ -141,6 +141,7 @@ export async function mount(context) {
     document,
     zoomMath: canonical.zoomMath,
     controls: context.options.controls,
+    themeSource: context.root,
     setHTML: setKnownHTML,
     mountSurface(surface, options) {
       return openOverlayLease(context, {

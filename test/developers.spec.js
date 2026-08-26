@@ -250,6 +250,19 @@ test('SDK gallery shows all features and recreates views for configuration chang
   await expect(documentView.getByRole('heading', { name: 'Streets that stay useful in the heat' })).toBeVisible();
   await expect(documentView.locator('.section-toggle')).toHaveCount(0);
   await expect(documentView.locator('.smalldocs-document')).toHaveCSS('font-family', /Georgia/);
+  const editorialControlColor = await documentView.locator('.pre-wrapper .copy-btn').evaluate(element =>
+    getComputedStyle(element).color
+  );
+  await documentView.getByRole('button', { name: 'Open diagram in fullscreen' }).click();
+  const fullscreenDiagramColors = await page.locator('.sdoc-mermaid-focus-action').evaluateAll(elements =>
+    elements.map(element => getComputedStyle(element).color)
+  );
+  expect(fullscreenDiagramColors).toEqual([
+    editorialControlColor,
+    editorialControlColor,
+    editorialControlColor,
+  ]);
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
   const editorialInstance = await documentView.locator('.smalldocs-document').getAttribute('data-smalldocs-instance');
   expect(editorialInstance).not.toBe(completeInstance);
 
