@@ -23,7 +23,7 @@ test.describe('Slide interaction model', () => {
     ]);
     const count = await page.locator('.sdoc-slide-present').count();
     expect(count).toBe(2);
-    await expect(page.locator('.sdoc-slide-present').first()).toHaveAttribute('title', 'Present');
+    await expect(page.locator('.sdoc-slide-present').first()).toHaveAttribute('title', 'Present (Enter)');
   });
 
   test('an asynchronous error stays with the slide that emitted it', async ({ page }) => {

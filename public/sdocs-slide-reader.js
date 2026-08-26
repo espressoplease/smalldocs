@@ -143,7 +143,7 @@
       button.type = 'button';
       button.className = 'sdoc-slide-present';
       button.setAttribute('aria-label', 'Open slide ' + (slideIndex + 1) + ' in presentation mode');
-      button.title = 'Present';
+      button.title = 'Present (Enter)';
       setHTML(options, button, PRESENT_ICON_SVG);
       button.addEventListener('click', function (event) {
         event.stopPropagation();

@@ -18,6 +18,7 @@ require('./test-yaml')(harness);
 require('./test-shapes')(harness);
 require('./test-slide-resolve')(harness);
 require('./test-sdk-docs')(harness);
+require('./test-parity')(harness);
 require('./test-styles')(harness);
 require('./test-contrast')(harness);
 require('./test-cli')(harness);

@@ -16,9 +16,11 @@
       if (window.SDocPresent && window.SDocPresent.refresh) window.SDocPresent.refresh();
     },
   });
+  var lastRender = null;
 
   function processSlides(container) {
-    return controller.process(container);
+    lastRender = controller.process(container);
+    return lastRender;
   }
 
   function appendSlideError(wrapper, error) {
@@ -28,6 +30,9 @@
   window.SDocSlides = {
     processSlides: processSlides,
     appendSlideError: appendSlideError,
+    ready: function () {
+      return lastRender && lastRender.ready ? lastRender.ready : Promise.resolve();
+    },
     destroy: function () { controller.destroy(); },
   };
 })();
