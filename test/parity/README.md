@@ -42,7 +42,58 @@ Add `test/parity/suites/<feature>.js`. A suite supplies:
 
 Actions are cumulative. A suite can capture an inline component, open its full-screen surface, move through interaction states, and open secondary panels without writing a separate Playwright test for every screenshot.
 
-Keep contracts about observable behavior: control labels and order, active state, navigation, downloads, focus surfaces, and cleanup. The runner separately captures semantic DOM, selected computed styles, console and network failures, and screenshots.
+Keep contracts about observable behavior: control labels and order, active state, navigation, downloads, focus surfaces, and cleanup. The runner separately captures semantic DOM, selected computed styles, interaction state, console and network failures, and screenshots.
+
+Each state starts with the pointer at the top-left of the page and focus cleared. Set `resetInteraction: false` only when a state intentionally continues the previous pointer or focus state. Component state remains cumulative.
+
+### Interaction steps
+
+A state's `before` list supports:
+
+```js
+{ action: 'click', role: 'button', name: 'Export' }
+{ action: 'doubleClick', within: 'sheet', selector: '[role="gridcell"]' }
+{ action: 'hover', within: 'inline', selector: '.shape-rect' }
+{ action: 'focus', selector: '.control' }
+{ action: 'focus', via: 'keyboard', role: 'button', name: 'Open' }
+{ action: 'press', key: 'ArrowRight' }
+{ action: 'fill', selector: 'input', value: '=SUM(A1:A4)' }
+{ action: 'type', selector: '[contenteditable]', text: 'Forecast' }
+{ action: 'blur' }
+```
+
+`focus` uses direct DOM focus unless `via: 'keyboard'` is present. Keyboard focus walks the actual tab order and fails if the target cannot be reached. This distinguishes a focusable control from one that only looks focusable.
+
+A click returns the pointer to its neutral position so the resulting screenshot does not capture an incidental hover at the click location. Set `keepPointer: true`, or follow the click with an explicit hover step, when that pointer state is part of the behavior under test.
+
+Named scopes belong in each surface configuration:
+
+```js
+scopes: {
+  inline: '.sdoc-slide',
+  presentation: '.sdoc-present',
+  sheet: '.sdoc-cells',
+}
+```
+
+The first matching scope is used. This keeps a suite independent from unrelated application controls.
+
+### Interaction contracts
+
+Contracts can assert `visible`, `focused`, `focusVisible`, and `hovered` in addition to count and text:
+
+```js
+{
+  selector: '.copy-control',
+  count: 1,
+  visible: true,
+  focused: true,
+  focusVisible: true,
+  message: 'The copy control is keyboard accessible',
+}
+```
+
+Captures record the active element, whether it matches `:focus-visible`, the hover path inside the captured root, and computed cursor, visibility, outline, shadow, and pointer-event styles. Screenshots are taken without moving the pointer after the declared interactions.
 
 ## Reading the report
 

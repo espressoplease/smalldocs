@@ -68,7 +68,7 @@ function compareValues(reference, candidate, location, differences) {
 
 function compareCapture(reference, candidate) {
   const differences = [];
-  ['semantic', 'controls', 'styles'].forEach((key) => {
+  ['semantic', 'controls', 'styles', 'interaction'].forEach((key) => {
     compareValues(reference && reference[key], candidate && candidate[key], key, differences);
   });
   return differences;
@@ -129,7 +129,7 @@ function reportHtml(report) {
         '<figure><figcaption>Perceptual diff (' + (state.image.ratio * 100).toFixed(2) + '%, antialias ' + ((state.image.antialiasRatio || 0) * 100).toFixed(2) + '%)</figcaption><img src="' + escapeHtml(state.diffImage) + '"></figure></div>' +
         '<details' + (state.pass ? '' : ' open') + '><summary>' + state.differences.length + ' structural/style differences, ' + state.contractFailures.length + ' contract failures</summary>' +
         (state.contractFailures.length ? '<h4>Contract</h4><ul>' + state.contractFailures.map((entry) => '<li>' + escapeHtml(entry) + '</li>').join('') + '</ul>' : '') +
-        (details ? '<h4>DOM, controls, and styles</h4><ul>' + details + '</ul>' : '') + '</details></article>';
+        (details ? '<h4>DOM, controls, styles, and interactions</h4><ul>' + details + '</ul>' : '') + '</details></article>';
     }).join('');
     return '<section><h2>' + escapeHtml(comparison.label) + '</h2>' + rows + '</section>';
   }).join('');

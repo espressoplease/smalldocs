@@ -13,12 +13,20 @@ module.exports = {
       presentationRoot: '.sdoc-present',
       stage: '.sdoc-present-stage',
       rail: '.sdoc-present-rail',
+      scopes: {
+        inline: '.sdoc-slide',
+        presentation: '.sdoc-present',
+      },
     },
     sdk: {
       inlineRoot: '.sdoc-slide',
       presentationRoot: '.sdoc-present',
       stage: '.sdoc-present-stage',
       rail: '.sdoc-present-rail',
+      scopes: {
+        inline: '.sdoc-slide',
+        presentation: '.sdoc-present',
+      },
     },
   },
   states: [
@@ -29,6 +37,32 @@ module.exports = {
       contracts: [
         { selector: '.sdoc-slide', count: 4, message: 'All four inline slides render' },
         { selector: '.sdoc-slide-present', count: 4, message: 'Every slide has the canonical presentation control' },
+      ],
+    },
+    {
+      name: 'inline-shape-copy-hover',
+      label: 'Inline shape copy control on hover',
+      mode: 'inline',
+      before: [{ action: 'hover', within: 'inline', selector: '.shape-rect' }],
+      probes: {
+        hoveredShape: '.sdoc-slide .shape-rect:hover',
+        revealedCopy: '.sdoc-slide .shape-rect:hover > .sd-shape-copy-btn',
+      },
+      contracts: [
+        { selector: '.sdoc-slide .shape-rect:hover', count: 1, hovered: true, message: 'One shape owns the pointer state' },
+        { selector: '.sdoc-slide .shape-rect:hover > .sd-shape-copy-btn', count: 1, visible: true, message: 'Hover reveals the shape copy control' },
+      ],
+    },
+    {
+      name: 'inline-present-keyboard-focus',
+      label: 'Inline presentation control with keyboard focus',
+      mode: 'inline',
+      before: [{ action: 'focus', via: 'keyboard', within: 'inline', role: 'button', name: 'Open slide 1 in presentation mode' }],
+      probes: {
+        focusedPresentButton: '.sdoc-slide-present:focus-visible',
+      },
+      contracts: [
+        { within: 'inline', role: 'button', name: 'Open slide 1 in presentation mode', count: 1, focused: true, focusVisible: true, visible: true, message: 'Keyboard focus reaches and reveals the presentation control' },
       ],
     },
     {

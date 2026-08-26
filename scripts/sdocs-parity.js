@@ -15,6 +15,11 @@ const {
   reportHtml,
   safeName,
 } = require('./lib/sdocs-parity');
+const {
+  locatorFor,
+  replayStep,
+  resetInteractionState,
+} = require('./lib/sdocs-parity-browser');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
@@ -225,21 +230,6 @@ async function initialiseSurface(browser, surface, kind, suite, markdown) {
   return { page, diagnostics };
 }
 
-async function replayStep(page, step, config) {
-  const scope = step.within === 'presentation' ? page.locator(config.presentationRoot).first() : page;
-  let locator;
-  if (step.role) locator = scope.getByRole(step.role, { name: step.name, exact: true });
-  else locator = scope.locator(step.selector);
-  if (step.action === 'click') {
-    if (await locator.count() < 1) throw new Error('Control not found: ' + (step.name || step.selector));
-    await locator.first().click();
-  } else if (step.action === 'press') {
-    await page.keyboard.press(step.key);
-  } else {
-    throw new Error('Unsupported action: ' + step.action);
-  }
-}
-
 function captureSelectors(config, state) {
   const root = state.mode === 'inline' ? config.inlineRoot : config.presentationRoot;
   return {
@@ -258,18 +248,44 @@ function captureSelectors(config, state) {
 async function contractFailures(page, contracts, config) {
   const failures = [];
   for (const contract of contracts || []) {
-    const scope = contract.within === 'presentation' ? page.locator(config.presentationRoot).first() : page;
-    let locator;
-    if (contract.role) locator = scope.getByRole(contract.role, { name: contract.name, exact: true });
-    else locator = scope.locator(contract.selector);
+    const locator = locatorFor(page, config, contract);
     const count = await locator.count();
     if (contract.count != null && count !== contract.count) {
       failures.push(contract.message + ' (expected ' + contract.count + ', found ' + count + ')');
       continue;
     }
+    if (contract.minCount != null && count < contract.minCount) {
+      failures.push(contract.message + ' (expected at least ' + contract.minCount + ', found ' + count + ')');
+      continue;
+    }
+    if (contract.maxCount != null && count > contract.maxCount) {
+      failures.push(contract.message + ' (expected at most ' + contract.maxCount + ', found ' + count + ')');
+      continue;
+    }
+    if (!count && [contract.text, contract.visible, contract.focused, contract.focusVisible, contract.hovered]
+      .some((value) => value != null)) {
+      failures.push(contract.message + ' (target not found)');
+      continue;
+    }
     if (contract.text != null) {
       const text = count ? String(await locator.first().textContent()).replace(/\s+/g, ' ').trim() : '';
       if (text !== contract.text) failures.push(contract.message + ' (expected "' + contract.text + '", found "' + text + '")');
+    }
+    if (contract.visible != null && count) {
+      const visible = await locator.first().isVisible();
+      if (visible !== contract.visible) failures.push(contract.message + ' (expected visible ' + contract.visible + ', found ' + visible + ')');
+    }
+    if (contract.focused != null && count) {
+      const focused = await locator.first().evaluate((node) => node === document.activeElement);
+      if (focused !== contract.focused) failures.push(contract.message + ' (expected focused ' + contract.focused + ', found ' + focused + ')');
+    }
+    if (contract.focusVisible != null && count) {
+      const focusVisible = await locator.first().evaluate((node) => node.matches(':focus-visible'));
+      if (focusVisible !== contract.focusVisible) failures.push(contract.message + ' (expected focus-visible ' + contract.focusVisible + ', found ' + focusVisible + ')');
+    }
+    if (contract.hovered != null && count) {
+      const hovered = await locator.first().evaluate((node) => node.matches(':hover'));
+      if (hovered !== contract.hovered) failures.push(contract.message + ' (expected hovered ' + contract.hovered + ', found ' + hovered + ')');
     }
   }
   return failures;
@@ -282,7 +298,6 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
   const fileBase = safeName(surfaceName) + '-' + safeName(state.name);
   const imagePath = path.join(outputDir, 'screenshots', fileBase + '.png');
   fs.mkdirSync(path.dirname(imagePath), { recursive: true });
-  await page.mouse.move(1, 1);
   if (rootFound) await root.screenshot({ path: imagePath, animations: 'disabled' });
   else await page.screenshot({ path: imagePath, fullPage: false, animations: 'disabled' });
   const data = await page.evaluate(({ rootSelector, probes }) => {
@@ -324,7 +339,24 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
         gridTemplateColumns: computed.gridTemplateColumns,
         height: Math.round(rect.height * 10) / 10,
         opacity: computed.opacity,
+        outlineColor: computed.outlineColor,
+        outlineOffset: computed.outlineOffset,
+        outlineStyle: computed.outlineStyle,
+        outlineWidth: computed.outlineWidth,
+        boxShadow: computed.boxShadow,
+        cursor: computed.cursor,
+        pointerEvents: computed.pointerEvents,
+        visibility: computed.visibility,
         width: Math.round(rect.width * 10) / 10,
+      };
+    }
+    function identity(node) {
+      if (!node || node.nodeType !== Node.ELEMENT_NODE) return null;
+      return {
+        tag: node.tagName.toLowerCase(),
+        classes: Array.from(node.classList).sort(),
+        role: node.getAttribute('role'),
+        label: node.getAttribute('aria-label') || node.getAttribute('title') || '',
       };
     }
     const root = document.querySelector(rootSelector);
@@ -334,6 +366,9 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
       label: node.getAttribute('aria-label') || node.getAttribute('title') || (node.textContent || '').replace(/\s+/g, ' ').trim(),
       expanded: node.getAttribute('aria-expanded'),
       disabled: node.hasAttribute('disabled'),
+      focused: node === document.activeElement,
+      focusVisible: node.matches(':focus-visible'),
+      hovered: node.matches(':hover'),
     })) : [];
     const styles = {};
     Object.keys(probes).forEach((name) => { styles[name] = style(probes[name]); });
@@ -341,6 +376,12 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
       semantic: tree(root, { count: 0 }),
       controls,
       styles,
+      interaction: {
+        active: root && root.contains(document.activeElement) ? identity(document.activeElement) : null,
+        focusVisible: Boolean(root && root.contains(document.activeElement) && document.activeElement.matches(':focus-visible')),
+        hoverPath: root ? [root].concat(Array.from(root.querySelectorAll(':hover')))
+          .filter((node) => node.matches(':hover')).map(identity) : [],
+      },
       page: { title: document.title, path: location.pathname + location.hash, bodyClasses: Array.from(document.body.classList).sort() },
     };
   }, { rootSelector: selectors.root, probes: selectors.probes });
@@ -358,6 +399,7 @@ async function captureSurface(browser, surface, kind, suite, markdown, outputDir
   const stepFailures = [];
   try {
     for (const state of suite.states) {
+      if (state.resetInteraction !== false) await resetInteractionState(session.page);
       for (const step of state.before || []) {
         try {
           await replayStep(session.page, step, config);
@@ -468,7 +510,7 @@ async function main() {
       compareSurfaces('Current production to clean customer SDK', current, sdk, suite, outputDir),
     ];
     const report = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       suite: suite.name,
       baseline: options.baselineUrl || options.baseline + ' (' + baseline.resolved + ')',
       candidate: git(['rev-parse', 'HEAD']),
