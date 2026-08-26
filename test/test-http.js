@@ -231,6 +231,13 @@ module.exports = function(harness) {
       assert.strictEqual(codeReader.status, 200);
       assert.ok(codeReader.body.includes('window.SDocCodeReader'));
       assert.ok(codeReader.headers['cache-control'].includes('immutable'));
+      const slideReader = await get(BASE + '/sdk/0.2.0/vendor/sdocs-slide-reader.js');
+      assert.strictEqual(slideReader.status, 200);
+      assert.ok(slideReader.body.includes('window.SDocSlideReader'));
+      assert.ok(slideReader.headers['cache-control'].includes('immutable'));
+      const slideCss = await get(BASE + '/sdk/0.2.0/slide-reader.css');
+      assert.strictEqual(slideCss.status, 200);
+      assert.ok(slideCss.body.includes("layer(smalldocs)"));
       const codeFocus = await get(BASE + '/sdk/0.2.0/vendor/sdocs-code-focus.js');
       assert.strictEqual(codeFocus.status, 200);
       assert.ok(codeFocus.body.includes('createCodeFocus'));

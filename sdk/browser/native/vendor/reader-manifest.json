@@ -11,6 +11,14 @@
     "source": "public/css/code-reader.css",
     "sha256": "3e76675d3230fe8ec55a4ed65c24e43038fae37a274039c37812e3559d010b10"
   },
+  "sdocs-slide-reader.js": {
+    "source": "public/sdocs-slide-reader.js",
+    "sha256": "0198a0054b82eeaf3e2182657b31713b85860fecbe159a19952f7a9a03a43de6"
+  },
+  "sdocs-slide-reader.css": {
+    "source": "public/css/slide-reader.css",
+    "sha256": "64c09e097a28c0b4381371ad0459c3e5cfc07756e97bef063dfafefcfa164bce"
+  },
   "sdocs-code-lang/csharp.js": {
     "source": "public/sdocs-code-lang/csharp.js",
     "sha256": "1e52d89de098e557e99681fe94c81ab95a43f6c384360ec3f183609fe12a38eb"

@@ -135,7 +135,7 @@ test.describe('Slide rendering pipeline', () => {
     // Button flips to "Copied" and the diagnostic is on the clipboard.
     await expect(page.locator('.sdoc-slide-errbadge-copy')).toHaveText('Copied');
     const text = await page.evaluate(() => navigator.clipboard.readText());
-    expect(text).toMatch(/^SDocs slide 1 — \d+ error/);
+    expect(text).toMatch(/^SDocs slide 1 - \d+ error/);
     expect(text).toContain('b 10 10 80 10 | unknown kind');
     expect(text).toContain('~~~slide');
   });

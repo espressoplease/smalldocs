@@ -1,9 +1,8 @@
-import { loadScript, vendorAsset } from '../assets.js';
+import { loadScript, loadStyle, sdkAsset, vendorAsset } from '../assets.js';
 import { openOverlay } from '../overlay.js';
 import { downloadBlob, safeFilename } from '../download.js';
 import { parseMarkdown, sanitizeHTML, setKnownHTML } from '../runtime.js';
 
-const EXPAND_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>';
 const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 const DOWNLOAD_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>';
 const PREVIOUS_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
@@ -54,11 +53,13 @@ async function mountNested(feature, root, context, signal) {
 }
 
 async function ensureSlides(context) {
-  const [shapes, stdlib, resolve, renderer] = await Promise.all([
+  const [shapes, stdlib, resolve, renderer, reader] = await Promise.all([
     loadScript(vendorAsset('sdocs-shapes.js'), () => window.SDocShapes),
     loadScript(vendorAsset('sdocs-slide-stdlib.js'), () => window.SDocSlideStdlib),
     loadScript(vendorAsset('sdocs-slide-resolve.js'), () => window.SDocSlideResolve),
     loadScript(vendorAsset('sdocs-shape-render.js'), () => window.SDocShapeRender),
+    loadScript(vendorAsset('sdocs-slide-reader.js'), () => window.SDocSlideReader),
+    loadStyle(sdkAsset('slide-reader.css'), 'smalldocs-sdk-slide-reader-styles'),
   ]);
   const runtime = {
     parseMarkdown,
@@ -76,6 +77,7 @@ async function ensureSlides(context) {
     resolve,
     stdlib,
     renderer,
+    reader,
     runtime,
     signal: context.signal,
     id: context.id,
@@ -248,52 +250,31 @@ export async function mount(context) {
     );
     if (context.signal.aborted) return;
   }
-  const slides = [];
-  const pending = [];
-  const renderedResults = [];
-  blocks.forEach((code, index) => {
-    const pre = code.closest('pre');
-    if (!pre) return;
-    const entry = resolved[index];
-    if (entry.skip) {
-      pre.remove();
-      return;
-    }
-    try {
-      const slide = { dsl: entry.dsl, source: raw[index] };
-      const wrapper = renderSlide(slide.dsl, api, 'sdoc-slide smalldocs-slide');
-      renderedResults.push(wrapper._sdocsShapeResult);
-      pending.push(wrapper._sdocsPending);
-      const tools = document.createElement('div');
-      tools.className = 'smalldocs-feature-tools';
-      if (context.options.controls.fullscreen) {
-        const expand = button('Present slides', EXPAND_ICON);
-        expand.addEventListener('click', () => present(context, slides, slides.indexOf(slide), api));
-        tools.appendChild(expand);
-      }
-      wrapper.appendChild(tools);
-      if (entry.errors && entry.errors.length) {
-        const error = document.createElement('pre');
-        error.className = 'smalldocs-slide-errors';
-        error.textContent = entry.errors.map((item) => item.message || String(item)).join('\n');
-        wrapper.appendChild(error);
-      }
-      pre.replaceWith(wrapper);
-      slides.push(slide);
-    } catch (error) {
-      const fallback = document.createElement('pre');
-      fallback.className = 'smalldocs-feature-error sdoc-slide-error';
-      fallback.textContent = error.message + '\n\n' + raw[index];
-      pre.replaceWith(fallback);
-    }
+  const controller = api.reader.create({
+    shapes: api.shapes,
+    renderer: api.renderer,
+    resolver: api.resolve,
+    templates: api.stdlib.templates,
+    selector: 'code.language-slide, code.language-slides',
+    clipboard: navigator.clipboard,
+    setHTML: setKnownHTML,
+    present: context.options.controls.fullscreen
+      ? (slideIndex, slides) => present(context, slides, slideIndex, api)
+      : null,
+    renderOptions(dsl, slideIndex) {
+      return {
+        copyButtons: true,
+        runtime: api.runtime,
+        signal: api.signal,
+        resourcePrefix: api.id + '-slide-' + slideIndex + '-' + (++api.renderNumber),
+      };
+    },
   });
-  await Promise.all(pending);
+  const rendered = controller.process(context.root);
+  const slides = rendered.slides;
+  await rendered.ready;
   if (context.signal.aborted) return;
-  const cleanup = () => {
-    renderedResults.forEach((result) => {
-      if (result && result.destroy) result.destroy();
-    });
-  };
+  const cleanup = () => controller.destroy();
   if (!slides.length || !context.options.controls.download) return cleanup;
   const downloads = document.createElement('div');
   downloads.className = 'smalldocs-slide-downloads';
@@ -302,6 +283,7 @@ export async function mount(context) {
   pdf.addEventListener('click', () => exportPdf(context, slides, api).catch((error) => { pdf.dataset.error = error.message; }));
   pptx.addEventListener('click', () => exportPptx(context, slides, api).catch((error) => { pptx.dataset.error = error.message; }));
   downloads.append(pdf, pptx);
-  slides[0].dsl && context.root.querySelector('.smalldocs-slide').before(downloads);
+  const firstSlide = context.root.querySelector('.sdoc-slide');
+  if (slides[0].dsl && firstSlide) firstSlide.before(downloads);
   return cleanup;
 }

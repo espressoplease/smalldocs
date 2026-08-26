@@ -194,7 +194,7 @@ test('private sanitizer ignores host globals and works with Trusted Types enforc
     return box.width > 0 && box.height > 0;
   })).toBe(true);
   await expect(page.locator('.smalldocs-mermaid-stage > svg')).toHaveCount(2);
-  await expect(page.locator('.smalldocs-slide')).toHaveCount(1);
+  await expect(page.locator('.sdoc-slide')).toHaveCount(1);
   await expect(page.locator('.sdoc-mermaid-error')).toHaveCount(0);
   await expect(page.locator('iframe')).toHaveCount(0);
   await page.getByRole('button', { name: 'Open code in fullscreen' }).click();
@@ -453,12 +453,12 @@ test('board customer presents custom slides and exports deck files', async ({ pa
   test.setTimeout(90000);
   await page.goto(customerOrigin + '/board-brief/');
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true', { timeout: 30000 });
-  await expect(page.locator('.smalldocs-slide')).toHaveCount(3);
+  await expect(page.locator('.sdoc-slide')).toHaveCount(3);
   await expect(page.locator('.sdoc-slide-error')).toHaveCount(0);
   await expect(page.locator('#briefing-report .smalldocs-document h1')).toHaveCSS('text-transform', 'uppercase');
   expect(await page.evaluate(() => JSON.stringify(window.hostProbeBefore) === JSON.stringify(window.hostProbeAfter))).toBe(true);
 
-  await page.getByRole('button', { name: 'Present slides' }).first().click();
+  await page.getByRole('button', { name: 'Open slide 1 in presentation mode' }).click();
   await expect(page.getByRole('dialog', { name: 'Slide presentation' })).toBeVisible();
   await expect(page.locator('.smalldocs-slide-counter')).toHaveText('1 / 3');
   await page.getByRole('button', { name: 'Next slide' }).click();
@@ -509,10 +509,10 @@ r 8.3 3.2 7.0 4.8 fill=#ffffff stroke=#cbd5e1 |
   ~~~
 ~~~~`);
   });
-  await expect(page.locator('.smalldocs-slide .katex')).toHaveCount(1, { timeout: 30000 });
-  await expect(page.locator('.smalldocs-slide canvas')).toHaveCount(1);
-  await expect(page.locator('.smalldocs-slide .smalldocs-mermaid-stage > svg')).toHaveCount(1);
-  await expect(page.locator('.smalldocs-slide .shape-svg svg')).not.toHaveCount(0);
+  await expect(page.locator('.sdoc-slide .katex')).toHaveCount(1, { timeout: 30000 });
+  await expect(page.locator('.sdoc-slide canvas')).toHaveCount(1);
+  await expect(page.locator('.sdoc-slide .smalldocs-mermaid-stage > svg')).toHaveCount(1);
+  await expect(page.locator('.sdoc-slide .shape-svg svg')).not.toHaveCount(0);
   const sdkAssetRequests = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => entry.name));
   expect(sdkAssetRequests.some(url => url.includes('/sdk/0.2.0/vendor/sdocs-icons-data.js'))).toBe(true);
   expect(sdkAssetRequests.some(url => new URL(url).pathname === '/public/sdocs-icons-data.js')).toBe(false);
@@ -596,4 +596,54 @@ test('shape render sessions isolate runtimes, cleanup and SVG resources', async 
   expect(state.arrowB).toBe('url(#deck-b-arrowhead)');
   expect(state.afterPending).toEqual({ cleanupA: 1, cleanupB: 0, signalA: true, signalB: false });
   expect(state.afterDestroy).toEqual({ cleanupA: 1, cleanupB: 1, signalA: true, signalB: true });
+});
+
+test('SDK and production share the canonical inline slide contract', async ({ page }) => {
+  const markdown = `# Shared slide
+
+~~~slide
+grid 16 9 bg=#f8fafc
+r 1 1 14 7 fill=#ffffff stroke=#cbd5e1 |
+  # One component
+
+  The app and SDK mount this surface.
+~~~`;
+
+  async function readContract() {
+    return page.locator('.sdoc-slide').first().evaluate((slide) => {
+      const button = slide.querySelector('.sdoc-slide-present');
+      const wrap = slide.querySelector('.sd-slide-wrap');
+      const stage = slide.querySelector('.sd-shape-stage');
+      const buttonStyle = getComputedStyle(button);
+      const slideStyle = getComputedStyle(slide);
+      return {
+        slideClasses: Array.from(slide.classList).sort(),
+        buttonClass: button.className,
+        buttonLabel: button.getAttribute('aria-label'),
+        buttonTitle: button.title,
+        buttonWidth: buttonStyle.width,
+        buttonHeight: buttonStyle.height,
+        buttonPosition: buttonStyle.position,
+        borderRadius: slideStyle.borderRadius,
+        overflow: slideStyle.overflow,
+        wrapClass: wrap.className,
+        stageClass: stage.className,
+        shapeCount: stage.querySelectorAll('[data-shape-idx]').length,
+      };
+    });
+  }
+
+  await page.goto(customerOrigin + '/plain');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.evaluate((source) => window.view.update(source), markdown);
+  await expect(page.locator('.sdoc-slide')).toHaveCount(1);
+  const sdkContract = await readContract();
+
+  await page.goto(sdocsOrigin + '/docs');
+  await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
+  await page.evaluate((source) => window.SDocs.loadText(source, 'shared-slide.md'), markdown);
+  await expect(page.locator('.sdoc-slide')).toHaveCount(1);
+  const productionContract = await readContract();
+
+  expect(sdkContract).toEqual(productionContract);
 });

@@ -281,8 +281,7 @@
 
   .smalldocs-chart,
   .smalldocs-mermaid,
-  .smalldocs-cells-card,
-  .smalldocs-slide {
+  .smalldocs-cells-card {
     position: relative;
     min-width: 0;
     margin: 1.25em 0;
@@ -340,9 +339,6 @@
   .smalldocs-cells-focus .smalldocs-cells-scroll { max-height: calc(100vh - 150px); }
 
   .smalldocs-slide-downloads { display: flex; gap: 6px; margin: 1.2em 0 .6em; }
-  .smalldocs-slide { overflow: visible; }
-  .smalldocs-slide > .sd-slide-wrap { overflow: hidden; border-radius: inherit; }
-  .smalldocs-slide > .smalldocs-feature-tools { opacity: .85; }
   .smalldocs-slide-errors { margin: 0; padding: 9px 12px; color: #991b1b; background: #fef2f2; font: 11px/1.45 var(--sdocs-code-font-family, "JetBrains Mono", "Fira Mono", ui-monospace, monospace); white-space: pre-wrap; }
   .smalldocs-slide-focus { width: min(1400px, 100%); margin: 0; border-color: #3f3c38; background: #111; }
   .smalldocs-slide-counter { min-width: 48px; color: #d6d3d1; font: 11px/1 var(--sdocs-code-font-family, "JetBrains Mono", "Fira Mono", ui-monospace, monospace); text-align: center; }

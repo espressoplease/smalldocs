@@ -11,6 +11,8 @@ const files = [
   ['public/sdocs-code-reader.js', 'sdocs-code-reader.js'],
   ['public/sdocs-code-focus.js', 'sdocs-code-focus.js'],
   ['public/css/code-reader.css', 'sdocs-code-reader.css'],
+  ['public/sdocs-slide-reader.js', 'sdocs-slide-reader.js'],
+  ['public/css/slide-reader.css', 'sdocs-slide-reader.css'],
 ];
 
 fs.readdirSync(path.join(repo, 'public', 'sdocs-code-lang'))
