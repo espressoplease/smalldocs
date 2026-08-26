@@ -23,7 +23,7 @@
   },
   "sdocs-code-reader.css": {
     "source": "public/css/code-reader.css",
-    "sha256": "3e76675d3230fe8ec55a4ed65c24e43038fae37a274039c37812e3559d010b10"
+    "sha256": "2354a4b125dfa86a55865cec99ebbfc17c74e91b6b5d86b99af9afd21967c33c"
   },
   "sdocs-slide-reader.js": {
     "source": "public/sdocs-slide-reader.js",
@@ -92,6 +92,10 @@
     "sha256": "a0c4bd6ff1018370521a92e89ddcb74c953a88d967f110b3fadc71cafb32e9a4",
     "sourceSha256": "bd9d1104988c6353e48e5d81cec32f8c21c39775a7b546ac54d0cd585e48e88e",
     "transform": "sdk-math-css"
+  },
+  "sdocs-highlight-core.js": {
+    "source": "public/sdocs-highlight-core.js",
+    "sha256": "60b18fee0fee6e2665b2a2e9afad1cff1d5d053846e9cf8328fc1c0aad313c61"
   },
   "sdocs-cells.css": {
     "source": "public/css/cells.css",

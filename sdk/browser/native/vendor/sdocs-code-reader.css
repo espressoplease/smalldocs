@@ -16,6 +16,8 @@
 
 :is(#_sd_rendered, #_sd_write, .sdoc-reader) pre {
   background: var(--md-pre-bg, var(--sdocs-code-background, #F4F1ED));
+  font-size: inherit;
+  line-height: inherit;
   padding: var(--md-pre-padding, 1.1em 1.25em);
   border-radius: var(--radius-md, var(--sdocs-radius, 8px));
   overflow-x: auto;

@@ -30,6 +30,7 @@ const files = [
   ['public/css/video-reader.css', 'sdocs-video-reader.css', 'sdk-layered-css'],
   ['public/sdocs-math-core.js', 'sdocs-math-core.js'],
   ['public/css/math-reader.css', 'sdocs-math-reader.css', 'sdk-math-css'],
+  ['public/sdocs-highlight-core.js', 'sdocs-highlight-core.js'],
   ['public/css/cells.css', 'sdocs-cells.css', 'sdk-scoped-css'],
   ['public/fonts/inter-400.woff2', 'fonts/inter-400.woff2'],
   ['public/fonts/inter-500.woff2', 'fonts/inter-500.woff2'],

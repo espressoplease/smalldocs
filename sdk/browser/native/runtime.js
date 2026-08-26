@@ -13,6 +13,12 @@ export const mathCore = window.SDocMathCore;
 if (previousMathCore === undefined) delete window.SDocMathCore;
 else window.SDocMathCore = previousMathCore;
 
+const previousHighlightCore = window.SDocHighlightCore;
+await import('./vendor/sdocs-highlight-core.js');
+export const highlightCore = window.SDocHighlightCore;
+if (previousHighlightCore === undefined) delete window.SDocHighlightCore;
+else window.SDocHighlightCore = previousHighlightCore;
+
 const POLICY_NAME = 'smalldocs-sdk-0.2.0';
 let trustedPolicy = null;
 

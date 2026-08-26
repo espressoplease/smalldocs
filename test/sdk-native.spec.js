@@ -718,14 +718,16 @@ export function calculateForecast(revenue, margin) {
 
   const sdkInline = await page.locator('.pre-wrapper').evaluate(wrapper => {
     const pre = wrapper.querySelector(':scope > pre');
+    const code = pre.querySelector('code');
     const button = wrapper.querySelector('.pre-tools button');
     const preStyle = getComputedStyle(pre);
+    const codeStyle = getComputedStyle(code);
     const buttonStyle = getComputedStyle(button);
     return {
       buttons: Array.from(wrapper.querySelectorAll('.pre-tools > button')).map(node => node.className),
       pre: {
         background: preStyle.backgroundColor,
-        color: preStyle.color,
+        color: codeStyle.color,
         paddingTop: preStyle.paddingTop,
         borderRadius: preStyle.borderRadius,
       },
@@ -767,14 +769,16 @@ export function calculateForecast(revenue, margin) {
   await expect(page.locator('#_sd_rendered .pre-wrapper .hljs-keyword').first()).toBeVisible();
   const productionInline = await page.locator('#_sd_rendered .pre-wrapper').evaluate(wrapper => {
     const pre = wrapper.querySelector(':scope > pre');
+    const code = pre.querySelector('code');
     const button = wrapper.querySelector('.pre-tools button');
     const preStyle = getComputedStyle(pre);
+    const codeStyle = getComputedStyle(code);
     const buttonStyle = getComputedStyle(button);
     return {
       buttons: Array.from(wrapper.querySelectorAll('.pre-tools > button')).map(node => node.className),
       pre: {
         background: preStyle.backgroundColor,
-        color: preStyle.color,
+        color: codeStyle.color,
         paddingTop: preStyle.paddingTop,
         borderRadius: preStyle.borderRadius,
       },
