@@ -97,6 +97,24 @@
     "source": "public/sdocs-highlight-core.js",
     "sha256": "60b18fee0fee6e2665b2a2e9afad1cff1d5d053846e9cf8328fc1c0aad313c61"
   },
+  "sdocs-mermaid.js": {
+    "source": "public/sdocs-mermaid.js",
+    "sha256": "6972cd375fad706ba2f9f01f15aeeb239a52cb4ca865ed2aeff723dda7fbc62b"
+  },
+  "sdocs-mermaid-focus.js": {
+    "source": "public/sdocs-mermaid-focus.js",
+    "sha256": "6ba9150e77d669fa88e771ddd273aa603279b50114f46fe24a78a4fbbd180188"
+  },
+  "sdocs-mermaid-reader.css": {
+    "source": "public/css/mermaid-reader.css",
+    "sha256": "8bbdf5f76f117d43552afc5bdce157129f84128b8e974ce83ac166f2d2973b8d",
+    "sourceSha256": "9d94c6137c0acf17e1bce6b0992183d9d606c3d153407eb395d41de478ae2f2c",
+    "transform": "sdk-layered-css"
+  },
+  "sdocs-mermaid-worker.css": {
+    "source": "public/css/mermaid-reader.css",
+    "sha256": "9d94c6137c0acf17e1bce6b0992183d9d606c3d153407eb395d41de478ae2f2c"
+  },
   "sdocs-cells.css": {
     "source": "public/css/cells.css",
     "sha256": "4a7748846531ed12faa273c098c184af44abf3aab1520866cc8ba6ffed062f37",

@@ -63,6 +63,11 @@ export function setKnownHTML(element, source) {
   element.innerHTML = trustedPolicy ? trustedPolicy.createHTML(source) : source;
 }
 
+export function parseKnownHTML(source, type) {
+  const value = trustedPolicy ? trustedPolicy.createHTML(source) : source;
+  return new DOMParser().parseFromString(value, type || 'text/html');
+}
+
 export function trustedScriptURL(source) {
   return trustedPolicy ? trustedPolicy.createScriptURL(source) : source;
 }

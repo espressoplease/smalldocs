@@ -215,15 +215,20 @@ async function initialiseSurface(browser, surface, kind, suite, markdown) {
   await page.goto(surface.origin + (kind === 'production' ? '/new' : '/'), { waitUntil: 'domcontentloaded' });
   if (kind === 'production') {
     try {
-      await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
+      await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function', null, { timeout: 3000 });
     } catch (error) {
-      const state = await page.evaluate(() => ({
-        path: location.pathname,
-        title: document.title,
-        scripts: Array.from(document.scripts).map((script) => script.src).filter(Boolean).slice(-8),
-      }));
-      throw new Error('Production reader did not initialise: ' + JSON.stringify(state) + '\n' +
-        diagnostics.map((entry) => entry.type + ': ' + entry.message).join('\n'));
+      await page.goto(surface.origin + '/', { waitUntil: 'domcontentloaded' });
+      try {
+        await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function', null, { timeout: 10000 });
+      } catch (fallbackError) {
+        const state = await page.evaluate(() => ({
+          path: location.pathname,
+          title: document.title,
+          scripts: Array.from(document.scripts).map((script) => script.src).filter(Boolean).slice(-8),
+        }));
+        throw new Error('Production reader did not initialise: ' + JSON.stringify(state) + '\n' +
+          diagnostics.map((entry) => entry.type + ': ' + entry.message).join('\n'));
+      }
     }
     await page.evaluate(({ source }) => {
       if (typeof window.SDocs.setMode === 'function') window.SDocs.setMode('read', true);
@@ -416,6 +421,7 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
   }
   const data = await page.evaluate(({ rootSelector, probes }) => {
     function directText(node) {
+      if (node.tagName === 'STYLE') return '';
       return Array.from(node.childNodes).filter((child) => child.nodeType === Node.TEXT_NODE)
         .map((child) => child.textContent).join(' ').replace(/\s+/g, ' ').trim().slice(0, 300);
     }

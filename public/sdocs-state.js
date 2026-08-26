@@ -4,6 +4,7 @@
 'use strict';
 
 window.SDocs = {
+  __smallDocsApp: true,
   // Document state
   currentBody: '',
   currentMeta: {},

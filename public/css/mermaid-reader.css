@@ -1,0 +1,55 @@
+/* Canonical Mermaid surface shared by the SmallDocs app and renderer SDK. */
+.sdoc-mermaid {
+  margin: 1.4em 0;
+  padding: 28px 20px;
+  border-radius: var(--radius, 8px);
+  background: var(--md-block-bg, #f4f1ed);
+  max-width: 100%;
+  overflow-x: auto;
+  text-align: center;
+  position: relative;
+}
+html[data-theme="dark"] .sdoc-mermaid { background: var(--md-block-bg, #1f1d1a); }
+.sdoc-mermaid-stage { display: block; width: 100%; }
+.sdoc-mermaid svg {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+}
+svg.sdoc-mermaid-svg { overflow: visible; }
+svg.sdoc-mermaid-svg .node > rect,
+svg.sdoc-mermaid-svg .node .label-container,
+svg.sdoc-mermaid-svg .actor,
+svg.sdoc-mermaid-svg .note > rect,
+svg.sdoc-mermaid-svg .er.entityBox,
+svg.sdoc-mermaid-svg .label-container[rx],
+svg.sdoc-mermaid-svg rect.task {
+  rx: 6px;
+  ry: 6px;
+}
+.edgeLabel foreignObject > div {
+  min-width: 0;
+  width: max-content !important;
+  max-width: 240px !important;
+  white-space: normal !important;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background-color: var(--md-block-bg, #f4f1ed);
+  border: 1px solid color-mix(in srgb, var(--md-block-text, #6b6560) 28%, transparent);
+}
+svg.sdoc-mermaid-svg span.edgeLabel { background: transparent !important; }
+foreignObject > div {
+  min-width: 120px;
+  text-align: center;
+}
+foreignObject,
+foreignObject > div,
+foreignObject span { line-height: normal; }
+.sdoc-mermaid-error { outline: 2px dashed #ef4444; text-align: left; }
+.sdoc-mermaid-error-msg {
+  color: #ef4444;
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 12px;
+  font-family: var(--md-code-font);
+}

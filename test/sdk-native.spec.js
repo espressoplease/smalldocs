@@ -676,7 +676,7 @@ test('private sanitizer ignores host globals and works with Trusted Types enforc
     const box = element.getBoundingClientRect();
     return box.width > 0 && box.height > 0;
   })).toBe(true);
-  await expect(page.locator('.smalldocs-mermaid-stage > svg')).toHaveCount(2);
+  await expect(page.locator('.sdoc-mermaid-stage > svg')).toHaveCount(2);
   await expect(page.locator('.sdoc-cells-grid')).toHaveCount(1);
   await expect(page.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('42');
   await page.getByRole('button', { name: 'Open fullscreen' }).click();
@@ -827,7 +827,7 @@ The newer document wins.`)
   await expect.poll(() => page.evaluate(() => window.slowUpdate)).toBe('AbortError');
   await expect(page.locator('.smalldocs-document h1')).toHaveText('Current');
   await expect(page.locator('.smalldocs-document')).toContainText('The newer document wins.');
-  await expect(page.locator('.smalldocs-mermaid')).toHaveCount(0);
+  await expect(page.locator('.sdoc-mermaid')).toHaveCount(0);
   expect(await page.evaluate(() => window.view.features)).toEqual([]);
 });
 
@@ -906,7 +906,7 @@ test('operations customer keeps two rich documents isolated', async ({ page }) =
   expect(new Set(headingIds).size).toBe(2);
 
   await expect(page.locator('#capacity-report canvas')).toHaveCount(1);
-  await expect(page.locator('#risk-report .smalldocs-mermaid-stage > svg')).toHaveCount(1);
+  await expect(page.locator('#risk-report .sdoc-mermaid-stage > svg')).toHaveCount(1);
   await expect(page.locator('#risk-report .katex')).not.toHaveCount(0);
 
   const chartDownload = page.waitForEvent('download');
@@ -916,11 +916,13 @@ test('operations customer keeps two rich documents isolated', async ({ page }) =
   expect(chartPng.suggestedFilename()).toMatch(/\.png$/);
   expect(chartBytes.subarray(1, 4).toString('ascii')).toBe('PNG');
 
+  await page.getByRole('button', { name: 'Open diagram in fullscreen' }).click();
   const diagramDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download diagram SVG' }).click();
-  const diagramSvg = await diagramDownload;
-  expect(diagramSvg.suggestedFilename()).toMatch(/\.svg$/);
-  expect((await downloadBytes(diagramSvg)).toString('utf8')).toContain('<svg');
+  await page.getByRole('button', { name: 'Save as PNG file' }).click();
+  const diagramPng = await diagramDownload;
+  expect(diagramPng.suggestedFilename()).toBe('diagram.png');
+  expect((await downloadBytes(diagramPng)).subarray(1, 4).toString('ascii')).toBe('PNG');
+  await page.getByRole('button', { name: 'Close' }).click();
 
   await page.getByRole('tab', { name: 'Summary' }).click();
   await expect(page.locator('#capacity-report .sdoc-cells-pane-body > .sdoc-cells:visible')).toContainText('$3,000');
@@ -938,7 +940,7 @@ test('operations customer keeps two rich documents isolated', async ({ page }) =
   await page.evaluate(() => window.updateCapacityDocument());
   await expect(page.locator('#capacity-report h1')).toHaveText('Summary');
   await expect(page.locator('#capacity-report')).toContainText('Available reserve');
-  await expect(page.locator('#risk-report .smalldocs-mermaid-stage > svg')).toHaveCount(1);
+  await expect(page.locator('#risk-report .sdoc-mermaid-stage > svg')).toHaveCount(1);
   expect(await page.evaluate(() => JSON.stringify(window.hostProbeBefore) === JSON.stringify(window.hostProbeAfter))).toBe(true);
 
   await page.evaluate(() => window.destroyCapacityDocument());
@@ -1022,7 +1024,7 @@ r 8.3 3.2 7.0 4.8 fill=#ffffff stroke=#cbd5e1 |
   });
   await expect(page.locator('.sdoc-slide .katex')).toHaveCount(1, { timeout: 30000 });
   await expect(page.locator('.sdoc-slide canvas')).toHaveCount(1);
-  await expect(page.locator('.sdoc-slide .smalldocs-mermaid-stage > svg')).toHaveCount(1);
+  await expect(page.locator('.sdoc-slide .sdoc-mermaid-stage > svg')).toHaveCount(1);
   await expect(page.locator('.sdoc-slide .shape-svg svg')).not.toHaveCount(0);
   const sdkAssetRequests = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => entry.name));
   expect(sdkAssetRequests.some(url => url.includes('/sdk/0.2.0/vendor/sdocs-icons-data.js'))).toBe(true);

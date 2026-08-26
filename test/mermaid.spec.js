@@ -6,12 +6,16 @@
 // not require network and run regardless.
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = 'http://localhost:3000/new';
 
 async function loadDoc(page, markdown) {
   await page.goto(BASE);
-  await page.waitForSelector('#_sd_rendered');
-  await page.evaluate((md) => window.SDocs.loadText(md), markdown);
+  await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
+  await page.evaluate((md) => {
+    window.SDocs.setMode('read', true);
+    window.SDocs.loadText(md, 'mermaid.md');
+  }, markdown);
+  await page.waitForSelector('#_sd_rendered', { state: 'visible' });
 }
 
 // ── Render: full pipeline (network-dependent) ───────────
@@ -177,7 +181,9 @@ test('theme toggle re-themes a diagram embedded in a slide', async ({ page }) =>
 
   // Render while the page is dark so the slide diagram bakes in dark fills.
   await page.goto(BASE);
-  await page.waitForSelector('#_sd_rendered');
+  await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
+  await page.evaluate(() => window.SDocs.setMode('read', true));
+  await page.waitForSelector('#_sd_rendered', { state: 'visible' });
   await page.evaluate(() => window.SDocs.switchThemeAndUpdate('dark'));
   await page.evaluate((m) => window.SDocs.loadText(m), md);
   await page.evaluate(() => window.SDocs.expandAllSections && window.SDocs.expandAllSections());
@@ -353,7 +359,7 @@ test('focus mode: clicking zoom button opens fullscreen modal', async ({ page })
     document.querySelector('.sdoc-mermaid .sdoc-mermaid-zoom-btn').click();
   });
   await page.waitForSelector('.sdoc-mermaid-focus', { timeout: 4000 });
-  expect(await page.locator('.sdoc-mermaid-focus svg').count()).toBe(1);
+  expect(await page.locator('.sdoc-mermaid-focus-stage > .sdoc-mermaid-focus-svg-wrap > svg').count()).toBe(1);
   expect(await page.locator('body.sdoc-mermaid-focus-open').count()).toBe(1);
 });
 
@@ -369,16 +375,18 @@ test('focus mode: ESC closes the modal', async ({ page }) => {
   expect(await page.locator('body.sdoc-mermaid-focus-open').count()).toBe(0);
 });
 
-test('focus mode: 100% button sets scale to 1', async ({ page }) => {
+test('focus mode: fit button restores the fitted transform', async ({ page }) => {
   await loadDoc(page, '```mermaid\ngraph TD\n  A --> B\n```');
   await page.waitForSelector('.sdoc-mermaid-stage svg', { timeout: 10000 });
   await page.evaluate(() => {
     document.querySelector('.sdoc-mermaid .sdoc-mermaid-zoom-btn').click();
   });
   await page.waitForSelector('.sdoc-mermaid-focus', { timeout: 4000 });
-  await page.click('[data-act="100"]');
-  const text = await page.locator('.sdoc-mermaid-focus-zoom').textContent();
-  expect(text).toBe('100%');
+  const fitted = await page.locator('.sdoc-mermaid-focus-svg-wrap').getAttribute('style');
+  await page.click('[data-act="zoomin"]');
+  await page.click('[data-act="fit"]');
+  const restored = await page.locator('.sdoc-mermaid-focus-svg-wrap').getAttribute('style');
+  expect(restored).toBe(fitted);
 });
 
 test('focus mode: zoom in button increases scale', async ({ page }) => {
@@ -388,11 +396,10 @@ test('focus mode: zoom in button increases scale', async ({ page }) => {
     document.querySelector('.sdoc-mermaid .sdoc-mermaid-zoom-btn').click();
   });
   await page.waitForSelector('.sdoc-mermaid-focus', { timeout: 4000 });
-  await page.click('[data-act="100"]');
+  const before = await page.locator('.sdoc-mermaid-focus-svg-wrap').getAttribute('style');
   await page.click('[data-act="zoomin"]');
-  const text = await page.locator('.sdoc-mermaid-focus-zoom').textContent();
-  // 1.0 * 1.25 = 1.25 → "125%"
-  expect(text).toBe('125%');
+  const after = await page.locator('.sdoc-mermaid-focus-svg-wrap').getAttribute('style');
+  expect(after).not.toBe(before);
 });
 
 test('focus mode: Save PNG triggers a download', async ({ page }) => {
@@ -427,7 +434,7 @@ test('focus mode: Copy PNG button is wired and shows feedback', async ({ page })
   });
   await page.waitForSelector('.sdoc-mermaid-focus', { timeout: 4000 });
   await page.click('[data-act="copy-png"]');
-  await expect(page.locator('[data-act="copy-png"]')).toHaveText('Copied', { timeout: 3000 });
+  await expect(page.locator('[data-act="copy-png"] polyline')).toHaveCount(1, { timeout: 3000 });
 });
 
 test('focus mode: dragging the stage updates the SVG transform', async ({ page }) => {
@@ -437,7 +444,7 @@ test('focus mode: dragging the stage updates the SVG transform', async ({ page }
     document.querySelector('.sdoc-mermaid .sdoc-mermaid-zoom-btn').click();
   });
   await page.waitForSelector('.sdoc-mermaid-focus', { timeout: 4000 });
-  await page.click('[data-act="100"]');
+  await page.click('[data-act="fit"]');
   const before = await page.locator('.sdoc-mermaid-focus-svg-wrap').getAttribute('style');
   // Drag the stage 200px right
   const box = await page.locator('.sdoc-mermaid-focus-stage').boundingBox();

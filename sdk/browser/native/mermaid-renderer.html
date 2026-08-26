@@ -3,8 +3,35 @@
 <head>
   <meta charset="utf-8">
   <title>SmallDocs Mermaid renderer</title>
+  <link rel="stylesheet" href="./vendor/sdocs-mermaid-worker.css">
+  <style>
+    @font-face {
+      font-family: Inter;
+      src: url('./vendor/fonts/inter-400.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: Inter;
+      src: url('./vendor/fonts/inter-500.woff2') format('woff2');
+      font-weight: 500;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: Inter;
+      src: url('./vendor/fonts/inter-600.woff2') format('woff2');
+      font-weight: 600;
+      font-style: normal;
+      font-display: block;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { font-family: Inter, system-ui, -apple-system, sans-serif; }
+  </style>
 </head>
 <body>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
   <script type="module" src="./mermaid-renderer.js"></script>
 </body>
 </html>

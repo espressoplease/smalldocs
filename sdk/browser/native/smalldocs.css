@@ -186,7 +186,6 @@
   }
 
   .smalldocs-chart,
-  .smalldocs-mermaid,
   .smalldocs-cells-card {
     position: relative;
     min-width: 0;
@@ -207,12 +206,6 @@
   .smalldocs-chart { padding: 32px 18px 14px; }
   .smalldocs-chart canvas { max-width: 100%; }
   .smalldocs-chart-focus { max-width: min(1200px, 100%); max-height: 100%; object-fit: contain; }
-  .smalldocs-mermaid { padding: 38px 18px 18px; }
-  .smalldocs-mermaid-stage { min-width: 0; display: grid; place-items: center; }
-  .smalldocs-mermaid-stage svg { display: block; width: 100%; height: auto; max-height: 70vh; }
-  .smalldocs-mermaid-focus { width: min(1400px, 100%); }
-  .smalldocs-mermaid-focus svg { max-height: calc(100vh - 100px); }
-
   .smalldocs-cells-card { padding-top: 36px; }
   .smalldocs-cells { min-width: 0; color: var(--sdocs-text-color, #1c1917); font-family: var(--sdocs-font-family, Inter, ui-sans-serif, system-ui, sans-serif); }
   .smalldocs-cells-tabs { display: flex; gap: 1px; padding: 0 8px; overflow-x: auto; border-bottom: 1px solid var(--sdocs-border-color, #dedad5); }

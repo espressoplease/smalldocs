@@ -1,6 +1,17 @@
-const MERMAID_JS = 'https://cdn.jsdelivr.net/npm/mermaid@11.16.1/dist/mermaid.esm.min.mjs';
 const token = new URL(location.href).searchParams.get('token') || '';
-const mermaidPromise = import(MERMAID_JS).then((module) => module.default || module);
+const mermaidPromise = Promise.all([
+  Promise.resolve(window.mermaid),
+  document.fonts && document.fonts.load
+    ? Promise.all([
+      document.fonts.load('400 16px Inter'),
+      document.fonts.load('500 16px Inter'),
+      document.fonts.load('600 16px Inter'),
+    ])
+    : Promise.resolve(),
+]).then((values) => {
+  if (!values[0]) throw new Error('Mermaid did not load.');
+  return values[0];
+});
 
 function send(message) {
   window.parent.postMessage(Object.assign({ token }, message), '*');
@@ -11,13 +22,11 @@ window.addEventListener('message', async (event) => {
   if (event.source !== window.parent || !request || request.token !== token || request.type !== 'render') return;
   try {
     const mermaid = await mermaidPromise;
-    mermaid.initialize({
+    const config = Object.assign({}, request.config || {}, {
       startOnLoad: false,
       securityLevel: 'strict',
-      htmlLabels: false,
-      theme: 'base',
-      themeVariables: request.themeVariables || {},
     });
+    mermaid.initialize(config);
     const output = await mermaid.render(request.diagramId, request.source);
     send({ type: 'result', requestId: request.requestId, svg: output.svg });
   } catch (error) {

@@ -1,11 +1,42 @@
-import { openOverlay } from '../overlay.js';
-import { safeFilename } from '../download.js';
-import { sdkAsset } from '../assets.js';
-import { setKnownHTML, setSanitizedHTML } from '../runtime.js';
+import { loadStyle, sdkAsset, vendorAsset } from '../assets.js';
+import { openOverlayLease } from '../overlay.js';
+import { parseKnownHTML, setKnownHTML } from '../runtime.js';
 
-const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-const EXPAND_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>';
-const DOWNLOAD_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>';
+let canonicalPromise = null;
+
+function restoreGlobal(name, previous) {
+  if (previous === undefined) delete window[name];
+  else window[name] = previous;
+}
+
+async function ensureCanonical() {
+  if (canonicalPromise) return canonicalPromise;
+  canonicalPromise = (async () => {
+    const previousZoom = window.SDocZoomMath;
+    await import('../vendor/sdocs-zoom-math.js');
+    const zoomMath = window.SDocZoomMath;
+    restoreGlobal('SDocZoomMath', previousZoom);
+
+    const previousFocus = window.SDocMermaidFocusCore;
+    await import('../vendor/sdocs-mermaid-focus.js');
+    const focusCore = window.SDocMermaidFocusCore;
+    restoreGlobal('SDocMermaidFocusCore', previousFocus);
+
+    const previousMermaid = window.SDocMermaidCore;
+    await import('../vendor/sdocs-mermaid.js');
+    const mermaidCore = window.SDocMermaidCore;
+    restoreGlobal('SDocMermaidCore', previousMermaid);
+
+    if (!zoomMath || !focusCore || !mermaidCore) {
+      throw new Error('SmallDocs Mermaid assets loaded without their canonical APIs.');
+    }
+    return Object.freeze({ zoomMath, focusCore, mermaidCore });
+  })().catch((error) => {
+    canonicalPromise = null;
+    throw error;
+  });
+  return canonicalPromise;
+}
 
 function randomToken() {
   const bytes = new Uint32Array(4);
@@ -16,16 +47,26 @@ function randomToken() {
 function createWorker() {
   const token = randomToken();
   const frame = document.createElement('iframe');
-  frame.hidden = true;
   frame.tabIndex = -1;
   frame.title = 'SmallDocs diagram renderer';
   frame.setAttribute('aria-hidden', 'true');
   frame.setAttribute('sandbox', 'allow-scripts');
+  frame.style.cssText = [
+    'position:fixed',
+    'left:-100000px',
+    'top:0',
+    'width:' + Math.max(320, document.documentElement.clientWidth) + 'px',
+    'height:' + Math.max(320, document.documentElement.clientHeight) + 'px',
+    'border:0',
+    'opacity:0',
+    'pointer-events:none',
+  ].join(';');
   frame.src = sdkAsset('mermaid-renderer.html') + '?token=' + encodeURIComponent(token);
   const pending = new Map();
   let requestNumber = 0;
   let readyResolve;
   let readyReject;
+  let destroyed = false;
   const ready = new Promise((resolve, reject) => {
     readyResolve = resolve;
     readyReject = reject;
@@ -50,7 +91,7 @@ function createWorker() {
     if (!request) return;
     pending.delete(message.requestId);
     if (message.error) request.reject(new Error(message.error));
-    else request.resolve(message.svg);
+    else request.resolve({ svg: message.svg });
   }
 
   window.addEventListener('message', receive);
@@ -58,14 +99,24 @@ function createWorker() {
   document.body.appendChild(frame);
 
   return {
-    async render(source, diagramId, themeVariables) {
+    async render(source, diagramId, config) {
       await ready;
+      if (destroyed) throw new Error('Mermaid renderer was removed.');
       const requestId = ++requestNumber;
       const result = new Promise((resolve, reject) => pending.set(requestId, { resolve, reject }));
-      frame.contentWindow.postMessage({ type: 'render', token, requestId, source, diagramId, themeVariables }, '*');
+      frame.contentWindow.postMessage({
+        type: 'render',
+        token,
+        requestId,
+        source,
+        diagramId,
+        config,
+      }, '*');
       return result;
     },
     destroy() {
+      if (destroyed) return;
+      destroyed = true;
       clearTimeout(timer);
       window.removeEventListener('message', receive);
       pending.forEach((request) => request.reject(new Error('Mermaid renderer was removed.')));
@@ -75,113 +126,56 @@ function createWorker() {
   };
 }
 
-function button(label, icon) {
-  const control = document.createElement('button');
-  control.type = 'button';
-  control.className = 'smalldocs-control';
-  control.setAttribute('aria-label', label);
-  control.title = label;
-  setKnownHTML(control, icon);
-  return control;
-}
-
-function cleanSource(source) {
-  return String(source || '').replace(/^\s*%%\{[\s\S]*?\}%%\s*/g, '').slice(0, 65536);
-}
-
-function copyText(text, control) {
-  navigator.clipboard.writeText(text).then(() => {
-    control.dataset.copied = 'true';
-    setTimeout(() => delete control.dataset.copied, 1200);
-  }).catch(() => { control.dataset.copyFailed = 'true'; });
-}
-
-function errorBlock(source, message) {
-  const error = document.createElement('pre');
-  error.className = 'smalldocs-feature-error sdoc-mermaid-error';
-  error.textContent = message + '\n\n' + source;
-  return error;
-}
-
-function downloadSvg(source, filename) {
-  const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(link.href), 0);
-}
-
-async function renderOne(worker, context, code, index) {
-  const pre = code.closest('pre');
-  if (!pre || !pre.isConnected) return;
-  const source = cleanSource(code.textContent);
-  try {
-    const styles = getComputedStyle(context.root && context.root.nodeType === 11 ? context.root.host : context.root);
-    const id = context.id.replace(/[^a-z0-9_-]/gi, '') + '-mermaid-' + context.generation + '-' + index;
-    const svgSource = await worker.render(source, id, {
-      primaryColor: styles.getPropertyValue('--sdocs-background').trim() || '#ffffff',
-      primaryTextColor: styles.color || '#1c1917',
-      primaryBorderColor: styles.getPropertyValue('--sdocs-accent').trim() || '#2563eb',
-      lineColor: styles.getPropertyValue('--sdocs-muted-color').trim() || '#6b6560',
-      fontFamily: styles.fontFamily,
-    });
-    if (context.signal.aborted || !pre.isConnected) return;
-    const figure = document.createElement('figure');
-    figure.className = 'sdoc-mermaid smalldocs-mermaid';
-    const tools = document.createElement('div');
-    tools.className = 'smalldocs-feature-tools';
-    const stage = document.createElement('div');
-    stage.className = 'smalldocs-mermaid-stage';
-    setSanitizedHTML(stage, svgSource, {
-      USE_PROFILES: { svg: true, svgFilters: true },
-      FORBID_TAGS: ['script', 'foreignObject', 'iframe', 'object', 'embed', 'style', 'animate', 'set'],
-      FORBID_ATTR: ['style', 'onload', 'onclick', 'onerror'],
-    });
-    const svg = stage.querySelector('svg');
-    if (!svg) throw new Error('Mermaid did not return an SVG diagram.');
-    svg.removeAttribute('height');
-    svg.style.maxWidth = '100%';
-    figure.append(tools, stage);
-    pre.replaceWith(figure);
-
-    if (context.options.controls.copy) {
-      const copy = button('Copy Mermaid source', COPY_ICON);
-      copy.addEventListener('click', () => copyText(source, copy));
-      tools.appendChild(copy);
-    }
-    if (context.options.controls.fullscreen) {
-      const expand = button('Open diagram in fullscreen', EXPAND_ICON);
-      expand.addEventListener('click', () => {
-        const overlay = openOverlay(context, { label: 'Mermaid diagram', title: 'Diagram' });
-        const clone = stage.cloneNode(true);
-        clone.classList.add('smalldocs-mermaid-focus');
-        overlay.stage.appendChild(clone);
-      });
-      tools.appendChild(expand);
-    }
-    if (context.options.controls.download) {
-      const download = button('Download diagram SVG', DOWNLOAD_ICON);
-      download.addEventListener('click', () => downloadSvg(
-        '<?xml version="1.0" encoding="UTF-8"?>\n' + svg.outerHTML,
-        safeFilename(context.meta.title, 'diagram-' + (index + 1)) + '.svg'
-      ));
-      tools.appendChild(download);
-    }
-  } catch (error) {
-    if (pre.isConnected) pre.replaceWith(errorBlock(source, error.message));
-  }
-}
-
 export async function mount(context) {
-  const blocks = Array.from(context.root.querySelectorAll('code.language-mermaid')).slice(0, 50);
+  const blocks = context.root.querySelectorAll('code.language-mermaid');
   if (!blocks.length) return;
+  const canonical = await ensureCanonical();
+  if (context.signal.aborted) return;
+  await loadStyle(vendorAsset('sdocs-mermaid-reader.css'), 'smalldocs-sdk-mermaid-reader-styles');
+  if (context.signal.aborted) return;
+
   const worker = createWorker();
+  let mermaidConfig = null;
+  const focus = canonical.focusCore.create({
+    window,
+    document,
+    zoomMath: canonical.zoomMath,
+    controls: context.options.controls,
+    setHTML: setKnownHTML,
+    mountSurface(surface, options) {
+      return openOverlayLease(context, {
+        surface,
+        initialFocus: options.initialFocus,
+        beforeClose: options.beforeClose,
+      });
+    },
+  });
+  const sdocs = { SDocMermaidFocus: focus };
+  const mermaidProxy = {
+    initialize(config) { mermaidConfig = config; },
+    render(diagramId, source) { return worker.render(source, diagramId, mermaidConfig); },
+  };
+  const renderer = canonical.mermaidCore.create({
+    window,
+    document,
+    sdocs,
+    root: () => context.root.host || context.root,
+    scope: context.root,
+    loadMermaid: () => Promise.resolve(mermaidProxy),
+    setSvgHTML: setKnownHTML,
+    parseSvg: (source) => parseKnownHTML(source, 'image/svg+xml'),
+    isActive: () => !context.signal.aborted,
+    isNodeActive: (node) => context.allowDetached === true || node.isConnected,
+  });
+
   try {
-    for (let index = 0; index < blocks.length; index += 1) {
-      await renderOne(worker, context, blocks[index], index);
-    }
+    await renderer.processMermaid(context.root);
   } finally {
     worker.destroy();
   }
+  return () => {
+    renderer.destroy();
+    focus.destroy();
+    worker.destroy();
+  };
 }

@@ -13,7 +13,7 @@
 // this test never touches the Mermaid CDN.
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = 'http://localhost:3000/new';
 
 // Run the whole gesture inside one page.evaluate so rAF-batched transform
 // writes are read at deterministic points. Returns parsed {tx,ty,scale}
@@ -86,7 +86,6 @@ async function runGesture(page) {
 
 test('two-finger pinch zooms, one-finger pans, 2->1 handoff does not jump', async ({ page }) => {
   await page.goto(BASE);
-  await page.waitForSelector('#_sd_rendered');
   // The focus module exposes its API on window.SDocs.
   await page.waitForFunction(() => window.SDocs && window.SDocs.SDocMermaidFocus);
 
@@ -117,7 +116,6 @@ test('two-finger pinch zooms, one-finger pans, 2->1 handoff does not jump', asyn
 
 test('a gesture interrupted by close() leaves no stale state on reopen', async ({ page }) => {
   await page.goto(BASE);
-  await page.waitForSelector('#_sd_rendered');
   await page.waitForFunction(() => window.SDocs && window.SDocs.SDocMermaidFocus);
 
   const reopened = await page.evaluate(async () => {

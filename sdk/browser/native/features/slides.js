@@ -18,6 +18,7 @@ function nestedContext(context, root, signal) {
   return Object.assign({}, context, {
     root,
     signal: signal || context.signal,
+    allowDetached: true,
     cleanups: [],
     options: {
       navigation: false,

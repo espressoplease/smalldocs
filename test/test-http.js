@@ -254,10 +254,15 @@ module.exports = function(harness) {
       assert.strictEqual(mermaidFrame.status, 200);
       assert.ok(mermaidFrame.headers['content-type'].includes('text/html'));
       assert.ok(mermaidFrame.headers['content-security-policy'].includes('frame-ancestors *'));
+      assert.ok(mermaidFrame.body.includes('mermaid@10.9.1'));
+      assert.ok(mermaidFrame.body.includes('./vendor/sdocs-mermaid-worker.css'));
       assert.ok(mermaidFrame.body.includes('./mermaid-renderer.js'));
       const mermaidWorker = await get(BASE + '/sdk/0.2.0/mermaid-renderer.js');
       assert.strictEqual(mermaidWorker.status, 200);
-      assert.ok(mermaidWorker.body.includes('mermaid@11.16.1'));
+      assert.ok(mermaidWorker.body.includes("request.type !== 'render'"));
+      const mermaidWorkerCss = await get(BASE + '/sdk/0.2.0/vendor/sdocs-mermaid-worker.css');
+      assert.strictEqual(mermaidWorkerCss.status, 200);
+      assert.ok(mermaidWorkerCss.body.includes('.edgeLabel foreignObject > div'));
       const previous = await get(BASE + '/sdk/0.1.0/smalldocs.js');
       assert.strictEqual(previous.status, 200);
       const frozen = await get(BASE + '/sdk/0.1.1/smalldocs.js');
