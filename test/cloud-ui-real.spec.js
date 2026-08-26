@@ -39,6 +39,35 @@ test('signed-in users without access stay on a generic unavailable document page
   await expect(page.locator('body')).not.toContainText('permission_denied');
 });
 
+test('signed-out Cloud helper follows the inline Short URL row layout', async ({ page }) => {
+  await page.route('**/api/cloud/v1/account', route => route.fulfill({
+    status: 401, json: { ok: false, error: 'login_required' },
+  }));
+
+  await page.goto('/docs');
+  await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
+  await page.evaluate(() => {
+    window.SDocs._isDefaultState = false;
+    window.SDocs.currentBody = '# Cloud helper layout';
+    window.SDocs.syncAll('write');
+  });
+  await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
+
+  const row = page.locator('.fic-row-cloud');
+  const action = row.locator('.sdoc-cloud-lab-add-link');
+  const helper = row.locator('.fic-short-intro-text');
+  await expect(row).toContainText('Encrypted document on our server; paid feature');
+  await expect(action).toHaveCSS('flex-grow', '0');
+  await expect(helper).toHaveCSS('white-space', 'nowrap');
+
+  const actionBox = await action.boundingBox();
+  const helperBox = await helper.boundingBox();
+  expect(actionBox).not.toBeNull();
+  expect(helperBox).not.toBeNull();
+  expect(Math.abs(helperBox.x - (actionBox.x + actionBox.width + 12))).toBeLessThanOrEqual(1);
+  expect(Math.abs(helperBox.y - actionBox.y)).toBeLessThanOrEqual(2);
+});
+
 test('Cloud identity canonicalizes a new-document URL without carrying its snapshot', async ({ page }) => {
   await page.goto('/new');
   await page.evaluate(async () => {

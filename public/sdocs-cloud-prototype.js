@@ -364,9 +364,11 @@ function cloudRow() {
     row.querySelector('.sdoc-cloud-lab-saved').addEventListener('click', removeCloudDocument);
     return row;
   }
+  var showPaidIntro = !cloudState.account || !cloudState.account.can_write;
+  if (showPaidIntro) row.classList.add('fic-row-cloud-intro');
   row.innerHTML = '<span class="fic-label">Cloud</span>'
     + '<button class="sdoc-cloud-lab-add-link" type="button" title="Add this document to Cloud">Add to Cloud</button>'
-    + (!cloudState.account || !cloudState.account.can_write
+    + (showPaidIntro
       ? '<span class="fic-short-intro-text">Encrypted document on our server; paid feature '
         + '(<a class="fic-short-intro-learn fic-cloud-learn" href="/cloud" target="_blank" rel="noopener">learn more</a>)</span>' : '')
     + '<button class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-upload" type="button" title="Add this document to Cloud">'
