@@ -113,6 +113,59 @@ window.proseViews={leftView,rightView};
 document.body.dataset.ready='true';</script></body></html>`);
       return;
     }
+    if (requested === '/reader-options') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      const readerMarkdown = `# Reader options
+
+Introductory paragraph with a [reference](https://example.com).
+
+## Evidence
+
+- First item
+- Second item
+
+### Details
+
+Nested detail.
+
+## Evidence
+
+Second section.`;
+      res.end(`<!doctype html><html><head><style>
+#closed .sdoc-reader {
+  --sdocs-font-family: Georgia, serif;
+  --sdocs-font-size: 18px;
+  --sdocs-line-height: 1.9;
+  --sdocs-heading-font-family: "Courier New", monospace;
+  --sdocs-heading-scale: 1.1;
+  --sdocs-paragraph-spacing: 23px;
+  --sdocs-list-indent: 37px;
+  --sdocs-link-decoration: none;
+}
+</style></head><body>
+<h2 id="host-heading">Host heading</h2>
+<div id="closed"></div><div id="open"></div><div id="static"></div>
+<script>
+window.sdocsCopiedText='';
+Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+  writeText:async value=>{window.sdocsCopiedText=String(value)}
+}});
+</script>
+<script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+const markdown=${JSON.stringify(readerMarkdown)};
+const changedMarkdown='# Changed document\\n\\n## New section\\n\\nNew content.';
+const [closedView,openView,staticView]=await Promise.all([
+  render('#closed',markdown,{navigation:true,sections:{collapsible:true,defaultOpen:false}}),
+  render('#open',markdown,{navigation:false,sections:{collapsible:true,defaultOpen:true},controls:{copy:false}}),
+  render('#static',markdown,{navigation:false,sections:{collapsible:false},controls:{copy:false}})
+]);
+window.readerViews={closedView,openView,staticView};
+window.updateClosed=()=>closedView.update(markdown);
+window.updateOpen=()=>openView.update(markdown);
+window.changeOpen=()=>openView.update(changedMarkdown);
+document.body.dataset.ready='true';</script></body></html>`);
+      return;
+    }
     if (requested === '/cells-isolation') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       const left = `---\ncells-tabs: tabbed\n---\n# Left\n\n~~~cells plan/Inputs\nMetric,Value\nUnits,12\nRate,25\n~~~\n\n~~~cells plan/Summary\nformat: B=$\nMetric,Value\nRevenue,=Inputs!B2*Inputs!B3\n~~~`;
@@ -318,6 +371,92 @@ test('canonical prose lifecycle replaces and destroys only its own instance', as
   await page.evaluate(() => window.destroyProse());
   await expect(page.locator('#left .smalldocs-sdk-view')).toHaveCount(0);
   await expect(page.locator('#right .smalldocs-sdk-view')).toHaveCount(1);
+});
+
+test('reader behavior options stay instance-owned and preserve open sections on update', async ({ page }) => {
+  await page.goto(customerOrigin + '/reader-options');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+
+  await expect(page.locator('#closed .smalldocs-navigation')).toBeVisible();
+  await expect(page.locator('#open .smalldocs-navigation')).toBeHidden();
+  await expect(page.locator('#static .smalldocs-navigation')).toBeHidden();
+
+  await expect(page.locator('#closed .md-section-body').first()).not.toHaveClass(/\bopen\b/);
+  await expect(page.locator('#open .md-section-body')).toHaveCount(3);
+  await expect(page.locator('#open .md-section-body:not(.open)')).toHaveCount(0);
+  await expect(page.locator('#static .md-section')).toHaveCount(0);
+  await expect(page.locator('#static .section-toggle')).toHaveCount(0);
+  await expect(page.locator('#static')).toContainText('Nested detail.');
+
+  await page.locator('#closed .smalldocs-navigation a', { hasText: 'Details' }).click();
+  const openState = await page.locator('#closed h3', { hasText: 'Details' }).evaluate((heading) => {
+    const own = heading.closest('.md-section');
+    const parent = own && own.parentElement && own.parentElement.closest('.md-section');
+    return {
+      own: own && own.querySelector(':scope > .md-section-body').classList.contains('open'),
+      parent: parent && parent.querySelector(':scope > .md-section-body').classList.contains('open'),
+    };
+  });
+  expect(openState).toEqual({ own: true, parent: true });
+
+  await page.evaluate(() => window.updateClosed());
+  await expect(page.locator('#closed h3', { hasText: 'Details' })).toBeVisible();
+  const updatedState = await page.locator('#closed h3', { hasText: 'Details' }).evaluate((heading) => {
+    const own = heading.closest('.md-section');
+    const parent = own && own.parentElement && own.parentElement.closest('.md-section');
+    return {
+      own: own && own.querySelector(':scope > .md-section-body').classList.contains('open'),
+      parent: parent && parent.querySelector(':scope > .md-section-body').classList.contains('open'),
+    };
+  });
+  expect(updatedState).toEqual({ own: true, parent: true });
+  await expect(page.locator('#open .md-section-body:not(.open)')).toHaveCount(0);
+
+  await page.locator('#open h2').first().click();
+  await expect(page.locator('#open .md-section-body').first()).not.toHaveClass(/\bopen\b/);
+  await page.evaluate(() => window.updateOpen());
+  await expect(page.locator('#open .md-section-body').first()).not.toHaveClass(/\bopen\b/);
+  await expect(page.locator('#closed h3', { hasText: 'Details' })).toBeVisible();
+
+  await page.evaluate(() => window.changeOpen());
+  await expect(page.locator('#open h2', { hasText: 'New section' })).toBeVisible();
+  await expect(page.locator('#open .md-section-body').first()).toHaveClass(/\bopen\b/);
+  await page.evaluate(() => window.updateOpen());
+  await expect(page.locator('#open h2').first()).toBeVisible();
+  await expect(page.locator('#open .md-section-body:not(.open)')).toHaveCount(0);
+});
+
+test('reader typography, heading IDs and copy controls follow the public contract', async ({ page }) => {
+  await page.goto(customerOrigin + '/reader-options');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+
+  const closed = page.locator('#closed .sdoc-reader');
+  await expect(closed).toHaveCSS('font-family', /Georgia/);
+  await expect(closed).toHaveCSS('font-size', '18px');
+  await expect(closed).toHaveCSS('line-height', '34.2px');
+  await expect(page.locator('#closed h2').first()).toHaveCSS('font-family', /Courier New/);
+  await expect(page.locator('#closed p').first()).toHaveCSS('margin-bottom', '23px');
+  await expect(page.locator('#closed ul')).toHaveCSS('padding-left', '37px');
+  await expect(page.locator('#closed a[href="https://example.com"]')).toHaveCSS('text-decoration-line', 'none');
+  await expect(page.locator('#host-heading')).not.toHaveCSS('font-family', /Courier New/);
+
+  const closedIds = await page.locator('#closed h2').evaluateAll((headings) => headings.map((heading) => heading.id));
+  const openIds = await page.locator('#open h2').evaluateAll((headings) => headings.map((heading) => heading.id));
+  expect(closedIds[0]).toMatch(/--evidence$/);
+  expect(closedIds[1]).toMatch(/--evidence-1$/);
+  expect(openIds[0]).not.toBe(closedIds[0]);
+
+  await expect(page.locator('#closed .header-anchor')).toHaveCount(4);
+  await expect(page.locator('#closed .header-copy-btn')).toHaveCount(4);
+  await expect(page.locator('#open .header-anchor, #open .header-copy-btn')).toHaveCount(0);
+  await expect(page.locator('#static .header-anchor, #static .header-copy-btn')).toHaveCount(0);
+
+  await page.locator('#closed h2').first().locator('.header-copy-btn').click();
+  await expect.poll(() => page.evaluate(() => window.sdocsCopiedText)).toBe(
+    '## Evidence\n\n- First item\n- Second item\n\n### Details\n\nNested detail.'
+  );
+  await page.locator('#closed h2').first().locator('.header-anchor').click();
+  await expect.poll(() => page.evaluate(() => window.sdocsCopiedText)).toMatch(/#sdocs-[a-z0-9]+--evidence$/);
 });
 
 test('canonical spreadsheet instances keep workbook state and lifecycle isolated', async ({ page }) => {
@@ -720,9 +859,9 @@ test('editorial customer controls styles, collapse behavior and sanitisation', a
   await expect(page.locator('iframe')).toHaveCount(0);
   await expect(page.locator('#smalldocs-sdk-styles')).toHaveCount(1);
   await expect(page.locator('.smalldocs-navigation')).toContainText('Evidence');
-  await expect(page.locator('.smalldocs-section-toggle').first()).toHaveAttribute('aria-expanded', 'false');
-  await page.locator('.smalldocs-section-toggle').first().click();
-  await expect(page.locator('.smalldocs-section-toggle').first()).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.md-section-body').first()).not.toHaveClass(/\bopen\b/);
+  await page.locator('.section-toggle').first().click();
+  await expect(page.locator('.md-section-body').first()).toHaveClass(/\bopen\b/);
 
   await expect(page.locator('#report .smalldocs-document h1')).toHaveCSS('color', 'rgb(119, 29, 41)');
   await expect(page.locator('#report .smalldocs-document')).toHaveCSS('font-family', /Georgia/);
@@ -736,7 +875,7 @@ test('editorial customer controls styles, collapse behavior and sanitisation', a
   await expect(page.locator('[id$="unsafe-link"]')).not.toHaveAttribute('href', /^javascript:/);
 
   await page.evaluate(() => window.restoreEditorialDocument());
-  await page.getByRole('button', { name: 'Toggle Model' }).click();
+  await page.locator('#report h2', { hasText: 'Model' }).click();
   await page.getByRole('button', { name: 'Open code in fullscreen' }).click();
   const codeDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download file' }).click();

@@ -1,10 +1,13 @@
-// sdocs-prose-reader.js - shared table and blockquote reader controls.
+// sdocs-prose-reader.js - shared ordinary document reader controls.
 (function (exports) {
   'use strict';
 
+  var LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
   var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  var CHEVRON_SVG = '<span class="section-toggle"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
   var COPY_FEEDBACK_MS = 1500;
+  var SECTION_LEVELS = { H2: 2, H3: 3, H4: 4 };
   var TABLE_IMAGE_STYLE_PROPS = [
     'display', 'box-sizing', 'width', 'height', 'min-width', 'max-width',
     'border-collapse', 'border-spacing',
@@ -42,12 +45,46 @@
     }).join('\n');
   }
 
+  function sectionMarkdown(markdown, headingIndex) {
+    var lines = String(markdown == null ? '' : markdown).split('\n');
+    var headings = [];
+    var fence = null;
+    for (var i = 0; i < lines.length; i++) {
+      var fenceMatch = lines[i].match(/^\s*(`{3,}|~{3,})/);
+      if (fenceMatch) {
+        if (!fence) fence = fenceMatch[1][0];
+        else if (fence === fenceMatch[1][0]) fence = null;
+        continue;
+      }
+      if (fence) continue;
+      var match = lines[i].match(/^(#{1,4})\s/);
+      if (match) headings.push({ line: i, level: match[1].length });
+    }
+    if (headingIndex < 0 || headingIndex >= headings.length) return '';
+    var target = headings[headingIndex];
+    var endLine = lines.length;
+    for (var j = headingIndex + 1; j < headings.length; j++) {
+      if (headings[j].level <= target.level) {
+        endLine = headings[j].line;
+        break;
+      }
+    }
+    return lines.slice(target.line, endLine).join('\n').trimEnd();
+  }
+
   function create(options) {
     options = options || {};
     var doc = options.document || document;
     var win = options.window || window;
     var destroyed = false;
     var timers = [];
+    var rememberedOpenIds = Array.isArray(options.openSectionIds)
+      ? options.openSectionIds.slice()
+      : [];
+    var rememberedSectionIds = Array.isArray(options.sectionIds)
+      ? options.sectionIds.slice()
+      : [];
+    var hasRememberedState = options.restoreSectionState === true;
 
     function root() {
       return typeof options.root === 'function' ? options.root() : options.root;
@@ -67,6 +104,33 @@
       return !value || value[name] !== false;
     }
 
+    function sectionConfig() {
+      var value = typeof options.sections === 'function' ? options.sections() : options.sections;
+      value = value && typeof value === 'object' ? value : {};
+      return {
+        collapsible: value.collapsible !== false,
+        defaultOpen: value.defaultOpen === true
+      };
+    }
+
+    function source() {
+      var value = typeof options.markdown === 'function' ? options.markdown() : options.markdown;
+      return String(value == null ? '' : value);
+    }
+
+    function slug(value) {
+      if (options.slugify) return options.slugify(value);
+      return String(value || '').toLowerCase().trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+    }
+
+    function sectionUrl(id) {
+      if (options.buildSectionUrl) return options.buildSectionUrl(id);
+      return win.location.origin + win.location.pathname + win.location.search + '#' + encodeURIComponent(id);
+    }
+
     function schedule(callback) {
       var timer = win.setTimeout(function () {
         timers = timers.filter(function (candidate) { return candidate !== timer; });
@@ -75,11 +139,11 @@
       timers.push(timer);
     }
 
-    function flashButton(button, label) {
+    function flashButton(button, label, restoreIcon) {
       var suffix = label ? '<span class="table-copy-label">' + label + '</span>' : '';
       setHTML(button, CHECK_SVG + suffix);
       schedule(function () {
-        if (active(button)) setHTML(button, COPY_SVG + suffix);
+        if (active(button)) setHTML(button, (restoreIcon || COPY_SVG) + suffix);
       });
     }
 
@@ -93,13 +157,198 @@
       });
     }
 
-    function copyText(text, button, label) {
+    function copyText(text, button, label, restoreIcon) {
       var clipboard = options.clipboard || (win.navigator && win.navigator.clipboard);
       if (!clipboard || !clipboard.writeText) return Promise.resolve(false);
       return clipboard.writeText(text).then(function () {
-        if (active(button)) flashButton(button, label);
+        if (active(button)) flashButton(button, label, restoreIcon);
         return true;
       }).catch(function () { return false; });
+    }
+
+    function attachHeadings(container) {
+      var counts = {};
+      var headings = Array.prototype.slice.call(container.querySelectorAll('h1, h2, h3, h4'));
+      headings.forEach(function (heading, index) {
+        var text = heading.textContent;
+        var id = slug(text) || 'section';
+        if (counts[id] != null) {
+          counts[id] += 1;
+          id += '-' + counts[id];
+        } else {
+          counts[id] = 0;
+        }
+        heading.id = String(options.idPrefix || '') + id;
+        id = heading.id;
+        heading.dataset.smalldocsHeadingText = text.trim();
+        if (!controls('copy')) return;
+
+        var anchor = doc.createElement('a');
+        anchor.className = 'header-anchor';
+        setHTML(anchor, LINK_SVG);
+        anchor.title = 'Copy link to section';
+        anchor.addEventListener('click', function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          copyText(sectionUrl(id), anchor, '', LINK_SVG);
+        });
+        heading.appendChild(anchor);
+
+        var copy = doc.createElement('button');
+        copy.className = 'header-copy-btn';
+        setHTML(copy, COPY_SVG);
+        copy.title = 'Copy section';
+        copy.addEventListener('click', function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          copyText(sectionMarkdown(source(), index), copy, '');
+        });
+        heading.appendChild(copy);
+      });
+      return headings;
+    }
+
+    function sectionHeading(section) {
+      return section.querySelector(':scope > h2, :scope > h3, :scope > h4')
+        || section.querySelector(':scope > .sdoc-block-host > h2, :scope > .sdoc-block-host > h3, :scope > .sdoc-block-host > h4');
+    }
+
+    function setSectionOpen(section, open, cascade) {
+      if (!section) return;
+      var body = section.querySelector(':scope > .md-section-body');
+      var heading = sectionHeading(section);
+      var toggle = heading && heading.querySelector(':scope > .section-toggle');
+      if (!body || !toggle) return;
+      body.classList.toggle('open', open);
+      toggle.classList.toggle('open', open);
+      if (cascade) {
+        body.querySelectorAll('.md-section-body').forEach(function (nestedBody) {
+          nestedBody.classList.toggle('open', open);
+        });
+        body.querySelectorAll('.section-toggle').forEach(function (nestedToggle) {
+          nestedToggle.classList.toggle('open', open);
+        });
+      }
+      if (options.onSectionsChange) options.onSectionsChange();
+    }
+
+    function setAllSectionsOpen(container, open) {
+      container.querySelectorAll('h1 > .section-toggle').forEach(function (toggle) {
+        toggle.classList.toggle('open', open);
+      });
+      container.querySelectorAll('.md-section').forEach(function (section) {
+        setSectionOpen(section, open, false);
+      });
+    }
+
+    function openHeading(heading) {
+      var section = heading && heading.closest ? heading.closest('.md-section') : null;
+      while (section) {
+        setSectionOpen(section, true, false);
+        var parentBody = section.parentElement && section.parentElement.closest('.md-section-body');
+        section = parentBody ? parentBody.closest('.md-section') : null;
+      }
+    }
+
+    function attachSections(container) {
+      var config = sectionConfig();
+      if (!config.collapsible) return;
+
+      container.querySelectorAll('h1').forEach(function (heading) {
+        var holder = doc.createElement('span');
+        setHTML(holder, CHEVRON_SVG);
+        var toggle = holder.firstElementChild;
+        heading.insertBefore(toggle, heading.firstChild);
+        heading.style.cursor = 'pointer';
+        heading.addEventListener('click', function (event) {
+          if (event.target.closest('.header-anchor') || event.target.closest('.header-copy-btn')) return;
+          var open = !toggle.classList.contains('open');
+          setAllSectionsOpen(container, open);
+        });
+      });
+
+      var children = Array.prototype.slice.call(container.children);
+      var stack = [{ body: container, level: 0 }];
+      children.forEach(function (child) {
+        if (child.tagName === 'H1') {
+          stack = [{ body: container, level: 0 }];
+          stack[0].body.appendChild(child);
+          return;
+        }
+        var level = SECTION_LEVELS[child.tagName];
+        if (!level) {
+          stack[stack.length - 1].body.appendChild(child);
+          return;
+        }
+        while (stack[stack.length - 1].level >= level) stack.pop();
+        var section = doc.createElement('div');
+        section.className = 'md-section';
+        var body = doc.createElement('div');
+        body.className = 'md-section-body';
+        var holder = doc.createElement('span');
+        setHTML(holder, CHEVRON_SVG);
+        var toggle = holder.firstElementChild;
+        child.insertBefore(toggle, child.firstChild);
+        stack[stack.length - 1].body.appendChild(section);
+        section.appendChild(child);
+        section.appendChild(body);
+        stack.push({ body: body, level: level });
+        setSectionOpen(section, config.defaultOpen, false);
+      });
+
+      container.querySelectorAll('.md-section > h2, .md-section > h3, .md-section > h4').forEach(function (heading) {
+        heading.addEventListener('click', function (event) {
+          if (event.target.closest('.header-anchor') || event.target.closest('.header-copy-btn')) return;
+          var before = heading.getBoundingClientRect().top;
+          var section = heading.closest('.md-section');
+          var body = section.querySelector(':scope > .md-section-body');
+          setSectionOpen(section, !body.classList.contains('open'), true);
+          var after = heading.getBoundingClientRect().top;
+          var scrollContainer = typeof options.scrollContainer === 'function'
+            ? options.scrollContainer()
+            : options.scrollContainer;
+          if (scrollContainer && before !== after) scrollContainer.scrollTop += after - before;
+        });
+      });
+
+      if (hasRememberedState) {
+        var remembered = new Set(rememberedOpenIds);
+        var known = new Set(rememberedSectionIds);
+        container.querySelectorAll('.md-section').forEach(function (section) {
+          var heading = sectionHeading(section);
+          if (heading && known.has(heading.id)) {
+            setSectionOpen(section, remembered.has(heading.id), false);
+          }
+        });
+      } else {
+        rememberedOpenIds.forEach(function (id) {
+          var heading;
+          try { heading = container.querySelector('#' + win.CSS.escape(id)); } catch (_) { heading = null; }
+          if (heading) openHeading(heading);
+        });
+      }
+      var allBodies = Array.prototype.slice.call(container.querySelectorAll('.md-section-body'));
+      var allOpen = allBodies.length > 0 && allBodies.every(function (body) { return body.classList.contains('open'); });
+      container.querySelectorAll('h1 > .section-toggle').forEach(function (toggle) {
+        toggle.classList.toggle('open', allOpen);
+      });
+    }
+
+    function captureOpenIds(container) {
+      var current = container || root();
+      if (!current) return rememberedOpenIds.slice();
+      rememberedOpenIds = [];
+      rememberedSectionIds = [];
+      hasRememberedState = true;
+      current.querySelectorAll('.md-section').forEach(function (section) {
+        var body = section.querySelector(':scope > .md-section-body');
+        var heading = sectionHeading(section);
+        if (heading && heading.id) rememberedSectionIds.push(heading.id);
+        if (body && heading && heading.id && body.classList.contains('open')) {
+          rememberedOpenIds.push(heading.id);
+        }
+      });
+      return rememberedOpenIds.slice();
     }
 
     function inlineTableImageStyles(table, clone) {
@@ -256,8 +505,10 @@
 
     function attach(container) {
       if (destroyed || !container) return;
+      attachHeadings(container);
       attachTables(container);
       attachBlockquotes(container);
+      attachSections(container);
     }
 
     function destroy() {
@@ -269,12 +520,20 @@
 
     return {
       attach: attach,
+      captureOpenIds: captureOpenIds,
+      sectionIds: function () { return rememberedSectionIds.slice(); },
       destroy: destroy,
+      openHeading: openHeading,
+      setAllSectionsOpen: function (open) {
+        var current = root();
+        if (current) setAllSectionsOpen(current, open);
+      },
       tableToPngBlob: tableToPngBlob
     };
   }
 
   exports.create = create;
+  exports.sectionMarkdown = sectionMarkdown;
   exports.serializeTableCsv = serializeTableCsv;
   exports.tableRows = tableRows;
 })(typeof module !== 'undefined' && module.exports

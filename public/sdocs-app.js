@@ -34,7 +34,15 @@ if (window.SDocCodeFocus && window.SDocCodeFocus.create) {
 var proseReaderControls = window.SDocProseReader && window.SDocProseReader.create
   ? window.SDocProseReader.create({
       root: function () { return S.renderedEl; },
-      controls: { copy: true }
+      markdown: function () { return S.currentBody; },
+      slugify: function (value) { return SDocSlugify.slugify(value); },
+      buildSectionUrl: buildSectionUrl,
+      scrollContainer: function () { return contentArea; },
+      sections: { collapsible: true, defaultOpen: false },
+      controls: { copy: true },
+      onSectionsChange: function () {
+        if (S.syncFoldButton) S.syncFoldButton();
+      }
     })
   : null;
 
@@ -306,12 +314,9 @@ function attachTagRowHandlers(row, filePath, currentTags) {
     });
   });
 }
-var CHEVRON_SVG = '<span class="section-toggle"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 var COPY_FEEDBACK_MS = 1500;
 
 // ── Slugify + section helpers ──────────────────────
-
-var slugify = SDocSlugify.slugify;
 
 function buildSectionUrl(slug) {
   var base = window.location.origin + window.location.pathname;
@@ -325,74 +330,7 @@ function buildSectionUrl(slug) {
   return base + '#' + params.toString();
 }
 
-function getSectionMarkdown(headingIndex) {
-  var lines = S.currentBody.split('\n');
-  var headings = [];
-  var inFence = false;
-  for (var i = 0; i < lines.length; i++) {
-    if (/^(`{3,}|~{3,})/.test(lines[i])) { inFence = !inFence; continue; }
-    if (inFence) continue;
-    var m = lines[i].match(/^(#{1,4})\s/);
-    if (m) headings.push({ line: i, level: m[1].length });
-  }
-  if (headingIndex < 0 || headingIndex >= headings.length) return '';
-  var target = headings[headingIndex];
-  var endLine = lines.length;
-  for (var j = headingIndex + 1; j < headings.length; j++) {
-    if (headings[j].level <= target.level) {
-      endLine = headings[j].line;
-      break;
-    }
-  }
-  return lines.slice(target.line, endLine).join('\n').trimEnd();
-}
-
 // ── Render sub-functions ──────────────────────────────────
-
-function attachHeadingAnchors(container) {
-  var slugCounts = {};
-  var allHeadings = [].slice.call(container.querySelectorAll('h1, h2, h3, h4'));
-  allHeadings.forEach(function(h, idx) {
-    var slug = slugify(h.textContent);
-    if (!slug) slug = 'section';
-    if (slugCounts[slug] != null) {
-      slugCounts[slug]++;
-      slug = slug + '-' + slugCounts[slug];
-    } else {
-      slugCounts[slug] = 0;
-    }
-    h.id = slug;
-
-    var anchor = document.createElement('a');
-    anchor.className = 'header-anchor';
-    anchor.innerHTML = LINK_SVG;
-    anchor.title = 'Copy link to section';
-    anchor.addEventListener('click', function(e) {
-      e.preventDefault();
-      navigator.clipboard.writeText(buildSectionUrl(slug)).then(function() {
-        anchor.innerHTML = CHECK_SVG;
-        setTimeout(function() { anchor.innerHTML = LINK_SVG; }, COPY_FEEDBACK_MS);
-      });
-    });
-    h.appendChild(anchor);
-
-    var copyBtn = document.createElement('button');
-    copyBtn.className = 'header-copy-btn';
-    copyBtn.innerHTML = COPY_SVG;
-    copyBtn.title = 'Copy section';
-    var hIdx = idx;
-    copyBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      e.preventDefault();
-      var md = getSectionMarkdown(hIdx);
-      navigator.clipboard.writeText(md).then(function() {
-        copyBtn.innerHTML = CHECK_SVG;
-        setTimeout(function() { copyBtn.innerHTML = COPY_SVG; }, COPY_FEEDBACK_MS);
-      });
-    });
-    h.appendChild(copyBtn);
-  });
-}
 
 var codeReaderControls = null;
 function attachCodeCopyButtons(container) {
@@ -476,75 +414,7 @@ function maybeAutoExpandCodewalk() {
   S.codeFocus.openWalkthrough({ comment: document.body.classList.contains('comment-mode') });
 }
 
-var SECTION_LEVELS = { H2: 2, H3: 3, H4: 4 };
 var _pendingFoldAllOpen = null;
-
-function buildCollapsibleSections(container) {
-  // H1 expand/collapse toggle (controls all sections below)
-  container.querySelectorAll('h1').forEach(function(h1) {
-    h1.insertAdjacentHTML('afterbegin', CHEVRON_SVG);
-    h1.style.cursor = 'pointer';
-    h1.addEventListener('click', function(e) {
-      if (e.target.closest('.header-anchor') || e.target.closest('.header-copy-btn')) return;
-      var toggle = h1.querySelector('.section-toggle');
-      var isOpen = toggle.classList.toggle('open');
-      container.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.toggle('open', isOpen); });
-      container.querySelectorAll('.md-section > h2 > .section-toggle, .md-section > h3 > .section-toggle, .md-section > h4 > .section-toggle, .md-section > .sdoc-block-host > h2 > .section-toggle, .md-section > .sdoc-block-host > h3 > .section-toggle, .md-section > .sdoc-block-host > h4 > .section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
-      if (S.syncFoldButton) S.syncFoldButton();
-    });
-  });
-
-  // Nest H2/H3/H4 into collapsible section wrappers.
-  // Each stack frame tracks its heading level so siblings are siblings
-  // even when intermediate levels are skipped (e.g. h1 → h4 directly).
-  var children = [].slice.call(container.children);
-  var stack = [{ body: container, level: 0 }];
-  children.forEach(function(child) {
-    // H1 resets the nesting stack — each H1 starts a fresh top-level scope,
-    // so an H1 that appears after an H2/H3/H4 isn't buried in the previous
-    // section's collapsible body.
-    if (child.tagName === 'H1') {
-      stack = [{ body: container, level: 0 }];
-      stack[0].body.appendChild(child);
-      return;
-    }
-    var level = SECTION_LEVELS[child.tagName];
-    if (level) {
-      while (stack[stack.length - 1].level >= level) stack.pop();
-      var sectionDiv = document.createElement('div');
-      sectionDiv.className = 'md-section';
-      var sectionBody = document.createElement('div');
-      sectionBody.className = 'md-section-body';
-      child.insertAdjacentHTML('afterbegin', CHEVRON_SVG);
-      stack[stack.length - 1].body.appendChild(sectionDiv);
-      sectionDiv.appendChild(child);
-      sectionDiv.appendChild(sectionBody);
-      stack.push({ body: sectionBody, level: level });
-    } else {
-      stack[stack.length - 1].body.appendChild(child);
-    }
-  });
-
-  // Attach click handlers for section heading toggles
-  container.querySelectorAll('.md-section > h2, .md-section > h3, .md-section > h4').forEach(function(heading) {
-    heading.addEventListener('click', function(e) {
-      if (e.target.closest('.header-anchor') || e.target.closest('.header-copy-btn')) return;
-      var yBefore = heading.getBoundingClientRect().top;
-      var section = heading.closest('.md-section');
-      var body = section.querySelector('.md-section-body');
-      var toggle = section.querySelector('.section-toggle');
-      var isOpen = body.classList.toggle('open');
-      toggle.classList.toggle('open', isOpen);
-      body.querySelectorAll('.md-section-body').forEach(function(b) { b.classList.toggle('open', isOpen); });
-      body.querySelectorAll('.section-toggle').forEach(function(t) { t.classList.toggle('open', isOpen); });
-      var yAfter = heading.getBoundingClientRect().top;
-      if (yAfter !== yBefore) {
-        contentArea.scrollTop += yAfter - yBefore;
-      }
-      if (S.syncFoldButton) S.syncFoldButton();
-    });
-  });
-}
 
 // ── Render (orchestrator) ──────────────────────────────────
 
@@ -556,13 +426,7 @@ function render() {
   // body. Use a descendant query for the heading because comment mode
   // wraps headings in a `.sdoc-block-host` div (which our :scope-scoped
   // query would otherwise miss).
-  var openIds = [];
-  S.renderedEl.querySelectorAll('.md-section').forEach(function (sec) {
-    var body = sec.querySelector(':scope > .md-section-body');
-    if (!body || !body.classList.contains('open')) return;
-    var heading = sec.querySelector('h2, h3, h4');
-    if (heading && heading.id) openIds.push(heading.id);
-  });
+  if (proseReaderControls) proseReaderControls.captureOpenIds(S.renderedEl);
   var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
   if (oldSpacer) oldSpacer.remove();
   if (window.SDocShapeRender && window.SDocShapeRender.destroyWithin) {
@@ -571,9 +435,7 @@ function render() {
   S.renderedEl.innerHTML = S.renderMarkdownSafe(S.currentBody);
 
   if (proseReaderControls) proseReaderControls.attach(S.renderedEl);
-  attachHeadingAnchors(S.renderedEl);
   attachCodeCopyButtons(S.renderedEl);
-  buildCollapsibleSections(S.renderedEl);
   // The toolbar is available before async document sources (notably short
   // links) finish loading. Preserve an expand/collapse click made during that
   // window and apply it to the first rendered set of sections.
@@ -581,17 +443,6 @@ function render() {
     setAllSectionsOpen(_pendingFoldAllOpen);
     _pendingFoldAllOpen = null;
   }
-  // Re-expand sections that were open before this render.
-  openIds.forEach(function (id) {
-    var heading = S.renderedEl.querySelector('#' + CSS.escape(id));
-    if (!heading) return;
-    var section = heading.closest('.md-section');
-    if (!section) return;
-    var body = section.querySelector(':scope > .md-section-body');
-    var toggle = heading.querySelector('.section-toggle');
-    if (body) body.classList.add('open');
-    if (toggle) toggle.classList.add('open');
-  });
   S.processCharts(S.renderedEl);
   if (S.processMath) S.processMath(S.renderedEl);
   if (S.processMermaid) S.processMermaid(S.renderedEl);

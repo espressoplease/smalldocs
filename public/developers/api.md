@@ -14,6 +14,45 @@ const view = await render('#report', markdown, {
 
 Every option is enabled unless its value is exactly `false`.
 
+- `navigation` shows the in-document heading list.
+- `sections.collapsible` adds expand and collapse behavior to H1 through H4.
+- `sections.defaultOpen` controls the first state of collapsible H2 through H4 sections.
+- `controls.copy` shows copy actions for headings, code, tables, blockquotes, diagrams, charts, cells, and slides where available.
+- `controls.fullscreen` shows fullscreen actions where the content supports them.
+- `controls.download` shows supported file downloads.
+
+Open and closed sections with matching heading IDs keep their state when `view.update()` renders a revised version of the document.
+
+## Typography and document styling
+
+Set custom properties on the mount element. They apply only to that renderer instance.
+
+```css
+#report {
+  --sdocs-font-family: Georgia, serif;
+  --sdocs-font-size: 17px;
+  --sdocs-line-height: 1.8;
+  --sdocs-heading-font-family: Inter, sans-serif;
+  --sdocs-heading-scale: 1.05;
+  --sdocs-paragraph-spacing: 1.2em;
+  --sdocs-list-spacing: 0.4em;
+  --sdocs-list-indent: 1.8em;
+  --sdocs-link-decoration: underline;
+}
+```
+
+Heading sizes and weights can be changed individually with `--sdocs-h1-size` through `--sdocs-h4-size` and `--sdocs-h1-weight` through `--sdocs-h4-weight`.
+
+The other document properties are `--sdocs-accent`, `--sdocs-background`, `--sdocs-text-color`, `--sdocs-border-color`, `--sdocs-code-background`, `--sdocs-max-width`, `--sdocs-radius`, and `--sdocs-padding`.
+
+Normal application CSS scoped under the mount can override a specific SmallDocs selector when a custom property is not enough:
+
+```css
+#report .smalldocs-document h1 {
+  letter-spacing: -0.04em;
+}
+```
+
 ## `view.update(markdown)`
 
 Replace the content in the same instance. A newer update rejects an older unfinished update with an `AbortError`.

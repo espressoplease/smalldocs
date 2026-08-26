@@ -108,14 +108,15 @@ async function startSmallDocs(root, label) {
   return { label, origin, handle };
 }
 
-async function startCustomerHost(candidateOrigin, markdown) {
+async function startCustomerHost(candidateOrigin, markdown, sdkOptions) {
   const port = await freePort();
   const host = http.createServer((request, response) => {
     if (request.url === '/app.js') {
       const sdkUrl = candidateOrigin + '/sdk/0.2.0/smalldocs.js';
       const javascript = 'import { render } from ' + JSON.stringify(sdkUrl) + ';' +
         'const markdown=' + JSON.stringify(markdown) + ';' +
-        'window.__parityReady=render(document.getElementById("report"),markdown).then(function(view){window.__parityView=view;return true});';
+        'const options=' + JSON.stringify(sdkOptions || {}) + ';' +
+        'window.__parityReady=render(document.getElementById("report"),markdown,options).then(function(view){window.__parityView=view;return true});';
       response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
       response.end(javascript);
       return;
@@ -472,6 +473,14 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
     };
   }, { rootSelector: selectors.root, probes: selectors.probes });
   data.imagePath = imagePath;
+  if (config.ignoreRootIdentity && data.semantic) {
+    data.semantic.tag = 'reader-root';
+    data.semantic.classes = [];
+    if (data.interaction && data.interaction.hoverPath && data.interaction.hoverPath[0]) {
+      data.interaction.hoverPath[0].tag = 'reader-root';
+      data.interaction.hoverPath[0].classes = [];
+    }
+  }
   data.contractFailures = (await contractFailures(page, state.contracts, config)).concat(stepFailures || []);
   data.diagnostics = diagnostics.slice();
   data.rootFound = rootFound;
@@ -591,7 +600,7 @@ async function main() {
     process.stdout.write('Starting current production\n');
     const candidateServer = await startSmallDocs(PROJECT_ROOT, 'Current production');
     servers.push(candidateServer);
-    const customerServer = await startCustomerHost(candidateServer.origin, markdown);
+    const customerServer = await startCustomerHost(candidateServer.origin, markdown, suite.sdkOptions);
     servers.push(customerServer);
     browser = await chromium.launch({ headless: !options.headed });
     process.stdout.write('Capturing frozen production\n');

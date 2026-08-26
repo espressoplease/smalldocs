@@ -50,6 +50,10 @@ The SDK installs its base CSS automatically. It renders into the host DOM, so yo
 ```css
 #report {
   --sdocs-font-family: Georgia, serif;
+  --sdocs-font-size: 17px;
+  --sdocs-line-height: 1.8;
+  --sdocs-heading-font-family: Arial, sans-serif;
+  --sdocs-paragraph-spacing: 1.2em;
   --sdocs-accent: #7a1f2b;
   --sdocs-background: #fffaf0;
   --sdocs-text-color: #2b2521;
@@ -82,6 +86,8 @@ const view = await render('#report', markdown, {
 ```
 
 All options are optional. Navigation, collapsible sections, open sections, and controls are enabled by default.
+
+Use `sections.collapsible: false` when the host application should show the full document without fold controls. Use `navigation: false` when the application supplies its own navigation. Typography, spacing, and colors are CSS rather than JavaScript options, so each customer surface can inherit or override them naturally. See the [Browser API reference](/developers/api) for the complete property list.
 
 ## Update and remove the view
 

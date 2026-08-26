@@ -26,3 +26,5 @@ Serve the host page over HTTP or HTTPS. Keep the returned `view` so the applicat
 ```
 
 Use the application's normal error surface if rendering fails. Keep the original Markdown available as a fallback.
+
+Use [the Browser API reference](/developers/api) to configure navigation, collapsible sections, controls, typography, spacing, and colors.

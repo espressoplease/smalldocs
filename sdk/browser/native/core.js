@@ -6,10 +6,6 @@ const RESERVED_LANGUAGES = new Set([
   'chart', 'mermaid', 'cells', 'slide', 'slides', 'video', 'form', 'math', 'sdoc-app',
 ]);
 
-const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-const LINK_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
-const CHEVRON_ICON = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 2l4 3-4 3"/></svg>';
-
 let instanceNumber = 0;
 const SDK_VERSION = '0.2.0';
 
@@ -95,155 +91,6 @@ function applyDocumentStyles(context) {
   });
 }
 
-function uniqueHeadingId(context, text, counts) {
-  const base = context.assets.slugify.slugify(text) || 'section';
-  const count = counts.get(base) || 0;
-  counts.set(base, count + 1);
-  return context.id + '--' + base + (count ? '-' + count : '');
-}
-
-async function copyText(text, button) {
-  try {
-    await navigator.clipboard.writeText(text);
-    button.dataset.copied = 'true';
-    setTimeout(() => delete button.dataset.copied, 1200);
-  } catch (_) {
-    button.dataset.copyFailed = 'true';
-  }
-}
-
-function iconButton(className, label, icon) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'smalldocs-control ' + className;
-  button.setAttribute('aria-label', label);
-  button.title = label;
-  setKnownHTML(button, icon);
-  return button;
-}
-
-function sectionSource(markdown, headingText, level, occurrence) {
-  const lines = markdown.split('\n');
-  let fence = null;
-  let seen = 0;
-  let start = -1;
-  for (let index = 0; index < lines.length; index += 1) {
-    const fenceMatch = lines[index].match(/^\s*(`{3,}|~{3,})/);
-    if (fenceMatch) {
-      if (!fence) fence = fenceMatch[1][0];
-      else if (fence === fenceMatch[1][0]) fence = null;
-      continue;
-    }
-    if (fence) continue;
-    const match = lines[index].match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
-    if (!match) continue;
-    if (match[1].length === level && match[2] === headingText) {
-      if (seen === occurrence) {
-        start = index;
-        break;
-      }
-      seen += 1;
-    }
-  }
-  if (start < 0) return markdown;
-  let end = lines.length;
-  fence = null;
-  for (let index = start + 1; index < lines.length; index += 1) {
-    const fenceMatch = lines[index].match(/^\s*(`{3,}|~{3,})/);
-    if (fenceMatch) {
-      if (!fence) fence = fenceMatch[1][0];
-      else if (fence === fenceMatch[1][0]) fence = null;
-      continue;
-    }
-    if (fence) continue;
-    const match = lines[index].match(/^(#{1,6})\s+/);
-    if (match && match[1].length <= level) {
-      end = index;
-      break;
-    }
-  }
-  return lines.slice(start, end).join('\n').trimEnd();
-}
-
-function decorateHeadings(context) {
-  const counts = new Map();
-  const sourceCounts = new Map();
-  const headings = Array.from(context.root.querySelectorAll('h1, h2, h3, h4, h5, h6'));
-  headings.forEach((heading) => {
-    const text = heading.textContent.trim();
-    const level = Number(heading.tagName.slice(1));
-    const sourceKey = level + ':' + text;
-    const sourceOccurrence = sourceCounts.get(sourceKey) || 0;
-    sourceCounts.set(sourceKey, sourceOccurrence + 1);
-    heading.id = uniqueHeadingId(context, text, counts);
-    heading.dataset.smalldocsHeadingText = text;
-
-    const tools = document.createElement('span');
-    tools.className = 'smalldocs-heading-tools';
-    if (context.options.controls.copy) {
-      const copy = iconButton('smalldocs-heading-copy', 'Copy section', COPY_ICON);
-      copy.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        copyText(sectionSource(context.body, text, level, sourceOccurrence), copy);
-      });
-      tools.appendChild(copy);
-    }
-    const link = document.createElement('a');
-    link.className = 'smalldocs-heading-link';
-    link.href = '#' + heading.id;
-    link.setAttribute('aria-label', 'Link to ' + text);
-    link.title = 'Link to section';
-    setKnownHTML(link, LINK_ICON);
-    tools.appendChild(link);
-    heading.appendChild(tools);
-  });
-  return headings;
-}
-
-function setSectionOpen(section, open) {
-  const body = section.querySelector(':scope > .smalldocs-section-body');
-  const toggle = section.querySelector(':scope > h2 .smalldocs-section-toggle, :scope > h3 .smalldocs-section-toggle, :scope > h4 .smalldocs-section-toggle');
-  if (!body || !toggle) return;
-  body.hidden = !open;
-  section.classList.toggle('is-open', open);
-  toggle.setAttribute('aria-expanded', String(open));
-}
-
-function buildSections(context) {
-  if (!context.options.sections.collapsible) return;
-  const children = Array.from(context.root.children);
-  const fragment = document.createDocumentFragment();
-  const stack = [{ level: 1, body: fragment }];
-
-  children.forEach((child) => {
-    const match = child.tagName && child.tagName.match(/^H([2-4])$/);
-    if (!match) {
-      stack[stack.length - 1].body.appendChild(child);
-      return;
-    }
-    const level = Number(match[1]);
-    while (stack.length > 1 && stack[stack.length - 1].level >= level) stack.pop();
-    const section = document.createElement('section');
-    section.className = 'smalldocs-section';
-    const body = document.createElement('div');
-    body.className = 'smalldocs-section-body';
-    const toggle = iconButton('smalldocs-section-toggle', 'Toggle ' + child.dataset.smalldocsHeadingText, CHEVRON_ICON);
-    toggle.setAttribute('aria-expanded', String(context.options.sections.defaultOpen));
-    toggle.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setSectionOpen(section, body.hidden);
-    });
-    child.insertBefore(toggle, child.firstChild);
-    section.append(child, body);
-    stack[stack.length - 1].body.appendChild(section);
-    stack.push({ level, body });
-    setSectionOpen(section, context.options.sections.defaultOpen);
-  });
-  context.root.replaceChildren(fragment);
-}
-
 function buildNavigation(context) {
   context.navigation.replaceChildren();
   context.navigation.hidden = !context.options.navigation;
@@ -260,8 +107,7 @@ function buildNavigation(context) {
     link.textContent = heading.dataset.smalldocsHeadingText || heading.textContent;
     link.addEventListener('click', (event) => {
       event.preventDefault();
-      const section = heading.closest('.smalldocs-section');
-      if (section) setSectionOpen(section, true);
+      if (context.prose) context.prose.openHeading(heading);
       heading.scrollIntoView({ block: 'start', behavior: 'smooth' });
     });
     item.appendChild(link);
@@ -355,6 +201,11 @@ function runCleanups(context, reason) {
 
 async function updateContext(context, markdown) {
   if (context.active) {
+    if (context.active.prose) {
+      context.openSectionIds = context.active.prose.captureOpenIds(context.active.root);
+      context.sectionIds = context.active.prose.sectionIds();
+      context.hasSectionState = true;
+    }
     context.active.controller.abort();
     runCleanups(context.active, 'update');
   }
@@ -389,14 +240,20 @@ async function updateContext(context, markdown) {
   applyDocumentStyles(state);
   const prose = state.assets.prose.create({
     root: state.root,
+    markdown: state.body,
+    slugify: state.assets.slugify.slugify,
+    idPrefix: state.id + '--',
+    sections: state.options.sections,
     controls: state.options.controls,
+    openSectionIds: context.openSectionIds,
+    sectionIds: context.sectionIds,
+    restoreSectionState: context.hasSectionState === true,
     setHTML: setKnownHTML,
     isActive: () => !state.signal.aborted && context.active === state,
   });
+  state.prose = prose;
   prose.attach(state.root);
   state.cleanups.push(() => prose.destroy());
-  decorateHeadings(state);
-  buildSections(state);
   buildNavigation(state);
   await mountFeatures(state);
   if (state.signal.aborted || context.active !== state || generation !== context.generation) throw abortError();

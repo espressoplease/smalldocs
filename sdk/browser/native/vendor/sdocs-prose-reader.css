@@ -1,6 +1,230 @@
 @layer smalldocs {
 @scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {
-/* Canonical table and blockquote reader surfaces. */
+/* Shared ordinary document reader surfaces. */
+:is(#_sd_rendered, #_sd_write) {
+  padding: 40px 48px 60px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) {
+  --md-bg: var(--sdocs-background, #FFFFFF);
+  --md-font-family: var(--sdocs-font-family, 'Inter', system-ui, sans-serif);
+  --md-base-size: var(--sdocs-font-size, 16px);
+  --md-line-height: var(--sdocs-line-height, 1.75);
+  --md-color: var(--sdocs-text-color, #1C1917);
+  --md-h-font-family: var(--sdocs-heading-font-family, inherit);
+  --md-h-scale: var(--sdocs-heading-scale, 1);
+  --md-h-color: var(--md-color);
+  --md-h1-size: var(--sdocs-h1-size, 2.1em);
+  --md-h1-color: var(--md-h-color);
+  --md-h1-margin: 0 0 0.3em;
+  --md-h1-weight: var(--sdocs-h1-weight, 700);
+  --md-h2-size: var(--sdocs-h2-size, 1.55em);
+  --md-h2-color: var(--md-h-color);
+  --md-h2-margin: 1.4em 0 0.3em;
+  --md-h2-weight: var(--sdocs-h2-weight, 600);
+  --md-h3-size: var(--sdocs-h3-size, 1.2em);
+  --md-h3-color: var(--md-h-color);
+  --md-h3-margin: 1.2em 0 0.3em;
+  --md-h3-weight: var(--sdocs-h3-weight, 600);
+  --md-h4-size: var(--sdocs-h4-size, 1em);
+  --md-h4-color: var(--md-h-color);
+  --md-h4-margin: 1em 0 0.25em;
+  --md-h4-weight: var(--sdocs-h4-weight, 600);
+  --md-p-color: var(--md-color);
+  --md-list-color: var(--md-p-color);
+  --md-list-spacing: var(--sdocs-list-spacing, 0.3em);
+  --md-list-indent: var(--sdocs-list-indent, 1.6em);
+  --md-p-line-height: var(--md-line-height);
+  --md-block-gap: var(--sdocs-paragraph-spacing, 1.1em);
+  --md-p-margin: 0 0 var(--md-block-gap);
+  --card-attach-gap: 0.35em;
+  --md-link-color: var(--sdocs-accent, #2563EB);
+  --md-link-decoration: var(--sdocs-link-decoration, underline);
+
+  font-family: var(--md-font-family);
+  font-size: var(--md-base-size);
+  color: var(--md-color);
+  line-height: var(--md-line-height);
+  background-color: var(--md-bg);
+}
+
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) h1 {
+  position: relative;
+  font-family: var(--md-h-font-family);
+  font-size: calc(var(--md-h1-size) * var(--md-h-scale));
+  color: var(--md-h1-color);
+  margin: var(--md-h1-margin);
+  font-weight: var(--md-h1-weight);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) h1:not(:first-of-type) { margin-top: 2em; }
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) h2 {
+  position: relative;
+  font-family: var(--md-h-font-family);
+  font-size: calc(var(--md-h2-size) * var(--md-h-scale));
+  color: var(--md-h2-color);
+  margin: var(--md-h2-margin);
+  font-weight: var(--md-h2-weight);
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--md-h2-border, var(--sdocs-border-color, #ede8e2));
+}
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) h3 {
+  position: relative;
+  font-family: var(--md-h-font-family);
+  font-size: calc(var(--md-h3-size) * var(--md-h-scale));
+  color: var(--md-h3-color);
+  margin: var(--md-h3-margin);
+  font-weight: var(--md-h3-weight);
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) h4 {
+  position: relative;
+  font-family: var(--md-h-font-family);
+  font-size: calc(var(--md-h4-size) * var(--md-h-scale));
+  color: var(--md-h4-color);
+  margin: var(--md-h4-margin);
+  font-weight: var(--md-h4-weight);
+  line-height: 1.5;
+}
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) p {
+  color: var(--md-p-color);
+  line-height: var(--md-p-line-height);
+  margin: var(--md-p-margin);
+}
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) a {
+  color: var(--md-link-color);
+  text-decoration: var(--md-link-decoration);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) a:hover { opacity: .8; }
+
+:is(#_sd_rendered, .sdoc-reader) .md-section > h2,
+:is(#_sd_rendered, .sdoc-reader) .md-section > h3,
+:is(#_sd_rendered, .sdoc-reader) .md-section > h4,
+#_sd_rendered .md-section > .sdoc-block-host > h2,
+#_sd_rendered .md-section > .sdoc-block-host > h3,
+#_sd_rendered .md-section > .sdoc-block-host > h4 {
+  cursor: pointer;
+}
+:is(#_sd_rendered, .sdoc-reader) .section-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--text-3, var(--sdocs-muted-color, #8a8178));
+  cursor: pointer;
+  margin-right: 4px;
+  vertical-align: middle;
+  transition: transform .18s cubic-bezier(.4,0,.2,1), color .12s;
+  transform: rotate(0deg);
+}
+:is(#_sd_rendered, .sdoc-reader) .section-toggle.open { transform: rotate(90deg); }
+:is(#_sd_rendered, .sdoc-reader) .section-toggle:hover,
+:is(#_sd_rendered, .sdoc-reader) h1:hover > .section-toggle,
+:is(#_sd_rendered, .sdoc-reader) .md-section > h2:hover > .section-toggle,
+:is(#_sd_rendered, .sdoc-reader) .md-section > h3:hover > .section-toggle,
+:is(#_sd_rendered, .sdoc-reader) .md-section > h4:hover > .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host > h2:hover > .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host > h3:hover > .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host > h4:hover > .section-toggle,
+:is(#_sd_rendered, .sdoc-reader) > h1:hover ~ .md-section .section-toggle,
+#_sd_rendered > .sdoc-block-host:has(> h1:hover) ~ .md-section .section-toggle,
+:is(#_sd_rendered, .sdoc-reader) .md-section > h2:hover ~ .md-section-body .section-toggle,
+:is(#_sd_rendered, .sdoc-reader) .md-section > h3:hover ~ .md-section-body .section-toggle,
+:is(#_sd_rendered, .sdoc-reader) .md-section > h4:hover ~ .md-section-body .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host:has(> h2:hover) ~ .md-section-body .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host:has(> h3:hover) ~ .md-section-body .section-toggle,
+#_sd_rendered .md-section > .sdoc-block-host:has(> h4:hover) ~ .md-section-body .section-toggle {
+  color: var(--text-2, var(--sdocs-text-color, #57534e));
+}
+:is(#_sd_rendered, .sdoc-reader) .md-section-body:not(.open):not(:has(.md-section-body.open)) > :not(.md-section) {
+  display: none;
+}
+:is(#_sd_rendered, .sdoc-reader) .md-section-body:not(.open):not(:has(.md-section-body.open)):has(> :not(.md-section)):has(> .md-section)::before {
+  content: "\2026";
+  display: block;
+  opacity: 1;
+  font-weight: bold;
+  padding-left: calc(1.2em + 20px);
+  font-size: 1rem;
+  color: var(--text-3, var(--sdocs-muted-color, #8a8178));
+  padding-bottom: 10px;
+  line-height: 0.1;
+}
+:is(#_sd_rendered, .sdoc-reader) .md-section-body:not(.open):has(.md-section-body.open) > :not(.md-section) {
+  opacity: 0.55;
+  padding-left: calc(1.2em + 20px);
+}
+:is(#_sd_rendered, .sdoc-reader) .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) {
+  padding-left: 1.2em;
+}
+:is(#_sd_rendered, .sdoc-reader) .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h2,
+:is(#_sd_rendered, .sdoc-reader) .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h3,
+:is(#_sd_rendered, .sdoc-reader) .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > h4,
+#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > .sdoc-block-host > h2,
+#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > .sdoc-block-host > h3,
+#_sd_rendered .md-section-body:not(.open) > .md-section:not(:has(> .md-section-body.open)) > .sdoc-block-host > h4 {
+  margin-top: 0.15em;
+  margin-bottom: 0.1em;
+  padding-bottom: 0;
+  border-bottom: none;
+  opacity: 0.55;
+}
+
+:is(#_sd_rendered, .sdoc-reader) .header-anchor {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  opacity: 0.5;
+  transition: opacity .15s;
+  color: var(--md-link-color, #2563eb);
+  cursor: pointer;
+  vertical-align: middle;
+}
+:is(#_sd_rendered, .sdoc-reader) .header-anchor:hover,
+:is(#_sd_rendered, .sdoc-reader) .header-anchor:focus-visible { opacity: 1; }
+:is(#_sd_rendered, .sdoc-reader) .header-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  opacity: 0.5;
+  transition: opacity .15s;
+  color: var(--md-link-color, #2563eb);
+  cursor: pointer;
+  vertical-align: middle;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  line-height: 1;
+}
+:is(#_sd_rendered, .sdoc-reader) .header-copy-btn:hover,
+:is(#_sd_rendered, .sdoc-reader) .header-copy-btn:focus-visible { opacity: 1; }
+
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) ul,
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) ol {
+  padding-left: var(--md-list-indent);
+  margin: 0.5em 0 1.1em;
+}
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) li {
+  margin-bottom: var(--md-list-spacing);
+  color: var(--md-list-color);
+}
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) li::marker { color: var(--md-list-color); }
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) hr {
+  border: none;
+  border-top: 1px solid var(--md-hr-border, var(--sdocs-border-color, #dedad5));
+  margin: 2em 0;
+}
+
 :is(#_sd_rendered, #_sd_write, .sdoc-reader) blockquote {
   border-left: var(--md-bq-border);
   font-size: var(--md-bq-size);

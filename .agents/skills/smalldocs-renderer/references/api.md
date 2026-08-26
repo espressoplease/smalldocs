@@ -23,6 +23,13 @@ const view = await render('#report', markdown, {
 Every option shown above defaults to `true`.
 Set an option to exactly `false` to disable it.
 
+- `navigation` controls the in-document heading list.
+- `sections.collapsible` controls expand and collapse behavior for H1 through H4.
+- `sections.defaultOpen` controls the first state of collapsible H2 through H4 sections.
+- `controls.copy`, `controls.fullscreen`, and `controls.download` control those actions across supported document features.
+
+Open and closed sections with matching heading IDs keep their state across `view.update()`.
+
 ## Returned view
 
 ```js
@@ -44,6 +51,14 @@ The SDK installs version-matched CSS automatically in a low-priority CSS layer. 
 ```css
 #report {
   --sdocs-font-family: Georgia, serif;
+  --sdocs-font-size: 17px;
+  --sdocs-line-height: 1.8;
+  --sdocs-heading-font-family: Inter, sans-serif;
+  --sdocs-heading-scale: 1.05;
+  --sdocs-paragraph-spacing: 1.2em;
+  --sdocs-list-spacing: 0.4em;
+  --sdocs-list-indent: 1.8em;
+  --sdocs-link-decoration: underline;
   --sdocs-accent: #7a1f2b;
   --sdocs-background: #fffaf0;
   --sdocs-text-color: #2b2521;
@@ -54,6 +69,8 @@ The SDK installs version-matched CSS automatically in a low-priority CSS layer. 
   --sdocs-padding: 40px 48px 60px;
 }
 ```
+
+Heading sizes and weights can be changed individually with `--sdocs-h1-size` through `--sdocs-h4-size` and `--sdocs-h1-weight` through `--sdocs-h4-weight`.
 
 Ordinary unlayered CSS scoped under the mount can override specific document or feature selectors.
 

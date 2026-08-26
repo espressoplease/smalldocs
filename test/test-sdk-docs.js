@@ -185,6 +185,10 @@ module.exports = function (harness) {
     assert.ok(lifecycle.includes('fullscreen ownership'));
     assert.ok(api.includes('direct-DOM SmallDocs reading surface'));
     assert.ok(api.includes('controls: { copy: true, fullscreen: true, download: true }'));
+    assert.ok(api.includes('sections.collapsible'));
+    assert.ok(api.includes('--sdocs-font-size'));
+    assert.ok(api.includes('--sdocs-heading-scale'));
+    assert.ok(api.includes('--sdocs-paragraph-spacing'));
   });
 
   test('customer SDK example uses valid slides, charts, and computed cells', () => {
