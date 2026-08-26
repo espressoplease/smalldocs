@@ -213,10 +213,10 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
   <section id="pricing">
     <h2>Pricing</h2>
     <div class="pricing">
-      <section class="plan">
+      <section class="plan" data-cloud-plan="personal">
         <p class="plan-name">Personal Cloud</p>
-        <p class="price"><strong>£4</strong><span>per month</span></p>
-        <p class="currency-prices">$5 USD or €5 EUR</p>
+        <p class="price"><strong data-cloud-price-primary>£4</strong><span>per month</span></p>
+        <p class="currency-prices" data-cloud-price-alternatives>$5 USD or €5 EUR</p>
         <ul>
           <li>Documents private to you</li>
           <li>Browser and mobile access</li>
@@ -228,10 +228,10 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
         </ul>
         <a class="button primary" href="/cloud/checkout?plan=personal">Subscribe to Personal</a>
       </section>
-      <section class="plan">
+      <section class="plan" data-cloud-plan="team">
         <p class="plan-name">Team Cloud</p>
-        <p class="price"><strong>£7</strong><span>per member, per month</span></p>
-        <p class="currency-prices">$9 USD or €8 EUR</p>
+        <p class="price"><strong data-cloud-price-primary>£7</strong><span>per member, per month</span></p>
+        <p class="currency-prices" data-cloud-price-alternatives>$9 USD or €8 EUR</p>
         <ul>
           <li>Everything in Personal</li>
           <li>Shared tags and permission groups</li>
@@ -307,6 +307,7 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
   </span>
 </div>
 
+<script src="/public/cloud-pricing.js" defer></script>
 <script src="/public/sdocs-trust-footer.js" defer></script>
 </body>
 </html>

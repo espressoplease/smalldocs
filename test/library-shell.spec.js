@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test.use({ serviceWorkers: 'block' });
+test.use({ serviceWorkers: 'block', locale: 'en-GB' });
 
 async function shellAndToggle(page, url, shellSelector) {
   await page.goto(url);

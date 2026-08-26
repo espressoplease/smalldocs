@@ -107,16 +107,16 @@ __CLOUD_LIBRARY_STYLES__
 
       <h2 class="cloud-section-heading">Pricing</h2>
       <div class="cloud-pricing-grid">
-        <article>
+        <article data-cloud-plan="personal">
           <h3>Personal</h3>
-          <p class="cloud-plan-price"><strong>£4</strong><span>per month</span></p>
-          <p class="cloud-plan-currencies">$5 USD or €5 EUR</p>
+          <p class="cloud-plan-price"><strong data-cloud-price-primary>£4</strong><span>per month</span></p>
+          <p class="cloud-plan-currencies" data-cloud-price-alternatives>$5 USD or €5 EUR</p>
           <p>Open private documents in a browser, on mobile, or through the CLI. Search by text or tag and restore earlier revisions.</p>
         </article>
-        <article>
+        <article data-cloud-plan="team">
           <h3>Team</h3>
-          <p class="cloud-plan-price"><strong>£7</strong><span>per member, per month</span></p>
-          <p class="cloud-plan-currencies">$9 USD or €8 EUR</p>
+          <p class="cloud-plan-price"><strong data-cloud-price-primary>£7</strong><span>per member, per month</span></p>
+          <p class="cloud-plan-currencies" data-cloud-price-alternatives>$9 USD or €8 EUR</p>
           <p>Includes Personal features. Add members and admins, then share documents through permission groups.</p>
         </article>
       </div>
@@ -185,6 +185,7 @@ __CLOUD_LIBRARY_STYLES__
   </div>
 
   <!--__CLOUD_LIBRARY_MOBILE_SCRIPT__-->
+  <script src="/public/cloud-pricing.js"></script>
   <script src="/public/sdocs-connect.js"></script>
   <script src="/public/library/library.js"></script>
   <script src="/public/library/library-menu.js"></script>

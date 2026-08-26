@@ -17,19 +17,19 @@
       <p id="checkout-copy">Choose the account that matches how you want to share documents.</p>
 
       <div class="checkout-plans" id="checkout-plan-field">
-        <button class="checkout-plan" id="checkout-personal" type="button" data-plan="personal">
+        <button class="checkout-plan" id="checkout-personal" type="button" data-plan="personal" data-cloud-plan="personal">
           <span class="checkout-plan-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M5 21a7 7 0 0 1 14 0"></path></svg>
           </span>
           <span class="checkout-plan-copy"><strong>Just me</strong><span>Documents start private to you.</span></span>
-          <span class="checkout-plan-price"><strong>£4</strong><span>per month</span></span>
+          <span class="checkout-plan-price"><strong data-cloud-price-primary>£4</strong><span>per month</span></span>
         </button>
-        <button class="checkout-plan" id="checkout-team" type="button" data-plan="team">
+        <button class="checkout-plan" id="checkout-team" type="button" data-plan="team" data-cloud-plan="team">
           <span class="checkout-plan-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
           </span>
           <span class="checkout-plan-copy"><strong>My team</strong><span>Invite people and control document access.</span></span>
-          <span class="checkout-plan-price"><strong>£7</strong><span>per member / month</span></span>
+          <span class="checkout-plan-price"><strong data-cloud-price-primary>£7</strong><span>per member / month</span></span>
         </button>
       </div>
 
@@ -72,6 +72,7 @@
       <p class="checkout-payment-note" id="checkout-payment-note" hidden>Stripe collects payment. The subscription renews monthly until cancelled. By continuing, you agree to the <a href="/legal" target="_blank" rel="noopener">Terms</a> and acknowledge the <a href="/cancellation" target="_blank" rel="noopener">cancellation and refund policy</a>.</p>
     </section>
   </main>
+  <script src="/public/cloud-pricing.js" defer></script>
   <script src="/public/cloud-checkout.js" defer></script>
 </body>
 </html>
