@@ -6,7 +6,7 @@
 const { test, expect } = require('@playwright/test');
 
 async function renderBody(page, body) {
-  await page.goto('/');
+  await page.goto('/docs');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function', null, { timeout: 5000 });
   await page.evaluate((b) => {
     const parsed = window.SDocYaml.parseFrontMatter(b);

@@ -181,9 +181,11 @@ test.describe('shape playground', () => {
     await gotoPlayground(page);
     await setDSL(page, 'a 10 28 90 28');
     const line = page.locator('#stage svg g line').first();
-    await expect(line).toHaveAttribute('marker-end', 'url(#_sd_arrowhead)');
-    // Defs with arrowhead marker present
-    await expect(page.locator('#stage svg defs marker#_sd_arrowhead')).toBeAttached();
+    const markerRef = await line.getAttribute('marker-end');
+    expect(markerRef).toMatch(/^url\(#[a-zA-Z0-9_-]+-arrowhead\)$/);
+    const markerId = markerRef.slice(5, -1);
+    // Defs with the referenced arrowhead marker present.
+    await expect(page.locator('#stage svg defs marker#' + markerId)).toBeAttached();
   });
 
   test('polygon renders as SVG <path> with a d attribute', async ({ page }) => {

@@ -531,3 +531,69 @@ r 8.3 3.2 7.0 4.8 fill=#ffffff stroke=#cbd5e1 |
   await pdfDownload;
   expect(await page.evaluate(() => window.exportRuntimeResets)).toBeGreaterThan(0);
 });
+
+test('shape render sessions isolate runtimes, cleanup and SVG resources', async ({ page }) => {
+  await page.goto(customerOrigin + '/board-brief/');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true', { timeout: 30000 });
+  const state = await page.evaluate(async () => {
+    const renderer = window.SDocShapeRender;
+    const shapes = window.SDocShapes;
+    const host = document.createElement('div');
+    const mountA = document.createElement('div');
+    const mountB = document.createElement('div');
+    host.append(mountA, mountB);
+    document.body.appendChild(host);
+
+    let resolveA;
+    let resolveB;
+    let cleanupA = 0;
+    let cleanupB = 0;
+    let signalA;
+    let signalB;
+    const runtime = (id, bind) => ({
+      shapes,
+      styles: window.SDocStyles,
+      icons: null,
+      parseMarkdown(content) {
+        return '<pre><code class="language-mermaid">' + id + ':' + content + '</code></pre>';
+      },
+      sanitizeHTML(html) { return html; },
+      setKnownHTML(element, html) { element.innerHTML = html; },
+      processMermaid(root, options, signal) {
+        if (id === 'A') signalA = signal;
+        else signalB = signal;
+        return new Promise(resolve => bind(() => resolve(() => {
+          if (id === 'A') cleanupA += 1;
+          else cleanupB += 1;
+        })));
+      },
+    });
+    const runtimeA = runtime('A', resolve => { resolveA = resolve; });
+    const runtimeB = runtime('B', resolve => { resolveB = resolve; });
+    const dslA = 'grid 16 9\na 1 1 4 1 stroke=#ef4444\nr 1 2 5 3 | alpha';
+    const dslB = 'grid 16 9\na 1 1 4 1 stroke=#2563eb\nr 1 2 5 3 | beta';
+    const resultA = renderer.renderShapes(dslA, mountA, { runtime: runtimeA, resourcePrefix: 'deck-a' });
+    const resultB = renderer.renderShapes(dslB, mountB, { runtime: runtimeB, resourcePrefix: 'deck-b' });
+    const markerA = mountA.querySelector('marker').id;
+    const markerB = mountB.querySelector('marker').id;
+    const arrowA = mountA.querySelector('[marker-end]').getAttribute('marker-end');
+    const arrowB = mountB.querySelector('[marker-end]').getAttribute('marker-end');
+
+    resultA.destroy();
+    resolveB();
+    resolveA();
+    await Promise.all([resultA.ready, resultB.ready]);
+    const afterPending = { cleanupA, cleanupB, signalA: signalA.aborted, signalB: signalB.aborted };
+    resultB.destroy();
+    const afterDestroy = { cleanupA, cleanupB, signalA: signalA.aborted, signalB: signalB.aborted };
+    host.remove();
+    return { markerA, markerB, arrowA, arrowB, afterPending, afterDestroy };
+  });
+
+  expect(state.markerA).toBe('deck-a-arrowhead');
+  expect(state.markerB).toBe('deck-b-arrowhead');
+  expect(state.arrowA).toBe('url(#deck-a-arrowhead)');
+  expect(state.arrowB).toBe('url(#deck-b-arrowhead)');
+  expect(state.afterPending).toEqual({ cleanupA: 1, cleanupB: 0, signalA: true, signalB: false });
+  expect(state.afterDestroy).toEqual({ cleanupA: 1, cleanupB: 1, signalA: true, signalB: true });
+});

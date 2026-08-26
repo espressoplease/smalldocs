@@ -9,8 +9,6 @@ const DOWNLOAD_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 
 const PREVIOUS_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
 const NEXT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
 
-let exportBusy = false;
-
 function button(label, icon, text) {
   const control = document.createElement('button');
   control.type = 'button';
@@ -21,9 +19,11 @@ function button(label, icon, text) {
   return control;
 }
 
-function nestedContext(context, root) {
+function nestedContext(context, root, signal) {
   return Object.assign({}, context, {
     root,
+    signal: signal || context.signal,
+    cleanups: [],
     options: {
       navigation: false,
       sections: { collapsible: false, defaultOpen: true },
@@ -32,21 +32,33 @@ function nestedContext(context, root) {
   });
 }
 
-async function mountNested(feature, root, context) {
-  if (context.signal.aborted) return;
+async function mountNested(feature, root, context, signal) {
+  const activeSignal = signal || context.signal;
+  if (activeSignal.aborted) return;
   const module = await import('./' + feature + '.js');
-  if (context.signal.aborted) return;
-  const cleanup = await module.mount(nestedContext(context, root));
-  if (typeof cleanup === 'function') context.cleanups.push(cleanup);
+  if (activeSignal.aborted) return;
+  const nested = nestedContext(context, root, activeSignal);
+  const cleanup = await module.mount(nested);
+  const cleanups = nested.cleanups.slice();
+  if (typeof cleanup === 'function') cleanups.push(cleanup);
+  const combined = () => {
+    for (let index = cleanups.length - 1; index >= 0; index -= 1) {
+      try { cleanups[index](); } catch (_) {}
+    }
+  };
+  if (activeSignal.aborted) {
+    combined();
+    return;
+  }
+  return combined;
 }
 
 async function ensureSlides(context) {
-  const [shapes, stdlib, resolve, renderer, icons] = await Promise.all([
+  const [shapes, stdlib, resolve, renderer] = await Promise.all([
     loadScript(vendorAsset('sdocs-shapes.js'), () => window.SDocShapes),
     loadScript(vendorAsset('sdocs-slide-stdlib.js'), () => window.SDocSlideStdlib),
     loadScript(vendorAsset('sdocs-slide-resolve.js'), () => window.SDocSlideResolve),
     loadScript(vendorAsset('sdocs-shape-render.js'), () => window.SDocShapeRender),
-    loadScript(vendorAsset('sdocs-icons-data.js'), () => window.__SmallDocsSdk020Icons),
   ]);
   const runtime = {
     parseMarkdown,
@@ -54,13 +66,22 @@ async function ensureSlides(context) {
     setKnownHTML,
     shapes,
     styles: context.assets.styles,
-    icons,
-    processCharts(root) { return mountNested('charts', root, context); },
-    processMath(root) { return mountNested('math', root, context); },
-    processMermaid(root) { return mountNested('mermaid', root, context); },
+    icons: null,
+    processCharts(root, options, signal) { return mountNested('charts', root, context, signal); },
+    processMath(root, options, signal) { return mountNested('math', root, context, signal); },
+    processMermaid(root, options, signal) { return mountNested('mermaid', root, context, signal); },
   };
-  renderer.setRuntime(runtime);
-  return { shapes, resolve, stdlib, renderer, runtime };
+  return {
+    shapes,
+    resolve,
+    stdlib,
+    renderer,
+    runtime,
+    signal: context.signal,
+    id: context.id,
+    renderNumber: 0,
+    exportBusy: false,
+  };
 }
 
 function slideText(dsl, shapes) {
@@ -72,14 +93,19 @@ function slideText(dsl, shapes) {
 }
 
 function renderSlide(dsl, api, className) {
-  api.renderer.setRuntime(api.runtime);
   const wrapper = document.createElement('div');
   wrapper.className = className || 'sdoc-slide';
   wrapper.dataset.dsl = dsl;
   const stage = document.createElement('div');
   wrapper.appendChild(stage);
-  const result = api.renderer.renderShapes(dsl, stage, { copyButtons: true });
-  wrapper._sdocsPending = result.pending || Promise.resolve();
+  const result = api.renderer.renderShapes(dsl, stage, {
+    copyButtons: true,
+    runtime: api.runtime,
+    signal: api.signal,
+    resourcePrefix: api.id + '-slide-' + (++api.renderNumber),
+  });
+  wrapper._sdocsShapeResult = result;
+  wrapper._sdocsPending = result.ready || result.pending || Promise.resolve();
   if (result.errors && result.errors.length) {
     const error = document.createElement('pre');
     error.className = 'smalldocs-slide-errors';
@@ -114,19 +140,31 @@ function present(context, slides, start, api) {
       actions.append(previous, counter, next, copy);
       function show(index) {
         active = (index + slides.length) % slides.length;
+        if (activeNode && activeNode._sdocsShapeResult && activeNode._sdocsShapeResult.destroy) {
+          activeNode._sdocsShapeResult.destroy();
+        }
         if (activeNode) activeNode.remove();
         activeNode = renderSlide(slides[active].dsl, api, 'sdoc-slide smalldocs-slide-focus');
         overlay.stage.appendChild(activeNode);
         counter.value = (active + 1) + ' / ' + slides.length;
       }
-      requestAnimationFrame(() => show(active));
+      requestAnimationFrame(() => {
+        if (!overlay.overlay.isConnected) return;
+        show(active);
+      });
+    },
+    onClose() {
+      if (activeNode && activeNode._sdocsShapeResult && activeNode._sdocsShapeResult.destroy) {
+        activeNode._sdocsShapeResult.destroy();
+      }
+      activeNode = null;
     },
   });
 }
 
 async function exportPdf(context, slides, api) {
-  if (exportBusy) return;
-  exportBusy = true;
+  if (api.exportBusy) return;
+  api.exportBusy = true;
   try {
     const pdfLib = await loadScript('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js', () => window.PDFLib);
     const exporter = await loadScript(vendorAsset('sdocs-slide-pdf.js'), () => window.SDocSlidePdf);
@@ -156,13 +194,13 @@ async function exportPdf(context, slides, api) {
     downloadBlob(new Blob([await doc.save()], { type: 'application/pdf' }),
       safeFilename(context.meta.title, 'slides') + '.pdf');
   } finally {
-    exportBusy = false;
+    api.exportBusy = false;
   }
 }
 
 async function exportPptx(context, slides, api) {
-  if (exportBusy) return;
-  exportBusy = true;
+  if (api.exportBusy) return;
+  api.exportBusy = true;
   try {
     await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', () => window.JSZip);
     const PptxGenJS = await loadScript('https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.min.js', () => window.PptxGenJS);
@@ -191,7 +229,7 @@ async function exportPptx(context, slides, api) {
     downloadBlob(await presentation.write({ outputType: 'blob' }),
       safeFilename(context.meta.title, 'slides') + '.pptx');
   } finally {
-    exportBusy = false;
+    api.exportBusy = false;
   }
 }
 
@@ -202,8 +240,17 @@ export async function mount(context) {
   if (context.signal.aborted) return;
   const raw = blocks.map((code) => code.textContent || '');
   const resolved = api.resolve.resolveSlides(raw, api.shapes, { stdlib: api.stdlib.templates });
+  const needsIcons = resolved.some(entry => !entry.skip && /(^|\n)\s*icon\b/.test(entry.dsl || ''));
+  if (needsIcons) {
+    api.runtime.icons = await loadScript(
+      vendorAsset('sdocs-icons-data.js'),
+      () => window.__SmallDocsSdk020Icons,
+    );
+    if (context.signal.aborted) return;
+  }
   const slides = [];
   const pending = [];
+  const renderedResults = [];
   blocks.forEach((code, index) => {
     const pre = code.closest('pre');
     if (!pre) return;
@@ -215,6 +262,7 @@ export async function mount(context) {
     try {
       const slide = { dsl: entry.dsl, source: raw[index] };
       const wrapper = renderSlide(slide.dsl, api, 'sdoc-slide smalldocs-slide');
+      renderedResults.push(wrapper._sdocsShapeResult);
       pending.push(wrapper._sdocsPending);
       const tools = document.createElement('div');
       tools.className = 'smalldocs-feature-tools';
@@ -241,7 +289,12 @@ export async function mount(context) {
   });
   await Promise.all(pending);
   if (context.signal.aborted) return;
-  if (!slides.length || !context.options.controls.download) return;
+  const cleanup = () => {
+    renderedResults.forEach((result) => {
+      if (result && result.destroy) result.destroy();
+    });
+  };
+  if (!slides.length || !context.options.controls.download) return cleanup;
   const downloads = document.createElement('div');
   downloads.className = 'smalldocs-slide-downloads';
   const pdf = button('Download slides as PDF', DOWNLOAD_ICON, 'PDF');
@@ -250,4 +303,5 @@ export async function mount(context) {
   pptx.addEventListener('click', () => exportPptx(context, slides, api).catch((error) => { pptx.dataset.error = error.message; }));
   downloads.append(pdf, pptx);
   slides[0].dsl && context.root.querySelector('.smalldocs-slide').before(downloads);
+  return cleanup;
 }

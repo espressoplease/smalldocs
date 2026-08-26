@@ -9,7 +9,7 @@ const RED_PNG =
 
 async function renderSlide(page, slideBody) {
   const md = '# Deck\n\n```slide\n' + slideBody + '\n```\n';
-  await page.goto('/');
+  await page.goto('/docs');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
   await page.evaluate((body) => {
     window.SDocs.currentBody = body;

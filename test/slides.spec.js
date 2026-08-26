@@ -6,7 +6,7 @@
 const { test, expect } = require('@playwright/test');
 
 async function renderBody(page, body) {
-  await page.goto('/');
+  await page.goto('/docs');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function', null, { timeout: 5000 });
   // Match the real loadMarkdown path: strip front matter, apply styles, then
   // render the body. Writing to currentBody alone skips applyStylesFromMeta
@@ -170,7 +170,7 @@ test.describe('Slide rendering pipeline', () => {
     // a closed .md-section-body, the rect should have its px font-size
     // populated on first render - not empty.
     const body = '# Deck\n\n## Section\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 size=fit | Hello\n```\n';
-    await page.goto('/');
+    await page.goto('/docs');
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
     await page.waitForTimeout(500);
@@ -181,7 +181,7 @@ test.describe('Slide rendering pipeline', () => {
 
   test('exportSlidesPdf builds a downloadable PDF without calling window.print', async ({ page }) => {
     const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | One\n```\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Two\n```\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Three\n```\n';
-    await page.goto('/');
+    await page.goto('/docs');
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
     await page.waitForTimeout(500);
@@ -229,7 +229,7 @@ test.describe('Slide rendering pipeline', () => {
 
   test('present-mode export button toggles the side panel', async ({ page }) => {
     const body = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Only slide\n```\n';
-    await page.goto('/');
+    await page.goto('/docs');
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate((b) => { window.SDocs.currentBody = b; window.SDocs.render(); }, body);
     await page.waitForTimeout(500);
@@ -260,7 +260,7 @@ test.describe('Slide rendering pipeline', () => {
   }
 
   test('Slides PDF menu option hidden when doc has no slides', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/docs');
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate(() => { window.SDocs.currentBody = '# Plain doc\n\nNo slides here.\n'; window.SDocs.render(); });
     await page.waitForTimeout(300);
@@ -271,7 +271,7 @@ test.describe('Slide rendering pipeline', () => {
   });
 
   test('Slides PDF menu option visible when doc has slides', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/docs');
     await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
     await page.evaluate(() => { window.SDocs.currentBody = '# Deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 30 | Hi\n```\n'; window.SDocs.render(); });
     await page.waitForTimeout(500);

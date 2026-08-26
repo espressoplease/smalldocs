@@ -709,11 +709,28 @@ function presentToggle(btn) {
   // pre-panel height (the overlays sit too low / too tall until a slide flip).
   ensurePresentPanel();
   var raf = (typeof requestAnimationFrame !== 'undefined') ? requestAnimationFrame : function (f) { setTimeout(f, 16); };
-  raf(function () {
+  function redraw() {
     if (window.SDocPresent && window.SDocPresent.refit) window.SDocPresent.refit();
     if (presentState.commenting) presentRender();
     else clearPresentOverlay();
-  });
+  }
+  raf(redraw);
+  // The stage padding animates for 200ms. Rebuild once the transition has
+  // reached its final geometry so the hit layer does not keep the first
+  // animation frame's coordinates.
+  var wrap = presentState.modal && presentState.modal.querySelector('.sdoc-present-stage-wrap');
+  if (wrap) {
+    var onTransitionEnd = function (event) {
+      if (event.target !== wrap || event.propertyName !== 'padding-right') return;
+      wrap.removeEventListener('transitionend', onTransitionEnd);
+      redraw();
+    };
+    wrap.addEventListener('transitionend', onTransitionEnd);
+    setTimeout(function () {
+      wrap.removeEventListener('transitionend', onTransitionEnd);
+      if (presentState.modal) redraw();
+    }, 240);
+  }
 }
 
 function clearPresentOverlay() {

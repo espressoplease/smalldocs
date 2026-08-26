@@ -6,7 +6,7 @@ const { test, expect } = require('@playwright/test');
 
 async function renderDeck(page, slideBodies) {
   const md = '# Deck\n\n' + slideBodies.map((b) => '```slide\n' + b + '\n```').join('\n\n');
-  await page.goto('/');
+  await page.goto('/docs');
   await page.waitForFunction(() => !!window.SDocs && typeof window.SDocs.render === 'function');
   await page.evaluate((body) => {
     window.SDocs.currentBody = body;
@@ -23,6 +23,85 @@ test.describe('Slide interaction model', () => {
     ]);
     const count = await page.locator('.sdoc-slide-present').count();
     expect(count).toBe(2);
+    await expect(page.locator('.sdoc-slide-present').first()).toHaveAttribute('title', 'Present');
+  });
+
+  test('an asynchronous error stays with the slide that emitted it', async ({ page }) => {
+    await renderDeck(page, [
+      'grid 100 56.25\nr 10 10 80 40 | One',
+      'grid 100 56.25\nr 10 10 80 40 | Two',
+    ]);
+    await page.locator('.sdoc-slide').first().evaluate((slide) => {
+      slide.dispatchEvent(new CustomEvent('sdoc-slide-error', {
+        bubbles: true,
+        detail: { source: 'test', message: 'belongs to slide one' },
+      }));
+    });
+    await expect(page.locator('.sdoc-slide').first().locator('.sdoc-slide-errbadge')).toContainText('belongs to slide one');
+    await expect(page.locator('.sdoc-slide').nth(1).locator('.sdoc-slide-errbadge')).toHaveCount(0);
+  });
+
+  test('presentation clamps at deck boundaries', async ({ page }) => {
+    await renderDeck(page, [
+      'grid 100 56.25\nr 10 10 80 40 | One',
+      'grid 100 56.25\nr 10 10 80 40 | Two',
+    ]);
+    await page.locator('.sdoc-slide-present').first().click();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.locator('.sdoc-present-counter')).toHaveText('1 / 2');
+    await page.keyboard.press('End');
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('.sdoc-present-counter')).toHaveText('2 / 2');
+  });
+
+  test('presentation refresh rebuilds the rail and clamps a shortened deck', async ({ page }) => {
+    await renderDeck(page, [
+      'grid 100 56.25\nr 10 10 80 40 | One',
+      'grid 100 56.25\nr 10 10 80 40 | Two',
+      'grid 100 56.25\nr 10 10 80 40 | Three',
+    ]);
+    await page.locator('.sdoc-slide-present').nth(2).click();
+    await page.evaluate(() => {
+      window.SDocs.currentBody = '# Short deck\n\n```slide\ngrid 100 56.25\nr 10 10 80 40 | Only\n```';
+      window.SDocs.render();
+    });
+    await expect(page.locator('.sdoc-present-counter')).toHaveText('1 / 1');
+    await expect(page.locator('.sdoc-present-thumb')).toHaveCount(1);
+    await expect(page.locator('.sdoc-present-stage')).toContainText('Only');
+  });
+
+  test('presentation closes when refresh removes every slide', async ({ page }) => {
+    await renderDeck(page, ['grid 100 56.25\nr 10 10 80 40 | One']);
+    await page.locator('.sdoc-slide-present').evaluate((button) => button.click());
+    await page.evaluate(() => {
+      window.SDocs.currentBody = '# No deck\n\nPlain text.';
+      window.SDocs.render();
+    });
+    await expect(page.locator('.sdoc-present')).toHaveCount(0);
+  });
+
+  test('Space activates a focused presentation control instead of advancing the deck', async ({ page }) => {
+    await renderDeck(page, [
+      'grid 100 56.25\nr 10 10 80 40 | One',
+      'grid 100 56.25\nr 10 10 80 40 | Two',
+    ]);
+    await page.locator('.sdoc-slide-present').first().click();
+    await page.locator('.sdoc-present-close').focus();
+    await page.keyboard.press('Space');
+    await expect(page.locator('.sdoc-present')).toHaveCount(0);
+  });
+
+  test('closing presentation restores horizontal and vertical scroll', async ({ page }) => {
+    await renderDeck(page, ['grid 100 56.25\nr 10 10 80 40 | One']);
+    await page.evaluate(() => {
+      document.body.style.width = '220vw';
+      document.body.style.minHeight = '220vh';
+      window.scrollTo(180, 240);
+    });
+    await expect.poll(() => page.evaluate(() => [window.scrollX, window.scrollY])).toEqual([180, 240]);
+    await page.locator('.sdoc-slide-present').evaluate((button) => button.click());
+    await page.locator('.sdoc-present-close').click();
+    await expect.poll(() => page.evaluate(() => [window.scrollX, window.scrollY])).toEqual([180, 240]);
   });
 
   test('clicking the present button opens presentation mode', async ({ page }) => {

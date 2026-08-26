@@ -136,7 +136,7 @@ function buildPresentButton(slideIdx) {
   btn.type = 'button';
   btn.className = 'sdoc-slide-present';
   btn.setAttribute('aria-label', 'Open slide ' + (slideIdx + 1) + ' in presentation mode');
-  btn.title = 'Present (Enter)';
+  btn.title = 'Present';
   btn.innerHTML = PRESENT_ICON_SVG;
   btn.addEventListener('click', function (e) {
     e.stopPropagation();
@@ -273,7 +273,10 @@ function processSlides(container) {
   if (!container) return;
   if (!window.SDocShapeRender || !window.SDocShapes) return;
   var blocks = container.querySelectorAll('code.language-slide');
-  if (!blocks.length) return;
+  if (!blocks.length) {
+    if (window.SDocPresent && window.SDocPresent.refresh) window.SDocPresent.refresh();
+    return;
+  }
 
   // Resolve templates in a single batch. The resolver is pure: it takes
   // the raw DSL text of every slide block (in document order) and returns
@@ -320,10 +323,12 @@ function processSlides(container) {
     wrapper.__sdocSlideIdx = slideIdx;
     // Composed events from inside slide shape shadow roots (mermaid, chart)
     // bubble up here. The handler appends to errors and rebuilds the badge.
-    wrapper.addEventListener('sdoc-slide-error', function (ev) {
-      if (!ev || !ev.detail) return;
-      appendSlideError(wrapper, ev.detail);
-    });
+    wrapper.addEventListener('sdoc-slide-error', (function (owner) {
+      return function (ev) {
+        if (!ev || !ev.detail) return;
+        appendSlideError(owner, ev.detail);
+      };
+    })(wrapper));
 
     var hasError = false;
     try {

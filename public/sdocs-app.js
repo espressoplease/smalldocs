@@ -763,6 +763,9 @@ function render() {
   });
   var oldSpacer = S.renderedEl.querySelector('.sec-scroll-spacer');
   if (oldSpacer) oldSpacer.remove();
+  if (window.SDocShapeRender && window.SDocShapeRender.destroyWithin) {
+    window.SDocShapeRender.destroyWithin(S.renderedEl);
+  }
   S.renderedEl.innerHTML = S.renderMarkdownSafe(S.currentBody);
 
   wrapTables(S.renderedEl);

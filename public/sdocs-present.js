@@ -222,11 +222,13 @@ var state = {
   index: 0,
   slides: [],            // array of DSL strings
   modal: null,
+  rail: null,
   stage: null,
   counter: null,
   copyBtn: null,         // topbar "copy slide text" button (label tracks page)
   expPanel: null,        // slide-in export panel
   expBtn: null,          // topbar export button
+  savedScrollX: 0,
   savedScrollY: 0,
   savedActive: null,
   sizer: null,           // bound resize handler
@@ -381,6 +383,17 @@ function buildRailThumb(idx, dsl) {
   return btn;
 }
 
+function rebuildRail() {
+  if (!state.rail) return;
+  if (window.SDocShapeRender && window.SDocShapeRender.destroyWithin) {
+    window.SDocShapeRender.destroyWithin(state.rail);
+  }
+  while (state.rail.firstChild) state.rail.removeChild(state.rail.firstChild);
+  for (var i = 0; i < state.slides.length; i++) {
+    state.rail.appendChild(buildRailThumb(i, state.slides[i]));
+  }
+}
+
 // Pick a px width for the stage that preserves aspect ratio AND fits the
 // available stage-wrap area. CSS aspect-ratio can go wrong under grid when
 // both max-width and max-height constrain, so we compute here.
@@ -474,7 +487,8 @@ function renderActive() {
 function isTypingTarget(t) {
   if (!t) return false;
   var tag = t.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || t.isContentEditable;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable) return true;
+  return !!(t.closest && t.closest('button, a[href], [role="button"], [role="menuitem"], [role="option"]'));
 }
 
 function onKey(e) {
@@ -528,6 +542,7 @@ function open(startIndex) {
     go(startIndex || 0);
     return;
   }
+  state.savedScrollX = window.scrollX;
   state.savedScrollY = window.scrollY;
   state.savedActive = document.activeElement;
   state.index = clamp(startIndex || 0);
@@ -653,9 +668,8 @@ function open(startIndex) {
 
   var rail = document.createElement('aside');
   rail.className = 'sdoc-present-rail';
-  for (var i = 0; i < state.slides.length; i++) {
-    rail.appendChild(buildRailThumb(i, state.slides[i]));
-  }
+  state.rail = rail;
+  rebuildRail();
   modal.appendChild(rail);
 
   var wrap = document.createElement('div');
@@ -715,11 +729,15 @@ function close() {
     window.SDocPresentMobile.onClose();
   }
   closeExportPanel();
+  if (window.SDocShapeRender && window.SDocShapeRender.destroyWithin) {
+    window.SDocShapeRender.destroyWithin(state.modal);
+  }
   if (state.expPanel && state.expPanel.parentNode) state.expPanel.parentNode.removeChild(state.expPanel);
   state.expPanel = null;
   state.expBtn = null;
   if (state.modal && state.modal.parentNode) state.modal.parentNode.removeChild(state.modal);
   state.modal = null;
+  state.rail = null;
   state.stage = null;
   state.counter = null;
   state.copyBtn = null;
@@ -727,7 +745,7 @@ function close() {
   document.body.classList.remove('sdoc-present-open');
   if (window.SDocs && window.SDocs.syncEmbedFocus) window.SDocs.syncEmbedFocus();
   updateHashPresent(null);
-  window.scrollTo(0, state.savedScrollY);
+  window.scrollTo(state.savedScrollX, state.savedScrollY);
   if (!(window.SDocs && window.SDocs.embedMode)
       && state.savedActive && typeof state.savedActive.focus === 'function') {
     try { state.savedActive.focus(); } catch (_) {}
@@ -749,7 +767,15 @@ function go(n) {
 
 function refresh() {
   collectSlides();
-  if (state.open) renderActive();
+  if (!state.open) return;
+  if (!state.slides.length) {
+    close();
+    return;
+  }
+  state.index = clamp(state.index);
+  rebuildRail();
+  renderActive();
+  updateHashPresent(state.index);
 }
 
 function readPresentFromHash() {

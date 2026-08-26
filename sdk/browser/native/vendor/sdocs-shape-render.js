@@ -12,24 +12,34 @@
 'use strict';
 
 var SVG_NS = 'http://www.w3.org/2000/svg';
-var SDK_RUNTIME = null;
+var DEFAULT_RUNTIME = null;
+var ACTIVE_RUNTIME = null;
+var SHAPE_RENDER_NUMBER = 0;
+
+function currentRuntime() {
+  return ACTIVE_RUNTIME || DEFAULT_RUNTIME;
+}
 
 function runtimeShapes() {
-  if (!SDK_RUNTIME || !SDK_RUNTIME.shapes) throw new Error('SmallDocs slide shape runtime is unavailable');
-  return SDK_RUNTIME.shapes;
+  var runtime = currentRuntime();
+  if (!runtime || !runtime.shapes) throw new Error('SmallDocs slide shape runtime is unavailable');
+  return runtime.shapes;
 }
 
 function runtimeStyles() {
-  return SDK_RUNTIME && SDK_RUNTIME.styles ? SDK_RUNTIME.styles : null;
+  var runtime = currentRuntime();
+  return runtime && runtime.styles ? runtime.styles : null;
 }
 
 function runtimeIcons() {
-  return SDK_RUNTIME && SDK_RUNTIME.icons ? SDK_RUNTIME.icons : null;
+  var runtime = currentRuntime();
+  return runtime && runtime.icons ? runtime.icons : null;
 }
 
 function setKnownHTML(element, html) {
-  if (SDK_RUNTIME && typeof SDK_RUNTIME.setKnownHTML === 'function') {
-    SDK_RUNTIME.setKnownHTML(element, html);
+  var runtime = currentRuntime();
+  if (runtime && typeof runtime.setKnownHTML === 'function') {
+    runtime.setKnownHTML(element, html);
   } else {
     element.innerHTML = html;
   }
@@ -306,7 +316,8 @@ function contentToMarkdownNode(content, attrs) {
     host.classList.add('shape-md-fill');
   }
 
-  var markedFn = SDK_RUNTIME && SDK_RUNTIME.parseMarkdown;
+  var runtime = currentRuntime();
+  var markedFn = runtime && runtime.parseMarkdown;
 
   // Fallback: no markdown pipeline loaded (unit test runners, etc.).
   if (!markedFn || typeof host.attachShadow !== 'function') {
@@ -314,7 +325,7 @@ function contentToMarkdownNode(content, attrs) {
     return host;
   }
 
-  var html = SDK_RUNTIME.sanitizeHTML(markedFn(content));
+  var html = runtime.sanitizeHTML(markedFn(content));
 
   var overrides = scaleOverrides(attrs);
   var shadow = host.attachShadow({ mode: 'open' });
@@ -1267,7 +1278,7 @@ function renderArrow(s, defsNeeded) {
   }
   applySvgStroke(el, s.attrs);
   if (effectiveSw !== sw) el.setAttribute('stroke-width', effectiveSw);
-  el.setAttribute('marker-end', 'url(#_sd_arrowhead)');
+  el.setAttribute('marker-end', 'url(#' + defsNeeded.arrowheadId + ')');
   g.appendChild(el);
   defsNeeded.arrowhead = true;
   if (s.attrs.stroke) defsNeeded.arrowheadColor = s.attrs.stroke;
@@ -1460,10 +1471,10 @@ function renderTextOverlay(s, grid) {
   return el;
 }
 
-function buildArrowheadDefs(color) {
+function buildArrowheadDefs(id, color) {
   var defs = document.createElementNS(SVG_NS, 'defs');
   var marker = document.createElementNS(SVG_NS, 'marker');
-  marker.setAttribute('id', '_sd_arrowhead');
+  marker.setAttribute('id', id);
   marker.setAttribute('viewBox', '0 0 10 10');
   marker.setAttribute('refX', '0');
   marker.setAttribute('refY', '5');
@@ -1601,6 +1612,48 @@ function resolveStyleRefs(grid, shapes) {
 
 // ─── Main entry ──────────────────────────────────────
 
+function createShapeSession(wrap, parentSignal) {
+  if (wrap.__sdShapeSession && wrap.__sdShapeSession.destroy) wrap.__sdShapeSession.destroy();
+  var cleanups = [];
+  var destroyed = false;
+  var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  var signal = controller ? controller.signal : parentSignal;
+  var session = null;
+  var onParentAbort = function () { if (session) session.destroy(); };
+  session = {
+    signal: signal,
+    get destroyed() { return destroyed; },
+    addCleanup: function (cleanup) {
+      if (typeof cleanup !== 'function') return;
+      if (destroyed) { try { cleanup(); } catch (_) {} }
+      else cleanups.push(cleanup);
+    },
+    track: function (task) {
+      return Promise.resolve(task).then(function (cleanup) {
+        session.addCleanup(cleanup);
+        return cleanup;
+      });
+    },
+    destroy: function () {
+      if (destroyed) return;
+      destroyed = true;
+      if (controller) controller.abort();
+      if (parentSignal && parentSignal.removeEventListener) parentSignal.removeEventListener('abort', onParentAbort);
+      for (var i = cleanups.length - 1; i >= 0; i--) {
+        try { cleanups[i](); } catch (_) {}
+      }
+      cleanups = [];
+      if (wrap.__sdShapeSession === session) wrap.__sdShapeSession = null;
+    },
+  };
+  wrap.__sdShapeSession = session;
+  if (parentSignal && parentSignal.addEventListener) {
+    if (parentSignal.aborted) session.destroy();
+    else parentSignal.addEventListener('abort', onParentAbort, { once: true });
+  }
+  return session;
+}
+
 // Attach a ResizeObserver to the wrap that keeps the inner stage scaled to
 // fit. Scale is wrap.clientWidth / refW (wrap and stage share aspect ratio
 // by construction - wrap sets aspectRatio, stage is refW x refH).
@@ -1611,8 +1664,10 @@ function attachScaler(wrap, stage, rW) {
     stage.style.transform = 'scale(' + (w / rW) + ')';
   };
   update();
+  var ro = null;
+  var rafId = 0;
   if (typeof ResizeObserver !== 'undefined') {
-    var ro = new ResizeObserver(update);
+    ro = new ResizeObserver(update);
     ro.observe(wrap);
     // Hold a ref so GC doesn't reclaim while wrap is still in the DOM.
     wrap.__sdScalerRO = ro;
@@ -1621,7 +1676,12 @@ function attachScaler(wrap, stage, rW) {
   // display:none / collapsed section, its clientWidth reads 0 initially and
   // the ResizeObserver will catch the transition when the section opens,
   // but some browsers skip the very first callback for zero-size elements.
-  if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(update);
+  if (typeof requestAnimationFrame !== 'undefined') rafId = requestAnimationFrame(update);
+  return function () {
+    if (ro) ro.disconnect();
+    if (rafId && typeof cancelAnimationFrame !== 'undefined') cancelAnimationFrame(rafId);
+    if (wrap.__sdScalerRO === ro) wrap.__sdScalerRO = null;
+  };
 }
 
 // Build a freshly-parented offscreen container at reference size. Shapes
@@ -1696,6 +1756,17 @@ function cornerBackgroundLuminance(shapes, grid) {
 
 function renderShapes(dslText, wrap, options) {
   options = options || {};
+  var previousRuntime = ACTIVE_RUNTIME;
+  ACTIVE_RUNTIME = options.runtime || DEFAULT_RUNTIME;
+  try {
+    return renderShapesWithRuntime(dslText, wrap, options, ACTIVE_RUNTIME);
+  } finally {
+    ACTIVE_RUNTIME = previousRuntime;
+  }
+}
+
+function renderShapesWithRuntime(dslText, wrap, options, runtime) {
+  var session = createShapeSession(wrap, options.signal);
   var SDocShapes = runtimeShapes();
   var parsed = SDocShapes.parse(dslText);
   var resolved = SDocShapes.resolve(parsed.shapes);
@@ -1751,9 +1822,8 @@ function renderShapes(dslText, wrap, options) {
   stage.appendChild(layers.mid.el);
   stage.appendChild(layers.top.el);
 
-  // Shared defs SVG at the stage level. Holds the arrowhead marker so
-  // every per-shape SVG can resolve url(#_sd_arrowhead) - SVG IDs are
-  // document-scoped, so one copy works for arrows in any sublayer.
+  // Shared defs SVG at the stage level. Holds this render's uniquely named
+  // arrowhead marker so arrows in separate readers never share an SVG ID.
   // Always-on (zero-sized, no content unless arrows are present) keeps
   // the stage's DOM shape consistent across decks.
   var sharedDefs = document.createElementNS(SVG_NS, 'svg');
@@ -1780,7 +1850,13 @@ function renderShapes(dslText, wrap, options) {
     return s;
   }
 
-  var defsNeeded = { arrowhead: false, arrowheadColor: null };
+  var resourcePrefix = String(options.resourcePrefix || 'sdocs-sdk-shape-' + (++SHAPE_RENDER_NUMBER))
+    .replace(/[^a-zA-Z0-9_-]/g, '-');
+  var defsNeeded = {
+    arrowhead: false,
+    arrowheadColor: null,
+    arrowheadId: resourcePrefix + '-arrowhead',
+  };
 
   function pickLayer(s) {
     var v = s.attrs && s.attrs.layer;
@@ -1862,7 +1938,7 @@ function renderShapes(dslText, wrap, options) {
   }
 
   if (defsNeeded.arrowhead) {
-    sharedDefs.appendChild(buildArrowheadDefs(defsNeeded.arrowheadColor));
+    sharedDefs.appendChild(buildArrowheadDefs(defsNeeded.arrowheadId, defsNeeded.arrowheadColor));
   }
 
   // Force layout, then run autofit. Both are synchronous because the
@@ -1878,7 +1954,7 @@ function renderShapes(dslText, wrap, options) {
   wrap.appendChild(stage);
   if (off.parentNode) off.parentNode.removeChild(off);
 
-  attachScaler(wrap, stage, rW);
+  session.addCleanup(attachScaler(wrap, stage, rW));
 
   // After shapes land in the live DOM, run chart / math / mermaid
   // post-processors against each shape's shadow root. They use
@@ -1887,7 +1963,15 @@ function renderShapes(dslText, wrap, options) {
   // options.chartImages: array of PNG data URLs from a previous
   // inline render. When passed (rail-thumb context), chart code
   // blocks are replaced with <img> rather than re-rendered.
-  result.pending = Promise.all(processShadowBlocks(stage, { chartImages: options.chartImages }));
+  result.pending = Promise.all(processShadowBlocks(stage, {
+    chartImages: options.chartImages,
+    runtime: runtime,
+    signal: session.signal,
+    session: session,
+  }).map(function (task) { return session.track(task); }));
+  result.ready = result.pending.then(function () { return result; });
+  result.pending = result.ready;
+  result.destroy = session.destroy;
 
   // Schedule a chart snapshot pass so present-mode rail thumbs
   // can substitute pre-rendered PNGs instead of re-instantiating
@@ -1895,7 +1979,7 @@ function renderShapes(dslText, wrap, options) {
   // and bars get crushed). The snapshot is stored on the wrap so
   // callers can fish it out. Skip when we already used PNGs (rail
   // thumbnail path) - no need to re-snapshot pre-rendered PNGs.
-  if (!options.chartImages) snapshotChartsForReuse(stage, wrap);
+  if (!options.chartImages) session.addCleanup(snapshotChartsForReuse(stage, wrap));
 
   return result;
 }
@@ -1912,6 +1996,7 @@ function renderShapes(dslText, wrap, options) {
 function processShadowBlocks(stage, opts) {
   if (!stage || typeof stage.querySelectorAll !== 'function') return [];
   opts = opts || {};
+  var runtime = opts.runtime;
   var pending = [];
   var hosts = stage.querySelectorAll('.shape-md');
   var chartImageIndex = 0;
@@ -1944,7 +2029,7 @@ function processShadowBlocks(stage, opts) {
           wrapperEl.appendChild(img);
           pre.parentNode.replaceChild(wrapperEl, pre);
         }
-      } else if (SDK_RUNTIME && typeof SDK_RUNTIME.processCharts === 'function') {
+      } else if (runtime && typeof runtime.processCharts === 'function') {
         // Pass the host shape's declared REF-pixel dims so processCharts
         // can size the chart canvas from authoritative geometry instead of
         // measuring the live DOM (which races layout in the inline path
@@ -1953,36 +2038,37 @@ function processShadowBlocks(stage, opts) {
         var refW = parent ? parseFloat(parent.dataset.refw) : NaN;
         var refH = parent ? parseFloat(parent.dataset.refh) : NaN;
         try {
-          var chartTask = SDK_RUNTIME.processCharts(root, {
+          var chartTask = runtime.processCharts(root, {
             slideContext: true,
             shapeWidth: refW,
             shapeHeight: refH,
-          });
+          }, opts.signal);
           if (chartTask && typeof chartTask.then === 'function') pending.push(chartTask);
         } catch (_) {}
       }
     }
     if (hasMath) {
       injectKatexCss(root);
-      if (SDK_RUNTIME && typeof SDK_RUNTIME.processMath === 'function') {
+      if (runtime && typeof runtime.processMath === 'function') {
         try {
-          var mathTask = SDK_RUNTIME.processMath(root);
+          var mathTask = runtime.processMath(root, null, opts.signal);
           if (mathTask && typeof mathTask.then === 'function') pending.push(mathTask);
         } catch (_) {}
       }
     }
     if (hasMermaid) {
       injectMermaidCss(root);
-      if (SDK_RUNTIME && typeof SDK_RUNTIME.processMermaid === 'function') {
+      if (runtime && typeof runtime.processMermaid === 'function') {
         try {
-          var mermaidTask = SDK_RUNTIME.processMermaid(root);
+          var mermaidTask = runtime.processMermaid(root, null, opts.signal);
           if (mermaidTask && typeof mermaidTask.then === 'function') pending.push(mermaidTask);
         } catch (_) {}
         // Force the SVG to fill its container in both dimensions. CSS
         // `height: 100%` on SVG is unreliable across browsers (Chromium
         // computes height from intrinsic aspect when width is fixed),
         // so set the inline style explicitly once the SVG exists.
-        kickShadowMermaid(root);
+        var mermaidCleanup = kickShadowMermaid(root);
+        if (opts.session) opts.session.addCleanup(mermaidCleanup);
       }
     }
   }
@@ -2028,10 +2114,12 @@ var CHART_SHADOW_CSS = [
 // long axis instead of vertical overflow.
 function kickShadowMermaid(shadow) {
   var done = false;
+  var stopped = false;
   var ro = null, mo = null;
+  var timers = [];
 
   function reveal() {
-    if (done) return;
+    if (done || stopped) return;
     var wrapper = shadow.querySelector('.sdoc-mermaid');
     var svg = wrapper && wrapper.querySelector('svg.sdoc-mermaid-svg');
     if (!wrapper || !svg) return;           // SVG not rendered yet
@@ -2067,7 +2155,14 @@ function kickShadowMermaid(shadow) {
   reveal();
   // Fallbacks for environments without observers, and to catch the first
   // paint when the SVG was already present.
-  [80, 300, 1200, 4000].forEach(function (t) { setTimeout(reveal, t); });
+  [80, 300, 1200, 4000].forEach(function (t) { timers.push(setTimeout(reveal, t)); });
+  return function () {
+    stopped = true;
+    if (ro) ro.disconnect();
+    if (mo) mo.disconnect();
+    for (var i = 0; i < timers.length; i++) clearTimeout(timers[i]);
+    ro = null; mo = null; timers = [];
+  };
 }
 
 // Wait until every chart canvas inside `stage` has a Chart.js instance
@@ -2088,10 +2183,14 @@ function snapshotChartsForReuse(stage, wrap) {
     var cs = root.querySelectorAll('canvas');
     for (var j = 0; j < cs.length; j++) canvases.push(cs[j]);
   }
-  if (!canvases.length) return;
+  if (!canvases.length) return null;
 
   var attempts = 0;
+  var stopped = false;
+  var timer = 0;
+  function schedule() { timer = setTimeout(tick, 100); }
   function tick() {
+    if (stopped) return;
     attempts++;
     var allReady = canvases.every(function (c) {
       return c.width > 0 && c.height > 0;
@@ -2102,9 +2201,14 @@ function snapshotChartsForReuse(stage, wrap) {
       });
       return;
     }
-    if (attempts < 40) setTimeout(tick, 100);
+    if (attempts < 40) schedule();
   }
-  setTimeout(tick, 100);
+  schedule();
+  return function () {
+    stopped = true;
+    if (timer) clearTimeout(timer);
+    timer = 0;
+  };
 }
 
 function injectChartCss(shadow) {
@@ -2235,8 +2339,22 @@ function injectMermaidCss(shadow) {
   }
 }
 
+function destroyWithin(root) {
+  if (!root) return;
+  var wraps = [];
+  if (root.__sdShapeSession) wraps.push(root);
+  if (root.querySelectorAll) {
+    var found = root.querySelectorAll('.sd-slide-wrap');
+    for (var i = 0; i < found.length; i++) wraps.push(found[i]);
+  }
+  for (var j = 0; j < wraps.length; j++) {
+    var session = wraps[j].__sdShapeSession;
+    if (session && session.destroy) session.destroy();
+  }
+}
+
 window.SDocShapeRender = {
-  setRuntime: function (runtime) { SDK_RUNTIME = runtime || null; },
+  setRuntime: function (runtime) { DEFAULT_RUNTIME = runtime || null; },
   renderShapes: renderShapes,
   // Path-builder helpers exposed so the slide-PDF exporter can emit the
   // exact same geometry through pdf-lib's drawSvgPath. Returning bare `d`
@@ -2255,6 +2373,7 @@ window.SDocShapeRender = {
   // "copy slide" action without re-parsing the DSL.
   collectSlideText: collectSlideText,
   readShapeText: readShapeText,
+  destroyWithin: destroyWithin,
 };
 
 })();

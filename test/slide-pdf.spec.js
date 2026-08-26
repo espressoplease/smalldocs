@@ -9,7 +9,7 @@
 // KaTeX bundles load from jsdelivr. Timeouts are generous to absorb that.
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = 'http://localhost:3000/docs';
 
 // Load a deck, trigger an export, capture the PDF bytes, and analyse each
 // page with pdf.js: dimensions, selectable text, and image-paint op count.
