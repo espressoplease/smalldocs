@@ -249,6 +249,16 @@ export function calculateForecast(revenue, margin) {
   expect(sdkActions).toEqual(['wrap', 'foldall', 'copy', 'download', 'theme', 'close']);
   await expect(page.locator('.sdoc-cl-num').first()).toHaveText('1');
   await expect(page.locator('.sdoc-cl-fold')).not.toHaveCount(0);
+  await expect(page.locator('.sdoc-code-focus .hljs-keyword').first()).toBeVisible();
+  const sdkFocusColours = await page.locator('.sdoc-code-focus').evaluate(focus => {
+    const code = focus.querySelector('.sdoc-cl-code');
+    const keyword = focus.querySelector('.hljs-keyword');
+    return {
+      code: getComputedStyle(code).color,
+      keyword: getComputedStyle(keyword).color,
+    };
+  });
+  expect(sdkFocusColours.keyword).not.toBe(sdkFocusColours.code);
   await page.keyboard.press('Escape');
 
   await page.goto(sdocsOrigin + '/docs');

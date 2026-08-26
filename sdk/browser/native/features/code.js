@@ -30,7 +30,10 @@ export async function mount(context) {
       return language || 'code';
     },
     processHighlight(root) {
-      return mountHighlight({ ...context, root });
+      // The canonical fullscreen viewer highlights in a detached holder before
+      // it rebuilds the numbered rows. The normal document pass still requires
+      // connected nodes so superseded renders cannot mutate discarded content.
+      return mountHighlight({ ...context, root, allowDetached: true });
     },
   };
 

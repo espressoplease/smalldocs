@@ -23,6 +23,7 @@ async function ensureLanguage(hljs, language) {
 }
 
 export async function mount(context) {
+  const allowDetached = context.allowDetached === true;
   const nodes = Array.from(context.root.querySelectorAll('pre code[class*="language-"]'))
     .filter((code) => {
       const language = languageOf(code);
@@ -37,7 +38,7 @@ export async function mount(context) {
     if (context.signal.aborted) return;
     await Promise.all(nodes.map(async (entry) => {
       const available = await ensureLanguage(hljs, entry.language);
-      if (!available || context.signal.aborted || !entry.code.isConnected) return;
+      if (!available || context.signal.aborted || (!allowDetached && !entry.code.isConnected)) return;
       try {
         const result = hljs.highlight(entry.source, {
           language: entry.language,
