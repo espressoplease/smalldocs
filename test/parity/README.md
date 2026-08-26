@@ -42,6 +42,12 @@ Add `test/parity/suites/<feature>.js`. A suite supplies:
 
 Actions are cumulative. A suite can capture an inline component, open its full-screen surface, move through interaction states, and open secondary panels without writing a separate Playwright test for every screenshot.
 
+When an extraction begins with different control labels or markup, use
+`beforeBySurface: { production: [...], sdk: [...] }` for the actions needed to
+reach the same state. Keep the resulting contracts canonical and shared. The
+surface-specific actions are temporary scaffolding, while a failed SDK contract
+remains visible in the extraction ledger.
+
 Keep contracts about observable behavior: control labels and order, active state, navigation, downloads, focus surfaces, and cleanup. The runner separately captures semantic DOM, selected computed styles, interaction state, console and network failures, and screenshots.
 
 Each state starts with the pointer at the top-left of the page and focus cleared. Set `resetInteraction: false` only when a state intentionally continues the previous pointer or focus state. Component state remains cumulative.
@@ -53,6 +59,7 @@ A state's `before` list supports:
 ```js
 { action: 'click', role: 'button', name: 'Export' }
 { action: 'doubleClick', within: 'sheet', selector: '[role="gridcell"]' }
+{ action: 'drag', within: 'sheet', selector: '[data-r="1"][data-c="0"]', to: { selector: '[data-r="3"][data-c="2"]' } }
 { action: 'hover', within: 'inline', selector: '.shape-rect' }
 { action: 'focus', selector: '.control' }
 { action: 'focus', via: 'keyboard', role: 'button', name: 'Open' }
@@ -61,6 +68,10 @@ A state's `before` list supports:
 { action: 'type', selector: '[contenteditable]', text: 'Forecast' }
 { action: 'blur' }
 ```
+
+`click` and `doubleClick` accept a Playwright `modifiers` array, for example
+`modifiers: ['Shift']`. A drag resolves both endpoints inside the same named
+scope unless the destination supplies its own `within` value.
 
 `focus` uses direct DOM focus unless `via: 'keyboard'` is present. Keyboard focus walks the actual tab order and fails if the target cannot be reached. This distinguishes a focusable control from one that only looks focusable.
 
@@ -77,6 +88,17 @@ scopes: {
 ```
 
 The first matching scope is used. This keeps a suite independent from unrelated application controls.
+
+Suites with more than two surfaces can declare selectors per state mode:
+
+```js
+modes: {
+  inline: { root: '.sdoc-cells-pane', probes: { grid: '.sdoc-cells-grid' } },
+  fullscreen: { root: '.sdoc-cells-focus', probes: { grid: '.sdoc-cells-grid' } },
+}
+```
+
+The older slide-specific `inlineRoot` and `presentationRoot` form remains supported.
 
 ### Interaction contracts
 

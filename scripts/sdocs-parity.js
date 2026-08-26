@@ -231,6 +231,13 @@ async function initialiseSurface(browser, surface, kind, suite, markdown) {
 }
 
 function captureSelectors(config, state) {
+  if (config.modes && config.modes[state.mode]) {
+    const mode = config.modes[state.mode];
+    return {
+      root: mode.root,
+      probes: Object.assign({ root: mode.root }, mode.probes || {}, state.probes || {}),
+    };
+  }
   const root = state.mode === 'inline' ? config.inlineRoot : config.presentationRoot;
   return {
     root,
@@ -400,7 +407,10 @@ async function captureSurface(browser, surface, kind, suite, markdown, outputDir
   try {
     for (const state of suite.states) {
       if (state.resetInteraction !== false) await resetInteractionState(session.page);
-      for (const step of state.before || []) {
+      const steps = state.beforeBySurface && state.beforeBySurface[kind]
+        ? state.beforeBySurface[kind]
+        : state.before || [];
+      for (const step of steps) {
         try {
           await replayStep(session.page, step, config);
         } catch (error) {

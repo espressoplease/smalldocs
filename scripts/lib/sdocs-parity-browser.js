@@ -62,11 +62,20 @@ async function replayStep(page, step, config) {
   if (await locator.count() < 1) throw new Error('Control not found: ' + targetName(step));
   const target = locator.first();
   if (step.action === 'click') {
-    await target.click();
+    await target.click({ modifiers: step.modifiers || [] });
     if (step.keepPointer !== true) await page.mouse.move(1, 1);
   }
   else if (step.action === 'doubleClick') {
-    await target.dblclick();
+    await target.dblclick({ modifiers: step.modifiers || [] });
+    if (step.keepPointer !== true) await page.mouse.move(1, 1);
+  }
+  else if (step.action === 'drag') {
+    if (!step.to) throw new Error('Drag interaction needs a destination');
+    const destination = locatorFor(page, config, Object.assign({}, step.to, {
+      within: step.to.within || step.within,
+    }));
+    if (await destination.count() < 1) throw new Error('Drag destination not found: ' + targetName(step.to));
+    await target.dragTo(destination.first());
     if (step.keepPointer !== true) await page.mouse.move(1, 1);
   }
   else if (step.action === 'hover') await target.hover();

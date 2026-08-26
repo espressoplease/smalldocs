@@ -62,7 +62,7 @@ module.exports = function ({ assert, test, testAsync }) {
   testAsync('parity click returns the pointer to its neutral position', async () => {
     const calls = [];
     const target = {
-      click: async () => calls.push('click'),
+      click: async (options) => calls.push('click:' + JSON.stringify(options)),
     };
     const locator = {
       count: async () => 1,
@@ -73,7 +73,27 @@ module.exports = function ({ assert, test, testAsync }) {
       mouse: { move: async (x, y) => calls.push('move:' + x + ',' + y) },
     };
     await parityBrowser.replayStep(page, { action: 'click', selector: '.target' }, {});
-    assert.deepEqual(calls, ['click', 'move:1,1']);
+    assert.deepEqual(calls, ['click:{"modifiers":[]}', 'move:1,1']);
+  });
+
+  testAsync('parity drag resolves both endpoints in the declared scope', async () => {
+    const calls = [];
+    const source = { dragTo: async (target) => calls.push('drag:' + target.name) };
+    const destination = { name: 'destination' };
+    const scope = {
+      locator: (selector) => ({
+        count: async () => 1,
+        first: () => selector === '.source' ? source : destination,
+      }),
+    };
+    const page = {
+      locator: () => ({ first: () => scope }),
+      mouse: { move: async (x, y) => calls.push('move:' + x + ',' + y) },
+    };
+    await parityBrowser.replayStep(page, {
+      action: 'drag', within: 'sheet', selector: '.source', to: { selector: '.destination' },
+    }, { scopes: { sheet: '.sheet' } });
+    assert.deepEqual(calls, ['drag:destination', 'move:1,1']);
   });
 
   testAsync('parity keyboard focus walks the real tab order', async () => {
