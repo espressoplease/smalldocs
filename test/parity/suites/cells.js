@@ -131,6 +131,21 @@ module.exports = {
       ],
     },
     {
+      name: 'workbook-download',
+      label: 'Workbook Excel download',
+      mode: 'inline',
+      beforeBySurface: {
+        production: [{ action: 'download', within: 'inline', role: 'button', name: 'Download workbook (.xlsx)' }],
+        sdk: [{ action: 'download', role: 'button', name: 'Download spreadsheet XLSX' }],
+      },
+      contracts: [
+        {
+          selector: 'body', attribute: 'data-parity-download', value: 'capacity.xlsx',
+          message: 'The workbook download uses the canonical filename',
+        },
+      ],
+    },
+    {
       name: 'fullscreen-summary',
       label: 'Canonical fullscreen workbook',
       mode: 'fullscreen',

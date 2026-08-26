@@ -60,6 +60,7 @@ A state's `before` list supports:
 { action: 'click', role: 'button', name: 'Export' }
 { action: 'doubleClick', within: 'sheet', selector: '[role="gridcell"]' }
 { action: 'drag', within: 'sheet', selector: '[data-r="1"][data-c="0"]', to: { selector: '[data-r="3"][data-c="2"]' } }
+{ action: 'download', role: 'button', name: 'Download workbook (.xlsx)' }
 { action: 'hover', within: 'inline', selector: '.shape-rect' }
 { action: 'focus', selector: '.control' }
 { action: 'focus', via: 'keyboard', role: 'button', name: 'Open' }
@@ -72,6 +73,9 @@ A state's `before` list supports:
 `click` and `doubleClick` accept a Playwright `modifiers` array, for example
 `modifiers: ['Shift']`. A drag resolves both endpoints inside the same named
 scope unless the destination supplies its own `within` value.
+`download` waits for a real browser download and records its suggested filename
+on `body[data-parity-download]` for a contract. It fails if clicking the control
+does not start a download within ten seconds.
 
 `focus` uses direct DOM focus unless `via: 'keyboard'` is present. Keyboard focus walks the actual tab order and fails if the target cannot be reached. This distinguishes a focusable control from one that only looks focusable.
 
@@ -112,6 +116,17 @@ Contracts can assert `visible`, `focused`, `focusVisible`, and `hovered` in addi
   focused: true,
   focusVisible: true,
   message: 'The copy control is keyboard accessible',
+}
+```
+
+An attribute contract checks observable state that is not text:
+
+```js
+{
+  selector: 'body',
+  attribute: 'data-parity-download',
+  value: 'capacity.xlsx',
+  message: 'The workbook download uses the canonical filename',
 }
 ```
 

@@ -24,6 +24,7 @@ function targetName(step) {
 async function resetInteractionState(page) {
   await page.mouse.move(1, 1);
   await page.evaluate(() => {
+    delete document.body.dataset.parityDownload;
     const active = document.activeElement;
     if (active && active !== document.body && typeof active.blur === 'function') active.blur();
   });
@@ -76,6 +77,15 @@ async function replayStep(page, step, config) {
     }));
     if (await destination.count() < 1) throw new Error('Drag destination not found: ' + targetName(step.to));
     await target.dragTo(destination.first());
+    if (step.keepPointer !== true) await page.mouse.move(1, 1);
+  }
+  else if (step.action === 'download') {
+    const downloadPromise = page.waitForEvent('download', { timeout: step.timeout || 10000 });
+    await target.click({ modifiers: step.modifiers || [] });
+    const download = await downloadPromise;
+    await page.evaluate((filename) => {
+      document.body.dataset.parityDownload = filename;
+    }, download.suggestedFilename());
     if (step.keepPointer !== true) await page.mouse.move(1, 1);
   }
   else if (step.action === 'hover') await target.hover();

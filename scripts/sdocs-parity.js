@@ -269,7 +269,7 @@ async function contractFailures(page, contracts, config) {
       failures.push(contract.message + ' (expected at most ' + contract.maxCount + ', found ' + count + ')');
       continue;
     }
-    if (!count && [contract.text, contract.visible, contract.focused, contract.focusVisible, contract.hovered]
+    if (!count && [contract.text, contract.attribute, contract.visible, contract.focused, contract.focusVisible, contract.hovered]
       .some((value) => value != null)) {
       failures.push(contract.message + ' (target not found)');
       continue;
@@ -277,6 +277,10 @@ async function contractFailures(page, contracts, config) {
     if (contract.text != null) {
       const text = count ? String(await locator.first().textContent()).replace(/\s+/g, ' ').trim() : '';
       if (text !== contract.text) failures.push(contract.message + ' (expected "' + contract.text + '", found "' + text + '")');
+    }
+    if (contract.attribute != null && count) {
+      const value = await locator.first().getAttribute(contract.attribute);
+      if (value !== contract.value) failures.push(contract.message + ' (expected ' + contract.attribute + '="' + contract.value + '", found "' + value + '")');
     }
     if (contract.visible != null && count) {
       const visible = await locator.first().isVisible();

@@ -96,6 +96,25 @@ module.exports = function ({ assert, test, testAsync }) {
     assert.deepEqual(calls, ['drag:destination', 'move:1,1']);
   });
 
+  testAsync('parity download records the browser suggested filename', async () => {
+    const calls = [];
+    const target = { click: async () => calls.push('click') };
+    const locator = { count: async () => 1, first: () => target };
+    const page = {
+      locator: () => locator,
+      waitForEvent: async (event) => {
+        calls.push('wait:' + event);
+        return { suggestedFilename: () => 'capacity.xlsx' };
+      },
+      evaluate: async (_fn, value) => calls.push('record:' + value),
+      mouse: { move: async (x, y) => calls.push('move:' + x + ',' + y) },
+    };
+    await parityBrowser.replayStep(page, {
+      action: 'download', selector: '.download',
+    }, {});
+    assert.deepEqual(calls, ['wait:download', 'click', 'record:capacity.xlsx', 'move:1,1']);
+  });
+
   testAsync('parity keyboard focus walks the real tab order', async () => {
     let tabs = 0;
     const target = {
