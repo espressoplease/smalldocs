@@ -66,8 +66,9 @@ function markdownRenderer() {
     const fenceInfo = String(info || '').trim();
     const language = (fenceInfo.split(/\s+/)[0] || '').toLowerCase();
     const className = language ? ' class="language-' + escapeAttribute(language) + '"' : '';
+    const code = String(source || '').endsWith('\n') ? String(source || '') : String(source || '') + '\n';
     return '<pre data-sdocs-fence="' + escapeAttribute(fenceInfo) + '"><code'
-      + className + '>' + escapeAttribute(source) + '</code></pre>\n';
+      + className + '>' + escapeAttribute(code) + '</code></pre>\n';
   };
   return renderer;
 }

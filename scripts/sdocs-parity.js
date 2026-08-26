@@ -198,7 +198,10 @@ async function settle(page) {
 }
 
 async function initialiseSurface(browser, surface, kind, suite, markdown) {
-  const page = await browser.newPage({ viewport: suite.viewport, deviceScaleFactor: 1 });
+  const page = await browser.newPage(Object.assign({
+    viewport: suite.viewport,
+    deviceScaleFactor: 1,
+  }, suite.pageOptions || {}));
   const diagnostics = pageDiagnostics(page);
   await page.addInitScript(() => {
     window.__sdocsParityCopiedText = '';
@@ -230,7 +233,14 @@ async function initialiseSurface(browser, surface, kind, suite, markdown) {
           diagnostics.map((entry) => entry.type + ': ' + entry.message).join('\n'));
       }
     }
-    await page.evaluate(({ source }) => {
+    await page.evaluate(({ source, codeComments }) => {
+      if (codeComments === false && window.SDocCodeFocus && window.SDocCodeFocus.create) {
+        if (window.SDocs.codeFocus && window.SDocs.codeFocus.destroy) window.SDocs.codeFocus.destroy();
+        window.SDocs.codeFocus = window.SDocCodeFocus.create(window.SDocs, {
+          root: function () { return window.SDocs.renderedEl; },
+          comments: false,
+        });
+      }
       if (typeof window.SDocs.setMode === 'function') window.SDocs.setMode('read', true);
       window.SDocs.loadText(source, 'parity-fixture.md');
       window.SDocSlideComments = null;
@@ -240,7 +250,10 @@ async function initialiseSurface(browser, surface, kind, suite, markdown) {
       style.dataset.parityHarness = 'true';
       style.textContent = '#_sd_rendered{width:min(960px,100%)!important;max-width:960px!important}';
       document.head.appendChild(style);
-    }, { source: markdown });
+    }, {
+      source: markdown,
+      codeComments: suite.productionCapabilities && suite.productionCapabilities.codeComments,
+    });
   } else {
     await page.evaluate(() => window.__parityReady);
   }

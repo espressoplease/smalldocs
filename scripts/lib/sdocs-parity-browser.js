@@ -83,6 +83,49 @@ async function replayStep(page, step, config) {
     await target.dragTo(destination.first());
     if (step.keepPointer !== true) await page.mouse.move(1, 1);
   }
+  else if (step.action === 'swipe') {
+    const box = await target.boundingBox();
+    if (!box) throw new Error('Swipe target is not visible: ' + targetName(step));
+    const from = step.from || { x: 0.8, y: 0.5 };
+    const to = step.to || { x: 0.2, y: 0.5 };
+    await target.evaluate((node, points) => {
+      function touch(x, y) {
+        return new Touch({
+          identifier: 1,
+          target: node,
+          clientX: x,
+          clientY: y,
+          pageX: x + window.scrollX,
+          pageY: y + window.scrollY,
+          radiusX: 1,
+          radiusY: 1,
+          force: 1,
+        });
+      }
+      function dispatch(type, touches, changedTouches) {
+        node.dispatchEvent(new TouchEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          touches,
+          targetTouches: touches,
+          changedTouches,
+        }));
+      }
+      const start = touch(points.startX, points.startY);
+      const middle = touch((points.startX + points.endX) / 2, (points.startY + points.endY) / 2);
+      const end = touch(points.endX, points.endY);
+      dispatch('touchstart', [start], [start]);
+      dispatch('touchmove', [middle], [middle]);
+      dispatch('touchmove', [end], [end]);
+      dispatch('touchend', [], [end]);
+    }, {
+      startX: box.x + box.width * from.x,
+      startY: box.y + box.height * from.y,
+      endX: box.x + box.width * to.x,
+      endY: box.y + box.height * to.y,
+    });
+    await page.waitForTimeout(step.settle || 300);
+  }
   else if (step.action === 'download') {
     const downloadPromise = page.waitForEvent('download', { timeout: step.timeout || 10000 });
     await target.click({ modifiers: step.modifiers || [] });

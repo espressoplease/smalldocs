@@ -332,6 +332,7 @@ module.exports = function(harness) {
         targetName + ' canonical transform source has drifted');
       assert.strictEqual(hash(target), manifest[targetName].sha256,
         targetName + ' transformed SDK snapshot has drifted');
+      if (manifest[targetName].transform === 'manual-sdk-adapter') return;
       assert.ok(target.toString('utf8').startsWith('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'),
         targetName + ' must remain layered and scoped to the exact SDK version');
       if (targetName === 'sdocs-cells.css') {

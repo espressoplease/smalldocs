@@ -42,6 +42,23 @@ const files = [
   ['public/fonts/inter-500.woff2', 'fonts/inter-500.woff2'],
   ['public/fonts/inter-600.woff2', 'fonts/inter-600.woff2'],
   ['public/css/slide-reader.css', 'sdocs-slide-reader.css'],
+  ['cli/shared/sdocs-slide-stdlib.js', 'sdocs-slide-stdlib.js'],
+];
+
+// These SDK files deliberately adapt production globals and document-wide
+// state into instance-owned services. They cannot be copied byte-for-byte,
+// but both their production source and adapted output belong in the drift
+// manifest so a change on either side requires an explicit review.
+const adaptedFiles = [
+  ['public/sdocs-shapes.js', 'sdocs-shapes.js'],
+  ['public/sdocs-slide-resolve.js', 'sdocs-slide-resolve.js'],
+  ['public/sdocs-shape-render.js', 'sdocs-shape-render.js'],
+  ['public/sdocs-slide-pdf.js', 'sdocs-slide-pdf.js'],
+  ['public/sdocs-slide-pptx.js', 'sdocs-slide-pptx.js'],
+  ['public/sdocs-icons-data.js', 'sdocs-icons-data.js'],
+  ['cli/shared/sdocs-yaml.js', 'sdocs-yaml.js'],
+  ['cli/shared/sdocs-styles.js', 'sdocs-styles.js'],
+  ['cli/shared/sdocs-slugify.js', 'sdocs-slugify.js'],
 ];
 
 fs.readdirSync(path.join(repo, 'public', 'sdocs-code-lang'))
@@ -115,6 +132,20 @@ files.forEach(([sourceName, targetName, transform]) => {
   if (check) return;
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, contents);
+});
+
+adaptedFiles.forEach(([sourceName, targetName]) => {
+  const source = path.join(repo, sourceName);
+  const target = path.join(output, targetName);
+  if (!fs.existsSync(target)) {
+    throw new Error('Missing SDK adapter snapshot: ' + targetName);
+  }
+  manifest[targetName] = {
+    source: sourceName,
+    sha256: digest(fs.readFileSync(target)),
+    sourceSha256: digest(fs.readFileSync(source)),
+    transform: 'manual-sdk-adapter',
+  };
 });
 
 const manifestPath = path.join(output, 'reader-manifest.json');

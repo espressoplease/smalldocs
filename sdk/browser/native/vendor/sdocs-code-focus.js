@@ -85,6 +85,7 @@
   var CSS = [
     '.sdoc-code-focus {',
     '  position: fixed; inset: 0; z-index: 10100;',
+    '  box-sizing: border-box; font-size: 13px;',
     '  background: var(--sdoc-focus-bg, #f4f1ed);',
     '  color: var(--sdoc-focus-fg, #1c1917);',
     // The comment accent: the colour new notes (and their affordances) take.
@@ -106,6 +107,7 @@
     '  font-family: ui-sans-serif, system-ui, sans-serif;',
     '  animation: sdoc-code-fade .15s ease-out;',
     '}',
+    '.sdoc-code-focus *, .sdoc-code-focus *::before, .sdoc-code-focus *::after { box-sizing: inherit; }',
     '@keyframes sdoc-code-fade { from { opacity: 0 } to { opacity: 1 } }',
     // Three-column grid, the same shape the markdown reader toolbar uses: equal
     // flexible side columns keep the middle cluster centred with no JS. Brand
@@ -1384,9 +1386,11 @@
       // part is plain or syntax-highlighted HTML.)
       var iw = srcLines ? indentWidth(srcLines[i]) : -1;
       var indStyle = iw > 0 ? ' style="--cl-ind:' + iw + 'ch"' : '';
+      var addComment = config.comments === false ? ''
+        : '<button class="sdoc-cc-add" type="button" tabindex="-1" data-ln="' + i + '" aria-label="Add a comment" title="Add a comment">' + COMMENT_ICON + '</button>';
       html += '<div class="sdoc-cl-row" data-ln="' + i + '">'
         + '<span class="sdoc-cl-gutter">'
-        + '<button class="sdoc-cc-add" type="button" tabindex="-1" data-ln="' + i + '" aria-label="Add a comment" title="Add a comment">' + COMMENT_ICON + '</button>'
+        + addComment
         + fold
         + '<span class="sdoc-cl-num">' + (i + 1) + '</span></span>'
         + '<span class="sdoc-cl-code"' + indStyle + '>' + lineParts[i] + copy + '</span></div>';
