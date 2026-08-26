@@ -91,7 +91,7 @@
     --md-bq-bg: var(--sdocs-code-background, #f4f1ed);
     --md-table-border: var(--sdocs-border-color, #e2ddd6);
     --md-table-header-bg: var(--sdocs-code-background, #f4f1ed);
-    --md-table-even-bg: #fafaf8;
+    --md-table-even-bg: color-mix(in srgb, var(--sdocs-background, #ffffff) 94%, var(--sdocs-text-color, #1c1917) 6%);
     --md-table-odd-bg: var(--sdocs-background, #ffffff);
     --md-table-text: var(--sdocs-text-color, #1c1917);
     --md-copy-btn-border: rgba(0, 0, 0, .12);

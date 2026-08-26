@@ -270,15 +270,26 @@ test('SDK gallery shows all features and recreates views for configuration chang
   await expect(documentView.getByRole('heading', { name: 'Shift risk summary' })).toBeVisible();
   await expect(documentView.locator('.smalldocs-navigation')).toBeHidden();
   await expect(documentView.locator('.section-toggle')).toHaveCount(0);
-  await expect(documentView.getByRole('button', { name: /Copy/ })).toHaveCount(0);
+  await expect(documentView.getByRole('button', { name: 'Copy table as CSV' })).toBeVisible();
+  await expect(documentView.getByRole('button', { name: 'Copy table as PNG' })).toBeVisible();
   await expect(documentView.getByRole('button', { name: 'Open diagram in fullscreen' })).toBeVisible();
   await expect(page.locator('#showcase-config')).toContainText('"download": false');
+  const compactTableColors = await documentView.locator('tbody td').evaluateAll(elements => ({
+    backgrounds: Array.from(new Set(elements.map(element => getComputedStyle(element).backgroundColor))),
+    text: Array.from(new Set(elements.map(element => getComputedStyle(element).color))),
+    documentText: getComputedStyle(elements[0].closest('.smalldocs-document')).color,
+  }));
+  expect(compactTableColors.backgrounds).not.toContain('rgb(250, 250, 248)');
+  expect(compactTableColors.backgrounds).not.toContain('rgb(255, 255, 255)');
+  expect(compactTableColors.text).toEqual([compactTableColors.documentText]);
 
   await page.getByRole('button', { name: /Long reference/ }).click();
   await expect(documentView.getByRole('heading', { name: 'Launch operations reference' })).toBeVisible();
   await expect(documentView.locator('.smalldocs-navigation')).toBeVisible();
   await expect(documentView.locator('.md-section-body:not(.open)')).not.toHaveCount(0);
   await expect(documentView.locator('code.language-future-control')).toContainText('threshold: pending');
+  await documentView.getByRole('heading', { name: 'Technical appendix' }).click();
+  await expect(documentView.locator('code.language-typescript').locator('xpath=ancestor::div[contains(@class,"pre-wrapper")]').getByRole('button', { name: 'Toggle text wrap' })).toBeVisible();
   expect(await page.evaluate(() => document.body.scrollWidth <= document.body.clientWidth)).toBe(true);
 });
 

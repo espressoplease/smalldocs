@@ -28,6 +28,10 @@
   function create(options) {
     options = options || {};
     var destroyed = false;
+    var ResizeObserverCtor = options.ResizeObserver || window.ResizeObserver;
+    var resizeObserver = typeof ResizeObserverCtor === 'function'
+      ? new ResizeObserverCtor(refresh)
+      : null;
 
     function root() {
       return typeof options.root === 'function' ? options.root() : options.root;
@@ -71,6 +75,7 @@
 
     function attach(container) {
       if (destroyed || !container) return;
+      if (resizeObserver) resizeObserver.disconnect();
       var agentShown = false;
       var agentTotal = options.agentAnnotationCount ? options.agentAnnotationCount() : 0;
       var isWalk = options.isWalkthrough ? !!options.isWalkthrough() : false;
@@ -99,6 +104,7 @@
           refreshWrapButton(pre, wrapButton);
         });
         tools.appendChild(wrapButton);
+        if (resizeObserver) resizeObserver.observe(pre);
 
         if (controls('copy')) {
           var copyButton = document.createElement('button');
@@ -176,6 +182,7 @@
       if (destroyed) return;
       destroyed = true;
       window.removeEventListener('resize', refresh);
+      if (resizeObserver) resizeObserver.disconnect();
     }
 
     window.addEventListener('resize', refresh);

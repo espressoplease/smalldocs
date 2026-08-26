@@ -27,4 +27,4 @@ const ready = feed.ageMinutes < 15
 | Unassigned jobs | 0 |
 | Manual fallback | Ready |
 
-No document navigation, fold controls, copy actions, or downloads are added in this configuration. Mermaid and code can still open in their focused views.
+No document navigation, fold controls, or downloads are added in this configuration. Copy actions and focused Mermaid and code views remain available.

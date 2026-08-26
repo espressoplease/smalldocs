@@ -34,7 +34,7 @@ const examples = Object.freeze({
     options: {
       navigation: false,
       sections: { collapsible: false },
-      controls: { copy: false, fullscreen: true, download: false },
+      controls: { copy: true, fullscreen: true, download: false },
     },
   },
   reference: {
