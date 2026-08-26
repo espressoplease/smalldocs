@@ -1,3 +1,7 @@
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('./vendor/fonts/inter-400.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('./vendor/fonts/inter-500.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('./vendor/fonts/inter-600.woff2') format('woff2'); }
+
 @layer smalldocs {
   .smalldocs-sdk-view,
   .smalldocs-sdk-view *,
@@ -61,13 +65,27 @@
   }
 
   .smalldocs-document {
+    --md-bg: var(--sdocs-background, #ffffff);
+    --md-color: var(--sdocs-text-color, #1c1917);
+    --md-font-family: var(--sdocs-font-family, Inter, system-ui, sans-serif);
+    --md-h-font-family: var(--sdocs-heading-font-family, var(--sdocs-font-family, Inter, system-ui, sans-serif));
+    --md-h-color: var(--sdocs-text-color, #1c1917);
+    --md-h1-color: var(--sdocs-text-color, #1c1917);
+    --md-h2-color: var(--sdocs-text-color, #1c1917);
+    --md-h3-color: var(--sdocs-text-color, #1c1917);
+    --md-h4-color: var(--sdocs-text-color, #1c1917);
+    --md-p-color: var(--sdocs-text-color, #1c1917);
+    --md-list-color: var(--sdocs-text-color, #1c1917);
+    --md-link-color: var(--sdocs-accent, #2563eb);
+    --md-code-bg: var(--sdocs-code-background, #f4f1ed);
+    --md-pre-bg: var(--sdocs-code-background, #f4f1ed);
     width: min(100%, var(--sdocs-max-width, 760px));
     min-width: 0;
     margin: 0 auto;
     padding: var(--sdocs-padding, 40px 48px 60px);
     color: var(--md-color, var(--sdocs-text-color, #1c1917));
     background: var(--md-bg, var(--sdocs-background, #ffffff));
-    font-family: var(--md-font-family, var(--sdocs-font-family, Inter, ui-sans-serif, system-ui, sans-serif));
+    font-family: var(--md-font-family, var(--sdocs-font-family, Inter, system-ui, sans-serif));
     font-size: var(--md-base-size, 16px);
     line-height: var(--md-line-height, 1.75);
     overflow-wrap: anywhere;

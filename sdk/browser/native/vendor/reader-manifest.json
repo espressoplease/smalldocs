@@ -15,6 +15,30 @@
     "source": "public/sdocs-slide-reader.js",
     "sha256": "25e71948de5a5824c04efc0146fe3d52981d4179dcaf7e41718e686a7a8f0e28"
   },
+  "sdocs-present.js": {
+    "source": "public/sdocs-present.js",
+    "sha256": "2e3f3fbfc66787da1d1eaf5a5d46eadc632de6bff61660a800053f87e99aa66d"
+  },
+  "sdocs-present-mobile.js": {
+    "source": "public/sdocs-present-mobile.js",
+    "sha256": "ffd0d72ae4fde5f905b04df4badaaf0c90a6884f97c52f61feadb07d75d1bfb2"
+  },
+  "sdocs-zoom-math.js": {
+    "source": "public/sdocs-zoom-math.js",
+    "sha256": "1999018bde61702451332b24d91fdd465921fcaf639b0848eaff6dbc6eb3c40d"
+  },
+  "fonts/inter-400.woff2": {
+    "source": "public/fonts/inter-400.woff2",
+    "sha256": "dd05e326cf8eac3b55acecf29c842ed73e6e6dd06491cf47f7e8800680ab3e33"
+  },
+  "fonts/inter-500.woff2": {
+    "source": "public/fonts/inter-500.woff2",
+    "sha256": "b0e7558f4710a1e255b93e3deefe3aebb19f3bb41c150f685a74d3b1a1c79e87"
+  },
+  "fonts/inter-600.woff2": {
+    "source": "public/fonts/inter-600.woff2",
+    "sha256": "62553d159189834af73c9a6264704be5b2bee9a08da66a14768d8e5c6ffd2cdb"
+  },
   "sdocs-slide-reader.css": {
     "source": "public/css/slide-reader.css",
     "sha256": "64c09e097a28c0b4381371ad0459c3e5cfc07756e97bef063dfafefcfa164bce"

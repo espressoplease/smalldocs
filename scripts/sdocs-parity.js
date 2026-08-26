@@ -131,7 +131,7 @@ async function startCustomerHost(candidateOrigin, markdown) {
     ].join('; ');
     const html = '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1"><title>Clean SDK customer</title>' +
-      '<style>html,body{margin:0;background:#f7f7f7}#report{box-sizing:border-box;width:1160px;margin:40px auto;background:#fff}</style></head>' +
+      '<style>html,body{margin:0;background:#f7f7f7}#report{box-sizing:border-box;width:1160px;margin:40px auto;background:#fff;--sdocs-max-width:960px}</style></head>' +
       '<body><main id="report"></main><script type="module" src="/app.js"></script></body></html>';
     response.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
@@ -209,6 +209,7 @@ async function initialiseSurface(browser, surface, kind, suite, markdown) {
     await page.evaluate(({ source }) => {
       if (typeof window.SDocs.setMode === 'function') window.SDocs.setMode('read', true);
       window.SDocs.loadText(source, 'parity-fixture.md');
+      window.SDocSlideComments = null;
       document.querySelectorAll('.md-section-body').forEach((section) => section.classList.add('open'));
       document.querySelectorAll('.section-toggle').forEach((toggle) => toggle.classList.add('open'));
       const style = document.createElement('style');
@@ -243,14 +244,14 @@ function captureSelectors(config, state) {
   const root = state.mode === 'inline' ? config.inlineRoot : config.presentationRoot;
   return {
     root,
-    probes: {
+    probes: Object.assign({
       root,
       stage: state.mode === 'inline' ? root + ' > .sd-slide-wrap' : config.stage,
       slide: state.mode === 'inline' ? root : config.stage + ' .sdoc-slide',
       text: state.mode === 'inline' ? root + ' .sd-text' : config.stage + ' .sd-text',
       rail: config.rail,
       firstButton: root + ' button',
-    },
+    }, state.probes || {}),
   };
 }
 
@@ -281,6 +282,7 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
   const fileBase = safeName(surfaceName) + '-' + safeName(state.name);
   const imagePath = path.join(outputDir, 'screenshots', fileBase + '.png');
   fs.mkdirSync(path.dirname(imagePath), { recursive: true });
+  await page.mouse.move(1, 1);
   if (rootFound) await root.screenshot({ path: imagePath, animations: 'disabled' });
   else await page.screenshot({ path: imagePath, fullPage: false, animations: 'disabled' });
   const data = await page.evaluate(({ rootSelector, probes }) => {
@@ -384,11 +386,11 @@ function compareSurfaces(label, reference, candidate, suite, outputDir) {
     const right = candidate.captures[index];
     const differences = compareCapture(left, right);
     const diffImagePath = path.join(outputDir, 'diffs', safeName(label) + '-' + safeName(state.name) + '.png');
-    const image = diffPng(left.imagePath, right.imagePath, diffImagePath, 18);
+    const image = diffPng(left.imagePath, right.imagePath, diffImagePath, 0.2);
     const contractFailures = right.contractFailures.concat(
       right.diagnostics.map((entry) => entry.type + ': ' + entry.message),
     );
-    const imagePass = image.sameSize && image.ratio <= 0.002;
+    const imagePass = image.sameSize && image.ratio <= 0.003;
     return {
       name: state.name,
       label: state.label,

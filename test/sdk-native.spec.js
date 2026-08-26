@@ -202,6 +202,11 @@ test('private sanitizer ignores host globals and works with Trusted Types enforc
   await expect(page.locator('.sdoc-code-focus [data-act="comment"]')).toHaveCount(0);
   await expect(page.locator('.sdoc-code-focus-lines')).toContainText('trustedCode');
   await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Open slide 1 in presentation mode' }).click();
+  await expect(page.getByRole('dialog', { name: 'Slide presentation' })).toBeVisible();
+  await expect(page.locator('.sdoc-present-thumb')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.sdoc-present')).toHaveCount(0);
   expect(await page.evaluate(() => window.compromised)).toBeUndefined();
 });
 
@@ -460,11 +465,24 @@ test('board customer presents custom slides and exports deck files', async ({ pa
 
   await page.getByRole('button', { name: 'Open slide 1 in presentation mode' }).click();
   await expect(page.getByRole('dialog', { name: 'Slide presentation' })).toBeVisible();
-  await expect(page.locator('.smalldocs-slide-counter')).toHaveText('1 / 3');
+  await expect(page.locator('.sdoc-present-rail .sdoc-present-thumb')).toHaveCount(3);
+  await expect(page.locator('.sdoc-present-counter')).toHaveText('1 / 3');
+  await expect(page.getByRole('button', { name: 'Comment on slides' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Export' }).click();
+  await expect(page.locator('.sdoc-present-exp-panel')).toHaveClass(/open/);
+  await expect(page.locator('.sdoc-present-exp-panel')).toHaveCSS('width', '260px');
+  await expect(page.locator('.sdoc-present-exp-panel')).toHaveCSS('font-size', '13px');
+  await expect(page.locator('.sdoc-present-exp-btn').first()).toHaveCSS('font-size', '13px');
+  await page.getByRole('button', { name: 'Export' }).click();
   await page.getByRole('button', { name: 'Next slide' }).click();
-  await expect(page.locator('.smalldocs-slide-counter')).toHaveText('2 / 3');
+  await expect(page.locator('.sdoc-present-counter')).toHaveText('2 / 3');
+  await page.evaluate(() => window.updateBoardDocument());
+  await expect(page.locator('.sdoc-present')).toHaveCount(0);
+  await page.evaluate(() => window.restoreBoardDocument());
+  await expect(page.locator('.sdoc-slide')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Open slide 1 in presentation mode' }).click();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.smalldocs-overlay')).toHaveCount(0);
+  await expect(page.locator('.sdoc-present')).toHaveCount(0);
 
   const pdfDownload = page.waitForEvent('download', { timeout: 30000 });
   await page.getByRole('button', { name: 'Download slides as PDF' }).click();

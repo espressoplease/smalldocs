@@ -12,6 +12,12 @@ const files = [
   ['public/sdocs-code-focus.js', 'sdocs-code-focus.js'],
   ['public/css/code-reader.css', 'sdocs-code-reader.css'],
   ['public/sdocs-slide-reader.js', 'sdocs-slide-reader.js'],
+  ['public/sdocs-present.js', 'sdocs-present.js'],
+  ['public/sdocs-present-mobile.js', 'sdocs-present-mobile.js'],
+  ['public/sdocs-zoom-math.js', 'sdocs-zoom-math.js'],
+  ['public/fonts/inter-400.woff2', 'fonts/inter-400.woff2'],
+  ['public/fonts/inter-500.woff2', 'fonts/inter-500.woff2'],
+  ['public/fonts/inter-600.woff2', 'fonts/inter-600.woff2'],
   ['public/css/slide-reader.css', 'sdocs-slide-reader.css'],
 ];
 

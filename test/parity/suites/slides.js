@@ -16,8 +16,8 @@ module.exports = {
     },
     sdk: {
       inlineRoot: '.sdoc-slide',
-      presentationRoot: '.smalldocs-overlay',
-      stage: '.smalldocs-overlay-stage',
+      presentationRoot: '.sdoc-present',
+      stage: '.sdoc-present-stage',
       rail: '.sdoc-present-rail',
     },
   },
@@ -36,6 +36,12 @@ module.exports = {
       label: 'Presentation first slide',
       mode: 'presentation',
       before: [{ action: 'click', role: 'button', name: 'Open slide 1 in presentation mode' }],
+      probes: {
+        topbar: '.sdoc-present-topbar',
+        counter: '.sdoc-present-counter',
+        exportButton: '.sdoc-present-export-btn',
+        closeButton: '.sdoc-present-close',
+      },
       contracts: [
         { selector: '.sdoc-present', count: 1, message: 'Canonical presentation root is present' },
         { selector: '.sdoc-present-rail', count: 1, message: 'Thumbnail rail is present' },
@@ -58,6 +64,10 @@ module.exports = {
       label: 'Presentation export panel',
       mode: 'presentation',
       before: [{ action: 'click', within: 'presentation', role: 'button', name: 'Export' }],
+      probes: {
+        exportPanel: '.sdoc-present-exp-panel',
+        exportAction: '.sdoc-present-exp-btn',
+      },
       contracts: [
         { selector: '.sdoc-present-exp-panel.open', count: 1, message: 'Export panel opens' },
         { selector: '.sdoc-present-exp-btn', count: 2, message: 'PDF and PowerPoint actions are present' },

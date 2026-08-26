@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { PNG } = require('playwright-core/lib/utilsBundle');
+const { utils: playwrightImageUtils } = require('playwright-core/lib/coreBundle');
 
 function parseArgs(argv, cwd) {
   const options = {
@@ -74,50 +75,33 @@ function compareCapture(reference, candidate) {
 }
 
 function diffPng(referencePath, candidatePath, outputPath, threshold) {
-  const reference = PNG.sync.read(fs.readFileSync(referencePath));
-  const candidate = PNG.sync.read(fs.readFileSync(candidatePath));
-  const width = Math.max(reference.width, candidate.width);
-  const height = Math.max(reference.height, candidate.height);
-  const output = new PNG({ width, height });
+  const referenceBuffer = fs.readFileSync(referencePath);
+  const candidateBuffer = fs.readFileSync(candidatePath);
+  const reference = PNG.sync.read(referenceBuffer);
+  const candidate = PNG.sync.read(candidateBuffer);
+  const limit = threshold == null ? 0.2 : threshold;
+  const comparison = playwrightImageUtils.getComparator('image/png')(
+    candidateBuffer,
+    referenceBuffer,
+    { threshold: limit, maxDiffPixels: -1 },
+  );
+  const outputBuffer = comparison && comparison.diff;
+  const output = outputBuffer ? PNG.sync.read(outputBuffer) : new PNG({ width: reference.width, height: reference.height });
   let changed = 0;
-  const limit = threshold == null ? 16 : threshold;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const outIndex = (y * width + x) * 4;
-      const inReference = x < reference.width && y < reference.height;
-      const inCandidate = x < candidate.width && y < candidate.height;
-      const referenceIndex = inReference ? (y * reference.width + x) * 4 : -1;
-      const candidateIndex = inCandidate ? (y * candidate.width + x) * 4 : -1;
-      let pixelChanged = !inReference || !inCandidate;
-      if (!pixelChanged) {
-        for (let channel = 0; channel < 4; channel += 1) {
-          if (Math.abs(reference.data[referenceIndex + channel] - candidate.data[candidateIndex + channel]) > limit) {
-            pixelChanged = true;
-            break;
-          }
-        }
-      }
-      if (pixelChanged) changed += 1;
-      if (pixelChanged) {
-        output.data[outIndex] = 224;
-        output.data[outIndex + 1] = 38;
-        output.data[outIndex + 2] = 80;
-        output.data[outIndex + 3] = 220;
-      } else {
-        const gray = Math.round((reference.data[referenceIndex] + reference.data[referenceIndex + 1] + reference.data[referenceIndex + 2]) / 3);
-        output.data[outIndex] = gray;
-        output.data[outIndex + 1] = gray;
-        output.data[outIndex + 2] = gray;
-        output.data[outIndex + 3] = 70;
-      }
-    }
+  let antialiased = 0;
+  for (let index = 0; index < output.data.length; index += 4) {
+    if (output.data[index] === 255 && output.data[index + 1] === 0 && output.data[index + 2] === 0) changed += 1;
+    if (output.data[index] === 255 && output.data[index + 1] === 255 && output.data[index + 2] === 0) antialiased += 1;
   }
+  const pixels = output.width * output.height;
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, PNG.sync.write(output));
+  fs.writeFileSync(outputPath, outputBuffer || PNG.sync.write(output));
   return {
     changed,
-    pixels: width * height,
-    ratio: width && height ? changed / (width * height) : 0,
+    antialiased,
+    pixels,
+    ratio: pixels ? changed / pixels : 0,
+    antialiasRatio: pixels ? antialiased / pixels : 0,
     sameSize: reference.width === candidate.width && reference.height === candidate.height,
     referenceSize: { width: reference.width, height: reference.height },
     candidateSize: { width: candidate.width, height: candidate.height },
@@ -142,7 +126,7 @@ function reportHtml(report) {
         '<h3>' + escapeHtml(state.label) + ' <span>' + status.toUpperCase() + '</span></h3>' +
         '<div class="images"><figure><figcaption>Reference</figcaption><img src="' + escapeHtml(state.referenceImage) + '"></figure>' +
         '<figure><figcaption>Candidate</figcaption><img src="' + escapeHtml(state.candidateImage) + '"></figure>' +
-        '<figure><figcaption>Pixel diff (' + (state.image.ratio * 100).toFixed(2) + '%)</figcaption><img src="' + escapeHtml(state.diffImage) + '"></figure></div>' +
+        '<figure><figcaption>Perceptual diff (' + (state.image.ratio * 100).toFixed(2) + '%, antialias ' + ((state.image.antialiasRatio || 0) * 100).toFixed(2) + '%)</figcaption><img src="' + escapeHtml(state.diffImage) + '"></figure></div>' +
         '<details' + (state.pass ? '' : ' open') + '><summary>' + state.differences.length + ' structural/style differences, ' + state.contractFailures.length + ' contract failures</summary>' +
         (state.contractFailures.length ? '<h4>Contract</h4><ul>' + state.contractFailures.map((entry) => '<li>' + escapeHtml(entry) + '</li>').join('') + '</ul>' : '') +
         (details ? '<h4>DOM, controls, and styles</h4><ul>' + details + '</ul>' : '') + '</details></article>';
