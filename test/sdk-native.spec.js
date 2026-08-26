@@ -81,8 +81,8 @@ document.body.dataset.ready = 'true';
       const left = `---\ncells-tabs: tabbed\n---\n# Left\n\n~~~cells plan/Inputs\nMetric,Value\nUnits,12\nRate,25\n~~~\n\n~~~cells plan/Summary\nformat: B=$\nMetric,Value\nRevenue,=Inputs!B2*Inputs!B3\n~~~`;
       const right = `# Right\n\n~~~cells plan/Inputs\nMetric,Value\nUnits,4\nRate,10\n~~~\n\n~~~cells plan/Summary\nMetric,Value\nRevenue,=Inputs!B2*Inputs!B3\n~~~`;
       const update = `# Left updated\n\n~~~cells\nMetric,Value\nUnits,9\n~~~`;
-      res.end(`<!doctype html><html><head><style>#left{--sdocs-text-color:#123456;--sdocs-background:#fef3c7}#right .sdoc-cells-cell{color:#7c2d12;background:#dbeafe}</style></head><body><div id="outside" class="sdoc-cells-cell">Host content</div><div id="left"></div><div id="right"></div>
-<script>window.sdocsActiveResizeObservers=0;const NativeResizeObserver=window.ResizeObserver;window.ResizeObserver=class{constructor(callback){this.inner=new NativeResizeObserver(callback);this.active=true;window.sdocsActiveResizeObservers+=1}observe(target){this.inner.observe(target)}unobserve(target){this.inner.unobserve(target)}disconnect(){if(this.active){this.active=false;window.sdocsActiveResizeObservers-=1}this.inner.disconnect()}};</script>
+      res.end(`<!doctype html><html><head><style>#left{--sdocs-text-color:#123456;--sdocs-background:#fef3c7}#right .sdoc-cells-cell{color:#7c2d12;background:#dbeafe}</style></head><body><div id="outside" class="sdoc-cells-cell">Host content</div><div id="future-sdk" class="smalldocs-sdk-view" data-smalldocs-sdk-version="9.9.9"><div class="sdoc-cells-cell">Future SDK content</div></div><div id="left"></div><div id="right"></div>
+<script>window.sdocsCopiedText='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>{window.sdocsCopiedText=String(value)}}});window.sdocsActiveResizeObservers=0;const NativeResizeObserver=window.ResizeObserver;window.ResizeObserver=class{constructor(callback){this.inner=new NativeResizeObserver(callback);this.active=true;window.sdocsActiveResizeObservers+=1}observe(target){this.inner.observe(target)}unobserve(target){this.inner.unobserve(target)}disconnect(){if(this.active){this.active=false;window.sdocsActiveResizeObservers-=1}this.inner.disconnect()}};</script>
 <script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
 const [leftView, rightView] = await Promise.all([
   render('#left', ${JSON.stringify(left)}), render('#right', ${JSON.stringify(right)})
@@ -211,6 +211,10 @@ test('canonical spreadsheet instances keep workbook state and lifecycle isolated
   await expect(page.locator('#right .sdoc-cells-cell').first()).toHaveCSS('background-color', 'rgb(219, 234, 254)');
   await expect(page.locator('#outside')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('#outside')).toHaveCSS('display', 'block');
+  await expect(page.locator('#left .smalldocs-sdk-view')).toHaveAttribute('data-smalldocs-sdk-version', '0.2.0');
+  await expect(page.locator('#right .smalldocs-sdk-view')).toHaveAttribute('data-smalldocs-sdk-version', '0.2.0');
+  await expect(page.locator('#future-sdk .sdoc-cells-cell')).toHaveCSS('display', 'block');
+  await expect(page.locator('#future-sdk .sdoc-cells-cell')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   const initialObservers = await page.evaluate(() => window.sdocsActiveResizeObservers);
   expect(initialObservers).toBeGreaterThan(0);
 
@@ -240,6 +244,63 @@ test('canonical spreadsheet instances keep workbook state and lifecycle isolated
 
   await page.evaluate(() => window.oversizeRight());
   await expect(page.locator('#right .sdoc-cells-error')).toContainText('Cells source exceeds 256 KB cap');
+});
+
+test('canonical spreadsheet selection, keyboard, copy and drag lifecycle stay instance-owned', async ({ page }) => {
+  await page.goto(customerOrigin + '/cells-isolation');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+
+  const leftSheet = page.locator('#left .sdoc-cells:visible');
+  const leftGrid = leftSheet.locator('.sdoc-cells-grid');
+  const start = leftGrid.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]');
+  const end = leftGrid.locator('.sdoc-cells-cell[data-r="2"][data-c="1"]');
+  await start.hover();
+  await page.mouse.down();
+  await end.hover();
+  await page.mouse.up();
+  await expect(leftSheet.locator('.sdoc-cells-ref')).toContainText('A2:B3');
+  await expect(leftSheet.locator('.sdoc-cells-stats')).toContainText('Sum 37');
+  await expect(leftSheet.locator('.sdoc-cells-stats')).toContainText('Count 4');
+  await expect(leftGrid.locator('.sdoc-cells-cell.in-range')).toHaveCount(4);
+
+  await leftSheet.locator('.sdoc-cells-copy-sel').click();
+  await expect.poll(() => page.evaluate(() => window.sdocsCopiedText)).toBe('Units,12\nRate,25');
+
+  await page.locator('#outside').click();
+  await expect(leftGrid.locator('.sdoc-cells-cell.in-range, .sdoc-cells-cell.is-active')).toHaveCount(0);
+  await expect(leftSheet.locator('.sdoc-cells-ref')).not.toContainText(/A\d/);
+
+  const wholeCopy = leftSheet.getByRole('button', { name: 'Copy whole sheet as CSV' });
+  await wholeCopy.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expect(leftGrid).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowRight');
+  await expect(leftSheet.locator('.sdoc-cells-ref')).toContainText('B2');
+  await expect(leftGrid.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveAttribute('aria-selected', 'true');
+
+  const rightGrid = page.locator('#right .sdoc-cells-grid').first();
+  await start.hover();
+  await page.mouse.down();
+  await page.evaluate(() => document.querySelector('#right .sdoc-cells-grid').focus());
+  await expect(rightGrid.locator('.sdoc-cells-cell[data-r="0"][data-c="0"]')).toHaveClass(/is-active/);
+  await page.evaluate(() => window.updateLeft());
+  await page.mouse.move(2, 2);
+  await page.mouse.up();
+  await expect(page.locator('#left h1')).toHaveText('Left updated');
+  await expect(rightGrid.locator('.sdoc-cells-cell[data-r="0"][data-c="0"]')).toHaveClass(/is-active/);
+
+  const rightDragStart = rightGrid.locator('.sdoc-cells-cell[data-r="1"][data-c="0"]');
+  await rightDragStart.hover();
+  await page.mouse.down();
+  await page.evaluate(() => window.destroyRight());
+  await page.mouse.move(3, 3);
+  await page.mouse.up();
+  await expect(page.locator('#right .smalldocs-document')).toHaveCount(0);
+  const remainingCell = page.locator('#left .sdoc-cells-cell[data-r="1"][data-c="1"]');
+  await remainingCell.click();
+  await expect(remainingCell).toHaveClass(/is-active/);
 });
 
 test('private sanitizer ignores host globals and works with Trusted Types enforcement', async ({ page }) => {

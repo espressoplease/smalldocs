@@ -59,6 +59,8 @@
   var sizeObservers = [];
   var pendingFrames = [];
   var activeResizeCleanups = [];
+  var selection = options.selection || null;
+  var selectionCleanups = [];
   var destroyed = false;
   function enabled(name) {
     return controls[name] !== false && capabilities[name] !== false;
@@ -83,6 +85,9 @@
       if (!destroyed) fn();
     });
     pendingFrames.push(id);
+  }
+  function selectionInstance() {
+    return selection || S.__cellsSelectionInstance || null;
   }
 
   // Fullscreen editing and Excel export are heavier, optional capabilities.
@@ -930,10 +935,17 @@
     // closing line under the last row is drawn only when needed.
     if (overflowRO) overflowRO.observe(scroll);
 
-    // Click-to-select + keyboard navigation (sdocs-cells-select.js). Late
-    // binding so load order between the two modules does not matter. Bounds use
-    // the rendered extent so you can navigate into the padded empty area.
-    if (S.wireCellsSelection) S.wireCellsSelection(wrapper, grid, scroll, renderRows, renderCols);
+    // Click-to-select + keyboard navigation. The SDK injects an instance-owned
+    // selection controller. Production registers the same canonical controller
+    // after this module loads, before the first document render.
+    var selectionApi = selectionInstance();
+    if (selectionApi && typeof selectionApi.wire === 'function') {
+      var selectionCleanup = selectionApi.wire(wrapper, grid, scroll, renderRows, renderCols);
+      if (typeof selectionCleanup === 'function') selectionCleanups.push(selectionCleanup);
+    } else if (S.wireCellsSelection) {
+      var legacyCleanup = S.wireCellsSelection(wrapper, grid, scroll, renderRows, renderCols);
+      if (typeof legacyCleanup === 'function') selectionCleanups.push(legacyCleanup);
+    }
 
     if (truncated) {
       var note = document.createElement('div');
@@ -1226,10 +1238,12 @@
     buildCopyControls: buildCopyControls,
     formatStats: formatStats,
     controller: cellsController,
+    setSelection: function (nextSelection) { selection = nextSelection || null; },
     destroy: function () {
       if (destroyed) return;
       destroyed = true;
       cellsController.destroy();
+      selectionCleanups.splice(0).forEach(function (cleanup) { cleanup(); });
       if (overflowRO && overflowRO.disconnect) overflowRO.disconnect();
       sizeObservers.splice(0).forEach(function (observer) {
         if (observer && observer.disconnect) observer.disconnect();

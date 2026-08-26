@@ -11,6 +11,7 @@ const LINK_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5
 const CHEVRON_ICON = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 2l4 3-4 3"/></svg>';
 
 let instanceNumber = 0;
+const SDK_VERSION = '0.2.0';
 
 function normalizeOptions(options) {
   const source = options && typeof options === 'object' ? options : {};
@@ -376,6 +377,7 @@ function createContext(mount, options) {
   const shell = document.createElement('div');
   shell.className = 'smalldocs-sdk-view';
   shell.dataset.smalldocsInstance = id;
+  shell.dataset.smalldocsSdkVersion = SDK_VERSION;
   mount.replaceChildren(shell);
   return {
     id,

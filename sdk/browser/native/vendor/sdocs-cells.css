@@ -1,5 +1,5 @@
 @layer smalldocs {
-@scope (.smalldocs-sdk-view) {
+@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {
 /* cells.css - ```cells inline grid (sheets-v1).
  *
  * Gridlines are drawn by a 1px gap on the grid container with a tinted

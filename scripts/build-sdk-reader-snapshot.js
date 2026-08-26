@@ -19,6 +19,7 @@ const files = [
   ['public/sdocs-cells-formula.js', 'sdocs-cells-formula.js'],
   ['public/sdocs-cells-xlsx.js', 'sdocs-cells-xlsx.js'],
   ['public/sdocs-cells-controller.js', 'sdocs-cells-controller.js'],
+  ['public/sdocs-cells-select.js', 'sdocs-cells-select.js'],
   ['public/sdocs-cells-ui.js', 'sdocs-cells-ui.js'],
   ['public/css/cells.css', 'sdocs-cells.css', 'sdk-scoped-css'],
   ['public/fonts/inter-400.woff2', 'fonts/inter-400.woff2'],
@@ -44,7 +45,7 @@ function transformContents(contents, transform) {
   if (transform === 'sdk-scoped-css') {
     const css = contents.toString('utf8')
       .replace(/body\.sdoc-cells-resizing/g, ':scope.sdoc-cells-resizing');
-    return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view) {\n'
+    return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
       + css + '\n}\n}\n');
   }
   throw new Error('Unknown SDK snapshot transform: ' + transform);

@@ -43,13 +43,17 @@
     "source": "public/sdocs-cells-controller.js",
     "sha256": "612e7571baec6e990ba446ed28ec8ad99140dafebf7b6d35245a1b572a0e03b2"
   },
+  "sdocs-cells-select.js": {
+    "source": "public/sdocs-cells-select.js",
+    "sha256": "9aea5ae5f27b3109c5dfc16b9692e28d31087563cb4faed3949f82779299c66b"
+  },
   "sdocs-cells-ui.js": {
     "source": "public/sdocs-cells-ui.js",
-    "sha256": "3f3c6c936babaad55315d19d4dd1c56b8035ed4198c5e1b28e98c47a6b7786ac"
+    "sha256": "9b37b3041189b272c80d0f3ae3d465e41ee60912f633903387bf3f80e60bf5eb"
   },
   "sdocs-cells.css": {
     "source": "public/css/cells.css",
-    "sha256": "e0de08726f363f6dc4ddb29c6c6784435a7a60b0c4032b1970dcba254aeec3d1",
+    "sha256": "c03e6f87f47d5bd929db833814ba32d26b2a109b713e31f747bf8df3bb8909c8",
     "sourceSha256": "0da1cb31921ac016c5ec4e320a69b7abb8488c191f3ead8e1bf35cb381aad376",
     "transform": "sdk-scoped-css"
   },

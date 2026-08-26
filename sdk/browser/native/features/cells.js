@@ -2,14 +2,15 @@ import { loadScript, loadStyle, vendorAsset } from '../assets.js';
 import { setKnownHTML } from '../runtime.js';
 
 async function ensureCells() {
-  const [cells, formula, controller, ui] = await Promise.all([
+  const [cells, formula, controller, selection, ui] = await Promise.all([
     loadScript(vendorAsset('sdocs-cells.js'), () => window.SDocCells),
     loadScript(vendorAsset('sdocs-cells-formula.js'), () => window.SDocCellsFormula),
     loadScript(vendorAsset('sdocs-cells-controller.js'), () => window.SDocCellsController),
+    loadScript(vendorAsset('sdocs-cells-select.js'), () => window.SDocCellsSelection),
     loadScript(vendorAsset('sdocs-cells-ui.js'), () => window.SDocCellsUI),
     loadStyle(vendorAsset('sdocs-cells.css'), 'smalldocs-sdk-cells-styles'),
   ]);
-  return { cells, formula, controller, ui };
+  return { cells, formula, controller, selection, ui };
 }
 
 function sourceForCode(cells, pre, source) {
@@ -30,6 +31,7 @@ export async function mount(context) {
   if (context.signal.aborted) return;
 
   const state = { currentMeta: context.meta };
+  const selection = api.selection.create({ window, document });
   const renderer = api.ui.create({
     window,
     document,
@@ -37,6 +39,7 @@ export async function mount(context) {
     cells: api.cells,
     formula: api.formula,
     controller: api.controller,
+    selection,
     installMarkedExtension: false,
     controls: context.options.controls,
     resizeClassTarget: context.shell,
@@ -58,11 +61,16 @@ export async function mount(context) {
     renderer.processCells(context.root);
   } catch (error) {
     renderer.destroy();
+    selection.destroy();
     throw error;
   }
   if (context.signal.aborted) {
     renderer.destroy();
+    selection.destroy();
     return;
   }
-  return () => renderer.destroy();
+  return () => {
+    renderer.destroy();
+    selection.destroy();
+  };
 }
