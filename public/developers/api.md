@@ -23,6 +23,41 @@ Every option is enabled unless its value is exactly `false`.
 
 Open and closed sections with matching heading IDs keep their state when `view.update()` renders a revised version of the document.
 
+`sections.defaultOpen` has no effect when sections are not collapsible. Copy and link controls remain available on always-open headings when `controls.copy` is enabled.
+
+## Common configurations
+
+An always-open report keeps the full argument visible while retaining the SDK navigation:
+
+```js
+const view = await render('#report', markdown, {
+  navigation: true,
+  sections: { collapsible: false },
+});
+```
+
+A compact answer can rely on the application's navigation:
+
+```js
+const view = await render('#answer', markdown, {
+  navigation: false,
+  sections: { collapsible: false },
+});
+```
+
+A long reference can begin with its sections closed:
+
+```js
+const view = await render('#reference', markdown, {
+  navigation: true,
+  sections: { collapsible: true, defaultOpen: false },
+});
+```
+
+[Open the styled always-open example](/developers/example/non-collapsible).
+
+Options stay fixed for the lifetime of the returned view. `view.update(markdown)` replaces content only. Destroy the view and call `render()` again to change behavior options.
+
 ## Typography and document styling
 
 Set custom properties on the mount element. They apply only to that renderer instance.
@@ -50,6 +85,17 @@ Normal application CSS scoped under the mount can override a specific SmallDocs 
 ```css
 #report .smalldocs-document h1 {
   letter-spacing: -0.04em;
+}
+```
+
+Custom properties can also reuse existing application tokens:
+
+```css
+#report {
+  --sdocs-font-family: var(--app-reading-font);
+  --sdocs-text-color: var(--app-text);
+  --sdocs-accent: var(--app-accent);
+  --sdocs-background: var(--app-surface);
 }
 ```
 

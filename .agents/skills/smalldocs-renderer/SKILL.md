@@ -7,7 +7,7 @@ description: Integrate the SmallDocs browser renderer into a web application. Us
 
 Render finished Markdown as a SmallDocs document inside an application. The host supplies a mount element and Markdown. SmallDocs owns parsing, sanitisation, feature discovery, rendering, and content-driven loading.
 
-Read [references/api.md](references/api.md) before changing integration code. It contains the current URL, lifecycle, options, styling contract, security boundary, and supported features.
+Read [references/api.md](references/api.md) before changing integration code. It contains the current URL, lifecycle, configuration recipes, styling contract, security boundary, and supported features.
 
 ## Integration workflow
 
@@ -17,6 +17,20 @@ Read [references/api.md](references/api.md) before changing integration code. It
 4. Keep the returned view. Use `view.update(markdown)` for replacement content and `view.destroy()` on unmount.
 5. Style the document through SDK custom properties or scoped selectors under the mount.
 6. Test from a clean customer page, not from SmallDocs application globals.
+
+## Configuration workflow
+
+Configure behavior in JavaScript and presentation in CSS.
+
+- Use `navigation` for the SDK heading list.
+- Use `sections.collapsible` and `sections.defaultOpen` for section behavior.
+- Use `controls.copy`, `controls.fullscreen`, and `controls.download` for actions across supported features.
+- Use the documented `--sdocs-*` custom properties for typography, spacing, colors, width, padding, and radius.
+- Use ordinary CSS scoped under the mount only when a custom property does not cover the required presentation.
+
+Do not infer an application's preferred reading behavior. A report, compact answer, and long reference may use different section and navigation settings. Start from the closest recipe in the API reference and preserve the host application's existing visual patterns.
+
+Keep configuration stable for the lifetime of a view. `view.update(markdown)` replaces content, not options. Destroy and create a new view when the application needs a different behavior configuration.
 
 Pass the finished Markdown unchanged. Do not parse rich fences in host code or declare capabilities before inference. SmallDocs discovers code, math, Mermaid, charts, cells, slides, and video from the content.
 
@@ -36,4 +50,4 @@ If the application also needs an agent to write SmallDocs Markdown, install `sma
 
 ## Verification
 
-Verify ordinary Markdown, unsafe HTML sanitisation, CSS overrides, multiple instances, update, destroy, fullscreen, relevant file downloads, and a document containing several rich feature types. Confirm a plain document does not request unrelated rich dependencies and SDK CSS does not restyle host elements outside the mount.
+Verify ordinary Markdown, unsafe HTML sanitisation, CSS overrides, multiple instances, update, destroy, fullscreen, relevant file downloads, and a document containing several rich feature types. Exercise the selected navigation and section configuration directly. Confirm a plain document does not request unrelated rich dependencies and SDK CSS does not restyle host elements outside the mount.

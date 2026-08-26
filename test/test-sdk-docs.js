@@ -189,6 +189,9 @@ module.exports = function (harness) {
     assert.ok(api.includes('--sdocs-font-size'));
     assert.ok(api.includes('--sdocs-heading-scale'));
     assert.ok(api.includes('--sdocs-paragraph-spacing'));
+    assert.ok(api.includes('## Configuration recipes'));
+    assert.ok(api.includes('sections: { collapsible: false }'));
+    assert.ok(api.includes('Options stay fixed for the lifetime'));
   });
 
   test('customer SDK example uses valid slides, charts, and computed cells', () => {

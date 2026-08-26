@@ -30,6 +30,60 @@ Set an option to exactly `false` to disable it.
 
 Open and closed sections with matching heading IDs keep their state across `view.update()`.
 
+`sections.defaultOpen` has no effect when `sections.collapsible` is `false`. Heading copy and link controls remain available when sections are not collapsible, provided `controls.copy` is enabled.
+
+## Configuration recipes
+
+### Always-open report
+
+Use this for an article or report where the reader should see the complete argument while scrolling.
+
+```js
+const view = await render('#report', markdown, {
+  navigation: true,
+  sections: { collapsible: false },
+});
+```
+
+### Compact embedded answer
+
+Use this when the application already supplies surrounding navigation and the result is short.
+
+```js
+const view = await render('#answer', markdown, {
+  navigation: false,
+  sections: { collapsible: false },
+  controls: { copy: true, fullscreen: true, download: true },
+});
+```
+
+### Long reference
+
+Use this when readers benefit from opening one section at a time.
+
+```js
+const view = await render('#reference', markdown, {
+  navigation: true,
+  sections: { collapsible: true, defaultOpen: false },
+});
+```
+
+The H1 control opens or closes the complete hierarchy. Opening a nested heading also opens its parent path. Matching section state is retained when `view.update(markdown)` replaces the content.
+
+### Read-only presentation surface
+
+This keeps document content readable while removing copy and file actions. Rich content that supports fullscreen remains expandable.
+
+```js
+const view = await render('#report', markdown, {
+  controls: { copy: false, fullscreen: true, download: false },
+});
+```
+
+Controls are cross-feature policies. For example, `download: false` removes supported code, diagram, chart, spreadsheet, and slide downloads. There are no per-feature control options in `0.2.0`.
+
+Options stay fixed for the lifetime of the returned view. `view.update(markdown)` accepts Markdown only. Destroy the view and call `render()` again to change behavior options.
+
 ## Returned view
 
 ```js
@@ -73,6 +127,33 @@ The SDK installs version-matched CSS automatically in a low-priority CSS layer. 
 Heading sizes and weights can be changed individually with `--sdocs-h1-size` through `--sdocs-h4-size` and `--sdocs-h1-weight` through `--sdocs-h4-weight`.
 
 Ordinary unlayered CSS scoped under the mount can override specific document or feature selectors.
+
+### Match application tokens
+
+Custom properties can point at the host application's existing tokens:
+
+```css
+#report {
+  --sdocs-font-family: var(--app-reading-font);
+  --sdocs-heading-font-family: var(--app-heading-font);
+  --sdocs-text-color: var(--app-text);
+  --sdocs-muted-color: var(--app-text-muted);
+  --sdocs-accent: var(--app-accent);
+  --sdocs-background: var(--app-surface);
+  --sdocs-border-color: var(--app-border);
+  --sdocs-code-background: var(--app-surface-subtle);
+}
+```
+
+The SDK stylesheet is installed in a low-priority CSS layer. Normal unlayered application CSS wins when specificity is otherwise sufficient:
+
+```css
+#report .smalldocs-document h2 {
+  border-top: 2px solid var(--app-border-strong);
+}
+```
+
+Keep overrides under the mount so another renderer and the surrounding application are unaffected. Preserve visible keyboard focus when changing controls or links.
 
 ## Content contract
 
