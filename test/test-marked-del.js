@@ -15,7 +15,9 @@ module.exports = function (harness) {
   // UMD singleton, but apply() is idempotent for these assertions: the
   // override fully shadows the default and never falls back.
   const marked = require('../public/vendor/marked.min.js');
+  const markedDelCore = require('../public/sdocs-marked-del-core.js');
   const markedDel = require('../public/sdocs-marked-del.js');
+  assert.strictEqual(markedDel.extension, markedDelCore.extension);
   markedDel.apply(marked);
 
   test('single-tilde pair stays literal text', () => {

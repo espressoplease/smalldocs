@@ -8,6 +8,7 @@ const path = require('path');
 const repo = path.resolve(__dirname, '..');
 const output = path.join(repo, 'sdk', 'browser', 'native', 'vendor');
 const files = [
+  ['public/sdocs-marked-del-core.js', 'sdocs-marked-del-core.js'],
   ['public/sdocs-prose-reader.js', 'sdocs-prose-reader.js'],
   ['public/css/prose-reader.css', 'sdocs-prose-reader.css', 'sdk-layered-css'],
   ['public/sdocs-code-reader.js', 'sdocs-code-reader.js'],

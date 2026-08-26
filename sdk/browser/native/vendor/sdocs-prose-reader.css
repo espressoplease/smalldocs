@@ -42,6 +42,12 @@
   --card-attach-gap: 0.35em;
   --md-link-color: var(--sdocs-accent, #2563EB);
   --md-link-decoration: var(--sdocs-link-decoration, underline);
+  --md-code-bg: var(--sdocs-code-background, #F4F1ED);
+  --md-code-color: var(--sdocs-code-color, #6B6560);
+  --md-code-padding: var(--sdocs-inline-code-padding, 0.15em 0.45em);
+  --md-code-radius: var(--sdocs-inline-code-radius, 4px);
+  --md-code-font: var(--sdocs-code-font-family, 'JetBrains Mono', 'Fira Mono', monospace);
+  --md-hr-border: var(--sdocs-border-color, #EDE8E2);
 
   font-family: var(--md-font-family);
   font-size: var(--md-base-size);
@@ -104,6 +110,15 @@
   cursor: pointer;
 }
 :is(#_sd_rendered, #_sd_write, .sdoc-reader) a:hover { opacity: .8; }
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) :not(pre) > code {
+  background: var(--md-code-bg);
+  color: var(--md-code-color);
+  padding: var(--md-code-padding);
+  border-radius: var(--md-code-radius);
+  font-family: var(--md-code-font);
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
 
 :is(#_sd_rendered, .sdoc-reader) .md-section > h2,
 :is(#_sd_rendered, .sdoc-reader) .md-section > h3,

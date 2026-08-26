@@ -119,6 +119,8 @@ document.body.dataset.ready='true';</script></body></html>`);
 
 Introductory paragraph with a [reference](https://example.com).
 
+Costs stay near ~5 dollars and ~10 cents. This is ~~withdrawn~~.
+
 ## Evidence
 
 - First item
@@ -438,6 +440,9 @@ test('reader typography, heading IDs and copy controls follow the public contrac
   await expect(page.locator('#closed p').first()).toHaveCSS('margin-bottom', '23px');
   await expect(page.locator('#closed ul')).toHaveCSS('padding-left', '37px');
   await expect(page.locator('#closed a[href="https://example.com"]')).toHaveCSS('text-decoration-line', 'none');
+  await expect(page.locator('#closed del')).toHaveText('withdrawn');
+  await expect(page.locator('#closed p').nth(1)).toContainText('~5 dollars and ~10 cents');
+  await expect(page.locator('#closed p').nth(1).locator('del')).toHaveCount(1);
   await expect(page.locator('#host-heading')).not.toHaveCSS('font-family', /Courier New/);
 
   const closedIds = await page.locator('#closed h2').evaluateAll((headings) => headings.map((heading) => heading.id));

@@ -1,6 +1,12 @@
 import DOMPurify from './vendor/purify.es.mjs';
 import { Marked, Renderer } from './vendor/marked.esm.js';
 
+const previousMarkedDelCore = window.SDocsMarkedDelCore;
+await import('./vendor/sdocs-marked-del-core.js');
+const markedDelCore = window.SDocsMarkedDelCore;
+if (previousMarkedDelCore === undefined) delete window.SDocsMarkedDelCore;
+else window.SDocsMarkedDelCore = previousMarkedDelCore;
+
 const POLICY_NAME = 'smalldocs-sdk-0.2.0';
 let trustedPolicy = null;
 
@@ -16,6 +22,7 @@ if (window.trustedTypes) {
 }
 
 const parser = new Marked();
+parser.use(markedDelCore.extension);
 const inlineMath = /^\$(?!\s)((?:\\\$|[^$\n])+?)(?<!\s)\$(?!\d)/;
 const blockMath = /^\$\$([\s\S]+?)\$\$(?:\n|$)/;
 const blockMathStart = /(?<=^|\n)\$\$/;

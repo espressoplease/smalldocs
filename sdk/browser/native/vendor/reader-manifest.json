@@ -1,12 +1,16 @@
 {
+  "sdocs-marked-del-core.js": {
+    "source": "public/sdocs-marked-del-core.js",
+    "sha256": "adb57df424b822585fda4f054a0faf27069ad1530c0e6da3c2a6bb1658e65d53"
+  },
   "sdocs-prose-reader.js": {
     "source": "public/sdocs-prose-reader.js",
     "sha256": "42dce17263a009335f4e83e9ffe97e28e81dd4bb07ca9f4df3a4a3a894d066ed"
   },
   "sdocs-prose-reader.css": {
     "source": "public/css/prose-reader.css",
-    "sha256": "7e80df045a32f3b327956495fe3bc22db69cea45de0c0fb46293f04e387482d3",
-    "sourceSha256": "38ca28d54984ff2a4ce52312512fa91fd87a8c502d48169279e57d02f461442f",
+    "sha256": "f804d92587b6a4a2b1fcd762f4d7710bd613459fb96f48718b2afcea20ff0a06",
+    "sourceSha256": "7436c450232e202eb74ddb5888786b24418567b2d9d440a021418849d9c4c121",
     "transform": "sdk-layered-css"
   },
   "sdocs-code-reader.js": {

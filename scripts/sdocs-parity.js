@@ -338,23 +338,15 @@ async function contractFailures(page, contracts, config) {
 async function screenshotAligned(locator, options) {
   const prior = await locator.evaluate((node) => {
     const rect = node.getBoundingClientRect();
-    const computed = getComputedStyle(node);
     const state = {
-      position: node.style.getPropertyValue('position'),
-      positionPriority: node.style.getPropertyPriority('position'),
-      left: node.style.getPropertyValue('left'),
-      leftPriority: node.style.getPropertyPriority('left'),
-      top: node.style.getPropertyValue('top'),
-      topPriority: node.style.getPropertyPriority('top'),
+      translate: node.style.getPropertyValue('translate'),
+      translatePriority: node.style.getPropertyPriority('translate'),
       changed: false,
     };
-    if (computed.position !== 'static') return state;
     const dx = Math.round(rect.x) - rect.x;
     const dy = Math.round(rect.y) - rect.y;
     if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return state;
-    node.style.setProperty('position', 'relative', 'important');
-    node.style.setProperty('left', dx + 'px', 'important');
-    node.style.setProperty('top', dy + 'px', 'important');
+    node.style.setProperty('translate', dx + 'px ' + dy + 'px', 'important');
     state.changed = true;
     return state;
   });
@@ -366,26 +358,62 @@ async function screenshotAligned(locator, options) {
   } finally {
     if (prior.changed) {
       await locator.evaluate((node, state) => {
-        [['position', state.position, state.positionPriority],
-          ['left', state.left, state.leftPriority],
-          ['top', state.top, state.topPriority]].forEach(([name, value, priority]) => {
-          if (value) node.style.setProperty(name, value, priority);
-          else node.style.removeProperty(name);
-        });
+        if (state.translate) node.style.setProperty('translate', state.translate, state.translatePriority);
+        else node.style.removeProperty('translate');
       }, prior);
     }
   }
+}
+
+async function hideForScreenshot(page, selectors) {
+  const records = [];
+  for (const selector of selectors || []) {
+    const locator = page.locator(selector);
+    const count = await locator.count();
+    for (let index = 0; index < count; index += 1) {
+      records.push(await locator.nth(index).evaluate((node) => {
+        const record = {
+          node,
+          value: node.style.getPropertyValue('visibility'),
+          priority: node.style.getPropertyPriority('visibility'),
+        };
+        node.style.setProperty('visibility', 'hidden', 'important');
+        return { value: record.value, priority: record.priority };
+      }));
+    }
+  }
+  return async function restore() {
+    let recordIndex = 0;
+    for (const selector of selectors || []) {
+      const locator = page.locator(selector);
+      const count = await locator.count();
+      for (let index = 0; index < count; index += 1) {
+        const record = records[recordIndex++];
+        await locator.nth(index).evaluate((node, saved) => {
+          if (saved.value) node.style.setProperty('visibility', saved.value, saved.priority);
+          else node.style.removeProperty('visibility');
+        }, record);
+      }
+    }
+  };
 }
 
 async function captureState(page, surfaceName, config, state, outputDir, diagnostics, stepFailures) {
   const selectors = captureSelectors(config, state);
   const root = page.locator(selectors.root).first();
   const rootFound = await root.count() > 0;
+  const screenshotRoot = page.locator(state.screenshotSelector || selectors.root).first();
+  const screenshotRootFound = await screenshotRoot.count() > 0;
   const fileBase = safeName(surfaceName) + '-' + safeName(state.name);
   const imagePath = path.join(outputDir, 'screenshots', fileBase + '.png');
   fs.mkdirSync(path.dirname(imagePath), { recursive: true });
-  if (rootFound) await screenshotAligned(root, { path: imagePath, animations: 'disabled' });
-  else await page.screenshot({ path: imagePath, fullPage: false, animations: 'disabled' });
+  const restoreHidden = await hideForScreenshot(page, config.hideForScreenshot);
+  try {
+    if (screenshotRootFound) await screenshotAligned(screenshotRoot, { path: imagePath, animations: 'disabled' });
+    else await page.screenshot({ path: imagePath, fullPage: false, animations: 'disabled' });
+  } finally {
+    await restoreHidden();
+  }
   const data = await page.evaluate(({ rootSelector, probes }) => {
     function directText(node) {
       return Array.from(node.childNodes).filter((child) => child.nodeType === Node.TEXT_NODE)
@@ -481,6 +509,10 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
       data.interaction.hoverPath[0].classes = [];
     }
   }
+  if (state.ignoreHover && data.interaction) {
+    data.interaction.hoverPath = [];
+    data.controls.forEach((control) => { control.hovered = false; });
+  }
   data.contractFailures = (await contractFailures(page, state.contracts, config)).concat(stepFailures || []);
   data.diagnostics = diagnostics.slice();
   data.rootFound = rootFound;
@@ -536,7 +568,7 @@ function compareSurfaces(label, reference, candidate, suite, outputDir) {
       .concat(left.diagnostics.map((entry) => 'Reference ' + entry.type + ': ' + entry.message))
       .concat(right.contractFailures.map((failure) => 'Candidate: ' + failure))
       .concat(right.diagnostics.map((entry) => 'Candidate ' + entry.type + ': ' + entry.message));
-    const imagePass = imageWithinTolerance(image);
+    const imagePass = imageWithinTolerance(image, state.imageTolerance);
     return {
       name: state.name,
       label: state.label,
