@@ -439,6 +439,34 @@ function attachShapeCopyButton(el, s, grid) {
   return btn;
 }
 
+// Style references such as grid bg=$background resolve to CSS variables.
+// Their luminance is unknown while the slide is built offscreen, so a copy
+// button can reach the live presentation without either contrast class and
+// inherit the light presentation chrome color over a light slide. Once the
+// stage is mounted, resolve those remaining buttons from the painted shape,
+// the stage background, or the document background token.
+function syncShapeCopyButtonContrast(stage) {
+  if (!stage || typeof getComputedStyle !== 'function') return;
+  var stageStyle = getComputedStyle(stage);
+  var stageBackground = stageStyle.backgroundColor;
+  var stageLum = stageBackground === 'transparent' || /rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/.test(stageBackground)
+    ? null
+    : colorLuminance(stageBackground);
+  if (stageLum == null) stageLum = colorLuminance(stageStyle.getPropertyValue('--md-bg'));
+  if (stageLum == null) stageLum = 1;
+
+  var buttons = stage.querySelectorAll('.sd-shape-copy-btn:not(.is-dark):not(.is-light)');
+  for (var i = 0; i < buttons.length; i++) {
+    var button = buttons[i];
+    var parentBackground = getComputedStyle(button.parentElement).backgroundColor;
+    var parentLum = parentBackground === 'transparent' || /rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/.test(parentBackground)
+      ? null
+      : colorLuminance(parentBackground);
+    var lum = parentLum == null ? stageLum : parentLum;
+    button.classList.add(lum < 0.5 ? 'is-dark' : 'is-light');
+  }
+}
+
 function shapePaddingGridUnits(s) {
   var v = s.attrs && s.attrs.padding;
   if (v != null && v !== '') {
@@ -1965,6 +1993,7 @@ function renderShapes(dslText, wrap, options) {
   // so content and styles are preserved — no re-parse, no DOM rebuild.
   wrap.appendChild(stage);
   if (off.parentNode) off.parentNode.removeChild(off);
+  syncShapeCopyButtonContrast(stage);
 
   session.addCleanup(attachScaler(wrap, stage, rW));
 

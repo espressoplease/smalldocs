@@ -180,4 +180,15 @@ test.describe('Slide interaction model', () => {
     expect(dark).toContain('is-dark');   // dark fill -> light icon
     expect(light).toContain('is-light'); // light fill -> dark icon
   });
+
+  test('fullscreen copy buttons resolve document background style references', async ({ page }) => {
+    await renderDeck(page, [
+      'grid 100 56.25 bg=$background\nr 8 16 84 24 color=$h1.color | Light title',
+    ]);
+    await page.locator('.sdoc-slide-present').click();
+    const button = page.locator('.sdoc-present-stage .sd-shape-copy-btn');
+    await expect(button).toHaveClass(/is-light/);
+    await page.locator('.sdoc-present-stage .shape-rect').hover();
+    await expect(button).toHaveCSS('color', 'rgb(28, 25, 23)');
+  });
 });

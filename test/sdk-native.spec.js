@@ -468,6 +468,7 @@ test('board customer presents custom slides and exports deck files', async ({ pa
   await expect(page.locator('.sdoc-present-rail .sdoc-present-thumb')).toHaveCount(3);
   await expect(page.locator('.sdoc-present-counter')).toHaveText('1 / 3');
   await expect(page.getByRole('button', { name: 'Comment on slides' })).toHaveCount(0);
+  await expect(page.locator('.sdoc-present-stage .sd-shape-copy-btn:not(.is-light):not(.is-dark)')).toHaveCount(0);
   await page.getByRole('button', { name: 'Export' }).click();
   await expect(page.locator('.sdoc-present-exp-panel')).toHaveClass(/open/);
   await expect(page.locator('.sdoc-present-exp-panel')).toHaveCSS('width', '260px');

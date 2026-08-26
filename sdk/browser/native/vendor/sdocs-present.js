@@ -651,7 +651,7 @@ function open(startIndex) {
   prevBtn.className = 'sdoc-present-btn';
   prevBtn.type = 'button';
   prevBtn.setAttribute('aria-label', 'Previous slide');
-  prevBtn.title = 'Previous slide (-)';
+  prevBtn.title = 'Previous slide (↑)';
   setHTML(prevBtn, '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
     + '<path d="m18 15-6-6-6 6"/></svg>');
   prevBtn.addEventListener('click', function () { go(state.index - 1); });
@@ -661,7 +661,7 @@ function open(startIndex) {
   nextBtn.className = 'sdoc-present-btn';
   nextBtn.type = 'button';
   nextBtn.setAttribute('aria-label', 'Next slide');
-  nextBtn.title = 'Next slide (--)';
+  nextBtn.title = 'Next slide (↓)';
   setHTML(nextBtn, '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
     + '<path d="m6 9 6 6 6-6"/></svg>');
   nextBtn.addEventListener('click', function () { go(state.index + 1); });
