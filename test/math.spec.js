@@ -1,12 +1,16 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = 'http://localhost:3000/new';
 
 async function loadMd(page, md) {
   await page.goto(BASE);
-  await page.waitForSelector('#_sd_rendered');
-  await page.evaluate((m) => window.SDocs.loadText(m, 'math.md'), md);
+  await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
+  await page.evaluate((m) => {
+    window.SDocs.setMode('read', true);
+    window.SDocs.loadText(m, 'math.md');
+  }, md);
+  await page.waitForSelector('#_sd_rendered', { state: 'visible' });
   // Give KaTeX time to lazy-load from CDN. An element is "settled" once it
   // has either a .katex child (success) or a .katex-error child (render
   // failure with throwOnError: false).

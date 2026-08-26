@@ -28,6 +28,8 @@ const files = [
   ['public/sdocs-cells-ui.js', 'sdocs-cells-ui.js'],
   ['public/sdocs-video.js', 'sdocs-video.js'],
   ['public/css/video-reader.css', 'sdocs-video-reader.css', 'sdk-layered-css'],
+  ['public/sdocs-math-core.js', 'sdocs-math-core.js'],
+  ['public/css/math-reader.css', 'sdocs-math-reader.css', 'sdk-math-css'],
   ['public/css/cells.css', 'sdocs-cells.css', 'sdk-scoped-css'],
   ['public/fonts/inter-400.woff2', 'fonts/inter-400.woff2'],
   ['public/fonts/inter-500.woff2', 'fonts/inter-500.woff2'],
@@ -52,6 +54,12 @@ function transformContents(contents, transform) {
   if (transform === 'sdk-layered-css') {
     return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
       + contents.toString('utf8') + '\n}\n}\n');
+  }
+  if (transform === 'sdk-math-css') {
+    return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
+      + contents.toString('utf8')
+      + '\n}\n}\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
+      + '.sdocs-math-display .katex-display { margin: 0; }\n}\n');
   }
   if (transform === 'sdk-scoped-css') {
     const css = contents.toString('utf8');

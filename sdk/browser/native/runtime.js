@@ -7,6 +7,12 @@ const markedDelCore = window.SDocsMarkedDelCore;
 if (previousMarkedDelCore === undefined) delete window.SDocsMarkedDelCore;
 else window.SDocsMarkedDelCore = previousMarkedDelCore;
 
+const previousMathCore = window.SDocMathCore;
+await import('./vendor/sdocs-math-core.js');
+export const mathCore = window.SDocMathCore;
+if (previousMathCore === undefined) delete window.SDocMathCore;
+else window.SDocMathCore = previousMathCore;
+
 const POLICY_NAME = 'smalldocs-sdk-0.2.0';
 let trustedPolicy = null;
 
@@ -23,55 +29,7 @@ if (window.trustedTypes) {
 
 const parser = new Marked();
 parser.use(markedDelCore.extension);
-const inlineMath = /^\$(?!\s)((?:\\\$|[^$\n])+?)(?<!\s)\$(?!\d)/;
-const blockMath = /^\$\$([\s\S]+?)\$\$(?:\n|$)/;
-const blockMathStart = /(?<=^|\n)\$\$/;
-
-parser.use({
-  extensions: [
-    {
-      name: 'sdocsNativeMathBlock',
-      level: 'block',
-      start(source) {
-        const match = blockMathStart.exec(source);
-        return match ? match.index : undefined;
-      },
-      tokenizer(source) {
-        const match = blockMath.exec(source);
-        if (match) return { type: 'sdocsNativeMathBlock', raw: match[0], tex: match[1].trim() };
-      },
-      renderer(token) {
-        return '<div class="sdocs-math-display" data-tex="'
-          + escapeAttribute(token.tex) + '"></div>\n';
-      },
-    },
-    {
-      name: 'sdocsNativeMathInline',
-      level: 'inline',
-      start(source) {
-        const match = source.match(/(?<!\\)\$/);
-        return match ? match.index : undefined;
-      },
-      tokenizer(source) {
-        const match = inlineMath.exec(source);
-        if (match) return { type: 'sdocsNativeMathInline', raw: match[0], tex: match[1] };
-      },
-      renderer(token) {
-        return '<span class="sdocs-math-inline" data-tex="'
-          + escapeAttribute(token.tex) + '"></span>';
-      },
-    },
-  ],
-});
-
-function escapeAttribute(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+parser.use(mathCore.extension);
 
 export function createRenderer() {
   return new Renderer();

@@ -764,6 +764,7 @@ export function calculateForecast(revenue, margin) {
     window.SDocs.currentMeta = {};
     window.SDocs.render();
   }, markdown);
+  await expect(page.locator('#_sd_rendered .pre-wrapper .hljs-keyword').first()).toBeVisible();
   const productionInline = await page.locator('#_sd_rendered .pre-wrapper').evaluate(wrapper => {
     const pre = wrapper.querySelector(':scope > pre');
     const button = wrapper.querySelector('.pre-tools button');

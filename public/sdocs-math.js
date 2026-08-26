@@ -73,110 +73,23 @@
     return katexReady;
   }
 
-  function escapeAttr(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  // Inline $...$ rules (follow KaTeX auto-render conventions):
-  //   - opening $ must not be immediately followed by whitespace
-  //   - closing $ must not be immediately followed by a digit
-  //   - no newlines inside
-  //   - \$ is a literal dollar sign, never a delimiter
-  // The capturing group is lazy so the shortest valid match wins.
-  var INLINE_RE = /^\$(?!\s)((?:\\\$|[^$\n])+?)(?<!\s)\$(?!\d)/;
-
-  // Block $$...$$ — content may span lines. Require the closing $$ to be
-  // followed by newline or end-of-string so we don't swallow inline uses.
-  var BLOCK_RE = /^\$\$([\s\S]+?)\$\$(?:\n|$)/;
-
-  // Only treat $$ as a block opener when it sits at the start of a line.
-  // Without this check, `start` would return the index of $$ inside an
-  // inline code span like `$$...$$`, causing marked to split the paragraph
-  // there and gobble everything up to the next $$ as display math.
-  // Lookbehind is zero-width, so the match index is the $$ position.
-  var BLOCK_START_RE = /(?<=^|\n)\$\$/;
-
   function registerMarkedExtension() {
-    if (typeof marked === 'undefined' || !marked.use) return;
-    if (registerMarkedExtension._done) return;
-    registerMarkedExtension._done = true;
-
-    marked.use({
-      extensions: [
-        {
-          name: 'sdocsMathBlock',
-          level: 'block',
-          start: function (src) {
-            var m = BLOCK_START_RE.exec(src);
-            return m ? m.index : undefined;
-          },
-          tokenizer: function (src) {
-            var m = BLOCK_RE.exec(src);
-            if (m) return { type: 'sdocsMathBlock', raw: m[0], tex: m[1].trim() };
-          },
-          renderer: function (token) {
-            return '<div class="sdocs-math-display" data-tex="' + escapeAttr(token.tex) + '"></div>\n';
-          },
-        },
-        {
-          name: 'sdocsMathInline',
-          level: 'inline',
-          start: function (src) {
-            var m = src.match(/(?<!\\)\$/);
-            return m ? m.index : undefined;
-          },
-          tokenizer: function (src) {
-            var m = INLINE_RE.exec(src);
-            if (m) return { type: 'sdocsMathInline', raw: m[0], tex: m[1] };
-          },
-          renderer: function (token) {
-            return '<span class="sdocs-math-inline" data-tex="' + escapeAttr(token.tex) + '"></span>';
-          },
-        },
-      ],
-    });
+    if (window.SDocMathCore) window.SDocMathCore.apply(window.marked);
   }
 
-  // Render all math placeholders inside `container`. Returns a promise that
-  // resolves after all math has rendered (so callers like PDF export can
-  // wait for the DOM to settle before capturing it).
-  // DO NOT move this call above DOMPurify.sanitize(): KaTeX output uses inline
-  // styles, which render() strips via FORBID_ATTR: ['style'].
+  var mathRenderer = window.SDocMathCore.createRenderer({
+    load: loadKatex,
+    render: function (katex, tex, element, displayMode) {
+      katex.render(tex, element, {
+        displayMode: displayMode,
+        throwOnError: false,
+        output: 'html',
+      });
+    },
+  });
+
   function processMath(container) {
-    if (!container) return Promise.resolve();
-    var nodes = container.querySelectorAll('.sdocs-math-display, .sdocs-math-inline');
-    if (!nodes.length) return Promise.resolve();
-    return loadKatex().then(function (katex) {
-      if (!katex) return;
-      nodes.forEach(function (el) {
-        if (el._katexDone) return;
-        var tex = el.getAttribute('data-tex') || '';
-        var displayMode = el.classList.contains('sdocs-math-display');
-        try {
-          katex.render(tex, el, {
-            displayMode: displayMode,
-            throwOnError: false,
-            output: 'html',
-          });
-          el._katexDone = true;
-        } catch (_) {
-          // throwOnError: false already renders an inline error; this catch
-          // covers a deeper KaTeX crash. Leave the placeholder visible.
-          el.textContent = tex;
-        }
-      });
-    }).catch(function () {
-      // CDN fetch failed — fall back to showing the raw LaTeX so the reader
-      // at least sees the source rather than a blank element.
-      nodes.forEach(function (el) {
-        if (!el.textContent) el.textContent = el.getAttribute('data-tex') || '';
-      });
-    });
+    return mathRenderer.processMath(container);
   }
 
   // Register the marked extension at script load (before any marked.parse call

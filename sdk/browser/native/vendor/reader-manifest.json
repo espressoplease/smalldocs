@@ -83,6 +83,16 @@
     "sourceSha256": "7d42873376ad9f2fa9aadc78e96c70104a3032c68098b82ed49d59655d9dc64b",
     "transform": "sdk-layered-css"
   },
+  "sdocs-math-core.js": {
+    "source": "public/sdocs-math-core.js",
+    "sha256": "1651bd3f61ece8bc76672b493653333531ebe268f020b60236723ad6726bb7da"
+  },
+  "sdocs-math-reader.css": {
+    "source": "public/css/math-reader.css",
+    "sha256": "a0c4bd6ff1018370521a92e89ddcb74c953a88d967f110b3fadc71cafb32e9a4",
+    "sourceSha256": "bd9d1104988c6353e48e5d81cec32f8c21c39775a7b546ac54d0cd585e48e88e",
+    "transform": "sdk-math-css"
+  },
   "sdocs-cells.css": {
     "source": "public/css/cells.css",
     "sha256": "4a7748846531ed12faa273c098c184af44abf3aab1520866cc8ba6ffed062f37",

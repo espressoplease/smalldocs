@@ -1,5 +1,5 @@
-import { loadStyle } from '../assets.js';
-import { setSanitizedHTML } from '../runtime.js';
+import { loadStyle, vendorAsset } from '../assets.js';
+import { mathCore, setSanitizedHTML } from '../runtime.js';
 
 const KATEX_VERSION = '0.16.11';
 const KATEX_CSS = 'https://cdn.jsdelivr.net/npm/katex@' + KATEX_VERSION + '/dist/katex.min.css';
@@ -22,24 +22,19 @@ function loadKatex() {
 export async function mount(context) {
   const nodes = Array.from(context.root.querySelectorAll('.sdocs-math-display, .sdocs-math-inline'));
   if (!nodes.length) return;
-  try {
-    const katex = await loadKatex();
-    if (context.signal.aborted) return;
-    nodes.forEach((node) => {
-      if (!node.isConnected) return;
-      const tex = node.dataset.tex || '';
-      try {
-        const html = katex.renderToString(tex, {
-          displayMode: node.classList.contains('sdocs-math-display'),
-          throwOnError: false,
-          output: 'html',
-        });
-        setSanitizedHTML(node, html, { FORBID_ATTR: ['srcdoc'] });
-      } catch (_) {
-        node.textContent = tex;
-      }
-    });
-  } catch (_) {
-    nodes.forEach((node) => { node.textContent = node.dataset.tex || ''; });
-  }
+  await loadStyle(vendorAsset('sdocs-math-reader.css'), 'smalldocs-sdk-math-reader-styles');
+  const renderer = mathCore.createRenderer({
+    load: loadKatex,
+    isActive() { return !context.signal.aborted; },
+    isNodeActive(node) { return context.allowDetached === true || node.isConnected; },
+    render(katex, tex, node, displayMode) {
+      const html = katex.renderToString(tex, {
+        displayMode,
+        throwOnError: false,
+        output: 'html',
+      });
+      setSanitizedHTML(node, html, { FORBID_ATTR: ['srcdoc'] });
+    },
+  });
+  await renderer.processMath(context.root);
 }
