@@ -514,7 +514,11 @@ async function captureState(page, surfaceName, config, state, outputDir, diagnos
     data.controls.forEach((control) => { control.hovered = false; });
   }
   data.contractFailures = (await contractFailures(page, state.contracts, config)).concat(stepFailures || []);
-  data.diagnostics = diagnostics.slice();
+  const diagnosticIgnore = config.diagnosticIgnore || [];
+  data.diagnostics = diagnostics.filter((entry) => !diagnosticIgnore.some((pattern) => {
+    if (pattern instanceof RegExp) return pattern.test(entry.message);
+    return entry.message.includes(String(pattern));
+  }));
   data.rootFound = rootFound;
   return data;
 }

@@ -26,6 +26,8 @@ const files = [
   ['public/sdocs-cells-edit.js', 'sdocs-cells-edit.js'],
   ['public/sdocs-cells-focus.js', 'sdocs-cells-focus.js'],
   ['public/sdocs-cells-ui.js', 'sdocs-cells-ui.js'],
+  ['public/sdocs-video.js', 'sdocs-video.js'],
+  ['public/css/video-reader.css', 'sdocs-video-reader.css', 'sdk-layered-css'],
   ['public/css/cells.css', 'sdocs-cells.css', 'sdk-scoped-css'],
   ['public/fonts/inter-400.woff2', 'fonts/inter-400.woff2'],
   ['public/fonts/inter-500.woff2', 'fonts/inter-500.woff2'],

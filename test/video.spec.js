@@ -5,13 +5,17 @@
 // during the test (the browser would, but we only assert on the DOM we emit).
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = 'http://localhost:3000/new';
 const ID = 'dQw4w9WgXcQ';
 
 async function loadDoc(page, markdown) {
   await page.goto(BASE);
-  await page.waitForSelector('#_sd_rendered');
-  await page.evaluate((md) => window.SDocs.loadText(md), markdown);
+  await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
+  await page.evaluate((md) => {
+    window.SDocs.setMode('read', true);
+    window.SDocs.loadText(md, 'video-fixture.md');
+  }, markdown);
+  await page.waitForSelector('#_sd_rendered', { state: 'visible' });
 }
 
 // ── Render ──────────────────────────────────────────────

@@ -125,3 +125,105 @@
   exports.parseStart = parseStart;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocVideo = {}));
 
+
+// ── Browser-only DOM renderer ──────────────────────────────────────────────
+if (typeof window !== 'undefined') {
+  (function () {
+    'use strict';
+    var V = window.SDocVideo;
+
+    var SOURCE_BYTE_CAP = 8 * 1024;
+    var DOC_BLOCK_CAP = 50;
+
+    function createRenderer(environment) {
+      var env = environment || {};
+      var doc = env.document || window.document;
+      var BlobCtor = env.Blob || window.Blob;
+      var isActive = typeof env.isActive === 'function' ? env.isActive : function () { return true; };
+
+      function byteLen(s) {
+        try { return new BlobCtor([s]).size; } catch (_) { return s.length; }
+      }
+
+    function renderError(target, msg) {
+      var pre = doc.createElement('pre');
+      pre.className = 'sdoc-video-error';
+      var line = doc.createElement('div');
+      line.className = 'sdoc-video-error-msg';
+      line.textContent = msg;
+      pre.appendChild(line);
+      target.parentNode.replaceChild(pre, target);
+    }
+
+    function buildEmbed(parsed) {
+      var wrapper = doc.createElement('div');
+      wrapper.className = 'sdoc-video';
+      wrapper.setAttribute('data-watch', V.watchUrl(parsed));
+
+      var frame = doc.createElement('div');
+      frame.className = 'sdoc-video-frame';
+
+      // The iframe is built here, never parsed from document markup. Its src
+      // is constructed from a validated id - nothing from the source string
+      // reaches the DOM except that id.
+      var iframe = doc.createElement('iframe');
+      iframe.setAttribute('src', V.buildEmbedUrl(parsed));
+      iframe.setAttribute('title', parsed.title || 'YouTube video player');
+      iframe.setAttribute('loading', 'lazy');
+      iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+      iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen');
+      iframe.setAttribute('allowfullscreen', '');
+      iframe.setAttribute('frameborder', '0');
+      frame.appendChild(iframe);
+      wrapper.appendChild(frame);
+
+      if (parsed.title) {
+        var cap = doc.createElement('div');
+        cap.className = 'sdoc-video-caption';
+        var a = doc.createElement('a');
+        a.setAttribute('href', V.watchUrl(parsed));
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener noreferrer');
+        a.textContent = parsed.title;
+        cap.appendChild(a);
+        wrapper.appendChild(cap);
+      }
+      return wrapper;
+    }
+
+      function processVideo(container) {
+      if (!container) return;
+      var nodes = container.querySelectorAll('code.language-video');
+      if (!nodes.length) return;
+      var capped = Array.prototype.slice.call(nodes, 0, DOC_BLOCK_CAP);
+
+      capped.forEach(function (codeEl) {
+        if (!isActive()) return;
+        var pre = codeEl.closest('pre');
+        if (!pre || pre._videoDone) return;
+        var preWrapper = pre.closest('.pre-wrapper');
+        var target = preWrapper || pre;
+
+        var src = codeEl.textContent || '';
+        if (byteLen(src) > SOURCE_BYTE_CAP) {
+          pre._videoDone = true;
+          renderError(target, 'Video block too large.');
+          return;
+        }
+
+        var parsed = V.parseVideoSource(src);
+        pre._videoDone = true;
+        if (parsed.error) { renderError(target, parsed.error); return; }
+        target.parentNode.replaceChild(buildEmbed(parsed), target);
+      });
+      }
+
+      return { processVideo: processVideo };
+    }
+
+    V.createRenderer = createRenderer;
+    if (window.SDocs) {
+      window.SDocs.processVideo = createRenderer().processVideo;
+    }
+  })();
+}

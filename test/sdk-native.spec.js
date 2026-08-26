@@ -850,7 +850,7 @@ https://www.youtube.com/watch?v=dQw4w9WgXcQ
 title: Product walkthrough
 start: 75
 ~~~`));
-  const video = page.locator('.smalldocs-video iframe');
+  const video = page.locator('.sdoc-video iframe');
   await expect(video).toHaveCount(1);
   await expect(video).toHaveAttribute('src', /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?.*start=75/);
   await expect(video).toHaveAttribute('title', 'Product walkthrough');

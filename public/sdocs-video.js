@@ -127,23 +127,28 @@
 
 
 // ── Browser-only DOM renderer ──────────────────────────────────────────────
-if (typeof window !== 'undefined' && window.SDocs) {
+if (typeof window !== 'undefined') {
   (function () {
     'use strict';
-    var S = window.SDocs;
     var V = window.SDocVideo;
 
     var SOURCE_BYTE_CAP = 8 * 1024;
     var DOC_BLOCK_CAP = 50;
 
-    function byteLen(s) {
-      try { return new Blob([s]).size; } catch (_) { return s.length; }
-    }
+    function createRenderer(environment) {
+      var env = environment || {};
+      var doc = env.document || window.document;
+      var BlobCtor = env.Blob || window.Blob;
+      var isActive = typeof env.isActive === 'function' ? env.isActive : function () { return true; };
+
+      function byteLen(s) {
+        try { return new BlobCtor([s]).size; } catch (_) { return s.length; }
+      }
 
     function renderError(target, msg) {
-      var pre = document.createElement('pre');
+      var pre = doc.createElement('pre');
       pre.className = 'sdoc-video-error';
-      var line = document.createElement('div');
+      var line = doc.createElement('div');
       line.className = 'sdoc-video-error-msg';
       line.textContent = msg;
       pre.appendChild(line);
@@ -151,17 +156,17 @@ if (typeof window !== 'undefined' && window.SDocs) {
     }
 
     function buildEmbed(parsed) {
-      var wrapper = document.createElement('div');
+      var wrapper = doc.createElement('div');
       wrapper.className = 'sdoc-video';
       wrapper.setAttribute('data-watch', V.watchUrl(parsed));
 
-      var frame = document.createElement('div');
+      var frame = doc.createElement('div');
       frame.className = 'sdoc-video-frame';
 
       // The iframe is built here, never parsed from document markup. Its src
       // is constructed from a validated id - nothing from the source string
       // reaches the DOM except that id.
-      var iframe = document.createElement('iframe');
+      var iframe = doc.createElement('iframe');
       iframe.setAttribute('src', V.buildEmbedUrl(parsed));
       iframe.setAttribute('title', parsed.title || 'YouTube video player');
       iframe.setAttribute('loading', 'lazy');
@@ -173,9 +178,9 @@ if (typeof window !== 'undefined' && window.SDocs) {
       wrapper.appendChild(frame);
 
       if (parsed.title) {
-        var cap = document.createElement('div');
+        var cap = doc.createElement('div');
         cap.className = 'sdoc-video-caption';
-        var a = document.createElement('a');
+        var a = doc.createElement('a');
         a.setAttribute('href', V.watchUrl(parsed));
         a.setAttribute('target', '_blank');
         a.setAttribute('rel', 'noopener noreferrer');
@@ -186,13 +191,14 @@ if (typeof window !== 'undefined' && window.SDocs) {
       return wrapper;
     }
 
-    function processVideo(container) {
+      function processVideo(container) {
       if (!container) return;
       var nodes = container.querySelectorAll('code.language-video');
       if (!nodes.length) return;
       var capped = Array.prototype.slice.call(nodes, 0, DOC_BLOCK_CAP);
 
       capped.forEach(function (codeEl) {
+        if (!isActive()) return;
         var pre = codeEl.closest('pre');
         if (!pre || pre._videoDone) return;
         var preWrapper = pre.closest('.pre-wrapper');
@@ -210,8 +216,14 @@ if (typeof window !== 'undefined' && window.SDocs) {
         if (parsed.error) { renderError(target, parsed.error); return; }
         target.parentNode.replaceChild(buildEmbed(parsed), target);
       });
+      }
+
+      return { processVideo: processVideo };
     }
 
-    S.processVideo = processVideo;
+    V.createRenderer = createRenderer;
+    if (window.SDocs) {
+      window.SDocs.processVideo = createRenderer().processVideo;
+    }
   })();
 }

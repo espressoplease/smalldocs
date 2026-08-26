@@ -73,6 +73,16 @@
     "source": "public/sdocs-cells-ui.js",
     "sha256": "e5df4987452d31f6a8ccb90d3fcf87d2cc814ab84fd57e17353c1a7cc8edd5dc"
   },
+  "sdocs-video.js": {
+    "source": "public/sdocs-video.js",
+    "sha256": "1b47d6cd7429ae46264e752ad64375278aeec01f94dc4e677460fe2d7ca058b6"
+  },
+  "sdocs-video-reader.css": {
+    "source": "public/css/video-reader.css",
+    "sha256": "260fbb504869859fd776bb46d30705e3846a58efb18fabc9e5a220dec7ead39d",
+    "sourceSha256": "7d42873376ad9f2fa9aadc78e96c70104a3032c68098b82ed49d59655d9dc64b",
+    "transform": "sdk-layered-css"
+  },
   "sdocs-cells.css": {
     "source": "public/css/cells.css",
     "sha256": "4a7748846531ed12faa273c098c184af44abf3aab1520866cc8ba6ffed062f37",
