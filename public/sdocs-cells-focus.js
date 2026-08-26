@@ -242,6 +242,8 @@
   function close() {
     if (!state.modal) return;
     if (state.editApi) { try { state.editApi.detach(); } catch (_) {} }
+    var openGrid = state.modal.querySelector('.sdoc-cells-fs');
+    if (openGrid && openGrid._cellsRelease) { try { openGrid._cellsRelease(); } catch (_) {} }
     if (state.keyHandler) window.removeEventListener('keydown', state.keyHandler);
     state.keyHandler = null;
     state.modal.remove();
@@ -407,14 +409,14 @@
     }
     // Keep the name box, stats, and value field in sync with the active grid's
     // selection. Skipped while the formula bar itself is focused.
-    function syncSelection(d) {
+    function syncSelection(d, forceValue) {
       if (!activeWrap) return;
       if (!d || d.empty) { nameBox.textContent = ''; valueBox.value = ''; stats.textContent = ''; return; }
       var vm = activeWrap._cellsModel || activeModel;   // effective (sorted) view
       var addr = CELLS.colName(d.c0) + (d.r0 + 1);
       nameBox.textContent = d.single ? addr : addr + ':' + CELLS.colName(d.c1) + (d.r1 + 1);
       var cell = vm.cells[d.r0] && vm.cells[d.r0][d.c0];
-      if (document.activeElement !== valueBox) valueBox.value = cell ? cell.raw : '';
+      if (forceValue || document.activeElement !== valueBox) valueBox.value = cell ? cell.raw : '';
       stats.textContent = S.formatCellsStats
         ? S.formatCellsStats(vm, d, activeWrap._cellsFxView) : '';
     }
@@ -425,7 +427,7 @@
         focusGrid();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        syncSelection(activeWrap && activeWrap._cellsSelection);
+        syncSelection(activeWrap && activeWrap._cellsSelection, true);
         focusGrid();
       }
       e.stopPropagation();
@@ -438,6 +440,7 @@
     function mountSheet(index) {
       if (index < 0 || index >= entries.length) return;
       if (state.editApi) { try { state.editApi.detach(); } catch (_) {} state.editApi = null; }
+      if (activeWrap && activeWrap._cellsRelease) { try { activeWrap._cellsRelease(); } catch (_) {} }
       var entry = entries[index];
       var m = entry.model;
 

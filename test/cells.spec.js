@@ -1684,3 +1684,189 @@ test('inline tabbed pane: cross-tab values still compute', async ({ page }) => {
   const cell = page.locator('.sdoc-cells-pane .sdoc-cells').nth(1).locator('.sdoc-cells-cell[data-r="1"][data-c="0"]');
   await expect(cell).toHaveText('16');
 });
+
+test('cells grid release is idempotent and clears instance-owned resources', async ({ page }) => {
+  await loadDoc(page, '# release harness');
+  const result = await page.evaluate(() => {
+    const observers = [];
+    let selectionRecords = 0;
+    let cancelledFrames = 0;
+    let nextFrame = 1;
+    class Observer {
+      constructor() { this.targets = new Set(); observers.push(this); }
+      observe(target) { this.targets.add(target); }
+      unobserve(target) { this.targets.delete(target); }
+      disconnect() { this.targets.clear(); }
+    }
+    const selection = {
+      wire() {
+        let active = true;
+        selectionRecords += 1;
+        return () => {
+          if (!active) return;
+          active = false;
+          selectionRecords -= 1;
+        };
+      },
+    };
+    const ui = window.SDocCellsUI.create({
+      window,
+      document,
+      state: {},
+      cells: window.SDocCells,
+      formula: window.SDocCellsFormula,
+      controller: window.SDocCellsController,
+      selection,
+      ResizeObserver: Observer,
+      requestAnimationFrame() { return nextFrame++; },
+      cancelAnimationFrame() { cancelledFrames += 1; },
+      installMarkedExtension: false,
+    });
+    for (let i = 0; i < 6; i += 1) {
+      const model = window.SDocCells.parseCells('A,B\n' + i + ',' + (i + 1));
+      const wrapper = ui.buildGrid(model);
+      document.body.appendChild(wrapper);
+      wrapper._cellsRelease();
+      wrapper._cellsRelease && wrapper._cellsRelease();
+      wrapper.remove();
+    }
+    const beforeDestroy = {
+      selectionRecords,
+      observedTargets: observers.reduce((sum, observer) => sum + observer.targets.size, 0),
+      cancelledFrames,
+    };
+    ui.destroy();
+    ui.destroy();
+    return {
+      beforeDestroy,
+      afterDestroyTargets: observers.reduce((sum, observer) => sum + observer.targets.size, 0),
+    };
+  });
+  expect(result.beforeDestroy.selectionRecords).toBe(0);
+  expect(result.beforeDestroy.observedTargets).toBe(0);
+  expect(result.beforeDestroy.cancelledFrames).toBe(6);
+  expect(result.afterDestroyTargets).toBe(0);
+});
+
+test('cells editor factories isolate instances and detach can cancel or commit', async ({ page }) => {
+  await loadDoc(page, '# editor factory harness');
+  await page.evaluate(() => window.SDocs.loadCellsFeature('focus'));
+  const result = await page.evaluate(() => {
+    function fixture(value) {
+      const model = window.SDocCells.parseCells('Value\n' + value);
+      const wrapper = window.SDocs.buildCellsGrid(model, { fullscreen: true });
+      document.body.appendChild(wrapper);
+      return { model, wrapper };
+    }
+    function editor() {
+      return window.SDocCellsEdit.create({
+        window,
+        document,
+        cells: window.SDocCells,
+        formula: window.SDocCellsFormula,
+      });
+    }
+    const first = fixture('10');
+    const second = fixture('20');
+    const firstEditor = editor();
+    const secondEditor = editor();
+    const firstApi = firstEditor.attach(first.wrapper);
+    const secondApi = secondEditor.attach(second.wrapper);
+
+    firstApi.begin();
+    document.querySelectorAll('.sdoc-cells-editor')[0].value = '11';
+    secondApi.begin();
+    document.querySelector('.sdoc-cells-editor').value = '22';
+
+    firstEditor.destroy();
+    firstEditor.destroy();
+    const afterFirstDestroy = document.querySelectorAll('.sdoc-cells-editor').length;
+    secondApi.detach(true);
+    secondApi.detach(true);
+    const committed = second.model.cells[0][0].raw;
+
+    const cancelledFixture = fixture('30');
+    const cancelledEditor = editor();
+    const cancelledApi = cancelledEditor.attach(cancelledFixture.wrapper);
+    cancelledApi.begin();
+    document.querySelector('.sdoc-cells-editor').value = '31';
+    cancelledApi.detach(false);
+    cancelledApi.detach(false);
+
+    const result = {
+      afterFirstDestroy,
+      firstRaw: first.model.cells[0][0].raw,
+      committed,
+      cancelledRaw: cancelledFixture.model.cells[0][0].raw,
+      editorsLeft: document.querySelectorAll('.sdoc-cells-editor').length,
+      firstOwned: !!first.wrapper._cellsEditApi,
+      secondOwned: !!second.wrapper._cellsEditApi,
+      cancelledOwned: !!cancelledFixture.wrapper._cellsEditApi,
+    };
+    secondEditor.destroy();
+    cancelledEditor.destroy();
+    [first, second, cancelledFixture].forEach((item) => {
+      if (item.wrapper._cellsRelease) item.wrapper._cellsRelease();
+      item.wrapper.remove();
+    });
+    return result;
+  });
+  expect(result.afterFirstDestroy).toBe(1);
+  expect(result.firstRaw).toBe('11');
+  expect(result.committed).toBe('22');
+  expect(result.cancelledRaw).toBe('Value');
+  expect(result.editorsLeft).toBe(0);
+  expect(result.firstOwned).toBe(false);
+  expect(result.secondOwned).toBe(false);
+  expect(result.cancelledOwned).toBe(false);
+});
+
+test('cells editor Escape cancels the editor without reaching the grid or document', async ({ page }) => {
+  await loadDoc(page, '# editor escape harness');
+  await page.evaluate(() => window.SDocs.loadCellsFeature('focus'));
+  const result = await page.evaluate(() => {
+    const model = window.SDocCells.parseCells('Value\n10');
+    const wrapper = window.SDocs.buildCellsGrid(model, { fullscreen: true });
+    document.body.appendChild(wrapper);
+    const editor = window.SDocCellsEdit.create({
+      window,
+      document,
+      cells: window.SDocCells,
+      formula: window.SDocCellsFormula,
+    });
+    const api = editor.attach(wrapper);
+    let escaped = 0;
+    function onEscape(event) { if (event.key === 'Escape') escaped += 1; }
+    document.addEventListener('keydown', onEscape);
+    api.begin();
+    const input = document.querySelector('.sdoc-cells-editor');
+    input.value = 'changed';
+    input.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Escape', bubbles: true, cancelable: true,
+    }));
+    document.removeEventListener('keydown', onEscape);
+    const result = {
+      raw: model.cells[0][0].raw,
+      escaped,
+      editorOpen: !!document.querySelector('.sdoc-cells-editor'),
+    };
+    editor.destroy();
+    if (wrapper._cellsRelease) wrapper._cellsRelease();
+    wrapper.remove();
+    return result;
+  });
+  expect(result.raw).toBe('Value');
+  expect(result.escaped).toBe(0);
+  expect(result.editorOpen).toBe(false);
+});
+
+test('fullscreen formula bar Escape restores the selected cell value', async ({ page }) => {
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'Item,Qty', 'A,10', FENCE]);
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  const bar = fs.locator('.sdoc-cells-focus-value');
+  await expect(bar).toHaveValue('10');
+  await bar.fill('99');
+  await bar.press('Escape');
+  await expect(bar).toHaveValue('10');
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('10');
+});

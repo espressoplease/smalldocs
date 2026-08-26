@@ -20,6 +20,7 @@ const files = [
   ['public/sdocs-cells-xlsx.js', 'sdocs-cells-xlsx.js'],
   ['public/sdocs-cells-controller.js', 'sdocs-cells-controller.js'],
   ['public/sdocs-cells-select.js', 'sdocs-cells-select.js'],
+  ['public/sdocs-cells-edit.js', 'sdocs-cells-edit.js'],
   ['public/sdocs-cells-ui.js', 'sdocs-cells-ui.js'],
   ['public/css/cells.css', 'sdocs-cells.css', 'sdk-scoped-css'],
   ['public/fonts/inter-400.woff2', 'fonts/inter-400.woff2'],

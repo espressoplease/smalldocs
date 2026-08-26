@@ -61,6 +61,7 @@
   var activeResizeCleanups = [];
   var selection = options.selection || null;
   var selectionCleanups = [];
+  var gridReleases = [];
   var destroyed = false;
   function enabled(name) {
     return controls[name] !== false && capabilities[name] !== false;
@@ -78,13 +79,56 @@
     if (holder.firstElementChild) svg.replaceWith(holder.firstElementChild);
   }
   function queueFrame(fn) {
-    if (typeof requestAnimationFrame !== 'function') { fn(); return; }
+    if (typeof requestAnimationFrame !== 'function') { fn(); return function () {}; }
+    var active = true;
     var id = requestAnimationFrame(function () {
       var index = pendingFrames.indexOf(id);
       if (index >= 0) pendingFrames.splice(index, 1);
-      if (!destroyed) fn();
+      if (active && !destroyed) fn();
     });
     pendingFrames.push(id);
+    return function () {
+      if (!active) return;
+      active = false;
+      var index = pendingFrames.indexOf(id);
+      if (index >= 0) pendingFrames.splice(index, 1);
+      if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame.call(window, id);
+    };
+  }
+
+  function removeTracked(list, value) {
+    var index = list.indexOf(value);
+    if (index >= 0) list.splice(index, 1);
+  }
+
+  function createGridRelease(wrapper) {
+    var cleanups = [];
+    var released = false;
+    function add(cleanup) {
+      if (typeof cleanup !== 'function') return cleanup;
+      if (released) cleanup(); else cleanups.push(cleanup);
+      return cleanup;
+    }
+    function release() {
+      if (released) return;
+      released = true;
+      for (var i = cleanups.length - 1; i >= 0; i--) {
+        try { cleanups[i](); } catch (_) {}
+      }
+      cleanups.length = 0;
+      removeTracked(gridReleases, release);
+      if (wrapper._cellsRelease === release) delete wrapper._cellsRelease;
+      if (wrapper._cellsAddCleanup === add) delete wrapper._cellsAddCleanup;
+      delete wrapper._cellsRepaint;
+      delete wrapper._cellsSizeScroller;
+      delete wrapper._cellsViewOriginal;
+      delete wrapper._cellsViewEdited;
+      delete wrapper._cellsMarkEdited;
+    }
+    wrapper._cellsRelease = release;
+    wrapper._cellsAddCleanup = add;
+    gridReleases.push(release);
+    return { add: add, release: release, isReleased: function () { return released; } };
   }
   function selectionInstance() {
     return selection || S.__cellsSelectionInstance || null;
@@ -158,13 +202,14 @@
     button.disabled = true;
     button.setAttribute('aria-busy', 'true');
     loadCellsFeature(feature).then(function (value) {
-      if (!isActive()) return;
+      if (!isActive() || !button.isConnected) return;
       return action(value);
     }).catch(function (err) {
-      if (!isActive()) return;
+      if (!isActive() || !button.isConnected) return;
       button.title = 'Could not load this spreadsheet feature. Try again.';
       if (window.console && console.error) console.error(err);
     }).then(function () {
+      if (!button.isConnected) return;
       button.disabled = false;
       button.removeAttribute('aria-busy');
       if (button.title !== title) {
@@ -321,6 +366,7 @@
   // sheet holds formulas). Returns { box, selBtn, allBtn, rawBtn }.
   function buildCopyControls(src, model, opts) {
     opts = opts || {};
+    var addCleanup = src._cellsAddCleanup || function () {};
     var box = document.createElement('div');
     box.className = 'sdoc-cells-bar-actions';
 
@@ -342,7 +388,7 @@
     var selBtn = copyButton('sdoc-cells-copy-sel', 'selection');
     selBtn.style.display = 'none';
     selBtn.title = 'Copy selection as CSV';
-    selBtn.addEventListener('click', function () {
+    function onSelectionCopy() {
       var s = src._cellsSelection;
       if (!s || s.empty) return;
       var m = src._cellsModel || model;             // the effective (sorted) view
@@ -353,7 +399,9 @@
         sub.push(out);
       }
       copyText(CELLS.serializeCsv(sub), selBtn);
-    });
+    }
+    selBtn.addEventListener('click', onSelectionCopy);
+    addCleanup(function () { selBtn.removeEventListener('click', onSelectionCopy); });
 
     // Whole-sheet (values) copy. Standing alone it is the borderless icon;
     // next to a "formulas" button it becomes a matching labelled "values"
@@ -370,13 +418,15 @@
       allBtn.setAttribute('aria-label', 'Copy whole sheet as CSV');
       setKnownHTML(allBtn, copyIcon(14));
     }
-    allBtn.addEventListener('click', function () {
+    function onAllCopy() {
       var m = src._cellsModel || model;
       var rows = m.cells.map(function (row, r) {
         return row.map(function (_cell, c) { return copyValue(m, r, c); });
       });
       copyText(CELLS.serializeCsv(rows), allBtn);
-    });
+    }
+    allBtn.addEventListener('click', onAllCopy);
+    addCleanup(function () { allBtn.removeEventListener('click', onAllCopy); });
 
     if (enabled('copy')) {
       box.appendChild(selBtn);
@@ -388,9 +438,11 @@
     if (opts.rawButton && enabled('copy')) {
       rawBtn = copyButton('sdoc-cells-copy-raw', 'formulas');
       rawBtn.title = 'Copy whole sheet with formulas as CSV';
-      rawBtn.addEventListener('click', function () {
+      function onRawCopy() {
         copyText(CELLS.serializeCsv(rawRows((src._cellsModel || model).cells)), rawBtn);
-      });
+      }
+      rawBtn.addEventListener('click', onRawCopy);
+      addCleanup(function () { rawBtn.removeEventListener('click', onRawCopy); });
       box.appendChild(rawBtn);
     }
 
@@ -413,7 +465,7 @@
       xlsxBtn.title = dlLabel;
       xlsxBtn.setAttribute('aria-label', dlLabel);
       setKnownHTML(xlsxBtn, downloadIcon(14));
-      xlsxBtn.addEventListener('click', function () {
+      function onXlsxClick() {
         runLazyAction(xlsxBtn, 'xlsx', function (XL) {
         var FX = FORMULA;
         var group = S.cellsWorkbookGroupFor && S.cellsWorkbookGroupFor(model);
@@ -440,21 +492,34 @@
         a.click();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
         });
-      });
+      }
+      xlsxBtn.addEventListener('click', onXlsxClick);
+      addCleanup(function () { xlsxBtn.removeEventListener('click', onXlsxClick); });
       box.appendChild(xlsxBtn);
     }
 
-    src.addEventListener('cells-selection', function (e) {
+    function onCopySelectionChange(e) {
       var s = e.detail;
       if (!s || s.empty) { selBtn.style.display = 'none'; return; }
       selBtn.querySelector('.sdoc-cells-copy-label').textContent = s.single ? 'cell' : 'selection';
       selBtn.style.display = '';
+    }
+    src.addEventListener('cells-selection', onCopySelectionChange);
+    addCleanup(function () { src.removeEventListener('cells-selection', onCopySelectionChange); });
+    addCleanup(function () {
+      [selBtn, allBtn, rawBtn, xlsxBtn].forEach(function (button) {
+        if (button && button._tickTimer) {
+          clearTimeout(button._tickTimer);
+          button._tickTimer = null;
+        }
+      });
     });
 
     return { box: box, selBtn: selBtn, allBtn: allBtn, rawBtn: rawBtn, xlsxBtn: xlsxBtn };
   }
 
   function buildBar(wrapper, model) {
+    var addCleanup = wrapper._cellsAddCleanup || function () {};
     var source = model.source || '';
     var bar = document.createElement('div');
     bar.className = 'sdoc-cells-bar';
@@ -530,10 +595,12 @@
       wrapper._cellsModelOriginal = false;   // the live model now differs from parse
       setPillState();
     };
-    pill.addEventListener('click', function () {
+    function onPillClick() {
       if (editedStash) wrapper._cellsViewEdited();
       else wrapper._cellsViewOriginal();
-    });
+    }
+    pill.addEventListener('click', onPillClick);
+    addCleanup(function () { pill.removeEventListener('click', onPillClick); });
 
     var controls = buildCopyControls(wrapper, model);
     // The pill leads the right-side action group (left of the copy buttons).
@@ -547,7 +614,7 @@
       expandBtn.title = 'Open fullscreen';
       expandBtn.setAttribute('aria-label', 'Open fullscreen');
       setKnownHTML(expandBtn, EXPAND_SVG);
-      expandBtn.addEventListener('click', function () {
+      function onExpandClick() {
         runLazyAction(expandBtn, 'focus', function (focus) {
           // The document may have rerendered while the modules were in flight.
           // Do not open a stale model that is no longer part of the page.
@@ -557,19 +624,23 @@
           if (wrapper._cellsViewEdited) wrapper._cellsViewEdited();
           focus.open(model, wrapper);
         });
-      });
+      }
+      expandBtn.addEventListener('click', onExpandClick);
+      addCleanup(function () { expandBtn.removeEventListener('click', onExpandClick); });
       controls.box.appendChild(expandBtn);
     }
 
     bar.appendChild(controls.box);
 
     // The address label is inline-only; the overlay has a dedicated name box.
-    wrapper.addEventListener('cells-selection', function (e) {
+    function onBarSelection(e) {
       var s = e.detail;
       if (!s || s.empty) { setRef(''); return; }
       var a = CELLS.colName(s.c0) + (s.r0 + 1);
       setRef(s.single ? a : a + ':' + CELLS.colName(s.c1) + (s.r1 + 1));
-    });
+    }
+    wrapper.addEventListener('cells-selection', onBarSelection);
+    addCleanup(function () { wrapper.removeEventListener('cells-selection', onBarSelection); });
 
     return bar;
   }
@@ -584,6 +655,7 @@
   // so the collapse animation doesn't blank mid-motion, then cleared once the
   // close finishes so a long stats line stops widening the wrapper.
   function buildStatsStrip(wrapper, model) {
+    var addCleanup = wrapper._cellsAddCleanup || function () {};
     var strip = document.createElement('div');
     strip.className = 'sdoc-cells-stats';
     var inner = document.createElement('div');
@@ -598,7 +670,7 @@
       if (!strip.classList.contains('is-open')) inner.textContent = '';
       clearTimer = null;
     }
-    wrapper.addEventListener('cells-selection', function (e) {
+    function onStatsSelection(e) {
       var s = e.detail;
       var txt = (s && !s.empty)
         ? formatStats(wrapper._cellsModel || model, s, wrapper._cellsFxView)
@@ -607,6 +679,12 @@
       if (txt) inner.textContent = txt;
       else clearTimer = setTimeout(clearWhenClosed, 400);
       strip.classList.toggle('is-open', !!txt);
+    }
+    wrapper.addEventListener('cells-selection', onStatsSelection);
+    addCleanup(function () {
+      wrapper.removeEventListener('cells-selection', onStatsSelection);
+      strip.removeEventListener('transitionend', clearWhenClosed);
+      if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
     });
     strip.addEventListener('transitionend', clearWhenClosed);
     return strip;
@@ -624,6 +702,8 @@
 
     var wrapper = document.createElement('div');
     wrapper.className = 'sdoc-cells' + (fullscreen ? ' sdoc-cells-fs' : '');
+    var releaseBag = createGridRelease(wrapper);
+    var localResizeCleanups = [];
 
     var scroll = document.createElement('div');
     scroll.className = 'sdoc-cells-scroll';
@@ -679,6 +759,7 @@
     // wrapper._cellsModel always holds that effective model, so the toolbar,
     // copy, stats, and value bar reflect what is on screen after a sort.
     function paint() {
+      if (releaseBag.isReleased() || !isActive()) return;
       computeExtent();    // the model may have grown / shrunk since last paint
       applyTemplate();    // the column template follows the extent
       var hasHeader = CELLS.looksLikeHeader(model);
@@ -841,7 +922,7 @@
 
     // Click a column-header sort caret: cycle asc -> desc -> off, repaint, and
     // clear the (now-stale) selection.
-    grid.addEventListener('click', function (e) {
+    function onGridClick(e) {
       var caret = e.target.closest ? e.target.closest('.sdoc-cells-sort') : null;
       if (!caret || !grid.contains(caret)) return;
       e.stopPropagation();
@@ -851,10 +932,12 @@
       else sort = null;
       paint();
       if (grid._clearSelection) grid._clearSelection();
-    });
+    }
+    grid.addEventListener('click', onGridClick);
+    releaseBag.add(function () { grid.removeEventListener('click', onGridClick); });
 
     // Drag a column header's resize handle to set an explicit width.
-    grid.addEventListener('mousedown', function (e) {
+    function onGridMouseDown(e) {
       var handle = e.target.closest ? e.target.closest('.sdoc-cells-resize') : null;
       if (!handle || !grid.contains(handle)) return;
       e.preventDefault(); e.stopPropagation();
@@ -871,12 +954,19 @@
         resizeClassTarget.classList.remove('sdoc-cells-resizing');
         var index = activeResizeCleanups.indexOf(cleanupResize);
         if (index >= 0) activeResizeCleanups.splice(index, 1);
+        removeTracked(localResizeCleanups, cleanupResize);
       }
       function onUp() { cleanupResize(); }
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
       resizeClassTarget.classList.add('sdoc-cells-resizing');
       activeResizeCleanups.push(cleanupResize);
+      localResizeCleanups.push(cleanupResize);
+    }
+    grid.addEventListener('mousedown', onGridMouseDown);
+    releaseBag.add(function () {
+      grid.removeEventListener('mousedown', onGridMouseDown);
+      localResizeCleanups.slice().forEach(function (cleanup) { cleanup(); });
     });
 
     scroll.appendChild(grid);
@@ -923,17 +1013,26 @@
         if (w > 0) scroll.style.width = w + 'px';
       };
       wrapper._cellsSizeScroller = sizeScroller;
-      queueFrame(sizeScroller);
+      releaseBag.add(queueFrame(sizeScroller));
       if (typeof ResizeObserver !== 'undefined') {
-        var sizeRO = new ResizeObserver(function () { sizeScroller(); });
+        var sizeRO = new ResizeObserver(function () {
+          if (!releaseBag.isReleased()) sizeScroller();
+        });
         sizeRO.observe(grid);
         sizeObservers.push(sizeRO);
+        releaseBag.add(function () {
+          if (sizeRO.disconnect) sizeRO.disconnect();
+          removeTracked(sizeObservers, sizeRO);
+        });
       }
     }
 
     // Watch for a space-reserving scrollbar; toggles .has-xscroll so the
     // closing line under the last row is drawn only when needed.
-    if (overflowRO) overflowRO.observe(scroll);
+    if (overflowRO) {
+      overflowRO.observe(scroll);
+      releaseBag.add(function () { overflowRO.unobserve(scroll); });
+    }
 
     // Click-to-select + keyboard navigation. The SDK injects an instance-owned
     // selection controller. Production registers the same canonical controller
@@ -941,10 +1040,22 @@
     var selectionApi = selectionInstance();
     if (selectionApi && typeof selectionApi.wire === 'function') {
       var selectionCleanup = selectionApi.wire(wrapper, grid, scroll, renderRows, renderCols);
-      if (typeof selectionCleanup === 'function') selectionCleanups.push(selectionCleanup);
+      if (typeof selectionCleanup === 'function') {
+        selectionCleanups.push(selectionCleanup);
+        releaseBag.add(function () {
+          selectionCleanup();
+          removeTracked(selectionCleanups, selectionCleanup);
+        });
+      }
     } else if (S.wireCellsSelection) {
       var legacyCleanup = S.wireCellsSelection(wrapper, grid, scroll, renderRows, renderCols);
-      if (typeof legacyCleanup === 'function') selectionCleanups.push(legacyCleanup);
+      if (typeof legacyCleanup === 'function') {
+        selectionCleanups.push(legacyCleanup);
+        releaseBag.add(function () {
+          legacyCleanup();
+          removeTracked(selectionCleanups, legacyCleanup);
+        });
+      }
     }
 
     if (truncated) {

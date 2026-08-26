@@ -47,9 +47,13 @@
     "source": "public/sdocs-cells-select.js",
     "sha256": "9aea5ae5f27b3109c5dfc16b9692e28d31087563cb4faed3949f82779299c66b"
   },
+  "sdocs-cells-edit.js": {
+    "source": "public/sdocs-cells-edit.js",
+    "sha256": "5889b701172f41e94772a82f85dfb1cecf0f2fb262afa2b9542577957c85fb7b"
+  },
   "sdocs-cells-ui.js": {
     "source": "public/sdocs-cells-ui.js",
-    "sha256": "9b37b3041189b272c80d0f3ae3d465e41ee60912f633903387bf3f80e60bf5eb"
+    "sha256": "0a48e45debc78762a6e66a76148dcbca630740f47a6cff4e2014ec45e9525404"
   },
   "sdocs-cells.css": {
     "source": "public/css/cells.css",
