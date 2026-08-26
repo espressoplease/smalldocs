@@ -31,6 +31,7 @@ module.exports = {
   viewport: { width: 1440, height: 900 },
   readySelector: 'code.language-ruby.hljs .hljs-keyword',
   sdkOptions: { navigation: false, sections: { collapsible: true, defaultOpen: true } },
+  ignoreDifferences: ['styles.root.margin'],
   surfaces: { production, sdk },
   states: [
     {

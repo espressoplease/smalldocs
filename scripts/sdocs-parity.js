@@ -588,14 +588,17 @@ function compareSurfaces(label, reference, candidate, suite, outputDir) {
   const states = suite.states.map((state, index) => {
     const left = reference.captures[index];
     const right = candidate.captures[index];
-    const differences = compareCapture(left, right);
+    const ignoredDifferences = (suite.ignoreDifferences || []).concat(state.ignoreDifferences || []);
+    const differences = compareCapture(left, right).filter((difference) =>
+      !ignoredDifferences.some((location) => difference.location === location
+        || difference.location.startsWith(location + '.')));
     const diffImagePath = path.join(outputDir, 'diffs', safeName(label) + '-' + safeName(state.name) + '.png');
     const image = diffPng(left.imagePath, right.imagePath, diffImagePath, 0.2);
     const contractFailures = left.contractFailures.map((failure) => 'Reference: ' + failure)
       .concat(left.diagnostics.map((entry) => 'Reference ' + entry.type + ': ' + entry.message))
       .concat(right.contractFailures.map((failure) => 'Candidate: ' + failure))
       .concat(right.diagnostics.map((entry) => 'Candidate ' + entry.type + ': ' + entry.message));
-    const imagePass = imageWithinTolerance(image, state.imageTolerance);
+    const imagePass = imageWithinTolerance(image, state.imageTolerance || suite.imageTolerance);
     return {
       name: state.name,
       label: state.label,

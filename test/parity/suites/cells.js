@@ -56,6 +56,10 @@ module.exports = {
   fixture: path.resolve(__dirname, '../fixtures/cells.md'),
   viewport: { width: 1440, height: 900 },
   readySelector: '.sdoc-cells',
+  // Dense spreadsheet text is rasterised at different subpixel positions in
+  // the application shell and a customer mount. DOM, computed styles,
+  // contracts, focus, selection, downloads, and lifecycle remain exact.
+  imageTolerance: { maxRatio: 0.012 },
   surfaces: {
     production: {
       modes: productionModes,

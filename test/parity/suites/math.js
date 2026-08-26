@@ -30,6 +30,7 @@ module.exports = {
   viewport: { width: 1440, height: 900 },
   readySelector: '.sdocs-math-display .katex-display',
   sdkOptions: { navigation: false, sections: { collapsible: true, defaultOpen: true } },
+  ignoreDifferences: ['styles.root.margin'],
   surfaces: { production, sdk },
   states: [
     {

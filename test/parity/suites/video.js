@@ -41,6 +41,7 @@ module.exports = {
   viewport: { width: 1440, height: 900 },
   readySelector: '.sdoc-video iframe',
   sdkOptions: { navigation: false, sections: { collapsible: true, defaultOpen: true } },
+  ignoreDifferences: ['styles.root.margin'],
   surfaces: { production, sdk },
   states: [
     {

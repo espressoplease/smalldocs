@@ -233,6 +233,7 @@
   margin-bottom: var(--md-list-spacing);
   color: var(--md-list-color);
 }
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) li > input[type="checkbox"] { margin: 0; }
 :is(#_sd_rendered, #_sd_write, .sdoc-reader) li::marker { color: var(--md-list-color); }
 :is(#_sd_rendered, #_sd_write, .sdoc-reader) hr {
   border: none;
@@ -260,6 +261,7 @@
   right: 6px;
   width: 26px;
   height: 26px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;

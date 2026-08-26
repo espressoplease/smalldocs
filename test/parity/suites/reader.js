@@ -60,6 +60,10 @@ module.exports = {
     navigation: false,
     sections: { collapsible: true, defaultOpen: true },
   },
+  // The application reader is centred inside the application shell while the
+  // SDK reader fills its customer-owned mount. That host-layout margin is not
+  // part of the shared reader component contract.
+  ignoreDifferences: ['styles.root.margin'],
   surfaces: { production, sdk },
   states: [
     {

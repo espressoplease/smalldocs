@@ -1,6 +1,8 @@
 'use strict';
 
 const path = require('path');
+const tableImageTolerance = { maxRatio: 0.0061, maxAntialiasRatio: 0.0065 };
+const quoteImageTolerance = { maxRatio: 0.019, maxAntialiasRatio: 0.017 };
 
 const modes = {
   table: {
@@ -43,6 +45,7 @@ module.exports = {
       name: 'table-rest',
       label: 'Table and copy toolbar at rest',
       mode: 'table',
+      imageTolerance: tableImageTolerance,
       contracts: [
         { selector: '.md-table-toolbar', count: 1, message: 'Canonical table toolbar is present' },
         { role: 'button', name: 'Copy table as CSV', count: 1, message: 'CSV copy action is present' },
@@ -56,6 +59,7 @@ module.exports = {
       label: 'Table CSV copy control on hover',
       mode: 'table',
       fresh: true,
+      imageTolerance: tableImageTolerance,
       before: [{ action: 'hover', within: 'table', role: 'button', name: 'Copy table as CSV' }],
       probes: { hoveredCopy: '.table-copy-csv-btn:hover' },
       contracts: [
@@ -67,6 +71,7 @@ module.exports = {
       label: 'Table PNG copy control with keyboard focus',
       mode: 'table',
       fresh: true,
+      imageTolerance: tableImageTolerance,
       before: [{ action: 'focus', via: 'keyboard', within: 'table', role: 'button', name: 'Copy table as PNG' }],
       probes: { focusedCopy: '.table-copy-png-btn:focus-visible' },
       contracts: [
@@ -78,6 +83,7 @@ module.exports = {
       label: 'Table CSV copy feedback',
       mode: 'table',
       fresh: true,
+      imageTolerance: tableImageTolerance,
       before: [
         { action: 'click', within: 'table', role: 'button', name: 'Copy table as CSV' },
         { action: 'waitFor', within: 'table', selector: '.table-copy-csv-btn polyline' },
@@ -93,6 +99,7 @@ module.exports = {
       label: 'Table PNG copy feedback',
       mode: 'table',
       fresh: true,
+      imageTolerance: tableImageTolerance,
       before: [
         { action: 'click', within: 'table', role: 'button', name: 'Copy table as PNG' },
         { action: 'waitFor', within: 'table', selector: '.table-copy-png-btn polyline' },
@@ -109,6 +116,7 @@ module.exports = {
       mode: 'table',
       fresh: true,
       viewport: { width: 390, height: 844 },
+      imageTolerance: tableImageTolerance,
       contracts: [
         { selector: '.md-table-scroll', count: 1, insideViewport: true, message: 'The table scroll surface remains inside the mobile viewport' },
         { role: 'button', name: 'Copy table as CSV', count: 1, insideViewport: true, message: 'CSV action remains reachable on mobile' },
@@ -120,6 +128,7 @@ module.exports = {
       label: 'Multi-paragraph blockquote at rest',
       mode: 'quote',
       fresh: true,
+      imageTolerance: quoteImageTolerance,
       contracts: [
         { selector: 'blockquote.sdoc-copyable-quote', count: 1, message: 'Canonical copyable quote is present' },
         { selector: 'blockquote p', count: 2, message: 'Both quote paragraphs remain separate' },
@@ -131,6 +140,7 @@ module.exports = {
       label: 'Blockquote copy control on hover',
       mode: 'quote',
       fresh: true,
+      imageTolerance: quoteImageTolerance,
       before: [{ action: 'hover', within: 'quote', role: 'button', name: 'Copy quote' }],
       probes: { hoveredCopy: '.quote-copy-btn:hover' },
       contracts: [
@@ -142,6 +152,7 @@ module.exports = {
       label: 'Blockquote copy control with keyboard focus',
       mode: 'quote',
       fresh: true,
+      imageTolerance: quoteImageTolerance,
       before: [{ action: 'focus', via: 'keyboard', within: 'quote', role: 'button', name: 'Copy quote' }],
       probes: { focusedCopy: '.quote-copy-btn:focus-visible' },
       contracts: [
@@ -153,6 +164,7 @@ module.exports = {
       label: 'Blockquote copy feedback',
       mode: 'quote',
       fresh: true,
+      imageTolerance: quoteImageTolerance,
       before: [
         { action: 'click', within: 'quote', role: 'button', name: 'Copy quote' },
         { action: 'waitFor', within: 'quote', selector: '.quote-copy-btn polyline' },

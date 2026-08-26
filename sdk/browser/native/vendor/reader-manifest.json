@@ -9,8 +9,8 @@
   },
   "sdocs-prose-reader.css": {
     "source": "public/css/prose-reader.css",
-    "sha256": "f804d92587b6a4a2b1fcd762f4d7710bd613459fb96f48718b2afcea20ff0a06",
-    "sourceSha256": "7436c450232e202eb74ddb5888786b24418567b2d9d440a021418849d9c4c121",
+    "sha256": "ca3fada652ba036f9545149037365f46aec573ce5920a021b08f2d8f5e01e303",
+    "sourceSha256": "853b071d7e1e3e8435c8d88accfd91f79aaeaefb019fd1f819b80731291261ed",
     "transform": "sdk-layered-css"
   },
   "sdocs-code-reader.js": {
@@ -103,7 +103,7 @@
   },
   "sdocs-mermaid-focus.js": {
     "source": "public/sdocs-mermaid-focus.js",
-    "sha256": "6ba9150e77d669fa88e771ddd273aa603279b50114f46fe24a78a4fbbd180188"
+    "sha256": "92aae17a592ebc75185e9961f1690584d0b58c2bb8acd9e3254d923dfa944529"
   },
   "sdocs-mermaid-reader.css": {
     "source": "public/css/mermaid-reader.css",

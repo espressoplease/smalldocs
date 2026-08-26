@@ -42,6 +42,7 @@
     '}',
     '.sdoc-mermaid-tool-btn {',
     '  width: 26px; height: 26px;',
+    '  padding: 0;',
     '  display: inline-flex; align-items: center; justify-content: center;',
     '  background: transparent;',
     '  color: var(--md-code-color, #6B21A8);',
