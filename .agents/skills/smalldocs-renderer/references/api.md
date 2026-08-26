@@ -98,6 +98,16 @@ view.destroy();
 - A newer update rejects an older unfinished update with an `AbortError`.
 - Render and update resolve after detected rich features settle or fall back.
 
+The article dispatches a bubbling `smalldocs:rendered` event after each successful render or update:
+
+```js
+document.querySelector('#report').addEventListener('smalldocs:rendered', event => {
+  console.log(event.detail.instanceId, event.detail.features);
+});
+```
+
+Use this event when surrounding application layout or analytics needs to react to a completed document. Keep normal renderer lifecycle in `render()`, `update()`, and `destroy()`.
+
 ## Styling
 
 The SDK installs version-matched CSS automatically in a low-priority CSS layer. Use custom properties on the mount:
@@ -159,9 +169,9 @@ Keep overrides under the mount so another renderer and the surrounding applicati
 
 Send one Markdown string after inference. No envelope or capability declaration is required.
 
-The renderer supports ordinary Markdown, navigation, code, math, Mermaid, charts, cells and workbooks, custom-shape slides, and supported video fences. Feature discovery and loading are content-driven. Unknown fences remain readable source.
+The renderer supports ordinary Markdown, navigation, code, math, Mermaid, charts, cells and workbooks, custom-shape slides, and supported video fences. The document reader and these rich surfaces use the same canonical rendering components as the SmallDocs application. Feature discovery and loading are content-driven. Unknown fences remain readable source.
 
-Comments, editing, Cloud storage, application chrome, and a first-party image pipeline are outside this release.
+Form submission, comments, Markdown editing, Cloud storage, application chrome, and a first-party image pipeline are outside this release. A `form` fence remains readable source until the SDK has a host submission contract.
 
 ## Security
 

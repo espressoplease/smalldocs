@@ -106,9 +106,9 @@ view.destroy();
 
 ## Supported content
 
-One Markdown string can mix ordinary Markdown, navigation, code, math, Mermaid, charts, computed cells and workbooks, custom-shape slides, and supported video fences. Feature controls include copying, fullscreen reading, and relevant file downloads such as SVG, PNG, XLSX, PDF, and PowerPoint.
+One Markdown string can mix ordinary Markdown, navigation, code, math, Mermaid, charts, computed cells and workbooks, custom-shape slides, and supported video fences. The SDK and the SmallDocs application use the same document and rich-feature rendering components. Feature controls include copying, fullscreen reading, and relevant file downloads such as SVG, PNG, XLSX, PDF, and PowerPoint.
 
-Unknown fences remain readable as source. Comments, editing, Cloud storage, and surrounding application chrome are outside this SDK release.
+Unknown fences remain readable as source. Form submission, comments, Markdown editing, Cloud storage, and surrounding application chrome are outside this SDK release. A `form` fence remains source until the SDK has a host submission contract.
 
 Image upload, proxying, and hosting are not included. An HTTPS image reference remains a request to its original host.
 

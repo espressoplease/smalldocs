@@ -125,6 +125,8 @@ document.querySelector('#report').addEventListener('smalldocs:rendered', event =
 });
 ```
 
+Use this event when surrounding application layout or analytics needs to react to a completed document. Keep normal renderer lifecycle in `render()`, `update()`, and `destroy()`.
+
 ## Module exports
 
 ```js
