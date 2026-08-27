@@ -109,7 +109,7 @@ test('Library and reader sidebars share capability and footer content', async ({
   expect(reader.sidebarBottom - reader.footerBottom).toBe(16);
 });
 
-test('shared footer swaps Sign in for Account settings when authenticated', async ({ page }) => {
+test('shared footer uses acceptance state without another request', async ({ page }) => {
   await page.goto('/public/library/library.html?demo=1');
   const footer = page.locator('#_sd_site_sidebar .sdocs-sidebar-footer');
   const signIn = footer.getByRole('link', { name: 'Sign in', exact: true });
@@ -132,6 +132,15 @@ test('shared footer swaps Sign in for Account settings when authenticated', asyn
   await expect(footer.locator('.sdocs-sidebar-footer-link').first()).toHaveText('Account settings');
   await expect(footer.locator('.sdocs-sidebar-footer-link').nth(1)).toHaveText('Private by design');
   await expect(footer.locator('.sdocs-sidebar-legal')).toHaveText('You agree to our Terms');
+
+  await footer.evaluate(element => {
+    element.innerHTML = window.SDocsSidebarShared.footerInnerHtml({
+      authenticated: true,
+      termsAccepted: true,
+    });
+  });
+  await expect(footer.getByRole('link', { name: 'Account settings' })).toBeVisible();
+  await expect(footer.locator('.sdocs-sidebar-legal')).toHaveCount(0);
 });
 
 test('mobile site navigation keeps the menu button fixed and hides Local library', async ({ page }) => {

@@ -41,14 +41,16 @@
       : '<a class="sdocs-sidebar-footer-link" href="/cloud/sign-in?return=' +
         encodeURIComponent(returnTo) + '" data-sdocs-sign-in-return>' +
         icons.signIn + '<span>Sign in</span></a>';
+    var legal = options.termsAccepted ? '' :
+      '<div class="sdocs-sidebar-legal">You agree to our ' +
+      '<a href="/legal" target="_blank" rel="noopener">Terms</a></div>';
     return status +
       account +
       '<a class="sdocs-sidebar-footer-link" href="/privacy" target="_blank" rel="noopener">' +
       icons.shield + '<span>Private by design</span></a>' +
       '<a class="sdocs-sidebar-footer-link" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">' +
       icons.github + '<span>Source on GitHub</span></a>' +
-      '<div class="sdocs-sidebar-legal">You agree to our ' +
-      '<a href="/legal" target="_blank" rel="noopener">Terms</a></div>';
+      legal;
   }
 
   function hydrate(root) {
@@ -64,6 +66,7 @@
       element.innerHTML = footerInnerHtml({
         statusId: element.getAttribute('data-status-id'),
         authenticated: authHost && authHost.getAttribute('data-cloud-authenticated') === 'true',
+        termsAccepted: authHost && authHost.getAttribute('data-cloud-terms-accepted') === 'true',
         returnTo: window.location.pathname + window.location.search,
       });
     });
