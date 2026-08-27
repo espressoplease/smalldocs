@@ -906,6 +906,9 @@ test('operations customer keeps two rich documents isolated', async ({ page }) =
   expect(new Set(headingIds).size).toBe(2);
 
   await expect(page.locator('#capacity-report canvas')).toHaveCount(1);
+  await expect(page.locator('#capacity-report .sdoc-chart-toolbar')).toHaveCount(1);
+  await expect(page.locator('#capacity-report .chart-copy-json-btn')).toHaveAttribute('aria-label', 'Copy chart as JSON');
+  await expect(page.locator('#capacity-report .chart-copy-png-btn')).toHaveAttribute('aria-label', 'Copy chart as PNG');
   await expect(page.locator('#risk-report .sdoc-mermaid-stage > svg')).toHaveCount(1);
   await expect(page.locator('#risk-report .katex')).not.toHaveCount(0);
 
@@ -1049,6 +1052,7 @@ r 8.3 3.2 7.0 4.8 fill=#ffffff stroke=#cbd5e1 |
   });
   await expect(page.locator('.sdoc-slide .katex')).toHaveCount(1, { timeout: 30000 });
   await expect(page.locator('.sdoc-slide canvas')).toHaveCount(1);
+  await expect(page.locator('.sdoc-slide .sdoc-chart-toolbar')).toHaveCount(0);
   await expect(page.locator('.sdoc-slide .sdoc-mermaid-stage > svg')).toHaveCount(1);
   await expect(page.locator('.sdoc-slide .shape-svg svg')).not.toHaveCount(0);
   await expect(page.locator('#briefing-report .smalldocs-document')).not.toHaveAttribute('data-sdocs-slide-error');

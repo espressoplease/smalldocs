@@ -27,12 +27,16 @@
   var controls = Object.assign({ copy: true, download: true }, env.controls || {});
   var blockCap = env.blockCap == null ? Infinity : env.blockCap;
   var destroyed = false;
+  var copyTimers = [];
   var Chart = env.Chart || null;
   var chartReadyPromise = null;
   var CDN_CHART = 'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js';
   var CDN_LABELS = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js';
   var CDN_ANNOTATION = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js';
   var activeCharts = [];
+  var COPY_FEEDBACK_MS = 1500;
+  var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
   function queryScope() {
     return typeof env.root === 'function' ? env.root() : (env.root || document);
@@ -185,13 +189,13 @@
           var loading = Promise.resolve();
           if (!window.Chart) loading = loading.then(function () { return loadScript(CDN_CHART); });
           if (!window.ChartDataLabels) loading = loading.then(function () { return loadScript(CDN_LABELS); });
-          if (!window.ChartAnnotation) loading = loading.then(function () { return loadScript(CDN_ANNOTATION); });
+          if (!window['chartjs-plugin-annotation']) loading = loading.then(function () { return loadScript(CDN_ANNOTATION); });
           return loading
             .then(function () {
               return {
                 Chart: window.Chart,
                 ChartDataLabels: window.ChartDataLabels,
-                ChartAnnotation: window.ChartAnnotation
+                ChartAnnotation: window['chartjs-plugin-annotation']
               };
             });
         })).then(function (api) {
@@ -797,8 +801,17 @@
         wrapper.setAttribute('data-chart-index', chartIndex);
         var canvas = document.createElement('canvas');
         var entry = { chart: null, data: data, canvas: canvas, wrapper: wrapper };
-        wrapper.appendChild(canvas);
-        wrapper.appendChild(buildChartMenu(data, chartIndex, entry));
+        var plot = document.createElement('div');
+        plot.className = 'sdoc-chart-plot';
+        plot.appendChild(canvas);
+        wrapper.appendChild(plot);
+        var menu = buildChartMenu(data, chartIndex, entry);
+        if (controls.copy && !options.slideContext) {
+          wrapper.classList.add('sdoc-chart-has-toolbar');
+          wrapper.insertBefore(buildChartToolbar(entry, menu), plot);
+        } else {
+          wrapper.appendChild(menu);
+        }
 
         var preWrapper = pre.closest('.pre-wrapper');
         var target = preWrapper || pre;
@@ -850,6 +863,74 @@
     return e;
   }
 
+  function scheduleCopyReset(callback) {
+    var timer = window.setTimeout(function () {
+      copyTimers = copyTimers.filter(function (candidate) { return candidate !== timer; });
+      callback();
+    }, COPY_FEEDBACK_MS);
+    copyTimers.push(timer);
+  }
+
+  function copyButton(kind, label) {
+    var button = _el('button', 'chart-copy-btn chart-copy-' + kind + '-btn');
+    button.type = 'button';
+    button.title = 'Copy chart as ' + label;
+    button.setAttribute('aria-label', 'Copy chart as ' + label);
+    setHTML(button, COPY_SVG + '<span class="chart-copy-label">' + label + '</span>');
+    return button;
+  }
+
+  function flashCopyButton(button, label) {
+    setHTML(button, CHECK_SVG + '<span class="chart-copy-label">' + label + '</span>');
+    scheduleCopyReset(function () {
+      if (!destroyed && button.isConnected) {
+        setHTML(button, COPY_SVG + '<span class="chart-copy-label">' + label + '</span>');
+      }
+    });
+  }
+
+  function flashCopyLabel(button, text, label) {
+    var target = button.querySelector('.chart-copy-label');
+    if (!target) return;
+    target.textContent = text;
+    scheduleCopyReset(function () {
+      if (!destroyed && button.isConnected) target.textContent = label;
+    });
+  }
+
+  function copyChartJson(entry, button) {
+    var clipboard = env.clipboard || (window.navigator && window.navigator.clipboard);
+    if (!clipboard || !clipboard.writeText) {
+      flashCopyLabel(button, 'Not supported', 'JSON');
+      return;
+    }
+    clipboard.writeText(JSON.stringify(entry.data, null, 2)).then(function () {
+      if (!destroyed && button.isConnected) flashCopyButton(button, 'JSON');
+    }).catch(function () {
+      if (!destroyed && button.isConnected) flashCopyLabel(button, 'Failed', 'JSON');
+    });
+  }
+
+  function buildChartToolbar(entry, menu) {
+    var toolbar = _el('div', 'sdoc-chart-toolbar');
+    var jsonButton = copyButton('json', 'JSON');
+    jsonButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      copyChartJson(entry, jsonButton);
+    });
+    var pngButton = copyButton('png', 'PNG');
+    pngButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      copyChartAction(entry, pngButton);
+    });
+    toolbar.appendChild(jsonButton);
+    toolbar.appendChild(pngButton);
+    toolbar.appendChild(menu);
+    return toolbar;
+  }
+
   function buildChartMenu(data, chartIndex, entry) {
     var frag = document.createDocumentFragment();
     var btn = _el('button', 'chart-menu-btn');
@@ -867,15 +948,6 @@
     var menu = _el('div', 'chart-menu');
     menu.setAttribute('data-chart-index', chartIndex);
 
-    if (controls.copy) {
-      var copyBtn = _el('button', 'chart-menu-item', 'Copy as image');
-      copyBtn.setAttribute('data-action', 'copy-png');
-      copyBtn.addEventListener('click', function (event) {
-        event.stopPropagation();
-        copyChartAction(entry, copyBtn);
-      });
-      menu.appendChild(copyBtn);
-    }
     if (controls.download) {
       var dlBtn = _el('button', 'chart-menu-item', 'Download as PNG');
       dlBtn.setAttribute('data-action', 'download-png');
@@ -885,7 +957,7 @@
       });
       menu.appendChild(dlBtn);
     }
-    if (controls.copy || controls.download) menu.appendChild(_el('div', 'chart-menu-sep'));
+    if (controls.download) menu.appendChild(_el('div', 'chart-menu-sep'));
 
     var rawType = normalizeType(data.type);
     var isRadial = rawType === 'pie' || rawType === 'doughnut' || rawType === 'polarArea';
@@ -973,12 +1045,18 @@
   }
 
   function copyChartAction(entry, item) {
-    if (!entry || !window.navigator.clipboard || !window.ClipboardItem) return;
+    var clipboard = env.clipboard || (window.navigator && window.navigator.clipboard);
+    var ClipboardItemApi = env.ClipboardItem || window.ClipboardItem;
+    if (!entry || !clipboard || !clipboard.write || !ClipboardItemApi) {
+      flashCopyLabel(item, 'Not supported', 'PNG');
+      return;
+    }
     entry.canvas.toBlob(function (blob) {
       if (!blob || destroyed) return;
-      window.navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]).then(function () {
-        item.textContent = 'Copied!';
-        window.setTimeout(function () { if (!destroyed) item.textContent = 'Copy as image'; }, 1500);
+      clipboard.write([new ClipboardItemApi({ 'image/png': blob })]).then(function () {
+        if (!destroyed && item.isConnected) flashCopyButton(item, 'PNG');
+      }).catch(function () {
+        if (!destroyed && item.isConnected) flashCopyLabel(item, 'Failed', 'PNG');
       });
     });
   }
@@ -1125,6 +1203,8 @@
   function destroy() {
     if (destroyed) return;
     destroyed = true;
+    copyTimers.forEach(function (timer) { window.clearTimeout(timer); });
+    copyTimers = [];
     if (resizeTimer) clearTimeout(resizeTimer);
     window.removeEventListener('resize', onResize);
     document.removeEventListener('click', onDocumentClick);
