@@ -2126,8 +2126,9 @@ var CHART_SHADOW_CSS = [
   '  width: 100%; height: 100%; max-width: 100%;',
   '  position: relative;',
   '}',
+  '.sdoc-chart-plot { width: 100%; height: 100%; padding: 0; background: transparent; }',
   '.sdoc-chart canvas { width: 100% !important; height: 100% !important; }',
-  '.chart-menu-btn, .chart-menu { display: none !important; }',
+  '.sdoc-chart-toolbar, .chart-menu-btn, .chart-menu { display: none !important; }',
 ].join('\n');
 
 // Poll until the mermaid SVG appears inside the shadow root, then pin

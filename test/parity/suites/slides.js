@@ -80,6 +80,8 @@ module.exports = {
         { selector: '.sdoc-present', count: 1, message: 'Canonical presentation root is present' },
         { selector: '.sdoc-present-rail', count: 1, message: 'Thumbnail rail is present' },
         { selector: '.sdoc-present-thumb', count: 4, message: 'Thumbnail rail contains every slide' },
+        { within: 'presentation', role: 'button', name: 'Copy slide text', count: 1, message: 'The active slide text can be copied' },
+        { within: 'presentation', role: 'button', name: 'Copy slide as PNG', count: 1, message: 'The active slide can be copied as PNG' },
         { within: 'presentation', role: 'button', name: 'Export', count: 1, message: 'Canonical export control is present' },
       ],
     },

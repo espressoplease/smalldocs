@@ -185,6 +185,7 @@ export async function mount(context) {
       styleSource: context.root,
       renderer: api.renderer,
       clipboard: navigator.clipboard,
+      copy: context.options.controls.copy,
       setHTML: setKnownHTML,
       mobile: () => mobilePresenter,
       history: false,
@@ -197,7 +198,7 @@ export async function mount(context) {
         : null,
       renderOptions(dsl, slideIndex, kind) {
         return {
-          copyButtons: kind === 'stage',
+          copyButtons: context.options.controls.copy && kind === 'stage',
           runtime: api.runtime,
           signal: api.signal,
           resourcePrefix: api.id + '-presentation-' + kind + '-' + slideIndex + '-' + (++api.renderNumber),
@@ -230,7 +231,7 @@ export async function mount(context) {
       : null,
     renderOptions(dsl, slideIndex) {
       return {
-        copyButtons: true,
+        copyButtons: context.options.controls.copy,
         runtime: api.runtime,
         signal: api.signal,
         resourcePrefix: api.id + '-slide-' + slideIndex + '-' + (++api.renderNumber),

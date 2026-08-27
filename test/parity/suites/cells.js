@@ -86,6 +86,7 @@ module.exports = {
         { role: 'tab', name: 'Inputs', count: 1, message: 'Inputs tab is present' },
         { role: 'tab', name: 'Summary', count: 1, message: 'Summary tab is present' },
         { selector: '.sdoc-cells-pane .sdoc-cells-grid', count: 2, message: 'Canonical grids are mounted for both sheets' },
+        { role: 'button', name: 'Copy whole sheet as CSV', count: 1, message: 'A value-only sheet exposes its canonical copy control' },
         { role: 'button', name: 'Open fullscreen', count: 1, message: 'The canonical fullscreen control is present' },
       ],
     },
@@ -207,6 +208,8 @@ module.exports = {
         { selector: '.sdoc-cells-focus-tab[aria-selected="true"]', text: 'Summary', message: 'Fullscreen opens the selected workbook sheet' },
         { role: 'button', name: 'Close', count: 1, message: 'Canonical close control is present' },
         { role: 'button', name: 'Show formulas', count: 1, message: 'Formula source toggle is present' },
+        { role: 'button', name: 'Copy whole sheet values as CSV', count: 1, message: 'A formula sheet can copy computed values' },
+        { role: 'button', name: 'Copy whole sheet with formulas as CSV', count: 1, message: 'A formula sheet can copy formula source' },
       ],
     },
     {

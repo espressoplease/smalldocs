@@ -222,6 +222,7 @@ var activePresentation = null;
 
 function createPresentation(options) {
 options = options || {};
+var copyEnabled = options.copy !== false;
 
 var state = {
   open: false,
@@ -649,7 +650,7 @@ function renderActive() {
 
   var dsl = state.slides[state.index] || '';
   destroyWithin(state.stage);
-  renderShapes(dsl, state.stage, state.index, 'stage', { copyButtons: true });
+  renderShapes(dsl, state.stage, state.index, 'stage', { copyButtons: copyEnabled });
   state.stage.classList.add('sdoc-present-stage');
   sizeStage();
 
@@ -800,25 +801,29 @@ function open(startIndex) {
   sep1.className = 'sdoc-present-sep';
   actions.appendChild(sep1);
 
-  // Copy the active slide's rendered text.
-  var copyBtn = document.createElement('button');
-  copyBtn.className = 'sdoc-present-btn sdoc-present-copy-btn sdoc-present-copy-text-btn';
-  copyBtn.type = 'button';
-  copyBtn.setAttribute('aria-label', 'Copy slide text');
-  copyBtn.title = 'Copy slide text';
-  setHTML(copyBtn, COPY_ICON + '<span class="sdoc-present-copy-label">Text</span>');
-  copyBtn.addEventListener('click', function (e) { e.stopPropagation(); copyCurrentSlideText(); });
-  actions.appendChild(copyBtn);
+  var copyBtn = null;
+  var pngBtn = null;
+  if (copyEnabled) {
+    // Copy the active slide's rendered text.
+    copyBtn = document.createElement('button');
+    copyBtn.className = 'sdoc-present-btn sdoc-present-copy-btn sdoc-present-copy-text-btn';
+    copyBtn.type = 'button';
+    copyBtn.setAttribute('aria-label', 'Copy slide text');
+    copyBtn.title = 'Copy slide text';
+    setHTML(copyBtn, COPY_ICON + '<span class="sdoc-present-copy-label">Text</span>');
+    copyBtn.addEventListener('click', function (e) { e.stopPropagation(); copyCurrentSlideText(); });
+    actions.appendChild(copyBtn);
 
-  // Copy the active slide as a rendered PNG.
-  var pngBtn = document.createElement('button');
-  pngBtn.className = 'sdoc-present-btn sdoc-present-copy-btn sdoc-present-copy-png-btn';
-  pngBtn.type = 'button';
-  pngBtn.setAttribute('aria-label', 'Copy slide as PNG');
-  pngBtn.title = 'Copy slide as PNG';
-  setHTML(pngBtn, COPY_ICON + '<span class="sdoc-present-copy-label">PNG</span>');
-  pngBtn.addEventListener('click', function (e) { e.stopPropagation(); copyCurrentSlidePng(); });
-  actions.appendChild(pngBtn);
+    // Copy the active slide as a rendered PNG.
+    pngBtn = document.createElement('button');
+    pngBtn.className = 'sdoc-present-btn sdoc-present-copy-btn sdoc-present-copy-png-btn';
+    pngBtn.type = 'button';
+    pngBtn.setAttribute('aria-label', 'Copy slide as PNG');
+    pngBtn.title = 'Copy slide as PNG';
+    setHTML(pngBtn, COPY_ICON + '<span class="sdoc-present-copy-label">PNG</span>');
+    pngBtn.addEventListener('click', function (e) { e.stopPropagation(); copyCurrentSlidePng(); });
+    actions.appendChild(pngBtn);
+  }
 
   // Comment toggle: turns on the hit-layer + comment panel for the active
   // slide so a deck can be marked up while presenting. State + overlay are

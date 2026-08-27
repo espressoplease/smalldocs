@@ -637,6 +637,7 @@ test('canonical spreadsheet fullscreen loads on demand and keeps edit lifecycle 
   page.on('request', request => requests.push(request.url()));
   await page.goto(customerOrigin + '/cells-isolation');
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('#left .sdoc-cells:visible').getByRole('button', { name: 'Copy whole sheet as CSV' })).toBeVisible();
   expect(requests.some(url => url.includes('sdocs-cells-edit.js'))).toBe(false);
   expect(requests.some(url => url.includes('sdocs-cells-focus.js'))).toBe(false);
 
@@ -661,6 +662,8 @@ test('canonical spreadsheet fullscreen loads on demand and keeps edit lifecycle 
   await page.locator('#left .sdoc-cells:visible').getByRole('button', { name: 'Open fullscreen' }).click();
   await focus.getByRole('tab', { name: 'Summary' }).click();
   await expect(focus.getByRole('button', { name: 'Show formulas' })).toBeVisible();
+  await expect(focus.getByRole('button', { name: 'Copy whole sheet values as CSV' })).toBeVisible();
+  await expect(focus.getByRole('button', { name: 'Copy whole sheet with formulas as CSV' })).toBeVisible();
   await focus.getByRole('button', { name: 'Show formulas' }).click();
   await expect(focus.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toContainText('=Inputs!B2*Inputs!B3');
   await focus.locator('.sdoc-cells-fx-toggle').filter({ hasText: '=fx' }).click();
@@ -1018,6 +1021,18 @@ test('editorial customer controls styles, collapse behavior and sanitisation', a
 });
 
 test('operations customer keeps two rich documents isolated', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.sdocsCopiedText = '';
+    window.sdocsCopiedPng = null;
+    window.ClipboardItem = function ClipboardItem(parts) { this.parts = parts; };
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async value => { window.sdocsCopiedText = String(value); },
+        write: async items => { window.sdocsCopiedPng = items[0].parts['image/png']; },
+      },
+    });
+  });
   await page.goto(customerOrigin + '/operations-console/');
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true', { timeout: 30000 });
   await expect(page.locator('.smalldocs-document')).toHaveCount(2);
@@ -1032,6 +1047,10 @@ test('operations customer keeps two rich documents isolated', async ({ page }) =
   await expect(page.locator('#capacity-report .sdoc-chart-toolbar')).toHaveCount(1);
   await expect(page.locator('#capacity-report .chart-copy-json-btn')).toHaveAttribute('aria-label', 'Copy chart as JSON');
   await expect(page.locator('#capacity-report .chart-copy-png-btn')).toHaveAttribute('aria-label', 'Copy chart as PNG');
+  await page.locator('#capacity-report .chart-copy-json-btn').click();
+  await expect.poll(() => page.evaluate(() => window.sdocsCopiedText)).toContain('"type": "bar"');
+  await page.locator('#capacity-report .chart-copy-png-btn').click();
+  await expect.poll(() => page.evaluate(() => window.sdocsCopiedPng && window.sdocsCopiedPng.type)).toBe('image/png');
   await expect(page.locator('#risk-report .sdoc-mermaid-stage > svg')).toHaveCount(1);
   await expect(page.locator('#risk-report .katex')).not.toHaveCount(0);
 
@@ -1093,6 +1112,8 @@ test('board customer presents custom slides and exports deck files', async ({ pa
   await expect(page.locator('.sdoc-present-rail .sdoc-present-thumb')).toHaveCount(3);
   await expect(page.locator('.sdoc-present-counter')).toHaveText('1 / 3');
   await expect(page.getByRole('button', { name: 'Comment on slides' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Copy slide text' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copy slide as PNG' })).toBeVisible();
   await expect(page.locator('.sdoc-present-stage .sd-shape-copy-btn:not(.is-light):not(.is-dark)')).toHaveCount(0);
   await page.getByRole('button', { name: 'Export' }).click();
   await expect(page.locator('.sdoc-present-exp-panel')).toHaveClass(/open/);
@@ -1125,6 +1146,27 @@ test('board customer presents custom slides and exports deck files', async ({ pa
   expect(pptx.suggestedFilename()).toMatch(/\.pptx$/);
   expect(pptxBytes.subarray(0, 2).toString('ascii')).toBe('PK');
   expect(pptxBytes.length).toBeGreaterThan(1000);
+});
+
+test('disabled slide copy controls stay absent inline and in presentation mode', async ({ page }) => {
+  await page.goto(customerOrigin + '/plain');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.evaluate(async ({ moduleUrl, markdown }) => {
+    window.view.destroy();
+    const { render } = await import(moduleUrl);
+    window.view = await render('#report', markdown, {
+      controls: { copy: false, download: true, fullscreen: true },
+    });
+  }, {
+    moduleUrl: sdocsOrigin + '/sdk/0.2.0/smalldocs.js',
+    markdown: '# Copy policy\n\n~~~slide\ngrid 16 9\nr 1 1 14 7 fill=#ffffff color=#111111 | Copy controls are disabled\n~~~',
+  });
+  await expect(page.locator('.sdoc-slide .sd-shape-copy-btn')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open slide 1 in presentation mode' }).click();
+  await expect(page.getByRole('dialog', { name: 'Slide presentation' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copy slide text' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Copy slide as PNG' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
 });
 
 test('SDK slides support inline line breaks and acknowledged bleed', async ({ page }) => {
@@ -1176,6 +1218,18 @@ r 8.3 3.2 7.0 4.8 fill=#ffffff stroke=#cbd5e1 |
   await expect(page.locator('.sdoc-slide .katex')).toHaveCount(1, { timeout: 30000 });
   await expect(page.locator('.sdoc-slide canvas')).toHaveCount(1);
   await expect(page.locator('.sdoc-slide .sdoc-chart-toolbar')).toHaveCount(0);
+  await expect(page.locator('.sdoc-slide .sdoc-chart-plot')).toHaveCount(1);
+  const chartFit = await page.locator('.sdoc-slide .sdoc-chart').evaluate(chart => {
+    const plot = chart.querySelector('.sdoc-chart-plot');
+    const chartBox = chart.getBoundingClientRect();
+    const plotBox = plot.getBoundingClientRect();
+    return {
+      widthRatio: plotBox.width / chartBox.width,
+      heightRatio: plotBox.height / chartBox.height,
+    };
+  });
+  expect(chartFit.widthRatio).toBeGreaterThan(0.9);
+  expect(chartFit.heightRatio).toBeGreaterThan(0.9);
   await expect(page.locator('.sdoc-slide .sdoc-mermaid-stage > svg')).toHaveCount(1);
   await expect(page.locator('.sdoc-slide .shape-svg svg')).not.toHaveCount(0);
   await expect(page.locator('#briefing-report .smalldocs-document')).not.toHaveAttribute('data-sdocs-slide-error');

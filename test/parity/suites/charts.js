@@ -6,6 +6,9 @@ const probes = {
   wrapper: '.sdoc-chart',
   canvas: '.sdoc-chart canvas',
   menuButton: '.chart-menu-btn',
+  toolbar: '.sdoc-chart-toolbar',
+  copyJson: '.chart-copy-json-btn',
+  copyPng: '.chart-copy-png-btn',
   menu: '.chart-menu',
   menuItem: '.chart-menu-item',
   menuToggle: '.chart-menu-toggle',
@@ -37,6 +40,9 @@ module.exports = {
       contracts: [
         { selector: '.sdoc-chart', count: 1, message: 'One canonical chart wrapper renders' },
         { within: 'inline', selector: 'canvas', count: 1, visible: true, message: 'The chart canvas is visible' },
+        { within: 'inline', selector: '.sdoc-chart-toolbar', count: 1, visible: true, message: 'The canonical chart copy toolbar is present' },
+        { within: 'inline', role: 'button', name: 'Copy chart as JSON', count: 1, message: 'Chart data can be copied as JSON' },
+        { within: 'inline', role: 'button', name: 'Copy chart as PNG', count: 1, message: 'The rendered chart can be copied as PNG' },
         { within: 'inline', role: 'button', name: 'Chart options', count: 1, message: 'The canonical options control is present' },
       ],
     },
@@ -71,7 +77,6 @@ module.exports = {
       before: [{ action: 'click', within: 'inline', role: 'button', name: 'Chart options' }],
       contracts: [
         { within: 'inline', selector: '.chart-menu.open', count: 1, visible: true, message: 'The canonical chart menu opens' },
-        { within: 'inline', role: 'button', name: 'Copy as image', count: 1, message: 'Image copy is available' },
         { within: 'inline', role: 'button', name: 'Download as PNG', count: 1, message: 'PNG download is available' },
         { within: 'inline', selector: '.chart-menu-toggle', count: 2, message: 'Data label and legend toggles are available' },
         { within: 'inline', selector: '.chart-type-btn', count: 3, message: 'The chart type family is available' },
