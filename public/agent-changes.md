@@ -13,7 +13,33 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
-## v18 (unreleased)
+## v19 (1.16.0, 2026-08-28)
+
+**Reason:** Cloud guidance now matches the account-based CLI and tells agents
+to check the current connection before use.
+
+The always-available skill description now states that Cloud is optional and
+paid, and directs an agent to `sdoc cloud status --json` when a Cloud task is
+requested. The on-demand Cloud reference now reads:
+
+```markdown
+### SmallDocs Cloud for agents
+
+Cloud is the optional paid, authenticated document store. Local SmallDocs remains free. Before a Cloud task, run `sdoc cloud status --json`. A successful response means this machine is connected and reports the available account or accounts. A `login_required` response means Cloud is available but this CLI is not connected. Do not infer Cloud access from the CLI being installed.
+
+Run `sdoc cloud login` to connect a machine. The revocable credential persists across agent sessions. Run `sdoc cloud --help` before using commands, and add `--json` for one stable machine-readable object on stdout.
+
+- Discover account access, people, tags, and document permission sets with `sdoc cloud status --json`, `sdoc cloud members`, `sdoc cloud tags`, and `sdoc cloud permission-groups`. When status reports more than one account, pass `--account ACCOUNT_UUID` to account-scoped commands.
+- Find documents with `sdoc cloud ls` or content search with `sdoc cloud search "QUERY"`. Use `--tag TAG` to filter, and `sdoc cloud ls --shared-with-me` for documents shared with the signed-in user.
+- Upload a new local file without opening a browser with `sdoc cloud create FILE.md --account ACCOUNT_UUID --json`. Omit `--account` when status reports one account.
+- Set document access with `sdoc cloud access DOCUMENT_UUID --only-you`, `--everyone`, or one or more `--member USER_UUID` values. List members first. Notify existing members with `sdoc cloud notify ...`; notification does not grant access or create users.
+- Edit an existing document with `sdoc cloud pull DOCUMENT_UUID --output FILE.md`, normal file tools, then `sdoc cloud push FILE.md --json`. The local binding supplies the revision the agent edited. Cloud keeps separate changes from other writers; overlapping replacements may both remain. If the server combines content and the file did not change during upload, push writes the combined Markdown back to the local file. Inspect `merge_classification`, `combined`, and `local_updated_from_cloud` in the JSON result.
+- Inspect or recover history with `sdoc cloud history DOCUMENT_UUID` and `sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID`.
+
+Cloud documents are identified by UUID, not filename. An account is the billing and access boundary; tags organize documents inside it. Cloud commands other than login are noninteractive. Do not use `sdoc share` as a substitute for Cloud: share creates an encrypted snapshot link, while Cloud provides revisions, search, membership, and persistent agent access.
+```
+
+## v18 (1.16.0, 2026-08-28)
 
 **Reason:** Slide authoring now has a headless verifier and an explicit
 per-shape acknowledgement for intentional bleed.
@@ -24,7 +50,7 @@ The slide entry now reads:
 - `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. Run `sdoc slides verify file.md --json` after authoring; fix every diagnostic, or add `bleed=allow` only to an individual shape whose off-canvas placement is intentional, then rerun until it exits 0. Use `sdoc present file.md` for the visual check that headless validation cannot perform.
 ```
 
-## v17 (unreleased)
+## v17 (1.16.0, 2026-08-28)
 
 **Reason:** Cloud push now merges against the revision an agent edited and
 returns the combined document to the local file.
@@ -35,7 +61,7 @@ The Cloud editing entry now reads:
 - Edit an existing document with `sdoc cloud pull DOCUMENT_UUID --output FILE.md`, normal file tools, then `sdoc cloud push FILE.md --json`. The local binding supplies the revision the agent edited. Cloud keeps separate changes from other writers; overlapping replacements may both remain. If the server combines content and the file did not change during upload, push writes the combined Markdown back to the local file. Inspect `merge_classification`, `combined`, and `local_updated_from_cloud` in the JSON result.
 ```
 
-## v16 (unreleased)
+## v16 (1.16.0, 2026-08-28)
 
 **Reason:** Agents can now discover and use persistent SmallDocs Cloud commands
 for projects, search, revisions, and headless document updates.
@@ -56,7 +82,7 @@ Cloud is the paid, authenticated document store. Local SmallDocs remains free. R
 Cloud documents are identified by UUID, not filename. A project is the access boundary; tags organize workstreams inside it. Cloud commands other than login are noninteractive. Do not use `sdoc share` as a substitute for Cloud: share creates an encrypted snapshot link, while Cloud provides revisions, search, membership, and persistent agent access.
 ```
 
-## v15 (unreleased)
+## v15 (1.16.0, 2026-08-28)
 
 **Reason:** The local library now contains only files opened explicitly with
 `sdoc path/to/file.md`. Global home-directory scanning and the rebuild/rescan
@@ -68,7 +94,7 @@ The `sdoc library` skill entry now reads:
 - `sdoc library` - opens a library view containing files previously opened with `sdoc path/to/file.md`; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
 ```
 
-## v14 (unreleased)
+## v14 (1.16.0, 2026-08-28)
 
 **Reason:** Setup now installs a discoverable `SKILL.md` instead of pasting an
 always-on `## SmallDocs` block into agent config files. The skill carries a

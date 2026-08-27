@@ -105,6 +105,15 @@ module.exports = function (harness) {
     assert.strictEqual(r.reason, 'newer');
   });
 
+  test('current skill describes account-based Cloud discovery', () => {
+    assert.ok(cli.SKILL_DESCRIPTION.includes('sdoc cloud status --json'));
+    assert.ok(cli.AGENT_BLOCK_BODY.includes('sdoc cloud members'));
+    assert.ok(cli.AGENT_BLOCK_BODY.includes('sdoc cloud permission-groups'));
+    assert.ok(cli.AGENT_BLOCK_BODY.includes('sdoc cloud create FILE.md --account ACCOUNT_UUID --json'));
+    assert.ok(!cli.AGENT_BLOCK_BODY.includes('sdoc cloud projects'));
+    assert.ok(!cli.AGENT_BLOCK_BODY.includes('--project'));
+  });
+
   test('refreshContent: legacy v1 is migrated, fromVersion=1', () => {
     const r = cli.refreshContent('# user prefix\n\n' + LEGACY_V1 + 'user suffix\n');
     assert.strictEqual(r.changed, true);

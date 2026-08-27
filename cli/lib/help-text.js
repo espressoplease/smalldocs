@@ -43,9 +43,10 @@ USAGE
   sdoc library ls --tags           Tag bag (tag - count) for this project
   sdoc library --help              Full library reference - commands, tagging, rescue, autostart
   sdoc cloud login                 Sign this CLI into SmallDocs Cloud once
-  sdoc cloud projects              List authorized Cloud project UUIDs
+  sdoc cloud status --json         Check the connected Cloud account
   sdoc cloud ls                    List Cloud documents
-  sdoc cloud search "query"        Search authorized Cloud documents
+  sdoc cloud search "query"        Search Cloud documents
+  sdoc cloud create file.md        Add a document to Cloud
   sdoc cloud --help                Full Cloud command reference
   sdoc <file> +tag1 +tag2          Inject tags into the file's front matter at open time
   sdoc defaults                    Show ~/.sdocs/styles.yaml
