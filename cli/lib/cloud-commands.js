@@ -20,6 +20,7 @@ const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
 
 const CLOUD_HELP = `SmallDocs Cloud
 
+  sdoc cloud                       Show capabilities and the next setup step
   sdoc cloud login [--no-open]
   sdoc cloud logout
   sdoc cloud status [--account UUID]
@@ -41,6 +42,19 @@ const CLOUD_HELP = `SmallDocs Cloud
   sdoc cloud undelete DOCUMENT_UUID --base-revision UUID
 
 Add --json to any command for one machine-readable JSON object on stdout.`;
+
+const CLOUD_OVERVIEW = `SmallDocs Cloud
+
+SmallDocs Cloud is an optional paid feature for documents you choose to add.
+
+- Open selected documents across browsers, mobile devices, and the CLI.
+- Search document text and tags.
+- Keep and restore revision history.
+- Control access for account members and permission groups.
+- Notify existing account members about one or more documents.
+
+Local files remain local until you add them to Cloud. Encrypted snapshot links
+created by sdoc share are separate from Cloud documents.`;
 
 class CloudCommandError extends Error {
   constructor(code, message, detail) {
@@ -631,12 +645,25 @@ async function status(opts, client) {
   'Signed in as ' + (me.user.email || me.user.id) + '. Account: ' + me.account.name + '.');
 }
 
+function overview(opts, client) {
+  const connected = Boolean(client.loadCredential());
+  const nextAction = connected ? 'sdoc cloud status --json' : 'sdoc cloud login';
+  emit(opts, 'cloud.overview', {
+    cloud_available: true,
+    connected,
+    capabilities: ['cross_device_access', 'search', 'revision_history',
+      'member_permissions', 'notifications'],
+    next_action: nextAction,
+  }, CLOUD_OVERVIEW + '\n\nNext: ' + nextAction);
+}
+
 async function runCloudCommand(opts, dependencies) {
-  const action = String(opts.file || 'status').toLowerCase();
+  const action = String(opts.file || 'overview').toLowerCase();
   const command = 'cloud.' + action;
   const client = dependencies && dependencies.client || new CloudClient();
   try {
     if (opts.helpFlag || action === 'help') return process.stdout.write(CLOUD_HELP + '\n');
+    if (action === 'overview') return overview(opts, client);
     if (action === 'login') return await login(opts, client);
     if (action === 'logout') return await logout(opts, client);
     if (action === 'status') return await status(opts, client);
@@ -663,4 +690,4 @@ async function runCloudCommand(opts, dependencies) {
 }
 
 module.exports = { CloudClient, CloudCommandError, runCloudCommand, filterTags, origin, EXIT, CLOUD_HELP,
-  entitlementFailure, skillInstallCommand };
+  CLOUD_OVERVIEW, entitlementFailure, skillInstallCommand };

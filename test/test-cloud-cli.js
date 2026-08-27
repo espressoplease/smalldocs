@@ -215,6 +215,31 @@ module.exports = function(harness) {
       return { stdout, stderr, exitCode: process.exitCode };
     }
 
+    await testAsync('bare cloud command explains capabilities without authentication or network access', async () => {
+      let authenticated = false;
+      const client = {
+        loadCredential() { return null; },
+        async authenticated() { authenticated = true; throw new Error('must not authenticate'); },
+      };
+      const result = await captureStreams(() => runCloudCommand({ file: null, jsonFlag: true }, { client }));
+      const body = JSON.parse(result.stdout);
+      assert.strictEqual(body.ok, true);
+      assert.strictEqual(body.command, 'cloud.overview');
+      assert.strictEqual(body.cloud_available, true);
+      assert.strictEqual(body.connected, false);
+      assert.strictEqual(body.next_action, 'sdoc cloud login');
+      assert.ok(body.capabilities.includes('revision_history'));
+      assert.strictEqual(authenticated, false);
+    });
+
+    await testAsync('bare cloud command points a connected machine to explicit status', async () => {
+      const client = { loadCredential() { return account; } };
+      const result = await captureStreams(() => runCloudCommand({ file: null, jsonFlag: true }, { client }));
+      const body = JSON.parse(result.stdout);
+      assert.strictEqual(body.connected, true);
+      assert.strictEqual(body.next_action, 'sdoc cloud status --json');
+    });
+
     function entitlementClient(error, status) {
       return new CloudClient({
         origin: 'https://cloud.test',

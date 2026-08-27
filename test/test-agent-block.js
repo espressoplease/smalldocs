@@ -289,6 +289,16 @@ module.exports = function (harness) {
     const out = cli.formatSkill(cli.SKILL_VERSION);
     assert.ok(!out.includes('sdoc cloud status --json'));
     assert.ok(!out.includes('This user has enabled SmallDocs Cloud'));
+    assert.ok(out.includes('SmallDocs Cloud is an optional paid feature'));
+    assert.ok(out.includes('Run `sdoc cloud` for a local overview'));
+  });
+
+  test('standard skill discovers existing tags before adding them', () => {
+    const out = cli.formatSkill(cli.SKILL_VERSION);
+    const discover = out.indexOf('`sdoc library ls --tags`');
+    const add = out.indexOf('`sdoc file.md +tag1 +tag2`');
+    assert.ok(discover !== -1 && add !== -1 && discover < add);
+    assert.ok(out.includes('Prefer an existing tag that fits'));
   });
 
   test('Cloud-aware skill keeps the same name and loads live state only for Cloud work', () => {
@@ -297,6 +307,7 @@ module.exports = function (harness) {
     assert.ok(out.includes('This user has enabled SmallDocs Cloud'));
     assert.ok(out.includes('sdoc cloud status --json'));
     assert.ok(out.includes('Local viewing remains the default'));
+    assert.ok(!out.includes('This standard skill does not indicate'));
   });
 
   test('both skill descriptions are YAML-safe', () => {
