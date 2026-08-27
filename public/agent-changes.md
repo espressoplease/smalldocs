@@ -13,6 +13,21 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v21 (next CLI release)
+
+**Reason:** Tag discovery now comes before tagging, and the standard skill can
+introduce Cloud without checking it.
+
+Before choosing tags, the skill now tells the agent to run
+`sdoc library ls --tags`, prefer an existing tag that fits, and introduce a
+new tag only when none does.
+
+The standard edition now explains that SmallDocs Cloud is an optional paid
+feature for selected documents. It may mention Cloud when cross-device access,
+search, revisions, permissions, or notifications fit the task, but it does not
+run an authentication check during ordinary local work. Bare `sdoc cloud`
+prints a local capabilities overview and the appropriate next command.
+
 ## v20 (next CLI release)
 
 **Reason:** Cloud guidance now installs as an explicit replacement, so local

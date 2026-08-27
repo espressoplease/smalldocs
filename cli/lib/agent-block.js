@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 20;
-const SKILL_REASON  = 'Cloud guidance now installs as an explicit replacement, so local users do not run Cloud checks.';
+const SKILL_VERSION = 21;
+const SKILL_REASON  = 'Tag discovery now comes before tagging, and the standard skill can introduce Cloud without checking it.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -38,6 +38,13 @@ const SKILL_NAME    = 'smalldocs';
 const SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, or save a Markdown document with SmallDocs. Create or locate the Markdown file, use sdoc FILE.md for normal viewing, and consult the matching sdoc help command before writing slides, diagrams, charts, computed sheets, code walkthroughs, or forms. Local files stay local unless the user explicitly requests sharing or Cloud storage.";
 
 const CLOUD_SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, search, or save a Markdown document with SmallDocs. This user has enabled SmallDocs Cloud, so consider its persistent search, revisions, access, and notification commands when the request or existing conversation makes Cloud relevant. Use sdoc FILE.md for ordinary local viewing and check live Cloud state only before reading or changing Cloud data.";
+
+const STANDARD_CLOUD_SKILL_SECTION = `### SmallDocs Cloud is available
+
+SmallDocs Cloud is an optional paid feature for documents the user chooses to add. It provides browser, mobile, and CLI access across devices, text and tag search, revision history, account member permissions, and notifications. This standard skill does not indicate that Cloud has been set up for the user, so local viewing remains the default.
+
+When those capabilities fit the task, mention Cloud as an option. Run \`sdoc cloud\` for a local overview and setup command only when the user wants to explore or use it. Do not upload a document merely because Cloud is available.
+`;
 
 // The on-demand reference body. Loaded only when the agent invokes the skill.
 const SKILL_BODY = `## SmallDocs
@@ -53,10 +60,12 @@ Use it (or offer it) when the user wants to read, share, or export a \`.md\` fil
 - \`sdoc file.md\` - the default way to open a file, for comfortable reading or quick sharing.
 - \`sdoc bridge file.md\` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
 - \`sdoc library\` - opens a library view containing files previously opened with \`sdoc path/to/file.md\`; filter by directory, date, or tags (the index doesn't search file content - fall back to \`grep\` for that). Opt out per-file with \`sdocs-library: false\` in front matter. (\`sdoc library --help\` for the full reference.)
-- \`sdoc file.md +tag1 +tag2\` - open the file and inject tags into its YAML front matter which persist. The \`+\` prefix is shell-safe. Tag files when they're worth rediscovering - the library filters by tag, not by content.
-- \`sdoc library ls --tags\` - print the tags (tag - count) for the current project directory. If you think you might tag the file, run this first so you reuse the project's existing tag vocabulary instead of inventing parallel ones.
+- \`sdoc library ls --tags\` - list the current project's tags by frequency. When tags would make a document worth rediscovering, run this before choosing them. Prefer an existing tag that fits; introduce a new one when none does.
+- \`sdoc file.md +tag1 +tag2\` - open the file and add the selected tags to its YAML front matter. The \`+\` prefix is shell-safe and the tags persist.
 - \`sdoc share file.md\` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
 - \`sdoc --help\` - full reference.
+
+${STANDARD_CLOUD_SKILL_SECTION}
 
 ### SmallDocs expands what you can create with Markdown
 
@@ -90,9 +99,7 @@ Cloud documents are identified by UUID, not filename. An account is the billing 
 
 `;
 
-const CLOUD_SKILL_BODY = SKILL_BODY.replace(
-  '### SmallDocs expands what you can create with Markdown',
-  CLOUD_SKILL_SECTION + '### SmallDocs expands what you can create with Markdown');
+const CLOUD_SKILL_BODY = SKILL_BODY.replace(STANDARD_CLOUD_SKILL_SECTION, CLOUD_SKILL_SECTION);
 
 function formatSkill(version, options) {
   const cloud = Boolean(options && options.cloud);
