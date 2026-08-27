@@ -7,7 +7,7 @@ module.exports = function(harness) {
   const io = require('../cli/lib/io');
   const credentials = require('../cli/lib/cloud-credentials');
   const bindings = require('../cli/lib/cloud-bindings');
-  const { CloudClient, runCloudCommand, filterTags, skillInstallCommand } =
+  const { CloudClient, runCloudCommand, filterTags, skillInstallCommand, CLOUD_HELP } =
     require('../cli/lib/cloud-commands');
 
   test('cloud CLI parser captures nested action flags', () => {
@@ -51,6 +51,13 @@ module.exports = function(harness) {
       'npx skills@latest add https://cloud-staging.smalldocs.org/agent-skills/cloud --global');
     assert.strictEqual(skillInstallCommand('https://smalldocs.org', false),
       'npx skills@latest add https://smalldocs.org/agent-skills/standard --global');
+  });
+
+  test('Cloud help documents search result fields and read/update workflows', () => {
+    assert.ok(CLOUD_HELP.includes('Search is case-insensitive substring matching'));
+    assert.ok(CLOUD_HELP.includes('matches[]'));
+    assert.ok(CLOUD_HELP.includes('--no-bind'));
+    assert.ok(CLOUD_HELP.includes('sdoc cloud push ./plan.md --json'));
   });
 
   test('macOS Keychain save answers both secure prompts without putting the credential in arguments', () => {
@@ -422,18 +429,19 @@ module.exports = function(harness) {
         async authenticated(endpoint) {
           const url = new URL(endpoint, 'https://cloud.test');
           const cursor = url.searchParams.get('cursor') || '';
-          pageCalls.push({ cursor, limit: url.searchParams.get('limit') });
+          pageCalls.push({ cursor, limit: url.searchParams.get('limit'),
+            account: url.searchParams.get('workspace_id') });
           return pages[cursor];
         },
       };
-      const result = await capture(() => runCloudCommand({ file: 'ls', limitFlag: 3,
-        jsonFlag: true }, { client: pagingClient }));
+      const result = await capture(() => runCloudCommand({ file: 'ls', accountFlag: 'acct-docs',
+        limitFlag: 3, jsonFlag: true }, { client: pagingClient }));
       assert.deepStrictEqual(result.documents.map((document) => document.id), ['doc-a', 'doc-b', 'doc-c']);
       assert.strictEqual(result.next_cursor, 'cursor-3');
       assert.deepStrictEqual(pageCalls, [
-        { cursor: '', limit: '3' },
-        { cursor: 'cursor-1', limit: '2' },
-        { cursor: 'cursor-2', limit: '1' },
+        { cursor: '', limit: '3', account: 'acct-docs' },
+        { cursor: 'cursor-1', limit: '2', account: 'acct-docs' },
+        { cursor: 'cursor-2', limit: '1', account: 'acct-docs' },
       ]);
     });
 
@@ -512,9 +520,11 @@ module.exports = function(harness) {
         },
       };
       const result = await capture(() => runCloudCommand({ file: 'search', extra: 'kubernetes',
-        tagFilters: ['platform'], limitFlag: 1, jsonFlag: true }, { client: searchClient }));
+        accountFlag: 'acct-platform', tagFilters: ['platform'], limitFlag: 1, jsonFlag: true },
+      { client: searchClient }));
       assert.deepStrictEqual(requestBody.tags, ['platform']);
       assert.strictEqual(requestBody.limit, 1);
+      assert.strictEqual(requestBody.workspace_id, 'acct-platform');
       assert.strictEqual(result.documents[0].id, 'doc-tagged');
     });
 

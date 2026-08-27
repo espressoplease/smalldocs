@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 21;
-const SKILL_REASON  = 'Tag discovery now comes before tagging, and the standard skill can introduce Cloud without checking it.';
+const SKILL_VERSION = 22;
+const SKILL_REASON  = 'Cloud-aware agents now search existing documents for relevant context before recreating it.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -86,13 +86,16 @@ const CLOUD_SKILL_SECTION = `### SmallDocs Cloud for agents
 
 This user has enabled SmallDocs Cloud. Local viewing remains the default when the request only asks to create or open a document. Consider Cloud without waiting for the user to say the word "Cloud" when the existing conversation or task calls for persistent storage, cross-device access, search, revisions, permissions, or notifications. If the intended destination is unclear and it changes who can access the document, discuss it with the user.
 
-Before reading or changing Cloud data, run \`sdoc cloud status --json\` for live authentication and account state. Run \`sdoc cloud --help\` before choosing a command, and add \`--json\` for one stable machine-readable object on stdout.
+Treat Cloud as a source of context, not only a place to save new work. When earlier decisions, research, plans, or documentation could materially inform the task, search Cloud before recreating that context. Use specific project terms first and try shorter terms or existing tags when a search returns nothing. Do not search unrelated Cloud documents merely because Cloud is enabled.
+
+Before reading or changing Cloud data, run \`sdoc cloud status --json\` for live authentication and account state. Run \`sdoc cloud --help\` for the search, read, and update workflow, exact result fields, and examples. Add \`--json\` for one stable machine-readable object on stdout.
 
 - Discover account access, people, tags, and document permission sets with \`sdoc cloud status --json\`, \`sdoc cloud members\`, \`sdoc cloud tags\`, and \`sdoc cloud permission-groups\`. When status reports more than one account, pass \`--account ACCOUNT_UUID\` to account-scoped commands.
-- Find documents with \`sdoc cloud ls\` or content search with \`sdoc cloud search "QUERY"\`. Use \`--tag TAG\` to filter, and \`sdoc cloud ls --shared-with-me\` for documents shared with the signed-in user.
+- Find documents with \`sdoc cloud search "QUERY" --json\`. Search matches a case-insensitive phrase across titles, filenames, tags, and Markdown, returning document IDs and snippets rather than full content. Use \`sdoc cloud tags --json\` to discover existing vocabulary, \`--tag TAG\` to narrow results, \`sdoc cloud ls --shared-with-me --json\` for documents shared with the signed-in user, and \`--account ACCOUNT_UUID\` when the relevant account is known.
+- Read a promising result without binding it for future updates with \`sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json\`. To update it, pull without \`--no-bind\`, edit the local Markdown, then run \`sdoc cloud push PATH --json\`.
 - Upload a new local file without opening a browser with \`sdoc cloud create FILE.md --account ACCOUNT_UUID --json\`. Omit \`--account\` when status reports one account.
 - Set document access with \`sdoc cloud access DOCUMENT_UUID --only-you\`, \`--everyone\`, or one or more \`--member USER_UUID\` values. List members first. Notify existing members with \`sdoc cloud notify ...\`; notification does not grant access or create users.
-- Edit an existing document with \`sdoc cloud pull DOCUMENT_UUID --output FILE.md\`, normal file tools, then \`sdoc cloud push FILE.md --json\`. The local binding supplies the revision the agent edited. Cloud keeps separate changes from other writers; overlapping replacements may both remain. If the server combines content and the file did not change during upload, push writes the combined Markdown back to the local file. Inspect \`merge_classification\`, \`combined\`, and \`local_updated_from_cloud\` in the JSON result.
+- When updating a bound document, the local binding supplies the revision the agent edited. Cloud keeps separate changes from other writers; overlapping replacements may both remain. If the server combines content and the file did not change during upload, push writes the combined Markdown back to the local file. Inspect \`merge_classification\`, \`combined\`, and \`local_updated_from_cloud\` in the JSON result.
 - Inspect or recover history with \`sdoc cloud history DOCUMENT_UUID\` and \`sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID\`.
 
 Cloud documents are identified by UUID, not filename. An account is the billing and access boundary; tags organize documents inside it. Do not use \`sdoc share\` as a substitute for Cloud: share creates an encrypted snapshot link, while Cloud provides revisions, search, membership, and persistent agent access.
