@@ -92,21 +92,22 @@ test('library UI: renders entries from the agent', async ({ page }) => {
 test('library header: brand returns home and adapts to the available width', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(pageUrl);
-  const brand = page.locator('.topbar .brand');
-  await expect(brand).toHaveAttribute('href', '/');
-  await expect(page.locator('.brand-full')).toBeVisible();
-  await expect(page.locator('.brand-short')).toBeHidden();
-  await expect(page.locator('.brand-tiny')).toBeHidden();
+  const desktopBrand = page.locator('.sdocs-site-sidebar-brand');
+  await expect(desktopBrand).toHaveAttribute('href', '/');
+  await expect(desktopBrand).toHaveText('SmallDocs');
+  await expect(desktopBrand).toBeVisible();
 
   await page.setViewportSize({ width: 500, height: 800 });
-  await expect(page.locator('.brand-full')).toBeHidden();
-  await expect(page.locator('.brand-short')).toBeVisible();
-  await expect(page.locator('.brand-tiny')).toBeHidden();
+  const mobileBrand = page.locator('.sdocs-site-mobilebar-brand');
+  await expect(mobileBrand).toHaveAttribute('href', '/');
+  await expect(page.locator('.sdocs-site-mobilebar-brand-full')).toBeHidden();
+  await expect(page.locator('.sdocs-site-mobilebar-brand-short')).toBeVisible();
+  await expect(page.locator('.sdocs-site-mobilebar-brand-tiny')).toBeHidden();
 
   await page.setViewportSize({ width: 350, height: 800 });
-  await expect(page.locator('.brand-short')).toBeHidden();
-  await expect(page.locator('.brand-tiny')).toBeVisible();
-  await brand.click();
+  await expect(page.locator('.sdocs-site-mobilebar-brand-short')).toBeHidden();
+  await expect(page.locator('.sdocs-site-mobilebar-brand-tiny')).toBeVisible();
+  await mobileBrand.click();
   await page.waitForURL('http://localhost:3000/');
   expect(page.url()).not.toContain('/connect');
 });
@@ -253,31 +254,18 @@ test('library UI: clear all resets filters', async ({ page }) => {
   await page.waitForFunction(() => document.querySelectorAll('.res').length >= 4);
 });
 
-test('library UI: double-click opens the entry in a new tab', async ({ page, context }) => {
+test('library UI: one click opens the entry in a new tab', async ({ page, context }) => {
   await page.goto(pageUrl);
   await page.waitForSelector('.res');
-  // The real file is "Real one"; double-click that row, watch for the new page.
   const row = page.locator('.res:has-text("Real file you can open")');
   const [newPage] = await Promise.all([
     context.waitForEvent('page'),
-    row.dblclick(),
+    row.click(),
   ]);
   await newPage.waitForLoadState('domcontentloaded');
   const url = newPage.url();
   expect(url).toMatch(/#bridge=/);
-});
-
-test('library UI: click already-selected row opens it', async ({ page, context }) => {
-  await page.goto(pageUrl);
-  await page.waitForSelector('.res');
-  const row = page.locator('.res:has-text("Real file you can open")');
-  await row.click(); // selects
-  const [newPage] = await Promise.all([
-    context.waitForEvent('page'),
-    row.click(), // second click opens
-  ]);
-  await newPage.waitForLoadState('domcontentloaded');
-  expect(newPage.url()).toMatch(/#bridge=/);
+  await expect(page).toHaveURL(pageUrl);
 });
 
 test('library UI: Enter key on selected row opens it', async ({ page, context }) => {

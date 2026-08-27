@@ -40,6 +40,28 @@ test('expandable site navigation stays closed until selected', async ({ page }) 
   await expect(sdk.locator('.sdocs-site-sidebar-row')).toHaveAttribute('aria-expanded', 'false');
 });
 
+test('Library and reader sidebars share capability and footer content', async ({ page }) => {
+  async function sharedContent(url, sidebar) {
+    await page.goto(url);
+    return page.locator(sidebar).evaluate(element => ({
+      capabilities: Array.from(element.querySelectorAll('[data-sdocs-shared-capabilities] a'))
+        .map(link => ({ label: link.textContent, href: link.getAttribute('href') })),
+      footer: Array.from(element.querySelectorAll('.sdocs-sidebar-footer-link'))
+        .map(link => link.textContent.trim()),
+      footerBottom: Math.round(element.querySelector('.sdocs-sidebar-footer').getBoundingClientRect().bottom),
+      sidebarBottom: Math.round(element.getBoundingClientRect().bottom),
+    }));
+  }
+
+  const library = await sharedContent('/public/library/library.html?demo=1', '#_sd_site_sidebar');
+  const reader = await sharedContent('/docs?sidebar=preview', '#_sd_sidebar');
+  expect(library.capabilities).toEqual(reader.capabilities);
+  expect(library.footer).toEqual(reader.footer);
+  expect(library.footer).toEqual(['Private by design', 'Source on GitHub']);
+  expect(library.sidebarBottom - library.footerBottom).toBe(16);
+  expect(reader.sidebarBottom - reader.footerBottom).toBe(16);
+});
+
 test('mobile site navigation keeps the menu button fixed and hides Local library', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/public/cloud.html');

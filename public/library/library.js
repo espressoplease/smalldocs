@@ -955,7 +955,8 @@ async function toggleStar(id, starred) {
 // so the user can still read the document.
 async function openEntry(id) {
   if (isCloudMode()) {
-    location.href = '/docs?cloud-document=' + encodeURIComponent(id);
+    window.open(location.origin + '/docs?cloud-document=' + encodeURIComponent(id),
+      '_blank', 'noopener');
     return;
   }
   if (isDemoMode()) {
@@ -988,7 +989,7 @@ async function openEntry(id) {
       params.set('bridge', '127.0.0.1:' + b.port);
       params.set('token', b.token);
       params.set('file',  b.file);
-      window.open(location.origin + '/#' + params.toString(), '_blank');
+      window.open(location.origin + '/#' + params.toString(), '_blank', 'noopener');
       return;
     }
 
@@ -1001,7 +1002,7 @@ async function openEntry(id) {
       return;
     }
     const snap = await snapResp.json();
-    window.open(new URL(snap.url, location.origin).toString(), '_blank');
+    window.open(new URL(snap.url, location.origin).toString(), '_blank', 'noopener');
   } catch (e) {
     showBanner({ kind: 'error', message: 'Could not open entry: ' + e.message });
   }
@@ -1080,18 +1081,10 @@ document.getElementById('results').addEventListener('click', (e) => {
   }
   const row = e.target.closest('.res');
   if (!row) return;
-  const wasSelected = STATE.selected === parseInt(row.dataset.idx, 10);
   STATE.selected = parseInt(row.dataset.idx, 10);
+  const id = row.dataset.id;
   renderAll();
-  // Click an already-selected row to open it; first click on a row
-  // selects it.
-  if (wasSelected) openEntry(row.dataset.id);
-});
-
-document.getElementById('results').addEventListener('dblclick', (e) => {
-  const row = e.target.closest('.res');
-  if (!row) return;
-  openEntry(row.dataset.id);
+  openEntry(id);
 });
 
 const input = document.getElementById('q');

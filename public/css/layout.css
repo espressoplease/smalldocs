@@ -516,6 +516,11 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   color: var(--text);
   background: var(--bg-hover);
 }
+.sdocs-sidebar-footer > a svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
 .sdocs-sidebar-status {
   display: block;
   min-height: 0;

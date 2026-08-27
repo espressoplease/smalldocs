@@ -97,6 +97,24 @@ test('Cloud Library filters documents shared with the signed-in user', async ({ 
   await expect(page.locator('#results')).toContainText('Shared plan');
 });
 
+test('one click opens a Cloud document in a new tab', async ({ page, context }) => {
+  await installCloudLibraryApi(page, [
+    { id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' },
+  ], true, [
+    { id: 'document-1', title: 'Reader notes', filename: 'reader-notes.md', tags: ['design'],
+      current_revision_id: 'rev-1', updated_at: '2026-08-20T12:00:00.000Z' },
+  ]);
+  await openCloudLibrary(page);
+  const originalUrl = page.url();
+  const [documentPage] = await Promise.all([
+    context.waitForEvent('page'),
+    page.locator('.res:has-text("Reader notes")').click(),
+  ]);
+  await documentPage.waitForLoadState('domcontentloaded');
+  expect(documentPage.url()).toContain('/docs?cloud-document=document-1');
+  expect(page.url()).toBe(originalUrl);
+});
+
 test('Cloud Library tag query opens with the matching filter applied', async ({ page }) => {
   await installCloudLibraryApi(page, [
     { id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' },

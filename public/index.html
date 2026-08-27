@@ -209,14 +209,7 @@ __EMBED_STYLES__
           </button>
           <div class="sdocs-sidebar-expander" id="_sd_sidebar_capabilities_panel">
             <div class="sdocs-sidebar-expander-clip">
-              <div class="sdocs-sidebar-preview sdocs-sidebar-preview-compact">
-                <a class="sdocs-sidebar-subitem" href="/docs#sec=diagrams">Diagrams</a>
-                <a class="sdocs-sidebar-subitem" href="/docs#sec=slides">Slides</a>
-                <a class="sdocs-sidebar-subitem" href="/advanced-spreadsheets">Spreadsheets</a>
-                <a class="sdocs-sidebar-subitem" href="/docs#sec=charts">Charts</a>
-                <a class="sdocs-sidebar-subitem" href="/docs#sec=formatting">Formatting</a>
-                <a class="sdocs-sidebar-subitem" href="/docs#sec=code">Code</a>
-              </div>
+              <div class="sdocs-sidebar-preview sdocs-sidebar-preview-compact" data-sdocs-shared-capabilities data-item-class="sdocs-sidebar-subitem"></div>
             </div>
           </div>
         </div>
@@ -230,7 +223,7 @@ __EMBED_STYLES__
           <div class="sdocs-sidebar-expander" id="_sd_sidebar_sdk_panel">
             <div class="sdocs-sidebar-expander-clip">
               <div class="sdocs-sidebar-preview">
-                <p class="sdocs-sidebar-explainer">Render agent-generated Markdown as rich, interactive documents inside your application with configurable styling.</p>
+                <p class="sdocs-sidebar-explainer" data-sdocs-shared-sdk-description></p>
                 <button class="sdocs-sidebar-cta" type="button" disabled>Coming soon</button>
               </div>
             </div>
@@ -259,22 +252,7 @@ __EMBED_STYLES__
       </nav>
     </div>
 
-    <div class="sdocs-sidebar-footer">
-      <div id="_sd_status-text" class="sdocs-sidebar-status" aria-live="polite"></div>
-      <a href="https://smalldocs.org/#sec=privacy" target="_blank" rel="noopener">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/><path d="m9 12 2 2 4-4"/></svg>
-        Private by design
-      </a>
-      <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
-        Source on GitHub
-      </a>
-      <div class="sdocs-sidebar-legal">
-        <a href="/business" target="_blank" rel="noopener">For business</a>
-        <span aria-hidden="true">&middot;</span>
-        <a href="/legal" target="_blank" rel="noopener">Terms</a>
-      </div>
-    </div>
+    <div class="sdocs-sidebar-footer" data-sdocs-shared-footer data-status-id="_sd_status-text"></div>
   </aside>
 
   <!-- ── Left panel ── -->
@@ -1189,6 +1167,7 @@ __EMBED_STYLES__
 <script src="/public/sdocs-yaml.js"></script>
 <script src="/public/sdocs-styles.js"></script>
 <script src="/public/sdocs-library-tags.js"></script>
+<script src="/public/sdocs-sidebar-shared.js"></script>
 <script src="/public/sdocs-state.js"></script>
 <script src="/public/sdocs-connect.js"></script>
 <script src="/public/sdocs-sidebar-data.js"></script>
