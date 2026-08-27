@@ -2579,8 +2579,12 @@ const server = http.createServer((req, res) => {
 
   // SmallDocs Cloud product, pricing, and security details.
   if (pathname === '/cloud') {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud.html'), null, {
-      'Cache-Control': 'no-cache',
+    const cloudNavigation = homepageNavigation(req);
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud.html'), {
+      '__CLOUD_AUTHENTICATED__': cloudNavigation.authenticated ? 'true' : 'false',
+    }, {
+      'Cache-Control': CLOUD_DEPLOYMENT.publicEnabled ? 'private, no-store' : 'no-cache',
+      ...(CLOUD_DEPLOYMENT.publicEnabled ? { Vary: 'Cookie' } : {}),
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
     });
@@ -2839,7 +2843,9 @@ const server = http.createServer((req, res) => {
       "frame-src 'none'",
       "object-src 'none'",
     ].join('; ');
+    const connectNavigation = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'connect.html'), {
+      '__CLOUD_AUTHENTICATED__': connectNavigation.authenticated ? 'true' : 'false',
       '__CLOUD_CONNECT_LIBRARY_SWITCHER__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<div class="library-onboarding-nav"><nav class="library-scope connect-library-scope" aria-label="Library location">' +
           '<a class="library-scope-option active" href="/library" aria-current="page">' +

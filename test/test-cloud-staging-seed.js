@@ -50,6 +50,14 @@ module.exports = function(harness) {
         const teamMembers = store.listAccountMembers({ userId: seeded.team.user_id,
           workspaceId: seeded.team.account_id });
         assert.strictEqual(teamMembers.length, 5);
+        assert.strictEqual(seeded.individual.documents.document_count, 12);
+        assert.strictEqual(seeded.team.documents.document_count, 12);
+        const individualDocuments = await store.listDocuments({ userId: seeded.individual.user_id,
+          projectId: seeded.individual.documents.project_id });
+        assert.strictEqual(individualDocuments.length, 12);
+        assert.deepStrictEqual(individualDocuments.find((document) =>
+          document.filename === 'reader-redesign-notes.md').tags,
+        ['design', 'renderer', 'product']);
         for (const member of seeded.team.members) {
           const accounts = await store.listWorkspaces(member.user_id);
           assert.strictEqual(accounts.length, 1);
@@ -74,7 +82,9 @@ module.exports = function(harness) {
           userId: 'extra-acceptance-user', role: 'member' });
         store.db.close();
 
-        await runSeed();
+        const repeated = JSON.parse(await runSeed());
+        assert.strictEqual(repeated.individual.documents.document_count, 12);
+        assert.strictEqual(repeated.team.documents.document_count, 12);
         const { createBillingStore } = require('../lib/cloud-billing');
         const billing = createBillingStore({ dbPath: env.CLOUD_BILLING_DB,
           planLimits: JSON.parse(env.CLOUD_PLAN_LIMITS_JSON) });

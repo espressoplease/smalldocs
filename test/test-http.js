@@ -857,6 +857,7 @@ module.exports = function(harness) {
       assert.ok(!r.body.toLowerCase().includes('trial'));
       assert.ok(r.body.includes('/cloud/checkout?plan=personal'));
       assert.ok(r.body.includes('/cloud/checkout?plan=team'));
+      assert.ok(r.body.includes('data-cloud-authenticated="false"'));
       assert.ok(!r.body.includes('href="/docs"'));
     });
 
@@ -1072,6 +1073,14 @@ module.exports = function(harness) {
       assert.ok(homepage.body.includes('action="/api/cloud/auth/logout"'));
       assert.ok(homepage.body.includes('<path d="M22 19h-6l3 3"/>'),
         'sign-out should use the user-round-arrow-left icon');
+
+      const cloudPage = await get(BASE + '/cloud', { Cookie: cloudCookie });
+      assert.strictEqual(cloudPage.headers['cache-control'], 'private, no-store');
+      assert.strictEqual(cloudPage.headers.vary, 'Cookie');
+      assert.ok(cloudPage.body.includes('data-cloud-authenticated="true"'));
+
+      const connectPage = await get(BASE + '/connect', { Cookie: cloudCookie });
+      assert.ok(connectPage.body.includes('data-cloud-authenticated="true"'));
 
       const library = await get(BASE + '/library?scope=cloud', { Cookie: cloudCookie });
       assert.strictEqual(library.status, 200);

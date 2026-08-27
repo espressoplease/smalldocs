@@ -11,16 +11,48 @@ const { createCloudStore, createLocalKeyProvider, defaultInviteDomainFromEmail }
   require('../lib/cloud-store');
 
 const required = ['CLOUD_AUTH_DB', 'CLOUD_DB', 'CLOUD_BILLING_DB', 'CLOUD_AUTH_PEPPER',
-  'CLOUD_IDEMPOTENCY_SECRET', 'CLOUD_MASTER_KEY'];
+  'CLOUD_IDEMPOTENCY_SECRET'];
 required.forEach((name) => {
   if (!process.env[name]) throw new Error(name + ' is required');
 });
+if (!process.env.CLOUD_MASTER_KEY && !process.env.CLOUD_KMS_KEY_ID) {
+  throw new Error('CLOUD_MASTER_KEY or CLOUD_KMS_KEY_ID is required');
+}
+
+function optionalNumber(name) {
+  return process.env[name] == null ? undefined : Number(process.env[name]);
+}
+
+function createKeyResources() {
+  if (!process.env.CLOUD_KMS_KEY_ID) {
+    return { provider: createLocalKeyProvider({ masterKey: process.env.CLOUD_MASTER_KEY,
+      environment: 'staging', reference: process.env.CLOUD_KEY_REFERENCE || 'local-staging-key' }) };
+  }
+  let kmsClient;
+  if (process.env.CLOUD_KMS_CLIENT_MODULE) {
+    const path = require('path');
+    const kmsModule = require(path.resolve(process.env.CLOUD_KMS_CLIENT_MODULE));
+    kmsClient = typeof kmsModule.createKmsClient === 'function'
+      ? kmsModule.createKmsClient({ environment: 'staging' }) : kmsModule;
+  } else {
+    const { createAwsKmsClient } = require('../lib/cloud-aws-kms');
+    kmsClient = createAwsKmsClient({
+      region: process.env.CLOUD_KMS_REGION || process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION,
+      maxAttempts: optionalNumber('CLOUD_KMS_MAX_ATTEMPTS'),
+      connectionTimeoutMs: optionalNumber('CLOUD_KMS_CONNECTION_TIMEOUT_MS'),
+      requestTimeoutMs: optionalNumber('CLOUD_KMS_REQUEST_TIMEOUT_MS'),
+      operationTimeoutMs: optionalNumber('CLOUD_KMS_OPERATION_TIMEOUT_MS'),
+    });
+  }
+  const { createManagedKmsKeyProvider } = require('../lib/cloud-kms');
+  return { kmsClient, provider: createManagedKmsKeyProvider({ kmsClient,
+    keyId: process.env.CLOUD_KMS_KEY_ID, environment: 'staging' }) };
+}
 
 const auth = createAuthStore({ dbPath: process.env.CLOUD_AUTH_DB,
   pepper: process.env.CLOUD_AUTH_PEPPER });
-const keyProvider = createLocalKeyProvider({ masterKey: process.env.CLOUD_MASTER_KEY,
-  environment: 'staging', reference: process.env.CLOUD_KEY_REFERENCE || 'local-staging-key' });
-const cloud = createCloudStore({ dbPath: process.env.CLOUD_DB, keyProvider,
+const keyResources = createKeyResources();
+const cloud = createCloudStore({ dbPath: process.env.CLOUD_DB, keyProvider: keyResources.provider,
   idempotencySecret: process.env.CLOUD_IDEMPOTENCY_SECRET });
 const billing = createBillingStore({ dbPath: process.env.CLOUD_BILLING_DB,
   planLimits: process.env.CLOUD_PLAN_LIMITS_JSON
@@ -29,6 +61,52 @@ const billing = createBillingStore({ dbPath: process.env.CLOUD_BILLING_DB,
 function person(email, firstName, lastName) {
   const signedIn = auth.signInWithVerifiedEmail(email);
   return auth.updateUserProfile({ userId: signedIn.user.id, firstName, lastName });
+}
+
+const visualDocuments = [
+  ['reader-redesign-notes.md', 'Reader redesign notes', ['design', 'renderer', 'product'],
+    'Decisions and open questions for the document reader navigation.'],
+  ['shared-renderer-research.md', 'Shared renderer research', ['design', 'renderer', 'product'],
+    'Research notes covering navigation, reading flow, and responsive controls.'],
+  ['smalldocs-ui-audit.md', 'SmallDocs UI audit', ['design', 'renderer', 'product'],
+    'A surface-by-surface review of the SmallDocs interface.'],
+  ['mobile-navigation-review.md', 'Mobile navigation review', ['design', 'renderer'],
+    'Findings from testing reader controls and navigation on narrow screens.'],
+  ['document-rendering-roadmap.md', 'Document rendering roadmap', ['renderer', 'product'],
+    'Planned improvements to rendering, navigation, and document discovery.'],
+  ['agent-document-workflows.md', 'Agent document workflows', ['agents', 'product'],
+    'Examples of agents creating, reading, and updating documents.'],
+  ['spreadsheet-export-qa.md', 'Spreadsheet export QA', ['spreadsheets', 'export'],
+    'Checks for formulas, formatting, and Excel exports.'],
+  ['slides-review.md', 'Slides review', ['slides', 'export'],
+    'Notes from reviewing presentation mode and PowerPoint export.'],
+  ['mermaid-diagram-patterns.md', 'Mermaid diagram patterns', ['diagrams', 'renderer'],
+    'Reusable diagram patterns for technical documents.'],
+  ['cloud-release-checklist.md', 'Cloud release checklist', ['cloud', 'release'],
+    'Release checks for Cloud documents, search, and account access.'],
+  ['privacy-review.md', 'Privacy review', ['privacy', 'cloud'],
+    'Review notes for local files, short links, and managed Cloud encryption.'],
+  ['sdk-integration-notes.md', 'SDK integration notes', ['sdk', 'agents'],
+    'Integration notes for rendering agent-generated Markdown in an application.'],
+];
+
+function markdownFor(title, tags, summary) {
+  return '---\ntags:\n' + tags.map((tag) => '  - ' + tag).join('\n') +
+    '\n---\n\n# ' + title + '\n\n' + summary + '\n\n## Notes\n\n' +
+    'This staging document provides representative content for navigation, search, and tag filtering.\n';
+}
+
+async function seedVisualDocuments(userId, workspaceId, seedName) {
+  const projects = await cloud.listProjects(userId, workspaceId);
+  if (!projects.length) throw new Error('No project exists for ' + seedName);
+  const projectId = projects[0].id;
+  for (const [filename, title, tags, summary] of visualDocuments) {
+    await cloud.createDocument({ userId, projectId, filename,
+      markdown: markdownFor(title, tags, summary),
+      idempotencyKey: 'staging-visual-' + seedName + '-' + filename });
+  }
+  return { project_id: projectId,
+    document_count: (await cloud.listDocuments({ userId, projectId })).length };
 }
 
 async function main() {
@@ -85,11 +163,15 @@ async function main() {
   billing.upsertSubscription({ workspaceId: accessTeam.id,
     plan: 'team', status: 'active', seatQuantity: acceptanceUsage.memberCount });
 
+  const individualDocuments = await seedVisualDocuments(
+    individual.id, individualAccount.workspaceId, 'personal');
+  const teamDocuments = await seedVisualDocuments(teamOwner.id, team.id, 'team');
+
   const result = {
     individual: { email: 'personal-demo@smalldocs.org', user_id: individual.id,
-      account_id: individualAccount.workspaceId },
+      account_id: individualAccount.workspaceId, documents: individualDocuments },
     team: { email: 'team-owner-demo@smalldocs.org', user_id: teamOwner.id,
-      account_id: team.id, members: demoMembers },
+      account_id: team.id, members: demoMembers, documents: teamDocuments },
     acceptance: { email: 'access-owner@smalldocs.org', user_id: accessOwner.id,
       account_id: accessTeam.id, members: accessMembers },
   };
@@ -100,4 +182,6 @@ main().finally(() => {
   auth.db.close();
   cloud.db.close();
   billing.db.close();
+  if (keyResources.provider.clearCache) keyResources.provider.clearCache();
+  if (keyResources.kmsClient && keyResources.kmsClient.destroy) keyResources.kmsClient.destroy();
 });
