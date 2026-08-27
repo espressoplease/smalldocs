@@ -28,16 +28,16 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 22;
-const SKILL_REASON  = 'Cloud-aware agents now search existing documents for relevant context before recreating it.';
+const SKILL_VERSION = 23;
+const SKILL_REASON  = 'Presentation and Cloud reference workflows now give agents an exact command sequence.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
 // in SKILL_BODY and loads on demand. Plain text: no backticks, no em/en dashes,
 // no double quotes (it is emitted as a double-quoted YAML scalar).
-const SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, or save a Markdown document with SmallDocs. Create or locate the Markdown file, use sdoc FILE.md for normal viewing, and consult the matching sdoc help command before writing slides, diagrams, charts, computed sheets, code walkthroughs, or forms. Local files stay local unless the user explicitly requests sharing or Cloud storage.";
+const SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, or save a Markdown document with SmallDocs. Create or locate the Markdown file and use sdoc FILE.md for normal viewing. For a presentation run sdoc slides, create a Markdown deck from the source material, run sdoc slides verify FILE.md --json and fix every error, then run sdoc present FILE.md. Run the matching bare reference command before other specialised syntax. Local files stay local unless the user explicitly requests sharing or Cloud storage.";
 
-const CLOUD_SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, search, or save a Markdown document with SmallDocs. This user has enabled SmallDocs Cloud, so consider its persistent search, revisions, access, and notification commands when the request or existing conversation makes Cloud relevant. Use sdoc FILE.md for ordinary local viewing and check live Cloud state only before reading or changing Cloud data.";
+const CLOUD_SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, search, or save a Markdown document with SmallDocs. For a presentation run sdoc slides, create a Markdown deck, run sdoc slides verify FILE.md --json and fix every error, then run sdoc present FILE.md. This user has enabled SmallDocs Cloud. Use sdoc FILE.md for ordinary local viewing and do not search Cloud when a named local source is sufficient. For relevant prior Cloud material run sdoc cloud status --json, search, then sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json.";
 
 const STANDARD_CLOUD_SKILL_SECTION = `### SmallDocs Cloud is available
 
@@ -73,6 +73,13 @@ SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart
 
 Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
 
+For a presentation request, follow this sequence rather than treating it as an ordinary document:
+
+1. Run \`sdoc slides\` and use that reference while writing the slide blocks.
+2. Save the Markdown source.
+3. Run \`sdoc slides verify FILE.md --json\`, fix every diagnostic, and rerun until it exits 0.
+4. Run \`sdoc present FILE.md\` so the user sees the deck in presentation mode.
+
 - \`sdoc charts\` - rendering inline charts (\`\`\`chart blocks)
 - \`sdoc diagrams\` - rendering inline Mermaid diagrams (\`\`\`mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
 - \`sdoc slides\` - inline slide decks (\`\`\`slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as \`.pdf\` or \`.pptx\`. Run \`sdoc slides verify file.md --json\` after authoring; fix every diagnostic, or add \`bleed=allow\` only to an individual shape whose off-canvas placement is intentional, then rerun until it exits 0. Use \`sdoc present file.md\` for the visual check that headless validation cannot perform.
@@ -89,6 +96,13 @@ This user has enabled SmallDocs Cloud. Local viewing remains the default when th
 Treat Cloud as a source of context, not only a place to save new work. When earlier decisions, research, plans, or documentation could materially inform the task, search Cloud before recreating that context. Use specific project terms first and try shorter terms or existing tags when a search returns nothing. Do not search unrelated Cloud documents merely because Cloud is enabled.
 
 Before reading or changing Cloud data, run \`sdoc cloud status --json\` for live authentication and account state. Run \`sdoc cloud --help\` for the search, read, and update workflow, exact result fields, and examples. Add \`--json\` for one stable machine-readable object on stdout.
+
+When earlier Cloud material should inform new work, use this sequence:
+
+1. Run \`sdoc cloud status --json\`.
+2. Run \`sdoc cloud --help\` if the exact search or result fields are not already known.
+3. Run \`sdoc cloud search "SPECIFIC TERMS" --json\`, then shorten the query or inspect \`sdoc cloud tags --json\` only when needed.
+4. Pull a promising result with \`sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json\` so reading it does not bind the file for a later update.
 
 - Discover account access, people, tags, and document permission sets with \`sdoc cloud status --json\`, \`sdoc cloud members\`, \`sdoc cloud tags\`, and \`sdoc cloud permission-groups\`. When status reports more than one account, pass \`--account ACCOUNT_UUID\` to account-scoped commands.
 - Find documents with \`sdoc cloud search "QUERY" --json\`. Search matches a case-insensitive phrase across titles, filenames, tags, and Markdown, returning document IDs and snippets rather than full content. Use \`sdoc cloud tags --json\` to discover existing vocabulary, \`--tag TAG\` to narrow results, \`sdoc cloud ls --shared-with-me --json\` for documents shared with the signed-in user, and \`--account ACCOUNT_UUID\` when the relevant account is known.

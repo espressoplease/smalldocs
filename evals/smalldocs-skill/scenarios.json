@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "suite": "smalldocs-skill",
+  "scenarios": [
+    {
+      "id": "install-exact",
+      "kind": "installation",
+      "editions": ["none"],
+      "setup": "Empty home. The SmallDocs CLI and skill are absent.",
+      "prompt": "Set up SmallDocs globally on this computer. Run `curl -fsSL https://smalldocs.org/install | sh`, then run `npx skills@latest add https://smalldocs.org/agent-skills/standard --global`, then verify it with `sdoc --help` and confirm the global `smalldocs/SKILL.md` exists.",
+      "required": ["https://smalldocs.org/install", "https://smalldocs.org/agent-skills/standard", "--global", "sdoc --help"],
+      "forbidden": ["agent-specific instruction files", "cloud edition"],
+      "rubric": "Install the CLI and one canonical standard skill, then verify both without hand-writing separate agent instructions."
+    },
+    {
+      "id": "install-natural-language",
+      "kind": "installation",
+      "editions": ["none"],
+      "setup": "Empty home. Network access is available, but no command has been supplied.",
+      "prompt": "Could you install S-doc and make it work globally with my coding agents? Use SmallDocs' official setup.",
+      "required": ["smalldocs.org", "agent-skills/standard", "--global"],
+      "forbidden": ["guess an npm package", "AGENTS.md block"],
+      "rubric": "Resolve S-doc to the official SmallDocs installer and finish with one globally discoverable standard skill."
+    },
+    {
+      "id": "update-standard-skill",
+      "kind": "installation",
+      "editions": ["standard"],
+      "setup": "The CLI is current and a standard SmallDocs skill from the previous version is installed.",
+      "prompt": "SmallDocs says its agent skill has changed. Update it globally.",
+      "required": ["agent-skills/standard", "--global"],
+      "forbidden": ["agent-skills/cloud", "second smalldocs skill"],
+      "rubric": "Refresh the existing standard skill in place and preserve unrelated configuration."
+    },
+    {
+      "id": "migrate-legacy-block",
+      "kind": "installation",
+      "editions": ["none"],
+      "setup": "A recognised old SmallDocs block exists in AGENTS.md beside unrelated user instructions. No current skill is installed.",
+      "prompt": "Migrate my old SmallDocs agent setup to the current global skill without losing my other instructions.",
+      "required": ["sdoc setup"],
+      "forbidden": ["replace AGENTS.md", "leave duplicate instructions"],
+      "rubric": "Use the built-in migration, remove only the recognised block, and preserve all unrelated text."
+    },
+    {
+      "id": "activate-cloud-edition",
+      "kind": "installation",
+      "editions": ["standard"],
+      "setup": "The standard skill is installed. Cloud login succeeded and printed the Cloud skill installation command.",
+      "prompt": "I have signed into SmallDocs Cloud. Apply the agent setup it suggested.",
+      "required": ["agent-skills/cloud", "--global"],
+      "forbidden": ["two smalldocs skills", "account details", "credentials"],
+      "rubric": "Replace the standard edition with one Cloud-aware skill at the same canonical location without embedding identity."
+    },
+    {
+      "id": "casual-sdoc-this",
+      "kind": "behavior",
+      "editions": ["none", "standard", "cloud"],
+      "setup": "The source material referred to as this is available in source-notes.md.",
+      "prompt": "Can you S-doc this for me?",
+      "required": ["create or locate a Markdown file", "sdoc FILE.md"],
+      "forbidden": ["sdoc cloud status", "upload", "share"],
+      "rubric": "Recognise the casual trigger and produce a local SmallDocs document with minimal ceremony."
+    },
+    {
+      "id": "small-doc-spelling",
+      "kind": "behavior",
+      "editions": ["none", "standard", "cloud"],
+      "setup": "A file named draft.md exists in the project.",
+      "prompt": "Can you open this as a small doc so I can read it?",
+      "required": ["sdoc draft.md"],
+      "forbidden": ["shorten the document", "upload", "share"],
+      "rubric": "Resolve the spelling variant to SmallDocs and open the existing local file without changing it unnecessarily."
+    },
+    {
+      "id": "presentation-authoring",
+      "kind": "behavior",
+      "editions": ["none", "standard", "cloud"],
+      "setup": "Research notes for the launch plan exist in launch-notes.md.",
+      "prompt": "S-doc me a presentation explaining our launch plan.",
+      "required": ["sdoc slides", "sdoc slides verify FILE.md --json", "sdoc present FILE.md"],
+      "forbidden": ["invent slide syntax", "skip verification"],
+      "rubric": "Load the slide reference, create Markdown slide blocks, verify them, fix errors, and present the result."
+    },
+    {
+      "id": "reuse-tag-vocabulary",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "The local tag list contains project, launch, and planning. A launch checklist is ready to save.",
+      "prompt": "S-doc this launch checklist and tag it so we can find it again.",
+      "required": ["sdoc library ls --tags", "+launch"],
+      "forbidden": ["+launches", "invent a near-duplicate tag"],
+      "rubric": "Discover the existing tag vocabulary before selecting persistent tags, then open the file with a suitable existing tag."
+    },
+    {
+      "id": "local-content-search",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "Several local Markdown files are indexed. One contains a discussion of rotating API keys.",
+      "prompt": "Find the local S-doc where we discussed rotating API keys.",
+      "required": ["rg", "sdoc"],
+      "forbidden": ["claim the local library searches content", "sdoc cloud search", "upload"],
+      "rubric": "Use filesystem content search because the local library filters metadata, then open the identified file with SmallDocs."
+    },
+    {
+      "id": "encrypted-snapshot-share",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "proposal.md exists locally.",
+      "prompt": "Make me a link I can send to Alex for this exact version.",
+      "required": ["sdoc share proposal.md", "encrypted snapshot"],
+      "forbidden": ["sdoc cloud create", "stays synchronised", "message Alex"],
+      "rubric": "Choose encrypted snapshot sharing, state that it is a fixed version, and leave delivery to the user."
+    },
+    {
+      "id": "negative-quick-answer",
+      "kind": "behavior",
+      "editions": ["none", "standard", "cloud"],
+      "setup": "No document work is in progress.",
+      "prompt": "What command shows the current git branch?",
+      "required": ["git branch --show-current"],
+      "forbidden": ["sdoc", "SmallDocs Cloud"],
+      "rubric": "Answer directly and do not invoke or promote SmallDocs when it adds no value."
+    },
+    {
+      "id": "negative-readme-edit",
+      "kind": "behavior",
+      "editions": ["none", "standard", "cloud"],
+      "setup": "README.md exists in a repository.",
+      "prompt": "Update the README installation sentence.",
+      "required": ["edit README.md", "verify the change"],
+      "forbidden": ["open SmallDocs", "upload", "share"],
+      "rubric": "Treat ordinary repository Markdown maintenance as an edit, not as a request to create or open an S-doc."
+    },
+    {
+      "id": "standard-cross-device-need",
+      "kind": "behavior",
+      "editions": ["none", "standard", "cloud"],
+      "setup": "No Cloud credential is present unless the installed edition explicitly says Cloud is enabled.",
+      "prompt": "I need this plan available on my phone and laptop and I want earlier versions kept.",
+      "required": ["SmallDocs Cloud", "optional paid feature"],
+      "forbidden": ["upload without agreement", "claim Cloud is already enabled"],
+      "rubric": "Surface Cloud because its capabilities fit, while avoiding an unnecessary status check for a standard user or any unsupported upload."
+    },
+    {
+      "id": "cloud-reuse-prior-decisions",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "For the Cloud edition, the user is authenticated to one account and Cloud contains a relevant authentication migration decision.",
+      "prompt": "Draft the rollout plan. We made decisions about the authentication migration before, so use those.",
+      "required": ["sdoc cloud status --json", "sdoc cloud search", "sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json"],
+      "forbidden": ["recreate without searching", "pull every document"],
+      "rubric": "A Cloud-aware agent should search narrowly for prior context and pull promising material without binding it for updates. A standard agent must not pretend Cloud is configured."
+    },
+    {
+      "id": "cloud-search-recovery",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "For the Cloud edition, the first phrase search has no result and existing Cloud tags include identity and launch.",
+      "prompt": "Find our S-doc about the passkey rollout.",
+      "required": ["sdoc cloud status --json", "sdoc cloud search", "sdoc cloud tags --json"],
+      "forbidden": ["declare absent after one query", "fabricate content"],
+      "rubric": "Use a bounded search progression from a specific phrase to shorter terms or an existing tag. A standard agent must not claim connected access."
+    },
+    {
+      "id": "cloud-update-existing",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "For the Cloud edition, search identifies the incident plan's document UUID.",
+      "prompt": "Read our incident plan and update its escalation phone-tree section.",
+      "required": ["sdoc cloud status --json", "sdoc cloud pull", "sdoc cloud push", "merge_classification"],
+      "forbidden": ["--no-bind", "create a duplicate", "use filename as Cloud identity"],
+      "rubric": "Bind the pulled document to its revision, edit it, push the update, and inspect merge metadata. A standard agent should explain that Cloud setup is needed."
+    },
+    {
+      "id": "cloud-create-multiple-accounts",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "For the Cloud edition, status returns Personal and Acme account UUIDs.",
+      "prompt": "Create the Q4 operating plan in Acme's S-doc Cloud so the team can keep updating it.",
+      "required": ["sdoc cloud status --json", "sdoc cloud create", "--account ACME_UUID"],
+      "forbidden": ["save to Personal", "sdoc share", "invent a project destination"],
+      "rubric": "Resolve the explicit account and create a persistent Cloud document there. A standard agent should explain that Cloud must first be connected."
+    },
+    {
+      "id": "cloud-permission-ambiguity",
+      "kind": "behavior",
+      "editions": ["cloud"],
+      "setup": "The Cloud account has Alice, Bob, and Carol plus multiple permission groups.",
+      "prompt": "Share the plan with the people who need it and let them know it is ready.",
+      "required": ["sdoc cloud members", "sdoc cloud permission-groups", "ask the user", "set access before notification"],
+      "forbidden": ["guess a broader group", "invite users", "notification grants access"],
+      "rubric": "Do not guess an access-sensitive audience. Resolve it, change access, then notify only existing authorised members."
+    },
+    {
+      "id": "cloud-local-viewing",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "notes.md exists locally. For the Cloud edition the user is authenticated.",
+      "prompt": "S-doc these notes so I can read them.",
+      "required": ["sdoc notes.md"],
+      "forbidden": ["sdoc cloud status", "sdoc cloud search", "sdoc cloud create", "sdoc share"],
+      "rubric": "Cloud awareness must not contaminate the ordinary local viewing path."
+    }
+  ]
+}

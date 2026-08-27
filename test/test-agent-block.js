@@ -301,6 +301,15 @@ module.exports = function (harness) {
     assert.ok(out.includes('Prefer an existing tag that fits'));
   });
 
+  test('both skill editions put the exact presentation sequence in discovery context', () => {
+    for (const desc of [cli.SKILL_DESCRIPTION, cli.CLOUD_SKILL_DESCRIPTION]) {
+      assert.ok(desc.includes('sdoc slides'));
+      assert.ok(desc.includes('sdoc slides verify FILE.md --json'));
+      assert.ok(desc.includes('sdoc present FILE.md'));
+      assert.ok(desc.includes('fix every error'));
+    }
+  });
+
   test('Cloud-aware skill keeps the same name and loads live state only for Cloud work', () => {
     const out = cli.formatSkill(cli.SKILL_VERSION, { cloud: true });
     assert.ok(out.includes('name: smalldocs'));
@@ -311,6 +320,7 @@ module.exports = function (harness) {
     assert.ok(out.includes('Treat Cloud as a source of context'));
     assert.ok(out.includes('search Cloud before recreating that context'));
     assert.ok(out.includes('sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json'));
+    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('do not search Cloud when a named local source is sufficient'));
   });
 
   test('both skill descriptions are YAML-safe', () => {
