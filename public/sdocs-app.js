@@ -464,6 +464,7 @@ function render() {
   }
   renderFileInfoCard();
   updateDocumentTitle();
+  if (S.sidebarRefresh) S.sidebarRefresh();
   if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
   if (S.syncFoldButton) S.syncFoldButton();
 }
@@ -1520,7 +1521,7 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
 
   S.attachTooltips = attachAll;
 
-  attachAll(document.getElementById('_sd_left-toolbar'));
+  attachAll(document);
 
   // Hide on scroll/resize because the cached position becomes stale.
   window.addEventListener('scroll', hide, { passive: true });
@@ -1552,29 +1553,6 @@ document.getElementById('_sd_factory-reset-styles').addEventListener('click', fu
   S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
   render();
   syncAll('load');
-});
-
-document.getElementById('_sd_toolbar-brand').addEventListener('click', function(e) {
-  e.preventDefault();
-  // The logo takes you to the site home (the root landing page). Pages other
-  // than /docs (e.g. /legal, short links) navigate there directly; a /docs
-  // tab with a document open keeps the doc and opens home in a new tab.
-  // A plain /docs tab has nothing to preserve, so the logo resets styles
-  // in place instead of navigating away from the app.
-  if (window.location.pathname !== '/docs') {
-    window.location.href = window.location.origin + '/';
-    return;
-  }
-  if (window.location.hash && window.location.hash.indexOf('md=') !== -1) {
-    window.open(window.location.origin + '/', '_blank');
-    return;
-  }
-  S.resetAllStyles();
-  loadText(DEFAULT_MD);
-  S._isDefaultState = true;
-  clearTimeout(S._hashTimer);
-  history.replaceState(null, '', window.location.pathname);
-  setMode('read');
 });
 
 var CLOUD_SIGN_IN_RETURN_KEY = 'sdocs-cloud-sign-in-return-v1';

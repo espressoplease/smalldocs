@@ -1033,17 +1033,12 @@ function homepageNavigation(req) {
 
 function documentNavigation(req) {
   const navigation = homepageNavigation(req);
-  const signIn = !navigation.authenticated && CLOUD_DEPLOYMENT.publicEnabled
-    ? homepageNavLink('doc-site-action doc-site-sign-in',
-      '/cloud/sign-in?return=%2Fdocs', 'signIn', 'Sign in',
-      ' data-sdocs-sign-in-return')
-    : '';
   return {
     authenticated: navigation.authenticated,
     substitutions: {
-      '__DOCUMENT_LIBRARY_HREF__': navigation.authenticated ? '/library?scope=cloud' : '/library',
+      '__DOCUMENT_LIBRARY_HREF__': '/library',
+      '__DOCUMENT_CLOUD_AUTHENTICATED__': navigation.authenticated ? 'true' : 'false',
       '__DOCUMENT_NAV_MENU_HIDDEN__': navigation.authenticated ? '' : 'hidden',
-      '<!--__DOCUMENT_NAV_SIGN_IN__-->': signIn,
       '<!--__DOCUMENT_NAV_MENU_BEFORE__-->': navigation.menuBefore,
       '<!--__DOCUMENT_NAV_MENU_AFTER__-->': navigation.menuAfter,
     },
@@ -3188,8 +3183,8 @@ const server = http.createServer((req, res) => {
       '__EMBED_STYLES__': '<link rel="stylesheet" href="/public/css/embed.css">',
       '__EMBED_SCRIPT__': '<script src="/public/sdocs-embed.js"></script>',
       '__DOCUMENT_LIBRARY_HREF__': '/library',
+      '__DOCUMENT_CLOUD_AUTHENTICATED__': 'false',
       '__DOCUMENT_NAV_MENU_HIDDEN__': 'hidden',
-      '<!--__DOCUMENT_NAV_SIGN_IN__-->': '',
       '<!--__DOCUMENT_NAV_MENU_BEFORE__-->': '',
       '<!--__DOCUMENT_NAV_MENU_AFTER__-->': '',
     }, {

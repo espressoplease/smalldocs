@@ -4,10 +4,8 @@ const { test, expect } = require('@playwright/test');
 const BASE = 'http://localhost:3000';
 
 /**
- * Regression: toggling theme on the default landing page must not be treated
- * as a document edit. Before this fix, clicking the theme button flipped
- * _isDefaultState to false and pushed a #md= hash into the URL, which in
- * turn made the logo "reset" open a new tab instead of resetting in place.
+ * Toggling theme on the default landing page must not be treated as a
+ * document edit, and the brand remains a normal homepage link.
  */
 test.describe('Theme toggle on default state', () => {
   test('dark-mode toggle keeps default state and empty hash', async ({ page }) => {
@@ -35,26 +33,12 @@ test.describe('Theme toggle on default state', () => {
     expect(after.isDefault).toBe(true);
   });
 
-  test('logo click after theme toggle resets cleanly in place', async ({ page, context }) => {
+  test('logo remains a homepage link after theme toggle', async ({ page }) => {
     await page.goto(BASE + '/docs');
     await page.waitForSelector('#_sd_btn-theme');
     await page.click('#_sd_btn-theme');
     await page.waitForTimeout(600);
 
-    const tabCountBefore = context.pages().length;
-    await page.click('#_sd_toolbar-brand');
-    await page.waitForTimeout(200);
-
-    // The logo should not open a new tab (no real content to preserve)
-    expect(context.pages().length).toBe(tabCountBefore);
-
-    const state = await page.evaluate(() => ({
-      hash: location.hash,
-      isDefault: SDocs._isDefaultState,
-      mode: SDocs.currentMode,
-    }));
-    expect(state.hash).toBe('');
-    expect(state.isDefault).toBe(true);
-    expect(state.mode).toBe('read');
+    await expect(page.locator('#_sd_toolbar-brand')).toHaveAttribute('href', '/');
   });
 });

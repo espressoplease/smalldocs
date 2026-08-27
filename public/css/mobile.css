@@ -37,6 +37,7 @@
     padding: 0 10px;
     border-right: 0;
     border-bottom: 1px solid var(--border-subtle);
+    overflow: visible;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -50,7 +51,7 @@
   .sdocs-sidebar-footer { display: none; }
   .toolbar-brand-full { display: none; }
   .toolbar-brand-short { display: inline; font-size: 13px; font-weight: 600; }
-  .sdocs-sidebar-mark { width: 21px; height: 21px; }
+  .sdocs-sidebar-mark { display: block; width: 21px; height: 21px; }
   #_sd_toolbar-brand { gap: 6px; padding: 3px; margin-right: auto; }
   #_sd_sidebar .doc-site-nav {
     width: auto;
@@ -59,16 +60,20 @@
     align-items: center;
     gap: 4px;
   }
-  #_sd_sidebar .doc-site-nav > .doc-site-action { display: none; }
-  #_sd_sidebar .doc-site-nav > #_sd_btn-library,
+  #_sd_sidebar .doc-site-nav > .doc-site-action,
+  #_sd_sidebar .doc-site-nav > .sdocs-sidebar-section { display: none; }
+  #_sd_sidebar .doc-site-nav > .sdocs-sidebar-section-library { display: block; width: auto; }
+  #_sd_sidebar .doc-site-nav > .sdocs-sidebar-section-library > #_sd_btn-library,
   #_sd_sidebar .doc-site-nav > .doc-site-sign-in {
     width: auto;
     height: 28px;
     display: inline-flex;
     gap: 6px;
     padding: 0 8px;
-    font-size: 11.5px;
+    font-size: var(--sdocs-sidebar-font-size);
   }
+  #_sd_sidebar .sdocs-sidebar-expander,
+  #_sd_sidebar .sdocs-sidebar-row-chevron { display: none; }
   #_sd_sidebar .doc-site-menu { width: auto; }
   #_sd_sidebar .doc-site-menu-button {
     width: 28px;

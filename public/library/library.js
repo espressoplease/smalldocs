@@ -1131,6 +1131,9 @@ document.getElementById('clear').addEventListener('click', () => {
 // gate, but only the connected / force paths actually hit the agent
 // (loadData() short-circuits to baked entries when demo=1).
 const search = new URLSearchParams(location.search);
+if (search.get('tag')) STATE.chips.push({ key: 'tag', value: search.get('tag') });
+if (search.get('starred') === '1') STATE.starredOnly = true;
+if (search.get('shared') === '1') STATE.sharedOnly = true;
 if (!isSignedOutCloudMode() && (!window.SDocsConnect ||
     window.SDocsConnect.isConnected() ||
     search.get('force') === '1' ||

@@ -189,9 +189,10 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('SDocs'));
       assert.ok(r.body.includes('/public/sdoc.md'),
         '/docs should default to sdoc.md');
-      assert.ok(r.body.includes('<span class="library-btn-label">Library</span>'));
+      assert.ok(r.body.includes('<span class="library-btn-label">Local library</span>'));
+      assert.ok(r.body.includes('data-cloud-authenticated="false"'));
       assert.ok(!r.body.includes('Markdown Library'));
-      assert.ok(r.body.includes('data-sdocs-sign-in-return'));
+      assert.ok(!r.body.includes('data-sdocs-sign-in-return'));
       assert.ok(r.body.includes('id="doc-site-menu" hidden'));
       assert.ok(!r.body.includes('__DOCUMENT_NAV_'));
       assert.strictEqual(r.headers.vary, 'Cookie');
