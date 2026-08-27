@@ -201,6 +201,7 @@ module.exports = function(harness) {
         '/docs should default to sdoc.md');
       assert.ok(r.body.includes('<span class="library-btn-label">Local library</span>'));
       assert.ok(r.body.includes('data-cloud-authenticated="false"'));
+      assert.ok(r.body.includes('data-cloud-terms-accepted="false"'));
       assert.ok(!r.body.includes('Markdown Library'));
       assert.ok(!r.body.includes('data-sdocs-sign-in-return'));
       assert.ok(!r.body.includes('id="doc-site-menu"'));
@@ -475,6 +476,7 @@ module.exports = function(harness) {
       const r = await get(BASE + '/library?scope=cloud');
       assert.strictEqual(r.status, 200);
       assert.ok(r.body.includes('data-cloud-authenticated="false"'));
+      assert.ok(r.body.includes('data-cloud-terms-accepted="false"'));
       assert.ok(r.body.includes('<h1>Cloud Library</h1>'));
       assert.ok(r.body.includes('class="library-sign-in"'));
       assert.ok(r.body.includes('Subscribe to Cloud'));
@@ -1143,15 +1145,22 @@ module.exports = function(harness) {
       assert.strictEqual(cloudPage.headers['cache-control'], 'private, no-store');
       assert.strictEqual(cloudPage.headers.vary, 'Cookie');
       assert.ok(cloudPage.body.includes('data-cloud-authenticated="true"'));
+      assert.ok(cloudPage.body.includes('data-cloud-terms-accepted="true"'));
 
       const connectPage = await get(BASE + '/connect', { Cookie: cloudCookie });
       assert.ok(connectPage.body.includes('data-cloud-authenticated="true"'));
+      assert.ok(connectPage.body.includes('data-cloud-terms-accepted="true"'));
+
+      const rescuedPage = await get(BASE + '/library/rescued', { Cookie: cloudCookie });
+      assert.ok(rescuedPage.body.includes('data-cloud-authenticated="true"'));
+      assert.ok(rescuedPage.body.includes('data-cloud-terms-accepted="true"'));
 
       const library = await get(BASE + '/library?scope=cloud', { Cookie: cloudCookie });
       assert.strictEqual(library.status, 200);
       assert.strictEqual(library.headers['cache-control'], 'private, no-store');
       assert.strictEqual(library.headers.vary, 'Cookie');
       assert.ok(library.body.includes('<title>SmallDocs - Library</title>'));
+      assert.ok(library.body.includes('data-cloud-terms-accepted="true"'));
       assert.ok(library.body.includes('class="brand" href="/" aria-label="SmallDocs home"'));
       assert.ok(library.body.includes('href="/cloud/admin" role="menuitem"'));
       assert.ok(library.body.includes('href="/docs" role="menuitem"'));
@@ -1163,6 +1172,7 @@ module.exports = function(harness) {
       assert.strictEqual(documentPage.headers.vary, 'Cookie');
       assert.ok(documentPage.body.includes('href="/library?scope=cloud"'));
       assert.ok(documentPage.body.includes('data-cloud-authenticated="true"'));
+      assert.ok(documentPage.body.includes('data-cloud-terms-accepted="true"'));
       assert.ok(!documentPage.body.includes('id="doc-site-menu"'));
       assert.ok(!documentPage.body.includes('data-sdocs-sign-in-return'));
       assert.ok(!documentPage.body.includes('__DOCUMENT_NAV_'));
