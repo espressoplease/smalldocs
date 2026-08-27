@@ -31,7 +31,7 @@
   },
   "sdocs-present.js": {
     "source": "public/sdocs-present.js",
-    "sha256": "4054c4df98edac75ae6283cbd484131cfbd349342c494b4f6b300e0a0b712a6e"
+    "sha256": "f4dce68b3ebe8d9bb6bfb2a5caa7440d14056159e90b9c9618935703a08f3f80"
   },
   "sdocs-present-mobile.js": {
     "source": "public/sdocs-present-mobile.js",
@@ -67,11 +67,11 @@
   },
   "sdocs-cells-focus.js": {
     "source": "public/sdocs-cells-focus.js",
-    "sha256": "ab0125f3e85233f0d2749f59affc7382c3806e061d476ad4bff7646cee449549"
+    "sha256": "44b010342b9c8ea487e3b498a26d9317b00dcd2d5e1c937e342358a4b2d54f4d"
   },
   "sdocs-cells-ui.js": {
     "source": "public/sdocs-cells-ui.js",
-    "sha256": "e5df4987452d31f6a8ccb90d3fcf87d2cc814ab84fd57e17353c1a7cc8edd5dc"
+    "sha256": "88f5ffaca728705b545dd5cbec28871310807120692a90023170225f1d25b159"
   },
   "sdocs-video.js": {
     "source": "public/sdocs-video.js",
@@ -127,8 +127,8 @@
   },
   "sdocs-cells.css": {
     "source": "public/css/cells.css",
-    "sha256": "4a7748846531ed12faa273c098c184af44abf3aab1520866cc8ba6ffed062f37",
-    "sourceSha256": "152731396b3082353876b44dd99cd34f2b23e8932e68266838d47e66530bb0d7",
+    "sha256": "a7e2417b84b8d2e37f313b7afbc7a2d90f653cf56c3f24735ef8078f8c2ea0ba",
+    "sourceSha256": "c2461c449b22e8557f2bd09cd9578b047e52dd21daa316d4a06fcfcb0676391a",
     "transform": "sdk-scoped-css"
   },
   "fonts/inter-400.woff2": {

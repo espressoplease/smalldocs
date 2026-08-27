@@ -175,8 +175,7 @@
 .sdoc-cells-copy svg { flex-shrink: 0; }
 .sdoc-cells-copy-label { white-space: nowrap; }
 
-/* Whole-sheet copy: a borderless 14px copy icon, matching the code-block
- * copy button (no border, no label). */
+/* Icon-only sheet actions, such as Excel download and fullscreen expand. */
 .sdoc-cells-copy-icon {
   display: inline-flex;
   align-items: center;
@@ -728,8 +727,7 @@
 .sdoc-cells-copy svg { flex-shrink: 0; }
 .sdoc-cells-copy-label { white-space: nowrap; }
 
-/* Whole-sheet copy: a borderless 14px copy icon, matching the code-block
- * copy button (no border, no label). */
+/* Icon-only sheet actions, such as Excel download and fullscreen expand. */
 .sdoc-cells-copy-icon {
   display: inline-flex;
   align-items: center;

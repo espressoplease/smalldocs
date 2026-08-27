@@ -49,7 +49,7 @@ var CSS = [
   '}',
   '.sdoc-present-topbar::-webkit-scrollbar { display: none; }',
   '.sdoc-present-topbar > *, .sdoc-present-actions > * { flex-shrink: 0; }',
-  '.sdoc-present-copy-num { white-space: nowrap; }',
+  '.sdoc-present-copy-label { white-space: nowrap; }',
   /* Right-edge fade hint when the topbar scrolls. JS (sdocs-present-mobile.js)
      toggles .has-overflow / .scrolled-end, mirroring the inline toolbar. */
   '.sdoc-present-topbar.has-overflow::after {',
@@ -132,12 +132,10 @@ var CSS = [
   '  font-family: ui-monospace, Menlo, monospace;',
   '  padding: 0 6px; flex-shrink: 0;',
   '}',
-  /* "Copy slide" button: copy icon + a label (slide 1, slide 2 ...) that */
-  /* tracks the active slide. Tabular numerals so the label width stays */
-  /* steady as the number changes. Shares the .sdoc-present-btn chrome. */
+  /* Slide copy actions share the same copy-icon + short-label pattern as */
+  /* Mermaid and table controls. */
   '.sdoc-present-actions .sdoc-present-copy-btn { gap: 5px; }',
-  '.sdoc-present-copy-num { font-family: ui-monospace, Menlo, monospace; font-size: 11px; font-variant-numeric: tabular-nums; }',
-  '.sdoc-present-actions .sdoc-present-copy-btn.copied { color: #4ade80; }',
+  '.sdoc-present-copy-label { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }',
   '.sdoc-present-rail {',
   '  grid-row: 2;',
   '  background: #131210; border-right: 1px solid #2a2724;',
@@ -233,7 +231,8 @@ var state = {
   rail: null,
   stage: null,
   counter: null,
-  copyBtn: null,         // topbar "copy slide text" button (label tracks page)
+  copyBtn: null,         // topbar "copy slide text" button
+  pngBtn: null,          // topbar "copy slide as PNG" button
   expPanel: null,        // slide-in export panel
   expBtn: null,          // topbar export button
   savedScrollX: 0,
@@ -483,35 +482,166 @@ function sizeStage() {
   state.stage.style.height = pick.h + 'px';
 }
 
+var COPY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  + '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+var CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  + '<polyline points="20 6 9 17 4 12"/></svg>';
+var COPY_FEEDBACK_MS = 1500;
+
+function flashCopyTick(btn) {
+  if (!btn) return;
+  var svg = btn.querySelector('svg');
+  if (!svg) return;
+  svg.outerHTML = CHECK_ICON;
+  setTimeout(function () {
+    var current = btn.querySelector('svg');
+    if (current) current.outerHTML = COPY_ICON;
+  }, COPY_FEEDBACK_MS);
+}
+
+function flashCopyLabel(btn, text) {
+  var label = btn && btn.querySelector('.sdoc-present-copy-label');
+  if (!label) return;
+  var previous = label.textContent;
+  label.textContent = text;
+  setTimeout(function () { label.textContent = previous; }, COPY_FEEDBACK_MS);
+}
+
 // Copy the rendered text of the active slide. Delegates text collection to
-// the shape renderer (single source of truth for what a slide's text is) and
-// flashes the copy button label to "copied" briefly.
+// the shape renderer, the single source of truth for a slide's visible text.
 function copyCurrentSlideText() {
   var btn = state.copyBtn;
   var renderer = shapeRenderer();
   if (!btn || !state.stage || !renderer || !renderer.collectSlideText) return;
   var text = renderer.collectSlideText(state.stage);
-  var num = btn.querySelector('.sdoc-present-copy-num');
-  var restore = num ? num.textContent : '';
-  var done = function () {
-    btn.classList.add('copied');
-    if (num) num.textContent = 'copied';
-    setTimeout(function () {
-      btn.classList.remove('copied');
-      if (num) num.textContent = restore;
-    }, 1300);
-  };
   var clipboard = options.clipboard || navigator.clipboard;
   if (clipboard && clipboard.writeText) {
-    clipboard.writeText(text).then(done, done);
+    clipboard.writeText(text).then(function () {
+      flashCopyTick(btn);
+    }).catch(function () {
+      flashCopyLabel(btn, 'Failed');
+    });
   } else {
     var ta = document.createElement('textarea');
     ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
     document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); } catch (_) {}
+    var copied = false;
+    try { copied = document.execCommand('copy'); } catch (_) {}
     document.body.removeChild(ta);
-    done();
+    if (copied) flashCopyTick(btn);
+    else flashCopyLabel(btn, 'Failed');
   }
+}
+
+function skipSlideImageNode(el) {
+  return el.matches && el.matches(
+    '.sd-shape-copy-btn, .sd-code-copy-btn, .sdoc-slide-hit-layer, '
+    + '.sdoc-slide-comment-btn, .sdoc-slide-comment-list'
+  );
+}
+
+function applyComputedStyles(source, clone) {
+  var computed = getComputedStyle(source);
+  for (var i = 0; i < computed.length; i++) {
+    var prop = computed[i];
+    clone.style.setProperty(prop, computed.getPropertyValue(prop), computed.getPropertyPriority(prop));
+  }
+}
+
+// Build a style-complete copy for SVG foreignObject rendering. Shape markdown
+// lives in shadow roots, so those children are flattened into ordinary DOM.
+// Canvas charts are replaced with image snapshots before serialization.
+function cloneSlideImageNode(node) {
+  if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.nodeValue || '');
+  if (node.nodeType !== Node.ELEMENT_NODE || skipSlideImageNode(node)) return null;
+
+  var clone;
+  if (node.tagName === 'CANVAS') {
+    clone = document.createElement('img');
+    clone.src = node.toDataURL('image/png');
+    clone.width = node.width;
+    clone.height = node.height;
+  } else {
+    clone = node.cloneNode(false);
+  }
+  applyComputedStyles(node, clone);
+
+  var childRoot = node.shadowRoot || node;
+  for (var i = 0; i < childRoot.childNodes.length; i++) {
+    var child = childRoot.childNodes[i];
+    if (child.nodeType === Node.ELEMENT_NODE && child.tagName === 'STYLE') continue;
+    var childClone = cloneSlideImageNode(child);
+    if (childClone) clone.appendChild(childClone);
+  }
+  return clone;
+}
+
+function slideToPngBlob(stage, scale) {
+  return new Promise(function (resolve, reject) {
+    try {
+      var rect = stage.getBoundingClientRect();
+      var width = Math.max(1, Math.ceil(rect.width));
+      var height = Math.max(1, Math.ceil(rect.height));
+      var clone = cloneSlideImageNode(stage);
+      clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+      clone.style.setProperty('box-shadow', 'none');
+      clone.style.setProperty('border-radius', '0');
+      clone.style.setProperty('margin', '0');
+      clone.style.setProperty('max-width', 'none');
+      clone.style.setProperty('max-height', 'none');
+      clone.style.setProperty('width', width + 'px');
+      clone.style.setProperty('height', height + 'px');
+
+      var html = new XMLSerializer().serializeToString(clone);
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '">'
+        + '<foreignObject width="100%" height="100%">' + html + '</foreignObject></svg>';
+      var url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var imageScale = scale || 2;
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(width * imageScale));
+          canvas.height = Math.max(1, Math.round(height * imageScale));
+          var ctx = canvas.getContext('2d');
+          var background = getComputedStyle(stage).backgroundColor;
+          if (background && background !== 'rgba(0, 0, 0, 0)' && background !== 'transparent') {
+            ctx.fillStyle = background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(function (blob) {
+            if (blob) resolve(blob);
+            else reject(new Error('Slide PNG creation failed'));
+          }, 'image/png');
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = function () { reject(new Error('Slide PNG rendering failed')); };
+      img.src = url;
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+function copyCurrentSlidePng() {
+  var btn = state.pngBtn;
+  if (!btn || !state.stage) return;
+  var clipboard = options.clipboard || navigator.clipboard;
+  var ClipboardItemCtor = options.ClipboardItem || window.ClipboardItem;
+  if (!ClipboardItemCtor || !clipboard || !clipboard.write) {
+    flashCopyLabel(btn, 'Not supported');
+    return;
+  }
+  slideToPngBlob(state.stage, 2).then(function (blob) {
+    return clipboard.write([new ClipboardItemCtor({ 'image/png': blob })]);
+  }).then(function () {
+    flashCopyTick(btn);
+  }).catch(function () {
+    flashCopyLabel(btn, 'Failed');
+  });
 }
 
 function renderActive() {
@@ -535,11 +665,6 @@ function renderActive() {
   if (state.counter) {
     state.counter.textContent = (state.index + 1) + ' / ' + state.slides.length;
   }
-  if (state.copyBtn) {
-    var copyNum = state.copyBtn.querySelector('.sdoc-present-copy-num');
-    if (copyNum) copyNum.textContent = 'slide ' + (state.index + 1);
-  }
-
   // Let slide-comment mode rebuild its hit-layer + panel against the freshly
   // rendered stage (no-op unless commenting is toggled on).
   var comments = slideComments();
@@ -675,18 +800,25 @@ function open(startIndex) {
   sep1.className = 'sdoc-present-sep';
   actions.appendChild(sep1);
 
-  // Copy the active slide's text. Label tracks the slide (slide 1, slide 2 ...) and is
-  // refreshed in renderActive whenever the slide changes.
+  // Copy the active slide's rendered text.
   var copyBtn = document.createElement('button');
-  copyBtn.className = 'sdoc-present-btn sdoc-present-copy-btn';
+  copyBtn.className = 'sdoc-present-btn sdoc-present-copy-btn sdoc-present-copy-text-btn';
   copyBtn.type = 'button';
-  copyBtn.setAttribute('aria-label', 'Copy this slide\'s text');
+  copyBtn.setAttribute('aria-label', 'Copy slide text');
   copyBtn.title = 'Copy slide text';
-  setHTML(copyBtn, '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-    + '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
-    + '<span class="sdoc-present-copy-num"></span>');
+  setHTML(copyBtn, COPY_ICON + '<span class="sdoc-present-copy-label">Text</span>');
   copyBtn.addEventListener('click', function (e) { e.stopPropagation(); copyCurrentSlideText(); });
   actions.appendChild(copyBtn);
+
+  // Copy the active slide as a rendered PNG.
+  var pngBtn = document.createElement('button');
+  pngBtn.className = 'sdoc-present-btn sdoc-present-copy-btn sdoc-present-copy-png-btn';
+  pngBtn.type = 'button';
+  pngBtn.setAttribute('aria-label', 'Copy slide as PNG');
+  pngBtn.title = 'Copy slide as PNG';
+  setHTML(pngBtn, COPY_ICON + '<span class="sdoc-present-copy-label">PNG</span>');
+  pngBtn.addEventListener('click', function (e) { e.stopPropagation(); copyCurrentSlidePng(); });
+  actions.appendChild(pngBtn);
 
   // Comment toggle: turns on the hit-layer + comment panel for the active
   // slide so a deck can be marked up while presenting. State + overlay are
@@ -766,6 +898,7 @@ function open(startIndex) {
   state.stage = stage;
   state.counter = counter;
   state.copyBtn = copyBtn;
+  state.pngBtn = pngBtn;
   state.expPanel = expPanel;
   state.expBtn = exportBtn;
   state.open = true;
@@ -819,6 +952,7 @@ function close() {
   state.stage = null;
   state.counter = null;
   state.copyBtn = null;
+  state.pngBtn = null;
   state.open = false;
   if (activePresentation === api) activePresentation = null;
   document.body.classList.remove('sdoc-present-open');
