@@ -5,7 +5,7 @@ test.use({ serviceWorkers: 'block' });
 
 test('root stays on the homepage for a signed-out browser without a Local Library connection', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveURL('http://localhost:3000/');
+  expect(new URL(page.url()).pathname).toBe('/');
   await expect(page.locator('#install')).toBeVisible();
 });
 
@@ -15,7 +15,7 @@ test('root opens Local Library when this browser has connected it', async ({ pag
   });
   await page.goto('/');
   await page.waitForURL('**/library');
-  await expect(page).toHaveURL('http://localhost:3000/library');
+  expect(new URL(page.url()).pathname).toBe('/library');
 });
 
 test('an explicit homepage anchor stays on the homepage for a connected browser', async ({ page, context }) => {
@@ -23,7 +23,16 @@ test('an explicit homepage anchor stays on the homepage for a connected browser'
     localStorage.setItem('sdocs.connect', JSON.stringify({ connected: true }));
   });
   await page.goto('/#install');
-  await expect(page).toHaveURL('http://localhost:3000/#install');
+  expect(new URL(page.url()).pathname + new URL(page.url()).hash).toBe('/#install');
+  await expect(page.locator('#install')).toBeVisible();
+});
+
+test('the explicit home route stays on the homepage for a connected browser', async ({ page, context }) => {
+  await context.addInitScript(() => {
+    localStorage.setItem('sdocs.connect', JSON.stringify({ connected: true }));
+  });
+  await page.goto('/home');
+  expect(new URL(page.url()).pathname).toBe('/home');
   await expect(page.locator('#install')).toBeVisible();
 });
 

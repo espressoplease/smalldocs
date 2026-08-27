@@ -568,6 +568,13 @@ module.exports = function(harness) {
       assert.strictEqual(r.headers['location'], '/');
     });
 
+    await testAsync('GET /home serves the explicit landing page', async () => {
+      const r = await get(BASE + '/home');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.body.includes('<title>SmallDocs - an office suite for coding agents</title>'));
+      assert.ok(r.body.includes("var explicitHomepage = location.pathname === '/home';"));
+    });
+
     await testAsync('GET /public/homepage/demo-poster.jpg serves the hero poster', async () => {
       const r = await get(BASE + '/public/homepage/demo-poster.jpg');
       assert.strictEqual(r.status, 200);

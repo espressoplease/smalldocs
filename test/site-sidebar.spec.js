@@ -33,9 +33,17 @@ test('expandable site navigation stays closed until selected', async ({ page }) 
   const sdk = page.locator('[data-site-section="sdk"]');
 
   await expect(capabilities.locator('.sdocs-site-sidebar-row')).toHaveAttribute('aria-expanded', 'false');
+  await expect(capabilities.getByRole('link', { name: 'View homepage' })).toBeHidden();
   await expect(capabilities.getByRole('link', { name: 'Diagrams' })).toBeHidden();
   await capabilities.locator('.sdocs-site-sidebar-row').click();
   await expect(capabilities.locator('.sdocs-site-sidebar-row')).toHaveAttribute('aria-expanded', 'true');
+  const homepage = capabilities.getByRole('link', { name: 'View homepage' });
+  await expect(homepage).toBeVisible();
+  await expect(homepage).toHaveAttribute('href', '/home');
+  await expect(homepage).toHaveAttribute('target', '_blank');
+  await expect(homepage.locator('svg')).toHaveCount(1);
+  expect(await capabilities.locator('[data-sdocs-shared-capabilities] a').first().innerText())
+    .toBe('View homepage');
   await expect(capabilities.getByRole('link', { name: 'Diagrams' })).toBeVisible();
   await expect(sdk.locator('.sdocs-site-sidebar-row')).toHaveAttribute('aria-expanded', 'false');
 });
@@ -88,6 +96,7 @@ test('Library and reader sidebars share capability and footer content', async ({
   const library = await sharedContent('/public/library/library.html?demo=1', '#_sd_site_sidebar');
   const reader = await sharedContent('/docs?sidebar=preview', '#_sd_sidebar');
   expect(library.capabilities).toEqual(reader.capabilities);
+  expect(reader.capabilities[0]).toEqual({ label: 'View homepage', href: '/home' });
   expect(library.footer).toEqual(reader.footer);
   expect(library.footer).toEqual(['Sign in', 'Private by design', 'Source on GitHub']);
   expect(library.legal).toBe('You agree to our Terms');

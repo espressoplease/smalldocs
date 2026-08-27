@@ -24,7 +24,7 @@
   }
 
   var capabilities = '<div class="sdocs-site-sidebar-links" data-sdocs-shared-capabilities>' +
-    shared.capabilitiesHtml('sdocs-site-sidebar-subitem') + '</div>';
+    shared.capabilitiesHtml('sdocs-site-sidebar-subitem', 'sdocs-site-sidebar-cta') + '</div>';
   var sdk = '<p>' + shared.sdkDescription + '</p>' +
     '<span class="sdocs-site-sidebar-cta" aria-disabled="true">Coming soon</span>';
 
