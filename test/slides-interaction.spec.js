@@ -15,6 +15,27 @@ async function renderDeck(page, slideBodies) {
   await page.waitForTimeout(200);
 }
 
+async function installClipboardStub(page) {
+  await page.addInitScript(() => {
+    window.__copiedSlideText = null;
+    window.__copiedSlidePng = null;
+    window.ClipboardItem = function (parts) { this.parts = parts; };
+    Object.defineProperty(navigator, 'clipboard', {
+      value: {
+        writeText: (text) => {
+          window.__copiedSlideText = text;
+          return Promise.resolve();
+        },
+        write: (items) => {
+          window.__copiedSlidePng = items[0].parts['image/png'];
+          return Promise.resolve();
+        },
+      },
+      configurable: true,
+    });
+  });
+}
+
 test.describe('Slide interaction model', () => {
   test('each slide renders a present button', async ({ page }) => {
     await renderDeck(page, [
@@ -190,5 +211,81 @@ test.describe('Slide interaction model', () => {
     await expect(button).toHaveClass(/is-light/);
     await page.locator('.sdoc-present-stage .shape-rect').hover();
     await expect(button).toHaveCSS('color', 'rgb(28, 25, 23)');
+  });
+
+  test('fullscreen slide copy actions identify text and PNG', async ({ page }) => {
+    await installClipboardStub(page);
+    await renderDeck(page, [
+      'grid 100 56.25\nr 10 10 80 40 fill=#1e40af color=#fff | Slide content',
+    ]);
+    await page.locator('.sdoc-slide-present').click();
+
+    const textCopy = page.locator('.sdoc-present-copy-text-btn');
+    const pngCopy = page.locator('.sdoc-present-copy-png-btn');
+    await expect(textCopy).toHaveAttribute('aria-label', 'Copy slide text');
+    await expect(textCopy).toHaveAttribute('title', 'Copy slide text');
+    await expect(textCopy.locator('.sdoc-present-copy-label')).toHaveText('Text');
+    await expect(pngCopy).toHaveAttribute('aria-label', 'Copy slide as PNG');
+    await expect(pngCopy).toHaveAttribute('title', 'Copy slide as PNG');
+    await expect(pngCopy.locator('.sdoc-present-copy-label')).toHaveText('PNG');
+  });
+
+  test('fullscreen Text copies the active slide and uses tick feedback', async ({ page }) => {
+    await installClipboardStub(page);
+    await renderDeck(page, [
+      'grid 100 56.25\nr 10 10 80 40 | First slide',
+      'grid 100 56.25\nr 10 10 80 40 | Second slide',
+    ]);
+    await page.locator('.sdoc-slide-present').first().click();
+    await page.getByRole('button', { name: 'Next slide' }).click();
+
+    const copy = page.locator('.sdoc-present-copy-text-btn');
+    await copy.click();
+    await expect.poll(() => page.evaluate(() => window.__copiedSlideText)).toContain('Second slide');
+    expect(await page.evaluate(() => window.__copiedSlideText)).not.toContain('First slide');
+    await expect(copy.locator('polyline')).toHaveCount(1);
+    await expect(copy.locator('.sdoc-present-copy-label')).toHaveText('Text');
+    await page.waitForTimeout(1600);
+    await expect(copy.locator('polyline')).toHaveCount(0);
+  });
+
+  test('fullscreen PNG copies a rendered image and uses tick feedback', async ({ page }) => {
+    await installClipboardStub(page);
+    await renderDeck(page, [
+      'grid 100 56.25 bg=#fff7ed\nr 6 6 88 44 fill=#1e3a8a color=#fff |\n  # Architecture\n\n  Rendered slide text',
+    ]);
+    await page.locator('.sdoc-slide-present').click();
+
+    const copy = page.locator('.sdoc-present-copy-png-btn');
+    await copy.click();
+    await expect.poll(() => page.evaluate(() => ({
+      type: window.__copiedSlidePng && window.__copiedSlidePng.type,
+      size: window.__copiedSlidePng && window.__copiedSlidePng.size,
+    }))).toEqual({ type: 'image/png', size: expect.any(Number) });
+    expect(await page.evaluate(() => window.__copiedSlidePng.size)).toBeGreaterThan(0);
+
+    const image = await page.evaluate(async () => {
+      const bitmap = await createImageBitmap(window.__copiedSlidePng);
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0);
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const colors = new Set();
+      const stride = Math.max(4, Math.floor(pixels.length / 600 / 4) * 4);
+      for (let i = 0; i < pixels.length; i += stride) {
+        colors.add(`${pixels[i]},${pixels[i + 1]},${pixels[i + 2]},${pixels[i + 3]}`);
+      }
+      bitmap.close();
+      return { width: canvas.width, height: canvas.height, colors: colors.size };
+    });
+    expect(image.width).toBeGreaterThan(1000);
+    expect(image.height).toBeGreaterThan(500);
+    expect(image.colors).toBeGreaterThan(2);
+    await expect(copy.locator('polyline')).toHaveCount(1);
+    await expect(copy.locator('.sdoc-present-copy-label')).toHaveText('PNG');
+    await page.waitForTimeout(1600);
+    await expect(copy.locator('polyline')).toHaveCount(0);
   });
 });
