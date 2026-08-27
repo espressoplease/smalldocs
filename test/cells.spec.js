@@ -1392,6 +1392,7 @@ test('inline copy: buttons emit computed values, and there is no formulas button
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await loadDoc(page, [FENCE + 'cells', 'Item,Qty', 'A,10', 'B,20', 'Total,=SUM(B2:B3)', FENCE].join('\n'));
   await page.waitForSelector('.sdoc-cells-bar');
+  expect(await page.locator('.sdoc-cells-copy-all .sdoc-cells-copy-label').innerText()).toBe('CSV');
   // Whole-sheet copy: the formula cell lands as its computed value.
   await page.locator('.sdoc-cells-copy-all').click();
   let csv = await page.evaluate(() => navigator.clipboard.readText());
@@ -1413,7 +1414,7 @@ test('fullscreen copy: values by default, a formulas button copies the raw data'
   // With formulas present, the whole-sheet copy is a labelled "values" button
   // (same style as the formulas button) so the pair reads clearly.
   const valBtn = fs.locator('.sdoc-cells-copy-all');
-  expect(await valBtn.locator('.sdoc-cells-copy-label').innerText()).toBe('values');
+  expect(await valBtn.locator('.sdoc-cells-copy-label').innerText()).toBe('Values');
   await valBtn.click();
   let csv = await page.evaluate(() => navigator.clipboard.readText());
   expect(csv).toContain('Total,30');
@@ -1421,18 +1422,48 @@ test('fullscreen copy: values by default, a formulas button copies the raw data'
   // The "formulas" button emits the raw data - formulas as written.
   const rawBtn = fs.locator('.sdoc-cells-copy-raw');
   await expect(rawBtn).toBeVisible();
-  expect(await rawBtn.locator('.sdoc-cells-copy-label').innerText()).toBe('formulas');
+  expect(await rawBtn.locator('.sdoc-cells-copy-label').innerText()).toBe('Formulas');
   await rawBtn.click();
   csv = await page.evaluate(() => navigator.clipboard.readText());
   expect(csv).toContain('Total,=SUM(B2:B3)');
 });
 
-test('fullscreen copy: no formulas -> the plain icon copy button, no formulas button', async ({ page }) => {
+test('fullscreen copy: no formulas -> a CSV button and no formulas button', async ({ page }) => {
   const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b', '1,2', FENCE]);
   await expect(fs.locator('.sdoc-cells-copy-all')).toBeVisible();
-  // Without formulas the whole-sheet copy stays the borderless icon (no label).
-  expect(await fs.locator('.sdoc-cells-copy-all .sdoc-cells-copy-label').count()).toBe(0);
+  expect(await fs.locator('.sdoc-cells-copy-all .sdoc-cells-copy-label').innerText()).toBe('CSV');
+  expect(await fs.locator('.sdoc-cells-copy-all').getAttribute('aria-label')).toBe('Copy whole sheet as CSV');
   expect(await fs.locator('.sdoc-cells-copy-raw').count()).toBe(0);
+  await expect(fs.locator('.sdoc-cells-fx-toggle')).toBeHidden();
+});
+
+test('fullscreen copy controls update when edits add and remove formulas', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const fs = await openFullscreen(page, [FENCE + 'cells', 'a,b', '1,2', FENCE]);
+  const allBtn = fs.locator('.sdoc-cells-copy-all');
+  const formulaBar = fs.locator('.sdoc-cells-focus-value');
+
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await formulaBar.fill('=A2*2');
+  await formulaBar.press('Enter');
+
+  await expect(fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]')).toHaveText('2');
+  await expect(allBtn.locator('.sdoc-cells-copy-label')).toHaveText('Values');
+  const rawBtn = fs.locator('.sdoc-cells-copy-raw');
+  await expect(rawBtn).toBeVisible();
+  await expect(rawBtn.locator('.sdoc-cells-copy-label')).toHaveText('Formulas');
+  await expect(fs.locator('.sdoc-cells-fx-toggle')).toBeVisible();
+
+  await rawBtn.click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('1,=A2*2');
+
+  await fs.locator('.sdoc-cells-cell[data-r="1"][data-c="1"]').click();
+  await formulaBar.fill('2');
+  await formulaBar.press('Enter');
+
+  await expect(allBtn.locator('.sdoc-cells-copy-label')).toHaveText('CSV');
+  expect(await fs.locator('.sdoc-cells-copy-raw').count()).toBe(0);
+  await expect(fs.locator('.sdoc-cells-fx-toggle')).toBeHidden();
 });
 
 // ── Excel (.xlsx) export ─────────────────────────────────────────

@@ -357,16 +357,16 @@
   }
 
   // Copy controls shared by the inline toolbar and the fullscreen overlay so
-  // they behave identically: a borderless icon that copies the WHOLE sheet,
-  // and a dynamic ghost button that copies the current cell / selection. `src`
-  // is the element that carries the selection (the grid wrapper) - it holds
-  // _cellsSelection and fires `cells-selection`.
+  // they behave identically: a labelled CSV button that copies the whole
+  // sheet, and a dynamic ghost button that copies the current cell / selection.
+  // `src` is the element that carries the selection (the grid wrapper) - it
+  // holds _cellsSelection and fires `cells-selection`.
   //
   // Both buttons copy what the sheet SHOWS: a formula cell emits its computed
-  // value (or error code), not its "=..." source. opts.rawButton adds a
-  // labelled "formulas" button that copies the raw data instead - formulas as
-  // written, values elsewhere (the fullscreen overlay asks for it when the
-  // sheet holds formulas). Returns { box, selBtn, allBtn, rawBtn }.
+  // value (or error code), not its "=..." source. opts.formulaCopy reserves a
+  // labelled "Formulas" action that copies the raw data instead - formulas as
+  // written, values elsewhere. setHasFormulas() switches the whole-sheet label
+  // and formula action when fullscreen edits add or remove formulas.
   function buildCopyControls(src, model, opts) {
     opts = opts || {};
     var addCleanup = src._cellsAddCleanup || function () {};
@@ -406,21 +406,9 @@
     selBtn.addEventListener('click', onSelectionCopy);
     addCleanup(function () { selBtn.removeEventListener('click', onSelectionCopy); });
 
-    // Whole-sheet (values) copy. Standing alone it is the borderless icon;
-    // next to a "formulas" button it becomes a matching labelled "values"
-    // button so the pair reads as a clear choice.
-    var allBtn;
-    if (opts.rawButton) {
-      allBtn = copyButton('sdoc-cells-copy-all', 'values');
-      allBtn.title = 'Copy whole sheet values as CSV';
-    } else {
-      allBtn = document.createElement('button');
-      allBtn.type = 'button';
-      allBtn.className = 'sdoc-cells-copy-icon sdoc-cells-copy-all';
-      allBtn.title = 'Copy whole sheet as CSV';
-      allBtn.setAttribute('aria-label', 'Copy whole sheet as CSV');
-      setKnownHTML(allBtn, copyIcon(14));
-    }
+    // Whole-sheet copy. "CSV" is the ordinary label. When formulas are
+    // present, "Values" and "Formulas" make the two representations explicit.
+    var allBtn = copyButton('sdoc-cells-copy-all', 'CSV');
     function onAllCopy() {
       var m = src._cellsModel || model;
       var rows = m.cells.map(function (row, r) {
@@ -436,17 +424,20 @@
       box.appendChild(allBtn);
     }
 
-    // Raw copy: the sheet's data as written, formulas included.
+    // Raw copy: the sheet's data as written, formulas included. The button is
+    // created once for fullscreen sheets and inserted only while formulas are
+    // present, so an edit can update the actions without rebuilding the bar.
     var rawBtn = null;
-    if (opts.rawButton && enabled('copy')) {
-      rawBtn = copyButton('sdoc-cells-copy-raw', 'formulas');
+    var formulaCopy = !!(opts.formulaCopy || opts.rawButton);
+    if (formulaCopy && enabled('copy')) {
+      rawBtn = copyButton('sdoc-cells-copy-raw', 'Formulas');
       rawBtn.title = 'Copy whole sheet with formulas as CSV';
+      rawBtn.setAttribute('aria-label', 'Copy whole sheet with formulas as CSV');
       function onRawCopy() {
         copyText(CELLS.serializeCsv(rawRows((src._cellsModel || model).cells)), rawBtn);
       }
       rawBtn.addEventListener('click', onRawCopy);
       addCleanup(function () { rawBtn.removeEventListener('click', onRawCopy); });
-      box.appendChild(rawBtn);
     }
 
     // Excel export. When this sheet belongs to a multi-sheet workbook the
@@ -501,6 +492,18 @@
       box.appendChild(xlsxBtn);
     }
 
+    function setHasFormulas(hasFormulas) {
+      hasFormulas = !!hasFormulas;
+      allBtn.querySelector('.sdoc-cells-copy-label').textContent = hasFormulas ? 'Values' : 'CSV';
+      var allLabel = hasFormulas ? 'Copy whole sheet values as CSV' : 'Copy whole sheet as CSV';
+      allBtn.title = allLabel;
+      allBtn.setAttribute('aria-label', allLabel);
+      if (!rawBtn) return;
+      if (hasFormulas && !rawBtn.parentNode) box.insertBefore(rawBtn, xlsxBtn);
+      else if (!hasFormulas && rawBtn.parentNode) rawBtn.parentNode.removeChild(rawBtn);
+    }
+    setHasFormulas(opts.hasFormulas != null ? opts.hasFormulas : !!opts.rawButton);
+
     function onCopySelectionChange(e) {
       var s = e.detail;
       if (!s || s.empty) { selBtn.style.display = 'none'; return; }
@@ -518,7 +521,14 @@
       });
     });
 
-    return { box: box, selBtn: selBtn, allBtn: allBtn, rawBtn: rawBtn, xlsxBtn: xlsxBtn };
+    return {
+      box: box,
+      selBtn: selBtn,
+      allBtn: allBtn,
+      rawBtn: rawBtn,
+      xlsxBtn: xlsxBtn,
+      setHasFormulas: setHasFormulas,
+    };
   }
 
   function buildBar(wrapper, model) {

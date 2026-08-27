@@ -321,38 +321,55 @@
       state.activeIndex = index;
       fileSpan.textContent = m.source || '';
 
-      // Copy controls (+ a raw "formulas" button when the sheet has formulas)
-      // and the =fx formula-view toggle, rebuilt for this sheet and swapped in.
-      var hasFormulas = (m.cells || []).some(function (row) {
-        return (row || []).some(function (cl) {
-          return cl && cl.raw && cl.raw.charAt(0) === '=' && cl.raw.length > 1;
+      // Copy controls and the =fx formula-view toggle are rebuilt for this
+      // sheet and then kept in sync as fullscreen edits add or remove formulas.
+      function sheetHasFormulas() {
+        return (m.cells || []).some(function (row) {
+          return (row || []).some(function (cl) {
+            return cl && cl.raw && cl.raw.charAt(0) === '=' && cl.raw.length > 1;
+          });
         });
-      });
-      var actions = buildCopyControls
-        ? buildCopyControls(gridWrap, m, { rawButton: hasFormulas }).box
-        : document.createElement('div');
-      actions.classList.add('sdoc-cells-focus-actions');
-      if (hasFormulas) {
-        var fxBtn = document.createElement('button');
-        fxBtn.type = 'button';
-        fxBtn.className = 'sdoc-cells-fx-toggle';
-        fxBtn.title = 'Show formulas';
-        fxBtn.setAttribute('aria-label', 'Show formulas');
-        fxBtn.textContent = '=fx';
-        fxBtn.addEventListener('click', function () {
-          gridWrap._cellsShowFormulas = !gridWrap._cellsShowFormulas;
-          fxBtn.classList.toggle('is-on', !!gridWrap._cellsShowFormulas);
-          fxBtn.title = gridWrap._cellsShowFormulas ? 'Show values' : 'Show formulas';
-          var gridEl2 = gridWrap.querySelector('.sdoc-cells-grid');
-          var rect = gridEl2 && gridEl2._selectionRect ? gridEl2._selectionRect() : null;
-          if (gridWrap._cellsRepaint) gridWrap._cellsRepaint();
-          if (rect && gridEl2 && gridEl2._moveTo) {
-            gridEl2._moveTo(rect.r0, rect.c0, false);
-            gridEl2._extendTo(rect.r1, rect.c1, false);
-          }
-        });
-        actions.appendChild(fxBtn);
       }
+      var hasFormulas = sheetHasFormulas();
+      var copyControls = buildCopyControls
+        ? buildCopyControls(gridWrap, m, { formulaCopy: true, hasFormulas: hasFormulas })
+        : null;
+      var actions = copyControls ? copyControls.box : document.createElement('div');
+      actions.classList.add('sdoc-cells-focus-actions');
+
+      var fxBtn = document.createElement('button');
+      fxBtn.type = 'button';
+      fxBtn.className = 'sdoc-cells-fx-toggle';
+      fxBtn.textContent = '=fx';
+      function syncFxLabel() {
+        var label = gridWrap._cellsShowFormulas ? 'Show values' : 'Show formulas';
+        fxBtn.title = label;
+        fxBtn.setAttribute('aria-label', label);
+      }
+      function syncFormulaActions() {
+        hasFormulas = sheetHasFormulas();
+        if (copyControls && copyControls.setHasFormulas) copyControls.setHasFormulas(hasFormulas);
+        if (hasFormulas && !fxBtn.parentNode) actions.appendChild(fxBtn);
+        else if (!hasFormulas && fxBtn.parentNode) fxBtn.parentNode.removeChild(fxBtn);
+        if (!hasFormulas && gridWrap._cellsShowFormulas) {
+          gridWrap._cellsShowFormulas = false;
+          fxBtn.classList.remove('is-on');
+        }
+        syncFxLabel();
+      }
+      fxBtn.addEventListener('click', function () {
+        gridWrap._cellsShowFormulas = !gridWrap._cellsShowFormulas;
+        fxBtn.classList.toggle('is-on', !!gridWrap._cellsShowFormulas);
+        syncFxLabel();
+        var gridEl2 = gridWrap.querySelector('.sdoc-cells-grid');
+        var rect = gridEl2 && gridEl2._selectionRect ? gridEl2._selectionRect() : null;
+        if (gridWrap._cellsRepaint) gridWrap._cellsRepaint();
+        if (rect && gridEl2 && gridEl2._moveTo) {
+          gridEl2._moveTo(rect.r0, rect.c0, false);
+          gridEl2._extendTo(rect.r1, rect.c1, false);
+        }
+      });
+      syncFormulaActions();
       if (activeActions) topbar.removeChild(activeActions);
       topbar.insertBefore(actions, closeBtn);
       activeActions = actions;
@@ -363,6 +380,7 @@
           valueInput: valueBox,
           onChange: function () {
             if (state.edited.indexOf(m) === -1) state.edited.push(m);
+            syncFormulaActions();
             syncSelection(gridWrap._cellsSelection);
           },
         });
