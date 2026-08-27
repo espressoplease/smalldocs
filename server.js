@@ -1039,6 +1039,7 @@ function homepageNavigation(req) {
 
   return {
     authenticated: Boolean(authenticated),
+    termsAccepted: Boolean(authenticated && cloudTermsAccepted(authenticated.user)),
     menuBefore,
     menuAfter,
     substitutions: {
@@ -1053,9 +1054,11 @@ function documentNavigation(req) {
   const navigation = homepageNavigation(req);
   return {
     authenticated: navigation.authenticated,
+    termsAccepted: navigation.termsAccepted,
     substitutions: {
       '__DOCUMENT_LIBRARY_HREF__': '/library',
       '__DOCUMENT_CLOUD_AUTHENTICATED__': navigation.authenticated ? 'true' : 'false',
+      '__DOCUMENT_CLOUD_TERMS_ACCEPTED__': navigation.termsAccepted ? 'true' : 'false',
       '__DOCUMENT_NAV_MENU_HIDDEN__': navigation.authenticated ? '' : 'hidden',
       '<!--__DOCUMENT_NAV_MENU_BEFORE__-->': navigation.menuBefore,
       '<!--__DOCUMENT_NAV_MENU_AFTER__-->': navigation.menuAfter,
@@ -2660,6 +2663,7 @@ const server = http.createServer((req, res) => {
     const cloudNavigation = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud.html'), {
       '__CLOUD_AUTHENTICATED__': cloudNavigation.authenticated ? 'true' : 'false',
+      '__CLOUD_TERMS_ACCEPTED__': cloudNavigation.termsAccepted ? 'true' : 'false',
     }, {
       'Cache-Control': CLOUD_DEPLOYMENT.publicEnabled ? 'private, no-store' : 'no-cache',
       ...(CLOUD_DEPLOYMENT.publicEnabled ? { Vary: 'Cookie' } : {}),
@@ -2915,6 +2919,7 @@ const server = http.createServer((req, res) => {
     const libraryNavigation = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'library.html'), {
       '__CLOUD_AUTHENTICATED__': libraryNavigation.authenticated ? 'true' : 'false',
+      '__CLOUD_TERMS_ACCEPTED__': libraryNavigation.termsAccepted ? 'true' : 'false',
       '__CLOUD_LIBRARY_STYLES__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<link rel="stylesheet" href="/public/library/cloud-library-prototype.css">' : '',
       '__CLOUD_LIBRARY_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled
@@ -2959,6 +2964,7 @@ const server = http.createServer((req, res) => {
     const connectNavigation = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'connect.html'), {
       '__CLOUD_AUTHENTICATED__': connectNavigation.authenticated ? 'true' : 'false',
+      '__CLOUD_TERMS_ACCEPTED__': connectNavigation.termsAccepted ? 'true' : 'false',
       '__CLOUD_CONNECT_LIBRARY_SWITCHER__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<div class="library-onboarding-nav"><nav class="library-scope connect-library-scope" aria-label="Library location">' +
           '<a class="library-scope-option active" href="/library" aria-current="page">' +
@@ -2981,11 +2987,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Static explainer for the rescued-files badge. Pure prose, same CSP
-  // as the rest of the site since it doesn't touch the local agent.
+  // Explainer for the rescued-files badge. Its prose stays static; the
+  // shared sidebar receives the same authenticated state as other pages.
   if (pathname === '/library/rescued') {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'rescued.html'), null, {
-      'Cache-Control': 'no-cache',
+    const rescuedNavigation = homepageNavigation(req);
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'rescued.html'), {
+      '__CLOUD_AUTHENTICATED__': rescuedNavigation.authenticated ? 'true' : 'false',
+      '__CLOUD_TERMS_ACCEPTED__': rescuedNavigation.termsAccepted ? 'true' : 'false',
+    }, {
+      'Cache-Control': CLOUD_DEPLOYMENT.publicEnabled ? 'private, no-store' : 'no-cache',
+      ...(CLOUD_DEPLOYMENT.publicEnabled ? { Vary: 'Cookie' } : {}),
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
     });
@@ -3303,6 +3314,7 @@ const server = http.createServer((req, res) => {
       '__EMBED_SCRIPT__': '<script src="/public/sdocs-embed.js"></script>',
       '__DOCUMENT_LIBRARY_HREF__': '/library',
       '__DOCUMENT_CLOUD_AUTHENTICATED__': 'false',
+      '__DOCUMENT_CLOUD_TERMS_ACCEPTED__': 'false',
       '__DOCUMENT_NAV_MENU_HIDDEN__': 'hidden',
       '<!--__DOCUMENT_NAV_MENU_BEFORE__-->': '',
       '<!--__DOCUMENT_NAV_MENU_AFTER__-->': '',

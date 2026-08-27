@@ -9,6 +9,7 @@
   var active = page === 'cloud' || (page === 'library' && params.get('scope') === 'cloud')
     ? 'cloud' : 'local';
   var authenticated = body.getAttribute('data-cloud-authenticated') === 'true';
+  var termsAccepted = body.getAttribute('data-cloud-terms-accepted') === 'true';
   var shared = window.SDocsSidebarShared;
   if (!shared) return;
   var icons = shared.icons;
@@ -38,6 +39,7 @@
     section('sdk', icons.sdk, 'SDK', sdk) +
     '</nav><footer class="sdocs-sidebar-footer">' + shared.footerInnerHtml({
       authenticated: authenticated,
+      termsAccepted: termsAccepted,
       returnTo: location.pathname + location.search,
     }) + '</footer>';
 
