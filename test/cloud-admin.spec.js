@@ -306,6 +306,10 @@ test('Cloud settings navigation and panels fit a phone viewport', async ({ page 
   for (const panelName of ['Overview', 'People', 'Connected machines', 'Billing']) {
     await expect(page.getByRole('button', { name: panelName })).toHaveCSS('border-top-width', '1px');
   }
+  await expect(page.getByRole('button', { name: 'Overview' }))
+    .toHaveCSS('background-color', 'rgb(239, 246, 255)');
+  await expect(page.getByRole('button', { name: 'People' }))
+    .toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   const tabWidths = await page.locator('.settings-nav').evaluate(element => ({
     client: element.clientWidth, scroll: element.scrollWidth,
   }));
