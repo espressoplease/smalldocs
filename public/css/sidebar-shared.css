@@ -132,3 +132,67 @@
 
 .sdocs-sidebar-shell .sdocs-sidebar-legal a { color: inherit; text-decoration: underline; }
 .sdocs-sidebar-shell .sdocs-sidebar-legal a:hover { color: var(--text-2, #57534e); }
+
+.sdocs-sidebar-preview {
+  margin: 3px 0 7px;
+  padding: 3px 0 7px;
+}
+
+.sdocs-sidebar-preview-compact { padding-bottom: 3px; }
+
+.sdocs-sidebar-subitem {
+  width: 100%;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-2, #57534e);
+  font: 500 var(--sdocs-sidebar-font-size)/1.3 var(--font-ui, 'Inter', system-ui, sans-serif);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sdocs-sidebar-subitem:hover {
+  background: var(--bg-hover, var(--surface-2, #f1ede8));
+  color: var(--text, #1c1917);
+}
+
+.sdocs-sidebar-library-row {
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-2, #57534e);
+  font: 500 var(--sdocs-sidebar-font-size)/1.3 var(--font-ui, 'Inter', system-ui, sans-serif);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+
+.sdocs-sidebar-library-row:hover {
+  background: var(--bg-hover, var(--surface-2, #f1ede8));
+  border-color: var(--border, #d4cfc9);
+  color: var(--text, #1c1917);
+}
+
+.sdocs-sidebar-library-open svg {
+  flex: 0 0 auto;
+  margin-left: auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--text-3, #a8a29e);
+}
