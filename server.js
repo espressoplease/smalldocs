@@ -2622,6 +2622,7 @@ const server = http.createServer((req, res) => {
   // Root entry point. New visitors stay on the marketing landing page;
   // returning browsers route to their available library in the page's first
   // script, after preserving old document fragments and homepage anchors.
+  // /home serves the same page but explicitly bypasses that library redirect.
   // Standalone HTML (no /public/
   // assets except the hero poster under /public/homepage/; the hero video
   // streams from Cloudflare R2, bucket smalldocs-media), but still routed
@@ -2629,7 +2630,7 @@ const server = http.createServer((req, res) => {
   // cache-busted. Hash-encoded document links (#md=...) that land on the
   // root belong to the app at /docs; fragments never reach the server, so
   // an inline script in the page forwards them client-side.
-  if (pathname === '/') {
+  if (pathname === '/' || pathname === '/home') {
     const homepageNav = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'homepage.html'),
       {

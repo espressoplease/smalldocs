@@ -7,13 +7,15 @@
 // styles=...). Installed CLIs and old share links point those at the root,
 // where the app used to live; forward them to /docs. The homepage's own
 // anchors (#learn, #install...) carry no '=' and stay here. With no
-// explicit anchor, returning users go straight to the library available
-// in this browser. Cloud takes precedence when both libraries are present.
+// explicit anchor or the explicit /home route, returning users go straight
+// to the library available in this browser. Cloud takes precedence when both
+// libraries are present.
 var appHash = location.hash && location.hash.indexOf('=') !== -1;
+var explicitHomepage = location.pathname === '/home';
 if (appHash) {
   window.__sdocsHomeRedirecting = true;
   location.replace('/docs' + location.hash);
-} else if (!location.hash) {
+} else if (!location.hash && !explicitHomepage) {
   var cloudAuthenticated = '__HOME_CLOUD_AUTHENTICATED__' === 'true';
   var localConnected = false;
   try {
