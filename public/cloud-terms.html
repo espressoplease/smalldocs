@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review the SmallDocs Terms</title>
+<meta name="description" content="Review and accept the Terms before using SmallDocs Cloud.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/public/css/cloud-sign-in.css">
+</head>
+<body>
+
+<header class="header">
+  <a class="brand" href="/">
+    <span class="brand-full">SmallDocs</span>
+    <span class="brand-short">SDocs</span>
+    <span class="brand-tiny">SD</span>
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-label">Cloud</span>
+</header>
+
+<main class="auth-shell">
+  <section class="auth-card terms-card" aria-labelledby="terms-title">
+    <div class="auth-heading">
+      <div class="auth-mark" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M13 16h-3"/><path d="M18 6V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-2"/><path d="M18 9v6"/><path d="m21 12-3 3-3-3"/></svg>
+      </div>
+      <div>
+        <h1 id="terms-title">Review the Terms</h1>
+        <p>Before you use SmallDocs Cloud, review the Terms dated __CLOUD_TERMS_LABEL__.</p>
+      </div>
+    </div>
+
+    <form id="terms-form" action="/api/cloud/auth/terms/accept" method="post" novalidate>
+      <input id="terms-version" type="hidden" value="__CLOUD_TERMS_VERSION__">
+      <label class="terms-choice" for="terms-accepted">
+        <input id="terms-accepted" type="checkbox" required>
+        <span>I agree to the <a href="/legal" target="_blank" rel="noopener">Terms of Service</a>.</span>
+      </label>
+      <p class="terms-privacy">The <a href="/privacy" target="_blank" rel="noopener">Privacy Notice</a> explains how SmallDocs handles personal data.</p>
+      <p class="field-error" id="terms-error" role="alert"></p>
+      <button class="primary-button" id="terms-submit" type="submit" disabled>Agree and continue</button>
+    </form>
+    <p class="prototype-status" id="terms-status" role="status" aria-live="polite"></p>
+  </section>
+</main>
+
+<script src="/public/cloud-terms.js"></script>
+</body>
+</html>
