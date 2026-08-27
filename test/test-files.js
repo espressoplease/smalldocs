@@ -17,6 +17,8 @@ module.exports = function(harness) {
   test('production deployment binds Node to loopback and hardens the service', () => {
     const env = fs.readFileSync(path.join(__dirname, '..', 'ops', 'smalldocs.env.example'), 'utf8');
     const unit = fs.readFileSync(path.join(__dirname, '..', 'ops', 'systemd', 'smalldocs.service'), 'utf8');
+    const nginx = fs.readFileSync(path.join(__dirname, '..', 'ops', 'nginx',
+      'smalldocs.conf'), 'utf8');
     assert.ok(env.includes('HOST=127.0.0.1'));
     assert.ok(env.includes('CLOUD_MODE=off'));
     assert.ok(env.includes('CLOUD_PUBLIC_MODE=hidden'));
@@ -33,6 +35,11 @@ module.exports = function(harness) {
     assert.ok(unit.includes('ProtectSystem=strict'));
     assert.ok(unit.includes('ReadWritePaths=/var/lib/smalldocs'));
     assert.ok(unit.includes('LimitCORE=0'));
+    assert.ok(nginx.includes('server_name smalldocs.org www.smalldocs.org'));
+    assert.ok(nginx.includes('proxy_pass http://127.0.0.1:3003'));
+    assert.ok(nginx.includes('proxy_set_header X-Forwarded-For $remote_addr'));
+    assert.ok(!nginx.includes('$proxy_add_x_forwarded_for'));
+    assert.ok(nginx.includes('access_log off'));
   });
 
   test('staging uses a separate account, state path, port, and public origin', () => {

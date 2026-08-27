@@ -122,9 +122,11 @@
     button.hidden = false;
     paymentNote.hidden = false;
     selectionName.textContent = plan === 'team' ? 'My team' : 'Just me';
-    planNote.textContent = plan === 'team'
-      ? '£7 per member each month. Invite people and set access after payment.'
-      : '£4 each month. Documents start with access for you only.';
+    planNote.textContent = window.SDocsCloudPricing
+      ? window.SDocsCloudPricing.planSentence(plan)
+      : (plan === 'team'
+        ? '£7 per member each month. Invite people and set access after payment.'
+        : '£4 each month. Documents start with access for you only.');
     document.getElementById('checkout-title').textContent = 'Set up Cloud';
     document.getElementById('checkout-copy').textContent =
       'Review your choice, then continue to Stripe to pay.';

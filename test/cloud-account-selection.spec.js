@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test.use({ serviceWorkers: 'block' });
+test.use({ serviceWorkers: 'block', locale: 'en-GB' });
 
 async function installCloudLibraryApi(page, workspaces, canRead = true, documents = []) {
   await page.route('**/api/cloud/v1/**', async route => {

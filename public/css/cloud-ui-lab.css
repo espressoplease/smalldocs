@@ -38,6 +38,16 @@
   cursor: pointer;
 }
 
+#_sd_sdocs-file-info .fic-row-cloud-intro .sdoc-cloud-lab-add-link {
+  flex: 0 0 auto;
+}
+
+@media (min-width: 769px) {
+  #_sd_sdocs-file-info .fic-row-cloud-intro .fic-short-intro-text {
+    white-space: nowrap;
+  }
+}
+
 .sdoc-cloud-lab-access,
 .sdoc-cloud-lab-tag,
 .sdoc-cloud-lab-plus {
