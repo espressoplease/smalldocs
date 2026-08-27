@@ -13,6 +13,22 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v22 (next CLI release)
+
+**Reason:** Cloud-aware agents now search existing documents for relevant
+context before recreating it.
+
+The Cloud-aware skill treats Cloud as a source of prior decisions, research,
+plans, and documentation, not only as a destination for newly created files.
+It explains how to discover existing tags, search titles and Markdown, inspect
+result snippets, pull a read-only reference, or bind a local file for updates.
+
+`sdoc cloud --help` now documents the search behavior, JSON result fields,
+read and update workflows, access operations, history, and concrete examples.
+It states that search is case-insensitive substring matching rather than
+semantic search. Listing and search now honor `--account UUID` when the user
+has access to more than one account.
+
 ## v21 (next CLI release)
 
 **Reason:** Tag discovery now comes before tagging, and the standard skill can
