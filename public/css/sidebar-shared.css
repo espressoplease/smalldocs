@@ -1,0 +1,125 @@
+:root {
+  --sdocs-sidebar-width: 224px;
+  --sdocs-sidebar-font-size: 13px;
+  --sdocs-sidebar-row-height: 36px;
+  --sdocs-sidebar-footer-row-height: 32px;
+}
+
+.sdocs-sidebar-shell {
+  width: var(--sdocs-sidebar-width);
+  padding: 27px 14px 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  border-right: 1px solid var(--border-subtle, var(--border, #ddd9d3));
+  background: var(--bg-input, var(--surface, #fff));
+  color: var(--text, #1c1917);
+  font: 400 var(--sdocs-sidebar-font-size)/1.45 var(--font-ui, 'Inter', system-ui, sans-serif);
+}
+
+.sdocs-sidebar-shell::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+.sdocs-sidebar-brand {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 4px;
+  color: var(--accent, var(--blue, #2563eb));
+  font-size: var(--sdocs-sidebar-font-size);
+  font-weight: 600;
+  letter-spacing: -.015em;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.sdocs-site-sidebar > .sdocs-sidebar-brand { margin-bottom: 22px; }
+
+.sdocs-sidebar-shell :is(.doc-site-action, .sdocs-site-sidebar-row) {
+  width: 100%;
+  height: var(--sdocs-sidebar-row-height);
+  min-height: var(--sdocs-sidebar-row-height);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2, #57534e);
+  font: 500 var(--sdocs-sidebar-font-size) var(--font-ui, 'Inter', system-ui, sans-serif);
+}
+
+.sdocs-sidebar-shell :is(.doc-site-action, .sdocs-site-sidebar-row) > svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-footer {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle, var(--border, #ddd9d3));
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-footer-link {
+  min-height: var(--sdocs-sidebar-footer-row-height);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 9px;
+  border-radius: 8px;
+  color: var(--text-2, #57534e);
+  font-size: var(--sdocs-sidebar-font-size);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-footer-link:hover {
+  color: var(--text, #1c1917);
+  background: var(--bg-hover, var(--surface-2, #f1ede8));
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-footer-link svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-status {
+  display: block;
+  min-height: 0;
+  padding: 0 9px;
+  color: var(--text-3, #a8a29e);
+  font-size: var(--sdocs-sidebar-font-size);
+  line-height: 1.4;
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-status:empty { display: none; }
+
+.sdocs-sidebar-shell .sdocs-sidebar-legal {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 9px 0;
+  color: var(--text-3, #a8a29e);
+  font-size: var(--sdocs-sidebar-font-size);
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-legal a { color: inherit; text-decoration: none; }
+.sdocs-sidebar-shell .sdocs-sidebar-legal a:hover { color: var(--text-2, #57534e); }

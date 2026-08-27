@@ -27,10 +27,10 @@
     '<span class="sdocs-site-sidebar-cta" aria-disabled="true">Coming soon</span>';
 
   var aside = document.createElement('aside');
-  aside.className = 'sdocs-site-sidebar';
+  aside.className = 'sdocs-sidebar-shell sdocs-site-sidebar';
   aside.id = '_sd_site_sidebar';
   aside.setAttribute('aria-label', 'SmallDocs navigation');
-  aside.innerHTML = '<a class="sdocs-site-sidebar-brand" href="/">SmallDocs</a>' +
+  aside.innerHTML = '<a class="sdocs-sidebar-brand sdocs-site-sidebar-brand" href="/">SmallDocs</a>' +
     '<nav class="sdocs-site-sidebar-nav">' +
     '<a class="sdocs-site-sidebar-row sdocs-site-sidebar-local' + (active === 'local' ? ' is-active' : '') + '" href="/library">' + icons.local + '<span>Local library</span></a>' +
     '<a class="sdocs-site-sidebar-row' + (active === 'cloud' ? ' is-active' : '') + '" href="/library?scope=cloud">' + icons.cloud + '<span>Cloud library</span></a>' +

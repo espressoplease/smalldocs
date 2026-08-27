@@ -22,8 +22,8 @@ test('Library and supporting text pages share the desktop navigation shell', asy
       sidebarRight: document.querySelector('#_sd_site_sidebar').getBoundingClientRect().right,
       bodyPaddingLeft: parseFloat(getComputedStyle(document.body).paddingLeft),
     }));
-    expect(layout.sidebarRight).toBe(260);
-    expect(layout.bodyPaddingLeft).toBe(260);
+    expect(layout.sidebarRight).toBe(224);
+    expect(layout.bodyPaddingLeft).toBe(224);
   }
 });
 
@@ -51,6 +51,33 @@ test('Library and reader sidebars share capability and footer content', async ({
       legal: element.querySelector('.sdocs-sidebar-legal').textContent.trim(),
       footerBottom: Math.round(element.querySelector('.sdocs-sidebar-footer').getBoundingClientRect().bottom),
       sidebarBottom: Math.round(element.getBoundingClientRect().bottom),
+      contract: (() => {
+        const styleValues = (target, names) => {
+          const style = getComputedStyle(target);
+          return Object.fromEntries(names.map(name => [name, style[name]]));
+        };
+        const row = Array.from(element.querySelectorAll('.doc-site-action, .sdocs-site-sidebar-row'))
+          .find(target => getComputedStyle(target).display !== 'none');
+        const brand = element.querySelector('.sdocs-sidebar-brand');
+        const footerLink = element.querySelector('.sdocs-sidebar-footer-link');
+        const footerIcon = footerLink.querySelector('svg');
+        const bounds = element.getBoundingClientRect();
+        const brandBounds = brand.getBoundingClientRect();
+        return {
+          sidebar: styleValues(element, ['width', 'paddingTop', 'paddingRight', 'paddingBottom',
+            'paddingLeft', 'fontSize']),
+          row: styleValues(row, ['height', 'paddingLeft', 'paddingRight', 'columnGap', 'fontSize',
+            'borderRadius']),
+          footerLink: styleValues(footerLink, ['minHeight', 'paddingLeft', 'paddingRight',
+            'columnGap', 'fontSize', 'borderRadius']),
+          footerIcon: styleValues(footerIcon, ['width', 'height', 'fill', 'stroke', 'strokeWidth',
+            'strokeLinecap', 'strokeLinejoin']),
+          brandOffset: {
+            top: Math.round(brandBounds.top - bounds.top),
+            left: Math.round(brandBounds.left - bounds.left),
+          },
+        };
+      })(),
     }));
   }
 
@@ -62,6 +89,16 @@ test('Library and reader sidebars share capability and footer content', async ({
   expect(library.legal).toBe('You agree to our Terms');
   expect(reader.legal).toBe(library.legal);
   await expect(page.locator('#_sd_sidebar').getByText('For business', { exact: true })).toHaveCount(0);
+  expect(library.contract).toEqual(reader.contract);
+  expect(reader.contract.sidebar.width).toBe('224px');
+  expect(reader.contract.footerIcon).toMatchObject({
+    width: '15px',
+    height: '15px',
+    fill: 'none',
+    strokeWidth: '2px',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+  });
   expect(library.sidebarBottom - library.footerBottom).toBe(16);
   expect(reader.sidebarBottom - reader.footerBottom).toBe(16);
 });

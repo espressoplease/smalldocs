@@ -35,7 +35,7 @@
 
   --font-ui:       'Inter', system-ui, -apple-system, sans-serif;
   --ui-toolbar-height: 40px;
-  --ui-sidebar-width:  224px;
+  --ui-sidebar-width:  var(--sdocs-sidebar-width, 224px);
   --ui-panel-width:    335px;
 
   --md-h2-border:       #EDE8E2;

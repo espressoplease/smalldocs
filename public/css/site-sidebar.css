@@ -1,11 +1,6 @@
-:root {
-  --sdocs-site-sidebar-width: 260px;
-  --sdocs-site-sidebar-font-size: 13px;
-}
-
 body.sdocs-site-shell {
   background: #fff;
-  padding-left: var(--sdocs-site-sidebar-width);
+  padding-left: var(--sdocs-sidebar-width);
 }
 
 body.sdocs-site-shell > .topbar,
@@ -23,31 +18,8 @@ body.sdocs-site-shell .library-onboarding-nav {
   position: fixed;
   inset: 0 auto 0 0;
   z-index: 40;
-  width: var(--sdocs-site-sidebar-width);
   display: flex;
   flex-direction: column;
-  padding: 27px 14px 16px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  border-right: 1px solid var(--border-subtle, var(--border, #ddd9d3));
-  background: var(--bg-input, var(--surface, #fff));
-  color: var(--text, #1c1917);
-  font: 400 var(--sdocs-site-sidebar-font-size)/1.45 var(--font-ui, 'Inter', system-ui, sans-serif);
-}
-
-.sdocs-site-sidebar::-webkit-scrollbar { display: none; width: 0; height: 0; }
-
-.sdocs-site-sidebar-brand {
-  align-self: flex-start;
-  margin: 0 9px 27px;
-  color: var(--accent, var(--blue, #2563eb));
-  font-size: var(--sdocs-site-sidebar-font-size);
-  font-weight: 600;
-  letter-spacing: -.02em;
-  line-height: 1;
-  text-decoration: none;
 }
 
 .sdocs-site-sidebar-nav {
@@ -60,18 +32,6 @@ body.sdocs-site-shell .library-onboarding-nav {
 .sdocs-site-sidebar-section { width: 100%; }
 
 .sdocs-site-sidebar-row {
-  width: 100%;
-  min-height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  padding: 0 9px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-2, #57534e);
-  font: 500 var(--sdocs-site-sidebar-font-size) var(--font-ui, 'Inter', system-ui, sans-serif);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -89,17 +49,6 @@ body.sdocs-site-shell .library-onboarding-nav {
   border-color: var(--border, #d4cfc9);
   background: transparent;
   color: var(--text, #1c1917);
-}
-
-.sdocs-site-sidebar-row svg {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .sdocs-site-sidebar-chevron {
@@ -141,7 +90,7 @@ body.sdocs-site-shell .library-onboarding-nav {
 .sdocs-site-sidebar-panel p {
   margin: 0 0 10px;
   color: var(--text, #1c1917);
-  font-size: var(--sdocs-site-sidebar-font-size);
+  font-size: var(--sdocs-sidebar-font-size);
   line-height: 1.45;
 }
 
@@ -163,7 +112,7 @@ body.sdocs-site-shell .library-onboarding-nav {
   border-radius: 8px;
   background: transparent;
   color: var(--text, #1c1917);
-  font: 500 var(--sdocs-site-sidebar-font-size)/1.3 var(--font-ui, 'Inter', system-ui, sans-serif);
+  font: 500 var(--sdocs-sidebar-font-size)/1.3 var(--font-ui, 'Inter', system-ui, sans-serif);
   text-decoration: none;
 }
 
@@ -177,55 +126,6 @@ body.sdocs-site-shell .library-onboarding-nav {
 
 .sdocs-site-sidebar-cta:hover { background: var(--bg-hover, var(--surface-2, #f1ede8)); }
 .sdocs-site-sidebar-cta[aria-disabled="true"] { color: var(--text-3, #a8a29e); cursor: default; }
-
-.sdocs-site-sidebar .sdocs-sidebar-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-subtle, var(--border, #ddd9d3));
-}
-
-.sdocs-site-sidebar .sdocs-sidebar-footer-link {
-  min-height: 32px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 0 9px;
-  border-radius: 8px;
-  color: var(--text-2, #57534e);
-  font-size: var(--sdocs-site-sidebar-font-size);
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.sdocs-site-sidebar .sdocs-sidebar-footer-link:hover {
-  color: var(--text, #1c1917);
-  background: var(--bg-hover, var(--surface-2, #f1ede8));
-}
-
-.sdocs-site-sidebar .sdocs-sidebar-footer-link svg {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.sdocs-site-sidebar .sdocs-sidebar-legal {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 9px 0;
-  color: var(--text-3, #a8a29e);
-}
-
-.sdocs-site-sidebar .sdocs-sidebar-legal a { color: inherit; text-decoration: none; }
-.sdocs-site-sidebar .sdocs-sidebar-legal a:hover { color: var(--text-2, #57534e); }
 
 .sdocs-site-mobilebar { display: none; }
 .sdocs-site-mobilebar-brand-short,
@@ -292,7 +192,7 @@ body.sdocs-site-shell .library-onboarding-nav {
 
   body.sdocs-site-menu-open { overflow: hidden; }
   body.sdocs-site-menu-open .sdocs-site-sidebar { transform: translateX(0); visibility: visible; }
-  .sdocs-site-sidebar-local { display: none; }
+  .sdocs-sidebar-shell .sdocs-site-sidebar-local { display: none; }
 }
 
 @media (max-width: 366px) {
