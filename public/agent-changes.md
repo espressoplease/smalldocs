@@ -13,6 +13,18 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v23 (next CLI release)
+
+**Reason:** Presentation and Cloud reference workflows now give agents an
+exact command sequence.
+
+Presentation requests now have an explicit four-step path: load the slide
+reference, author Markdown, verify until clean, and open presentation mode.
+
+Cloud reference work now has a separate sequence: verify live Cloud state,
+inspect help when needed, search specific terms, and pull promising material
+with `--no-bind` so reading it does not accidentally prepare an update.
+
 ## v22 (next CLI release)
 
 **Reason:** Cloud-aware agents now search existing documents for relevant

@@ -53,6 +53,7 @@ require('./test-code-comments')(harness);
 require('./test-codewalk')(harness);
 require('./test-file-wrap')(harness);
 require('./test-agent-block')(harness);
+require('./test-skill-evals')(harness);
 require('./test-router')(harness);
 require('./test-update-check')(harness);
 require('./test-source')(harness);

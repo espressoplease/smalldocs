@@ -13,6 +13,7 @@
     "test:cloud-e2e": "playwright test --config=playwright.cloud.config.js",
     "email:preview": "node scripts/email-preview.js",
     "email:preview:stop": "docker compose -p smalldocs-email-preview -f test/mailpit.compose.yml down",
+    "eval:skill": "node scripts/smalldocs-skill-eval.js",
     "cloud:jobs": "node scripts/cloud-job-status.js",
     "cloud:jobs:retry": "node scripts/cloud-job-retry.js",
     "cloud:kms:smoke": "node ops/kms-failure-smoke.js",
