@@ -45,6 +45,16 @@ body.write-mode #_sd_write-toolbar {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
+@media (min-width: 769px) {
+  body.write-mode #_sd_write-toolbar {
+    position: relative;
+    z-index: 5;
+    width: 100%;
+    max-width: none;
+    background: var(--bg-input);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+}
 body.write-mode #_sd_write-toolbar::-webkit-scrollbar {
   display: none;
 }

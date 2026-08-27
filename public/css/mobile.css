@@ -16,7 +16,7 @@
   #_sd_main { flex-direction: column; overflow: visible; }
   #_sd_left { min-height: 0; overflow: visible; }
   #_sd_content-area { overflow: visible; }
-  html { scroll-padding-top: 44px; }
+  html { scroll-padding-top: 88px; }
 
   /* iOS Safari zooms the page when a focused text control is below 16px. */
   textarea,
@@ -27,25 +27,85 @@
     font-size: 16px !important;
   }
 
-  /* ── Show short brand text on mobile ── */
+  /* Site navigation becomes a compact top rail when a sidebar cannot fit. */
+  #_sd_sidebar {
+    width: 100%;
+    height: 44px;
+    flex: 0 0 44px;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .sdocs-sidebar-main {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  .sdocs-sidebar-footer { display: none; }
   .toolbar-brand-full { display: none; }
   .toolbar-brand-short { display: inline; font-size: 13px; font-weight: 600; }
+  .sdocs-sidebar-mark { width: 21px; height: 21px; }
+  #_sd_toolbar-brand { gap: 6px; padding: 3px; margin-right: auto; }
+  #_sd_sidebar .doc-site-nav {
+    width: auto;
+    margin-left: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+  }
+  #_sd_sidebar .doc-site-nav > .doc-site-action { display: none; }
+  #_sd_sidebar .doc-site-nav > #_sd_btn-library,
+  #_sd_sidebar .doc-site-nav > .doc-site-sign-in {
+    width: auto;
+    height: 28px;
+    display: inline-flex;
+    gap: 6px;
+    padding: 0 8px;
+    font-size: 11.5px;
+  }
+  #_sd_sidebar .doc-site-menu { width: auto; }
+  #_sd_sidebar .doc-site-menu-button {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    padding: 0;
+    justify-content: center;
+  }
+  #_sd_sidebar .doc-site-menu-button span,
+  #_sd_sidebar .sdocs-sidebar-chevron { display: none; }
+  #_sd_sidebar .doc-site-menu-panel {
+    position: fixed;
+    top: 40px;
+    right: 8px;
+    left: auto;
+    bottom: auto;
+  }
 
-  /* ── Sticky left toolbar: horizontal scroll, left-aligned ── */
-  /* Desktop uses a centered grid; mobile drops back to flex so the
-     icons sit hard against the brand on the left and the page can
-     scroll horizontally without empty columns reserving space. */
+  /* Document controls remain reachable in a sticky compact row. */
   #_sd_left-toolbar {
     display: flex;
-    grid-template-columns: none;
-    position: sticky; top: 0; z-index: 99;
+    position: sticky;
+    top: 44px;
+    left: 0;
+    z-index: 99;
+    width: 100%;
+    transform: none;
+    justify-content: center;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     overflow-x: auto; -webkit-overflow-scrolling: touch;
   }
   #_sd_left-toolbar > * { flex-shrink: 0; }
-  #_sd_left-toolbar > #_sd_toolbar-brand,
-  #_sd_left-toolbar > .toggle-group,
-  #_sd_left-toolbar > .doc-site-nav { justify-self: auto; }
-  #_sd_toolbar-brand { margin-right: 0; }
 
   /* ── Stack layout instead of side-by-side ── */
   #_sd_divider { display: none; }
@@ -62,10 +122,7 @@
     padding: 20px 20px 0;
   }
   /* ── Write toolbar: sticky below left-toolbar ── */
-  body.write-mode #_sd_write-toolbar { position: sticky; top: 36px; z-index: 98; justify-content: flex-start; }
-
-  /* Keep Library and the available account actions visible. */
-  .doc-site-nav { margin-left: auto; }
+  body.write-mode #_sd_write-toolbar { position: sticky; top: 84px; z-index: 98; justify-content: flex-start; }
 
   /* ── Status bar: hidden on mobile ── */
   #_sd_statusbar { display: none; }

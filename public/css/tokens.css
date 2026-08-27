@@ -35,6 +35,7 @@
 
   --font-ui:       'Inter', system-ui, -apple-system, sans-serif;
   --ui-toolbar-height: 40px;
+  --ui-sidebar-width:  224px;
   --ui-panel-width:    335px;
 
   --md-h2-border:       #EDE8E2;
@@ -112,6 +113,7 @@ html[data-theme="dark"] .control-row select {
 /* Theme transitions */
 body,
 #_sd_left,
+#_sd_sidebar,
 #_sd_right,
 #_sd_export-panel,
 #_sd_statusbar,

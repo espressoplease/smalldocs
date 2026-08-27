@@ -48,6 +48,16 @@ body.comment-mode #_sd_comment-toolbar {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
+@media (min-width: 769px) {
+  body.comment-mode #_sd_comment-toolbar {
+    position: relative;
+    z-index: 5;
+    width: 100%;
+    max-width: none;
+    background: var(--bg-input);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+}
 body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 
 /* Mobile: same shape as the write toolbar - left-aligned, sticky below the
@@ -57,7 +67,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 @media (max-width: 768px) {
   body.comment-mode #_sd_comment-toolbar {
     position: sticky;
-    top: 36px;
+    top: 84px;
     z-index: 98;
     justify-content: flex-start;
   }

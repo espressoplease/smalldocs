@@ -16,23 +16,30 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════
-   TOOLBAR BRAND
+   SIDEBAR BRAND
 ═══════════════════════════════════════════════════ */
 #_sd_toolbar-brand {
   display: inline-flex;
   align-items: center;
+  gap: 9px;
   text-decoration: none;
   cursor: pointer;
   color: var(--accent);
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
-  padding: 2px;
-  margin-right: auto;
-  transition: opacity .12s;
+  border-radius: var(--radius);
+  padding: 4px;
+  transition: opacity .12s, background .12s;
 }
-#_sd_toolbar-brand:hover { opacity: .7; }
+#_sd_toolbar-brand:hover { background: var(--bg-hover); }
+.sdocs-sidebar-mark { flex: 0 0 auto; }
 .toolbar-brand-text { display: none; }
-.toolbar-brand-full { display: inline; font-size: 13px; font-weight: 600; }
+.toolbar-brand-full {
+  display: inline;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
 .toolbar-brand-short { display: none; }
 .toolbar-brand-tiny { display: none; }
 
@@ -126,61 +133,160 @@ body {
 #_sd_main {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
+
+/* ═══════════════════════════════════════════════════
+   SITE SIDEBAR
+═══════════════════════════════════════════════════ */
+#_sd_sidebar {
+  width: var(--ui-sidebar-width);
+  flex: 0 0 var(--ui-sidebar-width);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px 14px 16px;
+  background: var(--bg-input);
+  border-right: 1px solid var(--border-subtle);
+  overflow: visible;
+  position: relative;
+  z-index: 20;
+}
+.sdocs-sidebar-main {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+#_sd_sidebar .doc-site-nav {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+}
+#_sd_sidebar .doc-site-action {
+  width: 100%;
+  height: 36px;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-2);
+  font: 500 13px var(--font-ui);
+  box-shadow: none;
+}
+#_sd_sidebar .doc-site-action:hover,
+#_sd_sidebar .doc-site-menu[open] .doc-site-menu-button {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+#_sd_sidebar .doc-site-action svg { flex: 0 0 auto; }
+#_sd_sidebar #_sd_btn-library { margin-left: 0; }
+#_sd_sidebar .doc-site-menu { width: 100%; }
+#_sd_sidebar .doc-site-menu-button { padding-right: 8px; }
+#_sd_sidebar .sdocs-sidebar-chevron {
+  margin-left: auto;
+  color: var(--text-3);
+  transition: transform .18s cubic-bezier(.4,0,.2,1);
+}
+#_sd_sidebar .doc-site-menu[open] .sdocs-sidebar-chevron { transform: rotate(90deg); }
+#_sd_sidebar .doc-site-menu-panel {
+  position: absolute;
+  top: auto;
+  right: auto;
+  left: calc(100% + 10px);
+  bottom: 0;
+  min-width: 190px;
+  background: var(--bg-input);
+  box-shadow: var(--shadow-md);
+}
+.sdocs-sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+.sdocs-sidebar-footer > a {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 9px;
+  border-radius: var(--radius-md);
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.sdocs-sidebar-footer > a:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.sdocs-sidebar-status {
+  display: block;
+  min-height: 0;
+  padding: 0 9px;
+  color: var(--text-3);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+.sdocs-sidebar-status:empty { display: none; }
+.sdocs-sidebar-legal {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 9px 0;
+  color: var(--text-3);
+  font-size: 10.5px;
+}
+.sdocs-sidebar-legal a { color: inherit; text-decoration: none; }
+.sdocs-sidebar-legal a:hover { color: var(--text-2); }
 
 /* ═══════════════════════════════════════════════════
    LEFT PANEL
 ═══════════════════════════════════════════════════ */
 #_sd_left {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-input);
+  position: relative;
 }
-
-/* Three-column grid keeps the icons dead center regardless of how
-   wide the brand or Library button get. The 1fr side columns are
-   forced to equal width via the `minmax(0, 1fr)` form (plain `1fr`
-   would let either side stretch past the other when content is wide).
-   Mobile drops back to flex - see css/mobile.css. */
+/* Document actions sit in a quiet top rail above the scrolling page. */
 #_sd_left-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  position: relative;
+  z-index: 6;
+  width: 100%;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   height: var(--ui-toolbar-height);
   padding: 0 12px;
-  background: var(--bg);
+  background: var(--bg-input);
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-/* Brand sits at the start of column 1, Library at the end of column 3.
-   The middle column (toggle-group) is auto-sized and naturally centered. */
-#_sd_left-toolbar > #_sd_toolbar-brand { justify-self: start; }
-#_sd_left-toolbar > .toggle-group       { justify-self: center; }
-#_sd_left-toolbar > .doc-site-nav       { justify-self: end; }
-#_sd_left-toolbar::-webkit-scrollbar {
-  display: none;
+  white-space: nowrap;
 }
 
 .toggle-group {
   display: flex;
   background: none;
   border: none;
-  border-radius: var(--radius);
+  border-radius: 999px;
   overflow: hidden;
   padding: 2px;
   gap: 2px;
 }
 .toggle-group .btn {
   border: none;
-  border-radius: calc(var(--radius) - 2px);
+  border-radius: 999px;
   box-shadow: none;
   background: transparent;
   padding: 6px 8px;
@@ -246,14 +352,6 @@ body {
   color: var(--text);
 }
 
-#_sd_btn-library {
-  margin-left: auto;
-}
-#_sd_btn-library:hover {
-  background: var(--bg-input);
-  color: var(--text);
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-}
 #_sd_btn-library svg { flex: 0 0 auto; }
 
 .doc-site-nav {
@@ -366,6 +464,7 @@ body {
   background-color: #FFFFFF;
   outline: none;
 }
+body.sdocs-reader-shell > #_sd_statusbar { display: none; }
 html[data-theme="dark"] #_sd_content-area {
   background-color: #2c2a26;
 }

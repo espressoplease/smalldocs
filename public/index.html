@@ -56,18 +56,81 @@ __EMBED_STYLES__
   })();
 </script>
 </head>
-<body>
+<body class="sdocs-reader-shell">
 
 <div id="_sd_safari-banner" hidden></div>
 <div id="_sd_main">
-  <!-- ── Left panel ── -->
-  <div id="_sd_left">
-    <div id="_sd_left-toolbar">
+  <!-- Left site navigation -->
+  <aside id="_sd_sidebar" aria-label="SmallDocs">
+    <div class="sdocs-sidebar-main">
       <a id="_sd_toolbar-brand" href="#" title="SmallDocs - reset to defaults">
+        <svg class="sdocs-sidebar-mark" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="2.75" y="2.75" width="18.5" height="18.5" rx="5.25" fill="currentColor" fill-opacity=".1"/>
+          <rect x="2.75" y="2.75" width="18.5" height="18.5" rx="5.25" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M7.5 8.5h9M7.5 12h7M7.5 15.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
         <span class="toolbar-brand-text toolbar-brand-full">SmallDocs</span>
         <span class="toolbar-brand-text toolbar-brand-short">SDocs</span>
         <span class="toolbar-brand-text toolbar-brand-tiny">SD</span>
       </a>
+
+      <nav class="doc-site-nav" aria-label="SmallDocs navigation">
+        <a class="doc-site-action" id="_sd_btn-library" href="__DOCUMENT_LIBRARY_HREF__" data-tip="Browse your documents">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
+          <span class="library-btn-label">Library</span>
+        </a>
+        <a class="doc-site-action" href="/docs">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
+          <span>Documentation</span>
+        </a>
+        <a class="doc-site-action" href="/cloud">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          <span>Cloud</span>
+        </a>
+        <!--__DOCUMENT_NAV_SIGN_IN__-->
+        <details class="doc-site-menu" id="doc-site-menu" __DOCUMENT_NAV_MENU_HIDDEN__>
+          <summary class="doc-site-action doc-site-menu-button" aria-label="Open account menu" aria-haspopup="menu" aria-expanded="false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+            <span>Account</span>
+            <svg class="sdocs-sidebar-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </summary>
+          <div class="doc-site-menu-panel" role="menu">
+            <!--__DOCUMENT_NAV_MENU_BEFORE__-->
+            <a href="/docs" role="menuitem">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
+              Docs
+            </a>
+            <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" role="menuitem">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
+              GitHub
+            </a>
+            <!--__DOCUMENT_NAV_MENU_AFTER__-->
+          </div>
+        </details>
+      </nav>
+    </div>
+
+    <div class="sdocs-sidebar-footer">
+      <div id="_sd_status-text" class="sdocs-sidebar-status" aria-live="polite"></div>
+      <a href="https://smalldocs.org/#sec=privacy" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/><path d="m9 12 2 2 4-4"/></svg>
+        Private by design
+      </a>
+      <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
+        Source on GitHub
+      </a>
+      <div class="sdocs-sidebar-legal">
+        <a href="/business" target="_blank" rel="noopener">For business</a>
+        <span aria-hidden="true">&middot;</span>
+        <a href="/legal" target="_blank" rel="noopener">Terms</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Left panel ── -->
+  <div id="_sd_left">
+    <div id="_sd_left-toolbar">
       <div class="toggle-group">
         <button class="btn active" id="_sd_btn-read" data-tip="Read" aria-label="Read">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>
@@ -113,30 +176,6 @@ __EMBED_STYLES__
           <span class="info-dot" aria-hidden="true"></span>
         </button>
       </div>
-      <nav class="doc-site-nav" aria-label="SmallDocs navigation">
-        <a class="doc-site-action" id="_sd_btn-library" href="__DOCUMENT_LIBRARY_HREF__" data-tip="Browse your documents">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
-          <span class="library-btn-label">Library</span>
-        </a>
-        <!--__DOCUMENT_NAV_SIGN_IN__-->
-        <details class="doc-site-menu" id="doc-site-menu" __DOCUMENT_NAV_MENU_HIDDEN__>
-          <summary class="doc-site-action doc-site-menu-button" aria-label="Open site menu" aria-haspopup="menu" aria-expanded="false">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg>
-          </summary>
-          <div class="doc-site-menu-panel" role="menu">
-            <!--__DOCUMENT_NAV_MENU_BEFORE__-->
-            <a href="/docs" role="menuitem">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
-              Docs
-            </a>
-            <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" role="menuitem">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
-              GitHub
-            </a>
-            <!--__DOCUMENT_NAV_MENU_AFTER__-->
-          </div>
-        </details>
-      </nav>
     </div>
     <div id="_sd_write-toolbar">
       <button class="write-tb-btn" id="_sd_wb-bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
@@ -818,7 +857,6 @@ __EMBED_STYLES__
 
 <!-- Status bar -->
 <div id="_sd_statusbar">
-  <span id="_sd_status-text"></span>
   <span id="_sd_sb-links" style="margin-left:auto; font-size:11.5px; color:var(--text-2); display:flex; align-items:center; gap:6px; flex-wrap:nowrap; justify-content:flex-end; min-width:0">
     <span class="sb-item" id="sb-private"><a href="https://smalldocs.org/#sec=privacy" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">100% private</a></span>
     <span class="sb-item" id="sb-trust" data-trust-status>Open source: <a href="/trust" target="_blank" rel="noopener" style="color:var(--text-2); text-decoration:underline">verify server</a></span>

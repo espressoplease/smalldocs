@@ -465,6 +465,8 @@ html[data-theme="dark"] :is(#_sd_rendered, .sdoc-code-focus) {
   flex-direction: column;
   gap: 2px;
 }
+#_sd_sdocs-file-info:not([hidden]) + #_sd_rendered,
+#_sd_sdocs-file-info:not([hidden]) ~ #_sd_write { padding-top: 32px; }
 #_sd_sdocs-file-info .fic-rows {
   display: flex;
   flex-direction: column;
