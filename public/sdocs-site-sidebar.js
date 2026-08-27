@@ -15,16 +15,18 @@
   if (!shared) return;
   var icons = shared.icons;
 
-  function section(id, icon, label, panel) {
+  function section(id, icon, label, panel, compact) {
     return '<div class="sdocs-site-sidebar-section" data-site-section="' + id + '">' +
       '<button class="sdocs-site-sidebar-row" type="button" aria-expanded="false">' + icon +
       '<span>' + label + '</span>' + icons.chevron + '</button>' +
       '<div class="sdocs-site-sidebar-expander"><div class="sdocs-site-sidebar-expander-inner">' +
-      '<div class="sdocs-site-sidebar-panel">' + panel + '</div></div></div></div>';
+      '<div class="sdocs-site-sidebar-panel' + (compact ? ' sdocs-site-sidebar-panel-compact' : '') +
+      '">' + panel + '</div></div></div></div>';
   }
 
-  var capabilities = '<div class="sdocs-site-sidebar-links" data-sdocs-shared-capabilities>' +
-    shared.capabilitiesHtml('sdocs-site-sidebar-subitem', 'sdocs-site-sidebar-cta') + '</div>';
+  var capabilities = '<div class="sdocs-sidebar-preview sdocs-sidebar-preview-compact" data-sdocs-shared-capabilities>' +
+    shared.capabilitiesHtml('sdocs-sidebar-subitem',
+      'sdocs-sidebar-library-row sdocs-sidebar-library-open') + '</div>';
   var sdk = '<p>' + shared.sdkDescription + '</p>' +
     '<span class="sdocs-site-sidebar-cta" aria-disabled="true">Coming soon</span>';
 
@@ -36,7 +38,7 @@
     '<nav class="sdocs-site-sidebar-nav">' +
     '<a class="sdocs-site-sidebar-row sdocs-site-sidebar-local' + (active === 'local' ? ' is-active' : '') + '" href="/library">' + icons.local + '<span>Local library</span></a>' +
     '<a class="sdocs-site-sidebar-row' + (active === 'cloud' ? ' is-active' : '') + '" href="/library?scope=cloud">' + icons.cloud + '<span>Cloud library</span></a>' +
-    section('capabilities', icons.capabilities, 'Capabilities', capabilities) +
+    section('capabilities', icons.capabilities, 'Capabilities', capabilities, true) +
     section('sdk', icons.sdk, 'SDK', sdk) +
     '</nav><footer class="sdocs-sidebar-footer">' + shared.footerInnerHtml({
       authenticated: authenticated,

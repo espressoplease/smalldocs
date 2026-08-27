@@ -11,12 +11,15 @@ test('Library and supporting text pages share the desktop navigation shell', asy
     ['/public/connect.html', 'Local library'],
     ['/public/cloud.html', 'Cloud library'],
     ['/public/library/rescued.html', 'Local library'],
+    ['/public/cloud-admin.html', null],
   ];
 
   for (const [url, activeLabel] of surfaces) {
     await page.goto(url);
     await expect(page.locator('#_sd_site_sidebar')).toBeVisible();
-    await expect(page.locator('.sdocs-site-sidebar-row.is-active')).toContainText(activeLabel);
+    if (activeLabel) {
+      await expect(page.locator('.sdocs-site-sidebar-row.is-active')).toContainText(activeLabel);
+    }
     await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
     const layout = await page.evaluate(() => ({
       sidebarRight: document.querySelector('#_sd_site_sidebar').getBoundingClientRect().right,
@@ -41,7 +44,10 @@ test('expandable site navigation stays closed until selected', async ({ page }) 
   await expect(homepage).toBeVisible();
   await expect(homepage).toHaveAttribute('href', '/home');
   await expect(homepage).toHaveAttribute('target', '_blank');
+  await expect(homepage).toHaveClass(/sdocs-sidebar-library-open/);
   await expect(homepage.locator('svg')).toHaveCount(1);
+  await expect(homepage.locator('path').first()).toHaveAttribute('d',
+    'M13 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7');
   expect(await capabilities.locator('[data-sdocs-shared-capabilities] a').first().innerText())
     .toBe('View homepage');
   await expect(capabilities.getByRole('link', { name: 'Diagrams' })).toBeVisible();
@@ -71,6 +77,8 @@ test('Library and reader sidebars share capability and footer content', async ({
         const footerIcon = footerLink.querySelector('svg');
         const legal = element.querySelector('.sdocs-sidebar-legal');
         const legalLink = legal.querySelector('a');
+        const capabilityAction = element.querySelector('[data-sdocs-shared-capabilities] a');
+        const capabilityItem = element.querySelector('[data-sdocs-shared-capabilities] a:nth-child(2)');
         const bounds = element.getBoundingClientRect();
         const brandBounds = brand.getBoundingClientRect();
         return {
@@ -84,6 +92,10 @@ test('Library and reader sidebars share capability and footer content', async ({
             'strokeLinecap', 'strokeLinejoin']),
           legal: styleValues(legal, ['fontSize']),
           legalLink: styleValues(legalLink, ['textDecorationLine']),
+          capabilityAction: styleValues(capabilityAction, ['width', 'minHeight', 'paddingTop',
+            'paddingRight', 'paddingBottom', 'paddingLeft', 'columnGap', 'borderRadius']),
+          capabilityItem: styleValues(capabilityItem, ['width', 'minHeight', 'paddingTop',
+            'paddingRight', 'paddingBottom', 'paddingLeft', 'columnGap', 'borderRadius']),
           brandOffset: {
             top: Math.round(brandBounds.top - bounds.top),
             left: Math.round(brandBounds.left - bounds.left),
@@ -114,6 +126,24 @@ test('Library and reader sidebars share capability and footer content', async ({
   });
   expect(reader.contract.legal.fontSize).toBe('11px');
   expect(reader.contract.legalLink.textDecorationLine).toBe('underline');
+  expect(reader.contract.capabilityAction).toMatchObject({
+    minHeight: '32px',
+    paddingTop: '5px',
+    paddingRight: '9px',
+    paddingBottom: '5px',
+    paddingLeft: '9px',
+    columnGap: '7px',
+    borderRadius: '4px',
+  });
+  expect(reader.contract.capabilityItem).toMatchObject({
+    minHeight: '28px',
+    paddingTop: '5px',
+    paddingRight: '10px',
+    paddingBottom: '5px',
+    paddingLeft: '10px',
+    columnGap: '6px',
+    borderRadius: '4px',
+  });
   expect(library.sidebarBottom - library.footerBottom).toBe(16);
   expect(reader.sidebarBottom - reader.footerBottom).toBe(16);
 });
