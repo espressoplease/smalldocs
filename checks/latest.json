@@ -1,6 +1,11 @@
 {
-  "checkedAt": "2026-08-27T11:06:24.652Z",
+  "checkedAt": "2026-08-27T11:34:13.808Z",
   "base": "https://smalldocs.org",
-  "result": "error",
-  "error": "Server did not report a commit."
+  "commit": "f29c6699782edea8c4e1e29a7b088add5ddd6dbb",
+  "commitShort": "f29c669",
+  "result": "ok",
+  "totalFiles": 185,
+  "matched": 185,
+  "mismatches": [],
+  "manifestUrl": "https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/f29c6699782edea8c4e1e29a7b088add5ddd6dbb.json"
 }
