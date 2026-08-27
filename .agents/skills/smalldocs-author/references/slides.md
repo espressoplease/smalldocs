@@ -56,4 +56,6 @@ Use a template for the surrounding deck and custom shapes for the slides where g
 
 ## Verification
 
-Raw shapes use fixed geometry and source order is paint order. When the CLI is available, run `sdoc present file.md` and inspect text overlap, contrast, label wrapping, connector placement, balance, and consistency. Count the rendered slides against the requested deck length before handoff. If rendering is unavailable, keep the number of shapes low, use a 16 by 9 grid, and leave a one-unit safe margin.
+Raw shapes use fixed geometry and source order is paint order. When the CLI is available, run `sdoc slides verify file.md --json` first. Fix every diagnostic, or add `bleed=allow` to an individual shape whose off-canvas placement is intentional, then rerun until the command exits 0. This headless check covers syntax, templates, references, and grid bounds.
+
+Run `sdoc present file.md` and inspect text overlap, contrast, label wrapping, connector placement, balance, and consistency. The headless verifier cannot assess those visual properties. Count the rendered slides against the requested deck length before handoff. If rendering is unavailable, keep the number of shapes low, use a 16 by 9 grid, and leave a one-unit safe margin.

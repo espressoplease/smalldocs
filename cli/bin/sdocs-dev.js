@@ -32,6 +32,7 @@ const io          = require('../lib/io');
 const helpText    = require('../lib/help-text');
 const commands    = require('../lib/commands');
 const cellsVerify = require('../lib/cells-verify');
+const slidesVerify = require('../lib/slides-verify');
 const bridgeCommands = require('../lib/bridge-commands');
 const libraryCommands = require('../lib/library-commands');
 const cloudCommands = require('../lib/cloud-commands');
@@ -95,7 +96,10 @@ function buildRouter() {
   r.register('feedback', { handler: (opts) => bridgeCommands.feedbackCommand(opts) });
 
   // `sdoc slides` family — reference text + helper subcommands.
-  r.register('slides',  { handler: (opts) => { commands.slidesCommand(opts); process.exit(0); } });
+  r.register('slides',  { handler: (opts) => {
+    if ((opts.file || '').toLowerCase() === 'verify') return slidesVerify.slidesVerifyCommand(opts);
+    commands.slidesCommand(opts); process.exit(0);
+  } });
   // `sdoc present <file>` — same as the default open flow but enters
   // fullscreen slide view on load.
   r.register('present', { handler: (opts) => commands.presentCommand(opts) });

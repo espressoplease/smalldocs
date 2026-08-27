@@ -158,7 +158,10 @@ var SHAPE_MD_SHADOW_CSS = [
   '}',
   '.inner > :first-child { margin-top: 0; }',
   '.inner > :last-child { margin-bottom: 0; }',
-  'p { margin: 0.2em 0; color: inherit; }',
+  // Shape content treats source line breaks as layout decisions. The parser
+  // also turns inline `\\n` into a newline, so pre-wrap makes both forms
+  // visible without injecting raw HTML into the Markdown pipeline.
+  'p { margin: 0.2em 0; color: inherit; white-space: pre-wrap; }',
   /* Heading colors: prefer --shape-color (set when the shape declares color=), */
   /* otherwise pick up the doc-level per-level heading color so `# Title` inside */
   /* a shape automatically adopts the doc's h1 color without any DSL attribute. */

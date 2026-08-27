@@ -35,6 +35,8 @@ USAGE
   sdoc slides list                 Built-in slide template registry + slot names
   sdoc slides icons [query]        Lucide icon names available to the \`icon\` shape kind
   sdoc slides custom-shapes        Raw-shape primitives + design principles reference
+  sdoc slides verify <file>        Validate slide syntax and geometry without a browser
+  sdoc slides verify <file> --json Machine-readable validation output for agents
   sdoc present <file>              Open <file> and jump straight into fullscreen slides
   sdoc library                     Open the personal markdown library at smalldocs.org/library
   sdoc library ls                  List markdown indexed in this project (walks up to .git)
@@ -1351,6 +1353,9 @@ navigate.
                                    \`icon\` shape kind. Optional substring filter.
   sdoc slides custom-shapes        Shape syntax and design guidance for visual
                                    explanations, diagrams, and custom layouts.
+  sdoc slides verify <file>        Validate every slide headlessly. Exit 0 when
+                                   clean, 1 for diagnostics, or 2 for bad usage.
+  sdoc slides verify <file> --json Return the same result as structured JSON.
 
 ── DESIGN GUIDELINES ────────────────────────────────────
   The built-in templates encode a few rules that separate professional
@@ -1427,6 +1432,12 @@ navigate.
   the consistency of a template with a look you designed.
 
 \u2500\u2500 VERIFYING A DECK (OPTIONAL, BUT IT IS WHAT SEPARATES CLEAN FROM BROKEN) \u2500\u2500
+  Run \`sdoc slides verify <file> --json\` after authoring. It uses the
+  same parser, template resolver, reference resolver, and bounds check
+  as the browser. Fix every reported problem or acknowledge intentional
+  off-canvas decoration on that shape with \`bleed=allow\`, then run it
+  again. The command exits 0 only when the deck is clean.
+
   You are authoring slides you cannot see. You place coordinates and
   trust them, and the renderer does not warn you when a shape covers
   text, when a label wraps to a line you did not intend, when text sits
@@ -1681,7 +1692,8 @@ navigate.
   Everything after \`|\` is standard markdown. Multi-line uses
   indentation under the shape line - continuation lines MUST be
   indented at least 2 spaces, or the parser treats them as fresh
-  top-level shape lines (and fails).
+  top-level shape lines (and fails). In short inline labels, \`\\n\`
+  inserts a visible line break; \`\\\\n\` keeps the literal text \`\\n\`.
 
     r 5 20 90 60 align=left |
       ## Heading
@@ -1994,7 +2006,8 @@ navigate.
 
   Common errors:
     - "shape extends outside grid WxH"   bbox past an edge by >10% of the
-                                         grid (a little bleed is allowed)
+                                         grid. Add \`bleed=allow\` only when
+                                         that individual shape is intentional
     - \`unknown id "@name"\`               @-ref before the shape is declared
     - \`duplicate id "#name"\`             two shapes share an id
     - \`invalid attribute key\`            key must start with a letter
@@ -2325,7 +2338,8 @@ rather than as designed.
   All shapes EXCEPT \`l\` and \`a\` can hold markdown after \`|\` - full
   markdown (headings, lists, bold/italic, code, blockquote, tables).
   Non-rectangle shapes use their bounding box as the text area (see
-  the TEXT INSIDE NON-RECT SHAPES section).
+  the TEXT INSIDE NON-RECT SHAPES section). In a short inline label,
+  \`\\n\` inserts a visible line break.
 
   No \`fill=\` on a shape -> transparent (slide background shows through).
   Color values accept any CSS colour: hex (#1e40af), named (tomato),
@@ -2504,6 +2518,8 @@ rather than as designed.
                         backdrops, ghosted "previous state" shapes,
                         overlapping highlights. Out-of-range values
                         clamp.
+    bleed=allow         Acknowledge intentional off-canvas overflow for
+                        this shape. Other shapes are still checked.
 
   Numeric attributes (strokeWidth, radius) are in grid units - pick
   values relative to your grid size, no prescribed defaults. On a

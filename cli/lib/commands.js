@@ -238,6 +238,7 @@ function newCommand(opts) {
 //   sdoc slides list                -> built-in template registry
 //   sdoc slides custom-shapes       -> raw-shape reference
 //   sdoc slides icons [query]       -> Lucide icon name listing
+//   sdoc slides verify <file>        -> handled by slides-verify in the router
 function slidesCommand(opts) {
   const helpText = require('./help-text');
   const sub = opts.file;

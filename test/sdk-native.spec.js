@@ -1001,6 +1001,26 @@ test('board customer presents custom slides and exports deck files', async ({ pa
   expect(pptxBytes.length).toBeGreaterThan(1000);
 });
 
+test('SDK slides support inline line breaks and acknowledged bleed', async ({ page }) => {
+  await page.goto(customerOrigin + '/board-brief/');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true', { timeout: 30000 });
+  await page.evaluate(() => window.boardView.update(`# Shape details
+
+~~~slide
+grid 100 56.25
+c 84 10 18 fill=#20A39E bleed=allow
+r 20 12 60 30 | Today\\nChoose an action
+~~~`));
+  await expect(page.locator('.sdoc-slide')).toHaveCount(1);
+  const diagnostics = await page.locator('.sdoc-slide-errbadge-list li').allTextContents();
+  expect(diagnostics).toEqual([]);
+  const text = await page.locator('.sdoc-slide .shape-md').evaluate((host) => {
+    const paragraph = host.shadowRoot && host.shadowRoot.querySelector('p');
+    return paragraph ? paragraph.innerText : '';
+  });
+  expect(text).toBe('Today\nChoose an action');
+});
+
 test('slide shapes use SDK-owned icons and nested rich renderers', async ({ page }) => {
   test.setTimeout(60000);
   await page.goto(customerOrigin + '/board-brief/');

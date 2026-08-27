@@ -1,4 +1,4 @@
-// sdocs-shapes.js - shape DSL parser + reference resolver (UMD)
+// sdocs-shapes.js — shape DSL parser + reference resolver (UMD)
 // Shared by browser playground and Node tests.
 //
 // Grid (optional, must be first non-comment line):
@@ -187,7 +187,7 @@ function parseLine(raw, lineNumber) {
     while (i < rest.length) {
       var t = rest[i];
 
-      // ~ - smooth quadratic to midpoint (existing behavior).
+      // ~ — smooth quadratic to midpoint (existing behavior).
       if (t === '~') {
         if (shape.points.length === 0) throw new Error('polygon: ~ cannot precede the first point');
         pendingSeg = { type: 'smooth' };
@@ -195,7 +195,7 @@ function parseLine(raw, lineNumber) {
         continue;
       }
 
-      // ^h - arc / bow by sagitta h, perpendicular to the chord.
+      // ^h — arc / bow by sagitta h, perpendicular to the chord.
       // Accepts `^0.8` (attached) or `^ 0.8` (separate token).
       if (t.charAt(0) === '^') {
         if (shape.points.length === 0) throw new Error('polygon: ^ cannot precede the first point');
@@ -208,7 +208,7 @@ function parseLine(raw, lineNumber) {
         continue;
       }
 
-      // >P - quadratic Bezier with one explicit control point.
+      // >P — quadratic Bezier with one explicit control point.
       // Accepts `>5.5,3.4` / `>@card.top` (attached) or `> 5.5,3.4` (separate).
       if (t.charAt(0) === '>') {
         if (shape.points.length === 0) throw new Error('polygon: > cannot precede the first point');
@@ -220,7 +220,7 @@ function parseLine(raw, lineNumber) {
         continue;
       }
 
-      // * - cubic Bezier with two control points (next two tokens).
+      // * — cubic Bezier with two control points (next two tokens).
       if (t === '*') {
         if (shape.points.length === 0) throw new Error('polygon: * cannot precede the first point');
         var c1 = parseCtrlPoint(rest[i + 1], '*');
@@ -230,7 +230,7 @@ function parseLine(raw, lineNumber) {
         continue;
       }
 
-      // (r - round the corner at the next point with radius r. Unlike the
+      // (r — round the corner at the next point with radius r. Unlike the
       // segment operators above, this targets the vertex itself, so it is
       // valid even before the first point. Rounding only takes effect when
       // both adjacent segments are straight; the renderer silently no-ops
@@ -410,7 +410,7 @@ function parseGridLine(trimmed) {
   for (var i = 3; i < tokens.length; i++) {
     var tok = tokens[i];
     var eq = tok.indexOf('=');
-    if (eq < 0) throw new Error('grid: unexpected token "' + tok + '" - use key=value');
+    if (eq < 0) throw new Error('grid: unexpected token "' + tok + '" — use key=value');
     var key = tok.slice(0, eq);
     var val = tok.slice(eq + 1);
     if (!/^[A-Za-z][\w-]*$/.test(key)) throw new Error('grid: invalid attribute key "' + key + '"');
@@ -420,7 +420,7 @@ function parseGridLine(trimmed) {
 }
 
 // Indented (2+ space) lines immediately after a shape line become
-// continuation content for that shape - YAML block scalar style. Content only
+// continuation content for that shape — YAML block scalar style. Content only
 // collects when the shape line had a `|` separator; otherwise the indented
 // lines are errors, since they'd silently disappear.
 function collectIndentedContent(lines, startIdx) {
@@ -651,7 +651,7 @@ function bboxOf(shape) {
   throw new Error('bboxOf: unknown kind ' + shape.kind);
 }
 
-// Content box for a shape - where text should render. Returns { x, y, w, h }
+// Content box for a shape — where text should render. Returns { x, y, w, h }
 // in grid units, or null for decorative shapes (lines, arrows).
 //   Rectangle: full rect bounds.
 //   Circle:    inscribed square (side = r * √2).
@@ -890,7 +890,7 @@ function resolve(shapes) {
 // the shape falls off the bottom. Surfaces as a parse-time error so the
 // thumbnail badge catches it before the overflow is rendered.
 //
-// Intentional bleed is legitimate design, though - a setting sun clipped behind
+// Intentional bleed is legitimate design, though — a setting sun clipped behind
 // a mountain range, a decorative shape kissing the edge. So we allow a bleed
 // tolerance of BLEED_TOL of each grid dimension before flagging. The `h 70`
 // typo overflows by ~42% of grid height and stays flagged; a sun poking 1-2%
@@ -923,7 +923,7 @@ function checkGridBounds(shapes, grid) {
             + ' to ' + right.toFixed(1) + ',' + bottom.toFixed(1) + ')',
         });
       }
-    } catch (e) { /* unresolvable shape - skip */ }
+    } catch (e) { /* unresolvable shape — skip */ }
   }
   return errs;
 }

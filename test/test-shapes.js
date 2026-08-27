@@ -600,6 +600,17 @@ module.exports = function(harness) {
     assert.strictEqual(res.errors.length, 0);
   });
 
+  test('bounds: bleed=allow acknowledges intentional large overflow per shape', () => {
+    const res = parseAndResolve([
+      'grid 100 56.25',
+      'c 84 10 18 fill=#20A39E bleed=allow',
+      'c 91 46 27 fill=#EF6F6C bleed=allow',
+      'r 10 10 80 70 | accidental overflow',
+    ].join('\n'));
+    assert.strictEqual(res.errors.length, 1);
+    assert.strictEqual(res.errors[0].line, 4);
+  });
+
   test('bounds: shape entirely inside grid has no error', () => {
     const res = parseAndResolve([
       'grid 100 56.25',
@@ -796,6 +807,27 @@ module.exports = function(harness) {
     ].join('\n');
     const { shapes } = parse(src);
     assert.strictEqual(shapes[0].content, 'Title\nSubtitle\nThird line');
+  });
+
+  test('multi-line: inline \\n escape becomes a line break', () => {
+    const { shapes, errors } = parse('r 0 0 80 60 | Today\\nChoose an action');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].content, 'Today\nChoose an action');
+  });
+
+  test('multi-line: escaped backslash keeps a literal \\n sequence', () => {
+    const { shapes, errors } = parse('r 0 0 80 60 | Today\\\\nChoose an action');
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].content, 'Today\\nChoose an action');
+  });
+
+  test('multi-line: indented content keeps literal \\n sequences', () => {
+    const { shapes, errors } = parse([
+      'r 0 0 80 60 |',
+      '  Use \\n inside code examples',
+    ].join('\n'));
+    assert.strictEqual(errors.length, 0);
+    assert.strictEqual(shapes[0].content, 'Use \\n inside code examples');
   });
 
   test('multi-line: strips leading 2-space indent only', () => {

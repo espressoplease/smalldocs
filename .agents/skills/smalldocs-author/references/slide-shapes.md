@@ -52,9 +52,11 @@ valign=top|center|bottom
 text=title|subtitle|body|caption
 size=fit              fit short text to its box
 opacity=0..1
+bleed=allow           acknowledge intentional off-canvas overflow for this shape
 ```
 
 Text after `|` is Markdown content. New source lines indented beneath a shape continue that shape's content.
+For a short inline label, `\\n` inserts a visible line break. Write `\\\\n` when the literal text `\\n` is required.
 
 Shape colours can follow the document theme with style references such as `color=$color`, `color=$h1.color`, `fill=$background`, and `fill=$blocks.background`. References resolve to live document CSS values and adapt when the reader theme changes.
 

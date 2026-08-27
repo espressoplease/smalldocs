@@ -13,6 +13,17 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v18 (unreleased)
+
+**Reason:** Slide authoring now has a headless verifier and an explicit
+per-shape acknowledgement for intentional bleed.
+
+The slide entry now reads:
+
+```markdown
+- `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. Run `sdoc slides verify file.md --json` after authoring; fix every diagnostic, or add `bleed=allow` only to an individual shape whose off-canvas placement is intentional, then rerun until it exits 0. Use `sdoc present file.md` for the visual check that headless validation cannot perform.
+```
+
 ## v17 (unreleased)
 
 **Reason:** Cloud push now merges against the revision an agent edited and

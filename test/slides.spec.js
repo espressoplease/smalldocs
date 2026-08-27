@@ -41,6 +41,18 @@ test.describe('Slide rendering pipeline', () => {
     expect(inline).toBe('');
   });
 
+  test('inline \\n renders as a visible line break in shape text', async ({ page }) => {
+    await renderBody(page, slideDoc('grid 100 56.25\nr 20 10 60 30 | Today\\nChoose an action'));
+    const text = await page.$eval('.sdoc-slide .shape-md', (host) => {
+      const paragraph = host.shadowRoot && host.shadowRoot.querySelector('p');
+      return paragraph ? {
+        value: paragraph.innerText,
+        whiteSpace: getComputedStyle(paragraph).whiteSpace,
+      } : null;
+    });
+    expect(text).toEqual({ value: 'Today\nChoose an action', whiteSpace: 'pre-wrap' });
+  });
+
   test('size=18px emits 18px at the reference size', async ({ page }) => {
     await renderBody(page, slideDoc('grid 100 56.25\nr 10 10 80 20 size=18px | caption'));
     const fs = await page.$eval('.sdoc-slide .shape-rect', (el) => el.style.fontSize);
@@ -125,6 +137,14 @@ test.describe('Slide rendering pipeline', () => {
     const btn = await page.$('.sdoc-slide-errbadge-copy');
     expect(btn).not.toBeNull();
     expect(await btn.textContent()).toBe('Copy');
+  });
+
+  test('bleed=allow dismisses only the acknowledged bounds error', async ({ page }) => {
+    const body = '# Deck\n\n```slide\ngrid 100 56.25\n'
+      + 'c 84 10 18 fill=#20A39E bleed=allow\n'
+      + 'c 91 46 27 fill=#EF6F6C bleed=allow\n```\n';
+    await renderBody(page, body);
+    expect(await page.$('.sdoc-slide-errbadge')).toBeNull();
   });
 
   test('error badge Copy button writes slide index + errors + DSL fence to clipboard', async ({ page, context }) => {

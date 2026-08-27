@@ -193,8 +193,8 @@
   },
   "sdocs-shapes.js": {
     "source": "public/sdocs-shapes.js",
-    "sha256": "2732048c0f07bcaeb00a23a9f5a6a769c42d0ad2df814b4dcba02a36b2dc18fc",
-    "sourceSha256": "1cc5a870ab9f26af13d2537d0af98ac10f82d083b76a26337704638bd82dae68",
+    "sha256": "9c2e7266f177aacd294be18365aa43b20ddabc0f5e578e5b4c4dcde589385dcc",
+    "sourceSha256": "4afd41f1f123898b02bdbdfed8fcf1e6ad720b87667b9780735f7e805a5f056a",
     "transform": "manual-sdk-adapter"
   },
   "sdocs-slide-resolve.js": {
@@ -205,8 +205,8 @@
   },
   "sdocs-shape-render.js": {
     "source": "public/sdocs-shape-render.js",
-    "sha256": "a29b532ca7a114bbe4e2ee3bc61a946ccd5c151b48e2da4000d8c5e6786a5610",
-    "sourceSha256": "2d8afb91617b3743657d323872ee88954214ac72456fd923784b67393b969d3d",
+    "sha256": "4492656bd38d2f38defec71d45ec9e6906a4cdb7ac1314646763bebfa70da1ec",
+    "sourceSha256": "30e956845dcfde01969d0e6933bfbcc6536ef21dedb32ddfc1bc95757543b68e",
     "transform": "manual-sdk-adapter"
   },
   "sdocs-slide-pdf.js": {
