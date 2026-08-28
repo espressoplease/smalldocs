@@ -298,6 +298,14 @@ test('Cloud settings navigation and panels fit a phone viewport', async ({ page 
   expect(tabsBox.x + tabsBox.width).toBeLessThanOrEqual(390);
   expect(initialMainBox.y).toBeGreaterThanOrEqual(44);
   await expect(page.getByRole('button', { name: 'Connected machines' })).toContainText('Machines');
+  const tabs = await Promise.all(['Overview', 'People', 'Connected machines', 'Billing'].map(name =>
+    page.getByRole('button', { name }).boundingBox()));
+  expect(Math.abs(tabs[0].y - tabs[1].y)).toBeLessThan(2);
+  expect(tabs[2].y).toBeGreaterThanOrEqual(tabs[0].y + tabs[0].height);
+  expect(Math.abs(tabs[2].y - tabs[3].y)).toBeLessThan(2);
+  for (const panelName of ['Overview', 'People', 'Connected machines', 'Billing']) {
+    await expect(page.getByRole('button', { name: panelName })).toHaveCSS('border-top-width', '1px');
+  }
   const tabWidths = await page.locator('.settings-nav').evaluate(element => ({
     client: element.clientWidth, scroll: element.scrollWidth,
   }));
