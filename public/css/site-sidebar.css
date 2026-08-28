@@ -14,6 +14,11 @@ body.sdocs-site-shell > .statusbar {
   display: none;
 }
 
+body.sdocs-site-shell .cloud-library-nav .library-scope,
+body.sdocs-site-shell .library-onboarding-nav {
+  display: none;
+}
+
 .sdocs-site-sidebar {
   position: fixed;
   inset: 0 auto 0 0;

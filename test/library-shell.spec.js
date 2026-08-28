@@ -31,45 +31,19 @@ async function installToggleOnConnect(page) {
   });
 }
 
-test('Local Connect and Cloud onboarding use the same centered column and location toggle', async ({ page }) => {
+test('Local Connect and Cloud onboarding use the sidebar instead of a duplicate location toggle', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/connect');
   await installToggleOnConnect(page);
-  const local = await page.evaluate(() => {
-    const shell = document.querySelector('.library-page-shell').getBoundingClientRect();
-    const content = document.querySelector('.connect-content').getBoundingClientRect();
-    const nav = document.querySelector('.library-onboarding-nav').getBoundingClientRect();
-    const options = Array.from(document.querySelectorAll('.library-scope-option')).map(element => {
-      const rect = element.getBoundingClientRect();
-      return { width: rect.width, height: rect.height };
-    });
-    return { left: shell.left, width: shell.width, contentLeft: content.left,
-      contentWidth: content.width, navLeft: nav.left, navWidth: nav.width, options };
-  });
+  await expect(page.locator('.library-onboarding-nav')).toBeHidden();
+  await expect(page.locator('.sdocs-site-sidebar-row.is-active')).toContainText('Local library');
+
   await page.goto('/public/library/library.html?scope=cloud');
   await page.addStyleTag({ url: '/public/library/cloud-library-prototype.css' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
   await page.addScriptTag({ url: '/public/library/cloud-library-prototype.js' });
-  const cloud = await page.evaluate(() => {
-    const shell = document.querySelector('.container').getBoundingClientRect();
-    const content = document.querySelector('.cloud-onboarding').getBoundingClientRect();
-    const nav = document.querySelector('.cloud-library-nav').getBoundingClientRect();
-    const options = Array.from(document.querySelectorAll('.library-scope-option')).map(element => {
-      const rect = element.getBoundingClientRect();
-      return { width: rect.width, height: rect.height };
-    });
-    return { left: shell.left, width: shell.width, contentLeft: content.left,
-      contentWidth: content.width, navLeft: nav.left, navWidth: nav.width, options };
-  });
-
-  expect(local.left).toBe(cloud.left);
-  expect(local.width).toBe(cloud.width);
-  expect(local.contentLeft).toBe(cloud.contentLeft);
-  expect(local.contentWidth).toBe(cloud.contentWidth);
-  expect(local.navLeft).toBe(cloud.navLeft);
-  expect(local.navWidth).toBe(cloud.navWidth);
-  expect(local.options).toEqual(cloud.options);
-  expect(local.options.map(option => option.height)).toEqual([30, 30]);
+  await expect(page.locator('.cloud-library-nav .library-scope')).toBeHidden();
+  await expect(page.locator('.sdocs-site-sidebar-row.is-active')).toContainText('Cloud library');
 });
 
 test('signed-out Cloud Library provides the full onboarding flow', async ({ page }) => {
