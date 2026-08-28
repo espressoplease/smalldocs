@@ -9,7 +9,7 @@
   var COMMENT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>';
   var AGENT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7.5 8 10l2 2.5"/><path d="m14 7.5 2 2.5-2 2.5"/><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
 
-  var RESERVED = { chart: 1, mermaid: 1, cells: 1, form: 1, math: 1, slide: 1, slides: 1 };
+  var RESERVED = { chart: 1, mermaid: 1, cells: 1, form: 1, math: 1, slide: 1, slides: 1, 'sdoc-app': 1 };
 
   function languageOf(code) {
     var match = (code && code.className || '').match(/(?:^|\s)language-([\w+#-]+)/i);

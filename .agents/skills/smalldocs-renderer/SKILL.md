@@ -32,7 +32,7 @@ Do not infer an application's preferred reading behavior. A report, compact answ
 
 Keep configuration stable for the lifetime of a view. `view.update(markdown)` replaces content, not options. Destroy and create a new view when the application needs a different behavior configuration.
 
-Pass the finished Markdown unchanged. Do not parse rich fences in host code or declare capabilities before inference. SmallDocs discovers code, math, Mermaid, charts, cells, slides, and video from the content.
+Pass the finished Markdown unchanged. Do not parse rich fences in host code or declare capabilities before inference. SmallDocs discovers code, math, Mermaid, charts, cells, slides, runnable HTML, and video from the content.
 
 Reuse the application's existing components, tokens, dimensions, colours, typography, spacing, states, and responsive behavior before inventing SDK-specific UI. Reposition an existing pattern when needed. Add a new pattern only when the interaction is materially different.
 
@@ -46,8 +46,8 @@ If the application also needs an agent to write SmallDocs Markdown, install `sma
 - Do not add comments, editing, Cloud storage, or surrounding SmallDocs application chrome.
 - Do not invent keys, accounts, npm packages, framework wrappers, or API options not in the reference.
 - Do not add image upload, proxying, or hosting. Discuss a first-party image pipeline before designing one.
-- Do not enable agent-authored JavaScript. `sdoc-app` is a reserved future boundary and ordinary `html` fences remain code listings.
+- Keep agent-authored JavaScript inside `sdoc-app` frames. Ordinary `html` fences remain code listings.
 
 ## Verification
 
-Verify ordinary Markdown, unsafe HTML sanitisation, CSS overrides, multiple instances, update, destroy, fullscreen, relevant file downloads, and a document containing several rich feature types. Exercise the selected navigation and section configuration directly. Confirm a plain document does not request unrelated rich dependencies and SDK CSS does not restyle host elements outside the mount.
+Verify ordinary Markdown, unsafe HTML sanitisation, CSS overrides, multiple instances, update, destroy, fullscreen, relevant file downloads, runnable HTML isolation and state preservation, and a document containing several rich feature types. Exercise the selected navigation and section configuration directly. Confirm a plain document does not request unrelated rich dependencies and SDK CSS does not restyle host elements outside the mount.

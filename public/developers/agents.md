@@ -36,7 +36,7 @@ Write for a product manager who needs to decide what enters the next sprint.
 
 ### 2. Teach the agent the output format
 
-Install `smalldocs-author` and add the SmallDocs instruction shown above. The skill routes the agent to exact references for ordinary Markdown, code, math, diagrams, charts, computed cells, slides, video, and document styles.
+Install `smalldocs-author` and add the SmallDocs instruction shown above. The skill routes the agent to exact references for ordinary Markdown, code, math, diagrams, charts, computed cells, slides, runnable HTML, video, and document styles.
 
 One result can mix any of these formats. Use slides when the requested output is a presentation; the slide reference includes custom shapes for explaining concepts visually.
 

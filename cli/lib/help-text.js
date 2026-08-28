@@ -22,6 +22,7 @@ USAGE
   sdoc charts                      Chart types, options, and styling guide
   sdoc diagrams                    Mermaid diagrams reference (\`\`\`mermaid blocks)
   sdoc videos                      YouTube embed reference (\`\`\`video blocks)
+  sdoc apps                        Runnable HTML reference (\`\`\`sdoc-app blocks)
   sdoc cells                       Inline spreadsheet reference (\`\`\`cells blocks)
   sdoc code                        Syntax highlighting + code-viewer reference
   sdoc app.rb / server.js / ...    Open a source file as a highlighted listing
@@ -982,6 +983,62 @@ SECURITY
   itself. Anything that is not a recognised YouTube URL or a valid id
   renders as an inline error, never an embed. Treat block source as
   untrusted - it travels in the URL hash with the rest of the document.
+`;
+
+
+const APPS_HELP = `
+SmallDocs - Runnable HTML
+========================
+Run a self-contained HTML document inside Markdown using a \`\`\`sdoc-app
+fenced code block. The component appears inline and can expand to fill the
+browser window. Use this for interactive models, calculators, simulations,
+and other agent-authored browser tools.
+
+BASIC SYNTAX
+  \`\`\`sdoc-app
+  <!doctype html>
+  <html>
+  <head>
+    <title>Counter</title>
+    <style>
+      body { font: 16px system-ui; padding: 24px; }
+    </style>
+  </head>
+  <body>
+    <button id="count">Count: 0</button>
+    <script>
+      let value = 0;
+      count.onclick = () => count.textContent = 'Count: ' + (++value);
+    </script>
+  </body>
+  </html>
+  \`\`\`
+
+AUTHORING
+  - Put one complete HTML document in each block.
+  - Use <title> to name the component in its toolbar and fullscreen view.
+  - CSS, inline JavaScript, canvas, SVG, forms, and browser-native controls work.
+  - Package required data and code in the document when the component should
+    keep working without an external service.
+  - An ordinary \`\`\`html fence remains a highlighted source listing.
+
+VIEWING
+  The component starts inline. Its height follows the document between 320px
+  and 760px. Expand opens the same running frame fullscreen, so its current
+  inputs and JavaScript state remain in place. When a document has several
+  components, Previous and Next move between them.
+
+BROWSER BOUNDARY
+  Component code runs in a sandboxed frame. It cannot read the SmallDocs page,
+  browser storage for smalldocs.org, or account controls. Scripts can use forms,
+  modals, downloads, and popups. Network requests still leave the browser and
+  are subject to the destination's CORS rules, so a document can communicate
+  with services that allow it.
+
+FAILURE BEHAVIOUR
+  If the runner cannot start or does not respond within 15 seconds, SmallDocs
+  leaves the component source readable in an error panel. Re-rendering or
+  destroying an SDK instance removes its frames and event listeners.
 `;
 
 
@@ -3083,4 +3140,4 @@ SUPPORTED LANGUAGES
   they appear. An unknown language label renders as plain text.
 `;
 
-module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, VIDEOS_HELP, CELLS_HELP, CODE_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };
+module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, VIDEOS_HELP, APPS_HELP, CELLS_HELP, CODE_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };

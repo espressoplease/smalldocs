@@ -1068,7 +1068,7 @@ function documentCsp(nonce, frameAncestors) {
     // These loopback origins support the local Bridge and Library agents.
     // Their session and connection checks remain active in the embedded shell.
     "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*",
-    "frame-src https://www.youtube-nocookie.com",
+    "frame-src 'self' https://www.youtube-nocookie.com",
     "object-src 'none'",
   ];
   if (frameAncestors) policy.push('frame-ancestors ' + frameAncestors);
@@ -3069,6 +3069,7 @@ const server = http.createServer((req, res) => {
     'authoring/cells': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'cells.md'),
     'authoring/slides': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'slides.md'),
     'authoring/slide-shapes': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'slide-shapes.md'),
+    'authoring/apps': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'apps.md'),
     'authoring/video': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'video.md'),
     'authoring/styles': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'styles.md'),
   };
@@ -3186,7 +3187,7 @@ const server = http.createServer((req, res) => {
       },
       {
         name: 'smalldocs-author',
-        description: 'Create finished SmallDocs Markdown for an application using the SmallDocs renderer. Use when an agent must produce a readable report or rich document containing diagrams, charts, computed cells, slides, math, code, video, navigation, or document styling. Do not use for integrating the renderer SDK itself.',
+        description: 'Create finished SmallDocs Markdown for an application using the SmallDocs renderer. Use when an agent must produce a readable report or rich document containing diagrams, charts, computed cells, slides, runnable HTML, math, code, video, navigation, or document styling. Do not use for integrating the renderer SDK itself.',
         files: [
           'SKILL.md',
           'references/markdown.md',
@@ -3197,6 +3198,7 @@ const server = http.createServer((req, res) => {
           'references/cells.md',
           'references/slides.md',
           'references/slide-shapes.md',
+          'references/apps.md',
           'references/video.md',
           'references/styles.md',
         ],
@@ -3246,7 +3248,7 @@ const server = http.createServer((req, res) => {
       : new Set([
         'SKILL.md', 'references/markdown.md', 'references/code.md', 'references/math.md',
         'references/diagrams.md', 'references/charts.md', 'references/cells.md',
-        'references/slides.md', 'references/slide-shapes.md', 'references/video.md',
+        'references/slides.md', 'references/slide-shapes.md', 'references/apps.md', 'references/video.md',
         'references/styles.md',
       ]);
     if (!allowedSkillFiles.has(skillRelativePath)) {
@@ -3303,7 +3305,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const nativeSdkMatch = /^\/sdk\/0\.2\.0\/(smalldocs\.js|smalldocs\.css|prose-reader\.css|code-reader\.css|slide-reader\.css|core\.js|assets\.js|runtime\.js|overlay\.js|download\.js|mermaid-renderer\.js|features\/(?:code|math|video|charts|mermaid|cells|slides|highlight)\.js|vendor\/(?:marked\.esm\.js|purify\.es\.mjs|fonts\/inter-(?:400|500|600)\.woff2|sdocs-(?:prose-reader|code-reader|slide-reader|video-reader|math-reader|mermaid-reader|mermaid-worker|chart-reader|cells)\.css|sdocs-code-lang\/[\w-]+\.js|sdocs-(?:yaml|styles|slugify|marked-del-core|math-core|highlight-core|prose-reader|code-reader|code-focus|slide-reader|present|present-mobile|zoom-math|mermaid|mermaid-focus|charts|cells|cells-formula|cells-xlsx|cells-controller|cells-select|cells-edit|cells-focus|cells-ui|shapes|slide-stdlib|slide-resolve|shape-render|slide-pdf|slide-pptx|video|icons-data)\.js))$/.exec(pathname);
+  if (pathname === '/sdk/0.2.0/vendor/sdocs-app-runner.html') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'sdk', 'browser', 'native', 'vendor', 'sdocs-app-runner.html'), null, {
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return;
+  }
+
+  const nativeSdkMatch = /^\/sdk\/0\.2\.0\/(smalldocs\.js|smalldocs\.css|prose-reader\.css|code-reader\.css|slide-reader\.css|core\.js|assets\.js|runtime\.js|overlay\.js|download\.js|mermaid-renderer\.js|features\/(?:code|math|video|charts|mermaid|cells|slides|apps|highlight)\.js|vendor\/(?:marked\.esm\.js|purify\.es\.mjs|fonts\/inter-(?:400|500|600)\.woff2|sdocs-(?:prose-reader|code-reader|slide-reader|video-reader|math-reader|mermaid-reader|mermaid-worker|chart-reader|cells|html-component-reader)\.css|sdocs-code-lang\/[\w-]+\.js|sdocs-(?:yaml|styles|slugify|marked-del-core|math-core|highlight-core|prose-reader|code-reader|code-focus|slide-reader|present|present-mobile|zoom-math|mermaid|mermaid-focus|charts|cells|cells-formula|cells-xlsx|cells-controller|cells-select|cells-edit|cells-focus|cells-ui|shapes|slide-stdlib|slide-resolve|shape-render|slide-pdf|slide-pptx|video|icons-data|html-components|app-runner)\.js))$/.exec(pathname);
   if (nativeSdkMatch) {
     serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'native', nativeSdkMatch[1]), {
       'Cache-Control': 'public, max-age=31536000, immutable',
@@ -3346,6 +3357,24 @@ const server = http.createServer((req, res) => {
     }, {
       'Cache-Control': 'no-cache',
       'Content-Security-Policy': documentCsp(nonce, parentOrigin),
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return;
+  }
+
+  if (pathname === '/sdoc-app-runner/runner.html') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'sdocs-app-runner.html'), null, {
+      'Cache-Control': 'no-cache',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return;
+  }
+
+  if (pathname === '/sdoc-app-runner/sdocs-app-runner.js') {
+    serveFile(req, res, path.join(__dirname, 'public', 'sdocs-app-runner.js'), {
+      'Cache-Control': 'no-cache',
       'Cross-Origin-Resource-Policy': 'cross-origin',
       'X-Content-Type-Options': 'nosniff',
     });

@@ -171,15 +171,17 @@ Keep overrides under the mount so another renderer and the surrounding applicati
 
 Send one Markdown string after inference. No envelope or capability declaration is required.
 
-The renderer supports ordinary Markdown, navigation, code, math, Mermaid, charts, cells and workbooks, custom-shape slides, and supported video fences. The document reader and these rich surfaces use the same canonical rendering components as the SmallDocs application. Feature discovery and loading are content-driven. Unknown fences remain readable source.
+The renderer supports ordinary Markdown, navigation, code, math, Mermaid, charts, cells and workbooks, custom-shape slides, runnable HTML, and supported video fences. The document reader and these rich surfaces use the same canonical rendering components as the SmallDocs application. Feature discovery and loading are content-driven. Unknown fences remain readable source.
 
 Form submission, comments, Markdown editing, Cloud storage, application chrome, and a first-party image pipeline are outside this release. A `form` fence remains readable source until the SDK has a host submission contract.
 
 ## Security
 
-The SDK parses Markdown, sanitises the resulting HTML, and mounts the cleaned document into the host DOM. It removes script tags, event handlers, embedded frames, unsafe URLs, and similar executable content.
+The SDK parses Markdown, sanitises the resulting HTML, and mounts the cleaned document into the host DOM. It removes script tags, event handlers, embedded frames, unsafe URLs, and similar executable content from ordinary document markup.
 
-SmallDocs JavaScript has the privileges of the host page, like other third-party browser SDKs. Pin the versioned URL and include it in dependency review. Agent-authored executable blocks are disabled in `0.2.0`.
+SmallDocs JavaScript has the privileges of the host page, like other third-party browser SDKs. Pin the versioned URL and include it in dependency review.
+
+A `sdoc-app` fence is the explicit executable form. Its complete HTML document runs in a sandboxed frame served by SmallDocs. Scripts, forms, modals, downloads, and popups are available, but the frame receives neither same-origin access nor top-level navigation. It cannot read or modify the host page, storage, cookies, or account controls. Network requests remain possible when the host policy and destination CORS rules allow them.
 
 The experimental build loads rich dependencies from jsDelivr. Merge these origins into an existing Content Security Policy when needed:
 
@@ -190,7 +192,7 @@ font-src https://cdn.jsdelivr.net
 frame-src https://smalldocs.org https://www.youtube-nocookie.com
 ```
 
-The SmallDocs frame origin is needed for Mermaid rendering. The YouTube origin is needed only for supported video fences. Remote document images require their host in the application's `img-src` directive.
+The SmallDocs frame origin is needed for Mermaid rendering and runnable HTML frames. The YouTube origin is needed only for supported video fences. Remote document images require their host in the application's `img-src` directive. Requests made by runnable HTML also need the relevant origin in the host policy.
 
 If the application enforces Trusted Types, allow the `smalldocs-sdk-0.2.0` and `dompurify` policy names.
 

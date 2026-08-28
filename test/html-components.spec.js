@@ -1,0 +1,120 @@
+// @ts-check
+const { test, expect } = require('@playwright/test');
+
+async function loadDoc(page, markdown) {
+  await page.goto('/new');
+  await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
+  await page.evaluate((source) => {
+    window.SDocs.setMode('read', true);
+    window.SDocs.loadText(source, 'html-components.md');
+  }, markdown);
+  await page.waitForSelector('.sdoc-app-frame');
+}
+
+function app(source) {
+  return '```sdoc-app\n' + source + '\n```';
+}
+
+const counterApp = `<!doctype html>
+<html><head><title>Counter surface</title></head>
+<body><button id="count">0</button><script>
+document.getElementById('count').addEventListener('click', function () {
+  this.textContent = String(Number(this.textContent) + 1);
+});
+</script></body></html>`;
+
+test('runs a complete HTML document with JavaScript inline', async ({ page }) => {
+  await loadDoc(page, app(counterApp));
+  await expect(page.locator('.sdoc-app-title')).toHaveText('Counter surface');
+  const component = page.frameLocator('.sdoc-app-frame-inline');
+  await expect(component.locator('#count')).toHaveText('0');
+  await component.locator('#count').click();
+  await expect(component.locator('#count')).toHaveText('1');
+
+  await expect(page.locator('.sdoc-app-frame')).toHaveAttribute(
+    'sandbox',
+    'allow-scripts allow-forms allow-modals allow-downloads allow-popups'
+  );
+  await expect(page.locator('#_sd_rendered code.language-sdoc-app')).toHaveCount(0);
+});
+
+test('ordinary html fences remain readable source', async ({ page }) => {
+  await page.goto('/new');
+  await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
+  await page.evaluate((source) => window.SDocs.loadText(source, 'ordinary-html.md'),
+    '```html\n<button onclick="window.ran=true">Source only</button>\n```');
+  await expect(page.locator('code.language-html')).toContainText('Source only');
+  await expect(page.locator('.sdoc-app-frame')).toHaveCount(0);
+  expect(await page.evaluate(() => window.ran)).toBeUndefined();
+});
+
+test('component cannot reach the SmallDocs parent document', async ({ page }) => {
+  const source = `<!doctype html><html><head><title>Isolated app</title></head><body>
+<output id="result">checking</output><script>
+try {
+  parent.document.body.dataset.componentCompromised = 'yes';
+  document.getElementById('result').textContent = 'parent reached';
+} catch (error) {
+  document.getElementById('result').textContent = 'isolated';
+}
+</script></body></html>`;
+  await loadDoc(page, app(source));
+  await expect(page.frameLocator('.sdoc-app-frame').locator('#result')).toHaveText('isolated');
+  expect(await page.locator('body').getAttribute('data-component-compromised')).toBeNull();
+});
+
+test('fullscreen keeps the live component state and restores it inline', async ({ page }) => {
+  await loadDoc(page, app(counterApp));
+  const inline = page.frameLocator('.sdoc-app-frame-inline');
+  await inline.locator('#count').click();
+  await inline.locator('#count').click();
+  await expect(inline.locator('#count')).toHaveText('2');
+
+  await page.getByRole('button', { name: 'Open Counter surface in fullscreen' }).click();
+  await expect(page.locator('.sdoc-app-focus')).toBeVisible();
+  await expect(page.frameLocator('.sdoc-app-frame-fullscreen').locator('#count')).toHaveText('2');
+  await page.frameLocator('.sdoc-app-frame-fullscreen').locator('#count').click();
+  await page.getByRole('button', { name: 'Close fullscreen' }).click();
+
+  await expect(page.locator('.sdoc-app-focus')).toHaveCount(0);
+  await expect(page.frameLocator('.sdoc-app-frame-inline').locator('#count')).toHaveText('3');
+});
+
+test('fullscreen gallery moves between multiple components', async ({ page }) => {
+  const first = '<!doctype html><html><head><title>First app</title></head><body><h1>Alpha</h1></body></html>';
+  const second = '<!doctype html><html><head><title>Second app</title></head><body><h1>Beta</h1></body></html>';
+  await loadDoc(page, app(first) + '\n\n' + app(second));
+  await page.getByRole('button', { name: 'Open First app in fullscreen' }).click();
+  await expect(page.locator('.sdoc-app-focus-counter')).toHaveText('1 / 2');
+  await expect(page.frameLocator('.sdoc-app-frame-fullscreen').locator('h1')).toHaveText('Alpha');
+
+  await page.getByRole('button', { name: 'Next component' }).click();
+  await expect(page.locator('.sdoc-app-focus-counter')).toHaveText('2 / 2');
+  await expect(page.locator('.sdoc-app-focus-title')).toHaveText('Second app');
+  await expect(page.frameLocator('.sdoc-app-frame-fullscreen').locator('h1')).toHaveText('Beta');
+
+  await page.getByRole('button', { name: 'Previous component' }).click();
+  await expect(page.frameLocator('.sdoc-app-frame-fullscreen').locator('h1')).toHaveText('Alpha');
+});
+
+test('inline auto-height is capped and fullscreen ignores size reports', async ({ page }) => {
+  const tall = '<!doctype html><html><head><title>Tall app</title></head><body style="margin:0;height:1400px">Tall</body></html>';
+  await loadDoc(page, app(tall));
+  await expect.poll(async () => page.locator('.sdoc-app-frame-inline').evaluate((frame) => frame.getBoundingClientRect().height)).toBe(760);
+  await page.getByRole('button', { name: 'Open Tall app in fullscreen' }).click();
+  const fullscreenHeight = await page.locator('.sdoc-app-frame-fullscreen').evaluate((frame) => frame.getBoundingClientRect().height);
+  const viewportHeight = page.viewportSize().height;
+  expect(fullscreenHeight).toBe(viewportHeight - 66);
+});
+
+test('rerender removes fullscreen and old component browsing contexts', async ({ page }) => {
+  await loadDoc(page, app(counterApp));
+  await page.getByRole('button', { name: 'Open Counter surface in fullscreen' }).click();
+  await page.evaluate(() => {
+    window.SDocs.currentBody = '# Replacement\n\nThe component is gone.';
+    window.SDocs.render();
+  });
+  await expect(page.locator('.sdoc-app-focus')).toHaveCount(0);
+  await expect(page.locator('.sdoc-app-frame')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Replacement' })).toBeVisible();
+});

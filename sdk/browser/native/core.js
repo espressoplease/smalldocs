@@ -130,6 +130,7 @@ const featureDefinitions = [
   { name: 'mermaid', detect: (root) => root.querySelector('code.language-mermaid') },
   { name: 'cells', detect: (root) => root.querySelector('code.language-cells') },
   { name: 'slides', detect: (root) => root.querySelector('code.language-slide, code.language-slides') },
+  { name: 'apps', detect: (root) => root.querySelector('code.language-sdoc-app') },
   { name: 'highlight', detect: (root) => Array.from(root.querySelectorAll('pre code[class*="language-"]')).some((code) => !RESERVED_LANGUAGES.has(codeLanguage(code))) },
 ];
 
@@ -141,6 +142,7 @@ function featureFallback(context, feature, error) {
     mermaid: 'code.language-mermaid',
     cells: 'code.language-cells',
     slides: 'code.language-slide, code.language-slides',
+    apps: 'code.language-sdoc-app',
   };
   const selector = selectors[feature.name];
   if (!selector) return;

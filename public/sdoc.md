@@ -286,6 +286,33 @@ Supports 13 chart types: pie, doughnut, bar, horizontal bar, stacked bar, line, 
 
 Style chart colors via `chart.accent` and `chart.palette` in front matter. Run `sdoc charts` for the full reference of types, options, and styling.
 
+### Interactive HTML
+
+Run a self-contained browser tool inside a document with a `sdoc-app` fence. It appears inline and can expand to fill the window. If a page contains several components, the fullscreen toolbar adds Previous and Next controls.
+
+````
+~~~sdoc-app
+<!doctype html>
+<html>
+<head>
+  <title>Counter</title>
+  <style>body { font: 16px system-ui; padding: 24px; }</style>
+</head>
+<body>
+  <button id="count">Count: 0</button>
+  <script>
+    let value = 0;
+    count.onclick = () => count.textContent = `Count: ${++value}`;
+  </script>
+</body>
+</html>
+~~~
+````
+
+The `<title>` names the component in its toolbar. CSS, JavaScript, canvas, SVG, forms, downloads, and browser-native controls work. Expanding moves the same running frame into fullscreen, so inputs and JavaScript state stay in place. An ordinary `html` fence remains a highlighted source listing.
+
+Component code runs in a sandboxed frame and cannot reach the SmallDocs page, its account controls, or storage for smalldocs.org. Network requests still leave the browser and follow the destination's CORS rules. Run `sdoc apps` for the complete authoring and runtime reference.
+
 ### Sheets
 
 Render spreadsheets in markdown using ` ```cells ` code blocks: CSV rows where plain values and `=formulas` sit in the same grid and compute live.

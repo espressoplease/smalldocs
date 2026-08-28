@@ -1,0 +1,266 @@
+@layer smalldocs {
+@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {
+/* Canonical inline and fullscreen surfaces for runnable `sdoc-app` blocks. */
+.sdoc-app,
+.sdoc-app *,
+.sdoc-app-focus,
+.sdoc-app-focus * {
+  box-sizing: border-box;
+}
+
+.sdoc-app {
+  display: grid;
+  grid-template-rows: 38px auto;
+  width: 100%;
+  min-width: 0;
+  margin: 1.2em 0;
+  overflow: hidden;
+  background: var(--md-bg, #fff);
+  border: 1px solid color-mix(in srgb, var(--md-color, #1c1917) 14%, transparent);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+}
+
+.sdoc-app-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0 6px 0 12px;
+  color: var(--md-muted, #6b7280);
+  background: var(--md-code-bg, #f6f5f2);
+  border-bottom: 1px solid color-mix(in srgb, var(--md-color, #1c1917) 11%, transparent);
+  font: 12px/1.2 ui-sans-serif, system-ui, sans-serif;
+}
+
+.sdoc-app-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sdoc-app-expand,
+.sdoc-app-focus-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.sdoc-app-expand {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--md-color, #1c1917);
+  background: transparent;
+  border: 1px solid var(--md-copy-btn-border, rgba(0, 0, 0, .12));
+  opacity: .72;
+  transition: opacity .15s, background .12s;
+}
+
+.sdoc-app:hover .sdoc-app-expand,
+.sdoc-app-expand:hover,
+.sdoc-app-expand:focus {
+  opacity: 1;
+}
+
+.sdoc-app-expand:hover {
+  background: var(--md-copy-btn-hover, rgba(0, 0, 0, .05));
+}
+
+.sdoc-app-expand:focus-visible,
+.sdoc-app-focus-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.sdoc-app-frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.sdoc-app-frame-inline {
+  min-height: 320px;
+  height: 480px;
+}
+
+.sdoc-app-status {
+  padding: 7px 10px;
+  color: var(--md-muted, #6b7280);
+  background: var(--md-code-bg, #f6f5f2);
+  border-top: 1px solid color-mix(in srgb, var(--md-color, #1c1917) 11%, transparent);
+  font: 11px/1.35 ui-monospace, Menlo, monospace;
+}
+
+.sdoc-app-status[hidden] {
+  display: none;
+}
+
+.sdoc-app-placeholder {
+  padding: 42px 16px;
+  color: var(--md-muted, #6b7280);
+  background: var(--md-bg, #fff);
+  text-align: center;
+  font: 12px/1.4 ui-sans-serif, system-ui, sans-serif;
+}
+
+.sdoc-app-placeholder[hidden] {
+  display: none;
+}
+
+.sdoc-app-failure-source {
+  padding: 8px 12px 12px;
+  color: var(--md-color, #1c1917);
+  background: var(--md-code-bg, #f6f5f2);
+  font: 12px/1.4 ui-sans-serif, system-ui, sans-serif;
+}
+
+.sdoc-app-failure-source summary {
+  cursor: pointer;
+}
+
+.sdoc-app-failure-source pre {
+  max-height: 320px;
+  margin: 8px 0 0;
+  overflow: auto;
+}
+
+.sdoc-app-focus {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  grid-template-rows: 42px minmax(0, 1fr);
+  color: #e7e5e2;
+  background: #0b0a09;
+  font: 13px/1.2 ui-sans-serif, system-ui, sans-serif;
+  animation: sdoc-app-focus-fade .15s ease-out;
+}
+
+@keyframes sdoc-app-focus-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sdoc-app-focus-bar {
+  position: relative;
+  z-index: 10002;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0 8px 0 12px;
+  background: #131210;
+  border-bottom: 1px solid #2a2724;
+}
+
+.sdoc-app-focus-brand {
+  flex: 0 0 auto;
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.sdoc-app-focus-title {
+  min-width: 0;
+  overflow: hidden;
+  color: #d6d3d1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sdoc-app-focus-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.sdoc-app-focus-button {
+  color: #d6d3d1;
+  background: transparent;
+  border: 0;
+  transition: color .12s, background .12s;
+}
+
+.sdoc-app-focus-button:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, .09);
+}
+
+.sdoc-app-focus-button:disabled {
+  cursor: default;
+  opacity: .3;
+}
+
+.sdoc-app-focus-counter {
+  min-width: 42px;
+  color: #8a8580;
+  text-align: center;
+  font: 11px/1 ui-monospace, Menlo, monospace;
+}
+
+.sdoc-app-focus-stage {
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+}
+
+.sdoc-app-frame-fullscreen {
+  position: fixed;
+  z-index: 10001;
+  top: 54px;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  width: calc(100% - 24px);
+  height: calc(100% - 66px);
+  border-radius: 7px;
+}
+
+body.sdoc-app-focus-open {
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .sdoc-app-focus-bar {
+    gap: 6px;
+    padding-left: 8px;
+  }
+
+  .sdoc-app-focus-brand {
+    font-size: 0;
+  }
+
+  .sdoc-app-focus-brand::after {
+    content: 'SDoc';
+    font-size: 13px;
+  }
+
+  .sdoc-app-focus-title {
+    font-size: 12px;
+  }
+
+  .sdoc-app-focus-stage {
+    padding: 0;
+  }
+
+  .sdoc-app-frame-fullscreen {
+    top: 42px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: calc(100% - 42px);
+    border-radius: 0;
+  }
+}
+
+}
+}

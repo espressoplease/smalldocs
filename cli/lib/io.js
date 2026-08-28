@@ -9,7 +9,7 @@ const codeLangs = require('./code-langs');
 
 const SUBCOMMANDS = new Set([
   'new', 'share', 'schema', 'defaults', 'help', 'version',
-  'charts', 'diagrams', 'videos', 'video', 'cells', 'code', 'comments',
+  'charts', 'diagrams', 'videos', 'video', 'apps', 'app', 'cells', 'code', 'comments',
   'setup', 'safe', 'auto-update', 'refresh', 'upgrade',
   'bridge', 'feedback',
   'slides', 'present',

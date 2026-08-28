@@ -108,7 +108,7 @@ view.destroy();
 
 ## Supported content
 
-One Markdown string can mix ordinary Markdown, navigation, code, math, Mermaid, charts, computed cells and workbooks, custom-shape slides, and supported video fences. The SDK and the SmallDocs application use the same document and rich-feature rendering components. Feature controls include copying, fullscreen reading, and relevant file downloads such as SVG, PNG, XLSX, PDF, and PowerPoint.
+One Markdown string can mix ordinary Markdown, navigation, code, math, Mermaid, charts, computed cells and workbooks, custom-shape slides, runnable HTML, and supported video fences. The SDK and the SmallDocs application use the same document and rich-feature rendering components. Feature controls include copying, fullscreen reading, and relevant file downloads such as SVG, PNG, XLSX, PDF, and PowerPoint.
 
 Unknown fences remain readable as source. Form submission, comments, Markdown editing, Cloud storage, and surrounding application chrome are outside this SDK release. A `form` fence remains source until the SDK has a host submission contract.
 
@@ -116,11 +116,11 @@ Image upload, proxying, and hosting are not included. An HTTPS image reference r
 
 ## Security and data flow
 
-Markdown stays in the browser. The SDK parses it, sanitises the resulting HTML, and mounts the cleaned document into the selected host element. Script tags, event-handler attributes, embedded frames, unsafe URLs, and similar executable markup are removed.
+Markdown stays in the browser. The SDK parses it, sanitises the resulting HTML, and mounts the cleaned document into the selected host element. Script tags, event-handler attributes, embedded frames, unsafe URLs, and similar executable markup are removed from ordinary document content.
 
 The document is not isolated from the application by an iframe. SmallDocs code runs with the same page privileges as other third-party browser SDKs, so pin the versioned module URL and include it in the application's dependency review.
 
-Executable `sdoc-app` blocks are not part of `0.2.0`. Ordinary `html` fences remain code listings. A later executable-content contract can add a separately configured sandbox without moving the whole document back into an iframe.
+A `sdoc-app` fence is the explicit executable form. Its complete HTML document runs inside a sandboxed frame served by SmallDocs. The frame can run scripts and use forms, modals, downloads, and popups, but it receives neither same-origin access nor top-level navigation. It cannot read or modify the host page, its storage, or its account controls. Ordinary `html` fences remain code listings.
 
 If the application has a Content Security Policy, merge the required origins into its existing policy. The current experimental build loads rich dependencies from jsDelivr:
 
@@ -131,7 +131,7 @@ font-src https://cdn.jsdelivr.net
 frame-src https://smalldocs.org https://www.youtube-nocookie.com
 ```
 
-The SmallDocs origin in `frame-src` is needed for Mermaid rendering. The YouTube origin is needed only for supported video fences. An external image URL also needs its host in the application's `img-src` directive.
+The SmallDocs origin in `frame-src` is needed for Mermaid rendering and runnable HTML frames. The YouTube origin is needed only for supported video fences. An external image URL also needs its host in the application's `img-src` directive. Requests made by runnable HTML need the relevant origin in the host application's policy and remain subject to the destination's CORS rules.
 
 Applications that enforce Trusted Types should also allow `smalldocs-sdk-0.2.0` and `dompurify` in the `trusted-types` directive.
 

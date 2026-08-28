@@ -356,7 +356,7 @@ function attachCodeCopyButtons(container) {
 
 // Block types owned by other renderers - a doc that is only one of these is
 // NOT a code file (e.g. `sdoc graph.mmd` is a single ```mermaid block).
-var CODE_FILE_RESERVED = window.SDocCodeReader ? window.SDocCodeReader.RESERVED : { chart: 1, mermaid: 1, cells: 1, form: 1, math: 1, slide: 1, slides: 1 };
+var CODE_FILE_RESERVED = window.SDocCodeReader ? window.SDocCodeReader.RESERVED : { chart: 1, mermaid: 1, cells: 1, form: 1, math: 1, slide: 1, slides: 1, 'sdoc-app': 1 };
 
 // When the ENTIRE document is a single fenced code block - i.e. an opened
 // source file (`sdoc app.rb`) rather than prose with a snippet in it - return
@@ -415,6 +415,14 @@ function maybeAutoExpandCodewalk() {
 }
 
 var _pendingFoldAllOpen = null;
+var htmlComponents = window.SDocHtmlComponents && window.SDocHtmlComponents.create
+  ? window.SDocHtmlComponents.create({
+      window: window,
+      document: document,
+      runnerUrl: '/sdoc-app-runner/runner.html',
+      isActive: function () { return !!S.renderedEl; },
+    })
+  : null;
 
 // ── Render (orchestrator) ──────────────────────────────────
 
@@ -448,6 +456,7 @@ function render() {
   if (S.processMermaid) S.processMermaid(S.renderedEl);
   if (S.processVideo) S.processVideo(S.renderedEl);
   if (window.SDocSlides) window.SDocSlides.processSlides(S.renderedEl);
+  if (htmlComponents) htmlComponents.process(S.renderedEl);
   if (S.renderForms) S.renderForms(S.renderedEl);
   if (S.processCells) S.processCells(S.renderedEl);
   // Last: highlight the plain code blocks that no other processor claimed.
