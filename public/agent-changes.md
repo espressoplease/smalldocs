@@ -13,6 +13,26 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v20 (next CLI release)
+
+**Reason:** Cloud guidance now installs as an explicit replacement, so local
+users do not run Cloud checks.
+
+The standard `smalldocs` skill no longer tells every agent to inspect Cloud.
+It covers local viewing, authoring, presentation, Bridge, and encrypted share
+links without adding a Cloud command to ordinary SmallDocs tasks.
+
+After `sdoc cloud login`, the CLI prints a command that installs the
+Cloud-aware edition of the same `smalldocs` skill with `npx skills`. That
+edition tells an agent that Cloud is available and when it may be relevant,
+but it still checks live authentication and account data before reading or
+changing Cloud content. It does not encode an account, email address, or
+credential in the skill.
+
+`sdoc cloud logout` does not alter the installed skill. It prints the command
+for restoring the standard edition when the logout is intended to be
+permanent.
+
 ## v19 (1.16.0, 2026-08-28)
 
 **Reason:** Cloud guidance now matches the account-based CLI and tells agents

@@ -17,6 +17,7 @@
  *   - refresh strips a legacy open-marker block
  *   - refresh leaves a hand-edited legacy block alone
  *   - setup --yes upgrades a stale canonical skill
+ *   - setup --yes preserves the Cloud-aware edition while upgrading it
  *   - existing user content preserved when a block is stripped
  *   - multi-agent: symlinks for non-universal agents; opencode covered by canonical
  *   - dry-run prints paths and writes nothing
@@ -202,6 +203,23 @@ module.exports = function (harness) {
       assert.strictEqual(r.exitCode, 0, `exit code (stderr=${r.stderr})`);
       const skill = fx.read(skillRel);
       assert.ok(skill.includes(`<!-- sdocs-skill: v=${cli.SKILL_VERSION} -->`), 'upgraded to current version');
+    } finally { fx.cleanup(); }
+  });
+
+  scenario('setup --yes / stale Cloud-aware skill → upgraded without losing Cloud context', async () => {
+    const fx = createFixture({ agents: ['claude'] });
+    try {
+      const stale = cli.formatSkill(cli.SKILL_VERSION - 1, { cloud: true });
+      const staleFile = path.join(fx.home, skillRel);
+      fs.mkdirSync(path.dirname(staleFile), { recursive: true });
+      fs.writeFileSync(staleFile, stale);
+
+      const result = await fx.run('setup --yes');
+      assert.strictEqual(result.exitCode, 0, `exit code (stderr=${result.stderr})`);
+      const skill = fx.read(skillRel);
+      assert.ok(skill.includes(`<!-- sdocs-skill: v=${cli.SKILL_VERSION} -->`));
+      assert.ok(skill.includes('<!-- sdocs-skill-edition: cloud -->'));
+      assert.ok(skill.includes('This user has enabled SmallDocs Cloud'));
     } finally { fx.cleanup(); }
   });
 

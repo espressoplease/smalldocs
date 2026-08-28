@@ -152,6 +152,11 @@ function emit(opts, command, value, human) {
   else process.stdout.write((human || JSON.stringify(value, null, 2)) + '\n');
 }
 
+function skillInstallCommand(originValue, cloud) {
+  const edition = cloud ? 'cloud' : 'standard';
+  return 'npx skills@latest add ' + originValue + '/agent-skills/' + edition + ' --global';
+}
+
 function fail(opts, command, error) {
   const code = error.code || 'unexpected';
   const body = Object.assign({}, error.data || {},
@@ -168,11 +173,14 @@ function fail(opts, command, error) {
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 async function login(opts, client) {
+  const installCommand = skillInstallCommand(client.origin, true);
   if (client.loadCredential()) {
     try {
       const me = await client.authenticated('/api/cloud/v1/me');
-      return emit(opts, 'cloud.login', { user: me.user, already_logged_in: true },
-        'Already signed in as ' + (me.user.email || me.user.id) + '.');
+      return emit(opts, 'cloud.login', { user: me.user, already_logged_in: true,
+        skill_mode: 'cloud', skill_install_command: installCommand },
+        'Already signed in as ' + (me.user.email || me.user.id) + '.\n' +
+        'Install or refresh the Cloud-aware SmallDocs skill:\n' + installCommand);
     } catch (_) {}
   }
   const issued = await client.raw('/api/cloud/v1/cli/device-authorizations', {
@@ -197,7 +205,11 @@ async function login(opts, client) {
       refresh_token: polled.data.refresh_token };
     client.saveCredential(credential);
     return emit(opts, 'cloud.login', { user_id: credential.user_id,
-      credential_id: credential.credential_id }, 'Cloud login saved for this machine.');
+      credential_id: credential.credential_id, skill_mode: 'cloud',
+      skill_install_command: installCommand },
+    'Cloud login saved for this machine.\n' +
+    'Install the Cloud-aware SmallDocs skill so agents can discover Cloud when relevant:\n' +
+    installCommand);
   }
   throw new CloudCommandError('login_required', 'Authorization expired before it was approved.');
 }
@@ -209,7 +221,12 @@ async function logout(opts, client) {
       { method: 'DELETE' }); } catch (_) {}
     client.credentials.remove(client.origin);
   }
-  emit(opts, 'cloud.logout', { logged_out: true }, 'Signed out of SmallDocs Cloud.');
+  const restoreCommand = skillInstallCommand(client.origin, false);
+  emit(opts, 'cloud.logout', { logged_out: true, skill_unchanged: true,
+    standard_skill_install_command: restoreCommand },
+  'Signed out of SmallDocs Cloud. The installed skill was not changed.\n' +
+  'If you do not expect to use Cloud on this machine, restore the standard skill:\n' +
+  restoreCommand);
 }
 
 function filterTags(documents, tags) {
@@ -646,4 +663,4 @@ async function runCloudCommand(opts, dependencies) {
 }
 
 module.exports = { CloudClient, CloudCommandError, runCloudCommand, filterTags, origin, EXIT, CLOUD_HELP,
-  entitlementFailure };
+  entitlementFailure, skillInstallCommand };

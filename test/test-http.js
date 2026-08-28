@@ -430,6 +430,28 @@ module.exports = function(harness) {
       );
       assert.strictEqual(slideReference.status, 200);
       assert.ok(slideReference.body.includes('Visual explanation is part of normal slide authoring'));
+
+      const standardCatalog = await get(
+        BASE + '/agent-skills/standard/.well-known/agent-skills/index.json');
+      assert.strictEqual(standardCatalog.status, 200);
+      assert.strictEqual(JSON.parse(standardCatalog.body).skills[0].name, 'smalldocs');
+      const standardGlobal = await get(
+        BASE + '/agent-skills/standard/.well-known/agent-skills/smalldocs/SKILL.md');
+      assert.strictEqual(standardGlobal.status, 200);
+      assert.strictEqual(standardGlobal.headers['access-control-allow-origin'], '*');
+      assert.ok(standardGlobal.body.includes('name: smalldocs'));
+      assert.ok(!standardGlobal.body.includes('sdoc cloud status --json'));
+
+      const cloudCatalog = await get(
+        BASE + '/agent-skills/cloud/.well-known/agent-skills/index.json');
+      assert.strictEqual(cloudCatalog.status, 200);
+      assert.strictEqual(JSON.parse(cloudCatalog.body).skills[0].name, 'smalldocs');
+      const cloudGlobal = await get(
+        BASE + '/agent-skills/cloud/.well-known/agent-skills/smalldocs/SKILL.md');
+      assert.strictEqual(cloudGlobal.status, 200);
+      assert.ok(cloudGlobal.body.includes('name: smalldocs'));
+      assert.ok(cloudGlobal.body.includes('This user has enabled SmallDocs Cloud'));
+      assert.ok(cloudGlobal.body.includes('sdoc cloud status --json'));
     });
 
     await testAsync('embed shell allows only its declared customer origin to frame it', async () => {
