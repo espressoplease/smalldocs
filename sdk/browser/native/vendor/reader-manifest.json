@@ -117,12 +117,12 @@
   },
   "sdocs-charts.js": {
     "source": "public/sdocs-charts.js",
-    "sha256": "cdab290d88b4c7f23d321da391f83832fa8542fdb661e329883fecaf194f53a2"
+    "sha256": "357b89047ed0f6c59370a2add68b0d48e0de116db2db73ee1787456858677e86"
   },
   "sdocs-chart-reader.css": {
     "source": "public/css/chart-reader.css",
-    "sha256": "c7eabb1eaa817c0f95c49353c42e6a93e45997c54edbab19fe97a26077961b22",
-    "sourceSha256": "20752e819116798163ad02dacd5f1a956bb8a301829b9e797a3581041b266d99",
+    "sha256": "1338bd4ad5753fe3bde883d2d6fca26c5bc7a81be1bae81953f39d44a3539369",
+    "sourceSha256": "c4e33e693658f60d9168e059ac0536cf4be3a0d993fb511c8df49d4690170386",
     "transform": "sdk-layered-css"
   },
   "sdocs-cells.css": {
@@ -206,7 +206,7 @@
   "sdocs-shape-render.js": {
     "source": "public/sdocs-shape-render.js",
     "sha256": "4492656bd38d2f38defec71d45ec9e6906a4cdb7ac1314646763bebfa70da1ec",
-    "sourceSha256": "30e956845dcfde01969d0e6933bfbcc6536ef21dedb32ddfc1bc95757543b68e",
+    "sourceSha256": "f4a2dce56a427c094642e2aef5413632eaf2794400d9d742173bc8c70dcb6c30",
     "transform": "manual-sdk-adapter"
   },
   "sdocs-slide-pdf.js": {

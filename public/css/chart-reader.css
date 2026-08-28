@@ -1,38 +1,98 @@
 /* Canonical chart surface shared by the SmallDocs app and renderer SDK. */
 .sdoc-chart {
   margin: 1.2em 0;
+  max-width: 100%;
+  position: relative;
+}
+.sdoc-chart-plot {
+  box-sizing: border-box;
   padding: 16px;
   border-radius: var(--radius, 8px);
   background: var(--md-chart-bg, var(--md-block-bg, #F5F2EE));
-  max-width: 100%;
-  position: relative;
+}
+.sdoc-chart-has-toolbar .sdoc-chart-plot {
+  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.1));
+  border-radius: 0 0 var(--radius, 8px) var(--radius, 8px);
 }
 .sdoc-chart canvas { max-height: 400px; }
 .sdoc-chart-error { outline: 2px dashed #ef4444; }
 
-.chart-menu-btn {
-  position: absolute; top: 6px; right: 6px;
-  background: var(--md-chart-bg, var(--md-block-bg, #F5F2EE));
+.sdoc-chart-toolbar {
+  width: 100%;
+  height: 35px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 4px 6px;
+  background: transparent;
+  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.1));
+  border-bottom: 0;
+  border-radius: var(--radius, 8px) var(--radius, 8px) 0 0;
+  position: relative;
+  z-index: 3;
+}
+
+.chart-copy-btn {
+  width: auto;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 7px;
+  background: transparent;
   border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.1));
   border-radius: 4px;
-  padding: 3px 5px;
+  color: var(--sdocs-muted-color, var(--md-code-color, #6B6560));
+  cursor: pointer;
+  font: 500 11px/1 var(--font-ui);
+  opacity: .7;
+  transition: opacity .15s, background .12s;
+}
+.chart-copy-btn svg { width: 14px; height: 14px; }
+.chart-copy-btn:hover,
+.chart-copy-btn:focus-visible {
+  opacity: 1;
+  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));
+}
+.chart-copy-btn:focus-visible,
+.chart-menu-btn:focus-visible {
+  outline: 1px solid var(--md-link-color, #2563eb);
+  outline-offset: 1px;
+}
+
+.chart-menu-btn {
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.1));
+  border-radius: 4px;
+  padding: 3px;
   cursor: pointer; opacity: 0.7;
-  transition: opacity .15s;
-  color: var(--md-chart-text, var(--text-3, #999));
+  transition: opacity .15s, background .12s;
+  color: var(--sdocs-muted-color, var(--md-code-color, #6B6560));
   font-size: 12px; line-height: 1;
   display: flex; align-items: center; justify-content: center;
   z-index: 2;
 }
 .chart-menu-btn:hover { opacity: 1; background: var(--md-copy-btn-hover, rgba(0,0,0,0.05)); }
+.sdoc-chart:not(.sdoc-chart-has-toolbar) > .chart-menu-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
 
 .chart-menu {
-  display: none; position: absolute; top: 36px; right: 8px;
+  display: none; position: absolute; top: 34px; right: 0;
   min-width: 160px; width: max-content; background: var(--bg-surface, #fff);
   border: 1px solid var(--border, #e0dcd7);
   border-radius: var(--radius, 8px);
   box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   padding: 6px 0; z-index: 10; font-size: 13px; color: var(--text, #333);
 }
+.sdoc-chart:not(.sdoc-chart-has-toolbar) > .chart-menu { top: 36px; right: 8px; }
 .chart-menu.open { display: block; }
 
 .chart-menu-item {
@@ -73,5 +133,12 @@
 .chart-menu-input:focus { outline: none; border-color: var(--accent, #3b82f6); }
 
 @media (max-width: 600px) {
+  .sdoc-chart {
+    width: calc(100% + 16px);
+    max-width: calc(100% + 16px);
+    margin: 1em -8px;
+    padding: 8px 4px 10px;
+  }
+  .sdoc-chart canvas { max-height: 620px; }
   .chart-menu-input { font-size: 16px; }
 }

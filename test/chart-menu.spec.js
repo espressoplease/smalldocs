@@ -57,10 +57,9 @@ test.describe('Chart menu rendering', () => {
     await expect(page.locator('.chart-menu')).not.toHaveClass(/open/);
   });
 
-  test('menu has copy and download buttons', async ({ page }) => {
+  test('menu keeps download after copy actions move to the persistent toolbar', async ({ page }) => {
     await loadDoc(page, SIMPLE_CHART);
     await page.locator('.chart-menu-btn').click();
-    await expect(page.locator('[data-action="copy-png"]')).toHaveText('Copy as image');
     await expect(page.locator('[data-action="download-png"]')).toHaveText('Download as PNG');
   });
 
