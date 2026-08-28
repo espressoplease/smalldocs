@@ -24,19 +24,50 @@ test('signed-out desktop navigation explains how to connect each library', async
   await expect(page.locator('#doc-site-menu')).toBeHidden();
 });
 
-test('mobile document navigation keeps the local library action compact', async ({ page }) => {
+test('mobile document controls scroll behind a fixed navigation menu', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/docs');
 
-  await expect(page.locator('#_sd_btn-library')).toBeVisible();
-  await expect(page.getByText('Local library', { exact: true })).toBeVisible();
-  await expect(page.getByText('Cloud library', { exact: true })).toBeHidden();
-  await expect(page.locator('#doc-site-menu')).toBeHidden();
-  expect(await page.locator('#_sd_btn-library').evaluate(element => element.getBoundingClientRect().height)).toBe(28);
-  await expect(page.locator('#_sd_sidebar')).toHaveCSS('width', '390px');
+  const toolbar = page.locator('#_sd_left-toolbar');
+  const scroller = page.locator('.sdocs-mobile-toolbar-scroll');
+  const menu = page.locator('#_sd_mobile_menu');
+  await expect(toolbar).toHaveCSS('top', '0px');
+  await expect(toolbar).toHaveCSS('height', '44px');
+  await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-short')).toBeVisible();
+  await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-tiny')).toBeHidden();
+  await expect(page.locator('#_sd_sidebar > .sdocs-sidebar-main > #_sd_toolbar-brand')).toBeHidden();
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('.sdocs-mobile-menu-icon')).toBeVisible();
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#_sd_left')).toHaveCSS('width', '390px');
-  await expect(page.locator('#_sd_left-toolbar')).toHaveCSS('top', '44px');
-  await expect(page.locator('#_sd_toolbar-brand .sdocs-sidebar-mark')).toBeVisible();
+  await page.locator('#_sd_btn-overflow').click();
+  await expect(page.locator('#_sd_toggle-overflow')).toHaveClass(/open/);
+  await expect.poll(() => scroller.evaluate(element => element.scrollWidth)).toBeGreaterThan(await scroller.evaluate(element => element.clientWidth));
+
+  const menuBeforeScroll = await menu.boundingBox();
+  await scroller.evaluate(element => { element.scrollLeft = element.scrollWidth; });
+  const menuAfterScroll = await menu.boundingBox();
+  expect(menuAfterScroll.x).toBe(menuBeforeScroll.x);
+  expect(menuAfterScroll.width).toBe(menuBeforeScroll.width);
+  expect(await scroller.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+
+  await menu.click();
+  await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  await expect(menu.locator('.sdocs-mobile-menu-close')).toBeVisible();
+  await expect(page.locator('#_sd_sidebar')).toBeVisible();
+  await expect(page.getByText('Local library', { exact: true })).toBeHidden();
+  await expect(page.getByText('Cloud library', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#_sd_sidebar')).toBeHidden();
+});
+
+test('narrow mobile wordmark collapses to SD inside the scroll rail', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/docs');
+
+  await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-short')).toBeHidden();
+  await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-tiny')).toBeVisible();
 });
 
 test('connected libraries show related documents, recent documents, and open actions', async ({ page }) => {
@@ -292,14 +323,17 @@ test('expanded short-link sections keep row height and scroll the whole sidebar'
   await expect(page.getByText('Private by design', { exact: true })).toBeVisible();
 });
 
-test('SDK expansion uses the product description and one learn more action', async ({ page }) => {
+test('SDK expansion uses the product description and a disabled coming soon action', async ({ page }) => {
   await page.goto('/docs');
   await page.getByText('SDK', { exact: true }).click();
 
   await expect(page.getByText('Render agent-generated Markdown as rich, interactive documents inside your application with configurable styling.', { exact: true })).toBeVisible();
-  const learnMore = page.locator('#_sd_sidebar_sdk_panel').getByText('Learn more', { exact: true });
-  await expect(learnMore).toBeVisible();
-  await expect(learnMore).toHaveClass(/sdocs-sidebar-cta/);
+  const comingSoon = page.locator('#_sd_sidebar_sdk_panel').getByRole('button', { name: 'Coming soon', exact: true });
+  await expect(comingSoon).toBeVisible();
+  await expect(comingSoon).toBeDisabled();
+  await expect(comingSoon).toHaveClass(/sdocs-sidebar-cta/);
+  await expect(comingSoon).toHaveCSS('color', 'rgb(168, 162, 158)');
+  await expect(page.locator('#_sd_sidebar_sdk_panel').getByText('Learn more', { exact: true })).toHaveCount(0);
   await expect(page.locator('#_sd_sidebar_sdk_panel').getByText('Talk to sales', { exact: true })).toHaveCount(0);
 });
 

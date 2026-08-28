@@ -2047,7 +2047,7 @@ function initScrollHint(el) {
   return { update: update, peek: peek };
 }
 
-var leftHint = initScrollHint(document.getElementById('_sd_left-toolbar'));
+var leftHint = initScrollHint(document.querySelector('.sdocs-mobile-toolbar-scroll'));
 var writeHint = initScrollHint(document.getElementById('_sd_write-toolbar'));
 var commentHint = initScrollHint(document.getElementById('_sd_comment-toolbar'));
 

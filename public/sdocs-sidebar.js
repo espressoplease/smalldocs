@@ -318,14 +318,43 @@ function setExpanded(section, expanded) {
   if (trigger) trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
 }
 
+var mobileMenuButton = document.getElementById('_sd_mobile_menu');
+var mobileSidebar = document.getElementById('_sd_sidebar');
+
+function setMobileMenuOpen(open) {
+  if (!mobileMenuButton || !mobileSidebar) return;
+  document.body.classList.toggle('sdocs-mobile-nav-open', open);
+  mobileMenuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+  mobileMenuButton.setAttribute('aria-label', open ? 'Close SmallDocs menu' : 'Open SmallDocs menu');
+}
+
+if (mobileMenuButton) {
+  mobileMenuButton.addEventListener('click', function () {
+    setMobileMenuOpen(!document.body.classList.contains('sdocs-mobile-nav-open'));
+  });
+}
+
+document.addEventListener('keydown', function (event) {
+  if (event.key === 'Escape' && document.body.classList.contains('sdocs-mobile-nav-open')) {
+    setMobileMenuOpen(false);
+    if (mobileMenuButton) mobileMenuButton.focus();
+  }
+});
+
+window.addEventListener('resize', function () {
+  if (!window.matchMedia('(max-width: 768px)').matches) setMobileMenuOpen(false);
+});
+
+if (mobileSidebar) {
+  mobileSidebar.addEventListener('click', function (event) {
+    if (event.target.closest('a')) setMobileMenuOpen(false);
+  });
+}
+
 document.querySelectorAll('.sdocs-sidebar-section').forEach(function (section) {
   var trigger = section.querySelector(':scope > .doc-site-action');
   if (!trigger) return;
   trigger.addEventListener('click', function () {
-    if (window.matchMedia('(max-width: 768px)').matches && section.dataset.sidebarSection === 'library') {
-      window.location.href = trigger.dataset.sidebarHref || '/library';
-      return;
-    }
     var shouldExpand = !section.classList.contains('is-expanded');
     document.querySelectorAll('.sdocs-sidebar-section.is-expanded').forEach(function (openSection) {
       if (openSection !== section) setExpanded(openSection, false);

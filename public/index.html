@@ -223,7 +223,7 @@ __EMBED_STYLES__
             <div class="sdocs-sidebar-expander-clip">
               <div class="sdocs-sidebar-preview">
                 <p class="sdocs-sidebar-explainer">Render agent-generated Markdown as rich, interactive documents inside your application with configurable styling.</p>
-                <a class="sdocs-sidebar-cta" href="/developers">Learn more</a>
+                <button class="sdocs-sidebar-cta" type="button" disabled>Coming soon</button>
               </div>
             </div>
           </div>
@@ -272,7 +272,13 @@ __EMBED_STYLES__
   <!-- ── Left panel ── -->
   <div id="_sd_left">
     <div id="_sd_left-toolbar">
-      <div class="toggle-group">
+      <div class="sdocs-mobile-toolbar-scroll">
+        <a class="sdocs-mobile-toolbar-brand" href="/" title="SmallDocs homepage">
+          <span class="toolbar-brand-text toolbar-brand-full">SmallDocs</span>
+          <span class="toolbar-brand-text toolbar-brand-short">SDocs</span>
+          <span class="toolbar-brand-text toolbar-brand-tiny">SD</span>
+        </a>
+        <div class="toggle-group">
         <button class="btn active" id="_sd_btn-read" data-tip="Read" aria-label="Read">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>
         </button>
@@ -316,7 +322,12 @@ __EMBED_STYLES__
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
           <span class="info-dot" aria-hidden="true"></span>
         </button>
+        </div>
       </div>
+      <button class="sdocs-mobile-menu-button" id="_sd_mobile_menu" type="button" aria-label="Open SmallDocs menu" aria-controls="_sd_sidebar" aria-expanded="false">
+        <svg class="sdocs-mobile-menu-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/></svg>
+        <svg class="sdocs-mobile-menu-close" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
     </div>
     <div id="_sd_write-toolbar">
       <button class="write-tb-btn" id="_sd_wb-bold" title="Bold (Ctrl+B)"><strong>B</strong></button>

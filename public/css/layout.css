@@ -294,9 +294,15 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   font: 500 var(--sdocs-sidebar-font-size)/1.3 var(--font-ui);
   text-decoration: none;
 }
-.sdocs-sidebar-cta:hover {
+.sdocs-sidebar-cta:not(:disabled):hover {
   background: var(--bg-hover);
   border-color: var(--border-strong);
+}
+.sdocs-sidebar-cta:disabled {
+  border-color: var(--border-subtle);
+  background: var(--bg-hover);
+  color: var(--text-3);
+  cursor: default;
 }
 .sdocs-sidebar-count {
   margin-left: auto;
@@ -534,6 +540,14 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   flex-shrink: 0;
   white-space: nowrap;
 }
+.sdocs-mobile-toolbar-scroll {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sdocs-mobile-toolbar-brand,
+.sdocs-mobile-menu-button { display: none; }
 
 .toggle-group {
   display: flex;

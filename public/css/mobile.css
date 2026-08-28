@@ -16,7 +16,7 @@
   #_sd_main { flex-direction: column; overflow: visible; }
   #_sd_left { min-height: 0; overflow: visible; }
   #_sd_content-area { overflow: visible; }
-  html { scroll-padding-top: 88px; }
+  html { scroll-padding-top: 44px; }
 
   /* iOS Safari zooms the page when a focused text control is below 16px. */
   textarea,
@@ -27,90 +27,129 @@
     font-size: 16px !important;
   }
 
-  /* Site navigation becomes a compact top rail when a sidebar cannot fit. */
+  /* Site navigation opens over the document from the fixed menu control. */
   #_sd_sidebar {
     width: 100%;
-    height: 44px;
-    flex: 0 0 44px;
-    flex-direction: row;
-    align-items: center;
-    padding: 0 10px;
-    border-right: 0;
-    border-bottom: 1px solid var(--border-subtle);
-    overflow: visible;
-    position: sticky;
-    top: 0;
+    height: calc(100dvh - 44px);
+    flex: none;
+    padding: 18px 14px 16px;
+    border: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: fixed;
+    top: 44px;
+    right: 0;
+    bottom: 0;
+    left: 0;
     z-index: 100;
+    background: var(--bg-input);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(100%);
+    pointer-events: none;
+    transition: transform .3s cubic-bezier(.4,0,.2,1),
+                opacity .2s ease,
+                visibility 0s linear .3s;
+  }
+  body.sdocs-mobile-nav-open { overflow: hidden; }
+  body.sdocs-mobile-nav-open #_sd_sidebar {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+    pointer-events: auto;
+    transition-delay: 0s;
   }
   .sdocs-sidebar-main {
     width: 100%;
-    flex-direction: row;
-    align-items: center;
+    flex: 1 0 auto;
+    flex-direction: column;
+    align-items: stretch;
     gap: 8px;
   }
-  .sdocs-sidebar-footer { display: none; }
+  #_sd_sidebar > .sdocs-sidebar-main > #_sd_toolbar-brand { display: none; }
+  .sdocs-sidebar-footer { display: flex; }
   .toolbar-brand-full { display: none; }
   .toolbar-brand-short { display: inline; font-size: 13px; font-weight: 600; }
-  .sdocs-sidebar-mark { display: block; width: 21px; height: 21px; }
-  #_sd_toolbar-brand { gap: 6px; padding: 3px; margin-right: auto; }
   #_sd_sidebar .doc-site-nav {
-    width: auto;
-    margin-left: auto;
-    flex-direction: row;
-    align-items: center;
-    gap: 4px;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 3px;
   }
-  #_sd_sidebar .doc-site-nav > .doc-site-action,
-  #_sd_sidebar .doc-site-nav > .sdocs-sidebar-section { display: none; }
-  #_sd_sidebar .doc-site-nav > .sdocs-sidebar-section-library { display: block; width: auto; }
-  #_sd_sidebar .doc-site-nav > .sdocs-sidebar-section-library > #_sd_btn-library,
-  #_sd_sidebar .doc-site-nav > .doc-site-sign-in {
-    width: auto;
-    height: 28px;
-    display: inline-flex;
-    gap: 6px;
-    padding: 0 8px;
-    font-size: var(--sdocs-sidebar-font-size);
-  }
-  #_sd_sidebar .sdocs-sidebar-expander,
-  #_sd_sidebar .sdocs-sidebar-row-chevron { display: none; }
-  #_sd_sidebar .doc-site-menu { width: auto; }
-  #_sd_sidebar .doc-site-menu-button {
-    width: 28px;
-    height: 28px;
-    display: inline-flex;
-    padding: 0;
-    justify-content: center;
-  }
-  #_sd_sidebar .doc-site-menu-button span,
-  #_sd_sidebar .sdocs-sidebar-chevron { display: none; }
+  #_sd_sidebar .sdocs-sidebar-section-library { display: none; }
+  #_sd_sidebar .doc-site-menu { width: 100%; }
   #_sd_sidebar .doc-site-menu-panel {
-    position: fixed;
-    top: 40px;
-    right: 8px;
-    left: auto;
-    bottom: auto;
+    position: static;
+    width: 100%;
+    margin-top: 4px;
+    box-shadow: none;
   }
 
-  /* Document controls remain reachable in a sticky compact row. */
+  /* The wordmark and document controls scroll; the menu stays fixed. */
   #_sd_left-toolbar {
     display: flex;
     position: sticky;
-    top: 44px;
+    top: 0;
     left: 0;
-    z-index: 99;
+    z-index: 101;
     width: 100%;
+    height: 44px;
+    padding: 0;
     transform: none;
-    justify-content: center;
+    justify-content: flex-start;
     border: 0;
     border-bottom: 1px solid var(--border-subtle);
     border-radius: 0;
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    overflow: hidden;
   }
-  #_sd_left-toolbar > * { flex-shrink: 0; }
+  .sdocs-mobile-toolbar-scroll {
+    min-width: 0;
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 4px 0 8px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sdocs-mobile-toolbar-scroll::-webkit-scrollbar { display: none; }
+  .sdocs-mobile-toolbar-brand {
+    height: 44px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+    color: var(--accent);
+    font-family: var(--font-ui);
+    text-decoration: none;
+  }
+  .sdocs-mobile-toolbar-scroll > .toggle-group { flex: 0 0 auto; }
+  .sdocs-mobile-menu-button {
+    width: 44px;
+    height: 43px;
+    flex: 0 0 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-left: 1px solid var(--border-subtle);
+    background: var(--bg-input);
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .sdocs-mobile-menu-button:hover { background: var(--bg-hover); color: var(--text); }
+  .sdocs-mobile-menu-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -3px;
+  }
+  .sdocs-mobile-menu-close { display: none; }
+  .sdocs-mobile-menu-button[aria-expanded="true"] .sdocs-mobile-menu-icon { display: none; }
+  .sdocs-mobile-menu-button[aria-expanded="true"] .sdocs-mobile-menu-close { display: block; }
 
   /* ── Stack layout instead of side-by-side ── */
   #_sd_divider { display: none; }
@@ -127,7 +166,7 @@
     padding: 20px 20px 0;
   }
   /* ── Write toolbar: sticky below left-toolbar ── */
-  body.write-mode #_sd_write-toolbar { position: sticky; top: 84px; z-index: 98; justify-content: flex-start; }
+  body.write-mode #_sd_write-toolbar { position: sticky; top: 44px; z-index: 98; justify-content: flex-start; }
 
   /* ── Status bar: hidden on mobile ── */
   #_sd_statusbar { display: none; }
@@ -310,22 +349,21 @@
    VERY NARROW (< 342px)
 ═══════════════════════════════════════════════════ */
 @media (max-width: 342px) {
-  #_sd_left-toolbar {
-    position: sticky;
-  }
-  #_sd_left-toolbar.has-overflow::after {
+  .sdocs-mobile-toolbar-scroll.has-overflow::after {
     content: '';
-    position: absolute;
+    position: sticky;
     top: 0;
-    right: 0;
+    right: -4px;
+    flex: 0 0 32px;
+    margin-left: -32px;
     width: 32px;
-    height: 100%;
+    height: 44px;
     background: linear-gradient(to right, transparent, var(--bg) 90%);
     pointer-events: none;
     opacity: 1;
     transition: opacity .2s ease;
   }
-  #_sd_left-toolbar.scrolled-end::after {
+  .sdocs-mobile-toolbar-scroll.scrolled-end::after {
     opacity: 0;
   }
 }
