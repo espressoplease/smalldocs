@@ -20,8 +20,8 @@ async function installCloudLibraryApi(page, workspaces, canRead = true, document
   });
 }
 
-async function openCloudLibrary(page) {
-  await page.goto('/public/library/library.html?scope=cloud');
+async function openCloudLibrary(page, extraQuery) {
+  await page.goto('/public/library/library.html?scope=cloud' + (extraQuery || ''));
   await page.evaluate(() => { document.body.dataset.cloudAuthenticated = 'true'; });
   await page.addStyleTag({ url: '/public/library/cloud-library-prototype.css' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
@@ -95,6 +95,22 @@ test('Cloud Library filters documents shared with the signed-in user', async ({ 
   await expect(page.locator('#shared-toggle')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#results')).not.toContainText('My draft');
   await expect(page.locator('#results')).toContainText('Shared plan');
+});
+
+test('Cloud Library tag query opens with the matching filter applied', async ({ page }) => {
+  await installCloudLibraryApi(page, [
+    { id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' },
+  ], true, [
+    { id: 'design-1', title: 'Design notes', filename: 'design.md', tags: ['design'],
+      current_revision_id: 'rev-1', updated_at: '2026-08-20T12:00:00.000Z' },
+    { id: 'release-1', title: 'Release notes', filename: 'release.md', tags: ['release'],
+      current_revision_id: 'rev-2', updated_at: '2026-08-20T11:00:00.000Z' },
+  ]);
+  await openCloudLibrary(page, '&tag=design');
+
+  await expect(page.locator('#results')).toContainText('Design notes');
+  await expect(page.locator('#results')).not.toContainText('Release notes');
+  await expect(page.locator('#chips-row')).toContainText('design');
 });
 
 test('an account without an active subscription sees subscription onboarding', async ({ page }) => {

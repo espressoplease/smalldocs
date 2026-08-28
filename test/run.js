@@ -80,6 +80,7 @@ require('./test-library-index')(harness);
 require('./test-library-autostart')(harness);
 require('./test-library-deny')(harness);
 require('./test-library-ls')(harness);
+require('./test-sidebar-data')(harness);
 const runBridge = require('./test-bridge')(harness);
 
 // ── Async test groups (no server) ───────────────────

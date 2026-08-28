@@ -113,6 +113,10 @@ __EMBED_STYLES__
                     <span>Open library</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7"/><path d="m9 15 12-12"/><path d="M15 3h6v6"/></svg>
                   </a>
+                  <div class="sdocs-sidebar-data-status" id="_sd_sidebar_local_status" role="status" aria-live="polite" hidden>
+                    <span></span>
+                    <button type="button" hidden>Retry</button>
+                  </div>
                   <div class="sdocs-sidebar-library-subsection" id="_sd_sidebar_local_shared_section">
                     <button class="sdocs-sidebar-library-row sdocs-sidebar-library-toggle" type="button" aria-controls="_sd_sidebar_local_shared_content" aria-expanded="false">
                       <span>Shared tags</span>
@@ -126,7 +130,7 @@ __EMBED_STYLES__
                     </div>
                   </div>
                   <div class="sdocs-sidebar-library-subsection" id="_sd_sidebar_local_recent_section">
-                    <button class="sdocs-sidebar-library-row sdocs-sidebar-library-toggle" type="button" aria-controls="_sd_sidebar_local_recent_content" aria-expanded="false">
+                    <button class="sdocs-sidebar-library-row sdocs-sidebar-library-toggle" type="button" aria-controls="_sd_sidebar_local_recent_content" aria-expanded="false" title="Recently updated documents">
                       <span>Recent</span>
                       <span class="sdocs-sidebar-count" id="_sd_sidebar_local_recent_count">0</span>
                       <svg class="sdocs-sidebar-library-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
@@ -160,6 +164,10 @@ __EMBED_STYLES__
                   <span>Open library</span>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7"/><path d="m9 15 12-12"/><path d="M15 3h6v6"/></svg>
                 </a>
+                <div class="sdocs-sidebar-data-status" id="_sd_sidebar_cloud_status" role="status" aria-live="polite" hidden>
+                  <span></span>
+                  <button type="button" hidden>Retry</button>
+                </div>
                 <div class="sdocs-sidebar-library-subsection" id="_sd_sidebar_cloud_shared_section">
                   <button class="sdocs-sidebar-library-row sdocs-sidebar-library-toggle" type="button" aria-controls="_sd_sidebar_cloud_shared_content" aria-expanded="false">
                     <span>Shared tags</span>
@@ -173,7 +181,7 @@ __EMBED_STYLES__
                   </div>
                 </div>
                 <div class="sdocs-sidebar-library-subsection" id="_sd_sidebar_cloud_recent_section">
-                  <button class="sdocs-sidebar-library-row sdocs-sidebar-library-toggle" type="button" aria-controls="_sd_sidebar_cloud_recent_content" aria-expanded="false">
+                  <button class="sdocs-sidebar-library-row sdocs-sidebar-library-toggle" type="button" aria-controls="_sd_sidebar_cloud_recent_content" aria-expanded="false" title="Recently updated documents">
                     <span>Recent</span>
                     <span class="sdocs-sidebar-count" id="_sd_sidebar_cloud_recent_count">0</span>
                     <svg class="sdocs-sidebar-library-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
@@ -1183,6 +1191,7 @@ __EMBED_STYLES__
 <script src="/public/sdocs-library-tags.js"></script>
 <script src="/public/sdocs-state.js"></script>
 <script src="/public/sdocs-connect.js"></script>
+<script src="/public/sdocs-sidebar-data.js"></script>
 <script src="/public/sdocs-sidebar.js"></script>
 <script src="/public/sdocs-slugify.js"></script>
 <script src="/public/sdocs-theme.js"></script>

@@ -219,6 +219,13 @@ test('library UI: tag chip filters', async ({ page }) => {
   expect(await page.textContent('.res-title')).toContain('Circuit breaker thresholds');
 });
 
+test('library UI: tag query opens with the matching filter applied', async ({ page }) => {
+  await page.goto(pageUrl + '&tag=reliability');
+  await page.waitForFunction(() => document.querySelectorAll('.res').length === 1);
+  await expect(page.locator('.res-title')).toHaveText('Circuit breaker thresholds');
+  await expect(page.locator('#chips-row')).toContainText('reliability');
+});
+
 test('library UI: project facet filters to one project', async ({ page }) => {
   await page.goto(pageUrl);
   await page.waitForSelector('.res');

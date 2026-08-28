@@ -31,6 +31,7 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   const toolbar = page.locator('#_sd_left-toolbar');
   const scroller = page.locator('.sdocs-mobile-toolbar-scroll');
   const menu = page.locator('#_sd_mobile_menu');
+  const cloudButton = page.locator('[data-sidebar-section="cloud"] > .doc-site-action');
   await expect(toolbar).toHaveCSS('top', '0px');
   await expect(toolbar).toHaveCSS('height', '44px');
   await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-short')).toBeVisible();
@@ -57,9 +58,19 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   await expect(page.locator('#_sd_sidebar')).toBeVisible();
   await expect(page.getByText('Local library', { exact: true })).toBeHidden();
   await expect(page.getByText('Cloud library', { exact: true })).toBeVisible();
+  await expect(scroller).toHaveAttribute('inert', '');
+  await expect(page.locator('#_sd_content-area')).toHaveAttribute('inert', '');
+  await expect(cloudButton).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(menu).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(cloudButton).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#_sd_sidebar')).toBeHidden();
+  await expect(scroller).not.toHaveAttribute('inert', '');
+  await expect(page.locator('#_sd_content-area')).not.toHaveAttribute('inert', '');
+  await expect(menu).toBeFocused();
 });
 
 test('narrow mobile wordmark collapses to SD inside the scroll rail', async ({ page }) => {
@@ -77,8 +88,8 @@ test('connected libraries show related documents, recent documents, and open act
   await page.getByText('Local library', { exact: true }).click();
   const localPanel = page.locator('#_sd_sidebar_local_connected');
   const localOpen = localPanel.getByRole('link', { name: 'Open library', exact: true });
-  const localShared = localPanel.getByRole('button', { name: 'Shared tags 6', exact: true });
-  const localRecent = localPanel.getByRole('button', { name: 'Recent 3', exact: true });
+  const localShared = localPanel.getByRole('button', { name: 'Shared tags 4', exact: true });
+  const localRecent = localPanel.getByRole('button', { name: 'Recent 10', exact: true });
   await expect(localOpen).toBeVisible();
   await expect(localOpen).toHaveAttribute('target', '_blank');
   await expect(localOpen.locator('svg')).toBeVisible();
@@ -112,6 +123,122 @@ test('connected libraries show related documents, recent documents, and open act
   await cloudShared.click();
   await expect(page.locator('#_sd_sidebar_cloud_tag_groups').getByText('Product brief', { exact: true })).toBeVisible();
   await expect(page.getByText('Account settings', { exact: true })).toBeVisible();
+});
+
+test('connected Local Library uses indexed documents and excludes the open file', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('sdocs.connect', JSON.stringify({ connected: true }));
+  });
+  await page.route('http://127.0.0.1:47843/api/library/data', route => route.fulfill({
+    status: 200,
+    headers: { 'Access-Control-Allow-Origin': 'http://localhost:3000' },
+    json: {
+      entries: [
+        { id: 'current', title: 'Open document', path: '/notes/current.md', tags: ['design', 'product'], mtime: '2026-08-28T12:00:00Z' },
+        { id: 'related', title: 'Related document', path: '/notes/related.md', tags: ['design', 'product'], mtime: '2026-08-27T12:00:00Z' },
+        { id: 'design', title: 'Design notes', path: '/notes/design.md', tags: ['design'], mtime: '2026-08-26T12:00:00Z' },
+      ],
+    },
+  }));
+  await page.goto('/docs');
+  await page.evaluate(() => {
+    window.SDocs.localMeta = { fullPath: '/notes/current.md' };
+    window.SDocs.currentMeta = { tags: ['design', 'product'] };
+    window.SDocs.sidebarRefresh();
+  });
+
+  await page.getByText('Local library', { exact: true }).click();
+  const panel = page.locator('#_sd_sidebar_local_connected');
+  const shared = panel.getByRole('button', { name: 'Shared tags 2', exact: true });
+  const recent = panel.getByRole('button', { name: 'Recent 2', exact: true });
+  await expect(shared).toBeVisible();
+  await expect(recent).toBeVisible();
+  await shared.click();
+  const sharedGroups = page.locator('#_sd_sidebar_tag_groups');
+  await expect(sharedGroups.getByText('Related document', { exact: true })).toBeVisible();
+  await expect(sharedGroups.getByText('Design notes', { exact: true })).toBeVisible();
+  await expect(panel.getByText('Open document', { exact: true })).toHaveCount(0);
+  await recent.click();
+  await expect(page.locator('#_sd_sidebar_recent .sdocs-sidebar-preview-entry')).toHaveText([
+    'Related document',
+    'Design notes',
+  ]);
+});
+
+test('connected Cloud Library loads paginated documents and links directly to them', async ({ page }) => {
+  const requests = [];
+  await page.route('**/api/cloud/v1/documents?**', route => {
+    const url = new URL(route.request().url());
+    requests.push(url.search);
+    if (!url.searchParams.get('cursor')) return route.fulfill({ json: {
+      documents: [
+        { id: 'cloud-current', title: 'Open Cloud document', filename: 'open.md', tags: ['design'], updated_at: '2026-08-28T12:00:00Z' },
+        { id: 'cloud-related', title: 'Cloud design notes', filename: 'design.md', tags: ['design'], updated_at: '2026-08-27T12:00:00Z' },
+      ],
+      next_cursor: 'page-2',
+    } });
+    return route.fulfill({ json: {
+      documents: [
+        { id: 'cloud-recent', title: 'Cloud release notes', filename: 'release.md', tags: ['release'], updated_at: '2026-08-26T12:00:00Z' },
+      ],
+      next_cursor: null,
+    } });
+  });
+  await page.goto('/docs');
+  await page.evaluate(() => {
+    const sidebar = document.getElementById('_sd_sidebar');
+    sidebar.dataset.cloudAuthenticated = 'true';
+    window.SDocs.currentMeta = { tags: ['design'] };
+    window.SDocs.cloudDocument = { id: 'cloud-current', workspace_id: 'account-1' };
+    window.SDocs.sidebarRefresh();
+  });
+
+  await page.getByText('Cloud library', { exact: true }).click();
+  const panel = page.locator('#_sd_sidebar_cloud_connected');
+  const shared = panel.getByRole('button', { name: 'Shared tags 1', exact: true });
+  const recent = panel.getByRole('button', { name: 'Recent 2', exact: true });
+  await expect(shared).toBeVisible();
+  await expect(recent).toBeVisible();
+  expect(requests).toHaveLength(2);
+  expect(requests[0]).toContain('workspace_id=account-1');
+  expect(requests[1]).toContain('cursor=page-2');
+  await shared.click();
+  const related = page.locator('#_sd_sidebar_cloud_tag_groups').getByText('Cloud design notes', { exact: true });
+  await expect(related).toHaveAttribute('href', '/docs?cloud-document=cloud-related');
+  await expect(panel.getByText('Open Cloud document', { exact: true })).toHaveCount(0);
+  await expect(panel.locator('.sdocs-sidebar-tag').first()).toHaveAttribute('href', '/library?scope=cloud&tag=design');
+});
+
+test('library loading failures provide recovery actions', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('sdocs.connect', JSON.stringify({ connected: true }));
+  });
+  let localAttempts = 0;
+  await page.route('http://127.0.0.1:47843/api/library/data', route => {
+    localAttempts += 1;
+    const headers = { 'Access-Control-Allow-Origin': 'http://localhost:3000' };
+    if (localAttempts === 1) return route.fulfill({ status: 503, headers, body: '{}' });
+    return route.fulfill({ status: 200, headers, json: { entries: [] } });
+  });
+  await page.goto('/docs');
+  await page.getByText('Local library', { exact: true }).click();
+  const localStatus = page.locator('#_sd_sidebar_local_status');
+  await expect(localStatus).toContainText('Local Library is unavailable.');
+  await localStatus.getByRole('button', { name: 'Retry' }).click();
+  await expect(localStatus).toBeHidden();
+  await expect(page.locator('#_sd_sidebar_local_recent_count')).toHaveText('0');
+
+  await page.route('**/api/cloud/v1/documents?**', route => route.fulfill({ status: 401, json: {
+    ok: false, error: 'authentication_required',
+  } }));
+  await page.evaluate(() => {
+    document.getElementById('_sd_sidebar').dataset.cloudAuthenticated = 'true';
+    window.SDocs.sidebarRefresh();
+  });
+  await page.getByText('Cloud library', { exact: true }).click();
+  const cloudStatus = page.locator('#_sd_sidebar_cloud_status');
+  await expect(cloudStatus).toContainText('Sign in to load Cloud documents.');
+  await expect(cloudStatus.getByRole('button', { name: 'Sign in' })).toBeVisible();
 });
 
 test('local library groups documents by the exact shared tag set', async ({ page }) => {
@@ -162,9 +289,9 @@ test('truncated sidebar document names use the shared toolbar tooltip', async ({
   await page.addStyleTag({ content: '.sdocs-sidebar-preview-entry { max-width: 140px; }' });
   await page.evaluate(() => window.SDocs.sidebarRefresh());
 
-  const truncated = page.getByText('SmallDocs renderer roadmap', { exact: true });
+  const truncated = page.locator('#_sd_sidebar_tag_groups').getByText('SmallDocs renderer roadmap', { exact: true });
   await expect(truncated).toHaveAttribute('data-tip', 'SmallDocs renderer roadmap');
-  await expect(page.getByText('Research plan', { exact: true })).not.toHaveAttribute('data-tip');
+  await expect(page.locator('#_sd_sidebar_tag_groups').getByText('Research plan', { exact: true })).not.toHaveAttribute('data-tip');
   await truncated.hover();
   await page.waitForTimeout(350);
   await expect(page.locator('#_sd_tooltip')).toHaveText('SmallDocs renderer roadmap');
@@ -245,7 +372,7 @@ test('sidebar preview data survives reader URL cleanup', async ({ page }) => {
   await page.waitForTimeout(350);
 
   await expect(page.locator('#_sd_sidebar_tag_groups .sdocs-sidebar-tag-group')).toHaveCount(4);
-  await expect(page.locator('#_sd_sidebar_recent .sdocs-sidebar-preview-entry')).toHaveCount(3);
+  await expect(page.locator('#_sd_sidebar_recent .sdocs-sidebar-preview-entry')).toHaveCount(10);
 });
 
 test('empty local library stays compact and only shows the recent empty state', async ({ page }) => {

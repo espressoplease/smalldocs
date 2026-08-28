@@ -3,6 +3,8 @@
 'use strict';
 
 var S = window.SDocs;
+var SidebarData = window.SDocsSidebarData;
+var SIDEBAR_RECENT_LIMIT = 10;
 var LOCAL_PREVIEW_ENTRIES = [
   { id: 'preview-reader', title: 'Reader redesign notes', path: '/Documents/SmallDocs/reader-redesign.md', tags: ['design', 'renderer', 'product'], mtime: '2026-08-27T09:30:00Z', preview: true },
   { id: 'preview-research', title: 'Shared renderer research', path: '/Documents/SmallDocs/shared-renderer-research.md', tags: ['design', 'renderer', 'product'], mtime: '2026-08-26T18:20:00Z', preview: true },
@@ -10,6 +12,11 @@ var LOCAL_PREVIEW_ENTRIES = [
   { id: 'preview-roadmap', title: 'SmallDocs renderer roadmap', path: '/Documents/SmallDocs/renderer-roadmap.md', tags: ['renderer', 'product'], mtime: '2026-08-24T11:40:00Z', preview: true },
   { id: 'preview-plan', title: 'Research plan', path: '/Documents/SmallDocs/research-plan.md', tags: ['research', 'product'], mtime: '2026-08-23T16:05:00Z', preview: true },
   { id: 'preview-tags', title: 'Tag navigation ideas', path: '/Documents/SmallDocs/tag-navigation.md', tags: ['design'], mtime: '2026-08-22T15:10:00Z', preview: true },
+  { id: 'preview-release', title: 'Release checklist', path: '/Documents/SmallDocs/release-checklist.md', tags: ['release'], mtime: '2026-08-21T12:30:00Z', preview: true },
+  { id: 'preview-notes', title: 'Document rendering notes', path: '/Documents/SmallDocs/rendering-notes.md', tags: ['notes'], mtime: '2026-08-20T09:10:00Z', preview: true },
+  { id: 'preview-feedback', title: 'Reader feedback', path: '/Documents/SmallDocs/reader-feedback.md', tags: ['feedback'], mtime: '2026-08-19T17:45:00Z', preview: true },
+  { id: 'preview-mobile', title: 'Mobile navigation review', path: '/Documents/SmallDocs/mobile-navigation.md', tags: ['mobile'], mtime: '2026-08-18T14:00:00Z', preview: true },
+  { id: 'preview-accessibility', title: 'Accessibility checks', path: '/Documents/SmallDocs/accessibility.md', tags: ['accessibility'], mtime: '2026-08-17T10:20:00Z', preview: true },
 ];
 var CLOUD_PREVIEW_ENTRIES = [
   { id: 'preview-cloud-brief', title: 'Product brief', tags: ['product', 'planning'], mtime: '2026-08-27T08:45:00Z', preview: true },
@@ -19,9 +26,16 @@ var CLOUD_PREVIEW_ENTRIES = [
 var LOCAL_PREVIEW_TAGS = ['design', 'renderer', 'product', 'research'];
 var SIDEBAR_PREVIEW_MODE = new URLSearchParams(window.location.search).get('sidebar');
 var localEntries = SIDEBAR_PREVIEW_MODE === 'preview' ? LOCAL_PREVIEW_ENTRIES.slice() : [];
+var cloudEntries = SIDEBAR_PREVIEW_MODE === 'preview' ? CLOUD_PREVIEW_ENTRIES.slice() : [];
 var usingPreviewData = SIDEBAR_PREVIEW_MODE === 'preview';
-var libraryLoaded = false;
+var libraryLoaded = SIDEBAR_PREVIEW_MODE === 'preview' || SIDEBAR_PREVIEW_MODE === 'empty';
 var libraryLoading = false;
+var libraryError = '';
+var cloudLibraryLoaded = SIDEBAR_PREVIEW_MODE === 'preview';
+var cloudLibraryLoading = false;
+var cloudLibraryError = '';
+var cloudLibraryStatus = 0;
+var cloudLibraryScope = null;
 
 function previewMode() {
   return SIDEBAR_PREVIEW_MODE;
@@ -103,7 +117,9 @@ function renderEntryList(host, list, emptyText, onOpen, fallbackHref) {
   list.forEach(function (entry) {
     var link = document.createElement('a');
     link.className = 'sdocs-sidebar-preview-entry';
-    link.href = fallbackHref || libraryUrl();
+    link.href = typeof fallbackHref === 'function'
+      ? fallbackHref(entry)
+      : fallbackHref || libraryUrl();
     link.target = '_blank';
     link.rel = 'noopener';
     var title = entry.title || (entry.path ? entry.path.split('/').pop() : 'Untitled document');
@@ -121,58 +137,25 @@ function renderEntryList(host, list, emptyText, onOpen, fallbackHref) {
   if (S && S.attachTooltips) S.attachTooltips(host);
 }
 
-function currentLocalTags() {
+function currentDocumentTags() {
   var tags = S && S.currentMeta && Array.isArray(S.currentMeta.tags)
     ? S.currentMeta.tags.map(String).filter(Boolean)
     : [];
   return tags.length || !usingPreviewData ? tags : LOCAL_PREVIEW_TAGS.slice();
 }
 
-function normaliseTags(tags) {
-  var seen = {};
-  return (Array.isArray(tags) ? tags : []).map(function (tag) {
-    return String(tag).trim();
-  }).filter(function (tag) {
-    var key = tag.toLowerCase();
-    if (!key || seen[key]) return false;
-    seen[key] = true;
-    return true;
-  });
-}
-
-function isCurrentLocalEntry(entry) {
-  var fullPath = S && S.localMeta && S.localMeta.fullPath;
-  return Boolean(fullPath && entry && entry.path === fullPath);
+function currentDocumentRef(scope) {
+  if (scope === 'cloud') {
+    return { id: S && S.cloudDocument && S.cloudDocument.id || '' };
+  }
+  return { path: S && S.localMeta && S.localMeta.fullPath || '' };
 }
 
 function renderTagGroups(host, currentTags, entries, scope) {
   if (!host) return 0;
   host.replaceChildren();
   var libraryScope = scope === 'cloud' ? 'cloud' : 'local';
-
-  var tags = normaliseTags(currentTags);
-  var tagNames = {};
-  tags.forEach(function (tag) { tagNames[tag.toLowerCase()] = tag; });
-  var groups = {};
-
-  entries.forEach(function (entry) {
-    if (isCurrentLocalEntry(entry)) return;
-    var entryTags = {};
-    normaliseTags(entry.tags).forEach(function (tag) { entryTags[tag.toLowerCase()] = true; });
-    var shared = tags.filter(function (tag) { return entryTags[tag.toLowerCase()]; });
-    if (!shared.length) return;
-    var key = shared.map(function (tag) { return tag.toLowerCase(); }).join('\u0000');
-    if (!groups[key]) groups[key] = { tags: shared, entries: [] };
-    groups[key].entries.push(entry);
-  });
-
-  var ordered = Object.keys(groups).map(function (key) { return groups[key]; });
-  ordered.sort(function (a, b) {
-    if (a.tags.length !== b.tags.length) return b.tags.length - a.tags.length;
-    var aTime = Math.max.apply(null, a.entries.map(function (entry) { return new Date(entry.mtime || entry.firstSeen || 0).getTime(); }));
-    var bTime = Math.max.apply(null, b.entries.map(function (entry) { return new Date(entry.mtime || entry.firstSeen || 0).getTime(); }));
-    return bTime - aTime;
-  });
+  var ordered = SidebarData.relatedGroups(currentTags, entries, currentDocumentRef(libraryScope));
 
   if (!ordered.length) {
     host.hidden = true;
@@ -180,16 +163,15 @@ function renderTagGroups(host, currentTags, entries, scope) {
   }
 
   host.hidden = false;
-  var sharedDocumentCount = 0;
+  var sharedTagCount = SidebarData.sharedTagCount(ordered);
 
   ordered.forEach(function (group) {
-    sharedDocumentCount += group.entries.length;
     var groupElement = document.createElement('section');
     groupElement.className = 'sdocs-sidebar-tag-group';
     var tagRow = document.createElement('div');
     tagRow.className = 'sdocs-sidebar-tags sdocs-sidebar-group-tags';
     tagRow.setAttribute('aria-label', group.tags.length + ' shared ' + (group.tags.length === 1 ? 'tag' : 'tags'));
-    group.tags.forEach(function (tag) { tagRow.appendChild(makeTag(tagNames[tag.toLowerCase()] || tag, libraryScope)); });
+    group.tags.forEach(function (tag) { tagRow.appendChild(makeTag(tag, libraryScope)); });
     var list = document.createElement('div');
     list.className = 'sdocs-sidebar-preview-list';
     groupElement.appendChild(tagRow);
@@ -197,28 +179,58 @@ function renderTagGroups(host, currentTags, entries, scope) {
     host.appendChild(groupElement);
     renderEntryList(
       list,
-      entriesByRecency(group.entries),
+      group.entries,
       '',
       libraryScope === 'local' ? openLocalEntry : null,
-      libraryScope === 'local' ? libraryUrl({ demo: '1' }) : '/library?scope=cloud'
+      libraryScope === 'local'
+        ? libraryUrl(usingPreviewData ? { demo: '1' } : {})
+        : function (entry) { return entry.preview ? '/library?scope=cloud' : '/docs?cloud-document=' + encodeURIComponent(entry.id); }
     );
   });
-  return sharedDocumentCount;
-}
-
-function entriesByRecency(entries) {
-  return entries.slice().sort(function (a, b) {
-    return new Date(b.mtime || b.firstSeen || 0) - new Date(a.mtime || a.firstSeen || 0);
-  });
-}
-
-function recentEntries(entries) {
-  return entriesByRecency(entries).slice(0, 3);
+  return sharedTagCount;
 }
 
 function setLibraryCount(id, count) {
   var element = document.getElementById(id);
   if (element) element.textContent = String(count);
+}
+
+function setDataStatus(id, message, actionLabel, onAction) {
+  var host = document.getElementById(id);
+  if (!host) return;
+  var label = host.querySelector('span');
+  var action = host.querySelector('button');
+  host.hidden = !message;
+  if (label) label.textContent = message || '';
+  if (!action) return;
+  action.hidden = !actionLabel;
+  action.textContent = actionLabel || '';
+  action.onclick = onAction || null;
+}
+
+function setLibraryContentVisible(prefix, visible) {
+  var shared = document.getElementById('_sd_sidebar_' + prefix + '_shared_section');
+  var recent = document.getElementById('_sd_sidebar_' + prefix + '_recent_section');
+  if (shared && !visible) shared.hidden = true;
+  if (recent) recent.hidden = !visible;
+}
+
+function cloudEntry(documentData) {
+  return {
+    id: documentData.id,
+    title: documentData.title,
+    path: documentData.filename,
+    tags: Array.isArray(documentData.tags) ? documentData.tags : [],
+    mtime: documentData.updated_at,
+  };
+}
+
+function selectedCloudWorkspaceId() {
+  if (S && S.cloudDocument && S.cloudDocument.workspace_id) return S.cloudDocument.workspace_id;
+  if (window.SDocsCloudAccountSelection && window.SDocsCloudAccountSelection.storedId) {
+    return window.SDocsCloudAccountSelection.storedId(window.localStorage) || '';
+  }
+  return '';
 }
 
 function setLibrarySubsectionExpanded(section, expanded) {
@@ -253,13 +265,27 @@ function renderLocalLibrary() {
   if (connectLink) connectLink.href = connectUrl;
   if (!connected) return;
 
-  var sharedCount = renderTagGroups(document.getElementById('_sd_sidebar_tag_groups'), currentLocalTags(), localEntries, 'local');
+  if (!libraryLoaded) {
+    setLibraryContentVisible('local', false);
+    setDataStatus('_sd_sidebar_local_status', libraryLoading
+      ? 'Loading documents...'
+      : libraryError || '', libraryError ? 'Retry' : '', function () {
+        libraryError = '';
+        loadLibrary();
+      });
+    return;
+  }
+
+  setDataStatus('_sd_sidebar_local_status', '');
+  setLibraryContentVisible('local', true);
+  var sharedCount = renderTagGroups(document.getElementById('_sd_sidebar_tag_groups'), currentDocumentTags(), localEntries, 'local');
   var sharedSection = document.getElementById('_sd_sidebar_local_shared_section');
   if (sharedSection) sharedSection.hidden = sharedCount === 0;
   setLibraryCount('_sd_sidebar_local_shared_count', sharedCount);
-  var recent = recentEntries(localEntries);
+  var recent = SidebarData.recentEntries(localEntries, currentDocumentRef('local'), SIDEBAR_RECENT_LIMIT);
   setLibraryCount('_sd_sidebar_local_recent_count', recent.length);
-  renderEntryList(document.getElementById('_sd_sidebar_recent'), recent, 'No recent documents', openLocalEntry, libraryUrl({ demo: '1' }));
+  renderEntryList(document.getElementById('_sd_sidebar_recent'), recent, 'No recent documents', openLocalEntry,
+    libraryUrl(usingPreviewData ? { demo: '1' } : {}));
   syncLibrarySubsections(connectedPanel && connectedPanel.querySelector('.sdocs-sidebar-library-scroll'));
 }
 
@@ -274,19 +300,46 @@ function renderCloudLibrary() {
   if (trigger) trigger.dataset.sidebarHref = connected ? '/library?scope=cloud' : '/cloud';
   if (!connected) return;
 
-  var sharedCount = renderTagGroups(document.getElementById('_sd_sidebar_cloud_tag_groups'), currentLocalTags(), CLOUD_PREVIEW_ENTRIES, 'cloud');
+  if (!cloudLibraryLoaded) {
+    setLibraryContentVisible('cloud', false);
+    var cloudMessage = cloudLibraryLoading ? 'Loading documents...' : cloudLibraryError;
+    var cloudAction = cloudLibraryStatus === 401 ? 'Sign in' : cloudLibraryError ? 'Retry' : '';
+    setDataStatus('_sd_sidebar_cloud_status', cloudMessage, cloudAction, function () {
+      if (cloudLibraryStatus === 401) {
+        window.location.href = '/cloud/sign-in?return=' + encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
+        return;
+      }
+      cloudLibraryError = '';
+      loadCloudLibrary();
+    });
+    return;
+  }
+
+  setDataStatus('_sd_sidebar_cloud_status', '');
+  setLibraryContentVisible('cloud', true);
+  var sharedCount = renderTagGroups(document.getElementById('_sd_sidebar_cloud_tag_groups'), currentDocumentTags(), cloudEntries, 'cloud');
   var sharedSection = document.getElementById('_sd_sidebar_cloud_shared_section');
   if (sharedSection) sharedSection.hidden = sharedCount === 0;
   setLibraryCount('_sd_sidebar_cloud_shared_count', sharedCount);
-  var recent = recentEntries(CLOUD_PREVIEW_ENTRIES);
+  var recent = SidebarData.recentEntries(cloudEntries, currentDocumentRef('cloud'), SIDEBAR_RECENT_LIMIT);
   setLibraryCount('_sd_sidebar_cloud_recent_count', recent.length);
-  renderEntryList(document.getElementById('_sd_sidebar_cloud_recent'), recent, 'No cloud documents yet', null, '/library?scope=cloud');
+  renderEntryList(document.getElementById('_sd_sidebar_cloud_recent'), recent, 'No recent documents', null,
+    function (entry) { return entry.preview ? '/library?scope=cloud' : '/docs?cloud-document=' + encodeURIComponent(entry.id); });
   syncLibrarySubsections(connectedPanel);
 }
 
 function renderSidebar() {
+  var nextCloudScope = selectedCloudWorkspaceId();
+  if (!usingPreviewData && cloudLibraryLoaded && cloudLibraryScope !== nextCloudScope) {
+    cloudEntries = [];
+    cloudLibraryLoaded = false;
+    cloudLibraryError = '';
+    cloudLibraryStatus = 0;
+  }
   renderLocalLibrary();
   renderCloudLibrary();
+  var cloudSection = document.querySelector('[data-sidebar-section="cloud"]');
+  if (cloudSection && cloudSection.classList.contains('is-expanded')) loadCloudLibrary();
 }
 
 function loadLibrary() {
@@ -296,6 +349,8 @@ function loadLibrary() {
     return;
   }
   libraryLoading = true;
+  libraryError = '';
+  renderLocalLibrary();
   fetch('http://127.0.0.1:47843/api/library/data')
     .then(function (response) {
       if (!response.ok) throw new Error('library unavailable');
@@ -308,8 +363,65 @@ function loadLibrary() {
       libraryLoaded = true;
       renderLocalLibrary();
     })
-    .catch(function () { renderLocalLibrary(); })
-    .finally(function () { libraryLoading = false; });
+    .catch(function () {
+      libraryError = 'Local Library is unavailable.';
+    })
+    .finally(function () {
+      libraryLoading = false;
+      renderLocalLibrary();
+    });
+}
+
+function loadCloudLibrary() {
+  if (!cloudConnected() || cloudLibraryLoaded || cloudLibraryLoading) return;
+  if (previewMode() === 'preview') {
+    renderCloudLibrary();
+    return;
+  }
+  cloudLibraryLoading = true;
+  cloudLibraryError = '';
+  cloudLibraryStatus = 0;
+  renderCloudLibrary();
+
+  var documents = [];
+  var workspaceId = selectedCloudWorkspaceId();
+
+  function loadPage(cursor) {
+    var params = new URLSearchParams({ limit: '100' });
+    if (workspaceId) params.set('workspace_id', workspaceId);
+    if (cursor) params.set('cursor', cursor);
+    return fetch('/api/cloud/v1/documents?' + params.toString(), { credentials: 'same-origin' })
+      .then(function (response) {
+        if (!response.ok) {
+          var error = new Error('Cloud returned ' + response.status);
+          error.status = response.status;
+          throw error;
+        }
+        return response.json();
+      })
+      .then(function (page) {
+        documents.push.apply(documents, Array.isArray(page.documents) ? page.documents : []);
+        return page.next_cursor ? loadPage(page.next_cursor) : documents;
+      });
+  }
+
+  loadPage(null)
+    .then(function (loadedDocuments) {
+      cloudEntries = loadedDocuments.map(cloudEntry);
+      cloudLibraryLoaded = true;
+      cloudLibraryScope = workspaceId;
+    })
+    .catch(function (error) {
+      cloudLibraryStatus = error && error.status || 0;
+      if (cloudLibraryStatus === 401) cloudLibraryError = 'Sign in to load Cloud documents.';
+      else if (cloudLibraryStatus === 402) cloudLibraryError = 'Cloud Library is not available for this account.';
+      else if (cloudLibraryStatus === 403) cloudLibraryError = 'You do not have access to these Cloud documents.';
+      else cloudLibraryError = 'Cloud Library is unavailable.';
+    })
+    .finally(function () {
+      cloudLibraryLoading = false;
+      renderCloudLibrary();
+    });
 }
 
 function setExpanded(section, expanded) {
@@ -320,34 +432,72 @@ function setExpanded(section, expanded) {
 
 var mobileMenuButton = document.getElementById('_sd_mobile_menu');
 var mobileSidebar = document.getElementById('_sd_sidebar');
+var mobileBackground = [
+  document.querySelector('.sdocs-mobile-toolbar-scroll'),
+  document.getElementById('_sd_content-area'),
+  document.getElementById('_sd_right'),
+  document.getElementById('_sd_statusbar'),
+].filter(Boolean);
 
-function setMobileMenuOpen(open) {
+function mobileMenuFocusables() {
+  if (!mobileSidebar) return [];
+  return Array.prototype.slice.call(mobileSidebar.querySelectorAll(
+    'a[href], button:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
+  )).filter(function (element) {
+    return !element.hidden && element.getClientRects().length > 0;
+  });
+}
+
+function setMobileMenuOpen(open, restoreFocus) {
   if (!mobileMenuButton || !mobileSidebar) return;
   document.body.classList.toggle('sdocs-mobile-nav-open', open);
   mobileMenuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
   mobileMenuButton.setAttribute('aria-label', open ? 'Close SmallDocs menu' : 'Open SmallDocs menu');
+  mobileBackground.forEach(function (element) { element.inert = open; });
+  if (open) {
+    window.requestAnimationFrame(function () {
+      var first = mobileMenuFocusables()[0];
+      if (first) first.focus();
+    });
+  } else if (restoreFocus) {
+    mobileMenuButton.focus();
+  }
 }
 
 if (mobileMenuButton) {
   mobileMenuButton.addEventListener('click', function () {
-    setMobileMenuOpen(!document.body.classList.contains('sdocs-mobile-nav-open'));
+    setMobileMenuOpen(!document.body.classList.contains('sdocs-mobile-nav-open'), true);
   });
 }
 
 document.addEventListener('keydown', function (event) {
   if (event.key === 'Escape' && document.body.classList.contains('sdocs-mobile-nav-open')) {
-    setMobileMenuOpen(false);
-    if (mobileMenuButton) mobileMenuButton.focus();
+    setMobileMenuOpen(false, true);
+    return;
+  }
+  if (event.key === 'Tab' && document.body.classList.contains('sdocs-mobile-nav-open')) {
+    var focusables = mobileMenuFocusables();
+    if (mobileMenuButton) focusables.push(mobileMenuButton);
+    if (!focusables.length) return;
+    var first = focusables[0];
+    var last = focusables[focusables.length - 1];
+    if (event.shiftKey && (document.activeElement === first || focusables.indexOf(document.activeElement) === -1)) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 });
 
 window.addEventListener('resize', function () {
-  if (!window.matchMedia('(max-width: 768px)').matches) setMobileMenuOpen(false);
+  if (!window.matchMedia('(max-width: 768px)').matches) setMobileMenuOpen(false, false);
 });
 
 if (mobileSidebar) {
   mobileSidebar.addEventListener('click', function (event) {
-    if (event.target.closest('a')) setMobileMenuOpen(false);
+    if (event.target.closest('a')) setMobileMenuOpen(false, false);
   });
 }
 
@@ -362,6 +512,8 @@ document.querySelectorAll('.sdocs-sidebar-section').forEach(function (section) {
     setExpanded(section, shouldExpand);
     if (section.dataset.sidebarSection === 'library') {
       loadLibrary();
+    } else if (section.dataset.sidebarSection === 'cloud') {
+      loadCloudLibrary();
     }
   });
 });
