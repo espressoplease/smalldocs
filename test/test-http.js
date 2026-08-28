@@ -1227,6 +1227,11 @@ module.exports = function(harness) {
       assert.ok(!response.body.includes('Agent access'));
       assert.ok(response.body.includes('Connected machines'));
       assert.ok(response.body.includes('Cloud settings'));
+      assert.ok(response.body.includes('data-sdocs-site-page="settings"'));
+      assert.ok(response.body.includes('/public/css/site-sidebar.css'));
+      assert.ok(response.body.includes('/public/sdocs-site-sidebar.js'));
+      assert.ok(!response.body.includes('class="header"'));
+      assert.ok(!response.body.includes('class="side-label"'));
       assert.ok(response.body.includes('>People</button>'));
       assert.ok(!response.body.includes('data-panel="projects"'));
       const version = JSON.parse((await get(BASE + '/version-check')).body).version;
