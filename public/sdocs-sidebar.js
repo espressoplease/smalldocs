@@ -4,6 +4,7 @@
 
 var S = window.SDocs;
 var SidebarData = window.SDocsSidebarData;
+var SharedSidebar = window.SDocsSidebarShared;
 var SIDEBAR_RECENT_LIMIT = 10;
 var LOCAL_PREVIEW_ENTRIES = [
   { id: 'preview-reader', title: 'Reader redesign notes', path: '/Documents/SmallDocs/reader-redesign.md', tags: ['design', 'renderer', 'product'], mtime: '2026-08-27T09:30:00Z', preview: true },
@@ -424,12 +425,6 @@ function loadCloudLibrary() {
     });
 }
 
-function setExpanded(section, expanded) {
-  var trigger = section.querySelector(':scope > .doc-site-action');
-  section.classList.toggle('is-expanded', expanded);
-  if (trigger) trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-}
-
 var mobileMenuButton = document.getElementById('_sd_mobile_menu');
 var mobileSidebar = document.getElementById('_sd_sidebar');
 var mobileBackground = [
@@ -439,83 +434,25 @@ var mobileBackground = [
   document.getElementById('_sd_statusbar'),
 ].filter(Boolean);
 
-function mobileMenuFocusables() {
-  if (!mobileSidebar) return [];
-  return Array.prototype.slice.call(mobileSidebar.querySelectorAll(
-    'a[href], button:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
-  )).filter(function (element) {
-    return !element.hidden && element.getClientRects().length > 0;
-  });
-}
-
-function setMobileMenuOpen(open, restoreFocus) {
-  if (!mobileMenuButton || !mobileSidebar) return;
-  document.body.classList.toggle('sdocs-mobile-nav-open', open);
-  mobileMenuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
-  mobileMenuButton.setAttribute('aria-label', open ? 'Close SmallDocs menu' : 'Open SmallDocs menu');
-  mobileBackground.forEach(function (element) { element.inert = open; });
-  if (open) {
-    window.requestAnimationFrame(function () {
-      var first = mobileMenuFocusables()[0];
-      if (first) first.focus();
-    });
-  } else if (restoreFocus) {
-    mobileMenuButton.focus();
-  }
-}
-
-if (mobileMenuButton) {
-  mobileMenuButton.addEventListener('click', function () {
-    setMobileMenuOpen(!document.body.classList.contains('sdocs-mobile-nav-open'), true);
-  });
-}
-
-document.addEventListener('keydown', function (event) {
-  if (event.key === 'Escape' && document.body.classList.contains('sdocs-mobile-nav-open')) {
-    setMobileMenuOpen(false, true);
-    return;
-  }
-  if (event.key === 'Tab' && document.body.classList.contains('sdocs-mobile-nav-open')) {
-    var focusables = mobileMenuFocusables();
-    if (mobileMenuButton) focusables.push(mobileMenuButton);
-    if (!focusables.length) return;
-    var first = focusables[0];
-    var last = focusables[focusables.length - 1];
-    if (event.shiftKey && (document.activeElement === first || focusables.indexOf(document.activeElement) === -1)) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  }
+SharedSidebar.bindMobileDrawer({
+  body: document.body,
+  sidebar: mobileSidebar,
+  button: mobileMenuButton,
+  openClass: 'sdocs-mobile-nav-open',
+  openLabel: 'Open SmallDocs menu',
+  closeLabel: 'Close SmallDocs menu',
+  breakpoint: 768,
+  backgrounds: mobileBackground,
 });
 
-window.addEventListener('resize', function () {
-  if (!window.matchMedia('(max-width: 768px)').matches) setMobileMenuOpen(false, false);
-});
-
-if (mobileSidebar) {
-  mobileSidebar.addEventListener('click', function (event) {
-    if (event.target.closest('a')) setMobileMenuOpen(false, false);
-  });
-}
-
-document.querySelectorAll('.sdocs-sidebar-section').forEach(function (section) {
-  var trigger = section.querySelector(':scope > .doc-site-action');
-  if (!trigger) return;
-  trigger.addEventListener('click', function () {
-    var shouldExpand = !section.classList.contains('is-expanded');
-    document.querySelectorAll('.sdocs-sidebar-section.is-expanded').forEach(function (openSection) {
-      if (openSection !== section) setExpanded(openSection, false);
-    });
-    setExpanded(section, shouldExpand);
-    if (section.dataset.sidebarSection === 'library') {
+SharedSidebar.bindExpandableSections(mobileSidebar, {
+  onToggle: function (sectionName) {
+    if (sectionName === 'library') {
       loadLibrary();
-    } else if (section.dataset.sidebarSection === 'cloud') {
+    } else if (sectionName === 'cloud') {
       loadCloudLibrary();
     }
-  });
+  },
 });
 
 document.querySelectorAll('.sdocs-sidebar-library-toggle').forEach(function (trigger) {
