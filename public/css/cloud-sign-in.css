@@ -176,6 +176,26 @@ label { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 11.
 
 .prototype-status { min-height: 17px; margin-top: 12px; color: var(--text-3); font-size: 11px; line-height: 1.45; text-align: center; }
 
+.terms-card { width: min(440px, 100%); }
+.terms-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.terms-choice input { width: 16px; height: 16px; margin-top: 1px; flex: 0 0 auto; accent-color: var(--blue); }
+.terms-choice a, .terms-privacy a { color: inherit; text-underline-offset: 2px; }
+.terms-privacy { margin-top: 10px; color: var(--text-2); font-size: 11.5px; line-height: 1.5; }
+.terms-card .field-error { padding-top: 7px; }
+
 .authorize-card { width: min(400px, 100%); }
 .authorize-form { display: grid; }
 .authorize-code-input {

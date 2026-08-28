@@ -35,6 +35,22 @@ module.exports = function(harness) {
         assert.notStrictEqual(seeded.acceptance.user_id, seeded.team.user_id);
         assert.notStrictEqual(seeded.acceptance.account_id, seeded.team.account_id);
 
+        const { createAuthStore } = require('../lib/cloud-auth');
+        const auth = createAuthStore({ dbPath: env.CLOUD_AUTH_DB,
+          pepper: env.CLOUD_AUTH_PEPPER });
+        const seededUserIds = [
+          seeded.individual.user_id,
+          seeded.team.user_id,
+          ...seeded.team.members.map((member) => member.user_id),
+          seeded.acceptance.user_id,
+          ...seeded.acceptance.members.map((member) => member.user_id),
+        ];
+        for (const userId of seededUserIds) {
+          assert.strictEqual(auth.hasAcceptedCurrentTerms(userId), true,
+            'staging identity must accept the current Terms: ' + userId);
+        }
+        auth.close();
+
         const { createLocalKeyProvider, createCloudStore } = require('../lib/cloud-store');
         const store = createCloudStore({ dbPath: env.CLOUD_DB,
           keyProvider: createLocalKeyProvider({ masterKey: env.CLOUD_MASTER_KEY,

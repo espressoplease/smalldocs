@@ -8,7 +8,43 @@ module.exports = function(harness) {
   return function() {
     console.log('\n-- Cloud Authentication Tests -------------------------\n');
 
-    const { AuthError, createAuthStore } = require('../lib/cloud-auth');
+    const { AuthError, CURRENT_TERMS_VERSION, createAuthStore } = require('../lib/cloud-auth');
+    test('the current Terms version identifies the published Terms copy', () => {
+      const legal = fs.readFileSync(path.join(__dirname, '..', 'public', 'legal.md'), 'utf8');
+      assert.ok(legal.includes('**Last updated: 24 August 2026**'));
+      assert.strictEqual(CURRENT_TERMS_VERSION, '2026-08-24');
+    });
+    test('schema migration leaves existing users pending one-time Terms acceptance', () => {
+      const Database = require('better-sqlite3');
+      const migrationDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-auth-terms-migration-'));
+      const migrationPath = path.join(migrationDir, 'auth.db');
+      const legacy = new Database(migrationPath);
+      legacy.exec(`
+        CREATE TABLE cloud_auth_users (
+          id TEXT PRIMARY KEY,
+          first_name TEXT,
+          last_name TEXT,
+          created_at_ms INTEGER NOT NULL,
+          disabled_at_ms INTEGER
+        );
+        INSERT INTO cloud_auth_users
+          (id, first_name, last_name, created_at_ms, disabled_at_ms)
+        VALUES ('usr_existing', 'Existing', 'Person', 1600000000000, NULL);
+      `);
+      legacy.close();
+      const migrated = createAuthStore({ dbPath: migrationPath,
+        pepper: 'migration-test-pepper-more-than-16-bytes' });
+      try {
+        assert.strictEqual(migrated.hasAcceptedCurrentTerms('usr_existing'), false);
+        assert.strictEqual(migrated.getUser('usr_existing').termsVersion, null);
+        assert.ok(migrated.db.prepare(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'cloud_auth_terms_acceptances'"
+        ).get());
+      } finally {
+        migrated.close();
+        fs.rmSync(migrationDir, { recursive: true, force: true });
+      }
+    });
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-auth-'));
     const dbPath = path.join(dir, 'auth.db');
     let clock = 1700000000000;
@@ -44,6 +80,29 @@ module.exports = function(harness) {
       });
       assert.strictEqual(result.created, false);
       assert.strictEqual(result.user.id, googleUser.id);
+    });
+
+    test('new and existing identities require a current, durable Terms acceptance', () => {
+      assert.strictEqual(googleUser.termsVersion, null);
+      assert.strictEqual(auth.hasAcceptedCurrentTerms(googleUser.id), false);
+      assert.throws(() => auth.acceptCurrentTerms({ userId: googleUser.id,
+        termsVersion: 'older-terms' }),
+      (error) => error instanceof AuthError && error.code === 'invalid_terms_version');
+
+      const accepted = auth.acceptCurrentTerms({ userId: googleUser.id,
+        termsVersion: CURRENT_TERMS_VERSION });
+      assert.deepStrictEqual(accepted, {
+        termsVersion: CURRENT_TERMS_VERSION,
+        acceptedAtMs: clock,
+      });
+      clock += 1000;
+      const repeated = auth.acceptCurrentTerms({ userId: googleUser.id,
+        termsVersion: CURRENT_TERMS_VERSION });
+      assert.strictEqual(repeated.acceptedAtMs, accepted.acceptedAtMs,
+        'repeated acceptance must not rewrite the original audit timestamp');
+      googleUser = auth.getUser(googleUser.id);
+      assert.strictEqual(googleUser.termsVersion, CURRENT_TERMS_VERSION);
+      assert.strictEqual(googleUser.termsAcceptedAtMs, accepted.acceptedAtMs);
     });
 
     test('a user stores normalized required names', () => {
@@ -226,6 +285,16 @@ module.exports = function(harness) {
       assert.strictEqual(row.device_code_hash.includes(issued.deviceCode), false);
       assert.notStrictEqual(row.user_code_hash, issued.userCode.replace('-', ''));
       assert.strictEqual(auth.getDeviceAuthorization(issued.userCode).displayName, 'Josh MacBook');
+      assert.deepStrictEqual(auth.pollDeviceAuthorization({ deviceCode: issued.deviceCode }), {
+        ok: false, reason: 'authorization_pending',
+      });
+    });
+
+    test('an unaccepted user cannot approve a CLI authorization', () => {
+      const issued = auth.issueDeviceAuthorization({ displayName: 'Unaccepted machine' });
+      assert.throws(() => auth.approveDeviceAuthorization({
+        userCode: issued.userCode, userId: githubUser.id,
+      }), (error) => error instanceof AuthError && error.code === 'terms_acceptance_required');
       assert.deepStrictEqual(auth.pollDeviceAuthorization({ deviceCode: issued.deviceCode }), {
         ok: false, reason: 'authorization_pending',
       });
