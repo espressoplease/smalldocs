@@ -181,6 +181,12 @@ A `sdoc-app` frame uses the document column width inline and the available viewp
 
 Do not add a host-side height cap or a second responsive wrapper around the frame. The component receives normal resize events, and the runner remeasures it when its document layout changes.
 
+The renderer also passes the document's resolved typography, colours, spacing, and radius into the frame. A low-priority component stylesheet applies those values to bare semantic HTML and native controls. The values follow changes to the renderer mount or its ancestor theme classes. Ordinary CSS inside the component wins over these defaults.
+
+The component can read or override the inherited contract through `--sdoc-app-background`, `--sdoc-app-surface`, `--sdoc-app-color`, `--sdoc-app-heading-color`, `--sdoc-app-muted-color`, `--sdoc-app-accent-color`, `--sdoc-app-border-color`, `--sdoc-app-font-family`, `--sdoc-app-heading-font-family`, `--sdoc-app-code-font-family`, `--sdoc-app-font-size`, `--sdoc-app-line-height`, `--sdoc-app-heading-scale`, `--sdoc-app-h1-size` through `--sdoc-app-h3-size`, `--sdoc-app-h1-weight` through `--sdoc-app-h3-weight`, `--sdoc-app-radius`, `--sdoc-app-block-spacing`, `--sdoc-app-padding`, and `--sdoc-app-color-scheme`.
+
+The bundled Inter faces load inside the sandbox. A host-selected system font resolves normally. A different webfont must also be loaded by the component when the exact face matters because the sandbox does not inherit the host page's `@font-face` rules.
+
 ## Security
 
 The SDK parses Markdown, sanitises the resulting HTML, and mounts the cleaned document into the host DOM. It removes script tags, event handlers, embedded frames, unsafe URLs, and similar executable content from ordinary document markup.

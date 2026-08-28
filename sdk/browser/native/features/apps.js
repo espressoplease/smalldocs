@@ -23,17 +23,22 @@ export async function mount(context) {
     mountSurface(surface, options) {
       return openOverlayLease(context, {
         surface,
-        mount: context.shell,
         initialFocus: options.initialFocus,
         beforeClose: options.beforeClose,
       });
     },
   });
-  const result = renderer.process(context.root);
-  await result.ready;
-  if (context.signal.aborted) {
-    renderer.destroy('update');
-    return;
+  const abort = () => renderer.destroy('update');
+  context.signal.addEventListener('abort', abort, { once: true });
+  try {
+    const result = renderer.process(context.root);
+    await result.ready;
+    if (context.signal.aborted) {
+      renderer.destroy('update');
+      return;
+    }
+  } finally {
+    context.signal.removeEventListener('abort', abort);
   }
   return (reason) => renderer.destroy(reason);
 }

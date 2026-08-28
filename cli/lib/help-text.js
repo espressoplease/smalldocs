@@ -1001,15 +1001,13 @@ BASIC SYNTAX
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Counter</title>
-    <style>
-      body { font: 16px system-ui; margin: 0; padding: 24px; }
-    </style>
   </head>
   <body>
     <button id="count">Count: 0</button>
     <script>
       let value = 0;
-      count.onclick = () => count.textContent = 'Count: ' + (++value);
+      const button = document.getElementById('count');
+      button.onclick = () => button.textContent = 'Count: ' + (++value);
     </script>
   </body>
   </html>
@@ -1022,6 +1020,38 @@ AUTHORING
   - Package required data and code in the document when the component should
     keep working without an external service.
   - An ordinary \`\`\`html fence remains a highlighted source listing.
+
+INHERITED DESIGN
+  Bare semantic HTML starts with the SmallDocs document's current typography,
+  text and heading colours, background, accent, border, surface, spacing, and
+  corner radius. Native controls receive the same font and a restrained base
+  treatment. These values update when the document theme or styles change.
+
+  The defaults live in a low-priority CSS layer. Ordinary component CSS wins.
+  Override individual values through these custom properties:
+
+    --sdoc-app-background          --sdoc-app-surface
+    --sdoc-app-color               --sdoc-app-heading-color
+    --sdoc-app-muted-color         --sdoc-app-accent-color
+    --sdoc-app-border-color        --sdoc-app-font-family
+    --sdoc-app-heading-font-family --sdoc-app-code-font-family
+    --sdoc-app-font-size           --sdoc-app-line-height
+    --sdoc-app-heading-scale
+    --sdoc-app-h1-size             --sdoc-app-h2-size
+    --sdoc-app-h3-size             --sdoc-app-h1-weight
+    --sdoc-app-h2-weight           --sdoc-app-h3-weight
+    --sdoc-app-radius              --sdoc-app-block-spacing
+    --sdoc-app-padding             --sdoc-app-color-scheme
+
+  Example override:
+
+    :root { --sdoc-app-background: #101827; --sdoc-app-color: #f8fafc; }
+    body { padding: 12px; }
+
+  Do not repeat a body reset, font stack, or page background when the inherited
+  design is appropriate. Add CSS for the component's layout and intentional
+  visual differences. The bundled Inter faces load inside the component.
+  Load other webfonts inside the component when their exact face is required.
 
 SIZING AND RESPONSIVE LAYOUT
   The component owns its inline height. SmallDocs measures the complete

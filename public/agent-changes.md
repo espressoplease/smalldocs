@@ -13,6 +13,18 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v25 (next CLI release)
+
+**Reason:** Runnable HTML now inherits document styles through an overridable
+component design contract.
+
+Agents now start runnable components with semantic HTML instead of repeating a
+generic body reset and font stack. SmallDocs supplies typography, text and
+surface colours, spacing, background, radius, and native control defaults from
+the surrounding document. These defaults live in a low-priority CSS layer, so
+ordinary component CSS remains authoritative. The `sdoc apps` reference lists
+the `--sdoc-app-*` custom properties for targeted overrides.
+
 ## v24 (next CLI release)
 
 **Reason:** Runnable HTML guidance now leaves sizing to the component and

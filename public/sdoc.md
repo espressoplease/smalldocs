@@ -297,20 +297,22 @@ Run a self-contained browser tool inside a document with a `sdoc-app` fence. It 
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Counter</title>
-  <style>body { font: 16px system-ui; margin: 0; padding: 24px; }</style>
 </head>
 <body>
   <button id="count">Count: 0</button>
   <script>
     let value = 0;
-    count.onclick = () => count.textContent = `Count: ${++value}`;
+    const button = document.getElementById('count');
+    button.onclick = () => button.textContent = `Count: ${++value}`;
   </script>
 </body>
 </html>
 ~~~
 ````
 
-The `<title>` names the component in its toolbar. CSS, JavaScript, canvas, SVG, forms, downloads, and browser-native controls work. The component's document layout controls its inline height without a SmallDocs minimum or maximum; its width follows the reading column. Use responsive CSS and check narrow, wide, inline, and fullscreen layouts. Expanding moves the same running frame into fullscreen, so inputs and JavaScript state stay in place. An ordinary `html` fence remains a highlighted source listing.
+The `<title>` names the component in its toolbar. CSS, JavaScript, canvas, SVG, forms, downloads, and browser-native controls work. Bare semantic HTML inherits the SmallDocs document's typography, colours, heading scale, spacing, background, and control treatment. These defaults live in a low-priority CSS layer, so ordinary component CSS wins. The bundled Inter faces load inside the component; load other webfonts there when their exact face matters. Override individual values with the documented `--sdoc-app-*` custom properties when the component should depart from the document style.
+
+The component's document layout controls its inline height without a SmallDocs minimum or maximum; its width follows the reading column. Use responsive CSS and check narrow, wide, inline, and fullscreen layouts. Expanding moves the same running frame into fullscreen, so inputs and JavaScript state stay in place. An ordinary `html` fence remains a highlighted source listing.
 
 Component code runs in a sandboxed frame and cannot reach the SmallDocs page, its account controls, or storage for smalldocs.org. Network requests still leave the browser and follow the destination's CORS rules. Run `sdoc apps` for the complete authoring and runtime reference.
 

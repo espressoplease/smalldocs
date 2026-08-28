@@ -38,6 +38,65 @@ test('runs a complete HTML document with JavaScript inline', async ({ page }) =>
   await expect(page.locator('#_sd_rendered code.language-sdoc-app')).toHaveCount(0);
 });
 
+test('bare components inherit the SmallDocs design contract', async ({ page }) => {
+  const source = '<!doctype html><html><head><title>Inherited design</title></head><body><h1>Heading</h1><p>Body text</p><button>Action</button></body></html>';
+  await loadDoc(page, app(source));
+  const component = page.frameLocator('.sdoc-app-frame');
+  await expect(component.locator('#sdocs-component-defaults')).toHaveCount(1);
+  await expect(component.locator('body')).toHaveCSS('margin', '0px');
+  await expect(component.locator('body')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(component.locator('body')).toHaveCSS('color', 'rgb(28, 25, 23)');
+  await expect(component.locator('body')).toHaveCSS('font-family', /Inter/);
+  await expect(component.locator('h1')).toHaveCSS('font-weight', '700');
+  await expect(component.locator('button')).toHaveCSS('font-family', /Inter/);
+  expect(await component.locator('body').evaluate((body) => parseFloat(getComputedStyle(body).paddingLeft))).toBeGreaterThan(0);
+  await expect.poll(() => component.locator('body').evaluate(async () => {
+    await document.fonts.ready;
+    return Array.from(document.fonts).some((face) => face.family === 'Inter' && face.status === 'loaded');
+  })).toBe(true);
+});
+
+test('component CSS overrides inherited defaults', async ({ page }) => {
+  const source = `<!doctype html><html><head><title>Custom design</title><style>
+:root { --sdoc-app-background: #112233; --sdoc-app-color: #f7f7f7; }
+body { padding: 7px; font-family: Georgia, serif; }
+</style></head><body>Custom</body></html>`;
+  await loadDoc(page, app(source));
+  const body = page.frameLocator('.sdoc-app-frame').locator('body');
+  await expect(body).toHaveCSS('background-color', 'rgb(17, 34, 51)');
+  await expect(body).toHaveCSS('color', 'rgb(247, 247, 247)');
+  await expect(body).toHaveCSS('padding', '7px');
+  await expect(body).toHaveCSS('font-family', /Georgia/);
+});
+
+test('component design follows document style changes', async ({ page }) => {
+  const source = '<!doctype html><html><head><title>Live design</title></head><body><h1>Heading</h1><a href="#">Link</a></body></html>';
+  await loadDoc(page, app(source));
+  await page.locator('#_sd_rendered').evaluate((root) => {
+    root.style.setProperty('--md-bg', '#18212f');
+    root.style.setProperty('--md-color', '#eef2f7');
+    root.style.setProperty('--md-link-color', '#f59e0b');
+    root.style.setProperty('--md-font-family', 'Georgia, serif');
+    root.style.setProperty('--md-h-scale', '1.25');
+  });
+  const component = page.frameLocator('.sdoc-app-frame');
+  await expect(component.locator('body')).toHaveCSS('background-color', 'rgb(24, 33, 47)');
+  await expect(component.locator('body')).toHaveCSS('color', 'rgb(238, 242, 247)');
+  await expect(component.locator('body')).toHaveCSS('font-family', /Georgia/);
+  await expect(component.locator('a')).toHaveCSS('color', 'rgb(245, 158, 11)');
+  await expect(component.locator('html')).toHaveCSS('color-scheme', 'dark');
+  await expect(component.locator('h1')).toHaveCSS('font-size', '42px');
+
+  await page.locator('#_sd_rendered').evaluate((root) => {
+    root.style.setProperty('--md-bg', 'hsl(0 0% 96%)');
+  });
+  await expect(component.locator('html')).toHaveCSS('color-scheme', 'light');
+  await page.locator('#_sd_rendered').evaluate((root) => {
+    root.style.setProperty('--md-bg', 'oklch(20% 0 0)');
+  });
+  await expect(component.locator('html')).toHaveCSS('color-scheme', 'dark');
+});
+
 test('ordinary html fences remain readable source', async ({ page }) => {
   await page.goto('/new');
   await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
@@ -105,11 +164,12 @@ test('component owns inline height and fullscreen ignores size reports', async (
   const fullscreenHeight = await page.locator('.sdoc-app-frame-fullscreen').evaluate((frame) => frame.getBoundingClientRect().height);
   const viewportHeight = page.viewportSize().height;
   expect(fullscreenHeight).toBe(viewportHeight - 66);
+  await expect(page.locator('.sdoc-app-frame-fullscreen:popover-open')).toHaveCount(1);
 });
 
 test('component responsive CSS can change its inline height', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 800 });
-  const responsive = '<!doctype html><html><head><title>Responsive app</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body{margin:0}.surface{height:220px}@media(max-width:500px){.surface{height:360px}}</style></head><body><main class="surface">Responsive</main></body></html>';
+  const responsive = '<!doctype html><html><head><title>Responsive app</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body{margin:0;padding:0}.surface{height:220px}@media(max-width:500px){.surface{height:360px}}</style></head><body><main class="surface">Responsive</main></body></html>';
   await loadDoc(page, app(responsive));
   await expect.poll(async () => page.locator('.sdoc-app-frame-inline').evaluate((frame) => frame.getBoundingClientRect().height)).toBe(220);
   await page.setViewportSize({ width: 420, height: 800 });

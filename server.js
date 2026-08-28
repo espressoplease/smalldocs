@@ -3390,6 +3390,17 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  const appRunnerFontMatch = /^\/sdoc-app-runner\/fonts\/(inter-(?:400|500|600)\.woff2)$/.exec(pathname);
+  if (appRunnerFontMatch) {
+    serveFile(req, res, path.join(__dirname, 'public', 'fonts', appRunnerFontMatch[1]), {
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Access-Control-Allow-Origin': '*',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return;
+  }
+
   if (pathname === '/docs' || pathname === '/new' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/advanced-spreadsheets' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     if (pathname === '/docs' && url.searchParams.has('cloud-document')) {
       const authenticated = cloudAuthSession(req);
