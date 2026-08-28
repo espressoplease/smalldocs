@@ -2,15 +2,15 @@
 const { test, expect } = require('@playwright/test');
 const BASE = process.env.SDOCS_TEST_BASE || '/docs';
 
-async function openWalk(page, body, annotations) {
+async function openWalk(page, body, annotations, meta) {
   await page.goto(BASE);
   await page.waitForFunction(() =>
     window.SDocs && window.SDocs.docwalk && window.SDocs.commentsUi && window.SDocs.render);
-  await page.evaluate(({ body, annotations }) => {
+  await page.evaluate(({ body, annotations, meta }) => {
     window.SDocs.currentBody = body;
-    window.SDocs.currentMeta = { docwalk: true, annotations };
+    window.SDocs.currentMeta = Object.assign({ docwalk: true, annotations }, meta || {});
     window.SDocs.render();
-  }, { body, annotations });
+  }, { body, annotations, meta });
 }
 
 test('renders ordered Markdown annotations as a guided walkthrough', async ({ page }) => {
@@ -144,6 +144,33 @@ test('lines inside sheets and slides target the whole rich block', async ({ page
   await expect(page.locator('.sdoc-cells.sdoc-docwalk-target-active')).toHaveCount(0);
 });
 
+test('a tabbed sheet highlights the complete workbook frame', async ({ page }) => {
+  const body = [
+    '```cells Inputs',
+    'Metric,Value',
+    'Readers,120',
+    '```',
+    '',
+    '```cells Summary',
+    'Metric,Value',
+    'Completed,106.8',
+    '```',
+  ].join('\n');
+  await openWalk(page, body, [{ line: 8, text: 'Review the summary.' }], {
+    'cells-tabs': true,
+  });
+
+  const pane = page.locator('.sdoc-cells-pane.sdoc-docwalk-target-active');
+  await expect(pane).toHaveCount(1);
+  await expect(pane.locator('.sdoc-cells-pane-tab.is-active')).toHaveText('Summary');
+  const highlight = await pane.evaluate((element) => ({
+    outline: getComputedStyle(element).outlineWidth,
+    shadow: getComputedStyle(element).boxShadow,
+  }));
+  expect(highlight.outline).toBe('0px');
+  expect(highlight.shadow).not.toBe('none');
+});
+
 test('a regular code fence hosts an inline card below its highlighted source line', async ({ page }) => {
   const body = '# Example\n\n```js\nconst alpha = 1;\nconst answer = alpha + 41;\n```\n';
   await openWalk(page, body, [{ line: 5, text: 'This calculation matters.' }]);
@@ -177,6 +204,32 @@ test('a code quote highlights exact characters without washing the whole line', 
   await expect(token).toHaveCount(1);
   await expect(token).toHaveText('alpha + 41');
   await expect(page.locator('.sdoc-docwalk-code-row.sdoc-docwalk-target-active')).toHaveCount(0);
+});
+
+test('inline and fullscreen code share one walkthrough cursor', async ({ page }) => {
+  const body = 'Read this first.\n\n```js\nconst answer = alpha + 41;\n```\n';
+  await openWalk(page, body, [
+    { line: 1, text: 'The prose step.' },
+    { line: 4, quote: 'alpha + 41', text: 'The code step.' },
+  ]);
+
+  await page.locator('.sdoc-docwalk-card.is-active [data-docwalk="next"]').click();
+  await page.locator('.pre-wrapper .expand-btn').click();
+  await expect(page.locator('.sdoc-code-focus')).toBeVisible();
+  await expect(page.locator('.sdoc-ann-row.sdoc-cw-active .sdoc-cw-pos')).toHaveText('Step 2 of 2');
+  await expect(page.locator('.sdoc-ann-token-mark.sdoc-cw-token-active')).toHaveText('alpha + 41');
+  await expect(page.locator('.sdoc-ann-row.sdoc-cw-active .sdoc-ann-card')).toContainText('The code step.');
+
+  await page.locator('.sdoc-code-focus [data-act="close"]').click();
+  await expect(page.locator('.sdoc-code-focus')).toHaveCount(0);
+  await expect(page.locator('.sdoc-docwalk-card.is-active .sdoc-docwalk-position')).toHaveText('Step 2 of 2');
+  await expect(page.locator('.sdoc-docwalk-code-token.sdoc-docwalk-target-active')).toHaveText('alpha + 41');
+
+  await page.locator('.pre-wrapper .expand-btn').click();
+  await page.locator('.sdoc-ann-row.sdoc-cw-active [data-cw="prev"]').click();
+  await expect(page.locator('.sdoc-code-focus')).toHaveCount(0);
+  await expect(page.locator('.sdoc-docwalk-card.is-active .sdoc-docwalk-position')).toHaveText('Step 1 of 2');
+  await expect(page.locator('.sdoc-docwalk-inline.sdoc-docwalk-target-active')).toHaveText('Read this first.');
 });
 
 test('inactive document walkthrough metadata leaves the normal reader unchanged', async ({ page }) => {

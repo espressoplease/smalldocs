@@ -638,6 +638,15 @@
     '  background: var(--sdoc-ann-wash, color-mix(in oklab, var(--sdoc-ann-accent, #7c84d8) 15%, transparent));',
     '  border-radius: 2px;',
     '}',
+    '.sdoc-ann-token-mark {',
+    '  background: color-mix(in oklab, var(--sdoc-ann-accent, #7c84d8) 26%, transparent);',
+    '  border-radius: 2px;',
+    '  box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--sdoc-ann-accent, #7c84d8) 68%, transparent);',
+    '}',
+    '.sdoc-ann-token-mark.sdoc-cw-token-active {',
+    '  background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 34%, transparent);',
+    '  box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 78%, transparent);',
+    '}',
     // ── Walkthrough: tab strip + on-card stepper ──────────────────────────
     // A fourth grid row holds the tab strip between the subbar and the stage.
     '.sdoc-code-focus.has-cw-tabs { grid-template-rows: 40px auto auto 1fr; }',
@@ -1567,9 +1576,19 @@
     if (modal) close();
     if (!sourcePre || !sourcePre.querySelector('code')) return;
     exports.active = api;
-    walk = null;
+    var context = S.docwalk && S.docwalk.codeContextForPre
+      ? S.docwalk.codeContextForPre(sourcePre) : null;
+    walk = context ? {
+      kind: 'inline', steps: context.steps, byFile: context.byFile,
+      preByFile: context.preByFile, stepFile: context.stepFile,
+      stepIndex: context.stepIndex, stripEl: null, jumpNote: null,
+    } : null;
+    if (walk && S.docwalk && S.docwalk.goTo) {
+      S.docwalk.goTo(walk.stepIndex, { scroll: false });
+    }
     buildModalChrome();
     mountFile(sourcePre, opts);
+    if (walk && walk.stepIndex >= 0) scrollActiveStepIntoView();
     var closeBtn = modal.querySelector('[data-act="close"]');
     if (closeBtn && !S.embedMode) closeBtn.focus();
   }
@@ -1605,14 +1624,21 @@
     exports.active = api;
     buildModalChrome();
     walk = {
+      kind: 'code',
       files: files,
       steps: model.steps,
       byFile: model.byFile,
       preByFile: preByFile,
-      stepIndex: model.steps.length ? 0 : -1,
+      stepIndex: model.steps.length
+        ? ((S.docwalk && S.docwalk.currentIndex) ? S.docwalk.currentIndex() : 0)
+        : -1,
       stripEl: null,
       jumpNote: null,   // filename to show the jump pill for (null = no pill)
     };
+    walk.stepIndex = CW.clamp(walk.stepIndex, model.steps.length);
+    if (walk.stepIndex >= 0 && S.docwalk && S.docwalk.goTo) {
+      S.docwalk.goTo(walk.stepIndex, { scroll: false });
+    }
     // One file needs no tab strip (the file-info card already names it); the
     // stepper still drives the walkthrough.
     if (files.length > 1) buildTabStrip(files);
@@ -1675,9 +1701,26 @@
   // step lives in another file, then scroll its card into view.
   function goToStep(idx) {
     var CW = window.SDocCodewalk;
-    if (!walk || !walk.steps.length || !CW) return;
-    idx = CW.clamp(idx, walk.steps.length);
+    if (!walk || !walk.steps.length) return;
+    var clamp = walk.kind === 'inline' && window.SDocDocwalk
+      ? window.SDocDocwalk.clamp : (CW && CW.clamp);
+    if (!clamp) return;
+    idx = clamp(idx, walk.steps.length);
     walk.stepIndex = idx;
+    if (S.docwalk && S.docwalk.goTo) S.docwalk.goTo(idx, { scroll: false });
+
+    if (walk.kind === 'inline') {
+      var key = walk.stepFile[idx] || '';
+      if (!key || !walk.preByFile[key]) {
+        close();
+        return;
+      }
+      if (key !== currentWalkKey()) mountFile(walk.preByFile[key]);
+      else markActiveStep();
+      scrollActiveStepIntoView();
+      return;
+    }
+
     var step = walk.steps[idx];
     // Only a stepper jump that crosses files gets the pill; a same-file step
     // clears it ("press next to a non-jump one and it goes").
@@ -1693,7 +1736,7 @@
   // and every step so the pill survives the async highlight rebuild but vanishes
   // the moment you move to a non-jump step or click a tab.
   function syncJumpNote() {
-    if (!linesEl || !walk) return;
+    if (!linesEl || !walk || walk.kind === 'inline') return;
     var old = linesEl.querySelectorAll('.sdoc-cw-jump-note');
     for (var i = 0; i < old.length; i++) old[i].remove();
     if (!walk.jumpNote) return;
@@ -1730,8 +1773,16 @@
     if (!linesEl || !walk) return;
     var prev = linesEl.querySelectorAll('.sdoc-cl-row.sdoc-cw-line-active');
     for (var i = 0; i < prev.length; i++) prev[i].classList.remove('sdoc-cw-line-active');
+    var oldTokens = linesEl.querySelectorAll('.sdoc-ann-token-mark.sdoc-cw-token-active');
+    for (var t = 0; t < oldTokens.length; t++) oldTokens[t].classList.remove('sdoc-cw-token-active');
+    var tokens = linesEl.querySelectorAll('.sdoc-ann-token-mark[data-cw-step="' + walk.stepIndex + '"]');
+    for (var k = 0; k < tokens.length; k++) tokens[k].classList.add('sdoc-cw-token-active');
     var rows = linesEl.querySelectorAll('.sdoc-cl-row[data-cw-step="' + walk.stepIndex + '"]');
-    for (var j = 0; j < rows.length; j++) rows[j].classList.add('sdoc-cw-line-active');
+    for (var j = 0; j < rows.length; j++) {
+      if (!rows[j].querySelector('.sdoc-ann-token-mark[data-cw-step="' + walk.stepIndex + '"]')) {
+        rows[j].classList.add('sdoc-cw-line-active');
+      }
+    }
   }
 
   function scrollActiveStepIntoView() {
@@ -1914,6 +1965,7 @@
     // Carry comment mode back to the reader: if you were commenting in the
     // viewer, closing lands you in the reader's comment mode, not plain read.
     var wasCommenting = commenting;
+    var returnWalkIndex = walk && walk.stepIndex >= 0 ? walk.stepIndex : -1;
     modal.remove();
     modal = null; docEl = null; linesEl = null; fileInfoEl = null; rawText = ''; folds = null; parents = null; collapsed = null;
     srcLines = null; structuralRe = null; openToken = null;
@@ -1922,6 +1974,7 @@
     document.body.classList.remove('sdoc-code-focus-open');
     if (S.syncEmbedFocus) S.syncEmbedFocus();
     if (config.comments !== false && wasCommenting && S.setMode && !document.body.classList.contains('comment-mode')) S.setMode('comment');
+    if (returnWalkIndex >= 0 && S.docwalk && S.docwalk.goTo) S.docwalk.goTo(returnWalkIndex);
     if (!S.embedMode && prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (_) {} }
     prevFocus = null;
     if (exports.active === api) exports.active = null;
@@ -2231,6 +2284,13 @@
   function currentFileName() {
     return (currentPre && currentPre.dataset && currentPre.dataset.file) || '';
   }
+  function currentWalkKey() {
+    if (walk && walk.kind === 'inline' && currentPre && currentPre.dataset &&
+        currentPre.dataset.docwalkPreIndex != null) {
+      return 'pre:' + currentPre.dataset.docwalkPreIndex;
+    }
+    return currentFileName();
+  }
   function getAnnotations() {
     var raw = (S.currentMeta && S.currentMeta.annotations) || [];
     if (!Array.isArray(raw)) return [];
@@ -2257,8 +2317,23 @@
   // Render annotation cards below their anchor line. Owns its own teardown (the
   // comment-thread rebuild does not touch .sdoc-ann-* rows). Line numbers are
   // 1-based on the surface; data-ln in the DOM is 0-based, so subtract one.
+  function unwrapAgentTokenMarks() {
+    if (!linesEl) return;
+    var marks = linesEl.querySelectorAll('.sdoc-ann-token-mark');
+    for (var i = 0; i < marks.length; i++) {
+      var mark = marks[i], parent = mark.parentNode;
+      if (!parent) continue;
+      while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+      parent.removeChild(mark);
+      parent.normalize();
+    }
+  }
+
   function renderAnnotations() {
     if (!linesEl) return;
+    unwrapAgentTokenMarks();
+    var oldStepRows = linesEl.querySelectorAll('.sdoc-cl-row[data-cw-step]');
+    for (var s = 0; s < oldStepRows.length; s++) oldStepRows[s].removeAttribute('data-cw-step');
     var old = linesEl.querySelectorAll('.sdoc-ann-row');
     for (var k = 0; k < old.length; k++) old[k].remove();
     var marked = linesEl.querySelectorAll('.sdoc-cl-row.sdoc-ann-marked');
@@ -2266,7 +2341,7 @@
     // In a walkthrough the cards come from the model's per-file step list (so
     // each carries its global step index for the stepper); otherwise from the
     // flat annotation list. Both yield { line, endLine, text }.
-    var list = walk ? (walk.byFile[currentFileName()] || []) : getAnnotations();
+    var list = walk ? (walk.byFile[currentWalkKey()] || []) : getAnnotations();
     var total = walk ? walk.steps.length : 0;
     var renderMd = (S.renderMarkdownSafe) ? S.renderMarkdownSafe : function (t) {
       return DOMPurify.sanitize(marked.parse(String(t || '')), { FORBID_ATTR: ['style'] });
@@ -2276,12 +2351,25 @@
       var ln0 = a.line - 1, end0 = a.endLine - 1;
       var anchor = linesEl.querySelector('.sdoc-cl-row[data-ln="' + ln0 + '"]');
       if (!anchor) { continue; } // out of range: skip quietly
+      var quoteRow = null;
+      if (a.quote) {
+        for (var q = ln0; q <= end0; q++) {
+          var qr = linesEl.querySelector('.sdoc-cl-row[data-ln="' + q + '"]');
+          var qc = qr && qr.querySelector('.sdoc-cl-code');
+          if (qc && (qc.textContent || '').indexOf(a.quote) >= 0) { quoteRow = qr; break; }
+        }
+      }
       for (var r = ln0; r <= end0; r++) {
         var rr = linesEl.querySelector('.sdoc-cl-row[data-ln="' + r + '"]');
         if (rr) {
-          rr.classList.add('sdoc-ann-marked');
+          if (!quoteRow) rr.classList.add('sdoc-ann-marked');
           if (walk) rr.setAttribute('data-cw-step', a.index); // for the focused-line wash
         }
+      }
+      if (quoteRow) {
+        var tokenMark = markQuoteInRow(quoteRow, a.quote, '#7c84d8', '',
+          'sdoc-cc-token-mark sdoc-ann-token-mark');
+        if (tokenMark && walk) tokenMark.setAttribute('data-cw-step', a.index);
       }
       // Card sits after the last covered line, but its data-ln tracks the FIRST
       // line so it folds together with the block it explains.
@@ -2470,7 +2558,7 @@
   // code may be syntax-highlighted (the quote can span several token spans), so
   // wrap a DOM Range, falling back to extract+insert when surroundContents
   // refuses a boundary-crossing range.
-  function markQuoteInRow(row, quote, color, cid) {
+  function markQuoteInRow(row, quote, color, cid, className) {
     var codeEl = row && row.querySelector('.sdoc-cl-code');
     if (!codeEl || !quote) return;
     var full = codeEl.textContent || '';
@@ -2487,7 +2575,7 @@
     }
     if (sN === null || eN === null) return;
     var span = document.createElement('span');
-    span.className = 'sdoc-cc-token-mark';
+    span.className = className || 'sdoc-cc-token-mark';
     if (color) span.style.setProperty('--sdoc-cc-color', color);
     if (cid) span.setAttribute('data-c', cid);
     var range = document.createRange();

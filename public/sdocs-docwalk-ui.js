@@ -10,9 +10,12 @@ var currentIndex = -1;
 var resolvedByStep = [];
 var didInitialScroll = false;
 
+function isCodewalk() {
+  return !!(window.SDocCodewalk && window.SDocCodewalk.isCodewalk(S.currentMeta));
+}
+
 function active() {
-  return !!(DW && DW.isDocwalk(S.currentMeta) &&
-    !(window.SDocCodewalk && window.SDocCodewalk.isCodewalk(S.currentMeta)));
+  return !!(DW && (DW.isDocwalk(S.currentMeta) || isCodewalk()));
 }
 
 function modelKey() {
@@ -43,6 +46,7 @@ function strip() {
   });
   S.renderedEl.querySelectorAll('pre.sdoc-docwalk-code-source').forEach(function (pre) {
     pre.classList.remove('sdoc-docwalk-code-source');
+    pre.removeAttribute('data-docwalk-pre-index');
   });
 }
 
@@ -62,6 +66,12 @@ function topLevelMatches(selector) {
 }
 
 function findBlock(target) {
+  if (target.file && S.renderedEl) {
+    var named = S.renderedEl.querySelectorAll('pre[data-file]');
+    for (var n = 0; n < named.length; n++) {
+      if (named[n].getAttribute('data-file') === target.file) return named[n];
+    }
+  }
   var id = target.type + ':' + target.index;
   if (S.commentsUi && S.commentsUi._findBlockById) {
     var hint = target.source ? plainInline(target.source).slice(0, 60) : '';
@@ -151,6 +161,7 @@ function codeSurface(pre, target) {
     surface.appendChild(row);
   }
   pre.classList.add('sdoc-docwalk-code-source');
+  pre.setAttribute('data-docwalk-pre-index', target.index);
   wrapper.insertBefore(surface, pre);
   return surface;
 }
@@ -221,6 +232,13 @@ function resolveTarget(target) {
   if (!element) return null;
 
   if (target.code) return resolveCodeTarget(element, target);
+
+  if (target.kind === 'rich' && target.selector === '.sdoc-cells') {
+    var pane = element.closest && element.closest('.sdoc-cells-pane');
+    var mark = pane || element;
+    mark.classList.add('sdoc-docwalk-target');
+    return { element: element, mark: mark };
+  }
 
   if (target.kind === 'block' && target.inline && target.source &&
       S.commentsUi && S.commentsUi._resolveAnchor) {
@@ -364,10 +382,79 @@ function syncActive(scroll) {
   });
 }
 
-function goTo(index) {
+function goTo(index, options) {
   if (!currentModel.total) return;
   currentIndex = DW.clamp(index, currentModel.total);
-  syncActive(true);
+  syncActive(!(options && options.scroll === false));
+}
+
+function codewalkModel() {
+  var CW = window.SDocCodewalk;
+  if (!CW || !S.renderedEl) return { steps: [], total: 0 };
+  var model = CW.build(S.currentMeta);
+  var pres = Array.prototype.slice.call(S.renderedEl.querySelectorAll('pre[data-file]'));
+  var byFile = Object.create(null);
+  pres.forEach(function (pre, index) {
+    var code = pre.querySelector('code');
+    var text = code ? code.textContent || '' : '';
+    if (text.slice(-1) === '\n') text = text.slice(0, -1);
+    byFile[pre.getAttribute('data-file')] = {
+      index: index, count: Math.max(1, text.split('\n').length),
+    };
+  });
+  var steps = [];
+  model.steps.forEach(function (step) {
+    var info = byFile[step.file];
+    if (!info) return;
+    var line = Math.max(1, Math.min(info.count, step.line));
+    var endLine = Math.max(line, Math.min(info.count, step.endLine));
+    steps.push({
+      line: step.line, endLine: step.endLine, text: step.text, index: step.index,
+      targets: [{
+        kind: 'block', type: 'pre', index: info.index, file: step.file,
+        code: true, codeLineCount: info.count, codeLine: line,
+        codeEndLine: endLine, quote: step.quote || '',
+      }],
+    });
+  });
+  return { steps: steps, total: model.total };
+}
+
+function codeContextForPre(pre) {
+  if (!active() || !pre) return null;
+  var rawIndex = pre.getAttribute('data-docwalk-pre-index');
+  var selectedKey = rawIndex == null ? '' : 'pre:' + rawIndex;
+  if (!selectedKey) return null;
+  var byFile = Object.create(null);
+  var preByFile = Object.create(null);
+  var stepFile = Object.create(null);
+  var pres = S.renderedEl.querySelectorAll('pre[data-docwalk-pre-index]');
+  for (var p = 0; p < pres.length; p++) {
+    var key = 'pre:' + pres[p].getAttribute('data-docwalk-pre-index');
+    preByFile[key] = pres[p];
+  }
+  currentModel.steps.forEach(function (step) {
+    step.targets.forEach(function (target) {
+      if (!target.code) return;
+      var key = 'pre:' + target.index;
+      var note = {
+        line: target.codeLine, endLine: target.codeEndLine, text: step.text,
+        quote: target.quote || '', index: step.index,
+      };
+      (byFile[key] || (byFile[key] = [])).push(note);
+      if (stepFile[step.index] == null) stepFile[step.index] = key;
+    });
+  });
+  var selected = byFile[selectedKey] || [];
+  if (!selected.length) return null;
+  var stepIndex = currentIndex;
+  if (!selected.some(function (note) { return note.index === stepIndex; })) {
+    stepIndex = selected[0].index;
+  }
+  return {
+    steps: currentModel.steps, byFile: byFile, preByFile: preByFile,
+    stepFile: stepFile, stepIndex: stepIndex, selectedKey: selectedKey,
+  };
 }
 
 function render() {
@@ -386,7 +473,9 @@ function render() {
     currentIndex = 0;
     didInitialScroll = false;
   }
-  currentModel = DW.build(S.currentMeta, S.currentBody, window.marked.lexer);
+  currentModel = isCodewalk()
+    ? codewalkModel()
+    : DW.build(S.currentMeta, S.currentBody, window.marked.lexer);
   currentIndex = DW.clamp(currentIndex, currentModel.total);
   resolvedByStep = [];
   var stacks = [];
@@ -435,6 +524,8 @@ S.docwalk = {
   goTo: goTo,
   active: active,
   model: function () { return currentModel; },
+  currentIndex: function () { return currentIndex; },
+  codeContextForPre: codeContextForPre,
 };
 
 })();

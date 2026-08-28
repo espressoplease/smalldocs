@@ -109,6 +109,19 @@ module.exports = function (harness) {
     assert.deepStrictEqual(m.byFile['util.py'].map(s => s.index), [1]);
   });
 
+  test('build: keeps an exact token quote when one is supplied', () => {
+    const m = CW.build({
+      files: ['app.js'],
+      annotations: [{
+        file: 'app.js',
+        line: 2,
+        quote: 'alpha + 41',
+        text: 'selected expression',
+      }],
+    });
+    assert.strictEqual(m.steps[0].quote, 'alpha + 41');
+  });
+
   test('build: endLine coerced, invalid line / empty text dropped', () => {
     const m = CW.build({
       files: ['a.py'],

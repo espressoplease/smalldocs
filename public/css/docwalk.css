@@ -28,6 +28,27 @@
   background: color-mix(in oklab, var(--sdoc-walkthrough-accent) 28%, transparent);
 }
 
+/* A tabbed sheet clips its inner grids to the workbook frame. Mark the frame,
+   not the hidden overflow edge of the active grid, so the target reads as one
+   complete workbook while the selected tab remains the precise sheet cue. */
+#_sd_rendered .sdoc-cells-pane.sdoc-docwalk-target {
+  outline: 0;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--sdoc-docwalk-accent) 52%, transparent),
+    0 0 0 2px color-mix(in oklab, var(--sdoc-docwalk-accent) 58%, transparent),
+    0 0 0 6px color-mix(in oklab, var(--sdoc-docwalk-accent) 10%, transparent);
+}
+
+#_sd_rendered .sdoc-cells-pane.sdoc-docwalk-target-active {
+  outline: 0;
+  background: var(--sdoc-cells-surface, color-mix(in oklab, var(--md-bg, #fff) 92%, var(--sdoc-walkthrough-accent) 8%));
+  box-shadow:
+    inset 0 0 0 2px color-mix(in oklab, var(--sdoc-walkthrough-accent) 72%, transparent),
+    0 0 0 3px var(--sdoc-walkthrough-accent),
+    0 0 0 8px color-mix(in oklab, var(--sdoc-walkthrough-accent) 14%, transparent);
+}
+
 #_sd_rendered .pre-wrapper > pre.sdoc-docwalk-code-source { display: none; }
 
 #_sd_rendered .sdoc-docwalk-code {

@@ -73,6 +73,19 @@ test('code notes consume the shared walkthrough card and stepper', async ({ page
   await expect(card.locator('[data-cw="next"]')).toHaveClass(/sdoc-walkthrough-nav/);
 });
 
+test('closing fullscreen keeps the current code walkthrough step inline', async ({ page }) => {
+  await openWalk(page, TWO_FILES, STEPS);
+  await page.locator(activeNext).click();
+  await expect(page.locator(activePos)).toHaveText('Step 2 of 3');
+
+  await page.locator('.sdoc-code-focus [data-act="close"]').click();
+  await expect(page.locator('.sdoc-code-focus')).toHaveCount(0);
+  await expect(page.locator('#_sd_rendered .sdoc-docwalk-card.is-active .sdoc-docwalk-position'))
+    .toHaveText('Step 2 of 3');
+  await expect(page.locator('#_sd_rendered .sdoc-docwalk-code[data-pre-index="1"] .sdoc-docwalk-code-row.sdoc-docwalk-target-active'))
+    .toHaveText(/x = 9/);
+});
+
 test('a single annotated file is a walkthrough: stepper, no tab strip, command order', async ({ page }) => {
   await openWalk(page, [TWO_FILES[0]], [   // just app.py (lines a=1 / b=2 / c=3)
     { file: 'app.py', line: 3, endLine: 3, text: 'first by argument (line 3)' },

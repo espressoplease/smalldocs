@@ -45,4 +45,4 @@ function releaseScore(reliability, readiness) {
 }
 ```
 
-The walkthrough keeps this example in the reading surface. Its note sits below the selected source line, while the existing copy and expand controls remain available.
+The walkthrough keeps this example in the reading surface. Its note sits below the selected source line, while the existing copy and expand controls remain available. Expanding carries the same step into fullscreen, and closing returns to it inline.

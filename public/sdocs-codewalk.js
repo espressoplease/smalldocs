@@ -84,6 +84,8 @@ function build(meta) {
     }
 
     var step = { file: file, line: line, endLine: end, text: text, index: steps.length };
+    var quote = str(a.quote).trim();
+    if (quote) step.quote = quote;
     steps.push(step);
     (byFile[file] || (byFile[file] = [])).push(step);
   }
