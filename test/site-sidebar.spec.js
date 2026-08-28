@@ -61,6 +61,8 @@ test('Library and reader sidebars share capability and footer content', async ({
         const brand = element.querySelector('.sdocs-sidebar-brand');
         const footerLink = element.querySelector('.sdocs-sidebar-footer-link');
         const footerIcon = footerLink.querySelector('svg');
+        const legal = element.querySelector('.sdocs-sidebar-legal');
+        const legalLink = legal.querySelector('a');
         const bounds = element.getBoundingClientRect();
         const brandBounds = brand.getBoundingClientRect();
         return {
@@ -72,6 +74,8 @@ test('Library and reader sidebars share capability and footer content', async ({
             'columnGap', 'fontSize', 'borderRadius']),
           footerIcon: styleValues(footerIcon, ['width', 'height', 'fill', 'stroke', 'strokeWidth',
             'strokeLinecap', 'strokeLinejoin']),
+          legal: styleValues(legal, ['fontSize']),
+          legalLink: styleValues(legalLink, ['textDecorationLine']),
           brandOffset: {
             top: Math.round(brandBounds.top - bounds.top),
             left: Math.round(brandBounds.left - bounds.left),
@@ -99,6 +103,8 @@ test('Library and reader sidebars share capability and footer content', async ({
     strokeLinecap: 'round',
     strokeLinejoin: 'round',
   });
+  expect(reader.contract.legal.fontSize).toBe('11px');
+  expect(reader.contract.legalLink.textDecorationLine).toBe('underline');
   expect(library.sidebarBottom - library.footerBottom).toBe(16);
   expect(reader.sidebarBottom - reader.footerBottom).toBe(16);
 });
@@ -114,8 +120,13 @@ test('shared footer swaps Sign in for Account settings when authenticated', asyn
   await expect(footer.getByRole('link', { name: 'Account settings' })).toHaveCount(0);
 
   await footer.evaluate(element => {
-    element.innerHTML = window.SDocsSidebarShared.footerInnerHtml({ authenticated: true });
+    element.innerHTML = window.SDocsSidebarShared.footerInnerHtml({
+      authenticated: true,
+      statusId: 'test-sidebar-status',
+    });
+    element.querySelector('#test-sidebar-status').textContent = 'Loaded';
   });
+  await expect(footer.locator('#test-sidebar-status')).toHaveCSS('margin-bottom', '4px');
   await expect(footer.getByRole('link', { name: 'Account settings' })).toHaveAttribute('href', '/cloud/admin');
   await expect(footer.getByRole('link', { name: 'Sign in' })).toHaveCount(0);
   await expect(footer.locator('.sdocs-sidebar-footer-link').first()).toHaveText('Account settings');
