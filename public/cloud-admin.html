@@ -134,10 +134,9 @@
     .account-switcher-copy strong { font-size:13px; }
     .account-switcher-menu { right:0; width:auto; max-height:min(320px,55vh); overflow-y:auto; }
     .account-switcher-menu button { min-height:44px; }
-    .settings-nav { flex-wrap:nowrap; gap:4px; min-width:0; margin:0 0 24px; overflow-x:auto; overscroll-behavior-inline:contain; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
-    .settings-nav::-webkit-scrollbar { display:none; }
-    .nav { width:auto; min-width:0; min-height:40px; flex:1 1 0; justify-content:center; gap:0; padding:8px; white-space:nowrap; }
-    .nav svg { display:none; }
+    .settings-nav { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; min-width:0; margin:0 0 24px; }
+    .nav { width:100%; min-width:0; min-height:42px; justify-content:flex-start; gap:8px; padding:8px 10px; border-color:var(--border); white-space:nowrap; }
+    .nav svg { display:block; }
     .nav-label-full { display:none; }
     .nav-label-short { display:inline; }
     .main { min-width:0; padding:24px 14px 60px; }
