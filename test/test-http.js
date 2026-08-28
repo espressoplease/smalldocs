@@ -284,6 +284,9 @@ module.exports = function(harness) {
       const codeCss = await get(BASE + '/sdk/0.2.0/code-reader.css');
       assert.strictEqual(codeCss.status, 200);
       assert.ok(codeCss.body.includes("layer(smalldocs)"));
+      const walkthroughCss = await get(BASE + '/sdk/0.2.0/vendor/sdocs-walkthrough.css');
+      assert.strictEqual(walkthroughCss.status, 200);
+      assert.ok(walkthroughCss.body.includes('.sdoc-walkthrough-card.is-active'));
       const mermaidFrame = await get(BASE + '/sdk/0.2.0/mermaid-renderer.html');
       assert.strictEqual(mermaidFrame.status, 200);
       assert.ok(mermaidFrame.headers['content-type'].includes('text/html'));
@@ -705,6 +708,7 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('css/tokens.css'), 'missing tokens.css link');
       assert.ok(r.body.includes('css/layout.css'), 'missing layout.css link');
       assert.ok(r.body.includes('css/rendered.css'), 'missing rendered.css link');
+      assert.ok(r.body.includes('css/walkthrough.css'), 'missing walkthrough.css link');
       assert.ok(r.body.includes('css/panel.css'), 'missing panel.css link');
       assert.ok(r.body.includes('css/mobile.css'), 'missing mobile.css link');
     });

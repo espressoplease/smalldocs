@@ -28,16 +28,16 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 26;
-const SKILL_REASON  = 'Runnable HTML guidance now favours purpose-led layouts and restrained visual treatment.';
+const SKILL_VERSION = 27;
+const SKILL_REASON  = 'Agents can now guide readers through rendered prose, rich blocks, and inline code lines.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
 // in SKILL_BODY and loads on demand. Plain text: no backticks, no em/en dashes,
 // no double quotes (it is emitted as a double-quoted YAML scalar).
-const SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, or save a Markdown document with SmallDocs. Create or locate the Markdown file and use sdoc FILE.md for normal viewing. For a presentation run sdoc slides, create a Markdown deck from the source material, run sdoc slides verify FILE.md --json and fix every error, then run sdoc present FILE.md. For a runnable browser component run sdoc apps, use a sdoc-app block, and check inline, fullscreen, narrow, and wide layouts. Run the matching bare reference command before other specialised syntax. Local files stay local unless the user explicitly requests sharing or Cloud storage.";
+const SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, save, or walk through a Markdown document with SmallDocs. Create or locate the Markdown file and use sdoc FILE.md for normal viewing. For a document walkthrough add source-line annotations to the sdoc command; the source file stays unchanged. For a presentation run sdoc slides, create a Markdown deck from the source material, run sdoc slides verify FILE.md --json and fix every error, then run sdoc present FILE.md. For a runnable browser component run sdoc apps, use a sdoc-app block, and check inline, fullscreen, narrow, and wide layouts. Run the matching bare reference command before other specialised syntax. Local files stay local unless the user explicitly requests sharing or Cloud storage.";
 
-const CLOUD_SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, search, or save a Markdown document with SmallDocs. For a presentation run sdoc slides, create a Markdown deck, run sdoc slides verify FILE.md --json and fix every error, then run sdoc present FILE.md. For a runnable browser component run sdoc apps, use a sdoc-app block, and check inline, fullscreen, narrow, and wide layouts. This user has enabled SmallDocs Cloud. Use sdoc FILE.md for ordinary local viewing and do not search Cloud when a named local source is sufficient. For relevant prior Cloud material run sdoc cloud status --json, search, then sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json.";
+const CLOUD_SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, search, save, or walk through a Markdown document with SmallDocs. For a document walkthrough add source-line annotations to the sdoc command; the source file stays unchanged. For a presentation run sdoc slides, create a Markdown deck, run sdoc slides verify FILE.md --json and fix every error, then run sdoc present FILE.md. For a runnable browser component run sdoc apps, use a sdoc-app block, and check inline, fullscreen, narrow, and wide layouts. This user has enabled SmallDocs Cloud. Use sdoc FILE.md for ordinary local viewing and do not search Cloud when a named local source is sufficient. For relevant prior Cloud material run sdoc cloud status --json, search, then sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json.";
 
 const STANDARD_CLOUD_SKILL_SECTION = `### SmallDocs Cloud is available
 
@@ -63,6 +63,7 @@ Use it (or offer it) when the user wants to read, share, or export a \`.md\` fil
 - \`sdoc library ls --tags\` - list the current project's tags by frequency. When tags would make a document worth rediscovering, run this before choosing them. Prefer an existing tag that fits; introduce a new one when none does.
 - \`sdoc file.md +tag1 +tag2\` - open the file and add the selected tags to its YAML front matter. The \`+\` prefix is shell-safe and the tags persist.
 - \`sdoc share file.md\` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
+- \`sdoc report.md 12:"start here" 24-28:"compare these results"\` - open a guided walkthrough of a regular Markdown document. Source lines in prose highlight the matching rendered text. A source line inside an ordinary code fence highlights that code line and places the note beneath it without leaving the reading surface. Charts, diagrams, sheets, slides, forms, math, and videos are highlighted as complete rendered elements. Each note is a markdown callout with Prev / Next controls, walked in the order you pass the notes. Use this when the user asks for a walkthrough of a report, plan, design document, or other prose document. The annotations ride in the URL and through \`sdoc share\`; the source file is unchanged.
 - \`sdoc --help\` - full reference.
 
 ${STANDARD_CLOUD_SKILL_SECTION}

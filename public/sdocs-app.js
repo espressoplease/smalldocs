@@ -86,6 +86,7 @@ function codeCommentColorFor(blockId) {
 // Count valid agent annotations (read-only notes in front matter, line-numbered,
 // not block-tagged). Mirrors the validation in the viewer's getAnnotations.
 function agentAnnotationCount() {
+  if (window.SDocDocwalk && window.SDocDocwalk.isDocwalk(SDocs.currentMeta)) return 0;
   var list = SDocs.currentMeta && SDocs.currentMeta.annotations;
   if (!Array.isArray(list)) return 0;
   var n = 0;
@@ -451,9 +452,13 @@ function render() {
     setAllSectionsOpen(_pendingFoldAllOpen);
     _pendingFoldAllOpen = null;
   }
-  S.processCharts(S.renderedEl);
-  if (S.processMath) S.processMath(S.renderedEl);
-  if (S.processMermaid) S.processMermaid(S.renderedEl);
+  var richReady = [];
+  function rememberRich(value) {
+    if (value && typeof value.then === 'function') richReady.push(value);
+  }
+  rememberRich(S.processCharts(S.renderedEl));
+  if (S.processMath) rememberRich(S.processMath(S.renderedEl));
+  if (S.processMermaid) rememberRich(S.processMermaid(S.renderedEl));
   if (S.processVideo) S.processVideo(S.renderedEl);
   if (window.SDocSlides) window.SDocSlides.processSlides(S.renderedEl);
   if (htmlComponents) htmlComponents.process(S.renderedEl);
@@ -467,15 +472,23 @@ function render() {
     var hlPromise = S.processHighlight(S.renderedEl);
     if (hlPromise && hlPromise.then) {
       hlPromise.then(function () {
-        if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
+        renderAnnotationSurfaces();
       });
     }
+  }
+  if (richReady.length) {
+    Promise.allSettled(richReady).then(function () { renderAnnotationSurfaces(); });
   }
   renderFileInfoCard();
   updateDocumentTitle();
   if (S.sidebarRefresh) S.sidebarRefresh();
-  if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
+  renderAnnotationSurfaces();
   if (S.syncFoldButton) S.syncFoldButton();
+}
+
+function renderAnnotationSurfaces() {
+  if (S.commentsUi && S.commentsUi.onHostRender) S.commentsUi.onHostRender();
+  if (S.docwalk && S.docwalk.onHostRender) S.docwalk.onHostRender();
 }
 
 // Reflect the current document in the browser tab / history / bookmarks.

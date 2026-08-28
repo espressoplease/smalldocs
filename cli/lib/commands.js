@@ -89,6 +89,36 @@ async function prepareCodewalkUrl(opts) {
   return finishUrl(opts, content, null, defaults);
 }
 
+function isMarkdownPath(file) {
+  return /\.(?:md|markdown|mdown|mkd)$/i.test(String(file || ''));
+}
+
+function frontMatterLineOffset(content) {
+  const match = String(content || '').match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/);
+  return match ? (match[0].match(/\n/g) || []).length : 0;
+}
+
+// A regular Markdown file uses the same line annotation syntax as a source
+// file. `docwalk: true` tells the reader to resolve those source lines against
+// rendered prose and rich blocks instead of offering them to the code viewer.
+function applyDocumentWalkthrough(meta, file, annotations, lineOffset) {
+  if (!isMarkdownPath(file) || !Array.isArray(annotations) || !annotations.length) {
+    return false;
+  }
+  const offset = Math.max(0, parseInt(lineOffset, 10) || 0);
+  meta.docwalk = true;
+  meta.annotations = annotations.flatMap(({ file: _file, ...rest }) => {
+    const sourceLine = parseInt(rest.line, 10);
+    const parsedEnd = parseInt(rest.endLine, 10);
+    const sourceEnd = parsedEnd >= sourceLine ? parsedEnd : sourceLine;
+    if (!(sourceLine >= 1) || sourceEnd <= offset) return [];
+    const line = Math.max(1, sourceLine - offset);
+    const endLine = Math.max(line, sourceEnd - offset);
+    return [{ ...rest, line, endLine }];
+  });
+  return true;
+}
+
 async function prepareUrl(opts) {
   // Annotations render as a walkthrough: a tabbed tour for 2+ files, a single-
   // tab stepper for one. A plain `sdoc app.py` with no annotations stays the
@@ -101,6 +131,7 @@ async function prepareUrl(opts) {
   }
 
   let content = await readContent(opts.file);
+  const documentLineOffset = frontMatterLineOffset(content);
   const defaults = loadDefaultStyles();
   if (content && defaults) {
     content = applyDefaultStyles(content);
@@ -115,7 +146,10 @@ async function prepareUrl(opts) {
     const parsed = SDocYaml.parseFrontMatter(content);
     let changed = false;
     if (!parsed.meta.file) { parsed.meta.file = path.basename(opts.file); changed = true; }
-    if (opts.annotations && opts.annotations.length) {
+    if (applyDocumentWalkthrough(
+      parsed.meta, opts.file, opts.annotations, documentLineOffset)) {
+      changed = true;
+    } else if (opts.annotations && opts.annotations.length) {
       // A single file needs no per-annotation `file` binding — drop it so the
       // serialized shape stays {line, endLine, text}. (Multi-file keeps it, in
       // prepareCodewalkUrl.)
@@ -332,6 +366,9 @@ function printIconList(query) {
 }
 
 module.exports = {
+  applyDocumentWalkthrough,
+  frontMatterLineOffset,
+  isMarkdownPath,
   prepareUrl,
   openCommand,
   shareCommand,

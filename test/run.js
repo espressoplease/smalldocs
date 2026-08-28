@@ -51,6 +51,7 @@ require('./test-code-langs')(harness);
 require('./test-code-structural')(harness);
 require('./test-code-comments')(harness);
 require('./test-codewalk')(harness);
+require('./test-docwalk')(harness);
 require('./test-file-wrap')(harness);
 require('./test-agent-block')(harness);
 require('./test-skill-evals')(harness);

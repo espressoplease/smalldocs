@@ -190,6 +190,19 @@ module.exports = function(harness) {
     assert.ok(css.includes('[data-theme="dark"]'), 'missing dark theme selector');
   });
 
+  test('code and document walkthroughs share one card component', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'walkthrough.css'), 'utf-8');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
+    const code = fs.readFileSync(path.join(__dirname, '..', 'public', 'sdocs-code-focus.js'), 'utf-8');
+    const docs = fs.readFileSync(path.join(__dirname, '..', 'public', 'sdocs-docwalk-ui.js'), 'utf-8');
+    const sdkCss = fs.readFileSync(path.join(__dirname, '..', 'sdk', 'browser', 'native', 'code-reader.css'), 'utf-8');
+    assert.ok(html.includes('/public/css/walkthrough.css'));
+    assert.ok(css.includes('.sdoc-walkthrough-card.is-active'));
+    assert.ok(code.includes("card.classList.add('sdoc-walkthrough-card')"));
+    assert.ok(docs.includes('sdoc-docwalk-card sdoc-walkthrough-card'));
+    assert.ok(sdkCss.includes("@import url('./vendor/sdocs-walkthrough.css')"));
+  });
+
   test('reader and developer shells share toolbar and panel dimensions', () => {
     const cssDir = path.join(__dirname, '..', 'public', 'css');
     const tokens = fs.readFileSync(path.join(cssDir, 'tokens.css'), 'utf-8');

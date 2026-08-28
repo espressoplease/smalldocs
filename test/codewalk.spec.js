@@ -1,5 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
+const BASE = process.env.SDOCS_TEST_BASE || '/docs';
 
 /**
  * Multi-file code walkthrough end-to-end (sdocs-codewalk* + the tabbed
@@ -45,7 +46,7 @@ const activeNext = '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn[data-cw="next"
 const activePrev = '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn[data-cw="prev"]';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/docs');
+  await page.goto(BASE);
   await page.waitForFunction(() =>
     window.SDocs && window.SDocs.codeFocus && window.SDocs.codeFocus.openWalkthrough && window.SDocs.render);
 });
@@ -60,6 +61,16 @@ test('opens as a tabbed walkthrough on the first step', async ({ page }) => {
   await expect(page.locator('.sdoc-ann-row.sdoc-cw-active .sdoc-ann-card strong')).toHaveText('start');
   // app.py owns steps 1 and 3 → two cards on this tab.
   await expect(page.locator('.sdoc-ann-card')).toHaveCount(2);
+});
+
+test('code notes consume the shared walkthrough card and stepper', async ({ page }) => {
+  await openWalk(page, [TWO_FILES[0]], [STEPS[0]]);
+
+  const card = page.locator('.sdoc-ann-row.sdoc-cw-active .sdoc-ann-card');
+  await expect(card).toHaveClass(/sdoc-walkthrough-card/);
+  await expect(card).toHaveClass(/is-active/);
+  await expect(card.locator('.sdoc-cw-step')).toHaveClass(/sdoc-walkthrough-step/);
+  await expect(card.locator('[data-cw="next"]')).toHaveClass(/sdoc-walkthrough-nav/);
 });
 
 test('a single annotated file is a walkthrough: stepper, no tab strip, command order', async ({ page }) => {

@@ -658,49 +658,8 @@
     '.sdoc-cw-tab:hover { color: var(--sdoc-focus-fg, #1c1917); background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 7%, transparent); }',
     '.sdoc-cw-tab.is-active { font-weight: 600; color: #fff; background: var(--sdoc-ann-accent, #6366f1); }',
     '.sdoc-cw-tab:focus-visible { outline: 2px solid var(--sdoc-ann-accent, #6366f1); outline-offset: 1px; }',
-    // The stepper footer inside an annotation card.
-    '.sdoc-cw-step {',
-    '  display: flex; align-items: center; justify-content: space-between; gap: 10px;',
-    '  margin-top: 9px; padding-top: 7px;',
-    '  border-top: 1px solid color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 12%, transparent);',
-    '}',
-    '.sdoc-cw-pos { font-size: 11.5px; font-weight: 600; color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 55%, transparent); }',
-    // Unfocused cards keep quiet, neutral buttons so they recede; the focused
-    // card (below) recolours its buttons amber to pull the eye.
-    '.sdoc-cw-nav-btn {',
-    '  all: unset; box-sizing: border-box; cursor: pointer;',
-    '  display: inline-flex; align-items: center; justify-content: center; gap: 3px;',
-    '  height: 26px; padding: 0 9px; border-radius: 5px;',
-    '  font-size: 12px; font-weight: 600;',
-    '  color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 52%, transparent);',
-    '  background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 8%, transparent);',
-    '}',
-    '.sdoc-cw-nav-btn:hover { background: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 15%, transparent); }',
-    '.sdoc-cw-nav-btn[disabled] { opacity: .4; cursor: default; pointer-events: none; }',
-    '.sdoc-cw-nav-btn svg { display: block; }',
-    // Focused card: amber ring + a faint amber wash so it reads as "you are here".
-    '.sdoc-ann-row.sdoc-cw-active .sdoc-ann-card {',
-    '  box-shadow: 0 0 0 2px var(--sdoc-cw-focus, #f0a500);',
-    '  background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 12%, var(--sdoc-ann-card-bg, #fff));',
-    '}',
-    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-step { border-top-color: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 40%, transparent); }',
-    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-pos { color: color-mix(in oklab, var(--sdoc-focus-fg, #1c1917) 75%, var(--sdoc-cw-focus, #f0a500)); }',
-    // Focused buttons: Prev is an amber tint, Next is filled amber (the primary
-    // "keep going" affordance), both with dark text for contrast on the amber.
-    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn {',
-    '  color: #2a2207; background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 30%, transparent);',
-    '}',
-    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn:hover { background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 45%, transparent); }',
-    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn[data-cw="next"]:not([disabled]) { background: var(--sdoc-cw-focus, #f0a500); }',
-    '.sdoc-ann-row.sdoc-cw-active .sdoc-cw-nav-btn[data-cw="next"]:not([disabled]):hover { background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 86%, #000); }',
-    // Right-side action cluster (restart + next), and the restart-to-start button.
-    '.sdoc-cw-actions { display: inline-flex; align-items: center; gap: 6px; }',
-    // Square: same 26px height as the other nav buttons, width matched.
-    '.sdoc-cw-restart-btn { width: 26px; padding: 0; }',
-    // On the final step Next is dead, so restart becomes the primary action: fill
-    // it amber so "start over" is the obvious thing to do at the end of the tour.
-    '.sdoc-ann-row.sdoc-cw-last .sdoc-cw-restart-btn:not([disabled]) { color: #2a2207; background: var(--sdoc-cw-focus, #f0a500); }',
-    '.sdoc-ann-row.sdoc-cw-last .sdoc-cw-restart-btn:not([disabled]):hover { background: color-mix(in oklab, var(--sdoc-cw-focus, #f0a500) 86%, #000); }',
+    // Walkthrough card and stepper styles live in css/walkthrough.css. This
+    // viewer keeps only the code-specific tab strip, line wash, and jump pill.
     // The focused step\'s covered code lines wash amber (the other annotated
     // lines keep the quiet periwinkle wash above), so the eye finds the code the
     // current note is about. This rule follows .sdoc-ann-marked so it wins.
@@ -1750,9 +1709,17 @@
   function markActiveStep() {
     if (!linesEl || !walk) return;
     var prev = linesEl.querySelectorAll('.sdoc-ann-row.sdoc-cw-active');
-    for (var i = 0; i < prev.length; i++) prev[i].classList.remove('sdoc-cw-active');
+    for (var i = 0; i < prev.length; i++) {
+      prev[i].classList.remove('sdoc-cw-active');
+      var prevCard = prev[i].querySelector('.sdoc-walkthrough-card');
+      if (prevCard) prevCard.classList.remove('is-active');
+    }
     var el = linesEl.querySelector('.sdoc-ann-row[data-cw-step="' + walk.stepIndex + '"]');
-    if (el) el.classList.add('sdoc-cw-active');
+    if (el) {
+      el.classList.add('sdoc-cw-active');
+      var activeCard = el.querySelector('.sdoc-walkthrough-card');
+      if (activeCard) activeCard.classList.add('is-active');
+    }
     syncActiveWash();
     syncJumpNote();
   }
@@ -2326,23 +2293,30 @@
       card.className = 'sdoc-ann-card';
       setHTML(card, renderMd(a.text));
       if (walk) {
+        card.classList.add('sdoc-walkthrough-card');
         row.setAttribute('data-cw-step', a.index);
-        if (a.index === walk.stepIndex) row.classList.add('sdoc-cw-active');
-        if (a.index === total - 1) row.classList.add('sdoc-cw-last'); // emphasise restart here
+        if (a.index === walk.stepIndex) {
+          row.classList.add('sdoc-cw-active');
+          card.classList.add('is-active');
+        }
+        if (a.index === total - 1) {
+          row.classList.add('sdoc-cw-last');
+          card.classList.add('is-last');
+        }
         var nav = document.createElement('div');
-        nav.className = 'sdoc-cw-step';
+        nav.className = 'sdoc-cw-step sdoc-walkthrough-step';
         setHTML(nav,
-          '<button type="button" class="sdoc-cw-nav-btn" data-cw="prev" aria-label="Previous step"'
+          '<button type="button" class="sdoc-cw-nav-btn sdoc-walkthrough-nav is-prev" data-cw="prev" aria-label="Previous step"'
           +   (a.index <= 0 ? ' disabled' : '') + '>'
           +   lucide('<polyline points="15 18 9 12 15 6"/>', 13) + '<span>Prev</span>'
           + '</button>'
-          + '<span class="sdoc-cw-pos">Step ' + (a.index + 1) + ' of ' + total + '</span>'
-          + '<span class="sdoc-cw-actions">'
-          +   '<button type="button" class="sdoc-cw-nav-btn sdoc-cw-restart-btn" data-cw="restart" title="Back to start" aria-label="Back to the first step"'
+          + '<span class="sdoc-cw-pos sdoc-walkthrough-position">Step ' + (a.index + 1) + ' of ' + total + '</span>'
+          + '<span class="sdoc-cw-actions sdoc-walkthrough-actions">'
+          +   '<button type="button" class="sdoc-cw-nav-btn sdoc-cw-restart-btn sdoc-walkthrough-nav is-restart" data-cw="restart" title="Back to start" aria-label="Back to the first step"'
           +     (a.index <= 0 ? ' disabled' : '') + '>'
           +     lucide('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>', 14)
           +   '</button>'
-          +   '<button type="button" class="sdoc-cw-nav-btn" data-cw="next" aria-label="Next step"'
+          +   '<button type="button" class="sdoc-cw-nav-btn sdoc-walkthrough-nav is-next" data-cw="next" aria-label="Next step"'
           +     (a.index >= total - 1 ? ' disabled' : '') + '>'
           +     '<span>Next</span>' + lucide('<polyline points="9 18 15 12 9 6"/>', 13)
           +   '</button>'

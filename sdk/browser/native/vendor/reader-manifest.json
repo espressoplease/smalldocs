@@ -19,11 +19,15 @@
   },
   "sdocs-code-focus.js": {
     "source": "public/sdocs-code-focus.js",
-    "sha256": "a7f2dca141fb84cadc2717740720f1d4005b5a56ae1ba6d40f480ccd1f841473"
+    "sha256": "74510c6f1a79f5dd50f9573caba552f78f8e85a0f4d0920828cbd35e68f975e5"
   },
   "sdocs-code-reader.css": {
     "source": "public/css/code-reader.css",
     "sha256": "2354a4b125dfa86a55865cec99ebbfc17c74e91b6b5d86b99af9afd21967c33c"
+  },
+  "sdocs-walkthrough.css": {
+    "source": "public/css/walkthrough.css",
+    "sha256": "dbbf518d78616699116461e73928a0f08bd0ea177a59694ee87633ae6b1e05be"
   },
   "sdocs-slide-reader.js": {
     "source": "public/sdocs-slide-reader.js",

@@ -12,6 +12,8 @@ USAGE
   sdoc <file> --style              Open with style panel
   sdoc <file> --raw                Open raw markdown source
   sdoc <file> --comment            Open in comment mode (review/annotate)
+  sdoc <file> 12:"note" 24-28:"note"
+                                   Open a guided document walkthrough
   sdoc bridge <file>               Live editing session: edits autosave to disk,
                                    external changes push to the page (see LIVE BRIDGE)
   sdoc new                         New blank document (write mode)
@@ -94,6 +96,22 @@ OPTIONS
 
 ENVIRONMENT
   SDOCS_URL   Fallback base URL if --url is not passed.
+
+DOCUMENT WALKTHROUGHS
+  Add notes after a Markdown filename to guide a reader through the
+  rendered document:
+
+    sdoc report.md 12:"Start with the result" 24-28:"Compare these figures"
+
+  Each source line or range becomes a highlighted target followed by a
+  markdown note with Prev / Next controls. Steps follow command argument
+  order, not source order. A prose line highlights its matching rendered
+  text. A line inside an ordinary code fence highlights that code line
+  and places the note beneath it. A chart, diagram, sheet, slide, form,
+  math block, or video is highlighted as one complete rendered element.
+
+  The annotations ride in the URL and through sdoc share. The source file
+  is unchanged.
 
 INTERACTIVE FEEDBACK (sdoc feedback)
   An agent writes a fenced \`\`\`form block into a markdown file and runs

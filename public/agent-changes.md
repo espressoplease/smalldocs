@@ -13,6 +13,15 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v27 (next CLI release)
+
+**Reason:** Agents can now guide readers through rendered prose, rich blocks,
+and inline code lines.
+
+The installed skill now documents source-line walkthrough annotations for
+regular Markdown documents. The exact standard and Cloud skill bodies appear
+below after the final integration step.
+
 ## v26 (next CLI release)
 
 **Reason:** Runnable HTML guidance now favours purpose-led layouts and

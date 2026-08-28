@@ -1,0 +1,118 @@
+/* Shared walkthrough card and stepper. Code and rendered documents supply
+   their own surface tokens and anchoring geometry, then use this component. */
+.sdoc-code-focus {
+  --sdoc-walkthrough-accent: var(--sdoc-cw-focus, #f0a500);
+  --sdoc-walkthrough-surface: var(--sdoc-ann-card-bg, #fff);
+  --sdoc-walkthrough-fg: var(--sdoc-focus-fg, #1c1917);
+}
+
+#_sd_rendered {
+  --sdoc-walkthrough-accent: #f0a500;
+  --sdoc-walkthrough-surface: color-mix(in oklab, var(--md-bg, #fff) 96%, #7c84d8);
+  --sdoc-walkthrough-fg: var(--md-p-color, var(--md-color, #292524));
+}
+
+.sdoc-walkthrough-card {
+  position: relative;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--sdoc-walkthrough-fg);
+  background: var(--sdoc-walkthrough-surface);
+}
+
+.sdoc-walkthrough-card.is-active {
+  background: color-mix(in oklab, var(--sdoc-walkthrough-accent) 12%, var(--sdoc-walkthrough-surface));
+  box-shadow: 0 0 0 2px var(--sdoc-walkthrough-accent);
+}
+
+.sdoc-walkthrough-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+  padding-top: 7px;
+  border-top: 1px solid color-mix(in oklab, var(--sdoc-walkthrough-fg) 12%, transparent);
+}
+
+.sdoc-walkthrough-card.is-active .sdoc-walkthrough-step {
+  border-top-color: color-mix(in oklab, var(--sdoc-walkthrough-accent) 40%, transparent);
+}
+
+.sdoc-walkthrough-position {
+  color: color-mix(in oklab, var(--sdoc-walkthrough-fg) 55%, transparent);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.sdoc-walkthrough-card.is-active .sdoc-walkthrough-position {
+  color: color-mix(in oklab, var(--sdoc-walkthrough-fg) 75%, var(--sdoc-walkthrough-accent));
+}
+
+.sdoc-walkthrough-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sdoc-walkthrough-nav {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 5px;
+  color: color-mix(in oklab, var(--sdoc-walkthrough-fg) 52%, transparent);
+  background: color-mix(in oklab, var(--sdoc-walkthrough-fg) 8%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sdoc-walkthrough-nav:hover {
+  background: color-mix(in oklab, var(--sdoc-walkthrough-fg) 15%, transparent);
+}
+
+.sdoc-walkthrough-nav:focus-visible {
+  outline: 2px solid var(--sdoc-walkthrough-accent);
+  outline-offset: 1px;
+}
+
+.sdoc-walkthrough-nav[disabled] {
+  opacity: .4;
+  cursor: default;
+  pointer-events: none;
+}
+
+.sdoc-walkthrough-nav svg { display: block; }
+.sdoc-walkthrough-nav.is-restart { width: 26px; padding: 0; }
+
+.sdoc-walkthrough-card.is-active .sdoc-walkthrough-nav {
+  color: #2a2207;
+  background: color-mix(in oklab, var(--sdoc-walkthrough-accent) 30%, transparent);
+}
+
+.sdoc-walkthrough-card.is-active .sdoc-walkthrough-nav:hover {
+  background: color-mix(in oklab, var(--sdoc-walkthrough-accent) 45%, transparent);
+}
+
+.sdoc-walkthrough-card.is-active .sdoc-walkthrough-nav.is-next:not([disabled]),
+.sdoc-walkthrough-card.is-last .sdoc-walkthrough-nav.is-restart:not([disabled]) {
+  color: #2a2207;
+  background: var(--sdoc-walkthrough-accent);
+}
+
+.sdoc-walkthrough-card.is-active .sdoc-walkthrough-nav.is-next:not([disabled]):hover,
+.sdoc-walkthrough-card.is-last .sdoc-walkthrough-nav.is-restart:not([disabled]):hover {
+  background: color-mix(in oklab, var(--sdoc-walkthrough-accent) 86%, #000);
+}
+
+@media (max-width: 600px) {
+  .sdoc-walkthrough-step { gap: 6px; }
+  .sdoc-walkthrough-nav { padding: 0 7px; }
+}
