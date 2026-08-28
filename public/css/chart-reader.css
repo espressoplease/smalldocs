@@ -133,5 +133,12 @@
 .chart-menu-input:focus { outline: none; border-color: var(--accent, #3b82f6); }
 
 @media (max-width: 600px) {
+  .sdoc-chart {
+    width: calc(100% + 16px);
+    max-width: calc(100% + 16px);
+    margin: 1em -8px;
+    padding: 8px 4px 10px;
+  }
+  .sdoc-chart canvas { max-height: 620px; }
   .chart-menu-input { font-size: 16px; }
 }
