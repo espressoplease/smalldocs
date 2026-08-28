@@ -168,6 +168,24 @@ window.changeOpen=()=>openView.update(changedMarkdown);
 document.body.dataset.ready='true';</script></body></html>`);
       return;
     }
+    if (requested === '/apps') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      const runnable = (title, value) => `# ${title}\n\n~~~sdoc-app\n<!doctype html><html><head><title>${title}</title></head><body><button id="count">${value}</button><script>document.getElementById('count').onclick=function(){this.textContent=String(Number(this.textContent)+1)}<\/script></body></html>\n~~~`;
+      const scriptString = value => JSON.stringify(value).replace(/</g, '\\u003c');
+      res.end(`<!doctype html><html><body>
+<div id="outside" class="sdoc-app">Host app placeholder</div>
+<div id="left"></div><div id="right"></div>
+<script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+const [leftView,rightView]=await Promise.all([
+  render('#left',${scriptString(runnable('Left app', 1))}),
+  render('#right',${scriptString(runnable('Right app', 8))},{controls:{fullscreen:false}})
+]);
+window.appViews={leftView,rightView};
+window.updateLeftApp=()=>leftView.update(${scriptString(runnable('Updated app', 20))});
+window.destroyLeftApp=()=>leftView.destroy();
+document.body.dataset.ready='true';</script></body></html>`);
+      return;
+    }
     if (requested === '/cells-isolation') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       const left = `---\ncells-tabs: tabbed\n---\n# Left\n\n~~~cells plan/Inputs\nMetric,Value\nUnits,12\nRate,25\n~~~\n\n~~~cells plan/Summary\nformat: B=$\nMetric,Value\nRevenue,=Inputs!B2*Inputs!B3\n~~~`;
@@ -255,8 +273,13 @@ r 0.8 3.5 14.4 4.5 fill=#ffffff stroke=#cbd5e1 |
     C[Question] --> D[Answer]
   ~~~
 ~~~~`;
+      const trustedApp = `
+
+~~~~sdoc-app
+<!doctype html><html><head><title>Trusted app</title></head><body><button id="trusted-app-count">4</button><script>document.getElementById('trusted-app-count').onclick=function(){this.textContent='5'}<\/script></body></html>
+~~~~`;
       res.end(`import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
-await render('#report', ${JSON.stringify(trustedMarkdown)});
+await render('#report', ${JSON.stringify(trustedMarkdown)} + ${JSON.stringify(trustedApp)});
 document.body.dataset.ready = 'true';`);
       return;
     }
@@ -373,6 +396,44 @@ test('canonical prose lifecycle replaces and destroys only its own instance', as
   await page.evaluate(() => window.destroyProse());
   await expect(page.locator('#left .smalldocs-sdk-view')).toHaveCount(0);
   await expect(page.locator('#right .smalldocs-sdk-view')).toHaveCount(1);
+});
+
+test('runnable app instances keep execution, options and lifecycle isolated', async ({ page }) => {
+  const requests = [];
+  const pageErrors = [];
+  page.on('request', request => requests.push(request.url()));
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto(customerOrigin + '/apps');
+  await page.waitForTimeout(300);
+  expect(pageErrors).toEqual([]);
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('#left .sdoc-app')).toHaveCount(1);
+  await expect(page.locator('#right .sdoc-app')).toHaveCount(1);
+  await expect(page.locator('#outside')).toHaveCSS('display', 'block');
+  await expect(page.locator('#outside')).toHaveCSS('position', 'static');
+  expect(await page.evaluate(() => window.appViews.leftView.features)).toEqual(['apps']);
+  expect(await page.evaluate(() => window.appViews.rightView.features)).toEqual(['apps']);
+  await expect(page.locator('#left .sdoc-app-expand')).toHaveCount(1);
+  await expect(page.locator('#right .sdoc-app-expand')).toHaveCount(0);
+  await expect(page.frameLocator('#left .sdoc-app-frame').locator('#count')).toHaveText('1');
+  await expect(page.frameLocator('#right .sdoc-app-frame').locator('#count')).toHaveText('8');
+
+  await page.frameLocator('#left .sdoc-app-frame').locator('#count').click();
+  await page.getByRole('button', { name: 'Open Left app in fullscreen' }).click();
+  await expect(page.frameLocator('#left .sdoc-app-frame-fullscreen').locator('#count')).toHaveText('2');
+  await page.getByRole('button', { name: 'Close fullscreen' }).click();
+  await expect(page.frameLocator('#left .sdoc-app-frame-inline').locator('#count')).toHaveText('2');
+
+  await page.evaluate(() => window.updateLeftApp());
+  await expect(page.locator('#left .sdoc-app-title')).toHaveText('Updated app');
+  await expect(page.frameLocator('#left .sdoc-app-frame').locator('#count')).toHaveText('20');
+  await expect(page.frameLocator('#right .sdoc-app-frame').locator('#count')).toHaveText('8');
+  await page.evaluate(() => window.destroyLeftApp());
+  await expect(page.locator('#left .smalldocs-document')).toHaveCount(0);
+  await expect(page.locator('#right .sdoc-app')).toHaveCount(1);
+
+  expect(requests.some(url => url.includes('/sdk/0.2.0/features/apps.js'))).toBe(true);
+  expect(requests.some(url => url.includes('/sdk/0.2.0/vendor/sdocs-app-runner.html'))).toBe(true);
 });
 
 test('reader behavior options stay instance-owned and preserve open sections on update', async ({ page }) => {
@@ -686,7 +747,10 @@ test('private sanitizer ignores host globals and works with Trusted Types enforc
   expect(pageErrors).toEqual([]);
   await expect(page.locator('.sdoc-slide')).toHaveCount(1);
   await expect(page.locator('.sdoc-mermaid-error')).toHaveCount(0);
-  await expect(page.locator('iframe')).toHaveCount(0);
+  await expect(page.locator('iframe.sdoc-app-frame')).toHaveCount(1);
+  await expect(page.frameLocator('.sdoc-app-frame').locator('#trusted-app-count')).toHaveText('4');
+  await page.frameLocator('.sdoc-app-frame').locator('#trusted-app-count').click();
+  await expect(page.frameLocator('.sdoc-app-frame').locator('#trusted-app-count')).toHaveText('5');
   await page.getByRole('button', { name: 'Open code in fullscreen' }).click();
   await expect(page.getByRole('dialog', { name: 'Code fullscreen view' })).toBeVisible();
   await expect(page.locator('.sdoc-code-focus [data-act="comment"]')).toHaveCount(0);

@@ -72,7 +72,7 @@ module.exports = function (harness) {
 
   test('buildRouter: knows about every existing verb', () => {
     const r = cli.buildRouter();
-    const expected = ['help', 'schema', 'charts', 'diagrams', 'comments',
+    const expected = ['help', 'schema', 'charts', 'diagrams', 'apps', 'app', 'comments',
                       'setup', 'refresh', 'auto-update', 'safe',
                       'defaults', 'new', 'share',
                       // `sdoc <file>` is the static render by default; the live

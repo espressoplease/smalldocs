@@ -239,6 +239,26 @@ module.exports = function(harness) {
       const codeFeature = await get(BASE + '/sdk/0.2.0/features/code.js');
       assert.strictEqual(codeFeature.status, 200);
       assert.ok(codeFeature.body.includes("vendorAsset('sdocs-code-reader.js')"));
+      const appsFeature = await get(BASE + '/sdk/0.2.0/features/apps.js');
+      assert.strictEqual(appsFeature.status, 200);
+      assert.ok(appsFeature.body.includes("vendorAsset('sdocs-html-components.js')"));
+      assert.ok(appsFeature.body.includes("vendorAsset('sdocs-app-runner.html')"));
+      const appsReader = await get(BASE + '/sdk/0.2.0/vendor/sdocs-html-components.js');
+      assert.strictEqual(appsReader.status, 200);
+      assert.ok(appsReader.body.includes('window.SDocHtmlComponents'));
+      assert.ok(appsReader.headers['cache-control'].includes('immutable'));
+      const appsCss = await get(BASE + '/sdk/0.2.0/vendor/sdocs-html-component-reader.css');
+      assert.strictEqual(appsCss.status, 200);
+      assert.ok(appsCss.body.includes('@layer smalldocs'));
+      const appsFrame = await get(BASE + '/sdk/0.2.0/vendor/sdocs-app-runner.html');
+      assert.strictEqual(appsFrame.status, 200);
+      assert.ok(appsFrame.headers['content-type'].includes('text/html'));
+      assert.strictEqual(appsFrame.headers['x-frame-options'], undefined);
+      assert.strictEqual(appsFrame.headers['cross-origin-resource-policy'], 'cross-origin');
+      assert.ok(appsFrame.body.includes('./sdocs-app-runner.js'));
+      const appsRunner = await get(BASE + '/sdk/0.2.0/vendor/sdocs-app-runner.js');
+      assert.strictEqual(appsRunner.status, 200);
+      assert.ok(appsRunner.body.includes("message.type !== 'sdocs-app-load'"));
       const codeReader = await get(BASE + '/sdk/0.2.0/vendor/sdocs-code-reader.js');
       assert.strictEqual(codeReader.status, 200);
       assert.ok(codeReader.body.includes('window.SDocCodeReader'));
@@ -284,6 +304,25 @@ module.exports = function(harness) {
       assert.strictEqual(previousContract.status, 200);
       assert.ok(previousContract.body.includes("message.type === 'sdocs:focus'"));
       assert.ok(!previousContract.body.includes("message.type === 'sdocs:navigate'"));
+    });
+
+    await testAsync('runnable HTML frame assets are isolated and cacheable', async () => {
+      const document = await get(BASE + '/new');
+      assert.strictEqual(document.status, 200);
+      assert.ok(document.headers['content-security-policy'].includes(
+        "frame-src 'self' https://www.youtube-nocookie.com"));
+
+      const frame = await get(BASE + '/sdoc-app-runner/runner.html');
+      assert.strictEqual(frame.status, 200);
+      assert.ok(frame.headers['content-type'].includes('text/html'));
+      assert.strictEqual(frame.headers['x-frame-options'], undefined);
+      assert.strictEqual(frame.headers['cross-origin-resource-policy'], 'cross-origin');
+      assert.ok(frame.body.includes('./sdocs-app-runner.js'));
+
+      const runner = await get(BASE + '/sdoc-app-runner/sdocs-app-runner.js');
+      assert.strictEqual(runner.status, 200);
+      assert.ok(runner.headers['content-type'].includes('application/javascript'));
+      assert.ok(runner.body.includes("parent.postMessage({ type: 'sdocs-app-ready'"));
     });
 
     await testAsync('GET /developers serves the Markdown-driven SDK documentation shell', async () => {
@@ -365,6 +404,7 @@ module.exports = function(harness) {
       assert.ok(index.body.includes('/developers/integration.md'));
       assert.ok(index.body.includes('/developers/authoring/slides.md'));
       assert.ok(index.body.includes('/developers/authoring/slide-shapes.md'));
+      assert.ok(index.body.includes('/developers/authoring/apps.md'));
 
       const guide = await get(BASE + '/developers/integration.md');
       assert.strictEqual(guide.status, 200);
@@ -382,7 +422,7 @@ module.exports = function(harness) {
 
       const authoringSlugs = [
         'markdown', 'code', 'math', 'diagrams', 'charts', 'cells',
-        'slides', 'slide-shapes', 'video', 'styles',
+        'slides', 'slide-shapes', 'apps', 'video', 'styles',
       ];
       for (const slug of authoringSlugs) {
         const page = await get(BASE + '/developers/authoring/' + slug);
@@ -407,6 +447,7 @@ module.exports = function(harness) {
       assert.strictEqual(parsed.skills[1].name, 'smalldocs-author');
       assert.ok(parsed.skills[1].files.includes('references/slides.md'));
       assert.ok(parsed.skills[1].files.includes('references/slide-shapes.md'));
+      assert.ok(parsed.skills[1].files.includes('references/apps.md'));
 
       const legacy = await get(BASE + '/.well-known/skills/index.json');
       assert.strictEqual(legacy.status, 200);
@@ -428,6 +469,7 @@ module.exports = function(harness) {
       assert.strictEqual(authorSkill.status, 200);
       assert.ok(authorSkill.body.includes('internal status is not a reason'));
       assert.ok(authorSkill.body.includes('references/slide-shapes.md'));
+      assert.ok(authorSkill.body.includes('references/apps.md'));
 
       const slideReference = await get(
         BASE + '/.well-known/agent-skills/smalldocs-author/references/slides.md'
@@ -456,6 +498,12 @@ module.exports = function(harness) {
       assert.ok(cloudGlobal.body.includes('name: smalldocs'));
       assert.ok(cloudGlobal.body.includes('This user has enabled SmallDocs Cloud'));
       assert.ok(cloudGlobal.body.includes('sdoc cloud status --json'));
+
+      const appsReference = await get(
+        BASE + '/.well-known/agent-skills/smalldocs-author/references/apps.md'
+      );
+      assert.strictEqual(appsReference.status, 200);
+      assert.ok(appsReference.body.includes('The component starts inline'));
     });
 
     await testAsync('embed shell allows only its declared customer origin to frame it', async () => {

@@ -15,7 +15,7 @@
   },
   "sdocs-code-reader.js": {
     "source": "public/sdocs-code-reader.js",
-    "sha256": "a5b82632e87d49488913a780e60155abb581c60ad5d9ae3284a88863f3cc7967"
+    "sha256": "34fbfeedeef8b3b944c45120642d099819a6872f4ce139fef0939984299f7b4b"
   },
   "sdocs-code-focus.js": {
     "source": "public/sdocs-code-focus.js",
@@ -146,6 +146,24 @@
   "sdocs-slide-reader.css": {
     "source": "public/css/slide-reader.css",
     "sha256": "64c09e097a28c0b4381371ad0459c3e5cfc07756e97bef063dfafefcfa164bce"
+  },
+  "sdocs-html-components.js": {
+    "source": "public/sdocs-html-components.js",
+    "sha256": "53c71b99bf680aa1ea1ac50f0537f19592accd171d20d573b435649c1f27c009"
+  },
+  "sdocs-app-runner.js": {
+    "source": "public/sdocs-app-runner.js",
+    "sha256": "725366452ef256edff11eb00981a51ff61a043718335075288214f15db5a74f3"
+  },
+  "sdocs-app-runner.html": {
+    "source": "public/sdocs-app-runner.html",
+    "sha256": "48254e8387a01b47e5b608e36b2d9bf9028ddf1b8ad2b571e60763afaca31649"
+  },
+  "sdocs-html-component-reader.css": {
+    "source": "public/css/html-component-reader.css",
+    "sha256": "77e5675593796452c67905418999d2477f87f76770dc8ad46c6e8495fc43f0a3",
+    "sourceSha256": "e13190fe1a17a13abf4df8ca5a1a54066c7650acf96f88c85b9cd9ffa3e7cbbb",
+    "transform": "sdk-layered-css"
   },
   "sdocs-slide-stdlib.js": {
     "source": "cli/shared/sdocs-slide-stdlib.js",

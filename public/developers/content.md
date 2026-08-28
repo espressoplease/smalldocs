@@ -18,6 +18,7 @@ SmallDocs discovers rich content from the document itself:
 | Slides | `slide` fence |
 | Math | Display math delimiters |
 | Video | Supported video fence |
+| Runnable HTML | `sdoc-app` fence |
 
 The host application does not need a block parser. Feature discovery and dependency loading happen inside the renderer.
 

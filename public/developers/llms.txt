@@ -21,6 +21,7 @@ SmallDocs renders agent-authored Markdown and rich documents inside web applicat
 - [Computed cells](https://smalldocs.org/developers/authoring/cells.md)
 - [Slides](https://smalldocs.org/developers/authoring/slides.md)
 - [Custom slide shapes](https://smalldocs.org/developers/authoring/slide-shapes.md)
+- [Runnable HTML](https://smalldocs.org/developers/authoring/apps.md)
 - [Video](https://smalldocs.org/developers/authoring/video.md)
 - [Styles](https://smalldocs.org/developers/authoring/styles.md)
 

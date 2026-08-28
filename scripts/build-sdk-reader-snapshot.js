@@ -42,6 +42,10 @@ const files = [
   ['public/fonts/inter-500.woff2', 'fonts/inter-500.woff2'],
   ['public/fonts/inter-600.woff2', 'fonts/inter-600.woff2'],
   ['public/css/slide-reader.css', 'sdocs-slide-reader.css'],
+  ['public/sdocs-html-components.js', 'sdocs-html-components.js'],
+  ['public/sdocs-app-runner.js', 'sdocs-app-runner.js'],
+  ['public/sdocs-app-runner.html', 'sdocs-app-runner.html'],
+  ['public/css/html-component-reader.css', 'sdocs-html-component-reader.css', 'sdk-layered-css'],
   ['cli/shared/sdocs-slide-stdlib.js', 'sdocs-slide-stdlib.js'],
 ];
 
