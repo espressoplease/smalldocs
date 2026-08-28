@@ -7,6 +7,7 @@ const { createCursorCodec, normalizeLimit } = require('./lib/cloud-cursor');
 const { syncTeamSeatQuantity: syncStripeTeamSeatQuantity } = require('./lib/cloud-seat-sync');
 const cloudBillingLifecycle = require('./lib/cloud-billing-lifecycle');
 const { CURRENT_TERMS_VERSION, CURRENT_TERMS_LABEL } = require('./lib/cloud-terms');
+const smallDocsAgentSkill = require('./cli/lib/agent-block');
 
 function integerEnvironmentSetting(name, fallback, minimum) {
   if (process.env[name] == null || process.env[name] === '') return fallback;
@@ -3201,6 +3202,38 @@ const server = http.createServer((req, res) => {
         ],
       },
     ] }));
+    return;
+  }
+
+  const globalSkillCatalogMatch = /^\/agent-skills\/(standard|cloud)\/\.well-known\/(?:agent-skills|skills)\/index\.json$/.exec(pathname);
+  if (globalSkillCatalogMatch) {
+    const cloud = globalSkillCatalogMatch[1] === 'cloud';
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600',
+      'Access-Control-Allow-Origin': '*',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(JSON.stringify({ skills: [{
+      name: smallDocsAgentSkill.SKILL_NAME,
+      description: cloud
+        ? smallDocsAgentSkill.CLOUD_SKILL_DESCRIPTION
+        : smallDocsAgentSkill.SKILL_DESCRIPTION,
+      files: ['SKILL.md'],
+    }] }));
+    return;
+  }
+
+  const globalSkillMatch = /^\/agent-skills\/(standard|cloud)\/\.well-known\/(?:agent-skills|skills)\/smalldocs\/SKILL\.md$/.exec(pathname);
+  if (globalSkillMatch) {
+    const cloud = globalSkillMatch[1] === 'cloud';
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600',
+      'Access-Control-Allow-Origin': '*',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(smallDocsAgentSkill.formatSkill(smallDocsAgentSkill.SKILL_VERSION, { cloud }));
     return;
   }
 

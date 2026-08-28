@@ -19,6 +19,7 @@ const {
   SKILL_NAME,
   formatSkill,
   readSkillVersion,
+  readSkillEdition,
   canonicalSkillDir,
   canonicalSkillFile,
   resolveSkillAgents,
@@ -128,6 +129,7 @@ function refreshCanonicalSkill(home) {
     }
   }
   const currentVersion = existing ? readSkillVersion(existing) : null;
+  const currentEdition = existing ? readSkillEdition(existing) : 'standard';
   if (existing !== null && currentVersion === null) {
     return {
       changed: false, reason: 'conflict', path: file,
@@ -141,7 +143,7 @@ function refreshCanonicalSkill(home) {
     return { changed: false, reason: 'newer', path: file };
   }
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  atomicWrite(file, formatSkill(SKILL_VERSION));
+  atomicWrite(file, formatSkill(SKILL_VERSION, { cloud: currentEdition === 'cloud' }));
   return {
     changed: true, path: file,
     fromVersion: currentVersion || 0, toVersion: SKILL_VERSION,

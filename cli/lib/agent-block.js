@@ -28,14 +28,16 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 19;
-const SKILL_REASON  = 'Cloud guidance now matches the account-based CLI and tells agents to check the current connection before use.';
+const SKILL_VERSION = 20;
+const SKILL_REASON  = 'Cloud guidance now installs as an explicit replacement, so local users do not run Cloud checks.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
 // in SKILL_BODY and loads on demand. Plain text: no backticks, no em/en dashes,
 // no double quotes (it is emitted as a double-quoted YAML scalar).
-const SKILL_DESCRIPTION = "Render local Markdown files securely in the browser for reading, styling, sharing, and export, plus charts, diagrams, slides, sheets, code walkthroughs, and interactive forms. Installed globally as sdoc (run: sdoc path/to/file.md); nothing hits a server unless the user saves to the SmallDocs cloud or runs sdoc share. SmallDocs Cloud is an optional paid feature; load this skill and run sdoc cloud status --json when a Cloud task is requested. Use when the user wants to read, share, or export a .md file, or when a styled or interactive artifact will land harder than chat prose; skip it for quick Q&A. Triggers: 'sdoc it', 'sdoc me the plan', or a request for a smalldoc means write (or locate) the .md file and open it with sdoc.";
+const SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, or save a Markdown document with SmallDocs. Create or locate the Markdown file, use sdoc FILE.md for normal viewing, and consult the matching sdoc help command before writing slides, diagrams, charts, computed sheets, code walkthroughs, or forms. Local files stay local unless the user explicitly requests sharing or Cloud storage.";
+
+const CLOUD_SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, search, or save a Markdown document with SmallDocs. This user has enabled SmallDocs Cloud, so consider its persistent search, revisions, access, and notification commands when the request or existing conversation makes Cloud relevant. Use sdoc FILE.md for ordinary local viewing and check live Cloud state only before reading or changing Cloud data.";
 
 // The on-demand reference body. Loaded only when the agent invokes the skill.
 const SKILL_BODY = `## SmallDocs
@@ -56,21 +58,6 @@ Use it (or offer it) when the user wants to read, share, or export a \`.md\` fil
 - \`sdoc share file.md\` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
 - \`sdoc --help\` - full reference.
 
-### SmallDocs Cloud for agents
-
-Cloud is the optional paid, authenticated document store. Local SmallDocs remains free. Before a Cloud task, run \`sdoc cloud status --json\`. A successful response means this machine is connected and reports the available account or accounts. A \`login_required\` response means Cloud is available but this CLI is not connected. Do not infer Cloud access from the CLI being installed.
-
-Run \`sdoc cloud login\` to connect a machine. The revocable credential persists across agent sessions. Run \`sdoc cloud --help\` before using commands, and add \`--json\` for one stable machine-readable object on stdout.
-
-- Discover account access, people, tags, and document permission sets with \`sdoc cloud status --json\`, \`sdoc cloud members\`, \`sdoc cloud tags\`, and \`sdoc cloud permission-groups\`. When status reports more than one account, pass \`--account ACCOUNT_UUID\` to account-scoped commands.
-- Find documents with \`sdoc cloud ls\` or content search with \`sdoc cloud search "QUERY"\`. Use \`--tag TAG\` to filter, and \`sdoc cloud ls --shared-with-me\` for documents shared with the signed-in user.
-- Upload a new local file without opening a browser with \`sdoc cloud create FILE.md --account ACCOUNT_UUID --json\`. Omit \`--account\` when status reports one account.
-- Set document access with \`sdoc cloud access DOCUMENT_UUID --only-you\`, \`--everyone\`, or one or more \`--member USER_UUID\` values. List members first. Notify existing members with \`sdoc cloud notify ...\`; notification does not grant access or create users.
-- Edit an existing document with \`sdoc cloud pull DOCUMENT_UUID --output FILE.md\`, normal file tools, then \`sdoc cloud push FILE.md --json\`. The local binding supplies the revision the agent edited. Cloud keeps separate changes from other writers; overlapping replacements may both remain. If the server combines content and the file did not change during upload, push writes the combined Markdown back to the local file. Inspect \`merge_classification\`, \`combined\`, and \`local_updated_from_cloud\` in the JSON result.
-- Inspect or recover history with \`sdoc cloud history DOCUMENT_UUID\` and \`sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID\`.
-
-Cloud documents are identified by UUID, not filename. An account is the billing and access boundary; tags organize documents inside it. Cloud commands other than login are noninteractive. Do not use \`sdoc share\` as a substitute for Cloud: share creates an encrypted snapshot link, while Cloud provides revisions, search, membership, and persistent agent access.
-
 ### SmallDocs expands what you can create with Markdown
 
 SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the \`.md\` file first, then \`sdoc path/to/file.md\`.
@@ -86,16 +73,47 @@ Each command below prints its reference when run with no arguments - run it befo
 - \`sdoc feedback\` - rendering interactive elements (\`\`\`form blocks) to receive structured input from the user. Run \`sdoc feedback file.md\` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
 `;
 
-function formatSkill(version) {
-  return `---\nname: ${SKILL_NAME}\ndescription: "${SKILL_DESCRIPTION}"\n---\n\n<!-- sdocs-skill: v=${version} -->\n${SKILL_BODY}`;
+const CLOUD_SKILL_SECTION = `### SmallDocs Cloud for agents
+
+This user has enabled SmallDocs Cloud. Local viewing remains the default when the request only asks to create or open a document. Consider Cloud without waiting for the user to say the word "Cloud" when the existing conversation or task calls for persistent storage, cross-device access, search, revisions, permissions, or notifications. If the intended destination is unclear and it changes who can access the document, discuss it with the user.
+
+Before reading or changing Cloud data, run \`sdoc cloud status --json\` for live authentication and account state. Run \`sdoc cloud --help\` before choosing a command, and add \`--json\` for one stable machine-readable object on stdout.
+
+- Discover account access, people, tags, and document permission sets with \`sdoc cloud status --json\`, \`sdoc cloud members\`, \`sdoc cloud tags\`, and \`sdoc cloud permission-groups\`. When status reports more than one account, pass \`--account ACCOUNT_UUID\` to account-scoped commands.
+- Find documents with \`sdoc cloud ls\` or content search with \`sdoc cloud search "QUERY"\`. Use \`--tag TAG\` to filter, and \`sdoc cloud ls --shared-with-me\` for documents shared with the signed-in user.
+- Upload a new local file without opening a browser with \`sdoc cloud create FILE.md --account ACCOUNT_UUID --json\`. Omit \`--account\` when status reports one account.
+- Set document access with \`sdoc cloud access DOCUMENT_UUID --only-you\`, \`--everyone\`, or one or more \`--member USER_UUID\` values. List members first. Notify existing members with \`sdoc cloud notify ...\`; notification does not grant access or create users.
+- Edit an existing document with \`sdoc cloud pull DOCUMENT_UUID --output FILE.md\`, normal file tools, then \`sdoc cloud push FILE.md --json\`. The local binding supplies the revision the agent edited. Cloud keeps separate changes from other writers; overlapping replacements may both remain. If the server combines content and the file did not change during upload, push writes the combined Markdown back to the local file. Inspect \`merge_classification\`, \`combined\`, and \`local_updated_from_cloud\` in the JSON result.
+- Inspect or recover history with \`sdoc cloud history DOCUMENT_UUID\` and \`sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID\`.
+
+Cloud documents are identified by UUID, not filename. An account is the billing and access boundary; tags organize documents inside it. Do not use \`sdoc share\` as a substitute for Cloud: share creates an encrypted snapshot link, while Cloud provides revisions, search, membership, and persistent agent access.
+
+`;
+
+const CLOUD_SKILL_BODY = SKILL_BODY.replace(
+  '### SmallDocs expands what you can create with Markdown',
+  CLOUD_SKILL_SECTION + '### SmallDocs expands what you can create with Markdown');
+
+function formatSkill(version, options) {
+  const cloud = Boolean(options && options.cloud);
+  const description = cloud ? CLOUD_SKILL_DESCRIPTION : SKILL_DESCRIPTION;
+  const body = cloud ? CLOUD_SKILL_BODY : SKILL_BODY;
+  const edition = cloud ? 'cloud' : 'standard';
+  return `---\nname: ${SKILL_NAME}\ndescription: "${description}"\n---\n\n<!-- sdocs-skill: v=${version} -->\n<!-- sdocs-skill-edition: ${edition} -->\n${body}`;
 }
 
 const SKILL_VERSION_RE = /<!-- sdocs-skill: v=(\d+) -->/;
+const SKILL_EDITION_RE = /<!-- sdocs-skill-edition: (standard|cloud) -->/;
 
 // Returns the embedded skill version, or null if the content is not our skill.
 function readSkillVersion(content) {
   const m = SKILL_VERSION_RE.exec(content || '');
   return m ? parseInt(m[1], 10) : null;
+}
+
+function readSkillEdition(content) {
+  const match = SKILL_EDITION_RE.exec(content || '');
+  return match ? match[1] : 'standard';
 }
 
 function canonicalSkillDir(home) {
@@ -372,9 +390,13 @@ module.exports = {
   SKILL_REASON,
   SKILL_NAME,
   SKILL_DESCRIPTION,
+  CLOUD_SKILL_DESCRIPTION,
   SKILL_BODY,
+  CLOUD_SKILL_BODY,
+  CLOUD_SKILL_SECTION,
   formatSkill,
   readSkillVersion,
+  readSkillEdition,
   canonicalSkillDir,
   canonicalSkillFile,
   resolveSkillAgents,

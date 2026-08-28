@@ -7,7 +7,8 @@ module.exports = function(harness) {
   const io = require('../cli/lib/io');
   const credentials = require('../cli/lib/cloud-credentials');
   const bindings = require('../cli/lib/cloud-bindings');
-  const { CloudClient, runCloudCommand, filterTags } = require('../cli/lib/cloud-commands');
+  const { CloudClient, runCloudCommand, filterTags, skillInstallCommand } =
+    require('../cli/lib/cloud-commands');
 
   test('cloud CLI parser captures nested action flags', () => {
     const parsed = io.parseArgs(['cloud', 'pull', 'doc-id', '--revision', 'rev-id',
@@ -43,6 +44,13 @@ module.exports = function(harness) {
   test('cloud CLI tag filters require every requested tag', () => {
     const documents = [{ id: 'a', tags: ['auth', 'api'] }, { id: 'b', tags: ['auth'] }];
     assert.deepStrictEqual(filterTags(documents, ['AUTH', 'api']).map((item) => item.id), ['a']);
+  });
+
+  test('Cloud skill install commands preserve the selected server origin', () => {
+    assert.strictEqual(skillInstallCommand('https://cloud-staging.smalldocs.org', true),
+      'npx skills@latest add https://cloud-staging.smalldocs.org/agent-skills/cloud --global');
+    assert.strictEqual(skillInstallCommand('https://smalldocs.org', false),
+      'npx skills@latest add https://smalldocs.org/agent-skills/standard --global');
   });
 
   test('macOS Keychain save answers both secure prompts without putting the credential in arguments', () => {
@@ -159,6 +167,29 @@ module.exports = function(harness) {
         throw new Error('unexpected endpoint ' + endpoint);
       },
     };
+
+    await testAsync('Cloud login JSON offers the Cloud-aware replacement skill', async () => {
+      const client = {
+        origin: 'https://cloud.test',
+        loadCredential() { return account; },
+        async authenticated() { return { user: { id: 'usr-1', email: 'agent@example.com' } }; },
+      };
+      const result = await capture(() => runCloudCommand({ file: 'login', jsonFlag: true }, { client }));
+      assert.strictEqual(result.skill_mode, 'cloud');
+      assert.strictEqual(result.already_logged_in, true);
+      assert.ok(result.skill_install_command.includes('/agent-skills/cloud'));
+    });
+
+    await testAsync('Cloud logout leaves the installed skill and offers an explicit restore', async () => {
+      const client = {
+        origin: 'https://cloud.test',
+        credentials: { remove() { throw new Error('no credential should be removed'); } },
+        loadCredential() { return null; },
+      };
+      const result = await capture(() => runCloudCommand({ file: 'logout', jsonFlag: true }, { client }));
+      assert.strictEqual(result.skill_unchanged, true);
+      assert.ok(result.standard_skill_install_command.includes('/agent-skills/standard'));
+    });
 
     async function capture(command) {
       let output = '';
