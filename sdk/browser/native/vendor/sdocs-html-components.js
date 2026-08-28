@@ -12,8 +12,6 @@
   var NEXT_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
   var CLOSE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
   var SANDBOX = 'allow-scripts allow-forms allow-modals allow-downloads allow-popups';
-  var INLINE_MIN_HEIGHT = 320;
-  var INLINE_MAX_HEIGHT = 760;
   var READY_TIMEOUT_MS = 15000;
 
   function deferred() {
@@ -173,7 +171,7 @@
       if (message.type === 'sdocs-app-size' && record.mode === 'inline') {
         var height = Math.round(Number(message.height));
         if (!Number.isFinite(height)) return;
-        height = Math.max(INLINE_MIN_HEIGHT, Math.min(INLINE_MAX_HEIGHT, height));
+        height = Math.max(0, height);
         record.lastInlineHeight = height;
         record.frame.style.height = height + 'px';
         return;

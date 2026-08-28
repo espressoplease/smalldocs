@@ -83,6 +83,16 @@
       "rubric": "Load the slide reference, create Markdown slide blocks, verify them, fix errors, and present the result."
     },
     {
+      "id": "runnable-component-authoring",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "Research assumptions for a runway calculator exist in runway-notes.md.",
+      "prompt": "Create a local SmallDocs Markdown file with an interactive runway calculator. It should work inline and fullscreen on phone and desktop.",
+      "required": ["sdoc apps", "sdoc-app fence", "viewport meta tag", "component-owned height", "narrow and wide layouts", "inline and fullscreen", "sdoc FILE.md"],
+      "forbidden": ["fixed 760px cap", "renderer height limit", "upload", "share"],
+      "rubric": "Load the runnable HTML reference, author one self-contained sdoc-app document, let its responsive HTML and CSS control height, test narrow and wide inline and fullscreen layouts, then open the local Markdown file."
+    },
+    {
       "id": "reuse-tag-vocabulary",
       "kind": "behavior",
       "editions": ["standard", "cloud"],

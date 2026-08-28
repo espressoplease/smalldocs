@@ -53,8 +53,8 @@ function validateSuite(suite) {
   if (!suite || suite.schema_version !== 1 || !Array.isArray(suite.scenarios)) {
     throw new Error('SmallDocs skill eval suite must use schema_version 1');
   }
-  if (suite.scenarios.length !== 20) {
-    throw new Error(`SmallDocs skill eval suite must contain 20 scenarios, found ${suite.scenarios.length}`);
+  if (suite.scenarios.length !== 21) {
+    throw new Error(`SmallDocs skill eval suite must contain 21 scenarios, found ${suite.scenarios.length}`);
   }
   const ids = new Set();
   for (const scenario of suite.scenarios) {
@@ -129,7 +129,7 @@ function buildDecisionPrompt(scenario, edition) {
 }
 
 function commandLike(value) {
-  return /^(sdoc|npx|curl|rg\b|git\b|https?:\/\/|\+|--)/i.test(String(value || '').trim());
+  return /^(sdoc(?:\s|$)|npx|curl|rg\b|git\b|https?:\/\/|\+|--)/i.test(String(value || '').trim());
 }
 
 function expectedCommandFragments(scenario, edition) {
@@ -205,6 +205,7 @@ function seedProject(project, scenario) {
     'proposal.md': '# Proposal\n\nA fixed proposal revision.\n',
     'README.md': '# Example\n\nInstall with the old command.\n',
     'launch-notes.md': '# Launch notes\n\nResearch for the launch plan.\n',
+    'runway-notes.md': '# Runway assumptions\n\nStarting cash: 240000. Monthly revenue: 45000. Monthly costs: 70000.\n',
     'source-notes.md': '# Source notes\n\nSource material for the requested subject.\n',
     'api-operations.md': '# Operations\n\nRotate API keys every quarter.\n'
   };

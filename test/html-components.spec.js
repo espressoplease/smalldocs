@@ -97,14 +97,25 @@ test('fullscreen gallery moves between multiple components', async ({ page }) =>
   await expect(page.frameLocator('.sdoc-app-frame-fullscreen').locator('h1')).toHaveText('Alpha');
 });
 
-test('inline auto-height is capped and fullscreen ignores size reports', async ({ page }) => {
+test('component owns inline height and fullscreen ignores size reports', async ({ page }) => {
   const tall = '<!doctype html><html><head><title>Tall app</title></head><body style="margin:0;height:1400px">Tall</body></html>';
   await loadDoc(page, app(tall));
-  await expect.poll(async () => page.locator('.sdoc-app-frame-inline').evaluate((frame) => frame.getBoundingClientRect().height)).toBe(760);
+  await expect.poll(async () => page.locator('.sdoc-app-frame-inline').evaluate((frame) => frame.getBoundingClientRect().height)).toBe(1400);
   await page.getByRole('button', { name: 'Open Tall app in fullscreen' }).click();
   const fullscreenHeight = await page.locator('.sdoc-app-frame-fullscreen').evaluate((frame) => frame.getBoundingClientRect().height);
   const viewportHeight = page.viewportSize().height;
   expect(fullscreenHeight).toBe(viewportHeight - 66);
+});
+
+test('component responsive CSS can change its inline height', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 800 });
+  const responsive = '<!doctype html><html><head><title>Responsive app</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body{margin:0}.surface{height:220px}@media(max-width:500px){.surface{height:360px}}</style></head><body><main class="surface">Responsive</main></body></html>';
+  await loadDoc(page, app(responsive));
+  await expect.poll(async () => page.locator('.sdoc-app-frame-inline').evaluate((frame) => frame.getBoundingClientRect().height)).toBe(220);
+  await page.setViewportSize({ width: 420, height: 800 });
+  await expect.poll(async () => page.locator('.sdoc-app-frame-inline').evaluate((frame) => frame.getBoundingClientRect().height)).toBe(360);
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await expect.poll(async () => page.locator('.sdoc-app-frame-inline').evaluate((frame) => frame.getBoundingClientRect().height)).toBe(220);
 });
 
 test('rerender removes fullscreen and old component browsing contexts', async ({ page }) => {

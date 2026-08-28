@@ -13,6 +13,20 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v24 (next CLI release)
+
+**Reason:** Runnable HTML guidance now leaves sizing to the component and
+requires responsive checks.
+
+The skill now tells agents to run `sdoc apps` before writing a runnable browser
+component. A `sdoc-app` document controls its own inline height through HTML and
+CSS. Its width follows the reading column inline and the available viewport in
+fullscreen. The renderer does not impose a minimum or maximum height.
+
+The authoring workflow now requires a viewport meta tag, fluid layout, and
+checks at narrow and wide widths in both inline and fullscreen views. A concise
+inline component is guidance for document readability, not a renderer limit.
+
 ## v23 (next CLI release)
 
 **Reason:** Presentation and Cloud reference workflows now give agents an

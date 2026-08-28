@@ -33,4 +33,4 @@ Read only the references relevant to the requested document:
 
 Return the finished Markdown without commentary unless the caller requests an explanation. Before handoff, count the rendered slide fences against any requested deck length and verify that each required concept or sequence appears where requested. Do not count `@template` definitions as slides.
 
-If the `sdoc` CLI is available, use `sdoc file.md` to inspect the complete document or `sdoc present file.md` to inspect a deck in presentation mode. Check complex slides, diagrams, charts, cells, and runnable HTML before handoff. Run `sdoc apps` before authoring a runnable component. Otherwise keep geometry and syntax conservative and retain readable labels in the source.
+If the `sdoc` CLI is available, use `sdoc file.md` to inspect the complete document or `sdoc present file.md` to inspect a deck in presentation mode. Check complex slides, diagrams, charts, cells, and runnable HTML before handoff. Run `sdoc apps` before authoring a runnable component, then check it inline and fullscreen at narrow and wide widths. Otherwise keep geometry and syntax conservative and retain readable labels in the source.
