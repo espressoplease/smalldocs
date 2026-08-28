@@ -15,16 +15,6 @@ test('document sign-in keeps the document fragment out of authentication request
   await page.goto(documentUrl);
   await expect(page.getByRole('heading', { name: 'Private return test' })).toBeVisible();
 
-  await page.locator('.doc-site-nav').evaluate(nav => {
-    const link = document.createElement('a');
-    link.className = 'doc-site-action doc-site-sign-in';
-    link.href = '/cloud/sign-in?return=%2Fdocs';
-    link.setAttribute('data-sdocs-sign-in-return', '');
-    link.textContent = 'Sign in';
-    nav.insertBefore(link, nav.querySelector('.doc-site-menu'));
-    window.SDocs.wireDocumentSiteNavigation();
-  });
-
   await page.locator('[data-sdocs-sign-in-return]').click();
   await expect(page).toHaveURL(/\/cloud\/sign-in\?return=/);
   const authUrl = new URL(page.url());

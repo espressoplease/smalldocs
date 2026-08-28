@@ -21,7 +21,9 @@ test('signed-out desktop navigation explains how to connect each library', async
   const cloudLearnMore = page.locator('#_sd_sidebar_cloud_disconnected').getByRole('link', { name: 'Learn more', exact: true });
   await expect(cloudLearnMore).toBeVisible();
   await expect(cloudLearnMore).toHaveAttribute('href', '/cloud');
-  await expect(page.locator('#doc-site-menu')).toBeHidden();
+  await expect(page.locator('#_sd_sidebar').getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(page.locator('#_sd_sidebar').getByText('You agree to our', { exact: false })).toBeVisible();
+  await expect(page.locator('#doc-site-menu')).toHaveCount(0);
 });
 
 test('mobile document controls scroll behind a fixed navigation menu', async ({ page }) => {
@@ -83,7 +85,6 @@ test('narrow mobile wordmark collapses to SD inside the scroll rail', async ({ p
 
 test('connected libraries show related documents, recent documents, and open actions', async ({ page }) => {
   await page.goto('/docs?sidebar=preview');
-  await page.locator('#doc-site-menu').evaluate(element => { element.hidden = false; });
 
   await page.getByText('Local library', { exact: true }).click();
   const localPanel = page.locator('#_sd_sidebar_local_connected');
@@ -109,7 +110,6 @@ test('connected libraries show related documents, recent documents, and open act
 
   await page.mouse.move(800, 400);
   await page.goto('/docs?sidebar=preview');
-  await page.locator('#doc-site-menu').evaluate(element => { element.hidden = false; });
   await page.getByText('Cloud library', { exact: true }).click();
   const cloudPanel = page.locator('#_sd_sidebar_cloud_connected');
   const cloudLibraryCta = cloudPanel.getByRole('link', { name: 'Open library', exact: true });
@@ -122,7 +122,7 @@ test('connected libraries show related documents, recent documents, and open act
   await expect(cloudPanel.getByRole('button', { name: 'Recent 3', exact: true })).toHaveAttribute('aria-expanded', 'false');
   await cloudShared.click();
   await expect(page.locator('#_sd_sidebar_cloud_tag_groups').getByText('Product brief', { exact: true })).toBeVisible();
-  await expect(page.getByText('Account settings', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sign in', { exact: true })).toBeVisible();
 });
 
 test('connected Local Library uses indexed documents and excludes the open file', async ({ page }) => {

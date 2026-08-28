@@ -178,8 +178,6 @@ body.sdocs-site-shell .library-onboarding-nav {
 .sdocs-site-sidebar-cta:hover { background: var(--bg-hover, var(--surface-2, #f1ede8)); }
 .sdocs-site-sidebar-cta[aria-disabled="true"] { color: var(--text-3, #a8a29e); cursor: default; }
 
-.sdocs-site-sidebar-account { margin-top: 10px; }
-
 .sdocs-site-sidebar .sdocs-sidebar-footer {
   display: flex;
   flex-direction: column;

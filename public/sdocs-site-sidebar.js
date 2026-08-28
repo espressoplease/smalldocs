@@ -36,8 +36,10 @@
     '<a class="sdocs-site-sidebar-row' + (active === 'cloud' ? ' is-active' : '') + '" href="/library?scope=cloud">' + icons.cloud + '<span>Cloud library</span></a>' +
     section('capabilities', icons.capabilities, 'Capabilities', capabilities) +
     section('sdk', icons.sdk, 'SDK', sdk) +
-    (authenticated ? '<a class="sdocs-site-sidebar-row sdocs-site-sidebar-account" href="/cloud/admin">' + icons.settings + '<span>Account settings</span></a>' : '') +
-    '</nav><footer class="sdocs-sidebar-footer">' + shared.footerInnerHtml() + '</footer>';
+    '</nav><footer class="sdocs-sidebar-footer">' + shared.footerInnerHtml({
+      authenticated: authenticated,
+      returnTo: location.pathname + location.search,
+    }) + '</footer>';
 
   var mobile = document.createElement('div');
   mobile.className = 'sdocs-site-mobilebar';

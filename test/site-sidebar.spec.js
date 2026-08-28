@@ -48,6 +48,7 @@ test('Library and reader sidebars share capability and footer content', async ({
         .map(link => ({ label: link.textContent, href: link.getAttribute('href') })),
       footer: Array.from(element.querySelectorAll('.sdocs-sidebar-footer-link'))
         .map(link => link.textContent.trim()),
+      legal: element.querySelector('.sdocs-sidebar-legal').textContent.trim(),
       footerBottom: Math.round(element.querySelector('.sdocs-sidebar-footer').getBoundingClientRect().bottom),
       sidebarBottom: Math.round(element.getBoundingClientRect().bottom),
     }));
@@ -57,9 +58,32 @@ test('Library and reader sidebars share capability and footer content', async ({
   const reader = await sharedContent('/docs?sidebar=preview', '#_sd_sidebar');
   expect(library.capabilities).toEqual(reader.capabilities);
   expect(library.footer).toEqual(reader.footer);
-  expect(library.footer).toEqual(['Private by design', 'Source on GitHub']);
+  expect(library.footer).toEqual(['Sign in', 'Private by design', 'Source on GitHub']);
+  expect(library.legal).toBe('You agree to our Terms');
+  expect(reader.legal).toBe(library.legal);
+  await expect(page.locator('#_sd_sidebar').getByText('For business', { exact: true })).toHaveCount(0);
   expect(library.sidebarBottom - library.footerBottom).toBe(16);
   expect(reader.sidebarBottom - reader.footerBottom).toBe(16);
+});
+
+test('shared footer swaps Sign in for Account settings when authenticated', async ({ page }) => {
+  await page.goto('/public/library/library.html?demo=1');
+  const footer = page.locator('#_sd_site_sidebar .sdocs-sidebar-footer');
+  const signIn = footer.getByRole('link', { name: 'Sign in', exact: true });
+  await expect(signIn).toBeVisible();
+  await expect(signIn).toHaveAttribute('href',
+    '/cloud/sign-in?return=%2Fpublic%2Flibrary%2Flibrary.html%3Fdemo%3D1');
+  await expect(signIn.locator('path').last()).toHaveAttribute('d', 'm16 19 2 2 4-4');
+  await expect(footer.getByRole('link', { name: 'Account settings' })).toHaveCount(0);
+
+  await footer.evaluate(element => {
+    element.innerHTML = window.SDocsSidebarShared.footerInnerHtml({ authenticated: true });
+  });
+  await expect(footer.getByRole('link', { name: 'Account settings' })).toHaveAttribute('href', '/cloud/admin');
+  await expect(footer.getByRole('link', { name: 'Sign in' })).toHaveCount(0);
+  await expect(footer.locator('.sdocs-sidebar-footer-link').first()).toHaveText('Account settings');
+  await expect(footer.locator('.sdocs-sidebar-footer-link').nth(1)).toHaveText('Private by design');
+  await expect(footer.locator('.sdocs-sidebar-legal')).toHaveText('You agree to our Terms');
 });
 
 test('mobile site navigation keeps the menu button fixed and hides Local library', async ({ page }) => {

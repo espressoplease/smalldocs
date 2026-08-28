@@ -193,7 +193,7 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('data-cloud-authenticated="false"'));
       assert.ok(!r.body.includes('Markdown Library'));
       assert.ok(!r.body.includes('data-sdocs-sign-in-return'));
-      assert.ok(r.body.includes('id="doc-site-menu" hidden'));
+      assert.ok(!r.body.includes('id="doc-site-menu"'));
       assert.ok(!r.body.includes('__DOCUMENT_NAV_'));
       assert.strictEqual(r.headers.vary, 'Cookie');
     });
@@ -1097,9 +1097,8 @@ module.exports = function(harness) {
       assert.strictEqual(documentPage.headers['cache-control'], 'private, no-store');
       assert.strictEqual(documentPage.headers.vary, 'Cookie');
       assert.ok(documentPage.body.includes('href="/library?scope=cloud"'));
-      assert.ok(documentPage.body.includes('href="/cloud/admin" role="menuitem"'));
-      assert.ok(documentPage.body.includes('action="/api/cloud/auth/logout"'));
-      assert.ok(documentPage.body.includes('id="doc-site-menu" >'));
+      assert.ok(documentPage.body.includes('data-cloud-authenticated="true"'));
+      assert.ok(!documentPage.body.includes('id="doc-site-menu"'));
       assert.ok(!documentPage.body.includes('data-sdocs-sign-in-return'));
       assert.ok(!documentPage.body.includes('__DOCUMENT_NAV_'));
     });
