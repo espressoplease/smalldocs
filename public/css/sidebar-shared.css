@@ -78,6 +78,7 @@
   align-items: center;
   gap: 9px;
   padding: 0 9px;
+  border: 1px solid transparent;
   border-radius: 8px;
   color: var(--text-2, #57534e);
   font-size: var(--sdocs-sidebar-font-size);
@@ -86,8 +87,15 @@
 }
 
 .sdocs-sidebar-shell .sdocs-sidebar-footer-link:hover {
+  border-color: var(--border-subtle, var(--border, #ddd9d3));
   color: var(--text, #1c1917);
   background: var(--bg-hover, var(--surface-2, #f1ede8));
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-footer-link.is-active {
+  border-color: var(--border-subtle, var(--border, #ddd9d3));
+  color: var(--text, #1c1917);
+  background: transparent;
 }
 
 .sdocs-sidebar-shell .sdocs-sidebar-footer-link svg {

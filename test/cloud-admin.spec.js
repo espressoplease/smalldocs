@@ -69,7 +69,7 @@ async function installAdminApi(page, options) {
 }
 
 test('an individual account hides account, team, and project controls', async ({ page }) => {
-  await page.setViewportSize({ width: 760, height: 900 });
+  await page.setViewportSize({ width: 1000, height: 900 });
   const calls = await installAdminApi(page, {
     kind: 'personal',
     workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }],
@@ -81,9 +81,15 @@ test('an individual account hides account, team, and project controls', async ({
   await expect(page.getByText('Projects', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Connected machines' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Invite person' })).toBeHidden();
-  const library = page.getByRole('link', { name: 'Open Cloud library' });
-  await expect(library).toContainText('Library');
+  const sidebar = page.locator('#_sd_site_sidebar');
+  const library = sidebar.getByRole('link', { name: 'Cloud library' });
+  await expect(sidebar).toBeVisible();
+  await expect(library).toHaveAttribute('href', '/library?scope=cloud');
   await expect(library.locator('svg')).toHaveCount(1);
+  await expect(sidebar.getByRole('link', { name: 'Account settings' })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('heading', { name: 'Cloud settings', level: 1 })).toHaveCount(1);
+  await expect(page.locator('.header')).toHaveCount(0);
+  await expect(page.locator('.side-label')).toHaveCount(0);
   await expect.poll(() => calls.some(call => call.path.includes('/members'))).toBe(false);
   await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/account/invitations')).toBe(false);
   await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/cli/credentials')).toBe(true);
@@ -94,13 +100,13 @@ test('an individual account hides account, team, and project controls', async ({
   expect(overview.height).toBeLessThanOrEqual(40);
   expect(machines.height).toBeLessThanOrEqual(40);
   expect(billing.height).toBeLessThanOrEqual(40);
-  expect(Math.abs(overview.x - machines.x)).toBeLessThan(2);
-  expect(machines.y).toBeGreaterThanOrEqual(overview.y + overview.height);
-  expect(billing.y).toBeGreaterThanOrEqual(machines.y + machines.height);
-  expect((await library.boundingBox()).height).toBe(32);
+  expect(Math.abs(overview.y - machines.y)).toBeLessThan(2);
+  expect(Math.abs(machines.y - billing.y)).toBeLessThan(2);
+  expect(machines.x).toBeGreaterThanOrEqual(overview.x + overview.width);
+  expect(billing.x).toBeGreaterThanOrEqual(machines.x + machines.width);
 });
 
-test('Connected machines is a dedicated left-menu panel and revokes a personal credential', async ({ page }) => {
+test('Connected machines is a dedicated settings panel and revokes a personal credential', async ({ page }) => {
   const calls = await installAdminApi(page, {
     kind: 'personal',
     workspaces: [{ id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' }],
@@ -245,7 +251,7 @@ test('account switcher appears only when there is something to switch to', async
   await expect(page.locator('#account-switcher-menu')).toContainText('SmallDocs');
 });
 
-test('Cloud library and the account switcher stay visible on mobile', async ({ page }) => {
+test('shared navigation and the account switcher stay usable on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installAdminApi(page, {
     kind: 'team',
@@ -257,18 +263,19 @@ test('Cloud library and the account switcher stay visible on mobile', async ({ p
   await page.goto('/public/cloud-admin.html?workspace_id=team-1');
 
   const picker = page.locator('#account-switcher-button');
-  const library = page.getByRole('link', { name: 'Open Cloud library' });
   await expect(picker).toBeVisible();
+  const menu = page.getByRole('button', { name: 'Open menu' });
+  await expect(menu).toBeVisible();
+  await menu.click();
+  const library = page.locator('#_sd_site_sidebar').getByRole('link', { name: 'Cloud library' });
   await expect(library).toBeVisible();
-  await expect(library).toContainText('Library');
   await expect(library.locator('svg')).toHaveCount(1);
+  await expect(page.locator('#_sd_site_sidebar').getByRole('link', { name: 'Local library' })).toBeHidden();
+  await expect(page.locator('#_sd_site_sidebar').getByRole('link', { name: 'Account settings' }))
+    .toHaveAttribute('aria-current', 'page');
 
   const pickerBox = await picker.boundingBox();
-  const libraryBox = await library.boundingBox();
-  expect(libraryBox.height).toBe(36);
-  expect(libraryBox.x + libraryBox.width).toBeLessThanOrEqual(390);
   expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(390);
-  expect(pickerBox.y).toBeGreaterThanOrEqual(libraryBox.y + libraryBox.height);
 });
 
 test('Cloud settings navigation and panels fit a phone viewport', async ({ page }) => {
@@ -285,12 +292,11 @@ test('Cloud settings navigation and panels fit a phone viewport', async ({ page 
 
   const pickerBox = await page.locator('#account-switcher-button').boundingBox();
   const tabsBox = await page.locator('.settings-nav').boundingBox();
-  const sidebarBox = await page.locator('.sidebar').boundingBox();
   const initialMainBox = await page.locator('.main').boundingBox();
   expect(pickerBox.y + pickerBox.height).toBeLessThanOrEqual(tabsBox.y);
   expect(tabsBox.x).toBeGreaterThanOrEqual(0);
   expect(tabsBox.x + tabsBox.width).toBeLessThanOrEqual(390);
-  expect(Math.abs(initialMainBox.y - sidebarBox.y - sidebarBox.height)).toBeLessThanOrEqual(1);
+  expect(initialMainBox.y).toBeGreaterThanOrEqual(44);
   await expect(page.getByRole('button', { name: 'Connected machines' })).toContainText('Machines');
   const tabWidths = await page.locator('.settings-nav').evaluate(element => ({
     client: element.clientWidth, scroll: element.scrollWidth,

@@ -6,8 +6,9 @@
 
   var page = body.getAttribute('data-sdocs-site-page');
   var params = new URLSearchParams(location.search);
-  var active = page === 'cloud' || (page === 'library' && params.get('scope') === 'cloud')
-    ? 'cloud' : 'local';
+  var active = page === 'settings' ? 'settings'
+    : page === 'cloud' || (page === 'library' && params.get('scope') === 'cloud')
+      ? 'cloud' : 'local';
   var authenticated = body.getAttribute('data-cloud-authenticated') === 'true';
   var termsAccepted = body.getAttribute('data-cloud-terms-accepted') === 'true';
   var shared = window.SDocsSidebarShared;
@@ -42,6 +43,13 @@
       termsAccepted: termsAccepted,
       returnTo: location.pathname + location.search,
     }) + '</footer>';
+  if (active === 'settings') {
+    var accountSettings = aside.querySelector('a[href="/cloud/admin"]');
+    if (accountSettings) {
+      accountSettings.classList.add('is-active');
+      accountSettings.setAttribute('aria-current', 'page');
+    }
+  }
 
   var mobile = document.createElement('div');
   mobile.className = 'sdocs-site-mobilebar';
