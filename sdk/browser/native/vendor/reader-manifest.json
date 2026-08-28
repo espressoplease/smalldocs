@@ -117,12 +117,12 @@
   },
   "sdocs-charts.js": {
     "source": "public/sdocs-charts.js",
-    "sha256": "c3493c7990fa04bef4fb609e6eb09130474abb80727a88a854706ae6bca669b9"
+    "sha256": "357b89047ed0f6c59370a2add68b0d48e0de116db2db73ee1787456858677e86"
   },
   "sdocs-chart-reader.css": {
     "source": "public/css/chart-reader.css",
-    "sha256": "0e2d75703a02c9c80d54005403855bff467bca4b726a8fc921b414453ecc05d8",
-    "sourceSha256": "b7b2aea201d946d3d734e04674e5261380758ebc27882c6ba5dc838a6abcd2fb",
+    "sha256": "1338bd4ad5753fe3bde883d2d6fca26c5bc7a81be1bae81953f39d44a3539369",
+    "sourceSha256": "c4e33e693658f60d9168e059ac0536cf4be3a0d993fb511c8df49d4690170386",
     "transform": "sdk-layered-css"
   },
   "sdocs-cells.css": {
