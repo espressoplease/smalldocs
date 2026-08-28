@@ -12,15 +12,14 @@ Use a `sdoc-app` fence for a self-contained browser tool whose interaction is pa
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Scenario explorer</title>
-  <style>
-    body { font: 16px system-ui; margin: 0; padding: 24px; }
-  </style>
 </head>
 <body>
   <label>Value <input id="value" type="range" min="0" max="100" value="50"></label>
   <output id="result">50</output>
   <script>
-    value.addEventListener('input', () => { result.value = value.value; });
+    const slider = document.getElementById('value');
+    const result = document.getElementById('result');
+    slider.addEventListener('input', () => { result.value = slider.value; });
   </script>
 </body>
 </html>
@@ -28,6 +27,61 @@ Use a `sdoc-app` fence for a self-contained browser tool whose interaction is pa
 ````
 
 Use `<title>` to provide the component name shown by SmallDocs. Prefer one complete document with its CSS, JavaScript, and data together. Browser-native APIs, canvas, SVG, forms, and inline scripts are available. Use external resources only when the component is intentionally network-dependent.
+
+## Inherited design
+
+Start with semantic HTML and add CSS for the component's layout. SmallDocs supplies a responsive base treatment using the surrounding document's resolved styles:
+
+- body and heading font families, base font size, and line height
+- text, heading, muted, accent, background, surface, and border colours
+- heading sizes and weights, paragraph spacing, and corner radius
+- zero body margin, responsive body padding, border-box sizing, and fluid media
+- a restrained base treatment for links, tables, code, buttons, and form controls
+
+The parent design is available through these custom properties:
+
+```css
+--sdoc-app-background
+--sdoc-app-surface
+--sdoc-app-color
+--sdoc-app-heading-color
+--sdoc-app-muted-color
+--sdoc-app-accent-color
+--sdoc-app-border-color
+--sdoc-app-font-family
+--sdoc-app-heading-font-family
+--sdoc-app-code-font-family
+--sdoc-app-font-size
+--sdoc-app-line-height
+--sdoc-app-heading-scale
+--sdoc-app-h1-size
+--sdoc-app-h2-size
+--sdoc-app-h3-size
+--sdoc-app-h1-weight
+--sdoc-app-h2-weight
+--sdoc-app-h3-weight
+--sdoc-app-radius
+--sdoc-app-block-spacing
+--sdoc-app-padding
+--sdoc-app-color-scheme
+```
+
+SmallDocs puts its defaults in a low-priority CSS layer. Ordinary CSS in the component overrides them. Set a custom property when the component should keep the surrounding design but change one token, or write normal element and class rules for a larger visual departure:
+
+```css
+:root {
+  --sdoc-app-background: #101827;
+  --sdoc-app-color: #f8fafc;
+  --sdoc-app-accent-color: #7dd3fc;
+}
+
+body { padding: 12px; }
+.workspace { min-height: 420px; }
+```
+
+The inherited values follow document style and theme changes. Do not copy a generic body reset, font stack, background, or control theme into every component when the inherited design already fits.
+
+The bundled Inter faces load inside the component. System fonts work through the normal font stack. If the surrounding document selects another webfont and its exact face matters, load it inside the component with a `<link>` or `@font-face` rule.
 
 ## Size and responsive layout
 

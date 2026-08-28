@@ -325,6 +325,12 @@ module.exports = function(harness) {
       assert.strictEqual(runner.status, 200);
       assert.ok(runner.headers['content-type'].includes('application/javascript'));
       assert.ok(runner.body.includes("parent.postMessage({ type: 'sdocs-app-ready'"));
+
+      const font = await get(BASE + '/sdoc-app-runner/fonts/inter-400.woff2');
+      assert.strictEqual(font.status, 200);
+      assert.ok(font.headers['content-type'].includes('font/woff2'));
+      assert.strictEqual(font.headers['access-control-allow-origin'], '*');
+      assert.strictEqual(font.headers['cross-origin-resource-policy'], 'cross-origin');
     });
 
     await testAsync('GET /developers serves the Markdown-driven SDK documentation shell', async () => {

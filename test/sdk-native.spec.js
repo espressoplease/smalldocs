@@ -170,9 +170,12 @@ document.body.dataset.ready='true';</script></body></html>`);
     }
     if (requested === '/apps') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-      const runnable = (title, value) => `# ${title}\n\n~~~sdoc-app\n<!doctype html><html><head><title>${title}</title></head><body><button id="count">${value}</button><script>document.getElementById('count').onclick=function(){this.textContent=String(Number(this.textContent)+1)}<\/script></body></html>\n~~~`;
+      const runnable = (title, value) => `# ${title}\n\n~~~sdoc-app\n<!doctype html><html><head><title>${title}</title></head><body><h1>${title}</h1><button id="count">${value}</button><script>document.getElementById('count').onclick=function(){this.textContent=String(Number(this.textContent)+1)}<\/script></body></html>\n~~~`;
       const scriptString = value => JSON.stringify(value).replace(/</g, '\\u003c');
-      res.end(`<!doctype html><html><body>
+      res.end(`<!doctype html><html><head><style>
+#left { max-height: 420px; overflow: hidden; transform: translateZ(0); --sdocs-background: #fef3c7; --sdocs-text-color: #3f2d20; --sdocs-accent: #b45309; --sdocs-font-family: Georgia, serif; --sdocs-heading-scale: 1.1; }
+#right { --sdocs-background: #eff6ff; --sdocs-text-color: #172554; --sdocs-accent: #2563eb; }
+</style></head><body>
 <div id="outside" class="sdoc-app">Host app placeholder</div>
 <div id="left"></div><div id="right"></div>
 <script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
@@ -182,6 +185,7 @@ const [leftView,rightView]=await Promise.all([
 ]);
 window.appViews={leftView,rightView};
 window.updateLeftApp=()=>leftView.update(${scriptString(runnable('Updated app', 20))});
+window.rethemeLeftApp=()=>{const target=document.getElementById('left');target.style.setProperty('--sdocs-background','#172554');target.style.setProperty('--sdocs-text-color','#f8fafc');target.style.setProperty('--sdocs-accent','#fbbf24')};
 window.destroyLeftApp=()=>leftView.destroy();
 document.body.dataset.ready='true';</script></body></html>`);
       return;
@@ -417,10 +421,31 @@ test('runnable app instances keep execution, options and lifecycle isolated', as
   await expect(page.locator('#right .sdoc-app-expand')).toHaveCount(0);
   await expect(page.frameLocator('#left .sdoc-app-frame').locator('#count')).toHaveText('1');
   await expect(page.frameLocator('#right .sdoc-app-frame').locator('#count')).toHaveText('8');
+  await expect(page.frameLocator('#left .sdoc-app-frame').locator('body')).toHaveCSS('background-color', 'rgb(254, 243, 199)');
+  await expect(page.frameLocator('#left .sdoc-app-frame').locator('body')).toHaveCSS('color', 'rgb(63, 45, 32)');
+  await expect(page.frameLocator('#left .sdoc-app-frame').locator('body')).toHaveCSS('font-family', /Georgia/);
+  await expect(page.frameLocator('#left .sdoc-app-frame').locator('h1')).toHaveCSS('font-size', '36.96px');
+  await expect(page.frameLocator('#right .sdoc-app-frame').locator('body')).toHaveCSS('background-color', 'rgb(239, 246, 255)');
+
+  await page.evaluate(() => window.rethemeLeftApp());
+  await expect(page.frameLocator('#left .sdoc-app-frame').locator('body')).toHaveCSS('background-color', 'rgb(23, 37, 84)');
+  await expect(page.frameLocator('#left .sdoc-app-frame').locator('body')).toHaveCSS('color', 'rgb(248, 250, 252)');
+  await expect.poll(() => page.frameLocator('#left .sdoc-app-frame').locator('html').evaluate((root) => getComputedStyle(root).getPropertyValue('--sdoc-app-accent-color').trim())).toBe('#fbbf24');
 
   await page.frameLocator('#left .sdoc-app-frame').locator('#count').click();
   await page.getByRole('button', { name: 'Open Left app in fullscreen' }).click();
+  const focus = page.locator('body > .sdoc-app-focus');
+  await expect(focus).toBeVisible();
+  await expect(focus).toHaveCSS('position', 'fixed');
+  await expect(focus).toHaveCSS('display', 'grid');
+  await expect(focus).toHaveCSS('box-sizing', 'border-box');
+  const focusBox = await focus.boundingBox();
+  expect(focusBox.width).toBe(page.viewportSize().width);
+  expect(focusBox.height).toBe(page.viewportSize().height);
   await expect(page.frameLocator('#left .sdoc-app-frame-fullscreen').locator('#count')).toHaveText('2');
+  const fullscreenBox = await page.locator('.sdoc-app-frame-fullscreen').boundingBox();
+  expect(fullscreenBox.width).toBe(page.viewportSize().width - 24);
+  expect(fullscreenBox.height).toBe(page.viewportSize().height - 66);
   await page.getByRole('button', { name: 'Close fullscreen' }).click();
   await expect(page.frameLocator('#left .sdoc-app-frame-inline').locator('#count')).toHaveText('2');
 
@@ -434,6 +459,40 @@ test('runnable app instances keep execution, options and lifecycle isolated', as
 
   expect(requests.some(url => url.includes('/sdk/0.2.0/features/apps.js'))).toBe(true);
   expect(requests.some(url => url.includes('/sdk/0.2.0/vendor/sdocs-app-runner.html'))).toBe(true);
+});
+
+test('a superseded runnable app update aborts without waiting for its runner', async ({ page }) => {
+  let releaseRunner;
+  const runnerReleased = new Promise((resolve) => { releaseRunner = resolve; });
+  await page.route('**/sdk/0.2.0/vendor/sdocs-app-runner.html*', async (route) => {
+    await runnerReleased;
+    try { await route.continue(); } catch (_) {}
+  });
+  await page.goto(customerOrigin + '/plain');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+
+  const source = '# Slow app\n\n~~~sdoc-app\n<!doctype html><html><head><title>Slow app</title></head><body>Waiting</body></html>\n~~~';
+  await page.evaluate((markdown) => {
+    window.slowAppResult = window.view.update(markdown).then(
+      () => ({ status: 'resolved' }),
+      (error) => ({ status: 'rejected', name: error.name })
+    );
+  }, source);
+  await expect(page.locator('.sdoc-app-frame')).toHaveCount(1);
+
+  await page.evaluate(() => {
+    window.fastAppResult = window.view.update('# Replacement\n\nReady.');
+  });
+  await page.evaluate(() => window.fastAppResult);
+  await expect(page.getByRole('heading', { name: 'Replacement' })).toBeVisible();
+  await expect(page.locator('.sdoc-app-frame')).toHaveCount(0);
+  expect(await page.evaluate(() => window.slowAppResult)).toEqual({
+    status: 'rejected',
+    name: 'AbortError',
+  });
+
+  releaseRunner();
+  await page.unroute('**/sdk/0.2.0/vendor/sdocs-app-runner.html*');
 });
 
 test('reader behavior options stay instance-owned and preserve open sections on update', async ({ page }) => {

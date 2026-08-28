@@ -45,7 +45,7 @@ const files = [
   ['public/sdocs-html-components.js', 'sdocs-html-components.js'],
   ['public/sdocs-app-runner.js', 'sdocs-app-runner.js'],
   ['public/sdocs-app-runner.html', 'sdocs-app-runner.html'],
-  ['public/css/html-component-reader.css', 'sdocs-html-component-reader.css', 'sdk-layered-css'],
+  ['public/css/html-component-reader.css', 'sdocs-html-component-reader.css', 'sdk-app-css'],
   ['cli/shared/sdocs-slide-stdlib.js', 'sdocs-slide-stdlib.js'],
 ];
 
@@ -108,6 +108,15 @@ function transformContents(contents, transform) {
       + inline + '\n}\n@scope (.sdoc-cells-focus[data-smalldocs-sdk-version="0.2.0"]) {\n'
       + focusBase + '\n' + focus + '\n}\n@scope (.sdoc-cells-editor[data-smalldocs-sdk-version="0.2.0"]) {\n'
       + editor + '\n}\n}\n');
+  }
+  if (transform === 'sdk-app-css') {
+    const css = contents.toString('utf8');
+    const focusIndex = css.indexOf('.sdoc-app-focus {');
+    const focus = focusIndex < 0 ? '' : css.slice(focusIndex);
+    const scopedFocus = focus.replace(/\.sdoc-app-focus(?![-\w])/g, ':scope');
+    return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
+      + css + '\n}\n@scope (.sdoc-app-focus[data-sdocs-sdk-version="0.2.0"]) {\n'
+      + ':scope, :scope * { box-sizing: border-box; }\n' + scopedFocus + '\n}\n}\n');
   }
   throw new Error('Unknown SDK snapshot transform: ' + transform);
 }

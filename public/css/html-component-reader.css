@@ -80,7 +80,7 @@
   display: block;
   width: 100%;
   border: 0;
-  background: #fff;
+  background: var(--md-bg, #fff);
 }
 
 .sdoc-app-frame-inline {
@@ -218,6 +218,7 @@
   left: 12px;
   width: calc(100% - 24px);
   height: calc(100% - 66px);
+  margin: 0;
   border-radius: 7px;
 }
 

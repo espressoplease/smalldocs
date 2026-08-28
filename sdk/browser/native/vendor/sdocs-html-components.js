@@ -13,6 +13,54 @@
   var CLOSE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
   var SANDBOX = 'allow-scripts allow-forms allow-modals allow-downloads allow-popups';
   var READY_TIMEOUT_MS = 15000;
+  var DESIGN_TOKEN_SOURCES = {
+    '--sdoc-app-background': ['--md-bg', '--sdocs-background'],
+    '--sdoc-app-surface': ['--md-code-bg', '--md-block-bg', '--sdocs-code-background'],
+    '--sdoc-app-color': ['--md-color', '--sdocs-text-color'],
+    '--sdoc-app-heading-color': ['--md-h-color', '--md-color', '--sdocs-text-color'],
+    '--sdoc-app-muted-color': ['--md-muted', '--sdocs-muted-color', '--text-2'],
+    '--sdoc-app-accent-color': ['--md-link-color', '--sdocs-accent'],
+    '--sdoc-app-border-color': ['--sdocs-border-color', '--md-hr-border', '--border'],
+    '--sdoc-app-font-family': ['--md-font-family', '--sdocs-font-family'],
+    '--sdoc-app-heading-font-family': ['--md-h-font-family', '--sdocs-heading-font-family', '--md-font-family'],
+    '--sdoc-app-code-font-family': ['--md-code-font', '--sdocs-code-font-family'],
+    '--sdoc-app-font-size': ['--md-base-size', '--sdocs-font-size'],
+    '--sdoc-app-line-height': ['--md-line-height', '--sdocs-line-height'],
+    '--sdoc-app-heading-scale': ['--md-h-scale', '--sdocs-heading-scale'],
+    '--sdoc-app-h1-size': ['--md-h1-size', '--sdocs-h1-size'],
+    '--sdoc-app-h2-size': ['--md-h2-size', '--sdocs-h2-size'],
+    '--sdoc-app-h3-size': ['--md-h3-size', '--sdocs-h3-size'],
+    '--sdoc-app-h1-weight': ['--md-h1-weight', '--sdocs-h1-weight'],
+    '--sdoc-app-h2-weight': ['--md-h2-weight', '--sdocs-h2-weight'],
+    '--sdoc-app-h3-weight': ['--md-h3-weight', '--sdocs-h3-weight'],
+    '--sdoc-app-radius': ['--sdocs-radius', '--radius-md'],
+    '--sdoc-app-block-spacing': ['--md-block-gap', '--sdocs-paragraph-spacing'],
+    '--sdoc-app-padding': ['--sdocs-app-padding'],
+  };
+  var DESIGN_DEFAULTS = {
+    '--sdoc-app-background': '#ffffff',
+    '--sdoc-app-surface': '#f4f1ed',
+    '--sdoc-app-color': '#1c1917',
+    '--sdoc-app-heading-color': '#1c1917',
+    '--sdoc-app-muted-color': '#6b6560',
+    '--sdoc-app-accent-color': '#2563eb',
+    '--sdoc-app-border-color': '#ded9d3',
+    '--sdoc-app-font-family': 'Inter, ui-sans-serif, system-ui, sans-serif',
+    '--sdoc-app-heading-font-family': 'Inter, ui-sans-serif, system-ui, sans-serif',
+    '--sdoc-app-code-font-family': 'ui-monospace, Menlo, monospace',
+    '--sdoc-app-font-size': '16px',
+    '--sdoc-app-line-height': '1.6',
+    '--sdoc-app-heading-scale': '1',
+    '--sdoc-app-h1-size': '2.1em',
+    '--sdoc-app-h2-size': '1.55em',
+    '--sdoc-app-h3-size': '1.2em',
+    '--sdoc-app-h1-weight': '700',
+    '--sdoc-app-h2-weight': '600',
+    '--sdoc-app-h3-weight': '600',
+    '--sdoc-app-radius': '8px',
+    '--sdoc-app-block-spacing': '1.1em',
+    '--sdoc-app-padding': 'clamp(16px, 4vw, 32px)',
+  };
 
   function deferred() {
     var resolve;
@@ -53,6 +101,77 @@
     return button;
   }
 
+  function firstStyleValue(style, names, fallback) {
+    for (var i = 0; i < names.length; i += 1) {
+      var value = style.getPropertyValue(names[i]).trim();
+      if (value) return value;
+    }
+    return fallback;
+  }
+
+  function colorLuminance(win, value) {
+    try {
+      if (win.CSS && typeof win.CSS.supports === 'function'
+          && !win.CSS.supports('color', String(value || ''))) return null;
+      var canvas = win.document.createElement('canvas');
+      canvas.width = 1;
+      canvas.height = 1;
+      var context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) return null;
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = '#000000';
+      context.fillStyle = String(value || '');
+      context.fillRect(0, 0, 1, 1);
+      var pixel = context.getImageData(0, 0, 1, 1).data;
+      if (!pixel[3]) return null;
+      var alpha = pixel[3] / 255;
+      var red = pixel[0] * alpha + 255 * (1 - alpha);
+      var green = pixel[1] * alpha + 255 * (1 - alpha);
+      var blue = pixel[2] * alpha + 255 * (1 - alpha);
+      return red * 0.2126 + green * 0.7152 + blue * 0.0722;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function colorScheme(win, source, style, background) {
+    var luminance = colorLuminance(win, background);
+    if (luminance !== null) return luminance < 128 ? 'dark' : 'light';
+    var themed = source && source.closest ? source.closest('[data-theme]') : null;
+    var named = themed && themed.getAttribute('data-theme');
+    if (named === 'dark' || named === 'light') return named;
+    if (style.colorScheme === 'dark') return 'dark';
+    return 'light';
+  }
+
+  function readDesignTokens(win, source) {
+    var result = {};
+    var style = source && win.getComputedStyle ? win.getComputedStyle(source) : null;
+    Object.keys(DESIGN_TOKEN_SOURCES).forEach(function (name) {
+      result[name] = style
+        ? firstStyleValue(style, DESIGN_TOKEN_SOURCES[name], DESIGN_DEFAULTS[name])
+        : DESIGN_DEFAULTS[name];
+    });
+    if (style) {
+      if (!firstStyleValue(style, DESIGN_TOKEN_SOURCES['--sdoc-app-font-family'], '')) {
+        result['--sdoc-app-font-family'] = style.fontFamily || DESIGN_DEFAULTS['--sdoc-app-font-family'];
+      }
+      if (!firstStyleValue(style, DESIGN_TOKEN_SOURCES['--sdoc-app-font-size'], '')) {
+        result['--sdoc-app-font-size'] = style.fontSize || DESIGN_DEFAULTS['--sdoc-app-font-size'];
+      }
+      if (!firstStyleValue(style, DESIGN_TOKEN_SOURCES['--sdoc-app-line-height'], '')) {
+        result['--sdoc-app-line-height'] = style.lineHeight || DESIGN_DEFAULTS['--sdoc-app-line-height'];
+      }
+    }
+    result['--sdoc-app-color-scheme'] = colorScheme(
+      win,
+      source,
+      style || {},
+      result['--sdoc-app-background']
+    );
+    return result;
+  }
+
   function create(options) {
     options = options || {};
     var win = options.window || window;
@@ -61,6 +180,10 @@
     var framesByToken = new Map();
     var overlay = null;
     var destroyed = false;
+    var styleRoot = null;
+    var styleObserver = null;
+    var styleRefreshFrame = 0;
+    var colorSchemeMedia = win.matchMedia ? win.matchMedia('(prefers-color-scheme: dark)') : null;
 
     function setHTML(node, html) {
       if (options.setHTML) options.setHTML(node, String(html));
@@ -89,6 +212,58 @@
       var url = new URL(configured || '/sdoc-app-runner', win.location.href);
       url.searchParams.set('token', token);
       return url.href;
+    }
+
+    function designSource() {
+      var configured = typeof options.styleSource === 'function'
+        ? options.styleSource()
+        : options.styleSource;
+      return configured || styleRoot || doc.documentElement;
+    }
+
+    function currentDesign() {
+      if (typeof options.designTokens === 'function') return options.designTokens(designSource());
+      if (options.designTokens) return options.designTokens;
+      return readDesignTokens(win, designSource());
+    }
+
+    function sendDesign(record) {
+      if (!record || !record.sent || !record.frame.contentWindow) return;
+      record.frame.contentWindow.postMessage({
+        type: 'sdocs-app-design',
+        token: record.token,
+        design: currentDesign(),
+      }, '*');
+    }
+
+    function refreshDesign() {
+      styleRefreshFrame = 0;
+      if (!isActive()) return;
+      framesByToken.forEach(sendDesign);
+    }
+
+    function scheduleDesignRefresh() {
+      if (styleRefreshFrame || destroyed) return;
+      styleRefreshFrame = win.requestAnimationFrame(refreshDesign);
+    }
+
+    function watchDesign(source) {
+      if (styleObserver) styleObserver.disconnect();
+      if (!win.MutationObserver || !source) return;
+      styleObserver = new win.MutationObserver(scheduleDesignRefresh);
+      var node = source;
+      while (node && node.nodeType === 1) {
+        styleObserver.observe(node, {
+          attributes: true,
+          attributeFilter: ['class', 'style', 'data-theme'],
+        });
+        node = node.parentElement;
+      }
+    }
+
+    win.addEventListener('resize', scheduleDesignRefresh);
+    if (colorSchemeMedia && colorSchemeMedia.addEventListener) {
+      colorSchemeMedia.addEventListener('change', scheduleDesignRefresh);
     }
 
     function removeFrame(frame) {
@@ -165,6 +340,7 @@
           type: 'sdocs-app-load',
           token: record.token,
           source: record.entry.source,
+          design: currentDesign(),
         }, '*');
         return;
       }
@@ -178,14 +354,16 @@
       }
       if (message.type === 'sdocs-app-mounted' && record.entry.status) {
         record.entry.status.hidden = true;
+        sendDesign(record);
         settleEntry(record.entry, 'mounted');
       }
     }
 
     win.addEventListener('message', receive);
 
-    function clearInline() {
+    function clearInline(status) {
       entries.forEach(function (entry) {
+        settleEntry(entry, status || 'replaced');
         if (entry.frame) removeFrame(entry.frame);
       });
       entries = [];
@@ -209,6 +387,10 @@
       if (!entry || !entry.frame || !entry.host || !entry.host.isConnected) return;
       var record = frameRecord(entry);
       if (record) record.mode = 'inline';
+      if (typeof entry.frame.hidePopover === 'function') {
+        try { entry.frame.hidePopover(); } catch (_) {}
+      }
+      entry.frame.removeAttribute('popover');
       entry.frame.classList.remove('sdoc-app-frame-fullscreen');
       entry.frame.classList.add('sdoc-app-frame-inline');
       entry.frame.style.height = ((record && record.lastInlineHeight) || 480) + 'px';
@@ -222,6 +404,10 @@
       entry.frame.classList.remove('sdoc-app-frame-inline');
       entry.frame.classList.add('sdoc-app-frame-fullscreen');
       entry.frame.style.height = '';
+      if (typeof entry.frame.showPopover === 'function') {
+        entry.frame.setAttribute('popover', 'manual');
+        entry.frame.showPopover();
+      }
       entry.host.classList.add('sdoc-app-expanded');
       if (entry.placeholder) entry.placeholder.hidden = false;
     }
@@ -403,7 +589,9 @@
     function process(root) {
       if (!isActive() || !root) return { apps: [], ready: Promise.resolve([]) };
       closeFullscreen('rerender');
-      clearInline();
+      clearInline('replaced');
+      styleRoot = root;
+      watchDesign(designSource());
       var blocks = Array.from(root.querySelectorAll('pre > code.language-sdoc-app'));
       entries = blocks.map(mountInline).filter(Boolean);
       return {
@@ -415,8 +603,14 @@
     function destroy(reason) {
       if (destroyed) return;
       closeFullscreen(reason || 'destroy');
-      clearInline();
+      clearInline(reason || 'destroyed');
       destroyed = true;
+      if (styleObserver) styleObserver.disconnect();
+      if (styleRefreshFrame) win.cancelAnimationFrame(styleRefreshFrame);
+      win.removeEventListener('resize', scheduleDesignRefresh);
+      if (colorSchemeMedia && colorSchemeMedia.removeEventListener) {
+        colorSchemeMedia.removeEventListener('change', scheduleDesignRefresh);
+      }
       win.removeEventListener('message', receive);
       framesByToken.forEach(function (record) { record.frame.remove(); });
       framesByToken.clear();
@@ -432,6 +626,8 @@
   }
 
   exports.SANDBOX = SANDBOX;
+  exports.DESIGN_DEFAULTS = DESIGN_DEFAULTS;
+  exports.readDesignTokens = readDesignTokens;
   exports.titleFromSource = titleFromSource;
   exports.create = create;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocHtmlComponents = {}));
