@@ -6,9 +6,25 @@
 // App state travels in the hash as key=value params (md=, bridge=, mode=,
 // styles=...). Installed CLIs and old share links point those at the root,
 // where the app used to live; forward them to /docs. The homepage's own
-// anchors (#learn, #install...) carry no '=' and stay here.
-if (location.hash && location.hash.indexOf('=') !== -1)
+// anchors (#learn, #install...) carry no '=' and stay here. With no
+// explicit anchor, returning users go straight to the library available
+// in this browser. Cloud takes precedence when both libraries are present.
+var appHash = location.hash && location.hash.indexOf('=') !== -1;
+if (appHash) {
+  window.__sdocsHomeRedirecting = true;
   location.replace('/docs' + location.hash);
+} else if (!location.hash) {
+  var cloudAuthenticated = '__HOME_CLOUD_AUTHENTICATED__' === 'true';
+  var localConnected = false;
+  try {
+    var localState = JSON.parse(localStorage.getItem('sdocs.connect') || 'null');
+    localConnected = !!(localState && localState.connected === true);
+  } catch (_) {}
+  if (cloudAuthenticated || localConnected) {
+    window.__sdocsHomeRedirecting = true;
+    location.replace(cloudAuthenticated ? '/library?scope=cloud' : '/library');
+  }
+}
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SmallDocs - an office suite for coding agents</title>
@@ -1422,7 +1438,7 @@ footer {
 // Skipped when the page is mid-redirect to /docs (a full #md share link).
 (function () {
   try {
-    if (location.hash && location.hash.indexOf('=') !== -1) return; // redirecting to the app
+    if (window.__sdocsHomeRedirecting) return;
     var cohort = '';
     try { var c = localStorage.getItem('sdocs_cohort'); cohort = (c === 'opt-out') ? '' : (c || ''); } catch (e) {}
     var now = new Date();

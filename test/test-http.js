@@ -166,6 +166,8 @@ module.exports = function(harness) {
       const r = await get(BASE + '/');
       assert.ok(r.body.includes('id="install"'),
         'root should contain the landing install section');
+      assert.ok(r.body.includes('var cloudAuthenticated = \'false\''),
+        'signed-out root should leave Cloud library routing disabled');
       assert.ok(r.body.includes('curl -fsSL https://smalldocs.org/install | sh'),
         'root should show the canonical install command');
       assert.ok(r.body.includes('href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud"'),
@@ -1063,6 +1065,8 @@ module.exports = function(harness) {
       assert.strictEqual(homepage.status, 200);
       assert.strictEqual(homepage.headers['cache-control'], 'private, no-store');
       assert.strictEqual(homepage.headers.vary, 'Cookie');
+      assert.ok(homepage.body.includes('var cloudAuthenticated = \'true\''),
+        'signed-in root should route the browser to Cloud Library');
       assert.ok(homepage.body.includes('class="btn-gh nav-cloud" href="/cloud"'),
         'signed-in unpaid users should retain the Cloud purchase route');
       assert.ok(homepage.body.includes('class="btn-gh" href="/library?scope=cloud"'),

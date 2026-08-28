@@ -2544,7 +2544,10 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Marketing landing page, served at the root. Standalone HTML (no /public/
+  // Root entry point. New visitors stay on the marketing landing page;
+  // returning browsers route to their available library in the page's first
+  // script, after preserving old document fragments and homepage anchors.
+  // Standalone HTML (no /public/
   // assets except the hero poster under /public/homepage/; the hero video
   // streams from Cloudflare R2, bucket smalldocs-media), but still routed
   // through serveHtmlWithRewrite so any future asset additions get
@@ -2554,7 +2557,10 @@ const server = http.createServer((req, res) => {
   if (pathname === '/') {
     const homepageNav = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'homepage.html'),
-      homepageNav.substitutions, {
+      {
+        ...homepageNav.substitutions,
+        '__HOME_CLOUD_AUTHENTICATED__': homepageNav.authenticated ? 'true' : 'false',
+      }, {
       'Cache-Control': homepageNav.authenticated ? 'private, no-store' : 'no-cache',
       'Vary': 'Cookie',
     });
