@@ -32,14 +32,14 @@ test('Library and supporting text pages share the desktop navigation shell', asy
 
 test('expandable site navigation stays closed until selected', async ({ page }) => {
   await page.goto('/public/library/library.html?demo=1');
-  const capabilities = page.locator('[data-site-section="capabilities"]');
-  const sdk = page.locator('[data-site-section="sdk"]');
+  const capabilities = page.locator('[data-sidebar-section="capabilities"]');
+  const sdk = page.locator('[data-sidebar-section="sdk"]');
 
-  await expect(capabilities.locator('.sdocs-site-sidebar-row')).toHaveAttribute('aria-expanded', 'false');
+  await expect(capabilities.locator('.sdocs-sidebar-top-row')).toHaveAttribute('aria-expanded', 'false');
   await expect(capabilities.getByRole('link', { name: 'View homepage' })).toBeHidden();
   await expect(capabilities.getByRole('link', { name: 'Diagrams' })).toBeHidden();
-  await capabilities.locator('.sdocs-site-sidebar-row').click();
-  await expect(capabilities.locator('.sdocs-site-sidebar-row')).toHaveAttribute('aria-expanded', 'true');
+  await capabilities.locator('.sdocs-sidebar-top-row').click();
+  await expect(capabilities.locator('.sdocs-sidebar-top-row')).toHaveAttribute('aria-expanded', 'true');
   const homepage = capabilities.getByRole('link', { name: 'View homepage' });
   await expect(homepage).toBeVisible();
   await expect(homepage).toHaveAttribute('href', '/home');
@@ -51,13 +51,14 @@ test('expandable site navigation stays closed until selected', async ({ page }) 
   expect(await capabilities.locator('[data-sdocs-shared-capabilities] a').first().innerText())
     .toBe('View homepage');
   await expect(capabilities.getByRole('link', { name: 'Diagrams' })).toBeVisible();
-  await expect(sdk.locator('.sdocs-site-sidebar-row')).toHaveAttribute('aria-expanded', 'false');
+  await expect(sdk.locator('.sdocs-sidebar-top-row')).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('Library and reader sidebars share capability and footer content', async ({ page }) => {
   async function sharedContent(url, sidebar) {
     await page.goto(url);
     return page.locator(sidebar).evaluate(element => ({
+      renderer: element.getAttribute('data-sdocs-sidebar-renderer'),
       capabilities: Array.from(element.querySelectorAll('[data-sdocs-shared-capabilities] a'))
         .map(link => ({ label: link.textContent, href: link.getAttribute('href') })),
       footer: Array.from(element.querySelectorAll('.sdocs-sidebar-footer-link'))
@@ -70,7 +71,7 @@ test('Library and reader sidebars share capability and footer content', async ({
           const style = getComputedStyle(target);
           return Object.fromEntries(names.map(name => [name, style[name]]));
         };
-        const row = Array.from(element.querySelectorAll('.doc-site-action, .sdocs-site-sidebar-row'))
+        const row = Array.from(element.querySelectorAll('.sdocs-sidebar-top-row'))
           .find(target => getComputedStyle(target).display !== 'none');
         const brand = element.querySelector('.sdocs-sidebar-brand');
         const footerLink = element.querySelector('.sdocs-sidebar-footer-link');
@@ -107,6 +108,8 @@ test('Library and reader sidebars share capability and footer content', async ({
 
   const library = await sharedContent('/public/library/library.html?demo=1', '#_sd_site_sidebar');
   const reader = await sharedContent('/docs?sidebar=preview', '#_sd_sidebar');
+  expect(library.renderer).toBe('shared');
+  expect(reader.renderer).toBe('shared');
   expect(library.capabilities).toEqual(reader.capabilities);
   expect(reader.capabilities[0]).toEqual({ label: 'View homepage', href: '/home' });
   expect(library.footer).toEqual(reader.footer);

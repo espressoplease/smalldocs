@@ -64,22 +64,16 @@ __EMBED_STYLES__
 <div id="_sd_safari-banner" hidden></div>
 <div id="_sd_main">
   <!-- Left site navigation -->
-  <aside id="_sd_sidebar" class="sdocs-sidebar-shell" aria-label="SmallDocs" data-cloud-authenticated="__DOCUMENT_CLOUD_AUTHENTICATED__" data-cloud-terms-accepted="__DOCUMENT_CLOUD_TERMS_ACCEPTED__">
-    <div class="sdocs-sidebar-main">
-      <a id="_sd_toolbar-brand" class="sdocs-sidebar-brand" href="/" title="SmallDocs homepage">
-        <svg class="sdocs-sidebar-mark" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="2.75" y="2.75" width="18.5" height="18.5" rx="5.25" fill="currentColor" fill-opacity=".1"/>
-          <rect x="2.75" y="2.75" width="18.5" height="18.5" rx="5.25" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M7.5 8.5h9M7.5 12h7M7.5 15.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-        <span class="toolbar-brand-text toolbar-brand-full">SmallDocs</span>
-        <span class="toolbar-brand-text toolbar-brand-short">SDocs</span>
-        <span class="toolbar-brand-text toolbar-brand-tiny">SD</span>
-      </a>
+  <aside id="_sd_sidebar" class="sdocs-sidebar-shell" aria-label="SmallDocs"
+    data-sdocs-sidebar-shell data-primary-template="_sd_sidebar_primary"
+    data-id-prefix="_sd_sidebar" data-row-class="doc-site-action" data-nav-class="doc-site-nav"
+    data-brand-id="_sd_toolbar-brand" data-responsive-brand data-status-id="_sd_status-text"
+    data-cloud-authenticated="__DOCUMENT_CLOUD_AUTHENTICATED__"
+    data-cloud-terms-accepted="__DOCUMENT_CLOUD_TERMS_ACCEPTED__"></aside>
 
-      <nav class="doc-site-nav" aria-label="SmallDocs navigation">
+  <template id="_sd_sidebar_primary">
         <div class="sdocs-sidebar-section sdocs-short-link-only" data-sidebar-section="about">
-          <button class="doc-site-action" type="button" data-sidebar-href="/#learn" aria-controls="_sd_sidebar_about_panel" aria-expanded="false">
+          <button class="sdocs-sidebar-top-row doc-site-action" type="button" data-sidebar-href="/#learn" aria-controls="_sd_sidebar_about_panel" aria-expanded="false">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
             <span>About SmallDocs</span>
             <svg class="sdocs-sidebar-row-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
@@ -96,13 +90,13 @@ __EMBED_STYLES__
           </div>
         </div>
 
-        <a class="doc-site-action sdocs-short-link-only" href="/#install">
+        <a class="sdocs-sidebar-top-row doc-site-action sdocs-short-link-only" href="/#install">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
           <span>Install</span>
         </a>
 
         <div class="sdocs-sidebar-section sdocs-sidebar-section-library" data-sidebar-section="library">
-          <button class="doc-site-action" id="_sd_btn-library" type="button" data-sidebar-href="__DOCUMENT_LIBRARY_HREF__" aria-controls="_sd_sidebar_library_panel" aria-expanded="false">
+          <button class="sdocs-sidebar-top-row doc-site-action" id="_sd_btn-library" type="button" data-sidebar-href="__DOCUMENT_LIBRARY_HREF__" aria-controls="_sd_sidebar_library_panel" aria-expanded="false">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
             <span class="library-btn-label">Local library</span>
             <svg class="sdocs-sidebar-row-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
@@ -154,7 +148,7 @@ __EMBED_STYLES__
         </div>
 
         <div class="sdocs-sidebar-section" data-sidebar-section="cloud">
-          <button class="doc-site-action" type="button" data-sidebar-href="/library?scope=cloud" aria-controls="_sd_sidebar_cloud_panel" aria-expanded="false">
+          <button class="sdocs-sidebar-top-row doc-site-action" type="button" data-sidebar-href="/library?scope=cloud" aria-controls="_sd_sidebar_cloud_panel" aria-expanded="false">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
             <span>Cloud library</span>
             <svg class="sdocs-sidebar-row-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
@@ -203,40 +197,7 @@ __EMBED_STYLES__
           </div>
         </div>
 
-        <div class="sdocs-sidebar-section" data-sidebar-section="capabilities">
-          <button class="doc-site-action" type="button" data-sidebar-href="/docs#sec=formatting" aria-controls="_sd_sidebar_capabilities_panel" aria-expanded="false">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M3 12h18"/><path d="m5.6 5.6 12.8 12.8"/><path d="m18.4 5.6-12.8 12.8"/></svg>
-            <span>Capabilities</span>
-            <svg class="sdocs-sidebar-row-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-          </button>
-          <div class="sdocs-sidebar-expander" id="_sd_sidebar_capabilities_panel">
-            <div class="sdocs-sidebar-expander-clip">
-              <div class="sdocs-sidebar-preview sdocs-sidebar-preview-compact" data-sdocs-shared-capabilities data-item-class="sdocs-sidebar-subitem" data-cta-class="sdocs-sidebar-library-row sdocs-sidebar-library-open"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="sdocs-sidebar-section" data-sidebar-section="sdk">
-          <button class="doc-site-action" type="button" data-sidebar-href="/developers" aria-controls="_sd_sidebar_sdk_panel" aria-expanded="false">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 9-3 3 3 3"/><path d="m16 9 3 3-3 3"/><path d="m14 5-4 14"/></svg>
-            <span>SDK</span>
-            <svg class="sdocs-sidebar-row-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-          </button>
-          <div class="sdocs-sidebar-expander" id="_sd_sidebar_sdk_panel">
-            <div class="sdocs-sidebar-expander-clip">
-              <div class="sdocs-sidebar-preview">
-                <p class="sdocs-sidebar-explainer" data-sdocs-shared-sdk-description></p>
-                <button class="sdocs-sidebar-cta" type="button" disabled>Coming soon</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </nav>
-    </div>
-
-    <div class="sdocs-sidebar-footer" data-sdocs-shared-footer data-status-id="_sd_status-text"></div>
-  </aside>
+  </template>
 
   <!-- ── Left panel ── -->
   <div id="_sd_left">
