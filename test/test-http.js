@@ -94,6 +94,7 @@ module.exports = function(harness) {
     });
 
     const BASE = 'http://localhost:3099';
+    const { CURRENT_TERMS_VERSION } = require('../lib/cloud-terms');
     const cloudBilling = require('../lib/cloud-billing').createBillingStore({
       dbPath: testCloudBillingDbPath, planLimits: {},
     });
@@ -150,6 +151,13 @@ module.exports = function(harness) {
         request.on('error', reject);
         request.end(raw);
       });
+    }
+    function acceptCloudTerms(cookie, returnTo) {
+      return post(BASE + '/api/cloud/auth/terms/accept', {
+        accepted: true,
+        terms_version: CURRENT_TERMS_VERSION,
+        return_to: returnTo || '/cloud/admin',
+      }, { Origin: BASE, Cookie: cookie });
     }
 
     await testAsync('GET / returns 200', async () => {
@@ -425,6 +433,28 @@ module.exports = function(harness) {
       );
       assert.strictEqual(slideReference.status, 200);
       assert.ok(slideReference.body.includes('Visual explanation is part of normal slide authoring'));
+
+      const standardCatalog = await get(
+        BASE + '/agent-skills/standard/.well-known/agent-skills/index.json');
+      assert.strictEqual(standardCatalog.status, 200);
+      assert.strictEqual(JSON.parse(standardCatalog.body).skills[0].name, 'smalldocs');
+      const standardGlobal = await get(
+        BASE + '/agent-skills/standard/.well-known/agent-skills/smalldocs/SKILL.md');
+      assert.strictEqual(standardGlobal.status, 200);
+      assert.strictEqual(standardGlobal.headers['access-control-allow-origin'], '*');
+      assert.ok(standardGlobal.body.includes('name: smalldocs'));
+      assert.ok(!standardGlobal.body.includes('sdoc cloud status --json'));
+
+      const cloudCatalog = await get(
+        BASE + '/agent-skills/cloud/.well-known/agent-skills/index.json');
+      assert.strictEqual(cloudCatalog.status, 200);
+      assert.strictEqual(JSON.parse(cloudCatalog.body).skills[0].name, 'smalldocs');
+      const cloudGlobal = await get(
+        BASE + '/agent-skills/cloud/.well-known/agent-skills/smalldocs/SKILL.md');
+      assert.strictEqual(cloudGlobal.status, 200);
+      assert.ok(cloudGlobal.body.includes('name: smalldocs'));
+      assert.ok(cloudGlobal.body.includes('This user has enabled SmallDocs Cloud'));
+      assert.ok(cloudGlobal.body.includes('sdoc cloud status --json'));
     });
 
     await testAsync('embed shell allows only its declared customer origin to frame it', async () => {
@@ -967,7 +997,7 @@ module.exports = function(harness) {
       assert.strictEqual(JSON.parse(r.body).error, 'invalid_origin');
     });
 
-    await testAsync('Cloud email code request and verification create a browser session', async () => {
+    await testAsync('Cloud email sign-in requires and records current Terms before Cloud use', async () => {
       const requested = await post(BASE + '/api/cloud/auth/email/request', {
         email: 'person@example.com', return_to: '/cloud/admin',
       }, { Origin: BASE });
@@ -982,11 +1012,60 @@ module.exports = function(harness) {
         return_to: '/cloud/admin',
       }, { Origin: BASE });
       assert.strictEqual(verified.status, 200);
-      assert.strictEqual(JSON.parse(verified.body).return_to, '/cloud/admin');
+      assert.strictEqual(JSON.parse(verified.body).return_to,
+        '/cloud/terms?return=%2Fcloud%2Fadmin');
       assert.ok(verified.headers['set-cookie'][0].startsWith('sdocs_cloud='));
       assert.ok(verified.headers['set-cookie'][0].includes('HttpOnly'));
       assert.ok(verified.headers['set-cookie'][0].includes('SameSite=Lax'));
-      const settings = await get(BASE + '/cloud/admin', { Cookie: verified.headers['set-cookie'][0].split(';')[0] });
+      const cookie = verified.headers['set-cookie'][0].split(';')[0];
+      const blockedApi = await get(BASE + '/api/cloud/v1/workspaces', { Cookie: cookie });
+      assert.strictEqual(blockedApi.status, 403);
+      assert.deepStrictEqual(JSON.parse(blockedApi.body), {
+        ok: false,
+        error: 'terms_acceptance_required',
+        terms_version: CURRENT_TERMS_VERSION,
+        terms_url: '/legal',
+        acceptance_url: '/cloud/terms',
+      });
+      const blockedPage = await get(BASE + '/cloud/admin', { Cookie: cookie });
+      assert.strictEqual(blockedPage.status, 303);
+      assert.strictEqual(blockedPage.headers.location,
+        '/cloud/terms?return=%2Fcloud%2Fadmin');
+      const blockedAuthorization = await get(BASE + '/cloud/authorize?user_code=ABCD-EFGH', {
+        Cookie: cookie,
+      });
+      assert.strictEqual(blockedAuthorization.status, 303);
+      assert.strictEqual(blockedAuthorization.headers.location,
+        '/cloud/terms?return=%2Fcloud%2Fauthorize%3Fuser_code%3DABCD-EFGH');
+      const blockedInvitationPage = await get(BASE + '/cloud/invite?token=unaccepted-user', {
+        Cookie: cookie,
+      });
+      assert.strictEqual(blockedInvitationPage.status, 303);
+      assert.strictEqual(blockedInvitationPage.headers.location,
+        '/cloud/terms?return=%2Fcloud%2Finvite%3Ftoken%3Dunaccepted-user');
+      const blockedInvitationAccept = await post(
+        BASE + '/api/cloud/v1/invitations/unaccepted-user/accept', {},
+        { Origin: BASE, Cookie: cookie });
+      assert.strictEqual(blockedInvitationAccept.status, 403);
+      assert.strictEqual(JSON.parse(blockedInvitationAccept.body).error,
+        'terms_acceptance_required');
+      const termsPage = await get(BASE + blockedPage.headers.location, { Cookie: cookie });
+      assert.strictEqual(termsPage.status, 200);
+      assert.ok(termsPage.body.includes('I agree to the'));
+      assert.ok(termsPage.body.includes('value="' + CURRENT_TERMS_VERSION + '"'));
+      assert.ok(!termsPage.body.includes('I agree to the <a href="/privacy"'),
+        'the Privacy Notice must not be presented as consent');
+
+      const invalidAcceptance = await post(BASE + '/api/cloud/auth/terms/accept', {
+        accepted: true, terms_version: 'old-version', return_to: '/cloud/admin',
+      }, { Origin: BASE, Cookie: cookie });
+      assert.strictEqual(invalidAcceptance.status, 400);
+      const accepted = await acceptCloudTerms(cookie, '/cloud/admin');
+      assert.strictEqual(accepted.status, 200);
+      assert.strictEqual(JSON.parse(accepted.body).terms_version, CURRENT_TERMS_VERSION);
+      assert.ok(JSON.parse(accepted.body).accepted_at);
+
+      const settings = await get(BASE + '/cloud/admin', { Cookie: cookie });
       assert.strictEqual(settings.status, 200);
       assert.ok(settings.body.includes('Cloud settings'));
       assert.ok(settings.body.includes('Connected machines'));
@@ -996,13 +1075,13 @@ module.exports = function(harness) {
 
       const loggedOut = await post(BASE + '/api/cloud/auth/logout', '', {
         Origin: BASE,
-        Cookie: verified.headers['set-cookie'][0].split(';')[0],
+        Cookie: cookie,
         'Content-Type': 'application/x-www-form-urlencoded',
       });
       assert.strictEqual(loggedOut.status, 303);
       assert.strictEqual(loggedOut.headers.location, '/cloud/sign-in');
       assert.ok(loggedOut.headers['set-cookie'][0].includes('Max-Age=0'));
-      const afterLogout = await get(BASE + '/cloud/admin', { Cookie: verified.headers['set-cookie'][0].split(';')[0] });
+      const afterLogout = await get(BASE + '/cloud/admin', { Cookie: cookie });
       assert.strictEqual(afterLogout.status, 303);
     });
 
@@ -1018,7 +1097,8 @@ module.exports = function(harness) {
         return_to: 'https://evil.example/steal',
       }, { Origin: BASE });
       assert.strictEqual(verified.status, 200);
-      assert.strictEqual(JSON.parse(verified.body).return_to, '/cloud/admin');
+      assert.strictEqual(JSON.parse(verified.body).return_to,
+        '/cloud/terms?return=%2Fcloud%2Fadmin');
     });
 
     await testAsync('legacy Cloud account URL redirects to Connected machines', async () => {
@@ -1053,6 +1133,9 @@ module.exports = function(harness) {
         challenge_id: challenge, code: codeMatch[1], return_to: '/cloud/admin',
       }, { Origin: BASE });
       cloudCookie = verified.headers['set-cookie'][0].split(';')[0];
+      const termsBlocked = await get(BASE + '/api/cloud/v1/workspaces', { Cookie: cloudCookie });
+      assert.strictEqual(termsBlocked.status, 403);
+      assert.strictEqual((await acceptCloudTerms(cloudCookie, '/cloud/admin')).status, 200);
       const response = await get(BASE + '/api/cloud/v1/workspaces', { Cookie: cloudCookie });
       assert.strictEqual(response.status, 200);
       const parsed = JSON.parse(response.body);
@@ -1359,6 +1442,7 @@ module.exports = function(harness) {
         challenge_id: challenge, code: codeMatch[1], return_to: '/cloud/admin',
       }, { Origin: BASE });
       cloudMemberCookie = verified.headers['set-cookie'][0].split(';')[0];
+      assert.strictEqual((await acceptCloudTerms(cloudMemberCookie, '/cloud/invite')).status, 200);
       cloudMemberUser = JSON.parse((await get(BASE + '/api/cloud/v1/me', {
         Cookie: cloudMemberCookie,
       })).body).user;
@@ -1652,6 +1736,26 @@ module.exports = function(harness) {
         Authorization: 'Bearer ' + credential.access_token,
       });
       assert.strictEqual(JSON.parse(account.body).user.email, 'cloud-api@example.com');
+
+      const Database = require('better-sqlite3');
+      const authDb = new Database(testCloudAuthDbPath);
+      authDb.prepare(`
+        DELETE FROM cloud_auth_terms_acceptances
+        WHERE user_id = ? AND terms_version = ?
+      `).run(JSON.parse(account.body).user.id, CURRENT_TERMS_VERSION);
+      authDb.close();
+      const blockedExistingCredential = await get(BASE + '/api/cloud/v1/me', {
+        Authorization: 'Bearer ' + credential.access_token,
+      });
+      assert.strictEqual(blockedExistingCredential.status, 403);
+      assert.strictEqual(JSON.parse(blockedExistingCredential.body).error,
+        'terms_acceptance_required');
+      const blockedRefresh = await post(BASE + '/api/cloud/v1/cli/token/refresh', {
+        refresh_token: credential.refresh_token,
+      });
+      assert.strictEqual(blockedRefresh.status, 403);
+      assert.strictEqual(JSON.parse(blockedRefresh.body).error, 'terms_acceptance_required');
+      assert.strictEqual((await acceptCloudTerms(cloudCookie, '/cloud/admin')).status, 200);
 
       const refreshed = await post(BASE + '/api/cloud/v1/cli/token/refresh', {
         refresh_token: credential.refresh_token,

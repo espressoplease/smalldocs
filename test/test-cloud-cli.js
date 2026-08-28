@@ -7,7 +7,8 @@ module.exports = function(harness) {
   const io = require('../cli/lib/io');
   const credentials = require('../cli/lib/cloud-credentials');
   const bindings = require('../cli/lib/cloud-bindings');
-  const { CloudClient, runCloudCommand, filterTags } = require('../cli/lib/cloud-commands');
+  const { CloudClient, runCloudCommand, filterTags, skillInstallCommand, CLOUD_HELP } =
+    require('../cli/lib/cloud-commands');
 
   test('cloud CLI parser captures nested action flags', () => {
     const parsed = io.parseArgs(['cloud', 'pull', 'doc-id', '--revision', 'rev-id',
@@ -43,6 +44,20 @@ module.exports = function(harness) {
   test('cloud CLI tag filters require every requested tag', () => {
     const documents = [{ id: 'a', tags: ['auth', 'api'] }, { id: 'b', tags: ['auth'] }];
     assert.deepStrictEqual(filterTags(documents, ['AUTH', 'api']).map((item) => item.id), ['a']);
+  });
+
+  test('Cloud skill install commands preserve the selected server origin', () => {
+    assert.strictEqual(skillInstallCommand('https://cloud-staging.smalldocs.org', true),
+      'npx skills@latest add https://cloud-staging.smalldocs.org/agent-skills/cloud --global');
+    assert.strictEqual(skillInstallCommand('https://smalldocs.org', false),
+      'npx skills@latest add https://smalldocs.org/agent-skills/standard --global');
+  });
+
+  test('Cloud help documents search result fields and read/update workflows', () => {
+    assert.ok(CLOUD_HELP.includes('Search is case-insensitive substring matching'));
+    assert.ok(CLOUD_HELP.includes('matches[]'));
+    assert.ok(CLOUD_HELP.includes('--no-bind'));
+    assert.ok(CLOUD_HELP.includes('sdoc cloud push ./plan.md --json'));
   });
 
   test('macOS Keychain save answers both secure prompts without putting the credential in arguments', () => {
@@ -160,6 +175,29 @@ module.exports = function(harness) {
       },
     };
 
+    await testAsync('Cloud login JSON offers the Cloud-aware replacement skill', async () => {
+      const client = {
+        origin: 'https://cloud.test',
+        loadCredential() { return account; },
+        async authenticated() { return { user: { id: 'usr-1', email: 'agent@example.com' } }; },
+      };
+      const result = await capture(() => runCloudCommand({ file: 'login', jsonFlag: true }, { client }));
+      assert.strictEqual(result.skill_mode, 'cloud');
+      assert.strictEqual(result.already_logged_in, true);
+      assert.ok(result.skill_install_command.includes('/agent-skills/cloud'));
+    });
+
+    await testAsync('Cloud logout leaves the installed skill and offers an explicit restore', async () => {
+      const client = {
+        origin: 'https://cloud.test',
+        credentials: { remove() { throw new Error('no credential should be removed'); } },
+        loadCredential() { return null; },
+      };
+      const result = await capture(() => runCloudCommand({ file: 'logout', jsonFlag: true }, { client }));
+      assert.strictEqual(result.skill_unchanged, true);
+      assert.ok(result.standard_skill_install_command.includes('/agent-skills/standard'));
+    });
+
     async function capture(command) {
       let output = '';
       const original = process.stdout.write;
@@ -183,6 +221,31 @@ module.exports = function(harness) {
       }
       return { stdout, stderr, exitCode: process.exitCode };
     }
+
+    await testAsync('bare cloud command explains capabilities without authentication or network access', async () => {
+      let authenticated = false;
+      const client = {
+        loadCredential() { return null; },
+        async authenticated() { authenticated = true; throw new Error('must not authenticate'); },
+      };
+      const result = await captureStreams(() => runCloudCommand({ file: null, jsonFlag: true }, { client }));
+      const body = JSON.parse(result.stdout);
+      assert.strictEqual(body.ok, true);
+      assert.strictEqual(body.command, 'cloud.overview');
+      assert.strictEqual(body.cloud_available, true);
+      assert.strictEqual(body.connected, false);
+      assert.strictEqual(body.next_action, 'sdoc cloud login');
+      assert.ok(body.capabilities.includes('revision_history'));
+      assert.strictEqual(authenticated, false);
+    });
+
+    await testAsync('bare cloud command points a connected machine to explicit status', async () => {
+      const client = { loadCredential() { return account; } };
+      const result = await captureStreams(() => runCloudCommand({ file: null, jsonFlag: true }, { client }));
+      const body = JSON.parse(result.stdout);
+      assert.strictEqual(body.connected, true);
+      assert.strictEqual(body.next_action, 'sdoc cloud status --json');
+    });
 
     function entitlementClient(error, status) {
       return new CloudClient({
@@ -366,18 +429,19 @@ module.exports = function(harness) {
         async authenticated(endpoint) {
           const url = new URL(endpoint, 'https://cloud.test');
           const cursor = url.searchParams.get('cursor') || '';
-          pageCalls.push({ cursor, limit: url.searchParams.get('limit') });
+          pageCalls.push({ cursor, limit: url.searchParams.get('limit'),
+            account: url.searchParams.get('workspace_id') });
           return pages[cursor];
         },
       };
-      const result = await capture(() => runCloudCommand({ file: 'ls', limitFlag: 3,
-        jsonFlag: true }, { client: pagingClient }));
+      const result = await capture(() => runCloudCommand({ file: 'ls', accountFlag: 'acct-docs',
+        limitFlag: 3, jsonFlag: true }, { client: pagingClient }));
       assert.deepStrictEqual(result.documents.map((document) => document.id), ['doc-a', 'doc-b', 'doc-c']);
       assert.strictEqual(result.next_cursor, 'cursor-3');
       assert.deepStrictEqual(pageCalls, [
-        { cursor: '', limit: '3' },
-        { cursor: 'cursor-1', limit: '2' },
-        { cursor: 'cursor-2', limit: '1' },
+        { cursor: '', limit: '3', account: 'acct-docs' },
+        { cursor: 'cursor-1', limit: '2', account: 'acct-docs' },
+        { cursor: 'cursor-2', limit: '1', account: 'acct-docs' },
       ]);
     });
 
@@ -456,9 +520,11 @@ module.exports = function(harness) {
         },
       };
       const result = await capture(() => runCloudCommand({ file: 'search', extra: 'kubernetes',
-        tagFilters: ['platform'], limitFlag: 1, jsonFlag: true }, { client: searchClient }));
+        accountFlag: 'acct-platform', tagFilters: ['platform'], limitFlag: 1, jsonFlag: true },
+      { client: searchClient }));
       assert.deepStrictEqual(requestBody.tags, ['platform']);
       assert.strictEqual(requestBody.limit, 1);
+      assert.strictEqual(requestBody.workspace_id, 'acct-platform');
       assert.strictEqual(result.documents[0].id, 'doc-tagged');
     });
 

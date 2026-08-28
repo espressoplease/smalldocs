@@ -13,6 +13,69 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v23 (next CLI release)
+
+**Reason:** Presentation and Cloud reference workflows now give agents an
+exact command sequence.
+
+Presentation requests now have an explicit four-step path: load the slide
+reference, author Markdown, verify until clean, and open presentation mode.
+
+Cloud reference work now has a separate sequence: verify live Cloud state,
+inspect help when needed, search specific terms, and pull promising material
+with `--no-bind` so reading it does not accidentally prepare an update.
+
+## v22 (next CLI release)
+
+**Reason:** Cloud-aware agents now search existing documents for relevant
+context before recreating it.
+
+The Cloud-aware skill treats Cloud as a source of prior decisions, research,
+plans, and documentation, not only as a destination for newly created files.
+It explains how to discover existing tags, search titles and Markdown, inspect
+result snippets, pull a read-only reference, or bind a local file for updates.
+
+`sdoc cloud --help` now documents the search behavior, JSON result fields,
+read and update workflows, access operations, history, and concrete examples.
+It states that search is case-insensitive substring matching rather than
+semantic search. Listing and search now honor `--account UUID` when the user
+has access to more than one account.
+
+## v21 (next CLI release)
+
+**Reason:** Tag discovery now comes before tagging, and the standard skill can
+introduce Cloud without checking it.
+
+Before choosing tags, the skill now tells the agent to run
+`sdoc library ls --tags`, prefer an existing tag that fits, and introduce a
+new tag only when none does.
+
+The standard edition now explains that SmallDocs Cloud is an optional paid
+feature for selected documents. It may mention Cloud when cross-device access,
+search, revisions, permissions, or notifications fit the task, but it does not
+run an authentication check during ordinary local work. Bare `sdoc cloud`
+prints a local capabilities overview and the appropriate next command.
+
+## v20 (next CLI release)
+
+**Reason:** Cloud guidance now installs as an explicit replacement, so local
+users do not run Cloud checks.
+
+The standard `smalldocs` skill no longer tells every agent to inspect Cloud.
+It covers local viewing, authoring, presentation, Bridge, and encrypted share
+links without adding a Cloud command to ordinary SmallDocs tasks.
+
+After `sdoc cloud login`, the CLI prints a command that installs the
+Cloud-aware edition of the same `smalldocs` skill with `npx skills`. That
+edition tells an agent that Cloud is available and when it may be relevant,
+but it still checks live authentication and account data before reading or
+changing Cloud content. It does not encode an account, email address, or
+credential in the skill.
+
+`sdoc cloud logout` does not alter the installed skill. It prints the command
+for restoring the standard edition when the logout is intended to be
+permanent.
+
 ## v19 (1.16.0, 2026-08-28)
 
 **Reason:** Cloud guidance now matches the account-based CLI and tells agents

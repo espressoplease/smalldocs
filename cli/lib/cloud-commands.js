@@ -20,27 +20,87 @@ const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
 
 const CLOUD_HELP = `SmallDocs Cloud
 
+Cloud stores selected Markdown documents with search, revisions, member access,
+and cross-device CLI and browser access. Local files are not uploaded until a
+create or push command changes Cloud.
+
+DISCOVER AND READ
+
+  sdoc cloud status --json
+  sdoc cloud tags --json
+  sdoc cloud search "incident response" --json
+  sdoc cloud search "authentication" --tag engineering --limit 10 --json
+  sdoc cloud ls --shared-with-me --json
+  sdoc cloud pull DOCUMENT_UUID --output /tmp/reference.md --no-bind --json
+
+Search is case-insensitive substring matching across document titles,
+filenames, tags, and current Markdown. It is not semantic search. Start with a
+specific phrase, then try a shorter phrase or an existing tag if needed.
+Multiple --tag values require every listed tag.
+
+With --json, search returns documents[]. Each result includes its id, title,
+tags, current revision metadata, and matches[]. A match reports field, line,
+and snippet. Search does not return the full Markdown. Use pull to retrieve a
+result. --no-bind makes that output a read-only reference from the CLI's point
+of view, so a later push will not update the Cloud document by accident.
+
+UPDATE AN EXISTING DOCUMENT
+
+  sdoc cloud pull DOCUMENT_UUID --output ./plan.md --json
+  # Edit ./plan.md with normal file tools.
+  sdoc cloud push ./plan.md --json
+
+A normal pull binds the local path to the Cloud document and revision. Push
+uses that binding. Inspect merge_classification, combined,
+local_updated_from_cloud, and local_changed_after_upload in the JSON response.
+Cloud may combine work saved by another writer since the pull.
+
+CREATE, ORGANIZE, AND SHARE ACCESS
+
+  sdoc cloud create PATH [--account UUID] --json
+  sdoc cloud tag DOCUMENT_UUID --tag TAG [--tag TAG ...] --json
+  sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_UUID ...] --json
+  sdoc cloud members [--account UUID] --json
+  sdoc cloud permission-groups [--account UUID] --json
+  sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_UUID ... [--note TEXT] --json
+
+Notification sends a message to existing account members. It does not grant
+access or create a user. List members and set access deliberately before
+notifying them.
+
+HISTORY AND DELETION
+
+  sdoc cloud history DOCUMENT_UUID --json
+  sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID --json
+  sdoc cloud delete DOCUMENT_UUID --base-revision UUID --json
+  sdoc cloud deleted --json
+  sdoc cloud undelete DOCUMENT_UUID --base-revision UUID --json
+
+CONNECTION
+
+  sdoc cloud                       Show capabilities and the next setup step
   sdoc cloud login [--no-open]
   sdoc cloud logout
   sdoc cloud status [--account UUID]
-  sdoc cloud members [--account UUID]
-  sdoc cloud tags [--account UUID]
-  sdoc cloud permission-groups [--account UUID]
-  sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_UUID ...]
-  sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_UUID ... [--note TEXT]
-  sdoc cloud tag DOCUMENT_UUID --tag TAG [--tag TAG ...]
-  sdoc cloud ls [--tag TAG] [--shared-with-me] [--limit N]
-  sdoc cloud search QUERY [--tag TAG] [--limit N]
-  sdoc cloud create PATH [--account UUID]
-  sdoc cloud pull DOCUMENT_UUID [--revision UUID] --output PATH [--no-bind]
-  sdoc cloud push PATH [--document UUID --base-revision UUID]
-  sdoc cloud history DOCUMENT_UUID
-  sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID
-  sdoc cloud delete DOCUMENT_UUID --base-revision UUID
-  sdoc cloud deleted
-  sdoc cloud undelete DOCUMENT_UUID --base-revision UUID
 
-Add --json to any command for one machine-readable JSON object on stdout.`;
+Use --account UUID with account-scoped discovery, creation, listing, or search
+when status reports more than one account. Add --json to any command for one
+machine-readable JSON object on stdout.`;
+
+const CLOUD_OVERVIEW = `SmallDocs Cloud
+
+SmallDocs Cloud is an optional paid feature for documents you choose to add.
+
+- Open selected documents across browsers, mobile devices, and the CLI.
+- Search document text and tags.
+- Keep and restore revision history.
+- Control access for account members and permission groups.
+- Notify existing account members about one or more documents.
+
+Local files remain local until you add them to Cloud. Encrypted snapshot links
+created by sdoc share are separate from Cloud documents.
+
+Run sdoc cloud --help for search, read, update, access, and history examples.`;
 
 class CloudCommandError extends Error {
   constructor(code, message, detail) {
@@ -152,6 +212,11 @@ function emit(opts, command, value, human) {
   else process.stdout.write((human || JSON.stringify(value, null, 2)) + '\n');
 }
 
+function skillInstallCommand(originValue, cloud) {
+  const edition = cloud ? 'cloud' : 'standard';
+  return 'npx skills@latest add ' + originValue + '/agent-skills/' + edition + ' --global';
+}
+
 function fail(opts, command, error) {
   const code = error.code || 'unexpected';
   const body = Object.assign({}, error.data || {},
@@ -168,11 +233,14 @@ function fail(opts, command, error) {
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 async function login(opts, client) {
+  const installCommand = skillInstallCommand(client.origin, true);
   if (client.loadCredential()) {
     try {
       const me = await client.authenticated('/api/cloud/v1/me');
-      return emit(opts, 'cloud.login', { user: me.user, already_logged_in: true },
-        'Already signed in as ' + (me.user.email || me.user.id) + '.');
+      return emit(opts, 'cloud.login', { user: me.user, already_logged_in: true,
+        skill_mode: 'cloud', skill_install_command: installCommand },
+        'Already signed in as ' + (me.user.email || me.user.id) + '.\n' +
+        'Install or refresh the Cloud-aware SmallDocs skill:\n' + installCommand);
     } catch (_) {}
   }
   const issued = await client.raw('/api/cloud/v1/cli/device-authorizations', {
@@ -197,7 +265,11 @@ async function login(opts, client) {
       refresh_token: polled.data.refresh_token };
     client.saveCredential(credential);
     return emit(opts, 'cloud.login', { user_id: credential.user_id,
-      credential_id: credential.credential_id }, 'Cloud login saved for this machine.');
+      credential_id: credential.credential_id, skill_mode: 'cloud',
+      skill_install_command: installCommand },
+    'Cloud login saved for this machine.\n' +
+    'Install the Cloud-aware SmallDocs skill so agents can discover Cloud when relevant:\n' +
+    installCommand);
   }
   throw new CloudCommandError('login_required', 'Authorization expired before it was approved.');
 }
@@ -209,7 +281,12 @@ async function logout(opts, client) {
       { method: 'DELETE' }); } catch (_) {}
     client.credentials.remove(client.origin);
   }
-  emit(opts, 'cloud.logout', { logged_out: true }, 'Signed out of SmallDocs Cloud.');
+  const restoreCommand = skillInstallCommand(client.origin, false);
+  emit(opts, 'cloud.logout', { logged_out: true, skill_unchanged: true,
+    standard_skill_install_command: restoreCommand },
+  'Signed out of SmallDocs Cloud. The installed skill was not changed.\n' +
+  'If you do not expect to use Cloud on this machine, restore the standard skill:\n' +
+  restoreCommand);
 }
 
 function filterTags(documents, tags) {
@@ -233,6 +310,7 @@ async function list(opts, client) {
   do {
     const params = new URLSearchParams();
     params.set('limit', String(Math.min(100, target - documents.length)));
+    if (opts.accountFlag) params.set('workspace_id', opts.accountFlag);
     if (opts.sharedWithMeFlag) params.set('shared_with_me', '1');
     if (cursor) params.set('cursor', cursor);
     const response = await client.authenticated('/api/cloud/v1/documents?' + params.toString());
@@ -335,7 +413,8 @@ async function search(opts, client) {
   const limit = requestedLimit(opts.limitFlag, 50);
   const response = await client.authenticated('/api/cloud/v1/search', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: opts.extra, tags: opts.tagFilters, limit }),
+    body: JSON.stringify({ query: opts.extra, tags: opts.tagFilters, limit,
+      workspace_id: opts.accountFlag || undefined }),
   });
   const documents = response.documents || [];
   emit(opts, 'cloud.search', { documents, next_cursor: null }, documents.map((document) =>
@@ -614,12 +693,25 @@ async function status(opts, client) {
   'Signed in as ' + (me.user.email || me.user.id) + '. Account: ' + me.account.name + '.');
 }
 
+function overview(opts, client) {
+  const connected = Boolean(client.loadCredential());
+  const nextAction = connected ? 'sdoc cloud status --json' : 'sdoc cloud login';
+  emit(opts, 'cloud.overview', {
+    cloud_available: true,
+    connected,
+    capabilities: ['cross_device_access', 'search', 'revision_history',
+      'member_permissions', 'notifications'],
+    next_action: nextAction,
+  }, CLOUD_OVERVIEW + '\n\nNext: ' + nextAction);
+}
+
 async function runCloudCommand(opts, dependencies) {
-  const action = String(opts.file || 'status').toLowerCase();
+  const action = String(opts.file || 'overview').toLowerCase();
   const command = 'cloud.' + action;
   const client = dependencies && dependencies.client || new CloudClient();
   try {
     if (opts.helpFlag || action === 'help') return process.stdout.write(CLOUD_HELP + '\n');
+    if (action === 'overview') return overview(opts, client);
     if (action === 'login') return await login(opts, client);
     if (action === 'logout') return await logout(opts, client);
     if (action === 'status') return await status(opts, client);
@@ -646,4 +738,4 @@ async function runCloudCommand(opts, dependencies) {
 }
 
 module.exports = { CloudClient, CloudCommandError, runCloudCommand, filterTags, origin, EXIT, CLOUD_HELP,
-  entitlementFailure };
+  CLOUD_OVERVIEW, entitlementFailure, skillInstallCommand };

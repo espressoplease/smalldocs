@@ -6,6 +6,7 @@ if (process.env.CLOUD_ENVIRONMENT !== 'staging') {
 }
 
 const { createAuthStore } = require('../lib/cloud-auth');
+const { CURRENT_TERMS_VERSION } = require('../lib/cloud-terms');
 const { createBillingStore } = require('../lib/cloud-billing');
 const { createCloudStore, createLocalKeyProvider, defaultInviteDomainFromEmail } =
   require('../lib/cloud-store');
@@ -60,6 +61,7 @@ const billing = createBillingStore({ dbPath: process.env.CLOUD_BILLING_DB,
 
 function person(email, firstName, lastName) {
   const signedIn = auth.signInWithVerifiedEmail(email);
+  auth.acceptCurrentTerms({ userId: signedIn.user.id, termsVersion: CURRENT_TERMS_VERSION });
   return auth.updateUserProfile({ userId: signedIn.user.id, firstName, lastName });
 }
 

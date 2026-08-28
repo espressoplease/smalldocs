@@ -105,13 +105,13 @@ module.exports = function (harness) {
     assert.strictEqual(r.reason, 'newer');
   });
 
-  test('current skill describes account-based Cloud discovery', () => {
-    assert.ok(cli.SKILL_DESCRIPTION.includes('sdoc cloud status --json'));
-    assert.ok(cli.AGENT_BLOCK_BODY.includes('sdoc cloud members'));
-    assert.ok(cli.AGENT_BLOCK_BODY.includes('sdoc cloud permission-groups'));
-    assert.ok(cli.AGENT_BLOCK_BODY.includes('sdoc cloud create FILE.md --account ACCOUNT_UUID --json'));
-    assert.ok(!cli.AGENT_BLOCK_BODY.includes('sdoc cloud projects'));
-    assert.ok(!cli.AGENT_BLOCK_BODY.includes('--project'));
+  test('Cloud-aware skill describes account-based Cloud discovery', () => {
+    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('enabled SmallDocs Cloud'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud members'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud permission-groups'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud create FILE.md --account ACCOUNT_UUID --json'));
+    assert.ok(!cli.CLOUD_SKILL_BODY.includes('sdoc cloud projects'));
+    assert.ok(!cli.CLOUD_SKILL_BODY.includes('--project'));
   });
 
   test('refreshContent: legacy v1 is migrated, fromVersion=1', () => {
@@ -272,11 +272,63 @@ module.exports = function (harness) {
     assert.strictEqual(cli.readSkillVersion(''), null);
   });
 
+  test('skill edition is explicit and old managed skills default to standard', () => {
+    assert.strictEqual(cli.readSkillEdition(cli.formatSkill(7)), 'standard');
+    assert.strictEqual(cli.readSkillEdition(cli.formatSkill(7, { cloud: true })), 'cloud');
+    assert.strictEqual(cli.readSkillEdition('<!-- sdocs-skill: v=19 -->'), 'standard');
+  });
+
   test('formatSkill description has no em/en dashes and no double quotes (YAML-safe)', () => {
     const desc = cli.SKILL_DESCRIPTION;
     assert.ok(!desc.includes('"'), 'no double quotes (would break the quoted scalar)');
     assert.ok(!desc.includes('\u2014') && !desc.includes('\u2013'), 'no em/en dashes');
     assert.ok(desc.length > 0 && desc.length <= 1024, 'within the 1-1024 char limit');
+  });
+
+  test('standard skill does not make local users check Cloud state', () => {
+    const out = cli.formatSkill(cli.SKILL_VERSION);
+    assert.ok(!out.includes('sdoc cloud status --json'));
+    assert.ok(!out.includes('This user has enabled SmallDocs Cloud'));
+    assert.ok(out.includes('SmallDocs Cloud is an optional paid feature'));
+    assert.ok(out.includes('Run `sdoc cloud` for a local overview'));
+  });
+
+  test('standard skill discovers existing tags before adding them', () => {
+    const out = cli.formatSkill(cli.SKILL_VERSION);
+    const discover = out.indexOf('`sdoc library ls --tags`');
+    const add = out.indexOf('`sdoc file.md +tag1 +tag2`');
+    assert.ok(discover !== -1 && add !== -1 && discover < add);
+    assert.ok(out.includes('Prefer an existing tag that fits'));
+  });
+
+  test('both skill editions put the exact presentation sequence in discovery context', () => {
+    for (const desc of [cli.SKILL_DESCRIPTION, cli.CLOUD_SKILL_DESCRIPTION]) {
+      assert.ok(desc.includes('sdoc slides'));
+      assert.ok(desc.includes('sdoc slides verify FILE.md --json'));
+      assert.ok(desc.includes('sdoc present FILE.md'));
+      assert.ok(desc.includes('fix every error'));
+    }
+  });
+
+  test('Cloud-aware skill keeps the same name and loads live state only for Cloud work', () => {
+    const out = cli.formatSkill(cli.SKILL_VERSION, { cloud: true });
+    assert.ok(out.includes('name: smalldocs'));
+    assert.ok(out.includes('This user has enabled SmallDocs Cloud'));
+    assert.ok(out.includes('sdoc cloud status --json'));
+    assert.ok(out.includes('Local viewing remains the default'));
+    assert.ok(!out.includes('This standard skill does not indicate'));
+    assert.ok(out.includes('Treat Cloud as a source of context'));
+    assert.ok(out.includes('search Cloud before recreating that context'));
+    assert.ok(out.includes('sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json'));
+    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('do not search Cloud when a named local source is sufficient'));
+  });
+
+  test('both skill descriptions are YAML-safe', () => {
+    for (const desc of [cli.SKILL_DESCRIPTION, cli.CLOUD_SKILL_DESCRIPTION]) {
+      assert.ok(!desc.includes('"'), 'no double quotes');
+      assert.ok(!desc.includes('\u2014') && !desc.includes('\u2013'), 'no em/en dashes');
+      assert.ok(desc.length > 0 && desc.length <= 1024, 'within description limit');
+    }
   });
 
   // ── removeBlockContent (migration stripper) ─────────────────

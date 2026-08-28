@@ -36,25 +36,23 @@ Install the CLI, then teach your agent about `sdoc`:
 
 ```bash
 curl -fsSL https://smalldocs.org/install | sh
+npx skills@latest add https://smalldocs.org/agent-skills/standard --global
+```
+
+The `skills` installer detects supported coding agents and installs the SmallDocs **skill** globally. Its short description lets an agent discover SmallDocs when you say `sdoc`, `S-doc`, or `smalldoc`; the full instructions load only when relevant.
+
+After you connect SmallDocs Cloud, `sdoc cloud login` prints the command for replacing the standard skill with its Cloud-aware edition. The replacement has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. It contains no account details or credentials; live Cloud state still comes from the CLI.
+
+`npx skills@latest` currently requires a recent Node release. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:
+
+```bash
 sdoc setup
 ```
 
-`sdoc setup` installs the SmallDocs **skill**: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand only when the agent reaches for it. One canonical copy is written to `~/.agents/skills/smalldocs/SKILL.md`. Agents that discover `~/.agents/skills` (opencode, Codex, Gemini CLI, Cursor, and the rest of the `.agents/skills` convention) read it directly; other detected agents receive a symlink in their own skills directory.
-
-Setup detects 45+ agents using a table derived from [`vercel-labs/skills`](https://github.com/vercel-labs/skills). It's idempotent - safe to run any time. If you previously ran an older `sdoc setup` that pasted an always-on section into your `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`, running it again removes that section (the skill replaces it).
-
-**Manual fallback** (if you'd rather not run setup): create the skill directory and drop in a `SKILL.md`:
+To inspect the exact standard skill without writing anything:
 
 ```bash
-mkdir -p ~/.agents/skills/smalldocs
-sdoc setup --yes --dry-run    # previews the SKILL.md and install plan
-```
-
-The `--dry-run` output labels the exact `SKILL.md` content and then shows the install plan. Inspect it and copy the labelled skill content into place if you prefer to do that by hand:
-
-```bash
-sdoc setup --yes --dry-run > /tmp/preview.txt   # inspect it first
-# then write ~/.agents/skills/smalldocs/SKILL.md yourself
+sdoc setup --yes --dry-run
 ```
 
 ## How SmallDocs work
@@ -537,14 +535,14 @@ After this, every global npm install lives under `~/.npm-global` and never needs
 ### Setup
 
 ```
-sdoc setup
+npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 ```
 
-Installs the SmallDocs skill so your coding agents know `sdoc` exists and what it does. The skill is a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand only when relevant - so it costs almost nothing until an agent actually reaches for it.
+Installs the standard SmallDocs skill globally using the cross-agent `skills` installer. The skill is a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand only when relevant.
 
-Setup writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`. Agents that discover `~/.agents/skills` (opencode, Codex, Gemini CLI, Cursor, and the rest of the `.agents/skills` convention) read it directly, with no symlink. Other detected agents receive a symlink in their own skills directory (`~/.claude/skills/smalldocs`, `~/.codewhale/skills/smalldocs`, and so on). The supported-agent table is derived from [`vercel-labs/skills`](https://github.com/vercel-labs/skills).
+Run `sdoc setup` when `npx skills` is unavailable, or when an older SmallDocs release previously wrote an always-on block to an agent configuration file. The built-in setup writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`, links detected agent-specific skill directories to it, and removes recognised legacy blocks while preserving surrounding notes.
 
-`sdoc setup` also auto-prompts once the first time you use the CLI. If you decline or skip it then, you can always come back and run it manually. It's safe to run any time - it is idempotent, so re-running on an up-to-date install is a no-op.
+`sdoc setup` also auto-prompts once the first time you use the CLI. If you decline or skip it then, you can come back and run it manually. It is idempotent, so re-running it on an up-to-date install is a no-op.
 
 The setup wizard also asks whether you want sdoc to auto-install its own updates when a new version ships on npm. Recommended if you mostly use sdoc through coding agents (which never see the interactive update prompt). Toggle later with `sdoc auto-update on` or `sdoc auto-update off`. Each auto-install prints a source-diff link so you (or your agent) can verify what was installed.
 
@@ -650,26 +648,30 @@ sdoc charts            # chart types, JSON format, styling, annotations
 
 ### Set up your agent
 
-The easy way: run `sdoc setup`. It detects which coding agents you have
-installed (45+ agents, using a table derived from `vercel-labs/skills`) and installs
-the SmallDocs skill for them: one canonical `SKILL.md` at
-`~/.agents/skills/smalldocs`. Agents using that universal location read it
-directly; other detected agents receive a symlink in their skills directory.
-You're prompted automatically the first time you run any `sdoc` command, and you
-can re-run `sdoc setup` any time (it's idempotent).
+Use the cross-agent installer for the standard skill:
+
+```bash
+npx skills@latest add https://smalldocs.org/agent-skills/smalldocs/SKILL.md --global
+```
+
+After `sdoc cloud login`, use the Cloud-aware replacement command printed by
+the CLI. Both editions use the same `smalldocs` skill name, so one replaces the
+other.
+
+If `npx skills` is unavailable, run `sdoc setup`. It installs one canonical
+`SKILL.md` at `~/.agents/skills/smalldocs`; agents using that universal
+location read it directly and other detected agents receive a symlink.
 
 If you previously ran an older `sdoc setup` that pasted an always-on SmallDocs
 section into a `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`, running `sdoc setup` or
 `sdoc refresh` removes it - the skill replaces it, and leaving both would
 double-load the reference.
 
-The manual way: preview the exact skill content, then copy the labelled
-`SKILL.md` section into place yourself.
+Preview the exact standard skill and built-in install plan without writing:
 
 ```bash
 mkdir -p ~/.agents/skills/smalldocs
 sdoc setup --yes --dry-run
-# copy the labelled SKILL.md section into ~/.agents/skills/smalldocs/SKILL.md
 ```
 
 ```bash

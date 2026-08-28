@@ -6,6 +6,8 @@ const crypto = require('crypto');
 const { createCursorCodec, normalizeLimit } = require('./lib/cloud-cursor');
 const { syncTeamSeatQuantity: syncStripeTeamSeatQuantity } = require('./lib/cloud-seat-sync');
 const cloudBillingLifecycle = require('./lib/cloud-billing-lifecycle');
+const { CURRENT_TERMS_VERSION, CURRENT_TERMS_LABEL } = require('./lib/cloud-terms');
+const smallDocsAgentSkill = require('./cli/lib/agent-block');
 
 function integerEnvironmentSetting(name, fallback, minimum) {
   if (process.env[name] == null || process.env[name] === '') return fallback;
@@ -951,6 +953,23 @@ function cloudAuthSession(req) {
   return cloudAuth.authenticateSession(token);
 }
 
+function cloudTermsAccepted(user) {
+  return Boolean(user && user.termsVersion === CURRENT_TERMS_VERSION &&
+    Number.isSafeInteger(user.termsAcceptedAtMs));
+}
+
+function cloudTermsLocation(returnTo) {
+  return '/cloud/terms?return=' + encodeURIComponent(
+    cloudAuthHttp.safeReturnPath(returnTo));
+}
+
+function redirectForCloudTerms(res, authenticated, returnTo) {
+  if (!authenticated || !authenticated.ok || cloudTermsAccepted(authenticated.user)) return false;
+  res.writeHead(303, { Location: cloudTermsLocation(returnTo), 'Cache-Control': 'no-store' });
+  res.end();
+  return true;
+}
+
 const HOMEPAGE_NAV_ICONS = Object.freeze({
   cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
   library: '<path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>',
@@ -1106,6 +1125,7 @@ function cloudApiError(res, error) {
     active_subscription_requires_cancellation: 409,
     rate_limited: 429,
     invalid_token: 401,
+    terms_acceptance_required: 403,
     recent_auth_required: 401,
     token_reuse: 401,
     temporary_service_failure: 503,
@@ -1124,6 +1144,11 @@ function cloudApiError(res, error) {
     body.target_revision_id = error.targetRevisionId;
     body.current_revision_id = error.currentRevisionId;
   }
+  if (code === 'terms_acceptance_required') {
+    body.terms_version = CURRENT_TERMS_VERSION;
+    body.terms_url = '/legal';
+    body.acceptance_url = '/cloud/terms';
+  }
   sendJson(res, statuses[code] || 500, body);
 }
 
@@ -1137,6 +1162,12 @@ function cloudApiPrincipal(req, res) {
   const authenticated = bearer ? cloudAuth.authenticateAccessToken(bearer[1]) : cloudAuthSession(req);
   if (!authenticated.ok) {
     sendJson(res, 401, { ok: false, error: 'login_required' });
+    return null;
+  }
+  if (!cloudTermsAccepted(authenticated.user)) {
+    sendJson(res, 403, { ok: false, error: 'terms_acceptance_required',
+      terms_version: CURRENT_TERMS_VERSION, terms_url: '/legal',
+      acceptance_url: '/cloud/terms' });
     return null;
   }
   return { user: authenticated.user, credential: authenticated.credential || null,
@@ -1301,7 +1332,8 @@ async function handleCloudApi(req, res, url) {
       const body = await cloudAuthHttp.readJson(req);
       const result = cloudAuth.pollDeviceAuthorization({ deviceCode: body.device_code });
       if (!result.ok) {
-        const status = result.reason === 'authorization_pending' ? 428 : 400;
+        const status = result.reason === 'authorization_pending' ? 428
+          : result.reason === 'terms_acceptance_required' ? 403 : 400;
         return sendJson(res, status, { ok: false, error: result.reason });
       }
       sendJson(res, 200, { ok: true, credential_id: result.credentialId, user_id: result.userId,
@@ -2198,7 +2230,9 @@ async function handleCloudEmailVerify(req, res) {
     const result = cloudAuth.consumeEmailCode({ requestId: body.challenge_id, code: body.code });
     if (!result.ok) return sendJson(res, 400, { ok: false, error: 'invalid_or_expired_code' });
     const session = cloudAuth.createBrowserSession(result.user.id);
-    const returnTo = cloudAuthHttp.safeReturnPath(body.return_to);
+    const requestedReturn = cloudAuthHttp.safeReturnPath(body.return_to);
+    const returnTo = cloudTermsAccepted(result.user)
+      ? requestedReturn : cloudTermsLocation(requestedReturn);
     const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
     sendJson(res, 200, { ok: true, return_to: returnTo }, {
       'Set-Cookie': cloudAuthHttp.sessionCookie(session.token, {
@@ -2233,7 +2267,10 @@ async function handleCloudTestLogin(req, res) {
     const signedIn = cloudAuth.signInWithVerifiedEmail(email);
     const session = cloudAuth.createBrowserSession(signedIn.user.id);
     const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
-    sendJson(res, 200, { ok: true, return_to: cloudAuthHttp.safeReturnPath(body.return_to) }, {
+    const requestedReturn = cloudAuthHttp.safeReturnPath(body.return_to);
+    const returnTo = cloudTermsAccepted(signedIn.user)
+      ? requestedReturn : cloudTermsLocation(requestedReturn);
+    sendJson(res, 200, { ok: true, return_to: returnTo }, {
       'Set-Cookie': cloudAuthHttp.sessionCookie(session.token, { secure,
         maxAge: Math.max(1, Math.floor((session.expiresAtMs - Date.now()) / 1000)),
       }),
@@ -2311,7 +2348,10 @@ async function finishCloudOAuth(req, res, url, provider) {
     const completed = await adapter.callback({ state, code });
     const signedIn = cloudAuth.signInWithExternalIdentity(completed.identity);
     const session = cloudAuth.createBrowserSession(signedIn.user.id);
-    res.writeHead(303, { Location: cloudAuthHttp.safeReturnPath(completed.returnTo),
+    const requestedReturn = cloudAuthHttp.safeReturnPath(completed.returnTo);
+    const returnTo = cloudTermsAccepted(signedIn.user)
+      ? requestedReturn : cloudTermsLocation(requestedReturn);
+    res.writeHead(303, { Location: returnTo,
       'Set-Cookie': [cloudAuthHttp.sessionCookie(session.token, { secure,
         maxAge: Math.max(1, Math.floor((session.expiresAtMs - Date.now()) / 1000)) }), clearBinding],
       'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
@@ -2324,6 +2364,34 @@ async function finishCloudOAuth(req, res, url, provider) {
     if (clearBinding) headers['Set-Cookie'] = clearBinding;
     res.writeHead(303, headers);
     res.end();
+  }
+}
+
+async function handleCloudTermsAcceptance(req, res) {
+  if (!cloudAuthReady(res) || !cloudAuthPostAllowed(req, res)) return;
+  const authenticated = cloudAuthSession(req);
+  if (!authenticated.ok) {
+    sendJson(res, 401, { ok: false, error: 'login_required' });
+    return;
+  }
+  try {
+    const body = await cloudAuthHttp.readJson(req);
+    if (body.accepted !== true || body.terms_version !== CURRENT_TERMS_VERSION) {
+      return sendJson(res, 400, { ok: false, error: 'invalid_terms_acceptance',
+        terms_version: CURRENT_TERMS_VERSION });
+    }
+    const acceptance = cloudAuth.acceptCurrentTerms({ userId: authenticated.user.id,
+      termsVersion: body.terms_version });
+    sendJson(res, 200, { ok: true, terms_version: acceptance.termsVersion,
+      accepted_at: new Date(acceptance.acceptedAtMs).toISOString(),
+      return_to: cloudAuthHttp.safeReturnPath(body.return_to) });
+  } catch (error) {
+    if (error.code === 'payload_too_large') return sendJson(res, 413, { ok: false, error: error.code });
+    if (error.code === 'invalid_json' || error.code === 'invalid_terms_version') {
+      return sendJson(res, 400, { ok: false, error: 'invalid_terms_acceptance',
+        terms_version: CURRENT_TERMS_VERSION });
+    }
+    sendJson(res, 500, { ok: false, error: 'temporary_service_failure' });
   }
 }
 
@@ -2443,6 +2511,11 @@ const server = http.createServer((req, res) => {
 
   if (req.method === 'POST' && pathname === '/api/cloud/auth/email/verify') {
     handleCloudEmailVerify(req, res);
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/cloud/auth/terms/accept') {
+    handleCloudTermsAcceptance(req, res);
     return;
   }
 
@@ -2613,6 +2686,33 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/cloud/terms') {
+    const authenticated = cloudAuthSession(req);
+    const returnTo = cloudAuthHttp.safeReturnPath(url.searchParams.get('return'));
+    if (!authenticated.ok) {
+      res.writeHead(303, { Location: '/cloud/sign-in?return=' +
+        encodeURIComponent(returnTo), 'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
+    if (cloudTermsAccepted(authenticated.user)) {
+      res.writeHead(303, { Location: returnTo, 'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-terms.html'), {
+      '__CLOUD_TERMS_VERSION__': CURRENT_TERMS_VERSION,
+      '__CLOUD_TERMS_LABEL__': CURRENT_TERMS_LABEL,
+    }, {
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+    });
+    return;
+  }
+
   if (pathname === '/cloud/test-login') {
     if (!CLOUD_TEST_LOGIN_ENABLED) {
       res.writeHead(404, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' });
@@ -2636,6 +2736,7 @@ const server = http.createServer((req, res) => {
       res.end();
       return;
     }
+    if (redirectForCloudTerms(res, authenticated, req.url)) return;
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-authorize.html'), null, {
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
@@ -2661,6 +2762,7 @@ const server = http.createServer((req, res) => {
       res.end();
       return;
     }
+    if (redirectForCloudTerms(res, authenticated, returnPath)) return;
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-invite.html'), null, {
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
@@ -2679,6 +2781,7 @@ const server = http.createServer((req, res) => {
       res.end();
       return;
     }
+    if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-checkout.html'), null, {
       'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'no-referrer',
@@ -2695,6 +2798,7 @@ const server = http.createServer((req, res) => {
       res.end();
       return;
     }
+    if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-admin.html'), null, {
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
@@ -2791,6 +2895,10 @@ const server = http.createServer((req, res) => {
       res.writeHead(302, { Location: '/library', 'Cache-Control': 'no-store' });
       res.end();
       return;
+    }
+    if (url.searchParams.get('scope') === 'cloud') {
+      const authenticated = cloudAuthSession(req);
+      if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
     }
     const csp = [
       "default-src 'self'",
@@ -3094,6 +3202,38 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  const globalSkillCatalogMatch = /^\/agent-skills\/(standard|cloud)\/\.well-known\/(?:agent-skills|skills)\/index\.json$/.exec(pathname);
+  if (globalSkillCatalogMatch) {
+    const cloud = globalSkillCatalogMatch[1] === 'cloud';
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600',
+      'Access-Control-Allow-Origin': '*',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(JSON.stringify({ skills: [{
+      name: smallDocsAgentSkill.SKILL_NAME,
+      description: cloud
+        ? smallDocsAgentSkill.CLOUD_SKILL_DESCRIPTION
+        : smallDocsAgentSkill.SKILL_DESCRIPTION,
+      files: ['SKILL.md'],
+    }] }));
+    return;
+  }
+
+  const globalSkillMatch = /^\/agent-skills\/(standard|cloud)\/\.well-known\/(?:agent-skills|skills)\/smalldocs\/SKILL\.md$/.exec(pathname);
+  if (globalSkillMatch) {
+    const cloud = globalSkillMatch[1] === 'cloud';
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600',
+      'Access-Control-Allow-Origin': '*',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(smallDocsAgentSkill.formatSkill(smallDocsAgentSkill.SKILL_VERSION, { cloud }));
+    return;
+  }
+
   const skillFileMatch = /^\/\.well-known\/(?:agent-skills|skills)\/(smalldocs-renderer|smalldocs-author)\/(SKILL\.md|references\/[a-z-]+\.md)$/.exec(pathname);
   if (skillFileMatch) {
     const skillName = skillFileMatch[1];
@@ -3209,6 +3349,10 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname === '/docs' || pathname === '/new' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/advanced-spreadsheets' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+    if (pathname === '/docs' && url.searchParams.has('cloud-document')) {
+      const authenticated = cloudAuthSession(req);
+      if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
+    }
     const documentNav = documentNavigation(req);
     const nonce = crypto.randomBytes(16).toString('base64');
     const defaultMdPath = policyDocuments[pathname]
