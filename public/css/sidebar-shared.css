@@ -34,9 +34,27 @@
   text-decoration: none;
 }
 
-.sdocs-site-sidebar > .sdocs-sidebar-brand { margin-bottom: 22px; }
+.sdocs-sidebar-main {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
 
-.sdocs-sidebar-shell :is(.doc-site-action, .sdocs-site-sidebar-row) {
+.sdocs-sidebar-shell .sdocs-sidebar-nav {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 3px;
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-nav > * { flex-shrink: 0; }
+.sdocs-sidebar-shell .sdocs-sidebar-section { width: 100%; }
+
+.sdocs-sidebar-shell .sdocs-sidebar-top-row {
   width: 100%;
   height: var(--sdocs-sidebar-row-height);
   min-height: var(--sdocs-sidebar-row-height);
@@ -50,9 +68,14 @@
   background: transparent;
   color: var(--text-2, #57534e);
   font: 500 var(--sdocs-sidebar-font-size) var(--font-ui, 'Inter', system-ui, sans-serif);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
 }
 
-.sdocs-sidebar-shell :is(.doc-site-action, .sdocs-site-sidebar-row) > svg {
+.sdocs-sidebar-shell .sdocs-sidebar-top-row > svg {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
@@ -61,6 +84,59 @@
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-top-row:hover {
+  border-color: var(--border, #d4cfc9);
+  background: var(--bg-hover, var(--surface-2, #f1ede8));
+  color: var(--text, #1c1917);
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-top-row.is-active,
+.sdocs-sidebar-shell .sdocs-sidebar-section.is-expanded > .sdocs-sidebar-top-row {
+  border-color: var(--border, #d4cfc9);
+  background: transparent;
+  color: var(--text, #1c1917);
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-row-chevron {
+  margin-left: auto;
+  color: var(--text-3, #a8a29e);
+  opacity: 1;
+  transform: none;
+  transition: color .18s ease, transform .18s cubic-bezier(.4,0,.2,1);
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-section.is-expanded > .sdocs-sidebar-top-row .sdocs-sidebar-row-chevron {
+  color: var(--text-2, #57534e);
+  transform: rotate(90deg);
+}
+
+.sdocs-sidebar-expander {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-3px);
+  pointer-events: none;
+  visibility: hidden;
+  color: var(--text, #1c1917);
+  transition: grid-template-rows .3s cubic-bezier(.4,0,.2,1),
+              opacity .3s cubic-bezier(.4,0,.2,1),
+              transform .3s cubic-bezier(.4,0,.2,1),
+              visibility .3s cubic-bezier(.4,0,.2,1);
+}
+
+.sdocs-sidebar-section.is-expanded > .sdocs-sidebar-expander {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.sdocs-sidebar-expander-clip {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sdocs-sidebar-shell .sdocs-sidebar-footer {
@@ -139,6 +215,39 @@
 }
 
 .sdocs-sidebar-preview-compact { padding-bottom: 3px; }
+
+.sdocs-sidebar-explainer {
+  margin: 0;
+  padding: 5px 10px 8px;
+  color: var(--text, #1c1917);
+  font: 400 var(--sdocs-sidebar-font-size)/1.45 var(--font-ui, 'Inter', system-ui, sans-serif);
+}
+
+.sdocs-sidebar-cta {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  margin: 2px 10px 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--border, #d4cfc9);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface, var(--surface, #fff));
+  color: var(--text, #1c1917);
+  font: 500 var(--sdocs-sidebar-font-size)/1.3 var(--font-ui, 'Inter', system-ui, sans-serif);
+  text-decoration: none;
+}
+
+.sdocs-sidebar-cta:not(:disabled):hover {
+  background: var(--bg-hover, var(--surface-2, #f1ede8));
+  border-color: var(--border-strong, var(--border, #d4cfc9));
+}
+
+.sdocs-sidebar-cta:disabled {
+  border-color: var(--border-subtle, var(--border, #ddd9d3));
+  background: var(--bg-hover, var(--surface-2, #f1ede8));
+  color: var(--text-3, #a8a29e);
+  cursor: default;
+}
 
 .sdocs-sidebar-subitem {
   width: 100%;
