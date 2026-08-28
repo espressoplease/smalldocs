@@ -31,6 +31,7 @@
   var chartReadyPromise = null;
   var CDN_CHART = 'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js';
   var CDN_LABELS = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js';
+  var CDN_ANNOTATION = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js';
   var activeCharts = [];
 
   function queryScope() {
@@ -181,17 +182,25 @@
       chartReadyPromise = (env.loadChart
         ? Promise.resolve().then(env.loadChart)
         : Promise.resolve().then(function () {
-          if (window.Chart && window.ChartDataLabels) {
-            return { Chart: window.Chart, ChartDataLabels: window.ChartDataLabels };
-          }
-          return loadScript(CDN_CHART).then(function () { return loadScript(CDN_LABELS); }).then(function () {
-            return { Chart: window.Chart, ChartDataLabels: window.ChartDataLabels };
-          });
+          var loading = Promise.resolve();
+          if (!window.Chart) loading = loading.then(function () { return loadScript(CDN_CHART); });
+          if (!window.ChartDataLabels) loading = loading.then(function () { return loadScript(CDN_LABELS); });
+          if (!window.ChartAnnotation) loading = loading.then(function () { return loadScript(CDN_ANNOTATION); });
+          return loading
+            .then(function () {
+              return {
+                Chart: window.Chart,
+                ChartDataLabels: window.ChartDataLabels,
+                ChartAnnotation: window.ChartAnnotation
+              };
+            });
         })).then(function (api) {
           Chart = api.Chart || api.chart || api;
           var labels = api.ChartDataLabels || api.dataLabels;
+          var annotation = api.ChartAnnotation || api.annotation;
           if (!Chart) throw new Error('Chart.js loaded without its API.');
           if (labels) Chart.register(labels);
+          if (annotation) Chart.register(annotation);
           return Chart;
         }).catch(function (error) {
           chartReadyPromise = null;
