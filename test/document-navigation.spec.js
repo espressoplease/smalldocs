@@ -131,7 +131,7 @@ test('connected Local Library uses indexed documents and excludes the open file'
   });
   await page.route('http://127.0.0.1:47843/api/library/data', route => route.fulfill({
     status: 200,
-    headers: { 'Access-Control-Allow-Origin': 'http://localhost:3000' },
+    headers: { 'Access-Control-Allow-Origin': route.request().headers().origin },
     json: {
       entries: [
         { id: 'current', title: 'Open document', path: '/notes/current.md', tags: ['design', 'product'], mtime: '2026-08-28T12:00:00Z' },
@@ -216,7 +216,7 @@ test('library loading failures provide recovery actions', async ({ page }) => {
   let localAttempts = 0;
   await page.route('http://127.0.0.1:47843/api/library/data', route => {
     localAttempts += 1;
-    const headers = { 'Access-Control-Allow-Origin': 'http://localhost:3000' };
+    const headers = { 'Access-Control-Allow-Origin': route.request().headers().origin };
     if (localAttempts === 1) return route.fulfill({ status: 503, headers, body: '{}' });
     return route.fulfill({ status: 200, headers, json: { entries: [] } });
   });
@@ -665,7 +665,6 @@ test('sidebar rows and expanded content use one normal-case font size', async ({
       '.sdocs-sidebar-preview-entry',
       '.sdocs-sidebar-tag',
       '.sdocs-sidebar-footer > a',
-      '.sdocs-sidebar-legal',
     ];
     return selectors.map(selector => {
       const target = element.querySelector(selector);
@@ -675,4 +674,5 @@ test('sidebar rows and expanded content use one normal-case font size', async ({
   });
   expect(styles.every(style => style.fontSize === '13px')).toBe(true);
   expect(styles.every(style => style.textTransform === 'none')).toBe(true);
+  await expect(page.locator('.sdocs-sidebar-legal')).toHaveCSS('font-size', '11px');
 });
