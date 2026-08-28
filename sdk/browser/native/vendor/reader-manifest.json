@@ -149,11 +149,11 @@
   },
   "sdocs-html-components.js": {
     "source": "public/sdocs-html-components.js",
-    "sha256": "53c71b99bf680aa1ea1ac50f0537f19592accd171d20d573b435649c1f27c009"
+    "sha256": "9c87a658359f6e584f00a6e75988d096a749fe78de3426dcd3ba6d2021cae29a"
   },
   "sdocs-app-runner.js": {
     "source": "public/sdocs-app-runner.js",
-    "sha256": "725366452ef256edff11eb00981a51ff61a043718335075288214f15db5a74f3"
+    "sha256": "dbb33aa688c80999ad1f298fcb2a1b09918aedf0dd7e5f45ef616cb9b1eccac4"
   },
   "sdocs-app-runner.html": {
     "source": "public/sdocs-app-runner.html",
@@ -161,8 +161,8 @@
   },
   "sdocs-html-component-reader.css": {
     "source": "public/css/html-component-reader.css",
-    "sha256": "77e5675593796452c67905418999d2477f87f76770dc8ad46c6e8495fc43f0a3",
-    "sourceSha256": "e13190fe1a17a13abf4df8ca5a1a54066c7650acf96f88c85b9cd9ffa3e7cbbb",
+    "sha256": "b14297d7ba421776760fe9ed588d6d3e547513df3b90a6a861c0d491de9d0b26",
+    "sourceSha256": "0aac52d78d211a81aeb46c2226a842a28fbe1567f4edae3c8f0bfa29eb6a87e7",
     "transform": "sdk-layered-css"
   },
   "sdocs-slide-stdlib.js": {

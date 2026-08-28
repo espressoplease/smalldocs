@@ -12,6 +12,7 @@
 
 const path = require('path');
 const cli = require(path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js'));
+const helpText = require(path.join(__dirname, '..', 'cli', 'lib', 'help-text.js'));
 
 module.exports = function (harness) {
   const { assert, test } = harness;
@@ -103,5 +104,11 @@ module.exports = function (harness) {
     // The presence of a default is observable: re-registering null throws is NOT
     // a guarantee in the router; we just confirm the router instance exists.
     assert.ok(r instanceof cli.CommandRouter);
+  });
+
+  test('runnable HTML reference leaves size to responsive component CSS', () => {
+    assert.ok(helpText.APPS_HELP.includes('without imposing a minimum or maximum'));
+    assert.ok(helpText.APPS_HELP.includes('ResizeObserver'));
+    assert.ok(helpText.APPS_HELP.includes('both narrow and wide widths'));
   });
 };

@@ -114,6 +114,13 @@ module.exports = function (harness) {
     assert.ok(!cli.CLOUD_SKILL_BODY.includes('--project'));
   });
 
+  test('standard and Cloud skills describe responsive runnable HTML authoring', () => {
+    assert.ok(cli.SKILL_DESCRIPTION.includes('run sdoc apps'));
+    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('run sdoc apps'));
+    assert.ok(cli.SKILL_BODY.includes("component's document layout owns its inline height"));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('test every control inline, fullscreen, narrow, and wide'));
+  });
+
   test('refreshContent: legacy v1 is migrated, fromVersion=1', () => {
     const r = cli.refreshContent('# user prefix\n\n' + LEGACY_V1 + 'user suffix\n');
     assert.strictEqual(r.changed, true);

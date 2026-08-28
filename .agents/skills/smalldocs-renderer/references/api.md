@@ -175,6 +175,12 @@ The renderer supports ordinary Markdown, navigation, code, math, Mermaid, charts
 
 Form submission, comments, Markdown editing, Cloud storage, application chrome, and a first-party image pipeline are outside this release. A `form` fence remains readable source until the SDK has a host submission contract.
 
+### Runnable HTML layout
+
+A `sdoc-app` frame uses the document column width inline and the available viewport fullscreen. Its complete HTML document reports its own height, and the renderer follows that height without imposing a minimum or maximum. Component authors control height through ordinary document layout and CSS. They should include a viewport meta tag, avoid fixed page widths, use responsive CSS, and verify narrow, wide, inline, and fullscreen layouts.
+
+Do not add a host-side height cap or a second responsive wrapper around the frame. The component receives normal resize events, and the runner remeasures it when its document layout changes.
+
 ## Security
 
 The SDK parses Markdown, sanitises the resulting HTML, and mounts the cleaned document into the host DOM. It removes script tags, event handlers, embedded frames, unsafe URLs, and similar executable content from ordinary document markup.

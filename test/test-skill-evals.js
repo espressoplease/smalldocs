@@ -5,10 +5,10 @@ module.exports = function (h) {
   const { test, assert } = h;
   const evalHarness = require('../evals/smalldocs-skill/harness');
 
-  test('skill eval suite has 20 valid unique scenarios', () => {
+  test('skill eval suite has 21 valid unique scenarios', () => {
     const suite = evalHarness.loadSuite();
-    assert.strictEqual(suite.scenarios.length, 20);
-    assert.strictEqual(new Set(suite.scenarios.map(scenario => scenario.id)).size, 20);
+    assert.strictEqual(suite.scenarios.length, 21);
+    assert.strictEqual(new Set(suite.scenarios.map(scenario => scenario.id)).size, 21);
   });
 
   test('skill eval matrix expands editions and model strengths', () => {
@@ -72,6 +72,15 @@ module.exports = function (h) {
       ]
     });
     assert.strictEqual(result.pass, true);
+  });
+
+  test('skill eval treats sdoc-app syntax as guidance rather than a command', () => {
+    const scenario = evalHarness.loadSuite().scenarios.find(item => item.id === 'runnable-component-authoring');
+    const result = evalHarness.evaluateCommands(scenario, 'standard', {
+      commands: ['sdoc apps', 'sdoc runway.md']
+    });
+    assert.strictEqual(result.pass, true);
+    assert.deepStrictEqual(result.required, ['sdoc apps', 'sdoc FILE.md']);
   });
 
   test('skill eval standard Cloud comparison does not require connected commands', () => {

@@ -295,8 +295,9 @@ Run a self-contained browser tool inside a document with a `sdoc-app` fence. It 
 <!doctype html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Counter</title>
-  <style>body { font: 16px system-ui; padding: 24px; }</style>
+  <style>body { font: 16px system-ui; margin: 0; padding: 24px; }</style>
 </head>
 <body>
   <button id="count">Count: 0</button>
@@ -309,7 +310,7 @@ Run a self-contained browser tool inside a document with a `sdoc-app` fence. It 
 ~~~
 ````
 
-The `<title>` names the component in its toolbar. CSS, JavaScript, canvas, SVG, forms, downloads, and browser-native controls work. Expanding moves the same running frame into fullscreen, so inputs and JavaScript state stay in place. An ordinary `html` fence remains a highlighted source listing.
+The `<title>` names the component in its toolbar. CSS, JavaScript, canvas, SVG, forms, downloads, and browser-native controls work. The component's document layout controls its inline height without a SmallDocs minimum or maximum; its width follows the reading column. Use responsive CSS and check narrow, wide, inline, and fullscreen layouts. Expanding moves the same running frame into fullscreen, so inputs and JavaScript state stay in place. An ordinary `html` fence remains a highlighted source listing.
 
 Component code runs in a sandboxed frame and cannot reach the SmallDocs page, its account controls, or storage for smalldocs.org. Network requests still leave the browser and follow the destination's CORS rules. Run `sdoc apps` for the complete authoring and runtime reference.
 
@@ -565,7 +566,7 @@ After this, every global npm install lives under `~/.npm-global` and never needs
 npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 ```
 
-Installs the standard SmallDocs skill globally using the cross-agent `skills` installer. The skill is a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand only when relevant.
+Installs the standard SmallDocs skill globally using the cross-agent `skills` installer. The skill is a `SKILL.md` whose short description sits in your agent's context and whose full reference, including runnable HTML component authoring, loads on demand only when relevant.
 
 Run `sdoc setup` when `npx skills` is unavailable, or when an older SmallDocs release previously wrote an always-on block to an agent configuration file. The built-in setup writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`, links detected agent-specific skill directories to it, and removes recognised legacy blocks while preserving surrounding notes.
 

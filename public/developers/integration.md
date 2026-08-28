@@ -122,6 +122,8 @@ The document is not isolated from the application by an iframe. SmallDocs code r
 
 A `sdoc-app` fence is the explicit executable form. Its complete HTML document runs inside a sandboxed frame served by SmallDocs. The frame can run scripts and use forms, modals, downloads, and popups, but it receives neither same-origin access nor top-level navigation. It cannot read or modify the host page, its storage, or its account controls. Ordinary `html` fences remain code listings.
 
+Inline frame width follows the document column. The component's complete HTML document controls its height through ordinary layout and CSS, and SmallDocs follows the measured height without imposing a minimum or maximum. Fullscreen uses the available viewport. Author component CSS for narrow and wide layouts; the frame receives normal resize events and is remeasured when its document layout changes. The host should not add another height cap or responsive iframe wrapper.
+
 If the application has a Content Security Policy, merge the required origins into its existing policy. The current experimental build loads rich dependencies from jsDelivr:
 
 ```text

@@ -999,9 +999,10 @@ BASIC SYNTAX
   <!doctype html>
   <html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Counter</title>
     <style>
-      body { font: 16px system-ui; padding: 24px; }
+      body { font: 16px system-ui; margin: 0; padding: 24px; }
     </style>
   </head>
   <body>
@@ -1022,11 +1023,30 @@ AUTHORING
     keep working without an external service.
   - An ordinary \`\`\`html fence remains a highlighted source listing.
 
+SIZING AND RESPONSIVE LAYOUT
+  The component owns its inline height. SmallDocs measures the complete
+  document and follows that height without imposing a minimum or maximum. The
+  frame width follows the SmallDocs reading column. Fullscreen uses the
+  available browser viewport.
+
+  - Include a viewport meta tag in every component.
+  - Let normal document flow determine height when content can grow.
+  - Use the component's own CSS min-height, height, or aspect-ratio when an
+    interactive canvas or stage needs a deliberate working area.
+  - Avoid fixed page widths. Use fluid widths, grid or flex wrapping, media or
+    container queries, and controls that remain usable at narrow widths.
+  - Resize canvas and other measured graphics from their rendered container.
+    ResizeObserver and the normal window resize event are available.
+  - Check the component inline and fullscreen at both narrow and wide widths.
+
+  A concise inline height keeps the surrounding document easy to navigate.
+  Dense tools can use more space or rely on the expand control. These are
+  authoring choices rather than renderer limits.
+
 VIEWING
-  The component starts inline. Its height follows the document between 320px
-  and 760px. Expand opens the same running frame fullscreen, so its current
-  inputs and JavaScript state remain in place. When a document has several
-  components, Previous and Next move between them.
+  Expand opens the same running frame fullscreen, so its current inputs and
+  JavaScript state remain in place. When a document has several components,
+  Previous and Next move between them.
 
 BROWSER BOUNDARY
   Component code runs in a sandboxed frame. It cannot read the SmallDocs page,
