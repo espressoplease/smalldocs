@@ -35,12 +35,6 @@
   var S = window.SDocs = window.SDocs || {};
   var H = window.SDocChrome;
   var sidebarShared = window.SDocsSidebarShared;
-  if (sidebarShared) {
-    sidebarShared.bindMobileScrollHeader(document.getElementById('_sd_left-toolbar'), {
-      breakpoint: 768,
-    });
-  }
-
   var BASES = {
     light: {
       bg:            '#F7F5F2',

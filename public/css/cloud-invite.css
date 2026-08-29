@@ -40,6 +40,7 @@ select, input { width:100%; margin-top:7px; padding:10px; border:1px solid var(-
 .invite-profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:2px; }
 .checkout-payment-note { margin-top:2px; font-size:11px; text-align:center; }
 @media(max-width:520px) {
+  body { min-height:0; }
   select, input { font-size:16px; }
   .checkout-card { padding:24px 20px; }
   .checkout-plan { grid-template-columns:38px minmax(0,1fr); }

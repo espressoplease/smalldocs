@@ -207,7 +207,7 @@ test('compact desktop navigation uses a click-to-expand rail from 950px', async 
   await expect(page.locator('body')).not.toHaveClass(/sdocs-sidebar-collapsed/);
 });
 
-test('mobile document controls scroll behind a fixed navigation menu', async ({ page }) => {
+test('mobile document controls use an always-sticky navigation menu', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/docs');
 
@@ -215,10 +215,10 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   const scroller = page.locator('.sdocs-mobile-toolbar-scroll');
   const menu = page.locator('#_sd_mobile_menu');
   const cloudButton = page.locator('[data-sidebar-section="cloud"] > .doc-site-action');
-  await expect(toolbar).toHaveCSS('position', 'relative');
+  await expect(toolbar).toHaveCSS('position', 'sticky');
   await expect(toolbar).toHaveCSS('height', '44px');
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
-  await expect(page.locator('#_sd_left')).toHaveCSS('min-height', '844px');
+  await expect(page.locator('#_sd_left')).toHaveCSS('min-height', 'auto');
   await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-short')).toBeVisible();
   await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-tiny')).toBeHidden();
   await expect(page.locator('#_sd_sidebar > .sdocs-sidebar-main > #_sd_toolbar-brand')).toBeHidden();
@@ -247,7 +247,7 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   });
   const initialScroll = await page.evaluate(() => window.scrollY);
   expect(initialScroll).toBeGreaterThan(0);
-  await expect(page.locator('html')).toHaveClass(/sdocs-mobile-page-scrolled/);
+  await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
   await expect(toolbar).toHaveCSS('position', 'sticky');
   expect(Math.round((await toolbar.boundingBox()).y)).toBe(0);
 
@@ -286,7 +286,7 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
-  await expect(toolbar).toHaveCSS('position', 'relative');
+  await expect(toolbar).toHaveCSS('position', 'sticky');
   const topGeometry = await page.evaluate(() => {
     const bar = document.getElementById('_sd_left-toolbar').getBoundingClientRect();
     const content = document.getElementById('_sd_content-area').getBoundingClientRect();
@@ -296,7 +296,7 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   expect(topGeometry.contentTop).toBeGreaterThanOrEqual(topGeometry.barBottom);
 });
 
-test('short mobile documents fill the viewport with the document background', async ({ page }) => {
+test('short mobile documents retain their background without a viewport minimum height', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/docs');
   await page.evaluate(() => {
@@ -319,8 +319,8 @@ test('short mobile documents fill the viewport with the document background', as
 
   expect(canvas.contentBackground).toBe('rgb(219, 234, 254)');
   expect(canvas.renderedBackground).toBe(canvas.contentBackground);
-  expect(canvas.contentBottom).toBeGreaterThanOrEqual(canvas.viewportBottom);
-  expect(canvas.bottomIsDocumentCanvas).toBe(true);
+  expect(await page.locator('#_sd_left').evaluate(element => getComputedStyle(element).minHeight))
+    .toBe('auto');
 });
 
 test('narrow mobile wordmark collapses to SD inside the scroll rail', async ({ page }) => {

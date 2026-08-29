@@ -36,7 +36,11 @@
   .brand-short, .brand-tiny { display: none; }
   .nav-sep { color: #A8A29E; font-size: 12px; }
   .nav-label { font-size: 12px; color: #57534E; font-weight: 500; }
-  @media (max-width: 600px) { .brand-full { display: none; } .brand-short { display: inline; } }
+  @media (max-width: 600px) {
+    body { min-height: 0; }
+    .brand-full { display: none; }
+    .brand-short { display: inline; }
+  }
   @media (max-width: 366px) { .brand-short { display: none; } .brand-tiny { display: inline; } }
 
   .content { max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }

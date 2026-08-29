@@ -233,7 +233,7 @@ a { color: inherit; }
 .example-error { margin: 0; padding: 36px; color: #9b2c2c; font-size: 12px; white-space: pre-wrap; }
 
 @media (max-width: 820px) {
-  .example-layout { grid-template-columns: 1fr; }
+  .example-layout { min-height: 0; grid-template-columns: 1fr; }
   .project-sidebar { display: none; }
   .project-main { padding: 30px 22px 48px; }
 }

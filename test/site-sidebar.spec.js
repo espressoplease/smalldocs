@@ -249,7 +249,8 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
 
   const mobileBar = page.locator('.sdocs-site-mobilebar');
   await expect(page.locator('body')).toHaveCSS('padding-top', '0px');
-  await expect(mobileBar).toHaveCSS('position', 'relative');
+  await expect(page.locator('body')).toHaveCSS('min-height', '0px');
+  await expect(mobileBar).toHaveCSS('position', 'sticky');
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
 
   await page.evaluate(() => {
@@ -260,7 +261,7 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   });
   const initialScroll = await page.evaluate(() => window.scrollY);
   expect(initialScroll).toBeGreaterThan(0);
-  await expect(page.locator('html')).toHaveClass(/sdocs-mobile-page-scrolled/);
+  await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
   await expect(mobileBar).toHaveCSS('position', 'sticky');
   expect(Math.round((await mobileBar.boundingBox()).y)).toBe(0);
 
@@ -311,7 +312,7 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
-  await expect(mobileBar).toHaveCSS('position', 'relative');
+  await expect(mobileBar).toHaveCSS('position', 'sticky');
   const topGeometry = await page.evaluate(() => {
     const bar = document.querySelector('.sdocs-site-mobilebar').getBoundingClientRect();
     const content = document.querySelector('.content').getBoundingClientRect();

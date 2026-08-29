@@ -285,39 +285,6 @@
     return { setOpen: setOpen };
   }
 
-  function bindMobileScrollHeader(header, options) {
-    options = options || {};
-    if (!header) return null;
-    var root = options.root || document.documentElement;
-    var breakpoint = options.breakpoint || 768;
-    var className = options.className || 'sdocs-mobile-page-scrolled';
-    var scheduled = false;
-
-    header.setAttribute('data-sdocs-mobile-scroll-header', '');
-
-    function sync() {
-      scheduled = false;
-      var mobile = window.matchMedia('(max-width: ' + breakpoint + 'px)').matches;
-      root.classList.toggle(className, mobile && window.scrollY > 0);
-    }
-
-    function scheduleSync() {
-      if (scheduled) return;
-      scheduled = true;
-      window.requestAnimationFrame(sync);
-    }
-
-    window.addEventListener('scroll', scheduleSync, { passive: true });
-    window.addEventListener('resize', scheduleSync, { passive: true });
-    window.addEventListener('pageshow', scheduleSync);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('scroll', scheduleSync, { passive: true });
-      window.visualViewport.addEventListener('resize', scheduleSync, { passive: true });
-    }
-    sync();
-    return { sync: sync };
-  }
-
   function bindDesktopRail(options) {
     options = options || {};
     var body = options.body || document.body;
@@ -420,7 +387,6 @@
   exports.setExpanded = setExpanded;
   exports.bindExpandableSections = bindExpandableSections;
   exports.bindMobileDrawer = bindMobileDrawer;
-  exports.bindMobileScrollHeader = bindMobileScrollHeader;
   exports.bindDesktopRail = bindDesktopRail;
   exports.hydrate = hydrate;
 })(typeof module !== 'undefined' && module.exports

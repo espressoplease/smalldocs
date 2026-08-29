@@ -37,7 +37,11 @@ body.sdocs-site-shell .library-onboarding-nav {
 }
 
 @media (max-width: 768px) {
-  body.sdocs-site-shell { padding: 0; }
+  body.sdocs-site-shell {
+    min-height: 0;
+    padding: 0;
+  }
+  body.sdocs-site-shell > .shell { min-height: 0; }
 
   body.sdocs-site-shell::after {
     content: '';
@@ -59,8 +63,9 @@ body.sdocs-site-shell .library-onboarding-nav {
   }
 
   .sdocs-site-mobilebar {
-    position: relative;
+    position: sticky;
     inset: auto;
+    top: 0;
     z-index: 50;
     height: 44px;
     display: flex;
@@ -68,10 +73,6 @@ body.sdocs-site-shell .library-onboarding-nav {
     overflow: hidden;
     border-bottom: 1px solid var(--border-subtle, var(--border, #ddd9d3));
     background: var(--bg-input, var(--surface, #fff));
-  }
-  html.sdocs-mobile-page-scrolled .sdocs-site-mobilebar {
-    position: sticky;
-    top: 0;
   }
 
   .sdocs-site-mobilebar-scroll {

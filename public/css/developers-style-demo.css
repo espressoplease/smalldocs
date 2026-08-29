@@ -275,7 +275,7 @@ a { color: inherit; }
 #field-report .smalldocs-control { border-radius: 50%; font-family: var(--field-ui); }
 
 @media (max-width: 900px) {
-  .field-layout { grid-template-columns: 1fr; }
+  .field-layout { min-height: 0; grid-template-columns: 1fr; }
   .field-index { padding: 30px 24px; }
   .field-index h1 { max-width: none; }
   .field-summary { max-width: 650px; }

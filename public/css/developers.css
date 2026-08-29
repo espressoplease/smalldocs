@@ -242,7 +242,12 @@ svg {
 }
 
 @media (max-width: 760px) {
-  .docs-topbar { padding: 0 8px; }
+  .docs-topbar {
+    position: sticky;
+    inset: auto;
+    top: 0;
+    padding: 0 8px;
+  }
   .mobile-menu { display: inline-flex; }
   .docs-sidebar {
     z-index: 35;
@@ -253,7 +258,13 @@ svg {
     transition: transform .3s cubic-bezier(.4,0,.2,1);
   }
   .docs-sidebar.open { transform: translateX(0); }
-  .docs-main { width: 100%; margin-left: 0; }
+  .docs-main {
+    width: 100%;
+    min-height: 0;
+    margin-left: 0;
+    padding-top: 0;
+  }
+  #developer-document { min-height: 0; }
   .loading-message { top: 42px; left: 24px; }
   .document-error { padding: 42px 24px; }
 }

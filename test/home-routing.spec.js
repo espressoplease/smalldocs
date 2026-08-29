@@ -9,12 +9,12 @@ test('root stays on the homepage for a signed-out browser without a Local Librar
   await expect(page.locator('#install')).toBeVisible();
 });
 
-test('mobile homepage navigation rejoins normal flow at the top of the page', async ({ page }) => {
+test('mobile homepage navigation remains sticky without changing positioning mode', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/home');
 
   const nav = page.locator('#nav');
-  await expect(nav).toHaveCSS('position', 'relative');
+  await expect(nav).toHaveCSS('position', 'sticky');
   await expect(nav).not.toHaveClass(/scrolled/);
 
   await page.evaluate(() => window.scrollTo(0, 320));
@@ -24,7 +24,7 @@ test('mobile homepage navigation rejoins normal flow at the top of the page', as
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(nav).not.toHaveClass(/scrolled/);
-  await expect(nav).toHaveCSS('position', 'relative');
+  await expect(nav).toHaveCSS('position', 'sticky');
   const geometry = await page.evaluate(() => {
     const bar = document.getElementById('nav').getBoundingClientRect();
     const hero = document.querySelector('.hero').getBoundingClientRect();
@@ -32,6 +32,30 @@ test('mobile homepage navigation rejoins normal flow at the top of the page', as
   });
   expect(geometry.barTop).toBe(0);
   expect(geometry.heroTop).toBeGreaterThanOrEqual(geometry.barBottom);
+});
+
+test('independent public page shells avoid mobile viewport minimums', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const surfaces = [
+    { url: '/business', header: '.nav', shell: 'body' },
+    { url: '/trust', header: '.header', shell: 'body' },
+    { url: '/feedback', header: '.header', shell: 'body' },
+    { url: '/developers', header: '.docs-topbar', shell: '.docs-main' },
+    { url: '/developers/example', header: '.example-topbar', shell: '.example-layout' },
+    { url: '/developers/example/non-collapsible', header: '.field-topbar', shell: '.field-layout' },
+  ];
+
+  for (const surface of surfaces) {
+    await page.goto(surface.url);
+    await expect(page.locator(surface.header)).toHaveCSS('position', 'sticky');
+    await expect(page.locator(surface.shell)).toHaveCSS('min-height', '0px');
+  }
+
+  for (const url of ['/cloud/sign-in', '/cloud/invite']) {
+    await page.goto(url);
+    await expect(page.locator('body')).toHaveCSS('min-height', '0px');
+  }
 });
 
 test('root opens Local Library when this browser has connected it', async ({ page, context }) => {
