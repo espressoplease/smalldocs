@@ -110,5 +110,10 @@ module.exports = function (harness) {
     assert.ok(helpText.APPS_HELP.includes('without imposing a minimum or maximum'));
     assert.ok(helpText.APPS_HELP.includes('ResizeObserver'));
     assert.ok(helpText.APPS_HELP.includes('both narrow and wide widths'));
+    assert.ok(helpText.APPS_HELP.includes('Try a clear page, list, table, or form'));
+    assert.ok(helpText.APPS_HELP.includes('Accent rails, badges, uppercase eyebrows'));
+    assert.ok(helpText.APPS_HELP.includes('border-bottom separators'));
+    assert.ok(helpText.APPS_HELP.includes('leave the inherited design tokens unchanged'));
+    assert.ok(helpText.APPS_HELP.includes('one summary line or bar'));
   });
 };

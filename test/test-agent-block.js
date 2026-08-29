@@ -119,6 +119,8 @@ module.exports = function (harness) {
     assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('run sdoc apps'));
     assert.ok(cli.SKILL_BODY.includes("component's document layout owns its inline height"));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('test every control inline, fullscreen, narrow, and wide'));
+    assert.ok(cli.SKILL_BODY.includes('prefer a clear page, list, table, or form'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('distinctive shapes when they encode structure or state'));
   });
 
   test('refreshContent: legacy v1 is migrated, fromVersion=1', () => {

@@ -13,6 +13,17 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
+## v26 (next CLI release)
+
+**Reason:** Runnable HTML guidance now favours purpose-led layouts and
+restrained visual treatment.
+
+Agents now begin with the simplest structure that fits the interaction: a
+page, list, table, form, canvas, or stage. The guidance recommends whitespace
+and dividers for repeated rows before adding cards, and asks authors to use
+surfaces, colour, shapes, badges, accent rails, gradients, and shadows when they
+communicate grouping or state rather than as automatic decoration.
+
 ## v25 (next CLI release)
 
 **Reason:** Runnable HTML now inherits document styles through an overridable
