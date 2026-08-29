@@ -53,6 +53,8 @@ body.sdocs-site-shell .library-onboarding-nav {
   body.sdocs-site-shell.sdocs-site-menu-open::after {
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
+    touch-action: none;
     transition-delay: 0s;
   }
 
@@ -103,12 +105,13 @@ body.sdocs-site-shell .library-onboarding-nav {
     top: 44px;
     width: min(320px, calc(100vw - 32px));
     padding-top: 18px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     transform: translateX(-101%);
     transition: transform .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
     visibility: hidden;
   }
 
-  body.sdocs-site-menu-open { overflow: hidden; }
   body.sdocs-site-menu-open .sdocs-site-sidebar { transform: translateX(0); visibility: visible; }
   .sdocs-site-sidebar .sdocs-sidebar-header { display: none; }
 }

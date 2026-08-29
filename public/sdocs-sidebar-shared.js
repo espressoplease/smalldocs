@@ -214,6 +214,15 @@
     var backgrounds = options.backgrounds || [];
     var breakpoint = options.breakpoint || 768;
 
+    function focusWithoutScrolling(element) {
+      if (!element) return;
+      try {
+        element.focus({ preventScroll: true });
+      } catch (_) {
+        element.focus();
+      }
+    }
+
     function focusables() {
       return Array.from(sidebar.querySelectorAll(
         'a[href], button:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
@@ -230,10 +239,10 @@
       if (open) {
         window.requestAnimationFrame(function () {
           var first = focusables()[0];
-          if (first) first.focus();
+          focusWithoutScrolling(first);
         });
       } else if (restoreFocus) {
-        button.focus();
+        focusWithoutScrolling(button);
       }
     }
 
@@ -253,10 +262,10 @@
       var last = available[available.length - 1];
       if (event.shiftKey && (document.activeElement === first || available.indexOf(document.activeElement) === -1)) {
         event.preventDefault();
-        last.focus();
+        focusWithoutScrolling(last);
       } else if (!event.shiftKey && document.activeElement === last) {
         event.preventDefault();
-        first.focus();
+        focusWithoutScrolling(first);
       }
     });
     window.addEventListener('resize', function () {

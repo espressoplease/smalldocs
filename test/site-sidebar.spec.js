@@ -241,11 +241,28 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
 
   await page.setViewportSize({ width: 390, height: 844 });
 
+  await page.evaluate(() => {
+    const spacer = document.createElement('div');
+    spacer.style.height = '1600px';
+    document.body.appendChild(spacer);
+    window.scrollTo(0, 320);
+  });
+  const initialScroll = await page.evaluate(() => window.scrollY);
+  expect(initialScroll).toBeGreaterThan(0);
+
   const menu = page.locator('.sdocs-site-mobilebar-menu');
   await expect(menu).toBeVisible();
   await expect(page.locator('#_sd_site_sidebar')).toBeHidden();
-  await menu.click();
+  await menu.evaluate(element => element.click());
   await expect(page.locator('#_sd_site_sidebar')).toBeVisible();
+  await expect(page.locator('body')).toHaveCSS('overflow', 'visible');
+  await expect(page.locator('#_sd_site_sidebar')).toHaveCSS('overscroll-behavior', 'contain');
+  expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
+  const backdrop = await page.locator('body').evaluate(element => ({
+    pointerEvents: getComputedStyle(element, '::after').pointerEvents,
+    touchAction: getComputedStyle(element, '::after').touchAction,
+  }));
+  expect(backdrop).toEqual({ pointerEvents: 'auto', touchAction: 'none' });
   await expect.poll(async () => Math.round((await page.locator('#_sd_site_sidebar').boundingBox()).x)).toBe(0);
   const drawer = await page.locator('#_sd_site_sidebar').boundingBox();
   expect(Math.round(drawer.x)).toBe(0);
@@ -255,6 +272,7 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   await page.keyboard.press('Escape');
   await expect(page.locator('#_sd_site_sidebar')).toBeHidden();
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
 
   const geometry = await page.evaluate(() => ({
     menuLeft: Math.round(document.querySelector('.sdocs-site-mobilebar-menu').getBoundingClientRect().left),

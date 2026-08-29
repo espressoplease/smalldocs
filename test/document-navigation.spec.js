@@ -87,6 +87,14 @@ test('toolbar mode buttons use a stable selection ring and toggle panels closed'
 test('mobile panels open fully with a backdrop and an explicit close button', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/docs');
+  await page.evaluate(() => {
+    const spacer = document.createElement('div');
+    spacer.style.height = '1600px';
+    document.getElementById('_sd_rendered').appendChild(spacer);
+    window.scrollTo(0, 320);
+  });
+  const initialScroll = await page.evaluate(() => window.scrollY);
+  expect(initialScroll).toBeGreaterThan(0);
 
   const cases = [
     {
@@ -116,21 +124,32 @@ test('mobile panels open fully with a backdrop and an explicit close button', as
   ];
 
   for (const item of cases) {
-    if (item.usesOverflow) await page.locator('#_sd_btn-overflow').click();
-    await page.locator(item.trigger).click();
+    if (item.usesOverflow) {
+      await page.locator('#_sd_btn-overflow').evaluate(element => element.click());
+    }
+    await page.locator(item.trigger).evaluate(element => element.click());
 
     await expect(page.locator('body')).toHaveClass(new RegExp(item.mode + '-mode'));
     await expect(page.locator(item.panel).getByText(item.title, { exact: true })).toBeVisible();
     await expect(page.locator(item.close)).toBeVisible();
+    await expect(page.locator('body')).toHaveCSS('overflow', 'visible');
+    await expect(page.locator(item.panel)).toHaveCSS('overscroll-behavior', 'contain');
+    expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
     await expect.poll(async () => {
       const box = await page.locator(item.panel).boundingBox();
       return box ? box.height : 0;
     }).toBeGreaterThan(150);
     await expect.poll(() => page.locator('body').evaluate(element =>
       getComputedStyle(element, '::after').opacity)).toBe('1');
+    const backdrop = await page.locator('body').evaluate(element => ({
+      pointerEvents: getComputedStyle(element, '::after').pointerEvents,
+      touchAction: getComputedStyle(element, '::after').touchAction,
+    }));
+    expect(backdrop).toEqual({ pointerEvents: 'auto', touchAction: 'none' });
 
-    await page.locator(item.close).click();
+    await page.locator(item.close).evaluate(element => element.click());
     await expect(page.locator('body')).toHaveClass(/read-mode/);
+    expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
     await expect.poll(() => page.locator('body').evaluate(element =>
       getComputedStyle(element, '::after').opacity)).toBe('0');
   }
@@ -211,10 +230,22 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   expect(menuAfterScroll.width).toBe(menuBeforeScroll.width);
   expect(await scroller.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
 
-  await menu.click();
+  await page.evaluate(() => {
+    const spacer = document.createElement('div');
+    spacer.style.height = '1600px';
+    document.getElementById('_sd_rendered').appendChild(spacer);
+    window.scrollTo(0, 320);
+  });
+  const initialScroll = await page.evaluate(() => window.scrollY);
+  expect(initialScroll).toBeGreaterThan(0);
+
+  await menu.evaluate(element => element.click());
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
   await expect(menu.locator('.sdocs-mobile-menu-close')).toBeVisible();
   await expect(page.locator('#_sd_sidebar')).toBeVisible();
+  await expect(page.locator('body')).toHaveCSS('overflow', 'visible');
+  await expect(page.locator('#_sd_sidebar')).toHaveCSS('overscroll-behavior', 'contain');
+  expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
   await expect.poll(async () => Math.round((await page.locator('#_sd_sidebar').boundingBox()).x)).toBe(0);
   const drawer = await page.locator('#_sd_sidebar').boundingBox();
   expect(Math.round(drawer.x)).toBe(0);
@@ -234,6 +265,7 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   await expect(scroller).not.toHaveAttribute('inert', '');
   await expect(page.locator('#_sd_content-area')).not.toHaveAttribute('inert', '');
   await expect(menu).toBeFocused();
+  expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
 });
 
 test('short mobile documents fill the viewport with the document background', async ({ page }) => {
