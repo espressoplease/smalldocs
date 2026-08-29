@@ -249,6 +249,14 @@
     button.addEventListener('click', function () {
       setOpen(!body.classList.contains(openClass), true);
     });
+    // The mobile CSS backdrop is body::after, so a tap on the exposed area
+    // arrives as a click on the body itself. Close through the same path as
+    // the menu button and Escape, including focus restoration.
+    body.addEventListener('click', function (event) {
+      if (event.target !== body || !body.classList.contains(openClass)) return;
+      if (!window.matchMedia('(max-width: ' + breakpoint + 'px)').matches) return;
+      setOpen(false, true);
+    });
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && body.classList.contains(openClass)) {
         setOpen(false, true);

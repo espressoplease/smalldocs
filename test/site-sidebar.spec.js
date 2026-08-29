@@ -280,6 +280,11 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   await expect(menu).toHaveAttribute('aria-label', 'Close menu');
   await expect(menu.locator('.sdocs-site-mobilebar-menu-icon')).toBeHidden();
   await expect(menu.locator('.sdocs-site-mobilebar-close-icon')).toBeVisible();
+  await page.mouse.click(drawer.x + drawer.width + 20, drawer.y + 80);
+  await expect(page.locator('#_sd_site_sidebar')).toBeHidden();
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await menu.evaluate(element => element.click());
+  await expect(page.locator('#_sd_site_sidebar')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('#_sd_site_sidebar')).toBeHidden();
   await expect(menu).toHaveAttribute('aria-expanded', 'false');

@@ -259,6 +259,11 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   expect(Math.round(drawer.width)).toBe(320);
   await expect(page.getByText('Local library', { exact: true })).toBeHidden();
   await expect(page.getByText('Cloud library', { exact: true })).toBeVisible();
+  await page.mouse.click(drawer.x + drawer.width + 20, drawer.y + 80);
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#_sd_sidebar')).toBeHidden();
+  await menu.evaluate(element => element.click());
+  await expect(page.locator('#_sd_sidebar')).toBeVisible();
   await expect(scroller).toHaveAttribute('inert', '');
   await expect(page.locator('#_sd_content-area')).toHaveAttribute('inert', '');
   await expect(cloudButton).toBeFocused();
@@ -308,6 +313,30 @@ test('narrow mobile wordmark collapses to SD inside the scroll rail', async ({ p
 
   await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-short')).toBeHidden();
   await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-tiny')).toBeVisible();
+});
+
+test('touch menu button does not retain a hover fill after closing', async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto('/docs');
+    const menu = page.locator('#_sd_mobile_menu');
+    expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches))
+      .toBe(false);
+    const restingBackground = await menu.evaluate(element => getComputedStyle(element).backgroundColor);
+    await menu.tap();
+    await expect(menu).toHaveAttribute('aria-expanded', 'true');
+    await menu.tap();
+    await expect(menu).toHaveAttribute('aria-expanded', 'false');
+    await expect.poll(() => menu.evaluate(element => getComputedStyle(element).backgroundColor))
+      .toBe(restingBackground);
+  } finally {
+    await context.close();
+  }
 });
 
 test('connected libraries show related documents, recent documents, and open actions', async ({ page }) => {
