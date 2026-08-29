@@ -239,6 +239,12 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   await expect(sidebar).toHaveAttribute('data-sidebar-collapsed', 'true');
   await expect(local).toHaveCSS('border-color', 'rgba(0, 0, 0, 0)');
 
+  await page.setViewportSize({ width: 951, height: 800 });
+  await expect(sidebar).toHaveAttribute('data-sidebar-collapsed', 'false');
+  await expect(page.locator('.sdocs-sidebar-collapse-toggle')).toBeHidden();
+  await page.locator('.sdocs-sidebar-collapse-toggle').evaluate(element => element.click());
+  await expect(sidebar).toHaveAttribute('data-sidebar-collapsed', 'false');
+
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.evaluate(() => {
@@ -252,6 +258,8 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
 
   const menu = page.locator('.sdocs-site-mobilebar-menu');
   await expect(menu).toBeVisible();
+  await expect(menu.locator('.sdocs-site-mobilebar-menu-icon')).toBeVisible();
+  await expect(menu.locator('.sdocs-site-mobilebar-close-icon')).toBeHidden();
   await expect(page.locator('#_sd_site_sidebar')).toBeHidden();
   await menu.evaluate(element => element.click());
   await expect(page.locator('#_sd_site_sidebar')).toBeVisible();
@@ -269,9 +277,15 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   expect(Math.round(drawer.width)).toBe(320);
   await expect(page.locator('.sdocs-site-sidebar-local')).toBeHidden();
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  await expect(menu).toHaveAttribute('aria-label', 'Close menu');
+  await expect(menu.locator('.sdocs-site-mobilebar-menu-icon')).toBeHidden();
+  await expect(menu.locator('.sdocs-site-mobilebar-close-icon')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('#_sd_site_sidebar')).toBeHidden();
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await expect(menu).toHaveAttribute('aria-label', 'Open menu');
+  await expect(menu.locator('.sdocs-site-mobilebar-menu-icon')).toBeVisible();
+  await expect(menu.locator('.sdocs-site-mobilebar-close-icon')).toBeHidden();
   expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
 
   const geometry = await page.evaluate(() => ({

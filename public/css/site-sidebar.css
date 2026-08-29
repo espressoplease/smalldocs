@@ -100,6 +100,9 @@ body.sdocs-site-shell .library-onboarding-nav {
   }
 
   .sdocs-site-mobilebar-menu svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+  .sdocs-site-mobilebar-close-icon { display: none; }
+  .sdocs-site-mobilebar-menu[aria-expanded="true"] .sdocs-site-mobilebar-menu-icon { display: none; }
+  .sdocs-site-mobilebar-menu[aria-expanded="true"] .sdocs-site-mobilebar-close-icon { display: block; }
 
   .sdocs-site-sidebar {
     top: 44px;

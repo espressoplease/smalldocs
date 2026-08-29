@@ -102,6 +102,10 @@
   outline-offset: 1px;
 }
 
+@media (min-width: 951px) {
+  .sdocs-sidebar-collapse-toggle { display: none; }
+}
+
 .sdocs-sidebar-collapse-icon {
   width: 16px;
   height: 16px;

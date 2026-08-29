@@ -198,6 +198,13 @@ test('compact desktop navigation uses a click-to-expand rail from 950px', async 
   await expect(sidebar).toHaveAttribute('data-sidebar-collapsed', 'true');
   await expect(page.locator('[data-sidebar-section="library"]')).not.toHaveClass(/is-expanded/);
   await expect(localButton).toHaveAttribute('aria-expanded', 'false');
+
+  await page.setViewportSize({ width: 951, height: 800 });
+  await expect(page.locator('body')).not.toHaveClass(/sdocs-sidebar-collapsed/);
+  await expect(sidebar).toHaveAttribute('data-sidebar-collapsed', 'false');
+  await expect(page.locator('.sdocs-sidebar-collapse-toggle')).toBeHidden();
+  await page.locator('.sdocs-sidebar-collapse-toggle').evaluate(element => element.click());
+  await expect(page.locator('body')).not.toHaveClass(/sdocs-sidebar-collapsed/);
 });
 
 test('mobile document controls scroll behind a fixed navigation menu', async ({ page }) => {

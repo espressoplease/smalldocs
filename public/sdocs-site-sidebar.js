@@ -36,7 +36,8 @@
     '<span class="sdocs-site-mobilebar-brand-short">SDocs</span>' +
     '<span class="sdocs-site-mobilebar-brand-tiny">SD</span></a></div>' +
     '<button class="sdocs-site-mobilebar-menu" type="button" aria-label="Open menu" aria-controls="_sd_site_sidebar" aria-expanded="false">' +
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>';
+    '<svg class="sdocs-site-mobilebar-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>' +
+    '<svg class="sdocs-site-mobilebar-close-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>';
 
   body.classList.add('sdocs-site-shell');
   body.prepend(mobile);

@@ -297,7 +297,7 @@
     }
 
     function setCollapsed(collapsed, restoreFocus) {
-      collapsed = Boolean(collapsed) && !isMobile();
+      collapsed = Boolean(collapsed) && !isMobile() && isCompact();
       if (collapsed) {
         Array.from(sidebar.querySelectorAll('.sdocs-sidebar-section.is-expanded')).forEach(function (section) {
           setExpanded(section, false);
@@ -316,7 +316,7 @@
     }
 
     function syncToViewport() {
-      if (isMobile()) {
+      if (isMobile() || !isCompact()) {
         setCollapsed(false, false);
       } else if (manualState) {
         setCollapsed(manualState === 'collapsed', false);
@@ -326,6 +326,7 @@
     }
 
     toggle.addEventListener('click', function () {
+      if (isMobile() || !isCompact()) return;
       var shouldCollapse = !body.classList.contains('sdocs-sidebar-collapsed');
       manualState = shouldCollapse ? 'collapsed' : 'expanded';
       setCollapsed(shouldCollapse, true);
