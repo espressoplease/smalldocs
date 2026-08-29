@@ -9,6 +9,31 @@ test('root stays on the homepage for a signed-out browser without a Local Librar
   await expect(page.locator('#install')).toBeVisible();
 });
 
+test('mobile homepage navigation rejoins normal flow at the top of the page', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/home');
+
+  const nav = page.locator('#nav');
+  await expect(nav).toHaveCSS('position', 'relative');
+  await expect(nav).not.toHaveClass(/scrolled/);
+
+  await page.evaluate(() => window.scrollTo(0, 320));
+  await expect(nav).toHaveClass(/scrolled/);
+  await expect(nav).toHaveCSS('position', 'sticky');
+  expect(Math.round((await nav.boundingBox()).y)).toBe(0);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(nav).not.toHaveClass(/scrolled/);
+  await expect(nav).toHaveCSS('position', 'relative');
+  const geometry = await page.evaluate(() => {
+    const bar = document.getElementById('nav').getBoundingClientRect();
+    const hero = document.querySelector('.hero').getBoundingClientRect();
+    return { barTop: Math.round(bar.top), barBottom: Math.round(bar.bottom), heroTop: Math.round(hero.top) };
+  });
+  expect(geometry.barTop).toBe(0);
+  expect(geometry.heroTop).toBeGreaterThanOrEqual(geometry.barBottom);
+});
+
 test('root opens Local Library when this browser has connected it', async ({ page, context }) => {
   await context.addInitScript(() => {
     localStorage.setItem('sdocs.connect', JSON.stringify({ connected: true }));

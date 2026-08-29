@@ -247,6 +247,11 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
 
   await page.setViewportSize({ width: 390, height: 844 });
 
+  const mobileBar = page.locator('.sdocs-site-mobilebar');
+  await expect(page.locator('body')).toHaveCSS('padding-top', '0px');
+  await expect(mobileBar).toHaveCSS('position', 'relative');
+  await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
+
   await page.evaluate(() => {
     const spacer = document.createElement('div');
     spacer.style.height = '1600px';
@@ -255,6 +260,9 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   });
   const initialScroll = await page.evaluate(() => window.scrollY);
   expect(initialScroll).toBeGreaterThan(0);
+  await expect(page.locator('html')).toHaveClass(/sdocs-mobile-page-scrolled/);
+  await expect(mobileBar).toHaveCSS('position', 'sticky');
+  expect(Math.round((await mobileBar.boundingBox()).y)).toBe(0);
 
   const menu = page.locator('.sdocs-site-mobilebar-menu');
   await expect(menu).toBeVisible();
@@ -300,4 +308,15 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   }));
   expect(geometry.menuLeft).toBe(0);
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
+  await expect(mobileBar).toHaveCSS('position', 'relative');
+  const topGeometry = await page.evaluate(() => {
+    const bar = document.querySelector('.sdocs-site-mobilebar').getBoundingClientRect();
+    const content = document.querySelector('.content').getBoundingClientRect();
+    return { barTop: Math.round(bar.top), barBottom: Math.round(bar.bottom), contentTop: Math.round(content.top) };
+  });
+  expect(topGeometry.barTop).toBe(0);
+  expect(topGeometry.contentTop).toBeGreaterThanOrEqual(topGeometry.barBottom);
 });

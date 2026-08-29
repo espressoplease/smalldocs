@@ -14,7 +14,7 @@
   /* ── Make body the scroll container (iOS tap-to-top) ── */
   body { overflow: visible; height: auto; }
   #_sd_main { flex-direction: column; overflow: visible; }
-  #_sd_left { min-height: 100dvh; overflow: visible; }
+  #_sd_left { min-height: 100svh; overflow: visible; }
   #_sd_content-area { overflow: visible; }
   html { scroll-padding-top: 44px; }
 
@@ -115,8 +115,8 @@
   /* The wordmark and document controls scroll; the menu stays fixed. */
   #_sd_left-toolbar {
     display: flex;
-    position: sticky;
-    top: 0;
+    position: relative;
+    top: auto;
     left: 0;
     z-index: 101;
     width: 100%;
@@ -131,6 +131,10 @@
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     overflow: hidden;
+  }
+  html.sdocs-mobile-page-scrolled #_sd_left-toolbar {
+    position: sticky;
+    top: 0;
   }
   .sdocs-mobile-toolbar-scroll {
     min-width: 0;

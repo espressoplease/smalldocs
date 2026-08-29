@@ -215,8 +215,10 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   const scroller = page.locator('.sdocs-mobile-toolbar-scroll');
   const menu = page.locator('#_sd_mobile_menu');
   const cloudButton = page.locator('[data-sidebar-section="cloud"] > .doc-site-action');
-  await expect(toolbar).toHaveCSS('top', '0px');
+  await expect(toolbar).toHaveCSS('position', 'relative');
   await expect(toolbar).toHaveCSS('height', '44px');
+  await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
+  await expect(page.locator('#_sd_left')).toHaveCSS('min-height', '844px');
   await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-short')).toBeVisible();
   await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-tiny')).toBeHidden();
   await expect(page.locator('#_sd_sidebar > .sdocs-sidebar-main > #_sd_toolbar-brand')).toBeHidden();
@@ -245,6 +247,9 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   });
   const initialScroll = await page.evaluate(() => window.scrollY);
   expect(initialScroll).toBeGreaterThan(0);
+  await expect(page.locator('html')).toHaveClass(/sdocs-mobile-page-scrolled/);
+  await expect(toolbar).toHaveCSS('position', 'sticky');
+  expect(Math.round((await toolbar.boundingBox()).y)).toBe(0);
 
   await menu.evaluate(element => element.click());
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
@@ -278,6 +283,17 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   await expect(page.locator('#_sd_content-area')).not.toHaveAttribute('inert', '');
   await expect(menu).toBeFocused();
   expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
+  await expect(toolbar).toHaveCSS('position', 'relative');
+  const topGeometry = await page.evaluate(() => {
+    const bar = document.getElementById('_sd_left-toolbar').getBoundingClientRect();
+    const content = document.getElementById('_sd_content-area').getBoundingClientRect();
+    return { barTop: Math.round(bar.top), barBottom: Math.round(bar.bottom), contentTop: Math.round(content.top) };
+  });
+  expect(topGeometry.barTop).toBe(0);
+  expect(topGeometry.contentTop).toBeGreaterThanOrEqual(topGeometry.barBottom);
 });
 
 test('short mobile documents fill the viewport with the document background', async ({ page }) => {

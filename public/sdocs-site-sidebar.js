@@ -42,6 +42,7 @@
   body.classList.add('sdocs-site-shell');
   body.prepend(mobile);
   body.prepend(aside);
+  shared.bindMobileScrollHeader(mobile, { breakpoint: 768 });
   window.requestAnimationFrame(function () {
     window.requestAnimationFrame(function () {
       body.classList.add('sdocs-sidebar-ready');
