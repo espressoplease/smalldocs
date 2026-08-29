@@ -1301,6 +1301,15 @@ S.rawEl.addEventListener('input', function() {
 
 // ── Mode toggle (read / style / raw / export) ──────────────────
 
+function setToolbarOverflowOpen(open) {
+  var group = document.getElementById('_sd_toggle-overflow');
+  var button = document.getElementById('_sd_btn-overflow');
+  if (!group || !button) return;
+  group.classList.toggle('open', open);
+  button.setAttribute('aria-expanded', open ? 'true' : 'false');
+  button.dataset.tip = open ? 'Less' : 'More';
+}
+
 function setMode(mode, skipHash) {
   var prev = S.currentMode;
   S.currentMode = mode;
@@ -1313,22 +1322,19 @@ function setMode(mode, skipHash) {
   S.renderedEl.style.display = (mode === 'raw' || mode === 'write') ? 'none' : '';
   S.rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
-  document.getElementById('_sd_btn-read').classList.toggle('active',    mode === 'read');
-  document.getElementById('_sd_btn-style').classList.toggle('active',   mode === 'style');
-  document.getElementById('_sd_btn-write').classList.toggle('active',   mode === 'write');
-  document.getElementById('_sd_btn-raw').classList.toggle('active',     mode === 'raw');
-  document.getElementById('_sd_btn-export').classList.toggle('active',  mode === 'export');
-  document.getElementById('_sd_btn-info').classList.toggle('active',    mode === 'info');
-  document.getElementById('_sd_btn-comment').classList.toggle('active', mode === 'comment');
+  ['read', 'style', 'write', 'raw', 'export', 'info', 'comment'].forEach(function (buttonMode) {
+    var button = document.getElementById('_sd_btn-' + buttonMode);
+    var selected = mode === buttonMode;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+  });
 
   // Auto-expand the overflow group if the active mode lives inside it,
   // otherwise the active indicator would be hidden behind the hamburger.
-  var overflowGroup = document.getElementById('_sd_toggle-overflow');
-  var overflowBtn = document.getElementById('_sd_btn-overflow');
-  if (overflowGroup && overflowBtn && (mode === 'write' || mode === 'raw' || mode === 'export')) {
-    overflowGroup.classList.add('open');
-    overflowBtn.setAttribute('aria-expanded', 'true');
-    overflowBtn.title = 'Close menu';
+  if (mode === 'style' || mode === 'raw' || mode === 'export') {
+    setToolbarOverflowOpen(true);
+  } else if (mode === 'read') {
+    setToolbarOverflowOpen(false);
   }
 
   document.body.classList.toggle('style-mode',   mode === 'style');
@@ -1377,6 +1383,11 @@ document.getElementById('_sd_btn-theme').addEventListener('click', function() { 
 document.getElementById('_sd_theme-tab-light').addEventListener('click', function() { S.switchThemeAndUpdate('light'); });
 document.getElementById('_sd_theme-tab-dark').addEventListener('click', function() { S.switchThemeAndUpdate('dark'); });
 document.getElementById('_sd_btn-read').addEventListener('click',   function() { setMode('read'); });
+
+function toggleMode(mode) {
+  setMode(S.currentMode === mode ? 'read' : mode);
+}
+
 document.getElementById('_sd_btn-fold').addEventListener('click', function() {
   if (!S.renderedEl) return;
   var bodies = S.renderedEl.querySelectorAll('.md-section-body');
@@ -1414,15 +1425,15 @@ function syncFoldButton() {
   btn.setAttribute('data-tip', label);
 }
 S.syncFoldButton = syncFoldButton;
-document.getElementById('_sd_btn-style').addEventListener('click',  function() { setMode('style'); });
-document.getElementById('_sd_btn-write').addEventListener('click',  function() { setMode('write'); });
-document.getElementById('_sd_btn-raw').addEventListener('click',    function() { setMode('raw'); });
-document.getElementById('_sd_btn-export').addEventListener('click', function() { setMode('export'); });
+document.getElementById('_sd_btn-style').addEventListener('click',  function() { toggleMode('style'); });
+document.getElementById('_sd_btn-write').addEventListener('click',  function() { toggleMode('write'); });
+document.getElementById('_sd_btn-raw').addEventListener('click',    function() { toggleMode('raw'); });
+document.getElementById('_sd_btn-export').addEventListener('click', function() { toggleMode('export'); });
 document.getElementById('_sd_btn-info').addEventListener('click', function() {
-  setMode('info');
+  toggleMode('info');
   if (S.markInfoSeen) S.markInfoSeen();
 });
-document.getElementById('_sd_btn-comment').addEventListener('click', function() { setMode('comment'); });
+document.getElementById('_sd_btn-comment').addEventListener('click', function() { toggleMode('comment'); });
 
 document.getElementById('_sd_btn-new').addEventListener('click', function() {
   history.replaceState(null, '', '/new');
@@ -1434,9 +1445,7 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
   var group = document.getElementById('_sd_toggle-overflow');
   if (!btn || !group) return;
   btn.addEventListener('click', function () {
-    var open = group.classList.toggle('open');
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    btn.dataset.tip = open ? 'Less' : 'More';
+    setToolbarOverflowOpen(!group.classList.contains('open'));
   });
 })();
 
@@ -1529,22 +1538,10 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
 })();
 
 
-document.getElementById('_sd_right-header').addEventListener('click', function() {
-  if (window.innerWidth <= 768) {
-    document.body.classList.toggle('mobile-sheet-open');
-  }
-});
-
-document.getElementById('_sd_export-panel-header').addEventListener('click', function() {
-  if (window.innerWidth <= 768) {
-    document.body.classList.toggle('mobile-export-open');
-  }
-});
-
-document.getElementById('_sd_info-panel-header').addEventListener('click', function() {
-  if (window.innerWidth <= 768) {
-    document.body.classList.toggle('mobile-info-open');
-  }
+['_sd_right-close', '_sd_export-panel-close', '_sd_info-panel-close'].forEach(function(id) {
+  document.getElementById(id).addEventListener('click', function() {
+    setMode('read');
+  });
 });
 
 document.getElementById('_sd_factory-reset-styles').addEventListener('click', function() {

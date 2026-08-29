@@ -37,6 +37,7 @@ body.style-mode #_sd_right {
   background: var(--bg-panel);
   flex-shrink: 0;
 }
+.sdocs-sheet-close { display: none; }
 
 /* ── Theme tabs ── */
 #_sd_theme-tabs {

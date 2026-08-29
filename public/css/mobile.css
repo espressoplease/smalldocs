@@ -34,6 +34,11 @@
     visibility: visible;
     transition-delay: 0s;
   }
+  body.sdocs-reader-shell:is(.style-mode, .export-mode, .info-mode)::after {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
+  }
 
   /* iOS Safari zooms the page when a focused text control is below 16px. */
   textarea,
@@ -205,37 +210,13 @@
                 opacity .25s ease;
     overflow: hidden;
   }
-  /* Style mode: show bottom sheet */
+  body:is(.style-mode, .export-mode, .info-mode) { overflow: hidden; }
+
+  /* Style mode: open the complete bottom sheet immediately. */
   body.style-mode #_sd_right {
-    max-height: 52px;
-    opacity: 1;
-  }
-  /* Expanded state */
-  body.mobile-sheet-open #_sd_right {
     max-height: 70vh;
+    opacity: 1;
     overflow-y: auto;
-  }
-
-  /* ── Drag handle indicator on the sheet ── */
-  #_sd_right::before {
-    content: '';
-    display: block;
-    width: 36px;
-    height: 4px;
-    background: var(--border-strong);
-    border-radius: 2px;
-    margin: 6px auto 0px;
-    flex-shrink: 0;
-  }
-
-  /* ── Make header tappable to expand ── */
-  #_sd_right-header {
-    cursor: pointer;
-    user-select: none;
-    flex-shrink: 0;
-    min-height: 42px;
-    align-items: baseline;
-    padding: 4px 12px 0px 12px;
   }
 
   /* ── Hide "Save as default styles" on mobile ── */
@@ -257,34 +238,9 @@
     overflow: hidden;
   }
   body.export-mode #_sd_export-panel {
-    max-height: 52px;
-    opacity: 1;
-  }
-  body.mobile-export-open #_sd_export-panel {
     max-height: 70vh;
+    opacity: 1;
     overflow-y: auto;
-  }
-
-  /* ── Export panel drag handle ── */
-  #_sd_export-panel::before {
-    content: '';
-    display: block;
-    width: 36px;
-    height: 4px;
-    background: var(--border-strong);
-    border-radius: 2px;
-    margin: 6px auto 0px;
-    flex-shrink: 0;
-  }
-
-  /* ── Export panel header: tappable ── */
-  #_sd_export-panel-header {
-    cursor: pointer;
-    user-select: none;
-    flex-shrink: 0;
-    min-height: 42px;
-    align-items: baseline;
-    padding: 4px 12px 0px 12px;
   }
 
   /* ── Info panel: bottom sheet overlay ── */
@@ -303,33 +259,46 @@
     overflow: hidden;
   }
   body.info-mode #_sd_info-panel {
-    max-height: 52px;
-    opacity: 1;
-  }
-  body.mobile-info-open #_sd_info-panel {
     max-height: 80vh;
+    opacity: 1;
     overflow-y: auto;
   }
 
-  /* Drag handle */
-  #_sd_info-panel::before {
-    content: '';
-    display: block;
-    width: 36px;
-    height: 4px;
-    background: var(--border-strong);
-    border-radius: 2px;
-    margin: 6px auto 0px;
-    flex-shrink: 0;
-  }
-
+  #_sd_right-header,
+  #_sd_export-panel-header,
   #_sd_info-panel-header {
-    cursor: pointer;
-    user-select: none;
+    position: sticky;
+    top: 0;
+    z-index: 1;
     flex-shrink: 0;
-    min-height: 42px;
-    align-items: baseline;
-    padding: 4px 12px 0px 12px;
+    justify-content: space-between;
+    min-height: 48px;
+    padding: 0 10px 0 16px;
+    color: var(--text);
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+  .sdocs-sheet-close {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 32px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .sdocs-sheet-close:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+  .sdocs-sheet-close:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
   }
 }
 

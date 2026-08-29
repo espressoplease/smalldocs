@@ -389,23 +389,27 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   padding: 2px;
   gap: 2px;
 }
-.toggle-group .btn {
-  border: none;
+#_sd_left-toolbar .toggle-group .btn {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   border-radius: 999px;
   box-shadow: none;
   background: transparent;
-  padding: 6px 8px;
+  padding: 0;
+  border: 1px solid transparent;
   color: var(--text-2);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
-.toggle-group .btn.active {
-  background: var(--bg-input);
+#_sd_left-toolbar .toggle-group .btn.active {
+  border-color: var(--border);
+  background: transparent;
   color: var(--text);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
-.toggle-group .btn:hover:not(.active) {
+#_sd_left-toolbar .toggle-group .btn:hover:not(.active) {
   background: var(--bg-hover);
   border-color: transparent;
   color: var(--text);
@@ -445,14 +449,14 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
 #_sd_btn-fold .icon-fold { display: none; }
 #_sd_btn-fold.is-open .icon-unfold { display: none; }
 #_sd_btn-fold.is-open .icon-fold { display: inline-flex; }
-/* Persistent subtle tint while open so the X reads as a control to click,
-   not just a passive icon. Real hover still escalates to the standard
-   toolbar-button hover treatment. */
-#_sd_btn-overflow[aria-expanded="true"] {
-  background: var(--bg-surface);
+/* Keep the standard hover fill while open so the X reads as the control for
+   the expanded group, without borrowing the border used by selected modes. */
+#_sd_left-toolbar .toggle-group #_sd_btn-overflow[aria-expanded="true"] {
+  border-color: transparent;
+  background: var(--bg-hover);
   color: var(--text);
 }
-#_sd_btn-overflow[aria-expanded="true"]:hover {
+#_sd_left-toolbar .toggle-group #_sd_btn-overflow[aria-expanded="true"]:hover {
   background: var(--bg-hover);
   color: var(--text);
 }

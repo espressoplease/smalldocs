@@ -26,6 +26,116 @@ test('signed-out desktop navigation explains how to connect each library', async
   await expect(page.locator('#doc-site-menu')).toHaveCount(0);
 });
 
+test('toolbar mode buttons use a stable selection ring and toggle panels closed', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.goto('/docs');
+
+  const read = page.locator('#_sd_btn-read');
+  const info = page.locator('#_sd_btn-info');
+  const initialBoxes = await Promise.all([read.boundingBox(), info.boundingBox()]);
+  await expect(read).toHaveClass(/active/);
+  await expect(read).toHaveAttribute('aria-pressed', 'true');
+  await expect(read).toHaveCSS('border-color', 'rgb(212, 207, 201)');
+  await expect(info).toHaveAttribute('aria-pressed', 'false');
+  await expect(info).toHaveCSS('border-color', 'rgba(0, 0, 0, 0)');
+
+  await info.click();
+  await expect(page.locator('body')).toHaveClass(/info-mode/);
+  await expect(info).toHaveClass(/active/);
+  await expect(info).toHaveAttribute('aria-pressed', 'true');
+  await expect(info).toHaveCSS('border-color', 'rgb(212, 207, 201)');
+  await expect(read).toHaveAttribute('aria-pressed', 'false');
+  const selectedBoxes = await Promise.all([read.boundingBox(), info.boundingBox()]);
+  expect(selectedBoxes[0].width).toBe(initialBoxes[0].width);
+  expect(selectedBoxes[0].height).toBe(initialBoxes[0].height);
+  expect(selectedBoxes[1].width).toBe(initialBoxes[1].width);
+  expect(selectedBoxes[1].height).toBe(initialBoxes[1].height);
+
+  await info.click();
+  await expect(page.locator('body')).toHaveClass(/read-mode/);
+  await expect(read).toHaveAttribute('aria-pressed', 'true');
+  await expect(info).toHaveAttribute('aria-pressed', 'false');
+
+  await info.click();
+  await read.click();
+  await expect(page.locator('body')).toHaveClass(/read-mode/);
+  await expect(info).toHaveAttribute('aria-pressed', 'false');
+
+  await info.click();
+  const overflow = page.locator('#_sd_btn-overflow');
+  const overflowGroup = page.locator('#_sd_toggle-overflow');
+  await overflow.click();
+  await expect(overflow).toHaveAttribute('aria-expanded', 'true');
+  await page.mouse.move(900, 700);
+  await expect(overflow).toHaveCSS('border-color', 'rgba(0, 0, 0, 0)');
+  await expect(overflow).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  const format = page.locator('#_sd_btn-style');
+  await format.click();
+  await page.mouse.move(900, 700);
+  await expect(page.locator('body')).toHaveClass(/style-mode/);
+  await expect(format).toHaveAttribute('aria-pressed', 'true');
+  await expect(overflowGroup).toHaveClass(/open/);
+  await expect(overflow).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await format.click();
+  await expect(page.locator('body')).toHaveClass(/read-mode/);
+  await expect(read).toHaveAttribute('aria-pressed', 'true');
+  await expect(format).toHaveAttribute('aria-pressed', 'false');
+  await expect(overflow).toHaveAttribute('aria-expanded', 'false');
+  await expect(overflowGroup).not.toHaveClass(/open/);
+});
+
+test('mobile panels open fully with a backdrop and an explicit close button', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/docs');
+
+  const cases = [
+    {
+      mode: 'style',
+      trigger: '#_sd_btn-style',
+      panel: '#_sd_right',
+      title: 'Format document',
+      close: '#_sd_right-close',
+      usesOverflow: true,
+    },
+    {
+      mode: 'export',
+      trigger: '#_sd_btn-export',
+      panel: '#_sd_export-panel',
+      title: 'Export document',
+      close: '#_sd_export-panel-close',
+      usesOverflow: true,
+    },
+    {
+      mode: 'info',
+      trigger: '#_sd_btn-info',
+      panel: '#_sd_info-panel',
+      title: 'Information',
+      close: '#_sd_info-panel-close',
+      usesOverflow: false,
+    },
+  ];
+
+  for (const item of cases) {
+    if (item.usesOverflow) await page.locator('#_sd_btn-overflow').click();
+    await page.locator(item.trigger).click();
+
+    await expect(page.locator('body')).toHaveClass(new RegExp(item.mode + '-mode'));
+    await expect(page.locator(item.panel).getByText(item.title, { exact: true })).toBeVisible();
+    await expect(page.locator(item.close)).toBeVisible();
+    await expect.poll(async () => {
+      const box = await page.locator(item.panel).boundingBox();
+      return box ? box.height : 0;
+    }).toBeGreaterThan(150);
+    await expect.poll(() => page.locator('body').evaluate(element =>
+      getComputedStyle(element, '::after').opacity)).toBe('1');
+
+    await page.locator(item.close).click();
+    await expect(page.locator('body')).toHaveClass(/read-mode/);
+    await expect.poll(() => page.locator('body').evaluate(element =>
+      getComputedStyle(element, '::after').opacity)).toBe('0');
+  }
+});
+
 test('compact desktop navigation uses a click-to-expand rail from 950px', async ({ page }) => {
   await page.setViewportSize({ width: 950, height: 800 });
   await page.goto('/docs?sidebar=preview');
