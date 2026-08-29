@@ -43,6 +43,7 @@
     if (options.controls) attrs += ' aria-controls="' + options.controls + '" aria-expanded="false"';
     if (options.dataHref) attrs += ' data-sidebar-href="' + options.dataHref + '"';
     if (options.active) attrs += ' aria-current="page"';
+    attrs += ' data-rail-label="' + options.label + '"';
     return '<' + tag + ' class="' + classes + '"' + attrs + '>' + options.icon +
       '<span' + (options.labelClass ? ' class="' + options.labelClass + '"' : '') + '>' +
       options.label + '</span>' + (options.controls ? icons.chevron : '') + '</' + tag + '>';
@@ -127,19 +128,19 @@
       ? '<div id="' + options.statusId + '" class="sdocs-sidebar-status" aria-live="polite"></div>' : '';
     var returnTo = options.returnTo || '/docs';
     var account = options.authenticated
-      ? '<a class="sdocs-sidebar-footer-link" href="/cloud/admin">' +
+      ? '<a class="sdocs-sidebar-footer-link sdocs-sidebar-account-link" href="/cloud/admin" data-rail-label="Account settings">' +
         icons.settings + '<span>Account settings</span></a>'
-      : '<a class="sdocs-sidebar-footer-link" href="/cloud/sign-in?return=' +
-        encodeURIComponent(returnTo) + '" data-sdocs-sign-in-return>' +
+      : '<a class="sdocs-sidebar-footer-link sdocs-sidebar-account-link" href="/cloud/sign-in?return=' +
+        encodeURIComponent(returnTo) + '" data-sdocs-sign-in-return data-rail-label="Sign in">' +
         icons.signIn + '<span>Sign in</span></a>';
     var legal = options.termsAccepted ? '' :
       '<div class="sdocs-sidebar-legal">You agree to our ' +
       '<a href="/legal" target="_blank" rel="noopener">Terms</a></div>';
     return status +
       account +
-      '<a class="sdocs-sidebar-footer-link" href="/privacy" target="_blank" rel="noopener">' +
+      '<a class="sdocs-sidebar-footer-link" href="/privacy" target="_blank" rel="noopener" data-rail-label="Private by design">' +
       icons.shield + '<span>Private by design</span></a>' +
-      '<a class="sdocs-sidebar-footer-link" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">' +
+      '<a class="sdocs-sidebar-footer-link" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" data-rail-label="Source on GitHub">' +
       icons.github + '<span>Source on GitHub</span></a>' +
       legal;
   }
@@ -152,10 +153,14 @@
       termsAccepted: Boolean(options.termsAccepted),
       returnTo: options.returnTo || '/docs',
     };
-    element.innerHTML = '<div class="sdocs-sidebar-main">' + brandHtml({
+    element.innerHTML = '<div class="sdocs-sidebar-main"><div class="sdocs-sidebar-header">' + brandHtml({
       id: options.brandId,
       responsive: options.responsiveBrand,
-    }) + '<nav class="sdocs-sidebar-nav' + (options.navClass ? ' ' + options.navClass : '') +
+    }) + '<button class="sdocs-sidebar-collapse-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">' +
+      '<span class="sdocs-sidebar-rail-mark" aria-hidden="true">SD</span>' +
+      '<svg class="sdocs-sidebar-collapse-icon" viewBox="0 0 24 24" aria-hidden="true">' +
+      '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg>' +
+      '</button></div><nav class="sdocs-sidebar-nav' + (options.navClass ? ' ' + options.navClass : '') +
       '" aria-label="SmallDocs navigation">' + (options.primaryHtml || '') +
       supportingSectionsHtml({ idPrefix: options.idPrefix, rowClass: options.rowClass }) +
       '</nav></div><footer class="sdocs-sidebar-footer">' + footerInnerHtml(footerOptions) + '</footer>';
@@ -167,6 +172,10 @@
         accountSettings.setAttribute('aria-current', 'page');
       }
     }
+    Array.from(element.querySelectorAll('.sdocs-sidebar-top-row:not([data-rail-label])')).forEach(function (row) {
+      var label = row.querySelector('span');
+      if (label) row.setAttribute('data-rail-label', label.textContent.trim());
+    });
     return element;
   }
 
@@ -259,6 +268,74 @@
     return { setOpen: setOpen };
   }
 
+  function bindDesktopRail(options) {
+    options = options || {};
+    var body = options.body || document.body;
+    var sidebar = options.sidebar;
+    if (!sidebar) return null;
+    var toggle = sidebar.querySelector('.sdocs-sidebar-collapse-toggle');
+    if (!toggle) return null;
+    var compactBreakpoint = options.compactBreakpoint || 950;
+    var mobileBreakpoint = options.mobileBreakpoint || 768;
+    var manualState = null;
+
+    function isMobile() {
+      return window.matchMedia('(max-width: ' + mobileBreakpoint + 'px)').matches;
+    }
+
+    function isCompact() {
+      return window.matchMedia('(max-width: ' + compactBreakpoint + 'px)').matches;
+    }
+
+    function setCollapsed(collapsed, restoreFocus) {
+      collapsed = Boolean(collapsed) && !isMobile();
+      if (collapsed) {
+        Array.from(sidebar.querySelectorAll('.sdocs-sidebar-section.is-expanded')).forEach(function (section) {
+          setExpanded(section, false);
+        });
+        Array.from(sidebar.querySelectorAll('.sdocs-sidebar-library-subsection.is-expanded')).forEach(function (section) {
+          section.classList.remove('is-expanded');
+          var trigger = section.querySelector(':scope > .sdocs-sidebar-library-toggle');
+          if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        });
+      }
+      body.classList.toggle('sdocs-sidebar-collapsed', collapsed);
+      sidebar.setAttribute('data-sidebar-collapsed', collapsed ? 'true' : 'false');
+      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      toggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      if (restoreFocus) toggle.focus();
+    }
+
+    function syncToViewport() {
+      if (isMobile()) {
+        setCollapsed(false, false);
+      } else if (manualState) {
+        setCollapsed(manualState === 'collapsed', false);
+      } else {
+        setCollapsed(isCompact(), false);
+      }
+    }
+
+    toggle.addEventListener('click', function () {
+      var shouldCollapse = !body.classList.contains('sdocs-sidebar-collapsed');
+      manualState = shouldCollapse ? 'collapsed' : 'expanded';
+      setCollapsed(shouldCollapse, true);
+    });
+
+    sidebar.addEventListener('click', function (event) {
+      if (!body.classList.contains('sdocs-sidebar-collapsed')) return;
+      if (event.target.closest('.sdocs-sidebar-collapse-toggle')) return;
+      var interactive = event.target.closest('a, button');
+      if (interactive && interactive.matches('a')) event.preventDefault();
+      manualState = 'expanded';
+      setCollapsed(false, false);
+    });
+
+    window.addEventListener('resize', syncToViewport);
+    syncToViewport();
+    return { setCollapsed: setCollapsed, syncToViewport: syncToViewport };
+  }
+
   function hydrate(root) {
     root = root || document;
     Array.from(root.querySelectorAll('[data-sdocs-sidebar-shell]')).forEach(function (element) {
@@ -292,6 +369,7 @@
   exports.setExpanded = setExpanded;
   exports.bindExpandableSections = bindExpandableSections;
   exports.bindMobileDrawer = bindMobileDrawer;
+  exports.bindDesktopRail = bindDesktopRail;
   exports.hydrate = hydrate;
 })(typeof module !== 'undefined' && module.exports
   ? module.exports : (window.SDocsSidebarShared = {}));

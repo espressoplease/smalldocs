@@ -136,12 +136,13 @@ body {
    SITE SIDEBAR
 ═══════════════════════════════════════════════════ */
 #_sd_sidebar {
-  flex: 0 0 var(--sdocs-sidebar-width);
+  flex: 0 0 var(--sdocs-sidebar-current-width);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   position: relative;
   z-index: 20;
+  transition: flex-basis .3s cubic-bezier(.4,0,.2,1);
 }
 #_sd_sidebar .sdocs-short-link-only { display: none; }
 html.sdocs-short-link-visit #_sd_sidebar .sdocs-sidebar-section.sdocs-short-link-only { display: block; }

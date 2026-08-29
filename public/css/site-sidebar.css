@@ -1,6 +1,12 @@
 body.sdocs-site-shell {
   background: #fff;
-  padding-left: var(--sdocs-sidebar-width);
+  padding-left: var(--sdocs-sidebar-current-width);
+}
+
+body.sdocs-site-shell.sdocs-sidebar-ready {
+  transition: padding-left .3s cubic-bezier(.4,0,.2,1),
+              background-color .2s ease,
+              color .2s ease;
 }
 
 body.sdocs-site-shell > .topbar,
@@ -30,8 +36,25 @@ body.sdocs-site-shell .library-onboarding-nav {
   body.sdocs-site-shell { background: var(--bg, #1c1a17); }
 }
 
-@media (max-width: 950px) {
+@media (max-width: 768px) {
   body.sdocs-site-shell { padding: 44px 0 0; }
+
+  body.sdocs-site-shell::after {
+    content: '';
+    position: fixed;
+    inset: 44px 0 0;
+    z-index: 39;
+    background: rgba(28,25,23,.14);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .2s ease, visibility 0s linear .2s;
+  }
+  body.sdocs-site-shell.sdocs-site-menu-open::after {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
+  }
 
   .sdocs-site-mobilebar {
     position: fixed;
@@ -60,13 +83,15 @@ body.sdocs-site-shell .library-onboarding-nav {
   }
 
   .sdocs-site-mobilebar-menu {
+    order: -1;
     width: 44px;
     height: 43px;
     display: grid;
     flex: 0 0 44px;
     place-items: center;
     border: 0;
-    border-left: 1px solid var(--border-subtle, var(--border, #ddd9d3));
+    border-right: 1px solid var(--border-subtle, var(--border, #ddd9d3));
+    border-left: 0;
     background: var(--bg-input, var(--surface, #fff));
     color: var(--text, #1c1917);
     cursor: pointer;
@@ -75,8 +100,9 @@ body.sdocs-site-shell .library-onboarding-nav {
   .sdocs-site-mobilebar-menu svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 
   .sdocs-site-sidebar {
-    width: min(100vw, 320px);
-    padding-top: 27px;
+    top: 44px;
+    width: min(320px, calc(100vw - 32px));
+    padding-top: 18px;
     transform: translateX(-101%);
     transition: transform .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
     visibility: hidden;
@@ -84,6 +110,7 @@ body.sdocs-site-shell .library-onboarding-nav {
 
   body.sdocs-site-menu-open { overflow: hidden; }
   body.sdocs-site-menu-open .sdocs-site-sidebar { transform: translateX(0); visibility: visible; }
+  .sdocs-site-sidebar .sdocs-sidebar-header { display: none; }
 }
 
 @media (max-width: 650px) {

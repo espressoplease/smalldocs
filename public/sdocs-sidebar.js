@@ -441,7 +441,7 @@ SharedSidebar.bindMobileDrawer({
   openClass: 'sdocs-mobile-nav-open',
   openLabel: 'Open SmallDocs menu',
   closeLabel: 'Close SmallDocs menu',
-  breakpoint: 950,
+  breakpoint: 768,
   backgrounds: mobileBackground,
 });
 
@@ -453,6 +453,13 @@ SharedSidebar.bindExpandableSections(mobileSidebar, {
       loadCloudLibrary();
     }
   },
+});
+
+SharedSidebar.bindDesktopRail({
+  body: document.body,
+  sidebar: mobileSidebar,
+  compactBreakpoint: 950,
+  mobileBreakpoint: 768,
 });
 
 document.querySelectorAll('.sdocs-sidebar-library-toggle').forEach(function (trigger) {

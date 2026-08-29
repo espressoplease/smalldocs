@@ -7,61 +7,6 @@
    variants. Below 768px the whole bar is hidden (see the mobile block
    below). Validated headlessly in test/footer-fit.spec.js. */
 
-/* At compact desktop widths the site menu becomes an overlay, while the
-   document keeps the desktop reading layout and its full width. */
-@media (min-width: 769px) and (max-width: 950px) {
-  #_sd_sidebar {
-    width: min(320px, 100vw);
-    height: calc(100dvh - var(--ui-toolbar-height));
-    flex: none;
-    position: fixed;
-    top: var(--ui-toolbar-height);
-    right: auto;
-    bottom: 0;
-    left: 0;
-    z-index: 100;
-    overflow-x: hidden;
-    overflow-y: auto;
-    visibility: hidden;
-    transform: translateX(-101%);
-    box-shadow: 12px 0 30px rgba(28,25,23,.12);
-    transition: transform .3s cubic-bezier(.4,0,.2,1),
-                visibility .3s cubic-bezier(.4,0,.2,1);
-  }
-  body.sdocs-mobile-nav-open { overflow: hidden; }
-  body.sdocs-mobile-nav-open #_sd_sidebar {
-    visibility: visible;
-    transform: translateX(0);
-  }
-  #_sd_left-toolbar { padding-right: 0; }
-  .sdocs-mobile-toolbar-scroll {
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-  .sdocs-mobile-menu-button {
-    width: var(--ui-toolbar-height);
-    height: var(--ui-toolbar-height);
-    flex: 0 0 var(--ui-toolbar-height);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: 0;
-    border-left: 1px solid var(--border-subtle);
-    background: var(--bg-input);
-    color: var(--text-2);
-    cursor: pointer;
-  }
-  .sdocs-mobile-menu-button:hover { background: var(--bg-hover); color: var(--text); }
-  .sdocs-mobile-menu-button:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: -3px;
-  }
-  .sdocs-mobile-menu-close { display: none; }
-  .sdocs-mobile-menu-button[aria-expanded="true"] .sdocs-mobile-menu-icon { display: none; }
-  .sdocs-mobile-menu-button[aria-expanded="true"] .sdocs-mobile-menu-close { display: block; }
-}
-
 /* ═══════════════════════════════════════════════════
    MOBILE
 ═══════════════════════════════════════════════════ */
@@ -69,9 +14,26 @@
   /* ── Make body the scroll container (iOS tap-to-top) ── */
   body { overflow: visible; height: auto; }
   #_sd_main { flex-direction: column; overflow: visible; }
-  #_sd_left { min-height: 0; overflow: visible; }
+  #_sd_left { min-height: 100dvh; overflow: visible; }
   #_sd_content-area { overflow: visible; }
   html { scroll-padding-top: 44px; }
+
+  body.sdocs-reader-shell::after {
+    content: '';
+    position: fixed;
+    inset: 44px 0 0;
+    z-index: 99;
+    background: rgba(28,25,23,.14);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .2s ease, visibility 0s linear .2s;
+  }
+  body.sdocs-reader-shell.sdocs-mobile-nav-open::after {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
+  }
 
   /* iOS Safari zooms the page when a focused text control is below 16px. */
   textarea,
@@ -84,7 +46,7 @@
 
   /* Site navigation opens over the document from the fixed menu control. */
   #_sd_sidebar {
-    width: 100%;
+    width: min(320px, calc(100vw - 32px));
     height: calc(100dvh - 44px);
     flex: none;
     padding: 18px 14px 16px;
@@ -93,14 +55,14 @@
     overflow-y: auto;
     position: fixed;
     top: 44px;
-    right: 0;
+    right: auto;
     bottom: 0;
     left: 0;
     z-index: 100;
     background: var(--bg-input);
     opacity: 0;
     visibility: hidden;
-    transform: translateX(100%);
+    transform: translateX(-101%);
     pointer-events: none;
     transition: transform .3s cubic-bezier(.4,0,.2,1),
                 opacity .2s ease,
@@ -121,7 +83,7 @@
     align-items: stretch;
     gap: 8px;
   }
-  #_sd_sidebar > .sdocs-sidebar-main > #_sd_toolbar-brand { display: none; }
+  #_sd_sidebar .sdocs-sidebar-header { display: none; }
   .sdocs-sidebar-footer { display: flex; }
   .toolbar-brand-full { display: none; }
   .toolbar-brand-short { display: inline; font-size: 13px; font-weight: 600; }
@@ -184,6 +146,7 @@
   }
   .sdocs-mobile-toolbar-scroll > .toggle-group { flex: 0 0 auto; }
   .sdocs-mobile-menu-button {
+    order: -1;
     width: 44px;
     height: 43px;
     flex: 0 0 44px;
@@ -192,7 +155,7 @@
     justify-content: center;
     padding: 0;
     border: 0;
-    border-left: 1px solid var(--border-subtle);
+    border-right: 1px solid var(--border-subtle);
     background: var(--bg-input);
     color: var(--text-2);
     cursor: pointer;
