@@ -226,134 +226,24 @@
 })();
 
 // Mobile top header -------------------------------------------------------
-// Keep the page on normal window scrolling. The header is fixed while fully
-// visible or hidden, then temporarily anchored to the document while it moves
-// between those states. The movement therefore follows the scroll gesture and
-// does not depend on a viewport-height calculation or a sticky scrollport.
 (function () {
   if (typeof window === 'undefined' || !window.document) return;
 
   var S = window.SDocs = window.SDocs || {};
   var header = document.getElementById('_sd_mobile-header');
-  if (!header) return;
+  var scrollHeader = window.SDocsScrollHeader;
+  if (!header || !scrollHeader) return;
 
-  var mobile = window.matchMedia('(max-width: 768px)');
-  var state = 'visible';
-  var lastScrollY = Math.max(0, window.scrollY || 0);
-  var frame = null;
-  var modePinUntil = 0;
-
-  function setState(next) {
-    state = next;
-    header.setAttribute('data-mobile-header-state', next);
-  }
-
-  function setFixed(top, next) {
-    header.style.position = 'fixed';
-    header.style.top = Math.round(top) + 'px';
-    header.style.left = '0';
-    setState(next);
-  }
-
-  function setDocumentPosition(top) {
-    header.style.position = 'absolute';
-    header.style.top = Math.round(top) + 'px';
-    header.style.left = '0';
-    setState('moving');
-  }
-
-  function clearDesktopState() {
-    header.style.removeProperty('position');
-    header.style.removeProperty('top');
-    header.style.removeProperty('left');
-    setState('visible');
-  }
-
-  function pinsHeader() {
-    return Date.now() < modePinUntil ||
-      document.body.classList.contains('sdocs-mobile-nav-open') ||
-      document.body.classList.contains('style-mode') ||
-      document.body.classList.contains('export-mode') ||
-      document.body.classList.contains('info-mode');
-  }
-
-  function reveal() {
-    lastScrollY = Math.max(0, window.scrollY || 0);
-    if (!mobile.matches) {
-      clearDesktopState();
-      return;
-    }
-    setFixed(0, 'visible');
-  }
-
-  function pinFor(duration) {
-    modePinUntil = Date.now() + Math.max(0, duration || 0);
-    reveal();
-  }
-
-  function update() {
-    frame = null;
-    if (!mobile.matches) {
-      clearDesktopState();
-      lastScrollY = Math.max(0, window.scrollY || 0);
-      return;
-    }
-
-    var scrollY = Math.max(0, window.scrollY || 0);
-    var delta = scrollY - lastScrollY;
-    var height = header.getBoundingClientRect().height || 44;
-
-    if (scrollY <= 0 || pinsHeader()) {
-      setFixed(0, 'visible');
-      lastScrollY = scrollY;
-      return;
-    }
-
-    if (state === 'moving') {
-      var movingRect = header.getBoundingClientRect();
-      if (movingRect.top >= 0) setFixed(0, 'visible');
-      else if (movingRect.bottom <= 0) setFixed(-height, 'hidden');
-    }
-
-    if (delta > 0 && state === 'visible') {
-      var visibleRect = header.getBoundingClientRect();
-      setDocumentPosition(scrollY + visibleRect.top);
-    } else if (delta < 0 && state === 'hidden') {
-      var hiddenRect = header.getBoundingClientRect();
-      setDocumentPosition(scrollY + hiddenRect.top);
-    }
-
-    lastScrollY = scrollY;
-  }
-
-  function scheduleUpdate() {
-    if (frame != null) return;
-    frame = window.requestAnimationFrame(update);
-  }
-
-  function handleBreakpoint() {
-    lastScrollY = Math.max(0, window.scrollY || 0);
-    if (mobile.matches) setFixed(0, 'visible');
-    else clearDesktopState();
-  }
-
-  window.addEventListener('scroll', scheduleUpdate, { passive: true });
-  window.addEventListener('pageshow', reveal);
-  if (mobile.addEventListener) mobile.addEventListener('change', handleBreakpoint);
-  else mobile.addListener(handleBreakpoint);
-
-  new MutationObserver(function () {
-    if (mobile.matches && pinsHeader()) reveal();
-  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
-
-  if (window.ResizeObserver) {
-    new ResizeObserver(function () {
-      if (mobile.matches && state === 'hidden') {
-        setFixed(-(header.getBoundingClientRect().height || 44), 'hidden');
-      }
-    }).observe(header);
-  }
-
-  S.mobileHeader = { reveal: reveal, refresh: scheduleUpdate, pinFor: pinFor };
-  handleBreakpoint();
+  S.mobileHeader = scrollHeader.bind({
+    header: header,
+    spacer: document.getElementById('_sd_mobile-header-spacer'),
+    breakpoint: 768,
+    observeTarget: document.body,
+    isPinned: function () {
+      return document.body.classList.contains('sdocs-mobile-nav-open') ||
+        document.body.classList.contains('style-mode') ||
+        document.body.classList.contains('export-mode') ||
+        document.body.classList.contains('info-mode');
+    },
+  });
 })();

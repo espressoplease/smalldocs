@@ -1508,6 +1508,7 @@ footer {
 </footer>
 
 <script src="/public/sdocs-cli-setup.js"></script>
+<script src="/public/sdocs-scroll-header.js"></script>
 <script>
 // Log a landing-page visit, tagged 'home', so analytics can separate homepage
 // traffic from in-app document usage. The marketing page otherwise reports
@@ -1528,6 +1529,11 @@ footer {
 </script>
 <script>
 const nav = document.getElementById('nav');
+const mobileHeader = window.SDocsScrollHeader && window.SDocsScrollHeader.bind({
+  header: nav,
+  breakpoint: 768,
+  isPinned: () => !!nav.querySelector('details[open]'),
+});
 const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 0);
 window.addEventListener('scroll', onScroll, { passive: true });
 onScroll();
@@ -1538,6 +1544,7 @@ navigationMenus.forEach((menu) => {
   const button = menu.querySelector(':scope > summary');
   menu.addEventListener('toggle', () => {
     if (button) button.setAttribute('aria-expanded', String(menu.open));
+    if (menu.open && mobileHeader) mobileHeader.reveal();
     if (!menu.open) return;
     navigationMenus.forEach((other) => { if (other !== menu) other.open = false; });
   });

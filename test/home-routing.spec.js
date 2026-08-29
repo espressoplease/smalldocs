@@ -9,22 +9,33 @@ test('root stays on the homepage for a signed-out browser without a Local Librar
   await expect(page.locator('#install')).toBeVisible();
 });
 
-test('mobile homepage navigation remains sticky without changing positioning mode', async ({ page }) => {
+test('mobile homepage navigation follows window scroll while desktop stays sticky', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/home');
+  await page.addStyleTag({ content: 'html { scroll-behavior: auto !important; }' });
 
   const nav = page.locator('#nav');
-  await expect(nav).toHaveCSS('position', 'sticky');
+  await expect(nav).toHaveCSS('position', 'fixed');
+  await expect(nav).toHaveAttribute('data-mobile-header-state', 'visible');
   await expect(nav).not.toHaveClass(/scrolled/);
 
-  await page.evaluate(() => window.scrollTo(0, 320));
+  await page.evaluate(() => window.scrollTo(0, 100));
   await expect(nav).toHaveClass(/scrolled/);
-  await expect(nav).toHaveCSS('position', 'sticky');
+  await expect(nav).toHaveAttribute('data-mobile-header-state', 'moving');
+  await page.evaluate(() => window.scrollTo(0, 320));
+  await expect(nav).toHaveAttribute('data-mobile-header-state', 'hidden');
+  const hiddenNav = await nav.boundingBox();
+  expect(Math.round(hiddenNav.y)).toBe(-Math.round(hiddenNav.height));
+
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await expect(nav).toHaveAttribute('data-mobile-header-state', 'moving');
+  await page.evaluate(() => window.scrollTo(0, 220));
+  await expect(nav).toHaveAttribute('data-mobile-header-state', 'visible');
   expect(Math.round((await nav.boundingBox()).y)).toBe(0);
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(nav).not.toHaveClass(/scrolled/);
-  await expect(nav).toHaveCSS('position', 'sticky');
+  await expect(nav).toHaveCSS('position', 'fixed');
   const geometry = await page.evaluate(() => {
     const bar = document.getElementById('nav').getBoundingClientRect();
     const hero = document.querySelector('.hero').getBoundingClientRect();
@@ -32,9 +43,13 @@ test('mobile homepage navigation remains sticky without changing positioning mod
   });
   expect(geometry.barTop).toBe(0);
   expect(geometry.heroTop).toBeGreaterThanOrEqual(geometry.barBottom);
+
+  await page.setViewportSize({ width: 900, height: 844 });
+  await expect(nav).toHaveCSS('position', 'sticky');
+  await expect(page.locator('.sdocs-scroll-header-spacer')).toBeHidden();
 });
 
-test('independent public page shells avoid mobile viewport minimums', async ({ page }) => {
+test('independent public page shells share mobile scroll headers without changing desktop positioning', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
 
   const surfaces = [
@@ -48,10 +63,21 @@ test('independent public page shells avoid mobile viewport minimums', async ({ p
 
   for (const surface of surfaces) {
     await page.goto(surface.url);
-    await expect(page.locator(surface.header)).toHaveCSS('position', 'sticky');
+    await expect(page.locator(surface.header)).toHaveCSS('position', 'fixed');
+    await expect(page.locator(surface.header)).toHaveAttribute('data-mobile-header-state', 'visible');
+    await expect(page.locator('.sdocs-scroll-header-spacer')).toBeVisible();
     await expect(page.locator(surface.shell)).toHaveCSS('min-height', '0px');
   }
 
+  await page.setViewportSize({ width: 1000, height: 844 });
+  for (const surface of surfaces) {
+    await page.goto(surface.url);
+    const desktopPosition = surface.url === '/developers' ? 'fixed' : 'sticky';
+    await expect(page.locator(surface.header)).toHaveCSS('position', desktopPosition);
+    await expect(page.locator('.sdocs-scroll-header-spacer')).toBeHidden();
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
   for (const url of ['/cloud/sign-in', '/cloud/invite']) {
     await page.goto(url);
     await expect(page.locator('body')).toHaveCSS('min-height', '0px');

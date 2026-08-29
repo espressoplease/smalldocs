@@ -63,9 +63,11 @@ body.sdocs-site-shell .library-onboarding-nav {
   }
 
   .sdocs-site-mobilebar {
-    position: sticky;
+    position: fixed;
     inset: auto;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 50;
     height: 44px;
     display: flex;

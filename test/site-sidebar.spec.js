@@ -250,20 +250,30 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   const mobileBar = page.locator('.sdocs-site-mobilebar');
   await expect(page.locator('body')).toHaveCSS('padding-top', '0px');
   await expect(page.locator('body')).toHaveCSS('min-height', '0px');
-  await expect(mobileBar).toHaveCSS('position', 'sticky');
+  await expect(mobileBar).toHaveCSS('position', 'fixed');
+  await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'visible');
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
 
   await page.evaluate(() => {
     const spacer = document.createElement('div');
     spacer.style.height = '1600px';
     document.body.appendChild(spacer);
-    window.scrollTo(0, 320);
+    window.scrollTo(0, 100);
   });
+  await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'moving');
+  await page.evaluate(() => window.scrollTo(0, 320));
   const initialScroll = await page.evaluate(() => window.scrollY);
   expect(initialScroll).toBeGreaterThan(0);
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
-  await expect(mobileBar).toHaveCSS('position', 'sticky');
+  await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'hidden');
+  expect(Math.round((await mobileBar.boundingBox()).y)).toBe(-44);
+
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'moving');
+  await page.evaluate(() => window.scrollTo(0, 220));
+  await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'visible');
   expect(Math.round((await mobileBar.boundingBox()).y)).toBe(0);
+  const drawerScroll = await page.evaluate(() => window.scrollY);
 
   const menu = page.locator('.sdocs-site-mobilebar-menu');
   await expect(menu).toBeVisible();
@@ -274,7 +284,7 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   await expect(page.locator('#_sd_site_sidebar')).toBeVisible();
   await expect(page.locator('body')).toHaveCSS('overflow', 'visible');
   await expect(page.locator('#_sd_site_sidebar')).toHaveCSS('overscroll-behavior', 'contain');
-  expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
+  expect(await page.evaluate(() => window.scrollY)).toBe(drawerScroll);
   const backdrop = await page.locator('body').evaluate(element => ({
     pointerEvents: getComputedStyle(element, '::after').pointerEvents,
     touchAction: getComputedStyle(element, '::after').touchAction,
@@ -300,7 +310,7 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   await expect(menu).toHaveAttribute('aria-label', 'Open menu');
   await expect(menu.locator('.sdocs-site-mobilebar-menu-icon')).toBeVisible();
   await expect(menu.locator('.sdocs-site-mobilebar-close-icon')).toBeHidden();
-  expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
+  expect(await page.evaluate(() => window.scrollY)).toBe(drawerScroll);
 
   const geometry = await page.evaluate(() => ({
     menuLeft: Math.round(document.querySelector('.sdocs-site-mobilebar-menu').getBoundingClientRect().left),
@@ -312,7 +322,7 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
-  await expect(mobileBar).toHaveCSS('position', 'sticky');
+  await expect(mobileBar).toHaveCSS('position', 'fixed');
   const topGeometry = await page.evaluate(() => {
     const bar = document.querySelector('.sdocs-site-mobilebar').getBoundingClientRect();
     const content = document.querySelector('.content').getBoundingClientRect();

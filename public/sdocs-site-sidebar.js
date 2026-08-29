@@ -57,6 +57,15 @@
   });
 
   var menu = mobile.querySelector('.sdocs-site-mobilebar-menu');
+  var scrollHeader = window.SDocsScrollHeader;
+  var mobileHeader = scrollHeader && scrollHeader.bind({
+    header: mobile,
+    breakpoint: 768,
+    observeTarget: body,
+    isPinned: function () {
+      return body.classList.contains('sdocs-site-menu-open');
+    },
+  });
   shared.bindMobileDrawer({
     body: body,
     sidebar: aside,
@@ -69,4 +78,10 @@
       return element !== aside && element !== mobile;
     }),
   });
+
+  if (menu && mobileHeader) {
+    menu.addEventListener('click', function () {
+      mobileHeader.pinFor(350);
+    });
+  }
 })();
