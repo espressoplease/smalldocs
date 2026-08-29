@@ -1053,6 +1053,35 @@ INHERITED DESIGN
   visual differences. The bundled Inter faces load inside the component.
   Load other webfonts inside the component when their exact face is required.
 
+VISUAL DIRECTION
+  Let the tool's purpose determine its layout. Start with semantic HTML and the
+  inherited design, then add treatment where it clarifies hierarchy, grouping,
+  state, or interaction.
+
+  - Try a clear page, list, table, or form before turning every region into a
+    dashboard card. Use a canvas or stage when the interaction is spatial.
+    Whitespace and dividers are often enough to structure repeated rows.
+    For repeated records, try one list with border-bottom separators before
+    wrapping every record in its own card.
+  - Reserve a bordered or raised surface for content that needs to read as a
+    separate group, selection, or interaction. Avoid stacking several levels
+    of rounded containers only to create hierarchy.
+  - Keep a consistent shape language and begin with the inherited radius.
+    Pills suit compact statuses and category choices; ordinary actions and
+    metrics do not need to become pills.
+  - For an ordinary document tool, leave the inherited design tokens unchanged
+    unless the brief calls for a distinct visual direction. Add semantic colour
+    when it carries meaning. Gradients, glows, and shadows should support the
+    subject or interaction rather than decorate empty space.
+  - Accent rails, badges, uppercase eyebrows, and wide letter spacing are
+    conspicuous patterns. Use them when they communicate something specific,
+    not as automatic decoration. A title does not also need an eyebrow unless
+    that label adds context the title does not contain.
+  - Match density to the task. Repeated controls should read as efficient rows;
+    the primary result or working area should receive the strongest emphasis.
+    A few totals can often share one summary line or bar instead of separate
+    metric cards.
+
 SIZING AND RESPONSIVE LAYOUT
   The component owns its inline height. SmallDocs measures the complete
   document and follows that height without imposing a minimum or maximum. The
