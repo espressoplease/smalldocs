@@ -63,7 +63,7 @@ test('Library and reader sidebars share capability and footer content', async ({
         .map(link => ({ label: link.textContent, href: link.getAttribute('href') })),
       footer: Array.from(element.querySelectorAll('.sdocs-sidebar-footer-link'))
         .map(link => link.textContent.trim()),
-      legal: element.querySelector('.sdocs-sidebar-legal').textContent.trim(),
+      legal: element.querySelector('.sdocs-sidebar-legal')?.textContent.trim() || '',
       footerBottom: Math.round(element.querySelector('.sdocs-sidebar-footer').getBoundingClientRect().bottom),
       sidebarBottom: Math.round(element.getBoundingClientRect().bottom),
       contract: (() => {
@@ -77,26 +77,27 @@ test('Library and reader sidebars share capability and footer content', async ({
         const footerLink = element.querySelector('.sdocs-sidebar-footer-link');
         const footerIcon = footerLink.querySelector('svg');
         const legal = element.querySelector('.sdocs-sidebar-legal');
-        const legalLink = legal.querySelector('a');
+        const legalLink = legal && legal.querySelector('a');
         const capabilityAction = element.querySelector('[data-sdocs-shared-capabilities] a');
         const capabilityItem = element.querySelector('[data-sdocs-shared-capabilities] a:nth-child(2)');
         const bounds = element.getBoundingClientRect();
         const brandBounds = brand.getBoundingClientRect();
         return {
           sidebar: styleValues(element, ['width', 'paddingTop', 'paddingRight', 'paddingBottom',
-            'paddingLeft', 'fontSize']),
+            'paddingLeft', 'fontFamily', 'fontSize', 'fontWeight']),
           row: styleValues(row, ['height', 'paddingLeft', 'paddingRight', 'columnGap', 'fontSize',
-            'borderRadius']),
+            'fontFamily', 'fontWeight', 'borderRadius']),
           footerLink: styleValues(footerLink, ['minHeight', 'paddingLeft', 'paddingRight',
-            'columnGap', 'fontSize', 'borderRadius']),
+            'columnGap', 'fontFamily', 'fontSize', 'fontWeight', 'borderRadius']),
           footerIcon: styleValues(footerIcon, ['width', 'height', 'fill', 'stroke', 'strokeWidth',
             'strokeLinecap', 'strokeLinejoin']),
-          legal: styleValues(legal, ['fontSize']),
-          legalLink: styleValues(legalLink, ['textDecorationLine']),
+          legal: legal ? styleValues(legal, ['fontSize']) : null,
+          legalLink: legalLink ? styleValues(legalLink, ['textDecorationLine']) : null,
           capabilityAction: styleValues(capabilityAction, ['width', 'minHeight', 'paddingTop',
             'paddingRight', 'paddingBottom', 'paddingLeft', 'columnGap', 'borderRadius']),
           capabilityItem: styleValues(capabilityItem, ['width', 'minHeight', 'paddingTop',
-            'paddingRight', 'paddingBottom', 'paddingLeft', 'columnGap', 'borderRadius']),
+            'paddingRight', 'paddingBottom', 'paddingLeft', 'columnGap', 'fontFamily',
+            'fontSize', 'fontWeight', 'borderRadius']),
           brandOffset: {
             top: Math.round(brandBounds.top - bounds.top),
             left: Math.round(brandBounds.left - bounds.left),
@@ -107,10 +108,12 @@ test('Library and reader sidebars share capability and footer content', async ({
   }
 
   const library = await sharedContent('/public/library/library.html?demo=1', '#_sd_site_sidebar');
+  const settings = await sharedContent('/public/cloud-admin.html', '#_sd_site_sidebar');
   const reader = await sharedContent('/docs?sidebar=preview', '#_sd_sidebar');
   expect(library.renderer).toBe('shared');
   expect(reader.renderer).toBe('shared');
   expect(library.capabilities).toEqual(reader.capabilities);
+  expect(settings.capabilities).toEqual(reader.capabilities);
   expect(reader.capabilities[0]).toEqual({ label: 'View homepage', href: '/home' });
   expect(library.footer).toEqual(reader.footer);
   expect(library.footer).toEqual(['Sign in', 'Private by design', 'Source on GitHub']);
@@ -118,7 +121,30 @@ test('Library and reader sidebars share capability and footer content', async ({
   expect(reader.legal).toBe(library.legal);
   await expect(page.locator('#_sd_sidebar').getByText('For business', { exact: true })).toHaveCount(0);
   expect(library.contract).toEqual(reader.contract);
+  expect(settings.contract.sidebar).toEqual(reader.contract.sidebar);
+  expect(settings.contract.row).toEqual(reader.contract.row);
+  expect(settings.contract.capabilityItem).toEqual(reader.contract.capabilityItem);
+  expect(settings.contract.footerLink).toMatchObject({
+    fontFamily: reader.contract.footerLink.fontFamily,
+    fontSize: reader.contract.footerLink.fontSize,
+    fontWeight: reader.contract.footerLink.fontWeight,
+  });
   expect(reader.contract.sidebar.width).toBe('224px');
+  expect(reader.contract.sidebar).toMatchObject({
+    fontFamily: '"SDocs Sidebar Inter", system-ui, sans-serif',
+    fontSize: '13px',
+    fontWeight: '400',
+  });
+  expect(reader.contract.row).toMatchObject({
+    fontFamily: '"SDocs Sidebar Inter", system-ui, sans-serif',
+    fontSize: '13px',
+    fontWeight: '500',
+  });
+  expect(reader.contract.footerLink).toMatchObject({
+    fontFamily: '"SDocs Sidebar Inter", system-ui, sans-serif',
+    fontSize: '13px',
+    fontWeight: '500',
+  });
   expect(reader.contract.footerIcon).toMatchObject({
     width: '15px',
     height: '15px',
@@ -145,6 +171,9 @@ test('Library and reader sidebars share capability and footer content', async ({
     paddingBottom: '5px',
     paddingLeft: '10px',
     columnGap: '6px',
+    fontFamily: '"SDocs Sidebar Inter", system-ui, sans-serif',
+    fontSize: '13px',
+    fontWeight: '500',
     borderRadius: '4px',
   });
   expect(library.sidebarBottom - library.footerBottom).toBe(16);
@@ -185,9 +214,23 @@ test('shared footer uses acceptance state without another request', async ({ pag
   await expect(footer.locator('.sdocs-sidebar-legal')).toHaveCount(0);
 });
 
-test('mobile site navigation keeps the menu button fixed and hides Local library', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test('compact site navigation overlays content from 950px and hides Local library on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 950, height: 800 });
   await page.goto('/public/cloud.html');
+
+  const compactMenu = page.locator('.sdocs-site-mobilebar-menu');
+  const contentBefore = await page.locator('main.content').boundingBox();
+  await expect(compactMenu).toBeVisible();
+  await expect(page.locator('#_sd_site_sidebar')).toBeHidden();
+  await compactMenu.click();
+  await expect(page.locator('#_sd_site_sidebar')).toBeVisible();
+  await expect(page.locator('.sdocs-site-sidebar-local')).toBeVisible();
+  const contentAfter = await page.locator('main.content').boundingBox();
+  expect(Math.round(contentAfter.x)).toBe(Math.round(contentBefore.x));
+  expect(Math.round(contentAfter.width)).toBe(Math.round(contentBefore.width));
+  await page.keyboard.press('Escape');
+
+  await page.setViewportSize({ width: 390, height: 844 });
 
   const menu = page.locator('.sdocs-site-mobilebar-menu');
   await expect(menu).toBeVisible();

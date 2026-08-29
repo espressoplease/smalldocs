@@ -30,7 +30,7 @@ body.sdocs-site-shell .library-onboarding-nav {
   body.sdocs-site-shell { background: var(--bg, #1c1a17); }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 950px) {
   body.sdocs-site-shell { padding: 44px 0 0; }
 
   .sdocs-site-mobilebar {
@@ -59,9 +59,6 @@ body.sdocs-site-shell .library-onboarding-nav {
     text-decoration: none;
   }
 
-  .sdocs-site-mobilebar-brand-full { display: none; }
-  .sdocs-site-mobilebar-brand-short { display: inline; }
-
   .sdocs-site-mobilebar-menu {
     width: 44px;
     height: 43px;
@@ -78,7 +75,7 @@ body.sdocs-site-shell .library-onboarding-nav {
   .sdocs-site-mobilebar-menu svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 
   .sdocs-site-sidebar {
-    width: min(100vw, 360px);
+    width: min(100vw, 320px);
     padding-top: 27px;
     transform: translateX(-101%);
     transition: transform .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
@@ -87,6 +84,14 @@ body.sdocs-site-shell .library-onboarding-nav {
 
   body.sdocs-site-menu-open { overflow: hidden; }
   body.sdocs-site-menu-open .sdocs-site-sidebar { transform: translateX(0); visibility: visible; }
+}
+
+@media (max-width: 650px) {
+  .sdocs-site-mobilebar-brand-full { display: none; }
+  .sdocs-site-mobilebar-brand-short { display: inline; }
+}
+
+@media (max-width: 768px) {
   .sdocs-sidebar-shell .sdocs-site-sidebar-local { display: none; }
 }
 

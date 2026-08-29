@@ -180,10 +180,12 @@ module.exports = function(harness) {
         'root should show the canonical install command');
       assert.ok(r.body.includes('href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud"'),
         'Cloud-enabled root should expose the sign-in journey');
-      assert.ok(r.body.includes('class="btn-gh nav-cloud" href="/cloud"'),
-        'Cloud-enabled root should expose the Cloud product page beside sign-in');
-      assert.ok(r.body.includes('class="btn-gh nav-library-wide" href="/library"'),
-        'signed-out root should expose the local library on wide screens');
+      assert.ok(r.body.includes('class="nav-link" href="/cloud"'),
+        'Cloud-enabled root should expose the Cloud product page');
+      assert.ok(r.body.includes('class="btn-gh nav-cloud" href="#install"'),
+        'signed-out root should expose the install action');
+      assert.ok(r.body.includes('class="nav-menu-mobile-only" href="/library"'),
+        'signed-out root should expose the local library from the compact menu');
       assert.ok(!r.body.includes('href="/cloud/account" role="menuitem"'),
         'signed-out root should not expose account controls');
       assert.ok(!r.body.includes('action="/api/cloud/auth/logout"'),
@@ -1137,10 +1139,11 @@ module.exports = function(harness) {
       assert.strictEqual(homepage.headers.vary, 'Cookie');
       assert.ok(homepage.body.includes('var cloudAuthenticated = \'true\''),
         'signed-in root should route the browser to Cloud Library');
-      assert.ok(homepage.body.includes('class="btn-gh nav-cloud" href="/cloud"'),
-        'signed-in unpaid users should retain the Cloud purchase route');
+      assert.ok(homepage.body.includes('class="nav-link" href="/cloud"'),
+        'signed-in users should retain the Cloud route in the product navigation');
       assert.ok(homepage.body.includes('class="btn-gh" href="/library?scope=cloud"'),
         'signed-in users should get Cloud library as a primary action');
+      assert.ok(homepage.body.includes('Open library'));
       assert.ok(!homepage.body.includes('href="/cloud/sign-in?return='));
       assert.ok(homepage.body.includes('href="/cloud/admin" role="menuitem"'));
       assert.ok(!homepage.body.includes('href="/cloud/account" role="menuitem"'));
@@ -1244,8 +1247,8 @@ module.exports = function(harness) {
         provider: 'test', providerSubscriptionId: 'personal-http-test' });
 
       const activeHomepage = await get(BASE + '/', { Cookie: cloudCookie });
-      assert.ok(!activeHomepage.body.includes('class="btn-gh nav-cloud" href="/cloud"'),
-        'active Cloud users should not get a purchase action');
+      assert.ok(!activeHomepage.body.includes('class="btn-gh nav-cloud" href="#install"'),
+        'active Cloud users should not get the install action');
       assert.ok(activeHomepage.body.includes('class="btn-gh" href="/library?scope=cloud"'),
         'active Cloud users should retain the primary Cloud library action');
     });
@@ -2242,9 +2245,8 @@ module.exports = function(harness) {
         const home = await get(hiddenBase + '/');
         assert.strictEqual(home.status, 200);
         assert.ok(!home.body.includes('href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud"'));
-        assert.ok(!home.body.includes('class="btn-gh nav-cloud" href="/cloud"'));
+        assert.ok(!home.body.includes('class="nav-link" href="/cloud"'));
         assert.ok(home.body.includes('id="site-menu"'));
-        assert.ok(home.body.includes('class="btn-gh nav-library-wide" href="/library"'));
         assert.ok(home.body.includes('class="nav-menu-mobile-only" href="/library"'));
 
         const library = await get(hiddenBase + '/library');

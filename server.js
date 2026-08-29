@@ -994,16 +994,6 @@ function homepageNavLink(className, href, icon, label, attributes) {
     (attributes || '') + '>' + homepageNavIcon(icon) + label + '</a>';
 }
 
-function homepageHasActiveCloud(userId) {
-  if (!cloudStore || !cloudBilling) return false;
-  try {
-    return cloudStore.listWorkspaceMemberships(userId).some((membership) =>
-      cloudBilling.computeEntitlements(membership.id).access.write);
-  } catch (_) {
-    return false;
-  }
-}
-
 function homepageNavigation(req) {
   let authenticated = null;
   if (CLOUD_DEPLOYMENT.publicEnabled) {
@@ -1015,10 +1005,7 @@ function homepageNavigation(req) {
   let menuBefore = '';
   let menuAfter = '';
   if (authenticated) {
-    if (!homepageHasActiveCloud(authenticated.user.id)) {
-      actions.push(homepageNavLink('btn-gh nav-cloud', '/cloud', 'cloud', 'Cloud'));
-    }
-    actions.push(homepageNavLink('btn-gh', '/library?scope=cloud', 'library', 'Library'));
+    actions.push(homepageNavLink('btn-gh', '/library?scope=cloud', 'library', 'Open library'));
     menuBefore = homepageNavLink('', '/cloud/admin', 'settings', 'Cloud settings', ' role="menuitem"') +
       '<div class="nav-menu-separator" role="separator"></div>';
     menuAfter = '<div class="nav-menu-separator" role="separator"></div>' +
@@ -1026,13 +1013,12 @@ function homepageNavigation(req) {
       '<button type="submit" role="menuitem">' + homepageNavIcon('signOut') + 'Sign out</button></form>';
   } else {
     if (CLOUD_DEPLOYMENT.publicEnabled) {
-      actions.push(homepageNavLink('btn-gh nav-cloud', '/cloud', 'cloud', 'Cloud'));
-    }
-    actions.push(homepageNavLink('btn-gh nav-library-wide', '/library', 'library', 'Library'));
-    if (CLOUD_DEPLOYMENT.publicEnabled) {
-      actions.push(homepageNavLink('btn-gh',
+      actions.push(homepageNavLink('btn-gh nav-signin-wide',
         '/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud', 'signIn', 'Sign in'));
     }
+    actions.push('<a class="btn-gh nav-cloud" href="#install">' +
+      '<span class="nav-install-label-long">Install SmallDocs</span>' +
+      '<span class="nav-install-label-short">Install</span></a>');
     menuBefore = homepageNavLink('nav-menu-mobile-only', '/library', 'library', 'Library',
       ' role="menuitem"');
   }
@@ -1044,6 +1030,11 @@ function homepageNavigation(req) {
     menuAfter,
     substitutions: {
       '<!--__HOME_NAV_ACTIONS__-->': actions.join(''),
+      '<!--__HOME_NAV_MENU_CLASS__-->': authenticated ? 'nav-menu-account' : 'nav-menu-guest',
+      '<!--__HOME_NAV_CLOUD_LINK__-->': CLOUD_DEPLOYMENT.publicEnabled
+        ? '<a class="nav-link" href="/cloud">Cloud</a>' : '',
+      '<!--__HOME_NAV_CLOUD_MOBILE_LINK__-->': CLOUD_DEPLOYMENT.publicEnabled
+        ? '<a class="nav-menu-static-mobile" href="/cloud" role="menuitem">Cloud</a>' : '',
       '<!--__HOME_NAV_MENU_BEFORE__-->': menuBefore,
       '<!--__HOME_NAV_MENU_AFTER__-->': menuAfter,
     },
