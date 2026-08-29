@@ -507,6 +507,9 @@ async function beginAdd(event, accountId) {
     cloudSaveBlocked = false;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     clearLocalDocumentContext();
+    // Rebuild the base rows now that Cloud owns the document. This removes
+    // the duplicate local tag row before the Cloud row is inserted again.
+    if (S.renderFileInfoCard) S.renderFileInfoCard();
     try {
       if (S.updateDocumentLocationNow) await S.updateDocumentLocationNow();
     } catch (_) {
@@ -585,6 +588,9 @@ async function removeCloudDocument(event) {
     cloudState.permission = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     closeCloudPanel();
+    // The Markdown still carries its tags after leaving Cloud, so restore the
+    // ordinary tag row as part of the same transition.
+    if (S.renderFileInfoCard) S.renderFileInfoCard();
     if (S.updateDocumentLocationNow) await S.updateDocumentLocationNow();
     cloudState.status = 'Removed from Cloud. This copy is now local.';
     refreshRow();

@@ -704,7 +704,11 @@ function renderFileInfoCard() {
   // them editable. With no tags and no live bridge there is nothing to show
   // and nothing to do, so the row stays hidden rather than nagging the user
   // to start a bridge.
-  if (tagList.length || canEditTags) {
+  // A Cloud document stores the same tags in its encrypted Markdown and
+  // exposes them through the Cloud row below. Once Cloud is authoritative,
+  // rendering this local/YAML row as well presents one tag set twice.
+  var isCloudDocument = !!(S.cloudDocument && S.cloudDocument.id);
+  if (!isCloudDocument && (tagList.length || canEditTags)) {
     slots.push({
       type: 'tags', tags: tagList, canEdit: canEditTags,
       filePath: local.fullPath, showEditHint: false,

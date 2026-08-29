@@ -113,10 +113,14 @@ test('real Cloud document controls save, share, tag, and remove through account 
       ] } });
     if (path === '/api/cloud/v1/account/tags') return route.fulfill({ json: { ok: true,
       account_id: 'acct-1', tags: [{ tag: 'planning', count: 4 }] } });
-    if (path === '/api/cloud/v1/account/documents') return route.fulfill({ status: 201, json: {
-      ok: true, account: { id: 'acct-1', kind: 'team', name: 'SmallDocs' },
-      document: { id: 'doc-1', filename: 'sdoc.md', title: 'SmallDocs', tags,
-        current_revision_id: 'rev-1', revision_number: 1, workspace_id: 'acct-1' }, permission } });
+    if (path === '/api/cloud/v1/account/documents') {
+      const created = SDocYaml.parseFrontMatter(request.postDataJSON().markdown);
+      tags = Array.isArray(created.meta.tags) ? created.meta.tags.map(String) : [];
+      return route.fulfill({ status: 201, json: {
+        ok: true, account: { id: 'acct-1', kind: 'team', name: 'SmallDocs' },
+        document: { id: 'doc-1', filename: 'sdoc.md', title: 'SmallDocs', tags,
+          current_revision_id: 'rev-1', revision_number: 1, workspace_id: 'acct-1' }, permission } });
+    }
     if (path === '/api/cloud/v1/documents/doc-1/permission') {
       const body = request.postDataJSON();
       permission = Object.assign({}, permission, { mode: body.mode,
@@ -151,17 +155,26 @@ test('real Cloud document controls save, share, tag, and remove through account 
   await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
   await page.evaluate(() => {
     window.SDocs._isDefaultState = false;
+    window.SDocs.currentMeta.tags = ['local-one', 'local-two', 'local-three', 'local-four'];
     window.SDocs.currentBody += '\n\nLocal upload marker.';
     window.SDocs.syncAll('write');
+    window.SDocs.renderFileInfoCard();
   });
   await expect.poll(() => new URL(page.url()).hash).toContain('md=');
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
   await expect(page.locator('.sdoc-cloud-lab-add-link')).toBeVisible();
+  await expect(page.locator('.fic-row-tags .fic-tag-chip')).toHaveCount(4);
   await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/account')).toBe(true);
   await expect(page.locator('.fic-row-cloud')).not.toContainText('paid feature');
   await page.locator('.sdoc-cloud-lab-add-link').click();
   await expect(page.locator('.sdoc-cloud-lab-access')).toContainText('You');
+  await expect(page.locator('.fic-row-tags')).toHaveCount(0);
+  await expect(page.locator('.fic-row-cloud .sdoc-cloud-lab-tag')).toHaveCount(4);
+  await expect(page.locator('.fic-row-cloud .sdoc-cloud-lab-tag:visible')).toHaveCount(4);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('.fic-row-cloud .sdoc-cloud-lab-tag:visible')).toHaveCount(4);
+  await page.setViewportSize({ width: 1280, height: 720 });
   expect(calls.some(call => call.method === 'POST' &&
     call.path === '/api/cloud/v1/account/documents')).toBe(true);
   await expect.poll(() => page.url()).toContain('/docs?cloud-document=doc-1');
@@ -182,6 +195,8 @@ test('real Cloud document controls save, share, tag, and remove through account 
   await expect.poll(() => calls.filter(call =>
     call.path === '/api/cloud/v1/documents/doc-1/revisions').length).toBe(1);
   const createCall = calls.find(call => call.path === '/api/cloud/v1/account/documents');
+  expect(SDocYaml.parseFrontMatter(createCall.body.markdown).meta.tags)
+    .toEqual(['local-one', 'local-two', 'local-three', 'local-four']);
   const commentCall = calls.find(call =>
     call.path === '/api/cloud/v1/documents/doc-1/revisions');
   const savedComment = commentCall.body.markdown;
@@ -236,6 +251,8 @@ test('real Cloud document controls save, share, tag, and remove through account 
   await page.locator('.sdoc-cloud-lab-saved').click();
   releaseRemovalSave();
   await expect(page.locator('.sdoc-cloud-lab-add-link')).toBeVisible();
+  await expect(page.locator('.fic-row-tags .fic-tag-chip')).toHaveCount(5);
+  await expect(page.locator('.fic-row-cloud .sdoc-cloud-lab-tag')).toHaveCount(0);
   const finalRevisionIndex = calls.findLastIndex(call =>
     call.path === '/api/cloud/v1/documents/doc-1/revisions');
   const deleteIndex = calls.findIndex(call => call.method === 'DELETE' &&

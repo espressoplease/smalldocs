@@ -60,7 +60,7 @@ function initialiseTags() {
   if (state.tagsReady || !S.currentBody) return;
   var current = S.currentMeta && Array.isArray(S.currentMeta.tags)
     ? S.currentMeta.tags.map(String).filter(Boolean) : [];
-  state.tags = current.slice(0, 5);
+  state.tags = current.slice();
   state.tagsReady = true;
 }
 

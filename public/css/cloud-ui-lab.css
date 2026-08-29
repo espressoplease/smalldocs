@@ -535,7 +535,6 @@ body.cloud-lab-mode #_sd_cloud-lab-panel {
 }
 
 @media (max-width: 420px) {
-  .sdoc-cloud-lab-tag:nth-of-type(n+3) { display: none; }
   .sdoc-cloud-lab-suggestions { grid-template-columns: 1fr; }
   .sdoc-cloud-lab-panel-body { padding-left: 12px; padding-right: 12px; }
 }
