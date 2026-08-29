@@ -214,21 +214,30 @@ test('shared footer uses acceptance state without another request', async ({ pag
   await expect(footer.locator('.sdocs-sidebar-legal')).toHaveCount(0);
 });
 
-test('compact site navigation overlays content from 950px and hides Local library on mobile', async ({ page }) => {
+test('compact site navigation uses a rail and mobile navigation uses a left drawer', async ({ page }) => {
   await page.setViewportSize({ width: 950, height: 800 });
   await page.goto('/public/cloud.html');
 
   const compactMenu = page.locator('.sdocs-site-mobilebar-menu');
-  const contentBefore = await page.locator('main.content').boundingBox();
-  await expect(compactMenu).toBeVisible();
-  await expect(page.locator('#_sd_site_sidebar')).toBeHidden();
-  await compactMenu.click();
-  await expect(page.locator('#_sd_site_sidebar')).toBeVisible();
-  await expect(page.locator('.sdocs-site-sidebar-local')).toBeVisible();
-  const contentAfter = await page.locator('main.content').boundingBox();
-  expect(Math.round(contentAfter.x)).toBe(Math.round(contentBefore.x));
-  expect(Math.round(contentAfter.width)).toBe(Math.round(contentBefore.width));
-  await page.keyboard.press('Escape');
+  const sidebar = page.locator('#_sd_site_sidebar');
+  const local = page.locator('.sdocs-site-sidebar-local');
+  await expect(compactMenu).toBeHidden();
+  await expect(sidebar).toBeVisible();
+  await expect(sidebar).toHaveAttribute('data-sidebar-collapsed', 'true');
+  await expect(page.locator('body')).toHaveCSS('padding-left', '52px');
+  expect(Math.round((await sidebar.boundingBox()).width)).toBe(52);
+  await expect(local.getByText('Local library', { exact: true })).toBeHidden();
+
+  await local.click();
+  await expect(page).toHaveURL(/\/public\/cloud\.html$/);
+  await expect(sidebar).toHaveAttribute('data-sidebar-collapsed', 'false');
+  await expect(page.locator('body')).toHaveCSS('padding-left', '224px');
+  await expect(local.getByText('Local library', { exact: true })).toBeVisible();
+  expect(Math.round((await sidebar.boundingBox()).width)).toBe(224);
+
+  await page.locator('.sdocs-sidebar-collapse-toggle').click();
+  await expect(sidebar).toHaveAttribute('data-sidebar-collapsed', 'true');
+  await expect(local).toHaveCSS('border-color', 'rgba(0, 0, 0, 0)');
 
   await page.setViewportSize({ width: 390, height: 844 });
 
@@ -237,6 +246,10 @@ test('compact site navigation overlays content from 950px and hides Local librar
   await expect(page.locator('#_sd_site_sidebar')).toBeHidden();
   await menu.click();
   await expect(page.locator('#_sd_site_sidebar')).toBeVisible();
+  await expect.poll(async () => Math.round((await page.locator('#_sd_site_sidebar').boundingBox()).x)).toBe(0);
+  const drawer = await page.locator('#_sd_site_sidebar').boundingBox();
+  expect(Math.round(drawer.x)).toBe(0);
+  expect(Math.round(drawer.width)).toBe(320);
   await expect(page.locator('.sdocs-site-sidebar-local')).toBeHidden();
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
   await page.keyboard.press('Escape');
@@ -244,10 +257,10 @@ test('compact site navigation overlays content from 950px and hides Local librar
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
 
   const geometry = await page.evaluate(() => ({
-    menuRight: Math.round(document.querySelector('.sdocs-site-mobilebar-menu').getBoundingClientRect().right),
-    width: innerWidth,
+    menuLeft: Math.round(document.querySelector('.sdocs-site-mobilebar-menu').getBoundingClientRect().left),
     scrollWidth: document.body.scrollWidth,
+    width: innerWidth,
   }));
-  expect(geometry.menuRight).toBe(geometry.width);
+  expect(geometry.menuLeft).toBe(0);
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width);
 });

@@ -67,7 +67,7 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 @media (max-width: 768px) {
   body.comment-mode #_sd_comment-toolbar {
     position: sticky;
-    top: 84px;
+    top: 44px;
     z-index: 98;
     justify-content: flex-start;
   }

@@ -27,6 +27,23 @@ async function enterCommentModeWithBlockComposer(page) {
 test.describe('mobile viewport (390px)', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
+  test('comment toolbar sits directly below the document toolbar', async ({ page }) => {
+    await page.goto(BASE + '/docs');
+    await page.waitForFunction(() => !!window.SDocs && !!window.SDocs.render);
+    await page.evaluate(() => document.getElementById('_sd_btn-comment').click());
+
+    const positions = await page.evaluate(() => {
+      const documentToolbar = document.getElementById('_sd_left-toolbar').getBoundingClientRect();
+      const commentToolbar = document.getElementById('_sd_comment-toolbar').getBoundingClientRect();
+      return {
+        documentToolbarBottom: documentToolbar.bottom,
+        commentToolbarTop: commentToolbar.top,
+      };
+    });
+
+    expect(positions.commentToolbarTop).toBeCloseTo(positions.documentToolbarBottom, 1);
+  });
+
   test('comment input computes to 16px so iOS does not auto-zoom', async ({ page }) => {
     const input = await enterCommentModeWithBlockComposer(page);
     const fs = await input.evaluate(el => getComputedStyle(el).fontSize);

@@ -26,24 +26,159 @@ test('signed-out desktop navigation explains how to connect each library', async
   await expect(page.locator('#doc-site-menu')).toHaveCount(0);
 });
 
-test('compact desktop navigation overlays the document from 950px', async ({ page }) => {
+test('toolbar mode buttons use a stable selection ring and toggle panels closed', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.goto('/docs');
+
+  const read = page.locator('#_sd_btn-read');
+  const info = page.locator('#_sd_btn-info');
+  const initialBoxes = await Promise.all([read.boundingBox(), info.boundingBox()]);
+  await expect(read).toHaveClass(/active/);
+  await expect(read).toHaveAttribute('aria-pressed', 'true');
+  await expect(read).toHaveCSS('border-color', 'rgb(212, 207, 201)');
+  await expect(info).toHaveAttribute('aria-pressed', 'false');
+  await expect(info).toHaveCSS('border-color', 'rgba(0, 0, 0, 0)');
+
+  await info.click();
+  await expect(page.locator('body')).toHaveClass(/info-mode/);
+  await expect(info).toHaveClass(/active/);
+  await expect(info).toHaveAttribute('aria-pressed', 'true');
+  await expect(info).toHaveCSS('border-color', 'rgb(212, 207, 201)');
+  await expect(read).toHaveAttribute('aria-pressed', 'false');
+  const selectedBoxes = await Promise.all([read.boundingBox(), info.boundingBox()]);
+  expect(selectedBoxes[0].width).toBe(initialBoxes[0].width);
+  expect(selectedBoxes[0].height).toBe(initialBoxes[0].height);
+  expect(selectedBoxes[1].width).toBe(initialBoxes[1].width);
+  expect(selectedBoxes[1].height).toBe(initialBoxes[1].height);
+
+  await info.click();
+  await expect(page.locator('body')).toHaveClass(/read-mode/);
+  await expect(read).toHaveAttribute('aria-pressed', 'true');
+  await expect(info).toHaveAttribute('aria-pressed', 'false');
+
+  await info.click();
+  await read.click();
+  await expect(page.locator('body')).toHaveClass(/read-mode/);
+  await expect(info).toHaveAttribute('aria-pressed', 'false');
+
+  await info.click();
+  const overflow = page.locator('#_sd_btn-overflow');
+  const overflowGroup = page.locator('#_sd_toggle-overflow');
+  await overflow.click();
+  await expect(overflow).toHaveAttribute('aria-expanded', 'true');
+  await page.mouse.move(900, 700);
+  await expect(overflow).toHaveCSS('border-color', 'rgba(0, 0, 0, 0)');
+  await expect(overflow).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  const format = page.locator('#_sd_btn-style');
+  await format.click();
+  await page.mouse.move(900, 700);
+  await expect(page.locator('body')).toHaveClass(/style-mode/);
+  await expect(format).toHaveAttribute('aria-pressed', 'true');
+  await expect(overflowGroup).toHaveClass(/open/);
+  await expect(overflow).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await format.click();
+  await expect(page.locator('body')).toHaveClass(/read-mode/);
+  await expect(read).toHaveAttribute('aria-pressed', 'true');
+  await expect(format).toHaveAttribute('aria-pressed', 'false');
+  await expect(overflow).toHaveAttribute('aria-expanded', 'false');
+  await expect(overflowGroup).not.toHaveClass(/open/);
+});
+
+test('mobile panels open fully with a backdrop and an explicit close button', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/docs');
+
+  const cases = [
+    {
+      mode: 'style',
+      trigger: '#_sd_btn-style',
+      panel: '#_sd_right',
+      title: 'Format document',
+      close: '#_sd_right-close',
+      usesOverflow: true,
+    },
+    {
+      mode: 'export',
+      trigger: '#_sd_btn-export',
+      panel: '#_sd_export-panel',
+      title: 'Export document',
+      close: '#_sd_export-panel-close',
+      usesOverflow: true,
+    },
+    {
+      mode: 'info',
+      trigger: '#_sd_btn-info',
+      panel: '#_sd_info-panel',
+      title: 'Information',
+      close: '#_sd_info-panel-close',
+      usesOverflow: false,
+    },
+  ];
+
+  for (const item of cases) {
+    if (item.usesOverflow) await page.locator('#_sd_btn-overflow').click();
+    await page.locator(item.trigger).click();
+
+    await expect(page.locator('body')).toHaveClass(new RegExp(item.mode + '-mode'));
+    await expect(page.locator(item.panel).getByText(item.title, { exact: true })).toBeVisible();
+    await expect(page.locator(item.close)).toBeVisible();
+    await expect.poll(async () => {
+      const box = await page.locator(item.panel).boundingBox();
+      return box ? box.height : 0;
+    }).toBeGreaterThan(150);
+    await expect.poll(() => page.locator('body').evaluate(element =>
+      getComputedStyle(element, '::after').opacity)).toBe('1');
+
+    await page.locator(item.close).click();
+    await expect(page.locator('body')).toHaveClass(/read-mode/);
+    await expect.poll(() => page.locator('body').evaluate(element =>
+      getComputedStyle(element, '::after').opacity)).toBe('0');
+  }
+});
+
+test('compact desktop navigation uses a click-to-expand rail from 950px', async ({ page }) => {
   await page.setViewportSize({ width: 950, height: 800 });
   await page.goto('/docs?sidebar=preview');
 
   const menu = page.locator('#_sd_mobile_menu');
   const sidebar = page.locator('#_sd_sidebar');
   const documentPanel = page.locator('#_sd_left');
-  const panelBefore = await documentPanel.boundingBox();
-  await expect(menu).toBeVisible();
-  await expect(sidebar).toBeHidden();
-  await menu.click();
+  const localButton = page.locator('[data-sidebar-section="library"] > .sdocs-sidebar-top-row');
+  await expect(menu).toBeHidden();
   await expect(sidebar).toBeVisible();
+  await expect(page.locator('body')).toHaveClass(/sdocs-sidebar-collapsed/);
+  await expect(sidebar).toHaveAttribute('data-sidebar-collapsed', 'true');
+  await expect(page.getByText('Local library', { exact: true })).toBeHidden();
+
+  const collapsed = await Promise.all([sidebar.boundingBox(), documentPanel.boundingBox()]);
+  expect(Math.round(collapsed[0].width)).toBe(52);
+  expect(Math.round(collapsed[1].x)).toBe(52);
+  expect(Math.round(collapsed[1].width)).toBe(898);
+
+  await localButton.hover();
+  await expect.poll(() => localButton.evaluate(element =>
+    getComputedStyle(element, '::after').opacity)).toBe('1');
+  const tooltip = await localButton.evaluate(element => ({
+    content: getComputedStyle(element, '::after').content,
+    opacity: getComputedStyle(element, '::after').opacity,
+  }));
+  expect(tooltip.content).toBe('"Local library"');
+  expect(tooltip.opacity).toBe('1');
+
+  await localButton.click();
+  await expect(page.locator('body')).not.toHaveClass(/sdocs-sidebar-collapsed/);
   await expect(page.getByText('Local library', { exact: true })).toBeVisible();
-  const panelAfter = await documentPanel.boundingBox();
-  expect(Math.round(panelAfter.x)).toBe(Math.round(panelBefore.x));
-  expect(Math.round(panelAfter.width)).toBe(Math.round(panelBefore.width));
-  await page.keyboard.press('Escape');
-  await expect(sidebar).toBeHidden();
+  await expect(page.locator('[data-sidebar-section="library"]')).toHaveClass(/is-expanded/);
+  const expanded = await Promise.all([sidebar.boundingBox(), documentPanel.boundingBox()]);
+  expect(Math.round(expanded[0].width)).toBe(224);
+  expect(Math.round(expanded[1].x)).toBe(224);
+  expect(Math.round(expanded[1].width)).toBe(726);
+
+  await page.locator('.sdocs-sidebar-collapse-toggle').click();
+  await expect(page.locator('body')).toHaveClass(/sdocs-sidebar-collapsed/);
+  await expect(sidebar).toHaveAttribute('data-sidebar-collapsed', 'true');
+  await expect(page.locator('[data-sidebar-section="library"]')).not.toHaveClass(/is-expanded/);
+  await expect(localButton).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('mobile document controls scroll behind a fixed navigation menu', async ({ page }) => {
@@ -60,6 +195,7 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-tiny')).toBeHidden();
   await expect(page.locator('#_sd_sidebar > .sdocs-sidebar-main > #_sd_toolbar-brand')).toBeHidden();
   await expect(menu).toBeVisible();
+  await expect(menu).toHaveCSS('order', '-1');
   await expect(menu.locator('.sdocs-mobile-menu-icon')).toBeVisible();
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#_sd_left')).toHaveCSS('width', '390px');
@@ -68,6 +204,7 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   await expect.poll(() => scroller.evaluate(element => element.scrollWidth)).toBeGreaterThan(await scroller.evaluate(element => element.clientWidth));
 
   const menuBeforeScroll = await menu.boundingBox();
+  expect(Math.round(menuBeforeScroll.x)).toBe(0);
   await scroller.evaluate(element => { element.scrollLeft = element.scrollWidth; });
   const menuAfterScroll = await menu.boundingBox();
   expect(menuAfterScroll.x).toBe(menuBeforeScroll.x);
@@ -78,6 +215,10 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
   await expect(menu.locator('.sdocs-mobile-menu-close')).toBeVisible();
   await expect(page.locator('#_sd_sidebar')).toBeVisible();
+  await expect.poll(async () => Math.round((await page.locator('#_sd_sidebar').boundingBox()).x)).toBe(0);
+  const drawer = await page.locator('#_sd_sidebar').boundingBox();
+  expect(Math.round(drawer.x)).toBe(0);
+  expect(Math.round(drawer.width)).toBe(320);
   await expect(page.getByText('Local library', { exact: true })).toBeHidden();
   await expect(page.getByText('Cloud library', { exact: true })).toBeVisible();
   await expect(scroller).toHaveAttribute('inert', '');
@@ -93,6 +234,33 @@ test('mobile document controls scroll behind a fixed navigation menu', async ({ 
   await expect(scroller).not.toHaveAttribute('inert', '');
   await expect(page.locator('#_sd_content-area')).not.toHaveAttribute('inert', '');
   await expect(menu).toBeFocused();
+});
+
+test('short mobile documents fill the viewport with the document background', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/docs');
+  await page.evaluate(() => {
+    SDocs.renderedEl.innerHTML = '<p>Short document</p>';
+    SDocs.setStyleVar('--md-bg', '#dbeafe');
+  });
+
+  const canvas = await page.evaluate(() => {
+    const content = document.getElementById('_sd_content-area');
+    const rendered = document.getElementById('_sd_rendered');
+    const bottomElement = document.elementFromPoint(innerWidth / 2, innerHeight - 1);
+    return {
+      contentBackground: getComputedStyle(content).backgroundColor,
+      renderedBackground: getComputedStyle(rendered).backgroundColor,
+      contentBottom: Math.round(content.getBoundingClientRect().bottom),
+      viewportBottom: innerHeight,
+      bottomIsDocumentCanvas: bottomElement === content || content.contains(bottomElement),
+    };
+  });
+
+  expect(canvas.contentBackground).toBe('rgb(219, 234, 254)');
+  expect(canvas.renderedBackground).toBe(canvas.contentBackground);
+  expect(canvas.contentBottom).toBeGreaterThanOrEqual(canvas.viewportBottom);
+  expect(canvas.bottomIsDocumentCanvas).toBe(true);
 });
 
 test('narrow mobile wordmark collapses to SD inside the scroll rail', async ({ page }) => {

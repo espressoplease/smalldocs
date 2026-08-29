@@ -230,7 +230,7 @@ __EMBED_STYLES__
           <svg class="icon-x" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
         <span class="toggle-group-collapsible" id="_sd_toggle-overflow">
-          <button class="btn" id="_sd_btn-style" data-tip="Style" aria-label="Style">
+          <button class="btn" id="_sd_btn-style" data-tip="Format" aria-label="Format document">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.622 17.897-10.68-2.913"/><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"/><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/></svg>
           </button>
           <button class="btn" id="_sd_btn-raw" data-tip="Raw markdown" aria-label="Raw markdown">
@@ -337,7 +337,12 @@ __EMBED_STYLES__
 
   <!-- ── Right panel ── -->
   <div id="_sd_right">
-    <div id="_sd_right-header">Styles</div>
+    <div id="_sd_right-header">
+      <span class="sdocs-sheet-title">Format document</span>
+      <button class="sdocs-sheet-close" id="_sd_right-close" type="button" aria-label="Close formatting panel">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
 
     <!-- GENERAL -->
     <div class="panel-section">
@@ -831,7 +836,12 @@ __EMBED_STYLES__
 
   <!-- ── Export panel ── -->
   <div id="_sd_export-panel">
-    <div id="_sd_export-panel-header">Export</div>
+    <div id="_sd_export-panel-header">
+      <span class="sdocs-sheet-title">Export document</span>
+      <button class="sdocs-sheet-close" id="_sd_export-panel-close" type="button" aria-label="Close export panel">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
     <div id="_sd_export-panel-body">
       <button class="export-option" id="_sd_exp-pdf">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M4 14h16" stroke-dasharray="2 2"/><path d="M8 19h8"/></svg>
@@ -880,7 +890,12 @@ __EMBED_STYLES__
 
   <!-- Info panel -->
   <div id="_sd_info-panel">
-    <div id="_sd_info-panel-header">Info</div>
+    <div id="_sd_info-panel-header">
+      <span class="sdocs-sheet-title">Information</span>
+      <button class="sdocs-sheet-close" id="_sd_info-panel-close" type="button" aria-label="Close information panel">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
     <div id="_sd_info-panel-body">
       <div class="info-section">
         <div class="info-section-title">Community</div>

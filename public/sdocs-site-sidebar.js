@@ -41,8 +41,19 @@
   body.classList.add('sdocs-site-shell');
   body.prepend(mobile);
   body.prepend(aside);
+  window.requestAnimationFrame(function () {
+    window.requestAnimationFrame(function () {
+      body.classList.add('sdocs-sidebar-ready');
+    });
+  });
 
   shared.bindExpandableSections(aside);
+  shared.bindDesktopRail({
+    body: body,
+    sidebar: aside,
+    compactBreakpoint: 950,
+    mobileBreakpoint: 768,
+  });
 
   var menu = mobile.querySelector('.sdocs-site-mobilebar-menu');
   shared.bindMobileDrawer({
@@ -52,7 +63,7 @@
     openClass: 'sdocs-site-menu-open',
     openLabel: 'Open menu',
     closeLabel: 'Close menu',
-    breakpoint: 950,
+    breakpoint: 768,
     backgrounds: Array.from(body.children).filter(function (element) {
       return element !== aside && element !== mobile;
     }),
