@@ -17,6 +17,8 @@
   #_sd_left { overflow: visible; }
   #_sd_content-area { overflow: visible; }
   html { scroll-padding-top: 44px; }
+  html:has(body.write-mode),
+  html:has(body.comment-mode) { scroll-padding-top: 78px; }
 
   body.sdocs-reader-shell::after {
     content: '';
@@ -112,11 +114,38 @@
     box-shadow: none;
   }
 
-  /* Keep the complete toolbar in document flow and sticky at the viewport edge. */
+  /* The mobile header uses window scroll. JavaScript switches this stack
+     between fixed and document positions so it follows the user's scroll
+     without relying on sticky positioning or viewport-height calculations. */
+  #_sd_mobile-header {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 101;
+    width: 100%;
+  }
+  #_sd_mobile-header-spacer {
+    display: block;
+    height: 44px;
+    flex: 0 0 44px;
+    overflow-anchor: none;
+    transition: height .3s cubic-bezier(.4,0,.2,1),
+                flex-basis .3s cubic-bezier(.4,0,.2,1);
+  }
+  body.write-mode #_sd_mobile-header-spacer,
+  body.comment-mode #_sd_mobile-header-spacer {
+    height: 78px;
+    flex-basis: 78px;
+  }
+  body.sdocs-mobile-nav-open #_sd_write-toolbar,
+  body.sdocs-mobile-nav-open #_sd_comment-toolbar {
+    display: none;
+  }
   #_sd_left-toolbar {
     display: flex;
-    position: sticky;
-    top: 0;
+    position: relative;
+    top: auto;
     left: 0;
     z-index: 101;
     width: 100%;
@@ -195,8 +224,8 @@
     margin: 0;
     padding: 20px 20px 0;
   }
-  /* ── Write toolbar: sticky below left-toolbar ── */
-  body.write-mode #_sd_write-toolbar { position: sticky; top: 44px; z-index: 98; justify-content: flex-start; }
+  /* ── Write toolbar: travels with the primary mobile header ── */
+  body.write-mode #_sd_write-toolbar { position: relative; top: auto; z-index: 98; justify-content: flex-start; }
 
   /* ── Status bar: hidden on mobile ── */
   #_sd_statusbar { display: none; }

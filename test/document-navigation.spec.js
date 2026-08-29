@@ -207,16 +207,21 @@ test('compact desktop navigation uses a click-to-expand rail from 950px', async 
   await expect(page.locator('body')).not.toHaveClass(/sdocs-sidebar-collapsed/);
 });
 
-test('mobile document controls use an always-sticky navigation menu', async ({ page }) => {
+test('mobile document controls follow the window scroll direction', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/docs');
 
   const toolbar = page.locator('#_sd_left-toolbar');
+  const mobileHeader = page.locator('#_sd_mobile-header');
+  const mobileHeaderSpacer = page.locator('#_sd_mobile-header-spacer');
   const scroller = page.locator('.sdocs-mobile-toolbar-scroll');
   const menu = page.locator('#_sd_mobile_menu');
   const cloudButton = page.locator('[data-sidebar-section="cloud"] > .doc-site-action');
-  await expect(toolbar).toHaveCSS('position', 'sticky');
+  await expect(mobileHeader).toHaveCSS('position', 'fixed');
+  await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'visible');
+  await expect(toolbar).toHaveCSS('position', 'relative');
   await expect(toolbar).toHaveCSS('height', '44px');
+  await expect(mobileHeaderSpacer).toHaveCSS('height', '44px');
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
   await expect(page.locator('#_sd_left')).toHaveCSS('min-height', 'auto');
   await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-short')).toBeVisible();
@@ -243,13 +248,24 @@ test('mobile document controls use an always-sticky navigation menu', async ({ p
     const spacer = document.createElement('div');
     spacer.style.height = '1600px';
     document.getElementById('_sd_rendered').appendChild(spacer);
-    window.scrollTo(0, 320);
+    window.scrollTo(0, 100);
   });
+  await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'moving');
+  await page.evaluate(() => window.scrollTo(0, 320));
   const initialScroll = await page.evaluate(() => window.scrollY);
   expect(initialScroll).toBeGreaterThan(0);
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
-  await expect(toolbar).toHaveCSS('position', 'sticky');
-  expect(Math.round((await toolbar.boundingBox()).y)).toBe(0);
+  await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'hidden');
+  expect(Math.round((await mobileHeader.boundingBox()).y)).toBe(-44);
+
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'moving');
+  await page.evaluate(() => window.scrollTo(0, 280));
+  await expect.poll(async () => Math.round((await mobileHeader.boundingBox()).y)).toBe(-24);
+  await page.evaluate(() => window.scrollTo(0, 200));
+  await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'visible');
+  expect(Math.round((await mobileHeader.boundingBox()).y)).toBe(0);
+  const drawerScroll = await page.evaluate(() => window.scrollY);
 
   await menu.evaluate(element => element.click());
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
@@ -257,7 +273,7 @@ test('mobile document controls use an always-sticky navigation menu', async ({ p
   await expect(page.locator('#_sd_sidebar')).toBeVisible();
   await expect(page.locator('body')).toHaveCSS('overflow', 'visible');
   await expect(page.locator('#_sd_sidebar')).toHaveCSS('overscroll-behavior', 'contain');
-  expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
+  expect(await page.evaluate(() => window.scrollY)).toBe(drawerScroll);
   await expect.poll(async () => Math.round((await page.locator('#_sd_sidebar').boundingBox()).x)).toBe(0);
   const drawer = await page.locator('#_sd_sidebar').boundingBox();
   expect(Math.round(drawer.x)).toBe(0);
@@ -282,11 +298,13 @@ test('mobile document controls use an always-sticky navigation menu', async ({ p
   await expect(scroller).not.toHaveAttribute('inert', '');
   await expect(page.locator('#_sd_content-area')).not.toHaveAttribute('inert', '');
   await expect(menu).toBeFocused();
-  expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
+  expect(await page.evaluate(() => window.scrollY)).toBe(drawerScroll);
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
-  await expect(toolbar).toHaveCSS('position', 'sticky');
+  await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'visible');
+  await expect(mobileHeader).toHaveCSS('position', 'fixed');
+  await expect(toolbar).toHaveCSS('position', 'relative');
   const topGeometry = await page.evaluate(() => {
     const bar = document.getElementById('_sd_left-toolbar').getBoundingClientRect();
     const content = document.getElementById('_sd_content-area').getBoundingClientRect();

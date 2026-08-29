@@ -356,6 +356,8 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   background: var(--bg-input);
   position: relative;
 }
+#_sd_mobile-header { display: contents; }
+#_sd_mobile-header-spacer { display: none; }
 /* Document actions sit in a quiet top rail above the scrolling page. */
 #_sd_left-toolbar {
   position: relative;

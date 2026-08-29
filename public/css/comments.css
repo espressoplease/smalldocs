@@ -60,14 +60,14 @@ body.comment-mode #_sd_comment-toolbar {
 }
 body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
 
-/* Mobile: same shape as the write toolbar - left-aligned, sticky below the
-   left toolbar, horizontally scrollable. The "commenting as:" prefs sit
+/* Mobile: same shape as the write toolbar - left-aligned and horizontally
+   scrollable inside the shared mobile header. The "commenting as:" prefs sit
    first so the toolbar always reads as belonging to the current author,
    even when scrolled away from the count/nav controls. */
 @media (max-width: 768px) {
   body.comment-mode #_sd_comment-toolbar {
-    position: sticky;
-    top: 44px;
+    position: relative;
+    top: auto;
     z-index: 98;
     justify-content: flex-start;
   }

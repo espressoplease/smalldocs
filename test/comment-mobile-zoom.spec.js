@@ -27,21 +27,44 @@ async function enterCommentModeWithBlockComposer(page) {
 test.describe('mobile viewport (390px)', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('comment toolbar sits directly below the document toolbar', async ({ page }) => {
+  test('comment toolbar travels with the mobile header stack', async ({ page }) => {
     await page.goto(BASE + '/docs');
     await page.waitForFunction(() => !!window.SDocs && !!window.SDocs.render);
     await page.evaluate(() => document.getElementById('_sd_btn-comment').click());
+    await expect(page.locator('#_sd_mobile-header-spacer')).toHaveCSS('height', '78px');
 
     const positions = await page.evaluate(() => {
+      const mobileHeader = document.getElementById('_sd_mobile-header').getBoundingClientRect();
+      const spacer = document.getElementById('_sd_mobile-header-spacer').getBoundingClientRect();
       const documentToolbar = document.getElementById('_sd_left-toolbar').getBoundingClientRect();
       const commentToolbar = document.getElementById('_sd_comment-toolbar').getBoundingClientRect();
       return {
+        headerHeight: mobileHeader.height,
+        spacerHeight: spacer.height,
         documentToolbarBottom: documentToolbar.bottom,
         commentToolbarTop: commentToolbar.top,
       };
     });
 
+    expect(positions.headerHeight).toBeCloseTo(78, 1);
+    expect(positions.spacerHeight).toBeCloseTo(78, 1);
     expect(positions.commentToolbarTop).toBeCloseTo(positions.documentToolbarBottom, 1);
+
+    const mobileHeader = page.locator('#_sd_mobile-header');
+    await page.waitForTimeout(450);
+    await page.evaluate(() => window.scrollTo(0, 100));
+    await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'moving');
+    await page.evaluate(() => window.scrollTo(0, 320));
+    await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'hidden');
+    expect(Math.round((await mobileHeader.boundingBox()).y)).toBe(-78);
+
+    await page.evaluate(() => window.scrollTo(0, 300));
+    await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'moving');
+    await page.evaluate(() => window.scrollTo(0, 280));
+    await expect.poll(async () => Math.round((await mobileHeader.boundingBox()).y)).toBe(-58);
+    await page.evaluate(() => window.scrollTo(0, 180));
+    await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'visible');
+    expect(Math.round((await mobileHeader.boundingBox()).y)).toBe(0);
   });
 
   test('comment input computes to 16px so iOS does not auto-zoom', async ({ page }) => {

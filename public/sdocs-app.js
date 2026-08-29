@@ -1351,6 +1351,7 @@ function setMode(mode, skipHash) {
   document.body.classList.remove('mobile-sheet-open');
   document.body.classList.remove('mobile-export-open');
   document.body.classList.remove('mobile-info-open');
+  if (S.mobileHeader) S.mobileHeader.pinFor(400);
 
   if (prev === 'comment' && mode !== 'comment' && S.commentsUi) S.commentsUi.exit();
   if (mode === 'comment' && S.commentsUi) S.commentsUi.enter();
