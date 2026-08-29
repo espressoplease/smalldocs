@@ -49,6 +49,39 @@ test('mobile homepage navigation follows window scroll while desktop stays stick
   await expect(page.locator('.sdocs-scroll-header-spacer')).toBeHidden();
 });
 
+test('mobile reload starts at the top without changing desktop scroll restoration', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/home');
+  await page.evaluate(() => {
+    document.documentElement.style.scrollBehavior = 'auto';
+    window.scrollTo(0, 900);
+  });
+  expect(await page.evaluate(() => window.scrollY)).toBe(900);
+
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(page.locator('#nav')).toHaveAttribute('data-mobile-header-state', 'visible');
+
+  await page.goto('/#install');
+  await expect(page.locator('#install')).toBeInViewport();
+  const anchorScroll = await page.evaluate(() => window.scrollY);
+  expect(anchorScroll).toBeGreaterThan(0);
+  await page.reload();
+  await expect(page.locator('#install')).toBeInViewport();
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+  await page.setViewportSize({ width: 900, height: 844 });
+  await page.evaluate(() => {
+    document.documentElement.style.scrollBehavior = 'auto';
+    window.scrollTo(0, 900);
+  });
+  expect(await page.evaluate(() => window.scrollY)).toBe(900);
+
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(900);
+  await expect(page.locator('#nav')).toHaveCSS('position', 'sticky');
+});
+
 test('independent public page shells share mobile scroll headers without changing desktop positioning', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
 

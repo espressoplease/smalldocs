@@ -43,7 +43,6 @@ body {
   color: var(--text);
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
