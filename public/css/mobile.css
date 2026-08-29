@@ -7,6 +7,61 @@
    variants. Below 768px the whole bar is hidden (see the mobile block
    below). Validated headlessly in test/footer-fit.spec.js. */
 
+/* At compact desktop widths the site menu becomes an overlay, while the
+   document keeps the desktop reading layout and its full width. */
+@media (min-width: 769px) and (max-width: 950px) {
+  #_sd_sidebar {
+    width: min(320px, 100vw);
+    height: calc(100dvh - var(--ui-toolbar-height));
+    flex: none;
+    position: fixed;
+    top: var(--ui-toolbar-height);
+    right: auto;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    overflow-x: hidden;
+    overflow-y: auto;
+    visibility: hidden;
+    transform: translateX(-101%);
+    box-shadow: 12px 0 30px rgba(28,25,23,.12);
+    transition: transform .3s cubic-bezier(.4,0,.2,1),
+                visibility .3s cubic-bezier(.4,0,.2,1);
+  }
+  body.sdocs-mobile-nav-open { overflow: hidden; }
+  body.sdocs-mobile-nav-open #_sd_sidebar {
+    visibility: visible;
+    transform: translateX(0);
+  }
+  #_sd_left-toolbar { padding-right: 0; }
+  .sdocs-mobile-toolbar-scroll {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .sdocs-mobile-menu-button {
+    width: var(--ui-toolbar-height);
+    height: var(--ui-toolbar-height);
+    flex: 0 0 var(--ui-toolbar-height);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-left: 1px solid var(--border-subtle);
+    background: var(--bg-input);
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .sdocs-mobile-menu-button:hover { background: var(--bg-hover); color: var(--text); }
+  .sdocs-mobile-menu-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -3px;
+  }
+  .sdocs-mobile-menu-close { display: none; }
+  .sdocs-mobile-menu-button[aria-expanded="true"] .sdocs-mobile-menu-icon { display: none; }
+  .sdocs-mobile-menu-button[aria-expanded="true"] .sdocs-mobile-menu-close { display: block; }
+}
+
 /* ═══════════════════════════════════════════════════
    MOBILE
 ═══════════════════════════════════════════════════ */

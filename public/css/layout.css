@@ -169,7 +169,7 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-2);
-  font: 500 var(--sdocs-sidebar-font-size)/1.3 var(--font-ui);
+  font: var(--sdocs-sidebar-text-weight) var(--sdocs-sidebar-font-size)/1.3 var(--sdocs-sidebar-font-family);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -187,7 +187,7 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
 .sdocs-sidebar-preview-label {
   margin: 8px 10px 3px;
   color: var(--text-3);
-  font: 500 var(--sdocs-sidebar-font-size)/1.3 var(--font-ui);
+  font: var(--sdocs-sidebar-text-weight) var(--sdocs-sidebar-font-size)/1.3 var(--sdocs-sidebar-font-family);
 }
 .sdocs-sidebar-preview-list {
   display: flex;
@@ -205,7 +205,7 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   display: block;
   padding: 5px 10px 7px;
   color: var(--text-3);
-  font: 400 var(--sdocs-sidebar-font-size)/1.45 var(--font-ui);
+  font: 400 var(--sdocs-sidebar-font-size)/1.45 var(--sdocs-sidebar-font-family);
 }
 .sdocs-sidebar-data-status {
   display: flex;
@@ -215,7 +215,7 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   min-height: 32px;
   padding: 5px 10px;
   color: var(--text);
-  font: 400 var(--sdocs-sidebar-font-size)/1.4 var(--font-ui);
+  font: 400 var(--sdocs-sidebar-font-size)/1.4 var(--sdocs-sidebar-font-family);
 }
 .sdocs-sidebar-data-status[hidden] { display: none; }
 .sdocs-sidebar-data-status button {
@@ -226,7 +226,7 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   border-radius: var(--radius-sm);
   background: var(--bg-surface);
   color: var(--text);
-  font: 500 var(--sdocs-sidebar-font-size)/1.3 var(--font-ui);
+  font: var(--sdocs-sidebar-text-weight) var(--sdocs-sidebar-font-size)/1.3 var(--sdocs-sidebar-font-family);
   cursor: pointer;
 }
 .sdocs-sidebar-data-status button:hover {
@@ -310,7 +310,7 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   border-radius: 999px;
   background: var(--accent-light);
   color: var(--accent-text);
-  font: 500 var(--sdocs-sidebar-font-size)/1 var(--font-ui);
+  font: var(--sdocs-sidebar-text-weight) var(--sdocs-sidebar-font-size)/1 var(--sdocs-sidebar-font-family);
   text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;

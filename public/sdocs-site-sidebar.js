@@ -52,7 +52,7 @@
     openClass: 'sdocs-site-menu-open',
     openLabel: 'Open menu',
     closeLabel: 'Close menu',
-    breakpoint: 760,
+    breakpoint: 950,
     backgrounds: Array.from(body.children).filter(function (element) {
       return element !== aside && element !== mobile;
     }),

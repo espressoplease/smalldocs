@@ -1,6 +1,30 @@
+@font-face {
+  font-family: 'SDocs Sidebar Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/public/fonts/inter-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'SDocs Sidebar Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/public/fonts/inter-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'SDocs Sidebar Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/public/fonts/inter-600.woff2') format('woff2');
+}
+
 :root {
   --sdocs-sidebar-width: 224px;
   --sdocs-sidebar-font-size: 13px;
+  --sdocs-sidebar-text-weight: 500;
+  --sdocs-sidebar-font-family: 'SDocs Sidebar Inter', system-ui, sans-serif;
   --sdocs-sidebar-row-height: 36px;
   --sdocs-sidebar-footer-row-height: 32px;
 }
@@ -15,7 +39,7 @@
   border-right: 1px solid var(--border-subtle, var(--border, #ddd9d3));
   background: var(--bg-input, var(--surface, #fff));
   color: var(--text, #1c1917);
-  font: 400 var(--sdocs-sidebar-font-size)/1.45 var(--font-ui, 'Inter', system-ui, sans-serif);
+  font: 400 var(--sdocs-sidebar-font-size)/1.45 var(--sdocs-sidebar-font-family);
 }
 
 .sdocs-sidebar-shell::-webkit-scrollbar { display: none; width: 0; height: 0; }
@@ -67,7 +91,7 @@
   border-radius: 8px;
   background: transparent;
   color: var(--text-2, #57534e);
-  font: 500 var(--sdocs-sidebar-font-size) var(--font-ui, 'Inter', system-ui, sans-serif);
+  font: var(--sdocs-sidebar-text-weight) var(--sdocs-sidebar-font-size) var(--sdocs-sidebar-font-family);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -158,7 +182,7 @@
   border-radius: 8px;
   color: var(--text-2, #57534e);
   font-size: var(--sdocs-sidebar-font-size);
-  font-weight: 500;
+  font-weight: var(--sdocs-sidebar-text-weight);
   text-decoration: none;
 }
 
@@ -220,7 +244,7 @@
   margin: 0;
   padding: 5px 10px 8px;
   color: var(--text, #1c1917);
-  font: 400 var(--sdocs-sidebar-font-size)/1.45 var(--font-ui, 'Inter', system-ui, sans-serif);
+  font: 400 var(--sdocs-sidebar-font-size)/1.45 var(--sdocs-sidebar-font-family);
 }
 
 .sdocs-sidebar-cta {
@@ -233,7 +257,7 @@
   border-radius: var(--radius-md, 8px);
   background: var(--bg-surface, var(--surface, #fff));
   color: var(--text, #1c1917);
-  font: 500 var(--sdocs-sidebar-font-size)/1.3 var(--font-ui, 'Inter', system-ui, sans-serif);
+  font: var(--sdocs-sidebar-text-weight) var(--sdocs-sidebar-font-size)/1.3 var(--sdocs-sidebar-font-family);
   text-decoration: none;
 }
 
@@ -260,7 +284,7 @@
   border-radius: var(--radius-sm, 4px);
   background: transparent;
   color: var(--text-2, #57534e);
-  font: 500 var(--sdocs-sidebar-font-size)/1.3 var(--font-ui, 'Inter', system-ui, sans-serif);
+  font: var(--sdocs-sidebar-text-weight) var(--sdocs-sidebar-font-size)/1.3 var(--sdocs-sidebar-font-family);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -282,7 +306,7 @@
   border-radius: var(--radius-sm, 4px);
   background: transparent;
   color: var(--text-2, #57534e);
-  font: 500 var(--sdocs-sidebar-font-size)/1.3 var(--font-ui, 'Inter', system-ui, sans-serif);
+  font: var(--sdocs-sidebar-text-weight) var(--sdocs-sidebar-font-size)/1.3 var(--sdocs-sidebar-font-family);
   text-align: left;
   text-decoration: none;
   cursor: pointer;

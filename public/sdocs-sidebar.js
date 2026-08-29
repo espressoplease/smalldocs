@@ -441,7 +441,7 @@ SharedSidebar.bindMobileDrawer({
   openClass: 'sdocs-mobile-nav-open',
   openLabel: 'Open SmallDocs menu',
   closeLabel: 'Close SmallDocs menu',
-  breakpoint: 768,
+  breakpoint: 950,
   backgrounds: mobileBackground,
 });
 

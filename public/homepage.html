@@ -148,7 +148,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   height: 48px;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
 }
 .brand {
   display: inline-flex;
@@ -165,6 +165,43 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
   align-items: center;
   gap: 6px;
 }
+.nav-primary {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.nav-link,
+.nav-dropdown > summary {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  list-style: none;
+  text-decoration: none;
+  cursor: pointer;
+}
+.nav-link:hover,
+.nav-dropdown > summary:hover,
+.nav-dropdown[open] > summary {
+  background: var(--white);
+  border-color: var(--line);
+  color: var(--ink);
+}
+.nav-dropdown { position: relative; }
+.nav-dropdown > summary::-webkit-details-marker { display: none; }
+.nav-dropdown > summary svg {
+  transition: transform .18s ease;
+}
+.nav-dropdown[open] > summary svg { transform: rotate(180deg); }
+.nav-dropdown .nav-menu-panel { left: 0; right: auto; min-width: 196px; }
 /* GitHub button: the app's standard .btn translated to the homepage
    palette - 12px label, hairline border, darken on hover. */
 .btn-gh {
@@ -196,11 +233,15 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 }
 .nav-cloud:hover { border-color: var(--accent-ink); background: var(--accent-ink); color: #fff; }
 .btn-gh:focus-visible, .nav-menu summary:focus-visible,
+.nav-link:focus-visible, .nav-dropdown > summary:focus-visible,
 .nav-menu-panel a:focus-visible, .nav-menu-panel button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 .nav-menu-mobile-only { display: none; }
+.nav-menu-static-mobile { display: none !important; }
+.nav-menu-guest { display: none; }
+.nav-install-label-short { display: none; }
 .nav-menu {
   position: relative;
 }
@@ -962,6 +1003,9 @@ footer {
 
 /* ── RESPONSIVE ──────────────────────────────────────── */
 @media (max-width: 900px) {
+  .nav-primary { display: none; }
+  .nav-menu-guest { display: block; }
+  .nav-menu-static-mobile { display: flex !important; }
   /* One 56px gap between every panel and before the footer. */
   #learn { padding: 56px 0 0; }
   #install { padding: 56px 0 0; }
@@ -977,6 +1021,8 @@ footer {
   .wrap { padding: 0 22px; }
   .nav-library-wide { display: none; }
   .nav-menu-mobile-only { display: flex; }
+  .nav-install-label-long { display: none; }
+  .nav-install-label-short { display: inline; }
   /* Hero bottom padding stays 0 so the video-to-panel gap equals the
      40px panel-to-panel rhythm below. */
   .hero { padding: 52px 0 0; }
@@ -1013,23 +1059,50 @@ footer {
 <nav class="nav" id="nav">
   <div class="wrap nav-in">
     <a class="brand" href="#top">SmallDocs</a>
+    <div class="nav-primary" aria-label="Primary navigation">
+      <details class="nav-dropdown">
+        <summary>Product
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="nav-menu-panel">
+          <a href="#learn">Capabilities</a>
+          <a href="/privacy">Private by design</a>
+        </div>
+      </details>
+      <!--__HOME_NAV_CLOUD_LINK__-->
+      <a class="nav-link" href="/developers">Developers</a>
+      <details class="nav-dropdown">
+        <summary>Resources
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="nav-menu-panel">
+          <a href="/blogs/what-is-a-smalldoc">Read a SmallDoc</a>
+          <a href="/docs">Documentation</a>
+          <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </details>
+    </div>
     <div class="nav-links">
       <!--__HOME_NAV_ACTIONS__-->
-      <details class="nav-menu" id="site-menu">
+      <details class="nav-menu <!--__HOME_NAV_MENU_CLASS__-->" id="site-menu">
         <summary class="btn-gh" aria-label="Open menu" aria-haspopup="menu" aria-expanded="false">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg>
         </summary>
         <div class="nav-menu-panel" role="menu">
           <!--__HOME_NAV_MENU_BEFORE__-->
-          <a href="/docs" role="menuitem">
+          <a class="nav-menu-static-mobile" href="#learn" role="menuitem">Capabilities</a>
+          <!--__HOME_NAV_CLOUD_MOBILE_LINK__-->
+          <a class="nav-menu-static-mobile" href="/privacy" role="menuitem">Private by design</a>
+          <a class="nav-menu-static-mobile" href="/blogs/what-is-a-smalldoc" role="menuitem">Read a SmallDoc</a>
+          <a class="nav-menu-static-mobile" href="/docs" role="menuitem">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
-            Docs
+            Documentation
           </a>
-          <a href="/developers" role="menuitem">
+          <a class="nav-menu-static-mobile" href="/developers" role="menuitem">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 9-3 3 3 3"/><path d="m16 9 3 3-3 3"/><path d="m14 5-4 14"/></svg>
             Developers
           </a>
-          <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" role="menuitem">
+          <a class="nav-menu-static-mobile" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" role="menuitem">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
             GitHub
           </a>
@@ -1457,23 +1530,31 @@ window.addEventListener('scroll', onScroll, { passive: true });
 onScroll();
 
 const siteMenu = document.getElementById('site-menu');
-if (siteMenu) {
-  const siteMenuButton = siteMenu.querySelector('summary');
-  siteMenu.addEventListener('toggle', () => {
-    siteMenuButton.setAttribute('aria-expanded', String(siteMenu.open));
+const navigationMenus = Array.from(document.querySelectorAll('.nav-menu, .nav-dropdown'));
+navigationMenus.forEach((menu) => {
+  const button = menu.querySelector(':scope > summary');
+  menu.addEventListener('toggle', () => {
+    if (button) button.setAttribute('aria-expanded', String(menu.open));
+    if (!menu.open) return;
+    navigationMenus.forEach((other) => { if (other !== menu) other.open = false; });
   });
-  siteMenu.querySelectorAll('a, button').forEach((control) => {
-    control.addEventListener('click', () => { siteMenu.open = false; });
+  menu.querySelectorAll('a, button').forEach((control) => {
+    control.addEventListener('click', () => { menu.open = false; });
   });
-  document.addEventListener('click', (event) => {
-    if (siteMenu.open && !siteMenu.contains(event.target)) siteMenu.open = false;
+});
+document.addEventListener('click', (event) => {
+  navigationMenus.forEach((menu) => {
+    if (menu.open && !menu.contains(event.target)) menu.open = false;
   });
-  document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || !siteMenu.open) return;
-    siteMenu.open = false;
-    siteMenuButton.focus();
-  });
-}
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  const openMenu = navigationMenus.find((menu) => menu.open);
+  if (!openMenu) return;
+  openMenu.open = false;
+  const button = openMenu.querySelector(':scope > summary');
+  if (button) button.focus();
+});
 
 /* Platform-aware install / upgrade commands and the canonical agent prompt,
    all pulled from the shared SDocCliSetup module so they stay identical to the

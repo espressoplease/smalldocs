@@ -26,6 +26,26 @@ test('signed-out desktop navigation explains how to connect each library', async
   await expect(page.locator('#doc-site-menu')).toHaveCount(0);
 });
 
+test('compact desktop navigation overlays the document from 950px', async ({ page }) => {
+  await page.setViewportSize({ width: 950, height: 800 });
+  await page.goto('/docs?sidebar=preview');
+
+  const menu = page.locator('#_sd_mobile_menu');
+  const sidebar = page.locator('#_sd_sidebar');
+  const documentPanel = page.locator('#_sd_left');
+  const panelBefore = await documentPanel.boundingBox();
+  await expect(menu).toBeVisible();
+  await expect(sidebar).toBeHidden();
+  await menu.click();
+  await expect(sidebar).toBeVisible();
+  await expect(page.getByText('Local library', { exact: true })).toBeVisible();
+  const panelAfter = await documentPanel.boundingBox();
+  expect(Math.round(panelAfter.x)).toBe(Math.round(panelBefore.x));
+  expect(Math.round(panelAfter.width)).toBe(Math.round(panelBefore.width));
+  await page.keyboard.press('Escape');
+  await expect(sidebar).toBeHidden();
+});
+
 test('mobile document controls scroll behind a fixed navigation menu', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/docs');
