@@ -27,12 +27,16 @@
   var controls = Object.assign({ copy: true, download: true }, env.controls || {});
   var blockCap = env.blockCap == null ? Infinity : env.blockCap;
   var destroyed = false;
+  var copyTimers = [];
   var Chart = env.Chart || null;
   var chartReadyPromise = null;
   var CDN_CHART = 'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js';
   var CDN_LABELS = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js';
   var CDN_ANNOTATION = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js';
   var activeCharts = [];
+  var COPY_FEEDBACK_MS = 1500;
+  var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
   function queryScope() {
     return typeof env.root === 'function' ? env.root() : (env.root || document);
@@ -185,13 +189,13 @@
           var loading = Promise.resolve();
           if (!window.Chart) loading = loading.then(function () { return loadScript(CDN_CHART); });
           if (!window.ChartDataLabels) loading = loading.then(function () { return loadScript(CDN_LABELS); });
-          if (!window.ChartAnnotation) loading = loading.then(function () { return loadScript(CDN_ANNOTATION); });
+          if (!window['chartjs-plugin-annotation']) loading = loading.then(function () { return loadScript(CDN_ANNOTATION); });
           return loading
             .then(function () {
               return {
                 Chart: window.Chart,
                 ChartDataLabels: window.ChartDataLabels,
-                ChartAnnotation: window.ChartAnnotation
+                ChartAnnotation: window['chartjs-plugin-annotation']
               };
             });
         })).then(function (api) {
@@ -399,7 +403,7 @@
   }
 
   // ── Build scales ──
-  function buildScales(data, chartType, th) {
+  function buildScales(data, chartType, th, layoutWidth) {
     var noScales = chartType === 'pie' || chartType === 'doughnut' ||
                    chartType === 'polarArea' || chartType === 'radar';
     if (noScales) return undefined;
@@ -407,6 +411,9 @@
     var isHorizontal = chartType === 'horizontalBar' || chartType === 'stackedHBar';
     var isStacked = chartType === 'stackedBar' || chartType === 'stackedHBar' ||
                     chartType === 'stackedArea' || data.stacked;
+    var isPhone = layoutWidth > 0 && layoutWidth < 600;
+    var axisTitleFont = isPhone ? { size: 11, weight: '500' } : undefined;
+    var tickFont = isPhone ? { size: 11 } : undefined;
 
     var tickCb = makeTickCallback(data.format, data.prefix, data.suffix);
 
@@ -414,9 +421,10 @@
       title: {
         display: !!(data.xAxis || data.xLabel),
         text: data.xAxis || data.xLabel || '',
-        color: th.text
+        color: th.text,
+        font: axisTitleFont
       },
-      ticks: { color: th.text },
+      ticks: { color: th.text, font: tickFont, autoSkipPadding: isPhone ? 6 : undefined },
       grid: { color: th.grid },
       stacked: isStacked || undefined
     };
@@ -425,9 +433,10 @@
       title: {
         display: !!(data.yAxis || data.yLabel),
         text: data.yAxis || data.yLabel || '',
-        color: th.text
+        color: th.text,
+        font: axisTitleFont
       },
-      ticks: { color: th.text },
+      ticks: { color: th.text, font: tickFont },
       grid: { color: th.grid },
       beginAtZero: data.beginAtZero !== false,
       stacked: isStacked || undefined
@@ -449,9 +458,10 @@
         title: {
           display: !!(data.y2Axis || data.y2Label),
           text: data.y2Axis || data.y2Label || '',
-          color: th.text
+          color: th.text,
+          font: axisTitleFont
         },
-        ticks: { color: th.text },
+        ticks: { color: th.text, font: tickFont },
         grid: { drawOnChartArea: false },
         beginAtZero: data.beginAtZero !== false
       };
@@ -579,21 +589,22 @@
   // ── Default aspect ratio ──
   // Chart.js's 2:1 default leaves no plot area on narrow viewports once title /
   // axis labels / legend / data labels are subtracted; pick a taller default on phones.
-  function getDefaultAspect(rawType) {
+  function getDefaultAspect(rawType, layoutWidth) {
     var isRadial = rawType === 'pie' || rawType === 'doughnut' ||
                    rawType === 'polarArea' || rawType === 'radar';
     if (isRadial) return 1;
-    var w = (typeof window !== 'undefined' && window.innerWidth) || 1024;
+    var w = layoutWidth || ((typeof window !== 'undefined' && window.innerWidth) || 1024);
     // Line-family charts stack multiple series up the value axis; a short plot
     // squashes them together. Give them extra height on narrow screens so the
     // lines have room to separate.
-    var isLineFamily = rawType === 'line' || rawType === 'area' || rawType === 'stackedArea';
+    var isLineFamily = rawType === 'line' || rawType === 'area' ||
+                       rawType === 'stackedArea' || rawType === 'mixed';
     if (isLineFamily) {
-      if (w < 600) return 0.85;
+      if (w < 600) return 0.62;
       if (w < 900) return 1.3;
       return 2;
     }
-    if (w < 600) return 1.15;
+    if (w < 600) return 0.72;
     if (w < 900) return 1.6;
     return 2;
   }
@@ -604,10 +615,70 @@
   // the plot and crushes it to a sliver. Add height for each legend row beyond
   // the first so the plot keeps its intended size. Desktop legends fit on one
   // row, so this returns the unmodified default there.
-  function computeAspect(data) {
-    if (data.aspectRatio) return data.aspectRatio;
+  var chartTextMeasureCanvas = null;
+
+  function measureChartText(text, size, weight, family) {
+    if (!chartTextMeasureCanvas) chartTextMeasureCanvas = document.createElement('canvas');
+    var ctx = chartTextMeasureCanvas.getContext('2d');
+    if (!ctx) return String(text).length * size * 0.55;
+    ctx.font = (weight || '400') + ' ' + size + 'px ' + (family || 'sans-serif');
+    return ctx.measureText(String(text)).width;
+  }
+
+  function wrapChartText(text, layoutWidth, size, weight, family) {
+    if (!text || !layoutWidth || layoutWidth >= 600 || typeof text !== 'string') return text;
+    var words = text.trim().split(/\s+/);
+    if (words.length < 2) return text;
+    var maxWidth = Math.max(120, layoutWidth - 44);
+    var lines = [];
+    var line = words[0];
+    for (var i = 1; i < words.length; i++) {
+      var candidate = line + ' ' + words[i];
+      if (measureChartText(candidate, size, weight, family) <= maxWidth) {
+        line = candidate;
+      } else {
+        lines.push(line);
+        line = words[i];
+      }
+    }
+    lines.push(line);
+    return lines.length > 1 ? lines : text;
+  }
+
+  function legendRowCount(data, rawType, layoutWidth) {
+    var isRadial = rawType === 'pie' || rawType === 'doughnut' ||
+                   rawType === 'polarArea' || rawType === 'radar';
+    var labels = isRadial
+      ? (data.labels || [])
+      : (data.datasets || []).map(function (dataset) { return dataset.label || ''; });
+    if (labels.length < 2) return 1;
+    var available = Math.max(120, layoutWidth - 24);
+    var isPhone = layoutWidth < 600;
+    var rows = 1;
+    var used = 0;
+    labels.forEach(function (label) {
+      var itemWidth = Math.min(available, measureChartText(label, isPhone ? 11 : 12, '400') + (isPhone ? 30 : 42));
+      if (used && used + itemWidth > available) {
+        rows++;
+        used = itemWidth;
+      } else {
+        used += itemWidth;
+      }
+    });
+    return rows;
+  }
+
+  function computeAspect(data, layoutWidth) {
     var rawType = normalizeType(data.type);
-    var base = getDefaultAspect(rawType);
+    var w = layoutWidth || ((typeof window !== 'undefined' && window.innerWidth) || 1024);
+    var responsiveDefault = getDefaultAspect(rawType, w);
+    var specified = Number(data.aspectRatio);
+    var base = specified > 0 ? specified : responsiveDefault;
+    // A wide authored ratio describes the preferred desktop shape. On a phone
+    // it is capped at the readable responsive default so chart chrome cannot
+    // consume the complete plotting rectangle.
+    if (w < 600) base = Math.min(base, responsiveDefault);
+    else if (specified > 0) return base;
     var datasets = data.datasets || [];
     var isRadial = rawType === 'pie' || rawType === 'doughnut' ||
                    rawType === 'polarArea' || rawType === 'radar';
@@ -615,20 +686,31 @@
                      (isRadial || datasets.length > 1 || rawType === 'mixed');
     var legendPos = data.legendPosition || 'bottom';
     if (!showLegend || (legendPos !== 'top' && legendPos !== 'bottom')) return base;
-    var legendItems = isRadial ? (data.labels || []).length : datasets.length;
-    if (legendItems < 2) return base;
-    var w = (typeof window !== 'undefined' && window.innerWidth) || 1024;
-    // Conservative items-per-row estimate (errs toward more rows -> taller, the
-    // safe direction for readability). Each legend item is roughly 200px wide.
-    var itemsPerRow = Math.max(1, Math.floor(w / 200));
-    var extraRows = Math.max(0, Math.ceil(legendItems / itemsPerRow) - 1);
+    var extraRows = Math.max(0, legendRowCount(data, rawType, w) - 1);
     if (extraRows === 0) return base;
     var baseHeight = w / base;
-    return w / (baseHeight + extraRows * 44);
+    return w / (baseHeight + extraRows * 34);
+  }
+
+  function chartLayoutWidth(wrapper) {
+    if (!wrapper) return 0;
+    var style = window.getComputedStyle ? window.getComputedStyle(wrapper) : null;
+    var inset = style ? (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0) : 0;
+    var width = wrapper.clientWidth;
+    // Charts may be constructed while their collapsible section is closed.
+    // Walk to the first laid-out ancestor so responsive text and aspect choices
+    // are correct before the section becomes visible.
+    var ancestor = wrapper.parentElement;
+    while (!(width > 0) && ancestor) {
+      width = ancestor.clientWidth;
+      ancestor = ancestor.parentElement || (ancestor.getRootNode && ancestor.getRootNode().host);
+    }
+    width -= inset;
+    return Math.max(0, width);
   }
 
   // ── Build Chart.js config ──
-  function buildConfig(data) {
+  function buildConfig(data, layoutWidth) {
     var rawType = normalizeType(data.type);
     var th = theme();
 
@@ -652,6 +734,7 @@
     var isRadial = rawType === 'pie' || rawType === 'doughnut' || rawType === 'polarArea';
     var isRadar = rawType === 'radar';
     var showLegend = data.legend !== false && (isRadial || datasets.length > 1 || rawType === 'mixed');
+    var isPhone = layoutWidth > 0 && layoutWidth < 600;
 
     // Legend position
     var legendPos = data.legendPosition || 'bottom';
@@ -663,29 +746,36 @@
         responsive: true,
         maintainAspectRatio: true,
         animation: false,
-        layout: { padding: { top: 20 } },
+        layout: { padding: { top: isPhone ? 8 : 20 } },
         font: th.font ? { family: th.font } : undefined,
-        aspectRatio: computeAspect(data),
+        aspectRatio: computeAspect(data, layoutWidth),
         indexAxis: isHorizontal ? 'y' : undefined,
         plugins: {
           title: {
             display: !!data.title,
-            text: data.title || '',
+            text: wrapChartText(data.title || '', layoutWidth, 15, '600', th.font),
             color: th.title,
             font: { size: 15, weight: '600', family: th.font || undefined },
-            padding: { bottom: data.subtitle ? 2 : 23 }
+            padding: { bottom: data.subtitle ? 2 : (isPhone ? 16 : 23) }
           },
           subtitle: {
             display: !!data.subtitle,
-            text: data.subtitle || '',
+            text: wrapChartText(data.subtitle || '', layoutWidth, 12, '400', th.font),
             color: th.text,
             font: { size: 12, weight: '400' },
-            padding: { bottom: 24 }
+            padding: { bottom: isPhone ? 16 : 24 }
           },
           legend: {
             display: showLegend,
             position: legendPos,
-            labels: { color: th.text, usePointStyle: true, padding: 16 }
+            labels: {
+              color: th.text,
+              usePointStyle: true,
+              padding: isPhone ? 10 : 16,
+              boxWidth: isPhone ? 10 : undefined,
+              boxHeight: isPhone ? 10 : undefined,
+              font: isPhone ? { size: 11 } : undefined
+            }
           },
           tooltip: {
             backgroundColor: th.tooltipBg,
@@ -698,7 +788,7 @@
           },
           datalabels: buildDatalabels(data, rawType, th)
         },
-        scales: buildScales(data, rawType, th)
+        scales: buildScales(data, rawType, th, layoutWidth)
       }
     };
 
@@ -787,7 +877,7 @@
         if (!pre) return;
         var data = parseChartData(codeEl.textContent);
         if (!data) { pre.classList.add('sdoc-chart-error'); return; }
-        var config = buildConfig(data);
+        var config = buildConfig(data, options.slideContext ? 1024 : 0);
         if (!config) return;
         if (options.slideContext) tuneConfigForSlide(config);
 
@@ -797,13 +887,26 @@
         wrapper.setAttribute('data-chart-index', chartIndex);
         var canvas = document.createElement('canvas');
         var entry = { chart: null, data: data, canvas: canvas, wrapper: wrapper };
-        wrapper.appendChild(canvas);
-        wrapper.appendChild(buildChartMenu(data, chartIndex, entry));
+        var plot = document.createElement('div');
+        plot.className = 'sdoc-chart-plot';
+        plot.appendChild(canvas);
+        wrapper.appendChild(plot);
+        var menu = buildChartMenu(data, chartIndex, entry);
+        if (controls.copy && !options.slideContext) {
+          wrapper.classList.add('sdoc-chart-has-toolbar');
+          wrapper.insertBefore(buildChartToolbar(entry, menu), plot);
+        } else {
+          wrapper.appendChild(menu);
+        }
 
         var preWrapper = pre.closest('.pre-wrapper');
         var target = preWrapper || pre;
         if (!target.parentNode) return;
         target.parentNode.replaceChild(wrapper, target);
+
+        var layoutWidth = options.slideContext ? options.shapeWidth : chartLayoutWidth(wrapper);
+        if (!options.slideContext) config = buildConfig(data, layoutWidth);
+        entry.layoutWidth = layoutWidth;
 
         // With responsive:false we own canvas dimensions. The caller
         // passes the shape's declared REF-pixel size; we use it directly
@@ -850,6 +953,74 @@
     return e;
   }
 
+  function scheduleCopyReset(callback) {
+    var timer = window.setTimeout(function () {
+      copyTimers = copyTimers.filter(function (candidate) { return candidate !== timer; });
+      callback();
+    }, COPY_FEEDBACK_MS);
+    copyTimers.push(timer);
+  }
+
+  function copyButton(kind, label) {
+    var button = _el('button', 'chart-copy-btn chart-copy-' + kind + '-btn');
+    button.type = 'button';
+    button.title = 'Copy chart as ' + label;
+    button.setAttribute('aria-label', 'Copy chart as ' + label);
+    setHTML(button, COPY_SVG + '<span class="chart-copy-label">' + label + '</span>');
+    return button;
+  }
+
+  function flashCopyButton(button, label) {
+    setHTML(button, CHECK_SVG + '<span class="chart-copy-label">' + label + '</span>');
+    scheduleCopyReset(function () {
+      if (!destroyed && button.isConnected) {
+        setHTML(button, COPY_SVG + '<span class="chart-copy-label">' + label + '</span>');
+      }
+    });
+  }
+
+  function flashCopyLabel(button, text, label) {
+    var target = button.querySelector('.chart-copy-label');
+    if (!target) return;
+    target.textContent = text;
+    scheduleCopyReset(function () {
+      if (!destroyed && button.isConnected) target.textContent = label;
+    });
+  }
+
+  function copyChartJson(entry, button) {
+    var clipboard = env.clipboard || (window.navigator && window.navigator.clipboard);
+    if (!clipboard || !clipboard.writeText) {
+      flashCopyLabel(button, 'Not supported', 'JSON');
+      return;
+    }
+    clipboard.writeText(JSON.stringify(entry.data, null, 2)).then(function () {
+      if (!destroyed && button.isConnected) flashCopyButton(button, 'JSON');
+    }).catch(function () {
+      if (!destroyed && button.isConnected) flashCopyLabel(button, 'Failed', 'JSON');
+    });
+  }
+
+  function buildChartToolbar(entry, menu) {
+    var toolbar = _el('div', 'sdoc-chart-toolbar');
+    var jsonButton = copyButton('json', 'JSON');
+    jsonButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      copyChartJson(entry, jsonButton);
+    });
+    var pngButton = copyButton('png', 'PNG');
+    pngButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      copyChartAction(entry, pngButton);
+    });
+    toolbar.appendChild(jsonButton);
+    toolbar.appendChild(pngButton);
+    toolbar.appendChild(menu);
+    return toolbar;
+  }
+
   function buildChartMenu(data, chartIndex, entry) {
     var frag = document.createDocumentFragment();
     var btn = _el('button', 'chart-menu-btn');
@@ -867,15 +1038,6 @@
     var menu = _el('div', 'chart-menu');
     menu.setAttribute('data-chart-index', chartIndex);
 
-    if (controls.copy) {
-      var copyBtn = _el('button', 'chart-menu-item', 'Copy as image');
-      copyBtn.setAttribute('data-action', 'copy-png');
-      copyBtn.addEventListener('click', function (event) {
-        event.stopPropagation();
-        copyChartAction(entry, copyBtn);
-      });
-      menu.appendChild(copyBtn);
-    }
     if (controls.download) {
       var dlBtn = _el('button', 'chart-menu-item', 'Download as PNG');
       dlBtn.setAttribute('data-action', 'download-png');
@@ -885,7 +1047,7 @@
       });
       menu.appendChild(dlBtn);
     }
-    if (controls.copy || controls.download) menu.appendChild(_el('div', 'chart-menu-sep'));
+    if (controls.download) menu.appendChild(_el('div', 'chart-menu-sep'));
 
     var rawType = normalizeType(data.type);
     var isRadial = rawType === 'pie' || rawType === 'doughnut' || rawType === 'polarArea';
@@ -951,7 +1113,9 @@
     var entry = chartDataStore[index];
     if (!entry) return;
     entry.chart.destroy();
-    var config = buildConfig(entry.data);
+    var layoutWidth = chartLayoutWidth(entry.wrapper);
+    var config = buildConfig(entry.data, layoutWidth);
+    entry.layoutWidth = layoutWidth;
     entry.chart = new Chart(entry.canvas, config);
     activeCharts = chartDataStore.map(function (e) { return e.chart; });
   }
@@ -973,12 +1137,18 @@
   }
 
   function copyChartAction(entry, item) {
-    if (!entry || !window.navigator.clipboard || !window.ClipboardItem) return;
+    var clipboard = env.clipboard || (window.navigator && window.navigator.clipboard);
+    var ClipboardItemApi = env.ClipboardItem || window.ClipboardItem;
+    if (!entry || !clipboard || !clipboard.write || !ClipboardItemApi) {
+      flashCopyLabel(item, 'Not supported', 'PNG');
+      return;
+    }
     entry.canvas.toBlob(function (blob) {
       if (!blob || destroyed) return;
-      window.navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]).then(function () {
-        item.textContent = 'Copied!';
-        window.setTimeout(function () { if (!destroyed) item.textContent = 'Copy as image'; }, 1500);
+      clipboard.write([new ClipboardItemApi({ 'image/png': blob })]).then(function () {
+        if (!destroyed && item.isConnected) flashCopyButton(item, 'PNG');
+      }).catch(function () {
+        if (!destroyed && item.isConnected) flashCopyLabel(item, 'Failed', 'PNG');
       });
     });
   }
@@ -1061,7 +1231,9 @@
   function refreshChartColors() {
     chartDataStore.forEach(function (entry) {
       entry.chart.destroy();
-      var config = buildConfig(entry.data);
+      var layoutWidth = chartLayoutWidth(entry.wrapper);
+      var config = buildConfig(entry.data, layoutWidth);
+      entry.layoutWidth = layoutWidth;
       entry.chart = new Chart(entry.canvas, config);
     });
     // Update activeCharts
@@ -1079,11 +1251,13 @@
     resizeTimer = setTimeout(function () {
       if (destroyed) return;
       chartDataStore.forEach(function (entry) {
-        if (entry.data.aspectRatio) return;
-        var nextAspect = computeAspect(entry.data);
-        if (entry.chart.options.aspectRatio === nextAspect) return;
+        var layoutWidth = chartLayoutWidth(entry.wrapper);
+        var nextAspect = computeAspect(entry.data, layoutWidth);
+        var widthChanged = Math.abs(layoutWidth - (entry.layoutWidth || 0)) > 8;
+        if (!widthChanged && entry.chart.options.aspectRatio === nextAspect) return;
         entry.chart.destroy();
-        entry.chart = new Chart(entry.canvas, buildConfig(entry.data));
+        entry.chart = new Chart(entry.canvas, buildConfig(entry.data, layoutWidth));
+        entry.layoutWidth = layoutWidth;
       });
       activeCharts = chartDataStore.map(function (e) { return e.chart; });
     }, 150);
@@ -1125,6 +1299,8 @@
   function destroy() {
     if (destroyed) return;
     destroyed = true;
+    copyTimers.forEach(function (timer) { window.clearTimeout(timer); });
+    copyTimers = [];
     if (resizeTimer) clearTimeout(resizeTimer);
     window.removeEventListener('resize', onResize);
     document.removeEventListener('click', onDocumentClick);

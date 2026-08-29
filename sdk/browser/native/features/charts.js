@@ -5,6 +5,7 @@ import { setKnownHTML } from '../runtime.js';
 const CHART_JS = 'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js';
 const DATA_LABELS = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js';
 const ANNOTATION = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js';
+const ANNOTATION_GLOBAL = 'chartjs-plugin-annotation';
 
 let canonicalPromise = null;
 let chartPromise = null;
@@ -37,16 +38,16 @@ function loadChart() {
     chartPromise = (async () => {
       const previousChart = window.Chart;
       const previousLabels = window.ChartDataLabels;
-      const previousAnnotation = window.ChartAnnotation;
+      const previousAnnotation = window[ANNOTATION_GLOBAL];
       try {
         const Chart = await loadScript(CHART_JS, () => window.Chart);
         const ChartDataLabels = await loadScript(DATA_LABELS, () => window.ChartDataLabels);
-        const ChartAnnotation = await loadScript(ANNOTATION, () => window.ChartAnnotation);
+        const ChartAnnotation = await loadScript(ANNOTATION, () => window[ANNOTATION_GLOBAL]);
         return { Chart, ChartDataLabels, ChartAnnotation };
       } finally {
         restoreGlobal('Chart', previousChart);
         restoreGlobal('ChartDataLabels', previousLabels);
-        restoreGlobal('ChartAnnotation', previousAnnotation);
+        restoreGlobal(ANNOTATION_GLOBAL, previousAnnotation);
       }
     })().catch((error) => {
       chartPromise = null;
