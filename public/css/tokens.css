@@ -8,6 +8,7 @@
   --bg-panel:      #EDE8E2;
   --bg-panel-deep: #E7E2DB;
   --bg-input:      #FFFFFF;
+  --sdocs-document-bg: #FFFFFF;
   --bg-hover:      #E8E3DD;
   --bg-active:     #E2DDD6;
 
@@ -61,6 +62,7 @@ html[data-theme="dark"] {
   --bg-panel:      #211F1D;
   --bg-panel-deep: #1A1816;
   --bg-input:      #2C2926;
+  --sdocs-document-bg: #2C2A26;
   --bg-hover:      #32302C;
   --bg-active:     #3A3733;
 

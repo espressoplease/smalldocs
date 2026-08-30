@@ -21,17 +21,16 @@ test('mobile homepage navigation follows window scroll while desktop stays stick
 
   await page.evaluate(() => window.scrollTo(0, 100));
   await expect(nav).toHaveClass(/scrolled/);
-  await expect(nav).toHaveAttribute('data-mobile-header-state', 'moving');
+  await expect(nav).toHaveAttribute('data-mobile-header-state', 'hidden');
   await page.evaluate(() => window.scrollTo(0, 320));
   await expect(nav).toHaveAttribute('data-mobile-header-state', 'hidden');
   const hiddenNav = await nav.boundingBox();
-  expect(Math.round(hiddenNav.y)).toBe(-Math.round(hiddenNav.height));
+  await expect.poll(async () => Math.round((await nav.boundingBox()).y))
+    .toBe(-Math.round(hiddenNav.height));
 
   await page.evaluate(() => window.scrollTo(0, 300));
-  await expect(nav).toHaveAttribute('data-mobile-header-state', 'moving');
-  await page.evaluate(() => window.scrollTo(0, 220));
   await expect(nav).toHaveAttribute('data-mobile-header-state', 'visible');
-  expect(Math.round((await nav.boundingBox()).y)).toBe(0);
+  await expect.poll(async () => Math.round((await nav.boundingBox()).y)).toBe(0);
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(nav).not.toHaveClass(/scrolled/);
@@ -49,7 +48,7 @@ test('mobile homepage navigation follows window scroll while desktop stays stick
   await expect(page.locator('.sdocs-scroll-header-spacer')).toBeHidden();
 });
 
-test('mobile reload starts at the top without changing desktop scroll restoration', async ({ page }) => {
+test('reload leaves scroll restoration to the browser on mobile and desktop', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/home');
   await page.evaluate(() => {
@@ -59,7 +58,7 @@ test('mobile reload starts at the top without changing desktop scroll restoratio
   expect(await page.evaluate(() => window.scrollY)).toBe(900);
 
   await page.reload();
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(900);
   await expect(page.locator('#nav')).toHaveAttribute('data-mobile-header-state', 'visible');
 
   await page.goto('/#install');

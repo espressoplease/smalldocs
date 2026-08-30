@@ -250,21 +250,17 @@ test('mobile document controls follow the window scroll direction', async ({ pag
     document.getElementById('_sd_rendered').appendChild(spacer);
     window.scrollTo(0, 100);
   });
-  await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'moving');
+  await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'hidden');
   await page.evaluate(() => window.scrollTo(0, 320));
   const initialScroll = await page.evaluate(() => window.scrollY);
   expect(initialScroll).toBeGreaterThan(0);
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
   await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'hidden');
-  expect(Math.round((await mobileHeader.boundingBox()).y)).toBe(-44);
+  await expect.poll(async () => Math.round((await mobileHeader.boundingBox()).y)).toBe(-44);
 
   await page.evaluate(() => window.scrollTo(0, 300));
-  await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'moving');
-  await page.evaluate(() => window.scrollTo(0, 280));
-  await expect.poll(async () => Math.round((await mobileHeader.boundingBox()).y)).toBe(-24);
-  await page.evaluate(() => window.scrollTo(0, 200));
   await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'visible');
-  expect(Math.round((await mobileHeader.boundingBox()).y)).toBe(0);
+  await expect.poll(async () => Math.round((await mobileHeader.boundingBox()).y)).toBe(0);
   const drawerScroll = await page.evaluate(() => window.scrollY);
 
   await menu.evaluate(element => element.click());
@@ -320,6 +316,7 @@ test('short mobile documents retain their background without a viewport minimum 
   await page.evaluate(() => {
     SDocs.renderedEl.innerHTML = '<p>Short document</p>';
     SDocs.setStyleVar('--md-bg', '#dbeafe');
+    SDocs.applyChromeTint();
   });
 
   const canvas = await page.evaluate(() => {
@@ -337,6 +334,7 @@ test('short mobile documents retain their background without a viewport minimum 
 
   expect(canvas.contentBackground).toBe('rgb(219, 234, 254)');
   expect(canvas.renderedBackground).toBe(canvas.contentBackground);
+  await expect(page.locator('body')).toHaveCSS('background-color', canvas.contentBackground);
   expect(await page.locator('#_sd_left').evaluate(element => getComputedStyle(element).minHeight))
     .toBe('auto');
 });

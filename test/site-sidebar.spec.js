@@ -260,19 +260,17 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
     document.body.appendChild(spacer);
     window.scrollTo(0, 100);
   });
-  await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'moving');
+  await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'hidden');
   await page.evaluate(() => window.scrollTo(0, 320));
   const initialScroll = await page.evaluate(() => window.scrollY);
   expect(initialScroll).toBeGreaterThan(0);
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
   await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'hidden');
-  expect(Math.round((await mobileBar.boundingBox()).y)).toBe(-44);
+  await expect.poll(async () => Math.round((await mobileBar.boundingBox()).y)).toBe(-44);
 
   await page.evaluate(() => window.scrollTo(0, 300));
-  await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'moving');
-  await page.evaluate(() => window.scrollTo(0, 220));
   await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'visible');
-  expect(Math.round((await mobileBar.boundingBox()).y)).toBe(0);
+  await expect.poll(async () => Math.round((await mobileBar.boundingBox()).y)).toBe(0);
   const drawerScroll = await page.evaluate(() => window.scrollY);
 
   const menu = page.locator('.sdocs-site-mobilebar-menu');

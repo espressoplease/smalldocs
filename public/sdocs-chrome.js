@@ -176,6 +176,10 @@
   function apply() {
     var root = document.documentElement.style;
     var activeTheme = currentTheme();
+    var docBg = readDocBg();
+
+    if (docBg) root.setProperty('--sdocs-document-bg', docBg);
+    else root.removeProperty('--sdocs-document-bg');
 
     if (!hasCustomDocBg(activeTheme)) {
       // Clear any previous overrides so tokens.css defaults show through
@@ -184,7 +188,6 @@
       return;
     }
 
-    var docBg = readDocBg();
     if (!docBg) return;
 
     // Pick chrome base palette by the doc's luminance, not the active theme.

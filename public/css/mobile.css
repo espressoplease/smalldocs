@@ -11,8 +11,12 @@
    MOBILE
 ═══════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  /* ── Make body the scroll container (iOS tap-to-top) ── */
-  body { overflow: visible; height: auto; }
+  /* Keep page scrolling on the document rather than an app-height shell. */
+  body {
+    overflow: visible;
+    height: auto;
+    background: var(--sdocs-document-bg, var(--bg-input, #fff));
+  }
   #_sd_main { flex-direction: column; overflow: visible; }
   #_sd_left { overflow: visible; }
   #_sd_content-area { overflow: visible; }
@@ -58,7 +62,6 @@
   /* Site navigation opens over the document from the fixed menu control. */
   #_sd_sidebar {
     width: min(320px, calc(100vw - 32px));
-    height: calc(100dvh - 44px);
     flex: none;
     padding: 18px 14px 16px;
     border: 0;
@@ -114,9 +117,8 @@
     box-shadow: none;
   }
 
-  /* The mobile header uses window scroll. JavaScript switches this stack
-     between fixed and document positions so it follows the user's scroll
-     without relying on sticky positioning or viewport-height calculations. */
+  /* The mobile header stays in one fixed coordinate system. JavaScript only
+     translates it out of view while scrolling down. */
   #_sd_mobile-header {
     display: block;
     position: fixed;
