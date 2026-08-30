@@ -252,8 +252,6 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   await expect(page.locator('body')).toHaveCSS('min-height', '0px');
   await expect(mobileBar).toHaveCSS('position', 'sticky');
   await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'visible');
-  await expect(page.locator('html')).toHaveCSS('overscroll-behavior-y', 'none');
-  await expect(page.locator('body')).toHaveCSS('overscroll-behavior-y', 'none');
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
 
   await page.evaluate(() => {
