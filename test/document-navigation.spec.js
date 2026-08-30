@@ -232,6 +232,8 @@ test('mobile document controls remain visible while the window scrolls', async (
   await expect(toolbar).toHaveCSS('position', 'relative');
   await expect(toolbar).toHaveCSS('height', '44px');
   await expect(mobileHeaderSpacer).toBeHidden();
+  await expect(page.locator('html')).toHaveCSS('overscroll-behavior-y', 'none');
+  await expect(page.locator('body')).toHaveCSS('overscroll-behavior-y', 'none');
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
   await expect(page.locator('#_sd_left')).toHaveCSS('min-height', 'auto');
   await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-short')).toBeVisible();

@@ -1,6 +1,33 @@
 (function (exports) {
   'use strict';
 
+  function bindMobileOverscrollBoundary() {
+    var root = document.documentElement;
+    var body = document.body;
+    if (!root || !body || root._sdocsMobileOverscrollBoundary) return;
+
+    var mobile = window.matchMedia('(max-width: 768px)');
+    var originalRoot = root.style.overscrollBehaviorY;
+    var originalBody = body.style.overscrollBehaviorY;
+
+    function refresh() {
+      if (mobile.matches) {
+        root.style.overscrollBehaviorY = 'none';
+        body.style.overscrollBehaviorY = 'none';
+      } else {
+        if (originalRoot) root.style.overscrollBehaviorY = originalRoot;
+        else root.style.removeProperty('overscroll-behavior-y');
+        if (originalBody) body.style.overscrollBehaviorY = originalBody;
+        else body.style.removeProperty('overscroll-behavior-y');
+      }
+    }
+
+    if (mobile.addEventListener) mobile.addEventListener('change', refresh);
+    else mobile.addListener(refresh);
+    root._sdocsMobileOverscrollBoundary = { refresh: refresh };
+    refresh();
+  }
+
   function bind(options) {
     if (typeof window === 'undefined' || !window.document) return null;
 
@@ -87,6 +114,7 @@
 
   function bindMarkedHeaders(root) {
     root = root || document;
+    bindMobileOverscrollBoundary();
     var headers = root.querySelectorAll('[data-sdocs-scroll-header]');
     Array.prototype.forEach.call(headers, function (header) {
       if (header._sdocsScrollHeader) return;

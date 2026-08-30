@@ -17,6 +17,8 @@ test('mobile homepage navigation stays visible while desktop stays sticky', asyn
   const nav = page.locator('#nav');
   await expect(nav).toHaveCSS('position', 'sticky');
   await expect(nav).toHaveAttribute('data-mobile-header-state', 'visible');
+  await expect(page.locator('html')).toHaveCSS('overscroll-behavior-y', 'none');
+  await expect(page.locator('body')).toHaveCSS('overscroll-behavior-y', 'none');
   await expect(nav).not.toHaveClass(/scrolled/);
 
   await page.evaluate(() => window.scrollTo(0, 100));
@@ -38,6 +40,8 @@ test('mobile homepage navigation stays visible while desktop stays sticky', asyn
 
   await page.setViewportSize({ width: 900, height: 844 });
   await expect(nav).toHaveCSS('position', 'sticky');
+  await expect(page.locator('html')).toHaveCSS('overscroll-behavior-y', 'auto');
+  await expect(page.locator('body')).toHaveCSS('overscroll-behavior-y', 'auto');
   await expect(page.locator('.sdocs-scroll-header-spacer')).toBeHidden();
 });
 
