@@ -61,6 +61,7 @@
 
   /* Site navigation opens over the document from the fixed menu control. */
   #_sd_sidebar {
+    display: none;
     width: min(320px, calc(100vw - 32px));
     flex: none;
     padding: 18px 14px 16px;
@@ -85,6 +86,7 @@
                 visibility 0s linear .3s;
   }
   body.sdocs-mobile-nav-open #_sd_sidebar {
+    display: flex;
     opacity: 1;
     visibility: visible;
     transform: translateX(0);
@@ -224,6 +226,7 @@
 
   /* ── Right panel: bottom sheet overlay ── */
   #_sd_right {
+    display: none;
     position: fixed;
     bottom: 0;
     left: 0;
@@ -240,6 +243,7 @@
   }
   /* Style mode: open the complete bottom sheet immediately. */
   body.style-mode #_sd_right {
+    display: flex;
     max-height: 70vh;
     opacity: 1;
     overflow-y: auto;
@@ -252,6 +256,7 @@
 
   /* ── Export panel: bottom sheet overlay ── */
   #_sd_export-panel {
+    display: none;
     position: fixed;
     bottom: 0;
     left: 0;
@@ -266,6 +271,7 @@
     overflow: hidden;
   }
   body.export-mode #_sd_export-panel {
+    display: flex;
     max-height: 70vh;
     opacity: 1;
     overflow-y: auto;
@@ -275,6 +281,7 @@
 
   /* ── Info panel: bottom sheet overlay ── */
   #_sd_info-panel {
+    display: none;
     position: fixed;
     bottom: 0;
     left: 0;
@@ -289,6 +296,7 @@
     overflow: hidden;
   }
   body.info-mode #_sd_info-panel {
+    display: flex;
     max-height: 80vh;
     opacity: 1;
     overflow-y: auto;

@@ -95,6 +95,10 @@ test('mobile panels open fully with a backdrop and an explicit close button', as
   });
   const initialScroll = await page.evaluate(() => window.scrollY);
   expect(initialScroll).toBeGreaterThan(0);
+  const mobilePanels = ['#_sd_right', '#_sd_export-panel', '#_sd_info-panel'];
+  for (const panel of mobilePanels) {
+    await expect(page.locator(panel)).toHaveCSS('display', 'none');
+  }
 
   const cases = [
     {
@@ -130,6 +134,10 @@ test('mobile panels open fully with a backdrop and an explicit close button', as
     await page.locator(item.trigger).evaluate(element => element.click());
 
     await expect(page.locator('body')).toHaveClass(new RegExp(item.mode + '-mode'));
+    await expect(page.locator(item.panel)).toHaveCSS('display', 'flex');
+    for (const panel of mobilePanels.filter(panel => panel !== item.panel)) {
+      await expect(page.locator(panel)).toHaveCSS('display', 'none');
+    }
     await expect(page.locator(item.panel).getByText(item.title, { exact: true })).toBeVisible();
     await expect(page.locator(item.close)).toBeVisible();
     await expect(page.locator('body')).toHaveCSS('overflow', 'visible');
@@ -149,6 +157,7 @@ test('mobile panels open fully with a backdrop and an explicit close button', as
 
     await page.locator(item.close).evaluate(element => element.click());
     await expect(page.locator('body')).toHaveClass(/read-mode/);
+    await expect(page.locator(item.panel)).toHaveCSS('display', 'none');
     expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
     await expect.poll(() => page.locator('body').evaluate(element =>
       getComputedStyle(element, '::after').opacity)).toBe('0');
@@ -217,6 +226,7 @@ test('mobile document controls follow the window scroll direction', async ({ pag
   const scroller = page.locator('.sdocs-mobile-toolbar-scroll');
   const menu = page.locator('#_sd_mobile_menu');
   const cloudButton = page.locator('[data-sidebar-section="cloud"] > .doc-site-action');
+  await expect(page.locator('#_sd_sidebar')).toHaveCSS('display', 'none');
   await expect(mobileHeader).toHaveCSS('position', 'sticky');
   await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'visible');
   await expect(toolbar).toHaveCSS('position', 'relative');
@@ -267,6 +277,7 @@ test('mobile document controls follow the window scroll direction', async ({ pag
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
   await expect(menu.locator('.sdocs-mobile-menu-close')).toBeVisible();
   await expect(page.locator('#_sd_sidebar')).toBeVisible();
+  await expect(page.locator('#_sd_sidebar')).toHaveCSS('display', 'flex');
   await expect(page.locator('body')).toHaveCSS('overflow', 'visible');
   await expect(page.locator('#_sd_sidebar')).toHaveCSS('overscroll-behavior', 'contain');
   expect(await page.evaluate(() => window.scrollY)).toBe(drawerScroll);
@@ -279,6 +290,7 @@ test('mobile document controls follow the window scroll direction', async ({ pag
   await page.mouse.click(drawer.x + drawer.width + 20, drawer.y + 80);
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#_sd_sidebar')).toBeHidden();
+  await expect(page.locator('#_sd_sidebar')).toHaveCSS('display', 'none');
   await menu.evaluate(element => element.click());
   await expect(page.locator('#_sd_sidebar')).toBeVisible();
   await expect(scroller).toHaveAttribute('inert', '');
