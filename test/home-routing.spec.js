@@ -9,32 +9,25 @@ test('root stays on the homepage for a signed-out browser without a Local Librar
   await expect(page.locator('#install')).toBeVisible();
 });
 
-test('mobile homepage navigation follows window scroll while desktop stays sticky', async ({ page }) => {
+test('mobile homepage navigation stays visible while desktop stays sticky', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/home');
   await page.addStyleTag({ content: 'html { scroll-behavior: auto !important; }' });
 
   const nav = page.locator('#nav');
-  await expect(nav).toHaveCSS('position', 'fixed');
+  await expect(nav).toHaveCSS('position', 'sticky');
   await expect(nav).toHaveAttribute('data-mobile-header-state', 'visible');
   await expect(nav).not.toHaveClass(/scrolled/);
 
   await page.evaluate(() => window.scrollTo(0, 100));
   await expect(nav).toHaveClass(/scrolled/);
-  await expect(nav).toHaveAttribute('data-mobile-header-state', 'hidden');
   await page.evaluate(() => window.scrollTo(0, 320));
-  await expect(nav).toHaveAttribute('data-mobile-header-state', 'hidden');
-  const hiddenNav = await nav.boundingBox();
-  await expect.poll(async () => Math.round((await nav.boundingBox()).y))
-    .toBe(-Math.round(hiddenNav.height));
-
-  await page.evaluate(() => window.scrollTo(0, 300));
   await expect(nav).toHaveAttribute('data-mobile-header-state', 'visible');
   await expect.poll(async () => Math.round((await nav.boundingBox()).y)).toBe(0);
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(nav).not.toHaveClass(/scrolled/);
-  await expect(nav).toHaveCSS('position', 'fixed');
+  await expect(nav).toHaveCSS('position', 'sticky');
   const geometry = await page.evaluate(() => {
     const bar = document.getElementById('nav').getBoundingClientRect();
     const hero = document.querySelector('.hero').getBoundingClientRect();
@@ -95,9 +88,9 @@ test('independent public page shells share mobile scroll headers without changin
 
   for (const surface of surfaces) {
     await page.goto(surface.url);
-    await expect(page.locator(surface.header)).toHaveCSS('position', 'fixed');
+    await expect(page.locator(surface.header)).toHaveCSS('position', 'sticky');
     await expect(page.locator(surface.header)).toHaveAttribute('data-mobile-header-state', 'visible');
-    await expect(page.locator('.sdocs-scroll-header-spacer')).toBeVisible();
+    await expect(page.locator('.sdocs-scroll-header-spacer')).toBeHidden();
     await expect(page.locator(surface.shell)).toHaveCSS('min-height', '0px');
   }
 

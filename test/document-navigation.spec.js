@@ -216,7 +216,7 @@ test('compact desktop navigation uses a click-to-expand rail from 950px', async 
   await expect(page.locator('body')).not.toHaveClass(/sdocs-sidebar-collapsed/);
 });
 
-test('mobile document controls follow the window scroll direction', async ({ page }) => {
+test('mobile document controls remain visible while the window scrolls', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/docs');
 
@@ -258,17 +258,11 @@ test('mobile document controls follow the window scroll direction', async ({ pag
     const spacer = document.createElement('div');
     spacer.style.height = '1600px';
     document.getElementById('_sd_rendered').appendChild(spacer);
-    window.scrollTo(0, 100);
+    window.scrollTo(0, 320);
   });
-  await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'hidden');
-  await page.evaluate(() => window.scrollTo(0, 320));
   const initialScroll = await page.evaluate(() => window.scrollY);
   expect(initialScroll).toBeGreaterThan(0);
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
-  await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'hidden');
-  await expect.poll(async () => Math.round((await mobileHeader.boundingBox()).y)).toBe(-44);
-
-  await page.evaluate(() => window.scrollTo(0, 300));
   await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'visible');
   await expect.poll(async () => Math.round((await mobileHeader.boundingBox()).y)).toBe(0);
   const drawerScroll = await page.evaluate(() => window.scrollY);

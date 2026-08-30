@@ -250,7 +250,7 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
   const mobileBar = page.locator('.sdocs-site-mobilebar');
   await expect(page.locator('body')).toHaveCSS('padding-top', '0px');
   await expect(page.locator('body')).toHaveCSS('min-height', '0px');
-  await expect(mobileBar).toHaveCSS('position', 'fixed');
+  await expect(mobileBar).toHaveCSS('position', 'sticky');
   await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'visible');
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
 
@@ -258,17 +258,11 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
     const spacer = document.createElement('div');
     spacer.style.height = '1600px';
     document.body.appendChild(spacer);
-    window.scrollTo(0, 100);
+    window.scrollTo(0, 320);
   });
-  await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'hidden');
-  await page.evaluate(() => window.scrollTo(0, 320));
   const initialScroll = await page.evaluate(() => window.scrollY);
   expect(initialScroll).toBeGreaterThan(0);
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
-  await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'hidden');
-  await expect.poll(async () => Math.round((await mobileBar.boundingBox()).y)).toBe(-44);
-
-  await page.evaluate(() => window.scrollTo(0, 300));
   await expect(mobileBar).toHaveAttribute('data-mobile-header-state', 'visible');
   await expect.poll(async () => Math.round((await mobileBar.boundingBox()).y)).toBe(0);
   const drawerScroll = await page.evaluate(() => window.scrollY);
@@ -320,7 +314,7 @@ test('compact site navigation uses a rail and mobile navigation uses a left draw
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
-  await expect(mobileBar).toHaveCSS('position', 'fixed');
+  await expect(mobileBar).toHaveCSS('position', 'sticky');
   const topGeometry = await page.evaluate(() => {
     const bar = document.querySelector('.sdocs-site-mobilebar').getBoundingClientRect();
     const content = document.querySelector('.content').getBoundingClientRect();
