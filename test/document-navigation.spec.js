@@ -217,11 +217,11 @@ test('mobile document controls follow the window scroll direction', async ({ pag
   const scroller = page.locator('.sdocs-mobile-toolbar-scroll');
   const menu = page.locator('#_sd_mobile_menu');
   const cloudButton = page.locator('[data-sidebar-section="cloud"] > .doc-site-action');
-  await expect(mobileHeader).toHaveCSS('position', 'fixed');
+  await expect(mobileHeader).toHaveCSS('position', 'sticky');
   await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'visible');
   await expect(toolbar).toHaveCSS('position', 'relative');
   await expect(toolbar).toHaveCSS('height', '44px');
-  await expect(mobileHeaderSpacer).toHaveCSS('height', '44px');
+  await expect(mobileHeaderSpacer).toBeHidden();
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
   await expect(page.locator('#_sd_left')).toHaveCSS('min-height', 'auto');
   await expect(page.locator('.sdocs-mobile-toolbar-brand .toolbar-brand-short')).toBeVisible();
@@ -299,7 +299,7 @@ test('mobile document controls follow the window scroll direction', async ({ pag
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.locator('html')).not.toHaveClass(/sdocs-mobile-page-scrolled/);
   await expect(mobileHeader).toHaveAttribute('data-mobile-header-state', 'visible');
-  await expect(mobileHeader).toHaveCSS('position', 'fixed');
+  await expect(mobileHeader).toHaveCSS('position', 'sticky');
   await expect(toolbar).toHaveCSS('position', 'relative');
   const topGeometry = await page.evaluate(() => {
     const bar = document.getElementById('_sd_left-toolbar').getBoundingClientRect();

@@ -240,6 +240,7 @@
   S.mobileHeader = scrollHeader.bind({
     header: header,
     spacer: document.getElementById('_sd_mobile-header-spacer'),
+    strategy: 'sticky',
     breakpoint: 768,
     observeTarget: document.body,
     isPinned: function () {

@@ -11,10 +11,12 @@
 
     var breakpoint = options.breakpoint || 768;
     var mobile = window.matchMedia('(max-width: ' + breakpoint + 'px)');
+    var strategy = options.strategy === 'sticky' ? 'sticky' : 'fixed';
+    var usesFlow = strategy === 'sticky';
     var spacer = options.spacer;
     if (typeof spacer === 'string') spacer = document.querySelector(spacer);
-    var ownsSpacer = !spacer;
-    if (!spacer) {
+    var ownsSpacer = !spacer && !usesFlow;
+    if (!spacer && !usesFlow) {
       spacer = document.createElement('div');
       spacer.className = 'sdocs-scroll-header-spacer';
       spacer.setAttribute('aria-hidden', 'true');
@@ -43,12 +45,15 @@
     }
 
     function syncSpacer() {
-      if (!ownsSpacer) return;
-      if (!mobile.matches) {
+      if (!spacer) return;
+      if (!mobile.matches || usesFlow) {
         spacer.style.display = 'none';
         spacer.style.removeProperty('height');
+        spacer.style.removeProperty('flex');
+        spacer.style.removeProperty('overflow-anchor');
         return;
       }
+      if (!ownsSpacer) return;
       spacer.style.display = 'block';
       spacer.style.height = Math.round(headerHeight()) + 'px';
       spacer.style.flex = '0 0 auto';
@@ -61,8 +66,8 @@
       header.style.transform = next === 'hidden' ? 'translateY(-100%)' : 'translateY(0)';
     }
 
-    function setFixed(next) {
-      header.style.position = 'fixed';
+    function setMobilePosition(next) {
+      header.style.position = strategy;
       header.style.top = '0';
       header.style.left = '0';
       header.style.right = '0';
@@ -108,7 +113,7 @@
         return;
       }
       syncSpacer();
-      setFixed('visible');
+      setMobilePosition('visible');
     }
 
     function pinFor(duration) {
@@ -124,13 +129,13 @@
       var delta = scrollY - lastScrollY;
 
       if (scrollY <= 0 || pinsHeader()) {
-        setFixed('visible');
+        setMobilePosition('visible');
         lastScrollY = scrollY;
         return;
       }
 
-      if (delta > 0 && state !== 'hidden') setFixed('hidden');
-      else if (delta < 0 && state !== 'visible') setFixed('visible');
+      if (delta > 0 && state !== 'hidden') setMobilePosition('hidden');
+      else if (delta < 0 && state !== 'visible') setMobilePosition('visible');
 
       lastScrollY = scrollY;
     }

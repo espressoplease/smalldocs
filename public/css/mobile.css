@@ -117,28 +117,18 @@
     box-shadow: none;
   }
 
-  /* The mobile header stays in one fixed coordinate system. JavaScript only
-     translates it out of view while scrolling down. */
+  /* Keep the reader header in document flow. Sticky positioning reserves its
+     own height without a viewport-fixed layer or a separate spacer. */
   #_sd_mobile-header {
     display: block;
-    position: fixed;
+    position: sticky;
     top: 0;
     left: 0;
     z-index: 101;
     width: 100%;
   }
   #_sd_mobile-header-spacer {
-    display: block;
-    height: 44px;
-    flex: 0 0 44px;
-    overflow-anchor: none;
-    transition: height .3s cubic-bezier(.4,0,.2,1),
-                flex-basis .3s cubic-bezier(.4,0,.2,1);
-  }
-  body.write-mode #_sd_mobile-header-spacer,
-  body.comment-mode #_sd_mobile-header-spacer {
-    height: 78px;
-    flex-basis: 78px;
+    display: none;
   }
   body.sdocs-mobile-nav-open #_sd_write-toolbar,
   body.sdocs-mobile-nav-open #_sd_comment-toolbar {
