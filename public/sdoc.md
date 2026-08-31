@@ -651,7 +651,7 @@ sdoc charts            # chart types, JSON format, styling, annotations
 Use the cross-agent installer for the standard skill:
 
 ```bash
-npx skills@latest add https://smalldocs.org/agent-skills/smalldocs/SKILL.md --global
+npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 ```
 
 After `sdoc cloud login`, use the Cloud-aware replacement command printed by
@@ -660,7 +660,9 @@ other.
 
 If `npx skills` is unavailable, run `sdoc setup`. It installs one canonical
 `SKILL.md` at `~/.agents/skills/smalldocs`; agents using that universal
-location read it directly and other detected agents receive a symlink.
+location read it directly and other detected agents receive a symlink. This
+built-in fallback installs the standard edition. Use the `npx skills` command
+printed by `sdoc cloud login` to replace it with the Cloud-aware edition.
 
 If you previously ran an older `sdoc setup` that pasted an always-on SmallDocs
 section into a `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`, running `sdoc setup` or
@@ -670,7 +672,6 @@ double-load the reference.
 Preview the exact standard skill and built-in install plan without writing:
 
 ```bash
-mkdir -p ~/.agents/skills/smalldocs
 sdoc setup --yes --dry-run
 ```
 

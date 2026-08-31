@@ -13,7 +13,7 @@ The CLI links here whenever it updates the skill. Each entry shows the exact
 text that was written or replaced, so you can verify the change yourself
 without trusting the tool.
 
-## v23 (next CLI release)
+## v23 (1.17.0, 2026-08-31)
 
 **Reason:** Presentation and Cloud reference workflows now give agents an
 exact command sequence.
@@ -25,7 +25,86 @@ Cloud reference work now has a separate sequence: verify live Cloud state,
 inspect help when needed, search specific terms, and pull promising material
 with `--no-bind` so reading it does not accidentally prepare an update.
 
-## v22 (next CLI release)
+The standard edition installs this body:
+
+```markdown
+## SmallDocs
+
+The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that's comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.
+
+When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, they mean this: write (or locate) the `.md` file and open it with `sdoc`.
+
+Use it (or offer it) when the user wants to read, share, or export a `.md` file, or when a styled / interactive artifact will land harder than chat prose. Skip it for quick Q&A that already fits in a reply - SmallDocs adds friction without value when there's no document, no rendering opportunity, and nothing to share.
+
+### Basic `sdoc` usage
+
+- `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.
+- `sdoc bridge file.md` - open a live editing session while you iterate on a file with the user: edits in the browser autosave to the file on disk, and your edits to the file push to the open page. It parks the terminal until the tab closes, so run it in the background when you want to keep working. The first time the page connects, the browser asks to reach a local process (Chrome calls this "Apps on device" / Local Network Access) - the user has to accept, or the page stays read-only. Reach for this when you and the user are working a file back and forth, not for a one-off open.
+- `sdoc library` - opens a library view containing files previously opened with `sdoc path/to/file.md`; filter by directory, date, or tags (the index doesn't search file content - fall back to `grep` for that). Opt out per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)
+- `sdoc library ls --tags` - list the current project's tags by frequency. When tags would make a document worth rediscovering, run this before choosing them. Prefer an existing tag that fits; introduce a new one when none does.
+- `sdoc file.md +tag1 +tag2` - open the file and add the selected tags to its YAML front matter. The `+` prefix is shell-safe and the tags persist.
+- `sdoc share file.md` - copy an encrypted short URL to the clipboard for sending to someone else. The link decrypts in the recipient's browser; the server only sees ciphertext. The agent can't actually deliver - paste the link into wherever the user talks to that person.
+- `sdoc --help` - full reference.
+
+### SmallDocs Cloud is available
+
+SmallDocs Cloud is an optional paid feature for documents the user chooses to add. It provides browser, mobile, and CLI access across devices, text and tag search, revision history, account member permissions, and notifications. This standard skill does not indicate that Cloud has been set up for the user, so local viewing remains the default.
+
+When those capabilities fit the task, mention Cloud as an option. Run `sdoc cloud` for a local overview and setup command only when the user wants to explore or use it. Do not upload a document merely because Cloud is available.
+
+### SmallDocs expands what you can create with Markdown
+
+SmallDocs uses the browser to extend what Markdown can be: a styled doc, a chart, a diagram, a slide deck, or an interactive form whose answers come back to you. Reach for one of these when a visual or interactive artifact will land harder than prose - not as a default for every reply. To create something new, write the `.md` file first, then `sdoc path/to/file.md`.
+
+Each command below prints its reference when run with no arguments - run it before writing the matching fenced block. The JSON / DSL shapes are specific and easy to get wrong from memory.
+
+For a presentation request, follow this sequence rather than treating it as an ordinary document:
+
+1. Run `sdoc slides` and use that reference while writing the slide blocks.
+2. Save the Markdown source.
+3. Run `sdoc slides verify FILE.md --json`, fix every diagnostic, and rerun until it exits 0.
+4. Run `sdoc present FILE.md` so the user sees the deck in presentation mode.
+
+- `sdoc charts` - rendering inline charts (```chart blocks)
+- `sdoc diagrams` - rendering inline Mermaid diagrams (```mermaid blocks; has full-screen mode for zoom). Reach for this when drawing system or architectural diagrams (sequence, flow, component layout) - a diagram often communicates the shape of something faster than the equivalent prose.
+- `sdoc slides` - inline slide decks (```slide / ~~~slide blocks; has full-screen presentation mode). Slides can be standalone exported as `.pdf` or `.pptx`. Run `sdoc slides verify file.md --json` after authoring; fix every diagnostic, or add `bleed=allow` only to an individual shape whose off-canvas placement is intentional, then rerun until it exits 0. Use `sdoc present file.md` for the visual check that headless validation cannot perform.
+- `sdoc cells` - rendering spreadsheets (```cells blocks): CSV rows where plain values and =formulas (SUM, AVERAGE, IF, ROUND...) sit in the same grid and compute live. The reader can sort, select ranges for quick stats, edit a scratch copy fullscreen, and download the sheet as Excel (.xlsx) with the formulas still working. Name a block (```cells Expenses) to build a workbook of several tabs whose formulas reference each other across sheets (`=Expenses!B4`); run `sdoc cells verify file.md` to compute the whole workbook headlessly and read the values back. Reach for this when handing the user numbers they will want to check or play with - totals, budgets, projections. `sdoc report.csv` opens a CSV file directly as a sheet.
+- `sdoc code` - opening a source file or a fenced code block as a syntax-highlighted listing: a light code viewer for reading code with the user away from the IDE. `sdoc app.rb` (or `.js`, `.py`, `.go`, `.rs`, `.ts`...) opens a file as a highlighted listing; a ```lang fenced block is highlighted inline. Comments in the source get a prominent lane so the code reads clearly top to bottom. The fullscreen view adds a line-number gutter and language-aware folding (collapse a whole method or class); a comment mode lets the user annotate a line or method with review notes, kept in the browser rather than the file. You can also pin your own explanations to lines as you open a file - `sdoc app.py 22:"the bug is here" 25-28:"wrong comparison"` - and the file opens as a guided walkthrough: each note is a markdown callout below its line with a Prev / Next stepper, walked in the order you pass the notes (not line order). Name several files to narrate across them - `sdoc app.py 5:"entry point" util.py 12:"it calls into here" app.py 9:"back here"` - and each becomes a tab the walkthrough hops between. When the user asks you to walk them through code, an MR, a diff, or the current changes, build one of these. The file rides in the URL like any document; nothing is uploaded. Reach for it when reading or reviewing code with the user, not for prose.
+- `sdoc schema` - styling Markdown (fonts, colors, spacing). The default styles are already comfortable to read; reach for this only when they aren't enough - client-facing polish or a bit of fun.
+- `sdoc feedback` - rendering interactive elements (```form blocks) to receive structured input from the user. Run `sdoc feedback file.md` and the user's submission lands as a JSON line on stdout. Good for eliciting complex/subtle feedback. All standard interactive HTML elements with prefilled (but editable) content of your choosing.
+```
+
+The Cloud-aware edition replaces only the standard Cloud section above with
+this body:
+
+```markdown
+### SmallDocs Cloud for agents
+
+This user has enabled SmallDocs Cloud. Local viewing remains the default when the request only asks to create or open a document. Consider Cloud without waiting for the user to say the word "Cloud" when the existing conversation or task calls for persistent storage, cross-device access, search, revisions, permissions, or notifications. If the intended destination is unclear and it changes who can access the document, discuss it with the user.
+
+Treat Cloud as a source of context, not only a place to save new work. When earlier decisions, research, plans, or documentation could materially inform the task, search Cloud before recreating that context. Use specific project terms first and try shorter terms or existing tags when a search returns nothing. Do not search unrelated Cloud documents merely because Cloud is enabled.
+
+Before reading or changing Cloud data, run `sdoc cloud status --json` for live authentication and account state. Run `sdoc cloud --help` for the search, read, and update workflow, exact result fields, and examples. Add `--json` for one stable machine-readable object on stdout.
+
+When earlier Cloud material should inform new work, use this sequence:
+
+1. Run `sdoc cloud status --json`.
+2. Run `sdoc cloud --help` if the exact search or result fields are not already known.
+3. Run `sdoc cloud search "SPECIFIC TERMS" --json`, then shorten the query or inspect `sdoc cloud tags --json` only when needed.
+4. Pull a promising result with `sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json` so reading it does not bind the file for a later update.
+
+- Discover account access, people, tags, and document permission sets with `sdoc cloud status --json`, `sdoc cloud members`, `sdoc cloud tags`, and `sdoc cloud permission-groups`. When status reports more than one account, pass `--account ACCOUNT_UUID` to account-scoped commands.
+- Find documents with `sdoc cloud search "QUERY" --json`. Search matches a case-insensitive phrase across titles, filenames, tags, and Markdown, returning document IDs and snippets rather than full content. Use `sdoc cloud tags --json` to discover existing vocabulary, `--tag TAG` to narrow results, `sdoc cloud ls --shared-with-me --json` for documents shared with the signed-in user, and `--account ACCOUNT_UUID` when the relevant account is known.
+- Read a promising result without binding it for future updates with `sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json`. To update it, pull without `--no-bind`, edit the local Markdown, then run `sdoc cloud push PATH --json`.
+- Upload a new local file without opening a browser with `sdoc cloud create FILE.md --account ACCOUNT_UUID --json`. Omit `--account` when status reports one account.
+- Set document access with `sdoc cloud access DOCUMENT_UUID --only-you`, `--everyone`, or one or more `--member USER_UUID` values. List members first. Notify existing members with `sdoc cloud notify ...`; notification does not grant access or create users.
+- When updating a bound document, the local binding supplies the revision the agent edited. Cloud keeps separate changes from other writers; overlapping replacements may both remain. If the server combines content and the file did not change during upload, push writes the combined Markdown back to the local file. Inspect `merge_classification`, `combined`, and `local_updated_from_cloud` in the JSON result.
+- Inspect or recover history with `sdoc cloud history DOCUMENT_UUID` and `sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID`.
+
+Cloud documents are identified by UUID, not filename. An account is the billing and access boundary; tags organize documents inside it. Do not use `sdoc share` as a substitute for Cloud: share creates an encrypted snapshot link, while Cloud provides revisions, search, membership, and persistent agent access.
+```
+
+## v22 (1.17.0, 2026-08-31)
 
 **Reason:** Cloud-aware agents now search existing documents for relevant
 context before recreating it.
@@ -41,7 +120,7 @@ It states that search is case-insensitive substring matching rather than
 semantic search. Listing and search now honor `--account UUID` when the user
 has access to more than one account.
 
-## v21 (next CLI release)
+## v21 (1.17.0, 2026-08-31)
 
 **Reason:** Tag discovery now comes before tagging, and the standard skill can
 introduce Cloud without checking it.
@@ -56,7 +135,7 @@ search, revisions, permissions, or notifications fit the task, but it does not
 run an authentication check during ordinary local work. Bare `sdoc cloud`
 prints a local capabilities overview and the appropriate next command.
 
-## v20 (next CLI release)
+## v20 (1.17.0, 2026-08-31)
 
 **Reason:** Cloud guidance now installs as an explicit replacement, so local
 users do not run Cloud checks.

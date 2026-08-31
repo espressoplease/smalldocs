@@ -129,6 +129,21 @@ module.exports = function(harness) {
     assert.ok(fs.existsSync(htmlPath), 'public/index.html not found');
   });
 
+  test('public setup copy leads with the standard cross-agent skill installer', () => {
+    const setup = require(path.join(__dirname, '..', 'public', 'sdocs-cli-setup.js'));
+    const homepage = fs.readFileSync(path.join(__dirname, '..', 'public',
+      'homepage.html'), 'utf8');
+    const docs = fs.readFileSync(path.join(__dirname, '..', 'public', 'sdoc.md'), 'utf8');
+    const command = 'npx skills@latest add https://smalldocs.org/agent-skills/standard --global';
+    assert.ok(setup.SETUP_PROMPT.includes(command));
+    assert.ok(setup.SETUP_PROMPT.includes('save a document to SmallDocs Cloud'));
+    assert.ok(!setup.SETUP_PROMPT.includes('Then run: `sdoc setup --yes`'));
+    assert.ok(homepage.includes(command));
+    assert.ok(homepage.includes('built-in fallback installs the standard edition'));
+    assert.ok(docs.includes(command));
+    assert.ok(!docs.includes('/agent-skills/smalldocs/SKILL.md'));
+  });
+
   test('Cloud UI lab assets exist and remain opt-in', () => {
     const script = fs.readFileSync(path.join(__dirname, '..', 'public',
       'sdocs-cloud-ui-lab.js'), 'utf-8');

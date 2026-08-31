@@ -1273,8 +1273,8 @@ footer {
             </summary>
             <div class="trouble-body">
               <div class="trouble-step">
-                <p style="margin-top: 0;">Running <code>sdoc setup</code> installs the SmallDocs skill for your coding agents. It writes one <code>SKILL.md</code> to <code>~/.agents/skills/smalldocs</code>. Agents using that universal location read it directly; other detected agents receive a symlink in their own skills directory (for example, <code>~/.claude/skills</code>). The skill&rsquo;s short description sits in the agent&rsquo;s context and the full reference loads on demand only when relevant.</p>
-                <p>After that you simply ask your agent to build you a "sdoc" or "SmallDoc" and it knows what to do. Setup supports 45+ agents (using a table derived from <a href="https://github.com/vercel-labs/skills">vercel-labs/skills</a>) and is idempotent.</p>
+                <p style="margin-top: 0;">Run <code>npx skills@latest add https://smalldocs.org/agent-skills/standard --global</code> to install the standard SmallDocs skill for supported coding agents. Its short description sits in the agent&rsquo;s context and the full reference loads on demand only when relevant.</p>
+                <p>After that you can ask your agent to build a "sdoc" or "SmallDoc" and it knows what to do. If <code>npx skills</code> is unavailable, <code>sdoc setup</code> installs the standard edition through a built-in fallback and removes agent configuration written by older SmallDocs releases.</p>
               </div>
             </div>
           </details>
@@ -1293,7 +1293,8 @@ footer {
                            never leaves your browser</pre>
                 <p>Browsers never send the hash fragment to the server, so your document stays on your machine. The server sees a request for the page; it does not see your document.</p>
                 <blockquote style="margin: 12px 0; padding-left: 12px; border-left: 2px solid var(--line); color: var(--ink-2); font-size: var(--t-sm);line-height: 1.55;">&ldquo;The fragment is not sent to the server when the URI is requested; it is processed by the client&rdquo; - <a href="https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Fragment" target="_blank" rel="noopener" style="text-decoration: underline; color: var(--ink);">MDN Web Docs</a></blockquote>
-                <p>The one feature that uploads anything is a short link (click generate short link, or run <code>sdoc share file.md</code>), which is end-to-end encrypted: your browser generates a random key, encrypts the document locally with AES-GCM, and uploads only the ciphertext. The decryption key lives in the URL fragment - just like the document content described above.</p>
+                <p>Creating a short link (click generate short link, or run <code>sdoc share file.md</code>) uploads ciphertext: your browser generates a random key, encrypts the document locally with AES-GCM, and uploads only the encrypted result. The decryption key lives in the URL fragment - like the document content described above.</p>
+                <p>SmallDocs Cloud is a separate, optional store. A document is added to Cloud only when you explicitly create or push it there. Cloud keeps encrypted document content on the server so it can provide cross-device access, search, permissions, and revision history.</p>
                 <pre style="margin: 12px 0; padding: 12px; background: var(--paper); border-radius: var(--r); overflow-x: auto; font-size: 12px; line-height: 1.5; color: var(--ink-2);">  https://smalldocs.org/s/{short id}#k={encryption key}
                           &#9492;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9496;    &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
                               &#9474;                &#9474;
@@ -1391,11 +1392,11 @@ footer {
             <span class="cmd" id="install-cmd-text">curl -fsSL https://smalldocs.org/install | sh</span>
             <button class="copy" id="install-cmd-copy" data-copy="curl -fsSL https://smalldocs.org/install | sh" title="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
           </div>
-          <div class="install-cmd-comment" id="install-cmd-comment"># then, in a new terminal:</div>
+          <div class="install-cmd-comment" id="install-cmd-comment"># then, install the agent skill:</div>
           <div class="install-cmd-line">
             <span class="pr">$</span>
-            <span class="cmd">sdoc setup</span>
-            <button class="copy" data-copy="sdoc setup" title="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+            <span class="cmd">npx skills@latest add https://smalldocs.org/agent-skills/standard --global</span>
+            <button class="copy" data-copy="npx skills@latest add https://smalldocs.org/agent-skills/standard --global" title="Copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
           </div>
         </div>
 
@@ -1427,7 +1428,7 @@ footer {
 
               <p>On Windows, or via npm, install with <code>npm i -g sdocs-dev</code>.</p>
 
-              <p>After installing, run <code>sdoc setup</code> to install the SmallDocs skill for your coding agents (one <code>SKILL.md</code> at <code>~/.agents/skills/smalldocs</code>, with symlinks only for agents that need their own skills directory). The setup command is interactive; answer <code>Y</code> when it asks whether to install.</p>
+              <p>Install the standard SmallDocs skill with <code>npx skills@latest add https://smalldocs.org/agent-skills/standard --global</code>. If <code>npx skills</code> is unavailable, run <code>sdoc setup</code>. The built-in fallback installs the standard edition and removes the always-on configuration block written by older SmallDocs releases.</p>
             </div>
           </div>
         </details>
@@ -1444,7 +1445,7 @@ footer {
                 <li>Run <code>which sdoc</code> in a new terminal and confirm it returns a path. If it doesn&rsquo;t, your shell hasn&rsquo;t picked up the updated PATH yet, open a fresh terminal or source your shell rc file.</li>
                 <li>Run <code>sdoc --version</code> to confirm the CLI launches and is current.</li>
                 <li>Open a fresh chat session with your coding agent and ask it to &ldquo;sdoc me a test file&rdquo;. A styled document should open in your browser.</li>
-                <li>If the agent doesn&rsquo;t recognize the request, check that the SmallDocs skill was installed: <code>~/.agents/skills/smalldocs/SKILL.md</code> should exist (re-run <code>sdoc setup</code> to (re)install it).</li>
+                <li>If the agent doesn&rsquo;t recognize the request, rerun the <code>npx skills</code> command above and inspect the install location it reports. If you used the built-in fallback, check <code>~/.agents/skills/smalldocs/SKILL.md</code> and rerun <code>sdoc setup</code> if it is missing.</li>
               </ul>
             </div>
           </div>
@@ -1582,11 +1583,9 @@ document.addEventListener('keydown', (event) => {
   if (it) it.textContent = installCmd;
   if (ib) ib.setAttribute('data-copy', installCmd);
 
-  // The curl installer only edits the shell rc, so sdoc lands on PATH in a new
-  // shell - hence "new terminal". npm puts its global bin on PATH already, so
-  // on Windows sdoc setup runs in the same session.
+  // The skill installer is separate from the CLI installer on every platform.
   const cc = document.getElementById('install-cmd-comment');
-  if (cc) cc.textContent = win ? '# then:' : '# then, in a new terminal:';
+  if (cc) cc.textContent = '# then, install the agent skill:';
 
   // "Updating the CLI": the upgrade verb is the same on every OS; only the
   // reinstall fallback differs by platform.
