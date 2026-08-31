@@ -92,7 +92,8 @@ test('library UI: renders entries from the agent', async ({ page }) => {
 test('library header: brand returns home and adapts to the available width', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(pageUrl);
-  const desktopBrand = page.locator('.sdocs-site-sidebar-brand');
+  const desktopBrand = page.getByRole('complementary', { name: 'SmallDocs navigation' })
+    .getByRole('link', { name: 'SmallDocs' });
   await expect(desktopBrand).toHaveAttribute('href', '/');
   await expect(desktopBrand).toHaveText('SmallDocs');
   await expect(desktopBrand).toBeVisible();

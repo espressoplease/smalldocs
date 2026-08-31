@@ -61,7 +61,10 @@ test('signed-out Cloud Library provides the full onboarding flow', async ({ page
   await expect(page.getByText('£7', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Security and privacy' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Subscribe to Cloud' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
+  const onboardingSignIn = page.locator('#cloud-onboarding [data-cloud-sign-in]');
+  await expect(onboardingSignIn).toBeVisible();
+  await expect(onboardingSignIn).toHaveAttribute('href', '/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud');
+  await expect(page.locator('#_sd_site_sidebar [data-sdocs-sign-in-return]')).toBeVisible();
   await expect(page.locator('#library-menu')).toBeHidden();
 });
 

@@ -39,7 +39,12 @@ test('signed-out Cloud Library explains the feature without calling Cloud APIs',
   await page.addScriptTag({ url: '/public/library/cloud-library-prototype.js' });
 
   await expect(page.getByRole('heading', { name: 'Cloud Library' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
+  const onboardingSignIn = page.locator('#cloud-onboarding [data-cloud-sign-in]');
+  await expect(onboardingSignIn).toBeVisible();
+  await expect(onboardingSignIn).toHaveAttribute('href', '/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud');
+  const sidebarSignIn = page.locator('#_sd_site_sidebar [data-sdocs-sign-in-return]');
+  await expect(sidebarSignIn).toBeVisible();
+  await expect(sidebarSignIn).toHaveAttribute('href', /return=.*library/);
   await expect(page.getByRole('link', { name: 'Cloud features, pricing, and security' })).toBeVisible();
   await expect(page.getByText('$5 USD or €5 EUR', { exact: true })).toBeVisible();
   await expect(page.getByText('$9 USD or €8 EUR', { exact: true })).toBeVisible();
