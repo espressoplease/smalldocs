@@ -23,6 +23,22 @@ async function openSection(page, bodyId) {
 /** Open a sub-section by clicking its sub-header if not already open */
 async function openSubSection(page, subId) {
   const body = page.locator('#' + subId);
+  const ancestorIds = await body.evaluate(el => {
+    const ids = [];
+    let parent = el.parentElement && el.parentElement.closest('.sub-body');
+    while (parent) {
+      if (parent.id) ids.unshift(parent.id);
+      parent = parent.parentElement && parent.parentElement.closest('.sub-body');
+    }
+    return ids;
+  });
+  for (const ancestorId of ancestorIds) {
+    const ancestor = page.locator('#' + ancestorId);
+    if (!(await ancestor.evaluate(el => el.classList.contains('open')))) {
+      await page.locator(`.sub-header[data-target="${ancestorId}"]`).click();
+      await expect(ancestor).toHaveClass(/open/);
+    }
+  }
   if (!(await body.evaluate(el => el.classList.contains('open')))) {
     await page.locator(`.sub-header[data-target="${subId}"]`).click();
     await expect(body).toHaveClass(/open/);
@@ -374,9 +390,7 @@ test.describe('Reset buttons — cascade colors', () => {
     expect(await getCssVar(page, '--md-h-color')).toBe('#00ff00');
     // Reset h-color — should resume getting ctrl-color's cascade
     await clickReset(page, '_sd_reset-h-color');
-    // After reset, the default color is applied (light theme default #1c1917)
-    const defaultColor = await page.evaluate(() => SDocs.getColorDefault());
-    expect(await getCssVar(page, '--md-h-color')).toBe(defaultColor);
+    expect(await getCssVar(page, '--md-h-color')).toBe('#ff0000');
   });
 
   test('reset-h1-color resumes cascade from h-color', async ({ page }) => {
@@ -387,9 +401,7 @@ test.describe('Reset buttons — cascade colors', () => {
     await setColorValue(page, '_sd_ctrl-h1-color', '#112233');
     expect(await getCssVar(page, '--md-h1-color')).toBe('#112233');
     await clickReset(page, '_sd_reset-h1-color');
-    // After reset, since h-color was overridden, the default color applies
-    const defaultColor = await page.evaluate(() => SDocs.getColorDefault());
-    expect(await getCssVar(page, '--md-h1-color')).toBe(defaultColor);
+    expect(await getCssVar(page, '--md-h1-color')).toBe('#aabbcc');
   });
 
   test('reset ctrl-color re-cascades to all children', async ({ page }) => {
@@ -412,16 +424,15 @@ test.describe('Reset buttons — cascade colors', () => {
     await setColorValue(page, '_sd_ctrl-p-color', '#ccdd00');
     expect(await getCssVar(page, '--md-p-color')).toBe('#ccdd00');
     await clickReset(page, '_sd_reset-p-color');
-    const defaultColor = await page.evaluate(() => SDocs.getColorDefault());
-    expect(await getCssVar(page, '--md-p-color')).toBe(defaultColor);
+    expect(await getCssVar(page, '--md-p-color')).toBe('#aabb00');
   });
 });
 
 // ═════════════════════════════════════════════════════
-//  8. Reset buttons — standalone colors
+//  8. Reset buttons - inherited and standalone colors
 // ═════════════════════════════════════════════════════
 
-test.describe('Reset buttons — standalone colors', () => {
+test.describe('Reset buttons - inherited and standalone colors', () => {
   test('reset-link-color resets to light theme default', async ({ page }) => {
     await gotoStyleMode(page);
     await openSection(page, '_sd_body-colors');
@@ -431,24 +442,26 @@ test.describe('Reset buttons — standalone colors', () => {
     expect(await getCtrlValue(page, '_sd_ctrl-link-color')).toBe(def);
   });
 
-  test('reset-code-bg resets to theme default', async ({ page }) => {
+  test('reset-code-bg resumes the block background cascade', async ({ page }) => {
     await gotoStyleMode(page);
     await openSection(page, '_sd_body-colors');
     await openSubSection(page, '_sd_sub-colors-code');
+    await setColorValue(page, '_sd_ctrl-block-bg', '#abcdef');
     await setColorValue(page, '_sd_ctrl-code-bg', '#000000');
     await clickReset(page, '_sd_reset-code-bg');
-    const def = await page.evaluate(() => SDocs.getStandaloneDefault('_sd_ctrl-code-bg'));
-    expect(await getCtrlValue(page, '_sd_ctrl-code-bg')).toBe(def);
+    expect(await getCtrlValue(page, '_sd_ctrl-code-bg')).toBe('#abcdef');
+    expect(await getCssVar(page, '--md-code-bg')).toBe('#abcdef');
   });
 
-  test('reset-code-color resets to theme default', async ({ page }) => {
+  test('reset-code-color resumes the block text cascade', async ({ page }) => {
     await gotoStyleMode(page);
     await openSection(page, '_sd_body-colors');
     await openSubSection(page, '_sd_sub-colors-code');
+    await setColorValue(page, '_sd_ctrl-block-text', '#123456');
     await setColorValue(page, '_sd_ctrl-code-color', '#000000');
     await clickReset(page, '_sd_reset-code-color');
-    const def = await page.evaluate(() => SDocs.getStandaloneDefault('_sd_ctrl-code-color'));
-    expect(await getCtrlValue(page, '_sd_ctrl-code-color')).toBe(def);
+    expect(await getCtrlValue(page, '_sd_ctrl-code-color')).toBe('#123456');
+    expect(await getCssVar(page, '--md-code-color')).toBe('#123456');
   });
 
   test('reset-bq-border-color resets to theme default', async ({ page }) => {
@@ -461,14 +474,15 @@ test.describe('Reset buttons — standalone colors', () => {
     expect(await getCtrlValue(page, '_sd_ctrl-bq-border-color')).toBe(def);
   });
 
-  test('reset-bq-color resets to theme default', async ({ page }) => {
+  test('reset-bq-color resumes the block text cascade', async ({ page }) => {
     await gotoStyleMode(page);
     await openSection(page, '_sd_body-colors');
     await openSubSection(page, '_sd_sub-colors-bq');
+    await setColorValue(page, '_sd_ctrl-block-text', '#123456');
     await setColorValue(page, '_sd_ctrl-bq-color', '#000000');
     await clickReset(page, '_sd_reset-bq-color');
-    const def = await page.evaluate(() => SDocs.getStandaloneDefault('_sd_ctrl-bq-color'));
-    expect(await getCtrlValue(page, '_sd_ctrl-bq-color')).toBe(def);
+    expect(await getCtrlValue(page, '_sd_ctrl-bq-color')).toBe('#123456');
+    expect(await getCssVar(page, '--md-bq-color')).toBe('#123456');
   });
 });
 
@@ -620,10 +634,10 @@ test.describe('collectStyles roundtrip', () => {
     await openSubSection(page, '_sd_sub-colors-headings');
     await setColorValue(page, '_sd_ctrl-h-color', '#abcdef');
     const styles = await page.evaluate(() => SDocs.collectStyles());
-    // Colors go into the light: theme block (since overriddenColors is non-empty)
-    expect(styles.light.headers.color).toBe('#abcdef');
+    // Top-level colors define the light palette.
+    expect(styles.headers.color).toBe('#abcdef');
     // h1 should NOT have a color since it wasn't explicitly overridden
-    expect(styles.light.h1).toBeUndefined();
+    expect(styles.h1.color).toBeUndefined();
   });
 });
 

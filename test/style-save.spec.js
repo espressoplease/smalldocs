@@ -26,7 +26,7 @@ const DOC = [
 ].join('\n');
 
 test('collectStyles emits the light palette even when viewing in dark mode', async ({ page }) => {
-  await page.goto(BASE);
+  await page.goto(BASE + '/docs');
   await page.waitForSelector('#_sd_rendered');
   await page.evaluate(() => window.SDocs.switchThemeAndUpdate('light'));
   await page.evaluate((md) => window.SDocs.loadText(md), DOC);
@@ -48,7 +48,7 @@ test('collectStyles emits the light palette even when viewing in dark mode', asy
 test('loading a doc while already in dark mode still collects the light palette', async ({ page }) => {
   // The real-world trigger: OS is dark, the doc opens in dark, the user
   // generates a short link without ever switching to light.
-  await page.goto(BASE);
+  await page.goto(BASE + '/docs');
   await page.waitForSelector('#_sd_rendered');
   await page.evaluate(() => window.SDocs.switchThemeAndUpdate('dark'));
   await page.evaluate((md) => window.SDocs.loadText(md), DOC);

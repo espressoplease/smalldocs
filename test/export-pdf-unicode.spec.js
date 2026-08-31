@@ -6,8 +6,8 @@ const BASE = 'http://localhost:3000';
 // Capture PDF bytes by hooking URL.createObjectURL, then extract selectable
 // text via pdf.js. Returns { status, text }.
 async function exportAndExtract(page, md) {
-  await page.goto(BASE);
-  await page.waitForTimeout(500);
+  await page.goto(BASE + '/docs');
+  await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
   await page.evaluate((content) => {
     window.SDocs.loadText(content, 'unicode.md');
   }, md);

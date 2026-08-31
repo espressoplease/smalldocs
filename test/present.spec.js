@@ -159,27 +159,30 @@ test.describe('presentation mode', () => {
     expect(hash).not.toContain('present=');
   });
 
-  test('topbar copy-slide button label tracks the active slide', async ({ page }) => {
+  test('topbar exposes separate text and PNG copy actions', async ({ page }) => {
     await loadDocWithSlides(page, [
       'grid 100 56.25\nr 10 10 80 40 | First',
       'grid 100 56.25\nr 10 10 80 40 | Second',
     ]);
     await page.locator('.sdoc-slide-present').first().click();
-    const label = page.locator('.sdoc-present-copy-num');
-    await expect(label).toHaveText('slide 1');
-    await page.keyboard.press('ArrowRight');
-    await expect(label).toHaveText('slide 2');
+    const textCopy = page.getByRole('button', { name: 'Copy slide text' });
+    const pngCopy = page.getByRole('button', { name: 'Copy slide as PNG' });
+    await expect(textCopy).toBeVisible();
+    await expect(textCopy.locator('.sdoc-present-copy-label')).toHaveText('Text');
+    await expect(pngCopy).toBeVisible();
+    await expect(pngCopy.locator('.sdoc-present-copy-label')).toHaveText('PNG');
   });
 
-  test('copy-slide button copies the active slide text and flashes "copied"', async ({ page, context }) => {
+  test('copy-slide button copies the active slide text and shows a checkmark', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await loadDocWithSlides(page, [
       'grid 100 56.25\nr 10 10 80 40 | Alpha line\nr 10 30 80 20 | Beta line',
       'grid 100 56.25\nr 10 10 80 40 | Gamma line',
     ]);
     await page.locator('.sdoc-slide-present').first().click();
-    await page.locator('.sdoc-present-copy-btn').click();
-    await expect(page.locator('.sdoc-present-copy-btn')).toHaveClass(/copied/);
+    const textCopy = page.getByRole('button', { name: 'Copy slide text' });
+    await textCopy.click();
+    await expect(textCopy.locator('polyline')).toBeVisible();
     const clip = await page.evaluate(() => navigator.clipboard.readText());
     expect(clip).toContain('Alpha line');
     expect(clip).toContain('Beta line');
