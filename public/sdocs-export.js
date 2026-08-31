@@ -79,7 +79,7 @@ function inlineImages(clone) {
 
 function inlineCharts(clone) {
   // Remove chart menu UI
-  clone.querySelectorAll('.chart-menu-btn, .chart-menu').forEach(function(el) { el.remove(); });
+  clone.querySelectorAll('.chart-menu-btn, .chart-menu, .sdoc-chart-toolbar').forEach(function(el) { el.remove(); });
   // Build a map from wrapper element → data URL using Chart.js instances
   var chartImages = S.getChartImages ? S.getChartImages() : [];
   var wrapperMap = new Map();

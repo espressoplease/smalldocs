@@ -113,6 +113,7 @@ test.describe('PDF export — combined', () => {
     await page.waitForTimeout(1000);
     const html = await getExportHTML(page);
     expect(html).not.toContain('section-toggle');
+    expect(html).not.toContain('sdoc-chart-toolbar');
     expect(html).not.toContain('copy-btn');
     expect(html).not.toContain('header-anchor');
   });
