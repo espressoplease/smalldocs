@@ -36,12 +36,12 @@ lives under ~/.sdocs. Ask me before any step that changes my filesystem.
    This re-runs the smalldocs.org installer under the hood and replaces the copy
    in ~/.sdocs with the current version. If `sdoc upgrade` is not found, run the
    installer directly instead: curl -fsSL https://smalldocs.org/install | sh
-3. Teach yourself the new features. Run: sdoc setup --yes
-   This installs the SmallDocs skill at ~/.agents/skills/smalldocs/SKILL.md.
-   Agents using that universal location read it directly; other detected agents
-   receive a symlink, so you know about the latest blocks, including sheets
-   (`cells`), slides, and `sdoc bridge`.
-   It is the canonical writer - do not hand-write the skill yourself.
+3. Teach yourself the new features. Run:
+   npx skills@latest add https://smalldocs.org/agent-skills/standard --global
+   This installs or refreshes the standard SmallDocs skill for supported agents.
+   If `npx skills` is unavailable, run `sdoc setup --yes`; that built-in fallback
+   installs the standard edition and removes configuration written by older
+   SmallDocs releases. Do not hand-write the skill.
 4. Verify and report all three: `sdoc --version` prints the new version;
    `which sdoc` points at `~/.sdocs/bin/sdoc`; and
    `~/.agents/skills/smalldocs/SKILL.md` exists (with a `<!-- sdocs-skill: v=N -->`
@@ -64,11 +64,14 @@ version. Two other doors reach the same place: re-run
 `curl -fsSL https://smalldocs.org/install | sh`, or accept the daily update prompt
 the next time you run `sdoc`.
 
-Then refresh your agent's knowledge of the new blocks (sheets, slides, bridge):
+Then refresh the standard SmallDocs skill for your coding agents:
 
 ```
-sdoc setup --yes
+npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 ```
+
+If `npx skills` is unavailable, use `sdoc setup --yes` as the built-in
+standard-edition fallback.
 
 To check it worked:
 

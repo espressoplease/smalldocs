@@ -214,7 +214,7 @@ Paste this into a coding-agent session:
 ```
 Please install or update SmallDocs for me, and make sure you (my coding agent) know about its latest features.
 
-SmallDocs is a CLI (`sdoc`) that renders local markdown files as styled, readable documents in the browser. It also supports charts, diagrams, slide decks, and interactive forms inside markdown. Nothing leaves my machine unless I explicitly run `sdoc share`.
+SmallDocs is a CLI (`sdoc`) that renders local markdown files as styled, readable documents in the browser. It also supports charts, diagrams, slide decks, and interactive forms inside markdown. Local viewing keeps document content in my browser. Content leaves that local path only when I explicitly run `sdoc share` or save a document to SmallDocs Cloud.
 
 Once it is installed and you know about it, I want to be able to say things like:
 
@@ -224,7 +224,7 @@ Once it is installed and you know about it, I want to be able to say things like
 
 and you will write the markdown and open it for me as a SmallDoc.
 
-The way you will "know about it" is through the SmallDocs skill: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand. `sdoc setup` writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`. Agents using that universal location read it directly; other detected agents receive a symlink in their own skills directory (for example, `~/.claude/skills/smalldocs`). This is the same on-demand skill mechanism you already use for other agent skills.
+The way you will "know about it" is through the SmallDocs skill: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand. Install the standard edition with `npx skills@latest add https://smalldocs.org/agent-skills/standard --global`. If `npx skills` is unavailable, `sdoc setup` provides a built-in standard-edition fallback and removes configuration written by older SmallDocs releases.
 
 Please do the following, and ask me before any step that changes my filesystem.
 
@@ -247,8 +247,8 @@ Please do the following, and ask me before any step that changes my filesystem.
 
 4. Teach yourself the latest features.
    First, if `~/.agents/skills/smalldocs/SKILL.md` already exists, copy it aside and note its `v=N` version number (the `<!-- sdocs-skill: v=N -->` line). This snapshot is how you will spot exactly what a new release adds. On a fresh install there is no such file yet, which is fine.
-   Then run: `sdoc setup --yes`
-   This installs (or refreshes) the SmallDocs skill at ~/.agents/skills/smalldocs/SKILL.md. Agents using that universal location read it directly; other detected agents receive a symlink. The skill is bumped to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the skill yourself, the wording is kept in sync with the CLI version.
+   Then run: `npx skills@latest add https://smalldocs.org/agent-skills/standard --global`
+   This installs or refreshes the standard SmallDocs skill for supported agents. If `npx skills` is unavailable, run `sdoc setup --yes`; that built-in fallback installs the standard edition. Do not hand-roll the skill.
 
 5. Verify it worked.
    Ask me to start a fresh chat session with you (so the updated config file is loaded). In the new session, ask me to say: "sdoc me a test file". A styled document should open in my browser.
@@ -257,7 +257,7 @@ Please do the following, and ask me before any step that changes my filesystem.
 6. Offer me a tour. Ask first, and only show the parts I say yes to - do not run the whole thing unprompted. The point of the tour is for me to learn what I can ask you to generate, so build each example from my own work where you can, and for every output tell me the plain phrase I could say to get it next time. (If you are not sure whether this is a first install or just an update, ask me which.)
 
    For a first install, offer to walk me through it:
-     a. Privacy: write a short SmallDoc - a few real lines, for instance about this project - and open it (`sdoc path/to/file.md`), then explain in a line or two that the whole document travels in the URL fragment (the part after `#`), which browsers never send to a server, so nothing leaves my machine unless I run `sdoc share`.
+     a. Privacy: write a short SmallDoc - a few real lines, for instance about this project - and open it (`sdoc path/to/file.md`), then explain that local viewing keeps the document in the browser; `sdoc share` and explicit SmallDocs Cloud saves are the two upload paths.
      b. Code: open one of my real source files as a SmallDoc (`sdoc path/to/file`) so I can see the syntax highlighting and the comment lane. Pick an obvious one, or ask me which.
      c. Rich outputs: build one SmallDoc, drawn from my real work where possible, that shows the block types SmallDocs can render, and for each one tell me the phrase I could say next time:
         - a diagram, e.g. of this project's structure ("sdoc me a diagram of this flow")
@@ -276,8 +276,7 @@ If any step fails, stop and tell me what happened before doing more.
 
 ```bash
 curl -fsSL https://smalldocs.org/install | sh
-# then, in a new terminal:
-sdoc setup
+npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 ```
 
 ### Windows
@@ -289,7 +288,7 @@ Paste this into a coding-agent session:
 ```
 Please install or update SmallDocs for me, and make sure you (my coding agent) know about its latest features.
 
-SmallDocs is a CLI (`sdoc`) that renders local markdown files as styled, readable documents in the browser. It also supports charts, diagrams, slide decks, and interactive forms inside markdown. Nothing leaves my machine unless I explicitly run `sdoc share`.
+SmallDocs is a CLI (`sdoc`) that renders local markdown files as styled, readable documents in the browser. It also supports charts, diagrams, slide decks, and interactive forms inside markdown. Local viewing keeps document content in my browser. Content leaves that local path only when I explicitly run `sdoc share` or save a document to SmallDocs Cloud.
 
 Once it is installed and you know about it, I want to be able to say things like:
 
@@ -299,7 +298,7 @@ Once it is installed and you know about it, I want to be able to say things like
 
 and you will write the markdown and open it for me as a SmallDoc.
 
-The way you will "know about it" is through the SmallDocs skill: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand. `sdoc setup` writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`. Agents using that universal location read it directly; other detected agents receive a symlink in their own skills directory (for example, `~/.claude/skills/smalldocs`). This is the same on-demand skill mechanism you already use for other agent skills.
+The way you will "know about it" is through the SmallDocs skill: a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand. Install the standard edition with `npx skills@latest add https://smalldocs.org/agent-skills/standard --global`. If `npx skills` is unavailable, `sdoc setup` provides a built-in standard-edition fallback and removes configuration written by older SmallDocs releases.
 
 Please do the following, and ask me before any step that changes my filesystem.
 
@@ -322,8 +321,8 @@ Please do the following, and ask me before any step that changes my filesystem.
 
 4. Teach yourself the latest features.
    First, if `~/.agents/skills/smalldocs/SKILL.md` already exists, copy it aside and note its `v=N` version number (the `<!-- sdocs-skill: v=N -->` line). This snapshot is how you will spot exactly what a new release adds. On a fresh install there is no such file yet, which is fine.
-   Then run: `sdoc setup --yes`
-   This installs (or refreshes) the SmallDocs skill at ~/.agents/skills/smalldocs/SKILL.md. Agents using that universal location read it directly; other detected agents receive a symlink. The skill is bumped to match the CLI version you just installed, so you pick up the newest capabilities. It is the canonical writer; do not hand-roll the skill yourself, the wording is kept in sync with the CLI version.
+   Then run: `npx skills@latest add https://smalldocs.org/agent-skills/standard --global`
+   This installs or refreshes the standard SmallDocs skill for supported agents. If `npx skills` is unavailable, run `sdoc setup --yes`; that built-in fallback installs the standard edition. Do not hand-roll the skill.
 
 5. Verify it worked.
    Ask me to start a fresh chat session with you (so the updated config file is loaded). In the new session, ask me to say: "sdoc me a test file". A styled document should open in my browser.
@@ -332,7 +331,7 @@ Please do the following, and ask me before any step that changes my filesystem.
 6. Offer me a tour. Ask first, and only show the parts I say yes to - do not run the whole thing unprompted. The point of the tour is for me to learn what I can ask you to generate, so build each example from my own work where you can, and for every output tell me the plain phrase I could say to get it next time. (If you are not sure whether this is a first install or just an update, ask me which.)
 
    For a first install, offer to walk me through it:
-     a. Privacy: write a short SmallDoc - a few real lines, for instance about this project - and open it (`sdoc path/to/file.md`), then explain in a line or two that the whole document travels in the URL fragment (the part after `#`), which browsers never send to a server, so nothing leaves my machine unless I run `sdoc share`.
+     a. Privacy: write a short SmallDoc - a few real lines, for instance about this project - and open it (`sdoc path/to/file.md`), then explain that local viewing keeps the document in the browser; `sdoc share` and explicit SmallDocs Cloud saves are the two upload paths.
      b. Code: open one of my real source files as a SmallDoc (`sdoc path/to/file`) so I can see the syntax highlighting and the comment lane. Pick an obvious one, or ask me which.
      c. Rich outputs: build one SmallDoc, drawn from my real work where possible, that shows the block types SmallDocs can render, and for each one tell me the phrase I could say next time:
         - a diagram, e.g. of this project's structure ("sdoc me a diagram of this flow")
@@ -351,5 +350,5 @@ If any step fails, stop and tell me what happened before doing more.
 
 ```bash
 npm i -g sdocs-dev
-sdoc setup
+npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 ```

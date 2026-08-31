@@ -134,6 +134,12 @@ module.exports = function(harness) {
     const homepage = fs.readFileSync(path.join(__dirname, '..', 'public',
       'homepage.html'), 'utf8');
     const docs = fs.readFileSync(path.join(__dirname, '..', 'public', 'sdoc.md'), 'utf8');
+    const upgrade = fs.readFileSync(path.join(__dirname, '..', 'public',
+      'upgrade.md'), 'utf8');
+    const newHome = fs.readFileSync(path.join(__dirname, '..', 'public', 'blogs',
+      'new-home.md'), 'utf8');
+    const explainer = fs.readFileSync(path.join(__dirname, '..', 'public', 'blogs',
+      'what-is-a-smalldoc.md'), 'utf8');
     const command = 'npx skills@latest add https://smalldocs.org/agent-skills/standard --global';
     assert.ok(setup.SETUP_PROMPT.includes(command));
     assert.ok(setup.SETUP_PROMPT.includes('save a document to SmallDocs Cloud'));
@@ -142,6 +148,10 @@ module.exports = function(harness) {
     assert.ok(homepage.includes('built-in fallback installs the standard edition'));
     assert.ok(docs.includes(command));
     assert.ok(!docs.includes('/agent-skills/smalldocs/SKILL.md'));
+    assert.ok(upgrade.includes(command));
+    assert.ok(newHome.includes(command));
+    assert.ok(explainer.includes(command));
+    assert.ok(!explainer.includes('Nothing leaves my machine unless I explicitly run `sdoc share`.'));
   });
 
   test('Cloud UI lab assets exist and remain opt-in', () => {
