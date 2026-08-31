@@ -43,7 +43,7 @@ The `skills` installer detects supported coding agents and installs the SmallDoc
 
 After you connect SmallDocs Cloud, `sdoc cloud login` prints the command for replacing the standard skill with its Cloud-aware edition. The replacement has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. It contains no account details or credentials; live Cloud state still comes from the CLI.
 
-`npx skills@latest` currently requires a recent Node release. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:
+`npx skills@latest` currently requires Node 22.20 or newer. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:
 
 ```bash
 sdoc setup

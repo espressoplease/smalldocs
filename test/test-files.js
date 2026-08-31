@@ -146,7 +146,9 @@ module.exports = function(harness) {
     assert.ok(!setup.SETUP_PROMPT.includes('Then run: `sdoc setup --yes`'));
     assert.ok(homepage.includes(command));
     assert.ok(homepage.includes('built-in fallback installs the standard edition'));
+    assert.ok(homepage.includes('requires Node 22.20 or newer'));
     assert.ok(docs.includes(command));
+    assert.ok(docs.includes('requires Node 22.20 or newer'));
     assert.ok(!docs.includes('/agent-skills/smalldocs/SKILL.md'));
     assert.ok(upgrade.includes(command));
     assert.ok(newHome.includes(command));
