@@ -60,22 +60,6 @@ module.exports = function(harness) {
     assert.ok(CLOUD_HELP.includes('sdoc cloud push ./plan.md --json'));
   });
 
-  test('macOS Keychain save answers both secure prompts without putting the credential in arguments', () => {
-    const credential = { refresh_token: 'test-refresh-token' };
-    let invocation;
-    credentials.keychainSave('https://cloud.example', credential, (command, args, options) => {
-      invocation = { command, args, options };
-      return { status: 0 };
-    });
-    assert.strictEqual(invocation.command, '/usr/bin/expect');
-    assert.strictEqual(invocation.args[0], '-c');
-    assert.ok(invocation.args[1].includes('retype.*item'));
-    assert.strictEqual(invocation.options.input, JSON.stringify(credential) + '\n');
-    assert.ok(!invocation.args.join(' ').includes(credential.refresh_token));
-    assert.strictEqual(invocation.options.env.SDOCS_KEYCHAIN_ACCOUNT,
-      Buffer.from('https://cloud.example').toString('base64url'));
-  });
-
   return async function() {
     console.log('\n-- Cloud CLI Tests ------------------------------------\n');
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-cli-'));
@@ -83,6 +67,263 @@ module.exports = function(harness) {
     const previousFileCredentials = process.env.SDOCS_CLOUD_FILE_CREDENTIALS;
     process.env.SDOCS_HOME = dir;
     process.env.SDOCS_CLOUD_FILE_CREDENTIALS = '1';
+
+    await testAsync('macOS Keychain stores a short wrapping key and round-trips arbitrary-length credentials', async () => {
+      const previous = process.env.SDOCS_HOME;
+      const isolated = path.join(dir, 'keychain-roundtrip');
+      process.env.SDOCS_HOME = isolated;
+      const items = new Map();
+      const writes = [];
+      const ops = {
+        read(accountName) { return items.get(accountName) || null; },
+        write(accountName, value) {
+          writes.push({ accountName, value });
+          items.set(accountName, value.slice(0, 128));
+        },
+        remove(accountName) { items.delete(accountName); },
+      };
+      const credential = {
+        credential_id: 'cli-keychain',
+        user_id: 'usr-keychain',
+        access_token: 'access-' + 'a'.repeat(900),
+        access_token_expires_at: '2099-01-01T00:00:00.000Z',
+        refresh_token: 'refresh-' + 'r'.repeat(300),
+      };
+      try {
+        credentials.keychainSave('https://cloud.example', credential, ops);
+        assert.strictEqual(writes.length, 1);
+        assert.ok(writes[0].value.length < 128);
+        assert.ok(!writes[0].value.includes(credential.refresh_token));
+        assert.deepStrictEqual(credentials.keychainLoad('https://cloud.example', ops), credential);
+        const encryptedFile = path.join(credentials.cloudDir(), fs.readdirSync(credentials.cloudDir())
+          .find((name) => name.endsWith('.enc')));
+        const encrypted = fs.readFileSync(encryptedFile, 'utf8');
+        assert.ok(!encrypted.includes(credential.access_token));
+        assert.ok(!encrypted.includes(credential.refresh_token));
+        assert.strictEqual(fs.statSync(encryptedFile).mode & 0o777, 0o600);
+        assert.strictEqual(fs.statSync(path.dirname(encryptedFile)).mode & 0o777, 0o700);
+
+        const envelope = JSON.parse(encrypted);
+        envelope.tag = envelope.tag.slice(0, -2);
+        fs.writeFileSync(encryptedFile, JSON.stringify(envelope));
+        assert.strictEqual(credentials.keychainLoad('https://cloud.example', ops), null);
+      } finally {
+        process.env.SDOCS_HOME = previous;
+      }
+    });
+
+    await testAsync('macOS Keychain replaces a truncated legacy credential and removes both stores on logout', async () => {
+      const previous = process.env.SDOCS_HOME;
+      process.env.SDOCS_HOME = path.join(dir, 'keychain-truncated');
+      const origin = 'https://truncated.example';
+      const accountName = Buffer.from(origin).toString('base64url');
+      const items = new Map([[accountName, '{"credential_id":"old","access_token":"' + 'x'.repeat(88)]]);
+      const ops = {
+        read(name) { return items.get(name) || null; },
+        write(name, value) { items.set(name, value.slice(0, 128)); },
+        remove(name) { items.delete(name); },
+      };
+      const credential = { credential_id: 'new', refresh_token: 'refresh-' + 'z'.repeat(250) };
+      try {
+        assert.strictEqual(credentials.keychainLoad(origin, ops), null);
+        credentials.keychainSave(origin, credential, ops);
+        assert.deepStrictEqual(credentials.keychainLoad(origin, ops), credential);
+        credentials.keychainDelete(origin, ops);
+        assert.strictEqual(items.has(accountName), false);
+        assert.deepStrictEqual(fs.readdirSync(credentials.cloudDir())
+          .filter((name) => name.endsWith('.enc')), []);
+      } finally {
+        process.env.SDOCS_HOME = previous;
+      }
+    });
+
+    await testAsync('macOS migrates an explicit file fallback when the old Keychain item is truncated', async () => {
+      const previous = process.env.SDOCS_HOME;
+      process.env.SDOCS_HOME = path.join(dir, 'keychain-file-migration');
+      const origin = 'https://fallback.example';
+      const accountName = Buffer.from(origin).toString('base64url');
+      const items = new Map([[accountName, '{"credential_id":"old","access_token":"truncated']]);
+      const ops = {
+        read(name) { return items.get(name) || null; },
+        write(name, value) { items.set(name, value.slice(0, 128)); },
+        remove(name) { items.delete(name); },
+      };
+      const credential = { credential_id: 'fallback', refresh_token: 'file-secret' };
+      try {
+        credentials.atomicWrite(credentials.credentialFile(), { [origin]: credential });
+        assert.deepStrictEqual(credentials.macLoad(origin, ops), credential);
+        assert.strictEqual(fs.existsSync(credentials.credentialFile()), false);
+        assert.deepStrictEqual(credentials.keychainLoad(origin, ops), credential);
+      } finally {
+        process.env.SDOCS_HOME = previous;
+      }
+    });
+
+    await testAsync('macOS Keychain keeps the credential out of process arguments', async () => {
+      const previous = process.env.SDOCS_HOME;
+      process.env.SDOCS_HOME = path.join(dir, 'keychain-arguments');
+      const credential = { refresh_token: 'argument-secret-' + 's'.repeat(200) };
+      let invocation;
+      try {
+        credentials.keychainSave('https://arguments.example', credential,
+          (command, args, options) => {
+            invocation = { command, args, options };
+            return { status: 0 };
+          });
+        assert.strictEqual(invocation.command, '/usr/bin/expect');
+        assert.strictEqual(invocation.args[0], '-c');
+        assert.ok(invocation.args[1].includes('retype.*item'));
+        assert.ok(invocation.options.input.length < 129);
+        assert.ok(!invocation.options.input.includes(credential.refresh_token));
+        assert.ok(!invocation.args.join(' ').includes(credential.refresh_token));
+        assert.strictEqual(invocation.options.env.SDOCS_KEYCHAIN_ACCOUNT,
+          Buffer.from('https://arguments.example').toString('base64url'));
+      } finally {
+        process.env.SDOCS_HOME = previous;
+      }
+    });
+
+    await testAsync('macOS Keychain read and write failures preserve existing encrypted files', async () => {
+      const previous = process.env.SDOCS_HOME;
+      process.env.SDOCS_HOME = path.join(dir, 'keychain-failures');
+      const origin = 'https://keychain-failure.example';
+      const oldFile = credentials.encryptedCredentialFile(origin);
+      const oldValue = 'previous-encrypted-value';
+      const credential = { refresh_token: 'replacement-secret' };
+      try {
+        credentials.atomicWrite(oldFile, { sentinel: oldValue });
+        assert.throws(() => credentials.keychainSave(origin, credential, {
+          read() { throw new Error('Keychain unavailable'); },
+          write() { throw new Error('must not write'); },
+          remove() {},
+        }), /Keychain unavailable/);
+        assert.ok(fs.readFileSync(oldFile, 'utf8').includes(oldValue));
+
+        assert.throws(() => credentials.keychainSave(origin, credential, {
+          read() { return null; },
+          write() { throw new Error('Keychain write failed'); },
+          remove() {},
+        }), /Keychain write failed/);
+        assert.ok(fs.readFileSync(oldFile, 'utf8').includes(oldValue));
+        assert.deepStrictEqual(fs.readdirSync(credentials.cloudDir())
+          .filter((name) => name.endsWith('.enc')), [path.basename(oldFile)]);
+      } finally {
+        process.env.SDOCS_HOME = previous;
+      }
+    });
+
+    await testAsync('Windows DPAPI store round-trips credentials without plaintext files or secret arguments', async () => {
+      const previous = process.env.SDOCS_HOME;
+      process.env.SDOCS_HOME = path.join(dir, 'windows-dpapi');
+      const calls = [];
+      const execute = (command, args, options) => {
+        calls.push({ command, args, input: options.input });
+        if (args.join(' ').includes('::Protect(')) {
+          return { status: 0, stdout: Buffer.from('wrapped:' + options.input).toString('base64') };
+        }
+        const decoded = Buffer.from(options.input, 'base64').toString('utf8');
+        return { status: 0, stdout: decoded.replace(/^wrapped:/, '') };
+      };
+      const origin = 'https://windows.example';
+      const credential = { refresh_token: 'windows-secret-' + 'w'.repeat(500) };
+      try {
+        credentials.windowsSave(origin, credential, execute);
+        assert.deepStrictEqual(credentials.windowsLoad(origin, execute), credential);
+        assert.strictEqual(fs.existsSync(credentials.credentialFile()), false);
+        assert.strictEqual(fs.existsSync(credentials.dpapiCredentialFile(origin)), true);
+        assert.ok(!fs.readFileSync(credentials.dpapiCredentialFile(origin), 'utf8')
+          .includes(credential.refresh_token));
+        assert.ok(calls.every((call) => !call.args.join(' ').includes(credential.refresh_token)));
+        assert.ok(calls.every((call) => call.command === 'powershell.exe'));
+        credentials.windowsRemove(origin, execute);
+        assert.strictEqual(credentials.windowsLoad(origin, execute), null);
+      } finally {
+        process.env.SDOCS_HOME = previous;
+      }
+    });
+
+    await testAsync('Windows migrates the legacy plaintext store into DPAPI on first use', async () => {
+      const previous = process.env.SDOCS_HOME;
+      process.env.SDOCS_HOME = path.join(dir, 'windows-migration');
+      const execute = (_command, args, options) => {
+        if (args.join(' ').includes('::Protect(')) {
+          return { status: 0, stdout: Buffer.from(options.input).toString('base64') };
+        }
+        return { status: 0, stdout: Buffer.from(options.input, 'base64').toString('utf8') };
+      };
+      const origin = 'https://legacy-windows.example';
+      const credential = { refresh_token: 'legacy-secret' };
+      try {
+        credentials.atomicWrite(credentials.credentialFile(), { [origin]: credential });
+        assert.deepStrictEqual(credentials.windowsLoad(origin, execute), credential);
+        assert.strictEqual(fs.existsSync(credentials.credentialFile()), false);
+        assert.strictEqual(fs.existsSync(credentials.dpapiCredentialFile(origin)), true);
+      } finally {
+        process.env.SDOCS_HOME = previous;
+      }
+    });
+
+    await testAsync('Windows stores each origin independently and preserves a valid file on DPAPI failure', async () => {
+      const previous = process.env.SDOCS_HOME;
+      process.env.SDOCS_HOME = path.join(dir, 'windows-independent');
+      const execute = (_command, args, options) => {
+        if (args.join(' ').includes('::Protect(')) {
+          return { status: 0, stdout: Buffer.from(options.input).toString('base64') };
+        }
+        return { status: 0, stdout: Buffer.from(options.input, 'base64').toString('utf8') };
+      };
+      const one = 'https://one-windows.example';
+      const two = 'https://two-windows.example';
+      try {
+        credentials.windowsSave(one, { refresh_token: 'one' }, execute);
+        credentials.windowsSave(two, { refresh_token: 'two' }, execute);
+        assert.notStrictEqual(credentials.dpapiCredentialFile(one), credentials.dpapiCredentialFile(two));
+        credentials.windowsRemove(one, execute);
+        assert.deepStrictEqual(credentials.windowsLoad(two, execute), { refresh_token: 'two' });
+
+        const before = fs.readFileSync(credentials.dpapiCredentialFile(two), 'utf8');
+        assert.throws(() => credentials.windowsSave(two, { refresh_token: 'replacement' },
+          () => ({ status: 0, stdout: '' })), /Windows could not protect/);
+        assert.strictEqual(fs.readFileSync(credentials.dpapiCredentialFile(two), 'utf8'), before);
+      } finally {
+        process.env.SDOCS_HOME = previous;
+      }
+    });
+
+    await testAsync('Windows retries plaintext cleanup after a transient migration failure', async () => {
+      const previous = process.env.SDOCS_HOME;
+      process.env.SDOCS_HOME = path.join(dir, 'windows-cleanup-retry');
+      const execute = (_command, args, options) => {
+        if (args.join(' ').includes('::Protect(')) {
+          return { status: 0, stdout: Buffer.from(options.input).toString('base64') };
+        }
+        return { status: 0, stdout: Buffer.from(options.input, 'base64').toString('utf8') };
+      };
+      const origin = 'https://cleanup-windows.example';
+      const credential = { refresh_token: 'cleanup-secret' };
+      const originalUnlink = fs.unlinkSync;
+      try {
+        credentials.atomicWrite(credentials.credentialFile(), { [origin]: credential });
+        fs.unlinkSync = function(file, ...args) {
+          if (path.resolve(file) === path.resolve(credentials.credentialFile())) {
+            const error = new Error('file locked');
+            error.code = 'EACCES';
+            throw error;
+          }
+          return originalUnlink.call(fs, file, ...args);
+        };
+        assert.deepStrictEqual(credentials.windowsLoad(origin, execute), credential);
+        assert.strictEqual(fs.existsSync(credentials.dpapiCredentialFile(origin)), true);
+        assert.strictEqual(fs.existsSync(credentials.credentialFile()), true);
+
+        fs.unlinkSync = originalUnlink;
+        assert.deepStrictEqual(credentials.windowsLoad(origin, execute), credential);
+        assert.strictEqual(fs.existsSync(credentials.credentialFile()), false);
+      } finally {
+        fs.unlinkSync = originalUnlink;
+        process.env.SDOCS_HOME = previous;
+      }
+    });
 
     await testAsync('file credential fallback is owner-only and account-scoped', async () => {
       credentials.save('https://one.example', { refresh_token: 'secret-one' });
