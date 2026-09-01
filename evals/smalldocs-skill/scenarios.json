@@ -93,6 +93,16 @@
       "rubric": "Load the runnable HTML reference, author one self-contained sdoc-app document, let its responsive HTML and CSS control height, test narrow and wide inline and fullscreen layouts, then open the local Markdown file."
     },
     {
+      "id": "document-walkthrough-authoring",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "A report named report.md exists locally and the user wants an ordered explanation of specific parts without changing its content.",
+      "prompt": "Walk me through this report. Start at the conclusion, compare the two forecast sections, then finish on the risks.",
+      "required": ["sdoc report.md", "source-line annotations", "source file unchanged"],
+      "forbidden": ["rewrite report.md", "turn it into slides", "upload", "share"],
+      "rubric": "Map the requested reading order to source-line annotations on the sdoc command, keep that argument order even when lines move backward, and leave the Markdown file unchanged."
+    },
+    {
       "id": "reuse-tag-vocabulary",
       "kind": "behavior",
       "editions": ["standard", "cloud"],

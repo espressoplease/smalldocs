@@ -5,10 +5,10 @@ module.exports = function (h) {
   const { test, assert } = h;
   const evalHarness = require('../evals/smalldocs-skill/harness');
 
-  test('skill eval suite has 21 valid unique scenarios', () => {
+  test('skill eval suite has 22 valid unique scenarios', () => {
     const suite = evalHarness.loadSuite();
-    assert.strictEqual(suite.scenarios.length, 21);
-    assert.strictEqual(new Set(suite.scenarios.map(scenario => scenario.id)).size, 21);
+    assert.strictEqual(suite.scenarios.length, 22);
+    assert.strictEqual(new Set(suite.scenarios.map(scenario => scenario.id)).size, 22);
   });
 
   test('skill eval matrix expands editions and model strengths', () => {

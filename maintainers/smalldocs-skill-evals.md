@@ -19,7 +19,7 @@ Authentication is the exception. The host currently uses a ChatGPT login stored 
 
 This is context isolation, not a security boundary against a hostile model. The process still runs on the host. For filesystem isolation, run the same suite inside a container or virtual machine with a dedicated evaluation credential. Docker Desktop is installed on the development machine, but its daemon must be running first.
 
-## The 21 scenarios
+## The 22 scenarios
 
 The versioned definitions live in `evals/smalldocs-skill/scenarios.json` and cover:
 
@@ -28,6 +28,7 @@ The versioned definitions live in `evals/smalldocs-skill/scenarios.json` and cov
 - casual `S-doc` and `small doc` triggers
 - presentation authoring and verification
 - runnable HTML component authoring, sizing, and responsive checks
+- document walkthrough authoring with ordered source-line annotations
 - existing local tag discovery
 - local content search
 - encrypted snapshot sharing
