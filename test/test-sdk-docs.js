@@ -198,6 +198,15 @@ module.exports = function (harness) {
     assert.ok(api.includes('removed on update or destroy'));
   });
 
+  test('public developer shells identify the current SDK release', () => {
+    const developers = fs.readFileSync(path.join(root, 'public', 'developers.html'), 'utf8');
+    const showcase = fs.readFileSync(path.join(root, 'public', 'developers-showcase.html'), 'utf8');
+    assert.ok(developers.includes('SDK 0.3.0'));
+    assert.ok(showcase.includes('SDK 0.3.0'));
+    assert.ok(!developers.includes('SDK 0.2.0'));
+    assert.ok(!showcase.includes('SDK 0.2.0'));
+  });
+
   test('customer SDK example uses valid slides, charts, and computed cells', () => {
     const exampleRoot = path.join(root, 'public', 'developers', 'example');
     const slideSources = slideBodies(fs.readFileSync(path.join(exampleRoot, 'briefing.md'), 'utf8'));
