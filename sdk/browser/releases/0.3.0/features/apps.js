@@ -1,6 +1,7 @@
 import { loadScript, loadStyle, vendorAsset } from '../assets.js';
 import { openOverlayLease } from '../overlay.js';
 import { setKnownHTML } from '../runtime.js';
+import { SDK_VERSION } from '../version.js';
 
 export async function mount(context) {
   if (!context.root.querySelector('code.language-sdoc-app')) return;
@@ -16,7 +17,7 @@ export async function mount(context) {
     runnerUrl: vendorAsset('sdocs-app-runner.html'),
     controls: context.options.controls,
     setHTML: setKnownHTML,
-    sdkVersion: '0.2.0',
+    sdkVersion: SDK_VERSION,
     isActive() {
       return !context.signal.aborted;
     },

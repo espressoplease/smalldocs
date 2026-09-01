@@ -4,7 +4,7 @@ Applications can import the SDK on every route that renders a document. Normal b
 
 ## Versioned assets
 
-`https://smalldocs.org/sdk/0.2.0/smalldocs.js` and its sibling modules and CSS use an immutable one-year cache policy. A new contract uses a new versioned URL.
+`https://smalldocs.org/sdk/0.3.0/smalldocs.js` and its sibling modules and CSS use an immutable one-year cache policy. A new contract uses a new versioned URL.
 
 ## Content-driven loading
 

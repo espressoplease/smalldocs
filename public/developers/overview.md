@@ -2,7 +2,7 @@
 
 Render agent-written Markdown as a SmallDocs reading surface inside your application.
 
-> **Status:** Experimental `0.2.0`. No account or key is required. Production pricing and terms are not set.
+> **Status:** Experimental `0.3.0`. No account or key is required. Production pricing and terms are not set.
 
 ## The integration contract
 
@@ -24,7 +24,7 @@ The host application does not parse code fences or declare document capabilities
 
 ## Current boundary
 
-The SDK exposes rendering only. Comments, writing tools, export controls, Cloud storage, and the surrounding SmallDocs application are not included.
+The SDK exposes rendering only. Comments, writing tools, page-level document export, Cloud storage, and the surrounding SmallDocs application are not included. Supported rich blocks keep their own copy, fullscreen, and file download controls.
 
 Image upload, proxying, and hosting are also outside this release. An ordinary HTTPS image reference remains a request to its original host.
 

@@ -211,7 +211,7 @@ module.exports = function(harness) {
       assert.strictEqual(r.headers.vary, 'Cookie');
     });
 
-    await testAsync('versioned native SDK modules are cross-origin cacheable JavaScript', async () => {
+    await testAsync('SDK 0.2.0 remains frozen and cross-origin cacheable', async () => {
       const r = await get(BASE + '/sdk/0.2.0/smalldocs.js');
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].includes('application/javascript'));
@@ -242,25 +242,13 @@ module.exports = function(harness) {
       assert.strictEqual(codeFeature.status, 200);
       assert.ok(codeFeature.body.includes("vendorAsset('sdocs-code-reader.js')"));
       const appsFeature = await get(BASE + '/sdk/0.2.0/features/apps.js');
-      assert.strictEqual(appsFeature.status, 200);
-      assert.ok(appsFeature.body.includes("vendorAsset('sdocs-html-components.js')"));
-      assert.ok(appsFeature.body.includes("vendorAsset('sdocs-app-runner.html')"));
-      const appsReader = await get(BASE + '/sdk/0.2.0/vendor/sdocs-html-components.js');
-      assert.strictEqual(appsReader.status, 200);
-      assert.ok(appsReader.body.includes('window.SDocHtmlComponents'));
-      assert.ok(appsReader.headers['cache-control'].includes('immutable'));
-      const appsCss = await get(BASE + '/sdk/0.2.0/vendor/sdocs-html-component-reader.css');
-      assert.strictEqual(appsCss.status, 200);
-      assert.ok(appsCss.body.includes('@layer smalldocs'));
+      assert.strictEqual(appsFeature.status, 404);
       const appsFrame = await get(BASE + '/sdk/0.2.0/vendor/sdocs-app-runner.html');
-      assert.strictEqual(appsFrame.status, 200);
-      assert.ok(appsFrame.headers['content-type'].includes('text/html'));
-      assert.strictEqual(appsFrame.headers['x-frame-options'], undefined);
-      assert.strictEqual(appsFrame.headers['cross-origin-resource-policy'], 'cross-origin');
-      assert.ok(appsFrame.body.includes('./sdocs-app-runner.js'));
-      const appsRunner = await get(BASE + '/sdk/0.2.0/vendor/sdocs-app-runner.js');
-      assert.strictEqual(appsRunner.status, 200);
-      assert.ok(appsRunner.body.includes("message.type !== 'sdocs-app-load'"));
+      assert.strictEqual(appsFrame.status, 404);
+      const walkthroughFeature = await get(BASE + '/sdk/0.2.0/features/walkthrough.js');
+      assert.strictEqual(walkthroughFeature.status, 404);
+      const versionModule = await get(BASE + '/sdk/0.2.0/version.js');
+      assert.strictEqual(versionModule.status, 404);
       const codeReader = await get(BASE + '/sdk/0.2.0/vendor/sdocs-code-reader.js');
       assert.strictEqual(codeReader.status, 200);
       assert.ok(codeReader.body.includes('window.SDocCodeReader'));
@@ -284,9 +272,6 @@ module.exports = function(harness) {
       const codeCss = await get(BASE + '/sdk/0.2.0/code-reader.css');
       assert.strictEqual(codeCss.status, 200);
       assert.ok(codeCss.body.includes("layer(smalldocs)"));
-      const walkthroughCss = await get(BASE + '/sdk/0.2.0/vendor/sdocs-walkthrough.css');
-      assert.strictEqual(walkthroughCss.status, 200);
-      assert.ok(walkthroughCss.body.includes('.sdoc-walkthrough-card.is-active'));
       const mermaidFrame = await get(BASE + '/sdk/0.2.0/mermaid-renderer.html');
       assert.strictEqual(mermaidFrame.status, 200);
       assert.ok(mermaidFrame.headers['content-type'].includes('text/html'));
@@ -300,6 +285,57 @@ module.exports = function(harness) {
       const mermaidWorkerCss = await get(BASE + '/sdk/0.2.0/vendor/sdocs-mermaid-worker.css');
       assert.strictEqual(mermaidWorkerCss.status, 200);
       assert.ok(mermaidWorkerCss.body.includes('.edgeLabel foreignObject > div'));
+      const manifest = await get(BASE + '/sdk/0.2.0/release-manifest.json');
+      assert.strictEqual(manifest.status, 200);
+      assert.strictEqual(JSON.parse(manifest.body).version, '0.2.0');
+      const internalManifest = await get(BASE + '/sdk/0.2.0/vendor/reader-manifest.json');
+      assert.strictEqual(internalManifest.status, 404);
+    });
+
+    await testAsync('SDK 0.3.0 serves runnable HTML and walkthrough assets immutably', async () => {
+      const r = await get(BASE + '/sdk/0.3.0/smalldocs.js');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('application/javascript'));
+      assert.ok(r.headers['cache-control'].includes('immutable'));
+      const version = await get(BASE + '/sdk/0.3.0/version.js');
+      assert.strictEqual(version.status, 200);
+      assert.ok(version.body.includes("SDK_VERSION = '0.3.0'"));
+      const core = await get(BASE + '/sdk/0.3.0/core.js');
+      assert.strictEqual(core.status, 200);
+      assert.ok(core.body.includes('runnableHtml: source.runnableHtml === true'));
+      assert.ok(core.body.includes("import('./features/walkthrough.js')"));
+      const appsFeature = await get(BASE + '/sdk/0.3.0/features/apps.js');
+      assert.strictEqual(appsFeature.status, 200);
+      assert.ok(appsFeature.body.includes("vendorAsset('sdocs-app-runner.html')"));
+      const appsReader = await get(BASE + '/sdk/0.3.0/vendor/sdocs-html-components.js');
+      assert.strictEqual(appsReader.status, 200);
+      assert.ok(appsReader.body.includes('window.SDocHtmlComponents'));
+      const appsCss = await get(BASE + '/sdk/0.3.0/vendor/sdocs-html-component-reader.css');
+      assert.strictEqual(appsCss.status, 200);
+      assert.ok(appsCss.body.includes('@layer smalldocs'));
+      const appsFrame = await get(BASE + '/sdk/0.3.0/vendor/sdocs-app-runner.html');
+      assert.strictEqual(appsFrame.status, 200);
+      assert.ok(appsFrame.headers['content-type'].includes('text/html'));
+      assert.strictEqual(appsFrame.headers['x-frame-options'], undefined);
+      assert.strictEqual(appsFrame.headers['cross-origin-resource-policy'], 'cross-origin');
+      const appsRunner = await get(BASE + '/sdk/0.3.0/vendor/sdocs-app-runner.js');
+      assert.strictEqual(appsRunner.status, 200);
+      assert.ok(appsRunner.body.includes("message.type !== 'sdocs-app-load'"));
+      const walkthroughFeature = await get(BASE + '/sdk/0.3.0/features/walkthrough.js');
+      assert.strictEqual(walkthroughFeature.status, 200);
+      assert.ok(walkthroughFeature.body.includes('resolveTarget'));
+      const walkthroughModel = await get(BASE + '/sdk/0.3.0/vendor/sdocs-docwalk.js');
+      assert.strictEqual(walkthroughModel.status, 200);
+      assert.ok(walkthroughModel.body.includes("'sdoc-app'"));
+      const walkthroughCss = await get(BASE + '/sdk/0.3.0/vendor/sdocs-walkthrough.css');
+      assert.strictEqual(walkthroughCss.status, 200);
+      assert.ok(walkthroughCss.body.includes('.sdoc-walkthrough-card.is-active'));
+      const manifest = await get(BASE + '/sdk/0.3.0/release-manifest.json');
+      assert.strictEqual(manifest.status, 200);
+      assert.strictEqual(JSON.parse(manifest.body).version, '0.3.0');
+    });
+
+    await testAsync('previous SDK contracts remain available', async () => {
       const previous = await get(BASE + '/sdk/0.1.0/smalldocs.js');
       assert.strictEqual(previous.status, 200);
       const frozen = await get(BASE + '/sdk/0.1.1/smalldocs.js');
@@ -369,8 +405,12 @@ module.exports = function(harness) {
       for (const slug of ['executive-summary', 'briefing', 'charts', 'model']) {
         const markdown = await get(BASE + '/public/developers/example/' + slug + '.md');
         assert.strictEqual(markdown.status, 200, 'example document: ' + slug);
-        assert.ok(markdown.body.includes('# Project Meridian'));
+        assert.ok(markdown.body.includes('# Project Meridian'), 'example heading: ' + slug);
       }
+      const walkthrough = await get(BASE + '/public/developers/example/walkthrough.md');
+      assert.strictEqual(walkthrough.status, 200);
+      assert.ok(walkthrough.body.includes('docwalk: true'));
+      assert.ok(walkthrough.body.includes('~~~sdoc-app'));
     });
 
     await testAsync('GET /developers/examples serves the SDK configuration gallery', async () => {
@@ -421,7 +461,7 @@ module.exports = function(harness) {
       const guide = await get(BASE + '/developers/integration.md');
       assert.strictEqual(guide.status, 200);
       assert.ok(guide.headers['content-type'].includes('text/plain'));
-      assert.ok(guide.body.includes("import { render } from 'https://smalldocs.org/sdk/0.2.0/smalldocs.js'"));
+      assert.ok(guide.body.includes("import { render } from 'https://smalldocs.org/sdk/0.3.0/smalldocs.js'"));
       assert.ok(guide.body.includes('The host does not parse fences'));
       assert.ok(guide.body.includes('smalldocs-renderer'));
       assert.ok(guide.body.includes('/developers/example'));

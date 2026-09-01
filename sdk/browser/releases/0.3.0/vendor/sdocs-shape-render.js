@@ -273,10 +273,10 @@ var SHAPE_MD_SHADOW_CSS = [
 
 function injectCSS() {
   var existing = document.getElementById(CSS_ID);
-  if (existing && existing.tagName === 'STYLE' && existing.dataset.smalldocsSdkVersion === '0.2.0') return;
+  if (existing && existing.tagName === 'STYLE' && existing.dataset.smalldocsSdkVersion === '0.3.0') return;
   var style = document.createElement('style');
   style.id = CSS_ID;
-  style.dataset.smalldocsSdkVersion = '0.2.0';
+  style.dataset.smalldocsSdkVersion = '0.3.0';
   style.textContent = CSS;
   document.head.appendChild(style);
 }

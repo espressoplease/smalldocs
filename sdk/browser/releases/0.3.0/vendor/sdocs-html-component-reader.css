@@ -1,5 +1,5 @@
 @layer smalldocs {
-@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {
+@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.3.0"]) {
 /* Canonical inline and fullscreen surfaces for runnable `sdoc-app` blocks. */
 .sdoc-app,
 .sdoc-app *,
@@ -263,7 +263,7 @@ body.sdoc-app-focus-open {
 }
 
 }
-@scope (.sdoc-app-focus[data-sdocs-sdk-version="0.2.0"]) {
+@scope (.sdoc-app-focus[data-sdocs-sdk-version="0.3.0"]) {
 :scope, :scope * { box-sizing: border-box; }
 :scope {
   position: fixed;

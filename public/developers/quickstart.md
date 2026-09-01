@@ -4,7 +4,7 @@
 <div id="report"></div>
 
 <script type="module">
-  import { render } from 'https://smalldocs.org/sdk/0.2.0/smalldocs.js';
+  import { render } from 'https://smalldocs.org/sdk/0.3.0/smalldocs.js';
 
   const markdown = await runYourAgent();
   const view = await render('#report', markdown);

@@ -23,6 +23,7 @@ Read [references/api.md](references/api.md) before changing integration code. It
 Configure behavior in JavaScript and presentation in CSS.
 
 - Use `navigation` for the SDK heading list.
+- Use `runnableHtml: true` only when the customer has chosen to execute `sdoc-app` fences.
 - Use `sections.collapsible` and `sections.defaultOpen` for section behavior.
 - Use `controls.copy`, `controls.fullscreen`, and `controls.download` for actions across supported features.
 - Use the documented `--sdocs-*` custom properties for typography, spacing, colors, width, padding, and radius.
@@ -42,11 +43,11 @@ If the application also needs an agent to write SmallDocs Markdown, install `sma
 
 ## Boundaries
 
-- Treat `0.2.0` as an experimental rendering-only contract.
+- Treat `0.3.0` as an experimental browser renderer contract.
 - Do not add comments, editing, Cloud storage, or surrounding SmallDocs application chrome.
 - Do not invent keys, accounts, npm packages, framework wrappers, or API options not in the reference.
 - Do not add image upload, proxying, or hosting. Discuss a first-party image pipeline before designing one.
-- Keep agent-authored JavaScript inside `sdoc-app` frames. Ordinary `html` fences remain code listings.
+- Keep agent-authored JavaScript inside `sdoc-app` frames. Ordinary `html` fences remain code listings. Do not enable runnable HTML without the customer's explicit choice.
 
 ## Verification
 

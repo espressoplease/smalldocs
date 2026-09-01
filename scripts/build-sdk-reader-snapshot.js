@@ -6,7 +6,13 @@ const fs = require('fs');
 const path = require('path');
 
 const repo = path.resolve(__dirname, '..');
-const output = path.join(repo, 'sdk', 'browser', 'native', 'vendor');
+const versionIndex = process.argv.indexOf('--version');
+const sdkVersion = versionIndex >= 0 ? process.argv[versionIndex + 1] : '0.3.0';
+if (!/^\d+\.\d+\.\d+$/.test(sdkVersion)) {
+  throw new Error('SDK snapshot version must look like x.y.z');
+}
+const output = path.join(repo, 'sdk', 'browser', 'releases', sdkVersion, 'vendor');
+const documentScope = '.smalldocs-sdk-view[data-smalldocs-sdk-version="' + sdkVersion + '"]';
 const files = [
   ['public/sdocs-marked-del-core.js', 'sdocs-marked-del-core.js'],
   ['public/sdocs-prose-reader.js', 'sdocs-prose-reader.js'],
@@ -15,6 +21,8 @@ const files = [
   ['public/sdocs-code-focus.js', 'sdocs-code-focus.js'],
   ['public/css/code-reader.css', 'sdocs-code-reader.css'],
   ['public/css/walkthrough.css', 'sdocs-walkthrough.css'],
+  ['public/sdocs-docwalk.js', 'sdocs-docwalk.js'],
+  ['public/css/docwalk.css', 'sdocs-docwalk.css', 'sdk-docwalk-css'],
   ['public/sdocs-slide-reader.js', 'sdocs-slide-reader.js'],
   ['public/sdocs-present.js', 'sdocs-present.js'],
   ['public/sdocs-present-mobile.js', 'sdocs-present-mobile.js'],
@@ -81,13 +89,13 @@ function digest(buffer) {
 function transformContents(contents, transform) {
   if (!transform) return contents;
   if (transform === 'sdk-layered-css') {
-    return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
+    return Buffer.from('@layer smalldocs {\n@scope (' + documentScope + ') {\n'
       + contents.toString('utf8') + '\n}\n}\n');
   }
   if (transform === 'sdk-math-css') {
-    return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
+    return Buffer.from('@layer smalldocs {\n@scope (' + documentScope + ') {\n'
       + contents.toString('utf8')
-      + '\n}\n}\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
+      + '\n}\n}\n@scope (' + documentScope + ') {\n'
       + '.sdocs-math-display .katex-display { margin: 0; }\n}\n');
   }
   if (transform === 'sdk-scoped-css') {
@@ -105,9 +113,9 @@ function transformContents(contents, transform) {
     const editorEnd = editorStart < 0 ? -1 : css.indexOf('\n}', editorStart);
     const editor = editorStart < 0 || editorEnd < 0 ? '' : css.slice(editorStart, editorEnd + 2)
       .replace(/\.sdoc-cells-editor(?![-\w])/g, ':scope');
-    return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
-      + inline + '\n}\n@scope (.sdoc-cells-focus[data-smalldocs-sdk-version="0.2.0"]) {\n'
-      + focusBase + '\n' + focus + '\n}\n@scope (.sdoc-cells-editor[data-smalldocs-sdk-version="0.2.0"]) {\n'
+    return Buffer.from('@layer smalldocs {\n@scope (' + documentScope + ') {\n'
+      + inline + '\n}\n@scope (.sdoc-cells-focus[data-smalldocs-sdk-version="' + sdkVersion + '"]) {\n'
+      + focusBase + '\n' + focus + '\n}\n@scope (.sdoc-cells-editor[data-smalldocs-sdk-version="' + sdkVersion + '"]) {\n'
       + editor + '\n}\n}\n');
   }
   if (transform === 'sdk-app-css') {
@@ -115,9 +123,14 @@ function transformContents(contents, transform) {
     const focusIndex = css.indexOf('.sdoc-app-focus {');
     const focus = focusIndex < 0 ? '' : css.slice(focusIndex);
     const scopedFocus = focus.replace(/\.sdoc-app-focus(?![-\w])/g, ':scope');
-    return Buffer.from('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.2.0"]) {\n'
-      + css + '\n}\n@scope (.sdoc-app-focus[data-sdocs-sdk-version="0.2.0"]) {\n'
+    return Buffer.from('@layer smalldocs {\n@scope (' + documentScope + ') {\n'
+      + css + '\n}\n@scope (.sdoc-app-focus[data-sdocs-sdk-version="' + sdkVersion + '"]) {\n'
       + ':scope, :scope * { box-sizing: border-box; }\n' + scopedFocus + '\n}\n}\n');
+  }
+  if (transform === 'sdk-docwalk-css') {
+    const css = contents.toString('utf8').replace(/#_sd_rendered/g, ':scope');
+    return Buffer.from('@layer smalldocs {\n@scope (' + documentScope + ') {\n'
+      + css + '\n}\n}\n');
   }
   throw new Error('Unknown SDK snapshot transform: ' + transform);
 }

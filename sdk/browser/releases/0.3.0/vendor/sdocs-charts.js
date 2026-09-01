@@ -1,0 +1,1346 @@
+/* ═══════════════════════════════════════════════════
+   SDocs Charts — render ```chart code blocks as Chart.js charts
+   Lazy-loads Chart.js from CDN on first use.
+
+   Supported types:
+     pie, doughnut, bar, horizontal_bar, stacked_bar, stacked_horizontal_bar,
+     line, area, stacked_area, radar, polarArea, scatter, bubble, mixed
+
+   Options:
+     title, subtitle, labels, values, datasets, colors,
+     xAxis, yAxis, y2Axis, legend, aspectRatio,
+     format (currency/percent/number), stacked,
+     min, max, stepSize, beginAtZero,
+     annotations (horizontal/vertical reference lines)
+═══════════════════════════════════════════════════ */
+(function (exports) {
+  'use strict';
+
+  function create(env) {
+  env = env || {};
+  var window = env.window || globalThis.window;
+  var document = env.document || window.document;
+  var S = env.sdocs || {};
+  var styles = env.styles || window.SDocStyles;
+  var getComputedStyle = env.getComputedStyle || window.getComputedStyle.bind(window);
+  var setHTML = env.setHTML || function (node, html) { node.innerHTML = html; };
+  var controls = Object.assign({ copy: true, download: true }, env.controls || {});
+  var blockCap = env.blockCap == null ? Infinity : env.blockCap;
+  var destroyed = false;
+  var copyTimers = [];
+  var Chart = env.Chart || null;
+  var chartReadyPromise = null;
+  var CDN_CHART = 'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js';
+  var CDN_LABELS = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js';
+  var CDN_ANNOTATION = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js';
+  var activeCharts = [];
+  var COPY_FEEDBACK_MS = 1500;
+  var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+  function queryScope() {
+    return typeof env.root === 'function' ? env.root() : (env.root || document);
+  }
+
+  function styleRoot() {
+    var root = typeof env.styleRoot === 'function' ? env.styleRoot() : env.styleRoot;
+    if (root) return root.nodeType === 11 ? root.host : root;
+    root = queryScope();
+    if (root && root.nodeType === 11) return root.host;
+    return root || document.documentElement;
+  }
+
+  // ── Fallback palette (used when no accent is set) ──
+  var DEFAULT_PALETTE = [
+    '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6',
+    '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
+    '#06b6d4', '#d946ef', '#0ea5e9', '#a3e635', '#fb923c',
+    '#e11d48', '#2dd4bf', '#a78bfa', '#fbbf24', '#34d399'
+  ];
+
+  // ── HSL helpers (shared from sdocs-styles.js) ──
+  var hexToHsl = styles.hexToHsl;
+  var hslToHex = styles.hslToHex;
+
+  // ── Palette generation ──
+  // Modes: complementary, monochrome, analogous, triadic, warm, cool, pastel, earth
+  function generatePalette(accent, mode, count) {
+    var hsl = hexToHsl(accent);
+    var h = hsl[0], s = hsl[1], l = hsl[2];
+    var colors = [];
+    var i;
+
+    switch (mode) {
+      case 'monochrome':
+      case 'mono':
+        // Same hue, spread lightness from dark to light
+        for (i = 0; i < count; i++) {
+          var li = 25 + (50 * i / Math.max(count - 1, 1)); // 25% to 75%
+          colors.push(hslToHex(h, s, li));
+        }
+        break;
+
+      case 'analogous':
+        // ±40° spread around the accent hue
+        var spread = 40;
+        for (i = 0; i < count; i++) {
+          var offset = -spread + (2 * spread * i / Math.max(count - 1, 1));
+          colors.push(hslToHex(h + offset, s, l));
+        }
+        break;
+
+      case 'triadic':
+        // Three base hues 120° apart, then vary lightness
+        for (i = 0; i < count; i++) {
+          var baseH = h + (i % 3) * 120;
+          var li2 = l + (Math.floor(i / 3) * 10 - 10);
+          colors.push(hslToHex(baseH, s, li2));
+        }
+        break;
+
+      case 'warm':
+        for (i = 0; i < count; i++) {
+          colors.push(hslToHex(i * (60 / count), 70 + (i % 3) * 10, 50 + (i % 2) * 10));
+        }
+        break;
+
+      case 'cool':
+        for (i = 0; i < count; i++) {
+          colors.push(hslToHex(180 + i * (80 / count), 60 + (i % 3) * 10, 45 + (i % 2) * 10));
+        }
+        break;
+
+      case 'pastel':
+        for (i = 0; i < count; i++) {
+          colors.push(hslToHex(h + i * (360 / count), 55, 75));
+        }
+        break;
+
+      case 'earth':
+        var earthHues = [30, 45, 20, 60, 15, 35, 50, 10, 40, 25];
+        for (i = 0; i < count; i++) {
+          colors.push(hslToHex(earthHues[i % earthHues.length], 45 + (i % 3) * 10, 40 + (i % 4) * 8));
+        }
+        break;
+
+      case 'complementary':
+      default:
+        // Spread hues evenly around the wheel, starting from accent
+        for (i = 0; i < count; i++) {
+          colors.push(hslToHex(h + i * (360 / count), s, l));
+        }
+        break;
+    }
+
+    return colors;
+  }
+
+  // ── Get active palette (reads CSS vars or per-chart overrides) ──
+  function getActivePalette(data, count) {
+    // Per-chart colors override everything
+    if (data.colors) return data.colors;
+
+    // Per-chart accent + mode
+    var accent = data.accent || null;
+    var mode = data.palette || null;
+
+    // Fall back to front matter chart styles (persisted on S.chartStyles)
+    if (!accent && S.chartStyles) {
+      accent = S.chartStyles.accent || null;
+      if (!mode) mode = S.chartStyles.palette || null;
+    }
+
+    // Fall back to CSS vars from style panel
+    if (!accent) {
+      var rendered = styleRoot();
+      if (rendered) {
+        var cs = getComputedStyle(rendered);
+        accent = cs.getPropertyValue('--md-chart-accent').trim() || null;
+        if (!mode) mode = cs.getPropertyValue('--md-chart-palette').trim() || null;
+      }
+    }
+
+    // No accent set — use the default static palette
+    if (!accent) return DEFAULT_PALETTE.slice(0, Math.max(count, 1));
+
+    return generatePalette(accent, mode || 'monochrome', count);
+  }
+
+  function paletteColor(data, i, count) {
+    var pal = getActivePalette(data, count || 10);
+    return pal[i % pal.length];
+  }
+
+  function loadScript(url) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = url;
+      s.onload = resolve;
+      s.onerror = function () { reject(new Error('SmallDocs could not load ' + url)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  function ensureChartJs(cb) {
+    if (!chartReadyPromise) {
+      chartReadyPromise = (env.loadChart
+        ? Promise.resolve().then(env.loadChart)
+        : Promise.resolve().then(function () {
+          var loading = Promise.resolve();
+          if (!window.Chart) loading = loading.then(function () { return loadScript(CDN_CHART); });
+          if (!window.ChartDataLabels) loading = loading.then(function () { return loadScript(CDN_LABELS); });
+          if (!window['chartjs-plugin-annotation']) loading = loading.then(function () { return loadScript(CDN_ANNOTATION); });
+          return loading
+            .then(function () {
+              return {
+                Chart: window.Chart,
+                ChartDataLabels: window.ChartDataLabels,
+                ChartAnnotation: window['chartjs-plugin-annotation']
+              };
+            });
+        })).then(function (api) {
+          Chart = api.Chart || api.chart || api;
+          var labels = api.ChartDataLabels || api.dataLabels;
+          var annotation = api.ChartAnnotation || api.annotation;
+          if (!Chart) throw new Error('Chart.js loaded without its API.');
+          if (labels) Chart.register(labels);
+          if (annotation) Chart.register(annotation);
+          return Chart;
+        }).catch(function (error) {
+          chartReadyPromise = null;
+          throw error;
+        });
+    }
+    return chartReadyPromise.then(function () {
+      if (destroyed) return;
+      return cb();
+    });
+  }
+
+  // ── Theme ──
+  function isDark() {
+    if (typeof env.isDark === 'function') return env.isDark();
+    var root = styleRoot();
+    return root.dataset.sdocsTheme === 'dark' || root.dataset.theme === 'dark' ||
+      document.documentElement.dataset.theme === 'dark';
+  }
+
+  function getDocFont() {
+    var rendered = styleRoot();
+    if (!rendered) return '';
+    return getComputedStyle(rendered).getPropertyValue('--md-font-family').trim() || '';
+  }
+
+  function cssVar(name) {
+    var rendered = styleRoot();
+    if (!rendered) return '';
+    return getComputedStyle(rendered).getPropertyValue(name).trim();
+  }
+
+  function theme() {
+    var dark = isDark();
+    var chartText = cssVar('--md-chart-text');
+    var chartBg = cssVar('--md-chart-bg');
+    var textColor = chartText || (dark ? '#A8A29E' : '#78716c');
+    var titleColor = chartText || (dark ? '#E7E5E2' : '#1C1917');
+    // Grid: semi-transparent version of the text color
+    var gridColor;
+    if (chartText) {
+      gridColor = hexToRgba(chartText, 0.15);
+    } else {
+      gridColor = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+    }
+    return {
+      font: getDocFont(),
+      text: textColor,
+      grid: gridColor,
+      title: titleColor,
+      tooltipBg: chartBg || (dark ? '#292524' : '#fff'),
+      tooltipBorder: chartText ? hexToRgba(chartText, 0.2) : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+      annotationColor: chartText ? hexToRgba(chartText, 0.4) : (dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'),
+      annotationLabel: titleColor
+    };
+  }
+
+  // ── Parse ──
+  function parseChartData(text) {
+    try { return JSON.parse(text); } catch (e) { return null; }
+  }
+
+  // ── Number formatting ──
+  function makeTickCallback(fmt, prefix, suffix) {
+    if (!fmt && !prefix && !suffix) return null;
+    return function (value) {
+      var v = value;
+      if (fmt === 'currency' || fmt === 'dollar' || fmt === 'usd')
+        return (prefix || '$') + v.toLocaleString() + (suffix || '');
+      if (fmt === 'euro') return (prefix || '€') + v.toLocaleString() + (suffix || '');
+      if (fmt === 'pound') return (prefix || '£') + v.toLocaleString() + (suffix || '');
+      if (fmt === 'percent' || fmt === 'percentage')
+        return (prefix || '') + v + (suffix || '%');
+      if (fmt === 'number' || fmt === 'comma')
+        return (prefix || '') + v.toLocaleString() + (suffix || '');
+      return (prefix || '') + v + (suffix || '');
+    };
+  }
+
+  // ── Normalize type aliases ──
+  function normalizeType(raw) {
+    var t = (raw || 'bar').toLowerCase().replace(/[\s-]/g, '_');
+    var map = {
+      pie_chart: 'pie', piechart: 'pie',
+      bar_chart: 'bar', barchart: 'bar',
+      line_chart: 'line', linechart: 'line',
+      donut: 'doughnut', donut_chart: 'doughnut', doughnut_chart: 'doughnut',
+      horizontal_bar: 'horizontalBar', hbar: 'horizontalBar',
+      horizontal_bar_chart: 'horizontalBar', hbarchart: 'horizontalBar',
+      stacked_bar: 'stackedBar', stackedbar: 'stackedBar',
+      stacked_bar_chart: 'stackedBar', stackedbarchart: 'stackedBar',
+      stacked_horizontal_bar: 'stackedHBar', stacked_hbar: 'stackedHBar',
+      area: 'area', area_chart: 'area', areachart: 'area',
+      stacked_area: 'stackedArea', stackedarea: 'stackedArea',
+      stacked_line: 'stackedArea',
+      radar_chart: 'radar', radarchart: 'radar', spider: 'radar',
+      polararea: 'polarArea', polar_area: 'polarArea', polar: 'polarArea', polar_area_chart: 'polarArea',
+      scatter_chart: 'scatter', scatterchart: 'scatter', scatter_plot: 'scatter',
+      bubble_chart: 'bubble', bubblechart: 'bubble',
+      doughnut: 'doughnut',
+      combo: 'mixed', mixed_chart: 'mixed', combination: 'mixed'
+    };
+    return map[t] || t;
+  }
+
+  // ── Build datasets ──
+  function buildDatasets(data, chartType) {
+    var isRadial = chartType === 'pie' || chartType === 'doughnut' || chartType === 'polarArea';
+    var isLine = chartType === 'line' || chartType === 'area' || chartType === 'stackedArea';
+    var isBubble = chartType === 'bubble';
+    var isScatter = chartType === 'scatter';
+    var isFill = chartType === 'area' || chartType === 'stackedArea';
+    var isMixed = chartType === 'mixed';
+
+    if (isRadial) {
+      var values = data.values || (data.datasets && data.datasets[0] && data.datasets[0].values) || [];
+      // Single-color pie: auto-generate monochrome shades
+      var radialColors;
+      if (data.color && !data.colors) {
+        radialColors = generatePalette(data.color, 'monochrome', values.length);
+      } else {
+        radialColors = getActivePalette(data, values.length);
+      }
+      return [{
+        data: values,
+        backgroundColor: radialColors,
+        borderWidth: isDark() ? 1 : 2,
+        borderColor: isDark() ? 'rgba(0,0,0,0.3)' : '#fff'
+      }];
+    }
+
+    var dsCount = data.datasets ? data.datasets.length : 1;
+
+    if (data.values && !data.datasets) {
+      // Simple single-dataset
+      var c0 = data.color || paletteColor(data, 0, dsCount);
+      var ds = {
+        label: data.label || '',
+        data: data.values,
+        backgroundColor: isLine ? undefined : (data.colors || c0),
+        borderColor: isLine || isScatter ? c0 : undefined,
+        borderWidth: isLine ? 2.5 : 0,
+        tension: data.tension != null ? data.tension : 0.35,
+        fill: isFill,
+        pointRadius: isLine ? 3 : undefined,
+        pointHoverRadius: isLine ? 5 : undefined
+      };
+      if (isFill) {
+        ds.backgroundColor = hexToRgba(c0, 0.15);
+        ds.borderColor = c0;
+      }
+      return [ds];
+    }
+
+    if (data.datasets) {
+      return data.datasets.map(function (ds, i) {
+        var color = ds.color || paletteColor(data, i, dsCount);
+        var dsType = isMixed ? (ds.type || 'bar') : undefined;
+        var isLineLike = isLine || dsType === 'line' || chartType === 'radar';
+        var result = {
+          label: ds.label || '',
+          data: ds.values || ds.data || [],
+          backgroundColor: isLineLike && isFill ? hexToRgba(color, 0.15) : (isLineLike ? undefined : (ds.colors || color)),
+          borderColor: isLineLike || isScatter || isBubble ? color : undefined,
+          borderWidth: isLineLike ? 2.5 : 0,
+          tension: ds.tension != null ? ds.tension : 0.35,
+          fill: ds.fill != null ? ds.fill : isFill,
+          pointRadius: isLineLike ? 3 : undefined,
+          pointHoverRadius: isLineLike ? 5 : undefined,
+          order: ds.order != null ? ds.order : undefined
+        };
+        if (isMixed && dsType) result.type = dsType;
+        if (ds.yAxisID) result.yAxisID = ds.yAxisID;
+        if (isBubble && !ds.data) {
+          // Convert separate arrays to {x, y, r} format
+          if (ds.x && ds.y && ds.r) {
+            result.data = ds.x.map(function (xv, j) {
+              return { x: xv, y: ds.y[j], r: ds.r[j] || 5 };
+            });
+          }
+        }
+        return result;
+      });
+    }
+
+    return null;
+  }
+
+  // ── Hex to rgba ──
+  function hexToRgba(hex, alpha) {
+    if (!hex || hex.charAt(0) !== '#') return hex;
+    var r = parseInt(hex.slice(1, 3), 16);
+    var g = parseInt(hex.slice(3, 5), 16);
+    var b = parseInt(hex.slice(5, 7), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+  }
+
+  // ── Build scales ──
+  function buildScales(data, chartType, th, layoutWidth) {
+    var noScales = chartType === 'pie' || chartType === 'doughnut' ||
+                   chartType === 'polarArea' || chartType === 'radar';
+    if (noScales) return undefined;
+
+    var isHorizontal = chartType === 'horizontalBar' || chartType === 'stackedHBar';
+    var isStacked = chartType === 'stackedBar' || chartType === 'stackedHBar' ||
+                    chartType === 'stackedArea' || data.stacked;
+    var isPhone = layoutWidth > 0 && layoutWidth < 600;
+    var axisTitleFont = isPhone ? { size: 11, weight: '500' } : undefined;
+    var tickFont = isPhone ? { size: 11 } : undefined;
+
+    var tickCb = makeTickCallback(data.format, data.prefix, data.suffix);
+
+    var xScale = {
+      title: {
+        display: !!(data.xAxis || data.xLabel),
+        text: data.xAxis || data.xLabel || '',
+        color: th.text,
+        font: axisTitleFont
+      },
+      ticks: { color: th.text, font: tickFont, autoSkipPadding: isPhone ? 6 : undefined },
+      grid: { color: th.grid },
+      stacked: isStacked || undefined
+    };
+
+    var yScale = {
+      title: {
+        display: !!(data.yAxis || data.yLabel),
+        text: data.yAxis || data.yLabel || '',
+        color: th.text,
+        font: axisTitleFont
+      },
+      ticks: { color: th.text, font: tickFont },
+      grid: { color: th.grid },
+      beginAtZero: data.beginAtZero !== false,
+      stacked: isStacked || undefined
+    };
+
+    // Axis-specific options
+    var valueAxis = isHorizontal ? xScale : yScale;
+    if (tickCb) valueAxis.ticks.callback = tickCb;
+    if (data.min != null) valueAxis.min = data.min;
+    if (data.max != null) valueAxis.max = data.max;
+    if (data.stepSize != null) valueAxis.ticks.stepSize = data.stepSize;
+
+    var scales = { x: xScale, y: yScale };
+
+    // Dual y-axis
+    if (data.y2Axis || data.y2Label || data.dualAxis) {
+      scales.y2 = {
+        position: 'right',
+        title: {
+          display: !!(data.y2Axis || data.y2Label),
+          text: data.y2Axis || data.y2Label || '',
+          color: th.text,
+          font: axisTitleFont
+        },
+        ticks: { color: th.text, font: tickFont },
+        grid: { drawOnChartArea: false },
+        beginAtZero: data.beginAtZero !== false
+      };
+      var tickCb2 = makeTickCallback(data.y2Format, data.y2Prefix, data.y2Suffix);
+      if (tickCb2) scales.y2.ticks.callback = tickCb2;
+    }
+
+    return scales;
+  }
+
+  // ── Build annotation plugin config ──
+  function buildAnnotations(data, th) {
+    if (!data.annotations || !data.annotations.length) return undefined;
+    var annots = {};
+    data.annotations.forEach(function (a, i) {
+      var isHorizontal = a.axis === 'y' || a.type === 'horizontal' || a.y != null;
+      annots['ann' + i] = {
+        type: 'line',
+        scaleID: isHorizontal ? 'y' : 'x',
+        value: isHorizontal ? (a.y || a.value) : (a.x || a.value),
+        borderColor: a.color || th.annotationColor,
+        borderWidth: a.width || 2,
+        borderDash: a.dashed !== false ? [6, 4] : [],
+        label: a.label ? {
+          display: true,
+          content: a.label,
+          position: a.position || 'end',
+          backgroundColor: 'transparent',
+          color: a.labelColor || th.annotationLabel,
+          font: { size: 12, weight: '500' }
+        } : undefined
+      };
+    });
+    return { annotations: annots };
+  }
+
+  // ── Build datalabels plugin config ──
+  function buildDatalabels(data, chartType, th) {
+    if (data.dataLabels === false) return { display: false };
+
+    var isRadial = chartType === 'pie' || chartType === 'doughnut' || chartType === 'polarArea';
+    var isScatterLike = chartType === 'scatter' || chartType === 'bubble';
+    var isRadar = chartType === 'radar';
+
+    // Scatter/bubble: hidden by default (too cluttered for dense plots).
+    // Opt in by setting `dataLabels: true` on the chart, OR by giving each
+    // data point its own `label` field; in either case the plugin renders
+    // the point's label next to the marker.
+    if (isScatterLike) {
+      var hasPointLabels = false;
+      var allDatasets = data.datasets || (data.values ? [{ data: data.values }] : []);
+      for (var di = 0; di < allDatasets.length; di++) {
+        var pts = allDatasets[di].data || [];
+        for (var pi = 0; pi < pts.length; pi++) {
+          if (pts[pi] && typeof pts[pi] === 'object' && pts[pi].label) {
+            hasPointLabels = true;
+            break;
+          }
+        }
+        if (hasPointLabels) break;
+      }
+      if (data.dataLabels !== true && !hasPointLabels) return { display: false };
+      return {
+        display: true,
+        color: th.text,
+        font: { size: 11, weight: '500' },
+        anchor: 'end',
+        align: 'top',
+        offset: 4,
+        clip: false,
+        formatter: function (value, ctx) {
+          if (value && typeof value === 'object' && value.label) return value.label;
+          var ds = ctx.dataset || {};
+          // Fall back to the dataset label only when one point per dataset.
+          if ((ds.data || []).length === 1 && ds.label) return ds.label;
+          return '';
+        }
+      };
+    }
+
+    if (isRadial) {
+      return {
+        display: true,
+        color: '#fff',
+        font: { weight: '600', size: 12 },
+        textShadowColor: 'rgba(0,0,0,0.3)',
+        textShadowBlur: 4,
+        formatter: function (value, ctx) {
+          var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+          var pct = Math.round(value / total * 100);
+          if (pct < 5) return '';  // hide tiny slices
+          return pct + '%';
+        }
+      };
+    }
+
+    if (isRadar) {
+      return {
+        display: true,
+        color: th.text,
+        font: { size: 10 },
+        align: 'end',
+        offset: 4,
+        formatter: function (value) { return value; }
+      };
+    }
+
+    // Bar, line, area — show values
+    var tickCb = makeTickCallback(data.format, data.prefix, data.suffix);
+    return {
+      display: true,
+      color: th.text,
+      font: { size: 11, weight: '500' },
+      anchor: 'end',
+      align: 'end',
+      offset: 2,
+      clip: false,
+      formatter: function (value) {
+        if (tickCb) return tickCb(value);
+        return value;
+      }
+    };
+  }
+
+  // ── Default aspect ratio ──
+  // Chart.js's 2:1 default leaves no plot area on narrow viewports once title /
+  // axis labels / legend / data labels are subtracted; pick a taller default on phones.
+  function getDefaultAspect(rawType, layoutWidth) {
+    var isRadial = rawType === 'pie' || rawType === 'doughnut' ||
+                   rawType === 'polarArea' || rawType === 'radar';
+    if (isRadial) return 1;
+    var w = layoutWidth || ((typeof window !== 'undefined' && window.innerWidth) || 1024);
+    // Line-family charts stack multiple series up the value axis; a short plot
+    // squashes them together. Give them extra height on narrow screens so the
+    // lines have room to separate.
+    var isLineFamily = rawType === 'line' || rawType === 'area' ||
+                       rawType === 'stackedArea' || rawType === 'mixed';
+    if (isLineFamily) {
+      if (w < 600) return 0.62;
+      if (w < 900) return 1.3;
+      return 2;
+    }
+    if (w < 600) return 0.72;
+    if (w < 900) return 1.6;
+    return 2;
+  }
+
+  // ── Aspect ratio adjusted for a wrapping legend ──
+  // Chart.js fits the legend inside a fixed-height box, so a legend that stacks
+  // into several rows (long labels on a narrow phone) steals that height from
+  // the plot and crushes it to a sliver. Add height for each legend row beyond
+  // the first so the plot keeps its intended size. Desktop legends fit on one
+  // row, so this returns the unmodified default there.
+  var chartTextMeasureCanvas = null;
+
+  function measureChartText(text, size, weight, family) {
+    if (!chartTextMeasureCanvas) chartTextMeasureCanvas = document.createElement('canvas');
+    var ctx = chartTextMeasureCanvas.getContext('2d');
+    if (!ctx) return String(text).length * size * 0.55;
+    ctx.font = (weight || '400') + ' ' + size + 'px ' + (family || 'sans-serif');
+    return ctx.measureText(String(text)).width;
+  }
+
+  function wrapChartText(text, layoutWidth, size, weight, family) {
+    if (!text || !layoutWidth || layoutWidth >= 600 || typeof text !== 'string') return text;
+    var words = text.trim().split(/\s+/);
+    if (words.length < 2) return text;
+    var maxWidth = Math.max(120, layoutWidth - 44);
+    var lines = [];
+    var line = words[0];
+    for (var i = 1; i < words.length; i++) {
+      var candidate = line + ' ' + words[i];
+      if (measureChartText(candidate, size, weight, family) <= maxWidth) {
+        line = candidate;
+      } else {
+        lines.push(line);
+        line = words[i];
+      }
+    }
+    lines.push(line);
+    return lines.length > 1 ? lines : text;
+  }
+
+  function legendRowCount(data, rawType, layoutWidth) {
+    var isRadial = rawType === 'pie' || rawType === 'doughnut' ||
+                   rawType === 'polarArea' || rawType === 'radar';
+    var labels = isRadial
+      ? (data.labels || [])
+      : (data.datasets || []).map(function (dataset) { return dataset.label || ''; });
+    if (labels.length < 2) return 1;
+    var available = Math.max(120, layoutWidth - 24);
+    var isPhone = layoutWidth < 600;
+    var rows = 1;
+    var used = 0;
+    labels.forEach(function (label) {
+      var itemWidth = Math.min(available, measureChartText(label, isPhone ? 11 : 12, '400') + (isPhone ? 30 : 42));
+      if (used && used + itemWidth > available) {
+        rows++;
+        used = itemWidth;
+      } else {
+        used += itemWidth;
+      }
+    });
+    return rows;
+  }
+
+  function computeAspect(data, layoutWidth) {
+    var rawType = normalizeType(data.type);
+    var w = layoutWidth || ((typeof window !== 'undefined' && window.innerWidth) || 1024);
+    var responsiveDefault = getDefaultAspect(rawType, w);
+    var specified = Number(data.aspectRatio);
+    var base = specified > 0 ? specified : responsiveDefault;
+    // A wide authored ratio describes the preferred desktop shape. On a phone
+    // it is capped at the readable responsive default so chart chrome cannot
+    // consume the complete plotting rectangle.
+    if (w < 600) base = Math.min(base, responsiveDefault);
+    else if (specified > 0) return base;
+    var datasets = data.datasets || [];
+    var isRadial = rawType === 'pie' || rawType === 'doughnut' ||
+                   rawType === 'polarArea' || rawType === 'radar';
+    var showLegend = data.legend !== false &&
+                     (isRadial || datasets.length > 1 || rawType === 'mixed');
+    var legendPos = data.legendPosition || 'bottom';
+    if (!showLegend || (legendPos !== 'top' && legendPos !== 'bottom')) return base;
+    var extraRows = Math.max(0, legendRowCount(data, rawType, w) - 1);
+    if (extraRows === 0) return base;
+    var baseHeight = w / base;
+    return w / (baseHeight + extraRows * 34);
+  }
+
+  function chartLayoutWidth(wrapper) {
+    if (!wrapper) return 0;
+    var style = window.getComputedStyle ? window.getComputedStyle(wrapper) : null;
+    var inset = style ? (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0) : 0;
+    var width = wrapper.clientWidth;
+    // Charts may be constructed while their collapsible section is closed.
+    // Walk to the first laid-out ancestor so responsive text and aspect choices
+    // are correct before the section becomes visible.
+    var ancestor = wrapper.parentElement;
+    while (!(width > 0) && ancestor) {
+      width = ancestor.clientWidth;
+      ancestor = ancestor.parentElement || (ancestor.getRootNode && ancestor.getRootNode().host);
+    }
+    width -= inset;
+    return Math.max(0, width);
+  }
+
+  // ── Build Chart.js config ──
+  function buildConfig(data, layoutWidth) {
+    var rawType = normalizeType(data.type);
+    var th = theme();
+
+    // Map our types to Chart.js types + options
+    var chartJsType = rawType;
+    var isHorizontal = false;
+    if (rawType === 'horizontalBar' || rawType === 'stackedHBar') {
+      chartJsType = 'bar';
+      isHorizontal = true;
+    } else if (rawType === 'stackedBar') {
+      chartJsType = 'bar';
+    } else if (rawType === 'area' || rawType === 'stackedArea') {
+      chartJsType = 'line';
+    } else if (rawType === 'mixed') {
+      chartJsType = 'bar'; // base type for mixed, datasets override individually
+    }
+
+    var datasets = buildDatasets(data, rawType);
+    if (!datasets) return null;
+
+    var isRadial = rawType === 'pie' || rawType === 'doughnut' || rawType === 'polarArea';
+    var isRadar = rawType === 'radar';
+    var showLegend = data.legend !== false && (isRadial || datasets.length > 1 || rawType === 'mixed');
+    var isPhone = layoutWidth > 0 && layoutWidth < 600;
+
+    // Legend position
+    var legendPos = data.legendPosition || 'bottom';
+
+    var config = {
+      type: chartJsType,
+      data: { labels: data.labels || [], datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        animation: false,
+        layout: { padding: { top: isPhone ? 8 : 20 } },
+        font: th.font ? { family: th.font } : undefined,
+        aspectRatio: computeAspect(data, layoutWidth),
+        indexAxis: isHorizontal ? 'y' : undefined,
+        plugins: {
+          title: {
+            display: !!data.title,
+            text: wrapChartText(data.title || '', layoutWidth, 15, '600', th.font),
+            color: th.title,
+            font: { size: 15, weight: '600', family: th.font || undefined },
+            padding: { bottom: data.subtitle ? 2 : (isPhone ? 16 : 23) }
+          },
+          subtitle: {
+            display: !!data.subtitle,
+            text: wrapChartText(data.subtitle || '', layoutWidth, 12, '400', th.font),
+            color: th.text,
+            font: { size: 12, weight: '400' },
+            padding: { bottom: isPhone ? 16 : 24 }
+          },
+          legend: {
+            display: showLegend,
+            position: legendPos,
+            labels: {
+              color: th.text,
+              usePointStyle: true,
+              padding: isPhone ? 10 : 16,
+              boxWidth: isPhone ? 10 : undefined,
+              boxHeight: isPhone ? 10 : undefined,
+              font: isPhone ? { size: 11 } : undefined
+            }
+          },
+          tooltip: {
+            backgroundColor: th.tooltipBg,
+            titleColor: th.title,
+            bodyColor: th.text,
+            borderColor: th.tooltipBorder,
+            borderWidth: 1,
+            cornerRadius: 6,
+            padding: 10
+          },
+          datalabels: buildDatalabels(data, rawType, th)
+        },
+        scales: buildScales(data, rawType, th, layoutWidth)
+      }
+    };
+
+    // Radar scale styling
+    if (isRadar) {
+      config.options.scales = {
+        r: {
+          ticks: { color: th.text, backdropColor: 'transparent' },
+          grid: { color: th.grid },
+          pointLabels: { color: th.text, font: { size: 12 } },
+          beginAtZero: data.beginAtZero !== false
+        }
+      };
+    }
+
+    // Annotations (requires annotation plugin — use inline plugin)
+    var annots = buildAnnotations(data, th);
+    if (annots) {
+      config.options.plugins.annotation = annots;
+    }
+
+    return config;
+  }
+
+  // ── Destroy all active charts (called before re-render) ──
+  function destroyAll() {
+    activeCharts.forEach(function (c) { c.destroy(); });
+    activeCharts = [];
+    chartDataStore = [];
+  }
+
+  // ── Re-render charts when palette controls change ──
+  // Store chart data alongside instances so we can rebuild with new colors
+  var chartDataStore = [];
+
+  // Tune a Chart.js config for use inside a slide shape. Slides own their
+  // sizing (the shape wrapper has explicit pixel dimensions and the stage
+  // CSS-transform scales the whole canvas visually); we hand Chart.js a
+  // fixed size so it doesn't try to re-measure under the transform and
+  // collapse. Fonts get scaled up because Chart.js fonts are absolute px:
+  // a 12px axis label that's fine in a 600px doc-flow chart looks tiny on
+  // a 1280px REF-stage chart - we bump all font.size values to roughly
+  // match the slide's body role (24px).
+  function tuneConfigForSlide(config) {
+    var opts = config.options = config.options || {};
+    opts.responsive = false;
+    opts.maintainAspectRatio = false;
+    opts.devicePixelRatio = Math.max(2, window.devicePixelRatio || 1);
+    // Slides are non-interactive in present mode; tooltips need a hover
+    // listener that doesn't work through the shadow boundary anyway, and
+    // they don't appear in PNG snapshots. Drop them.
+    opts.events = [];
+    opts.plugins = opts.plugins || {};
+    opts.plugins.tooltip = opts.plugins.tooltip || {};
+    opts.plugins.tooltip.enabled = false;
+    // Walk every font.size in options and bump by SCALE. Mirrors the
+    // chart's visual weight to the slide's body role (24px); without
+    // this, 12px axis labels look like ~half a body bullet's height.
+    var SCALE = 1.8;
+    function bumpFonts(obj) {
+      if (!obj || typeof obj !== 'object') return;
+      if (obj.font && typeof obj.font === 'object' && typeof obj.font.size === 'number') {
+        obj.font.size = Math.round(obj.font.size * SCALE);
+      }
+      for (var k in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, k) && typeof obj[k] === 'object') {
+          bumpFonts(obj[k]);
+        }
+      }
+    }
+    bumpFonts(opts);
+    return config;
+  }
+
+  function processCharts(container, options) {
+    options = options || {};
+    chartDataStore = [];
+    var chartBlocks = Array.prototype.slice.call(container.querySelectorAll('code.language-chart'), 0, blockCap);
+    if (!chartBlocks.length || destroyed) return Promise.resolve();
+
+    return ensureChartJs(function () {
+      chartBlocks.forEach(function (codeEl) {
+        if (destroyed || (env.isActive && !env.isActive())) return;
+        if (!env.allowDetached && !codeEl.isConnected) return;
+        var pre = codeEl.closest('pre');
+        if (!pre) return;
+        var data = parseChartData(codeEl.textContent);
+        if (!data) { pre.classList.add('sdoc-chart-error'); return; }
+        var config = buildConfig(data, options.slideContext ? 1024 : 0);
+        if (!config) return;
+        if (options.slideContext) tuneConfigForSlide(config);
+
+        var chartIndex = chartDataStore.length;
+        var wrapper = document.createElement('div');
+        wrapper.className = 'sdoc-chart';
+        wrapper.setAttribute('data-chart-index', chartIndex);
+        var canvas = document.createElement('canvas');
+        var entry = { chart: null, data: data, canvas: canvas, wrapper: wrapper };
+        var plot = document.createElement('div');
+        plot.className = 'sdoc-chart-plot';
+        plot.appendChild(canvas);
+        wrapper.appendChild(plot);
+        var menu = buildChartMenu(data, chartIndex, entry);
+        if (controls.copy && !options.slideContext) {
+          wrapper.classList.add('sdoc-chart-has-toolbar');
+          wrapper.insertBefore(buildChartToolbar(entry, menu), plot);
+        } else {
+          wrapper.appendChild(menu);
+        }
+
+        var preWrapper = pre.closest('.pre-wrapper');
+        var target = preWrapper || pre;
+        if (!target.parentNode) return;
+        target.parentNode.replaceChild(wrapper, target);
+
+        var layoutWidth = options.slideContext ? options.shapeWidth : chartLayoutWidth(wrapper);
+        if (!options.slideContext) config = buildConfig(data, layoutWidth);
+        entry.layoutWidth = layoutWidth;
+
+        // With responsive:false we own canvas dimensions. The caller
+        // passes the shape's declared REF-pixel size; we use it directly
+        // so the bitmap aspect matches the display box and the doughnut
+        // / pie / square plot areas render at their natural aspect. No
+        // DOM measurement, no layout-timing race.
+        if (options.slideContext) {
+          var w = options.shapeWidth;
+          var h = options.shapeHeight;
+          if (!(w > 0) || !(h > 0)) {
+            throw new Error('processCharts: slideContext requires positive shapeWidth/shapeHeight');
+          }
+          canvas.width = w;
+          canvas.height = h;
+          canvas.style.width = w + 'px';
+          canvas.style.height = h + 'px';
+        }
+
+        var chart = new Chart(canvas, config);
+        entry.chart = chart;
+        activeCharts.push(chart);
+        chartDataStore.push(entry);
+      });
+    });
+  }
+
+  // ── Type families for type switching ──
+  var TYPE_FAMILIES = {
+    bar: [['bar', 'Bar'], ['horizontal_bar', 'Horizontal'], ['stacked_bar', 'Stacked']],
+    horizontalBar: [['bar', 'Bar'], ['horizontal_bar', 'Horizontal'], ['stacked_bar', 'Stacked']],
+    stackedBar: [['bar', 'Bar'], ['horizontal_bar', 'Horizontal'], ['stacked_bar', 'Stacked']],
+    line: [['line', 'Line'], ['area', 'Area'], ['stacked_area', 'Stacked']],
+    area: [['line', 'Line'], ['area', 'Area'], ['stacked_area', 'Stacked']],
+    stackedArea: [['line', 'Line'], ['area', 'Area'], ['stacked_area', 'Stacked']],
+    pie: [['pie', 'Pie'], ['doughnut', 'Doughnut'], ['polarArea', 'Polar']],
+    doughnut: [['pie', 'Pie'], ['doughnut', 'Doughnut'], ['polarArea', 'Polar']],
+    polarArea: [['pie', 'Pie'], ['doughnut', 'Doughnut'], ['polarArea', 'Polar']],
+  };
+
+  function _el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text) e.textContent = text;
+    return e;
+  }
+
+  function scheduleCopyReset(callback) {
+    var timer = window.setTimeout(function () {
+      copyTimers = copyTimers.filter(function (candidate) { return candidate !== timer; });
+      callback();
+    }, COPY_FEEDBACK_MS);
+    copyTimers.push(timer);
+  }
+
+  function copyButton(kind, label) {
+    var button = _el('button', 'chart-copy-btn chart-copy-' + kind + '-btn');
+    button.type = 'button';
+    button.title = 'Copy chart as ' + label;
+    button.setAttribute('aria-label', 'Copy chart as ' + label);
+    setHTML(button, COPY_SVG + '<span class="chart-copy-label">' + label + '</span>');
+    return button;
+  }
+
+  function flashCopyButton(button, label) {
+    setHTML(button, CHECK_SVG + '<span class="chart-copy-label">' + label + '</span>');
+    scheduleCopyReset(function () {
+      if (!destroyed && button.isConnected) {
+        setHTML(button, COPY_SVG + '<span class="chart-copy-label">' + label + '</span>');
+      }
+    });
+  }
+
+  function flashCopyLabel(button, text, label) {
+    var target = button.querySelector('.chart-copy-label');
+    if (!target) return;
+    target.textContent = text;
+    scheduleCopyReset(function () {
+      if (!destroyed && button.isConnected) target.textContent = label;
+    });
+  }
+
+  function copyChartJson(entry, button) {
+    var clipboard = env.clipboard || (window.navigator && window.navigator.clipboard);
+    if (!clipboard || !clipboard.writeText) {
+      flashCopyLabel(button, 'Not supported', 'JSON');
+      return;
+    }
+    clipboard.writeText(JSON.stringify(entry.data, null, 2)).then(function () {
+      if (!destroyed && button.isConnected) flashCopyButton(button, 'JSON');
+    }).catch(function () {
+      if (!destroyed && button.isConnected) flashCopyLabel(button, 'Failed', 'JSON');
+    });
+  }
+
+  function buildChartToolbar(entry, menu) {
+    var toolbar = _el('div', 'sdoc-chart-toolbar');
+    var jsonButton = copyButton('json', 'JSON');
+    jsonButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      copyChartJson(entry, jsonButton);
+    });
+    var pngButton = copyButton('png', 'PNG');
+    pngButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      copyChartAction(entry, pngButton);
+    });
+    toolbar.appendChild(jsonButton);
+    toolbar.appendChild(pngButton);
+    toolbar.appendChild(menu);
+    return toolbar;
+  }
+
+  function buildChartMenu(data, chartIndex, entry) {
+    var frag = document.createDocumentFragment();
+    var btn = _el('button', 'chart-menu-btn');
+    setHTML(btn, '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>');
+    btn.title = 'Chart options';
+    btn.setAttribute('data-chart-index', chartIndex);
+    btn.addEventListener('click', function (event) {
+      event.stopPropagation();
+      var isOpen = menu.classList.contains('open');
+      closeMenus();
+      if (!isOpen) menu.classList.add('open');
+    });
+    frag.appendChild(btn);
+
+    var menu = _el('div', 'chart-menu');
+    menu.setAttribute('data-chart-index', chartIndex);
+
+    if (controls.download) {
+      var dlBtn = _el('button', 'chart-menu-item', 'Download as PNG');
+      dlBtn.setAttribute('data-action', 'download-png');
+      dlBtn.addEventListener('click', function (event) {
+        event.stopPropagation();
+        downloadChartAction(entry);
+      });
+      menu.appendChild(dlBtn);
+    }
+    if (controls.download) menu.appendChild(_el('div', 'chart-menu-sep'));
+
+    var rawType = normalizeType(data.type);
+    var isRadial = rawType === 'pie' || rawType === 'doughnut' || rawType === 'polarArea';
+
+    if (!isRadial) {
+      var lbl = document.createElement('label');
+      lbl.className = 'chart-menu-toggle';
+      var cb1 = document.createElement('input');
+      cb1.type = 'checkbox'; cb1.setAttribute('data-field', 'dataLabels'); cb1.checked = data.dataLabels !== false;
+      cb1.addEventListener('change', onDocumentChange);
+      lbl.appendChild(cb1); lbl.appendChild(document.createTextNode(' Data labels'));
+      menu.appendChild(lbl);
+    }
+    var lbl2 = document.createElement('label');
+    lbl2.className = 'chart-menu-toggle';
+    var cb2 = document.createElement('input');
+    cb2.type = 'checkbox'; cb2.setAttribute('data-field', 'legend'); cb2.checked = data.legend !== false;
+    cb2.addEventListener('change', onDocumentChange);
+    lbl2.appendChild(cb2); lbl2.appendChild(document.createTextNode(' Legend'));
+    menu.appendChild(lbl2);
+    menu.appendChild(_el('div', 'chart-menu-sep'));
+
+    var family = TYPE_FAMILIES[rawType];
+    if (family) {
+      var tg = _el('div', 'chart-menu-types');
+      family.forEach(function (pair) {
+        var tb = _el('button', 'chart-type-btn', pair[1]);
+        tb.setAttribute('data-type', pair[0]);
+        tb.addEventListener('click', onDocumentClick);
+        if (normalizeType(pair[0]) === rawType) tb.classList.add('active');
+        tg.appendChild(tb);
+      });
+      menu.appendChild(tg);
+      menu.appendChild(_el('div', 'chart-menu-sep'));
+    }
+
+    var ti = document.createElement('input');
+    ti.className = 'chart-menu-input'; ti.setAttribute('data-field', 'title');
+    ti.placeholder = 'Title'; ti.value = data.title || '';
+    ti.addEventListener('change', onDocumentChange);
+    menu.appendChild(ti);
+    var si = document.createElement('input');
+    si.className = 'chart-menu-input'; si.setAttribute('data-field', 'subtitle');
+    si.placeholder = 'Subtitle'; si.value = data.subtitle || '';
+    si.addEventListener('change', onDocumentChange);
+    menu.appendChild(si);
+
+    frag.appendChild(menu);
+    return frag;
+  }
+
+  // ── Replace the Nth ```chart block in markdown ──
+  function replaceChartBlock(body, index, newJson) {
+    var count = -1;
+    return body.replace(/```chart\n([\s\S]*?)```/g, function (match) {
+      count++;
+      if (count === index) return '```chart\n' + newJson + '\n```';
+      return match;
+    });
+  }
+
+  function rebuildChart(index) {
+    var entry = chartDataStore[index];
+    if (!entry) return;
+    entry.chart.destroy();
+    var layoutWidth = chartLayoutWidth(entry.wrapper);
+    var config = buildConfig(entry.data, layoutWidth);
+    entry.layoutWidth = layoutWidth;
+    entry.chart = new Chart(entry.canvas, config);
+    activeCharts = chartDataStore.map(function (e) { return e.chart; });
+  }
+
+  function persistChartChange(index) {
+    var entry = chartDataStore[index];
+    if (!entry) return;
+    if (typeof env.onSourceChange === 'function') {
+      env.onSourceChange(index, JSON.stringify(entry.data, null, 2), entry.data);
+      return;
+    }
+    if (!S.rawEl || !S.collectStyles || !S.syncAll || !window.SDocYaml) return;
+    var json = JSON.stringify(entry.data, null, 2);
+    S.currentBody = replaceChartBlock(S.currentBody, index, json);
+    S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
+    S.rawEl.value = window.SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
+    S._isDefaultState = false;
+    S.syncAll('load');
+  }
+
+  function copyChartAction(entry, item) {
+    var clipboard = env.clipboard || (window.navigator && window.navigator.clipboard);
+    var ClipboardItemApi = env.ClipboardItem || window.ClipboardItem;
+    if (!entry || !clipboard || !clipboard.write || !ClipboardItemApi) {
+      flashCopyLabel(item, 'Not supported', 'PNG');
+      return;
+    }
+    entry.canvas.toBlob(function (blob) {
+      if (!blob || destroyed) return;
+      clipboard.write([new ClipboardItemApi({ 'image/png': blob })]).then(function () {
+        if (!destroyed && item.isConnected) flashCopyButton(item, 'PNG');
+      }).catch(function () {
+        if (!destroyed && item.isConnected) flashCopyLabel(item, 'Failed', 'PNG');
+      });
+    });
+  }
+
+  function downloadChartAction(entry) {
+    if (!entry) return;
+    var filename = (entry.data.title || 'chart').replace(/[^a-zA-Z0-9]/g, '_') + '.png';
+    var dataUrl = entry.canvas.toDataURL('image/png');
+    if (typeof env.downloadPng === 'function') {
+      env.downloadPng(dataUrl, filename);
+      return;
+    }
+    var link = document.createElement('a');
+    link.download = filename;
+    link.href = dataUrl;
+    link.click();
+  }
+
+  // ── Chart menu event delegation ──
+  function owned(node) {
+    var scope = queryScope();
+    return Boolean(node && scope && (scope === document || scope.contains(node)));
+  }
+
+  function closeMenus() {
+    var scope = queryScope();
+    if (!scope || !scope.querySelectorAll) return;
+    scope.querySelectorAll('.chart-menu.open').forEach(function (menu) { menu.classList.remove('open'); });
+  }
+
+  function onDocumentClick(e) {
+    var direct = e.currentTarget && e.currentTarget !== document;
+    var typeBtn = e.target.closest('.chart-type-btn');
+    if (typeBtn && (direct || owned(typeBtn))) {
+      e.stopPropagation();
+      var idx = parseInt(typeBtn.closest('.chart-menu').getAttribute('data-chart-index'));
+      var entry = chartDataStore[idx];
+      if (!entry) return;
+      entry.data.type = typeBtn.getAttribute('data-type');
+      rebuildChart(idx);
+      persistChartChange(idx);
+      typeBtn.closest('.chart-menu-types').querySelectorAll('.chart-type-btn').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-type') === entry.data.type);
+      });
+      return;
+    }
+    if (!e.target.closest('.chart-menu') || !owned(e.target.closest('.chart-menu'))) closeMenus();
+  }
+
+  function onDocumentChange(e) {
+    var direct = e.currentTarget && e.currentTarget !== document;
+    if (e.target.type === 'checkbox' && e.target.closest('.chart-menu-toggle') && (direct || owned(e.target))) {
+      e.stopPropagation();
+      var field = e.target.getAttribute('data-field');
+      var idx = parseInt(e.target.closest('.chart-menu').getAttribute('data-chart-index'));
+      var entry = chartDataStore[idx];
+      if (!entry) return;
+      if (e.target.checked) delete entry.data[field];
+      else entry.data[field] = false;
+      rebuildChart(idx);
+      persistChartChange(idx);
+      return;
+    }
+    if (e.target.classList && e.target.classList.contains('chart-menu-input') && (direct || owned(e.target))) {
+      e.stopPropagation();
+      var field = e.target.getAttribute('data-field');
+      var idx = parseInt(e.target.closest('.chart-menu').getAttribute('data-chart-index'));
+      var entry = chartDataStore[idx];
+      if (!entry) return;
+      if (e.target.value.trim()) entry.data[field] = e.target.value.trim();
+      else delete entry.data[field];
+      rebuildChart(idx);
+      persistChartChange(idx);
+    }
+  }
+
+  document.addEventListener('click', onDocumentClick);
+  document.addEventListener('change', onDocumentChange);
+
+  function refreshChartColors() {
+    chartDataStore.forEach(function (entry) {
+      entry.chart.destroy();
+      var layoutWidth = chartLayoutWidth(entry.wrapper);
+      var config = buildConfig(entry.data, layoutWidth);
+      entry.layoutWidth = layoutWidth;
+      entry.chart = new Chart(entry.canvas, config);
+    });
+    // Update activeCharts
+    activeCharts = chartDataStore.map(function (e) { return e.chart; });
+  }
+
+  // ── Reflow charts on viewport breakpoint changes ──
+  // Aspect ratio is read at build time, so phones rotated to landscape (or
+  // desktop windows resized narrow) need an explicit rebuild to pick up the
+  // new default. Chart.js's own resize() uses cached dimensions and doesn't
+  // re-measure the parent, so we destroy and reconstruct.
+  var resizeTimer = null;
+  function onResize() {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (destroyed) return;
+      chartDataStore.forEach(function (entry) {
+        var layoutWidth = chartLayoutWidth(entry.wrapper);
+        var nextAspect = computeAspect(entry.data, layoutWidth);
+        var widthChanged = Math.abs(layoutWidth - (entry.layoutWidth || 0)) > 8;
+        if (!widthChanged && entry.chart.options.aspectRatio === nextAspect) return;
+        entry.chart.destroy();
+        entry.chart = new Chart(entry.canvas, buildConfig(entry.data, layoutWidth));
+        entry.layoutWidth = layoutWidth;
+      });
+      activeCharts = chartDataStore.map(function (e) { return e.chart; });
+    }, 150);
+  }
+  window.addEventListener('resize', onResize);
+
+  var styleControlEls = [];
+  (env.styleControlIds || ['_sd_ctrl-chart-accent', '_sd_ctrl-chart-palette']).forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', refreshChartColors);
+      el.addEventListener('change', refreshChartColors);
+      styleControlEls.push(el);
+    }
+  });
+
+  // ── Public API ──
+  function getChartImages() {
+    return chartDataStore.map(function (entry) {
+      var chart = entry.chart;
+      var prevDpr = chart.options.devicePixelRatio;
+      var dataUrl;
+      try {
+        // Temporarily boost devicePixelRatio for crisper PDF export
+        chart.options.devicePixelRatio = (window.devicePixelRatio || 1) * 2.5;
+        chart.resize();
+        dataUrl = chart.toBase64Image('image/png', 1);
+      } catch (e) {
+        dataUrl = chart.toBase64Image();
+      } finally {
+        // Restore
+        chart.options.devicePixelRatio = prevDpr;
+        chart.resize();
+      }
+      return { wrapper: entry.wrapper, dataUrl: dataUrl };
+    });
+  }
+
+  function destroy() {
+    if (destroyed) return;
+    destroyed = true;
+    copyTimers.forEach(function (timer) { window.clearTimeout(timer); });
+    copyTimers = [];
+    if (resizeTimer) clearTimeout(resizeTimer);
+    window.removeEventListener('resize', onResize);
+    document.removeEventListener('click', onDocumentClick);
+    document.removeEventListener('change', onDocumentChange);
+    styleControlEls.forEach(function (el) {
+      el.removeEventListener('input', refreshChartColors);
+      el.removeEventListener('change', refreshChartColors);
+    });
+    closeMenus();
+    destroyAll();
+  }
+
+  return {
+    processCharts: processCharts,
+    destroyCharts: destroyAll,
+    refreshChartColors: refreshChartColors,
+    replaceChartBlock: replaceChartBlock,
+    getChartImages: getChartImages,
+    parseChartData: parseChartData,
+    buildConfig: buildConfig,
+    destroy: destroy
+  };
+  }
+
+  exports.create = create;
+
+  if (typeof window !== 'undefined' && window.SDocs && window.SDocs.__smallDocsApp) {
+    var production = create({
+      window: window,
+      document: document,
+      sdocs: window.SDocs,
+      styles: window.SDocStyles,
+      root: function () { return window.SDocs.renderedEl; },
+      styleRoot: function () { return window.SDocs.renderedEl; }
+    });
+    window.SDocs.processCharts = production.processCharts;
+    window.SDocs.destroyCharts = production.destroyCharts;
+    window.SDocs.refreshChartColors = production.refreshChartColors;
+    window.SDocs.replaceChartBlock = production.replaceChartBlock;
+    window.SDocs.getChartImages = production.getChartImages;
+    window.SDocs.chartsReader = production;
+  }
+})(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocCharts = {}));

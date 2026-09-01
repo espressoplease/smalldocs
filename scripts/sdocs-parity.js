@@ -31,6 +31,7 @@ function usage() {
     'Options:',
     '  --baseline <git-ref>  Known-good production revision (default: origin/main)',
     '  --baseline-url <url>  Compare against a deployed SmallDocs origin',
+    '  --sdk-version <x.y.z>  Candidate SDK version (default: 0.3.0)',
     '  --output <directory>  Evidence directory',
     '  --headed              Show Chromium while the suite runs',
     '  --help                Show this help',
@@ -108,11 +109,11 @@ async function startSmallDocs(root, label) {
   return { label, origin, handle };
 }
 
-async function startCustomerHost(candidateOrigin, markdown, sdkOptions) {
+async function startCustomerHost(candidateOrigin, markdown, sdkOptions, sdkVersion) {
   const port = await freePort();
   const host = http.createServer((request, response) => {
     if (request.url === '/app.js') {
-      const sdkUrl = candidateOrigin + '/sdk/0.2.0/smalldocs.js';
+      const sdkUrl = candidateOrigin + '/sdk/' + sdkVersion + '/smalldocs.js';
       const javascript = 'import { render } from ' + JSON.stringify(sdkUrl) + ';' +
         'const markdown=' + JSON.stringify(markdown) + ';' +
         'const options=' + JSON.stringify(sdkOptions || {}) + ';' +
@@ -662,7 +663,8 @@ async function main() {
     process.stdout.write('Starting current production\n');
     const candidateServer = await startSmallDocs(PROJECT_ROOT, 'Current production');
     servers.push(candidateServer);
-    const customerServer = await startCustomerHost(candidateServer.origin, markdown, suite.sdkOptions);
+    const customerServer = await startCustomerHost(
+      candidateServer.origin, markdown, suite.sdkOptions, options.sdkVersion);
     servers.push(customerServer);
     browser = await chromium.launch({ headless: !options.headed });
     process.stdout.write('Capturing frozen production\n');

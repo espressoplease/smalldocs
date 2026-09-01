@@ -9,10 +9,17 @@ const parityBrowser = require('../scripts/lib/sdocs-parity-browser');
 
 module.exports = function ({ assert, test, testAsync }) {
   test('parity CLI parses suite and baseline options', () => {
-    const result = parity.parseArgs(['slides', '--baseline', 'v1.2.3', '--headed'], '/tmp/project');
+    const result = parity.parseArgs([
+      'slides', '--baseline', 'v1.2.3', '--sdk-version', '0.3.0', '--headed',
+    ], '/tmp/project');
     assert.equal(result.suite, 'slides');
     assert.equal(result.baseline, 'v1.2.3');
     assert.equal(result.headed, true);
+    assert.equal(result.sdkVersion, '0.3.0');
+  });
+
+  test('parity CLI defaults customer capture to SDK 0.3.0', () => {
+    assert.equal(parity.parseArgs(['tables'], '/tmp/project').sdkVersion, '0.3.0');
   });
 
   test('parity CLI accepts a deployed production baseline', () => {

@@ -22,6 +22,10 @@ SmallDocs discovers rich content from the document itself:
 
 The host application does not need a block parser. Feature discovery and dependency loading happen inside the renderer.
 
+Runnable HTML requires the renderer option `runnableHtml: true`. A `sdoc-app` fence remains readable source when that option is absent.
+
+Set `docwalk: true` in front matter and add ordered source-line `annotations` to turn supported rendered blocks into a guided walkthrough. Walkthroughs are metadata over the same document rather than a separate fence type.
+
 Read the [Markdown authoring reference](/developers/authoring/markdown.md) or choose a rich feature from the Authoring section. These references are also packaged in the `smalldocs-author` skill for document-producing agents.
 
 ## Mixed documents

@@ -1,0 +1,167 @@
+@layer smalldocs {
+@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.3.0"]) {
+/* Agent-authored walkthrough targets for regular rendered Markdown. The card
+   and stepper live in walkthrough.css and are shared with code walkthroughs. */
+
+:scope {
+  --sdoc-docwalk-accent: #7c84d8;
+}
+
+:scope .sdoc-docwalk-target {
+  outline: 2px solid color-mix(in oklab, var(--sdoc-docwalk-accent) 62%, transparent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+:scope .sdoc-docwalk-inline {
+  outline: 0;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--sdoc-docwalk-accent) 18%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--sdoc-docwalk-accent) 18%, transparent);
+}
+
+:scope .sdoc-docwalk-target-active {
+  outline-color: var(--sdoc-walkthrough-accent);
+  background-color: color-mix(in oklab, var(--sdoc-walkthrough-accent) 17%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--sdoc-walkthrough-accent) 16%, transparent);
+}
+
+:scope .sdoc-docwalk-inline.sdoc-docwalk-target-active {
+  background: color-mix(in oklab, var(--sdoc-walkthrough-accent) 28%, transparent);
+}
+
+/* A tabbed sheet clips its inner grids to the workbook frame. Mark the frame,
+   not the hidden overflow edge of the active grid, so the target reads as one
+   complete workbook while the selected tab remains the precise sheet cue. */
+:scope .sdoc-cells-pane.sdoc-docwalk-target {
+  outline: 0;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--sdoc-docwalk-accent) 52%, transparent),
+    0 0 0 2px color-mix(in oklab, var(--sdoc-docwalk-accent) 58%, transparent),
+    0 0 0 6px color-mix(in oklab, var(--sdoc-docwalk-accent) 10%, transparent);
+}
+
+:scope .sdoc-cells-pane.sdoc-docwalk-target-active {
+  outline: 0;
+  background: var(--sdoc-cells-surface, color-mix(in oklab, var(--md-bg, #fff) 92%, var(--sdoc-walkthrough-accent) 8%));
+  box-shadow:
+    inset 0 0 0 2px color-mix(in oklab, var(--sdoc-walkthrough-accent) 72%, transparent),
+    0 0 0 3px var(--sdoc-walkthrough-accent),
+    0 0 0 8px color-mix(in oklab, var(--sdoc-walkthrough-accent) 14%, transparent);
+}
+
+:scope .pre-wrapper > pre.sdoc-docwalk-code-source { display: none; }
+
+:scope .sdoc-docwalk-code {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 30px 0 8px;
+  border: 1px solid var(--md-pre-border, var(--sdocs-border-color, rgba(0,0,0,0.1)));
+  border-radius: var(--radius-md, var(--sdocs-radius, 8px));
+  overflow-x: auto;
+  background: var(--md-pre-bg, var(--sdocs-code-background, #F4F1ED));
+  color: var(--md-code-color, var(--sdocs-muted-color, #6B6560));
+  font-family: var(--md-code-font, var(--sdocs-code-font-family, 'JetBrains Mono', monospace));
+  font-size: .88em;
+  line-height: inherit;
+}
+
+:scope .sdoc-docwalk-code-row {
+  display: flex;
+  align-items: flex-start;
+  min-width: max-content;
+}
+
+:scope .sdoc-docwalk-code-number {
+  position: sticky;
+  left: 0;
+  flex: 0 0 3.4em;
+  box-sizing: border-box;
+  padding: 0 1em 0 .5em;
+  text-align: right;
+  user-select: none;
+  color: color-mix(in oklab, var(--md-code-color, #6B6560) 42%, transparent);
+  background: var(--md-pre-bg, var(--sdocs-code-background, #F4F1ED));
+}
+
+:scope .sdoc-docwalk-code-text {
+  display: block;
+  min-width: 1ch;
+  padding-right: 1.25em;
+  white-space: pre;
+}
+
+:scope .sdoc-docwalk-code-row.sdoc-docwalk-target {
+  outline: 0;
+  border-radius: 0;
+}
+
+:scope .sdoc-docwalk-code-row.sdoc-docwalk-target .sdoc-docwalk-code-text {
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--sdoc-docwalk-accent) 18%, transparent);
+}
+
+:scope .sdoc-docwalk-code-row.sdoc-docwalk-target-active {
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:scope .sdoc-docwalk-code-row.sdoc-docwalk-target-active .sdoc-docwalk-code-text {
+  background: color-mix(in oklab, var(--sdoc-walkthrough-accent) 26%, transparent);
+}
+
+:scope .sdoc-docwalk-code-token { white-space: pre; }
+
+:scope .sdoc-docwalk-code > .sdoc-docwalk-stack {
+  box-sizing: border-box;
+  width: auto;
+  min-width: min(620px, calc(100% - 4.2em));
+  margin: 8px 12px 12px 3.4em;
+  font-family: var(--md-font, var(--sdocs-font-family, Inter, sans-serif));
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+:scope .pre-wrapper:has(> pre.wrapped) .sdoc-docwalk-code-row {
+  min-width: 0;
+}
+
+:scope .pre-wrapper:has(> pre.wrapped) .sdoc-docwalk-code-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+:scope .sdoc-docwalk-code :is(.hljs-keyword, .hljs-built_in.hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-doctag) { color: var(--hl-keyword); }
+:scope .sdoc-docwalk-code :is(.hljs-string, .hljs-regexp, .hljs-char.escape_, .hljs-symbol, .hljs-template-tag, .hljs-quote) { color: var(--hl-string); }
+:scope .sdoc-docwalk-code :is(.hljs-number, .hljs-bullet) { color: var(--hl-number); }
+:scope .sdoc-docwalk-code :is(.hljs-title, .hljs-title.function_, .hljs-section) { color: var(--hl-function); }
+:scope .sdoc-docwalk-code :is(.hljs-type, .hljs-built_in, .hljs-title.class_) { color: var(--hl-type); }
+:scope .sdoc-docwalk-code :is(.hljs-meta, .hljs-meta-keyword) { color: var(--hl-meta); }
+:scope .sdoc-docwalk-code :is(.hljs-attr, .hljs-attribute, .hljs-property, .hljs-variable, .hljs-template-variable) { color: var(--hl-attr); }
+:scope .sdoc-docwalk-code :is(.hljs-tag, .hljs-name, .hljs-selector-id, .hljs-selector-class) { color: var(--hl-tag); }
+:scope .sdoc-docwalk-code :is(.hljs-punctuation, .hljs-operator) { color: var(--hl-muted); }
+:scope .sdoc-docwalk-code .hljs-comment { color: var(--hl-comment); font-style: italic; }
+
+:scope .sdoc-docwalk-stack {
+  display: grid;
+  gap: 10px;
+  width: min(100%, 720px);
+  margin: 12px 0 24px;
+}
+
+:scope .sdoc-docwalk-note > :first-child { margin-top: 0; }
+:scope .sdoc-docwalk-note > :last-child { margin-bottom: 0; }
+:scope .sdoc-docwalk-note p { margin: 0 0 6px; }
+:scope .sdoc-docwalk-note ul,
+:scope .sdoc-docwalk-note ol { margin: 0 0 6px; padding-left: 20px; }
+
+@media (max-width: 600px) {
+  :scope .sdoc-docwalk-stack { width: 100%; }
+}
+
+}
+}

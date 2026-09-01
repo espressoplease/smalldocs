@@ -8,7 +8,7 @@ async function loadOverlayModule(page) {
     <div style="height:2000px"></div>
   </body></html>`);
   await page.evaluate(async () => {
-    window.overlayApi = await import('/sdk/0.2.0/overlay.js?overlay-spec=' + Math.random());
+    window.overlayApi = await import('/sdk/0.3.0/overlay.js?overlay-spec=' + Math.random());
     window.ownerA = { id: 'owner-a' };
     window.ownerB = { id: 'owner-b' };
     window.overlayEvents = [];

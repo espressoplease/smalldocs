@@ -1,0 +1,39 @@
+@layer smalldocs {
+@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.3.0"]) {
+/* Canonical video surface shared by the SmallDocs app and renderer SDK. */
+.sdoc-video {
+  margin: 1.4em 0;
+  max-width: 100%;
+}
+.sdoc-video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius, var(--sdocs-radius, 8px));
+  overflow: hidden;
+  background: #000;
+}
+.sdoc-video-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.sdoc-video-caption {
+  margin-top: 0.5em;
+  font-size: 0.85em;
+  color: var(--md-muted, var(--sdocs-muted-color, #6b6b6b));
+}
+.sdoc-video-caption a { color: inherit; }
+.sdoc-video-error { outline: 2px dashed #ef4444; text-align: left; }
+.sdoc-video-error-msg {
+  color: #ef4444;
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 12px;
+  font-family: var(--md-code-font);
+}
+
+}
+}

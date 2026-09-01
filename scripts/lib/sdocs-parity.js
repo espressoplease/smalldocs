@@ -10,6 +10,7 @@ function parseArgs(argv, cwd) {
     suite: 'slides',
     baseline: 'origin/main',
     baselineUrl: null,
+    sdkVersion: '0.3.0',
     output: null,
     headed: false,
     updateReport: false,
@@ -22,6 +23,7 @@ function parseArgs(argv, cwd) {
     if (arg === '--headed') options.headed = true;
     else if (arg === '--baseline') options.baseline = args[++index];
     else if (arg === '--baseline-url') options.baselineUrl = args[++index];
+    else if (arg === '--sdk-version') options.sdkVersion = args[++index];
     else if (arg === '--output') options.output = path.resolve(options.cwd, args[++index]);
     else if (arg === '--help' || arg === '-h') options.help = true;
     else throw new Error('Unknown argument: ' + arg);
@@ -29,6 +31,9 @@ function parseArgs(argv, cwd) {
   if (!options.baseline) throw new Error('--baseline needs a Git revision');
   if (options.baselineUrl && !/^https?:\/\//.test(options.baselineUrl)) {
     throw new Error('--baseline-url needs an HTTP or HTTPS origin');
+  }
+  if (!/^\d+\.\d+\.\d+$/.test(options.sdkVersion || '')) {
+    throw new Error('--sdk-version needs a version such as 0.3.0');
   }
   return options;
 }

@@ -1,0 +1,139 @@
+/* Canonical inline slide surface shared by the SmallDocs app and renderer SDK. */
+.sdoc-slide {
+  display: block;
+  margin: 1.2em 0;
+  max-width: 100%;
+  background: var(--md-code-bg, #f6f5f2);
+  border: 1px solid color-mix(in srgb, var(--md-color, #000) 14%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  position: relative;
+}
+
+.sdoc-slide-present {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--md-color, #1c1917);
+  background: transparent;
+  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity .15s, background .12s;
+}
+
+.sdoc-slide:hover .sdoc-slide-present,
+.sdoc-slide-present:hover,
+.sdoc-slide-present:focus {
+  opacity: 1;
+}
+
+.sdoc-slide-present:hover {
+  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));
+}
+
+.sdoc-slide-present:focus-visible {
+  outline: 1px solid #3B82F6;
+  outline-offset: 1px;
+}
+
+.sdoc-slide-present svg {
+  display: block;
+}
+
+.sdoc-slide-dark-ui .sdoc-slide-present {
+  color: #e7e5e2;
+  border-color: rgba(255,255,255,0.22);
+}
+
+.sdoc-slide-dark-ui .sdoc-slide-present:hover {
+  background: rgba(255,255,255,0.10);
+}
+
+.sdoc-slide-light-ui .sdoc-slide-present {
+  color: #1c1917;
+  border-color: rgba(0,0,0,0.18);
+}
+
+.sdoc-slide-light-ui .sdoc-slide-present:hover {
+  background: rgba(0,0,0,0.06);
+}
+
+.sdoc-slide .sd-shape-stage {
+  width: 100%;
+  background: var(--md-bg, #ffffff);
+  display: block;
+}
+
+.sdoc-slide.sdoc-slide-error {
+  padding: 12px 16px;
+  color: #b91c1c;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  cursor: default;
+}
+
+.sdoc-slide-errbadge {
+  padding: 8px 10px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  color: #991b1b;
+  background: #fef2f2;
+  border-top: 1px solid #fecaca;
+  font: 12px/1.45 ui-monospace, Menlo, monospace;
+}
+
+.sdoc-slide-errbadge-msg {
+  flex: 1;
+}
+
+.sdoc-slide-errbadge-title {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: 700;
+}
+
+.sdoc-slide-errbadge-list {
+  margin: 0;
+  padding: 0 0 0 16px;
+}
+
+.sdoc-slide-errbadge-list li {
+  margin: 2px 0;
+}
+
+.sdoc-slide-errbadge-copy {
+  all: unset;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  color: #991b1b;
+  background: #fff;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  cursor: pointer;
+  font: 11px/1 ui-monospace, Menlo, monospace;
+  transition: background .12s, border-color .12s;
+}
+
+.sdoc-slide-errbadge-copy:hover {
+  background: #fff5f5;
+  border-color: #f87171;
+}
+
+.sdoc-slide-errbadge-copy.copied {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #86efac;
+}

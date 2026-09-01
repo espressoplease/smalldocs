@@ -173,7 +173,7 @@ export async function mount(context) {
   if (needsIcons) {
     api.runtime.icons = await loadScript(
       vendorAsset('sdocs-icons-data.js'),
-      () => window.__SmallDocsSdk020Icons,
+      () => window.__SmallDocsSdkIcons,
     );
     if (context.signal.aborted) return;
   }

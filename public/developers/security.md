@@ -16,9 +16,9 @@ JavaScript loaded from `smalldocs.org` runs with the privileges of the host page
 
 ## Runnable HTML
 
-A `sdoc-app` fence is the only executable document form. Its complete HTML document runs inside a separate sandboxed frame. Scripts, forms, modals, downloads, and popups are available. The frame does not receive same-origin access or top-level navigation, so its code cannot reach the SmallDocs or host application DOM, storage, cookies, or account controls.
+A `sdoc-app` fence is the only executable document form. The customer must pass `runnableHtml: true` for the renderer instance before it executes. Its complete HTML document runs inside a separate sandboxed frame. Scripts, forms, modals, downloads, and popups are available. The frame does not receive same-origin access or top-level navigation, so its code cannot reach the SmallDocs or host application DOM, storage, cookies, or account controls.
 
-The sandbox is a browser boundary, not a network boundary. Component code can request external resources and communicate with services that allow it through CORS. Those destinations receive the normal request metadata exposed by the browser.
+The sandbox is a browser boundary, not a network boundary. Component code can request external resources and communicate with services that allow it through CORS. Those destinations receive the normal request metadata exposed by the browser. The host page's `connect-src` does not constrain this separate frame. Put a Content Security Policy in the component document when its network destinations need to be restricted.
 
 ## Content Security Policy
 
@@ -31,12 +31,12 @@ font-src https://cdn.jsdelivr.net
 frame-src https://smalldocs.org https://www.youtube-nocookie.com
 ```
 
-The SmallDocs origin in `frame-src` is needed for Mermaid rendering and runnable HTML frames. The YouTube origin is needed only for supported video fences. Remote images require the image host in the application's `img-src` directive. Runnable HTML requests also need the relevant origin in the host policy. Some rich-feature and export dependencies run in the page and create globals such as `hljs`, `PDFLib`, and `PptxGenJS`.
+The SmallDocs origin in `frame-src` is needed for Mermaid rendering and runnable HTML frames. The YouTube origin is needed only for supported video fences. Remote images require the image host in the application's `img-src` directive. Some rich-feature and export dependencies run in the page and create globals such as `hljs`, `PDFLib`, and `PptxGenJS`.
 
 For an application that enforces Trusted Types, allow the SDK policy name:
 
 ```text
-trusted-types smalldocs-sdk-0.2.0 dompurify
+trusted-types smalldocs-sdk-0.3.0 dompurify
 require-trusted-types-for 'script'
 ```
 

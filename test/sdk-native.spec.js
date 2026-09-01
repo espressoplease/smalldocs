@@ -70,8 +70,8 @@ test.beforeAll(async () => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(`<!doctype html>
 <html><body><div id="report"></div><script type="module">
-import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
-window.view = await render('#report', '# Plain report\\n\\nThis document uses ordinary Markdown only.');
+import { render } from '${sdocsOrigin}/sdk/0.3.0/smalldocs.js';
+window.view = await render('#report', '# Plain report\\n\\nThis document uses ordinary Markdown only.', { runnableHtml: true });
 document.body.dataset.ready = 'true';
 </script></body></html>`);
       return;
@@ -102,7 +102,7 @@ Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
   write:async items=>{window.sdocsCopiedPng=items[0].parts['image/png']}
 }});
 </script>
-<script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+<script type="module">import { render } from '${sdocsOrigin}/sdk/0.3.0/smalldocs.js';
 const [leftView,rightView]=await Promise.all([
   render('#left',${JSON.stringify(proseMarkdown)}),
   render('#right',${JSON.stringify(proseMarkdown)},{controls:{copy:false}})
@@ -153,7 +153,7 @@ Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
   writeText:async value=>{window.sdocsCopiedText=String(value)}
 }});
 </script>
-<script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+<script type="module">import { render } from '${sdocsOrigin}/sdk/0.3.0/smalldocs.js';
 const markdown=${JSON.stringify(readerMarkdown)};
 const changedMarkdown='# Changed document\\n\\n## New section\\n\\nNew content.';
 const [closedView,openView,staticView]=await Promise.all([
@@ -168,6 +168,17 @@ window.changeOpen=()=>openView.update(changedMarkdown);
 document.body.dataset.ready='true';</script></body></html>`);
       return;
     }
+    if (requested === '/apps-disabled') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      const source = '# Review source\n\n~~~sdoc-app\n<!doctype html><html><body><script>window.untrustedRan=true<\\/script><p>Runnable source</p></body></html>\n~~~';
+      const encoded = JSON.stringify(source).replace(/</g, '\\u003c');
+      res.end(`<!doctype html><html><body><div id="report"></div><script type="module">
+import { render } from '${sdocsOrigin}/sdk/0.3.0/smalldocs.js';
+window.disabledAppView = await render('#report', ${encoded});
+document.body.dataset.ready = 'true';
+</script></body></html>`);
+      return;
+    }
     if (requested === '/apps') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       const runnable = (title, value) => `# ${title}\n\n~~~sdoc-app\n<!doctype html><html><head><title>${title}</title></head><body><h1>${title}</h1><button id="count">${value}</button><script>document.getElementById('count').onclick=function(){this.textContent=String(Number(this.textContent)+1)}<\/script></body></html>\n~~~`;
@@ -178,16 +189,80 @@ document.body.dataset.ready='true';</script></body></html>`);
 </style></head><body>
 <div id="outside" class="sdoc-app">Host app placeholder</div>
 <div id="left"></div><div id="right"></div>
-<script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+<script type="module">import { render } from '${sdocsOrigin}/sdk/0.3.0/smalldocs.js';
 const [leftView,rightView]=await Promise.all([
-  render('#left',${scriptString(runnable('Left app', 1))}),
-  render('#right',${scriptString(runnable('Right app', 8))},{controls:{fullscreen:false}})
+  render('#left',${scriptString(runnable('Left app', 1))},{runnableHtml:true}),
+  render('#right',${scriptString(runnable('Right app', 8))},{runnableHtml:true,controls:{fullscreen:false}})
 ]);
 window.appViews={leftView,rightView};
 window.updateLeftApp=()=>leftView.update(${scriptString(runnable('Updated app', 20))});
 window.rethemeLeftApp=()=>{const target=document.getElementById('left');target.style.setProperty('--sdocs-background','#172554');target.style.setProperty('--sdocs-text-color','#f8fafc');target.style.setProperty('--sdocs-accent','#fbbf24')};
 window.destroyLeftApp=()=>leftView.destroy();
 document.body.dataset.ready='true';</script></body></html>`);
+      return;
+    }
+    if (requested === '/walkthrough') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      const body = [
+        '# SDK walkthrough',
+        '',
+        'Begin with this important phrase before the rendered features.',
+        '',
+        '## Data',
+        '',
+        '~~~cells finance/Inputs',
+        'Metric,Value',
+        'Units,4',
+        '~~~',
+        '',
+        '~~~cells finance/Summary',
+        'Metric,Value',
+        'Total,=Inputs!B2*10',
+        '~~~',
+        '',
+        '## Component',
+        '',
+        '~~~~sdoc-app',
+        '<!doctype html><html><head><title>Walkthrough app</title></head><body><button id="walk-count">3</button><script>document.getElementById("walk-count").onclick=function(){this.textContent="4"}<\\/script></body></html>',
+        '~~~~',
+        '',
+        '## Code',
+        '',
+        '~~~javascript',
+        'const alpha = 1;',
+        'const answer = alpha + 41;',
+        '~~~',
+      ].join('\n');
+      const markdown = [
+        '---',
+        'docwalk: true',
+        'cells-tabs: tabbed',
+        'annotations:',
+        '  - line: 3',
+        '    quote: "important phrase"',
+        '    text: "**Start here.** <script>window.walkCompromised=true</script>"',
+        '  - line: 20',
+        '    text: "Use the runnable result next."',
+        '  - line: 14',
+        '    text: "Then inspect the computed sheet."',
+        '  - line: 27',
+        '    quote: "alpha + 41"',
+        '    text: "Finish with the calculation."',
+        '---',
+        body,
+      ].join('\n');
+      const encoded = JSON.stringify(markdown).replace(/</g, '\\u003c');
+      res.end(`<!doctype html><html><body><div id="walk"></div><div id="plain"></div><script type="module">
+import { render } from '${sdocsOrigin}/sdk/0.3.0/smalldocs.js';
+const [walkView, plainView] = await Promise.all([
+  render('#walk', ${encoded}, { runnableHtml: true }),
+  render('#plain', '# Separate instance\\n\\nUnaffected.'),
+]);
+window.walkViews = { walkView, plainView };
+window.replaceWalk = () => walkView.update('# Replaced\\n\\nNo walkthrough metadata.');
+window.destroyWalk = () => walkView.destroy();
+document.body.dataset.ready = 'true';
+</script></body></html>`);
       return;
     }
     if (requested === '/cells-isolation') {
@@ -197,7 +272,7 @@ document.body.dataset.ready='true';</script></body></html>`);
       const update = `# Left updated\n\n~~~cells\nMetric,Value\nUnits,9\n~~~`;
       res.end(`<!doctype html><html><head><style>#left{--sdocs-text-color:#123456;--sdocs-background:#fef3c7}#right .sdoc-cells-cell{color:#7c2d12;background:#dbeafe}</style></head><body><div id="outside" class="sdoc-cells-cell">Host content</div><button id="outside-fx" class="sdoc-cells-fx-toggle">Host button</button><div id="future-sdk" class="smalldocs-sdk-view" data-smalldocs-sdk-version="9.9.9"><div class="sdoc-cells-cell">Future SDK content</div></div><div id="left"></div><div id="right"></div>
 <script>window.sdocsCopiedText='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>{window.sdocsCopiedText=String(value)}}});window.sdocsActiveResizeObservers=0;const NativeResizeObserver=window.ResizeObserver;window.ResizeObserver=class{constructor(callback){this.inner=new NativeResizeObserver(callback);this.active=true;window.sdocsActiveResizeObservers+=1}observe(target){this.inner.observe(target)}unobserve(target){this.inner.unobserve(target)}disconnect(){if(this.active){this.active=false;window.sdocsActiveResizeObservers-=1}this.inner.disconnect()}};</script>
-<script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+<script type="module">import { render } from '${sdocsOrigin}/sdk/0.3.0/smalldocs.js';
 const [leftView, rightView] = await Promise.all([
   render('#left', ${JSON.stringify(left)}), render('#right', ${JSON.stringify(right)})
 ]);
@@ -212,7 +287,7 @@ document.body.dataset.ready = 'true';</script></body></html>`);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       const disabledMarkdown = '# No fullscreen\n\n~~~cells\nMetric,Value\nUnits,9\n~~~';
       res.end(`<!doctype html><html><body><div id="report"></div><script type="module">
-import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+import { render } from '${sdocsOrigin}/sdk/0.3.0/smalldocs.js';
 window.disabledView = await render('#report', ${JSON.stringify(disabledMarkdown)}, { controls: { fullscreen: false } });
 document.body.dataset.ready = 'true';</script></body></html>`);
       return;
@@ -221,7 +296,7 @@ document.body.dataset.ready = 'true';</script></body></html>`);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       const downloadOnlyMarkdown = '# Download only\n\n~~~cells report.csv\nMetric,Value\nUnits,9\n~~~';
       res.end(`<!doctype html><html><body><div id="report"></div><script type="module">
-import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+import { render } from '${sdocsOrigin}/sdk/0.3.0/smalldocs.js';
 window.downloadOnlyView = await render('#report', ${JSON.stringify(downloadOnlyMarkdown)}, {
   controls: { copy: false, download: true, fullscreen: true }
 });
@@ -232,7 +307,7 @@ document.body.dataset.ready = 'true';</script></body></html>`);
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-store',
-        'Content-Security-Policy': `default-src 'self'; script-src 'self' ${sdocsOrigin} https://cdn.jsdelivr.net; style-src ${sdocsOrigin} https://cdn.jsdelivr.net 'unsafe-inline'; font-src https://cdn.jsdelivr.net; frame-src ${sdocsOrigin}; img-src https: data: blob:; trusted-types smalldocs-sdk-0.2.0 dompurify; require-trusted-types-for 'script'`,
+        'Content-Security-Policy': `default-src 'self'; script-src 'self' ${sdocsOrigin} https://cdn.jsdelivr.net; style-src ${sdocsOrigin} https://cdn.jsdelivr.net 'unsafe-inline'; font-src https://cdn.jsdelivr.net; frame-src ${sdocsOrigin}; img-src https: data: blob:; trusted-types smalldocs-sdk-0.3.0 dompurify; require-trusted-types-for 'script'`,
       });
       res.end('<!doctype html><html><body><div id="report"></div><script type="module" src="/trusted-types.js"></script></body></html>');
       return;
@@ -282,8 +357,8 @@ r 0.8 3.5 14.4 4.5 fill=#ffffff stroke=#cbd5e1 |
 ~~~~sdoc-app
 <!doctype html><html><head><title>Trusted app</title></head><body><button id="trusted-app-count">4</button><script>document.getElementById('trusted-app-count').onclick=function(){this.textContent='5'}<\/script></body></html>
 ~~~~`;
-      res.end(`import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
-await render('#report', ${JSON.stringify(trustedMarkdown)} + ${JSON.stringify(trustedApp)});
+      res.end(`import { render } from '${sdocsOrigin}/sdk/0.3.0/smalldocs.js';
+await render('#report', ${JSON.stringify(trustedMarkdown)} + ${JSON.stringify(trustedApp)}, { runnableHtml: true });
 document.body.dataset.ready = 'true';`);
       return;
     }
@@ -291,7 +366,7 @@ document.body.dataset.ready = 'true';`);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(`<!doctype html><html><body><div id="report"></div>
 <script>window.DOMPurify={sanitize:value=>value,setConfig:()=>{}};window.marked={parse:value=>value};</script>
-<script type="module">import { render } from '${sdocsOrigin}/sdk/0.2.0/smalldocs.js';
+<script type="module">import { render } from '${sdocsOrigin}/sdk/0.3.0/smalldocs.js';
 await render('#report', '# Private runtime\\n\\n<button id="probe" onclick="window.compromised=true">Safe</button><script>window.compromised=true<\\/script>');
 document.body.dataset.ready = 'true';</script></body></html>`);
       return;
@@ -340,7 +415,7 @@ test('plain Markdown does not request rich feature modules or CDN dependencies',
   await page.goto(customerOrigin + '/plain');
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await expect(page.locator('.smalldocs-document')).toContainText('ordinary Markdown only');
-  expect(requests.some(url => url.includes('/sdk/0.2.0/features/'))).toBe(false);
+  expect(requests.some(url => url.includes('/sdk/0.3.0/features/'))).toBe(false);
   expect(requests.some(url => url.startsWith('https://cdn.jsdelivr.net/'))).toBe(false);
 });
 
@@ -402,6 +477,19 @@ test('canonical prose lifecycle replaces and destroys only its own instance', as
   await expect(page.locator('#right .smalldocs-sdk-view')).toHaveCount(1);
 });
 
+test('runnable HTML stays readable source until the customer opts in', async ({ page }) => {
+  const requests = [];
+  page.on('request', request => requests.push(request.url()));
+  await page.goto(customerOrigin + '/apps-disabled');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('iframe.sdoc-app-frame')).toHaveCount(0);
+  await expect(page.locator('code.language-sdoc-app')).toContainText('Runnable source');
+  expect(await page.evaluate(() => window.untrustedRan)).toBeUndefined();
+  expect(await page.evaluate(() => window.disabledAppView.features)).toEqual([]);
+  expect(requests.some(url => url.includes('/features/apps.js'))).toBe(false);
+  expect(requests.some(url => url.includes('/sdocs-app-runner.html'))).toBe(false);
+});
+
 test('runnable app instances keep execution, options and lifecycle isolated', async ({ page }) => {
   const requests = [];
   const pageErrors = [];
@@ -457,14 +545,14 @@ test('runnable app instances keep execution, options and lifecycle isolated', as
   await expect(page.locator('#left .smalldocs-document')).toHaveCount(0);
   await expect(page.locator('#right .sdoc-app')).toHaveCount(1);
 
-  expect(requests.some(url => url.includes('/sdk/0.2.0/features/apps.js'))).toBe(true);
-  expect(requests.some(url => url.includes('/sdk/0.2.0/vendor/sdocs-app-runner.html'))).toBe(true);
+  expect(requests.some(url => url.includes('/sdk/0.3.0/features/apps.js'))).toBe(true);
+  expect(requests.some(url => url.includes('/sdk/0.3.0/vendor/sdocs-app-runner.html'))).toBe(true);
 });
 
 test('a superseded runnable app update aborts without waiting for its runner', async ({ page }) => {
   let releaseRunner;
   const runnerReleased = new Promise((resolve) => { releaseRunner = resolve; });
-  await page.route('**/sdk/0.2.0/vendor/sdocs-app-runner.html*', async (route) => {
+  await page.route('**/sdk/0.3.0/vendor/sdocs-app-runner.html*', async (route) => {
     await runnerReleased;
     try { await route.continue(); } catch (_) {}
   });
@@ -492,7 +580,55 @@ test('a superseded runnable app update aborts without waiting for its runner', a
   });
 
   releaseRunner();
-  await page.unroute('**/sdk/0.2.0/vendor/sdocs-app-runner.html*');
+  await page.unroute('**/sdk/0.3.0/vendor/sdocs-app-runner.html*');
+});
+
+test('walkthroughs bind after rich rendering and tear down with their SDK instance', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await page.goto(customerOrigin + '/walkthrough');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('#walk .sdoc-docwalk-card')).toHaveCount(4);
+  await expect(page.locator('#plain .sdoc-docwalk-card')).toHaveCount(0);
+  expect(await page.evaluate(() => window.walkViews.walkView.features)).toContain('walkthrough');
+  expect(await page.evaluate(() => window.walkViews.walkView.features)).toContain('apps');
+  expect(await page.evaluate(() => window.walkViews.plainView.features)).toEqual([]);
+  await expect(page.locator('#walk .sdoc-docwalk-inline.sdoc-docwalk-target-active'))
+    .toHaveText('important phrase');
+  await expect(page.locator('#walk .sdoc-docwalk-card.is-active')).toContainText('Start here.');
+  await expect(page.locator('#walk .sdoc-docwalk-note script')).toHaveCount(0);
+  expect(await page.evaluate(() => window.walkCompromised)).toBeUndefined();
+
+  await page.locator('#walk .sdoc-docwalk-card.is-active [data-docwalk="next"]').click();
+  await expect(page.locator('#walk .sdoc-app.sdoc-docwalk-target-active')).toHaveCount(1);
+  await expect(page.frameLocator('#walk .sdoc-app-frame').locator('#walk-count')).toHaveText('3');
+
+  await page.locator('#walk .sdoc-docwalk-card.is-active [data-docwalk="next"]').click();
+  await expect(page.locator('#walk .sdoc-cells-pane.sdoc-docwalk-target-active')).toHaveCount(1);
+  await expect(page.locator('#walk .sdoc-cells-pane-tab.is-active')).toContainText('Summary');
+
+  await page.locator('#walk .sdoc-docwalk-card.is-active [data-docwalk="next"]').click();
+  await expect(page.locator('#walk .sdoc-docwalk-code-token.sdoc-docwalk-target-active'))
+    .toHaveText('alpha + 41');
+  await page.locator('#walk').getByRole('button', { name: 'Open code in fullscreen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Code fullscreen view' })).toBeVisible();
+  await expect(page.locator('.sdoc-code-focus .sdoc-walkthrough-card.is-active'))
+    .toContainText('Finish with the calculation.');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#walk .sdoc-docwalk-card.is-active .sdoc-docwalk-position'))
+    .toHaveText('Step 4 of 4');
+
+  await page.evaluate(() => window.replaceWalk());
+  await expect(page.locator('#walk .sdoc-docwalk-card')).toHaveCount(0);
+  await expect(page.locator('#walk .sdoc-docwalk-target')).toHaveCount(0);
+  await expect(page.locator('#walk .sdoc-app-frame')).toHaveCount(0);
+  await expect(page.locator('#walk')).toContainText('No walkthrough metadata.');
+  await expect(page.locator('#plain')).toContainText('Unaffected.');
+  expect(await page.evaluate(() => window.walkViews.walkView.features)).toEqual([]);
+  await page.evaluate(() => window.destroyWalk());
+  await expect(page.locator('#walk .smalldocs-sdk-view')).toHaveCount(0);
+  await expect(page.locator('#plain .smalldocs-sdk-view')).toHaveCount(1);
+  expect(pageErrors).toEqual([]);
 });
 
 test('reader behavior options stay instance-owned and preserve open sections on update', async ({ page }) => {
@@ -597,8 +733,8 @@ test('canonical spreadsheet instances keep workbook state and lifecycle isolated
   await expect(page.locator('#outside')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('#outside')).toHaveCSS('display', 'block');
   await expect(page.locator('#outside-fx')).toHaveCSS('display', 'inline-block');
-  await expect(page.locator('#left .smalldocs-sdk-view')).toHaveAttribute('data-smalldocs-sdk-version', '0.2.0');
-  await expect(page.locator('#right .smalldocs-sdk-view')).toHaveAttribute('data-smalldocs-sdk-version', '0.2.0');
+  await expect(page.locator('#left .smalldocs-sdk-view')).toHaveAttribute('data-smalldocs-sdk-version', '0.3.0');
+  await expect(page.locator('#right .smalldocs-sdk-view')).toHaveAttribute('data-smalldocs-sdk-version', '0.3.0');
   await expect(page.locator('#future-sdk .sdoc-cells-cell')).toHaveCSS('display', 'block');
   await expect(page.locator('#future-sdk .sdoc-cells-cell')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   const initialObservers = await page.evaluate(() => window.sdocsActiveResizeObservers);
@@ -644,7 +780,7 @@ test('canonical spreadsheet fullscreen loads on demand and keeps edit lifecycle 
   await page.locator('#left .sdoc-cells:visible').getByRole('button', { name: 'Open fullscreen' }).click();
   const focus = page.locator('.sdoc-cells-focus');
   await expect(focus).toBeVisible();
-  await expect(focus).toHaveAttribute('data-smalldocs-sdk-version', '0.2.0');
+  await expect(focus).toHaveAttribute('data-smalldocs-sdk-version', '0.3.0');
   await expect(focus).toHaveAttribute('role', 'dialog');
   await expect(focus.locator('.sdoc-cells-focus-topbar')).toBeVisible();
   await expect(focus.locator('.sdoc-cells-focus-topbar')).toHaveCSS('display', 'flex');
@@ -1158,7 +1294,7 @@ test('disabled slide copy controls stay absent inline and in presentation mode',
       controls: { copy: false, download: true, fullscreen: true },
     });
   }, {
-    moduleUrl: sdocsOrigin + '/sdk/0.2.0/smalldocs.js',
+    moduleUrl: sdocsOrigin + '/sdk/0.3.0/smalldocs.js',
     markdown: '# Copy policy\n\n~~~slide\ngrid 16 9\nr 1 1 14 7 fill=#ffffff color=#111111 | Copy controls are disabled\n~~~',
   });
   await expect(page.locator('.sdoc-slide .sd-shape-copy-btn')).toHaveCount(0);
@@ -1234,7 +1370,7 @@ r 8.3 3.2 7.0 4.8 fill=#ffffff stroke=#cbd5e1 |
   await expect(page.locator('.sdoc-slide .shape-svg svg')).not.toHaveCount(0);
   await expect(page.locator('#briefing-report .smalldocs-document')).not.toHaveAttribute('data-sdocs-slide-error');
   const sdkAssetRequests = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => entry.name));
-  expect(sdkAssetRequests.some(url => url.includes('/sdk/0.2.0/vendor/sdocs-icons-data.js'))).toBe(true);
+  expect(sdkAssetRequests.some(url => url.includes('/sdk/0.3.0/vendor/sdocs-icons-data.js'))).toBe(true);
   expect(sdkAssetRequests.some(url => new URL(url).pathname === '/public/sdocs-icons-data.js')).toBe(false);
   await expect(page.locator('.smalldocs-slide-downloads')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Download slides as PDF' })).toBeVisible();

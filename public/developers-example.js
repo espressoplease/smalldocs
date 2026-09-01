@@ -1,4 +1,4 @@
-import { render } from '/sdk/0.2.0/smalldocs.js';
+import { render } from '/sdk/0.3.0/smalldocs.js';
 
 const documents = Object.freeze({
   summary: {
@@ -16,6 +16,10 @@ const documents = Object.freeze({
   model: {
     label: 'financial model',
     source: '/public/developers/example/model.md',
+  },
+  walkthrough: {
+    label: 'guided walkthrough',
+    source: '/public/developers/example/walkthrough.md',
   },
 });
 
@@ -47,7 +51,7 @@ async function showDocument(slug) {
     const markdown = await response.text();
     if (request !== generation) return;
     if (view) await view.update(markdown);
-    else view = await render(mount, markdown);
+    else view = await render(mount, markdown, { runnableHtml: true });
     if (request !== generation) return;
     loading.hidden = true;
     surface.setAttribute('aria-busy', 'false');

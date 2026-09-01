@@ -1,0 +1,353 @@
+{
+  "version": "0.3.0",
+  "files": {
+    "assets.js": {
+      "bytes": 3517,
+      "sha256": "3ca5ab7a62e283e1470ab5cf29bf188057290265bb54604fc263c5550228804f"
+    },
+    "code-reader.css": {
+      "bytes": 111,
+      "sha256": "9de370b7e0868fc5af3732b7d92cbd3aac42b3c289fffbb5e84fc3e98df0b626"
+    },
+    "core.js": {
+      "bytes": 11903,
+      "sha256": "13b647d31a94863ae9c0a26191bd333041b3fa4ef6ebaff61a6442d6fed9d253"
+    },
+    "download.js": {
+      "bytes": 701,
+      "sha256": "7a2350f970f7ebf2945e232242e1e85e872460f9ef6293a37087ab173038551c"
+    },
+    "features/apps.js": {
+      "bytes": 1476,
+      "sha256": "dfed9db29939123b548fc91752059c74b78d42e72f93c2619070f1e376baeebc"
+    },
+    "features/cells.js": {
+      "bytes": 4847,
+      "sha256": "afb7f2452d39adee32138c798e2f3f0510e43a58c90427dc9a6c9769850e156e"
+    },
+    "features/charts.js": {
+      "bytes": 3448,
+      "sha256": "b765ae33cb829a97c52390f4b1e338ad8a269dcbbe28dcf63f3ef70c57c59a39"
+    },
+    "features/code.js": {
+      "bytes": 2487,
+      "sha256": "be64e55f659ab134cb5855c44506fc06a079e933b98734ec573d307b251d3357"
+    },
+    "features/highlight.js": {
+      "bytes": 1374,
+      "sha256": "dbb6a6c0ee7f363081a7b180c59c81fd66cf313afdb12f758861868c8e7d3e4e"
+    },
+    "features/math.js": {
+      "bytes": 1449,
+      "sha256": "58628663b60491e91ab4c04fbe62de14c8e4291f070e27703b388ff82334e801"
+    },
+    "features/mermaid.js": {
+      "bytes": 5918,
+      "sha256": "a0e6e46b804742783c0d8899e3acc85a2e6c5aa44df3013a1ae3d6767a0106e8"
+    },
+    "features/slides.js": {
+      "bytes": 10129,
+      "sha256": "f34a4394077f7c1803defc6ca657551ab1a30d3c3c24f0ebcafc71c795303bbe"
+    },
+    "features/video.js": {
+      "bytes": 652,
+      "sha256": "6e2c8cf9a8575a3c25317972763c460666a93e9f183e864ed224fae621f5aa2e"
+    },
+    "features/walkthrough.js": {
+      "bytes": 17124,
+      "sha256": "566e950eb55a29bb75428cd2ccba198ac1b1ae471df4bff2f03f05d0e3511738"
+    },
+    "mermaid-renderer.html": {
+      "bytes": 1111,
+      "sha256": "b85e916b98c4e2c6f0e291c6f57a85e2a9631d7fc963de49db9abcd86bb73c43"
+    },
+    "mermaid-renderer.js": {
+      "bytes": 1442,
+      "sha256": "3b0455291f3345a4dbbdb857fa9d04c4b505cfa21344ab470da2ccb153eb9ff9"
+    },
+    "overlay.js": {
+      "bytes": 5480,
+      "sha256": "ea5192591567d2fc801355c4dc39745b362b7bace844280d017fc4f474969e55"
+    },
+    "prose-reader.css": {
+      "bytes": 48,
+      "sha256": "daffc9a723064bb3593e9301b3cf544de5a56c33a3671ab5fb1c5bf5e1c497bc"
+    },
+    "runtime.js": {
+      "bytes": 2780,
+      "sha256": "e8351619f35140725877d757984aeec3d0dcae32398539014fa01ba27ca127c5"
+    },
+    "slide-reader.css": {
+      "bytes": 65,
+      "sha256": "f8bc96a21a98823482c01d539b1142c077e89900b3c3da48c01d90d2bea6aae5"
+    },
+    "smalldocs.css": {
+      "bytes": 13498,
+      "sha256": "f7649b1d20deb33a9648de981d0a4065886b332bc9be509e88c55403d3e74d1e"
+    },
+    "smalldocs.js": {
+      "bytes": 236,
+      "sha256": "66a45bfdbeb6f68335e446ee965954e0b32f48c8ab497aab3f0eb7372709901a"
+    },
+    "vendor/fonts/inter-400.woff2": {
+      "bytes": 23692,
+      "sha256": "dd05e326cf8eac3b55acecf29c842ed73e6e6dd06491cf47f7e8800680ab3e33"
+    },
+    "vendor/fonts/inter-500.woff2": {
+      "bytes": 24368,
+      "sha256": "b0e7558f4710a1e255b93e3deefe3aebb19f3bb41c150f685a74d3b1a1c79e87"
+    },
+    "vendor/fonts/inter-600.woff2": {
+      "bytes": 24304,
+      "sha256": "62553d159189834af73c9a6264704be5b2bee9a08da66a14768d8e5c6ffd2cdb"
+    },
+    "vendor/marked.esm.js": {
+      "bytes": 89604,
+      "sha256": "9d1c1bb37ff218092d2d2caf60acfe66db6f5c92e3038d5c9b4015c0b7304914"
+    },
+    "vendor/purify.es.mjs": {
+      "bytes": 64644,
+      "sha256": "b8fa73f210aac6c5aca30fd79b344e9a38949a340dc7445038731118a1c49fe9"
+    },
+    "vendor/reader-manifest.json": {
+      "bytes": 11893,
+      "sha256": "1b069caf20dbdee0de6a969fda85a4ea461b1bcf57b3fe3df8fd42451fe58bb5"
+    },
+    "vendor/sdocs-app-runner.html": {
+      "bytes": 256,
+      "sha256": "48254e8387a01b47e5b608e36b2d9bf9028ddf1b8ad2b571e60763afaca31649"
+    },
+    "vendor/sdocs-app-runner.js": {
+      "bytes": 7568,
+      "sha256": "94c362d35f55a261c8aa149c770bbf55e0c556b7d06abb8af11358a83f5249e3"
+    },
+    "vendor/sdocs-cells-controller.js": {
+      "bytes": 6700,
+      "sha256": "f4b8a140a4ff21ba2b81f1ee1ab941f81e78f5515d9d35187278ffb57d1943df"
+    },
+    "vendor/sdocs-cells-edit.js": {
+      "bytes": 35615,
+      "sha256": "d7828bd3060e583409b5a804f2a32bc8a462c546a75c454378b36e4df71e8dcc"
+    },
+    "vendor/sdocs-cells-focus.js": {
+      "bytes": 21317,
+      "sha256": "44b010342b9c8ea487e3b498a26d9317b00dcd2d5e1c937e342358a4b2d54f4d"
+    },
+    "vendor/sdocs-cells-formula.js": {
+      "bytes": 40549,
+      "sha256": "95268993ab4c13f20f3e70db135197d82023737723d4b9d62c1ffae37310d56b"
+    },
+    "vendor/sdocs-cells-select.js": {
+      "bytes": 12944,
+      "sha256": "9aea5ae5f27b3109c5dfc16b9692e28d31087563cb4faed3949f82779299c66b"
+    },
+    "vendor/sdocs-cells-ui.js": {
+      "bytes": 64901,
+      "sha256": "88f5ffaca728705b545dd5cbec28871310807120692a90023170225f1d25b159"
+    },
+    "vendor/sdocs-cells-xlsx.js": {
+      "bytes": 30911,
+      "sha256": "0a1ce014656cd04427439f7850d7dbb004525d251234bd054c8d8abc1b16453e"
+    },
+    "vendor/sdocs-cells.css": {
+      "bytes": 52781,
+      "sha256": "7e2f481a02c7a9255983e755c955439997878d35425c7ccdbb8e1eddf6900803"
+    },
+    "vendor/sdocs-cells.js": {
+      "bytes": 24265,
+      "sha256": "da54c59443711b80663ff4fb1f0abeba115afecf3b034031a7302b6f252abdd8"
+    },
+    "vendor/sdocs-chart-reader.css": {
+      "bytes": 4689,
+      "sha256": "eba2aa6009e17b25ade11194da1910bd341b9f43e6afec330c37f8137e763860"
+    },
+    "vendor/sdocs-charts.js": {
+      "bytes": 52527,
+      "sha256": "357b89047ed0f6c59370a2add68b0d48e0de116db2db73ee1787456858677e86"
+    },
+    "vendor/sdocs-code-focus.js": {
+      "bytes": 149028,
+      "sha256": "8c150d36f7c0c6b9aa7a8f9c2544a4e4180c2da30fc25c7473f9ad6c63945f03"
+    },
+    "vendor/sdocs-code-lang/csharp.js": {
+      "bytes": 495,
+      "sha256": "1e52d89de098e557e99681fe94c81ab95a43f6c384360ec3f183609fe12a38eb"
+    },
+    "vendor/sdocs-code-lang/elixir.js": {
+      "bytes": 671,
+      "sha256": "1426b561efb018325cad179aaf2d42fe2987d2ce0f0700caa91d4d4603b30c9c"
+    },
+    "vendor/sdocs-code-lang/go.js": {
+      "bytes": 374,
+      "sha256": "0435445860ea6fb603bb4cc838383e9585e98fda8d106abcfcfa279565301a72"
+    },
+    "vendor/sdocs-code-lang/java.js": {
+      "bytes": 492,
+      "sha256": "d3ba1e068a44f31caefecbdf8177237e7012b94a512fddbcded24118aac4df68"
+    },
+    "vendor/sdocs-code-lang/javascript.js": {
+      "bytes": 469,
+      "sha256": "897c6e023c99b43b53e2f0c4b54526c2b12a11dd6dbb2409799103bde3e69661"
+    },
+    "vendor/sdocs-code-lang/php.js": {
+      "bytes": 443,
+      "sha256": "8b4a55095841ffa79ae139cc02e9195b57bec6c3caa9e077a5dd9682d98039c4"
+    },
+    "vendor/sdocs-code-lang/python.js": {
+      "bytes": 410,
+      "sha256": "a88f25d81f4aec4c649b95a4c743206ae05591d6c4a241ee63ebc3ea8a97ddcb"
+    },
+    "vendor/sdocs-code-lang/ruby.js": {
+      "bytes": 776,
+      "sha256": "4cb78a324923eb45088914f2e794854d8b1a91c56294bf874b6ed418ab469395"
+    },
+    "vendor/sdocs-code-lang/rust.js": {
+      "bytes": 465,
+      "sha256": "089846a91640b19f3de7f15e151d2c896e7ef3a46cf0b801163ac000a4ba060d"
+    },
+    "vendor/sdocs-code-lang/typescript.js": {
+      "bytes": 632,
+      "sha256": "69d60ca32fd6f221e5a18e4e6dd5bf4eb15fefa75a57c7a5a60a9a2477a88f5a"
+    },
+    "vendor/sdocs-code-reader.css": {
+      "bytes": 8583,
+      "sha256": "2354a4b125dfa86a55865cec99ebbfc17c74e91b6b5d86b99af9afd21967c33c"
+    },
+    "vendor/sdocs-code-reader.js": {
+      "bytes": 9400,
+      "sha256": "34fbfeedeef8b3b944c45120642d099819a6872f4ce139fef0939984299f7b4b"
+    },
+    "vendor/sdocs-docwalk.css": {
+      "bytes": 6032,
+      "sha256": "453bad7052419aad8b11d030723e4ad3a5adee74f7392c0435f78e9b7c3d3952"
+    },
+    "vendor/sdocs-docwalk.js": {
+      "bytes": 7691,
+      "sha256": "e80f47f19c8d684243ae18d735c8cb2a8c3b567838258bf2584b7e87eed379d5"
+    },
+    "vendor/sdocs-highlight-core.js": {
+      "bytes": 3399,
+      "sha256": "60b18fee0fee6e2665b2a2e9afad1cff1d5d053846e9cf8328fc1c0aad313c61"
+    },
+    "vendor/sdocs-html-component-reader.css": {
+      "bytes": 7278,
+      "sha256": "4b8154e166752819b1f934f77be7504bae9d99190c0abe090eb4849e542e62a6"
+    },
+    "vendor/sdocs-html-components.js": {
+      "bytes": 25087,
+      "sha256": "f54e0a0ce6cb6b0bb2a36119bd79dbfa56b345c2ff79cb9df42be7c55c339e22"
+    },
+    "vendor/sdocs-icons-data.js": {
+      "bytes": 416551,
+      "sha256": "bc50053877d5e51de18e93adfeea13b92fc1b252a23139d406d2c4f21f8fd0f1"
+    },
+    "vendor/sdocs-marked-del-core.js": {
+      "bytes": 812,
+      "sha256": "adb57df424b822585fda4f054a0faf27069ad1530c0e6da3c2a6bb1658e65d53"
+    },
+    "vendor/sdocs-math-core.js": {
+      "bytes": 3532,
+      "sha256": "1651bd3f61ece8bc76672b493653333531ebe268f020b60236723ad6726bb7da"
+    },
+    "vendor/sdocs-math-reader.css": {
+      "bytes": 895,
+      "sha256": "b080722c13a36d868843c97b185f6e582e8bd9efb001ac4ed678032edf478a11"
+    },
+    "vendor/sdocs-mermaid-focus.js": {
+      "bytes": 42966,
+      "sha256": "f24fa6d083151311744f8d510f4e920930a4b1de83acc623cc6be5abcdf96d22"
+    },
+    "vendor/sdocs-mermaid-reader.css": {
+      "bytes": 1693,
+      "sha256": "0fe24d5660b6a5e8c7405b47b18b2d5ba2f4aa51ed356c493c468cd7e4001df8"
+    },
+    "vendor/sdocs-mermaid-worker.css": {
+      "bytes": 1602,
+      "sha256": "9d94c6137c0acf17e1bce6b0992183d9d606c3d153407eb395d41de478ae2f2c"
+    },
+    "vendor/sdocs-mermaid.js": {
+      "bytes": 40592,
+      "sha256": "6972cd375fad706ba2f9f01f15aeeb239a52cb4ca865ed2aeff723dda7fbc62b"
+    },
+    "vendor/sdocs-present-mobile.js": {
+      "bytes": 24706,
+      "sha256": "ffd0d72ae4fde5f905b04df4badaaf0c90a6884f97c52f61feadb07d75d1bfb2"
+    },
+    "vendor/sdocs-present.js": {
+      "bytes": 43258,
+      "sha256": "7e809006e775286feb261e867bcb3ec7674c80e08eb511a20ce69d7932e83fcc"
+    },
+    "vendor/sdocs-prose-reader.css": {
+      "bytes": 13872,
+      "sha256": "ab99c7ee0db1877406234b9d06cb4f13a75a94ecdcece0b5982a3724e6792a88"
+    },
+    "vendor/sdocs-prose-reader.js": {
+      "bytes": 22343,
+      "sha256": "42dce17263a009335f4e83e9ffe97e28e81dd4bb07ca9f4df3a4a3a894d066ed"
+    },
+    "vendor/sdocs-shape-render.js": {
+      "bytes": 105767,
+      "sha256": "bfd7ef55176b2d138b19df392d9f42c7bad278f349841a63f37676c502bd6768"
+    },
+    "vendor/sdocs-shapes.js": {
+      "bytes": 40681,
+      "sha256": "9c2e7266f177aacd294be18365aa43b20ddabc0f5e578e5b4c4dcde589385dcc"
+    },
+    "vendor/sdocs-slide-pdf.js": {
+      "bytes": 59491,
+      "sha256": "cb7d118270b550c5f3679ca2c63aa61e552014a971572acc08fbbbbd6f46213b"
+    },
+    "vendor/sdocs-slide-pptx.js": {
+      "bytes": 35589,
+      "sha256": "d4cee5c8a73b01c2afaa44c58c1d031c549638d2151f05f6018c3665740605af"
+    },
+    "vendor/sdocs-slide-reader.css": {
+      "bytes": 2808,
+      "sha256": "64c09e097a28c0b4381371ad0459c3e5cfc07756e97bef063dfafefcfa164bce"
+    },
+    "vendor/sdocs-slide-reader.js": {
+      "bytes": 10216,
+      "sha256": "25e71948de5a5824c04efc0146fe3d52981d4179dcaf7e41718e686a7a8f0e28"
+    },
+    "vendor/sdocs-slide-resolve.js": {
+      "bytes": 9533,
+      "sha256": "0c5c875dd955f169883e91fbe0c76d8230278ac9e6047bf85d051594c464d937"
+    },
+    "vendor/sdocs-slide-stdlib.js": {
+      "bytes": 9277,
+      "sha256": "1b6ef62a3d4f3c648a8f541630f900481e6fe71b4b68caabb5ae7a2c5d49de15"
+    },
+    "vendor/sdocs-slugify.js": {
+      "bytes": 439,
+      "sha256": "d068fd5c618e0470cfbdc015afb3b663677c2e1f80a1ea4d279367cc36b060d1"
+    },
+    "vendor/sdocs-styles.js": {
+      "bytes": 31358,
+      "sha256": "20661d7b4417f6c87f33ce657362ccfc348c2b24d92ede8454ce76015f69c11b"
+    },
+    "vendor/sdocs-video-reader.css": {
+      "bytes": 884,
+      "sha256": "4856db3ec63af534a1f8cda0063b6a1834ea63afd15221fb777ca2a1a63fc7c7"
+    },
+    "vendor/sdocs-video.js": {
+      "bytes": 9088,
+      "sha256": "1b47d6cd7429ae46264e752ad64375278aeec01f94dc4e677460fe2d7ca058b6"
+    },
+    "vendor/sdocs-walkthrough.css": {
+      "bytes": 3534,
+      "sha256": "dbbf518d78616699116461e73928a0f08bd0ea177a59694ee87633ae6b1e05be"
+    },
+    "vendor/sdocs-yaml.js": {
+      "bytes": 7551,
+      "sha256": "0f8ca5b67073201a2940e1970b4ad7af515fd5e07fa204ab68579b321a5dd363"
+    },
+    "vendor/sdocs-zoom-math.js": {
+      "bytes": 4076,
+      "sha256": "1999018bde61702451332b24d91fdd465921fcaf639b0848eaff6dbc6eb3c40d"
+    },
+    "version.js": {
+      "bytes": 104,
+      "sha256": "0fc93be42a989c41877154ff2b5a15a5a78131d8f60a028e70c768423c697319"
+    }
+  }
+}

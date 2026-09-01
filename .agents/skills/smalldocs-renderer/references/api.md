@@ -3,7 +3,7 @@
 ## Current module
 
 ```js
-import { render } from 'https://smalldocs.org/sdk/0.2.0/smalldocs.js';
+import { render } from 'https://smalldocs.org/sdk/0.3.0/smalldocs.js';
 
 const view = await render('#report', markdown);
 ```
@@ -15,15 +15,16 @@ The host page must use HTTP or HTTPS. `target` can be a selector or an `Element`
 ```js
 const view = await render('#report', markdown, {
   navigation: true,
+  runnableHtml: false,
   sections: { collapsible: true, defaultOpen: true },
   controls: { copy: true, fullscreen: true, download: true },
 });
 ```
 
-Every option shown above defaults to `true`.
-Set an option to exactly `false` to disable it.
+Reading and control options shown above default to `true`. Runnable HTML defaults to `false` and requires exactly `true` to enable it.
 
 - `navigation` controls the in-document heading list.
+- `runnableHtml` executes `sdoc-app` fences in sandboxed frames. Otherwise they stay readable source.
 - `sections.collapsible` controls expand and collapse behavior for H1 through H4.
 - `sections.defaultOpen` controls the first state of collapsible H2 through H4 sections.
 - `controls.copy`, `controls.fullscreen`, and `controls.download` control those actions across supported document features.
@@ -80,7 +81,7 @@ const view = await render('#report', markdown, {
 });
 ```
 
-Controls are cross-feature policies. For example, `download: false` removes supported code, diagram, chart, spreadsheet, and slide downloads. There are no per-feature control options in `0.2.0`.
+Controls are cross-feature policies. For example, `download: false` removes supported code, diagram, chart, spreadsheet, and slide downloads. There are no per-feature control options in `0.3.0`.
 
 Options stay fixed for the lifetime of the returned view. `view.update(markdown)` accepts Markdown only. Destroy the view and call `render()` again to change behavior options.
 
@@ -171,7 +172,9 @@ Keep overrides under the mount so another renderer and the surrounding applicati
 
 Send one Markdown string after inference. No envelope or capability declaration is required.
 
-The renderer supports ordinary Markdown, navigation, code, math, Mermaid, charts, cells and workbooks, custom-shape slides, runnable HTML, and supported video fences. The document reader and these rich surfaces use the same canonical rendering components as the SmallDocs application. Feature discovery and loading are content-driven. Unknown fences remain readable source.
+The renderer supports ordinary Markdown, navigation, code, math, Mermaid, charts, cells and workbooks, custom-shape slides, opt-in runnable HTML, guided walkthrough metadata, and supported video fences. The document reader and these rich surfaces use the same canonical rendering components as the SmallDocs application. Feature discovery and loading are content-driven. Unknown fences remain readable source.
+
+Set `docwalk: true` in front matter and provide ordered `annotations`. Each annotation uses a one-based body `line`, optional `endLine`, optional exact `quote`, and Markdown `text`. Walkthroughs bind after rich features settle and are removed on update or destroy.
 
 Form submission, comments, Markdown editing, Cloud storage, application chrome, and a first-party image pipeline are outside this release. A `form` fence remains readable source until the SDK has a host submission contract.
 
@@ -193,7 +196,7 @@ The SDK parses Markdown, sanitises the resulting HTML, and mounts the cleaned do
 
 SmallDocs JavaScript has the privileges of the host page, like other third-party browser SDKs. Pin the versioned URL and include it in dependency review.
 
-A `sdoc-app` fence is the explicit executable form. Its complete HTML document runs in a sandboxed frame served by SmallDocs. Scripts, forms, modals, downloads, and popups are available, but the frame receives neither same-origin access nor top-level navigation. It cannot read or modify the host page, storage, cookies, or account controls. Network requests remain possible when the host policy and destination CORS rules allow them.
+A `sdoc-app` fence is the explicit executable form, and the customer must pass `runnableHtml: true`. Its complete HTML document runs in a sandboxed frame served by SmallDocs. Scripts, forms, modals, downloads, and popups are available, but the frame receives neither same-origin access nor top-level navigation. It cannot read or modify the host page, storage, cookies, or account controls. The host page's `connect-src` does not constrain this separate document. Network requests remain possible when the destination accepts them through CORS; add a Content Security Policy to the component document to restrict its destinations.
 
 The experimental build loads rich dependencies from jsDelivr. Merge these origins into an existing Content Security Policy when needed:
 
@@ -204,9 +207,9 @@ font-src https://cdn.jsdelivr.net
 frame-src https://smalldocs.org https://www.youtube-nocookie.com
 ```
 
-The SmallDocs frame origin is needed for Mermaid rendering and runnable HTML frames. The YouTube origin is needed only for supported video fences. Remote document images require their host in the application's `img-src` directive. Requests made by runnable HTML also need the relevant origin in the host policy.
+The SmallDocs frame origin is needed for Mermaid rendering and runnable HTML frames. The YouTube origin is needed only for supported video fences. Remote document images require their host in the application's `img-src` directive. Runnable HTML is a separate document, so restrict its network destinations with a Content Security Policy inside the component document.
 
-If the application enforces Trusted Types, allow the `smalldocs-sdk-0.2.0` and `dompurify` policy names.
+If the application enforces Trusted Types, allow the `smalldocs-sdk-0.3.0` and `dompurify` policy names.
 
 ## Framework-neutral lifecycle
 

@@ -9,7 +9,7 @@
   },
   "sdocs-prose-reader.css": {
     "source": "public/css/prose-reader.css",
-    "sha256": "ca3fada652ba036f9545149037365f46aec573ce5920a021b08f2d8f5e01e303",
+    "sha256": "ab99c7ee0db1877406234b9d06cb4f13a75a94ecdcece0b5982a3724e6792a88",
     "sourceSha256": "853b071d7e1e3e8435c8d88accfd91f79aaeaefb019fd1f819b80731291261ed",
     "transform": "sdk-layered-css"
   },
@@ -28,6 +28,16 @@
   "sdocs-walkthrough.css": {
     "source": "public/css/walkthrough.css",
     "sha256": "dbbf518d78616699116461e73928a0f08bd0ea177a59694ee87633ae6b1e05be"
+  },
+  "sdocs-docwalk.js": {
+    "source": "public/sdocs-docwalk.js",
+    "sha256": "e80f47f19c8d684243ae18d735c8cb2a8c3b567838258bf2584b7e87eed379d5"
+  },
+  "sdocs-docwalk.css": {
+    "source": "public/css/docwalk.css",
+    "sha256": "453bad7052419aad8b11d030723e4ad3a5adee74f7392c0435f78e9b7c3d3952",
+    "sourceSha256": "2de19f737acb842b968fd5296be1302243ef301808f4a396e284eb424b8eeefd",
+    "transform": "sdk-docwalk-css"
   },
   "sdocs-slide-reader.js": {
     "source": "public/sdocs-slide-reader.js",
@@ -83,7 +93,7 @@
   },
   "sdocs-video-reader.css": {
     "source": "public/css/video-reader.css",
-    "sha256": "260fbb504869859fd776bb46d30705e3846a58efb18fabc9e5a220dec7ead39d",
+    "sha256": "4856db3ec63af534a1f8cda0063b6a1834ea63afd15221fb777ca2a1a63fc7c7",
     "sourceSha256": "7d42873376ad9f2fa9aadc78e96c70104a3032c68098b82ed49d59655d9dc64b",
     "transform": "sdk-layered-css"
   },
@@ -93,7 +103,7 @@
   },
   "sdocs-math-reader.css": {
     "source": "public/css/math-reader.css",
-    "sha256": "a0c4bd6ff1018370521a92e89ddcb74c953a88d967f110b3fadc71cafb32e9a4",
+    "sha256": "b080722c13a36d868843c97b185f6e582e8bd9efb001ac4ed678032edf478a11",
     "sourceSha256": "bd9d1104988c6353e48e5d81cec32f8c21c39775a7b546ac54d0cd585e48e88e",
     "transform": "sdk-math-css"
   },
@@ -111,7 +121,7 @@
   },
   "sdocs-mermaid-reader.css": {
     "source": "public/css/mermaid-reader.css",
-    "sha256": "8bbdf5f76f117d43552afc5bdce157129f84128b8e974ce83ac166f2d2973b8d",
+    "sha256": "0fe24d5660b6a5e8c7405b47b18b2d5ba2f4aa51ed356c493c468cd7e4001df8",
     "sourceSha256": "9d94c6137c0acf17e1bce6b0992183d9d606c3d153407eb395d41de478ae2f2c",
     "transform": "sdk-layered-css"
   },
@@ -125,13 +135,13 @@
   },
   "sdocs-chart-reader.css": {
     "source": "public/css/chart-reader.css",
-    "sha256": "1338bd4ad5753fe3bde883d2d6fca26c5bc7a81be1bae81953f39d44a3539369",
+    "sha256": "eba2aa6009e17b25ade11194da1910bd341b9f43e6afec330c37f8137e763860",
     "sourceSha256": "c4e33e693658f60d9168e059ac0536cf4be3a0d993fb511c8df49d4690170386",
     "transform": "sdk-layered-css"
   },
   "sdocs-cells.css": {
     "source": "public/css/cells.css",
-    "sha256": "a7e2417b84b8d2e37f313b7afbc7a2d90f653cf56c3f24735ef8078f8c2ea0ba",
+    "sha256": "7e2f481a02c7a9255983e755c955439997878d35425c7ccdbb8e1eddf6900803",
     "sourceSha256": "c2461c449b22e8557f2bd09cd9578b047e52dd21daa316d4a06fcfcb0676391a",
     "transform": "sdk-scoped-css"
   },
@@ -165,7 +175,7 @@
   },
   "sdocs-html-component-reader.css": {
     "source": "public/css/html-component-reader.css",
-    "sha256": "7ba1fe1b853350ba87f0ce318e5c32d0ad7cc52daf9129d50b5eab96b76c71e3",
+    "sha256": "4b8154e166752819b1f934f77be7504bae9d99190c0abe090eb4849e542e62a6",
     "sourceSha256": "fa672f61e879c24fea6494a0a4984b776c565f8130a4c4f64fd12bd264a8960a",
     "transform": "sdk-app-css"
   },
@@ -227,7 +237,7 @@
   },
   "sdocs-shape-render.js": {
     "source": "public/sdocs-shape-render.js",
-    "sha256": "083aa1b37a06940494d10fd2751f7336cdd40f2244faa0bc4b06179dac8fed21",
+    "sha256": "bfd7ef55176b2d138b19df392d9f42c7bad278f349841a63f37676c502bd6768",
     "sourceSha256": "f4a2dce56a427c094642e2aef5413632eaf2794400d9d742173bc8c70dcb6c30",
     "transform": "manual-sdk-adapter"
   },
@@ -245,7 +255,7 @@
   },
   "sdocs-icons-data.js": {
     "source": "public/sdocs-icons-data.js",
-    "sha256": "f9b16e5c65961a4d1678c7c9649da0538189a0f738b4124378121b8c6b5f538c",
+    "sha256": "bc50053877d5e51de18e93adfeea13b92fc1b252a23139d406d2c4f21f8fd0f1",
     "sourceSha256": "0186740ea953f9438657032975d56bd7bed8784e608afd886c6c48e2bf6e941f",
     "transform": "manual-sdk-adapter"
   },

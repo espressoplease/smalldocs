@@ -5,6 +5,7 @@
 ```js
 const view = await render('#report', markdown, {
   navigation: true,
+  runnableHtml: false,
   sections: { collapsible: true, defaultOpen: true },
   controls: { copy: true, fullscreen: true, download: true },
 });
@@ -12,9 +13,10 @@ const view = await render('#report', markdown, {
 
 `target` is a selector or an `Element`. Rendering replaces its children with an instance-scoped SmallDocs reading surface. The promise resolves after required rich features settle.
 
-Every option is enabled unless its value is exactly `false`.
+Reading and control options are enabled unless their value is exactly `false`. Runnable HTML is disabled unless `runnableHtml` is exactly `true`.
 
 - `navigation` shows the in-document heading list.
+- `runnableHtml` executes `sdoc-app` fences in sandboxed frames. When disabled, the fence stays readable source.
 - `sections.collapsible` adds expand and collapse behavior to H1 through H4.
 - `sections.defaultOpen` controls the first state of collapsible H2 through H4 sections.
 - `controls.copy` shows copy actions for headings, code, tables, blockquotes, diagrams, charts, cells, and slides where available.
@@ -57,6 +59,37 @@ const view = await render('#reference', markdown, {
 [Open the example gallery](/developers/examples) to compare all four configurations, or open the [standalone styled report](/developers/example/non-collapsible).
 
 Options stay fixed for the lifetime of the returned view. `view.update(markdown)` replaces content only. Destroy the view and call `render()` again to change behavior options.
+
+## Runnable HTML opt-in
+
+Enable executable `sdoc-app` fences only for a renderer instance whose document source is allowed to run sandboxed browser code:
+
+```js
+const view = await render('#report', markdown, {
+  runnableHtml: true,
+});
+```
+
+The fence itself is not consent. Without this option, its complete HTML remains visible as source and the runnable module and frame are not loaded.
+
+## Guided walkthrough metadata
+
+A document can carry ordered source-line annotations in front matter:
+
+```yaml
+---
+docwalk: true
+annotations:
+  - line: 3
+    quote: "important phrase"
+    text: "Start with this result."
+  - line: 12
+    endLine: 14
+    text: "Compare the complete block."
+---
+```
+
+Lines are one-based and relative to the Markdown body after front matter. `quote` is optional and narrows a prose or code step to matching text. Walkthrough steps mount after rich features settle, follow annotation order, and are removed on `view.update()` or `view.destroy()`. A walkthrough can target enabled runnable HTML. If `runnableHtml` is disabled, an annotation for that component has no executable target.
 
 ## Surrounding application menu
 
@@ -117,7 +150,7 @@ The rendered `.smalldocs-document` article. Use it for layout, observation, or s
 
 ## `view.features`
 
-An array of feature modules used by the current document, such as `math`, `mermaid`, `charts`, `cells`, or `slides`.
+An array of feature modules used by the current document, such as `math`, `mermaid`, `charts`, `cells`, `slides`, `apps`, or `walkthrough`.
 
 ## `smalldocs:rendered`
 
@@ -135,7 +168,7 @@ Use this event when surrounding application layout or analytics needs to react t
 
 ```js
 import SmallDocs, { SmallDocs, render } from
-  'https://smalldocs.org/sdk/0.2.0/smalldocs.js';
+  'https://smalldocs.org/sdk/0.3.0/smalldocs.js';
 ```
 
 The named `render` function and `SmallDocs.render` are the same function.

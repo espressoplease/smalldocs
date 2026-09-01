@@ -1,7 +1,7 @@
 # Lifecycle
 
 ```js
-import { render } from 'https://smalldocs.org/sdk/0.2.0/smalldocs.js';
+import { render } from 'https://smalldocs.org/sdk/0.3.0/smalldocs.js';
 
 let view;
 

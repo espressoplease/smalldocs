@@ -1,13 +1,13 @@
 import { ensureCoreAssets } from './assets.js';
 import { closeActiveOverlay } from './overlay.js';
 import { createRenderer as createMarkedRenderer, parseMarkdown, sanitizeHTML, setKnownHTML } from './runtime.js';
+import { SDK_VERSION } from './version.js';
 
 const RESERVED_LANGUAGES = new Set([
   'chart', 'mermaid', 'cells', 'slide', 'slides', 'video', 'form', 'math', 'sdoc-app',
 ]);
 
 let instanceNumber = 0;
-const SDK_VERSION = '0.2.0';
 
 function normalizeOptions(options) {
   const source = options && typeof options === 'object' ? options : {};
@@ -19,6 +19,7 @@ function normalizeOptions(options) {
     : {};
   return {
     navigation: source.navigation !== false,
+    runnableHtml: source.runnableHtml === true,
     sections: {
       collapsible: sections.collapsible !== false,
       defaultOpen: sections.defaultOpen !== false,
@@ -130,7 +131,7 @@ const featureDefinitions = [
   { name: 'mermaid', detect: (root) => root.querySelector('code.language-mermaid') },
   { name: 'cells', detect: (root) => root.querySelector('code.language-cells') },
   { name: 'slides', detect: (root) => root.querySelector('code.language-slide, code.language-slides') },
-  { name: 'apps', detect: (root) => root.querySelector('code.language-sdoc-app') },
+  { name: 'apps', detect: (root, context) => context.options.runnableHtml && root.querySelector('code.language-sdoc-app') },
   { name: 'highlight', detect: (root) => Array.from(root.querySelectorAll('pre code[class*="language-"]')).some((code) => !RESERVED_LANGUAGES.has(codeLanguage(code))) },
 ];
 
@@ -162,7 +163,7 @@ function featureFallback(context, feature, error) {
 }
 
 async function mountFeatures(context) {
-  const selected = featureDefinitions.filter((feature) => feature.detect(context.root));
+  const selected = featureDefinitions.filter((feature) => feature.detect(context.root, context));
   context.features = selected.map((feature) => feature.name);
   await Promise.all(selected.map(async (feature) => {
     try {
@@ -175,6 +176,27 @@ async function mountFeatures(context) {
       featureFallback(context, feature, error);
     }
   }));
+}
+
+function walkthroughRequested(meta) {
+  const value = meta && meta.docwalk;
+  if (value === true) return true;
+  return /^(true|yes|on|1)$/i.test(String(value || '').trim());
+}
+
+async function mountWalkthrough(context) {
+  if (!walkthroughRequested(context.meta)) return;
+  try {
+    const module = await import('./features/walkthrough.js');
+    if (context.signal.aborted) throw abortError();
+    const cleanup = await module.mount(context);
+    if (typeof cleanup !== 'function') return;
+    context.features.push('walkthrough');
+    context.cleanups.push(cleanup);
+  } catch (error) {
+    if (context.signal.aborted) throw abortError();
+    console.warn('SmallDocs walkthrough could not render:', error);
+  }
 }
 
 function createContext(mount, options) {
@@ -259,6 +281,7 @@ async function updateContext(context, markdown) {
   state.cleanups.push(() => prose.destroy());
   buildNavigation(state);
   await mountFeatures(state);
+  await mountWalkthrough(state);
   if (state.signal.aborted || context.active !== state || generation !== context.generation) throw abortError();
   state.root.dispatchEvent(new CustomEvent('smalldocs:rendered', {
     bubbles: true,

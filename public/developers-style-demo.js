@@ -1,4 +1,4 @@
-import { render } from '/sdk/0.2.0/smalldocs.js';
+import { render } from '/sdk/0.3.0/smalldocs.js';
 
 const paper = document.querySelector('.field-paper');
 const loading = document.querySelector('.field-loading');

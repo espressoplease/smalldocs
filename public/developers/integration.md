@@ -24,7 +24,7 @@ Add a test with ordinary Markdown and a document containing rich SmallDocs block
 
 3. [Teach the analysis agent to author SmallDocs Markdown](/developers/agents). It returns the finished Markdown and the application passes that string to `render()`.
 
-Current status: experimental `0.2.0`. No account or key is required. Production pricing and terms are not set.
+Current status: experimental `0.3.0`. No account or key is required. Production pricing and terms are not set.
 
 ## Render a document
 
@@ -32,7 +32,7 @@ Current status: experimental `0.2.0`. No account or key is required. Production 
 <div id="report"></div>
 
 <script type="module">
-  import { render } from 'https://smalldocs.org/sdk/0.2.0/smalldocs.js';
+  import { render } from 'https://smalldocs.org/sdk/0.3.0/smalldocs.js';
 
   const markdown = await runYourAgent();
   const view = await render('#report', markdown);
@@ -75,6 +75,7 @@ The application owns surrounding chrome such as its top menu, breadcrumbs, accou
 ```js
 const view = await render('#report', markdown, {
   navigation: true,
+  runnableHtml: false,
   sections: {
     collapsible: true,
     defaultOpen: false,
@@ -87,7 +88,7 @@ const view = await render('#report', markdown, {
 });
 ```
 
-All options are optional. Navigation, collapsible sections, open sections, and controls are enabled by default.
+All options are optional. Navigation, collapsible sections, open sections, and controls are enabled by default. Runnable HTML is disabled by default.
 
 Use `sections.collapsible: false` when the host application should show the full document without fold controls. Use `navigation: false` when the application supplies its own navigation. Typography, spacing, and colors are CSS rather than JavaScript options, so each customer surface can inherit or override them naturally. See the [Browser API reference](/developers/api) for the complete property list.
 
@@ -108,7 +109,9 @@ view.destroy();
 
 ## Supported content
 
-One Markdown string can mix ordinary Markdown, navigation, code, math, Mermaid, charts, computed cells and workbooks, custom-shape slides, runnable HTML, and supported video fences. The SDK and the SmallDocs application use the same document and rich-feature rendering components. Feature controls include copying, fullscreen reading, and relevant file downloads such as SVG, PNG, XLSX, PDF, and PowerPoint.
+One Markdown string can mix ordinary Markdown, navigation, code, math, Mermaid, charts, computed cells and workbooks, custom-shape slides, runnable HTML, and supported video fences. Pass `runnableHtml: true` when this renderer instance should execute `sdoc-app` fences. Without that option, those fences stay readable source. The SDK and the SmallDocs application use the same document and rich-feature rendering components. Feature controls include copying, fullscreen reading, and relevant file downloads such as SVG, PNG, XLSX, PDF, and PowerPoint.
+
+Front matter can set `docwalk: true` and carry ordered `annotations` with one-based body `line`, optional `endLine`, optional exact `quote`, and Markdown `text`. The renderer binds each step after rich content settles, so a walkthrough can move through prose, code, tables, diagrams, cells, slides, and enabled runnable components. Updating or destroying the view removes its walkthrough UI and listeners.
 
 Unknown fences remain readable as source. Form submission, comments, Markdown editing, Cloud storage, and surrounding application chrome are outside this SDK release. A `form` fence remains source until the SDK has a host submission contract.
 
@@ -120,7 +123,7 @@ Markdown stays in the browser. The SDK parses it, sanitises the resulting HTML, 
 
 The document is not isolated from the application by an iframe. SmallDocs code runs with the same page privileges as other third-party browser SDKs, so pin the versioned module URL and include it in the application's dependency review.
 
-A `sdoc-app` fence is the explicit executable form. Its complete HTML document runs inside a sandboxed frame served by SmallDocs. The frame can run scripts and use forms, modals, downloads, and popups, but it receives neither same-origin access nor top-level navigation. It cannot read or modify the host page, its storage, or its account controls. Ordinary `html` fences remain code listings.
+A `sdoc-app` fence is the explicit executable form, and the customer must also pass `runnableHtml: true`. Its complete HTML document runs inside a sandboxed frame served by SmallDocs. The frame can run scripts and use forms, modals, downloads, and popups, but it receives neither same-origin access nor top-level navigation. It cannot read or modify the host page, its storage, or its account controls. Ordinary `html` fences remain code listings.
 
 Runnable components start with the renderer mount's resolved typography, colours, spacing, and radius. SmallDocs applies those values to bare semantic HTML in a low-priority CSS layer and updates them when the host theme changes. Component CSS remains authoritative. The inherited values are exposed as `--sdoc-app-*` custom properties, including background, surface, text, accent, font, heading scale, spacing, radius, padding, and colour-scheme tokens. The bundled Inter faces load in the sandbox. Other selected webfonts must be loaded by the component when the exact face matters. The `sdoc apps` reference lists the complete contract.
 
@@ -137,9 +140,9 @@ font-src https://cdn.jsdelivr.net
 frame-src https://smalldocs.org https://www.youtube-nocookie.com
 ```
 
-The SmallDocs origin in `frame-src` is needed for Mermaid rendering and runnable HTML frames. The YouTube origin is needed only for supported video fences. An external image URL also needs its host in the application's `img-src` directive. Requests made by runnable HTML need the relevant origin in the host application's policy and remain subject to the destination's CORS rules.
+The SmallDocs origin in `frame-src` is needed for Mermaid rendering and runnable HTML frames. The YouTube origin is needed only for supported video fences. An external image URL also needs its host in the application's `img-src` directive. The runnable frame is a separate document, so the host page's `connect-src` does not limit its requests. Component code can contact external services that accept the request through CORS. Give the component its own Content Security Policy when its network destinations need to be restricted.
 
-Applications that enforce Trusted Types should also allow `smalldocs-sdk-0.2.0` and `dompurify` in the `trusted-types` directive.
+Applications that enforce Trusted Types should also allow `smalldocs-sdk-0.3.0` and `dompurify` in the `trusted-types` directive.
 
 ## Loading and caching
 

@@ -165,7 +165,7 @@ module.exports = function (harness) {
   test('agent index points to both SDK skills and the complete reference', () => {
     const index = fs.readFileSync(path.join(root, 'public', 'developers', 'llms.txt'), 'utf8');
     assert.ok(index.includes('/developers/llms-full.txt'));
-    assert.ok(index.includes('/sdk/0.2.0/smalldocs.js'));
+    assert.ok(index.includes('/sdk/0.3.0/smalldocs.js'));
     assert.ok(index.includes('/.well-known/agent-skills/smalldocs-renderer/SKILL.md'));
     assert.ok(index.includes('/.well-known/agent-skills/smalldocs-author/SKILL.md'));
     ['markdown', 'code', 'math', 'diagrams', 'charts', 'cells', 'slides', 'slide-shapes', 'apps', 'walkthroughs', 'video', 'styles']
@@ -192,6 +192,10 @@ module.exports = function (harness) {
     assert.ok(api.includes('## Configuration recipes'));
     assert.ok(api.includes('sections: { collapsible: false }'));
     assert.ok(api.includes('Options stay fixed for the lifetime'));
+    assert.ok(api.includes('runnableHtml: false'));
+    assert.ok(api.includes('requires exactly `true`'));
+    assert.ok(api.includes('docwalk: true'));
+    assert.ok(api.includes('removed on update or destroy'));
   });
 
   test('customer SDK example uses valid slides, charts, and computed cells', () => {
@@ -221,5 +225,10 @@ module.exports = function (harness) {
     const results = formulas.recalc(model);
     assert.strictEqual(results[7][3].value, 37000);
     assert.strictEqual(results[7][4].value, 130000);
+
+    const walkthrough = fs.readFileSync(path.join(exampleRoot, 'walkthrough.md'), 'utf8');
+    assert.ok(walkthrough.includes('docwalk: true'));
+    assert.ok(walkthrough.includes('~~~sdoc-app'));
+    assert.ok(walkthrough.includes('~~~cells'));
   });
 };

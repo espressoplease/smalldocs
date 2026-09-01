@@ -1,4 +1,4 @@
-import { render } from '__SDOCS_ORIGIN__/sdk/0.2.0/smalldocs.js';
+import { render } from '__SDOCS_ORIGIN__/sdk/0.3.0/smalldocs.js';
 import { boardMarkdown, boardUpdateMarkdown } from './briefing.js';
 
 function measureHostProbes() {
