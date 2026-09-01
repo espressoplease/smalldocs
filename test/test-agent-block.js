@@ -123,6 +123,16 @@ module.exports = function (harness) {
     assert.ok(cli.CLOUD_SKILL_BODY.includes('distinctive shapes when they encode structure or state'));
   });
 
+  test('current changelog entry contains both exact installed skill bodies', () => {
+    const changelog = fs.readFileSync(path.join(__dirname, '..', 'public', 'agent-changes.md'), 'utf8');
+    const start = changelog.indexOf(`## v${cli.SKILL_VERSION} `);
+    const next = changelog.indexOf('\n## v', start + 1);
+    const entry = changelog.slice(start, next < 0 ? changelog.length : next);
+    assert.ok(start >= 0, 'current skill version is listed');
+    assert.ok(entry.includes(cli.SKILL_BODY.trim()), 'standard skill body is exact');
+    assert.ok(entry.includes(cli.CLOUD_SKILL_BODY.trim()), 'Cloud skill body is exact');
+  });
+
   test('refreshContent: legacy v1 is migrated, fromVersion=1', () => {
     const r = cli.refreshContent('# user prefix\n\n' + LEGACY_V1 + 'user suffix\n');
     assert.strictEqual(r.changed, true);
