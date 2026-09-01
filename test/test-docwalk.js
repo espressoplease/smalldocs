@@ -107,6 +107,10 @@ module.exports = function (harness) {
       'grid 100 56.25',
       '```',
       '',
+      '```sdoc-app',
+      '<!doctype html><title>Explorer</title>',
+      '```',
+      '',
       '$$x^2$$',
     ].join('\n');
     const model = DW.build({
@@ -115,11 +119,12 @@ module.exports = function (harness) {
         { line: 3, text: 'diagram' },
         { line: 7, text: 'sheet' },
         { line: 12, text: 'slide' },
-        { line: 15, text: 'math' },
+        { line: 17, text: 'component' },
+        { line: 19, text: 'math' },
       ],
     }, body, marked.lexer);
     assert.deepStrictEqual(model.steps.map(step => step.targets[0].selector), [
-      '.sdoc-mermaid', '.sdoc-cells', '.sdoc-slide', '.sdocs-math-display',
+      '.sdoc-mermaid', '.sdoc-cells', '.sdoc-slide', '.sdoc-app', '.sdocs-math-display',
     ]);
   });
 

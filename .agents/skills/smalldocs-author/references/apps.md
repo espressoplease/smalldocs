@@ -104,7 +104,7 @@ An ordinary `html` fence is always a source listing. Use `sdoc-app` only when th
 
 ## Browser boundary
 
-The component frame can run scripts and use forms, modals, downloads, and popups. It cannot read or modify the SmallDocs page, host application DOM, account controls, cookies, or storage. Network requests still leave the browser and remain subject to Content Security Policy and the destination's CORS rules.
+The component frame can run scripts and use forms, modals, downloads, and popups. It cannot read or modify the SmallDocs page, host application DOM, account controls, cookies, or storage. Network requests are permitted. They remain subject to the destination's CORS rules and any Content Security Policy declared by the component itself.
 
 Keep the result usable without access to the parent document. Do not depend on parent DOM selectors, SmallDocs globals, same-origin storage, or top-level navigation.
 

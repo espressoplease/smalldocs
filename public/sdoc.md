@@ -402,7 +402,7 @@ An agent can attach explanations to source lines while opening a regular Markdow
 sdoc report.md 12:"Start with the result" 24-28:"Compare these figures"
 ```
 
-The rendered document opens with an ordered set of notes and Prev / Next controls. A prose line highlights its matching rendered text. A source line inside an ordinary code fence highlights that code line and places the note beneath it without leaving the reading surface. A chart, diagram, sheet, slide, form, math block, or video is highlighted as one complete rendered element. Steps follow the order of the command arguments, so the walkthrough can move around the document without rewriting it.
+The rendered document opens with an ordered set of notes and Prev / Next controls. A prose line highlights its matching rendered text. A source line inside an ordinary code fence highlights that code line and places the note beneath it without leaving the reading surface. A chart, diagram, sheet, slide, form, math block, video, or runnable component is highlighted as one complete rendered element. Steps follow the order of the command arguments, so the walkthrough can move around the document without rewriting it.
 
 The annotations travel in the URL and through `sdoc share`. The Markdown file on disk is unchanged.
 

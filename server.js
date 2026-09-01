@@ -3070,6 +3070,7 @@ const server = http.createServer((req, res) => {
     'authoring/slides': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'slides.md'),
     'authoring/slide-shapes': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'slide-shapes.md'),
     'authoring/apps': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'apps.md'),
+    'authoring/walkthroughs': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'walkthroughs.md'),
     'authoring/video': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'video.md'),
     'authoring/styles': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'styles.md'),
   };
@@ -3187,7 +3188,7 @@ const server = http.createServer((req, res) => {
       },
       {
         name: 'smalldocs-author',
-        description: 'Create finished SmallDocs Markdown for an application using the SmallDocs renderer. Use when an agent must produce a readable report or rich document containing diagrams, charts, computed cells, slides, runnable HTML, math, code, video, navigation, or document styling. Do not use for integrating the renderer SDK itself.',
+        description: 'Create finished SmallDocs Markdown for an application using the SmallDocs renderer. Use when an agent must produce a readable report or rich document containing diagrams, charts, computed cells, slides, runnable HTML, walkthroughs, math, code, video, navigation, or document styling. Do not use for integrating the renderer SDK itself.',
         files: [
           'SKILL.md',
           'references/markdown.md',
@@ -3199,6 +3200,7 @@ const server = http.createServer((req, res) => {
           'references/slides.md',
           'references/slide-shapes.md',
           'references/apps.md',
+          'references/walkthroughs.md',
           'references/video.md',
           'references/styles.md',
         ],
@@ -3248,7 +3250,8 @@ const server = http.createServer((req, res) => {
       : new Set([
         'SKILL.md', 'references/markdown.md', 'references/code.md', 'references/math.md',
         'references/diagrams.md', 'references/charts.md', 'references/cells.md',
-        'references/slides.md', 'references/slide-shapes.md', 'references/apps.md', 'references/video.md',
+        'references/slides.md', 'references/slide-shapes.md', 'references/apps.md',
+        'references/walkthroughs.md', 'references/video.md',
         'references/styles.md',
       ]);
     if (!allowedSkillFiles.has(skillRelativePath)) {

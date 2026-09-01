@@ -12,6 +12,7 @@ const pages = Object.freeze({
   'authoring/slides': { path: '/developers/authoring/slides', label: 'Authoring / Slides', markdown: '/developers/authoring/slides.md' },
   'authoring/slide-shapes': { path: '/developers/authoring/slide-shapes', label: 'Authoring / Custom slide shapes', markdown: '/developers/authoring/slide-shapes.md' },
   'authoring/apps': { path: '/developers/authoring/apps', label: 'Authoring / Runnable HTML', markdown: '/developers/authoring/apps.md' },
+  'authoring/walkthroughs': { path: '/developers/authoring/walkthroughs', label: 'Authoring / Walkthroughs', markdown: '/developers/authoring/walkthroughs.md' },
   'authoring/video': { path: '/developers/authoring/video', label: 'Authoring / Video', markdown: '/developers/authoring/video.md' },
   'authoring/styles': { path: '/developers/authoring/styles', label: 'Authoring / Styles', markdown: '/developers/authoring/styles.md' },
 });

@@ -416,6 +416,7 @@ module.exports = function(harness) {
       assert.ok(index.body.includes('/developers/authoring/slides.md'));
       assert.ok(index.body.includes('/developers/authoring/slide-shapes.md'));
       assert.ok(index.body.includes('/developers/authoring/apps.md'));
+      assert.ok(index.body.includes('/developers/authoring/walkthroughs.md'));
 
       const guide = await get(BASE + '/developers/integration.md');
       assert.strictEqual(guide.status, 200);
@@ -433,7 +434,7 @@ module.exports = function(harness) {
 
       const authoringSlugs = [
         'markdown', 'code', 'math', 'diagrams', 'charts', 'cells',
-        'slides', 'slide-shapes', 'apps', 'video', 'styles',
+        'slides', 'slide-shapes', 'apps', 'walkthroughs', 'video', 'styles',
       ];
       for (const slug of authoringSlugs) {
         const page = await get(BASE + '/developers/authoring/' + slug);
@@ -459,6 +460,7 @@ module.exports = function(harness) {
       assert.ok(parsed.skills[1].files.includes('references/slides.md'));
       assert.ok(parsed.skills[1].files.includes('references/slide-shapes.md'));
       assert.ok(parsed.skills[1].files.includes('references/apps.md'));
+      assert.ok(parsed.skills[1].files.includes('references/walkthroughs.md'));
 
       const legacy = await get(BASE + '/.well-known/skills/index.json');
       assert.strictEqual(legacy.status, 200);
@@ -481,6 +483,7 @@ module.exports = function(harness) {
       assert.ok(authorSkill.body.includes('internal status is not a reason'));
       assert.ok(authorSkill.body.includes('references/slide-shapes.md'));
       assert.ok(authorSkill.body.includes('references/apps.md'));
+      assert.ok(authorSkill.body.includes('references/walkthroughs.md'));
 
       const slideReference = await get(
         BASE + '/.well-known/agent-skills/smalldocs-author/references/slides.md'
@@ -515,6 +518,12 @@ module.exports = function(harness) {
       );
       assert.strictEqual(appsReference.status, 200);
       assert.ok(appsReference.body.includes('The component starts inline'));
+
+      const walkthroughReference = await get(
+        BASE + '/.well-known/agent-skills/smalldocs-author/references/walkthroughs.md'
+      );
+      assert.strictEqual(walkthroughReference.status, 200);
+      assert.ok(walkthroughReference.body.includes('docwalk: true'));
     });
 
     await testAsync('embed shell allows only its declared customer origin to frame it', async () => {

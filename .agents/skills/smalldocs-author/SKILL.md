@@ -1,6 +1,6 @@
 ---
 name: smalldocs-author
-description: Create finished SmallDocs Markdown for an application using the SmallDocs renderer. Use when an agent must produce a readable report or rich document containing diagrams, charts, computed cells, slides, runnable HTML, math, code, video, navigation, or document styling. Do not use for integrating the renderer SDK itself.
+description: Create finished SmallDocs Markdown for an application using the SmallDocs renderer. Use when an agent must produce a readable report or rich document containing diagrams, charts, computed cells, slides, runnable HTML, walkthroughs, math, code, video, navigation, or document styling. Do not use for integrating the renderer SDK itself.
 ---
 
 # SmallDocs authoring
@@ -18,6 +18,7 @@ Read only the references relevant to the requested document:
 - [Slides](references/slides.md) for presentations. Also read [custom slide shapes](references/slide-shapes.md) when explaining a concept, process, architecture, comparison, or causal model visually.
 - [Video](references/video.md) for supported YouTube references.
 - [Runnable HTML](references/apps.md) for self-contained interactive browser tools.
+- [Document walkthroughs](references/walkthroughs.md) for ordered source-line explanations across prose and rich content.
 - [Styles](references/styles.md) only when the document needs explicit visual treatment beyond the SmallDocs defaults.
 
 ## Authoring decisions
@@ -25,6 +26,7 @@ Read only the references relevant to the requested document:
 - Start with the clearest document structure. Rich blocks should carry information, not decorate the page.
 - A single document may mix every supported feature. Do not choose one global mode.
 - Use a Mermaid diagram for relationships or sequence, cells for numbers people should inspect, charts for patterns in quantitative data, slides when the result will be presented, and runnable HTML when the reader needs to manipulate a self-contained browser tool.
+- Use a document walkthrough when the order of explanation matters and the reader should move between specific source lines or rendered features without splitting the document into slides.
 - For slides, internal status is not a reason to default to bullet-only templates. When the purpose is to explain how something works, use custom shapes to encode the relationships visually. Built-in templates remain useful for covers, section breaks, simple text, and repeated layouts.
 - Preserve source readability. If a rich block is not necessary, ordinary Markdown is the better format.
 - Do not add image upload, proxying, or hosting instructions. Ordinary HTTPS image references remain external requests, and image infrastructure is outside this authoring contract.

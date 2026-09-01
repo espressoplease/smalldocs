@@ -19,6 +19,7 @@ var RICH_FENCES = {
   slides:  { kind: 'rich', selector: '.sdoc-slide', label: 'slide' },
   form:    { kind: 'rich', selector: '.sdoc-form-host', label: 'form' },
   video:   { kind: 'rich', selector: '.sdoc-video', label: 'video' },
+  'sdoc-app': { kind: 'rich', selector: '.sdoc-app', label: 'runnable component' },
 };
 
 function str(value) { return typeof value === 'string' ? value : ''; }

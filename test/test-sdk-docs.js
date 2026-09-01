@@ -168,7 +168,7 @@ module.exports = function (harness) {
     assert.ok(index.includes('/sdk/0.2.0/smalldocs.js'));
     assert.ok(index.includes('/.well-known/agent-skills/smalldocs-renderer/SKILL.md'));
     assert.ok(index.includes('/.well-known/agent-skills/smalldocs-author/SKILL.md'));
-    ['markdown', 'code', 'math', 'diagrams', 'charts', 'cells', 'slides', 'slide-shapes', 'video', 'styles']
+    ['markdown', 'code', 'math', 'diagrams', 'charts', 'cells', 'slides', 'slide-shapes', 'apps', 'walkthroughs', 'video', 'styles']
       .forEach(slug => assert.ok(index.includes('/developers/authoring/' + slug + '.md')));
   });
 
