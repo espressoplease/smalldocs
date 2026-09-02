@@ -117,10 +117,14 @@ module.exports = function (harness) {
   test('standard and Cloud skills describe responsive runnable HTML authoring', () => {
     assert.ok(cli.SKILL_DESCRIPTION.includes('run sdoc apps'));
     assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('run sdoc apps'));
+    assert.ok(cli.SKILL_DESCRIPTION.includes('only when the reader must interact with the result'));
+    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('static document forms cannot express as clearly'));
     assert.ok(cli.SKILL_BODY.includes("component's document layout owns its inline height"));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('test every control inline, fullscreen, narrow, and wide'));
     assert.ok(cli.SKILL_BODY.includes('prefer a clear page, list, table, or form'));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('distinctive shapes when they encode structure or state'));
+    assert.ok(cli.SKILL_BODY.includes('three-input financial model'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('manipulation, simulation, spatial navigation, or linked states'));
   });
 
   test('current changelog entry contains both exact installed skill bodies', () => {

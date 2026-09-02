@@ -51,6 +51,16 @@ module.exports = function (harness) {
     });
   });
 
+  test('runnable HTML guidance chooses interaction for meaning rather than decoration', () => {
+    const skill = fs.readFileSync(path.join(skillRoot, 'SKILL.md'), 'utf8');
+    const reference = readReference('apps');
+    assert.ok(skill.includes('only when interaction expresses something'));
+    assert.ok(skill.includes('three-input financial model'));
+    assert.ok(reference.includes('cannot express as clearly'));
+    assert.ok(reference.includes('rotate, zoom, or navigate a spatial model'));
+    assert.ok(reference.includes('If a static form communicates the result equally well'));
+  });
+
   test('documented built-in slide example resolves and parses', () => {
     const examples = slideBodies(readReference('slides'));
     assert.ok(examples.length > 0, 'slides reference should contain a slide example');

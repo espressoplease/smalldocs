@@ -2,6 +2,24 @@
 
 Use a `sdoc-app` fence for a self-contained browser tool whose interaction is part of the result. The block contains one complete HTML document and runs inline in a sandboxed frame.
 
+## When to choose runnable HTML
+
+Use it when manipulation, simulation, spatial navigation, or linked states communicate something prose, diagrams, charts, or cells cannot express as clearly. If a static form communicates the result equally well, use it.
+
+Choose a runnable component when the reader needs to:
+
+- manipulate several inputs and observe linked outputs
+- run or pause a simulation
+- rotate, zoom, or navigate a spatial model
+- explore states or paths that cannot fit into one useful static view
+- use a purpose-built control whose behavior is part of the explanation
+
+Prefer prose for an explanation, Mermaid for relationships or sequence, charts for a fixed quantitative view, and computed cells for exact values or editable calculations. If one of those forms communicates the result equally well, do not add executable HTML.
+
+For example, a financial model with revenue growth, operating margin, and discount rate may need a rotatable valuation surface when the reader is trying to understand how the assumptions interact. If the reader only needs the scenarios and their values, use computed cells or a table. If one fixed comparison answers the question, use a chart.
+
+Before authoring, state the interaction that carries meaning in one sentence. If the reason describes only appearance or layout, such as hovering for polish or arranging content into cards, use a static document form instead.
+
 ## Basic form
 
 ````md

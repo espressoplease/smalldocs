@@ -286,9 +286,9 @@ Supports 13 chart types: pie, doughnut, bar, horizontal bar, stacked bar, line, 
 
 Style chart colors via `chart.accent` and `chart.palette` in front matter. Run `sdoc charts` for the full reference of types, options, and styling.
 
-### Interactive HTML
+### Runnable HTML
 
-Run a self-contained browser tool inside a document with a `sdoc-app` fence. It appears inline and can expand to fill the window. If a page contains several components, the fullscreen toolbar adds Previous and Next controls.
+Run a self-contained browser tool inside a document with a `sdoc-app` fence. Use it when interaction expresses something that prose, a static diagram, a chart, or computed cells cannot express as clearly. Useful cases include manipulating linked inputs, running a simulation, or rotating and zooming a spatial model. It appears inline and can expand to fill the window. If a page contains several components, the fullscreen toolbar adds Previous and Next controls.
 
 ````
 ~~~sdoc-app
@@ -317,6 +317,8 @@ Let the tool's purpose determine the visual structure. Start with a clear page, 
 The component's document layout controls its inline height without a SmallDocs minimum or maximum; its width follows the reading column. Use responsive CSS and check narrow, wide, inline, and fullscreen layouts. Expanding moves the same running frame into fullscreen, so inputs and JavaScript state stay in place. An ordinary `html` fence remains a highlighted source listing.
 
 Component code runs in a sandboxed frame and cannot reach the SmallDocs page, its account controls, or storage for smalldocs.org. Network requests still leave the browser and follow the destination's CORS rules. Run `sdoc apps` for the complete authoring and runtime reference.
+
+[See a live three-input financial model and the format decision guide](/runnable-html).
 
 ### Sheets
 
@@ -582,7 +584,7 @@ After this, every global npm install lives under `~/.npm-global` and never needs
 npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 ```
 
-Installs the standard SmallDocs skill globally using the cross-agent `skills` installer. The skill is a `SKILL.md` whose short description sits in your agent's context and whose full reference, including runnable HTML component authoring, loads on demand only when relevant.
+Installs the standard SmallDocs skill globally using the cross-agent `skills` installer. The skill is a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand only when relevant. The full reference includes runnable HTML guidance so agents use executable components only when interaction explains something more clearly than prose, diagrams, charts, or computed cells.
 
 Run `sdoc setup` when `npx skills` is unavailable, or when an older SmallDocs release previously wrote an always-on block to an agent configuration file. The built-in setup writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`, links detected agent-specific skill directories to it, and removes recognised legacy blocks while preserving surrounding notes.
 

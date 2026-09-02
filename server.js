@@ -3399,7 +3399,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/docs' || pathname === '/new' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/advanced-spreadsheets' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  if (pathname === '/docs' || pathname === '/new' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/advanced-spreadsheets' || pathname === '/runnable-html' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     if (pathname === '/docs' && url.searchParams.has('cloud-document')) {
       const authenticated = cloudAuthSession(req);
       if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
@@ -3412,11 +3412,13 @@ const server = http.createServer((req, res) => {
           ? '/public/agent-changes.md'
           : pathname === '/advanced-spreadsheets'
             ? '/public/advanced-spreadsheets.md'
-            : pathname === '/upgrade'
-              ? '/public/upgrade.md'
-              : blogSlug
-                ? '/public/blogs/' + blogSlug + '.md'
-                : '/public/sdoc.md';
+            : pathname === '/runnable-html'
+              ? '/public/runnable-html.md'
+              : pathname === '/upgrade'
+                ? '/public/upgrade.md'
+                : blogSlug
+                  ? '/public/blogs/' + blogSlug + '.md'
+                  : '/public/sdoc.md';
     const csp = documentCsp(nonce);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'index.html'), {
       '__APP_VERSION__': APP_VERSION,

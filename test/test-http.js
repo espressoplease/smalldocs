@@ -629,6 +629,14 @@ module.exports = function(harness) {
         'advanced spreadsheet route should preload its markdown');
     });
 
+    await testAsync('GET /runnable-html serves the interactive component explainer', async () => {
+      const r = await get(BASE + '/runnable-html');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'));
+      assert.ok(r.body.includes('/public/runnable-html.md'),
+        'runnable HTML route should preload its markdown');
+    });
+
     await testAsync('GET /nonexistent returns 404', async () => {
       const r = await get(BASE + '/nonexistent-path-xyz');
       assert.strictEqual(r.status, 404);
@@ -2228,6 +2236,11 @@ module.exports = function(harness) {
     await testAsync('asset-versioning: /advanced-spreadsheets is versioned', async () => {
       const v = JSON.parse((await get(BASE + '/version-check')).body).version;
       await assertEveryAssetVersioned('/advanced-spreadsheets', v);
+    });
+
+    await testAsync('asset-versioning: /runnable-html is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/runnable-html', v);
     });
 
     await testAsync('/agent-changes serves the index shell with the changelog md path', async () => {

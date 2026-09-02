@@ -1069,11 +1069,12 @@ footer {
         </summary>
         <div class="nav-menu-panel">
           <a href="#learn">Capabilities</a>
+          <a href="/runnable-html">Runnable HTML</a>
           <a href="/privacy">Private by design</a>
         </div>
       </details>
       <!--__HOME_NAV_CLOUD_LINK__-->
-      <a class="nav-link" href="/developers">Developers</a>
+      <a class="nav-link" href="/developers">Renderer SDK</a>
       <details class="nav-dropdown">
         <summary>Resources
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
@@ -1094,6 +1095,7 @@ footer {
         <div class="nav-menu-panel" role="menu">
           <!--__HOME_NAV_MENU_BEFORE__-->
           <a class="nav-menu-static-mobile" href="#learn" role="menuitem">Capabilities</a>
+          <a class="nav-menu-static-mobile" href="/runnable-html" role="menuitem">Runnable HTML</a>
           <!--__HOME_NAV_CLOUD_MOBILE_LINK__-->
           <a class="nav-menu-static-mobile" href="/privacy" role="menuitem">Private by design</a>
           <a class="nav-menu-static-mobile" href="/blogs/what-is-a-smalldoc" role="menuitem">Read a SmallDoc</a>
@@ -1103,7 +1105,7 @@ footer {
           </a>
           <a class="nav-menu-static-mobile" href="/developers" role="menuitem">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 9-3 3 3 3"/><path d="m16 9 3 3-3 3"/><path d="m14 5-4 14"/></svg>
-            Developers
+            Renderer SDK
           </a>
           <a class="nav-menu-static-mobile" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" role="menuitem">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
@@ -1248,6 +1250,18 @@ footer {
             <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
           </a>
 
+          <div style="padding-top: 8px;font-size: 1.0625rem;line-height: 1.65;color: var(--ink-2);">Capabilities</div>
+
+          <a class="learn-item" href="/runnable-html">
+            <span class="learn-item-prompt">See when to use runnable HTML with a model you can manipulate</span>
+            <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1 2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+          </a>
+
+          <a class="learn-item" href="/developers">
+            <span class="learn-item-prompt">Render agent-written SmallDocs inside your application</span>
+            <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1 2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+          </a>
+
           <div style="padding-top: 8px;font-size: 1.0625rem;line-height: 1.65;color: var(--ink-2);">About SmallDocs</div>
 
 
@@ -1261,7 +1275,7 @@ footer {
                 <p style="margin-top: 0;">SmallDocs is a command-line tool. You run <code>sdoc file.md</code> and it opens that Markdown file, styled, in your browser. Anything with access to your machine can invoke it - you at the terminal, or a coding agent working in your project.</p>
                 <p>Because the file opens in the browser, we can use the flexible capabilities of HTML and CSS to create highly complex documents. This means Markdown rendered on <code>smalldocs.org</code> can do much more than plain text.</p>
                 
-                <p>To create charts, diagrams, slides, spreadsheets, runnable browser components, or rendered code, run the relevant command, such as <code>sdoc charts</code>, <code>sdoc diagrams</code>, <code>sdoc slides</code>, or <code>sdoc apps</code>. These return instructions about how to write Markdown in the specific way SmallDocs expects to create complex elements. This information is used to build beautiful, expressive and token-efficient documents.</p>
+                <p>To create charts, diagrams, slides, spreadsheets, runnable browser components, or rendered code, run the relevant command, such as <code>sdoc charts</code>, <code>sdoc diagrams</code>, <code>sdoc slides</code>, or <code>sdoc apps</code>. Each command prints the Markdown syntax, options, and checks for that feature.</p>
               </div>
             </div>
           </details>

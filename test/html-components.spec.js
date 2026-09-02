@@ -189,3 +189,37 @@ test('rerender removes fullscreen and old component browsing contexts', async ({
   await expect(page.locator('.sdoc-app-frame')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Replacement' })).toBeVisible();
 });
+
+test('runnable HTML explainer renders and updates its financial model', async ({ page }) => {
+  await page.goto('/runnable-html');
+  await expect(page.getByRole('heading', { name: 'Runnable HTML components' })).toBeVisible();
+  const component = page.frameLocator('.sdoc-app-frame-inline');
+  await expect(component.locator('canvas#surface')).toBeVisible();
+  await expect(component.locator('#growthOut')).toHaveText('9%');
+  const initialValue = await component.locator('#valueOut').innerText();
+  await component.locator('#growth').fill('16');
+  await expect(component.locator('#growthOut')).toHaveText('16%');
+  await expect(component.locator('#valueOut')).not.toHaveText(initialValue);
+
+  await page.getByRole('button', { name: 'Open Interactive valuation surface in fullscreen' }).click();
+  await expect(page.locator('.sdoc-app-focus')).toBeVisible();
+  await expect(page.frameLocator('.sdoc-app-frame-fullscreen').locator('#growthOut')).toHaveText('16%');
+  await page.getByRole('button', { name: 'Close fullscreen' }).click();
+});
+
+test('runnable HTML explainer keeps the model controls usable at narrow width', async ({ page }) => {
+  await page.setViewportSize({ width: 420, height: 860 });
+  await page.goto('/runnable-html');
+  const component = page.frameLocator('.sdoc-app-frame-inline');
+  const boxes = await component.locator('.stage, .controls').evaluateAll((elements) =>
+    elements.map(element => {
+      const rect = element.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+    }));
+  expect(boxes).toHaveLength(2);
+  expect(boxes[1].top).toBeGreaterThanOrEqual(boxes[0].bottom);
+  expect(boxes[0].left).toBeGreaterThanOrEqual(0);
+  expect(boxes[1].right).toBeLessThanOrEqual(420);
+  await expect(component.locator('#discount')).toBeVisible();
+  await expect(component.locator('#valueOut')).toBeVisible();
+});

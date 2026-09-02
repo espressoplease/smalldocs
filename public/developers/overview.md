@@ -20,7 +20,7 @@ flowchart LR
   C --> D[Readable document]
 ~~~
 
-The host application does not parse code fences or declare document capabilities. A single document can combine ordinary prose, tables, code, diagrams, math, charts, cells, slides, and video.
+The host application does not parse code fences or declare document capabilities. A single document can combine ordinary prose, tables, code, diagrams, math, charts, cells, slides, runnable HTML, walkthroughs, and video.
 
 ## Current boundary
 
@@ -31,3 +31,5 @@ Image upload, proxying, and hosting are also outside this release. An ordinary H
 ## Start integrating
 
 Open **Quickstart** for the smallest working page, then use **Lifecycle** to connect the returned view to your framework or route.
+
+Use [Runnable HTML components](/runnable-html) to decide when interaction belongs in a document. The authoring reference under **Authoring** documents the complete `sdoc-app` contract.

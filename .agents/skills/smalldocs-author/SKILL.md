@@ -25,7 +25,8 @@ Read only the references relevant to the requested document:
 
 - Start with the clearest document structure. Rich blocks should carry information, not decorate the page.
 - A single document may mix every supported feature. Do not choose one global mode.
-- Use a Mermaid diagram for relationships or sequence, cells for numbers people should inspect, charts for patterns in quantitative data, slides when the result will be presented, and runnable HTML when the reader needs to manipulate a self-contained browser tool.
+- Use a Mermaid diagram for relationships or sequence, cells for numbers people should inspect, charts for patterns in quantitative data, and slides when the result will be presented.
+- Use runnable HTML only when interaction expresses something that the static document forms cannot express as clearly. Choose it when the reader must manipulate inputs, simulate behavior, rotate or zoom a spatial model, or explore linked states to understand the result. A three-input financial model may warrant an interactive surface when the relationship between assumptions matters; exact values alone normally belong in cells or a table.
 - Use a document walkthrough when the order of explanation matters and the reader should move between specific source lines or rendered features without splitting the document into slides.
 - For slides, internal status is not a reason to default to bullet-only templates. When the purpose is to explain how something works, use custom shapes to encode the relationships visually. Built-in templates remain useful for covers, section breaks, simple text, and repeated layouts.
 - Preserve source readability. If a rich block is not necessary, ordinary Markdown is the better format.

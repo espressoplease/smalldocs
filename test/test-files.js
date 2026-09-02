@@ -339,6 +339,16 @@ module.exports = function(harness) {
     assert.ok(changes.includes('## v1'), 'missing v1 section');
   });
 
+  test('runnable HTML explainer teaches the format decision with a live model', () => {
+    const explainer = fs.readFileSync(path.join(__dirname, '..', 'public',
+      'runnable-html.md'), 'utf8');
+    assert.ok(explainer.includes('# Runnable HTML components'));
+    assert.ok(explainer.includes('~~~sdoc-app'));
+    assert.ok(explainer.includes('<title>Interactive valuation surface</title>'));
+    assert.ok(explainer.includes('prose, a diagram, a chart, or computed cells'));
+    assert.ok(explainer.includes('[Renderer SDK](/developers)'));
+  });
+
   test('cli/package.json has postinstall script and version 1.5.0+', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'cli', 'package.json'), 'utf-8'));
     assert.ok(pkg.scripts && pkg.scripts.postinstall, 'missing scripts.postinstall');

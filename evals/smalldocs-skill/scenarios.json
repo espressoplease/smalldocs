@@ -93,6 +93,26 @@
       "rubric": "Load the runnable HTML reference, author one self-contained sdoc-app document, let its responsive HTML and CSS control height, test narrow and wide inline and fullscreen layouts, then open the local Markdown file."
     },
     {
+      "id": "choose-runnable-spatial-model",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "A local analysis contains a financial model whose output changes with revenue growth, operating margin, and discount rate.",
+      "prompt": "S-doc this analysis so I can understand how the three assumptions interact. I want to rotate the model, adjust each parameter, and inspect how the valuation surface changes.",
+      "required": ["sdoc apps", "sdoc-app fence", "interaction carries meaning", "inline and fullscreen", "narrow and wide layouts"],
+      "forbidden": ["chart only", "cells only", "upload", "share"],
+      "rubric": "Choose runnable HTML because manipulating three linked inputs and rotating the surface explains their relationship more clearly than a static document form, then follow the component authoring and layout checks."
+    },
+    {
+      "id": "avoid-runnable-fixed-comparison",
+      "kind": "behavior",
+      "editions": ["standard", "cloud"],
+      "setup": "A local analysis contains exact outputs for three fixed financial scenarios. The reader only needs to compare the values and does not need to manipulate assumptions.",
+      "prompt": "S-doc these three fixed scenarios so the board can compare their exact revenue, margin, and valuation figures.",
+      "required": ["sdoc", "exact figures"],
+      "forbidden": ["sdoc apps", "sdoc-app fence", "interactive surface", "upload", "share"],
+      "rubric": "Use cells or a table for an exact fixed comparison and avoid runnable HTML because interaction would change presentation without adding explanatory meaning."
+    },
+    {
       "id": "document-walkthrough-authoring",
       "kind": "behavior",
       "editions": ["standard", "cloud"],
