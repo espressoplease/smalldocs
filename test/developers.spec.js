@@ -177,6 +177,8 @@ test('developer navigation reuses the reader sidebar dimensions and row design',
         height: row.getBoundingClientRect().height,
         radius: style(row).borderRadius,
         font: style(row).fontFamily,
+        background: style(row).backgroundColor,
+        icon: style(row.querySelector('svg')).color,
       },
     };
   });
@@ -194,15 +196,21 @@ test('developer navigation reuses the reader sidebar dimensions and row design',
         height: row.getBoundingClientRect().height,
         radius: style(row).borderRadius,
         font: style(row).fontFamily,
+        background: style(row).backgroundColor,
+        icon: style(row.querySelector('svg')).color,
       },
     };
   });
 
   expect(developer.sidebar.width).toBe(standard.sidebar.width);
-  expect(developer.sidebar.background).toBe(standard.sidebar.background);
+  expect(developer.sidebar.background).not.toBe(standard.sidebar.background);
   expect(developer.sidebar.padding).toBe(standard.sidebar.padding);
   expect(developer.sidebar.y).toBe(0);
-  expect(developer.row).toEqual(standard.row);
+  expect(developer.row.height).toBe(standard.row.height);
+  expect(developer.row.radius).toBe(standard.row.radius);
+  expect(developer.row.font).toBe(standard.row.font);
+  expect(developer.row.background).not.toBe(standard.row.background);
+  expect(developer.row.icon).not.toBe(standard.row.icon);
   await reader.close();
 });
 

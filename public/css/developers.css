@@ -35,7 +35,7 @@ a { color: inherit; }
 .topbar-divider { color: var(--text-3); }
 
 .topbar-area {
-  color: var(--text-2);
+  color: #0f766e;
   font-size: 12px;
   font-weight: 600;
 }
@@ -83,6 +83,10 @@ a { color: inherit; }
   inset: 0 auto 0 0;
   display: flex;
   flex-direction: column;
+  --developer-accent: #0f766e;
+  --developer-accent-soft: #e7f1ef;
+  --developer-border: #bfd8d3;
+  background: #f6f9f8;
 }
 
 .docs-sidebar .sdocs-sidebar-main {
@@ -97,8 +101,8 @@ a { color: inherit; }
 
 .docs-sidebar-area {
   padding-left: 8px;
-  border-left: 1px solid var(--border);
-  color: var(--text-2);
+  border-left: 1px solid var(--developer-border);
+  color: var(--developer-accent);
   font-size: 12px;
   font-weight: 600;
   line-height: 16px;
@@ -133,13 +137,13 @@ a { color: inherit; }
 }
 
 .docs-sidebar .sdocs-sidebar-top-row[aria-current="page"] {
-  border-color: var(--border);
+  border-color: var(--developer-border);
   color: var(--text);
-  background: transparent;
+  background: var(--developer-accent-soft);
 }
 
 .docs-sidebar .sdocs-sidebar-top-row[aria-current="page"] > svg {
-  color: var(--accent);
+  color: var(--developer-accent);
 }
 
 .reference-group { width: 100%; }
@@ -165,8 +169,9 @@ a { color: inherit; }
 }
 
 .reference-group[open] > summary {
-  border-color: var(--border);
+  border-color: var(--developer-border);
   color: var(--text);
+  background: var(--developer-accent-soft);
 }
 
 .reference-group[open] > summary .summary-chevron {
@@ -183,8 +188,8 @@ a { color: inherit; }
 .docs-sidebar .nav-children .sdocs-sidebar-subitem { padding-left: 10px; }
 
 .docs-sidebar .nav-children .sdocs-sidebar-subitem[aria-current="page"] {
-  color: var(--text);
-  background: var(--bg-hover);
+  color: #115e59;
+  background: var(--developer-accent-soft);
 }
 
 .docs-sidebar .nav-children .nav-nested {
@@ -242,6 +247,7 @@ a { color: inherit; }
   width: 100%;
   min-height: 1px;
   --sdocs-background: var(--bg);
+  --sdocs-accent: #0f766e;
   --sdocs-max-width: 860px;
   --sdocs-padding: 64px 56px 88px;
 }
