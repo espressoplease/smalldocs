@@ -97,8 +97,11 @@ test('independent public page shells share mobile scroll headers without changin
   await page.setViewportSize({ width: 1000, height: 844 });
   for (const surface of surfaces) {
     await page.goto(surface.url);
-    const desktopPosition = surface.url === '/developers' ? 'fixed' : 'sticky';
-    await expect(page.locator(surface.header)).toHaveCSS('position', desktopPosition);
+    if (surface.url === '/developers') {
+      await expect(page.locator(surface.header)).toBeHidden();
+    } else {
+      await expect(page.locator(surface.header)).toHaveCSS('position', 'sticky');
+    }
     await expect(page.locator('.sdocs-scroll-header-spacer')).toBeHidden();
   }
 

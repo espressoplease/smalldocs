@@ -54,14 +54,17 @@ test.afterAll(async () => {
 test('developer documentation uses one SDK view to navigate Markdown pages', async ({ page }) => {
   await page.goto(origin + '/developers');
 
-  await expect(page.locator('.docs-topbar')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'SmallDocs', exact: true })).toHaveAttribute('href', '/');
+  await expect(page.locator('.docs-topbar')).toBeHidden();
+  await expect(page.locator('.docs-sidebar .sdocs-sidebar-brand')).toHaveAttribute('href', '/');
   await expect(page.locator('.topbar-actions')).toHaveCount(0);
   await expect(page.getByText('Developer documentation', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Example gallery', exact: true }))
     .toHaveAttribute('href', '/developers/examples');
   await expect(page.getByRole('link', { name: 'Render in your app', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('link', { name: 'Render in your app', exact: true })).toHaveClass(/sdocs-sidebar-top-row/);
+  expect(await page.locator('#renderer-references').evaluate(element => element.open)).toBe(false);
   expect(await page.locator('#agent-references').evaluate(element => element.open)).toBe(false);
+  await expect(page.getByRole('link', { name: 'Browser API', exact: true })).toBeHidden();
   await expect(page.getByRole('link', { name: 'Slides', exact: true })).toBeHidden();
   await expect(page.locator('.docs-header')).toHaveCount(0);
   await expect(page.locator('.document-meta')).toHaveCount(0);
@@ -72,20 +75,46 @@ test('developer documentation uses one SDK view to navigate Markdown pages', asy
   const documentView = page.locator('#developer-renderer');
   await expect(documentView.locator('.smalldocs-document')).toHaveCount(1);
   const instanceId = await documentView.locator('.smalldocs-document').getAttribute('data-smalldocs-instance');
-  await expect(documentView.getByRole('heading', { name: 'Put agent analysis inside your application' })).toBeVisible();
-  await expect(documentView).toContainText('Hand this to your coding agent');
-  await expect(documentView).toContainText('renders into the host DOM');
+  await expect(documentView.getByRole('heading', { name: 'Render agent-generated reports inside your app' })).toBeVisible();
+  await expect(documentView).toContainText('Give this to your coding agent');
+  await expect(documentView).toContainText('observable result');
   await expect(page.locator('.loading-message')).toBeHidden();
   await expect(page.locator('#developer-document')).toHaveAttribute('aria-busy', 'false');
   await expect(documentView.locator('.smalldocs-navigation')).toBeHidden();
+  await expect(documentView.locator('.section-toggle')).not.toHaveCount(0);
+  await expect(documentView.locator('.pre-wrapper .copy-btn')).not.toHaveCount(0);
+  await expect(documentView.locator('.sdoc-mermaid')).toHaveCount(1);
+  await documentView.getByRole('button', { name: 'Open diagram in fullscreen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Diagram fullscreen view' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.evaluate(() => {
+    window.sdocsDeveloperCopiedText = '';
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async value => { window.sdocsDeveloperCopiedText = String(value); } },
+    });
+  });
+  await documentView.locator('.pre-wrapper .copy-btn').first().click();
+  await expect.poll(() => page.evaluate(() => window.sdocsDeveloperCopiedText))
+    .toContain('npx skills add https://smalldocs.org --skill smalldocs-renderer');
+  const handoff = documentView.getByRole('heading', { name: 'Give this to your coding agent' });
+  await handoff.locator('.section-toggle').click();
+  await expect(handoff.locator('xpath=..').locator('.md-section-body'))
+    .not.toHaveClass(/open/);
+  await handoff.locator('.section-toggle').click();
 
-  await documentView.getByRole('link', {
-    name: 'Teach the analysis agent to author SmallDocs Markdown',
-    exact: true,
-  }).click();
+  await page.getByText('Renderer reference', { exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Browser API', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Browser API', exact: true }).click();
+  await expect(page).toHaveURL(origin + '/developers/api');
+  await expect(page.getByRole('link', { name: 'Browser API', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(documentView.getByRole('heading', { name: 'Browser API' })).toBeVisible();
+  await expect(documentView.locator('.smalldocs-document')).toHaveAttribute('data-smalldocs-instance', instanceId);
+
+  await page.getByRole('link', { name: 'Author with an agent', exact: true }).click();
   await expect(page).toHaveURL(origin + '/developers/agents');
   await expect(page.getByRole('link', { name: 'Author with an agent', exact: true })).toHaveAttribute('aria-current', 'page');
-  await expect(documentView.getByRole('heading', { name: 'Teach your agent to write SmallDocs' })).toBeVisible();
+  await expect(documentView.getByRole('heading', { name: 'Have your agent produce SmallDocs documents' })).toBeVisible();
   await expect(documentView).toContainText('smalldocs-author');
   await expect(documentView.locator('.smalldocs-document')).toHaveAttribute('data-smalldocs-instance', instanceId);
 
@@ -108,50 +137,72 @@ test('developer documentation uses one SDK view to navigate Markdown pages', asy
   await expect(documentView.locator('.smalldocs-document')).toHaveCount(1);
 });
 
-test('developer chrome reuses the reader toolbar height and side-panel dimensions', async ({ page, context }) => {
+test('every developer menu page has a readable Markdown endpoint', async ({ page }) => {
+  await page.goto(origin + '/developers');
+  const pages = await page.locator('[data-doc]').evaluateAll(links => links.map(link => ({
+    slug: link.getAttribute('data-doc'),
+    path: new URL(link.href).pathname,
+  })));
+
+  for (const item of pages) {
+    const htmlResponse = await page.request.get(origin + item.path);
+    expect(htmlResponse.ok(), item.path + ' should load the developer shell').toBe(true);
+    const markdownPath = item.slug === 'sdk'
+      ? '/developers/integration.md'
+      : item.path + '.md';
+    const markdownResponse = await page.request.get(origin + markdownPath);
+    expect(markdownResponse.ok(), markdownPath + ' should return Markdown').toBe(true);
+    expect((await markdownResponse.text()).trim().startsWith('# '), markdownPath + ' should start with a title')
+      .toBe(true);
+  }
+});
+
+test('developer navigation reuses the reader sidebar dimensions and row design', async ({ page, context }) => {
   await page.goto(origin + '/developers');
   const reader = await context.newPage();
   await reader.goto(origin + '/docs');
-  await reader.evaluate(() => document.body.classList.add('style-mode'));
-  await reader.waitForTimeout(400);
 
   const developer = await page.evaluate(() => {
-    const toolbar = document.querySelector('.docs-topbar');
     const sidebar = document.querySelector('.docs-sidebar');
+    const row = document.querySelector('.docs-sidebar .sdocs-sidebar-top-row');
     const style = element => getComputedStyle(element);
     return {
-      toolbar: {
-        height: toolbar.getBoundingClientRect().height,
-        x: toolbar.getBoundingClientRect().x,
-        background: style(toolbar).backgroundColor,
-        border: style(toolbar).borderBottomColor,
-        padding: style(toolbar).padding,
-      },
       sidebar: {
         y: sidebar.getBoundingClientRect().y,
         width: sidebar.getBoundingClientRect().width,
         background: style(sidebar).backgroundColor,
+        padding: style(sidebar).padding,
+      },
+      row: {
+        height: row.getBoundingClientRect().height,
+        radius: style(row).borderRadius,
+        font: style(row).fontFamily,
       },
     };
   });
   const standard = await reader.evaluate(() => {
-    const toolbar = document.querySelector('#_sd_left-toolbar');
-    const sidebar = document.querySelector('#_sd_right');
+    const sidebar = document.querySelector('#_sd_sidebar');
+    const row = document.querySelector('#_sd_btn-library');
     const style = element => getComputedStyle(element);
     return {
-      toolbarHeight: toolbar.getBoundingClientRect().height,
       sidebar: {
         width: sidebar.getBoundingClientRect().width,
         background: style(sidebar).backgroundColor,
+        padding: style(sidebar).padding,
+      },
+      row: {
+        height: row.getBoundingClientRect().height,
+        radius: style(row).borderRadius,
+        font: style(row).fontFamily,
       },
     };
   });
 
-  expect(developer.toolbar.height).toBe(standard.toolbarHeight);
   expect(developer.sidebar.width).toBe(standard.sidebar.width);
   expect(developer.sidebar.background).toBe(standard.sidebar.background);
-  expect(developer.toolbar.x).toBe(0);
-  expect(developer.sidebar.y).toBe(developer.toolbar.height);
+  expect(developer.sidebar.padding).toBe(standard.sidebar.padding);
+  expect(developer.sidebar.y).toBe(0);
+  expect(developer.row).toEqual(standard.row);
   await reader.close();
 });
 
@@ -303,7 +354,7 @@ test('developer documentation uses a mobile menu without containing the document
   await page.goto(origin + '/developers');
 
   const sidebar = page.locator('#developer-sidebar');
-  await expect(page.locator('#developer-renderer').getByRole('heading', { name: 'Put agent analysis inside your application' })).toBeVisible();
+  await expect(page.locator('#developer-renderer').getByRole('heading', { name: 'Render agent-generated reports inside your app' })).toBeVisible();
   await expect(sidebar).not.toHaveClass(/open/);
   await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
   await page.getByRole('button', { name: 'Menu' }).click();

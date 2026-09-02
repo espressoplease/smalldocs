@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SmallDocs developer documentation</title>
-<meta name="description" content="Teach an agent to write SmallDocs Markdown, then render its work inside your application.">
+<title>Render agent-generated reports in your app - SmallDocs</title>
+<meta name="description" content="Give a coding agent one integration prompt, then render agent-generated Markdown as readable, interactive reports inside your application.">
 <link rel="canonical" href="https://smalldocs.org/developers">
 <link rel="alternate" type="text/plain" href="/developers/llms.txt" title="Agent documentation index">
 <link rel="stylesheet" href="/public/css/tokens.css">
+<link rel="stylesheet" href="/public/css/sidebar-shared.css">
 <link rel="stylesheet" href="/public/css/developers.css">
 </head>
 <body>
@@ -23,50 +24,72 @@
   </div>
 </header>
 
-<aside class="docs-sidebar" id="developer-sidebar">
-  <nav aria-label="Developer documentation">
+<aside class="docs-sidebar sdocs-sidebar-shell" id="developer-sidebar">
+  <div class="sdocs-sidebar-main">
+    <div class="sdocs-sidebar-header docs-sidebar-header">
+      <a class="sdocs-sidebar-brand" href="/">SmallDocs</a>
+      <span class="docs-sidebar-area">Developers</span>
+    </div>
+    <nav class="sdocs-sidebar-nav" aria-label="Developer documentation">
     <div class="nav-group nav-start">
-      <p>Start here</p>
-      <a href="/developers" data-doc="sdk">
+      <a class="sdocs-sidebar-top-row" href="/developers" data-doc="sdk">
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/></svg>
         <span>Render in your app</span>
       </a>
-      <a href="/developers/agents" data-doc="agents">
+      <a class="sdocs-sidebar-top-row" href="/developers/agents" data-doc="agents">
         <svg aria-hidden="true" viewBox="0 0 24 24"><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M9 8V5h6v3M8 13h.01M16 13h.01M9 17h6"/></svg>
         <span>Author with an agent</span>
       </a>
-      <a href="/developers/examples">
+      <a class="sdocs-sidebar-top-row" href="/developers/examples">
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 3 14 9-14 9V3Z"/></svg>
         <span>Example gallery</span>
       </a>
     </div>
 
+    <details class="reference-group" id="renderer-references">
+      <summary class="sdocs-sidebar-top-row">
+        <span class="summary-label">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM9 4v16M13 9h4M13 13h4"/></svg>
+          Renderer reference
+        </span>
+        <svg class="summary-chevron sdocs-sidebar-row-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      </summary>
+      <div class="nav-children">
+        <a class="sdocs-sidebar-subitem" href="/developers/api" data-doc="api">Browser API</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/content" data-doc="content">Pass Markdown</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/lifecycle" data-doc="lifecycle">Create, update, and destroy</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/security" data-doc="security">Security</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/loading" data-doc="loading">Module loading and caching</a>
+      </div>
+    </details>
+
     <details class="reference-group" id="agent-references">
-      <summary>
+      <summary class="sdocs-sidebar-top-row">
         <span class="summary-label">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V5H6.5A2.5 2.5 0 0 0 4 7.5v12Z"/><path d="M6.5 17A2.5 2.5 0 0 0 4 19.5v0A2.5 2.5 0 0 0 6.5 22H20"/></svg>
           Authoring reference
         </span>
-        <svg class="summary-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        <svg class="summary-chevron sdocs-sidebar-row-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
       </summary>
       <div class="nav-children">
-        <a href="/developers/authoring/markdown" data-doc="authoring/markdown">Markdown</a>
-        <a href="/developers/authoring/code" data-doc="authoring/code">Code</a>
-        <a href="/developers/authoring/math" data-doc="authoring/math">Math</a>
-        <a href="/developers/authoring/diagrams" data-doc="authoring/diagrams">Diagrams</a>
-        <a href="/developers/authoring/charts" data-doc="authoring/charts">Charts</a>
-        <a href="/developers/authoring/cells" data-doc="authoring/cells">Computed cells</a>
-        <a href="/developers/authoring/slides" data-doc="authoring/slides">Slides</a>
-        <a class="nav-nested" href="/developers/authoring/slide-shapes" data-doc="authoring/slide-shapes">Custom shapes</a>
-        <a href="/developers/authoring/apps" data-doc="authoring/apps">Runnable HTML</a>
-        <a href="/developers/authoring/walkthroughs" data-doc="authoring/walkthroughs">Walkthroughs</a>
-        <a href="/developers/authoring/video" data-doc="authoring/video">Video</a>
-        <a href="/developers/authoring/styles" data-doc="authoring/styles">Styles</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/authoring/markdown" data-doc="authoring/markdown">Markdown</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/authoring/code" data-doc="authoring/code">Code</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/authoring/math" data-doc="authoring/math">Math</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/authoring/diagrams" data-doc="authoring/diagrams">Diagrams</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/authoring/charts" data-doc="authoring/charts">Charts</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/authoring/cells" data-doc="authoring/cells">Computed cells</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/authoring/slides" data-doc="authoring/slides">Slides</a>
+        <a class="sdocs-sidebar-subitem nav-nested" href="/developers/authoring/slide-shapes" data-doc="authoring/slide-shapes">Custom shapes</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/authoring/apps" data-doc="authoring/apps">Runnable HTML</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/authoring/walkthroughs" data-doc="authoring/walkthroughs">Walkthroughs</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/authoring/video" data-doc="authoring/video">Video</a>
+        <a class="sdocs-sidebar-subitem" href="/developers/authoring/styles" data-doc="authoring/styles">Styles</a>
       </div>
     </details>
-  </nav>
-  <div class="sidebar-status">
-    <span>SDK 0.3.0</span>
+    </nav>
+  </div>
+  <div class="sidebar-status sdocs-sidebar-footer">
+    <strong>SDK 0.3.0</strong>
     <span>Experimental release</span>
   </div>
 </aside>

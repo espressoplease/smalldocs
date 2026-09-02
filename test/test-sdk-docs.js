@@ -190,6 +190,11 @@ module.exports = function (harness) {
       'utf8'
     );
     assert.ok(integration.includes('renders into the host DOM'));
+    assert.ok(integration.includes('After integration'));
+    assert.ok(integration.includes('observable result'));
+    assert.ok(integration.includes('Create one renderer instance per mounted report'));
+    assert.ok(integration.includes('Copy, collapse, fullscreen'));
+    assert.ok(integration.includes('not an application dependency'));
     assert.ok(integration.includes('--sdocs-accent'));
     assert.ok(integration.includes('sanitises the resulting HTML'));
     assert.ok(lifecycle.includes('fullscreen ownership'));

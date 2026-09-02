@@ -3,6 +3,11 @@ import { render } from '/sdk/0.3.0/smalldocs.js';
 const pages = Object.freeze({
   sdk: { path: '/developers', label: 'Render in your app', markdown: '/developers/integration.md' },
   agents: { path: '/developers/agents', label: 'Author with an agent', markdown: '/developers/agents.md' },
+  api: { path: '/developers/api', label: 'Renderer / Browser API', markdown: '/developers/api.md' },
+  content: { path: '/developers/content', label: 'Renderer / Pass Markdown', markdown: '/developers/content.md' },
+  lifecycle: { path: '/developers/lifecycle', label: 'Renderer / Create, update, and destroy', markdown: '/developers/lifecycle.md' },
+  security: { path: '/developers/security', label: 'Renderer / Security', markdown: '/developers/security.md' },
+  loading: { path: '/developers/loading', label: 'Renderer / Module loading and caching', markdown: '/developers/loading.md' },
   'authoring/markdown': { path: '/developers/authoring/markdown', label: 'Authoring / Markdown', markdown: '/developers/authoring/markdown.md' },
   'authoring/code': { path: '/developers/authoring/code', label: 'Authoring / Code', markdown: '/developers/authoring/code.md' },
   'authoring/math': { path: '/developers/authoring/math', label: 'Authoring / Math', markdown: '/developers/authoring/math.md' },
@@ -22,6 +27,7 @@ const mount = document.getElementById('developer-renderer');
 const loadingMessage = document.querySelector('.loading-message');
 const sidebar = document.getElementById('developer-sidebar');
 const menuButton = document.querySelector('.mobile-menu');
+const rendererReferenceGroup = document.getElementById('renderer-references');
 const referenceGroup = document.getElementById('agent-references');
 let view;
 let requestGeneration = 0;
@@ -36,7 +42,6 @@ function slugFromPath(pathname) {
   const match = /^\/developers\/((?:authoring\/)?[a-z-]+)\/?$/.exec(pathname);
   if (!match) return null;
   if (pages[match[1]]) return match[1];
-  if (/^(overview|quickstart|content|lifecycle|security|loading|api)$/.test(match[1])) return 'sdk';
   return null;
 }
 
@@ -46,6 +51,7 @@ function setActive(slug) {
     else link.removeAttribute('aria-current');
   });
   if (slug.startsWith('authoring/')) referenceGroup.open = true;
+  if (/^(api|content|lifecycle|security|loading)$/.test(slug)) rendererReferenceGroup.open = true;
   const page = pages[slug];
   document.title = page.label + ' - SmallDocs developers';
 }
@@ -67,7 +73,8 @@ async function loadPage(slug, push) {
     if (view) await view.update(markdown);
     else view = await render(mount, markdown, {
       navigation: false,
-      sections: { collapsible: false },
+      sections: { collapsible: true, defaultOpen: true },
+      controls: { copy: true, fullscreen: true, download: true },
     });
     if (generation !== requestGeneration) return;
     setLoading(false);
