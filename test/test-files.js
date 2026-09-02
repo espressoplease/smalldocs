@@ -339,13 +339,16 @@ module.exports = function(harness) {
     assert.ok(changes.includes('## v1'), 'missing v1 section');
   });
 
-  test('runnable HTML explainer teaches the format decision with a live model', () => {
+  test('runnable HTML page is a human-facing gallery with three live demos', () => {
     const explainer = fs.readFileSync(path.join(__dirname, '..', 'public',
       'runnable-html.md'), 'utf8');
-    assert.ok(explainer.includes('# Runnable HTML components'));
-    assert.ok(explainer.includes('~~~sdoc-app'));
+    assert.ok(explainer.includes('# Runnable HTML'));
+    assert.strictEqual((explainer.match(/~~~sdoc-app/g) || []).length, 3);
     assert.ok(explainer.includes('<title>Interactive valuation surface</title>'));
-    assert.ok(explainer.includes('prose, a diagram, a chart, or computed cells'));
+    assert.ok(explainer.includes('<title>Live backlog simulator</title>'));
+    assert.ok(explainer.includes('<title>Interactive dependency map</title>'));
+    assert.strictEqual((explainer.match(/\*\*Try this prompt:\*\*/g) || []).length, 3);
+    assert.ok(!explainer.includes('How an agent should decide'));
     assert.ok(explainer.includes('[Renderer SDK](/developers)'));
   });
 

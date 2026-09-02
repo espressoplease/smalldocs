@@ -190,10 +190,22 @@ test('rerender removes fullscreen and old component browsing contexts', async ({
   await expect(page.getByRole('heading', { name: 'Replacement' })).toBeVisible();
 });
 
-test('runnable HTML explainer renders and updates its financial model', async ({ page }) => {
+test('runnable HTML gallery presents three live demos and concise prompts', async ({ page }) => {
   await page.goto('/runnable-html');
-  await expect(page.getByRole('heading', { name: 'Runnable HTML components' })).toBeVisible();
-  const component = page.frameLocator('.sdoc-app-frame-inline');
+  await expect(page.getByRole('heading', { name: 'Runnable HTML', exact: true })).toBeVisible();
+  await expect(page.locator('.sdoc-app-frame-inline')).toHaveCount(3);
+  await expect(page.locator('.sdoc-app-title')).toHaveText([
+    'Interactive valuation surface',
+    'Live backlog simulator',
+    'Interactive dependency map'
+  ]);
+  await expect(page.getByText('Try this prompt:', { exact: true })).toHaveCount(3);
+  await expect(page.getByText('How an agent should decide', { exact: true })).toHaveCount(0);
+});
+
+test('runnable HTML gallery updates its financial model and keeps state fullscreen', async ({ page }) => {
+  await page.goto('/runnable-html');
+  const component = page.frameLocator('.sdoc-app-frame-inline').nth(0);
   await expect(component.locator('canvas#surface')).toBeVisible();
   await expect(component.locator('#growthOut')).toHaveText('9%');
   const initialValue = await component.locator('#valueOut').innerText();
@@ -207,10 +219,47 @@ test('runnable HTML explainer renders and updates its financial model', async ({
   await page.getByRole('button', { name: 'Close fullscreen' }).click();
 });
 
-test('runnable HTML explainer keeps the model controls usable at narrow width', async ({ page }) => {
+test('runnable HTML gallery runs and pauses its queue simulation', async ({ page }) => {
+  await page.goto('/runnable-html');
+  const component = page.frameLocator('.sdoc-app-frame-inline').nth(1);
+  await expect(component.locator('#backlog')).toHaveText('18 jobs');
+  await component.locator('#toggle').click();
+  await expect(component.locator('#toggle')).toHaveText('Pause');
+  await expect.poll(async () => component.locator('#time').innerText()).not.toBe('0 min');
+  await expect.poll(async () => component.locator('#backlog').innerText()).not.toBe('18 jobs');
+  await component.locator('#toggle').click();
+  await expect(component.locator('#toggle')).toHaveText('Run');
+  await component.locator('#arrival').fill('8');
+  await component.locator('#capacity').fill('22');
+  await expect(component.locator('#state')).toHaveText('Clearing');
+
+  const pausedTime = await component.locator('#time').innerText();
+  await page.getByRole('button', { name: 'Open Live backlog simulator in fullscreen' }).click();
+  await expect(page.frameLocator('.sdoc-app-frame-fullscreen').locator('#time')).toHaveText(pausedTime);
+  await page.getByRole('button', { name: 'Close fullscreen' }).click();
+});
+
+test('runnable HTML gallery traces upstream and downstream dependencies', async ({ page }) => {
+  await page.goto('/runnable-html');
+  const component = page.frameLocator('.sdoc-app-frame-inline').nth(2);
+  await expect(component.locator('#selection')).toHaveText('Orders');
+  await expect(component.locator('#upstream')).toContainText('Orders DB');
+  await expect(component.locator('#downstream')).toContainText('Web app');
+  await component.getByRole('button', { name: 'Select Event queue' }).press('Enter');
+  await expect(component.locator('#selection')).toHaveText('Event queue');
+  await expect(component.locator('#upstream')).toHaveText('None');
+  await expect(component.locator('#downstream')).toContainText('Notifications');
+  await expect(component.locator('#critical')).toContainText('Web app');
+
+  await page.getByRole('button', { name: 'Open Interactive dependency map in fullscreen' }).click();
+  await expect(page.frameLocator('.sdoc-app-frame-fullscreen').locator('#selection')).toHaveText('Event queue');
+  await page.getByRole('button', { name: 'Close fullscreen' }).click();
+});
+
+test('runnable HTML gallery keeps all three demos usable at narrow width', async ({ page }) => {
   await page.setViewportSize({ width: 420, height: 860 });
   await page.goto('/runnable-html');
-  const component = page.frameLocator('.sdoc-app-frame-inline');
+  const component = page.frameLocator('.sdoc-app-frame-inline').nth(0);
   const boxes = await component.locator('.stage, .controls').evaluateAll((elements) =>
     elements.map(element => {
       const rect = element.getBoundingClientRect();
@@ -222,4 +271,12 @@ test('runnable HTML explainer keeps the model controls usable at narrow width', 
   expect(boxes[1].right).toBeLessThanOrEqual(420);
   await expect(component.locator('#discount')).toBeVisible();
   await expect(component.locator('#valueOut')).toBeVisible();
+
+  const queue = page.frameLocator('.sdoc-app-frame-inline').nth(1);
+  await expect(queue.locator('#toggle')).toBeVisible();
+  await expect(queue.locator('#history')).toBeVisible();
+
+  const dependencies = page.frameLocator('.sdoc-app-frame-inline').nth(2);
+  await expect(dependencies.locator('[aria-label="Select Web app"]')).toBeVisible();
+  await expect(dependencies.locator('#critical')).toBeVisible();
 });
