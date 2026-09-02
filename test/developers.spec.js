@@ -159,7 +159,7 @@ test('customer example swaps a multi-format analysis through one SDK view', asyn
   await page.goto(origin + '/developers/example');
 
   await expect(page.getByRole('heading', { name: 'European market entry' })).toBeVisible();
-  await expect(page.getByText('This example shows four agent-produced Markdown documents rendered inside an application.')).toBeVisible();
+  await expect(page.getByText('This example shows five agent-produced Markdown documents rendered inside an application.')).toBeVisible();
   await expect(page.locator('#analysis-document iframe.smalldocs-renderer')).toHaveCount(0);
   const documentView = page.locator('#analysis-document');
   await expect(documentView.locator('.smalldocs-document')).toHaveCount(1);
