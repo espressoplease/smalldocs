@@ -36,6 +36,8 @@ When finished, show me the report in the running application, tell me where its 
 
 The agent should finish with an observable result: run the application, complete or simulate one analysis request, and show its Markdown as a SmallDocs document in the intended product surface.
 
+If you do not have an application yet, skip the skill installation and use the one-file example below to verify the browser integration.
+
 ## How the two agents fit together
 
 The coding agent integrates SmallDocs once. A document-producing agent can then return SmallDocs Markdown for each report.
@@ -53,7 +55,7 @@ flowchart LR
 
 ## Prove the renderer with a fixed document
 
-Start with a fixed Markdown string before connecting the application's agent request. This separates renderer wiring from the rest of the data flow.
+You need a host element, one Markdown string, and a page served over HTTP or HTTPS. Start with a fixed Markdown string to verify rendering and rich-feature loading, then connect the application's agent request.
 
 ```html
 <div id="report"></div>
@@ -63,15 +65,19 @@ Start with a fixed Markdown string before connecting the application's agent req
 
   const markdown = `# First report
 
-The SmallDocs renderer is connected.`;
+The SmallDocs renderer is connected.
+
+~~~chart
+{"type":"bar","labels":["Planned","Complete"],"values":[8,5]}
+~~~`;
 
   const view = await render('#report', markdown);
 </script>
 ```
 
-`#report` is the existing host element where the document should appear. It can also be passed as an `Element`. Serve the application over HTTP or HTTPS.
+`#report` is the host element where the document should appear. It can also be passed as an `Element`.
 
-Once this renders, replace the fixed string with the Markdown returned by the application's existing agent or analysis flow.
+Once this renders, replace the simulated output string with the Markdown returned by the application's existing agent or analysis flow.
 
 ## Match your application
 

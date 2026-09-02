@@ -64,7 +64,7 @@ The agent should return readable Markdown rather than an SDK configuration or HT
 Pass the finished Markdown unchanged to `render()`:
 
 ```js
-const markdown = await runAnalysisTask();
+const markdown = await runAnalysisTask(); // Your application's agent call.
 await render('#report', markdown);
 ```
 

@@ -184,6 +184,8 @@ module.exports = function (harness) {
 
   test('renderer documentation describes direct DOM styling and lifecycle', () => {
     const integration = fs.readFileSync(path.join(root, 'public', 'developers', 'integration.md'), 'utf8');
+    const agents = fs.readFileSync(path.join(root, 'public', 'developers', 'agents.md'), 'utf8');
+    const cellsReference = readReference('cells');
     const lifecycle = fs.readFileSync(path.join(root, 'public', 'developers', 'lifecycle.md'), 'utf8');
     const api = fs.readFileSync(
       path.join(root, '.agents', 'skills', 'smalldocs-renderer', 'references', 'api.md'),
@@ -195,8 +197,13 @@ module.exports = function (harness) {
     assert.ok(integration.includes('Create one renderer instance per mounted report'));
     assert.ok(integration.includes('Copy, collapse, fullscreen'));
     assert.ok(integration.includes('not an application dependency'));
+    assert.ok(integration.includes('If you do not have an application yet'));
+    assert.ok(integration.includes('~~~chart'));
     assert.ok(integration.includes('--sdocs-accent'));
     assert.ok(integration.includes('sanitises the resulting HTML'));
+    assert.ok(agents.includes("runAnalysisTask(); // Your application's agent call."));
+    assert.ok(cellsReference.includes('"=ROUND(SUM(D2:D4), 0)"'));
+    assert.ok(cellsReference.includes('""Review""'));
     assert.ok(lifecycle.includes('fullscreen ownership'));
     assert.ok(api.includes('direct-DOM SmallDocs reading surface'));
     assert.ok(api.includes('controls: { copy: true, fullscreen: true, download: true }'));
