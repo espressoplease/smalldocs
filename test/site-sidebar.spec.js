@@ -51,7 +51,14 @@ test('expandable site navigation stays closed until selected', async ({ page }) 
   expect(await capabilities.locator('[data-sdocs-shared-capabilities] a').first().innerText())
     .toBe('View homepage');
   await expect(capabilities.getByRole('link', { name: 'Diagrams' })).toBeVisible();
+  await expect(capabilities.getByRole('link', { name: 'Runnable HTML' }))
+    .toHaveAttribute('href', '/runnable-html');
+  await expect(capabilities.getByRole('link', { name: 'Walkthroughs' }))
+    .toHaveAttribute('href', '/docs#sec=document-walkthroughs');
   await expect(sdk.locator('.sdocs-sidebar-top-row')).toHaveAttribute('aria-expanded', 'false');
+  await sdk.locator('.sdocs-sidebar-top-row').click();
+  await expect(sdk.getByRole('link', { name: 'Open SDK guide' }))
+    .toHaveAttribute('href', '/developers');
 });
 
 test('Library and reader sidebars share capability and footer content', async ({ page }) => {

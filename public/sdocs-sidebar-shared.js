@@ -19,6 +19,8 @@
     { label: 'Slides', href: '/docs#sec=slides' },
     { label: 'Spreadsheets', href: '/advanced-spreadsheets' },
     { label: 'Charts', href: '/docs#sec=charts' },
+    { label: 'Runnable HTML', href: '/runnable-html' },
+    { label: 'Walkthroughs', href: '/docs#sec=document-walkthroughs' },
     { label: 'Formatting', href: '/docs#sec=formatting' },
     { label: 'Code', href: '/docs#sec=code' },
   ];
@@ -73,8 +75,8 @@
       capabilitiesHtml('sdocs-sidebar-subitem',
         'sdocs-sidebar-library-row sdocs-sidebar-library-open') + '</div>';
     var sdkContent = '<div class="sdocs-sidebar-preview"><p class="sdocs-sidebar-explainer">' +
-      sdkDescription + '</p><button class="sdocs-sidebar-cta" type="button" disabled>' +
-      'Coming soon</button></div>';
+      sdkDescription + '</p><a class="sdocs-sidebar-cta" href="/developers">' +
+      'Open SDK guide</a></div>';
     return sectionHtml({
       id: 'capabilities',
       idPrefix: idPrefix,
@@ -88,7 +90,7 @@
       idPrefix: idPrefix,
       rowClass: rowClass,
       icon: icons.sdk,
-      label: 'SDK',
+      label: 'Renderer SDK',
       dataHref: '/developers',
       content: sdkContent,
     });

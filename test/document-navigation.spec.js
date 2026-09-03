@@ -744,18 +744,15 @@ test('expanded short-link sections keep row height and scroll the whole sidebar'
   await expect(page.getByText('Private by design', { exact: true })).toBeVisible();
 });
 
-test('SDK expansion uses the product description and a disabled coming soon action', async ({ page }) => {
+test('Renderer SDK expansion links to the live integration guide', async ({ page }) => {
   await page.goto('/docs');
-  await page.getByText('SDK', { exact: true }).click();
+  await page.getByText('Renderer SDK', { exact: true }).click();
 
   await expect(page.getByText('Render agent-generated Markdown as rich, interactive documents inside your application with configurable styling.', { exact: true })).toBeVisible();
-  const comingSoon = page.locator('#_sd_sidebar_sdk_panel').getByRole('button', { name: 'Coming soon', exact: true });
-  await expect(comingSoon).toBeVisible();
-  await expect(comingSoon).toBeDisabled();
-  await expect(comingSoon).toHaveClass(/sdocs-sidebar-cta/);
-  await expect(comingSoon).toHaveCSS('color', 'rgb(168, 162, 158)');
-  await expect(page.locator('#_sd_sidebar_sdk_panel').getByText('Learn more', { exact: true })).toHaveCount(0);
-  await expect(page.locator('#_sd_sidebar_sdk_panel').getByText('Talk to sales', { exact: true })).toHaveCount(0);
+  const guide = page.locator('#_sd_sidebar_sdk_panel').getByRole('link', { name: 'Open SDK guide', exact: true });
+  await expect(guide).toBeVisible();
+  await expect(guide).toHaveAttribute('href', '/developers');
+  await expect(guide).toHaveClass(/sdocs-sidebar-cta/);
 });
 
 test('desktop document shell uses a sidebar and full-width action rail', async ({ page }) => {
