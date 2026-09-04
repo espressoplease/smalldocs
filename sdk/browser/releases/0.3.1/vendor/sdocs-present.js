@@ -1,0 +1,1088 @@
+// sdocs-present.js - fullscreen slide presentation mode.
+//
+// Public API:
+//   SDocPresent.open(index = 0)      open at slide N
+//   SDocPresent.close()              exit and restore scroll
+//   SDocPresent.go(direction | N)    +1, -1, or absolute index
+//   SDocPresent.refresh()            re-read .sdoc-slide DSLs after a render
+//
+// Reads every .sdoc-slide[data-dsl] in the document. Populates a thumbnail
+// rail on the left and renders the active slide at full size. Syncs the URL
+// hash with a present=<idx> parameter so links like /#md=...&present=2 open
+// directly to that slide.
+
+(function () {
+'use strict';
+
+var CSS_ID = 'sdocs-present-css';
+var CSS = [
+  '.sdoc-present, .sdoc-present *, .sdoc-present-exp-panel, .sdoc-present-exp-panel * {',
+  '  box-sizing: border-box;',
+  '}',
+  '.sdoc-present {',
+  '  position: fixed; inset: 0; z-index: 10000;',
+  '  background: #0b0a09; color: #e7e5e2;',
+  '  display: grid;',
+  '  grid-template-rows: 40px 1fr;',
+  '  grid-template-columns: 160px 1fr;',
+  '  font-family: ui-sans-serif, system-ui, sans-serif; font-size: 13px;',
+  '  animation: sdoc-present-fade .15s ease-out;',
+  '}',
+  '@keyframes sdoc-present-fade { from { opacity: 0 } to { opacity: 1 } }',
+  '.sdoc-present-topbar {',
+  '  grid-column: 1 / -1;',
+  '  position: relative;',  // anchors the overflow-fade ::after
+  '  display: flex; align-items: center; gap: 6px;',
+  '  height: 40px; padding: 0 12px;',
+  '  background: #131210; border-bottom: 1px solid #2a2724;',
+  '  flex-shrink: 0;',
+  /* On a narrow page the controls are wider than the viewport. Without this
+     the topbar (a grid item, default min-width:auto) grows past the page edge,
+     pushing the far-right controls off-screen and squeezing the copy label
+     onto two lines. min-width:0 lets the grid cell clip it; overflow-x:auto
+     turns the excess into a hidden-scrollbar horizontal scroll, matching the
+     inline (#left-toolbar) pattern. Children must not shrink/wrap or they'd
+     compress instead of scrolling. */
+  '  min-width: 0;',
+  '  overflow-x: auto; overflow-y: hidden;',
+  '  scrollbar-width: none; -webkit-overflow-scrolling: touch;',
+  '}',
+  '.sdoc-present-topbar::-webkit-scrollbar { display: none; }',
+  '.sdoc-present-topbar > *, .sdoc-present-actions > * { flex-shrink: 0; }',
+  '.sdoc-present-copy-label { white-space: nowrap; }',
+  /* Right-edge fade hint when the topbar scrolls. JS (sdocs-present-mobile.js)
+     toggles .has-overflow / .scrolled-end, mirroring the inline toolbar. */
+  '.sdoc-present-topbar.has-overflow::after {',
+  '  content: ""; position: absolute; top: 0; right: 0;',
+  '  width: 28px; height: 100%;',
+  '  background: linear-gradient(to right, transparent, #131210 80%);',
+  '  pointer-events: none; opacity: 1; transition: opacity .2s ease;',
+  '}',
+  '.sdoc-present-topbar.scrolled-end::after { opacity: 0; }',
+  /* Brand mirrors the main SDocs wordmark: logo blue, 13px, weight 600, with */
+  /* "Slides" appended in white/normal weight so the section identity reads */
+  /* as "SmallDocs · Slides". Three responsive tiers mirror the main */
+  /* topbar's full/short/tiny pattern so the brand still fits next to the */
+  /* counter and actions as the viewport narrows. Modal is always dark, so */
+  /* the accent is hard-coded rather than tracking var(--accent). */
+  '.sdoc-present-brand {',
+  '  display: inline-flex; align-items: center;',
+  '  color: #3B82F6; font-size: 13px; font-weight: 600;',
+  '  flex-shrink: 0; margin-right: auto;',
+  '}',
+  '.sdoc-present-brand-slides { color: #fff; font-weight: 400; margin-left: 4px; }',
+  '.sdoc-present-brand-full { display: inline; }',
+  '.sdoc-present-brand-short { display: none; }',
+  '.sdoc-present-brand-tiny { display: none; }',
+  '.sdoc-present-actions {',
+  '  display: flex; background: none; border: none;',
+  '  border-radius: 6px; overflow: hidden; padding: 2px; gap: 2px;',
+  '}',
+  '.sdoc-present-actions .sdoc-present-btn {',
+  '  all: unset; cursor: pointer;',
+  '  display: inline-flex; align-items: center; justify-content: center;',
+  '  padding: 6px 8px; border-radius: 4px;',
+  '  color: #d6d3d1; font-size: 12px; font-family: inherit;',
+  '  transition: background .12s, color .12s;',
+  '}',
+  '.sdoc-present-actions .sdoc-present-btn:hover {',
+  '  background: rgba(255, 255, 255, .08); color: #fff;',
+  '}',
+  '.sdoc-present-actions .sdoc-present-btn.active {',
+  '  background: rgba(255, 255, 255, .12); color: #fff;',
+  '}',
+  /* Vertical rule between action buttons, mirroring the main topbar's */
+  /* write-tb-sep between tool groups and theme toggle. */
+  '.sdoc-present-actions .sdoc-present-sep {',
+  '  width: 1px; height: 16px; background: #3f3c38;',
+  '  margin: 0 4px; flex-shrink: 0; align-self: center;',
+  '}',
+  /* Export panel slides in from the right; 260px wide, dark theme. */
+  '.sdoc-present-exp-panel {',
+  '  position: fixed; top: 40px; right: 0; bottom: 0; width: 260px;',
+  '  background: #131210; border-left: 1px solid #2a2724;',
+  '  padding: 14px; z-index: 10001;',
+  '  color: #e7e5e2; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 13px;',
+  '  transform: translateX(100%); transition: transform .2s ease-out;',
+  '  display: flex; flex-direction: column; gap: 8px;',
+  '}',
+  '.sdoc-present-exp-panel.open { transform: translateX(0); }',
+  '.sdoc-present-exp-panel h3 {',
+  '  margin: 0 0 4px; font-size: 12px; font-weight: 600;',
+  '  color: #8a8580; text-transform: uppercase; letter-spacing: .5px;',
+  '}',
+  '.sdoc-present-exp-btn {',
+  '  all: unset; cursor: pointer; display: flex; gap: 12px; align-items: flex-start;',
+  '  padding: 10px 12px; border-radius: 6px;',
+  '  background: #1a1816; border: 1px solid #2a2724;',
+  '  transition: background .12s, border-color .12s;',
+  '}',
+  '.sdoc-present-exp-btn:hover { background: #211f1c; border-color: #3f3c38; }',
+  '.sdoc-present-exp-btn svg { color: #3B82F6; flex-shrink: 0; margin-top: 1px; }',
+  '.sdoc-present-exp-btn-text { display: flex; flex-direction: column; gap: 2px; }',
+  '.sdoc-present-exp-btn-title {',
+  '  font-size: 13px; font-weight: 600; color: #e7e5e2;',
+  '}',
+  '.sdoc-present-exp-btn-desc {',
+  '  font-size: 11px; color: #8a8580; line-height: 1.4;',
+  '}',
+  '.sdoc-present-counter {',
+  '  display: inline-flex; align-items: center;',
+  '  color: #8a8580; font-size: 12px;',
+  '  font-family: ui-monospace, Menlo, monospace;',
+  '  padding: 0 6px; flex-shrink: 0;',
+  '}',
+  /* Slide copy actions share the same copy-icon + short-label pattern as */
+  /* Mermaid and table controls. */
+  '.sdoc-present-actions .sdoc-present-copy-btn { gap: 5px; }',
+  '.sdoc-present-copy-label { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }',
+  '.sdoc-present-rail {',
+  '  grid-row: 2;',
+  '  background: #131210; border-right: 1px solid #2a2724;',
+  '  padding: 12px 10px; overflow-y: auto;',
+  '  display: flex; flex-direction: column; gap: 10px;',
+  '}',
+  '.sdoc-present-thumb {',
+  '  all: unset; display: block; cursor: pointer;',
+  '  background: #1a1816; border: 2px solid transparent; border-radius: 4px;',
+  '  padding: 4px; transition: border-color .12s;',
+  '}',
+  '.sdoc-present-thumb:hover { border-color: #3f3c38; }',
+  '.sdoc-present-thumb.active { border-color: #3B82F6; }',
+  '.sdoc-present-thumb-num {',
+  '  font-size: 10px; color: #8a8580; margin: 2px 0 4px;',
+  '  font-family: ui-monospace, Menlo, monospace;',
+  '}',
+  '.sdoc-present-thumb .sd-slide-wrap {',
+  '  background: #ffffff; border-radius: 2px;',
+  '}',
+  '.sdoc-present-stage-wrap {',
+  '  grid-row: 2;',
+  '  display: flex; align-items: center; justify-content: center;',
+  '  padding: 32px; overflow: hidden; position: relative;',
+  '  transition: padding .2s ease-out;',
+  '}',
+  /* When the export panel is open, the stage leaves room on the right so the */
+  /* panel pushes the slide aside instead of overlaying it - mirrors the */
+  /* comment panel\'s padding-right trick (slide-comments.css). 260px panel + */
+  /* a 12px gutter. The padding transition matches the panel slide-in so the */
+  /* slide and panel move together. */
+  '.sdoc-present.sdoc-present-exporting .sdoc-present-stage-wrap {',
+  '  padding-right: 272px;',
+  '}',
+  /* Present-mode stage sits outside #_sd_rendered, so the doc\'s --md-* */
+  /* vars don\'t reach it via normal cascade. We copy the relevant vars */
+  /* onto .sdoc-present in JS on open (see open()), then read them here. */
+  '.sdoc-present-stage {',
+  '  max-width: 100%;',
+  '  max-height: 100%;',
+  '  width: auto; height: auto;',
+  '  background: var(--md-bg, #ffffff); border-radius: 6px;',
+  '  box-shadow: 0 30px 80px rgba(0, 0, 0, .6);',
+  '}',
+  '@media (max-width: 720px) {',
+  '  .sdoc-present { grid-template-columns: 1fr; }',
+  '  .sdoc-present-rail { display: none; }',
+  '  .sdoc-present-stage-wrap { padding: 16px; }',
+  /* On a phone the panel becomes a bottom sheet (full width, slides up) and */
+  /* the stage makes room below itself, matching the comment panel. */
+  '  .sdoc-present-exp-panel {',
+  '    top: auto; width: 100%; height: 48%;',
+  '    border-left: none; border-top: 1px solid #2a2724;',
+  '    transform: translateY(100%);',
+  '  }',
+  '  .sdoc-present-exp-panel.open { transform: translateY(0); }',
+  '  .sdoc-present.sdoc-present-exporting .sdoc-present-stage-wrap {',
+  '    padding: 16px 16px 50%;',
+  '  }',
+  '  .sdoc-present-topbar { gap: 10px; }',
+  /* Tighter: swap "SmallDocs Slides" for "SDoc Slides". */
+  '  .sdoc-present-brand { margin-right: 0; }',
+  '  .sdoc-present-brand-full { display: none; }',
+  '  .sdoc-present-brand-short { display: inline; }',
+  '}',
+  /* Very narrow: "SD Slides" only. */
+  '@media (max-width: 420px) {',
+  '  .sdoc-present-brand-short { display: none; }',
+  '  .sdoc-present-brand-tiny { display: inline; }',
+  '}',
+  'body.sdoc-present-open { overflow: hidden; }',
+].join('\n');
+
+function injectCSS() {
+  if (document.getElementById(CSS_ID)) return;
+  var style = document.createElement('style');
+  style.id = CSS_ID;
+  style.textContent = CSS;
+  document.head.appendChild(style);
+}
+if (typeof document !== 'undefined') injectCSS();
+
+var activePresentation = null;
+
+function createPresentation(options) {
+options = options || {};
+var copyEnabled = options.copy !== false;
+
+var state = {
+  open: false,
+  index: 0,
+  slides: [],            // array of DSL strings
+  modal: null,
+  rail: null,
+  stage: null,
+  counter: null,
+  copyBtn: null,         // topbar "copy slide text" button
+  pngBtn: null,          // topbar "copy slide as PNG" button
+  expPanel: null,        // slide-in export panel
+  expBtn: null,          // topbar export button
+  savedScrollX: 0,
+  savedScrollY: 0,
+  savedActive: null,
+  sizer: null,           // bound resize handler
+  outsideClose: null,    // bound handler to close exp panel on outside click
+};
+
+function sourceRoot() {
+  return typeof options.root === 'function' ? options.root() : options.root || document;
+}
+
+function styleSource() {
+  return typeof options.styleSource === 'function' ? options.styleSource() : options.styleSource || sourceRoot();
+}
+
+function shapeRenderer() {
+  return typeof options.renderer === 'function' ? options.renderer() : options.renderer || window.SDocShapeRender;
+}
+
+function slideComments() {
+  return typeof options.comments === 'function' ? options.comments() : options.comments;
+}
+
+function mobilePresenter() {
+  return typeof options.mobile === 'function' ? options.mobile() : options.mobile;
+}
+
+function renderOptions(dsl, index, kind, extra) {
+  var configured = options.renderOptions ? options.renderOptions(dsl, index, kind) : null;
+  return Object.assign({}, configured || {}, extra || {});
+}
+
+function renderShapes(dsl, target, index, kind, extra) {
+  var renderer = shapeRenderer();
+  if (!renderer || !renderer.renderShapes) return null;
+  return renderer.renderShapes(dsl, target, renderOptions(dsl, index, kind, extra));
+}
+
+function destroyWithin(target) {
+  var renderer = shapeRenderer();
+  if (renderer && renderer.destroyWithin) renderer.destroyWithin(target);
+}
+
+function portalTarget() {
+  return typeof options.portal === 'function' ? options.portal() : options.portal || document.body;
+}
+
+function syncFocus() {
+  if (typeof options.onFocusChange === 'function') options.onFocusChange(state.open);
+}
+
+function shouldFocus() {
+  return typeof options.focus === 'function' ? options.focus() : options.focus !== false;
+}
+
+function setHTML(node, html) {
+  if (typeof options.setHTML === 'function') options.setHTML(node, html);
+  else node.innerHTML = html;
+}
+
+// ------ Export panel ---------------------------------------------------------------------------------------------------------------
+//
+// Small slide-in panel anchored to the right of the topbar. Two options,
+// each delegating to the matching SDocs export entry point used by the main
+// export menu, so present mode offers the same downloads:
+//   - PDF   - SDocs.exportSlidesPdf(): one landscape page per slide,
+//             selectable text, built client-side via pdf-lib. No print dialog.
+//   - PPTX  - SDocs.exportSlidesPptx(): editable shapes + text via PptxGenJS.
+function buildExportPanel() {
+  var p = document.createElement('div');
+  p.className = 'sdoc-present-exp-panel';
+  var h = document.createElement('h3');
+  h.textContent = 'Export';
+  p.appendChild(h);
+
+  // PDF
+  var pdfBtn = document.createElement('button');
+  pdfBtn.type = 'button';
+  pdfBtn.className = 'sdoc-present-exp-btn';
+  setHTML(pdfBtn, '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>'
+    + '<span class="sdoc-present-exp-btn-text">'
+    +   '<span class="sdoc-present-exp-btn-title">PDF</span>'
+    +   '<span class="sdoc-present-exp-btn-desc">One slide per landscape page with selectable text</span>'
+    + '</span>');
+  pdfBtn.addEventListener('click', function () {
+    closeExportPanel();
+    if (typeof options.exportPdf === 'function') options.exportPdf();
+  });
+  p.appendChild(pdfBtn);
+
+  // PowerPoint (.pptx)
+  var pptxBtn = document.createElement('button');
+  pptxBtn.type = 'button';
+  pptxBtn.className = 'sdoc-present-exp-btn';
+  setHTML(pptxBtn, '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<rect x="2" y="4" width="20" height="14" rx="2"/><path d="M7 9h10"/><path d="M7 13h7"/><path d="m8 22 4-4 4 4"/></svg>'
+    + '<span class="sdoc-present-exp-btn-text">'
+    +   '<span class="sdoc-present-exp-btn-title">PowerPoint (.pptx)</span>'
+    +   '<span class="sdoc-present-exp-btn-desc">Editable shapes and text in PowerPoint / Keynote / Slides</span>'
+    + '</span>');
+  pptxBtn.addEventListener('click', function () {
+    closeExportPanel();
+    if (typeof options.exportPptx === 'function') options.exportPptx();
+  });
+  p.appendChild(pptxBtn);
+
+  return p;
+}
+
+function toggleExportPanel() {
+  if (!state.expPanel) return;
+  var isOpen = state.expPanel.classList.contains('open');
+  if (isOpen) closeExportPanel();
+  else openExportPanel();
+}
+
+function openExportPanel() {
+  if (!state.expPanel) return;
+  state.expPanel.classList.add('open');
+  // Push the stage aside (vs overlaying it) while the panel is open.
+  if (state.modal) state.modal.classList.add('sdoc-present-exporting');
+  if (state.expBtn) state.expBtn.classList.add('active');
+  state.outsideClose = function (e) {
+    if (state.expPanel && state.expPanel.contains(e.target)) return;
+    if (state.expBtn && state.expBtn.contains(e.target)) return;
+    closeExportPanel();
+  };
+  // Next tick so the triggering click doesn't immediately close it.
+  setTimeout(function () {
+    document.addEventListener('click', state.outsideClose);
+  }, 0);
+}
+
+function closeExportPanel() {
+  if (!state.expPanel) return;
+  state.expPanel.classList.remove('open');
+  if (state.modal) state.modal.classList.remove('sdoc-present-exporting');
+  if (state.expBtn) state.expBtn.classList.remove('active');
+  if (state.outsideClose) {
+    document.removeEventListener('click', state.outsideClose);
+    state.outsideClose = null;
+  }
+}
+
+function collectSlides() {
+  if (typeof options.getSlides === 'function') {
+    state.slides = (options.getSlides() || []).map(function (entry) {
+      return typeof entry === 'string' ? entry : entry && entry.dsl || '';
+    }).filter(Boolean);
+    return;
+  }
+  var els = sourceRoot().querySelectorAll('.sdoc-slide[data-dsl]');
+  state.slides = [];
+  for (var i = 0; i < els.length; i++) state.slides.push(els[i].getAttribute('data-dsl'));
+}
+
+function clamp(n) {
+  if (state.slides.length === 0) return 0;
+  if (n < 0) return 0;
+  if (n >= state.slides.length) return state.slides.length - 1;
+  return n;
+}
+
+// Copy the doc's computed --md-* custom properties onto the present
+// modal root. #_sd_rendered is where the doc's style vars live, but the
+// present modal is a sibling of the document, so vars don't cascade
+// down automatically. Without this, slide backgrounds and heading
+// colors fall back to their --md-*-default values instead of the doc's
+// chosen palette.
+var FORWARDED_VARS = [
+  '--sdocs-background', '--sdocs-text-color', '--sdocs-muted-color', '--sdocs-accent',
+  '--sdocs-font-family', '--sdocs-heading-font-family', '--sdocs-code-font-family',
+  '--md-bg', '--md-color',
+  '--md-font-family', '--md-h-font-family',
+  '--md-h-color', '--md-h1-color', '--md-h2-color', '--md-h3-color', '--md-h4-color',
+  '--md-p-color', '--md-list-color', '--md-link-color',
+  '--md-block-bg', '--md-block-text',
+  '--md-code-bg', '--md-code-color', '--md-code-font', '--md-pre-bg',
+  '--md-bq-bg', '--md-bq-color', '--md-bq-border-color', '--md-bq-border',
+  '--md-table-border', '--md-table-header-bg', '--md-table-even-bg', '--md-table-odd-bg', '--md-table-text',
+  '--md-chart-accent', '--md-chart-bg', '--md-chart-text',
+];
+function forwardDocStyleVars(target) {
+  var src = styleSource();
+  if (!src) return;
+  var cs = getComputedStyle(src);
+  for (var i = 0; i < FORWARDED_VARS.length; i++) {
+    var v = cs.getPropertyValue(FORWARDED_VARS[i]);
+    if (v && v.trim()) target.style.setProperty(FORWARDED_VARS[i], v.trim());
+  }
+}
+
+function buildRailThumb(idx, dsl) {
+  var btn = document.createElement('button');
+  btn.className = 'sdoc-present-thumb';
+  btn.setAttribute('data-slide-index', String(idx));
+  btn.setAttribute('aria-label', 'Go to slide ' + (idx + 1));
+  var num = document.createElement('div');
+  num.className = 'sdoc-present-thumb-num';
+  num.textContent = String(idx + 1);
+  btn.appendChild(num);
+  var wrap = document.createElement('div');
+  btn.appendChild(wrap);
+  // For charts, re-rendering Chart.js at thumbnail dimensions makes
+  // fonts dominate and bars collapse. Substitute the PNGs captured
+  // during inline rendering (stashed on the source .sd-slide-wrap)
+  // so the thumbnail shows the same pixels as the inline view.
+  var srcSlide = sourceRoot().querySelectorAll('.sdoc-slide[data-dsl]')[idx];
+  var srcWrap = srcSlide && srcSlide.querySelector('.sd-slide-wrap');
+  var chartImages = srcWrap && srcWrap.__chartImages;
+  renderShapes(dsl, wrap, idx, 'thumbnail', { chartImages: chartImages });
+  btn.addEventListener('click', function () { go(idx); });
+  return btn;
+}
+
+function rebuildRail() {
+  if (!state.rail) return;
+  destroyWithin(state.rail);
+  while (state.rail.firstChild) state.rail.removeChild(state.rail.firstChild);
+  for (var i = 0; i < state.slides.length; i++) {
+    state.rail.appendChild(buildRailThumb(i, state.slides[i]));
+  }
+}
+
+// Pick a px width for the stage that preserves aspect ratio AND fits the
+// available stage-wrap area. CSS aspect-ratio can go wrong under grid when
+// both max-width and max-height constrain, so we compute here.
+function sizeStage() {
+  if (!state.stage) return;
+  var wrap = state.stage.parentElement;
+  if (!wrap) return;
+  var gw = parseFloat(getComputedStyle(state.stage).getPropertyValue('--gw')) || 16;
+  var gh = parseFloat(getComputedStyle(state.stage).getPropertyValue('--gh')) || 9;
+  var wrapCs = getComputedStyle(wrap);
+  var padX = parseFloat(wrapCs.paddingLeft) + parseFloat(wrapCs.paddingRight);
+  var padY = parseFloat(wrapCs.paddingTop) + parseFloat(wrapCs.paddingBottom);
+  var availW = wrap.clientWidth - padX;
+  var availH = wrap.clientHeight - padY;
+  if (availW <= 0 || availH <= 0) return;
+  var byWidth = { w: availW, h: availW * gh / gw };
+  var byHeight = { w: availH * gw / gh, h: availH };
+  var pick = byWidth.h <= availH ? byWidth : byHeight;
+  state.stage.style.width = pick.w + 'px';
+  state.stage.style.height = pick.h + 'px';
+}
+
+var COPY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  + '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+var CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  + '<polyline points="20 6 9 17 4 12"/></svg>';
+var COPY_FEEDBACK_MS = 1500;
+
+function flashCopyTick(btn) {
+  if (!btn) return;
+  var svg = btn.querySelector('svg');
+  if (!svg) return;
+  svg.outerHTML = CHECK_ICON;
+  setTimeout(function () {
+    var current = btn.querySelector('svg');
+    if (current) current.outerHTML = COPY_ICON;
+  }, COPY_FEEDBACK_MS);
+}
+
+function flashCopyLabel(btn, text) {
+  var label = btn && btn.querySelector('.sdoc-present-copy-label');
+  if (!label) return;
+  var previous = label.textContent;
+  label.textContent = text;
+  setTimeout(function () { label.textContent = previous; }, COPY_FEEDBACK_MS);
+}
+
+// Copy the rendered text of the active slide. Delegates text collection to
+// the shape renderer, the single source of truth for a slide's visible text.
+function copyCurrentSlideText() {
+  var btn = state.copyBtn;
+  var renderer = shapeRenderer();
+  if (!btn || !state.stage || !renderer || !renderer.collectSlideText) return;
+  var text = renderer.collectSlideText(state.stage);
+  var clipboard = options.clipboard || navigator.clipboard;
+  if (clipboard && clipboard.writeText) {
+    clipboard.writeText(text).then(function () {
+      flashCopyTick(btn);
+    }).catch(function () {
+      flashCopyLabel(btn, 'Failed');
+    });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    var copied = false;
+    try { copied = document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+    if (copied) flashCopyTick(btn);
+    else flashCopyLabel(btn, 'Failed');
+  }
+}
+
+function skipSlideImageNode(el) {
+  return el.matches && el.matches(
+    '.sd-shape-copy-btn, .sd-code-copy-btn, .sdoc-slide-hit-layer, '
+    + '.sdoc-slide-comment-btn, .sdoc-slide-comment-list'
+  );
+}
+
+function applyComputedStyles(source, clone) {
+  var computed = getComputedStyle(source);
+  for (var i = 0; i < computed.length; i++) {
+    var prop = computed[i];
+    clone.style.setProperty(prop, computed.getPropertyValue(prop), computed.getPropertyPriority(prop));
+  }
+}
+
+// Build a style-complete copy for SVG foreignObject rendering. Shape markdown
+// lives in shadow roots, so those children are flattened into ordinary DOM.
+// Canvas charts are replaced with image snapshots before serialization.
+function cloneSlideImageNode(node) {
+  if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.nodeValue || '');
+  if (node.nodeType !== Node.ELEMENT_NODE || skipSlideImageNode(node)) return null;
+
+  var clone;
+  if (node.tagName === 'CANVAS') {
+    clone = document.createElement('img');
+    clone.src = node.toDataURL('image/png');
+    clone.width = node.width;
+    clone.height = node.height;
+  } else {
+    clone = node.cloneNode(false);
+  }
+  applyComputedStyles(node, clone);
+
+  var childRoot = node.shadowRoot || node;
+  for (var i = 0; i < childRoot.childNodes.length; i++) {
+    var child = childRoot.childNodes[i];
+    if (child.nodeType === Node.ELEMENT_NODE && child.tagName === 'STYLE') continue;
+    var childClone = cloneSlideImageNode(child);
+    if (childClone) clone.appendChild(childClone);
+  }
+  return clone;
+}
+
+function slideToPngBlob(stage, scale) {
+  return new Promise(function (resolve, reject) {
+    try {
+      var rect = stage.getBoundingClientRect();
+      var width = Math.max(1, Math.ceil(rect.width));
+      var height = Math.max(1, Math.ceil(rect.height));
+      var clone = cloneSlideImageNode(stage);
+      clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+      clone.style.setProperty('box-shadow', 'none');
+      clone.style.setProperty('border-radius', '0');
+      clone.style.setProperty('margin', '0');
+      clone.style.setProperty('max-width', 'none');
+      clone.style.setProperty('max-height', 'none');
+      clone.style.setProperty('width', width + 'px');
+      clone.style.setProperty('height', height + 'px');
+
+      var html = new XMLSerializer().serializeToString(clone);
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '">'
+        + '<foreignObject width="100%" height="100%">' + html + '</foreignObject></svg>';
+      var url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var imageScale = scale || 2;
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(width * imageScale));
+          canvas.height = Math.max(1, Math.round(height * imageScale));
+          var ctx = canvas.getContext('2d');
+          var background = getComputedStyle(stage).backgroundColor;
+          if (background && background !== 'rgba(0, 0, 0, 0)' && background !== 'transparent') {
+            ctx.fillStyle = background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(function (blob) {
+            if (blob) resolve(blob);
+            else reject(new Error('Slide PNG creation failed'));
+          }, 'image/png');
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = function () { reject(new Error('Slide PNG rendering failed')); };
+      img.src = url;
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+function copyCurrentSlidePng() {
+  var btn = state.pngBtn;
+  if (!btn || !state.stage) return;
+  var clipboard = options.clipboard || navigator.clipboard;
+  var ClipboardItemCtor = options.ClipboardItem || window.ClipboardItem;
+  if (!ClipboardItemCtor || !clipboard || !clipboard.write) {
+    flashCopyLabel(btn, 'Not supported');
+    return;
+  }
+  slideToPngBlob(state.stage, 2).then(function (blob) {
+    return clipboard.write([new ClipboardItemCtor({ 'image/png': blob })]);
+  }).then(function () {
+    flashCopyTick(btn);
+  }).catch(function () {
+    flashCopyLabel(btn, 'Failed');
+  });
+}
+
+function renderActive() {
+  if (!state.stage) return;
+
+  var dsl = state.slides[state.index] || '';
+  destroyWithin(state.stage);
+  renderShapes(dsl, state.stage, state.index, 'stage', { copyButtons: copyEnabled });
+  state.stage.classList.add('sdoc-present-stage');
+  sizeStage();
+
+  // Rail selection
+  if (state.modal) {
+    var thumbs = state.modal.querySelectorAll('.sdoc-present-thumb');
+    for (var i = 0; i < thumbs.length; i++) {
+      thumbs[i].classList.toggle('active', i === state.index);
+    }
+    var active = state.modal.querySelector('.sdoc-present-thumb.active');
+    if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  if (state.counter) {
+    state.counter.textContent = (state.index + 1) + ' / ' + state.slides.length;
+  }
+  // Let slide-comment mode rebuild its hit-layer + panel against the freshly
+  // rendered stage (no-op unless commenting is toggled on).
+  var comments = slideComments();
+  if (comments && comments.onPresentRender) {
+    comments.onPresentRender(state.modal, state.index, dsl);
+  }
+
+  // Reset zoom-to-fit and re-measure for the touch layer on every slide change.
+  var mobile = mobilePresenter();
+  if (mobile && mobile.onRender) {
+    mobile.onRender(state.index, state.slides.length);
+  }
+}
+
+// A keystroke aimed at a text field (the comment composer) must reach the field,
+// not steer the deck. Without this, typing a space jumps to the next slide.
+function isTypingTarget(t) {
+  if (!t) return false;
+  var tag = t.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable) return true;
+  return !!(t.closest && t.closest('button, a[href], [role="button"], [role="menuitem"], [role="option"]'));
+}
+
+function onKey(e) {
+  if (!state.open) return;
+  if (isTypingTarget(e.target)) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (state.expPanel && state.expPanel.classList.contains('open')) closeExportPanel();
+    else close();
+    return;
+  }
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+    e.preventDefault();
+    go(state.index + 1);
+    return;
+  }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+    e.preventDefault();
+    go(state.index - 1);
+    return;
+  }
+  if (e.key === 'Home') { e.preventDefault(); go(0); return; }
+  if (e.key === 'End')  { e.preventDefault(); go(state.slides.length - 1); return; }
+}
+
+function updateHashPresent(idx) {
+  if (options.history === false) return;
+  // Preserve existing hash params other than present=.
+  var hash = window.location.hash.replace(/^#/, '');
+  var parts = hash ? hash.split('&') : [];
+  var next = [];
+  var replaced = false;
+  for (var i = 0; i < parts.length; i++) {
+    if (/^present=/.test(parts[i])) {
+      if (idx != null) { next.push('present=' + idx); replaced = true; }
+    } else {
+      next.push(parts[i]);
+    }
+  }
+  if (idx != null && !replaced) next.push('present=' + idx);
+  var newHash = next.join('&');
+  var target = newHash ? '#' + newHash : window.location.pathname + window.location.search;
+  // Use replaceState so we don't flood history with every slide advance.
+  history.replaceState(null, '', target);
+}
+
+function open(startIndex) {
+  collectSlides();
+  if (state.slides.length === 0) return;
+  if (state.open) {
+    // Already open - just update index.
+    go(startIndex || 0);
+    return;
+  }
+  if (activePresentation && activePresentation !== api) activePresentation.close();
+  activePresentation = api;
+  state.savedScrollX = window.scrollX;
+  state.savedScrollY = window.scrollY;
+  state.savedActive = document.activeElement;
+  state.index = clamp(startIndex || 0);
+
+  var modal = document.createElement('div');
+  modal.className = 'sdoc-present';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-label', 'Slide presentation');
+  forwardDocStyleVars(modal);
+
+  var topbar = document.createElement('div');
+  topbar.className = 'sdoc-present-topbar';
+
+  var brand = document.createElement('div');
+  brand.className = 'sdoc-present-brand';
+  setHTML(brand,
+    '<span class="sdoc-present-brand-full">SmallDocs<span class="sdoc-present-brand-slides">Slides</span></span>'
+    + '<span class="sdoc-present-brand-short">SDoc<span class="sdoc-present-brand-slides">Slides</span></span>'
+    + '<span class="sdoc-present-brand-tiny">SD<span class="sdoc-present-brand-slides">Slides</span></span>');
+  topbar.appendChild(brand);
+
+  var actions = document.createElement('div');
+  actions.className = 'sdoc-present-actions';
+
+  // Order mirrors the mermaid focus topbar so users get the same
+  // muscle-memory across overlays: brand | <auto> | nav | counter |
+  // sep | export | sep | close.
+
+  var prevBtn = document.createElement('button');
+  prevBtn.className = 'sdoc-present-btn';
+  prevBtn.type = 'button';
+  prevBtn.setAttribute('aria-label', 'Previous slide');
+  prevBtn.title = 'Previous slide (↑)';
+  setHTML(prevBtn, '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="m18 15-6-6-6 6"/></svg>');
+  prevBtn.addEventListener('click', function () { go(state.index - 1); });
+  actions.appendChild(prevBtn);
+
+  var nextBtn = document.createElement('button');
+  nextBtn.className = 'sdoc-present-btn';
+  nextBtn.type = 'button';
+  nextBtn.setAttribute('aria-label', 'Next slide');
+  nextBtn.title = 'Next slide (↓)';
+  setHTML(nextBtn, '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="m6 9 6 6 6-6"/></svg>');
+  nextBtn.addEventListener('click', function () { go(state.index + 1); });
+  actions.appendChild(nextBtn);
+
+  var counter = document.createElement('div');
+  counter.className = 'sdoc-present-counter';
+  actions.appendChild(counter);
+
+  var sep1 = document.createElement('span');
+  sep1.className = 'sdoc-present-sep';
+  actions.appendChild(sep1);
+
+  var copyBtn = null;
+  var pngBtn = null;
+  if (copyEnabled) {
+    // Copy the active slide's rendered text.
+    copyBtn = document.createElement('button');
+    copyBtn.className = 'sdoc-present-btn sdoc-present-copy-btn sdoc-present-copy-text-btn';
+    copyBtn.type = 'button';
+    copyBtn.setAttribute('aria-label', 'Copy slide text');
+    copyBtn.title = 'Copy slide text';
+    setHTML(copyBtn, COPY_ICON + '<span class="sdoc-present-copy-label">Text</span>');
+    copyBtn.addEventListener('click', function (e) { e.stopPropagation(); copyCurrentSlideText(); });
+    actions.appendChild(copyBtn);
+
+    // Copy the active slide as a rendered PNG.
+    pngBtn = document.createElement('button');
+    pngBtn.className = 'sdoc-present-btn sdoc-present-copy-btn sdoc-present-copy-png-btn';
+    pngBtn.type = 'button';
+    pngBtn.setAttribute('aria-label', 'Copy slide as PNG');
+    pngBtn.title = 'Copy slide as PNG';
+    setHTML(pngBtn, COPY_ICON + '<span class="sdoc-present-copy-label">PNG</span>');
+    pngBtn.addEventListener('click', function (e) { e.stopPropagation(); copyCurrentSlidePng(); });
+    actions.appendChild(pngBtn);
+  }
+
+  // Comment toggle: turns on the hit-layer + comment panel for the active
+  // slide so a deck can be marked up while presenting. State + overlay are
+  // owned by SDocSlideComments; this button just flips it and reflects the
+  // active class. Only shown when the slide-comments module is present.
+  var commentBtn = null;
+  var comments = slideComments();
+  if (comments) {
+    commentBtn = document.createElement('button');
+    commentBtn.className = 'sdoc-present-btn sdoc-present-comment-btn';
+    commentBtn.type = 'button';
+    commentBtn.setAttribute('aria-label', 'Comment on slides');
+    commentBtn.title = 'Comment on slides';
+    setHTML(commentBtn, '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+      + '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>');
+    commentBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      comments.presentToggle(commentBtn);
+    });
+    actions.appendChild(commentBtn);
+    state.commentBtn = commentBtn;
+
+    var sepC = document.createElement('span');
+    sepC.className = 'sdoc-present-sep';
+    actions.appendChild(sepC);
+  }
+
+  var exportBtn = document.createElement('button');
+  exportBtn.className = 'sdoc-present-btn sdoc-present-export-btn';
+  exportBtn.type = 'button';
+  exportBtn.setAttribute('aria-label', 'Export');
+  exportBtn.title = 'Export';
+  setHTML(exportBtn, '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>');
+  exportBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleExportPanel(); });
+  actions.appendChild(exportBtn);
+
+  var sep2 = document.createElement('span');
+  sep2.className = 'sdoc-present-sep';
+  actions.appendChild(sep2);
+
+  var close = document.createElement('button');
+  close.className = 'sdoc-present-btn sdoc-present-close';
+  close.type = 'button';
+  close.setAttribute('aria-label', 'Exit presentation (Esc)');
+  close.title = 'Exit presentation (Esc)';
+  setHTML(close, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>');
+  close.addEventListener('click', function () { closePresent(); });
+  actions.appendChild(close);
+
+  topbar.appendChild(actions);
+
+  modal.appendChild(topbar);
+
+  var rail = document.createElement('aside');
+  rail.className = 'sdoc-present-rail';
+  state.rail = rail;
+  rebuildRail();
+  modal.appendChild(rail);
+
+  var wrap = document.createElement('div');
+  wrap.className = 'sdoc-present-stage-wrap';
+
+  var stage = document.createElement('div');
+  wrap.appendChild(stage);
+
+  modal.appendChild(wrap);
+  portalTarget().appendChild(modal);
+  document.body.classList.add('sdoc-present-open');
+  syncFocus();
+
+  var expPanel = buildExportPanel();
+  portalTarget().appendChild(expPanel);
+
+  state.modal = modal;
+  state.stage = stage;
+  state.counter = counter;
+  state.copyBtn = copyBtn;
+  state.pngBtn = pngBtn;
+  state.expPanel = expPanel;
+  state.expBtn = exportBtn;
+  state.open = true;
+
+  state.sizer = function () { sizeStage(); };
+  window.addEventListener('resize', state.sizer);
+  window.addEventListener('keydown', onKey);
+
+  renderActive();
+  updateHashPresent(state.index);
+
+  // Touch + responsive-chrome layer (no-op on desktop / when not loaded).
+  var mobile = mobilePresenter();
+  if (mobile && mobile.onOpen) {
+    mobile.onOpen({
+      modal: modal, stage: stage, wrap: wrap, topbar: topbar,
+      index: state.index, total: state.slides.length
+    });
+  }
+
+  // Focus the stage so keyboard events land on the document body.
+  modal.tabIndex = -1;
+  if (shouldFocus()) {
+    setTimeout(function () { modal.focus(); }, 0);
+  }
+}
+
+function closePresent() { close(); }
+
+function close() {
+  if (!state.open) return;
+  window.removeEventListener('keydown', onKey);
+  if (state.sizer) window.removeEventListener('resize', state.sizer);
+  state.sizer = null;
+  var comments = slideComments();
+  if (comments && comments.presentTeardown) {
+    comments.presentTeardown();
+  }
+  var mobile = mobilePresenter();
+  if (mobile && mobile.onClose) {
+    mobile.onClose();
+  }
+  closeExportPanel();
+  destroyWithin(state.modal);
+  if (state.expPanel && state.expPanel.parentNode) state.expPanel.parentNode.removeChild(state.expPanel);
+  state.expPanel = null;
+  state.expBtn = null;
+  if (state.modal && state.modal.parentNode) state.modal.parentNode.removeChild(state.modal);
+  state.modal = null;
+  state.rail = null;
+  state.stage = null;
+  state.counter = null;
+  state.copyBtn = null;
+  state.pngBtn = null;
+  state.open = false;
+  if (activePresentation === api) activePresentation = null;
+  document.body.classList.remove('sdoc-present-open');
+  syncFocus();
+  updateHashPresent(null);
+  window.scrollTo(state.savedScrollX, state.savedScrollY);
+  if (shouldFocus() && state.savedActive && typeof state.savedActive.focus === 'function') {
+    try { state.savedActive.focus(); } catch (_) {}
+  }
+  state.savedActive = null;
+}
+
+function go(n) {
+  var idx;
+  if (typeof n === 'number') idx = clamp(n);
+  else idx = state.index;
+  if (idx === state.index && state.open) return;
+  state.index = idx;
+  if (state.open) {
+    renderActive();
+    updateHashPresent(idx);
+  }
+}
+
+function refresh() {
+  collectSlides();
+  if (!state.open) return;
+  if (!state.slides.length) {
+    close();
+    return;
+  }
+  state.index = clamp(state.index);
+  rebuildRail();
+  renderActive();
+  updateHashPresent(state.index);
+}
+
+function readPresentFromHash() {
+  var hash = window.location.hash.replace(/^#/, '');
+  var parts = hash.split('&');
+  for (var i = 0; i < parts.length; i++) {
+    var m = parts[i].match(/^present=(\d+)$/);
+    if (m) return parseInt(m[1], 10);
+  }
+  return null;
+}
+
+function maybeOpenFromHash() {
+  var idx = readPresentFromHash();
+  if (idx == null) {
+    if (state.open) close();
+    return;
+  }
+  // Wait for slides to be collected (they're created during render).
+  var waitUntil = Date.now() + 2000;
+  function tryOpen() {
+    collectSlides();
+    if (state.slides.length > 0) {
+      if (state.open) go(idx);
+      else open(idx);
+    } else if (Date.now() < waitUntil) {
+      setTimeout(tryOpen, 80);
+    }
+  }
+  tryOpen();
+}
+
+function syncFromHash() {
+  var idx = readPresentFromHash();
+  if (idx == null) {
+    if (state.open) close();
+  } else if (!state.open) {
+    maybeOpenFromHash();
+  } else {
+    go(idx);
+  }
+}
+
+var api = {
+  open: open,
+  close: close,
+  go: go,
+  refresh: refresh,
+  syncFromHash: syncFromHash,
+  maybeOpenFromHash: maybeOpenFromHash,
+  // Re-fit the active stage to its current wrap width. Called when the
+  // comment panel opens/closes, which changes the stage area: without a
+  // refit the stage keeps a height computed for the old width and the
+  // comment hit-layer (sized as % of the stage) misaligns until the next
+  // slide change re-runs sizeStage.
+  refit: function () { sizeStage(); },
+};
+return api;
+}
+
+var defaultPresentation = createPresentation({
+  root: function () { return document; },
+  styleSource: function () { return document.getElementById('_sd_rendered'); },
+  renderer: function () { return window.SDocShapeRender; },
+  comments: function () { return window.SDocSlideComments; },
+  mobile: function () { return window.SDocPresentMobile; },
+  exportPdf: function () {
+    if (window.SDocs && window.SDocs.exportSlidesPdf) window.SDocs.exportSlidesPdf();
+  },
+  exportPptx: function () {
+    if (window.SDocs && window.SDocs.exportSlidesPptx) window.SDocs.exportSlidesPptx();
+  },
+  onFocusChange: function () {
+    if (window.SDocs && window.SDocs.syncEmbedFocus) window.SDocs.syncEmbedFocus();
+  },
+  focus: function () { return !(window.SDocs && window.SDocs.embedMode); },
+});
+
+window.addEventListener('hashchange', function () { defaultPresentation.syncFromHash(); });
+
+// If the page loaded with present=N in the hash, attempt to open once the
+// document has finished rendering.
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { defaultPresentation.maybeOpenFromHash(); });
+  } else {
+    setTimeout(function () { defaultPresentation.maybeOpenFromHash(); }, 100);
+  }
+}
+
+window.SDocPresent = Object.assign({ create: createPresentation }, defaultPresentation);
+
+})();

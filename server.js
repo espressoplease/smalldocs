@@ -3298,7 +3298,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const sdkMermaidFrameMatch = /^\/sdk\/(0\.2\.0|0\.3\.0)\/mermaid-renderer\.html$/.exec(pathname);
+  const sdkMermaidFrameMatch = /^\/sdk\/(0\.2\.0|0\.3\.0|0\.3\.1)\/mermaid-renderer\.html$/.exec(pathname);
   if (sdkMermaidFrameMatch) {
     serveHtmlWithRewrite(res, path.join(__dirname, 'sdk', 'browser', 'releases',
       sdkMermaidFrameMatch[1], 'mermaid-renderer.html'), null, {
@@ -3310,9 +3310,10 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/sdk/0.3.0/vendor/sdocs-app-runner.html') {
+  const sdkAppFrameMatch = /^\/sdk\/(0\.3\.0|0\.3\.1)\/vendor\/sdocs-app-runner\.html$/.exec(pathname);
+  if (sdkAppFrameMatch) {
     serveHtmlWithRewrite(res, path.join(__dirname, 'sdk', 'browser', 'releases',
-      '0.3.0', 'vendor', 'sdocs-app-runner.html'), null, {
+      sdkAppFrameMatch[1], 'vendor', 'sdocs-app-runner.html'), null, {
       'Cache-Control': 'public, max-age=31536000, immutable',
       'Cross-Origin-Resource-Policy': 'cross-origin',
       'X-Content-Type-Options': 'nosniff',
@@ -3320,7 +3321,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const nativeSdkMatch = /^\/sdk\/(0\.2\.0|0\.3\.0)\/(release-manifest\.json|smalldocs\.js|smalldocs\.css|prose-reader\.css|code-reader\.css|slide-reader\.css|core\.js|assets\.js|runtime\.js|version\.js|overlay\.js|download\.js|mermaid-renderer\.js|features\/(?:code|math|video|charts|mermaid|cells|slides|apps|walkthrough|highlight)\.js|vendor\/(?:marked\.esm\.js|purify\.es\.mjs|fonts\/inter-(?:400|500|600)\.woff2|sdocs-(?:prose-reader|code-reader|slide-reader|video-reader|math-reader|mermaid-reader|mermaid-worker|chart-reader|cells|html-component-reader|walkthrough|docwalk)\.css|sdocs-code-lang\/[\w-]+\.js|sdocs-(?:yaml|styles|slugify|marked-del-core|math-core|highlight-core|prose-reader|code-reader|code-focus|slide-reader|present|present-mobile|zoom-math|mermaid|mermaid-focus|charts|cells|cells-formula|cells-xlsx|cells-controller|cells-select|cells-edit|cells-focus|cells-ui|shapes|slide-stdlib|slide-resolve|shape-render|slide-pdf|slide-pptx|video|icons-data|html-components|app-runner|docwalk)\.js))$/.exec(pathname);
+  const nativeSdkMatch = /^\/sdk\/(0\.2\.0|0\.3\.0|0\.3\.1)\/(release-manifest\.json|smalldocs\.js|smalldocs\.css|prose-reader\.css|code-reader\.css|slide-reader\.css|core\.js|assets\.js|runtime\.js|version\.js|overlay\.js|download\.js|mermaid-renderer\.js|features\/(?:code|math|video|charts|mermaid|cells|slides|apps|walkthrough|highlight)\.js|vendor\/(?:marked\.esm\.js|purify\.es\.mjs|fonts\/inter-(?:400|500|600)\.woff2|sdocs-(?:prose-reader|code-reader|slide-reader|video-reader|math-reader|mermaid-reader|mermaid-worker|chart-reader|cells|html-component-reader|walkthrough|docwalk)\.css|sdocs-code-lang\/[\w-]+\.js|sdocs-(?:yaml|styles|slugify|marked-del-core|math-core|highlight-core|prose-reader|code-reader|code-focus|slide-reader|present|present-mobile|zoom-math|mermaid|mermaid-focus|charts|cells|cells-formula|cells-xlsx|cells-controller|cells-select|cells-edit|cells-focus|cells-ui|shapes|slide-stdlib|slide-resolve|shape-render|slide-pdf|slide-pptx|video|icons-data|html-components|app-runner|docwalk)\.js))$/.exec(pathname);
   if (nativeSdkMatch) {
     serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'releases',
       nativeSdkMatch[1], nativeSdkMatch[2]), {

@@ -1,0 +1,551 @@
+// sdocs-cells.js - pure grid data model for ```cells fenced blocks.
+//
+// This is the BACKBONE of the cells/sheets feature. It is deliberately
+// just the model: parse a block body into an addressable grid of cells.
+// Every renderer (the inline grid, the future fullscreen sheet, the
+// future editor) and the exporter read FROM this model; none of them is
+// the source of truth. The DOM is always a view, never the data.
+//
+// A cell is two values from day one:
+//   { raw, value, type }
+//     raw   - exactly what the source held (a literal today, a formula
+//             string like "=B2-B3" tomorrow). Never rewritten.
+//     value - the computed display value. In v1 (no formula engine) this
+//             equals the parsed literal. When formulas land, only the
+//             compute step changes; raw already carries what it needs.
+//     type  - 'number' | 'text' | 'empty', drives alignment + display.
+//
+// The block body is CSV. That is on purpose: inline raw data and a future
+// {{file.csv}} transclusion then share one parser and one model, so those
+// two features are one code path rather than two with a seam between them.
+//
+// UMD so Node tests can require it directly; no DOM, no window.SDocs here.
+(function (exports) {
+  'use strict';
+
+  // Bijective base-26 spreadsheet column name. 0 -> A, 25 -> Z, 26 -> AA,
+  // 701 -> ZZ, 702 -> AAA. Matches how every spreadsheet labels columns.
+  function colName(index) {
+    var i = index + 1;
+    var s = '';
+    while (i > 0) {
+      var rem = (i - 1) % 26;
+      s = String.fromCharCode(65 + rem) + s;
+      i = Math.floor((i - 1) / 26);
+    }
+    return s;
+  }
+
+  // Inverse of colName: a column letter -> 0-based index ("A" -> 0, "AA" -> 26).
+  // Returns -1 for anything that isn't a run of A-Z letters.
+  function colIndex(letter) {
+    var s = String(letter).toUpperCase();
+    var n = 0;
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charCodeAt(i) - 64;   // A -> 1
+      if (c < 1 || c > 26) return -1;
+      n = n * 26 + c;
+    }
+    return s.length ? n - 1 : -1;
+  }
+
+  // Strict literal number: optional sign, digits, optional single decimal.
+  // No thousands separators in v1 - a bare "1,000" is two CSV fields, and a
+  // quoted "1,000" stays text rather than guessing the user's locale.
+  var NUMBER_RE = /^-?\d+(?:\.\d+)?$/;
+
+  // Classify a raw field string into a cell record. The trimmed text drives
+  // type detection; `raw` is preserved verbatim for display and round-trip.
+  function classify(raw) {
+    var t = String(raw).trim();
+    if (t === '') return { raw: raw, value: '', type: 'empty' };
+    if (NUMBER_RE.test(t)) return { raw: raw, value: Number(t), type: 'number' };
+    return { raw: raw, value: t, type: 'text' };
+  }
+
+  // Parse a CSV string into an array of row arrays of field strings.
+  // Handles quoted fields with embedded commas / newlines and "" escapes.
+  // Lenient by design: there is no such thing as a malformed sheet, only a
+  // ragged one (which parseCells pads).
+  function parseCsv(src) {
+    var rows = [];
+    var row = [];
+    var field = '';
+    var inQuotes = false;
+    var i = 0;
+    var n = src.length;
+    while (i < n) {
+      var ch = src.charAt(i);
+      if (inQuotes) {
+        if (ch === '"') {
+          if (src.charAt(i + 1) === '"') { field += '"'; i += 2; continue; }
+          inQuotes = false; i++; continue;
+        }
+        field += ch; i++; continue;
+      }
+      if (ch === '"') { inQuotes = true; i++; continue; }
+      if (ch === ',') { row.push(field); field = ''; i++; continue; }
+      if (ch === '\r') { i++; continue; }
+      if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+      field += ch; i++;
+    }
+    row.push(field);
+    rows.push(row);
+    return rows;
+  }
+
+  // A bare {{path/to/file.csv}} reference (optionally with a :range suffix).
+  // Present only when a doc is opened WITHOUT the CLI (which otherwise bakes
+  // the data in); the renderer shows a "load it with sdoc" message.
+  var REFERENCE_RE = /^\{\{\s*([^}]+?)\s*\}\}$/;
+  // The machine-generated metadata line the CLI prepends to a baked block:
+  //   sdoc-cells: source=report.csv range=B5:J32
+  //   sdoc-cells: error="Could not read report.csv"
+  var DIRECTIVE_RE = /^sdoc-cells:\s*(.*)$/;
+
+  // Parse `key=value` / `key="quoted value"` pairs from a directive line.
+  function parseDirectives(str) {
+    var meta = {};
+    var re = /(\w+)=(?:"([^"]*)"|(\S+))/g;
+    var m;
+    while ((m = re.exec(str))) meta[m[1]] = m[2] !== undefined ? m[2] : m[3];
+    return meta;
+  }
+
+  // Split a fence info string (everything after "cells ") into a workbook id
+  // and a sheet name. The first "/" separates them: "financials/Model" ->
+  // workbook "financials", name "Model". No slash -> default workbook "" and
+  // the whole string is the name. Everything after the first "/" is the name
+  // verbatim, so a sheet name may contain slashes; a workbook id may not. This
+  // is the one place both the browser renderer and the CLI split the fence, so
+  // the two never drift.
+  function parseFenceInfo(rest) {
+    var s = String(rest == null ? '' : rest).trim();
+    var slash = s.indexOf('/');
+    if (slash < 0) return { workbook: '', name: s };
+    return { workbook: s.slice(0, slash).trim(), name: s.slice(slash + 1).trim() };
+  }
+
+  // Build the grid model from a ```cells block body.
+  // Returns { rows, cols, cells, empty } where cells is row-major, every row
+  // padded to `cols` with empty cells so the grid is rectangular. May instead
+  // return { unresolved: <ref> } or { error: <msg> } for reference blocks.
+  function parseCells(src) {
+    var text = String(src == null ? '' : src);
+    // Drop leading blank lines and all trailing whitespace (incl. the final
+    // newline marked emits) but keep interior blank rows - a blank row is
+    // meaningful in a sheet.
+    var trimmed = text.replace(/^\n+/, '').replace(/\s+$/, '');
+    if (trimmed === '') return { rows: 0, cols: 0, cells: [], empty: true };
+
+    // Peel leading directive lines (in any order, machine or author):
+    //   sdoc-cells: source=... range=... error=... name=...  (baked metadata)
+    //   format: A=$ 2=% C3=plain                  (column, row, cell formats)
+    // `name` is the tab name. Authored as the fence info string (```cells
+    // Sales); the renderer + CLI normalise that into this directive so the
+    // name has one home in the model.
+    var source, range, formats, rowFormats, cellFormats, defaultFormat, name, workbook;
+    var lines = trimmed.split('\n');
+    var idx = 0;
+    var FORMAT_RE = /^format:\s*(.*)$/i;
+    while (idx < lines.length) {
+      var dm = lines[idx].match(DIRECTIVE_RE);
+      var fm = lines[idx].match(FORMAT_RE);
+      if (dm) {
+        var meta = parseDirectives(dm[1]);
+        source = meta.source; range = meta.range;
+        if (meta.name != null) name = meta.name;
+        if (meta.workbook != null) workbook = meta.workbook;
+        if (meta.error) return { empty: false, error: meta.error, source: source, name: name, workbook: workbook };
+        idx++; continue;
+      }
+      if (fm) {
+        var rules = parseFormatRules(fm[1]);
+        formats = mergeFormats(formats, rules.columns);
+        rowFormats = mergeFormats(rowFormats, rules.rows);
+        cellFormats = mergeFormats(cellFormats, rules.cells);
+        if (rules.defaultFormat) defaultFormat = rules.defaultFormat;
+        idx++; continue;
+      }
+      break;
+    }
+    var body = lines.slice(idx).join('\n').replace(/\s+$/, '');
+
+    // Unresolved reference (after directives): the CLI never baked it.
+    var ref = body.match(REFERENCE_RE);
+    if (ref) return { empty: false, unresolved: ref[1], formats: formats, rowFormats: rowFormats, cellFormats: cellFormats, defaultFormat: defaultFormat, name: name, workbook: workbook };
+    if (body === '') return { rows: 0, cols: 0, cells: [], empty: true, source: source, range: range, formats: formats, rowFormats: rowFormats, cellFormats: cellFormats, defaultFormat: defaultFormat, name: name, workbook: workbook };
+
+    var raw = parseCsv(body);
+    var cols = 0;
+    for (var r = 0; r < raw.length; r++) {
+      if (raw[r].length > cols) cols = raw[r].length;
+    }
+    var cells = [];
+    for (var r2 = 0; r2 < raw.length; r2++) {
+      var line = raw[r2];
+      var out = [];
+      for (var c = 0; c < cols; c++) {
+        out.push(classify(c < line.length ? line[c] : ''));
+      }
+      cells.push(out);
+    }
+    return { rows: raw.length, cols: cols, cells: cells, empty: false, source: source, range: range, formats: formats, rowFormats: rowFormats, cellFormats: cellFormats, defaultFormat: defaultFormat, name: name, workbook: workbook };
+  }
+
+  // Serialize a 2D array of raw cell strings back to CSV (RFC 4180 quoting:
+  // wrap in quotes and double any embedded quote when a field contains a
+  // comma, quote, or newline). The inverse of parseCsv for the copy actions.
+  function serializeCsv(rows) {
+    return rows.map(function (row) {
+      return row.map(function (v) {
+        var s = String(v == null ? '' : v);
+        return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(',');
+    }).join('\n');
+  }
+
+  // Stats for a selected rectangle [r0..r1] x [c0..c1] of a model. Numbers
+  // drive sum/avg/min/max; count is every non-empty cell (Excel's "Count").
+  // Cells past the data (fullscreen padding) read as empty. fx (optional) is
+  // a recalc results grid aligned to this model's rows: a formula cell then
+  // contributes its computed value (errors count as non-empty, not numeric).
+  function selectionStats(model, r0, c0, r1, c1, fx) {
+    var count = 0, numericCount = 0, sum = 0, min = null, max = null;
+    for (var r = r0; r <= r1; r++) {
+      var line = model.cells[r];
+      for (var c = c0; c <= c1; c++) {
+        var cell = line && line[c];
+        if (!cell || cell.type === 'empty') continue;
+        count++;
+        var isNum = cell.type === 'number';
+        var v = cell.value;
+        // A formula cell's raw is "=..." text; its computed result decides.
+        if (fx && cell.raw && cell.raw.charAt(0) === '=') {
+          var fxCell = fx[r] && fx[r][c];
+          isNum = !!fxCell && fxCell.kind === 'number';
+          if (isNum) v = fxCell.value;
+        }
+        if (isNum) {
+          numericCount++;
+          sum += v;
+          if (min === null || v < min) min = v;
+          if (max === null || v > max) max = v;
+        }
+      }
+    }
+    return {
+      count: count,
+      numericCount: numericCount,
+      sum: sum,
+      avg: numericCount > 0 ? sum / numericCount : null,
+      min: min,
+      max: max,
+    };
+  }
+
+  // Heuristic: is row 0 a header? True when row 0 has no numbers and there is
+  // numeric data below it - so a sort can keep it pinned to the top.
+  function looksLikeHeader(model) {
+    if (!model || model.rows < 2) return false;
+    var row0 = model.cells[0];
+    for (var c = 0; c < model.cols; c++) {
+      if (row0[c] && row0[c].type === 'number') return false;
+    }
+    for (var r = 1; r < model.rows; r++) {
+      var line = model.cells[r];
+      for (var c2 = 0; c2 < model.cols; c2++) {
+        if (line[c2] && line[c2].type === 'number') return true;
+      }
+    }
+    return false;
+  }
+
+  // Sort key: numbers (rank 0) sort before text (rank 1); empty (rank 2) last.
+  // fxCell, when given, is the cell's computed formula result ({kind, value} /
+  // {kind: 'error', code}) and takes precedence: a formula sorts by the value
+  // the user sees, not by its "=..." source text. Errors sort with text.
+  function sortKey(cell, fxCell) {
+    if (fxCell && fxCell.kind === 'number') return { rank: 0, v: fxCell.value };
+    if (fxCell && fxCell.kind === 'error') return { rank: 1, v: String(fxCell.code || '').toLowerCase() };
+    if (fxCell && (fxCell.kind === 'text' || fxCell.kind === 'boolean')) {
+      return { rank: 1, v: String(fxCell.value).toLowerCase() };
+    }
+    if (!cell || cell.type === 'empty') return { rank: 2, v: 0 };
+    if (cell.type === 'number') return { rank: 0, v: cell.value };
+    return { rank: 1, v: String(cell.value).toLowerCase() };
+  }
+
+  // A summary row aggregates other rows: it holds at least one formula with a
+  // range spanning 2+ rows, e.g. =SUM(D2:D5). Per-row formulas (=B2*C2) refer
+  // to single cells and do not count. Used by sortRows to keep a trailing
+  // "Total" row pinned at the bottom instead of jumbling it into the data.
+  var ROW_RANGE_RE = /[A-Za-z]+([0-9]+)\s*:\s*[A-Za-z]+([0-9]+)/;
+  function isSummaryRow(row) {
+    if (!row) return false;
+    for (var i = 0; i < row.length; i++) {
+      var raw = row[i] && row[i].raw;
+      if (!raw || raw.charAt(0) !== '=') continue;
+      var m = ROW_RANGE_RE.exec(raw);
+      if (m && m[1] !== m[2]) return true;       // the range spans rows
+    }
+    return false;
+  }
+
+  // Return the row order (array of original indices) sorting the model by a
+  // column. A view reorder - the model itself is not changed. Empty cells stay
+  // last either direction; a header row (when hasHeader) stays pinned to row 0;
+  // trailing summary rows (see isSummaryRow) stay pinned at the bottom.
+  // fx (optional) is a recalc results grid indexed by SOURCE row: formula
+  // cells then sort by their computed value instead of their source text.
+  function sortRows(model, col, dir, hasHeader, fx) {
+    var order = [];
+    for (var r = 0; r < model.rows; r++) order.push(r);
+    var start = hasHeader ? 1 : 0;
+    // Trailing summary rows (a Total / Average footer) sit outside the sort,
+    // in their original order.
+    var end = model.rows;
+    while (end > start && isSummaryRow(model.cells[end - 1])) end--;
+    var head = order.slice(0, start);
+    var tail = order.slice(end);
+    var body = order.slice(start, end);
+    var sign = dir === 'desc' ? -1 : 1;
+    function fxFor(r, cell) {
+      if (!fx || !cell || !cell.raw || cell.raw.charAt(0) !== '=') return null;
+      return (fx[r] && fx[r][col]) || null;
+    }
+    body.sort(function (ra, rb) {
+      var ca = model.cells[ra] && model.cells[ra][col];
+      var cb = model.cells[rb] && model.cells[rb][col];
+      var a = sortKey(ca, fxFor(ra, ca));
+      var b = sortKey(cb, fxFor(rb, cb));
+      if (a.rank === 2 || b.rank === 2) return a.rank - b.rank;  // empty always last
+      if (a.rank !== b.rank) return (a.rank - b.rank) * sign;
+      if (a.v < b.v) return -1 * sign;
+      if (a.v > b.v) return 1 * sign;
+      return 0;
+    });
+    return head.concat(body).concat(tail);
+  }
+
+  // Display formatting for a numeric raw string: group the integer part with
+  // thousands separators, preserve the sign and the decimal part verbatim
+  // (so "1234.50" keeps its trailing zero). Display only - the model's raw is
+  // untouched, so copy / export still emit the original value.
+  function formatNumber(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    var neg = s.charAt(0) === '-';
+    if (neg) s = s.slice(1);
+    var dot = s.indexOf('.');
+    var intPart = dot === -1 ? s : s.slice(0, dot);
+    var rest = dot === -1 ? '' : s.slice(dot);
+    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (neg ? '-' : '') + intPart + rest;
+  }
+
+  // Parse one format token into a spec: { kind, symbol?, decimals? }.
+  // Tokens: $ / usd / currency, £ / gbp, € / eur, % / percent, , / comma /
+  // number, plain / text / raw, plus an optional trailing .N for decimals
+  // (e.g. "$.0", "%.1", ".2"). Unknown tokens return null.
+  function parseFmtToken(tok) {
+    var t = String(tok).trim();
+    var decimals = null;
+    var dm = t.match(/\.(\d+)$/);
+    if (dm) {
+      decimals = Math.min(30, parseInt(dm[1], 10));
+      t = t.slice(0, t.length - dm[0].length);
+    }
+    var lc = t.toLowerCase();
+    if (t === '$' || lc === 'usd' || lc === 'currency') return { kind: 'currency', symbol: '$', decimals: decimals == null ? 2 : decimals };
+    if (t === '£' || lc === 'gbp') return { kind: 'currency', symbol: '£', decimals: decimals == null ? 2 : decimals };
+    if (t === '€' || lc === 'eur') return { kind: 'currency', symbol: '€', decimals: decimals == null ? 2 : decimals };
+    if (t === '%' || lc === 'percent') { var p = { kind: 'percent' }; if (decimals != null) p.decimals = decimals; return p; }
+    if (t === ',' || lc === 'comma' || lc === 'number' || lc === 'num') { var nn = { kind: 'number' }; if (decimals != null) nn.decimals = decimals; return nn; }
+    if (lc === 'plain' || lc === 'text' || lc === 'raw') return { kind: 'plain' };
+    if (t === '' && decimals != null) return { kind: 'number', decimals: decimals };
+    return null;
+  }
+
+  // Parse a per-column format spec like "A=plain B=$ C=%.1" into a map
+  // { colIndex: fmt }. Keys are column letters; unknown tokens are skipped.
+  function parseFormats(spec) {
+    return parseFormatRules(spec).columns;
+  }
+
+  function mergeFormats(base, extra) {
+    var out = base || {};
+    Object.keys(extra || {}).forEach(function (key) { out[key] = extra[key]; });
+    return out;
+  }
+
+  // Parse one compact format directive. Targets mirror spreadsheet addresses:
+  //   *=.2       whole sheet
+  //   B=$        column B
+  //   4=%        row 4
+  //   C7=plain   cell C7
+  // Specific targets override broader ones when resolveFormat() is called.
+  function parseFormatRules(spec) {
+    var out = {};
+    var rows = {};
+    var cells = {};
+    var defaultFormat = null;
+    // Both sides must end at whitespace boundaries. Without these anchors a
+    // typo such as A-2=% could be recovered as the unrelated valid rule 2=%.
+    var re = /(^|\s)(\*|[A-Za-z]+[1-9]\d*|[A-Za-z]+|[1-9]\d*)\s*=\s*(\S+)(?=\s|$)/g;
+    var m;
+    while ((m = re.exec(String(spec)))) {
+      var target = m[2];
+      var fmt = parseFmtToken(m[3]);
+      if (!fmt) continue;
+      if (target === '*') { defaultFormat = fmt; continue; }
+      if (/^[1-9]\d*$/.test(target)) { rows[parseInt(target, 10) - 1] = fmt; continue; }
+      var cell = target.match(/^([A-Za-z]+)([1-9]\d*)$/);
+      if (cell) {
+        var cellCol = colIndex(cell[1]);
+        if (cellCol >= 0) cells[(parseInt(cell[2], 10) - 1) + ':' + cellCol] = fmt;
+        continue;
+      }
+      var col = colIndex(target);
+      if (col >= 0) out[col] = fmt;
+    }
+    return { columns: out, rows: rows, cells: cells, defaultFormat: defaultFormat };
+  }
+
+  // Resolve display/export formatting with predictable spreadsheet precedence:
+  // built-in two-decimal maximum < whole sheet < column < row < cell.
+  function resolveFormat(model, row, col) {
+    var fmt = { kind: 'number', decimals: 2, trim: true };
+    if (model && model.defaultFormat) fmt = model.defaultFormat;
+    if (model && model.formats && model.formats[col]) fmt = model.formats[col];
+    if (model && model.rowFormats && model.rowFormats[row]) fmt = model.rowFormats[row];
+    if (model && model.cellFormats && model.cellFormats[row + ':' + col]) fmt = model.cellFormats[row + ':' + col];
+    return fmt;
+  }
+
+  // Parse a decimal string without passing through binary floating point.
+  // Formula values may arrive in exponent form; literal cells never do.
+  function decimalParts(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    var negative = s.charAt(0) === '-';
+    if (negative || s.charAt(0) === '+') s = s.slice(1);
+    var m = s.match(/^(\d+)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/);
+    if (!m) return null;
+    var integer = m[1];
+    var fraction = m[2] || '';
+    var exponent = m[3] ? parseInt(m[3], 10) : 0;
+    if (exponent) {
+      var digits = integer + fraction;
+      var point = integer.length + exponent;
+      if (point <= 0) {
+        integer = '0';
+        fraction = new Array(-point + 1).join('0') + digits;
+      } else if (point >= digits.length) {
+        integer = digits + new Array(point - digits.length + 1).join('0');
+        fraction = '';
+      } else {
+        integer = digits.slice(0, point);
+        fraction = digits.slice(point);
+      }
+    }
+    integer = integer.replace(/^0+(?=\d)/, '');
+    return { negative: negative, integer: integer || '0', fraction: fraction };
+  }
+
+  function incrementDigits(digits) {
+    var chars = digits.split('');
+    for (var i = chars.length - 1; i >= 0; i--) {
+      if (chars[i] !== '9') {
+        chars[i] = String.fromCharCode(chars[i].charCodeAt(0) + 1);
+        return chars.join('');
+      }
+      chars[i] = '0';
+    }
+    return '1' + chars.join('');
+  }
+
+  // Round half away from zero, matching spreadsheet display semantics. The
+  // returned string is exact even for integers beyond Number.MAX_SAFE_INTEGER.
+  function roundDecimalString(raw, decimals, trim) {
+    var parts = decimalParts(raw);
+    if (!parts) return null;
+    var d = Math.max(0, Math.min(30, decimals));
+    var fraction = parts.fraction.slice(0, d);
+    while (fraction.length < d) fraction += '0';
+    var digits = parts.integer + fraction;
+    if ((parts.fraction.charAt(d) || '0') >= '5') digits = incrementDigits(digits);
+    if (digits.length <= d) digits = new Array(d - digits.length + 2).join('0') + digits;
+    var split = digits.length - d;
+    var integer = d ? digits.slice(0, split) : digits;
+    fraction = d ? digits.slice(split) : '';
+    integer = integer.replace(/^0+(?=\d)/, '') || '0';
+    if (trim) fraction = fraction.replace(/0+$/, '');
+    var zero = /^0+$/.test(integer) && (!fraction || /^0+$/.test(fraction));
+    return (parts.negative && !zero ? '-' : '') + integer + (fraction ? '.' + fraction : '');
+  }
+
+  function shiftDecimalString(raw, places) {
+    var parts = decimalParts(raw);
+    if (!parts) return null;
+    var digits = parts.integer + parts.fraction;
+    var point = parts.integer.length + places;
+    var out;
+    if (point <= 0) out = '0.' + new Array(-point + 1).join('0') + digits;
+    else if (point >= digits.length) out = digits + new Array(point - digits.length + 1).join('0');
+    else out = digits.slice(0, point) + '.' + digits.slice(point);
+    return (parts.negative ? '-' : '') + out;
+  }
+
+  // Excel calculates to 15 significant decimal digits. Formula results arrive
+  // here as IEEE Numbers, whose shortest JS string can expose a 16th or 17th
+  // binary-conversion digit when a user requests a high-precision format.
+  function displayRaw(cell) {
+    if (!cell.computed || !isFinite(cell.value) || cell.value === 0) return cell.raw;
+    return Number(cell.value).toPrecision(15);
+  }
+
+  // Format a numeric cell's display per a column format. Returns null for
+  // non-number cells (the caller falls back to text rendering). Display only -
+  // the model's raw is untouched, so copy / export emit the original.
+  function formatValue(cell, fmt) {
+    if (!cell || cell.type !== 'number') return null;
+    var raw = displayRaw(cell);
+    if (!fmt || fmt.kind === 'number') {
+      var decimals = !fmt ? 2 : fmt.decimals;
+      var numberText = decimals != null
+        ? roundDecimalString(raw, decimals, !fmt || fmt.trim)
+        : raw;
+      return formatNumber(numberText);
+    }
+    if (fmt.kind === 'plain') return cell.raw;
+    if (fmt.kind === 'currency') {
+      var d = fmt.decimals == null ? 2 : fmt.decimals;
+      var money = roundDecimalString(raw, d, false);
+      var moneyNegative = money && money.charAt(0) === '-';
+      if (moneyNegative) money = money.slice(1);
+      return (moneyNegative ? '-' : '') + fmt.symbol + formatNumber(money);
+    }
+    if (fmt.kind === 'percent') {
+      var shifted = shiftDecimalString(raw, 2);
+      var str = roundDecimalString(shifted, fmt.decimals == null ? 2 : fmt.decimals,
+        fmt.decimals == null);
+      return formatNumber(str) + '%';
+    }
+    return formatNumber(cell.raw);
+  }
+
+  exports.colName = colName;
+  exports.classify = classify;
+  exports.parseCsv = parseCsv;
+  exports.parseCells = parseCells;
+  exports.parseFenceInfo = parseFenceInfo;
+  exports.serializeCsv = serializeCsv;
+  exports.selectionStats = selectionStats;
+  exports.formatNumber = formatNumber;
+  exports.colIndex = colIndex;
+  exports.parseFormats = parseFormats;
+  exports.parseFormatRules = parseFormatRules;
+  exports.resolveFormat = resolveFormat;
+  exports.formatValue = formatValue;
+  exports.looksLikeHeader = looksLikeHeader;
+  exports.sortRows = sortRows;
+})(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocCells = {}));

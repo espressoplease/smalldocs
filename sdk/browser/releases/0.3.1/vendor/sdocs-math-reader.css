@@ -1,0 +1,24 @@
+@layer smalldocs {
+@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.3.1"]) {
+/* Canonical math surface shared by the SmallDocs app and renderer SDK. */
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) .sdocs-math-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 1em 0;
+  padding: 0.25em 0;
+}
+:is(#_sd_rendered, .sdoc-reader) .sdocs-math-display .katex-display { margin: 0; }
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) .sdocs-math-inline { white-space: nowrap; }
+:is(#_sd_rendered, .sdoc-reader) .sdocs-math-display:empty::before,
+:is(#_sd_rendered, .sdoc-reader) .sdocs-math-inline:empty::before {
+  content: attr(data-tex);
+  font-family: var(--md-code-font, monospace);
+  color: var(--text-2, var(--sdocs-muted-color, #888));
+  font-size: 0.95em;
+}
+
+}
+}
+@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.3.1"]) {
+.sdocs-math-display .katex-display { margin: 0; }
+}

@@ -382,7 +382,7 @@ module.exports = function(harness) {
 
   test('versioned SDK reader snapshot matches canonical production sources', () => {
     const repo = path.join(__dirname, '..');
-    const releaseRoot = path.join(repo, 'sdk', 'browser', 'releases', '0.3.0');
+    const releaseRoot = path.join(repo, 'sdk', 'browser', 'releases', '0.3.1');
     const manifestPath = path.join(releaseRoot, 'vendor', 'reader-manifest.json');
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     Object.keys(manifest).forEach((targetName) => {
@@ -399,13 +399,13 @@ module.exports = function(harness) {
       assert.strictEqual(hash(target), manifest[targetName].sha256,
         targetName + ' transformed SDK snapshot has drifted');
       if (manifest[targetName].transform === 'manual-sdk-adapter') return;
-      assert.ok(target.toString('utf8').startsWith('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.3.0"]) {\n'),
+      assert.ok(target.toString('utf8').startsWith('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.3.1"]) {\n'),
         targetName + ' must remain layered and scoped to the exact SDK version');
       if (targetName === 'sdocs-cells.css') {
         const css = target.toString('utf8');
         assert.ok(css.includes('.sdoc-cells-focus-topbar'),
           'cells focus descendant class names must survive the SDK scope transform');
-        assert.ok(!css.includes('data-smalldocs-sdk-version="0.3.0"]-topbar'),
+        assert.ok(!css.includes('data-smalldocs-sdk-version="0.3.1"]-topbar'),
           'the SDK scope transform must not splice the version marker into class names');
       }
     });

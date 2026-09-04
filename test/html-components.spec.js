@@ -178,6 +178,25 @@ test('component responsive CSS can change its inline height', async ({ page }) =
   await expect.poll(async () => page.locator('.sdoc-app-frame-inline').evaluate((frame) => frame.getBoundingClientRect().height)).toBe(220);
 });
 
+test('transformed responsive content does not make inline height oscillate', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 800 });
+  const transformed = '<!doctype html><html><head><title>Stable app</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body{margin:0;padding:0}.surface{height:220px}.arrow{width:100%;height:20px}@media(max-width:700px){.arrow{transform:rotate(90deg)}}</style></head><body><main class="surface">Stable</main><div class="arrow">Arrow</div></body></html>';
+  await loadDoc(page, app(transformed));
+  const frame = page.locator('.sdoc-app-frame-inline');
+  await expect.poll(async () => frame.evaluate((element) => element.getBoundingClientRect().height)).toBe(240);
+  await expect(page.frameLocator('.sdoc-app-frame-inline').locator('.arrow')).toHaveCSS('transform', /matrix/);
+
+  const heights = await frame.evaluate(async (element) => {
+    const samples = [];
+    for (let index = 0; index < 90; index += 1) {
+      samples.push(element.getBoundingClientRect().height);
+      await new Promise((resolve) => setTimeout(resolve, 16));
+    }
+    return Array.from(new Set(samples));
+  });
+  expect(heights).toEqual([240]);
+});
+
 test('rerender removes fullscreen and old component browsing contexts', async ({ page }) => {
   await loadDoc(page, app(counterApp));
   await page.getByRole('button', { name: 'Open Counter surface in fullscreen' }).click();

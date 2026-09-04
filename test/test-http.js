@@ -335,6 +335,25 @@ module.exports = function(harness) {
       assert.strictEqual(JSON.parse(manifest.body).version, '0.3.0');
     });
 
+    await testAsync('SDK 0.3.1 serves the runnable height patch immutably', async () => {
+      const entry = await get(BASE + '/sdk/0.3.1/smalldocs.js');
+      assert.strictEqual(entry.status, 200);
+      assert.ok(entry.headers['cache-control'].includes('immutable'));
+      const version = await get(BASE + '/sdk/0.3.1/version.js');
+      assert.strictEqual(version.status, 200);
+      assert.ok(version.body.includes("SDK_VERSION = '0.3.1'"));
+      const runner = await get(BASE + '/sdk/0.3.1/vendor/sdocs-app-runner.js');
+      assert.strictEqual(runner.status, 200);
+      assert.ok(runner.body.includes("'function measure(){var body=document.body"));
+      assert.ok(!runner.body.includes('var viewport=Math.max'));
+      const frame = await get(BASE + '/sdk/0.3.1/vendor/sdocs-app-runner.html');
+      assert.strictEqual(frame.status, 200);
+      assert.strictEqual(frame.headers['cross-origin-resource-policy'], 'cross-origin');
+      const manifest = await get(BASE + '/sdk/0.3.1/release-manifest.json');
+      assert.strictEqual(manifest.status, 200);
+      assert.strictEqual(JSON.parse(manifest.body).version, '0.3.1');
+    });
+
     await testAsync('previous SDK contracts remain available', async () => {
       const previous = await get(BASE + '/sdk/0.1.0/smalldocs.js');
       assert.strictEqual(previous.status, 200);
