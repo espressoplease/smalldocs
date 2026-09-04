@@ -842,7 +842,9 @@ module.exports = function(harness) {
     });
 
     await testAsync('version-check writes a row with the reported cohort and no ip_hash', async () => {
-      await get(BASE + '/version-check?cohort=2026-W99');
+      await get(BASE + '/version-check?cohort=2026-W99&lt=short&src=x');
+      await get(BASE + '/version-check?cohort=2026-W98&lt=short&src=yt');
+      await get(BASE + '/version-check?cohort=2026-W97&lt=short&src=linkedin');
       const Database = require('better-sqlite3');
       const db = new Database(testDbPath, { readonly: true });
       try {
@@ -850,6 +852,10 @@ module.exports = function(harness) {
         assert.ok(row, 'expected a visits row for cohort 2026-W99');
         assert.strictEqual(row.cohort_week, '2026-W99');
         assert.ok(row.visit_week, 'visit_week should be set');
+        assert.strictEqual(row.load_type, 'short');
+        assert.strictEqual(row.traffic_source, 'x');
+        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2026-W98' ORDER BY id DESC LIMIT 1").get().traffic_source, 'youtube');
+        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2026-W97' ORDER BY id DESC LIMIT 1").get().traffic_source, 'linkedin');
         assert.ok(!('ip_hash' in row), 'visits row must not carry an ip_hash column');
       } finally {
         db.close();

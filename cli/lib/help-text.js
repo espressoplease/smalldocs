@@ -20,6 +20,12 @@ USAGE
   sdoc share <file>                Copy shareable link to clipboard
   sdoc share <file> --section "X"  Link with section anchor
   sdoc share <file> --short        Encrypted /s/<id> short link (see SHORT LINKS)
+  sdoc share <file> --short --source x
+                                   Short link attributed to X visits
+  sdoc share <file> --short --source yt
+                                   Short link attributed to YouTube visits
+  sdoc share <file> --short --source linkedin
+                                   Short link attributed to LinkedIn visits
   sdoc schema                      Print the full styles schema
   sdoc charts                      Chart types, options, and styling guide
   sdoc diagrams                    Mermaid diagrams reference (\`\`\`mermaid blocks)
@@ -83,6 +89,8 @@ OPTIONS
   --mode <m>            Alias for --read / --write / --style / --raw / --comment
   --short               Use the encrypted /s/<id> short-URL form (share
                         subcommand only). See SHORT LINKS below.
+  --source <source>     Add a coarse source marker to a short link. Supported
+                        social labels are x, yt or youtube, and linkedin or li.
   --json                Machine-readable output for safe and Cloud commands.
   --audit               Also print GitHub links to server-side source
                         files (safe subcommand only).
@@ -201,6 +209,12 @@ SHORT LINKS (sdoc share --short)
   hash, which the browser does not send to any server.
 
   \`--short\` produces a shorter, encrypted form: \`https://smalldocs.org/s/<id>#k=<key>\`.
+
+  Add \`--source x\`, \`--source yt\`, or \`--source linkedin\` when publishing
+  on those channels. This produces a URL such as
+  \`https://smalldocs.org/s/<id>?src=yt#k=<key>\`. The source marker contributes
+  to the social-source graph at \`/analytics\`; the visit still counts in the
+  ordinary visit and short-link totals.
 
   How it works:
     1. The CLI brotli-compresses the content, generates a 256-bit AES-GCM

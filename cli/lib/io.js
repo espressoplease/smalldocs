@@ -39,6 +39,7 @@ function parseArgs(argv) {
   let url = null;
   let subcommand = null;
   let section = null;
+  let sourceFlag = null;
   let theme = null;
   let resetFlag = false;
   let shortFlag = false;
@@ -115,6 +116,7 @@ function parseArgs(argv) {
 
     if (arg === '--url') { url = args[++i]; continue; }
     if (arg === '--section' || arg === '-s') { section = args[++i]; continue; }
+    if (arg === '--source') { sourceFlag = args[++i]; continue; }
     if (arg === '--reset') { resetFlag = true; continue; }
     if (arg === '--short') { shortFlag = true; continue; }
     if (arg === '--json')  { jsonFlag  = true; continue; }
@@ -198,7 +200,7 @@ function parseArgs(argv) {
   }
 
   return {
-    file, extra, mode, url, subcommand, section, theme,
+    file, extra, mode, url, subcommand, section, sourceFlag, theme,
     resetFlag, shortFlag, jsonFlag, auditFlag, waitFlag,
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,

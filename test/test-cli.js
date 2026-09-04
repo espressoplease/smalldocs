@@ -230,6 +230,18 @@ module.exports = function(harness) {
     assert.strictEqual(result.section, 'Usage');
   });
 
+  test('parseArgs: share with a traffic source', () => {
+    const result = cli.parseArgs(['share', 'doc.md', '--short', '--source', 'x']);
+    assert.strictEqual(result.subcommand, 'share');
+    assert.strictEqual(result.shortFlag, true);
+    assert.strictEqual(result.sourceFlag, 'x');
+  });
+
+  test('parseArgs: share accepts YouTube and LinkedIn source labels', () => {
+    assert.strictEqual(cli.parseArgs(['share', 'doc.md', '--short', '--source', 'yt']).sourceFlag, 'yt');
+    assert.strictEqual(cli.parseArgs(['share', 'doc.md', '--short', '--source', 'linkedin']).sourceFlag, 'linkedin');
+  });
+
   test('parseArgs: new subcommand', () => {
     const result = cli.parseArgs(['new']);
     assert.strictEqual(result.subcommand, 'new');

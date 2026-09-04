@@ -2815,6 +2815,9 @@ const server = http.createServer((req, res) => {
     const localDow = url.searchParams.get('ld');
     // How the page opened (short / hash / local / app). logVisit allowlists it.
     const loadType = url.searchParams.get('lt');
+    // Coarse entry-source attribution, frozen by the page at initial load.
+    // The analytics layer allowlists values and stores no campaign or user ID.
+    const trafficSource = url.searchParams.get('src');
     // u=1 means this check fired because the page auto-reloaded for an update.
     // The tab's original load was already counted, and one deploy reloads every
     // open tab, so counting reload re-checks would inflate visits by one per
@@ -2831,7 +2834,7 @@ const server = http.createServer((req, res) => {
         reloadRecheck ? 'reload' : 'visit',
       ].join(' | '));
       if (!reloadRecheck) {
-        try { analytics.logVisit(cohort, req.headers['user-agent'] || '', req.headers['referer'] || '', localHour, localDow, loadType); } catch (e) { /* analytics failure should not break version-check */ }
+        try { analytics.logVisit(cohort, req.headers['user-agent'] || '', req.headers['referer'] || '', localHour, localDow, loadType, trafficSource); } catch (e) { /* analytics failure should not break version-check */ }
       }
     }
     res.writeHead(200, {

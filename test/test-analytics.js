@@ -340,6 +340,86 @@ module.exports = function (harness) {
     assert.strictEqual(m.loadTypes.find(r => r.type === 'app').count, 3);
   });
 
+  console.log('\n-- Analytics: Social Attribution Tests ---------------\n');
+
+  test('logVisit stores recognized social attribution and rejects unknown tags', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'x');
+    analyticsDb.logVisit('2026-W15', '', 'https://t.co/abc', null, null, 'short');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'yt');
+    analyticsDb.logVisit('2026-W15', '', 'https://m.youtube.com/watch?v=abc', null, null, 'short');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'linkedin');
+    analyticsDb.logVisit('2026-W15', '', 'https://lnkd.in/abc', null, null, 'short');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'newsletter');
+    analyticsDb.flush();
+    const db = analyticsDb.getDB();
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'x'").get().c, 2);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'youtube'").get().c, 2);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'linkedin'").get().c, 2);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = ''").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'short'").get().c, 7,
+      'source attribution does not remove visits from the short-link bucket');
+  });
+
+  test('getRetentionData returns weekly social series without changing total volume', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    const db = analyticsDb.getDB();
+    const ins = db.prepare('INSERT INTO visits (cohort_week, visit_week, referer, load_type, traffic_source) VALUES (?, ?, ?, ?, ?)');
+    ins.run('2026-W15', '2026-W15', 'direct', 'short', 'x');
+    ins.run('2026-W15', '2026-W15', 't.co', 'short', '');
+    ins.run('2026-W15', '2026-W15', 'direct', 'short', '');
+    ins.run('2026-W15', '2026-W16', 'direct', 'short', 'x');
+    ins.run('2026-W15', '2026-W16', 'youtube.com', 'short', '');
+    ins.run('2026-W15', '2026-W16', 'direct', 'short', 'linkedin');
+    const data = analyticsQuery.getRetentionData();
+    assert.deepStrictEqual(data.xVisits, [
+      { visit_week: '2026-W15', visits: 2 },
+      { visit_week: '2026-W16', visits: 1 },
+    ]);
+    assert.deepStrictEqual(data.youtubeVisits, [{ visit_week: '2026-W16', visits: 1 }]);
+    assert.deepStrictEqual(data.linkedinVisits, [{ visit_week: '2026-W16', visits: 1 }]);
+    assert.strictEqual(data.volume.find(r => r.visit_week === '2026-W15').visits, 3);
+    assert.strictEqual(data.loadTypes.find(r => r.type === 'short').count, 6);
+  });
+
+  test('readVisitPayload recovers historical social visits from a legacy referrer column', () => {
+    const Database = require('better-sqlite3');
+    const legacy = new Database(':memory:');
+    legacy.exec(`CREATE TABLE visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cohort_week TEXT NOT NULL DEFAULT '',
+      visit_week TEXT NOT NULL,
+      device TEXT NOT NULL DEFAULT '',
+      browser TEXT NOT NULL DEFAULT '',
+      referer TEXT NOT NULL DEFAULT ''
+    );`);
+    legacy.prepare("INSERT INTO visits (cohort_week, visit_week, referer) VALUES ('2026-W10', '2026-W10', 't.co')").run();
+    legacy.prepare("INSERT INTO visits (cohort_week, visit_week, referer) VALUES ('2026-W10', '2026-W10', 'youtu.be')").run();
+    legacy.prepare("INSERT INTO visits (cohort_week, visit_week, referer) VALUES ('2026-W10', '2026-W10', 'linkedin.com')").run();
+    const payload = analyticsQuery.readVisitPayload(legacy);
+    assert.deepStrictEqual(payload.xVisits, [{ visit_week: '2026-W10', visits: 1 }]);
+    assert.deepStrictEqual(payload.youtubeVisits, [{ visit_week: '2026-W10', visits: 1 }]);
+    assert.deepStrictEqual(payload.linkedinVisits, [{ visit_week: '2026-W10', visits: 1 }]);
+    legacy.close();
+  });
+
+  test('mergeVisitPayloads sums social visits by week', () => {
+    const a = { xVisits: [{ visit_week: '2026-W15', visits: 3 }], youtubeVisits: [{ visit_week: '2026-W15', visits: 2 }], linkedinVisits: [] };
+    const b = { xVisits: [{ visit_week: '2026-W15', visits: 2 }, { visit_week: '2026-W16', visits: 1 }], youtubeVisits: [{ visit_week: '2026-W16', visits: 4 }], linkedinVisits: [{ visit_week: '2026-W16', visits: 1 }] };
+    const merged = analyticsQuery.mergeVisitPayloads(a, b);
+    assert.deepStrictEqual(merged.xVisits, [
+      { visit_week: '2026-W15', visits: 5 },
+      { visit_week: '2026-W16', visits: 1 },
+    ]);
+    assert.deepStrictEqual(merged.youtubeVisits, [
+      { visit_week: '2026-W15', visits: 2 },
+      { visit_week: '2026-W16', visits: 4 },
+    ]);
+    assert.deepStrictEqual(merged.linkedinVisits, [{ visit_week: '2026-W16', visits: 1 }]);
+  });
+
   console.log('\n── Analytics: Segment Tests (per-channel cohorts, per-week day/hour) ──\n');
 
   test('getRetentionData builds cohortsByType, dowByWeek and hourByWeek', () => {

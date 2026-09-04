@@ -183,6 +183,7 @@ self.addEventListener('message', function (e) {
     if (typeof e.data.lh === 'number') qs += '&lh=' + encodeURIComponent(e.data.lh);
     if (typeof e.data.ld === 'number') qs += '&ld=' + encodeURIComponent(e.data.ld);
     if (e.data.lt) qs += '&lt=' + encodeURIComponent(e.data.lt);
+    if (e.data.src) qs += '&src=' + encodeURIComponent(e.data.src);
     fetch('/version-check' + qs).then(function (res) {
       return res.json();
     }).then(function (data) {

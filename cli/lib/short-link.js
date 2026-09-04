@@ -95,7 +95,12 @@ async function buildShortUrl(content, opts) {
   if (opts.theme) params.set('theme', opts.theme);
   if (opts.section) params.set('sec', slugify(opts.section));
 
-  return `${baseUrl}/s/${id}#${params.toString()}`;
+  // Source attribution belongs in the query so the server can receive it. The
+  // encryption key stays after # and therefore never leaves the browser. The
+  // short-link id and encrypted payload are unchanged by this label.
+  const source = String(opts.source || '').trim().toLowerCase();
+  const sourceQuery = source ? `?src=${encodeURIComponent(source)}` : '';
+  return `${baseUrl}/s/${id}${sourceQuery}#${params.toString()}`;
 }
 
 module.exports = {

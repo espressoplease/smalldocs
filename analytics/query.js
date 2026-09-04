@@ -103,9 +103,30 @@ function readVisitPayload(db) {
     ).all();
   } catch (e) { loadTypes = []; }
 
+  // Social attribution is an overlapping dimension, not a replacement bucket.
+  // Tagged links use traffic_source. Historical untagged visits can still be
+  // recovered from the already-stored coarse referrer category.
+  function weeklySource(source, referrerSql) {
+    try {
+      return db.prepare(
+        "SELECT visit_week, COUNT(*) AS visits FROM visits WHERE traffic_source = '" + source + "' OR " + referrerSql + " GROUP BY visit_week ORDER BY visit_week"
+      ).all();
+    } catch (e) {
+      try {
+        return db.prepare(
+          "SELECT visit_week, COUNT(*) AS visits FROM visits WHERE " + referrerSql + " GROUP BY visit_week ORDER BY visit_week"
+        ).all();
+      } catch (legacyError) { return []; }
+    }
+  }
+  var xVisits = weeklySource('x', "referer = 't.co' OR referer = 'x.com' OR referer LIKE '%.x.com' OR referer = 'twitter.com' OR referer LIKE '%.twitter.com'");
+  var youtubeVisits = weeklySource('youtube', "referer = 'youtu.be' OR referer = 'youtube.com' OR referer LIKE '%.youtube.com'");
+  var linkedinVisits = weeklySource('linkedin', "referer = 'lnkd.in' OR referer = 'linkedin.com' OR referer LIKE '%.linkedin.com'");
+
   return { weeks: weeks, cohorts: cohorts, unattributed: unattributed,
            devices: devices, browsers: browsers, sources: sources, volume: volume,
-           byHour: byHour, byDow: byDow, loadTypes: loadTypes };
+           byHour: byHour, byDow: byDow, loadTypes: loadTypes, xVisits: xVisits,
+           youtubeVisits: youtubeVisits, linkedinVisits: linkedinVisits };
 }
 
 // Sum two keyed count lists ([{key, count}]) into one, sorted by count desc.
@@ -158,6 +179,12 @@ function mergeVisitPayloads(a, b) {
     .sort(function (x, y) { return x.hour - y.hour; });
   var byDow = sumCounts(a.byDow, b.byDow, 'dow', 'count')
     .sort(function (x, y) { return x.dow - y.dow; });
+  var xVisits = sumCounts(a.xVisits, b.xVisits, 'visit_week', 'visits')
+    .sort(function (x, y) { return x.visit_week < y.visit_week ? -1 : 1; });
+  var youtubeVisits = sumCounts(a.youtubeVisits, b.youtubeVisits, 'visit_week', 'visits')
+    .sort(function (x, y) { return x.visit_week < y.visit_week ? -1 : 1; });
+  var linkedinVisits = sumCounts(a.linkedinVisits, b.linkedinVisits, 'visit_week', 'visits')
+    .sort(function (x, y) { return x.visit_week < y.visit_week ? -1 : 1; });
 
   return {
     weeks: weeks,
@@ -170,6 +197,9 @@ function mergeVisitPayloads(a, b) {
     byHour: byHour,
     byDow: byDow,
     loadTypes: sumCounts(a.loadTypes, b.loadTypes, 'type', 'count'),
+    xVisits: xVisits,
+    youtubeVisits: youtubeVisits,
+    linkedinVisits: linkedinVisits,
   };
 }
 
@@ -291,6 +321,9 @@ function getRetentionData() {
     byHour: payload.byHour,
     byDow: payload.byDow,
     loadTypes: payload.loadTypes,
+    xVisits: payload.xVisits,
+    youtubeVisits: payload.youtubeVisits,
+    linkedinVisits: payload.linkedinVisits,
     cohortsByType: segments.cohortsByType,
     dowByWeek: segments.dowByWeek,
     hourByWeek: segments.hourByWeek,

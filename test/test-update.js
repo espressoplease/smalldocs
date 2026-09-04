@@ -76,16 +76,22 @@ module.exports = function (harness) {
     assert.strictEqual(m2.ld, 3);
   });
 
-  test('buildCheckMessage: no lh/ld/lt keys when those extras are omitted', () => {
+  test('buildCheckMessage: no lh/ld/lt/src keys when those extras are omitted', () => {
     const m = buildCheckMessage('v1', '2026-W15', 0, false);
     assert.ok(!('lh' in m), 'lh absent when not supplied');
     assert.ok(!('ld' in m), 'ld absent when not supplied');
     assert.ok(!('lt' in m), 'lt absent when not supplied');
+    assert.ok(!('src' in m), 'src absent when not supplied');
   });
 
   test('buildCheckMessage: load type attaches as lt when supplied', () => {
     const m = buildCheckMessage('v1', '2026-W15', 0, false, 9, 2, 'short');
     assert.strictEqual(m.lt, 'short');
+  });
+
+  test('buildCheckMessage: traffic source attaches as src when supplied', () => {
+    const m = buildCheckMessage('v1', '2026-W15', 0, false, 9, 2, 'short', 'x');
+    assert.strictEqual(m.src, 'x');
   });
 
   test('detectLoadType: classifies short / hash / app from location', () => {
@@ -101,6 +107,25 @@ module.exports = function (harness) {
     assert.strictEqual(detectLoadType({ pathname: '/', hash: '' }), 'app');
     assert.strictEqual(detectLoadType({ pathname: '/blogs/x', hash: '' }), 'app');
     assert.strictEqual(detectLoadType(null), 'app', 'null location degrades to app, not a throw');
+  });
+
+  test('detectTrafficSource: recognizes explicit social markers and referrers', () => {
+    const { detectTrafficSource } = U;
+    assert.strictEqual(detectTrafficSource({ search: '?src=x' }, ''), 'x');
+    assert.strictEqual(detectTrafficSource({ search: '?utm_source=twitter' }, ''), 'x');
+    assert.strictEqual(detectTrafficSource({ search: '?src=x' }, 'https://example.com/'), 'x', 'explicit marker wins');
+    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://t.co/abc'), 'x');
+    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://mobile.twitter.com/post'), 'x');
+    assert.strictEqual(detectTrafficSource({ search: '?src=yt' }, ''), 'youtube');
+    assert.strictEqual(detectTrafficSource({ search: '?utm_source=youtube' }, ''), 'youtube');
+    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://youtu.be/abc'), 'youtube');
+    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://m.youtube.com/watch?v=abc'), 'youtube');
+    assert.strictEqual(detectTrafficSource({ search: '?src=linkedin' }, ''), 'linkedin');
+    assert.strictEqual(detectTrafficSource({ search: '?src=li' }, ''), 'linkedin');
+    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://lnkd.in/abc'), 'linkedin');
+    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://www.linkedin.com/posts/abc'), 'linkedin');
+    assert.strictEqual(detectTrafficSource({ search: '?src=newsletter' }, 'https://example.com/'), '');
+    assert.strictEqual(detectTrafficSource(null, ''), '');
   });
 
   test('buildCheckMessage: a reload re-check carries u=1 -> server skips counting it', () => {

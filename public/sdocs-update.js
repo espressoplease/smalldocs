@@ -65,11 +65,34 @@
     } catch (e) { return 'app'; }
   }
 
+  // Attribute an entry to a social channel without storing a user identifier.
+  // An explicit query marker is the reliable path through in-app browsers:
+  // /s/<id>?src=yt#k=<key>. Referrer detection catches untagged links when the
+  // browser preserves that signal. The value is frozen for the tab, just like
+  // loadType, because the app can later rewrite its own URL.
+  function detectTrafficSource(loc, referrer) {
+    try {
+      var params = new URLSearchParams((loc && loc.search) || '');
+      var tagged = (params.get('src') || params.get('utm_source') || '').toLowerCase();
+      if (tagged === 'x' || tagged === 'twitter') return 'x';
+      if (tagged === 'yt' || tagged === 'youtube') return 'youtube';
+      if (tagged === 'li' || tagged === 'linkedin') return 'linkedin';
+    } catch (e) {}
+    try {
+      var host = new URL(referrer || '').hostname.toLowerCase().replace(/^www\./, '');
+      if (host === 't.co' || host === 'x.com' || host.endsWith('.x.com') ||
+          host === 'twitter.com' || host.endsWith('.twitter.com')) return 'x';
+      if (host === 'youtu.be' || host === 'youtube.com' || host.endsWith('.youtube.com')) return 'youtube';
+      if (host === 'lnkd.in' || host === 'linkedin.com' || host.endsWith('.linkedin.com')) return 'linkedin';
+    } catch (e) {}
+    return '';
+  }
+
   // localHour (0-23) / localDow (0=Sun..6=Sat) are the visitor's own clock at
   // check time; loadType is the frozen entry classification. All attached only
   // when supplied so the pure Node tests (which omit them) still get the exact
   // base message shape.
-  function buildCheckMessage(appVersion, cohort, reloadCount, justReloaded, localHour, localDow, loadType) {
+  function buildCheckMessage(appVersion, cohort, reloadCount, justReloaded, localHour, localDow, loadType, trafficSource) {
     var msg = {
       type: 'check-update',
       version: appVersion,
@@ -80,6 +103,7 @@
     if (typeof localHour === 'number') msg.lh = localHour;
     if (typeof localDow === 'number') msg.ld = localDow;
     if (loadType) msg.lt = loadType;
+    if (trafficSource) msg.src = trafficSource;
     return msg;
   }
 
@@ -87,6 +111,7 @@
   exports.decideCheck = decideCheck;
   exports.buildCheckMessage = buildCheckMessage;
   exports.detectLoadType = detectLoadType;
+  exports.detectTrafficSource = detectTrafficSource;
 
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -103,7 +128,7 @@
   var K_DONE = 'sdocs_just_updated';
   var K_TARGET = 'sdocs_update_target';
 
-  var appVersion = '', cohort = '', loadType = '';
+  var appVersion = '', cohort = '', loadType = '', trafficSource = '';
   var hiddenSince = null, lastCheck = 0, started = false, justReloaded = false;
 
   function ss(get, key, val) {
@@ -193,7 +218,7 @@
     lastCheck = Date.now();
     var count = parseInt(ss(true, K_COUNT) || '0', 10) || 0;
     var now = new Date();
-    var msg = buildCheckMessage(appVersion, cohort, count, justReloaded, now.getHours(), now.getDay(), loadType);
+    var msg = buildCheckMessage(appVersion, cohort, count, justReloaded, now.getHours(), now.getDay(), loadType, trafficSource);
     justReloaded = false; // marker is one-shot: only the first check after a reload carries u=1
     activeWorker(function (w) {
       w.postMessage(msg);
@@ -270,6 +295,10 @@
     // Prefer the caller's synchronously-captured type (read before the app
     // rewrote the hash); fall back to detecting now if it wasn't supplied.
     loadType = (opts && opts.loadType) || detectLoadType(typeof window !== 'undefined' ? window.location : null);
+    trafficSource = (opts && opts.trafficSource) || detectTrafficSource(
+      typeof window !== 'undefined' ? window.location : null,
+      typeof document !== 'undefined' ? document.referrer : ''
+    );
 
     // Did this load happen because we auto-reloaded for an update? K_DONE is set
     // in doReload() right before reload. Capture it BEFORE

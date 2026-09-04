@@ -1235,6 +1235,7 @@ if (!SDOCS_EMBED && SDOCS_DEV && 'serviceWorker' in navigator) {
   // Snapshot how this page was opened NOW, synchronously, before the app boots
   // and rewrites the hash. Frozen for the tab's lifetime and sent with visits.
   var _loadType = (_U && _U.detectLoadType) ? _U.detectLoadType(window.location) : '';
+  var _trafficSource = (_U && _U.detectTrafficSource) ? _U.detectTrafficSource(window.location, document.referrer) : '';
   navigator.serviceWorker.addEventListener('message', function (e) {
     if (!e.data || e.data.type !== 'sdocs-reload') return;
     if (_U && _U.onReloadSignal) _U.onReloadSignal(e.data.version);
@@ -1242,9 +1243,10 @@ if (!SDOCS_EMBED && SDOCS_DEV && 'serviceWorker' in navigator) {
   });
   navigator.serviceWorker.register('/sw.js').then(function (reg) {
     if (_U && _U.start) {
-      _U.start({ appVersion: APP_VERSION, cohort: _cohort, loadType: _loadType });
+      _U.start({ appVersion: APP_VERSION, cohort: _cohort, loadType: _loadType, trafficSource: _trafficSource });
     } else {
       var msg = { type: 'check-update', version: APP_VERSION, cohort: _cohort, lt: _loadType };
+      if (_trafficSource) msg.src = _trafficSource;
       if (reg.active) reg.active.postMessage(msg);
       navigator.serviceWorker.addEventListener('controllerchange', function () {
         if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage(msg);

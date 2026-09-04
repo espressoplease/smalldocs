@@ -9,7 +9,7 @@
  *
  * Usage:
  *   const analytics = require('./analytics/db');
- *   analytics.logVisit(cohortWeek, userAgent, referer);
+ *   analytics.logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType, trafficSource);
  */
 const path = require('path');
 const { getISOWeek } = require('./week');
@@ -42,7 +42,8 @@ function init(dbPath) {
       referer TEXT NOT NULL DEFAULT '',
       local_hour INTEGER,
       local_dow INTEGER,
-      load_type TEXT NOT NULL DEFAULT ''
+      load_type TEXT NOT NULL DEFAULT '',
+      traffic_source TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_visits_cohort ON visits(cohort_week, visit_week);
     CREATE INDEX IF NOT EXISTS idx_visits_week ON visits(visit_week);
@@ -64,11 +65,17 @@ function init(dbPath) {
   // compare short-link opens against full-link opens against homepage landings.
   // Empty for rows before this shipped.
   try { db.exec("ALTER TABLE visits ADD COLUMN load_type TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+  // A coarse, non-identifying source label. Supported values are "x",
+  // "youtube", and "linkedin", detected from a query marker or recognized
+  // referrer. Empty means no recognized source. This remains separate from
+  // load_type, so one visit can be both a short-link open and source-attributed.
+  try { db.exec("ALTER TABLE visits ADD COLUMN traffic_source TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_visits_source_week ON visits(traffic_source, visit_week)'); } catch (e) {}
   // Drop legacy ip_hash column. We deliberately stopped storing any per-user
   // identifier — all metrics are now raw page-load counts.
   try { db.exec("ALTER TABLE visits DROP COLUMN ip_hash"); } catch (e) {}
 
-  insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, device, browser, referer, local_hour, local_dow, load_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+  insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, device, browser, referer, local_hour, local_dow, load_type, traffic_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
 
   flushTimer = setInterval(flush, FLUSH_INTERVAL);
   if (flushTimer.unref) flushTimer.unref();
@@ -119,7 +126,18 @@ function normLoadType(v) {
   return (v === 'short' || v === 'hash' || v === 'app' || v === 'home') ? v : '';
 }
 
-function logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType) {
+function normTrafficSource(v) {
+  var s = String(v || '').trim().toLowerCase();
+  if (s === 'x' || s === 'twitter' || s === 't.co' || s === 'x.com' || s === 'twitter.com') return 'x';
+  if (s.endsWith('.x.com') || s.endsWith('.twitter.com')) return 'x';
+  if (s === 'yt' || s === 'youtube' || s === 'youtu.be' || s === 'youtube.com') return 'youtube';
+  if (s.endsWith('.youtube.com')) return 'youtube';
+  if (s === 'li' || s === 'linkedin' || s === 'lnkd.in' || s === 'linkedin.com') return 'linkedin';
+  if (s.endsWith('.linkedin.com')) return 'linkedin';
+  return '';
+}
+
+function logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType, trafficSource) {
   if (!db) init();
   var visitWeek = getISOWeek(new Date());
   var ua = parseUA(userAgent);
@@ -127,7 +145,10 @@ function logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType)
   var lh = normInt(localHour, 0, 23);
   var ld = normInt(localDow, 0, 6);
   var lt = normLoadType(loadType);
-  buffer.push([cohortWeek || '', visitWeek, ua.device, ua.browser, ref, lh, ld, lt]);
+  // Prefer the source frozen by the page. Fall back to the request referrer so
+  // untagged social links still count when the browser supplies that signal.
+  var source = normTrafficSource(trafficSource) || normTrafficSource(ref);
+  buffer.push([cohortWeek || '', visitWeek, ua.device, ua.browser, ref, lh, ld, lt, source]);
   if (process.env.ANALYTICS_FLUSH_IMMEDIATE === '1') flush();
 }
 

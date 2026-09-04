@@ -112,6 +112,7 @@
     min-width: 0;
   }
   .chart-card h2 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #57534E; }
+  .chart-note { font-size: 11px; line-height: 1.45; color: #78716C; margin: -6px 0 12px; }
   .chart-holder {
     position: relative;
     width: 100%;
@@ -247,6 +248,7 @@
     .cohort-panel button:hover { border-color: #57534E; }
     .chart-card { background: #252320; border-color: #3D3935; }
     .chart-card h2 { color: #A8A29E; }
+    .chart-note { color: #A8A29E; }
     .segment-title { color: #E7E5E2; }
     .segment-note { color: #A8A29E; }
     .subtable-label { color: #E7E5E2; }
@@ -302,6 +304,11 @@
     <div class="chart-card" id="card-volume" style="display:none">
       <h2>Weekly visits</h2>
       <div class="chart-holder"><canvas id="chart-volume"></canvas></div>
+    </div>
+    <div class="chart-card" id="card-social-visits" style="display:none">
+      <h2>Visits by social source</h2>
+      <p class="chart-note">Tagged links and recognized referrals from X, YouTube, and LinkedIn. These visits remain included in the weekly and short-link totals.</p>
+      <div class="chart-holder"><canvas id="chart-social-visits"></canvas></div>
     </div>
     <div class="chart-card" id="card-devices" style="display:none">
       <h2>Devices</h2>
@@ -661,6 +668,32 @@ function renderCharts(data) {
           ]
         },
         options: chartOpts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true } } })
+      });
+    }
+
+    // Source-attributed visits. These are overlapping weekly series, not a
+    // subtraction from total visits or short-link opens.
+    var socialSeries = [
+      { label: 'X', rows: data.xVisits || [], color: COLORS[0] },
+      { label: 'YouTube', rows: data.youtubeVisits || [], color: '#DC2626' },
+      { label: 'LinkedIn', rows: data.linkedinVisits || [], color: '#0A66C2' }
+    ].filter(function (s) { return s.rows.length; });
+    if (socialSeries.length) {
+      var socialWeeks = Array.from(new Set([].concat.apply([], socialSeries.map(function (s) {
+        return s.rows.map(function (v) { return v.visit_week; });
+      })))).sort();
+      document.getElementById('card-social-visits').style.display = '';
+      new Chart(document.getElementById('chart-social-visits'), {
+        type: 'line',
+        data: {
+          labels: socialWeeks.map(fmtWeek),
+          datasets: socialSeries.map(function (series) {
+            var byWeek = {};
+            series.rows.forEach(function (v) { byWeek[v.visit_week] = v.visits; });
+            return { label: series.label, data: socialWeeks.map(function (week) { return byWeek[week] || 0; }), borderColor: series.color, backgroundColor: series.color, borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 };
+          })
+        },
+        options: chartOpts({ scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor, precision: 0 }, grid: { color: gridColor }, beginAtZero: true } } })
       });
     }
 
