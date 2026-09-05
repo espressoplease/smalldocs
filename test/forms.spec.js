@@ -173,6 +173,9 @@ buttons:
 
     await page.locator('button[data-button-name="send"]').click();
     await expect(page.locator('.sdoc-form-field-invalid .sdoc-form-error-text')).toBeVisible();
+    const submit = page.locator('button[data-button-name="send"]');
+    await expect(submit).toBeEnabled();
+    await expect(submit).toHaveText('Send');
     // File should NOT have a submissions entry.
     const stillSrc = fs.readFileSync(file, 'utf-8');
     expect(stillSrc).not.toContain('submissions:');

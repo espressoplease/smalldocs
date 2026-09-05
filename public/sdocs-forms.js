@@ -305,8 +305,9 @@ function renderButton(buttonSpec, block, form, token) {
   if (buttonSpec.final) btn.setAttribute('data-final', 'true');
   btn.addEventListener('click', function () {
     if (btn.disabled) return;
-    setButtonState(btn, 'sending');
-    handleSubmit(form, block, buttonSpec, token);
+    if (handleSubmit(form, block, buttonSpec, token)) {
+      setButtonState(btn, 'sending');
+    }
   });
   wrap.appendChild(btn);
 
@@ -378,7 +379,7 @@ function handleSubmit(form, block, buttonSpec, token) {
     var fSel = '[data-field="' + cssAttr(firstInvalid) + '"]';
     var first = form.querySelector(fSel + ' input, ' + fSel + ' textarea, ' + fSel + ' select');
     if (first) first.focus();
-    return;
+    return false;
   }
 
   // Dispatch a custom event the bridge listens for. The bridge owns the
@@ -409,6 +410,7 @@ function handleSubmit(form, block, buttonSpec, token) {
     };
   }
   form.dispatchEvent(ev);
+  return true;
 }
 
 function readField(form, field) {

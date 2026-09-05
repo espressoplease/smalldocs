@@ -38,6 +38,8 @@ const WATCH_DEBOUNCE_MS     = 50;       // collapse rapid fs.watch bursts
 const NO_CONNECT_TIMEOUT_MS = 30000;    // exit if the browser never connects
 const IDLE_TIMEOUT_MS       = 0;        // 0 = off. Background-throttled tabs
                                         // otherwise stall pings and trip this.
+const CLOSE_DRAIN_TIMEOUT_MS = 1000;    // let final acks + close frame flush
+                                        // before forcing a dead peer closed
 const MAX_MESSAGE_BYTES     = 20 * 1024 * 1024;
 const ALLOWED_ROOT = 'smalldocs.org';
 const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost'];
@@ -456,18 +458,48 @@ function startBridge(opts) {
   function terminate(t) {
     if (terminated) return;
     terminated = true;
-    terminal = t;
     clearAllTimers();
     if (watchStop) { try { watchStop(); } catch (_) {} watchStop = null; }
     closeIdentity(identity);
     identity = null;
-    if (socket && !socket.destroyed) {
-      wsSendClose(socket, 1000, '');
-      try { socket.destroy(); } catch (_) {}
-    }
     try { server.close(); } catch (_) {}
-    emit(t.kind, t);
-    terminalWaiters.splice(0).forEach(fn => fn(t));
+
+    // A final submit sends `form-submitted` + `submitted` immediately before
+    // termination. Destroying the socket here can discard those queued frames,
+    // leaving the browser stuck on "Sending…" even though the file was saved.
+    // Detach the active socket from reconnect handling, send a normal WS close,
+    // and resolve awaitTerminal only after the peer closes (or a short
+    // dead-peer fallback fires). CLI callers can then exit without racing the
+    // acknowledgement onto the wire.
+    const activeSocket = socket;
+    socket = null;
+    parser = null;
+
+    let completed = false;
+    let closeTimer = null;
+    const complete = () => {
+      if (completed) return;
+      completed = true;
+      if (closeTimer) clearTimeout(closeTimer);
+      terminal = t;
+      emit(t.kind, t);
+      terminalWaiters.splice(0).forEach(fn => fn(t));
+    };
+
+    if (activeSocket && !activeSocket.destroyed && activeSocket.writable) {
+      activeSocket.once('close', complete);
+      wsSendClose(activeSocket, 1000, '');
+      closeTimer = setTimeout(() => {
+        try { activeSocket.destroy(); } catch (_) {}
+        complete();
+      }, CLOSE_DRAIN_TIMEOUT_MS);
+      if (closeTimer.unref) closeTimer.unref();
+    } else {
+      if (activeSocket && !activeSocket.destroyed) {
+        try { activeSocket.destroy(); } catch (_) {}
+      }
+      complete();
+    }
   }
 
   function handleMessage(raw) {
@@ -762,14 +794,17 @@ function startBridge(opts) {
     if (noConnectTimer) { clearTimeout(noConnectTimer); noConnectTimer = null; }
     bumpIdle();
 
-    parser = new WsParser({
+    const socketParser = new WsParser({
       onMessage: (_op, payload) => handleMessage(payload),
       onPing:    (d) => wsSend(sock, 0xA, d),
       onPong:    () => bumpIdle(),
       onClose:   () => detachSocket('peer-close'),
       onError:   () => detachSocket('parser-error'),
     });
-    sock.on('data',  (chunk) => parser.feed(chunk));
+    parser = socketParser;
+    // Capture this connection's parser. Shutdown/reconnect deliberately clears
+    // the shared `parser` reference while a final close frame may still arrive.
+    sock.on('data',  (chunk) => socketParser.feed(chunk));
     sock.on('error', () => detachSocket('socket-error'));
     sock.on('end',   () => detachSocket('socket-end'));
     sock.on('close', () => detachSocket('socket-close'));
