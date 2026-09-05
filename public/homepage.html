@@ -911,6 +911,50 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .agent-prompt-copy:hover { opacity: 1; background: rgba(0,0,0,0.05); color: var(--ink); }
 .agent-prompt-copy.done { opacity: 1; color: #2E8C46; }
 
+/* ── TEAMS ─────────────────────────────────────────────
+   Reuses the install panel and grid so both calls to action share one
+   layout and responsive rhythm. */
+#teams { padding: 66px 0 0; }
+.teams-form { display: grid; gap: 14px; }
+.tf-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+}
+.tf-field .tf-opt { font-weight: 400; color: var(--ink-3); }
+.tf-field input,
+.tf-field textarea {
+  width: 100%;
+  font-family: var(--font);
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color .15s ease;
+}
+.tf-field input:focus,
+.tf-field textarea:focus { border-color: var(--accent); }
+.tf-field textarea { resize: vertical; min-height: 96px; }
+.tf-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.tf-actions { display: flex; align-items: center; gap: 14px; }
+.tf-status { font-size: var(--t-sm); color: var(--ink-2); }
+.tf-status.err { color: #B4231F; }
+.tf-note { font-size: var(--t-label); color: var(--ink-3); }
+.teams-thanks {
+  font-size: var(--t-body);
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: var(--r);
+  padding: 22px 24px;
+}
+
 /* ── FOOTER (minimal hairline) ───────────────────────── */
 footer {
   margin-top: 66px;
@@ -1016,6 +1060,7 @@ footer {
   /* One 56px gap between every panel and before the footer. */
   #learn { padding: 56px 0 0; }
   #install { padding: 56px 0 0; }
+  #teams { padding: 56px 0 0; }
   #praise { padding: 56px 0 0; }
   footer { margin-top: 56px; }
   .install-panel { padding: 44px 36px; border-radius: 18px; }
@@ -1043,6 +1088,7 @@ footer {
   .vid-loading { left: 10px; bottom: 10px; }
   #learn { padding: 40px 0 0; }
   #install { padding: 40px 0 0; }
+  #teams { padding: 40px 0 0; }
   #praise { padding: 40px 0 0; }
   footer { margin-top: 40px; }
   .install-panel { padding: 32px 22px; border-radius: 16px; }
@@ -1149,10 +1195,11 @@ footer {
       </a>
     </div>
     <div class="hero-cta">
-      <a class="btn btn-secondary" href="#install">
+      <a class="btn btn-primary" href="#install">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
         Free for personal use
       </a>
+      <a class="btn btn-secondary" href="#teams">SmallDocs for teams</a>
     </div>
     <p class="hero-works">Works with Claude &middot; Codex &middot; Cursor &middot; Gemini &middot; Antigravity &middot; opencode &middot; Pi</p>
 
@@ -1509,6 +1556,49 @@ footer {
   </div>
 </section>
 
+<!-- ═══ TEAMS ════════════════════════════════════════════ -->
+<section id="teams">
+  <div class="wrap">
+    <div class="install-panel">
+      <div class="install-grid">
+
+        <div class="install-text">
+          <h2>SmallDocs Teams</h2>
+          <p>
+            We are building SmallDocs Teams for organizations that use coding agents. Planned features include shared style libraries, centrally managed company document templates, and SSO, so your team can produce consistent documents across tools and exports.
+          </p>
+          <p>Tell us what your team needs. We will contact you about SmallDocs Teams.</p>
+        </div>
+
+        <form class="teams-form" id="teamsForm" novalidate>
+          <div class="tf-field">
+            <label for="tf-email">Work email</label>
+            <input id="tf-email" name="email" type="email" required autocomplete="email" />
+          </div>
+          <div class="tf-field">
+            <label for="tf-company">Company or team <span class="tf-opt">optional</span></label>
+            <input id="tf-company" name="company" type="text" autocomplete="organization" />
+          </div>
+          <div class="tf-field">
+            <label for="tf-message">What would your team use it for? <span class="tf-opt">optional</span></label>
+            <textarea id="tf-message" name="message" rows="4"></textarea>
+          </div>
+          <div class="tf-hp" aria-hidden="true">
+            <label for="tf-website">Website</label>
+            <input id="tf-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+          </div>
+          <div class="tf-actions">
+            <button class="btn btn-primary" type="submit" id="tf-submit">Register interest</button>
+            <span class="tf-status" id="tf-status" aria-live="polite"></span>
+          </div>
+          <p class="tf-note">We store what you submit and use it only to reply.</p>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ═══ FOOTER (minimal) ═════════════════════════════════ -->
 <footer>
   <div class="wrap">
@@ -1655,6 +1745,53 @@ document.querySelectorAll('[data-copy], [data-copy-from]').forEach(btn => {
     setTimeout(() => { btn.innerHTML = COPY_SVG; }, COPY_FEEDBACK_MS);
   });
 });
+
+/* Teams interest form: the same-origin endpoint validates and relays the
+   submission to SmallCRM. On success the form is replaced with a confirmation
+   so the same visitor cannot submit it twice accidentally. */
+(function () {
+  const form = document.getElementById('teamsForm');
+  if (!form) return;
+  const email = document.getElementById('tf-email');
+  const company = document.getElementById('tf-company');
+  const message = document.getElementById('tf-message');
+  const hp = document.getElementById('tf-website');
+  const submit = document.getElementById('tf-submit');
+  const status = document.getElementById('tf-status');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const address = email.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(address)) {
+      status.textContent = 'Enter a valid email address.';
+      status.classList.add('err');
+      email.focus();
+      return;
+    }
+    status.classList.remove('err');
+    status.textContent = 'Sending...';
+    submit.disabled = true;
+    try {
+      const response = await fetch('/api/teams-interest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: address,
+          company: company.value.trim(),
+          message: message.value.trim(),
+          website: hp.value,
+        }),
+      });
+      if (!response.ok) throw new Error('http ' + response.status);
+      form.innerHTML = '<div class="teams-thanks">Thanks. We will be in touch at <strong>'
+        + address.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</strong>.</div>';
+    } catch (error) {
+      submit.disabled = false;
+      status.classList.add('err');
+      status.textContent = 'Something went wrong; nothing was sent. Try again, or email hi@smalldocs.org.';
+    }
+  });
+})();
 
 /* Hero video: a muted teaser loops until the visitor presses play, then
    the full demo starts from the top with sound. Captions custom-rendered

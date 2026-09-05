@@ -202,6 +202,18 @@ module.exports = function(harness) {
     assert.ok(!explainer.includes('Nothing leaves my machine unless I explicitly run `sdoc share`.'));
   });
 
+  test('homepage restores the Teams CTA and interest form', () => {
+    const homepage = fs.readFileSync(path.join(__dirname, '..', 'public',
+      'homepage.html'), 'utf8');
+    const business = fs.readFileSync(path.join(__dirname, '..', 'public',
+      'business.html'), 'utf8');
+    assert.ok(homepage.includes('href="#teams">SmallDocs for teams</a>'));
+    assert.ok(homepage.includes('<section id="teams">'));
+    assert.ok(homepage.includes('<form class="teams-form" id="teamsForm" novalidate>'));
+    assert.ok(homepage.includes("fetch('/api/teams-interest'"));
+    assert.ok(business.includes("fetch('/api/teams-interest'"));
+  });
+
   test('Cloud UI lab assets exist and remain opt-in', () => {
     const script = fs.readFileSync(path.join(__dirname, '..', 'public',
       'sdocs-cloud-ui-lab.js'), 'utf-8');

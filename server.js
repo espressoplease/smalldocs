@@ -133,14 +133,16 @@ const FEEDBACK_MAX_BYTES = 4 * 1024;            // 4 KB message cap
 feedback.init();
 feedbackRateLimit.startCleanup();
 
-// Business-interest contact form. Stored in its own SQLite file; an email
-// ping fires when SMTP env vars are set (see teams/notify.js).
-// Shares the feedback rate limiter: both are infrequent human submissions
-// and a common per-IP budget keeps spam cheap to refuse.
-const teamsInterest = require('./teams/db');
+// Business-interest contact form. SmallCRM is the system of record; an email
+// ping still fires when SMTP env vars are set (see teams/notify.js).
+// The same feedback rate limiter keeps automated submissions cheap to refuse.
 const teamsNotify = require('./teams/notify');
 const emailTemplates = require('./lib/email-templates');
-teamsInterest.init();
+const SMALLCRM_TEAMS_FORM_ACTION = process.env.SMALLCRM_TEAMS_FORM_ACTION ||
+  'https://smallcrm.org/w/smalldocs-ws_fc6d0a62-5f2c-4716-9487-df0801230386/f/' +
+  'teams-interest-bb3de684-19c7-47d2-8fd6-4a95d5be6af3';
+const SMALLCRM_TEAMS_FORM_PUBLIC_ID =
+  new URL(SMALLCRM_TEAMS_FORM_ACTION).pathname.split('/').filter(Boolean).pop();
 
 // Cloud authentication is enabled only when a stable server-side pepper is
 // configured. The sign-in page remains available without it, but auth APIs
@@ -851,9 +853,25 @@ function handleFeedbackPost(req, res) {
 // Teams-interest submissions. Email is required (it is the reply channel);
 // company and message are optional. A hidden "website" field acts as a
 // honeypot: humans never see it, naive bots fill it, and a filled value gets
-// a 201 with nothing stored so the bot learns nothing. The email ping is
-// fire-and-forget; the SQLite row is the system of record.
+// a 201 with nothing stored so the bot learns nothing. Valid submissions are
+// relayed to SmallCRM's public write-only form receiver.
 const CONTACT_EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,24}$/;
+
+async function submitTeamsInterestToSmallCrm({ email, company, message }) {
+  const form = new URLSearchParams();
+  form.set('_scrm_form', SMALLCRM_TEAMS_FORM_PUBLIC_ID);
+  form.set('inbound_leads.email', email);
+  if (company) form.set('inbound_leads.company', company);
+  if (message) form.set('inbound_leads.message', message);
+  const response = await fetch(SMALLCRM_TEAMS_FORM_ACTION, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: form.toString(),
+    redirect: 'manual',
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) throw new Error('SmallCRM form returned ' + response.status);
+}
 
 function handleTeamsInterestPost(req, res) {
   const ip = getClientIp(req);
@@ -874,7 +892,7 @@ function handleTeamsInterestPost(req, res) {
     }
     chunks.push(chunk);
   });
-  req.on('end', () => {
+  req.on('end', async () => {
     if (aborted) return;
     let body;
     try {
@@ -895,9 +913,10 @@ function handleTeamsInterestPost(req, res) {
     const company = body && typeof body.company === 'string' ? body.company.trim().slice(0, 200) : '';
     const message = body && typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : '';
     try {
-      teamsInterest.insert({ email, company, message });
-    } catch (e) {
-      sendJson(res, 500, { error: 'db_error' });
+      await submitTeamsInterestToSmallCrm({ email, company, message });
+    } catch (error) {
+      console.error('[teams-interest] SmallCRM submission failed:', error.message);
+      sendJson(res, 502, { error: 'submission_failed' });
       return;
     }
     sendJson(res, 201, { ok: true });
@@ -907,7 +926,7 @@ function handleTeamsInterestPost(req, res) {
       'Email:   ' + email + '\n' +
       'Company: ' + (company || '-') + '\n' +
       'Message: ' + (message || '-') + '\n\n' +
-      'All submissions: teams_interest.db on the server.'
+      'All submissions: SmallCRM inbound_leads.'
     );
   });
   req.on('error', () => {
@@ -2492,7 +2511,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // POST /api/teams-interest: store a Teams contact request + email ping
+  // POST /api/teams-interest: relay a Teams contact request to SmallCRM
   if (req.method === 'POST' && pathname === '/api/teams-interest') {
     handleTeamsInterestPost(req, res);
     return;
@@ -2643,7 +2662,7 @@ const server = http.createServer((req, res) => {
   }
 
   // SmallDocs for business: capability overview + contact form. The form
-  // posts to /api/teams-interest (stores + email ping).
+  // posts to /api/teams-interest, which relays it to SmallCRM.
   if (pathname === '/business') {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'business.html'), null, {
       'Cache-Control': 'no-cache',
@@ -3527,7 +3546,6 @@ function closeResources() {
     analytics && (() => analytics.close()),
     () => shortLinks.close(),
     () => feedback.close(),
-    () => teamsInterest.close(),
     cloudAuth && (() => cloudAuth.close()),
     cloudOAuthTransactions && (() => cloudOAuthTransactions.close()),
     cloudStore && (() => cloudStore.close()),

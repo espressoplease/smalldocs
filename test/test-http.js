@@ -27,18 +27,41 @@ module.exports = function(harness) {
     const os = require('os');
     const testDbPath = path.join(os.tmpdir(), 'sdocs-test-analytics-' + process.pid + '.db');
     const testShortLinksDbPath = path.join(os.tmpdir(), 'sdocs-test-short-links-' + process.pid + '.db');
-    const testTeamsDbPath = path.join(os.tmpdir(), 'sdocs-test-teams-' + process.pid + '.db');
     const testCloudAuthDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-auth-' + process.pid + '.db');
     const testCloudDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-' + process.pid + '.db');
     const testCloudBillingDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-billing-' + process.pid + '.db');
     const testCloudJobsDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-jobs-' + process.pid + '.db');
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
-    try { fs.unlinkSync(testTeamsDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudBillingDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudJobsDbPath); } catch (_) {}
+    const teamsFormSubmissions = [];
+    let teamsFormStatus = 200;
+    const teamsFormServer = http.createServer((req, res) => {
+      if (req.method !== 'POST' || req.url !== '/teams-interest-test') {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      const chunks = [];
+      req.on('data', chunk => chunks.push(chunk));
+      req.on('end', () => {
+        teamsFormSubmissions.push(new URLSearchParams(Buffer.concat(chunks).toString('utf8')));
+        res.writeHead(teamsFormStatus, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(teamsFormStatus === 200 ? 'Submission received' : 'Upstream error');
+      });
+    });
+    await new Promise((resolve, reject) => {
+      teamsFormServer.once('error', reject);
+      teamsFormServer.listen(0, '127.0.0.1', resolve);
+    });
+    teamsFormServer.unref();
+    const teamsFormAddress = teamsFormServer.address();
+    const teamsFormAction = 'http://127.0.0.1:' + teamsFormAddress.port +
+      '/teams-interest-test';
+
     let serverOutput = '';
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
       env: {
@@ -49,7 +72,7 @@ module.exports = function(harness) {
         ANALYTICS_DB: testDbPath,
         ANALYTICS_FLUSH_IMMEDIATE: '1',
         SHORT_LINKS_DB: testShortLinksDbPath,
-        TEAMS_DB: testTeamsDbPath,
+        SMALLCRM_TEAMS_FORM_ACTION: teamsFormAction,
         CLOUD_AUTH_DB: testCloudAuthDbPath,
         CLOUD_PUBLIC_MODE: 'enabled',
         CLOUD_AUTH_PEPPER: 'http-test-cloud-auth-pepper-32-bytes',
@@ -2337,26 +2360,17 @@ module.exports = function(harness) {
     });
 
     // ── Teams-interest endpoint ──
-    // The spawned server writes to testTeamsDbPath; assertions read the same
-    // file directly so "stored" / "not stored" is checked at the source of
-    // truth, not inferred from status codes.
-    const teamsRows = () => {
-      const Database = require('better-sqlite3');
-      const d = new Database(testTeamsDbPath, { readonly: true });
-      const rows = d.prepare('SELECT email, company, message FROM teams_interest ORDER BY id').all();
-      d.close();
-      return rows;
-    };
-
-    await testAsync('POST /api/teams-interest stores a valid submission', async () => {
+    await testAsync('POST /api/teams-interest relays a valid submission to SmallCRM', async () => {
       const r = await post(BASE + '/api/teams-interest', {
         email: 'lead@example.com', company: 'Acme', message: 'We ship reports weekly.',
       });
       assert.strictEqual(r.status, 201);
-      const rows = teamsRows();
-      assert.strictEqual(rows.length, 1);
-      assert.strictEqual(rows[0].email, 'lead@example.com');
-      assert.strictEqual(rows[0].company, 'Acme');
+      assert.strictEqual(teamsFormSubmissions.length, 1);
+      const form = teamsFormSubmissions[0];
+      assert.strictEqual(form.get('_scrm_form'), 'teams-interest-test');
+      assert.strictEqual(form.get('inbound_leads.email'), 'lead@example.com');
+      assert.strictEqual(form.get('inbound_leads.company'), 'Acme');
+      assert.strictEqual(form.get('inbound_leads.message'), 'We ship reports weekly.');
     });
 
     await testAsync('POST /api/teams-interest rejects a missing/invalid email', async () => {
@@ -2364,7 +2378,7 @@ module.exports = function(harness) {
       assert.strictEqual(r1.status, 400);
       const r2 = await post(BASE + '/api/teams-interest', { email: 'not-an-email' });
       assert.strictEqual(r2.status, 400);
-      assert.strictEqual(teamsRows().length, 1);
+      assert.strictEqual(teamsFormSubmissions.length, 1);
     });
 
     await testAsync('POST /api/teams-interest honeypot gets 201 but stores nothing', async () => {
@@ -2372,17 +2386,25 @@ module.exports = function(harness) {
         email: 'bot@example.com', website: 'http://spam.example',
       });
       assert.strictEqual(r.status, 201);
-      assert.strictEqual(teamsRows().length, 1);
+      assert.strictEqual(teamsFormSubmissions.length, 1);
     });
 
-    await testAsync('POST /api/teams-interest stores email-only submissions with null extras', async () => {
+    await testAsync('POST /api/teams-interest relays email-only submissions without empty fields', async () => {
       const r = await post(BASE + '/api/teams-interest', { email: 'solo@example.com' });
       assert.strictEqual(r.status, 201);
-      const rows = teamsRows();
-      assert.strictEqual(rows.length, 2);
-      assert.strictEqual(rows[1].email, 'solo@example.com');
-      assert.strictEqual(rows[1].company, null);
-      assert.strictEqual(rows[1].message, null);
+      assert.strictEqual(teamsFormSubmissions.length, 2);
+      const form = teamsFormSubmissions[1];
+      assert.strictEqual(form.get('inbound_leads.email'), 'solo@example.com');
+      assert.strictEqual(form.has('inbound_leads.company'), false);
+      assert.strictEqual(form.has('inbound_leads.message'), false);
+    });
+
+    await testAsync('POST /api/teams-interest reports SmallCRM receiver failures', async () => {
+      teamsFormStatus = 503;
+      const r = await post(BASE + '/api/teams-interest', { email: 'retry@example.com' });
+      teamsFormStatus = 200;
+      assert.strictEqual(r.status, 502);
+      assert.deepStrictEqual(JSON.parse(r.body), { error: 'submission_failed' });
     });
 
     cloudBilling.close();
@@ -2409,7 +2431,7 @@ module.exports = function(harness) {
           CLOUD_MODE: 'off',
           CLOUD_PUBLIC_MODE: 'hidden',
           SHORT_LINKS_DB: testShortLinksDbPath,
-          TEAMS_DB: testTeamsDbPath,
+          SMALLCRM_TEAMS_FORM_ACTION: teamsFormAction,
           FEEDBACK_DB: testDbPath,
         },
         stdio: 'pipe',
@@ -2489,9 +2511,7 @@ module.exports = function(harness) {
     try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath + '-shm'); } catch (_) {}
-    try { fs.unlinkSync(testTeamsDbPath); } catch (_) {}
-    try { fs.unlinkSync(testTeamsDbPath + '-wal'); } catch (_) {}
-    try { fs.unlinkSync(testTeamsDbPath + '-shm'); } catch (_) {}
+    await new Promise(resolve => teamsFormServer.close(resolve));
     try { fs.unlinkSync(testCloudAuthDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath + '-shm'); } catch (_) {}
