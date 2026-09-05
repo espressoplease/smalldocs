@@ -149,6 +149,8 @@ module.exports = function(harness) {
     assert.ok(deploy.includes('systemctl daemon-reload'));
     assert.ok(deploy.includes('install-production-monitor.sh'));
     assert.ok(deploy.includes('rollback_release'));
+    assert.ok(deploy.includes('trap cleanup_remote_archive EXIT HUP INT TERM'));
+    assert.ok(deploy.includes('sudo rm -f -- "$remote_archive"'));
     assert.ok(deploy.includes('"$release_dir/.git/HEAD"'));
   });
 
@@ -161,6 +163,8 @@ module.exports = function(harness) {
     assert.ok(deploy.includes('http://127.0.0.1:3004/version-check'));
     assert.ok(deploy.includes('https://cloud-staging.smalldocs.org'));
     assert.ok(deploy.includes('rollback_staging'));
+    assert.ok(deploy.includes('trap cleanup_remote_archive EXIT HUP INT TERM'));
+    assert.ok(deploy.includes('sudo rm -f -- "$remote_archive"'));
     assert.ok(deploy.includes('Xx]-[Ss]docs-[Cc]ommit'));
     assert.ok(!/ln -sfn[^\n]+\/opt\/smalldocs\/current/.test(deploy));
     assert.ok(!/systemctl restart smalldocs(?:\s|$)/.test(deploy));

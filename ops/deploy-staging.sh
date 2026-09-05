@@ -42,6 +42,11 @@ unit_target="/etc/systemd/system/smalldocs-staging.service"
 unit_backup="/etc/systemd/system/smalldocs-staging.service.smalldocs-deploy-backup"
 unit_changed=0
 
+cleanup_remote_archive() {
+  sudo rm -f -- "$remote_archive"
+}
+trap cleanup_remote_archive EXIT HUP INT TERM
+
 rollback_staging() {
   if [ -n "$previous_release" ]; then
     sudo ln -sfn "$previous_release" /opt/smalldocs/staging-current
@@ -59,7 +64,7 @@ if sudo test -e "$release_dir"; then
 fi
 sudo mkdir -p "$release_dir"
 sudo tar -xzf "$remote_archive" -C "$release_dir"
-sudo rm -f "$remote_archive"
+sudo rm -f -- "$remote_archive"
 sudo mkdir -p "$release_dir/.git"
 printf '%s\n' "$release_commit" | sudo tee "$release_dir/.git/HEAD" >/dev/null
 sudo env PATH=/usr/local/bin:/usr/bin:/bin npm --prefix "$release_dir" ci --omit=dev
