@@ -22,6 +22,8 @@ USAGE
   sdoc share <file> --short        Encrypted /s/<id> short link (see SHORT LINKS)
   sdoc share <file> --short --source email-launch
                                    Short link attributed to a named source
+  sdoc share <file> --short --source x --placement launch-reply-01
+                                   Social link attributed to one placement
   sdoc schema                      Print the full styles schema
   sdoc charts                      Chart types, options, and styling guide
   sdoc diagrams                    Mermaid diagrams reference (\`\`\`mermaid blocks)
@@ -86,6 +88,9 @@ OPTIONS
   --short               Use the encrypted /s/<id> short-URL form (share
                         subcommand only). See SHORT LINKS below.
   --source <name>       Attribute short-link visits to a source or campaign.
+  --placement <id>      Attribute a social short link to one publishing
+                        placement. Use 4-32 letters, numbers, underscores,
+                        or hyphens with --source x, yt, or youtube.
   --json                Machine-readable output for safe and Cloud commands.
   --audit               Also print GitHub links to server-side source
                         files (safe subcommand only).
@@ -212,6 +217,14 @@ SHORT LINKS (sdoc share --short)
   automatically at \`/analytics/sources\`; the visit still counts in the
   ordinary visit and short-link totals.
 
+  Add \`--placement launch-reply-01\` to an X or YouTube source link
+  when the same document is published in more than one place. This produces
+  \`https://smalldocs.org/s/<id>?src=x&pid=launch-reply-01#k=<key>\`.
+  The placement id is public and identifies the post, reply, or comment where
+  the link was used. It does not identify a visitor. Only links with a valid
+  placement id appear in the targeted-placement table at
+  \`/analytics/sources?type=short\`.
+
   How it works:
     1. The CLI brotli-compresses the content, generates a 256-bit AES-GCM
        key + 96-bit nonce locally, and encrypts the compressed bytes.
@@ -228,6 +241,8 @@ SHORT LINKS (sdoc share --short)
   What the server can see:
     - That a ciphertext blob was uploaded under id <id>.
     - When it was fetched and from which IP (standard server logs).
+    - For an opted-in placement link, its source, public placement id, and
+      short-link id when a visit is counted.
   What the server cannot see:
     - The plaintext document. It does not have the key.
     - The key. The key never leaves the URL fragment.

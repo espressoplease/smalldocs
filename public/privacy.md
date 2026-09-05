@@ -51,7 +51,7 @@ The web server receives an IP address and user-agent as part of an HTTP connecti
 
 ## Public reader analytics and local storage
 
-The public application records a cohort week, current week, coarse device category, browser family, coarse referrer category, local hour, and load type when analytics are enabled. A cohort week is shared by everyone whose first visit occurred that week; it is not a unique identifier. Aggregate counts are published at [smalldocs.org/analytics](/analytics).
+The public application records a cohort week, current week, coarse device category, browser family, coarse referrer category, local hour, and load type when analytics are enabled. A cohort week is shared by everyone whose first visit occurred that week; it is not a unique identifier. A homepage or short-link URL can carry an explicit source label. A targeted social short link can also carry a public placement id. When both placement values are valid, the visit records the source, placement id, and associated short-link id. A placement id identifies where a link was published, not a person. Untagged short links do not receive placement attribution. Aggregate counts are published at [smalldocs.org/analytics](/analytics), with placement details on the short-link sources page.
 
 The public reader stores the cohort value and application preferences in browser storage. Cloud uses a Secure, HttpOnly, SameSite session cookie after sign-in. The cookie contains an opaque credential, not a document.
 

@@ -2837,6 +2837,10 @@ const server = http.createServer((req, res) => {
     // Entry-source attribution, frozen by the page at initial load. Explicit
     // source names remain labels only; no campaign record or user ID is stored.
     const trafficSource = url.searchParams.get('src');
+    // Opt-in placement attribution for a targeted social short link. The
+    // analytics layer validates both opaque values again before storage.
+    const placementId = url.searchParams.get('pid');
+    const shortLinkId = url.searchParams.get('sid');
     // u=1 means this check fired because the page auto-reloaded for an update.
     // The tab's original load was already counted, and one deploy reloads every
     // open tab, so counting reload re-checks would inflate visits by one per
@@ -2853,7 +2857,7 @@ const server = http.createServer((req, res) => {
         reloadRecheck ? 'reload' : 'visit',
       ].join(' | '));
       if (!reloadRecheck) {
-        try { analytics.logVisit(cohort, req.headers['user-agent'] || '', req.headers['referer'] || '', localHour, localDow, loadType, trafficSource); } catch (e) { /* analytics failure should not break version-check */ }
+        try { analytics.logVisit(cohort, req.headers['user-agent'] || '', req.headers['referer'] || '', localHour, localDow, loadType, trafficSource, placementId, shortLinkId); } catch (e) { /* analytics failure should not break version-check */ }
       }
     }
     res.writeHead(200, {
@@ -3050,6 +3054,19 @@ const server = http.createServer((req, res) => {
     serveHtmlWithRewrite(res, path.join(__dirname, 'analytics', 'sources.html'), null, {
       'Cache-Control': 'no-cache',
     });
+    return;
+  }
+
+  if (ANALYTICS_ENABLED && pathname === '/analytics/sources/data') {
+    try {
+      const { getSourceData } = require('./analytics/query');
+      const data = getSourceData(url.searchParams.get('type'));
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+      res.end(JSON.stringify(data));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
     return;
   }
 

@@ -853,6 +853,7 @@ module.exports = function(harness) {
       assert.ok(r.body.includes("sourceLink: '/analytics/sources?type=short'"), 'short-link channel should link to its sources');
       assert.ok(r.body.includes("sourceLink: '/analytics/sources?type=home'"), 'homepage channel should link to its sources');
       assert.ok(!r.body.includes('Visits by social source'), 'dashboard should not infer or rename sources');
+      assert.ok(!r.body.includes('Targeted placements'), 'main analytics page should not include placement detail');
     });
 
     await testAsync('GET /analytics/sources returns the source dashboard', async () => {
@@ -860,7 +861,18 @@ module.exports = function(harness) {
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].includes('text/html'));
       assert.ok(r.body.includes('Visits by source'));
-      assert.ok(r.body.includes("fetch('/analytics/data')"));
+      assert.ok(r.body.includes("fetch('/analytics/sources/data'"));
+      assert.ok(r.body.includes('Targeted placements'));
+    });
+
+    await testAsync('GET /analytics/sources/data returns source detail JSON', async () => {
+      const r = await get(BASE + '/analytics/sources/data?type=short');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('application/json'));
+      const data = JSON.parse(r.body);
+      assert.ok(Array.isArray(data.sourceCampaigns));
+      assert.ok(Array.isArray(data.targetedPlacements));
+      assert.ok(!('cohorts' in data), 'source detail endpoint should not expose the main analytics payload');
     });
 
     await testAsync('GET /analytics/data returns 200 with JSON', async () => {
@@ -889,6 +901,9 @@ module.exports = function(harness) {
       await get(BASE + '/version-check?cohort=2099-W46&lt=short&src=email-launch');
       await get(BASE + '/version-check?cohort=2099-W45&lt=home&src=homepage-launch');
       await get(BASE + '/version-check?cohort=2099-W44&lt=hash&src=local-document');
+      await get(BASE + '/version-check?cohort=2099-W43&lt=short&src=x&pid=Reply_07&sid=Short_01');
+      await get(BASE + '/version-check?cohort=2099-W42&lt=short&src=x&pid=bad%20id&sid=Short_01');
+      await get(BASE + '/version-check?cohort=2099-W41&lt=short&src=x');
       const Database = require('better-sqlite3');
       const db = new Database(testDbPath, { readonly: true });
       try {
@@ -903,10 +918,28 @@ module.exports = function(harness) {
         assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W46' ORDER BY id DESC LIMIT 1").get().traffic_source, 'email-launch');
         assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W45' ORDER BY id DESC LIMIT 1").get().traffic_source, 'homepage-launch');
         assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W44' ORDER BY id DESC LIMIT 1").get().traffic_source, '');
+        const targeted = db.prepare("SELECT placement_id, short_link_id FROM visits WHERE cohort_week = '2099-W43' ORDER BY id DESC LIMIT 1").get();
+        assert.deepStrictEqual(targeted, { placement_id: 'Reply_07', short_link_id: 'Short_01' });
+        const invalid = db.prepare("SELECT placement_id, short_link_id FROM visits WHERE cohort_week = '2099-W42' ORDER BY id DESC LIMIT 1").get();
+        assert.deepStrictEqual(invalid, { placement_id: '', short_link_id: '' });
+        const untagged = db.prepare("SELECT placement_id, short_link_id FROM visits WHERE cohort_week = '2099-W41' ORDER BY id DESC LIMIT 1").get();
+        assert.deepStrictEqual(untagged, { placement_id: '', short_link_id: '' });
         assert.ok(!('ip_hash' in row), 'visits row must not carry an ip_hash column');
       } finally {
         db.close();
       }
+    });
+
+    await testAsync('short-link source data reports only valid targeted placements', async () => {
+      const r = await get(BASE + '/analytics/sources/data?type=short');
+      assert.strictEqual(r.status, 200);
+      const data = JSON.parse(r.body);
+      const placement = data.targetedPlacements.find(item => item.placementId === 'Reply_07');
+      assert.ok(placement);
+      assert.strictEqual(placement.shortLinkId, 'Short_01');
+      assert.strictEqual(placement.source, 'x');
+      assert.strictEqual(placement.total, 1);
+      assert.ok(!data.targetedPlacements.some(item => item.placementId === 'bad id'));
     });
 
     await testAsync('version-check with u=1 (reload re-check) does NOT write a visit row', async () => {

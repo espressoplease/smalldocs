@@ -242,6 +242,42 @@ module.exports = function(harness) {
     assert.strictEqual(cli.parseArgs(['share', 'doc.md', '--short', '--source', 'partner newsletter']).sourceFlag, 'partner newsletter');
   });
 
+  test('parseArgs: share accepts an explicit placement id', () => {
+    const result = cli.parseArgs(['share', 'doc.md', '--short', '--source', 'x', '--placement', 'Reply_07']);
+    assert.strictEqual(result.placementFlag, 'Reply_07');
+  });
+
+  test('placement ids trim surrounding spaces and preserve case', () => {
+    assert.strictEqual(cli.normalizePlacementId('  Reply_07  '), 'Reply_07');
+  });
+
+  test('placement ids reject unsafe or oversized values', () => {
+    ['', 'abc', 'has space', '../reply', 'a'.repeat(33)].forEach((value) => {
+      if (value === '') {
+        assert.strictEqual(cli.normalizePlacementId(value), '');
+      } else {
+        assert.throws(() => cli.normalizePlacementId(value));
+      }
+    });
+  });
+
+  test('placement query requires a social source', () => {
+    assert.strictEqual(cli.buildAttributionQuery('X', 'Reply_07'), 'src=x&pid=Reply_07');
+    assert.strictEqual(cli.buildAttributionQuery('youtube', 'Video_01'), 'src=youtube&pid=Video_01');
+    assert.strictEqual(cli.buildAttributionQuery('email-launch', ''), 'src=email-launch');
+    assert.throws(() => cli.buildAttributionQuery('email-launch', 'Reply_07'));
+    assert.throws(() => cli.buildAttributionQuery('linkedin', 'Post_01'));
+    assert.throws(() => cli.buildAttributionQuery('', 'Reply_07'));
+  });
+
+  test('targeted short URL keeps attribution before the encryption-key fragment', () => {
+    const fragment = new URLSearchParams();
+    fragment.set('k', 'secret-key');
+    const url = cli.assembleShortUrl('https://smalldocs.org', 'Short_01', 'src=x&pid=Reply_07', fragment);
+    assert.strictEqual(url, 'https://smalldocs.org/s/Short_01?src=x&pid=Reply_07#k=secret-key');
+    assert.ok(!url.slice(0, url.indexOf('#')).includes('secret-key'));
+  });
+
   test('parseArgs: new subcommand', () => {
     const result = cli.parseArgs(['new']);
     assert.strictEqual(result.subcommand, 'new');

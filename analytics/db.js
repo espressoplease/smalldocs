@@ -9,7 +9,7 @@
  *
  * Usage:
  *   const analytics = require('./analytics/db');
- *   analytics.logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType, trafficSource);
+ *   analytics.logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType, trafficSource, placementId, shortLinkId);
  */
 const path = require('path');
 const { getISOWeek, isISOWeek } = require('./week');
@@ -43,7 +43,9 @@ function init(dbPath) {
       local_hour INTEGER,
       local_dow INTEGER,
       load_type TEXT NOT NULL DEFAULT '',
-      traffic_source TEXT NOT NULL DEFAULT ''
+      traffic_source TEXT NOT NULL DEFAULT '',
+      placement_id TEXT NOT NULL DEFAULT '',
+      short_link_id TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_visits_cohort ON visits(cohort_week, visit_week);
     CREATE INDEX IF NOT EXISTS idx_visits_week ON visits(visit_week);
@@ -70,11 +72,16 @@ function init(dbPath) {
   // short-link open and source-attributed.
   try { db.exec("ALTER TABLE visits ADD COLUMN traffic_source TEXT NOT NULL DEFAULT ''"); } catch (e) {}
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_visits_source_week ON visits(traffic_source, visit_week)'); } catch (e) {}
+  // An opaque publishing-placement id and its short-link id are stored only
+  // for an opted-in social short link. Neither value identifies a visitor.
+  try { db.exec("ALTER TABLE visits ADD COLUMN placement_id TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE visits ADD COLUMN short_link_id TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+  try { db.exec("CREATE INDEX IF NOT EXISTS idx_visits_placement_week ON visits(placement_id, visit_week) WHERE placement_id != ''"); } catch (e) {}
   // Drop legacy ip_hash column. We deliberately stopped storing any per-user
   // identifier — all metrics are now raw page-load counts.
   try { db.exec("ALTER TABLE visits DROP COLUMN ip_hash"); } catch (e) {}
 
-  insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, device, browser, referer, local_hour, local_dow, load_type, traffic_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, device, browser, referer, local_hour, local_dow, load_type, traffic_source, placement_id, short_link_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
 
   flushTimer = setInterval(flush, FLUSH_INTERVAL);
   if (flushTimer.unref) flushTimer.unref();
@@ -129,7 +136,21 @@ function normTrafficSource(v) {
   return String(v || '').trim().toLowerCase();
 }
 
-function logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType, trafficSource) {
+function normPlacementId(v) {
+  var id = String(v || '').trim();
+  return /^[A-Za-z0-9][A-Za-z0-9_-]{3,31}$/.test(id) ? id : '';
+}
+
+function normShortLinkId(v) {
+  var id = String(v || '').trim();
+  return /^[A-Za-z0-9_-]{1,32}$/.test(id) ? id : '';
+}
+
+function isPlacementSource(source) {
+  return source === 'x' || source === 'yt' || source === 'youtube';
+}
+
+function logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType, trafficSource, placementId, shortLinkId) {
   if (!db) init();
   var visitWeek = getISOWeek(new Date());
   var ua = parseUA(userAgent);
@@ -141,8 +162,13 @@ function logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType,
   // Sources describe acquisition into the homepage or a short link. Full #md
   // document links and the bare editor remain part of their own usage bucket.
   var source = sourceEligible ? normTrafficSource(trafficSource) : '';
+  var placement = lt === 'short' && isPlacementSource(source) ? normPlacementId(placementId) : '';
+  var link = placement ? normShortLinkId(shortLinkId) : '';
+  // Both fields are one attribution unit. An incomplete or invalid pair is
+  // stored as an ordinary untagged visit.
+  if (!link) placement = '';
   var cohort = isISOWeek(cohortWeek) ? cohortWeek : '';
-  buffer.push([cohort, visitWeek, ua.device, ua.browser, ref, lh, ld, lt, source]);
+  buffer.push([cohort, visitWeek, ua.device, ua.browser, ref, lh, ld, lt, source, placement, link]);
   if (process.env.ANALYTICS_FLUSH_IMMEDIATE === '1') flush();
 }
 
@@ -174,4 +200,4 @@ function close() {
   if (db) { db.close(); db = null; insertStmt = null; }
 }
 
-module.exports = { init, logVisit, flush, getDB, close, bufferSize };
+module.exports = { init, logVisit, flush, getDB, close, bufferSize, normPlacementId, normShortLinkId };

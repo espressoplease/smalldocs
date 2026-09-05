@@ -169,22 +169,30 @@ self.addEventListener('fetch', function (e) {
 // the JS was already on the new version. Empty cache + reload means every
 // asset comes fresh from the network on the next load; stale-while-revalidate
 // repopulates the cache as the user uses the app.
+function buildVersionCheckUrl(data) {
+  var qs = '?cohort=' + encodeURIComponent(data.cohort || '')
+    + '&r=' + encodeURIComponent(data.r || 0)
+    + '&u=' + encodeURIComponent(data.u || 0);
+  // lh/ld are the browser's local hour + weekday. Guard on typeof so hour 0
+  // (midnight) / weekday 0 (Sunday) aren't dropped by a falsy check.
+  if (typeof data.lh === 'number') qs += '&lh=' + encodeURIComponent(data.lh);
+  if (typeof data.ld === 'number') qs += '&ld=' + encodeURIComponent(data.ld);
+  if (data.lt) qs += '&lt=' + encodeURIComponent(data.lt);
+  if (data.src) qs += '&src=' + encodeURIComponent(data.src);
+  if (data.pid && data.sid) {
+    qs += '&pid=' + encodeURIComponent(data.pid);
+    qs += '&sid=' + encodeURIComponent(data.sid);
+  }
+  return '/version-check' + qs;
+}
+
 self.addEventListener('message', function (e) {
   if (e.data && e.data.type === 'check-update' && e.data.version) {
     // r = the client's per-session reload count, forwarded so the server log
     // can spot a tab reload-looping in the wild (a single grep on r).
     // u=1 marks a check fired by an auto-reload-for-update; the server skips
     // counting it so a deploy doesn't log one visit per open tab.
-    var qs = '?cohort=' + encodeURIComponent(e.data.cohort || '')
-      + '&r=' + encodeURIComponent(e.data.r || 0)
-      + '&u=' + encodeURIComponent(e.data.u || 0);
-    // lh/ld are the browser's local hour + weekday. Guard on typeof so hour 0
-    // (midnight) / weekday 0 (Sunday) aren't dropped by a falsy check.
-    if (typeof e.data.lh === 'number') qs += '&lh=' + encodeURIComponent(e.data.lh);
-    if (typeof e.data.ld === 'number') qs += '&ld=' + encodeURIComponent(e.data.ld);
-    if (e.data.lt) qs += '&lt=' + encodeURIComponent(e.data.lt);
-    if (e.data.src) qs += '&src=' + encodeURIComponent(e.data.src);
-    fetch('/version-check' + qs).then(function (res) {
+    fetch(buildVersionCheckUrl(e.data)).then(function (res) {
       return res.json();
     }).then(function (data) {
       if (data.version !== e.data.version) {

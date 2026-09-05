@@ -94,6 +94,37 @@ module.exports = function (harness) {
     assert.strictEqual(m.src, 'x');
   });
 
+  test('detectPlacementAttribution accepts only targeted social short links', () => {
+    const { detectPlacementAttribution } = U;
+    assert.deepStrictEqual(
+      detectPlacementAttribution({ pathname: '/s/Short_01', search: '?src=x&pid=Reply_07' }),
+      { placementId: 'Reply_07', shortLinkId: 'Short_01' }
+    );
+    assert.deepStrictEqual(
+      detectPlacementAttribution({ pathname: '/s/Short_01', search: '?src=yt&pid=video-01' }),
+      { placementId: 'video-01', shortLinkId: 'Short_01' }
+    );
+  });
+
+  test('detectPlacementAttribution rejects untagged, invalid, and non-social links', () => {
+    const { detectPlacementAttribution } = U;
+    const empty = { placementId: '', shortLinkId: '' };
+    assert.deepStrictEqual(detectPlacementAttribution({ pathname: '/s/Short_01', search: '?src=x' }), empty);
+    assert.deepStrictEqual(detectPlacementAttribution({ pathname: '/s/Short_01', search: '?src=x&pid=bad%20id' }), empty);
+    assert.deepStrictEqual(detectPlacementAttribution({ pathname: '/s/Short_01', search: '?src=email&pid=Email_01' }), empty);
+    assert.deepStrictEqual(detectPlacementAttribution({ pathname: '/s/Short_01', search: '?src=linkedin&pid=Post_01' }), empty);
+    assert.deepStrictEqual(detectPlacementAttribution({ pathname: '/', search: '?src=x&pid=Reply_07' }), empty);
+  });
+
+  test('buildCheckMessage carries placement and short-link ids as one pair', () => {
+    const m = buildCheckMessage('v1', '2026-W15', 0, false, 9, 2, 'short', 'x', 'Reply_07', 'Short_01');
+    assert.strictEqual(m.pid, 'Reply_07');
+    assert.strictEqual(m.sid, 'Short_01');
+    const incomplete = buildCheckMessage('v1', '2026-W15', 0, false, 9, 2, 'short', 'x', 'Reply_07', '');
+    assert.ok(!('pid' in incomplete));
+    assert.ok(!('sid' in incomplete));
+  });
+
   test('detectLoadType: classifies short / hash / app from location', () => {
     const { detectLoadType } = U;
     assert.strictEqual(detectLoadType({ pathname: '/s/abc123', hash: '' }), 'short');

@@ -308,10 +308,41 @@ function readSegments(db) {
   return { cohortsByType: cohortsByType, dowByWeek: dowByWeek, hourByWeek: hourByWeek };
 }
 
-function getRetentionData() {
-  var payload = readVisitPayload(getDB());
-  var segments = readSegments(getDB());
+function readTargetedPlacements(db) {
+  var map = Object.create(null);
+  try {
+    db.prepare(
+      "SELECT placement_id, short_link_id, LOWER(traffic_source) AS source, visit_week, " +
+      "COUNT(*) AS visits, MIN(timestamp) AS first_seen, MAX(timestamp) AS last_seen " +
+      "FROM visits WHERE load_type = 'short' AND placement_id != '' AND short_link_id != '' " +
+      'GROUP BY placement_id, short_link_id, LOWER(traffic_source), visit_week ' +
+      'ORDER BY placement_id, visit_week'
+    ).all().forEach(function (row) {
+      var key = row.placement_id + '|' + row.short_link_id + '|' + row.source;
+      var placement = map[key];
+      if (!placement) {
+        placement = map[key] = {
+          placementId: row.placement_id,
+          shortLinkId: row.short_link_id,
+          source: row.source,
+          total: 0,
+          firstSeen: row.first_seen,
+          lastSeen: row.last_seen,
+          visits: {}
+        };
+      }
+      placement.visits[row.visit_week] = row.visits;
+      placement.total += row.visits;
+      if (row.first_seen < placement.firstSeen) placement.firstSeen = row.first_seen;
+      if (row.last_seen > placement.lastSeen) placement.lastSeen = row.last_seen;
+    });
+  } catch (e) { return []; }
+  return Object.keys(map).map(function (key) { return map[key]; })
+    .sort(function (a, b) { return b.total - a.total || a.placementId.localeCompare(b.placementId); });
+}
 
+function readMergedVisitPayload() {
+  var payload = readVisitPayload(getDB());
   var legacyDbPath = process.env.ANALYTICS_LEGACY_DB;
   if (legacyDbPath && fs.existsSync(legacyDbPath)) {
     try {
@@ -320,6 +351,25 @@ function getRetentionData() {
       console.log('[analytics] legacy db unreadable, serving current-site data only: ' + e.message);
     }
   }
+  return payload;
+}
+
+function getSourceData(type) {
+  var pageType = type === 'short' || type === 'home' ? type : '';
+  var payload = readMergedVisitPayload();
+  return {
+    generated: new Date().toISOString(),
+    weeks: payload.weeks,
+    sourceCampaigns: pageType
+      ? (payload.sourceCampaignsByType[pageType] || [])
+      : payload.sourceCampaigns,
+    targetedPlacements: pageType === 'short' ? readTargetedPlacements(getDB()) : []
+  };
+}
+
+function getRetentionData() {
+  var payload = readMergedVisitPayload();
+  var segments = readSegments(getDB());
 
   var shortLinkWeekly = [];
   try { shortLinkWeekly = shortLinks.getWeeklyCreationCounts(); } catch (e) { /* short_links DB missing */ }
@@ -366,4 +416,4 @@ function getRetentionData() {
   };
 }
 
-module.exports = { getRetentionData, readVisitPayload, mergeVisitPayloads, mergeSourceCampaigns, mergeSourceCampaignsByType, readSegments };
+module.exports = { getRetentionData, getSourceData, readVisitPayload, readTargetedPlacements, mergeVisitPayloads, mergeSourceCampaigns, mergeSourceCampaignsByType, readSegments };

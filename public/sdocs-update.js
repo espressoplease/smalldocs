@@ -76,11 +76,29 @@
     return '';
   }
 
+  // Placement attribution is opt-in. It is accepted only on a short-link URL,
+  // with a recognized social source and a conservative opaque identifier.
+  // The short-link id comes from the path. The decryption key remains in the
+  // fragment and is never copied into this analytics message.
+  function detectPlacementAttribution(loc) {
+    var empty = { placementId: '', shortLinkId: '' };
+    try {
+      var pathMatch = /^\/s\/([A-Za-z0-9_-]{1,32})$/.exec((loc && loc.pathname) || '');
+      if (!pathMatch) return empty;
+      var params = new URLSearchParams((loc && loc.search) || '');
+      var source = (params.get('src') || '').trim().toLowerCase();
+      if (['x', 'yt', 'youtube'].indexOf(source) === -1) return empty;
+      var placement = (params.get('pid') || '').trim();
+      if (!/^[A-Za-z0-9][A-Za-z0-9_-]{3,31}$/.test(placement)) return empty;
+      return { placementId: placement, shortLinkId: pathMatch[1] };
+    } catch (e) { return empty; }
+  }
+
   // localHour (0-23) / localDow (0=Sun..6=Sat) are the visitor's own clock at
   // check time; loadType is the frozen entry classification. All attached only
   // when supplied so the pure Node tests (which omit them) still get the exact
   // base message shape.
-  function buildCheckMessage(appVersion, cohort, reloadCount, justReloaded, localHour, localDow, loadType, trafficSource) {
+  function buildCheckMessage(appVersion, cohort, reloadCount, justReloaded, localHour, localDow, loadType, trafficSource, placementId, shortLinkId) {
     var msg = {
       type: 'check-update',
       version: appVersion,
@@ -92,6 +110,10 @@
     if (typeof localDow === 'number') msg.ld = localDow;
     if (loadType) msg.lt = loadType;
     if (trafficSource) msg.src = trafficSource;
+    if (placementId && shortLinkId) {
+      msg.pid = placementId;
+      msg.sid = shortLinkId;
+    }
     return msg;
   }
 
@@ -100,6 +122,7 @@
   exports.buildCheckMessage = buildCheckMessage;
   exports.detectLoadType = detectLoadType;
   exports.detectTrafficSource = detectTrafficSource;
+  exports.detectPlacementAttribution = detectPlacementAttribution;
 
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -116,7 +139,7 @@
   var K_DONE = 'sdocs_just_updated';
   var K_TARGET = 'sdocs_update_target';
 
-  var appVersion = '', cohort = '', loadType = '', trafficSource = '';
+  var appVersion = '', cohort = '', loadType = '', trafficSource = '', placementId = '', shortLinkId = '';
   var hiddenSince = null, lastCheck = 0, started = false, justReloaded = false;
 
   function ss(get, key, val) {
@@ -206,7 +229,7 @@
     lastCheck = Date.now();
     var count = parseInt(ss(true, K_COUNT) || '0', 10) || 0;
     var now = new Date();
-    var msg = buildCheckMessage(appVersion, cohort, count, justReloaded, now.getHours(), now.getDay(), loadType, trafficSource);
+    var msg = buildCheckMessage(appVersion, cohort, count, justReloaded, now.getHours(), now.getDay(), loadType, trafficSource, placementId, shortLinkId);
     justReloaded = false; // marker is one-shot: only the first check after a reload carries u=1
     activeWorker(function (w) {
       w.postMessage(msg);
@@ -289,6 +312,13 @@
           typeof document !== 'undefined' ? document.referrer : ''
         ))
       : '';
+    var placement = loadType === 'short'
+      ? ((opts && opts.placement) || detectPlacementAttribution(
+          typeof window !== 'undefined' ? window.location : null
+        ))
+      : { placementId: '', shortLinkId: '' };
+    placementId = placement.placementId || '';
+    shortLinkId = placement.shortLinkId || '';
 
     // Did this load happen because we auto-reloaded for an update? K_DONE is set
     // in doReload() right before reload. Capture it BEFORE

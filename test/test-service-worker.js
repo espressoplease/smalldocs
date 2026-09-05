@@ -60,4 +60,18 @@ module.exports = function(harness) {
     assert.ok(source.includes('return cache.match(e.request).then(function (cached)'));
     assert.ok(source.includes('return cache.match(e.request, { ignoreSearch: true });'));
   });
+
+  test('service worker forwards targeted placement fields to version-check', () => {
+    const url = context.buildVersionCheckUrl({
+      cohort: '2026-W36', r: 0, u: 0, lt: 'short', src: 'x',
+      pid: 'Reply_07', sid: 'Short_01',
+    });
+    assert.strictEqual(url, '/version-check?cohort=2026-W36&r=0&u=0&lt=short&src=x&pid=Reply_07&sid=Short_01');
+  });
+
+  test('service worker omits incomplete placement attribution', () => {
+    const url = context.buildVersionCheckUrl({ cohort: '', r: 0, u: 0, lt: 'short', src: 'x', pid: 'Reply_07' });
+    assert.ok(!url.includes('pid='));
+    assert.ok(!url.includes('sid='));
+  });
 };

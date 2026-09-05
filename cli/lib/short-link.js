@@ -18,6 +18,35 @@ const { slugify } = require('../shared/sdocs-slugify.js');
 const { toBase64Url } = require('./url');
 const { DEFAULT_URL } = require('./constants');
 
+const PLACEMENT_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{3,31}$/;
+const PLACEMENT_SOURCES = new Set(['x', 'yt', 'youtube']);
+
+function normalizePlacementId(value) {
+  if (value == null || value === '') return '';
+  const placement = String(value).trim();
+  if (!PLACEMENT_RE.test(placement)) {
+    throw new Error('placement must be 4-32 letters, numbers, underscores, or hyphens');
+  }
+  return placement;
+}
+
+function buildAttributionQuery(sourceValue, placementValue) {
+  const source = String(sourceValue || '').trim().toLowerCase();
+  const placement = normalizePlacementId(placementValue);
+  if (placement && !PLACEMENT_SOURCES.has(source)) {
+    throw new Error('placement requires --source x, yt, or youtube');
+  }
+  const query = new URLSearchParams();
+  if (source) query.set('src', source);
+  if (placement) query.set('pid', placement);
+  return query.toString();
+}
+
+function assembleShortUrl(baseUrl, id, attributionQuery, fragmentParams) {
+  const sourceQuery = attributionQuery ? `?${attributionQuery}` : '';
+  return `${baseUrl}/s/${id}${sourceQuery}#${fragmentParams.toString()}`;
+}
+
 // The blob format (nonce(12) + ciphertext + tag(16)) matches the browser.
 function compressAndEncrypt(content) {
   const compressed = zlib.brotliCompressSync(Buffer.from(content, 'utf-8'), {
@@ -72,6 +101,8 @@ function uploadShortLink(ciphertextB64, baseUrl) {
 
 async function buildShortUrl(content, opts) {
   if (!content) throw new Error('short link requires file content');
+  opts = opts || {};
+  const attributionQuery = buildAttributionQuery(opts.source, opts.placement);
 
   // Mirror the hash-build's default-stripping so the encrypted payload is
   // identical to what the browser would encode.
@@ -98,13 +129,14 @@ async function buildShortUrl(content, opts) {
   // Source attribution belongs in the query so the server can receive it. The
   // encryption key stays after # and therefore never leaves the browser. The
   // short-link id and encrypted payload are unchanged by this label.
-  const source = String(opts.source || '').trim().toLowerCase();
-  const sourceQuery = source ? `?src=${encodeURIComponent(source)}` : '';
-  return `${baseUrl}/s/${id}${sourceQuery}#${params.toString()}`;
+  return assembleShortUrl(baseUrl, id, attributionQuery, params);
 }
 
 module.exports = {
   compressAndEncrypt,
   uploadShortLink,
   buildShortUrl,
+  normalizePlacementId,
+  buildAttributionQuery,
+  assembleShortUrl,
 };

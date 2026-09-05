@@ -44,7 +44,7 @@ async function finishUrl(opts, content, local, defaults) {
     try {
       const url = await buildShortUrl(content, {
         url: opts.url, mode: opts.mode, theme: opts.theme, section: opts.section,
-        source: opts.sourceFlag,
+        source: opts.sourceFlag, placement: opts.placementFlag,
       });
       return { url, contentPresent: !!content };
     } catch (e) {

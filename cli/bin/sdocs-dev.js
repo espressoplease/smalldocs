@@ -163,6 +163,9 @@ module.exports = {
   compressAndEncrypt: shortLink.compressAndEncrypt,
   uploadShortLink:    shortLink.uploadShortLink,
   buildShortUrl:      shortLink.buildShortUrl,
+  normalizePlacementId: shortLink.normalizePlacementId,
+  buildAttributionQuery: shortLink.buildAttributionQuery,
+  assembleShortUrl: shortLink.assembleShortUrl,
 
   // Default styles
   mergeStyles:        styles.mergeStyles,

@@ -23,6 +23,22 @@
   .how-to p + p { margin-top: 7px; }
   .how-to code, .source-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .how-to code { padding: 2px 5px; border: 1px solid #D4CFC9; border-radius: 4px; background: #FAFAF8; color: #1C1917; }
+  .placement-panel { margin-top: 24px; }
+  .placement-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
+  .placement-head h2 { font-size: 15px; font-weight: 600; }
+  .placement-note { max-width: 760px; color: #57534E; font-size: 12px; line-height: 1.5; }
+  .placement-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .summary-chip { padding: 7px 10px; border: 1px solid #D4CFC9; border-radius: 6px; background: #F1EDE8; font-size: 12px; color: #57534E; }
+  .summary-chip strong { color: #1C1917; }
+  .placement-controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 10px; }
+  .placement-controls label { display: flex; align-items: center; gap: 6px; color: #57534E; font-size: 12px; }
+  .placement-controls select, .placement-controls input { height: 30px; padding: 0 8px; border: 1px solid #D4CFC9; border-radius: 5px; background: #FAFAF8; color: #1C1917; font: inherit; font-size: 12px; }
+  .placement-controls input { width: 220px; }
+  .placement-table { margin-top: 0; }
+  .placement-table td { vertical-align: top; }
+  .placement-key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; }
+  .placement-weeks { min-width: 160px; color: #57534E; font-size: 11px; line-height: 1.45; }
+  .placement-empty { padding: 16px; color: #78716C; font-size: 12px; }
   .sources { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 24px; }
   .source-card { min-width: 0; padding: 16px; background: #F1EDE8; border: 1px solid #D4CFC9; border-radius: 8px; }
   .source-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 12px; }
@@ -50,6 +66,10 @@
     .table-wrap, .empty { background: #1C1A17; border-color: #3D3935; }
     th { background: #211F1D; color: #A8A29E; }
     th, td { border-color: #332F2B; }
+    .placement-note, .placement-controls label, .placement-weeks { color: #A8A29E; }
+    .summary-chip { background: #252320; border-color: #3D3935; color: #A8A29E; }
+    .summary-chip strong { color: #E7E5E2; }
+    .placement-controls select, .placement-controls input { background: #1C1A17; border-color: #3D3935; color: #E7E5E2; }
   }
 </style>
 </head>
@@ -69,6 +89,17 @@
     <p id="source-tip">Create a source while sharing: <code>sdoc share report.md --short --source email-launch</code></p>
     <p>The chart name is the lowercase value of <code>src</code>, with surrounding spaces removed. There are no aliases or inferred sources.</p>
   </div>
+  <section id="placement-panel" class="placement-panel" hidden>
+    <div class="placement-head"><h2>Targeted placements</h2></div>
+    <p class="placement-note">Only short links carrying a valid <code>pid</code> appear here. A placement identifies where a link was published, not a person. These visits remain included once in the ordinary totals above.</p>
+    <div id="placement-summary" class="placement-summary"></div>
+    <div class="placement-controls">
+      <label>Group by <select id="placement-group"><option value="placement">Placement</option><option value="short">Short link</option><option value="source">Source</option></select></label>
+      <label>Source <select id="placement-source"><option value="">All sources</option></select></label>
+      <label>Filter <input id="placement-search" type="search" placeholder="Placement or short-link id"></label>
+    </div>
+    <div id="placement-results" class="table-wrap placement-table"></div>
+  </section>
   <div id="sources" class="sources" aria-live="polite"></div>
 </main>
 
@@ -86,6 +117,8 @@
   if (pageType === 'short') {
     document.getElementById('page-title').textContent = 'Short-link sources';
     document.getElementById('page-subtitle').innerHTML = 'Each explicit <code>?src=</code> value on a short link creates a source here when its first visit is recorded.';
+    document.getElementById('source-tip').innerHTML = 'Create a targeted placement while sharing: <code>sdoc share report.md --short --source x --placement Reply_07</code>';
+    document.getElementById('placement-panel').hidden = false;
   } else if (pageType === 'home') {
     document.getElementById('page-title').textContent = 'Homepage sources';
     document.getElementById('page-subtitle').innerHTML = 'Each explicit <code>?src=</code> value on the homepage creates a source here when its first visit is recorded.';
@@ -172,15 +205,116 @@
     root.appendChild(card);
   }
 
-  fetch('/analytics/data')
+  function renderPlacements(placements) {
+    var summary = document.getElementById('placement-summary');
+    var results = document.getElementById('placement-results');
+    var sourceSelect = document.getElementById('placement-source');
+    var groupSelect = document.getElementById('placement-group');
+    var searchInput = document.getElementById('placement-search');
+    if (!summary || !results || !sourceSelect || !groupSelect || !searchInput) return;
+
+    var sources = Array.from(new Set(placements.map(function (p) { return p.source; }))).sort();
+    sources.forEach(function (source) {
+      var option = document.createElement('option');
+      option.value = source;
+      option.textContent = source;
+      sourceSelect.appendChild(option);
+    });
+    var totalVisits = placements.reduce(function (sum, p) { return sum + p.total; }, 0);
+    var documentCount = new Set(placements.map(function (p) { return p.shortLinkId; })).size;
+    summary.innerHTML = '<span class="summary-chip"><strong>' + totalVisits + '</strong> targeted visits</span>' +
+      '<span class="summary-chip"><strong>' + placements.length + '</strong> ' + (placements.length === 1 ? 'placement' : 'placements') + '</span>' +
+      '<span class="summary-chip"><strong>' + documentCount + '</strong> ' + (documentCount === 1 ? 'short link' : 'short links') + '</span>';
+
+    function aggregate(items, mode) {
+      var groups = Object.create(null);
+      items.forEach(function (p) {
+        var key = mode === 'source' ? p.source : mode === 'short' ? p.shortLinkId : p.placementId + '|' + p.shortLinkId + '|' + p.source;
+        var row = groups[key];
+        if (!row) row = groups[key] = { key: mode === 'placement' ? p.placementId : key, sources: new Set(), links: new Set(), placements: new Set(), total: 0, firstSeen: p.firstSeen, lastSeen: p.lastSeen, visits: {} };
+        row.sources.add(p.source);
+        row.links.add(p.shortLinkId);
+        row.placements.add(p.placementId);
+        row.total += p.total;
+        if (p.firstSeen < row.firstSeen) row.firstSeen = p.firstSeen;
+        if (p.lastSeen > row.lastSeen) row.lastSeen = p.lastSeen;
+        Object.keys(p.visits || {}).forEach(function (week) { row.visits[week] = (row.visits[week] || 0) + p.visits[week]; });
+      });
+      return Object.keys(groups).map(function (key) { return groups[key]; }).sort(function (a, b) { return b.total - a.total || a.key.localeCompare(b.key); });
+    }
+
+    function recentWeeks(visits) {
+      return Object.keys(visits || {}).sort().slice(-4).reverse().map(function (week) {
+        return fmtWeek(week) + ': ' + visits[week];
+      }).join('  ');
+    }
+
+    function dateText(value) {
+      return value ? value.slice(0, 10) : '';
+    }
+
+    function draw() {
+      var source = sourceSelect.value;
+      var query = searchInput.value.trim().toLowerCase();
+      var filtered = placements.filter(function (p) {
+        if (source && p.source !== source) return false;
+        if (!query) return true;
+        return p.placementId.toLowerCase().indexOf(query) !== -1 || p.shortLinkId.toLowerCase().indexOf(query) !== -1;
+      });
+      var rows = aggregate(filtered, groupSelect.value);
+      results.innerHTML = '';
+      if (!rows.length) {
+        var empty = document.createElement('p');
+        empty.className = 'placement-empty';
+        empty.textContent = placements.length ? 'No targeted placements match these filters.' : 'No targeted placement visits yet.';
+        results.appendChild(empty);
+        return;
+      }
+      var table = document.createElement('table');
+      var thead = document.createElement('thead');
+      var header = document.createElement('tr');
+      ['Group', 'Sources', 'Short links', 'Placements', 'Visits', 'Recent weeks', 'First seen', 'Last seen'].forEach(function (label) {
+        var th = document.createElement('th'); th.textContent = label; header.appendChild(th);
+      });
+      thead.appendChild(header); table.appendChild(thead);
+      var tbody = document.createElement('tbody');
+      rows.forEach(function (item) {
+        var row = document.createElement('tr');
+        var values = [
+          item.key,
+          Array.from(item.sources).sort().join(', '),
+          Array.from(item.links).sort().map(function (id) { return '/s/' + id; }).join(', '),
+          String(item.placements.size),
+          String(item.total),
+          recentWeeks(item.visits),
+          dateText(item.firstSeen),
+          dateText(item.lastSeen)
+        ];
+        values.forEach(function (value, index) {
+          var td = document.createElement('td');
+          td.textContent = value;
+          if (index === 0) td.className = 'placement-key';
+          if (index === 5) td.className = 'placement-weeks';
+          row.appendChild(td);
+        });
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody); results.appendChild(table);
+    }
+    groupSelect.addEventListener('change', draw);
+    sourceSelect.addEventListener('change', draw);
+    searchInput.addEventListener('input', draw);
+    draw();
+  }
+
+  fetch('/analytics/sources/data' + (pageType ? '?type=' + encodeURIComponent(pageType) : ''))
     .then(function (response) {
       if (!response.ok) throw new Error('Analytics request failed');
       return response.json();
     })
     .then(function (data) {
-      var campaigns = pageType
-        ? ((data.sourceCampaignsByType && data.sourceCampaignsByType[pageType]) || [])
-        : (data.sourceCampaigns || []);
+      var campaigns = data.sourceCampaigns || [];
+      if (pageType === 'short') renderPlacements(data.targetedPlacements || []);
       root.innerHTML = '';
       if (!campaigns.length) {
         root.className = 'empty';

@@ -84,6 +84,8 @@ module.exports = function (harness) {
     const db = analyticsDb.getDB();
     const cols = db.prepare("PRAGMA table_info(visits)").all().map(function (c) { return c.name; });
     assert.ok(!cols.includes('ip_hash'), 'ip_hash should not exist on the visits table');
+    assert.ok(cols.includes('placement_id'), 'placement_id should exist on the visits table');
+    assert.ok(cols.includes('short_link_id'), 'short_link_id should exist on the visits table');
   });
 
   test('flush writes multiple visits in one transaction', () => {
@@ -452,6 +454,65 @@ module.exports = function (harness) {
 
     const campaigns = analyticsQuery.getRetentionData().sourceCampaigns;
     assert.deepStrictEqual(campaigns.map(c => c.source).sort(), ['__proto__', 'constructor']);
+  });
+
+  test('placement attribution is opt-in and requires a valid social short link', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'x', 'Reply_07', 'Short_01');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'yt', 'Video_01', 'Short_01');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'x');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'x', 'bad id', 'Short_01');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'email', 'Email_01', 'Short_01');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'linkedin', 'Post_01', 'Short_01');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'x', 'Reply_08', 'bad/id');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'hash', 'x', 'Reply_09', 'Short_01');
+    analyticsDb.flush();
+    const db = analyticsDb.getDB();
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE placement_id != ''").get().c, 2);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE short_link_id != ''").get().c, 2);
+    const reply = db.prepare("SELECT * FROM visits WHERE placement_id = 'Reply_07'").get();
+    assert.strictEqual(reply.short_link_id, 'Short_01');
+    assert.strictEqual(reply.traffic_source, 'x');
+    assert.strictEqual(db.prepare('SELECT COUNT(*) c FROM visits').get().c, 8,
+      'invalid and untagged links remain ordinary counted visits');
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'short'").get().c, 7,
+      'targeted visits are not inserted into a second row');
+  });
+
+  test('source detail data groups targeted placements without changing main analytics data', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    const db = analyticsDb.getDB();
+    const ins = db.prepare('INSERT INTO visits (timestamp, cohort_week, visit_week, load_type, traffic_source, placement_id, short_link_id) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    ins.run('2026-09-01 10:00:00', '2026-W36', '2026-W36', 'short', 'x', 'Reply_07', 'Short_01');
+    ins.run('2026-09-02 11:00:00', '2026-W36', '2026-W36', 'short', 'x', 'Reply_07', 'Short_01');
+    ins.run('2026-09-03 12:00:00', '2026-W36', '2026-W37', 'short', 'x', 'Reply_07', 'Short_01');
+    ins.run('2026-09-03 13:00:00', '2026-W36', '2026-W37', 'short', 'yt', 'Video_01', 'Short_01');
+    ins.run('2026-09-03 14:00:00', '2026-W36', '2026-W37', 'short', 'x', '', '');
+
+    const sourceData = analyticsQuery.getSourceData('short');
+    assert.strictEqual(sourceData.targetedPlacements.length, 2);
+    assert.deepStrictEqual(sourceData.targetedPlacements[0], {
+      placementId: 'Reply_07', shortLinkId: 'Short_01', source: 'x', total: 3,
+      firstSeen: '2026-09-01 10:00:00', lastSeen: '2026-09-03 12:00:00',
+      visits: { '2026-W36': 2, '2026-W37': 1 }
+    });
+    assert.strictEqual(sourceData.targetedPlacements[1].placementId, 'Video_01');
+    assert.deepStrictEqual(analyticsQuery.getSourceData('home').targetedPlacements, []);
+
+    const mainData = analyticsQuery.getRetentionData();
+    assert.ok(!('targetedPlacements' in mainData), 'main analytics payload remains unchanged');
+    assert.strictEqual(mainData.volume.reduce((sum, row) => sum + row.visits, 0), 5);
+    assert.strictEqual(mainData.loadTypes.find(row => row.type === 'short').count, 5);
+  });
+
+  test('targeted placement query degrades on a legacy visits table', () => {
+    const Database = require('better-sqlite3');
+    const legacy = new Database(':memory:');
+    legacy.exec("CREATE TABLE visits (id INTEGER PRIMARY KEY, visit_week TEXT NOT NULL)");
+    assert.deepStrictEqual(analyticsQuery.readTargetedPlacements(legacy), []);
+    legacy.close();
   });
 
   test('readVisitPayload does not infer sources when a legacy row has no page type', () => {
