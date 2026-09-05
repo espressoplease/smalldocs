@@ -107,13 +107,13 @@ function checkJobs(dbPath, now, maximumAgeMs) {
   }
   try {
     const summary = jobs.summary();
-    const oldestAgeMs = summary.oldestPendingAtMs == null ? 0 : Math.max(0, now - summary.oldestPendingAtMs);
+    const oldestAgeMs = summary.oldestDueAtMs == null ? 0 : Math.max(0, now - summary.oldestDueAtMs);
     if (summary.states.dead > 0) return { ok: false, code: 'jobs_dead',
       detail: summary.states.dead + ' dead jobs' };
     if (summary.expiredLeaseCount > 0) return { ok: false, code: 'jobs_expired_lease',
       detail: summary.expiredLeaseCount + ' expired leases' };
     if (oldestAgeMs > maximumAgeMs) return { ok: false, code: 'jobs_stale',
-      detail: Math.floor(oldestAgeMs / 60000) + ' minute oldest pending job' };
+      detail: Math.floor(oldestAgeMs / 60000) + ' minute oldest due job' };
     return { ok: true, code: 'jobs_ok', detail: summary.states.queued + ' queued jobs' };
   } catch (error) {
     return { ok: false, code: 'jobs_check_failed', detail: error.code || error.message };

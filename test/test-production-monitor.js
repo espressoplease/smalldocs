@@ -32,6 +32,26 @@ module.exports = function ({ test, testAsync, assert }) {
     assert.ok(!key.includes('private'));
   });
 
+  test('production monitor does not treat future scheduled jobs as stale', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-monitor-jobs-'));
+    const dbPath = path.join(directory, 'jobs.db');
+    const now = Date.now();
+    const jobs = require('../lib/cloud-jobs').createCloudJobs({ dbPath, now: () => now });
+    try {
+      jobs.enqueue({ type: 'future', idempotencyKey: 'future-1', payload: {},
+        availableAtMs: now + 24 * 60 * 60 * 1000 });
+    } finally {
+      jobs.close();
+    }
+    try {
+      const result = monitor.checkJobs(dbPath, now, 15 * 60 * 1000);
+      assert.strictEqual(result.ok, true);
+      assert.strictEqual(result.code, 'jobs_ok');
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   await testAsync('production monitor alerts once, then sends a recovery message', async () => {
     let state = {};
     const messages = [];

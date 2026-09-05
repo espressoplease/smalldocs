@@ -116,6 +116,16 @@ if ! curl -fsS --max-time 10 \
   rollback_staging
   exit 1
 fi
+if [ -n "$previous_release" ] && [ "$previous_release" != "$release_dir" ]; then
+  sudo ln -sfn "$previous_release" /opt/smalldocs/staging-previous
+fi
+sudo sh "$release_dir/ops/prune-releases.sh" \
+  /opt/smalldocs/releases \
+  /opt/smalldocs/staging-current \
+  /opt/smalldocs/current \
+  /opt/smalldocs/previous \
+  /opt/smalldocs/staging-current \
+  /opt/smalldocs/staging-previous
 printf 'Deployed staging commit %s\n' "$release_commit"
 REMOTE
 

@@ -50,7 +50,7 @@ function renderText(summary) {
     'Total ' + summary.total + ' | queued ' + summary.states.queued +
       ' | running ' + summary.states.running + ' | complete ' + summary.states.complete +
       ' | dead ' + summary.states.dead,
-    'Oldest pending ' + formatAge(summary.generatedAtMs, summary.oldestPendingAtMs) +
+    'Oldest due ' + formatAge(summary.generatedAtMs, summary.oldestDueAtMs) +
       ' | expired leases ' + summary.expiredLeaseCount,
   ];
   for (const item of summary.types) {

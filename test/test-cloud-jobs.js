@@ -68,11 +68,13 @@ module.exports = function(harness) {
         maxAttempts: 3,
       });
       first.enqueue({ type: 'revision.cleanup', idempotencyKey: 'cleanup-2', payload: {} });
+      assert.strictEqual(first.summary({ types: ['email.send'] }).oldestDueAtMs, null);
       assert.strictEqual(first.claim({ workerId: 'email-worker', types: ['email.send'] }), null);
       const cleanup = first.claim({ workerId: 'cleanup-worker', types: ['revision.cleanup'] });
       assert.strictEqual(cleanup.type, 'revision.cleanup');
       first.complete({ jobId: cleanup.id, workerId: 'cleanup-worker' });
       clock += 100;
+      assert.strictEqual(first.summary({ types: ['email.send'] }).oldestDueAtMs, clock);
       assert.strictEqual(first.claim({ workerId: 'email-worker', types: ['email.send'] }).type, 'email.send');
     });
 

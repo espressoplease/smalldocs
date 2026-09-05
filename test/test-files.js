@@ -3,6 +3,8 @@
  */
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+const childProcess = require('child_process');
 
 module.exports = function(harness) {
   const { assert, test } = harness;
@@ -99,6 +101,45 @@ module.exports = function(harness) {
       'systemctl enable --now smalldocs-monitor.timer'));
   });
 
+  test('deployment keeps current and previous production and staging releases', () => {
+    const projectRoot = path.join(__dirname, '..');
+    const production = fs.readFileSync(path.join(projectRoot, 'ops/deploy-production.sh'), 'utf8');
+    const staging = fs.readFileSync(path.join(projectRoot, 'ops/deploy-staging.sh'), 'utf8');
+    const prune = fs.readFileSync(path.join(projectRoot, 'ops/prune-releases.sh'), 'utf8');
+    for (const content of [production, staging]) {
+      assert.ok(content.includes('ops/prune-releases.sh'));
+      assert.ok(content.includes('/opt/smalldocs/current'));
+      assert.ok(content.includes('/opt/smalldocs/previous'));
+      assert.ok(content.includes('/opt/smalldocs/staging-current'));
+      assert.ok(content.includes('/opt/smalldocs/staging-previous'));
+    }
+    assert.ok(prune.includes("grep -Eq '^[0-9a-f]{40}$'"));
+    assert.ok(prune.includes('Active pointer must resolve inside the release root'));
+  });
+
+  test('release pruning removes only inactive commit directories', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-releases-'));
+    const releases = path.join(directory, 'releases');
+    const names = ['a', 'b', 'c', 'd', 'e'].map(letter => letter.repeat(40));
+    fs.mkdirSync(releases);
+    for (const name of names) fs.mkdirSync(path.join(releases, name));
+    fs.mkdirSync(path.join(releases, 'manual'));
+    const pointers = ['current', 'previous', 'staging-current', 'staging-previous'];
+    pointers.forEach((pointer, index) => fs.symlinkSync(path.join(releases, names[index]),
+      path.join(directory, pointer)));
+    try {
+      childProcess.execFileSync('sh', [path.join(__dirname, '..', 'ops', 'prune-releases.sh'),
+        releases, ...pointers.map(pointer => path.join(directory, pointer))]);
+      for (const name of names.slice(0, 4)) {
+        assert.strictEqual(fs.existsSync(path.join(releases, name)), true);
+      }
+      assert.strictEqual(fs.existsSync(path.join(releases, names[4])), false);
+      assert.strictEqual(fs.existsSync(path.join(releases, 'manual')), true);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   test('production deploy verifies, installs, and can roll back systemd unit changes', () => {
     const deploy = fs.readFileSync(path.join(__dirname, '..', 'ops',
       'deploy-production.sh'), 'utf8');
@@ -120,7 +161,7 @@ module.exports = function(harness) {
     assert.ok(deploy.includes('https://cloud-staging.smalldocs.org'));
     assert.ok(deploy.includes('rollback_staging'));
     assert.ok(deploy.includes('Xx]-[Ss]docs-[Cc]ommit'));
-    assert.ok(!deploy.includes('/opt/smalldocs/current'));
+    assert.ok(!/ln -sfn[^\n]+\/opt\/smalldocs\/current/.test(deploy));
     assert.ok(!/systemctl restart smalldocs(?:\s|$)/.test(deploy));
   });
 

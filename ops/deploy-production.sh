@@ -86,5 +86,16 @@ fi
 
 sudo sh /opt/smalldocs/current/ops/install-production-monitor.sh /opt/smalldocs/current
 
+if [ -n "$previous_release" ] && [ "$previous_release" != "$release_dir" ]; then
+  sudo ln -sfn "$previous_release" /opt/smalldocs/previous
+fi
+sudo sh "$release_dir/ops/prune-releases.sh" \
+  /opt/smalldocs/releases \
+  /opt/smalldocs/current \
+  /opt/smalldocs/current \
+  /opt/smalldocs/previous \
+  /opt/smalldocs/staging-current \
+  /opt/smalldocs/staging-previous
+
 echo "Deployed $release_commit"
 REMOTE
