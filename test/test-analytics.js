@@ -367,24 +367,22 @@ module.exports = function (harness) {
 
   console.log('\n-- Analytics: Source Attribution Tests ---------------\n');
 
-  test('logVisit stores arbitrary tagged sources and recognized social referrers', () => {
+  test('logVisit stores lowercase tagged sources and does not infer from referrers', () => {
     analyticsDb.close();
     analyticsDb.init(':memory:');
     analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'x');
     analyticsDb.logVisit('2026-W15', '', 'https://t.co/abc', null, null, 'short');
     analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'yt');
-    analyticsDb.logVisit('2026-W15', '', 'https://m.youtube.com/watch?v=abc', null, null, 'short');
-    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'linkedin');
-    analyticsDb.logVisit('2026-W15', '', 'https://lnkd.in/abc', null, null, 'short');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'YouTube');
     analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'newsletter');
     analyticsDb.flush();
     const db = analyticsDb.getDB();
-    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'x'").get().c, 2);
-    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'youtube'").get().c, 2);
-    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'linkedin'").get().c, 2);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'x'").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'yt'").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'youtube'").get().c, 1);
     assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'newsletter'").get().c, 1);
-    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = ''").get().c, 0);
-    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'short'").get().c, 7,
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = ''").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'short'").get().c, 5,
       'source attribution does not remove visits from the short-link bucket');
   });
 
@@ -403,26 +401,25 @@ module.exports = function (harness) {
     assert.deepStrictEqual(analyticsQuery.getRetentionData().sourceCampaigns.map(c => c.source).sort(), ['email-home', 'email-short']);
   });
 
-  test('getRetentionData returns weekly social series without changing total volume', () => {
+  test('getRetentionData keeps homepage and short-link sources separate', () => {
     analyticsDb.close();
     analyticsDb.init(':memory:');
     const db = analyticsDb.getDB();
     const ins = db.prepare('INSERT INTO visits (cohort_week, visit_week, referer, load_type, traffic_source) VALUES (?, ?, ?, ?, ?)');
-    ins.run('2026-W15', '2026-W15', 'direct', 'short', 'x');
-    ins.run('2026-W15', '2026-W15', 't.co', 'short', '');
-    ins.run('2026-W15', '2026-W15', 'direct', 'short', '');
-    ins.run('2026-W15', '2026-W16', 'direct', 'short', 'x');
-    ins.run('2026-W15', '2026-W16', 'youtube.com', 'short', '');
-    ins.run('2026-W15', '2026-W16', 'direct', 'short', 'linkedin');
+    ins.run('2026-W15', '2026-W15', 'direct', 'short', 'email');
+    ins.run('2026-W15', '2026-W15', 'direct', 'short', 'email');
+    ins.run('2026-W15', '2026-W15', 'direct', 'home', 'email');
+    ins.run('2026-W15', '2026-W16', 'direct', 'home', 'homepage-only');
     const data = analyticsQuery.getRetentionData();
-    assert.deepStrictEqual(data.xVisits, [
-      { visit_week: '2026-W15', visits: 2 },
-      { visit_week: '2026-W16', visits: 1 },
+    assert.deepStrictEqual(data.sourceCampaignsByType.short, [
+      { source: 'email', total: 2, visits: { '2026-W15': 2 } },
     ]);
-    assert.deepStrictEqual(data.youtubeVisits, [{ visit_week: '2026-W16', visits: 1 }]);
-    assert.deepStrictEqual(data.linkedinVisits, [{ visit_week: '2026-W16', visits: 1 }]);
+    assert.deepStrictEqual(data.sourceCampaignsByType.home, [
+      { source: 'email', total: 1, visits: { '2026-W15': 1 } },
+      { source: 'homepage-only', total: 1, visits: { '2026-W16': 1 } },
+    ]);
     assert.strictEqual(data.volume.find(r => r.visit_week === '2026-W15').visits, 3);
-    assert.strictEqual(data.loadTypes.find(r => r.type === 'short').count, 6);
+    assert.strictEqual(data.loadTypes.find(r => r.type === 'short').count, 2);
   });
 
   test('getRetentionData creates a weekly series for every tagged source', () => {
@@ -434,10 +431,13 @@ module.exports = function (harness) {
     ins.run('2026-W15', '2026-W15', 'short', 'email-launch');
     ins.run('2026-W15', '2026-W16', 'short', 'email-launch');
     ins.run('2026-W16', '2026-W16', 'short', 'partner-a');
+    ins.run('2026-W16', '2026-W16', 'short', 'YouTube');
+    ins.run('2026-W16', '2026-W16', 'short', 'youtube');
 
     const campaigns = analyticsQuery.getRetentionData().sourceCampaigns;
     assert.deepStrictEqual(campaigns, [
       { source: 'email-launch', total: 3, visits: { '2026-W15': 2, '2026-W16': 1 } },
+      { source: 'youtube', total: 2, visits: { '2026-W16': 2 } },
       { source: 'partner-a', total: 1, visits: { '2026-W16': 1 } },
     ]);
   });
@@ -469,32 +469,16 @@ module.exports = function (harness) {
     legacy.prepare("INSERT INTO visits (cohort_week, visit_week, referer) VALUES ('2026-W10', '2026-W10', 'youtu.be')").run();
     legacy.prepare("INSERT INTO visits (cohort_week, visit_week, referer) VALUES ('2026-W10', '2026-W10', 'linkedin.com')").run();
     const payload = analyticsQuery.readVisitPayload(legacy);
-    assert.deepStrictEqual(payload.xVisits, []);
-    assert.deepStrictEqual(payload.youtubeVisits, []);
-    assert.deepStrictEqual(payload.linkedinVisits, []);
+    assert.deepStrictEqual(payload.sourceCampaigns, []);
+    assert.deepStrictEqual(payload.sourceCampaignsByType, { short: [], home: [] });
     legacy.close();
-  });
-
-  test('mergeVisitPayloads sums social visits by week', () => {
-    const a = { xVisits: [{ visit_week: '2026-W15', visits: 3 }], youtubeVisits: [{ visit_week: '2026-W15', visits: 2 }], linkedinVisits: [] };
-    const b = { xVisits: [{ visit_week: '2026-W15', visits: 2 }, { visit_week: '2026-W16', visits: 1 }], youtubeVisits: [{ visit_week: '2026-W16', visits: 4 }], linkedinVisits: [{ visit_week: '2026-W16', visits: 1 }] };
-    const merged = analyticsQuery.mergeVisitPayloads(a, b);
-    assert.deepStrictEqual(merged.xVisits, [
-      { visit_week: '2026-W15', visits: 5 },
-      { visit_week: '2026-W16', visits: 1 },
-    ]);
-    assert.deepStrictEqual(merged.youtubeVisits, [
-      { visit_week: '2026-W15', visits: 2 },
-      { visit_week: '2026-W16', visits: 4 },
-    ]);
-    assert.deepStrictEqual(merged.linkedinVisits, [{ visit_week: '2026-W16', visits: 1 }]);
   });
 
   test('mergeSourceCampaigns combines matching names and keeps new campaigns', () => {
     const merged = analyticsQuery.mergeSourceCampaigns([
       { source: 'email-launch', total: 2, visits: { '2026-W15': 2 } },
     ], [
-      { source: 'email-launch', total: 3, visits: { '2026-W15': 1, '2026-W16': 2 } },
+      { source: 'Email-Launch', total: 3, visits: { '2026-W15': 1, '2026-W16': 2 } },
       { source: 'partner-a', total: 4, visits: { '2026-W16': 4 } },
     ]);
     assert.deepStrictEqual(merged, [

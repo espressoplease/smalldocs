@@ -708,8 +708,10 @@ module.exports = function(harness) {
       assert.strictEqual(r.status, 200);
       assert.ok(r.body.includes('<title>SmallDocs - an office suite for coding agents</title>'));
       assert.ok(r.body.includes("var explicitHomepage = location.pathname === '/home';"));
-      assert.ok(r.body.includes('if (!source && taggedSource) source = taggedSource;'),
-        'homepage should accept arbitrary source labels');
+      assert.ok(r.body.includes("source = (sourceParams.get('src') || '').trim().toLowerCase();"),
+        'homepage should lowercase the explicit source label');
+      assert.ok(!r.body.includes("sourceParams.get('utm_source')"),
+        'homepage should not infer a second source parameter');
     });
 
     await testAsync('GET /public/homepage/demo-poster.jpg serves the hero poster', async () => {
@@ -825,7 +827,9 @@ module.exports = function(harness) {
       const r = await get(BASE + '/analytics');
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].includes('text/html'));
-      assert.ok(r.body.includes("sourceLink: '/analytics/sources'"), 'dashboard should link to source analytics');
+      assert.ok(r.body.includes("sourceLink: '/analytics/sources?type=short'"), 'short-link channel should link to its sources');
+      assert.ok(r.body.includes("sourceLink: '/analytics/sources?type=home'"), 'homepage channel should link to its sources');
+      assert.ok(!r.body.includes('Visits by social source'), 'dashboard should not infer or rename sources');
     });
 
     await testAsync('GET /analytics/sources returns the source dashboard', async () => {
@@ -844,6 +848,8 @@ module.exports = function(harness) {
       assert.ok(Array.isArray(data.weeks), 'should have weeks array');
       assert.ok(Array.isArray(data.cohorts), 'should have cohorts array');
       assert.ok(Array.isArray(data.sourceCampaigns), 'should have source campaigns array');
+      assert.ok(Array.isArray(data.sourceCampaignsByType.short), 'should have short-link source campaigns');
+      assert.ok(Array.isArray(data.sourceCampaignsByType.home), 'should have homepage source campaigns');
     });
 
     await testAsync('GET /version-check?cohort=2026-W15 returns 200', async () => {
@@ -869,7 +875,7 @@ module.exports = function(harness) {
         assert.ok(row.visit_week, 'visit_week should be set');
         assert.strictEqual(row.load_type, 'short');
         assert.strictEqual(row.traffic_source, 'x');
-        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W48' ORDER BY id DESC LIMIT 1").get().traffic_source, 'youtube');
+        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W48' ORDER BY id DESC LIMIT 1").get().traffic_source, 'yt');
         assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W47' ORDER BY id DESC LIMIT 1").get().traffic_source, 'linkedin');
         assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W46' ORDER BY id DESC LIMIT 1").get().traffic_source, 'email-launch');
         assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W45' ORDER BY id DESC LIMIT 1").get().traffic_source, 'homepage-launch');

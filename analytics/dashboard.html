@@ -307,11 +307,6 @@
       <h2>Weekly visits</h2>
       <div class="chart-holder"><canvas id="chart-volume"></canvas></div>
     </div>
-    <div class="chart-card" id="card-social-visits" style="display:none">
-      <h2>Visits by social source</h2>
-      <p class="chart-note">Tagged links and recognized referrals from X, YouTube, and LinkedIn. These visits remain included in the weekly and short-link totals.</p>
-      <div class="chart-holder"><canvas id="chart-social-visits"></canvas></div>
-    </div>
     <div class="chart-card" id="card-devices" style="display:none">
       <h2>Devices</h2>
       <div class="chart-holder"><canvas id="chart-devices"></canvas></div>
@@ -513,8 +508,8 @@ function renderTable(data) {
 // full #md link. `hue` colours the channel's heat scale to match its swatch.
 var CHANNELS = [
   { key: 'md',    label: 'Local link (#md)',  swatch: '#ef4444', hue: 2,   types: ['hash', 'app', 'local'] },
-  { key: 'short', label: 'Short link (/s/)',  swatch: '#22c55e', hue: 142, types: ['short'], sourceLink: '/analytics/sources' },
-  { key: 'home',  label: 'Homepage',          swatch: '#3b82f6', hue: 217, types: ['home'], sourceLink: '/analytics/sources' }
+  { key: 'short', label: 'Short link (/s/)',  swatch: '#22c55e', hue: 142, types: ['short'], sourceLink: '/analytics/sources?type=short' },
+  { key: 'home',  label: 'Homepage',          swatch: '#3b82f6', hue: 217, types: ['home'], sourceLink: '/analytics/sources?type=home' }
 ];
 
 // Sum several per-type cohort arrays into one, adding cohort_size and per-week
@@ -670,32 +665,6 @@ function renderCharts(data) {
           ]
         },
         options: chartOpts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true } } })
-      });
-    }
-
-    // Source-attributed visits. These are overlapping weekly series, not a
-    // subtraction from total visits or short-link opens.
-    var socialSeries = [
-      { label: 'X', rows: data.xVisits || [], color: COLORS[0] },
-      { label: 'YouTube', rows: data.youtubeVisits || [], color: '#DC2626' },
-      { label: 'LinkedIn', rows: data.linkedinVisits || [], color: '#0A66C2' }
-    ].filter(function (s) { return s.rows.length; });
-    if (socialSeries.length) {
-      var socialWeeks = Array.from(new Set([].concat.apply([], socialSeries.map(function (s) {
-        return s.rows.map(function (v) { return v.visit_week; });
-      })))).sort();
-      document.getElementById('card-social-visits').style.display = '';
-      new Chart(document.getElementById('chart-social-visits'), {
-        type: 'line',
-        data: {
-          labels: socialWeeks.map(fmtWeek),
-          datasets: socialSeries.map(function (series) {
-            var byWeek = {};
-            series.rows.forEach(function (v) { byWeek[v.visit_week] = v.visits; });
-            return { label: series.label, data: socialWeeks.map(function (week) { return byWeek[week] || 0; }), borderColor: series.color, backgroundColor: series.color, borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 };
-          })
-        },
-        options: chartOpts({ scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor, precision: 0 }, grid: { color: gridColor }, beginAtZero: true } } })
       });
     }
 

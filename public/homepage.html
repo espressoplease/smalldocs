@@ -1539,18 +1539,7 @@ footer {
     var source = '';
     try {
       var sourceParams = new URLSearchParams(location.search || '');
-      var taggedSource = (sourceParams.get('src') || sourceParams.get('utm_source') || '').trim().toLowerCase();
-      if (taggedSource === 'x' || taggedSource === 'twitter') source = 'x';
-      if (taggedSource === 'yt' || taggedSource === 'youtube') source = 'youtube';
-      if (taggedSource === 'li' || taggedSource === 'linkedin') source = 'linkedin';
-      if (!source && taggedSource) source = taggedSource;
-      if (!source && document.referrer) {
-        var sourceHost = new URL(document.referrer).hostname.toLowerCase().replace(/^www\./, '');
-        if (sourceHost === 't.co' || sourceHost === 'x.com' || sourceHost.endsWith('.x.com') ||
-            sourceHost === 'twitter.com' || sourceHost.endsWith('.twitter.com')) source = 'x';
-        if (sourceHost === 'youtu.be' || sourceHost === 'youtube.com' || sourceHost.endsWith('.youtube.com')) source = 'youtube';
-        if (sourceHost === 'lnkd.in' || sourceHost === 'linkedin.com' || sourceHost.endsWith('.linkedin.com')) source = 'linkedin';
-      }
+      source = (sourceParams.get('src') || '').trim().toLowerCase();
     } catch (e) {}
     var qs = '?cohort=' + encodeURIComponent(cohort) + '&lt=home'
       + '&lh=' + now.getHours() + '&ld=' + now.getDay();

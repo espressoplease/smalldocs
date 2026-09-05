@@ -65,27 +65,13 @@
     } catch (e) { return 'app'; }
   }
 
-  // Attribute an entry to an explicit source label without storing a user
-  // identifier. A query marker is the reliable path through in-app browsers:
-  // /s/<id>?src=email-launch#k=<key>. Known social aliases are canonicalised;
-  // any other explicit label is kept so a new campaign appears in analytics
-  // without a code change. Referrer detection remains limited to known social
-  // hosts. The value is frozen for the tab because the app can rewrite its URL.
-  function detectTrafficSource(loc, referrer) {
+  // Attribute an entry to the explicit source label in ?src=. Lowercase makes
+  // labels case-insensitive; no aliases or referrer inference are applied. The
+  // value is frozen for the tab because the app can rewrite its URL.
+  function detectTrafficSource(loc) {
     try {
       var params = new URLSearchParams((loc && loc.search) || '');
-      var tagged = (params.get('src') || params.get('utm_source') || '').trim().toLowerCase();
-      if (tagged === 'x' || tagged === 'twitter') return 'x';
-      if (tagged === 'yt' || tagged === 'youtube') return 'youtube';
-      if (tagged === 'li' || tagged === 'linkedin') return 'linkedin';
-      if (tagged) return tagged;
-    } catch (e) {}
-    try {
-      var host = new URL(referrer || '').hostname.toLowerCase().replace(/^www\./, '');
-      if (host === 't.co' || host === 'x.com' || host.endsWith('.x.com') ||
-          host === 'twitter.com' || host.endsWith('.twitter.com')) return 'x';
-      if (host === 'youtu.be' || host === 'youtube.com' || host.endsWith('.youtube.com')) return 'youtube';
-      if (host === 'lnkd.in' || host === 'linkedin.com' || host.endsWith('.linkedin.com')) return 'linkedin';
+      return (params.get('src') || '').trim().toLowerCase();
     } catch (e) {}
     return '';
   }

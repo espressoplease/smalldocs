@@ -109,23 +109,19 @@ module.exports = function (harness) {
     assert.strictEqual(detectLoadType(null), 'app', 'null location degrades to app, not a throw');
   });
 
-  test('detectTrafficSource: recognizes explicit social markers and referrers', () => {
+  test('detectTrafficSource: returns only the lowercase explicit src value', () => {
     const { detectTrafficSource } = U;
     assert.strictEqual(detectTrafficSource({ search: '?src=x' }, ''), 'x');
-    assert.strictEqual(detectTrafficSource({ search: '?utm_source=twitter' }, ''), 'x');
-    assert.strictEqual(detectTrafficSource({ search: '?src=x' }, 'https://example.com/'), 'x', 'explicit marker wins');
-    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://t.co/abc'), 'x');
-    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://mobile.twitter.com/post'), 'x');
-    assert.strictEqual(detectTrafficSource({ search: '?src=yt' }, ''), 'youtube');
-    assert.strictEqual(detectTrafficSource({ search: '?utm_source=youtube' }, ''), 'youtube');
-    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://youtu.be/abc'), 'youtube');
-    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://m.youtube.com/watch?v=abc'), 'youtube');
+    assert.strictEqual(detectTrafficSource({ search: '?utm_source=twitter' }, ''), '');
+    assert.strictEqual(detectTrafficSource({ search: '?src=x' }, 'https://example.com/'), 'x');
+    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://t.co/abc'), '');
+    assert.strictEqual(detectTrafficSource({ search: '?src=yt' }, ''), 'yt');
+    assert.strictEqual(detectTrafficSource({ search: '?src=YouTube' }, ''), 'youtube');
     assert.strictEqual(detectTrafficSource({ search: '?src=linkedin' }, ''), 'linkedin');
-    assert.strictEqual(detectTrafficSource({ search: '?src=li' }, ''), 'linkedin');
-    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://lnkd.in/abc'), 'linkedin');
-    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://www.linkedin.com/posts/abc'), 'linkedin');
+    assert.strictEqual(detectTrafficSource({ search: '?src=li' }, ''), 'li');
+    assert.strictEqual(detectTrafficSource({ search: '' }, 'https://www.linkedin.com/posts/abc'), '');
     assert.strictEqual(detectTrafficSource({ search: '?src=newsletter' }, 'https://example.com/'), 'newsletter');
-    assert.strictEqual(detectTrafficSource({ search: '?src=Email%20Launch' }, ''), 'email launch');
+    assert.strictEqual(detectTrafficSource({ search: '?src=%20Email%20Launch%20' }, ''), 'email launch');
     assert.strictEqual(detectTrafficSource(null, ''), '');
   });
 

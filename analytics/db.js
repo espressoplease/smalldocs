@@ -65,10 +65,9 @@ function init(dbPath) {
   // compare short-link opens against full-link opens against homepage landings.
   // Empty for rows before this shipped.
   try { db.exec("ALTER TABLE visits ADD COLUMN load_type TEXT NOT NULL DEFAULT ''"); } catch (e) {}
-  // A non-identifying source label from an explicit query marker, or a known
-  // social source detected from the referrer. Empty means no source. This is
-  // separate from load_type, so one visit can be both a short-link open and
-  // source-attributed.
+  // A non-identifying source label from an explicit query marker. Empty means
+  // no source. This is separate from load_type, so one visit can be both a
+  // short-link open and source-attributed.
   try { db.exec("ALTER TABLE visits ADD COLUMN traffic_source TEXT NOT NULL DEFAULT ''"); } catch (e) {}
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_visits_source_week ON visits(traffic_source, visit_week)'); } catch (e) {}
   // Drop legacy ip_hash column. We deliberately stopped storing any per-user
@@ -127,22 +126,7 @@ function normLoadType(v) {
 }
 
 function normTrafficSource(v) {
-  var s = String(v || '').trim().toLowerCase();
-  if (s === 'x' || s === 'twitter' || s === 't.co' || s === 'x.com' || s === 'twitter.com') return 'x';
-  if (s === 'yt' || s === 'youtube' || s === 'youtu.be' || s === 'youtube.com') return 'youtube';
-  if (s === 'li' || s === 'linkedin' || s === 'lnkd.in' || s === 'linkedin.com') return 'linkedin';
-  return s;
-}
-
-function socialSourceFromReferrer(v) {
-  var s = String(v || '').trim().toLowerCase();
-  if (s === 't.co' || s === 'x.com' || s === 'twitter.com') return 'x';
-  if (s.endsWith('.x.com') || s.endsWith('.twitter.com')) return 'x';
-  if (s === 'youtu.be' || s === 'youtube.com') return 'youtube';
-  if (s.endsWith('.youtube.com')) return 'youtube';
-  if (s === 'lnkd.in' || s === 'linkedin.com') return 'linkedin';
-  if (s.endsWith('.linkedin.com')) return 'linkedin';
-  return '';
+  return String(v || '').trim().toLowerCase();
 }
 
 function logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType, trafficSource) {
@@ -156,9 +140,7 @@ function logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType,
   var sourceEligible = lt === 'short' || lt === 'home';
   // Sources describe acquisition into the homepage or a short link. Full #md
   // document links and the bare editor remain part of their own usage bucket.
-  var source = sourceEligible
-    ? (normTrafficSource(trafficSource) || socialSourceFromReferrer(ref))
-    : '';
+  var source = sourceEligible ? normTrafficSource(trafficSource) : '';
   var cohort = isISOWeek(cohortWeek) ? cohortWeek : '';
   buffer.push([cohort, visitWeek, ua.device, ua.browser, ref, lh, ld, lt, source]);
   if (process.env.ANALYTICS_FLUSH_IMMEDIATE === '1') flush();
