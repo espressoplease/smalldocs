@@ -113,14 +113,15 @@ module.exports = function(harness) {
       assert.ok(content.includes('/opt/smalldocs/staging-current'));
       assert.ok(content.includes('/opt/smalldocs/staging-previous'));
     }
-    assert.ok(prune.includes("grep -Eq '^[0-9a-f]{40}$'"));
+    assert.ok(prune.includes("grep -Eq '^[0-9a-f]{7,40}$'"));
     assert.ok(prune.includes('Active pointer must resolve inside the release root'));
   });
 
   test('release pruning removes only inactive commit directories', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-releases-'));
     const releases = path.join(directory, 'releases');
-    const names = ['a', 'b', 'c', 'd', 'e'].map(letter => letter.repeat(40));
+    const names = ['a', 'b', 'c', 'd'].map(letter => letter.repeat(40));
+    names.push('e'.repeat(7));
     fs.mkdirSync(releases);
     for (const name of names) fs.mkdirSync(path.join(releases, name));
     fs.mkdirSync(path.join(releases, 'manual'));

@@ -44,7 +44,7 @@ for candidate in "$release_root"/*; do
   [ "$protected" -eq 0 ] || continue
 
   release_name=${candidate##*/}
-  if ! printf '%s\n' "$release_name" | grep -Eq '^[0-9a-f]{40}$'; then
+  if ! printf '%s\n' "$release_name" | grep -Eq '^[0-9a-f]{7,40}$'; then
     echo "Skipping non-release directory $candidate" >&2
     continue
   fi
