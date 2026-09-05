@@ -207,7 +207,7 @@ module.exports = function(harness) {
       'homepage.html'), 'utf8');
     const business = fs.readFileSync(path.join(__dirname, '..', 'public',
       'business.html'), 'utf8');
-    assert.ok(homepage.includes('href="#teams">SmallDocs for teams</a>'));
+    assert.ok(homepage.includes('href="#teams">SmallDocs for your business</a>'));
     assert.ok(homepage.includes('<section id="teams">'));
     assert.ok(homepage.includes('<form class="teams-form" id="teamsForm" novalidate>'));
     assert.ok(homepage.includes("fetch('/api/teams-interest'"));
