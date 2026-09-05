@@ -5,7 +5,7 @@ const path = require('path');
 
 module.exports = function (harness) {
   const { assert, test } = harness;
-  const { getISOWeek } = require(path.join(__dirname, '..', 'analytics', 'week'));
+  const { getISOWeek, isISOWeek } = require(path.join(__dirname, '..', 'analytics', 'week'));
 
   console.log('\n── Analytics: ISO Week Tests ────────────────────\n');
 
@@ -27,6 +27,14 @@ module.exports = function (harness) {
 
   test('getISOWeek: 2024-12-30 is 2025-W01', () => {
     assert.strictEqual(getISOWeek(new Date(2024, 11, 30)), '2025-W01');
+  });
+
+  test('isISOWeek accepts real week labels and rejects analytics labels', () => {
+    assert.strictEqual(isISOWeek('2026-W01'), true);
+    assert.strictEqual(isISOWeek('2026-W53'), true);
+    assert.strictEqual(isISOWeek('2026-W00'), false);
+    assert.strictEqual(isISOWeek('2026-W77'), false);
+    assert.strictEqual(isISOWeek('linkedin-validation'), false);
   });
 
   console.log('\n── Analytics: DB Tests ──────────────────────────\n');
@@ -62,6 +70,14 @@ module.exports = function (harness) {
     const db = analyticsDb.getDB();
     const row = db.prepare("SELECT cohort_week FROM visits WHERE cohort_week = '2026-W10' LIMIT 1").get();
     assert.strictEqual(row.cohort_week, '2026-W10');
+  });
+
+  test('logVisit treats an invalid cohort label as unattributed', () => {
+    analyticsDb.logVisit('linkedin-validation');
+    analyticsDb.flush();
+    const db = analyticsDb.getDB();
+    const row = db.prepare('SELECT cohort_week FROM visits ORDER BY id DESC LIMIT 1').get();
+    assert.strictEqual(row.cohort_week, '');
   });
 
   test('schema has no ip_hash column', () => {
@@ -122,6 +138,15 @@ module.exports = function (harness) {
     assert.strictEqual(data.unattributed['2026-W17'], 1, 'unattributed bucket holds the no-cohort row');
     assert.ok(!data.cohorts.some(c => c.cohort_week === ''), 'empty cohort must not appear in cohorts');
     assert.deepStrictEqual(data.weeks, ['2026-W15', '2026-W16', '2026-W17']);
+  });
+
+  test('getRetentionData hides old malformed cohorts and counts them as unattributed', () => {
+    const db = analyticsDb.getDB();
+    db.prepare('INSERT INTO visits (cohort_week, visit_week, device, browser, referer) VALUES (?, ?, ?, ?, ?)')
+      .run('linkedin-validation', '2026-W17', 'desktop', 'Chrome', 'direct');
+    const data = analyticsQuery.getRetentionData();
+    assert.ok(!data.cohorts.some(c => c.cohort_week === 'linkedin-validation'));
+    assert.strictEqual(data.unattributed['2026-W17'], 2);
   });
 
   console.log('\n── Analytics: Legacy Merge Tests ────────────────\n');
@@ -363,6 +388,21 @@ module.exports = function (harness) {
       'source attribution does not remove visits from the short-link bucket');
   });
 
+  test('source attribution includes homepage and short links but excludes local documents', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'home', 'email-home');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'email-short');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'hash', 'email-local');
+    analyticsDb.logVisit('2026-W15', '', 'https://t.co/post', null, null, 'app');
+    analyticsDb.flush();
+    const db = analyticsDb.getDB();
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'email-home'").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'email-short'").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = ''").get().c, 2);
+    assert.deepStrictEqual(analyticsQuery.getRetentionData().sourceCampaigns.map(c => c.source).sort(), ['email-home', 'email-short']);
+  });
+
   test('getRetentionData returns weekly social series without changing total volume', () => {
     analyticsDb.close();
     analyticsDb.init(':memory:');
@@ -414,7 +454,7 @@ module.exports = function (harness) {
     assert.deepStrictEqual(campaigns.map(c => c.source).sort(), ['__proto__', 'constructor']);
   });
 
-  test('readVisitPayload recovers historical social visits from a legacy referrer column', () => {
+  test('readVisitPayload does not infer sources when a legacy row has no page type', () => {
     const Database = require('better-sqlite3');
     const legacy = new Database(':memory:');
     legacy.exec(`CREATE TABLE visits (
@@ -429,9 +469,9 @@ module.exports = function (harness) {
     legacy.prepare("INSERT INTO visits (cohort_week, visit_week, referer) VALUES ('2026-W10', '2026-W10', 'youtu.be')").run();
     legacy.prepare("INSERT INTO visits (cohort_week, visit_week, referer) VALUES ('2026-W10', '2026-W10', 'linkedin.com')").run();
     const payload = analyticsQuery.readVisitPayload(legacy);
-    assert.deepStrictEqual(payload.xVisits, [{ visit_week: '2026-W10', visits: 1 }]);
-    assert.deepStrictEqual(payload.youtubeVisits, [{ visit_week: '2026-W10', visits: 1 }]);
-    assert.deepStrictEqual(payload.linkedinVisits, [{ visit_week: '2026-W10', visits: 1 }]);
+    assert.deepStrictEqual(payload.xVisits, []);
+    assert.deepStrictEqual(payload.youtubeVisits, []);
+    assert.deepStrictEqual(payload.linkedinVisits, []);
     legacy.close();
   });
 
@@ -475,6 +515,7 @@ module.exports = function (harness) {
     for (let i = 0; i < 2; i++) ins.run('2026-W15', '2026-W16', 10, 2, 'hash');
     for (let i = 0; i < 3; i++) ins.run('2026-W15', '2026-W15', 14, 3, 'short');
     ins.run('2026-W15', '2026-W15', null, null, 'home'); // home visit, no local time
+    ins.run('linkedin-validation', '2026-W16', null, null, 'hash');
 
     const data = analyticsQuery.getRetentionData();
 
@@ -484,6 +525,7 @@ module.exports = function (harness) {
     assert.deepStrictEqual(hashCohort.visits, { '2026-W15': 4, '2026-W16': 2 });
     assert.strictEqual(data.cohortsByType.short.find(c => c.cohort_week === '2026-W15').cohort_size, 3);
     assert.ok(data.cohortsByType.home, 'home channel present');
+    assert.ok(!data.cohortsByType.hash.some(c => c.cohort_week === 'linkedin-validation'));
 
     // Per-week day/hour buckets (inner keys are the dow/hour integers)
     assert.strictEqual(data.dowByWeek['2026-W15'][1], 4, 'Mon W15 = 4 (#md)');

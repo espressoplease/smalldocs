@@ -297,10 +297,12 @@
     // Prefer the caller's synchronously-captured type (read before the app
     // rewrote the hash); fall back to detecting now if it wasn't supplied.
     loadType = (opts && opts.loadType) || detectLoadType(typeof window !== 'undefined' ? window.location : null);
-    trafficSource = (opts && opts.trafficSource) || detectTrafficSource(
-      typeof window !== 'undefined' ? window.location : null,
-      typeof document !== 'undefined' ? document.referrer : ''
-    );
+    trafficSource = loadType === 'short'
+      ? ((opts && opts.trafficSource) || detectTrafficSource(
+          typeof window !== 'undefined' ? window.location : null,
+          typeof document !== 'undefined' ? document.referrer : ''
+        ))
+      : '';
 
     // Did this load happen because we auto-reloaded for an update? K_DONE is set
     // in doReload() right before reload. Capture it BEFORE

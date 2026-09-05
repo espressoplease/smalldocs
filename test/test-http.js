@@ -708,6 +708,8 @@ module.exports = function(harness) {
       assert.strictEqual(r.status, 200);
       assert.ok(r.body.includes('<title>SmallDocs - an office suite for coding agents</title>'));
       assert.ok(r.body.includes("var explicitHomepage = location.pathname === '/home';"));
+      assert.ok(r.body.includes('if (!source && taggedSource) source = taggedSource;'),
+        'homepage should accept arbitrary source labels');
     });
 
     await testAsync('GET /public/homepage/demo-poster.jpg serves the hero poster', async () => {
@@ -852,22 +854,26 @@ module.exports = function(harness) {
     });
 
     await testAsync('version-check writes a row with the reported cohort and no ip_hash', async () => {
-      await get(BASE + '/version-check?cohort=2026-W99&lt=short&src=x');
-      await get(BASE + '/version-check?cohort=2026-W98&lt=short&src=yt');
-      await get(BASE + '/version-check?cohort=2026-W97&lt=short&src=linkedin');
-      await get(BASE + '/version-check?cohort=2026-W96&lt=short&src=email-launch');
+      await get(BASE + '/version-check?cohort=2099-W49&lt=short&src=x');
+      await get(BASE + '/version-check?cohort=2099-W48&lt=short&src=yt');
+      await get(BASE + '/version-check?cohort=2099-W47&lt=short&src=linkedin');
+      await get(BASE + '/version-check?cohort=2099-W46&lt=short&src=email-launch');
+      await get(BASE + '/version-check?cohort=2099-W45&lt=home&src=homepage-launch');
+      await get(BASE + '/version-check?cohort=2099-W44&lt=hash&src=local-document');
       const Database = require('better-sqlite3');
       const db = new Database(testDbPath, { readonly: true });
       try {
-        const row = db.prepare("SELECT * FROM visits WHERE cohort_week = '2026-W99' ORDER BY id DESC LIMIT 1").get();
-        assert.ok(row, 'expected a visits row for cohort 2026-W99');
-        assert.strictEqual(row.cohort_week, '2026-W99');
+        const row = db.prepare("SELECT * FROM visits WHERE cohort_week = '2099-W49' ORDER BY id DESC LIMIT 1").get();
+        assert.ok(row, 'expected a visits row for cohort 2099-W49');
+        assert.strictEqual(row.cohort_week, '2099-W49');
         assert.ok(row.visit_week, 'visit_week should be set');
         assert.strictEqual(row.load_type, 'short');
         assert.strictEqual(row.traffic_source, 'x');
-        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2026-W98' ORDER BY id DESC LIMIT 1").get().traffic_source, 'youtube');
-        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2026-W97' ORDER BY id DESC LIMIT 1").get().traffic_source, 'linkedin');
-        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2026-W96' ORDER BY id DESC LIMIT 1").get().traffic_source, 'email-launch');
+        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W48' ORDER BY id DESC LIMIT 1").get().traffic_source, 'youtube');
+        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W47' ORDER BY id DESC LIMIT 1").get().traffic_source, 'linkedin');
+        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W46' ORDER BY id DESC LIMIT 1").get().traffic_source, 'email-launch');
+        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W45' ORDER BY id DESC LIMIT 1").get().traffic_source, 'homepage-launch');
+        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2099-W44' ORDER BY id DESC LIMIT 1").get().traffic_source, '');
         assert.ok(!('ip_hash' in row), 'visits row must not carry an ip_hash column');
       } finally {
         db.close();
@@ -881,13 +887,13 @@ module.exports = function(harness) {
       const Database = require('better-sqlite3');
       const countRows = () => {
         const db = new Database(testDbPath, { readonly: true });
-        try { return db.prepare("SELECT COUNT(*) AS c FROM visits WHERE cohort_week = '2026-W77'").get().c; }
+        try { return db.prepare("SELECT COUNT(*) AS c FROM visits WHERE cohort_week = '2098-W45'").get().c; }
         finally { db.close(); }
       };
-      await get(BASE + '/version-check?cohort=2026-W77&u=1');
+      await get(BASE + '/version-check?cohort=2098-W45&u=1');
       assert.strictEqual(countRows(), 0, 'u=1 check must not insert a row');
       // A plain check for the same cohort still counts — proves we skipped only the reload re-check.
-      await get(BASE + '/version-check?cohort=2026-W77');
+      await get(BASE + '/version-check?cohort=2098-W45');
       assert.strictEqual(countRows(), 1, 'a normal check for the same cohort is still counted');
     });
 

@@ -12,7 +12,7 @@
  *   analytics.logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType, trafficSource);
  */
 const path = require('path');
-const { getISOWeek } = require('./week');
+const { getISOWeek, isISOWeek } = require('./week');
 
 let db = null;
 let insertStmt = null;
@@ -153,10 +153,14 @@ function logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType,
   var lh = normInt(localHour, 0, 23);
   var ld = normInt(localDow, 0, 6);
   var lt = normLoadType(loadType);
-  // Prefer the explicit source frozen by the page. Fall back to recognized
-  // social referrers, without turning every ordinary referrer into a campaign.
-  var source = normTrafficSource(trafficSource) || socialSourceFromReferrer(ref);
-  buffer.push([cohortWeek || '', visitWeek, ua.device, ua.browser, ref, lh, ld, lt, source]);
+  var sourceEligible = lt === 'short' || lt === 'home';
+  // Sources describe acquisition into the homepage or a short link. Full #md
+  // document links and the bare editor remain part of their own usage bucket.
+  var source = sourceEligible
+    ? (normTrafficSource(trafficSource) || socialSourceFromReferrer(ref))
+    : '';
+  var cohort = isISOWeek(cohortWeek) ? cohortWeek : '';
+  buffer.push([cohort, visitWeek, ua.device, ua.browser, ref, lh, ld, lt, source]);
   if (process.env.ANALYTICS_FLUSH_IMMEDIATE === '1') flush();
 }
 

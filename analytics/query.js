@@ -17,6 +17,7 @@
  */
 const fs = require('fs');
 const { getDB } = require('./db');
+const { isISOWeek } = require('./week');
 const shortLinks = require('../short-links/db');
 const githubStars = require('./github-stars');
 const npmDownloads = require('./npm-downloads');
@@ -27,18 +28,18 @@ const npmDownloads = require('./npm-downloads');
 function readVisitPayload(db) {
   var weeks = db.prepare(
     "SELECT DISTINCT visit_week FROM visits ORDER BY visit_week"
-  ).all().map(function (r) { return r.visit_week; });
+  ).all().map(function (r) { return r.visit_week; }).filter(isISOWeek);
 
   // Cohort "size" = visits the cohort generated in its birth week.
   // Defined this way so the diagonal of the table is always the baseline
   // each later week is compared against.
   var sizeRows = db.prepare(
     "SELECT cohort_week, COUNT(*) as cohort_size FROM visits WHERE cohort_week != '' AND cohort_week = visit_week GROUP BY cohort_week ORDER BY cohort_week"
-  ).all();
+  ).all().filter(function (r) { return isISOWeek(r.cohort_week); });
 
   var cellRows = db.prepare(
     "SELECT cohort_week, visit_week, COUNT(*) as visits FROM visits WHERE cohort_week != '' GROUP BY cohort_week, visit_week ORDER BY cohort_week, visit_week"
-  ).all();
+  ).all().filter(function (r) { return isISOWeek(r.cohort_week) && isISOWeek(r.visit_week); });
 
   var cohortMap = {};
   sizeRows.forEach(function (r) {
@@ -58,8 +59,12 @@ function readVisitPayload(db) {
   // Unattributed visits (no cohort reported — opt-out / private browsing)
   var unattributed = {};
   db.prepare(
-    "SELECT visit_week, COUNT(*) as visits FROM visits WHERE cohort_week = '' GROUP BY visit_week ORDER BY visit_week"
-  ).all().forEach(function (r) { unattributed[r.visit_week] = r.visits; });
+    "SELECT cohort_week, visit_week, COUNT(*) as visits FROM visits GROUP BY cohort_week, visit_week ORDER BY visit_week"
+  ).all().forEach(function (r) {
+    if (!isISOWeek(r.cohort_week) && isISOWeek(r.visit_week)) {
+      unattributed[r.visit_week] = (unattributed[r.visit_week] || 0) + r.visits;
+    }
+  });
 
   var devices = db.prepare(
     "SELECT device, COUNT(*) as count FROM visits WHERE device != '' GROUP BY device ORDER BY count DESC"
@@ -103,21 +108,14 @@ function readVisitPayload(db) {
     ).all();
   } catch (e) { loadTypes = []; }
 
-  // Social attribution is an overlapping dimension, not a replacement bucket.
-  // Tagged links use traffic_source. Historical untagged visits can still be
-  // recovered from the already-stored coarse referrer category.
+  // Source attribution overlaps ordinary visit totals, but only for homepage
+  // and short-link entry. Local #md document links are intentionally excluded.
   function weeklySource(source, referrerSql) {
     try {
       return db.prepare(
-        "SELECT visit_week, COUNT(*) AS visits FROM visits WHERE traffic_source = '" + source + "' OR " + referrerSql + " GROUP BY visit_week ORDER BY visit_week"
+        "SELECT visit_week, COUNT(*) AS visits FROM visits WHERE (traffic_source = '" + source + "' OR " + referrerSql + ") AND load_type IN ('short', 'home') GROUP BY visit_week ORDER BY visit_week"
       ).all();
-    } catch (e) {
-      try {
-        return db.prepare(
-          "SELECT visit_week, COUNT(*) AS visits FROM visits WHERE " + referrerSql + " GROUP BY visit_week ORDER BY visit_week"
-        ).all();
-      } catch (legacyError) { return []; }
-    }
+    } catch (e) { return []; }
   }
   var xVisits = weeklySource('x', "referer = 't.co' OR referer = 'x.com' OR referer LIKE '%.x.com' OR referer = 'twitter.com' OR referer LIKE '%.twitter.com'");
   var youtubeVisits = weeklySource('youtube', "referer = 'youtu.be' OR referer = 'youtube.com' OR referer LIKE '%.youtube.com'");
@@ -129,7 +127,7 @@ function readVisitPayload(db) {
   try {
     var sourceMap = Object.create(null);
     db.prepare(
-      "SELECT traffic_source AS source, visit_week, COUNT(*) AS visits FROM visits WHERE traffic_source != '' GROUP BY traffic_source, visit_week ORDER BY traffic_source, visit_week"
+      "SELECT traffic_source AS source, visit_week, COUNT(*) AS visits FROM visits WHERE traffic_source != '' AND load_type IN ('short', 'home') GROUP BY traffic_source, visit_week ORDER BY traffic_source, visit_week"
     ).all().forEach(function (row) {
       var campaign = sourceMap[row.source];
       if (!campaign) campaign = sourceMap[row.source] = { source: row.source, total: 0, visits: {} };
@@ -273,10 +271,10 @@ function readSegments(db) {
   try {
     var sizeRows = db.prepare(
       "SELECT load_type, cohort_week, COUNT(*) cohort_size FROM visits WHERE cohort_week != '' AND load_type != '' AND cohort_week = visit_week GROUP BY load_type, cohort_week"
-    ).all();
+    ).all().filter(function (r) { return isISOWeek(r.cohort_week); });
     var cellRows = db.prepare(
       "SELECT load_type, cohort_week, visit_week, COUNT(*) visits FROM visits WHERE cohort_week != '' AND load_type != '' GROUP BY load_type, cohort_week, visit_week"
-    ).all();
+    ).all().filter(function (r) { return isISOWeek(r.cohort_week) && isISOWeek(r.visit_week); });
     var maps = {};
     sizeRows.forEach(function (r) {
       (maps[r.load_type] = maps[r.load_type] || {})[r.cohort_week] =

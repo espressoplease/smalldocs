@@ -11,4 +11,8 @@ function getISOWeek(date) {
   return d.getUTCFullYear() + '-W' + String(weekNo).padStart(2, '0');
 }
 
-module.exports = { getISOWeek };
+function isISOWeek(value) {
+  return /^\d{4}-W(?:0[1-9]|[1-4]\d|5[0-3])$/.test(String(value || ''));
+}
+
+module.exports = { getISOWeek, isISOWeek };
