@@ -65,10 +65,10 @@ function init(dbPath) {
   // compare short-link opens against full-link opens against homepage landings.
   // Empty for rows before this shipped.
   try { db.exec("ALTER TABLE visits ADD COLUMN load_type TEXT NOT NULL DEFAULT ''"); } catch (e) {}
-  // A coarse, non-identifying source label. Supported values are "x",
-  // "youtube", and "linkedin", detected from a query marker or recognized
-  // referrer. Empty means no recognized source. This remains separate from
-  // load_type, so one visit can be both a short-link open and source-attributed.
+  // A non-identifying source label from an explicit query marker, or a known
+  // social source detected from the referrer. Empty means no source. This is
+  // separate from load_type, so one visit can be both a short-link open and
+  // source-attributed.
   try { db.exec("ALTER TABLE visits ADD COLUMN traffic_source TEXT NOT NULL DEFAULT ''"); } catch (e) {}
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_visits_source_week ON visits(traffic_source, visit_week)'); } catch (e) {}
   // Drop legacy ip_hash column. We deliberately stopped storing any per-user
@@ -129,10 +129,18 @@ function normLoadType(v) {
 function normTrafficSource(v) {
   var s = String(v || '').trim().toLowerCase();
   if (s === 'x' || s === 'twitter' || s === 't.co' || s === 'x.com' || s === 'twitter.com') return 'x';
-  if (s.endsWith('.x.com') || s.endsWith('.twitter.com')) return 'x';
   if (s === 'yt' || s === 'youtube' || s === 'youtu.be' || s === 'youtube.com') return 'youtube';
-  if (s.endsWith('.youtube.com')) return 'youtube';
   if (s === 'li' || s === 'linkedin' || s === 'lnkd.in' || s === 'linkedin.com') return 'linkedin';
+  return s;
+}
+
+function socialSourceFromReferrer(v) {
+  var s = String(v || '').trim().toLowerCase();
+  if (s === 't.co' || s === 'x.com' || s === 'twitter.com') return 'x';
+  if (s.endsWith('.x.com') || s.endsWith('.twitter.com')) return 'x';
+  if (s === 'youtu.be' || s === 'youtube.com') return 'youtube';
+  if (s.endsWith('.youtube.com')) return 'youtube';
+  if (s === 'lnkd.in' || s === 'linkedin.com') return 'linkedin';
   if (s.endsWith('.linkedin.com')) return 'linkedin';
   return '';
 }
@@ -145,9 +153,9 @@ function logVisit(cohortWeek, userAgent, referer, localHour, localDow, loadType,
   var lh = normInt(localHour, 0, 23);
   var ld = normInt(localDow, 0, 6);
   var lt = normLoadType(loadType);
-  // Prefer the source frozen by the page. Fall back to the request referrer so
-  // untagged social links still count when the browser supplies that signal.
-  var source = normTrafficSource(trafficSource) || normTrafficSource(ref);
+  // Prefer the explicit source frozen by the page. Fall back to recognized
+  // social referrers, without turning every ordinary referrer into a campaign.
+  var source = normTrafficSource(trafficSource) || socialSourceFromReferrer(ref);
   buffer.push([cohortWeek || '', visitWeek, ua.device, ua.browser, ref, lh, ld, lt, source]);
   if (process.env.ANALYTICS_FLUSH_IMMEDIATE === '1') flush();
 }

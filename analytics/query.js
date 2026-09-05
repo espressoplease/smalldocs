@@ -123,10 +123,28 @@ function readVisitPayload(db) {
   var youtubeVisits = weeklySource('youtube', "referer = 'youtu.be' OR referer = 'youtube.com' OR referer LIKE '%.youtube.com'");
   var linkedinVisits = weeklySource('linkedin', "referer = 'lnkd.in' OR referer = 'linkedin.com' OR referer LIKE '%.linkedin.com'");
 
+  // Every explicit source label becomes its own weekly series. This query is
+  // data-driven: a new ?src= value needs no schema or dashboard change.
+  var sourceCampaigns = [];
+  try {
+    var sourceMap = Object.create(null);
+    db.prepare(
+      "SELECT traffic_source AS source, visit_week, COUNT(*) AS visits FROM visits WHERE traffic_source != '' GROUP BY traffic_source, visit_week ORDER BY traffic_source, visit_week"
+    ).all().forEach(function (row) {
+      var campaign = sourceMap[row.source];
+      if (!campaign) campaign = sourceMap[row.source] = { source: row.source, total: 0, visits: {} };
+      campaign.visits[row.visit_week] = row.visits;
+      campaign.total += row.visits;
+    });
+    sourceCampaigns = Object.keys(sourceMap).map(function (source) { return sourceMap[source]; })
+      .sort(function (a, b) { return b.total - a.total || a.source.localeCompare(b.source); });
+  } catch (e) { sourceCampaigns = []; }
+
   return { weeks: weeks, cohorts: cohorts, unattributed: unattributed,
            devices: devices, browsers: browsers, sources: sources, volume: volume,
            byHour: byHour, byDow: byDow, loadTypes: loadTypes, xVisits: xVisits,
-           youtubeVisits: youtubeVisits, linkedinVisits: linkedinVisits };
+           youtubeVisits: youtubeVisits, linkedinVisits: linkedinVisits,
+           sourceCampaigns: sourceCampaigns };
 }
 
 // Sum two keyed count lists ([{key, count}]) into one, sorted by count desc.
@@ -147,6 +165,20 @@ function sumWeekObjects(a, b) {
     Object.keys(obj).forEach(function (w) { out[w] = (out[w] || 0) + obj[w]; });
   });
   return out;
+}
+
+function mergeSourceCampaigns(a, b) {
+  var map = Object.create(null);
+  (a || []).concat(b || []).forEach(function (campaign) {
+    var merged = map[campaign.source];
+    if (!merged) merged = map[campaign.source] = { source: campaign.source, total: 0, visits: {} };
+    Object.keys(campaign.visits || {}).forEach(function (week) {
+      merged.visits[week] = (merged.visits[week] || 0) + campaign.visits[week];
+      merged.total += campaign.visits[week];
+    });
+  });
+  return Object.keys(map).map(function (source) { return map[source]; })
+    .sort(function (x, y) { return y.total - x.total || x.source.localeCompare(y.source); });
 }
 
 function mergeVisitPayloads(a, b) {
@@ -200,6 +232,7 @@ function mergeVisitPayloads(a, b) {
     xVisits: xVisits,
     youtubeVisits: youtubeVisits,
     linkedinVisits: linkedinVisits,
+    sourceCampaigns: mergeSourceCampaigns(a.sourceCampaigns, b.sourceCampaigns),
   };
 }
 
@@ -324,6 +357,7 @@ function getRetentionData() {
     xVisits: payload.xVisits,
     youtubeVisits: payload.youtubeVisits,
     linkedinVisits: payload.linkedinVisits,
+    sourceCampaigns: payload.sourceCampaigns,
     cohortsByType: segments.cohortsByType,
     dowByWeek: segments.dowByWeek,
     hourByWeek: segments.hourByWeek,
@@ -333,4 +367,4 @@ function getRetentionData() {
   };
 }
 
-module.exports = { getRetentionData, readVisitPayload, mergeVisitPayloads, readSegments };
+module.exports = { getRetentionData, readVisitPayload, mergeVisitPayloads, mergeSourceCampaigns, readSegments };

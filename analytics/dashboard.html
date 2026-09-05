@@ -126,6 +126,7 @@
   .segment-note { font-size: 12px; color: #57534E; margin-bottom: 14px; max-width: 720px; }
   .subtable { margin-bottom: 18px; }
   .subtable-label { font-size: 12px; font-weight: 600; color: #1C1917; margin-bottom: 6px; display: flex; align-items: center; gap: 7px; }
+  .subtable-link { margin-left: 2px; color: #57534E; font-weight: 500; }
   .subtable-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
   /* Per-week mini "small multiples" */
@@ -252,6 +253,7 @@
     .segment-title { color: #E7E5E2; }
     .segment-note { color: #A8A29E; }
     .subtable-label { color: #E7E5E2; }
+    .subtable-link { color: #A8A29E; }
     .mini-bars { background: #252320; border-color: #3D3935; }
     .mini:hover .mini-bars { border-color: #57534E; }
     .mini-label { color: #A8A29E; }
@@ -511,7 +513,7 @@ function renderTable(data) {
 // full #md link. `hue` colours the channel's heat scale to match its swatch.
 var CHANNELS = [
   { key: 'md',    label: 'Local link (#md)',  swatch: '#ef4444', hue: 2,   types: ['hash', 'app', 'local'] },
-  { key: 'short', label: 'Short link (/s/)',  swatch: '#22c55e', hue: 142, types: ['short'] },
+  { key: 'short', label: 'Short link (/s/)',  swatch: '#22c55e', hue: 142, types: ['short'], sourceLink: '/analytics/sources' },
   { key: 'home',  label: 'Homepage',          swatch: '#3b82f6', hue: 217, types: ['home'] }
 ];
 
@@ -556,7 +558,7 @@ function renderCohortsByType(data) {
     var tw = document.createElement('div');
     tw.className = 'table-wrap';
     tw.innerHTML = cohortTableHtml(x.cohorts, weeks, null, x.ch.hue);
-    block.innerHTML = '<div class="subtable-label"><span class="subtable-swatch" style="background:' + x.ch.swatch + '"></span>' + x.ch.label + '</div>';
+    block.innerHTML = '<div class="subtable-label"><span class="subtable-swatch" style="background:' + x.ch.swatch + '"></span>' + x.ch.label + (x.ch.sourceLink ? ' <a class="subtable-link" href="' + x.ch.sourceLink + '">Sources</a>' : '') + '</div>';
     block.appendChild(tw);
     body.appendChild(block);
     wireOverflow(tw);

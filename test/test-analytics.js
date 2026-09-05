@@ -340,9 +340,9 @@ module.exports = function (harness) {
     assert.strictEqual(m.loadTypes.find(r => r.type === 'app').count, 3);
   });
 
-  console.log('\n-- Analytics: Social Attribution Tests ---------------\n');
+  console.log('\n-- Analytics: Source Attribution Tests ---------------\n');
 
-  test('logVisit stores recognized social attribution and rejects unknown tags', () => {
+  test('logVisit stores arbitrary tagged sources and recognized social referrers', () => {
     analyticsDb.close();
     analyticsDb.init(':memory:');
     analyticsDb.logVisit('2026-W15', '', '', null, null, 'short', 'x');
@@ -357,7 +357,8 @@ module.exports = function (harness) {
     assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'x'").get().c, 2);
     assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'youtube'").get().c, 2);
     assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'linkedin'").get().c, 2);
-    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = ''").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = 'newsletter'").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE traffic_source = ''").get().c, 0);
     assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'short'").get().c, 7,
       'source attribution does not remove visits from the short-link bucket');
   });
@@ -382,6 +383,35 @@ module.exports = function (harness) {
     assert.deepStrictEqual(data.linkedinVisits, [{ visit_week: '2026-W16', visits: 1 }]);
     assert.strictEqual(data.volume.find(r => r.visit_week === '2026-W15').visits, 3);
     assert.strictEqual(data.loadTypes.find(r => r.type === 'short').count, 6);
+  });
+
+  test('getRetentionData creates a weekly series for every tagged source', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    const db = analyticsDb.getDB();
+    const ins = db.prepare('INSERT INTO visits (cohort_week, visit_week, load_type, traffic_source) VALUES (?, ?, ?, ?)');
+    ins.run('2026-W15', '2026-W15', 'short', 'email-launch');
+    ins.run('2026-W15', '2026-W15', 'short', 'email-launch');
+    ins.run('2026-W15', '2026-W16', 'short', 'email-launch');
+    ins.run('2026-W16', '2026-W16', 'short', 'partner-a');
+
+    const campaigns = analyticsQuery.getRetentionData().sourceCampaigns;
+    assert.deepStrictEqual(campaigns, [
+      { source: 'email-launch', total: 3, visits: { '2026-W15': 2, '2026-W16': 1 } },
+      { source: 'partner-a', total: 1, visits: { '2026-W16': 1 } },
+    ]);
+  });
+
+  test('source names that match object properties still get their own series', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    const db = analyticsDb.getDB();
+    const ins = db.prepare('INSERT INTO visits (cohort_week, visit_week, load_type, traffic_source) VALUES (?, ?, ?, ?)');
+    ins.run('2026-W15', '2026-W15', 'short', '__proto__');
+    ins.run('2026-W15', '2026-W15', 'short', 'constructor');
+
+    const campaigns = analyticsQuery.getRetentionData().sourceCampaigns;
+    assert.deepStrictEqual(campaigns.map(c => c.source).sort(), ['__proto__', 'constructor']);
   });
 
   test('readVisitPayload recovers historical social visits from a legacy referrer column', () => {
@@ -418,6 +448,19 @@ module.exports = function (harness) {
       { visit_week: '2026-W16', visits: 4 },
     ]);
     assert.deepStrictEqual(merged.linkedinVisits, [{ visit_week: '2026-W16', visits: 1 }]);
+  });
+
+  test('mergeSourceCampaigns combines matching names and keeps new campaigns', () => {
+    const merged = analyticsQuery.mergeSourceCampaigns([
+      { source: 'email-launch', total: 2, visits: { '2026-W15': 2 } },
+    ], [
+      { source: 'email-launch', total: 3, visits: { '2026-W15': 1, '2026-W16': 2 } },
+      { source: 'partner-a', total: 4, visits: { '2026-W16': 4 } },
+    ]);
+    assert.deepStrictEqual(merged, [
+      { source: 'email-launch', total: 5, visits: { '2026-W15': 3, '2026-W16': 2 } },
+      { source: 'partner-a', total: 4, visits: { '2026-W16': 4 } },
+    ]);
   });
 
   console.log('\n── Analytics: Segment Tests (per-channel cohorts, per-week day/hour) ──\n');

@@ -124,7 +124,8 @@ module.exports = function (harness) {
     assert.strictEqual(detectTrafficSource({ search: '?src=li' }, ''), 'linkedin');
     assert.strictEqual(detectTrafficSource({ search: '' }, 'https://lnkd.in/abc'), 'linkedin');
     assert.strictEqual(detectTrafficSource({ search: '' }, 'https://www.linkedin.com/posts/abc'), 'linkedin');
-    assert.strictEqual(detectTrafficSource({ search: '?src=newsletter' }, 'https://example.com/'), '');
+    assert.strictEqual(detectTrafficSource({ search: '?src=newsletter' }, 'https://example.com/'), 'newsletter');
+    assert.strictEqual(detectTrafficSource({ search: '?src=Email%20Launch' }, ''), 'email launch');
     assert.strictEqual(detectTrafficSource(null, ''), '');
   });
 

@@ -2815,8 +2815,8 @@ const server = http.createServer((req, res) => {
     const localDow = url.searchParams.get('ld');
     // How the page opened (short / hash / local / app). logVisit allowlists it.
     const loadType = url.searchParams.get('lt');
-    // Coarse entry-source attribution, frozen by the page at initial load.
-    // The analytics layer allowlists values and stores no campaign or user ID.
+    // Entry-source attribution, frozen by the page at initial load. Explicit
+    // source names remain labels only; no campaign record or user ID is stored.
     const trafficSource = url.searchParams.get('src');
     // u=1 means this check fired because the page auto-reloaded for an update.
     // The tab's original load was already counted, and one deploy reloads every
@@ -3022,6 +3022,13 @@ const server = http.createServer((req, res) => {
   // Analytics dashboard + JSON API — only mounted when ANALYTICS_ENABLED=1
   if (ANALYTICS_ENABLED && pathname === '/analytics') {
     serveHtmlWithRewrite(res, path.join(__dirname, 'analytics', 'dashboard.html'), null, {
+      'Cache-Control': 'no-cache',
+    });
+    return;
+  }
+
+  if (ANALYTICS_ENABLED && pathname === '/analytics/sources') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'analytics', 'sources.html'), null, {
       'Cache-Control': 'no-cache',
     });
     return;

@@ -65,18 +65,20 @@
     } catch (e) { return 'app'; }
   }
 
-  // Attribute an entry to a social channel without storing a user identifier.
-  // An explicit query marker is the reliable path through in-app browsers:
-  // /s/<id>?src=yt#k=<key>. Referrer detection catches untagged links when the
-  // browser preserves that signal. The value is frozen for the tab, just like
-  // loadType, because the app can later rewrite its own URL.
+  // Attribute an entry to an explicit source label without storing a user
+  // identifier. A query marker is the reliable path through in-app browsers:
+  // /s/<id>?src=email-launch#k=<key>. Known social aliases are canonicalised;
+  // any other explicit label is kept so a new campaign appears in analytics
+  // without a code change. Referrer detection remains limited to known social
+  // hosts. The value is frozen for the tab because the app can rewrite its URL.
   function detectTrafficSource(loc, referrer) {
     try {
       var params = new URLSearchParams((loc && loc.search) || '');
-      var tagged = (params.get('src') || params.get('utm_source') || '').toLowerCase();
+      var tagged = (params.get('src') || params.get('utm_source') || '').trim().toLowerCase();
       if (tagged === 'x' || tagged === 'twitter') return 'x';
       if (tagged === 'yt' || tagged === 'youtube') return 'youtube';
       if (tagged === 'li' || tagged === 'linkedin') return 'linkedin';
+      if (tagged) return tagged;
     } catch (e) {}
     try {
       var host = new URL(referrer || '').hostname.toLowerCase().replace(/^www\./, '');

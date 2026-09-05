@@ -237,9 +237,9 @@ module.exports = function(harness) {
     assert.strictEqual(result.sourceFlag, 'x');
   });
 
-  test('parseArgs: share accepts YouTube and LinkedIn source labels', () => {
-    assert.strictEqual(cli.parseArgs(['share', 'doc.md', '--short', '--source', 'yt']).sourceFlag, 'yt');
-    assert.strictEqual(cli.parseArgs(['share', 'doc.md', '--short', '--source', 'linkedin']).sourceFlag, 'linkedin');
+  test('parseArgs: share accepts arbitrary campaign source labels', () => {
+    assert.strictEqual(cli.parseArgs(['share', 'doc.md', '--short', '--source', 'email-launch']).sourceFlag, 'email-launch');
+    assert.strictEqual(cli.parseArgs(['share', 'doc.md', '--short', '--source', 'partner newsletter']).sourceFlag, 'partner newsletter');
   });
 
   test('parseArgs: new subcommand', () => {

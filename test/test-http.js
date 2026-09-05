@@ -823,6 +823,15 @@ module.exports = function(harness) {
       const r = await get(BASE + '/analytics');
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].includes('text/html'));
+      assert.ok(r.body.includes("sourceLink: '/analytics/sources'"), 'dashboard should link to source analytics');
+    });
+
+    await testAsync('GET /analytics/sources returns the source dashboard', async () => {
+      const r = await get(BASE + '/analytics/sources');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/html'));
+      assert.ok(r.body.includes('Visits by source'));
+      assert.ok(r.body.includes("fetch('/analytics/data')"));
     });
 
     await testAsync('GET /analytics/data returns 200 with JSON', async () => {
@@ -832,6 +841,7 @@ module.exports = function(harness) {
       const data = JSON.parse(r.body);
       assert.ok(Array.isArray(data.weeks), 'should have weeks array');
       assert.ok(Array.isArray(data.cohorts), 'should have cohorts array');
+      assert.ok(Array.isArray(data.sourceCampaigns), 'should have source campaigns array');
     });
 
     await testAsync('GET /version-check?cohort=2026-W15 returns 200', async () => {
@@ -845,6 +855,7 @@ module.exports = function(harness) {
       await get(BASE + '/version-check?cohort=2026-W99&lt=short&src=x');
       await get(BASE + '/version-check?cohort=2026-W98&lt=short&src=yt');
       await get(BASE + '/version-check?cohort=2026-W97&lt=short&src=linkedin');
+      await get(BASE + '/version-check?cohort=2026-W96&lt=short&src=email-launch');
       const Database = require('better-sqlite3');
       const db = new Database(testDbPath, { readonly: true });
       try {
@@ -856,6 +867,7 @@ module.exports = function(harness) {
         assert.strictEqual(row.traffic_source, 'x');
         assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2026-W98' ORDER BY id DESC LIMIT 1").get().traffic_source, 'youtube');
         assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2026-W97' ORDER BY id DESC LIMIT 1").get().traffic_source, 'linkedin');
+        assert.strictEqual(db.prepare("SELECT traffic_source FROM visits WHERE cohort_week = '2026-W96' ORDER BY id DESC LIMIT 1").get().traffic_source, 'email-launch');
         assert.ok(!('ip_hash' in row), 'visits row must not carry an ip_hash column');
       } finally {
         db.close();
@@ -2278,6 +2290,11 @@ module.exports = function(harness) {
     await testAsync('asset-versioning: /analytics is versioned', async () => {
       const v = JSON.parse((await get(BASE + '/version-check')).body).version;
       await assertEveryAssetVersioned('/analytics', v);
+    });
+
+    await testAsync('asset-versioning: /analytics/sources is versioned', async () => {
+      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
+      await assertEveryAssetVersioned('/analytics/sources', v);
     });
 
     await testAsync('asset-versioning: cross-origin scripts are not rewritten', async () => {
