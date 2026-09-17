@@ -292,6 +292,12 @@
     <div id="cohorts-by-type-body"></div>
   </div>
 
+  <div id="library-cohorts" class="segment">
+    <h2 class="segment-title">Library visits by cohort</h2>
+    <p class="segment-note">Only counts visits collected from this release onward.</p>
+    <div id="library-cohorts-body"><p class="loading">No Library cohort data yet.</p></div>
+  </div>
+
   <div id="dow-by-week" class="segment" style="display:none">
     <h2 class="segment-title">Usage by day of the week:</h2>
     <div id="dow-by-week-body" class="mini-row"></div>
@@ -306,11 +312,6 @@
     <div class="chart-card" id="card-volume" style="display:none">
       <h2>Weekly visits</h2>
       <div class="chart-holder"><canvas id="chart-volume"></canvas></div>
-    </div>
-    <div class="chart-card" id="card-library-visits" style="display:none">
-      <h2>Library visits</h2>
-      <p class="chart-note">Visits to the Local and Cloud Library pages, collected from this release onward.</p>
-      <div class="chart-holder"><canvas id="chart-library-visits"></canvas></div>
     </div>
     <div class="chart-card" id="card-devices" style="display:none">
       <h2>Devices</h2>
@@ -434,6 +435,7 @@ fetch('/analytics/data')
       renderTable(data);
     }
     renderCohortsByType(data);
+    renderLibraryCohorts(data);
     var dowOrder = [1, 2, 3, 4, 5, 6, 0];               // Mon → Sun
     var dowLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     var hourOrder = [], hourLabels = [];
@@ -566,6 +568,40 @@ function renderCohortsByType(data) {
   document.getElementById('cohorts-by-type').style.display = '';
 }
 
+// Library cohorts use the same table treatment as page-function cohorts, but
+// keep the Local and Cloud scopes together in a dedicated section.
+function renderLibraryCohorts(data) {
+  var byType = data.cohortsByType || {};
+  var libraries = [
+    { label: 'Local Library', swatch: '#8b5cf6', hue: 272, cohorts: byType.library || [] },
+    { label: 'Cloud Library', swatch: '#14b8a6', hue: 174, cohorts: byType['cloud-library'] || [] }
+  ];
+  var weekSet = {};
+  libraries.forEach(function (library) {
+    library.cohorts.forEach(function (cohort) {
+      weekSet[cohort.cohort_week] = 1;
+      Object.keys(cohort.visits).forEach(function (week) { weekSet[week] = 1; });
+    });
+  });
+  var weeks = Object.keys(weekSet).sort();
+  if (!weeks.length) return;
+
+  var body = document.getElementById('library-cohorts-body');
+  body.innerHTML = '';
+  libraries.forEach(function (library) {
+    if (!library.cohorts.length) return;
+    var block = document.createElement('div');
+    block.className = 'subtable';
+    var table = document.createElement('div');
+    table.className = 'table-wrap';
+    table.innerHTML = cohortTableHtml(library.cohorts, weeks, null, library.hue);
+    block.innerHTML = '<div class="subtable-label"><span class="subtable-swatch" style="background:' + library.swatch + '"></span>' + library.label + '</div>';
+    block.appendChild(table);
+    body.appendChild(block);
+    wireOverflow(table);
+  });
+}
+
 // Per-week mini bar "small multiples". byWeek is {week: {slot: count}}.
 // slotOrder controls bar order (Mon-first for days, 0-23 for hours); slotLabels
 // are the aligned axis labels used when a mini is expanded. All minis share one
@@ -670,31 +706,6 @@ function renderCharts(data) {
           ]
         },
         options: chartOpts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true } } })
-      });
-    }
-
-    // Library visits - two non-overlapping page scopes collected from the
-    // dedicated Library shell.
-    var librarySeries = [
-      { label: 'Local Library', rows: data.libraryVisits || [], color: '#8b5cf6' },
-      { label: 'Cloud Library', rows: data.cloudLibraryVisits || [], color: '#14b8a6' }
-    ].filter(function (series) { return series.rows.length; });
-    if (librarySeries.length) {
-      var libraryWeeks = Array.from(new Set([].concat.apply([], librarySeries.map(function (series) {
-        return series.rows.map(function (row) { return row.visit_week; });
-      })))).sort();
-      document.getElementById('card-library-visits').style.display = '';
-      new Chart(document.getElementById('chart-library-visits'), {
-        type: 'line',
-        data: {
-          labels: libraryWeeks.map(fmtWeek),
-          datasets: librarySeries.map(function (series) {
-            var byWeek = {};
-            series.rows.forEach(function (row) { byWeek[row.visit_week] = row.visits; });
-            return { label: series.label, data: libraryWeeks.map(function (week) { return byWeek[week] || 0; }), borderColor: series.color, backgroundColor: series.color, borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 };
-          })
-        },
-        options: chartOpts({ scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor, precision: 0 }, grid: { color: gridColor }, beginAtZero: true } } })
       });
     }
 

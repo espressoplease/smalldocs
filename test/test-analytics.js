@@ -371,7 +371,7 @@ module.exports = function (harness) {
     assert.strictEqual(m.loadTypes.find(r => r.type === 'app').count, 3);
   });
 
-  test('getRetentionData returns weekly Local and Cloud Library series', () => {
+  test('getRetentionData keeps Local and Cloud Library cohorts separate', () => {
     analyticsDb.close();
     analyticsDb.init(':memory:');
     const db = analyticsDb.getDB();
@@ -382,11 +382,14 @@ module.exports = function (harness) {
     ins.run('2026-W15', '2026-W16', 'cloud-library');
 
     const data = analyticsQuery.getRetentionData();
-    assert.deepStrictEqual(data.libraryVisits, [
-      { visit_week: '2026-W15', visits: 1 },
-      { visit_week: '2026-W16', visits: 1 },
-    ]);
-    assert.deepStrictEqual(data.cloudLibraryVisits, [{ visit_week: '2026-W16', visits: 2 }]);
+    assert.deepStrictEqual(data.cohortsByType.library, [{
+      cohort_week: '2026-W15', cohort_size: 1,
+      visits: { '2026-W15': 1, '2026-W16': 1 },
+    }]);
+    assert.deepStrictEqual(data.cohortsByType['cloud-library'], [{
+      cohort_week: '2026-W15', cohort_size: 0,
+      visits: { '2026-W16': 2 },
+    }]);
   });
 
   console.log('\n-- Analytics: Source Attribution Tests ---------------\n');
