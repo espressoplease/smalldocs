@@ -2366,7 +2366,21 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('/public/library/cloud-library-prototype.css'));
       assert.ok(r.body.includes('/public/library/cloud-library-prototype.js'));
       assert.ok(r.body.includes('/public/library/library-mobile.js'));
+      assert.ok(r.body.includes('/public/library/library-analytics.js'));
       assert.ok(!r.body.includes('cloud-demo=1'));
+    });
+
+    await testAsync('Library visit classifications are stored by version-check', async () => {
+      await get(BASE + '/version-check?cohort=2026-W15&lt=library');
+      await get(BASE + '/version-check?cohort=2026-W15&lt=cloud-library');
+      const Database = require('better-sqlite3');
+      const db = new Database(testDbPath, { readonly: true });
+      try {
+        assert.strictEqual(db.prepare("SELECT COUNT(*) AS c FROM visits WHERE load_type = 'library'").get().c, 1);
+        assert.strictEqual(db.prepare("SELECT COUNT(*) AS c FROM visits WHERE load_type = 'cloud-library'").get().c, 1);
+      } finally {
+        db.close();
+      }
     });
 
     await testAsync('GET /connect links back to Cloud Library when Cloud is public', async () => {

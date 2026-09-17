@@ -128,8 +128,10 @@ function normInt(v, min, max) {
 // Constrain load_type to the known set; anything else is stored as '' so a
 // junk value can't create a phantom bucket in the dashboard. 'home' is the
 // marketing landing page; 'app' is the bare app shell with no document.
+// 'library' and 'cloud-library' are the two Library page scopes.
 function normLoadType(v) {
-  return (v === 'short' || v === 'hash' || v === 'app' || v === 'home') ? v : '';
+  return (v === 'short' || v === 'hash' || v === 'app' || v === 'home' ||
+    v === 'library' || v === 'cloud-library') ? v : '';
 }
 
 function normTrafficSource(v) {

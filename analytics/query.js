@@ -108,6 +108,19 @@ function readVisitPayload(db) {
     ).all();
   } catch (e) { loadTypes = []; }
 
+  // The Library has its own page shell, rather than the reader update flow, so
+  // its explicit entry types are returned as weekly series for the dashboard.
+  // A legacy database without load_type contributes no rows.
+  function weeklyLoadType(type) {
+    try {
+      return db.prepare(
+        "SELECT visit_week, COUNT(*) AS visits FROM visits WHERE load_type = ? GROUP BY visit_week ORDER BY visit_week"
+      ).all(type);
+    } catch (e) { return []; }
+  }
+  var libraryVisits = weeklyLoadType('library');
+  var cloudLibraryVisits = weeklyLoadType('cloud-library');
+
   // Every lowercase ?src= label becomes its own weekly series. Keep homepage
   // and short-link data separate so each Sources link describes its channel.
   function readSourceCampaigns(loadType) {
@@ -145,7 +158,8 @@ function readVisitPayload(db) {
   return { weeks: weeks, cohorts: cohorts, unattributed: unattributed,
            devices: devices, browsers: browsers, sources: sources, volume: volume,
            byHour: byHour, byDow: byDow, loadTypes: loadTypes,
-           sourceCampaigns: sourceCampaigns, sourceCampaignsByType: sourceCampaignsByType };
+           sourceCampaigns: sourceCampaigns, sourceCampaignsByType: sourceCampaignsByType,
+           libraryVisits: libraryVisits, cloudLibraryVisits: cloudLibraryVisits };
 }
 
 // Sum two keyed count lists ([{key, count}]) into one, sorted by count desc.
@@ -221,6 +235,10 @@ function mergeVisitPayloads(a, b) {
     .sort(function (x, y) { return x.hour - y.hour; });
   var byDow = sumCounts(a.byDow, b.byDow, 'dow', 'count')
     .sort(function (x, y) { return x.dow - y.dow; });
+  var libraryVisits = sumCounts(a.libraryVisits, b.libraryVisits, 'visit_week', 'visits')
+    .sort(function (x, y) { return x.visit_week < y.visit_week ? -1 : 1; });
+  var cloudLibraryVisits = sumCounts(a.cloudLibraryVisits, b.cloudLibraryVisits, 'visit_week', 'visits')
+    .sort(function (x, y) { return x.visit_week < y.visit_week ? -1 : 1; });
   return {
     weeks: weeks,
     cohorts: cohorts,
@@ -234,6 +252,8 @@ function mergeVisitPayloads(a, b) {
     loadTypes: sumCounts(a.loadTypes, b.loadTypes, 'type', 'count'),
     sourceCampaigns: mergeSourceCampaigns(a.sourceCampaigns, b.sourceCampaigns),
     sourceCampaignsByType: mergeSourceCampaignsByType(a.sourceCampaignsByType, b.sourceCampaignsByType),
+    libraryVisits: libraryVisits,
+    cloudLibraryVisits: cloudLibraryVisits,
   };
 }
 
@@ -407,6 +427,8 @@ function getRetentionData() {
     loadTypes: payload.loadTypes,
     sourceCampaigns: payload.sourceCampaigns,
     sourceCampaignsByType: payload.sourceCampaignsByType,
+    libraryVisits: payload.libraryVisits,
+    cloudLibraryVisits: payload.cloudLibraryVisits,
     cohortsByType: segments.cohortsByType,
     dowByWeek: segments.dowByWeek,
     hourByWeek: segments.hourByWeek,

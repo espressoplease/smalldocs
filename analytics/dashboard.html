@@ -307,6 +307,11 @@
       <h2>Weekly visits</h2>
       <div class="chart-holder"><canvas id="chart-volume"></canvas></div>
     </div>
+    <div class="chart-card" id="card-library-visits" style="display:none">
+      <h2>Library visits</h2>
+      <p class="chart-note">Visits to the Local and Cloud Library pages, collected from this release onward.</p>
+      <div class="chart-holder"><canvas id="chart-library-visits"></canvas></div>
+    </div>
     <div class="chart-card" id="card-devices" style="display:none">
       <h2>Devices</h2>
       <div class="chart-holder"><canvas id="chart-devices"></canvas></div>
@@ -665,6 +670,31 @@ function renderCharts(data) {
           ]
         },
         options: chartOpts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true } } })
+      });
+    }
+
+    // Library visits - two non-overlapping page scopes collected from the
+    // dedicated Library shell.
+    var librarySeries = [
+      { label: 'Local Library', rows: data.libraryVisits || [], color: '#8b5cf6' },
+      { label: 'Cloud Library', rows: data.cloudLibraryVisits || [], color: '#14b8a6' }
+    ].filter(function (series) { return series.rows.length; });
+    if (librarySeries.length) {
+      var libraryWeeks = Array.from(new Set([].concat.apply([], librarySeries.map(function (series) {
+        return series.rows.map(function (row) { return row.visit_week; });
+      })))).sort();
+      document.getElementById('card-library-visits').style.display = '';
+      new Chart(document.getElementById('chart-library-visits'), {
+        type: 'line',
+        data: {
+          labels: libraryWeeks.map(fmtWeek),
+          datasets: librarySeries.map(function (series) {
+            var byWeek = {};
+            series.rows.forEach(function (row) { byWeek[row.visit_week] = row.visits; });
+            return { label: series.label, data: libraryWeeks.map(function (week) { return byWeek[week] || 0; }), borderColor: series.color, backgroundColor: series.color, borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3 };
+          })
+        },
+        options: chartOpts({ scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor, precision: 0 }, grid: { color: gridColor }, beginAtZero: true } } })
       });
     }
 
