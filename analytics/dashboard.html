@@ -568,38 +568,26 @@ function renderCohortsByType(data) {
   document.getElementById('cohorts-by-type').style.display = '';
 }
 
-// Library cohorts use the same table treatment as page-function cohorts, but
-// keep the Local and Cloud scopes together in a dedicated section.
+// Library cohorts use the same table treatment as page-function cohorts. Local
+// and Cloud visits are combined because this section describes Library usage.
 function renderLibraryCohorts(data) {
   var byType = data.cohortsByType || {};
-  var libraries = [
-    { label: 'Local Library', swatch: '#8b5cf6', hue: 272, cohorts: byType.library || [] },
-    { label: 'Cloud Library', swatch: '#14b8a6', hue: 174, cohorts: byType['cloud-library'] || [] }
-  ];
+  var cohorts = mergeCohortArrays([byType.library, byType['cloud-library']]);
   var weekSet = {};
-  libraries.forEach(function (library) {
-    library.cohorts.forEach(function (cohort) {
-      weekSet[cohort.cohort_week] = 1;
-      Object.keys(cohort.visits).forEach(function (week) { weekSet[week] = 1; });
-    });
+  cohorts.forEach(function (cohort) {
+    weekSet[cohort.cohort_week] = 1;
+    Object.keys(cohort.visits).forEach(function (week) { weekSet[week] = 1; });
   });
   var weeks = Object.keys(weekSet).sort();
   if (!weeks.length) return;
 
   var body = document.getElementById('library-cohorts-body');
   body.innerHTML = '';
-  libraries.forEach(function (library) {
-    if (!library.cohorts.length) return;
-    var block = document.createElement('div');
-    block.className = 'subtable';
-    var table = document.createElement('div');
-    table.className = 'table-wrap';
-    table.innerHTML = cohortTableHtml(library.cohorts, weeks, null, library.hue);
-    block.innerHTML = '<div class="subtable-label"><span class="subtable-swatch" style="background:' + library.swatch + '"></span>' + library.label + '</div>';
-    block.appendChild(table);
-    body.appendChild(block);
-    wireOverflow(table);
-  });
+  var table = document.createElement('div');
+  table.className = 'table-wrap';
+  table.innerHTML = cohortTableHtml(cohorts, weeks, null, 272);
+  body.appendChild(table);
+  wireOverflow(table);
 }
 
 // Per-week mini bar "small multiples". byWeek is {week: {slot: count}}.
