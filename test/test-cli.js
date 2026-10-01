@@ -3,6 +3,7 @@
  */
 const path = require('path');
 const cli = require(path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js'));
+const io = require(path.join(__dirname, '..', 'cli', 'lib', 'io.js'));
 const commands = require(path.join(__dirname, '..', 'cli', 'lib', 'commands.js'));
 const SDocYaml = require(path.join(__dirname, '..', 'cli', 'shared', 'sdocs-yaml.js'));
 const S = require(path.join(__dirname, '..', 'cli', 'shared', 'sdocs-styles.js'));
@@ -364,6 +365,25 @@ module.exports = function(harness) {
     const result = cli.parseArgs(['plan.md', '+planning', '+q2']);
     assert.strictEqual(result.file, 'plan.md');
     assert.deepStrictEqual(result.addTags, ['planning', 'q2']);
+  });
+
+  console.log('\n── Long URL launch Tests ──────────────────────\n');
+
+  test('needsLaunchFile: short URLs go to the browser as an argument', () => {
+    assert.strictEqual(io.needsLaunchFile('https://smalldocs.org/#md=abc'), false);
+  });
+
+  test('needsLaunchFile: a URL above the argument limit uses a launch file', () => {
+    const url = 'https://smalldocs.org/#md=' + 'a'.repeat(io.MAX_ARG_URL_LENGTH);
+    assert.strictEqual(io.needsLaunchFile(url), true);
+  });
+
+  test('launchPageHtml: redirects to the exact URL and cannot close the script tag', () => {
+    const url = 'https://smalldocs.org/#md=' + 'a'.repeat(40000) + '</script>"\'';
+    const html = io.launchPageHtml(url);
+    assert.ok(!html.includes('</script>"'));
+    const literal = html.match(/location\.replace\((.*)\);<\/script>/)[1];
+    assert.strictEqual(JSON.parse(literal), url);
   });
 
   console.log('\n── buildUrl Tests ─────────────────────────────\n');
