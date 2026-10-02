@@ -1,6 +1,7 @@
 // CLI I/O helpers: argv parsing, content reading, browser opening.
 
 const fs   = require('fs');
+const os   = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { transcludeCells } = require('./cells-transclude');
@@ -281,11 +282,49 @@ function readCodewalkContent(files) {
   return { body: parts.join('\n'), files: tabs };
 }
 
+// A URL goes to the browser as one command-line argument, and that argument has
+// a size limit. A Chromium-based browser that is already running accepts at most
+// 32 KiB from the launching process (working directory and flags included) and
+// cuts off the rest, so a long `#md=` payload arrives truncated and the document
+// does not load. On Windows, `cmd /c start` stops at 8191 characters.
+const MAX_ARG_URL_LENGTH = process.platform === 'win32' ? 7000 : 24000;
+const LAUNCH_DIR = path.join(os.homedir(), '.sdocs', 'open');
+const LAUNCH_FILE_MAX_AGE_MS = 10 * 60 * 1000;
+
+function needsLaunchFile(url) {
+  return /^https?:/i.test(url) && url.length > MAX_ARG_URL_LENGTH;
+}
+
+// A small local page that sends the browser to `url`. The full URL is in the
+// file, so the command line only carries the short file path.
+function launchPageHtml(url) {
+  const target = JSON.stringify(url).replace(/</g, '\\u003c');
+  return '<!doctype html>\n<meta charset="utf-8">\n<title>SmallDocs</title>\n'
+    + '<script>location.replace(' + target + ');</script>\n';
+}
+
+// The launch file holds the document (compressed in the URL), so it is private
+// to the user and short-lived: each run deletes the files older runs left.
+function writeLaunchFile(url) {
+  fs.mkdirSync(LAUNCH_DIR, { recursive: true, mode: 0o700 });
+  const now = Date.now();
+  for (const name of fs.readdirSync(LAUNCH_DIR)) {
+    const file = path.join(LAUNCH_DIR, name);
+    try {
+      if (now - fs.statSync(file).mtimeMs > LAUNCH_FILE_MAX_AGE_MS) fs.unlinkSync(file);
+    } catch { /* another run removed it */ }
+  }
+  const file = path.join(LAUNCH_DIR, `${now}-${process.pid}.html`);
+  fs.writeFileSync(file, launchPageHtml(url), { mode: 0o600 });
+  return file;
+}
+
 function openBrowser(url, fallback) {
   try {
-    if (process.platform === 'darwin')      execFileSync('open', [url]);
-    else if (process.platform === 'win32')  execFileSync('cmd', ['/c', 'start', '', url]);
-    else                                    execFileSync('xdg-open', [url]);
+    const target = needsLaunchFile(url) ? writeLaunchFile(url) : url;
+    if (process.platform === 'darwin')      execFileSync('open', [target]);
+    else if (process.platform === 'win32')  execFileSync('cmd', ['/c', 'start', '', target]);
+    else                                    execFileSync('xdg-open', [target]);
   } catch {
     (fallback || console.log)(`Open in browser: ${url}`);
   }
@@ -297,4 +336,8 @@ module.exports = {
   readContent,
   readCodewalkContent,
   openBrowser,
+  needsLaunchFile,
+  launchPageHtml,
+  writeLaunchFile,
+  MAX_ARG_URL_LENGTH,
 };
