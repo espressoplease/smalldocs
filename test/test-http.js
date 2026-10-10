@@ -183,6 +183,19 @@ module.exports = function(harness) {
       }, { Origin: BASE, Cookie: cookie });
     }
 
+    await testAsync('GET /llms.txt serves the product-wide discovery index', async () => {
+      const r = await get(BASE + '/llms.txt');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('text/plain'));
+      assert.strictEqual(r.headers['access-control-allow-origin'], '*');
+      assert.ok(r.body.includes('https://smalldocs.org/install'));
+      assert.ok(r.body.includes('https://smalldocs.org/agent-skills/standard/'));
+      assert.ok(r.body.includes('https://smalldocs.org/cloud'));
+      assert.ok(r.body.includes('https://smalldocs.org/agent-skills/cloud/'));
+      assert.ok(r.body.includes('https://smalldocs.org/developers/llms.txt'));
+      assert.ok(r.body.includes('https://smalldocs.org/developers/integration.md'));
+    });
+
     await testAsync('GET / returns 200', async () => {
       const r = await get(BASE + '/');
       assert.strictEqual(r.status, 200);

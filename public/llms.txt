@@ -1,0 +1,23 @@
+# SmallDocs
+
+SmallDocs is a Markdown reader and editor, a command line tool for opening local files and creating share links, a hosted workspace for documents you choose to store in SmallDocs Cloud, and an SDK for rendering SmallDocs documents in web applications.
+
+## Use SmallDocs locally
+
+- [Install the CLI](https://smalldocs.org/install)
+- [Product documentation](https://smalldocs.org/docs)
+- [Standard SmallDocs agent skill](https://smalldocs.org/agent-skills/standard/.well-known/agent-skills/smalldocs/SKILL.md)
+- [Standard skill catalog](https://smalldocs.org/agent-skills/standard/.well-known/agent-skills/index.json)
+
+## Use SmallDocs Cloud
+
+- [Cloud overview, setup, and pricing](https://smalldocs.org/cloud)
+- [Cloud-aware SmallDocs agent skill](https://smalldocs.org/agent-skills/cloud/.well-known/agent-skills/smalldocs/SKILL.md)
+- [Cloud skill catalog](https://smalldocs.org/agent-skills/cloud/.well-known/agent-skills/index.json)
+
+## Build with the SDK
+
+- [Developer documentation index](https://smalldocs.org/developers/llms.txt)
+- [SDK integration guide](https://smalldocs.org/developers/integration.md)
+- [Renderer integration skill](https://smalldocs.org/.well-known/agent-skills/smalldocs-renderer/SKILL.md)
+- [Agent skill catalog](https://smalldocs.org/.well-known/agent-skills/index.json)

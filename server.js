@@ -2630,6 +2630,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/llms.txt') {
+    serveFile(req, res, path.join(__dirname, 'public', 'llms.txt'), {
+      'Cache-Control': 'public, max-age=3600',
+      'Access-Control-Allow-Origin': '*',
+      'Content-Type': 'text/plain; charset=utf-8',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return;
+  }
+
   // Root entry point. New visitors stay on the marketing landing page;
   // returning browsers route to their available library in the page's first
   // script, after preserving old document fragments and homepage anchors.
