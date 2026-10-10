@@ -1,6 +1,6 @@
 {
-  "commit": "04d74897eeaaf06742177c26e479c3868d6caf13",
-  "builtAt": "2026-10-10T19:08:58Z",
+  "commit": "4ee9f28bd781efcb4cb547d86a5365fcb39a27fc",
+  "builtAt": "2026-10-10T19:12:55Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -15,8 +15,8 @@
     },
     {
       "path": "/agent-changes.md",
-      "sha256": "a26ec0947fd3c7f6d24bb1af44762d6c73f937097454464878303723a015170c",
-      "bytes": 148757
+      "sha256": "3cc67a2555efb4ec8b6eddbe137e661ed4a9f5ee6acdc32e901584651ebef9ab",
+      "bytes": 172722
     },
     {
       "path": "/blogs/journey-to-pdf-generation.md",
@@ -74,6 +74,16 @@
       "bytes": 2223
     },
     {
+      "path": "/cloud-business-invite.html",
+      "sha256": "0101a01ecd328590977428a0d51d8637b7d59c2369216a63130b7f0f285c5569",
+      "bytes": 35681
+    },
+    {
+      "path": "/cloud-business-invite.js",
+      "sha256": "22959e7ef2c1b46ab0ff368e07aa21fe80a98420d3b366035d4129d9c86021b5",
+      "bytes": 13143
+    },
+    {
       "path": "/cloud-checkout.html",
       "sha256": "35aaeed7cc8fa29e205ad31f40d1906ccf59e322aaa05772b68516b958f47a79",
       "bytes": 4726
@@ -105,8 +115,8 @@
     },
     {
       "path": "/cloud-sign-in.js",
-      "sha256": "4ec42b044646ffa553cf4115920d8c20488c74f560fb90dfd1dec9ceb3db2e77",
-      "bytes": 5285
+      "sha256": "4698317d9a1735acfad7fd37ca3bcca5454ac8b27628ad966d079f8b3c8ae80e",
+      "bytes": 6032
     },
     {
       "path": "/cloud-terms.html",
@@ -152,6 +162,11 @@
       "path": "/css/chart-reader.css",
       "sha256": "c4e33e693658f60d9168e059ac0536cf4be3a0d993fb511c8df49d4690170386",
       "bytes": 4598
+    },
+    {
+      "path": "/css/cloud-business-invite.css",
+      "sha256": "5676af81f4e8f14615dc5b1a713adbb95d24f9f68ecc57345e21011ed4c529b7",
+      "bytes": 10483
     },
     {
       "path": "/css/cloud-invite.css",
@@ -519,6 +534,11 @@
       "bytes": 8605
     },
     {
+      "path": "/library/library-analytics.js",
+      "sha256": "40fe4449207c250fa575d127c69461607ea23cccd83dc9881464ddf70825833d",
+      "bytes": 1366
+    },
+    {
       "path": "/library/library-menu.js",
       "sha256": "176d0c2bd037180bb8d6e8ad1eaa7890d9a8917566ff5f7c69468181ef1cb00a",
       "bytes": 702
@@ -535,8 +555,8 @@
     },
     {
       "path": "/library/library.html",
-      "sha256": "8a0d005552681c50ebdee33323669cf888f16d2e9c9cd3349181208fe983b9de",
-      "bytes": 12559
+      "sha256": "c7600da80fa8bec0f53e50504bea52c3f521cb430a8d49c16097a2d21c4487bd",
+      "bytes": 12622
     },
     {
       "path": "/library/library.js",
@@ -570,8 +590,8 @@
     },
     {
       "path": "/sdoc.md",
-      "sha256": "71d30e19ee4d9d3b433c96d13bf30c814ed9e106819bb41ea31852d8f8028c02",
-      "bytes": 66968
+      "sha256": "efd8a7f198dd54f7cfe38586c3af21e79e6bda1e26661bb4b4166d2a15f551a2",
+      "bytes": 67135
     },
     {
       "path": "/sdocs-app-runner.html",
