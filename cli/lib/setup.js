@@ -20,6 +20,7 @@ const {
   SKILL_BODY,
   SKILL_NAME,
   formatSkill,
+  readSkillEdition,
   canonicalSkillFile,
   canonicalSkillDir,
   legacyBlockTargets,
@@ -80,12 +81,13 @@ async function askAutoRefreshConsent() {
 // Preview what setup would do: print the skill, the symlinks it would create,
 // the agents covered by the canonical copy, and any legacy blocks it would
 // strip. Touches no file and writes no state.
-function dryRunPreview() {
+function dryRunPreview(edition) {
   const home = os.homedir();
   const env = process.env;
+  edition = edition || installedEdition(home);
   const skillPath = canonicalSkillFile(home);
   console.log(`--- ${skillPath} ---`);
-  console.log(formatSkill(SKILL_VERSION));
+  console.log(formatSkill(SKILL_VERSION, { cloud: edition === 'cloud' }));
 
   const detected = detectSkillAgents(home, env);
   const linked = detected.filter(a => !a.universal);
@@ -116,7 +118,31 @@ function dryRunPreview() {
   }
 }
 
-async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
+function installedEdition(home) {
+  try { return readSkillEdition(fs.readFileSync(canonicalSkillFile(home), 'utf8')); }
+  catch (_) { return 'standard'; }
+}
+
+function setupStateFields(edition, accountId, existing) {
+  const activeEdition = edition || installedEdition(os.homedir());
+  return {
+    skillEdition: activeEdition,
+    cloudAccountId: activeEdition === 'cloud'
+      ? (accountId || existing && existing.cloudAccountId || null) : null,
+  };
+}
+
+function cloudFirstSettings() {
+  const state = readSetupState();
+  if (state) {
+    if (state.declined || state.skillEdition !== 'cloud') return null;
+    return { accountId: state.cloudAccountId || null };
+  }
+  return installedEdition(os.homedir()) === 'cloud' ? { accountId: null } : null;
+}
+
+async function runSetup({ force = false, yes = false, dryRun = false,
+  edition = null, accountId = null } = {}) {
   if (!force) {
     if (!process.stdout.isTTY || !process.stdin.isTTY) return;
     if (process.env.CI || process.env.SDOCS_NO_SETUP) return;
@@ -125,9 +151,10 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
 
   // ── --yes (non-interactive) path ───────────────────────────
   if (yes) {
-    if (dryRun) { dryRunPreview(); return; }
+    if (dryRun) { dryRunPreview(edition); return; }
 
-    const result = syncAgentSkill({});
+    const existing = readSetupState();
+    const result = syncAgentSkill({ edition });
     const changed = syncChanged(result);
     const detected = detectSkillAgents(os.homedir(), process.env);
 
@@ -153,6 +180,7 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
       autoRefreshAgentFiles: true,
       autoInstallUpdates: false,
       lastRunVersion: VERSION,
+      ...setupStateFields(edition, accountId, existing),
     });
     return;
   }
@@ -181,7 +209,9 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
 
   const RULE = '\u2550'.repeat(36);
   console.log(`\n${RULE} Skill body ${RULE}`);
-  console.log(SKILL_BODY.trim());
+  const displayEdition = edition || installedEdition(home);
+  console.log(formatSkill(SKILL_VERSION, { cloud: displayEdition === 'cloud' })
+    .replace(/^---[\s\S]*?---\n\n<!--[^\n]+-->\n<!--[^\n]+-->\n/, '').trim());
   console.log(RULE);
 
   const a = await ask('\nInstall? [Y/n/skip] ');
@@ -192,12 +222,14 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
       writtenTo: [], declined: true,
       autoRefreshAgentFiles: false, autoInstallUpdates: false,
       lastRunVersion: VERSION,
+      ...setupStateFields(edition, accountId, readSetupState()),
     });
     console.log('Skipped. Run `sdoc setup` any time to revisit.');
     return;
   }
 
-  const result = syncAgentSkill({});
+  const existing = readSetupState();
+  const result = syncAgentSkill({ edition });
   const changed = syncChanged(result);
   if (changed || result.errors.length) printSyncSummary(result);
   if (result.errors.length) return;
@@ -212,6 +244,7 @@ async function runSetup({ force = false, yes = false, dryRun = false } = {}) {
     autoRefreshAgentFiles: autoRefresh,
     autoInstallUpdates: autoInstall,
     lastRunVersion: VERSION,
+    ...setupStateFields(edition, accountId, existing),
   });
   console.log('\nDone. Run `sdoc setup` any time to revisit.');
 }
@@ -237,7 +270,7 @@ async function maybeAutoRefresh() {
     const next = implicitConsentState(toImplicitResults(result), VERSION);
     if (!next) return;
     printSyncSummary(result);
-    writeSetupState(next);
+    writeSetupState({ ...next, ...setupStateFields(null, null, null) });
     return;
   }
 
@@ -271,6 +304,7 @@ async function runRefresh() {
     autoRefreshAgentFiles: existing ? existing.autoRefreshAgentFiles !== false : true,
     autoInstallUpdates: existing && existing.autoInstallUpdates != null ? existing.autoInstallUpdates : false,
     lastRunVersion: VERSION,
+    ...setupStateFields(null, null, existing),
   });
 }
 
@@ -304,4 +338,5 @@ module.exports = {
   runRefresh,
   runAutoUpdateSubcommand,
   maybeAutoRefresh,
+  cloudFirstSettings,
 };

@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 28;
-const SKILL_REASON  = 'Runnable HTML guidance now limits components to cases where interaction communicates the result more clearly than static document forms.';
+const SKILL_VERSION = 29;
+const SKILL_REASON  = 'The Cloud edition now treats ordinary sdoc opens as automatic Cloud creates or updates and keeps tags in Cloud.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -37,7 +37,7 @@ const SKILL_NAME    = 'smalldocs';
 // no double quotes (it is emitted as a double-quoted YAML scalar).
 const SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, save, or walk through a Markdown document with SmallDocs. Create or locate the Markdown file and use sdoc FILE.md for normal viewing. For a document walkthrough add source-line annotations to the sdoc command; the source file stays unchanged. For a presentation run sdoc slides, create a Markdown deck from the source material, run sdoc slides verify FILE.md --json and fix every error, then run sdoc present FILE.md. Use a runnable browser component only when the reader must interact with the result to understand something static document forms cannot express as clearly. When that criterion is met, run sdoc apps, use an sdoc-app block, and check inline, fullscreen, narrow, and wide layouts. Run the matching bare reference command before other specialised syntax. Local files stay local unless the user explicitly requests sharing or Cloud storage.";
 
-const CLOUD_SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, search, save, or walk through a Markdown document with SmallDocs. For a document walkthrough add source-line annotations to the sdoc command; the source file stays unchanged. For a presentation run sdoc slides, create a Markdown deck, run sdoc slides verify FILE.md --json and fix every error, then run sdoc present FILE.md. Use a runnable browser component only when the reader must interact with the result to understand something static document forms cannot express as clearly. When that criterion is met, run sdoc apps, use an sdoc-app block, and check inline, fullscreen, narrow, and wide layouts. This user has enabled SmallDocs Cloud. Use sdoc FILE.md for ordinary local viewing and do not search Cloud when a named local source is sufficient. For relevant prior Cloud material run sdoc cloud status --json, search, then sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json.";
+const CLOUD_SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, search, save, or walk through a Markdown document with SmallDocs. This user has enabled Cloud-first mode: use sdoc FILE.md for new and updated Markdown so the CLI automatically creates or updates the Cloud copy before opening it. Use +tag arguments for Cloud tags. For relevant prior Cloud material run sdoc cloud status --json, search, then pull. For a presentation run sdoc slides, create a Markdown deck, run sdoc slides verify FILE.md --json and fix every error, run sdoc FILE.md to store it, then run sdoc present FILE.md. Use a runnable browser component only when the reader must interact with the result to understand something static document forms cannot express as clearly. When that criterion is met, run sdoc apps and check inline, fullscreen, narrow, and wide layouts.";
 
 const STANDARD_CLOUD_SKILL_SECTION = `### SmallDocs Cloud is available
 
@@ -95,7 +95,9 @@ For a presentation request, follow this sequence rather than treating it as an o
 
 const CLOUD_SKILL_SECTION = `### SmallDocs Cloud for agents
 
-This user has enabled SmallDocs Cloud. Local viewing remains the default when the request only asks to create or open a document. Consider Cloud without waiting for the user to say the word "Cloud" when the existing conversation or task calls for persistent storage, cross-device access, search, revisions, permissions, or notifications. If the intended destination is unclear and it changes who can access the document, discuss it with the user.
+This user has enabled Cloud-first mode. Treat Cloud as the normal destination for SmallDocs Markdown. Write or update the local Markdown working copy, then run \`sdoc FILE.md\`. The CLI creates a Cloud document for an unbound file or pushes a revision for a bound file before it opens the browser. If the Cloud write fails, stop and report the error instead of presenting the local copy as saved.
+
+Use \`sdoc FILE.md +tag1 +tag2\` to add Cloud tags. Do not add SmallDocs tags to local front matter and do not use the local library. Use \`sdoc cloud ls\`, \`sdoc cloud search\`, and \`sdoc cloud tags\` for discovery. Use \`sdoc share\` only when the user explicitly asks for an encrypted snapshot link rather than the managed Cloud document.
 
 Treat Cloud as a source of context, not only a place to save new work. When earlier decisions, research, plans, or documentation could materially inform the task, search Cloud before recreating that context. Use specific project terms first and try shorter terms or existing tags when a search returns nothing. Do not search unrelated Cloud documents merely because Cloud is enabled.
 
@@ -116,11 +118,24 @@ When earlier Cloud material should inform new work, use this sequence:
 - When updating a bound document, the local binding supplies the revision the agent edited. Cloud keeps separate changes from other writers; overlapping replacements may both remain. If the server combines content and the file did not change during upload, push writes the combined Markdown back to the local file. Inspect \`merge_classification\`, \`combined\`, and \`local_updated_from_cloud\` in the JSON result.
 - Inspect or recover history with \`sdoc cloud history DOCUMENT_UUID\` and \`sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID\`.
 
-Cloud documents are identified by UUID, not filename. An account is the billing and access boundary; tags organize documents inside it. Do not use \`sdoc share\` as a substitute for Cloud: share creates an encrypted snapshot link, while Cloud provides revisions, search, membership, and persistent agent access.
+Cloud documents are identified by UUID, not filename. An account is the access boundary; tags organize documents inside it. The local file remains the editable working copy and its binding records the Cloud document and base revision.
 
 `;
 
-const CLOUD_SKILL_BODY = SKILL_BODY.replace(STANDARD_CLOUD_SKILL_SECTION, CLOUD_SKILL_SECTION);
+const CLOUD_SKILL_BODY = SKILL_BODY
+  .replace(
+    'The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that\'s comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.',
+    'The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders Markdown in the browser at https://smalldocs.org. Cloud-first mode uploads a new Markdown file or pushes a bound file before opening it, so the Cloud copy stays current while the local file remains the editable working copy.',
+  )
+  .replace(
+    '- `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.',
+    '- `sdoc file.md` - create or update the Cloud document, then open it for reading.',
+  )
+  .replace(
+    '- `sdoc library` - opens a library view containing files previously opened with `sdoc path/to/file.md`; filter by directory, date, or tags (the index doesn\'t search file content - fall back to `grep` for that). Opt out per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)\n- `sdoc library ls --tags` - list the current project\'s tags by frequency. When tags would make a document worth rediscovering, run this before choosing them. Prefer an existing tag that fits; introduce a new one when none does.\n- `sdoc file.md +tag1 +tag2` - open the file and add the selected tags to its YAML front matter. The `+` prefix is shell-safe and the tags persist.',
+    '- `sdoc cloud ls` - list documents in Cloud.\n- `sdoc cloud tags` - list Cloud tags by frequency. Prefer an existing tag that fits when the document should be easy to find again.\n- `sdoc file.md +tag1 +tag2` - create or update the Cloud document and add the selected Cloud tags. The local Markdown is not changed.',
+  )
+  .replace(STANDARD_CLOUD_SKILL_SECTION, CLOUD_SKILL_SECTION);
 
 function formatSkill(version, options) {
   const cloud = Boolean(options && options.cloud);

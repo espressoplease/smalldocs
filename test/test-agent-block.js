@@ -106,7 +106,7 @@ module.exports = function (harness) {
   });
 
   test('Cloud-aware skill describes account-based Cloud discovery', () => {
-    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('enabled SmallDocs Cloud'));
+    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('enabled Cloud-first mode'));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud members'));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud permission-groups'));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud create FILE.md --account ACCOUNT_UUID --json'));
@@ -336,14 +336,15 @@ module.exports = function (harness) {
   test('Cloud-aware skill keeps the same name and loads live state only for Cloud work', () => {
     const out = cli.formatSkill(cli.SKILL_VERSION, { cloud: true });
     assert.ok(out.includes('name: smalldocs'));
-    assert.ok(out.includes('This user has enabled SmallDocs Cloud'));
+    assert.ok(out.includes('This user has enabled Cloud-first mode'));
     assert.ok(out.includes('sdoc cloud status --json'));
-    assert.ok(out.includes('Local viewing remains the default'));
+    assert.ok(out.includes('creates a Cloud document for an unbound file'));
+    assert.ok(out.includes('Use `sdoc FILE.md +tag1 +tag2` to add Cloud tags'));
     assert.ok(!out.includes('This standard skill does not indicate'));
     assert.ok(out.includes('Treat Cloud as a source of context'));
     assert.ok(out.includes('search Cloud before recreating that context'));
     assert.ok(out.includes('sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json'));
-    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('do not search Cloud when a named local source is sufficient'));
+    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('automatically creates or updates the Cloud copy'));
   });
 
   test('both skill descriptions are YAML-safe', () => {

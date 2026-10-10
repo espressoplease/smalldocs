@@ -1,8 +1,13 @@
 (function () {
   'use strict';
 
-  var DEFAULT_RETURN = '/cloud/admin';
+  var requestedDefault = document.body.getAttribute('data-auth-return');
+  var inlineMode = document.body.getAttribute('data-auth-mode') === 'inline';
+  var DEFAULT_RETURN = requestedDefault === 'current'
+    ? window.location.pathname + window.location.search
+    : '/cloud/admin';
   var params = new URLSearchParams(window.location.search);
+  var previewMode = inlineMode && params.get('preview') === 'signin';
 
   function safeReturnPath(value) {
     if (!value || value.charAt(0) !== '/' || value.slice(0, 2) === '//') return DEFAULT_RETURN;
@@ -20,6 +25,7 @@
     if (path.indexOf('/library') === 0) return 'Cloud library';
     if (path.indexOf('/cloud/admin') === 0) return 'Cloud settings';
     if (path.indexOf('/cloud/checkout') === 0) return 'checkout';
+    if (path.indexOf('/cloud/business-invite') === 0) return 'your invitation';
     if (path.indexOf('/cloud/authorize') === 0) return 'CLI authorization';
     if (path.indexOf('/cloud/document') === 0) return 'your document';
     if (path.indexOf('/docs') === 0 || path.indexOf('/s/') === 0 ||
@@ -52,6 +58,10 @@
 
   emailForm.addEventListener('submit', async function (event) {
     event.preventDefault();
+    if (previewMode) {
+      status.textContent = 'This preview does not send a sign-in code.';
+      return;
+    }
     var value = emailInput.value.trim();
     var error = document.getElementById('email-error');
     if (!emailInput.validity.valid || !value) {
@@ -109,6 +119,13 @@
       });
       var result = await response.json();
       if (!response.ok) throw new Error(result.error || 'verification_failed');
+      if (inlineMode) {
+        status.textContent = 'Signed in.';
+        window.dispatchEvent(new CustomEvent('sdocs:auth-complete', {
+          detail: { returnTo: result.return_to || returnPath }
+        }));
+        return;
+      }
       window.location.assign(result.return_to || returnPath);
     } catch (_) {
       codeInput.setAttribute('aria-invalid', 'true');

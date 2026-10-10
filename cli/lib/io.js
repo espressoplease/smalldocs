@@ -57,6 +57,7 @@ function parseArgs(argv) {
   let helpFlag = false;
   let yesFlag = false;
   let dryRunFlag = false;
+  let skillEdition = null;
   let sheetName = null;
   let projectFlag = null;
   let accountFlag = null;
@@ -136,6 +137,8 @@ function parseArgs(argv) {
     if (arg === '--tags')                            { tagsFlag         = true; continue; }
     if (arg === '--yes' || arg === '-y')             { yesFlag          = true; continue; }
     if (arg === '--dry-run')                         { dryRunFlag       = true; continue; }
+    if (arg === '--cloud')                           { skillEdition     = 'cloud'; continue; }
+    if (arg === '--standard')                        { skillEdition     = 'standard'; continue; }
     if (arg === '--sheet')                           { sheetName        = args[++i]; continue; }
     if (arg === '--project')                         { projectFlag      = args[++i]; continue; }
     if (arg === '--account')                         { accountFlag      = args[++i]; continue; }
@@ -206,7 +209,7 @@ function parseArgs(argv) {
     resetFlag, shortFlag, jsonFlag, auditFlag, waitFlag,
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,
-    tagsFlag, helpFlag, yesFlag, dryRunFlag, sheetName,
+    tagsFlag, helpFlag, yesFlag, dryRunFlag, skillEdition, sheetName,
     projectFlag, accountFlag, outputPath, revisionFlag, documentFlag, baseRevisionFlag,
     limitFlag, noOpenFlag, noBindFlag, forceFlag, tagFilters,
     everyoneFlag, onlyYouFlag, sharedWithMeFlag, noteText, memberFlags, documentFlags,

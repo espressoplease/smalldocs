@@ -187,7 +187,7 @@ async function prepareUrl(opts) {
 // The non-blocking, share-by-URL case is `sdoc share <file>`.
 async function openCommand(opts) {
   const { url } = await prepareUrl(opts);
-  openBrowser(url);
+  if (!opts.noOpenFlag) openBrowser(url);
   console.log(`SDocs → ${url.length > 80 ? url.slice(0, 77) + '...' : url}`);
   await postCommandHooks();
 }

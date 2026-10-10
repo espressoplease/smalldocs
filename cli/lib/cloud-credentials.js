@@ -115,7 +115,7 @@ function keychainOperations(operations) {
     return {
       read() { return null; },
       write(account, value) { keychainWriteAccount(account, value, operations); },
-      remove: keychainDeleteAccount,
+      remove() {},
     };
   }
   return {
