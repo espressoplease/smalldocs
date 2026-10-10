@@ -8,7 +8,7 @@ fi
 
 deploy_target=$1
 release_commit=$(git rev-parse HEAD)
-remote_commit=$(git ls-remote --heads origin refs/heads/feature/cloud-foundation | cut -f1)
+remote_commit=$(git ls-remote --heads origin refs/heads/main | cut -f1)
 release_tmp=$(mktemp -d)
 release_archive="$release_tmp/smalldocs-$release_commit.tar.gz"
 remote_archive="/tmp/smalldocs-$release_commit.tar.gz"
@@ -20,7 +20,7 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 if [ -z "$remote_commit" ] || [ "$remote_commit" != "$release_commit" ]; then
-  echo "Refusing to deploy a commit that is not the published feature/cloud-foundation tip." >&2
+  echo "Refusing to deploy a commit that is not the published main tip." >&2
   exit 1
 fi
 
