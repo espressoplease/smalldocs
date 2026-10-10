@@ -1,6 +1,6 @@
 {
-  "commit": "4a0fd46d1801e56cdc1a713d3ba5ffee330b301f",
-  "builtAt": "2026-09-07T09:54:19Z",
+  "commit": "04d74897eeaaf06742177c26e479c3868d6caf13",
+  "builtAt": "2026-10-10T19:08:58Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -547,6 +547,11 @@
       "path": "/library/rescued.html",
       "sha256": "a5d8f48651eb6c71169d71d3325317f538d7102e223282acc97e36e795c51787",
       "bytes": 4989
+    },
+    {
+      "path": "/llms.txt",
+      "sha256": "15b64789720d09b1cc99bf325f5e48a182207bb7d5a1b759f8ae9e19e2a51780",
+      "bytes": 1314
     },
     {
       "path": "/notifications.json",
