@@ -1,11 +1,11 @@
 {
-  "checkedAt": "2026-10-10T19:18:17.413Z",
+  "checkedAt": "2026-10-10T21:51:09.616Z",
   "base": "https://smalldocs.org",
-  "commit": "4ee9f28bd781efcb4cb547d86a5365fcb39a27fc",
-  "commitShort": "4ee9f28",
+  "commit": "ba5934abb7a30fbfef7aa7beff683f36eb750906",
+  "commitShort": "ba5934a",
   "result": "ok",
   "totalFiles": 209,
   "matched": 209,
   "mismatches": [],
-  "manifestUrl": "https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/4ee9f28bd781efcb4cb547d86a5365fcb39a27fc.json"
+  "manifestUrl": "https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/ba5934abb7a30fbfef7aa7beff683f36eb750906.json"
 }
