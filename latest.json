@@ -1,6 +1,6 @@
 {
-  "commit": "4ee9f28bd781efcb4cb547d86a5365fcb39a27fc",
-  "builtAt": "2026-10-10T19:12:55Z",
+  "commit": "ba5934abb7a30fbfef7aa7beff683f36eb750906",
+  "builtAt": "2026-10-10T21:50:53Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -270,8 +270,8 @@
     },
     {
       "path": "/css/sidebar-shared.css",
-      "sha256": "97448528b6a88b3cbc2b78872b0d6831fec2877e9494e1e49972b8ae72b9664f",
-      "bytes": 13436
+      "sha256": "b9cd5f851cb854afe3ae8eb964f3af1d75c82a4ce4cad2168b486387ffd20233",
+      "bytes": 13410
     },
     {
       "path": "/css/site-sidebar.css",
