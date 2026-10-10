@@ -149,7 +149,7 @@ test('Library and reader sidebars share capability and footer content', async ({
   });
   expect(reader.contract.footerLink).toMatchObject({
     fontFamily: '"SDocs Sidebar Inter", system-ui, sans-serif',
-    fontSize: '13px',
+    fontSize: '11px',
     fontWeight: '500',
   });
   expect(reader.contract.footerIcon).toMatchObject({

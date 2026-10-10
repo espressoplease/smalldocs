@@ -28,7 +28,7 @@
   --sdocs-sidebar-text-weight: 500;
   --sdocs-sidebar-font-family: 'SDocs Sidebar Inter', system-ui, sans-serif;
   --sdocs-sidebar-row-height: 36px;
-  --sdocs-sidebar-footer-row-height: 32px;
+  --sdocs-sidebar-footer-row-height: 24px;
 }
 
 .sdocs-sidebar-shell {
@@ -229,11 +229,12 @@
 }
 
 .sdocs-sidebar-shell .sdocs-sidebar-footer {
+  font-size: 11px;
   margin-top: 12px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding-top: 16px;
+  gap: 4px;
+  padding-top: 12px;
   border-top: 1px solid var(--border-subtle, var(--border, #ddd9d3));
 }
 
@@ -246,7 +247,6 @@
   border: 1px solid transparent;
   border-radius: 8px;
   color: var(--text-2, #57534e);
-  font-size: var(--sdocs-sidebar-font-size);
   font-weight: var(--sdocs-sidebar-text-weight);
   text-decoration: none;
 }
