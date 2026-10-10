@@ -58,8 +58,11 @@ require('./test-skill-evals')(harness);
 require('./test-router')(harness);
 require('./test-update-check')(harness);
 require('./test-source')(harness);
+require('./test-business-invite-link')(harness);
+const runBusinessInviteCommand = require('./test-business-invite-command')(harness);
 require('./test-cloud-auth')(harness);
 require('./test-cloud-billing')(harness);
+require('./test-cloud-manual-access')(harness);
 require('./test-cloud-billing-lifecycle')(harness);
 require('./test-cloud-account-selection')(harness);
 require('./test-cloud-collaboration-metrics')(harness);
@@ -100,6 +103,7 @@ const runLibraryServer = require('./test-library-server')(harness);
 
 (async () => {
   await runCloudDeploymentConfig();
+  await runBusinessInviteCommand();
   await runCloudKms();
   await runCloudAwsKms();
   await runCloudOAuth();

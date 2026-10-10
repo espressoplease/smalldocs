@@ -313,6 +313,8 @@ module.exports = function (harness) {
     analyticsDb.logVisit('2026-W15', '', '', null, null, 'short');
     analyticsDb.logVisit('2026-W15', '', '', null, null, 'hash');
     analyticsDb.logVisit('2026-W15', '', '', null, null, 'home');   // marketing landing page
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'library');
+    analyticsDb.logVisit('2026-W15', '', '', null, null, 'cloud-library');
     analyticsDb.logVisit('2026-W15', '', '', null, null, 'bogus');  // not allowlisted → ''
     analyticsDb.logVisit('2026-W15', '', '', null, null);           // omitted → ''
     analyticsDb.flush();
@@ -320,6 +322,8 @@ module.exports = function (harness) {
     assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'short'").get().c, 1);
     assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'hash'").get().c, 1);
     assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'home'").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'library'").get().c, 1);
+    assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = 'cloud-library'").get().c, 1);
     assert.strictEqual(db.prepare("SELECT COUNT(*) c FROM visits WHERE load_type = ''").get().c, 2);
   });
 
@@ -365,6 +369,27 @@ module.exports = function (harness) {
     assert.strictEqual(m.loadTypes.find(r => r.type === 'short').count, 5);
     assert.strictEqual(m.loadTypes.find(r => r.type === 'hash').count, 2);
     assert.strictEqual(m.loadTypes.find(r => r.type === 'app').count, 3);
+  });
+
+  test('getRetentionData keeps Local and Cloud Library cohorts separate', () => {
+    analyticsDb.close();
+    analyticsDb.init(':memory:');
+    const db = analyticsDb.getDB();
+    const ins = db.prepare('INSERT INTO visits (cohort_week, visit_week, load_type) VALUES (?, ?, ?)');
+    ins.run('2026-W15', '2026-W15', 'library');
+    ins.run('2026-W15', '2026-W16', 'library');
+    ins.run('2026-W15', '2026-W16', 'cloud-library');
+    ins.run('2026-W15', '2026-W16', 'cloud-library');
+
+    const data = analyticsQuery.getRetentionData();
+    assert.deepStrictEqual(data.cohortsByType.library, [{
+      cohort_week: '2026-W15', cohort_size: 1,
+      visits: { '2026-W15': 1, '2026-W16': 1 },
+    }]);
+    assert.deepStrictEqual(data.cohortsByType['cloud-library'], [{
+      cohort_week: '2026-W15', cohort_size: 0,
+      visits: { '2026-W16': 2 },
+    }]);
   });
 
   console.log('\n-- Analytics: Source Attribution Tests ---------------\n');

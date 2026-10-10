@@ -219,7 +219,38 @@ module.exports = function (harness) {
       const skill = fx.read(skillRel);
       assert.ok(skill.includes(`<!-- sdocs-skill: v=${cli.SKILL_VERSION} -->`));
       assert.ok(skill.includes('<!-- sdocs-skill-edition: cloud -->'));
-      assert.ok(skill.includes('This user has enabled SmallDocs Cloud'));
+      assert.ok(skill.includes('This user has enabled Cloud-first mode'));
+    } finally { fx.cleanup(); }
+  });
+
+  scenario('setup --cloud records Cloud-first mode and the automatic-create account', async () => {
+    const fx = createFixture({ agents: ['codex'] });
+    try {
+      const result = await fx.run('setup --cloud --account workspace-humanlayer --yes');
+      assert.strictEqual(result.exitCode, 0, `exit code (stderr=${result.stderr})`);
+      const skill = fx.read(skillRel);
+      assert.ok(skill.includes('<!-- sdocs-skill-edition: cloud -->'));
+      assert.ok(skill.includes('Cloud-first mode'));
+      assert.ok(skill.includes('automatically creates or updates the Cloud copy'));
+      const state = fx.readSetupState();
+      assert.strictEqual(state.skillEdition, 'cloud');
+      assert.strictEqual(state.cloudAccountId, 'workspace-humanlayer');
+
+      await fx.run('setup --yes');
+      assert.strictEqual(fx.readSetupState().skillEdition, 'cloud');
+      assert.strictEqual(fx.readSetupState().cloudAccountId, 'workspace-humanlayer');
+    } finally { fx.cleanup(); }
+  });
+
+  scenario('setup --standard switches a current Cloud skill back to local-first mode', async () => {
+    const fx = createFixture({});
+    try {
+      await fx.run('setup --cloud --account workspace-humanlayer --yes');
+      const result = await fx.run('setup --standard --yes');
+      assert.strictEqual(result.exitCode, 0, `exit code (stderr=${result.stderr})`);
+      assert.ok(fx.read(skillRel).includes('<!-- sdocs-skill-edition: standard -->'));
+      assert.strictEqual(fx.readSetupState().skillEdition, 'standard');
+      assert.strictEqual(fx.readSetupState().cloudAccountId, null);
     } finally { fx.cleanup(); }
   });
 

@@ -292,6 +292,12 @@
     <div id="cohorts-by-type-body"></div>
   </div>
 
+  <div id="library-cohorts" class="segment">
+    <h2 class="segment-title">Library visits by cohort</h2>
+    <p class="segment-note">Only counts visits collected from this release onward.</p>
+    <div id="library-cohorts-body"><p class="loading">No Library cohort data yet.</p></div>
+  </div>
+
   <div id="dow-by-week" class="segment" style="display:none">
     <h2 class="segment-title">Usage by day of the week:</h2>
     <div id="dow-by-week-body" class="mini-row"></div>
@@ -429,6 +435,7 @@ fetch('/analytics/data')
       renderTable(data);
     }
     renderCohortsByType(data);
+    renderLibraryCohorts(data);
     var dowOrder = [1, 2, 3, 4, 5, 6, 0];               // Mon → Sun
     var dowLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     var hourOrder = [], hourLabels = [];
@@ -559,6 +566,28 @@ function renderCohortsByType(data) {
     wireOverflow(tw);
   });
   document.getElementById('cohorts-by-type').style.display = '';
+}
+
+// Library cohorts use the same table treatment as page-function cohorts. Local
+// and Cloud visits are combined because this section describes Library usage.
+function renderLibraryCohorts(data) {
+  var byType = data.cohortsByType || {};
+  var cohorts = mergeCohortArrays([byType.library, byType['cloud-library']]);
+  var weekSet = {};
+  cohorts.forEach(function (cohort) {
+    weekSet[cohort.cohort_week] = 1;
+    Object.keys(cohort.visits).forEach(function (week) { weekSet[week] = 1; });
+  });
+  var weeks = Object.keys(weekSet).sort();
+  if (!weeks.length) return;
+
+  var body = document.getElementById('library-cohorts-body');
+  body.innerHTML = '';
+  var table = document.createElement('div');
+  table.className = 'table-wrap';
+  table.innerHTML = cohortTableHtml(cohorts, weeks, null, 272);
+  body.appendChild(table);
+  wireOverflow(table);
 }
 
 // Per-week mini bar "small multiples". byWeek is {week: {slot: count}}.

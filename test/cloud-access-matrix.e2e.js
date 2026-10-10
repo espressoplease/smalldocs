@@ -719,6 +719,7 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
     const owner = await ownerContext(browser, baseURL);
     const cliHome = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-cli-e2e-'));
     const cliEnv = Object.assign({}, process.env, {
+      HOME: cliHome,
       SDOCS_HOME: cliHome,
       SDOCS_CLOUD_FILE_CREDENTIALS: '1',
       SDOCS_CLOUD_URL: baseURL,
@@ -764,10 +765,27 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
       const runId = Date.now() + '-' + Math.random().toString(16).slice(2);
       const source = path.join(cliHome, 'cli-acceptance-' + runId + '.md');
       fs.writeFileSync(source, '# CLI acceptance ' + runId + '\n\nCreated from a fresh machine.\n');
-      const created = await cliJson(['cloud', 'create', source, '--account', accountId], cliEnv);
-      expect(created).toMatchObject({ ok: true, command: 'cloud.create',
-        account_id: accountId, binding_created: true });
-      documentId = created.document_id;
+      const setup = await runCli(['setup', '--cloud', '--account', accountId, '--yes'], cliEnv).completed;
+      expect(setup.code, setup.stderr || setup.stdout).toBe(0);
+      const firstOpen = await runCli([source, '+cli-acceptance', '+release-candidate',
+        '--no-open'], cliEnv).completed;
+      expect(firstOpen.code, firstOpen.stderr || firstOpen.stdout).toBe(0);
+      expect(firstOpen.stdout).toContain('Created ');
+      expect(firstOpen.stdout).toContain('Updated Cloud tags');
+      expect(fs.readFileSync(source, 'utf8')).not.toContain('tags:');
+      const found = await cliJson(['cloud', 'search', runId, '--account', accountId], cliEnv);
+      expect(found.documents).toHaveLength(1);
+      documentId = found.documents[0].id;
+
+      fs.appendFileSync(source, '\nUpdated by an ordinary Cloud-first sdoc open.\n');
+      const secondOpen = await runCli([source, '--no-open'], cliEnv).completed;
+      expect(secondOpen.code, secondOpen.stderr || secondOpen.stdout).toBe(0);
+      expect(secondOpen.stdout).toContain('Pushed revision ');
+      expect(secondOpen.stdout).not.toContain('updated the local file with Cloud changes');
+      const automaticallyUpdated = await json(owner, baseURL, 'GET',
+        '/api/cloud/v1/documents/' + documentId);
+      expect(automaticallyUpdated.body.document.markdown)
+        .toContain('Updated by an ordinary Cloud-first sdoc open.');
 
       const privateDocument = await json(owner, baseURL, 'GET',
         '/api/cloud/v1/documents/' + documentId);

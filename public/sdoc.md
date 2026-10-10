@@ -41,7 +41,7 @@ npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 
 The `skills` installer detects supported coding agents and installs the SmallDocs **skill** globally. Its short description lets an agent discover SmallDocs when you say `sdoc`, `S-doc`, or `smalldoc`; the full instructions load only when relevant.
 
-After you connect SmallDocs Cloud, `sdoc cloud login` prints the command for replacing the standard skill with its Cloud-aware edition. The replacement has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. It contains no account details or credentials; live Cloud state still comes from the CLI.
+After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. Add `--account UUID` during setup when the machine should always create new documents in one workspace.
 
 `npx skills@latest` currently requires Node 22.20 or newer. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:
 
@@ -700,15 +700,16 @@ Use the cross-agent installer for the standard skill:
 npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 ```
 
-After `sdoc cloud login`, use the Cloud-aware replacement command printed by
-the CLI. Both editions use the same `smalldocs` skill name, so one replaces the
-other.
+After `sdoc cloud login`, run `sdoc setup --cloud --yes`. Both editions use the
+same `smalldocs` skill name, so one replaces the other. In Cloud-first mode,
+ordinary `sdoc FILE.md` opens create or update Cloud before opening the browser.
+Use `sdoc setup --cloud --account UUID --yes` to keep automatic creates in one
+workspace when the user belongs to several accounts.
 
 If `npx skills` is unavailable, run `sdoc setup`. It installs one canonical
 `SKILL.md` at `~/.agents/skills/smalldocs`; agents using that universal
 location read it directly and other detected agents receive a symlink. This
-built-in fallback installs the standard edition. Use the `npx skills` command
-printed by `sdoc cloud login` to replace it with the Cloud-aware edition.
+built-in setup installs the standard edition unless `--cloud` is passed.
 
 If you previously ran an older `sdoc setup` that pasted an always-on SmallDocs
 section into a `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`, running `sdoc setup` or

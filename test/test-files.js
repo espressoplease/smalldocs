@@ -157,7 +157,7 @@ module.exports = function(harness) {
   test('staging deploy publishes one exact commit and cannot switch production', () => {
     const deploy = fs.readFileSync(path.join(__dirname, '..', 'ops',
       'deploy-staging.sh'), 'utf8');
-    assert.ok(deploy.includes('refs/heads/feature/cloud-foundation'));
+    assert.ok(deploy.includes('refs/heads/main'));
     assert.ok(deploy.includes('/opt/smalldocs/staging-current'));
     assert.ok(deploy.includes('systemctl restart smalldocs-staging'));
     assert.ok(deploy.includes('http://127.0.0.1:3004/version-check'));

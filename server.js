@@ -1704,13 +1704,14 @@ async function handleCloudApi(req, res, url) {
           user.id, workspaceInvitationsMatch[1], 'manage'),
       });
       const acceptUrl = CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/invite?token=' + encodeURIComponent(invitation.token);
-      if (cloudJobs) {
+      const notificationScheduled = body.send_email !== false;
+      if (notificationScheduled && cloudJobs) {
         const invitedWorkspace = (await cloudStore.listWorkspaces(user.id))
           .find((workspace) => workspace.id === workspaceInvitationsMatch[1]);
         enqueueCloudJob({ type: 'invitation_email', idempotencyKey: invitation.id,
           payload: { email: invitation.email, acceptUrl, inviter: cloudActorLabel(user.id),
             accountName: invitedWorkspace ? invitedWorkspace.name : 'a SmallDocs account' } });
-      } else if (teamsNotify.isConfigured()) {
+      } else if (notificationScheduled && teamsNotify.isConfigured()) {
         const invitedWorkspace = (await cloudStore.listWorkspaces(user.id))
           .find((workspace) => workspace.id === workspaceInvitationsMatch[1]);
         const message = emailTemplates.workspaceInvitation({ acceptUrl,
@@ -1724,6 +1725,7 @@ async function handleCloudApi(req, res, url) {
         id: invitation.id, email: invitation.email, role: invitation.role,
         project_grants: invitation.projectGrants,
         expires_at: new Date(invitation.expiresAtMs).toISOString(),
+        notification_scheduled: notificationScheduled,
         accept_url: acceptUrl,
       } });
       return;
@@ -2793,6 +2795,29 @@ const server = http.createServer((req, res) => {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+    });
+    return;
+  }
+
+  // Private Business trial invitations use the normal email-bound workspace
+  // invitation token, with sign-in embedded as the first step. The preview
+  // query is inert and exists so the page can be reviewed without issuing an
+  // invitation.
+  if (pathname === '/cloud/business-invite') {
+    const hasCloudOAuth = Boolean(cloudGoogleOAuth || cloudGitHubOAuth);
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-business-invite.html'), {
+      '__OAUTH_PROVIDERS_HIDDEN__': hasCloudOAuth ? '' : ' hidden',
+      '__GOOGLE_OAUTH_HIDDEN__': cloudGoogleOAuth ? '' : ' hidden',
+      '__GITHUB_OAUTH_HIDDEN__': cloudGitHubOAuth ? '' : ' hidden',
+      '__CLOUD_TERMS_VERSION__': CURRENT_TERMS_VERSION,
+      '__CLOUD_TERMS_LABEL__': CURRENT_TERMS_LABEL,
+    }, {
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+      'X-Robots-Tag': 'noindex, nofollow',
       'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
     });
     return;

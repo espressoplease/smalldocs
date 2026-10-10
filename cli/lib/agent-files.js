@@ -110,7 +110,7 @@ function pathsResolveSame(a, b) {
 
 // ── canonical skill ────────────────────────────────────────
 
-function refreshCanonicalSkill(home) {
+function refreshCanonicalSkill(home, opts = {}) {
   home = home || os.homedir();
   const file = canonicalSkillFile(home);
   let existing = null;
@@ -130,23 +130,27 @@ function refreshCanonicalSkill(home) {
   }
   const currentVersion = existing ? readSkillVersion(existing) : null;
   const currentEdition = existing ? readSkillEdition(existing) : 'standard';
+  const requestedEdition = opts.edition === 'cloud' || opts.edition === 'standard'
+    ? opts.edition : null;
+  const desiredEdition = requestedEdition || currentEdition;
   if (existing !== null && currentVersion === null) {
     return {
       changed: false, reason: 'conflict', path: file,
       error: 'existing canonical SKILL.md is not managed by SmallDocs; left untouched',
     };
   }
-  if (currentVersion === SKILL_VERSION) {
+  if (currentVersion === SKILL_VERSION && currentEdition === desiredEdition) {
     return { changed: false, reason: 'current', path: file };
   }
   if (currentVersion !== null && currentVersion > SKILL_VERSION) {
     return { changed: false, reason: 'newer', path: file };
   }
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  atomicWrite(file, formatSkill(SKILL_VERSION, { cloud: currentEdition === 'cloud' }));
+  atomicWrite(file, formatSkill(SKILL_VERSION, { cloud: desiredEdition === 'cloud' }));
   return {
     changed: true, path: file,
     fromVersion: currentVersion || 0, toVersion: SKILL_VERSION,
+    fromEdition: currentEdition, toEdition: desiredEdition,
   };
 }
 
@@ -298,7 +302,7 @@ function syncAgentSkill(opts = {}) {
   const canonicalDir = canonicalSkillDir(home);
 
   const result = {
-    canonical: refreshCanonicalSkill(home),
+    canonical: refreshCanonicalSkill(home, { edition: opts.edition }),
     links: [],
     stripped: [],
     errors: [],

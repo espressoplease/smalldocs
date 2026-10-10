@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Your SmallDocs invitation</title>
+  <meta name="description" content="Accept a private invitation to use SmallDocs with your coding agents.">
+  <link rel="stylesheet" href="/public/css/cloud-sign-in.css">
+  <link rel="stylesheet" href="/public/css/cloud-business-invite.css">
+</head>
+<body data-auth-return="current" data-auth-mode="inline">
+  <header class="header">
+    <a class="brand" href="/">
+      <span class="brand-full">SmallDocs</span>
+      <span class="brand-short">SDocs</span>
+      <span class="brand-tiny">SD</span>
+    </a>
+    <span class="nav-sep">/</span>
+    <span class="nav-label" id="nav-label">Invitation</span>
+  </header>
+
+  <main class="business-invite-shell">
+    <section class="invite-intro" aria-labelledby="page-title">
+      <p class="invite-eyebrow" id="invite-eyebrow">You have a private invitation to SmallDocs</p>
+      <h1 id="page-title">Welcome to SmallDocs</h1>
+      <p id="invite-lead"><strong>Turn coding-agent work into documents your team can use.</strong> Create code walkthroughs, diagrams, reports, slides and working spreadsheets from Codex, Claude Code, Cursor and other agents. Keep the result in a shared workspace, update it in later sessions, or render it inside your application with the SDK.</p>
+    </section>
+
+    <section class="auth-card business-auth-card" id="invite-auth" aria-labelledby="auth-title">
+      <div class="auth-heading">
+        <div class="auth-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+        </div>
+        <div>
+          <h2 id="auth-title">Accept your invitation</h2>
+          <p id="auth-copy">Sign in with the address that received this invitation. If you are new to SmallDocs, this also creates your account.</p>
+        </div>
+      </div>
+
+      <div class="return-row" id="return-row">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <span>After signing in, return to <strong id="return-label">your invitation</strong></span>
+      </div>
+
+      <div id="choice-view">
+        <div__OAUTH_PROVIDERS_HIDDEN__ class="provider-list" aria-label="Sign in providers">
+          <a__GOOGLE_OAUTH_HIDDEN__ class="provider-button provider-link" data-provider="google" href="/api/cloud/auth/oauth/google">
+            <svg class="provider-icon" viewBox="0 0 18 18" aria-hidden="true">
+              <path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.909c1.703-1.568 2.684-3.878 2.684-6.614Z"/>
+              <path fill="#34A853" d="M9 18c2.43 0 4.468-.806 5.956-2.181l-2.909-2.258c-.806.54-1.836.859-3.047.859-2.344 0-4.328-1.585-5.037-3.714H.957v2.332A9 9 0 0 0 9 18Z"/>
+              <path fill="#FBBC05" d="M3.963 10.706A5.41 5.41 0 0 1 3.681 9c0-.592.102-1.168.282-1.706V4.962H.957A9 9 0 0 0 0 9c0 1.452.347 2.827.957 4.038l3.006-2.332Z"/>
+              <path fill="#EA4335" d="M9 3.58c1.321 0 2.507.454 3.441 1.346l2.581-2.581C13.464.892 11.426 0 9 0A9 9 0 0 0 .957 4.962l3.006 2.332C4.672 5.165 6.656 3.58 9 3.58Z"/>
+            </svg>
+            <span>Continue with Google</span>
+          </a>
+          <a__GITHUB_OAUTH_HIDDEN__ class="provider-button provider-link" data-provider="github" href="/api/cloud/auth/oauth/github">
+            <svg class="provider-icon provider-icon-github" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M12 .7a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2.23c-3.22.7-3.9-1.37-3.9-1.37-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.57-.29-5.28-1.29-5.28-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.47.11-3.05 0 0 .97-.31 3.16 1.18A10.95 10.95 0 0 1 12 6.1c.98 0 1.96.13 2.88.39 2.19-1.49 3.15-1.18 3.15-1.18.63 1.58.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.71 5.39-5.29 5.68.42.36.78 1.07.78 2.16v3.26c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .7Z"/>
+            </svg>
+            <span>Continue with GitHub</span>
+          </a>
+        </div>
+
+        <div__OAUTH_PROVIDERS_HIDDEN__ class="divider"><span>or</span></div>
+
+        <form id="email-form" method="post" action="/api/cloud/auth/email/request" novalidate>
+          <input class="return-input" type="hidden" name="return_to" value="/cloud/business-invite">
+          <label for="email">Email address</label>
+          <input class="text-input" id="email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@company.com" required>
+          <p class="field-error" id="email-error" role="alert"></p>
+          <button class="primary-button" type="submit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+            Email me a code
+          </button>
+        </form>
+      </div>
+
+      <div id="code-view" hidden>
+        <button class="back-button" id="change-email" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+          Use another email
+        </button>
+        <div class="code-intro">
+          <div class="code-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+          </div>
+          <h2>Enter the code from your email</h2>
+          <p>We sent a six-digit code to <strong id="sent-email"></strong>.</p>
+        </div>
+        <form id="code-form" method="post" action="/api/cloud/auth/email/verify" novalidate>
+          <input class="return-input" type="hidden" name="return_to" value="/cloud/business-invite">
+          <input id="email-challenge" type="hidden" name="challenge_id">
+          <label for="code">Six-digit code</label>
+          <input class="text-input code-input" id="code" name="code" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required>
+          <p class="field-error" id="code-error" role="alert"></p>
+          <button class="primary-button" type="submit">Continue</button>
+        </form>
+        <p class="resend-row">Did not receive it? <button id="resend-code" type="button">Send another code</button></p>
+      </div>
+
+      <p class="prototype-status" id="prototype-status" role="status" aria-live="polite"></p>
+      <p class="preview-note" id="preview-note" hidden>This production preview does not create an account or accept an invitation.</p>
+    </section>
+
+    <section class="auth-card business-auth-card terms-card" id="invite-terms" aria-labelledby="invite-terms-title" hidden>
+      <div class="auth-heading">
+        <div class="auth-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M13 16h-3"/><path d="M18 6V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-2"/><path d="M18 9v6"/><path d="m21 12-3 3-3-3"/></svg>
+        </div>
+        <div>
+          <h2 id="invite-terms-title" tabindex="-1">Review the Terms</h2>
+          <p>Before you use SmallDocs Cloud, review the Terms dated __CLOUD_TERMS_LABEL__.</p>
+        </div>
+      </div>
+      <form id="invite-terms-form" action="/api/cloud/auth/terms/accept" method="post" novalidate>
+        <input id="invite-terms-version" type="hidden" value="__CLOUD_TERMS_VERSION__">
+        <label class="terms-choice" for="invite-terms-accepted">
+          <input id="invite-terms-accepted" type="checkbox" required>
+          <span>I agree to the <a href="/legal" target="_blank" rel="noopener">Terms of Service</a>.</span>
+        </label>
+        <p class="terms-privacy">The <a href="/privacy" target="_blank" rel="noopener">Privacy Notice</a> explains how SmallDocs handles personal data.</p>
+        <p class="field-error" id="invite-terms-error" role="alert"></p>
+        <button class="primary-button" id="invite-terms-submit" type="submit" disabled>Agree and continue</button>
+      </form>
+      <p class="prototype-status" id="invite-terms-status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="auth-card business-auth-card accept-card" id="invite-accept" aria-labelledby="accept-title" hidden>
+      <div class="auth-heading">
+        <div class="auth-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg>
+        </div>
+        <div>
+          <h2 id="accept-title" tabindex="-1">Complete your profile</h2>
+          <p>Your name appears when you share and edit documents with other people.</p>
+        </div>
+      </div>
+      <div class="return-row verified-row">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <span>Signed in as <strong id="invite-email"></strong></span>
+      </div>
+      <label for="invite-first-name">First name</label>
+      <input class="text-input" id="invite-first-name" type="text" maxlength="128" autocomplete="given-name" required>
+      <label class="profile-label" for="invite-last-name">Last name</label>
+      <input class="text-input" id="invite-last-name" type="text" maxlength="128" autocomplete="family-name" required>
+      <p class="field-note">Accepting joins the invited SmallDocs Cloud workspace.</p>
+      <button class="primary-button accept-button" id="accept-invite" type="button" disabled>Accept invitation</button>
+      <p class="prototype-status" id="invite-status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="auth-card business-auth-card complete-card" id="invite-complete" aria-labelledby="complete-title" hidden>
+      <div class="complete-mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </div>
+      <h2 id="complete-title" tabindex="-1">Your workspace is ready</h2>
+      <p>Install SmallDocs Cloud below, then ask your coding agent to create your first sdoc.</p>
+      <a class="primary-button complete-library-link" id="complete-library-link" href="/library?scope=cloud">Open Cloud Library</a>
+    </section>
+
+    <section class="invite-overview" aria-label="Explore SmallDocs">
+      <h2 class="overview-title">To get started:</h2>
+      <details id="install-details">
+        <summary id="install-title"><span class="overview-number">1</span><span class="overview-label">Install SmallDocs Cloud</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+        <div class="overview-body">
+    <div class="install-section" id="install" aria-labelledby="install-title">
+      <p class="section-intro">Install the CLI, connect it to this account, and add the SmallDocs skill to your coding agent. New sdocs for this workspace should be created and updated in Cloud.</p>
+
+      <div class="install-commands" aria-label="Install commands">
+        <div class="install-command">
+          <span class="install-step">1</span>
+          <div><span class="install-label">Install or update the CLI</span><code>curl -fsSL https://smalldocs.org/install | sh</code></div>
+          <button class="copy-button" type="button" data-copy="curl -fsSL https://smalldocs.org/install | sh" aria-label="Copy CLI install command">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+        <div class="install-command">
+          <span class="install-step">2</span>
+          <div><span class="install-label">Connect this machine to Cloud</span><code>sdoc cloud login</code></div>
+          <button class="copy-button" type="button" data-copy="sdoc cloud login" aria-label="Copy Cloud login command">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+        <div class="install-command">
+          <span class="install-step">3</span>
+          <div><span class="install-label">Enable Cloud-first sdocs</span><code id="cloud-setup-command">sdoc setup --cloud --yes</code></div>
+          <button class="copy-button" id="copy-cloud-setup" type="button" data-copy="sdoc setup --cloud --yes" aria-label="Copy agent setup command">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="agent-install-prompt">
+        <div class="agent-prompt-heading">
+          <div>
+            <h3>Let your coding agent do the setup</h3>
+            <p>Paste this into Codex, Claude Code, Cursor, or another coding agent.</p>
+          </div>
+          <button class="prompt-copy-button" id="copy-install-prompt" type="button">Copy install prompt</button>
+        </div>
+        <pre id="install-prompt">Install and configure SmallDocs Cloud for me.
+
+1. Check whether the sdoc command is installed. If it is not, run: curl -fsSL https://smalldocs.org/install | sh
+2. If sdoc is already installed, run: sdoc upgrade
+3. Run: sdoc cloud login. Let me complete the browser authorization when it opens.
+4. Run: sdoc setup --cloud --yes to enable Cloud-first sdocs and install the SmallDocs agent skill.
+5. Run: sdoc cloud status --json and confirm this machine is connected.
+
+For this workspace, use SmallDocs Cloud as the default. Use sdoc FILE.md for new and updated Markdown so the CLI creates or updates the Cloud document before it opens. Use +tag arguments for Cloud tags. Do not use local-only tags, the local library, or share links unless I explicitly ask.
+
+If a command fails, stop and tell me what happened.</pre>
+      </div>
+    </div>
+        </div>
+      </details>
+
+      <details id="ways-details">
+        <summary><span class="overview-number">2</span><span class="overview-label">Two ways to use SmallDocs</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+        <div class="overview-body">
+    <div class="product-story" aria-labelledby="product-story-title">
+      <h2 id="product-story-title">Use sdocs with an agent, or bring them into your product</h2>
+
+      <div class="value-paths">
+        <article class="value-path">
+          <div>
+            <h3>Use it with your coding agent</h3>
+            <p>Include "sdoc" in a request. Your agent creates a structured Markdown document, opens it in your browser, and can find and update it in later sessions.</p>
+            <div class="prompt-example"><span>Try asking</span><p>"Sdoc the architecture of this repository and show the request flow as a diagram."</p></div>
+          </div>
+        </article>
+
+        <article class="value-path">
+          <div>
+            <h3 id="sdk-heading">Build SmallDocs into your application</h3>
+            <p>Supply Markdown to the browser SDK and render the same prose, code, diagrams, charts, sheets and slides inside your product. The SDK is priced separately from Cloud.</p>
+            <a class="inline-link" href="/developers" target="_blank" rel="noopener">Read the SDK guide <span aria-hidden="true">&#8599;</span></a>
+          </div>
+        </article>
+      </div>
+    </div>
+        </div>
+      </details>
+
+      <details id="examples-details">
+        <summary id="example-title"><span class="overview-number">3</span><span class="overview-label">Open a few SmallDocs</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+        <div class="overview-body">
+    <div class="example-section" aria-labelledby="example-title">
+      <p class="section-intro">Each link opens a complete document, not a product tour.</p>
+      <div class="example-links">
+        <a class="example-link" id="example-architecture" href="https://smalldocs.org/docs#md=GzItADwMcIeyyN_gwSusmjT4XuVST2jvlzefQdEgIySZ9X3VdNcyfbsrj2TKKKeOdczUAJ6I3Mlm0SNw1fTXev-MmmTdUTxyu0Q1PcaPrQACZjZATF_nb6ul1w-kvUzjl-6SuolLDhQw57r4QiRTutpSBqbL6n1V7QyH1LSuSrWVsHt7N8L7H4A-IFAmSCiAdEqEQ37_EQVAJ1IV5RBCUafUuetlsG19NkzCj9C1iFMPHeCpTUxSZJEVu_vcl_2w9ZkJtj_mfxG8IRpzc9votqizX_M5XAwlDWkdYaVzwHQ5xnST-GWYgpj82K5VLGEUZ7D08pGp4VkSQdt3L7rBusbhLgb6-aAZiFgQ7IIcSxu5VobyTva3mZc8abDXTasMlP6jYIjSNWbmkl9Q1He9lWVfFDJwqUrHgZQASdIcMOjSDgRYZkdHZxgb70YmDIAbmQ2OI_AsS4N-WHYxt33gk1AWnRpm0t8QywMaDC4pl2QBXsF6h088wtmcd6_dKbRPGxDDdNqasDId6k_8IjpEm-MKToMJHANwWABw6VA3Gxi3YlaVGX1TPZHYtHoYU2vFDolIGCDo08bFdukvBnYeVlaPVh-497TCq2ABzg8SRyvNumlZeHlKZFtkhq1Vp-zTo688c9AN8PHGn3O2vwm-iQ3DEgHQ6OY5EWtbwi7v7atNRFceytIZlhB1sPIa5vIHJIvp_gqucYQphljN0DQ9Z7RhoLMLUsfOFnHamlU5UsQBkQPAdWdi5jKp8M2IW9bTAKksFdLQQ6IXQeIDOQfkuFCaKQwj7DSqC2W6N8tNnraRzFQcejwvh0PFov9JGKhykV7ikoYuglzt8wa-QSSKVRx5XOWqOokgSZvj9T_vPa0K1G3LxnsFk_XDqYK_m71oQmf7yf8111gFrbHNtO9FYyAD4pTgSQvvzAe_fMUHrmi-VIrz4nWZ8YH3ENK9lfQF5DgoVLo7K9X8sxuO1QXdLFfbQGMfq3MmqVfJTq2AVLZXhioLCKj33bdbusP6Tkcw3cRi5LCrwig09K-tsu5gJuHpLCuQPNVJzYbMZlM-ZoU0iI2AHcD3x7FtaGw9HoVurn3BDtdTgQcfjyfa-af0w1dvxgV0XwoGbYgNjj3SZYpBu45lRlQ0DcDVT8Q4aLDIrq8WAEW2PMQ4VFzMrTBwG6z4PQ58CupNQlqUeyoJta2NMUZ5Sn3ZUHp-zRJI8lJHnoesaGU1nC_c4ARTYzCemFPZGEIeq-eINosjXgJ3MB5Hk8f6MaTyFj1xymPJCyXpvHdF7mWt0mmTxV5z8-iKrTkCs436kEOr9W42tYR1nwgDe6BHCa7JKMqOlsUS6AETa37AOG4xdQ8pMssdC2TEHpDJb_4CO-8pE5rGQ7KHQLkKhMiZYsUw7fZ-fngJbVa6XnfCfeFALW272XB4u-3GtXCCpW3S8CJGWaEkC78A2NK1F-uvnnfNCMp4qEmNdUHLoRXiANsZAqqy7T82y_yUKVEjBL6FeoQ_fVrPb7KrdunOTt_hag_PqkGNkSQa9uhZd8Bta-VsxCsn2v5cQHkO5Q9TiWsGXVnE4ILpMC-t9qOy79lNqyejYutj7baYq8NvVSdfLDCvwpB-OyT0zkNJSR1mLovvPoZo6qpwgBZyPU3ky7jUQ3uRx91ql01FMsHKh2NOmR0hesg3mUDiptj5zcEY9yjEih0Ll_hdOYARaXLF2qU4W7cioGCD_Lsfx0puDGGO08elu2YnKjpAwB8ZWdRS6yoii6hOYZsjvyupPswo2qK_C0NY19S9rIaMhAiSqEGLcL0Y2S3Fasu8PQjhhqJLNgvvnF0whMtXYXYIQmmfiCwb-RkMSUvyKVQ7QWTbGR2A0g1KWSVjLrzHXfjDDoScEnZBZM_KcfCjbOM69z6gnth7zIhohfwHHC4kl45z7golgX4a826R0gBl42o8Wj2CdwW5KAqVNJamwhKH8kWQYD8BydZEkZx7f7hzPYLMoYwcmhf_VOfSK8UZuXHafPvyubm4ciRAMqVnFWQaEhv1SZpqAxfgiIzYQtZufj8mrJBMkNpnJPhKGFafZTYFA3FBdfhvwqmV16kVsi7ymrpt8OhViCF97EtkLUqoiq_xekw7OSkQofPw9mxirlXIqDRBiLoZ2ubjDDVvAD-nvKSYATFwAE1ColJX3CJayDOURLAn3bvnGqT-caGymr2pmTEyZRd9h5VuGImW-Bk3YPySPetsBpcRoO6J00WOKnC5mO4LOjPTFlgJkfwSVDRAOhUlxvn12OM1iVd33mKe2DGU7skLDIQ1yNp7y6u09fSgR9uSH_R2FC0jody16HZceHIA5vbdOW6A1qWTYS-wjEncxfBvJEnmKyAOWfnud759aCgtyDGBVzxas68J4RbulfjSWWR4vhFIU1lTWTyPKtzjnodIt-FM-DOvw0UA24KA4Bd35a_hnG0BnT9LcJ7h6EBpJzBEh-UAzMTwq48guoTgHlOqckyuCurdmffj9z7t06GKNI2qdTXeHrvycnb8tqq7VMSxBmf4FSPt0g6P5I4uxLxcJG3qZDJ4Vjcr7pQqKqHsj5uikaYJaawGAn8U8uVvaJn00Qay96Op8O5Ktc2KBcfDeuAh2b4ehd9_OxKRMLadlRUivgkhaSNOsnqaMVLdbPlIlaklKktLJ-w61vxRvA9-uXYCkzTsZxV4XGNpoUgsRNwfrnMXI_iY-dJWd4MvEYeUrZZJ9gM3lyK1hM2a_SFaIlOEROXcqMclqIiwCyga3O7n2hyIQgTwt15Pw8iUQ8jvhjJllRGJEKxGMh_AGx3a30HqW6SvKiukGj_mtQ342Yi-k_wpN7ZEmMOyKS-y3fvtYtr_OheoMw4pzvc5bj33uEphdFQRzrc0CcW3yomtWRcQPFmCSSURylyCEagFxD5OiEMdH82i8ID1ciook6h8XisVp23uk3W9Amyqn9lPJWIo4Yw5v2rtwxvR-ExYOcUV-cENA6vs4BtHl61H1IqE2Y4R_tZKZVh-olWWn8JsA44bqLxlgfJ6rg20uwFc3gCzUs0dYRPbRtb27ntmhwPvNjpHm3Ovn0AFeoT6uMYMDPzXRamJjD94MVPERbK4-SFD1grxh4uUokV2orfwDSxn9eTtqJaEC09uLn_nF547z9nztDmtKyDaUoTNEIDf1bXM8NZ9Qdk21uVY5p3unbNONtbbcIGvhrZLJdGaS4byH_sdTdqww0qWtFLYPupVetiIG-OSYx6z3fc7dqWcMw6_mv_rJTQBkTJ9ZPfwA6NzrLNYYY2WwIApHvj7wvQFLyVlTWU80gsbHE1q9cCtfL-zmToQdO_pqN6jRxm7Td7mFGN8zADhyObzIvp9NEgvw5aNJZITpurUDt2Ala3vt12udRRKTiTFHmX4zE1TCuYJOr9AJr2QPOZddSeRmSWyfGcOdZsontdVcx00qm0DDRrYpm_eA9S1TXwIZKt1fMkAphlExz6Kbgsb3YAORnaDPAhipu81OQPHpf0rUZMx6bsp58I40pIPSUvaD8mmIlZYR7TNY54xke0hExcuqwBoEsenlFB9SWE4keDwA6_6wHvxo-HRFSxG13A2uatmt6iOmfZAhJL1fUxlqp5YcqOrH9sdMC0mxYs4kbKlpnUa7w8UcdVWN_WqR5XbVXiPJke21Fn_2il3G0XwHEnAssPoXP2V3rnOlbdpyUwdxcbaUidQwqAhoaMTNiTCALte-i1ZnvEGDmOFmKPEqmyNODDHtv9hhui2RlWpKQtKhwK72Fj3ToMO7O7I3hNzQ1idjD_Nst1QN1jTKk_jeO09VhlgVyZ72YejJFJjswf9TynrFl5BxEXUnSR4HzVjKoNBFY46fc6EMcKo7VjRk6_EydWzg1sgVUTvdXueGeNx_MBRKFwiqpH5Hq-pPT6Oo5e-eghjnMNfwf-Wt3a5Des4PtAn1uyTzAp0YPBghh2TZoaThLwZp1V3QkvhwtT_OEZ0jqJ8X9iNTt6lYM1k9oPtqgNqkhQv7SZmJ8U3xDbISm_IfuDWRnBjZg6eDC4BkhPQaSXRNP0KhKeioZlCWpMBJYiLHAP6ajASYdxPyZw4CK77jYWnkpmsSQ8UWG6-9Kk0wBPBXEECikKK_RrILLShSmEBxjwWqqUnt76lJCjlI-nwlHUBrB8HqhqDK_WMRDuxypnb7GbG82y3yPHO1p5FkiDAbYprJ9uqp3tX27XkWl7XU3Vw4HIAAJ2V54WqOHLUGhSXzldkyYzHF3jUpSpjpQAXRPf9oRNQW1-oEVBw9tlSUOMLdysvmMSqtokl7PwD3uiGQOan0UV0EeyVqyE2q6F1p25ZmDLEIRAxxFIsj45HtwdRMn-VsyRdnbMGqMYHaZZD5fuQrjspRLwGaQmTBoi8jzQyP3Ku_hBSJhY9V3O4EwxmSNlPn6rRhGtqUI3F8kyq4sM2gfZB4KUpQ4AZKnQ3VGD6pNcPqrAmbydVkq5adK2esYsyWNkhMhocvuKGwGEd4Jo31Tzmuh4VZv0TF5Eohw9xwFwwk9vomVL1LwZKoZsBTF3tus-p4BtrfvLKL7PU9ndqQaurPNA_g713EYyGwzEFdJxAjjRDZpc-vhxkgaCiEdP8V-1-xG6nQgId41W_clwMCecjw1TQznYMvARJ8R8h3zTjSX4kAW2gWAKO2zlSja8TiAR2fKC_2jPmobnL7L3raNNspimwhbaw7d1gqVtaWJzYSejKdTiALW4QIl9km7OJecUPtFkSaQFITiyVtkimpeKK7sJXF-FyZ4nQooXF-6GBPvaSyNxM-iVmOTGAyXbEIeADr6DWT35mWf-GGIjyJpPcws7KAjdi5Xr0m8pWHEWHcCyRs6XIMPQrW-GdXYbXd7D8yKPoy6aCXnHWhvLYVoX9H_oShnx6gxYt-NjDCqbRMu4wCe6zi22zqKdd3KvpZjJDf9G-PztGe36RP7wDeQV2nY1xMvSv1i3VlKqc8EfqaCvqXNoFYebSdGPYVdU4CANx0PjTTru5NjXICegyUTyU0qjmvwbTA5uptOF0OD8FA1ybWsabbC5pqOTYHO1xxlSy_Epllb95unpz6VuCL9ZZNHEY3pYsc5MvoulJ1IWLvJ0nKyNHB05qdk11jrf9qBlWloLkhKOTaDFHKHDJX8LnEOpl9bQ7DV2qPzdRcZVMVWeFFMBuZoY5PyQ6f_NsrFP_oi9vfBNgeVR7ZP6ZbUumyuhaC-0ic10MIFLHnCuOWFvMJLTsgugwUK2XdePcn1USa5VzZhr3kjtWujHzGwRUL8kN01jNTICeplL63fDVqvzllKfkR_banCsu" target="_blank" rel="noopener">
+          <span class="example-copy"><strong>A repository turned into an architecture walkthrough</strong><span>See how an agent explains a codebase as one navigable document.</span></span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+        </a>
+        <a class="example-link" id="example-code" href="https://smalldocs.org/docs#md=Gz8RAIzDOIY8eWotTkNpLU21Pz-vwaZROUku6Troev-l8GiLjNeFFLg0DCVIgii4-F9r5ckA-wh3zpyU-_5_vanu3knVzsIRqoRnN4A9cARzKkieyyNIlfV5DGe3QSgg1vYyjumqqtRvIA73sXAKu-80ARXI9lz3A70DO2foELv0nwBexkH0ZU3MOpD9TGN69QeA0OfILUII1WcDTFxjWscxLPGkRBRLcdqGAUhsqSnHHNDCrAecnOP0KacLJFei_kaQFw6z7XzlMtb2gdfDHC840Q2QZAPspmPsYXEA-lhGcR2E_4DTSe11AhM7K0dhUZaYreepr-YodKwVOBVg3ZH_Xzr7IS9iQL5nKSJSr-12WBw85Vb0HAgItQp5ki609BM2wIWusKhxzQijvUt-roc__6rBSWVeJPRpPmehaZzmkaRjla4-u0sDOGM30fHT6RWCiT8up6Hyb1ELUeriBovpQAVjBUtB2yqVx9MK8HUdUMcgRsiBGJRlXIFMo6QKjnmVYYX-Day3V3vA_mRjMq7w7pptk-SyUEkhHck4i6BH-NhQJpGepNHxPF9LTmVW8S0mbXUppTrn8-s3Pibdk-G-ITkVqF7ETDYBwN78fajx83YO4hzNMSlwmjNsU0DTd3XkCfbI4zqEmMEBsDbDF_PXo9fhAXAISaQF1ng7GdPhB6Z3yYibt2eFAnz8eemNKKWMIXJmDZphvgAKJDq7i-bj-39aWvI_4wDKZL3Fe63Og2Jw4np8G5bMXKWldLtQAW-1h78iqAINMJ5OPQUJfRXi961OvQpTI3D_urCCtA2I26zzZuM24Xh4IGO6cl47MJfIKfCHzNOciTq_wIiN2lA2VZ9DxpZ1EVaoM7eO90bwtzRlmuhwIKXYnwIHHNRjL1SWI2SSlxx0YWQ00pPo0-lVOOr-rZpq9llU8vSY-Es1j_0TRQ_uVhVk7E7WyqVw4mbyfw9u0d2EJMmnFIsLC-ASyz0dHjwFf3HYp_msXnUzOr8hrvKpjDLhoX7Br1dLcXUTSNH08HQ8zqcnLQJXLUthSbO40Yqr846qiwNWXiI56bULGrinKopCsSGfBYgPVbRU6aO0RjaKKa14JNhe0BDDqWGNsbgTk1AjtgX7sMByMqdI5v79n6Ln_4HNsJDsbDeoZLNTUOMxuMcSexsgZjnemwxF7JWPCpMzEASXxKjlAWfTi7jDSms4roz3fM6QTYx5IVqiJZhDulVZM1mE960SKlg8oTXhOrJMbpgNGHEg-33gN3Uz0Ws2Z2UlmpGKDTmp2oPVRzOWd8Gf49LWEBNKvbqnkM5WPuZEtV7EIeOL3fMTknUhaiNzG9gaQ_8DdJGWBBVFWn00GruFaZpMTszgULdaXKyWUHCSkDfBTQq-xSmhOXBu5bQvgsK0LvxQVTl1Y8xqa_6_rTGax-15GAGCiBBnnYgiPmndxJyHDyrW4fLbGRWLCBhNZoicFRDgx2iZ2ku9iSHmGHiuwVZq5gA8980-DKS2DUGr462YOc7DUPwdIzuH7HS39xts6NITr6cZyxHUzBA0MP7YUcZ9LPZo2ERi6YYpdri17cXVhwZ4KZYTL1pjTHeDp0bOcqVuu3bMFteR8rYh7sjDEAbH4RY68NKKqKMFjv-SURIL8ejhDQfNpxXKULVn2a1e8A-gBiwTvY7FX3yoTyMtJvbeA7MY1zwcJSLTJAosa7M_gTtOm0DXb5m9GJvb2AGHKLwdkfJhmQlpVWaPEnjhAzD5NHmgagV-6uHvhNX__Aprl8ENqTwlLcCvoP5O2yrzS7QngLXNDi92d_QeNnS2jDSJA0KHplE-vVUcZLyKnJGhw4bwaWdcU48HDdG7v8NufkFoQ4f-cT1WgM8Iz7kclVGlkUk9E3r1UdlOKMUextfyU2PQtsiYjeVgDDUtWmeY1SHyi63jZdP2zTQ-2Y0SizlzQPyRbc4WrTyxKBRqPax8drdnCtv7GIMDToD6xsuiIWFhw1hOkrrpCY134ZGfGnFFb0_r1uLiiYW96uNdZ_PUPwlZPw" target="_blank" rel="noopener">
+          <span class="example-copy"><strong>Two code files explained as one walkthrough</strong><span>Follow the relationship between implementation details without switching context.</span></span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+        </a>
+        <a class="example-link" id="example-model" href="https://smalldocs.org/docs#md=G444UZRK1gWJomxyxgfooYCTK1YHEbWGD0fNffpWoeiPjaHTmxm9eHH2sMtWFoxfRQQ1LPCqogLBYoQks76vs-rdVH83w0P4QmQvxqbwYDHrCRZPMmEuNIgLy866vP0_nbp7mf6zNZyVuNGngyFpTxQGlZTWAVKI96GFr29Tv0b9lD437EGXqQ6h8oD672Z-dtcL0r8zC5ZglO1_YfoYhYnIO5YdgAG-zdVGyJjaCtNmUdDpWiIr_v-bS8sdENIBhxA6q2mdEp0r17Golnffm2_9mRHeD7vyDosCu4pIDuAUPvMBpRg7HyGn3HbuXVauXLq09d2rzu39ojq3p5LSmuZFtBegH9AABeO24bfFMFR3-zGmfs2P2rTbgYx98A6Jv6NURj3RQXde4MZPXW9uSP_Sd6k42h6j82-aXGmgg1PbcHSHr-oGh27mBodTGb_p3KdDY8vkKSiV-Ly2gxxuX19F46_vHSAJuik6y79wV1T2_HpAHLtvvombq_oTmXmEwgsuviBgqOC1IVoyZYs_vi36rlMoasSnKeLTa8JfXOpksKYgszUNYOuE0bgE2WQ3TDhsJXDXUIT7ayrlXRchB37GCotf7LS9d9PmJoDB-InRxXu_veuKQmwWBm9bKqiJ8P7Bd9L7ynipOBowZJD9Qq9XT6EpKUOJCoI88bQz2dxvovuxkWSx4fF7vB5E_6TlC--XszXYu8Ce6AszbPOrg20KAZabL4Dy_J6CRsZ84fnEXNxYqTY3q0fNCuGXltrN_sYHyryKNfh4zv1krzMrcfb3FBdhiizXE8amk1C-rm2N-WKY2XFixMMTRcJUEkAVc74EY4unx-R6hjAtj4T3FZkOQOdQF0WecPZB9nAd88_oA7w60vGJZx-lLcXeYvIv6BtcO40xxs87l_cA_HY4McGDgLcedL8xz3jSb_gytB1J5yTTjzV9vjf3ml5zInUqct_38o5h3Mmdruh9DeWNoTr7r8SUjFaMy4ytVYA35UgP6jqHhAR4gDQYB83xR36DN1575cUdkFuv67VN-jEIySW2t7e9fFBJFecTvBcK2sNcp16DfwOxPPfS44IVYdOXrRSnue0MfuYI5kkeVxP9mVZfkWSlJgr51l-Jf759Dh9THgOZ3nJhNYi5td8A9Lixf0XoChK8qpVDhL9cWE4UXeyfdsUHOJMccZFxHlp_GYqulshYgA9_hMS-41Q9pR53N6GeN9ctOEVg-Sl08DaPYBD39UXcvw0BBh5IBIBPXrIeQ4oOeBcEhwq28vtoxL8LdqJPMfTXPGpebtd0TNaWptWubPDjUrm0nnlYKidMwVBErlRO1UpyokYL2oPnBszkCRQhYJx9qqbqzJVaqQKgdpE3VQCSzqVapSl4Wik_KwelNsP4Ru1YiAY40ysyeZssMCARreXsIlkpkvDXS2FMr6IRRND4HBsyxUjVaAvV15HsYndIyCn69P7_9ziM3mra6kVUUIAzM_5KvqmYVAoOkc_vqlcLbS7vIqGFjFke-Zs9lWt6TtlRGVdVSA5SuFuT6hh_sH_1hFnPFxLBBDvFMf2gvhCqamvKT9DuRP9o0oSveJNUn91bpQrRcyepFbFdFHQjkWvtGYlMlKKsIVmHG4R8nF8993zweBsrbXer8NxaSFjX-_pKTaDpwaMCIy00HeaICRbosrRuaM2Utff1UCACEWdJX6Gqavo5Teqy5mC_rgcVKatT2nTlZDsJDkxJmQBxNtiV6Bvk-4_Wq-cARuwtL03ClZT-fxBlz9refmrPNRpz3m-mOUPyrn4ObV-lOEMzf5VXr7ohGF-zxmiasnBsghLvtB1uDobP8DzIktTXyHZnIEYzX9_AppTuJc-LrfX6NMbDiIIYjK2Qn_i08FPDkHMSh9khExIPLkH65yk5mY1WGY7a9XIULjEqHkCuKK-CBfg4YgBYAY1d3cDKvqjL71hTdmmDknPFAOdnKSQvEKGHrstwsd4uoWLiuVY11r9JKb4pcI4Uv1E2YYpzNAdNakJ5Ikbdt1psF_ak0uEJ92t1wV4fV9dwYSIfJAk-vpfwKUkfxEQ_X8wEmtWNjNSTH1GiMLOhjyNMk167J-vwCpVgCvxMZSq2UkPT93GvSZrSnJZQSRzHpCaHVlc9Zx1mE-iQlrEnmys4gwLu0lVcsaXfHURIod54er8m-_5pDk9ESdKkPKdy5CXShX0fzRRIWXyn09DqoB0CpZvaCHdf27UH3Ar02LeNIt8S9XGDxfOxx8W_eqilCQnccrtMoCCUwHdM0U1rJiq-xEfUV5B0E_sU8YDReRUIbeZCdbpFl35cEXLh743FEyH2ufcbG2CS5eE-_Uhph9l4f3FTqvSVm_pbpx7mVfofusEpi9CMkm0fCB_6neyvRzuI0zWZzfn05RdIsVSzpa2krjzYa0fNPhoIDHmrEZLzFRX9ZvrsJ4uzoftqgu879lKUEAqkIlV6PsLOJv2RKEqiKImiJIqSKHrF7itZxZFVHFnFkVUcWXFZ1GVRT7-GHsOPEU3nhpgAYIDQiKKzSvjoXKVYRooloyT8Y3gLAkkLEys-ItVPQSgSAhCAEEhIQlKkolSUilYDnJupslt2uSes4-q0vNMJ48A6ctFaVHx-dCOvejnqNjhxcET_x-d8fquMk9Njy7gy3hDEBAADhEYU7dRHMZvjmWzEdsk-5Sq7ZEtbSf3t4_e4aOo_V6LKbjMdg83PxjYrDd0cJU5ETGQsmh_qahdrFfQET_AET6Cwjf3l3GbjkIM2NYqVqIyqsLZp6CTqKNqmKuYe1uBkpvgsZRE0BrvFcM-JhwKWFZtkSo7T-U8qdf6KIksnaszIVGLdiDEM01TcoNuJUKecqxV-BRFdioQFzbEbl_JmOUKISyJvrV8Ok7RkIY_aZHa4IPp0HLFU3KCbROFrDd50NF-Bi_HZCyGiHIS1RnZjrFCLxOFGQ_1FKw3XaXvRjhXsAzGmVJxY5qhXriHCRyoahkEQaAiRqli7U8R3zOIBF27Z5Gj4_keJ3DB61-DfS3VOZV501dMX2bwY2HgiSlAj1CLEh3PyLcRZ6-BzYADNNvQ_SybZcZb-sLA-hNOeLHCqnRoTH1gqWRR6DTpD13_D3f4U15LKBrUQeNhTg0lwsyFmCFwjVaL7xokjy5OUEnDS_rxGi0LNnsU7STcvaPBr1A8nVZlz025k_5NHn52W3mnWdGnnX3teNpmtxkrXGTKraFgnE_K_yvtCzcC88_13cNfzGZ4QrXnHmA4yF1kOHiLVU5rGtQUtD6E0RdaD61FGH_M8cjw_4lSac0NDWYooiojkALGbgTr6ZQ9lHCZgyhrKhcfhgDg_OrsvvD14Z0nFrGVYZZJtBOUzwT_yLT2K1PiPb78SU7yoC7BrI-4Qlzbq1a5S3tEhLu20b_pPJ2x93VbvxxW24jK0Bd2kAZa-eeAw6umG8icaA5PT4ENGVAs0WvWLIdiWhwkIu0pc7dxHuI38TYaqBp5QK3d5JbFdVMEu1thtKHHxLyLX2lacX3oyXPQdxT-UpenF6vIa9cr1amsQnEK8pPLq8XgpgDuCwKVHqdUzxpl7kbTU-PBFJap1OjBKd4Cx-TnJUyji7Ea6oLFfd3upMNEeivM1d6w77smPIO0bTJIPL00sEuCatO-DC3uacxfwIiBgqZPIiHT6FzHgdgk6bA33KHRkOWt0c5wplhy5qKaArNbN8NwWLLgYpQDaq_exBIooSPWGYBTOcQ8NWZhJcj39_jHT2XnbcE3BkOEFCfcu6OaYU3-eaEoaU9rlXLx4LC_7FQxVOr3yvtnvEZiLtw9xSzeR_ftMxyRYLcy_0GRJjflSz3WZNxdDQ1RNod61g7h1hTMZ5lg2Gn23L-pWCQfhcotWDRASPFc6lVK-sepyYWDsScZLn22dQrzfED87Jgwz-ylhwAkqvyDBwD8GV6C_r5iwArhfFN3Q-ANl79JgJt5yvNMJ5wQhRGWOCIRbsuZZ49jGEAh7aOKiNpFAPhSesiuRTmuGWncA0rjniDbw-6lIHtcwnm_SnaT600kVSetnlDdYXSJCYcsaBZU7mETr_cbhydsU_t3SlgJCZgsmdiBJe8QqbRtGFGc1Cb5Lmrmtt5FTcdZcaZqnW7A8vjrIde9psDqdlOqd4chgwjXd0E9Llo2i3KTz3VhN_I3UMMqxAupvYf-Lxwd7JG72PeZhBFv8x363PxyyeGxwv9Q9IN9p8f9Mi_MRAQjZkt0fMRjQcljVKNZup0x9GjXNpQnN3Pd3ZjHzxK1kh32lMbWXtn7d3zNhj3elbiAT1NtEp1mEZcKSH9qkF8I3KA2YSXuDwoLTXKdglsNLZBK_jD5c3lfy-aUXBZ1Wtjdx9j06M5Bw6HBQ-WbFE_eChBS94jZrMS3BKuS-z0rx6wlrDV5h85wXjjBdgYOKxLGlGG0Ez60r6XyOr4T2GEbi2ncHIJw2Z42Cu1e5jBl1K-iG53Y031o0re3EA8deCC1mUPUJ-yd7-Pc8anOkMvTFPKQ89DDyHnQybegy9CoAcw56PTLeWd8nshBePSArnUww_pi67LAkL-HRNWHYQ-JOeIvuhU5I-tAc2ks0EquVt41KKOKUt47rO6xit5_GTepkCwmDjLyWGy5teSh9Z8dU4GNy8SOwRj-_STJNvSwmkV_VTFKOfdZFruBYeydoBTXYwfa7kVhcCPwMQ6N9pXU2Y5LbKIYCBJ8PjTM9mN_-HuLm9UeK8X4Rb0Rd5UyjRi8OJahmeiikq_upPZfGrO1YSEJ2DK-YFkR8FWHLAf6hqnmlphrMijwGoGkvI7bMovsQPcE5rIIpiqUow4zIrrzI-QoWvbNBEVsQYqGZN8ghwl018StoWiObtczlNiu4IqoeL_0sQvwhEbH9xNQm70gprViAR-Ves-oURsSv2_8R1yh0S-dXUULrN4Z6P9YgZpZKyts26mYZ5IdJtbzQxi27qhB23RyvlQxau5JdAqWpT-VjWvbO9m2iE2msg2SPo4mpZxoRLIWMMI7YArx2pbewikQ6wHQyv-V4J8RIaMbcyG1e-_mNJjpl3buySUqmy5yRhQfXzqawNb4iV6ZDhfG1lZDgKNDvIvCU5lq_kd4d9uQWBxtjI2WI7cCb5JyD-4Pu121FevCOLMbSY9TtGflMa89FDW2YBfTEPmmf7QjxvQaQQSx6SmyV5mTNYV63sMA3EOy3uWwZfkYbbLTy1klw84lwKH4JQ3nRfHDeGTfdHjaUNwzfLn0-q4JTe85iY50raTuFmZDlBAlV4scPLNIWsc7bGN9z9t1utIVUbSe_CUd89TEZCyfziJ_FH7kXLXduaFWOIY4pzOCs5t5qTj6UJGq7nSzcVnxEabwm5UuJ8Irh3T0OpcUMZTgjGc3YjFtej74gsYdnUvQVY5FldwNy-PtgzAK7Ah2BlkAhEGzDejtVeFicKxD4mGbPHwgKGIa1rUAniqAt6R-WsjhjVsFJPKJAd6fsTNW3NTwsX46mE_gjkIlersr1qVRxY9Pdw8MKSaoVUVKg6L0jVZgKamt4WM2ir-4gcedKMfVf3CM1khAcy6ToCRsgj5aUwP4MGpVDC-AhEOgMegpnUWy4B5HxVHysVkTWjiBTPQA" target="_blank" rel="noopener">
+          <span class="example-copy"><strong>A pitch deck with a working financial model</strong><span>Open slides and computed cells inside the same Markdown document.</span></span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+        </a>
+      </div>
+      <a class="github-link" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">Inspect the open-source CLI and renderer on GitHub <span aria-hidden="true">&#8599;</span></a>
+    </div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="overview-number">4</span><span class="overview-label">How agents create and update sdocs</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+        <div class="details-body">
+          <p>The SmallDocs skill teaches a supported coding agent how to create and open sdocs. The document remains Markdown, while SmallDocs adds navigation and richer blocks for code, diagrams, charts, cells, slides, math and video. Ask the agent to revise the same document when the work changes.</p>
+          <a class="text-link" href="/developers/examples" target="_blank" rel="noopener">Explore every supported content block</a>
+        </div>
+      </details>
+      <details>
+        <summary><span class="overview-number">5</span><span class="overview-label">How Cloud storage and access work</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+        <div class="details-body">
+          <p>Documents and revision history are stored in SmallDocs Cloud. Workspace membership, project grants and document permission groups control who can open and edit each document. SmallDocs manages the encryption keys required to provide authorised access. You can export the Markdown while the documents remain available.</p>
+          <a class="text-link" href="/cloud" target="_blank" rel="noopener">Read how SmallDocs Cloud works</a>
+        </div>
+      </details>
+      <details>
+        <summary><span class="overview-number">6</span><span class="overview-label">Your free access</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+        <div class="details-body">
+          <p>Enjoy your free SmallDocs Cloud trial. Use it to create, update and share sdocs with your team. We will be in touch to hear how it is going and discuss next steps.</p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <script src="/public/cloud-sign-in.js"></script>
+  <script src="/public/cloud-business-invite.js"></script>
+</body>
+</html>
