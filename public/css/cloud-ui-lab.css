@@ -505,6 +505,7 @@ body.cloud-lab-mode #_sd_cloud-lab-panel {
   #_sd_cloud-lab-panel {
     position: fixed;
     inset: auto 0 0;
+    bottom: var(--cloud-keyboard-offset, 0px);
     width: 100% !important;
     max-height: 0;
     border: 0;
@@ -512,11 +513,15 @@ body.cloud-lab-mode #_sd_cloud-lab-panel {
     box-shadow: 0 -4px 24px rgba(28,25,23,.15), 0 -1px 4px rgba(28,25,23,.08);
     z-index: 120;
     transform: translateY(12px);
-    transition: max-height .32s cubic-bezier(.4,0,.2,1),
+    transition: height .32s cubic-bezier(.4,0,.2,1),
+                bottom .32s cubic-bezier(.4,0,.2,1),
+                max-height .32s cubic-bezier(.4,0,.2,1),
                 transform .32s cubic-bezier(.4,0,.2,1),
                 opacity .25s ease,
                 border-color .25s ease;
   }
+  #_sd_cloud-lab-panel[data-cloud-panel="tags"] { height: 0; }
+  body.cloud-lab-mode #_sd_cloud-lab-panel[data-cloud-panel="tags"] { height: 54px; }
   body.cloud-lab-mode #_sd_cloud-lab-panel {
     width: 100%;
     max-height: 54px;
@@ -528,6 +533,33 @@ body.cloud-lab-mode #_sd_cloud-lab-panel {
   body.cloud-lab-mode.mobile-cloud-lab-open #_sd_cloud-lab-panel {
     max-height: 84dvh;
     overflow-y: auto;
+  }
+  body.cloud-lab-mode.mobile-cloud-lab-open #_sd_cloud-lab-panel[data-cloud-panel="tags"] {
+    height: min(84dvh, var(--cloud-visible-height, 84dvh));
+    max-height: var(--cloud-visible-height, 84dvh);
+    overflow: hidden;
+  }
+  #_sd_cloud-lab-panel[data-cloud-panel="tags"] .sdoc-cloud-lab-panel-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  #_sd_cloud-lab-panel[data-cloud-panel="tags"] .sdoc-cloud-lab-section {
+    flex: 0 0 auto;
+  }
+  #_sd_cloud-lab-panel[data-cloud-panel="tags"] .sdoc-cloud-lab-section:last-of-type {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  #_sd_cloud-lab-panel[data-cloud-panel="tags"] .sdoc-cloud-lab-section-title {
+    flex: 0 0 auto;
+  }
+  #_sd_cloud-lab-panel[data-cloud-panel="tags"] .sdoc-cloud-lab-suggestions {
+    min-height: 0;
+    overflow-y: auto;
+    align-content: start;
   }
   #_sd_cloud-lab-panel::before {
     content: '';

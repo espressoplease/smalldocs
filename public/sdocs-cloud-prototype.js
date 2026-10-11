@@ -622,6 +622,19 @@ function ensureCloudPanel() {
   if (main) main.appendChild(panel);
   else document.body.appendChild(panel);
   panel.querySelector('.sdoc-cloud-lab-close').addEventListener('click', closeCloudPanel);
+  function updatePanelViewport() {
+    var viewport = window.visualViewport;
+    var height = viewport ? viewport.height : window.innerHeight;
+    var bottom = viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+    panel.style.setProperty('--cloud-visible-height', height + 'px');
+    panel.style.setProperty('--cloud-keyboard-offset', bottom + 'px');
+  }
+  updatePanelViewport();
+  window.addEventListener('resize', updatePanelViewport);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updatePanelViewport);
+    window.visualViewport.addEventListener('scroll', updatePanelViewport);
+  }
   return panel;
 }
 
@@ -704,6 +717,7 @@ function tagsPanelHtml() {
 
 function renderCloudPanel() {
   var panel = ensureCloudPanel();
+  panel.dataset.cloudPanel = cloudState.panel;
   panel.querySelector('[data-cloud-panel-title]').textContent = cloudState.panel === 'tags' ? 'Tags' : 'Access';
   var body = panel.querySelector('.sdoc-cloud-lab-panel-body');
   body.innerHTML = (cloudState.panel === 'tags' ? tagsPanelHtml() : accessPanelHtml())
