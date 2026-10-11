@@ -1,14 +1,15 @@
-.homepage-column { max-width: 71ch; }
+.homepage-column { max-width: 71ch; margin: 0 auto; }
 .homepage-small-video { max-width: 360px; margin: 0 0 32px; }
 .homepage-small-video .vid-play { border: 0; width: 100%; font-family: var(--font); }
 .homepage-small-video .vid-play em { font-size: var(--t-sm); }
 .homepage-small-video .intro-play[hidden] { display: none; }
-.home-next .hero-display { max-width: 100%; }
-.home-next .homepage-copy { margin-top: 25px; }
+.home-next .hero-display { max-width: 100%; font-size: 25px; }
+.home-next .lead { font-size: 16px; }
+.home-next .homepage-copy { margin-top: 9px; }
 .homepage-start { margin-top: 28px; max-width: 600px; }
 .homepage-email { display: flex; align-items: stretch; gap: 12px; }
 .homepage-email .tf-field { flex: 1; min-width: 0; }
-.homepage-email input { height: 100%; }
+.homepage-email input { height: 100%; background: white; }
 .homepage-email button { font-size: var(--t-sm); }
 .homepage-email button:disabled { opacity: .6; }
 .start-status:empty { display: none; }
@@ -32,4 +33,8 @@
   .homepage-email input { font-size: 16px; }
   .homepage-email .btn { justify-content: center; }
   .homepage-small-video { margin-bottom: 28px; }
+}
+
+@media (max-width: 620px) {
+  .home-next .hero-display { font-size: 30px; }
 }
