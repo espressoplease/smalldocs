@@ -164,6 +164,8 @@ const CLOUD_AUTH_DEV_LOG_CODES = cloudAuthHttp.canLogDevCodes({
 });
 const CLOUD_TEST_LOGIN_ENABLED = CLOUD_DEPLOYMENT.mode === 'staging' &&
   process.env.CLOUD_TEST_LOGIN_ENABLED === '1';
+const CLOUD_EVALUATION_ENABLED = process.env.CLOUD_EVALUATION_ENABLED === '1';
+const CLOUD_EVALUATION_DURATION_DAYS = 30;
 const CLOUD_TEST_LOGIN_EMAILS = new Set(String(process.env.CLOUD_TEST_LOGIN_EMAILS || '')
   .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
 let CLOUD_TEST_LOGIN_SECRET = '';
@@ -1135,6 +1137,8 @@ function cloudApiError(res, error) {
     billing_not_configured: 503,
     notification_delivery_not_configured: 503,
     subscription_exists: 409,
+    evaluation_consent_required: 400,
+    evaluation_expired: 402,
     active_subscription_requires_cancellation: 409,
     rate_limited: 429,
     invalid_token: 401,
@@ -1208,6 +1212,14 @@ function requireCloudEntitlement(userId, workspaceId, operation, extra) {
     Object.assign({ operation, usage }, extra || {}));
   if (!result.allowed) throw Object.assign(new Error(result.reason), { code: result.reason });
   return result.entitlements;
+}
+
+function recordEvaluationReturn(workspaceId) {
+  if (!cloudBilling || !CLOUD_EVALUATION_ENABLED) return;
+  const evaluation = cloudBilling.getEvaluation(workspaceId);
+  if (!evaluation || Date.now() < evaluation.startedAtMs + 24 * 60 * 60 * 1000) return;
+  cloudBilling.recordEvaluationEvent({ workspaceId, eventType: 'return',
+    eventKey: 'return:' + new Date().toISOString().slice(0, 10) });
 }
 
 function cloudWorkspaceUsage(userId, workspaceId) {
@@ -1368,6 +1380,26 @@ async function handleCloudApi(req, res, url) {
     if (!principal || !cloudApiMutationAllowed(req, res)) return;
     const user = principal.user;
     const credentialId = principal.credential && principal.credential.id;
+
+    if (req.method === 'POST' && pathname === base + '/evaluations') {
+      if (!CLOUD_EVALUATION_ENABLED || !cloudBilling) {
+        sendJson(res, 404, { ok: false, error: 'not_found' });
+        return;
+      }
+      requireRecentBrowser(principal);
+      const body = await cloudAuthHttp.readJson(req);
+      if (body.cloud_first_consent !== true || body.terms_version !== CURRENT_TERMS_VERSION) {
+        throw Object.assign(new Error('evaluation_consent_required'), { code: 'evaluation_consent_required' });
+      }
+      const workspace = (await cloudStore.listWorkspaces(user.id)).find((item) =>
+        item.id === body.workspace_id && item.role === 'owner' && item.kind === 'personal');
+      if (!workspace) throw Object.assign(new Error('permission_denied'), { code: 'permission_denied' });
+      const evaluation = cloudBilling.startEvaluation({ workspaceId: workspace.id, ownerUserId: user.id,
+        termsVersion: CURRENT_TERMS_VERSION, cloudFirstConsentAtMs: Date.now(),
+        durationDays: CLOUD_EVALUATION_DURATION_DAYS, source: 'self_serve' });
+      sendJson(res, 201, { ok: true, evaluation });
+      return;
+    }
 
     if (req.method === 'GET' && pathname === base + '/cli/device-authorizations/lookup') {
       const authorization = cloudAuth.getDeviceAuthorization(url.searchParams.get('user_code'));
@@ -1541,6 +1573,10 @@ async function handleCloudApi(req, res, url) {
           fileBytes: cloudMarkdownBytes(body.markdown),
         }),
       });
+      if (cloudBilling && cloudBilling.getEvaluation(selected.workspace.id)) {
+        cloudBilling.recordEvaluationEvent({ workspaceId: selected.workspace.id,
+          eventType: 'first_document', eventKey: 'first_document' });
+      }
       scheduleRevisionPrune(document, entitlements);
       const permission = cloudStore.getDocumentPermission({ userId: user.id, documentId: document.id });
       sendJson(res, 201, { ok: true, account: { id: selected.workspace.id,
@@ -1852,6 +1888,10 @@ async function handleCloudApi(req, res, url) {
         } catch (_) { return false; }
       });
       const page = cloudStore.pageDocuments(documents, { limit, after });
+      page.documents.forEach((document) => {
+        const context = cloudStore.getDocumentContext({ userId: user.id, documentId: document.id });
+        recordEvaluationReturn(context.workspaceId);
+      });
       sendJson(res, 200, { ok: true, documents: page.documents,
         next_cursor: page.nextPosition ? cloudCursor.encode(cursorScope, page.nextPosition) : null });
       return;
@@ -1915,6 +1955,10 @@ async function handleCloudApi(req, res, url) {
           fileBytes: cloudMarkdownBytes(body.markdown),
         }),
       });
+      if (cloudBilling && cloudBilling.getEvaluation(project.workspaceId)) {
+        cloudBilling.recordEvaluationEvent({ workspaceId: project.workspaceId,
+          eventType: 'first_document', eventKey: 'first_document' });
+      }
       scheduleRevisionPrune(document, entitlements);
       sendJson(res, 201, { ok: true, document });
       return;
@@ -2059,6 +2103,7 @@ async function handleCloudApi(req, res, url) {
       const context = cloudStore.getDocumentContext({ userId: user.id, documentId: documentMatch[1] });
       requireCloudEntitlement(user.id, context.workspaceId, 'read');
       const document = await cloudStore.getDocument({ userId: user.id, documentId: documentMatch[1] });
+      recordEvaluationReturn(context.workspaceId);
       const permission = cloudStore.getDocumentPermission({ userId: user.id,
         documentId: documentMatch[1] });
       sendJson(res, 200, { ok: true, document, permission });
@@ -2457,6 +2502,22 @@ async function handleStripeWebhook(req, res) {
           return change;
         }
       }
+      if (event.type === 'invoice.paid') {
+        const invoice = event.data.object || {};
+        const parentSubscription = invoice.parent && invoice.parent.subscription_details &&
+          invoice.parent.subscription_details.subscription;
+        const subscriptionRef = invoice.subscription || parentSubscription;
+        const subscriptionId = typeof subscriptionRef === 'string'
+          ? subscriptionRef : subscriptionRef && subscriptionRef.id;
+        if (Number(invoice.amount_paid) > 0 && subscriptionId) {
+          const subscription = store.getSubscriptionByProviderId('stripe', subscriptionId);
+          if (subscription && store.getEvaluation(subscription.workspaceId)) {
+            store.recordEvaluationEvent({ workspaceId: subscription.workspaceId,
+              eventType: 'paid_invoice', eventKey: 'paid_invoice',
+              amountMinor: invoice.amount_paid, currency: invoice.currency });
+          }
+        }
+      }
       return null;
     });
     sendJson(res, 200, { received: true });
@@ -2602,6 +2663,10 @@ const server = http.createServer((req, res) => {
         metadata: { owner_user_id: principal.user.id },
         idempotencyKey: 'workspace-checkout-' + workspace.id + '-' + plan,
       });
+      if (cloudBilling.getEvaluation(workspace.id)) {
+        cloudBilling.recordEvaluationEvent({ workspaceId: workspace.id,
+          eventType: 'checkout_started', eventKey: 'checkout_started' });
+      }
       sendJson(res, 200, { ok: true, checkout_url: session.url });
     }).catch((error) => cloudApiError(res, error));
     return;
@@ -2818,6 +2883,29 @@ const server = http.createServer((req, res) => {
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'no-referrer',
       'X-Robots-Tag': 'noindex, nofollow',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+    });
+    return;
+  }
+
+  if (pathname === '/cloud/evaluation') {
+    if (!CLOUD_EVALUATION_ENABLED || !cloudBilling) {
+      sendJson(res, 404, { ok: false, error: 'not_found' });
+      return;
+    }
+    const authenticated = cloudAuthSession(req);
+    if (!authenticated.ok) {
+      res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent(pathname + url.search),
+        'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
+    if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-evaluation.html'), {
+      '__CLOUD_TERMS_VERSION__': CURRENT_TERMS_VERSION,
+    }, {
+      'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow',
       'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
     });
     return;

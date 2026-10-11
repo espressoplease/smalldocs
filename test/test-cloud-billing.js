@@ -274,6 +274,90 @@ module.exports = function (harness) {
       assert.strictEqual(billing.processWebhookEvent(input, () => 'retried').processed, true);
     });
 
+    test('evaluation starts once, grants Personal access, and expires read only without deletion', () => {
+      const workspaceId = 'wrk_evaluation';
+      assert.throws(() => billing.startEvaluation({ workspaceId, ownerUserId: 'user_eval',
+        termsVersion: 'terms-1' }), error => error.code === 'cloud_first_consent_required');
+      const evaluation = billing.startEvaluation({ workspaceId, ownerUserId: 'user_eval',
+        termsVersion: 'terms-1', cloudFirstConsentAtMs: clock, source: 'self_serve' });
+      assert.strictEqual(evaluation.status, 'active');
+      assert.strictEqual(evaluation.endsAtMs, clock + 30 * 24 * 60 * 60 * 1000);
+      assert.strictEqual(billing.computeEntitlements(workspaceId).access.write, true);
+      const duplicate = billing.startEvaluation({ workspaceId, ownerUserId: 'user_eval',
+        termsVersion: 'terms-2', cloudFirstConsentAtMs: clock, source: 'other' });
+      assert.strictEqual(duplicate.startedAtMs, evaluation.startedAtMs);
+      assert.strictEqual(duplicate.termsVersion, 'terms-1');
+
+      // Stripe's incomplete checkout maps to the billing store's read_only status.
+      for (const status of ['read_only', 'canceled']) {
+        billing.upsertSubscription({ workspaceId, plan: 'personal', status, seatQuantity: 1,
+          provider: 'testpay', providerSubscriptionId: 'checkout-' + status });
+        const duringCheckout = billing.computeEntitlements(workspaceId);
+        assert.strictEqual(duringCheckout.access.write, true,
+          status + ' checkout state must not consume the active evaluation');
+        assert.strictEqual(duringCheckout.evaluation.status, 'active');
+      }
+      billing.upsertSubscription({ workspaceId, plan: 'personal', status: 'past_due', seatQuantity: 1,
+        provider: 'testpay', providerSubscriptionId: 'checkout-past-due', graceEndsAtMs: clock - 1 });
+      assert.strictEqual(billing.computeEntitlements(workspaceId).access.write, true,
+        'an expired payment grace state must not consume an active evaluation');
+      billing.recordEvaluationEvent({ workspaceId, eventType: 'first_document', eventKey: 'first_document' });
+      billing.recordEvaluationEvent({ workspaceId, eventType: 'return', eventKey: 'return:2026-10-11' });
+      billing.recordEvaluationEvent({ workspaceId, eventType: 'return', eventKey: 'return:2026-10-11' });
+      clock = evaluation.endsAtMs;
+      const expired = billing.computeEntitlements(workspaceId);
+      assert.strictEqual(expired.evaluation.status, 'expired');
+      assert.strictEqual(expired.access.write, false);
+      assert.strictEqual(expired.access.read, true);
+      assert.strictEqual(expired.access.write, false);
+      assert.strictEqual(expired.access.search, false);
+      assert.strictEqual(billing.checkOperation(workspaceId, { operation: 'read' }).allowed, true);
+      assert.strictEqual(billing.checkOperation(workspaceId, { operation: 'store_revision' }).reason,
+        'evaluation_expired');
+      assert.strictEqual(billing.checkOperation(workspaceId, { operation: 'manage' }).reason,
+        'evaluation_expired');
+      assert.strictEqual(billing.db.prepare('SELECT COUNT(*) AS count FROM cloud_evaluations WHERE workspace_id = ?')
+        .get(workspaceId).count, 1);
+      assert.strictEqual(billing.db.prepare('SELECT COUNT(*) AS count FROM cloud_evaluation_events WHERE workspace_id = ?')
+        .get(workspaceId).count, 3);
+
+      billing.upsertSubscription({ workspaceId, plan: 'personal', status: 'active', seatQuantity: 1,
+        provider: 'testpay', providerSubscriptionId: 'paid-after-eval' });
+      assert.strictEqual(billing.computeEntitlements(workspaceId).access.write, true,
+        'paid subscription takes precedence over the expired evaluation');
+      assert.strictEqual(billing.computeEntitlements(workspaceId).evaluation.status, 'converted');
+      assert.ok(billing.getEvaluation(workspaceId).convertedAtMs,
+        'paid access conversion is persisted even if checkout completes after evaluation expiry');
+      billing.recordEvaluationEvent({ workspaceId, eventType: 'paid_invoice', eventKey: 'paid_invoice',
+        amountMinor: 400, currency: 'GBP' });
+      billing.recordEvaluationEvent({ workspaceId, eventType: 'paid_invoice', eventKey: 'paid_invoice',
+        amountMinor: 700, currency: 'gbp' });
+      const paidEvent = billing.db.prepare('SELECT * FROM cloud_evaluation_events WHERE workspace_id = ? AND event_type = ?')
+        .get(workspaceId, 'paid_invoice');
+      assert.strictEqual(paidEvent.amount_minor, 400);
+      assert.strictEqual(paidEvent.currency, 'gbp');
+      assert.strictEqual(billing.getSubscriptionByProviderId('testpay', 'paid-after-eval').workspaceId,
+        workspaceId);
+
+      const convertedWorkspaceId = 'wrk_eval_converted';
+      billing.startEvaluation({ workspaceId: convertedWorkspaceId, ownerUserId: 'user_eval',
+        termsVersion: 'terms-1', cloudFirstConsentAtMs: clock });
+      billing.upsertSubscription({ workspaceId: convertedWorkspaceId, plan: 'personal', status: 'active',
+        seatQuantity: 1, provider: 'testpay', providerSubscriptionId: 'paid-then-canceled' });
+      assert.strictEqual(billing.computeEntitlements(convertedWorkspaceId).evaluation.status, 'converted');
+      billing.upsertSubscription({ workspaceId: convertedWorkspaceId, plan: 'personal', status: 'canceled',
+        seatQuantity: 1, provider: 'testpay', providerSubscriptionId: 'paid-then-canceled' });
+      const afterCancellation = billing.computeEntitlements(convertedWorkspaceId);
+      assert.strictEqual(afterCancellation.evaluation.status, 'converted');
+      assert.strictEqual(afterCancellation.access.write, false,
+        'a converted evaluation cannot restore access after paid access ends');
+
+      billing.upsertSubscription({ workspaceId, plan: 'personal', status: 'canceled', seatQuantity: 1,
+        provider: 'testpay', providerSubscriptionId: 'paid-after-eval' });
+      assert.strictEqual(billing.computeEntitlements(workspaceId).evaluation.status, 'converted');
+      assert.strictEqual(billing.computeEntitlements(workspaceId).access.write, false);
+    });
+
     billing.close();
     fs.rmSync(dir, { recursive: true, force: true });
   };

@@ -18,6 +18,7 @@ const publicOrigin = 'https://127.0.0.1:' + publicPort;
 const secretFile = path.join(tempDir, 'test-login-secret');
 const keyFile = path.join(tempDir, 'localhost-key.pem');
 const certFile = path.join(tempDir, 'localhost-cert.pem');
+const stateFile = path.join(root, 'test-results', 'cloud-e2e-state.json');
 
 fs.writeFileSync(secretFile, LOCAL_TEST_LOGIN_SECRET, { mode: 0o600 });
 execFileSync('openssl', [
@@ -43,6 +44,7 @@ const env = Object.assign({}, process.env, {
   CLOUD_DB: path.join(tempDir, 'cloud.db'),
   CLOUD_BILLING_DB: path.join(tempDir, 'billing.db'),
   CLOUD_JOBS_DB: path.join(tempDir, 'jobs.db'),
+  CLOUD_EVALUATION_ENABLED: '1',
   CLOUD_TEST_LOGIN_ENABLED: '1',
   CLOUD_TEST_LOGIN_EMAILS: TEST_LOGIN_EMAILS.join(','),
   CLOUD_TEST_LOGIN_SECRET_FILE: secretFile,
@@ -75,6 +77,8 @@ execFileSync(process.execPath, [path.join(root, 'ops', 'seed-cloud-staging.js')]
   env,
   stdio: ['ignore', 'ignore', 'inherit'],
 });
+fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+fs.writeFileSync(stateFile, JSON.stringify({ billingDb: env.CLOUD_BILLING_DB }));
 
 const app = spawn(process.execPath, [path.join(root, 'server.js')], {
   cwd: root,
@@ -88,6 +92,7 @@ let proxy;
 function cleanup(code) {
   if (proxy) proxy.close();
   if (!app.killed) app.kill('SIGTERM');
+  try { fs.unlinkSync(stateFile); } catch (_) {}
   fs.rmSync(tempDir, { recursive: true, force: true });
   if (Number.isInteger(code)) process.exit(code);
 }

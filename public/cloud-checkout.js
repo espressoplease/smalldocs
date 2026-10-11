@@ -4,6 +4,7 @@
   var requestedPlan = params.get('plan');
   var plan = requestedPlan === 'personal' || requestedPlan === 'team' ? requestedPlan : null;
   var returnTo = params.get('return');
+  var requestedWorkspaceId = params.get('workspace_id');
   var select = document.getElementById('checkout-workspace');
   var workspaceField = document.getElementById('checkout-workspace-field');
   var teamField = document.getElementById('checkout-team-field');
@@ -98,7 +99,10 @@
     status.textContent = '';
     status.className = 'status';
     matching.forEach(addWorkspace);
-    if (matching.length) select.value = matching[0].id;
+    if (matching.length) {
+      select.value = matching.some(function (item) { return item.id === requestedWorkspaceId; })
+        ? requestedWorkspaceId : matching[0].id;
+    }
     if (!matching.length) {
       showWorkspaceCreation();
       return;

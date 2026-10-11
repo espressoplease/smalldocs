@@ -24,6 +24,7 @@
   function returnLabel(path) {
     if (path.indexOf('/library') === 0) return 'Cloud library';
     if (path.indexOf('/cloud/admin') === 0) return 'Cloud settings';
+    if (path.indexOf('/cloud/evaluation') === 0) return 'Cloud evaluation';
     if (path.indexOf('/cloud/checkout') === 0) return 'checkout';
     if (path.indexOf('/cloud/business-invite') === 0) return 'your invitation';
     if (path.indexOf('/cloud/authorize') === 0) return 'CLI authorization';
