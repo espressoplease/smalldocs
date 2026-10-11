@@ -63,6 +63,9 @@ test('Cloud library opens tags while typing and keeps full-workspace counts afte
   await page.locator('#q').fill('no-match');
   await expect(options).toHaveCount(0);
   await page.locator('#q').fill('');
+  await expect(tagButton).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#facet-panel')).toHaveAttribute('aria-hidden', 'true');
+  await tagButton.click();
   await expect(options).toHaveCount(17);
   await expect(options.locator('mark')).toHaveCount(0);
 });
@@ -75,6 +78,9 @@ test('Cloud library typing preserves an already open facet', async ({ page }) =>
   await expect(when).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('[data-facet="tag"]')).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#facet-panel-title')).toHaveText('When');
+  await page.locator('#q').fill('');
+  await expect(when).toHaveAttribute('aria-expanded', 'true');
+  await page.locator('#q').fill('fri');
   await page.locator('[data-facet="tag"]').click();
   await expect(page.locator('.facet-option')).toHaveCount(3);
 });
@@ -89,9 +95,51 @@ test('Cloud library replaces the tag inventory when the workspace changes', asyn
     window.dispatchEvent(new CustomEvent('sdocs-cloud-workspace-change'));
   });
   await expect(page.locator('#q')).toHaveValue('');
+  await expect(page.locator('[data-facet="tag"]')).toHaveAttribute('aria-expanded', 'false');
+  await page.locator('[data-facet="tag"]').click();
   await expect(page.locator('.facet-option')).toHaveCount(1);
   await expect(page.locator('.facet-option')).toHaveAttribute('data-value', 'friday');
   await page.locator('#q').fill('fri');
   await expect(page.locator('.facet-option mark')).toHaveText('fri');
   await expect(page.locator('.facet-option .count')).toHaveText('9');
+});
+
+
+for (const clearWith of ['input', 'clear-all']) {
+  for (const manuallyOpened of [false, true]) {
+    test('Cloud library ' + clearWith + ' preserves only manually opened tags: ' + manuallyOpened,
+      async ({ page }) => {
+        await openCloudLibrary(page);
+        const tags = page.locator('[data-facet="tag"]');
+        if (manuallyOpened) await tags.click();
+        await page.locator('#q').fill('fri');
+        await expect(tags).toHaveAttribute('aria-expanded', 'true');
+        if (clearWith === 'input') await page.locator('#q').fill('');
+        else await page.locator('#clear').click();
+        await expect(tags).toHaveAttribute('aria-expanded', String(manuallyOpened));
+        await expect(page.locator('#facet-panel')).toHaveAttribute('aria-hidden', String(!manuallyOpened));
+        if (manuallyOpened) await expect(page.locator('.facet-option')).toHaveCount(17);
+      });
+  }
+}
+
+test('manually reopening Tags during search keeps it open after clearing', async ({ page }) => {
+  await openCloudLibrary(page);
+  await page.locator('#q').fill('fri');
+  const tags = page.locator('[data-facet="tag"]');
+  await tags.click();
+  await tags.click();
+  await page.locator('#q').fill('');
+  await expect(tags).toHaveAttribute('aria-expanded', 'true');
+});
+
+
+test('committing a search tag chip closes automatically opened Tags', async ({ page }) => {
+  await openCloudLibrary(page);
+  await page.locator('#q').fill('tag:fridge');
+  await expect(page.locator('[data-facet="tag"]')).toHaveAttribute('aria-expanded', 'true');
+  await page.locator('#q').press('Enter');
+  await expect(page.locator('#q')).toHaveValue('');
+  await expect(page.locator('[data-facet="tag"]')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#chips-row')).toContainText('fridge');
 });

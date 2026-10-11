@@ -374,6 +374,18 @@ function splitPath(p) {
 }
 
 let openFacet = null;
+let tagsOpenedBySearch = false;
+
+function syncSearchTagPanel() {
+  if (!isCloudMode()) return;
+  if (STATE.q.trim() && !openFacet) {
+    openFacet = 'tag';
+    tagsOpenedBySearch = true;
+  } else if (!STATE.q.trim() && tagsOpenedBySearch) {
+    if (openFacet === 'tag') openFacet = null;
+    tagsOpenedBySearch = false;
+  }
+}
 
 function chipDisplayValue(c) {
   if (c.key === 'since' && typeof c.value === 'string' && c.value.startsWith('range:')) {
@@ -1030,13 +1042,16 @@ async function openEntry(id) {
 document.querySelectorAll('.facet-button').forEach(btn => {
   btn.addEventListener('click', () => {
     const facet = btn.dataset.facet;
+    tagsOpenedBySearch = false;
     openFacet = openFacet === facet ? null : facet;
     renderAll();
   });
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && openFacet) { openFacet = null; renderAll(); return; }
+  if (e.key === 'Escape' && openFacet) {
+    openFacet = null; tagsOpenedBySearch = false; renderAll(); return;
+  }
   if (e.key === '/' && document.activeElement !== document.getElementById('q')) {
     e.preventDefault(); document.getElementById('q').focus(); return;
   }
@@ -1065,6 +1080,7 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         inputEl.value = remaining;
         STATE.q = remaining;
+        syncSearchTagPanel();
         renderAll();
         return;
       }
@@ -1116,7 +1132,7 @@ input.addEventListener('input', (e) => {
   } else {
     STATE.q = val;
   }
-  if (isCloudMode() && STATE.q.trim() && !openFacet) openFacet = 'tag';
+  syncSearchTagPanel();
   renderAll();
   if (isCloudMode()) {
     clearTimeout(window.SDocsCloudSearchTimer);
@@ -1133,6 +1149,7 @@ input.addEventListener('keydown', (e) => {
 
 document.getElementById('clear').addEventListener('click', () => {
   STATE.chips = []; STATE.q = ''; STATE.starredOnly = false; STATE.sharedOnly = false;
+  syncSearchTagPanel();
   input.value = ''; renderAll();
   if (isCloudMode()) loadCloudData('').catch(function () {});
 });
@@ -1168,6 +1185,7 @@ if (isCloudMode()) {
 
 window.addEventListener('sdocs-cloud-workspace-change', function () {
   STATE.q = '';
+  syncSearchTagPanel();
   input.value = '';
   loadCloudData('').catch(function () {
     showBanner({ kind: 'error', message: 'Could not load this Cloud workspace.' });
