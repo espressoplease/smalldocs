@@ -84,7 +84,7 @@ test('homepage experiment preserves the supplied copy and vertical order', async
     'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up.',
     'SmallDocs are automatically saved to an encrypted cloud library. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).',
     'SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.',
-    'Over 4,000 developers, financiers and scientists use SmallDocs. To join them, enter your email to access your install script:',
+    'Over 4,000 developers, financiers and scientists use SmallDocs. To join them, enter your email to access your install link:',
     'SmallDocs is free for a month, then £4/month for individuals and £7/month/user for teams.',
   ];
   expect(await page.locator('.homepage-copy').allTextContents()).toEqual(expected);
