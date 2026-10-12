@@ -662,24 +662,44 @@ function tagChip(tag) {
     + escapeHtml(tag) + '">' + CLOSE_SVG + '</button></span>';
 }
 
+function tagSuggestionsHtml(query) {
+  query = String(query || '').trim().replace(/^#+/, '').toLowerCase();
+  var tags = documentTags();
+  return cloudState.suggestedTags.filter(function (item) {
+    return tags.indexOf(item.tag) === -1 && item.tag.toLowerCase().indexOf(query) !== -1;
+  }).sort(function (a, b) {
+    return b.count - a.count || a.tag.localeCompare(b.tag);
+  }).map(function (item) {
+    var label = escapeHtml(item.tag);
+    if (query) {
+      var parts = [], start = 0, index;
+      var lower = item.tag.toLowerCase();
+      while ((index = lower.indexOf(query, start)) !== -1) {
+        parts.push(escapeHtml(item.tag.slice(start, index)), '<mark>',
+          escapeHtml(item.tag.slice(index, index + query.length)), '</mark>');
+        start = index + query.length;
+      }
+      parts.push(escapeHtml(item.tag.slice(start)));
+      label = parts.join('');
+    }
+    return '<button class="sdoc-cloud-lab-suggestion" type="button" data-cloud-add-tag="'
+      + escapeHtml(item.tag) + '"><span>#' + label + '</span><small>'
+      + item.count + ' docs</small></button>';
+  }).join('');
+}
+
 function tagsPanelHtml() {
   var tags = documentTags();
   var current = tags.length ? tags.map(tagChip).join('')
     : '<span class="sdoc-cloud-lab-no-tags">No tags yet</span>';
-  var suggestions = cloudState.suggestedTags.filter(function (item) {
-    return tags.indexOf(item.tag) === -1;
-  }).slice(0, 8).map(function (item) {
-    return '<button class="sdoc-cloud-lab-suggestion" type="button" data-cloud-add-tag="'
-      + escapeHtml(item.tag) + '"><span>#' + escapeHtml(item.tag) + '</span><small>'
-      + item.count + ' docs</small></button>';
-  }).join('');
+  var suggestions = tagSuggestionsHtml('');
   return '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Current Cloud tags</div>'
     + '<div class="sdoc-cloud-lab-current-tags">' + current + '</div>'
     + '<form class="sdoc-cloud-lab-tag-form"><input type="text" placeholder="Add a tag" aria-label="New Cloud tag">'
     + '<button type="submit">Add</button></form>'
     + '<p class="sdoc-cloud-lab-help">Cloud tags are stored in the Markdown front matter.</p></section>'
-    + (suggestions ? '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Used in your account</div>'
-      + '<div class="sdoc-cloud-lab-suggestions">' + suggestions + '</div></section>' : '');
+    + '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Used in your account</div>'
+      + '<div class="sdoc-cloud-lab-suggestions">' + suggestions + '</div></section>';
 }
 
 function renderCloudPanel() {
@@ -713,10 +733,15 @@ function wireCloudPanel(body) {
       }));
     });
   });
-  body.querySelectorAll('[data-cloud-add-tag]').forEach(function (button) {
-    button.addEventListener('click', function () { addCloudTag(button.getAttribute('data-cloud-add-tag')); });
+  var suggestions = body.querySelector('.sdoc-cloud-lab-suggestions');
+  if (suggestions) suggestions.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-cloud-add-tag]');
+    if (button) addCloudTag(button.getAttribute('data-cloud-add-tag'));
   });
   var tagForm = body.querySelector('.sdoc-cloud-lab-tag-form');
+  if (tagForm) tagForm.querySelector('input').addEventListener('input', function (event) {
+    suggestions.innerHTML = tagSuggestionsHtml(event.target.value);
+  });
   if (tagForm) tagForm.addEventListener('submit', function (event) {
     event.preventDefault();
     addCloudTag(tagForm.querySelector('input').value);

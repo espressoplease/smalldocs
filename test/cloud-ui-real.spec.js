@@ -112,7 +112,12 @@ test('real Cloud document controls save, share, tag, and remove through account 
         { user_id: 'usr-2', email: 'tom@example.com', name: 'Tom Smith', initials: 'TS', is_you: false },
       ] } });
     if (path === '/api/cloud/v1/account/tags') return route.fulfill({ json: { ok: true,
-      account_id: 'acct-1', tags: [{ tag: 'planning', count: 4 }] } });
+      account_id: 'acct-1', tags: [
+        { tag: 'september', count: 20 }, { tag: 'fringe', count: 2 },
+        { tag: 'fridge', count: 4 }, { tag: 'new-fridge', count: 7 },
+        { tag: 'october', count: 12 }, { tag: 'planning', count: 4 },
+        ...Array.from({ length: 8 }, (_, i) => ({ tag: 'extra-' + i, count: 1 })),
+      ] } });
     if (path === '/api/cloud/v1/account/documents') {
       const created = SDocYaml.parseFrontMatter(request.postDataJSON().markdown);
       tags = Array.isArray(created.meta.tags) ? created.meta.tags.map(String) : [];
@@ -231,7 +236,21 @@ test('real Cloud document controls save, share, tag, and remove through account 
   await expect(page.locator('.sdoc-cloud-lab-access')).toContainText('Everyone');
 
   await page.getByRole('button', { name: 'Edit Cloud tags' }).click();
-  await page.getByRole('textbox', { name: 'New Cloud tag' }).fill('release');
+  const tagSuggestions = page.locator('[data-cloud-add-tag]');
+  const tagInput = page.getByRole('textbox', { name: 'New Cloud tag' });
+  await expect(tagSuggestions).toHaveCount(14);
+  await tagInput.fill('FRI');
+  await expect(tagSuggestions).toHaveCount(3);
+  expect(await tagSuggestions.evaluateAll(buttons => buttons.map(button =>
+    button.getAttribute('data-cloud-add-tag')))).toEqual(['new-fridge', 'fridge', 'fringe']);
+  expect(await tagSuggestions.locator('mark').allTextContents()).toEqual(['fri', 'fri', 'fri']);
+  await expect(tagInput).toBeFocused();
+  await expect(tagInput).toHaveValue('FRI');
+  await tagInput.fill('<script>');
+  await expect(tagSuggestions).toHaveCount(0);
+  await tagInput.fill('');
+  await expect(tagSuggestions).toHaveCount(14);
+  await tagInput.fill('release');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.locator('.fic-row-cloud')).toContainText('#release');
   const tagCall = calls.find(call => call.path === '/api/cloud/v1/documents/doc-1/tags');

@@ -1,5 +1,14 @@
 /* Interactive Cloud account, access, and tag prototype. */
 
+.sdoc-cloud-lab-suggestions mark {
+  background: var(--accent-light);
+  color: var(--accent-text);
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: 600;
+  font-style: normal;
+}
+
 #_sd_sdocs-file-info .fic-row-cloud-lab {
   align-items: center;
   cursor: default;

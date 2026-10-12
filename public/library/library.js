@@ -123,6 +123,8 @@ const STATE = {
   starredOnly: false,
   sharedOnly: false,
   entries: [],
+  cloudTags: null,
+  cloudTagsWorkspace: null,
   lastScanAt: 0,
   enabled: true,
   shownLen: 0,
@@ -226,7 +228,10 @@ const FACET_DEFS = {
   },
   tag: {
     title: 'Tag',
-    getOptions: () => Object.entries(allTags()).sort((a,b) => b[1]-a[1]).map(([k,v]) => ({ value: k, label: k, count: v })),
+    getOptions: () => (isCloudMode() && STATE.cloudTags !== null
+      ? STATE.cloudTags.map(item => [item.tag, item.count]) : Object.entries(allTags()))
+      .sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]))
+      .map(([k,v]) => ({ value: k, label: k, count: v })),
     chipKey: 'tag',
     match: (e, val) => (e.tags || []).includes(val),
   },
@@ -427,7 +432,8 @@ function renderFacetPanel() {
   panel.setAttribute('aria-hidden', 'false');
   const def = FACET_DEFS[openFacet];
   document.getElementById('facet-panel-title').textContent = def.title;
-  const opts = def.getOptions();
+  const tagQuery = isCloudMode() && openFacet === 'tag' ? STATE.q.trim().toLowerCase() : '';
+  const opts = def.getOptions().filter(o => !tagQuery || o.value.toLowerCase().includes(tagQuery));
   const container = document.getElementById('facet-panel-options');
   container.classList.toggle('column', !!def.column);
   if (!opts.length) {
@@ -447,7 +453,7 @@ function renderFacetPanel() {
     return `
       <div class="facet-option ${stateCls}" data-key="${openFacet}" data-value="${escHtml(o.value)}" ${exclusive ? 'data-exclusive="1"' : ''}>
         <button class="opt-label" data-act="include" type="button">
-          <span class="prefix">${openFacet}:</span><span>${escHtml(o.label)}</span>
+          <span class="prefix">${openFacet}:</span><span>${tagQuery ? highlight(o.label, tagQuery) : escHtml(o.label)}</span>
           ${o.labelExtra ? `<span class="label-extra">${escHtml(o.labelExtra)}</span>` : ''}
           ${o.count != null ? `<span class="count">${o.count}</span>` : ''}
         </button>
@@ -826,6 +832,19 @@ function cloudEntry(document) {
 
 async function loadCloudData(query) {
   const workspaceId = window.SDocsCloudLibrary && window.SDocsCloudLibrary.workspaceId;
+  if (STATE.cloudTags === null || STATE.cloudTagsWorkspace !== workspaceId || !query) {
+    const params = new URLSearchParams();
+    if (workspaceId) params.set('account_id', workspaceId);
+    const tagsResponse = await fetch('/api/cloud/v1/account/tags?' + params.toString(),
+      { credentials: 'same-origin' });
+    if (tagsResponse.status === 401) {
+      location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
+      return;
+    }
+    if (!tagsResponse.ok) throw new Error('Cloud returned ' + tagsResponse.status);
+    STATE.cloudTags = (await tagsResponse.json()).tags || [];
+    STATE.cloudTagsWorkspace = workspaceId;
+  }
   let response;
   if (query && query.trim()) {
     response = await fetch('/api/cloud/v1/search', {
@@ -1097,6 +1116,7 @@ input.addEventListener('input', (e) => {
   } else {
     STATE.q = val;
   }
+  if (isCloudMode() && STATE.q.trim() && !openFacet) openFacet = 'tag';
   renderAll();
   if (isCloudMode()) {
     clearTimeout(window.SDocsCloudSearchTimer);
