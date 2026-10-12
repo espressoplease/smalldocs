@@ -1,0 +1,61 @@
+[
+  {
+    "category": "Engineering",
+    "title": "One operation, two requests",
+    "length": "Short",
+    "prompt": "sdoc me a visual explanation of safe retries",
+    "source": "retries-in-five-slides.md",
+    "background": "#F1F5FA"
+  },
+  {
+    "category": "Engineering",
+    "title": "Designing an order API that survives retries",
+    "length": "Medium",
+    "prompt": "sdoc me an idempotent order API design",
+    "source": "idempotent-order-api.md",
+    "background": "#F3F3FA"
+  },
+  {
+    "category": "Engineering",
+    "title": "Retries multiply: a reproducible failure study",
+    "length": "Long",
+    "prompt": "sdoc me a study of retry amplification with a working model",
+    "source": "retry-amplification-study.md",
+    "background": "#EFF5F6"
+  },
+  {
+    "category": "Science",
+    "title": "Palmer penguins: body mass, flipper length and species",
+    "prompt": "sdoc me a scientific analysis of the Palmer penguins dataset",
+    "url": "https://smalldocs.org/s/YrJDCfCD8-6j_uRE0pNCbI#k=odJRxWOIySVVS6QezFq_Kup8Hqw1j2s5lecv1xC_KQ0",
+    "background": "#F7F8F4"
+  },
+  {
+    "category": "Science",
+    "title": "AlphaFold 3: capabilities, evidence and limits",
+    "prompt": "sdoc me an evidence review of AlphaFold 3",
+    "url": "https://smalldocs.org/s/5FjK5e6FgKl0A72QvrnMsg#k=MpFi5wW824aaWKN0xNoAubM73VHFaAnOTyMN5H1y-xI",
+    "background": "#F7F8FA"
+  },
+  {
+    "category": "Science",
+    "title": "LLMs as a cognitive virus: the paper in five slides",
+    "prompt": "sdoc me a visual explanation of this paper's argument",
+    "url": "https://smalldocs.org/s/3PsKm-OLGfJzZISD6bd5Dd#k=LPC2tAzfdFzj-Juho89eHe5KeQPpwcLKrt9zC9_YQc4",
+    "background": "#F7F5EF"
+  },
+  {
+    "category": "Finance",
+    "title": "Costco's cash engine: an analysis of audited 2025 accounts",
+    "prompt": "sdoc me an analysis of Costco's cash flow with an editable model",
+    "source": "costco-cash-engine.md",
+    "background": "#FAF5EB"
+  },
+  {
+    "category": "Finance",
+    "title": "Profitable growth can run out of cash",
+    "prompt": "sdoc me a visual guide to working capital with a model",
+    "source": "working-capital-in-five-slides.md",
+    "background": "#F6F0EC"
+  }
+]

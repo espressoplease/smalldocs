@@ -7,7 +7,9 @@ for (const width of [390, 1440]) {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/home-next');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('document format and library');
-    await expect(page.locator('#learn .learn-item')).toHaveCount(8);
+    await expect(page.locator('#learn .learn-item')).toHaveCount(10);
+    await expect(page.locator('#learn [data-sample]')).toHaveCount(8);
+    expect(await page.locator('.sample-group-heading').allTextContents()).toEqual(['Engineering', 'Science', 'Finance']);
     await expect(page.locator('.sample-preview')).toHaveCount(0);
     await expect(page.locator('[data-install-form]')).toHaveCount(3);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
