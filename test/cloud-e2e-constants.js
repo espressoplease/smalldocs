@@ -6,11 +6,13 @@ const TEST_IDENTITIES = Object.freeze({
   removed: 'access-removed@smalldocs.org',
   outsider: 'personal-demo@smalldocs.org',
   evaluation: 'evaluation-demo@smalldocs.org',
+  evaluationStale: 'evaluation-stale-demo@smalldocs.org',
 });
 
 const TEST_LOGIN_EMAILS = Object.freeze([
   TEST_IDENTITIES.outsider,
   TEST_IDENTITIES.evaluation,
+  TEST_IDENTITIES.evaluationStale,
   TEST_IDENTITIES.owner,
   TEST_IDENTITIES.selected,
   TEST_IDENTITIES.removed,

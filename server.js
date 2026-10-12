@@ -164,7 +164,8 @@ const CLOUD_AUTH_DEV_LOG_CODES = cloudAuthHttp.canLogDevCodes({
 });
 const CLOUD_TEST_LOGIN_ENABLED = CLOUD_DEPLOYMENT.mode === 'staging' &&
   process.env.CLOUD_TEST_LOGIN_ENABLED === '1';
-const CLOUD_EVALUATION_ENABLED = process.env.CLOUD_EVALUATION_ENABLED === '1';
+const CLOUD_EVALUATION_ENABLED = CLOUD_DEPLOYMENT.mode === 'staging' &&
+  process.env.CLOUD_EVALUATION_ENABLED === '1';
 const CLOUD_EVALUATION_DURATION_DAYS = 30;
 const CLOUD_TEST_LOGIN_EMAILS = new Set(String(process.env.CLOUD_TEST_LOGIN_EMAILS || '')
   .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
@@ -380,6 +381,24 @@ function scheduleBillingLifecycleJobs(change) {
   }
 }
 
+function scheduleCloudEvaluationNotices(evaluation) {
+  if (!cloudJobs || !evaluation || evaluation.status !== 'active') return;
+  const lifecycle = require('./lib/cloud-evaluation-lifecycle');
+  const ownerUserIds = cloudStore && cloudStore.listWorkspaceOwnerUserIds(evaluation.workspaceId);
+  if (!ownerUserIds || !ownerUserIds.length) return;
+  for (const notice of lifecycle.scheduleNotices(evaluation)) {
+    for (const recipientUserId of ownerUserIds) {
+      const idempotencyKey = [evaluation.workspaceId, evaluation.startedAtMs,
+        evaluation.endsAtMs, notice.type, recipientUserId].join(':');
+      enqueueCloudJob({ type: 'cloud_evaluation_email', idempotencyKey,
+        availableAtMs: notice.availableAtMs,
+        payload: { workspaceId: evaluation.workspaceId, recipientUserId,
+          startedAtMs: evaluation.startedAtMs, endsAtMs: evaluation.endsAtMs,
+          noticeType: notice.type, eventType: notice.eventType, eventKey: notice.eventKey } });
+    }
+  }
+}
+
 function formatBillingDate(timestamp) {
   if (!Number.isSafeInteger(timestamp)) return '';
   const value = new Date(timestamp);
@@ -490,6 +509,45 @@ async function processCloudJob(job) {
       message.text, message.html);
     if (!delivered.ok) throw Object.assign(new Error('email_delivery_failed'),
       { code: 'email_delivery_failed' });
+    return;
+  }
+  if (job.type === 'cloud_evaluation_email') {
+    if (!cloudStore || !cloudAuth || !cloudBilling) {
+      throw Object.assign(new Error('temporary_service_failure'),
+        { code: 'temporary_service_failure' });
+    }
+    const lifecycle = require('./lib/cloud-evaluation-lifecycle');
+    const workspaceId = job.payload.workspaceId;
+    const eventKey = job.payload.eventKey;
+    if (cloudBilling.hasEvaluationEvent(workspaceId, eventKey)) return;
+    let entitlements = cloudBilling.computeEntitlements(workspaceId);
+    const expected = { type: job.payload.noticeType, startedAtMs: job.payload.startedAtMs,
+      endsAtMs: job.payload.endsAtMs };
+    if (!lifecycle.noticeIsCurrent({ evaluation: entitlements.evaluation, expected, now: Date.now() })) return;
+    const context = await cloudStore.getWorkspaceBillingContext(workspaceId);
+    if (!context || !context.ownerUserIds.includes(job.payload.recipientUserId)) return;
+    const recipient = verifiedCloudEmail(job.payload.recipientUserId);
+    if (!recipient) return;
+    entitlements = cloudBilling.computeEntitlements(workspaceId);
+    if (!lifecycle.noticeIsCurrent({ evaluation: entitlements.evaluation, expected, now: Date.now() })) return;
+    if (!teamsNotify.isConfigured()) throw Object.assign(new Error('email_delivery_not_configured'),
+      { code: 'email_delivery_not_configured' });
+    const base = CLOUD_AUTH_PUBLIC_ORIGIN;
+    const billingUrl = base + '/cloud/checkout?plan=personal&workspace_id=' +
+      encodeURIComponent(workspaceId);
+    const message = emailTemplates.cloudEvaluationNotice({
+      type: expected.type,
+      accountName: context.name,
+      endsAt: formatBillingDate(job.payload.endsAtMs),
+      billingUrl,
+      libraryUrl: base + '/library?scope=cloud',
+    });
+    const delivered = await teamsNotify.sendTo(recipient, message.subject,
+      message.text, message.html);
+    if (!delivered.ok) throw Object.assign(new Error('email_delivery_failed'),
+      { code: 'email_delivery_failed' });
+    cloudBilling.recordEvaluationEvent({ workspaceId, eventType: job.payload.eventType,
+      eventKey, occurredAtMs: Date.now() });
     return;
   }
   if (job.type === 'billing_retention_expire') {
@@ -1397,6 +1455,7 @@ async function handleCloudApi(req, res, url) {
       const evaluation = cloudBilling.startEvaluation({ workspaceId: workspace.id, ownerUserId: user.id,
         termsVersion: CURRENT_TERMS_VERSION, cloudFirstConsentAtMs: Date.now(),
         durationDays: CLOUD_EVALUATION_DURATION_DAYS, source: 'self_serve' });
+      scheduleCloudEvaluationNotices(evaluation);
       sendJson(res, 201, { ok: true, evaluation });
       return;
     }

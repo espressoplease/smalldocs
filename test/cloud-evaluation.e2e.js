@@ -54,6 +54,57 @@ test('no-card evaluation requires Cloud consent and starts a bounded Personal en
   const { evaluation } = await started.json();
   expect(evaluation.status).toBe('active');
   expect(evaluation.endsAtMs - evaluation.startedAtMs).toBe(30 * 24 * 60 * 60 * 1000);
+  const state = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'test-results',
+    'cloud-e2e-state.json'), 'utf8'));
+  const { createBillingStore } = require('../lib/cloud-billing');
+  const Database = require('better-sqlite3');
+  function withBillingStore(action) {
+    const store = createBillingStore({ dbPath: state.billingDb });
+    try { return action(store); } finally { store.close(); }
+  }
+  function withJobsDb(action) {
+    const db = new Database(state.jobsDb);
+    db.pragma('busy_timeout = 5000');
+    try { return action(db); } finally { db.close(); }
+  }
+  function capturedEmails() {
+    return JSON.parse(fs.readFileSync(state.emailsFile, 'utf8'));
+  }
+  function emailText(raw) {
+    const boundary = /boundary="([^"]+)"/.exec(raw)[1];
+    const part = raw.split('--' + boundary).find((item) => /text\/plain/i.test(item));
+    return Buffer.from(part.split('\r\n\r\n')[1].replace(/\r\n/g, ''), 'base64').toString('utf8');
+  }
+  function setNoticeClock(workspaceId, noticeType, startedAtMs, endsAtMs, availableAtMs) {
+    withBillingStore(function (store) {
+      store.db.prepare(`UPDATE cloud_evaluations SET started_at_ms = ?, ends_at_ms = ?,
+        cloud_first_consent_at_ms = ? WHERE workspace_id = ?`)
+        .run(startedAtMs, endsAtMs, startedAtMs, workspaceId);
+    });
+    withJobsDb(function (db) {
+      const jobs = db.prepare(`SELECT id, payload_json FROM cloud_jobs
+        WHERE type = 'cloud_evaluation_email' AND json_extract(payload_json, '$.workspaceId') = ?`)
+        .all(workspaceId);
+      for (const job of jobs) {
+        const payload = JSON.parse(job.payload_json);
+        payload.startedAtMs = startedAtMs;
+        payload.endsAtMs = endsAtMs;
+        db.prepare('UPDATE cloud_jobs SET payload_json = ?, available_at_ms = ? WHERE id = ?')
+          .run(JSON.stringify(payload), payload.noticeType === noticeType ? availableAtMs : endsAtMs, job.id);
+      }
+    });
+  }
+  const duplicateStart = await request.post(base + '/api/cloud/v1/evaluations', {
+    headers: { Origin: base }, data: { workspace_id: workspace.workspaceId,
+      terms_version: termsVersion, cloud_first_consent: true },
+  });
+  expect(duplicateStart.status()).toBe(201);
+  expect((await duplicateStart.json()).evaluation.startedAtMs).toBe(evaluation.startedAtMs);
+  const scheduled = withJobsDb((db) => db.prepare(`SELECT idempotency_key, available_at_ms, payload_json
+    FROM cloud_jobs WHERE type = 'cloud_evaluation_email' AND json_extract(payload_json, '$.workspaceId') = ?`)
+    .all(workspace.workspaceId));
+  expect(scheduled).toHaveLength(2);
+  expect(scheduled.map((job) => JSON.parse(job.payload_json).noticeType).sort()).toEqual(['expired', 'reminder']);
   const billing = await request.get(base + '/api/cloud/v1/workspaces/' + workspace.workspaceId + '/billing');
   expect(billing.status()).toBe(200);
   const billingBody = (await billing.json()).billing;
@@ -66,6 +117,10 @@ test('no-card evaluation requires Cloud consent and starts a bounded Personal en
   });
   expect(document.status()).toBe(201);
   const documentBody = await document.json();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const reminderStart = Date.now() - 23 * dayMs - 1000;
+  const reminderEnd = reminderStart + 30 * dayMs;
+  setNoticeClock(workspace.workspaceId, 'reminder', reminderStart, reminderEnd, Date.now() - 1000);
   const list = await request.get(base + '/api/cloud/v1/documents?workspace_id=' + workspace.workspaceId);
   expect(list.status()).toBe(200);
   expect((await list.json()).documents.map((item) => item.id)).toContain(documentBody.document.id);
@@ -76,17 +131,25 @@ test('no-card evaluation requires Cloud consent and starts a bounded Personal en
   });
   expect(exported.status()).toBe(200);
 
-  const state = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'test-results',
-    'cloud-e2e-state.json'), 'utf8'));
-  const { createBillingStore } = require('../lib/cloud-billing');
-  function withBillingStore(action) {
-    const store = createBillingStore({ dbPath: state.billingDb });
-    try { return action(store); } finally { store.close(); }
-  }
+  await expect.poll(() => capturedEmails().length, { timeout: 10000 }).toBe(1);
+  const reminderEmail = emailText(capturedEmails()[0]);
+  const reminderDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric',
+    timeZone: 'UTC' }).format(new Date(reminderEnd));
+  expect(reminderEmail).toContain(reminderDate);
+  expect(reminderEmail).toContain('Retention after the evaluation has not been decided');
+  expect(withBillingStore((store) => store.hasEvaluationEvent(workspace.workspaceId, 'reminder:7d'))).toBe(true);
+
+  const expiredAt = Date.now() - 1000;
+  setNoticeClock(workspace.workspaceId, 'expired', reminderStart, expiredAt, Date.now() - 1000);
   withBillingStore(function (store) {
     store.db.prepare('UPDATE cloud_evaluations SET ends_at_ms = ? WHERE workspace_id = ?')
-      .run(Date.now() - 1, workspace.workspaceId);
+      .run(expiredAt, workspace.workspaceId);
   });
+  await expect.poll(() => capturedEmails().length, { timeout: 10000 }).toBe(2);
+  const expiryEmail = emailText(capturedEmails()[1]);
+  expect(expiryEmail).toContain('Retention after the evaluation has not been decided');
+  expect(expiryEmail).toContain('does not schedule document deletion');
+  expect(withBillingStore((store) => store.hasEvaluationEvent(workspace.workspaceId, 'expiry_notice'))).toBe(true);
   const project = await request.get(base + '/api/cloud/v1/projects?workspace_id=' + workspace.workspaceId);
   expect(project.status()).toBe(200);
   const projectId = (await project.json()).projects[0].id;
@@ -142,4 +205,41 @@ test('no-card evaluation requires Cloud consent and starts a bounded Personal en
       WHERE workspace_id = ? AND event_type = 'paid_invoice'`).get(workspace.workspaceId);
   });
   expect(paidEvent).toEqual({ amount_minor: 400, currency: 'gbp' });
+
+  const secondLogin = await request.post(base + '/api/cloud/auth/test-login', {
+    headers: { Origin: base }, data: { email: TEST_IDENTITIES.evaluationStale,
+      secret: LOCAL_TEST_LOGIN_SECRET, return_to: '/cloud/evaluation' },
+  });
+  expect(secondLogin.status()).toBe(200);
+  const secondTermsPage = await request.get(base + '/cloud/terms?return=%2Fcloud%2Fevaluation');
+  const secondTermsHtml = await secondTermsPage.text();
+  const secondTermsVersion = /id="terms-version" type="hidden" value="([^"]+)"/.exec(secondTermsHtml)[1];
+  const secondTermsAccepted = await request.post(base + '/api/cloud/auth/terms/accept', {
+    headers: { Origin: base }, data: { accepted: true, terms_version: secondTermsVersion },
+  });
+  expect(secondTermsAccepted.status()).toBe(200);
+  const secondWorkspaceResult = await request.post(base + '/api/cloud/v1/workspaces', {
+    headers: { Origin: base }, data: { kind: 'personal' },
+  });
+  expect(secondWorkspaceResult.status()).toBe(201);
+  const secondWorkspace = (await secondWorkspaceResult.json()).workspace;
+  const secondStart = await request.post(base + '/api/cloud/v1/evaluations', {
+    headers: { Origin: base }, data: { workspace_id: secondWorkspace.workspaceId,
+      terms_version: secondTermsVersion, cloud_first_consent: true },
+  });
+  expect(secondStart.status()).toBe(201);
+  const staleStart = Date.now() - 31 * dayMs;
+  const staleEnd = Date.now() - 1000;
+  withBillingStore(function (store) {
+    store.upsertSubscription({ workspaceId: secondWorkspace.workspaceId, plan: 'personal',
+      status: 'active', seatQuantity: 1, provider: 'stripe',
+      providerSubscriptionId: 'sub_evaluation_stale_notice_fixture' });
+  });
+  setNoticeClock(secondWorkspace.workspaceId, 'expired', staleStart, staleEnd, Date.now() - 1000);
+  await expect.poll(() => withJobsDb((db) => db.prepare(`SELECT COUNT(*) AS count FROM cloud_jobs
+    WHERE type = 'cloud_evaluation_email' AND json_extract(payload_json, '$.workspaceId') = ?
+      AND state = 'complete'`).get(secondWorkspace.workspaceId).count), { timeout: 10000 }).toBe(2);
+  expect(capturedEmails()).toHaveLength(2);
+  expect(withBillingStore((store) => store.hasEvaluationEvent(secondWorkspace.workspaceId, 'expiry_notice')))
+    .toBe(false);
 });

@@ -101,7 +101,18 @@ async function main() {
   for (const [recipient, input] of billingPreviews) {
     await sendPreview(recipient + '@preview.smalldocs.test', templates.billingState(input));
   }
-  process.stdout.write('\nCaptured ' + (3 + billingPreviews.length) +
+  const evaluationUrl = 'https://cloud-staging.smalldocs.org/cloud/checkout?plan=personal&workspace_id=preview-workspace';
+  const libraryUrl = 'https://cloud-staging.smalldocs.org/library?scope=cloud';
+  const evaluationPreviews = [
+    ['cloud-evaluation-reminder', { type: 'reminder', accountName: 'SmallDocs Demo',
+      endsAt: '19 October 2026 at 10:00 UTC', billingUrl: evaluationUrl, libraryUrl }],
+    ['cloud-evaluation-expired', { type: 'expired', accountName: 'SmallDocs Demo',
+      endsAt: '12 October 2026 at 10:00 UTC', billingUrl: evaluationUrl, libraryUrl }],
+  ];
+  for (const [recipient, input] of evaluationPreviews) {
+    await sendPreview(recipient + '@preview.smalldocs.test', templates.cloudEvaluationNotice(input));
+  }
+  process.stdout.write('\nCaptured ' + (3 + billingPreviews.length + evaluationPreviews.length) +
     ' preview messages.\nOpen ' + uiOrigin + '\n');
 }
 

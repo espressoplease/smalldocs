@@ -4,7 +4,8 @@
 const path = require('path');
 const { createCloudJobs } = require('../lib/cloud-jobs');
 
-const EMAIL_JOB_TYPES = ['invitation_email', 'document_notification_email', 'billing_state_email'];
+const EMAIL_JOB_TYPES = ['invitation_email', 'document_notification_email', 'billing_state_email',
+  'cloud_evaluation_email'];
 
 function usage() {
   return [

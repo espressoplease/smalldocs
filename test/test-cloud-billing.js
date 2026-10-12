@@ -344,7 +344,8 @@ module.exports = function (harness) {
         termsVersion: 'terms-1', cloudFirstConsentAtMs: clock });
       billing.upsertSubscription({ workspaceId: convertedWorkspaceId, plan: 'personal', status: 'active',
         seatQuantity: 1, provider: 'testpay', providerSubscriptionId: 'paid-then-canceled' });
-      assert.strictEqual(billing.computeEntitlements(convertedWorkspaceId).evaluation.status, 'converted');
+      assert.strictEqual(billing.getEvaluation(convertedWorkspaceId).status, 'converted',
+        'the subscription webhook persists conversion before any later access request');
       billing.upsertSubscription({ workspaceId: convertedWorkspaceId, plan: 'personal', status: 'canceled',
         seatQuantity: 1, provider: 'testpay', providerSubscriptionId: 'paid-then-canceled' });
       const afterCancellation = billing.computeEntitlements(convertedWorkspaceId);
@@ -356,6 +357,61 @@ module.exports = function (harness) {
         provider: 'testpay', providerSubscriptionId: 'paid-after-eval' });
       assert.strictEqual(billing.computeEntitlements(workspaceId).evaluation.status, 'converted');
       assert.strictEqual(billing.computeEntitlements(workspaceId).access.write, false);
+    });
+
+    test('evaluation notice scheduling is dated and stale paid/expired notice states are rejected', () => {
+      const lifecycle = require('../lib/cloud-evaluation-lifecycle');
+      const evaluation = { workspaceId: 'wrk_notice', startedAtMs: clock,
+        endsAtMs: clock + 30 * lifecycle.DAY_MS, status: 'active' };
+      const notices = lifecycle.scheduleNotices(evaluation);
+      assert.deepStrictEqual(notices.map((notice) => [notice.type, notice.availableAtMs]), [
+        ['reminder', evaluation.startedAtMs + 23 * lifecycle.DAY_MS],
+        ['expired', evaluation.endsAtMs],
+      ]);
+      assert.strictEqual(lifecycle.noticeIsCurrent({ evaluation,
+        expected: { type: 'reminder', startedAtMs: evaluation.startedAtMs,
+          endsAtMs: evaluation.endsAtMs }, now: evaluation.startedAtMs + 23 * lifecycle.DAY_MS }), true);
+      assert.strictEqual(lifecycle.noticeIsCurrent({ evaluation: Object.assign({}, evaluation,
+        { status: 'converted' }), expected: { type: 'reminder', startedAtMs: evaluation.startedAtMs,
+          endsAtMs: evaluation.endsAtMs }, now: evaluation.startedAtMs + 23 * lifecycle.DAY_MS }), false);
+      assert.strictEqual(lifecycle.noticeIsCurrent({ evaluation: Object.assign({}, evaluation,
+        { endsAtMs: evaluation.endsAtMs + 1 }), expected: { type: 'expired',
+          startedAtMs: evaluation.startedAtMs, endsAtMs: evaluation.endsAtMs }, now: evaluation.endsAtMs }), false);
+    });
+
+    test('evaluation event schema migration preserves existing events and allows notice events', () => {
+      const Database = require('better-sqlite3');
+      const legacyPath = path.join(dir, 'legacy-evaluation.db');
+      const legacy = new Database(legacyPath);
+      legacy.exec(`
+        CREATE TABLE cloud_evaluations (
+          workspace_id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, started_at_ms INTEGER NOT NULL,
+          ends_at_ms INTEGER NOT NULL, terms_version TEXT NOT NULL, cloud_first_consent_at_ms INTEGER NOT NULL,
+          converted_at_ms INTEGER, source TEXT NOT NULL, created_at_ms INTEGER NOT NULL
+        );
+        INSERT INTO cloud_evaluations VALUES
+          ('wrk_legacy_evaluation', 'user_legacy', 1000, 9000, 'terms-1', 1000, NULL, 'self_serve', 1000);
+        CREATE TABLE cloud_evaluation_events (
+          workspace_id TEXT NOT NULL REFERENCES cloud_evaluations(workspace_id),
+          event_key TEXT NOT NULL,
+          event_type TEXT NOT NULL CHECK(event_type IN
+            ('evaluation_started', 'first_document', 'return', 'checkout_started', 'paid_invoice')),
+          occurred_at_ms INTEGER NOT NULL, amount_minor INTEGER, currency TEXT,
+          PRIMARY KEY(workspace_id, event_key)
+        );
+        INSERT INTO cloud_evaluation_events VALUES
+          ('wrk_legacy_evaluation', 'evaluation_started', 'evaluation_started', 1000, NULL, NULL);
+      `);
+      legacy.close();
+      const migrated = createBillingStore({ dbPath: legacyPath, now: () => 2000 });
+      try {
+        assert.strictEqual(migrated.hasEvaluationEvent('wrk_legacy_evaluation', 'evaluation_started'), true);
+        assert.strictEqual(migrated.recordEvaluationEvent({ workspaceId: 'wrk_legacy_evaluation',
+          eventType: 'reminder_sent', eventKey: 'reminder:7d' }).recorded, true);
+        assert.strictEqual(migrated.hasEvaluationEvent('wrk_legacy_evaluation', 'reminder:7d'), true);
+      } finally {
+        migrated.close();
+      }
     });
 
     billing.close();
