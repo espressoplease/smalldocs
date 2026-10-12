@@ -7,12 +7,12 @@ for (const width of [390, 1440]) {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/home-next');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('document format and library');
-    await expect(page.locator('.homepage-samples li')).toHaveCount(4);
+    await expect(page.locator('#learn .learn-item')).toHaveCount(8);
     await expect(page.locator('.sample-preview')).toHaveCount(0);
     await expect(page.locator('[data-install-form]')).toHaveCount(3);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    for (const link of await page.locator('[data-sample]').all()) {
-      expect(await link.getAttribute('href')).toMatch(/^\/docs#md=/);
+    for (const link of await page.locator('#learn .learn-item').all()) {
+      expect(await link.getAttribute('href')).toMatch(/^(https:\/\/smalldocs\.org)?\//);
     }
     expect(errors).toEqual([]);
   });

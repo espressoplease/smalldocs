@@ -14,14 +14,6 @@
 .homepage-email button:disabled { opacity: .6; }
 .start-status:empty { display: none; }
 .start-status { margin-top: 10px; }
-.homepage-section { margin-top: 58px; scroll-margin-top: 80px; }
-.homepage-section h2 { font-size: var(--t-h2); font-weight: 500; letter-spacing: -.025em; }
-.homepage-samples { padding-left: 20px; margin-top: 24px; color: var(--ink-2); }
-.homepage-samples li { margin-top: 20px; }
-.homepage-samples a { color: var(--accent-ink); text-underline-offset: 3px; }
-.homepage-samples p { font-size: var(--t-sm); margin-top: 5px; }
-.home-next .praise-grid { grid-template-columns: 1fr; }
-.home-next .praise-card { min-height: 0; }
 .install-reveal { margin-top: 28px; scroll-margin-top: 90px; }
 .install-reveal[hidden] { display: none; }
 .install-reveal .install-cmd { margin-top: 18px; }
