@@ -53,10 +53,10 @@ test('finance workbooks reconcile the statements and respond to changed assumpti
 });
 
 test('the embedded reproduction programs run and agree with the published results', () => {
-  for (const file of ['retry-amplification-study.md', 'costco-cash-engine.md']) {
+  for (const file of ['retry-amplification-study.md', 'costco-cash-engine.md', 'newton-convergence.md']) {
     const python = read(file).match(/~~~python\n([\s\S]*?)\n~~~/)[1];
     const output = execFileSync('python3', ['-c', python], { encoding: 'utf8' });
-    expect(output).toContain(file.startsWith('retry') ? '20%,1.2400,0.8000%,20.0000%' : 'Post-capex cash after stress: 4541.86');
+    expect(output).toContain(file.startsWith('retry') ? '20%,1.2400,0.8000%,20.0000%' : file.startsWith('newton') ? 'Cycle: [0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0]' : 'Post-capex cash after stress: 4541.86');
   }
 });
 
@@ -72,10 +72,24 @@ test('the date-picker bug reproduces in US time zones and the fix preserves ever
   }
 });
 
+test('mathematics workbooks expose the reversal and the convergent square-root recurrence', () => {
+  const simpson = calculate('simpsons-paradox.md');
+  expect(value(simpson, 'Weights', 'Observed A minus B')).toBeCloseTo(.55 - 810 / 1100, 12);
+  for (const w of [0, .25, .5, 1]) {
+    const sheets = calculate('simpsons-paradox.md', source => source.replace('Common easy-problem weight,0.5', 'Common easy-problem weight,' + w));
+    expect(value(sheets, 'Weights', 'Standardized A minus B')).toBeCloseTo(.1, 12);
+  }
+  const newton = calculate('newton-convergence.md');
+  expect(value(newton, 'Checks', 'Final iterate')).toBeCloseTo(Math.sqrt(2), 12);
+  expect(value(newton, 'Checks', 'Final residual')).toBeLessThan(1e-12);
+});
+
 test('homepage links retain the document sources, original science URLs and background colours', async ({ page }) => {
   await page.goto('/home-next');
   const links = page.locator('[data-sample]');
-  await expect(links).toHaveCount(8);
+  await expect(links).toHaveCount(10);
+  await expect(page.locator('#learn .trouble')).toHaveCount(0);
+  await expect(page.locator('#learn a[href="/runnable-html"], #learn a[href="/developers"]')).toHaveCount(0);
   expect(await links.locator('.learn-item-prompt').allTextContents()).toEqual(samples.map(sample => '“' + sample.prompt + '”'));
   const html = fs.readFileSync(path.join(__dirname, '../public/homepage-next.html'), 'utf8');
   expect(html).toContain(renderSamples());
@@ -112,7 +126,7 @@ for (const width of [390, 1440]) {
       if (await expand.isVisible()) await expand.click();
       await expect(page.locator('.sdoc-slide-errbadge')).toHaveCount(0);
       if (sample.source.includes('five-slides')) await expect(page.locator('.sdoc-slide')).toHaveCount(5);
-      if (sample.source.includes('study') || sample.category === 'Finance') {
+      if (sample.source.includes('study') || sample.category === 'Finance' || sample.category === 'Mathematics') {
         await page.locator('.sdoc-chart').first().scrollIntoViewIfNeeded();
         await expect(page.locator('canvas').first()).toBeVisible();
         await expect(page.locator('.sdoc-cells-grid').first()).toBeVisible();
@@ -121,6 +135,10 @@ for (const width of [390, 1440]) {
       if (diagramCount) {
         await expect(page.locator('.sdoc-mermaid-stage > svg')).toHaveCount(diagramCount, { timeout: 15000 });
         await expect(page.locator('.sdoc-mermaid-error-msg')).toHaveCount(0);
+      }
+      if (sample.category === 'Mathematics') {
+        await expect(page.locator('#_sd_rendered .katex').first()).toBeVisible();
+        await expect(page.locator('#_sd_rendered .katex-error')).toHaveCount(0);
       }
       if (sample.source === 'idempotent-order-api.md') {
         const positions = await page.evaluate(() => ({

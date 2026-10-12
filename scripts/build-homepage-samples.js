@@ -12,8 +12,8 @@ const escape = value => String(value).replace(/[&<>"']/g, char => ({
 const icon = '<svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>';
 
 function renderSamples() {
-  const headings = { Engineering: 'For engineers:', Science: 'For scientists:', Finance: 'For financiers:' };
-  return ['Engineering', 'Science', 'Finance'].map(category => {
+  const headings = { Engineering: 'For engineers:', Science: 'For scientists:', Finance: 'For financiers:', Mathematics: 'For mathematicians:' };
+  return ['Engineering', 'Science', 'Finance', 'Mathematics'].map(category => {
     const links = samples.filter(sample => sample.category === category).map(sample => {
       const url = sample.url || buildUrl(fs.readFileSync(path.join(directory, sample.source), 'utf8'), { url: '/docs' }).replace('/docs/#', '/docs#');
       return `            <a class="learn-item" data-sample="${escape(sample.source || sample.title)}" href="${escape(url)}" style="--sample-background: ${escape(sample.background)}" target="_blank" rel="noopener">

@@ -57,5 +57,19 @@
     "prompt": "sdoc me a visual guide to working capital with a model",
     "source": "working-capital-in-five-slides.md",
     "background": "#F6F0EC"
+  },
+  {
+    "category": "Mathematics",
+    "title": "Simpson's paradox: when two correct comparisons disagree",
+    "prompt": "sdoc me a worked proof of Simpson's paradox with an editable model",
+    "source": "simpsons-paradox.md",
+    "background": "#F2F6EE"
+  },
+  {
+    "category": "Mathematics",
+    "title": "Newton's method: a proof and a counterexample",
+    "prompt": "sdoc me a proof of quadratic convergence for Newton's square-root method and a failure case",
+    "source": "newton-convergence.md",
+    "background": "#F5F1F8"
   }
 ]
