@@ -16,7 +16,7 @@ function renderSamples() {
     const links = samples.filter(sample => sample.category === category).map(sample => {
       const url = sample.url || buildUrl(fs.readFileSync(path.join(directory, sample.source), 'utf8'), { url: '/docs' }).replace('/docs/#', '/docs#');
       return `            <a class="learn-item" data-sample="${escape(sample.source || sample.title)}" href="${escape(url)}" style="--sample-background: ${escape(sample.background)}" target="_blank" rel="noopener">
-              <span class="learn-item-prompt"><span class="sample-title">${escape(sample.title)}${sample.length ? ` <span class="sample-length">(${escape(sample.length)})</span>` : ''}</span><span class="sample-prompt">&ldquo;${escape(sample.prompt)}&rdquo;</span></span>
+              <span class="learn-item-prompt">&ldquo;${escape(sample.prompt)}&rdquo;</span>
               ${icon}
             </a>`;
     }).join('\n');

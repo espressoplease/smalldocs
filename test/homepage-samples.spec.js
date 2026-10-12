@@ -76,14 +76,18 @@ test('homepage links retain the document sources, original science URLs and back
   await page.goto('/home-next');
   const links = page.locator('[data-sample]');
   await expect(links).toHaveCount(8);
-  expect(await page.locator('#samples-engineering + a .sample-length').textContent()).toBe('(Medium)');
-  expect(await page.locator('#samples-engineering').locator('..').locator('.sample-length').allTextContents()).toEqual(['(Medium)', '(Short)', '(Long)']);
+  expect(await links.locator('.learn-item-prompt').allTextContents()).toEqual(samples.map(sample => '“' + sample.prompt + '”'));
   const html = fs.readFileSync(path.join(__dirname, '../public/homepage-next.html'), 'utf8');
   expect(html).toContain(renderSamples());
   for (const [index, sample] of samples.entries()) {
     const href = await links.nth(index).getAttribute('href');
     await expect(links.nth(index)).toHaveAttribute('target', '_blank');
     const tint = await links.nth(index).evaluate(link => getComputedStyle(link).backgroundColor);
+    const colours = await links.nth(index).evaluate(link => [
+      getComputedStyle(link).color,
+      getComputedStyle(link.querySelector('.learn-item-prompt')).color
+    ]);
+    expect(colours[0]).toBe(colours[1]);
     const rgb = sample.background.match(/\w\w/g).map(pair => parseInt(pair, 16));
     expect(tint).toBe(`rgb(${rgb.join(', ')})`);
     if (sample.source) {

@@ -40,7 +40,7 @@
   {
     "category": "Science",
     "title": "LLMs as a cognitive virus: the paper in five slides",
-    "prompt": "sdoc me a visual explanation of this paper's argument",
+    "prompt": "sdoc me a visual explanation of the LLMs as a Cognitive Virus paper",
     "url": "https://smalldocs.org/s/3PsKm-OLGfJzZISD6bd5Dd#k=LPC2tAzfdFzj-Juho89eHe5KeQPpwcLKrt9zC9_YQc4",
     "background": "#F7F5EF"
   },
