@@ -36,6 +36,7 @@
   margin: 0 auto;
 }
 
+.home-next #learn .install-grid { display: block; }
 .sample-group { display: flex; flex-direction: column; gap: 6px; }
 .sample-group + .sample-group { margin-top: 14px; }
 .sample-group-heading { margin: 0 0 2px; font-size: 1.0625rem; line-height: 1.65; font-weight: 500; color: var(--ink-2); }
