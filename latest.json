@@ -1,6 +1,6 @@
 {
-  "commit": "ba5934abb7a30fbfef7aa7beff683f36eb750906",
-  "builtAt": "2026-10-10T21:50:53Z",
+  "commit": "e5c705b24e8537dd5b2041fc3eb11801928af375",
+  "builtAt": "2026-10-12T14:09:43Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -185,8 +185,8 @@
     },
     {
       "path": "/css/cloud-ui-lab.css",
-      "sha256": "5aa303783230b219708b90ea6992acc1e84d7a982d8898d8798ba02a6695d9dc",
-      "bytes": 15489
+      "sha256": "a46e1adabf428d1fabfce7f10c17fd0e3d7fc5b07575c96dd85ed6337d08fc11",
+      "bytes": 16861
     },
     {
       "path": "/css/code-reader.css",
@@ -560,8 +560,8 @@
     },
     {
       "path": "/library/library.js",
-      "sha256": "7543d9b28de962732fc67a2c049e5109d50a47dfb67b634616d8d45f43743377",
-      "bytes": 45349
+      "sha256": "8bf59446ce349200cba335fa914de2cac02490c9e3deaeb04331a4991cb3380e",
+      "bytes": 46916
     },
     {
       "path": "/library/rescued.html",
@@ -675,8 +675,8 @@
     },
     {
       "path": "/sdocs-cloud-prototype.js",
-      "sha256": "c5fff00732455030619570f029855c25e9763476b930db8a8bcc47612aa3cda6",
-      "bytes": 42989
+      "sha256": "06946609fceac3760d4fe6acd7db30f9d9e38b614a99e082b6ff7747b1d4d6a8",
+      "bytes": 44700
     },
     {
       "path": "/sdocs-cloud-ui-lab.js",
