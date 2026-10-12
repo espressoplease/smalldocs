@@ -1,15 +1,5 @@
 ---
 title: Designing an order API that survives retries
-styles:
-  background: "#F3F3FA"
-  color: "#292743"
-  h2:
-    color: "#484079"
-  blocks:
-    background: "#E9E8F3"
-    color: "#292743"
-  chart:
-    accent: "#62579B"
 ---
 
 # Designing an order API that survives retries

@@ -5,7 +5,8 @@
     "length": "Medium",
     "prompt": "sdoc me an idempotent order API design",
     "source": "idempotent-order-api.md",
-    "background": "#F3F3FA"
+    "background": "#FFFFFF",
+    "standardStyle": true
   },
   {
     "category": "Engineering",
@@ -34,8 +35,9 @@
     "category": "Science",
     "title": "AlphaFold 3: capabilities, evidence and limits",
     "prompt": "sdoc me an evidence review of AlphaFold 3",
-    "url": "https://smalldocs.org/s/5FjK5e6FgKl0A72QvrnMsg#k=MpFi5wW824aaWKN0xNoAubM73VHFaAnOTyMN5H1y-xI",
-    "background": "#F7F8FA"
+    "background": "#FFFFFF",
+    "standardStyle": true,
+    "source": "alphafold3-benchmark-audit.md"
   },
   {
     "category": "Science",

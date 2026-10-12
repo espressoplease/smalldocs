@@ -16,7 +16,8 @@ function renderSamples() {
   return ['Engineering', 'Science', 'Finance', 'Mathematics'].map(category => {
     const links = samples.filter(sample => sample.category === category).map(sample => {
       const url = sample.url || buildUrl(fs.readFileSync(path.join(directory, sample.source), 'utf8'), { url: '/docs' }).replace('/docs/#', '/docs#');
-      return `            <a class="learn-item" data-sample="${escape(sample.source || sample.title)}" href="${escape(url)}" style="--sample-background: ${escape(sample.background)}" target="_blank" rel="noopener">
+      const style = sample.standardStyle ? ' data-sample-standard' : ` style="--sample-background: ${escape(sample.background)}"`;
+      return `            <a class="learn-item" data-sample="${escape(sample.source || sample.title)}" href="${escape(url)}"${style} target="_blank" rel="noopener">
               <span class="learn-item-prompt">&ldquo;${escape(sample.prompt)}&rdquo;</span>
               ${icon}
             </a>`;

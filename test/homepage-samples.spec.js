@@ -102,12 +102,14 @@ test('homepage links retain the document sources, original science URLs and back
       getComputedStyle(link.querySelector('.learn-item-prompt')).color
     ]);
     expect(colours[0]).toBe(colours[1]);
-    const rgb = sample.background.match(/\w\w/g).map(pair => parseInt(pair, 16));
+    const buttonBackground = sample.standardStyle ? await links.nth(index).evaluate(link => getComputedStyle(link).getPropertyValue('--paper').trim()) : sample.background;
+    const rgb = buttonBackground.match(/\w\w/g).map(pair => parseInt(pair, 16));
     expect(tint).toBe(`rgb(${rgb.join(', ')})`);
     if (sample.source) {
       const decoded = decompressFromBase64Url(new URL(href, 'http://localhost').hash.slice(1).replace(/^md=/, ''));
       expect(parseFrontMatter(decoded).body).toBe(parseFrontMatter(read(sample.source)).body);
-      expect(parseFrontMatter(decoded).meta.styles.background).toBe(sample.background);
+      if (sample.standardStyle) expect(parseFrontMatter(decoded).meta.styles).toBeUndefined();
+      else expect(parseFrontMatter(decoded).meta.styles.background).toBe(sample.background);
     } else expect(href).toBe(sample.url);
   }
 });
@@ -122,6 +124,9 @@ for (const width of [390, 1440]) {
       const body = parseFrontMatter(read(sample.source)).body;
       const title = sample.source.includes('five-slides') ? body.match(/^#title: (.+)$/m)[1] : body.match(/^# (.+)$/m)[1];
       await expect(page.locator('#_sd_rendered')).toContainText(title);
+      if (sample.standardStyle) {
+        expect(await page.locator('#_sd_rendered').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
+      }
       const expand = page.getByRole('button', { name: 'Expand all', exact: true });
       if (await expand.isVisible()) await expand.click();
       await expect(page.locator('.sdoc-slide-errbadge')).toHaveCount(0);
