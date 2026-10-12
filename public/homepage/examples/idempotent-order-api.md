@@ -20,6 +20,21 @@ Your checkout service creates an order, commits it, and loses the response. The 
 
 This walkthrough covers a local order record in PostgreSQL. Charging a card is a separate effect and requires a separate protocol.
 
+~~~mermaid
+sequenceDiagram
+  participant C as Client
+  participant A as Order API
+  participant D as Database
+  C->>A: POST orders, key K, payload P
+  A->>D: BEGIN and claim account + endpoint + K
+  A->>D: Create order and save response
+  A->>D: COMMIT
+  A--xC: Response lost
+  C->>A: Retry with the same K and P
+  A->>D: Read committed operation
+  A-->>C: Replay the saved response
+~~~
+
 ## Define the contract before the handler
 
 `POST /orders` requires an `Idempotency-Key`. A client creates a fresh random key when the user intends a new order and persists it through retries. The authenticated account supplies the scope; a caller cannot choose another account through the request body.
@@ -35,21 +50,6 @@ This walkthrough covers a local order record in PostgreSQL. Charging a card is a
 Stripe's [idempotency API](https://docs.stripe.com/api/idempotent_requests) provides a concrete example of replaying results and rejecting parameter mismatches. The design below is an illustrative contract, not a reproduction of Stripe's implementation.
 
 ## Put the effect inside the boundary
-
-~~~mermaid
-sequenceDiagram
-  participant C as Client
-  participant A as Order API
-  participant D as Database
-  C->>A: POST orders, key K, payload P
-  A->>D: BEGIN and claim account + endpoint + K
-  A->>D: Create order and save response
-  A->>D: COMMIT
-  A--xC: Response lost
-  C->>A: Retry with the same K and P
-  A->>D: Read committed operation
-  A-->>C: Replay the saved response
-~~~
 
 The unique claim, order creation and response storage must commit together. A cache entry written after the order commits leaves a crash window. A cache entry written before the order commits can advertise a result that does not exist.
 

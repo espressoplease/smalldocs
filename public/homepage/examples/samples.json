@@ -1,19 +1,19 @@
 [
   {
     "category": "Engineering",
-    "title": "One operation, two requests",
-    "length": "Short",
-    "prompt": "sdoc me a visual explanation of safe retries",
-    "source": "retries-in-five-slides.md",
-    "background": "#F1F5FA"
-  },
-  {
-    "category": "Engineering",
     "title": "Designing an order API that survives retries",
     "length": "Medium",
     "prompt": "sdoc me an idempotent order API design",
     "source": "idempotent-order-api.md",
     "background": "#F3F3FA"
+  },
+  {
+    "category": "Engineering",
+    "title": "Bug report: the due date moves back one day",
+    "length": "Short",
+    "prompt": "sdoc me a bug report for a date picker showing the wrong day",
+    "source": "date-picker-bug-report.md",
+    "background": "#F1F5FA"
   },
   {
     "category": "Engineering",

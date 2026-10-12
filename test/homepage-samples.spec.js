@@ -60,11 +60,24 @@ test('the embedded reproduction programs run and agree with the published result
   }
 });
 
+test('the date-picker bug reproduces in US time zones and the fix preserves every calendar date', () => {
+  const blocks = [...read('date-picker-bug-report.md').matchAll(/~~~javascript\n([\s\S]*?)\n~~~/g)].map(match => match[1]);
+  for (const timezone of ['America/Los_Angeles', 'America/New_York', 'Europe/London', 'Asia/Tokyo']) {
+    const output = execFileSync(process.execPath, ['-e', blocks.join('\n')], {
+      encoding: 'utf8', env: { ...process.env, TZ: timezone }
+    }).trim().split('\n');
+    expect(output[0]).toBe('2026-01-01');
+    expect(output[1]).toBe(timezone.startsWith('America/') ? 'Dec 31, 2025' : 'Jan 1, 2026');
+    expect(output[2]).toBe('Jan 1, 2026');
+  }
+});
+
 test('homepage links retain the document sources, original science URLs and background colours', async ({ page }) => {
   await page.goto('/home-next');
   const links = page.locator('[data-sample]');
   await expect(links).toHaveCount(8);
-  expect(await page.locator('#samples-engineering + a .sample-length').textContent()).toBe('(Short)');
+  expect(await page.locator('#samples-engineering + a .sample-length').textContent()).toBe('(Medium)');
+  expect(await page.locator('#samples-engineering').locator('..').locator('.sample-length').allTextContents()).toEqual(['(Medium)', '(Short)', '(Long)']);
   const html = fs.readFileSync(path.join(__dirname, '../public/homepage-next.html'), 'utf8');
   expect(html).toContain(renderSamples());
   for (const [index, sample] of samples.entries()) {
@@ -104,6 +117,13 @@ for (const width of [390, 1440]) {
       if (diagramCount) {
         await expect(page.locator('.sdoc-mermaid-stage > svg')).toHaveCount(diagramCount, { timeout: 15000 });
         await expect(page.locator('.sdoc-mermaid-error-msg')).toHaveCount(0);
+      }
+      if (sample.source === 'idempotent-order-api.md') {
+        const positions = await page.evaluate(() => ({
+          diagram: document.querySelector('.sdoc-mermaid').getBoundingClientRect().top,
+          heading: document.querySelector('#_sd_rendered h2').getBoundingClientRect().top
+        }));
+        expect(positions.diagram).toBeLessThan(positions.heading);
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       const clipped = await page.locator('.sdoc-slide .shape-md').evaluateAll(shapes => shapes
