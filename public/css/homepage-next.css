@@ -30,3 +30,8 @@
 @media (max-width: 620px) {
   .home-next .hero-display { font-size: 30px; }
 }
+
+.home-next :is(#learn, #praise) .install-panel {
+  max-width: 79ch;
+  margin: 0 auto;
+}

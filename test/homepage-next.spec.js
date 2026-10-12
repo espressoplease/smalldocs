@@ -76,18 +76,19 @@ test('the introduction is a 30-second clip with captions', async ({ page }) => {
 test('homepage experiment preserves the supplied copy and vertical order', async ({ page }) => {
   await page.goto('/home-next');
   const expected = [
-    'You use it when you want to escape the limits of your chat interface or save an agents thinking at a given point in time. Your agents can use it on their own: a remote agent can write a SmallDoc and notify you.',
+    'You use it when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Your agents can use it on their own: a remote agent can write a SmallDoc and notify you.',
     'SmallDocs are more powerful than the document formats you’re used to (Word, Excel, PowerPoint, Markdown, code and HTML artefacts). SmallDocs combine all these formats into one: a single SmallDoc can include slides, a multi-tab spreadsheet, charts, code, an HTML widget and text to link it all together. This flexibility reflects the range of tasks your agents face.',
-    'Despite their depth, SmallDocs are lightweigt to use. To get your agent to produce a SmallDoc, simply mention “sdoc”: “write me a sdoc about (topic)”. They also render instantly in the browser, read beautifully on mobile and they’re seamlessly sharable within your team and beyond.',
-    'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code, charts, etc. and the ability to leave comments on a document for your agent to pick up',
-    'SmallDocs are automatically saved to an encrypted cloud library.',
-    'Over 4,000 developers, financiers and scientists use SmallDocs. To join them enter your email to access your install script:',
-    'SmallDocs is completely free for a month then £4/month for individuals and £7/month/user for teams.',
+    'Despite their depth, SmallDocs are lightweight to use. To get your agent to produce a SmallDoc, simply mention “sdoc”: “write me a sdoc about (topic)”. They also render instantly in the browser, read beautifully on mobile and they’re seamlessly shareable within your team and beyond.',
+    'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up.',
+    'SmallDocs are automatically saved to an encrypted cloud library. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).',
+    'SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.',
+    'Over 4,000 developers, financiers and scientists use SmallDocs. To join them, enter your email to access your install script:',
+    'SmallDocs is free for a month, then £4/month for individuals and £7/month/user for teams.',
   ];
   expect(await page.locator('.homepage-copy').allTextContents()).toEqual(expected);
   await expect(page.locator('h1')).toHaveText('SmallDocs is a document format and library for coding agents.');
   expect(await page.locator('[data-install-form] button').allTextContents())
-    .toEqual(['Get install link', 'start using SmallDocs', 'start using SmallDocs']);
+    .toEqual(Array(3).fill('Get install link'));
   const positions = await page.evaluate(() => ['.homepage-small-video','h1','.homepage-copy','#start','#samples','#praise']
     .map(selector => document.querySelector(selector).getBoundingClientRect().top));
   expect(positions).toEqual([...positions].sort((a,b) => a-b));
