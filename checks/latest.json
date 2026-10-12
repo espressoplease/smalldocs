@@ -1,11 +1,20 @@
 {
-  "checkedAt": "2026-10-12T14:10:04.340Z",
+  "checkedAt": "2026-10-12T17:46:36.794Z",
   "base": "https://smalldocs.org",
   "commit": "e5c705b24e8537dd5b2041fc3eb11801928af375",
   "commitShort": "e5c705b",
-  "result": "ok",
+  "result": "mismatch",
   "totalFiles": 209,
-  "matched": 209,
-  "mismatches": [],
+  "matched": 207,
+  "mismatches": [
+    {
+      "path": "/business.html",
+      "error": "fetch failed"
+    },
+    {
+      "path": "/brotli-wasm-v1.js",
+      "error": "fetch failed"
+    }
+  ],
   "manifestUrl": "https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/e5c705b24e8537dd5b2041fc3eb11801928af375.json"
 }
