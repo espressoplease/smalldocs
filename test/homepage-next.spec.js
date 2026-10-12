@@ -80,6 +80,7 @@ test('homepage experiment preserves the supplied copy and vertical order', async
     'SmallDocs are more powerful than the document formats you’re used to (Word, Excel, PowerPoint, Markdown, code and HTML artefacts). SmallDocs combine all these formats into one: a single SmallDoc can include slides, a multi-tab spreadsheet, charts, code, an HTML widget and text to link it all together. This flexibility reflects the range of tasks your agents face.',
     'Despite their depth, SmallDocs are lightweigt to use. To get your agent to produce a SmallDoc, simply mention “sdoc”: “write me a sdoc about (topic)”. They also render instantly in the browser, read beautifully on mobile and they’re seamlessly sharable within your team and beyond.',
     'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, charts, etc. and the ability to leave comments on a document for your agent to pick up',
+    'SmallDocs are automatically saved to an encrypted cloud library.',
     'Over 4,000 developers, financiers and scientists use SmallDocs. To join them enter your email to access your install script:',
     'SmallDocs is completely free for a month then £4/month for individuals and £7/month/user for teams.',
   ];
